@@ -4,9 +4,7 @@ Content catalog. Read this first when answering a query to find the right page, 
 
 ## Game design
 
-_(stubs — to be filled as ingestion proceeds)_
-
-- `game/overview.md` — what Lady Bug is, levels, scoring, win condition
+- [Game design overview](game/overview.md) — full design doc: playfield, entities, scoring, vegetable cycle, open questions for the CoCo 3 port
 - `game/maze.md` — playfield, turnstiles, edibles
 - `game/enemies.md` — skull and bug AI
 - `game/scoring.md` — point values, bonus letters, special-vegetable cycle
@@ -31,8 +29,8 @@ _(stubs — bare-metal CoCo 3 / 6809, no NitrOS-9)_
 
 ## Sources
 
-- `sources/coco3-asm-tepolt.md` — Assembly Language Programming for the CoCo 3 (Tepolt, 1987)
-- `sources/ladybug-arcade.md` — arcade-original reference (game mechanics, ROM disassembly if available)
+- `sources/coco3-asm-tepolt.md` — Assembly Language Programming for the CoCo 3 (Tepolt, 1987) _(stub)_
+- [Lady Bug arcade — web ingest](sources/ladybug-arcade.md) — aggregated public web sources, with gaps flagged
 
 ## Special
 
