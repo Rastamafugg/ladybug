@@ -69,6 +69,12 @@ User requested full build/deploy runbooks for the WSL toolchain at `~/coco-tools
 
 `wiki/index.md` updated: new Tooling section; old `platform/toolchain.md` and `implementation/build-workflow.md` stubs marked superseded.
 
+## [2026-05-08] phase | Phase 0 — Hello cart — passed
+
+22-byte stub at `$C000` with `FCC "DK"` autostart magic + entry code took control under XRoar via the BASIC CART/FIRQ handshake. Screen showed our 32-byte `$AA` marker on row 0 over BASIC's default `$60` green fill — no banner, no `OK` prompt. Confirmed [`platform/cartridge.md`](platform/cartridge.md)'s boot handshake description is correct as written. Filed Phase-0 finding to [`implementation/lessons-learned.md`](implementation/lessons-learned.md), including a sanity-note on CoCo VDG SG4 byte semantics. Roadmap Phase 0 marked done. Created [`src/main.s`](../src/main.s) (first source file in `src/`).
+
+---
+
 ## [2026-05-08] decision | Implementation roadmap committed
 
 User asked for a phased plan from current state to finished game with POCs and review gates. Wrote [`implementation/roadmap.md`](implementation/roadmap.md) — 11 phases (0: hello cart, 1: boot init, 2: display, 3: tile/maze, 4: input/sprite, 5: HUD/maze logic, 6: enemies, 7: letters+veg+colour cycle, 8: sound, 9: polish, 10: real hardware). Each phase has POC tasks, exit criterion, and review-gate questions. Ties to existing locked decisions ([game/overview.md](game/overview.md), [platform/cartridge.md](platform/cartridge.md), [coding-conventions.md](implementation/coding-conventions.md)) and surfaces deferred items (cycle period + colour-to-target mapping at Phase 7, scheduler choice at Phase 4, SWI/IRQ collision check at Phase 1) at the gates where they need to land. Documented standing review checklist (wiki updates, roadmap drift, ROM/cycle budget, scope) and four named risks the plan won't surface on its own.
