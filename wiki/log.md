@@ -75,6 +75,30 @@ User requested full build/deploy runbooks for the WSL toolchain at `~/coco-tools
 
 `wiki/index.md` updated: new Tooling section; old `platform/toolchain.md` and `implementation/build-workflow.md` stubs marked superseded.
 
+## [2026-05-08] phase | Phase 2.3 — GIME hi-res 320×192×16 + MMU + FB end-to-end — passed
+
+After Path A (16 K cart) was committed, drove Phase 2 through three sub-gates: (2.1) shadow-RAM-during-write at phys $3E verified by writing a marker pre-TY=1 and reading it back post-TY=1 (got 'Z'); (2.2) full Phase 1 boot + cart self-copy + all-RAM, IRQ-driven frame counter still ticked from RAM-resident code; (2.3) GIME hi-res mode + MMU + PARs (`$38, $30..$33, $3D, $3E, $3F`) + vert-offset `$FF9D=$C0/$FF9E=$00` → FB at phys page $30 + palette load + CRES=11 blanking trick during init + IRQ-driven mainloop FB writes. Final visible: 16-stripe palette test with bright border + flashing IRQ-driven block on top of mid-screen stripe.
+
+**Surprise:** XRoar's default CoCo 3 monitor renders the 6-bit palette via composite NTSC encoding, not the textbook RGB `RGBrgb` 2-bits-per-channel layout. `$3F` and `$30` both display as white (different luma, same chroma point); `$0C` is blue not green-ish; etc. Recorded the empirical 6-bit-value → colour mapping in [`implementation/video-mode.md`](implementation/video-mode.md) §"XRoar palette colours — empirical (composite NTSC)" and [`implementation/lessons-learned.md`](implementation/lessons-learned.md).
+
+**Surprise (lesser):** the IRQ-driven mainloop write at row 96 produced visible tearing on the bottom edge (~7 pixels of next-row colour mid-frame). Cause is the unsynchronised fill loop racing the GIME raster — not a bug. Vsync-aware rendering will be addressed when the renderer matures.
+
+Filed Phase 2.2 + 2.3 boot-sequence playbook to [`implementation/lessons-learned.md`](implementation/lessons-learned.md). Updated [`implementation/roadmap.md`](implementation/roadmap.md) Phase 2 with substep status (2.1, 2.2, 2.3 done; 2.4 = render arcade tile; 2.5 = automate `build_gfx.py`).
+
+**One iteration cost:** lwasm rejected `fcb $38, $30, $31, ...` with spaces after commas — needed `fcb $38,$30,$31,...`. Filed mentally; the `coding-conventions` page should pick this up during a future lint pass.
+
+---
+
+## [2026-05-08] decision | Reverted to 16 K cart after XRoar boot gate failed
+
+Phase 2 step 1 (assumption validation) caught two issues. **(1) Shadow-RAM-during-write at phys `$3E` works** — verified by writing a marker to `$C000`, going TY=1, reading it back. Boot data-copy procedure is sound. **(2) XRoar's handling of 32 K cart files via `-cart-rom` is unverified** — built a 32 K cart with the planned `$8000-$BFFF` data + `$C000-$FEFF` code split; boot landed at BASIC `OK`, consistent with XRoar mapping only the lower 16 K of the file at `$C000` regardless of size. XRoar's manual documents `-cart-rom` only as "mapped from `$C000`" — no 32 K behaviour described.
+
+User decision: **Path A — revert to 16 K cart for now**, defer the cart-size question until Phase 4 sprite arithmetic gives real numbers. If we then need >16 K, pivot to **software bank-switched** (XRoar `-cart-type gmc` + CoCoSDC + multi-pak — universal hardware support, ~half-day refactor, only touches boot data-copy because runtime is all-RAM regardless). Not Init0 b1-b0 = `11`, since that mode is rare in actual cart hardware AND unverified in XRoar.
+
+Reverted: `scripts/build.sh` → `CART_BYTES=16384`. Updated [`platform/cartridge.md`](platform/cartridge.md) §"Cart size — 16 K (current); 32 K and bank-switched options deferred", boot-sequence steps; [`platform/memory.md`](platform/memory.md) cart-boot section; [`tooling/build-workflow.md`](tooling/build-workflow.md), [`tooling/xroar.md`](tooling/xroar.md) (gotcha about `-cart-rom` / 32 K), [`tooling/index.md`](tooling/index.md), [`tooling/lwtools.md`](tooling/lwtools.md); [`implementation/video-mode.md`](implementation/video-mode.md) ROM-budget update (2bpp+attr sprites back as default), [`implementation/memory-map.md`](implementation/memory-map.md) cart layout + boot data-copy procedure simplified to single-org 16 K, Phase 4 sprite-data section revised; [`implementation/roadmap.md`](implementation/roadmap.md) standing-budget denominator + Phase 1/9/10 review-gate questions. Filed both findings to [`implementation/lessons-learned.md`](implementation/lessons-learned.md).
+
+---
+
 ## [2026-05-08] decision | Memory map for Phase 2 + Phase 10 cart-shell gate
 
 **Memory map.** Created [`implementation/memory-map.md`](implementation/memory-map.md) covering: 8-PAR allocation post-boot (1 system, 4 FB at phys `$30-$33`, 1 game-state placeholder, 2 code at phys `$3E-$3F`); 32 K cart-ROM image structure (data section at virtual `$8000-$BFFF`, code section at `$C000-$FEFF`); boot data-copy procedure relying on shadow-RAM-during-write semantics (Init0 b1-b0=11 → self-copy `$8000-$FEFF` → TY=1; ~80 ms boot-time cost). DP at `$0200-$02FF` allocation table started.

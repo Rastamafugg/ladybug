@@ -17,13 +17,13 @@ src/*.s                              (hand-written 6809 assembly)
    ▼
 build/ladybug.rom    (raw binary, exact size)
    │
-   │  pad with 0xFF to 32768 bytes
+   │  pad with 0xFF to 16384 bytes
    ▼
-build/ladybug.rom    (32 KB cart-ready)
+build/ladybug.rom    (16 KB cart-ready)
    │
    │  xroar -machine coco3 -ram 512 -cart-type rom -cart-rom ... -cart-autorun
    ▼
-emulated CoCo 3      (real hardware: write ROM to a 32K EPROM in a 32K-capable cart shell)
+emulated CoCo 3      (real hardware: write ROM to a 16K EPROM, drop into cart shell)
 ```
 
 ## One-command interface
@@ -59,15 +59,15 @@ lwasm -9 --format=raw \
       src/main.s
 ```
 
-### 2. Pad to 32 KB
+### 2. Pad to 16 KB
 
 ```bash
 python3 -c "
 data = open('build/ladybug.rom','rb').read()
-pad  = 32768 - len(data)
-assert pad >= 0, f'ROM is {len(data)} bytes — exceeds 32 KB'
+pad  = 16384 - len(data)
+assert pad >= 0, f'ROM is {len(data)} bytes — exceeds 16 KB'
 open('build/ladybug.rom','wb').write(data + b'\xff'*pad)
-print(f'padded {32768-pad} → 32768 bytes')
+print(f'padded {16384-pad} → 16384 bytes')
 "
 ```
 
@@ -102,7 +102,7 @@ Inside WSL, paths to the project work via `/mnt/d/retro/ladybug` (the script `cd
 
 - **`lwasm: command not found`** — WSL `~/coco-tools/lwtools` not built/installed. Reinstall: `cd ~/coco-tools/lwtools && make && sudo make install`.
 - **`xroar: command not found`** — same pattern under `~/coco-tools/xroar`; check its `INSTALL` for SDL/GTK build deps.
-- **`build: ROM is 32769 bytes — exceeds 32 KB`** — code+data overflowed the 32 KB cart window. Options, in cost order: (1) compress sprites (2bpp+attr or RLE), (2) curate the asset set harder, (3) move to a bank-switched cart — see [../platform/cartridge.md §"Cart size — 32 K"](../platform/cartridge.md).
+- **`build: ROM is 16385 bytes — exceeds 16 KB`** — code+data overflowed the 16 KB cart window. Expansion path documented in [../platform/cartridge.md §"Cart size — 16 K (current); 32 K and bank-switched options deferred"](../platform/cartridge.md).
 - **No xroar window from Windows host** — WSLg should hand off automatically on Win 11. Test with `wsl -d Ubuntu -- bash -lc "xeyes"` to confirm GUI passthrough; if blank, restart WSL: `wsl --shutdown`.
 - **xroar boots to BASIC OK prompt instead of our cart** — `-cart-autorun` missing, or our `JMP` at `$C000` isn't where BASIC's FIRQ handler expects (see boot handshake in [../platform/cartridge.md](../platform/cartridge.md)).
 

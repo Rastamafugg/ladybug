@@ -63,7 +63,7 @@ The SAM register pairs use *write anything to set vs. clear* semantics — the d
 
 When a cartridge is plugged into the right-side slot, its upper 16 K occupies physical `$3E-$3F` at virtual `$C000-$FEFF` while TY=0 and Init0 ROM-map = default. Pin 8 (CART) of the cartridge edge is wired to PIA 2 CB1, which generates a FIRQ during BASIC's reset routine — the FIRQ handler examines `$C000` for a magic and, if present, jumps there. **This is Ladybug's entry point: the first bytes of the cartridge ROM at virtual `$C000` are our boot.** See [cartridge.md](cartridge.md).
 
-**Ladybug uses a 32 K cart** (decision 2026-05-08): after taking control, our boot writes Init0 b1-b0 = `11` to switch to "32 K cartridge" mode. BASIC ROM at `$8000-$BFFF` disappears and our cart's lower 16 K appears there. Tables (tiles, sprites, palette, fonts, maze, sound) live in that lower-16 K region; code and the autostart magic live in the upper 16 K (`$C000-$FEFF`) where the BASIC FIRQ handler dispatches. After we copy whatever cart-ROM data we need into RAM, we set TY=1 and the cart is gone for the rest of the run.
+**Ladybug uses a 16 K cart** during development (decision 2026-05-08, revised same day after Phase 2.1 testing showed XRoar's 32 K-cart handling is unverified — see [cartridge.md §"Cart size — 16 K (current)"](cartridge.md)). All code + data lives in the standard `$C000-$FEFF` cart window. After our boot self-copies the 16 K to shadow RAM beneath the cart and sets TY=1, phys `$3E-$3F` holds the same bytes in RAM and the cart hardware is gone for the rest of the run. 32 K (via Init0 b1-b0 = `11`) and software bank-switched carts are documented as the next-step expansion options if 16 K turns out insufficient.
 
 ## CoCo 3 quirks worth knowing
 

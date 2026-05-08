@@ -50,73 +50,70 @@ GIME `$FF9D/$FF9E` (vertical-offset) points at physical address of phys page `$3
 
 `$9800-$9FFF` is the 2 K of slack at the end of FB page 3 (192 rows × 160 bytes/row = 30 720 = `$7800`; FB occupies virtual `$2000-$97FF`). Free for use as scratch / sprite save-restore buffer.
 
-## Cart ROM image (32 K)
+## Cart ROM image (16 K)
 
 ```
 file offset   virtual          purpose
-$0000-$3FFF   $8000-$BFFF      DATA SECTION — gfx, palette, font, maze, sound
-$4000-$7EFF   $C000-$FEFF      CODE SECTION — autostart magic, entry, code, more data
+$0000-$3EFF   $C000-$FEFF      autostart magic, entry, code, all data tables
               $FF00-$FFFF      (not in cart — dedicated I/O)
-$7F00-$7FFF   (file padding)   $FF bytes; never read by hardware
+$3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
 ```
 
-The lwasm source uses two `org` blocks:
+The lwasm source uses a single `org` block:
 
 ```asm
-        org     $8000           ; data section
-        ; INCLUDEBIN tile_gfx, sprite_gfx, palette, font, maze, ...
-
         org     $C000
         fcc     "DK"            ; autostart magic (BASIC FIRQ -> $C002)
-        ; entry, code, ...
+        ; entry, code, data tables, ...
 ```
 
-Build script pads the resulting raw output to 32768 bytes ([scripts/build.sh](../../scripts/build.sh)).
+Build script pads the resulting raw output to 16384 bytes ([scripts/build.sh](../../scripts/build.sh)).
+
+If 16 K becomes insufficient, expansion options are documented in [../platform/cartridge.md §"Cart size — 16 K (current)"](../platform/cartridge.md). The pivot is local to the boot data-copy step below — runtime is unaffected because it runs from RAM.
 
 ## Boot data-copy procedure
 
 Goal: get cart ROM contents into RAM at the same physical pages, so all-RAM mode is transparent.
 
-The CoCo 3 has **shadow RAM** at physical `$3C-$3F` even when those pages are sourced from ROM (TY=0): writes go to the RAM, reads come from ROM. This is what BASIC's reset-init relies on to seed the `$FExx` jump table before going all-RAM, and what we use here. Confirm against Tepolt CoCo 3 §3 / §7 at code time — flagged as an assumption to validate.
+The CoCo 3 has **shadow RAM** at physical `$3C-$3F` even when those pages are sourced from ROM (TY=0): writes go to the RAM, reads come from ROM. **Verified 2026-05-08 (Phase 2.1):** wrote a marker to `$C000`, switched TY=1, read it back — the marker came back. So the boot self-copy is sound.
 
 Sequence:
 
 ```
-1. (Cart entered at $C002, ORCC #$50, LDS #$7FFE — Phase 1 already does this.)
+1. (Cart entered at $C002, ORCC #$50, LDS, DP setup — Phase 1 base.)
 
-2. Switch Init0 to enable 32 K cart mode (b1-b0 = 11). Cart's lower 16 K
-   appears at $8000-$BFFF. (BASIC's ROM at $8000-$BFFF disappears.)
-
-3. Self-copy $8000-$FEFF:
-        ldx     #$8000
+2. Self-copy $C000-$FEFF:
+        ldx     #$C000
    loop ldd     ,x
         std     ,x
         leax    2,x
         cmpx    #$FF00
-        blt     loop
-   Reads come from cart ROM; writes go to RAM at physical $3C-$3F.
+        blo     loop
+   Reads come from cart ROM; writes go to RAM at physical $3E-$3F.
 
-4. Switch TY = 1 (write $FFDF). Cart hardware disconnects.
-   Virtual $8000-$FEFF now reads RAM at phys $3C-$3F — the data we just
-   wrote. Code at $C000-$FEFF continues to execute, oblivious to the swap.
+3. Switch TY = 1 (write $FFDF). Cart hardware disconnects.
+   Virtual $C000-$FEFF now reads RAM at phys $3E-$3F — the same bytes we
+   just wrote. Code continues to execute, oblivious to the swap.
 
-5. (Phase 2 continues: configure GIME video mode, load palette, render.)
+4. (Phase 2 continues: configure GIME hi-res mode, MMU + PARs, palette,
+   framebuffer clear, render.)
 ```
 
-Approximate cost: ~28 K bytes copied two-at-a-time = ~14 K iterations × ~10 cycles ≈ 140 K cycles ≈ 80 ms at 1.78 MHz. Boot-time-only, never observed by the player.
+Approximate cost: 16 K bytes copied two-at-a-time = ~8 K iterations × ~10 cycles ≈ 80 K cycles ≈ 45 ms at 1.78 MHz. Boot-time-only, never observed by the player.
 
-## Phase 4 problem: sprite data won't fit in 1 PAR
+## Phase 4 problem: sprite ROM at full 4bpp likely doesn't fit in 16 K cart
 
-Sprite ROM at full 4bpp: ~120 sprites × 128 B = 15 K. Doesn't fit in the 8 K window we've reserved for data tables (PAR5 in the post-Phase-4 layout, when game state takes a slot).
+Sprite ROM at full 4bpp: ~120 sprites × 128 B = 15 K. Plus tile gfx (~1.6 K), font (~3 K), code (~6-8 K), maze (~1 K), palette (~0.5 K), sound (~1-3 K) ≈ 28-31 K total — overflows the 16 K cart window. **Decide at the Phase 4 review gate** against measured numbers:
 
-Resolution options, in increasing cost — **decide at Phase 4**:
+1. **Compress sprites to 2bpp + per-sprite attribute byte** — halves sprite ROM to ~7.5 K. Inline expand during blit (~30 % cost). Closest to arcade hardware's native layout. **Default plan.**
+2. **Curate the sprite set** — drop direction-flip frames; mirror at blit time. Probably reduces 120 → 60-80 frames.
+3. **Pivot to a software bank-switched cart** — see [../platform/cartridge.md §"Cart size — 16 K (current)"](../platform/cartridge.md). Universal hardware support; ~half-day refactor; touches only the boot data-copy phase.
 
-1. **Compress sprites to 2bpp + per-sprite attribute byte.** Halves to ~7.5 K, fits in one PAR. Inline expand during blit (~30 % cost). Closest to arcade hardware's native layout.
-2. **Bank-switch the sprite PAR.** Map phys `$34` for "common" sprites, phys `$35` for "rare" sprites; switch PAR5 between the two as needed. ~10 cycles per switch.
-3. **Drop one FB page, use a sliding write window.** Free one PAR for sprite data; renderer gets more complex.
-4. **Move some code out of `$E000-$FFFF`** (currently using it for code). Free PAR7 for data; code lives only in `$C000-$DFFF` (8 K). Tight but might suffice.
+Once a cart holds enough data, the in-RAM data layout still has the same constraint: 8 PARs vs 8-10 wanted (1 system + 4 FB + 1 game state + 2 data + 2 code). Resolution options for *that*, in increasing cost:
 
-Default plan: **(1) sprite compression**, since it also matches the arcade source data shape we already have ([sources/arcade-gfx-extraction.md](../sources/arcade-gfx-extraction.md)). Switch to (2) only if profiling shows the inline expansion is costing too many cycles.
+a. **Bank-switch the data PAR** — map phys `$34` for "common" sprites, phys `$35` for "rare"; switch PAR5 between as needed. ~10 cycles per switch.
+b. **Drop one FB page, use a sliding write window** — frees one PAR for data; renderer gets more complex.
+c. **Move some code out of `$E000-$FFFF`** — frees PAR7. Code lives only in `$C000-$DFFF` (8 K). Tight.
 
 ## Direct-page allocation (`$0200-$02FF`)
 
@@ -135,9 +132,9 @@ Top of stack at `$1FFE` (in PAR0, phys `$38`). Grows down. Max realistic depth a
 
 ## Open items
 
-1. **Validate shadow-RAM-during-write assumption** at first Phase 2 implementation — read after writing during a test boot, confirm RAM holds expected values once TY=1.
-2. **Confirm Init0 b1-b0=11 boot sequence on XRoar** — does XRoar correctly map a 32 K cart image at `$8000-$FEFF` once Init0 is set, given the file is supplied as `-cart-rom`? Test at first Phase 2 boot.
-3. **Phase 4 sprite-data resolution** — see options above.
+1. **Shadow-RAM-during-write** — ✅ verified 2026-05-08 (Phase 2.1). See [lessons-learned.md](lessons-learned.md).
+2. **XRoar's handling of 32 K cart files** — observed inconsistent with naive `$8000-$FEFF` mapping; deferred until/unless we need the larger cart. See [../tooling/xroar.md "Gotchas"](../tooling/xroar.md).
+3. **Phase 4 sprite-data resolution** — see Phase 4 problem section above.
 4. **Game-state PAR (`$A000-$BFFF`) layout** — entity tables, score, etc. Defer until Phase 4 when entity records are designed.
 
 ## Sources

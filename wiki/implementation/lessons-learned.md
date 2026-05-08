@@ -82,6 +82,101 @@ Concern was whether using `SWI` (and `SWI2`/`SWI3`) as a syscall trap could coll
 
 ---
 
+---
+
+## Phase 2.1 verified — shadow-RAM-during-write at phys `$3E`
+
+Filed 2026-05-08 at the Phase 2.1 sub-gate.
+
+Wrote `$5A` ('Z') to `$C000` while in TY=0 (cart ROM mode), then set TY=1 (all-RAM), then read `$C000` — got `$5A` back. Confirms that writes to cart-ROM-shadowed virtual addresses land in the underlying RAM, even though reads come from ROM. This is the load-bearing assumption for the boot data-copy procedure in [memory-map.md](memory-map.md).
+
+**Why it matters:** the boot can self-copy the cart's contents to RAM (`ldd ,x` / `std ,x` over `$C000-$FEFF`) and then enter all-RAM mode, with the same bytes still at the same virtual addresses. Code keeps running. No PAR juggling, no separate copy buffer.
+
+**Applies to:** every cartridge boot from here on.
+
+**Citation:** [src/main.s](../../src/main.s) at the Phase 2.1 commit (since superseded by Phase 2.2's integrated boot).
+
+## XRoar `-cart-rom` handling of 32 K files — UNVERIFIED
+
+Filed 2026-05-08 alongside Phase 2.1.
+
+Built a 32 K cart with data section at lwasm `$8000` (file offset 0, intended for visibility once Init0 b1-b0 = `11`) and code section at lwasm `$C000` (file offset `$4000`). Boot didn't autostart — landed at the BASIC `OK` prompt. Symptom is consistent with XRoar mapping the lower 16 K of the file to virtual `$C000` regardless of file size, which would put our data byte (`$31`) at `$C000` instead of the `"DK"` magic.
+
+XRoar's manual only documents `-cart-rom` as "mapped from `$C000`" — silent on 32 K behaviour. Source-code inspection or experimental probing would be needed to confirm. **Not done.** Reverted to a 16 K cart for development and recorded the unknown.
+
+**Why it matters:** if we hit the 16 K limit (Phase 4), the planned expansion path cannot rely on Init0 b1-b0 = `11` working under XRoar. Use `-cart-type gmc` (software bank-switching) instead — that's universally supported, and the architecture is the same as CoCoSDC and other real-hardware cart shells.
+
+**Applies to:** the cart-size pivot path in [../platform/cartridge.md §"Cart size — 16 K (current)"](../platform/cartridge.md). Use bank-switched, not Init0=11.
+
+---
+
+---
+
+## Phase 2.2 + 2.3 verified — full Phase 2 boot path through to GIME hi-res
+
+Filed 2026-05-08 at the Phase 2.3 close.
+
+The full boot sequence works end-to-end on XRoar:
+
+1. ORCC IRQ-mask, set DP=$02, stack at $1FFE.
+2. Quiet PIA interrupts.
+3. Init0 = legacy / ACVC-IRQ on / force-$FExx.
+4. Self-copy `$C000-$FEFF` (cart ROM) to shadow RAM via `LDD ,X / STD ,X`.
+5. TY=1 (`$FFDF`) — cart disconnects, code now runs from RAM at phys $3E-$3F.
+6. R1=1 (`$FFD9`) — fast clock (1.78 MHz).
+7. `$FF91` cleared so executive PAR set is active.
+8. PARs loaded — `$38, $30, $31, $32, $33, $3D, $3E, $3F` — virtual `$2000-$9FFF` now points to phys `$30-$33` (FB).
+9. `$FF98` BP=1, `$FF99` = `$1F` (CRES=11 blanked) so we can clear silently.
+10. Vert-offset `$FF9D=$C0`, `$FF9E=$00` — GIME reads FB from physical address `$060000` (phys page $30).
+11. Init0 changed to MMU=1 + COCO=0 (hi-res). Display still blanked due to CRES=11.
+12. Palette loaded into `$FFB0-$FFBF`.
+13. FB written.
+14. `$FF99` = `$1E` — un-blank, 16-color graphics live.
+15. IRQ handler installed at `$FEF7`.
+16. Vbord enabled, I-mask cleared.
+17. Mainloop runs, IRQ ticks at 60 Hz, mainloop's FB writes are visible.
+
+Visible signal: full 16-stripe palette test + bright border + IRQ-driven flashing block on top of stripes.
+
+**Why it matters:** every subsequent phase builds on this exact sequence. Don't reorder steps without re-verifying — particularly the cart self-copy must happen before TY=1, and PAR loads must happen before MMU enable.
+
+**Citation:** [src/main.s](../../src/main.s) at the Phase 2.3-close commit.
+
+## XRoar's CoCo-3 monitor is composite NTSC by default
+
+Filed 2026-05-08 alongside Phase 2.3.
+
+Phase 2.3's 16-stripe palette diagnostic showed the 6-bit `$FFB0-$FFBF` palette codes do **not** map to colours via the conventional RGB-monitor `RGBrgb` 2-bit-per-channel interpretation. Instead, XRoar's default monitor mode is composite NTSC, where the same 6-bit value produces a different colour through chroma + luma encoding. Notable consequence: `$3F` and `$30` both render as white (different luma but apparently same composite "white-ish" point), so they are **not interchangeable as palette entries** — pick one.
+
+Empirical 6-bit-code → colour table (XRoar default monitor, observed during the 16-stripe test):
+
+| `$xx` | Observed colour |
+|-|-|
+| `$00` | black |
+| `$3F` | white |
+| `$30` | white (do not use — duplicate of `$3F`) |
+| `$0C` | blue |
+| `$03` | green-brown |
+| `$33` | yellow |
+| `$0F` | forest green |
+| `$3C` | baby blue |
+| `$20` | grey |
+| `$08` | fuchsia / purple |
+| `$02` | darker green |
+| `$22` | saturated light green |
+| `$0A` | purple |
+| `$28` | pink |
+| `$15` | orange |
+| `$24` | orange-yellow |
+
+**Why it matters:** when we load the arcade palette ([sources/arcade-gfx-extraction.md](../sources/arcade-gfx-extraction.md) — 32 RGB triples from the PROM), we cannot just convert RGB→`RGBrgb`. We must pick the GIME 6-bit code that visually matches the arcade colour on XRoar's composite emulation. This table is the starting point; refine as we add palette entries during Phase 2.4+.
+
+**Applies to:** Phase 2.4 (palette load + tile render) and any subsequent palette work. If we later switch XRoar to RGB monitor mode (`-machine-vdg-type ntsc-pal-mode-foo` — to confirm the flag), this table needs to be re-derived.
+
+**Citation:** [src/main.s](../../src/main.s) Phase 2.3 stripe-test commit; user-observed colour names recorded in the 2026-05-08 session log.
+
+---
+
 ## Format for future entries
 
 ```

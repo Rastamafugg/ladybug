@@ -90,6 +90,24 @@ A 2-byte sprite blit (`STD ,X++`) writes 4 pixels per ~6 cycles. Full 16 × 16 s
 
 30 720 bytes = 3.75 × 8 KB MMU pages. Will occupy 4 contiguous physical pages, mapped where the rest of the memory layout (Phase 2 task) decides. Vertical-Offset registers `$FF9D/$FF9E` will point to the start of the first page. The framebuffer does *not* have to be MMU-mapped to be visible; the GIME reads it via expanded address. We only need it mapped when the CPU writes to it (which we'll arrange).
 
+## XRoar palette colours — empirical (composite NTSC)
+
+XRoar's default CoCo 3 monitor mode is composite NTSC, not RGB. The 6-bit palette code at `$FFB0-$FFBF` therefore does **not** map to colours via the textbook `RGBrgb` 2-bit-per-channel interpretation. The 16-stripe diagnostic in Phase 2.3 produced this empirical table — use it as the starting point when picking palette values:
+
+| Code | Colour | Code | Colour |
+|-|-|-|-|
+| `$00` | black | `$08` | fuchsia / purple |
+| `$3F` | white | `$02` | darker green |
+| `$30` | white *(dup of $3F — avoid)* | `$22` | saturated light green |
+| `$0C` | blue | `$0A` | purple |
+| `$03` | green-brown | `$28` | pink |
+| `$33` | yellow | `$15` | orange |
+| `$0F` | forest green | `$24` | orange-yellow |
+| `$3C` | baby blue | | |
+| `$20` | grey | | |
+
+If we ever switch XRoar to RGB monitor mode, this table needs to be re-derived. See [lessons-learned.md "XRoar's CoCo-3 monitor is composite NTSC by default"](lessons-learned.md).
+
 ## Things deferred to Phase 2 implementation
 
 1. **Exact `$FF98` value.** BP=1 (graphics), other bits TBD when we decide blink, mono, PAL, lines-per-row. Default LPR=001 / PAL=0 / MOCH=0 likely fine.
@@ -108,7 +126,7 @@ A 2-byte sprite blit (`STD ,X++`) writes 4 pixels per ~6 cycles. Full 16 × 16 s
 
 ## ROM-budget update — 2026-05-08
 
-Cart was retargeted to 32 K (Init0 b1-b0 = `11`); see [../platform/cartridge.md §"Cart size — 32 K"](../platform/cartridge.md). Sprite ROM at full 4bpp now fits comfortably (≈ 10 K of 32 K) and 2bpp+attr is no longer required up-front to fit the budget. Default sprite path: pre-converted 4bpp at build time.
+Cart was briefly retargeted to 32 K mid-day, then reverted to 16 K when XRoar's 32 K-cart handling came up unverified — see [../platform/cartridge.md §"Cart size — 16 K (current)"](../platform/cartridge.md). At 16 K the sprite-storage path matters: pre-converted 4bpp sprites likely overflow; **2bpp+attr packing or curated sprite count is back as the default**, with 4bpp pre-conversion only if a measurement at Phase 4 shows it fits. Settle this at the Phase 4 review gate against real numbers.
 
 ## Sources
 

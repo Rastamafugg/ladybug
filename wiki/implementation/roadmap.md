@@ -60,11 +60,19 @@ From the current state (tooling validated, design + boot strategy locked, `src/`
 **Review gate Q's:**
 - Is our IRQ enable mask actually masking everything but Vbord? (Re-check against [platform/timing.md](../platform/timing.md).)
 - Does `SWI` collide with anything we'll need later? — pending question from [coding-conventions.md §4](coding-conventions.md). **Resolve at this gate** before any further code uses SWI.
-- Capacity check: how many bytes did we burn on init? Project that against the 32 KB cart budget.
+- Capacity check: how many bytes did we burn on init? Project that against the 16 KB cart budget.
 
 ---
 
-## Phase 2 — Display foundation: video mode + char output
+## Phase 2 — Display foundation: video mode + char output (in progress 2026-05-08)
+
+**Substep status:**
+- 2.1 ✅ shadow-RAM-during-write at phys $3E verified
+- 2.2 ✅ cart self-copy + all-RAM transition; IRQ ticks from RAM
+- 2.3 ✅ GIME hi-res 320×192×16 + MMU + PARs + framebuffer writes + palette load + IRQ-driven FB writes from mainloop
+- 2.4 — render an arcade tile from `assets/arcade/chars.json` (next)
+- 2.5 — automate tile/palette pipeline with `build_gfx.py` (deferred until 2.4 hand-validation passes)
+
 
 **Goal:** pick the GIME video mode, get a stable framebuffer, render text reliably.
 
@@ -210,10 +218,10 @@ From the current state (tooling validated, design + boot strategy locked, `src/`
 5. High-score display (session-only — no battery-backed RAM).
 6. Final maze/sprite/colour polish pass.
 
-**Exit criterion:** plays start-to-finish, looks and feels like Lady Bug, no obvious bugs, fits in 32 KB.
+**Exit criterion:** plays start-to-finish, looks and feels like Lady Bug, no obvious bugs, fits in cart (16 K target; 32 K / banked acceptable if the expansion was triggered earlier).
 
 **Review gate Q's:**
-- ROM size — actual vs 32 KB budget. If we overflowed: compress sprites (2bpp+attr / RLE), curate harder, or move to a bank-switched cart (see [../platform/cartridge.md](../platform/cartridge.md) §"Cart size — 32 K").
+- ROM size — actual vs 16 KB budget. If we overflowed: compress sprites (2bpp+attr / RLE), curate harder, or pivot to bank-switched cart (see [../platform/cartridge.md §"Cart size — 16 K (current)"](../platform/cartridge.md)).
 - What's the dev-loop pain we'd fix if we did this again? File to lessons-learned.
 
 ---
@@ -241,7 +249,7 @@ At each gate, run through these — not optional:
 
 1. **Wiki updates.** Any new lesson, decision, hardware quirk, or convention discovered → file it. Don't let it stay in chat history.
 2. **Roadmap drift check.** Re-read this document. Does the next phase's POC and exit criterion still describe the right next step? If not, edit *this file* and append a log entry explaining the change.
-3. **Budget check.** ROM bytes used / 32768. Cycles per frame used / ~29800 (1.78 MHz / 60 Hz). Surface the trend, don't wait until we're pinned.
+3. **Budget check.** ROM bytes used / 16384. Cycles per frame used / ~29800 (1.78 MHz / 60 Hz). Surface the trend, don't wait until we're pinned.
 4. **Scope check.** Anything we *added* that wasn't in the design doc? Anything we *cut*? Update [game/overview.md](../game/overview.md) decisions block.
 
 ## Risks the plan won't surface on its own
@@ -249,7 +257,7 @@ At each gate, run through these — not optional:
 - **GIME mode choice in Phase 2** is load-bearing for everything visual. Don't rush the review at that gate.
 - **Tile vs sprite format coupling** in Phase 3/4 — getting the boundary wrong forces a rewrite later. Sketch both formats together, not sequentially.
 - **Per-frame budget under enemy load** in Phase 6 is the most likely place we discover we need the TCB scheduler or dirty-rect tracking. Plan a contingency phase at that gate, not after.
-- **EPROM/cart-shell hardware logistics** in Phase 10 — sourcing a programmer, a 32 K-capable EPROM (e.g. 27C256), and a 32 K-capable cart shell is *not* a code task. Standard 16 K cart shells will not work; use CoCoSDC, RetroCloud, or a custom 32 K PCB. Start sourcing in parallel during Phase 6 or 7.
+- **EPROM/cart-shell hardware logistics** in Phase 10 — sourcing a programmer, blank EPROM (16 K 27C128, or larger if we expanded earlier), and a working cart shell is *not* a code task. CoCoSDC removes most of this. Start sourcing in parallel during Phase 6 or 7.
 
 ## Sources
 
