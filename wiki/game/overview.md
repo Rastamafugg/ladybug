@@ -57,24 +57,29 @@ The arcade ran on a Z80 @ 4 MHz with two TI SN76489 sound chips at **240×192 @ 
 | Red letter / heart | 800 | Multiplier-eligible. |
 | Vegetable (centre) | 1000 → 9500 | Level-1 cucumber 1000; +500/level; caps at 9500 (level 18 horseradish, then constant). |
 
-### Hearts and letters — separate entities, shared colour rule
+### Hearts and letters — separate entities, global colour cycle
 
-Hearts and letters are **distinct items** placed at distinct positions in the maze. Both cycle their colour through blue → yellow → red. Collection rules:
+Hearts and letters are **distinct items** placed at distinct positions in the maze.
+
+**Global colour cycle.** All on-stage letters and all on-stage hearts share a **single colour state** that changes simultaneously and instantaneously across every item. At any given moment every coloured item on the playfield is the same colour. The colour cycles through blue / yellow / red on a timer (cycle period TBD during tuning).
+
+Three targets compete for collected items: the `EXTRA` word, the `SPECIAL` word, and the heart multiplier. **Each target is assigned a distinct one of the three colours** (the specific colour-to-target mapping is a tuning parameter — TBD during implementation; e.g. blue → EXTRA, yellow → SPECIAL, red → multiplier). Because the global cycle has every item displaying the same colour at any moment, and each target is bound to a different colour, **no tie can occur**: at any instant at most one target is "active."
+
+**Letters** (word-spelling items: E, X, T, R, A, S, P, C, I, L — E and A appear in both words)
+- Each unique letter spawns at one fixed maze position; its colour follows the global cycle.
+- A letter advances a word only when collected while the current global colour equals that word's assigned colour.
+- E and A: collected at the EXTRA-colour → advance EXTRA; collected at the SPECIAL-colour → advance SPECIAL; collected at the multiplier-colour → no word progress.
+- Letters specific to one word (X/T/R, S/P/C/I/L) collected at any colour other than their word's colour → no progress.
+- Off-target collection still scores the colour's base value (100/300/800).
 
 **Hearts** (multiplier items)
-- A heart only counts when its colour matches the multiplier slot being filled. Counted hearts accumulate in-stage:
-  - 1st counted heart → ×2 multiplier on subsequent dots/letters.
+- A heart only counts toward the multiplier when collected at the multiplier-colour. Counted hearts accumulate in-stage:
+  - 1st → ×2 multiplier on subsequent dots/letters.
   - 2nd → ×3.
   - 3rd → ×5.
-- Eating a heart at the wrong colour gives only the colour score (100/300/800), no multiplier progress.
+- Off-colour hearts score the base colour value but do not progress the multiplier.
 - Multiplier does **not** apply to the centre vegetable.
 - Multiplier resets at stage clear.
-
-**Letters** (word-spelling items: E, X, T, R, A, S, P, C, I, L — note E and A appear in both `EXTRA` and `SPECIAL`)
-- Each unique letter spawns at one fixed maze position and cycles colour.
-- For letters that appear in **only one** of the two words (X, T, R for EXTRA; S, P, C, I, L for SPECIAL): the letter only advances its word when collected at the colour matching that word's current next-slot.
-- For **E and A** (which appear in both words): on collection, the letter advances whichever of `EXTRA` or `SPECIAL` currently has its next-slot colour matching the letter's colour at collection. If both words happen to need the same colour for their next slot, the resolution rule is to-define (likely: prefer whichever word is closer to completion, or prefer EXTRA — to confirm with user during implementation).
-- Wrong-colour letters give only the colour score, no word progress.
 
 ### Word completion rewards
 
@@ -125,7 +130,7 @@ Arcade has two SN76489 chips. CoCo 3 has a single 6-bit DAC. Significant adaptat
 ## Decisions locked (2026-05-05)
 
 - HUD: split panels — left = score / lives / level; right = `EXTRA` + `SPECIAL` progress + current vegetable.
-- Hearts and letters are separate maze entities; both colour-cycle. E and A apply to whichever of EXTRA/SPECIAL matches current colour at collection; every other letter and all hearts only progress their specific target when the colour matches exactly.
+- Hearts and letters are separate maze entities. **Global colour cycle**: all coloured items share one colour state that flips simultaneously and instantaneously. Each of the three targets (EXTRA word, SPECIAL word, heart multiplier) is assigned a distinct colour; an item advances its target only when collected at the matching colour. E and A advance whichever of EXTRA/SPECIAL has the colour active at collection. No ties are possible because every item is the same colour at any instant and the three targets have distinct colours.
 - `SPECIAL` reward: 10,000 points. No bonus round in v1.
 - 3 starting lives, one-time bonus life at 30,000 points.
 - Single fixed maze layout used for every stage.
@@ -134,8 +139,8 @@ Arcade has two SN76489 chips. CoCo 3 has a single 6-bit DAC. Significant adaptat
 
 ## Deferred (not blocking initial implementation)
 
-1. **Letter / heart colour-cycle timing** — exact period and whether a stage-clear or death resets the cycle. Resolve once a maze prototype exists and we can tune visually.
-2. **E/A tie-break** — when both `EXTRA` and `SPECIAL` happen to need the same next-slot colour and the player collects an E or A, which word advances? Default proposal: prefer whichever is closer to completion, ties → `EXTRA`. Confirm during implementation.
+1. **Colour-cycle timing** — exact period of the global blue/yellow/red cycle, and whether stage-clear or death resets it. Resolve once a maze prototype exists and we can tune visually.
+2. **Colour-to-target mapping** — which of blue/yellow/red is assigned to EXTRA, SPECIAL, and the heart multiplier. Match arcade if the canonical mapping turns up; otherwise pick during implementation.
 3. **Enemy AI** — start with simple shortest-path chase + small randomness; refine if it doesn't feel right.
 4. **Sound design** — DAC waveform tables, jingles for stage clear / extra life / SPECIAL completion / death. Address during the audio module.
 5. **Input fallback** — joystick is primary; keyboard arrow-key fallback to confirm during input module.

@@ -5,32 +5,35 @@ Content catalog. Read this first when answering a query to find the right page, 
 ## Game design
 
 - [Game design overview](game/overview.md) — full design doc: playfield, entities, scoring, vegetable cycle, open questions for the CoCo 3 port
-- `game/maze.md` — playfield, turnstiles, edibles
-- `game/enemies.md` — skull and bug AI
-- `game/scoring.md` — point values, bonus letters, special-vegetable cycle
+- `game/maze.md` — playfield, turnstiles, edibles _(stub)_
+- `game/enemies.md` — skull and bug AI _(stub)_
+- `game/scoring.md` — point values, bonus letters, special-vegetable cycle _(stub)_
 
 ## Platform / technology
 
-_(stubs — bare-metal CoCo 3 / 6809, no NitrOS-9)_
+_(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 
-- `platform/gime.md` — GIME hardware: palette ($FFB0–$FFBF), MMU/PARs ($FFA0–$FFAF), video modes, IRQ/FIRQ, Vbord (60 Hz), MPU speed
-- `platform/memory.md` — CoCo 3 512K memory map, MMU bank layout, ROM/RAM placement, cartridge entry
-- `platform/timing.md` — 60 Hz Vbord, frame budget, IRQ-driven scheduling
-- `platform/input.md` — keyboard matrix, joystick (PIA), polling
-- `platform/sound.md` — 6-bit DAC, sound generation on bare-metal
-- `platform/toolchain.md` — assembler choice, build flags, output format (DECB BIN, cartridge ROM, disk image)
+- [6809.md](platform/6809.md) — MC6809E / MC68B09E programming model, addressing modes, interrupt sequences, clock-rate envelope
+- [gime.md](platform/gime.md) — GIME (ACVC) register catalog: Init0/1, video mode/res, palette ($FFB0-$FFBF), MMU PARs ($FFA0-$FFAF), border, scroll, ACVC IRQ/FIRQ enables, legacy SAM bits
+- [memory.md](platform/memory.md) — virtual/physical memory, MMU, PAR sets, ROM/RAM modes, dedicated-address map, cartridge boot window
+- [timing.md](platform/timing.md) — MPU clock options, Vbord/Hbord/Timer/PIA1 IRQ sources, 60 Hz frame budget at 1.78 MHz
+- [input.md](platform/input.md) — keyboard matrix scan, fire buttons, joystick X/Y via PIA2 DAC + comparator
+- [sound.md](platform/sound.md) — 6-bit DAC + 1-bit PB1 square-wave audio paths, selector-switch setup
+- [cartridge.md](platform/cartridge.md) — 40-pin pinout, CART → PIA2 CB1 → FIRQ auto-start, our boot sequence
+- `platform/toolchain.md` — assembler choice, build flags, output format _(stub — pending decision)_
 
 ## Implementation
 
-- `implementation/roadmap.md` — phase plan
-- `implementation/data-structures.md` — entity/sprite/maze representations
-- `implementation/lessons-learned.md` — observed-fact findings
-- `implementation/build-workflow.md` — assembler invocation, image build, emulator/hardware deploy
+- `implementation/roadmap.md` — phase plan _(stub)_
+- `implementation/data-structures.md` — entity/sprite/maze representations _(stub)_
+- `implementation/lessons-learned.md` — observed-fact findings _(stub)_
+- `implementation/build-workflow.md` — assembler invocation, image build, emulator/hardware deploy _(stub)_
 
 ## Sources
 
-- `sources/coco3-asm-tepolt.md` — Assembly Language Programming for the CoCo 3 (Tepolt, 1987) _(stub)_
-- [Lady Bug arcade — web ingest](sources/ladybug-arcade.md) — aggregated public web sources, with gaps flagged
+- [coco-asm-tepolt.md](sources/coco-asm-tepolt.md) — Assembly Language Programming for the Color Computer (Tepolt, ~1985) — 6809 ISA, addressing modes, SAM, PIAs, VDG, cartridge connector
+- [coco3-asm-tepolt.md](sources/coco3-asm-tepolt.md) — Assembly Language Programming for the CoCo 3 (Tepolt, 1987) — GIME (ACVC), MMU, palette regs, hi-res displays, ACVC interrupts, reset init
+- [ladybug-arcade.md](sources/ladybug-arcade.md) — Lady Bug arcade — aggregated public web sources, with gaps flagged
 
 ## Special
 

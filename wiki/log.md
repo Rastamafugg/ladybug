@@ -27,4 +27,40 @@ User asked for a design doc seeded from public web sources. Searched + fetched W
 
 ## [2026-05-05] decision | Design-doc scope locked for first release
 
-User answered the 10 open questions in [`game/overview.md`](game/overview.md). Locked: HUD split panels (left = score/lives/level; right = EXTRA/SPECIAL/vegetable); hearts and letters are **separate maze entities** with independent colour cycles, where E and A advance whichever of EXTRA/SPECIAL matches their current colour at collection time, every other letter and all hearts only advance/multiply when colour matches the target exactly; `SPECIAL` reward = 10,000 points (no bonus round in v1); 3 lives + one-time 30K bonus life; single fixed maze across all stages; fixed skull count per stage. Explicitly skipped: MAME-source ingest, arcade-manual PDF ingest. Five small items deferred to implementation tuning (cycle timing, E/A tie-break, enemy AI specifics, sound, input fallback). Rewrote `game/overview.md` HUD-relocation, hearts-vs-letters, and stage-flow sections; replaced 10-item Open Questions with a "Decisions locked" block + 5-item Deferred list.
+User answered the 10 open questions in [`game/overview.md`](game/overview.md). Locked: HUD split panels (left = score/lives/level; right = EXTRA/SPECIAL/vegetable); `SPECIAL` reward = 10,000 points (no bonus round in v1); 3 lives + one-time 30K bonus life; single fixed maze across all stages; fixed skull count per stage. Explicitly skipped: MAME-source ingest, arcade-manual PDF ingest.
+
+**Hearts and letters / colour cycle** (clarified across two follow-ups): hearts and letters are separate maze entities. The colour cycle is **global and instantaneous** — every coloured item on the playfield shares one colour state that flips together. Each of the three targets (EXTRA word, SPECIAL word, heart multiplier) is bound to a distinct one of the three colours; an item advances its target only when collected at the matching colour. E and A apply to whichever of EXTRA/SPECIAL is currently active. No tie-break is needed because the global single-colour state plus distinct target-colour assignments make ties structurally impossible. Specific colour-to-target mapping deferred.
+
+Five items deferred to implementation tuning: cycle period/reset, colour-to-target mapping, enemy AI, sound design, input fallback. Rewrote `game/overview.md` HUD section, hearts-vs-letters section (twice), stage-flow, and the Decisions-locked + Deferred blocks.
+
+---
+
+## [2026-05-07] ingest | Tepolt — Assembly Language Programming for the Color Computer (CoCo 1/2)
+
+Read the full Tepolt CoCo 1/2 manual (`docs/reference/Assembly Language Programming for the Color Computer.md`, ~14.7K lines). Focused on the chapters Ladybug needs: ch. 3 (MC6809E architecture, programming model, interrupt sequences), ch. 4 (addressing modes + postbyte tables), ch. 5 / Appendix B (instruction set + cycle counts), ch. 9 (SAM control bits, PIA architecture, VDG modes, IRQ/FIRQ wiring), ch. 10 (keyboard matrix, joystick fire + analog A/D loop, sound paths, cartridge connector pinout), Appendix E (dedicated-address map). Skipped chapters 1-2 (binary/hex primer), 6 (EDTASM+ — not our toolchain), 7-8 (BASIC interop).
+
+Created [`sources/coco-asm-tepolt.md`](sources/coco-asm-tepolt.md) summarising what was extracted and what was deliberately skipped.
+
+## [2026-05-07] ingest | Tepolt — Assembly Language Programming for the CoCo 3
+
+Read the full Tepolt CoCo 3 addendum (`docs/reference/Assembly Language Programming for the CoCo3.md`, ~1.8K lines). Captured: GIME (ACVC) overview, palette + alternate color set, virtual/physical memory and MMU PAR sets, all hi-res text and graphics modes (CRES/HRES/VRES tables, byte formats A/B/C, scrolling), low-res mode parity with the original CoCo, ACVC interrupt sources (Vbord/Hbord/Timer/SerIn/Kybd/Cart) and IRQEN/FIRQEN registers, reset-init flow, the FF22 split, the keyboard-matrix extension for F1/F2/CTRL/ALT and joystick button 2.
+
+Created [`sources/coco3-asm-tepolt.md`](sources/coco3-asm-tepolt.md). The earlier stub for this page never existed as a file — only as an index entry — so this is a fresh write.
+
+## [2026-05-07] propagate | Platform pages from both Tepolt manuals
+
+Wrote/created seven platform pages from the two Tepolt source pages:
+
+- [`platform/6809.md`](platform/6809.md) — programming model, addressing modes, interrupt sequence summary, clock-rate selection.
+- [`platform/gime.md`](platform/gime.md) — full ACVC register catalog (`$FF90-$FF9F`, `$FFA0-$FFAF`, `$FFB0-$FFBF`) plus the legacy SAM bit-flip pairs.
+- [`platform/memory.md`](platform/memory.md) — virtual vs physical, PAR sets, ROM/RAM modes, dedicated address map, 128 K aliasing quirk, `$FE00-$FEFF` jump-table guarantee.
+- [`platform/timing.md`](platform/timing.md) — MPU clock options, IRQ source comparison, decision to use ACVC Vbord at 60 Hz, frame-budget partition at 1.78 MHz.
+- [`platform/input.md`](platform/input.md) — keyboard matrix scan, fire buttons (now two each), joystick X/Y successive-approximation A/D.
+- [`platform/sound.md`](platform/sound.md) — 6-bit DAC vs PB1 square wave, selector-switch setup, planned use for melody vs SFX.
+- [`platform/cartridge.md`](platform/cartridge.md) — 40-pin pinout, CART/FIRQ auto-start, the boot-time sequence Ladybug must execute.
+
+Updated [`index.md`](index.md) to list all seven new platform pages and both source pages.
+
+## [2026-05-07] decision | Bare-metal boot strategy locked
+
+Documented the Ladybug boot path: cartridge ROM at `$C000`, control taken via the BASIC reset-init's CART → PIA2 CB1 → FIRQ handshake, then immediate switch to all-RAM mode + 1.78 MHz clock + ACVC Vbord IRQ for the 60 Hz tick. We will not depend on BASIC's PIA initialisation; we re-init both PIAs ourselves. Init0 bit 3 will be set so the primary IRQ jump table at `$FEEE-$FEFF` remains reachable independently of PAR7. Rationale captured in [`platform/cartridge.md`](platform/cartridge.md).
