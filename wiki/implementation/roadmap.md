@@ -43,7 +43,7 @@ From the current state (tooling validated, design + boot strategy locked, `src/`
 
 ---
 
-## Phase 1 — Boot init: all-RAM, DP, vsync IRQ
+## Phase 1 — Boot init: all-RAM, DP, vsync IRQ ✅ DONE 2026-05-08
 
 **Goal:** establish the runtime environment our code will assume forever afterward.
 

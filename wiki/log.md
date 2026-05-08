@@ -69,6 +69,14 @@ User requested full build/deploy runbooks for the WSL toolchain at `~/coco-tools
 
 `wiki/index.md` updated: new Tooling section; old `platform/toolchain.md` and `implementation/build-workflow.md` stubs marked superseded.
 
+## [2026-05-08] phase | Phase 1 — Boot init + 60 Hz Vbord — passed
+
+`src/main.s` grew to 95 bytes: DP=$02, PIA interrupts quieted, GIME `Init0=$A8` (COCO legacy, MMU off, ACVC-IRQ on, force-`$FExx`=$3F), TY=1 all-RAM, R1=1 fast clock, JMP-handler installed at `$FEF7`, Vbord enabled via `$FF92` b3, I-mask cleared. IRQ handler increments a 16-bit `FRAMES` counter at `$0202` and acks via `$FF92` read. Main loop renders both bytes to `$0400/$0401` on the legacy VDG screen — observed on XRoar at expected rates (high byte ~4.27 s/cycle, low byte fast flicker). No stray IRQ/FIRQ from PIA or other GIME sources.
+
+**Resolved deferred question:** SWI/IRQ vector collision (flagged in [`coding-conventions.md §4`](implementation/coding-conventions.md) at ingest, gated to Phase 1). No collision — SWI vectors `$FFFA/$FFF4/$FFF2` are disjoint from IRQ/FIRQ at `$FFF8/$FFF6`, and BASIC's SWI2/SWI3 use is moot in all-RAM mode. Updated coding-conventions.md to remove the warning. Filed both Phase 1 results and the SWI resolution to [`implementation/lessons-learned.md`](implementation/lessons-learned.md). Roadmap Phase 1 marked done.
+
+---
+
 ## [2026-05-08] phase | Phase 0 — Hello cart — passed
 
 22-byte stub at `$C000` with `FCC "DK"` autostart magic + entry code took control under XRoar via the BASIC CART/FIRQ handshake. Screen showed our 32-byte `$AA` marker on row 0 over BASIC's default `$60` green fill — no banner, no `OK` prompt. Confirmed [`platform/cartridge.md`](platform/cartridge.md)'s boot handshake description is correct as written. Filed Phase-0 finding to [`implementation/lessons-learned.md`](implementation/lessons-learned.md), including a sanity-note on CoCo VDG SG4 byte semantics. Roadmap Phase 0 marked done. Created [`src/main.s`](../src/main.s) (first source file in `src/`).

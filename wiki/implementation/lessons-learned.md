@@ -58,6 +58,30 @@ While debugging the marker rendering: a CoCo VDG byte with bit 7 set is interpre
 
 ---
 
+---
+
+## Phase 1 verified — boot init + 60 Hz Vbord IRQ
+
+Filed 2026-05-08 at the Phase 1 review gate.
+
+A 95-byte boot sequence (`src/main.s`) takes us from the Phase 0 takeover to a stable 60 Hz tick: DP=$02, all-RAM, 1.78 MHz, IRQ handler installed at the `$FEF7` jump-table slot, only Vbord enabled in `$FF92`. Visible signal: a 16-bit IRQ-incremented counter rendered to `$0400/$0401` on the legacy VDG text screen — high byte advances every ~4.27 s, low byte flickers fast. Both behaviours observed on XRoar.
+
+**Why it matters:** confirms the boot recipe in [../platform/cartridge.md §What our boot must do](../platform/cartridge.md) is correct *as a starting point*, with the Phase-1 simplification of leaving COCO legacy mode on (`Init0` b7=1) so the existing $0400 text screen remains usable without configuring GIME hi-res video.
+
+**Applies to:** every cartridge build until Phase 2 supersedes the video path. The PIA-quieting + IRQ-install sequence carries forward unchanged.
+
+**Citation:** [`src/main.s`](../../src/main.s) at the Phase 1 commit.
+
+### SWI / IRQ vector collision — RESOLVED
+
+Filed 2026-05-08 at the Phase 1 review gate, deferred from [coding-conventions.md §4](coding-conventions.md).
+
+Concern was whether using `SWI` (and `SWI2`/`SWI3`) as a syscall trap could collide with the GIME's IRQ/FIRQ paths. **No collision.** SWI is a CPU instruction — software-only — with hardware vectors at `$FFFA/$FFFB` (SWI), `$FFF4/$FFF5` (SWI2), `$FFF2/$FFF3` (SWI3). The GIME's IRQ uses `$FFF8/$FFF9`, FIRQ uses `$FFF6/$FFF7`. Disjoint. BASIC ROM uses SWI2/SWI3 internally for floating-point and monitor calls, but once we're in all-RAM mode and not entering BASIC, all six vector slots and their `$FE00-$FEFF` jump-table indirections are ours.
+
+**Applies to:** the syscall-layer plan in [coding-conventions.md §4](coding-conventions.md) — go ahead and use `SWI` (and `SWI2`/`SWI3` if needed) as service traps when the implementation gets there.
+
+---
+
 ## Format for future entries
 
 ```

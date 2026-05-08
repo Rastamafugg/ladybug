@@ -43,7 +43,7 @@ Hot, ubiquitous services (render, RNG, text, sound) are reached through `SWI` fo
 
 - DoD: [`COMSWI.ASM`](../../docs/reference/DungeonsOfDaggorath-main/COMSWI.ASM) — handler reads the parameter from `PC`, indexes `SWITAB`, jumps. Call sites look like `SWI / FCB <SVCID>`, e.g. [`CRETUR.ASM:62-63`](../../docs/reference/DungeonsOfDaggorath-main/CRETUR.ASM).
 - For Ladybug: candidate SWI services — `SVC_RENDER`, `SVC_RNG`, `SVC_PUTC`, `SVC_PLAYSFX`, `SVC_VBLANK_WAIT`. Decide the full table when implementing the renderer.
-- **Note:** SWI is also used by the GIME's interrupt path on the CoCo 3. Confirm there's no conflict with our IRQ/FIRQ choices (see [platform/timing.md](../platform/timing.md)) before committing — `SWI` (without the suffix) is software-only and should be safe, but `SWI2`/`SWI3` need cross-checking against any debugger or BASIC ROM hooks we leave reachable.
+- **Resolved 2026-05-08 (Phase 1 gate):** no collision with the GIME interrupt path. SWI/SWI2/SWI3 vectors (`$FFFA/$FFF4/$FFF2`) are disjoint from IRQ/FIRQ vectors (`$FFF8/$FFF6`); BASIC's SWI2/SWI3 use is moot in all-RAM mode. See [lessons-learned.md "SWI / IRQ vector collision"](lessons-learned.md).
 
 ## 5. Routine header contract
 

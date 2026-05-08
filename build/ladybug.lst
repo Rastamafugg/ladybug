@@ -1,45 +1,164 @@
                       (adybug/src/main.s):00001         ;==============================================================================
                       (adybug/src/main.s):00002         ; Ladybug — main.s
                       (adybug/src/main.s):00003         ;==============================================================================
-                      (adybug/src/main.s):00004         ; Phase 0 POC: minimum cartridge that takes control from BASIC and proves it
-                      (adybug/src/main.s):00005         ; by painting a checkerboard semigraphic block across the top row of the text
-                      (adybug/src/main.s):00006         ; screen, then halting.
-                      (adybug/src/main.s):00007         ;
-                      (adybug/src/main.s):00008         ; No GIME init, no IRQ install, no all-RAM switch. Phase 1 adds those.
-                      (adybug/src/main.s):00009         ;
-                      (adybug/src/main.s):00010         ; Boot handshake (see wiki/platform/cartridge.md):
-                      (adybug/src/main.s):00011         ;   1. Cart at $C000-$FEFF (TY=0).
-                      (adybug/src/main.s):00012         ;   2. Reset → BASIC reset-init runs.
-                      (adybug/src/main.s):00013         ;   3. PIA2 CB1 sees CART low → FIRQ.
-                      (adybug/src/main.s):00014         ;   4. BASIC FIRQ handler reads first two bytes at $C000. If "DK", jumps $C002.
+                      (adybug/src/main.s):00004         ; Phase 1: take control, set DP, go all-RAM + fast clock, install Vbord IRQ at
+                      (adybug/src/main.s):00005         ; 60 Hz, run a frame counter visible on the legacy text screen.
+                      (adybug/src/main.s):00006         ;
+                      (adybug/src/main.s):00007         ; What's still deferred:
+                      (adybug/src/main.s):00008         ;   - GIME hi-res video config        → Phase 2
+                      (adybug/src/main.s):00009         ;   - palette setup                   → Phase 2
+                      (adybug/src/main.s):00010         ;   - tile/sprite renderer            → Phase 3-4
+                      (adybug/src/main.s):00011         ;   - input read                      → Phase 4
+                      (adybug/src/main.s):00012         ;
+                      (adybug/src/main.s):00013         ; Boot handshake — see wiki/platform/cartridge.md.
+                      (adybug/src/main.s):00014         ; Boot init sequence — same page, "What our boot must do".
                       (adybug/src/main.s):00015         ;==============================================================================
                       (adybug/src/main.s):00016         
                       (adybug/src/main.s):00017                 pragma  nodollarlocal,6809
                       (adybug/src/main.s):00018         
-                      (adybug/src/main.s):00019                 ORG     $C000
-                      (adybug/src/main.s):00020         
-C000 444B             (adybug/src/main.s):00021                 FCC     "DK"            ; ROM-pack autostart magic
-                      (adybug/src/main.s):00022         
-                      (adybug/src/main.s):00023         ;------------------------------------------------------------------------------
-                      (adybug/src/main.s):00024         ; entry — first instruction the BASIC FIRQ handler dispatches to
-                      (adybug/src/main.s):00025         ;
-                      (adybug/src/main.s):00026         ; Inputs:    none (cold from BASIC reset-init)
-                      (adybug/src/main.s):00027         ; Returns:   does not return; halts in BRA *
+                      (adybug/src/main.s):00019         ;------------------------------------------------------------------------------
+                      (adybug/src/main.s):00020         ; Direct-page allocation (page $02)
+                      (adybug/src/main.s):00021         ;------------------------------------------------------------------------------
+     02               (adybug/src/main.s):00022                 setdp   $02
+                      (adybug/src/main.s):00023         
+     0202             (adybug/src/main.s):00024         FRAMES  equ     $0202           ; u16 frame counter, IRQ-incremented (BE)
+                      (adybug/src/main.s):00025         
+                      (adybug/src/main.s):00026         ;------------------------------------------------------------------------------
+                      (adybug/src/main.s):00027         ; Hardware register addresses
                       (adybug/src/main.s):00028         ;------------------------------------------------------------------------------
-C002 1A50             (adybug/src/main.s):00029         entry   ORCC    #$50            ; mask IRQ and FIRQ
-C004 10CE7FFE         (adybug/src/main.s):00030                 LDS     #$7FFE          ; stack at top of low RAM (well clear of $C000)
-                      (adybug/src/main.s):00031         
-C008 8E0400           (adybug/src/main.s):00032                 LDX     #$0400          ; CoCo VDG text screen base
-C00B 86AA             (adybug/src/main.s):00033                 LDA     #$AA            ; semigraphic-4 checkerboard block
-C00D A780             (adybug/src/main.s):00034         fill    STA     ,X+
-C00F 8C0420           (adybug/src/main.s):00035                 CMPX    #$0420          ; one full 32-char row
-C012 26F9             (adybug/src/main.s):00036                 BNE     fill
+     FF00             (adybug/src/main.s):00029         PIA1_DA    equ  $FF00
+     FF01             (adybug/src/main.s):00030         PIA1_CRA   equ  $FF01
+     FF02             (adybug/src/main.s):00031         PIA1_DB    equ  $FF02
+     FF03             (adybug/src/main.s):00032         PIA1_CRB   equ  $FF03
+     FF20             (adybug/src/main.s):00033         PIA2_DA    equ  $FF20
+     FF21             (adybug/src/main.s):00034         PIA2_CRA   equ  $FF21
+     FF22             (adybug/src/main.s):00035         PIA2_DB    equ  $FF22
+     FF23             (adybug/src/main.s):00036         PIA2_CRB   equ  $FF23
                       (adybug/src/main.s):00037         
-C014 20FE             (adybug/src/main.s):00038         hang    BRA     hang
-                      (adybug/src/main.s):00039         
-                      (adybug/src/main.s):00040                 END
+     FF90             (adybug/src/main.s):00038         GIME_INIT0 equ  $FF90
+     FF92             (adybug/src/main.s):00039         GIME_IRQEN equ  $FF92
+                      (adybug/src/main.s):00040         
+     FFD9             (adybug/src/main.s):00041         SAM_FAST   equ  $FFD9           ; write-anything = R1 set = 1.78 MHz
+     FFDF             (adybug/src/main.s):00042         SAM_ALLRAM equ  $FFDF           ; write-anything = TY set = all-RAM
+                      (adybug/src/main.s):00043         
+     FEF7             (adybug/src/main.s):00044         JT_IRQ     equ  $FEF7           ; primary jump-table IRQ slot (3 bytes)
+                      (adybug/src/main.s):00045         
+     0400             (adybug/src/main.s):00046         SCREEN     equ  $0400           ; legacy VDG text screen base
+                      (adybug/src/main.s):00047         
+                      (adybug/src/main.s):00048         ;------------------------------------------------------------------------------
+                      (adybug/src/main.s):00049         ; Cartridge ROM
+                      (adybug/src/main.s):00050         ;------------------------------------------------------------------------------
+                      (adybug/src/main.s):00051                 org     $C000
+                      (adybug/src/main.s):00052         
+C000 444B             (adybug/src/main.s):00053                 fcc     "DK"            ; ROM-pack autostart magic; FIRQ handler enters at $C002
+                      (adybug/src/main.s):00054         
+                      (adybug/src/main.s):00055         ;==============================================================================
+                      (adybug/src/main.s):00056         ; entry — first instruction the BASIC FIRQ handler dispatches to
+                      (adybug/src/main.s):00057         ;
+                      (adybug/src/main.s):00058         ; Inputs:    none (cold from BASIC reset-init)
+                      (adybug/src/main.s):00059         ; Returns:   does not return; falls into mainloop
+                      (adybug/src/main.s):00060         ;==============================================================================
+C002 1A50             (adybug/src/main.s):00061         entry   orcc    #$50            ; mask IRQ and FIRQ
+C004 10CE7FFE         (adybug/src/main.s):00062                 lds     #$7FFE          ; stack at top of low RAM, well below $C000
+                      (adybug/src/main.s):00063         
+                      (adybug/src/main.s):00064                 ; --- DP = $02 ---
+C008 8602             (adybug/src/main.s):00065                 lda     #$02
+C00A 1F8B             (adybug/src/main.s):00066                 tfr     a,dp
+                      (adybug/src/main.s):00067         
+                      (adybug/src/main.s):00068                 ; --- Quiet legacy PIA interrupts (so only Vbord can fire) ---
+                      (adybug/src/main.s):00069                 ; Disable IRQ from CA1/CB1 by clearing bit 0 of each control reg,
+                      (adybug/src/main.s):00070                 ; then read each data port to clear any pending edge flag.
+C00C 4F               (adybug/src/main.s):00071                 clra
+C00D B7FF01           (adybug/src/main.s):00072                 sta     PIA1_CRA
+C010 B7FF03           (adybug/src/main.s):00073                 sta     PIA1_CRB
+C013 B7FF21           (adybug/src/main.s):00074                 sta     PIA2_CRA
+C016 B7FF23           (adybug/src/main.s):00075                 sta     PIA2_CRB
+C019 B6FF00           (adybug/src/main.s):00076                 lda     PIA1_DA
+C01C B6FF02           (adybug/src/main.s):00077                 lda     PIA1_DB
+C01F B6FF20           (adybug/src/main.s):00078                 lda     PIA2_DA
+C022 B6FF22           (adybug/src/main.s):00079                 lda     PIA2_DB
+                      (adybug/src/main.s):00080         
+                      (adybug/src/main.s):00081                 ; --- GIME Init0: legacy VDG path on, force $FExx to phys $3F ---
+                      (adybug/src/main.s):00082                 ; %10101000 = b7 COCO=1, b6 MMU=0, b5 ACVCIRQ=1, b4 ACVCFIRQ=0,
+                      (adybug/src/main.s):00083                 ;             b3 force-$FExx=1, b2 SCS=0, b1-b0 ROMmap=00.
+C025 86A8             (adybug/src/main.s):00084                 lda     #%10101000
+C027 B7FF90           (adybug/src/main.s):00085                 sta     GIME_INIT0
+                      (adybug/src/main.s):00086         
+                      (adybug/src/main.s):00087                 ; --- TY = 1: all-RAM mode ---
+C02A B7FFDF           (adybug/src/main.s):00088                 sta     SAM_ALLRAM      ; (data byte ignored)
+                      (adybug/src/main.s):00089         
+                      (adybug/src/main.s):00090                 ; --- R1 = 1: 1.78 MHz ---
+C02D B7FFD9           (adybug/src/main.s):00091                 sta     SAM_FAST
+                      (adybug/src/main.s):00092         
+                      (adybug/src/main.s):00093                 ; --- Install IRQ handler at primary jump-table slot $FEF7 ---
+                      (adybug/src/main.s):00094                 ; 3-byte slot: opcode $7E (JMP extended) + 16-bit handler address.
+C030 867E             (adybug/src/main.s):00095                 lda     #$7E
+C032 B7FEF7           (adybug/src/main.s):00096                 sta     JT_IRQ
+C035 CCC055           (adybug/src/main.s):00097                 ldd     #irq_handler
+C038 FDFEF8           (adybug/src/main.s):00098                 std     JT_IRQ+1
+                      (adybug/src/main.s):00099         
+                      (adybug/src/main.s):00100                 ; --- Clear initial frame counter ---
+C03B 0F02             (adybug/src/main.s):00101                 clr     FRAMES
+C03D 0F03             (adybug/src/main.s):00102                 clr     FRAMES+1
+                      (adybug/src/main.s):00103         
+                      (adybug/src/main.s):00104                 ; --- Enable Vbord, then ack any pending IRQ ---
+C03F 8608             (adybug/src/main.s):00105                 lda     #%00001000      ; b3 Vbord
+C041 B7FF92           (adybug/src/main.s):00106                 sta     GIME_IRQEN
+C044 B6FF92           (adybug/src/main.s):00107                 lda     GIME_IRQEN      ; read = ack
+                      (adybug/src/main.s):00108         
+                      (adybug/src/main.s):00109                 ; --- Unmask IRQ (keep FIRQ masked — we don't use FIRQ in Phase 1) ---
+C047 1CEF             (adybug/src/main.s):00110                 andcc   #%11101111
+                      (adybug/src/main.s):00111         
+                      (adybug/src/main.s):00112         ;==============================================================================
+                      (adybug/src/main.s):00113         ; mainloop — display the IRQ-driven frame counter as two screen bytes
+                      (adybug/src/main.s):00114         ;
+                      (adybug/src/main.s):00115         ; $0400 = high byte (advances every 256 frames, ~4.27 s)
+                      (adybug/src/main.s):00116         ; $0401 = low byte  (cycles fast, visible flicker)
+                      (adybug/src/main.s):00117         ;
+                      (adybug/src/main.s):00118         ; Race window is acceptable for Phase 1: occasional torn read shows as a
+                      (adybug/src/main.s):00119         ; one-byte glitch in either column, doesn't change the "is it ticking" signal.
+                      (adybug/src/main.s):00120         ;==============================================================================
+C049                  (adybug/src/main.s):00121         mainloop
+C049 9602             (adybug/src/main.s):00122                 lda     FRAMES          ; high
+C04B B70400           (adybug/src/main.s):00123                 sta     SCREEN
+C04E 9603             (adybug/src/main.s):00124                 lda     FRAMES+1        ; low
+C050 B70401           (adybug/src/main.s):00125                 sta     SCREEN+1
+C053 20F4             (adybug/src/main.s):00126                 bra     mainloop
+                      (adybug/src/main.s):00127         
+                      (adybug/src/main.s):00128         ;==============================================================================
+                      (adybug/src/main.s):00129         ; irq_handler — Vbord (60 Hz)
+                      (adybug/src/main.s):00130         ;
+                      (adybug/src/main.s):00131         ; Inputs:  none. Entered via IRQ vector → $FEF7 JMP here.
+                      (adybug/src/main.s):00132         ; Returns: rti
+                      (adybug/src/main.s):00133         ; Side effects: increments FRAMES (16-bit big-endian); reads $FF92 to ack.
+                      (adybug/src/main.s):00134         ;==============================================================================
+C055                  (adybug/src/main.s):00135         irq_handler
+C055 B6FF92           (adybug/src/main.s):00136                 lda     GIME_IRQEN      ; ack: read $FF92 to clear pending bits
+C058 0C03             (adybug/src/main.s):00137                 inc     FRAMES+1
+C05A 2602             (adybug/src/main.s):00138                 bne     irq_done
+C05C 0C02             (adybug/src/main.s):00139                 inc     FRAMES
+C05E                  (adybug/src/main.s):00140         irq_done
+C05E 3B               (adybug/src/main.s):00141                 rti
+                      (adybug/src/main.s):00142         
+                      (adybug/src/main.s):00143                 end
 
 Symbol Table:
 [ G] entry                            C002
-[ G] fill                             C00D
-[ G] hang                             C014
+[ G] FRAMES                           0202
+[ G] GIME_INIT0                       FF90
+[ G] GIME_IRQEN                       FF92
+[ G] irq_done                         C05E
+[ G] irq_handler                      C055
+[ G] JT_IRQ                           FEF7
+[ G] mainloop                         C049
+[ G] PIA1_CRA                         FF01
+[ G] PIA1_CRB                         FF03
+[ G] PIA1_DA                          FF00
+[ G] PIA1_DB                          FF02
+[ G] PIA2_CRA                         FF21
+[ G] PIA2_CRB                         FF23
+[ G] PIA2_DA                          FF20
+[ G] PIA2_DB                          FF22
+[ G] SAM_ALLRAM                       FFDF
+[ G] SAM_FAST                         FFD9
+[ G] SCREEN                           0400
