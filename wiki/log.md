@@ -61,6 +61,14 @@ Wrote/created seven platform pages from the two Tepolt source pages:
 
 Updated [`index.md`](index.md) to list all seven new platform pages and both source pages.
 
+## [2026-05-08] ingest | Tooling — lwtools, xroar, toolshed + build script
+
+User requested full build/deploy runbooks for the WSL toolchain at `~/coco-tools/{lwtools,toolshed,xroar}` plus an automation script. Created a new `wiki/tooling/` section: [`index.md`](tooling/index.md), [`lwtools.md`](tooling/lwtools.md) (lwasm 4.24, `--format=raw` invocation, padding to 16 KB, gotchas), [`xroar.md`](tooling/xroar.md) (XRoar 1.10, canonical `-machine coco3 -ram 512 -cart-rom ... -cart-autorun` profile, GDB/trace flags), [`toolshed.md`](tooling/toolshed.md) (decb/os9 — explicitly **standby**, not in active build), [`build-workflow.md`](tooling/build-workflow.md) (end-to-end runbook with manual fallbacks). Wrote [`scripts/build.sh`](../scripts/build.sh) with `build`/`run`/`clean` subcommands; smoke-tested end-to-end against a 3-byte stub (`ORG $C000 / JMP entry` → 16384-byte padded ROM). Verified Windows-host Claude can drive WSL via `wsl -d Ubuntu -- bash -lc ...`.
+
+**Decision:** deploy is **cartridge ROM image only** (option A); toolshed kept documented but unused. Rationale: matches existing cartridge boot strategy locked 2026-05-07. Reconsider if iteration becomes cumbersome — the toolshed page documents the `.dsk`/`LOADM` fallback path so the switch is fast. OS-9 path explicitly out of scope (conflicts with bare-metal constraint in `CLAUDE.md`).
+
+`wiki/index.md` updated: new Tooling section; old `platform/toolchain.md` and `implementation/build-workflow.md` stubs marked superseded.
+
 ## [2026-05-07] decision | Bare-metal boot strategy locked
 
 Documented the Ladybug boot path: cartridge ROM at `$C000`, control taken via the BASIC reset-init's CART → PIA2 CB1 → FIRQ handshake, then immediate switch to all-RAM mode + 1.78 MHz clock + ACVC Vbord IRQ for the 60 Hz tick. We will not depend on BASIC's PIA initialisation; we re-init both PIAs ourselves. Init0 bit 3 will be set so the primary IRQ jump table at `$FEEE-$FEFF` remains reachable independently of PAR7. Rationale captured in [`platform/cartridge.md`](platform/cartridge.md).
