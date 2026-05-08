@@ -1,0 +1,45 @@
+                      (adybug/src/main.s):00001         ;==============================================================================
+                      (adybug/src/main.s):00002         ; Ladybug — main.s
+                      (adybug/src/main.s):00003         ;==============================================================================
+                      (adybug/src/main.s):00004         ; Phase 0 POC: minimum cartridge that takes control from BASIC and proves it
+                      (adybug/src/main.s):00005         ; by painting a checkerboard semigraphic block across the top row of the text
+                      (adybug/src/main.s):00006         ; screen, then halting.
+                      (adybug/src/main.s):00007         ;
+                      (adybug/src/main.s):00008         ; No GIME init, no IRQ install, no all-RAM switch. Phase 1 adds those.
+                      (adybug/src/main.s):00009         ;
+                      (adybug/src/main.s):00010         ; Boot handshake (see wiki/platform/cartridge.md):
+                      (adybug/src/main.s):00011         ;   1. Cart at $C000-$FEFF (TY=0).
+                      (adybug/src/main.s):00012         ;   2. Reset → BASIC reset-init runs.
+                      (adybug/src/main.s):00013         ;   3. PIA2 CB1 sees CART low → FIRQ.
+                      (adybug/src/main.s):00014         ;   4. BASIC FIRQ handler reads first two bytes at $C000. If "DK", jumps $C002.
+                      (adybug/src/main.s):00015         ;==============================================================================
+                      (adybug/src/main.s):00016         
+                      (adybug/src/main.s):00017                 pragma  nodollarlocal,6809
+                      (adybug/src/main.s):00018         
+                      (adybug/src/main.s):00019                 ORG     $C000
+                      (adybug/src/main.s):00020         
+C000 444B             (adybug/src/main.s):00021                 FCC     "DK"            ; ROM-pack autostart magic
+                      (adybug/src/main.s):00022         
+                      (adybug/src/main.s):00023         ;------------------------------------------------------------------------------
+                      (adybug/src/main.s):00024         ; entry — first instruction the BASIC FIRQ handler dispatches to
+                      (adybug/src/main.s):00025         ;
+                      (adybug/src/main.s):00026         ; Inputs:    none (cold from BASIC reset-init)
+                      (adybug/src/main.s):00027         ; Returns:   does not return; halts in BRA *
+                      (adybug/src/main.s):00028         ;------------------------------------------------------------------------------
+C002 1A50             (adybug/src/main.s):00029         entry   ORCC    #$50            ; mask IRQ and FIRQ
+C004 10CE7FFE         (adybug/src/main.s):00030                 LDS     #$7FFE          ; stack at top of low RAM (well clear of $C000)
+                      (adybug/src/main.s):00031         
+C008 8E0400           (adybug/src/main.s):00032                 LDX     #$0400          ; CoCo VDG text screen base
+C00B 86AA             (adybug/src/main.s):00033                 LDA     #$AA            ; semigraphic-4 checkerboard block
+C00D A780             (adybug/src/main.s):00034         fill    STA     ,X+
+C00F 8C0420           (adybug/src/main.s):00035                 CMPX    #$0420          ; one full 32-char row
+C012 26F9             (adybug/src/main.s):00036                 BNE     fill
+                      (adybug/src/main.s):00037         
+C014 20FE             (adybug/src/main.s):00038         hang    BRA     hang
+                      (adybug/src/main.s):00039         
+                      (adybug/src/main.s):00040                 END
+
+Symbol Table:
+[ G] entry                            C002
+[ G] fill                             C00D
+[ G] hang                             C014

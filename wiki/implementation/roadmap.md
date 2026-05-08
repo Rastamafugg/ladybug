@@ -26,7 +26,7 @@ From the current state (tooling validated, design + boot strategy locked, `src/`
 
 ---
 
-## Phase 0 — Hello cart (boot handshake)
+## Phase 0 — Hello cart (boot handshake) ✅ DONE 2026-05-08
 
 **Goal:** smallest possible cartridge that takes control from BASIC and proves we own the machine.
 
