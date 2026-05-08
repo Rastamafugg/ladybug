@@ -30,7 +30,7 @@ xroar \
 | `-ram 512` | 512 KB — matches our target hardware spec. |
 | `-cart ladybug` | Define a named cart profile (just a label). |
 | `-cart-type rom` | Plain ROM cartridge (no Becker port, no MPI). |
-| `-cart-rom FILE` | Path to the 16 KB padded ROM image from `lwasm` + pad step. |
+| `-cart-rom FILE` | Path to the 32 KB padded ROM image from `lwasm` + pad step. |
 | `-cart-autorun` | Triggers the CART → FIRQ handshake on startup so BASIC dispatches into our `JMP entry` at `$C000` without a manual `EXEC`. |
 
 Default keymap is fine for now (PC keyboard mapped to CoCo 3 layout). Joystick mapping deferred until [../platform/input.md](../platform/input.md) work begins.
@@ -54,7 +54,7 @@ For headless / CI-style smoke tests (none today), add `-no-ratelimit -fskip 100`
 
 ## Gotchas
 
-- **Cart ROM must be a power of 2.** XRoar will load any size but mapping behaviour for non-pow2 ROMs is undefined. Build script always pads to 16 KB.
+- **Cart ROM must be a power of 2.** XRoar will load any size but mapping behaviour for non-pow2 ROMs is undefined. Build script always pads to 32 KB.
 - **Default machine config carries state across runs.** If a previous session changed PAR/palette in a weird way and you suspect emulator state pollution, clear `~/.xroar/` (config) — but normally a clean cart load resets the GIME via the boot path.
 - **WSL display** — XRoar opens an X11/Wayland window. WSL2 with WSLg (Win11 default) handles this transparently. If no window appears, check `echo $DISPLAY` inside WSL.
 

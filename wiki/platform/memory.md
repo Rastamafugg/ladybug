@@ -61,7 +61,9 @@ The SAM register pairs use *write anything to set vs. clear* semantics — the d
 
 ## Cartridge boot
 
-When a cartridge is plugged into the right-side slot, it occupies physical `$3E-$3F` (16 K window) at virtual `$C000-$FEFF` while TY=0. Pin 8 (CART) of the cartridge edge is wired to PIA 2 CB1, which generates a FIRQ during BASIC's reset routine — the FIRQ handler examines `$C000` for a magic and, if present, jumps there. **This is Ladybug's entry point: the first bytes of the cartridge ROM at virtual `$C000` are our boot.** See [cartridge.md](cartridge.md).
+When a cartridge is plugged into the right-side slot, its upper 16 K occupies physical `$3E-$3F` at virtual `$C000-$FEFF` while TY=0 and Init0 ROM-map = default. Pin 8 (CART) of the cartridge edge is wired to PIA 2 CB1, which generates a FIRQ during BASIC's reset routine — the FIRQ handler examines `$C000` for a magic and, if present, jumps there. **This is Ladybug's entry point: the first bytes of the cartridge ROM at virtual `$C000` are our boot.** See [cartridge.md](cartridge.md).
+
+**Ladybug uses a 32 K cart** (decision 2026-05-08): after taking control, our boot writes Init0 b1-b0 = `11` to switch to "32 K cartridge" mode. BASIC ROM at `$8000-$BFFF` disappears and our cart's lower 16 K appears there. Tables (tiles, sprites, palette, fonts, maze, sound) live in that lower-16 K region; code and the autostart magic live in the upper 16 K (`$C000-$FEFF`) where the BASIC FIRQ handler dispatches. After we copy whatever cart-ROM data we need into RAM, we set TY=1 and the cart is gone for the rest of the run.
 
 ## CoCo 3 quirks worth knowing
 

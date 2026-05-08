@@ -22,7 +22,7 @@ All tools are installed in WSL Ubuntu under `~/coco-tools/`. The host `scripts/b
 
 ## Deploy target
 
-Cartridge ROM image (16 KB, mapped at `$C000` on a real CoCo 3, boots via the CART → FIRQ handshake — see [../platform/cartridge.md](../platform/cartridge.md)). No floppy, no NitrOS-9. Decision logged 2026-05-08; reconsider if iteration becomes cumbersome (e.g. if we want hot-reload via xroar's floppy without re-padding a ROM).
+Cartridge ROM image (32 KB, mapped at `$8000-$FEFF` on a real CoCo 3 once Init0 b1-b0 is set to `11`; entry point at `$C002` via the CART → FIRQ handshake — see [../platform/cartridge.md](../platform/cartridge.md)). No floppy, no NitrOS-9. Cart-size decision logged 2026-05-08; reconsider only if a bank-switched cart becomes necessary.
 
 ## WSL access
 

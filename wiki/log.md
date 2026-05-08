@@ -75,6 +75,28 @@ User requested full build/deploy runbooks for the WSL toolchain at `~/coco-tools
 
 `wiki/index.md` updated: new Tooling section; old `platform/toolchain.md` and `implementation/build-workflow.md` stubs marked superseded.
 
+## [2026-05-08] decision | Memory map for Phase 2 + Phase 10 cart-shell gate
+
+**Memory map.** Created [`implementation/memory-map.md`](implementation/memory-map.md) covering: 8-PAR allocation post-boot (1 system, 4 FB at phys `$30-$33`, 1 game-state placeholder, 2 code at phys `$3E-$3F`); 32 K cart-ROM image structure (data section at virtual `$8000-$BFFF`, code section at `$C000-$FEFF`); boot data-copy procedure relying on shadow-RAM-during-write semantics (Init0 b1-b0=11 → self-copy `$8000-$FEFF` → TY=1; ~80 ms boot-time cost). DP at `$0200-$02FF` allocation table started.
+
+**Tight page budget surfaced.** 8 PARs vs 8-10 wanted post-Phase-4 (sprite data is the pinch point: ~15 K of sprites won't fit in 1 PAR alongside game state + FB + code + system). Documented four resolution options — (1) sprite 2bpp+attr compression — default, (2) bank-switch sprite PAR, (3) sliding FB write window, (4) shrink code to 8 K. Decision deferred to Phase 4 when real sprite count is known.
+
+**Two open Phase-2 implementation validations** to do at first boot: shadow-RAM-during-write actually populates phys `$3C-$3F` with cart contents; XRoar correctly maps a 32 K cart image when Init0 b1-b0=11 is set.
+
+**Phase 10 review-gate question added** (separate from memory map): does the chosen cart shell — CoCoSDC, RetroCloud, custom — actually respond to `$8000-$BFFF` accesses in Init0=11 mode? If not, half-day pivot to a software-bank-switched cart, since bank-switching only matters during boot's data-copy phase. Updated [`implementation/roadmap.md`](implementation/roadmap.md) Phase 10.
+
+---
+
+## [2026-05-08] decision | Cart retargeted to 32 K (Init0 b1-b0 = 11)
+
+User pushed back on the implicit 16 K cart limit during Phase 2 ROM-budget analysis. Reviewed real options: (1) 16 K with 2bpp+attr sprite packing — fits but ties storage format to performance, (2) 32 K cart via Init0 b1-b0 = `11` — same boot model, requires 32 K EPROM + cart shell, (3) bank-switched cart — more complex, (4) floppy — reverses locked cart-only decision. Chose **(2) 32 K cart**: removes ROM pressure for full 4bpp sprite path, keeps boot model intact, defers bank-switching as a fallback if ever needed.
+
+Updated `scripts/build.sh` (`CART_BYTES=32768`); rebuilt — Phase 1 cart still autostarts under XRoar (16 K of code/padding + 16 K trailing $FF padding). Updated wiki: [`platform/cartridge.md`](platform/cartridge.md) §"Cart size — 32 K" + revised boot sequence (Init0 b1-b0 = `11` switch comes before all-RAM, after we take control); [`platform/memory.md`](platform/memory.md) cart-boot section; [`tooling/build-workflow.md`](tooling/build-workflow.md) (32 KB pad, updated overflow guidance); [`implementation/video-mode.md`](implementation/video-mode.md) (ROM-budget update — 4bpp sprite path now default); [`implementation/roadmap.md`](implementation/roadmap.md) (Phase-9 review-gate question + standing budget-check denominator).
+
+Cart-shell hardware implication: standard 16 K EPROM cart shells won't work. CoCoSDC, RetroCloud cart, and similar bank-switched / SD-cart hardware emulate larger ROMs transparently — likely target for development. Real-hardware bring-up at Phase 10 needs a 32 K-capable cart shell.
+
+---
+
 ## [2026-05-08] decision | Video mode chosen — 320×192×16
 
 Phase 2 first task: decided GIME mode for the rest of the project. Compared 320×192 vs 256×192 at 16 colours (depths below 16 ruled out by the 3-colour-cycle subsystem, hi-res text ruled out by per-pixel needs). 320×192 wins on HUD layout (64 px per side panel = 8 tiles, vs 32 px = 4 tiles in 256-wide), aspect, and familiarity in CoCo 3 ecosystem. Cost: extra 6 144 framebuffer bytes (one MMU page) and ~25 % more sprite-blit work — accepted; we have 512 K and a dirty-rect strategy regardless.

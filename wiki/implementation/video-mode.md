@@ -106,6 +106,10 @@ A 2-byte sprite blit (`STD ,X++`) writes 4 pixels per ~6 cycles. Full 16 × 16 s
 - **Sprite save-restore footprint.** Saving the background under each 16×16 sprite costs another 128 bytes copied per sprite; with 9 sprites that's 1 152 bytes/frame just for save, doubled if restore happens too. We may end up wanting a tile-aligned-blit fast path that re-blits the affected tiles from the static maze rather than per-sprite save-restore. Decide at Phase 4.
 - **The stale Tepolt-source claim** (line 84) about HRES=4 byte counts contradicts the same file's mode-table at line 54. Fix the source page.
 
+## ROM-budget update — 2026-05-08
+
+Cart was retargeted to 32 K (Init0 b1-b0 = `11`); see [../platform/cartridge.md §"Cart size — 32 K"](../platform/cartridge.md). Sprite ROM at full 4bpp now fits comfortably (≈ 10 K of 32 K) and 2bpp+attr is no longer required up-front to fit the budget. Default sprite path: pre-converted 4bpp at build time.
+
 ## Sources
 
 - [game/overview.md](../game/overview.md) — locked HUD layout.

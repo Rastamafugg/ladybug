@@ -9,7 +9,7 @@ BUILD_DIR="$ROOT/build"
 ROM="$BUILD_DIR/ladybug.rom"
 LST="$BUILD_DIR/ladybug.lst"
 MAP="$BUILD_DIR/ladybug.map"
-CART_BYTES=16384
+CART_BYTES=32768
 
 cmd_build() {
     [[ -f "$SRC_MAIN" ]] || { echo "build: $SRC_MAIN not found" >&2; exit 1; }

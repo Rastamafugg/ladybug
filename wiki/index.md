@@ -34,6 +34,7 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 - `implementation/data-structures.md` — entity/sprite/maze representations _(stub)_
 - [implementation/coding-conventions.md](implementation/coding-conventions.md) — project assembly conventions (DP discipline, module split, table-driven dispatch, SWI syscalls, header contracts)
 - [implementation/video-mode.md](implementation/video-mode.md) — chosen GIME mode (320×192×16) + layout + pixel/tile/sprite formats
+- [implementation/memory-map.md](implementation/memory-map.md) — physical/virtual page layout, 32 K cart image structure, boot data-copy procedure, Phase 4 sprite-data open question
 - [implementation/scheduler.md](implementation/scheduler.md) — TCB round-robin scheduler — _candidate pattern, not committed_
 - [implementation/lessons-learned.md](implementation/lessons-learned.md) — observed-fact findings; DoD anti-patterns we won't copy
 - `implementation/build-workflow.md` — _(superseded by [tooling/build-workflow.md](tooling/build-workflow.md))_

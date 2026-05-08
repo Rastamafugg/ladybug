@@ -48,14 +48,14 @@ Source convention: top-level entry assembled with `ORG $C000` so the raw output 
 
 ## Padding to cart size
 
-`raw` output is exactly the assembled byte count. Cartridge ROMs need to be a power of two (16 KB for the full `$C000-$FEFF` window — note the top `$FF00-$FFFF` is the I/O window, not cart-visible, so 16 KB ROM with the last 256 bytes effectively unused is the standard). The build script pads with `0xFF` to 16384 bytes after assembly:
+`raw` output is exactly the assembled byte count. Cartridge ROMs need to be a power of two; Ladybug uses a 32 KB cart (Init0 b1-b0 = `11`, mapped at `$8000-$FEFF` after our boot enables the wider window — see [../platform/cartridge.md §"Cart size — 32 K"](../platform/cartridge.md)). Note the top `$FF00-$FFFF` is the I/O window, not cart-visible, so the cart's last 256 bytes are effectively unused. The build script pads with `0xFF` to 32768 bytes after assembly:
 
 ```bash
 python3 -c "
 import sys
 data = open('build/ladybug.rom','rb').read()
-pad = 16384 - len(data)
-assert pad >= 0, f'ROM is {len(data)} bytes — exceeds 16KB'
+pad = 32768 - len(data)
+assert pad >= 0, f'ROM is {len(data)} bytes — exceeds 32KB'
 open('build/ladybug.rom','wb').write(data + b'\\xff'*pad)
 "
 ```
