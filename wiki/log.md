@@ -25,6 +25,12 @@ User asked for a design doc seeded from public web sources. Searched + fetched W
 
 ---
 
+## [2026-05-08] ingest | Arcade gfx extraction pipeline
+
+Built `scripts/extract_arcade_gfx.py` to decode arcade Lady Bug graphics from `ladybug.zip` (MAME romset) into indexed pixel grids + palette JSON + per-attr PNG previews under `assets/arcade/`. Decoder mirrors MAME `ladybug.cpp` `charlayout`/`spritelayout`/`ladybug_palette()` exactly. Output: 512 × 8×8 chars, 128 × 16×16 sprites, 32-color palette, 8 char color attrs, 2×8 sprite color attrs (set A from low nibble of PROM `10-1.f4`, set B from high nibble). User-confirmed colorizations: maze/HUD = char attr 0, enemies + vegetables = various Set A attrs, death-angel-wings animation = a Set B attr. Created [`sources/arcade-gfx-extraction.md`](sources/arcade-gfx-extraction.md) with the pipeline and 7-item gotchas list (palette PROM filename ≠ role, char lookup is a formula not a PROM, sprite lookup PROM serves both color sets via low/high nibbles, palette is inverted 2bpc, MAME `planes` list is MSB-first, sprite y-offsets are scrambled).
+
+---
+
 ## [2026-05-05] decision | Design-doc scope locked for first release
 
 User answered the 10 open questions in [`game/overview.md`](game/overview.md). Locked: HUD split panels (left = score/lives/level; right = EXTRA/SPECIAL/vegetable); `SPECIAL` reward = 10,000 points (no bonus round in v1); 3 lives + one-time 30K bonus life; single fixed maze across all stages; fixed skull count per stage. Explicitly skipped: MAME-source ingest, arcade-manual PDF ingest.
@@ -68,6 +74,16 @@ User requested full build/deploy runbooks for the WSL toolchain at `~/coco-tools
 **Decision:** deploy is **cartridge ROM image only** (option A); toolshed kept documented but unused. Rationale: matches existing cartridge boot strategy locked 2026-05-07. Reconsider if iteration becomes cumbersome — the toolshed page documents the `.dsk`/`LOADM` fallback path so the switch is fast. OS-9 path explicitly out of scope (conflicts with bare-metal constraint in `CLAUDE.md`).
 
 `wiki/index.md` updated: new Tooling section; old `platform/toolchain.md` and `implementation/build-workflow.md` stubs marked superseded.
+
+## [2026-05-08] decision | Video mode chosen — 320×192×16
+
+Phase 2 first task: decided GIME mode for the rest of the project. Compared 320×192 vs 256×192 at 16 colours (depths below 16 ruled out by the 3-colour-cycle subsystem, hi-res text ruled out by per-pixel needs). 320×192 wins on HUD layout (64 px per side panel = 8 tiles, vs 32 px = 4 tiles in 256-wide), aspect, and familiarity in CoCo 3 ecosystem. Cost: extra 6 144 framebuffer bytes (one MMU page) and ~25 % more sprite-blit work — accepted; we have 512 K and a dirty-rect strategy regardless.
+
+Locked formats: 8×8 px tiles (32 bytes), 16×16 px sprites (128 bytes), framebuffer at 160 bytes/row × 192 rows = 30 720 bytes. Estimated sprite-blit budget 5 400 cycles for ~9 simultaneous entities — fits the 18 000-cycle render allocation with margin. GIME register values noted as candidates (`$FF99`=`$1E`); Tepolt Table 4-10 to be re-verified at code time. Single-buffer with sprite save-restore is the default; double-buffer reconsidered at Phase 4 only if tearing is visible.
+
+Created [`implementation/video-mode.md`](implementation/video-mode.md) with the full analysis, layout diagram, format definitions, six deferred sub-decisions, and three named risks. Fixed a stale claim in [`sources/coco3-asm-tepolt.md`](sources/coco3-asm-tepolt.md) line 84 about HRES=4 byte counts. Updated [`index.md`](index.md).
+
+---
 
 ## [2026-05-08] phase | Phase 1 — Boot init + 60 Hz Vbord — passed
 

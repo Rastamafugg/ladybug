@@ -81,7 +81,7 @@ Vector table is in ROM at `$BFF2-BFFF` mirrored to `$FFF2-FFFF`. Primary jump ta
 - We will boot as a cartridge → on power-on the FIRQ from CART pin 8 fires; our ROM at `$C000` takes control before BASIC's normal entry. We then init the GIME ourselves and ignore Super Extended BASIC entirely.
 - 60 Hz frame tick = ACVC Vbord IRQ (`$FF92` bit 3) — preferred over PIA1 CB1 because it's already on the GIME path and is the documented "vertical sync" interrupt. See [../platform/timing.md](../platform/timing.md).
 - The MMU is critical for putting our 240×192-equivalent playfield buffer somewhere sensible without trampling the ROM area; see [../platform/memory.md](../platform/memory.md).
-- Hi-res CRES=10 (16-color, format C, 4 bits/pixel) at HRES=4 gives 128×N at 32 bytes/row — a good candidate for Lady Bug's tile maze. Decision deferred to coding-architect.
+- Hi-res CRES=10 (16-color, format C, 4 bits/pixel) is the chosen depth for Ladybug. Mode chosen 2026-05-08: HRES=111, CRES=10, VRES=00 → 320×192×16 at 160 bytes/row. See [../implementation/video-mode.md](../implementation/video-mode.md) for the full decision and trade-offs against 256×192.
 - We can fast-clock the MPU (`$FFD9`) since we're not using BASIC ROM I/O.
 
 ## What we did NOT ingest in detail

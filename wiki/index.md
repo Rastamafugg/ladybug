@@ -33,6 +33,7 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 - [implementation/roadmap.md](implementation/roadmap.md) — phased plan from empty `src/` to finished game; POCs + review gates per phase
 - `implementation/data-structures.md` — entity/sprite/maze representations _(stub)_
 - [implementation/coding-conventions.md](implementation/coding-conventions.md) — project assembly conventions (DP discipline, module split, table-driven dispatch, SWI syscalls, header contracts)
+- [implementation/video-mode.md](implementation/video-mode.md) — chosen GIME mode (320×192×16) + layout + pixel/tile/sprite formats
 - [implementation/scheduler.md](implementation/scheduler.md) — TCB round-robin scheduler — _candidate pattern, not committed_
 - [implementation/lessons-learned.md](implementation/lessons-learned.md) — observed-fact findings; DoD anti-patterns we won't copy
 - `implementation/build-workflow.md` — _(superseded by [tooling/build-workflow.md](tooling/build-workflow.md))_
@@ -42,6 +43,7 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 - [coco-asm-tepolt.md](sources/coco-asm-tepolt.md) — Assembly Language Programming for the Color Computer (Tepolt, ~1985) — 6809 ISA, addressing modes, SAM, PIAs, VDG, cartridge connector
 - [coco3-asm-tepolt.md](sources/coco3-asm-tepolt.md) — Assembly Language Programming for the CoCo 3 (Tepolt, 1987) — GIME (ACVC), MMU, palette regs, hi-res displays, ACVC interrupts, reset init
 - [ladybug-arcade.md](sources/ladybug-arcade.md) — Lady Bug arcade — aggregated public web sources, with gaps flagged
+- [arcade-gfx-extraction.md](sources/arcade-gfx-extraction.md) — pipeline for ROM-extracting tiles/sprites/palette via MAME gfx layouts; gotchas log
 - [dod-source.md](sources/dod-source.md) — Dungeons of Daggorath cartridge source (1983, lwasm-compatible 2022 reconstruction) — mined for transferable 6809 idioms
 
 ## Special
