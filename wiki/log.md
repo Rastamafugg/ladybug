@@ -69,6 +69,16 @@ User requested full build/deploy runbooks for the WSL toolchain at `~/coco-tools
 
 `wiki/index.md` updated: new Tooling section; old `platform/toolchain.md` and `implementation/build-workflow.md` stubs marked superseded.
 
+## [2026-05-08] ingest | Dungeons of Daggorath cartridge source — coding idioms
+
+User requested a scan of the DoD source under `docs/reference/DungeonsOfDaggorath-main/` (47 `.ASM` files, lwasm-compatible reconstruction by MJS over Kiyohara's 1983 original) for transferable 6809 conventions. Verified end-to-end build of the source first: `lwasm DAGGORATH.ASM` → 8192 bytes ORG `$C000`, padded to 16 KB, autoruns under XRoar via the same flow as `scripts/build.sh`. Spawned an Explore agent to extract patterns; approved findings list with the user before filing.
+
+Created [`sources/dod-source.md`](sources/dod-source.md) (provenance, module map, naming conventions). Created [`implementation/coding-conventions.md`](implementation/coding-conventions.md) adopting six DoD idioms as Ladybug project conventions: static DP set once at boot, domain-based module split with 6-char prefixed names, table-driven dispatch with `EQU` offset records, SWI as syscall layer (with a flag to verify against GIME IRQ choices), routine header contract format (`Inputs:` / `Returns:`), banner comment style. Created [`implementation/scheduler.md`](implementation/scheduler.md) as a *candidate* pattern — DoD's TCB round-robin scheduler sketched and weighed against a flat main loop, decision deferred to implementation. Created [`implementation/lessons-learned.md`](implementation/lessons-learned.md) (was index-only, never written) with the "DoD anti-patterns we won't copy" list: tape I/O, CoCo 1/2 SAM/PIA legacy init, 3D vector-graphics macros, 24-bit fixed-point shift chains, BASIC ROM trampolines (incompatible with our locked all-RAM mode).
+
+Updated [`index.md`](index.md) for the new pages.
+
+---
+
 ## [2026-05-07] decision | Bare-metal boot strategy locked
 
 Documented the Ladybug boot path: cartridge ROM at `$C000`, control taken via the BASIC reset-init's CART → PIA2 CB1 → FIRQ handshake, then immediate switch to all-RAM mode + 1.78 MHz clock + ACVC Vbord IRQ for the 60 Hz tick. We will not depend on BASIC's PIA initialisation; we re-init both PIAs ourselves. Init0 bit 3 will be set so the primary IRQ jump table at `$FEEE-$FEFF` remains reachable independently of PAR7. Rationale captured in [`platform/cartridge.md`](platform/cartridge.md).

@@ -32,7 +32,9 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 
 - `implementation/roadmap.md` — phase plan _(stub)_
 - `implementation/data-structures.md` — entity/sprite/maze representations _(stub)_
-- `implementation/lessons-learned.md` — observed-fact findings _(stub)_
+- [implementation/coding-conventions.md](implementation/coding-conventions.md) — project assembly conventions (DP discipline, module split, table-driven dispatch, SWI syscalls, header contracts)
+- [implementation/scheduler.md](implementation/scheduler.md) — TCB round-robin scheduler — _candidate pattern, not committed_
+- [implementation/lessons-learned.md](implementation/lessons-learned.md) — observed-fact findings; DoD anti-patterns we won't copy
 - `implementation/build-workflow.md` — _(superseded by [tooling/build-workflow.md](tooling/build-workflow.md))_
 
 ## Sources
@@ -40,6 +42,7 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 - [coco-asm-tepolt.md](sources/coco-asm-tepolt.md) — Assembly Language Programming for the Color Computer (Tepolt, ~1985) — 6809 ISA, addressing modes, SAM, PIAs, VDG, cartridge connector
 - [coco3-asm-tepolt.md](sources/coco3-asm-tepolt.md) — Assembly Language Programming for the CoCo 3 (Tepolt, 1987) — GIME (ACVC), MMU, palette regs, hi-res displays, ACVC interrupts, reset init
 - [ladybug-arcade.md](sources/ladybug-arcade.md) — Lady Bug arcade — aggregated public web sources, with gaps flagged
+- [dod-source.md](sources/dod-source.md) — Dungeons of Daggorath cartridge source (1983, lwasm-compatible 2022 reconstruction) — mined for transferable 6809 idioms
 
 ## Special
 
