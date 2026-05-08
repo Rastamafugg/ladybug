@@ -69,6 +69,12 @@ User requested full build/deploy runbooks for the WSL toolchain at `~/coco-tools
 
 `wiki/index.md` updated: new Tooling section; old `platform/toolchain.md` and `implementation/build-workflow.md` stubs marked superseded.
 
+## [2026-05-08] decision | Implementation roadmap committed
+
+User asked for a phased plan from current state to finished game with POCs and review gates. Wrote [`implementation/roadmap.md`](implementation/roadmap.md) — 11 phases (0: hello cart, 1: boot init, 2: display, 3: tile/maze, 4: input/sprite, 5: HUD/maze logic, 6: enemies, 7: letters+veg+colour cycle, 8: sound, 9: polish, 10: real hardware). Each phase has POC tasks, exit criterion, and review-gate questions. Ties to existing locked decisions ([game/overview.md](game/overview.md), [platform/cartridge.md](platform/cartridge.md), [coding-conventions.md](implementation/coding-conventions.md)) and surfaces deferred items (cycle period + colour-to-target mapping at Phase 7, scheduler choice at Phase 4, SWI/IRQ collision check at Phase 1) at the gates where they need to land. Documented standing review checklist (wiki updates, roadmap drift, ROM/cycle budget, scope) and four named risks the plan won't surface on its own.
+
+---
+
 ## [2026-05-08] ingest | Dungeons of Daggorath cartridge source — coding idioms
 
 User requested a scan of the DoD source under `docs/reference/DungeonsOfDaggorath-main/` (47 `.ASM` files, lwasm-compatible reconstruction by MJS over Kiyohara's 1983 original) for transferable 6809 conventions. Verified end-to-end build of the source first: `lwasm DAGGORATH.ASM` → 8192 bytes ORG `$C000`, padded to 16 KB, autoruns under XRoar via the same flow as `scripts/build.sh`. Spawned an Explore agent to extract patterns; approved findings list with the user before filing.

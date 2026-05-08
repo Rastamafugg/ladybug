@@ -30,7 +30,7 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 
 ## Implementation
 
-- `implementation/roadmap.md` — phase plan _(stub)_
+- [implementation/roadmap.md](implementation/roadmap.md) — phased plan from empty `src/` to finished game; POCs + review gates per phase
 - `implementation/data-structures.md` — entity/sprite/maze representations _(stub)_
 - [implementation/coding-conventions.md](implementation/coding-conventions.md) — project assembly conventions (DP discipline, module split, table-driven dispatch, SWI syscalls, header contracts)
 - [implementation/scheduler.md](implementation/scheduler.md) — TCB round-robin scheduler — _candidate pattern, not committed_
