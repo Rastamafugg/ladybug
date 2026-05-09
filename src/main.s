@@ -1,22 +1,21 @@
 ;==============================================================================
 ; Ladybug — main.s
 ;==============================================================================
-; Phase 2.3: bring up hi-res 320×192×16 GIME mode.
+; Phase 2.4: render a hand-converted arcade tile to the framebuffer.
 ;
-; Builds on Phase 2.2 (cart self-copy → all-RAM → IRQ tick from RAM) by
-; adding:
-;   - MMU enabled with Phase-2 PAR layout (PAR0=$38, PAR1-4=$30-$33 for
-;     framebuffer, PAR5=$3D, PAR6-7=$3E-$3F for code).
-;   - GIME hi-res 320×192×16 (BP=1, HRES=111, CRES=10), framebuffer at
-;     physical $30 ($FF9D=$C0, $FF9E=$00).
-;   - 16-entry palette: idx 0 = black, idx 1 = white, others arbitrary.
-;   - Clear FB to $1111 (palette idx 1 every pixel) using CRES=11 blanking
-;     during the clear so we never show garbage on screen.
-;   - IRQ tick continues. Mainloop renders FRAMES to FB[0..1] so 4 pixels
-;     at top-left flicker through palette indices, proving IRQ + MMU + FB
-;     all wired up.
+; Builds on Phase 2.3 (hi-res 320×192×16 + MMU + palette + IRQ tick) by:
+;   - Replacing the 16-stripe diagnostic with a black-cleared FB.
+;   - Reassigning palette indices 1-3 to a 4-colour sub-palette
+;     (0 black / 1 yellow / 2 blue / 3 white) for the tile.
+;   - Embedding 32 bytes of 4bpp GIME tile data, hand-converted from
+;     arcade char #432 (a dense tile that exercises all four pixvals)
+;     in assets/arcade/chars.json. Pixval->palette mapping is identity.
+;   - blit_tile: 8 rows x 4 bytes, stride 160.
+;   - Rendering the tile at three FB positions to validate the
+;     pipeline end-to-end.
 ;
-; Visible: solid white screen with 4 flickering pixels at top-left.
+; Visible: black screen with three identical "dot-in-box" tiles.
+; IRQ tick still runs (proven by FRAMES counter) but no longer paints.
 ;==============================================================================
 
         pragma  nodollarlocal,6809
@@ -167,29 +166,25 @@ palloop lda     ,x+
         decb
         bne     palloop
 
-        ; --- Diagnostic: 16-stripe palette test ---
-        ; 192 rows / 16 stripes = 12 rows per stripe.
-        ; Each stripe spans full 320 px width (160 bytes/row, 80 STDs/row).
-        ; Per stripe: 12 × 80 = 960 STDs.
-        ;
-        ; Stripe N is filled with byte $NN, so both pixels in every byte
-        ; show palette index N. Top stripe = idx 0, bottom = idx 15.
-        ldx     #FB_VIRT        ; FB write pointer
-        ldu     #$0000          ; current pattern (idx N in both nibbles, both bytes)
-        clra                    ; outer stripe counter (0-15)
-stripe_outer
-        pshs    a
-        ldy     #960
-        tfr     u,d
-inner_str
-        std     ,x++
-        leay    -1,y
-        bne     inner_str
-        leau    $1111,u         ; next palette index
-        puls    a
-        inca
-        cmpa    #16
-        blo     stripe_outer
+        ; --- Clear FB to palette idx 0 (black) ---
+        ; 30720 bytes = 15360 STDs.
+        ldx     #FB_VIRT
+        ldd     #$0000
+clr_fb  std     ,x++
+        cmpx    #FB_END
+        blo     clr_fb
+
+        ; --- Blit the test tile at three FB positions ---
+        ; Tile = 8 rows x 4 bytes; pos byte offset = row*8*160 + col*4.
+        leay    tile_data,pcr
+        ldx     #FB_VIRT+2576           ; tile-row  2, tile-col  4
+        lbsr    blit_tile
+        leay    tile_data,pcr
+        ldx     #FB_VIRT+12880          ; tile-row 10, tile-col 20
+        lbsr    blit_tile
+        leay    tile_data,pcr
+        ldx     #FB_VIRT+25744          ; tile-row 20, tile-col 36
+        lbsr    blit_tile
 
         ; --- Un-blank: CRES=10 (16-color) ---
         lda     #$1E
@@ -212,37 +207,32 @@ inner_str
         andcc   #%11101111      ; unmask IRQ
 
 ;==============================================================================
-; mainloop — paint a 32-pixel-wide × 12-row block at row 96 with FRAMES.
-; This is the IRQ-tick indicator: 16 bytes per row × 12 rows = 192 bytes,
-; updated every iteration to FRAMES low byte = visible flicker if both the
-; mainloop runs and IRQ ticks.
+; mainloop — IRQ keeps ticking FRAMES; CPU just spins.
 ;==============================================================================
-TICKER     equ  FB_VIRT+96*160          ; row 96
-TICKER_END equ  TICKER+12*160
-
 mainloop
-        ldx     #TICKER
-        lda     FRAMES+1                ; cycles every 256 frames (~4.3 s)
-fill_tick
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+
-        sta     ,x+                     ; 16 bytes = 32 pixels per row
-        cmpx    #TICKER_END
-        blo     fill_tick
+        sync
         bra     mainloop
+
+;==============================================================================
+; blit_tile — copy an 8x8 tile (32 bytes, 4bpp packed) to the framebuffer.
+;   X = dest FB byte address (top-left of tile)
+;   Y = source tile data
+; Trashes A, B, D, X, Y. 8 rows x 4 bytes; row stride 160 (FB) - 4 (written) = 156.
+;==============================================================================
+blit_tile
+        ; 8 rows x 4 bytes, stride 160. Loop ends when Y reaches end of
+        ; tile data; can't use a B counter because `ldd ,y++` clobbers B.
+        leau    32,y                    ; U = end of tile data
+        pshs    u                       ; stash end addr at ,s for cmpy
+btrow   ldd     ,y++
+        std     ,x++
+        ldd     ,y++
+        std     ,x++
+        leax    156,x                   ; advance X to next FB row
+        cmpy    ,s                      ; Y reached end?
+        blo     btrow
+        leas    2,s                     ; drop end addr
+        rts
 
 ;==============================================================================
 ; irq_handler — Vbord (60 Hz)
@@ -263,25 +253,51 @@ irq_done
 par_table
         fcb     $38,$30,$31,$32,$33,$3D,$3E,$3F
 
-;-- Palette: 16 entries, RGB 6-bit codes (RGBrgb). ----------------------------
-;   Index 0 = black, 1 = white. Others picked for visual variety so the
-;   FRAMES-driven flicker hits distinguishable colours.
+;-- Palette: 16 entries, GIME 6-bit codes (composite-NTSC empirical). --------
+;   Indices 0-3 form the sub-palette for the Phase 2.4 test tile:
+;     0 black, 1 yellow, 2 blue, 3 white. Remaining slots unused for now.
 palette_table
         fcb     $00             ; 0  black
-        fcb     $3F             ; 1  white
-        fcb     $30             ; 2  bright red
-        fcb     $0C             ; 3  bright green
-        fcb     $03             ; 4  bright blue
-        fcb     $33             ; 5  bright yellow
-        fcb     $0F             ; 6  bright cyan
-        fcb     $3C             ; 7  bright magenta
-        fcb     $20             ; 8  dim red
-        fcb     $08             ; 9  dim green
-        fcb     $02             ; 10 dim blue
-        fcb     $22             ; 11 dim yellow
-        fcb     $0A             ; 12 dim cyan
-        fcb     $28             ; 13 dim magenta
-        fcb     $15             ; 14 mid-grey
-        fcb     $24             ; 15 brown-ish
+        fcb     $33             ; 1  yellow
+        fcb     $0C             ; 2  blue
+        fcb     $3F             ; 3  white
+        fcb     $03             ; 4  green-brown (unused)
+        fcb     $30             ; 5  white-dup   (unused)
+        fcb     $0F             ; 6  forest grn  (unused)
+        fcb     $3C             ; 7  baby blue   (unused)
+        fcb     $20             ; 8  grey        (unused)
+        fcb     $08             ; 9  fuchsia     (unused)
+        fcb     $02             ; 10 darker grn  (unused)
+        fcb     $22             ; 11 sat lt grn  (unused)
+        fcb     $0A             ; 12 purple     (unused)
+        fcb     $28             ; 13 pink       (unused)
+        fcb     $15             ; 14 orange     (unused)
+        fcb     $24             ; 15 orange-yel (unused)
+
+;-- Test tile: arcade chars.json[432] (dense, uses all four pixvals). --------
+;   Hand-converted from 8x8 2bpp pixval grid to 4bpp GIME packing
+;   (2 px/byte, hi-nibble = leftmost px). Pixval N maps directly to
+;   palette idx N — chosen because every idx 0/1/2/3 appears in the tile,
+;   so a wrong palette entry is immediately obvious.
+;
+;   Source pixval rows (from chars.json[432]):
+;     3,3,3,3,3,1,3,3
+;     3,3,3,1,1,1,3,3
+;     3,3,1,1,1,1,1,0
+;     3,3,1,1,1,1,1,2
+;     3,3,1,1,1,1,1,2
+;     3,1,1,1,1,1,2,2
+;     3,1,1,1,3,1,2,0
+;     3,1,1,3,1,1,2,2
+tile_data
+        ; arcade chars.json[432] hand-converted; uses pixvals 0/1/2/3.
+        fcb     $33,$33,$31,$33     ; row 0
+        fcb     $33,$31,$11,$33     ; row 1
+        fcb     $33,$11,$11,$10     ; row 2
+        fcb     $33,$11,$11,$12     ; row 3
+        fcb     $33,$11,$11,$12     ; row 4
+        fcb     $31,$11,$11,$22     ; row 5
+        fcb     $31,$11,$31,$20     ; row 6
+        fcb     $31,$13,$11,$22     ; row 7
 
         end

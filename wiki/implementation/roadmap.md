@@ -70,8 +70,8 @@ From the current state (tooling validated, design + boot strategy locked, `src/`
 - 2.1 ✅ shadow-RAM-during-write at phys $3E verified
 - 2.2 ✅ cart self-copy + all-RAM transition; IRQ ticks from RAM
 - 2.3 ✅ GIME hi-res 320×192×16 + MMU + PARs + framebuffer writes + palette load + IRQ-driven FB writes from mainloop
-- 2.4 — render an arcade tile from `assets/arcade/chars.json` (next)
-- 2.5 — automate tile/palette pipeline with `build_gfx.py` (deferred until 2.4 hand-validation passes)
+- 2.4 ✅ hand-converted arcade char #80 ("dot-in-box") to 4bpp GIME bytes; blit_tile (8 rows x 4 bytes, stride 160); rendered at 3 FB positions on cleared FB
+- 2.5 — automate tile/palette pipeline with `build_gfx.py` (next)
 
 
 **Goal:** pick the GIME video mode, get a stable framebuffer, render text reliably.

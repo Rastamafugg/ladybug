@@ -177,6 +177,20 @@ Empirical 6-bit-code → colour table (XRoar default monitor, observed during th
 
 ---
 
+## `LDD ,Y++` clobbers B — never use B as a loop counter alongside it
+
+Filed 2026-05-08.
+
+In the Phase 2.4 `blit_tile` routine the obvious shape was `ldb #8` outside the loop, `decb`/`bne` at the end. Inside the body, `ldd ,y++` reads tile data into D — and **D is A:B**, so every `ldd ,y++` overwrites the loop counter with whatever low byte was just loaded. For a solid-`$33` tile the counter resets to `$33` every iteration, decrements to `$32`, and the loop never terminates (or terminates non-deterministically based on tile content). The bug was invisible to static reading and produced confusing partial-render symptoms that varied by tile data.
+
+**Fix used in `blit_tile`:** compute `leau 32,y` before the loop (sentinel = end of tile data), `pshs u`, then `cmpy ,s` / `blo btrow` for loop control. Y is the natural cursor and Y vs ,s is unaffected by `ldd`. Costs 2 stack bytes, returns them with `leas 2,s`.
+
+**Why:** the 6809 D register is the concatenation A|B; any 16-bit load through D destroys both halves.
+**Applies to:** any tight blit/copy loop that uses `ldd ,y++` or `ldd ,x++` for the data and B for iteration counting. Use a stack/memory sentinel or use Y/X comparison instead.
+**Citation:** [src/main.s](../../src/main.s) `blit_tile`; debugged in the 2026-05-08 session.
+
+---
+
 ## Format for future entries
 
 ```

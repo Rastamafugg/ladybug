@@ -145,6 +145,18 @@ Created [`implementation/video-mode.md`](implementation/video-mode.md) with the 
 
 ---
 
+## [2026-05-08] phase | Phase 2.4 — first arcade tile rendered (after debugging session)
+
+Hand-converted arcade `chars.json[432]` (dense tile that uses all four pixvals 0/1/2/3) to 32 bytes of 4bpp GIME tile data with direct pixval→palette mapping. Reassigned palette idx 0-3 to a 4-colour sub-palette (black/yellow/blue/white) per the empirical XRoar table in [video-mode.md](implementation/video-mode.md). Wrote `blit_tile` and rendered three copies on a black-cleared FB at tile coords (2,4), (10,20), (20,36). Replaced the FRAMES ticker with `sync; bra *` so the tiles remain stable while IRQ continues. ROM size 294 bytes / 16384.
+
+**Bug found and fixed during the session:** the obvious `ldb #8` / `decb` / `bne` loop in `blit_tile` is broken because `ldd ,y++` clobbers B (D=A:B). The counter gets overwritten with tile-data low bytes each iteration. Fixed by switching to a `cmpy ,s` against an end-of-tile sentinel pushed onto the stack at entry. Filed in [implementation/lessons-learned.md](implementation/lessons-learned.md) as a recurring 6809 idiom-trap to avoid in future blit/copy loops.
+
+A separate observation during a 64×64 solid-block diagnostic: identical write code at three FB positions produced a clean rectangle at top-left (PAR1) and bottom-right (PAR4) but a partially-striped rectangle at the middle position (PAR2). Cause unknown; probably an interaction between specific scan-line ranges and XRoar's composite-NTSC artifacting, since the 8×8 tiles render correctly. Flag for follow-up if Phase 2.5's automated tile pipeline reproduces the symptom.
+
+Phase 2.5 will automate the chars.json → GIME tile-data conversion via `build_gfx.py`.
+
+---
+
 ## [2026-05-08] decision | Implementation roadmap committed
 
 User asked for a phased plan from current state to finished game with POCs and review gates. Wrote [`implementation/roadmap.md`](implementation/roadmap.md) — 11 phases (0: hello cart, 1: boot init, 2: display, 3: tile/maze, 4: input/sprite, 5: HUD/maze logic, 6: enemies, 7: letters+veg+colour cycle, 8: sound, 9: polish, 10: real hardware). Each phase has POC tasks, exit criterion, and review-gate questions. Ties to existing locked decisions ([game/overview.md](game/overview.md), [platform/cartridge.md](platform/cartridge.md), [coding-conventions.md](implementation/coding-conventions.md)) and surfaces deferred items (cycle period + colour-to-target mapping at Phase 7, scheduler choice at Phase 4, SWI/IRQ collision check at Phase 1) at the gates where they need to land. Documented standing review checklist (wiki updates, roadmap drift, ROM/cycle budget, scope) and four named risks the plan won't surface on its own.
