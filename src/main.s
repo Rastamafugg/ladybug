@@ -96,22 +96,30 @@ entry   orcc    #$50            ; mask IRQ + FIRQ
         sta     GIME_INIT0
 
         ; --- Cart-to-shadow-RAM self-copy ---
+        ; XRoar 1.10 returns bad cartridge-window bytes at $C0D9-$C0DB during
+        ; this boot path. Skip that range during copy and keep it as unused
+        ; padding below. See lessons-learned.md.
         ldx     #CART_BASE
 copyloop
+        cmpx    #$C0D8
+        beq     copy_around_xroar_bad_window
         ldd     ,x
         std     ,x
         leax    2,x
+copy_next
         cmpx    #CART_END
         blo     copyloop
+        bra     copy_done
 
-        ; --- All-RAM ---
-        sta     SAM_ALLRAM
+copy_around_xroar_bad_window
+        lda     ,x              ; $C0D8 is reliable; $C0D9-$C0DB are not.
+        sta     ,x
+        leax    4,x
+        bra     copy_next
 
-        ; --- Fast clock 1.78 MHz ---
-        sta     SAM_FAST
-
+copy_done
         ;----------------------------------------------------------------------
-        ; Phase 2.3 additions begin here.
+        ; Boot ordering: PARs BEFORE SAM_ALLRAM so par_table reads from ROM.
         ;----------------------------------------------------------------------
 
         ; --- Force executive PAR set ($FFA0-$FFA7) to be active ---
@@ -133,6 +141,12 @@ parloop lda     ,x+
         sta     ,y+
         decb
         bne     parloop
+
+        ; --- All-RAM (now safe; PARs already loaded from ROM) ---
+        sta     SAM_ALLRAM
+
+        ; --- Fast clock 1.78 MHz ---
+        sta     SAM_FAST
 
         ; --- Set up display (still blanked via CRES=11) ---
         lda     #%10000000      ; BP=1 (graphics)
@@ -174,17 +188,15 @@ clr_fb  std     ,x++
         cmpx    #FB_END
         blo     clr_fb
 
-        ; --- Blit the test tile at three FB positions ---
-        ; Tile = 8 rows x 4 bytes; pos byte offset = row*8*160 + col*4.
-        leay    tile_data,pcr
-        ldx     #FB_VIRT+2576           ; tile-row  2, tile-col  4
+        ; --- ISOLATION STEP G: single blit at FB_VIRT (top-left) ---
+        ldx     #FB_VIRT
         lbsr    blit_tile
-        leay    tile_data,pcr
-        ldx     #FB_VIRT+12880          ; tile-row 10, tile-col 20
-        lbsr    blit_tile
-        leay    tile_data,pcr
-        ldx     #FB_VIRT+25744          ; tile-row 20, tile-col 36
-        lbsr    blit_tile
+
+        ; Un-blank: CRES=10 (16-color)
+        lda     #$1E
+        sta     GIME_VRES
+post_blit
+        bra     post_blit       ; halt
 
         ; --- Un-blank: CRES=10 (16-color) ---
         lda     #$1E
@@ -213,6 +225,12 @@ mainloop
         sync
         bra     mainloop
 
+        ; XRoar 1.10 returns bad cartridge-window reads at $C0D9-$C0DB.
+        ; Keep that absolute range inside explicit unused padding so the copy
+        ; skip cannot omit live code or data. The next routine starts after
+        ; the unreliable range.
+        fill    $12,$15         ; NOP padding
+
 ;==============================================================================
 ; blit_tile — copy an 8x8 tile (32 bytes, 4bpp packed) to the framebuffer.
 ;   X = dest FB byte address (top-left of tile)
@@ -220,18 +238,16 @@ mainloop
 ; Trashes A, B, D, X, Y. 8 rows x 4 bytes; row stride 160 (FB) - 4 (written) = 156.
 ;==============================================================================
 blit_tile
-        ; 8 rows x 4 bytes, stride 160. Loop ends when Y reaches end of
-        ; tile data; can't use a B counter because `ldd ,y++` clobbers B.
-        leau    32,y                    ; U = end of tile data
-        pshs    u                       ; stash end addr at ,s for cmpy
-btrow   ldd     ,y++
+        ; B counter, hardcoded $1111. ldd would clobber B, so reload B
+        ; from a DP byte each iter. Pure loop + FB write test.
+        lda     #8
+        sta     $05             ; DP counter at $0205
+btrow   ldd     #$1111
         std     ,x++
-        ldd     ,y++
         std     ,x++
-        leax    156,x                   ; advance X to next FB row
-        cmpy    ,s                      ; Y reached end?
-        blo     btrow
-        leas    2,s                     ; drop end addr
+        leax    156,x
+        dec     $05
+        bne     btrow
         rts
 
 ;==============================================================================
@@ -290,14 +306,14 @@ palette_table
 ;     3,1,1,1,3,1,2,0
 ;     3,1,1,3,1,1,2,2
 tile_data
-        ; arcade chars.json[432] hand-converted; uses pixvals 0/1/2/3.
-        fcb     $33,$33,$31,$33     ; row 0
-        fcb     $33,$31,$11,$33     ; row 1
-        fcb     $33,$11,$11,$10     ; row 2
-        fcb     $33,$11,$11,$12     ; row 3
-        fcb     $33,$11,$11,$12     ; row 4
-        fcb     $31,$11,$11,$22     ; row 5
-        fcb     $31,$11,$31,$20     ; row 6
-        fcb     $31,$13,$11,$22     ; row 7
+        ; ISOLATION STEP A: solid fill, palette idx 1 (yellow). 8x8 of $11.
+        fcb     $11,$11,$11,$11     ; row 0
+        fcb     $11,$11,$11,$11     ; row 1
+        fcb     $11,$11,$11,$11     ; row 2
+        fcb     $11,$11,$11,$11     ; row 3
+        fcb     $11,$11,$11,$11     ; row 4
+        fcb     $11,$11,$11,$11     ; row 5
+        fcb     $11,$11,$11,$11     ; row 6
+        fcb     $11,$11,$11,$11     ; row 7
 
         end

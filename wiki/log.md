@@ -4,6 +4,12 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-10] finding | XRoar cartridge-window read quirk at `$C0D9-$C0DB`
+
+Created and ran a minimal ROM probe (`src/rom_probe.s`) that reads `$C000-$C0FF` before writing that range and logs mismatches to `$01FF/$0200`. Under XRoar 1.10 it reported exactly three bad reads: `$C0D9=$7E`, `$C0DA=$E2`, `$C0DB=$9D` where the cartridge image has `$00,$00,$00`. XRoar GDB traps showed the main boot `copyloop` reads those bad bytes directly, so the broad ROM-to-RAM copy stores bad source bytes rather than suffering a later overwrite. Patched `src/main.s` to skip `$C0D9-$C0DB` during the boot copy and keep that absolute range as unused padding; documented the quirk in `implementation/lessons-learned.md`.
+
+---
+
 ## [2026-05-05] seed | Initial wiki instantiation
 
 Created wiki scaffolding under `wiki/` for the Ladybug project (6809 assembly port of the 1981 *Lady Bug* arcade game, targeting bare-metal CoCo 3 — no NitrOS-9). Configuration adapted from the Planet Pioneers project:

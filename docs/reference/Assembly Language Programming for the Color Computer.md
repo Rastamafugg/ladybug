@@ -11607,7 +11607,7 @@ allow accessing of RAM addresses $8000 through $FEFF. A letter entitled
 of 80 Micro describes a method to implement this modification. The Color
 Computer 2 already has this modification. All descriptions of the SAM
 operation with the TY bit set assume this modification has been installed.
-When TY is set, BASIC and cartridge ROM are not avaliable, but a Color
+When TY is set, BASIC and cartridge ROM are not available, but a Color
 Computer with 64K RAM can use nearly all of it, instead of just the first
 32K. In a 64K computer longer assembly language programs can reside in
 memory but ROM is not available. Memory maps for TY being set and cleared

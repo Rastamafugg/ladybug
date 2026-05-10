@@ -191,6 +191,18 @@ In the Phase 2.4 `blit_tile` routine the obvious shape was `ldb #8` outside the 
 
 ---
 
+## XRoar cartridge-window reads are bad at `$C0D9-$C0DB` during boot
+
+Filed 2026-05-10.
+
+Under XRoar 1.10, a minimal cartridge probe that read `$C000-$C0FF` before writing that range found exactly three bad reads: `$C0D9` expected `$00` but read `$7E`, `$C0DA` expected `$00` but read `$E2`, and `$C0DB` expected `$00` but read `$9D`. The main boot copy showed the same failure shape: the copy loop loaded `02 7E` at `$C0D8` and `E2 9D` at `$C0DA`, so the RAM-under-ROM copy faithfully stored bad source bytes. Patching Init0, using explicit `-cart-type rom`, and changing `LDD/STD` to byte `LDA/STA` did not change the result.
+
+**Why:** confirmed as an XRoar cartridge-window read quirk on this boot path, not a post-copy overwrite and not a word-copy instruction issue.
+**Applies to:** boot self-copy from `$C000-$FEFF`. Skip `$C0D9-$C0DB` during the copy and keep that absolute range as unused padding so no live code or data depends on it.
+**Citation:** [src/rom_probe.s](../../src/rom_probe.s); [src/main.s](../../src/main.s) boot copy skip; debugged with XRoar GDB traps on 2026-05-10.
+
+---
+
 ## Format for future entries
 
 ```
