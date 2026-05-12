@@ -7302,7 +7302,7 @@ screen. (The complete set of video display codes used by the Color Computer
 can be found in Appendix C.)
 
 EDTASM+ is in ROM occupying addresses $C000 - $DFFF. The starting
-address is $CO00, where the MPU is directed to begin executing instructions
+address is $C000, where the MPU is directed to begin executing instructions
 when the Color Computer is turned on, if the EDTASM+ ROM pack is plugged
 in. The MPU can also be directed to this address from BASIC, ZBUG, or an
 assembled program.
@@ -10569,7 +10569,7 @@ Return Values: In four memory locations, $15A through $15D.
 A value of 00 indicates all the way up or left, and a value of $3F
 indicates all the way down or right.
 
-The starting address of JOYIN is contained in addresses $A00A and $AOOB. Therefore, it can be called using extended indirect addressing.
+The starting address of JOYIN is contained in addresses $A00A and $A00B. Therefore, it can be called using extended indirect addressing.
 
 ```
 JSR [$A00A] or JSR $A9DE
@@ -11257,7 +11257,7 @@ as follows:
 
 - If byte = FF, that granule is not currently part of a file and is available.
 - If byte = 00 - $43, that granule is part of a file and the contents of this byte is the number of the next granule in the file.
-- If byte = $CO - $C9, that granule is the last granule of a file. Represented in bits 0 - 5 is the number of sectors in this granule in use.
+- If byte = $C0 - $C9, that granule is the last granule of a file. Represented in bits 0 - 5 is the number of sectors in this granule in use.
 
 The directory entries and file allocation table are used to determine what
 sectors and/or granules are in use. For more detailed information, see
@@ -11328,7 +11328,7 @@ SEE and SEF, is put the starting address of the buffer area. Now. DSKCON can
 be called. When writing, the data in the buffer area (256 bytes) is written
 on the sector of the selected track. When reading, 256 bytes are read from
 the sector of the selected track into the buffer area. When DSKCON returns,
-the return status is in location $FO or [C006:C007] +6. If its contents are
+the return status is in location $F0 or [C006:C007] +6. If its contents are
 00, the operation was performed successfully.
 
 When DSKCON is called, it turns on the disk drive motor and performs
