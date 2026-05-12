@@ -3,7 +3,7 @@ name: Build workflow
 description: End-to-end runbook — source → ROM → emulator. Driven by scripts/build.sh; every step is also documented as a manual command.
 type: runbook
 tags: [tooling, build, workflow, runbook]
-updated: 2026-05-08
+updated: 2026-05-12
 ---
 
 # Build & deploy runbook
@@ -95,8 +95,12 @@ Inside WSL, paths to the project work via `/mnt/d/retro/ladybug` (the script `cd
 | Need | Command |
 |-|-|
 | GDB stub on `127.0.0.1:65520` | append `-gdb` to the xroar call (or set `XROAR_EXTRA="-gdb"` env var if the script supports it) |
+| GDB stub reachable from WSL-hosted `gdb-mcp` when XRoar runs on Windows | append `-gdb -gdb-ip 0.0.0.0 -gdb-port 65520` |
+| GDB remote-stub diagnostics | append `-debug-gdb -1` |
 | Instruction trace | append `-trace 2>build/trace.log` |
 | Run as fast as possible (smoke test) | append `-no-ratelimit -fskip 100` |
+
+For the full XRoar plus GDB-MCP attach workflow, see [xroar.md §GDB-MCP round trip](xroar.md#gdb-mcp-round-trip).
 
 ## When this runbook breaks
 
