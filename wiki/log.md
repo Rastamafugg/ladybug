@@ -4,6 +4,18 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-12] query | Full-window ROM probe update
+
+Updated `src/rom_probe.s` so the probe loop scans the full `$C000-$FEFF` cartridge window instead of only `$C000-$C0FF`. Added the `src/rom_probe.s` one-off run command to [`tooling/build-workflow.md`](tooling/build-workflow.md), matching the existing `src/main.s` assemble/pad/load pattern. After rereading the updated GDB-MCP-hosted launch instructions, built `build/rom_probe.rom` through GDB `shell`, launched `/usr/local/bin/xroar` with `-gdb`, attached through `target remote :65520`, and dumped the mismatch log. The full-window probe reported `$50` mismatches: `$C0D9-$C0DB`, `$C8B4-$C8BE`, and `$E000-$E042`. Expanded [`implementation/lessons-learned.md`](implementation/lessons-learned.md) with the observed mapping/read result.
+
+---
+
+## [2026-05-12] docs | GDB-MCP-hosted XRoar launch path
+
+Clarified [`tooling/xroar.md`](tooling/xroar.md) and [`tooling/build-workflow.md`](tooling/build-workflow.md) to distinguish the Windows PowerShell sandbox, the Linux host environment available through the already-running `gdb-mcp` process, and a manually launched Windows XRoar process. Documented the working Codex path that launches XRoar via GDB's `shell` command from a GDB-MCP session, so another model should not treat "PowerShell reports no WSL distributions" as proof that runtime launch is impossible.
+
+---
+
 ## [2026-05-12] docs | XRoar plus GDB-MCP attach runbook
 
 Updated [`tooling/xroar.md`](tooling/xroar.md) with the round-trip workflow for building the cartridge, launching XRoar with `-gdb`, choosing `-gdb-ip 127.0.0.1` vs `-gdb-ip 0.0.0.0`, and attaching through the `gdb-mcp` MCP server using the 6809 GDB. Added troubleshooting notes for the observed `Truncated register` error, WSL/Windows bind-address timeouts, single-endpoint attach behavior, and non-6809 GDB binaries. Updated [`tooling/build-workflow.md`](tooling/build-workflow.md) to point to the full runbook and list the relevant debug flags.

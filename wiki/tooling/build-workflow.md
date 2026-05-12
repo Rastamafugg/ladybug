@@ -82,13 +82,28 @@ xroar -machine coco3 -ram 512 \
 
 ## Cross-platform invocation
 
-The Windows-side Claude session shells into WSL with:
+There are multiple execution contexts in Codex. The Windows PowerShell sandbox may report no installed WSL distributions even though the already-running `gdb-mcp` MCP server has a Linux host environment with `/mnt/d/retro/ladybug`, `/usr/local/bin/xroar`, and `/usr/local/bin/m6809-gdb`.
+
+If PowerShell `wsl.exe` works, a Windows-side session can launch the normal run flow with:
 
 ```powershell
 wsl -d Ubuntu -- bash -lc 'cd /mnt/d/retro/ladybug && ./scripts/build.sh run'
 ```
 
 Inside WSL, paths to the project work via `/mnt/d/retro/ladybug` (the script `cd`s itself there). Inside Linux directly, run `./scripts/build.sh run` from the project root.
+
+If PowerShell reports no WSL distributions, do not conclude that runtime launch is impossible. Use the GDB-MCP-hosted Linux shell instead:
+
+```gdb
+shell cd /mnt/d/retro/ladybug && ./scripts/build.sh build
+shell cd /mnt/d/retro/ladybug && nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart ladybug -cart-type rom -cart-rom build/ladybug.rom -cart-autorun -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 > /tmp/ladybug-xroar.log 2>&1 & echo $!
+```
+
+Then start a fresh GDB-MCP session and attach with:
+
+```gdb
+target remote :65520
+```
 
 ## Debug variants
 
@@ -101,6 +116,26 @@ Inside WSL, paths to the project work via `/mnt/d/retro/ladybug` (the script `cd
 | Run as fast as possible (smoke test) | append `-no-ratelimit -fskip 100` |
 
 For the full XRoar plus GDB-MCP attach workflow, see [xroar.md §GDB-MCP round trip](xroar.md#gdb-mcp-round-trip).
+
+## Probe ROM variant
+
+`scripts/build.sh` always builds `src/main.s` into `build/ladybug.rom`. To run a one-off diagnostic source such as `src/rom_probe.s`, use the same WSL-hosted assemble, pad, and xroar sequence with the input and output names changed:
+
+```powershell
+wsl -- bash -lc 'cd /mnt/d/retro/ladybug && mkdir -p build && lwasm -9 --format=raw --output=build/rom_probe.rom --list=build/rom_probe.lst --symbols --map=build/rom_probe.map src/rom_probe.s && python3 - build/rom_probe.rom 16384 <<'"'"'PY'"'"'
+import sys
+path, target = sys.argv[1], int(sys.argv[2])
+data = open(path, "rb").read()
+pad = target - len(data)
+if pad < 0:
+    sys.exit(f"probe: ROM is {len(data)} bytes — exceeds {target} byte cart window")
+open(path, "wb").write(data + b"\xff" * pad)
+print(f"probe: padded {len(data)} → {target} bytes ({path})")
+PY
+xroar -machine coco3 -ram 512 -cart ladybug-probe -cart-type rom -cart-rom build/rom_probe.rom -cart-autorun -gdb -gdb-ip 127.0.0.1 -gdb-port 65520'
+```
+
+If XRoar runs on Windows and `gdb-mcp` runs under WSL, use `-gdb-ip 0.0.0.0` instead of `127.0.0.1`.
 
 ## When this runbook breaks
 

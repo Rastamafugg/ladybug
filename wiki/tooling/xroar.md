@@ -61,7 +61,21 @@ cd /mnt/d/retro/ladybug
 
 ### 2. Start XRoar with the GDB stub
 
-If XRoar is launched inside the same WSL environment as `gdb-mcp`, loopback binding is enough:
+There are three launch contexts to keep separate:
+
+- **PowerShell sandbox** — may report that no WSL distributions are installed. Do not assume `wsl.exe` is usable from here.
+- **GDB-MCP Linux host** — the already-running `gdb-mcp` process can run Linux shell commands through GDB's `shell` command. This has been the reliable Codex path for launching `/usr/local/bin/xroar`.
+- **Windows desktop XRoar** — useful for manual visual runs, but its GDB listener must be reachable from the Linux-hosted GDB client.
+
+Preferred Codex path: start XRoar from a GDB-MCP session using GDB's `shell` command. This does not require PowerShell `wsl.exe` to work:
+
+```gdb
+shell cd /mnt/d/retro/ladybug && nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart ladybug -cart-type rom -cart-rom build/ladybug.rom -cart-autorun -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 > /tmp/ladybug-xroar.log 2>&1 & echo $!
+```
+
+Then attach from a fresh GDB-MCP session with `target remote :65520`.
+
+If XRoar is launched from an interactive Linux/WSL shell in the same environment as `gdb-mcp`, loopback binding is enough:
 
 ```bash
 cd /mnt/d/retro/ladybug
@@ -77,7 +91,7 @@ xroar \
   -gdb-port 65520
 ```
 
-If XRoar is launched on Windows and `gdb-mcp` runs under WSL, bind the stub to all interfaces:
+If XRoar is launched on Windows and `gdb-mcp` runs under its Linux host, bind the stub to all interfaces:
 
 ```powershell
 xroar -machine coco3 -ram 512 `

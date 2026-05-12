@@ -1,53 +1,67 @@
                       (  src/rom_probe.s):00001         ; Minimal cartridge-window read probe.
                       (  src/rom_probe.s):00002         ;
                       (  src/rom_probe.s):00003         ; Purpose:
-                      (  src/rom_probe.s):00004         ;   Read $C000-$C0FF before this probe writes to that range, compare each byte
-                      (  src/rom_probe.s):00005         ;   with an expected table, and log mismatches in low RAM.
-                      (  src/rom_probe.s):00006         ;
-                      (  src/rom_probe.s):00007         ; Output:
-                      (  src/rom_probe.s):00008         ;   $01FF = mismatch count
-                      (  src/rom_probe.s):00009         ;   $0200 onward = records of 4 bytes each:
-                      (  src/rom_probe.s):00010         ;       address high, address low, expected byte, actual byte
-                      (  src/rom_probe.s):00011         
-                      (  src/rom_probe.s):00012                 org     $C000
-                      (  src/rom_probe.s):00013         
-C000 444B             (  src/rom_probe.s):00014                 fcc     "DK"
-C002 1A50             (  src/rom_probe.s):00015         entry   orcc    #$50
-C004 10CE1FFE         (  src/rom_probe.s):00016                 lds     #$1FFE
-                      (  src/rom_probe.s):00017         
-C008 7F01FF           (  src/rom_probe.s):00018                 clr     mismatch_count
-                      (  src/rom_probe.s):00019         
-C00B 8EC000           (  src/rom_probe.s):00020                 ldx     #$C000
-C00E 108EC200         (  src/rom_probe.s):00021                 ldy     #expected_c000
-C012 CE0200           (  src/rom_probe.s):00022                 ldu     #mismatch_log
+                      (  src/rom_probe.s):00004         ;   Read $C000-$FEFF before this probe writes to that range, compare each byte
+                      (  src/rom_probe.s):00005         ;   after the executing probe code with the expected ROM fill pattern, and log
+                      (  src/rom_probe.s):00006         ;   mismatches in low RAM.
+                      (  src/rom_probe.s):00007         ;
+                      (  src/rom_probe.s):00008         ; Output:
+                      (  src/rom_probe.s):00009         ;   $01FF = mismatch count
+                      (  src/rom_probe.s):00010         ;   $0200 onward = records of 4 bytes each:
+                      (  src/rom_probe.s):00011         ;       address high, address low, expected byte, actual byte
+                      (  src/rom_probe.s):00012         
+                      (  src/rom_probe.s):00013                 org     $C000
+                      (  src/rom_probe.s):00014         
+C000 444B             (  src/rom_probe.s):00015                 fcc     "DK"
+C002 1A50             (  src/rom_probe.s):00016         entry   orcc    #$50
+C004 10CE1FFE         (  src/rom_probe.s):00017                 lds     #$1FFE
+                      (  src/rom_probe.s):00018         
+C008 7F01FF           (  src/rom_probe.s):00019                 clr     mismatch_count
+                      (  src/rom_probe.s):00020         
+C00B 8EC000           (  src/rom_probe.s):00021                 ldx     #$C000
+C00E CE0200           (  src/rom_probe.s):00022                 ldu     #mismatch_log
                       (  src/rom_probe.s):00023         
-C015                  (  src/rom_probe.s):00024         probe_loop
-C015 A684             (  src/rom_probe.s):00025                 lda     ,x
-C017 A1A4             (  src/rom_probe.s):00026                 cmpa    ,y
-C019 2713             (  src/rom_probe.s):00027                 beq     probe_next
-                      (  src/rom_probe.s):00028         
-C01B 3402             (  src/rom_probe.s):00029                 pshs    a
-C01D 1F10             (  src/rom_probe.s):00030                 tfr     x,d
-C01F A7C0             (  src/rom_probe.s):00031                 sta     ,u+
-C021 E7C0             (  src/rom_probe.s):00032                 stb     ,u+
-C023 A6A4             (  src/rom_probe.s):00033                 lda     ,y
-C025 A7C0             (  src/rom_probe.s):00034                 sta     ,u+
-C027 3502             (  src/rom_probe.s):00035                 puls    a
-C029 A7C0             (  src/rom_probe.s):00036                 sta     ,u+
-C02B 7C01FF           (  src/rom_probe.s):00037                 inc     mismatch_count
-                      (  src/rom_probe.s):00038         
-C02E                  (  src/rom_probe.s):00039         probe_next
-C02E 3001             (  src/rom_probe.s):00040                 leax    1,x
-C030 3121             (  src/rom_probe.s):00041                 leay    1,y
-C032 8CC100           (  src/rom_probe.s):00042                 cmpx    #$C100
-C035 25DE             (  src/rom_probe.s):00043                 blo     probe_loop
-                      (  src/rom_probe.s):00044         
-C037                  (  src/rom_probe.s):00045         probe_done
-C037 20FE             (  src/rom_probe.s):00046                 bra     probe_done
-                      (  src/rom_probe.s):00047         
-                      (  src/rom_probe.s):00048                 org     $C200
-C200                  (  src/rom_probe.s):00049         expected_c000
-C200 0000000000000000 (  src/rom_probe.s):00050                 fill    $00,$100
+C011                  (  src/rom_probe.s):00024         probe_loop
+C011 A684             (  src/rom_probe.s):00025                 lda     ,x
+C013 8CC04B           (  src/rom_probe.s):00026                 cmpx    #probe_code_end
+C016 252A             (  src/rom_probe.s):00027                 blo     probe_next
+C018 8CC14B           (  src/rom_probe.s):00028                 cmpx    #probe_ff_start
+C01B 250B             (  src/rom_probe.s):00029                 blo     expect_zero
+                      (  src/rom_probe.s):00030         
+C01D                  (  src/rom_probe.s):00031         expect_ff
+C01D 81FF             (  src/rom_probe.s):00032                 cmpa    #$FF
+C01F 2721             (  src/rom_probe.s):00033                 beq     probe_next
+C021 C6FF             (  src/rom_probe.s):00034                 ldb     #$FF
+C023 F701FE           (  src/rom_probe.s):00035                 stb     expected_byte
+C026 2006             (  src/rom_probe.s):00036                 bra     log_mismatch
+                      (  src/rom_probe.s):00037         
+C028                  (  src/rom_probe.s):00038         expect_zero
+C028 4D               (  src/rom_probe.s):00039                 tsta
+C029 2717             (  src/rom_probe.s):00040                 beq     probe_next
+C02B 7F01FE           (  src/rom_probe.s):00041                 clr     expected_byte
+                      (  src/rom_probe.s):00042         
+C02E                  (  src/rom_probe.s):00043         log_mismatch
+C02E 3402             (  src/rom_probe.s):00044                 pshs    a
+C030 1F10             (  src/rom_probe.s):00045                 tfr     x,d
+C032 A7C0             (  src/rom_probe.s):00046                 sta     ,u+
+C034 E7C0             (  src/rom_probe.s):00047                 stb     ,u+
+C036 B601FE           (  src/rom_probe.s):00048                 lda     expected_byte
+C039 A7C0             (  src/rom_probe.s):00049                 sta     ,u+
+C03B 3502             (  src/rom_probe.s):00050                 puls    a
+C03D A7C0             (  src/rom_probe.s):00051                 sta     ,u+
+C03F 7C01FF           (  src/rom_probe.s):00052                 inc     mismatch_count
+                      (  src/rom_probe.s):00053         
+C042                  (  src/rom_probe.s):00054         probe_next
+C042 3001             (  src/rom_probe.s):00055                 leax    1,x
+                      (  src/rom_probe.s):00056         
+C044 8CFF00           (  src/rom_probe.s):00057                 cmpx    #$FF00
+C047 25C8             (  src/rom_probe.s):00058                 blo     probe_loop
+                      (  src/rom_probe.s):00059         
+C049                  (  src/rom_probe.s):00060         probe_done
+C049 20FE             (  src/rom_probe.s):00061                 bra     probe_done
+C04B                  (  src/rom_probe.s):00062         probe_code_end
+                      (  src/rom_probe.s):00063         
+C04B 0000000000000000 (  src/rom_probe.s):00064                 fill    $00,$100
      0000000000000000
      0000000000000000
      0000000000000000
@@ -79,17 +93,24 @@ C200 0000000000000000 (  src/rom_probe.s):00050                 fill    $00,$100
      0000000000000000
      0000000000000000
      0000000000000000
-                      (  src/rom_probe.s):00051         
-     01FF             (  src/rom_probe.s):00052         mismatch_count equ $01FF
-     0200             (  src/rom_probe.s):00053         mismatch_log   equ $0200
-                      (  src/rom_probe.s):00054         
-                      (  src/rom_probe.s):00055                 end
+C14B                  (  src/rom_probe.s):00065         probe_ff_start
+                      (  src/rom_probe.s):00066         
+     01FE             (  src/rom_probe.s):00067         expected_byte  equ $01FE
+     01FF             (  src/rom_probe.s):00068         mismatch_count equ $01FF
+     0200             (  src/rom_probe.s):00069         mismatch_log   equ $0200
+                      (  src/rom_probe.s):00070         
+                      (  src/rom_probe.s):00071                 end
 
 Symbol Table:
 [ G] entry                            C002
-[ G] expected_c000                    C200
+[ G] expect_ff                        C01D
+[ G] expect_zero                      C028
+[ G] expected_byte                    01FE
+[ G] log_mismatch                     C02E
 [ G] mismatch_count                   01FF
 [ G] mismatch_log                     0200
-[ G] probe_done                       C037
-[ G] probe_loop                       C015
-[ G] probe_next                       C02E
+[ G] probe_code_end                   C04B
+[ G] probe_done                       C049
+[ G] probe_ff_start                   C14B
+[ G] probe_loop                       C011
+[ G] probe_next                       C042

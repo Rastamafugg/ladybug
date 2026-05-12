@@ -1,8 +1,9 @@
 ; Minimal cartridge-window read probe.
 ;
 ; Purpose:
-;   Read $C000-$C0FF before this probe writes to that range, compare each byte
-;   with an expected table, and log mismatches in low RAM.
+;   Read $C000-$FEFF before this probe writes to that range, compare each byte
+;   after the executing probe code with the expected ROM fill pattern, and log
+;   mismatches in low RAM.
 ;
 ; Output:
 ;   $01FF = mismatch count
@@ -18,19 +19,33 @@ entry   orcc    #$50
         clr     mismatch_count
 
         ldx     #$C000
-        ldy     #expected_c000
         ldu     #mismatch_log
 
 probe_loop
         lda     ,x
-        cmpa    ,y
-        beq     probe_next
+        cmpx    #probe_code_end
+        blo     probe_next
+        cmpx    #probe_ff_start
+        blo     expect_zero
 
+expect_ff
+        cmpa    #$FF
+        beq     probe_next
+        ldb     #$FF
+        stb     expected_byte
+        bra     log_mismatch
+
+expect_zero
+        tsta
+        beq     probe_next
+        clr     expected_byte
+
+log_mismatch
         pshs    a
         tfr     x,d
         sta     ,u+
         stb     ,u+
-        lda     ,y
+        lda     expected_byte
         sta     ,u+
         puls    a
         sta     ,u+
@@ -38,17 +53,18 @@ probe_loop
 
 probe_next
         leax    1,x
-        leay    1,y
-        cmpx    #$C100
+
+        cmpx    #$FF00
         blo     probe_loop
 
 probe_done
         bra     probe_done
+probe_code_end
 
-        org     $C200
-expected_c000
         fill    $00,$100
+probe_ff_start
 
+expected_byte  equ $01FE
 mismatch_count equ $01FF
 mismatch_log   equ $0200
 
