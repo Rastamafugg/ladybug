@@ -11593,7 +11593,7 @@ turned on. The TY bit tells the SAM how to map memory. When it is clear,
 RAM memory is available from addresses 0000 - $7FFF in a computer with 32K
 or 64K. RAM. In a computer with 16K. RAM, the RAM addresses extend from
 0000 - $3FFF. Addresses $8000 - $BFFF access the internal ROM, which
-contains Color BASIC and Extended Color BASIC. Addresses $CO000 - $FEFF
+contains Color BASIC and Extended Color BASIC. Addresses $C000 - $FEFF
 access the ROM plugged into the ROM cartridge slot. Addresses $FF00 - $FFFF
 are dedicated addresses. Thus when the TY bit is clear, RAM is available in
 the first half of memory and internal and/or external ROM is available in
