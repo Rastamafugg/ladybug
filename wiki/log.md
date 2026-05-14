@@ -4,6 +4,19 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-14] debug | Phase 2.4 boot confirmed working from cold start; source-review gap remains but project unblocked
+
+Fourth pass on cart-ram-corruption. Three discriminating probes:
+1. Cold-start verification: cleared `~/.xroar/`, ran clean Phase 2.4 build with `-trap pc=0xC0BE -trap-snap`. Trap fired; snapshot was written. **Phase 2.4 reaches `phase24_halt` from cold start — not stale state.**
+2. Post-SAM_ALLRAM probe at $C05E: boot survives `sta SAM_ALLRAM`; `$C000+` reads continue to return cart bytes.
+3. Pre-cart-shadow probe at $C02A: `$C000+` already returns cart bytes BEFORE the self-copy runs. **The self-copy is irrelevant** to cart accessibility; XRoar serves cart bytes through a path my source-review couldn't fully trace.
+
+Decisive empirical confirmation: cart bytes accessible at `$C000-$FDFF` throughout the boot, pre- and post-SAM_ALLRAM, with or without the self-copy. The Phase 2.4 boot architecture WORKS on XRoar 1.10. The IRQ-vector bug from the original investigation is therefore a real, isolated problem — not a symptom of broader boot breakage. Next debugger session should pivot back to L4 (probe MC3/MMU/PAR state at `STA $FEF7` time). Also identified one XRoar 1.10 bug worth filing: **`-load` + `-gdb` together fails to bind the gdb listener** ([tooling/xroar.md](tooling/xroar.md) updated). The `swi`-segfault is a separate known bug.
+
+Source-review gap: my decode trace of `tcc1014.c` predicts `$E000` should return cart padding via `case 1`/`cart_rom_read`, but empirically returns SECB-style vector-table bytes. Something about MC1/MC0 selection or the case-1 read path differs from my reading. Not blocking; documented as a known knowledge gap.
+
+---
+
 ## [2026-05-14] debug | cart-shadow self-copy CONFIRMED non-functional; what we read at $C000+ is cart ROM via the S=1/CTS path, not RAM
 
 Third gdb-mcp pass on cart-ram-corruption with a `bra .` halt inserted at `copy_done` (PC=$C047, pre-SAM_ALLRAM). Attached cleanly. Reads of `$C000-$C05F` matched the cart ROM file byte-for-byte — but this is NOT because the cart-shadow copy populated RAM. With MC3=1, MMUEN=0, TY=0, the GIME's address decoder ([tcc1014.c:716-737](../docs/reference/xroar/src/tcc1014/tcc1014.c)) routes `$C000-$FDFF` through S=1 (CTS, cart ROM) with RAS=0. In `coco3.c read_byte`, the case-1 branch returns cart ROM bytes via `cart_rom_read`/`rombank_d8`, and the `if (RAS)` ram-overlay block is SKIPPED. So gdb-mcp reads at `$C000+` see cart ROM directly. The cart-shadow loop's `std ,x` writes for x in `$C000-$FDFE` go to `cart_rom_write` (no-op) and skip ram_d8 (RAS=0) — they don't reach RAM. For x in `$FE00-$FEFE` (MC3 inner check sets RAS=1), the writes DO reach RAM, but the `ldd ,x` source is also RAM (cart_rom_read overwritten by ram_d8) — it's a RAM→RAM round-trip with no cart bytes involved. **Net: the self-copy is a no-op on XRoar 1.10. RAM at `$C000-$FEFF` is never populated by our boot.** The boot has been running directly from cart ROM all along; our mental model of "self-copy then all-RAM execution" is wrong. New open question: how does Phase 2.4 render 3 tiles, since the post-SAM_ALLRAM code path should fetch uninitialized RAM? Two next-probes captured in [backlog/cart-ram-corruption.md](backlog/cart-ram-corruption.md). The IRQ-vector bug is still seen as a symptom, not the root cause.

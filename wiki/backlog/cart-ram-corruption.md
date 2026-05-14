@@ -172,6 +172,27 @@ Two probes, in order:
 
 Probe 2 is the cheapest discriminator and should be first.
 
+### 2026-05-14 — fourth gdb-mcp pass: cold-start verification + post-SAM_ALLRAM probe
+
+**Probe 1 (cold-start verification):** Cleared `~/.xroar/`, no carry-over snapshot, no probes — clean Phase 2.4 build. Launched with `-trap pc=0xC0BE -trap-snap /tmp/halt-reached.sna -trap-timeout 1`. **Trap fired and snapshot was written.** Binary proof that the boot reaches `phase24_halt` ($C0BE) from a cold start. Phase 2.4 is not relying on stale state — it really works.
+
+**Probe 2 (post-SAM_ALLRAM):** Inserted `bra .` halt at line 147 ($C05E in built ROM), immediately after `sta SAM_ALLRAM`. Built, launched, attached gdb-mcp. PC parked at $C05E. Reads:
+- `$C000-$C05F` returns cart bytes matching the cart ROM file exactly.
+- `$2000+` returns DRAM init pattern.
+- `$FEF0+` returns SECB-style bytes (not cart padding).
+
+**Probe 3 (pre-cart-shadow):** Moved halt to line 99, right after `sta GIME_INIT0` for the first Init0 write, BEFORE the cart-shadow loop runs. Attached. `$C000` already shows cart bytes there too — meaning the cart-shadow self-copy is **irrelevant** to whether the cart is accessible at $C000+; XRoar makes it accessible from the start.
+
+### What this conclusively proves
+
+- **The boot works correctly under XRoar 1.10** despite my source-review prediction otherwise. Phase 2.4 reaches `phase24_halt` reliably from cold start.
+- **Cart bytes at `$C000-$FDFF` are accessible throughout the boot**, both pre- and post-SAM_ALLRAM. The cart-shadow self-copy at [src/main.s:102-118](../../src/main.s) does nothing useful in XRoar, but the boot doesn't depend on it — XRoar serves cart bytes through some path my source-review couldn't fully trace.
+- **My source-review of [tcc1014.c](../../docs/reference/xroar/src/tcc1014/tcc1014.c) has a gap.** Specifically: my decode trace predicts `$E000` should return cart-ROM bytes via `case 1` / `cart_rom_read`, with cart-offset $2000 = $FF (padding). Empirically, `$E000` returns `00 E6 E0 19 ...` — SECB-style vector-table bytes, not cart padding. Something about MC1/MC0 selection or the case-1 read path differs from my reading. The gap doesn't block the project — but it does mean we can't reason confidently about exact GIME state from source alone.
+
+### Pivoting back to the IRQ-vector question
+
+With the cart-shadow architecture confirmed working in practice, the IRQ-install bug from the original investigation is a real, isolated problem — not a symptom of broader boot breakage. The next debugger session should pivot back to L4 from the earlier hypothesis list: **probe MC3 / MMU / PAR state at the exact moment of `STA $FEF7` to determine why the IRQ vector doesn't take effect.**
+
 ### Implications regardless of (1)/(2) outcome
 
 The "cart-to-shadow-RAM self-copy → all-RAM execution" boot model from [implementation/memory-map.md](../implementation/memory-map.md) is **not actually how XRoar runs our cart**. We've been running directly from cart ROM the whole time. This means:

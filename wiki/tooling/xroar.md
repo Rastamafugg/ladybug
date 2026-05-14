@@ -215,6 +215,12 @@ Concrete inspection of GIME state is the largest current gap; if it becomes a bl
 
 For headless / CI-style smoke tests (none today), add `-no-ratelimit -fskip 100` and pipe trace output.
 
+## Known XRoar 1.10 limitations
+
+- **`-load <snapshot>` + `-gdb` together fails to bind the gdb listener.** The combination silently drops the gdb port. To attach gdb-mcp to a snapshot-loaded state, you need to launch fresh (without `-load`) and let autorun run, then attach. Or capture a fresh snapshot mid-debug instead of round-tripping through one. Observed during cart-ram-corruption investigation.
+- **`swi` (opcode `$3F`) at a `-trap` point makes XRoar segfault** when it tries to write the snapshot. Use `bra .` halt loops instead. (Also noted in [Reaching specific boot points reliably](#reaching-specific-boot-points-reliably).)
+- **`-trap` succeeds at writing the snapshot, but XRoar segfaults right after.** The snapshot file is fully valid and usable for reload. The segfault is post-write.
+
 ## Gotchas
 
 - **Cart ROM must be a power of 2.** XRoar will load any size but mapping behaviour for non-pow2 ROMs is undefined. Build script always pads to 16 KB.
