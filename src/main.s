@@ -213,6 +213,15 @@ clr_fb  std     ,x++
         ; the 3 tiles on black. The IRQ install + Vbord enable below is
         ; carried over from Phase 2.3 but has not been re-verified against
         ; the new MMU/PAR layout — leaving it disabled until that's done.
+
+        ; --- L4 probe: write sentinel to JT_IRQ, persist readback + marker,
+        ;     fall through to phase24_halt for trap-snap capture.
+        lda     #$55
+        sta     JT_IRQ          ; the suspect store
+        lda     JT_IRQ
+        sta     $0FFE           ; readback of $FEF7
+        lda     #$AA
+        sta     $0FFF           ; liveness marker
 phase24_halt
         bra     phase24_halt
 
