@@ -213,128 +213,136 @@ C0BB B7FF99           (adybug/src/main.s):00210                 sta     GIME_VRE
                       (adybug/src/main.s):00213                 ; the 3 tiles on black. The IRQ install + Vbord enable below is
                       (adybug/src/main.s):00214                 ; carried over from Phase 2.3 but has not been re-verified against
                       (adybug/src/main.s):00215                 ; the new MMU/PAR layout — leaving it disabled until that's done.
-C0BE                  (adybug/src/main.s):00216         phase24_halt
-C0BE 12               (adybug/src/main.s):00217                 nop                     ; TEMP: phase24_halt bypassed for IRQ-bug repro
-C0BF 12               (adybug/src/main.s):00218                 nop                     ;       (revert to `bra phase24_halt` after)
-                      (adybug/src/main.s):00219         
-                      (adybug/src/main.s):00220                 ; --- IRQ handler at $FEF7 jump-table slot ---
-C0C0 867E             (adybug/src/main.s):00221                 lda     #$7E            ; JMP extended
-C0C2 B7FEF7           (adybug/src/main.s):00222                 sta     JT_IRQ
-C0C5 CCC0F8           (adybug/src/main.s):00223                 ldd     #irq_handler
-C0C8 FDFEF8           (adybug/src/main.s):00224                 std     JT_IRQ+1
-                      (adybug/src/main.s):00225         
-C0CB 0F02             (adybug/src/main.s):00226                 clr     FRAMES
-C0CD 0F03             (adybug/src/main.s):00227                 clr     FRAMES+1
-                      (adybug/src/main.s):00228         
-                      (adybug/src/main.s):00229                 ; --- Enable Vbord ---
-C0CF 8608             (adybug/src/main.s):00230                 lda     #%00001000
-C0D1 B7FF92           (adybug/src/main.s):00231                 sta     GIME_IRQEN
-C0D4 B6FF92           (adybug/src/main.s):00232                 lda     GIME_IRQEN
+                      (adybug/src/main.s):00216                 ; --- PROBE: verify STA $FEF7 round-trip (TEMP, remove after) ---
+C0BE 867E             (adybug/src/main.s):00217                 lda     #$7E
+C0C0 B7FEF7           (adybug/src/main.s):00218                 sta     JT_IRQ          ; sentinel store via cart-execute path
+C0C3 B6FEF7           (adybug/src/main.s):00219                 lda     JT_IRQ          ; A = immediate readback; expect $7E
+C0C6 B71000           (adybug/src/main.s):00220                 sta     $1000           ; persist readback to FB so gdb can find it
+C0C9 F6FEF7           (adybug/src/main.s):00221                 ldb     $FEF7           ; B = second readback
+C0CC F71001           (adybug/src/main.s):00222                 stb     $1001           ; persist
+C0CF                  (adybug/src/main.s):00223         probe_halt
+C0CF 20FE             (adybug/src/main.s):00224                 bra     probe_halt      ; halt here; gdb-mcp attaches and inspects
+C0D1                  (adybug/src/main.s):00225         phase24_halt
+C0D1 20FE             (adybug/src/main.s):00226                 bra     phase24_halt
+                      (adybug/src/main.s):00227         
+                      (adybug/src/main.s):00228                 ; --- IRQ handler at $FEF7 jump-table slot ---
+C0D3 867E             (adybug/src/main.s):00229                 lda     #$7E            ; JMP extended
+C0D5 B7FEF7           (adybug/src/main.s):00230                 sta     JT_IRQ
+C0D8 CCC0F8           (adybug/src/main.s):00231                 ldd     #irq_handler
+C0DB FDFEF8           (adybug/src/main.s):00232                 std     JT_IRQ+1
                       (adybug/src/main.s):00233         
-C0D7 1CEF             (adybug/src/main.s):00234                 andcc   #%11101111      ; unmask IRQ
-                      (adybug/src/main.s):00235         
-                      (adybug/src/main.s):00236         ;==============================================================================
-                      (adybug/src/main.s):00237         ; mainloop — IRQ keeps ticking FRAMES; CPU just spins.
-                      (adybug/src/main.s):00238         ;==============================================================================
-                      (adybug/src/main.s):00239                 ; XRoar 1.10 returns bad cartridge-window reads at $C0D9-$C0DB. Force
-                      (adybug/src/main.s):00240                 ; mainloop (and everything that follows) past that range; copy_around_
-                      (adybug/src/main.s):00241                 ; xroar_bad_window leaves $C0D9-$C0DB uninitialised in RAM, so no live
-                      (adybug/src/main.s):00242                 ; code or data may occupy it. See lessons-learned.md.
-                      (adybug/src/main.s):00243                 org     $C0DC
-                      (adybug/src/main.s):00244         
-C0DC                  (adybug/src/main.s):00245         mainloop
-C0DC 13               (adybug/src/main.s):00246                 sync
-C0DD 20FD             (adybug/src/main.s):00247                 bra     mainloop
-                      (adybug/src/main.s):00248         
-                      (adybug/src/main.s):00249         ;==============================================================================
-                      (adybug/src/main.s):00250         ; blit_tile — copy an 8x8 tile (32 bytes, 4bpp packed) to the framebuffer.
-                      (adybug/src/main.s):00251         ;   X = dest FB byte address (top-left of tile)
-                      (adybug/src/main.s):00252         ;   Y = source tile data
-                      (adybug/src/main.s):00253         ; Trashes A, B, D, X, Y. 8 rows x 4 bytes; row stride 160 (FB) - 4 (written) = 156.
-                      (adybug/src/main.s):00254         ;==============================================================================
-C0DF                  (adybug/src/main.s):00255         blit_tile
-                      (adybug/src/main.s):00256                 ; ldd ,y++ clobbers B, so use a Y-vs-sentinel loop instead of decb.
-                      (adybug/src/main.s):00257                 ; See lessons-learned.md §"LDD ,Y++ clobbers B".
-C0DF 33A820           (adybug/src/main.s):00258                 leau    32,y            ; sentinel = end of tile data
-C0E2 3440             (adybug/src/main.s):00259                 pshs    u
-C0E4 ECA1             (adybug/src/main.s):00260         btrow   ldd     ,y++
-C0E6 ED81             (adybug/src/main.s):00261                 std     ,x++
-C0E8 ECA1             (adybug/src/main.s):00262                 ldd     ,y++
-C0EA ED81             (adybug/src/main.s):00263                 std     ,x++
-C0EC 3089009C         (adybug/src/main.s):00264                 leax    156,x           ; advance to next FB row, same column
-C0F0 10ACE4           (adybug/src/main.s):00265                 cmpy    ,s
-C0F3 25EF             (adybug/src/main.s):00266                 blo     btrow
-C0F5 3262             (adybug/src/main.s):00267                 leas    2,s
-C0F7 39               (adybug/src/main.s):00268                 rts
-                      (adybug/src/main.s):00269         
-                      (adybug/src/main.s):00270         ;==============================================================================
-                      (adybug/src/main.s):00271         ; irq_handler — Vbord (60 Hz)
-                      (adybug/src/main.s):00272         ;==============================================================================
-C0F8                  (adybug/src/main.s):00273         irq_handler
-C0F8 B6FF92           (adybug/src/main.s):00274                 lda     GIME_IRQEN
-C0FB 0C03             (adybug/src/main.s):00275                 inc     FRAMES+1
-C0FD 2602             (adybug/src/main.s):00276                 bne     irq_done
-C0FF 0C02             (adybug/src/main.s):00277                 inc     FRAMES
-C101                  (adybug/src/main.s):00278         irq_done
-C101 3B               (adybug/src/main.s):00279                 rti
-                      (adybug/src/main.s):00280         
-                      (adybug/src/main.s):00281         ;==============================================================================
-                      (adybug/src/main.s):00282         ; Data tables (in cart ROM, copied to RAM by the boot self-copy)
-                      (adybug/src/main.s):00283         ;==============================================================================
-                      (adybug/src/main.s):00284         
-                      (adybug/src/main.s):00285         ;-- PAR values for executive set (PAR0..PAR7) ---------------------------------
-C102                  (adybug/src/main.s):00286         par_table
-C102 38303132333D3E3F (adybug/src/main.s):00287                 fcb     $38,$30,$31,$32,$33,$3D,$3E,$3F
+C0DE 0F02             (adybug/src/main.s):00234                 clr     FRAMES
+C0E0 0F03             (adybug/src/main.s):00235                 clr     FRAMES+1
+                      (adybug/src/main.s):00236         
+                      (adybug/src/main.s):00237                 ; --- Enable Vbord ---
+C0E2 8608             (adybug/src/main.s):00238                 lda     #%00001000
+C0E4 B7FF92           (adybug/src/main.s):00239                 sta     GIME_IRQEN
+C0E7 B6FF92           (adybug/src/main.s):00240                 lda     GIME_IRQEN
+                      (adybug/src/main.s):00241         
+C0EA 1CEF             (adybug/src/main.s):00242                 andcc   #%11101111      ; unmask IRQ
+                      (adybug/src/main.s):00243         
+                      (adybug/src/main.s):00244         ;==============================================================================
+                      (adybug/src/main.s):00245         ; mainloop — IRQ keeps ticking FRAMES; CPU just spins.
+                      (adybug/src/main.s):00246         ;==============================================================================
+                      (adybug/src/main.s):00247                 ; XRoar 1.10 returns bad cartridge-window reads at $C0D9-$C0DB. Force
+                      (adybug/src/main.s):00248                 ; mainloop (and everything that follows) past that range; copy_around_
+                      (adybug/src/main.s):00249                 ; xroar_bad_window leaves $C0D9-$C0DB uninitialised in RAM, so no live
+                      (adybug/src/main.s):00250                 ; code or data may occupy it. See lessons-learned.md.
+                      (adybug/src/main.s):00251                 org     $C0DC
+                      (adybug/src/main.s):00252         
+C0DC                  (adybug/src/main.s):00253         mainloop
+C0DC 13               (adybug/src/main.s):00254                 sync
+C0DD 20FD             (adybug/src/main.s):00255                 bra     mainloop
+                      (adybug/src/main.s):00256         
+                      (adybug/src/main.s):00257         ;==============================================================================
+                      (adybug/src/main.s):00258         ; blit_tile — copy an 8x8 tile (32 bytes, 4bpp packed) to the framebuffer.
+                      (adybug/src/main.s):00259         ;   X = dest FB byte address (top-left of tile)
+                      (adybug/src/main.s):00260         ;   Y = source tile data
+                      (adybug/src/main.s):00261         ; Trashes A, B, D, X, Y. 8 rows x 4 bytes; row stride 160 (FB) - 4 (written) = 156.
+                      (adybug/src/main.s):00262         ;==============================================================================
+C0DF                  (adybug/src/main.s):00263         blit_tile
+                      (adybug/src/main.s):00264                 ; ldd ,y++ clobbers B, so use a Y-vs-sentinel loop instead of decb.
+                      (adybug/src/main.s):00265                 ; See lessons-learned.md §"LDD ,Y++ clobbers B".
+C0DF 33A820           (adybug/src/main.s):00266                 leau    32,y            ; sentinel = end of tile data
+C0E2 3440             (adybug/src/main.s):00267                 pshs    u
+C0E4 ECA1             (adybug/src/main.s):00268         btrow   ldd     ,y++
+C0E6 ED81             (adybug/src/main.s):00269                 std     ,x++
+C0E8 ECA1             (adybug/src/main.s):00270                 ldd     ,y++
+C0EA ED81             (adybug/src/main.s):00271                 std     ,x++
+C0EC 3089009C         (adybug/src/main.s):00272                 leax    156,x           ; advance to next FB row, same column
+C0F0 10ACE4           (adybug/src/main.s):00273                 cmpy    ,s
+C0F3 25EF             (adybug/src/main.s):00274                 blo     btrow
+C0F5 3262             (adybug/src/main.s):00275                 leas    2,s
+C0F7 39               (adybug/src/main.s):00276                 rts
+                      (adybug/src/main.s):00277         
+                      (adybug/src/main.s):00278         ;==============================================================================
+                      (adybug/src/main.s):00279         ; irq_handler — Vbord (60 Hz)
+                      (adybug/src/main.s):00280         ;==============================================================================
+C0F8                  (adybug/src/main.s):00281         irq_handler
+C0F8 B6FF92           (adybug/src/main.s):00282                 lda     GIME_IRQEN
+C0FB 0C03             (adybug/src/main.s):00283                 inc     FRAMES+1
+C0FD 2602             (adybug/src/main.s):00284                 bne     irq_done
+C0FF 0C02             (adybug/src/main.s):00285                 inc     FRAMES
+C101                  (adybug/src/main.s):00286         irq_done
+C101 3B               (adybug/src/main.s):00287                 rti
                       (adybug/src/main.s):00288         
-                      (adybug/src/main.s):00289         ;-- Palette: 16 entries, GIME 6-bit codes (composite-NTSC empirical). --------
-                      (adybug/src/main.s):00290         ;   Indices 0-3 form the sub-palette for the Phase 2.4 test tile:
-                      (adybug/src/main.s):00291         ;     0 black, 1 yellow, 2 blue, 3 white. Remaining slots unused for now.
-C10A                  (adybug/src/main.s):00292         palette_table
-C10A 00               (adybug/src/main.s):00293                 fcb     $00             ; 0  black
-C10B 33               (adybug/src/main.s):00294                 fcb     $33             ; 1  yellow
-C10C 0C               (adybug/src/main.s):00295                 fcb     $0C             ; 2  blue
-C10D 3F               (adybug/src/main.s):00296                 fcb     $3F             ; 3  white
-C10E 03               (adybug/src/main.s):00297                 fcb     $03             ; 4  green-brown (unused)
-C10F 30               (adybug/src/main.s):00298                 fcb     $30             ; 5  white-dup   (unused)
-C110 0F               (adybug/src/main.s):00299                 fcb     $0F             ; 6  forest grn  (unused)
-C111 3C               (adybug/src/main.s):00300                 fcb     $3C             ; 7  baby blue   (unused)
-C112 20               (adybug/src/main.s):00301                 fcb     $20             ; 8  grey        (unused)
-C113 08               (adybug/src/main.s):00302                 fcb     $08             ; 9  fuchsia     (unused)
-C114 02               (adybug/src/main.s):00303                 fcb     $02             ; 10 darker grn  (unused)
-C115 22               (adybug/src/main.s):00304                 fcb     $22             ; 11 sat lt grn  (unused)
-C116 0A               (adybug/src/main.s):00305                 fcb     $0A             ; 12 purple     (unused)
-C117 28               (adybug/src/main.s):00306                 fcb     $28             ; 13 pink       (unused)
-C118 15               (adybug/src/main.s):00307                 fcb     $15             ; 14 orange     (unused)
-C119 24               (adybug/src/main.s):00308                 fcb     $24             ; 15 orange-yel (unused)
-                      (adybug/src/main.s):00309         
-                      (adybug/src/main.s):00310         ;-- Test tile: arcade chars.json[432] (dense, uses all four pixvals). --------
-                      (adybug/src/main.s):00311         ;   Hand-converted from 8x8 2bpp pixval grid to 4bpp GIME packing
-                      (adybug/src/main.s):00312         ;   (2 px/byte, hi-nibble = leftmost px). Pixval N maps directly to
-                      (adybug/src/main.s):00313         ;   palette idx N — chosen because every idx 0/1/2/3 appears in the tile,
-                      (adybug/src/main.s):00314         ;   so a wrong palette entry is immediately obvious.
-                      (adybug/src/main.s):00315         ;
-                      (adybug/src/main.s):00316         ;   Source pixval rows (from chars.json[432]):
-                      (adybug/src/main.s):00317         ;     3,3,3,3,3,1,3,3
-                      (adybug/src/main.s):00318         ;     3,3,3,1,1,1,3,3
-                      (adybug/src/main.s):00319         ;     3,3,1,1,1,1,1,0
-                      (adybug/src/main.s):00320         ;     3,3,1,1,1,1,1,2
-                      (adybug/src/main.s):00321         ;     3,3,1,1,1,1,1,2
-                      (adybug/src/main.s):00322         ;     3,1,1,1,1,1,2,2
-                      (adybug/src/main.s):00323         ;     3,1,1,1,3,1,2,0
-                      (adybug/src/main.s):00324         ;     3,1,1,3,1,1,2,2
-C11A                  (adybug/src/main.s):00325         tile_data
-                      (adybug/src/main.s):00326                 ; arcade chars.json[432], 8×8 2bpp pixvals packed to 4bpp (hi nibble = left px).
-                      (adybug/src/main.s):00327                 ; Pixval→palette idx is identity: 0=black, 1=yellow, 2=blue, 3=white.
-C11A 33333133         (adybug/src/main.s):00328                 fcb     $33,$33,$31,$33     ; row 0:  3 3 3 3 3 1 3 3
-C11E 33311133         (adybug/src/main.s):00329                 fcb     $33,$31,$11,$33     ; row 1:  3 3 3 1 1 1 3 3
-C122 33111110         (adybug/src/main.s):00330                 fcb     $33,$11,$11,$10     ; row 2:  3 3 1 1 1 1 1 0
-C126 33111112         (adybug/src/main.s):00331                 fcb     $33,$11,$11,$12     ; row 3:  3 3 1 1 1 1 1 2
-C12A 33111112         (adybug/src/main.s):00332                 fcb     $33,$11,$11,$12     ; row 4:  3 3 1 1 1 1 1 2
-C12E 31111122         (adybug/src/main.s):00333                 fcb     $31,$11,$11,$22     ; row 5:  3 1 1 1 1 1 2 2
-C132 31113120         (adybug/src/main.s):00334                 fcb     $31,$11,$31,$20     ; row 6:  3 1 1 1 3 1 2 0
-C136 31131122         (adybug/src/main.s):00335                 fcb     $31,$13,$11,$22     ; row 7:  3 1 1 3 1 1 2 2
-                      (adybug/src/main.s):00336         
-                      (adybug/src/main.s):00337                 end
+                      (adybug/src/main.s):00289         ;==============================================================================
+                      (adybug/src/main.s):00290         ; Data tables (in cart ROM, copied to RAM by the boot self-copy)
+                      (adybug/src/main.s):00291         ;==============================================================================
+                      (adybug/src/main.s):00292         
+                      (adybug/src/main.s):00293         ;-- PAR values for executive set (PAR0..PAR7) ---------------------------------
+C102                  (adybug/src/main.s):00294         par_table
+C102 38303132333D3E3F (adybug/src/main.s):00295                 fcb     $38,$30,$31,$32,$33,$3D,$3E,$3F
+                      (adybug/src/main.s):00296         
+                      (adybug/src/main.s):00297         ;-- Palette: 16 entries, GIME 6-bit codes (composite-NTSC empirical). --------
+                      (adybug/src/main.s):00298         ;   Indices 0-3 form the sub-palette for the Phase 2.4 test tile:
+                      (adybug/src/main.s):00299         ;     0 black, 1 yellow, 2 blue, 3 white. Remaining slots unused for now.
+C10A                  (adybug/src/main.s):00300         palette_table
+C10A 00               (adybug/src/main.s):00301                 fcb     $00             ; 0  black
+C10B 33               (adybug/src/main.s):00302                 fcb     $33             ; 1  yellow
+C10C 0C               (adybug/src/main.s):00303                 fcb     $0C             ; 2  blue
+C10D 3F               (adybug/src/main.s):00304                 fcb     $3F             ; 3  white
+C10E 03               (adybug/src/main.s):00305                 fcb     $03             ; 4  green-brown (unused)
+C10F 30               (adybug/src/main.s):00306                 fcb     $30             ; 5  white-dup   (unused)
+C110 0F               (adybug/src/main.s):00307                 fcb     $0F             ; 6  forest grn  (unused)
+C111 3C               (adybug/src/main.s):00308                 fcb     $3C             ; 7  baby blue   (unused)
+C112 20               (adybug/src/main.s):00309                 fcb     $20             ; 8  grey        (unused)
+C113 08               (adybug/src/main.s):00310                 fcb     $08             ; 9  fuchsia     (unused)
+C114 02               (adybug/src/main.s):00311                 fcb     $02             ; 10 darker grn  (unused)
+C115 22               (adybug/src/main.s):00312                 fcb     $22             ; 11 sat lt grn  (unused)
+C116 0A               (adybug/src/main.s):00313                 fcb     $0A             ; 12 purple     (unused)
+C117 28               (adybug/src/main.s):00314                 fcb     $28             ; 13 pink       (unused)
+C118 15               (adybug/src/main.s):00315                 fcb     $15             ; 14 orange     (unused)
+C119 24               (adybug/src/main.s):00316                 fcb     $24             ; 15 orange-yel (unused)
+                      (adybug/src/main.s):00317         
+                      (adybug/src/main.s):00318         ;-- Test tile: arcade chars.json[432] (dense, uses all four pixvals). --------
+                      (adybug/src/main.s):00319         ;   Hand-converted from 8x8 2bpp pixval grid to 4bpp GIME packing
+                      (adybug/src/main.s):00320         ;   (2 px/byte, hi-nibble = leftmost px). Pixval N maps directly to
+                      (adybug/src/main.s):00321         ;   palette idx N — chosen because every idx 0/1/2/3 appears in the tile,
+                      (adybug/src/main.s):00322         ;   so a wrong palette entry is immediately obvious.
+                      (adybug/src/main.s):00323         ;
+                      (adybug/src/main.s):00324         ;   Source pixval rows (from chars.json[432]):
+                      (adybug/src/main.s):00325         ;     3,3,3,3,3,1,3,3
+                      (adybug/src/main.s):00326         ;     3,3,3,1,1,1,3,3
+                      (adybug/src/main.s):00327         ;     3,3,1,1,1,1,1,0
+                      (adybug/src/main.s):00328         ;     3,3,1,1,1,1,1,2
+                      (adybug/src/main.s):00329         ;     3,3,1,1,1,1,1,2
+                      (adybug/src/main.s):00330         ;     3,1,1,1,1,1,2,2
+                      (adybug/src/main.s):00331         ;     3,1,1,1,3,1,2,0
+                      (adybug/src/main.s):00332         ;     3,1,1,3,1,1,2,2
+C11A                  (adybug/src/main.s):00333         tile_data
+                      (adybug/src/main.s):00334                 ; arcade chars.json[432], 8×8 2bpp pixvals packed to 4bpp (hi nibble = left px).
+                      (adybug/src/main.s):00335                 ; Pixval→palette idx is identity: 0=black, 1=yellow, 2=blue, 3=white.
+C11A 33333133         (adybug/src/main.s):00336                 fcb     $33,$33,$31,$33     ; row 0:  3 3 3 3 3 1 3 3
+C11E 33311133         (adybug/src/main.s):00337                 fcb     $33,$31,$11,$33     ; row 1:  3 3 3 1 1 1 3 3
+C122 33111110         (adybug/src/main.s):00338                 fcb     $33,$11,$11,$10     ; row 2:  3 3 1 1 1 1 1 0
+C126 33111112         (adybug/src/main.s):00339                 fcb     $33,$11,$11,$12     ; row 3:  3 3 1 1 1 1 1 2
+C12A 33111112         (adybug/src/main.s):00340                 fcb     $33,$11,$11,$12     ; row 4:  3 3 1 1 1 1 1 2
+C12E 31111122         (adybug/src/main.s):00341                 fcb     $31,$11,$11,$22     ; row 5:  3 1 1 1 1 1 2 2
+C132 31113120         (adybug/src/main.s):00342                 fcb     $31,$11,$31,$20     ; row 6:  3 1 1 1 3 1 2 0
+C136 31131122         (adybug/src/main.s):00343                 fcb     $31,$13,$11,$22     ; row 7:  3 1 1 3 1 1 2 2
+                      (adybug/src/main.s):00344         
+                      (adybug/src/main.s):00345                 end
 
 Symbol Table:
 [ G] blit_tile                        C0DF
@@ -368,7 +376,7 @@ Symbol Table:
 [ G] PAR_EXEC                         FFA0
 [ G] par_table                        C102
 [ G] parloop                          C054
-[ G] phase24_halt                     C0BE
+[ G] phase24_halt                     C0D1
 [ G] PIA1_CRA                         FF01
 [ G] PIA1_CRB                         FF03
 [ G] PIA1_DA                          FF00
@@ -377,6 +385,7 @@ Symbol Table:
 [ G] PIA2_CRB                         FF23
 [ G] PIA2_DA                          FF20
 [ G] PIA2_DB                          FF22
+[ G] probe_halt                       C0CF
 [ G] SAM_ALLRAM                       FFDF
 [ G] SAM_FAST                         FFD9
 [ G] tile_data                        C11A

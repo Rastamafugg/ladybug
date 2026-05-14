@@ -4,6 +4,17 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-14] debug | cart-shadow self-copy appears non-functional under XRoar 1.10
+
+Second gdb-mcp pass on cart-ram-corruption using the new SWI-trap + snapshot workflow. Key blockers and findings:
+- SWI in cart code makes XRoar 1.10 **segfault** at snapshot time. Avoid `swi` for halt-and-inspect; use `bra .` instead. [tooling/xroar.md](tooling/xroar.md) updated.
+- After inserting a `lda#$7E / sta $FEF7 / lda $FEF7 / sta $1000 / probe_halt: bra .` probe and attaching, found PC wild ($B977 in BASIC ROM disassembling uninit memory), `$1000=00 00` (probe sentinel never persisted), and `$C000-$C0FF` filled with `00 00 00 00 FF FF FF FF` pattern — which exactly matches XRoar's default DRAM init fill ([ram.c:296-302](../docs/reference/xroar/src/ram.c)).
+- **The cart-shadow self-copy at [src/main.s:102-118](../src/main.s) is non-functional under XRoar 1.10.** Pre-SAM_ALLRAM with MC3=1, MMUEN=0, the GIME's address decode for `$C000-$DFFF` returns `S=1 (CTS)` with `RAS=0` ([tcc1014.c:729-737](../docs/reference/xroar/src/tcc1014/tcc1014.c)). In coco3.c write_byte, the `if (RAS)` block is therefore skipped; the cart's write callback runs but `cart_rom_write→rombank_d8` is **read-only** ([rombank.h:102-107](../docs/reference/xroar/src/rombank.h)). So `std ,x` writes go nowhere; cart-window RAM stays at DRAM init pattern.
+- Open question: how does Phase 2.4's 3-tile render appear to work, since post-SAM_ALLRAM execution would have to come from RAM that is empty? Hypotheses captured in [backlog/cart-ram-corruption.md](backlog/cart-ram-corruption.md). Recommended next probe is to halt RIGHT after the cart-shadow loop and read `$C000+` directly.
+- The IRQ-vector bug is now seen as a SYMPTOM of this deeper boot-architecture mismatch, not the root cause. Investigation should pivot to understanding cart-shadow vs. cart-ROM execution before any IRQ fix.
+
+---
+
 ## [2026-05-14] tooling | gdb-mcp stability workarounds + mcp-xroar backlog
 
 Captured three current-stack workarounds for gdb-mcp instability during early-boot inspection in [tooling/xroar.md](tooling/xroar.md): explicit `timeout: 60+` on continue commands, temporary `swi` opcodes in source for deterministic stops, and `-trap`/`-trap-snap`/`-load` for snapshot-based fast re-entry past the cart-autorun handshake. Also documented the cycle-/GIME-state inspection gaps that the gdb stub can't fill, and filed [backlog/mcp-xroar-server.md](backlog/mcp-xroar-server.md) as the deferred option — build only when sentinel probes have hit a wall on a critical-path investigation. Index updated.

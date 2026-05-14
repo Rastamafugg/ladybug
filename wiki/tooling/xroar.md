@@ -162,16 +162,18 @@ The cart-autorun handshake fires on a 100 ms cart-FIRQ schedule ([../../docs/ref
 
 Pass `timeout: 60` (or higher) explicitly on `mcp__gdb-mcp__continue_exec` and `mcp__gdb-mcp__exec_command` calls that may block past the handshake. Cheapest fix; should be the default for any `continue` issued before the cart entry has been reached.
 
-### 2. Insert a temporary `SWI` trap in source
+### 2. Insert a temporary halt loop in source
 
-Software breakpoints set via `break *0xC0xx` are unreliable during early boot because the gdb stub may resolve the address before the cart RAM-shadow is populated. Inserting a `swi` opcode (`$3F`, 1 byte) directly in `src/main.s` at the inspection point produces a deterministic stop event — the CPU executes the SWI, pushes state, and the gdb stub reports a `SIGTRAP`-equivalent stop.
+Software breakpoints set via `break *0xC0xx` are unreliable during early boot because the gdb stub may resolve the address before the cart RAM-shadow is populated. The cheapest deterministic-stop pattern is a self-branch:
 
 ```
-; --- inspection trap (REMOVE before commit) ---
-        swi                     ; gdb-mcp will stop here
+inspect_halt
+        bra     inspect_halt    ; gdb-mcp attaches; PC parks here
 ```
 
-The SWI's pushed return PC points just past the SWI byte, so single-step / continue resumes correctly after the inspection. Remove the `swi` before committing.
+Attach gdb-mcp, `interrupt` to stop the CPU (it'll be in the `bra .` loop), then `info reg` / `x/16xb` to read state. Remove the halt before committing.
+
+**Do NOT use `swi`** for this purpose. Empirically, XRoar 1.10 segfaults when it tries to snapshot at a `swi` trap point (see [backlog/cart-ram-corruption.md](../backlog/cart-ram-corruption.md) for the failure mode). `bra .` is safer.
 
 ### 3. Snapshot a stable boot state, then re-launch from it
 

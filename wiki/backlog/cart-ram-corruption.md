@@ -74,6 +74,60 @@ Also note: **`$FFA0-$FFAF` readbacks are NOT diagnostic of live PAR state.** In 
 - **L3.** Cart-shadow self-copy at lines 102-118 may not populate `$FE00-$FEFF` correctly. The copy reads via `ldd ,x` (cart CTS) and writes via `std ,x` (GIME RAS → RAM). The observed `$FEF0-$FEFF = 0F 16 02 ...` is suspicious — those aren't `JMP` opcodes and don't match `$FF` cart padding. They could be SECB ROM bleed or RAM that wasn't written by the copy at all. Worth single-stepping the copy loop to confirm what gets written.
 - **L4.** The MC3 bit in the GIME may not be persistently set when `STA $FEF7` executes — even though our `Init0 = %01101000` write should set it. If the GIME's internal state has MC3=0 at the moment of the store, the bank computation falls into the MMU-translated branch with bank = `mmu_bank[7]`. If our PAR-loop writes raced or used the wrong task register, that PAR could be wrong, and the store lands in a bank we never read back from.
 
+### 2026-05-14 — second gdb-mcp pass, much bigger finding
+
+Used the new SWI-trap + snapshot workflow (per [tooling/xroar.md](../tooling/xroar.md)). First found that `swi` opcodes in the cart cause XRoar 1.10 to **segfault** when it tries to snapshot at the trap point — switched to a `bra .` halt loop pattern instead.
+
+Inserted a probe block (`lda #$7E / sta $FEF7 / lda $FEF7 / sta $1000 / ldb $FEF7 / stb $1001 / probe_halt: bra probe_halt`) immediately before `phase24_halt`. Built, launched, attached gdb-mcp. State at attach:
+
+- PC = `$B977` — wild PC in SECB ROM territory. Disassembly there shows `00 00 00 00 FF FF FF FF` decoded as garbage opcodes. **The CPU is wandering uninitialized memory.**
+- A=$68, B=$1E — these match our `Init0 = %01101000` and `VRES = $1E` writes, but could equally be coincidence from wild-PC executing BASIC ROM. Cannot trust them as evidence our boot reached those lines.
+- `$1000` reads `0x00 0x00` — our probe's persistent sentinel stores **never executed**. Boot did not reach `$C0C6 / $C0CC`.
+- `$FEF7` still reads `0x16` (consistent with prior pass).
+- **`$C0CF` should contain `20 FE` (`bra probe_halt`); instead reads `00 FF`.** Our probe code is not in RAM at the expected address.
+- Reading the whole cart-shadow region: `$C000-$C0FF` is filled with a repeating `00 00 00 00 FF FF FF FF` pattern that does NOT match our cart ROM file.
+
+### The deeper finding: the cart-shadow self-copy doesn't populate RAM
+
+The `00 00 00 00 FF FF FF FF` pattern is XRoar's default DRAM-init fill (see [`ram.c:296-302`](../../docs/reference/xroar/src/ram.c) — `val` flips every 4 bytes per the `loc & tst` test, exactly producing this pattern). So **the RAM at the cart-shadow addresses was never written by the boot — it still holds the emulator's initial DRAM pattern.**
+
+Why? Tracing XRoar's source for our cart-shadow loop ([`src/main.s:102-118`](../../src/main.s)):
+
+1. **Pre-SAM_ALLRAM, with our `Init0 = %10101000` (MMUEN=0, MC3=1):** for A in `$C000-$DFFF`, [`tcc1014.c:716-737`](../../docs/reference/xroar/src/tcc1014/tcc1014.c) computes `bank = 0x38 | (A>>13) = $3E`. The condition `!TY && bank >= 0x3c` is TRUE → ROM mode, S=1 (CTS). **RAS is NOT set** in this branch.
+2. In [`coco3.c:1170+`](../../docs/reference/xroar/src/coco3.c) `write_byte`: the `if (RAS)` block at line 1227 is skipped. The cart's write callback IS called with `R2=1`, but [`cart.c:955-959`](../../docs/reference/xroar/src/cart.c) `cart_rom_write` only calls `rombank_d8`, which per [`rombank.h:102-107`](../../docs/reference/xroar/src/rombank.h) is **read-only** (`*d = *p`, never writes `*p`).
+3. **Net effect:** the `std ,x` writes inside the cart-shadow loop go to **nowhere observable**. Cart ROM is read-only (correct), and RAM doesn't get written because RAS=0 in the ROM-mode branch.
+
+So our boot-time "cart-to-shadow-RAM self-copy" is fundamentally non-functional under XRoar 1.10's GIME emulation. RAM at `$C000-$FEFF` stays at DRAM init pattern through the entire boot.
+
+### How does the 3-tile render appear to work, then?
+
+Open question. The previous Phase 2.4 build (with `phase24_halt` in place) successfully renders three tiles. That requires post-SAM_ALLRAM code execution: palette load, FB clear, three `blit_tile` calls, `VRES` un-blank. Yet:
+
+- Pre-SAM_ALLRAM: cart-shadow doesn't populate RAM. CPU executes from cart ROM via the CTS path (RAS=0, S=1 → cart_rom_read returns ROM byte).
+- Post-SAM_ALLRAM: TY=1 flips the `!TY && bank>=$3C` check → falls through to `else → RAS=1` → RAM access. RAM contains DRAM init pattern.
+
+The CPU should crash the instant it tries to fetch the next instruction after `sta SAM_ALLRAM`. Yet rendering works. **Three possible explanations**, none yet verified:
+
+1. **XRoar's `read_byte` (the gdb path) returns different bytes than the CPU instruction-fetch path** — despite source review showing they share `tcc1014_mem_cycle` → `coco3.c read_byte`. Worth a hard verification with a test that does NOT depend on the gdb stub.
+2. **SAM_ALLRAM doesn't fully take effect** under some condition — e.g. the cart's autorun-FIRQ holds some signal that overrides TY for cart-window reads. The cart's `firq_event` ([cart.c:968-974](../../docs/reference/xroar/src/cart.c)) toggles every 100ms — could be related.
+3. **The reads in `coco3.c read_byte` execute case-1 (CTS) BEFORE the `if (RAS)` block**, and the RAS block's `ram_d8` call **silently no-ops** for some reason (NULL pointer at line 130). If so, the cart-ROM byte from case-1 persists in `D`. But the gdb-mcp readback shows RAM-init pattern, not cart bytes — so this can't be the full story for our specific addresses.
+
+### Implications
+
+The Phase 2.4 IRQ bug is a SYMPTOM of a much bigger architectural mismatch between our boot model (cart-shadow self-copy → all-RAM execution) and XRoar 1.10's GIME emulation behavior. We should NOT spend more effort on the IRQ vector specifically until we understand:
+
+- Are we **actually executing from cart ROM throughout** (with SAM_ALLRAM effectively a no-op for cart-window reads)? If so, our boot architecture is fine in practice but our mental model is wrong.
+- Or is some other mechanism populating RAM that I haven't found? (Possible: snapshot loading does it; cart FIRQ side-effects; some XRoar autorun shortcut.)
+
+### Recommended next probe
+
+Insert a probe much earlier in the boot — RIGHT after the cart-shadow loop, BEFORE `sta SAM_ALLRAM`. Halt with `bra .` and use gdb-mcp to read `$C000+`. Discriminates:
+
+- **If RAM at `$C000+` shows cart-ROM bytes** → the copy works pre-SAM_ALLRAM through some path I missed; the corruption happens later.
+- **If RAM still shows DRAM init pattern** → the copy never worked. Then we need to understand how the post-SAM_ALLRAM code is executing at all (probably running directly from cart ROM despite SAM_ALLRAM).
+
+This is the single highest-leverage probe and should be the next session's first action.
+
 ### Recommended next steps (when gdb-mcp can be made stable)
 
 1. **Set a breakpoint at `$C0C2` (the STA $FEF7 itself), single-step over it, then read `$FEF7` immediately.** Distinguishes "store never landed" from "store landed but something overwrote it before the breakpoint at `$C0CB`".
