@@ -4,6 +4,18 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-14] tooling | gdb-mcp stability workarounds + mcp-xroar backlog
+
+Captured three current-stack workarounds for gdb-mcp instability during early-boot inspection in [tooling/xroar.md](tooling/xroar.md): explicit `timeout: 60+` on continue commands, temporary `swi` opcodes in source for deterministic stops, and `-trap`/`-trap-snap`/`-load` for snapshot-based fast re-entry past the cart-autorun handshake. Also documented the cycle-/GIME-state inspection gaps that the gdb stub can't fill, and filed [backlog/mcp-xroar-server.md](backlog/mcp-xroar-server.md) as the deferred option — build only when sentinel probes have hit a wall on a critical-path investigation. Index updated.
+
+---
+
+## [2026-05-14] debug | cart-ram-corruption reframed via XRoar source review + gdb-mcp probe
+
+Cloned XRoar source into `docs/reference/xroar` (gitignored). Reviewed 1.10..HEAD (= 1.11) — no GIME / MMU / force-$FExx / IRQ-vector fixes; the only CoCo3-relevant change is a keyboard-IRQ tick frequency tweak. Source review of `tcc1014/tcc1014.c` shows the GIME MMU read/write paths for `$FE00-$FEFF` are symmetric (write and read use the same decoder → same physical bank), so an emulator-side path that produces "write $7E read $16" is implausible. Ran XRoar 1.10 with `phase24_halt` bypassed and gdb-mcp attached; the readback at `$C0CB` (immediately after `STA $FEF7`) showed `$FEF7 = 0x16`, NOT `$7E`. Bumping `-ram` from 512 to 1024 (to flip XRoar's `dat.enabled`) produced identical results — confirming `dat.enabled` is NOT the gate (the real GIME MMU is in `tcc1014.c`, not in the DAT-board overlay in `coco3.c`). Also identified that the wiki backlog's quoted install bytes had a typo (`B6 7E` vs the correct `86 7E` — verified against `build/ladybug.lst:220`). Backlog updated with new leads L1-L4 and reproduction notes; gdb-mcp session stability is a separate blocker (autorun handshake takes longer than gdb-mcp's default per-command timeout).
+
+---
+
 ## [2026-05-14] backlog | Three spin-off items filed
 
 Filed [backlog/rgb-tv-input-palette.md](backlog/rgb-tv-input-palette.md), [backlog/cart-ram-corruption.md](backlog/cart-ram-corruption.md), and [backlog/retro-dev-web-app.md](backlog/retro-dev-web-app.md). RGB-palette comes from `scripts/build.sh` not passing `-tv-input`; cart-RAM-corruption surfaced when removing the Phase 2.4 isolation halt let the carried-forward Phase 2.3 IRQ-install path run on top of the new MMU layout and the CPU went off the rails; retro-dev-web-app is a forward-looking wrap of the lwasm + XRoar + gdb-mcp + LLM stack into a browser UI. Index updated.

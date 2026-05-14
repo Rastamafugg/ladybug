@@ -154,6 +154,59 @@ x/16xb $pc
 | Raw TCP connects but GDB does not attach | Restart XRoar and attach directly without prior `/dev/tcp` probes; the stub behaves as a single active GDB endpoint. Add `-debug-gdb -1` if it repeats. |
 | `set architecture m6809` fails | The GDB binary is not a 6809 build. `m6809-gdb --version` should report `--target=m6809`. |
 
+## Reaching specific boot points reliably
+
+The cart-autorun handshake fires on a 100 ms cart-FIRQ schedule ([../../docs/reference/xroar/src/cart.c:968-974](../../docs/reference/xroar/src/cart.c)) and is gated by BASIC's keyboard-polling latency, so several wall-clock seconds elapse before our cart entry at `$C000` runs. That clashes with gdb-mcp's default 30 s per-command timeout, which kills the entire session — losing breakpoints. Three workarounds, in increasing order of effort:
+
+### 1. Bump per-command timeouts
+
+Pass `timeout: 60` (or higher) explicitly on `mcp__gdb-mcp__continue_exec` and `mcp__gdb-mcp__exec_command` calls that may block past the handshake. Cheapest fix; should be the default for any `continue` issued before the cart entry has been reached.
+
+### 2. Insert a temporary `SWI` trap in source
+
+Software breakpoints set via `break *0xC0xx` are unreliable during early boot because the gdb stub may resolve the address before the cart RAM-shadow is populated. Inserting a `swi` opcode (`$3F`, 1 byte) directly in `src/main.s` at the inspection point produces a deterministic stop event — the CPU executes the SWI, pushes state, and the gdb stub reports a `SIGTRAP`-equivalent stop.
+
+```
+; --- inspection trap (REMOVE before commit) ---
+        swi                     ; gdb-mcp will stop here
+```
+
+The SWI's pushed return PC points just past the SWI byte, so single-step / continue resumes correctly after the inspection. Remove the `swi` before committing.
+
+### 3. Snapshot a stable boot state, then re-launch from it
+
+XRoar supports save/restore via `-trap`, `-trap-snap`, and `-load` ([xroar.1.in:427-460](../../docs/reference/xroar/doc/xroar.1.in)). The pattern:
+
+```bash
+# One-time snapshot capture (run once, then reuse):
+xroar -machine coco3 -ram 512 \
+      -cart ladybug -cart-type rom -cart-rom build/ladybug.rom -cart-autorun \
+      -trap 0xC0DC \
+      -trap-snap /tmp/ladybug-mainloop.sna \
+      -trap-timeout 1
+```
+
+After the cart enters `mainloop` ($C0DC), XRoar writes a snapshot and exits. Subsequent debug sessions skip the autorun entirely:
+
+```bash
+xroar -machine coco3 -ram 512 \
+      -cart ladybug -cart-type rom -cart-rom build/ladybug.rom \
+      -load /tmp/ladybug-mainloop.sna \
+      -gdb -gdb-ip 127.0.0.1 -gdb-port 65520
+```
+
+Note: snapshots are tied to the ROM image. **Rebuild the ROM → re-capture the snapshot.** Worth scripting alongside `scripts/build.sh` when the iteration loop slows down.
+
+## Limits of the current GDB-stub workflow
+
+XRoar's gdb stub exposes the CPU view: registers, memory, breakpoints, single-step. It does **not** expose:
+
+- **GIME internal state.** `MC3`, `MMUEN`, `mmu_bank[]`, `TR`, `S`, `RAS` are not memory-mapped readable. To verify "is `MC3` set right now?" we have to write a sentinel through the `$FExx` constant region and read it back — `$FExx` reads behave differently depending on `MC3`, so the readback discriminates the state indirectly.
+- **Cycle-level stepping.** GDB-stub `step` is per-instruction.
+- **Video / palette state.** Not addressable through CPU memory.
+
+Concrete inspection of GIME state is the largest current gap; if it becomes a blocker, see [../backlog/mcp-xroar-server.md](../backlog/mcp-xroar-server.md) for the build-our-own-server option.
+
 ## Iteration workflow
 
 `scripts/build.sh run` builds the ROM and launches xroar with the canonical invocation above. To kill: close the xroar window or `Ctrl-C` the script (xroar handles SIGINT).

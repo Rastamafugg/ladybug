@@ -52,6 +52,7 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 - [backlog/rgb-tv-input-palette.md](backlog/rgb-tv-input-palette.md) — switch XRoar to RGB monitor mode and re-derive the empirical palette table
 - [backlog/cart-ram-corruption.md](backlog/cart-ram-corruption.md) — Phase 2.3 IRQ-install path derails the CPU under the post-2.3 MMU layout; cart RAM gets overwritten
 - [backlog/retro-dev-web-app.md](backlog/retro-dev-web-app.md) — wrap lwasm + XRoar + gdb-mcp + LLM into a browser-based retro dev environment
+- [backlog/mcp-xroar-server.md](backlog/mcp-xroar-server.md) — cost/benefit of a purpose-built XRoar MCP server vs. the current gdb-mcp stack; deferred until sentinel probes hit a wall
 
 ## Special
 
