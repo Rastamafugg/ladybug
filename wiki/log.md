@@ -4,6 +4,18 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-14] backlog | Three spin-off items filed
+
+Filed [backlog/rgb-tv-input-palette.md](backlog/rgb-tv-input-palette.md), [backlog/cart-ram-corruption.md](backlog/cart-ram-corruption.md), and [backlog/retro-dev-web-app.md](backlog/retro-dev-web-app.md). RGB-palette comes from `scripts/build.sh` not passing `-tv-input`; cart-RAM-corruption surfaced when removing the Phase 2.4 isolation halt let the carried-forward Phase 2.3 IRQ-install path run on top of the new MMU layout and the CPU went off the rails; retro-dev-web-app is a forward-looking wrap of the lwasm + XRoar + gdb-mcp + LLM stack into a browser UI. Index updated.
+
+---
+
+## [2026-05-14] task | Phase 2.4 three-tile build-out
+
+Updated [`src/main.s`](../src/main.s) to render three copies of the arcade char #432 test tile at top-left / top-center / top-right of the framebuffer, replaced the hardcoded `$1111` blit_tile body with a Y-sentinel loop reading from a passed source pointer (per the existing `LDD ,Y++ clobbers B` lesson), and shifted the XRoar-bad-window padding to an `org $C0DC` placed before `mainloop` so live code stays out of `$C0D9-$C0DB`. Removing the prior `post_blit: bra post_blit` halt to let the Phase 2.3 IRQ install run produced runaway CPU and cart-RAM corruption — captured as a separate backlog item (cart-ram-corruption) and gated behind a fresh `phase24_halt` while that's investigated.
+
+---
+
 ## [2026-05-12] query | Full-window ROM probe update
 
 Updated `src/rom_probe.s` so the probe loop scans the full `$C000-$FEFF` cartridge window instead of only `$C000-$C0FF`. Added the `src/rom_probe.s` one-off run command to [`tooling/build-workflow.md`](tooling/build-workflow.md), matching the existing `src/main.s` assemble/pad/load pattern. After rereading the updated GDB-MCP-hosted launch instructions, built `build/rom_probe.rom` through GDB `shell`, launched `/usr/local/bin/xroar` with `-gdb`, attached through `target remote :65520`, and dumped the mismatch log. The full-window probe reported `$50` mismatches: `$C0D9-$C0DB`, `$C8B4-$C8BE`, and `$E000-$E042`. Expanded [`implementation/lessons-learned.md`](implementation/lessons-learned.md) with the observed mapping/read result.
