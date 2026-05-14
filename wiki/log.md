@@ -4,6 +4,12 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-14] debug | cart-shadow self-copy CONFIRMED non-functional; what we read at $C000+ is cart ROM via the S=1/CTS path, not RAM
+
+Third gdb-mcp pass on cart-ram-corruption with a `bra .` halt inserted at `copy_done` (PC=$C047, pre-SAM_ALLRAM). Attached cleanly. Reads of `$C000-$C05F` matched the cart ROM file byte-for-byte — but this is NOT because the cart-shadow copy populated RAM. With MC3=1, MMUEN=0, TY=0, the GIME's address decoder ([tcc1014.c:716-737](../docs/reference/xroar/src/tcc1014/tcc1014.c)) routes `$C000-$FDFF` through S=1 (CTS, cart ROM) with RAS=0. In `coco3.c read_byte`, the case-1 branch returns cart ROM bytes via `cart_rom_read`/`rombank_d8`, and the `if (RAS)` ram-overlay block is SKIPPED. So gdb-mcp reads at `$C000+` see cart ROM directly. The cart-shadow loop's `std ,x` writes for x in `$C000-$FDFE` go to `cart_rom_write` (no-op) and skip ram_d8 (RAS=0) — they don't reach RAM. For x in `$FE00-$FEFE` (MC3 inner check sets RAS=1), the writes DO reach RAM, but the `ldd ,x` source is also RAM (cart_rom_read overwritten by ram_d8) — it's a RAM→RAM round-trip with no cart bytes involved. **Net: the self-copy is a no-op on XRoar 1.10. RAM at `$C000-$FEFF` is never populated by our boot.** The boot has been running directly from cart ROM all along; our mental model of "self-copy then all-RAM execution" is wrong. New open question: how does Phase 2.4 render 3 tiles, since the post-SAM_ALLRAM code path should fetch uninitialized RAM? Two next-probes captured in [backlog/cart-ram-corruption.md](backlog/cart-ram-corruption.md). The IRQ-vector bug is still seen as a symptom, not the root cause.
+
+---
+
 ## [2026-05-14] debug | cart-shadow self-copy appears non-functional under XRoar 1.10
 
 Second gdb-mcp pass on cart-ram-corruption using the new SWI-trap + snapshot workflow. Key blockers and findings:
