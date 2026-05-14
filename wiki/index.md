@@ -47,6 +47,12 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 - [arcade-gfx-extraction.md](sources/arcade-gfx-extraction.md) — pipeline for ROM-extracting tiles/sprites/palette via MAME gfx layouts; gotchas log
 - [dod-source.md](sources/dod-source.md) — Dungeons of Daggorath cartridge source (1983, lwasm-compatible 2022 reconstruction) — mined for transferable 6809 idioms
 
+## Backlog
+
+- [backlog/rgb-tv-input-palette.md](backlog/rgb-tv-input-palette.md) — switch XRoar to RGB monitor mode and re-derive the empirical palette table
+- [backlog/cart-ram-corruption.md](backlog/cart-ram-corruption.md) — Phase 2.3 IRQ-install path derails the CPU under the post-2.3 MMU layout; cart RAM gets overwritten
+- [backlog/retro-dev-web-app.md](backlog/retro-dev-web-app.md) — wrap lwasm + XRoar + gdb-mcp + LLM into a browser-based retro dev environment
+
 ## Special
 
 - [CLAUDE.md](CLAUDE.md) — wiki schema and workflows

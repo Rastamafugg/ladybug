@@ -14,8 +14,8 @@
 ;   - Rendering the tile at three FB positions to validate the
 ;     pipeline end-to-end.
 ;
-; Visible: black screen with three identical "dot-in-box" tiles.
-; IRQ tick still runs (proven by FRAMES counter) but no longer paints.
+; Visible: black screen with three identical arcade-char-432 tiles at the
+; top of the screen (left / center / right). IRQ tick keeps running.
 ;==============================================================================
 
         pragma  nodollarlocal,6809
@@ -188,19 +188,33 @@ clr_fb  std     ,x++
         cmpx    #FB_END
         blo     clr_fb
 
-        ; --- ISOLATION STEP G: single blit at FB_VIRT (top-left) ---
+        ; --- Three copies of test tile at top, evenly spaced ---
+        ; FB stride 160 B = 320 px (4 bpp). Tile is 4 B = 8 px wide.
+        ;   left   col   0  px → FB_VIRT + 0    = $2000
+        ;   center col 152 px → FB_VIRT + 76    = $204C
+        ;   right  col 312 px → FB_VIRT + 156   = $209C
         ldx     #FB_VIRT
+        leay    tile_data,pcr
         lbsr    blit_tile
 
-        ; Un-blank: CRES=10 (16-color)
-        lda     #$1E
-        sta     GIME_VRES
-post_blit
-        bra     post_blit       ; halt
+        ldx     #FB_VIRT+76
+        leay    tile_data,pcr
+        lbsr    blit_tile
 
-        ; --- Un-blank: CRES=10 (16-color) ---
+        ldx     #FB_VIRT+156
+        leay    tile_data,pcr
+        lbsr    blit_tile
+
+        ; --- Un-blank: 320×192×16 (CRES=10 + HRES=111 → 4bpp on this build) ---
         lda     #$1E
         sta     GIME_VRES
+
+        ; Phase 2.4 isolation: halt here so the visible state is just
+        ; the 3 tiles on black. The IRQ install + Vbord enable below is
+        ; carried over from Phase 2.3 but has not been re-verified against
+        ; the new MMU/PAR layout — leaving it disabled until that's done.
+phase24_halt
+        bra     phase24_halt
 
         ; --- IRQ handler at $FEF7 jump-table slot ---
         lda     #$7E            ; JMP extended
@@ -221,15 +235,15 @@ post_blit
 ;==============================================================================
 ; mainloop — IRQ keeps ticking FRAMES; CPU just spins.
 ;==============================================================================
+        ; XRoar 1.10 returns bad cartridge-window reads at $C0D9-$C0DB. Force
+        ; mainloop (and everything that follows) past that range; copy_around_
+        ; xroar_bad_window leaves $C0D9-$C0DB uninitialised in RAM, so no live
+        ; code or data may occupy it. See lessons-learned.md.
+        org     $C0DC
+
 mainloop
         sync
         bra     mainloop
-
-        ; XRoar 1.10 returns bad cartridge-window reads at $C0D9-$C0DB.
-        ; Keep that absolute range inside explicit unused padding so the copy
-        ; skip cannot omit live code or data. The next routine starts after
-        ; the unreliable range.
-        fill    $12,$15         ; NOP padding
 
 ;==============================================================================
 ; blit_tile — copy an 8x8 tile (32 bytes, 4bpp packed) to the framebuffer.
@@ -238,16 +252,18 @@ mainloop
 ; Trashes A, B, D, X, Y. 8 rows x 4 bytes; row stride 160 (FB) - 4 (written) = 156.
 ;==============================================================================
 blit_tile
-        ; B counter, hardcoded $1111. ldd would clobber B, so reload B
-        ; from a DP byte each iter. Pure loop + FB write test.
-        lda     #8
-        sta     $05             ; DP counter at $0205
-btrow   ldd     #$1111
+        ; ldd ,y++ clobbers B, so use a Y-vs-sentinel loop instead of decb.
+        ; See lessons-learned.md §"LDD ,Y++ clobbers B".
+        leau    32,y            ; sentinel = end of tile data
+        pshs    u
+btrow   ldd     ,y++
         std     ,x++
+        ldd     ,y++
         std     ,x++
-        leax    156,x
-        dec     $05
-        bne     btrow
+        leax    156,x           ; advance to next FB row, same column
+        cmpy    ,s
+        blo     btrow
+        leas    2,s
         rts
 
 ;==============================================================================
@@ -306,14 +322,15 @@ palette_table
 ;     3,1,1,1,3,1,2,0
 ;     3,1,1,3,1,1,2,2
 tile_data
-        ; ISOLATION STEP A: solid fill, palette idx 1 (yellow). 8x8 of $11.
-        fcb     $11,$11,$11,$11     ; row 0
-        fcb     $11,$11,$11,$11     ; row 1
-        fcb     $11,$11,$11,$11     ; row 2
-        fcb     $11,$11,$11,$11     ; row 3
-        fcb     $11,$11,$11,$11     ; row 4
-        fcb     $11,$11,$11,$11     ; row 5
-        fcb     $11,$11,$11,$11     ; row 6
-        fcb     $11,$11,$11,$11     ; row 7
+        ; arcade chars.json[432], 8×8 2bpp pixvals packed to 4bpp (hi nibble = left px).
+        ; Pixval→palette idx is identity: 0=black, 1=yellow, 2=blue, 3=white.
+        fcb     $33,$33,$31,$33     ; row 0:  3 3 3 3 3 1 3 3
+        fcb     $33,$31,$11,$33     ; row 1:  3 3 3 1 1 1 3 3
+        fcb     $33,$11,$11,$10     ; row 2:  3 3 1 1 1 1 1 0
+        fcb     $33,$11,$11,$12     ; row 3:  3 3 1 1 1 1 1 2
+        fcb     $33,$11,$11,$12     ; row 4:  3 3 1 1 1 1 1 2
+        fcb     $31,$11,$11,$22     ; row 5:  3 1 1 1 1 1 2 2
+        fcb     $31,$11,$31,$20     ; row 6:  3 1 1 1 3 1 2 0
+        fcb     $31,$13,$11,$22     ; row 7:  3 1 1 3 1 1 2 2
 
         end
