@@ -9,7 +9,7 @@ class RegisterView extends HTMLElement {
       <style>
         .reg-grid {
           display: grid;
-          grid-template-columns: auto auto auto auto;
+          grid-template-columns: auto auto auto auto auto auto;
           gap: 2px 12px;
           font-family: var(--mono);
           font-size: 13px;
@@ -46,7 +46,7 @@ class RegisterView extends HTMLElement {
       const A = regs.a, B = regs.b;
       const D = (A != null && B != null) ? ((A & 0xff) << 8) | (B & 0xff) : null;
 
-      const row = (name, value, width = 2, wide = false) => {
+      const cell = (name, value, width = 2, wide = false) => {
         const doc = regDoc(name);
         const title = doc ? `${doc.summary}${doc.wiki ? "\n→ wiki/" + doc.wiki : ""}` : "";
         return `
@@ -54,19 +54,14 @@ class RegisterView extends HTMLElement {
           <span class="val${wide ? " wide" : ""}">${value != null ? hex(value, width) : "—"}</span>
         `;
       };
+      const blank = `<span></span><span></span>`;
 
       this.regsBody.innerHTML = `
         <div class="reg-grid">
-          ${row("PC", regs.pc, 4, true)}
-          ${row("DP", regs.dp, 2)}
-          ${row("S",  regs.s,  4, true)}
-          ${row("U",  regs.u,  4, true)}
-          ${row("X",  regs.x,  4, true)}
-          ${row("Y",  regs.y,  4, true)}
-          ${row("D",  D,       4, true)}
-          ${row("CC", regs.cc, 2)}
-          ${row("A",  A,       2)}
-          ${row("B",  B,       2)}
+          ${cell("PC", regs.pc, 4, true)}${cell("DP", regs.dp, 2)}${cell("CC", regs.cc, 2)}
+          ${blank}${cell("S",  regs.s,  4, true)}${cell("U",  regs.u,  4, true)}
+          ${blank}${cell("X",  regs.x,  4, true)}${cell("Y",  regs.y,  4, true)}
+          ${cell("D",  D,       4, true)}${cell("A",  A,       2)}${cell("B",  B,       2)}
         </div>
       `;
 
