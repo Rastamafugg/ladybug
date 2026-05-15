@@ -3,7 +3,7 @@ name: Memory map
 description: Physical-page allocation, virtual MMU layout, cart ROM image structure, and the boot data-copy procedure. Phase 2 base; Phase 4 will refine the data-table half once sprite count is concrete.
 type: design
 tags: [memory, mmu, par, cart, boot, phase-2]
-updated: 2026-05-08
+updated: 2026-05-15
 ---
 
 # Memory map
@@ -73,9 +73,26 @@ If 16 K becomes insufficient, expansion options are documented in [../platform/c
 
 ## Boot data-copy procedure
 
-Goal: get cart ROM contents into RAM at the same physical pages, so all-RAM mode is transparent.
+Goal (on real hardware): get cart ROM contents into RAM at the same physical pages, so all-RAM mode is transparent.
 
-The CoCo 3 has **shadow RAM** at physical `$3C-$3F` even when those pages are sourced from ROM (TY=0): writes go to the RAM, reads come from ROM. **Verified 2026-05-08 (Phase 2.1):** wrote a marker to `$C000`, switched TY=1, read it back — the marker came back. So the boot self-copy is sound.
+The CoCo 3 has **shadow RAM** at physical `$3C-$3F` even when those pages are sourced from ROM (TY=0): writes go to the RAM, reads come from ROM. The boot self-copy depends on that semantic. The Phase 2.1 "wrote `$5A` to `$C000`, flipped TY=1, read it back" test passed under XRoar, but see the **important caveat** below — that test result is consistent with both "shadow-RAM-during-write works" AND with "XRoar serves cart bytes through the cart-window read path regardless of TY". The two are indistinguishable from CPU-visible behavior alone.
+
+### ⚠️ Important: under XRoar 1.10 the self-copy is a no-op
+
+Empirically established 2026-05-14 (four-pass gdb-mcp investigation, see [backlog/cart-ram-corruption.md](../backlog/cart-ram-corruption.md)). Under XRoar 1.10's GIME emulation:
+
+- Pre-SAM_ALLRAM (MC3=1, MMUEN=0, TY=0), the GIME's address decoder routes `$C000-$FDFF` through `S=1`/CTS (cart ROM) with **RAS=0**. `coco3.c read_byte`'s `if (RAS)` RAM-overlay block is skipped → reads return cart-ROM bytes. `coco3.c write_byte` calls `cart_rom_write` (read-only no-op) and likewise skips the RAS RAM-write block → writes go nowhere. **`std ,x` in the self-copy loop neither populates RAM nor errors.**
+- Post-SAM_ALLRAM (TY=1), reads at `$C000-$FDFF` still come back as cart bytes. The exact code path was not pinned down (source-review gap acknowledged at [log.md 2026-05-14](../log.md)), but the empirical fact stands: cart bytes are accessible at `$C000-$FDFF` throughout the boot, pre- and post-SAM_ALLRAM, with or without the self-copy.
+- `$FE00-$FEFF` is different: MC3=1 forces RAS=1 in the inner decode, so reads/writes hit bank 0 RAM symmetrically. The jump-table region IS RAM-backed.
+
+**Net:** on XRoar, execution at `$C000-$FDFF` is always from cart ROM. The self-copy is dead code. On real hardware, the self-copy is expected to work as originally designed — but that's unverified until hardware bring-up (Phase 10).
+
+### Implications for code that assumes RAM-shadowing
+
+- **Self-modifying code** at `$C000-$FDFF` will silently fail on XRoar (writes don't land; subsequent reads return the original cart byte).
+- **Runtime data tables** at `$C000-$FDFF` are read-only on XRoar. The jump table at `$FE00-$FEFF` is the only RAM-backed window inside the cart range under emulation.
+- **Game-state RAM at `$A000-$BFFF`** is below the cart window; once PAR5 maps it to a normal phys page, ordinary read/write works on both XRoar and hardware.
+- **The `org $C0DC` workaround** for [the XRoar bad-window quirk](lessons-learned.md#xroar-cartridge-window-reads-are-not-uniformly-cart-backed) was originally rationalized against a RAM-shadow model. Since we're actually executing from cart ROM in XRoar, the workaround is still correct (those addresses really do read garbage from cart space), but the *reasoning* in our heads needs updating.
 
 Sequence:
 
@@ -132,10 +149,11 @@ Top of stack at `$1FFE` (in PAR0, phys `$38`). Grows down. Max realistic depth a
 
 ## Open items
 
-1. **Shadow-RAM-during-write** — ✅ verified 2026-05-08 (Phase 2.1). See [lessons-learned.md](lessons-learned.md).
+1. **Shadow-RAM-during-write** — partially verified. Phase 2.1 sentinel test passed under XRoar but is not discriminating (see caveat above). The self-copy itself is empirically a no-op on XRoar 1.10. **Hardware verification deferred to Phase 10.**
 2. **XRoar's handling of 32 K cart files** — observed inconsistent with naive `$8000-$FEFF` mapping; deferred until/unless we need the larger cart. See [../tooling/xroar.md "Gotchas"](../tooling/xroar.md).
 3. **Phase 4 sprite-data resolution** — see Phase 4 problem section above.
 4. **Game-state PAR (`$A000-$BFFF`) layout** — entity tables, score, etc. Defer until Phase 4 when entity records are designed.
+5. **XRoar source-review gap** — `tcc1014.c` decode trace predicts certain `$E000+` reads should return cart padding (`$FF`) but they empirically return SECB-style bytes. There is a path through `coco3.c read_byte` we haven't fully reconstructed. Not blocking, but it means we can't reason confidently about exact GIME state from source review alone; trust empirical probes. See [backlog/cart-ram-corruption.md](../backlog/cart-ram-corruption.md).
 
 ## Sources
 

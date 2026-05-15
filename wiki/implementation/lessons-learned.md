@@ -3,7 +3,7 @@ name: Lessons learned
 description: Observed-fact findings — hardware quirks, register gotchas, patterns to avoid, and explicit decisions to skip otherwise-tempting precedents.
 type: finding
 tags: [implementation, lessons, gotchas]
-updated: 2026-05-08
+updated: 2026-05-15
 ---
 
 # Lessons learned
@@ -202,6 +202,27 @@ On 2026-05-12, `src/rom_probe.s` was extended to read the full `$C000-$FEFF` ran
 **Why:** confirmed as XRoar cartridge-window mapping/read behaviour on this boot path, not a post-copy overwrite and not a word-copy instruction issue.
 **Applies to:** boot self-copy from `$C000-$FEFF`. Keep `$C0D9-$C0DB` unused as before; do not assume `$E000+` is cart-backed under this XRoar `-cart-type rom` path without further emulator/source investigation.
 **Citation:** [src/rom_probe.s](../../src/rom_probe.s); [src/main.s](../../src/main.s) boot copy skip; debugged with XRoar GDB traps on 2026-05-10.
+
+---
+
+## Cart-shadow self-copy is a no-op under XRoar 1.10 — we execute from cart ROM throughout
+
+Filed 2026-05-15. Four-pass gdb-mcp investigation in [backlog/cart-ram-corruption.md](../backlog/cart-ram-corruption.md) settled this empirically.
+
+The boot model from [memory-map.md](memory-map.md) — "self-copy `$C000-$FEFF` to shadow RAM, flip TY=1, run from RAM" — does not describe how XRoar 1.10 actually runs our cart. Cold-start probes show cart bytes accessible at `$C000-$FDFF` from before the self-copy runs and continuing past `sta SAM_ALLRAM`. The self-copy's `std ,x` writes for x in `$C000-$FDFE` go to `cart_rom_write` (a no-op on a read-only `rombank_d8`) and skip the RAM-write path because the GIME decode returns RAS=0 for that range pre-SAM_ALLRAM. We have been running directly from cart ROM through both halves of the boot. The Phase 2.1 "wrote a marker, flipped TY, read it back" verification is consistent with this — it cannot distinguish "shadow RAM works" from "XRoar serves cart bytes regardless of TY".
+
+`$FE00-$FEFF` is the exception: MC3=1 forces RAS=1 in the inner decode, so reads and writes hit bank-0 RAM symmetrically. The IRQ jump-table slots ARE RAM-backed.
+
+**Why:** XRoar's `coco3.c read_byte` / `write_byte` use a `S=1 (CTS), RAS=0` path for the cart window under our boot state; the `if (RAS)` RAM-overlay block is skipped on reads and writes. `cart_rom_write → rombank_d8` is read-only. So nothing the boot does to `$C000-$FDFF` ever reaches RAM, and the bytes we read there come straight from cart ROM.
+
+**Applies to:**
+- Don't put self-modifying code at `$C000-$FDFF` — it will silently fail on XRoar.
+- Don't expect runtime-mutable data tables in that range under emulation.
+- The `org $C0DC` workaround for the XRoar bad-window quirk is still correct, but its rationale shifts: those bad bytes are bad in cart space, not in some post-copy RAM image.
+- Real-hardware behavior is unverified. The arcade-fidelity boot design is preserved in source — leave the self-copy in place so it works correctly on hardware (Phase 10) — but treat it as dead code when reasoning about XRoar runs.
+- Trust empirical gdb-mcp probes over XRoar source review for GIME questions; the source has a known decode gap we couldn't fully resolve (see [memory-map.md §Open items](memory-map.md)).
+
+**Citation:** [backlog/cart-ram-corruption.md](../backlog/cart-ram-corruption.md) (third and fourth gdb-mcp passes); [src/main.s](../../src/main.s) cart-shadow loop at lines 102-118; XRoar source under `docs/reference/xroar/src/{tcc1014/tcc1014.c, coco3.c, cart.c, rombank.h}`.
 
 ---
 

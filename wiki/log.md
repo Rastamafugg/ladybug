@@ -4,6 +4,12 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-15] propagate | Cart-shadow no-op finding rolled into memory-map and lessons-learned
+
+Followed up the four-pass cart-ram-corruption investigation by updating the wiki to match the new mental model. [implementation/memory-map.md](implementation/memory-map.md): added an "⚠️ Important: under XRoar 1.10 the self-copy is a no-op" subsection to the boot data-copy procedure, qualified the Phase 2.1 verification as non-discriminating, documented implications for self-modifying code / data tables / the `org $C0DC` workaround, and added an "open items" entry for the XRoar source-review gap. [implementation/lessons-learned.md](implementation/lessons-learned.md): added a new entry "Cart-shadow self-copy is a no-op under XRoar 1.10 — we execute from cart ROM throughout" with why, applies-to, and citations. Long-term plan: keep the self-copy in source for hardware-correctness (Phase 10), treat as dead code when reasoning about XRoar. Next debugger session pivots to L4 — probe MC3/MMU/PAR state at the exact moment of `STA $FEF7` to explain the IRQ-install bug.
+
+---
+
 ## [2026-05-14] debug | Phase 2.4 boot confirmed working from cold start; source-review gap remains but project unblocked
 
 Fourth pass on cart-ram-corruption. Three discriminating probes:
