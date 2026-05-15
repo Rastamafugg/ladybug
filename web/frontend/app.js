@@ -3,6 +3,8 @@ import { store } from "/static/store.js";
 
 import "/static/components/instance-list.js";
 import "/static/components/framebuffer-view.js";
+import "/static/components/screen-mode-view.js";
+import "/static/components/palette-view.js";
 import "/static/components/register-view.js";
 import "/static/components/source-view.js";
 import "/static/components/memory-view.js";

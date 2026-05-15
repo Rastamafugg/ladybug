@@ -34,7 +34,7 @@ class LogsView extends HTMLElement {
 
   async act(action) {
     if (!store.selectedId) return;
-    const r = await fetch(`/api/instances/${store.selectedId}/${action}`, { method: "POST" });
+    const r = await fetch(`/api/instances/${store.selectedId}/actions/${action}`, { method: "POST" });
     const result = await r.json();
     this.append({ kind: "action", payload: { action, ...result } });
   }

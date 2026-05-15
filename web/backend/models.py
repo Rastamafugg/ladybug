@@ -49,6 +49,13 @@ class Breakpoint(BaseModel):
     enabled: bool = True
 
 
+class Palette(BaseModel):
+    """16 GIME palette entries read from $FFB0-$FFBF, decoded both ways."""
+    raw: list[int]                       # 0..63
+    rgb_monitor: list[list[int]]         # [[r,g,b], ...] 0..255
+    composite: list[list[int]]           # [[r,g,b], ...] 0..255
+
+
 class WsEvent(BaseModel):
     """Envelope for events fanned out to WS subscribers."""
     kind: str  # "state" | "halt" | "log" | "build" | "bp"

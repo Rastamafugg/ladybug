@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .build import run_build
 from .framebuffer import placeholder_png
+from . import palette as palette_mod
 from .instances import InstanceManager
 from .models import CreateInstanceRequest, InstanceSummary
 from .source import parse_lst
@@ -63,7 +64,7 @@ async def build():
 
 # ---- per-instance execution + state (stubs) ---------------------------
 
-@app.post("/api/instances/{instance_id}/{action}")
+@app.post("/api/instances/{instance_id}/actions/{action}")
 async def exec_action(instance_id: str, action: str):
     inst = manager.get(instance_id)
     if inst is None:
@@ -199,6 +200,18 @@ async def get_memory(instance_id: str, addr: int, length: int = 64):
         return {"addr": addr, "length": length, "bytes_hex": data.hex()}
     except Exception as e:
         raise HTTPException(503, f"gdb: {e}")
+
+
+@app.get("/api/instances/{instance_id}/palette")
+async def get_palette(instance_id: str):
+    inst = manager.get(instance_id)
+    if inst is None:
+        raise HTTPException(404, "no such instance")
+    try:
+        raw = await inst.gdb.read_memory(palette_mod.PALETTE_BASE, palette_mod.PALETTE_LEN)
+    except Exception as e:
+        raise HTTPException(503, f"gdb: {e}")
+    return palette_mod.decode_all(raw)
 
 
 @app.get("/api/instances/{instance_id}/framebuffer.png")

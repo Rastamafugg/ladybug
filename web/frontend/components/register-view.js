@@ -23,30 +23,14 @@ class RegisterView extends HTMLElement {
         .cc-row .bit:hover { border-color: var(--accent); }
         .cc-row .bit.set { background: var(--bg-3); color: var(--accent); border-color: #4a4a6a; }
         .cc-row .bit.unset { color: var(--fg-dim); }
-        .par-grid {
-          display: grid;
-          grid-template-columns: repeat(8, 1fr);
-          gap: 2px;
-          font-family: var(--mono); font-size: 11px;
-        }
-        .par-grid .par { background: var(--bg-2); padding: 2px 4px; border-radius: 2px; text-align: center; }
-        .par-grid .par .i { color: var(--fg-dim); }
-        .pal-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
-        .pal-grid .swatch { aspect-ratio: 1; border: 1px solid #0008; }
       </style>
       <h2>Registers</h2>
       <div id="regs-body"><div class="dim">no data</div></div>
       <h2 style="margin-top:12px;">CC flags</h2>
       <div id="cc-body" class="dim">—</div>
-      <h2 style="margin-top:12px;">MMU PARs</h2>
-      <div id="par-body" class="dim">unknown</div>
-      <h2 style="margin-top:12px;">Palette</h2>
-      <div id="pal-body" class="dim">unknown</div>
     `;
     this.regsBody = this.querySelector("#regs-body");
     this.ccBody = this.querySelector("#cc-body");
-    this.parBody = this.querySelector("#par-body");
-    this.palBody = this.querySelector("#pal-body");
     store.addEventListener("ws:halt", (e) => this.render(e.detail.payload));
     store.addEventListener("select", () => this.render(null));
   }
@@ -103,27 +87,6 @@ class RegisterView extends HTMLElement {
       }
     }
 
-    // MMU PARs
-    const pars = p?.pars || [];
-    if (pars.length === 16) {
-      this.parBody.innerHTML = `<div class="par-grid">${
-        pars.map((v, i) =>
-          `<div class="par"><span class="i">${i.toString(16).toUpperCase()}</span> ${hex(v, 2)}</div>`
-        ).join("")
-      }</div>`;
-    } else {
-      this.parBody.innerHTML = `<span class="dim">unknown</span>`;
-    }
-
-    // Palette
-    const pal = p?.palette || [];
-    if (pal.length === 16) {
-      this.palBody.innerHTML = `<div class="pal-grid">${
-        pal.map((rgb) => `<div class="swatch" style="background:${rgb};"></div>`).join("")
-      }</div>`;
-    } else {
-      this.palBody.innerHTML = `<span class="dim">unknown</span>`;
-    }
   }
 }
 
