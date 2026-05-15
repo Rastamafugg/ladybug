@@ -3,7 +3,7 @@ name: Troubleshoot cartridge RAM corruption after IRQ install
 description: After removing the Phase 2.4 isolation halt, the boot path through IRQ install + Vbord enable derails the CPU. Wild PC overwrites the cart's RAM image.
 type: backlog
 tags: [debugging, irq, gime, boot]
-updated: 2026-05-14
+updated: 2026-05-15
 ---
 
 # Troubleshoot cartridge RAM corruption after IRQ install
@@ -210,6 +210,66 @@ This is a substantial revision to our mental model of the boot. Worth a wiki upd
 4. **Try a sentinel test that bypasses the cart shadow:** insert a `LDA #$55 / STA $FEF7 / LDA $FEF7 / CMPA #$55 / BNE fail` immediately after the second `STA GIME_INIT0` (line 172). If sentinel readback fails *at that point*, the problem isn't the IRQ install at all — it's that `$FEF7` writes don't stick from the very first attempt under our boot state.
 
 The gdb-mcp session is not currently stable across multiple breakpoint-set + continue cycles. Two timeout-induced session kills occurred in this run. This may be related to the cart-autorun handshake firing on a 100ms cart-FIRQ edge schedule ([`cart.c:968-974`](../../docs/reference/xroar/src/cart.c)) — long enough that `continue` blocks past gdb-mcp's default timeout. A more reliable workflow may need a longer per-command timeout or a different attach point.
+
+### 2026-05-15 — fifth pass: L4 sentinel probe at `$FEF7` did not execute; prior "boot reaches halt from cold start" verification is suspect
+
+Inserted the L4 sentinel probe in [src/main.s:219-224](../../src/main.s) right before `phase24_halt`:
+
+```
+lda #$55
+sta JT_IRQ          ; the suspect STA $FEF7
+lda JT_IRQ
+sta $0FFE           ; persistent readback
+lda #$AA
+sta $0FFF           ; liveness marker
+phase24_halt: bra phase24_halt
+```
+
+Layout: probe at `$C0BE-$C0CD`; halt at `$C0CE`. Built (`build/ladybug.rom`, 327→16384 bytes). Launched XRoar 1.10 with `-gdb -gdb-ip 0.0.0.0 -gdb-port 65520`, attached via gdb-mcp + m6809-gdb.
+
+**Observations:**
+
+| Probe / target | Read | Expected if probe ran | Verdict |
+|--|--|--|--|
+| `$0FFE` (readback persisted by probe) | `$FF` | `$55` | probe never ran |
+| `$0FFF` (liveness `$AA`) | `$FF` | `$AA` | probe never ran |
+| `$FEF7` | `$16 02 12 16` | `$55` | unchanged from prior wild-PC pattern |
+| Registers at attach (cold start) | `A=$68 B=$6d X=$C10A U=$B44A Y=$00CE DP=$02 S=$1FFE CC=$54` | not these | CPU wandering |
+| `$C000-$C00F` via gdb-mcp | `00 00 00 00 00 00 00 00 FF FF FF FF 00 00 00 00` | cart bytes `44 4B 1A 50 10 CE 1F FE...` | DRAM init pattern |
+| `$C0BE-$C0CD` (probe code) via gdb-mcp | DRAM init pattern | our `86 55 B7 FE F7 B6 FE F7 B7 0F FE 86 AA B7 0F FF` opcodes | DRAM, not probe code |
+
+**Conclusions:**
+
+1. **The probe at `$C0BE-$C0CD` did not execute.** The `STA $FEF7` was never reached. The boot derails **before** the IRQ-install code path. The framing "why doesn't `STA $FEF7` install the IRQ vector" is wrong — the real failure is earlier.
+
+2. **`A=$68` at every attach** = exactly the byte loaded by `LDA #%01101000` at `$C078`, one instruction before the second `STA GIME_INIT0` at `$C07A` that enables MMU=1. The boot consistently executes at least through `$C078`, then derails. **Most likely derail point: at or right after the MMU-enable store at `$C07A`**, when subsequent instruction fetches route through PAR6 → phys `$3E` → uninitialized DRAM (the cart-shadow self-copy is a no-op, per the 2026-05-14 finding rolled into [lessons-learned.md](../implementation/lessons-learned.md)).
+
+3. **gdb-mcp reads at `$C000+` now return DRAM init pattern**, directly contradicting the 2026-05-14 fourth-pass finding ("cart bytes accessible at `$C000-$FDFF` throughout boot, pre- and post-SAM_ALLRAM"). Either the read path varies with CPU/GIME state in ways we haven't characterised, or the prior conclusion was state-dependent in ways we missed. **gdb-mcp memory reads in the cart window cannot be trusted as a model of CPU instruction-fetch behavior.** Confirmed by cross-check: the cart ROM file (`xxd build/ladybug.rom`) begins `44 4b 1a 50 10 ce 1f fe 86 02 1f 8b 4f b7 ff 01` — cart contents are correct on disk, but XRoar's gdb stub serves DRAM-pattern reads at `$C000+` in our current attached state.
+
+4. **The 2026-05-14 cold-start verification via `-trap pc=0xC0BE -trap-snap` is now suspect.** That trap fires on **any PC match**, including wandering-CPU drive-bys to that address. A wandering CPU naturally parks at the first `20 FE` byte pair (= `BRA self`) it encounters, and the prior phase24_halt was exactly at `$C0BE` — meaning the trap could have fired without the boot legitimately reaching the halt. The "Phase 2.4 reaches halt from cold start, three tiles render" verification needs to be re-checked: is the rendering also a wandering-CPU artifact, or did the boot legitimately execute the blits? Without a behavioral discriminator (a persistent sentinel at a known-mapped address), we can't tell.
+
+### Reframed problem statement
+
+The narrow IRQ-vector question is not the right one. The actual question is: **does our boot execute legitimately past `$C07A` (the MMU-enable point)?** All evidence in this session says **no**: A=$68 at attach is consistent with the CPU reaching `LDA #%01101000` at `$C078` and then derailing on the next instruction fetch after MMU=1 takes effect — because PAR6 → phys `$3E` is uninitialised DRAM, the cart-shadow copy having been a no-op.
+
+If true, the original "Phase 2.4 works, IRQ install is a separate isolated bug" framing is wrong. The IRQ install never runs because **nothing past `$C07A` runs**.
+
+### Implications for cart development going forward
+
+We do not have a working post-MMU-enable execution path on XRoar 1.10. The cart-shadow self-copy that the boot model relies on is a no-op under emulation. Options:
+
+1. **Disable MMU enable entirely on XRoar** — run with legacy SAM/Init0 routing throughout, using only `$C000-$FFFF` from cart. Loses MMU-mediated framebuffer paging. Pragmatic short-term.
+2. **Replace the cart-shadow self-copy with explicit RAM population through a known-mapped window** — e.g., copy cart bytes byte-by-byte from `$FE00-$FEFF` (the only RAM-backed slice of the cart window pre-MMU-enable, via MC3 force) into target PARs after MMU enable. Lots of bouncing, but each step is through a verified-working path.
+3. **Move execution to a different physical page that's reachable without the cart-shadow trick.** E.g., load code into phys `$00-$05` via a CPU-driven copy at boot, then jump there. Requires re-linking code to run from low addresses (or position-independent), and a way to actually deliver the bytes from cart to RAM in the first place. Circular until step 2 works.
+4. **Move to real hardware sooner.** On real CoCo 3, the cart-shadow self-copy is supposed to work as designed. If XRoar's emulation deviates here and we can't find a workaround that ALSO works on hardware, we may be debugging an emulator quirk that won't appear in production. But Phase 10 hardware bring-up is a long way off.
+
+### Next probe (next session)
+
+Don't trust gdb-mcp reads at `$C000+`. Use behavioral probes only:
+
+1. **Sentinel-store probe in low RAM (`$0200-$02FF`, DP page)**, written at multiple points in the boot. Each checkpoint stores a distinct byte to a distinct DP offset. After the system stalls, dump `$0200-$02FF` via gdb-mcp (low RAM is mapped to phys `$38` via PAR0 post-MMU-enable, OR phys `$00` pre-MMU-enable — both readable via the same gdb path). The latest-written checkpoint byte tells us how far execution got.
+2. **Test specifically whether MMU enable is the derail point.** Insert checkpoint stores at `$C079` (immediately before MMU enable) and at `$C07D` (immediately after the next instruction would have executed). If `$C079`-checkpoint is set but `$C07D`-checkpoint is not, MMU enable is the derail. This is the discriminator for the L4-reframed hypothesis.
+3. **Re-verify the "three tiles render" claim with a fresh cold-start build with phase24_halt at the original location and NO probe.** Look at the framebuffer (read `$2000-$9800` via gdb-mcp; FB RAM is mapped via PARs but phys `$30-$33` reads via gdb-mcp should be reliable). If FB contains tile bytes, blits ran → execution reached past MMU enable → the wandering-PC theory is wrong. If FB is uninit DRAM → the "three tiles" were a wandering-PC framebuffer artifact OR a stale-buffer issue.
 
 ## Hypotheses to test
 
