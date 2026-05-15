@@ -14,6 +14,13 @@ from .framebuffer import placeholder_png
 from .instances import InstanceManager
 from .models import CreateInstanceRequest, InstanceSummary
 from .source import parse_lst
+from . import regions as regions_mod
+from . import symbols as symbols_mod
+from . import decoder as decoder_mod
+from . import annotation as annotation_mod
+from . import opcode_table  # eager-load JSON at startup
+import json as _json
+from pathlib import Path as _Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -87,6 +94,46 @@ async def get_registers(instance_id: str):
         return await inst.gdb.read_registers()
     except Exception as e:
         raise HTTPException(503, f"gdb: {e}")
+
+
+@app.get("/api/regions")
+async def get_regions():
+    return regions_mod.all_regions()
+
+
+@app.get("/api/registers-doc")
+async def get_registers_doc():
+    p = PROJECT_ROOT / "web" / "data" / "6809-registers.json"
+    with p.open("r", encoding="utf-8") as f:
+        return _json.load(f)
+
+
+@app.get("/api/symbols/lookup")
+async def lookup_symbol(addr: int):
+    result = symbols_mod.lookup(addr)
+    if result is None:
+        raise HTTPException(404, "no symbol at or before that address")
+    return result
+
+
+@app.get("/api/decode/{instance_id}")
+async def decode_at(instance_id: str, addr: int, length: int = 4):
+    inst = manager.get(instance_id)
+    if inst is None:
+        raise HTTPException(404, "no such instance")
+    if length < 1 or length > 8:
+        raise HTTPException(400, "length must be 1..8")
+    try:
+        blob = await inst.gdb.read_memory(addr, length)
+    except Exception as e:
+        raise HTTPException(503, f"gdb: {e}")
+    # Pull a fresh register snapshot to ground operand resolution.
+    try:
+        regs = await inst.gdb.read_registers()
+    except Exception:
+        regs = {}
+    decoded = decoder_mod.decode(addr, blob, regs)
+    return annotation_mod.annotate(decoded, regs)
 
 
 @app.get("/api/source")

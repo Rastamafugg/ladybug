@@ -8,6 +8,32 @@ class Store extends EventTarget {
     this.instances = [];
     this.selectedId = null;
     this.ws = null;
+    // Static documentation, fetched once on startup.
+    this.regions = [];
+    this.registersDoc = null;
+  }
+
+  async loadStaticDocs() {
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch("/api/regions").then(r => r.json()),
+        fetch("/api/registers-doc").then(r => r.json()),
+      ]);
+      this.regions = r1;
+      this.registersDoc = r2;
+      this.dispatchEvent(new CustomEvent("static-docs-loaded"));
+    } catch (e) {
+      console.warn("static docs failed to load", e);
+    }
+  }
+
+  regionFor(addr) {
+    for (const r of this.regions) {
+      const lo = parseInt(r.lo, 16);
+      const hi = parseInt(r.hi, 16);
+      if (addr >= lo && addr <= hi) return r;
+    }
+    return null;
   }
 
   async refreshInstances() {

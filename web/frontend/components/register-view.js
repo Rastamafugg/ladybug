@@ -14,11 +14,13 @@ class RegisterView extends HTMLElement {
           font-family: var(--mono);
           font-size: 13px;
         }
-        .reg-grid .name { color: var(--fg-dim); text-align: right; }
+        .reg-grid .name { color: var(--fg-dim); text-align: right; cursor: help; }
+        .reg-grid .name:hover { color: var(--accent); }
         .reg-grid .val  { color: var(--fg); }
         .reg-grid .val.wide { color: var(--accent); }
         .cc-row { display: flex; gap: 6px; font-family: var(--mono); font-size: 12px; margin-top: 4px; }
-        .cc-row .bit { padding: 1px 5px; border-radius: 2px; border: 1px solid var(--bg-3); }
+        .cc-row .bit { padding: 1px 5px; border-radius: 2px; border: 1px solid var(--bg-3); cursor: help; }
+        .cc-row .bit:hover { border-color: var(--accent); }
         .cc-row .bit.set { background: var(--bg-3); color: var(--accent); border-color: #4a4a6a; }
         .cc-row .bit.unset { color: var(--fg-dim); }
         .par-grid {
@@ -60,10 +62,14 @@ class RegisterView extends HTMLElement {
       const A = regs.a, B = regs.b;
       const D = (A != null && B != null) ? ((A & 0xff) << 8) | (B & 0xff) : null;
 
-      const row = (name, value, width = 2, wide = false) => `
-        <span class="name">${name}</span>
-        <span class="val${wide ? " wide" : ""}">${value != null ? hex(value, width) : "—"}</span>
-      `;
+      const row = (name, value, width = 2, wide = false) => {
+        const doc = regDoc(name);
+        const title = doc ? `${doc.summary}${doc.wiki ? "\n→ wiki/" + doc.wiki : ""}` : "";
+        return `
+          <span class="name" title="${escapeHtml(title)}">${name}</span>
+          <span class="val${wide ? " wide" : ""}">${value != null ? hex(value, width) : "—"}</span>
+        `;
+      };
 
       this.regsBody.innerHTML = `
         <div class="reg-grid">
@@ -87,7 +93,9 @@ class RegisterView extends HTMLElement {
           CC_FLAGS.map((f, i) => {
             const bit = 7 - i;
             const set = (cc >> bit) & 1;
-            return `<span class="bit ${set ? "set" : "unset"}">${f}</span>`;
+            const doc = ccDoc(f);
+            const title = doc ? doc.summary : "";
+            return `<span class="bit ${set ? "set" : "unset"}" title="${escapeHtml(title)}">${f}</span>`;
           }).join("")
         }</div>`;
       } else {
@@ -121,6 +129,22 @@ class RegisterView extends HTMLElement {
 
 function hex(v, w) {
   return v.toString(16).toUpperCase().padStart(w, "0");
+}
+
+function regDoc(name) {
+  const all = store.registersDoc?.registers || [];
+  return all.find(r => r.name === name);
+}
+
+function ccDoc(name) {
+  const all = store.registersDoc?.cc_bits || [];
+  return all.find(b => b.name === name);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
 }
 
 customElements.define("register-view", RegisterView);
