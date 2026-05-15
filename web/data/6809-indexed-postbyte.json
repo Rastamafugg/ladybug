@@ -1,0 +1,174 @@
+{
+  "doc": "6809 indexed-addressing postbyte table. The decoder matches a postbyte against `mask`/`value` entries in order, and the first match wins. `register` is extracted from bits 5-6 of the postbyte for non-extended-indirect forms (00=X, 01=Y, 10=U, 11=S). `extra_bytes` says how many bytes follow the postbyte. Forms with bit 4 = 1 are indirect ([…]); we encode that explicitly per row.",
+  "register_codes": ["X", "Y", "U", "S"],
+  "entries": [
+    {
+      "mask": "0x9F", "value": "0x84",
+      "form": ",R",
+      "indirect": false,
+      "extra_bytes": 0,
+      "description": "Zero-offset indexed: effective address = R."
+    },
+    {
+      "mask": "0x9F", "value": "0x94",
+      "form": "[,R]",
+      "indirect": true,
+      "extra_bytes": 0,
+      "description": "Indirect zero-offset: load EA from word at R."
+    },
+    {
+      "mask": "0x9F", "value": "0x80",
+      "form": ",R+",
+      "indirect": false,
+      "extra_bytes": 0,
+      "description": "Post-increment by 1. EA = R, then R ← R + 1. Cannot be indirect."
+    },
+    {
+      "mask": "0x9F", "value": "0x81",
+      "form": ",R++",
+      "indirect": false,
+      "extra_bytes": 0,
+      "description": "Post-increment by 2. EA = R, then R ← R + 2."
+    },
+    {
+      "mask": "0x9F", "value": "0x91",
+      "form": "[,R++]",
+      "indirect": true,
+      "extra_bytes": 0,
+      "description": "Indirect post-increment by 2."
+    },
+    {
+      "mask": "0x9F", "value": "0x82",
+      "form": ",-R",
+      "indirect": false,
+      "extra_bytes": 0,
+      "description": "Pre-decrement by 1. R ← R - 1, then EA = R. Cannot be indirect."
+    },
+    {
+      "mask": "0x9F", "value": "0x83",
+      "form": ",--R",
+      "indirect": false,
+      "extra_bytes": 0,
+      "description": "Pre-decrement by 2. R ← R - 2, then EA = R."
+    },
+    {
+      "mask": "0x9F", "value": "0x93",
+      "form": "[,--R]",
+      "indirect": true,
+      "extra_bytes": 0,
+      "description": "Indirect pre-decrement by 2."
+    },
+    {
+      "mask": "0x80", "value": "0x00",
+      "form": "n5,R",
+      "indirect": false,
+      "extra_bytes": 0,
+      "description": "5-bit signed offset embedded in low 5 bits of the postbyte. EA = R + signed5(postbyte & 0x1F). Cannot be indirect."
+    },
+    {
+      "mask": "0x9F", "value": "0x88",
+      "form": "n8,R",
+      "indirect": false,
+      "extra_bytes": 1,
+      "description": "8-bit signed offset. EA = R + sign-extended(byte1)."
+    },
+    {
+      "mask": "0x9F", "value": "0x98",
+      "form": "[n8,R]",
+      "indirect": true,
+      "extra_bytes": 1,
+      "description": "Indirect 8-bit signed offset."
+    },
+    {
+      "mask": "0x9F", "value": "0x89",
+      "form": "n16,R",
+      "indirect": false,
+      "extra_bytes": 2,
+      "description": "16-bit signed offset. EA = R + (byte1<<8 | byte2)."
+    },
+    {
+      "mask": "0x9F", "value": "0x99",
+      "form": "[n16,R]",
+      "indirect": true,
+      "extra_bytes": 2,
+      "description": "Indirect 16-bit signed offset."
+    },
+    {
+      "mask": "0x9F", "value": "0x86",
+      "form": "A,R",
+      "indirect": false,
+      "extra_bytes": 0,
+      "description": "A accumulator-offset indexed. EA = R + sign-extended(A)."
+    },
+    {
+      "mask": "0x9F", "value": "0x96",
+      "form": "[A,R]",
+      "indirect": true,
+      "extra_bytes": 0,
+      "description": "Indirect A-offset indexed."
+    },
+    {
+      "mask": "0x9F", "value": "0x85",
+      "form": "B,R",
+      "indirect": false,
+      "extra_bytes": 0,
+      "description": "B accumulator-offset indexed. EA = R + sign-extended(B)."
+    },
+    {
+      "mask": "0x9F", "value": "0x95",
+      "form": "[B,R]",
+      "indirect": true,
+      "extra_bytes": 0,
+      "description": "Indirect B-offset indexed."
+    },
+    {
+      "mask": "0x9F", "value": "0x8B",
+      "form": "D,R",
+      "indirect": false,
+      "extra_bytes": 0,
+      "description": "D accumulator-offset indexed. EA = R + D (D treated as 16-bit signed)."
+    },
+    {
+      "mask": "0x9F", "value": "0x9B",
+      "form": "[D,R]",
+      "indirect": true,
+      "extra_bytes": 0,
+      "description": "Indirect D-offset indexed."
+    },
+    {
+      "mask": "0xFF", "value": "0x8C",
+      "form": "n8,PCR",
+      "indirect": false,
+      "extra_bytes": 1,
+      "description": "8-bit PC-relative. EA = PC + sign-extended(byte1) where PC points past the instruction."
+    },
+    {
+      "mask": "0xFF", "value": "0x9C",
+      "form": "[n8,PCR]",
+      "indirect": true,
+      "extra_bytes": 1,
+      "description": "Indirect 8-bit PC-relative."
+    },
+    {
+      "mask": "0xFF", "value": "0x8D",
+      "form": "n16,PCR",
+      "indirect": false,
+      "extra_bytes": 2,
+      "description": "16-bit PC-relative."
+    },
+    {
+      "mask": "0xFF", "value": "0x9D",
+      "form": "[n16,PCR]",
+      "indirect": true,
+      "extra_bytes": 2,
+      "description": "Indirect 16-bit PC-relative."
+    },
+    {
+      "mask": "0xFF", "value": "0x9F",
+      "form": "[n16]",
+      "indirect": true,
+      "extra_bytes": 2,
+      "description": "Extended indirect. EA = byte1<<8 | byte2 (then dereferenced). Register field is ignored in this form."
+    }
+  ]
+}

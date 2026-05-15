@@ -1,0 +1,25 @@
+{
+  "doc": "Symbol-name → wiki anchor map. The backend's `symbols.py` parses `build/ladybug.map` (lwasm symbol table) to resolve addr → nearest symbol; this file then maps that symbol name to a wiki page + section anchor for the `symbol-context` UI pane. Add entries as symbols stabilise.",
+  "symbols": {
+    "entry": {
+      "wiki": "platform/cartridge.md#our-boot-sequence",
+      "summary": "Cartridge entry point at $C002. CART → PIA2 CB1 → FIRQ handshake dispatches here from BASIC."
+    },
+    "copyloop": {
+      "wiki": "implementation/memory-map.md#boot-data-copy-procedure",
+      "summary": "Boot-time self-copy loop. Empirically a no-op on XRoar 1.10; expected to work on real hardware."
+    },
+    "blit_tile": {
+      "wiki": "implementation/video-mode.md",
+      "summary": "8-row × 4-byte tile blit at stride 160. Lifts arcade char data into the 320×192×16 framebuffer."
+    },
+    "clrfb": {
+      "wiki": "implementation/video-mode.md",
+      "summary": "Clear framebuffer to colour-index 0 (black). Phase 2.4 path."
+    },
+    "mainloop": {
+      "wiki": "implementation/scheduler.md",
+      "summary": "Phase 2 main loop. Idle today; will host the scheduler once committed."
+    }
+  }
+}

@@ -1,0 +1,146 @@
+[
+  {
+    "lo": "0x0000",
+    "hi": "0x01FF",
+    "name": "Low RAM (system)",
+    "kind": "ram",
+    "summary": "Low RAM. $0100-$010F holds the secondary jump table (legacy 6-byte JMPs); $0110+ is unused by Ladybug today.",
+    "wiki": "platform/6809.md#interrupt-sequences"
+  },
+  {
+    "lo": "0x0200",
+    "hi": "0x02FF",
+    "name": "Direct page",
+    "kind": "ram-dp",
+    "summary": "Direct-page hot variables. DP register is fixed at $02 in Ladybug. FRAMES (u16 frame counter) at $0202.",
+    "wiki": "implementation/memory-map.md#direct-page-allocation-0200-02ff"
+  },
+  {
+    "lo": "0x0300",
+    "hi": "0x1FFD",
+    "name": "Low RAM (scratch)",
+    "kind": "ram",
+    "summary": "Free RAM for general use; below the stack ceiling.",
+    "wiki": "implementation/memory-map.md"
+  },
+  {
+    "lo": "0x1FFE",
+    "hi": "0x1FFF",
+    "name": "Stack top",
+    "kind": "ram-stack",
+    "summary": "Top of hardware stack. S initialised here; stack grows downward.",
+    "wiki": "implementation/memory-map.md#stack"
+  },
+  {
+    "lo": "0x2000",
+    "hi": "0x97FF",
+    "name": "Framebuffer",
+    "kind": "ram-fb",
+    "summary": "320×192×16 framebuffer (30 720 bytes = 3.75 pages). MMU PAR1-4 maps virtual $2000-$9FFF to physical $30-$33. GIME's vertical-offset register $FF9D/$FF9E points at phys $30.",
+    "wiki": "implementation/video-mode.md"
+  },
+  {
+    "lo": "0x9800",
+    "hi": "0x9FFF",
+    "name": "FB slack",
+    "kind": "ram-scratch",
+    "summary": "2 K of free space at the tail of FB page 3 (FB ends at $97FF). Free for scratch / sprite save-restore buffer.",
+    "wiki": "implementation/memory-map.md"
+  },
+  {
+    "lo": "0xA000",
+    "hi": "0xBFFF",
+    "name": "Game-state RAM",
+    "kind": "ram-game",
+    "summary": "PAR5 region. Reserved for Phase 4+ entity tables, score, etc. Not yet populated.",
+    "wiki": "implementation/memory-map.md"
+  },
+  {
+    "lo": "0xC000",
+    "hi": "0xFDFF",
+    "name": "Cart window",
+    "kind": "cart-code",
+    "summary": "Cart ROM virtual mapping. On XRoar 1.10 always reads from cart ROM, regardless of TY mode — the self-copy is empirically a no-op on XRoar. On real hardware the post-self-copy switch makes this RAM-backed at phys $3E-$3F.",
+    "wiki": "implementation/memory-map.md#important-under-xroar-110-the-self-copy-is-a-no-op"
+  },
+  {
+    "lo": "0xFE00",
+    "hi": "0xFEFF",
+    "name": "Primary jump table",
+    "kind": "ram-iv",
+    "summary": "RAM-backed when Init0 bit 3 = 1 (always, in Ladybug). Long-branch trampolines for the interrupt vectors. Writable.",
+    "wiki": "platform/6809.md#interrupt-sequences"
+  },
+  {
+    "lo": "0xFF00",
+    "hi": "0xFF1F",
+    "name": "PIA1",
+    "kind": "io-pia",
+    "summary": "Peripheral Interface Adapter 1 — keyboard matrix, cassette, VDG mode bits.",
+    "wiki": "platform/input.md"
+  },
+  {
+    "lo": "0xFF20",
+    "hi": "0xFF3F",
+    "name": "PIA2",
+    "kind": "io-pia",
+    "summary": "Peripheral Interface Adapter 2 — joystick comparator + DAC, fire buttons, cartridge FIRQ.",
+    "wiki": "platform/input.md"
+  },
+  {
+    "lo": "0xFF40",
+    "hi": "0xFF8F",
+    "name": "FDC / reserved I/O",
+    "kind": "io-reserved",
+    "summary": "Floppy-disk controller window ($FF40-$FF5F when a disk cart is present) and reserved I/O ($FF60-$FF8F). Unused by Ladybug — no disk controller in the cart configuration.",
+    "wiki": "platform/memory.md"
+  },
+  {
+    "lo": "0xFF90",
+    "hi": "0xFF9F",
+    "name": "GIME control",
+    "kind": "io-gime",
+    "summary": "GIME registers: Init0 ($FF90), Init1 ($FF91), IRQ enables ($FF92-93), timer ($FF94-95), video mode ($FF98), video res ($FF99), border ($FF9A), vertical scroll ($FF9C), vertical offset ($FF9D-9E), horizontal offset ($FF9F).",
+    "wiki": "platform/gime.md"
+  },
+  {
+    "lo": "0xFFA0",
+    "hi": "0xFFAF",
+    "name": "MMU PARs",
+    "kind": "io-mmu",
+    "summary": "8 active PARs (PAR0-7 at $FFA0-A7) plus 8 alternate (PAR8-F at $FFA8-AF). Each maps an 8 K virtual page to a 6-bit physical page (0-63 on a 512 K machine).",
+    "wiki": "platform/gime.md"
+  },
+  {
+    "lo": "0xFFB0",
+    "hi": "0xFFBF",
+    "name": "Palette",
+    "kind": "io-palette",
+    "summary": "16 palette registers (PAL0-PAL15). 6-bit RGB on RGB monitor, 6-bit composite phase on TV. Cleared by GIME reset.",
+    "wiki": "platform/gime.md"
+  },
+  {
+    "lo": "0xFFC0",
+    "hi": "0xFFDF",
+    "name": "SAM legacy",
+    "kind": "io-sam",
+    "summary": "Legacy SAM register addresses. Most-used: $FFD8/$FFD9 = clock rate (0.89/1.78 MHz), $FFDE/$FFDF = ROM-disable/all-RAM (TY) bit.",
+    "wiki": "platform/memory.md"
+  },
+  {
+    "lo": "0xFFE0",
+    "hi": "0xFFEF",
+    "name": "Reserved",
+    "kind": "io",
+    "summary": "Dedicated I/O page; not used by Ladybug today.",
+    "wiki": "platform/memory.md"
+  },
+  {
+    "lo": "0xFFF0",
+    "hi": "0xFFFF",
+    "name": "Hardware vectors",
+    "kind": "rom-vec",
+    "summary": "Hardware reset/interrupt vectors. $FFF2-FFFF are mirrored to the primary jump table at $FEEE-$FEFF when Init0 bit 3 is set.",
+    "wiki": "platform/6809.md#interrupt-sequences"
+  }
+]

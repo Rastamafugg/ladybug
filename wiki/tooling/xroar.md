@@ -209,6 +209,17 @@ XRoar's gdb stub exposes the CPU view: registers, memory, breakpoints, single-st
 
 Concrete inspection of GIME state is the largest current gap; if it becomes a blocker, see [../backlog/mcp-xroar-server.md](../backlog/mcp-xroar-server.md) for the build-our-own-server option.
 
+### Reverse execution / `record full` — not viable on this stack
+
+Probed 2026-05-15. **gdb's `record full` does not work for the m6809 + XRoar stack**, and the failure is in two independent layers — both would have to be addressed to fix it:
+
+- **gdb side.** `record full` refuses to start with `Process record: the current architecture doesn't support record function.` m6809 is not in gdb's list of architectures with a record-mode implementation. This errors before any packet reaches the stub, so XRoar can't fix it.
+- **stub side.** `reverse-stepi` and `reverse-continue` return `Target remote does not support this command`. `record btrace` returns `Target does not support branch tracing`. XRoar's stub doesn't speak the reverse-protocol packets (`bs`, `bc`, `bt`) that gdb-managed record would otherwise use.
+
+Forward stepping (`stepi`) works as expected. The limitation is specific to reversal / record.
+
+**Practical consequence:** any time-travel feature in the web/ retro-dev app must be implemented by the backend recording state per step itself — there's no gdb-mediated path. See [../backlog/retro-dev-web-app.md](../backlog/retro-dev-web-app.md) scope decisions for how this constrains design.
+
 ## Iteration workflow
 
 `scripts/build.sh run` builds the ROM and launches xroar with the canonical invocation above. To kill: close the xroar window or `Ctrl-C` the script (xroar handles SIGINT).
@@ -217,7 +228,7 @@ For headless / CI-style smoke tests (none today), add `-no-ratelimit -fskip 100`
 
 ## Known XRoar 1.10 limitations
 
-- **`-load <snapshot>` + `-gdb` together fails to bind the gdb listener.** The combination silently drops the gdb port. To attach gdb-mcp to a snapshot-loaded state, you need to launch fresh (without `-load`) and let autorun run, then attach. Or capture a fresh snapshot mid-debug instead of round-tripping through one. Observed during cart-ram-corruption investigation.
+- **`-load <snapshot>` + `-gdb` together fails to bind the gdb listener.** XRoar logs `[gdb] WARNING: bind 127.0.0.1:PORT failed` (drowned among Gtk-CRITICAL UI noise, easy to miss — earlier wiki framing as "silent" was inaccurate). Root cause: `gdb_interface_new` runs twice when `-load` is given — once in initial `coco3_init`, once after `read_snapshot` frees and replaces the machine — and the listening socket lacks `SO_REUSEADDR`, so the kernel's `TIME_WAIT` blocks the second bind. Workaround: launch fresh (without `-load`) and let autorun run, then attach. Or capture a fresh snapshot mid-debug instead of round-tripping through one. Fix is a single-line patch documented in [../backlog/xroar-load-gdb-patch.md](../backlog/xroar-load-gdb-patch.md).
 - **`swi` (opcode `$3F`) at a `-trap` point makes XRoar segfault** when it tries to write the snapshot. Use `bra .` halt loops instead. (Also noted in [Reaching specific boot points reliably](#reaching-specific-boot-points-reliably).)
 - **`-trap` succeeds at writing the snapshot, but XRoar segfaults right after.** The snapshot file is fully valid and usable for reload. The segfault is post-write.
 - **The stub answers `vMustReplyEmpty` with the literal string `"timeout"`.** Modern gdb (14.x) considers this a fatal protocol error when reported via MI (`-target-select remote …`, `-interpreter-exec console "target remote …"`, and `-ex "target remote …"` all surface it as `^error,msg="Remote replied unexpectedly to 'vMustReplyEmpty': timeout"`). The same `target remote …` typed as a plain CLI line into gdb's stdin after gdb is up reduces the error to a non-fatal warning and the attach succeeds — that's the only path that works for an MI-driven session against this stub. Observed building the web/ retro-dev backend.

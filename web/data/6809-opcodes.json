@@ -1,0 +1,1196 @@
+{
+  "doc": "6809 opcode dictionary. Scoped to opcodes Ladybug emits today (build/ladybug.lst as of 2026-05-15). Add entries as the project's vocabulary grows. operand_kind values: imm8 | imm16 | direct | extended | indexed_postbyte | relative8 | relative16 | inherent | tfr_exg_postbyte | psh_pul_postbyte. cycles is the minimum on the MC6809; some addressing modes add cycles via the indexed-postbyte table.",
+  "primary": {
+    "1A": {
+      "mnemonic": "ORCC",
+      "mode": "immediate",
+      "length": 2,
+      "cycles": 3,
+      "operand_kind": "imm8",
+      "cc": {
+        "E": "set-if-imm-bit7",
+        "F": "set-if-imm-bit6",
+        "H": "set-if-imm-bit5",
+        "I": "set-if-imm-bit4",
+        "N": "set-if-imm-bit3",
+        "Z": "set-if-imm-bit2",
+        "V": "set-if-imm-bit1",
+        "C": "set-if-imm-bit0"
+      },
+      "summary": "Logical OR of immediate into CC. Sets selected CC bits.",
+      "effect_template": "CC \u2190 CC | #${imm8}",
+      "wiki": "platform/6809.md#cc-ops"
+    },
+    "1C": {
+      "mnemonic": "ANDCC",
+      "mode": "immediate",
+      "length": 2,
+      "cycles": 3,
+      "operand_kind": "imm8",
+      "cc": {
+        "E": "clear-if-imm-bit7=0",
+        "F": "clear-if-imm-bit6=0",
+        "H": "clear-if-imm-bit5=0",
+        "I": "clear-if-imm-bit4=0",
+        "N": "clear-if-imm-bit3=0",
+        "Z": "clear-if-imm-bit2=0",
+        "V": "clear-if-imm-bit1=0",
+        "C": "clear-if-imm-bit0=0"
+      },
+      "summary": "Logical AND of immediate into CC. Clears selected CC bits.",
+      "effect_template": "CC \u2190 CC & #${imm8}",
+      "wiki": "platform/6809.md#cc-ops"
+    },
+    "1F": {
+      "mnemonic": "TFR",
+      "mode": "inherent",
+      "length": 2,
+      "cycles": 6,
+      "operand_kind": "tfr_exg_postbyte",
+      "cc": {},
+      "summary": "Transfer register pair. Postbyte high nybble = source, low nybble = destination.",
+      "effect_template": "{dest} \u2190 {src}",
+      "wiki": "platform/6809.md#tfr-exg-ops"
+    },
+    "1E": {
+      "mnemonic": "EXG",
+      "mode": "inherent",
+      "length": 2,
+      "cycles": 8,
+      "operand_kind": "tfr_exg_postbyte",
+      "cc": {},
+      "summary": "Exchange register pair. Postbyte high nybble = first, low nybble = second.",
+      "effect_template": "{r1} \u2194 {r2}",
+      "wiki": "platform/6809.md#tfr-exg-ops"
+    },
+    "20": {
+      "mnemonic": "BRA",
+      "mode": "relative8",
+      "length": 2,
+      "cycles": 3,
+      "operand_kind": "relative8",
+      "cc": {},
+      "summary": "Branch always.",
+      "effect_template": "PC \u2190 ${target}",
+      "wiki": "platform/6809.md#branch-ops"
+    },
+    "21": {
+      "mnemonic": "BRN",
+      "mode": "relative8",
+      "length": 2,
+      "cycles": 3,
+      "operand_kind": "relative8",
+      "cc": {},
+      "summary": "Branch never (no-op-like).",
+      "effect_template": "(never taken)",
+      "wiki": "platform/6809.md#branch-ops"
+    },
+    "22": {
+      "mnemonic": "BHI",
+      "mode": "relative8",
+      "length": 2,
+      "cycles": 3,
+      "operand_kind": "relative8",
+      "cc": {},
+      "summary": "Branch if higher (unsigned). Taken when C=0 AND Z=0.",
+      "effect_template": "if !(C|Z) PC \u2190 ${target}",
+      "wiki": "platform/6809.md#branch-ops"
+    },
+    "23": {
+      "mnemonic": "BLS",
+      "mode": "relative8",
+      "length": 2,
+      "cycles": 3,
+      "operand_kind": "relative8",
+      "cc": {},
+      "summary": "Branch if lower or same (unsigned). Taken when C=1 OR Z=1.",
+      "effect_template": "if (C|Z) PC \u2190 ${target}",
+      "wiki": "platform/6809.md#branch-ops"
+    },
+    "24": {
+      "mnemonic": "BHS",
+      "mode": "relative8",
+      "length": 2,
+      "cycles": 3,
+      "operand_kind": "relative8",
+      "cc": {},
+      "summary": "Branch if higher or same (unsigned, == BCC). Taken when C=0.",
+      "effect_template": "if !C PC \u2190 ${target}",
+      "wiki": "platform/6809.md#branch-ops"
+    },
+    "25": {
+      "mnemonic": "BLO",
+      "mode": "relative8",
+      "length": 2,
+      "cycles": 3,
+      "operand_kind": "relative8",
+      "cc": {},
+      "summary": "Branch if lower (unsigned, == BCS). Taken when C=1.",
+      "effect_template": "if C PC \u2190 ${target}",
+      "wiki": "platform/6809.md#branch-ops"
+    },
+    "26": {
+      "mnemonic": "BNE",
+      "mode": "relative8",
+      "length": 2,
+      "cycles": 3,
+      "operand_kind": "relative8",
+      "cc": {},
+      "summary": "Branch if not equal. Taken when Z=0.",
+      "effect_template": "if !Z PC \u2190 ${target}",
+      "wiki": "platform/6809.md#branch-ops"
+    },
+    "27": {
+      "mnemonic": "BEQ",
+      "mode": "relative8",
+      "length": 2,
+      "cycles": 3,
+      "operand_kind": "relative8",
+      "cc": {},
+      "summary": "Branch if equal. Taken when Z=1.",
+      "effect_template": "if Z PC \u2190 ${target}",
+      "wiki": "platform/6809.md#branch-ops"
+    },
+    "16": {
+      "mnemonic": "LBRA",
+      "mode": "relative16",
+      "length": 3,
+      "cycles": 5,
+      "operand_kind": "relative16",
+      "cc": {},
+      "summary": "Long branch always.",
+      "effect_template": "PC \u2190 ${target}",
+      "wiki": "platform/6809.md#branch-ops"
+    },
+    "17": {
+      "mnemonic": "LBSR",
+      "mode": "relative16",
+      "length": 3,
+      "cycles": 9,
+      "operand_kind": "relative16",
+      "cc": {},
+      "summary": "Long branch to subroutine. Pushes return PC, jumps.",
+      "effect_template": "S \u2190 S-2; M(S) \u2190 PC; PC \u2190 ${target}",
+      "wiki": "platform/6809.md#branch-ops"
+    },
+    "8D": {
+      "mnemonic": "BSR",
+      "mode": "relative8",
+      "length": 2,
+      "cycles": 7,
+      "operand_kind": "relative8",
+      "cc": {},
+      "summary": "Branch to subroutine. Pushes return PC, jumps.",
+      "effect_template": "S \u2190 S-2; M(S) \u2190 PC; PC \u2190 ${target}",
+      "wiki": "platform/6809.md#branch-ops"
+    },
+    "30": {
+      "mnemonic": "LEAX",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 4,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "Z": "set-if-ea==0"
+      },
+      "summary": "Load effective address into X. Used to compute pointers without a memory access.",
+      "effect_template": "X \u2190 ${ea}",
+      "wiki": "platform/6809.md#lea-ops"
+    },
+    "31": {
+      "mnemonic": "LEAY",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 4,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "Z": "set-if-ea==0"
+      },
+      "summary": "Load effective address into Y.",
+      "effect_template": "Y \u2190 ${ea}",
+      "wiki": "platform/6809.md#lea-ops"
+    },
+    "32": {
+      "mnemonic": "LEAS",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 4,
+      "operand_kind": "indexed_postbyte",
+      "cc": {},
+      "summary": "Load effective address into S. Note: does NOT affect Z (S is for stack).",
+      "effect_template": "S \u2190 ${ea}",
+      "wiki": "platform/6809.md#lea-ops"
+    },
+    "33": {
+      "mnemonic": "LEAU",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 4,
+      "operand_kind": "indexed_postbyte",
+      "cc": {},
+      "summary": "Load effective address into U. Note: does NOT affect Z.",
+      "effect_template": "U \u2190 ${ea}",
+      "wiki": "platform/6809.md#lea-ops"
+    },
+    "34": {
+      "mnemonic": "PSHS",
+      "mode": "immediate",
+      "length": 2,
+      "cycles": 5,
+      "operand_kind": "psh_pul_postbyte",
+      "cc": {},
+      "summary": "Push selected registers to hardware stack. Postbyte bits: PC,U,Y,X,DP,B,A,CC (high \u2192 low).",
+      "effect_template": "push to S: {regs}",
+      "wiki": "platform/6809.md#push-pull-ops"
+    },
+    "35": {
+      "mnemonic": "PULS",
+      "mode": "immediate",
+      "length": 2,
+      "cycles": 5,
+      "operand_kind": "psh_pul_postbyte",
+      "cc": {
+        "comment": "if CC is in the list, all bits restored from stack"
+      },
+      "summary": "Pull selected registers from hardware stack.",
+      "effect_template": "pull from S: {regs}",
+      "wiki": "platform/6809.md#push-pull-ops"
+    },
+    "39": {
+      "mnemonic": "RTS",
+      "mode": "inherent",
+      "length": 1,
+      "cycles": 5,
+      "operand_kind": "inherent",
+      "cc": {},
+      "summary": "Return from subroutine. Pulls return address from S into PC.",
+      "effect_template": "PC \u2190 M(S); S \u2190 S+2",
+      "wiki": "platform/6809.md#return-halt-ops"
+    },
+    "3B": {
+      "mnemonic": "RTI",
+      "mode": "inherent",
+      "length": 1,
+      "cycles": {
+        "min": 6,
+        "max": 15,
+        "note": "6 cycles on the FIRQ path (E=0; pops CC+PC), 15 on the IRQ/SWI/NMI path (E=1; pops CC+A+B+DP+X+Y+U+PC)"
+      },
+      "operand_kind": "inherent",
+      "cc": {
+        "comment": "restored from stacked CC"
+      },
+      "summary": "Return from interrupt. If E bit was set on stack, pulls all regs; if clear (FIRQ path), pulls only PC+CC.",
+      "effect_template": "if stacked-CC.E: pull all; else pull CC,PC",
+      "wiki": "platform/6809.md#return-halt-ops"
+    },
+    "3F": {
+      "mnemonic": "SWI",
+      "mode": "inherent",
+      "length": 1,
+      "cycles": 19,
+      "operand_kind": "inherent",
+      "cc": {
+        "E": "1",
+        "I": "1",
+        "F": "1"
+      },
+      "summary": "Software interrupt. Pushes all regs, vectors via $FFFA-FFFB. \u26a0 XRoar 1.10 segfaults if SWI is hit at a -trap point \u2014 use bra-self for halt loops.",
+      "effect_template": "stack all regs; PC \u2190 [$FFFA]",
+      "wiki": "tooling/xroar.md"
+    },
+    "13": {
+      "mnemonic": "SYNC",
+      "mode": "inherent",
+      "length": 1,
+      "cycles": 2,
+      "operand_kind": "inherent",
+      "cc": {},
+      "summary": "Stop the CPU clock until an interrupt occurs. Resumes after handler.",
+      "effect_template": "halt CPU until IRQ/FIRQ/NMI",
+      "wiki": "platform/6809.md#return-halt-ops"
+    },
+    "12": {
+      "mnemonic": "NOP",
+      "mode": "inherent",
+      "length": 1,
+      "cycles": 2,
+      "operand_kind": "inherent",
+      "cc": {},
+      "summary": "No operation.",
+      "effect_template": "(no-op)",
+      "wiki": "platform/6809.md#return-halt-ops"
+    },
+    "4F": {
+      "mnemonic": "CLRA",
+      "mode": "inherent",
+      "length": 1,
+      "cycles": 2,
+      "operand_kind": "inherent",
+      "cc": {
+        "N": "0",
+        "Z": "1",
+        "V": "0",
+        "C": "0"
+      },
+      "summary": "Clear A.",
+      "effect_template": "A \u2190 0",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "5F": {
+      "mnemonic": "CLRB",
+      "mode": "inherent",
+      "length": 1,
+      "cycles": 2,
+      "operand_kind": "inherent",
+      "cc": {
+        "N": "0",
+        "Z": "1",
+        "V": "0",
+        "C": "0"
+      },
+      "summary": "Clear B.",
+      "effect_template": "B \u2190 0",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "0F": {
+      "mnemonic": "CLR",
+      "mode": "direct",
+      "length": 2,
+      "cycles": 6,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "0",
+        "Z": "1",
+        "V": "0",
+        "C": "0"
+      },
+      "summary": "Clear memory at DP:byte.",
+      "effect_template": "M(DP:${imm8}) \u2190 0",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "6F": {
+      "mnemonic": "CLR",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 6,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "0",
+        "Z": "1",
+        "V": "0",
+        "C": "0"
+      },
+      "summary": "Clear memory at indexed EA.",
+      "effect_template": "M(${ea}) \u2190 0",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "7F": {
+      "mnemonic": "CLR",
+      "mode": "extended",
+      "length": 3,
+      "cycles": 7,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "0",
+        "Z": "1",
+        "V": "0",
+        "C": "0"
+      },
+      "summary": "Clear memory at extended address.",
+      "effect_template": "M(${imm16}) \u2190 0",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "0C": {
+      "mnemonic": "INC",
+      "mode": "direct",
+      "length": 2,
+      "cycles": 6,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "set-if-was-0x7F"
+      },
+      "summary": "Increment memory.",
+      "effect_template": "M(DP:${imm8}) \u2190 M+1",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "6C": {
+      "mnemonic": "INC",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 6,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "set-if-was-0x7F"
+      },
+      "summary": "Increment indexed memory.",
+      "effect_template": "M(${ea}) \u2190 M+1",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "7C": {
+      "mnemonic": "INC",
+      "mode": "extended",
+      "length": 3,
+      "cycles": 7,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "set-if-was-0x7F"
+      },
+      "summary": "Increment extended memory.",
+      "effect_template": "M(${imm16}) \u2190 M+1",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "5A": {
+      "mnemonic": "DECB",
+      "mode": "inherent",
+      "length": 1,
+      "cycles": 2,
+      "operand_kind": "inherent",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "set-if-was-0x80"
+      },
+      "summary": "Decrement B.",
+      "effect_template": "B \u2190 B - 1",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "4A": {
+      "mnemonic": "DECA",
+      "mode": "inherent",
+      "length": 1,
+      "cycles": 2,
+      "operand_kind": "inherent",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "set-if-was-0x80"
+      },
+      "summary": "Decrement A.",
+      "effect_template": "A \u2190 A - 1",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "86": {
+      "mnemonic": "LDA",
+      "mode": "immediate",
+      "length": 2,
+      "cycles": 2,
+      "operand_kind": "imm8",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load A immediate.",
+      "effect_template": "A \u2190 #${imm8}",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "96": {
+      "mnemonic": "LDA",
+      "mode": "direct",
+      "length": 2,
+      "cycles": 4,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load A from DP:byte.",
+      "effect_template": "A \u2190 M(DP:${imm8})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "A6": {
+      "mnemonic": "LDA",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 4,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load A from indexed memory.",
+      "effect_template": "A \u2190 M(${ea})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "B6": {
+      "mnemonic": "LDA",
+      "mode": "extended",
+      "length": 3,
+      "cycles": 5,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load A from extended address.",
+      "effect_template": "A \u2190 M(${imm16})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "C6": {
+      "mnemonic": "LDB",
+      "mode": "immediate",
+      "length": 2,
+      "cycles": 2,
+      "operand_kind": "imm8",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load B immediate.",
+      "effect_template": "B \u2190 #${imm8}",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "D6": {
+      "mnemonic": "LDB",
+      "mode": "direct",
+      "length": 2,
+      "cycles": 4,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load B from DP:byte.",
+      "effect_template": "B \u2190 M(DP:${imm8})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "E6": {
+      "mnemonic": "LDB",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 4,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load B from indexed memory.",
+      "effect_template": "B \u2190 M(${ea})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "F6": {
+      "mnemonic": "LDB",
+      "mode": "extended",
+      "length": 3,
+      "cycles": 5,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit7(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load B from extended address.",
+      "effect_template": "B \u2190 M(${imm16})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "CC": {
+      "mnemonic": "LDD",
+      "mode": "immediate",
+      "length": 3,
+      "cycles": 3,
+      "operand_kind": "imm16",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load D immediate (A:B).",
+      "effect_template": "D \u2190 #${imm16}",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "DC": {
+      "mnemonic": "LDD",
+      "mode": "direct",
+      "length": 2,
+      "cycles": 5,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load D from DP:byte (word).",
+      "effect_template": "D \u2190 M:M+1(DP:${imm8})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "EC": {
+      "mnemonic": "LDD",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 5,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load D from indexed memory (word).",
+      "effect_template": "D \u2190 M:M+1(${ea})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "FC": {
+      "mnemonic": "LDD",
+      "mode": "extended",
+      "length": 3,
+      "cycles": 6,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load D from extended address (word).",
+      "effect_template": "D \u2190 M:M+1(${imm16})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "8E": {
+      "mnemonic": "LDX",
+      "mode": "immediate",
+      "length": 3,
+      "cycles": 3,
+      "operand_kind": "imm16",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load X immediate.",
+      "effect_template": "X \u2190 #${imm16}",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "9E": {
+      "mnemonic": "LDX",
+      "mode": "direct",
+      "length": 2,
+      "cycles": 5,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load X from DP:byte.",
+      "effect_template": "X \u2190 M:M+1(DP:${imm8})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "AE": {
+      "mnemonic": "LDX",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 5,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load X from indexed memory.",
+      "effect_template": "X \u2190 M:M+1(${ea})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "BE": {
+      "mnemonic": "LDX",
+      "mode": "extended",
+      "length": 3,
+      "cycles": 6,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load X from extended address.",
+      "effect_template": "X \u2190 M:M+1(${imm16})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "97": {
+      "mnemonic": "STA",
+      "mode": "direct",
+      "length": 2,
+      "cycles": 4,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit7(A)",
+        "Z": "A==0",
+        "V": "0"
+      },
+      "summary": "Store A to DP:byte.",
+      "effect_template": "M(DP:${imm8}) \u2190 A",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "A7": {
+      "mnemonic": "STA",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 4,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit7(A)",
+        "Z": "A==0",
+        "V": "0"
+      },
+      "summary": "Store A to indexed memory.",
+      "effect_template": "M(${ea}) \u2190 A",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "B7": {
+      "mnemonic": "STA",
+      "mode": "extended",
+      "length": 3,
+      "cycles": 5,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit7(A)",
+        "Z": "A==0",
+        "V": "0"
+      },
+      "summary": "Store A to extended address.",
+      "effect_template": "M(${imm16}) \u2190 A",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "D7": {
+      "mnemonic": "STB",
+      "mode": "direct",
+      "length": 2,
+      "cycles": 4,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit7(B)",
+        "Z": "B==0",
+        "V": "0"
+      },
+      "summary": "Store B to DP:byte.",
+      "effect_template": "M(DP:${imm8}) \u2190 B",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "E7": {
+      "mnemonic": "STB",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 4,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit7(B)",
+        "Z": "B==0",
+        "V": "0"
+      },
+      "summary": "Store B to indexed memory.",
+      "effect_template": "M(${ea}) \u2190 B",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "F7": {
+      "mnemonic": "STB",
+      "mode": "extended",
+      "length": 3,
+      "cycles": 5,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit7(B)",
+        "Z": "B==0",
+        "V": "0"
+      },
+      "summary": "Store B to extended address.",
+      "effect_template": "M(${imm16}) \u2190 B",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "DD": {
+      "mnemonic": "STD",
+      "mode": "direct",
+      "length": 2,
+      "cycles": 5,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit15(D)",
+        "Z": "D==0",
+        "V": "0"
+      },
+      "summary": "Store D to DP:byte (word).",
+      "effect_template": "M:M+1(DP:${imm8}) \u2190 D",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "ED": {
+      "mnemonic": "STD",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 5,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit15(D)",
+        "Z": "D==0",
+        "V": "0"
+      },
+      "summary": "Store D to indexed memory (word).",
+      "effect_template": "M:M+1(${ea}) \u2190 D",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "FD": {
+      "mnemonic": "STD",
+      "mode": "extended",
+      "length": 3,
+      "cycles": 6,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit15(D)",
+        "Z": "D==0",
+        "V": "0"
+      },
+      "summary": "Store D to extended address (word).",
+      "effect_template": "M:M+1(${imm16}) \u2190 D",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "9F": {
+      "mnemonic": "STX",
+      "mode": "direct",
+      "length": 2,
+      "cycles": 5,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit15(X)",
+        "Z": "X==0",
+        "V": "0"
+      },
+      "summary": "Store X to DP:byte.",
+      "effect_template": "M:M+1(DP:${imm8}) \u2190 X",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "AF": {
+      "mnemonic": "STX",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 5,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit15(X)",
+        "Z": "X==0",
+        "V": "0"
+      },
+      "summary": "Store X to indexed memory.",
+      "effect_template": "M:M+1(${ea}) \u2190 X",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "BF": {
+      "mnemonic": "STX",
+      "mode": "extended",
+      "length": 3,
+      "cycles": 6,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit15(X)",
+        "Z": "X==0",
+        "V": "0"
+      },
+      "summary": "Store X to extended address.",
+      "effect_template": "M:M+1(${imm16}) \u2190 X",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "8C": {
+      "mnemonic": "CMPX",
+      "mode": "immediate",
+      "length": 3,
+      "cycles": 4,
+      "operand_kind": "imm16",
+      "cc": {
+        "N": "bit15(X-imm)",
+        "Z": "X==imm",
+        "V": "signed-overflow",
+        "C": "unsigned-borrow"
+      },
+      "summary": "Compare X with immediate. Subtracts without storing.",
+      "effect_template": "(X - #${imm16})",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "9C": {
+      "mnemonic": "CMPX",
+      "mode": "direct",
+      "length": 2,
+      "cycles": 6,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "X==M",
+        "V": "signed-overflow",
+        "C": "unsigned-borrow"
+      },
+      "summary": "Compare X with DP word.",
+      "effect_template": "(X - M:M+1(DP:${imm8}))",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "AC": {
+      "mnemonic": "CMPX",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 6,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "X==M",
+        "V": "signed-overflow",
+        "C": "unsigned-borrow"
+      },
+      "summary": "Compare X with indexed word.",
+      "effect_template": "(X - M:M+1(${ea}))",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "BC": {
+      "mnemonic": "CMPX",
+      "mode": "extended",
+      "length": 3,
+      "cycles": 7,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "X==M",
+        "V": "signed-overflow",
+        "C": "unsigned-borrow"
+      },
+      "summary": "Compare X with extended word.",
+      "effect_template": "(X - M:M+1(${imm16}))",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    }
+  },
+  "page2": {
+    "8C": {
+      "mnemonic": "CMPY",
+      "mode": "immediate",
+      "length": 4,
+      "cycles": 5,
+      "operand_kind": "imm16",
+      "cc": {
+        "N": "bit15(Y-imm)",
+        "Z": "Y==imm",
+        "V": "signed-overflow",
+        "C": "unsigned-borrow"
+      },
+      "summary": "Compare Y with immediate.",
+      "effect_template": "(Y - #${imm16})",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "9C": {
+      "mnemonic": "CMPY",
+      "mode": "direct",
+      "length": 3,
+      "cycles": 7,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "Y==M",
+        "V": "signed-overflow",
+        "C": "unsigned-borrow"
+      },
+      "summary": "Compare Y with DP word.",
+      "effect_template": "(Y - M:M+1(DP:${imm8}))",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "AC": {
+      "mnemonic": "CMPY",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 7,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "Y==M",
+        "V": "signed-overflow",
+        "C": "unsigned-borrow"
+      },
+      "summary": "Compare Y with indexed word.",
+      "effect_template": "(Y - M:M+1(${ea}))",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "BC": {
+      "mnemonic": "CMPY",
+      "mode": "extended",
+      "length": 4,
+      "cycles": 8,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "Y==M",
+        "V": "signed-overflow",
+        "C": "unsigned-borrow"
+      },
+      "summary": "Compare Y with extended word.",
+      "effect_template": "(Y - M:M+1(${imm16}))",
+      "wiki": "platform/6809.md#arith-bit-ops"
+    },
+    "8E": {
+      "mnemonic": "LDY",
+      "mode": "immediate",
+      "length": 4,
+      "cycles": 4,
+      "operand_kind": "imm16",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load Y immediate.",
+      "effect_template": "Y \u2190 #${imm16}",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "9E": {
+      "mnemonic": "LDY",
+      "mode": "direct",
+      "length": 3,
+      "cycles": 6,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load Y from DP word.",
+      "effect_template": "Y \u2190 M:M+1(DP:${imm8})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "AE": {
+      "mnemonic": "LDY",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 6,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load Y from indexed memory.",
+      "effect_template": "Y \u2190 M:M+1(${ea})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "BE": {
+      "mnemonic": "LDY",
+      "mode": "extended",
+      "length": 4,
+      "cycles": 7,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load Y from extended address.",
+      "effect_template": "Y \u2190 M:M+1(${imm16})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "CE": {
+      "mnemonic": "LDS",
+      "mode": "immediate",
+      "length": 4,
+      "cycles": 4,
+      "operand_kind": "imm16",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load S immediate.",
+      "effect_template": "S \u2190 #${imm16}",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "DE": {
+      "mnemonic": "LDS",
+      "mode": "direct",
+      "length": 3,
+      "cycles": 6,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load S from DP word.",
+      "effect_template": "S \u2190 M:M+1(DP:${imm8})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "EE": {
+      "mnemonic": "LDS",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 6,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load S from indexed memory.",
+      "effect_template": "S \u2190 M:M+1(${ea})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "FE": {
+      "mnemonic": "LDS",
+      "mode": "extended",
+      "length": 4,
+      "cycles": 7,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit15(result)",
+        "Z": "result==0",
+        "V": "0"
+      },
+      "summary": "Load S from extended address.",
+      "effect_template": "S \u2190 M:M+1(${imm16})",
+      "wiki": "platform/6809.md#load-ops"
+    },
+    "9F": {
+      "mnemonic": "STY",
+      "mode": "direct",
+      "length": 3,
+      "cycles": 6,
+      "operand_kind": "direct",
+      "cc": {
+        "N": "bit15(Y)",
+        "Z": "Y==0",
+        "V": "0"
+      },
+      "summary": "Store Y to DP word.",
+      "effect_template": "M:M+1(DP:${imm8}) \u2190 Y",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "AF": {
+      "mnemonic": "STY",
+      "mode": "indexed",
+      "length": "variable",
+      "cycles": 6,
+      "operand_kind": "indexed_postbyte",
+      "cc": {
+        "N": "bit15(Y)",
+        "Z": "Y==0",
+        "V": "0"
+      },
+      "summary": "Store Y to indexed memory.",
+      "effect_template": "M:M+1(${ea}) \u2190 Y",
+      "wiki": "platform/6809.md#store-ops"
+    },
+    "BF": {
+      "mnemonic": "STY",
+      "mode": "extended",
+      "length": 4,
+      "cycles": 7,
+      "operand_kind": "extended",
+      "cc": {
+        "N": "bit15(Y)",
+        "Z": "Y==0",
+        "V": "0"
+      },
+      "summary": "Store Y to extended address.",
+      "effect_template": "M:M+1(${imm16}) \u2190 Y",
+      "wiki": "platform/6809.md#store-ops"
+    }
+  },
+  "page3": {}
+}

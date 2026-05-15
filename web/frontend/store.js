@@ -45,6 +45,20 @@ class Store extends EventTarget {
       };
     }
     this.dispatchEvent(new CustomEvent("select", { detail: id }));
+    if (id) this.fetchHaltSnapshot(id);
+  }
+
+  // Pull current registers via REST so a freshly-selected (already-halted)
+  // instance fills its panes without waiting for the next halt event.
+  async fetchHaltSnapshot(id) {
+    try {
+      const r = await fetch(`/api/instances/${id}/registers`);
+      if (!r.ok) return;
+      const regs = await r.json();
+      this.dispatchEvent(new CustomEvent("ws:halt", {
+        detail: { kind: "halt", instance_id: id, payload: { pc: regs.pc, registers: regs } },
+      }));
+    } catch {}
   }
 
   async build() {

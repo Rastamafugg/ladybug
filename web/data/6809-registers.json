@@ -1,0 +1,74 @@
+{
+  "registers": [
+    {
+      "name": "PC",
+      "width": 16,
+      "summary": "Program counter — address of the next instruction to execute.",
+      "wiki": "platform/6809.md"
+    },
+    {
+      "name": "A",
+      "width": 8,
+      "summary": "8-bit accumulator. High byte of D when treated as 16-bit. Common destination for load/arithmetic ops.",
+      "wiki": "platform/6809.md"
+    },
+    {
+      "name": "B",
+      "width": 8,
+      "summary": "8-bit accumulator. Low byte of D when treated as 16-bit.",
+      "wiki": "platform/6809.md"
+    },
+    {
+      "name": "D",
+      "width": 16,
+      "summary": "16-bit accumulator pair — A is the high byte, B the low byte. Used by 16-bit load/store/arithmetic ops.",
+      "wiki": "platform/6809.md"
+    },
+    {
+      "name": "X",
+      "width": 16,
+      "summary": "Index register. Full 16-bit; works with every indexed addressing form.",
+      "wiki": "platform/6809.md"
+    },
+    {
+      "name": "Y",
+      "width": 16,
+      "summary": "Index register. Same capabilities as X. Accessed via page-2 ($10) prefix.",
+      "wiki": "platform/6809.md"
+    },
+    {
+      "name": "U",
+      "width": 16,
+      "summary": "User stack pointer. By convention used as a second index/stack distinct from S.",
+      "wiki": "platform/6809.md"
+    },
+    {
+      "name": "S",
+      "width": 16,
+      "summary": "Hardware stack pointer. Used by the interrupt machinery to push CPU state. In Ladybug, initialised to $1FFE.",
+      "wiki": "platform/6809.md"
+    },
+    {
+      "name": "DP",
+      "width": 8,
+      "summary": "Direct-page register. Supplies the high byte of every direct-page address. In Ladybug, fixed at $02 — direct-page ops access $0200-$02FF.",
+      "wiki": "implementation/coding-conventions.md"
+    },
+    {
+      "name": "CC",
+      "width": 8,
+      "summary": "Condition-code register. Eight bits: E F H I N Z V C. See per-bit details below.",
+      "wiki": "platform/6809.md"
+    }
+  ],
+  "cc_bits": [
+    {"bit": 7, "name": "E", "summary": "Entire-state stacked — set by NMI/SWI/IRQ entry, clear by FIRQ entry. RTI inspects this to know how much to pop."},
+    {"bit": 6, "name": "F", "summary": "FIRQ mask. When set, FIRQ is masked. Set by FIRQ entry, RESET, NMI, SWI."},
+    {"bit": 5, "name": "H", "summary": "Half-carry. Set on carry out of bit 3 of an 8-bit add. Used by DAA (decimal-adjust) for BCD arithmetic."},
+    {"bit": 4, "name": "I", "summary": "IRQ mask. When set, IRQ is masked. Set by IRQ entry, RESET, NMI, SWI."},
+    {"bit": 3, "name": "N", "summary": "Negative — copy of the high bit of the result. Set if the result is negative in two's-complement."},
+    {"bit": 2, "name": "Z", "summary": "Zero — set if the result was zero."},
+    {"bit": 1, "name": "V", "summary": "Overflow — set on signed two's-complement overflow."},
+    {"bit": 0, "name": "C", "summary": "Carry/borrow — set on unsigned overflow (add) or borrow (subtract)."}
+  ]
+}

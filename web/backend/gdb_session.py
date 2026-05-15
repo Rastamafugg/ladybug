@@ -138,6 +138,12 @@ class GdbSession:
     async def clear_breakpoint(self, bp_id: str) -> None:
         await self._cmd(f"-break-delete {bp_id}")
 
+    async def disable_breakpoint(self, bp_id: str) -> None:
+        await self._cmd(f"-break-disable {bp_id}")
+
+    async def enable_breakpoint(self, bp_id: str) -> None:
+        await self._cmd(f"-break-enable {bp_id}")
+
     async def read_memory(self, addr: int, length: int) -> bytes:
         result = await self._cmd(f"-data-read-memory-bytes 0x{addr:04x} {length}")
         m = _RE_MEM_CONTENTS.search(result.get("payload", ""))

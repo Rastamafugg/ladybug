@@ -1,40 +1,126 @@
 import { store } from "/static/store.js";
 
+// 6809 CC flag bits, MSB to LSB.
+const CC_FLAGS = ["E", "F", "H", "I", "N", "Z", "V", "C"];
+
 class RegisterView extends HTMLElement {
   connectedCallback() {
-    this.render(null);
+    this.innerHTML = `
+      <style>
+        .reg-grid {
+          display: grid;
+          grid-template-columns: auto auto auto auto;
+          gap: 2px 12px;
+          font-family: var(--mono);
+          font-size: 13px;
+        }
+        .reg-grid .name { color: var(--fg-dim); text-align: right; }
+        .reg-grid .val  { color: var(--fg); }
+        .reg-grid .val.wide { color: var(--accent); }
+        .cc-row { display: flex; gap: 6px; font-family: var(--mono); font-size: 12px; margin-top: 4px; }
+        .cc-row .bit { padding: 1px 5px; border-radius: 2px; border: 1px solid var(--bg-3); }
+        .cc-row .bit.set { background: var(--bg-3); color: var(--accent); border-color: #4a4a6a; }
+        .cc-row .bit.unset { color: var(--fg-dim); }
+        .par-grid {
+          display: grid;
+          grid-template-columns: repeat(8, 1fr);
+          gap: 2px;
+          font-family: var(--mono); font-size: 11px;
+        }
+        .par-grid .par { background: var(--bg-2); padding: 2px 4px; border-radius: 2px; text-align: center; }
+        .par-grid .par .i { color: var(--fg-dim); }
+        .pal-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+        .pal-grid .swatch { aspect-ratio: 1; border: 1px solid #0008; }
+      </style>
+      <h2>Registers</h2>
+      <div id="regs-body"><div class="dim">no data</div></div>
+      <h2 style="margin-top:12px;">CC flags</h2>
+      <div id="cc-body" class="dim">—</div>
+      <h2 style="margin-top:12px;">MMU PARs</h2>
+      <div id="par-body" class="dim">unknown</div>
+      <h2 style="margin-top:12px;">Palette</h2>
+      <div id="pal-body" class="dim">unknown</div>
+    `;
+    this.regsBody = this.querySelector("#regs-body");
+    this.ccBody = this.querySelector("#cc-body");
+    this.parBody = this.querySelector("#par-body");
+    this.palBody = this.querySelector("#pal-body");
     store.addEventListener("ws:halt", (e) => this.render(e.detail.payload));
     store.addEventListener("select", () => this.render(null));
   }
 
   render(p) {
     const regs = p?.registers || {};
+    const hasRegs = regs && !regs._error && Object.keys(regs).length > 0;
+
+    if (!hasRegs) {
+      this.regsBody.innerHTML = `<div class="dim">no data</div>`;
+      this.ccBody.innerHTML = `<span class="dim">—</span>`;
+    } else {
+      const A = regs.a, B = regs.b;
+      const D = (A != null && B != null) ? ((A & 0xff) << 8) | (B & 0xff) : null;
+
+      const row = (name, value, width = 2, wide = false) => `
+        <span class="name">${name}</span>
+        <span class="val${wide ? " wide" : ""}">${value != null ? hex(value, width) : "—"}</span>
+      `;
+
+      this.regsBody.innerHTML = `
+        <div class="reg-grid">
+          ${row("PC", regs.pc, 4, true)}
+          ${row("DP", regs.dp, 2)}
+          ${row("S",  regs.s,  4, true)}
+          ${row("U",  regs.u,  4, true)}
+          ${row("X",  regs.x,  4, true)}
+          ${row("Y",  regs.y,  4, true)}
+          ${row("D",  D,       4, true)}
+          ${row("CC", regs.cc, 2)}
+          ${row("A",  A,       2)}
+          ${row("B",  B,       2)}
+        </div>
+      `;
+
+      // CC decoded
+      if (regs.cc != null) {
+        const cc = regs.cc;
+        this.ccBody.innerHTML = `<div class="cc-row">${
+          CC_FLAGS.map((f, i) => {
+            const bit = 7 - i;
+            const set = (cc >> bit) & 1;
+            return `<span class="bit ${set ? "set" : "unset"}">${f}</span>`;
+          }).join("")
+        }</div>`;
+      } else {
+        this.ccBody.innerHTML = `<span class="dim">—</span>`;
+      }
+    }
+
+    // MMU PARs
     const pars = p?.pars || [];
+    if (pars.length === 16) {
+      this.parBody.innerHTML = `<div class="par-grid">${
+        pars.map((v, i) =>
+          `<div class="par"><span class="i">${i.toString(16).toUpperCase()}</span> ${hex(v, 2)}</div>`
+        ).join("")
+      }</div>`;
+    } else {
+      this.parBody.innerHTML = `<span class="dim">unknown</span>`;
+    }
+
+    // Palette
     const pal = p?.palette || [];
-
-    const r = (k, w = 2) => regs[k] != null ? regs[k].toString(16).padStart(w, "0").toUpperCase() : "—";
-
-    this.innerHTML = `
-      <h2>Registers</h2>
-      <div class="mono">
-        A=${r("a")}  B=${r("b")}  X=${r("x", 4)}  Y=${r("y", 4)}<br/>
-        U=${r("u", 4)} S=${r("s", 4)} PC=${r("pc", 4)} DP=${r("dp")}<br/>
-        CC=${r("cc")}
-      </div>
-      <h2 style="margin-top:10px;">MMU PARs</h2>
-      <div class="mono">${
-        pars.length === 16
-          ? pars.map((v, i) => `${i.toString(16).toUpperCase()}:${v.toString(16).padStart(2, "0").toUpperCase()}`).join(" ")
-          : '<span class="dim">unknown</span>'
-      }</div>
-      <h2 style="margin-top:10px;">Palette</h2>
-      <div style="display:grid; grid-template-columns:repeat(8,1fr); gap:2px;">
-        ${pal.length === 16
-          ? pal.map((rgb) => `<div style="aspect-ratio:1; background:${rgb}; border:1px solid #0008;"></div>`).join("")
-          : '<span class="dim">unknown</span>'}
-      </div>
-    `;
+    if (pal.length === 16) {
+      this.palBody.innerHTML = `<div class="pal-grid">${
+        pal.map((rgb) => `<div class="swatch" style="background:${rgb};"></div>`).join("")
+      }</div>`;
+    } else {
+      this.palBody.innerHTML = `<span class="dim">unknown</span>`;
+    }
   }
+}
+
+function hex(v, w) {
+  return v.toString(16).toUpperCase().padStart(w, "0");
 }
 
 customElements.define("register-view", RegisterView);

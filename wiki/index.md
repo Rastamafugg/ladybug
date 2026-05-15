@@ -27,6 +27,7 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 - [tooling/xroar.md](tooling/xroar.md) — XRoar CoCo 3 emulator: cart boot profile, debug/trace flags
 - [tooling/toolshed.md](tooling/toolshed.md) — `decb`/`os9` disk utilities: standby, fallback for a future `.dsk` deploy mode
 - [tooling/build-workflow.md](tooling/build-workflow.md) — runbook: source → ROM → emulator (driven by `scripts/build.sh`)
+- [tooling/web-app-architecture.md](tooling/web-app-architecture.md) — locally-hosted retro-dev web app: module split, data conventions, schemas (v2 design)
 
 ## Implementation
 
@@ -53,6 +54,7 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 - [backlog/cart-ram-corruption.md](backlog/cart-ram-corruption.md) — Phase 2.3 IRQ-install path derails the CPU under the post-2.3 MMU layout; cart RAM gets overwritten
 - [backlog/retro-dev-web-app.md](backlog/retro-dev-web-app.md) — wrap lwasm + XRoar + gdb-mcp + LLM into a browser-based retro dev environment
 - [backlog/mcp-xroar-server.md](backlog/mcp-xroar-server.md) — cost/benefit of a purpose-built XRoar MCP server vs. the current gdb-mcp stack; deferred until sentinel probes hit a wall
+- [backlog/xroar-load-gdb-patch.md](backlog/xroar-load-gdb-patch.md) — feasibility report: one-line `SO_REUSEADDR` patch fixes the `-load + -gdb` bind failure; ~2-3 h to apply + verify + upstream
 
 ## Special
 

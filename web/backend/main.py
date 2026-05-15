@@ -13,6 +13,7 @@ from .build import run_build
 from .framebuffer import placeholder_png
 from .instances import InstanceManager
 from .models import CreateInstanceRequest, InstanceSummary
+from .source import parse_lst
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -84,6 +85,59 @@ async def get_registers(instance_id: str):
         raise HTTPException(404, "no such instance")
     try:
         return await inst.gdb.read_registers()
+    except Exception as e:
+        raise HTTPException(503, f"gdb: {e}")
+
+
+@app.get("/api/source")
+async def get_source():
+    lst = PROJECT_ROOT / "build" / "ladybug.lst"
+    if not lst.exists():
+        raise HTTPException(404, "build/ladybug.lst not found — run a build first")
+    return {"path": "build/ladybug.lst", "lines": parse_lst(lst)}
+
+
+@app.post("/api/instances/{instance_id}/breakpoints")
+async def add_breakpoint(instance_id: str, body: dict):
+    inst = manager.get(instance_id)
+    if inst is None:
+        raise HTTPException(404, "no such instance")
+    addr = body.get("addr")
+    if not isinstance(addr, int):
+        raise HTTPException(400, "body.addr (int) required")
+    try:
+        bp_id = await inst.gdb.set_breakpoint(addr)
+        return {"id": bp_id, "addr": addr}
+    except Exception as e:
+        raise HTTPException(503, f"gdb: {e}")
+
+
+@app.delete("/api/instances/{instance_id}/breakpoints/{bp_id}")
+async def del_breakpoint(instance_id: str, bp_id: str):
+    inst = manager.get(instance_id)
+    if inst is None:
+        raise HTTPException(404, "no such instance")
+    try:
+        await inst.gdb.clear_breakpoint(bp_id)
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(503, f"gdb: {e}")
+
+
+@app.patch("/api/instances/{instance_id}/breakpoints/{bp_id}")
+async def patch_breakpoint(instance_id: str, bp_id: str, body: dict):
+    inst = manager.get(instance_id)
+    if inst is None:
+        raise HTTPException(404, "no such instance")
+    enabled = body.get("enabled")
+    if not isinstance(enabled, bool):
+        raise HTTPException(400, "body.enabled (bool) required")
+    try:
+        if enabled:
+            await inst.gdb.enable_breakpoint(bp_id)
+        else:
+            await inst.gdb.disable_breakpoint(bp_id)
+        return {"ok": True}
     except Exception as e:
         raise HTTPException(503, f"gdb: {e}")
 

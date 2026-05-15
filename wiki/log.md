@@ -4,6 +4,36 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-15] build | B1 punch-list fixes; mnemonic-family anchors added to platform/6809.md
+
+QA punch-list disposition (user chose "fix all five before B2"): (1) broken `warning-under-xroar-110-...` anchor in `6809-regions.json` cart-window entry corrected to `important-under-xroar-110-the-self-copy-is-a-no-op`; (2) added `$FF40-$FF8F` "FDC / reserved I/O" region so every I/O-page hover resolves; (3) architecture page (`tooling/web-app-architecture.md`) now formally documents `length: int | "variable"` and `cycles: int | {min,max,note}` to cover indexed-mode and path-dependent opcodes — locked before B2 decoder work; (4) RTI updated to use the conditional-cycles object (6/15 with note); (5) added `## Mnemonic reference` section to `platform/6809.md` with nine family anchors (load-ops, store-ops, lea-ops, branch-ops, push-pull-ops, tfr-exg-ops, return-halt-ops, cc-ops, arith-bit-ops); opcode JSON `wiki` fields retargeted to those anchors via script (82 entries changed, SWI kept on the xroar-gotcha link). Next: B2 — backend wiring (opcode_table.py, decoder.py, annotation.py, regions.py, symbols.py, endpoints).
+
+---
+
+## [2026-05-15] build | web/data/ JSON authoring (Track B sub-task 1)
+
+Authored the five data files for the v2 web/ wiki-UI architecture: 6809-opcodes.json (83 encodings: 68 primary + 15 page-2; scoped to Ladybug's current vocabulary), 6809-indexed-postbyte.json (24 postbyte patterns covering every 6809 indexed-addressing form including pre/post inc/dec, accumulator-offset, PC-relative, and extended-indirect), 6809-regions.json (17 memory regions matching implementation/memory-map.md), 6809-registers.json (10 regs + 8 CC bits with per-bit semantics), symbols.json (5 seed entries pointing into the wiki). All JSON-validates. Hybrid wiki-content convention honored: short `summary` inline + `wiki` deep link. Schema matches tooling/web-app-architecture.md. Next sub-task (B2): backend wiring — opcode_table.py, decoder.py, annotation.py, regions.py, symbols.py, and the new endpoints. Closing this sub-task in qa-reviewer.
+
+---
+
+## [2026-05-15] design | web/ v2 architecture filed; reverse-step deferred; XRoar patch chosen for local-only apply
+
+User locked scope for the v2 web/ work: instruction annotation, register/region/symbol wiki surfaces, persistent configs as `web/configs/*.json` per-file, snapshot save/load (with patched XRoar). Reverse-step / time-travel / change-log deferred entirely. XRoar SO_REUSEADDR patch chosen for local apply (not upstreaming). Architect-role pass produced the module split, schema decisions, halt-event data flow, and XRoar-patch dependency handling (attempt-and-detect, no version probe). Three approval gates passed: module split (3-layer decode pipeline + separate regions/symbols/configs modules + web/data/ convention); flat snapshot directory + sidecar manifest; indexed-postbyte table as separate JSON. Full design: [tooling/web-app-architecture.md](tooling/web-app-architecture.md).
+
+---
+
+## [2026-05-15] research | XRoar `-load + -gdb` bug is a missing SO_REUSEADDR; one-line fix viable
+
+Feasibility report on patching XRoar 1.10 to fix snapshot-load dropping the gdb listener. Root cause: `gdb_interface_new` ([src/gdb.c:185](../../docs/reference/xroar/src/gdb.c)) is called twice when `-load` is given — once in the initial `coco3_init` from `xroar_hard_reset`, once in the deserialised machine's `coco3_init` after `read_snapshot` ([src/snapshot.c:236-241](../../docs/reference/xroar/src/snapshot.c)) frees and replaces the machine. The first listener is closed cleanly, but the listening socket lacks `SO_REUSEADDR`, so the kernel's `TIME_WAIT` window blocks the second `bind()`. XRoar *does* log the failure (`[gdb] WARNING: bind 127.0.0.1:PORT failed`) — wiki's "silently drops" framing was inaccurate and is corrected in the report. Fix is a single `setsockopt(SO_REUSEADDR)` call between `socket()` and `bind()`; ~2-3 h to apply + verify + upstream. Full report: [backlog/xroar-load-gdb-patch.md](backlog/xroar-load-gdb-patch.md). User decision pending: don't-patch / local-only / upstream.
+
+---
+
+## [2026-05-15] research | gdb `record full` / reverse-step is not viable against m6809-gdb + XRoar 1.10
+
+Empirical probe to inform the web/ time-travel design. Result: **no path through gdb works**. Two independent rejections from a single attached session: gdb refuses `record full` with `Process record: the current architecture doesn't support record function` (m6809 isn't in gdb's record-supported architecture list); separately, XRoar's stub rejects `reverse-stepi`/`reverse-continue`/`record btrace` with `Target remote does not support this command`. Forward stepping is unaffected and works normally. Either layer alone would close this path; both being closed means a fix requires patches in both gdb (m6809 record port) and XRoar (reverse-protocol packets), which is multi-day work in each. Recorded in [tooling/xroar.md §Reverse execution / `record full` — not viable on this stack](tooling/xroar.md). Practical consequence for the web/ app: any time-travel feature must be backend-recorded (per-step state snapshots) rather than gdb-mediated — directly affects the upcoming architecture pass.
+
+---
+
 ## [2026-05-15] build | Scaffolded `web/` retro-dev backend + frontend; landed five XRoar-stub gdb gotchas
 
 Stood up the locally-hosted web app described in [backlog/retro-dev-web-app.md](backlog/retro-dev-web-app.md): FastAPI backend owning XRoar lifecycle on a 65520..65540 port pool, vanilla-JS+web-components frontend, ephemeral UI-created instances. Live attach to XRoar's GDB stub via `m6809-gdb --interpreter=mi`, registers + memory readable, WS fan-out delivers state/halt/log events. The chat pane was dropped per user direction (Codex stays the LLM-facing surface). During bring-up, five XRoar-1.10 + m6809-gdb integration gotchas surfaced — all now recorded in [tooling/xroar.md §Known XRoar 1.10 limitations](tooling/xroar.md): stub answers `vMustReplyEmpty` with `"timeout"` (fatal in MI; only raw-stdin CLI `target remote` survives it); probe-connect+disconnect wedges the stub; `info registers` always trails with a benign `^error: Register 12 is not available`; MI stream records split `NAME=VAL` across chunks; and the gdb reader loop deadlocks if you read regs synchronously from inside an async-event callback. Three of these are project-property of *m6809-gdb against this stub*, not XRoar alone, so they're also relevant to the gdb-mcp workflow.
