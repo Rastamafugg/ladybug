@@ -293,6 +293,36 @@ XRoar's gdb stub does **not** snoop write-only register writes. Reads of `$FF90`
 
 ---
 
+## XRoar gdb stub is hostile to mid-run inspection
+
+Filed 2026-05-16.
+
+Three observed behaviors that constrain how we write gdb-driven probes against an XRoar instance:
+
+1. **`-exec-interrupt` is not honored while the target is free-running.** The MI command sits without reply, eventually timing out at gdb's wait. Bug or stub limitation — unclear. Workaround: use a halt-on-`*stopped` mechanism (breakpoint) rather than asynchronous interruption.
+2. **Hardware breakpoints "loop" when set at the address the target is already halted on.** Setting `-break-insert -h *0xC067` while halted at `$C067`, then `-exec-continue`, returns `*stopped` immediately at `$C067` again without the target executing the instruction. Workaround: only set BPs at addresses different from current PC, or single-step (`-exec-step-instruction`) past the BP before continuing.
+3. **Detaching and reattaching does not work — XRoar's stub seems to accept only one gdb connection per launch.** `target remote` on the second attempt hangs with no `*stopped`. So "free-run, sleep, reattach to inspect" is not viable; verification scripts have to do all their inspection in a single session.
+
+**Why it matters:** rules out several intuitive patterns for verification probes. The probes under [web/scripts/](../../web/scripts/) are written around these constraints — they sample state on the attach-halt and accept reduced coverage of mid-run behavior. Mid-run verification of game-loop transitions (dirty-flag redraws, key dispatch effects) is deferred to UI-level manual testing.
+
+**Citation:** observed during the WS-A milestone-2 verification probe ([web/scripts/probe_tester_m2.py](../../web/scripts/probe_tester_m2.py), 2026-05-16); related to the `cart-shadow self-copy is a no-op` finding which already constrains software-BP behavior in cart ROM.
+
+---
+
+## XRoar GIME palette readback OR's `$C0` into the upper 2 bits
+
+Filed 2026-05-16.
+
+Reading `$FFB0-$FFBF` returns each programmed 6-bit palette value with `$C0` set in the upper two bits. E.g., writing `$00` then reading returns `$C0`; writing `$3F` reads as `$FF`. The lower 6 bits are accurate.
+
+**Why:** GIME palette registers are documented as 6-bit; the upper 2 bits are "don't care" on read. XRoar's stub fills those with `1` bits. Not a bug — just a readback quirk to mask for.
+
+**Applies to:** any palette validation / `gime_state.py` decoder logic — mask with `& 0x3F` before comparing to expected RGB codes.
+
+**Citation:** observed during WS-A milestone-2 verification probe.
+
+---
+
 ## Format for future entries
 
 ```

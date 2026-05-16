@@ -56,4 +56,4 @@ draw_current_pattern
 
 pattern_jump_table
         fdb     pat_bars_draw
-        ; WS-A milestone 2 adds: fdb pat_check_draw
+        fdb     pat_check_draw

@@ -10,3 +10,4 @@ tester_pattern_idx      rmb 1   ; current pattern (index into pattern_jump_table
 tester_selection_dirty  rmb 1   ; ISR sets, mainloop clears + redraws
 tester_kbd_prev         rmb 8   ; per-column DRA snapshot for edge detection
 tester_frame_ctr        rmb 2   ; 60 Hz tick, debug
+ksc_scratch             rmb 1   ; kbd_scan_and_dispatch scratch

@@ -329,6 +329,12 @@ Documented the Ladybug boot path: cartridge ROM at `$C000`, control taken via th
 
 ---
 
+## [2026-05-16] implement | WS-A milestone 2 — IRQ + keyboard + checkerboard
+
+Tester ROM now installs a Vbord ISR at `$FEF7`, scans the PIA1 keyboard matrix each frame with edge-detected dispatch via a `(col_idx, row_mask, handler)` `key_table` (`'1'` → mode 0, `'B'` → bars, `'C'` → checker), and runs a dirty-flag-driven mainloop that calls `redraw_with_blank`. Adds [src/tester/input.s](../src/tester/input.s) and [src/tester/pat_check.s](../src/tester/pat_check.s); extends [src/tester/tester.s](../src/tester/tester.s) with PIA1 init, IRQ vector install, and mainloop. Verified by [web/scripts/probe_tester_m2.py](../web/scripts/probe_tester_m2.py): frame_ctr advances, ISR vector at `$FEF7` points to `vbord_isr`, bars FB intact, kbd_prev populated. Two new lessons-learned entries logged: XRoar gdb-stub mid-run-inspection constraints and palette-readback `$C0` artifact.
+
+---
+
 ## [2026-05-16] probe | WS-A GIME-readback gate resolved → Option 2
 
 Ran [`web/scripts/probe_gime_readback.py`](../web/scripts/probe_gime_readback.py) against a live `build/diag.rom` instance. XRoar's gdb stub returns sentinel `$1B` for every read of `$FF90` and `$FF98..$FF9E` regardless of writes; palette `$FFB0..$FFBF` reads back exactly, PARs `$FFA0..$FFA7` return reset-state `38..3F`. Option 1 (DirectReadStrategy) eliminated. **WS-A adopts Option 2 (ProgramStateStrategy)** — tester ROM will export `tester_mode_idx` + `tester_mode_table`. Finding recorded in [`implementation/lessons-learned.md`](implementation/lessons-learned.md); sequencing note added to [`implementation/emulator-monitor-tester.md`](implementation/emulator-monitor-tester.md) step 1.
