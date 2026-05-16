@@ -142,19 +142,75 @@ Visible signal: full 16-stripe palette test + bright border + IRQ-driven flashin
 
 **Citation:** [src/main.s](../../src/main.s) at the Phase 2.3-close commit.
 
-## XRoar's CoCo-3 monitor is composite NTSC by default
+## XRoar RGB monitor palette mapping (current default)
 
-Filed 2026-05-08 alongside Phase 2.3.
+Filed 2026-05-16. Canonical mapping for the project — XRoar is invoked with
+`-tv-input rgb` by [`scripts/build.sh`](../../scripts/build.sh) and
+[`web/backend/instance.py`](../../web/backend/instance.py), and the
+[`src/main.s`](../../src/main.s) `palette_table` is tuned to it.
 
-Phase 2.3's 16-stripe palette diagnostic showed the 6-bit `$FFB0-$FFBF` palette codes do **not** map to colours via the conventional RGB-monitor `RGBrgb` 2-bit-per-channel interpretation. Instead, XRoar's default monitor mode is composite NTSC, where the same 6-bit value produces a different colour through chroma + luma encoding. Notable consequence: `$3F` and `$30` both render as white (different luma but apparently same composite "white-ish" point), so they are **not interchangeable as palette entries** — pick one.
+Empirically derived using a minimal-from-scratch 16-stripe diagnostic
+([`src/diag_minimal.s`](../../src/diag_minimal.s) — needed because the
+full Phase 2.x main.s pipeline currently renders the FB as noise; see
+[backlog/phase2-fb-render-regression.md](../backlog/phase2-fb-render-regression.md)).
+16 stripes, one palette idx each, sampled visually under `-tv-input rgb`:
 
-Empirical 6-bit-code → colour table (XRoar default monitor, observed during the 16-stripe test):
+| `$xx` | Bits R'G'B' rgb | Observed colour |
+|-|-|-|
+| `$00` | 000 000 | black |
+| `$20` | 100 000 | dark/medium red (R-bright only) |
+| `$10` | 010 000 | medium green |
+| `$08` | 001 000 | medium blue |
+| `$30` | 110 000 | dark yellow / olive |
+| `$18` | 011 000 | cyan / teal |
+| `$28` | 101 000 | magenta |
+| `$38` | 111 000 | light grey / silver — **not white** |
+| `$04` | 000 100 | dim red |
+| `$02` | 000 010 | dim green |
+| `$01` | 000 001 | dim blue |
+| `$06` | 000 110 | dark olive |
+| `$03` | 000 011 | dark teal |
+| `$05` | 000 101 | dark purple |
+| `$07` | 000 111 | dark grey |
+| `$3F` | 111 111 | bright white |
 
-| `$xx` | Observed colour |
+**Key surprise:** full white is `$3F` (all 6 bits), not `$38` (just the upper 3).
+The "bright" channels alone (`R'G'B' = 111`) produce a desaturated light grey;
+you have to also turn on the "dim" channels to push to full white. Same
+principle for fully-saturated bright primaries: `$24` (R' + dim B) is a
+*pinker* red than `$20` (R' alone) because the dim-R bit adds bottom-end
+saturation.
+
+**Why it matters:** when we ingest the arcade palette
+([sources/arcade-gfx-extraction.md](../sources/arcade-gfx-extraction.md))
+we map each arcade RGB triple to the nearest 6-bit GIME code by treating
+the code as 2-bit-per-channel `R[1:0] G[1:0] B[1:0]` (high bit = bright,
+low bit = dim). The 64-entry CoCo 3 RGB palette is regular enough that
+the nearest-match search is mechanical.
+
+**Citation:** [`src/diag_minimal.s`](../../src/diag_minimal.s) 16-stripe
+test; user-observed colour names recorded in the 2026-05-16 session log.
+
+---
+
+## Composite NTSC palette mapping (historical, pre-RGB switch)
+
+Filed 2026-05-08 alongside Phase 2.3. **Superseded** by the RGB table
+above for the project's canonical use; preserved here because real CoCo 3
+owners may run on a composite monitor and want this reference.
+
+Phase 2.3's 16-stripe palette diagnostic under XRoar's default (composite NTSC)
+showed the 6-bit palette codes do **not** map via the conventional `RGBrgb`
+interpretation — instead, chroma + luma encoding produces different colours
+and several codes alias (e.g. `$30` and `$3F` both render as white).
+
+Empirical composite-NTSC 6-bit → colour table:
+
+| `$xx` | Observed colour (composite) |
 |-|-|
 | `$00` | black |
 | `$3F` | white |
-| `$30` | white (do not use — duplicate of `$3F`) |
+| `$30` | white (alias of `$3F`) |
 | `$0C` | blue |
 | `$03` | green-brown |
 | `$33` | yellow |
@@ -169,11 +225,8 @@ Empirical 6-bit-code → colour table (XRoar default monitor, observed during th
 | `$15` | orange |
 | `$24` | orange-yellow |
 
-**Why it matters:** when we load the arcade palette ([sources/arcade-gfx-extraction.md](../sources/arcade-gfx-extraction.md) — 32 RGB triples from the PROM), we cannot just convert RGB→`RGBrgb`. We must pick the GIME 6-bit code that visually matches the arcade colour on XRoar's composite emulation. This table is the starting point; refine as we add palette entries during Phase 2.4+.
-
-**Applies to:** Phase 2.4 (palette load + tile render) and any subsequent palette work. If we later switch XRoar to RGB monitor mode (`-machine-vdg-type ntsc-pal-mode-foo` — to confirm the flag), this table needs to be re-derived.
-
-**Citation:** [src/main.s](../../src/main.s) Phase 2.3 stripe-test commit; user-observed colour names recorded in the 2026-05-08 session log.
+**Citation:** [src/main.s](../../src/main.s) Phase 2.3 stripe-test commit
+(`2593d36`); user-observed colour names recorded in the 2026-05-08 session log.
 
 ---
 

@@ -43,6 +43,7 @@ cmd_run() {
         -cart-type rom \
         -cart-rom "$ROM" \
         -cart-autorun \
+        -tv-input rgb \
         ${XROAR_EXTRA:-}
 }
 

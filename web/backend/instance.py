@@ -50,6 +50,7 @@ class Instance:
             "-cart-type", "rom",
             "-cart-rom", str(self.project_root / self.rom_path),
             "-cart-autorun",
+            "-tv-input", "rgb",
             "-gdb",
             "-gdb-ip", "127.0.0.1",
             "-gdb-port", str(self.gdb_port),

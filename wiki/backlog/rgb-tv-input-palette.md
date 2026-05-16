@@ -2,11 +2,31 @@
 name: Convert to RGB tv-input and rebuild palette tables
 description: Switch XRoar from composite NTSC to RGB monitor mode and re-derive the empirical 6-bit palette → color table that main.s depends on.
 type: backlog
+status: mostly-done (3-tile-render acceptance criterion blocked on FB regression — see phase2-fb-render-regression.md)
 tags: [tooling, xroar, palette, video]
-updated: 2026-05-14
+updated: 2026-05-16
 ---
 
 # Convert to RGB tv-input and rebuild palette tables
+
+## Status (2026-05-16)
+
+**Mostly complete.** `-tv-input rgb` is wired into both launch sites
+([scripts/build.sh](../../scripts/build.sh) + [web/backend/instance.py](../../web/backend/instance.py)),
+the empirical 6-bit → colour table has been derived under RGB and recorded
+in [implementation/lessons-learned.md](../implementation/lessons-learned.md)
+§"XRoar RGB monitor palette mapping", and `palette_table` in
+[src/main.s](../../src/main.s) has been updated to use RGB-canonical codes
+for indices 0-3 (black `$00`, yellow `$30`, blue `$08`, white `$3F`).
+
+**Blocked acceptance criterion:** "Phase 2.4 isolation build renders three
+test tiles correctly under RGB" cannot be verified because the existing
+Phase 2.x main.s pipeline renders the FB as a 2-colour noise grid under
+either RGB *or* composite — independent of FB content. Bug isolated to the
+MMU / PAR / cart-self-copy chain via a from-scratch minimal hi-res cart
+([src/diag_minimal.s](../../src/diag_minimal.s)) that displays 16 clean
+stripes. Full investigation lives in
+[phase2-fb-render-regression.md](phase2-fb-render-regression.md).
 
 ## Why
 

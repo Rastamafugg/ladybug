@@ -294,26 +294,31 @@ irq_done
 par_table
         fcb     $38,$30,$31,$32,$33,$3D,$3E,$3F
 
-;-- Palette: 16 entries, GIME 6-bit codes (composite-NTSC empirical). --------
+;-- Palette: 16 entries, GIME 6-bit codes (RGB-monitor empirical). -----------
+;   Tuned for XRoar `-tv-input rgb` and real CoCo 3 RGB-monitor hardware.
 ;   Indices 0-3 form the sub-palette for the Phase 2.4 test tile:
-;     0 black, 1 yellow, 2 blue, 3 white. Remaining slots unused for now.
+;     0 black, 1 yellow, 2 blue, 3 white.
+;   Under RGB the canonical "bright" set is the high 3 bits (R'=$20,
+;   G'=$10, B'=$08) and full white is $3F (all 6 bits set); the upper-3-only
+;   $38 reads as light grey, not white. See lessons-learned.md
+;   §"XRoar RGB monitor palette mapping" for the full 6-bit→colour table.
 palette_table
-        fcb     $00             ; 0  black
-        fcb     $33             ; 1  yellow
-        fcb     $0C             ; 2  blue
-        fcb     $3F             ; 3  white
-        fcb     $03             ; 4  green-brown (unused)
-        fcb     $30             ; 5  white-dup   (unused)
-        fcb     $0F             ; 6  forest grn  (unused)
-        fcb     $3C             ; 7  baby blue   (unused)
-        fcb     $20             ; 8  grey        (unused)
-        fcb     $08             ; 9  fuchsia     (unused)
-        fcb     $02             ; 10 darker grn  (unused)
-        fcb     $22             ; 11 sat lt grn  (unused)
-        fcb     $0A             ; 12 purple     (unused)
-        fcb     $28             ; 13 pink       (unused)
-        fcb     $15             ; 14 orange     (unused)
-        fcb     $24             ; 15 orange-yel (unused)
+        fcb     $00             ; 0  black                R'G'B' rgb = 000 000
+        fcb     $30             ; 1  bright yellow        R'G'      = 110 000
+        fcb     $08             ; 2  bright blue          B'        = 001 000
+        fcb     $3F             ; 3  full white           all bits  = 111 111
+        fcb     $20             ; 4  bright red           R'        = 100 000
+        fcb     $10             ; 5  bright green         G'        = 010 000
+        fcb     $18             ; 6  bright cyan          G'B'      = 011 000
+        fcb     $28             ; 7  bright magenta       R'B'      = 101 000
+        fcb     $38             ; 8  light grey           R'G'B'    = 111 000
+        fcb     $04             ; 9  dim red              R         = 000 100
+        fcb     $02             ; 10 dim green            G         = 000 010
+        fcb     $01             ; 11 dim blue             B         = 000 001
+        fcb     $06             ; 12 dim yellow           RG        = 000 110
+        fcb     $03             ; 13 dim cyan             GB        = 000 011
+        fcb     $05             ; 14 dim magenta          RB        = 000 101
+        fcb     $07             ; 15 dark grey            RGB       = 000 111
 
 ;-- Test tile: arcade chars.json[432] (dense, uses all four pixvals). --------
 ;   Hand-converted from 8x8 2bpp pixval grid to 4bpp GIME packing

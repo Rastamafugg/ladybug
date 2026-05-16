@@ -21,7 +21,7 @@ build/ladybug.rom    (raw binary, exact size)
    ▼
 build/ladybug.rom    (16 KB cart-ready)
    │
-   │  xroar -machine coco3 -ram 512 -cart-type rom -cart-rom ... -cart-autorun
+   │  xroar -machine coco3 -ram 512 -cart-type rom -cart-rom ... -cart-autorun -tv-input rgb
    ▼
 emulated CoCo 3      (real hardware: write ROM to a 16K EPROM, drop into cart shell)
 ```
@@ -77,8 +77,15 @@ print(f'padded {16384-pad} → 16384 bytes')
 xroar -machine coco3 -ram 512 \
       -cart ladybug -cart-type rom \
       -cart-rom build/ladybug.rom \
-      -cart-autorun
+      -cart-autorun \
+      -tv-input rgb
 ```
+
+`-tv-input rgb` selects the GIME's digital RGB output (canonical `RGBrgb`
+2-bit-per-channel mapping). XRoar's default is composite NTSC, which aliases
+several 6-bit palette codes. See [xroar.md](xroar.md) and
+[../implementation/lessons-learned.md](../implementation/lessons-learned.md)
+§"XRoar RGB monitor palette mapping".
 
 ## Cross-platform invocation
 

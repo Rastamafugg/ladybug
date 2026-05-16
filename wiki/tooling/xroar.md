@@ -21,7 +21,8 @@ xroar \
   -cart ladybug \
   -cart-type rom \
   -cart-rom build/ladybug.rom \
-  -cart-autorun
+  -cart-autorun \
+  -tv-input rgb
 ```
 
 | Flag | Why |
@@ -32,6 +33,7 @@ xroar \
 | `-cart-type rom` | Plain ROM cartridge (no Becker port, no MPI). |
 | `-cart-rom FILE` | Path to the 16 KB padded ROM image from `lwasm` + pad step. |
 | `-cart-autorun` | Triggers the CART → FIRQ handshake on startup so BASIC dispatches into our `JMP entry` at `$C000` without a manual `EXEC`. |
+| `-tv-input rgb` | Decode the GIME's digital RGB output directly (canonical `RGBrgb` mapping). XRoar's default is composite NTSC, which aliases several palette codes (e.g. `$30` ≡ `$3F`). Empirical RGB-mode 6-bit→colour table lives in [../implementation/lessons-learned.md](../implementation/lessons-learned.md) §"XRoar RGB monitor palette mapping". |
 
 Default keymap is fine for now (PC keyboard mapped to CoCo 3 layout). Joystick mapping deferred until [../platform/input.md](../platform/input.md) work begins.
 

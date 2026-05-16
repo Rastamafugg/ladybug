@@ -1,0 +1,120 @@
+                      (rc/diag_minimal.s):00001         ;==============================================================================
+                      (rc/diag_minimal.s):00002         ; diag_minimal.s — minimum-viable 320×192×16 hi-res test, built from scratch
+                      (rc/diag_minimal.s):00003         ;==============================================================================
+                      (rc/diag_minimal.s):00004         ; Goal: prove the GIME hi-res mode works in isolation, with no MMU and no
+                      (rc/diag_minimal.s):00005         ; cart self-copy. If this displays 16 distinct horizontal stripes, then the
+                      (rc/diag_minimal.s):00006         ; Phase 2.x main.s bug is elsewhere (MMU / PAR setup, self-copy, etc).
+                      (rc/diag_minimal.s):00007         ;
+                      (rc/diag_minimal.s):00008         ; Setup per "Assembly Language Programming for the CoCo3" Ch. 4:
+                      (rc/diag_minimal.s):00009         ;   - $FF90 (Init0): bit 7=0 (CoCo3), bit 6=0 (MMU OFF), bit 3=1 (force $FExx).
+                      (rc/diag_minimal.s):00010         ;   - $FF98 (VMODE): BP=1 (graphics).
+                      (rc/diag_minimal.s):00011         ;   - $FF99 (VRES): VRES=00, HRES=111, CRES=10  →  320×192×16 (Format C).
+                      (rc/diag_minimal.s):00012         ;   - $FF9D/$FF9E (VOFF): phys $072000 (= virtual $2000 with MMU OFF; the
+                      (rc/diag_minimal.s):00013         ;     MMU-off path maps the 64 K virtual range onto the topmost 64 K physical,
+                      (rc/diag_minimal.s):00014         ;     phys $070000-$07FFFF, so virtual $2000 = phys $072000).
+                      (rc/diag_minimal.s):00015         ;   - Palette: 16 distinct 6-bit codes covering R/G/B/luma variations.
+                      (rc/diag_minimal.s):00016         ;   - FB fill: 16 horizontal stripes, each 12 rows tall, filled with byte $NN
+                      (rc/diag_minimal.s):00017         ;     so both pixels = palette idx N.
+                      (rc/diag_minimal.s):00018         ;==============================================================================
+                      (rc/diag_minimal.s):00019         
+                      (rc/diag_minimal.s):00020                 pragma  nodollarlocal,6809
+                      (rc/diag_minimal.s):00021         
+     FF90             (rc/diag_minimal.s):00022         GIME_INIT0  equ  $FF90
+     FF98             (rc/diag_minimal.s):00023         GIME_VMODE  equ  $FF98
+     FF99             (rc/diag_minimal.s):00024         GIME_VRES   equ  $FF99
+     FF9A             (rc/diag_minimal.s):00025         GIME_BORDER equ  $FF9A
+     FF9D             (rc/diag_minimal.s):00026         GIME_VOFF1  equ  $FF9D
+     FF9E             (rc/diag_minimal.s):00027         GIME_VOFF0  equ  $FF9E
+     FFB0             (rc/diag_minimal.s):00028         PAL_BASE    equ  $FFB0
+                      (rc/diag_minimal.s):00029         
+     2000             (rc/diag_minimal.s):00030         FB_VIRT     equ  $2000
+                      (rc/diag_minimal.s):00031         
+                      (rc/diag_minimal.s):00032                 org     $C000
+C000 444B             (rc/diag_minimal.s):00033                 fcc     "DK"            ; cart autostart magic; FIRQ vector → $C002
+                      (rc/diag_minimal.s):00034         
+C002                  (rc/diag_minimal.s):00035         entry
+C002 1A50             (rc/diag_minimal.s):00036                 orcc    #$50            ; mask IRQ + FIRQ
+C004 10CE1FFE         (rc/diag_minimal.s):00037                 lds     #$1FFE          ; stack just below FB
+                      (rc/diag_minimal.s):00038         
+                      (rc/diag_minimal.s):00039                 ; --- Init0: CoCo3 mode, MMU off, all ACVC IRQs off, force $FExx ---
+C008 8608             (rc/diag_minimal.s):00040                 lda     #%00001000
+C00A B7FF90           (rc/diag_minimal.s):00041                 sta     GIME_INIT0
+                      (rc/diag_minimal.s):00042         
+                      (rc/diag_minimal.s):00043                 ; --- VMODE: BP=1 (graphics), LPR=000 ---
+C00D 8680             (rc/diag_minimal.s):00044                 lda     #%10000000
+C00F B7FF98           (rc/diag_minimal.s):00045                 sta     GIME_VMODE
+                      (rc/diag_minimal.s):00046         
+                      (rc/diag_minimal.s):00047                 ; --- VRES: blank screen during setup (CRES=11) ---
+C012 861F             (rc/diag_minimal.s):00048                 lda     #$1F            ; VRES=00 HRES=111 CRES=11 (BLANKED)
+C014 B7FF99           (rc/diag_minimal.s):00049                 sta     GIME_VRES
+                      (rc/diag_minimal.s):00050         
+                      (rc/diag_minimal.s):00051                 ; --- Border: bright pink ($28) so FB extent is obvious ---
+C017 8628             (rc/diag_minimal.s):00052                 lda     #$28
+C019 B7FF9A           (rc/diag_minimal.s):00053                 sta     GIME_BORDER
+                      (rc/diag_minimal.s):00054         
+                      (rc/diag_minimal.s):00055                 ; --- VOFF: FB at phys $072000 (= virtual $2000 with MMU OFF) ---
+                      (rc/diag_minimal.s):00056                 ;   $072000 >> 11 = $E4   → bits 18-11 → $FF9D
+                      (rc/diag_minimal.s):00057                 ;   $072000 >> 3 & $FF = $00 → bits 10-3 → $FF9E
+C01C 86E4             (rc/diag_minimal.s):00058                 lda     #$E4
+C01E B7FF9D           (rc/diag_minimal.s):00059                 sta     GIME_VOFF1
+C021 7FFF9E           (rc/diag_minimal.s):00060                 clr     GIME_VOFF0
+                      (rc/diag_minimal.s):00061         
+                      (rc/diag_minimal.s):00062                 ; --- Load palette ---
+C024 308D0034         (rc/diag_minimal.s):00063                 leax    palette_table,pcr
+C028 108EFFB0         (rc/diag_minimal.s):00064                 ldy     #PAL_BASE
+C02C C610             (rc/diag_minimal.s):00065                 ldb     #16
+C02E A680             (rc/diag_minimal.s):00066         palloop lda     ,x+
+C030 A7A0             (rc/diag_minimal.s):00067                 sta     ,y+
+C032 5A               (rc/diag_minimal.s):00068                 decb
+C033 26F9             (rc/diag_minimal.s):00069                 bne     palloop
+                      (rc/diag_minimal.s):00070         
+                      (rc/diag_minimal.s):00071                 ; --- Fill FB with 16 horizontal stripes ---
+                      (rc/diag_minimal.s):00072                 ;   12 rows × 80 STDs/row = 960 STDs per stripe.
+                      (rc/diag_minimal.s):00073                 ;   Stripe N filled with byte $NN (palette idx N in both pixels).
+C035 8E2000           (rc/diag_minimal.s):00074                 ldx     #FB_VIRT
+C038 CE0000           (rc/diag_minimal.s):00075                 ldu     #$0000
+C03B 4F               (rc/diag_minimal.s):00076                 clra
+C03C                  (rc/diag_minimal.s):00077         stripe_outer
+C03C 3402             (rc/diag_minimal.s):00078                 pshs    a
+C03E 108E03C0         (rc/diag_minimal.s):00079                 ldy     #960
+C042 1F30             (rc/diag_minimal.s):00080                 tfr     u,d
+C044                  (rc/diag_minimal.s):00081         inner_str
+C044 ED81             (rc/diag_minimal.s):00082                 std     ,x++
+C046 313F             (rc/diag_minimal.s):00083                 leay    -1,y
+C048 26FA             (rc/diag_minimal.s):00084                 bne     inner_str
+C04A 33C91111         (rc/diag_minimal.s):00085                 leau    $1111,u
+C04E 3502             (rc/diag_minimal.s):00086                 puls    a
+C050 4C               (rc/diag_minimal.s):00087                 inca
+C051 8110             (rc/diag_minimal.s):00088                 cmpa    #16
+C053 25E7             (rc/diag_minimal.s):00089                 blo     stripe_outer
+                      (rc/diag_minimal.s):00090         
+                      (rc/diag_minimal.s):00091                 ; --- Unblank: CRES=10 (16-color, Format C) ---
+C055 861E             (rc/diag_minimal.s):00092                 lda     #$1E
+C057 B7FF99           (rc/diag_minimal.s):00093                 sta     GIME_VRES
+                      (rc/diag_minimal.s):00094         
+C05A 20FE             (rc/diag_minimal.s):00095         halt    bra     halt
+                      (rc/diag_minimal.s):00096         
+                      (rc/diag_minimal.s):00097         ;==============================================================================
+                      (rc/diag_minimal.s):00098         ; Palette — 16 distinct 6-bit codes.
+                      (rc/diag_minimal.s):00099         ; Indices 0-7 cover the bright primaries + black/white.
+                      (rc/diag_minimal.s):00100         ; Indices 8-15 cover the dim primaries + greys.
+                      (rc/diag_minimal.s):00101         ;==============================================================================
+C05C                  (rc/diag_minimal.s):00102         palette_table
+C05C 00               (rc/diag_minimal.s):00103                 fcb     $00     ; 0  black     (RGBrgb = 000 000)
+C05D 20               (rc/diag_minimal.s):00104                 fcb     $20     ; 1  bright R  (R'      = 100 000)
+C05E 10               (rc/diag_minimal.s):00105                 fcb     $10     ; 2  bright G  (G'      = 010 000)
+C05F 08               (rc/diag_minimal.s):00106                 fcb     $08     ; 3  bright B  (B'      = 001 000)
+C060 30               (rc/diag_minimal.s):00107                 fcb     $30     ; 4  R'+G'    = yellow
+C061 18               (rc/diag_minimal.s):00108                 fcb     $18     ; 5  G'+B'    = cyan
+C062 28               (rc/diag_minimal.s):00109                 fcb     $28     ; 6  R'+B'    = magenta
+C063 38               (rc/diag_minimal.s):00110                 fcb     $38     ; 7  R'+G'+B' = white-ish (bright only)
+C064 04               (rc/diag_minimal.s):00111                 fcb     $04     ; 8  dim R
+C065 02               (rc/diag_minimal.s):00112                 fcb     $02     ; 9  dim G
+C066 01               (rc/diag_minimal.s):00113                 fcb     $01     ; 10 dim B
+C067 06               (rc/diag_minimal.s):00114                 fcb     $06     ; 11 dim yellow
+C068 03               (rc/diag_minimal.s):00115                 fcb     $03     ; 12 dim cyan
+C069 05               (rc/diag_minimal.s):00116                 fcb     $05     ; 13 dim magenta
+C06A 07               (rc/diag_minimal.s):00117                 fcb     $07     ; 14 dim white = dark grey
+C06B 3F               (rc/diag_minimal.s):00118                 fcb     $3F     ; 15 full white (all bits set)
+                      (rc/diag_minimal.s):00119         
+                      (rc/diag_minimal.s):00120                 end
