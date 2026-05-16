@@ -38,6 +38,7 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 - [implementation/memory-map.md](implementation/memory-map.md) — physical/virtual page layout, 32 K cart image structure, boot data-copy procedure, Phase 4 sprite-data open question
 - [implementation/scheduler.md](implementation/scheduler.md) — TCB round-robin scheduler — _candidate pattern, not committed_
 - [implementation/lessons-learned.md](implementation/lessons-learned.md) — observed-fact findings; DoD anti-patterns we won't copy
+- [implementation/emulator-monitor-tester.md](implementation/emulator-monitor-tester.md) — requirements for the 4-WS tester+webapp initiative (tester ROM, live FB, mapped regions, mode matrix)
 - `implementation/build-workflow.md` — _(superseded by [tooling/build-workflow.md](tooling/build-workflow.md))_
 
 ## Sources
