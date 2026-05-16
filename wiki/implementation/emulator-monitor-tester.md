@@ -109,6 +109,7 @@ The earlier draft of this initiative assumed a software "shadow block" for the w
 ## Sequencing
 
 1. **Probe** (gates everything): empirical `$FF98/9` read test → record finding → pick option 1/2/3.
+   **Resolved 2026-05-16: Option 2 (ProgramStateStrategy).** XRoar's gdb stub returns sentinel `$1B` for every read of `$FF90` and `$FF98..$FF9E` regardless of writes; palette and PARs read back correctly so the channel is sound. See [lessons-learned.md §"XRoar gdb readback of GIME write-only registers"](lessons-learned.md). Probe artifact: [web/scripts/probe_gime_readback.py](../../web/scripts/probe_gime_readback.py).
 2. **WS-A**: tester v0 ROM, single mode, two patterns, IRQ-driven keyboard, mode-visibility per probe outcome.
 3. **WS-B**: live FB renderer using WS-A's mode-visibility mechanism, single mode supported.
 4. **WS-C**: regions feature, hex-viewer baseline. Can parallelize with WS-D after WS-A.

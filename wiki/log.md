@@ -326,3 +326,9 @@ Updated [`index.md`](index.md) for the new pages.
 ## [2026-05-07] decision | Bare-metal boot strategy locked
 
 Documented the Ladybug boot path: cartridge ROM at `$C000`, control taken via the BASIC reset-init's CART → PIA2 CB1 → FIRQ handshake, then immediate switch to all-RAM mode + 1.78 MHz clock + ACVC Vbord IRQ for the 60 Hz tick. We will not depend on BASIC's PIA initialisation; we re-init both PIAs ourselves. Init0 bit 3 will be set so the primary IRQ jump table at `$FEEE-$FEFF` remains reachable independently of PAR7. Rationale captured in [`platform/cartridge.md`](platform/cartridge.md).
+
+---
+
+## [2026-05-16] probe | WS-A GIME-readback gate resolved → Option 2
+
+Ran [`web/scripts/probe_gime_readback.py`](../web/scripts/probe_gime_readback.py) against a live `build/diag.rom` instance. XRoar's gdb stub returns sentinel `$1B` for every read of `$FF90` and `$FF98..$FF9E` regardless of writes; palette `$FFB0..$FFBF` reads back exactly, PARs `$FFA0..$FFA7` return reset-state `38..3F`. Option 1 (DirectReadStrategy) eliminated. **WS-A adopts Option 2 (ProgramStateStrategy)** — tester ROM will export `tester_mode_idx` + `tester_mode_table`. Finding recorded in [`implementation/lessons-learned.md`](implementation/lessons-learned.md); sequencing note added to [`implementation/emulator-monitor-tester.md`](implementation/emulator-monitor-tester.md) step 1.

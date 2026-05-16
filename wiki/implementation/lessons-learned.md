@@ -279,6 +279,20 @@ The boot model from [memory-map.md](memory-map.md) — "self-copy `$C000-$FEFF` 
 
 ---
 
+## XRoar gdb readback of GIME write-only registers
+
+Filed 2026-05-16.
+
+XRoar's gdb stub does **not** snoop write-only register writes. Reads of `$FF90` and `$FF98..$FF9E` all return the same fixed sentinel byte `$1B` regardless of what the program wrote — confirmed against a running `build/diag.rom` (built from [diag_minimal.s](../../src/diag_minimal.s)) after it wrote `$FF90=$08, $FF98=$80, $FF99=$1E, $FF9A=$28, $FF9D=$E4, $FF9E=$00` and halted in its `bra halt` self-loop. The gdb channel itself is sound: the 16-byte palette at `$FFB0..$FFBF` reads back byte-for-byte, and the PARs at `$FFA0..$FFA7` return the GIME reset state `38 39 3A 3B 3C 3D 3E 3F` (linear-64K mapping; PARs are R/W).
+
+**Why:** real GIME registers in the `$FF90/$FF98..$FF9E` block are write-only; XRoar's stub does not maintain a shadow on the host side, so reads pass through to whatever the emulator returns for inaccessible bus addresses (here, a fixed `$1B`). Same as on real hardware — there is no readback path in silicon either.
+
+**Applies to:** WS-A of the [emulator-monitor-tester](emulator-monitor-tester.md) initiative — the decision gate between strategy options 1/2/3 for GIME-state visibility. **Option 1 (DirectReadStrategy) is not viable on XRoar.** Decision: WS-A adopts **Option 2 (ProgramStateStrategy)** — the tester ROM exports `tester_mode_idx` + `tester_mode_table` symbols and the backend reads program state via those symbols. Option 3 (software shadow block) remains available for future generalization but is not needed for the tester.
+
+**Citation:** probe script [web/scripts/probe_gime_readback.py](../../web/scripts/probe_gime_readback.py); writes performed at [src/diag_minimal.s:39-93](../../src/diag_minimal.s); strategy table in [emulator-monitor-tester.md §WS-A](emulator-monitor-tester.md).
+
+---
+
 ## Format for future entries
 
 ```
