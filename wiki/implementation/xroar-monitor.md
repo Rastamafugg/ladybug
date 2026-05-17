@@ -138,6 +138,14 @@ Tracked from QA review 2026-05-17. None block M2.
 - **`-gdb` + `-monitor` simultaneous activation**: when both are enabled, [`coco3.c`](../../docs/reference/xroar/src/coco3.c) gives gdb precedence in the run loop; monitor's `pause`/`run` then silently no-op on the CPU (the JSON-RPC layer still responds). Consistent with plan §Concurrency declaring the combination "unsupported", and arguably safer than the plan's "undefined" — but worth documenting for users. Either fail loudly at startup if both flags are set, or wire monitor's gate inside the gdb-running branch. Defer until a real need surfaces.
 - **`coco3.c` delta vs plan estimate**: plan said "Two lines". Actual is ~31 lines (include + struct field + new + free + run-loop gate). The run-loop gate is architecturally required for `pause`/`run` to actually halt the CPU — gdb has the same shape via `gdb_run_lock`. Total existing-file delta across all 5 files is ~65 lines instead of the planned ~35. Recording for accuracy; no action needed.
 
+## M2 carry-forwards
+
+Tracked from M2 implementation 2026-05-17.
+
+- **`read_only_region` error not implemented yet.** Plan §"Write semantics by address space" specifies that CPU-space writes to ROM-backed addresses should return `read_only_region` after a bus-state precheck (S/RAS signals). M2 instead lets `machine->write_byte` go through unconditionally — if it lands on a no-op ROM bank, the client just observes the read-back not matching. Real GIME-state inspection arrives in M3 (`read_gime_state`); the precheck becomes implementable then. Target: M3 (`-32002` `read_only_region`).
+- **No size cap on `read_registers` / `write_registers` envelopes**. The 6809 register set is small enough (~30 bytes encoded JSON) that this is fine; mentioning for completeness.
+- **Run-state contract — read concurrency.** Reads execute on the socket thread without taking the run-state mutex. The plan's note "XRoar is single-threaded relative to monitor commands" is interpreted as a soft guarantee — gdb.c does the same and has been stable for years. If we ever see a torn 16-bit register read mid-instruction, lift this to a mutex grab.
+
 ## Open follow-ups (not blockers for Phase 2)
 
 - MAME comparison test of the cart-ROM-to-RAM copy — see [backlog/mame-cart-ram-comparison.md](../backlog/mame-cart-ram-comparison.md). Confirms whether the RAM-under-ROM write-through is faithfully modeled in a second emulator (expected: yes, MAME's CoCo 3 driver is the most thorough open-source model).
@@ -201,7 +209,7 @@ Each is its own conversation, closing in `qa-reviewer`. Test clients land at `we
 | M | Scope | Test |
 |-|-|-|
 | **M1** ✅ (2026-05-17) | Listener boots; hello handshake; `get_run_state` / `run` / `pause`. No memory access yet. | [`probe_monitor_m1.py`](../../web/scripts/probe_monitor_m1.py) — connect, read hello, assert `halted`, `run`, assert `running`, `pause`, disconnect. **Green first run; 7 sub-tests including -32601/-32700 failure modes and reconnect state preservation.** |
-| **M2** | `read_memory` / `write_memory` (CPU space); `read_registers` / `write_registers`. Halted-only enforcement. | `probe_monitor_m2.py` — round-trip RAM in `$FE00-$FEFF`; verify `target_running` error on write-while-running. |
+| **M2** ✅ (2026-05-17) | `read_memory` / `write_memory` (CPU space); `read_registers` / `write_registers`. Halted-only enforcement. | [`probe_monitor_m2.py`](../../web/scripts/probe_monitor_m2.py) — round-trip RAM in `$FE00-$FEFF`; verify `target_running` error on write-while-running. **Green; 7 sub-tests including space-guard, length-cap, addr-range, and run-while-write-allowed checks.** |
 | **M3** | `read_gime_state` shadow-backed (no `$1B` sentinel, no `$C0` palette OR). Physical-space memory R/W. | `probe_monitor_m3.py` — write `$5A` to phys page `$3E` via `space="physical"`, flip `TY=1`, CPU-read `$C000`, assert `$5A`. Closes the cart-shadow no-op loop. |
 | **M4** | Breakpoints (incl. at-current-PC); `step_instruction`; `wait_for_stop`. | `probe_monitor_m4.py` — BP at known cart entry, step past, run, expect `stopped`. |
 | **M5** | `reset`, `attach`/`detach` (multi-reconnect), client-disconnect-leaves-halted. | `probe_monitor_m5.py` — connect/halt/disconnect/reconnect cycle; reset clears BPs. |
