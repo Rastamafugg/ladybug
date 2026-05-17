@@ -350,6 +350,36 @@ The author's comment at [`coco3.c:1242-1253`](../../docs/reference/xroar/src/coc
 
 ---
 
+## Nested Unix repo on Windows: disable `core.autocrlf` before WSL build
+
+Filed 2026-05-17 during Phase 3 M1 XRoar bring-up.
+
+The nested XRoar checkout under [`docs/reference/xroar/`](../../docs/reference/xroar/) was cloned on Windows with the global default `core.autocrlf=true`, which rewrites LF→CRLF in the working tree. The first WSL build attempt died immediately:
+
+```
+$ ./autogen.sh
+bash: ./autogen.sh: /bin/sh^M: bad interpreter: No such file or directory
+```
+
+`autogen.sh`, `configure`, libtool helpers, and many other shell scripts in autotools projects are sourced as `/bin/sh` under WSL — CRLF line endings make the kernel try to load `/bin/sh\r` as the interpreter, which doesn't exist.
+
+**Fix (per nested repo):**
+```
+git config core.autocrlf false
+git rm --cached -rq .
+git reset --hard HEAD
+```
+
+This is local to the nested repo, so the parent Ladybug repo's autocrlf behavior is unchanged. After the reset, `file autogen.sh` reports `POSIX shell script, ASCII text executable` (no CRLF) and the build proceeds.
+
+**Why:** Windows-native git tooling treats LF/CRLF as a presentation concern, but Linux interpreters treat `\r` as part of the path. WSL bridges both worlds, so any nested repo whose build runs under WSL must keep LF endings on disk.
+
+**Applies to:** any nested third-party Unix project we vendor for WSL build (currently just XRoar; future candidates: MAME for the cart-RAM comparison test). Set `core.autocrlf=false` at clone time.
+
+**Citation:** XRoar bring-up under WSL, [log.md 2026-05-17 entry](../log.md).
+
+---
+
 ## Format for future entries
 
 ```

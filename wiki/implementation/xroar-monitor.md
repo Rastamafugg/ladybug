@@ -129,6 +129,15 @@ The CoCo 3 has no MMU in the modern sense. It has the GIME's MMU task register +
 - Persistent BP conditions / scripting
 - Hot-reload of the monitor stub
 
+## M1 carry-forwards (deferred to later milestones)
+
+Tracked from QA review 2026-05-17. None block M2.
+
+- **`goodbye` notification on XRoar shutdown** (plan §Lifecycle). `monitor_interface_free` currently tears down the socket without notifying the client. Target: M5 (`reset`, `attach`/`detach`, multi-reconnect work).
+- **Concurrent multi-client support** (plan §Failure modes: "multi-client commands serialize globally on the emu thread"). The accept thread currently handles one connection inline before accepting the next. Target: M5 or M6.
+- **`-gdb` + `-monitor` simultaneous activation**: when both are enabled, [`coco3.c`](../../docs/reference/xroar/src/coco3.c) gives gdb precedence in the run loop; monitor's `pause`/`run` then silently no-op on the CPU (the JSON-RPC layer still responds). Consistent with plan §Concurrency declaring the combination "unsupported", and arguably safer than the plan's "undefined" — but worth documenting for users. Either fail loudly at startup if both flags are set, or wire monitor's gate inside the gdb-running branch. Defer until a real need surfaces.
+- **`coco3.c` delta vs plan estimate**: plan said "Two lines". Actual is ~31 lines (include + struct field + new + free + run-loop gate). The run-loop gate is architecturally required for `pause`/`run` to actually halt the CPU — gdb has the same shape via `gdb_run_lock`. Total existing-file delta across all 5 files is ~65 lines instead of the planned ~35. Recording for accuracy; no action needed.
+
 ## Open follow-ups (not blockers for Phase 2)
 
 - MAME comparison test of the cart-ROM-to-RAM copy — see [backlog/mame-cart-ram-comparison.md](../backlog/mame-cart-ram-comparison.md). Confirms whether the RAM-under-ROM write-through is faithfully modeled in a second emulator (expected: yes, MAME's CoCo 3 driver is the most thorough open-source model).
@@ -191,7 +200,7 @@ Each is its own conversation, closing in `qa-reviewer`. Test clients land at `we
 
 | M | Scope | Test |
 |-|-|-|
-| **M1** | Listener boots; hello handshake; `get_run_state` / `run` / `pause`. No memory access yet. | `probe_monitor_m1.py` — connect, read hello, assert `halted`, `run`, assert `running`, `pause`, disconnect. |
+| **M1** ✅ (2026-05-17) | Listener boots; hello handshake; `get_run_state` / `run` / `pause`. No memory access yet. | [`probe_monitor_m1.py`](../../web/scripts/probe_monitor_m1.py) — connect, read hello, assert `halted`, `run`, assert `running`, `pause`, disconnect. **Green first run; 7 sub-tests including -32601/-32700 failure modes and reconnect state preservation.** |
 | **M2** | `read_memory` / `write_memory` (CPU space); `read_registers` / `write_registers`. Halted-only enforcement. | `probe_monitor_m2.py` — round-trip RAM in `$FE00-$FEFF`; verify `target_running` error on write-while-running. |
 | **M3** | `read_gime_state` shadow-backed (no `$1B` sentinel, no `$C0` palette OR). Physical-space memory R/W. | `probe_monitor_m3.py` — write `$5A` to phys page `$3E` via `space="physical"`, flip `TY=1`, CPU-read `$C000`, assert `$5A`. Closes the cart-shadow no-op loop. |
 | **M4** | Breakpoints (incl. at-current-PC); `step_instruction`; `wait_for_stop`. | `probe_monitor_m4.py` — BP at known cart entry, step past, run, expect `stopped`. |
