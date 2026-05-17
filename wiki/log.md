@@ -4,6 +4,26 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-17] milestone | Phase 3 M6a — thread-per-client, events.subscribe, watchpoints, inject_text
+
+Largest Phase 3 milestone. Three architectural pieces plus two leaf capabilities.
+
+**Thread-per-client refactor** ([monitor.c](../docs/reference/xroar/src/monitor.c)). `handle_tcp_sock` accept loop now spawns a detached worker thread per accepted connection, each owning a `struct monitor_client` (fd, write_mt, sub_mask, dropped_events, prev/next links). Clients live in a doubly-linked list under `mip->clients_mt`. `monitor_interface_free` drains by broadcasting goodbye to each client, `shutdown(SHUT_RDWR)` to wake their reads, then `pthread_cancel` siblings (skipping self if free was invoked via the quit→exit→atexit chain inside one of the workers). Listen backlog raised 1 → 8. The 59 `send_json(fd, ...)` call sites were refactored to `send_json(fd, write_mt, ...)` so each write acquires the per-client mutex; replies and emu-thread-pushed events never interleave bytes on the wire.
+
+**`events.subscribe`** with bitmask. Kinds: `vbord` (TCC1014 signal_fs rising edge — chained delegate that calls coco3's existing gime_fs first), `bp` (broadcast inside `monitor_mark_stopped` after the wait_for_stop wake), `reset` (the existing reset method's notification, repointed from single-fd to broadcast). `hsync` reserved in the enum but **not wired** — 15.7 kHz would dominate trylock cycles; deferred. State_loaded + machine_changed similarly reserved for M6b's snapshot/machine-switch sites. Events use `pthread_mutex_trylock` on each subscriber's write_mt so a slow consumer doesn't stall the emu thread; misses are counted in `dropped_events`.
+
+**Watchpoints** via `bp_wp_add_range` (always-available, sibling of the gdb-gated `bp_wp_add`). Mirror of M4's BP table: `struct monitor_wp` with id + addr_lo/addr_hi + type (BP_WP_READ/WRITE/ACCESS); halted-only set/clear; list permitted while running. WP fires surface as `reason="breakpoint"` with `bp_id=0` — clients distinguish via the PC falling inside a `list_watchpoints` range. `monitor_bps_clear_locked` (used by reset and free) now drops WPs alongside BPs.
+
+**`inject_text`** via auto_kbd's `ak_type_string_len` / `ak_parse_type_string`. Reshaped from plan's `inject_key(coco_key, kind=down|up|tap)` per architect pass — auto_kbd is XRoar's existing type-ahead primitive and offers string injection, not per-key timing. The architect-flagged caveat is now observed in practice: auto_kbd installs character-injection breakpoints only when XRoar's CRC list recognizes the BASIC ROM; default `-machine coco3` with no ROM provided to our test config plumbs but doesn't echo. Filed as a carry-forward; downstream consumers can supply a matched ROM.
+
+**`MONITOR_PROTOCOL_VERSION`** 0.5.0 → 0.6.0.
+
+Probe [probe_monitor_m6.py](../web/scripts/probe_monitor_m6.py) green, 7 tests: vbord at 92 events/1.5 s (matches 60 Hz NTSC), bp event delivered with bp_id, reset reply + event delivered, **two concurrent clients both receive a reset broadcast** (multi-client capability proven end-to-end), WP fires on BASIC's DP-region write at PC=$80C3, inject_text accepted (full-echo skipped per ROM CRC caveat), `events.subscribe([])` clears mask. Closes the M1 carry-forward on concurrent multi-client.
+
+**Carry-forwards filed in xroar-monitor.md M6a section.** **Phase 3 status**: core (M1-M5) + M6a done. M6b remaining (screen_capture, snapshot_save/load) is SHOULD-tier polish; the gdb-stub-replacement contract is fully met.
+
+---
+
 ## [2026-05-17] milestone | Phase 3 M5 — `-monitor` lifecycle (reset, attach/detach, quit, goodbye)
 
 Four new methods in [monitor.c](../docs/reference/xroar/src/monitor.c): `reset(kind="soft"|"hard")` (halted-only; clears all monitor BPs via shared `monitor_bps_clear_locked` helper; calls `machine->reset(m, hard)`; emits async `reset` event notification on the requester's fd), `attach()` (idempotent ceremony returning hello-shaped fields), `detach()` (replies ok then drives `handle_connection` to close the fd cleanly), `quit()` (replies ok then `exit(0)` triggers XRoar's atexit → `xroar_shutdown` → `part_free` → `coco3_free` → `monitor_interface_free` → `send_goodbye_best_effort`). `MONITOR_PROTOCOL_VERSION` 0.4.0 → 0.5.0.

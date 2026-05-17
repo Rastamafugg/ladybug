@@ -134,9 +134,22 @@ The CoCo 3 has no MMU in the modern sense. It has the GIME's MMU task register +
 Tracked from QA review 2026-05-17. None block M2.
 
 - ~~**`goodbye` notification on XRoar shutdown**~~ — **DONE in M5**. Triggered via clean exit (`atexit` → `xroar_shutdown` → `part_free` → `coco3_free` → `monitor_interface_free` → `send_goodbye_best_effort`). New `quit` JSON-RPC method makes this externally triggerable.
-- **Concurrent multi-client support** (plan §Failure modes: "multi-client commands serialize globally on the emu thread"). The accept thread currently handles one connection inline before accepting the next. Target: M5 or M6.
+- ~~**Concurrent multi-client support**~~ — **DONE in M6a**. Accept thread spawns detached worker per client; per-fd `write_mt` serializes bytes; event broadcasts use trylock to avoid stalling on slow consumers.
 - **`-gdb` + `-monitor` simultaneous activation**: when both are enabled, [`coco3.c`](../../docs/reference/xroar/src/coco3.c) gives gdb precedence in the run loop; monitor's `pause`/`run` then silently no-op on the CPU (the JSON-RPC layer still responds). Consistent with plan §Concurrency declaring the combination "unsupported", and arguably safer than the plan's "undefined" — but worth documenting for users. Either fail loudly at startup if both flags are set, or wire monitor's gate inside the gdb-running branch. Defer until a real need surfaces.
 - **`coco3.c` delta vs plan estimate**: plan said "Two lines". Actual is ~31 lines (include + struct field + new + free + run-loop gate). The run-loop gate is architecturally required for `pause`/`run` to actually halt the CPU — gdb has the same shape via `gdb_run_lock`. Total existing-file delta across all 5 files is ~65 lines instead of the planned ~35. Recording for accuracy; no action needed.
+
+## M6a carry-forwards
+
+Tracked from M6a implementation 2026-05-17.
+
+- **Multi-client architecture is now in place.** `handle_tcp_sock` accept loop spawns one detached worker thread per client; each worker owns a `struct monitor_client` containing fd, write_mt (per-fd byte serialization), sub_mask (event filter). Clients are linked under `mip->clients_mt`. Listen backlog raised 1 → 8.
+- **Event push avoids stalling the emu thread** via `pthread_mutex_trylock` on each client's `write_mt`. Slow consumers see their events dropped (counted in `dropped_events`, reported by `events.subscribe` reply).
+- **`hsync` event kind reserved but not wired.** 15.7 kHz tick rate would dominate the trylock loop; deferred until a concrete consumer asks for it. Bitmask value `MONITOR_EV_VBORD` covers 60 Hz which is plenty for golden-image work.
+- **`inject_text` end-to-end depends on a CRC-matched BASIC ROM.** XRoar's auto_kbd installs its character-injection breakpoints by recognizing the BASIC ROM via a CRC list ([auto_kbd.h:20-21](../../docs/reference/xroar/src/auto_kbd.h)). The default `-machine coco3` config in our test setup doesn't ship a recognized ROM, so the probe verifies the *plumbing* (call succeeds, length echoed) but doesn't assert screen-RAM content. If a downstream consumer needs real key injection, supply `-extbas /path/to/extbas.rom -bas /path/to/bas.rom` matching XRoar's CRC table.
+- **Watchpoints share `bp_session` with breakpoints.** When a WP fires it surfaces as `reason="breakpoint"` with `bp_id=0` (no PC match in the BP table). For M6a clients can distinguish via the `wait_for_stop.pc` (which may be inside any of the WP ranges from `list_watchpoints`). M6b could differentiate explicitly if desired.
+- **`signal_fs` chained delegate is single-instance.** Assumes one `monitor_interface` per XRoar process — matches v1 deployment. If we ever support multiple monitor instances or multiple machines in one process, the file-static-ish fs_chain pointer plumbing in `monitor_interface_private` needs revisiting.
+- **`monitor_interface_free` self-thread case generalizes from M5.** When called from inside any worker thread (via quit → exit → atexit chain), that worker is the one calling `pthread_cancel`/`join` on its siblings; doesn't cancel/join itself. Process exit reaps it.
+- **Deferred to M6b:** `screen_capture` (framebuffer access via vo_interface; raw vs PNG); `snapshot_save`/`snapshot_load` (via XRoar's snapshot.c serializer); `state_loaded` + `machine_changed` event emitter sites.
 
 ## M5 carry-forwards
 
@@ -237,7 +250,8 @@ Each is its own conversation, closing in `qa-reviewer`. Test clients land at `we
 | **M3** ✅ (2026-05-17) | `read_gime_state` shadow-backed (no `$1B` sentinel, no `$C0` palette OR). Physical-space memory R/W. | [`probe_monitor_m3.py`](../../web/scripts/probe_monitor_m3.py) — write `$5A` to phys page `$3E` via `space="physical"`, flip `TY=1`, CPU-read `$C000`, assert `$5A`. **Closes the cart-shadow no-op loop, green first run.** Includes MC3-poll helper that replaces M2's fixed `sleep(2.0)`. |
 | **M4** ✅ (2026-05-17) | Breakpoints (incl. at-current-PC); `step_instruction`; `wait_for_stop`. | [`probe_monitor_m4.py`](../../web/scripts/probe_monitor_m4.py) — at-current-PC BP fires before the instruction executes (closes the documented gdb-stub failure case), `step_instruction(N)` batches N steps into one stop event, `wait_for_stop` returns clean `timeout`. **Green first run; 7 sub-tests.** |
 | **M5** ✅ (2026-05-17) | `reset`, `attach`/`detach` (multi-reconnect), client-disconnect-leaves-halted, `goodbye` on shutdown, `quit` for clean exit. | [`probe_monitor_m5.py`](../../web/scripts/probe_monitor_m5.py) — connect/halt/set-BP/reset/verify-cleared + detach/reconnect + quit → goodbye. **Green; 6 sub-tests; closes M1 carry-forward on goodbye.** |
-| **M6** (SHOULD) | `screen_capture`, `inject_key`, snapshot save/load, `events.subscribe`. | One probe per capability. |
+| **M6a** ✅ (2026-05-17) | Thread-per-client refactor, `events.subscribe` (vbord/bp/reset; hsync deferred for 15.7 kHz emu-stall risk), `set_watchpoint`/`clear_watchpoint`/`list_watchpoints`, `inject_text` (reshaped from plan's `inject_key`). | [`probe_monitor_m6.py`](../../web/scripts/probe_monitor_m6.py) — 7 tests: vbord at 60 Hz, bp event on fire, reset broadcast, **two clients both receive reset event** (multi-client closure), WP fires on BASIC's DP-write, inject_text plumbing, unsubscribe. |
+| **M6b** (SHOULD, deferred) | `screen_capture(format)`, `snapshot_save`/`snapshot_load`, `state_loaded`/`machine_changed` event emit sites. | One probe per capability. |
 
 Web-backend ([instance.py](../../web/backend/instance.py)) integration of the monitor is a follow-up after M5/M6, not part of Phase 3.
 
