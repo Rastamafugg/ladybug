@@ -25,7 +25,7 @@ class InstanceSummary(BaseModel):
     id: str
     name: str
     state: InstanceState
-    gdb_port: int
+    monitor_port: int
     rom_path: str
     pc: Optional[int] = None
 

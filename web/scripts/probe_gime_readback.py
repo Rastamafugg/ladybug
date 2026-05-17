@@ -22,9 +22,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from web.backend.gdb_session import GdbSession, GdbError  # noqa: E402
+from web.backend.monitor_session import MonitorSession, MonitorError  # noqa: E402
 
-XROAR_BIN = "/usr/local/bin/xroar"
+import os
+XROAR_BIN = os.environ.get(
+    "XROAR_BIN",
+    str(REPO_ROOT / "docs" / "reference" / "xroar" / "build" / "xroar-monitor"),
+)
 ROM = REPO_ROOT / "build" / "diag.rom"
 
 EXPECTED = {
@@ -54,7 +58,7 @@ async def run() -> int:
         print(f"FAIL: rom not found: {ROM}", file=sys.stderr)
         return 2
     port = pick_port()
-    print(f"probe: launching xroar on gdb port {port}")
+    print(f"probe: launching xroar-monitor on monitor port {port}")
     proc = await asyncio.create_subprocess_exec(
         XROAR_BIN,
         "-machine", "coco3",
@@ -64,31 +68,29 @@ async def run() -> int:
         "-cart-rom", str(ROM),
         "-cart-autorun",
         "-tv-input", "rgb",
-        "-gdb",
-        "-gdb-ip", "127.0.0.1",
-        "-gdb-port", str(port),
+        "-monitor", f"127.0.0.1:{port}",
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
     try:
         await asyncio.sleep(4.0)  # boot + autorun
-        gdb = GdbSession(port)
-        await gdb.attach()
+        mon = MonitorSession(port)
+        await mon.attach()
         try:
             # diag_minimal halts in `bra halt`. Interrupt to ensure we stop
             # somewhere in that loop with all writes long since committed.
             try:
-                await gdb.interrupt()
+                await mon.interrupt()
                 await asyncio.sleep(0.3)
-            except GdbError:
+            except MonitorError:
                 pass
 
-            ff90 = (await gdb.read_memory(0xFF90, 1))[0]
-            ff98_9e = await gdb.read_memory(0xFF98, 7)  # $FF98..$FF9E
-            ffa0 = await gdb.read_memory(0xFFA0, 8)
-            ffb0 = await gdb.read_memory(0xFFB0, 16)
+            ff90 = (await mon.read_memory(0xFF90, 1))[0]
+            ff98_9e = await mon.read_memory(0xFF98, 7)  # $FF98..$FF9E
+            ffa0 = await mon.read_memory(0xFFA0, 8)
+            ffb0 = await mon.read_memory(0xFFB0, 16)
         finally:
-            await gdb.detach()
+            await mon.detach()
     finally:
         if proc.returncode is None:
             proc.terminate()

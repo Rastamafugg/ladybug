@@ -1,16 +1,26 @@
-"""One managed XRoar instance: process + GDB session + WS subscribers."""
+"""One managed XRoar instance: process + monitor session + WS subscribers."""
 from __future__ import annotations
 import asyncio
-import socket
+import os
 import uuid
 from pathlib import Path
 from typing import Optional
 
-from .gdb_session import GdbSession, GdbError
+from .monitor_session import MonitorError, MonitorSession
 from .models import InstanceState, InstanceSummary, WsEvent
 
 
-XROAR_BIN = "/usr/local/bin/xroar"
+# Default points at the Phase 3 patched binary built in WSL under the
+# nested XRoar tree. Override with `XROAR_BIN` for development against a
+# different build (e.g. system /usr/local/bin/xroar-monitor after install).
+DEFAULT_XROAR_BIN = "docs/reference/xroar/build/xroar-monitor"
+
+
+def _resolve_xroar_bin(project_root: Path) -> str:
+    env = os.environ.get("XROAR_BIN")
+    if env:
+        return env
+    return str(project_root / DEFAULT_XROAR_BIN)
 
 
 class Instance:
@@ -18,22 +28,22 @@ class Instance:
         self,
         name: str,
         rom_path: str,
-        gdb_port: int,
+        monitor_port: int,
         project_root: Path,
         extra_flags: Optional[list] = None,
     ):
         self.id = uuid.uuid4().hex[:8]
         self.name = name
         self.rom_path = rom_path
-        self.gdb_port = gdb_port
+        self.monitor_port = monitor_port
         self.project_root = project_root
         self.extra_flags = list(extra_flags or [])
         self.state = InstanceState.CREATING
         self.pc: Optional[int] = None
-        self.gdb = GdbSession(
-            gdb_port,
-            on_async=self._on_gdb_async,
-            on_log=self._on_gdb_log,
+        self.session = MonitorSession(
+            monitor_port,
+            on_async=self._on_monitor_async,
+            on_log=self._on_monitor_log,
         )
         self._proc: Optional[asyncio.subprocess.Process] = None
         self._xroar_log_task: Optional[asyncio.Task] = None
@@ -42,8 +52,9 @@ class Instance:
     # ---- lifecycle ----------------------------------------------------
 
     def launch_cmd(self):
+        xroar_bin = _resolve_xroar_bin(self.project_root)
         return [
-            XROAR_BIN,
+            xroar_bin,
             "-machine", "coco3",
             "-ram", "512",
             "-cart", "ladybug",
@@ -51,9 +62,8 @@ class Instance:
             "-cart-rom", str(self.project_root / self.rom_path),
             "-cart-autorun",
             "-tv-input", "rgb",
-            "-gdb",
-            "-gdb-ip", "127.0.0.1",
-            "-gdb-port", str(self.gdb_port),
+            "-monitor", f"127.0.0.1:{self.monitor_port}",
+            "-monitor-halt-on-start",
             *self.extra_flags,
         ]
 
@@ -68,36 +78,38 @@ class Instance:
                 stdin=asyncio.subprocess.DEVNULL,
             )
         except FileNotFoundError as e:
-            await self._emit("log", {"text": f"xroar launch failed: {e}"})
+            await self._emit("log", {"text": f"xroar-monitor launch failed: {e}"})
             await self._set_state(InstanceState.CRASHED)
             return
 
         self._xroar_log_task = asyncio.create_task(self._pump_xroar_log())
 
-        # XRoar's gdb stub gets confused if we probe-connect then disconnect
-        # before the real attach — give it a few seconds to come up and avoid
-        # any TCP probing.
-        await asyncio.sleep(4.0)
-
-        await self._set_state(InstanceState.ATTACHING)
-        try:
-            await self.gdb.attach()
-        except (GdbError, asyncio.TimeoutError) as e:
-            await self._emit("log", {"text": f"gdb attach failed: {e}"})
+        # Monitor stub publishes a hello on connect; no gdb-style probe
+        # race to dodge. Poll the listener until it accepts.
+        if not await _wait_for_port("127.0.0.1", self.monitor_port, timeout=10.0):
+            await self._emit("log", {"text": "xroar-monitor listener never came up"})
             await self.stop()
             await self._set_state(InstanceState.CRASHED)
             return
 
-        # The *stopped event from gdb already drove us into HALTED via
-        # `_on_gdb_async` and emitted a halt event with registers — don't
-        # double-fire it here.
+        await self._set_state(InstanceState.ATTACHING)
+        try:
+            await self.session.attach()
+        except (MonitorError, asyncio.TimeoutError) as e:
+            await self._emit("log", {"text": f"monitor attach failed: {e}"})
+            await self.stop()
+            await self._set_state(InstanceState.CRASHED)
+            return
+
+        # `attach()` already fires on_async('stopped') for -monitor-halt-on-start.
+        # The state transition + halt event have already been emitted.
 
     async def stop(self) -> None:
         if self.state in (InstanceState.STOPPED, InstanceState.STOPPING):
             return
         await self._set_state(InstanceState.STOPPING)
         try:
-            await self.gdb.detach()
+            await self.session.detach()
         except Exception:
             pass
         if self._proc and self._proc.returncode is None:
@@ -115,32 +127,35 @@ class Instance:
         self._proc = None
         await self._set_state(InstanceState.STOPPED)
 
-    # ---- gdb callbacks ----------------------------------------------
+    # ---- monitor callbacks -------------------------------------------
 
-    async def _on_gdb_async(self, cls: str, info: dict) -> None:
+    async def _on_monitor_async(self, cls: str, info: dict) -> None:
         if cls == "stopped":
             self.pc = info.get("pc")
             await self._set_state(InstanceState.HALTED)
-            # IMPORTANT: this callback runs inside the gdb reader loop.
-            # Reading registers issues another MI command whose ^done can
-            # only be dispatched by the very same reader — deadlock. So
-            # schedule the regs refresh as an independent task.
+            # Reading registers issues another JSON-RPC call. The reader
+            # loop in MonitorSession dispatches replies independently of
+            # this callback, so the gdb-style deadlock risk is gone — but
+            # schedule the refresh anyway to keep the WS halt event
+            # behavior identical to the prior implementation.
             asyncio.create_task(self._refresh_regs())
         elif cls == "running":
             await self._set_state(InstanceState.RUNNING)
+        elif cls == "reset":
+            await self._emit("log", {"text": "[monitor] reset event"})
 
-    async def _on_gdb_log(self, text: str) -> None:
+    async def _on_monitor_log(self, text: str) -> None:
         await self._emit("log", {"text": text})
 
     async def _safe_regs(self) -> dict:
         try:
-            return await self.gdb.read_registers()
+            return await self.session.read_registers()
         except Exception as e:
             return {"_error": str(e)}
 
     async def _refresh_regs(self) -> None:
         regs = await self._safe_regs()
-        self.pc = regs.get("pc")
+        self.pc = regs.get("pc", self.pc)
         await self._emit("halt", {"pc": self.pc, "registers": regs})
 
     # ---- xroar stdout pump -------------------------------------------
@@ -188,7 +203,7 @@ class Instance:
             id=self.id,
             name=self.name,
             state=self.state,
-            gdb_port=self.gdb_port,
+            monitor_port=self.monitor_port,
             rom_path=self.rom_path,
             pc=self.pc,
         )

@@ -255,6 +255,19 @@ Each is its own conversation, closing in `qa-reviewer`. Test clients land at `we
 
 Web-backend ([instance.py](../../web/backend/instance.py)) integration of the monitor is a follow-up after M5/M6, not part of Phase 3.
 
+## Phase 4 web-backend pivot (2026-05-17)
+
+Done — scope-locked to monitor pivot only; WS-B/WS-C deferred.
+
+- Retired `web/backend/gdb_session.py`; new `web/backend/monitor_session.py` speaks line-delimited JSON-RPC 2.0. Public surface mirrors `GdbSession` so callers needed only an import + attribute swap.
+- Run-state events synthesized in the session layer (monitor protocol doesn't auto-push running/stopped). `attach()` post-hello fires stopped if `-monitor-halt-on-start`; `cont()` fires running + spawns a `_halt_watcher` long-polling `wait_for_stop`; async `bp` event fires stopped via the same path with a single-shot dedup guard.
+- `XROAR_BIN` env override **wired** (closes the M1 carry-forward). Default `docs/reference/xroar/build/xroar-monitor`. Launch args swapped to `-monitor PORT -monitor-halt-on-start`; the 4 s pre-attach sleep deleted (hello-on-connect replaces the gdb probe race).
+- `gdb_port` field → `monitor_port` across models, instances, instance, both frontend files; attribute `Instance.gdb` → `Instance.session` across main.py.
+- `enable_breakpoint`/`disable_breakpoint` raise `NotImplementedError`; PATCH `/breakpoints/{id}` returns 501. Monitor protocol v0.6 has no per-BP toggle.
+- Three probe scripts (`probe_tester_boot.py`, `probe_tester_m2.py`, `probe_gime_readback.py`) migrated to MonitorSession + `-monitor`.
+
+Carry-forwards remaining for follow-up sessions: WS-B (`gime_state.py` + live framebuffer renderer), WS-C (`regions.py` + persisted memory regions + memory-regions frontend), M6b (`screen_capture`, `snapshot_save`/`snapshot_load` in the monitor itself).
+
 ## Sources
 
 - [lessons-learned.md](lessons-learned.md) — gdb-stub limitations (2026-05-16); XRoar cart-window write decode finding.

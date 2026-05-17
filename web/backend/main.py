@@ -71,11 +71,11 @@ async def exec_action(instance_id: str, action: str):
         raise HTTPException(404, "no such instance")
     try:
         if action == "continue":
-            await inst.gdb.cont()
+            await inst.session.cont()
         elif action == "step":
-            await inst.gdb.step()
+            await inst.session.step()
         elif action == "interrupt":
-            await inst.gdb.interrupt()
+            await inst.session.interrupt()
         elif action == "reset":
             await inst.stop()
             await inst.start()
@@ -92,9 +92,9 @@ async def get_registers(instance_id: str):
     if inst is None:
         raise HTTPException(404, "no such instance")
     try:
-        return await inst.gdb.read_registers()
+        return await inst.session.read_registers()
     except Exception as e:
-        raise HTTPException(503, f"gdb: {e}")
+        raise HTTPException(503, f"monitor: {e}")
 
 
 @app.get("/api/regions")
@@ -125,12 +125,12 @@ async def decode_at(instance_id: str, addr: int, length: int = 4):
     if length < 1 or length > 8:
         raise HTTPException(400, "length must be 1..8")
     try:
-        blob = await inst.gdb.read_memory(addr, length)
+        blob = await inst.session.read_memory(addr, length)
     except Exception as e:
-        raise HTTPException(503, f"gdb: {e}")
+        raise HTTPException(503, f"monitor: {e}")
     # Pull a fresh register snapshot to ground operand resolution.
     try:
-        regs = await inst.gdb.read_registers()
+        regs = await inst.session.read_registers()
     except Exception:
         regs = {}
     decoded = decoder_mod.decode(addr, blob, regs)
@@ -154,10 +154,10 @@ async def add_breakpoint(instance_id: str, body: dict):
     if not isinstance(addr, int):
         raise HTTPException(400, "body.addr (int) required")
     try:
-        bp_id = await inst.gdb.set_breakpoint(addr)
+        bp_id = await inst.session.set_breakpoint(addr)
         return {"id": bp_id, "addr": addr}
     except Exception as e:
-        raise HTTPException(503, f"gdb: {e}")
+        raise HTTPException(503, f"monitor: {e}")
 
 
 @app.delete("/api/instances/{instance_id}/breakpoints/{bp_id}")
@@ -166,10 +166,10 @@ async def del_breakpoint(instance_id: str, bp_id: str):
     if inst is None:
         raise HTTPException(404, "no such instance")
     try:
-        await inst.gdb.clear_breakpoint(bp_id)
+        await inst.session.clear_breakpoint(bp_id)
         return {"ok": True}
     except Exception as e:
-        raise HTTPException(503, f"gdb: {e}")
+        raise HTTPException(503, f"monitor: {e}")
 
 
 @app.patch("/api/instances/{instance_id}/breakpoints/{bp_id}")
@@ -177,17 +177,9 @@ async def patch_breakpoint(instance_id: str, bp_id: str, body: dict):
     inst = manager.get(instance_id)
     if inst is None:
         raise HTTPException(404, "no such instance")
-    enabled = body.get("enabled")
-    if not isinstance(enabled, bool):
-        raise HTTPException(400, "body.enabled (bool) required")
-    try:
-        if enabled:
-            await inst.gdb.enable_breakpoint(bp_id)
-        else:
-            await inst.gdb.disable_breakpoint(bp_id)
-        return {"ok": True}
-    except Exception as e:
-        raise HTTPException(503, f"gdb: {e}")
+    # Monitor protocol v0.6 has no per-BP enable/disable; the toggle is
+    # deferred. Frontend should hide the control until this returns 200.
+    raise HTTPException(501, "breakpoint enable/disable not supported by monitor protocol")
 
 
 @app.get("/api/instances/{instance_id}/memory")
@@ -196,10 +188,10 @@ async def get_memory(instance_id: str, addr: int, length: int = 64):
     if inst is None:
         raise HTTPException(404, "no such instance")
     try:
-        data = await inst.gdb.read_memory(addr, length)
+        data = await inst.session.read_memory(addr, length)
         return {"addr": addr, "length": length, "bytes_hex": data.hex()}
     except Exception as e:
-        raise HTTPException(503, f"gdb: {e}")
+        raise HTTPException(503, f"monitor: {e}")
 
 
 @app.get("/api/instances/{instance_id}/palette")
@@ -208,9 +200,9 @@ async def get_palette(instance_id: str):
     if inst is None:
         raise HTTPException(404, "no such instance")
     try:
-        raw = await inst.gdb.read_memory(palette_mod.PALETTE_BASE, palette_mod.PALETTE_LEN)
+        raw = await inst.session.read_memory(palette_mod.PALETTE_BASE, palette_mod.PALETTE_LEN)
     except Exception as e:
-        raise HTTPException(503, f"gdb: {e}")
+        raise HTTPException(503, f"monitor: {e}")
     return palette_mod.decode_all(raw)
 
 

@@ -19,9 +19,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from web.backend.gdb_session import GdbSession, GdbError  # noqa: E402
+from web.backend.monitor_session import MonitorSession, MonitorError  # noqa: E402
 
-XROAR_BIN = "/usr/local/bin/xroar"
+import os
+XROAR_BIN = os.environ.get(
+    "XROAR_BIN",
+    str(REPO_ROOT / "docs" / "reference" / "xroar" / "build" / "xroar-monitor"),
+)
 ROM = REPO_ROOT / "build" / "tester.rom"
 
 EXPECTED_PALETTE = bytes(
@@ -46,40 +50,40 @@ async def run() -> int:
         print(f"FAIL: rom not found: {ROM}", file=sys.stderr)
         return 2
     port = pick_port()
-    print(f"probe: launching xroar with tester.rom on gdb port {port}")
+    print(f"probe: launching xroar-monitor with tester.rom on monitor port {port}")
     proc = await asyncio.create_subprocess_exec(
         XROAR_BIN,
         "-machine", "coco3", "-ram", "512",
         "-cart", "ladybug", "-cart-type", "rom",
         "-cart-rom", str(ROM), "-cart-autorun",
         "-tv-input", "rgb",
-        "-gdb", "-gdb-ip", "127.0.0.1", "-gdb-port", str(port),
+        "-monitor", f"127.0.0.1:{port}",
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     ok = True
     try:
         await asyncio.sleep(4.0)
-        gdb = GdbSession(port)
-        await gdb.attach()
+        mon = MonitorSession(port)
+        await mon.attach()
         try:
             try:
-                await gdb.interrupt()
+                await mon.interrupt()
                 await asyncio.sleep(0.3)
-            except GdbError:
+            except MonitorError:
                 pass
 
-            regs = await gdb.read_registers()
+            regs = await mon.read_registers()
             pc = regs.get("pc", 0)
 
-            palette = await gdb.read_memory(0xFFB0, 16)
-            dp_slots = await gdb.read_memory(0x0200, 13)
+            palette = await mon.read_memory(0xFFB0, 16)
+            dp_slots = await mon.read_memory(0x0200, 13)
 
             # Check stripe 0 (FB[0..15] should be $00) and stripe 1 (FB[1920..1935] = $11).
-            stripe0 = await gdb.read_memory(0x2000, 16)
-            stripe1 = await gdb.read_memory(0x2000 + STRIPE_BYTES, 16)
-            stripeF = await gdb.read_memory(0x2000 + 15 * STRIPE_BYTES, 16)
+            stripe0 = await mon.read_memory(0x2000, 16)
+            stripe1 = await mon.read_memory(0x2000 + STRIPE_BYTES, 16)
+            stripeF = await mon.read_memory(0x2000 + 15 * STRIPE_BYTES, 16)
         finally:
-            await gdb.detach()
+            await mon.detach()
     finally:
         if proc.returncode is None:
             proc.terminate()

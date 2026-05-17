@@ -11,7 +11,7 @@ class InstanceList extends HTMLElement {
     const items = store.instances.map((i) => `
       <button class="row ${i.id === store.selectedId ? "selected" : ""}" data-id="${i.id}">
         <div>${escapeHtml(i.name)}</div>
-        <div class="dim mono">:${i.gdb_port} · ${i.state}</div>
+        <div class="dim mono">:${i.monitor_port} · ${i.state}</div>
       </button>
     `).join("");
 

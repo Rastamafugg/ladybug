@@ -17,7 +17,7 @@ document.getElementById("btn-build").addEventListener("click", () => store.build
 store.addEventListener("select", () => {
   const inst = store.instances.find((i) => i.id === store.selectedId);
   document.getElementById("status-instance").textContent =
-    inst ? `${inst.name} · gdb:${inst.gdb_port} · ${inst.state}` : "— no instance —";
+    inst ? `${inst.name} · mon:${inst.monitor_port} · ${inst.state}` : "— no instance —";
 });
 
 store.loadStaticDocs();

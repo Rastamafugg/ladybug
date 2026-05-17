@@ -29,9 +29,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from web.backend.gdb_session import GdbSession  # noqa: E402
+from web.backend.monitor_session import MonitorSession, MonitorError  # noqa: E402
 
-XROAR_BIN = "/usr/local/bin/xroar"
+import os
+XROAR_BIN = os.environ.get(
+    "XROAR_BIN",
+    str(REPO_ROOT / "docs" / "reference" / "xroar" / "build" / "xroar-monitor"),
+)
 ROM = REPO_ROOT / "build" / "tester.rom"
 
 ADDR_PATTERN_IDX     = 0x0201
@@ -59,38 +63,38 @@ async def run() -> int:
         print(f"FAIL: rom not found: {ROM}", file=sys.stderr)
         return 2
     port = pick_port()
-    print(f"probe: launching xroar with tester.rom on gdb port {port}")
+    print(f"probe: launching xroar-monitor with tester.rom on monitor port {port}")
     proc = await asyncio.create_subprocess_exec(
         XROAR_BIN,
         "-machine", "coco3", "-ram", "512",
         "-cart", "ladybug", "-cart-type", "rom",
         "-cart-rom", str(ROM), "-cart-autorun",
         "-tv-input", "rgb",
-        "-gdb", "-gdb-ip", "127.0.0.1", "-gdb-port", str(port),
+        "-monitor", f"127.0.0.1:{port}",
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     ok = True
     try:
         await asyncio.sleep(4.0)
-        gdb = GdbSession(port)
-        await gdb.attach()
+        mon = MonitorSession(port)
+        await mon.attach()
         try:
-            regs = await gdb.read_registers()
+            regs = await mon.read_registers()
             pc = regs.get("pc", 0)
             cc = regs.get("cc", 0)
-            fc = int.from_bytes(await gdb.read_memory(ADDR_FRAME_CTR, 2), "big")
-            pat = (await gdb.read_memory(ADDR_PATTERN_IDX, 1))[0]
-            dirty = (await gdb.read_memory(ADDR_SELECTION_DIRTY, 1))[0]
-            kbd_prev = await gdb.read_memory(ADDR_KBD_PREV, 8)
-            palette = await gdb.read_memory(0xFFB0, 16)
-            stripe0 = await gdb.read_memory(0x2000, 16)
-            stripe1 = await gdb.read_memory(0x2000 + 12 * ROW_BYTES, 16)
-            irq_jmp = await gdb.read_memory(0xFEF7, 3)
+            fc = int.from_bytes(await mon.read_memory(ADDR_FRAME_CTR, 2), "big")
+            pat = (await mon.read_memory(ADDR_PATTERN_IDX, 1))[0]
+            dirty = (await mon.read_memory(ADDR_SELECTION_DIRTY, 1))[0]
+            kbd_prev = await mon.read_memory(ADDR_KBD_PREV, 8)
+            palette = await mon.read_memory(0xFFB0, 16)
+            stripe0 = await mon.read_memory(0x2000, 16)
+            stripe1 = await mon.read_memory(0x2000 + 12 * ROW_BYTES, 16)
+            irq_jmp = await mon.read_memory(0xFEF7, 3)
             # diagnostic: PIA state + col_drive_table sanity
-            pia_regs = await gdb.read_memory(0xFF00, 4)
-            col_drive = await gdb.read_memory(0xC11B, 8)
+            pia_regs = await mon.read_memory(0xFF00, 4)
+            col_drive = await mon.read_memory(0xC11B, 8)
         finally:
-            await gdb.detach()
+            await mon.detach()
     finally:
         if proc.returncode is None:
             proc.terminate()

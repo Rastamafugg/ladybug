@@ -1,4 +1,4 @@
-"""InstanceManager: tracks all live XRoar instances and the GDB port pool."""
+"""InstanceManager: tracks all live XRoar instances and the monitor port pool."""
 from __future__ import annotations
 from pathlib import Path
 from typing import Optional
@@ -6,8 +6,8 @@ from typing import Optional
 from .instance import Instance
 
 
-GDB_PORT_BASE = 65520
-GDB_PORT_LIMIT = 65540  # exclusive
+MONITOR_PORT_BASE = 65520
+MONITOR_PORT_LIMIT = 65540  # exclusive
 
 
 class InstanceManager:
@@ -18,12 +18,12 @@ class InstanceManager:
     # ---- port pool ---------------------------------------------------
 
     def _allocate_port(self) -> int:
-        used = {i.gdb_port for i in self._instances.values()}
-        for p in range(GDB_PORT_BASE, GDB_PORT_LIMIT):
+        used = {i.monitor_port for i in self._instances.values()}
+        for p in range(MONITOR_PORT_BASE, MONITOR_PORT_LIMIT):
             if p not in used:
                 return p
         raise RuntimeError(
-            f"GDB port pool exhausted ({GDB_PORT_LIMIT - GDB_PORT_BASE} instances)"
+            f"monitor port pool exhausted ({MONITOR_PORT_LIMIT - MONITOR_PORT_BASE} instances)"
         )
 
     # ---- CRUD --------------------------------------------------------
@@ -45,7 +45,7 @@ class InstanceManager:
         inst = Instance(
             name=name,
             rom_path=rom_path,
-            gdb_port=port,
+            monitor_port=port,
             project_root=self.project_root,
             extra_flags=extra_flags,
         )

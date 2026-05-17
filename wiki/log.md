@@ -4,6 +4,28 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-17] milestone | Phase 4 web-backend pivot — gdb stub → `-monitor` JSON-RPC
+
+Scope locked to "monitor pivot only" by project-management routing; WS-B (gime_state.py + live framebuffer) and WS-C (regions.py + persisted memory regions) deferred to follow-up sessions.
+
+**Retired** [web/backend/gdb_session.py](../web/backend/gdb_session.py) (deleted). Spawning `m6809-gdb --interpreter=mi` as a child, parsing MI records, and tunneling `info registers` through console-stream capture all gone.
+
+**New** [web/backend/monitor_session.py](../web/backend/monitor_session.py). One TCP connection per XRoar instance, line-delimited JSON-RPC 2.0. Public surface deliberately mirrors the retired `GdbSession` so callers (`instance.py`, `main.py`) needed only the import + attribute swap. Methods: `attach`/`detach`, `cont`/`step`/`interrupt`, `set_breakpoint`/`clear_breakpoint`/`list_breakpoints`, `read_memory`/`write_memory` (chunked at 64 KB, `space` param ready for physical-space when WS-B needs it), `read_registers`/`write_registers`, `read_gime_state` (wired but unused this round), `get_run_state`, `reset`. `enable_breakpoint`/`disable_breakpoint` raise `NotImplementedError` — the monitor protocol has no per-BP toggle and the frontend toggle is deferred (PATCH route now returns 501).
+
+**Run-state event model.** The gdb stub pushed `*stopped` / `*running` records on every transition; the monitor protocol does not. The session synthesizes equivalent events for `instance.py`'s `on_async` callback: `attach()` post-hello with `run_state=halted` fires a synthetic stopped; `cont()` fires running + spawns a `_halt_watcher` long-polling `wait_for_stop` in 30 s windows; `step()` calls `step_instruction` + `wait_for_stop` and fires stopped; `interrupt()` calls `pause` + `get_run_state`; async `bp` event from the M6a push channel fires stopped via the same path. A per-halt single-shot `asyncio.Event` deduplicates the bp-event-vs-wait_for_stop race so the caller sees exactly one stopped per halt cycle.
+
+**Spawn changes** in [instance.py](../web/backend/instance.py). `XROAR_BIN` env override **now wired** (was the M1 carry-forward never honored in Phase 3) — defaults to `docs/reference/xroar/build/xroar-monitor`. Launch args: `-gdb -gdb-ip -gdb-port` replaced with `-monitor 127.0.0.1:PORT -monitor-halt-on-start`. The 4-second `asyncio.sleep` before attach (gdb-stub probe-race kludge) deleted — `_wait_for_port` + the monitor's hello-on-connect handshake is sufficient.
+
+**Field rename.** `InstanceSummary.gdb_port` → `monitor_port` propagated through [models.py](../web/backend/models.py), [instances.py](../web/backend/instances.py) (port pool consts also renamed), [instance.py](../web/backend/instance.py), [frontend/app.js](../web/frontend/app.js), [frontend/components/instance-list.js](../web/frontend/components/instance-list.js). Display strings now read `mon:PORT`.
+
+**Attribute rename.** `Instance.gdb` → `Instance.session` everywhere in [main.py](../web/backend/main.py) (action handlers, /registers, /memory, /palette, /decode, /breakpoints). Error labels `f"gdb: {e}"` → `f"monitor: {e}"`.
+
+**Probe migration.** [probe_tester_boot.py](../web/scripts/probe_tester_boot.py), [probe_tester_m2.py](../web/scripts/probe_tester_m2.py), [probe_gime_readback.py](../web/scripts/probe_gime_readback.py) all swapped to `MonitorSession` + `-monitor` launch. They do **not** pass `-monitor-halt-on-start` because their test design is "let the cart run 4 s, then attach + read state" — interrupting after attach matches the prior gdb-stub-era behavior. `XROAR_BIN` env override default added to each.
+
+**No new abstractions** beyond the architect-pass plan: no `gime_state.py`, no `regions.py`, no `ReadStrategy` plumbing — those land with WS-B/WS-C.
+
+---
+
 ## [2026-05-17] milestone | Phase 3 M6a — thread-per-client, events.subscribe, watchpoints, inject_text
 
 Largest Phase 3 milestone. Three architectural pieces plus two leaf capabilities.
