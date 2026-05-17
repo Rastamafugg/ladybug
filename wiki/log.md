@@ -4,6 +4,18 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-17] milestone | Phase 3 M4 — `-monitor` breakpoints + step + wait_for_stop; gdb-stub at-current-PC limitation closed
+
+Five new methods in [monitor.c](../docs/reference/xroar/src/monitor.c): `set_breakpoint`/`clear_breakpoint`/`list_breakpoints` (exec kind), `step_instruction(n)`, `wait_for_stop(timeout_ms)`. All state-mutating ops are halted-only; `list_breakpoints` and `wait_for_stop` work in either state. BP dispatch reuses XRoar's `bp_session` machinery (same one gdb uses) via `bp_hbreak_add`/`bp_hbreak_remove` — no parallel BP table, no instruction patching. `monitor_interface_new` now takes a `bp_session *` (passed from coco3.c). `MONITOR_PROTOCOL_VERSION` 0.3.0 → 0.4.0.
+
+Emu-thread side: [coco3.c](../docs/reference/xroar/src/coco3.c) monitor branch in `coco3_run` now drives the step path (`do { single_step(m); } while (monitor_run_take_step(...));`) and observes `mcc3->stop_signal` after `CPU->run` for SIGTRAP, calling new `monitor_mark_stopped(reason, pc)` to flip state→halted, capture reason+PC+bp_id, and wake `wait_for_stop` waiters. `step_instruction(N)` batches N steps into one stop event by looping inside the locked region.
+
+**Headline result — at-current-PC BP fires.** XRoar's `bp_session` `instruction_hook` runs BEFORE each instruction, so setting a BP at the current PC and running stops *at that exact PC* without advancing. Probe Test 1: BP id=1 at PC=0x4175 → wait_for_stop returns reason="breakpoint", pc=0x4175, bp_id=1. This is the precise gdb-stub failure case documented in [lessons-learned §XRoar gdb stub is hostile to mid-run inspection](implementation/lessons-learned.md) — monitor now does it right.
+
+Probe [probe_monitor_m4.py](../web/scripts/probe_monitor_m4.py) green first run, 7 sub-tests: at-current-PC closure, list/clear lifecycle (incl. stale-id error), `step_instruction(1)` (PC 0x4175→0x4177, 2-byte LDA), `step_instruction(5)` batched (one stop event; PC 0x4177→0x4183), `wait_for_stop` clean timeout, halted-only enforcement on the three mutating ops, and `get_run_state` carrying `last_stop_reason`/`last_stop_pc`/`last_stop_bp_id`. Wiki: M4 row done, M4 carry-forwards section files four follow-ups (coco3.c monitor branch growth, step-batch UI-pump tradeoff, duplicate-BP-addr policy, watchpoints deferred to M6).
+
+---
+
 ## [2026-05-17] milestone | Phase 3 M3 — `-monitor` GIME shadow + physical-space; cart-shadow loop closed
 
 M3 adds the long-standing missing piece: a faithful view into XRoar's GIME shadow state plus direct access to the underlying 512K RAM array. Two new tools landed.

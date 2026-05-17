@@ -138,6 +138,15 @@ Tracked from QA review 2026-05-17. None block M2.
 - **`-gdb` + `-monitor` simultaneous activation**: when both are enabled, [`coco3.c`](../../docs/reference/xroar/src/coco3.c) gives gdb precedence in the run loop; monitor's `pause`/`run` then silently no-op on the CPU (the JSON-RPC layer still responds). Consistent with plan §Concurrency declaring the combination "unsupported", and arguably safer than the plan's "undefined" — but worth documenting for users. Either fail loudly at startup if both flags are set, or wire monitor's gate inside the gdb-running branch. Defer until a real need surfaces.
 - **`coco3.c` delta vs plan estimate**: plan said "Two lines". Actual is ~31 lines (include + struct field + new + free + run-loop gate). The run-loop gate is architecturally required for `pause`/`run` to actually halt the CPU — gdb has the same shape via `gdb_run_lock`. Total existing-file delta across all 5 files is ~65 lines instead of the planned ~35. Recording for accuracy; no action needed.
 
+## M4 carry-forwards
+
+Tracked from M4 implementation 2026-05-17.
+
+- **`coco3.c` monitor branch now substantial (~25 lines).** The original plan estimate said "two lines" for coco3.c. M4 adds the step path and stop-signal handling to the monitor branch (~10 more lines on top of M1's gate). The shape parallels gdb's branch exactly. No further restructuring needed for M5/M6.
+- **Step batches are atomic w.r.t. UI events.** `step_instruction(N)` loops `single_step` N times inside one `monitor_run_lock` region. If N is large (say 1000+), the host UI won't pump events during the batch. M4 caps N at 1,000,000 — reasonable but a long batch *could* feel laggy. If this surfaces as a problem (it shouldn't for typical debugging), break the batch across `coco3_run` invocations.
+- **`bp_id` resolution on SIGTRAP**: monitor_mark_stopped looks up the BP id by matching the current PC against the table. If two BPs share the same address (the API allows it), the *first* matching id wins. Document or reject duplicates? Currently allowed; first-id-wins on report. Defer until M5 multi-client scenarios surface.
+- **Watchpoints (M6 SHOULD)**: `set_watchpoint` not implemented. The plan says they're SHOULD-tier; M4 explicitly rejects `kind != "exec"`.
+
 ## M3 carry-forwards
 
 Tracked from M3 implementation 2026-05-17.
@@ -218,7 +227,7 @@ Each is its own conversation, closing in `qa-reviewer`. Test clients land at `we
 | **M1** ✅ (2026-05-17) | Listener boots; hello handshake; `get_run_state` / `run` / `pause`. No memory access yet. | [`probe_monitor_m1.py`](../../web/scripts/probe_monitor_m1.py) — connect, read hello, assert `halted`, `run`, assert `running`, `pause`, disconnect. **Green first run; 7 sub-tests including -32601/-32700 failure modes and reconnect state preservation.** |
 | **M2** ✅ (2026-05-17) | `read_memory` / `write_memory` (CPU space); `read_registers` / `write_registers`. Halted-only enforcement. | [`probe_monitor_m2.py`](../../web/scripts/probe_monitor_m2.py) — round-trip RAM in `$FE00-$FEFF`; verify `target_running` error on write-while-running. **Green; 7 sub-tests including space-guard, length-cap, addr-range, and run-while-write-allowed checks.** |
 | **M3** ✅ (2026-05-17) | `read_gime_state` shadow-backed (no `$1B` sentinel, no `$C0` palette OR). Physical-space memory R/W. | [`probe_monitor_m3.py`](../../web/scripts/probe_monitor_m3.py) — write `$5A` to phys page `$3E` via `space="physical"`, flip `TY=1`, CPU-read `$C000`, assert `$5A`. **Closes the cart-shadow no-op loop, green first run.** Includes MC3-poll helper that replaces M2's fixed `sleep(2.0)`. |
-| **M4** | Breakpoints (incl. at-current-PC); `step_instruction`; `wait_for_stop`. | `probe_monitor_m4.py` — BP at known cart entry, step past, run, expect `stopped`. |
+| **M4** ✅ (2026-05-17) | Breakpoints (incl. at-current-PC); `step_instruction`; `wait_for_stop`. | [`probe_monitor_m4.py`](../../web/scripts/probe_monitor_m4.py) — at-current-PC BP fires before the instruction executes (closes the documented gdb-stub failure case), `step_instruction(N)` batches N steps into one stop event, `wait_for_stop` returns clean `timeout`. **Green first run; 7 sub-tests.** |
 | **M5** | `reset`, `attach`/`detach` (multi-reconnect), client-disconnect-leaves-halted. | `probe_monitor_m5.py` — connect/halt/disconnect/reconnect cycle; reset clears BPs. |
 | **M6** (SHOULD) | `screen_capture`, `inject_key`, snapshot save/load, `events.subscribe`. | One probe per capability. |
 
