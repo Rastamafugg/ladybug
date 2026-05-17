@@ -39,6 +39,7 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 - [implementation/scheduler.md](implementation/scheduler.md) — TCB round-robin scheduler — _candidate pattern, not committed_
 - [implementation/lessons-learned.md](implementation/lessons-learned.md) — observed-fact findings; DoD anti-patterns we won't copy
 - [implementation/emulator-monitor-tester.md](implementation/emulator-monitor-tester.md) — requirements for the 4-WS tester+webapp initiative (tester ROM, live FB, mapped regions, mode matrix)
+- [implementation/xroar-monitor.md](implementation/xroar-monitor.md) — Phase 1 requirements for the XRoar `-monitor` JSON-RPC server (replaces gdb stub for our tooling)
 - `implementation/build-workflow.md` — _(superseded by [tooling/build-workflow.md](tooling/build-workflow.md))_
 
 ## Sources
@@ -57,6 +58,7 @@ _(bare-metal CoCo 3 / 6809, no NitrOS-9)_
 - [backlog/retro-dev-web-app.md](backlog/retro-dev-web-app.md) — wrap lwasm + XRoar + gdb-mcp + LLM into a browser-based retro dev environment
 - [backlog/mcp-xroar-server.md](backlog/mcp-xroar-server.md) — cost/benefit of a purpose-built XRoar MCP server vs. the current gdb-mcp stack; deferred until sentinel probes hit a wall
 - [backlog/xroar-load-gdb-patch.md](backlog/xroar-load-gdb-patch.md) — feasibility report: one-line `SO_REUSEADDR` patch fixes the `-load + -gdb` bind failure; ~2-3 h to apply + verify + upstream
+- [backlog/mame-cart-ram-comparison.md](backlog/mame-cart-ram-comparison.md) — A/B test the cart-ROM-to-RAM self-copy under MAME vs XRoar; confirm which emulator matches documented hardware
 
 ## Special
 

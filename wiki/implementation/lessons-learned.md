@@ -323,6 +323,33 @@ Reading `$FFB0-$FFBF` returns each programmed 6-bit palette value with `$C0` set
 
 ---
 
+## XRoar cart-window write decode — root cause of the cart-shadow no-op
+
+Filed 2026-05-16. Refines the earlier 2026-05-15 "Cart-shadow self-copy is a no-op under XRoar 1.10" entry by naming the precise cause from source review.
+
+Traced through [`docs/reference/xroar/src/`](../../docs/reference/xroar/src/) for a CPU-space write at `$C100` with `TY=0` (cart attached) under our boot state:
+
+1. [`tcc1014/tcc1014.c:711-739`](../../docs/reference/xroar/src/tcc1014/tcc1014.c) — GIME address decode: `bank = 0x38 | (A>>13) = 0x3E`. Line 729 branch `!TY && bank >= 0x3c` is taken, setting `S=1` (CTS, cart). **`RAS` stays at its line 712 init value of `0`** — line 736 (the `else` branch that sets `RAS=1`) is not reached.
+2. [`coco3.c:1170-1240`](../../docs/reference/xroar/src/coco3.c) — `write_byte` dispatches on `S`. With `S=1` it calls `cart->write` ([`cart.c:955-959`](../../docs/reference/xroar/src/cart.c)), which for a ROM-type cart routes to `rombank_d8` ([`rombank.h:102-107`](../../docs/reference/xroar/src/rombank.h)) — a no-op on a read-only bank.
+3. Line 1227 in `coco3.c` is `if (mcc3->GIME->RAS) { ram_write }`. **`RAS=0` → RAM-overlay write skipped.** No write reaches RAM.
+
+`$FE00–$FEFF` writes work only when `MC3=1`; that path at [`tcc1014.c:720-723`](../../docs/reference/xroar/src/tcc1014/tcc1014.c) fires before the TY/cart logic and forces `RAS=1`, sidestepping suppression. Outside that 256-byte window there is no other code path that writes RAM while the cart S-line is selected.
+
+The author's comment at [`coco3.c:1242-1253`](../../docs/reference/xroar/src/coco3.c) acknowledges the bus simplification: *"Of course, I do none of that here … Good enough?"*
+
+**Why:** XRoar implements ROM/CTS selection via the `S` signal and the `MC3` override for `$FE00-$FEFF`, but does **not** implement the CoCo 3's documented RAM-under-ROM write-through for the wider `$C000-$FDFF` range under `TY=0`. Cart-window writes are dispatched to ROM (no-op), not parallel-written to underlying RAM.
+
+**Verdict:** Intentional simplification in XRoar, not a bug, and **not faithful to real CoCo 3 silicon** — which accepts writes into DRAM regardless of TY (the SAM/GIME's ROM redirect is read-only; writes always reach physical RAM).
+
+**Applies to:**
+- Confirms the [XRoar monitor protocol's](xroar-monitor.md) physical-space write API as the correct primitive: it bypasses XRoar's bus decode and writes the emulator's RAM array at the 19-bit physical address. That lets the monitor honor hardware semantics even where XRoar diverges.
+- CPU-space writes to ROM-backed addresses should return `read_only_region` (predictable, matches what XRoar will do regardless).
+- Real-hardware behavior of the same path is unverified — Phase 10. A MAME comparison test ([backlog/mame-cart-ram-comparison.md](../backlog/mame-cart-ram-comparison.md)) is filed to cross-check before then.
+
+**Citation:** XRoar 1.10 source — `tcc1014.c:711-739`, `coco3.c:1170-1253`, `cart.c:955-959`, `rombank.h:102-107`. Investigation logged 2026-05-16 during XRoar monitor Phase 1 requirements work.
+
+---
+
 ## Format for future entries
 
 ```
