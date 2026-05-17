@@ -133,10 +133,18 @@ The CoCo 3 has no MMU in the modern sense. It has the GIME's MMU task register +
 
 Tracked from QA review 2026-05-17. None block M2.
 
-- **`goodbye` notification on XRoar shutdown** (plan §Lifecycle). `monitor_interface_free` currently tears down the socket without notifying the client. Target: M5 (`reset`, `attach`/`detach`, multi-reconnect work).
+- ~~**`goodbye` notification on XRoar shutdown**~~ — **DONE in M5**. Triggered via clean exit (`atexit` → `xroar_shutdown` → `part_free` → `coco3_free` → `monitor_interface_free` → `send_goodbye_best_effort`). New `quit` JSON-RPC method makes this externally triggerable.
 - **Concurrent multi-client support** (plan §Failure modes: "multi-client commands serialize globally on the emu thread"). The accept thread currently handles one connection inline before accepting the next. Target: M5 or M6.
 - **`-gdb` + `-monitor` simultaneous activation**: when both are enabled, [`coco3.c`](../../docs/reference/xroar/src/coco3.c) gives gdb precedence in the run loop; monitor's `pause`/`run` then silently no-op on the CPU (the JSON-RPC layer still responds). Consistent with plan §Concurrency declaring the combination "unsupported", and arguably safer than the plan's "undefined" — but worth documenting for users. Either fail loudly at startup if both flags are set, or wire monitor's gate inside the gdb-running branch. Defer until a real need surfaces.
 - **`coco3.c` delta vs plan estimate**: plan said "Two lines". Actual is ~31 lines (include + struct field + new + free + run-loop gate). The run-loop gate is architecturally required for `pause`/`run` to actually halt the CPU — gdb has the same shape via `gdb_run_lock`. Total existing-file delta across all 5 files is ~65 lines instead of the planned ~35. Recording for accuracy; no action needed.
+
+## M5 carry-forwards
+
+Tracked from M5 implementation 2026-05-17.
+
+- **New method `quit`** beyond plan's MUST table. Added because `exit()` is the only way to make XRoar run its `atexit` chain (and thus reach `monitor_interface_free` to emit `goodbye`). SIGTERM/SIGKILL bypass atexit and won't fire goodbye — accepted limitation. The web-backend integration in a future phase will want `quit` anyway for orderly shutdown.
+- **`monitor_interface_free` self-thread skip**: when called from inside the sock thread itself (via `quit` → `exit()` → atexit → `coco3_free` → here), `pthread_cancel(self) + pthread_join(self)` deadlocks. Detected via `pthread_equal(pthread_self(), sock_thread)` and skipped in that case. Reasoning: process is about to exit, no resource leak. Captured in code comment at the call site.
+- **Multi-client concurrent support** is still M1's carry-forward; defer to M6 alongside `events.subscribe`.
 
 ## M4 carry-forwards
 
@@ -228,7 +236,7 @@ Each is its own conversation, closing in `qa-reviewer`. Test clients land at `we
 | **M2** ✅ (2026-05-17) | `read_memory` / `write_memory` (CPU space); `read_registers` / `write_registers`. Halted-only enforcement. | [`probe_monitor_m2.py`](../../web/scripts/probe_monitor_m2.py) — round-trip RAM in `$FE00-$FEFF`; verify `target_running` error on write-while-running. **Green; 7 sub-tests including space-guard, length-cap, addr-range, and run-while-write-allowed checks.** |
 | **M3** ✅ (2026-05-17) | `read_gime_state` shadow-backed (no `$1B` sentinel, no `$C0` palette OR). Physical-space memory R/W. | [`probe_monitor_m3.py`](../../web/scripts/probe_monitor_m3.py) — write `$5A` to phys page `$3E` via `space="physical"`, flip `TY=1`, CPU-read `$C000`, assert `$5A`. **Closes the cart-shadow no-op loop, green first run.** Includes MC3-poll helper that replaces M2's fixed `sleep(2.0)`. |
 | **M4** ✅ (2026-05-17) | Breakpoints (incl. at-current-PC); `step_instruction`; `wait_for_stop`. | [`probe_monitor_m4.py`](../../web/scripts/probe_monitor_m4.py) — at-current-PC BP fires before the instruction executes (closes the documented gdb-stub failure case), `step_instruction(N)` batches N steps into one stop event, `wait_for_stop` returns clean `timeout`. **Green first run; 7 sub-tests.** |
-| **M5** | `reset`, `attach`/`detach` (multi-reconnect), client-disconnect-leaves-halted. | `probe_monitor_m5.py` — connect/halt/disconnect/reconnect cycle; reset clears BPs. |
+| **M5** ✅ (2026-05-17) | `reset`, `attach`/`detach` (multi-reconnect), client-disconnect-leaves-halted, `goodbye` on shutdown, `quit` for clean exit. | [`probe_monitor_m5.py`](../../web/scripts/probe_monitor_m5.py) — connect/halt/set-BP/reset/verify-cleared + detach/reconnect + quit → goodbye. **Green; 6 sub-tests; closes M1 carry-forward on goodbye.** |
 | **M6** (SHOULD) | `screen_capture`, `inject_key`, snapshot save/load, `events.subscribe`. | One probe per capability. |
 
 Web-backend ([instance.py](../../web/backend/instance.py)) integration of the monitor is a follow-up after M5/M6, not part of Phase 3.

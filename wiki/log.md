@@ -4,6 +4,20 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-17] milestone | Phase 3 M5 — `-monitor` lifecycle (reset, attach/detach, quit, goodbye)
+
+Four new methods in [monitor.c](../docs/reference/xroar/src/monitor.c): `reset(kind="soft"|"hard")` (halted-only; clears all monitor BPs via shared `monitor_bps_clear_locked` helper; calls `machine->reset(m, hard)`; emits async `reset` event notification on the requester's fd), `attach()` (idempotent ceremony returning hello-shaped fields), `detach()` (replies ok then drives `handle_connection` to close the fd cleanly), `quit()` (replies ok then `exit(0)` triggers XRoar's atexit → `xroar_shutdown` → `part_free` → `coco3_free` → `monitor_interface_free` → `send_goodbye_best_effort`). `MONITOR_PROTOCOL_VERSION` 0.4.0 → 0.5.0.
+
+**Self-thread deadlock avoidance:** `quit` calls `exit()` *from the sock thread*. The atexit chain reaches `monitor_interface_free`, which previously did `pthread_cancel(sock_thread) + pthread_join(sock_thread)` — both on self when called from the sock thread itself. `pthread_join(self)` returns EDEADLK / hangs. Fix: `pthread_equal(pthread_self(), mip->sock_thread)` guard skips the thread teardown in that case; process exit reaps it instead.
+
+**Plan-scope expansion:** the `quit` method isn't on the plan's MUST table but it's the only way to externally trigger XRoar's atexit-driven goodbye. SIGTERM/SIGKILL bypass atexit and won't fire goodbye — accepted limitation. Captured in M5 carry-forwards.
+
+Probe [probe_monitor_m5.py](../web/scripts/probe_monitor_m5.py) green, 6 sub-tests: `attach()` shape, `reset(soft)` clears BPs + emits event, `reset(hard)` same, `reset` while running → `target_running`, `detach` + reconnect preserves CPU state (PC unchanged, still halted), `quit` triggers goodbye via clean shutdown. Closes the M1 carry-forward on `goodbye`.
+
+Probe required a new `call_capture_event` helper that collects both the request reply AND a subsequent event notification for the same exchange — used for `reset` (which emits a `reset` notification after the reply) and `quit` (which emits `goodbye` after the reply). Pattern will generalize for M6 `events.subscribe`.
+
+---
+
 ## [2026-05-17] milestone | Phase 3 M4 — `-monitor` breakpoints + step + wait_for_stop; gdb-stub at-current-PC limitation closed
 
 Five new methods in [monitor.c](../docs/reference/xroar/src/monitor.c): `set_breakpoint`/`clear_breakpoint`/`list_breakpoints` (exec kind), `step_instruction(n)`, `wait_for_stop(timeout_ms)`. All state-mutating ops are halted-only; `list_breakpoints` and `wait_for_stop` work in either state. BP dispatch reuses XRoar's `bp_session` machinery (same one gdb uses) via `bp_hbreak_add`/`bp_hbreak_remove` — no parallel BP table, no instruction patching. `monitor_interface_new` now takes a `bp_session *` (passed from coco3.c). `MONITOR_PROTOCOL_VERSION` 0.3.0 → 0.4.0.
