@@ -169,7 +169,7 @@ Snapshot-load-with-debug needs the `SO_REUSEADDR` patch ([../backlog/xroar-load-
 
 - **`-trap` segfaults after write** → snapshot save is **instance-terminating**. UI surfaces this; endpoint returns success only after the file is on disk and instance state transitions to STOPPED.
 - **Cart-window writes are no-ops on XRoar 1.10** ([../implementation/memory-map.md §Important](../implementation/memory-map.md)) → annotation engine flags this when the target ea lies in `$C000-$FDFF`: appends "(write is a no-op on XRoar 1.10 — cart window)".
-- **Single-active-client / vMustReplyEmpty / no-TCP-probe / raw-stdin attach** — all already honored in `gdb_session.py`. No changes.
+- **Single-active-client / vMustReplyEmpty / no-TCP-probe / raw-stdin attach** — historical gdb-stub quirks honored by the retired `gdb_session.py`. Obsolete since the 2026-05-17 Phase 4 pivot to `-monitor`; the new [monitor_session.py](../../web/backend/monitor_session.py) speaks JSON-RPC 2.0 over a clean TCP listener with hello-on-connect and supports multi-client (M6a). See [../implementation/xroar-monitor.md](../implementation/xroar-monitor.md).
 
 ## Decisions and rationale
 

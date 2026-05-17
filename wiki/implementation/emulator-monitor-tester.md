@@ -123,7 +123,7 @@ Approved by user. Implementation may proceed against these.
 
 ### Probe
 
-- **Tool:** new throwaway script `web/scripts/probe_gime_readback.py` (~50 lines), uses `web.backend.gdb_session.GdbSession`.
+- **Tool:** new throwaway script `web/scripts/probe_gime_readback.py` (~50 lines), originally written against `web.backend.gdb_session.GdbSession`. Migrated 2026-05-17 in the Phase 4 pivot to use `web.backend.monitor_session.MonitorSession` against `xroar-monitor`; verdict reproduces identically (Option 2 still required, monitor's `read_gime_state` is the new "Option 1 done right" path).
 - **Stimulus:** an already-running `diag_minimal.rom` instance. That ROM writes `$FF98=$80`, `$FF99=$1E`, `$FF9A=$28`, `$FF9D=$E4`, `$FF9E=$00` then halts at the `bra halt` self-loop ([../../src/diag_minimal.s](../../src/diag_minimal.s)). No new ROM required.
 - **Reads:** `$FF98-$FF9E` (the question), `$FFB0-$FFBF` palette and `$FFA0-$FFA7` PARs (controls — the gdb channel itself).
 - **Pass criteria → strategy mapping:**
