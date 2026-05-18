@@ -8,6 +8,7 @@ import "/static/components/palette-view.js";
 import "/static/components/register-view.js";
 import "/static/components/source-view.js";
 import "/static/components/memory-view.js";
+import "/static/components/memory-regions.js";
 import "/static/components/logs-view.js";
 import "/static/components/instruction-annotation.js";
 import "/static/components/symbol-context.js";

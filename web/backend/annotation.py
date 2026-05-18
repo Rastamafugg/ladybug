@@ -13,7 +13,7 @@ Output: a plain dict (JSON-serialisable).
 from __future__ import annotations
 from typing import Optional, Dict
 
-from . import regions
+from . import memory_map
 
 
 # Store-style mnemonics that *write* to memory — we surface the
@@ -99,7 +99,7 @@ def _ea_region_note(inst, ea: int, regs: Dict) -> Optional[str]:
     """Surface XRoar-quirk warnings or memory-region context for an EA."""
     if ea is None:
         return None
-    region = regions.lookup(ea)
+    region = memory_map.lookup(ea)
     if region is None:
         return None
     # Cart-window write — the documented XRoar 1.10 no-op.

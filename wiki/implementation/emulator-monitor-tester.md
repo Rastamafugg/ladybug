@@ -65,7 +65,16 @@ Done. See log entry 2026-05-17 "Phase 4 WS-B" for the implementation summary. Tw
 
 **DEFERRED to WS-D landings.** Mode-specific decoders (4-color, monochrome, text) — added as WS-D enables them.
 
-### WS-C — Mapped memory regions
+### WS-C — Mapped memory regions ✅ (2026-05-17)
+
+Done. See log entry 2026-05-17 "Phase 4 WS-C" for the implementation summary. Two decisions taken at landing time:
+
+- **Naming-collision resolution.** The existing `web/backend/regions.py` (static 6809 hardware-region map consumed by annotation.py + `/api/regions`) was renamed to `web/backend/memory_map.py`. The architect-pass-approved name `regions.py` is now the user-defined region module. The `/api/regions` URL is preserved for frontend back-compat with `store.regionFor(addr)`.
+- **Config identity.** `config_id` derives from the rom_path filename stem (`build/tester.rom` → `tester`). All instances of the same ROM share a region set. No new field on Instance/InstanceSummary.
+
+v0 ships hex-dump viewer only. Additional viewers deferred per use case.
+
+### WS-C — original requirements (preserved for traceability)
 
 **Goal.** User-defined named address ranges, displayed and refreshed per halt, with extensible viewers.
 

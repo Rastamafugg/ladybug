@@ -4,6 +4,43 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-17] milestone | Phase 4 WS-C — user-defined memory regions
+
+WS-C from the emulator-monitor-tester initiative landed. v0 scope: hex-dump viewer only; additional viewers (ASCII inline / palette swatches / bitmap-as-image) deferred per use case.
+
+**Naming-collision resolution.** Existing `web/backend/regions.py` (static 6809 hw map: PIA, GIME, palette, etc.) renamed to [web/backend/memory_map.py](../web/backend/memory_map.py). The `/api/regions` URL is preserved for frontend back-compat with `store.regionFor(addr)`. Two import sites updated: [annotation.py](../web/backend/annotation.py) (`from . import memory_map`), [main.py](../web/backend/main.py) (added a second import; the static-map route now reads `memory_map_mod.all_regions()`).
+
+**New** [web/backend/regions.py](../web/backend/regions.py). User-defined regions with three definition kinds:
+- **fixed:** `base = addr`. Trivial.
+- **symbol:** `base = symbol_addr + offset`, resolved via `symbols._parse_map(build/<stem>.map)`. The map is re-read on every `/values` call, so a rebuild is picked up automatically — no explicit hook in the build endpoint needed.
+- **pointer:** `base = u16-BE at ptr_addr`, resolved via `session.read_memory(ptr_addr, 2, space="cpu")`. Re-evaluated every halt; one 2-byte read per pointer region per halt.
+
+`RegionDef` + `RegionResolution` dataclasses; CRUD + `read_values(rdefs, session, map_path)`. 32 KB per-region cap; monitor_session.read_memory already chunks at the 64 KB monitor limit. Persistence: per-config JSON at `web/configs/<config_id>.json` (directory created on first save), atomic write via tempfile + `os.replace`.
+
+**Config identity.** `config_id_for_rom("build/tester.rom") -> "tester"`. All instances of the same ROM share regions. No new schema fields on Instance/InstanceSummary/CreateInstanceRequest.
+
+**Routes** (all in [main.py](../web/backend/main.py)):
+- `GET    /api/instances/{id}/regions`         — list definitions
+- `POST   /api/instances/{id}/regions`         — create (validation in regions._build_def)
+- `PATCH  /api/instances/{id}/regions/{rid}`   — update (kind is immutable; delete + re-add to change kind)
+- `DELETE /api/instances/{id}/regions/{rid}`
+- `POST   /api/instances/{id}/regions/values`  — body `{visible_ids: [...]}`. Only resolves and reads the requested ids; collapsed regions in the UI don't fetch.
+
+**New frontend** [web/frontend/components/memory-regions.js](../web/frontend/components/memory-regions.js) — mounted in [index.html](../web/frontend/index.html) under the right pane. Container component with collapse/expand per region, kind-aware add form (fixed addr / symbol+offset / pointer), per-region delete, inline hex dump (mirrors memory-view's 50/1fr/130 layout with the addr / hex / ASCII columns). On `ws:halt`: POSTs `/values` with the currently-expanded region ids and paints results. On instance `select`: clears expansion state + value cache, reloads definitions.
+
+**Validation rules** (server-side, in `regions._build_def`):
+- name: non-empty, ≤ 64 chars.
+- length: 1..32768.
+- fixed: addr 0..0xFFFF.
+- symbol: non-empty string; offset defaults to 0.
+- pointer: ptr_addr 0..0xFFFE (so the 2-byte read doesn't run off the end).
+
+**Halt-refresh model**: REST-pull. Frontend listens for `ws:halt` and re-fetches `/values`. Matches the framebuffer-view pattern landed in WS-B. Backend stays passive.
+
+WS-A, WS-B, WS-C done. Remaining initiative work: WS-D (tester mode/pattern matrix expansion — pure 6809 assembly, no web-side touches).
+
+---
+
 ## [2026-05-17] milestone | Phase 4 WS-B — live framebuffer renderer
 
 WS-B (live FB render) from the emulator-monitor-tester initiative landed. Scope locked to v0 (320×192×16 only); other modes fall through to a placeholder PNG whose text names the rejected mode/resolution/depth.

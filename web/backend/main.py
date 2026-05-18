@@ -16,6 +16,7 @@ from . import palette as palette_mod
 from .instances import InstanceManager
 from .models import CreateInstanceRequest, InstanceSummary
 from .source import parse_lst
+from . import memory_map as memory_map_mod
 from . import regions as regions_mod
 from . import symbols as symbols_mod
 from . import decoder as decoder_mod
@@ -100,7 +101,89 @@ async def get_registers(instance_id: str):
 
 @app.get("/api/regions")
 async def get_regions():
-    return regions_mod.all_regions()
+    """Static hardware-region map (PIA, GIME, palette, etc).
+
+    Distinct from the user-defined region CRUD under
+    /api/instances/{id}/regions. Kept at this URL for frontend back-compat
+    with store.regionFor(addr).
+    """
+    return memory_map_mod.all_regions()
+
+
+# ---- user-defined regions (per-config persistence) ---------------------
+
+def _config_id_for(instance_id: str) -> tuple:
+    inst = manager.get(instance_id)
+    if inst is None:
+        raise HTTPException(404, "no such instance")
+    return inst, regions_mod.config_id_for_rom(inst.rom_path)
+
+
+@app.get("/api/instances/{instance_id}/regions")
+async def list_user_regions(instance_id: str):
+    _, cid = _config_id_for(instance_id)
+    return [r.to_dict() for r in regions_mod.list_regions(cid)]
+
+
+@app.post("/api/instances/{instance_id}/regions")
+async def add_user_region(instance_id: str, body: dict):
+    _, cid = _config_id_for(instance_id)
+    try:
+        r = regions_mod.add_region(cid, body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return r.to_dict()
+
+
+@app.patch("/api/instances/{instance_id}/regions/{region_id}")
+async def patch_user_region(instance_id: str, region_id: str, body: dict):
+    _, cid = _config_id_for(instance_id)
+    try:
+        r = regions_mod.update_region(cid, region_id, body)
+    except KeyError:
+        raise HTTPException(404, "no such region")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return r.to_dict()
+
+
+@app.delete("/api/instances/{instance_id}/regions/{region_id}")
+async def delete_user_region(instance_id: str, region_id: str):
+    _, cid = _config_id_for(instance_id)
+    try:
+        regions_mod.delete_region(cid, region_id)
+    except KeyError:
+        raise HTTPException(404, "no such region")
+    return {"ok": True}
+
+
+@app.post("/api/instances/{instance_id}/regions/values")
+async def read_user_region_values(instance_id: str, body: dict):
+    """Resolve + read the regions whose ids appear in body.visible_ids.
+
+    Empty visible_ids → empty result. The frontend calls this on ws:halt
+    with the currently-expanded region ids; collapsed regions don't fetch.
+    """
+    inst, cid = _config_id_for(instance_id)
+    visible = body.get("visible_ids") or []
+    if not isinstance(visible, list):
+        raise HTTPException(400, "body.visible_ids must be a list of region ids")
+    all_defs = regions_mod.list_regions(cid)
+    want = [r for r in all_defs if r.id in set(visible)]
+    if not want:
+        return []
+    map_path = symbols_mod.map_path_for_rom(inst.rom_path)
+    try:
+        results = await regions_mod.read_values(want, inst.session, map_path)
+    except Exception as e:
+        raise HTTPException(503, f"monitor: {e}")
+    return [
+        {
+            "id": r.id, "name": r.name, "kind": r.kind, "length": r.length,
+            "base": r.base, "bytes_hex": r.bytes_hex, "error": r.error,
+        }
+        for r in results
+    ]
 
 
 @app.get("/api/roms")
