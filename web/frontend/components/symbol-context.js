@@ -42,7 +42,11 @@ class SymbolContext extends HTMLElement {
     if (addr === this.lastAddr) return;
     this.lastAddr = addr;
     try {
-      const r = await fetch(`/api/symbols/lookup?addr=${addr}`);
+      const iid = store.selectedId;
+      const url = iid
+        ? `/api/symbols/lookup/${iid}?addr=${addr}`
+        : `/api/symbols/lookup?addr=${addr}`;
+      const r = await fetch(url);
       if (!r.ok) {
         this.body.className = "sc";
         this.body.innerHTML = `<span class="nope">no symbol near $${hex(addr, 4)}</span>`;

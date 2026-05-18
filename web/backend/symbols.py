@@ -48,13 +48,25 @@ def _parse_map(path: Path) -> list:
     return out
 
 
-def lookup(addr: int) -> Optional[dict]:
+def map_path_for_rom(rom_path: str) -> Path:
+    """Derive the lwasm .map file path from a build/<name>.rom path."""
+    p = Path(rom_path)
+    return PROJECT_ROOT / p.with_suffix(".map")
+
+
+def lookup(addr: int, map_path: Optional[Path] = None) -> Optional[dict]:
     """Return the nearest symbol at or before addr, with its wiki entry if any.
+
+    `map_path` selects which build artifact to consult; defaults to
+    build/ladybug.map for backward compatibility with callers that
+    pre-date per-instance ROM selection.
 
     Confines its search to the cart-window range to avoid matching tiny EQU
     constants that happen to be ≤ addr.
     """
-    syms = _parse_map(PROJECT_ROOT / "build" / "ladybug.map")
+    if map_path is None:
+        map_path = PROJECT_ROOT / "build" / "ladybug.map"
+    syms = _parse_map(map_path)
     if not syms:
         return None
     # Prefer code-range symbols (>= $C000) when addr is in cart code; otherwise

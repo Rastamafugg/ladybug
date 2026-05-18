@@ -44,7 +44,14 @@ The earlier draft of this initiative assumed a software "shadow block" for the w
 
 **OPEN.** Exact key bindings (number-row mode-select, letter-row pattern-select — but which letter is which pattern? Decided at v0 build time, documented in the tester's own README block).
 
-### WS-B — Live framebuffer renderer
+### WS-B — Live framebuffer renderer ✅ (2026-05-17)
+
+Done. See log entry 2026-05-17 "Phase 4 WS-B" for the implementation summary. Two architect-pass decisions revised at landing time:
+
+- **`ReadStrategy` protocol collapsed.** M3's `read_gime_state` returns the GIME shadow directly; the three-strategy abstraction is moot. Single call site in `gime_state.snapshot`.
+- **FB read path changed from virtual to physical.** The original WS-A architect pass chose virtual-address reads because `$FF9D/$FF9E` were write-only and unreadable. M3 surfaces them in the shadow. FB is now read via `space="physical"` from `($FF9D<<11) | ($FF9E<<3)`, matching the GIME's actual hardware video pointer. Immune to MMU/PAR state — works equally with MMU off (tester) and MMU on (later game ROM).
+
+### WS-B — original requirements (preserved for traceability)
 
 **Goal.** Replace `placeholder_png` in [web/backend/framebuffer.py](../../web/backend/framebuffer.py) with a live renderer that derives the current mode dynamically (via whichever option WS-A's probe selects) and produces a PNG matching what XRoar is displaying.
 

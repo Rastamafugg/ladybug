@@ -10,7 +10,8 @@ from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .build import run_build
-from .framebuffer import placeholder_png
+from .framebuffer import placeholder_png, render as render_framebuffer
+from . import gime_state as gime_state_mod
 from . import palette as palette_mod
 from .instances import InstanceManager
 from .models import CreateInstanceRequest, InstanceSummary
@@ -102,6 +103,19 @@ async def get_regions():
     return regions_mod.all_regions()
 
 
+@app.get("/api/roms")
+async def list_roms():
+    """Auto-discover build/*.rom for the instance-creation picker."""
+    build_dir = PROJECT_ROOT / "build"
+    if not build_dir.is_dir():
+        return []
+    roms = sorted(
+        f.relative_to(PROJECT_ROOT).as_posix()
+        for f in build_dir.glob("*.rom")
+    )
+    return roms
+
+
 @app.get("/api/registers-doc")
 async def get_registers_doc():
     p = PROJECT_ROOT / "web" / "data" / "6809-registers.json"
@@ -109,8 +123,20 @@ async def get_registers_doc():
         return _json.load(f)
 
 
+@app.get("/api/symbols/lookup/{instance_id}")
+async def lookup_symbol(instance_id: str, addr: int):
+    inst = manager.get(instance_id)
+    if inst is None:
+        raise HTTPException(404, "no such instance")
+    result = symbols_mod.lookup(addr, symbols_mod.map_path_for_rom(inst.rom_path))
+    if result is None:
+        raise HTTPException(404, "no symbol at or before that address")
+    return result
+
+
+# Back-compat: legacy path served from the default (Ladybug) build.
 @app.get("/api/symbols/lookup")
-async def lookup_symbol(addr: int):
+async def lookup_symbol_legacy(addr: int):
     result = symbols_mod.lookup(addr)
     if result is None:
         raise HTTPException(404, "no symbol at or before that address")
@@ -137,12 +163,61 @@ async def decode_at(instance_id: str, addr: int, length: int = 4):
     return annotation_mod.annotate(decoded, regs)
 
 
+def _lst_path_for_rom(rom_path: str) -> Path:
+    from pathlib import Path as _P
+    return PROJECT_ROOT / _P(rom_path).with_suffix(".lst")
+
+
+@app.get("/api/source/{instance_id}")
+async def get_source_for(instance_id: str):
+    inst = manager.get(instance_id)
+    if inst is None:
+        raise HTTPException(404, "no such instance")
+    lst = _lst_path_for_rom(inst.rom_path)
+    rel = lst.relative_to(PROJECT_ROOT).as_posix()
+    if not lst.exists():
+        raise HTTPException(404, f"{rel} not found — run a build first")
+    return {"path": rel, "lines": parse_lst(lst)}
+
+
+# Back-compat: legacy path always serves the default (Ladybug) listing.
 @app.get("/api/source")
-async def get_source():
+async def get_source_legacy():
     lst = PROJECT_ROOT / "build" / "ladybug.lst"
     if not lst.exists():
         raise HTTPException(404, "build/ladybug.lst not found — run a build first")
     return {"path": "build/ladybug.lst", "lines": parse_lst(lst)}
+
+
+async def _with_paused(session, coro_factory):
+    """Auto-pause / op / resume helper for halted-only monitor calls.
+
+    Monitor protocol enforces halted-only for breakpoint mutations and
+    register writes. The UI commonly invokes those while the CPU is
+    running (clicking source rows mid-execution). This wrapper takes a
+    transient pause so the user-visible behavior is "click always works".
+
+    The pause + resume go through session.interrupt() / session.cont()
+    which emit running/stopped events as a side effect. Callers see a
+    brief flicker on the UI but no error.
+    """
+    run_state = "halted"
+    try:
+        st = await session.get_run_state()
+        run_state = st.get("state", "halted")
+    except Exception:
+        pass
+
+    if run_state == "running":
+        await session.interrupt()
+    try:
+        return await coro_factory()
+    finally:
+        if run_state == "running":
+            try:
+                await session.cont()
+            except Exception:
+                pass
 
 
 @app.post("/api/instances/{instance_id}/breakpoints")
@@ -154,7 +229,7 @@ async def add_breakpoint(instance_id: str, body: dict):
     if not isinstance(addr, int):
         raise HTTPException(400, "body.addr (int) required")
     try:
-        bp_id = await inst.session.set_breakpoint(addr)
+        bp_id = await _with_paused(inst.session, lambda: inst.session.set_breakpoint(addr))
         return {"id": bp_id, "addr": addr}
     except Exception as e:
         raise HTTPException(503, f"monitor: {e}")
@@ -166,7 +241,7 @@ async def del_breakpoint(instance_id: str, bp_id: str):
     if inst is None:
         raise HTTPException(404, "no such instance")
     try:
-        await inst.session.clear_breakpoint(bp_id)
+        await _with_paused(inst.session, lambda: inst.session.clear_breakpoint(bp_id))
         return {"ok": True}
     except Exception as e:
         raise HTTPException(503, f"monitor: {e}")
@@ -211,7 +286,32 @@ async def framebuffer(instance_id: str):
     inst = manager.get(instance_id)
     if inst is None:
         raise HTTPException(404, "no such instance")
-    return Response(content=placeholder_png(inst.name), media_type="image/png")
+    try:
+        state = await gime_state_mod.snapshot(inst.session)
+    except Exception as e:
+        return Response(
+            content=placeholder_png(f"gime_state failed: {e}"),
+            media_type="image/png",
+        )
+    if not gime_state_mod.is_supported(state.mode):
+        return Response(
+            content=render_framebuffer(state, b""),  # render() emits the unsupported placeholder
+            media_type="image/png",
+        )
+    fb_len = state.mode.bytes_per_row * state.mode.height
+    try:
+        fb = await inst.session.read_memory(
+            state.fb_phys_base, fb_len, space="physical"
+        )
+    except Exception as e:
+        return Response(
+            content=placeholder_png(f"FB read failed: {e}"),
+            media_type="image/png",
+        )
+    return Response(
+        content=render_framebuffer(state, fb),
+        media_type="image/png",
+    )
 
 
 # ---- websocket --------------------------------------------------------

@@ -4,6 +4,28 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-17] milestone | Phase 4 WS-B — live framebuffer renderer
+
+WS-B (live FB render) from the emulator-monitor-tester initiative landed. Scope locked to v0 (320×192×16 only); other modes fall through to a placeholder PNG whose text names the rejected mode/resolution/depth.
+
+**New** [web/backend/gime_state.py](../web/backend/gime_state.py). Reads `MonitorSession.read_gime_state` (M3 capability) and builds a `VideoState` dataclass: `VideoMode` (cres/hres/vres/bp/coco + decoded width/height/bpp/bytes_per_row), `palette_raw` (16x6-bit), `palette_rgb` (post-`palette.decode_rgb_monitor`), `pars_exec`/`pars_task`, `mmu_task`, `mmuen`, `fb_phys_base` computed from `$FF9D/$FF9E` per [gime.md L25-26](platform/gime.md), `source="monitor.read_gime_state"`. `decode_mode` extracts the GIME mode-register bit fields per gime.md L20-22; `is_supported` predicate gates the renderer.
+
+**Rewritten** [web/backend/framebuffer.py](../web/backend/framebuffer.py). `render(state, fb_bytes) -> bytes`: builds a 256-entry `(left_rgb, right_rgb)` lookup table once per call, then a single pass over the 30,720-byte FB produces the 320×192×3 RGB buffer that Pillow encodes to PNG. Pure-Python decode, no numpy dependency. Unsupported modes return `placeholder_png` with the rejection reason. `placeholder_png` kept for reuse.
+
+**Wired** [/api/instances/{id}/framebuffer.png](../web/backend/main.py) in `main.py`: snapshot → supported-mode check → `read_memory(fb_phys_base, 30720, space="physical")` → `render`. Error paths (gime_state read failure, FB read failure) return a placeholder with the error text, never a 500.
+
+**Two architect-pass departures, both approved:**
+
+1. **`ReadStrategy` protocol collapsed.** WS-A architect pass envisaged `DirectReadStrategy`/`ProgramStateStrategy`/`ShadowBlockStrategy`. M3's `read_gime_state` makes all three redundant — single call, shadow-backed, no `$1B` sentinel, no `$C0` palette OR. Removed before it was written.
+
+2. **FB read path: virtual → physical.** Original architect note said "read FB via virtual addresses, with the virtual base computed from PAR contents." That was a workaround for `$FF9D/$FF9E` being unreadable in the gdb-stub era. With M3 they're shadow-surfaced. Physical-space read is simpler (no MMU/PAR/task-set bookkeeping), more correct (matches the GIME's actual hardware video pointer), and works equally under MMU-off (current tester) and MMU-on (future game ROM with task switching). The virtual path would silently break once any ROM remaps slot 1 or task-switches mid-frame; physical is immune.
+
+**Frontend.** [framebuffer-view.js](../web/frontend/components/framebuffer-view.js) already auto-fetches `/framebuffer.png` on `ws:halt` — no wiring change needed. Updated the obsolete comment that claimed `$FF9D/$FF9E` couldn't be auto-resolved.
+
+WS-A (tester ROM) and WS-B done. Remaining: WS-C (`regions.py` + memory-regions frontend), WS-D (tester mode/pattern matrix expansion).
+
+---
+
 ## [2026-05-17] milestone | Phase 4 web-backend pivot — gdb stub → `-monitor` JSON-RPC
 
 Scope locked to "monitor pivot only" by project-management routing; WS-B (gime_state.py + live framebuffer) and WS-C (regions.py + persisted memory regions) deferred to follow-up sessions.

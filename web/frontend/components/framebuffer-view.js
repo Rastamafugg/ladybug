@@ -1,9 +1,9 @@
 import { store } from "/static/store.js";
 
-// Default screen-memory window. The GIME vertical-offset regs ($FF9D/$FF9E)
-// are write-only, so we cannot auto-resolve where the framebuffer actually
-// lives. $E000 is a reasonable virtual default — the framebuffer is intended
-// to occupy the top of the virtual map. The user can re-point it.
+// Default screen-memory window for the side hex-dump panel. The main FB
+// image auto-resolves its physical address via the monitor's GIME shadow
+// (read_gime_state), so this only seeds the user-pokeable hex view. The
+// hex panel reads via CPU-space, so a virtual default is appropriate.
 const DEFAULT_FB_ADDR = 0xE000;
 const DEFAULT_FB_LEN = 256;
 

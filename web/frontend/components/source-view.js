@@ -36,14 +36,25 @@ class SourceView extends HTMLElement {
     this.status = this.querySelector("#src-status");
     this.loadSource();
     store.addEventListener("ws:halt", (e) => this.onHalt(e.detail));
-    store.addEventListener("select", () => { this.currentPc = null; this.render(); });
+    store.addEventListener("select", () => {
+      this.currentPc = null;
+      this.bpByAddr.clear();
+      this.loadSource();
+    });
     store.addEventListener("build", () => this.loadSource());
   }
 
   async loadSource() {
     try {
-      const r = await fetch("/api/source");
-      if (!r.ok) { this.status.textContent = await r.text(); return; }
+      const iid = store.selectedId;
+      const url = iid ? `/api/source/${iid}` : "/api/source";
+      const r = await fetch(url);
+      if (!r.ok) {
+        this.status.textContent = await r.text();
+        this.lines = [];
+        this.body.innerHTML = "";
+        return;
+      }
       const data = await r.json();
       this.lines = data.lines;
       this.status.textContent = `${data.path} · ${this.lines.length} lines`;

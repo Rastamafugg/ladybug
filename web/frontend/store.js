@@ -42,14 +42,26 @@ class Store extends EventTarget {
     this.dispatchEvent(new CustomEvent("instances", { detail: this.instances }));
   }
 
-  async createInstance(name) {
+  async createInstance(name, romPath) {
+    const body = { name };
+    if (romPath) body.rom_path = romPath;
     const r = await fetch("/api/instances", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error(await r.text());
     await this.refreshInstances();
+  }
+
+  async listRoms() {
+    try {
+      const r = await fetch("/api/roms");
+      if (!r.ok) return [];
+      return await r.json();
+    } catch {
+      return [];
+    }
   }
 
   async deleteInstance(id) {
