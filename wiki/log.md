@@ -4,6 +4,35 @@ Append-only chronological record of ingests, queries, and lints. Each entry pref
 
 ---
 
+## [2026-05-18] milestone | Phase 4 WS-D v0 — mode-switch infra + 320×192×4 mode
+
+First WS-D increment per the user's narrow-landings preference: mode-switch infrastructure plus one new mode (320×192×4 hi-res 4-color). No new patterns; existing bars + checker now render correctly under both bpp variants.
+
+**Mode-record schema extension** in [src/tester/modes.inc](../src/tester/modes.inc). Record grew 5 → 8 bytes:
+- `TM_BPR` (u8 bytes/row), `TM_LINES` (u8 lines/frame), `TM_BPP` (1/2/4) appended.
+- Existing TM_VMODE/TM_VRES/TM_BORDER/TM_VOFF1/TM_VOFF0 unchanged.
+- New mode 1 entry: `$80, $1D, $28, $E4, $00, 80, 192, 2` (320×192 @ 2bpp).
+
+**Pattern-renderer contract change.** [src/tester/render.s](../src/tester/render.s) — `draw_current_pattern` now receives X = pointer to the active mode record. The mode lookup happens once in `redraw_with_blank`; pattern handlers no longer re-derive it from `tester_mode_idx`.
+
+**Per-pattern bpp dispatch.** [src/tester/pat_bars.s](../src/tester/pat_bars.s) and [src/tester/pat_check.s](../src/tester/pat_check.s) — each `pat_<name>_draw` reads `TM_BPP,x` and branches to a `_4bpp` (existing WS-A logic) or `_2bpp` (new) variant. Scales linearly: new bpp classes add one internal entry per pattern, not new files. Architect decision rationale: avoids the quadratic `patterns × modes` file count of the alternative.
+
+The 2bpp variants:
+- `pat_bars_2bpp`: 4 stripes × 48 rows × 80 bytes/row. Per-stripe byte: $00, $55, $AA, $FF (each packs four 2-bpp pixels of the same palette index).
+- `pat_check_2bpp`: row pattern $0505 alternates with $5050 every 8 rows. $05 = 0b 00 00 01 01 → pixels left→right: 0,0,1,1 (2-pixel cells inside each byte).
+
+**Input** in [src/tester/input.s](../src/tester/input.s). Added `key_mode1` handler + `key_table` entry: `'2'` (col 2, row PA4=$10) selects mode 1. Number-row mode-select convention preserved.
+
+**ROM stayed lean.** New tester.rom is 535 bytes raw (still padded to the 16 KB cart). Schema extension cost ~25 extra bytes; pattern variants ~45 bytes each; key handler ~6 bytes.
+
+**Smoke-verified mode 0 regression-clean.** [probe_tester_m2.py](../web/scripts/probe_tester_m2.py) green against the rebuilt ROM: palette correct, bars rendered, IRQ + frame counter + keyboard scan all working. Mode 1 and the '2' key binding need browser interaction to validate end-to-end.
+
+**WS-B consequence.** Mode 1 will render as `Unsupported mode: CRES=1 HRES=7 VRES=0 ...` in the framebuffer panel until WS-B grows a 4-color decoder. That's a small follow-up: one `is_supported` arm + a 2-bpp lookup-table builder in [framebuffer.py](../web/backend/framebuffer.py).
+
+Remaining WS-D scope (deferred to future increments): hi-res monochrome, hi-res text, 640-wide resolutions, the architect-pass extended pattern catalogue (16-color stripe diagnostic, per-color solid fill).
+
+---
+
 ## [2026-05-17] milestone | Phase 4 WS-C — user-defined memory regions
 
 WS-C from the emulator-monitor-tester initiative landed. v0 scope: hex-dump viewer only; additional viewers (ASCII inline / palette swatches / bitmap-as-image) deferred per use case.

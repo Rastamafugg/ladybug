@@ -90,7 +90,26 @@ v0 ships hex-dump viewer only. Additional viewers deferred per use case.
 
 **OPEN.** v0 viewer set: hex-dump confirmed. Additional v0 viewers (or all-deferred-to-use-case) — decide at WS-C architect handoff.
 
-### WS-D — Tester mode/pattern matrix expansion
+### WS-D — Tester mode/pattern matrix expansion 🚧 partial (2026-05-18 — v0 landed)
+
+v0 landed: mode-switch infrastructure + 320×192×4 hi-res 4-color mode (mode 1). No new patterns this round — bars + checker carry over from WS-A and now render correctly under both bpp variants.
+
+**Mode-table schema extension.** Record grew 5 → 8 bytes. Three new fields appended:
+- `TM_BPR` (bytes per row, u8)
+- `TM_LINES` (lines per frame)
+- `TM_BPP` (bits per pixel: 1, 2, or 4)
+
+Pattern handlers consume these so a single handler can size its draw loop and choose pixel packing from the active mode alone.
+
+**Pattern-renderer contract change.** `draw_current_pattern` now receives X = pointer to the active mode record. Inside each pattern handler, an internal bpp dispatcher (`pat_<name>_draw` → `pat_<name>_4bpp` / `pat_<name>_2bpp`) selects the variant. Scales linearly: new bpp classes add one internal entry per pattern, not new files.
+
+**Key binding.** Number-row '2' (col 2, row PA4=$10) → select mode 1. Mode 0 remains '1' (col 1, row PA4).
+
+**What's NOT in v0:** hi-res 4-color at 640 wide, hi-res monochrome, hi-res text, the 16-color stripe diagnostic, per-color solid fill sweep. Future increments land one mode + one pattern at a time per the established narrow-landings cadence.
+
+**WS-B consequence.** Mode 1 is currently rendered as `Unsupported mode: CRES=1 HRES=7 VRES=0 ...` in the web app's framebuffer panel. Growing WS-B to decode 4-color is a small follow-up (a second `is_supported` arm in `gime_state.is_supported` + a 2-bpp branch in `framebuffer.render`).
+
+### WS-D — original requirements (preserved for traceability)
 
 **Goal.** Expand WS-A's single mode/two-pattern v0 into the full switchable matrix.
 

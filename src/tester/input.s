@@ -108,6 +108,12 @@ key_mode0
         inc     tester_selection_dirty
         rts
 
+key_mode1
+        lda     #1
+        sta     tester_mode_idx
+        inc     tester_selection_dirty
+        rts
+
 key_pat_bars
         clr     tester_pattern_idx
         inc     tester_selection_dirty
@@ -121,8 +127,9 @@ key_pat_check
 
 ;==============================================================================
 ; key_table — (col, row_bit, handler) records.
-; v0 bindings per WS-A spec:
-;   '1' (col 1, row bit PA4=$10) → select mode 0
+; Bindings:
+;   '1' (col 1, row bit PA4=$10) → select mode 0 (320x192x16)
+;   '2' (col 2, row bit PA4=$10) → select mode 1 (320x192x4)        [WS-D]
 ;   'B' (col 2, row bit PA0=$01) → select pattern 0 (bars)
 ;   'C' (col 3, row bit PA0=$01) → select pattern 1 (checkerboard)
 ;==============================================================================
@@ -130,6 +137,9 @@ key_table
         fcb     1               ; '1' — col 1
         fcb     $10             ;       row bit PA4
         fdb     key_mode0
+        fcb     2               ; '2' — col 2
+        fcb     $10             ;       row bit PA4
+        fdb     key_mode1
         fcb     2               ; 'B' — col 2
         fcb     $01             ;       row bit PA0
         fdb     key_pat_bars
