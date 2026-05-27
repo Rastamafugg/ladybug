@@ -4,7 +4,7 @@ class SourceView extends HTMLElement {
   constructor() {
     super();
     this.lines = [];
-    // addr -> { id: string, enabled: bool }
+    // addr -> { id: string }
     this.bpByAddr = new Map();
     this.currentPc = null;
   }
@@ -25,9 +25,9 @@ class SourceView extends HTMLElement {
         .src-row.executable:hover { background: var(--bg-3); }
         .src-row.pc { background: rgba(255,107,138,0.18); }
         .src-row .gut { color: var(--fg-dim); text-align:center; user-select:none; }
-        .src-row .gut.bp { color: var(--err); }
-        .src-row .gut.bp-disabled { color: var(--fg-dim); }
-        .src-row .gut.pc { color: var(--accent); }
+        .src-row.bp .gut { color: var(--err); }
+        .src-row.pc .gut { color: var(--accent); }
+        .src-row.bp.pc .gut { color: var(--err); }
         .src-row .addr { color: var(--warn); }
         .src-row .text { color: var(--fg); }
       </style>
@@ -79,14 +79,15 @@ class SourceView extends HTMLElement {
     const rows = this.lines.map((l) => {
       const isExec = l.addr != null;
       const isPc = isExec && l.addr === this.currentPc;
-      const bp = isExec ? this.bpByAddr.get(l.addr) : undefined;
-      let gut = " ", gutClass = "gut";
-      if (bp && bp.enabled)        { gut = "●"; gutClass = "gut bp"; }
-      else if (bp && !bp.enabled)  { gut = "○"; gutClass = "gut bp-disabled"; }
-      else if (isPc)               { gut = "▶"; gutClass = "gut pc"; }
+      const hasBp = isExec && this.bpByAddr.has(l.addr);
+      const gut = isPc ? "▶" : (hasBp ? "●" : " ");
+      const rowClasses = ["src-row"];
+      if (isExec) rowClasses.push("executable");
+      if (hasBp) rowClasses.push("bp");
+      if (isPc) rowClasses.push("pc");
       const addr = isExec ? l.addr.toString(16).padStart(4, "0").toUpperCase() : "";
-      return `<div class="src-row${isExec ? " executable" : ""}${isPc ? " pc" : ""}" data-addr="${l.addr ?? ""}">
-        <span class="${gutClass}">${gut}</span>
+      return `<div class="${rowClasses.join(" ")}" data-addr="${l.addr ?? ""}">
+        <span class="gut">${gut}</span>
         <span class="addr">${addr}</span>
         <span class="text">${escapeHtml(l.text)}</span>
       </div>`;
@@ -97,12 +98,11 @@ class SourceView extends HTMLElement {
     });
   }
 
-  // Click cycles:   (none) -> enabled -> disabled -> (none)
+  // Click toggles: (none) -> set -> (none). Monitor protocol v0.6 has no
+  // per-BP enable/disable, so there's no intermediate disabled state.
   async cycleBp(addr) {
     if (!store.selectedId) return;
     const bp = this.bpByAddr.get(addr);
-    // Defensive: if a legacy/corrupt entry has no id, drop it and treat as none.
-    if (bp && !bp.id) this.bpByAddr.delete(addr);
     const iid = store.selectedId;
     try {
       if (!bp || !bp.id) {
@@ -113,15 +113,7 @@ class SourceView extends HTMLElement {
         });
         if (!r.ok) throw new Error(await r.text());
         const data = await r.json();
-        this.bpByAddr.set(addr, { id: data.id, enabled: true });
-      } else if (bp.enabled) {
-        const r = await fetch(`/api/instances/${iid}/breakpoints/${bp.id}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ enabled: false }),
-        });
-        if (!r.ok) throw new Error(await r.text());
-        bp.enabled = false;
+        this.bpByAddr.set(addr, { id: data.id });
       } else {
         const r = await fetch(`/api/instances/${iid}/breakpoints/${bp.id}`, { method: "DELETE" });
         if (!r.ok) throw new Error(await r.text());

@@ -45,6 +45,13 @@ class MonitorSession:
         self._next_id = 1
         self._pending: dict[int, asyncio.Future] = {}
         self._hello_fut: Optional[asyncio.Future] = None
+        # FastAPI runs request handlers concurrently. Multiple coroutines
+        # can therefore arrive at _call() simultaneously against this one
+        # socket. asyncio.StreamWriter.write() is non-atomic across coros
+        # (the underlying bytes can be interleaved on the wire), so we
+        # serialize the request side here. Replies still come back via the
+        # _pending[id] map and route to the right awaiter regardless.
+        self._write_lock = asyncio.Lock()
         # Single-shot guard so a `bp` event and a `wait_for_stop` return
         # produced by the same halt only fire one on_async("stopped").
         self._halt_cycle: Optional[asyncio.Event] = None
@@ -279,8 +286,13 @@ class MonitorSession:
         if params is not None:
             req["params"] = params
         try:
-            self._writer.write((json.dumps(req) + "\n").encode())
-            await self._writer.drain()
+            # Serialize the write so concurrent _call invocations can't
+            # interleave JSON-RPC frames on the wire. The await on `fut`
+            # happens outside the lock so other requests can still send
+            # while this one waits for its reply.
+            async with self._write_lock:
+                self._writer.write((json.dumps(req) + "\n").encode())
+                await self._writer.drain()
             return await asyncio.wait_for(fut, timeout=timeout)
         finally:
             self._pending.pop(rid, None)
