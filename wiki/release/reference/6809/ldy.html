@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LDY — Load Index Register Y — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Load / Store</p>
+      <h1>LDY — Load Index Register Y</h1>
+      <p class="wiki-meta">Y &larr; (M:M+1)</p>
+    </header>
+
+    <section class="isa-syntax-block">
+      <pre>LDY  &lt;operand&gt;</pre>
+    </section>
+
+    <section>
+      <h2>Description</h2>
+      <p>
+        Loads a 16-bit value from <code>M:M+1</code> into index register
+        <code>Y</code>. N and Z reflect the 16-bit result; V is cleared.
+      </p>
+      <p>
+        Y-prefixed instructions use the <code>$10</code> page-2 prefix, so they
+        are one byte longer and one cycle slower than the matching
+        <a href="ldx.html">LDX</a> form.
+      </p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead>
+          <tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>0</td><td>–</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead>
+          <tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Immediate</td>  <td><code>LDY #nn</code></td>  <td>108E</td><td>4</td><td>4</td></tr>
+          <tr><td>Direct</td>     <td><code>LDY &lt;n</code></td><td>109E</td><td>6</td><td>3</td></tr>
+          <tr><td>Indexed</td>    <td><code>LDY n,R</code></td>  <td>10AE</td><td>6+</td><td>3+</td></tr>
+          <tr><td>Extended</td>   <td><code>LDY n</code></td>    <td>10BE</td><td>7</td><td>4</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        LDY   #screen      * Y &lt;- video base
+        LDY   ,X++         * Y &lt;- (X), X = X+2
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="ldx.html">LDX</a>
+        <a href="ldu.html">LDU</a>
+        <a href="sty.html">STY</a>
+        <a href="leay.html">LEAY</a>
+        <a href="cmpy.html">CMPY</a>
+        <a href="./addressing-modes.html">Addressing modes</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Reference: Motorola <em>MC6809E HMOS 8-Bit Microprocessor</em> data
+        sheet; Tepolt, <em>Assembly Language Programming for the Color
+        Computer</em>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

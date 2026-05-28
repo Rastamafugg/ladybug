@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STY — Store Index Register Y — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Load / Store</p>
+      <h1>STY — Store Index Register Y</h1>
+      <p class="wiki-meta">M:M+1 &larr; Y</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>STY  &lt;operand&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Stores index register <code>Y</code> into <code>M:M+1</code>. Uses the $10 page-2 prefix. N and Z reflect the 16-bit stored value; V is cleared.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>0</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Direct</td>  <td><code>STY &lt;n</code></td><td>109F</td><td>6</td><td>3</td></tr>
+          <tr><td>Indexed</td> <td><code>STY n,R</code></td> <td>10AF</td><td>6+</td><td>3+</td></tr>
+          <tr><td>Extended</td><td><code>STY n</code></td>   <td>10BF</td><td>7</td><td>4</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        STY   &lt;save_y
+        STY   ,U++
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="ldy.html">LDY</a>
+        <a href="stx.html">STX</a>
+        <a href="leay.html">LEAY</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

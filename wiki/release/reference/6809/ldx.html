@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LDX — Load Index Register X — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Load / Store</p>
+      <h1>LDX — Load Index Register X</h1>
+      <p class="wiki-meta">X &larr; (M:M+1)</p>
+    </header>
+
+    <section class="isa-syntax-block">
+      <pre>LDX  &lt;operand&gt;</pre>
+    </section>
+
+    <section>
+      <h2>Description</h2>
+      <p>
+        Loads a 16-bit value from <code>M:M+1</code> into index register
+        <code>X</code>. N and Z reflect the 16-bit result; V is cleared.
+      </p>
+      <p>
+        Use immediate (<code>LDX #ptr</code>) to set up a base address before
+        indexed addressing.
+      </p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead>
+          <tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>0</td><td>–</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead>
+          <tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Immediate</td>  <td><code>LDX #nn</code></td>  <td>8E</td><td>3</td><td>3</td></tr>
+          <tr><td>Direct</td>     <td><code>LDX &lt;n</code></td><td>9E</td><td>5</td><td>2</td></tr>
+          <tr><td>Indexed</td>    <td><code>LDX n,R</code></td>  <td>AE</td><td>5+</td><td>2+</td></tr>
+          <tr><td>Extended</td>   <td><code>LDX n</code></td>    <td>BE</td><td>6</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        LDX   #sprite_tbl  * X &lt;- address of table
+        LDX   ,Y++         * X &lt;- (Y), Y = Y+2
+        LDX   &lt;cur_actor   * 16-bit DP load
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="ldy.html">LDY</a>
+        <a href="ldu.html">LDU</a>
+        <a href="lds.html">LDS</a>
+        <a href="ldd.html">LDD</a>
+        <a href="stx.html">STX</a>
+        <a href="leax.html">LEAX</a>
+        <a href="cmpx.html">CMPX</a>
+        <a href="./addressing-modes.html">Addressing modes</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Reference: Motorola <em>MC6809E HMOS 8-Bit Microprocessor</em> data
+        sheet; Tepolt, <em>Assembly Language Programming for the Color
+        Computer</em>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

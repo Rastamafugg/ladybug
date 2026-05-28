@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEAS — Load Effective Address into S — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Load / Store</p>
+      <h1>LEAS — Load Effective Address into S</h1>
+      <p class="wiki-meta">S &larr; EA</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>LEAS  n,R</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>
+        Loads the indexed effective address into <code>S</code>.
+        <strong>No flags are affected</strong> — unlike LEAX/LEAY, LEAS does not
+        update Z. Commonly used to adjust the stack pointer:
+        <code>LEAS n,S</code> deallocates <code>n</code> bytes of stack frame.
+      </p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Indexed</td><td><code>LEAS n,R</code></td><td>32</td><td>4+</td><td>2+</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        LEAS   2,S         * pop 2 bytes off the S stack
+        LEAS   -8,S        * reserve an 8-byte local frame
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="leau.html">LEAU</a>
+        <a href="leax.html">LEAX</a>
+        <a href="leay.html">LEAY</a>
+        <a href="lds.html">LDS</a>
+        <a href="pshs.html">PSHS</a>
+        <a href="puls.html">PULS</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

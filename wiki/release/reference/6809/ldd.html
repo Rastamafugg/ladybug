@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LDD — Load Accumulator D — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Load / Store</p>
+      <h1>LDD — Load Accumulator D</h1>
+      <p class="wiki-meta">D &larr; (M:M+1)</p>
+    </header>
+
+    <section class="isa-syntax-block">
+      <pre>LDD  &lt;operand&gt;</pre>
+    </section>
+
+    <section>
+      <h2>Description</h2>
+      <p>
+        Loads a 16-bit value from <code>M:M+1</code> into the concatenated
+        accumulator <code>D</code> (A is high byte, B is low byte). N and Z are
+        set from the 16-bit result; V is cleared.
+      </p>
+      <p>
+        A single LDD is one byte and one cycle cheaper than the equivalent
+        <code>LDA</code> + <code>LDB</code> pair on every mode but immediate.
+      </p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead>
+          <tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>0</td><td>–</td></tr>
+        </tbody>
+      </table>
+      <ul>
+        <li><strong>N</strong> — set if bit 15 of the loaded value is 1.</li>
+        <li><strong>Z</strong> — set if the loaded 16-bit value is zero.</li>
+        <li><strong>V</strong> — always cleared.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead>
+          <tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Immediate</td>  <td><code>LDD #nn</code></td>  <td>CC</td><td>3</td><td>3</td></tr>
+          <tr><td>Direct</td>     <td><code>LDD &lt;n</code></td><td>DC</td><td>5</td><td>2</td></tr>
+          <tr><td>Indexed</td>    <td><code>LDD n,R</code></td>  <td>EC</td><td>5+</td><td>2+</td></tr>
+          <tr><td>Extended</td>   <td><code>LDD n</code></td>    <td>FC</td><td>6</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        LDD   #$1000       * A=$10, B=$00
+        LDD   &lt;score       * 16-bit DP load
+        LDD   ,X++         * D &lt;- (X), then X = X+2
+        LDD   ptr          * extended
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="lda.html">LDA</a>
+        <a href="ldb.html">LDB</a>
+        <a href="std.html">STD</a>
+        <a href="addd.html">ADDD</a>
+        <a href="subd.html">SUBD</a>
+        <a href="cmpd.html">CMPD</a>
+        <a href="./addressing-modes.html">Addressing modes</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Reference: Motorola <em>MC6809E HMOS 8-Bit Microprocessor</em> data
+        sheet; Tepolt, <em>Assembly Language Programming for the Color
+        Computer</em>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

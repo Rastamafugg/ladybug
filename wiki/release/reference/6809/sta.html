@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STA — Store Accumulator A — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Load / Store</p>
+      <h1>STA — Store Accumulator A</h1>
+      <p class="wiki-meta">M &larr; A</p>
+    </header>
+
+    <section class="isa-syntax-block">
+      <pre>STA  &lt;operand&gt;</pre>
+    </section>
+
+    <section>
+      <h2>Description</h2>
+      <p>
+        Stores the contents of accumulator <code>A</code> into the addressed
+        memory location. N and Z reflect the stored value; V is cleared. No
+        immediate mode — the destination must be a memory location.
+      </p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>0</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Direct</td>  <td><code>STA &lt;n</code></td><td>97</td><td>4</td><td>2</td></tr>
+          <tr><td>Indexed</td> <td><code>STA n,R</code></td> <td>A7</td><td>4+</td><td>2+</td></tr>
+          <tr><td>Extended</td><td><code>STA n</code></td>   <td>B7</td><td>5</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        STA   &lt;palette     * direct page
+        STA   ,X+          * (X) &lt;- A, X = X+1
+        STA   $FF22        * write PIA2 port B
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="lda.html">LDA</a>
+        <a href="stb.html">STB</a>
+        <a href="std.html">STD</a>
+        <a href="stx.html">STX</a>
+        <a href="tst.html">TST</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Tepolt, <em>Assembly Language Programming for the Color Computer</em>; Motorola MC6809E data sheet.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
