@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>INC / INCA / INCB — Increment — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Arithmetic</p>
+      <h1>INC / INCA / INCB — Increment</h1>
+      <p class="wiki-meta">operand &larr; operand + 1</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>INC  &lt;operand&gt;
+INCA
+INCB</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Adds 1 to the operand in place. <strong>C is not affected</strong>. V is set if the operand was <code>$7F</code> (signed overflow).</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Form</th><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>INCA</td><td>Inherent</td><td><code>INCA</code></td>      <td>4C</td><td>2</td><td>1</td></tr>
+          <tr><td>INCB</td><td>Inherent</td><td><code>INCB</code></td>      <td>5C</td><td>2</td><td>1</td></tr>
+          <tr><td>INC</td> <td>Direct</td>  <td><code>INC &lt;n</code></td> <td>0C</td><td>6</td><td>2</td></tr>
+          <tr><td>INC</td> <td>Indexed</td> <td><code>INC n,R</code></td>   <td>6C</td><td>6+</td><td>2+</td></tr>
+          <tr><td>INC</td> <td>Extended</td><td><code>INC n</code></td>     <td>7C</td><td>7</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        INCA
+        INC   &lt;frame_ctr
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="dec.html">DEC</a>
+        <a href="adda.html">ADDA</a>
+        <a href="addb.html">ADDB</a>
+        <a href="leax.html">LEAX</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

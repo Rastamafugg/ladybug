@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ABX — Add B to X (Unsigned) — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Arithmetic</p>
+      <h1>ABX — Add B to X (Unsigned)</h1>
+      <p class="wiki-meta">X &larr; X + B (B zero-extended to 16 bits)</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>ABX</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>
+        Adds <code>B</code> (treated as an unsigned 8-bit value, zero-extended
+        to 16 bits) to <code>X</code>. No flags are affected. Useful for table
+        indexing where the offset is in <code>B</code>.
+      </p>
+      <p>
+        <code>LEAX B,X</code> does the same thing in 4+ cycles with an indexed
+        post-byte; <code>ABX</code> is 3 cycles and 1 byte — the smaller, faster
+        form for this common case.
+      </p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Inherent</td><td><code>ABX</code></td><td>3A</td><td>3</td><td>1</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        LDX   #table
+        LDB   index
+        ABX                * X = &amp;table[index]
+        LDA   ,X
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="leax.html">LEAX</a>
+        <a href="addd.html">ADDD</a>
+        <a href="ldb.html">LDB</a>
+        <a href="ldx.html">LDX</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

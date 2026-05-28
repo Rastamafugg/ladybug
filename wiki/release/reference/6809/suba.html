@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SUBA — Subtract from A — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Arithmetic</p>
+      <h1>SUBA — Subtract from A</h1>
+      <p class="wiki-meta">A &larr; A &minus; (M)</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>SUBA  &lt;operand&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Subtracts the 8-bit operand from <code>A</code> and stores the result in <code>A</code>. C is set on borrow (i.e. when the unsigned subtraction underflows).</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>U</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td></tr></tbody>
+      </table>
+      <p class="wiki-meta">H is undefined after SUBA (Tepolt note 8).</p>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Immediate</td><td><code>SUBA #n</code></td>  <td>80</td><td>2</td><td>2</td></tr>
+          <tr><td>Direct</td>   <td><code>SUBA &lt;n</code></td><td>90</td><td>4</td><td>2</td></tr>
+          <tr><td>Indexed</td>  <td><code>SUBA n,R</code></td> <td>A0</td><td>4+</td><td>2+</td></tr>
+          <tr><td>Extended</td> <td><code>SUBA n</code></td>   <td>B0</td><td>5</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        SUBA   #1
+        SUBA   &lt;dx
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="subb.html">SUBB</a>
+        <a href="subd.html">SUBD</a>
+        <a href="sbca.html">SBCA</a>
+        <a href="cmpa.html">CMPA</a>
+        <a href="adda.html">ADDA</a>
+        <a href="neg.html">NEG</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADDD — Add to Accumulator D — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Arithmetic</p>
+      <h1>ADDD — Add to Accumulator D</h1>
+      <p class="wiki-meta">D &larr; D + (M:M+1)</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>ADDD  &lt;operand&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Adds the 16-bit memory operand to <code>D</code> and stores the result in <code>D</code>. H is unaffected (16-bit add has no half-carry semantics); N, Z, V, C reflect the 16-bit result.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Immediate</td><td><code>ADDD #nn</code></td>  <td>C3</td><td>4</td><td>3</td></tr>
+          <tr><td>Direct</td>   <td><code>ADDD &lt;n</code></td><td>D3</td><td>6</td><td>2</td></tr>
+          <tr><td>Indexed</td>  <td><code>ADDD n,R</code></td>  <td>E3</td><td>6+</td><td>2+</td></tr>
+          <tr><td>Extended</td> <td><code>ADDD n</code></td>    <td>F3</td><td>7</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        ADDD   #100        * D = D + 100
+        ADDD   &lt;delta_xy
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="adda.html">ADDA</a>
+        <a href="addb.html">ADDB</a>
+        <a href="subd.html">SUBD</a>
+        <a href="ldd.html">LDD</a>
+        <a href="cmpd.html">CMPD</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>
