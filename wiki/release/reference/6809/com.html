@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COM / COMA / COMB — One's-Complement — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Logical</p>
+      <h1>COM / COMA / COMB — One's-Complement</h1>
+      <p class="wiki-meta">operand &larr; NOT operand</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>COM  &lt;operand&gt;
+COMA
+COMB</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Inverts every bit of the operand (one's complement). <strong>C is always set to 1</strong> by COM — a quirk that lets COM substitute for a "load FF and store" with carry-set as a side effect. V is cleared.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>0</td><td>1</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Form</th><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>COMA</td><td>Inherent</td><td><code>COMA</code></td>      <td>43</td><td>2</td><td>1</td></tr>
+          <tr><td>COMB</td><td>Inherent</td><td><code>COMB</code></td>      <td>53</td><td>2</td><td>1</td></tr>
+          <tr><td>COM</td> <td>Direct</td>  <td><code>COM &lt;n</code></td> <td>03</td><td>6</td><td>2</td></tr>
+          <tr><td>COM</td> <td>Indexed</td> <td><code>COM n,R</code></td>   <td>63</td><td>6+</td><td>2+</td></tr>
+          <tr><td>COM</td> <td>Extended</td><td><code>COM n</code></td>     <td>73</td><td>7</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        COMA               * A = ~A; C = 1
+        COM   &lt;mask        * invert mask in place
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="neg.html">NEG</a>
+        <a href="eora.html">EORA</a>
+        <a href="eorb.html">EORB</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

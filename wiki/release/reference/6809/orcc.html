@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ORCC — OR Immediate with CC — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Logical</p>
+      <h1>ORCC — OR Immediate with CC</h1>
+      <p class="wiki-meta">CC &larr; CC OR #imm</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>ORCC  #mask</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>
+        Sets the specified bits in the condition code register by ORing with
+        an immediate 8-bit mask. The canonical way to <em>set</em> the IRQ
+        mask: <code>ORCC #$50</code> sets I and F (disabling IRQ and FIRQ).
+      </p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td colspan="8">Each bit set if the corresponding mask bit is 1.</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Immediate</td><td><code>ORCC #n</code></td><td>1A</td><td>3</td><td>2</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        ORCC  #$50         * disable IRQ and FIRQ
+        ORCC  #$01         * set carry
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="andcc.html">ANDCC</a>
+        <a href="cwai.html">CWAI</a>
+        <a href="./condition-codes.html">Condition codes</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>
