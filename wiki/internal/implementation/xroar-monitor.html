@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XRoar Monitor Protocol — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation · plan</p>
+      <h1>XRoar <code>-monitor</code> port — Phase 1 requirements <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Custom JSON-RPC "monitor" server inside XRoar, replacing the gdb
+        stub for our tooling. Eliminates the four documented gdb-stub
+        limitations from the 2026-05-16 lessons-learned entries.
+      </p>
+    </header>
+
+    <section>
+      <p>Supersedes the deferred design sketch in <a href="../backlog/mcp-xroar-server.html">backlog/mcp-xroar-server</a>.</p>
+    </section>
+
+    <section>
+      <h2>Architecture</h2>
+<pre><code> Claude Code / agent ──MCP (real spec)──▶ Ladybug web backend (web/backend/instance.py)
+                                            │
+                                            ├──monitor JSON-RPC──▶ XRoar instance A
+                                            ├──monitor JSON-RPC──▶ XRoar instance B
+                                            └──monitor JSON-RPC──▶ XRoar instance C
+</code></pre>
+      <p>
+        The XRoar side speaks a project-private JSON-RPC "monitor protocol".
+        The web backend owns the session registry and brokers commands; it
+        is the component that speaks real-spec MCP outward. XRoar is not
+        MCP-aware. The name <code>-monitor</code> (not <code>-mcp</code>)
+        reflects this.
+      </p>
+    </section>
+
+    <section>
+      <h2>Activation</h2>
+      <ul>
+        <li>Flag: <code>-monitor [host:]port</code> — enable monitor server. Default endpoint <code>127.0.0.1:17654</code>. Loopback-only by default.</li>
+        <li>Flag: <code>-monitor-halt-on-start</code> — pause CPU before first instruction until a client connects.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Transport &amp; framing</h2>
+      <ul>
+        <li>TCP listener, line-delimited JSON-RPC 2.0 (one JSON object per <code>\n</code>).</li>
+        <li>No auth in v1; loopback is the trust boundary.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Concurrency with <code>-gdb</code></h2>
+      <p>
+        Both stubs may be enabled simultaneously. Combination is allowed but
+        <strong>unsupported</strong>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Address-space model</h2>
+      <ul>
+        <li><code>"cpu"</code> (default) — <code>addr ∈ $0000–$FFFF</code> resolved through the currently-active PAR set. Matches gdb behavior.</li>
+        <li><code>"physical"</code> — <code>phys_addr ∈ $00000–$7FFFF</code> (19-bit), bypassing PARs. Required to inspect pages not currently mapped, and to write RAM-under-ROM regions.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Run-state contract for state-mutating commands</h2>
+      <ul>
+        <li><strong>State reads</strong> — permitted while CPU is running.</li>
+        <li><strong>State writes</strong> — require CPU <code>halted</code>. If running, return <code>target_running</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Write semantics by address space</h2>
+      <ul>
+        <li><strong>CPU-space write to a ROM-backed address</strong>: return <code>read_only_region</code>.</li>
+        <li><strong>Physical-space write</strong>: always writes the byte directly into XRoar's RAM array at the 19-bit physical address. Bypasses bus decode. See <a href="./lessons-learned.html">lessons-learned §XRoar cart-window write decode</a>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Capabilities</h2>
+
+      <h3>MUST (v1)</h3>
+      <table class="wiki-table">
+        <thead><tr><th>Method</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>read_memory(addr, len, space="cpu")</code></td><td>Cap at 64 KB per request.</td></tr>
+          <tr><td><code>write_memory(addr, bytes, space="cpu")</code></td><td>Halted-only.</td></tr>
+          <tr><td><code>read_registers()</code></td><td>6809: A, B, D, X, Y, U, S, PC, DP, CC.</td></tr>
+          <tr><td><code>write_registers({...})</code></td><td>Halted-only.</td></tr>
+          <tr><td><code>read_gime_state()</code></td><td>Shadow-backed <code>$FF90</code>, <code>$FF98–$FF9E</code>, MMU task, PARs, palette.</td></tr>
+          <tr><td><code>step_instruction(n=1)</code></td><td>Halted-only.</td></tr>
+          <tr><td><code>run()</code> / <code>pause()</code></td><td><code>pause</code> must work mid-run.</td></tr>
+          <tr><td><code>set_breakpoint(addr, kind="exec")</code></td><td>Must work when current PC == addr.</td></tr>
+          <tr><td><code>clear_breakpoint(id)</code> / <code>list_breakpoints()</code></td><td></td></tr>
+          <tr><td><code>wait_for_stop(timeout_ms)</code></td><td>Long-poll.</td></tr>
+          <tr><td><code>get_run_state()</code></td><td><code>running</code> / <code>halted</code>.</td></tr>
+          <tr><td><code>reset(kind="soft"|"hard")</code></td><td>Emits <code>reset</code> event; clears breakpoints.</td></tr>
+          <tr><td><code>attach()</code> / <code>detach()</code></td><td></td></tr>
+        </tbody>
+      </table>
+
+      <h3>SHOULD (v1 if cheap, else v1.1)</h3>
+      <table class="wiki-table">
+        <thead><tr><th>Method</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>set_watchpoint(addr, len, kind)</code></td><td>Real watchpoints.</td></tr>
+          <tr><td><code>screen_capture(format)</code></td><td>Framebuffer snapshot for golden-image regression.</td></tr>
+          <tr><td><code>inject_key(coco_key, kind, hold_ms?)</code></td><td>Headless UI driving.</td></tr>
+          <tr><td><code>snapshot_save(path)</code> / <code>snapshot_load(path)</code></td><td></td></tr>
+          <tr><td><code>events.subscribe(kinds=[...])</code></td><td>Async push channel.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>NICE (defer)</h3>
+      <ul>
+        <li><code>read_disasm(addr, n)</code></li>
+        <li><code>read_cycle_counter()</code></li>
+        <li>Memory-map introspection helper</li>
+        <li>Tape/disk image swap</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Lifecycle</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Event</th><th>Behavior</th></tr></thead>
+        <tbody>
+          <tr><td>XRoar start with <code>-monitor</code></td><td>Open listener; CPU runs (unless <code>-monitor-halt-on-start</code>).</td></tr>
+          <tr><td>Client connects</td><td>Send hello: XRoar version, monitor protocol version, machine name.</td></tr>
+          <tr><td>Hard reset</td><td>Stub stays up; emit <code>reset</code> event; clear BPs/WPs.</td></tr>
+          <tr><td>Snapshot load</td><td>Clear BPs, emit <code>state_loaded</code>.</td></tr>
+          <tr><td>Machine switch</td><td>Emit <code>machine_changed</code>.</td></tr>
+          <tr><td>Last client disconnects while halted</td><td><strong>CPU stays halted; await reconnection.</strong></td></tr>
+          <tr><td>XRoar shutdown</td><td>Send <code>goodbye</code>, close listener.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Failure modes</h2>
+      <ul>
+        <li>Malformed JSON → JSON-RPC <code>-32700</code>; do not drop connection.</li>
+        <li>Unknown method → <code>-32601</code>.</li>
+        <li>Invalid params → <code>-32602</code>.</li>
+        <li>Memory reads capped at 64 KB.</li>
+        <li>Write to ROM-backed CPU address → <code>read_only_region</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Explicitly out of scope (v1)</h2>
+      <ul>
+        <li>Replay / time-travel / reverse-stepping</li>
+        <li>Audio buffer capture</li>
+        <li>Analog joystick value injection</li>
+        <li>Authentication / TLS</li>
+        <li>Real Anthropic MCP-spec compliance inside XRoar</li>
+        <li>Persistent BP conditions / scripting</li>
+        <li>Hot-reload of the monitor stub</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>M1 carry-forwards</h2>
+      <p>Tracked from QA review 2026-05-17. None block M2.</p>
+      <ul>
+        <li><strong><code>goodbye</code> notification on XRoar shutdown</strong> — DONE in M5. Triggered via clean exit; new <code>quit</code> JSON-RPC method makes this externally triggerable.</li>
+        <li><strong>Concurrent multi-client support</strong> — DONE in M6a. Accept thread spawns detached worker per client; event broadcasts use trylock.</li>
+        <li><strong><code>-gdb</code> + <code>-monitor</code> simultaneous activation</strong>: when both are enabled, <code>coco3.c</code> gives gdb precedence in the run loop; monitor's <code>pause</code>/<code>run</code> then silently no-op. Defer until a real need surfaces.</li>
+        <li><strong><code>coco3.c</code> delta vs plan estimate</strong>: plan said "Two lines". Actual is ~31 lines (run-loop gate architecturally required for <code>pause</code>/<code>run</code>).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>M6a carry-forwards</h2>
+      <ul>
+        <li>Multi-client architecture in place via accept-thread + worker-per-client.</li>
+        <li>Event push avoids stalling the emu thread via <code>pthread_mutex_trylock</code>.</li>
+        <li><code>hsync</code> event kind reserved but not wired (15.7 kHz tick rate would dominate trylock loop).</li>
+        <li><code>inject_text</code> end-to-end depends on a CRC-matched BASIC ROM (auto_kbd installs its character-injection breakpoints via CRC list).</li>
+        <li>Watchpoints share <code>bp_session</code> with breakpoints; WP fires surface as <code>reason="breakpoint"</code> with <code>bp_id=0</code>.</li>
+        <li><code>signal_fs</code> chained delegate is single-instance.</li>
+        <li>Deferred to M6b: <code>screen_capture</code>, <code>snapshot_save</code>/<code>snapshot_load</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>M5 carry-forwards</h2>
+      <ul>
+        <li>New method <code>quit</code> beyond plan's MUST table — only way to make XRoar run its <code>atexit</code> chain.</li>
+        <li><code>monitor_interface_free</code> self-thread skip via <code>pthread_equal</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>M4 carry-forwards</h2>
+      <ul>
+        <li><code>coco3.c</code> monitor branch now substantial (~25 lines).</li>
+        <li>Step batches are atomic w.r.t. UI events.</li>
+        <li><code>bp_id</code> resolution on SIGTRAP — first-match wins for duplicate-addr BPs.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>M3 carry-forwards</h2>
+      <ul>
+        <li><strong>Plan errata — physical-space RAM indexing.</strong> M3 implements <code>bank = phys / bank_nelems</code>, <code>off = phys % bank_nelems</code>.</li>
+        <li><strong>New accessor <code>tcc1014_get_monitor_view</code></strong>: 19 lines to <code>tcc1014.h</code>, 17 lines to <code>tcc1014.c</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>M2 carry-forwards</h2>
+      <ul>
+        <li><strong><code>read_only_region</code> error still not implemented after M3.</strong> Deferred to M5+ or web-backend integration.</li>
+        <li>No size cap on register envelopes.</li>
+        <li>Run-state contract — read concurrency is a soft guarantee.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Open follow-ups (not blockers for Phase 2)</h2>
+      <ul>
+        <li>MAME comparison test of the cart-ROM-to-RAM copy — see <a href="../backlog/mame-cart-ram-comparison.html">backlog/mame-cart-ram-comparison</a>.</li>
+        <li>Real-hardware verification of the RAM-under-ROM write contract — deferred to Phase 10 hardware bring-up.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Phase 2 implementation plan</h2>
+      <p>Approved 2026-05-16. Implementation deferred to Phase 3 milestones.</p>
+
+      <h3>XRoar repo bring-up</h3>
+      <ul>
+        <li><code>docs/reference/xroar/</code> is a real git checkout. Current HEAD <code>1e5e9552</code> = 4 commits past upstream tag <code>1.11</code>.</li>
+      </ul>
+
+      <h3>Branching</h3>
+      <ul>
+        <li>Feature branch <code>ladybug/monitor</code> in the XRoar working tree (nested repo; not a submodule).</li>
+      </ul>
+
+      <h3>Module placement</h3>
+      <ul>
+        <li><code>monitor.c</code> (est. 1200-1500 LOC) + <code>monitor.h</code> — paralleling <code>gdb.c</code>.</li>
+        <li><code>cJSON.c</code> / <code>cJSON.h</code> — vendored.</li>
+      </ul>
+
+      <h3>File change list</h3>
+      <table class="wiki-table">
+        <thead><tr><th>File</th><th>Change</th></tr></thead>
+        <tbody>
+          <tr><td><code>src/monitor.c</code>, <code>src/monitor.h</code></td><td>NEW</td></tr>
+          <tr><td><code>src/cJSON.c</code>, <code>src/cJSON.h</code></td><td>NEW (vendored)</td></tr>
+          <tr><td><code>src/Makefile.am</code></td><td>Add <code>if MONITOR</code> block (~6 lines)</td></tr>
+          <tr><td><code>configure.ac</code></td><td><code>AC_ARG_ENABLE([monitor], …)</code>, ~10 lines</td></tr>
+          <tr><td><code>src/xroar.h</code></td><td>Add <code>cfg.debug.monitor</code>, port, halt-on-start fields (~3 lines)</td></tr>
+          <tr><td><code>src/xroar.c</code></td><td>Option table + help + config-print, ~12 lines</td></tr>
+          <tr><td><code>src/coco3.c</code></td><td><code>monitor_interface_new</code> / <code>_free</code>, ~2 lines (actual ~31 with run-loop gate)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Address-space representation (locked)</h3>
+      <p>
+        <strong>Flat 19-bit physical address</strong> — <code>phys_addr ∈ $00000–$7FFFF</code>.
+        Monitor splits internally: <code>bank = addr &gt;&gt; 13</code>,
+        <code>offset = addr &amp; 0x1FFF</code>.
+      </p>
+
+      <h3>Phase 3 milestones</h3>
+      <table class="wiki-table">
+        <thead><tr><th>M</th><th>Scope</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><strong>M1</strong></td><td>Listener; hello; <code>get_run_state</code>/<code>run</code>/<code>pause</code></td><td>Done 2026-05-17</td></tr>
+          <tr><td><strong>M2</strong></td><td>Memory + registers (halted-only enforcement)</td><td>Done 2026-05-17</td></tr>
+          <tr><td><strong>M3</strong></td><td><code>read_gime_state</code>, physical-space memory R/W</td><td>Done 2026-05-17</td></tr>
+          <tr><td><strong>M4</strong></td><td>Breakpoints, <code>step_instruction</code>, <code>wait_for_stop</code></td><td>Done 2026-05-17</td></tr>
+          <tr><td><strong>M5</strong></td><td><code>reset</code>, <code>attach</code>/<code>detach</code>, <code>goodbye</code>, <code>quit</code></td><td>Done 2026-05-17</td></tr>
+          <tr><td><strong>M6a</strong></td><td>Thread-per-client, <code>events.subscribe</code>, watchpoints, <code>inject_text</code></td><td>Done 2026-05-17</td></tr>
+          <tr><td><strong>M6b</strong></td><td><code>screen_capture</code>, snapshot save/load (SHOULD)</td><td>Deferred</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Phase 4 web-backend pivot (2026-05-17)</h2>
+      <p>Done — scope-locked to monitor pivot only; WS-B/WS-C deferred.</p>
+      <ul>
+        <li>Retired <code>web/backend/gdb_session.py</code>; new <code>web/backend/monitor_session.py</code> speaks JSON-RPC 2.0.</li>
+        <li>Run-state events synthesized in the session layer.</li>
+        <li><code>XROAR_BIN</code> env override wired. Default <code>docs/reference/xroar/build/xroar-monitor</code>.</li>
+        <li><code>gdb_port</code> field → <code>monitor_port</code> across models/instances/frontend.</li>
+        <li><code>enable_breakpoint</code>/<code>disable_breakpoint</code> raise <code>NotImplementedError</code>; PATCH route returns 501.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <a href="./lessons-learned.html">lessons-learned</a> — gdb-stub
+        limitations; XRoar cart-window write decode finding;
+        <a href="../backlog/mcp-xroar-server.html">backlog/mcp-xroar-server</a>
+        — superseded design sketch;
+        <a href="./emulator-monitor-tester.html">emulator-monitor-tester</a>;
+        XRoar source under <code>docs/reference/xroar/src/</code>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

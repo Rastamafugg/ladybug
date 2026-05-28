@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LDA — Load Accumulator A — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Load / Store</p>
+      <h1>LDA — Load Accumulator A</h1>
+      <p class="wiki-meta">A &larr; (M)</p>
+    </header>
+
+    <section class="isa-syntax-block">
+      <pre>LDA  &lt;operand&gt;</pre>
+    </section>
+
+    <section>
+      <h2>Description</h2>
+      <p>
+        Loads the contents of the addressed memory location into the 8-bit
+        accumulator <code>A</code>. The N and Z flags are set from the loaded
+        value; V is cleared; H, I, F, C are unaffected.
+      </p>
+      <p>
+        Pair with <a href="ldb.html">LDB</a> when both halves of <code>D</code>
+        are needed independently, or use <a href="ldd.html">LDD</a> to load
+        both at once in a single 16-bit operation.
+      </p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead>
+          <tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>0</td><td>–</td></tr>
+        </tbody>
+      </table>
+      <ul>
+        <li><strong>N</strong> — set if bit 7 of the loaded value is 1.</li>
+        <li><strong>Z</strong> — set if the loaded value is zero.</li>
+        <li><strong>V</strong> — always cleared.</li>
+        <li>H, I, F, C — unaffected.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead>
+          <tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Immediate</td>  <td><code>LDA #n</code></td>  <td>86</td><td>2</td><td>2</td></tr>
+          <tr><td>Direct</td>     <td><code>LDA &lt;n</code></td><td>96</td><td>4</td><td>2</td></tr>
+          <tr><td>Indexed</td>    <td><code>LDA n,R</code></td> <td>A6</td><td>4+</td><td>2+</td></tr>
+          <tr><td>Extended</td>   <td><code>LDA n</code></td>   <td>B6</td><td>5</td><td>3</td></tr>
+        </tbody>
+      </table>
+      <p class="wiki-meta">
+        <strong>~</strong> = clock cycles. <strong>#</strong> = instruction bytes.
+        Indexed mode adds 0–4 cycles and 0–2 bytes depending on the post-byte form.
+        See <a href="./addressing-modes.html">addressing modes</a> for the full
+        post-byte breakdown.
+      </p>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        LDA   #$20         * immediate: A &lt;- $20
+        LDA   &lt;palette     * direct page: A &lt;- (DP:palette)
+        LDA   ,X+          * post-increment indexed: A &lt;- (X), X = X+1
+        LDA   2,Y          * 5-bit offset indexed
+        LDA   score        * extended: A &lt;- ($nnnn)
+        LDA   [vector]     * extended indirect via $nnnn
+</code></pre>
+      <p>
+        Use the direct-page form whenever the variable lives in the configured
+        DP region — it saves one byte and one cycle versus extended on every
+        access. See
+        <a href="../asm-tips/dp-conventions.html">DP conventions</a>.
+      </p>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="ldb.html">LDB</a>
+        <a href="ldd.html">LDD</a>
+        <a href="ldx.html">LDX</a>
+        <a href="ldy.html">LDY</a>
+        <a href="ldu.html">LDU</a>
+        <a href="lds.html">LDS</a>
+        <a href="sta.html">STA</a>
+        <a href="leax.html">LEAX</a>
+        <a href="./addressing-modes.html">Addressing modes</a>
+        <a href="./condition-codes.html">Condition codes</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Reference: Motorola <em>MC6809E HMOS 8-Bit Microprocessor</em> data
+        sheet; Tepolt, <em>Assembly Language Programming for the Color
+        Computer</em> (Spectral Associates) — see
+        <a href="../../../internal/sources/coco-asm-tepolt.html">source notes</a>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

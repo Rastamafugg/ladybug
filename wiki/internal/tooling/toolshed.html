@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>toolshed — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tooling</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>Toolshed (<code>decb</code>, <code>os9</code>, friends) <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        DECB / OS-9 disk image utilities — installed but NOT in the active
+        build path; fallback for a future <code>.dsk</code> deploy mode.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        The CoCo cross-development utility suite (originally by Boisy
+        Pitre, now maintained at
+        <a href="https://github.com/n6il/toolshed">https://github.com/n6il/toolshed</a>).
+        Installed at <code>/usr/local/bin/{decb,os9}</code> from
+        <code>~/coco-tools/toolshed</code>. Reference:
+        <a href="https://github.com/n6il/toolshed/blob/master/doc/ToolShed.md">ToolShed.md</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Status: standby</h2>
+      <p>
+        <strong>Not currently invoked by the build.</strong> Ladybug deploys
+        as a <a href="../platform/cartridge.html">cartridge ROM image</a>,
+        so we go directly from <code>lwasm</code> raw output → padded ROM →
+        xroar <code>-cart-rom</code>. No disk image is built.
+      </p>
+      <p>
+        Toolshed is documented here so we can switch over quickly if
+        iteration becomes painful (e.g. if we want to load via Disk BASIC
+        <code>LOADM</code> instead of rebuilding/restarting the cart, or
+        if we ship a <code>.dsk</code> for floppy distribution).
+      </p>
+    </section>
+
+    <section>
+      <h2>If we switch to a <code>.dsk</code> deploy path (Disk BASIC, NOT OS-9)</h2>
+      <p>Reassemble with DECB header so the binary carries its load and exec addresses:</p>
+<pre><code>lwasm -9 --format=decb --output=build/ladybug.bin --list=build/ladybug.lst src/main.s
+</code></pre>
+      <p>Build a fresh DECB-format disk image and copy the binary in:</p>
+<pre><code>decb dskini -3 build/ladybug.dsk          # init a 35-track single-sided disk
+decb copy -2 -b -r build/ladybug.bin build/ladybug.dsk,LADYBUG.BIN
+decb dir build/ladybug.dsk                # verify
+</code></pre>
+      <p>Flag notes:</p>
+      <ul>
+        <li><code>-2</code> selects DECB filesystem on the destination.</li>
+        <li><code>-b</code> binary mode (no LF/CR translation).</li>
+        <li><code>-r</code> replace if exists.</li>
+      </ul>
+      <p>Run via xroar:</p>
+<pre><code>xroar -machine coco3 -ram 512 -load-fd0 build/ladybug.dsk
+# at the BASIC prompt: LOADM"LADYBUG":EXEC
+</code></pre>
+    </section>
+
+    <section>
+      <h2>OS-9 path (<code>os9</code> tool) — explicitly out of scope</h2>
+      <p>
+        <code>os9</code> formats and manipulates <strong>OS-9 / NitrOS-9</strong>
+        filesystem images. File permissions (<code>os9 attr</code>) are an
+        OS-9 filesystem concept. Ladybug runs bare-metal, so there's
+        nothing on the target to mount an OS-9 disk. Do not use this path
+        unless we revisit the no-NitrOS-9 decision in
+        <a href="../../../CLAUDE.md"><code>CLAUDE.md</code></a>.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Doc: <a href="https://github.com/n6il/toolshed/blob/master/doc/ToolShed.md">ToolShed.md</a>.
+        Local install: <code>~/coco-tools/toolshed</code> (source),
+        <code>/usr/local/bin/{decb,os9}</code>.
+        <code>decb --help</code> and <code>os9 --help</code> for full
+        subcommand lists.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

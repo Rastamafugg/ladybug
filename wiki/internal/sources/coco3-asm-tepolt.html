@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tepolt — Assembly Language Programming for the CoCo 3 — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Sources</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Source · book</p>
+      <h1>Assembly Language Programming for the CoCo 3 <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Laurence A. Tepolt (TEPCO, 1987). Addendum to "The Book" — documents
+        only the CoCo 3-specific additions: GIME (ACVC), MMU + 19-bit
+        physical memory, palette registers, hi-res text and graphics modes,
+        new ACVC interrupt sources, reset initialisation.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        Written as an addendum to the CoCo 1/2 manual — see
+        <a href="./coco-asm-tepolt.html">coco-asm-tepolt</a>. Only describes
+        the <em>deltas</em> introduced by the CoCo 3, so both books are
+        needed. Raw OCR text:
+        <code>docs/reference/Assembly Language Programming for the CoCo3.md</code>.
+      </p>
+    </section>
+
+    <section>
+      <h2>What we extracted</h2>
+
+      <h3>Chapter 1 — Overview</h3>
+      <p>
+        MPU is the MC68B09E (same ISA as MC6809E, certified for the high
+        1.78 MHz clock). 128 K or 512 K RAM; 32 K of ROM (Color BASIC,
+        Extended Color BASIC, Super Extended BASIC, Reset Init). The new
+        component is the <strong>ACVC</strong> (Advanced Color Video Chip),
+        aka the <strong>GIME</strong> chip, which absorbs SAM + VDG and
+        adds the MMU, palette registers, new control registers, and new
+        interrupt sources. New I/O jacks: Audio (line out), Composite Video,
+        RGB. Joystick connectors gain a second fire button per stick.
+      </p>
+
+      <h3>Chapter 2 — Colors and palette</h3>
+      <p>
+        Sixteen palette registers at <code>$FFB0-$FFBF</code>, six bits each.
+        Two color sets:
+      </p>
+      <ul>
+        <li><em>Composite</em> (TV / composite monitor): bits encode <code>S1 S0 A3 A2 A1 A0</code> = brightness/saturation pair + 4-bit hue angle. Code <code>$3F</code> is white (special case).</li>
+        <li><em>RGB</em> (analog RGB monitor): bits encode <code>R1 G1 B1 R0 G0 B0</code>; each primary intensity is 2-bit (00 none, 01 low, 10 medium, 11 high).</li>
+      </ul>
+      <p>
+        Bit 5 of <code>$FF98</code> toggles the <strong>alternate color set</strong>
+        (rotates the hue wheel 180° to mimic CoCo-1 artifact-color phase flips).
+      </p>
+
+      <h3>Chapter 3 — Physical &amp; virtual memory / MMU</h3>
+      <ul>
+        <li>Virtual = the 64 K MPU address space, divided into eight 8 K pages (page # = top three address bits).</li>
+        <li>Physical = up to 512 K, divided into sixty-four 8 K pages numbered <code>$00-$3F</code>. Physical RAM in a 128 K machine populates pages <code>$30-$3F</code>; in a 512 K machine, all 64 pages.</li>
+        <li>MMU has two PAR sets, <strong>executive</strong> (<code>$FFA0-$FFA7</code>) and <strong>task</strong> (<code>$FFA8-$FFAF</code>); each PAR is a 6-bit physical-page number that supplies bits Y18..Y13 of the expanded address.</li>
+        <li>Dedicated addresses <code>$FF00-$FFFF</code> always bypass the MMU.</li>
+        <li><strong>128 K wrap-around quirk:</strong> physical pages <code>$00-$2F</code> are unused, so the MMU's two top expanded-address bits are unused; the contents of pages <code>$30-$3F</code> are aliased through <code>$00-$0F</code>, <code>$10-$1F</code>, and <code>$20-$2F</code>.</li>
+      </ul>
+
+      <h3>Chapter 4 — High-resolution displays</h3>
+      <p>GIME control registers (all write-only, see Table 7-2):</p>
+      <table class="wiki-table">
+        <thead><tr><th>Address</th><th>Register</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>$FF90</code></td><td>Init0</td><td>bit7 COCO, bit6 MMU enable, bit5 IRQ enable (ACVC), bit4 FIRQ enable, bit3 vector ROM force, bit2 SCS enable, bits1-0 ROM map</td></tr>
+          <tr><td><code>$FF91</code></td><td>Init1</td><td>bit5 timer clock, bit0 task/exec PAR select</td></tr>
+          <tr><td><code>$FF92</code></td><td>IRQEN</td><td>enable + ack for ACVC IRQ sources</td></tr>
+          <tr><td><code>$FF93</code></td><td>FIRQEN</td><td>same shape, FIRQ</td></tr>
+          <tr><td><code>$FF94/95</code></td><td>Timer1 / Timer0</td><td>12-bit reload</td></tr>
+          <tr><td><code>$FF98</code></td><td>Video Mode</td><td>bit7 BP, bit5 BPI, bit4 MOCH, bit3 H50, bits2-0 LPR</td></tr>
+          <tr><td><code>$FF99</code></td><td>Video Resolution</td><td>bits6-5 VRES, bits4-2 HRES, bits1-0 CRES</td></tr>
+          <tr><td><code>$FF9A</code></td><td>Border</td><td>6-bit color code (direct, NOT via palette register)</td></tr>
+          <tr><td><code>$FF9C</code></td><td>Vertical Scroll</td><td>bit3 SCEN, bits2-0 8-step smooth scroll</td></tr>
+          <tr><td><code>$FF9D/9E</code></td><td>Vertical Offset 1 / 0</td><td>high 16 bits of physical buffer address</td></tr>
+          <tr><td><code>$FF9F</code></td><td>Horizontal Offset</td><td>bit7 HE, bits6-0 X-shift</td></tr>
+          <tr><td><code>$FFA0-FFAF</code></td><td>PARs</td><td>MMU</td></tr>
+          <tr><td><code>$FFB0-FFBF</code></td><td>Palette regs</td><td>6-bit color codes</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Hi-res graphics (BP=1): three byte formats determined by CRES — A =
+        8 pixels × 1 bit (2 colors), B = 4 pixels × 2 bits (4 colors), C =
+        2 pixels × 4 bits (16 colors). HRES selects buffer width
+        16 / 20 / 32 / 40 / 64 / 80 / 128 / 160 bytes/row; CRES=11 blanks
+        the screen.
+      </p>
+
+      <h3>Chapter 6 — ACVC interrupts</h3>
+      <p>
+        New IRQ/FIRQ sources, all routed through the GIME. Both
+        <code>$FF92</code> (IRQEN) and <code>$FF93</code> (FIRQEN) share
+        layout (lower six bits): bit5 Timer, bit4 Hbord, bit3 Vbord (60 Hz),
+        bit2 SerIn, bit1 Kybd/Jy, bit0 Cart. Read the register to ack and
+        identify the cause.
+      </p>
+      <p>
+        Vector table is in ROM at <code>$BFF2-BFFF</code> mirrored to
+        <code>$FFF2-FFFF</code>. Primary jump table sits in RAM at
+        <code>$FEEE-FEFF</code> (long branches); secondary jump table in
+        RAM at <code>$0100-$010F</code>. Init0 bit3 set forces virtual
+        <code>$FE00-$FEFF</code> to physical page <code>$3F</code>
+        regardless of PAR7.
+      </p>
+
+      <h3>Chapter 7 — Reset init &amp; odds and ends</h3>
+      <ul>
+        <li>After hardware reset: PIAs, ACVC registers, MPU DP all cleared; CC I and F set; PC ← <code>[$FFFE/$FFFF]</code> = <code>$8C1B</code>.</li>
+        <li>Default palette after reset: <code>12 24 0B 07 3F 1F 09 26 00 12 00 3F 00 12 00 26</code>.</li>
+        <li>MPU speed: write anything to <code>$FFD8</code> for 0.89 MHz, <code>$FFD9</code> for 1.78 MHz.</li>
+        <li>Split <code>$FF22</code>: bits 7-3 go to the GIME (replaces VDG select), bits 2-0 are still PIA2 side-B.</li>
+        <li>Keyboard layout extension: the new F1, F2, CTRL, ALT keys land on the previously-unused row PB6 in the matrix; joystick button 2 lands on previously-unused PA columns (Fig 7-3).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What this means for Ladybug</h2>
+      <ul>
+        <li>We boot as a cartridge → on power-on the FIRQ from CART pin 8 fires; our ROM at <code>$C000</code> takes control before BASIC's normal entry.</li>
+        <li>60 Hz frame tick = ACVC Vbord IRQ (<code>$FF92</code> bit 3) — preferred over PIA1 CB1.</li>
+        <li>The MMU is critical for putting our 240×192-equivalent playfield buffer somewhere sensible. See <a href="../../release/reference/coco3/memory-map.html">memory map</a>.</li>
+        <li>Hi-res CRES=10 (16-color, format C, 4 bits/pixel) is the chosen depth. Mode locked 2026-05-08: HRES=111, CRES=10, VRES=00 → 320×192×16 at 160 bytes/row. See <a href="../implementation/video-mode.html">video-mode</a>.</li>
+        <li>We can fast-clock the MPU (<code>$FFD9</code>) since we're not using BASIC ROM I/O.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What we did NOT ingest in detail</h2>
+      <ul>
+        <li>Chapter 2's color theory primer.</li>
+        <li>Most of the Listing 4-1 demo program.</li>
+        <li>Appendix A character codes — <code>$20-$7F</code> matches ASCII.</li>
+        <li>Cross-Reference of dedicated addresses — superseded by our own <a href="../../release/reference/coco3/memory-map.html">memory map</a>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Where this propagates in the wiki</h2>
+      <ul>
+        <li><a href="../../release/reference/coco3/gime.html">GIME hardware</a> — full register catalog.</li>
+        <li><a href="../../release/reference/coco3/memory-map.html">CoCo 3 memory map</a> — MMU, PARs, 128K vs 512K, dedicated address map.</li>
+        <li><a href="../../release/reference/coco3/timing.html">timing</a> — Vbord/Hbord/Timer interrupts, MPU clock.</li>
+        <li><a href="../../release/reference/coco3/input.html">input</a> — extended keyboard matrix, second fire button.</li>
+        <li><a href="../../release/reference/coco3/cartridge.html">cartridge</a> — cartridge boot via FIRQ.</li>
+        <li><a href="../platform/6809.html">platform/6809</a> — MC68B09E speed envelope.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Raw source: <code>docs/reference/Assembly Language Programming for the CoCo3.md</code>.
+        Companion volume: <a href="./coco-asm-tepolt.html">coco-asm-tepolt</a>
+        (CoCo 1/2 baseline).
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

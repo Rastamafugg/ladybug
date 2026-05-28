@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sound — DAC &amp; PB1 — CoCo 3 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">CoCo 3 hardware</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">CoCo 3 · hardware</p>
+      <h1>Sound</h1>
+      <p class="wiki-meta">
+        Four audio sources gated through a PIA selector switch — 6-bit DAC,
+        cassette, cartridge SND, hard-wired silence — plus a 1-bit
+        square-wave source on PIA2 PB1.
+      </p>
+    </header>
+
+    <section>
+      <h2>Selector switch</h2>
+      <p>
+        The CoCo's audio mixer accepts four sources, gated by a "selector
+        switch" implemented on PIA1's CA2 and CB2 plus a master enable on
+        PIA2 CB2:
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Selector A pos</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>6-bit DAC on PIA2 PA7-PA2</td></tr>
+          <tr><td>1</td><td>Cassette playback</td></tr>
+          <tr><td>2</td><td>Cartridge SND pin 35</td></tr>
+          <tr><td>3</td><td>Hard-wired low (silence)</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Plus an independent 1-bit square-wave source on PIA2 PB1 that's
+        always summed into the path when the master is on.
+      </p>
+    </section>
+
+    <section>
+      <h2>6-bit DAC (selector position 0)</h2>
+      <ul>
+        <li>PIA2 DRA <code>$FF20</code> bits 7-2 form the 6-bit value (PA7 = MSB).</li>
+        <li>Output range 0 .. 4.5 V in approximately 0.07 V steps (PA7 = 2.25 V, PA6 = 1.125, PA5 = 0.563, PA4 = 0.281, PA3 = 0.140, PA2 = 0.070).</li>
+        <li>Setup: configure PIA1 CRA so CA2 outputs low and PIA1 CRB so CB2 outputs low (= position 0); then set PIA2 CB2 high (master on); ensure PIA2 DDRA bits 7-2 = 1 (output) and CRA bit 2 = 1 (DR access).</li>
+        <li>To play a tone, write a sine-wave-like sequence of values to <code>$FF20</code> at a regular cadence. Pitch = inverse of write period; timbre = waveform shape.</li>
+      </ul>
+      <p>
+        The DAC also drives the cassette write path (via the attenuator on
+        pin 4 of the CASS jack).
+      </p>
+    </section>
+
+    <section>
+      <h2>1-bit square wave on PB1</h2>
+      <ul>
+        <li>PIA2 PB1 (bit 1 of <code>$FF22</code>). Configure DDRB bit 1 = 1 (output), then toggle PB1.</li>
+        <li>Limited timbre but very cheap — no DAC table to feed; just an <code>EORA #$02 / STA $FF22</code> pair plus a delay loop. The CoCo 1/2 manual's <code>SLTON</code> listing demonstrates exactly this for a sliding-pitch tone.</li>
+        <li>Sums with whatever the selector switch routes.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Selector setup gotcha</h2>
+      <p>
+        The selector switch state is split across two PIAs (PIA1's CA2/CB2
+        select the position; PIA2's CB2 is the master). Both PIAs need their
+        CR bits configured for "CA2/CB2 = output, hold value = bit 3 of the
+        CR".
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: Tepolt, <em>Assembly Language Programming for the Color
+        Computer</em> ch. 10 (DAC, selector, comparator, listings 10-2
+        SLTON); Tepolt, <em>Assembly Language Programming for the CoCo3</em>
+        ch. 7 ("split FF22": bits 2-0 still drive PB1/CB2/etc.).
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

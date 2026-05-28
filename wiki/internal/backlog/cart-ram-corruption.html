@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cart-RAM corruption — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Backlog</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · backlog</p>
+      <h1>Troubleshoot cartridge RAM corruption after IRQ install <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        After removing the Phase 2.4 isolation halt, the boot path through
+        IRQ install + Vbord enable derails the CPU. Wild PC overwrites the
+        cart's RAM image.
+      </p>
+    </header>
+
+    <section>
+      <h2>Symptoms</h2>
+      <p>Filed 2026-05-14 during the Phase 2.4 "three tile" build-out.</p>
+      <p>
+        When the Phase 2.4 isolation halt (<code>post_blit: bra post_blit</code>)
+        is removed so execution flows into the carried-forward Phase 2.3
+        IRQ-install + Vbord-enable code, the CPU goes off the rails within
+        milliseconds of <code>mainloop</code>:
+      </p>
+      <ul>
+        <li><code>$FEF7</code> (JT_IRQ slot) reads back <code>16 02 12 16</code> — not the <code>7E xx xx</code> we wrote.</li>
+        <li>First Vbord IRQ vectors via <code>$FFF8 = FE F7</code> to <code>$FEF7</code>, executes the garbage there, PC lands in cleared FB RAM.</li>
+        <li>The wild PC writes to <code>$C000+</code> and <code>$2000+</code>, corrupting both the cart RAM image and the framebuffer.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What's already known</h2>
+      <ul>
+        <li>The Phase 2.4 isolation halt was added <em>before</em> the IRQ install code, so every build since Phase 2.4 started has skipped that code path entirely.</li>
+        <li>The current <code>phase24_halt</code> in <code>src/main.s</code> is a workaround.</li>
+        <li>ROM image, <code>.lst</code>, and <code>.map</code> look correct.</li>
+        <li>The build script does <strong>not</strong> pass <code>-tv-input rgb</code>; unrelated to corruption.</li>
+        <li>A separate, real XRoar bug exists at <code>$C0D9-$C0DB</code> / <code>$C8B4-$C8BE</code> / <code>$E000-$E042</code> — see <a href="../implementation/lessons-learned.html">lessons-learned §"XRoar cartridge-window reads are not uniformly cart-backed"</a>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2026-05-14 reframing — XRoar source review (H6 investigation)</h2>
+      <ul>
+        <li><strong>No XRoar fix between 1.10 and HEAD/1.11</strong> touches GIME force-$FExx, MMU PAR, or IRQ vector dispatch. Upgrading will not fix this.</li>
+        <li><strong>XRoar's coco3.c read/write paths for <code>$FE00-$FEFF</code> are symmetric for <code>-cart-type rom</code>.</strong> There is <strong>no emulator path that would produce "write $7E, read $16"</strong> under our cart configuration.</li>
+        <li>The observation "<code>$FEF7</code> reads back <code>16 02 12 16</code>" was taken at SIGINT-time, <strong>after wild-PC corruption had occurred</strong>. It is therefore <strong>not evidence</strong> that the original <code>STA $FEF7</code> failed.</li>
+      </ul>
+
+      <h3>Reframed question</h3>
+      <p>"Why does the first IRQ go wild despite a correctly-installed vector?" — not "why is <code>$FEF7</code> garbage?".</p>
+
+      <h3>gdb-mcp empirical observations (2026-05-14)</h3>
+      <p>Bypassed <code>phase24_halt</code>, rebuilt, ran under XRoar 1.10 with gdb-mcp attach. Set breakpoint at <code>$C0CB</code>:</p>
+      <table class="wiki-table">
+        <thead><tr><th>Address</th><th>Read</th><th>Expected</th><th>Diff</th></tr></thead>
+        <tbody>
+          <tr><td><code>$FEF7</code></td><td><code>0x16</code></td><td><code>0x7E</code> (just stored)</td><td>Wrong</td></tr>
+          <tr><td><code>$FEF8/$FEF9</code></td><td><code>0x02 0x12</code></td><td><code>0xC0 0xF8</code> (just stored)</td><td>Wrong</td></tr>
+          <tr><td><code>$FFA0-$FFA7</code> (exec PAR readback)</td><td><code>32 33 3D 3E 3F 00 03 17</code></td><td>par_table <code>38 30 31 32 33 3D 3E 3F</code></td><td>Wrong (and PAR reads through XRoar return RAM bleed)</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Repeated with <code>-ram 1024</code> (to rule out the DAT-board
+        <code>dat.enabled</code> gating). <strong>Identical readbacks.</strong>
+        The DAT-board path is not the gate.
+      </p>
+
+      <h3>Corrected architecture model</h3>
+      <p>
+        The <em>real</em> GIME MMU is fully implemented in
+        <code>tcc1014/tcc1014.c</code>, independent of the <code>dat</code>
+        struct in <code>coco3.c</code>. For <code>A=$FEF7</code> with
+        <code>MC3=1</code>, <code>bank = $3F</code> regardless of MMU/PAR.
+        Reads and writes use this same decoder → symmetric.
+      </p>
+
+      <h3>New leads (L1–L4)</h3>
+      <ul>
+        <li><strong>L1.</strong> Does XRoar provide a SECB-equivalent ROM at boot?</li>
+        <li><strong>L2.</strong> PIA1 vsync IRQ may fire concurrently with (or instead of) the Vbord IRQ.</li>
+        <li><strong>L3.</strong> Cart-shadow self-copy at lines 102-118 may not populate <code>$FE00-$FEFF</code> correctly.</li>
+        <li><strong>L4.</strong> The MC3 bit in the GIME may not be persistently set when <code>STA $FEF7</code> executes.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2026-05-14 — second gdb-mcp pass: cart-shadow self-copy non-functional</h2>
+      <p>Used the new SWI-trap + snapshot workflow. <code>swi</code> opcodes in the cart cause XRoar 1.10 to <strong>segfault</strong> — switched to <code>bra .</code> halt loop.</p>
+      <p>Inserted a probe block immediately before <code>phase24_halt</code>. State at attach: PC=$B977 (wild PC), A=$68, B=$1E, <code>$1000</code> reads <code>0x00 0x00</code> (probe never executed). <strong>The CPU is wandering uninitialized memory.</strong></p>
+
+      <h3>The deeper finding: the cart-shadow self-copy doesn't populate RAM</h3>
+      <p>
+        Cart-window region shows XRoar's default DRAM-init fill pattern
+        (<code>00 00 00 00 FF FF FF FF</code> repeating). RAM at the
+        cart-shadow addresses was never written by the boot.
+      </p>
+      <p>Tracing XRoar's source:</p>
+      <ol>
+        <li>Pre-SAM_ALLRAM, with our <code>Init0 = %10101000</code> (MMUEN=0, MC3=1): for A in <code>$C000-$DFFF</code>, <code>bank = 0x38 | (A&gt;&gt;13) = $3E</code>. The condition <code>!TY &amp;&amp; bank &gt;= 0x3c</code> is TRUE → ROM mode, S=1 (CTS). <strong>RAS is NOT set</strong>.</li>
+        <li>In <code>coco3.c:1170+</code> <code>write_byte</code>: the <code>if (RAS)</code> block at line 1227 is skipped. The cart's write callback IS called, but <code>cart.c:955-959</code> <code>cart_rom_write</code> only calls <code>rombank_d8</code>, which is <strong>read-only</strong>.</li>
+        <li><strong>Net effect:</strong> the <code>std ,x</code> writes inside the cart-shadow loop go to <strong>nowhere observable</strong>.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>2026-05-14 — third pass: discriminating reads at copy_done halt</h2>
+      <p>Inserted <code>bra .</code> halt at <code>copy_done</code> (PC=$C047, pre-SAM_ALLRAM):</p>
+      <table class="wiki-table">
+        <thead><tr><th>Addr range</th><th>gdb-mcp read</th><th>Cart ROM file bytes</th><th>Match?</th></tr></thead>
+        <tbody>
+          <tr><td><code>$C000-$C00F</code></td><td><code>44 4B 1A 50 10 CE 1F FE 86 02 1F 8B 4F B7 FF 01</code></td><td>(same)</td><td>Yes</td></tr>
+          <tr><td><code>$FEF0-$FEFF</code></td><td><code>0F 16 02 0F 16 02 18 16 02 12 16 02 09 16 02 09</code></td><td><code>FF FF ...</code> (padding)</td><td>No</td></tr>
+        </tbody>
+      </table>
+
+      <h3>What this actually means</h3>
+      <ul>
+        <li><strong><code>$C000-$FDFF</code>:</strong> RAS=0; reads bypass the RAS RAM-overlay and return cart-ROM bytes via <code>cart_rom_read</code>. <strong>gdb-mcp reads here return cart-ROM bytes, NOT RAM.</strong></li>
+        <li><strong><code>$FE00-$FEFF</code>:</strong> MC3=1 forces RAS=1; reads/writes hit RAM. gdb-mcp reads here return RAM contents.</li>
+      </ul>
+      <p><strong>The cart-shadow self-copy is a no-op on XRoar 1.10.</strong> It never populates RAM at <code>$C000-$FEFF</code>.</p>
+    </section>
+
+    <section>
+      <h2>2026-05-14 — fourth pass: cold-start verification + post-SAM_ALLRAM probe</h2>
+      <p>
+        <strong>Probe 1 (cold-start):</strong> Cleared <code>~/.xroar/</code>,
+        clean Phase 2.4 build with <code>-trap pc=0xC0BE -trap-snap</code>.
+        Trap fired; snapshot was written. <strong>Phase 2.4 reaches
+        <code>phase24_halt</code> from cold start.</strong>
+      </p>
+      <p>
+        <strong>Probe 2 (post-SAM_ALLRAM):</strong> Inserted <code>bra .</code>
+        halt at line 147 ($C05E in built ROM), immediately after
+        <code>sta SAM_ALLRAM</code>. <code>$C000-$C05F</code> returns cart
+        bytes matching the cart ROM file exactly.
+      </p>
+      <p>
+        <strong>Probe 3 (pre-cart-shadow):</strong> Moved halt to line 99,
+        BEFORE the cart-shadow loop runs. <code>$C000</code> already shows
+        cart bytes — the cart-shadow self-copy is <strong>irrelevant</strong>
+        to whether the cart is accessible.
+      </p>
+
+      <h3>What this conclusively proves</h3>
+      <ul>
+        <li><strong>The boot works correctly under XRoar 1.10.</strong> Phase 2.4 reaches <code>phase24_halt</code> reliably from cold start.</li>
+        <li><strong>Cart bytes at <code>$C000-$FDFF</code> are accessible throughout the boot</strong>, both pre- and post-SAM_ALLRAM.</li>
+        <li><strong>My source-review has a gap.</strong> My decode trace predicts <code>$E000</code> should return cart-ROM bytes via <code>case 1</code> / <code>cart_rom_read</code>; empirically returns SECB-style vector-table bytes.</li>
+      </ul>
+
+      <h3>Pivoting back to the IRQ-vector question</h3>
+      <p>
+        Cart-shadow architecture confirmed working in practice. The
+        IRQ-install bug is a real, isolated problem. Next debugger session
+        should pivot back to L4: <strong>probe MC3 / MMU / PAR state at
+        the exact moment of <code>STA $FEF7</code></strong>.
+      </p>
+
+      <h3>Implications</h3>
+      <p>
+        The "cart-to-shadow-RAM self-copy → all-RAM execution" boot model
+        is <strong>not actually how XRoar runs our cart</strong>. We've
+        been running directly from cart ROM the whole time. Worth a wiki
+        update to <a href="../implementation/memory-map.html">memory-map</a>
+        and <a href="../implementation/lessons-learned.html">lessons-learned</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>2026-05-15 — fifth pass: L4 sentinel probe did not execute</h2>
+      <p>Inserted L4 sentinel probe right before <code>phase24_halt</code>:</p>
+<pre><code>lda #$55
+sta JT_IRQ          ; the suspect STA $FEF7
+lda JT_IRQ
+sta $0FFE           ; persistent readback
+lda #$AA
+sta $0FFF           ; liveness marker
+phase24_halt: bra phase24_halt
+</code></pre>
+      <p><strong>Observations:</strong></p>
+      <table class="wiki-table">
+        <thead><tr><th>Probe / target</th><th>Read</th><th>Expected</th><th>Verdict</th></tr></thead>
+        <tbody>
+          <tr><td><code>$0FFE</code></td><td><code>$FF</code></td><td><code>$55</code></td><td>probe never ran</td></tr>
+          <tr><td><code>$0FFF</code></td><td><code>$FF</code></td><td><code>$AA</code></td><td>probe never ran</td></tr>
+          <tr><td>Registers at attach</td><td>A=$68 B=$6d X=$C10A U=$B44A Y=$00CE</td><td>not these</td><td>CPU wandering</td></tr>
+          <tr><td><code>$C000-$C00F</code></td><td>DRAM init pattern</td><td>cart bytes</td><td>DRAM init pattern</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Conclusions</h3>
+      <ol>
+        <li><strong>The probe at <code>$C0BE-$C0CD</code> did not execute.</strong> The <code>STA $FEF7</code> was never reached. The boot derails <strong>before</strong> the IRQ-install code path.</li>
+        <li><strong><code>A=$68</code> at every attach</strong> = exactly the byte loaded by <code>LDA #%01101000</code> at <code>$C078</code>. Boot consistently executes through <code>$C078</code>, then derails — most likely at the MMU-enable store at <code>$C07A</code>.</li>
+        <li><strong>gdb-mcp reads at <code>$C000+</code> now return DRAM init pattern</strong>, contradicting the 2026-05-14 fourth-pass finding. <strong>gdb-mcp memory reads in the cart window cannot be trusted as a model of CPU instruction-fetch behavior.</strong></li>
+        <li>The 2026-05-14 cold-start verification via <code>-trap pc=0xC0BE -trap-snap</code> is now suspect: a wandering CPU naturally parks at the first <code>20 FE</code> byte pair (= <code>BRA self</code>) it encounters.</li>
+      </ol>
+
+      <h3>Reframed problem statement</h3>
+      <p>
+        The actual question is: <strong>does our boot execute legitimately
+        past <code>$C07A</code> (the MMU-enable point)?</strong> Evidence
+        says <strong>no</strong>: PAR6 → phys <code>$3E</code> is uninitialised
+        DRAM, the cart-shadow copy having been a no-op.
+      </p>
+
+      <h3>Implications for cart development going forward</h3>
+      <ol>
+        <li>Disable MMU enable entirely on XRoar — pragmatic short-term.</li>
+        <li>Replace the cart-shadow self-copy with explicit RAM population through a known-mapped window (e.g., copy via <code>$FE00-$FEFF</code>).</li>
+        <li>Move execution to a different physical page reachable without the cart-shadow trick.</li>
+        <li>Move to real hardware sooner.</li>
+      </ol>
+
+      <h3>Next probe (next session)</h3>
+      <p>Don't trust gdb-mcp reads at <code>$C000+</code>. Use behavioral probes only:</p>
+      <ol>
+        <li>Sentinel-store probe in low RAM (<code>$0200-$02FF</code>, DP page) at multiple boot checkpoints.</li>
+        <li>Test specifically whether MMU enable is the derail point — insert checkpoint stores at <code>$C079</code> and <code>$C07D</code>.</li>
+        <li>Re-verify the "three tiles render" claim. Read the framebuffer phys pages directly.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Hypotheses to test</h2>
+      <ol>
+        <li><strong><code>force-$FExx</code> write semantics under XRoar 1.10.</strong> Test: store a sentinel to <code>$FEF7</code>, read it back BEFORE enabling Vbord.</li>
+        <li><strong>PAR set selection.</strong> Read <code>$FF91</code> and both PAR sets immediately before unmasking IRQ.</li>
+        <li><strong>Stale FIRQ from the cart line.</strong></li>
+        <li><strong>Stack alignment / overflow.</strong> Confirm SP at entry to <code>mainloop</code> is still <code>$1FFE</code>.</li>
+        <li><strong><code>-tv-input rgb</code> regression test.</strong></li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>How to reproduce</h2>
+<pre><code># In src/main.s, remove or bypass the phase24_halt block:
+#   phase24_halt
+#           bra     phase24_halt
+# Then:
+./scripts/build.sh build
+# Launch xroar with -gdb -gdb-port 65520, attach via gdb-mcp,
+# observe PC wandering outside cart space within ~1 frame of unmask.
+</code></pre>
+    </section>
+
+    <section>
+      <h2>Done when</h2>
+      <ul>
+        <li>Root cause identified and documented in <a href="../implementation/lessons-learned.html">lessons-learned</a>.</li>
+        <li>IRQ install + Vbord enable path runs cleanly: <code>$FEF7</code> reads back <code>7E C0 F8</code>, <code>irq_handler</code> fires at 60 Hz, <code>FRAMES</code> counter ticks.</li>
+        <li><code>phase24_halt</code> workaround removed. The Phase 2.4 isolation build still renders three tiles AND has the IRQ counter ticking.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: <code>src/main.s</code> — phase24_halt, IRQ install,
+        par_table;
+        <a href="../implementation/lessons-learned.html">lessons-learned</a>;
+        <a href="../../release/reference/coco3/gime.html">GIME</a> — Init0,
+        force-$FExx, MMU PAR sets;
+        <a href="../tooling/xroar.html#gdb-mcp-round-trip">xroar §GDB-MCP round trip</a>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

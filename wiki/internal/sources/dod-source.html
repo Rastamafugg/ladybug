@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dungeons of Daggorath — cartridge source — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Sources</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Source · code</p>
+      <h1>Dungeons of Daggorath — source archive <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        1983 cartridge port source (Keith S. Kiyohara / Unified Technologies,
+        lwasm-compatible reconstruction by MJS, 2022). Mined for transferable
+        6809 idioms.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        Located at <code>docs/reference/DungeonsOfDaggorath-main/</code>.
+        47 <code>.ASM</code> files plus <code>missing-macros.asm</code>.
+        Entry point <code>DAGGORATH.ASM</code> which <code>INCLUDE</code>s
+        every module in dependency order.
+      </p>
+      <p>
+        Verified buildable end-to-end with our toolchain on 2026-05-08:
+        <code>lwasm -9 --format=raw DAGGORATH.ASM</code> → 8192 bytes, ORG
+        <code>$C000</code>. Pads to 16 KB and autoruns under XRoar via the
+        same flow as <code>scripts/build.sh</code>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Provenance</h2>
+      <ul>
+        <li><strong>Original:</strong> 1983 cartridge release, Unified Technologies. Code header preserves the original copyright. Source published under a grant of license — see <code>grant_of_license.png</code> in the source folder.</li>
+        <li><strong>Reconstruction:</strong> Macro invocations were largely unexpanded from the original listings; some macros that lacked definitions were recreated and isolated in <code>missing-macros.asm</code>.</li>
+        <li><strong>lwasm compatibility:</strong> Single pragma at top — <code>pragma nodollarlocal,6809</code> — then plain <code>INCLUDE</code> chain.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Module map (functional grouping)</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Domain</th><th>Files</th></tr></thead>
+        <tbody>
+          <tr><td>Bootstrap &amp; top-level</td><td><code>DAGGORATH.ASM</code>, <code>ONCE.ASM</code></td></tr>
+          <tr><td>Common services / OS layer</td><td><code>COMMON.ASM</code>, <code>COMSWI.ASM</code>, <code>COMTXT.ASM</code>, <code>COMCRE.ASM</code>, <code>COMPLR.ASM</code>, <code>COMDAT.ASM</code></td></tr>
+          <tr><td>Definitions</td><td><code>CD.ASM</code>, <code>missing-macros.asm</code></td></tr>
+          <tr><td>Display / rendering</td><td><code>VCTLST.ASM</code>, <code>VECTOR.ASM</code>, <code>VIEWER.ASM</code>, <code>EXPAND.ASM</code>, <code>CLEAR.ASM</code>, <code>PUPDAT.ASM</code>, <code>STATUS.ASM</code>, <code>MAPPER.ASM</code>, <code>SWCHAR.ASM</code></td></tr>
+          <tr><td>Text / parser</td><td><code>TXTSER.ASM</code>, <code>PARSER.ASM</code>, <code>TOKEN.ASM</code></td></tr>
+          <tr><td>Game logic — player commands</td><td><code>PATTK.ASM</code>, <code>PCLIMB.ASM</code>, <code>PEXAM.ASM</code>, <code>PGET.ASM</code>, <code>PINCAN.ASM</code>, <code>PLOOK.ASM</code>, <code>PREVEA.ASM</code>, <code>PTURN.ASM</code>, <code>PUSE.ASM</code></td></tr>
+          <tr><td>Game logic — world / creatures</td><td><code>CRETUR.ASM</code>, <code>OBIRTH.ASM</code>, <code>NEWLVL.ASM</code>, <code>DGNGEN.ASM</code>, <code>HUMAN.ASM</code>, <code>HUPDAT.ASM</code></td></tr>
+          <tr><td>Math / RNG / misc</td><td><code>RANDOM.ASM</code>, <code>MISC.ASM</code>, <code>SOUNDS.ASM</code></td></tr>
+          <tr><td>Static data tables</td><td><code>DTABAS.ASM</code>, <code>VARC.ASM</code>, <code>VOBJ.ASM</code>, <code>VERT.ASM</code>, <code>D3.ASM</code>, <code>D4.ASM</code>, <code>KSK.ASM</code></td></tr>
+          <tr><td><strong>Skip — not transferable</strong></td><td><code>PZTAPE.ASM</code> (cassette I/O), <code>VCTLST.ASM</code> macros (3D vector graphics)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Naming conventions observed</h2>
+      <ul>
+        <li>File names: 6-char abbreviations. Prefix encodes domain — <code>P*</code> = player command, <code>COM*</code> = common service, <code>V*</code> = vector data table.</li>
+        <li>Labels: ALL CAPS, dot-notation for record-field offsets (<code>P.CCROW</code>, <code>P.CCTYP</code>, <code>CC.LEN</code>).</li>
+        <li>Record-size constants: <code>&lt;RECORD&gt;.LEN</code> (e.g. <code>OC.LEN</code>, <code>CC.LEN</code>).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What we mined for</h2>
+      <p>
+        See <a href="../implementation/coding-conventions.html">coding-conventions</a>
+        for the patterns we are adopting,
+        <a href="../implementation/scheduler.html">scheduler</a> for the
+        TCB scheduler sketch, and
+        <a href="../implementation/lessons-learned.html">lessons-learned</a>
+        for DoD-specific patterns we are explicitly <strong>not</strong> copying.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: <code>DAGGORATH.ASM:78-136</code> — the include manifest;
+        <code>missing-macros.asm</code> — recreated macro definitions;
+        <code>grant_of_license.png</code> — license grant from Douglas J.
+        Morgan / Richard Daniels (2008-era release).
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

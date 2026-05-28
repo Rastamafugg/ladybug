@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Platform — Internal — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · platform</p>
+      <h1>Platform Notes <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Project-specific commentary and decisions about the 6809, the CoCo 3
+        hardware envelope, and our cartridge boot. Canonical hardware
+        reference lives in <a href="../../release/reference/index.html">release/reference/</a>;
+        link out where useful.
+      </p>
+    </header>
+
+    <section>
+      <h2>Project-specific pages</h2>
+      <ul class="wiki-cards">
+        <li>
+          <a href="./6809.html">6809 — project notes</a>
+          <p class="card-meta">
+            Clock-select decision, addressing-mode preferences, SWI as
+            syscall layer, mnemonic-family anchors for the web app.
+          </p>
+        </li>
+        <li>
+          <a href="./cartridge.html">Cartridge — boot strategy</a>
+          <p class="card-meta">
+            Cart-size decision (16 K), boot sequence, and Phase 0 verification.
+          </p>
+        </li>
+        <li>
+          <a href="./sound.html">Sound — project plan</a>
+          <p class="card-meta">
+            PB1 for SFX, DAC for melody. Decision deferred to coding-architect.
+          </p>
+        </li>
+        <li>
+          <a href="./timing.html">Timing — frame budget</a>
+          <p class="card-meta">
+            1.78 MHz locked. ACVC Vbord = main game tick. First-pass
+            29 666-cycle partition.
+          </p>
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Hardware reference (release)</h2>
+      <p>
+        These pages are part of the shipped reference. The internal wiki
+        links straight to them — there is no thin internal mirror.
+      </p>
+      <ul class="wiki-cards">
+        <li>
+          <a href="../../release/reference/coco3/gime.html">GIME hardware</a>
+          <p class="card-meta">Register catalog, palette, MMU, IRQ. Lives in release docs.</p>
+        </li>
+        <li>
+          <a href="../../release/reference/coco3/memory-map.html">CoCo 3 memory map</a>
+          <p class="card-meta">Virtual / physical, PAR sets, ROM/RAM modes, dedicated-address landing zone. See also <a href="../implementation/memory-map.html">implementation/memory-map</a> for the Ladybug PAR allocation.</p>
+        </li>
+        <li>
+          <a href="../../release/reference/coco3/cartridge.html">Cartridge connector</a>
+          <p class="card-meta">40-pin pinout, CART → FIRQ handshake. Project-specific boot in <a href="./cartridge.html">platform/cartridge</a>.</p>
+        </li>
+        <li>
+          <a href="../../release/reference/coco3/input.html">Input</a>
+          <p class="card-meta">Keyboard matrix, joystick fire buttons, joystick X/Y A/D. No internal-only commentary yet.</p>
+        </li>
+        <li>
+          <a href="../../release/reference/coco3/sound.html">Sound hardware</a>
+          <p class="card-meta">DAC, PB1, selector switch. Project plan in <a href="./sound.html">platform/sound</a>.</p>
+        </li>
+        <li>
+          <a href="../../release/reference/coco3/timing.html">Timing reference</a>
+          <p class="card-meta">Clock rates, IRQ sources, 60 Hz Vbord, frame-budget math. Project decisions in <a href="./timing.html">platform/timing</a>.</p>
+        </li>
+        <li>
+          <a href="../../release/reference/6809/index.html">6809 ISA</a>
+          <p class="card-meta">Instruction set, addressing modes, registers, condition codes. Project notes in <a href="./6809.html">platform/6809</a>.</p>
+        </li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Convention: project-specific commentary stays in
+        <code>internal/platform/</code>; hardware reference content lives
+        in <code>release/reference/coco3/</code> and is linked directly
+        from this index.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

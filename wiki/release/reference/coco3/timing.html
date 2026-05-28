@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timing — CoCo 3 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">CoCo 3 hardware</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">CoCo 3 · hardware</p>
+      <h1>Timing</h1>
+      <p class="wiki-meta">
+        MPU clock options, periodic-interrupt sources (Vbord, Hbord, ACVC
+        Timer, PIA1 CB1), and the cycle budget that follows from the fast
+        clock at 60 Hz.
+      </p>
+    </header>
+
+    <section>
+      <h2>MPU clock</h2>
+      <ul>
+        <li><strong>0.89 MHz (slow).</strong> Default after reset. Required by BASIC ROM cassette/serial/disk routines. Write anything to <code>$FFD8</code>.</li>
+        <li><strong>1.78 MHz (fast).</strong> Doubles instruction throughput. The MC68B09E in the CoCo 3 is rated for it. Write anything to <code>$FFD9</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Periodic interrupt sources</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Source</th><th>Rate</th><th>Path</th><th>Where to enable</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Vbord (vertical sync)</strong></td><td>60 Hz (16.67 ms)</td><td>GIME ACVC</td><td><code>$FF92</code> bit 3, plus Init0 bit 5</td></tr>
+          <tr><td><strong>Hbord (horizontal sync)</strong></td><td>~15.7 kHz (63.5 µs)</td><td>GIME ACVC</td><td><code>$FF92</code> bit 4</td></tr>
+          <tr><td><strong>Timer (programmable)</strong></td><td>12-bit reload at 63.5 µs or 70 ns ticks</td><td>GIME ACVC</td><td><code>$FF94/95</code> reload, <code>$FF92</code> bit 5</td></tr>
+          <tr><td>PIA1 CB1 (legacy 60 Hz VSYNC)</td><td>60 Hz</td><td>PIA1</td><td><code>$FF03</code> bit 0</td></tr>
+          <tr><td>PIA1 CA1 (legacy ~15.7 kHz HSYNC)</td><td>~15.7 kHz</td><td>PIA1</td><td><code>$FF01</code> bit 0</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The PIA1 CA1/CB1 paths still work on the CoCo 3 but the GIME-native
+        equivalents (Hbord/Vbord) are preferred:
+      </p>
+      <ol>
+        <li>They share the GIME's interrupt-ack mechanism (read <code>$FF92</code> to clear), so an interrupt handler only has one ack point regardless of which source fired.</li>
+        <li>They don't disturb the keyboard/joystick code path that reuses PIA1.</li>
+      </ol>
+      <p>
+        FIRQ priority — IRQ &lt; FIRQ &lt; NMI — means an FIRQ for serial /
+        cartridge can preempt the main IRQ.
+      </p>
+    </section>
+
+    <section>
+      <h2>Frame budget at 1.78 MHz</h2>
+      <ul>
+        <li>16.67 ms × 1 780 000 cycles/s ≈ <strong>29 666 cycles per frame</strong>. A typical 6809 instruction takes 4-7 cycles, so call it ≈ 5 000 useful instructions per frame.</li>
+        <li>IRQ entry: ~21 cycles (push 12 bytes onto S, vector fetch, jump-table LBRA). RTI: ~15 cycles. Round-trip overhead ~36 cycles per frame. Negligible at 60 Hz; non-trivial if you tried to use Hbord.</li>
+        <li>FIRQ entry: ~12 cycles (push only PC+CC). RTI: ~6 cycles. Use FIRQ for any tight inner-loop interrupt where state can be kept in registers preserved manually.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: Tepolt, <em>Assembly Language Programming for the CoCo3</em>
+        ch. 6 (Vbord/Hbord/Timer), ch. 7 (clock select); Tepolt,
+        <em>Assembly Language Programming for the Color Computer</em> ch. 9
+        (PIA-driven HS/FS interrupts).
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GIME / ACVC — CoCo 3 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">CoCo 3 hardware</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">CoCo 3 · hardware</p>
+      <h1>GIME / ACVC</h1>
+      <p class="wiki-meta">
+        The Advanced Color Video Chip — palette, MMU, video mode, IRQ/FIRQ,
+        timer, and legacy SAM control bits.
+      </p>
+    </header>
+
+    <section>
+      <h2>Overview</h2>
+      <p>
+        The GIME (Tepolt calls it the <strong>ACVC</strong> — Advanced Color
+        Video Chip) is the master controller of the CoCo 3. It absorbs the
+        old SAM and VDG, contains the MMU, drives 16 palette registers, and
+        adds new IRQ/FIRQ sources plus a programmable timer. Every register
+        is at a dedicated address in <code>$FF8x..$FFDx</code>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Register catalog</h2>
+
+      <h3>Init / mode</h3>
+      <table class="wiki-table">
+        <thead><tr><th>Addr</th><th>Reg</th><th>Bits</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>$FF90</code></td><td>Init0</td>
+            <td>
+              b7 COCO (1=lo-res VDG path, 0=hi-res); b6 MMU enable;
+              b5 ACVC-IRQ enable; b4 ACVC-FIRQ enable;
+              b3 force <code>$FE00-$FEFF</code> to phys page <code>$3F</code>;
+              b2 SCS enable;
+              b1-b0 ROM map (0x = 16K Ext+Color BASIC + 16K cartridge;
+              10 = 16K BASIC + 8K reset-init + 8K Super Ext;
+              11 = 32K cartridge)
+            </td>
+          </tr>
+          <tr>
+            <td><code>$FF91</code></td><td>Init1</td>
+            <td>b5 timer source (0 = 63.5 µs, 1 = 70 ns); b0 PAR set (0 = exec, 1 = task)</td>
+          </tr>
+          <tr>
+            <td><code>$FF98</code></td><td>Video Mode</td>
+            <td>b7 BP (0 = text, 1 = graphics); b5 BPI; b4 MOCH (mono); b3 H50 (PAL 50 Hz); b2-b0 LPR (lines-per-row code)</td>
+          </tr>
+          <tr>
+            <td><code>$FF99</code></td><td>Video Resolution</td>
+            <td>b6-b5 VRES (00 = 192/24, 01 = 200/25, 11 = 225/28); b4-b2 HRES; b1-b0 CRES</td>
+          </tr>
+          <tr>
+            <td><code>$FF9A</code></td><td>Border</td>
+            <td>6-bit color code (direct, <em>not</em> a palette index)</td>
+          </tr>
+          <tr>
+            <td><code>$FF9C</code></td><td>Vertical Scroll</td>
+            <td>b3 SCEN (0 = enabled), b2-b0 8-step smooth-scroll value (text mode only)</td>
+          </tr>
+          <tr>
+            <td><code>$FF9D</code></td><td>Vertical Offset 1</td>
+            <td>physical-buffer addr bits Y18..Y11</td>
+          </tr>
+          <tr>
+            <td><code>$FF9E</code></td><td>Vertical Offset 0</td>
+            <td>physical-buffer addr bits Y10..Y3 (8-byte aligned)</td>
+          </tr>
+          <tr>
+            <td><code>$FF9F</code></td><td>Horizontal Offset</td>
+            <td>b7 HE (1 = 256-byte-wide expanded buffer); b6-b0 X-shift (each step = 2 bytes = 4/8/16 pixels by depth)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>MMU page address registers</h3>
+      <table class="wiki-table">
+        <thead><tr><th>Addr</th><th>Reg</th></tr></thead>
+        <tbody>
+          <tr><td><code>$FFA0-$FFA7</code></td><td>Executive PAR0..7</td></tr>
+          <tr><td><code>$FFA8-$FFAF</code></td><td>Task PAR0..7</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Each PAR is 6 bits (a physical page number <code>$00-$3F</code>) and
+        supplies bits Y18..Y13 of the expanded address for the corresponding
+        8 K virtual page. See <a href="./memory-map.html">memory map</a>.
+      </p>
+
+      <h3>Palette</h3>
+      <table class="wiki-table">
+        <thead><tr><th>Addr</th><th>Reg</th></tr></thead>
+        <tbody>
+          <tr><td><code>$FFB0-$FFBF</code></td><td>Palette regs 0..15</td></tr>
+        </tbody>
+      </table>
+      <p>
+        6 bits each; interpretation differs for composite vs RGB monitors.
+        <code>$FF98</code> bit 5 toggles the alternate (rotated) color set
+        used to mimic CoCo-1 artifact phasing.
+      </p>
+
+      <h3>ACVC interrupt control</h3>
+      <table class="wiki-table">
+        <thead><tr><th>Addr</th><th>Reg</th><th>Bits (lower 6)</th></tr></thead>
+        <tbody>
+          <tr><td><code>$FF92</code></td><td>IRQEN</td><td>b5 Timer; b4 Hbord; b3 Vbord (60 Hz); b2 SerIn; b1 Kybd/Jy; b0 Cart</td></tr>
+          <tr><td><code>$FF93</code></td><td>FIRQEN</td><td>same layout</td></tr>
+          <tr><td><code>$FF94</code></td><td>Timer1</td><td>upper 4 bits of 12-bit timer reload</td></tr>
+          <tr><td><code>$FF95</code></td><td>Timer0</td><td>lower 8 bits of 12-bit timer reload</td></tr>
+        </tbody>
+      </table>
+      <p>
+        A bit set in <code>$FF92</code> enables that IRQ source (Init0 b5
+        must also be set). Reading <code>$FF92</code> acknowledges any
+        pending IRQ and returns a bitmask identifying the source. Symmetric
+        for FIRQ at <code>$FF93</code>.
+      </p>
+
+      <h3>Legacy SAM control bits (still present, behind the GIME)</h3>
+      <p>
+        Each row is two paired addresses; <em>write anything</em> to set or
+        clear the underlying bit:
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Bit</th><th>Function</th><th>Set</th><th>Clear</th></tr></thead>
+        <tbody>
+          <tr><td>TY</td>   <td>Memory map (1 = all-RAM, 0 = ROM/RAM)</td><td><code>$FFDF</code></td><td><code>$FFDE</code></td></tr>
+          <tr><td>M1</td>   <td>Memory size</td>                          <td><code>$FFDD</code></td><td><code>$FFDC</code></td></tr>
+          <tr><td>M0</td>   <td></td>                                     <td><code>$FFDB</code></td><td><code>$FFDA</code></td></tr>
+          <tr><td>R1</td>   <td>MPU clock</td>                            <td><code>$FFD9</code></td><td><code>$FFD8</code></td></tr>
+          <tr><td>R0</td>   <td></td>                                     <td><code>$FFD7</code></td><td><code>$FFD6</code></td></tr>
+          <tr><td>P1</td>   <td>Page</td>                                 <td><code>$FFD5</code></td><td><code>$FFD4</code></td></tr>
+          <tr><td>F6..F0</td><td>SAM video starting addr</td>             <td colspan="2"><code>$FFD3..$FFC6</code> (set/clear paired)</td></tr>
+          <tr><td>V2..V0</td><td>SAM (lo-res) video mode</td>             <td colspan="2"><code>$FFC5..$FFC0</code> (set/clear paired)</td></tr>
+        </tbody>
+      </table>
+      <p>
+        In hi-res mode the F-bits and V-bits are ignored — the GIME uses
+        Vert-Offset 1/0 instead. TY and the R-bits remain functional. R1 is
+        a no-op on the CoCo 3 (everything runs at the rate selected by R0).
+      </p>
+    </section>
+
+    <section>
+      <h2>Programming notes</h2>
+      <ul>
+        <li>
+          All <code>$FF8x</code> / <code>$FF9x</code> registers are
+          write-only (Table 7-2). Keep a software shadow if you need to
+          modify a single bit.
+        </li>
+        <li><code>$FFA0-$FFBF</code> are read-write.</li>
+        <li>
+          Bit 6 of the PAR / palette regs reads back as zero in ROM/RAM
+          mode, as one in all-RAM mode. Don't depend on it.
+        </li>
+        <li>
+          <code>$FF22</code> is split: bits 7-3 → GIME's vestigial VDG mode
+          bits; bits 2-0 → PIA2 side-B (sound DAC enable, cassette motor,
+          joystick selector). Reads/writes still go to PIA2 for bits 2-0.
+        </li>
+        <li>
+          Init0 bit 3 set ("force <code>$FE00-$FEFF</code> to physical page
+          <code>$3F</code>") keeps the primary IRQ jump table reachable
+          regardless of what PAR7 currently maps. Recommended in any bare-metal init.
+        </li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: Tepolt, <em>Assembly Language Programming for the CoCo3</em>
+        (Spectral Associates) ch. 4, 6, 7 + Cross-Reference; Tepolt,
+        <em>Assembly Language Programming for the Color Computer</em> (SAM
+        legacy bits).
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

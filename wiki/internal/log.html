@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wiki Log — Ladybug</title>
+  <link rel="stylesheet" href="../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../index.html">← Wiki home</a>
+    <a href="./index.html">Internal</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · log</p>
+      <h1>Wiki Log <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Append-only chronological record of ingests, queries, lints, decisions,
+        and milestones. Newest entries at the top.
+      </p>
+    </header>
+
+    <section>
+      <h3>2026-05-28 · milestone — Wiki converted from markdown to HTML</h3>
+      <p>
+        Converted the entire <code>wiki/</code> tree from markdown to
+        hand-authored HTML following the
+        <a href="https://github.com/anthropics/mcp-wiki-project-template">mcp-wiki-project-template</a>
+        structure: root <code>index.html</code>, <code>internal/</code> (team-only),
+        <code>release/</code> (shipped with the web app as contextual help),
+        single shared <code>shared/css/wiki.css</code>. Schema captured in the
+        rewritten <a href="../CLAUDE.md"><code>wiki/CLAUDE.md</code></a>.
+      </p>
+      <p>
+        <strong>Phase 1</strong> — scaffold + arcade-tone CSS (deep CRT bg,
+        phosphor text, Lady Bug pink-red accent, pixel display font on
+        h1/eyebrow/badge only) + representative ports (LDA ISA page,
+        addressing-modes companion, 6809 ISA index skeleton with every
+        mnemonic listed and <em>(soon)</em>-marked, lessons-learned long-form
+        narrative, GIME hardware reference, Tepolt source pointer).
+      </p>
+      <p>
+        <strong>Phase 2</strong> — bulk 1:1 port of all remaining markdown
+        pages (37 files), per-page judgment on <code>platform/</code>
+        internal-vs-release placement. Pure-reference content
+        (GIME, memory map, input, sound, timing, cartridge hardware) promoted
+        to <code>release/reference/coco3/</code>; project-specific commentary
+        (6809 cycle budgeting, cartridge boot strategy, sound system, timing
+        decisions) stays under <code>internal/platform/</code> and links to
+        the canonical release page. Section index pages created for every
+        internal subsection. <code>log.md</code> converted to this
+        <code>internal/log.html</code>. All 37 markdown files <code>git rm</code>'d
+        in the same commit (template explicitly rejects markdown).
+      </p>
+      <p>
+        <strong>Dual-audience rule (user-locked):</strong> content useful
+        to both audiences lives in <code>release/</code> and is linked from
+        <code>internal/</code>. No thin internal mirror pages. Internal
+        pages exist only when there is genuine project-specific content;
+        otherwise the internal index links directly to the release page.
+      </p>
+      <p>
+        <strong>6809 ISA progress so far:</strong> LDA fully authored;
+        addressing-modes, registers, condition-codes companion pages
+        landed; ISA index lists every mnemonic with category grouping and
+        <em>(soon)</em> markers. <strong>Phase 3</strong> — authoring the
+        remaining ~59 instruction pages — deferred to its own session.
+      </p>
+      <p>
+        <strong>QA punch-list disposition</strong> (closing the wiki
+        conversion in qa-reviewer): 4 broken cross-links rewritten to point
+        at the promoted release pages; <code>release/reference/asm-tips/index.html</code>
+        and <code>asm-tips/dp-conventions.html</code> stubbed so the LDA
+        and addressing-modes "see also" links resolve; 6809 see-also
+        forward references to <em>(soon)</em> instructions left in place
+        (resolve in Phase 3); empty placeholder dirs <code>shared/assets/</code>
+        and <code>shared/js/</code> kept for future content.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-05-18 · milestone — Phase 4 WS-D v0: mode-switch infra + 320×192×4 mode</h3>
+      <p>First WS-D increment per the user's narrow-landings preference: mode-switch infrastructure plus one new mode (320×192×4 hi-res 4-color). No new patterns; existing bars + checker now render correctly under both bpp variants.</p>
+      <p><strong>Mode-record schema extension</strong> in <code>src/tester/modes.inc</code>. Record grew 5 → 8 bytes: <code>TM_BPR</code> (u8 bytes/row), <code>TM_LINES</code> (u8 lines/frame), <code>TM_BPP</code> (1/2/4) appended. Existing TM_VMODE/TM_VRES/TM_BORDER/TM_VOFF1/TM_VOFF0 unchanged. New mode 1 entry: <code>$80, $1D, $28, $E4, $00, 80, 192, 2</code> (320×192 @ 2bpp).</p>
+      <p><strong>Pattern-renderer contract change.</strong> <code>src/tester/render.s</code> — <code>draw_current_pattern</code> now receives X = pointer to the active mode record. The mode lookup happens once in <code>redraw_with_blank</code>; pattern handlers no longer re-derive it from <code>tester_mode_idx</code>.</p>
+      <p><strong>Per-pattern bpp dispatch.</strong> <code>src/tester/pat_bars.s</code> and <code>src/tester/pat_check.s</code> — each <code>pat_&lt;name&gt;_draw</code> reads <code>TM_BPP,x</code> and branches to a <code>_4bpp</code> (existing WS-A logic) or <code>_2bpp</code> (new) variant. Scales linearly: new bpp classes add one internal entry per pattern, not new files. Architect decision rationale: avoids the quadratic <code>patterns × modes</code> file count of the alternative.</p>
+      <p>The 2bpp variants: <code>pat_bars_2bpp</code> — 4 stripes × 48 rows × 80 bytes/row, per-stripe byte $00/$55/$AA/$FF. <code>pat_check_2bpp</code> — row pattern $0505 alternates with $5050 every 8 rows.</p>
+      <p><strong>Input</strong> in <code>src/tester/input.s</code>. Added <code>key_mode1</code> handler + <code>key_table</code> entry: <code>'2'</code> (col 2, row PA4=$10) selects mode 1.</p>
+      <p><strong>ROM stayed lean.</strong> New tester.rom is 535 bytes raw. Schema extension cost ~25 extra bytes; pattern variants ~45 bytes each; key handler ~6 bytes. Mode 0 smoke-verified regression-clean via <code>probe_tester_m2.py</code>. Mode 1 will render as "Unsupported" in the framebuffer panel until WS-B grows a 4-color decoder — small follow-up. Remaining WS-D scope deferred: hi-res monochrome, hi-res text, 640-wide resolutions, extended pattern catalogue.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-17 · milestone — Phase 4 WS-C: user-defined memory regions</h3>
+      <p>WS-C from the emulator-monitor-tester initiative landed. v0 scope: hex-dump viewer only; additional viewers (ASCII inline / palette swatches / bitmap-as-image) deferred per use case.</p>
+      <p><strong>Naming-collision resolution.</strong> Existing <code>web/backend/regions.py</code> (static 6809 hw map) renamed to <code>web/backend/memory_map.py</code>. The <code>/api/regions</code> URL preserved for frontend back-compat.</p>
+      <p><strong>New</strong> <code>web/backend/regions.py</code>. User-defined regions with three definition kinds: <strong>fixed</strong> (base = addr), <strong>symbol</strong> (base = symbol_addr + offset, resolved via <code>symbols._parse_map(build/&lt;stem&gt;.map)</code>, re-read on every <code>/values</code> call), <strong>pointer</strong> (base = u16-BE at ptr_addr, re-evaluated every halt).</p>
+      <p><code>RegionDef</code> + <code>RegionResolution</code> dataclasses; CRUD + <code>read_values(rdefs, session, map_path)</code>. 32 KB per-region cap. Persistence: per-config JSON at <code>web/configs/&lt;config_id&gt;.json</code>, atomic write via tempfile + <code>os.replace</code>. <strong>Config identity:</strong> <code>config_id_for_rom("build/tester.rom") -&gt; "tester"</code>.</p>
+      <p><strong>Routes</strong> (all in <code>main.py</code>): list / create / update / delete / values endpoints under <code>/api/instances/{id}/regions</code>. PATCH only updates within an existing kind (delete + re-add to change kind).</p>
+      <p><strong>New frontend</strong> <code>web/frontend/components/memory-regions.js</code> mounted under the right pane. Collapse/expand per region, kind-aware add form, inline hex dump (50/1fr/130 grid). On <code>ws:halt</code>: POSTs <code>/values</code> with currently-expanded region ids.</p>
+      <p>WS-A, WS-B, WS-C done. Remaining initiative work: WS-D (tester mode/pattern matrix expansion — pure 6809 assembly, no web-side touches).</p>
+    </section>
+
+    <section>
+      <h3>2026-05-17 · milestone — Phase 4 WS-B: live framebuffer renderer</h3>
+      <p>WS-B (live FB render) from the emulator-monitor-tester initiative landed. Scope locked to v0 (320×192×16 only); other modes fall through to a placeholder PNG.</p>
+      <p><strong>New</strong> <code>web/backend/gime_state.py</code>. Reads <code>MonitorSession.read_gime_state</code> (M3 capability) and builds a <code>VideoState</code> dataclass: <code>VideoMode</code> (cres/hres/vres/bp/coco + decoded width/height/bpp/bytes_per_row), <code>palette_raw</code> (16x6-bit), <code>palette_rgb</code> (post-decode), <code>pars_exec</code>/<code>pars_task</code>, <code>mmu_task</code>, <code>mmuen</code>, <code>fb_phys_base</code> computed from <code>$FF9D/$FF9E</code> per the GIME reference. <code>decode_mode</code> extracts the GIME mode-register bit fields; <code>is_supported</code> predicate gates the renderer.</p>
+      <p><strong>Rewritten</strong> <code>web/backend/framebuffer.py</code>. <code>render(state, fb_bytes) -&gt; bytes</code>: builds a 256-entry <code>(left_rgb, right_rgb)</code> lookup table once per call, then a single pass over the 30,720-byte FB produces the 320×192×3 RGB buffer that Pillow encodes to PNG. Pure-Python decode, no numpy.</p>
+      <p><strong>Two architect-pass departures, both approved:</strong> (1) <code>ReadStrategy</code> protocol collapsed — M3's <code>read_gime_state</code> makes all three strategy variants redundant. (2) FB read path: virtual → physical — simpler, more correct, immune to MMU/PAR/task-set bookkeeping. <strong>Frontend:</strong> <code>framebuffer-view.js</code> already auto-fetches <code>/framebuffer.png</code> on <code>ws:halt</code> — no wiring change needed.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-17 · milestone — Phase 4 web-backend pivot: gdb stub → <code>-monitor</code> JSON-RPC</h3>
+      <p>Scope locked to "monitor pivot only" by project-management routing; WS-B and WS-C deferred to follow-up sessions.</p>
+      <p><strong>Retired</strong> <code>web/backend/gdb_session.py</code> (deleted). Spawning <code>m6809-gdb --interpreter=mi</code>, parsing MI records, tunneling <code>info registers</code> through console-stream capture — all gone.</p>
+      <p><strong>New</strong> <code>web/backend/monitor_session.py</code>. One TCP connection per XRoar instance, line-delimited JSON-RPC 2.0. Public surface deliberately mirrors retired <code>GdbSession</code>. Methods: <code>attach</code>/<code>detach</code>, <code>cont</code>/<code>step</code>/<code>interrupt</code>, BP CRUD, <code>read_memory</code>/<code>write_memory</code> (chunked at 64 KB), <code>read_registers</code>/<code>write_registers</code>, <code>read_gime_state</code>, <code>get_run_state</code>, <code>reset</code>. Per-BP enable/disable raises <code>NotImplementedError</code>.</p>
+      <p><strong>Run-state event model.</strong> The session synthesizes equivalent events for <code>instance.py</code>'s <code>on_async</code> callback. Per-halt single-shot <code>asyncio.Event</code> deduplicates the bp-event-vs-wait_for_stop race.</p>
+      <p><strong>Spawn changes</strong> in <code>instance.py</code>. <code>XROAR_BIN</code> env override now wired (defaults to <code>docs/reference/xroar/build/xroar-monitor</code>). Launch args: <code>-gdb -gdb-ip -gdb-port</code> replaced with <code>-monitor 127.0.0.1:PORT -monitor-halt-on-start</code>. The 4-second sleep before attach (gdb-stub probe-race kludge) deleted.</p>
+      <p><strong>Field rename:</strong> <code>InstanceSummary.gdb_port</code> → <code>monitor_port</code>. <strong>Attribute rename:</strong> <code>Instance.gdb</code> → <code>Instance.session</code>. Probes migrated. No new abstractions beyond the architect-pass plan.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-17 · milestone — Phase 3 M6a: thread-per-client, events.subscribe, watchpoints, inject_text</h3>
+      <p>Largest Phase 3 milestone. Three architectural pieces plus two leaf capabilities.</p>
+      <p><strong>Thread-per-client refactor</strong> (<code>monitor.c</code>). <code>handle_tcp_sock</code> accept loop now spawns a detached worker thread per accepted connection, each owning a <code>struct monitor_client</code>. Clients live in a doubly-linked list under <code>mip-&gt;clients_mt</code>. Listen backlog raised 1 → 8. The 59 <code>send_json(fd, ...)</code> call sites refactored to <code>send_json(fd, write_mt, ...)</code>.</p>
+      <p><strong><code>events.subscribe</code></strong> with bitmask. Kinds: <code>vbord</code> (TCC1014 signal_fs rising edge), <code>bp</code>, <code>reset</code>. <code>hsync</code> reserved but not wired (15.7 kHz would dominate trylock cycles). Events use <code>pthread_mutex_trylock</code> so a slow consumer doesn't stall the emu thread; misses counted in <code>dropped_events</code>.</p>
+      <p><strong>Watchpoints</strong> via <code>bp_wp_add_range</code>. Mirror of M4's BP table; halted-only set/clear. WP fires surface as <code>reason="breakpoint"</code> with <code>bp_id=0</code> — clients distinguish via PC-in-range check.</p>
+      <p><strong><code>inject_text</code></strong> via auto_kbd's <code>ak_type_string_len</code>. Reshaped per architect pass — auto_kbd is XRoar's existing type-ahead primitive. Caveat observed: auto_kbd installs character-injection breakpoints only when XRoar's CRC list recognizes the BASIC ROM.</p>
+      <p><strong><code>MONITOR_PROTOCOL_VERSION</code></strong> 0.5.0 → 0.6.0. Probe green, 7 tests including two concurrent clients both receiving a reset broadcast.</p>
+      <p><strong>Phase 3 status:</strong> core (M1-M5) + M6a done. M6b remaining (screen_capture, snapshot_save/load) is SHOULD-tier polish; the gdb-stub-replacement contract is fully met.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-17 · milestone — Phase 3 M5: <code>-monitor</code> lifecycle (reset, attach/detach, quit, goodbye)</h3>
+      <p>Four new methods in <code>monitor.c</code>: <code>reset(kind="soft"|"hard")</code> (halted-only; clears all monitor BPs via shared <code>monitor_bps_clear_locked</code>; emits async <code>reset</code> notification), <code>attach()</code> (idempotent ceremony returning hello-shaped fields), <code>detach()</code> (replies ok then closes fd cleanly), <code>quit()</code> (replies ok then <code>exit(0)</code> → atexit → goodbye). <code>MONITOR_PROTOCOL_VERSION</code> 0.4.0 → 0.5.0.</p>
+      <p><strong>Self-thread deadlock avoidance:</strong> <code>quit</code> calls <code>exit()</code> from the sock thread. <code>pthread_join(self)</code> hangs. Fix: <code>pthread_equal(pthread_self(), mip-&gt;sock_thread)</code> guard skips the thread teardown in that case; process exit reaps it instead.</p>
+      <p><strong>Plan-scope expansion:</strong> the <code>quit</code> method isn't on the plan's MUST table but it's the only way to externally trigger XRoar's atexit-driven goodbye. SIGTERM/SIGKILL bypass atexit. Accepted limitation. Probe green, 6 sub-tests including detach + reconnect preserves CPU state.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-17 · milestone — Phase 3 M4: breakpoints + step + wait_for_stop; at-current-PC closure</h3>
+      <p>Five new methods in <code>monitor.c</code>: <code>set_breakpoint</code>/<code>clear_breakpoint</code>/<code>list_breakpoints</code> (exec kind), <code>step_instruction(n)</code>, <code>wait_for_stop(timeout_ms)</code>. All state-mutating ops halted-only. BP dispatch reuses XRoar's <code>bp_session</code> machinery — no parallel BP table, no instruction patching. <code>MONITOR_PROTOCOL_VERSION</code> 0.3.0 → 0.4.0.</p>
+      <p>Emu-thread side: <code>coco3.c</code> monitor branch in <code>coco3_run</code> now drives the step path. <code>step_instruction(N)</code> batches N steps into one stop event.</p>
+      <p><strong>Headline result — at-current-PC BP fires.</strong> XRoar's <code>bp_session</code> <code>instruction_hook</code> runs BEFORE each instruction, so setting a BP at the current PC and running stops at that exact PC without advancing. This is the precise gdb-stub failure case documented in <a href="./implementation/lessons-learned.html">lessons-learned §XRoar gdb stub is hostile to mid-run inspection</a> — monitor now does it right.</p>
+      <p>Probe green first run, 7 sub-tests including at-current-PC closure, halted-only enforcement on mutating ops, and <code>get_run_state</code> carrying <code>last_stop_*</code>.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-17 · milestone — Phase 3 M3: GIME shadow + physical-space; cart-shadow loop closed</h3>
+      <p>M3 adds the long-standing missing piece: a faithful view into XRoar's GIME shadow state plus direct access to the underlying 512K RAM array.</p>
+      <p><strong>New accessor in tcc1014:</strong> <code>tcc1014_get_monitor_view</code> returns a flat snapshot — <code>registers[16]</code> (raw <code>$FF90-$FF9F</code> with no sentinel or palette OR), <code>mmu_bank[16]</code> (raw PARs for both tasks), <code>palette_reg[16]</code> (<code>$C0</code> mask explicitly stripped), plus flags. 17 LOC in tcc1014.c; 19 LOC of struct + prototype in tcc1014.h.</p>
+      <p><strong>Monitor surface:</strong> <code>read_gime_state</code> returns shadow as JSON. <code>read_memory</code>/<code>write_memory</code> accept <code>space="physical"</code>; flat 19-bit addresses index XRoar's RAM as <code>(bank = addr / bank_nelems, off = addr % bank_nelems)</code>. The plan's <code>addr &gt;&gt; 13 / addr &amp; 0x1FFF</code> recipe was an errata (corrected in xroar-monitor.md). <code>MONITOR_PROTOCOL_VERSION</code> → 0.3.0.</p>
+      <p><strong>Headline result — cart-shadow no-op closure:</strong> wrote <code>$5A</code> to phys <code>$7C000</code> (page <code>$3E</code>, byte 0), flipped <code>TY=1</code> via CPU write to <code>$FFDF</code>, then CPU-read <code>$C000</code> returned <code>$5A</code>. Proves that what XRoar drops on the floor as a CPU-space cart-window write is recoverable by hitting physical RAM directly. Also confirmed: CPU-space write to cart-window under <code>TY=0</code> is the documented no-op.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-17 · milestone — Phase 3 M2: <code>-monitor</code> memory + registers green</h3>
+      <p>Extended <code>monitor.c</code> with four methods: <code>read_memory</code>/<code>write_memory</code> (CPU space, via <code>machine-&gt;read_byte/write_byte</code>), <code>read_registers</code>/<code>write_registers</code> (6809 reg set). State-mutating methods enforce halted-only and return <code>target_running</code> (code <code>-32001</code>) when CPU is running. Read/write length capped at 64 KB per request; <code>space="physical"</code> deferred to M3. <code>MONITOR_LINE_MAX</code> raised to 192 KB. <code>d</code> is read-only (derived from <code>a:b</code>). Probe green with 7 sub-tests. One twist: <code>$FE00-$FEFF</code> is RAM only when GIME's <code>MC3</code> bit is set, which Color BASIC does during init — so probe issues <code>run</code>, sleeps 2 s for BASIC, then <code>pause</code> before round-trip.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-17 · milestone — Phase 3 M1: XRoar <code>-monitor</code> listener + hello + run/pause green</h3>
+      <p>M1 implementation complete on branch <code>ladybug/monitor</code>. Vendored cJSON v1.7.18. New module <code>monitor.c</code> (~390 LOC) + <code>monitor.h</code> parallels <code>gdb.c</code> structurally: one blocking-accept pthread, BSD sockets, <code>pthread_mutex</code> + <code>pthread_cond</code> run-state gate. Line-delimited JSON-RPC 2.0 framing. M1 surface = hello notification + <code>get_run_state</code> / <code>run</code> / <code>pause</code>. Existing-file delta matches plan within tolerance. Built clean with <code>./configure --enable-monitor &amp;&amp; make -j16</code>; side-by-side binary at <code>docs/reference/xroar/build/xroar-monitor</code>. 7 sub-tests all green on first run including disconnect-reconnect with run-state preserved.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-17 · bring-up — Phase 3 M1: XRoar repo bring-up complete</h3>
+      <p>Verified <code>docs/reference/xroar/</code> clean at pinned HEAD <code>1e5e9552</code>. Tagged baseline <code>ladybug-monitor-base</code>; created and checked out branch <code>ladybug/monitor</code>. Hit a Windows-checkout gotcha: nested repo had <code>core.autocrlf=true</code> which CRLF-corrupted <code>autogen.sh</code> shebang under WSL. Disabled and reset — lesson captured in <a href="./implementation/lessons-learned.html">lessons-learned §Nested Unix repo autocrlf</a>. Ran <code>./autogen.sh &amp;&amp; ./configure &amp;&amp; make -j16</code> clean on Ubuntu WSL — XRoar 1.11 built with GTK3+OpenGL UI. Baseline binary stashed at <code>docs/reference/xroar/build/xroar-baseline</code>.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-16 · plan — XRoar <code>-monitor</code> Phase 2 implementation plan approved</h3>
+      <p>Appended Phase 2 plan section to <a href="./implementation/xroar-monitor.html">implementation/xroar-monitor</a>. Decisions: pin XRoar at upstream <code>1e5e9552</code>; local feature branch <code>ladybug/monitor</code>; new module <code>src/monitor.c</code> + <code>monitor.h</code>; vendor cJSON; threaded blocking-accept model; wired into <code>coco3.c</code> only. Side-by-side install as <code>xroar-monitor</code> binary with <code>XROAR_BIN</code> env override. Physical address representation: flat 19-bit <code>$00000-$7FFFF</code>. Phase 3 broken into six milestones (M1-M6), each a separate conversation. Web-backend integration is post-Phase-3.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-16 · plan — XRoar <code>-monitor</code> Phase 1 requirements filed; cart-window write decode traced</h3>
+      <p>Filed <a href="./implementation/xroar-monitor.html">implementation/xroar-monitor</a> as Phase 1 requirements for a custom JSON-RPC "monitor" server inside XRoar. Architecture: XRoar speaks project-private JSON-RPC over TCP (default <code>127.0.0.1:17654</code>); Ladybug web backend brokers commands to MCP-speaking clients. Flag <code>-monitor [host:]port</code> plus <code>-monitor-halt-on-start</code>. Address-space model exposes both CPU-virtual and physical reads/writes. State-writes halted-only; CPU-space writes to ROM-backed addresses return <code>read_only_region</code>. Both <code>-monitor</code> and <code>-gdb</code> allowed concurrently. Supersedes the deferred <a href="./backlog/mcp-xroar-server.html">backlog/mcp-xroar-server</a> sketch. Root cause of XRoar's cart-shadow no-op traced via Explore agent — added to <a href="./implementation/lessons-learned.html">lessons-learned §XRoar cart-window write decode</a>. Filed <a href="./backlog/mame-cart-ram-comparison.html">backlog/mame-cart-ram-comparison</a> to cross-check via MAME on WSL.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-16 · plan — Tester WS-A architect pass: design locked, ready for implementation</h3>
+      <p>Designed the GIME-visibility probe + WS-A tester ROM v0 structure + WS-B <code>gime_state.py</code> API surface. Captured in <a href="./implementation/emulator-monitor-tester.html">implementation/emulator-monitor-tester</a> §"WS-A architect-pass decisions". Probe lands as <code>web/scripts/probe_gime_readback.py</code>; pass/fail mapping selects between DirectReadStrategy / ProgramStateStrategy / ShadowBlockStrategy. Tester ROM goes in <code>src/tester/</code> subtree (7 files), DP slots at $0200-$020C all named symbols, key bindings 1-8 = modes, B/C = patterns. Build target <code>cmd_tester</code> + <code>cmd_tester_run</code> added. Tester exports both <code>tester_mode_idx</code> and <code>tester_mode_table</code> so option 2 is available regardless of probe outcome.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-16 · plan — Emulator-monitor tester initiative: requirements filed</h3>
+      <p>Captured the four-workstream tester+webapp initiative as <a href="./implementation/emulator-monitor-tester.html">implementation/emulator-monitor-tester</a>. WS-A tester ROM (evolved from <code>src/diag_minimal.s</code>, keyboard key-per-option, no on-screen HUD, continuous loop + 60 Hz Vbord IRQ, v0 patterns = bars + checkerboard, v0 mode = 320×192×16). WS-B live FB renderer (new <code>web/backend/gime_state.py</code>, RGB-decode, halt-driven + optional free-run poll). WS-C mapped regions feature (per-config persistence, fixed/symbol+offset/follow-pointer definitions, 32 KB cap). WS-D mode-matrix expansion. <strong>Shadow-register convention demoted</strong> — user pushed back; it's now option 3 of three.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-16 · build — Convert to RGB tv-input + rebuild palette tables; isolate Phase 2.x FB-render regression</h3>
+      <p>Executed <a href="./backlog/rgb-tv-input-palette.html">backlog/rgb-tv-input-palette</a>. Added <code>-tv-input rgb</code> to both XRoar launch sites and canonical-invocation snippets in tooling pages. Built a minimal-from-scratch hi-res cart (<code>src/diag_minimal.s</code>) — no MMU, no cart self-copy, FB at phys $072000 = virt $2000 — that displays 16 clean horizontal stripes under <code>-tv-input rgb</code>. Used it to derive the empirical RGB 6-bit → colour table now in <a href="./implementation/lessons-learned.html">lessons-learned</a> §"XRoar RGB monitor palette mapping" (key finding: full white is <code>$3F</code>, not <code>$38</code>; <code>$38</code> is light grey). Updated <code>palette_table</code> in <code>src/main.s</code>: indices 0-3 = <code>$00 $30 $08 $3F</code>. <strong>Surfaced regression:</strong> Phase 2.x main.s renders FB as red+green noise under both RGB and composite. Filed <a href="./backlog/phase2-fb-render-regression.html">backlog/phase2-fb-render-regression</a>.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-15 · build — B2 backend wiring: opcode decoder, annotation engine, regions, symbols, endpoints</h3>
+      <p>Wired the v2 web app's backend annotation pipeline. New modules: <code>opcode_table.py</code>, <code>decoder.py</code> (bytes + 6809 state → structured Instruction; ~24 indexed-postbyte forms), <code>annotation.py</code> (Instruction + regs → JSON payload with disassembly, effect text, CC predictions, region notes, cart-window write-warning), <code>regions.py</code>, <code>symbols.py</code> (parses <code>build/ladybug.map</code>, merges with <code>web/data/symbols.json</code>). New endpoints: <code>/api/regions</code>, <code>/api/registers-doc</code>, <code>/api/symbols/lookup</code>, <code>/api/decode/{id}</code>. Smoke-tested against 8 hand-crafted instructions — all produce correct output.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-15 · build — B1 punch-list fixes; mnemonic-family anchors added to 6809 page</h3>
+      <p>QA punch-list disposition (fix all five before B2): (1) broken anchor in <code>6809-regions.json</code> cart-window entry corrected; (2) added <code>$FF40-$FF8F</code> "FDC / reserved I/O" region; (3) architecture page now formally documents <code>length: int | "variable"</code> and <code>cycles: int | {min,max,note}</code>; (4) RTI updated to use conditional-cycles object; (5) added <code>## Mnemonic reference</code> section to platform/6809 with nine family anchors; opcode JSON <code>wiki</code> fields retargeted via script (82 entries).</p>
+    </section>
+
+    <section>
+      <h3>2026-05-15 · build — web/data/ JSON authoring (Track B sub-task 1)</h3>
+      <p>Authored five data files for the v2 web/ wiki-UI architecture: <code>6809-opcodes.json</code> (83 encodings), <code>6809-indexed-postbyte.json</code> (24 postbyte patterns), <code>6809-regions.json</code> (17 memory regions), <code>6809-registers.json</code> (10 regs + 8 CC bits), <code>symbols.json</code> (5 seed entries). All JSON-validates. Schema matches tooling/web-app-architecture.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-15 · design — web/ v2 architecture filed; reverse-step deferred; XRoar patch chosen for local-only apply</h3>
+      <p>User locked scope for v2 web/ work: instruction annotation, register/region/symbol wiki surfaces, persistent configs as <code>web/configs/*.json</code>, snapshot save/load (with patched XRoar). Reverse-step / time-travel / change-log deferred entirely. XRoar SO_REUSEADDR patch chosen for local apply (not upstreaming). Architect-role pass produced module split, schema decisions, halt-event data flow, and XRoar-patch dependency handling. Three approval gates passed.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-15 · research — XRoar <code>-load + -gdb</code> bug is a missing SO_REUSEADDR; one-line fix viable</h3>
+      <p>Feasibility report on patching XRoar 1.10 to fix snapshot-load dropping the gdb listener. Root cause: <code>gdb_interface_new</code> is called twice when <code>-load</code> is given; the first listener is closed cleanly, but the listening socket lacks <code>SO_REUSEADDR</code>, so the kernel's <code>TIME_WAIT</code> window blocks the second <code>bind()</code>. XRoar does log the failure (<code>[gdb] WARNING: bind 127.0.0.1:PORT failed</code>) — wiki's "silently drops" framing was inaccurate. Fix is a single <code>setsockopt(SO_REUSEADDR)</code> call. ~2-3 h to apply + verify + upstream. Full report: <a href="./backlog/xroar-load-gdb-patch.html">backlog/xroar-load-gdb-patch</a>.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-15 · research — gdb <code>record full</code> / reverse-step is not viable against m6809-gdb + XRoar 1.10</h3>
+      <p>Empirical probe. Result: <strong>no path through gdb works</strong>. Two independent rejections: gdb refuses <code>record full</code> with "Process record: the current architecture doesn't support record function" (m6809 isn't in supported list); XRoar's stub rejects <code>reverse-stepi</code>/<code>reverse-continue</code>/<code>record btrace</code>. Forward stepping works normally. Either layer alone would close this path; both being closed means a fix requires patches in both gdb and XRoar. Recorded in <a href="./tooling/xroar.html">tooling/xroar</a> §Reverse execution. Any time-travel feature must be backend-recorded.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-15 · build — Scaffolded <code>web/</code> retro-dev backend + frontend; landed five XRoar-stub gdb gotchas</h3>
+      <p>Stood up the locally-hosted web app described in <a href="./backlog/retro-dev-web-app.html">backlog/retro-dev-web-app</a>: FastAPI backend owning XRoar lifecycle on 65520..65540 port pool, vanilla-JS+web-components frontend, ephemeral UI-created instances. Live attach to XRoar's GDB stub via <code>m6809-gdb --interpreter=mi</code>, registers + memory readable, WS fan-out delivers state/halt/log events. Chat pane dropped per user direction (Codex stays the LLM surface). Five gotchas surfaced — recorded in <a href="./tooling/xroar.html">tooling/xroar</a> §Known XRoar 1.10 limitations: <code>vMustReplyEmpty</code> "timeout" reply (fatal in MI), probe-connect+disconnect wedge, benign <code>Register 12 is not available</code> trailer, MI stream split mid-NAME=VAL, deadlock if you read regs synchronously from an async-event callback.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-15 · debug — L4 sentinel probe at <code>$FEF7</code> did not execute; boot likely derails at MMU-enable</h3>
+      <p>Fifth pass on cart-ram-corruption. Inserted sentinel probe at <code>$C0BE-$C0CD</code> immediately before <code>phase24_halt</code>. <strong>Probe did not execute</strong> — both <code>$0FFE</code> and <code>$0FFF</code> read <code>$FF</code>. Registers at attach: <code>A=$68</code> consistently (= byte loaded by <code>LDA #%01101000</code> at <code>$C078</code>, one instruction before MMU-enable). Boot reaches at least <code>$C078</code>, then derails — most likely at the MMU-enable when subsequent instruction fetches route through PAR6 → phys <code>$3E</code> → uninitialised DRAM (cart-shadow self-copy is a no-op). The "IRQ vector doesn't install" framing is wrong; real failure is earlier and broader. Also discovered: gdb-mcp reads at <code>$C000+</code> now return DRAM init pattern, contradicting the 2026-05-14 finding — gdb-mcp's cart-window read path cannot be trusted.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-15 · propagate — Cart-shadow no-op finding rolled into memory-map and lessons-learned</h3>
+      <p>Followed up the four-pass cart-ram-corruption investigation by updating the wiki. <a href="./implementation/memory-map.html">implementation/memory-map</a>: added "⚠️ Important: under XRoar 1.10 the self-copy is a no-op" subsection to boot data-copy procedure, qualified Phase 2.1 verification as non-discriminating, documented implications. <a href="./implementation/lessons-learned.html">implementation/lessons-learned</a>: added entry. Long-term plan: keep self-copy in source for hardware-correctness (Phase 10), treat as dead code when reasoning about XRoar.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-14 · debug — Phase 2.4 boot confirmed working from cold start; source-review gap remains</h3>
+      <p>Fourth pass on cart-ram-corruption. Three discriminating probes: (1) cold-start verification — cleared <code>~/.xroar/</code>, ran clean Phase 2.4 build with <code>-trap pc=0xC0BE -trap-snap</code>; trap fired; <strong>Phase 2.4 reaches phase24_halt from cold start</strong>. (2) Post-SAM_ALLRAM probe at $C05E: boot survives. (3) Pre-cart-shadow probe at $C02A: <code>$C000+</code> already returns cart bytes before the self-copy runs. <strong>The self-copy is irrelevant</strong>; XRoar serves cart bytes through a path my source-review couldn't fully trace.</p>
+      <p>The IRQ-vector bug is a real, isolated problem — not a symptom of broader breakage. Next session should pivot back to L4 (probe MC3/MMU/PAR state at <code>STA $FEF7</code> time). Also identified one XRoar 1.10 bug: <strong><code>-load</code> + <code>-gdb</code> together fails to bind the gdb listener</strong>.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-14 · debug — Cart-shadow self-copy CONFIRMED non-functional; what we read at $C000+ is cart ROM via S=1/CTS</h3>
+      <p>Third gdb-mcp pass with a <code>bra .</code> halt at <code>copy_done</code> (PC=$C047, pre-SAM_ALLRAM). With MC3=1, MMUEN=0, TY=0, the GIME's address decoder routes <code>$C000-$FDFF</code> through S=1 (CTS, cart ROM) with RAS=0. In <code>coco3.c read_byte</code>, the case-1 branch returns cart ROM via <code>cart_rom_read</code>/<code>rombank_d8</code>, and the <code>if (RAS)</code> ram-overlay block is skipped. So gdb-mcp reads at <code>$C000+</code> see cart ROM directly. The cart-shadow loop's <code>std ,x</code> writes go to <code>cart_rom_write</code> (no-op) and skip ram_d8 (RAS=0) — they don't reach RAM. <strong>Net: the self-copy is a no-op on XRoar 1.10.</strong> The boot has been running directly from cart ROM all along.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-14 · debug — Cart-shadow self-copy appears non-functional under XRoar 1.10</h3>
+      <p>Second gdb-mcp pass on cart-ram-corruption using SWI-trap + snapshot workflow. Key findings: SWI in cart code makes XRoar 1.10 <strong>segfault</strong> at snapshot time — avoid <code>swi</code> for halt-and-inspect; use <code>bra .</code>. After inserting probe code and attaching: PC wild ($B977 in BASIC ROM), <code>$1000=00 00</code> (sentinel never persisted), and <code>$C000-$C0FF</code> filled with the DRAM init pattern. <strong>The cart-shadow self-copy is non-functional under XRoar 1.10.</strong> Pre-SAM_ALLRAM with MC3=1, MMUEN=0, the GIME's address decode for <code>$C000-$DFFF</code> returns S=1 with RAS=0. The IRQ-vector bug is now seen as a SYMPTOM of this deeper boot-architecture mismatch, not the root cause.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-14 · tooling — gdb-mcp stability workarounds + mcp-xroar backlog</h3>
+      <p>Captured three workarounds for gdb-mcp instability during early-boot inspection in <a href="./tooling/xroar.html">tooling/xroar</a>: explicit <code>timeout: 60+</code> on continue commands, temporary <code>swi</code> opcodes for deterministic stops, and <code>-trap</code>/<code>-trap-snap</code>/<code>-load</code> for snapshot-based fast re-entry past the cart-autorun handshake. Documented cycle-/GIME-state inspection gaps the gdb stub can't fill. Filed <a href="./backlog/mcp-xroar-server.html">backlog/mcp-xroar-server</a> as the deferred option.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-14 · debug — Cart-ram-corruption reframed via XRoar source review + gdb-mcp probe</h3>
+      <p>Cloned XRoar source into <code>docs/reference/xroar</code> (gitignored). Reviewed 1.10..HEAD — no GIME/MMU/force-$FExx/IRQ-vector fixes. Source review of <code>tcc1014/tcc1014.c</code> shows GIME MMU read/write paths for <code>$FE00-$FEFF</code> are symmetric. Ran XRoar 1.10 with <code>phase24_halt</code> bypassed and gdb-mcp attached; readback at <code>$C0CB</code> (immediately after <code>STA $FEF7</code>) showed <code>$FEF7 = 0x16</code>, NOT <code>$7E</code>. Identified that the backlog's quoted install bytes had a typo (<code>B6 7E</code> vs correct <code>86 7E</code> — verified against <code>build/ladybug.lst:220</code>). Backlog updated with new leads L1-L4.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-14 · backlog — Three spin-off items filed</h3>
+      <p>Filed <a href="./backlog/rgb-tv-input-palette.html">rgb-tv-input-palette</a>, <a href="./backlog/cart-ram-corruption.html">cart-ram-corruption</a>, and <a href="./backlog/retro-dev-web-app.html">retro-dev-web-app</a>. RGB-palette comes from <code>scripts/build.sh</code> not passing <code>-tv-input</code>; cart-RAM-corruption surfaced when removing the Phase 2.4 isolation halt let the carried-forward Phase 2.3 IRQ-install path run on top of the new MMU layout and the CPU went off the rails; retro-dev-web-app is a forward-looking wrap of the lwasm + XRoar + gdb-mcp + LLM stack into a browser UI.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-14 · task — Phase 2.4 three-tile build-out</h3>
+      <p>Updated <code>src/main.s</code> to render three copies of arcade char #432 at top-left / top-center / top-right of the framebuffer, replaced the hardcoded <code>$1111</code> blit_tile body with a Y-sentinel loop reading from a passed source pointer (per existing <code>LDD ,Y++</code> clobbers B lesson), and shifted XRoar-bad-window padding to an <code>org $C0DC</code> before <code>mainloop</code> so live code stays out of <code>$C0D9-$C0DB</code>. Removing the prior <code>post_blit: bra post_blit</code> halt produced runaway CPU and cart-RAM corruption — captured as cart-ram-corruption backlog item and gated behind a fresh <code>phase24_halt</code>.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-12 · query — Full-window ROM probe update</h3>
+      <p>Updated <code>src/rom_probe.s</code> so the probe loop scans the full <code>$C000-$FEFF</code> cartridge window instead of only <code>$C000-$C0FF</code>. Added the one-off run command to <a href="./tooling/build-workflow.html">tooling/build-workflow</a>. Built through GDB <code>shell</code>, launched XRoar with <code>-gdb</code>, attached via <code>target remote :65520</code>. Full-window probe reported <code>$50</code> mismatches: <code>$C0D9-$C0DB</code>, <code>$C8B4-$C8BE</code>, and <code>$E000-$E042</code>. Expanded <a href="./implementation/lessons-learned.html">lessons-learned</a> with the observed mapping/read result.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-12 · docs — GDB-MCP-hosted XRoar launch path</h3>
+      <p>Clarified <a href="./tooling/xroar.html">tooling/xroar</a> and <a href="./tooling/build-workflow.html">tooling/build-workflow</a> to distinguish the Windows PowerShell sandbox, the Linux host environment available through the already-running <code>gdb-mcp</code> process, and a manually launched Windows XRoar process. Documented the working Codex path that launches XRoar via GDB's <code>shell</code> command from a GDB-MCP session.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-12 · docs — XRoar plus GDB-MCP attach runbook</h3>
+      <p>Updated <a href="./tooling/xroar.html">tooling/xroar</a> with the round-trip workflow for building the cartridge, launching XRoar with <code>-gdb</code>, choosing <code>-gdb-ip 127.0.0.1</code> vs <code>-gdb-ip 0.0.0.0</code>, and attaching through the <code>gdb-mcp</code> MCP server using the 6809 GDB. Added troubleshooting notes for the observed <code>Truncated register</code> error, WSL/Windows bind-address timeouts, single-endpoint attach behavior, and non-6809 GDB binaries. Updated <a href="./tooling/build-workflow.html">tooling/build-workflow</a> to point to the full runbook.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-10 · finding — XRoar cartridge-window read quirk at <code>$C0D9-$C0DB</code></h3>
+      <p>Created and ran a minimal ROM probe (<code>src/rom_probe.s</code>) that reads <code>$C000-$C0FF</code> before writing that range and logs mismatches to <code>$01FF/$0200</code>. Under XRoar 1.10 it reported exactly three bad reads: <code>$C0D9=$7E</code>, <code>$C0DA=$E2</code>, <code>$C0DB=$9D</code> where the cartridge image has <code>$00,$00,$00</code>. XRoar GDB traps showed the main boot <code>copyloop</code> reads those bad bytes directly. Patched <code>src/main.s</code> to skip <code>$C0D9-$C0DB</code> during the boot copy.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · phase — Phase 2.3: GIME hi-res 320×192×16 + MMU + FB end-to-end — passed</h3>
+      <p>Drove Phase 2 through three sub-gates: (2.1) shadow-RAM-during-write at phys $3E verified; (2.2) full Phase 1 boot + cart self-copy + all-RAM, IRQ-driven frame counter still ticked from RAM-resident code; (2.3) GIME hi-res mode + MMU + PARs (<code>$38, $30..$33, $3D, $3E, $3F</code>) + vert-offset <code>$FF9D=$C0/$FF9E=$00</code> → FB at phys page $30 + palette load + CRES=11 blanking trick + IRQ-driven mainloop FB writes. Final visible: 16-stripe palette test with bright border + flashing IRQ-driven block.</p>
+      <p><strong>Surprise:</strong> XRoar's default CoCo 3 monitor renders 6-bit palette via composite NTSC encoding, not the textbook RGB <code>RGBrgb</code> 2-bits-per-channel layout. <code>$3F</code> and <code>$30</code> both display as white; <code>$0C</code> is blue not green-ish. Recorded the empirical mapping in <a href="./implementation/video-mode.html">video-mode</a> and <a href="./implementation/lessons-learned.html">lessons-learned</a>.</p>
+      <p><strong>Surprise (lesser):</strong> IRQ-driven mainloop write at row 96 produced visible tearing on the bottom edge (~7 pixels). Cause is the unsynchronised fill loop racing the GIME raster — not a bug. <strong>One iteration cost:</strong> lwasm rejected <code>fcb $38, $30, $31, ...</code> with spaces after commas.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · decision — Reverted to 16 K cart after XRoar boot gate failed</h3>
+      <p>Phase 2 step 1 caught two issues. (1) Shadow-RAM-during-write at phys <code>$3E</code> works. (2) XRoar's handling of 32 K cart files via <code>-cart-rom</code> is unverified — built a 32 K cart with planned split; boot landed at BASIC <code>OK</code>, consistent with XRoar mapping only the lower 16 K of the file at <code>$C000</code> regardless of size.</p>
+      <p>User decision: <strong>Path A — revert to 16 K cart for now</strong>, defer the cart-size question until Phase 4. If we then need &gt;16 K, pivot to <strong>software bank-switched</strong> (XRoar <code>-cart-type gmc</code> + CoCoSDC + multi-pak — universal hardware support, ~half-day refactor). Not Init0 b1-b0 = <code>11</code>. Reverted: <code>scripts/build.sh</code> → <code>CART_BYTES=16384</code>. Updated cartridge, memory, tooling, video-mode, memory-map, and roadmap pages.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · decision — Memory map for Phase 2 + Phase 10 cart-shell gate</h3>
+      <p><strong>Memory map.</strong> Created <a href="./implementation/memory-map.html">implementation/memory-map</a> covering: 8-PAR allocation post-boot (1 system, 4 FB at phys <code>$30-$33</code>, 1 game-state placeholder, 2 code at phys <code>$3E-$3F</code>); 32 K cart-ROM image structure; boot data-copy procedure. DP at <code>$0200-$02FF</code> allocation table started.</p>
+      <p><strong>Tight page budget surfaced.</strong> 8 PARs vs 8-10 wanted post-Phase-4. Documented four resolution options: (1) sprite 2bpp+attr compression — default, (2) bank-switch sprite PAR, (3) sliding FB write window, (4) shrink code to 8 K. Decision deferred to Phase 4. <strong>Phase 10 review-gate question added:</strong> does the chosen cart shell respond to <code>$8000-$BFFF</code> accesses in Init0=11 mode?</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · decision — Cart retargeted to 32 K (Init0 b1-b0 = 11)</h3>
+      <p>User pushed back on the implicit 16 K cart limit during Phase 2 ROM-budget analysis. Reviewed: (1) 16 K with 2bpp+attr sprite packing, (2) 32 K cart via Init0 b1-b0 = <code>11</code>, (3) bank-switched, (4) floppy. Chose <strong>(2) 32 K cart</strong>: removes ROM pressure for full 4bpp sprite path, keeps boot model intact. Updated <code>scripts/build.sh</code> (<code>CART_BYTES=32768</code>); rebuilt — Phase 1 cart still autostarts under XRoar. Cart-shell hardware implication: standard 16 K EPROM cart shells won't work; CoCoSDC, RetroCloud, and similar bank-switched / SD-cart hardware emulate larger ROMs transparently.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · decision — Video mode chosen: 320×192×16</h3>
+      <p>Phase 2 first task: decided GIME mode for the rest of the project. Compared 320×192 vs 256×192 at 16 colours. 320×192 wins on HUD layout (64 px per side panel = 8 tiles), aspect, and familiarity. Cost: extra 6 144 framebuffer bytes (one MMU page) and ~25% more sprite-blit work — accepted. Locked formats: 8×8 px tiles (32 bytes), 16×16 px sprites (128 bytes), framebuffer at 160 bytes/row × 192 rows = 30 720 bytes. Estimated sprite-blit budget 5 400 cycles for ~9 simultaneous entities — fits the 18 000-cycle render allocation with margin. Created <a href="./implementation/video-mode.html">implementation/video-mode</a>.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · phase — Phase 1: boot init + 60 Hz Vbord — passed</h3>
+      <p><code>src/main.s</code> grew to 95 bytes: DP=$02, PIA interrupts quieted, GIME <code>Init0=$A8</code> (COCO legacy, MMU off, ACVC-IRQ on, force-<code>$FExx</code>=$3F), TY=1 all-RAM, R1=1 fast clock, JMP-handler installed at <code>$FEF7</code>, Vbord enabled. IRQ handler increments a 16-bit <code>FRAMES</code> counter at <code>$0202</code> and acks via <code>$FF92</code> read. Main loop renders both bytes to <code>$0400/$0401</code> on the legacy VDG screen — observed at expected rates. <strong>Resolved deferred question:</strong> SWI/IRQ vector collision — no collision (SWI vectors disjoint from IRQ/FIRQ).</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · phase — Phase 0: hello cart — passed</h3>
+      <p>22-byte stub at <code>$C000</code> with <code>FCC "DK"</code> autostart magic + entry code took control under XRoar via the BASIC CART/FIRQ handshake. Screen showed our 32-byte <code>$AA</code> marker on row 0 over BASIC's default <code>$60</code> green fill — no banner, no <code>OK</code> prompt. Confirmed cartridge boot handshake description is correct. Created <code>src/main.s</code> (first source file in <code>src/</code>).</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · phase — Phase 2.4: first arcade tile rendered (after debugging session)</h3>
+      <p>Hand-converted arcade <code>chars.json[432]</code> (dense tile using all four pixvals) to 32 bytes of 4bpp GIME tile data. Reassigned palette idx 0-3 to a 4-colour sub-palette (black/yellow/blue/white) per the empirical XRoar table. Wrote <code>blit_tile</code> and rendered three copies on a black-cleared FB at tile coords (2,4), (10,20), (20,36). ROM size 294 bytes / 16384.</p>
+      <p><strong>Bug found and fixed:</strong> the obvious <code>ldb #8</code> / <code>decb</code> / <code>bne</code> loop in <code>blit_tile</code> is broken because <code>ldd ,y++</code> clobbers B (D=A:B). Fixed by switching to a <code>cmpy ,s</code> against an end-of-tile sentinel pushed onto the stack. Filed in <a href="./implementation/lessons-learned.html">lessons-learned</a>. Phase 2.5 will automate the chars.json → GIME tile-data conversion via <code>build_gfx.py</code>.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · decision — Implementation roadmap committed</h3>
+      <p>User asked for a phased plan from current state to finished game. Wrote <a href="./implementation/roadmap.html">implementation/roadmap</a> — 11 phases (0: hello cart, 1: boot init, 2: display, 3: tile/maze, 4: input/sprite, 5: HUD/maze logic, 6: enemies, 7: letters+veg+colour cycle, 8: sound, 9: polish, 10: real hardware). Each phase has POC tasks, exit criterion, and review-gate questions.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · ingest — Dungeons of Daggorath cartridge source: coding idioms</h3>
+      <p>Verified end-to-end build of the DoD source first: <code>lwasm DAGGORATH.ASM</code> → 8192 bytes ORG <code>$C000</code>, padded to 16 KB, autoruns under XRoar. Spawned an Explore agent to extract patterns. Created <a href="./sources/dod-source.html">sources/dod-source</a> (provenance, module map, naming conventions). Created <a href="./implementation/coding-conventions.html">implementation/coding-conventions</a> adopting six DoD idioms: static DP set once at boot, domain-based module split with 6-char prefixed names, table-driven dispatch with <code>EQU</code> offset records, SWI as syscall layer, routine header contract format, banner comment style. Created <a href="./implementation/scheduler.html">implementation/scheduler</a> as a candidate pattern. Created <a href="./implementation/lessons-learned.html">implementation/lessons-learned</a> with the "DoD anti-patterns we won't copy" list.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · ingest — Tooling: lwtools, xroar, toolshed + build script</h3>
+      <p>Created a new <code>wiki/tooling/</code> section: <a href="./tooling/index.html">index</a>, <a href="./tooling/lwtools.html">lwtools</a>, <a href="./tooling/xroar.html">xroar</a>, <a href="./tooling/toolshed.html">toolshed</a> (standby, not in active build), <a href="./tooling/build-workflow.html">build-workflow</a>. Wrote <code>scripts/build.sh</code> with <code>build</code>/<code>run</code>/<code>clean</code> subcommands; smoke-tested end-to-end against a 3-byte stub. Verified Windows-host Claude can drive WSL via <code>wsl -d Ubuntu -- bash -lc ...</code>. <strong>Decision:</strong> deploy is <strong>cartridge ROM image only</strong> (option A); toolshed kept documented but unused. OS-9 path explicitly out of scope.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-07 · propagate — Platform pages from both Tepolt manuals</h3>
+      <p>Wrote/created seven platform pages from the two Tepolt source pages: <code>platform/6809.md</code> (programming model, addressing modes), <code>platform/gime.md</code> (full ACVC register catalog), <code>platform/memory.md</code> (virtual vs physical, PAR sets, ROM/RAM modes, dedicated address map), <code>platform/timing.md</code> (MPU clock options, IRQ source comparison, decision to use ACVC Vbord at 60 Hz), <code>platform/input.md</code> (keyboard matrix scan, fire buttons, joystick X/Y A/D), <code>platform/sound.md</code> (6-bit DAC vs PB1 square wave), <code>platform/cartridge.md</code> (40-pin pinout, CART/FIRQ auto-start). Note: in Phase 2 of the wiki HTML conversion, much of this reference content was promoted to <code>release/reference/coco3/</code>; this log entry refers to the original markdown structure.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-07 · ingest — Tepolt: Assembly Language Programming for the CoCo 3</h3>
+      <p>Read the full Tepolt CoCo 3 addendum (~1.8K lines). Captured: GIME (ACVC) overview, palette + alternate color set, virtual/physical memory and MMU PAR sets, all hi-res text and graphics modes, low-res mode parity, ACVC interrupt sources (Vbord/Hbord/Timer/SerIn/Kybd/Cart) and IRQEN/FIRQEN registers, reset-init flow, the FF22 split, the keyboard-matrix extension for F1/F2/CTRL/ALT and joystick button 2. Created <a href="./sources/coco3-asm-tepolt.html">sources/coco3-asm-tepolt</a>.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-07 · ingest — Tepolt: Assembly Language Programming for the Color Computer (CoCo 1/2)</h3>
+      <p>Read the full Tepolt CoCo 1/2 manual (~14.7K lines). Focused on the chapters Ladybug needs: ch. 3 (MC6809E architecture, programming model, interrupt sequences), ch. 4 (addressing modes + postbyte tables), ch. 5 / Appendix B (instruction set + cycle counts), ch. 9 (SAM control bits, PIA architecture, VDG modes, IRQ/FIRQ wiring), ch. 10 (keyboard matrix, joystick fire + analog A/D loop, sound paths, cartridge connector pinout), Appendix E (dedicated-address map). Skipped chapters 1-2, 6, 7-8. Created <a href="./sources/coco-asm-tepolt.html">sources/coco-asm-tepolt</a>.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-07 · decision — Bare-metal boot strategy locked</h3>
+      <p>Documented the Ladybug boot path: cartridge ROM at <code>$C000</code>, control taken via the BASIC reset-init's CART → PIA2 CB1 → FIRQ handshake, then immediate switch to all-RAM mode + 1.78 MHz clock + ACVC Vbord IRQ for the 60 Hz tick. We will not depend on BASIC's PIA initialisation. Init0 bit 3 will be set so the primary IRQ jump table at <code>$FEEE-$FEFF</code> remains reachable independently of PAR7.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-16 · implement — WS-A milestone 2: IRQ + keyboard + checkerboard</h3>
+      <p>Tester ROM now installs a Vbord ISR at <code>$FEF7</code>, scans the PIA1 keyboard matrix each frame with edge-detected dispatch via a <code>(col_idx, row_mask, handler)</code> <code>key_table</code> (<code>'1'</code> → mode 0, <code>'B'</code> → bars, <code>'C'</code> → checker), and runs a dirty-flag-driven mainloop. Adds <code>src/tester/input.s</code> and <code>src/tester/pat_check.s</code>; extends <code>src/tester/tester.s</code>. Verified by <code>web/scripts/probe_tester_m2.py</code>: frame_ctr advances, ISR vector at <code>$FEF7</code> points to <code>vbord_isr</code>, bars FB intact, kbd_prev populated. Two new lessons-learned entries logged.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-16 · probe — WS-A GIME-readback gate resolved → Option 2</h3>
+      <p>Ran <code>web/scripts/probe_gime_readback.py</code> against a live <code>build/diag.rom</code> instance. XRoar's gdb stub returns sentinel <code>$1B</code> for every read of <code>$FF90</code> and <code>$FF98..$FF9E</code> regardless of writes; palette <code>$FFB0..$FFBF</code> reads back exactly, PARs <code>$FFA0..$FFA7</code> return reset-state <code>38..3F</code>. Option 1 (DirectReadStrategy) eliminated. <strong>WS-A adopts Option 2 (ProgramStateStrategy)</strong> — tester ROM will export <code>tester_mode_idx</code> + <code>tester_mode_table</code>. Finding recorded in <a href="./implementation/lessons-learned.html">lessons-learned</a>.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-08 · ingest — Arcade gfx extraction pipeline</h3>
+      <p>Built <code>scripts/extract_arcade_gfx.py</code> to decode arcade Lady Bug graphics from <code>ladybug.zip</code> (MAME romset) into indexed pixel grids + palette JSON + per-attr PNG previews under <code>assets/arcade/</code>. Decoder mirrors MAME <code>ladybug.cpp</code> <code>charlayout</code>/<code>spritelayout</code>/<code>ladybug_palette()</code> exactly. Output: 512 × 8×8 chars, 128 × 16×16 sprites, 32-color palette, 8 char color attrs, 2×8 sprite color attrs. Created <a href="./sources/arcade-gfx-extraction.html">sources/arcade-gfx-extraction</a> with the pipeline and 7-item gotchas list.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-05 · decision — Design-doc scope locked for first release</h3>
+      <p>User answered the 10 open questions in <a href="./game/overview.html">game/overview</a>. Locked: HUD split panels (left = score/lives/level; right = EXTRA/SPECIAL/vegetable); <code>SPECIAL</code> reward = 10,000 points (no bonus round in v1); 3 lives + one-time 30K bonus life; single fixed maze; fixed skull count per stage. Explicitly skipped: MAME-source ingest, arcade-manual PDF ingest.</p>
+      <p><strong>Hearts and letters / colour cycle:</strong> hearts and letters are separate maze entities. The colour cycle is <strong>global and instantaneous</strong> — every coloured item on the playfield shares one colour state. Each target (EXTRA word, SPECIAL word, heart multiplier) is bound to a distinct colour. Five items deferred to implementation tuning.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-05 · ingest — Lady Bug arcade: web reference</h3>
+      <p>Searched + fetched Wikipedia, Pixelated Arcade tech specs, C64-Wiki (port reference), bitvint.com, and miscellaneous web aggregations. Created <a href="./sources/ladybug-arcade.html">sources/ladybug-arcade</a>. Created <a href="./game/overview.html">game/overview</a> — full design doc covering playfield, 20 turnstile gates, border-circuit enemy-release timer, 8 enemy types + skull hazards, scoring table, heart ×2/×3/×5 multiplier, EXTRA/SPECIAL letter cycle, full 18-vegetable cycle. Ten open questions logged. Two source documents could not be fetched.</p>
+    </section>
+
+    <section>
+      <h3>2026-05-05 · seed — Initial wiki instantiation</h3>
+      <p>Created wiki scaffolding under <code>wiki/</code> for the Ladybug project. Configuration adapted from the Planet Pioneers project: <code>CLAUDE.md</code> schema (three-layer architecture), <code>index.md</code> content catalog with stubs, <code>log.md</code>, project-root <code>CLAUDE.md</code>, <code>.claude/skills/</code> role skills (project-management, business-analyst, coding-architect, debugger, qa-reviewer) copied and adapted, <code>.claude/settings.local.json</code> permissions. No raw sources ingested yet.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Append-only. Add new entries at the top of the page in the form
+        <code>&lt;section&gt;&lt;h3&gt;YYYY-MM-DD · &lt;type&gt; — &lt;title&gt;&lt;/h3&gt;&lt;p&gt;…&lt;/p&gt;&lt;/section&gt;</code>.
+        See <a href="../CLAUDE.md"><code>wiki/CLAUDE.md</code></a> for the
+        full log schema.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

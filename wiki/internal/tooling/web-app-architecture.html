@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>web/ retro-dev app architecture — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tooling</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling · design</p>
+      <h1>web/ retro-dev app architecture <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Module split + data-layer conventions for the locally-hosted
+        retro-dev web UI. v2 scope — extends
+        <a href="../backlog/retro-dev-web-app.html">backlog/retro-dev-web-app</a>
+        (which captured the MVP).
+      </p>
+    </header>
+
+    <section>
+      <p>
+        v2 design: instruction annotation, register/region/symbol wiki
+        surfaces, persistent configs as <code>web/configs/*.json</code>
+        per-file, snapshot save/load (with patched XRoar). Reverse-step /
+        time-travel deferred entirely.
+      </p>
+    </section>
+
+    <section>
+      <h2>Two design principles</h2>
+      <ol>
+        <li><strong>Static data lives in flat JSON under <code>web/data/</code>.</strong> Opcode table, region map, register glossary, symbol→wiki map. Loaded once at backend startup; served verbatim to frontend on demand.</li>
+        <li><strong>Dynamic resolution lives in the backend.</strong> "Decode bytes at PC + tell me what this will do with these regs" is computed Python-side per halt and returned as a structured Instruction + annotation.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>File layout</h2>
+<pre><code>web/
+├── data/
+│   ├── 6809-opcodes.json           hand-curated, opcodes Ladybug emits
+│   ├── 6809-indexed-postbyte.json  6809 indexed-addressing postbyte table
+│   ├── 6809-regions.json           memory-map regions + wiki anchors
+│   ├── 6809-registers.json         per-register + per-CC-bit doc strings
+│   └── symbols.json                symbol-name → wiki anchor
+├── configs/
+│   └── *.json                      one per named instance configuration
+├── snapshots/
+│   ├── &lt;id&gt;.sna                    XRoar snapshot file
+│   └── &lt;id&gt;.json                   sidecar manifest (config_id, ROM hash, PC, timestamp)
+├── backend/
+│   ├── opcode_table.py             load + index opcode + postbyte JSON
+│   ├── decoder.py                  bytes + 6809 state → Instruction
+│   ├── annotation.py               Instruction + state → annotation payload
+│   ├── regions.py                  region lookup by addr
+│   ├── symbols.py                  parse build/ladybug.map; nearest-symbol lookup
+│   ├── configs.py                  CRUD over web/configs/*.json
+│   ├── snapshots.py                save via -trap-snap; load with patched-XRoar detect
+│   ├── instance.py                 [modified] config-driven launch
+│   ├── instances.py                [modified] create_from_config + ephemeral synthesis
+│   └── main.py                     [modified] new endpoints
+└── frontend/
+    ├── components/
+    │   ├── instance-list.js        [modified] config-aware
+    │   ├── instruction-annotation.js     NEW
+    │   ├── register-view.js        [modified] hover/click → reg-doc tooltip
+    │   ├── memory-view.js          [modified] region shading + hex hover
+    │   ├── symbol-context.js       NEW
+    │   ├── config-editor.js        NEW
+    │   ├── logs-view.js            [modified] add Snapshot button
+    │   ├── source-view.js          unchanged
+    │   └── framebuffer-view.js     unchanged (placeholder)
+    ├── app.js
+    ├── store.js                    [modified]
+    ├── app.css
+    └── index.html
+</code></pre>
+    </section>
+
+    <section>
+      <h2>API surface (additions)</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td><code>/api/decode/{instance_id}?addr=&amp;len=</code></td><td>Decode + annotate bytes at addr against current state</td></tr>
+          <tr><td>GET</td><td><code>/api/regions</code></td><td>Static region map</td></tr>
+          <tr><td>GET</td><td><code>/api/registers-doc</code></td><td>Static register/CC doc</td></tr>
+          <tr><td>GET</td><td><code>/api/symbols/lookup?addr=</code></td><td>Nearest symbol + wiki anchor</td></tr>
+          <tr><td>GET POST PUT DELETE</td><td><code>/api/configs[/{id}]</code></td><td>Persistent configs CRUD</td></tr>
+          <tr><td>POST</td><td><code>/api/instances/{id}/snapshot</code></td><td>Save snapshot (terminates instance per <code>-trap</code> segfault quirk)</td></tr>
+        </tbody>
+      </table>
+      <p>WS protocol unchanged — fan-out already covers state/halt/log.</p>
+    </section>
+
+    <section>
+      <h2>Halt-event data flow</h2>
+<pre><code>gdb *stopped
+  → instance state HALTED + halt event with regs
+  → frontend: parallel REST fetches
+       /api/decode/{id}?addr=PC&amp;len=4
+       /api/symbols/lookup?addr=PC
+       /api/instances/{id}/memory?addr=PC&amp;len=4   (already exists)
+  → instruction-annotation + symbol-context + memory-view repaint
+</code></pre>
+    </section>
+
+    <section>
+      <h2>Schemas</h2>
+
+      <h3>Opcode JSON (<code>web/data/6809-opcodes.json</code>)</h3>
+      <p>Keyed by primary opcode hex byte. Page-2/3 prefixes (<code>$10</code>, <code>$11</code>) marked with <code>"page2": true</code> / <code>"page3": true</code>; nested under <code>10xx</code> / <code>11xx</code> keys.</p>
+<pre><code>{
+  "86": {
+    "mnemonic": "LDA",
+    "mode": "immediate",
+    "length": 2,
+    "cycles": 2,
+    "operand_kind": "imm8",
+    "cc": {"N": "bit7(result)", "Z": "result==0", "V": "0"},
+    "summary": "Load A from immediate byte",
+    "effect_template": "A ← #${imm8}",
+    "wiki": "platform/6809.md"
+  }
+}
+</code></pre>
+      <p>
+        <code>operand_kind</code> enum: <code>imm8</code> | <code>imm16</code>
+        | <code>direct</code> | <code>extended</code> | <code>indexed_postbyte</code>
+        | <code>relative8</code> | <code>relative16</code> | <code>inherent</code>
+        | <code>tfr_exg_postbyte</code> | <code>psh_pul_postbyte</code>.
+        The decoder dispatches on this.
+      </p>
+      <p>
+        <strong><code>length</code> field.</strong> For most addressing
+        modes a fixed integer. For <code>indexed_postbyte</code> opcodes
+        the byte count depends on the postbyte, so <code>length</code> is
+        the string <code>"variable"</code>. Consumers must accept
+        <code>int | "variable"</code>.
+      </p>
+      <p>
+        <strong><code>cycles</code> field.</strong> Integer for fixed-cycle
+        opcodes. For path-dependent opcodes (notably <code>RTI</code>:
+        FIRQ 6 cycles vs IRQ/SWI/NMI 15), the value is an object
+        <code>{"min": int, "max": int, "note": str}</code>. Consumers must
+        accept <code>int | {min, max, note}</code>.
+      </p>
+
+      <h3>Indexed-postbyte JSON (<code>web/data/6809-indexed-postbyte.json</code>)</h3>
+      <p>~32 postbyte patterns covering <code>,X</code>, <code>n,X</code> (5/8/16-bit), <code>,X+</code>, <code>,X++</code>, <code>,-X</code>, <code>,--X</code>, <code>B,X</code>, <code>D,X</code>, indirect <code>[…]</code> variants, and PC-relative forms. Each entry: <code>{mask, value, form, extra_bytes, description}</code>.</p>
+
+      <h3>Region JSON (<code>web/data/6809-regions.json</code>)</h3>
+<pre><code>[
+  {"lo": "0x0200", "hi": "0x02FF", "name": "DP page",
+   "summary": "Direct-page hot variables. FRAMES at $0202.",
+   "wiki": "implementation/memory-map.md#direct-page-allocation"},
+  {"lo": "0xC000", "hi": "0xFDFF", "name": "Cart window",
+   "summary": "Cart ROM virtual mapping. On XRoar 1.10 always cart-backed; on hardware switches to RAM at phys $3E-$3F post-self-copy.",
+   "wiki": "implementation/memory-map.md#phase-2-mapping-current-target"}
+]
+</code></pre>
+
+      <h3>Config JSON (<code>web/configs/&lt;id&gt;.json</code>)</h3>
+<pre><code>{
+  "id": "fresh-boot-default",
+  "name": "Fresh Boot",
+  "rom_path": "build/ladybug.rom",
+  "launch_kind": "fresh_boot",
+  "snapshot_path": null,
+  "halt_on_first_instruction": false,
+  "gdb_enabled": true,
+  "machine": "coco3",
+  "extra_xroar_flags": []
+}
+</code></pre>
+      <p><code>halt_on_first_instruction</code> validated at save: meaningful only when <code>launch_kind == from_snapshot &amp;&amp; gdb_enabled == true</code>.</p>
+
+      <h3>Snapshot manifest (<code>web/snapshots/&lt;id&gt;.json</code>)</h3>
+<pre><code>{"config_id": "...", "rom_sha256": "...", "capture_pc": 49340, "captured_at": "2026-05-15T13:42:00Z"}
+</code></pre>
+      <p>ROM-hash check at load surfaces a warning on mismatch.</p>
+    </section>
+
+    <section>
+      <h2>Wiki-content sourcing convention</h2>
+      <p>
+        <strong>Hybrid.</strong> Short <code>summary</code> field inline
+        in JSON for fast tooltip rendering; <code>wiki</code> field is a
+        deep link. The JSON's <code>summary</code> is the canonical UI
+        surface text. No "always-fetch wiki on hover" pattern.
+      </p>
+    </section>
+
+    <section>
+      <h2>XRoar-patch dependency handling</h2>
+      <p>
+        Snapshot-load-with-debug needs the <code>SO_REUSEADDR</code> patch
+        (<a href="../backlog/xroar-load-gdb-patch.html">backlog/xroar-load-gdb-patch</a>).
+        No version probe — design is <strong>attempt-and-detect</strong>:
+      </p>
+      <ul>
+        <li>On <code>from_snapshot + gdb_enabled</code> launch, the existing 4 s wait-then-attach path naturally exposes the bind failure. The XRoar log line <code>[gdb] WARNING: bind ... failed</code> is captured and parsed to set a specific error state.</li>
+        <li><code>from_snapshot + gdb_disabled</code> always works.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Compliance with documented XRoar quirks</h2>
+      <ul>
+        <li><strong><code>-trap</code> segfaults after write</strong> → snapshot save is <strong>instance-terminating</strong>. UI surfaces this; endpoint returns success only after the file is on disk.</li>
+        <li><strong>Cart-window writes are no-ops on XRoar 1.10</strong> (<a href="../implementation/memory-map.html">memory-map §Important</a>) → annotation engine flags this when the target ea lies in <code>$C000-$FDFF</code>.</li>
+        <li><strong>Single-active-client / vMustReplyEmpty / no-TCP-probe / raw-stdin attach</strong> — historical gdb-stub quirks honored by the retired <code>gdb_session.py</code>. Obsolete since the 2026-05-17 Phase 4 pivot to <code>-monitor</code>; the new <code>monitor_session.py</code> speaks JSON-RPC 2.0 and supports multi-client (M6a). See <a href="../implementation/xroar-monitor.html">xroar-monitor</a>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Decisions and rationale</h2>
+      <ul>
+        <li><strong>3-layer decode pipeline (opcode_table → decoder → annotation)</strong> rather than a single module. Each layer has independent testability; the opcode table evolves independently of decoder logic.</li>
+        <li><strong>Flat snapshot directory + sidecar manifest</strong> rather than directory-per-config. Simpler listing and ROM-mismatch validation.</li>
+        <li><strong>Indexed-postbyte table as a separate JSON</strong> rather than inlined per opcode. The ~32 postbyte forms are their own little universe.</li>
+        <li><strong>Time-travel deferred</strong> — see log 2026-05-15. No record/replay infrastructure in v2.</li>
+        <li><strong>Configs as per-file JSON</strong> rather than single <code>instances.json</code>. Git-friendlier.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <a href="../backlog/retro-dev-web-app.html">backlog/retro-dev-web-app</a>
+        — MVP scope;
+        <a href="../backlog/xroar-load-gdb-patch.html">backlog/xroar-load-gdb-patch</a>
+        — snapshot-load-with-debug dependency;
+        <a href="../platform/6809.html">platform/6809</a> — addressing modes;
+        <a href="../implementation/memory-map.html">memory-map</a> — region map authority;
+        <a href="./xroar.html">xroar</a> — gdb-attach gotchas.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

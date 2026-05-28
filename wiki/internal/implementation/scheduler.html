@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scheduler (candidate) — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation · design candidate</p>
+      <h1>Cooperative Scheduler — candidate design <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        TCB-based round-robin scheduler sketched from DoD's design.
+        Candidate, not committed — revisit when the main loop is implemented.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        <strong>Status:</strong> candidate pattern, not yet decided. Filed
+        because DoD uses one and Lady Bug has a handful of independent
+        timed activities (bug spawner, vegetable cycle, score-letter colour
+        flip, skull movement, EXTRA/SPECIAL animation) that map cleanly
+        onto the same shape. Revisit when the main loop reaches
+        implementation.
+      </p>
+    </section>
+
+    <section>
+      <h2>What DoD does</h2>
+      <p>
+        Round-robin scheduler over a linked list of Task Control Blocks
+        (TCBs) held in <code>SCDQUE</code>. Each task runs to completion on
+        its turn, then returns:
+      </p>
+      <ul>
+        <li><code>A</code> — countdown ticks until the task should run again</li>
+        <li><code>B</code> — pointer to the next queue entry</li>
+      </ul>
+      <p>
+        Initialisation data lives in <code>COMDAT.ASM:36-42</code> — the
+        original TCB set covers PLAYER, delayed display update, heartrate
+        update, torch decay, and creature regeneration.
+      </p>
+      <p>
+        The scheduler header lives at <code>COMMON.ASM:1-20</code>.
+        Per-frame display work in <code>PUPDAT.ASM:6-9</code> draws to the
+        alternate buffer then issues a <code>SYNC</code> and waits for
+        vsync.
+      </p>
+    </section>
+
+    <section>
+      <h2>How it would map to Ladybug</h2>
+      <p>Likely TCBs:</p>
+      <table class="wiki-table">
+        <thead><tr><th>Task</th><th>Approximate period</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Bug AI step</td><td>1-4 frames per bug</td><td>Speed scales with stage.</td></tr>
+          <tr><td>Skull AI step</td><td>similar to bug</td><td>Possibly faster on later stages.</td></tr>
+          <tr><td>Vegetable spawn timer</td><td>seconds</td><td>Drives the EXTRA/SPECIAL/vegetable cycle on the right HUD.</td></tr>
+          <tr><td>Colour cycle flip</td><td>seconds (TBD)</td><td>Global; one task flips the shared colour state.</td></tr>
+          <tr><td>Score / extra-life check</td><td>per frame</td><td>Cheap; could just be inline in the main loop.</td></tr>
+          <tr><td>Sound dispatch</td><td>per frame</td><td>Drains a queue of pending SFX.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Pros vs alternatives</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Approach</th><th>Pro</th><th>Con</th></tr></thead>
+        <tbody>
+          <tr><td><strong>DoD-style TCB queue</strong></td><td>Decouples timed activities cleanly; new behaviours just add a TCB.</td><td>One indirection per task; small per-tick overhead.</td></tr>
+          <tr><td><strong>Hand-coded main loop with explicit countdowns</strong></td><td>Zero overhead; one branch per timed activity.</td><td>Adding a new timed activity touches the loop.</td></tr>
+          <tr><td><strong>Slot-based frame schedule</strong> (each sub-system gets a fixed frame slot mod N)</td><td>Most predictable timing.</td><td>Awkward when periods aren't multiples.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        For Lady Bug — a small fixed cast of timed activities with
+        reasonably stable cadence — the hand-coded main loop is probably
+        enough. The TCB pattern earns its keep when the <em>number</em> of
+        timed activities is open-ended (DoD has variable creature counts
+        and torch-decay dynamics). Decision deferred until the
+        implementation phase.
+      </p>
+    </section>
+
+    <section>
+      <h2>Decision criteria</h2>
+      <p>Choose TCBs only if at least one of these is true once we start coding:</p>
+      <ol>
+        <li>The list of per-frame jobs grows past ~6 and starts feeling unwieldy in a flat main loop.</li>
+        <li>We need data-driven activation (e.g. enabling/disabling activities from level data).</li>
+        <li>Vegetable / colour-cycle timing turns out to be irregular enough that table-driven countdowns are cleaner than hand-rolled counters.</li>
+      </ol>
+      <p>Otherwise: stick with a flat main loop.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: <code>COMMON.ASM:1-20</code> — scheduler contract;
+        <code>COMDAT.ASM:36-42</code> — initial TCB table;
+        <code>PUPDAT.ASM:6-9</code> — display task vsync handshake.
+        <a href="../sources/dod-source.html">sources/dod-source</a>,
+        <a href="./coding-conventions.html">coding-conventions</a>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

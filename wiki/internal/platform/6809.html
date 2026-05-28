@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6809 — project notes — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Platform</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · platform</p>
+      <h1>6809 — Project Notes <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Ladybug-specific commentary on the MC68B09E. The canonical ISA
+        reference is in <a href="../../release/reference/6809/index.html">release/reference/6809/</a>.
+      </p>
+    </header>
+
+    <section>
+      <h2>Why we can run fast</h2>
+      <p>
+        The CoCo 3 ships with the MC68B09E — same instruction set as the
+        MC6809E used in the CoCo 1/2, but rated for the doubled 1.78 MHz
+        bus. Ladybug runs at the fast clock because we never enter the
+        BASIC cassette/serial/disk I/O ROM paths. Doubling the clock halves
+        the cost of every cycle-counting decision and brings the 60-Hz
+        arcade frame within easy reach. See
+        <a href="../../release/reference/coco3/timing.html">timing</a> for
+        the budget math.
+      </p>
+    </section>
+
+    <section>
+      <h2>Addressing-mode preferences</h2>
+      <p>
+        Catalog of indexed postbytes and TFR/EXG/PUSH/PULL register codes
+        is in
+        <a href="../../release/reference/6809/registers.html">registers</a>
+        and
+        <a href="../../release/reference/6809/addressing-modes.html">addressing modes</a>.
+        For Ladybug, prefer:
+      </p>
+      <ul>
+        <li><strong>DP-relative</strong> for hot per-frame state. <code>DP</code> is set once at boot and never changes (see <a href="../implementation/coding-conventions.html">coding-conventions §1</a>).</li>
+        <li><strong>PC-relative</strong> within position-independent code blocks. A cartridge ROM is naturally position-independent if we discipline ourselves.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Clock-select for Ladybug</h2>
+      <p>
+        Ladybug's reset routine writes anything to <code>$FFD9</code> to
+        select 1.78 MHz. Writing to <code>$FFD8</code> would restore 0.89
+        MHz (needed only for BASIC cassette/serial/disk I/O, which we don't
+        use). See <a href="../../release/reference/coco3/timing.html">timing</a>
+        for the SAM clock-rate table and
+        <a href="../implementation/lessons-learned.html">lessons-learned</a>
+        for the Phase 1 boot sequence that performs the switch.
+      </p>
+    </section>
+
+    <section>
+      <h2>SWI as a syscall layer</h2>
+      <p>
+        <code>SWI</code> / <code>SWI2</code> / <code>SWI3</code> are
+        candidates for a syscall trap layer (<a href="../implementation/coding-conventions.html">coding-conventions §4</a>).
+        Vectors at <code>$FFFA/$FFF4/$FFF2</code> are disjoint from
+        IRQ/FIRQ at <code>$FFF8/$FFF6</code>, and BASIC's SWI2/SWI3 use is
+        moot in all-RAM mode. <strong>No collision</strong> — Phase 1 gate
+        resolution, see <a href="../implementation/lessons-learned.html">lessons-learned</a>.
+      </p>
+      <p>
+        <strong>Caution:</strong> <code>SWI</code> at a <code>-trap</code>
+        point makes XRoar 1.10 segfault when it tries to snapshot — see
+        <a href="../tooling/xroar.html">tooling/xroar</a>. Use <code>BRA *</code>
+        as a halt loop instead.
+      </p>
+    </section>
+
+    <section>
+      <h2>Mnemonic-family anchors</h2>
+      <p>
+        Anchors used by the <code>web/</code> retro-dev app's
+        instruction-annotation panel. The opcode JSON in
+        <code>web/data/6809-opcodes.json</code> deep-links here per family.
+        Each subsection is intentionally brief; cycle-accurate per-encoding
+        details live in the curated opcode JSON.
+      </p>
+
+      <h3 id="load-ops">Load (LDA / LDB / LDD / LDX / LDY / LDS / LDU)</h3>
+      <p>
+        Loads a register from memory or an immediate. 8-bit forms set
+        <code>N</code> from bit 7 of the result, <code>Z</code> if the
+        result is zero, and clear <code>V</code>. 16-bit forms set
+        <code>N</code> from bit 15 instead. <code>C</code> is unaffected.
+        Indexed and extended variants exist for every register.
+      </p>
+
+      <h3 id="store-ops">Store (STA / STB / STD / STX / STY / STS / STU)</h3>
+      <p>
+        Stores a register to memory. CC effects mirror the load forms.
+      </p>
+
+      <h3 id="lea-ops">Effective-address load (LEAX / LEAY / LEAS / LEAU)</h3>
+      <p>
+        Compute an indexed effective address and load it into the
+        destination register <em>without performing a memory access</em>.
+        The common idiom for pointer arithmetic. <code>LEAX</code> and
+        <code>LEAY</code> set <code>Z</code> (zero-result detection —
+        useful for <code>LEAX -1,X</code> loop bottoms); <code>LEAS</code>
+        and <code>LEAU</code> do NOT affect CC.
+      </p>
+
+      <h3 id="branch-ops">Branch (BRA / BHI / BLS / BHS / BCC / BCS / BLO / BNE / BEQ / BVC / BVS / BPL / BMI / BGE / BLT / BGT / BLE / BSR / LBRA / LBSR)</h3>
+      <p>
+        PC-relative jumps. Short forms take an 8-bit signed offset (±127);
+        long forms (page-2 prefixed) take a 16-bit signed offset (±32 K).
+        BSR/LBSR additionally push the return PC to S.
+      </p>
+
+      <h3 id="push-pull-ops">Push / pull (PSHS / PSHU / PULS / PULU)</h3>
+      <p>
+        The postbyte selects which registers to transfer, with bit positions
+        (high→low): PC, U, Y, X, DP, B, A, CC. Cycle cost is 5 + 1 per byte
+        transferred. PULS/PULU restore CC if it's in the postbyte mask.
+      </p>
+
+      <h3 id="tfr-exg-ops">Transfer / exchange (TFR / EXG)</h3>
+      <p>
+        TFR copies source→dest; EXG swaps. Postbyte holds two register
+        codes (high nybble + low nybble). Mixing 8-bit and 16-bit codes is
+        allowed; the manual specifies the conversion.
+      </p>
+
+      <h3 id="return-halt-ops">Return / halt (RTS / RTI / SWI / SYNC / NOP / CWAI)</h3>
+      <p>
+        <code>RTS</code> pops PC. <code>RTI</code> pops a stack frame whose
+        size depends on the E bit in the stacked CC (FIRQ 6 cycles, IRQ/SWI/NMI
+        15). <code>SWI</code> is a software trap vectoring through
+        <code>$FFFA-FFFB</code> — note the
+        <a href="../tooling/xroar.html">XRoar 1.10 segfault</a> when
+        <code>SWI</code> is at a <code>-trap</code> point. <code>SYNC</code>
+        halts the CPU until an interrupt. <code>NOP</code> is a 2-cycle
+        no-op. <code>CWAI</code> ANDs an immediate into CC then halts until
+        interrupt.
+      </p>
+
+      <h3 id="cc-ops">CC manipulation (ORCC / ANDCC)</h3>
+      <p>
+        Bit-wise OR / AND an 8-bit immediate into CC. Used to set or clear
+        mask bits — e.g. <code>ORCC #$50</code> to mask both IRQ and FIRQ
+        during a critical section.
+      </p>
+
+      <h3 id="arith-bit-ops">Arithmetic and bit (CLR / INC / DEC / TST / NEG / COM / ASL / ASR / LSR / ROL / ROR / ADD / SUB / CMP / AND / OR / EOR / BIT / MUL / SEX / ABX / DAA / ADC / SBC)</h3>
+      <p>
+        Standard 6809 arithmetic, logical, shift, and bit-test instructions.
+        See <a href="../../release/reference/6809/condition-codes.html">condition codes</a>
+        for the precise CC effects per family.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <code>docs/reference/Assembly Language Programming for the Color Computer.md</code>
+        ch. 3, 4, 5, App. B;
+        <code>docs/reference/Assembly Language Programming for the CoCo3.md</code>
+        ch. 1, 6, 7.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

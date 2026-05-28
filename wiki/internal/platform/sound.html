@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sound — project plan — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Platform</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · platform</p>
+      <h1>Sound — project plan <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Choosing between the 6-bit DAC and the PB1 square wave for Ladybug.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        Hardware reference (selector switch, DAC paths, PB1) is in
+        <a href="../../release/reference/coco3/sound.html">release/reference/coco3/sound</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Choosing for Ladybug</h2>
+      <p>
+        The original arcade Lady Bug has melody snippets (during attract,
+        between stages, when collecting heart, on death) and many short
+        SFX (eat dot, eat vegetable, enemy moves through gate, death). A
+        first pass:
+      </p>
+      <ul>
+        <li><strong>PB1 square wave</strong> for short SFX — cheap, fast, doesn't need a sample table.</li>
+        <li><strong>6-bit DAC</strong> driven from the Vbord IRQ for one melody voice (a stepped-sine table). One channel of melody is faithful to the arcade's mono audio output.</li>
+      </ul>
+      <p>
+        Decision deferred to coding-architect. Both share the same IRQ
+        context, which is the constraint that matters: anything we do in
+        sound has to fit in the 60 Hz Vbord handler's slack budget — see
+        <a href="./timing.html">timing</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Selector setup gotcha</h2>
+      <p>
+        From a cold reset, BASIC sets up usable defaults for the audio
+        selector; we will <strong>not</strong> rely on those — we'll
+        initialise both PIAs explicitly.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <a href="../sources/coco-asm-tepolt.html">coco-asm-tepolt</a> ch. 10
+        (DAC, selector, comparator, listings 10-2 SLTON);
+        <a href="../sources/coco3-asm-tepolt.html">coco3-asm-tepolt</a>
+        ch. 7 (split FF22).
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

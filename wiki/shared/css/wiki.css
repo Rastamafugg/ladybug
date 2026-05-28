@@ -1,0 +1,381 @@
+/* ============================================================
+   Ladybug wiki — shared stylesheet
+   Used by both internal/ and release/ pages.
+
+   Design intent: retro arcade tone. Deep CRT background, phosphor
+   text, Lady Bug pink-red accent. Pixel display font (Press Start 2P)
+   is used SPARINGLY — h1, eyebrow, badge only — to keep long
+   reference pages legible. Body and code use modern sans/mono.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Palette — deep CRT */
+  --wiki-bg:           #0d0a1a;     /* deep violet-black */
+  --wiki-surface:      #161325;     /* panel */
+  --wiki-text:         #e8e6f5;     /* phosphor white */
+  --wiki-text-muted:   #9a8dc8;     /* muted lavender */
+  --wiki-text-faint:   #6b6390;
+  --wiki-border:       #2d2745;
+  --wiki-border-strong:#443a6b;
+  --wiki-accent:       #ff5b8a;     /* Lady Bug pink-red */
+  --wiki-accent-bg:    #2a1530;
+  --wiki-accent-glow:  rgba(255, 91, 138, 0.35);
+  --wiki-code-bg:      #1f1a30;
+  --wiki-warn-bg:      #2d2410;
+  --wiki-warn-text:    #f0c674;
+
+  /* Typography */
+  --wiki-font-display: 'Press Start 2P', 'Courier New', monospace; /* TITLES ONLY */
+  --wiki-font-body:    'IBM Plex Sans', -apple-system, system-ui, sans-serif;
+  --wiki-font-mono:    'JetBrains Mono', 'SF Mono', Menlo, monospace;
+
+  /* Scale */
+  --wiki-size-1: 1.5rem;      /* h1 — smaller because pixel font is dense */
+  --wiki-size-2: 1.375rem;
+  --wiki-size-3: 1.125rem;
+  --wiki-size-body: 1rem;
+  --wiki-size-small: 0.875rem;
+  --wiki-size-xs: 0.75rem;
+
+  /* Layout */
+  --wiki-content-width: 56rem;
+  --wiki-gutter: 2rem;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--wiki-bg);
+  color: var(--wiki-text);
+  font-family: var(--wiki-font-body);
+  font-size: var(--wiki-size-body);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.wiki-shell {
+  max-width: var(--wiki-content-width);
+  margin: 0 auto;
+  padding: 3rem var(--wiki-gutter) 6rem;
+}
+
+/* ---------- Navigation ---------- */
+.wiki-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--wiki-border);
+  font-size: var(--wiki-size-small);
+  font-family: var(--wiki-font-mono);
+  letter-spacing: 0.02em;
+}
+
+.wiki-nav a {
+  color: var(--wiki-text-muted);
+  text-decoration: none;
+  transition: color 120ms ease;
+}
+
+.wiki-nav a:hover { color: var(--wiki-accent); }
+
+/* ---------- Header ---------- */
+.wiki-header { margin-bottom: 3rem; }
+
+.wiki-eyebrow {
+  font-family: var(--wiki-font-display);
+  font-size: var(--wiki-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--wiki-accent);
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+}
+
+.wiki-header h1 {
+  font-family: var(--wiki-font-display);
+  font-size: var(--wiki-size-1);
+  font-weight: 400;          /* pixel font is already heavy */
+  line-height: 1.4;
+  margin: 0 0 1rem 0;
+  color: var(--wiki-text);
+  text-shadow: 0 0 12px var(--wiki-accent-glow);
+}
+
+.wiki-header h1 code {
+  background: none;
+  padding: 0;
+  font-family: var(--wiki-font-display);
+  font-size: 0.9em;
+  color: var(--wiki-accent);
+}
+
+.wiki-meta {
+  font-size: var(--wiki-size-small);
+  color: var(--wiki-text-muted);
+  margin: 0;
+  font-family: var(--wiki-font-mono);
+}
+
+/* ---------- Sections ---------- */
+.wiki-main h2 {
+  font-family: var(--wiki-font-body);
+  font-size: var(--wiki-size-2);
+  font-weight: 600;
+  margin: 3rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--wiki-border);
+  color: var(--wiki-text);
+}
+
+.wiki-main h3 {
+  font-family: var(--wiki-font-body);
+  font-size: var(--wiki-size-3);
+  font-weight: 600;
+  margin: 2rem 0 0.75rem;
+  color: var(--wiki-accent);
+}
+
+.wiki-main p, .wiki-main li { line-height: 1.7; }
+
+.wiki-main a {
+  color: var(--wiki-accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 120ms ease;
+}
+
+.wiki-main a:hover { border-bottom-color: var(--wiki-accent); }
+
+/* ---------- Code ---------- */
+code {
+  font-family: var(--wiki-font-mono);
+  font-size: 0.92em;
+  background: var(--wiki-code-bg);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  color: var(--wiki-text);
+}
+
+pre {
+  background: var(--wiki-code-bg);
+  padding: 1rem 1.25rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: var(--wiki-size-small);
+  line-height: 1.55;
+  border-left: 3px solid var(--wiki-accent);
+  color: var(--wiki-text);
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+/* ---------- Tables (general) ---------- */
+table.wiki-table, table.isa-flags-table, table.isa-modes-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0 2rem;
+  font-size: var(--wiki-size-small);
+  background: var(--wiki-surface);
+  border: 1px solid var(--wiki-border);
+}
+
+table.wiki-table th,
+table.isa-flags-table th,
+table.isa-modes-table th {
+  font-family: var(--wiki-font-mono);
+  font-size: var(--wiki-size-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--wiki-text-muted);
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  background: var(--wiki-bg);
+  border-bottom: 1px solid var(--wiki-border-strong);
+}
+
+table.wiki-table td,
+table.isa-flags-table td,
+table.isa-modes-table td {
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--wiki-border);
+  vertical-align: top;
+}
+
+table.wiki-table tr:last-child td,
+table.isa-flags-table tr:last-child td,
+table.isa-modes-table tr:last-child td { border-bottom: none; }
+
+table.wiki-table td.center,
+table.isa-flags-table td,
+table.isa-modes-table td.center { text-align: center; }
+
+table.wiki-table code { background: none; padding: 0; font-size: 0.95em; color: var(--wiki-accent); }
+
+/* ---------- Cards / lists ---------- */
+.wiki-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+  list-style: none;
+  padding: 0;
+}
+
+.wiki-cards li {
+  background: var(--wiki-surface);
+  border: 1px solid var(--wiki-border);
+  padding: 1.25rem;
+  border-radius: 4px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.wiki-cards li:hover {
+  border-color: var(--wiki-accent);
+  box-shadow: 0 0 0 1px var(--wiki-accent), 0 0 16px var(--wiki-accent-glow);
+}
+
+.wiki-cards a {
+  display: block;
+  color: var(--wiki-text);
+  text-decoration: none;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.wiki-cards li:hover a { color: var(--wiki-accent); }
+
+.wiki-cards .card-meta {
+  color: var(--wiki-text-muted);
+  font-size: var(--wiki-size-small);
+  margin: 0;
+}
+
+/* ---------- Auto-generated / advisory banner ---------- */
+.wiki-autogen-banner {
+  background: var(--wiki-warn-bg);
+  color: var(--wiki-warn-text);
+  padding: 0.5rem 0.85rem;
+  font-size: var(--wiki-size-xs);
+  font-family: var(--wiki-font-mono);
+  border-radius: 3px;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.02em;
+  border-left: 3px solid var(--wiki-warn-text);
+}
+
+/* ---------- Footer ---------- */
+.wiki-footer {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--wiki-border);
+  font-size: var(--wiki-size-small);
+  color: var(--wiki-text-faint);
+}
+
+.wiki-footer code {
+  background: none;
+  font-size: 0.9em;
+  color: var(--wiki-text-muted);
+}
+
+/* ---------- Internal/release badge ---------- */
+.wiki-badge {
+  display: inline-block;
+  font-family: var(--wiki-font-display);
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.4em 0.7em;
+  border-radius: 2px;
+  background: var(--wiki-accent-bg);
+  color: var(--wiki-accent);
+  vertical-align: middle;
+  margin-left: 0.75rem;
+  border: 1px solid var(--wiki-accent);
+  text-shadow: none;
+}
+
+/* ============================================================
+   ISA reference page classes (6809 instruction pages)
+   ============================================================ */
+
+/* Large mnemonic + operand display at top of an ISA page */
+.isa-syntax-block {
+  background: var(--wiki-surface);
+  border: 1px solid var(--wiki-border-strong);
+  border-left: 4px solid var(--wiki-accent);
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0 2rem;
+  border-radius: 4px;
+}
+
+.isa-syntax-block pre {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-family: var(--wiki-font-mono);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--wiki-accent);
+}
+
+/* Condition-code flags table — narrow, centered cells */
+table.isa-flags-table {
+  width: auto;
+  min-width: 24rem;
+}
+
+table.isa-flags-table th,
+table.isa-flags-table td {
+  text-align: center;
+  padding: 0.5rem 0.85rem;
+}
+
+table.isa-flags-table td {
+  font-family: var(--wiki-font-mono);
+  font-size: var(--wiki-size-body);
+  font-weight: 500;
+}
+
+/* Addressing-modes table — columns: Mode, Syntax, Opcode, Cycles, Bytes */
+table.isa-modes-table td:nth-child(3),
+table.isa-modes-table td:nth-child(4),
+table.isa-modes-table td:nth-child(5) {
+  font-family: var(--wiki-font-mono);
+  text-align: center;
+}
+
+/* "See also" chip list */
+.isa-see-also p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-family: var(--wiki-font-mono);
+  font-size: var(--wiki-size-small);
+}
+
+.isa-see-also a {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  background: var(--wiki-surface);
+  border: 1px solid var(--wiki-border);
+  border-radius: 3px;
+  transition: border-color 120ms ease;
+}
+
+.isa-see-also a:hover {
+  border-color: var(--wiki-accent);
+  border-bottom-color: var(--wiki-accent);
+}

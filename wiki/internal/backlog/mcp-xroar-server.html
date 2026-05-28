@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP-XRoar server — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Backlog</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · backlog · superseded</p>
+      <h1>Build a purpose-built <code>mcp-xroar</code> server <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Cost/benefit of replacing gdb-mcp + m6809-gdb + XRoar GDB stub with
+        a direct XRoar control plane. <strong>Superseded</strong> by
+        <a href="../implementation/xroar-monitor.html">xroar-monitor</a>.
+      </p>
+    </header>
+
+    <section>
+      <h2>Why this might be worth doing</h2>
+      <p>
+        The current debug stack — <code>gdb-mcp</code> driving
+        <code>m6809-gdb</code> connected to XRoar's built-in GDB remote
+        stub — gives us CPU-visible memory, register reads, breakpoints,
+        and instruction stepping. That's sufficient for ~80% of bring-up
+        debugging.
+      </p>
+      <p>The remaining 20% is genuinely hard to reach via the GDB protocol:</p>
+      <ul>
+        <li><strong>GIME internal state.</strong> <code>MC3</code>, <code>MMUEN</code>, <code>mmu_bank[0..15]</code>, <code>TR</code>, the current <code>S</code> and <code>RAS</code> decode signals, IRQ-source masks. None exposed as memory-mapped reads.</li>
+        <li><strong>Cycle-accurate stepping.</strong> GDB stub steps per-instruction.</li>
+        <li><strong>Deterministic re-runs.</strong> Without snapshots, every gdb session re-runs the full BASIC boot + cart-autorun handshake.</li>
+        <li><strong>Framebuffer / video state dumps.</strong></li>
+      </ul>
+      <p>
+        The <a href="./cart-ram-corruption.html">cart-RAM-corruption investigation</a>
+        hit exactly this wall.
+      </p>
+    </section>
+
+    <section>
+      <h2>Why we're not doing it yet</h2>
+      <p>XRoar is a substantial C codebase. A purpose-built MCP server would either:</p>
+      <ol>
+        <li><strong>Fork XRoar</strong> and add a JSON-RPC / stdio control plane. Pro: full access. Con: divergent fork.</li>
+        <li><strong>Patch XRoar with a small instrumentation socket</strong>. Pro: minimal diff, can upstream. Con: still a C build to maintain.</li>
+        <li><strong>LD_PRELOAD-style shim</strong>. Pro: no XRoar fork. Con: fragile.</li>
+      </ol>
+      <p>All three are a multi-day project.</p>
+    </section>
+
+    <section>
+      <h2>Current-stack improvements that defer this work</h2>
+      <ol>
+        <li><strong>Use XRoar's <code>-trap &lt;addr&gt; -trap-snap &lt;file&gt;</code> flags</strong> to save a snapshot at a known boot point, then re-launch with <code>-load &lt;file&gt;</code>.</li>
+        <li><strong>Insert temporary <code>SWI</code> opcodes</strong> in <code>src/main.s</code> at inspection points. (<strong>Updated:</strong> use <code>bra .</code> — see <a href="../tooling/xroar.html">tooling/xroar</a>.)</li>
+        <li><strong>Pass explicit <code>timeout: 60</code> or higher</strong> on <code>mcp__gdb-mcp__continue_exec</code> calls.</li>
+        <li><strong>Sentinel probes for GIME state.</strong> Write a known byte to <code>$FExx</code>, read it back, infer.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Concrete trigger for revisiting this</h2>
+      <p>Build the MCP server when <strong>all three</strong> are true:</p>
+      <ul>
+        <li>An investigation requires direct GIME / MMU / cycle-level inspection that sentinel probes cannot answer.</li>
+        <li>That investigation has blocked progress for &gt;1 day.</li>
+        <li>The investigation is on the critical path of a milestone.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Status (2026-05-16)</h2>
+      <p>
+        <strong>This sketch is superseded.</strong> The requirements
+        document is now <a href="../implementation/xroar-monitor.html">xroar-monitor</a>,
+        and Phase 3 milestones M1–M6a have landed (2026-05-17).
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <code>docs/reference/xroar/doc/xroar.1.in</code> — <code>-trap</code>,
+        <code>-trap-snap</code>, <code>-trap-timeout</code>, <code>-load</code> flags;
+        <a href="./cart-ram-corruption.html">backlog/cart-ram-corruption</a>;
+        <a href="../tooling/xroar.html">tooling/xroar</a>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

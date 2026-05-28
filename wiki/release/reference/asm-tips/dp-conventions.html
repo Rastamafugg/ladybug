@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Direct-page conventions — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips</p>
+      <h1>Direct-page conventions</h1>
+      <p class="wiki-meta">
+        Using the 6809's DP register and direct-mode addressing to save
+        bytes and cycles on hot variables.
+      </p>
+    </header>
+
+    <section>
+      <h2>Why direct page matters</h2>
+      <p>
+        The 6809's <code>DP</code> register holds the upper byte of every
+        direct-mode effective address. When the assembler emits direct mode
+        (an 8-bit operand byte), the CPU concatenates <code>DP</code> with
+        that byte to form the 16-bit address. The result:
+      </p>
+      <ul>
+        <li><strong>Two bytes</strong> per access (opcode + low byte) instead of three (opcode + 16-bit address) for extended mode.</li>
+        <li><strong>Four clock cycles</strong> for a direct-mode load instead of five for extended.</li>
+      </ul>
+      <p>
+        For a 256-byte region you access often, the savings compound across
+        every load and store. On the 1.78 MHz CoCo 3 with a tight
+        per-frame budget, this is the cheapest performance lever the
+        architecture offers.
+      </p>
+    </section>
+
+    <section>
+      <h2>Setting DP at boot</h2>
+      <p>
+        Set <code>DP</code> once early in your boot sequence and leave it
+        alone for the life of the program:
+      </p>
+<pre><code>        lda   #$02         * upper byte of $0200
+        tfr   a,dp         * DP = $02; direct page covers $0200-$02FF
+</code></pre>
+      <p>
+        Some assemblers (including lwasm) require a directive so they know
+        to emit direct-mode encodings for matching addresses:
+      </p>
+<pre><code>        setdp $02          * lwasm: tell the assembler DP = $02
+</code></pre>
+    </section>
+
+    <section>
+      <h2>Forcing direct mode</h2>
+      <p>
+        The <code>&lt;</code> prefix forces direct-mode encoding even when
+        the assembler would otherwise pick another form:
+      </p>
+<pre><code>        lda   &lt;score      * direct: 2 bytes, 4 cycles
+        lda   score        * may emit extended (3 bytes, 5 cycles)
+        sta   &lt;$05        * direct: store A at DP:$05
+</code></pre>
+      <p>
+        Conversely, <code>&gt;</code> forces extended mode if you need it
+        for a label that <em>could</em> live in the direct page.
+      </p>
+    </section>
+
+    <section>
+      <h2>What to put in the direct page</h2>
+      <p>
+        DP space is precious (256 bytes total). Reserve it for:
+      </p>
+      <ul>
+        <li>Per-frame counters and flags read by the main loop.</li>
+        <li>IRQ handler scratch — the interrupt path should never pay extended-mode prices.</li>
+        <li>Hot pointers to game state that get dereferenced every frame.</li>
+        <li>Sprite-blit temporaries on the fast path.</li>
+      </ul>
+      <p>
+        Keep cold data (one-time init, debug counters, anything touched at
+        boot-time only) in extended-mode memory and save DP for the things
+        that run 60 times a second.
+      </p>
+    </section>
+
+    <section>
+      <h2>Pitfalls</h2>
+      <ul>
+        <li>
+          <strong>Changing DP mid-program</strong> invalidates every prior
+          direct-mode encoding. Don't. Set DP once and treat it as constant.
+        </li>
+        <li>
+          <strong>The assembler doesn't enforce DP.</strong> If you
+          <code>setdp $02</code> but never <code>tfr a,dp</code> at runtime,
+          your direct-mode operands will resolve against whatever DP the
+          BASIC ROM or cartridge handshake left behind.
+        </li>
+        <li>
+          <strong>Interrupts inherit DP.</strong> If your main code runs
+          with one DP and an IRQ handler assumes another, the handler's
+          direct-mode operands will resolve to the wrong page. On a
+          single-DP project this is a non-issue; if you ever need
+          per-context DP, save/restore in the IRQ prologue.
+        </li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Reference: Tepolt, <em>Assembly Language Programming for the Color
+        Computer</em> ch. 4 (Addressing Modes); Motorola
+        <em>MC6809E HMOS 8-Bit Microprocessor</em> data sheet §3.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

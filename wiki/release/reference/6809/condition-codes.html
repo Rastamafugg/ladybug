@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6809 Condition Codes — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · programming model</p>
+      <h1>Condition Codes</h1>
+      <p class="wiki-meta">
+        The 8 bits of the CC register: <code>E F H I N Z V C</code>. Set
+        and cleared by arithmetic, logical, compare, and stack/interrupt
+        instructions; masked with <code>ORCC</code> / <code>ANDCC</code>.
+      </p>
+    </header>
+
+    <section>
+      <h2>Bit semantics</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Bit</th><th>Name</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>7</td><td><code>E</code></td><td>Entire-state stacked. Set when an IRQ/SWI/NMI pushed all registers (so <code>RTI</code> pops them all); clear when only PC+CC were pushed (FIRQ path).</td></tr>
+          <tr><td>6</td><td><code>F</code></td><td>FIRQ mask. When set, FIRQ is ignored.</td></tr>
+          <tr><td>5</td><td><code>H</code></td><td>Half-carry. Set on a carry from bit 3 of an 8-bit add (used by <code>DAA</code>).</td></tr>
+          <tr><td>4</td><td><code>I</code></td><td>IRQ mask. When set, IRQ is ignored.</td></tr>
+          <tr><td>3</td><td><code>N</code></td><td>Negative. Mirror of the high bit of the most recent result (bit 7 for 8-bit ops, bit 15 for 16-bit ops).</td></tr>
+          <tr><td>2</td><td><code>Z</code></td><td>Zero. Set when the most recent result was zero.</td></tr>
+          <tr><td>1</td><td><code>V</code></td><td>Signed overflow. Set when an add or subtract produced a result that overflows the signed range.</td></tr>
+          <tr><td>0</td><td><code>C</code></td><td>Carry / borrow. Carry out of bit 7/15 on add; borrow on subtract; shift/rotate bit-out.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Common CC effects</h2>
+      <ul>
+        <li><strong>Load 8-bit</strong> (LDA/LDB): <code>N</code> from bit 7, <code>Z</code> from zero-ness, <code>V</code> ← 0. <code>C</code> unaffected.</li>
+        <li><strong>Load 16-bit</strong> (LDD/LDX/LDY/LDU/LDS): same but <code>N</code> from bit 15.</li>
+        <li><strong>Store</strong> (STA/STB/STD/STX/...): CC mirrors the value being stored — <code>N</code> from high bit, <code>Z</code> from zero, <code>V</code> ← 0.</li>
+        <li><strong>Add</strong> (ADD/ADC): <code>H NZ VC</code> all updated (8-bit forms include <code>H</code>; 16-bit forms omit it).</li>
+        <li><strong>Subtract / compare</strong> (SUB/SBC/CMP): <code>NZ VC</code>. <code>C</code> is the borrow.</li>
+        <li><strong>Logical</strong> (AND/OR/EOR/COM/BIT): <code>NZ V0</code>. <code>COM</code> additionally sets <code>C ← 1</code>.</li>
+        <li><strong>Shift / rotate</strong>: shift-out goes into <code>C</code>. <code>LSR</code> always clears <code>N</code>.</li>
+        <li><strong>CLR / CLRA / CLRB</strong>: <code>N0 Z1 V0 C0</code>.</li>
+        <li><strong>LEA</strong>: only <code>LEAX</code> and <code>LEAY</code> affect <code>Z</code>. <code>LEAS</code> and <code>LEAU</code> leave CC untouched.</li>
+        <li><strong>TFR / EXG / PSH / PUL</strong>: do not affect CC themselves, but <code>PULS</code>/<code>PULU</code> with <code>CC</code> in the postbyte restore CC from the stack.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Branch predicates</h2>
+      <p>Conditional branches test CC. Short forms (8-bit signed offset, ±127); long forms (page-2 prefix, 16-bit offset, ±32 K).</p>
+      <table class="wiki-table">
+        <thead><tr><th>Mnemonic</th><th>Condition</th></tr></thead>
+        <tbody>
+          <tr><td><code>BRA</code> / <code>BRN</code></td><td>always / never</td></tr>
+          <tr><td><code>BEQ</code> / <code>BNE</code></td><td>Z = 1 / Z = 0</td></tr>
+          <tr><td><code>BCC</code> / <code>BHS</code></td><td>C = 0 (carry clear / unsigned higher-or-same)</td></tr>
+          <tr><td><code>BCS</code> / <code>BLO</code></td><td>C = 1 (carry set / unsigned lower)</td></tr>
+          <tr><td><code>BHI</code> / <code>BLS</code></td><td>unsigned higher / lower-or-same</td></tr>
+          <tr><td><code>BPL</code> / <code>BMI</code></td><td>N = 0 / N = 1</td></tr>
+          <tr><td><code>BVC</code> / <code>BVS</code></td><td>V = 0 / V = 1</td></tr>
+          <tr><td><code>BGE</code> / <code>BLT</code></td><td>signed ≥ / &lt;</td></tr>
+          <tr><td><code>BGT</code> / <code>BLE</code></td><td>signed &gt; / ≤</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>CC manipulation</h2>
+      <ul>
+        <li><code>ORCC #imm</code> — bit-wise OR an immediate into CC. Used to <em>set</em> mask bits — e.g. <code>ORCC #$50</code> to mask both IRQ and FIRQ during a critical section.</li>
+        <li><code>ANDCC #imm</code> — bit-wise AND. Used to <em>clear</em> mask bits — e.g. <code>ANDCC #$EF</code> to unmask IRQ.</li>
+        <li><code>CWAI #imm</code> — clear CC bits per immediate, then wait for interrupt.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Reference: Motorola <em>MC6809E HMOS 8-Bit Microprocessor</em> data
+        sheet; Tepolt, <em>Assembly Language Programming for the Color
+        Computer</em> ch. 3, App. B.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

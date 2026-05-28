@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cartridge Connector — CoCo 3 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">CoCo 3 hardware</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">CoCo 3 · hardware</p>
+      <h1>Cartridge Connector</h1>
+      <p class="wiki-meta">
+        40-pin cartridge edge pinout and the CART → PIA2 CB1 → FIRQ
+        auto-start handshake.
+      </p>
+    </header>
+
+    <section>
+      <h2>Pinout</h2>
+      <p>
+        40-pin edge on the right side of the CoCo 3 (top row odd, bottom row
+        even, viewed from outside the machine — Tepolt Fig. 10-8):
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Pin</th><th>Signal</th><th>Pin</th><th>Signal</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>-12 V (CoCo 1 only)</td><td>2</td><td>+12 V</td></tr>
+          <tr><td>3</td><td>HALT (in)</td><td>4</td><td>NMI (in)</td></tr>
+          <tr><td>5</td><td>RESET (out)</td><td>6</td><td>E clock (out)</td></tr>
+          <tr><td>7</td><td>Q clock (out)</td><td>8</td><td>CART (in → PIA2 CB1, FIRQ source)</td></tr>
+          <tr><td>9</td><td>+5 V (≤300 mA)</td><td>10</td><td>D0</td></tr>
+          <tr><td>11</td><td>D1</td><td>12</td><td>D2</td></tr>
+          <tr><td>13</td><td>D3</td><td>14</td><td>D4</td></tr>
+          <tr><td>15</td><td>D5</td><td>16</td><td>D6</td></tr>
+          <tr><td>17</td><td>D7</td><td>18</td><td>R/W̅</td></tr>
+          <tr><td>19</td><td>A0</td><td>20</td><td>A1</td></tr>
+          <tr><td>21</td><td>A2</td><td>22</td><td>A3</td></tr>
+          <tr><td>23</td><td>A4</td><td>24</td><td>A5</td></tr>
+          <tr><td>25</td><td>A6</td><td>26</td><td>A7</td></tr>
+          <tr><td>27</td><td>A8</td><td>28</td><td>A9</td></tr>
+          <tr><td>29</td><td>A10</td><td>30</td><td>A11</td></tr>
+          <tr><td>31</td><td>A12</td><td>32</td><td>CTS (out, low when MPU accesses <code>$C000-$FEFF</code> w/ TY=0)</td></tr>
+          <tr><td>33</td><td>GND</td><td>34</td><td>GND</td></tr>
+          <tr><td>35</td><td>SND (analog audio in)</td><td>36</td><td>SCS (out, low when MPU accesses <code>$FF40-$FF5F</code>)</td></tr>
+          <tr><td>37</td><td>A13</td><td>38</td><td>A14</td></tr>
+          <tr><td>39</td><td>A15</td><td>40</td><td>SLENB (in, low inhibits SAM/GIME decoding)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Cartridge auto-start handshake</h2>
+      <ol>
+        <li>Cartridge is inserted. The cart's upper 16 K occupies <code>$C000-$FEFF</code> while TY=0 (default Init0 ROM map = <code>0x</code> = 16 K BASIC + 16 K cart).</li>
+        <li>Hardware reset: PIAs cleared, PC ← <code>[$FFFE/$FFFF]</code> = <code>$8C1B</code>, BASIC reset-init runs.</li>
+        <li>The reset-init configures PIA2 CB1 to detect the CART line going low and to generate a FIRQ.</li>
+        <li>CART pin is asserted low by the cartridge electronics.</li>
+        <li>FIRQ fires → BASIC's FIRQ handler examines the first three bytes at <code>$C000</code>. If they are <code>"DK"</code> (the ROM-pack autostart magic) followed by enough additional setup, control jumps to <code>$C002</code>/<code>$C003</code>.</li>
+      </ol>
+      <p>
+        The simpler convention used by single-purpose game cartridges is to
+        put a <code>JMP entry</code> instruction at <code>$C000</code> and
+        let the BASIC FIRQ handler dispatch into it. Cartridge games
+        commonly use <code>FCC "DK"</code> as the first emitted bytes at
+        <code>$C000</code>.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: Tepolt, <em>Assembly Language Programming for the Color
+        Computer</em> ch. 10 (cartridge connector pinout, CART/FIRQ wiring);
+        Tepolt, <em>Assembly Language Programming for the CoCo3</em> ch. 7
+        (reset init flow, jump tables).
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

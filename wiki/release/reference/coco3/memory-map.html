@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CoCo 3 Memory Map — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">CoCo 3 hardware</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">CoCo 3 · hardware</p>
+      <h1>Memory Map (bare-metal)</h1>
+      <p class="wiki-meta">
+        Physical / virtual memory model, MMU/PAR layout, ROM/RAM modes, and
+        the dedicated-address landing zone in <code>$FF00-$FFFF</code>.
+      </p>
+    </header>
+
+    <section>
+      <h2>Two address spaces</h2>
+      <ul>
+        <li><strong>Virtual</strong> — the 16-bit address space the MPU sees: <code>$0000-$FFFF</code>, divided into eight 8 K virtual pages (page # = top three address bits).</li>
+        <li><strong>Physical</strong> — up to 512 K of installed memory, divided into sixty-four 8 K <strong>physical pages</strong> numbered <code>$00-$3F</code>. RAM is populated from the top down: a 128 K machine has only pages <code>$30-$3F</code>; a 512 K machine has all 64.</li>
+      </ul>
+      <p>
+        The MMU (inside the GIME) translates each virtual access by replacing
+        the top three address bits with a 6-bit physical-page number drawn
+        from the appropriate PAR register. Bit 6 of <code>$FF90</code>
+        enables the MMU; with it disabled, the virtual extent always maps to
+        physical pages <code>$38-$3F</code> (the top 64 K). See
+        <a href="./gime.html">GIME hardware</a> for the registers.
+      </p>
+    </section>
+
+    <section>
+      <h2>PAR sets</h2>
+      <p>Two complete sets of eight 6-bit page registers:</p>
+      <table class="wiki-table">
+        <thead><tr><th>Set</th><th>Addresses</th><th>When live</th></tr></thead>
+        <tbody>
+          <tr><td>Executive</td><td><code>$FFA0-$FFA7</code></td><td>Bit 0 of <code>$FF91</code> = 0</td></tr>
+          <tr><td>Task</td><td><code>$FFA8-$FFAF</code></td><td>Bit 0 of <code>$FF91</code> = 1</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Storing a physical-page number <code>pp</code> (<code>$00-$3F</code>)
+        into the dedicated address of PAR <em>n</em> points virtual page
+        <em>n</em> (covering virtual <code>n*$2000 .. n*$2000+$1FFF</code>) at
+        physical <code>pp*$2000</code>. Write order doesn't matter; the
+        change takes effect on the next memory access through that virtual
+        page.
+      </p>
+      <p>
+        Convention from BASIC's reset init: the controller (kernel) lives in
+        the executive set and the application in the task set, with a small
+        overlap that contains the interrupt jump tables and any cross-task
+        interface code.
+      </p>
+    </section>
+
+    <section>
+      <h2>ROM/RAM modes</h2>
+      <p>The SAM <code>TY</code> bit selects:</p>
+      <ul>
+        <li>
+          <strong>TY=0 (ROM/RAM mode, default after reset).</strong>
+          Physical pages <code>$3C-$3F</code> come from ROM rather than RAM.
+          Bits 0-1 of Init0 (<code>$FF90</code>) sub-select among three
+          layouts: <code>0x</code> = 16 K Ext+Color BASIC at
+          <code>$3C/$3D</code> plus 16 K cartridge at <code>$3E/$3F</code>;
+          <code>10</code> = 16 K BASIC + 8 K reset-init + 8 K Super Extended
+          BASIC; <code>11</code> = full 32 K cartridge.
+        </li>
+        <li>
+          <strong>TY=1 (all-RAM mode).</strong> The whole <code>$30-$3F</code>
+          range is RAM. Reach by writing anything to <code>$FFDF</code>.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Dedicated addresses</h2>
+      <p>
+        Virtual <code>$FF00-$FFFF</code> is <em>never</em> MMU-translated. It
+        always lands on the dedicated I/O / control space. That gives 8 K
+        minus 256 of usable virtual page 7. Cross-reference (consolidated
+        from both Tepolt manuals):
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Range</th><th>Owner</th></tr></thead>
+        <tbody>
+          <tr><td><code>$FF00-$FF03</code></td><td>PIA 1 (keyboard, joystick fire, sound enable, selector switch CA2/CB2)</td></tr>
+          <tr><td><code>$FF20-$FF23</code></td><td>PIA 2 (DAC bits 7-2, joystick selector CB2 master, motor CA2, serial); <code>$FF22</code> bits 7-3 also drive the GIME VDG-mode register</td></tr>
+          <tr><td><code>$FF40, $FF48-$FF4B</code></td><td>Disk controller (cartridge slot)</td></tr>
+          <tr><td><code>$FF90-$FF9F</code></td><td>GIME init / mode / video / scroll / offset / border</td></tr>
+          <tr><td><code>$FFA0-$FFAF</code></td><td>GIME MMU PARs</td></tr>
+          <tr><td><code>$FFB0-$FFBF</code></td><td>GIME palette registers</td></tr>
+          <tr><td><code>$FFC0-$FFC5</code></td><td>SAM V2/V1/V0 mode (legacy lo-res)</td></tr>
+          <tr><td><code>$FFC6-$FFD3</code></td><td>SAM F6..F0 video starting address (legacy lo-res)</td></tr>
+          <tr><td><code>$FFD4-$FFD5</code></td><td>SAM page bit P1</td></tr>
+          <tr><td><code>$FFD6-$FFD9</code></td><td>SAM R1/R0 MPU clock (<code>$FFD9</code> = fast, <code>$FFD8</code> = slow)</td></tr>
+          <tr><td><code>$FFDA-$FFDD</code></td><td>SAM M1/M0 memory size</td></tr>
+          <tr><td><code>$FFDE-$FFDF</code></td><td>SAM TY (<code>$FFDF</code> = all-RAM, <code>$FFDE</code> = ROM/RAM)</td></tr>
+          <tr><td><code>$FFF2-$FFFF</code></td><td>6809 vector table (mirrored from ROM <code>$BFF2-$BFFF</code>): SWI3, SWI2, FIRQ, IRQ, SWI, NMI, RESET (high addr last)</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The SAM register pairs use <em>write-anything-to-set-vs.-clear</em>
+        semantics — the data on the bus is irrelevant.
+      </p>
+    </section>
+
+    <section>
+      <h2>CoCo 3 quirks worth knowing</h2>
+      <ul>
+        <li>
+          <strong>128 K aliasing.</strong> On a 128 K machine, the two top
+          expanded-address bits Y18/Y17 are unused, so physical pages
+          <code>$30-$3F</code> alias through <code>$00-$0F</code>,
+          <code>$10-$1F</code>, <code>$20-$2F</code>. Don't write code that
+          depends on the alias — it breaks on a 512 K machine.
+        </li>
+        <li>
+          <strong><code>$FE00-$FEFF</code> jump table.</strong> Init0 bit 3
+          set forces this 256-byte slice to always come from physical page
+          <code>$3F</code> regardless of PAR7. Setting this bit keeps the
+          primary jump table at <code>$FEEE-$FEFF</code> reachable while
+          other pages are re-mapped.
+        </li>
+        <li>
+          <strong>Vertical-offset registers point at physical RAM
+          directly</strong>, bypassing the MMU. The GIME reads the screen
+          buffer using the expanded address it builds from
+          <code>$FF9D/$FF9E</code>, so screen RAM doesn't need to be
+          currently mapped into a virtual page unless the MPU also wants to
+          update it.
+        </li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: Tepolt, <em>Assembly Language Programming for the Color
+        Computer</em> ch. 9, App. E; Tepolt, <em>Assembly Language
+        Programming for the CoCo3</em> ch. 3, 7. See also
+        <a href="./gime.html">GIME hardware</a>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

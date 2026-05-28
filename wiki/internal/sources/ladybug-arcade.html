@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lady Bug — Arcade Reference — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Sources</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Source · web ingest</p>
+      <h1>Lady Bug — Arcade Reference (Web Ingest) <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Aggregate of public web references consulted on 2026-05-05 to seed
+        <a href="../game/overview.html">game/overview</a>. Each entry notes
+        what was extracted and what remains uncertain.
+      </p>
+    </header>
+
+    <section>
+      <h2>Sources consulted</h2>
+      <ul>
+        <li><strong>Wikipedia — Lady Bug (video game)</strong> — confirmed: 8 enemy types (one per level on stages 1–8, four-at-a-time from level 9), 20 green gates, no full isolation possible, border-circuit timer, vegetable in centre after 4th enemy released, ColecoVision-exclusive Vegetable Harvest bonus on SPECIAL. Did not give: scoring numbers, life count, letter colour rules.</li>
+        <li><strong>Pixelated Arcade tech specs</strong> — confirmed display: 240×192 @ 60.11 Hz vertical raster, Z80 @ 4 MHz, 2× SN76489 @ 4 MHz mono, 1–2 players alternating, 1 joystick. No sprite/grid specifics.</li>
+        <li><strong>C64-Wiki Ladybug entry</strong> (1983 C64 port, <strong>not arcade</strong>) — gave: 3 starting lives, heart multiplier ×2/×3/×5, "EXTRA or SPECIAL grants extra life or 10,000 bonus points", same maze every level, 20 revolving doors player-only. Treat as indicative for arcade but verify before locking.</li>
+        <li><strong>Web search aggregations</strong> (multiple) — gave: vegetable cycle and 1000 → 9500 (+500/level) point scale through level 18, then horseradish constant; base scoring 10/100/300/800 for dot/blue/yellow/red.</li>
+        <li><strong>bitvint.com history page</strong> — gave: rotating-gates strategic emphasis, "items earlier yield higher points" claim, skulls as instant-death stationary hazards. Did not detail letter mechanics.</li>
+        <li><strong>Wikipedia + arcade reviews</strong> — Arcade Awards 1983 Certificate of Merit (Most Innovative Coin-Op runner-up) for the turnstile mechanic.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Sources attempted but unavailable</h2>
+      <ul>
+        <li><strong>Arcade-Museum manual PDF</strong> (<code>arcade-museum.com/manuals-videogames/L/Lady_Bug__1981__Universal.pdf</code>) — fetcher returned binary PDF data, not extractable via WebFetch. Should be downloaded and ingested manually if available.</li>
+        <li><strong>StrategyWiki Lady Bug gameplay page</strong> — 403 on fetch (fetcher blocked).</li>
+        <li><strong>xahlee.info optimal-strategy page</strong> — connection refused.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Recommended next ingests</h2>
+      <ol>
+        <li><strong>Download the Arcade-Museum manual PDF locally</strong>, then ingest the scoring chart and dip-switch settings.</li>
+        <li><strong>MAME driver</strong> — <code>src/mame/drivers/ladybug.cpp</code> and the corresponding video/audio drivers in MAME source. This is the canonical reference for AI behaviour, exact gate count and placement, sound register usage, and dip switches.</li>
+        <li><strong>ROM disassembly</strong> if one exists publicly — would resolve enemy AI specifics.</li>
+      </ol>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Web-ingest only. All claims should be flagged "verify against MAME /
+        manual" before they constrain implementation.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

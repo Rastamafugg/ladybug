@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Implementation — Internal — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · implementation</p>
+      <h1>Implementation <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Coding conventions, data structures, scheduler, video pipeline,
+        lessons learned, roadmap, and tooling-adjacent plans.
+      </p>
+    </header>
+
+    <section>
+      <h2>Pages</h2>
+      <ul class="wiki-cards">
+        <li>
+          <a href="./roadmap.html">Roadmap</a>
+          <p class="card-meta">Phased plan from empty <code>src/</code> to finished game. Phase 0/1 done; Phase 2 in progress.</p>
+        </li>
+        <li>
+          <a href="./coding-conventions.html">Coding conventions</a>
+          <p class="card-meta">Static DP, table-driven dispatch, SWI as syscall layer, routine header contract — derived from DoD idioms.</p>
+        </li>
+        <li>
+          <a href="./memory-map.html">Memory map</a>
+          <p class="card-meta">Ladybug's PAR allocation, cart ROM image, boot data-copy procedure, DP page, stack.</p>
+        </li>
+        <li>
+          <a href="./video-mode.html">Video mode — decision</a>
+          <p class="card-meta">320×192×16 selected. Layout, format, sprite-blit cost, palette, deferred items.</p>
+        </li>
+        <li>
+          <a href="./scheduler.html">Scheduler (candidate)</a>
+          <p class="card-meta">TCB-based round-robin sketch from DoD. Decision deferred until the main loop reaches implementation.</p>
+        </li>
+        <li>
+          <a href="./lessons-learned.html">Lessons learned</a>
+          <p class="card-meta">Hardware quirks, register gotchas, patterns to avoid, explicit decisions. Append-only.</p>
+        </li>
+        <li>
+          <a href="./emulator-monitor-tester.html">Emulator-monitor tester</a>
+          <p class="card-meta">Four-workstream initiative: tester ROM + live FB renderer + memory regions + mode/pattern matrix.</p>
+        </li>
+        <li>
+          <a href="./xroar-monitor.html">XRoar monitor protocol</a>
+          <p class="card-meta">Custom JSON-RPC server inside XRoar, replacing the gdb stub for our tooling. Phase 3 milestones M1–M6a done.</p>
+        </li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        See also: <a href="../tooling/index.html">tooling</a>,
+        <a href="../platform/index.html">platform notes</a>,
+        <a href="../sources/index.html">source pointers</a>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

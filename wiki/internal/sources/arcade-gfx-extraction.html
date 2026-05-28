@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arcade graphics extraction — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Sources</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Source · pipeline</p>
+      <h1>Arcade graphics extraction <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Pipeline for pulling pixel-precise tile/sprite data and the
+        authoritative palette from the original Lady Bug arcade ROM,
+        decoded via the MAME <code>ladybug</code> driver's gfx layouts and
+        palette PROMs.
+      </p>
+    </header>
+
+    <section>
+      <h2>Why ROM extraction, not screenshots</h2>
+      <p>
+        A screenshot is the arcade's pixel data after scaling, filtering,
+        and image compression. The ROM stores the <em>exact</em> original
+        bytes: tile/sprite shapes as planar pixel data, colors as
+        resistor-network palette values. Extracting from ROM gives indexed
+        pixel grids that map cleanly onto whatever target palette the CoCo
+        3 port uses.
+      </p>
+    </section>
+
+    <section>
+      <h2>Pipeline</h2>
+      <p>
+        <code>scripts/extract_arcade_gfx.py</code> reads
+        <code>~/mame/roms/ladybug.zip</code> and writes to
+        <code>assets/arcade/</code>:
+      </p>
+      <ul>
+        <li><code>chars.json</code> / <code>sprites.json</code> — raw 2bpp pixel grids (512 × 8×8 chars, 128 × 16×16 sprites). <strong>Authoritative shape data.</strong></li>
+        <li><code>palette.json</code> — 32 RGB triples, decoded from PROM <code>10-2.k1</code>.</li>
+        <li><code>char_lookup.json</code> — char <code>lut[attr][pixval] -&gt; palette index</code>, computed by formula (no PROM).</li>
+        <li><code>sprite_lookup_a.json</code> / <code>sprite_lookup_b.json</code> — sprite <code>lut[attr][pixval] -&gt; palette index</code> for the two sprite color sets.</li>
+        <li><code>chars_attr0..7.png</code>, <code>sprites_setA_attr0..7.png</code>, <code>sprites_setB_attr0..7.png</code> — colorized sheet previews.</li>
+        <li><code>chars_raw2bpp.png</code>, <code>sprites_raw2bpp.png</code> — greyscale raw-pixval sheets for shape verification.</li>
+      </ul>
+      <p>Run: <code>python3 scripts/extract_arcade_gfx.py --rom ~/mame/roms/ladybug.zip --out assets/arcade/</code></p>
+    </section>
+
+    <section>
+      <h2>Observed correspondences</h2>
+      <ul>
+        <li><strong>Maze / playfield / HUD text</strong> comes from <code>chars_attr0.png</code> (and other char attrs for variant colorings).</li>
+        <li><strong>Enemies</strong> (skull, varieties of ladybug-shaped bugs) each render in one of the Set A attrs.</li>
+        <li><strong>Vegetable pickups</strong> also use Set A attrs.</li>
+        <li><strong>Death animation</strong> (angel wings) uses one of the Set B attrs.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Gotchas (lessons learned)</h2>
+      <p>These each cost an iteration; record so we don't repeat them:</p>
+      <ol>
+        <li><strong>Palette PROM is <code>10-2.k1</code>, not <code>10-1.f4</code>.</strong> The MAME ROM list orders files alphabetically by chip name, but the proms region offsets put <code>10-2.k1</code> at offset 0 (palette) and <code>10-1.f4</code> at offset 0x20 (sprite color lookup). Filename ≠ region role.</li>
+        <li><strong>Char "color lookup" is a formula, not a PROM.</strong> MAME computes <code>palette_idx = ((i &lt;&lt; 3) &amp; 0x18) | ((i &gt;&gt; 2) &amp; 0x07)</code> for <code>i = attr*4 + pixval</code>.</li>
+        <li><strong>Sprite color lookup uses both nibbles of <code>10-1.f4</code>.</strong> Low nibble (bitswapped) → set A pens; high nibble → set B pens.</li>
+        <li><strong>Palette PROM bit layout is inverted and 2-bit-per-channel:</strong> byte is <code>~</code>-flipped, then R = bits {0, 5}, G = bits {2, 6}, B = bits {4, 7}, with 470Ω/220Ω resistor weights.</li>
+        <li><strong>MAME <code>gfx_layout</code> plane ordering convention is MSB-first.</strong> <code>planes: { 1, 0 }</code> in the source means <code>planes[0]=1</code> is the <em>MSB</em> plane. Getting this backwards swaps pixel values 1↔2.</li>
+        <li><strong>Sprite layout has scrambled y-row offsets.</strong> 16×16 sprites are 64 bytes total: top-half rows live in bytes 32..47 in <em>reverse</em> y order, bottom-half rows in bytes 0..15 in reverse y order. Encode the <code>xoffset</code>/<code>yoffset</code> arrays verbatim from MAME.</li>
+        <li><strong>Char layout is straightforward.</strong> 8×8 chars, 8 bytes per char per plane, plane 0 in first 0x1000 of <code>gfx1</code>, plane 1 in second 0x1000. MSB = leftmost pixel.</li>
+      </ol>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: MAME <code>ladybug.cpp</code> driver
+        (<a href="https://github.com/mamedev/mame/blob/master/src/mame/universal/ladybug.cpp">github</a>) —
+        <code>charlayout</code>, <code>spritelayout</code>,
+        <code>ladybug_palette()</code>. ROM set:
+        <code>ladybug.zip</code> (gfx ROMs <code>l9.f7</code>,
+        <code>l0.h7</code>, <code>l8.l7</code>, <code>l7.m7</code>; PROMs
+        <code>10-1.f4</code>, <code>10-2.k1</code>, <code>10-3.c4</code>).
+        Extraction script: <code>scripts/extract_arcade_gfx.py</code>.
+        Decoded outputs: <code>assets/arcade/</code>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Build &amp; deploy runbook — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tooling</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>Build &amp; deploy runbook <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        End-to-end: source → ROM → emulator. Driven by
+        <code>scripts/build.sh</code>; every step is also documented as a
+        manual command.
+      </p>
+    </header>
+
+    <section>
+      <h2>Overview</h2>
+<pre><code>src/*.s                              (hand-written 6809 assembly)
+   │
+   │  lwasm -9 --format=raw --output=build/ladybug.rom
+   ▼
+build/ladybug.rom    (raw binary, exact size)
+   │
+   │  pad with 0xFF to 16384 bytes
+   ▼
+build/ladybug.rom    (16 KB cart-ready)
+   │
+   │  xroar -machine coco3 -ram 512 -cart-type rom -cart-rom ... -cart-autorun -tv-input rgb
+   ▼
+emulated CoCo 3      (real hardware: write ROM to a 16K EPROM, drop into cart shell)
+</code></pre>
+    </section>
+
+    <section>
+      <h2>One-command interface</h2>
+      <p>
+        <code>scripts/build.sh</code> is the entry point. Run from
+        anywhere — it routes to WSL automatically when invoked from the
+        Windows host.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>scripts/build.sh build</code></td><td>Assemble + pad. Output: <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, <code>build/ladybug.map</code>.</td></tr>
+          <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch xroar with the canonical cart profile.</td></tr>
+          <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
+        </tbody>
+      </table>
+      <p>Source layout the script assumes:</p>
+<pre><code>src/main.s          (top of build, ORG $C000)
+build/              (created if missing; everything generated lands here)
+scripts/build.sh
+</code></pre>
+    </section>
+
+    <section>
+      <h2>Manual equivalents</h2>
+
+      <h3>1. Assemble</h3>
+<pre><code>mkdir -p build
+lwasm -9 --format=raw \
+      --output=build/ladybug.rom \
+      --list=build/ladybug.lst \
+      --symbols \
+      --map=build/ladybug.map \
+      src/main.s
+</code></pre>
+
+      <h3>2. Pad to 16 KB</h3>
+<pre><code>python3 -c "
+data = open('build/ladybug.rom','rb').read()
+pad  = 16384 - len(data)
+assert pad &gt;= 0, f'ROM is {len(data)} bytes — exceeds 16 KB'
+open('build/ladybug.rom','wb').write(data + b'\xff'*pad)
+print(f'padded {16384-pad} → 16384 bytes')
+"
+</code></pre>
+
+      <h3>3. Run</h3>
+<pre><code>xroar -machine coco3 -ram 512 \
+      -cart ladybug -cart-type rom \
+      -cart-rom build/ladybug.rom \
+      -cart-autorun \
+      -tv-input rgb
+</code></pre>
+      <p>
+        <code>-tv-input rgb</code> selects the GIME's digital RGB output
+        (canonical <code>RGBrgb</code> 2-bit-per-channel mapping). XRoar's
+        default is composite NTSC, which aliases several 6-bit palette
+        codes. See <a href="./xroar.html">xroar</a> and
+        <a href="../implementation/lessons-learned.html">lessons-learned</a>
+        §"XRoar RGB monitor palette mapping".
+      </p>
+    </section>
+
+    <section>
+      <h2>Cross-platform invocation</h2>
+      <p>
+        If PowerShell <code>wsl.exe</code> works, a Windows-side session
+        can launch the normal run flow with:
+      </p>
+<pre><code>wsl -d Ubuntu -- bash -lc 'cd /mnt/d/retro/ladybug &amp;&amp; ./scripts/build.sh run'
+</code></pre>
+      <p>
+        Inside WSL, paths to the project work via
+        <code>/mnt/d/retro/ladybug</code>.
+      </p>
+      <p>
+        If PowerShell reports no WSL distributions, do not conclude that
+        runtime launch is impossible. Use the GDB-MCP-hosted Linux shell
+        instead:
+      </p>
+<pre><code>shell cd /mnt/d/retro/ladybug &amp;&amp; ./scripts/build.sh build
+shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart ladybug -cart-type rom -cart-rom build/ladybug.rom -cart-autorun -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
+</code></pre>
+      <p>Then start a fresh GDB-MCP session and attach with:</p>
+<pre><code>target remote :65520
+</code></pre>
+    </section>
+
+    <section>
+      <h2>Debug variants</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Need</th><th>Command</th></tr></thead>
+        <tbody>
+          <tr><td>GDB stub on <code>127.0.0.1:65520</code></td><td>append <code>-gdb</code> to the xroar call (or set <code>XROAR_EXTRA="-gdb"</code> env var if the script supports it)</td></tr>
+          <tr><td>GDB stub reachable from WSL-hosted <code>gdb-mcp</code> when XRoar runs on Windows</td><td>append <code>-gdb -gdb-ip 0.0.0.0 -gdb-port 65520</code></td></tr>
+          <tr><td>GDB remote-stub diagnostics</td><td>append <code>-debug-gdb -1</code></td></tr>
+          <tr><td>Instruction trace</td><td>append <code>-trace 2&gt;build/trace.log</code></td></tr>
+          <tr><td>Run as fast as possible (smoke test)</td><td>append <code>-no-ratelimit -fskip 100</code></td></tr>
+        </tbody>
+      </table>
+      <p>
+        For the full XRoar plus GDB-MCP attach workflow, see
+        <a href="./xroar.html#gdb-mcp-round-trip">xroar §GDB-MCP round trip</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Probe ROM variant</h2>
+      <p>
+        <code>scripts/build.sh</code> always builds <code>src/main.s</code>
+        into <code>build/ladybug.rom</code>. To run a one-off diagnostic
+        source such as <code>src/rom_probe.s</code>, use the same
+        WSL-hosted assemble, pad, and xroar sequence with the input and
+        output names changed.
+      </p>
+      <p>
+        If XRoar runs on Windows and <code>gdb-mcp</code> runs under WSL,
+        use <code>-gdb-ip 0.0.0.0</code> instead of <code>127.0.0.1</code>.
+      </p>
+    </section>
+
+    <section>
+      <h2>When this runbook breaks</h2>
+      <ul>
+        <li><strong><code>lwasm: command not found</code></strong> — WSL <code>~/coco-tools/lwtools</code> not built/installed. Reinstall: <code>cd ~/coco-tools/lwtools &amp;&amp; make &amp;&amp; sudo make install</code>.</li>
+        <li><strong><code>xroar: command not found</code></strong> — same pattern under <code>~/coco-tools/xroar</code>; check its <code>INSTALL</code> for SDL/GTK build deps.</li>
+        <li><strong><code>build: ROM is 16385 bytes — exceeds 16 KB</code></strong> — code+data overflowed the 16 KB cart window. Expansion path documented in <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current); 32 K and bank-switched options deferred"</a>.</li>
+        <li><strong>No xroar window from Windows host</strong> — WSLg should hand off automatically on Win 11. Test with <code>wsl -d Ubuntu -- bash -lc "xeyes"</code> to confirm GUI passthrough; if blank, restart WSL: <code>wsl --shutdown</code>.</li>
+        <li><strong>xroar boots to BASIC OK prompt instead of our cart</strong> — <code>-cart-autorun</code> missing, or our <code>JMP</code> at <code>$C000</code> isn't where BASIC's FIRQ handler expects (see boot handshake in <a href="../platform/cartridge.html">platform/cartridge</a>).</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        See also: <a href="./lwtools.html">lwtools</a>,
+        <a href="./xroar.html">xroar</a>, <a href="./toolshed.html">toolshed</a>;
+        <a href="../platform/cartridge.html">platform/cartridge</a> — boot
+        handshake; <a href="../../release/reference/coco3/memory-map.html">memory map</a>
+        — cart window placement.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

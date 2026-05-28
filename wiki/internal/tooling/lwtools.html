@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>lwtools / lwasm — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tooling</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>lwasm — 6809 cross-assembler <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Part of <a href="https://www.lwtools.ca/manual/manual.html">lwtools</a>
+        by William Astle. Installed at <code>/usr/local/bin/lwasm</code>
+        (built from <code>~/coco-tools/lwtools</code>). Version: <strong>4.24</strong>.
+      </p>
+    </header>
+
+    <section>
+      <h2>Why this assembler</h2>
+      <ul>
+        <li>Modern, actively maintained, native cross-assembler (no DOS/CoCo round-trip).</li>
+        <li>First-class 6809 <em>and</em> 6309 support; we lock to 6809 mode (<code>-9</code>) since the CoCo 3 ships with a 68B09E.</li>
+        <li>Multiple output formats — we use <code>raw</code> for the cartridge ROM.</li>
+        <li>Macros, conditionals, sections, listings, symbol dumps.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Canonical invocation</h2>
+<pre><code>lwasm -9 \
+      --format=raw \
+      --output=build/ladybug.rom \
+      --list=build/ladybug.lst \
+      --symbols \
+      --map=build/ladybug.map \
+      src/main.s
+</code></pre>
+
+      <p>Flag-by-flag:</p>
+      <table class="wiki-table">
+        <thead><tr><th>Flag</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><code>-9</code> / <code>--6809</code></td><td>Reject 6309-only opcodes — the CoCo 3 CPU is a 68B09E.</td></tr>
+          <tr><td><code>--format=raw</code></td><td>Emit a flat binary starting at the assembled ORG. No DECB header, no OS-9 module header. Ready for cart padding.</td></tr>
+          <tr><td><code>--output=FILE</code></td><td>Output binary path.</td></tr>
+          <tr><td><code>--list=FILE</code></td><td>Listing file with addresses, opcodes, source side-by-side. Crucial for cycle counting and cross-referencing crash addresses.</td></tr>
+          <tr><td><code>--symbols</code></td><td>Include symbol table in listing.</td></tr>
+          <tr><td><code>--map=FILE</code></td><td>Separate symbol/address map — easier to grep than the listing.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Source convention: top-level entry assembled with <code>ORG $C000</code>
+        so the raw output drops straight into the cart window (see
+        <a href="../platform/cartridge.html">platform/cartridge</a> and
+        <a href="../../release/reference/coco3/memory-map.html">memory map</a>).
+      </p>
+    </section>
+
+    <section>
+      <h2>Other output formats (reference)</h2>
+      <p>
+        <code>--format=</code> accepts: <code>raw</code>, <code>decb</code>
+        (Disk BASIC <code>.bin</code> with load/exec headers), <code>os9</code>
+        (NitrOS-9 module), <code>ihex</code>, <code>srec</code>,
+        <code>obj</code> (proprietary linkable), <code>dragon</code>,
+        <code>abs</code>, <code>basic</code>. We only use <code>raw</code>
+        today; <code>decb</code> is the fallback if we ever switch to a
+        <code>LOADM</code> deploy path.
+      </p>
+    </section>
+
+    <section>
+      <h2>Padding to cart size</h2>
+      <p>
+        <code>raw</code> output is exactly the assembled byte count.
+        Cartridge ROMs need to be a power of two; Ladybug uses a 16 KB cart
+        at <code>$C000-$FEFF</code>
+        (<a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>).
+        The top <code>$FF00-$FFFF</code> is the I/O window, not cart-visible,
+        so the cart's last 256 bytes are effectively unused. The build
+        script pads with <code>0xFF</code> to 16384 bytes after assembly:
+      </p>
+<pre><code>python3 -c "
+import sys
+data = open('build/ladybug.rom','rb').read()
+pad = 16384 - len(data)
+assert pad &gt;= 0, f'ROM is {len(data)} bytes — exceeds 16KB'
+open('build/ladybug.rom','wb').write(data + b'\\xff'*pad)
+"
+</code></pre>
+    </section>
+
+    <section>
+      <h2>Errors / gotchas</h2>
+      <ul>
+        <li><strong>No <code>ORG</code>?</strong> Output starts at <code>0</code> — useless for a cart. Always <code>ORG $C000</code> at the top.</li>
+        <li><strong>Branch out of range</strong> — <code>lwasm</code> will error with the exact source line; switch <code>BRA</code>→<code>LBRA</code>, <code>BEQ</code>→<code>LBEQ</code>, etc.</li>
+        <li><strong>Implicit direct page</strong> — by default DP is <code>0</code>; if we set DPR via <code>SETDP</code> pseudo-op, the assembler trusts us. A mismatch between <code>SETDP</code> and the actual <code>TFR a,dp</code> at runtime silently corrupts addressing.</li>
+        <li><strong>Listing line numbers</strong> off by include depth — use <code>--list-nofiles</code> to suppress filenames if grepping hot inner loops.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Manual: <a href="https://www.lwtools.ca/manual/manual.html">https://www.lwtools.ca/manual/manual.html</a>.
+        Local install: <code>~/coco-tools/lwtools</code> (source),
+        <code>/usr/local/bin/lwasm</code>.
+        <code>lwasm --help</code> for the full flag list.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

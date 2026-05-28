@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tooling — Internal — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>Tooling <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Catalog of build/deploy tools used for Ladybug — lwtools, toolshed,
+        xroar — plus the end-to-end build workflow.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        All tools are installed in WSL Ubuntu under
+        <code>~/coco-tools/</code>. The host <code>scripts/build.sh</code>
+        shells out to WSL so building is one command from either side.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Tool</th><th>Role</th><th>Active in build?</th><th>Page</th></tr></thead>
+        <tbody>
+          <tr><td><strong>lwasm</strong> (lwtools 4.24)</td><td>6809 cross-assembler — produces the cartridge ROM image</td><td>yes</td><td><a href="./lwtools.html">lwtools</a></td></tr>
+          <tr><td><strong>xroar</strong> (1.10)</td><td>CoCo 3 emulator — boots the cart for iteration</td><td>yes</td><td><a href="./xroar.html">xroar</a></td></tr>
+          <tr><td><strong>toolshed</strong> (<code>decb</code>, <code>os9</code>)</td><td>DECB/OS-9 disk image manipulation</td><td><strong>not currently</strong> — kept on hand if we add a <code>.dsk</code> deploy path later</td><td><a href="./toolshed.html">toolshed</a></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Build workflow</h2>
+      <p>
+        <a href="./build-workflow.html">build-workflow</a> — the full
+        runbook: source → ROM → emulator. Driven by
+        <code>scripts/build.sh</code>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Web app</h2>
+      <p>
+        <a href="./web-app-architecture.html">web-app-architecture</a> —
+        v2 design for the locally-hosted retro-dev web UI (FastAPI +
+        web-components frontend wrapping XRoar lifecycle, monitor session,
+        opcode annotation, configs, snapshots).
+      </p>
+    </section>
+
+    <section>
+      <h2>Deploy target</h2>
+      <p>
+        Cartridge ROM image (16 KB, mapped at <code>$C000-$FEFF</code> on a
+        real CoCo 3, boots via the CART → FIRQ handshake — see
+        <a href="../platform/cartridge.html">platform/cartridge</a>). No
+        floppy, no NitrOS-9. 32 K (Init0=11) and software bank-switched
+        (CoCoSDC / <code>-cart-type gmc</code>) are documented next-step
+        expansion paths if 16 K turns out insufficient.
+      </p>
+    </section>
+
+    <section>
+      <h2>WSL access</h2>
+      <p>
+        The host (Windows) Claude session can drive WSL directly with
+        <code>wsl -d Ubuntu -- bash -lc "..."</code>. The build script
+        uses this to keep a single source of truth for invocations.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>See also: <a href="../implementation/index.html">implementation</a>, <a href="../platform/index.html">platform</a>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

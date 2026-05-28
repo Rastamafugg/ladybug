@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Addressing Modes — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · ISA reference</p>
+      <h1>Addressing Modes</h1>
+      <p class="wiki-meta">How operands are encoded and resolved on the 6809.</p>
+    </header>
+
+    <section>
+      <h2>Overview</h2>
+      <p>
+        Every 6809 instruction that takes a memory operand selects one of
+        six addressing modes. The mode is determined by the opcode column
+        (or, for indexed mode, by a post-byte that immediately follows the
+        opcode and encodes the index register, offset form, and indirection
+        flag).
+      </p>
+    </section>
+
+    <section>
+      <h2>Modes</h2>
+
+      <h3>Inherent</h3>
+      <p>
+        No operand; the opcode itself implies its arguments. One byte.
+      </p>
+<pre><code>        CLRA            * clear A
+        ABX             * X = X + B (unsigned)
+        RTS             * return from subroutine
+</code></pre>
+
+      <h3>Immediate</h3>
+      <p>
+        The operand is the byte(s) that follow the opcode. 8-bit immediate
+        for byte ops, 16-bit immediate for word ops.
+      </p>
+<pre><code>        LDA   #$20      * A &lt;- $20
+        LDX   #$1C00    * X &lt;- $1C00 (16-bit immediate)
+        ANDCC #$AF      * mask CC bits
+</code></pre>
+
+      <h3>Direct page</h3>
+      <p>
+        An 8-bit operand is concatenated with the <code>DP</code> register to
+        form the 16-bit effective address. Two bytes, four cycles. Used for
+        hot variables; set <code>DP</code> once and treat the corresponding
+        256-byte page as your "zero page".
+      </p>
+<pre><code>        LDA   &lt;score    * effective = DP:score
+        STA   &lt;$05      * effective = DP:$05
+</code></pre>
+      <p>
+        The <code>&lt;</code> prefix forces the assembler to emit direct-mode
+        encoding even when the address could fit a 5-bit indexed form. See
+        <a href="../asm-tips/dp-conventions.html">DP conventions</a>.
+      </p>
+
+      <h3>Extended</h3>
+      <p>
+        A 16-bit absolute operand. Three bytes (opcode + addr-hi + addr-lo).
+        Use when the target lives outside the direct page.
+      </p>
+<pre><code>        LDA   $1C00     * extended
+        STA   gfx_base  * extended via symbol
+</code></pre>
+
+      <h3>Extended indirect</h3>
+      <p>
+        The 16-bit operand points to a memory location holding the actual
+        effective address. Useful for vector tables.
+      </p>
+<pre><code>        JMP   [vector]  * EA = (vector)
+</code></pre>
+
+      <h3>Indexed</h3>
+      <p>
+        The opcode is followed by a one-byte post-byte that encodes:
+        which index register (X, Y, U, or S), the offset form, optional
+        auto-inc/dec, and an optional indirection bit.
+      </p>
+
+      <h4>Indexed forms</h4>
+      <table class="wiki-table">
+        <thead>
+          <tr><th>Form</th><th>Syntax</th><th>Extra bytes</th><th>Extra cycles</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>No offset</td>            <td><code>,R</code></td>      <td>0</td><td>0</td></tr>
+          <tr><td>5-bit offset</td>         <td><code>n,R</code></td>     <td>0</td><td>1</td></tr>
+          <tr><td>8-bit offset</td>         <td><code>n,R</code></td>     <td>1</td><td>1</td></tr>
+          <tr><td>16-bit offset</td>        <td><code>n,R</code></td>     <td>2</td><td>4</td></tr>
+          <tr><td>Accumulator A offset</td> <td><code>A,R</code></td>     <td>0</td><td>1</td></tr>
+          <tr><td>Accumulator B offset</td> <td><code>B,R</code></td>     <td>0</td><td>1</td></tr>
+          <tr><td>Accumulator D offset</td> <td><code>D,R</code></td>     <td>0</td><td>4</td></tr>
+          <tr><td>Post-increment by 1</td>  <td><code>,R+</code></td>     <td>0</td><td>2</td></tr>
+          <tr><td>Post-increment by 2</td>  <td><code>,R++</code></td>    <td>0</td><td>3</td></tr>
+          <tr><td>Pre-decrement by 1</td>   <td><code>,-R</code></td>     <td>0</td><td>2</td></tr>
+          <tr><td>Pre-decrement by 2</td>   <td><code>,--R</code></td>    <td>0</td><td>3</td></tr>
+          <tr><td>PC 8-bit offset</td>      <td><code>n,PCR</code></td>   <td>1</td><td>1</td></tr>
+          <tr><td>PC 16-bit offset</td>     <td><code>n,PCR</code></td>   <td>2</td><td>5</td></tr>
+        </tbody>
+      </table>
+      <p>
+        <code>R</code> is any of <code>X</code>, <code>Y</code>, <code>U</code>,
+        <code>S</code>. The PC-relative forms (<code>PCR</code>) make code
+        position-independent.
+      </p>
+      <p>
+        Any indexed form (except <code>,R+</code> and <code>,-R</code>) can
+        be made <em>indirect</em> by wrapping the operand in brackets:
+        <code>LDA [n,X]</code> means EA = <code>(X + n)</code>. Adds one
+        extra cycle.
+      </p>
+
+      <h3>Relative</h3>
+      <p>
+        Used only by branch instructions. The operand is a signed offset
+        added to PC. Short branches use an 8-bit offset (range &minus;128…+127);
+        long branches use a 16-bit offset and an extra prefix byte.
+      </p>
+<pre><code>        BNE   loop      * 8-bit signed offset
+        LBRA  far_label * 16-bit signed offset
+</code></pre>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Reference: Motorola <em>MC6809E HMOS 8-Bit Microprocessor</em> data
+        sheet, §3 (Addressing Modes); Tepolt, <em>Assembly Language
+        Programming for the Color Computer</em>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

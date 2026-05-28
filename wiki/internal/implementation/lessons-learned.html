@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lessons Learned — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation · findings</p>
+      <h1>Lessons Learned <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Observed-fact findings — hardware quirks, register gotchas, patterns
+        to avoid, and explicit decisions to skip otherwise-tempting precedents.
+        Append-only.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        Each entry: a short claim, the <em>why</em>, and (where applicable)
+        a concrete citation. Newest entries at the bottom of each thematic
+        cluster.
+      </p>
+    </section>
+
+    <section>
+      <h2>DoD anti-patterns we will NOT copy</h2>
+      <p>
+        Filed 2026-05-08 alongside ingest of the DoD cartridge source. See
+        <a href="../sources/dod-source.html">sources/dod-source</a> and
+        <a href="./coding-conventions.html">coding-conventions</a> for what
+        we <em>are</em> adopting.
+      </p>
+
+      <h3>Tape (cassette) I/O</h3>
+      <p>
+        DoD carries a substantial cassette save/load layer in
+        <code>COMMON.ASM:24-96</code> (<code>GETBUF</code>,
+        <code>PIATAP</code>, <code>SAVE</code>, <code>LOAD</code>) plus the
+        entire <code>PZTAPE.ASM</code> module. <strong>Skip entirely.</strong>
+        We are cartridge-only with no persistence in v1 (decision locked
+        2026-05-07; see log entry and
+        <a href="../platform/cartridge.html">platform/cartridge</a>).
+      </p>
+
+      <h3>CoCo 1/2 SAM and legacy PIA initialisation</h3>
+      <p>
+        DoD's <code>ONCE.ASM:31-49</code> writes a hard-coded SAM/PIA
+        configuration aimed at CoCo 1/2 hardware. The CoCo 3's GIME (ACVC)
+        supersedes the SAM and the PIA layout is largely the same but with
+        extensions (<a href="../../release/reference/coco3/gime.html">CoCo 3 GIME reference</a>,
+        <a href="../../release/reference/coco3/input.html">CoCo 3 input reference</a>). <strong>Do
+        not adapt this routine line-for-line.</strong> Re-derive boot init
+        from the GIME register catalog and our cartridge boot strategy
+        (<a href="../platform/cartridge.html">platform/cartridge</a>).
+      </p>
+
+      <h3>3D vector-graphics macros</h3>
+      <p>
+        <code>VCTLST.ASM</code> and the <code>SVORG</code> / <code>SVECT</code>
+        / <code>SVEND</code> macros in <code>missing-macros.asm</code>
+        implement DoD's first-person dungeon-vector renderer. Lady Bug is
+        tile-based 2D — none of this applies.
+      </p>
+
+      <h3>24-bit fixed-point shift chains</h3>
+      <p>
+        <code>HUPDAT.ASM:29-67</code> does multi-byte LSL/ROL chains for
+        heartbeat-rate scaling. Elegant but specific to DoD's analogue-feeling
+        timing. Unless we add fade effects or analogue-feeling animations,
+        integer counters are simpler and faster.
+      </p>
+
+      <h3>BASIC ROM trampolines</h3>
+      <p>
+        Various DoD spots dispatch into BASIC ROM (<code>BLKIN</code>/<code>BLKOUT</code>,
+        SWI2 to BASIC). We've already locked <strong>all-RAM mode</strong>
+        post-boot (<a href="../platform/cartridge.html">platform/cartridge</a>,
+        2026-05-07 boot decision), so anything that re-enters BASIC ROM
+        after init is unavailable to us by design. Don't borrow patterns
+        that assume it's there.
+      </p>
+    </section>
+
+    <section>
+      <h2>Phase 0 verified — <code>"DK"</code> autostart works as documented</h2>
+      <p>
+        Filed 2026-05-08 at the Phase 0 review gate (see
+        <a href="./roadmap.html">roadmap</a>).
+      </p>
+      <p>
+        A 22-byte stub at <code>$C000</code> with the layout
+        <code>FCC "DK"</code> + entry code took control on XRoar with
+        <code>-cart-autorun</code>. The screen showed our 32-byte
+        <code>$AA</code> marker on row 0 and BASIC's default <code>$60</code>
+        green fill below — confirming BASIC reset-init runs to its
+        screen-clear step but our FIRQ-dispatched code grabs control before
+        any banner or <code>OK</code> prompt prints.
+      </p>
+      <p>
+        <strong>Why it matters:</strong> confirms the boot path described in
+        <a href="../platform/cartridge.html">platform/cartridge</a> is
+        correct as written. <code>"DK"</code> magic + entry at <code>$C002</code>
+        is the convention; no tweaking needed.
+      </p>
+      <p>
+        <strong>Applies to:</strong> every future cartridge build — keep
+        <code>FCC "DK"</code> as the first emitted bytes at <code>$C000</code>.
+      </p>
+      <p>
+        <strong>Citation:</strong> <code>src/main.s</code> at the Phase 0 commit;
+        <a href="../platform/cartridge.html">platform/cartridge §Boot handshake</a>.
+      </p>
+
+      <h3>SG4 byte semantics — for sanity</h3>
+      <p>
+        While debugging the marker rendering: a CoCo VDG byte with bit 7 set
+        is interpreted as semigraphic-4 (SG4), with bits 6-4 selecting one
+        of 8 colors and bits 3-0 lighting the four 2×2-pixel quadrants of
+        the cell. <code>$AA = 10101010</code> = SG4, color blue
+        (<code>010</code>), quadrants top-right + bottom-left lit. That's
+        why <code>$AA</code> reads as diagonal blue stripes rather than a
+        uniform block. Worth knowing if we ever fall back to the legacy
+        text screen for a debug HUD.
+      </p>
+    </section>
+
+    <section>
+      <h2>Phase 1 verified — boot init + 60 Hz Vbord IRQ</h2>
+      <p>Filed 2026-05-08 at the Phase 1 review gate.</p>
+      <p>
+        A 95-byte boot sequence (<code>src/main.s</code>) takes us from the
+        Phase 0 takeover to a stable 60 Hz tick: <code>DP=$02</code>,
+        all-RAM, 1.78 MHz, IRQ handler installed at the <code>$FEF7</code>
+        jump-table slot, only Vbord enabled in <code>$FF92</code>. Visible
+        signal: a 16-bit IRQ-incremented counter rendered to
+        <code>$0400/$0401</code> on the legacy VDG text screen — high byte
+        advances every ~4.27 s, low byte flickers fast. Both behaviours
+        observed on XRoar.
+      </p>
+      <p>
+        <strong>Why it matters:</strong> confirms the boot recipe in
+        <a href="../platform/cartridge.html">platform/cartridge §What our boot must do</a>
+        is correct <em>as a starting point</em>, with the Phase-1 simplification
+        of leaving COCO legacy mode on (<code>Init0</code> b7=1) so the
+        existing <code>$0400</code> text screen remains usable without
+        configuring GIME hi-res video.
+      </p>
+      <p>
+        <strong>Applies to:</strong> every cartridge build until Phase 2
+        supersedes the video path. The PIA-quieting + IRQ-install sequence
+        carries forward unchanged.
+      </p>
+      <p>
+        <strong>Citation:</strong> <code>src/main.s</code> at the Phase 1 commit.
+      </p>
+
+      <h3>SWI / IRQ vector collision — RESOLVED</h3>
+      <p>
+        Filed 2026-05-08 at the Phase 1 review gate, deferred from
+        <a href="./coding-conventions.html">coding-conventions §4</a>.
+      </p>
+      <p>
+        Concern was whether using <code>SWI</code> (and <code>SWI2</code>/<code>SWI3</code>)
+        as a syscall trap could collide with the GIME's IRQ/FIRQ paths.
+        <strong>No collision.</strong> SWI is a CPU instruction — software-only
+        — with hardware vectors at <code>$FFFA/$FFFB</code> (SWI),
+        <code>$FFF4/$FFF5</code> (SWI2), <code>$FFF2/$FFF3</code> (SWI3).
+        The GIME's IRQ uses <code>$FFF8/$FFF9</code>, FIRQ uses
+        <code>$FFF6/$FFF7</code>. Disjoint. BASIC ROM uses SWI2/SWI3
+        internally for floating-point and monitor calls, but once we're in
+        all-RAM mode and not entering BASIC, all six vector slots and their
+        <code>$FE00-$FEFF</code> jump-table indirections are ours.
+      </p>
+      <p>
+        <strong>Applies to:</strong> the syscall-layer plan in
+        <a href="./coding-conventions.html">coding-conventions §4</a> — go
+        ahead and use <code>SWI</code> (and <code>SWI2</code>/<code>SWI3</code>
+        if needed) as service traps when the implementation gets there.
+      </p>
+    </section>
+
+    <section>
+      <h2>Phase 2.1 verified — shadow-RAM-during-write at phys <code>$3E</code></h2>
+      <p>Filed 2026-05-08 at the Phase 2.1 sub-gate.</p>
+      <p>
+        Wrote <code>$5A</code> ('Z') to <code>$C000</code> while in TY=0
+        (cart ROM mode), then set TY=1 (all-RAM), then read <code>$C000</code>
+        — got <code>$5A</code> back. Confirms that writes to
+        cart-ROM-shadowed virtual addresses land in the underlying RAM,
+        even though reads come from ROM. This is the load-bearing
+        assumption for the boot data-copy procedure in
+        <a href="./memory-map.html">memory-map</a>.
+      </p>
+      <p>
+        <strong>Why it matters:</strong> the boot can self-copy the cart's
+        contents to RAM (<code>ldd ,x</code> / <code>std ,x</code> over
+        <code>$C000-$FEFF</code>) and then enter all-RAM mode, with the
+        same bytes still at the same virtual addresses. Code keeps running.
+        No PAR juggling, no separate copy buffer.
+      </p>
+      <p><strong>Applies to:</strong> every cartridge boot from here on.</p>
+      <p>
+        <strong>Citation:</strong> <code>src/main.s</code> at the Phase 2.1
+        commit (since superseded by Phase 2.2's integrated boot).
+      </p>
+
+      <h3>XRoar <code>-cart-rom</code> handling of 32 K files — UNVERIFIED</h3>
+      <p>Filed 2026-05-08 alongside Phase 2.1.</p>
+      <p>
+        Built a 32 K cart with data section at lwasm <code>$8000</code>
+        (file offset 0, intended for visibility once Init0 b1-b0 = <code>11</code>)
+        and code section at lwasm <code>$C000</code> (file offset <code>$4000</code>).
+        Boot didn't autostart — landed at the BASIC <code>OK</code> prompt.
+        Symptom is consistent with XRoar mapping the lower 16 K of the file
+        to virtual <code>$C000</code> regardless of file size, which would
+        put our data byte (<code>$31</code>) at <code>$C000</code> instead
+        of the <code>"DK"</code> magic.
+      </p>
+      <p>
+        XRoar's manual only documents <code>-cart-rom</code> as "mapped from
+        <code>$C000</code>" — silent on 32 K behaviour. Source-code
+        inspection or experimental probing would be needed to confirm.
+        <strong>Not done.</strong> Reverted to a 16 K cart for development
+        and recorded the unknown.
+      </p>
+      <p>
+        <strong>Why it matters:</strong> if we hit the 16 K limit (Phase 4),
+        the planned expansion path cannot rely on Init0 b1-b0 = <code>11</code>
+        working under XRoar. Use <code>-cart-type gmc</code> (software
+        bank-switching) instead — that's universally supported, and the
+        architecture is the same as CoCoSDC and other real-hardware cart
+        shells.
+      </p>
+      <p>
+        <strong>Applies to:</strong> the cart-size pivot path in
+        <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>.
+        Use bank-switched, not Init0=11.
+      </p>
+    </section>
+
+    <section>
+      <h2>Phase 2.2 + 2.3 verified — full Phase 2 boot path through to GIME hi-res</h2>
+      <p>Filed 2026-05-08 at the Phase 2.3 close.</p>
+      <p>The full boot sequence works end-to-end on XRoar:</p>
+      <ol>
+        <li>ORCC IRQ-mask, set DP=$02, stack at $1FFE.</li>
+        <li>Quiet PIA interrupts.</li>
+        <li>Init0 = legacy / ACVC-IRQ on / force-$FExx.</li>
+        <li>Self-copy <code>$C000-$FEFF</code> (cart ROM) to shadow RAM via <code>LDD ,X / STD ,X</code>.</li>
+        <li>TY=1 (<code>$FFDF</code>) — cart disconnects, code now runs from RAM at phys $3E-$3F.</li>
+        <li>R1=1 (<code>$FFD9</code>) — fast clock (1.78 MHz).</li>
+        <li><code>$FF91</code> cleared so executive PAR set is active.</li>
+        <li>PARs loaded — <code>$38, $30, $31, $32, $33, $3D, $3E, $3F</code> — virtual <code>$2000-$9FFF</code> now points to phys <code>$30-$33</code> (FB).</li>
+        <li><code>$FF98</code> BP=1, <code>$FF99</code> = <code>$1F</code> (CRES=11 blanked) so we can clear silently.</li>
+        <li>Vert-offset <code>$FF9D=$C0</code>, <code>$FF9E=$00</code> — GIME reads FB from physical address <code>$060000</code> (phys page $30).</li>
+        <li>Init0 changed to MMU=1 + COCO=0 (hi-res). Display still blanked due to CRES=11.</li>
+        <li>Palette loaded into <code>$FFB0-$FFBF</code>.</li>
+        <li>FB written.</li>
+        <li><code>$FF99</code> = <code>$1E</code> — un-blank, 16-color graphics live.</li>
+        <li>IRQ handler installed at <code>$FEF7</code>.</li>
+        <li>Vbord enabled, I-mask cleared.</li>
+        <li>Mainloop runs, IRQ ticks at 60 Hz, mainloop's FB writes are visible.</li>
+      </ol>
+      <p>
+        Visible signal: full 16-stripe palette test + bright border +
+        IRQ-driven flashing block on top of stripes.
+      </p>
+      <p>
+        <strong>Why it matters:</strong> every subsequent phase builds on
+        this exact sequence. Don't reorder steps without re-verifying —
+        particularly the cart self-copy must happen before TY=1, and PAR
+        loads must happen before MMU enable.
+      </p>
+      <p>
+        <strong>Citation:</strong> <code>src/main.s</code> at the Phase 2.3-close commit.
+      </p>
+    </section>
+
+    <section>
+      <h2>XRoar RGB monitor palette mapping (current default)</h2>
+      <p>
+        Filed 2026-05-16. Canonical mapping for the project — XRoar is
+        invoked with <code>-tv-input rgb</code> by <code>scripts/build.sh</code>
+        and <code>web/backend/instance.py</code>, and the
+        <code>src/main.s</code> <code>palette_table</code> is tuned to it.
+      </p>
+      <p>
+        Empirically derived using a minimal-from-scratch 16-stripe diagnostic
+        (<code>src/diag_minimal.s</code> — needed because the full Phase 2.x
+        main.s pipeline currently renders the FB as noise; see
+        <a href="../backlog/phase2-fb-render-regression.html">backlog/phase2-fb-render-regression</a>).
+        16 stripes, one palette idx each, sampled visually under
+        <code>-tv-input rgb</code>:
+      </p>
+      <table class="wiki-table">
+        <thead>
+          <tr><th><code>$xx</code></th><th>Bits R'G'B' rgb</th><th>Observed colour</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>$00</code></td><td>000 000</td><td>black</td></tr>
+          <tr><td><code>$20</code></td><td>100 000</td><td>dark/medium red (R-bright only)</td></tr>
+          <tr><td><code>$10</code></td><td>010 000</td><td>medium green</td></tr>
+          <tr><td><code>$08</code></td><td>001 000</td><td>medium blue</td></tr>
+          <tr><td><code>$30</code></td><td>110 000</td><td>dark yellow / olive</td></tr>
+          <tr><td><code>$18</code></td><td>011 000</td><td>cyan / teal</td></tr>
+          <tr><td><code>$28</code></td><td>101 000</td><td>magenta</td></tr>
+          <tr><td><code>$38</code></td><td>111 000</td><td>light grey / silver — <strong>not white</strong></td></tr>
+          <tr><td><code>$04</code></td><td>000 100</td><td>dim red</td></tr>
+          <tr><td><code>$02</code></td><td>000 010</td><td>dim green</td></tr>
+          <tr><td><code>$01</code></td><td>000 001</td><td>dim blue</td></tr>
+          <tr><td><code>$06</code></td><td>000 110</td><td>dark olive</td></tr>
+          <tr><td><code>$03</code></td><td>000 011</td><td>dark teal</td></tr>
+          <tr><td><code>$05</code></td><td>000 101</td><td>dark purple</td></tr>
+          <tr><td><code>$07</code></td><td>000 111</td><td>dark grey</td></tr>
+          <tr><td><code>$3F</code></td><td>111 111</td><td>bright white</td></tr>
+        </tbody>
+      </table>
+      <p>
+        <strong>Key surprise:</strong> full white is <code>$3F</code> (all
+        6 bits), not <code>$38</code> (just the upper 3). The "bright"
+        channels alone (<code>R'G'B' = 111</code>) produce a desaturated
+        light grey; you have to also turn on the "dim" channels to push to
+        full white. Same principle for fully-saturated bright primaries:
+        <code>$24</code> (R' + dim B) is a <em>pinker</em> red than
+        <code>$20</code> (R' alone) because the dim-R bit adds bottom-end
+        saturation.
+      </p>
+      <p>
+        <strong>Why it matters:</strong> when we ingest the arcade palette
+        (<a href="../sources/arcade-gfx-extraction.html">sources/arcade-gfx-extraction</a>)
+        we map each arcade RGB triple to the nearest 6-bit GIME code by
+        treating the code as 2-bit-per-channel <code>R[1:0] G[1:0] B[1:0]</code>
+        (high bit = bright, low bit = dim). The 64-entry CoCo 3 RGB palette
+        is regular enough that the nearest-match search is mechanical.
+      </p>
+      <p>
+        <strong>Citation:</strong> <code>src/diag_minimal.s</code> 16-stripe
+        test; user-observed colour names recorded in the 2026-05-16 session log.
+      </p>
+    </section>
+
+    <section>
+      <h2>Composite NTSC palette mapping (historical, pre-RGB switch)</h2>
+      <p>
+        Filed 2026-05-08 alongside Phase 2.3. <strong>Superseded</strong> by
+        the RGB table above for the project's canonical use; preserved here
+        because real CoCo 3 owners may run on a composite monitor and want
+        this reference.
+      </p>
+      <p>
+        Phase 2.3's 16-stripe palette diagnostic under XRoar's default
+        (composite NTSC) showed the 6-bit palette codes do <strong>not</strong>
+        map via the conventional <code>RGBrgb</code> interpretation —
+        instead, chroma + luma encoding produces different colours and
+        several codes alias (e.g. <code>$30</code> and <code>$3F</code>
+        both render as white).
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th><code>$xx</code></th><th>Observed colour (composite)</th></tr></thead>
+        <tbody>
+          <tr><td><code>$00</code></td><td>black</td></tr>
+          <tr><td><code>$3F</code></td><td>white</td></tr>
+          <tr><td><code>$30</code></td><td>white (alias of <code>$3F</code>)</td></tr>
+          <tr><td><code>$0C</code></td><td>blue</td></tr>
+          <tr><td><code>$03</code></td><td>green-brown</td></tr>
+          <tr><td><code>$33</code></td><td>yellow</td></tr>
+          <tr><td><code>$0F</code></td><td>forest green</td></tr>
+          <tr><td><code>$3C</code></td><td>baby blue</td></tr>
+          <tr><td><code>$20</code></td><td>grey</td></tr>
+          <tr><td><code>$08</code></td><td>fuchsia / purple</td></tr>
+          <tr><td><code>$02</code></td><td>darker green</td></tr>
+          <tr><td><code>$22</code></td><td>saturated light green</td></tr>
+          <tr><td><code>$0A</code></td><td>purple</td></tr>
+          <tr><td><code>$28</code></td><td>pink</td></tr>
+          <tr><td><code>$15</code></td><td>orange</td></tr>
+          <tr><td><code>$24</code></td><td>orange-yellow</td></tr>
+        </tbody>
+      </table>
+      <p>
+        <strong>Citation:</strong> <code>src/main.s</code> Phase 2.3
+        stripe-test commit (<code>2593d36</code>); user-observed colour
+        names recorded in the 2026-05-08 session log.
+      </p>
+    </section>
+
+    <section>
+      <h2><code>LDD ,Y++</code> clobbers B — never use B as a loop counter alongside it</h2>
+      <p>Filed 2026-05-08.</p>
+      <p>
+        In the Phase 2.4 <code>blit_tile</code> routine the obvious shape
+        was <code>ldb #8</code> outside the loop, <code>decb</code>/<code>bne</code>
+        at the end. Inside the body, <code>ldd ,y++</code> reads tile data
+        into D — and <strong>D is A:B</strong>, so every <code>ldd ,y++</code>
+        overwrites the loop counter with whatever low byte was just loaded.
+        For a solid-<code>$33</code> tile the counter resets to <code>$33</code>
+        every iteration, decrements to <code>$32</code>, and the loop never
+        terminates (or terminates non-deterministically based on tile
+        content). The bug was invisible to static reading and produced
+        confusing partial-render symptoms that varied by tile data.
+      </p>
+      <p>
+        <strong>Fix used in <code>blit_tile</code>:</strong> compute
+        <code>leau 32,y</code> before the loop (sentinel = end of tile data),
+        <code>pshs u</code>, then <code>cmpy ,s</code> / <code>blo btrow</code>
+        for loop control. Y is the natural cursor and Y vs ,s is unaffected
+        by <code>ldd</code>. Costs 2 stack bytes, returns them with
+        <code>leas 2,s</code>.
+      </p>
+      <p>
+        <strong>Why:</strong> the 6809 D register is the concatenation A|B;
+        any 16-bit load through D destroys both halves.
+      </p>
+      <p>
+        <strong>Applies to:</strong> any tight blit/copy loop that uses
+        <code>ldd ,y++</code> or <code>ldd ,x++</code> for the data and B
+        for iteration counting. Use a stack/memory sentinel or use Y/X
+        comparison instead.
+      </p>
+      <p>
+        <strong>Citation:</strong> <code>src/main.s</code> <code>blit_tile</code>;
+        debugged in the 2026-05-08 session.
+      </p>
+    </section>
+
+    <section>
+      <h2>XRoar cartridge-window reads are not uniformly cart-backed</h2>
+      <p>Filed 2026-05-10; expanded 2026-05-12.</p>
+      <p>
+        Under XRoar 1.10, a minimal cartridge probe that read
+        <code>$C000-$C0FF</code> before writing that range found exactly
+        three bad reads: <code>$C0D9</code> expected <code>$00</code> but
+        read <code>$7E</code>, <code>$C0DA</code> expected <code>$00</code>
+        but read <code>$E2</code>, and <code>$C0DB</code> expected
+        <code>$00</code> but read <code>$9D</code>. The main boot copy
+        showed the same failure shape: the copy loop loaded <code>02 7E</code>
+        at <code>$C0D8</code> and <code>E2 9D</code> at <code>$C0DA</code>,
+        so the RAM-under-ROM copy faithfully stored bad source bytes.
+        Patching Init0, using explicit <code>-cart-type rom</code>, and
+        changing <code>LDD/STD</code> to byte <code>LDA/STA</code> did not
+        change the result.
+      </p>
+      <p>
+        On 2026-05-12, <code>src/rom_probe.s</code> was extended to read the
+        full <code>$C000-$FEFF</code> range. With a 16 KB probe ROM padded
+        with <code>$FF</code>, XRoar/GDB reported <code>$50</code>
+        mismatches: the known <code>$C0D9-$C0DB</code> bytes,
+        <code>$C8B4-$C8BE</code> reading <code>$12</code> instead of
+        <code>$FF</code>, and <code>$E000-$E042</code> reading non-cart ROM
+        bytes instead of <code>$FF</code>. Live GDB reads confirmed
+        <code>$C14B+</code> cartridge padding is visible as <code>$FF</code>,
+        so the later mismatches are not a probe-padding error.
+      </p>
+      <p>
+        <strong>Why:</strong> confirmed as XRoar cartridge-window
+        mapping/read behaviour on this boot path, not a post-copy overwrite
+        and not a word-copy instruction issue.
+      </p>
+      <p>
+        <strong>Applies to:</strong> boot self-copy from <code>$C000-$FEFF</code>.
+        Keep <code>$C0D9-$C0DB</code> unused as before; do not assume
+        <code>$E000+</code> is cart-backed under this XRoar
+        <code>-cart-type rom</code> path without further emulator/source
+        investigation.
+      </p>
+      <p>
+        <strong>Citation:</strong> <code>src/rom_probe.s</code>;
+        <code>src/main.s</code> boot copy skip; debugged with XRoar GDB
+        traps on 2026-05-10.
+      </p>
+    </section>
+
+    <section>
+      <h2>Cart-shadow self-copy is a no-op under XRoar 1.10 — we execute from cart ROM throughout</h2>
+      <p>
+        Filed 2026-05-15. Four-pass gdb-mcp investigation in
+        <a href="../backlog/cart-ram-corruption.html">backlog/cart-ram-corruption</a>
+        settled this empirically.
+      </p>
+      <p>
+        The boot model from <a href="./memory-map.html">memory-map</a> —
+        "self-copy <code>$C000-$FEFF</code> to shadow RAM, flip TY=1, run
+        from RAM" — does not describe how XRoar 1.10 actually runs our
+        cart. Cold-start probes show cart bytes accessible at
+        <code>$C000-$FDFF</code> from before the self-copy runs and
+        continuing past <code>sta SAM_ALLRAM</code>. The self-copy's
+        <code>std ,x</code> writes for x in <code>$C000-$FDFE</code> go to
+        <code>cart_rom_write</code> (a no-op on a read-only
+        <code>rombank_d8</code>) and skip the RAM-write path because the
+        GIME decode returns RAS=0 for that range pre-SAM_ALLRAM. We have
+        been running directly from cart ROM through both halves of the
+        boot. The Phase 2.1 "wrote a marker, flipped TY, read it back"
+        verification is consistent with this — it cannot distinguish
+        "shadow RAM works" from "XRoar serves cart bytes regardless of TY".
+      </p>
+      <p>
+        <code>$FE00-$FEFF</code> is the exception: MC3=1 forces RAS=1 in
+        the inner decode, so reads and writes hit bank-0 RAM symmetrically.
+        The IRQ jump-table slots ARE RAM-backed.
+      </p>
+      <p>
+        <strong>Why:</strong> XRoar's <code>coco3.c read_byte</code> /
+        <code>write_byte</code> use a <code>S=1 (CTS), RAS=0</code> path
+        for the cart window under our boot state; the <code>if (RAS)</code>
+        RAM-overlay block is skipped on reads and writes.
+        <code>cart_rom_write → rombank_d8</code> is read-only. So nothing
+        the boot does to <code>$C000-$FDFF</code> ever reaches RAM, and the
+        bytes we read there come straight from cart ROM.
+      </p>
+      <p><strong>Applies to:</strong></p>
+      <ul>
+        <li>Don't put self-modifying code at <code>$C000-$FDFF</code> — it will silently fail on XRoar.</li>
+        <li>Don't expect runtime-mutable data tables in that range under emulation.</li>
+        <li>The <code>org $C0DC</code> workaround for the XRoar bad-window quirk is still correct, but its rationale shifts: those bad bytes are bad in cart space, not in some post-copy RAM image.</li>
+        <li>Real-hardware behavior is unverified. The arcade-fidelity boot design is preserved in source — leave the self-copy in place so it works correctly on hardware (Phase 10) — but treat it as dead code when reasoning about XRoar runs.</li>
+        <li>Trust empirical gdb-mcp probes over XRoar source review for GIME questions; the source has a known decode gap we couldn't fully resolve (see <a href="./memory-map.html">memory-map §Open items</a>).</li>
+      </ul>
+      <p>
+        <strong>Citation:</strong>
+        <a href="../backlog/cart-ram-corruption.html">backlog/cart-ram-corruption</a>
+        (third and fourth gdb-mcp passes); <code>src/main.s</code>
+        cart-shadow loop at lines 102-118; XRoar source under
+        <code>docs/reference/xroar/src/{tcc1014/tcc1014.c, coco3.c, cart.c, rombank.h}</code>.
+      </p>
+    </section>
+
+    <section>
+      <h2>XRoar gdb readback of GIME write-only registers</h2>
+      <p>Filed 2026-05-16.</p>
+      <p>
+        XRoar's gdb stub does <strong>not</strong> snoop write-only register
+        writes. Reads of <code>$FF90</code> and <code>$FF98..$FF9E</code>
+        all return the same fixed sentinel byte <code>$1B</code> regardless
+        of what the program wrote — confirmed against a running
+        <code>build/diag.rom</code> (built from <code>src/diag_minimal.s</code>)
+        after it wrote <code>$FF90=$08, $FF98=$80, $FF99=$1E, $FF9A=$28,
+        $FF9D=$E4, $FF9E=$00</code> and halted in its <code>bra halt</code>
+        self-loop. The gdb channel itself is sound: the 16-byte palette at
+        <code>$FFB0..$FFBF</code> reads back byte-for-byte, and the PARs at
+        <code>$FFA0..$FFA7</code> return the GIME reset state
+        <code>38 39 3A 3B 3C 3D 3E 3F</code> (linear-64K mapping; PARs are R/W).
+      </p>
+      <p>
+        <strong>Why:</strong> real GIME registers in the
+        <code>$FF90/$FF98..$FF9E</code> block are write-only; XRoar's stub
+        does not maintain a shadow on the host side, so reads pass through
+        to whatever the emulator returns for inaccessible bus addresses
+        (here, a fixed <code>$1B</code>). Same as on real hardware — there
+        is no readback path in silicon either.
+      </p>
+      <p>
+        <strong>Applies to:</strong> WS-A of the
+        <a href="./emulator-monitor-tester.html">emulator-monitor-tester</a>
+        initiative — the decision gate between strategy options 1/2/3 for
+        GIME-state visibility. <strong>Option 1 (DirectReadStrategy) is
+        not viable on XRoar.</strong> Decision: WS-A adopts
+        <strong>Option 2 (ProgramStateStrategy)</strong> — the tester ROM
+        exports <code>tester_mode_idx</code> + <code>tester_mode_table</code>
+        symbols and the backend reads program state via those symbols.
+        Option 3 (software shadow block) remains available for future
+        generalization but is not needed for the tester.
+      </p>
+      <p>
+        <strong>Citation:</strong> probe script
+        <code>web/scripts/probe_gime_readback.py</code>; writes performed
+        at <code>src/diag_minimal.s:39-93</code>; strategy table in
+        <a href="./emulator-monitor-tester.html">emulator-monitor-tester §WS-A</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>XRoar gdb stub is hostile to mid-run inspection</h2>
+      <p>Filed 2026-05-16.</p>
+      <p>
+        Three observed behaviors that constrain how we write gdb-driven
+        probes against an XRoar instance:
+      </p>
+      <ol>
+        <li>
+          <strong><code>-exec-interrupt</code> is not honored while the
+          target is free-running.</strong> The MI command sits without
+          reply, eventually timing out at gdb's wait. Bug or stub
+          limitation — unclear. Workaround: use a halt-on-<code>*stopped</code>
+          mechanism (breakpoint) rather than asynchronous interruption.
+        </li>
+        <li>
+          <strong>Hardware breakpoints "loop" when set at the address the
+          target is already halted on.</strong> Setting
+          <code>-break-insert -h *0xC067</code> while halted at
+          <code>$C067</code>, then <code>-exec-continue</code>, returns
+          <code>*stopped</code> immediately at <code>$C067</code> again
+          without the target executing the instruction. Workaround: only
+          set BPs at addresses different from current PC, or single-step
+          (<code>-exec-step-instruction</code>) past the BP before continuing.
+        </li>
+        <li>
+          <strong>Detaching and reattaching does not work — XRoar's stub
+          seems to accept only one gdb connection per launch.</strong>
+          <code>target remote</code> on the second attempt hangs with no
+          <code>*stopped</code>. So "free-run, sleep, reattach to inspect"
+          is not viable; verification scripts have to do all their
+          inspection in a single session.
+        </li>
+      </ol>
+      <p>
+        <strong>Why it matters:</strong> rules out several intuitive
+        patterns for verification probes. The probes under
+        <code>web/scripts/</code> are written around these constraints —
+        they sample state on the attach-halt and accept reduced coverage of
+        mid-run behavior. Mid-run verification of game-loop transitions
+        (dirty-flag redraws, key dispatch effects) is deferred to UI-level
+        manual testing.
+      </p>
+      <p>
+        <strong>Citation:</strong> observed during the WS-A milestone-2
+        verification probe (<code>web/scripts/probe_tester_m2.py</code>,
+        2026-05-16); related to the <em>cart-shadow self-copy is a no-op</em>
+        finding which already constrains software-BP behavior in cart ROM.
+      </p>
+    </section>
+
+    <section>
+      <h2>XRoar GIME palette readback OR's <code>$C0</code> into the upper 2 bits</h2>
+      <p>Filed 2026-05-16.</p>
+      <p>
+        Reading <code>$FFB0-$FFBF</code> returns each programmed 6-bit
+        palette value with <code>$C0</code> set in the upper two bits. E.g.,
+        writing <code>$00</code> then reading returns <code>$C0</code>;
+        writing <code>$3F</code> reads as <code>$FF</code>. The lower 6
+        bits are accurate.
+      </p>
+      <p>
+        <strong>Why:</strong> GIME palette registers are documented as
+        6-bit; the upper 2 bits are "don't care" on read. XRoar's stub
+        fills those with <code>1</code> bits. Not a bug — just a readback
+        quirk to mask for.
+      </p>
+      <p>
+        <strong>Applies to:</strong> any palette validation /
+        <code>gime_state.py</code> decoder logic — mask with
+        <code>&amp; 0x3F</code> before comparing to expected RGB codes.
+      </p>
+      <p>
+        <strong>Citation:</strong> observed during WS-A milestone-2
+        verification probe.
+      </p>
+    </section>
+
+    <section>
+      <h2>XRoar cart-window write decode — root cause of the cart-shadow no-op</h2>
+      <p>
+        Filed 2026-05-16. Refines the earlier 2026-05-15 <em>Cart-shadow
+        self-copy is a no-op under XRoar 1.10</em> entry by naming the
+        precise cause from source review.
+      </p>
+      <p>
+        Traced through <code>docs/reference/xroar/src/</code> for a CPU-space
+        write at <code>$C100</code> with <code>TY=0</code> (cart attached)
+        under our boot state:
+      </p>
+      <ol>
+        <li>
+          <code>tcc1014/tcc1014.c:711-739</code> — GIME address decode:
+          <code>bank = 0x38 | (A&gt;&gt;13) = 0x3E</code>. Line 729 branch
+          <code>!TY &amp;&amp; bank &gt;= 0x3c</code> is taken, setting
+          <code>S=1</code> (CTS, cart). <strong><code>RAS</code> stays at
+          its line 712 init value of <code>0</code></strong> — line 736
+          (the <code>else</code> branch that sets <code>RAS=1</code>) is
+          not reached.
+        </li>
+        <li>
+          <code>coco3.c:1170-1240</code> — <code>write_byte</code>
+          dispatches on <code>S</code>. With <code>S=1</code> it calls
+          <code>cart-&gt;write</code> (<code>cart.c:955-959</code>), which
+          for a ROM-type cart routes to <code>rombank_d8</code>
+          (<code>rombank.h:102-107</code>) — a no-op on a read-only bank.
+        </li>
+        <li>
+          Line 1227 in <code>coco3.c</code> is
+          <code>if (mcc3-&gt;GIME-&gt;RAS) { ram_write }</code>.
+          <strong><code>RAS=0</code> → RAM-overlay write skipped.</strong>
+          No write reaches RAM.
+        </li>
+      </ol>
+      <p>
+        <code>$FE00–$FEFF</code> writes work only when <code>MC3=1</code>;
+        that path at <code>tcc1014.c:720-723</code> fires before the
+        TY/cart logic and forces <code>RAS=1</code>, sidestepping
+        suppression. Outside that 256-byte window there is no other code
+        path that writes RAM while the cart S-line is selected.
+      </p>
+      <p>
+        The author's comment at <code>coco3.c:1242-1253</code> acknowledges
+        the bus simplification: <em>"Of course, I do none of that here …
+        Good enough?"</em>
+      </p>
+      <p>
+        <strong>Why:</strong> XRoar implements ROM/CTS selection via the
+        <code>S</code> signal and the <code>MC3</code> override for
+        <code>$FE00-$FEFF</code>, but does <strong>not</strong> implement
+        the CoCo 3's documented RAM-under-ROM write-through for the wider
+        <code>$C000-$FDFF</code> range under <code>TY=0</code>. Cart-window
+        writes are dispatched to ROM (no-op), not parallel-written to
+        underlying RAM.
+      </p>
+      <p>
+        <strong>Verdict:</strong> Intentional simplification in XRoar, not
+        a bug, and <strong>not faithful to real CoCo 3 silicon</strong> —
+        which accepts writes into DRAM regardless of TY (the SAM/GIME's ROM
+        redirect is read-only; writes always reach physical RAM).
+      </p>
+      <p><strong>Applies to:</strong></p>
+      <ul>
+        <li>Confirms the <a href="./xroar-monitor.html">XRoar monitor protocol's</a> physical-space write API as the correct primitive: it bypasses XRoar's bus decode and writes the emulator's RAM array at the 19-bit physical address. That lets the monitor honor hardware semantics even where XRoar diverges.</li>
+        <li>CPU-space writes to ROM-backed addresses should return <code>read_only_region</code> (predictable, matches what XRoar will do regardless).</li>
+        <li>Real-hardware behavior of the same path is unverified — Phase 10. A MAME comparison test (<a href="../backlog/mame-cart-ram-comparison.html">backlog/mame-cart-ram-comparison</a>) is filed to cross-check before then.</li>
+      </ul>
+      <p>
+        <strong>Citation:</strong> XRoar 1.10 source —
+        <code>tcc1014.c:711-739</code>, <code>coco3.c:1170-1253</code>,
+        <code>cart.c:955-959</code>, <code>rombank.h:102-107</code>.
+        Investigation logged 2026-05-16 during XRoar monitor Phase 1
+        requirements work.
+      </p>
+    </section>
+
+    <section>
+      <h2>Nested Unix repo on Windows: disable <code>core.autocrlf</code> before WSL build</h2>
+      <p>Filed 2026-05-17 during Phase 3 M1 XRoar bring-up.</p>
+      <p>
+        The nested XRoar checkout under <code>docs/reference/xroar/</code>
+        was cloned on Windows with the global default
+        <code>core.autocrlf=true</code>, which rewrites LF→CRLF in the
+        working tree. The first WSL build attempt died immediately:
+      </p>
+<pre><code>$ ./autogen.sh
+bash: ./autogen.sh: /bin/sh^M: bad interpreter: No such file or directory
+</code></pre>
+      <p>
+        <code>autogen.sh</code>, <code>configure</code>, libtool helpers,
+        and many other shell scripts in autotools projects are sourced as
+        <code>/bin/sh</code> under WSL — CRLF line endings make the kernel
+        try to load <code>/bin/sh\r</code> as the interpreter, which
+        doesn't exist.
+      </p>
+      <p><strong>Fix (per nested repo):</strong></p>
+<pre><code>git config core.autocrlf false
+git rm --cached -rq .
+git reset --hard HEAD
+</code></pre>
+      <p>
+        This is local to the nested repo, so the parent Ladybug repo's
+        autocrlf behavior is unchanged. After the reset, <code>file
+        autogen.sh</code> reports <code>POSIX shell script, ASCII text
+        executable</code> (no CRLF) and the build proceeds.
+      </p>
+      <p>
+        <strong>Why:</strong> Windows-native git tooling treats LF/CRLF as
+        a presentation concern, but Linux interpreters treat <code>\r</code>
+        as part of the path. WSL bridges both worlds, so any nested repo
+        whose build runs under WSL must keep LF endings on disk.
+      </p>
+      <p>
+        <strong>Applies to:</strong> any nested third-party Unix project
+        we vendor for WSL build (currently just XRoar; future candidates:
+        MAME for the cart-RAM comparison test). Set
+        <code>core.autocrlf=false</code> at clone time.
+      </p>
+      <p>
+        <strong>Citation:</strong> XRoar bring-up under WSL,
+        <a href="../log.html">log.html 2026-05-17 entry</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Format for future entries</h2>
+<pre><code>&lt;h2&gt;Short title&lt;/h2&gt;
+&lt;p&gt;Filed YYYY-MM-DD.&lt;/p&gt;
+
+&lt;p&gt;One-paragraph claim — what was learned, what surprised us, what to avoid or repeat.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;Why:&lt;/strong&gt; root cause or rationale&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Applies to:&lt;/strong&gt; code area / decision / module&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Citation:&lt;/strong&gt; file:line or wiki page&lt;/p&gt;
+</code></pre>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Append-only. Add new lessons at the bottom of the most appropriate
+        cluster, or as a new <code>&lt;section&gt;</code> if the topic is
+        standalone.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cartridge boot strategy — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Platform</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · platform</p>
+      <h1>Cartridge — boot strategy <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        How Ladybug as a ROM cartridge takes control on power-on, current
+        cart-size decision, and the boot-time sequence.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        The 40-pin cartridge edge pinout and the CART → PIA2 CB1 → FIRQ
+        auto-start handshake are reference content — see
+        <a href="../../release/reference/coco3/cartridge.html">release/reference/coco3/cartridge</a>.
+        This page records project-specific decisions on top of that.
+      </p>
+    </section>
+
+    <section>
+      <h2>Boot handshake — verified</h2>
+      <p>
+        <strong>Verified Phase 0 (2026-05-08)</strong> — <code>FCC "DK"</code>
+        followed by entry code at <code>$C002</code> works as written under
+        XRoar with <code>-cart-autorun</code>. See
+        <a href="../implementation/lessons-learned.html">lessons-learned</a>
+        §Phase 0.
+      </p>
+    </section>
+
+    <section>
+      <h2>Cart size — 16 K (current); 32 K and bank-switched options deferred</h2>
+      <p>
+        <strong>Decision (2026-05-08, revised same day): 16 K cartridge for
+        development.</strong>
+      </p>
+      <p>
+        Initially retargeted to 32 K (Init0 b1-b0 = <code>11</code>) when
+        ROM-budget analysis suggested 4bpp sprite data would push past 16 K,
+        but reverted after Phase 2.1 testing showed XRoar's
+        <code>-cart-rom</code> handling of 32 K files is unverified —
+        <code>-cart-rom</code> is documented only as "mapped from
+        <code>$C000</code>" and our experimental 32 K cart didn't
+        autostart, consistent with XRoar truncating to the lower 16 K of
+        the file. Rather than detour into XRoar source-code investigation
+        or XRoar <code>-cart-type gmc</code> rework now, we proceed at 16 K
+        until we have real ROM-size numbers.
+      </p>
+      <p><strong>The expansion path is documented and held in reserve:</strong></p>
+      <ul>
+        <li>
+          <strong>32 K via Init0 b1-b0 = <code>11</code>.</strong> GIME-native
+          32 K cart mode. Cart visible at <code>$8000-$FEFF</code> after our
+          boot enables it. Requires (a) cart hardware that decodes the wider
+          range, and (b) emulator support that we haven't confirmed.
+          Validate at Phase 4 if needed.
+        </li>
+        <li>
+          <strong>Software bank-switched cart.</strong> Two or more 16 K
+          banks of ROM, standard <code>$C000-$FEFF</code> window. Software
+          writes a bank-select register to swap. Universally supported
+          (XRoar <code>-cart-type gmc</code>, CoCoSDC, multi-pak, custom
+          hardware). ~half-day refactor — touches only the boot data-copy
+          phase, since runtime is all-RAM regardless. Default fallback if
+          16 K is insufficient.
+        </li>
+      </ul>
+      <p>
+        <strong>Trigger for the pivot:</strong> Phase 4 sprite-arithmetic
+        gate, when <code>120 sprites × 128 B at 4bpp</code> (or compressed
+        equivalent) plus code, tiles, font, palette, maze, and sound is
+        measured against 16 K.
+      </p>
+      <p><strong>Cart layout in the 16 K image:</strong></p>
+<pre><code>file offset   virtual    purpose
+$0000-$3EFF   $C000-$FEFF   "DK" magic, entry, code, all data tables
+              $FF00-$FFFF   not in cart (dedicated I/O / vectors)
+</code></pre>
+      <p>
+        Cart hardware: standard 16 K EPROM cart shell. CoCoSDC and similar
+        work natively. The ~256 bytes at <code>$FF00-$FFFF</code> aren't
+        cart-visible (dedicated I/O), so the file's last 256 bytes are
+        wasted but harmless.
+      </p>
+    </section>
+
+    <section>
+      <h2>What our boot must do</h2>
+      <p>Once we have control at <code>$C002</code>:</p>
+      <ol>
+        <li><code>ORCC #$50</code> — mask IRQ and FIRQ.</li>
+        <li>Set <code>S</code> to the top of our work RAM.</li>
+        <li>Disable PIA-driven interrupts and bleed any pending flags.</li>
+        <li>Configure GIME Init0: clear bit 7 (hi-res), enable MMU, set bit 3 so <code>$FE00-$FEFF</code> is always reachable, set bit 5 to enable ACVC IRQs. Then clear/blank the screen buffer with CRES=11 while we initialise.</li>
+        <li>Self-copy <code>$C000-$FEFF</code> to shadow RAM beneath the cart (verified 2026-05-08 — see <a href="../implementation/memory-map.html">memory-map §Boot data-copy procedure</a>). Note this is empirically a no-op under XRoar 1.10 — see <a href="../implementation/lessons-learned.html">lessons-learned</a>.</li>
+        <li>Switch to all-RAM mode (write to <code>$FFDF</code>). Cart ROM disconnects; phys <code>$3E-$3F</code> is now the RAM we just wrote.</li>
+        <li>Switch to fast clock (write to <code>$FFD9</code>).</li>
+        <li>Load our palette (<code>$FFB0-$FFBF</code>).</li>
+        <li>Install our IRQ handler in the primary jump table at <code>$FEF7</code> (<code>JMP</code> extended), write <code>$FF92</code> bit 3 to enable Vbord.</li>
+        <li><code>ANDCC #$EF</code> — unmask IRQ. Enter main loop.</li>
+      </ol>
+      <p>
+        Phase 1 implements steps 1-3 and 6-10 (with a Phase-1 simplification
+        of step 4: no MMU, no hi-res, no palette). Phase 2.2 adds step 5
+        (the cart-to-RAM self-copy). Phase 2.3+ does the full step 4, plus 8.
+      </p>
+      <p>
+        Every step has a citation in
+        <a href="../sources/coco3-asm-tepolt.html">coco3-asm-tepolt</a>
+        chapters 6-7.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <a href="../sources/coco-asm-tepolt.html">coco-asm-tepolt</a> ch. 10
+        (cartridge connector pinout, CART/FIRQ wiring);
+        <a href="../sources/coco3-asm-tepolt.html">coco3-asm-tepolt</a>
+        ch. 7 (reset init flow, jump tables).
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

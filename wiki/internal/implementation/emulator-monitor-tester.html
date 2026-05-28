@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Emulator-Monitor Tester — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation · decision</p>
+      <h1>Emulator-Monitor Tester — requirements <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Four-workstream initiative pairing a switchable 6809 tester ROM
+        with web-app features (live FB rendering, mapped memory regions,
+        step-synchronized panels) to drive emulator/hardware bring-up and
+        palette/mode experiments.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        A development platform — <em>not</em> the Ladybug game — for
+        exercising the CoCo 3 hardware envelope and the web-app monitor in
+        parallel. Seeded from <code>src/diag_minimal.s</code> (the working
+        16-stripe minimal hi-res cart from 2026-05-16). Lives alongside
+        the game ROM; does not modify it.
+      </p>
+    </section>
+
+    <section>
+      <h2>Why a separate tester</h2>
+      <ul>
+        <li>Phase 2.x main.s has a confirmed FB-render regression (<a href="../backlog/phase2-fb-render-regression.html">backlog/phase2-fb-render-regression</a>). A clean minimal cart side-steps that while we iterate on the web app.</li>
+        <li>The mode/palette/pattern space is large and not arcade-relevant for most of it. Exercising it inside main.s would bloat the game ROM.</li>
+        <li>The web app needs a reliable, <em>known-state</em> target to validate live FB rendering, mode resolution, and the regions feature against.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Workstreams</h2>
+
+      <h3>WS-A — Tester ROM v0 + GIME-state visibility probe</h3>
+      <p><strong>DECIDED.</strong></p>
+      <ul>
+        <li>Input: <strong>keyboard, key-per-option</strong> (number row for modes, letter row for patterns).</li>
+        <li>HUD: <strong>none on-screen</strong>. Current selection visible only in the web app.</li>
+        <li>Run model: <strong>continuous main loop + 60 Hz Vbord IRQ.</strong></li>
+        <li>v0 pattern catalogue: <strong>horizontal bars + checkerboard.</strong></li>
+        <li>v0 mode: <strong>320×192×16 only</strong> (CRES=10, HRES=7, VRES=00). The mode matrix expands in WS-D.</li>
+      </ul>
+
+      <p><strong>GIME-state visibility — three options:</strong></p>
+      <table class="wiki-table">
+        <thead><tr><th>Option</th><th>If probe says...</th><th>Cost</th></tr></thead>
+        <tbody>
+          <tr><td>1. Direct read of <code>$FF9x</code> via gdb-mcp</td><td>XRoar returns last-written values for write-only regs</td><td>free; XRoar-only</td></tr>
+          <tr><td>2. Read tester program state (mode-index + table at known symbol)</td><td>XRoar returns garbage</td><td>small; real-hardware-compatible</td></tr>
+          <tr><td>3. Software shadow block</td><td>(always available)</td><td>most invasive; real-hardware-compatible</td></tr>
+        </tbody>
+      </table>
+      <p>
+        <strong>Resolved 2026-05-16: Option 2 (ProgramStateStrategy).</strong>
+        XRoar's gdb stub returns sentinel <code>$1B</code> for every read of
+        <code>$FF90</code> and <code>$FF98..$FF9E</code> regardless of
+        writes; palette and PARs read back correctly so the channel is
+        sound. Probe artifact: <code>web/scripts/probe_gime_readback.py</code>.
+      </p>
+
+      <h3>WS-B — Live framebuffer renderer (done 2026-05-17)</h3>
+      <p>
+        See log entry 2026-05-17 "Phase 4 WS-B". Two architect-pass
+        decisions revised at landing time:
+      </p>
+      <ul>
+        <li><strong><code>ReadStrategy</code> protocol collapsed.</strong> M3's <code>read_gime_state</code> returns the GIME shadow directly; the three-strategy abstraction is moot.</li>
+        <li><strong>FB read path changed from virtual to physical.</strong> FB is now read via <code>space="physical"</strong> from <code>($FF9D&lt;&lt;11) | ($FF9E&lt;&lt;3)</code>, matching the GIME's actual hardware video pointer.</li>
+      </ul>
+
+      <h4>WS-B — original requirements (preserved for traceability)</h4>
+      <ul>
+        <li>Palette decode: <strong>RGB monitor</strong> (<code>palette.decode_rgb_monitor</code>).</li>
+        <li>New backend module: <code>web/backend/gime_state.py</code>.</li>
+        <li>Trigger: <strong>on <code>ws:halt</code></strong>, frontend already polls <code>/api/instances/{id}/framebuffer.png</code>.</li>
+        <li>Free-run rendering: <strong>optional poll</strong> at ~500 ms during free-run. Default off.</li>
+        <li>Unsupported modes: return placeholder PNG.</li>
+      </ul>
+
+      <h3>WS-C — Mapped memory regions (done 2026-05-17)</h3>
+      <p>
+        See log entry 2026-05-17 "Phase 4 WS-C". Two decisions taken at
+        landing time:
+      </p>
+      <ul>
+        <li><strong>Naming-collision resolution.</strong> The existing <code>web/backend/regions.py</code> (static 6809 hardware-region map) was renamed to <code>web/backend/memory_map.py</code>. The architect-approved name <code>regions.py</code> is now the user-defined region module. The <code>/api/regions</code> URL is preserved for frontend back-compat.</li>
+        <li><strong>Config identity.</strong> <code>config_id</code> derives from the rom_path filename stem. All instances of the same ROM share a region set.</li>
+      </ul>
+      <p>v0 ships hex-dump viewer only.</p>
+
+      <h4>WS-C — original requirements (preserved for traceability)</h4>
+      <ul>
+        <li>Persistence: <strong>per-config</strong> (regions attach to <code>web/configs/&lt;id&gt;.json</code>).</li>
+        <li>Definition modes: fixed <code>addr + length</code>; <code>Symbol + offset + length</code>; <code>Follow pointer at addr</code>.</li>
+        <li>Auto-refresh: <strong>every halt</strong> (visible regions only).</li>
+        <li>Max size: <strong>32 KB per region.</strong></li>
+        <li>Viewer formats: <strong>extensible plugin convention.</strong> Hex dump is the always-on baseline.</li>
+      </ul>
+
+      <h3>WS-D — Tester mode/pattern matrix expansion (partial 2026-05-18)</h3>
+      <p>
+        v0 landed: mode-switch infrastructure + 320×192×4 hi-res 4-color
+        mode (mode 1). No new patterns this round.
+      </p>
+      <p><strong>Mode-table schema extension.</strong> Record grew 5 → 8 bytes:</p>
+      <ul>
+        <li><code>TM_BPR</code> (bytes per row, u8)</li>
+        <li><code>TM_LINES</code> (lines per frame)</li>
+        <li><code>TM_BPP</code> (bits per pixel: 1, 2, or 4)</li>
+      </ul>
+      <p>
+        <strong>Pattern-renderer contract change.</strong>
+        <code>draw_current_pattern</code> now receives X = pointer to the
+        active mode record. Inside each pattern handler, an internal bpp
+        dispatcher (<code>pat_&lt;name&gt;_draw</code> →
+        <code>pat_&lt;name&gt;_4bpp</code> / <code>pat_&lt;name&gt;_2bpp</code>)
+        selects the variant.
+      </p>
+      <p><strong>Key binding.</strong> Number-row '2' → select mode 1. Mode 0 remains '1'.</p>
+      <p>
+        <strong>What's NOT in v0:</strong> hi-res 4-color at 640 wide,
+        hi-res monochrome, hi-res text, the 16-color stripe diagnostic,
+        per-color solid fill sweep.
+      </p>
+
+      <h4>WS-D — original requirements (preserved for traceability)</h4>
+      <ul>
+        <li>Mode families in scope: hi-res 16-color (CRES=10), hi-res 4-color (CRES=01), hi-res monochrome (CRES=00), hi-res text (BP=0).</li>
+        <li>Resolution sweep: HRES 4-7, VRES 192/200/225 where applicable.</li>
+        <li>Mode-switch atomicity: <strong>blank via CRES=11</strong> during reconfiguration.</li>
+      </ul>
+
+      <h3>Cross-cutting — step-sync</h3>
+      <p>
+        All reactive panels refresh on every <code>ws:halt</code>, including
+        each <code>-exec-step</code>. The 30 KB FB read per step is
+        accepted.
+      </p>
+    </section>
+
+    <section>
+      <h2>Scope approvals (granted by user)</h2>
+      <ul>
+        <li>New build target: <strong><code>build/tester.rom</code></strong> via a <code>tester</code> action in <code>scripts/build.sh</code>.</li>
+        <li>New backend module: <strong><code>web/backend/regions.py</code></strong>.</li>
+        <li>New backend module: <strong><code>web/backend/gime_state.py</code></strong>.</li>
+        <li>New frontend component: <strong><code>web/frontend/components/memory-regions.js</code></strong>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Explicitly out of scope</h2>
+      <ul>
+        <li>Modifications to Ladybug game ROM behavior.</li>
+        <li>Composite-NTSC palette rendering (closed; RGB is canonical).</li>
+        <li>Time-travel / reverse-step.</li>
+        <li>Native-hardware verification of the tester (XRoar-only for v1).</li>
+        <li>Snapshot save/load integration with the tester.</li>
+        <li>Project-wide application of the shadow-register convention to Ladybug-proper.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Sequencing</h2>
+      <ol>
+        <li><strong>Probe</strong> (gates everything): empirical <code>$FF98/9</code> read test. <strong>Resolved 2026-05-16: Option 2.</strong></li>
+        <li><strong>WS-A</strong>: tester v0 ROM.</li>
+        <li><strong>WS-B</strong>: live FB renderer.</li>
+        <li><strong>WS-C</strong>: regions feature. Can parallelize with WS-D after WS-A.</li>
+        <li><strong>WS-D</strong>: mode-matrix expansion.</li>
+      </ol>
+      <p>Each WS closes in <code>qa-reviewer</code>.</p>
+    </section>
+
+    <section>
+      <h2>WS-A architect-pass decisions (2026-05-16)</h2>
+
+      <h3>Probe</h3>
+      <ul>
+        <li><strong>Tool:</strong> <code>web/scripts/probe_gime_readback.py</code> (~50 lines). Migrated 2026-05-17 to <code>MonitorSession</code> against <code>xroar-monitor</code>; verdict reproduces identically.</li>
+        <li><strong>Stimulus:</strong> an already-running <code>diag_minimal.rom</code> instance.</li>
+        <li><strong>Reads:</strong> <code>$FF98-$FF9E</code> (the question), <code>$FFB0-$FFBF</code> palette and <code>$FFA0-$FFA7</code> PARs (controls).</li>
+      </ul>
+
+      <h3>WS-A tester ROM v0 — structure</h3>
+      <p><strong>Subtree from day one:</strong> <code>src/tester/</code>.</p>
+<pre><code>src/tester/
+├── tester.s          top-level: boot, mainloop, includes the rest
+├── dp.inc            DP slot equates ($0200..)
+├── input.s           kbd_scan_and_dispatch, key_table
+├── render.s          redraw_with_blank, draw_current_pattern, pattern jump table
+├── pat_bars.s        horizontal-bar renderer (lift from diag_minimal)
+├── pat_check.s       checkerboard renderer
+└── modes.inc         tester_mode_table (one entry in v0; grows in WS-D)
+</code></pre>
+
+      <p><strong>DP page</strong> ($02): 13 bytes, all named symbols emitted to <code>build/tester.map</code>:</p>
+      <table class="wiki-table">
+        <thead><tr><th>Symbol</th><th>Addr</th><th>Size</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><code>tester_mode_idx</code></td><td><code>$0200</code></td><td>1</td><td>read by web app (option 2)</td></tr>
+          <tr><td><code>tester_pattern_idx</code></td><td><code>$0201</code></td><td>1</td><td></td></tr>
+          <tr><td><code>tester_selection_dirty</code></td><td><code>$0202</code></td><td>1</td><td>IRQ sets, mainloop clears</td></tr>
+          <tr><td><code>tester_kbd_prev</code></td><td><code>$0203-$020A</code></td><td>8</td><td>edge-detection state</td></tr>
+          <tr><td><code>tester_frame_ctr</code></td><td><code>$020B-$020C</code></td><td>2</td><td>60 Hz tick, debug</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Build target</h3>
+      <p>Add to <code>scripts/build.sh</code>:</p>
+      <ul>
+        <li><code>cmd_tester</code> — assembles <code>src/tester/tester.s</code> → <code>build/tester.rom</code> + <code>.map</code> + <code>.lst</code>, pads to 16 KB.</li>
+        <li><code>cmd_tester_run</code> — <code>cmd_tester</code> then xroar.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Wiki gaps flagged (not blocking)</h2>
+      <ul>
+        <li>Exact <code>Init0</code> bit 5 × bit 7 interaction. Assumed independent.</li>
+        <li>Whether <code>$FF92</code> read is well-defined when ACVC-IRQ is disabled.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <a href="../tooling/web-app-architecture.html">web-app-architecture</a>;
+        <a href="../../release/reference/coco3/gime.html">GIME</a>;
+        <a href="./video-mode.html">video-mode</a>;
+        <a href="./lessons-learned.html">lessons-learned</a>;
+        <a href="../backlog/phase2-fb-render-regression.html">backlog/phase2-fb-render-regression</a>;
+        <code>src/diag_minimal.s</code>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

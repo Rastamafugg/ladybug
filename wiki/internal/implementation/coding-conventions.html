@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coding Conventions — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation · conventions</p>
+      <h1>Coding Conventions <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Project-level 6809 assembly conventions for Ladybug, derived from
+        Dungeons of Daggorath's idioms.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        These are the conventions we adopt for Ladybug source under
+        <code>src/</code>. Most are lifted from the Dungeons of Daggorath
+        cartridge source — see <a href="../sources/dod-source.html">sources/dod-source</a>.
+        Each convention cites the DoD evidence so a future maintainer can
+        see the precedent.
+      </p>
+    </section>
+
+    <section>
+      <h2>1. Static direct page</h2>
+      <p>
+        DP is set <strong>once</strong> at boot and never changes. All hot
+        variables (per-frame state, scratch, scheduler pointers) live in a
+        single page so they get short addressing for free without any
+        per-file <code>setdp</code> directive.
+      </p>
+      <ul>
+        <li>DoD: <code>ONCE.ASM:59-60</code> — <code>LDA #2 / TFR A,DP</code>. Variables thereafter referenced by bare label, e.g. <code>RANDOM.ASM:13-27</code> using <code>SEED</code>, <code>SEED+1</code>, <code>SEED+2</code>.</li>
+        <li>For Ladybug: pick a DP page during the cartridge boot sequence (see <a href="../platform/cartridge.html">platform/cartridge</a>), document it, and never change it.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2. Module decomposition by domain</h2>
+      <p>
+        Split files by <strong>what they do</strong>, not by data type.
+        DoD's split: bootstrap, common-services / "OS layer," display,
+        text/parser, per-command player handlers, world generators, RNG,
+        static data tables.
+      </p>
+      <ul>
+        <li>DoD: <code>DAGGORATH.ASM:91-136</code> — the include order is itself documentation.</li>
+        <li>For Ladybug: keep a clear common-services layer (renderer, input, RNG, sound, scheduler) separate from per-entity game logic (bug, skull, vegetable, score-cycle).</li>
+      </ul>
+
+      <h3>File naming</h3>
+      <ul>
+        <li>6-char abbreviations, prefix-encoded domain (e.g. <code>BUG_AI.S</code>, <code>SND_FX.S</code>, <code>DAT_VEG.S</code>).</li>
+        <li>Record-field offset constants use dot notation: <code>BUG.X</code>, <code>BUG.Y</code>, <code>BUG.LEN</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>3. Table-driven dispatch and data</h2>
+      <p>
+        Wherever there's a list of "things that behave the same with
+        parameters" — commands, entities, init steps — define a record
+        format with <code>EQU</code> offsets, build a contiguous array via
+        macros, and iterate with <code>LEAX REC.LEN,X</code>.
+      </p>
+      <ul>
+        <li>DoD records: <code>P.CCROW</code>, <code>P.CCTYP</code>, <code>P.CCUSE</code>, <code>P.CCOBJ</code>, with <code>CC.LEN</code> as stride. Iteration in <code>COMCRE.ASM:67-78</code> (<code>CFIND</code>).</li>
+        <li>DoD macro-built tables: command table built by <code>CMDXXX</code> (<code>DTABAS.ASM:29-45</code>); object table by <code>GENXXX</code> / <code>OBJXXX</code>; init pairs by <code>INI</code> (<code>COMDAT.ASM:55-58</code>).</li>
+        <li>For Ladybug: bug records, vegetable cycle entries, sound-effect descriptors, and any score-cycle state belong in tables, not per-entity code.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>4. SWI as syscall layer</h2>
+      <p>
+        Hot, ubiquitous services (render, RNG, text, sound) are reached
+        through <code>SWI</code> followed by an inline parameter byte that
+        indexes a service table. Avoids long <code>JSR</code> import chains
+        and keeps per-call site one byte slimmer than a 16-bit address.
+      </p>
+      <ul>
+        <li>DoD: <code>COMSWI.ASM</code> — handler reads the parameter from <code>PC</code>, indexes <code>SWITAB</code>, jumps. Call sites look like <code>SWI / FCB &lt;SVCID&gt;</code>, e.g. <code>CRETUR.ASM:62-63</code>.</li>
+        <li>For Ladybug: candidate SWI services — <code>SVC_RENDER</code>, <code>SVC_RNG</code>, <code>SVC_PUTC</code>, <code>SVC_PLAYSFX</code>, <code>SVC_VBLANK_WAIT</code>. Decide the full table when implementing the renderer.</li>
+        <li><strong>Resolved 2026-05-08 (Phase 1 gate):</strong> no collision with the GIME interrupt path. SWI/SWI2/SWI3 vectors (<code>$FFFA/$FFF4/$FFF2</code>) are disjoint from IRQ/FIRQ vectors (<code>$FFF8/$FFF6</code>); BASIC's SWI2/SWI3 use is moot in all-RAM mode. See <a href="./lessons-learned.html">lessons-learned "SWI / IRQ vector collision"</a>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>5. Routine header contract</h2>
+      <p>
+        Every non-trivial routine starts with a banner block stating
+        <code>Inputs:</code> and <code>Returns:</code> for every register
+        and significant memory location it reads or writes. No prose
+        paragraphs in the header.
+      </p>
+      <p>DoD example, lifted verbatim from <code>COMCRE.ASM:58-65</code>:</p>
+<pre><code>;  CFIND: Find a creature based on position
+;
+;  Inputs:
+;       A - Row
+;       B - Column
+;  Returns:
+;       X - Pointer to CCB
+;       Z - condition code set if search fails
+</code></pre>
+      <p>
+        For Ladybug: same format. Title line, blank, <code>Inputs:</code>,
+        list, blank, <code>Returns:</code>, list. Side effects on memory or
+        DP variables go under a third heading <code>Side effects:</code> if
+        present.
+      </p>
+    </section>
+
+    <section>
+      <h2>6. Comment style</h2>
+      <ul>
+        <li>Section banners use a row of <code>;!</code> or <code>;</code> — DoD uses <code>;!!!!!!!!!!!</code> for top-of-file titles (<code>DAGGORATH.ASM:1-3</code>).</li>
+        <li>Inline comments aligned to a fixed column. Don't restate the opcode — annotate the <em>intent</em>.</li>
+        <li>Tag temporary scaffolding with <code>;TODO:</code> or <code>;FIXME:</code> plus a short reason.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>7. Skip these (DoD-specific)</h2>
+      <p>
+        See <a href="./lessons-learned.html">lessons-learned</a> §"DoD
+        anti-patterns" for the full list. Headlines: no tape I/O, no
+        SAM/PIA legacy init, no 3D vector-graphics macros, no 24-bit
+        fixed-point shift chains unless we add fade effects.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: <a href="../sources/dod-source.html">sources/dod-source</a>
+        — overall provenance and module map. DoD file-line citations are
+        inline above.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

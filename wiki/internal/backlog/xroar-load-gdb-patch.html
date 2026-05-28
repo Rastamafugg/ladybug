@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patch XRoar 1.10 to fix -load + -gdb — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Backlog</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Backlog · tooling / upstream patch</p>
+      <h1>Patch XRoar 1.10 to fix <code>-load &lt;snap&gt; + -gdb</code> <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Feasibility report — root cause is a missing <code>SO_REUSEADDR</code>
+        on the gdb listener, exposed by snapshot-load's machine-free-then-reinit.
+        One-line surgical fix; ~1-2 hour upstream MR.
+      </p>
+    </header>
+
+    <section>
+      <h2>Symptom</h2>
+      <p>
+        Launching XRoar with both <code>-load &lt;snapshot&gt;</code> and
+        <code>-gdb</code> results in no GDB listener — <code>target remote
+        :65520</code> from gdb fails with connection refused. The wiki
+        previously characterised this as "silently drops the gdb listener"
+        (<a href="../tooling/xroar.html">tooling/xroar</a>,
+        <a href="./cart-ram-corruption.html">cart-ram-corruption</a>).
+        Reproduction this session shows the failure is <strong>not silent</strong>
+        — XRoar logs:
+      </p>
+<pre><code>[gdb] WARNING: bind 127.0.0.1:65532 failed
+</code></pre>
+      <p>
+        The bind is attempted and rejected by the kernel. The wiki entry
+        will be corrected.
+      </p>
+    </section>
+
+    <section>
+      <h2>Root cause</h2>
+      <p>
+        The snapshot-load path destroys and rebuilds the machine, which
+        means <code>gdb_interface_new</code> runs twice — once during the
+        initial <code>xroar_hard_reset()</code>, once during the
+        deserialised machine's <code>coco3_init()</code>. The first listener
+        is closed correctly, but <strong>the listening socket is never given
+        <code>SO_REUSEADDR</code></strong>, so the kernel holds the port
+        in <code>TIME_WAIT</code> for the conventional 60-second cooldown
+        and the second <code>bind()</code> fails with <code>EADDRINUSE</code>.
+      </p>
+
+      <h3>Call trace</h3>
+      <ol>
+        <li><code>src/xroar.c:1357</code> — <code>xroar_init_finish()</code> calls <code>xroar_hard_reset()</code>.</li>
+        <li><code>xroar_hard_reset</code> → machine part construction → <code>coco3_init</code> (<code>src/coco3.c:672-677</code>).</li>
+        <li><code>src/coco3.c:675</code>: <code>gdb_interface_new(...)</code> → <code>src/gdb.c:185-260</code> — creates socket, calls <code>bind()</code>, calls <code>listen()</code>, spawns <code>handle_tcp_sock</code> thread. <strong>First listener bound on <code>127.0.0.1:65520</code>.</strong></li>
+        <li><code>src/xroar.c:1361-1364</code> — <code>if (private_cfg.file.snapshot) read_snapshot(...)</code>.</li>
+        <li><code>src/snapshot.c:236-241</code> — <code>part_free((struct part *)xroar.machine)</code> frees the running machine. This dispatches <code>coco3_free</code> (<code>src/coco3.c:694-698</code>), which calls <code>gdb_interface_free(...)</code>.</li>
+        <li><code>src/gdb.c:262-274</code> — <code>gdb_interface_free</code> cancels the socket thread and closes <code>listenfd</code>. The kernel marks the TCP endpoint <code>TIME_WAIT</code>.</li>
+        <li><code>src/snapshot.c:240-241</code> — <code>xroar.machine = m; xroar_connect_machine();</code> — the deserialised machine is wired up. <strong><code>coco3_init</code> runs again</strong> on the new machine, calling <code>gdb_interface_new</code> a second time.</li>
+        <li><code>src/gdb.c:235-238</code> — <code>bind()</code> fails because the kernel still holds the port in <code>TIME_WAIT</code>. <code>LOG_MOD_WARN("gdb", "bind %s:%s failed\n", ...)</code> fires, the function jumps to <code>failed:</code>, returns <code>NULL</code>. The new machine has <code>mcc3-&gt;gdb_interface = NULL</code> — no listener, no debug session possible.</li>
+      </ol>
+      <p>
+        The XRoar startup banner happens to print these warnings
+        interleaved with Gtk-CRITICAL UI noise, which is presumably why the
+        message has gone unnoticed in casual testing.
+      </p>
+    </section>
+
+    <section>
+      <h2>Why this happens specifically with <code>-load</code></h2>
+      <p>
+        Without <code>-load</code>, <code>gdb_interface_new</code> is called
+        exactly once. The port is bound once and stays bound for the life
+        of the process. No <code>TIME_WAIT</code> window, no second bind.
+      </p>
+      <p>
+        With <code>-load</code>, the flow above runs
+        <code>gdb_interface_new → gdb_interface_free → gdb_interface_new</code>
+        within a few milliseconds. Without <code>SO_REUSEADDR</code>, the
+        second bind is doomed to fail.
+      </p>
+      <p>
+        This is independent of the wiki's previously noted "<code>-trap</code>
+        succeeds at writing the snapshot, but XRoar segfaults right after"
+        (<a href="../tooling/xroar.html">tooling/xroar</a>) — that bug is
+        in the snapshot <strong>write</strong> path; this one is in the
+        snapshot <strong>read</strong> path.
+      </p>
+    </section>
+
+    <section>
+      <h2>Proposed fix</h2>
+      <p>
+        <strong>One-line, surgical, standard practice.</strong> Add
+        <code>SO_REUSEADDR</code> to the listening socket between
+        <code>socket()</code> and <code>bind()</code> in
+        <code>src/gdb.c:228-235</code>:
+      </p>
+<pre><code>    // Create a socket...
+    gip-&gt;listenfd = socket(gip-&gt;info-&gt;ai_family, gip-&gt;info-&gt;ai_socktype, gip-&gt;info-&gt;ai_protocol);
+    if (gip-&gt;listenfd &lt; 0) {
+        LOG_MOD_WARN("gdb", "socket not created\n");
+        goto failed;
+    }
+
++   // Allow rebinding when a previous listener is still in TIME_WAIT
++   // (happens under -load when the snapshot path frees and re-creates
++   // the machine in quick succession).
++   int yes = 1;
++   (void)setsockopt(gip-&gt;listenfd, SOL_SOCKET, SO_REUSEADDR, &amp;yes, sizeof(yes));
++
+    // bind
+    if (bind(gip-&gt;listenfd, gip-&gt;info-&gt;ai_addr, gip-&gt;info-&gt;ai_addrlen) &lt; 0) {
+</code></pre>
+      <p>
+        That's it. <code>SO_REUSEADDR</code> on a listening TCP socket is
+        universally safe (it does <em>not</em> allow two processes to bind
+        the same port; it only relaxes the <code>TIME_WAIT</code> restriction).
+        Linux/macOS/BSD/Windows all support it identically for this use case.
+      </p>
+    </section>
+
+    <section>
+      <h2>Why not the "cleaner" fix?</h2>
+      <p>
+        A more architecturally pleasing fix would be to <strong>defer</strong>
+        <code>gdb_interface_new</code> from <code>coco3_init</code> until
+        after the snapshot load completes — so the listener is only created
+        once, against the final machine. That would require:
+      </p>
+      <ul>
+        <li>Moving the <code>gdb_interface_new</code> call out of <code>coco3_init</code> (and the matching free out of <code>coco3_free</code>), into a higher layer (probably <code>xroar_init_finish</code> after the <code>read_snapshot</code> branch).</li>
+        <li>The same refactor in <code>src/dragon/dragon.c:600</code> and <code>src/mc10.c:519</code> (and any other machine).</li>
+        <li>Care around the listener-thread's references to the machine part — currently those are wired during init.</li>
+      </ul>
+      <p>
+        Touching ~6 files, plumbing the gdb interface as a process-lifetime
+        singleton rather than a machine-lifetime one. ~1 day of work, real
+        risk of regressing the non-<code>-load</code> path, and the
+        resulting code is meaningfully more complex.
+      </p>
+      <p>
+        <strong>The <code>SO_REUSEADDR</code> fix is the right call.</strong>
+        It addresses the actual failure mode (a kernel-level resource
+        transient), is one line, has no plausible regression surface, and
+        reads as obviously-correct to anyone familiar with TCP listeners.
+        The architectural smell of "two listeners during snapshot load" is
+        real but does not need to be untangled to ship the fix.
+      </p>
+    </section>
+
+    <section>
+      <h2>Upstream-ability</h2>
+      <p><strong>High.</strong> The fix is:</p>
+      <ul>
+        <li>Minimal (a single <code>setsockopt</code> call).</li>
+        <li>Universally idiomatic for TCP listeners.</li>
+        <li>Demonstrably resolves an observable, reproducible bug.</li>
+        <li>Not platform-specific.</li>
+        <li>Doesn't change any externally observable behaviour except "the listener actually binds."</li>
+      </ul>
+      <p>
+        A pull request to <a href="https://www.6809.org.uk/xroar/">https://www.6809.org.uk/xroar/</a>
+        (or wherever Ciaran Anscomb takes contributions — the project
+        doesn't appear to host on GitHub) would be a strong candidate. Even
+        if upstream is slow to merge, the patch is small enough to carry as
+        a local diff against tagged releases.
+      </p>
+    </section>
+
+    <section>
+      <h2>Cost estimate</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Phase</th><th>Effort</th></tr></thead>
+        <tbody>
+          <tr><td>Apply patch + local build of XRoar</td><td>~30-60 min (assuming standard autotools toolchain; haven't verified XRoar's build dependencies)</td></tr>
+          <tr><td>Verify fix against the failing repro (this session's exact command)</td><td>~15 min</td></tr>
+          <tr><td>Verify no regression of the non-<code>-load</code> path</td><td>~15 min</td></tr>
+          <tr><td>Verify the post-load gdb session actually works end-to-end against the existing <code>web/</code> backend</td><td>~30 min</td></tr>
+          <tr><td>Optional: produce upstream patch + cover letter</td><td>~30 min</td></tr>
+          <tr><td><strong>Total</strong></td><td><strong>~2-3 hours wall-clock</strong></td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Decision the user should make</h2>
+      <p>Three meaningful options, in increasing commitment order:</p>
+      <ol>
+        <li><strong>Don't patch.</strong> Live with snapshot-load being a non-debug path. Use snapshots for fast iteration only via the existing <code>-trap</code> → save → re-launch fresh flow recorded in <a href="../tooling/xroar.html">tooling/xroar</a>. Snapshot-resume in <code>web/</code> becomes "view-only" instance kind (no gdb attach).</li>
+        <li><strong>Apply locally, defer upstream.</strong> Maintain a small local patch over the system XRoar. Unblocks the snapshot-resume-with-debug feature in <code>web/</code> immediately; doesn't help anyone else.</li>
+        <li><strong>Patch + upstream.</strong> Same local effect as (2) plus the upstream MR. Slightly more work for community benefit.</li>
+      </ol>
+      <p>
+        The fix is small enough that (3) is roughly the same effort as (2)
+        once you've verified the fix locally.
+      </p>
+    </section>
+
+    <section>
+      <h2>Caveats</h2>
+      <ul>
+        <li><strong><code>-load</code> and <code>-trap</code> may interact in other ways.</strong> The patch only addresses the bind failure. If, after the fix, <code>-load</code> snapshots still don't reach the cart-autorun handshake or trip other XRoar quirks (the <code>-trap</code> segfault is separate but related), additional work may be needed. The fix here is necessary but may not be sufficient for every snapshot-resume scenario.</li>
+        <li><strong>Snapshot ROM-mismatch.</strong> A snapshot taken against one build of <code>ladybug.rom</code> won't restore meaningfully against another. That's a <code>web/</code> concern (hash-the-ROM-into-manifest), not an XRoar concern.</li>
+        <li><strong>Build environment.</strong> We haven't tested an XRoar build locally. The standard autotools dance (<code>autoreconf -fi &amp;&amp; ./configure &amp;&amp; make</code>) is implied by the existing <code>~/coco-tools/xroar</code> install path but should be confirmed before promising the cost above.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <code>src/gdb.c:185-274</code> (gdb listener lifecycle);
+        <code>src/coco3.c:672-698</code> (machine-side hooks);
+        <code>src/snapshot.c:99-244</code> (read_snapshot and machine swap);
+        <code>src/xroar.c:1350-1418</code> (init_finish ordering);
+        <a href="../tooling/xroar.html">tooling/xroar</a> (prior wiki note — failure is logged, not silent);
+        <a href="./retro-dev-web-app.html">retro-dev-web-app</a> (downstream user of this fix);
+        <a href="./mcp-xroar-server.html">mcp-xroar-server</a> (related larger XRoar-patching effort).
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

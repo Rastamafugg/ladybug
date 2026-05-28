@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Mode — Decision — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation · decision</p>
+      <h1>Video Mode — decision <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Phase 2 mode-selection analysis. Picks the GIME hi-res mode,
+        framebuffer layout, and pixel/tile/sprite formats.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        <strong>Decision (2026-05-08): 320 × 192, 16 colours, format C,
+        single buffer.</strong>
+      </p>
+      <p>
+        GIME settings: <code>$FF98</code> BP=1 GR=1, <code>$FF99</code>
+        VRES=00 HRES=111 CRES=10. Row stride 160 bytes. Framebuffer 30 720
+        bytes.
+      </p>
+    </section>
+
+    <section>
+      <h2>Inputs to the decision</h2>
+      <p>From the locked design (<a href="../game/overview.html">game/overview</a>):</p>
+      <ul>
+        <li>Single non-scrolling playfield per stage.</li>
+        <li>HUD on <strong>side panels</strong>: left = score / lives / level; right = <code>EXTRA</code> / <code>SPECIAL</code> letters + vegetable indicator.</li>
+        <li>Three-colour cycle (blue / yellow / red) drives the letter / heart / vegetable subsystem.</li>
+        <li>~24×24 tile maze area is the natural scale for the playfield.</li>
+        <li>8-direction joystick read; constant player speed.</li>
+      </ul>
+      <p>From the platform (<a href="../../release/reference/coco3/gime.html">GIME</a>, <a href="../platform/timing.html">timing</a>):</p>
+      <ul>
+        <li>Frame budget at 1.78 MHz, 60 Hz: ≈ 29 666 cycles. Roadmap baseline render allocation: ≈ 18 000 cycles.</li>
+        <li>16 palette registers, 6-bit colour codes, freely re-loadable.</li>
+        <li>16-colour mode = 4 bits/pixel = 2 pixels/byte ("format C").</li>
+        <li>Vertical Offset registers point the GIME at any 8-byte-aligned physical-page address.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Mode catalogue (relevant subset)</h2>
+      <p>
+        <code>$FF99</code> HRES values vs row stride at 16-colour CRES=10
+        (see <a href="../sources/coco3-asm-tepolt.html">coco3-asm-tepolt §"Hi-res graphics"</a>):
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>HRES</th><th>bytes / row</th><th>16-col px / row</th><th>FB at 192 rows</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>4</td><td>64</td><td>128</td><td>12 288</td><td>Chunky pixels; below arcade horizontal.</td></tr>
+          <tr><td>5</td><td>80</td><td>160</td><td>15 360</td><td>Square pixels-ish; tight HUD margins.</td></tr>
+          <tr><td>6</td><td>128</td><td>256</td><td>24 576</td><td>Closest to arcade 240 wide.</td></tr>
+          <tr><td><strong>7</strong></td><td><strong>160</strong></td><td><strong>320</strong></td><td><strong>30 720</strong></td><td><strong>Selected.</strong> Standard "320×192×16" mode.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Lower colour depths (CRES=00 mono, CRES=01 4-colour) cut the
+        framebuffer 2-4× but force the entire palette through 2 or 4 slots,
+        which collides with the cycle-of-three colour subsystem (one slot
+        left for <em>all</em> static art). Skipped.
+      </p>
+      <p>Hi-res text mode skipped — no per-pixel control, wrong shape for sprite work.</p>
+    </section>
+
+    <section>
+      <h2>Why 320 × 192 × 16 over 256 × 192 × 16</h2>
+      <ol>
+        <li><strong>HUD layout.</strong> 320 − 192 (square maze) = 128 px = <strong>64 px per side panel</strong>. Comfortable room for 8-tile-wide score bands, the EXTRA / SPECIAL letter rows, and the vegetable icon. 256 − 192 = <strong>32 px per side</strong>: 4 tiles per panel — too tight for the design.</li>
+        <li><strong>Aspect.</strong> 320×192 displays at 4:3 PAR ≈ 1.66:1 effective; 256×192 sits awkwardly between modes when stretched.</li>
+        <li><strong>Familiarity.</strong> 320×192×16 is the canonical CoCo 3 graphics-mode demo target; XRoar, hardware monitors, and most CoCo 3 game ROMs assume it.</li>
+      </ol>
+      <p>
+        The cost over 256-wide is 6 144 extra framebuffer bytes (one 8 K
+        page extra) and ~25% more sprite-blit work per draw.
+      </p>
+    </section>
+
+    <section>
+      <h2>Layout</h2>
+<pre><code>╔══════════ 320 px ══════════╗
+║ ┌───┬───────────┬───┐      ║
+║ │   │           │   │      ║
+║ │ L │   MAZE    │ R │  192 ║
+║ │ 64│  192×192  │ 64│   px ║
+║ │   │  24×24 t. │   │      ║
+║ │   │           │   │      ║
+║ └───┴───────────┴───┘      ║
+╚════════════════════════════╝
+   left   centre        right
+</code></pre>
+      <ul>
+        <li><strong>Centre:</strong> 192 × 192 px = 24 × 24 tiles at 8 × 8 px. Holds maze, dots, all moving entities.</li>
+        <li><strong>Left panel:</strong> 64 × 192 px = 8 × 24 tiles. Score numerals, lives icons, level number.</li>
+        <li><strong>Right panel:</strong> 64 × 192 px = 8 × 24 tiles. EXTRA row, SPECIAL row, heart count, vegetable icon.</li>
+      </ul>
+      <p>Tile origin in the framebuffer: byte offset = <code>row * 160 + col * 4</code> (since one 8-px-wide tile = 4 bytes in 16-colour mode). Both centre and panels are 8-px-aligned.</p>
+    </section>
+
+    <section>
+      <h2>Pixel / tile / sprite format</h2>
+      <ul>
+        <li><strong>Pixel:</strong> 4 bits, packed two-per-byte, hi-nibble = leftmost pixel.</li>
+        <li><strong>Tile:</strong> 8 × 8 px = 32 bytes. Stored as 8 rows of 4 bytes. Tile data lives in cartridge ROM.</li>
+        <li><strong>Sprite (entity, e.g. Lady Bug):</strong> 16 × 16 px = 128 bytes. Same packing.</li>
+        <li><strong>Glyph (HUD digit, letter):</strong> likely 8 × 8 = 32 bytes. May add a 16 × 16 large-digit set for the score.</li>
+      </ul>
+      <p>
+        A 2-byte sprite blit (<code>STD ,X++</code>) writes 4 pixels per
+        ~6 cycles. Full 16 × 16 sprite ≈ 64 STDs ≈ 384 cycles plus address
+        arithmetic — ballpark <strong>~600 cycles per sprite</strong>. With
+        the largest expected on-screen entity count (player + 4 bugs + 1
+        skull + 2-3 letters/vegetables ≈ 9 sprites) the per-frame sprite
+        cost is ~5 400 cycles — fits the 18 000-cycle render budget with
+        room for HUD updates.
+      </p>
+    </section>
+
+    <section>
+      <h2>Framebuffer placement</h2>
+      <p>
+        30 720 bytes = 3.75 × 8 KB MMU pages. Will occupy 4 contiguous
+        physical pages, mapped where the rest of the memory layout (Phase 2
+        task) decides. Vertical-Offset registers <code>$FF9D/$FF9E</code>
+        will point to the start of the first page. The framebuffer does
+        <em>not</em> have to be MMU-mapped to be visible; the GIME reads it
+        via expanded address.
+      </p>
+    </section>
+
+    <section>
+      <h2>XRoar palette colours — empirical (composite NTSC)</h2>
+      <p>
+        XRoar's default CoCo 3 monitor mode is composite NTSC, not RGB. The
+        6-bit palette code at <code>$FFB0-$FFBF</code> therefore does
+        <strong>not</strong> map to colours via the textbook
+        <code>RGBrgb</code> 2-bit-per-channel interpretation. The 16-stripe
+        diagnostic in Phase 2.3 produced this empirical table:
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Code</th><th>Colour</th><th>Code</th><th>Colour</th></tr></thead>
+        <tbody>
+          <tr><td><code>$00</code></td><td>black</td><td><code>$08</code></td><td>fuchsia / purple</td></tr>
+          <tr><td><code>$3F</code></td><td>white</td><td><code>$02</code></td><td>darker green</td></tr>
+          <tr><td><code>$30</code></td><td>white <em>(dup of $3F — avoid)</em></td><td><code>$22</code></td><td>saturated light green</td></tr>
+          <tr><td><code>$0C</code></td><td>blue</td><td><code>$0A</code></td><td>purple</td></tr>
+          <tr><td><code>$03</code></td><td>green-brown</td><td><code>$28</code></td><td>pink</td></tr>
+          <tr><td><code>$33</code></td><td>yellow</td><td><code>$15</code></td><td>orange</td></tr>
+          <tr><td><code>$0F</code></td><td>forest green</td><td><code>$24</code></td><td>orange-yellow</td></tr>
+          <tr><td><code>$3C</code></td><td>baby blue</td><td></td><td></td></tr>
+          <tr><td><code>$20</code></td><td>grey</td><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <p>
+        If we ever switch XRoar to RGB monitor mode, this table needs to
+        be re-derived. The current canonical mapping (RGB) is in
+        <a href="./lessons-learned.html">lessons-learned</a> §"XRoar RGB
+        monitor palette mapping".
+      </p>
+    </section>
+
+    <section>
+      <h2>Things deferred to Phase 2 implementation</h2>
+      <ol>
+        <li><strong>Exact <code>$FF98</code> value.</strong> BP=1 (graphics), other bits TBD when we decide blink, mono, PAL, lines-per-row. Default LPR=001 / PAL=0 / MOCH=0 likely fine.</li>
+        <li><strong>Exact <code>$FF99</code> value.</strong> VRES=00 HRES=111 CRES=10 = <code>%00011110</code> = <code>$1E</code> is the candidate; double-check against <a href="../sources/coco3-asm-tepolt.html">coco3-asm-tepolt §Hi-res graphics</a> Table 4-10 once the code is being written.</li>
+        <li><strong>Memory map.</strong> Where in physical RAM does the framebuffer live? See <a href="./memory-map.html">memory-map</a>.</li>
+        <li><strong>Palette load.</strong> 16 entries × 6-bit codes. Initial palette (greens for the maze, primary RGB for the cycle, white/grey for HUD) gets a small data table.</li>
+        <li><strong>Border colour.</strong> <code>$FF9A</code> 6-bit code. Likely matches the maze background.</li>
+        <li><strong>CRES=11 blanking trick.</strong> Tepolt notes <code>CRES=11</code> blanks the screen — useful for setting up the framebuffer without showing tearing. Use it during init.</li>
+        <li><strong>Single-buffer vs double-buffer.</strong> Single is cheap (30 KB). <strong>Default: single buffer with sprite save-restore.</strong> Revisit at the Phase 4 (sprite) review gate if tearing is visible.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Risks</h2>
+      <ul>
+        <li><strong>Frame-budget margin is thin.</strong> 5 400 cycles (sprites) + dirty HUD updates + AI + input + sound ≈ 17 000 cycles + IRQ overhead ≈ 17 100. Anything sloppy in the renderer eats the whole margin.</li>
+        <li><strong>Sprite save-restore footprint.</strong> Saving the background under each 16×16 sprite costs another 128 bytes copied per sprite; with 9 sprites that's 1 152 bytes/frame just for save, doubled if restore happens too. We may end up wanting a tile-aligned-blit fast path that re-blits the affected tiles from the static maze rather than per-sprite save-restore.</li>
+        <li><strong>The stale Tepolt-source claim</strong> (line 84) about HRES=4 byte counts contradicts the same file's mode-table at line 54. Fix the source page.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>ROM-budget update — 2026-05-08</h2>
+      <p>
+        Cart was briefly retargeted to 32 K mid-day, then reverted to 16 K
+        when XRoar's 32 K-cart handling came up unverified — see
+        <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>.
+        At 16 K the sprite-storage path matters: pre-converted 4bpp sprites
+        likely overflow; <strong>2bpp+attr packing or curated sprite count
+        is back as the default</strong>, with 4bpp pre-conversion only if
+        a measurement at Phase 4 shows it fits.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <a href="../game/overview.html">game/overview</a> — locked HUD layout;
+        <a href="../../release/reference/coco3/gime.html">GIME</a> — Init0 / video / palette registers;
+        <a href="../platform/timing.html">platform/timing</a> — frame budget at 1.78 MHz;
+        <a href="../../release/reference/coco3/memory-map.html">memory map</a> — MMU and physical-page layout;
+        <a href="../sources/coco3-asm-tepolt.html">coco3-asm-tepolt</a> §"Hi-res graphics" — HRES / CRES tables;
+        <a href="./roadmap.html">roadmap</a> §Phase 2.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

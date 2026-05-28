@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XRoar — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tooling</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>XRoar — CoCo 3 emulator <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        By Ciaran Anscomb. Installed at <code>/usr/local/bin/xroar</code>.
+        Version: <strong>1.10</strong>. Reference:
+        <a href="https://www.6809.org.uk/xroar/doc/xroar.shtml">xroar.shtml</a>.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        XRoar emulates the GIME, MMU, PIAs, ACVC IRQs, and the cartridge
+        port — everything the boot sequence in
+        <a href="../platform/cartridge.html">platform/cartridge</a> depends on.
+      </p>
+    </section>
+
+    <section>
+      <h2>Canonical invocation (Ladybug cart)</h2>
+<pre><code>xroar \
+  -machine coco3 \
+  -ram 512 \
+  -cart ladybug \
+  -cart-type rom \
+  -cart-rom build/ladybug.rom \
+  -cart-autorun \
+  -tv-input rgb
+</code></pre>
+      <table class="wiki-table">
+        <thead><tr><th>Flag</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td><code>-machine coco3</code></td><td>NTSC CoCo 3, 1.78 MHz fast clock available, GIME present.</td></tr>
+          <tr><td><code>-ram 512</code></td><td>512 KB — matches our target hardware spec.</td></tr>
+          <tr><td><code>-cart ladybug</code></td><td>Define a named cart profile (just a label).</td></tr>
+          <tr><td><code>-cart-type rom</code></td><td>Plain ROM cartridge (no Becker port, no MPI).</td></tr>
+          <tr><td><code>-cart-rom FILE</code></td><td>Path to the 16 KB padded ROM image.</td></tr>
+          <tr><td><code>-cart-autorun</code></td><td>Triggers the CART → FIRQ handshake on startup so BASIC dispatches into our <code>JMP entry</code> at <code>$C000</code>.</td></tr>
+          <tr><td><code>-tv-input rgb</code></td><td>Decode the GIME's digital RGB output directly. XRoar's default is composite NTSC, which aliases several palette codes. Empirical RGB-mode 6-bit→colour table in <a href="../implementation/lessons-learned.html">lessons-learned</a> §"XRoar RGB monitor palette mapping".</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Debug / iteration flags</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Flag</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td><code>-gdb</code></td><td>Enable GDB target on <code>127.0.0.1:65520</code>.</td></tr>
+          <tr><td><code>-gdb-ip ADDRESS</code></td><td>Bind the GDB listener to an interface. Default <code>127.0.0.1</code>; use <code>0.0.0.0</code> when Windows-hosted XRoar must be reachable from WSL-hosted <code>gdb-mcp</code>.</td></tr>
+          <tr><td><code>-gdb-port N</code></td><td>Override port.</td></tr>
+          <tr><td><code>-debug-gdb FLAGS</code></td><td>Log GDB remote-stub traffic. Use <code>-debug-gdb -1</code> when debugging attach failures.</td></tr>
+          <tr><td><code>-trace</code></td><td>Start with instruction trace dumping to stderr.</td></tr>
+          <tr><td><code>-trace-timing</code></td><td>Add cycle counts to trace output.</td></tr>
+          <tr><td><code>-no-ratelimit</code></td><td>Run as fast as possible.</td></tr>
+          <tr><td><code>-fskip N</code></td><td>Frameskip — combine with <code>-no-ratelimit</code> for fast smoke tests.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="gdb-mcp-round-trip">
+      <h2>GDB-MCP round trip</h2>
+      <p>Use this workflow when Codex needs to inspect the live cartridge through the <code>gdb-mcp</code> MCP server.</p>
+
+      <h3>1. Build the cartridge</h3>
+<pre><code>cd /mnt/d/retro/ladybug
+./scripts/build.sh build
+</code></pre>
+
+      <h3>2. Start XRoar with the GDB stub</h3>
+      <p>There are three launch contexts to keep separate:</p>
+      <ul>
+        <li><strong>PowerShell sandbox</strong> — may report that no WSL distributions are installed.</li>
+        <li><strong>GDB-MCP Linux host</strong> — the already-running <code>gdb-mcp</code> process can run Linux shell commands through GDB's <code>shell</code> command.</li>
+        <li><strong>Windows desktop XRoar</strong> — useful for manual visual runs.</li>
+      </ul>
+      <p>Preferred Codex path: start XRoar from a GDB-MCP session using GDB's <code>shell</code> command:</p>
+<pre><code>shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart ladybug -cart-type rom -cart-rom build/ladybug.rom -cart-autorun -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
+</code></pre>
+      <p>Then attach from a fresh GDB-MCP session with <code>target remote :65520</code>.</p>
+      <p>If XRoar is launched on Windows and <code>gdb-mcp</code> runs under its Linux host, bind the stub to all interfaces (<code>-gdb-ip 0.0.0.0</code>).</p>
+
+      <h3>3. Attach through GDB-MCP</h3>
+      <p>The Codex MCP config starts <code>gdb-mcp</code> through WSL. <code>gdb</code> should resolve to the 6809 GDB:</p>
+<pre><code>/home/rastamafugg/.local/bin/gdb -&gt; /usr/local/bin/m6809-gdb
+</code></pre>
+      <p>Start a GDB-MCP session, then run:</p>
+<pre><code>show architecture
+target remote :65520
+</code></pre>
+      <p>Expected: <code>The target architecture is set to "auto" (currently "m6809").</code></p>
+      <p>Useful first commands: <code>info registers</code>, <code>x/8i $pc</code>, <code>x/16xb $pc</code>.</p>
+
+      <h3>Troubleshooting</h3>
+      <table class="wiki-table">
+        <thead><tr><th>Symptom</th><th>Meaning / fix</th></tr></thead>
+        <tbody>
+          <tr><td><code>Truncated register ... in remote 'g' packet</code></td><td><code>gdb-mcp</code> launched host <code>/usr/bin/gdb</code> instead of the 6809 GDB. Ensure <code>~/.local/bin/gdb</code> resolves to <code>/usr/local/bin/m6809-gdb</code>.</td></tr>
+          <tr><td><code>Connection timed out</code> from <code>target remote :65520</code></td><td>XRoar is not listening where <code>gdb-mcp</code> can reach it. Use <code>-gdb-ip 0.0.0.0</code> for Windows-hosted XRoar reached from WSL.</td></tr>
+          <tr><td>Raw TCP connects but GDB does not attach</td><td>Restart XRoar and attach directly without prior <code>/dev/tcp</code> probes; the stub behaves as a single active GDB endpoint. Add <code>-debug-gdb -1</code> if it repeats.</td></tr>
+          <tr><td><code>set architecture m6809</code> fails</td><td>The GDB binary is not a 6809 build. <code>m6809-gdb --version</code> should report <code>--target=m6809</code>.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Reaching specific boot points reliably</h2>
+      <p>
+        The cart-autorun handshake fires on a 100 ms cart-FIRQ schedule and
+        is gated by BASIC's keyboard-polling latency, so several wall-clock
+        seconds elapse before our cart entry at <code>$C000</code> runs.
+        That clashes with gdb-mcp's default 30 s per-command timeout. Three
+        workarounds:
+      </p>
+
+      <h3>1. Bump per-command timeouts</h3>
+      <p>Pass <code>timeout: 60</code> (or higher) explicitly on <code>mcp__gdb-mcp__continue_exec</code> and <code>mcp__gdb-mcp__exec_command</code> calls.</p>
+
+      <h3>2. Insert a temporary halt loop in source</h3>
+      <p>Software breakpoints set via <code>break *0xC0xx</code> are unreliable during early boot. The cheapest deterministic-stop pattern is a self-branch:</p>
+<pre><code>inspect_halt
+        bra     inspect_halt    ; gdb-mcp attaches; PC parks here
+</code></pre>
+      <p>
+        <strong>Do NOT use <code>swi</code></strong> for this purpose.
+        Empirically, XRoar 1.10 segfaults when it tries to snapshot at a
+        <code>swi</code> trap point (see <a href="../backlog/cart-ram-corruption.html">backlog/cart-ram-corruption</a>).
+        <code>bra .</code> is safer.
+      </p>
+
+      <h3>3. Snapshot a stable boot state, then re-launch from it</h3>
+      <p>XRoar supports save/restore via <code>-trap</code>, <code>-trap-snap</code>, and <code>-load</code>:</p>
+<pre><code>xroar -machine coco3 -ram 512 \
+      -cart ladybug -cart-type rom -cart-rom build/ladybug.rom -cart-autorun \
+      -trap 0xC0DC \
+      -trap-snap /tmp/ladybug-mainloop.sna \
+      -trap-timeout 1
+</code></pre>
+      <p>After the cart enters <code>mainloop</code> ($C0DC), XRoar writes a snapshot and exits. Subsequent debug sessions skip the autorun entirely:</p>
+<pre><code>xroar -machine coco3 -ram 512 \
+      -cart ladybug -cart-type rom -cart-rom build/ladybug.rom \
+      -load /tmp/ladybug-mainloop.sna \
+      -gdb -gdb-ip 127.0.0.1 -gdb-port 65520
+</code></pre>
+      <p>Note: snapshots are tied to the ROM image. <strong>Rebuild the ROM → re-capture the snapshot.</strong></p>
+    </section>
+
+    <section>
+      <h2>Limits of the current GDB-stub workflow</h2>
+      <p>
+        XRoar's gdb stub exposes the CPU view: registers, memory, breakpoints,
+        single-step. It does <strong>not</strong> expose:
+      </p>
+      <ul>
+        <li><strong>GIME internal state.</strong> <code>MC3</code>, <code>MMUEN</code>, <code>mmu_bank[]</code>, <code>TR</code>, <code>S</code>, <code>RAS</code> are not memory-mapped readable. Use sentinel probes through <code>$FExx</code>.</li>
+        <li><strong>Cycle-level stepping.</strong> GDB-stub <code>step</code> is per-instruction.</li>
+        <li><strong>Video / palette state.</strong> Not addressable through CPU memory.</li>
+      </ul>
+      <p>
+        Concrete inspection of GIME state is the largest current gap; if
+        it becomes a blocker, see <a href="../backlog/mcp-xroar-server.html">backlog/mcp-xroar-server</a>
+        for the build-our-own-server option (now realised as
+        <a href="../implementation/xroar-monitor.html">xroar-monitor</a>).
+      </p>
+
+      <h3>Reverse execution / <code>record full</code> — not viable on this stack</h3>
+      <p>
+        Probed 2026-05-15. <strong>gdb's <code>record full</code> does not
+        work for the m6809 + XRoar stack</strong>, and the failure is in
+        two independent layers — both would have to be addressed to fix it:
+      </p>
+      <ul>
+        <li><strong>gdb side.</strong> <code>record full</code> refuses to start with <code>Process record: the current architecture doesn't support record function.</code> m6809 is not in gdb's list of architectures with a record-mode implementation.</li>
+        <li><strong>stub side.</strong> <code>reverse-stepi</code> and <code>reverse-continue</code> return <code>Target remote does not support this command</code>. XRoar's stub doesn't speak the reverse-protocol packets.</li>
+      </ul>
+      <p>Forward stepping (<code>stepi</code>) works as expected.</p>
+    </section>
+
+    <section>
+      <h2>Iteration workflow</h2>
+      <p>
+        <code>scripts/build.sh run</code> builds the ROM and launches xroar
+        with the canonical invocation above. To kill: close the xroar
+        window or <code>Ctrl-C</code> the script.
+      </p>
+    </section>
+
+    <section>
+      <h2>Known XRoar 1.10 limitations</h2>
+      <ul>
+        <li><strong><code>-load &lt;snapshot&gt;</code> + <code>-gdb</code> together fails to bind the gdb listener.</strong> XRoar logs <code>[gdb] WARNING: bind 127.0.0.1:PORT failed</code>. Root cause: <code>gdb_interface_new</code> runs twice when <code>-load</code> is given and the listening socket lacks <code>SO_REUSEADDR</code>. Fix is a single-line patch documented in <a href="../backlog/xroar-load-gdb-patch.html">backlog/xroar-load-gdb-patch</a>.</li>
+        <li><strong><code>swi</code> (opcode <code>$3F</code>) at a <code>-trap</code> point makes XRoar segfault</strong> when it tries to write the snapshot. Use <code>bra .</code> halt loops instead.</li>
+        <li><strong><code>-trap</code> succeeds at writing the snapshot, but XRoar segfaults right after.</strong> The snapshot file is fully valid and usable for reload. The segfault is post-write.</li>
+        <li><strong>The stub answers <code>vMustReplyEmpty</code> with the literal string <code>"timeout"</code>.</strong> Modern gdb (14.x) considers this a fatal protocol error when reported via MI. The plain CLI <code>target remote …</code> path works; MI paths surface it as <code>^error</code>.</li>
+        <li><strong>The stub gets wedged by probe-connect+disconnect.</strong> A TCP <code>connect()</code> immediately followed by <code>close()</code> drives the stub into the degraded state. <strong>Do not probe the GDB port</strong> — sleep ~4 s after launching XRoar and connect with gdb directly.</li>
+        <li><strong><code>info registers</code> always trails with <code>^error,msg="Register 12 is not available"</code>.</strong> m6809-gdb knows 13 registers; the stub exposes 12. The trailing error must be tolerated by any consumer.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Gotchas</h2>
+      <ul>
+        <li><strong>Cart ROM must be a power of 2.</strong> XRoar will load any size but mapping behaviour for non-pow2 ROMs is undefined.</li>
+        <li><strong><code>-cart-rom</code> is documented only as "mapped from <code>$C000</code>."</strong> XRoar's handling of 32 KB cart files is unverified — observed behaviour in Phase 2.1 testing was consistent with XRoar mapping the <em>lower</em> 16 K of a 32 K file to <code>$C000</code>. If/when we need &gt;16 K cart, plan to use <code>-cart-type gmc</code> rather than rely on Init0=11.</li>
+        <li><strong>Default machine config carries state across runs.</strong> If a previous session changed PAR/palette in a weird way, clear <code>~/.xroar/</code>.</li>
+        <li><strong>WSL display</strong> — XRoar opens an X11/Wayland window. WSL2 with WSLg (Win11 default) handles this transparently.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Manual: <a href="https://www.6809.org.uk/xroar/doc/xroar.shtml">xroar.shtml</a>.
+        Local install: <code>~/coco-tools/xroar</code> (source),
+        <code>/usr/local/bin/xroar</code>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

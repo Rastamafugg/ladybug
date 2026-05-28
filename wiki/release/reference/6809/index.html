@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6809 Instruction Set — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Reference · 6809</p>
+      <h1>6809 Instruction Set</h1>
+      <p class="wiki-meta">
+        Every Motorola 6809 mnemonic. One page each. Pages marked
+        <em>(soon)</em> are scheduled for Phase 3 of the wiki conversion.
+      </p>
+    </header>
+
+    <section>
+      <h2>Companion pages</h2>
+      <ul class="wiki-cards">
+        <li>
+          <a href="./addressing-modes.html">Addressing modes</a>
+          <p class="card-meta">Inherent, immediate, direct, extended, indexed (with full post-byte table), relative.</p>
+        </li>
+        <li>
+          <a href="./registers.html">Registers</a>
+          <p class="card-meta">A, B, D, X, Y, U, S, PC, DP, CC.</p>
+        </li>
+        <li>
+          <a href="./condition-codes.html">Condition codes</a>
+          <p class="card-meta">E F H I N Z V C — semantics, masking, push/pull semantics.</p>
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 id="load-store">Load / Store</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Mnemonic</th><th>Operation</th><th>Flags</th></tr></thead>
+        <tbody>
+          <tr><td><a href="lda.html"><code>LDA</code></a></td><td>A &larr; (M)</td><td>NZ V0</td></tr>
+          <tr><td><code>LDB</code> <em>(soon)</em></td><td>B &larr; (M)</td><td>NZ V0</td></tr>
+          <tr><td><code>LDD</code> <em>(soon)</em></td><td>D &larr; (M:M+1)</td><td>NZ V0</td></tr>
+          <tr><td><code>LDX</code> <em>(soon)</em></td><td>X &larr; (M:M+1)</td><td>NZ V0</td></tr>
+          <tr><td><code>LDY</code> <em>(soon)</em></td><td>Y &larr; (M:M+1)</td><td>NZ V0</td></tr>
+          <tr><td><code>LDU</code> <em>(soon)</em></td><td>U &larr; (M:M+1)</td><td>NZ V0</td></tr>
+          <tr><td><code>LDS</code> <em>(soon)</em></td><td>S &larr; (M:M+1)</td><td>NZ V0</td></tr>
+          <tr><td><code>STA</code> <em>(soon)</em></td><td>M &larr; A</td><td>NZ V0</td></tr>
+          <tr><td><code>STB</code> <em>(soon)</em></td><td>M &larr; B</td><td>NZ V0</td></tr>
+          <tr><td><code>STD</code> <em>(soon)</em></td><td>M:M+1 &larr; D</td><td>NZ V0</td></tr>
+          <tr><td><code>STX</code> <em>(soon)</em></td><td>M:M+1 &larr; X</td><td>NZ V0</td></tr>
+          <tr><td><code>STY</code> <em>(soon)</em></td><td>M:M+1 &larr; Y</td><td>NZ V0</td></tr>
+          <tr><td><code>STU</code> <em>(soon)</em></td><td>M:M+1 &larr; U</td><td>NZ V0</td></tr>
+          <tr><td><code>STS</code> <em>(soon)</em></td><td>M:M+1 &larr; S</td><td>NZ V0</td></tr>
+          <tr><td><code>LEAX</code> <em>(soon)</em></td><td>X &larr; EA</td><td>Z (X,Y only)</td></tr>
+          <tr><td><code>LEAY</code> <em>(soon)</em></td><td>Y &larr; EA</td><td>Z</td></tr>
+          <tr><td><code>LEAS</code> <em>(soon)</em></td><td>S &larr; EA</td><td>–</td></tr>
+          <tr><td><code>LEAU</code> <em>(soon)</em></td><td>U &larr; EA</td><td>–</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="arithmetic">Arithmetic</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Mnemonic</th><th>Operation</th><th>Flags</th></tr></thead>
+        <tbody>
+          <tr><td><code>ADDA</code> <em>(soon)</em></td><td>A &larr; A + (M)</td><td>H NZ VC</td></tr>
+          <tr><td><code>ADDB</code> <em>(soon)</em></td><td>B &larr; B + (M)</td><td>H NZ VC</td></tr>
+          <tr><td><code>ADDD</code> <em>(soon)</em></td><td>D &larr; D + (M:M+1)</td><td>NZ VC</td></tr>
+          <tr><td><code>ADCA</code> <em>(soon)</em></td><td>A &larr; A + (M) + C</td><td>H NZ VC</td></tr>
+          <tr><td><code>ADCB</code> <em>(soon)</em></td><td>B &larr; B + (M) + C</td><td>H NZ VC</td></tr>
+          <tr><td><code>SUBA</code> <em>(soon)</em></td><td>A &larr; A &minus; (M)</td><td>NZ VC</td></tr>
+          <tr><td><code>SUBB</code> <em>(soon)</em></td><td>B &larr; B &minus; (M)</td><td>NZ VC</td></tr>
+          <tr><td><code>SUBD</code> <em>(soon)</em></td><td>D &larr; D &minus; (M:M+1)</td><td>NZ VC</td></tr>
+          <tr><td><code>SBCA</code> <em>(soon)</em></td><td>A &larr; A &minus; (M) &minus; C</td><td>NZ VC</td></tr>
+          <tr><td><code>SBCB</code> <em>(soon)</em></td><td>B &larr; B &minus; (M) &minus; C</td><td>NZ VC</td></tr>
+          <tr><td><code>MUL</code> <em>(soon)</em></td><td>D &larr; A &times; B (unsigned)</td><td>Z C</td></tr>
+          <tr><td><code>ABX</code> <em>(soon)</em></td><td>X &larr; X + B (unsigned)</td><td>–</td></tr>
+          <tr><td><code>NEG / NEGA / NEGB</code> <em>(soon)</em></td><td>two's-complement negate</td><td>NZ VC</td></tr>
+          <tr><td><code>DEC / DECA / DECB</code> <em>(soon)</em></td><td>operand &larr; operand &minus; 1</td><td>NZ V</td></tr>
+          <tr><td><code>INC / INCA / INCB</code> <em>(soon)</em></td><td>operand &larr; operand + 1</td><td>NZ V</td></tr>
+          <tr><td><code>DAA</code> <em>(soon)</em></td><td>decimal adjust A after BCD add</td><td>NZ C</td></tr>
+          <tr><td><code>SEX</code> <em>(soon)</em></td><td>sign-extend B into A (D = sign-extended B)</td><td>NZ</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="logical">Logical</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Mnemonic</th><th>Operation</th><th>Flags</th></tr></thead>
+        <tbody>
+          <tr><td><code>ANDA / ANDB</code> <em>(soon)</em></td><td>r &larr; r AND (M)</td><td>NZ V0</td></tr>
+          <tr><td><code>ANDCC</code> <em>(soon)</em></td><td>CC &larr; CC AND #imm</td><td>per mask</td></tr>
+          <tr><td><code>ORA / ORB</code> <em>(soon)</em></td><td>r &larr; r OR (M)</td><td>NZ V0</td></tr>
+          <tr><td><code>ORCC</code> <em>(soon)</em></td><td>CC &larr; CC OR #imm</td><td>per mask</td></tr>
+          <tr><td><code>EORA / EORB</code> <em>(soon)</em></td><td>r &larr; r XOR (M)</td><td>NZ V0</td></tr>
+          <tr><td><code>COM / COMA / COMB</code> <em>(soon)</em></td><td>one's-complement</td><td>NZ V0 C1</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="shift-rotate">Shift / Rotate</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Mnemonic</th><th>Operation</th><th>Flags</th></tr></thead>
+        <tbody>
+          <tr><td><code>ASL / ASLA / ASLB</code> <em>(soon)</em></td><td>arithmetic shift left (= LSL)</td><td>NZ VC</td></tr>
+          <tr><td><code>ASR / ASRA / ASRB</code> <em>(soon)</em></td><td>arithmetic shift right (preserve sign)</td><td>NZ C</td></tr>
+          <tr><td><code>LSR / LSRA / LSRB</code> <em>(soon)</em></td><td>logical shift right</td><td>N0 Z C</td></tr>
+          <tr><td><code>ROL / ROLA / ROLB</code> <em>(soon)</em></td><td>rotate left through carry</td><td>NZ VC</td></tr>
+          <tr><td><code>ROR / RORA / RORB</code> <em>(soon)</em></td><td>rotate right through carry</td><td>NZ C</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="compare-test">Compare / Test</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Mnemonic</th><th>Operation</th><th>Flags</th></tr></thead>
+        <tbody>
+          <tr><td><code>CMPA / CMPB</code> <em>(soon)</em></td><td>r &minus; (M) (discard result)</td><td>NZ VC</td></tr>
+          <tr><td><code>CMPD / CMPX / CMPY / CMPS / CMPU</code> <em>(soon)</em></td><td>16-bit compare</td><td>NZ VC</td></tr>
+          <tr><td><code>BITA / BITB</code> <em>(soon)</em></td><td>r AND (M) (discard result)</td><td>NZ V0</td></tr>
+          <tr><td><code>TST / TSTA / TSTB</code> <em>(soon)</em></td><td>set flags from operand</td><td>NZ V0</td></tr>
+          <tr><td><code>CLR / CLRA / CLRB</code> <em>(soon)</em></td><td>operand &larr; 0</td><td>N0 Z1 V0 C0</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="branch-short">Branch — short (8-bit offset)</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Mnemonic</th><th>Condition</th></tr></thead>
+        <tbody>
+          <tr><td><code>BRA</code> <em>(soon)</em></td><td>always</td></tr>
+          <tr><td><code>BRN</code> <em>(soon)</em></td><td>never (useful as a placeholder)</td></tr>
+          <tr><td><code>BEQ / BNE</code> <em>(soon)</em></td><td>Z = 1 / Z = 0</td></tr>
+          <tr><td><code>BHI / BLS</code> <em>(soon)</em></td><td>unsigned higher / lower-or-same</td></tr>
+          <tr><td><code>BCC / BHS</code> <em>(soon)</em></td><td>C = 0 (carry clear / unsigned higher-or-same)</td></tr>
+          <tr><td><code>BCS / BLO</code> <em>(soon)</em></td><td>C = 1 (carry set / unsigned lower)</td></tr>
+          <tr><td><code>BPL / BMI</code> <em>(soon)</em></td><td>N = 0 / N = 1</td></tr>
+          <tr><td><code>BVC / BVS</code> <em>(soon)</em></td><td>V = 0 / V = 1</td></tr>
+          <tr><td><code>BGE / BLT</code> <em>(soon)</em></td><td>signed &ge; / &lt;</td></tr>
+          <tr><td><code>BGT / BLE</code> <em>(soon)</em></td><td>signed &gt; / &le;</td></tr>
+          <tr><td><code>BSR</code> <em>(soon)</em></td><td>branch to subroutine</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="branch-long">Branch — long (16-bit offset)</h2>
+      <p>
+        Each short branch above has a long-form equivalent prefixed with
+        <code>L</code> (<code>LBRA</code>, <code>LBEQ</code>, <code>LBSR</code>,
+        …). Long branches add a prefix byte and can reach anywhere in the
+        64K address space.
+      </p>
+
+      <h2 id="jump-subroutine">Jump / Subroutine / Interrupt</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Mnemonic</th><th>Operation</th></tr></thead>
+        <tbody>
+          <tr><td><code>JMP</code> <em>(soon)</em></td><td>PC &larr; EA</td></tr>
+          <tr><td><code>JSR</code> <em>(soon)</em></td><td>push PC, PC &larr; EA</td></tr>
+          <tr><td><code>RTS</code> <em>(soon)</em></td><td>PC &larr; pulled from S</td></tr>
+          <tr><td><code>RTI</code> <em>(soon)</em></td><td>return from interrupt</td></tr>
+          <tr><td><code>SWI / SWI2 / SWI3</code> <em>(soon)</em></td><td>software interrupt</td></tr>
+          <tr><td><code>NOP</code> <em>(soon)</em></td><td>no operation (2 cycles)</td></tr>
+          <tr><td><code>SYNC</code> <em>(soon)</em></td><td>halt until interrupt</td></tr>
+          <tr><td><code>CWAI</code> <em>(soon)</em></td><td>clear CC bits, wait for interrupt</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="stack">Stack</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Mnemonic</th><th>Operation</th></tr></thead>
+        <tbody>
+          <tr><td><code>PSHS</code> <em>(soon)</em></td><td>push register set to S</td></tr>
+          <tr><td><code>PSHU</code> <em>(soon)</em></td><td>push register set to U</td></tr>
+          <tr><td><code>PULS</code> <em>(soon)</em></td><td>pull register set from S</td></tr>
+          <tr><td><code>PULU</code> <em>(soon)</em></td><td>pull register set from U</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="register-transfer">Register transfer</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Mnemonic</th><th>Operation</th></tr></thead>
+        <tbody>
+          <tr><td><code>TFR</code> <em>(soon)</em></td><td>transfer one register to another</td></tr>
+          <tr><td><code>EXG</code> <em>(soon)</em></td><td>exchange two registers</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Reference: Motorola <em>MC6809E HMOS 8-Bit Microprocessor</em> data
+        sheet; Tepolt, <em>Assembly Language Programming for the Color
+        Computer</em> (Spectral Associates).
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

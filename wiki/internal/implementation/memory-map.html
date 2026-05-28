@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memory Map (project) — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation · design</p>
+      <h1>Memory Map <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Physical-page allocation, virtual MMU layout, cart ROM image
+        structure, and the boot data-copy procedure. Phase 2 base;
+        Phase 4 will refine the data-table half once sprite count is concrete.
+      </p>
+    </header>
+
+    <section>
+      <h2>Constraints recap</h2>
+      <ul>
+        <li><strong>8 MMU PARs</strong>, each maps an 8 K virtual page to a 6-bit physical-page number (see <a href="../../release/reference/coco3/memory-map.html">CoCo 3 memory map</a>, <a href="../../release/reference/coco3/gime.html">GIME</a>).</li>
+        <li><strong>64 physical pages</strong> of RAM on a 512 K machine, numbered <code>$00-$3F</code>. RAM is populated top-down — <code>$3F</code> is highest.</li>
+        <li><strong>Framebuffer</strong> = 30 720 bytes = 4 pages (3.75 actually used). GIME reads it via physical address, bypassing the MMU.</li>
+        <li><strong>Code</strong> lives in cart ROM at virtual <code>$C000-$FEFF</code> initially. After self-copy + all-RAM, it's RAM at phys <code>$3E-$3F</code>.</li>
+        <li><strong>Cart data tables</strong> (lower 16 K of the 32 K cart) live at virtual <code>$8000-$BFFF</code> in 32 K cart mode. After self-copy + all-RAM, they're RAM at phys <code>$3C-$3D</code>.</li>
+        <li><strong><code>$FF00-$FFFF</code> is dedicated I/O</strong>, not cart-visible. <strong><code>$FE00-$FEFF</code> is forced</strong> to phys <code>$3F</code> regardless of PAR7 when Init0 b3 is set — the primary jump table stays reachable.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Page-budget arithmetic</h2>
+      <p>What we want simultaneously mapped after boot:</p>
+      <table class="wiki-table">
+        <thead><tr><th>Use</th><th>Pages</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Low RAM (system, DP, stack, scratch)</td><td>1</td><td>Always-on; DP at <code>$0200</code>, stack near <code>$1FFE</code>.</td></tr>
+          <tr><td>Framebuffer</td><td>4</td><td>Need CPU write access while drawing. Could be 1 with a sliding window, but per-blit PAR juggling adds renderer cost.</td></tr>
+          <tr><td>Game-state RAM</td><td>1</td><td>Entity tables, score, frame counters, input state — Phase 4+ stuff that doesn't fit in low RAM.</td></tr>
+          <tr><td>Data tables (sprites, tiles, font, maze, palette)</td><td>1-2</td><td>16 K of cart data ends up here.</td></tr>
+          <tr><td>Code</td><td>1-2</td><td>16 K of cart code ends up here.</td></tr>
+          <tr><td><strong>Total wanted</strong></td><td><strong>8-10</strong></td><td></td></tr>
+        </tbody>
+      </table>
+      <p>
+        <strong>8 PARs is tight; 9 wanted is one over.</strong> This problem
+        doesn't bite until Phase 4 when sprite data is loaded. Phase 2
+        mapping has spare slots.
+      </p>
+    </section>
+
+    <section>
+      <h2>Phase 2 mapping (current target)</h2>
+<pre><code>Virtual          PAR  Phys  Bytes  Use
+$0000-$1FFF      0    $38   8 K    Low RAM (DP, stack, scratch)
+$2000-$3FFF      1    $30   8 K    Framebuffer page 0
+$4000-$5FFF      2    $31   8 K    Framebuffer page 1
+$6000-$7FFF      3    $32   8 K    Framebuffer page 2
+$8000-$9FFF      4    $33   8 K    Framebuffer page 3
+$A000-$BFFF      5    $34   8 K    Reserved — game state from Phase 4+
+$C000-$DFFF      6    $3E   8 K    Code (lower half)
+$E000-$FFFF      7    $3F   8 K    Code (upper half) + jump table at $FE00 + I/O at $FF00
+</code></pre>
+      <p>
+        GIME <code>$FF9D/$FF9E</code> (vertical-offset) points at physical
+        address of phys page <code>$30</code> = <code>$30 &lt;&lt; 13 = $060000</code>.
+        So the framebuffer's first byte is physical <code>$060000</code>.
+        The CPU writes to the FB through virtual <code>$2000-$9FFF</code>,
+        accessing the same physical bytes through the MMU.
+      </p>
+      <p>
+        <code>$9800-$9FFF</code> is the 2 K of slack at the end of FB page 3
+        (192 rows × 160 bytes/row = 30 720 = <code>$7800</code>; FB occupies
+        virtual <code>$2000-$97FF</code>). Free for use as scratch /
+        sprite save-restore buffer.
+      </p>
+    </section>
+
+    <section>
+      <h2>Cart ROM image (16 K)</h2>
+<pre><code>file offset   virtual          purpose
+$0000-$3EFF   $C000-$FEFF      autostart magic, entry, code, all data tables
+              $FF00-$FFFF      (not in cart — dedicated I/O)
+$3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
+</code></pre>
+      <p>The lwasm source uses a single <code>org</code> block:</p>
+<pre><code>        org     $C000
+        fcc     "DK"            ; autostart magic (BASIC FIRQ -&gt; $C002)
+        ; entry, code, data tables, ...
+</code></pre>
+      <p>
+        Build script pads the resulting raw output to 16384 bytes (see
+        <a href="../tooling/build-workflow.html">build-workflow</a>).
+      </p>
+      <p>
+        If 16 K becomes insufficient, expansion options are documented in
+        <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>.
+        The pivot is local to the boot data-copy step below — runtime is
+        unaffected because it runs from RAM.
+      </p>
+    </section>
+
+    <section>
+      <h2>Boot data-copy procedure</h2>
+      <p>
+        Goal (on real hardware): get cart ROM contents into RAM at the
+        same physical pages, so all-RAM mode is transparent.
+      </p>
+      <p>
+        The CoCo 3 has <strong>shadow RAM</strong> at physical
+        <code>$3C-$3F</code> even when those pages are sourced from ROM
+        (TY=0): writes go to the RAM, reads come from ROM. The boot
+        self-copy depends on that semantic. The Phase 2.1 "wrote
+        <code>$5A</code> to <code>$C000</code>, flipped TY=1, read it back"
+        test passed under XRoar, but see the <strong>important caveat</strong>
+        below — that test result is consistent with both "shadow-RAM-during-write
+        works" AND with "XRoar serves cart bytes through the cart-window
+        read path regardless of TY". The two are indistinguishable from
+        CPU-visible behavior alone.
+      </p>
+
+      <h3>Important: under XRoar 1.10 the self-copy is a no-op</h3>
+      <p>
+        Empirically established 2026-05-14 (four-pass gdb-mcp investigation,
+        see <a href="../backlog/cart-ram-corruption.html">backlog/cart-ram-corruption</a>).
+        Under XRoar 1.10's GIME emulation:
+      </p>
+      <ul>
+        <li>Pre-SAM_ALLRAM (MC3=1, MMUEN=0, TY=0), the GIME's address decoder routes <code>$C000-$FDFF</code> through <code>S=1</code>/CTS (cart ROM) with <strong>RAS=0</strong>. <code>coco3.c read_byte</code>'s <code>if (RAS)</code> RAM-overlay block is skipped → reads return cart-ROM bytes. <code>coco3.c write_byte</code> calls <code>cart_rom_write</code> (read-only no-op) and likewise skips the RAS RAM-write block → writes go nowhere. <strong><code>std ,x</code> in the self-copy loop neither populates RAM nor errors.</strong></li>
+        <li>Post-SAM_ALLRAM (TY=1), reads at <code>$C000-$FDFF</code> still come back as cart bytes. Source-review gap acknowledged; empirical fact stands: cart bytes are accessible at <code>$C000-$FDFF</code> throughout the boot, pre- and post-SAM_ALLRAM, with or without the self-copy.</li>
+        <li><code>$FE00-$FEFF</code> is different: MC3=1 forces RAS=1 in the inner decode, so reads/writes hit bank 0 RAM symmetrically. The jump-table region IS RAM-backed.</li>
+      </ul>
+      <p>
+        <strong>Net:</strong> on XRoar, execution at <code>$C000-$FDFF</code>
+        is always from cart ROM. The self-copy is dead code. On real
+        hardware, the self-copy is expected to work as originally designed —
+        but that's unverified until hardware bring-up (Phase 10).
+      </p>
+
+      <h3>Implications for code that assumes RAM-shadowing</h3>
+      <ul>
+        <li><strong>Self-modifying code</strong> at <code>$C000-$FDFF</code> will silently fail on XRoar (writes don't land; subsequent reads return the original cart byte).</li>
+        <li><strong>Runtime data tables</strong> at <code>$C000-$FDFF</code> are read-only on XRoar. The jump table at <code>$FE00-$FEFF</code> is the only RAM-backed window inside the cart range under emulation.</li>
+        <li><strong>Game-state RAM at <code>$A000-$BFFF</code></strong> is below the cart window; once PAR5 maps it to a normal phys page, ordinary read/write works on both XRoar and hardware.</li>
+        <li><strong>The <code>org $C0DC</code> workaround</strong> for <a href="./lessons-learned.html">the XRoar bad-window quirk</a> was originally rationalized against a RAM-shadow model. Since we're actually executing from cart ROM in XRoar, the workaround is still correct (those addresses really do read garbage from cart space), but the <em>reasoning</em> in our heads needs updating.</li>
+      </ul>
+
+      <p>Sequence:</p>
+<pre><code>1. (Cart entered at $C002, ORCC #$50, LDS, DP setup — Phase 1 base.)
+
+2. Self-copy $C000-$FEFF:
+        ldx     #$C000
+   loop ldd     ,x
+        std     ,x
+        leax    2,x
+        cmpx    #$FF00
+        blo     loop
+   Reads come from cart ROM; writes go to RAM at physical $3E-$3F.
+
+3. Switch TY = 1 (write $FFDF). Cart hardware disconnects.
+   Virtual $C000-$FEFF now reads RAM at phys $3E-$3F — the same bytes we
+   just wrote. Code continues to execute, oblivious to the swap.
+
+4. (Phase 2 continues: configure GIME hi-res mode, MMU + PARs, palette,
+   framebuffer clear, render.)
+</code></pre>
+      <p>
+        Approximate cost: 16 K bytes copied two-at-a-time = ~8 K iterations
+        × ~10 cycles ≈ 80 K cycles ≈ 45 ms at 1.78 MHz. Boot-time-only,
+        never observed by the player.
+      </p>
+    </section>
+
+    <section>
+      <h2>Phase 4 problem: sprite ROM at full 4bpp likely doesn't fit in 16 K cart</h2>
+      <p>
+        Sprite ROM at full 4bpp: ~120 sprites × 128 B = 15 K. Plus tile gfx
+        (~1.6 K), font (~3 K), code (~6-8 K), maze (~1 K), palette (~0.5 K),
+        sound (~1-3 K) ≈ 28-31 K total — overflows the 16 K cart window.
+        <strong>Decide at the Phase 4 review gate</strong> against measured numbers:
+      </p>
+      <ol>
+        <li><strong>Compress sprites to 2bpp + per-sprite attribute byte</strong> — halves sprite ROM to ~7.5 K. Inline expand during blit (~30% cost). Closest to arcade hardware's native layout. <strong>Default plan.</strong></li>
+        <li><strong>Curate the sprite set</strong> — drop direction-flip frames; mirror at blit time. Probably reduces 120 → 60-80 frames.</li>
+        <li><strong>Pivot to a software bank-switched cart</strong> — see <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>. Universal hardware support; ~half-day refactor; touches only the boot data-copy phase.</li>
+      </ol>
+      <p>
+        Once a cart holds enough data, the in-RAM data layout still has
+        the same constraint: 8 PARs vs 8-10 wanted (1 system + 4 FB + 1
+        game state + 2 data + 2 code). Resolution options for <em>that</em>,
+        in increasing cost:
+      </p>
+      <ol style="list-style-type:lower-alpha">
+        <li><strong>Bank-switch the data PAR</strong> — map phys <code>$34</code> for "common" sprites, phys <code>$35</code> for "rare"; switch PAR5 between as needed. ~10 cycles per switch.</li>
+        <li><strong>Drop one FB page, use a sliding write window</strong> — frees one PAR for data; renderer gets more complex.</li>
+        <li><strong>Move some code out of <code>$E000-$FFFF</code></strong> — frees PAR7. Code lives only in <code>$C000-$DFFF</code> (8 K). Tight.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Direct-page allocation (<code>$0200-$02FF</code>)</h2>
+      <p>
+        Holding a page at <code>$02xx</code> for hot variables (set
+        2026-05-08, <a href="./coding-conventions.html">coding-conventions §1</a>).
+        Current allocation:
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Offset</th><th>Variable</th><th>Width</th><th>Owner</th></tr></thead>
+        <tbody>
+          <tr><td><code>$00</code></td><td><code>FRAMES</code></td><td>u16</td><td>Phase 1 frame counter</td></tr>
+          <tr><td><code>$02</code></td><td>(free)</td><td></td><td>Phase 2+</td></tr>
+        </tbody>
+      </table>
+      <p>Plenty of room. Maintain this table as variables land.</p>
+    </section>
+
+    <section>
+      <h2>Stack</h2>
+      <p>
+        Top of stack at <code>$1FFE</code> (in PAR0, phys <code>$38</code>).
+        Grows down. Max realistic depth a few hundred bytes — interrupts
+        push 12 (IRQ) or 3 (FIRQ) bytes plus whatever the handler reserves.
+        6 K of stack space is excessive but harmless.
+      </p>
+    </section>
+
+    <section>
+      <h2>Open items</h2>
+      <ol>
+        <li><strong>Shadow-RAM-during-write</strong> — partially verified. Phase 2.1 sentinel test passed under XRoar but is not discriminating (see caveat above). The self-copy itself is empirically a no-op on XRoar 1.10. <strong>Hardware verification deferred to Phase 10.</strong></li>
+        <li><strong>XRoar's handling of 32 K cart files</strong> — observed inconsistent with naive <code>$8000-$FEFF</code> mapping; deferred until/unless we need the larger cart. See <a href="../tooling/xroar.html">tooling/xroar "Gotchas"</a>.</li>
+        <li><strong>Phase 4 sprite-data resolution</strong> — see Phase 4 problem section above.</li>
+        <li><strong>Game-state PAR (<code>$A000-$BFFF</code>) layout</strong> — entity tables, score, etc. Defer until Phase 4 when entity records are designed.</li>
+        <li><strong>XRoar source-review gap</strong> — <code>tcc1014.c</code> decode trace predicts certain <code>$E000+</code> reads should return cart padding (<code>$FF</code>) but they empirically return SECB-style bytes. There is a path through <code>coco3.c read_byte</code> we haven't fully reconstructed. Not blocking, but it means we can't reason confidently about exact GIME state from source review alone; trust empirical probes. See <a href="../backlog/cart-ram-corruption.html">backlog/cart-ram-corruption</a>.</li>
+      </ol>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <a href="../../release/reference/coco3/memory-map.html">CoCo 3 memory map</a>,
+        <a href="../../release/reference/coco3/gime.html">GIME</a>,
+        <a href="../platform/cartridge.html">platform/cartridge</a>,
+        <a href="./video-mode.html">video-mode</a>,
+        <a href="../sources/coco3-asm-tepolt.html">coco3-asm-tepolt</a>,
+        <a href="./roadmap.html">roadmap</a>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Convert to RGB tv-input and rebuild palette tables — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Backlog</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Backlog · tooling / palette</p>
+      <h1>Convert to RGB tv-input and rebuild palette tables <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Switch XRoar from composite NTSC to RGB monitor mode and re-derive
+        the empirical 6-bit palette → color table that <code>main.s</code>
+        depends on.
+      </p>
+    </header>
+
+    <section>
+      <h2>Status (2026-05-16)</h2>
+      <p>
+        <strong>Mostly complete.</strong> <code>-tv-input rgb</code> is
+        wired into both launch sites (<code>scripts/build.sh</code> +
+        <code>web/backend/instance.py</code>), the empirical 6-bit → colour
+        table has been derived under RGB and recorded in
+        <a href="../implementation/lessons-learned.html">implementation/lessons-learned</a>
+        §"XRoar RGB monitor palette mapping", and <code>palette_table</code>
+        in <code>src/main.s</code> has been updated to use RGB-canonical
+        codes for indices 0-3 (black <code>$00</code>, yellow <code>$30</code>,
+        blue <code>$08</code>, white <code>$3F</code>).
+      </p>
+      <p>
+        <strong>Blocked acceptance criterion:</strong> "Phase 2.4 isolation
+        build renders three test tiles correctly under RGB" cannot be
+        verified because the existing Phase 2.x <code>main.s</code> pipeline
+        renders the FB as a 2-colour noise grid under either RGB <em>or</em>
+        composite — independent of FB content. Bug isolated to the MMU /
+        PAR / cart-self-copy chain via a from-scratch minimal hi-res cart
+        (<code>src/diag_minimal.s</code>) that displays 16 clean stripes.
+        Full investigation lives in
+        <a href="./phase2-fb-render-regression.html">phase2-fb-render-regression</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Why</h2>
+      <p>
+        <code>scripts/build.sh</code> previously launched XRoar with no
+        <code>-tv-input</code> flag, defaulting to <strong>composite NTSC</strong>.
+        The empirical 6-bit-code → color table in
+        <a href="../implementation/lessons-learned.html">lessons-learned</a>
+        was originally derived under that default, and the
+        <code>palette_table</code> in <code>src/main.s</code> used
+        composite-tuned codes (e.g. <code>$30</code> and <code>$3F</code>
+        both render as white under composite — useless under RGB;
+        <code>$33</code> is yellow under composite but a completely
+        different hue under RGB).
+      </p>
+      <p>
+        Real CoCo 3 hardware that targets an RGB monitor (the more common
+        modern setup, and the cleaner colour signal) needs a different
+        table. Continuing on composite was fine for emulator-only work but
+        would have locked us into colour choices that won't match RGB
+        hardware in Phase 10.
+      </p>
+    </section>
+
+    <section>
+      <h2>Scope</h2>
+      <ul>
+        <li>Add <code>-tv-input rgb</code> to the canonical <code>xroar</code> invocation in <code>scripts/build.sh</code>.</li>
+        <li>Update the canonical-invocation snippet in <a href="../tooling/xroar.html">tooling/xroar</a> and <a href="../tooling/build-workflow.html">tooling/build-workflow</a>.</li>
+        <li>Re-run a stripe-test ROM (revive the Phase 2.3 16-stripe diagnostic from the git history at the Phase 2.3-close commit) and visually record the 6-bit-code → color mapping under <code>-tv-input rgb</code>.</li>
+        <li>Replace the empirical table in <a href="../implementation/lessons-learned.html">lessons-learned</a> with a new entry "XRoar RGB monitor palette mapping" — keep the composite table too, clearly labelled, since real CoCo 3 owners may pick either monitor.</li>
+        <li>Update <code>palette_table</code> in <code>src/main.s</code> so indices 0-3 (black / yellow / blue / white) still render correctly under RGB. Audit remaining entries for any duplicates that resolve to the same RGB triple.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Done when</h2>
+      <ul>
+        <li><code>./scripts/build.sh run</code> boots into RGB mode by default.</li>
+        <li>A stripe-test build under the new tv-input shows 16 visually distinct stripes (no duplicates).</li>
+        <li>The Phase 2.4 isolation build (three test tiles) renders with the intended 0/1/2/3 colours under RGB.</li>
+        <li>Wiki: lessons-learned has both palette tables, clearly labelled by tv-input mode.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Open questions</h2>
+      <ul>
+        <li>Is there a reason to keep composite as an option for any test? (Real composite hardware exists; some users may not have RGB monitors. Possibly add an <code>XROAR_TV=cmp</code> env override to the build script.)</li>
+        <li>Does <code>cmp-br</code> vs <code>cmp-rb</code> produce different colour mappings worth documenting? Probably out of scope until someone asks.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <a href="../tooling/xroar.html">tooling/xroar</a>,
+        <a href="../tooling/build-workflow.html">tooling/build-workflow</a>,
+        <a href="../implementation/lessons-learned.html">implementation/lessons-learned</a> (composite table preserved),
+        <code>src/main.s</code> <code>palette_table</code>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

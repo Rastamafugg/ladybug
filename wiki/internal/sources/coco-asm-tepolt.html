@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tepolt — Assembly Language Programming for the Color Computer — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Sources</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Source · book</p>
+      <h1>Assembly Language Programming for the Color Computer <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Laurence A. Tepolt (Spectral Associates, 1985). "The Book" —
+        canonical 6809/SAM/PIA/VDG/cartridge reference, inherited by the
+        CoCo 3 except where superseded by the GIME.
+      </p>
+    </header>
+
+    <section>
+      <p>
+        Covers the original CoCo 1 / CoCo 2 hardware. The CoCo 3 manual
+        (also Tepolt) refers to this volume as "The Book"; almost everything
+        in this book is still load-bearing for bare-metal CoCo 3 programming
+        except where superseded by the GIME (ACVC) — see
+        <a href="./coco3-asm-tepolt.html">coco3-asm-tepolt</a>.
+      </p>
+      <p>
+        Raw OCR text:
+        <code>docs/reference/Assembly Language Programming for the Color Computer.md</code>.
+      </p>
+    </section>
+
+    <section>
+      <h2>What we extracted</h2>
+
+      <h3>Chapter 3 — MC6809E</h3>
+      <p>
+        Programming model: X, Y, U, S (16-bit pointer regs); PC (16-bit);
+        A, B (8-bit accumulators) concatenable as D; DP (8-bit direct page);
+        CC (<code>E F H I N Z V C</code>). U and S are stack pointers; S is
+        the hardware stack used by interrupts. RESET clears DP, sets I and
+        F, fetches PC from <code>$FFFE/$FFFF</code>. Hardware vectors: see
+        Appendix E table.
+      </p>
+
+      <h3>Chapter 3 — Interrupts (6809 sequence)</h3>
+      <ul>
+        <li><strong>IRQ:</strong> completes current instruction, sets E, pushes all regs (PC, U, Y, X, DP, B, A, CC) onto S, sets I, vectors via <code>$FFF8/$FFF9</code>. Maskable via I bit.</li>
+        <li><strong>FIRQ:</strong> clears E, pushes only PC and CC, sets F and I, vectors via <code>$FFF6/$FFF7</code>. Maskable via F bit. Higher priority than IRQ (FIRQ is not masked during IRQ).</li>
+        <li><strong>NMI:</strong> like IRQ but non-maskable; first NMI ignored until S is loaded after reset; vector <code>$FFFC/$FFFD</code>.</li>
+        <li><strong>SWI/SWI2/SWI3:</strong> software interrupts, vectors <code>$FFFA-FFFB</code>, <code>$FFF4-FFF5</code>, <code>$FFF2-FFF3</code>.</li>
+        <li><strong>RTI</strong> inspects E on the popped CC: full unstack if set, only PC+CC if clear.</li>
+      </ul>
+
+      <h3>Chapter 4 — Addressing modes</h3>
+      <p>
+        Inherent, immediate (<code>#</code>), extended (16-bit absolute),
+        extended indirect (<code>[$nnnn]</code>), register (TFR/EXG/PSH/PUL
+        postbyte), indexed (zero offset, 5/8/16-bit constant offset,
+        A/B/D-register offset, autoinc/dec by 1 or 2, all with optional
+        indirect via <code>[ ]</code>), relative (short ±127, long ±32767,
+        all branches PC-relative), direct (DP + 8-bit, single-byte operand),
+        PC-relative (<code>,PCR</code> — supports position independence).
+        Indexed postbyte tables 4-1/4-2/4-3 captured.
+      </p>
+      <p>
+        Push/pull postbyte bit map: bit 0 = CC, 1 = A, 2 = B, 3 = DP,
+        4 = X, 5 = Y, 6 = S/U, 7 = PC.
+        TFR/EXG nibble codes: 0 = D, 1 = X, 2 = Y, 3 = U, 4 = S, 5 = PC,
+        8 = A, 9 = B, A = CC, B = DP.
+      </p>
+      <p>
+        <strong>For Ladybug,</strong> prefer DP-relative for hot per-frame
+        state and PC-relative within position-independent code blocks.
+      </p>
+
+      <h3>Chapter 5 / Appendix B — Instruction set table</h3>
+      <p>
+        Full op-code / addressing / cycle / byte-count / CC-effect grid; 59
+        instructions. Use Appendix B as the canonical cycle-count reference
+        for budget calculations. Re-published in the project's release
+        reference under
+        <a href="../../release/reference/6809/index.html">6809 ISA</a>.
+      </p>
+
+      <h3>Chapter 9 — SAM (MC6883)</h3>
+      <p>
+        16 control bits, set/cleared by writing to paired addresses in the
+        <code>$FFC0-$FFDF</code> range. <strong>In the CoCo 3 the SAM is
+        absorbed into the GIME but the same dedicated-address bit-flip
+        semantics still apply.</strong> See
+        <a href="../../release/reference/coco3/gime.html">GIME reference</a>
+        for the consolidated catalog.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Bits</th><th>Function</th><th>Set / Clear</th></tr></thead>
+        <tbody>
+          <tr><td>TY</td><td>Memory map mode (0 = ROM/RAM, 1 = all-RAM)</td><td>FFDF / FFDE</td></tr>
+          <tr><td>M1, M0</td><td>Memory size</td><td>FFDD/DC, FFDB/DA</td></tr>
+          <tr><td>R1, R0</td><td>MPU clock rate</td><td>FFD9/D8, FFD7/D6</td></tr>
+          <tr><td>P1</td><td>Page number</td><td>FFD5 / FFD4</td></tr>
+          <tr><td>F6..F0</td><td>Video display starting address (×512-byte boundary)</td><td>FFD3..FFC6</td></tr>
+          <tr><td>V2..V0</td><td>VDG buffer-size mode</td><td>FFC5..FFC0</td></tr>
+        </tbody>
+      </table>
+      <p>
+        R0/R1 control speed: <code>00</code> = 0.89 MHz everywhere,
+        <code>01</code> = 1.78 MHz outside <code>$FF00-$FF1F</code> and
+        outside RAM (i.e. ROM-only fast), <code>1x</code> = 1.78 MHz
+        everywhere ("all-fast", needs MC68B09E). Cassette/serial/disk ROM
+        I/O depends on the slow rate.
+      </p>
+
+      <h3>Chapter 9 — PIA (MC6821)</h3>
+      <p>Each PIA has six registers in 4 dedicated bytes:</p>
+      <table class="wiki-table">
+        <thead>
+          <tr><th>Address</th><th>PIA 1 (keyboard, joystick fire, sound out)</th><th>Address</th><th>PIA 2 (VDG bits, DAC, serial, cassette)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>$FF00</code></td><td>DRA / DDRA (selected by CRA bit 2)</td><td><code>$FF20</code></td><td>DRA / DDRA</td></tr>
+          <tr><td><code>$FF01</code></td><td>CRA</td><td><code>$FF21</code></td><td>CRA</td></tr>
+          <tr><td><code>$FF02</code></td><td>DRB / DDRB</td><td><code>$FF22</code></td><td>DRB / DDRB (bits 7-3 → VDG; on CoCo 3 those go to GIME)</td></tr>
+          <tr><td><code>$FF03</code></td><td>CRB</td><td><code>$FF23</code></td><td>CRB</td></tr>
+        </tbody>
+      </table>
+      <p>
+        CRA/CRB layout: bit 7 = CA(B)1 flag (RO; cleared by reading
+        DRA/DRB), bit 6 = CA(B)2 flag, bits 5-3 = CA(B)2 control, bit 2 =
+        DR/DDR select (1 = DR), bits 1-0 = CA(B)1 control (bit 1 transition
+        select, bit 0 IRQ enable). DDR: 1 = output, 0 = input.
+      </p>
+      <p>
+        BASIC's PIA init (Table 9-8): PIA1 DDRA=$00, CRA=$34, DDRB=$FF,
+        CRB=$35. PIA2 DDRA=$FE, CRA=$30, DDRB=$F8, CRB=$30.
+        <strong>For Ladybug we will reset and reinitialise the PIAs
+        ourselves</strong> rather than trusting BASIC's setup, since we
+        boot from cartridge.
+      </p>
+
+      <h3>Chapter 9 — Interrupt sources (CoCo 1/2)</h3>
+      <ul>
+        <li>IRQ from PIA1 CA1 = HSYNC (63.5 µs, ~15.7 kHz) and CB1 = VSYNC (16.7 ms, 60 Hz).</li>
+        <li>FIRQ from PIA2 CA1 = serial RS-232 READY and CB1 = cartridge pin 8.</li>
+        <li>NMI direct from cartridge pin 4.</li>
+      </ul>
+      <p>
+        To arm a PIA-driven interrupt: read CRx, OR <code>$05</code> (set
+        bit 0 = enable interrupt, bit 2 = DR access), write CRx back, then
+        read DRx to clear the flag bit. The interrupt handler must read DRx
+        before RTI to acknowledge.
+      </p>
+
+      <h3>Chapter 10 — Devices</h3>
+      <ul>
+        <li>
+          <strong>Keyboard:</strong> 7×8 matrix on PIA1 PB7-PB0 (column
+          drive, output low) × PA6-PA0 (row sense, input). PA7 is wired to
+          the joystick comparator. Drop one PB column low, all others high,
+          then read DRA — any 0 in PA0..PA6 marks pressed keys in that
+          column. CoCo 3 adds F1/F2/CTRL/ALT and joystick button 2 — see
+          <a href="./coco3-asm-tepolt.html">coco3-asm-tepolt</a> Fig 7-3.
+        </li>
+        <li><strong>Joystick fire buttons:</strong> PA0 (right), PA1 (left), active low.</li>
+        <li>
+          <strong>Joystick X/Y:</strong> analog, digitised via
+          successive-approximation A/D = 6-bit DAC on PIA2 PA7-PA2 +
+          comparator into PIA1 PA7. Selector switch (PIA1 CA2 + CB2) picks
+          one of four analog sources; CB2 of PIA2 is the master enable.
+        </li>
+        <li>
+          <strong>Sound paths:</strong>
+          (a) 6-bit DAC on PIA2 PA7-PA2 (selector switch position 0, CB2
+          PIA2 master high);
+          (b) cassette playback (sw pos 1);
+          (c) cartridge SND pin 35 (sw pos 2);
+          (d) 1-bit square wave from PIA2 PB1.
+          All routed to TV speaker via attenuator. <strong>For Ladybug v1,</strong>
+          plan on the 6-bit DAC for tones/effects and PB1 for simple beeps.
+          See <a href="../platform/sound.html">platform/sound</a>.
+        </li>
+        <li><strong>Cassette motor relay:</strong> PIA2 CA2.</li>
+        <li><strong>RS-232 serial:</strong> TX on PIA2 PA1 (inverted), RX on PIA2 PB0 (inverted), READY on PIA2 CA1 → FIRQ.</li>
+      </ul>
+
+      <h3>Chapter 10 — Cartridge connector</h3>
+      <p>
+        40-pin. Power: -12 V (1, CoCo 1 only), +12 V (2), +5 V (9, up to
+        300 mA), GND (33, 34). Data D0-D7 (10-17), R/W (18), address A0-A15
+        (19-31, 37-39). Control: HALT (3, in), NMI (4, in), RESET (5, out),
+        E (6, out), Q (7, out), CART/CARTRIDGE (8 → PIA2 CB1, FIRQ source),
+        CTS (32 — low when MPU accesses <code>$C000-$FEFF</code> with TY
+        clear, i.e. cartridge ROM select), SCS (36 — low when MPU accesses
+        <code>$FF40-$FF5F</code>, i.e. cartridge I/O select), SND (35,
+        analog audio in), SLENB (40 — when low inhibits SAM decoding).
+      </p>
+
+      <h3>Cartridge auto-start (critical for Ladybug)</h3>
+      <p>
+        When a cartridge is inserted, the ROM at the cartridge slot occupies
+        <code>$C000-$FEFF</code> (TY=0, ROM/RAM mode). Pin 8 = CART line is
+        wired to PIA2 CB1 → FIRQ. The BASIC reset routine arms the
+        cartridge FIRQ; on FIRQ it jumps to <code>$C000</code>. So a
+        cartridge ROM whose first three bytes are a <code>JMP $Cxxx</code>
+        (or, more commonly, <code>"DK"</code> magic followed by a JMP) gets
+        control on power-on — this is the Ladybug entry mechanism for
+        native-hardware boot.
+      </p>
+
+      <h3>Appendix E — Dedicated address summary</h3>
+      <p>
+        Captured in <a href="../../release/reference/coco3/memory-map.html">CoCo 3 memory map</a>
+        and the <a href="../../release/reference/coco3/gime.html">GIME reference</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>What we did NOT ingest in detail</h2>
+      <ul>
+        <li>Chapters 1, 2 (binary/hex math and BASIC data formats) — assumed.</li>
+        <li>Chapter 6 (EDTASM+) — we are not using EDTASM+ as our toolchain.</li>
+        <li>Chapter 7's BASIC-style flow primer — assumed.</li>
+        <li>Chapter 8 (BASIC ROM call interface) — Ladybug runs without BASIC.</li>
+        <li>Memory-size sense / cassette I/O / RS-232 fine detail — out of scope for a cartridge-resident game.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Where this propagates</h2>
+      <ul>
+        <li><a href="../../release/reference/6809/index.html">release/reference/6809</a> — MPU programming model, addressing modes, interrupt sequences, full ISA.</li>
+        <li><a href="../../release/reference/coco3/memory-map.html">release/reference/coco3/memory-map</a> — dedicated address map, SAM TY mode.</li>
+        <li><a href="../../release/reference/coco3/gime.html">release/reference/coco3/gime</a> — SAM register set (now inside the GIME).</li>
+        <li><a href="../platform/timing.html">internal/platform/timing</a> — HSYNC / VSYNC interrupt sources, MPU clock rate.</li>
+        <li><a href="../../release/reference/coco3/input.html">release/reference/coco3/input</a> — keyboard matrix, joystick read.</li>
+        <li><a href="../platform/sound.html">internal/platform/sound</a> — DAC / square-wave paths.</li>
+        <li><a href="../platform/cartridge.html">internal/platform/cartridge</a> — pinout and auto-start handshake.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Raw source: <code>docs/reference/Assembly Language Programming for the Color Computer.md</code>.
+        Companion volume: <a href="./coco3-asm-tepolt.html">coco3-asm-tepolt</a>
+        (GIME-era additions).
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

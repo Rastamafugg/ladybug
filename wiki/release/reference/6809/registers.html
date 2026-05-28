@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6809 Registers — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · programming model</p>
+      <h1>Registers</h1>
+      <p class="wiki-meta">
+        Programming model for the MC6809E / MC68B09E — accumulators, index
+        and stack registers, PC, DP, and the condition-code register.
+      </p>
+    </header>
+
+    <section>
+      <h2>Programming model</h2>
+<pre><code> 15                     0
+┌─────────────────────────┐
+│ X    (16-bit index/ptr) │
+│ Y    (16-bit index/ptr) │
+│ U    (user stack ptr)   │
+│ S    (hardware stack)   │
+│ PC                      │
+├────────────┬────────────┤
+│  A (8-bit) │  B (8-bit) │   D = A:B
+└────────────┴────────────┘
+ 7        0    7        0
+┌─────────┐  ┌─────────────────┐
+│   DP    │  │ E F H I N Z V C │   CC bits
+└─────────┘  └─────────────────┘
+</code></pre>
+
+      <ul>
+        <li><code>A</code> / <code>B</code> — 8-bit accumulators; <code>D</code> is the 16-bit concatenation A:B. Any 16-bit load through D destroys both halves.</li>
+        <li><code>X</code>, <code>Y</code>, <code>U</code>, <code>S</code> — full 16-bit pointer / index registers. All four work with every indexed addressing form, so the 6809 effectively has four independent index regs.</li>
+        <li><code>S</code> is the hardware stack used by the interrupt machinery. <code>U</code> is reserved for user-stack discipline.</li>
+        <li><code>PC</code> — program counter.</li>
+        <li><code>DP</code> — direct-page register, providing the upper byte of every direct-page address. Setting <code>DP</code> lets a hot variable area access in 2-byte / 4-cycle DP-relative form instead of 3-byte / 5-cycle extended.</li>
+        <li><code>CC</code> — condition code register, see <a href="./condition-codes.html">condition codes</a>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Interrupt sequence summary</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Type</th><th>Vector</th><th>Mask</th><th>Stacked regs</th><th>Sets/clears</th></tr></thead>
+        <tbody>
+          <tr><td>RESET</td><td><code>$FFFE/$FFFF</code></td><td>—</td><td>none</td><td>clears DP, sets I and F</td></tr>
+          <tr><td>NMI</td><td><code>$FFFC/$FFFD</code></td><td>unmaskable (after first S load)</td><td>all (PC,U,Y,X,DP,B,A,CC)</td><td>sets E, I, F</td></tr>
+          <tr><td>SWI</td><td><code>$FFFA/$FFFB</code></td><td>unmaskable</td><td>all</td><td>sets E, I, F</td></tr>
+          <tr><td>IRQ</td><td><code>$FFF8/$FFF9</code></td><td>I bit</td><td>all</td><td>sets E, I</td></tr>
+          <tr><td>FIRQ</td><td><code>$FFF6/$FFF7</code></td><td>F bit</td><td>PC, CC only</td><td>clears E, sets I and F</td></tr>
+          <tr><td>SWI2</td><td><code>$FFF4/$FFF5</code></td><td>unmaskable</td><td>all</td><td>sets E</td></tr>
+          <tr><td>SWI3</td><td><code>$FFF2/$FFF3</code></td><td>unmaskable</td><td>all</td><td>sets E</td></tr>
+        </tbody>
+      </table>
+      <p>
+        <code>RTI</code> inspects the popped CC: if E was set, pops
+        everything; if E was clear (FIRQ path), pops only PC.
+        <strong>Implication:</strong> an IRQ handler that wants to share
+        state with FIRQ must do its own pushes — FIRQ does not save A/B/X/etc.
+      </p>
+      <p>
+        In ROM the vectors at <code>$FFF2-FFFF</code> are mirrored to RAM
+        long-branch trampolines at <code>$FEEE-FEFF</code> (primary jump
+        table) and to legacy 6-byte JMPs at <code>$0100-$010F</code>
+        (secondary jump table). Both tables are writable.
+      </p>
+    </section>
+
+    <section>
+      <h2>Register codes (TFR / EXG postbyte)</h2>
+      <p>
+        TFR copies source→dest; EXG swaps. Postbyte holds two register codes
+        (high nybble + low nybble):
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Code</th><th>Register</th><th>Code</th><th>Register</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>D (16-bit)</td><td>5</td><td>PC</td></tr>
+          <tr><td>1</td><td>X</td><td>8</td><td>A (8-bit)</td></tr>
+          <tr><td>2</td><td>Y</td><td>9</td><td>B</td></tr>
+          <tr><td>3</td><td>U</td><td>A</td><td>CC</td></tr>
+          <tr><td>4</td><td>S</td><td>B</td><td>DP</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Push / pull postbyte bit map</h2>
+      <p>
+        <code>PSHS</code> / <code>PSHU</code> / <code>PULS</code> /
+        <code>PULU</code> postbyte (bit positions, high→low):
+      </p>
+      <p><code>bit 7 = PC, 6 = S/U, 5 = Y, 4 = X, 3 = DP, 2 = B, 1 = A, 0 = CC</code></p>
+      <p>
+        Cycle cost is 5 + 1 per byte transferred. <code>PULS</code> /
+        <code>PULU</code> restore CC if it's in the postbyte mask.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Reference: Motorola <em>MC6809E HMOS 8-Bit Microprocessor</em> data
+        sheet; Tepolt, <em>Assembly Language Programming for the Color
+        Computer</em> ch. 3.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

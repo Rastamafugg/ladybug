@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Implementation Roadmap — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation · roadmap</p>
+      <h1>Implementation Roadmap <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Phased plan from empty <code>src/</code> to finished game. Each
+        phase has a proof-of-concept exit criterion and a review gate.
+        Living document — adjust at every gate.
+      </p>
+    </header>
+
+    <section>
+      <h2>How to use this document</h2>
+      <ul>
+        <li>Phases are <strong>sequential</strong> by default — each one's exit criterion gates the next.</li>
+        <li>Each phase ends with a <strong>review gate</strong> where we re-read this roadmap, update it from what we learned, and decide whether the next phase still makes sense as written.</li>
+        <li>Every gate also triggers an append to <a href="./lessons-learned.html">lessons-learned</a>. New conventions go to <a href="./coding-conventions.html">coding-conventions</a>. Anti-patterns go to lessons-learned.</li>
+        <li>A POC is "minimum thing that proves the phase works." It's allowed to be ugly.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Current state (start of Phase 0)</h2>
+      <ul>
+        <li>Wiki: design <a href="../game/overview.html">game/overview</a>, platform pages, tooling pages, DoD-derived <a href="./coding-conventions.html">coding-conventions</a>.</li>
+        <li>Tooling: <code>scripts/build.sh build|run|clean</code> validated end-to-end against the DoD source as a smoke test. lwasm 4.24 + xroar 1.10 in WSL.</li>
+        <li>Boot strategy locked: cart at <code>$C000</code>, BASIC's CART → FIRQ handshake to take control, then all-RAM mode + 1.78 MHz + ACVC Vbord IRQ at 60 Hz (<a href="../platform/cartridge.html">platform/cartridge</a>).</li>
+        <li><code>src/</code> does not exist.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Phase 0 — Hello cart (boot handshake) — DONE 2026-05-08</h2>
+      <p><strong>Goal:</strong> smallest possible cartridge that takes control from BASIC and proves we own the machine.</p>
+      <p><strong>POC tasks:</strong></p>
+      <ol>
+        <li>Create <code>src/main.s</code> with a 3-line stub: <code>ORG $C000</code>, an entry vector compatible with the BASIC CART/FIRQ handshake, an infinite <code>BRA *</code> (or write a known byte to a known screen address before the loop).</li>
+        <li>Build, autorun under XRoar, confirm the screen shows our marker.</li>
+      </ol>
+      <p><strong>Exit criterion:</strong> <code>scripts/build.sh run</code> boots straight to our stub on XRoar without dropping to the BASIC <code>OK</code> prompt.</p>
+      <p><strong>Review gate Q's:</strong></p>
+      <ul>
+        <li>Did the FIRQ handshake work as documented in <a href="../platform/cartridge.html">platform/cartridge</a>? Any gotchas to record?</li>
+        <li>Is <code>scripts/build.sh</code> ergonomic for daily edit-build-run, or does it need a watch mode?</li>
+        <li>Does our cartridge header layout match what we expect to flash to a 16K EPROM later?</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Phase 1 — Boot init: all-RAM, DP, vsync IRQ — DONE 2026-05-08</h2>
+      <p><strong>Goal:</strong> establish the runtime environment our code will assume forever afterward.</p>
+      <p><strong>POC tasks:</strong></p>
+      <ol>
+        <li>Set MMU to all-RAM mode (no ROM in the address space).</li>
+        <li>Set DP to the chosen page (decision: pick the page now and document in <a href="./coding-conventions.html">coding-conventions §1</a>).</li>
+        <li>Switch CPU to 1.78 MHz.</li>
+        <li>Initialise PIA1/PIA2 ourselves (don't trust BASIC's leftovers).</li>
+        <li>Install Vbord IRQ handler that does nothing but increment a frame counter. Print/poke the counter to a fixed memory location so we can watch it tick on screen.</li>
+        <li><code>BRA *</code> main loop.</li>
+      </ol>
+      <p><strong>Exit criterion:</strong> XRoar shows the frame counter incrementing at 60 Hz. Confirm in the trace log that no FIRQ/IRQ from any other source fires.</p>
+      <p><strong>Review gate Q's:</strong></p>
+      <ul>
+        <li>Is our IRQ enable mask actually masking everything but Vbord? (Re-check against <a href="../platform/timing.html">platform/timing</a>.)</li>
+        <li>Does <code>SWI</code> collide with anything we'll need later? — pending question from <a href="./coding-conventions.html">coding-conventions §4</a>. <strong>Resolve at this gate</strong> before any further code uses SWI.</li>
+        <li>Capacity check: how many bytes did we burn on init? Project that against the 16 KB cart budget.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Phase 2 — Display foundation: video mode + char output (in progress 2026-05-08)</h2>
+      <p><strong>Substep status:</strong></p>
+      <ul>
+        <li>2.1 — shadow-RAM-during-write at phys $3E verified</li>
+        <li>2.2 — cart self-copy + all-RAM transition; IRQ ticks from RAM</li>
+        <li>2.3 — GIME hi-res 320×192×16 + MMU + PARs + framebuffer writes + palette load + IRQ-driven FB writes from mainloop</li>
+        <li>2.4 — hand-converted arcade char #432 (dense tile exercising all four pixvals 0/1/2/3 → black/yellow/blue/white) to 4bpp GIME bytes; blit_tile (8 rows x 4 bytes, stride 160); rendered at 3 FB positions on black-cleared FB</li>
+        <li>2.5 — automate tile/palette pipeline with <code>build_gfx.py</code> (next)</li>
+      </ul>
+      <p><strong>Goal:</strong> pick the GIME video mode, get a stable framebuffer, render text reliably.</p>
+      <p><strong>POC tasks:</strong></p>
+      <ol>
+        <li>Pick a video mode (decision point — write the chosen mode + rationale to <a href="./video-mode.html">video-mode</a>). Candidates per <a href="../../release/reference/coco3/gime.html">GIME</a>: 320×192 16-color, 256×192 16-color, or a hi-res text mode.</li>
+        <li>Configure GIME to that mode in init; clear the framebuffer to a known colour.</li>
+        <li>Implement <code>SVC_PUTC</code> (or a regular <code>JSR</code> equivalent) — render a single character glyph from a font table at a tile coordinate.</li>
+        <li>Print "LADYBUG" at the top of the screen.</li>
+      </ol>
+      <p><strong>Exit criterion:</strong> stable picture in XRoar, no flicker, "LADYBUG" visible.</p>
+      <p><strong>Review gate Q's:</strong></p>
+      <ul>
+        <li>Does the chosen mode have enough resolution and palette for the playfield + HUD as described in <a href="../game/overview.html">game/overview</a>?</li>
+        <li>Memory cost of the framebuffer — does it fit comfortably alongside our code?</li>
+        <li>Is our font/glyph format what we want for the HUD numbers and letters too, or do we need separate large/small fonts?</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Phase 3 — Tile renderer + static maze</h2>
+      <p><strong>Goal:</strong> render the playfield from data, no entities yet. Validates the data-driven approach.</p>
+      <p><strong>POC tasks:</strong></p>
+      <ol>
+        <li>Define a tile format (8×8? 8×16? — record decision).</li>
+        <li>Author the maze layout as a 2D array of tile indices in a new data module (<code>DAT_MAZE.S</code> or similar). Includes turnstile gates and dot positions.</li>
+        <li>Implement the tile renderer: walk the maze array, blit each tile.</li>
+        <li>Render once at boot and stop.</li>
+      </ol>
+      <p><strong>Exit criterion:</strong> the full Lady Bug playfield is visible and correct against the design doc — outer walls, inner walls, turnstiles, all 20 gates, dots in their starting positions.</p>
+      <p><strong>Review gate Q's:</strong></p>
+      <ul>
+        <li>Render time budget — how many cycles did the full maze take? Project that against the 60 Hz frame budget if we re-render every frame vs only dirty tiles.</li>
+        <li>Does the maze layout <em>look</em> right at this resolution? (User judgement call.)</li>
+        <li>Is the tile format tractable for both static maze tiles and animated entities, or do we need a separate sprite format?</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Phase 4 — Input + Lady Bug sprite (joystick walking)</h2>
+      <p><strong>Goal:</strong> a controllable Lady Bug sprite walks the maze, no AI yet.</p>
+      <p><strong>POC tasks:</strong></p>
+      <ol>
+        <li>Joystick X/Y read via PIA2 DAC + comparator (<a href="../../release/reference/coco3/input.html">input reference</a>).</li>
+        <li>Define the Lady Bug sprite frames (animation table).</li>
+        <li>Sprite renderer that XORs / saves-restores the background under the sprite.</li>
+        <li>Movement code: discrete tile-aligned movement with intermediate animation, blocked by walls, redirected by turnstiles.</li>
+      </ol>
+      <p><strong>Exit criterion:</strong> Lady Bug walks the maze under joystick control, can rotate turnstiles, can eat dots (dot disappears, no scoring yet).</p>
+      <p><strong>Review gate Q's:</strong></p>
+      <ul>
+        <li>Does the movement <em>feel right</em> against arcade footage? Record the finding.</li>
+        <li>Sprite renderer cost — sustainable when we have skulls + bugs + letters all moving?</li>
+        <li>Decision point: do we still want the <a href="./scheduler.html">scheduler</a> TCB pattern, or is the flat main loop fine?</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Phase 5 — Scoring HUD + maze logic</h2>
+      <p><strong>Goal:</strong> complete the no-enemy game loop. Eating all dots advances to the next stage.</p>
+      <p><strong>POC tasks:</strong></p>
+      <ol>
+        <li>Score, lives, level counters in DP.</li>
+        <li>HUD layout per <a href="../game/overview.html">game/overview</a>: left panel (score/lives/level), right panel (placeholder for EXTRA/SPECIAL/vegetable — implemented in Phase 7).</li>
+        <li>Dot-eating awards points; HUD updates.</li>
+        <li>Stage-clear detection: all dots gone → reset maze, increment level.</li>
+        <li>Death → life lost (placeholder, since no enemies yet — debug key for now).</li>
+      </ol>
+      <p><strong>Exit criterion:</strong> loop of clear-stage → next-stage works indefinitely. Score and HUD accurate.</p>
+    </section>
+
+    <section>
+      <h2>Phase 6 — Enemies: bug spawner + skull AI</h2>
+      <p><strong>Goal:</strong> the game becomes Lady Bug.</p>
+      <p><strong>POC tasks:</strong></p>
+      <ol>
+        <li>Bug entity record (<code>BUG.X</code>, <code>BUG.Y</code>, <code>BUG.STATE</code>, <code>BUG.LEN</code>); fixed-size pool.</li>
+        <li>Border-circuit spawn timer driving bug entry through the gates.</li>
+        <li>Bug AI — simple "head toward Lady Bug, redirected by turnstile state" behaviour.</li>
+        <li>Skull entity + simple movement.</li>
+        <li>Collision → life lost; reset positions.</li>
+      </ol>
+      <p><strong>Exit criterion:</strong> playable. You can lose the game. Multiple bugs on screen at once.</p>
+    </section>
+
+    <section>
+      <h2>Phase 7 — Letters + vegetable cycle + colour cycle</h2>
+      <p><strong>Goal:</strong> the EXTRA/SPECIAL/vegetable system from the design doc.</p>
+      <p><strong>POC tasks:</strong></p>
+      <ol>
+        <li>Global colour-cycle state in DP, advanced by a timed task.</li>
+        <li>Letter entities (E, X, T, R, A / S, P, E, C, I, A, L), placement and collection logic.</li>
+        <li>Vegetable spawn timer + the 18-vegetable cycle ordered table.</li>
+        <li>Heart entity (×2 / ×3 / ×5 multiplier when colour matches).</li>
+        <li>SPECIAL completion → 10,000-point award.</li>
+        <li>EXTRA completion → +1 life.</li>
+      </ol>
+      <p><strong>Exit criterion:</strong> the right HUD panel cycles correctly; collecting at the right colour advances the right target; all three reward paths trigger.</p>
+    </section>
+
+    <section>
+      <h2>Phase 8 — Sound</h2>
+      <p><strong>Goal:</strong> SFX + minimal melody.</p>
+      <p><strong>POC tasks:</strong></p>
+      <ol>
+        <li>SFX engine — DAC samples or square waves on PB1 (<a href="../platform/sound.html">platform/sound</a>).</li>
+        <li>SFX descriptor table; queue dispatched per frame.</li>
+        <li>Sounds for: dot eat, letter collect, vegetable collect, life lost, stage clear, extra life.</li>
+        <li>Optional: short title-screen melody.</li>
+      </ol>
+      <p><strong>Exit criterion:</strong> every game event has audible feedback; no audible glitching during heavy enemy load.</p>
+    </section>
+
+    <section>
+      <h2>Phase 9 — Polish, attract mode, high score, level progression</h2>
+      <p><strong>Goal:</strong> finished game.</p>
+      <p><strong>POC tasks:</strong></p>
+      <ol>
+        <li>Title / attract screen.</li>
+        <li>Difficulty curve (skull count or bug speed scaling per stage).</li>
+        <li>30,000-point bonus-life award (one-time, per locked decision).</li>
+        <li>Game-over flow → back to title.</li>
+        <li>High-score display (session-only — no battery-backed RAM).</li>
+        <li>Final maze/sprite/colour polish pass.</li>
+      </ol>
+      <p><strong>Exit criterion:</strong> plays start-to-finish, looks and feels like Lady Bug, no obvious bugs, fits in cart (16 K target; 32 K / banked acceptable if the expansion was triggered earlier).</p>
+      <p><strong>Review gate Q's:</strong></p>
+      <ul>
+        <li>ROM size — actual vs 16 KB budget. If we overflowed: compress sprites (2bpp+attr / RLE), curate harder, or pivot to bank-switched cart (see <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Phase 10 — Real hardware bring-up</h2>
+      <p><strong>Goal:</strong> runs on a physical CoCo 3 from a 16K EPROM in a cart shell.</p>
+      <p><strong>POC tasks:</strong></p>
+      <ol>
+        <li>Burn the ROM to EPROM.</li>
+        <li>Boot on real hardware.</li>
+        <li>Compare against XRoar — note any divergences (timing, palette, sound).</li>
+      </ol>
+      <p><strong>Exit criterion:</strong> hardware run matches XRoar. Any divergences are explained or fixed.</p>
+      <p><strong>Review gate Q's:</strong></p>
+      <ul>
+        <li>Emulator-vs-hardware divergences — file each one to lessons-learned with the cause.</li>
+        <li><strong>Cart-shell compatibility check.</strong> Does the target cart shell (CoCoSDC, RetroCloud, custom 32 K PCB, etc.) actually respond to the GIME's <code>$8000-$BFFF</code> accesses when Init0 b1-b0 = <code>11</code> is set? If not, pivot to a software bank-switched cart (~half-day refactor). See <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 32 K"</a>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Standing review checklist (every gate)</h2>
+      <ol>
+        <li><strong>Wiki updates.</strong> Any new lesson, decision, hardware quirk, or convention discovered → file it. Don't let it stay in chat history.</li>
+        <li><strong>Roadmap drift check.</strong> Re-read this document. Does the next phase's POC and exit criterion still describe the right next step? If not, edit <em>this file</em> and append a log entry explaining the change.</li>
+        <li><strong>Budget check.</strong> ROM bytes used / 16384. Cycles per frame used / ~29800 (1.78 MHz / 60 Hz).</li>
+        <li><strong>Scope check.</strong> Anything we <em>added</em> that wasn't in the design doc? Anything we <em>cut</em>? Update <a href="../game/overview.html">game/overview</a> decisions block.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Risks the plan won't surface on its own</h2>
+      <ul>
+        <li><strong>GIME mode choice in Phase 2</strong> is load-bearing for everything visual. Don't rush the review at that gate.</li>
+        <li><strong>Tile vs sprite format coupling</strong> in Phase 3/4 — getting the boundary wrong forces a rewrite later. Sketch both formats together, not sequentially.</li>
+        <li><strong>Per-frame budget under enemy load</strong> in Phase 6 is the most likely place we discover we need the TCB scheduler or dirty-rect tracking. Plan a contingency phase at that gate, not after.</li>
+        <li><strong>EPROM/cart-shell hardware logistics</strong> in Phase 10 — sourcing a programmer, blank EPROM, and a working cart shell is <em>not</em> a code task. CoCoSDC removes most of this. Start sourcing in parallel during Phase 6 or 7.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <a href="../game/overview.html">game/overview</a> — locked design;
+        <a href="../platform/cartridge.html">platform/cartridge</a>,
+        <a href="../../release/reference/coco3/gime.html">GIME</a>,
+        <a href="../platform/timing.html">platform/timing</a>,
+        <a href="../../release/reference/coco3/input.html">input</a>,
+        <a href="../platform/sound.html">platform/sound</a> — hardware reference;
+        <a href="./coding-conventions.html">coding-conventions</a>,
+        <a href="./scheduler.html">scheduler</a>,
+        <a href="./lessons-learned.html">lessons-learned</a>;
+        <a href="../tooling/build-workflow.html">build-workflow</a>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

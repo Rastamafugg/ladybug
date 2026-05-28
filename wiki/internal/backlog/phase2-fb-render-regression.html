@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phase 2 FB render regression — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Backlog</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · backlog</p>
+      <h1>Phase 2.x main.s FB render regression <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        The full Phase 2.x boot path (MMU on, PARs loaded, cart self-copy)
+        produces an unintelligible red/green-or-pink/green tight-stripe
+        pattern instead of the 3-tile-on-black image lessons-learned claims
+        it produces. A minimal-MMU-off cart produces correct hi-res output,
+        so the bug is somewhere in the MMU / PAR / self-copy chain.
+      </p>
+    </header>
+
+    <section>
+      <h2>Observed facts</h2>
+      <p>Building <code>src/main.s</code> at <code>main</code> HEAD (commit <code>57333f0</code>) under either <code>-tv-input rgb</code> or <code>-tv-input cmp</code>:</p>
+      <ul>
+        <li><strong>Expected:</strong> black FB with three identical arcade-char-432 tiles spaced across the top row.</li>
+        <li><strong>Observed:</strong> tight 2-colour grid pattern (red+green under RGB, pink+green under composite) over the entire FB area, with a magenta border. Three tiny lighter spots barely visible mid-screen.</li>
+      </ul>
+      <p>
+        The pattern is <strong>stable</strong>, not transient: same image
+        after the cart halts on <code>phase24_halt: bra phase24_halt</code>.
+        The pattern is <strong>independent of FB content</strong>: replacing
+        the 3-tile render with a stripe diagnostic or a solid <code>$11</code>
+        fill produces visually identical noise, so writes to the FB are
+        not landing where the GIME reads from.
+      </p>
+    </section>
+
+    <section>
+      <h2>Discriminating test that isolates the bug</h2>
+      <p>
+        <code>src/diag_minimal.s</code> — a from-scratch hi-res diagnostic
+        with <strong>no MMU, no cart self-copy, no PARs</strong>:
+      </p>
+      <ul>
+        <li><code>$FF90</code> Init0 = <code>%00001000</code> (CoCo3 mode, MMU OFF, force <code>$FExx</code>)</li>
+        <li><code>$FF98</code> BP=1, <code>$FF99</code> = <code>$1E</code> (VRES=0, HRES=7, CRES=2 — 320×192×16)</li>
+        <li>VOFF = phys <code>$072000</code> (= virt <code>$2000</code> because MMU-off maps the 64 K virtual range onto the topmost 64 K physical)</li>
+        <li>Load 16 distinct palette codes</li>
+        <li>Fill FB with 16 horizontal stripes (12 rows each)</li>
+        <li>Unblank → halt</li>
+      </ul>
+      <p>
+        <strong>Result under <code>-tv-input rgb</code>:</strong> 16 clean
+        horizontal stripes, all distinct colours, exactly as drawn.
+        Confirmed the empirical RGB palette mapping now recorded in
+        <a href="../implementation/lessons-learned.html">lessons-learned</a>
+        §"XRoar RGB monitor palette mapping".
+      </p>
+      <p>So:</p>
+      <ul>
+        <li>GIME 320×192×16 mode works.</li>
+        <li>XRoar <code>-tv-input rgb</code> rendering works.</li>
+        <li>Palette load to <code>$FFB0-$FFBF</code> works.</li>
+        <li>FB writes to phys <code>$072000</code> work.</li>
+        <li><strong>Something between <code>diag_minimal.s</code> and <code>main.s</code> breaks FB display.</strong></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Candidate causes (ordered by suspicion)</h2>
+      <ol>
+        <li><strong>Cart self-copy is corrupting the FB or executing wrong code.</strong> The self-copy at <code>entry</code> runs while MMU is OFF, so <code>ldd ,x / std ,x</code> to <code>$C000-$FEFF</code> writes to phys <code>$07C000-$07FEFF</code>. The known XRoar 1.10 cart-window corruption at <code>$C0D9-$C0DB</code> has a workaround, but the workaround skips four bytes — if any branch / <code>LBSR</code> offset lands in that gap, control flow is destroyed.</li>
+        <li><strong>MMU PAR setup or order has a hole.</strong> Current main.s sets <code>clr $FF91</code> (force exec PAR set) <strong>after</strong> the cart copy but <strong>before</strong> loading the par_table into <code>$FFA0-$FFA7</code>. If the PARs aren't reaching the executive bank, virtual <code>$2000</code> writes go to whatever RAM the (possibly uninitialised) PAR1 points at.</li>
+        <li><strong>VOFF + PAR mismatch.</strong> main.s configures VOFF for phys <code>$060000</code> AND PAR1 = <code>$30</code>. Both point at phys <code>$060000</code>. But VOFF is written <strong>before</strong> Init0 enables the MMU. Sequencing issue possible.</li>
+        <li><strong>The wiki claim that Phase 2.4 "renders 3 tiles" was never empirically verified.</strong> Possibility that lessons-learned tables describe intended-but-unobserved behaviour.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Suggested investigation order</h2>
+      <ol>
+        <li>Reproduce the noise pattern on commit <code>2593d36</code> (Phase 2.3 close). If 2.3 also shows noise, the regression has been latent the entire time.</li>
+        <li>Bisect: from <code>diag_minimal.s</code> (works), add features one at a time until display breaks. Order: enable MMU → add PAR load → add cart self-copy → move FB to phys <code>$060000</code>. The breaking change is the bug.</li>
+        <li>Once the breaking change is identified, fix it minimally — don't refactor surrounding code.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Done when</h2>
+      <ul>
+        <li><code>./scripts/build.sh run</code> boots <code>main.s</code> and shows three clean tiles on a black background, in palette indices 0-3 under <code>-tv-input rgb</code>.</li>
+        <li>Root cause is captured in <a href="../implementation/lessons-learned.html">lessons-learned</a>.</li>
+        <li>The "Phase 2.4 isolation build renders 3 tiles correctly under RGB" acceptance criterion in <a href="./rgb-tv-input-palette.html">rgb-tv-input-palette</a> is now satisfiable.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: <code>src/diag_minimal.s</code> — the working baseline;
+        <code>src/main.s</code> — the broken pipeline;
+        <a href="../implementation/lessons-learned.html">lessons-learned</a>
+        — XRoar bad-window note + 3-tile render claim; 2026-05-16 session log.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

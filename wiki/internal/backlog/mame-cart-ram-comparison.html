@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MAME cart-RAM comparison — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Backlog</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · backlog</p>
+      <h1>MAME cart-ROM-to-RAM comparison test <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Run the same cart-ROM-to-RAM self-copy under MAME's CoCo 3 driver
+        and compare against XRoar 1.10's broken cart-window write path.
+      </p>
+    </header>
+
+    <section>
+      <h2>Context</h2>
+      <p>
+        XRoar 1.10 does not write RAM-under-ROM for CPU-space writes in
+        <code>$C000-$FDFF</code> when <code>TY=0</code>. Root cause is
+        source-confirmed at <code>coco3.c:1170-1240</code> — the
+        <code>RAS=0</code> gate skips the RAM-overlay write while
+        <code>S=1</code> routes the write to the read-only cart bank. See
+        <a href="../implementation/lessons-learned.html">lessons-learned §XRoar cart-window write decode</a>.
+      </p>
+      <p>
+        The documented real-hardware contract is that writes pass through
+        to DRAM regardless of TY. Before locking that interpretation we
+        want a second-emulator opinion. MAME's CoCo 3 driver is the most
+        thorough open-source model in active use.
+      </p>
+    </section>
+
+    <section>
+      <h2>Test plan</h2>
+      <p>Goal: replay the boot-time self-copy and observe whether the underlying RAM page is written.</p>
+      <ol>
+        <li>Build a minimal cart (~16 KB) with:
+          <ul>
+            <li><code>"DK"</code> magic + entry stub at <code>$C000</code>.</li>
+            <li>Code that, with <code>TY=0</code> still in effect, writes a known sentinel (e.g. <code>$5A</code>) to <code>$C100</code>, then flips TY=1 via <code>STA $FFDF</code>, then reads <code>$C100</code> and stores the result at a known RAM observation address.</li>
+            <li>Halt loop afterward.</li>
+          </ul>
+        </li>
+        <li>Run under MAME: <code>mame coco3 -cart &lt;path&gt;.rom</code>. Use MAME's debugger (<code>-debug</code>) to inspect.</li>
+        <li>Run the same ROM under XRoar for direct A/B comparison — expected to show the sentinel <strong>not</strong> present in RAM.</li>
+        <li>Record outcome:
+          <ul>
+            <li>If MAME shows the sentinel landed in RAM: confirms XRoar is the outlier; the hardware-contract interpretation in <a href="../implementation/xroar-monitor.html">xroar-monitor</a> (physical-space write is the right primitive) stands unchanged.</li>
+            <li>If MAME also drops the write: re-open the question. Update <a href="../../release/reference/coco3/memory-map.html">memory map</a> and the monitor design accordingly.</li>
+          </ul>
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Effort</h2>
+      <p>
+        Small. Cart build reuses existing lwasm + <code>scripts/build.sh</code>
+        pipeline; MAME debug session is interactive. Estimate: 1-2 hours.
+      </p>
+    </section>
+
+    <section>
+      <h2>Priority</h2>
+      <p>
+        Not blocking the XRoar monitor Phase 2 implementation plan. But the
+        result feeds the eventual Phase 10 hardware bring-up.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources:
+        <a href="../implementation/lessons-learned.html">lessons-learned §XRoar cart-window write decode</a>;
+        <a href="../implementation/lessons-learned.html">lessons-learned §Cart-shadow self-copy is a no-op</a>;
+        <a href="../implementation/xroar-monitor.html">xroar-monitor §Address-space model</a>;
+        <a href="../platform/cartridge.html">platform/cartridge</a>;
+        MAME source: <code>src/mame/trs/coco3.cpp</code>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

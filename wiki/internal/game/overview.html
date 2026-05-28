@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lady Bug — Game Design — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Game design</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · game design</p>
+      <h1>Lady Bug — Game Design Document <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Design specification for the CoCo 3 native-hardware port of the
+        1981 Universal arcade game <em>Lady Bug</em>. Goal: arcade fidelity
+        wherever the platform allows; documented adaptations where it doesn't.
+      </p>
+    </header>
+
+    <section>
+      <h2>High-level</h2>
+      <p>
+        A maze-chase game in the <em>Pac-Man</em> lineage with two
+        distinguishing mechanics: <strong>rotating turnstile gates</strong>
+        that the player (but not enemies) can shift to redirect chasers,
+        and <strong>collectible letters</strong> that spell <code>EXTRA</code>
+        (extra life) and <code>SPECIAL</code> (bonus / extra credit). The
+        player is a ladybug; enemies are a rotating cast of insects.
+      </p>
+      <p>
+        The arcade ran on a Z80 @ 4 MHz with two TI SN76489 sound chips at
+        <strong>240×192 @ 60.11 Hz vertical-orientation</strong> raster.
+      </p>
+    </section>
+
+    <section>
+      <h2>Aspect-ratio adaptation (CoCo 3)</h2>
+      <p>
+        <strong>Arcade:</strong> 240 wide × 192 tall (vertical monitor).
+        Maze is a single non-scrolling screen; HUD/score graphics sit above
+        and below the playfield.
+      </p>
+      <p>
+        <strong>CoCo 3 target:</strong> horizontal display (e.g. 320×192
+        hi-res). The playfield itself is square-ish and fits as-is, but the
+        HUD bands the arcade puts above/below the maze are
+        <strong>rotated to side panels</strong>:
+      </p>
+      <ul>
+        <li><strong>Left panel:</strong> score, lives remaining, current level number.</li>
+        <li><strong>Right panel:</strong> the partially-spelled <code>EXTRA</code> and <code>SPECIAL</code> words, and the current-level vegetable indicator.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Playfield</h2>
+      <ul>
+        <li><strong>Single non-scrolling screen</strong> per stage.</li>
+        <li>Maze is a fixed grid of corridors with a <strong>central nest</strong> where enemies spawn.</li>
+        <li><strong>20 green turnstile gates</strong> placed at corridor junctions. The ladybug walking through one rotates it 90°; this can open or seal off paths. Enemies cannot turn gates.
+          <ul><li>Constraint: the maze design guarantees that no gate configuration can fully isolate any region of the maze.</li></ul>
+        </li>
+        <li><strong>Border circuit timer:</strong> a marker travels around the maze perimeter. Each completed lap releases one enemy from the nest, up to a maximum of (typically) four simultaneous enemies. Border-circuit speed increases on stages 2 and 5.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Entities</h2>
+
+      <h3>Player (ladybug)</h3>
+      <ul>
+        <li><strong>3 lives at start.</strong></li>
+        <li><strong>Bonus life at 30,000 points</strong> (one-time award).</li>
+        <li>Constant movement speed across all levels (only enemies get faster).</li>
+        <li>4-direction joystick control (no diagonal).</li>
+        <li>Touching an enemy costs one life; the enemy returns to the nest.</li>
+        <li>Touching a skull is instant death.</li>
+      </ul>
+
+      <h3>Enemies (insects)</h3>
+      <ul>
+        <li>Eight distinct insect types. Levels 1–8 each introduce a new type (one type per level on those stages).</li>
+        <li>From level 9 onward each stage features four different insect types simultaneously.</li>
+        <li>AI: chase the ladybug through corridors; cannot shift gates.</li>
+        <li>Killable by luring into a skull.</li>
+        <li>Frozen for several seconds when the player eats a vegetable; still lethal on contact during the freeze.</li>
+        <li>Speed increases per level; player speed does not.</li>
+      </ul>
+
+      <h3>Skulls</h3>
+      <ul>
+        <li>Randomly placed each stage, stationary.</li>
+        <li>Lethal to both ladybug and enemies on contact.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Collectibles &amp; scoring</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Item</th><th>Base value</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Flower (dot)</td><td>10</td><td>Filling the maze; collecting all clears the stage.</td></tr>
+          <tr><td>Blue letter / heart</td><td>100</td><td>Multiplier-eligible (×2/×3/×5 per accumulated heart count).</td></tr>
+          <tr><td>Yellow letter / heart</td><td>300</td><td>Multiplier-eligible.</td></tr>
+          <tr><td>Red letter / heart</td><td>800</td><td>Multiplier-eligible.</td></tr>
+          <tr><td>Vegetable (centre)</td><td>1000 → 9500</td><td>Level-1 cucumber 1000; +500/level; caps at 9500 (level 18 horseradish, then constant).</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Hearts and letters — separate entities, global colour cycle</h3>
+      <p>Hearts and letters are <strong>distinct items</strong> placed at distinct positions in the maze.</p>
+      <p>
+        <strong>Global colour cycle.</strong> All on-stage letters and all
+        on-stage hearts share a <strong>single colour state</strong> that
+        changes simultaneously and instantaneously across every item. The
+        colour cycles through blue / yellow / red on a timer (cycle period
+        TBD).
+      </p>
+      <p>
+        Three targets compete for collected items: the <code>EXTRA</code>
+        word, the <code>SPECIAL</code> word, and the heart multiplier.
+        <strong>Each target is assigned a distinct one of the three colours</strong>
+        (specific colour-to-target mapping is a tuning parameter — TBD).
+        Because the global cycle has every item displaying the same colour
+        at any moment, and each target is bound to a different colour,
+        <strong>no tie can occur</strong>: at any instant at most one
+        target is "active."
+      </p>
+
+      <p><strong>Letters</strong> (word-spelling items: E, X, T, R, A, S, P, C, I, L — E and A appear in both words)</p>
+      <ul>
+        <li>Each unique letter spawns at one fixed maze position; its colour follows the global cycle.</li>
+        <li>A letter advances a word only when collected while the current global colour equals that word's assigned colour.</li>
+        <li>E and A: collected at the EXTRA-colour → advance EXTRA; collected at the SPECIAL-colour → advance SPECIAL; collected at the multiplier-colour → no word progress.</li>
+        <li>Letters specific to one word collected at any colour other than their word's colour → no progress.</li>
+        <li>Off-target collection still scores the colour's base value (100/300/800).</li>
+      </ul>
+
+      <p><strong>Hearts</strong> (multiplier items)</p>
+      <ul>
+        <li>A heart only counts toward the multiplier when collected at the multiplier-colour. Counted hearts accumulate in-stage:
+          <ul>
+            <li>1st → ×2 multiplier on subsequent dots/letters.</li>
+            <li>2nd → ×3.</li>
+            <li>3rd → ×5.</li>
+          </ul>
+        </li>
+        <li>Off-colour hearts score the base colour value but do not progress the multiplier.</li>
+        <li>Multiplier does <strong>not</strong> apply to the centre vegetable.</li>
+        <li>Multiplier resets at stage clear.</li>
+      </ul>
+
+      <h3>Word completion rewards</h3>
+      <ul>
+        <li><strong><code>EXTRA</code></strong> (5 letters E-X-T-R-A) → +1 life.</li>
+        <li><strong><code>SPECIAL</code></strong> (7 letters S-P-E-C-I-A-L) → <strong>10,000 points</strong>. (No bonus round in v1.)</li>
+      </ul>
+
+      <h3>Vegetable</h3>
+      <ul>
+        <li>Appears in the central nest area once the fourth enemy has been released.</li>
+        <li>Eating it: bonus points (table above) + freezes all enemies for several seconds.</li>
+        <li>Vegetable cycle (one per level, fixed sequence through level 18 then horseradish forever):
+          <ol>
+            <li>Cucumber (1000)</li>
+            <li>Eggplant (1500)</li>
+            <li>Carrot (2000)</li>
+            <li>Radish (2500)</li>
+            <li>Parsley (3000)</li>
+            <li>Tomato (3500)</li>
+            <li>Pumpkin (4000)</li>
+            <li>Bamboo shoot (4500)</li>
+            <li>Japanese radish (5000)</li>
+            <li>Mushroom (5500)</li>
+            <li>Potato (6000)</li>
+            <li>Onion (6500)</li>
+            <li>Chinese cabbage (7000)</li>
+            <li>Turnip (7500)</li>
+            <li>Red pepper (8000)</li>
+            <li>Celery (8500)</li>
+            <li>Sweet potato (9000)</li>
+            <li>Horseradish (9500)</li>
+            <li>19+. Horseradish (9500)</li>
+          </ol>
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Stage flow</h2>
+      <ol>
+        <li>Maze drawn (single fixed layout, identical every stage), dots/letters/hearts placed at their fixed positions, <strong>fixed number of skulls</strong> placed at randomized positions.</li>
+        <li>Border timer starts; ladybug spawned in starting position; nest holds all enemies for this stage.</li>
+        <li>Each border circuit releases one enemy (max 4). After the 4th release, vegetable spawns in nest.</li>
+        <li>Player eats all dots → stage clears → next stage. Hearts/letters not required for clear.</li>
+        <li>Death (enemy contact or skull) → respawn at start; if no lives remain, game over.</li>
+      </ol>
+      <p>The maze is <strong>a single fixed layout used for every stage</strong>. Per-stage variation comes from: enemy types/count/speed, which vegetable appears, and the randomized skull positions.</p>
+    </section>
+
+    <section>
+      <h2>Audio</h2>
+      <p>
+        Arcade has two SN76489 chips. CoCo 3 has a single 6-bit DAC.
+        Significant adaptation needed — sound design is its own page (TBD).
+        See <a href="../platform/sound.html">platform/sound</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Input</h2>
+      <ul>
+        <li>Joystick (4-direction). Arcade uses a single 4-way stick.</li>
+        <li>Optional keyboard fallback (arrow keys) — to confirm with user.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Decisions locked (2026-05-05)</h2>
+      <ul>
+        <li>HUD: split panels — left = score / lives / level; right = <code>EXTRA</code> + <code>SPECIAL</code> progress + current vegetable.</li>
+        <li>Hearts and letters are separate maze entities. Global colour cycle; each of the three targets (EXTRA word, SPECIAL word, heart multiplier) is assigned a distinct colour.</li>
+        <li><code>SPECIAL</code> reward: 10,000 points. No bonus round in v1.</li>
+        <li>3 starting lives, one-time bonus life at 30,000 points.</li>
+        <li>Single fixed maze layout used for every stage.</li>
+        <li>Fixed skull count per stage (exact number TBD during maze design — likely 4–6).</li>
+        <li>No "Vegetable Harvest" bonus round in the first release.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Deferred (not blocking initial implementation)</h2>
+      <ol>
+        <li><strong>Colour-cycle timing</strong> — exact period of the global blue/yellow/red cycle, and whether stage-clear or death resets it.</li>
+        <li><strong>Colour-to-target mapping</strong> — which of blue/yellow/red is assigned to EXTRA, SPECIAL, and the heart multiplier.</li>
+        <li><strong>Enemy AI</strong> — start with simple shortest-path chase + small randomness.</li>
+        <li><strong>Sound design</strong> — DAC waveform tables, jingles.</li>
+        <li><strong>Input fallback</strong> — joystick is primary; keyboard arrow-key fallback to confirm.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Sources</h2>
+      <ul>
+        <li><a href="../sources/ladybug-arcade.html">Wikipedia: Lady Bug (video game)</a></li>
+        <li>StrategyWiki gameplay/walkthrough pages (partially fetched; full ingest pending)</li>
+        <li>Pixelated Arcade tech specs page</li>
+        <li>C64-Wiki Ladybug entry (for the 1983 home port — useful but <strong>not authoritative</strong> for arcade-specific rules)</li>
+        <li>bitvint.com Lady Bug history page</li>
+        <li>Indie Gamer Chick 2023 review</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Initial draft 2026-05-05 from web ingestion. User-decided block
+        locked the same day across HUD layout, hearts/letters mechanics,
+        SPECIAL reward, lives/bonus, maze invariance, and skull count.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
