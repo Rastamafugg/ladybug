@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASL / ASLA / ASLB — Arithmetic Shift Left — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Shift / Rotate</p>
+      <h1>ASL / ASLA / ASLB — Arithmetic Shift Left</h1>
+      <p class="wiki-meta">C &larr; b7 &larr; … &larr; b0 &larr; 0  (= multiply by 2)</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>ASL  &lt;operand&gt;
+ASLA
+ASLB</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>
+        Shifts the operand left one bit. Bit 7 is shifted into C; a 0 is
+        shifted into bit 0. Equivalent to an unsigned multiply by 2.
+      </p>
+      <p>
+        <strong>Aliases</strong>: <code>LSL</code>, <code>LSLA</code>,
+        <code>LSLB</code> assemble to the same opcodes (08/48/58/68/78) — they
+        are the same operation; only the mnemonic differs. Flag semantics are
+        identical for both names.
+      </p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>U</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td></tr></tbody>
+      </table>
+      <ul>
+        <li><strong>C</strong> — old bit 7.</li>
+        <li><strong>V</strong> — set if the sign bit changed (b7 XOR b6 of the input).</li>
+        <li><strong>H</strong> — undefined.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Form</th><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>ASLA</td><td>Inherent</td><td><code>ASLA</code></td>      <td>48</td><td>2</td><td>1</td></tr>
+          <tr><td>ASLB</td><td>Inherent</td><td><code>ASLB</code></td>      <td>58</td><td>2</td><td>1</td></tr>
+          <tr><td>ASL</td> <td>Direct</td>  <td><code>ASL &lt;n</code></td> <td>08</td><td>6</td><td>2</td></tr>
+          <tr><td>ASL</td> <td>Indexed</td> <td><code>ASL n,R</code></td>   <td>68</td><td>6+</td><td>2+</td></tr>
+          <tr><td>ASL</td> <td>Extended</td><td><code>ASL n</code></td>     <td>78</td><td>7</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        ASLA               * A = A * 2
+        ASLB
+        ROLA               * 16-bit left shift via D: ASLB then ROLA
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="asr.html">ASR</a>
+        <a href="lsr.html">LSR</a>
+        <a href="rol.html">ROL</a>
+        <a href="ror.html">ROR</a>
+        <a href="mul.html">MUL</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

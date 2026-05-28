@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LSR / LSRA / LSRB — Logical Shift Right — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Shift / Rotate</p>
+      <h1>LSR / LSRA / LSRB — Logical Shift Right</h1>
+      <p class="wiki-meta">0 &rarr; b7 &rarr; … &rarr; b0 &rarr; C (unsigned divide by 2)</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>LSR  &lt;operand&gt;
+LSRA
+LSRB</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Shifts the operand right one bit, shifting 0 into bit 7. Bit 0 goes into C. Equivalent to unsigned divide by 2. <strong>N is always cleared</strong> (the new bit 7 is 0).</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>0</td><td>&#x2195;</td><td>–</td><td>&#x2195;</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Form</th><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>LSRA</td><td>Inherent</td><td><code>LSRA</code></td>      <td>44</td><td>2</td><td>1</td></tr>
+          <tr><td>LSRB</td><td>Inherent</td><td><code>LSRB</code></td>      <td>54</td><td>2</td><td>1</td></tr>
+          <tr><td>LSR</td> <td>Direct</td>  <td><code>LSR &lt;n</code></td> <td>04</td><td>6</td><td>2</td></tr>
+          <tr><td>LSR</td> <td>Indexed</td> <td><code>LSR n,R</code></td>   <td>64</td><td>6+</td><td>2+</td></tr>
+          <tr><td>LSR</td> <td>Extended</td><td><code>LSR n</code></td>     <td>74</td><td>7</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        LSRA               * unsigned A / 2
+        LSRA
+        RORB               * 16-bit unsigned D / 2: LSRA then RORB
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="asr.html">ASR</a>
+        <a href="asl.html">ASL</a>
+        <a href="rol.html">ROL</a>
+        <a href="ror.html">ROR</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

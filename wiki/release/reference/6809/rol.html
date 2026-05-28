@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROL / ROLA / ROLB — Rotate Left Through Carry — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Shift / Rotate</p>
+      <h1>ROL / ROLA / ROLB — Rotate Left Through Carry</h1>
+      <p class="wiki-meta">new C &larr; b7; b6&rarr;b7, …, b0&rarr;b1; old C &rarr; b0</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>ROL  &lt;operand&gt;
+ROLA
+ROLB</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>
+        9-bit rotation left through C: bit 7 of the operand goes into C, the
+        previous C goes into bit 0. Used to chain shifts across bytes — e.g.
+        16-bit left shift in D is <code>ASLB</code> then <code>ROLA</code>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Form</th><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>ROLA</td><td>Inherent</td><td><code>ROLA</code></td>      <td>49</td><td>2</td><td>1</td></tr>
+          <tr><td>ROLB</td><td>Inherent</td><td><code>ROLB</code></td>      <td>59</td><td>2</td><td>1</td></tr>
+          <tr><td>ROL</td> <td>Direct</td>  <td><code>ROL &lt;n</code></td> <td>09</td><td>6</td><td>2</td></tr>
+          <tr><td>ROL</td> <td>Indexed</td> <td><code>ROL n,R</code></td>   <td>69</td><td>6+</td><td>2+</td></tr>
+          <tr><td>ROL</td> <td>Extended</td><td><code>ROL n</code></td>     <td>79</td><td>7</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        ASLB               * shift low byte
+        ROLA               * carry into high byte: 16-bit shift left
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="ror.html">ROR</a>
+        <a href="asl.html">ASL</a>
+        <a href="asr.html">ASR</a>
+        <a href="lsr.html">LSR</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

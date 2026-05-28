@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROR / RORA / RORB — Rotate Right Through Carry — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Shift / Rotate</p>
+      <h1>ROR / RORA / RORB — Rotate Right Through Carry</h1>
+      <p class="wiki-meta">new C &larr; b0; b1&rarr;b0, …, b7&rarr;b6; old C &rarr; b7</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>ROR  &lt;operand&gt;
+RORA
+RORB</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>9-bit rotation right through C. Used to chain shifts: 16-bit unsigned right shift in D is <code>LSRA</code> then <code>RORB</code>; 16-bit arithmetic (signed) right shift is <code>ASRA</code> then <code>RORB</code>.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>–</td><td>&#x2195;</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Form</th><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>RORA</td><td>Inherent</td><td><code>RORA</code></td>      <td>46</td><td>2</td><td>1</td></tr>
+          <tr><td>RORB</td><td>Inherent</td><td><code>RORB</code></td>      <td>56</td><td>2</td><td>1</td></tr>
+          <tr><td>ROR</td> <td>Direct</td>  <td><code>ROR &lt;n</code></td> <td>06</td><td>6</td><td>2</td></tr>
+          <tr><td>ROR</td> <td>Indexed</td> <td><code>ROR n,R</code></td>   <td>66</td><td>6+</td><td>2+</td></tr>
+          <tr><td>ROR</td> <td>Extended</td><td><code>ROR n</code></td>     <td>76</td><td>7</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        LSRA
+        RORB               * 16-bit unsigned right shift of D
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="rol.html">ROL</a>
+        <a href="lsr.html">LSR</a>
+        <a href="asr.html">ASR</a>
+        <a href="asl.html">ASL</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>
