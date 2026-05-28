@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TST / TSTA / TSTB — Test — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Compare / Test</p>
+      <h1>TST / TSTA / TSTB — Test</h1>
+      <p class="wiki-meta">set N and Z from operand; V cleared; operand unchanged</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>TST  &lt;operand&gt;
+TSTA
+TSTB</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>
+        Sets N and Z based on the operand's value, clears V, leaves C
+        unaffected. Equivalent to <code>CMP r,#0</code> but shorter for the
+        inherent forms (TSTA/TSTB are 2 cycles / 1 byte).
+      </p>
+      <p>
+        <strong>Note</strong>: TST on a memory operand performs a read–modify–write
+        cycle (writes the original value back). This matters when reading from
+        memory-mapped registers with side-effect-on-write — use LDA + test instead.
+      </p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>0</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Form</th><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>TSTA</td><td>Inherent</td><td><code>TSTA</code></td>      <td>4D</td><td>2</td><td>1</td></tr>
+          <tr><td>TSTB</td><td>Inherent</td><td><code>TSTB</code></td>      <td>5D</td><td>2</td><td>1</td></tr>
+          <tr><td>TST</td> <td>Direct</td>  <td><code>TST &lt;n</code></td> <td>0D</td><td>6</td><td>2</td></tr>
+          <tr><td>TST</td> <td>Indexed</td> <td><code>TST n,R</code></td>   <td>6D</td><td>6+</td><td>2+</td></tr>
+          <tr><td>TST</td> <td>Extended</td><td><code>TST n</code></td>     <td>7D</td><td>7</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        TSTA
+        BEQ    is_zero
+        BMI    is_negative
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="cmpa.html">CMPA</a>
+        <a href="cmpb.html">CMPB</a>
+        <a href="bita.html">BITA</a>
+        <a href="bitb.html">BITB</a>
+        <a href="clr.html">CLR</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

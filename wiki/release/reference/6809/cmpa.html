@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CMPA — Compare A with Memory — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Compare / Test</p>
+      <h1>CMPA — Compare A with Memory</h1>
+      <p class="wiki-meta">A &minus; (M), result discarded; flags set</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>CMPA  &lt;operand&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Performs <code>A &minus; (M)</code> but discards the result, leaving A unchanged; only the flags are updated. Follow with signed branches (BGE/BLT/...) or unsigned branches (BHS/BLO/...) to act on the comparison.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>U</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td></tr></tbody>
+      </table>
+      <ul>
+        <li><strong>Z</strong> — equal.</li>
+        <li><strong>C</strong> — set if A &lt; (M) unsigned.</li>
+        <li><strong>N XOR V</strong> — set if A &lt; (M) signed.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Immediate</td><td><code>CMPA #n</code></td>  <td>81</td><td>2</td><td>2</td></tr>
+          <tr><td>Direct</td>   <td><code>CMPA &lt;n</code></td><td>91</td><td>4</td><td>2</td></tr>
+          <tr><td>Indexed</td>  <td><code>CMPA n,R</code></td> <td>A1</td><td>4+</td><td>2+</td></tr>
+          <tr><td>Extended</td> <td><code>CMPA n</code></td>   <td>B1</td><td>5</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        CMPA   #' '
+        BEQ    is_space
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="cmpb.html">CMPB</a>
+        <a href="cmpd.html">CMPD</a>
+        <a href="bita.html">BITA</a>
+        <a href="tst.html">TST</a>
+        <a href="suba.html">SUBA</a>
+        <a href="beq.html">BEQ</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

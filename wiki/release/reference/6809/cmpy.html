@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CMPY — Compare Y with Memory — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Compare / Test</p>
+      <h1>CMPY — Compare Y with Memory</h1>
+      <p class="wiki-meta">Y &minus; (M:M+1); flags set, Y unchanged</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>CMPY  &lt;operand&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>16-bit compare of <code>Y</code>. Uses the $10 page-2 prefix.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Immediate</td><td><code>CMPY #nn</code></td>  <td>108C</td><td>5</td><td>4</td></tr>
+          <tr><td>Direct</td>   <td><code>CMPY &lt;n</code></td><td>109C</td><td>7</td><td>3</td></tr>
+          <tr><td>Indexed</td>  <td><code>CMPY n,R</code></td>  <td>10AC</td><td>7+</td><td>3+</td></tr>
+          <tr><td>Extended</td> <td><code>CMPY n</code></td>    <td>10BC</td><td>8</td><td>4</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        CMPY   #end
+        BLO    keep_going
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="cmpx.html">CMPX</a>
+        <a href="cmpu.html">CMPU</a>
+        <a href="cmps.html">CMPS</a>
+        <a href="ldy.html">LDY</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

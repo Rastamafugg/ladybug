@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BITB — Bit Test B — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Compare / Test</p>
+      <h1>BITB — Bit Test B</h1>
+      <p class="wiki-meta">B AND (M); flags set, B unchanged</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>BITB  &lt;operand&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Bitwise AND of <code>B</code> with the operand, result discarded; flags only.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>&#x2195;</td><td>&#x2195;</td><td>0</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Immediate</td><td><code>BITB #n</code></td>  <td>C5</td><td>2</td><td>2</td></tr>
+          <tr><td>Direct</td>   <td><code>BITB &lt;n</code></td><td>D5</td><td>4</td><td>2</td></tr>
+          <tr><td>Indexed</td>  <td><code>BITB n,R</code></td> <td>E5</td><td>4+</td><td>2+</td></tr>
+          <tr><td>Extended</td> <td><code>BITB n</code></td>   <td>F5</td><td>5</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        BITB   #$80
+        BNE    bit7_set
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="bita.html">BITA</a>
+        <a href="andb.html">ANDB</a>
+        <a href="cmpb.html">CMPB</a>
+        <a href="tst.html">TST</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>
