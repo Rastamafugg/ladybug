@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BCS / BLO — Branch if Carry Set / Lower — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Branch (short)</p>
+      <h1>BCS / BLO — Branch if Carry Set / Lower</h1>
+      <p class="wiki-meta">if C = 1: branch</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>BCS  &lt;label&gt;
+BLO  &lt;label&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Branches when carry is set. <code>BCS</code> and <code>BLO</code> are mnemonic aliases for the same opcode ($25). After an unsigned compare, BLO reads as "branch if r &lt; m"; after an arithmetic op, BCS reads as "branch if carry out".</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Relative</td><td><code>BCS label</code></td><td>25</td><td>3</td><td>2</td></tr>
+          <tr><td>Relative</td><td><code>BLO label</code></td><td>25</td><td>3</td><td>2</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        CMPA   #min
+        BLO    below
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="bcc.html">BCC / BHS</a>
+        <a href="bhi.html">BHI</a>
+        <a href="bls.html">BLS</a>
+        <a href="lbcs.html">LBCS / LBLO</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>
