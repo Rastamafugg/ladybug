@@ -23,6 +23,52 @@
     </header>
 
     <section>
+      <h3>2026-05-28 · milestone — Phase 3: 6809 ISA reference completed</h3>
+      <p>
+        Authored a hand-written HTML page for every remaining Motorola 6809
+        mnemonic under <code>release/reference/6809/</code>, retiring all
+        <em>(soon)</em> markers in the ISA index. The directory now holds
+        <strong>111 instruction pages</strong> plus the index — covering
+        Load/Store, Arithmetic, Logical, Shift/Rotate, Compare/Test,
+        Branch (short), Branch (long), Jump/Subroutine/Interrupt, Stack, and
+        Register-transfer groups. Each page follows the canonical
+        <a href="../release/reference/6809/lda.html">LDA</a> template
+        (header, syntax block, description, condition-code table + legend,
+        addressing-modes table, examples, see-also chips, source footer).
+      </p>
+      <p>
+        <strong>Page-granularity rules (locked):</strong> A/B accumulator
+        variants are separate pages with distinct opcodes; inherent variants
+        of memory ops are combined onto one page showing all forms (e.g.
+        <code>neg.html</code> = NEG/NEGA/NEGB, <code>swi.html</code> =
+        SWI/SWI2/SWI3); short and long branches are separate pages;
+        <code>BCC/BHS</code> and <code>BCS/BLO</code> (and their long forms)
+        are single alias pages naming both mnemonics. 6309-only instructions
+        were intentionally excluded (separate later project).
+      </p>
+      <p>
+        <strong>Source discrepancies flagged</strong> (opcodes/cycles/bytes
+        cross-checked against Tepolt Appendix B and the Motorola MC6809E data
+        sheet): (1) Tepolt prints the <code>CMPU</code> opcodes as
+        118C/9C/AC/BC, which are actually the <code>CMPS</code> opcodes — the
+        correct CMPU opcodes 1183/1193/11A3/11B3 are used in
+        <a href="../release/reference/6809/cmpu.html">cmpu.html</a>; (2) Tepolt
+        lists the <code>SWI3</code> byte count as 1, but the
+        <code>11 3F</code> prefixed opcode is 2 bytes — corrected in
+        <a href="../release/reference/6809/swi.html">swi.html</a>. Both noted
+        in the respective page footers.
+      </p>
+      <p>
+        <strong>QA closing pass:</strong> swept all 112 pages for dangling
+        intra-directory links (found and fixed one — <code>adda.html</code>
+        pointed at <code>inca.html</code>; retargeted to the combined
+        <code>inc.html</code>), confirmed zero remaining <em>(soon)</em>
+        markers, and refreshed the index intro text. Committed one commit per
+        category.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-05-28 · milestone — Wiki converted from markdown to HTML</h3>
       <p>
         Converted the entire <code>wiki/</code> tree from markdown to
