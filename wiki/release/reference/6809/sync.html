@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SYNC — Synchronize to Interrupt — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Jump / Subroutine / Interrupt</p>
+      <h1>SYNC — Synchronize to Interrupt</h1>
+      <p class="wiki-meta">halt until an interrupt is asserted</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>SYNC</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Stops the processor and floats the bus until an interrupt line goes active. If the asserted interrupt is masked (or lasts fewer than three cycles), execution resumes inline at the instruction after SYNC; otherwise the matching interrupt is taken normally. SYNC enables tight, low-latency synchronization to an external event without polling.</p>
+      <p>On the CoCo 3 this is mainly relevant for cycle-exact synchronization to a hardware interrupt source; see the platform IRQ notes for usage caveats.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Inherent</td><td><code>SYNC</code></td><td>13</td><td>&ge;4</td><td>1</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        SYNC               * wait for the next interrupt
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="cwai.html">CWAI</a>
+        <a href="rti.html">RTI</a>
+        <a href="nop.html">NOP</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet. Minimum 4 cycles; longer while halted.</p></footer>
+  </main>
+</div>
+</body>
+</html>

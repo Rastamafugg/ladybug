@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JMP — Jump — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Jump / Subroutine / Interrupt</p>
+      <h1>JMP — Jump</h1>
+      <p class="wiki-meta">PC &larr; EA</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>JMP  &lt;operand&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Loads the effective address into PC — an unconditional jump to an absolute (or indexed/computed) address. Unlike <a href="bra.html">BRA</a>/<a href="lbra.html">LBRA</a> it is not PC-relative, so the target is fixed regardless of where the code is placed.</p>
+      <p>Indexed mode makes JMP a powerful dispatcher: <code>JMP [table,X]</code> jumps through a 16-bit vector table entry.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Direct</td><td><code>JMP &lt;dp&gt;</code></td><td>0E</td><td>3</td><td>2</td></tr>
+          <tr><td>Indexed</td><td><code>JMP ,X</code></td><td>6E</td><td>3+</td><td>2+</td></tr>
+          <tr><td>Extended</td><td><code>JMP addr</code></td><td>7E</td><td>4</td><td>3</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        JMP   restart            * absolute jump
+        JMP   [state_vec,X]      * dispatch through vector table
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="jsr.html">JSR</a>
+        <a href="bra.html">BRA</a>
+        <a href="lbra.html">LBRA</a>
+        <a href="rts.html">RTS</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

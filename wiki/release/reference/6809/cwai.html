@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CWAI — Clear CC and Wait for Interrupt — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Jump / Subroutine / Interrupt</p>
+      <h1>CWAI — Clear CC and Wait for Interrupt</h1>
+      <p class="wiki-meta">CC &larr; CC &and; IMM; stack entire state; wait</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>CWAI  #&lt;mask&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>ANDs CC with the immediate mask (used to pre-clear the <code>I</code> and/or <code>F</code> interrupt-enable bits), sets the <code>E</code> bit, then pushes the entire register set onto the S stack and halts until an interrupt arrives. Because the machine state is stacked <em>before</em> waiting, the eventual interrupt is entered with reduced latency — the handler need not re-stack.</p>
+      <p>The companion <a href="rti.html">RTI</a> then restores the full frame. Common idiom: <code>CWAI #$EF</code> clears <code>I</code> to allow IRQ while waiting.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>1</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td></tr></tbody>
+      </table>
+      <ul>
+        <li><code>1</code> — <code>E</code> set (entire state stacked).</li>
+        <li><code>&#x2195;</code> — ANDed with the corresponding bit of the immediate mask (a 0 in the mask clears that flag; a 1 leaves it unchanged).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Immediate</td><td><code>CWAI #mask</code></td><td>3C</td><td>&ge;20</td><td>2</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        CWAI  #$EF          * clear I, stack state, wait for IRQ
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="sync.html">SYNC</a>
+        <a href="rti.html">RTI</a>
+        <a href="swi.html">SWI</a>
+        <a href="andcc.html">ANDCC</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet. 20 cycles minimum; longer while halted.</p></footer>
+  </main>
+</div>
+</body>
+</html>
