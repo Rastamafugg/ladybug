@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TFR — Transfer Register — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Register transfer</p>
+      <h1>TFR — Transfer Register</h1>
+      <p class="wiki-meta">R1 &rarr; R2</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>TFR  R1,R2</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Copies the contents of one register into another. A post-byte names the source and destination via 4-bit codes. Both registers must be the same size: 16-bit (<code>D, X, Y, U, S, PC</code>) or 8-bit (<code>A, B, CC, DP</code>). Mixing sizes is undefined.</p>
+      <p>Unlike <a href="exg.html">EXG</a>, the source is left unchanged. <code>TFR</code> is the standard way to copy a pointer (e.g. <code>TFR X,Y</code>) or set a stack pointer from another register.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr></tbody>
+      </table>
+      <ul>
+        <li>Flags are unchanged unless <code>CC</code> is the destination, in which case it takes the transferred value.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Inherent</td><td><code>TFR R1,R2</code></td><td>1F</td><td>6</td><td>2</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        TFR   X,Y           * copy pointer X into Y
+        TFR   A,DP          * set direct page from A
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="exg.html">EXG</a>
+        <a href="leax.html">LEAX</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>
