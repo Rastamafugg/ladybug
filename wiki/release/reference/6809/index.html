@@ -148,10 +148,26 @@
       <h2 id="branch-long">Branch — long (16-bit offset)</h2>
       <p>
         Each short branch above has a long-form equivalent prefixed with
-        <code>L</code> (<code>LBRA</code>, <code>LBEQ</code>, <code>LBSR</code>,
-        …). Long branches add a prefix byte and can reach anywhere in the
-        64K address space.
+        <code>L</code>. Long branches use a 16-bit signed offset (and, except
+        <code>LBRA</code>/<code>LBSR</code>, a <code>$10</code> page prefix) so
+        they can reach anywhere in the 64K address space.
       </p>
+      <table class="wiki-table">
+        <thead><tr><th>Mnemonic</th><th>Condition</th></tr></thead>
+        <tbody>
+          <tr><td><a href="lbra.html"><code>LBRA</code></a></td><td>always</td></tr>
+          <tr><td><a href="lbrn.html"><code>LBRN</code></a></td><td>never</td></tr>
+          <tr><td><a href="lbeq.html"><code>LBEQ</code></a> / <a href="lbne.html"><code>LBNE</code></a></td><td>Z = 1 / Z = 0</td></tr>
+          <tr><td><a href="lbhi.html"><code>LBHI</code></a> / <a href="lbls.html"><code>LBLS</code></a></td><td>unsigned higher / lower-or-same</td></tr>
+          <tr><td><a href="lbcc.html"><code>LBCC / LBHS</code></a></td><td>C = 0 (carry clear / unsigned higher-or-same)</td></tr>
+          <tr><td><a href="lbcs.html"><code>LBCS / LBLO</code></a></td><td>C = 1 (carry set / unsigned lower)</td></tr>
+          <tr><td><a href="lbpl.html"><code>LBPL</code></a> / <a href="lbmi.html"><code>LBMI</code></a></td><td>N = 0 / N = 1</td></tr>
+          <tr><td><a href="lbvc.html"><code>LBVC</code></a> / <a href="lbvs.html"><code>LBVS</code></a></td><td>V = 0 / V = 1</td></tr>
+          <tr><td><a href="lbge.html"><code>LBGE</code></a> / <a href="lblt.html"><code>LBLT</code></a></td><td>signed &ge; / &lt;</td></tr>
+          <tr><td><a href="lbgt.html"><code>LBGT</code></a> / <a href="lble.html"><code>LBLE</code></a></td><td>signed &gt; / &le;</td></tr>
+          <tr><td><a href="lbsr.html"><code>LBSR</code></a></td><td>long branch to subroutine</td></tr>
+        </tbody>
+      </table>
 
       <h2 id="jump-subroutine">Jump / Subroutine / Interrupt</h2>
       <table class="wiki-table">

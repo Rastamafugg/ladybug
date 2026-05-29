@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LBCS / LBLO — Long Branch if Carry Set — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Branch (long)</p>
+      <h1>LBCS / LBLO — Long Branch if Carry Set</h1>
+      <p class="wiki-meta">if C = 1: PC &larr; PC + signed 16-bit offset</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>LBCS  &lt;label&gt;
+LBLO  &lt;label&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Long-form of <a href="bcs.html">BCS/BLO</a>: branches when C = 1. <code>LBLO</code> (lower) is the same opcode, read as unsigned <code>r &lt; m</code> after a compare. Reaches anywhere in the 64K address space; taken branches cost one extra cycle.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Relative</td><td><code>LBCS label</code></td><td>10 25</td><td>5(6)</td><td>4</td></tr>
+          <tr><td>Relative</td><td><code>LBLO label</code></td><td>10 25</td><td>5(6)</td><td>4</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        CMPA   limit
+        LBLO   far_lower
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="bcs.html">BCS / BLO</a>
+        <a href="lbcc.html">LBCC / LBHS</a>
+        <a href="lbls.html">LBLS</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>

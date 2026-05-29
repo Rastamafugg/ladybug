@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LBCC / LBHS — Long Branch if Carry Clear — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Branch (long)</p>
+      <h1>LBCC / LBHS — Long Branch if Carry Clear</h1>
+      <p class="wiki-meta">if C = 0: PC &larr; PC + signed 16-bit offset</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>LBCC  &lt;label&gt;
+LBHS  &lt;label&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Long-form of <a href="bcc.html">BCC/BHS</a>: branches when C = 0. <code>LBHS</code> (higher-or-same) is the same opcode, read as unsigned <code>r &ge; m</code> after a compare. Reaches anywhere in the 64K address space; taken branches cost one extra cycle.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Relative</td><td><code>LBCC label</code></td><td>10 24</td><td>5(6)</td><td>4</td></tr>
+          <tr><td>Relative</td><td><code>LBHS label</code></td><td>10 24</td><td>5(6)</td><td>4</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        CMPA   limit
+        LBHS   far_higher_or_same
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="bcc.html">BCC / BHS</a>
+        <a href="lbcs.html">LBCS / LBLO</a>
+        <a href="lbhi.html">LBHI</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet.</p></footer>
+  </main>
+</div>
+</body>
+</html>
