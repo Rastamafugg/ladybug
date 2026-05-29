@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PSHU — Push Registers onto U Stack — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Stack</p>
+      <h1>PSHU — Push Registers onto U Stack</h1>
+      <p class="wiki-meta">push the selected register set onto U</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>PSHU  &lt;register list&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Identical to <a href="pshs.html">PSHS</a> but uses the user (U) stack pointer. A post-byte selects any subset of <code>PC, S, Y, X, DP, B, A, CC</code> (note <code>S</code> replaces <code>U</code> in the list when pushing onto U). The mirror pull is <a href="pulu.html">PULU</a>.</p>
+      <p>The U stack is handy for a private data stack, parameter passing, or a coroutine context separate from the S call stack.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Inherent</td><td><code>PSHU list</code></td><td>36</td><td>5+</td><td>2</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        PSHU  D,X           * push onto the user data stack
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="pulu.html">PULU</a>
+        <a href="pshs.html">PSHS</a>
+        <a href="puls.html">PULS</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet. Cycles = 5 + 1 per byte pushed.</p></footer>
+  </main>
+</div>
+</body>
+</html>

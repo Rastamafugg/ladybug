@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PULS — Pull Registers from S Stack — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Stack</p>
+      <h1>PULS — Pull Registers from S Stack</h1>
+      <p class="wiki-meta">pull the selected register set from S</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>PULS  &lt;register list&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Pulls any subset of <code>CC, A, B, DP, X, Y, U, PC</code> off the hardware (S) stack, in the reverse order to <a href="pshs.html">PSHS</a>. Pulling <code>PC</code> effects a return — <code>PULS PC</code> is equivalent to <a href="rts.html">RTS</a>, and <code>PULS A,B,X,PC</code> restores registers and returns in one instruction.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td><td>&#x2195;</td></tr></tbody>
+      </table>
+      <ul>
+        <li><code>&#x2195;</code> — affected only if <code>CC</code> is in the pull list (it is then loaded from the stack); otherwise all flags are unchanged.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Inherent</td><td><code>PULS list</code></td><td>35</td><td>5+</td><td>2</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        PULS  A,B,X,PC      * restore registers and return
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="pshs.html">PSHS</a>
+        <a href="pulu.html">PULU</a>
+        <a href="rts.html">RTS</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet. Cycles = 5 + 1 per byte pulled.</p></footer>
+  </main>
+</div>
+</body>
+</html>

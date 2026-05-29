@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PSHS — Push Registers onto S Stack — 6809 — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">6809 ISA</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">6809 · Stack</p>
+      <h1>PSHS — Push Registers onto S Stack</h1>
+      <p class="wiki-meta">push the selected register set onto S</p>
+    </header>
+
+    <section class="isa-syntax-block"><pre>PSHS  &lt;register list&gt;</pre></section>
+
+    <section>
+      <h2>Description</h2>
+      <p>Pushes any subset of <code>PC, U, Y, X, DP, B, A, CC</code> onto the hardware (S) stack. A post-byte selects which registers; they are always stored in a fixed order (high-address registers first), regardless of how the list is written. <code>PSHS D</code> pushes A then B.</p>
+      <p>The mirror pull is <a href="puls.html">PULS</a>. Use <a href="pshu.html">PSHU</a> to push onto the user (U) stack instead.</p>
+    </section>
+
+    <section>
+      <h2>Condition codes</h2>
+      <table class="isa-flags-table">
+        <thead><tr><th>E</th><th>F</th><th>H</th><th>I</th><th>N</th><th>Z</th><th>V</th><th>C</th></tr></thead>
+        <tbody><tr><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Addressing modes</h2>
+      <table class="isa-modes-table">
+        <thead><tr><th>Mode</th><th>Syntax</th><th>Opcode</th><th>~</th><th>#</th></tr></thead>
+        <tbody>
+          <tr><td>Inherent</td><td><code>PSHS list</code></td><td>34</td><td>5+</td><td>2</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Examples</h2>
+<pre><code>        PSHS  A,B,X         * save working registers
+        ...
+        PULS  A,B,X         * restore them
+</code></pre>
+    </section>
+
+    <section class="isa-see-also">
+      <h2>See also</h2>
+      <p>
+        <a href="puls.html">PULS</a>
+        <a href="pshu.html">PSHU</a>
+        <a href="pulu.html">PULU</a>
+      </p>
+    </section>
+
+    <footer class="wiki-footer"><p>Tepolt; Motorola MC6809E data sheet. Cycles = 5 + 1 per byte pushed.</p></footer>
+  </main>
+</div>
+</body>
+</html>
