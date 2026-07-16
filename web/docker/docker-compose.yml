@@ -1,0 +1,35 @@
+# Ladybug retro-dev web app.
+#
+# Run from this directory:
+#   cd web/docker
+#   docker compose up --build
+#
+# Then open:
+#   http://127.0.0.1:8765        the web app
+#   http://127.0.0.1:6080/vnc.html   live view of the XRoar emulator (noVNC)
+#
+# Before first run, drop your own (legally obtained) CoCo 3 system ROMs into
+# ./roms/  (coco3.rom 32K, extbas11.rom 8K). See README.md.
+
+services:
+  ladybug-web:
+    build:
+      # Context is the repo root — the backend operates on the whole tree.
+      context: ../..
+      dockerfile: web/docker/Dockerfile
+    image: ladybug-web
+    container_name: ladybug-web
+    ports:
+      - "127.0.0.1:8765:8765"   # FastAPI web app
+      - "127.0.0.1:6080:6080"   # noVNC (browser view of the emulator)
+    volumes:
+      # Host-supplied CoCo 3 system ROMs (XRoar's default search path).
+      - ./roms:/root/.xroar:ro
+      # Persist built ROMs / listings across container restarts so a build
+      # done via the web UI survives.
+      - ladybug-build:/app/build
+    shm_size: "256m"            # X / SDL want a bit of shared memory.
+    restart: unless-stopped
+
+volumes:
+  ladybug-build:

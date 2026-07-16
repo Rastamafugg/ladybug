@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web app — Docker — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tooling</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>Web app — Docker container <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Full-stack containerization of the retro-dev web app: lwtools +
+        patched XRoar + FastAPI + a headless X stack, viewable over noVNC.
+      </p>
+    </header>
+
+    <section>
+      <h2>Goal</h2>
+      <p>
+        Run the <a href="./web-app-architecture.html">retro-dev web app</a>
+        in one self-contained Docker image instead of a hand-set-up WSL host.
+        Artifacts live under <code>web/docker/</code>
+        (<code>Dockerfile</code>, <code>docker-compose.yml</code>,
+        <code>supervisord.conf</code>, <code>entrypoint.sh</code>,
+        <code>README.md</code>); a repo-root <code>.dockerignore</code> keeps
+        the build context lean.
+      </p>
+    </section>
+
+    <section>
+      <h2>Two findings that shaped the design</h2>
+      <ul>
+        <li>
+          <strong>The backend speaks XRoar's <code>-monitor</code> JSON-RPC
+          stub, not GDB.</strong> <code>web/backend/instance.py</code>
+          launches <code>xroar-monitor … -monitor … -monitor-halt-on-start</code>.
+          So the image needs <em>no</em> <code>m6809-gdb</code> — the
+          README/backlog references to a GDB stub are stale. See
+          <a href="./xroar.html">xroar §monitor</a>.
+        </li>
+        <li>
+          <strong>The monitor extension lives only on the project fork.</strong>
+          <code>docs/reference/xroar</code> is just an upstream clone
+          (<code>origin = 6809.org.uk</code>) with the monitor work committed
+          on a local <code>ladybug/monitor</code> branch (M1→M6a). That branch
+          was migrated into the personal fork
+          <code>github.com/Rastamafugg/monitor-xroar</code> and is now the
+          single source of truth. The Docker build fetches exact commit
+          <code>7787ad937b15102bf8cb8eb81b92e29f5ba7169d</code> (M6b), not the
+          mutable branch head.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Decisions (with rationale)</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Decision</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Full stack in the image, headless via <strong>Xvfb</strong>, with the GUI exposed over <strong>noVNC</strong>.</td>
+            <td>The app's purpose is to drive XRoar's GUI; a backend-only container could not show the emulator. Xvfb gives a virtual display the SDL2 XRoar build draws to; x11vnc + websockify/noVNC export it to the browser at <code>:6080/vnc.html</code>.</td>
+          </tr>
+          <tr>
+            <td>Build <strong>lwtools 4.24</strong> and <strong>xroar-monitor</strong> from source in a builder stage. lwtools is downloaded over HTTPS and checked against SHA-256 <code>b38a2baa…d7b3dd</code>; XRoar is fetched from <code>github.com/Rastamafugg/monitor-xroar</code> at exact M6b commit <code>7787ad9…</code>.</td>
+            <td>Both inputs execute code during the image build. Version labels or branch names alone are mutable; authenticated transport, archive verification, and an immutable Git commit make the toolchain input explicit and reproducible.</td>
+          </tr>
+          <tr>
+            <td>XRoar configured <code>--with-sdl2 --without-gtk* --without-alsa/pulse/oss/jack</code>, plus <code>SDL_AUDIODRIVER=dummy</code> in the env.</td>
+            <td>SDL2 UI renders under Xvfb; GTK is unnecessary weight. Disabling XRoar's own ALSA support is not enough — XRoar's audio still goes through SDL2's audio layer, which probes ALSA and spews <code>cannot find card '0'</code> errors. Forcing SDL's <code>dummy</code> audio driver via env (inherited by every XRoar child) silences it cleanly; no sound device is needed.</td>
+          </tr>
+          <tr>
+            <td>Build context = <strong>repo root</strong>; Docker files under <code>web/docker/</code>.</td>
+            <td>The backend computes <code>PROJECT_ROOT</code> two levels above <code>web/backend/</code> and operates on the whole tree (<code>scripts/build.sh</code>, <code>src/</code>, <code>build/</code>). The image must contain the full repo.</td>
+          </tr>
+          <tr>
+            <td><strong>Zero backend code changes.</strong> Emulator selected via <code>XROAR_BIN</code>; ROMs found via <code>$HOME/.xroar</code>.</td>
+            <td>The existing <code>_resolve_xroar_bin()</code> env hook and XRoar's default ROM search path let the container wire everything through environment + mounts alone.</td>
+          </tr>
+          <tr>
+            <td>Process model under <strong>supervisord</strong>: Xvfb → fluxbox → x11vnc → noVNC → uvicorn. XRoar instances are <em>not</em> supervised.</td>
+            <td>The backend spawns each XRoar as its own child (inheriting <code>DISPLAY=:99</code>); supervising them separately would fight the instance manager's lifecycle.</td>
+          </tr>
+          <tr>
+            <td>Ports bound to <code>127.0.0.1</code> only (8765 app, 6080 noVNC).</td>
+            <td>Matches the app's "localhost-only, no auth" non-goal in the backlog spec.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>The crash that blocked instance creation — SIGPIPE (fixed: M6b)</h2>
+      <p>
+        First end-to-end run: every <code>POST /api/instances</code> went
+        <code>launching → attaching → crashed</code> with
+        <em>"monitor: no hello within 10s"</em>. Root cause was a bug in the
+        monitor extension itself, exposed by the backend:
+      </p>
+      <ul>
+        <li><code>instance.py:_wait_for_port()</code> opens a throwaway TCP
+          connection to check the listener is up, then <strong>closes it</strong>.</li>
+        <li>That connect-then-close races <code>send_hello()</code> / the event
+          broadcast <code>write()</code> against a now-closed socket. With the
+          default SIGPIPE disposition the <code>write()</code> raised SIGPIPE
+          and <strong>killed the whole XRoar process</strong> (observed exit
+          code <code>141 = 128 + SIGPIPE</code>), so the real attach hit
+          connection-refused.</li>
+      </ul>
+      <p>
+        Fix (<strong>monitor commit M6b</strong> on
+        <code>monitor-xroar:ladybug/monitor</code>): <code>signal(SIGPIPE,
+        SIG_IGN)</code> in <code>monitor_interface_new()</code>. The
+        <code>write()</code> calls then return <code>-1/EPIPE</code>, which the
+        send paths already treat as best-effort, and XRoar survives the
+        disconnect as <code>monitor_interface_free()</code>'s own comment
+        always intended. No backend change was needed. Verified: instance
+        creation now reaches <code>halted</code>, and registers / memory /
+        <code>framebuffer.png</code> all respond against the live emulator.
+      </p>
+    </section>
+
+    <section>
+      <h2>Build-recipe gotchas (xroar from a clean clone)</h2>
+      <p>
+        The fork does <strong>not</strong> commit generated autotools output
+        (<code>configure</code>, <code>Makefile.in</code>), so a fresh clone
+        needs a full bootstrap. Each of these was a real build failure:
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Symptom</th><th>Cause / fix</th></tr></thead>
+        <tbody>
+          <tr><td><code>./configure: No such file or directory</code></td><td>Not committed. Run <code>autoreconf -fi</code> first (needs <code>autoconf</code>, <code>automake</code>, <code>libtool</code>).</td></tr>
+          <tr><td><code>win2rc … Can't locate Text/Iconv.pm</code> → <code>windows32/resources.h</code> Error 2</td><td>The resource generator needs Perl <code>Text::Iconv</code>. Install <code>libtext-iconv-perl</code>.</td></tr>
+          <tr><td><code>xroar.info</code> Error 127</td><td>Top-level <code>make</code> builds docs (needs <code>makeinfo</code>/texinfo). Don't build docs — build only the binary.</td></tr>
+          <tr><td><code>No rule to make target '../portalib/libporta.a'</code></td><td><code>make -C src</code> alone doesn't build the sibling static lib. Build <code>make -C portalib</code> first, then <code>make -C src</code>.</td></tr>
+          <tr><td>(local Windows checkout only) <code>autogen.sh: set: Illegal option -</code></td><td>CRLF line endings. Irrelevant to the Docker build (GitHub serves LF); only bites when mounting a Windows working tree.</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Runtime note: the binary links <code>vo_opengl</code>, so the runtime
+        stage needs <code>libgl1</code> (in addition to <code>libsdl2-2.0-0</code>).
+      </p>
+    </section>
+
+    <section>
+      <h2>The one hard constraint — system ROMs</h2>
+      <p>
+        <code>-machine coco3</code> + <code>-cart-autorun</code> boots through
+        Tandy BASIC, so XRoar requires <code>coco3.rom</code> (32&nbsp;K) and
+        <code>extbas11.rom</code> (8&nbsp;K). These are copyrighted and are
+        <strong>not</strong> in the repo or image. The user supplies their own
+        into <code>web/docker/roms/</code>, mounted read-only at the
+        container's <code>/root/.xroar</code> (XRoar's default search path).
+        The entrypoint warns if they are absent; without them instances start
+        but never dispatch into the cartridge.
+      </p>
+    </section>
+
+    <section>
+      <h2>Run</h2>
+      <pre><code>cd web/docker
+# drop coco3.rom + extbas11.rom into ./roms/ first
+docker compose up --build
+# http://127.0.0.1:8765         the web app
+# http://127.0.0.1:6080/vnc.html  live XRoar view (noVNC)</code></pre>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: <code>web/docker/*</code>,
+        <code>web/backend/instance.py</code>,
+        <code>web/backend/build.py</code>,
+        <code>scripts/build.sh</code>. Related:
+        <a href="./web-app-architecture.html">web-app-architecture</a>,
+        <a href="./xroar.html">xroar</a>,
+        <a href="./lwtools.html">lwtools</a>,
+        <a href="../backlog/retro-dev-web-app.html">backlog/retro-dev-web-app</a>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

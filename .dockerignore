@@ -1,0 +1,20 @@
+# Build context is the repo root (the backend operates on the whole tree).
+# Keep the context lean: source we need stays, heavy/regenerable artifacts go.
+
+.git
+**/.git
+**/__pycache__
+**/*.pyc
+
+# Python venv from the WSL host — rebuilt inside the image.
+web/.venv
+
+# Build outputs — produced inside the container / mounted as a volume.
+build/
+
+# The image fetches the monitor fork at a pinned commit; the host checkout
+# and its build products are not part of the Docker build context.
+docs/reference/xroar/
+
+# Docker artifacts themselves and any host-supplied ROMs.
+web/docker/roms/*.rom
