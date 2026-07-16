@@ -23,6 +23,124 @@
     </header>
 
     <section>
+      <h3>2026-07-16 · fix — tooling commit-readiness findings resolved</h3>
+      <p>
+        Closed the five findings from the uncommitted-tooling review. Docker
+        now downloads lwtools 4.24 over HTTPS and verifies SHA-256
+        <code>b38a2baad15c017bb7cd8144218e7af61abccf21fd25f7b1a35e6529acd7b3dd</code>;
+        the monitor fork is fetched at immutable M6b commit
+        <code>7787ad937b15102bf8cb8eb81b92e29f5ba7169d</code>, and the unused host
+        XRoar checkout is excluded from the build context. The source pane now
+        retains every breakpoint ID per address and clears all duplicates,
+        preventing an active breakpoint from becoming invisible. The monitor
+        serialization probe buffers out-of-order replies by request ID instead
+        of discarding them. Replaced the obsolete GDB/scaffold web README with
+        the current monitor-based architecture and corrected Docker/wiki
+        provenance. Removed the unrelated local Claude permission delta from
+        the pending change. QA reran ROM builds, syntax and link checks, Docker
+        configuration/build, the serialization probe, and the breakpoint/
+        stepping integration suite.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-06-11 · fix — source pane no longer offers exec breakpoints on data lines</h3>
+      <p>
+        Data-definition lines (<code>fcb</code>/<code>fcc</code>/…) in the
+        listing carry a load address, so the source pane rendered them with
+        clickable breakpoint gutters — but an exec breakpoint at a data
+        address never fires. <code>parse_lst()</code>
+        (<code>web/backend/source.py</code>) now emits an <code>exec</code>
+        flag per line: false when the mnemonic field is a data directive
+        (<code>fcb fdb fqb fcc fcn fcs rmb zmb fill</code>, case-insensitive,
+        label-aware), and label-only lines inherit the flag from the
+        following same-address emitting line, so labels heading data tables
+        (<code>par_table</code>, <code>palette_table</code>,
+        <code>tile_data</code>) are excluded while labels heading code stay
+        breakpointable. <code>source-view.js</code> gates clickability on
+        <code>exec</code>; addresses stay visible on data rows for memory
+        navigation. EQU lines were already safe (value prints in the byte
+        column, so they parse with no address). Verified against
+        <code>build/ladybug.lst</code> (116 exec / 29 data-addressed rows)
+        and via <code>GET /api/source</code> on a temporary in-container
+        server; the running container picks the fix up on its next
+        restart/rebuild.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-06-11 · fix — web-app breakpoint/stepping inconsistencies (monitor serialization)</h3>
+      <p>
+        Debugged the reported web-app symptoms: no live running/halted cue, and
+        breakpoint clicks during free-run "hanging" ~30–60 s before catching up.
+        Root cause confirmed by a new probe
+        (<code>web/scripts/probe_monitor_serialization.py</code>): the monitor
+        stub serves requests strictly serially per connection, so the halt
+        watcher's <code>wait_for_stop(30000)</code> long-poll starved every UI
+        command on the shared socket — including the <code>pause</code> that
+        would have satisfied it. Fixes: <code>monitor_session.py</code> watcher
+        now polls <code>get_run_state</code> every 250 ms (events stay as the
+        fast path; the poll covers trylock-dropped events) and
+        <code>cont()</code> skips its <code>running</code> emission when the
+        halt already fired (stuck-RUNNING race); <code>instance.py</code>
+        cancels in-flight register refreshes on <code>running</code> so
+        transient <code>_with_paused</code> pauses can't paint stale halted
+        panes; new <code>GET /api/instances/{id}/breakpoints</code>; frontend
+        gained a live run-state badge, halted/running button gating, gutter-dot
+        resync from emulator truth (select/build/halt + failed-delete
+        recovery), a double-click mutation guard, and scroll preservation.
+        Verified end-to-end by
+        <code>web/scripts/verify_breakpoint_responsiveness.py</code> (12/12:
+        bp add/remove while running now 0.02 s). New lesson filed in
+        <a href="./implementation/lessons-learned.html">lessons-learned</a>;
+        serialization contract noted on
+        <a href="./implementation/xroar-monitor.html">xroar-monitor</a>.
+        Same day: rebuilt the <code>ladybug-web</code> Docker image
+        (<a href="./tooling/web-app-docker.html">tooling/web-app-docker</a>)
+        and recreated the container; the verification suite passed 12/12
+        against the containerized app as well.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-05-29 · decision — web app containerized (Docker)</h3>
+      <p>
+        Added a full-stack Docker setup for the retro-dev web app under
+        <code>web/docker/</code> (Dockerfile, compose, supervisord,
+        entrypoint, README) plus a repo-root <code>.dockerignore</code>. The
+        image builds lwtools 4.24 and the patched <code>xroar-monitor</code>
+        from source, runs the FastAPI backend, and exposes the XRoar GUI over
+        a headless Xvfb → x11vnc → noVNC stack (app on
+        <code>127.0.0.1:8765</code>, noVNC on <code>:6080</code>). Two source
+        findings shaped it: the backend uses XRoar's <code>-monitor</code>
+        stub (not GDB, so no m6809-gdb needed), and the XRoar source is
+        already vendored with the monitor patch committed. No backend code
+        changed — the emulator is selected via <code>XROAR_BIN</code> and
+        system ROMs via <code>$HOME/.xroar</code>. Copyrighted CoCo 3 ROMs
+        (<code>coco3.rom</code>, <code>extbas11.rom</code>) are user-supplied
+        via a mounted <code>roms/</code> dir. New page:
+        <a href="./tooling/web-app-docker.html">tooling/web-app-docker</a>.
+      </p>
+      <p>
+        <strong>Follow-on (same day).</strong> Migrated the monitor extension
+        out of the in-repo upstream clone (<code>docs/reference/xroar</code>,
+        branch <code>ladybug/monitor</code>) into the personal fork
+        <code>github.com/Rastamafugg/monitor-xroar</code> and repointed the
+        Docker build to clone it. First real instance-attach exposed a crash:
+        the backend's <code>_wait_for_port</code> connect-then-close probe
+        raised <strong>SIGPIPE</strong> in the monitor's <code>write()</code>
+        and killed XRoar (exit 141). Fixed with <code>signal(SIGPIPE,
+        SIG_IGN)</code> in <code>monitor_interface_new()</code> — committed and
+        pushed as <strong>monitor M6b</strong>. Also documented the
+        clean-clone build recipe (autoreconf, <code>libtext-iconv-perl</code>
+        for win2rc, build <code>portalib</code> before <code>src</code>, skip
+        docs, runtime needs <code>libgl1</code>). Verified end-to-end:
+        instance creation now reaches <code>halted</code> with live registers,
+        memory, and framebuffer.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-05-28 · milestone — Phase 3: 6809 ISA reference completed</h3>
       <p>
         Authored a hand-written HTML page for every remaining Motorola 6809
