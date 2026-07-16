@@ -782,6 +782,52 @@ git reset --hard HEAD
     </section>
 
     <section>
+      <h2>XRoar monitor stub serializes requests per connection — never long-poll on a shared socket</h2>
+      <p>Filed 2026-06-11.</p>
+
+      <p>
+        The monitor protocol's per-client worker
+        (<code>handle_connection</code> in <code>monitor.c</code>) is a strict
+        <code>read_line → dispatch → reply</code> loop. A pending
+        <code>wait_for_stop(timeout_ms)</code> long-poll therefore blocks
+        <em>every</em> subsequent request on that connection for up to the
+        full timeout — including the <code>pause</code> that would have
+        satisfied the poll, which sits unread in the socket buffer while the
+        poll runs out its clock. The web backend's halt watcher long-polled
+        with <code>timeout_ms=30000</code> on the same connection the UI
+        commands use, so breakpoint clicks during free-run stalled ~30–60 s
+        and then "caught up" all at once. Verified by
+        <code>web/scripts/probe_monitor_serialization.py</code>: a
+        <code>get_run_state</code> sent 0.3 s after a
+        <code>wait_for_stop(8000)</code> was answered 7.7 s late, and a
+        <code>pause</code> was starved behind its own poll.
+      </p>
+      <p>
+        Two corollaries. First, async event push
+        (<code>send_event_to_subscribers</code>) uses
+        <code>pthread_mutex_trylock</code> on the client's write mutex and
+        <strong>silently drops the event</strong> if the worker is mid-reply
+        (<code>dropped_events++</code>), so <code>bp</code> events are
+        best-effort and cannot be the sole halt detector. Second, the fix:
+        the session's halt watcher now polls <code>get_run_state</code>
+        (which replies immediately) every 250 ms; <code>bp</code> events
+        remain the low-latency path and the poll is the drop-proof fallback.
+      </p>
+
+      <p><strong>Why:</strong> worker-per-client (M6a) parallelizes across
+        clients, not within one connection; JSON-RPC 2.0 framing permits
+        pipelining but the server replies strictly in order, and the Python
+        session layer wrongly assumed out-of-order service.</p>
+      <p><strong>Applies to:</strong> <code>web/backend/monitor_session.py</code>
+        (halt watcher, <code>_call</code> concurrency comments), any future
+        monitor client; also any new long-poll-style protocol method.</p>
+      <p><strong>Citation:</strong> <code>docs/reference/xroar/src/monitor.c</code>
+        (<code>handle_connection</code>, <code>send_event_to_subscribers</code>);
+        <code>web/scripts/probe_monitor_serialization.py</code>;
+        <a href="../log.html">log.html 2026-06-11 entry</a>.</p>
+    </section>
+
+    <section>
       <h2>Format for future entries</h2>
 <pre><code>&lt;h2&gt;Short title&lt;/h2&gt;
 &lt;p&gt;Filed YYYY-MM-DD.&lt;/p&gt;

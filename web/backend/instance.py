@@ -47,6 +47,7 @@ class Instance:
         )
         self._proc: Optional[asyncio.subprocess.Process] = None
         self._xroar_log_task: Optional[asyncio.Task] = None
+        self._refresh_task: Optional[asyncio.Task] = None
         self._subscribers: set = set()
 
     # ---- lifecycle ----------------------------------------------------
@@ -133,13 +134,19 @@ class Instance:
         if cls == "stopped":
             self.pc = info.get("pc")
             await self._set_state(InstanceState.HALTED)
-            # Reading registers issues another JSON-RPC call. The reader
-            # loop in MonitorSession dispatches replies independently of
-            # this callback, so the gdb-style deadlock risk is gone — but
-            # schedule the refresh anyway to keep the WS halt event
-            # behavior identical to the prior implementation.
-            asyncio.create_task(self._refresh_regs())
+            # The refresh must be a task, not an await: this callback runs
+            # inside MonitorSession's reader loop, and awaiting another
+            # JSON-RPC call here would deadlock (the reply can't be read
+            # while the reader is blocked in this callback).
+            if self._refresh_task and not self._refresh_task.done():
+                self._refresh_task.cancel()
+            self._refresh_task = asyncio.create_task(self._refresh_regs())
         elif cls == "running":
+            # Kill any in-flight halt snapshot so a transient pause (e.g.
+            # main.py's _with_paused around breakpoint mutations) can't
+            # land a stale 'halt' WS event after this 'running' one.
+            if self._refresh_task and not self._refresh_task.done():
+                self._refresh_task.cancel()
             await self._set_state(InstanceState.RUNNING)
         elif cls == "reset":
             await self._emit("log", {"text": "[monitor] reset event"})

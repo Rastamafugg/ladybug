@@ -303,6 +303,25 @@ async def _with_paused(session, coro_factory):
                 pass
 
 
+@app.get("/api/instances/{instance_id}/breakpoints")
+async def list_breakpoints(instance_id: str):
+    """Authoritative breakpoint list straight from the emulator.
+
+    The frontend resyncs its gutter dots from this instead of trusting
+    its own click history — the emulator is the single source of truth
+    (reset clears breakpoints, instances restart, duplicates are legal).
+    list_breakpoints is a state read, permitted while running.
+    """
+    inst = manager.get(instance_id)
+    if inst is None:
+        raise HTTPException(404, "no such instance")
+    try:
+        bps = await inst.session.list_breakpoints()
+    except Exception as e:
+        raise HTTPException(503, f"monitor: {e}")
+    return [{"id": str(b.get("id")), "addr": b.get("addr")} for b in bps]
+
+
 @app.post("/api/instances/{instance_id}/breakpoints")
 async def add_breakpoint(instance_id: str, body: dict):
     inst = manager.get(instance_id)

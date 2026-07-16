@@ -4,9 +4,10 @@ class SourceView extends HTMLElement {
   constructor() {
     super();
     this.lines = [];
-    // addr -> { id: string }
+    // addr -> breakpoint id[]; duplicates are legal in the monitor.
     this.bpByAddr = new Map();
     this.currentPc = null;
+    this.bpBusy = false;
   }
 
   connectedCallback() {
@@ -35,13 +36,55 @@ class SourceView extends HTMLElement {
     this.body = this.querySelector("#src-body");
     this.status = this.querySelector("#src-status");
     this.loadSource();
-    store.addEventListener("ws:halt", (e) => this.onHalt(e.detail));
+    this.syncBps();
+    store.addEventListener("ws:halt", (e) => {
+      this.onHalt(e.detail);
+      this.syncBps(); // cheap; re-truths dots after reset/instance restart
+    });
+    store.addEventListener("ws:state", (e) => {
+      // While running there is no current PC — drop the stale arrow.
+      if (e.detail.payload?.state === "running" && this.currentPc !== null) {
+        this.currentPc = null;
+        this.render();
+      }
+    });
     store.addEventListener("select", () => {
       this.currentPc = null;
-      this.bpByAddr.clear();
       this.loadSource();
+      this.syncBps();
     });
-    store.addEventListener("build", () => this.loadSource());
+    store.addEventListener("build", () => { this.loadSource(); this.syncBps(); });
+  }
+
+  // The emulator is the single source of truth for breakpoints: instances
+  // restart (reset clears all BPs), selections change, duplicates are
+  // legal. Re-pull the list rather than trusting our own click history.
+  async syncBps() {
+    const iid = store.selectedId;
+    if (!iid) {
+      if (this.bpByAddr.size) { this.bpByAddr.clear(); this.render(); }
+      return;
+    }
+    try {
+      const r = await fetch(`/api/instances/${iid}/breakpoints`);
+      if (!r.ok) return;
+      const list = await r.json();
+      if (store.selectedId !== iid) return; // selection moved on mid-fetch
+      const next = new Map();
+      for (const b of list) {
+        const ids = next.get(b.addr) ?? [];
+        ids.push(String(b.id));
+        next.set(b.addr, ids);
+      }
+      for (const ids of next.values()) ids.sort();
+      const changed = next.size !== this.bpByAddr.size ||
+        [...next].some(([a, ids]) => {
+          const old = this.bpByAddr.get(a) ?? [];
+          return ids.length !== old.length || ids.some((id, i) => id !== old[i]);
+        });
+      this.bpByAddr = next;
+      if (changed) this.render();
+    } catch {}
   }
 
   async loadSource() {
@@ -77,7 +120,10 @@ class SourceView extends HTMLElement {
 
   render() {
     const rows = this.lines.map((l) => {
-      const isExec = l.addr != null;
+      const hasAddr = l.addr != null;
+      // Data lines (fcb/fdb/...) keep their address for navigation but an
+      // exec breakpoint there would never fire — don't offer the click.
+      const isExec = hasAddr && l.exec;
       const isPc = isExec && l.addr === this.currentPc;
       const hasBp = isExec && this.bpByAddr.has(l.addr);
       const gut = isPc ? "▶" : (hasBp ? "●" : " ");
@@ -85,14 +131,19 @@ class SourceView extends HTMLElement {
       if (isExec) rowClasses.push("executable");
       if (hasBp) rowClasses.push("bp");
       if (isPc) rowClasses.push("pc");
-      const addr = isExec ? l.addr.toString(16).padStart(4, "0").toUpperCase() : "";
+      const addr = hasAddr ? l.addr.toString(16).padStart(4, "0").toUpperCase() : "";
       return `<div class="${rowClasses.join(" ")}" data-addr="${l.addr ?? ""}">
         <span class="gut">${gut}</span>
         <span class="addr">${addr}</span>
         <span class="text">${escapeHtml(l.text)}</span>
       </div>`;
     }).join("");
+    // Rebuilding innerHTML resets scrollTop; preserve it so re-renders
+    // that aren't followed by a deliberate scrollIntoView (bp toggles,
+    // run-state changes) don't yank the pane back to the top.
+    const scrollTop = this.body.scrollTop;
     this.body.innerHTML = rows;
+    this.body.scrollTop = scrollTop;
     this.body.querySelectorAll(".src-row.executable").forEach((el) => {
       el.addEventListener("click", () => this.cycleBp(parseInt(el.dataset.addr, 10)));
     });
@@ -102,10 +153,12 @@ class SourceView extends HTMLElement {
   // per-BP enable/disable, so there's no intermediate disabled state.
   async cycleBp(addr) {
     if (!store.selectedId) return;
-    const bp = this.bpByAddr.get(addr);
+    if (this.bpBusy) return; // one mutation at a time; double-clicks made duplicate BPs
+    this.bpBusy = true;
+    const bpIds = this.bpByAddr.get(addr) ?? [];
     const iid = store.selectedId;
     try {
-      if (!bp || !bp.id) {
+      if (!bpIds.length) {
         const r = await fetch(`/api/instances/${iid}/breakpoints`, {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -113,16 +166,28 @@ class SourceView extends HTMLElement {
         });
         if (!r.ok) throw new Error(await r.text());
         const data = await r.json();
-        this.bpByAddr.set(addr, { id: data.id });
+        this.bpByAddr.set(addr, [String(data.id)]);
       } else {
-        const r = await fetch(`/api/instances/${iid}/breakpoints/${bp.id}`, { method: "DELETE" });
-        if (!r.ok) throw new Error(await r.text());
+        // Clear every monitor breakpoint at this address. Older UI builds
+        // could create duplicates, and hiding the dot after deleting only
+        // one left an invisible breakpoint active in the emulator.
+        for (const id of bpIds) {
+          const r = await fetch(`/api/instances/${iid}/breakpoints/${id}`, { method: "DELETE" });
+          if (!r.ok) throw new Error(await r.text());
+        }
         this.bpByAddr.delete(addr);
       }
+      this.render();
+      await this.syncBps();
     } catch (e) {
       alert(`bp: ${e.message}`);
+      // Local map may be stale (e.g. id from before an instance restart) —
+      // recover by resyncing from the emulator instead of leaving a dot
+      // that can never be cleared.
+      await this.syncBps();
+    } finally {
+      this.bpBusy = false;
     }
-    this.render();
   }
 }
 

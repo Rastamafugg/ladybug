@@ -58,6 +58,17 @@
       <ul>
         <li>TCP listener, line-delimited JSON-RPC 2.0 (one JSON object per <code>\n</code>).</li>
         <li>No auth in v1; loopback is the trust boundary.</li>
+        <li><strong>Requests are served strictly serially per connection</strong>
+          (worker thread is a <code>read_line → dispatch → reply</code> loop).
+          No pipelining: a pending <code>wait_for_stop</code> long-poll blocks
+          every later request on that socket for up to its full timeout.
+          Clients that mix long-polls with interactive commands must use
+          short timeouts or a separate connection — see
+          <a href="./lessons-learned.html">lessons-learned §monitor
+          serialization (2026-06-11)</a>. Async event push
+          (<code>bp</code>, <code>reset</code>, …) is independent of the
+          request loop but <em>best-effort</em>: events are dropped if the
+          client's write mutex is busy.</li>
       </ul>
     </section>
 

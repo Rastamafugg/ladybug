@@ -127,18 +127,25 @@ class MonitorSession:
     # ---- execution control --------------------------------------------
 
     async def cont(self) -> None:
-        """Resume CPU. Fires on_async('running') immediately; halt watcher
-        will fire on_async('stopped') when the CPU next halts (BP, pause,
+        """Resume CPU. Fires on_async('running'); halt watcher will fire
+        on_async('stopped') when the CPU next halts (BP, pause,
         watchpoint, etc.)."""
         self._begin_halt_cycle()
+        cycle = self._halt_cycle
         await self._call("run")
+        # A breakpoint can hit within the `run` round-trip, in which case
+        # the `bp` event may already have emitted 'stopped' before we
+        # resume here. Emitting 'running' after that would wedge callers
+        # in RUNNING while the CPU sits halted — the single-shot guard
+        # tells us whether this cycle already ended.
+        if cycle.is_set():
+            return
         if self.on_async is not None:
             await self.on_async("running", {})
-        # Spawn (or replace) the halt watcher. wait_for_stop long-polls
-        # server-side and returns as soon as a stop reason exists.
         if self._halt_watcher_task:
             self._halt_watcher_task.cancel()
-        self._halt_watcher_task = asyncio.create_task(self._halt_watcher())
+        if not cycle.is_set():
+            self._halt_watcher_task = asyncio.create_task(self._halt_watcher())
 
     async def step(self) -> None:
         """Single instruction step. The monitor returns immediately; we
@@ -246,30 +253,44 @@ class MonitorSession:
         if self._halt_cycle is None or self._halt_cycle.is_set():
             return
         self._halt_cycle.set()
-        if self._halt_watcher_task and not self._halt_watcher_task.done():
-            self._halt_watcher_task.cancel()
+        # Don't cancel ourselves: when the watcher is the caller, a
+        # self-cancel would raise CancelledError inside the on_async
+        # await below and lose the stopped notification.
+        watcher = self._halt_watcher_task
+        if (watcher and not watcher.done()
+                and watcher is not asyncio.current_task()):
+            watcher.cancel()
         if self.on_async is not None:
             await self.on_async("stopped", info)
 
     async def _halt_watcher(self) -> None:
-        """Long-poll wait_for_stop while running. Reports the first stop
-        we see. Cooperates with the `bp` event path via _emit_stopped's
-        single-shot guard."""
+        """Poll get_run_state at a short interval while the CPU runs.
+
+        Deliberately NOT a wait_for_stop long-poll: the monitor stub
+        serializes requests per connection (handle_connection in
+        monitor.c is a strict read->dispatch->reply loop), so a pending
+        long-poll starves every other request on this socket for its
+        full timeout — observed as the UI hanging ~30s on breakpoint
+        clicks while free-running (probe_monitor_serialization.py).
+
+        get_run_state replies immediately, so commands interleave freely
+        between polls. The `bp` event remains the low-latency halt path;
+        this loop is the reliable fallback, because event broadcast in
+        monitor.c uses trylock and silently drops under write contention.
+        """
         try:
             while True:
+                await asyncio.sleep(0.25)
                 try:
-                    stop = await self._call("wait_for_stop", {"timeout_ms": 30000})
+                    st = await self._call("get_run_state")
                 except MonitorError:
                     return
-                reason = stop.get("reason")
-                if reason in (None, "timeout"):
-                    continue  # nothing happened in 30s; loop
-                await self._emit_stopped({
-                    "pc": stop.get("pc"),
-                    "reason": reason,
-                    "bp_id": stop.get("bp_id"),
-                })
-                return
+                if st.get("state") == "halted":
+                    await self._emit_stopped({
+                        "pc": st.get("last_stop_pc"),
+                        "reason": st.get("last_stop_reason", "unknown"),
+                    })
+                    return
         except asyncio.CancelledError:
             return
 

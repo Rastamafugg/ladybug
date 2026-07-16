@@ -7,6 +7,9 @@ class Store extends EventTarget {
     super();
     this.instances = [];
     this.selectedId = null;
+    // Live run state of the selected instance ("running", "halted", …),
+    // tracked from ws:state events. null until the first state event.
+    this.runState = null;
     this.ws = null;
     // Static documentation, fetched once on startup.
     this.regions = [];
@@ -72,18 +75,29 @@ class Store extends EventTarget {
 
   select(id) {
     this.selectedId = id;
+    this.runState = null;
     if (this.ws) { this.ws.close(); this.ws = null; }
     if (id) {
       const proto = location.protocol === "https:" ? "wss" : "ws";
       this.ws = new WebSocket(`${proto}://${location.host}/ws/instances/${id}`);
+      let synced = false;
       this.ws.onmessage = (e) => {
         const ev = JSON.parse(e.data);
+        if (ev.kind === "state") {
+          this.runState = ev.payload?.state ?? null;
+          // The server sends the current state as the first WS event.
+          // Only pull a register snapshot for an already-halted instance;
+          // synthesizing a halt for a running one painted stale panes.
+          if (!synced) {
+            synced = true;
+            if (this.runState === "halted") this.fetchHaltSnapshot(id);
+          }
+        }
         this.dispatchEvent(new CustomEvent(`ws:${ev.kind}`, { detail: ev }));
         this.dispatchEvent(new CustomEvent("ws", { detail: ev }));
       };
     }
     this.dispatchEvent(new CustomEvent("select", { detail: id }));
-    if (id) this.fetchHaltSnapshot(id);
   }
 
   // Pull current registers via REST so a freshly-selected (already-halted)

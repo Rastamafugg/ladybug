@@ -23,7 +23,28 @@ class LogsView extends HTMLElement {
     });
 
     store.addEventListener("ws", (e) => this.append(e.detail));
-    store.addEventListener("select", () => { this.log.textContent = ""; });
+    store.addEventListener("select", () => { this.log.textContent = ""; this.gateButtons(); });
+    store.addEventListener("ws:state", () => this.gateButtons());
+    this.gateButtons();
+  }
+
+  // Continue/Step are halted-only on the monitor protocol; Interrupt only
+  // makes sense while running. Gate by live run state so a Step click
+  // can't produce a target_running error.
+  gateButtons() {
+    const s = store.runState;
+    const enable = {
+      continue: s === "halted",
+      step: s === "halted",
+      interrupt: s === "running",
+      reset: !!store.selectedId,
+    };
+    this.querySelectorAll("button[data-act]").forEach((b) => {
+      const on = enable[b.dataset.act] ?? true;
+      b.disabled = !on;
+      b.style.opacity = on ? "1" : "0.4";
+      b.style.cursor = on ? "pointer" : "default";
+    });
   }
 
   append(ev) {
