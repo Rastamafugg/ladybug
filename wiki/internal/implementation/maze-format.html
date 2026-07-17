@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maze and Tile Format — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation · Phase 3 design</p>
+      <h1>Tile format and static maze <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Approved architecture for the 24×24 playfield. Exact maze capture and
+        implementation remain the next Phase 3 increment.
+      </p>
+    </header>
+
+    <section>
+      <h2>Decision</h2>
+      <ul>
+        <li><strong>Visual unit:</strong> retain the Phase 2 packed 8×8, 4-bpp tile: 32 bytes, four bytes per row.</li>
+        <li><strong>Playfield:</strong> 24×24 cells (576 cells), rendered at framebuffer character columns 8–31 and rows 0–23.</li>
+        <li><strong>Layers:</strong> base visual style, navigation topology, dots, and turnstile gates remain separate. A rendered tile is a composition result, not the game-state record.</li>
+        <li><strong>Ownership:</strong> canonical maze and tile metadata are immutable cartridge data. Collected-dot bits and gate orientation are writable game state.</li>
+        <li><strong>Rendering:</strong> draw the full static field once at boot in Phase 3; later phases redraw only cells changed by a dot, gate, or moving entity.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Why the layers are separate</h2>
+      <p>
+        A single array of displayed tile numbers would couple collision to art
+        and would require maze mutation for dot collection and gate rotation.
+        That is unsafe while cartridge data is read-only under the active
+        XRoar path. Separate layers also let a cell restore its clean
+        background after a dot or sprite disappears without reconstructing
+        maze semantics from a graphic number.
+      </p>
+    </section>
+
+    <section>
+      <h2>Compiled data contract</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Table</th><th>Format</th><th>Size</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>maze_cells</code></td>
+            <td>576 bytes, row-major. Bits 0–6 = logical visual-style ID; bit 7 = dot initially present.</td>
+            <td>576 B</td>
+            <td>Static appearance and initial dot seed.</td>
+          </tr>
+          <tr>
+            <td><code>maze_nav</code></td>
+            <td>576 bytes. Bits 0–3 = passable N/E/S/W; bit 4 = gate-affected; bit 5 = nest; bit 6 = perimeter track; bit 7 reserved.</td>
+            <td>576 B</td>
+            <td>Movement topology independent of the selected artwork.</td>
+          </tr>
+          <tr>
+            <td><code>tile_styles</code></td>
+            <td>Two graphic IDs per logical style: clean and dotted. <code>$FF</code> means no dotted form.</td>
+            <td>2 B/style</td>
+            <td>Selects a precomposed 32-byte graphic without requiring a transparent tile blitter.</td>
+          </tr>
+          <tr>
+            <td><code>tile_gfx</code></td>
+            <td>Contiguous 32-byte packed graphics; graphic ID × 32 gives its offset.</td>
+            <td>32 B/graphic</td>
+            <td>Uses the format already verified by <code>blit_tile</code>.</td>
+          </tr>
+          <tr>
+            <td><code>maze_gates</code></td>
+            <td>20 four-byte records: 16-bit anchor-cell offset, footprint ID, initial orientation.</td>
+            <td>80 B</td>
+            <td>Identifies every turnstile without embedding mutable state in the map.</td>
+          </tr>
+          <tr>
+            <td><code>gate_footprints</code></td>
+            <td>Variable records listing each affected cell and its horizontal/vertical graphic and navigation forms.</td>
+            <td>Target ≤128 B</td>
+            <td>Supports the arcade footprint after capture, including a footprint larger than one cell.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Logical style IDs are capped at 128 by <code>maze_cells</code>. The
+        Phase 3 generator must fail if the authored maze exceeds that limit or
+        references a dotted style without a dotted graphic.
+      </p>
+    </section>
+
+    <section>
+      <h2>Writable state</h2>
+      <ul>
+        <li><strong>Dots:</strong> a 576-bit bitmap, 72 bytes. It is initialized by scanning bit 7 of <code>maze_cells</code> at stage reset; clearing a dot changes only this RAM bitmap.</li>
+        <li><strong>Gates:</strong> one byte per gate in the initial implementation, 20 bytes. Values are horizontal or vertical; bit-packing can be considered only if RAM pressure becomes measured.</li>
+        <li><strong>Static topology:</strong> remains in ROM. A collision query reads <code>maze_nav</code>; only cells marked gate-affected consult the owning gate record and its orientation-specific footprint.</li>
+      </ul>
+      <p>
+        The runtime cost is 92 bytes before later entity state. This preserves
+        the planned <code>$A000-$BFFF</code> game-state page and avoids copying
+        either 576-byte map at boot.
+      </p>
+    </section>
+
+    <section>
+      <h2>Renderer boundary</h2>
+      <p>
+        Phase 3 should add a maze renderer, not expand <code>put_char</code>
+        into a general game-state API. Its input is the immutable maze tables
+        and its output is the centre 192×192 framebuffer region.
+      </p>
+      <ol>
+        <li>For each row, set the destination to framebuffer byte offset <code>row * 160 + 32</code>.</li>
+        <li>For each of 24 cells, resolve logical style plus current dot state to a graphic ID and blit 32 bytes.</li>
+        <li>Advance 4 bytes between cells and 64 bytes after the final cell to reach the next framebuffer row start.</li>
+        <li>Overlay the 20 gates from their initial orientation records.</li>
+      </ol>
+      <p>
+        Keep the existing single-tile routine for character output and
+        correctness tests. The full-maze path may add a row-major fast path
+        that carries its destination pointer instead of recomputing
+        <code>row * 160 + col * 4</code> 576 times. It must retain the established
+        rule that an <code>LDD</code>-loaded data register is not also a loop counter.
+      </p>
+    </section>
+
+    <section>
+      <h2>Authoring and generation workflow</h2>
+      <p>
+        Proposed implementation workflow: add a semantic
+        <code>assets/arcade/maze.json</code> source and a deterministic generator
+        that emits an assembly include under <code>build/</code>. The source
+        records dimensions, per-cell style and movement mask, dots, nest and
+        perimeter flags, and the 20 gate definitions. The generator validates
+        the invariants below and selects only referenced graphics.
+      </p>
+      <p>
+        This is a new helper and data contract. It is approved as the Phase 3
+        design, but must not be implemented until the next implementation
+        increment is explicitly started.
+      </p>
+    </section>
+
+    <section>
+      <h2>Exact maze source requirement</h2>
+      <p>
+        The repository contains extracted arcade characters and sprites but no
+        authoritative start-state background RAM or complete maze layout. MAME
+        models Lady Bug's background as a 32×32 array of 8×8 tiles with
+        separate code and colour RAM. That driver describes the hardware, not
+        the game-programmed maze contents.
+      </p>
+      <p>
+        Before authoring <code>maze.json</code>, capture a clean level-one start
+        state from MAME: background tile codes, colour attributes, orientation,
+        and a matching screenshot. Rotate and crop the gameplay portion into
+        the target 24×24 CoCo grid, then retain the raw capture as provenance.
+        A screenshot may validate the result but is not the sole topology source.
+      </p>
+      <p>
+        Hardware reference:
+        <a href="https://github.com/mamedev/mame/blob/master/src/mame/universal/ladybug_video.cpp">MAME <code>ladybug_video.cpp</code></a>;
+        machine driver:
+        <a href="https://github.com/mamedev/mame/blob/master/src/mame/universal/ladybug.cpp">MAME <code>ladybug.cpp</code></a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Budget</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Item</th><th>Planning ceiling</th></tr></thead>
+        <tbody>
+          <tr><td>Base cells + navigation</td><td>1,152 B</td></tr>
+          <tr><td>48 packed graphics</td><td>1,536 B</td></tr>
+          <tr><td>48 style records</td><td>96 B</td></tr>
+          <tr><td>Gate records + footprints</td><td>208 B</td></tr>
+          <tr><td><strong>Phase 3 data ceiling</strong></td><td><strong>2,992 B</strong></td></tr>
+          <tr><td>Writable dots + gate states</td><td>92 B</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The 48-graphic figure is a planning ceiling, not a claimed arcade
+        count. The generator must report actual unique styles, graphics, and
+        ROM bytes. With the Phase 2.6 image at 557 bytes before padding, this
+        ceiling leaves more than 12 KB of the 16 KB cartridge image before
+        later phases, excluding new renderer code.
+      </p>
+    </section>
+
+    <section>
+      <h2>Validation gates</h2>
+      <ul>
+        <li>Exactly 24 rows and 24 cells per row; every style and graphic reference is in range.</li>
+        <li>Exactly 20 gates; every gate footprint is inside the grid and maps only to cells marked gate-affected.</li>
+        <li>N/E/S/W movement is reciprocal between adjacent non-gate cells; no passable edge exits the grid.</li>
+        <li>Initial dot count is emitted and checked against the captured source.</li>
+        <li>Nest and perimeter-track cells form the captured connected regions.</li>
+        <li>Phase 3 validates the arcade initial state and each single-gate rotation. Before Phase 5 gate interaction is accepted, validate the no-isolated-region rule by exhaustive state checking or a documented structural proof.</li>
+        <li>Live gdb-mcp verification compares all 192 rendered rows, the 64-pixel side margins, palette/PAR state, halt PC, and reported ROM size.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Deferred</h2>
+      <ul>
+        <li>Exact logical-style count, graphic count, dot count, gate footprint shapes, and cell topology await the authoritative capture.</li>
+        <li>Animated entities and sprite/background restoration remain Phase 4.</li>
+        <li>Gate interaction and collision implementation remain Phase 5.</li>
+        <li>Per-frame full-maze rendering is not planned; Phase 3 will measure the one-time boot render for reference.</li>
+        <li>A gate-affected collision query may scan the 20 gate records initially. Add a generated cell-to-gate lookup only if Phase 5 measurements require it.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Sources: <a href="./video-mode.html">video-mode</a>,
+        <a href="./memory-map.html">memory-map</a>,
+        <a href="../game/overview.html">game/overview</a>,
+        <a href="../platform/timing.html">platform/timing</a>,
+        <a href="./lessons-learned.html">lessons-learned</a>, and the MAME
+        Lady Bug video and machine drivers linked above.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

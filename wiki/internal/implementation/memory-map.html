@@ -200,6 +200,19 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
     </section>
 
     <section>
+      <h2>Phase 3 maze budget</h2>
+      <p>
+        The approved <a href="./maze-format.html">Phase 3 maze format</a>
+        reserves a planning ceiling of 2,992 cartridge bytes for the 24×24
+        base and navigation maps, up to 48 packed graphics and style records,
+        and all 20 gate records plus footprints. Runtime maze state is 92
+        bytes: a 72-byte dot bitmap and 20 one-byte gate orientations. Actual
+        counts and bytes must be emitted by the generator after the
+        authoritative arcade background capture.
+      </p>
+    </section>
+
+    <section>
       <h2>Phase 4 problem: sprite ROM at full 4bpp likely doesn't fit in 16 K cart</h2>
       <p>
         Sprite ROM at full 4bpp: ~120 sprites × 128 B = 15 K. Plus tile gfx

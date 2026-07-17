@@ -41,7 +41,8 @@
         <li><code>src/main.s</code> runs directly from the 16 KB cartridge, configures 320×192×16 RGB output, clears the framebuffer, and renders the upright arcade glyphs for <code>LADYBUG</code> through character-coordinate output.</li>
         <li>Tooling: lwasm 4.24 and XRoar 1.10 in WSL. The active automated verification path is <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>; the web app and patched monitor are deferred.</li>
         <li>The deterministic build selects and rotates only required arcade characters. The Phase 2.6 ROM uses 557 bytes before 16 KB padding.</li>
-        <li>The deterministic <code>phase26_halt</code> remains before the retained IRQ-enable path. Next increment: Phase 3 tile-format and static-maze design.</li>
+        <li>The deterministic <code>phase26_halt</code> remains before the retained IRQ-enable path.</li>
+        <li>Phase 3 architecture is recorded in <a href="./maze-format.html">tile format and static maze</a>. Next increment: capture the authoritative arcade start-state background, author the validated 24×24 maze source, generate its tables, and render it once at boot.</li>
       </ul>
     </section>
 
@@ -118,10 +119,10 @@
       <p><strong>Goal:</strong> render the playfield from data, no entities yet. Validates the data-driven approach.</p>
       <p><strong>POC tasks:</strong></p>
       <ol>
-        <li>Define a tile format (8×8? 8×16? — record decision).</li>
-        <li>Author the maze layout as a 2D array of tile indices in a new data module (<code>DAT_MAZE.S</code> or similar). Includes turnstile gates and dot positions.</li>
-        <li>Implement the tile renderer: walk the maze array, blit each tile.</li>
-        <li>Render once at boot and stop.</li>
+        <li><strong>Done 2026-07-16:</strong> define the 8×8 tile, layered maze, gate, dot, navigation, renderer, and memory contracts in <a href="./maze-format.html">maze-format</a>.</li>
+        <li>Capture an authoritative level-one start state from MAME background RAM plus a matching screenshot; rotate and crop it into the 24×24 target grid.</li>
+        <li>Author the semantic maze source and implement its deterministic validator/generator. Include all 20 turnstile gates and initial dot positions.</li>
+        <li>Implement the row-major tile renderer and render once at boot before the deterministic halt.</li>
       </ol>
       <p><strong>Exit criterion:</strong> the full Lady Bug playfield is visible and correct against the design doc — outer walls, inner walls, turnstiles, all 20 gates, dots in their starting positions.</p>
       <p><strong>Review gate Q's:</strong></p>

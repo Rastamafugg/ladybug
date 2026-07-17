@@ -23,6 +23,35 @@
     </header>
 
     <section>
+      <h3>2026-07-16 · lint — Phase 3 architecture documentation</h3>
+      <p>
+        Scanned all local links in the HTML wiki after adding the Phase 3
+        architecture page. No dead local links were found; the new page has
+        inbound links from the implementation index, roadmap, memory map, and
+        this log. <code>git diff --check</code> also passed.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-16 · decision — Phase 3 tile format and static-maze architecture</h3>
+      <p>
+        Fixed the Phase 3 playfield contract at 24×24 8×8 cells in the centre
+        192×192 region. The design separates logical visual styles, navigation
+        masks, mutable dots, and 20 mutable turnstile orientations so art does
+        not become collision state and cartridge tables remain immutable.
+        Defined the compiled tables, a 2,992-byte Phase 3 ROM planning ceiling,
+        92 bytes of runtime maze state, a row-major renderer boundary, and
+        generator validation invariants. Source review confirmed that MAME
+        models a 32×32 8×8 background tilemap but does not contain the
+        game-programmed maze topology. Therefore exact layout authoring is
+        gated on a clean MAME background-RAM capture plus matching screenshot;
+        screenshot-only inference is rejected. Added
+        <a href="./implementation/maze-format.html">maze-format</a> and advanced
+        the roadmap to the capture and implementation increment.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-16 · milestone — Phase 2.6 character output and LADYBUG title</h3>
       <p>
         Completed the Phase 2 display-foundation gate. The graphics generator
