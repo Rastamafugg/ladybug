@@ -1,18 +1,15 @@
 ;==============================================================================
 ; Ladybug — main.s
 ;==============================================================================
-; Phase 2.6: render build-generated arcade text to the framebuffer.
+; Phase 3: render the authored 40x24 Tiled screen to the framebuffer.
 ;
 ; Builds on Phase 2.3 (hi-res 320×192×16 + MMU + palette + IRQ tick) by:
-;   - Replacing the 16-stripe diagnostic with a black-cleared FB.
-;   - Generating the palette and seven 4bpp GIME glyphs for LADYBUG from
-;     assets/arcade/chars.json before assembly.
-;   - Rotating the arcade glyphs 90 degrees counter-clockwise so they are
-;     upright on the unrotated CoCo 3 framebuffer.
+;   - Compiling tiled/coco-screen.tmx into a one-byte tile map and a
+;     deduplicated packed 4bpp tile atlas before assembly.
+;   - Flattening visible Tiled layers and applying horizontal/vertical flips.
 ;   - blit_tile: 8 rows x 4 bytes, stride 160.
-;   - put_char: row/column character coordinates over blit_tile.
 ;
-; Visible: yellow LADYBUG title centered near the top of a black screen.
+; Visible: the complete authored 40x24 maze and side-panel layout.
 ;==============================================================================
 
         pragma  nodollarlocal,6809
@@ -159,28 +156,28 @@ clr_fb  std     ,x++
         cmpx    #FB_END
         blo     clr_fb
 
-        ; --- Phase 2 exit text ---
-        lbsr    draw_title
+        ; --- Phase 3 authored screen ---
+        lbsr    draw_screen
 
         ; --- Un-blank: 320×192×16 (CRES=10 + HRES=111 → 4bpp on this build) ---
         lda     #$1E
         sta     GIME_VRES
 
-        ; Phase 2.6 isolation: halt here so the visible state is just
-        ; LADYBUG on black. The IRQ install + Vbord enable below is
+        ; Phase 3 isolation: halt here so the visible state is just the
+        ; authored static screen. The IRQ install + Vbord enable below is
         ; carried over from Phase 2.3 but has not been re-verified against
         ; the new MMU/PAR layout — leaving it disabled until that's done.
 
         ; --- L4 probe: write sentinel to JT_IRQ, persist readback + marker,
-        ;     fall through to phase26_halt for trap-snap capture.
+        ;     fall through to phase3_halt for trap-snap capture.
         lda     #$55
         sta     JT_IRQ          ; the suspect store
         lda     JT_IRQ
         sta     $0FFE           ; readback of $FEF7
         lda     #$AA
         sta     $0FFF           ; liveness marker
-phase26_halt
-        bra     phase26_halt
+phase3_halt
+        bra     phase3_halt
 
         ; --- IRQ handler at $FEF7 jump-table slot ---
         lda     #$7E            ; JMP extended
@@ -206,7 +203,7 @@ mainloop
         bra     mainloop
 
 ;==============================================================================
-; draw_title — render the seven contiguous LADYBUG glyphs.
+; draw_screen — render the compiled 40x24 tile map.
 ;
 ; Inputs:
 ;   None
@@ -215,54 +212,41 @@ mainloop
 ;   A, B, X, Y, U, D, CC — undefined
 ;
 ; Side effects:
-;   Writes seven 8x8 glyphs at character row 1, columns 16..22.
+;   Writes 960 8x8 tiles in row-major order to the framebuffer.
 ;==============================================================================
-draw_title
-        leay    glyph_l,pcr     ; generated glyph order is L,A,D,Y,B,U,G
-        lda     #1
-        ldb     #16
-        ldu     #7
-dt_next
-        pshs    d               ; put_char consumes row and column
-        lbsr    put_char
-        puls    d
-        incb
-        leau    -1,u            ; LEAU does not update condition codes
-        cmpu    #0
-        bne     dt_next
-        rts
-
-;==============================================================================
-; put_char — render one glyph at an 8x8 character coordinate.
-;
-; Inputs:
-;   A — character row, 0..23
-;   B — character column, 0..39
-;   Y — source glyph data, 32 packed 4bpp bytes
-;   U — caller-owned value
-;
-; Returns:
-;   U — preserved
-;   A, B, D, X, Y, CC — undefined
-;
-; Side effects:
-;   Writes one 8x8 glyph to the framebuffer.
-;==============================================================================
-put_char
-        pshs    u
+draw_screen
+        leau    screen_map,pcr
         ldx     #FB_VIRT
-        tsta
-        beq     pc_column
-pc_row
-        leax    1280,x          ; 8 pixel rows x 160 bytes
-        deca
-        bne     pc_row
-pc_column
-        lslb                    ; 8 pixels x 4bpp = 4 bytes
+        lda     #SCREEN_HEIGHT
+ds_row
+        pshs    a
+        lda     #SCREEN_WIDTH
+ds_column
+        pshs    a,x
+        ldb     ,u+
+        clra
         lslb
-        abx
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        leay    screen_tiles,pcr
+        leay    d,y
         lbsr    blit_tile
-        puls    u,pc
+        puls    a,x
+        leax    4,x
+        deca
+        bne     ds_column
+        puls    a
+        leax    1120,x
+        deca
+        bne     ds_row
+        rts
 
 ;==============================================================================
 ; blit_tile — copy an 8x8 tile to a framebuffer byte address.
@@ -281,6 +265,7 @@ blit_tile
         ; ldd ,y++ clobbers B, so use a Y-vs-sentinel loop instead of decb.
         ; See wiki/internal/implementation/lessons-learned.html
         ; §"LDD ,Y++ clobbers B".
+        pshs    u
         leau    32,y            ; sentinel = end of tile data
         pshs    u
 btrow   ldd     ,y++
@@ -291,7 +276,7 @@ btrow   ldd     ,y++
         cmpy    ,s
         blo     btrow
         leas    2,s
-        rts
+        puls    u,pc
 
 ;==============================================================================
 ; irq_handler — Vbord (60 Hz)
@@ -312,9 +297,9 @@ irq_done
 par_table
         fcb     $38,$30,$31,$32,$33,$34,$3E,$3F
 
-;-- Build-generated palette and selected character data. ---------------------
-;   scripts/build.sh creates build/ladybug_gfx.inc from the authoritative
-;   assets/arcade/chars.json before invoking lwasm.
-        include "ladybug_gfx.inc"
+;-- Build-generated palette, screen map, and packed tile atlas. --------------
+;   scripts/build.sh compiles tiled/coco-screen.tmx with arcade character data
+;   before invoking lwasm.
+        include "ladybug_screen.inc"
 
         end

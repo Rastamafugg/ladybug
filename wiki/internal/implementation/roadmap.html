@@ -38,11 +38,11 @@
       <h2>Current state — Phase 3</h2>
       <ul>
         <li>Phases 0–2 are complete. Phase 2.1–2.4 boot and render correctly after the 2026-07-16 cartridge/ORG-gap fix.</li>
-        <li><code>src/main.s</code> runs directly from the 16 KB cartridge, configures 320×192×16 RGB output, clears the framebuffer, and renders the upright arcade glyphs for <code>LADYBUG</code> through character-coordinate output.</li>
+        <li><code>src/main.s</code> runs directly from the 16 KB cartridge, configures 320×192×16 RGB output, and renders the authored 40×24 Tiled screen through a generated packed tile atlas.</li>
         <li>Tooling: lwasm 4.24 and XRoar 1.10 in WSL. The active automated verification path is <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>; the web app and patched monitor are deferred.</li>
-        <li>The deterministic build selects and rotates only required arcade characters. The Phase 2.6 ROM uses 514 bytes before 16 KB padding.</li>
-        <li>The deterministic <code>phase26_halt</code> remains before the retained IRQ-enable path.</li>
-        <li>Phase 3 architecture and semantic tables are recorded in <a href="./maze-format.html">tile format and static maze</a>. The authoritative MAME capture, corrected 24×24 crop, 109 dots, 20 gates, navigation tables, and 40×24 CoCo Tiled layout are complete. Next increment: generate packed graphics and render the maze once at boot.</li>
+        <li>The deterministic screen compiler flattens visible TMX layers, applies horizontal/vertical Tiled flips, and deduplicates 53 transformed graphics into 2,656 bytes of map and atlas data.</li>
+        <li>The deterministic <code>phase3_halt</code> remains before the retained IRQ-enable path. The Phase 3 ROM uses 2,952 bytes before 16 KB padding.</li>
+        <li>Phase 3 architecture, semantic tables, authored layout, packed graphics, and one-time boot renderer are complete. The next implementation phase is Phase 4 input and Lady Bug sprite movement.</li>
       </ul>
     </section>
 
@@ -122,9 +122,10 @@
         <li><strong>Done 2026-07-16:</strong> define the 8×8 tile, layered maze, gate, dot, navigation, renderer, and memory contracts in <a href="./maze-format.html">maze-format</a>.</li>
         <li><strong>Done 2026-07-17:</strong> capture an authoritative level-one start state from MAME background RAM, apply <code>ROT270</code>, and crop the complete maze at arcade rows 2–25 into the 24×24 target grid.</li>
         <li><strong>Done 2026-07-17:</strong> derive the semantic maze and deterministic validator/generator: 25 styles, 109 dots, all 20 initial gate footprints, and a connected 249-cell navigation graph.</li>
-        <li>Implement the row-major tile renderer and render once at boot before the deterministic halt.</li>
+        <li><strong>Done 2026-07-17:</strong> compile the authored layered 40×24 TMX into a 960-byte map and 53-tile packed atlas, then render it row-major once at boot before the deterministic halt.</li>
       </ol>
       <p><strong>Exit criterion:</strong> the full Lady Bug playfield is visible and correct against the design doc — outer walls, inner walls, turnstiles, all 20 gates, dots in their starting positions.</p>
+      <p><strong>Exit result:</strong> passed. A cold gdb-mcp run stopped at <code>$C096</code>, preserved the <code>$55AA</code> liveness marker, and produced a 30,720-byte framebuffer whose SHA-256 exactly matched the build-time TMX render: <code>cf52d7cde30fee0df12b39a35416628f7d4e75b7bf1c5961d17acf474d3661ad</code>.</p>
       <p><strong>Review gate Q's:</strong></p>
       <ul>
         <li>Render time budget — how many cycles did the full maze take? Project that against the 60 Hz frame budget if we re-render every frame vs only dirty tiles.</li>
@@ -158,7 +159,7 @@
       <p><strong>POC tasks:</strong></p>
       <ol>
         <li>Score, lives, level counters in DP.</li>
-        <li>HUD layout per <a href="../game/overview.html">game/overview</a>: left panel (score/lives/level), right panel (placeholder for EXTRA/SPECIAL/vegetable — implemented in Phase 7).</li>
+        <li>Activate the HUD fields at their authored positions in <a href="../game/overview.html">game/overview</a>; the Phase 3 TMX supplies their static initial graphics.</li>
         <li>Dot-eating awards points; HUD updates.</li>
         <li>Stage-clear detection: all dots gone → reset maze, increment level.</li>
         <li>Death → life lost (placeholder, since no enemies yet — debug key for now).</li>

@@ -19,7 +19,7 @@
       <h1>Tile format and static maze <span class="wiki-badge">internal</span></h1>
       <p class="wiki-meta">
         Approved architecture and generated semantic tables for the 24×24
-        playfield. Static rendering remains the next Phase 3 increment.
+        playfield and the completed static-rendering pipeline.
       </p>
     </header>
 
@@ -168,6 +168,16 @@
         side-panel design can be edited without changing maze GIDs.
       </p>
       <p>
+        After initial creation, <code>tiled/coco-screen.tmx</code> is a
+        hand-authored source file. The scaffold generator refuses to replace
+        an existing map unless <code>--force</code> is supplied.
+        <code>scripts/build_screen.py</code> flattens visible tile layers in
+        order, applies Tiled horizontal and vertical flip flags, rejects
+        diagonal flips and active non-8×8 tilesets, and deduplicates the
+        transformed packed graphics. The current authored screen compiles to
+        a 960-byte map and 53 graphics, totaling 2,656 bytes.
+      </p>
+      <p>
         Derived result: 25 logical styles, 109 initial dots, 20 gates split
         evenly between horizontal and vertical initial orientations, 249
         connected walkable cells, a two-cell central nest release lane, and a
@@ -206,23 +216,19 @@
     <section>
       <h2>Budget</h2>
       <table class="wiki-table">
-        <thead><tr><th>Item</th><th>Planning ceiling</th></tr></thead>
+        <thead><tr><th>Current ROM item</th><th>Measured size</th></tr></thead>
         <tbody>
-          <tr><td>Base cells + navigation</td><td>1,152 B</td></tr>
-          <tr><td>25 packed graphics (next renderer increment)</td><td>800 B</td></tr>
-          <tr><td>25 style records (next renderer increment)</td><td>50 B</td></tr>
-          <tr><td>Gate records + initial footprints</td><td>98 B</td></tr>
-          <tr><td>Generated semantic tables now</td><td>1,250 B</td></tr>
-          <tr><td><strong>Phase 3 data ceiling</strong></td><td><strong>2,992 B</strong></td></tr>
-          <tr><td>Writable dots + gate states</td><td>92 B</td></tr>
+          <tr><td>Authored screen map</td><td>960 B measured</td></tr>
+          <tr><td>53 deduplicated packed graphics</td><td>1,696 B measured</td></tr>
+          <tr><td><strong>Screen data</strong></td><td><strong>2,656 B</strong></td></tr>
+          <tr><td><strong>Complete unpadded ROM</strong></td><td><strong>2,952 B</strong></td></tr>
         </tbody>
       </table>
       <p>
-        The measured static-table result is 1,250 bytes before graphics. Adding
-        one 32-byte graphic and one two-byte style record for each of the 25
-        styles projects 2,100 bytes, below the 2,992-byte Phase 3 ceiling. The
-        Phase 2.6 image is 514 bytes before padding; renderer code remains to
-        be measured.
+        The screen compiler emits 2,656 bytes, below the 2,992-byte Phase 3
+        ceiling. The assembled Phase 3 image is 2,952 bytes before cartridge
+        padding. The 1,250-byte semantic maze include remains generated for
+        Phase 4/5 integration but is not yet linked into the static-render ROM.
       </p>
     </section>
 
@@ -247,7 +253,7 @@
         <li>Alternate gate-orientation graphics and navigation remain Phase 5 work; Phase 3 records the exact captured initial orientation and affected cells.</li>
         <li>Animated entities and sprite/background restoration remain Phase 4.</li>
         <li>Gate interaction and collision implementation remain Phase 5.</li>
-        <li>Per-frame full-maze rendering is not planned; Phase 3 will measure the one-time boot render for reference.</li>
+        <li>Per-frame full-maze rendering is not planned; Phase 3 uses a verified one-time boot render.</li>
         <li>A gate-affected collision query may scan the 20 gate records initially. Add a generated cell-to-gate lookup only if Phase 5 measurements require it.</li>
       </ul>
     </section>

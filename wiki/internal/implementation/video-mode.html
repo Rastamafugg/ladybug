@@ -40,7 +40,7 @@
       <p>From the locked design (<a href="../game/overview.html">game/overview</a>):</p>
       <ul>
         <li>Single non-scrolling playfield per stage.</li>
-        <li>HUD on <strong>side panels</strong>: left = descending <code>SPECIAL</code>, <code>EXTRA</code>, and <code>x2x3x5</code> plus lives; right = descending score/high-score/credit text plus level and vegetable indicators.</li>
+        <li>HUD on <strong>side panels</strong>: the authored map places boxed <code>SPECIAL</code>, <code>EXTRA</code>, and <code>x2x3x5</code> bands on the left, and score/high-score/credit/part plus lives on the right.</li>
         <li>Three-colour cycle (blue / yellow / red) drives the letter / heart / vegetable subsystem.</li>
         <li>~24×24 tile maze area is the natural scale for the playfield.</li>
         <li>8-direction joystick read; constant player speed.</li>
@@ -106,8 +106,8 @@
 </code></pre>
       <ul>
         <li><strong>Centre:</strong> 192 × 192 px = 24 × 24 tiles at 8 × 8 px. Holds maze, dots, all moving entities.</li>
-        <li><strong>Left panel:</strong> 64 × 192 px = 8 × 24 tiles. Vertical <code>SPECIAL</code>, <code>EXTRA</code>, and <code>x2x3x5</code> columns with three 16×16 life icons below.</li>
-        <li><strong>Right panel:</strong> 64 × 192 px = 8 × 24 tiles. Vertical <code>1ST</code>/current score, <code>TOP</code>/high score, and <code>CREDIT</code>, with unused columns available for level and vegetable indicators. The arcade <code>UNIVERSAL</code> text is omitted.</li>
+        <li><strong>Left panel:</strong> 64 × 192 px = 8 × 24 tiles. Horizontal boxed <code>SPECIAL</code>, <code>EXTRA</code>, and <code>x2x3x5</code> bands.</li>
+        <li><strong>Right panel:</strong> 64 × 192 px = 8 × 24 tiles. <code>1ST</code>/current score, <code>TOP</code>/high score, <code>CREDIT</code>, <code>PART</code>, level/bonus placeholders, and three life icons. The arcade <code>UNIVERSAL</code> text is omitted.</li>
       </ul>
       <p>
         The authoritative MAME capture makes the adaptation arithmetic exact:
@@ -124,9 +124,9 @@
       <p>Tile origin in the framebuffer: byte offset = <code>row * 160 + col * 4</code> (since one 8-px-wide tile = 4 bytes in 16-colour mode). Both centre and panels are 8-px-aligned.</p>
       <p>
         <code>tiled/coco-screen.tmx</code> is the 40×24 authoring reference.
-        The semantic maze occupies columns 8–31. Its separate HUD layer places
-        the three left labels in columns 0, 3, and 6, life icons at rows
-        10–11, and the right-side score groups in columns 33 and 35.
+        The semantic maze occupies columns 8–31. The visible layers and exact
+        panel placement in this hand-authored TMX are authoritative; the build
+        compiler flattens them without regenerating the layout.
       </p>
     </section>
 

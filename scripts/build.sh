@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_MAIN="$ROOT/src/main.s"
 SRC_TESTER="$ROOT/src/tester/tester.s"
 BUILD_DIR="$ROOT/build"
-GFX_INC="$BUILD_DIR/ladybug_gfx.inc"
+SCREEN_INC="$BUILD_DIR/ladybug_screen.inc"
 MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
 ROM="$BUILD_DIR/ladybug.rom"
 LST="$BUILD_DIR/ladybug.lst"
@@ -41,17 +41,10 @@ cmd_build() {
         --output "$ROOT/assets/arcade/maze.json" \
         --include "$MAZE_INC"
 
-    python3 "$ROOT/scripts/build_gfx.py" \
+    python3 "$ROOT/scripts/build_screen.py" \
+        --map "$ROOT/tiled/coco-screen.tmx" \
         --chars "$ROOT/assets/arcade/chars.json" \
-        --output "$GFX_INC" \
-        --rotate ccw \
-        --char "21:glyph_l:0,1,2,3" \
-        --char "10:glyph_a:0,1,2,3" \
-        --char "13:glyph_d:0,1,2,3" \
-        --char "34:glyph_y:0,1,2,3" \
-        --char "11:glyph_b:0,1,2,3" \
-        --char "30:glyph_u:0,1,2,3" \
-        --char "16:glyph_g:0,1,2,3"
+        --output "$SCREEN_INC"
 
     lwasm -9 --format=raw \
           --output="$ROM" \

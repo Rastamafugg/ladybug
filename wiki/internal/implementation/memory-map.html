@@ -208,13 +208,13 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
     <section>
       <h2>Phase 3 maze budget</h2>
       <p>
-        The approved <a href="./maze-format.html">Phase 3 maze format</a>
-        reserves a planning ceiling of 2,992 cartridge bytes for the 24×24
-        base and navigation maps, up to 48 packed graphics and style records,
-        and all 20 gate records plus footprints. Runtime maze state is 92
-        bytes: a 72-byte dot bitmap and 20 one-byte gate orientations. Actual
-        counts and bytes must be emitted by the generator after the
-        authoritative arcade background capture.
+        The current <a href="./maze-format.html">Phase 3 screen format</a>
+        uses a 960-byte 40×24 map plus 1,696 bytes for 53 deduplicated packed
+        graphics. The complete linked image is 2,952 bytes before 16 KB
+        padding, so all executable code and static screen data remain inside
+        the active <code>$C000-$DFFF</code> cartridge window. The generated
+        1,250-byte semantic maze include and 92 bytes of planned writable dot
+        and gate state remain for Phase 4/5 integration.
       </p>
     </section>
 

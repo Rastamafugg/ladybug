@@ -23,6 +23,31 @@
     </header>
 
     <section>
+      <h3>2026-07-17 · lint — Phase 3 packed-screen ROM</h3>
+      <p>
+        Python compilation, deterministic screen generation, the WSL cartridge
+        build, TMX overwrite protection, HTML-link lint, and scoped diff checks
+        passed. A cold gdb-mcp run halted at <code>$C096</code> with the
+        <code>$55AA</code> marker intact; its complete 30,720-byte framebuffer
+        exactly matched the build-time render at SHA-256
+        <code>cf52d7cde30fee0df12b39a35416628f7d4e75b7bf1c5961d17acf474d3661ad</code>.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · milestone — Phase 3 static screen rendered</h3>
+      <p>
+        Made the user-authored <code>tiled/coco-screen.tmx</code> the static
+        screen source. Added <code>scripts/build_screen.py</code> to flatten its
+        visible layers, honor horizontal/vertical flip flags, rotate arcade
+        characters, deduplicate packed 4bpp graphics, and emit a 960-byte map
+        plus 53-tile atlas. The row-major 6809 renderer now draws all 960 cells
+        once while blanked. The unpadded ROM is 2,952 bytes. Phase 3 is complete
+        and the roadmap advances to Phase 4.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-17 · lint — 40×24 CoCo Tiled layout</h3>
       <p>
         Repeated the CoCo screen generator byte-for-byte and validated two

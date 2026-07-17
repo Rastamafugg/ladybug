@@ -36,6 +36,11 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path("tiled/coco-screen.tmx"),
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="replace an existing hand-authored output map",
+    )
     return parser.parse_args()
 
 
@@ -129,6 +134,11 @@ def render_map(background: list[list[int]], hud: list[list[int]]) -> str:
 
 def main() -> int:
     args = parse_args()
+    if args.output.exists() and not args.force:
+        raise ValueError(
+            f"{args.output} already exists and is hand-authored; "
+            "pass --force to replace it"
+        )
     maze = json.loads(args.maze.read_text(encoding="utf-8"))
     background, hud = build_layers(maze)
     content = render_map(background, hud)

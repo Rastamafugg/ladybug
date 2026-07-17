@@ -306,7 +306,7 @@
         invoked with <code>-tv-input rgb</code> by the active
         <code>scripts/build.sh</code> workflow. The deferred web application
         retains the same setting in <code>web/backend/instance.py</code>, and
-        <code>scripts/build_gfx.py</code> generates the tuned
+        <code>scripts/build_screen.py</code> generates the tuned
         <code>palette_table</code>.
       </p>
       <p>
@@ -900,6 +900,22 @@ git reset --hard HEAD
       </p>
       <p><strong>Applies to:</strong> every lwasm raw ROM layout gap.</p>
       <p><strong>Citation:</strong> <code>src/main.s</code> cartridge layout padding; <code>web/scripts/probe_ladybug_screen.py</code>.</p>
+    </section>
+
+    <section>
+      <h2>Tiled GIDs contain transformation flags, not only tile numbers</h2>
+      <p>Filed 2026-07-17.</p>
+      <p>
+        A TMX tile value is a 32-bit GID with horizontal, vertical, and
+        diagonal transformation bits in its high positions. Masking those
+        bits without applying the transform silently changes authored art.
+        The screen compiler applies horizontal and vertical transforms before
+        deduplication and rejects diagonal transforms because the current
+        8×8 compiler contract does not implement them.
+      </p>
+      <p><strong>Why:</strong> the authored CoCo screen uses vertical-flip flags for repeated maze graphics.</p>
+      <p><strong>Applies to:</strong> every build tool that reads Tiled GIDs.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_screen.py</code>; <code>tiled/coco-screen.tmx</code>.</p>
     </section>
 
     <section>
