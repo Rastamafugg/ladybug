@@ -1,15 +1,15 @@
 ;==============================================================================
 ; Ladybug — main.s
 ;==============================================================================
-; Phase 2.4: render a hand-converted arcade tile to the framebuffer.
+; Phase 2.5: render a build-generated arcade tile to the framebuffer.
 ;
 ; Builds on Phase 2.3 (hi-res 320×192×16 + MMU + palette + IRQ tick) by:
 ;   - Replacing the 16-stripe diagnostic with a black-cleared FB.
 ;   - Reassigning palette indices 1-3 to a 4-colour sub-palette
 ;     (0 black / 1 yellow / 2 blue / 3 white) for the tile.
-;   - Embedding 32 bytes of 4bpp GIME tile data, hand-converted from
-;     arcade char #432 (a dense tile that exercises all four pixvals)
-;     in assets/arcade/chars.json. Pixval->palette mapping is identity.
+;   - Generating the palette and 32 bytes of 4bpp GIME tile data from
+;     arcade char #432 in assets/arcade/chars.json before assembly.
+;     Pixval->palette mapping is identity.
 ;   - blit_tile: 8 rows x 4 bytes, stride 160.
 ;   - Rendering the tile at three FB positions to validate the
 ;     pipeline end-to-end.
@@ -269,58 +269,9 @@ irq_done
 par_table
         fcb     $38,$30,$31,$32,$33,$34,$3E,$3F
 
-;-- Palette: 16 entries, GIME 6-bit codes (RGB-monitor empirical). -----------
-;   Tuned for XRoar `-tv-input rgb` and real CoCo 3 RGB-monitor hardware.
-;   Indices 0-3 form the sub-palette for the Phase 2.4 test tile:
-;     0 black, 1 yellow, 2 blue, 3 white.
-;   Under RGB the canonical "bright" set is the high 3 bits (R'=$20,
-;   G'=$10, B'=$08) and full white is $3F (all 6 bits set); the upper-3-only
-;   $38 reads as light grey, not white. See
-;   wiki/internal/implementation/lessons-learned.html
-;   §"XRoar RGB monitor palette mapping" for the full 6-bit→colour table.
-palette_table
-        fcb     $00             ; 0  black                R'G'B' rgb = 000 000
-        fcb     $30             ; 1  bright yellow        R'G'      = 110 000
-        fcb     $08             ; 2  bright blue          B'        = 001 000
-        fcb     $3F             ; 3  full white           all bits  = 111 111
-        fcb     $20             ; 4  bright red           R'        = 100 000
-        fcb     $10             ; 5  bright green         G'        = 010 000
-        fcb     $18             ; 6  bright cyan          G'B'      = 011 000
-        fcb     $28             ; 7  bright magenta       R'B'      = 101 000
-        fcb     $38             ; 8  light grey           R'G'B'    = 111 000
-        fcb     $04             ; 9  dim red              R         = 000 100
-        fcb     $02             ; 10 dim green            G         = 000 010
-        fcb     $01             ; 11 dim blue             B         = 000 001
-        fcb     $06             ; 12 dim yellow           RG        = 000 110
-        fcb     $03             ; 13 dim cyan             GB        = 000 011
-        fcb     $05             ; 14 dim magenta          RB        = 000 101
-        fcb     $07             ; 15 dark grey            RGB       = 000 111
-
-;-- Test tile: arcade chars.json[432] (dense, uses all four pixvals). --------
-;   Hand-converted from 8x8 2bpp pixval grid to 4bpp GIME packing
-;   (2 px/byte, hi-nibble = leftmost px). Pixval N maps directly to
-;   palette idx N — chosen because every idx 0/1/2/3 appears in the tile,
-;   so a wrong palette entry is immediately obvious.
-;
-;   Source pixval rows (from chars.json[432]):
-;     3,3,3,3,3,1,3,3
-;     3,3,3,1,1,1,3,3
-;     3,3,1,1,1,1,1,0
-;     3,3,1,1,1,1,1,2
-;     3,3,1,1,1,1,1,2
-;     3,1,1,1,1,1,2,2
-;     3,1,1,1,3,1,2,0
-;     3,1,1,3,1,1,2,2
-tile_data
-        ; arcade chars.json[432], 8×8 2bpp pixvals packed to 4bpp (hi nibble = left px).
-        ; Pixval→palette idx is identity: 0=black, 1=yellow, 2=blue, 3=white.
-        fcb     $33,$33,$31,$33     ; row 0:  3 3 3 3 3 1 3 3
-        fcb     $33,$31,$11,$33     ; row 1:  3 3 3 1 1 1 3 3
-        fcb     $33,$11,$11,$10     ; row 2:  3 3 1 1 1 1 1 0
-        fcb     $33,$11,$11,$12     ; row 3:  3 3 1 1 1 1 1 2
-        fcb     $33,$11,$11,$12     ; row 4:  3 3 1 1 1 1 1 2
-        fcb     $31,$11,$11,$22     ; row 5:  3 1 1 1 1 1 2 2
-        fcb     $31,$11,$31,$20     ; row 6:  3 1 1 1 3 1 2 0
-        fcb     $31,$13,$11,$22     ; row 7:  3 1 1 3 1 1 2 2
+;-- Build-generated palette and selected character data. ---------------------
+;   scripts/build.sh creates build/ladybug_gfx.inc from the authoritative
+;   assets/arcade/chars.json before invoking lwasm.
+        include "ladybug_gfx.inc"
 
         end

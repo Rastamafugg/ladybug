@@ -79,6 +79,30 @@
       </ol>
     </section>
 
+    <section>
+      <h2>CoCo 3 target generation</h2>
+      <p>
+        <code>scripts/build_gfx.py</code> is the deterministic target-side
+        converter. It validates all 512 authoritative 8×8 character grids,
+        then emits only explicitly selected characters to
+        <code>build/ladybug_gfx.inc</code>. Each pair of source pixels becomes
+        one GIME 4bpp byte: the left pixel occupies the high nibble and the
+        right pixel the low nibble.
+      </p>
+<pre><code>python3 scripts/build_gfx.py \
+  --chars assets/arcade/chars.json \
+  --output build/ladybug_gfx.inc \
+  --char 432:tile_data:0,1,2,3</code></pre>
+      <p>
+        A character selector is
+        <code>INDEX:LABEL[:P0,P1,P2,P3]</code>. The four optional values map
+        source pens 0–3 to GIME palette indices 0–15. Phase 2.5 uses identity
+        mapping for character 432 and emits the established 16-entry RGB
+        palette. Selection is explicit so the complete 512-character set does
+        not consume the 16 KB cartridge.
+      </p>
+    </section>
+
     <footer class="wiki-footer">
       <p>
         Sources: MAME <code>ladybug.cpp</code> driver

@@ -7,6 +7,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_MAIN="$ROOT/src/main.s"
 SRC_TESTER="$ROOT/src/tester/tester.s"
 BUILD_DIR="$ROOT/build"
+GFX_INC="$BUILD_DIR/ladybug_gfx.inc"
 ROM="$BUILD_DIR/ladybug.rom"
 LST="$BUILD_DIR/ladybug.lst"
 MAP="$BUILD_DIR/ladybug.map"
@@ -33,11 +34,17 @@ cmd_build() {
     [[ -f "$SRC_MAIN" ]] || { echo "build: $SRC_MAIN not found" >&2; exit 1; }
     mkdir -p "$BUILD_DIR"
 
+    python3 "$ROOT/scripts/build_gfx.py" \
+        --chars "$ROOT/assets/arcade/chars.json" \
+        --output "$GFX_INC" \
+        --char "432:tile_data:0,1,2,3"
+
     lwasm -9 --format=raw \
           --output="$ROM" \
           --list="$LST" \
           --symbols \
           --map="$MAP" \
+          -I "$BUILD_DIR" \
           "$SRC_MAIN"
 
     pad_cart "$ROM"

@@ -23,6 +23,30 @@
     </header>
 
     <section>
+      <h3>2026-07-16 · milestone — Phase 2.5 generated graphics pipeline</h3>
+      <p>
+        Added <code>scripts/build_gfx.py</code>, a deterministic converter from
+        the authoritative 512-character <code>assets/arcade/chars.json</code>
+        dataset to a selected assembly include. The generator validates the
+        complete source shape, supports explicit source-pen to GIME-palette
+        mapping, emits the established 16-entry RGB palette, and writes only
+        requested characters to protect the 16 KB cartridge budget.
+        <code>scripts/build.sh build</code> now generates
+        <code>build/ladybug_gfx.inc</code> and supplies it to lwasm through the
+        build include path; <code>src/main.s</code> no longer contains
+        hand-entered palette/tile bytes. Character 432 with identity pen
+        mapping produces the exact prior 32-byte tile and the assembled ROM
+        remains 314 bytes before padding. Next roadmap increment: Phase 2.6
+        character output and <code>LADYBUG</code> exit text.
+        QA covered generator validation and rejection cases, HTML link lint,
+        a clean full build, byte-for-byte ROM comparison, and a fresh live
+        gdb-mcp run. The emulator halted at <code>$C0B1</code>; all three
+        framebuffer copies matched the generated tile, liveness markers were
+        <code>55 AA</code>, and instruction stepping remained in the halt loop.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-16 · decision — web tooling deferred; gdb-mcp game workflow restored</h3>
       <p>
         Cleaned the project instructions and wiki after the Markdown-to-HTML

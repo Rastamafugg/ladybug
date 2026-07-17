@@ -35,9 +35,15 @@
 
     <section>
       <h2>Overview</h2>
-<pre><code>src/*.s                              (hand-written 6809 assembly)
+<pre><code>assets/arcade/chars.json             (authoritative decoded arcade pixels)
    │
-   │  lwasm -9 --format=raw --output=build/ladybug.rom
+   │  scripts/build_gfx.py --char 432:tile_data:0,1,2,3
+   ▼
+build/ladybug_gfx.inc                (selected generated palette/tile data)
+   │
+src/*.s                              (hand-written 6809 assembly)
+   │
+   │  lwasm -9 -I build --format=raw --output=build/ladybug.rom
    ▼
 build/ladybug.rom    (raw binary, exact size)
    │
@@ -61,14 +67,16 @@ emulated CoCo 3      (real hardware: write ROM to a 16K EPROM, drop into cart sh
       <table class="wiki-table">
         <thead><tr><th>Command</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><code>scripts/build.sh build</code></td><td>Assemble + pad. Output: <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, <code>build/ladybug.map</code>.</td></tr>
+          <tr><td><code>scripts/build.sh build</code></td><td>Generate selected graphics, assemble, and pad. Output: <code>build/ladybug_gfx.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, <code>build/ladybug.map</code>.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch xroar with the canonical cart profile.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
       </table>
       <p>Source layout the script assumes:</p>
-<pre><code>src/main.s          (top of build, ORG $C000)
-build/              (created if missing; everything generated lands here)
+<pre><code>assets/arcade/chars.json   (authoritative decoded character shapes)
+src/main.s                 (top of build, ORG $C000)
+scripts/build_gfx.py       (selected character/palette generator)
+build/                     (created if missing; generated outputs land here)
 scripts/build.sh
 </code></pre>
     </section>
@@ -78,11 +86,16 @@ scripts/build.sh
 
       <h3>1. Assemble</h3>
 <pre><code>mkdir -p build
+python3 scripts/build_gfx.py \
+  --chars assets/arcade/chars.json \
+  --output build/ladybug_gfx.inc \
+  --char 432:tile_data:0,1,2,3
 lwasm -9 --format=raw \
       --output=build/ladybug.rom \
       --list=build/ladybug.lst \
       --symbols \
       --map=build/ladybug.map \
+      -I build \
       src/main.s
 </code></pre>
 
