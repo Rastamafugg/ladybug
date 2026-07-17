@@ -118,8 +118,13 @@
         <li><strong>Pixel:</strong> 4 bits, packed two-per-byte, hi-nibble = leftmost pixel.</li>
         <li><strong>Tile:</strong> 8 × 8 px = 32 bytes. Stored as 8 rows of 4 bytes. Tile data lives in cartridge ROM.</li>
         <li><strong>Sprite (entity, e.g. Lady Bug):</strong> 16 × 16 px = 128 bytes. Same packing.</li>
-        <li><strong>Glyph (HUD digit, letter):</strong> likely 8 × 8 = 32 bytes. May add a 16 × 16 large-digit set for the score.</li>
+        <li><strong>Glyph (HUD digit, letter):</strong> 8 × 8 = 32 bytes, established by Phase 2.6 and rendered through <code>put_char</code>. A separate 16 × 16 score set remains optional and deferred to HUD work.</li>
       </ul>
+      <p>
+        Phase 2.6 confirmed the tile-coordinate calculation in live XRoar:
+        <code>put_char</code> renders <code>LADYBUG</code> at character row 1,
+        columns 16–22, using the same packed format as maze tiles.
+      </p>
       <p>
         A 2-byte sprite blit (<code>STD ,X++</code>) writes 4 pixels per
         ~6 cycles. Full 16 × 16 sprite ≈ 64 STDs ≈ 384 cycles plus address

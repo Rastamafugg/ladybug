@@ -1,21 +1,18 @@
 ;==============================================================================
 ; Ladybug — main.s
 ;==============================================================================
-; Phase 2.5: render a build-generated arcade tile to the framebuffer.
+; Phase 2.6: render build-generated arcade text to the framebuffer.
 ;
 ; Builds on Phase 2.3 (hi-res 320×192×16 + MMU + palette + IRQ tick) by:
 ;   - Replacing the 16-stripe diagnostic with a black-cleared FB.
-;   - Reassigning palette indices 1-3 to a 4-colour sub-palette
-;     (0 black / 1 yellow / 2 blue / 3 white) for the tile.
-;   - Generating the palette and 32 bytes of 4bpp GIME tile data from
-;     arcade char #432 in assets/arcade/chars.json before assembly.
-;     Pixval->palette mapping is identity.
+;   - Generating the palette and seven 4bpp GIME glyphs for LADYBUG from
+;     assets/arcade/chars.json before assembly.
+;   - Rotating the arcade glyphs 90 degrees counter-clockwise so they are
+;     upright on the unrotated CoCo 3 framebuffer.
 ;   - blit_tile: 8 rows x 4 bytes, stride 160.
-;   - Rendering the tile at three FB positions to validate the
-;     pipeline end-to-end.
+;   - put_char: row/column character coordinates over blit_tile.
 ;
-; Visible: black screen with three identical arcade-char-432 tiles at the
-; top of the screen (left / center / right). IRQ tick keeps running.
+; Visible: yellow LADYBUG title centered near the top of a black screen.
 ;==============================================================================
 
         pragma  nodollarlocal,6809
@@ -162,42 +159,28 @@ clr_fb  std     ,x++
         cmpx    #FB_END
         blo     clr_fb
 
-        ; --- Three copies of test tile at top, evenly spaced ---
-        ; FB stride 160 B = 320 px (4 bpp). Tile is 4 B = 8 px wide.
-        ;   left   col   0  px → FB_VIRT + 0    = $2000
-        ;   center col 152 px → FB_VIRT + 76    = $204C
-        ;   right  col 312 px → FB_VIRT + 156   = $209C
-        ldx     #FB_VIRT
-        leay    tile_data,pcr
-        lbsr    blit_tile
-
-        ldx     #FB_VIRT+76
-        leay    tile_data,pcr
-        lbsr    blit_tile
-
-        ldx     #FB_VIRT+156
-        leay    tile_data,pcr
-        lbsr    blit_tile
+        ; --- Phase 2 exit text ---
+        lbsr    draw_title
 
         ; --- Un-blank: 320×192×16 (CRES=10 + HRES=111 → 4bpp on this build) ---
         lda     #$1E
         sta     GIME_VRES
 
-        ; Phase 2.4 isolation: halt here so the visible state is just
-        ; the 3 tiles on black. The IRQ install + Vbord enable below is
+        ; Phase 2.6 isolation: halt here so the visible state is just
+        ; LADYBUG on black. The IRQ install + Vbord enable below is
         ; carried over from Phase 2.3 but has not been re-verified against
         ; the new MMU/PAR layout — leaving it disabled until that's done.
 
         ; --- L4 probe: write sentinel to JT_IRQ, persist readback + marker,
-        ;     fall through to phase24_halt for trap-snap capture.
+        ;     fall through to phase26_halt for trap-snap capture.
         lda     #$55
         sta     JT_IRQ          ; the suspect store
         lda     JT_IRQ
         sta     $0FFE           ; readback of $FEF7
         lda     #$AA
         sta     $0FFF           ; liveness marker
-phase24_halt
-        bra     phase24_halt
+phase26_halt
+        bra     phase26_halt
 
         ; --- IRQ handler at $FEF7 jump-table slot ---
         lda     #$7E            ; JMP extended
@@ -229,10 +212,76 @@ mainloop
         bra     mainloop
 
 ;==============================================================================
-; blit_tile — copy an 8x8 tile (32 bytes, 4bpp packed) to the framebuffer.
-;   X = dest FB byte address (top-left of tile)
-;   Y = source tile data
-; Trashes A, B, D, X, Y. 8 rows x 4 bytes; row stride 160 (FB) - 4 (written) = 156.
+; draw_title — render the seven contiguous LADYBUG glyphs.
+;
+; Inputs:
+;   None
+;
+; Returns:
+;   A, B, X, Y, U, D, CC — undefined
+;
+; Side effects:
+;   Writes seven 8x8 glyphs at character row 1, columns 16..22.
+;==============================================================================
+draw_title
+        leay    glyph_l,pcr     ; generated glyph order is L,A,D,Y,B,U,G
+        lda     #1
+        ldb     #16
+        ldu     #7
+dt_next
+        pshs    d               ; put_char consumes row and column
+        lbsr    put_char
+        puls    d
+        incb
+        leau    -1,u            ; LEAU does not update condition codes
+        cmpu    #0
+        bne     dt_next
+        rts
+
+;==============================================================================
+; put_char — render one glyph at an 8x8 character coordinate.
+;
+; Inputs:
+;   A — character row, 0..23
+;   B — character column, 0..39
+;   Y — source glyph data, 32 packed 4bpp bytes
+;   U — caller-owned value
+;
+; Returns:
+;   U — preserved
+;   A, B, D, X, Y, CC — undefined
+;
+; Side effects:
+;   Writes one 8x8 glyph to the framebuffer.
+;==============================================================================
+put_char
+        pshs    u
+        ldx     #FB_VIRT
+        tsta
+        beq     pc_column
+pc_row
+        leax    1280,x          ; 8 pixel rows x 160 bytes
+        deca
+        bne     pc_row
+pc_column
+        lslb                    ; 8 pixels x 4bpp = 4 bytes
+        lslb
+        abx
+        lbsr    blit_tile
+        puls    u,pc
+
+;==============================================================================
+; blit_tile — copy an 8x8 tile to a framebuffer byte address.
+;
+; Inputs:
+;   X — destination framebuffer byte address
+;   Y — source glyph data, 32 packed 4bpp bytes
+;
+; Returns:
+;   A, B, D, X, Y, U, CC — undefined
+;
+; Side effects:
+;   Writes 8 rows x 4 bytes; advances 156 bytes after each written row.
 ;==============================================================================
 blit_tile
         ; ldd ,y++ clobbers B, so use a Y-vs-sentinel loop instead of decb.

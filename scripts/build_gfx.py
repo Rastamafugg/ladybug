@@ -8,6 +8,10 @@ indices 0..15:
 
     --char INDEX:LABEL[:P0,P1,P2,P3]
 
+The arcade character sheet follows the rotated cabinet display.  Pass
+--rotate ccw when target glyphs must appear upright on the unrotated CoCo 3
+framebuffer.
+
 The output is deterministic and intentionally contains only selected tiles so
 the 16 KB cartridge is not consumed by the complete arcade character ROM.
 """
@@ -97,6 +101,14 @@ def pack_row(row: Sequence[int], pen_map: Sequence[int]) -> list[int]:
     return [(mapped[i] << 4) | mapped[i + 1] for i in range(0, CHAR_WIDTH, 2)]
 
 
+def rotate_char_ccw(char: Sequence[Sequence[int]]) -> list[list[int]]:
+    """Rotate one square character 90 degrees counter-clockwise."""
+    return [
+        [char[x][CHAR_WIDTH - 1 - y] for x in range(CHAR_HEIGHT)]
+        for y in range(CHAR_WIDTH)
+    ]
+
+
 def format_fcb(values: Iterable[int]) -> str:
     return "        fcb     " + ",".join(f"${value:02X}" for value in values)
 
@@ -105,7 +117,11 @@ def render_include(
     source: Path,
     chars: Sequence[Sequence[Sequence[int]]],
     specs: Sequence[tuple[int, str, tuple[int, int, int, int]]],
+    rotation: str = "none",
 ) -> str:
+    if rotation not in ("none", "ccw"):
+        raise ValueError(f"unsupported character rotation: {rotation}")
+
     labels: set[str] = set()
     source_label = "/".join(source.parts[-3:])
     lines = [
@@ -124,15 +140,20 @@ def render_include(
         if label in labels or label == "palette_table":
             raise ValueError(f"duplicate generated label: {label}")
         labels.add(label)
+        char = chars[index]
+        if rotation == "ccw":
+            char = rotate_char_ccw(char)
 
         lines.extend(
             [
                 "",
-                f"; Arcade character {index}; pen map " + ",".join(map(str, pen_map)) + ".",
+                f"; Arcade character {index}; rotation {rotation}; pen map "
+                + ",".join(map(str, pen_map))
+                + ".",
                 label,
             ]
         )
-        for row in chars[index]:
+        for row in char:
             packed = pack_row(row, pen_map)
             lines.append(format_fcb(packed) + "     ; " + " ".join(map(str, row)))
 
@@ -143,13 +164,20 @@ def write_if_changed(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists() and path.read_text(encoding="utf-8") == content:
         return
-    path.write_text(content, encoding="utf-8", newline="\n")
+    with path.open("w", encoding="utf-8", newline="\n") as output:
+        output.write(content)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--chars", type=Path, required=True, help="authoritative chars.json")
     parser.add_argument("--output", type=Path, required=True, help="generated assembly include")
+    parser.add_argument(
+        "--rotate",
+        choices=("none", "ccw"),
+        default="none",
+        help="rotate selected characters before packing; default: none",
+    )
     parser.add_argument(
         "--char",
         dest="char_specs",
@@ -161,7 +189,7 @@ def main() -> int:
     args = parser.parse_args()
 
     chars = load_chars(args.chars)
-    content = render_include(args.chars, chars, args.char_specs)
+    content = render_include(args.chars, chars, args.char_specs, args.rotate)
     write_if_changed(args.output, content)
     print(f"gfx: generated {len(args.char_specs)} character(s) -> {args.output}")
     return 0

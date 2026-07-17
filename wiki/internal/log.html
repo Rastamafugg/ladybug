@@ -23,6 +23,28 @@
     </header>
 
     <section>
+      <h3>2026-07-16 · milestone — Phase 2.6 character output and LADYBUG title</h3>
+      <p>
+        Completed the Phase 2 display-foundation gate. The graphics generator
+        now supports explicit counter-clockwise character rotation for the
+        arcade cabinet orientation and selects characters 21, 10, 13, 34, 11,
+        30, and 16 as contiguous <code>LADYBUG</code> glyphs. Added
+        <code>put_char(A=row, B=column, Y=glyph)</code> over the existing
+        8×8 blitter and a seven-character title loop at row 1, columns 16–22.
+        The first live pass exposed a known 6809 flag rule: <code>LEAU</code>
+        did not update Z, so <code>BNE</code> followed stale flags and overran
+        the glyph set. Adding <code>CMPU #0</code> fixed the loop. Also changed
+        generated-file output from <code>Path.write_text(newline=...)</code>
+        to <code>Path.open</code> for the older WSL Python runtime. Final ROM
+        size is 557 bytes before 16 KB padding. Cold-start gdb-mcp QA reached
+        <code>phase26_halt</code> at <code>$C096</code>, matched all eight
+        framebuffer rows to the generated glyphs, confirmed black adjacent
+        bytes, PAR/palette state, <code>55 AA</code> liveness markers, and
+        instruction stepping in the halt loop. The roadmap advances to Phase 3.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-16 · milestone — Phase 2.5 generated graphics pipeline</h3>
       <p>
         Added <code>scripts/build_gfx.py</code>, a deterministic converter from

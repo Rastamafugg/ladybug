@@ -92,14 +92,25 @@
 <pre><code>python3 scripts/build_gfx.py \
   --chars assets/arcade/chars.json \
   --output build/ladybug_gfx.inc \
-  --char 432:tile_data:0,1,2,3</code></pre>
+  --rotate ccw \
+  --char 21:glyph_l:0,1,2,3 \
+  --char 10:glyph_a:0,1,2,3 \
+  --char 13:glyph_d:0,1,2,3 \
+  --char 34:glyph_y:0,1,2,3 \
+  --char 11:glyph_b:0,1,2,3 \
+  --char 30:glyph_u:0,1,2,3 \
+  --char 16:glyph_g:0,1,2,3</code></pre>
       <p>
         A character selector is
         <code>INDEX:LABEL[:P0,P1,P2,P3]</code>. The four optional values map
-        source pens 0–3 to GIME palette indices 0–15. Phase 2.5 uses identity
-        mapping for character 432 and emits the established 16-entry RGB
-        palette. Selection is explicit so the complete 512-character set does
-        not consume the 16 KB cartridge.
+        source pens 0–3 to GIME palette indices 0–15. The default rotation is
+        <code>none</code>, which preserves the Phase 2.5 character-432 test.
+        The arcade character sheet follows the rotated cabinet display, so
+        Phase 2.6 passes <code>--rotate ccw</code> to make text upright on the
+        unrotated CoCo framebuffer. The selected indices for
+        <code>LADYBUG</code> are 21, 10, 13, 34, 11, 30, and 16. Selection is
+        explicit so the complete 512-character set does not consume the 16 KB
+        cartridge.
       </p>
     </section>
 

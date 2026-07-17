@@ -435,6 +435,33 @@
     </section>
 
     <section>
+      <h2><code>LEAU</code> does not set Z — compare U explicitly before branching</h2>
+      <p>Filed 2026-07-16.</p>
+      <p>
+        The first Phase 2.6 <code>draw_title</code> loop decremented its
+        seven-glyph counter with <code>leau -1,u</code> and immediately used
+        <code>bne</code>. Unlike <code>LEAX</code> and <code>LEAY</code>,
+        <code>LEAU</code> and <code>LEAS</code> do not update condition codes.
+        The branch therefore reused Z from the preceding <code>INCB</code> and
+        continued until the character column wrapped, consuming cartridge
+        padding as glyph data and filling the title rows with <code>$FF</code>.
+      </p>
+      <p>
+        <strong>Fix:</strong> use <code>leau -1,u</code>,
+        <code>cmpu #0</code>, <code>bne</code>. The rule was already present in
+        <a href="../platform/6809.html#lea-ops">platform/6809</a> and the
+        public <a href="../../release/reference/6809/leau.html">LEAU reference</a>;
+        the live failure demonstrates why loop reviews must check the flag
+        producer immediately before every conditional branch.
+      </p>
+      <p>
+        <strong>Citation:</strong> <code>src/main.s</code>
+        <code>draw_title</code>; reproduced and reduced with gdb-mcp during
+        the Phase 2.6 cold-start test.
+      </p>
+    </section>
+
+    <section>
       <h2>XRoar cartridge-window reads are not uniformly cart-backed</h2>
       <p>Filed 2026-05-10; expanded 2026-05-12.</p>
       <p>

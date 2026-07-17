@@ -37,7 +37,7 @@
       <h2>Overview</h2>
 <pre><code>assets/arcade/chars.json             (authoritative decoded arcade pixels)
    │
-   │  scripts/build_gfx.py --char 432:tile_data:0,1,2,3
+   │  scripts/build_gfx.py --rotate ccw --char 21:glyph_l ...
    ▼
 build/ladybug_gfx.inc                (selected generated palette/tile data)
    │
@@ -89,7 +89,14 @@ scripts/build.sh
 python3 scripts/build_gfx.py \
   --chars assets/arcade/chars.json \
   --output build/ladybug_gfx.inc \
-  --char 432:tile_data:0,1,2,3
+  --rotate ccw \
+  --char 21:glyph_l:0,1,2,3 \
+  --char 10:glyph_a:0,1,2,3 \
+  --char 13:glyph_d:0,1,2,3 \
+  --char 34:glyph_y:0,1,2,3 \
+  --char 11:glyph_b:0,1,2,3 \
+  --char 30:glyph_u:0,1,2,3 \
+  --char 16:glyph_g:0,1,2,3
 lwasm -9 --format=raw \
       --output=build/ladybug.rom \
       --list=build/ladybug.lst \

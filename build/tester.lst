@@ -5,42 +5,43 @@
                       (c/tester/tester.s):00005         ; driven by tester_mode_table, draws the bars pattern once, spins. No IRQ,
                       (c/tester/tester.s):00006         ; no keyboard yet — those land in milestone 2.
                       (c/tester/tester.s):00007         ;
-                      (c/tester/tester.s):00008         ; See wiki/implementation/emulator-monitor-tester.md for the architect spec.
+                      (c/tester/tester.s):00008         ; See wiki/internal/implementation/emulator-monitor-tester.html for the spec.
                       (c/tester/tester.s):00009         ; Source-of-truth for boot recipe: src/diag_minimal.s (the working 16-stripe
                       (c/tester/tester.s):00010         ; minimal cart from 2026-05-16).
                       (c/tester/tester.s):00011         ;
                       (c/tester/tester.s):00012         ; Operating envelope:
                       (c/tester/tester.s):00013         ;   - No MMU ($FF90 bit 6 = 0). Virtual = physical $07xxxx.
                       (c/tester/tester.s):00014         ;   - Cart executes from cart ROM at $C000-$FDFF — no self-copy (works around
-                      (c/tester/tester.s):00015         ;     XRoar's cart-shadow gotcha; see lessons-learned.md).
-                      (c/tester/tester.s):00016         ;   - RW state at virtual $0000-$1FFE, FB at $2000, stack just below FB.
-                      (c/tester/tester.s):00017         ;   - IRQ jump table at $FE00-$FEFF (RAM-backed via Init0 bit 3 = 1).
-                      (c/tester/tester.s):00018         ;==============================================================================
-                      (c/tester/tester.s):00019         
-                      (c/tester/tester.s):00020                 pragma  nodollarlocal,6809
-                      (c/tester/tester.s):00021         
-                      (c/tester/tester.s):00022         ; --- GIME register equates ---------------------------------------------------
-     FF90             (c/tester/tester.s):00023         GIME_INIT0   equ $FF90
-     FF98             (c/tester/tester.s):00024         GIME_VMODE   equ $FF98
-     FF99             (c/tester/tester.s):00025         GIME_VRES    equ $FF99
-     FF9A             (c/tester/tester.s):00026         GIME_BORDER  equ $FF9A
-     FF9D             (c/tester/tester.s):00027         GIME_VOFF1   equ $FF9D
-     FF9E             (c/tester/tester.s):00028         GIME_VOFF0   equ $FF9E
-     FFB0             (c/tester/tester.s):00029         PAL_BASE     equ $FFB0
-                      (c/tester/tester.s):00030         
-     2000             (c/tester/tester.s):00031         FB_VIRT      equ $2000
-     001F             (c/tester/tester.s):00032         BLANK_VRES   equ $1F           ; VRES with CRES=11 → forced blank during mode change
-                      (c/tester/tester.s):00033         
-     FEF7             (c/tester/tester.s):00034         IRQ_VEC      equ $FEF7         ; secondary IRQ JMP slot (Init0 b3 makes this RAM-backed)
-     FF92             (c/tester/tester.s):00035         GIME_IRQEN   equ $FF92         ; ACVC IRQ enable register
-     0008             (c/tester/tester.s):00036         VBORD_IRQ    equ $08           ; $FF92 b3 = Vbord (60 Hz)
-     0028             (c/tester/tester.s):00037         INIT0_RUN    equ $28           ; b5=1 ACVC-IRQ enable, b3=1 force $FExx
-                      (c/tester/tester.s):00038         
-     FF01             (c/tester/tester.s):00039         PIA1_CRA     equ $FF01
-     FF03             (c/tester/tester.s):00040         PIA1_CRB     equ $FF03
-                      (c/tester/tester.s):00041         
-                      (c/tester/tester.s):00042         ; --- DP slot declarations ($02xx) --------------------------------------------
-                      (c/tester/tester.s):00043                 include "dp.inc"
+                      (c/tester/tester.s):00015         ;     XRoar's cart-shadow gotcha; see
+                      (c/tester/tester.s):00016         ;     wiki/internal/implementation/lessons-learned.html).
+                      (c/tester/tester.s):00017         ;   - RW state at virtual $0000-$1FFE, FB at $2000, stack just below FB.
+                      (c/tester/tester.s):00018         ;   - IRQ jump table at $FE00-$FEFF (RAM-backed via Init0 bit 3 = 1).
+                      (c/tester/tester.s):00019         ;==============================================================================
+                      (c/tester/tester.s):00020         
+                      (c/tester/tester.s):00021                 pragma  nodollarlocal,6809
+                      (c/tester/tester.s):00022         
+                      (c/tester/tester.s):00023         ; --- GIME register equates ---------------------------------------------------
+     FF90             (c/tester/tester.s):00024         GIME_INIT0   equ $FF90
+     FF98             (c/tester/tester.s):00025         GIME_VMODE   equ $FF98
+     FF99             (c/tester/tester.s):00026         GIME_VRES    equ $FF99
+     FF9A             (c/tester/tester.s):00027         GIME_BORDER  equ $FF9A
+     FF9D             (c/tester/tester.s):00028         GIME_VOFF1   equ $FF9D
+     FF9E             (c/tester/tester.s):00029         GIME_VOFF0   equ $FF9E
+     FFB0             (c/tester/tester.s):00030         PAL_BASE     equ $FFB0
+                      (c/tester/tester.s):00031         
+     2000             (c/tester/tester.s):00032         FB_VIRT      equ $2000
+     001F             (c/tester/tester.s):00033         BLANK_VRES   equ $1F           ; VRES with CRES=11 → forced blank during mode change
+                      (c/tester/tester.s):00034         
+     FEF7             (c/tester/tester.s):00035         IRQ_VEC      equ $FEF7         ; secondary IRQ JMP slot (Init0 b3 makes this RAM-backed)
+     FF92             (c/tester/tester.s):00036         GIME_IRQEN   equ $FF92         ; ACVC IRQ enable register
+     0008             (c/tester/tester.s):00037         VBORD_IRQ    equ $08           ; $FF92 b3 = Vbord (60 Hz)
+     0028             (c/tester/tester.s):00038         INIT0_RUN    equ $28           ; b5=1 ACVC-IRQ enable, b3=1 force $FExx
+                      (c/tester/tester.s):00039         
+     FF01             (c/tester/tester.s):00040         PIA1_CRA     equ $FF01
+     FF03             (c/tester/tester.s):00041         PIA1_CRB     equ $FF03
+                      (c/tester/tester.s):00042         
+                      (c/tester/tester.s):00043         ; --- DP slot declarations ($02xx) --------------------------------------------
+                      (c/tester/tester.s):00044                 include "dp.inc"
                       (           dp.inc):00001         ;==============================================================================
                       (           dp.inc):00002         ; dp.inc — Direct Page slot layout for the tester ROM.
                       (           dp.inc):00003         ; DP page = $02. All labels exported to build/tester.map so the web app
@@ -54,104 +55,104 @@
 0203                  (           dp.inc):00011         tester_kbd_prev         rmb 8   ; per-column DRA snapshot for edge detection
 020B                  (           dp.inc):00012         tester_frame_ctr        rmb 2   ; 60 Hz tick, debug
 020D                  (           dp.inc):00013         ksc_scratch             rmb 1   ; kbd_scan_and_dispatch scratch
-                      (c/tester/tester.s):00044         
-                      (c/tester/tester.s):00045         ; --- ROM entry ---------------------------------------------------------------
-                      (c/tester/tester.s):00046                 org     $C000
-C000 444B             (c/tester/tester.s):00047                 fcc     "DK"            ; cart autostart magic; FIRQ entry at $C002
-                      (c/tester/tester.s):00048         
-C002                  (c/tester/tester.s):00049         entry
-C002 1A50             (c/tester/tester.s):00050                 orcc    #$50            ; mask IRQ + FIRQ
-C004 10CE1FFE         (c/tester/tester.s):00051                 lds     #$1FFE          ; stack just below FB
-                      (c/tester/tester.s):00052         
-                      (c/tester/tester.s):00053                 ; DP = $02 so dp.inc slots resolve short.
-C008 8602             (c/tester/tester.s):00054                 lda     #$02
-C00A 1F8B             (c/tester/tester.s):00055                 tfr     a,dp
-     02               (c/tester/tester.s):00056                 setdp   $02
-                      (c/tester/tester.s):00057         
-                      (c/tester/tester.s):00058                 ; Init0: CoCo3, MMU off, all ACVC IRQs off, force $FExx jumps.
-C00C 8608             (c/tester/tester.s):00059                 lda     #%00001000
-C00E B7FF90           (c/tester/tester.s):00060                 sta     GIME_INIT0
-                      (c/tester/tester.s):00061         
-                      (c/tester/tester.s):00062                 ; PIA1 init for keyboard scan. Cart-autorun under XRoar leaves PIA1
-                      (c/tester/tester.s):00063                 ; in an unstable state for our purposes — explicit init avoids
-                      (c/tester/tester.s):00064                 ; spurious DRA reads (observed: cols 0-3 read $00 with default state).
-                      (c/tester/tester.s):00065                 ; CRA/CRB bit 2 = 0 selects DDR access; bit 2 = 1 selects data reg.
-C011 7FFF01           (c/tester/tester.s):00066                 clr     PIA1_CRA           ; CRA: DDR access
-C014 7FFF03           (c/tester/tester.s):00067                 clr     PIA1_CRB           ; CRB: DDR access
-C017 7FFF00           (c/tester/tester.s):00068                 clr     $FF00              ; DDRA = 0 (rows are inputs)
-C01A 86FF             (c/tester/tester.s):00069                 lda     #$FF
-C01C B7FF02           (c/tester/tester.s):00070                 sta     $FF02              ; DDRB = $FF (columns are outputs)
-C01F 8604             (c/tester/tester.s):00071                 lda     #$04               ; b2=1 data-reg access, all else neutral
-C021 B7FF01           (c/tester/tester.s):00072                 sta     PIA1_CRA
-C024 B7FF03           (c/tester/tester.s):00073                 sta     PIA1_CRB
-                      (c/tester/tester.s):00074         
-                      (c/tester/tester.s):00075                 ; Zero DP state.
-C027 0F00             (c/tester/tester.s):00076                 clr     tester_mode_idx
-C029 0F01             (c/tester/tester.s):00077                 clr     tester_pattern_idx
-C02B 0F02             (c/tester/tester.s):00078                 clr     tester_selection_dirty
-C02D 8E0203           (c/tester/tester.s):00079                 ldx     #tester_kbd_prev
-C030 C60A             (c/tester/tester.s):00080                 ldb     #10             ; 8 prev + 2 frame_ctr
-C032 6F80             (c/tester/tester.s):00081         clr_dp  clr     ,x+
-C034 5A               (c/tester/tester.s):00082                 decb
-C035 26FB             (c/tester/tester.s):00083                 bne     clr_dp
-                      (c/tester/tester.s):00084         
-                      (c/tester/tester.s):00085                 ; Load palette.
-C037 308D01CC         (c/tester/tester.s):00086                 leax    palette_table,pcr
-C03B 108EFFB0         (c/tester/tester.s):00087                 ldy     #PAL_BASE
-C03F C610             (c/tester/tester.s):00088                 ldb     #16
-C041 A680             (c/tester/tester.s):00089         pal     lda     ,x+
-C043 A7A0             (c/tester/tester.s):00090                 sta     ,y+
-C045 5A               (c/tester/tester.s):00091                 decb
-C046 26F9             (c/tester/tester.s):00092                 bne     pal
-                      (c/tester/tester.s):00093         
-                      (c/tester/tester.s):00094                 ; Apply mode 0 + pattern 0 (bars).
-C048 BDC07E           (c/tester/tester.s):00095                 jsr     redraw_with_blank
-                      (c/tester/tester.s):00096         
-                      (c/tester/tester.s):00097                 ; Install Vbord ISR at $FEF7 (JMP vbord_isr).
-C04B 867E             (c/tester/tester.s):00098                 lda     #$7E            ; JMP extended opcode
-C04D B7FEF7           (c/tester/tester.s):00099                 sta     IRQ_VEC
-C050 CCC070           (c/tester/tester.s):00100                 ldd     #vbord_isr
-C053 FDFEF8           (c/tester/tester.s):00101                 std     IRQ_VEC+1
-                      (c/tester/tester.s):00102         
-                      (c/tester/tester.s):00103                 ; Enable Vbord interrupt in GIME, then enable IRQ delivery to CPU.
-C056 8608             (c/tester/tester.s):00104                 lda     #VBORD_IRQ
-C058 B7FF92           (c/tester/tester.s):00105                 sta     GIME_IRQEN
-C05B B6FF92           (c/tester/tester.s):00106                 lda     GIME_IRQEN      ; read to clear any pending
-C05E 8628             (c/tester/tester.s):00107                 lda     #INIT0_RUN
-C060 B7FF90           (c/tester/tester.s):00108                 sta     GIME_INIT0
-                      (c/tester/tester.s):00109         
-                      (c/tester/tester.s):00110                 ; Unmask CPU IRQ.
-C063 1CEF             (c/tester/tester.s):00111                 andcc   #$EF            ; clear I
-                      (c/tester/tester.s):00112         
-                      (c/tester/tester.s):00113                 ; --- Main loop: spin on selection_dirty; redraw when set.
-C065                  (c/tester/tester.s):00114         mainloop
-C065 9602             (c/tester/tester.s):00115                 lda     tester_selection_dirty
-C067 27FC             (c/tester/tester.s):00116                 beq     mainloop
-C069 0F02             (c/tester/tester.s):00117                 clr     tester_selection_dirty
-C06B BDC07E           (c/tester/tester.s):00118                 jsr     redraw_with_blank
-C06E 20F5             (c/tester/tester.s):00119                 bra     mainloop
-                      (c/tester/tester.s):00120         
-                      (c/tester/tester.s):00121         ;==============================================================================
-                      (c/tester/tester.s):00122         ; vbord_isr — Vertical-border IRQ handler.
-                      (c/tester/tester.s):00123         ;
-                      (c/tester/tester.s):00124         ; CPU has pushed full register state; just ACK, bump tick, scan keyboard, RTI.
-                      (c/tester/tester.s):00125         ; Target: <200 cycles per architect spec.
-                      (c/tester/tester.s):00126         ;
-                      (c/tester/tester.s):00127         ;  Inputs:  (IRQ entry — full register set on stack)
-                      (c/tester/tester.s):00128         ;  Returns: (RTI restores everything)
-                      (c/tester/tester.s):00129         ;  Side effects: reads $FF92 (ACK); bumps tester_frame_ctr; runs
-                      (c/tester/tester.s):00130         ;                kbd_scan_and_dispatch which may set tester_selection_dirty.
-                      (c/tester/tester.s):00131         ;==============================================================================
-C070                  (c/tester/tester.s):00132         vbord_isr
-C070 F6FF92           (c/tester/tester.s):00133                 ldb     GIME_IRQEN      ; ACK ACVC IRQ
-C073 DC0B             (c/tester/tester.s):00134                 ldd     tester_frame_ctr
-C075 C30001           (c/tester/tester.s):00135                 addd    #1
-C078 DD0B             (c/tester/tester.s):00136                 std     tester_frame_ctr
-C07A BDC0C7           (c/tester/tester.s):00137                 jsr     kbd_scan_and_dispatch
-C07D 3B               (c/tester/tester.s):00138                 rti
-                      (c/tester/tester.s):00139         
-                      (c/tester/tester.s):00140         ; --- Renderer + dispatch ------------------------------------------------------
-                      (c/tester/tester.s):00141                 include "render.s"
+                      (c/tester/tester.s):00045         
+                      (c/tester/tester.s):00046         ; --- ROM entry ---------------------------------------------------------------
+                      (c/tester/tester.s):00047                 org     $C000
+C000 444B             (c/tester/tester.s):00048                 fcc     "DK"            ; cart autostart magic; FIRQ entry at $C002
+                      (c/tester/tester.s):00049         
+C002                  (c/tester/tester.s):00050         entry
+C002 1A50             (c/tester/tester.s):00051                 orcc    #$50            ; mask IRQ + FIRQ
+C004 10CE1FFE         (c/tester/tester.s):00052                 lds     #$1FFE          ; stack just below FB
+                      (c/tester/tester.s):00053         
+                      (c/tester/tester.s):00054                 ; DP = $02 so dp.inc slots resolve short.
+C008 8602             (c/tester/tester.s):00055                 lda     #$02
+C00A 1F8B             (c/tester/tester.s):00056                 tfr     a,dp
+     02               (c/tester/tester.s):00057                 setdp   $02
+                      (c/tester/tester.s):00058         
+                      (c/tester/tester.s):00059                 ; Init0: CoCo3, MMU off, all ACVC IRQs off, force $FExx jumps.
+C00C 8608             (c/tester/tester.s):00060                 lda     #%00001000
+C00E B7FF90           (c/tester/tester.s):00061                 sta     GIME_INIT0
+                      (c/tester/tester.s):00062         
+                      (c/tester/tester.s):00063                 ; PIA1 init for keyboard scan. Cart-autorun under XRoar leaves PIA1
+                      (c/tester/tester.s):00064                 ; in an unstable state for our purposes — explicit init avoids
+                      (c/tester/tester.s):00065                 ; spurious DRA reads (observed: cols 0-3 read $00 with default state).
+                      (c/tester/tester.s):00066                 ; CRA/CRB bit 2 = 0 selects DDR access; bit 2 = 1 selects data reg.
+C011 7FFF01           (c/tester/tester.s):00067                 clr     PIA1_CRA           ; CRA: DDR access
+C014 7FFF03           (c/tester/tester.s):00068                 clr     PIA1_CRB           ; CRB: DDR access
+C017 7FFF00           (c/tester/tester.s):00069                 clr     $FF00              ; DDRA = 0 (rows are inputs)
+C01A 86FF             (c/tester/tester.s):00070                 lda     #$FF
+C01C B7FF02           (c/tester/tester.s):00071                 sta     $FF02              ; DDRB = $FF (columns are outputs)
+C01F 8604             (c/tester/tester.s):00072                 lda     #$04               ; b2=1 data-reg access, all else neutral
+C021 B7FF01           (c/tester/tester.s):00073                 sta     PIA1_CRA
+C024 B7FF03           (c/tester/tester.s):00074                 sta     PIA1_CRB
+                      (c/tester/tester.s):00075         
+                      (c/tester/tester.s):00076                 ; Zero DP state.
+C027 0F00             (c/tester/tester.s):00077                 clr     tester_mode_idx
+C029 0F01             (c/tester/tester.s):00078                 clr     tester_pattern_idx
+C02B 0F02             (c/tester/tester.s):00079                 clr     tester_selection_dirty
+C02D 8E0203           (c/tester/tester.s):00080                 ldx     #tester_kbd_prev
+C030 C60A             (c/tester/tester.s):00081                 ldb     #10             ; 8 prev + 2 frame_ctr
+C032 6F80             (c/tester/tester.s):00082         clr_dp  clr     ,x+
+C034 5A               (c/tester/tester.s):00083                 decb
+C035 26FB             (c/tester/tester.s):00084                 bne     clr_dp
+                      (c/tester/tester.s):00085         
+                      (c/tester/tester.s):00086                 ; Load palette.
+C037 308D01CC         (c/tester/tester.s):00087                 leax    palette_table,pcr
+C03B 108EFFB0         (c/tester/tester.s):00088                 ldy     #PAL_BASE
+C03F C610             (c/tester/tester.s):00089                 ldb     #16
+C041 A680             (c/tester/tester.s):00090         pal     lda     ,x+
+C043 A7A0             (c/tester/tester.s):00091                 sta     ,y+
+C045 5A               (c/tester/tester.s):00092                 decb
+C046 26F9             (c/tester/tester.s):00093                 bne     pal
+                      (c/tester/tester.s):00094         
+                      (c/tester/tester.s):00095                 ; Apply mode 0 + pattern 0 (bars).
+C048 BDC07E           (c/tester/tester.s):00096                 jsr     redraw_with_blank
+                      (c/tester/tester.s):00097         
+                      (c/tester/tester.s):00098                 ; Install Vbord ISR at $FEF7 (JMP vbord_isr).
+C04B 867E             (c/tester/tester.s):00099                 lda     #$7E            ; JMP extended opcode
+C04D B7FEF7           (c/tester/tester.s):00100                 sta     IRQ_VEC
+C050 CCC070           (c/tester/tester.s):00101                 ldd     #vbord_isr
+C053 FDFEF8           (c/tester/tester.s):00102                 std     IRQ_VEC+1
+                      (c/tester/tester.s):00103         
+                      (c/tester/tester.s):00104                 ; Enable Vbord interrupt in GIME, then enable IRQ delivery to CPU.
+C056 8608             (c/tester/tester.s):00105                 lda     #VBORD_IRQ
+C058 B7FF92           (c/tester/tester.s):00106                 sta     GIME_IRQEN
+C05B B6FF92           (c/tester/tester.s):00107                 lda     GIME_IRQEN      ; read to clear any pending
+C05E 8628             (c/tester/tester.s):00108                 lda     #INIT0_RUN
+C060 B7FF90           (c/tester/tester.s):00109                 sta     GIME_INIT0
+                      (c/tester/tester.s):00110         
+                      (c/tester/tester.s):00111                 ; Unmask CPU IRQ.
+C063 1CEF             (c/tester/tester.s):00112                 andcc   #$EF            ; clear I
+                      (c/tester/tester.s):00113         
+                      (c/tester/tester.s):00114                 ; --- Main loop: spin on selection_dirty; redraw when set.
+C065                  (c/tester/tester.s):00115         mainloop
+C065 9602             (c/tester/tester.s):00116                 lda     tester_selection_dirty
+C067 27FC             (c/tester/tester.s):00117                 beq     mainloop
+C069 0F02             (c/tester/tester.s):00118                 clr     tester_selection_dirty
+C06B BDC07E           (c/tester/tester.s):00119                 jsr     redraw_with_blank
+C06E 20F5             (c/tester/tester.s):00120                 bra     mainloop
+                      (c/tester/tester.s):00121         
+                      (c/tester/tester.s):00122         ;==============================================================================
+                      (c/tester/tester.s):00123         ; vbord_isr — Vertical-border IRQ handler.
+                      (c/tester/tester.s):00124         ;
+                      (c/tester/tester.s):00125         ; CPU has pushed full register state; just ACK, bump tick, scan keyboard, RTI.
+                      (c/tester/tester.s):00126         ; Target: <200 cycles per architect spec.
+                      (c/tester/tester.s):00127         ;
+                      (c/tester/tester.s):00128         ;  Inputs:  (IRQ entry — full register set on stack)
+                      (c/tester/tester.s):00129         ;  Returns: (RTI restores everything)
+                      (c/tester/tester.s):00130         ;  Side effects: reads $FF92 (ACK); bumps tester_frame_ctr; runs
+                      (c/tester/tester.s):00131         ;                kbd_scan_and_dispatch which may set tester_selection_dirty.
+                      (c/tester/tester.s):00132         ;==============================================================================
+C070                  (c/tester/tester.s):00133         vbord_isr
+C070 F6FF92           (c/tester/tester.s):00134                 ldb     GIME_IRQEN      ; ACK ACVC IRQ
+C073 DC0B             (c/tester/tester.s):00135                 ldd     tester_frame_ctr
+C075 C30001           (c/tester/tester.s):00136                 addd    #1
+C078 DD0B             (c/tester/tester.s):00137                 std     tester_frame_ctr
+C07A BDC0C7           (c/tester/tester.s):00138                 jsr     kbd_scan_and_dispatch
+C07D 3B               (c/tester/tester.s):00139                 rti
+                      (c/tester/tester.s):00140         
+                      (c/tester/tester.s):00141         ; --- Renderer + dispatch ------------------------------------------------------
+                      (c/tester/tester.s):00142                 include "render.s"
                       (         render.s):00001         ;==============================================================================
                       (         render.s):00002         ; render.s — pattern dispatch and the mode-change redraw sequence.
                       (         render.s):00003         ;
@@ -222,7 +223,7 @@ C0C2 39               (         render.s):00066                 rts
 C0C3                  (         render.s):00068         pattern_jump_table
 C0C3 C14B             (         render.s):00069                 fdb     pat_bars_draw
 C0C5 C19A             (         render.s):00070                 fdb     pat_check_draw
-                      (c/tester/tester.s):00142                 include "input.s"
+                      (c/tester/tester.s):00143                 include "input.s"
                       (          input.s):00001         ;==============================================================================
                       (          input.s):00002         ; input.s — Keyboard scan + edge-detect dispatch.
                       (          input.s):00003         ;
@@ -374,7 +375,7 @@ C149 C134             (          input.s):00148                 fdb     key_pat_
 C14B                  (          input.s):00149         key_table_end
                       (          input.s):00150         
      0004             (          input.s):00151         N_KEYS equ (key_table_end-key_table)/K_LEN
-                      (c/tester/tester.s):00143                 include "pat_bars.s"
+                      (c/tester/tester.s):00144                 include "pat_bars.s"
                       (       pat_bars.s):00001         ;==============================================================================
                       (       pat_bars.s):00002         ; pat_bars.s — Horizontal-bars pattern (mode-aware).
                       (       pat_bars.s):00003         ;
@@ -452,7 +453,7 @@ C194 4C               (       pat_bars.s):00074                 inca
 C195 8104             (       pat_bars.s):00075                 cmpa    #4
 C197 25E7             (       pat_bars.s):00076                 blo     bars2_outer
 C199 39               (       pat_bars.s):00077                 rts
-                      (c/tester/tester.s):00144                 include "pat_check.s"
+                      (c/tester/tester.s):00145                 include "pat_check.s"
                       (      pat_check.s):00001         ;==============================================================================
                       (      pat_check.s):00002         ; pat_check.s — Checkerboard pattern (mode-aware).
                       (      pat_check.s):00003         ;
@@ -542,9 +543,9 @@ C1F1 4C               (      pat_check.s):00086                 inca
 C1F2 81C0             (      pat_check.s):00087                 cmpa    #192
 C1F4 25DD             (      pat_check.s):00088                 blo     chk2_row
 C1F6 39               (      pat_check.s):00089                 rts
-                      (c/tester/tester.s):00145         
-                      (c/tester/tester.s):00146         ; --- Mode table ---------------------------------------------------------------
-                      (c/tester/tester.s):00147                 include "modes.inc"
+                      (c/tester/tester.s):00146         
+                      (c/tester/tester.s):00147         ; --- Mode table ---------------------------------------------------------------
+                      (c/tester/tester.s):00148                 include "modes.inc"
                       (        modes.inc):00001         ;==============================================================================
                       (        modes.inc):00002         ; modes.inc — Mode table for the tester ROM.
                       (        modes.inc):00003         ;
@@ -598,30 +599,30 @@ C205 C0               (        modes.inc):00050                 fcb     192     
 C206 02               (        modes.inc):00051                 fcb     2       ; bpp
                       (        modes.inc):00052         
      0002             (        modes.inc):00053         TESTER_MODE_COUNT equ (*-tester_mode_table)/TM_LEN
-                      (c/tester/tester.s):00148         
-                      (c/tester/tester.s):00149         ;==============================================================================
-                      (c/tester/tester.s):00150         ; Palette — 16 distinct 6-bit RGB codes (RGBrgb format).
-                      (c/tester/tester.s):00151         ; Copied from diag_minimal.s; covers bright + dim primaries + greys.
-                      (c/tester/tester.s):00152         ;==============================================================================
-C207                  (c/tester/tester.s):00153         palette_table
-C207 00               (c/tester/tester.s):00154                 fcb     $00     ; 0  black
-C208 20               (c/tester/tester.s):00155                 fcb     $20     ; 1  bright R
-C209 10               (c/tester/tester.s):00156                 fcb     $10     ; 2  bright G
-C20A 08               (c/tester/tester.s):00157                 fcb     $08     ; 3  bright B
-C20B 30               (c/tester/tester.s):00158                 fcb     $30     ; 4  bright yellow
-C20C 18               (c/tester/tester.s):00159                 fcb     $18     ; 5  bright cyan
-C20D 28               (c/tester/tester.s):00160                 fcb     $28     ; 6  bright magenta
-C20E 38               (c/tester/tester.s):00161                 fcb     $38     ; 7  bright white-ish
-C20F 04               (c/tester/tester.s):00162                 fcb     $04     ; 8  dim R
-C210 02               (c/tester/tester.s):00163                 fcb     $02     ; 9  dim G
-C211 01               (c/tester/tester.s):00164                 fcb     $01     ; 10 dim B
-C212 06               (c/tester/tester.s):00165                 fcb     $06     ; 11 dim yellow
-C213 03               (c/tester/tester.s):00166                 fcb     $03     ; 12 dim cyan
-C214 05               (c/tester/tester.s):00167                 fcb     $05     ; 13 dim magenta
-C215 07               (c/tester/tester.s):00168                 fcb     $07     ; 14 dark grey
-C216 3F               (c/tester/tester.s):00169                 fcb     $3F     ; 15 full white
-                      (c/tester/tester.s):00170         
-                      (c/tester/tester.s):00171                 end
+                      (c/tester/tester.s):00149         
+                      (c/tester/tester.s):00150         ;==============================================================================
+                      (c/tester/tester.s):00151         ; Palette — 16 distinct 6-bit RGB codes (RGBrgb format).
+                      (c/tester/tester.s):00152         ; Copied from diag_minimal.s; covers bright + dim primaries + greys.
+                      (c/tester/tester.s):00153         ;==============================================================================
+C207                  (c/tester/tester.s):00154         palette_table
+C207 00               (c/tester/tester.s):00155                 fcb     $00     ; 0  black
+C208 20               (c/tester/tester.s):00156                 fcb     $20     ; 1  bright R
+C209 10               (c/tester/tester.s):00157                 fcb     $10     ; 2  bright G
+C20A 08               (c/tester/tester.s):00158                 fcb     $08     ; 3  bright B
+C20B 30               (c/tester/tester.s):00159                 fcb     $30     ; 4  bright yellow
+C20C 18               (c/tester/tester.s):00160                 fcb     $18     ; 5  bright cyan
+C20D 28               (c/tester/tester.s):00161                 fcb     $28     ; 6  bright magenta
+C20E 38               (c/tester/tester.s):00162                 fcb     $38     ; 7  bright white-ish
+C20F 04               (c/tester/tester.s):00163                 fcb     $04     ; 8  dim R
+C210 02               (c/tester/tester.s):00164                 fcb     $02     ; 9  dim G
+C211 01               (c/tester/tester.s):00165                 fcb     $01     ; 10 dim B
+C212 06               (c/tester/tester.s):00166                 fcb     $06     ; 11 dim yellow
+C213 03               (c/tester/tester.s):00167                 fcb     $03     ; 12 dim cyan
+C214 05               (c/tester/tester.s):00168                 fcb     $05     ; 13 dim magenta
+C215 07               (c/tester/tester.s):00169                 fcb     $07     ; 14 dark grey
+C216 3F               (c/tester/tester.s):00170                 fcb     $3F     ; 15 full white
+                      (c/tester/tester.s):00171         
+                      (c/tester/tester.s):00172                 end
 
 Symbol Table:
 [ G] bars2_inner                      C188
