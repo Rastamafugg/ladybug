@@ -23,6 +23,31 @@
     </header>
 
     <section>
+      <h3>2026-07-17 · lint — rotated-assets and Tiled checkpoint</h3>
+      <p>
+        Confirmed all 28 modified arcade PNGs are exact counter-clockwise
+        rotations of their committed sources, validated all six Tiled tileset
+        image references, regenerated the 24×30 map, and matched all 720 GIDs
+        to the MAME capture with no flip flags. The cartridge rebuilt to 16 KiB,
+        all local wiki links resolved, and gdb-mcp reached
+        <code>phase26_halt=$C096</code> with the <code>55 AA</code> sentinels.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · milestone — complete MAME-derived Tiled background</h3>
+      <p>
+        Replaced the incomplete 24×30 Tiled layer with all 720 GIDs derived
+        from <code>maze_capture.json</code> and the counter-clockwise whole-sheet
+        rotation. Added <code>scripts/update_tiled_maze.py</code> so the map is
+        reproducible. Verification matched every GID, found no Tiled flip
+        flags, confirmed the <code>chars_raw2bpp.tsx</code> reference, and
+        rendered the expected MAME background. Moving entities remain absent
+        because the capture intentionally contains background RAM only.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-17 · lint — MAME maze-capture increment</h3>
       <p>
         Repeated the MAME capture into a temporary directory and obtained
@@ -46,6 +71,41 @@
         maze frame. The CoCo adaptation keeps arcade rows 3–26 as its 24×24
         logical grid and renders the omitted horizontal frame rows as edge
         pixels. Updated the Phase 3 design, roadmap, and arcade-source page.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · fix — obsolete C0DC gap removed</h3>
+      <p>
+        Removed the obsolete <code>fill $FF,$C0DC-*</code> and its stale
+        XRoar bad-window comment from <code>src/main.s</code>. The raw ROM now
+        uses 514 bytes before 16 K padding, with <code>mainloop=$C0B1</code>
+        and <code>phase26_halt=$C096</code>. XRoar reached the halt, preserved
+        the <code>55 AA</code> liveness sentinels, and rendered nonzero title
+        data. Corrected the memory-map and cartridge pages: the CoCo 1/2 SAM
+        and CoCo 3 GIME documentation describe TY=0 as selecting ROM or
+        cartridge hardware rather than internal RAM, so XRoar's discarded
+        writes under a ROM cartridge are likely hardware-faithful, not an
+        emulator defect. A physical CoCo 3 plus CoCoSDC test remains deferred
+        to Phase 10.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · query — cartridge-shadow mismatches traced to reset ROM</h3>
+      <p>
+        Reproduced the 50 historical cartridge-window mismatches with
+        <code>src/rom_probe.s</code> and XRoar 1.10, then traced the live RAM
+        image and Tandy Super Extended BASIC ROM. Physical RAM
+        <code>$7C0D9-$7C0DB</code> contains <code>7E E2 9D</code> while the
+        cartridge file contains zeroes; the reset ROM explicitly writes that
+        <code>JMP $E29D</code> patch and eleven <code>$12</code> bytes at
+        <code>$C8B4</code>. A temporary 100 ms-to-1 microsecond XRoar CART/FIRQ
+        timing test did not change the result. Corrected the wiki: this is the
+        CoCo 3 all-RAM reset copy/patch behavior, while XRoar's separate defect
+        is discarded writes beneath selected cartridge ROM. The active TY=0
+        direct-ROM boot does not require a <code>$C0D9-$C0DB</code> avoidance
+        window; <code>fill $FF,$C0DC-*</code> now serves layout only.
       </p>
     </section>
 

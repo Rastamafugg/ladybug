@@ -148,14 +148,14 @@ target remote :65520
       <p>XRoar supports save/restore via <code>-trap</code>, <code>-trap-snap</code>, and <code>-load</code>:</p>
 <pre><code>xroar -machine coco3 -ram 512 \
       -cart ladybug -cart-type rom -cart-rom build/ladybug.rom -cart-autorun \
-      -trap 0xC0DC \
-      -trap-snap /tmp/ladybug-mainloop.sna \
+      -trap 0xC096 \
+      -trap-snap /tmp/ladybug-phase26.sna \
       -trap-timeout 1
 </code></pre>
-      <p>After the cart enters <code>mainloop</code> ($C0DC), XRoar writes a snapshot and exits. Subsequent debug sessions skip the autorun entirely:</p>
+      <p>At the current <code>phase26_halt</code> symbol (<code>$C096</code> in the 2026-07-17 build), XRoar writes a snapshot and exits. Recheck <code>build/ladybug.map</code> after source changes. Subsequent debug sessions skip the autorun entirely:</p>
 <pre><code>xroar -machine coco3 -ram 512 \
       -cart ladybug -cart-type rom -cart-rom build/ladybug.rom \
-      -load /tmp/ladybug-mainloop.sna \
+      -load /tmp/ladybug-phase26.sna \
       -gdb -gdb-ip 127.0.0.1 -gdb-port 65520
 </code></pre>
       <p>Note: snapshots are tied to the ROM image. <strong>Rebuild the ROM → re-capture the snapshot.</strong></p>

@@ -129,16 +129,17 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
         investigation record and is no longer implemented by
         <code>src/main.s</code>.
       </p>
-      <h3>Legacy procedure (superseded)</h3>
+      <h3>Legacy procedure (superseded and based on a false assumption)</h3>
       <p>
         Goal (on real hardware): get cart ROM contents into RAM at the
         same physical pages, so all-RAM mode is transparent.
       </p>
       <p>
-        The CoCo 3 has <strong>shadow RAM</strong> at physical
-        <code>$3C-$3F</code> even when those pages are sourced from ROM
-        (TY=0): writes go to the RAM, reads come from ROM. The boot
-        self-copy depends on that semantic. The Phase 2.1 "wrote
+        The old design assumed physical RAM at <code>$3C-$3F</code> accepted
+        writes while TY=0 supplied reads from ROM. The manuals do not support
+        that write-through semantic: TY=0 selects ROM or cartridge hardware,
+        and cartridge writes are delivered to the selected cartridge device.
+        XRoar models this by leaving RAS inactive. The Phase 2.1 "wrote
         <code>$5A</code> to <code>$C000</code>, flipped TY=1, read it back"
         test passed under XRoar, but see the <strong>important caveat</strong>
         below — that test result is consistent with both "shadow-RAM-during-write
@@ -155,14 +156,18 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
       </p>
       <ul>
         <li>Pre-SAM_ALLRAM (MC3=1, MMUEN=0, TY=0), the GIME's address decoder routes <code>$C000-$FDFF</code> through <code>S=1</code>/CTS (cart ROM) with <strong>RAS=0</strong>. <code>coco3.c read_byte</code>'s <code>if (RAS)</code> RAM-overlay block is skipped → reads return cart-ROM bytes. <code>coco3.c write_byte</code> calls <code>cart_rom_write</code> (read-only no-op) and likewise skips the RAS RAM-write block → writes go nowhere. <strong><code>std ,x</code> in the self-copy loop neither populates RAM nor errors.</strong></li>
-        <li>Post-SAM_ALLRAM (TY=1), reads at <code>$C000-$FDFF</code> still come back as cart bytes. Source-review gap acknowledged; empirical fact stands: cart bytes are accessible at <code>$C000-$FDFF</code> throughout the boot, pre- and post-SAM_ALLRAM, with or without the self-copy.</li>
+        <li>Post-SAM_ALLRAM (TY=1), reads at <code>$C000-$FDFF</code> come from physical RAM. The CoCo 3 reset ROM has already copied and patched that shadow: notably <code>$C0D9-$C0DB = 7E E2 9D</code> and <code>$C8B4-$C8BE = $12</code>. Earlier probes mistook the mostly matching shadow for direct cartridge reads.</li>
         <li><code>$FE00-$FEFF</code> is different: MC3=1 forces RAS=1 in the inner decode, so reads/writes hit bank 0 RAM symmetrically. The jump-table region IS RAM-backed.</li>
       </ul>
       <p>
-        <strong>Net:</strong> on XRoar, execution at <code>$C000-$FDFF</code>
-        is always from cart ROM. The self-copy is dead code. On real
-        hardware, the self-copy is expected to work as originally designed —
-        but that's unverified until hardware bring-up (Phase 10).
+        <strong>Net:</strong> with TY=0, XRoar reads cartridge ROM but
+        discards same-address writes, so the former self-copy could not
+        populate the shadow. With TY=1, reads switch to the reset-ROM-
+        initialized RAM shadow. The active Ladybug boot avoids both
+        dependencies by keeping TY=0 and executing directly from the
+        cartridge. The manuals and the CoCo 1/2-compatible decode strongly
+        suggest this is hardware-faithful; physical CoCo 3 and CoCoSDC
+        verification remains deferred until Phase 10.
       </p>
 
       <h3>Implications for code that assumes RAM-shadowing</h3>
@@ -170,7 +175,7 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
         <li><strong>Self-modifying code</strong> at <code>$C000-$FDFF</code> will silently fail on XRoar (writes don't land; subsequent reads return the original cart byte).</li>
         <li><strong>Runtime data tables</strong> at <code>$C000-$FDFF</code> are read-only on XRoar. The jump table at <code>$FE00-$FEFF</code> is the only RAM-backed window inside the cart range under emulation.</li>
         <li><strong>Game-state RAM at <code>$A000-$BFFF</code></strong> is below the cart window; once PAR5 maps it to a normal phys page, ordinary read/write works on both XRoar and hardware.</li>
-        <li><strong>The <code>org $C0DC</code> workaround</strong> for <a href="./lessons-learned.html">the XRoar bad-window quirk</a> was originally rationalized against a RAM-shadow model. Since we're actually executing from cart ROM in XRoar, the workaround is still correct (those addresses really do read garbage from cart space), but the <em>reasoning</em> in our heads needs updating.</li>
+        <li><strong>The obsolete <code>$C0DC</code> fill</strong> was removed on 2026-07-17. Under the active TY=0 boot, <code>$C0D9-$C0DB</code> read directly from the cartridge. See <a href="./lessons-learned.html">lessons learned</a>.</li>
       </ul>
 
       <p>Sequence:</p>
@@ -183,11 +188,12 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
         leax    2,x
         cmpx    #$FF00
         blo     loop
-   Reads come from cart ROM; writes go to RAM at physical $3E-$3F.
+   Reads come from cart ROM; writes are presented to the cartridge and do not
+   populate internal RAM.
 
 3. Switch TY = 1 (write $FFDF). Cart hardware disconnects.
-   Virtual $C000-$FEFF now reads RAM at phys $3E-$3F — the same bytes we
-   just wrote. Code continues to execute, oblivious to the swap.
+   Virtual $C000-$FEFF now reads RAM at phys $3E-$3F. Because the preceding
+   writes did not populate it, execution cannot continue safely there.
 
 4. (Phase 2 continues: configure GIME hi-res mode, MMU + PARs, palette,
    framebuffer clear, render.)
@@ -268,11 +274,11 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
     <section>
       <h2>Open items</h2>
       <ol>
-        <li><strong>Shadow-RAM-during-write</strong> — partially verified. Phase 2.1 sentinel test passed under XRoar but is not discriminating (see caveat above). The self-copy itself is empirically a no-op on XRoar 1.10. <strong>Hardware verification deferred to Phase 10.</strong></li>
+        <li><strong>Physical cart-write verification</strong> — manuals and XRoar agree that TY=0 selects the cartridge without asserting internal RAM. Confirm on a CoCo 3 with CoCoSDC when hardware work resumes in Phase 10.</li>
         <li><strong>XRoar's handling of 32 K cart files</strong> — observed inconsistent with naive <code>$8000-$FEFF</code> mapping; deferred until/unless we need the larger cart. See <a href="../tooling/xroar.html">tooling/xroar "Gotchas"</a>.</li>
         <li><strong>Phase 4 sprite-data resolution</strong> — see Phase 4 problem section above.</li>
         <li><strong>Game-state PAR (<code>$A000-$BFFF</code>) layout</strong> — entity tables, score, etc. Defer until Phase 4 when entity records are designed.</li>
-        <li><strong>XRoar source-review gap</strong> — <code>tcc1014.c</code> decode trace predicts certain <code>$E000+</code> reads should return cart padding (<code>$FF</code>) but they empirically return SECB-style bytes. There is a path through <code>coco3.c read_byte</code> we haven't fully reconstructed. Not blocking, but it means we can't reason confidently about exact GIME state from source review alone; trust empirical probes. See <a href="../backlog/cart-ram-corruption.html">backlog/cart-ram-corruption</a>.</li>
+        <li><strong>Resolved source-review gap</strong> — the earlier <code>$E000+</code> SECB-style reads came from the reset-ROM-initialized all-RAM shadow after TY=1, not from cartridge decoding.</li>
       </ol>
     </section>
 

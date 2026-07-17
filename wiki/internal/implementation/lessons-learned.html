@@ -462,18 +462,18 @@
     </section>
 
     <section>
-      <h2>XRoar cartridge-window reads are not uniformly cart-backed</h2>
-      <p>Filed 2026-05-10; expanded 2026-05-12.</p>
+      <h2>CoCo 3 reset initialization patches the all-RAM cartridge shadow</h2>
+      <p>Filed 2026-05-10; corrected from XRoar attribution 2026-07-17.</p>
       <p>
         Under XRoar 1.10, a minimal cartridge probe that read
         <code>$C000-$C0FF</code> before writing that range found exactly
-        three bad reads: <code>$C0D9</code> expected <code>$00</code> but
+        three mismatches: <code>$C0D9</code> expected <code>$00</code> but
         read <code>$7E</code>, <code>$C0DA</code> expected <code>$00</code>
         but read <code>$E2</code>, and <code>$C0DB</code> expected
         <code>$00</code> but read <code>$9D</code>. The main boot copy
         showed the same failure shape: the copy loop loaded <code>02 7E</code>
         at <code>$C0D8</code> and <code>E2 9D</code> at <code>$C0DA</code>,
-        so the RAM-under-ROM copy faithfully stored bad source bytes.
+        so the old Ladybug copy loop read the already-patched RAM shadow.
         Patching Init0, using explicit <code>-cart-type rom</code>, and
         changing <code>LDD/STD</code> to byte <code>LDA/STA</code> did not
         change the result.
@@ -490,26 +490,39 @@
         so the later mismatches are not a probe-padding error.
       </p>
       <p>
-        <strong>Why:</strong> confirmed as XRoar cartridge-window
-        mapping/read behaviour on this boot path, not a post-copy overwrite
-        and not a word-copy instruction issue.
+        <strong>Why:</strong> the Tandy Super Extended BASIC reset ROM itself
+        installs these bytes in all-RAM mode. Its patch routine loads
+        <code>X=$C8B4</code> and writes eleven <code>$12</code> bytes, then
+        loads <code>X=$C0D9</code> and copies the table bytes
+        <code>7E E2 9D</code> (<code>JMP $E29D</code>). The reset flow also
+        copies internal ROM at <code>$E000-$FDFF</code> before selecting
+        TY=1. A live XRoar snapshot confirmed <code>7E E2 9D</code> in
+        physical RAM at <code>$7C0D9</code>, while the loaded cartridge file
+        still contained zeroes. Changing XRoar's approximate CART/FIRQ
+        interval from 100 ms to 1 microsecond did not change any of the 50
+        mismatches. This is reset-ROM behavior reproduced by XRoar, not an
+        address-specific defect in XRoar's cartridge reader.
       </p>
       <p>
-        <strong>Applies to:</strong> boot self-copy from <code>$C000-$FEFF</code>.
-        Keep <code>$C0D9-$C0DB</code> unused as before; do not assume
-        <code>$E000+</code> is cart-backed under this XRoar
-        <code>-cart-type rom</code> path without further emulator/source
-        investigation.
+        <strong>Applies to:</strong> any cartridge code entered through the
+        CoCo 3 BASIC reset/autorun path while TY remains 1. Ladybug's active
+        boot now writes <code>$FFDE</code> to select ROM/RAM mode and executes
+        directly from the cartridge, so <code>$C0D9-$C0DB</code> is not a bad
+        cartridge-read window. The obsolete <code>$C0DC</code> fill was
+        removed on 2026-07-17; later ROM content now follows the preceding
+        code directly.
       </p>
       <p>
         <strong>Citation:</strong> <code>src/rom_probe.s</code>;
-        <code>src/main.s</code> boot copy skip; debugged with XRoar GDB
-        traps on 2026-05-10.
+        <code>src/main.s</code> historical boot copy skip; CoCo 3 reset flow
+        in <code>docs/reference/Assembly Language Programming for the CoCo3.md</code>;
+        Tandy ROM bytes at file offsets <code>$4334-$4354</code>; XRoar
+        <code>src/{coco3.c,cart.c}</code>; live snapshot probe 2026-07-17.
       </p>
     </section>
 
     <section>
-      <h2>Cart-shadow self-copy is a no-op under XRoar 1.10 — we execute from cart ROM throughout</h2>
+      <h2>Former cart-shadow self-copy did not populate RAM</h2>
       <p>
         Filed 2026-05-15. Four-pass gdb-mcp investigation in
         <a href="../backlog/cart-ram-corruption.html">backlog/cart-ram-corruption</a>
@@ -519,17 +532,18 @@
         The boot model from <a href="./memory-map.html">memory-map</a> —
         "self-copy <code>$C000-$FEFF</code> to shadow RAM, flip TY=1, run
         from RAM" — does not describe how XRoar 1.10 actually runs our
-        cart. Cold-start probes show cart bytes accessible at
-        <code>$C000-$FDFF</code> from before the self-copy runs and
-        continuing past <code>sta SAM_ALLRAM</code>. The self-copy's
+        cart. Cold-start probes show cartridge bytes directly while TY=0.
+        After TY=1, the mostly matching bytes come from the RAM shadow that
+        the CoCo 3 reset ROM had already copied and patched. The self-copy's
         <code>std ,x</code> writes for x in <code>$C000-$FDFE</code> go to
         <code>cart_rom_write</code> (a no-op on a read-only
         <code>rombank_d8</code>) and skip the RAM-write path because the
         GIME decode returns RAS=0 for that range pre-SAM_ALLRAM. We have
-        been running directly from cart ROM through both halves of the
-        boot. The Phase 2.1 "wrote a marker, flipped TY, read it back"
+        been depending on the reset-created shadow after the mode switch, not
+        on Ladybug's copy. The Phase 2.1 "wrote a marker, flipped TY, read it back"
         verification is consistent with this — it cannot distinguish
-        "shadow RAM works" from "XRoar serves cart bytes regardless of TY".
+        "Ladybug populated shadow RAM" from "the reset ROM had already put a
+        matching byte there".
       </p>
       <p>
         <code>$FE00-$FEFF</code> is the exception: MC3=1 forces RAS=1 in
@@ -542,22 +556,22 @@
         for the cart window under our boot state; the <code>if (RAS)</code>
         RAM-overlay block is skipped on reads and writes.
         <code>cart_rom_write → rombank_d8</code> is read-only. So nothing
-        the boot does to <code>$C000-$FDFF</code> ever reaches RAM, and the
-        bytes we read there come straight from cart ROM.
+        the boot does to <code>$C000-$FDFF</code> while TY=0 reaches internal
+        RAM. TY=0 reads come from the cartridge; TY=1 reads come from RAM.
       </p>
       <p><strong>Applies to:</strong></p>
       <ul>
         <li>Don't put self-modifying code at <code>$C000-$FDFF</code> — it will silently fail on XRoar.</li>
         <li>Don't expect runtime-mutable data tables in that range under emulation.</li>
-        <li>The <code>org $C0DC</code> workaround for the XRoar bad-window quirk is still correct, but its rationale shifts: those bad bytes are bad in cart space, not in some post-copy RAM image.</li>
-        <li>Real-hardware behavior is unverified. The arcade-fidelity boot design is preserved in source — leave the self-copy in place so it works correctly on hardware (Phase 10) — but treat it as dead code when reasoning about XRoar runs.</li>
+        <li>The obsolete <code>$C0DC</code> fill was removed. The old <code>$C0D9-$C0DB</code> mismatch came from the BASIC-patched all-RAM shadow; the active TY=0 boot reads cartridge bytes directly.</li>
+        <li>The CoCo and CoCo 3 manuals describe TY=0 as selecting ROM or the cartridge rather than internal RAM. That supports XRoar's no-write-under-ROM behavior; physical CoCo 3 and CoCoSDC verification remains deferred to Phase 10.</li>
         <li>Trust empirical gdb-mcp probes over XRoar source review for GIME questions; the source has a known decode gap we couldn't fully resolve (see <a href="./memory-map.html">memory-map §Open items</a>).</li>
       </ul>
       <p>
         <strong>Citation:</strong>
         <a href="../backlog/cart-ram-corruption.html">backlog/cart-ram-corruption</a>
-        (third and fourth gdb-mcp passes); <code>src/main.s</code>
-        cart-shadow loop at lines 102-118; XRoar source under
+        (third and fourth gdb-mcp passes); historical <code>src/main.s</code>
+        cart-shadow loop; XRoar source under
         <code>docs/reference/xroar/src/{tcc1014/tcc1014.c, coco3.c, cart.c, rombank.h}</code>.
       </p>
     </section>
@@ -685,7 +699,7 @@
     </section>
 
     <section>
-      <h2>XRoar cart-window write decode — root cause of the cart-shadow no-op</h2>
+      <h2>Cart-window write decode — root cause of the cart-shadow no-op</h2>
       <p>
         Filed 2026-05-16. Refines the earlier 2026-05-15 <em>Cart-shadow
         self-copy is a no-op under XRoar 1.10</em> entry by naming the
@@ -735,11 +749,13 @@
       <p>
         <strong>Why:</strong> XRoar implements ROM/CTS selection via the
         <code>S</code> signal and the <code>MC3</code> override for
-        <code>$FE00-$FEFF</code>, but does <strong>not</strong> implement
-        the CoCo 3's documented RAM-under-ROM write-through for the wider
-        <code>$C000-$FDFF</code> range under <code>TY=0</code>. Cart-window
-        writes are dispatched to ROM (no-op), not parallel-written to
-        underlying RAM.
+        <code>$FE00-$FEFF</code>. Under TY=0, selecting CTS leaves RAS
+        inactive, so a write is presented to the cartridge and not to
+        internal RAM. This agrees with the CoCo 1/2 manual's description of
+        TY=0 address decoding and the cartridge data bus: a cartridge RAM or
+        PIA may accept the write, while a ROM cartridge ignores it. The CoCo 3
+        manual likewise describes physical pages <code>$3C-$3F</code> as ROM,
+        not RAM, in ROM/RAM mode. Hardware verification is still deferred.
       </p>
       <p>
         <strong>Verdict:</strong> Intentional simplification in XRoar, not
@@ -870,7 +886,7 @@ git reset --hard HEAD
         offset.
       </p>
       <p><strong>Applies to:</strong> every lwasm raw ROM layout gap.</p>
-      <p><strong>Citation:</strong> <code>src/main.s</code> cartridge bad-window padding; <code>web/scripts/probe_ladybug_screen.py</code>.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> cartridge layout padding; <code>web/scripts/probe_ladybug_screen.py</code>.</p>
     </section>
 
     <section>

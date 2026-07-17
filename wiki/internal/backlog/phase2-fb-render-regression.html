@@ -74,15 +74,17 @@
     <section>
       <h2>Resolved 2026-07-16</h2>
       <p>
-        Two defects combined. First, XRoar discards writes back into the
-        selected cartridge window, so physical page <code>$3E</code> was not
-        populated before the all-RAM/MMU switch. Second, lwasm raw output did
+        Two failures combined. First, the boot incorrectly assumed writes
+        beneath selected cartridge ROM would populate physical page
+        <code>$3E</code>; XRoar and the hardware documentation both indicate
+        that internal RAM is not selected in this state. Second, lwasm raw output did
         not emit bytes for <code>org $C0DC</code>; labels after the gap were
         19 bytes ahead of their ROM file offsets, so <code>par_table</code>
         loaded palette/tile bytes as PAR values. The fix executes directly
         from cartridge ROM, keeps TY=0, maps writable state below page
         <code>$3C</code>, and emits the gap with
-        <code>fill $FF,$C0DC-*</code>.
+        <code>fill $FF,$C0DC-*</code>. After the reset-ROM patch source was
+        identified, that historical address gap was removed on 2026-07-17.
       </p>
       <p>
         <code>web/scripts/probe_ladybug_screen.py</code> verifies the halt PC,
@@ -94,7 +96,7 @@
     <section>
       <h2>Historical candidate causes</h2>
       <ol>
-        <li><strong>Cart self-copy is corrupting the FB or executing wrong code.</strong> The self-copy at <code>entry</code> runs while MMU is OFF, so <code>ldd ,x / std ,x</code> to <code>$C000-$FEFF</code> writes to phys <code>$07C000-$07FEFF</code>. The known XRoar 1.10 cart-window corruption at <code>$C0D9-$C0DB</code> has a workaround, but the workaround skips four bytes — if any branch / <code>LBSR</code> offset lands in that gap, control flow is destroyed.</li>
+        <li><strong>Cart self-copy is corrupting the FB or executing wrong code.</strong> Historical hypothesis, later corrected: the <code>$C0D9-$C0DB</code> bytes came from the CoCo 3 reset ROM's patched all-RAM shadow, not XRoar cart-window corruption. The actual XRoar issue was that same-address writes under selected cartridge ROM did not populate physical RAM.</li>
         <li><strong>MMU PAR setup or order has a hole.</strong> Current main.s sets <code>clr $FF91</code> (force exec PAR set) <strong>after</strong> the cart copy but <strong>before</strong> loading the par_table into <code>$FFA0-$FFA7</code>. If the PARs aren't reaching the executive bank, virtual <code>$2000</code> writes go to whatever RAM the (possibly uninitialised) PAR1 points at.</li>
         <li><strong>VOFF + PAR mismatch.</strong> main.s configures VOFF for phys <code>$060000</code> AND PAR1 = <code>$30</code>. Both point at phys <code>$060000</code>. But VOFF is written <strong>before</strong> Init0 enables the MMU. Sequencing issue possible.</li>
         <li><strong>The wiki claim that Phase 2.4 "renders 3 tiles" was never empirically verified.</strong> Possibility that lessons-learned tables describe intended-but-unobserved behaviour.</li>

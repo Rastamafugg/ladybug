@@ -201,12 +201,6 @@ phase26_halt
 ;==============================================================================
 ; mainloop — IRQ keeps ticking FRAMES; CPU just spins.
 ;==============================================================================
-        ; XRoar returns bad cartridge-window reads at $C0D9-$C0DB. Emit real
-        ; bytes through that range so raw-ROM file offsets stay identical to
-        ; assembler addresses; `org` alone changes the map without padding a
-        ; raw output file.
-        fill    $FF,$C0DC-*
-
 mainloop
         sync
         bra     mainloop

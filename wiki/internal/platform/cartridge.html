@@ -116,8 +116,8 @@ $0000-$3EFF   $C000-$FEFF   "DK" magic, entry, code, all data tables
         <li>Set <code>S</code> to the top of our work RAM.</li>
         <li>Disable PIA-driven interrupts and bleed any pending flags.</li>
         <li>Configure GIME Init0: clear bit 7 (hi-res), enable MMU, set bit 3 so <code>$FE00-$FEFF</code> is always reachable, set bit 5 to enable ACVC IRQs. Then clear/blank the screen buffer with CRES=11 while we initialise.</li>
-        <li>Attempt to self-copy <code>$C000-$FEFF</code> to shadow RAM beneath the cart. The original sentinel test was non-discriminating; this is a no-op under XRoar 1.10 and was removed from the active path. See <a href="../implementation/memory-map.html">memory-map §Boot execution</a>.</li>
-        <li>Switch to all-RAM mode (write to <code>$FFDF</code>). Cart ROM disconnects; phys <code>$3E-$3F</code> is now the RAM we just wrote.</li>
+        <li>Attempt to self-copy <code>$C000-$FEFF</code> to shadow RAM beneath the cart. The original sentinel test was non-discriminating; TY=0 selects the cartridge without selecting internal RAM, so the writes do not populate the shadow. This was removed from the active path. See <a href="../implementation/memory-map.html">memory-map §Boot execution</a>.</li>
+        <li>Switch to all-RAM mode (write to <code>$FFDF</code>). Cart ROM disconnects; phys <code>$3E-$3F</code> becomes visible, but it was not populated by the preceding writes.</li>
         <li>Switch to fast clock (write to <code>$FFD9</code>).</li>
         <li>Load our palette (<code>$FFB0-$FFBF</code>).</li>
         <li>Install our IRQ handler in the primary jump table at <code>$FEF7</code> (<code>JMP</code> extended), write <code>$FF92</code> bit 3 to enable Vbord.</li>

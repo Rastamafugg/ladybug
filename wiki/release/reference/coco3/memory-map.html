@@ -77,6 +77,9 @@
           <code>$3C/$3D</code> plus 16 K cartridge at <code>$3E/$3F</code>;
           <code>10</code> = 16 K BASIC + 8 K reset-init + 8 K Super Extended
           BASIC; <code>11</code> = full 32 K cartridge.
+          These pages select ROM or cartridge hardware rather than internal
+          RAM. A write to the cartridge window is presented to the cartridge;
+          it does not imply a simultaneous write to RAM underneath the ROM.
         </li>
         <li>
           <strong>TY=1 (all-RAM mode).</strong> The whole <code>$30-$3F</code>
