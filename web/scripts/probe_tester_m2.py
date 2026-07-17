@@ -78,6 +78,7 @@ async def run() -> int:
         await asyncio.sleep(4.0)
         mon = MonitorSession(port)
         await mon.attach()
+        await mon.interrupt()
         try:
             regs = await mon.read_registers()
             pc = regs.get("pc", 0)

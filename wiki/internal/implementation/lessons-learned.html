@@ -828,6 +828,23 @@ git reset --hard HEAD
     </section>
 
     <section>
+      <h2>Raw ROM output does not materialize <code>org</code> gaps</h2>
+      <p>Filed 2026-07-16.</p>
+      <p>
+        In the Ladybug lwasm raw build, <code>org $C0DC</code> moved listing
+        and map addresses without adding bytes to the ROM file. All later
+        data was therefore 19 bytes earlier than its mapped address;
+        <code>par_table</code> read palette/tile bytes and the MMU mapped the
+        CPU into invalid memory. Use an emitting directive such as
+        <code>fill $FF,target-*</code> whenever a raw cartridge image needs an
+        address gap, and verify a mapped table against the corresponding file
+        offset.
+      </p>
+      <p><strong>Applies to:</strong> every lwasm raw ROM layout gap.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> cartridge bad-window padding; <code>web/scripts/probe_ladybug_screen.py</code>.</p>
+    </section>
+
+    <section>
       <h2>Format for future entries</h2>
 <pre><code>&lt;h2&gt;Short title&lt;/h2&gt;
 &lt;p&gt;Filed YYYY-MM-DD.&lt;/p&gt;

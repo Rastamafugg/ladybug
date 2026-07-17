@@ -25,6 +25,19 @@
     </header>
 
     <section>
+      <h2>Resolution 2026-07-16</h2>
+      <p>
+        The same-address cart self-copy was removed from <code>src/main.s</code>.
+        Ladybug now selects the cartridge ROM map before clearing TY and
+        executes directly from <code>$C000-$DFFF</code> with PAR6 mapped to
+        physical page <code>$3E</code>. This avoids XRoar's discarded
+        cart-window writes. The related framebuffer regression also required
+        replacing a non-emitting raw-output <code>org</code> gap with explicit
+        <code>fill</code> bytes. The automated screen probe is green.
+      </p>
+    </section>
+
+    <section>
       <h2>Symptoms</h2>
       <p>Filed 2026-05-14 during the Phase 2.4 "three tile" build-out.</p>
       <p>

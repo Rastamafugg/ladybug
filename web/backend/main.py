@@ -42,6 +42,13 @@ async def list_instances():
 
 @app.post("/api/instances", response_model=InstanceSummary)
 async def create_instance(req: CreateInstanceRequest):
+    rom_path = (PROJECT_ROOT / req.rom_path).resolve()
+    try:
+        rom_path.relative_to(PROJECT_ROOT)
+    except ValueError:
+        raise HTTPException(400, "rom_path must stay within the project")
+    if not rom_path.is_file():
+        raise HTTPException(400, f"ROM not found: {req.rom_path}")
     inst = await manager.create(
         name=req.name, rom_path=req.rom_path, extra_flags=req.extra_flags
     )

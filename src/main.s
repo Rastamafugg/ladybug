@@ -50,7 +50,7 @@ PAR_EXEC   equ  $FFA0           ; PAR0 of executive set ($FFA0..$FFA7)
 PAL_BASE   equ  $FFB0
 
 SAM_FAST   equ  $FFD9
-SAM_ALLRAM equ  $FFDF
+SAM_ROMRAM equ  $FFDE
 
 JT_IRQ     equ  $FEF7
 
@@ -60,9 +60,6 @@ JT_IRQ     equ  $FEF7
 FB_VIRT    equ  $2000           ; virtual base of framebuffer (PAR1)
 FB_END     equ  $9800           ; one past last FB byte (192 rows × 160 B)
 FB_PHYS    equ  $30             ; physical page 0 of FB
-
-CART_BASE  equ  $C000
-CART_END   equ  $FF00
 
 ;==============================================================================
 ;  Cart ROM
@@ -94,33 +91,13 @@ entry   orcc    #$50            ; mask IRQ + FIRQ
         ; --- Init0 — legacy mode, ACVC IRQ on, force $FExx, MMU still off ---
         lda     #%10101000
         sta     GIME_INIT0
+        sta     SAM_ROMRAM       ; cart map is selected before clearing TY
 
-        ; --- Cart-to-shadow-RAM self-copy ---
-        ; XRoar 1.10 returns bad cartridge-window bytes at $C0D9-$C0DB during
-        ; this boot path. Skip that range during copy and keep it as unused
-        ; padding below. See lessons-learned.md.
-        ldx     #CART_BASE
-copyloop
-        cmpx    #$C0D8
-        beq     copy_around_xroar_bad_window
-        ldd     ,x
-        std     ,x
-        leax    2,x
-copy_next
-        cmpx    #CART_END
-        blo     copyloop
-        bra     copy_done
-
-copy_around_xroar_bad_window
-        lda     ,x              ; $C0D8 is reliable; $C0D9-$C0DB are not.
-        sta     ,x
-        leax    4,x
-        bra     copy_next
-
-copy_done
-        ;----------------------------------------------------------------------
-        ; Boot ordering: PARs BEFORE SAM_ALLRAM so par_table reads from ROM.
-        ;----------------------------------------------------------------------
+        ; --- Execute directly from cartridge ROM ---
+        ; Keep TY=0. XRoar discards writes to the selected cartridge window,
+        ; so the former same-address self-copy never populated phys $3E-$3F.
+        ; PAR6=$3E keeps $C000-$DFFF cartridge-backed after MMU enable while
+        ; the framebuffer and writable state use ordinary RAM pages below $3C.
 
         ; --- Force executive PAR set ($FFA0-$FFA7) to be active ---
         clr     $FF91
@@ -131,9 +108,9 @@ copy_done
         ; PAR2 ($4000) = phys $31   FB page 1
         ; PAR3 ($6000) = phys $32   FB page 2
         ; PAR4 ($8000) = phys $33   FB page 3
-        ; PAR5 ($A000) = phys $3D   game state (Phase 4+)
-        ; PAR6 ($C000) = phys $3E   code low half
-        ; PAR7 ($E000) = phys $3F   code high half + IO + jump table
+        ; PAR5 ($A000) = phys $34   game state (Phase 4+)
+        ; PAR6 ($C000) = phys $3E   cartridge code (current 8 K window)
+        ; PAR7 ($E000) = phys $3F   cartridge/ROM window + IO + jump table
         leax    par_table,pcr
         ldy     #PAR_EXEC
         ldb     #8
@@ -141,9 +118,6 @@ parloop lda     ,x+
         sta     ,y+
         decb
         bne     parloop
-
-        ; --- All-RAM (now safe; PARs already loaded from ROM) ---
-        sta     SAM_ALLRAM
 
         ; --- Fast clock 1.78 MHz ---
         sta     SAM_FAST
@@ -244,11 +218,11 @@ phase24_halt
 ;==============================================================================
 ; mainloop — IRQ keeps ticking FRAMES; CPU just spins.
 ;==============================================================================
-        ; XRoar 1.10 returns bad cartridge-window reads at $C0D9-$C0DB. Force
-        ; mainloop (and everything that follows) past that range; copy_around_
-        ; xroar_bad_window leaves $C0D9-$C0DB uninitialised in RAM, so no live
-        ; code or data may occupy it. See lessons-learned.md.
-        org     $C0DC
+        ; XRoar returns bad cartridge-window reads at $C0D9-$C0DB. Emit real
+        ; bytes through that range so raw-ROM file offsets stay identical to
+        ; assembler addresses; `org` alone changes the map without padding a
+        ; raw output file.
+        fill    $FF,$C0DC-*
 
 mainloop
         sync
@@ -287,12 +261,12 @@ irq_done
         rti
 
 ;==============================================================================
-; Data tables (in cart ROM, copied to RAM by the boot self-copy)
+; Data tables (read directly from cartridge ROM)
 ;==============================================================================
 
 ;-- PAR values for executive set (PAR0..PAR7) ---------------------------------
 par_table
-        fcb     $38,$30,$31,$32,$33,$3D,$3E,$3F
+        fcb     $38,$30,$31,$32,$33,$34,$3E,$3F
 
 ;-- Palette: 16 entries, GIME 6-bit codes (RGB-monitor empirical). -----------
 ;   Tuned for XRoar `-tv-input rgb` and real CoCo 3 RGB-monitor hardware.

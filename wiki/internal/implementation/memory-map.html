@@ -30,7 +30,7 @@
         <li><strong>8 MMU PARs</strong>, each maps an 8 K virtual page to a 6-bit physical-page number (see <a href="../../release/reference/coco3/memory-map.html">CoCo 3 memory map</a>, <a href="../../release/reference/coco3/gime.html">GIME</a>).</li>
         <li><strong>64 physical pages</strong> of RAM on a 512 K machine, numbered <code>$00-$3F</code>. RAM is populated top-down — <code>$3F</code> is highest.</li>
         <li><strong>Framebuffer</strong> = 30 720 bytes = 4 pages (3.75 actually used). GIME reads it via physical address, bypassing the MMU.</li>
-        <li><strong>Code</strong> lives in cart ROM at virtual <code>$C000-$FEFF</code> initially. After self-copy + all-RAM, it's RAM at phys <code>$3E-$3F</code>.</li>
+        <li><strong>Code</strong> lives and executes directly from cart ROM at virtual <code>$C000-$DFFF</code>. The current build keeps TY=0 and maps PAR6 to <code>$3E</code>; the former shadow-RAM self-copy/all-RAM transition was removed 2026-07-16.</li>
         <li><strong>Cart data tables</strong> (lower 16 K of the 32 K cart) live at virtual <code>$8000-$BFFF</code> in 32 K cart mode. After self-copy + all-RAM, they're RAM at phys <code>$3C-$3D</code>.</li>
         <li><strong><code>$FF00-$FFFF</code> is dedicated I/O</strong>, not cart-visible. <strong><code>$FE00-$FEFF</code> is forced</strong> to phys <code>$3F</code> regardless of PAR7 when Init0 b3 is set — the primary jump table stays reachable.</li>
       </ul>
@@ -109,7 +109,25 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
     </section>
 
     <section>
-      <h2>Boot data-copy procedure</h2>
+      <h2>Boot execution and legacy data-copy procedure</h2>
+      <h3>Current procedure (resolved 2026-07-16)</h3>
+      <p>
+        Ladybug now executes directly from the 8 K cartridge code window.
+        Boot writes Init0 first to select the 16 K cartridge map, explicitly
+        clears TY through <code>$FFDE</code>, loads PAR0-PAR7 as
+        <code>38 30 31 32 33 34 3E 3F</code>, then enables the MMU. Writable
+        state uses physical pages below <code>$3C</code>; the forced
+        <code>$FE00-$FEFF</code> jump-table window remains RAM-backed.
+      </p>
+      <p>
+        This removes the XRoar dependency on writes beneath a selected ROM
+        cartridge. It also constrains executable cartridge code to
+        <code>$C000-$DFFF</code> until a later bank/copy design is approved.
+        The historical self-copy procedure below is retained only as the
+        investigation record and is no longer implemented by
+        <code>src/main.s</code>.
+      </p>
+      <h3>Legacy procedure (superseded)</h3>
       <p>
         Goal (on real hardware): get cart ROM contents into RAM at the
         same physical pages, so all-RAM mode is transparent.

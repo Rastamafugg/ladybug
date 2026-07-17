@@ -23,6 +23,25 @@
     </header>
 
     <section>
+      <h3>2026-07-16 · fix — cartridge boot and Phase 2.4 framebuffer regression resolved</h3>
+      <p>
+        Verified Codex-to-gdb-mcp, XRoar monitor protocol 0.6.0, and the live
+        web backend monitor path. Reproduced the Ladybug failure with wild PC,
+        untouched <code>FFFF</code> liveness markers, and DRAM-fill framebuffer.
+        Root causes: XRoar discards writes back into a selected ROM cartridge,
+        leaving page <code>$3E</code> uninitialised for the former all-RAM
+        transition; and lwasm raw output did not emit the
+        <code>org $C0DC</code> gap, shifting post-gap ROM data by 19 bytes.
+        <code>src/main.s</code> now selects the cart map before clearing TY,
+        executes directly from ROM with PAR5 moved to writable page
+        <code>$34</code>, and emits bad-window padding with <code>fill</code>.
+        Added <code>probe_ladybug_screen.py</code>; it verifies the exact
+        three-tile framebuffer, sentinels, PARs, palette, and halt PC. The web
+        API now rejects missing or out-of-project ROM paths.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-16 · fix — tooling commit-readiness findings resolved</h3>
       <p>
         Closed the five findings from the uncommitted-tooling review. Docker
