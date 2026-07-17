@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ladybug build / run / clean, plus emulator-monitor tester ROM target.
-# See wiki/tooling/build-workflow.md for the full runbook.
+# See wiki/internal/tooling/build-workflow.html for the full runbook.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

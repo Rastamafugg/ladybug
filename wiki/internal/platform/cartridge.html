@@ -116,7 +116,7 @@ $0000-$3EFF   $C000-$FEFF   "DK" magic, entry, code, all data tables
         <li>Set <code>S</code> to the top of our work RAM.</li>
         <li>Disable PIA-driven interrupts and bleed any pending flags.</li>
         <li>Configure GIME Init0: clear bit 7 (hi-res), enable MMU, set bit 3 so <code>$FE00-$FEFF</code> is always reachable, set bit 5 to enable ACVC IRQs. Then clear/blank the screen buffer with CRES=11 while we initialise.</li>
-        <li>Self-copy <code>$C000-$FEFF</code> to shadow RAM beneath the cart (verified 2026-05-08 — see <a href="../implementation/memory-map.html">memory-map §Boot data-copy procedure</a>). Note this is empirically a no-op under XRoar 1.10 — see <a href="../implementation/lessons-learned.html">lessons-learned</a>.</li>
+        <li>Attempt to self-copy <code>$C000-$FEFF</code> to shadow RAM beneath the cart. The original sentinel test was non-discriminating; this is a no-op under XRoar 1.10 and was removed from the active path. See <a href="../implementation/memory-map.html">memory-map §Boot execution</a>.</li>
         <li>Switch to all-RAM mode (write to <code>$FFDF</code>). Cart ROM disconnects; phys <code>$3E-$3F</code> is now the RAM we just wrote.</li>
         <li>Switch to fast clock (write to <code>$FFD9</code>).</li>
         <li>Load our palette (<code>$FFB0-$FFBF</code>).</li>
@@ -124,9 +124,9 @@ $0000-$3EFF   $C000-$FEFF   "DK" magic, entry, code, all data tables
         <li><code>ANDCC #$EF</code> — unmask IRQ. Enter main loop.</li>
       </ol>
       <p>
-        Historically, Phase 1 implemented steps 1-3 and 6-10 (with a Phase-1 simplification
-        of step 4: no MMU, no hi-res, no palette). Phase 2.2 adds step 5
-        (the cart-to-RAM self-copy). Phase 2.3+ does the full step 4, plus 8.
+        Historically, Phase 1 implemented steps 1-3 and 6-10 (with a Phase-1
+        simplification of step 4: no MMU, no hi-res, no palette). Phase 2.2
+        added the attempted copy. This sequence is retained only as history.
       </p>
       <p>
         Every step has a citation in

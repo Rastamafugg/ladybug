@@ -12,11 +12,11 @@ Composite decode (approximation):
     bits 5..4 = luma (0..3), bits 3..0 = chroma phase (0..15).
     Phase 0 and phase 15 are grayscale; the other 14 phases sample a hue wheel.
     We approximate via the standard YIQ -> RGB conversion. For arcade-accurate
-    composite hues see wiki/backlog/rgb-tv-input-palette.md -- the long-term
+    composite hues see wiki/internal/backlog/rgb-tv-input-palette.html -- the long-term
     plan is to switch XRoar to RGB output and derive an empirical table.
 
 Source: docs/reference/Assembly Language Programming for the CoCo3.md ch. 2;
-        wiki/platform/gime.md.
+        wiki/release/reference/coco3/gime.html.
 """
 from __future__ import annotations
 import math

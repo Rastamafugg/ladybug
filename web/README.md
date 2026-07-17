@@ -1,5 +1,11 @@
 # Ladybug retro-dev web app
 
+> **Status: deferred as of 2026-07-16.** The implementation is preserved,
+> but current Ladybug development uses the documented `gdb-mcp` workflow.
+> The patched XRoar monitor is private JSON-RPC, not MCP. Keyboard
+> `inject_text` exists in XRoar but is not exposed by the backend, frontend,
+> or a real MCP server.
+
 Locally hosted browser UI that combines the Ladybug ROM build, the patched
 XRoar `-monitor` JSON-RPC interface, and a 6809-aware debugger. The backend
 owns every emulator session; the frontend is plain JavaScript and web

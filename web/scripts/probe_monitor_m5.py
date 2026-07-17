@@ -1,6 +1,6 @@
 """Phase 3 M5 verification probe for the XRoar -monitor stub.
 
-M5 scope (from wiki/implementation/xroar-monitor.md):
+M5 scope (from wiki/internal/implementation/xroar-monitor.html):
 
   - reset(kind="soft"|"hard") clears BPs, calls machine reset, emits
     async 'reset' event notification.

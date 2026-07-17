@@ -236,7 +236,8 @@ mainloop
 ;==============================================================================
 blit_tile
         ; ldd ,y++ clobbers B, so use a Y-vs-sentinel loop instead of decb.
-        ; See lessons-learned.md §"LDD ,Y++ clobbers B".
+        ; See wiki/internal/implementation/lessons-learned.html
+        ; §"LDD ,Y++ clobbers B".
         leau    32,y            ; sentinel = end of tile data
         pshs    u
 btrow   ldd     ,y++
@@ -274,7 +275,8 @@ par_table
 ;     0 black, 1 yellow, 2 blue, 3 white.
 ;   Under RGB the canonical "bright" set is the high 3 bits (R'=$20,
 ;   G'=$10, B'=$08) and full white is $3F (all 6 bits set); the upper-3-only
-;   $38 reads as light grey, not white. See lessons-learned.md
+;   $38 reads as light grey, not white. See
+;   wiki/internal/implementation/lessons-learned.html
 ;   §"XRoar RGB monitor palette mapping" for the full 6-bit→colour table.
 palette_table
         fcb     $00             ; 0  black                R'G'B' rgb = 000 000

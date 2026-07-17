@@ -5,14 +5,15 @@
 ; driven by tester_mode_table, draws the bars pattern once, spins. No IRQ,
 ; no keyboard yet — those land in milestone 2.
 ;
-; See wiki/implementation/emulator-monitor-tester.md for the architect spec.
+; See wiki/internal/implementation/emulator-monitor-tester.html for the spec.
 ; Source-of-truth for boot recipe: src/diag_minimal.s (the working 16-stripe
 ; minimal cart from 2026-05-16).
 ;
 ; Operating envelope:
 ;   - No MMU ($FF90 bit 6 = 0). Virtual = physical $07xxxx.
 ;   - Cart executes from cart ROM at $C000-$FDFF — no self-copy (works around
-;     XRoar's cart-shadow gotcha; see lessons-learned.md).
+;     XRoar's cart-shadow gotcha; see
+;     wiki/internal/implementation/lessons-learned.html).
 ;   - RW state at virtual $0000-$1FFE, FB at $2000, stack just below FB.
 ;   - IRQ jump table at $FE00-$FEFF (RAM-backed via Init0 bit 3 = 1).
 ;==============================================================================

@@ -15,16 +15,28 @@
   </nav>
   <main class="wiki-main">
     <header class="wiki-header">
-      <p class="wiki-eyebrow">Backlog · tooling</p>
-      <h1>Locally-hosted retro-dev web app <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-eyebrow">Backlog · tooling · deferred</p>
+      <h1>Locally-hosted retro-dev web app — deferred <span class="wiki-badge">internal</span></h1>
       <p class="wiki-meta">
-        Web UI wrapping the lwasm + XRoar + gdb-mcp + LLM-agent stack into
-        a closed-loop retro development environment.
+        Implemented browser debugger preserved under <code>web/</code>, but
+        tabled while Ladybug game development resumes through gdb-mcp.
       </p>
     </header>
 
     <section>
-      <h2>Why</h2>
+      <h2>Current decision — 2026-07-16</h2>
+      <p>
+        Do not extend or remove the web app during normal game work. The
+        cartridge framebuffer regression that motivated the monitor effort is
+        resolved, and <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>
+        is again the active build-debug-verification path. The existing
+        FastAPI frontend, Docker environment, and patched XRoar monitor remain
+        available as historical tooling and a possible future foundation.
+      </p>
+    </section>
+
+    <section>
+      <h2>Original motivation</h2>
       <p>
         Today the Ladybug dev loop is split across several windows: an editor
         for <code>src/*.s</code>, a WSL shell for <code>./scripts/build.sh</code>,

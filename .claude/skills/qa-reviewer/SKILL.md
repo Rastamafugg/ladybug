@@ -10,10 +10,10 @@ Used when the task is primarily about verification, review, regression checking,
 ## Responsibilities
 
 - Confirm the change meets the stated objective and respects the scope boundaries set by `project-management`.
-- Check for regressions in adjacent code and shared subsystems. Consult the wiki's platform pages ([wiki/platform/](../../../wiki/platform/)) and lessons learned ([wiki/implementation/lessons-learned.md](../../../wiki/implementation/lessons-learned.md)) for failure modes to probe.
-- **Verify build-script and disk-image discipline** per [wiki/implementation/build-workflow.md](../../../wiki/implementation/build-workflow.md) — in particular that the full assembly build stays complete, any incremental rebuild script is minimal and task-specific, and the disk image / cartridge target was not modified unless the task specifically required it.
-- **Spot-check toolchain compatibility** of any new assembly against [wiki/platform/toolchain.md](../../../wiki/platform/toolchain.md).
-- **Confirm wiki maintenance was done for the task** — new sources ingested, new lessons recorded, decisions captured with rationale, [wiki/index.md](../../../wiki/index.md) updated, [wiki/log.md](../../../wiki/log.md) appended.
+- Check for regressions in adjacent code and shared subsystems. Consult [platform notes](../../../wiki/internal/platform/index.html), [CoCo 3 reference](../../../wiki/release/reference/coco3/index.html), and [lessons learned](../../../wiki/internal/implementation/lessons-learned.html).
+- **Verify build-script and cartridge-image discipline** per [build workflow](../../../wiki/internal/tooling/build-workflow.html) — in particular that the full assembly build stays complete, any incremental rebuild script is minimal and task-specific, and the cartridge target was not modified unless required.
+- **Spot-check toolchain compatibility** against [lwtools](../../../wiki/internal/tooling/lwtools.html) and [coding conventions](../../../wiki/internal/implementation/coding-conventions.html).
+- **Confirm wiki maintenance was done for the task** — new sources ingested, new lessons recorded, decisions captured with rationale, the appropriate HTML index updated, and [wiki/internal/log.html](../../../wiki/internal/log.html) appended.
 
 ## Output
 

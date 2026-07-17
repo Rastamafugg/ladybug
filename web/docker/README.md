@@ -1,5 +1,8 @@
 # Ladybug web app — Docker
 
+> **Status: deferred as of 2026-07-16.** Preserve this environment for future
+> web-app/monitor work; it is not the active game-development workflow.
+
 Runs the full dev-tool stack in one container: the **lwtools** 6809
 assembler, the patched **`xroar-monitor`** emulator (built from pinned project
 fork commit `7787ad937b15102bf8cb8eb81b92e29f5ba7169d`), the **FastAPI**

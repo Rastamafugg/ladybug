@@ -1,6 +1,6 @@
 """Phase 3 M6a verification probe for the XRoar -monitor stub.
 
-M6a scope (from wiki/implementation/xroar-monitor.md):
+M6a scope (from wiki/internal/implementation/xroar-monitor.html):
 
   - thread-per-client refactor (foundation for events + true multi-client)
   - events.subscribe(kinds=[...]) async push channel; events fired:

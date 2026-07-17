@@ -19,7 +19,7 @@
       },
       "summary": "Logical OR of immediate into CC. Sets selected CC bits.",
       "effect_template": "CC \u2190 CC | #${imm8}",
-      "wiki": "platform/6809.md#cc-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "1C": {
       "mnemonic": "ANDCC",
@@ -39,7 +39,7 @@
       },
       "summary": "Logical AND of immediate into CC. Clears selected CC bits.",
       "effect_template": "CC \u2190 CC & #${imm8}",
-      "wiki": "platform/6809.md#cc-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "1F": {
       "mnemonic": "TFR",
@@ -50,7 +50,7 @@
       "cc": {},
       "summary": "Transfer register pair. Postbyte high nybble = source, low nybble = destination.",
       "effect_template": "{dest} \u2190 {src}",
-      "wiki": "platform/6809.md#tfr-exg-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "1E": {
       "mnemonic": "EXG",
@@ -61,7 +61,7 @@
       "cc": {},
       "summary": "Exchange register pair. Postbyte high nybble = first, low nybble = second.",
       "effect_template": "{r1} \u2194 {r2}",
-      "wiki": "platform/6809.md#tfr-exg-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "20": {
       "mnemonic": "BRA",
@@ -72,7 +72,7 @@
       "cc": {},
       "summary": "Branch always.",
       "effect_template": "PC \u2190 ${target}",
-      "wiki": "platform/6809.md#branch-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "21": {
       "mnemonic": "BRN",
@@ -83,7 +83,7 @@
       "cc": {},
       "summary": "Branch never (no-op-like).",
       "effect_template": "(never taken)",
-      "wiki": "platform/6809.md#branch-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "22": {
       "mnemonic": "BHI",
@@ -94,7 +94,7 @@
       "cc": {},
       "summary": "Branch if higher (unsigned). Taken when C=0 AND Z=0.",
       "effect_template": "if !(C|Z) PC \u2190 ${target}",
-      "wiki": "platform/6809.md#branch-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "23": {
       "mnemonic": "BLS",
@@ -105,7 +105,7 @@
       "cc": {},
       "summary": "Branch if lower or same (unsigned). Taken when C=1 OR Z=1.",
       "effect_template": "if (C|Z) PC \u2190 ${target}",
-      "wiki": "platform/6809.md#branch-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "24": {
       "mnemonic": "BHS",
@@ -116,7 +116,7 @@
       "cc": {},
       "summary": "Branch if higher or same (unsigned, == BCC). Taken when C=0.",
       "effect_template": "if !C PC \u2190 ${target}",
-      "wiki": "platform/6809.md#branch-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "25": {
       "mnemonic": "BLO",
@@ -127,7 +127,7 @@
       "cc": {},
       "summary": "Branch if lower (unsigned, == BCS). Taken when C=1.",
       "effect_template": "if C PC \u2190 ${target}",
-      "wiki": "platform/6809.md#branch-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "26": {
       "mnemonic": "BNE",
@@ -138,7 +138,7 @@
       "cc": {},
       "summary": "Branch if not equal. Taken when Z=0.",
       "effect_template": "if !Z PC \u2190 ${target}",
-      "wiki": "platform/6809.md#branch-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "27": {
       "mnemonic": "BEQ",
@@ -149,7 +149,7 @@
       "cc": {},
       "summary": "Branch if equal. Taken when Z=1.",
       "effect_template": "if Z PC \u2190 ${target}",
-      "wiki": "platform/6809.md#branch-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "16": {
       "mnemonic": "LBRA",
@@ -160,7 +160,7 @@
       "cc": {},
       "summary": "Long branch always.",
       "effect_template": "PC \u2190 ${target}",
-      "wiki": "platform/6809.md#branch-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "17": {
       "mnemonic": "LBSR",
@@ -171,7 +171,7 @@
       "cc": {},
       "summary": "Long branch to subroutine. Pushes return PC, jumps.",
       "effect_template": "S \u2190 S-2; M(S) \u2190 PC; PC \u2190 ${target}",
-      "wiki": "platform/6809.md#branch-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "8D": {
       "mnemonic": "BSR",
@@ -182,7 +182,7 @@
       "cc": {},
       "summary": "Branch to subroutine. Pushes return PC, jumps.",
       "effect_template": "S \u2190 S-2; M(S) \u2190 PC; PC \u2190 ${target}",
-      "wiki": "platform/6809.md#branch-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "30": {
       "mnemonic": "LEAX",
@@ -195,7 +195,7 @@
       },
       "summary": "Load effective address into X. Used to compute pointers without a memory access.",
       "effect_template": "X \u2190 ${ea}",
-      "wiki": "platform/6809.md#lea-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "31": {
       "mnemonic": "LEAY",
@@ -208,7 +208,7 @@
       },
       "summary": "Load effective address into Y.",
       "effect_template": "Y \u2190 ${ea}",
-      "wiki": "platform/6809.md#lea-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "32": {
       "mnemonic": "LEAS",
@@ -219,7 +219,7 @@
       "cc": {},
       "summary": "Load effective address into S. Note: does NOT affect Z (S is for stack).",
       "effect_template": "S \u2190 ${ea}",
-      "wiki": "platform/6809.md#lea-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "33": {
       "mnemonic": "LEAU",
@@ -230,7 +230,7 @@
       "cc": {},
       "summary": "Load effective address into U. Note: does NOT affect Z.",
       "effect_template": "U \u2190 ${ea}",
-      "wiki": "platform/6809.md#lea-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "34": {
       "mnemonic": "PSHS",
@@ -241,7 +241,7 @@
       "cc": {},
       "summary": "Push selected registers to hardware stack. Postbyte bits: PC,U,Y,X,DP,B,A,CC (high \u2192 low).",
       "effect_template": "push to S: {regs}",
-      "wiki": "platform/6809.md#push-pull-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "35": {
       "mnemonic": "PULS",
@@ -254,7 +254,7 @@
       },
       "summary": "Pull selected registers from hardware stack.",
       "effect_template": "pull from S: {regs}",
-      "wiki": "platform/6809.md#push-pull-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "39": {
       "mnemonic": "RTS",
@@ -265,7 +265,7 @@
       "cc": {},
       "summary": "Return from subroutine. Pulls return address from S into PC.",
       "effect_template": "PC \u2190 M(S); S \u2190 S+2",
-      "wiki": "platform/6809.md#return-halt-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "3B": {
       "mnemonic": "RTI",
@@ -282,7 +282,7 @@
       },
       "summary": "Return from interrupt. If E bit was set on stack, pulls all regs; if clear (FIRQ path), pulls only PC+CC.",
       "effect_template": "if stacked-CC.E: pull all; else pull CC,PC",
-      "wiki": "platform/6809.md#return-halt-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "3F": {
       "mnemonic": "SWI",
@@ -297,7 +297,7 @@
       },
       "summary": "Software interrupt. Pushes all regs, vectors via $FFFA-FFFB. \u26a0 XRoar 1.10 segfaults if SWI is hit at a -trap point \u2014 use bra-self for halt loops.",
       "effect_template": "stack all regs; PC \u2190 [$FFFA]",
-      "wiki": "tooling/xroar.md"
+      "wiki": "internal/tooling/xroar.html"
     },
     "13": {
       "mnemonic": "SYNC",
@@ -308,7 +308,7 @@
       "cc": {},
       "summary": "Stop the CPU clock until an interrupt occurs. Resumes after handler.",
       "effect_template": "halt CPU until IRQ/FIRQ/NMI",
-      "wiki": "platform/6809.md#return-halt-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "12": {
       "mnemonic": "NOP",
@@ -319,7 +319,7 @@
       "cc": {},
       "summary": "No operation.",
       "effect_template": "(no-op)",
-      "wiki": "platform/6809.md#return-halt-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "4F": {
       "mnemonic": "CLRA",
@@ -335,7 +335,7 @@
       },
       "summary": "Clear A.",
       "effect_template": "A \u2190 0",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "5F": {
       "mnemonic": "CLRB",
@@ -351,7 +351,7 @@
       },
       "summary": "Clear B.",
       "effect_template": "B \u2190 0",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "0F": {
       "mnemonic": "CLR",
@@ -367,7 +367,7 @@
       },
       "summary": "Clear memory at DP:byte.",
       "effect_template": "M(DP:${imm8}) \u2190 0",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "6F": {
       "mnemonic": "CLR",
@@ -383,7 +383,7 @@
       },
       "summary": "Clear memory at indexed EA.",
       "effect_template": "M(${ea}) \u2190 0",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "7F": {
       "mnemonic": "CLR",
@@ -399,7 +399,7 @@
       },
       "summary": "Clear memory at extended address.",
       "effect_template": "M(${imm16}) \u2190 0",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "0C": {
       "mnemonic": "INC",
@@ -414,7 +414,7 @@
       },
       "summary": "Increment memory.",
       "effect_template": "M(DP:${imm8}) \u2190 M+1",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "6C": {
       "mnemonic": "INC",
@@ -429,7 +429,7 @@
       },
       "summary": "Increment indexed memory.",
       "effect_template": "M(${ea}) \u2190 M+1",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "7C": {
       "mnemonic": "INC",
@@ -444,7 +444,7 @@
       },
       "summary": "Increment extended memory.",
       "effect_template": "M(${imm16}) \u2190 M+1",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "5A": {
       "mnemonic": "DECB",
@@ -459,7 +459,7 @@
       },
       "summary": "Decrement B.",
       "effect_template": "B \u2190 B - 1",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "4A": {
       "mnemonic": "DECA",
@@ -474,7 +474,7 @@
       },
       "summary": "Decrement A.",
       "effect_template": "A \u2190 A - 1",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "86": {
       "mnemonic": "LDA",
@@ -489,7 +489,7 @@
       },
       "summary": "Load A immediate.",
       "effect_template": "A \u2190 #${imm8}",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "96": {
       "mnemonic": "LDA",
@@ -504,7 +504,7 @@
       },
       "summary": "Load A from DP:byte.",
       "effect_template": "A \u2190 M(DP:${imm8})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "A6": {
       "mnemonic": "LDA",
@@ -519,7 +519,7 @@
       },
       "summary": "Load A from indexed memory.",
       "effect_template": "A \u2190 M(${ea})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "B6": {
       "mnemonic": "LDA",
@@ -534,7 +534,7 @@
       },
       "summary": "Load A from extended address.",
       "effect_template": "A \u2190 M(${imm16})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "C6": {
       "mnemonic": "LDB",
@@ -549,7 +549,7 @@
       },
       "summary": "Load B immediate.",
       "effect_template": "B \u2190 #${imm8}",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "D6": {
       "mnemonic": "LDB",
@@ -564,7 +564,7 @@
       },
       "summary": "Load B from DP:byte.",
       "effect_template": "B \u2190 M(DP:${imm8})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "E6": {
       "mnemonic": "LDB",
@@ -579,7 +579,7 @@
       },
       "summary": "Load B from indexed memory.",
       "effect_template": "B \u2190 M(${ea})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "F6": {
       "mnemonic": "LDB",
@@ -594,7 +594,7 @@
       },
       "summary": "Load B from extended address.",
       "effect_template": "B \u2190 M(${imm16})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "CC": {
       "mnemonic": "LDD",
@@ -609,7 +609,7 @@
       },
       "summary": "Load D immediate (A:B).",
       "effect_template": "D \u2190 #${imm16}",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "DC": {
       "mnemonic": "LDD",
@@ -624,7 +624,7 @@
       },
       "summary": "Load D from DP:byte (word).",
       "effect_template": "D \u2190 M:M+1(DP:${imm8})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "EC": {
       "mnemonic": "LDD",
@@ -639,7 +639,7 @@
       },
       "summary": "Load D from indexed memory (word).",
       "effect_template": "D \u2190 M:M+1(${ea})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "FC": {
       "mnemonic": "LDD",
@@ -654,7 +654,7 @@
       },
       "summary": "Load D from extended address (word).",
       "effect_template": "D \u2190 M:M+1(${imm16})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "8E": {
       "mnemonic": "LDX",
@@ -669,7 +669,7 @@
       },
       "summary": "Load X immediate.",
       "effect_template": "X \u2190 #${imm16}",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "9E": {
       "mnemonic": "LDX",
@@ -684,7 +684,7 @@
       },
       "summary": "Load X from DP:byte.",
       "effect_template": "X \u2190 M:M+1(DP:${imm8})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "AE": {
       "mnemonic": "LDX",
@@ -699,7 +699,7 @@
       },
       "summary": "Load X from indexed memory.",
       "effect_template": "X \u2190 M:M+1(${ea})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "BE": {
       "mnemonic": "LDX",
@@ -714,7 +714,7 @@
       },
       "summary": "Load X from extended address.",
       "effect_template": "X \u2190 M:M+1(${imm16})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "97": {
       "mnemonic": "STA",
@@ -729,7 +729,7 @@
       },
       "summary": "Store A to DP:byte.",
       "effect_template": "M(DP:${imm8}) \u2190 A",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "A7": {
       "mnemonic": "STA",
@@ -744,7 +744,7 @@
       },
       "summary": "Store A to indexed memory.",
       "effect_template": "M(${ea}) \u2190 A",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "B7": {
       "mnemonic": "STA",
@@ -759,7 +759,7 @@
       },
       "summary": "Store A to extended address.",
       "effect_template": "M(${imm16}) \u2190 A",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "D7": {
       "mnemonic": "STB",
@@ -774,7 +774,7 @@
       },
       "summary": "Store B to DP:byte.",
       "effect_template": "M(DP:${imm8}) \u2190 B",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "E7": {
       "mnemonic": "STB",
@@ -789,7 +789,7 @@
       },
       "summary": "Store B to indexed memory.",
       "effect_template": "M(${ea}) \u2190 B",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "F7": {
       "mnemonic": "STB",
@@ -804,7 +804,7 @@
       },
       "summary": "Store B to extended address.",
       "effect_template": "M(${imm16}) \u2190 B",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "DD": {
       "mnemonic": "STD",
@@ -819,7 +819,7 @@
       },
       "summary": "Store D to DP:byte (word).",
       "effect_template": "M:M+1(DP:${imm8}) \u2190 D",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "ED": {
       "mnemonic": "STD",
@@ -834,7 +834,7 @@
       },
       "summary": "Store D to indexed memory (word).",
       "effect_template": "M:M+1(${ea}) \u2190 D",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "FD": {
       "mnemonic": "STD",
@@ -849,7 +849,7 @@
       },
       "summary": "Store D to extended address (word).",
       "effect_template": "M:M+1(${imm16}) \u2190 D",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "9F": {
       "mnemonic": "STX",
@@ -864,7 +864,7 @@
       },
       "summary": "Store X to DP:byte.",
       "effect_template": "M:M+1(DP:${imm8}) \u2190 X",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "AF": {
       "mnemonic": "STX",
@@ -879,7 +879,7 @@
       },
       "summary": "Store X to indexed memory.",
       "effect_template": "M:M+1(${ea}) \u2190 X",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "BF": {
       "mnemonic": "STX",
@@ -894,7 +894,7 @@
       },
       "summary": "Store X to extended address.",
       "effect_template": "M:M+1(${imm16}) \u2190 X",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "8C": {
       "mnemonic": "CMPX",
@@ -910,7 +910,7 @@
       },
       "summary": "Compare X with immediate. Subtracts without storing.",
       "effect_template": "(X - #${imm16})",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "9C": {
       "mnemonic": "CMPX",
@@ -926,7 +926,7 @@
       },
       "summary": "Compare X with DP word.",
       "effect_template": "(X - M:M+1(DP:${imm8}))",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "AC": {
       "mnemonic": "CMPX",
@@ -942,7 +942,7 @@
       },
       "summary": "Compare X with indexed word.",
       "effect_template": "(X - M:M+1(${ea}))",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "BC": {
       "mnemonic": "CMPX",
@@ -958,7 +958,7 @@
       },
       "summary": "Compare X with extended word.",
       "effect_template": "(X - M:M+1(${imm16}))",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     }
   },
   "page2": {
@@ -976,7 +976,7 @@
       },
       "summary": "Compare Y with immediate.",
       "effect_template": "(Y - #${imm16})",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "9C": {
       "mnemonic": "CMPY",
@@ -992,7 +992,7 @@
       },
       "summary": "Compare Y with DP word.",
       "effect_template": "(Y - M:M+1(DP:${imm8}))",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "AC": {
       "mnemonic": "CMPY",
@@ -1008,7 +1008,7 @@
       },
       "summary": "Compare Y with indexed word.",
       "effect_template": "(Y - M:M+1(${ea}))",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "BC": {
       "mnemonic": "CMPY",
@@ -1024,7 +1024,7 @@
       },
       "summary": "Compare Y with extended word.",
       "effect_template": "(Y - M:M+1(${imm16}))",
-      "wiki": "platform/6809.md#arith-bit-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "8E": {
       "mnemonic": "LDY",
@@ -1039,7 +1039,7 @@
       },
       "summary": "Load Y immediate.",
       "effect_template": "Y \u2190 #${imm16}",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "9E": {
       "mnemonic": "LDY",
@@ -1054,7 +1054,7 @@
       },
       "summary": "Load Y from DP word.",
       "effect_template": "Y \u2190 M:M+1(DP:${imm8})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "AE": {
       "mnemonic": "LDY",
@@ -1069,7 +1069,7 @@
       },
       "summary": "Load Y from indexed memory.",
       "effect_template": "Y \u2190 M:M+1(${ea})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "BE": {
       "mnemonic": "LDY",
@@ -1084,7 +1084,7 @@
       },
       "summary": "Load Y from extended address.",
       "effect_template": "Y \u2190 M:M+1(${imm16})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "CE": {
       "mnemonic": "LDS",
@@ -1099,7 +1099,7 @@
       },
       "summary": "Load S immediate.",
       "effect_template": "S \u2190 #${imm16}",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "DE": {
       "mnemonic": "LDS",
@@ -1114,7 +1114,7 @@
       },
       "summary": "Load S from DP word.",
       "effect_template": "S \u2190 M:M+1(DP:${imm8})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "EE": {
       "mnemonic": "LDS",
@@ -1129,7 +1129,7 @@
       },
       "summary": "Load S from indexed memory.",
       "effect_template": "S \u2190 M:M+1(${ea})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "FE": {
       "mnemonic": "LDS",
@@ -1144,7 +1144,7 @@
       },
       "summary": "Load S from extended address.",
       "effect_template": "S \u2190 M:M+1(${imm16})",
-      "wiki": "platform/6809.md#load-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "9F": {
       "mnemonic": "STY",
@@ -1159,7 +1159,7 @@
       },
       "summary": "Store Y to DP word.",
       "effect_template": "M:M+1(DP:${imm8}) \u2190 Y",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "AF": {
       "mnemonic": "STY",
@@ -1174,7 +1174,7 @@
       },
       "summary": "Store Y to indexed memory.",
       "effect_template": "M:M+1(${ea}) \u2190 Y",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     },
     "BF": {
       "mnemonic": "STY",
@@ -1189,7 +1189,7 @@
       },
       "summary": "Store Y to extended address.",
       "effect_template": "M:M+1(${imm16}) \u2190 Y",
-      "wiki": "platform/6809.md#store-ops"
+      "wiki": "internal/platform/6809.html"
     }
   },
   "page3": {}

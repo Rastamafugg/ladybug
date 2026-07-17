@@ -1,6 +1,6 @@
 """Phase 3 M4 verification probe for the XRoar -monitor stub.
 
-M4 scope (from wiki/implementation/xroar-monitor.md):
+M4 scope (from wiki/internal/implementation/xroar-monitor.html):
 
   - set_breakpoint / clear_breakpoint / list_breakpoints (exec)
   - step_instruction(n)

@@ -6,12 +6,12 @@ The shape is dictated by what `MonitorSession.read_gime_state` returns
 plus `mmu_task`, `mmuen`, `mc3`, `ty`, `coco` flags.
 
 WS-B v0 supports a single mode (320x192x16, CRES=10 HRES=111 VRES=00).
-`decode_mode` extracts the bit fields per wiki/platform/gime.md L20-22;
+`decode_mode` extracts the bit fields per wiki/release/reference/coco3/gime.html;
 unsupported modes still produce a populated `VideoMode` so the caller
 can report the rejection reason.
 
 The FB physical base is computed from $FF9D/$FF9E (bits Y18..Y3 of the
-hardware video-pointer per gime.md L25-26). The CPU's MMU/PAR state is
+hardware video-pointer per the GIME reference). The CPU's MMU/PAR state is
 irrelevant to this read — the video controller scans physical RAM, and
 so do we via the monitor's `space="physical"` path.
 """
@@ -97,7 +97,7 @@ def is_supported(mode: VideoMode) -> bool:
 def fb_phys_base(registers: dict) -> int:
     """Compute the GIME's hardware FB pointer from $FF9D + $FF9E.
 
-    Per gime.md: FF9D supplies Y18..Y11, FF9E supplies Y10..Y3 (8-byte
+    Per the GIME reference: FF9D supplies Y18..Y11, FF9E supplies Y10..Y3 (8-byte
     aligned). Result is a 19-bit physical address.
     """
     ff9d = registers.get("FF9D", 0)

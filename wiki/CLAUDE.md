@@ -27,7 +27,7 @@ wiki/
 │   ├── tooling/              — build workflow, lwtools, XRoar, web-app architecture
 │   ├── sources/              — one page per raw source under ../docs/
 │   └── backlog/              — open issues, deferred investigations
-└── release/                  — shipped with the web app as contextual help
+└── release/                  — stable public reference; independent of the deferred web app
     └── reference/
         ├── 6809/             — one HTML page per Motorola 6809 instruction
         ├── coco3/            — CoCo 3 memory map, GIME, modes, palette, MMU, IRQ, sound, input, timing
@@ -44,7 +44,7 @@ wiki/
 ## Internal vs. release — the audience split
 
 - **`internal/`** — anything for the team building Ladybug: design notes, decisions, lessons learned, runbooks, debugging notes, backlog. Not shipped.
-- **`release/`** — anything shipped with the application. Currently: hardware and assembly reference content used as contextual help in the web UI. Pages must be self-contained (the web app loads them as fragments) and reviewed for accuracy and tone.
+- **`release/`** — stable public hardware and assembly reference content. The deferred web app can load these pages as contextual-help fragments, but the reference remains canonical independently of that app. Pages must be self-contained and reviewed for accuracy and tone.
 
 **Dual-audience rule.** Content useful to both audiences lives in `release/` and is linked from `internal/`. Do **not** create a thin internal mirror just to provide a navigation hook — link directly to the release page from the internal index. Only create an internal page when there is genuine internal-only content (project-specific commentary, decisions, or work-in-progress); in that case, put the commentary in `internal/` and link out to the canonical release reference.
 
@@ -107,7 +107,7 @@ Each `release/reference/6809/{mnemonic}.html` follows this body shape:
 - Within the same directory: `<a href="other.html">`.
 - To the parent or a sibling directory: `<a href="../section/other.html">`.
 - Internal → release: `<a href="../../release/reference/coco3/gime.html">GIME</a>` (depth-dependent).
-- Release pages must be self-contained for use as web-app fragments — don't depend on the nav for comprehension.
+- Release pages must be self-contained for direct reading and optional use as web-app fragments — don't depend on the nav for comprehension.
 
 ## Workflows
 

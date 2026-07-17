@@ -15,14 +15,11 @@
   </nav>
   <main class="wiki-main">
     <header class="wiki-header">
-      <p class="wiki-eyebrow">Internal · backlog</p>
-      <h1>Phase 2.x main.s FB render regression <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-eyebrow">Internal · resolved investigation</p>
+      <h1>Phase 2.x main.s FB render regression — resolved <span class="wiki-badge">internal</span></h1>
       <p class="wiki-meta">
-        The full Phase 2.x boot path (MMU on, PARs loaded, cart self-copy)
-        produces an unintelligible red/green-or-pink/green tight-stripe
-        pattern instead of the 3-tile-on-black image lessons-learned claims
-        it produces. A minimal-MMU-off cart produces correct hi-res output,
-        so the bug is somewhere in the MMU / PAR / self-copy chain.
+        Resolved 2026-07-16. XRoar discarded cartridge-window writes and an
+        unfilled lwasm <code>ORG</code> gap shifted ROM data by 19 bytes.
       </p>
     </header>
 
@@ -95,7 +92,7 @@
     </section>
 
     <section>
-      <h2>Candidate causes (ordered by suspicion)</h2>
+      <h2>Historical candidate causes</h2>
       <ol>
         <li><strong>Cart self-copy is corrupting the FB or executing wrong code.</strong> The self-copy at <code>entry</code> runs while MMU is OFF, so <code>ldd ,x / std ,x</code> to <code>$C000-$FEFF</code> writes to phys <code>$07C000-$07FEFF</code>. The known XRoar 1.10 cart-window corruption at <code>$C0D9-$C0DB</code> has a workaround, but the workaround skips four bytes — if any branch / <code>LBSR</code> offset lands in that gap, control flow is destroyed.</li>
         <li><strong>MMU PAR setup or order has a hole.</strong> Current main.s sets <code>clr $FF91</code> (force exec PAR set) <strong>after</strong> the cart copy but <strong>before</strong> loading the par_table into <code>$FFA0-$FFA7</code>. If the PARs aren't reaching the executive bank, virtual <code>$2000</code> writes go to whatever RAM the (possibly uninitialised) PAR1 points at.</li>
@@ -105,7 +102,7 @@
     </section>
 
     <section>
-      <h2>Suggested investigation order</h2>
+      <h2>Historical investigation plan</h2>
       <ol>
         <li>Reproduce the noise pattern on commit <code>2593d36</code> (Phase 2.3 close). If 2.3 also shows noise, the regression has been latent the entire time.</li>
         <li>Bisect: from <code>diag_minimal.s</code> (works), add features one at a time until display breaks. Order: enable MMU → add PAR load → add cart self-copy → move FB to phys <code>$060000</code>. The breaking change is the bug.</li>
@@ -114,7 +111,7 @@
     </section>
 
     <section>
-      <h2>Done when</h2>
+      <h2>Acceptance evidence</h2>
       <ul>
         <li><code>./scripts/build.sh run</code> boots <code>main.s</code> and shows three clean tiles on a black background, in palette indices 0-3 under <code>-tv-input rgb</code>.</li>
         <li>Root cause is captured in <a href="../implementation/lessons-learned.html">lessons-learned</a>.</li>

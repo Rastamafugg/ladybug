@@ -1,6 +1,6 @@
 """Phase 3 M2 verification probe for the XRoar -monitor stub.
 
-M2 scope (from wiki/implementation/xroar-monitor.md):
+M2 scope (from wiki/internal/implementation/xroar-monitor.html):
 
   - read_memory / write_memory (CPU space)
   - read_registers / write_registers

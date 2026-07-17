@@ -4,7 +4,7 @@ A 6809 assembly-language port of the 1981 arcade game *Lady Bug* (Universal) for
 
 ## Where knowledge lives
 
-The project has an **LLM-maintained wiki at [wiki/](wiki/)** — read [wiki/index.md](wiki/index.md) first for the catalog. It is the source of truth for:
+The project has an **LLM-maintained, hand-authored HTML wiki at [wiki/](wiki/)** — read [wiki/index.html](wiki/index.html) first for the catalog. It is the source of truth for:
 
 - Game design (derived from arcade reference material under `docs/`)
 - Platform / technology (CoCo 3, 6809, GIME hardware, bare-metal memory map, timing, sound, input)
@@ -12,6 +12,13 @@ The project has an **LLM-maintained wiki at [wiki/](wiki/)** — read [wiki/inde
 - Raw source pointers (design docs, hardware reference manuals)
 
 **Always consult the wiki before answering or coding.** If a needed fact isn't there yet, read the raw source under `docs/` or `src/` and ingest the finding back into the wiki (see Wiki Maintenance below).
+
+## Current Development Workflow
+
+- Resume game work from the active phase in [wiki/internal/implementation/roadmap.html](wiki/internal/implementation/roadmap.html).
+- Build with `scripts/build.sh build`; use the [gdb-mcp round trip](wiki/internal/tooling/xroar.html#gdb-mcp-round-trip) to launch, inspect, and verify the ROM.
+- The `web/` app and patched XRoar `-monitor` stack are preserved but deferred. Do not extend them unless the user explicitly reactivates that work.
+- XRoar's `-monitor` endpoint is private JSON-RPC, not MCP. The missing outward MCP bridge and keyboard/control exposure are recorded in [wiki/internal/backlog/mcp-xroar-server.html](wiki/internal/backlog/mcp-xroar-server.html).
 
 ## Roles & Routing
 
@@ -27,11 +34,11 @@ Do not begin coding until `project-management` has run. Each role skill contains
 
 ## Wiki Maintenance
 
-Keeping the wiki current is part of doing work on this project — see [wiki/AGENTS.md](wiki/AGENTS.md) for the full schema and ingest/query/lint workflows. In brief:
+Keeping the wiki current is part of doing work on this project — see [wiki/CLAUDE.md](wiki/CLAUDE.md) for the full HTML schema and ingest/query/lint workflows. Do not create Markdown wiki pages. In brief:
 
-- **Ingest new source files as needed.** When a task reads a raw source not yet reflected in the wiki, update `wiki/sources/` and propagate to the pages it informs.
-- **Record new lessons learned.** Hardware quirks, GIME register gotchas, memory/packing constraints, timing findings → the relevant `wiki/platform/` or `wiki/implementation/` page.
+- **Ingest new source files as needed.** When a task reads a raw source not yet reflected in the wiki, update `wiki/internal/sources/` and propagate to the pages it informs.
+- **Record new lessons learned.** Hardware quirks, GIME register gotchas, memory/packing constraints, timing findings → the relevant `wiki/internal/platform/` or `wiki/internal/implementation/` HTML page.
 - **Record new plans and decisions.** Capture the decision AND its rationale (especially arcade-fidelity vs CoCo-3-adaptation choices, scope changes, workflow shifts).
-- **Update the index.** Any new page must be linked from [wiki/index.md](wiki/index.md).
-- **Append to the log.** Every ingest, substantive query, or lint pass gets a dated line in [wiki/log.md](wiki/log.md).
+- **Update the index.** Any new page must be linked from [wiki/internal/index.html](wiki/internal/index.html) or the appropriate section index.
+- **Append to the log.** Every ingest, substantive query, or lint pass gets a dated HTML section in [wiki/internal/log.html](wiki/internal/log.html).
 - **Prefer updating over creating.** Before adding a page, check whether the concept already has one.

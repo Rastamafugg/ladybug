@@ -11,11 +11,11 @@ Used when the task involves module boundaries, memory pressure, runtime ownershi
 
 - Sketch the design at the level of modules, data structures, ownership, and call/protocol boundaries.
 - Verify the design against the platform's hard constraints before proposing it. **Consult the wiki for the specifics:**
-  - 6809 assembler dialect and toolchain rules → [wiki/platform/toolchain.md](../../../wiki/platform/toolchain.md)
-  - Memory layout and budgets (CoCo 3 512K, bare-metal, no NitrOS-9) → [wiki/platform/memory.md](../../../wiki/platform/memory.md)
-  - GIME hardware (palette, MMU/PARs, video modes, IRQ) → [wiki/platform/gime.md](../../../wiki/platform/gime.md)
-  - Input / sound / timing → the corresponding pages under [wiki/platform/](../../../wiki/platform/)
-  - Prior observed findings → [wiki/implementation/lessons-learned.md](../../../wiki/implementation/lessons-learned.md)
+  - 6809 assembler dialect and toolchain rules → [wiki/internal/tooling/lwtools.html](../../../wiki/internal/tooling/lwtools.html)
+  - Memory layout and budgets (CoCo 3 512K, bare-metal, no NitrOS-9) → [wiki/internal/implementation/memory-map.html](../../../wiki/internal/implementation/memory-map.html)
+  - GIME hardware (palette, MMU/PARs, video modes, IRQ) → [wiki/release/reference/coco3/gime.html](../../../wiki/release/reference/coco3/gime.html)
+  - Input / sound / timing → the corresponding HTML pages under `wiki/release/reference/coco3/` and `wiki/internal/platform/`
+  - Prior observed findings → [wiki/internal/implementation/lessons-learned.html](../../../wiki/internal/implementation/lessons-learned.html)
 - Prefer hardware-reference-confirmed interfaces over speculation. The wiki's platform pages cite the authoritative sections of the GIME and 6809 reference docs.
 
 ## Guardrails
@@ -30,4 +30,4 @@ After implementation, finish in `qa-reviewer`.
 
 ## Wiki
 
-Record new architectural decisions (with rationale) in the appropriate `wiki/implementation/` page, and new platform findings in `wiki/platform/`. Append to `wiki/log.md`.
+Record new architectural decisions (with rationale) in the appropriate `wiki/internal/implementation/` HTML page, and new platform findings in `wiki/internal/platform/` or `wiki/release/reference/coco3/`. Append to `wiki/internal/log.html`.

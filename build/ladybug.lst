@@ -237,92 +237,94 @@ C0DD 20FD             (adybug/src/main.s):00229                 bra     mainloop
                       (adybug/src/main.s):00236         ;==============================================================================
 C0DF                  (adybug/src/main.s):00237         blit_tile
                       (adybug/src/main.s):00238                 ; ldd ,y++ clobbers B, so use a Y-vs-sentinel loop instead of decb.
-                      (adybug/src/main.s):00239                 ; See lessons-learned.md §"LDD ,Y++ clobbers B".
-C0DF 33A820           (adybug/src/main.s):00240                 leau    32,y            ; sentinel = end of tile data
-C0E2 3440             (adybug/src/main.s):00241                 pshs    u
-C0E4 ECA1             (adybug/src/main.s):00242         btrow   ldd     ,y++
-C0E6 ED81             (adybug/src/main.s):00243                 std     ,x++
-C0E8 ECA1             (adybug/src/main.s):00244                 ldd     ,y++
-C0EA ED81             (adybug/src/main.s):00245                 std     ,x++
-C0EC 3089009C         (adybug/src/main.s):00246                 leax    156,x           ; advance to next FB row, same column
-C0F0 10ACE4           (adybug/src/main.s):00247                 cmpy    ,s
-C0F3 25EF             (adybug/src/main.s):00248                 blo     btrow
-C0F5 3262             (adybug/src/main.s):00249                 leas    2,s
-C0F7 39               (adybug/src/main.s):00250                 rts
-                      (adybug/src/main.s):00251         
-                      (adybug/src/main.s):00252         ;==============================================================================
-                      (adybug/src/main.s):00253         ; irq_handler — Vbord (60 Hz)
-                      (adybug/src/main.s):00254         ;==============================================================================
-C0F8                  (adybug/src/main.s):00255         irq_handler
-C0F8 B6FF92           (adybug/src/main.s):00256                 lda     GIME_IRQEN
-C0FB 0C03             (adybug/src/main.s):00257                 inc     FRAMES+1
-C0FD 2602             (adybug/src/main.s):00258                 bne     irq_done
-C0FF 0C02             (adybug/src/main.s):00259                 inc     FRAMES
-C101                  (adybug/src/main.s):00260         irq_done
-C101 3B               (adybug/src/main.s):00261                 rti
-                      (adybug/src/main.s):00262         
-                      (adybug/src/main.s):00263         ;==============================================================================
-                      (adybug/src/main.s):00264         ; Data tables (read directly from cartridge ROM)
-                      (adybug/src/main.s):00265         ;==============================================================================
-                      (adybug/src/main.s):00266         
-                      (adybug/src/main.s):00267         ;-- PAR values for executive set (PAR0..PAR7) ---------------------------------
-C102                  (adybug/src/main.s):00268         par_table
-C102 3830313233343E3F (adybug/src/main.s):00269                 fcb     $38,$30,$31,$32,$33,$34,$3E,$3F
-                      (adybug/src/main.s):00270         
-                      (adybug/src/main.s):00271         ;-- Palette: 16 entries, GIME 6-bit codes (RGB-monitor empirical). -----------
-                      (adybug/src/main.s):00272         ;   Tuned for XRoar `-tv-input rgb` and real CoCo 3 RGB-monitor hardware.
-                      (adybug/src/main.s):00273         ;   Indices 0-3 form the sub-palette for the Phase 2.4 test tile:
-                      (adybug/src/main.s):00274         ;     0 black, 1 yellow, 2 blue, 3 white.
-                      (adybug/src/main.s):00275         ;   Under RGB the canonical "bright" set is the high 3 bits (R'=$20,
-                      (adybug/src/main.s):00276         ;   G'=$10, B'=$08) and full white is $3F (all 6 bits set); the upper-3-only
-                      (adybug/src/main.s):00277         ;   $38 reads as light grey, not white. See lessons-learned.md
-                      (adybug/src/main.s):00278         ;   §"XRoar RGB monitor palette mapping" for the full 6-bit→colour table.
-C10A                  (adybug/src/main.s):00279         palette_table
-C10A 00               (adybug/src/main.s):00280                 fcb     $00             ; 0  black                R'G'B' rgb = 000 000
-C10B 30               (adybug/src/main.s):00281                 fcb     $30             ; 1  bright yellow        R'G'      = 110 000
-C10C 08               (adybug/src/main.s):00282                 fcb     $08             ; 2  bright blue          B'        = 001 000
-C10D 3F               (adybug/src/main.s):00283                 fcb     $3F             ; 3  full white           all bits  = 111 111
-C10E 20               (adybug/src/main.s):00284                 fcb     $20             ; 4  bright red           R'        = 100 000
-C10F 10               (adybug/src/main.s):00285                 fcb     $10             ; 5  bright green         G'        = 010 000
-C110 18               (adybug/src/main.s):00286                 fcb     $18             ; 6  bright cyan          G'B'      = 011 000
-C111 28               (adybug/src/main.s):00287                 fcb     $28             ; 7  bright magenta       R'B'      = 101 000
-C112 38               (adybug/src/main.s):00288                 fcb     $38             ; 8  light grey           R'G'B'    = 111 000
-C113 04               (adybug/src/main.s):00289                 fcb     $04             ; 9  dim red              R         = 000 100
-C114 02               (adybug/src/main.s):00290                 fcb     $02             ; 10 dim green            G         = 000 010
-C115 01               (adybug/src/main.s):00291                 fcb     $01             ; 11 dim blue             B         = 000 001
-C116 06               (adybug/src/main.s):00292                 fcb     $06             ; 12 dim yellow           RG        = 000 110
-C117 03               (adybug/src/main.s):00293                 fcb     $03             ; 13 dim cyan             GB        = 000 011
-C118 05               (adybug/src/main.s):00294                 fcb     $05             ; 14 dim magenta          RB        = 000 101
-C119 07               (adybug/src/main.s):00295                 fcb     $07             ; 15 dark grey            RGB       = 000 111
-                      (adybug/src/main.s):00296         
-                      (adybug/src/main.s):00297         ;-- Test tile: arcade chars.json[432] (dense, uses all four pixvals). --------
-                      (adybug/src/main.s):00298         ;   Hand-converted from 8x8 2bpp pixval grid to 4bpp GIME packing
-                      (adybug/src/main.s):00299         ;   (2 px/byte, hi-nibble = leftmost px). Pixval N maps directly to
-                      (adybug/src/main.s):00300         ;   palette idx N — chosen because every idx 0/1/2/3 appears in the tile,
-                      (adybug/src/main.s):00301         ;   so a wrong palette entry is immediately obvious.
-                      (adybug/src/main.s):00302         ;
-                      (adybug/src/main.s):00303         ;   Source pixval rows (from chars.json[432]):
-                      (adybug/src/main.s):00304         ;     3,3,3,3,3,1,3,3
-                      (adybug/src/main.s):00305         ;     3,3,3,1,1,1,3,3
-                      (adybug/src/main.s):00306         ;     3,3,1,1,1,1,1,0
-                      (adybug/src/main.s):00307         ;     3,3,1,1,1,1,1,2
-                      (adybug/src/main.s):00308         ;     3,3,1,1,1,1,1,2
-                      (adybug/src/main.s):00309         ;     3,1,1,1,1,1,2,2
-                      (adybug/src/main.s):00310         ;     3,1,1,1,3,1,2,0
-                      (adybug/src/main.s):00311         ;     3,1,1,3,1,1,2,2
-C11A                  (adybug/src/main.s):00312         tile_data
-                      (adybug/src/main.s):00313                 ; arcade chars.json[432], 8×8 2bpp pixvals packed to 4bpp (hi nibble = left px).
-                      (adybug/src/main.s):00314                 ; Pixval→palette idx is identity: 0=black, 1=yellow, 2=blue, 3=white.
-C11A 33333133         (adybug/src/main.s):00315                 fcb     $33,$33,$31,$33     ; row 0:  3 3 3 3 3 1 3 3
-C11E 33311133         (adybug/src/main.s):00316                 fcb     $33,$31,$11,$33     ; row 1:  3 3 3 1 1 1 3 3
-C122 33111110         (adybug/src/main.s):00317                 fcb     $33,$11,$11,$10     ; row 2:  3 3 1 1 1 1 1 0
-C126 33111112         (adybug/src/main.s):00318                 fcb     $33,$11,$11,$12     ; row 3:  3 3 1 1 1 1 1 2
-C12A 33111112         (adybug/src/main.s):00319                 fcb     $33,$11,$11,$12     ; row 4:  3 3 1 1 1 1 1 2
-C12E 31111122         (adybug/src/main.s):00320                 fcb     $31,$11,$11,$22     ; row 5:  3 1 1 1 1 1 2 2
-C132 31113120         (adybug/src/main.s):00321                 fcb     $31,$11,$31,$20     ; row 6:  3 1 1 1 3 1 2 0
-C136 31131122         (adybug/src/main.s):00322                 fcb     $31,$13,$11,$22     ; row 7:  3 1 1 3 1 1 2 2
-                      (adybug/src/main.s):00323         
-                      (adybug/src/main.s):00324                 end
+                      (adybug/src/main.s):00239                 ; See wiki/internal/implementation/lessons-learned.html
+                      (adybug/src/main.s):00240                 ; §"LDD ,Y++ clobbers B".
+C0DF 33A820           (adybug/src/main.s):00241                 leau    32,y            ; sentinel = end of tile data
+C0E2 3440             (adybug/src/main.s):00242                 pshs    u
+C0E4 ECA1             (adybug/src/main.s):00243         btrow   ldd     ,y++
+C0E6 ED81             (adybug/src/main.s):00244                 std     ,x++
+C0E8 ECA1             (adybug/src/main.s):00245                 ldd     ,y++
+C0EA ED81             (adybug/src/main.s):00246                 std     ,x++
+C0EC 3089009C         (adybug/src/main.s):00247                 leax    156,x           ; advance to next FB row, same column
+C0F0 10ACE4           (adybug/src/main.s):00248                 cmpy    ,s
+C0F3 25EF             (adybug/src/main.s):00249                 blo     btrow
+C0F5 3262             (adybug/src/main.s):00250                 leas    2,s
+C0F7 39               (adybug/src/main.s):00251                 rts
+                      (adybug/src/main.s):00252         
+                      (adybug/src/main.s):00253         ;==============================================================================
+                      (adybug/src/main.s):00254         ; irq_handler — Vbord (60 Hz)
+                      (adybug/src/main.s):00255         ;==============================================================================
+C0F8                  (adybug/src/main.s):00256         irq_handler
+C0F8 B6FF92           (adybug/src/main.s):00257                 lda     GIME_IRQEN
+C0FB 0C03             (adybug/src/main.s):00258                 inc     FRAMES+1
+C0FD 2602             (adybug/src/main.s):00259                 bne     irq_done
+C0FF 0C02             (adybug/src/main.s):00260                 inc     FRAMES
+C101                  (adybug/src/main.s):00261         irq_done
+C101 3B               (adybug/src/main.s):00262                 rti
+                      (adybug/src/main.s):00263         
+                      (adybug/src/main.s):00264         ;==============================================================================
+                      (adybug/src/main.s):00265         ; Data tables (read directly from cartridge ROM)
+                      (adybug/src/main.s):00266         ;==============================================================================
+                      (adybug/src/main.s):00267         
+                      (adybug/src/main.s):00268         ;-- PAR values for executive set (PAR0..PAR7) ---------------------------------
+C102                  (adybug/src/main.s):00269         par_table
+C102 3830313233343E3F (adybug/src/main.s):00270                 fcb     $38,$30,$31,$32,$33,$34,$3E,$3F
+                      (adybug/src/main.s):00271         
+                      (adybug/src/main.s):00272         ;-- Palette: 16 entries, GIME 6-bit codes (RGB-monitor empirical). -----------
+                      (adybug/src/main.s):00273         ;   Tuned for XRoar `-tv-input rgb` and real CoCo 3 RGB-monitor hardware.
+                      (adybug/src/main.s):00274         ;   Indices 0-3 form the sub-palette for the Phase 2.4 test tile:
+                      (adybug/src/main.s):00275         ;     0 black, 1 yellow, 2 blue, 3 white.
+                      (adybug/src/main.s):00276         ;   Under RGB the canonical "bright" set is the high 3 bits (R'=$20,
+                      (adybug/src/main.s):00277         ;   G'=$10, B'=$08) and full white is $3F (all 6 bits set); the upper-3-only
+                      (adybug/src/main.s):00278         ;   $38 reads as light grey, not white. See
+                      (adybug/src/main.s):00279         ;   wiki/internal/implementation/lessons-learned.html
+                      (adybug/src/main.s):00280         ;   §"XRoar RGB monitor palette mapping" for the full 6-bit→colour table.
+C10A                  (adybug/src/main.s):00281         palette_table
+C10A 00               (adybug/src/main.s):00282                 fcb     $00             ; 0  black                R'G'B' rgb = 000 000
+C10B 30               (adybug/src/main.s):00283                 fcb     $30             ; 1  bright yellow        R'G'      = 110 000
+C10C 08               (adybug/src/main.s):00284                 fcb     $08             ; 2  bright blue          B'        = 001 000
+C10D 3F               (adybug/src/main.s):00285                 fcb     $3F             ; 3  full white           all bits  = 111 111
+C10E 20               (adybug/src/main.s):00286                 fcb     $20             ; 4  bright red           R'        = 100 000
+C10F 10               (adybug/src/main.s):00287                 fcb     $10             ; 5  bright green         G'        = 010 000
+C110 18               (adybug/src/main.s):00288                 fcb     $18             ; 6  bright cyan          G'B'      = 011 000
+C111 28               (adybug/src/main.s):00289                 fcb     $28             ; 7  bright magenta       R'B'      = 101 000
+C112 38               (adybug/src/main.s):00290                 fcb     $38             ; 8  light grey           R'G'B'    = 111 000
+C113 04               (adybug/src/main.s):00291                 fcb     $04             ; 9  dim red              R         = 000 100
+C114 02               (adybug/src/main.s):00292                 fcb     $02             ; 10 dim green            G         = 000 010
+C115 01               (adybug/src/main.s):00293                 fcb     $01             ; 11 dim blue             B         = 000 001
+C116 06               (adybug/src/main.s):00294                 fcb     $06             ; 12 dim yellow           RG        = 000 110
+C117 03               (adybug/src/main.s):00295                 fcb     $03             ; 13 dim cyan             GB        = 000 011
+C118 05               (adybug/src/main.s):00296                 fcb     $05             ; 14 dim magenta          RB        = 000 101
+C119 07               (adybug/src/main.s):00297                 fcb     $07             ; 15 dark grey            RGB       = 000 111
+                      (adybug/src/main.s):00298         
+                      (adybug/src/main.s):00299         ;-- Test tile: arcade chars.json[432] (dense, uses all four pixvals). --------
+                      (adybug/src/main.s):00300         ;   Hand-converted from 8x8 2bpp pixval grid to 4bpp GIME packing
+                      (adybug/src/main.s):00301         ;   (2 px/byte, hi-nibble = leftmost px). Pixval N maps directly to
+                      (adybug/src/main.s):00302         ;   palette idx N — chosen because every idx 0/1/2/3 appears in the tile,
+                      (adybug/src/main.s):00303         ;   so a wrong palette entry is immediately obvious.
+                      (adybug/src/main.s):00304         ;
+                      (adybug/src/main.s):00305         ;   Source pixval rows (from chars.json[432]):
+                      (adybug/src/main.s):00306         ;     3,3,3,3,3,1,3,3
+                      (adybug/src/main.s):00307         ;     3,3,3,1,1,1,3,3
+                      (adybug/src/main.s):00308         ;     3,3,1,1,1,1,1,0
+                      (adybug/src/main.s):00309         ;     3,3,1,1,1,1,1,2
+                      (adybug/src/main.s):00310         ;     3,3,1,1,1,1,1,2
+                      (adybug/src/main.s):00311         ;     3,1,1,1,1,1,2,2
+                      (adybug/src/main.s):00312         ;     3,1,1,1,3,1,2,0
+                      (adybug/src/main.s):00313         ;     3,1,1,3,1,1,2,2
+C11A                  (adybug/src/main.s):00314         tile_data
+                      (adybug/src/main.s):00315                 ; arcade chars.json[432], 8×8 2bpp pixvals packed to 4bpp (hi nibble = left px).
+                      (adybug/src/main.s):00316                 ; Pixval→palette idx is identity: 0=black, 1=yellow, 2=blue, 3=white.
+C11A 33333133         (adybug/src/main.s):00317                 fcb     $33,$33,$31,$33     ; row 0:  3 3 3 3 3 1 3 3
+C11E 33311133         (adybug/src/main.s):00318                 fcb     $33,$31,$11,$33     ; row 1:  3 3 3 1 1 1 3 3
+C122 33111110         (adybug/src/main.s):00319                 fcb     $33,$11,$11,$10     ; row 2:  3 3 1 1 1 1 1 0
+C126 33111112         (adybug/src/main.s):00320                 fcb     $33,$11,$11,$12     ; row 3:  3 3 1 1 1 1 1 2
+C12A 33111112         (adybug/src/main.s):00321                 fcb     $33,$11,$11,$12     ; row 4:  3 3 1 1 1 1 1 2
+C12E 31111122         (adybug/src/main.s):00322                 fcb     $31,$11,$11,$22     ; row 5:  3 1 1 1 1 1 2 2
+C132 31113120         (adybug/src/main.s):00323                 fcb     $31,$11,$31,$20     ; row 6:  3 1 1 1 3 1 2 0
+C136 31131122         (adybug/src/main.s):00324                 fcb     $31,$13,$11,$22     ; row 7:  3 1 1 3 1 1 2 2
+                      (adybug/src/main.s):00325         
+                      (adybug/src/main.s):00326                 end
 
 Symbol Table:
 [ G] blit_tile                        C0DF

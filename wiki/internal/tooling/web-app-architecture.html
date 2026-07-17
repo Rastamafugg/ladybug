@@ -19,13 +19,19 @@
       <h1>web/ retro-dev app architecture <span class="wiki-badge">internal</span></h1>
       <p class="wiki-meta">
         Module split + data-layer conventions for the locally-hosted
-        retro-dev web UI. v2 scope — extends
+        retro-dev web UI. Preserved design for deferred tooling — extends
         <a href="../backlog/retro-dev-web-app.html">backlog/retro-dev-web-app</a>
         (which captured the MVP).
       </p>
     </header>
 
     <section>
+      <p>
+        <strong>Status 2026-07-16: deferred.</strong> Preserve the code and
+        documentation, but do not extend this app during normal game work.
+        The active verification loop is gdb-mcp. A real outward MCP server
+        and end-to-end <code>inject_text</code> exposure were not implemented.
+      </p>
       <p>
         v2 design: instruction annotation, register/region/symbol wiki
         surfaces, persistent configs as <code>web/configs/*.json</code>
@@ -128,7 +134,7 @@
     "cc": {"N": "bit7(result)", "Z": "result==0", "V": "0"},
     "summary": "Load A from immediate byte",
     "effect_template": "A ← #${imm8}",
-    "wiki": "platform/6809.md"
+    "wiki": "internal/platform/6809.html"
   }
 }
 </code></pre>
@@ -161,10 +167,10 @@
 <pre><code>[
   {"lo": "0x0200", "hi": "0x02FF", "name": "DP page",
    "summary": "Direct-page hot variables. FRAMES at $0202.",
-   "wiki": "implementation/memory-map.md#direct-page-allocation"},
+   "wiki": "internal/implementation/memory-map.html"},
   {"lo": "0xC000", "hi": "0xFDFF", "name": "Cart window",
    "summary": "Cart ROM virtual mapping. On XRoar 1.10 always cart-backed; on hardware switches to RAM at phys $3E-$3F post-self-copy.",
-   "wiki": "implementation/memory-map.md#phase-2-mapping-current-target"}
+   "wiki": "internal/implementation/memory-map.html"}
 ]
 </code></pre>
 

@@ -1,6 +1,6 @@
 """Phase 3 M3 verification probe for the XRoar -monitor stub.
 
-M3 scope (from wiki/implementation/xroar-monitor.md):
+M3 scope (from wiki/internal/implementation/xroar-monitor.html):
 
   - read_gime_state: shadow-backed $FF90-$FF9F + PARs + palette + key flags
   - read_memory / write_memory: space="physical" (flat 19-bit address)

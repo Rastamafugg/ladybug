@@ -75,8 +75,8 @@
     </section>
 
     <section id="gdb-mcp-round-trip">
-      <h2>GDB-MCP round trip</h2>
-      <p>Use this workflow when Codex needs to inspect the live cartridge through the <code>gdb-mcp</code> MCP server.</p>
+      <h2>GDB-MCP round trip — active workflow</h2>
+      <p>Use this workflow for automated Ladybug execution checks. The web app and private XRoar monitor are deferred.</p>
 
       <h3>1. Build the cartridge</h3>
 <pre><code>cd /mnt/d/retro/ladybug
@@ -175,8 +175,10 @@ target remote :65520
       <p>
         Concrete inspection of GIME state is the largest current gap; if
         it becomes a blocker, see <a href="../backlog/mcp-xroar-server.html">backlog/mcp-xroar-server</a>
-        for the build-our-own-server option (now realised as
-        <a href="../implementation/xroar-monitor.html">xroar-monitor</a>).
+        for the implemented private monitor and the still-missing outward MCP
+        bridge. Both are deferred; see
+        <a href="../implementation/xroar-monitor.html">xroar-monitor</a> and
+        <a href="../backlog/mcp-xroar-server.html">MCP bridge backlog</a>.
       </p>
 
       <h3>Reverse execution / <code>record full</code> — not viable on this stack</h3>

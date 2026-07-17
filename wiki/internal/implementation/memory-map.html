@@ -31,7 +31,7 @@
         <li><strong>64 physical pages</strong> of RAM on a 512 K machine, numbered <code>$00-$3F</code>. RAM is populated top-down — <code>$3F</code> is highest.</li>
         <li><strong>Framebuffer</strong> = 30 720 bytes = 4 pages (3.75 actually used). GIME reads it via physical address, bypassing the MMU.</li>
         <li><strong>Code</strong> lives and executes directly from cart ROM at virtual <code>$C000-$DFFF</code>. The current build keeps TY=0 and maps PAR6 to <code>$3E</code>; the former shadow-RAM self-copy/all-RAM transition was removed 2026-07-16.</li>
-        <li><strong>Cart data tables</strong> (lower 16 K of the 32 K cart) live at virtual <code>$8000-$BFFF</code> in 32 K cart mode. After self-copy + all-RAM, they're RAM at phys <code>$3C-$3D</code>.</li>
+        <li><strong>Cart data tables</strong> currently share the 16 K cartridge image with code. A 32 K or bank-switched layout is deferred until measured capacity requires it.</li>
         <li><strong><code>$FF00-$FFFF</code> is dedicated I/O</strong>, not cart-visible. <strong><code>$FE00-$FEFF</code> is forced</strong> to phys <code>$3F</code> regardless of PAR7 when Init0 b3 is set — the primary jump table stays reachable.</li>
       </ul>
     </section>
@@ -45,8 +45,8 @@
           <tr><td>Low RAM (system, DP, stack, scratch)</td><td>1</td><td>Always-on; DP at <code>$0200</code>, stack near <code>$1FFE</code>.</td></tr>
           <tr><td>Framebuffer</td><td>4</td><td>Need CPU write access while drawing. Could be 1 with a sliding window, but per-blit PAR juggling adds renderer cost.</td></tr>
           <tr><td>Game-state RAM</td><td>1</td><td>Entity tables, score, frame counters, input state — Phase 4+ stuff that doesn't fit in low RAM.</td></tr>
-          <tr><td>Data tables (sprites, tiles, font, maze, palette)</td><td>1-2</td><td>16 K of cart data ends up here.</td></tr>
-          <tr><td>Code</td><td>1-2</td><td>16 K of cart code ends up here.</td></tr>
+          <tr><td>Data tables (sprites, tiles, font, maze, palette)</td><td>1-2</td><td>Future RAM-resident or banked design; current tables remain in cart ROM.</td></tr>
+          <tr><td>Code</td><td>1-2</td><td>Future copied-code design; current code executes from cart ROM.</td></tr>
           <tr><td><strong>Total wanted</strong></td><td><strong>8-10</strong></td><td></td></tr>
         </tbody>
       </table>
@@ -66,8 +66,10 @@ $4000-$5FFF      2    $31   8 K    Framebuffer page 1
 $6000-$7FFF      3    $32   8 K    Framebuffer page 2
 $8000-$9FFF      4    $33   8 K    Framebuffer page 3
 $A000-$BFFF      5    $34   8 K    Reserved — game state from Phase 4+
-$C000-$DFFF      6    $3E   8 K    Code (lower half)
-$E000-$FFFF      7    $3F   8 K    Code (upper half) + jump table at $FE00 + I/O at $FF00
+$C000-$DFFF      6    $3E   8 K    Active cartridge code window
+$E000-$FDFF      7    $3F   —      Cart-visible; reserved for data, not active code
+$FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
+$FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
 </code></pre>
       <p>
         GIME <code>$FF9D/$FF9E</code> (vertical-offset) points at physical
@@ -103,8 +105,8 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
       <p>
         If 16 K becomes insufficient, expansion options are documented in
         <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>.
-        The pivot is local to the boot data-copy step below — runtime is
-        unaffected because it runs from RAM.
+        Expansion requires an explicit bank-switch or copy design because the
+        current runtime executes directly from cartridge ROM.
       </p>
     </section>
 

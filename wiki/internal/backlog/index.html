@@ -20,35 +20,41 @@
     </header>
 
     <section>
-      <h2>Pages</h2>
+      <h2>Deferred work</h2>
       <ul class="wiki-cards">
-        <li>
-          <a href="./cart-ram-corruption.html">Cart RAM corruption</a>
-          <p class="card-meta">Four-pass gdb-mcp investigation into XRoar's cart-window write decode.</p>
-        </li>
         <li>
           <a href="./mame-cart-ram-comparison.html">MAME cart-RAM comparison</a>
           <p class="card-meta">Cross-check XRoar's cart-window behavior against MAME before Phase 10.</p>
         </li>
         <li>
           <a href="./mcp-xroar-server.html">MCP XRoar server</a>
-          <p class="card-meta">Larger XRoar-patching effort for richer LLM tool integration.</p>
-        </li>
-        <li>
-          <a href="./phase2-fb-render-regression.html">Phase 2 FB render regression</a>
-          <p class="card-meta">Existing main.s pipeline renders FB as noise grid — bug in MMU/PAR/cart-self-copy chain.</p>
+          <p class="card-meta">Deferred outward MCP bridge for the implemented XRoar monitor, including keyboard injection and monitor controls.</p>
         </li>
         <li>
           <a href="./retro-dev-web-app.html">Retro-dev web app</a>
-          <p class="card-meta">Browser-based unified dev environment wrapping the build/run/debug stack.</p>
-        </li>
-        <li>
-          <a href="./rgb-tv-input-palette.html">RGB tv-input + palette rebuild</a>
-          <p class="card-meta">Switch XRoar to RGB, re-derive empirical 6-bit palette table.</p>
+          <p class="card-meta">Implemented browser-based development environment, tabled while game work resumes through gdb-mcp.</p>
         </li>
         <li>
           <a href="./xroar-load-gdb-patch.html">XRoar -load +gdb patch</a>
           <p class="card-meta">One-line SO_REUSEADDR fix to make snapshot-load + gdb work.</p>
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Resolved investigations</h2>
+      <ul class="wiki-cards">
+        <li>
+          <a href="./phase2-fb-render-regression.html">Phase 2 FB render regression</a>
+          <p class="card-meta">Resolved 2026-07-16: cartridge-window writes and a raw-output ORG gap caused the corrupt display.</p>
+        </li>
+        <li>
+          <a href="./cart-ram-corruption.html">Cart RAM corruption</a>
+          <p class="card-meta">Historical gdb-mcp investigation that led to the cartridge execution fix.</p>
+        </li>
+        <li>
+          <a href="./rgb-tv-input-palette.html">RGB tv-input + palette rebuild</a>
+          <p class="card-meta">Completed RGB-mode palette derivation and canonical XRoar launch setting.</p>
         </li>
       </ul>
     </section>

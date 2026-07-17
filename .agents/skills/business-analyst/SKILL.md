@@ -27,4 +27,4 @@ After implementation, finish in `qa-reviewer`.
 
 ## Wiki
 
-When the user picks between competing options for arcade-fidelity vs CoCo-3 adaptation, or commits to a new scope, capture the decision AND its rationale in the relevant `wiki/game/` or `wiki/implementation/` page and append to `wiki/log.md`.
+When the user picks between competing options for arcade-fidelity vs CoCo-3 adaptation, or commits to a new scope, capture the decision AND its rationale in the relevant `wiki/internal/game/` or `wiki/internal/implementation/` HTML page and append to `wiki/internal/log.html`.

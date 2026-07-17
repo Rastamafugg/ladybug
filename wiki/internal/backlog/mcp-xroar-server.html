@@ -15,14 +15,30 @@
   </nav>
   <main class="wiki-main">
     <header class="wiki-header">
-      <p class="wiki-eyebrow">Internal · backlog · superseded</p>
-      <h1>Build a purpose-built <code>mcp-xroar</code> server <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-eyebrow">Internal · backlog · deferred</p>
+      <h1>Expose XRoar monitor controls through MCP <span class="wiki-badge">internal</span></h1>
       <p class="wiki-meta">
-        Cost/benefit of replacing gdb-mcp + m6809-gdb + XRoar GDB stub with
-        a direct XRoar control plane. <strong>Superseded</strong> by
-        <a href="../implementation/xroar-monitor.html">xroar-monitor</a>.
+        The private XRoar monitor exists, but the outward MCP bridge and
+        end-to-end keyboard/control exposure remain deferred.
       </p>
     </header>
+
+    <section>
+      <h2>Current state and missing work — 2026-07-16</h2>
+      <ul>
+        <li><strong>Implemented:</strong> patched XRoar provides private line-delimited JSON-RPC for run, pause, instruction step, reset, memory/register access, breakpoints, watchpoints, events, GIME state, and <code>inject_text</code>.</li>
+        <li><strong>Implemented:</strong> the web backend brokers a subset of monitor methods for its REST/WebSocket UI.</li>
+        <li><strong>Missing:</strong> no real MCP server, MCP transport, tool schemas, or agent configuration exposes the monitor outward.</li>
+        <li><strong>Missing:</strong> the web backend's <code>MonitorSession</code> and API do not expose <code>inject_text</code> or the complete watchpoint/event surface.</li>
+        <li><strong>Deferred deliverable:</strong> add an MCP-facing broker with instance lifecycle, run control, registers/memory, breakpoints/watchpoints, keyboard text injection, and integration tests. Decide whether it calls the web backend or connects to each monitor socket directly.</li>
+      </ul>
+      <p>
+        This work is not required for current Ladybug development. Use
+        <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>
+        until a game-testing scenario specifically requires automated keyboard
+        input or monitor-only state.
+      </p>
+    </section>
 
     <section>
       <h2>Why this might be worth doing</h2>

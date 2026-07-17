@@ -15,8 +15,8 @@
   </nav>
   <main class="wiki-main">
     <header class="wiki-header">
-      <p class="wiki-eyebrow">Implementation · plan</p>
-      <h1>XRoar <code>-monitor</code> port — Phase 1 requirements <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-eyebrow">Implementation · preserved · deferred</p>
+      <h1>XRoar <code>-monitor</code> port <span class="wiki-badge">internal</span></h1>
       <p class="wiki-meta">
         Custom JSON-RPC "monitor" server inside XRoar, replacing the gdb
         stub for our tooling. Eliminates the four documented gdb-stub
@@ -25,7 +25,13 @@
     </header>
 
     <section>
-      <p>Supersedes the deferred design sketch in <a href="../backlog/mcp-xroar-server.html">backlog/mcp-xroar-server</a>.</p>
+      <p>
+        Core monitor milestones M1–M6a are implemented. The monitor and web
+        integration are preserved but inactive while game development uses
+        <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>.
+        The outward MCP layer shown below was planned but never implemented;
+        see <a href="../backlog/mcp-xroar-server.html">the deferred MCP bridge</a>.
+      </p>
     </section>
 
     <section>
@@ -38,10 +44,10 @@
 </code></pre>
       <p>
         The XRoar side speaks a project-private JSON-RPC "monitor protocol".
-        The web backend owns the session registry and brokers commands; it
-        is the component that speaks real-spec MCP outward. XRoar is not
-        MCP-aware. The name <code>-monitor</code> (not <code>-mcp</code>)
-        reflects this.
+        XRoar is not MCP-aware. It implements only the private monitor
+        protocol. The web backend owns the session registry and brokers UI
+        commands, but the planned real-spec MCP-facing layer was not built.
+        The name <code>-monitor</code> reflects this boundary.
       </p>
     </section>
 

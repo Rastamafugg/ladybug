@@ -12,8 +12,8 @@ Used when the task begins from a reported error, unexpected runtime behavior, fa
 - Collect the **observed facts**: exact error, exact output, exact steps, exact files/modules involved.
 - Distinguish observation from inference. Do not assume a cause without a test that discriminates between candidates.
 - **Check the wiki for known quirks before hypothesizing** — many CoCo 3 / 6809 / GIME / assembler-toolchain behaviors are already catalogued:
-  - [wiki/implementation/lessons-learned.md](../../../wiki/implementation/lessons-learned.md) — observed-fact findings
-  - [wiki/platform/](../../../wiki/platform/) — subsystem-specific pages (GIME, memory, timing, sound, input, toolchain)
+  - [wiki/internal/implementation/lessons-learned.html](../../../wiki/internal/implementation/lessons-learned.html) — observed-fact findings
+  - [wiki/internal/platform/](../../../wiki/internal/platform/) and [wiki/release/reference/coco3/](../../../wiki/release/reference/coco3/) — subsystem-specific HTML pages
 - Form a **discriminating test** before committing to a fix.
 
 ## Handoff rule
@@ -28,4 +28,4 @@ After the fix lands, finish in `qa-reviewer`.
 
 ## Wiki
 
-If the root cause is a platform quirk or gotcha not yet documented, record it in the relevant `wiki/platform/` page and/or `wiki/implementation/lessons-learned.md`. Append to `wiki/log.md`.
+If the root cause is a platform quirk or gotcha not yet documented, record it in the relevant HTML platform page and/or `wiki/internal/implementation/lessons-learned.html`. Append to `wiki/internal/log.html`.

@@ -1,6 +1,6 @@
 """Phase 3 M1 verification probe for the XRoar -monitor JSON-RPC stub.
 
-Verifies the M1 scope from wiki/implementation/xroar-monitor.md:
+Verifies the M1 scope from wiki/internal/implementation/xroar-monitor.html:
 
   1. Listener boots on the requested port.
   2. On client connect, a `hello` notification is delivered with

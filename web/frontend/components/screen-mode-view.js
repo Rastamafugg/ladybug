@@ -1,16 +1,16 @@
 // Screen Mode pane.
 //
 // The GIME video-mode regs ($FF98 VMODE, $FF99 VRES, $FF9D/$FF9E vertical
-// offset) are write-only per platform/gime.md, so we cannot read the live
+// offset) are write-only per wiki/release/reference/coco3/gime.html, so we cannot read the live
 // configuration from hardware. This pane shows the *design target* from
-// wiki/implementation/video-mode.md. When the codebase later maintains a
+// wiki/internal/implementation/video-mode.html. When the codebase later maintains a
 // software shadow of these regs at a known DP location, swap the static
 // data here for a fetch.
 
 import { store } from "/static/store.js";
 
 const DESIGN = {
-  vmode_hex: "0x80",          // BP=1 GR=1, other bits per video-mode.md TBD
+  vmode_hex: "0x80",          // BP=1 GR=1, other bits per video-mode.html TBD
   vres_hex:  "0x1E",          // VRES=00 HRES=111 CRES=10
   width: 320,
   height: 192,
@@ -19,7 +19,7 @@ const DESIGN = {
   kind: "graphics",           // graphics | text
   row_stride: 160,
   fb_bytes: 30720,
-  source: "wiki/implementation/video-mode.md",
+  source: "wiki/internal/implementation/video-mode.html",
 };
 
 class ScreenModeView extends HTMLElement {

@@ -1,7 +1,7 @@
 """Owns the single JSON-RPC client connection to one XRoar -monitor stub.
 
 Speaks XRoar's project-private monitor protocol (v0.6.x, plan in
-wiki/implementation/xroar-monitor.md). Line-delimited JSON-RPC 2.0 over TCP.
+wiki/internal/implementation/xroar-monitor.html). Line-delimited JSON-RPC 2.0 over TCP.
 
 The shape of this class intentionally mirrors the retired GdbSession so
 that callers (instance.py, main.py) need only swap the import and the

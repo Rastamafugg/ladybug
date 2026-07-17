@@ -104,7 +104,7 @@ def _ea_region_note(inst, ea: int, regs: Dict) -> Optional[str]:
         return None
     # Cart-window write — the documented XRoar 1.10 no-op.
     if inst.mnemonic in _WRITE_MNEMONICS and 0xC000 <= ea <= 0xFDFF:
-        return f"⚠ write to cart-window ($C000-$FDFF) is a no-op on XRoar 1.10 — see [tooling/xroar.md]."
+        return "⚠ write to cart-window ($C000-$FDFF) is a no-op on XRoar 1.10 — see wiki/internal/tooling/xroar.html."
     return f"EA in “{region['name']}” region."
 
 
