@@ -36,9 +36,11 @@
     <section>
       <h2>Overview</h2>
 <pre><code>assets/arcade/chars.json             (authoritative decoded arcade pixels)
+assets/arcade/maze_capture.json/bin  (authoritative MAME background capture)
    │
-   │  scripts/build_gfx.py --rotate ccw --char 21:glyph_l ...
+   │  scripts/derive_maze.py + scripts/build_gfx.py
    ▼
+build/ladybug_maze.inc               (semantic cells/navigation/gates)
 build/ladybug_gfx.inc                (selected generated palette/tile data)
    │
 src/*.s                              (hand-written 6809 assembly)
@@ -67,15 +69,17 @@ emulated CoCo 3      (real hardware: write ROM to a 16K EPROM, drop into cart sh
       <table class="wiki-table">
         <thead><tr><th>Command</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><code>scripts/build.sh build</code></td><td>Generate selected graphics, assemble, and pad. Output: <code>build/ladybug_gfx.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, <code>build/ladybug.map</code>.</td></tr>
+          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, generate selected graphics, assemble, and pad. Output includes <code>assets/arcade/maze.json</code>, <code>build/ladybug_maze.inc</code>, <code>build/ladybug_gfx.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, and <code>build/ladybug.map</code>.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch xroar with the canonical cart profile.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
       </table>
       <p>Source layout the script assumes:</p>
 <pre><code>assets/arcade/chars.json   (authoritative decoded character shapes)
+assets/arcade/maze_capture.json/bin (authoritative captured background)
 src/main.s                 (top of build, ORG $C000)
 scripts/build_gfx.py       (selected character/palette generator)
+scripts/derive_maze.py     (semantic maze validator/generator)
 build/                     (created if missing; generated outputs land here)
 scripts/build.sh
 </code></pre>
@@ -86,6 +90,7 @@ scripts/build.sh
 
       <h3>1. Assemble</h3>
 <pre><code>mkdir -p build
+python3 scripts/derive_maze.py
 python3 scripts/build_gfx.py \
   --chars assets/arcade/chars.json \
   --output build/ladybug_gfx.inc \

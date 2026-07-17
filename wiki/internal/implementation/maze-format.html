@@ -18,8 +18,8 @@
       <p class="wiki-eyebrow">Implementation · Phase 3 design</p>
       <h1>Tile format and static maze <span class="wiki-badge">internal</span></h1>
       <p class="wiki-meta">
-        Approved architecture for the 24×24 playfield. Exact maze capture and
-        implementation remain the next Phase 3 increment.
+        Approved architecture and generated semantic tables for the 24×24
+        playfield. Static rendering remains the next Phase 3 increment.
       </p>
     </header>
 
@@ -34,11 +34,10 @@
       </ul>
       <p>
         The MAME capture confirms that the arcade's complete rotated display is
-        24×30 tiles and its maze frame occupies rows 2–27. The CoCo grid keeps
-        arcade rows 3–26: 24 rows including the vertical side walls. The
-        omitted horizontal frame rows become top and bottom edge pixels in the
-        first and last rendered rows. This is the documented 192-pixel-height
-        adaptation; corridor cells and their 8×8 scale remain unchanged.
+        24×30 tiles and its complete maze occupies rows 2–25 inclusive. The
+        CoCo grid keeps those 24 rows unchanged, including both horizontal and
+        vertical frame tiles. The maze therefore fits the 192-pixel height
+        exactly; corridor cells and their 8×8 scale remain unchanged.
       </p>
     </section>
 
@@ -145,13 +144,13 @@
       <p>
         <code>scripts/capture_mame_maze.py</code> now produces the immutable
         <code>assets/arcade/maze_capture.bin</code> and derived
-        <code>maze_capture.json</code> provenance files. The next implementation
-        step adds a semantic
-        <code>assets/arcade/maze.json</code> source and a deterministic generator
-        that emits an assembly include under <code>build/</code>. The source
+        <code>maze_capture.json</code> provenance files.
+        <code>scripts/derive_maze.py</code> normalizes the captured stage-object
+        overlays and emits semantic <code>assets/arcade/maze.json</code> plus
+        <code>build/ladybug_maze.inc</code>. The source
         records dimensions, per-cell style and movement mask, dots, nest and
         perimeter flags, and the 20 gate definitions. The generator validates
-        the invariants below and selects only referenced graphics.
+        the invariants below. The build runs this derivation before assembly.
       </p>
       <p>
         <code>scripts/update_tiled_maze.py</code> converts all 720 rotated
@@ -160,6 +159,14 @@
         background RAM only; arcade sprites are not missing tiles.
       </p>
       <p>The semantic source must be derived from the capture, not from the incomplete Tiled experiment or screenshot inference.</p>
+      <p>
+        Derived result: 25 logical styles, 109 initial dots, 20 gates split
+        evenly between horizontal and vertical initial orientations, 249
+        connected walkable cells, a two-cell central nest release lane, and a
+        92-cell perimeter circuit. The initial gate anchor is the only
+        passable cell in each captured four-cell gate footprint; the three bar
+        cells remain blocked.
+      </p>
     </section>
 
     <section>
@@ -194,19 +201,20 @@
         <thead><tr><th>Item</th><th>Planning ceiling</th></tr></thead>
         <tbody>
           <tr><td>Base cells + navigation</td><td>1,152 B</td></tr>
-          <tr><td>48 packed graphics</td><td>1,536 B</td></tr>
-          <tr><td>48 style records</td><td>96 B</td></tr>
-          <tr><td>Gate records + footprints</td><td>208 B</td></tr>
+          <tr><td>25 packed graphics (next renderer increment)</td><td>800 B</td></tr>
+          <tr><td>25 style records (next renderer increment)</td><td>50 B</td></tr>
+          <tr><td>Gate records + initial footprints</td><td>98 B</td></tr>
+          <tr><td>Generated semantic tables now</td><td>1,250 B</td></tr>
           <tr><td><strong>Phase 3 data ceiling</strong></td><td><strong>2,992 B</strong></td></tr>
           <tr><td>Writable dots + gate states</td><td>92 B</td></tr>
         </tbody>
       </table>
       <p>
-        The 48-graphic figure is a planning ceiling, not a claimed arcade
-        count. The generator must report actual unique styles, graphics, and
-        ROM bytes. With the Phase 2.6 image at 557 bytes before padding, this
-        ceiling leaves more than 12 KB of the 16 KB cartridge image before
-        later phases, excluding new renderer code.
+        The measured static-table result is 1,250 bytes before graphics. Adding
+        one 32-byte graphic and one two-byte style record for each of the 25
+        styles projects 2,100 bytes, below the 2,992-byte Phase 3 ceiling. The
+        Phase 2.6 image is 514 bytes before padding; renderer code remains to
+        be measured.
       </p>
     </section>
 
@@ -214,13 +222,13 @@
       <h2>Validation gates</h2>
       <ul>
         <li>The raw capture is exactly 2,048 bytes and matches its recorded SHA-256.</li>
-        <li>The rotated display is exactly 30 rows × 24 cells; the CoCo crop is arcade rows 3–26 and is exactly 24×24.</li>
+        <li>The rotated display is exactly 30 rows × 24 cells; the CoCo crop is arcade rows 2–25 inclusive and is exactly 24×24.</li>
         <li>Every semantic style and graphic reference is in range.</li>
         <li>Exactly 20 gates; every gate footprint is inside the grid and maps only to cells marked gate-affected.</li>
         <li>N/E/S/W movement is reciprocal between adjacent non-gate cells; no passable edge exits the grid.</li>
         <li>Initial dot count is emitted and checked against the captured source.</li>
         <li>Nest and perimeter-track cells form the captured connected regions.</li>
-        <li>Phase 3 validates the arcade initial state and each single-gate rotation. Before Phase 5 gate interaction is accepted, validate the no-isolated-region rule by exhaustive state checking or a documented structural proof.</li>
+        <li>The static generator validates the captured initial state. Before Phase 5 gate interaction is accepted, derive alternate-orientation graphics/navigation and validate the no-isolated-region rule exhaustively or by documented structural proof.</li>
         <li>Live gdb-mcp verification compares all 192 rendered rows, the 64-pixel side margins, palette/PAR state, halt PC, and reported ROM size.</li>
       </ul>
     </section>
@@ -228,7 +236,7 @@
     <section>
       <h2>Deferred</h2>
       <ul>
-        <li>Logical-style count, dot classification, navigation masks, gate footprint shapes, and semantic cell topology still require derivation from the authoritative capture.</li>
+        <li>Alternate gate-orientation graphics and navigation remain Phase 5 work; Phase 3 records the exact captured initial orientation and affected cells.</li>
         <li>Animated entities and sprite/background restoration remain Phase 4.</li>
         <li>Gate interaction and collision implementation remain Phase 5.</li>
         <li>Per-frame full-maze rendering is not planned; Phase 3 will measure the one-time boot render for reference.</li>

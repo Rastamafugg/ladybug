@@ -8,6 +8,7 @@ SRC_MAIN="$ROOT/src/main.s"
 SRC_TESTER="$ROOT/src/tester/tester.s"
 BUILD_DIR="$ROOT/build"
 GFX_INC="$BUILD_DIR/ladybug_gfx.inc"
+MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
 ROM="$BUILD_DIR/ladybug.rom"
 LST="$BUILD_DIR/ladybug.lst"
 MAP="$BUILD_DIR/ladybug.map"
@@ -33,6 +34,12 @@ PY
 cmd_build() {
     [[ -f "$SRC_MAIN" ]] || { echo "build: $SRC_MAIN not found" >&2; exit 1; }
     mkdir -p "$BUILD_DIR"
+
+    python3 "$ROOT/scripts/derive_maze.py" \
+        --capture "$ROOT/assets/arcade/maze_capture.json" \
+        --raw "$ROOT/assets/arcade/maze_capture.bin" \
+        --output "$ROOT/assets/arcade/maze.json" \
+        --include "$MAZE_INC"
 
     python3 "$ROOT/scripts/build_gfx.py" \
         --chars "$ROOT/assets/arcade/chars.json" \

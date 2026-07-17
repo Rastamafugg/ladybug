@@ -23,6 +23,45 @@
     </header>
 
     <section>
+      <h3>2026-07-17 · lint — semantic maze increment</h3>
+      <p>
+        Repeated semantic generation byte-for-byte on Windows and WSL,
+        validated the 2,048-byte capture and SHA-256, verified the corrected
+        row slice, 25 style references, 109 walkable dots, 20 non-overlapping
+        gate footprints, 10/10 anchor orientations, reciprocal connected
+        navigation, and the 1,250-byte compiled-table report. The full build,
+        Python compilation, TMX stability, local HTML links, and scoped diff
+        checks passed. gdb-mcp reached <code>$C096</code> with
+        <code>55 AA</code>; the ROM remains 16 KiB.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · milestone — semantic maze tables derived</h3>
+      <p>
+        Added <code>scripts/derive_maze.py</code>, semantic
+        <code>assets/arcade/maze.json</code>, and generated
+        <code>build/ladybug_maze.inc</code>. The corrected capture yields 25
+        styles, 109 dots, 20 non-overlapping four-cell gates split 10/10 by
+        initial orientation, and one reciprocal connected navigation graph of
+        249 cells. Static compiled tables total 1,250 bytes. Alternate gate
+        orientations remain Phase 5 work; packed graphics and static rendering
+        are the next Phase 3 increment.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · fix — corrected semantic maze crop</h3>
+      <p>
+        Visual inspection and tile-code analysis showed that the complete
+        captured maze is already 24 rows high at rotated visible rows 2–25
+        inclusive. Corrected the derived CoCo crop from rows 3–26, which had
+        dropped the top frame and included the score row. The full 24×30
+        Tiled background is unaffected.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-17 · lint — rotated-assets and Tiled checkpoint</h3>
       <p>
         Confirmed all 28 modified arcade PNGs are exact counter-clockwise
