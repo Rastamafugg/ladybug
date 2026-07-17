@@ -23,6 +23,30 @@
     </header>
 
     <section>
+      <h3>2026-07-17 · lint — 40×24 CoCo Tiled layout</h3>
+      <p>
+        Repeated the CoCo screen generator byte-for-byte and validated two
+        strict 960-cell CSV layers, the exact normalized semantic maze at
+        columns 8–31, all requested vertical HUD labels, three captured life
+        icons, and zero HUD overlap with the maze. Python compilation, the full
+        cartridge build, local HTML links, and scoped diff checks passed.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · decision — vertical side-panel HUD arrangement</h3>
+      <p>
+        Added a 40×24 CoCo authoring map with the normalized 24×24 maze at
+        columns 8–31. Per user direction, the left panel carries descending
+        SPECIAL, EXTRA, and x2x3x5 columns plus three captured 16×16 life
+        icons below. The right panel carries descending 1ST/current score,
+        TOP/high score, and CREDIT placeholders; UNIVERSAL is omitted. Added
+        <code>scripts/create_tiled_coco_screen.py</code> for deterministic
+        regeneration and kept HUD tiles on a separate layer.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-17 · lint — Tiled repair and HUD clarification</h3>
       <p>
         Repeated TMX generation byte-for-byte and verified 720 non-empty GIDs,
