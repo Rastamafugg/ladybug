@@ -27,9 +27,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def csv_rows(indices: list[list[int]]) -> str:
-    return "\n".join(
-        ",".join(str(index + 1) for index in row) + "," for row in indices
-    )
+    rows = [",".join(str(index + 1) for index in row) for row in indices]
+    return ",\n".join(rows)
 
 
 def main() -> None:

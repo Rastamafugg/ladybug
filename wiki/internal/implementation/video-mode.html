@@ -109,6 +109,18 @@
         <li><strong>Left panel:</strong> 64 × 192 px = 8 × 24 tiles. Score numerals, lives icons, level number.</li>
         <li><strong>Right panel:</strong> 64 × 192 px = 8 × 24 tiles. EXTRA row, SPECIAL row, heart count, vegetable icon.</li>
       </ul>
+      <p>
+        The authoritative MAME capture makes the adaptation arithmetic exact:
+        the complete arcade display is 24×30 tiles, or 192×240 pixels at
+        the retained 8×8 scale. Its maze is rows 2–25, exactly 24×24 tiles
+        or 192×192 pixels; the other six rows are HUD. They cannot fit above
+        and below the maze in this CoCo mode. Relocating them to the two side
+        panels provides 16×24 = 384 tile positions for 144 displaced arcade
+        HUD positions. Seven-character <code>SPECIAL</code>, five-character
+        <code>EXTRA</code>, six-character <code>x2x3x5</code>, score digits,
+        lives, level, and vegetable indicators each fit within an eight-tile
+        panel row.
+      </p>
       <p>Tile origin in the framebuffer: byte offset = <code>row * 160 + col * 4</code> (since one 8-px-wide tile = 4 bytes in 16-colour mode). Both centre and panels are 8-px-aligned.</p>
     </section>
 

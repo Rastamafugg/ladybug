@@ -25,6 +25,19 @@
     </header>
 
     <section>
+      <h2>Tiled CSV layer data must not end with a comma</h2>
+      <p>
+        A 24×30 CSV tile layer contains 720 GIDs and therefore 719 separators.
+        The first complete-map generator emitted a comma after every row,
+        including the last value. XML parsing and a numeric-token count both
+        passed, but Tiled interpreted the trailing delimiter as an empty 721st
+        field and reported corrupt layer data at the closing
+        <code>&lt;/data&gt;</code> line. Validate non-empty comma-separated fields,
+        not only integer token count.
+      </p>
+    </section>
+
+    <section>
       <p>
         Each entry: a short claim, the <em>why</em>, and (where applicable)
         a concrete citation. Newest entries at the bottom of each thematic

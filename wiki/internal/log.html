@@ -23,6 +23,40 @@
     </header>
 
     <section>
+      <h3>2026-07-17 · lint — Tiled repair and HUD clarification</h3>
+      <p>
+        Repeated TMX generation byte-for-byte and verified 720 non-empty GIDs,
+        719 delimiters, no terminal comma, exact MAME-capture equality, no flip
+        flags, and valid tileset image paths and dimensions. The full cartridge
+        build, local HTML links, and scoped diff checks passed. Tiled was not
+        available on the command path for an automated GUI/export check.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · fix — repaired Tiled CSV terminator</h3>
+      <p>
+        Removed the terminal comma from the 720-GID Tiled layer and corrected
+        <code>scripts/update_tiled_maze.py</code> to emit 719 delimiters. The
+        former output created an empty 721st field, which Tiled reported as
+        corrupt layer data at <code>&lt;/data&gt;</code>. Validation now checks 720
+        non-empty fields and exact equality with the MAME capture.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · query — arcade HUD confirmed for side panels</h3>
+      <p>
+        Confirmed the complete 24×30 arcade capture is 192×240 pixels at
+        target scale and cannot fit vertically in 320×192. The 24×24 maze
+        fills the height exactly, while the selected mode leaves two 8×24-tile
+        side panels. Clarified that the displaced six arcade HUD rows map to
+        these panels with capacity for score, lives, level, EXTRA, SPECIAL,
+        x2/x3/x5, and vegetable indicators.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-17 · lint — semantic maze increment</h3>
       <p>
         Repeated semantic generation byte-for-byte on Windows and WSL,
