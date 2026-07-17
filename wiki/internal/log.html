@@ -23,6 +23,44 @@
     </header>
 
     <section>
+      <h3>2026-07-17 · lint — Phase 4 player movement</h3>
+      <p>
+        Python compilation, deterministic graphics generation, the WSL lwasm
+        build, link lint, and scoped diff checks passed. A cold gdb-mcp run
+        verified Vbord IRQ cadence, centred joystick values <code>32,32</code>,
+        one-cell movement after four two-pixel updates, blocked-edge collision,
+        dot state <code>$80→$00</code>, and an exact independent reconstruction
+        of all 30,720 framebuffer bytes at SHA-256
+        <code>936552dee1013cea08b0b154856b66e4a5efc61eba3aedafb1eeaf690c35147b</code>.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · milestone — Phase 4 joystick and Lady Bug movement</h3>
+      <p>
+        Re-enabled the Vbord main loop, implemented right-joystick
+        DAC/comparator input, dominant-axis four-way resolution, semantic
+        maze collision, two-pixel intermediate movement, dot collection, a
+        128-byte background buffer, and transparent masked sprite blending.
+        The build rotates canonical arcade sprite 0 into four unique directions.
+        The unpadded ROM is 5,774 bytes. Automated acceptance is complete;
+        movement feel and tearing remain user playtest review items.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · query — arcade player sprite identification</h3>
+      <p>
+        Recorded the installed MAME <code>ladybug</code> driver and matched
+        rendered gameplay pixels against all decoded sprite, attribute, and
+        flip combinations. Sprite 0 is the canonical player/life graphic;
+        sprite 3 is a rotated directional form rather than animation. MAME's sprite RAM is
+        write-only at <code>$7000-$73FF</code>, so CPU-space reads cannot supply
+        the renderer's private sprite array.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-17 · lint — Phase 3 packed-screen ROM</h3>
       <p>
         Python compilation, deterministic screen generation, the WSL cartridge

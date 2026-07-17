@@ -106,29 +106,30 @@
     <section>
       <h2>Writable state</h2>
       <ul>
-        <li><strong>Dots:</strong> a 576-bit bitmap, 72 bytes. It is initialized by scanning bit 7 of <code>maze_cells</code> at stage reset; clearing a dot changes only this RAM bitmap.</li>
+        <li><strong>Dots:</strong> Phase 4 copies all 576 <code>maze_cells</code> bytes to <code>$A000-$A23F</code> and clears bit 7 in place when a dot is collected. A later phase may compact this to the planned 72-byte bitmap if RAM pressure requires it.</li>
         <li><strong>Gates:</strong> one byte per gate in the initial implementation, 20 bytes. Values are horizontal or vertical; bit-packing can be considered only if RAM pressure becomes measured.</li>
         <li><strong>Static topology:</strong> remains in ROM. A collision query reads <code>maze_nav</code>; only cells marked gate-affected consult the owning gate record and its orientation-specific footprint.</li>
       </ul>
       <p>
-        The runtime cost is 92 bytes before later entity state. This preserves
-        the planned <code>$A000-$BFFF</code> game-state page and avoids copying
-        either 576-byte map at boot.
+        The current runtime cost is 576 bytes for writable maze cells. Adding
+        the planned 20 gate bytes still fits comfortably in the
+        <code>$A000-$BFFF</code> game-state page; bitmap compaction is deferred
+        until pressure is measured.
       </p>
     </section>
 
     <section>
       <h2>Renderer boundary</h2>
       <p>
-        Phase 3 should add a maze renderer, not expand <code>put_char</code>
-        into a general game-state API. Its input is the immutable maze tables
-        and its output is the centre 192×192 framebuffer region.
+        Phase 3 implemented a row-major renderer for the compiled 40×24
+        screen. Phase 4 keeps semantic navigation separate and uses the
+        single-tile blitter only for dirty cells after dot collection.
       </p>
       <ol>
-        <li>For each row, set the destination to framebuffer byte offset <code>row * 160 + 32</code>.</li>
-        <li>For each of 24 cells, resolve logical style plus current dot state to a graphic ID and blit 32 bytes.</li>
-        <li>Advance 4 bytes between cells and 64 bytes after the final cell to reach the next framebuffer row start.</li>
-        <li>Overlay the 20 gates from their initial orientation records.</li>
+        <li>At boot, render the complete authored 40×24 map while blanked.</li>
+        <li>Before moving the player, restore its prior 16×16 background.</li>
+        <li>When entering a dotted semantic cell, clear bit 7 in writable state and blit the clean corridor tile at screen column <code>maze_x+8</code>.</li>
+        <li>Save the new 16×16 background and apply the masked player frame.</li>
       </ol>
       <p>
         Keep the existing single-tile routine for character output and

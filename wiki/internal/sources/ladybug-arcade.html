@@ -70,6 +70,14 @@
         attributes. It does not contain sprite RAM, collision rules, or a
         semantic distinction between walls, dots, gates, and decorative tiles.
       </p>
+      <p>
+        Phase 4 identified the player independently by recording a live MAME
+        gameplay frame and pixel-matching every decoded sprite, attribute,
+        and flip combination. This selected sprite 0 with attribute 0 as the
+        canonical player/life form; sprite 3 is a rotated directional form.
+        The driver maps <code>$7000-$73FF</code> as write-only sprite RAM, so a
+        normal CPU-space dump cannot read the video device's private copy.
+      </p>
     </section>
 
     <section>

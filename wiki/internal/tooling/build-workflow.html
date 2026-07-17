@@ -35,14 +35,14 @@
 
     <section>
       <h2>Overview</h2>
-<pre><code>assets/arcade/chars.json             (authoritative decoded arcade pixels)
+<pre><code>assets/arcade/chars.json/sprites.json (authoritative decoded arcade pixels)
 assets/arcade/maze_capture.json/bin  (authoritative MAME background capture)
 tiled/coco-screen.tmx                (hand-authored 40x24 screen)
    │
    │  scripts/derive_maze.py + scripts/build_screen.py
    ▼
 build/ladybug_maze.inc               (semantic cells/navigation/gates)
-build/ladybug_screen.inc             (palette, screen map, packed tile atlas)
+build/ladybug_screen.inc             (palette, map, tiles, masked player frames)
    │
 src/*.s                              (hand-written 6809 assembly)
    │
@@ -54,7 +54,7 @@ build/ladybug.rom    (raw binary, exact size)
    ▼
 build/ladybug.rom    (16 KB cart-ready)
    │
-   │  xroar -machine coco3 -ram 512 -cart-type rom -cart-rom ... -cart-autorun -tv-input rgb
+   │  xroar -machine coco3 -ram 512 -cart-type rom -cart-rom ... -cart-autorun -tv-input rgb -joy-right kjoy0
    ▼
 emulated CoCo 3      (real hardware: write ROM to a 16K EPROM, drop into cart shell)
 </code></pre>
@@ -70,13 +70,14 @@ emulated CoCo 3      (real hardware: write ROM to a 16K EPROM, drop into cart sh
       <table class="wiki-table">
         <thead><tr><th>Command</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen, assemble, and pad. Output includes <code>assets/arcade/maze.json</code>, <code>build/ladybug_maze.inc</code>, <code>build/ladybug_screen.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, and <code>build/ladybug.map</code>.</td></tr>
-          <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch xroar with the canonical cart profile.</td></tr>
+          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen and curated player frames, assemble, and pad. Output includes <code>assets/arcade/maze.json</code>, <code>build/ladybug_maze.inc</code>, <code>build/ladybug_screen.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, and <code>build/ladybug.map</code>.</td></tr>
+          <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch XRoar with the canonical cart profile and map cursor keys to the right CoCo joystick through <code>kjoy0</code>.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
       </table>
       <p>Source layout the script assumes:</p>
 <pre><code>assets/arcade/chars.json   (authoritative decoded character shapes)
+assets/arcade/sprites.json (authoritative decoded sprite shapes)
 assets/arcade/maze_capture.json/bin (authoritative captured background)
 tiled/coco-screen.tmx      (hand-authored layered screen)
 src/main.s                 (top of build, ORG $C000)
@@ -96,6 +97,7 @@ python3 scripts/derive_maze.py
 python3 scripts/build_screen.py \
   --map tiled/coco-screen.tmx \
   --chars assets/arcade/chars.json \
+  --sprites assets/arcade/sprites.json \
   --output build/ladybug_screen.inc
 lwasm -9 --format=raw \
       --output=build/ladybug.rom \
@@ -121,7 +123,8 @@ print(f'padded {16384-pad} → 16384 bytes')
       -cart ladybug -cart-type rom \
       -cart-rom build/ladybug.rom \
       -cart-autorun \
-      -tv-input rgb
+      -tv-input rgb \
+      -joy-right kjoy0
 </code></pre>
       <p>
         <code>-tv-input rgb</code> selects the GIME's digital RGB output
@@ -151,7 +154,7 @@ print(f'padded {16384-pad} → 16384 bytes')
         instead:
       </p>
 <pre><code>shell cd /mnt/d/retro/ladybug &amp;&amp; ./scripts/build.sh build
-shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart ladybug -cart-type rom -cart-rom build/ladybug.rom -cart-autorun -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
+shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart ladybug -cart-type rom -cart-rom build/ladybug.rom -cart-autorun -joy-right kjoy0 -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
 </code></pre>
       <p>Then start a fresh GDB-MCP session and attach with:</p>
 <pre><code>target remote :65520

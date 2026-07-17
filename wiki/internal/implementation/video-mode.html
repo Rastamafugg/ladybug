@@ -135,7 +135,8 @@
       <ul>
         <li><strong>Pixel:</strong> 4 bits, packed two-per-byte, hi-nibble = leftmost pixel.</li>
         <li><strong>Tile:</strong> 8 × 8 px = 32 bytes. Stored as 8 rows of 4 bytes. Tile data lives in cartridge ROM.</li>
-        <li><strong>Sprite (entity, e.g. Lady Bug):</strong> 16 × 16 px = 128 bytes. Same packing.</li>
+        <li><strong>Sprite source:</strong> 16 × 16 raw 2bpp pixels from the arcade extraction.</li>
+        <li><strong>Runtime player frame:</strong> 128 packed 4bpp pixel bytes followed by 128 nibble-preserve mask bytes. Transparent source pen 0 preserves the framebuffer.</li>
         <li><strong>Glyph (HUD digit, letter):</strong> 8 × 8 = 32 bytes, established by Phase 2.6 and rendered through <code>put_char</code>. A separate 16 × 16 score set remains optional and deferred to HUD work.</li>
       </ul>
       <p>
@@ -151,6 +152,22 @@
         skull + 2-3 letters/vegetables ≈ 9 sprites) the per-frame sprite
         cost is ~5 400 cycles — fits the 18 000-cycle render budget with
         room for HUD updates.
+      </p>
+    </section>
+
+    <section>
+      <h2>Phase 4 player renderer — implemented 2026-07-17</h2>
+      <ul>
+        <li>Arcade sprite index 0, attribute 0, is the canonical Lady Bug player/life source. Sprite 3 is its rotated directional form, not a distinct animation frame.</li>
+        <li>The build rotates sprite 0 into north/east/south/west, producing four unique 256-byte pixel/mask records.</li>
+        <li>The single player owns one 128-byte background buffer at <code>$A300</code>. Each update restores the old rectangle, moves, applies dirty-tile changes, saves the new rectangle, then blends the sprite.</li>
+        <li>Horizontal movement is two pixels per update so the packed destination remains byte-aligned. Four updates cross one 8-pixel semantic cell.</li>
+        <li>Movement updates every fourth Vbord, while input is sampled every Vbord.</li>
+      </ul>
+      <p>
+        This validates single-buffer save/restore for one entity. Phase 6 must
+        measure multi-entity cost before duplicating the same ownership model
+        for every enemy.
       </p>
     </section>
 
@@ -206,7 +223,7 @@
         <li><strong>Palette load.</strong> 16 entries × 6-bit codes. Initial palette (greens for the maze, primary RGB for the cycle, white/grey for HUD) gets a small data table.</li>
         <li><strong>Border colour.</strong> <code>$FF9A</code> 6-bit code. Likely matches the maze background.</li>
         <li><strong>CRES=11 blanking trick.</strong> Tepolt notes <code>CRES=11</code> blanks the screen — useful for setting up the framebuffer without showing tearing. Use it during init.</li>
-        <li><strong>Single-buffer vs double-buffer.</strong> Single is cheap (30 KB). <strong>Default: single buffer with sprite save-restore.</strong> Revisit at the Phase 4 (sprite) review gate if tearing is visible.</li>
+        <li><strong>Single-buffer vs double-buffer.</strong> Phase 4 implements single-buffer save/restore. User playtesting must still check visible tearing before this becomes the multi-entity Phase 6 policy.</li>
       </ol>
     </section>
 

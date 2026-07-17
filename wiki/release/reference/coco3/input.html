@@ -105,6 +105,15 @@ loop:
     if B == $FC: break                ; saturated
 result = B &gt;&gt; 2                       ; 0..63 position
 </code></pre>
+      <h3>Ladybug Phase 4 configuration</h3>
+      <p>
+        The bare-metal implementation configures PIA1 PA as input, PIA1 PB as
+        output, and PIA2 PA7-PA2 as output. PIA1 CA2/CB2 use control value
+        <code>$24</code> for low and <code>$2C</code> for high; right X is
+        CA2/CB2 low/low and right Y is high/low. PIA2 CB2 uses
+        <code>$24</code> to enable the analog multiplexer. A live XRoar run
+        returned the expected centred values <code>32,32</code>.
+      </p>
     </section>
 
     <footer class="wiki-footer">

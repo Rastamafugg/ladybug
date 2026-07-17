@@ -82,7 +82,7 @@
     <section>
       <h2>CoCo 3 target generation</h2>
       <p>
-        <strong>Current Phase 3 path:</strong>
+        <strong>Current Phase 4 path:</strong>
         <code>scripts/build_screen.py</code> resolves the active rotated-sheet
         GIDs in <code>tiled/coco-screen.tmx</code>, applies Tiled flips,
         deduplicates the transformed 8×8 graphics, and emits the palette,
@@ -90,6 +90,14 @@
         <code>build/ladybug_screen.inc</code>. The selected-glyph workflow
         below documents the retained Phase 2 utility and is no longer invoked
         by <code>scripts/build.sh</code>.
+      </p>
+      <p>
+        <strong>Phase 4 player selection:</strong> pixel-exact matching against
+        a locally recorded MAME gameplay frame identified sprite 0 as the
+        Lady Bug player/life graphic. Sprite 3 is the same shape in a rotated
+        direction, not a distinct animation frame. The target build maps
+        attribute-0 pens to transparent/red/green/yellow palette slots and
+        generates four unique directions from sprite 0.
       </p>
       <p>
         <code>scripts/build_gfx.py</code> is the deterministic target-side

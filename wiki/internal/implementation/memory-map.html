@@ -58,14 +58,17 @@
     </section>
 
     <section>
-      <h2>Phase 2 mapping (current target)</h2>
+      <h2>Phase 4 mapping (current target)</h2>
 <pre><code>Virtual          PAR  Phys  Bytes  Use
 $0000-$1FFF      0    $38   8 K    Low RAM (DP, stack, scratch)
 $2000-$3FFF      1    $30   8 K    Framebuffer page 0
 $4000-$5FFF      2    $31   8 K    Framebuffer page 1
 $6000-$7FFF      3    $32   8 K    Framebuffer page 2
 $8000-$9FFF      4    $33   8 K    Framebuffer page 3
-$A000-$BFFF      5    $34   8 K    Reserved — game state from Phase 4+
+$A000-$A23F      5    $34   576 B  Writable maze-cell copy
+$A240-$A2FF      5    $34   192 B  Reserved game-state growth
+$A300-$A37F      5    $34   128 B  Player background save buffer
+$A380-$BFFF      5    $34   —      Free game-state RAM
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   —      Cart-visible; reserved for data, not active code
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
@@ -221,6 +224,13 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
     <section>
       <h2>Phase 4 problem: sprite ROM at full 4bpp likely doesn't fit in 16 K cart</h2>
       <p>
+        <strong>Current Phase 4 resolution:</strong> curate arcade sprite 0
+        for the player, rotate it into four directions, and store four frames
+        as 128 pixel bytes plus 128 preserve-mask bytes. These 1,024 bytes
+        keep the complete unpadded ROM at 5,774 bytes. The full-set
+        decision remains open until Phase 6 enemy integration.
+      </p>
+      <p>
         Sprite ROM at full 4bpp: ~120 sprites × 128 B = 15 K. Plus tile gfx
         (~1.6 K), font (~3 K), code (~6-8 K), maze (~1 K), palette (~0.5 K),
         sound (~1-3 K) ≈ 28-31 K total — overflows the 16 K cart window.
@@ -254,8 +264,13 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
       <table class="wiki-table">
         <thead><tr><th>Offset</th><th>Variable</th><th>Width</th><th>Owner</th></tr></thead>
         <tbody>
-          <tr><td><code>$00</code></td><td><code>FRAMES</code></td><td>u16</td><td>Phase 1 frame counter</td></tr>
-          <tr><td><code>$02</code></td><td>(free)</td><td></td><td>Phase 2+</td></tr>
+          <tr><td><code>$00</code></td><td><code>LAST_FRAME</code></td><td>u8</td><td>Last processed Vbord counter</td></tr>
+          <tr><td><code>$01</code></td><td><code>JOY_X</code></td><td>u8</td><td>Right joystick X, 0–63</td></tr>
+          <tr><td><code>$02</code></td><td><code>FRAMES</code></td><td>u16</td><td>Vbord frame counter</td></tr>
+          <tr><td><code>$04-$05</code></td><td><code>JOY_Y</code>, <code>JOY_DIR</code></td><td>2×u8</td><td>Right joystick Y and resolved direction</td></tr>
+          <tr><td><code>$06-$0C</code></td><td>player direction/facing/step/cell/pointer</td><td>7 B</td><td>Phase 4 player state</td></tr>
+          <tr><td><code>$0D-$0E</code></td><td><code>JOY_DX</code>, <code>JOY_DY</code></td><td>2×u8</td><td>Absolute displacement from joystick centre</td></tr>
+          <tr><td><code>$0F-$FF</code></td><td>(free)</td><td>241 B</td><td>Future hot state</td></tr>
         </tbody>
       </table>
       <p>Plenty of room. Maintain this table as variables land.</p>
@@ -276,8 +291,8 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
       <ol>
         <li><strong>Physical cart-write verification</strong> — manuals and XRoar agree that TY=0 selects the cartridge without asserting internal RAM. Confirm on a CoCo 3 with CoCoSDC when hardware work resumes in Phase 10.</li>
         <li><strong>XRoar's handling of 32 K cart files</strong> — observed inconsistent with naive <code>$8000-$FEFF</code> mapping; deferred until/unless we need the larger cart. See <a href="../tooling/xroar.html">tooling/xroar "Gotchas"</a>.</li>
-        <li><strong>Phase 4 sprite-data resolution</strong> — see Phase 4 problem section above.</li>
-        <li><strong>Game-state PAR (<code>$A000-$BFFF</code>) layout</strong> — entity tables, score, etc. Defer until Phase 4 when entity records are designed.</li>
+        <li><strong>Future full sprite-set resolution</strong> — Phase 4 fits by curating two player frames; decide 2bpp expansion, further curation, or bank switching before enemy sprites land.</li>
+        <li><strong>Game-state PAR growth</strong> — Phase 4 assigns <code>$A000-$A37F</code>; allocate entity tables and score state from <code>$A380</code> upward.</li>
         <li><strong>Resolved source-review gap</strong> — the earlier <code>$E000+</code> SECB-style reads came from the reset-ROM-initialized all-RAM shadow after TY=1, not from cartridge decoding.</li>
       </ol>
     </section>

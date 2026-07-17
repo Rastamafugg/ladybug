@@ -919,6 +919,33 @@ git reset --hard HEAD
     </section>
 
     <section>
+      <h2>4bpp horizontal sprite motion must account for nibble alignment</h2>
+      <p>Filed 2026-07-17.</p>
+      <p>
+        At two pixels per framebuffer byte, an odd horizontal sprite position
+        requires shifting every packed nibble and touching a ninth byte per
+        row. Phase 4 moves two pixels per update, retaining byte alignment and
+        completing one 8-pixel cell in four updates.
+      </p>
+      <p><strong>Why:</strong> this keeps the masked blitter and 128-byte background buffer fixed at eight bytes per row.</p>
+      <p><strong>Applies to:</strong> packed 4bpp moving entities.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>player_tick</code> and <code>blit_player_masked</code>.</p>
+    </section>
+
+    <section>
+      <h2>Dirty tiles must be applied between sprite restore and save</h2>
+      <p>Filed 2026-07-17.</p>
+      <p>
+        The correct single-buffer order is restore old background, update a
+        collected-dot tile, save the new background, then draw the transparent
+        sprite. Saving first would preserve the old dot and make it reappear
+        when the player leaves.
+      </p>
+      <p><strong>Applies to:</strong> dots, gates, HUD overlays, and any sprite-overlapped dirty cell.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>player_tick</code> and <code>eat_dot</code>.</p>
+    </section>
+
+    <section>
       <h2>Format for future entries</h2>
 <pre><code>&lt;h2&gt;Short title&lt;/h2&gt;
 &lt;p&gt;Filed YYYY-MM-DD.&lt;/p&gt;

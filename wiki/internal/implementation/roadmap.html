@@ -35,14 +35,15 @@
     </section>
 
     <section>
-      <h2>Current state — Phase 3</h2>
+      <h2>Current state — Phase 4 review gate</h2>
       <ul>
-        <li>Phases 0–2 are complete. Phase 2.1–2.4 boot and render correctly after the 2026-07-16 cartridge/ORG-gap fix.</li>
+        <li>Phases 0–3 are complete. Phase 4 implementation is complete and awaiting its user playtest review.</li>
         <li><code>src/main.s</code> runs directly from the 16 KB cartridge, configures 320×192×16 RGB output, and renders the authored 40×24 Tiled screen through a generated packed tile atlas.</li>
         <li>Tooling: lwasm 4.24 and XRoar 1.10 in WSL. The active automated verification path is <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>; the web app and patched monitor are deferred.</li>
-        <li>The deterministic screen compiler flattens visible TMX layers, applies horizontal/vertical Tiled flips, and deduplicates 53 transformed graphics into 2,656 bytes of map and atlas data.</li>
-        <li>The deterministic <code>phase3_halt</code> remains before the retained IRQ-enable path. The Phase 3 ROM uses 2,952 bytes before 16 KB padding.</li>
-        <li>Phase 3 architecture, semantic tables, authored layout, packed graphics, and one-time boot renderer are complete. The next implementation phase is Phase 4 input and Lady Bug sprite movement.</li>
+        <li>The screen compiler now emits 53 transformed tiles plus four unique masked directions derived from arcade player sprite 0.</li>
+        <li>Vbord IRQ timing, right-joystick DAC/comparator reads, four-way navigation, two-pixel intermediate movement, background save/restore, masked sprite output, collision, and dot removal are implemented.</li>
+        <li>The unpadded Phase 4 ROM is 5,774 bytes and remains inside the active 8 KB cartridge window.</li>
+        <li>Automated Phase 4 acceptance passed. User playtesting remains for movement feel and visible tearing before advancing to Phase 5.</li>
       </ul>
     </section>
 
@@ -135,16 +136,17 @@
     </section>
 
     <section>
-      <h2>Phase 4 — Input + Lady Bug sprite (joystick walking)</h2>
+      <h2>Phase 4 — Input + Lady Bug sprite (joystick walking) — IMPLEMENTED 2026-07-17</h2>
       <p><strong>Goal:</strong> a controllable Lady Bug sprite walks the maze, no AI yet.</p>
       <p><strong>POC tasks:</strong></p>
       <ol>
-        <li>Joystick X/Y read via PIA2 DAC + comparator (<a href="../../release/reference/coco3/input.html">input reference</a>).</li>
-        <li>Define the Lady Bug sprite frames (animation table).</li>
-        <li>Sprite renderer that XORs / saves-restores the background under the sprite.</li>
-        <li>Movement code: discrete tile-aligned movement with intermediate animation, blocked by walls, redirected by turnstiles.</li>
+        <li><strong>Done:</strong> right-joystick X/Y read via PIA2 DAC + comparator (<a href="../../release/reference/coco3/input.html">input reference</a>), with centred dead zone and dominant-axis four-way resolution.</li>
+        <li><strong>Done:</strong> the canonical Lady Bug source sprite expanded into four unique directional frames with packed pixels and transparency masks.</li>
+        <li><strong>Done:</strong> single-sprite 128-byte background save/restore plus masked 16×16 blit.</li>
+        <li><strong>Done:</strong> two-pixel intermediate movement, semantic navigation collision, and dot removal through writable maze cells.</li>
       </ol>
-      <p><strong>Exit criterion:</strong> Lady Bug walks the maze under joystick control, can rotate turnstiles, can eat dots (dot disappears, no scoring yet).</p>
+      <p><strong>Exit criterion:</strong> Lady Bug walks the maze under joystick control, walls block movement, and entered dots disappear without scoring.</p>
+      <p><strong>Exit result:</strong> automated acceptance passed. gdb-mcp verified centred joystick values <code>32,32</code>, exact one-cell movement after four two-pixel steps, collision at a blocked edge, dot state <code>$80→$00</code>, and a byte-exact 30,720-byte framebuffer reconstruction. Gate rotation remains Phase 5 because alternate-orientation graphics and navigation were explicitly deferred in <a href="./maze-format.html">maze-format</a>.</p>
       <p><strong>Review gate Q's:</strong></p>
       <ul>
         <li>Does the movement <em>feel right</em> against arcade footage? Record the finding.</li>

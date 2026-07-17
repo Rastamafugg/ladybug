@@ -44,6 +44,7 @@ cmd_build() {
     python3 "$ROOT/scripts/build_screen.py" \
         --map "$ROOT/tiled/coco-screen.tmx" \
         --chars "$ROOT/assets/arcade/chars.json" \
+        --sprites "$ROOT/assets/arcade/sprites.json" \
         --output "$SCREEN_INC"
 
     lwasm -9 --format=raw \
@@ -67,6 +68,7 @@ cmd_run() {
         -cart-rom "$ROM" \
         -cart-autorun \
         -tv-input rgb \
+        -joy-right kjoy0 \
         ${XROAR_EXTRA:-}
 }
 

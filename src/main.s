@@ -1,15 +1,18 @@
 ;==============================================================================
 ; Ladybug — main.s
 ;==============================================================================
-; Phase 3: render the authored 40x24 Tiled screen to the framebuffer.
+; Phase 4: joystick-driven Lady Bug movement over the authored screen.
 ;
 ; Builds on Phase 2.3 (hi-res 320×192×16 + MMU + palette + IRQ tick) by:
 ;   - Compiling tiled/coco-screen.tmx into a one-byte tile map and a
 ;     deduplicated packed 4bpp tile atlas before assembly.
 ;   - Flattening visible Tiled layers and applying horizontal/vertical flips.
 ;   - blit_tile: 8 rows x 4 bytes, stride 160.
+;   - Polling the right joystick through the PIA DAC/comparator path.
+;   - Masked 16x16 player frames with background save/restore.
+;   - Semantic maze collision and dot removal.
 ;
-; Visible: the complete authored 40x24 maze and side-panel layout.
+; Visible: the authored screen with a moving, maze-constrained Lady Bug.
 ;==============================================================================
 
         pragma  nodollarlocal,6809
@@ -19,7 +22,25 @@
 ;------------------------------------------------------------------------------
         setdp   $02
 
-FRAMES  equ     $0202           ; u16 frame counter
+LAST_FRAME    equ $0200         ; last processed Vbord counter low byte
+JOY_X         equ $0201         ; right joystick X, 0..63
+FRAMES        equ $0202         ; u16 frame counter
+JOY_Y         equ $0204         ; right joystick Y, 0..63
+JOY_DIR       equ $0205         ; requested direction or $FF
+PLAYER_DIR    equ $0206         ; active direction or $FF
+PLAYER_FACE   equ $0207         ; last active direction, 0..3
+PLAYER_STEP   equ $0208         ; 2-pixel steps since last cell centre, 0..3
+PLAYER_CELL_X equ $0209         ; semantic maze column
+PLAYER_CELL_Y equ $020A         ; semantic maze row
+PLAYER_FB     equ $020B         ; u16 framebuffer pointer at sprite top-left
+JOY_DX        equ $020D         ; absolute X displacement from centre
+JOY_DY        equ $020E         ; absolute Y displacement from centre
+
+DIR_NORTH     equ 0
+DIR_EAST      equ 1
+DIR_SOUTH     equ 2
+DIR_WEST      equ 3
+DIR_NONE      equ $FF
 
 ;------------------------------------------------------------------------------
 ; Hardware
@@ -54,6 +75,8 @@ JT_IRQ     equ  $FEF7
 FB_VIRT    equ  $2000           ; virtual base of framebuffer (PAR1)
 FB_END     equ  $9800           ; one past last FB byte (192 rows × 160 B)
 FB_PHYS    equ  $30             ; physical page 0 of FB
+MAZE_STATE equ  $A000           ; writable 576-byte maze-cell copy (PAR5)
+PLAYER_BG  equ  $A300           ; 128-byte saved background under player
 
 ;==============================================================================
 ;  Cart ROM
@@ -159,25 +182,15 @@ clr_fb  std     ,x++
         ; --- Phase 3 authored screen ---
         lbsr    draw_screen
 
+        ; --- Phase 4 state, joystick, and player sprite ---
+        lbsr    init_maze_state
+        lbsr    init_joystick
+        lbsr    init_player
+        lbsr    draw_player
+
         ; --- Un-blank: 320×192×16 (CRES=10 + HRES=111 → 4bpp on this build) ---
         lda     #$1E
         sta     GIME_VRES
-
-        ; Phase 3 isolation: halt here so the visible state is just the
-        ; authored static screen. The IRQ install + Vbord enable below is
-        ; carried over from Phase 2.3 but has not been re-verified against
-        ; the new MMU/PAR layout — leaving it disabled until that's done.
-
-        ; --- L4 probe: write sentinel to JT_IRQ, persist readback + marker,
-        ;     fall through to phase3_halt for trap-snap capture.
-        lda     #$55
-        sta     JT_IRQ          ; the suspect store
-        lda     JT_IRQ
-        sta     $0FFE           ; readback of $FEF7
-        lda     #$AA
-        sta     $0FFF           ; liveness marker
-phase3_halt
-        bra     phase3_halt
 
         ; --- IRQ handler at $FEF7 jump-table slot ---
         lda     #$7E            ; JMP extended
@@ -187,6 +200,7 @@ phase3_halt
 
         clr     FRAMES
         clr     FRAMES+1
+        clr     LAST_FRAME
 
         ; --- Enable Vbord ---
         lda     #%00001000
@@ -196,11 +210,485 @@ phase3_halt
         andcc   #%11101111      ; unmask IRQ
 
 ;==============================================================================
-; mainloop — IRQ keeps ticking FRAMES; CPU just spins.
+; mainloop — sample input every Vbord; move two pixels every fourth Vbord.
 ;==============================================================================
 mainloop
         sync
+        lda     FRAMES+1
+        cmpa    LAST_FRAME
+        beq     mainloop
+        sta     LAST_FRAME
+        lbsr    read_joystick
+        lda     LAST_FRAME
+        anda    #$03
+        bne     mainloop
+phase4_before_tick
+        lbsr    player_tick
         bra     mainloop
+
+;==============================================================================
+; init_maze_state — copy immutable maze cells to writable game-state RAM.
+;
+; Inputs:
+;   None
+;
+; Returns:
+;   X, Y, U, A, CC — undefined
+;
+; Side effects:
+;   Writes 576 bytes at MAZE_STATE.
+;==============================================================================
+init_maze_state
+        leax    maze_cells,pcr
+        ldy     #MAZE_STATE
+ims_copy
+        lda     ,x+
+        sta     ,y+
+        cmpy    #MAZE_STATE+576
+        blo     ims_copy
+        rts
+
+;==============================================================================
+; init_joystick — configure the PIAs for right-joystick DAC conversion.
+;
+; Inputs:
+;   None
+;
+; Returns:
+;   A, CC — undefined
+;
+; Side effects:
+;   Configures PIA1 PA as input, PIA1 PB as output, PIA2 PA7-PA2 as DAC
+;   output, and selects/enables the right joystick analog multiplexer.
+;==============================================================================
+init_joystick
+        clr     PIA1_CRA        ; select PIA1 PA direction register
+        clr     PIA1_DA         ; all PA bits input, including comparator PA7
+        clr     PIA1_CRB        ; select PIA1 PB direction register
+        lda     #$FF
+        sta     PIA1_DB         ; keyboard columns/output side
+        lda     #$24            ; data register, CA2/CB2 output low
+        sta     PIA1_CRA
+        sta     PIA1_CRB        ; selector 0 = right joystick X
+
+        clr     PIA2_CRA        ; select PIA2 PA direction register
+        lda     #$FC
+        sta     PIA2_DA         ; PA7-PA2 are the six-bit DAC
+        lda     #$04            ; data-register access
+        sta     PIA2_CRA
+        clr     PIA2_CRB
+        lda     #$24            ; CB2 low enables analog multiplexer
+        sta     PIA2_CRB
+        lda     #$80            ; centre DAC while idle
+        sta     PIA2_DA
+        rts
+
+;==============================================================================
+; init_player — initialize the player at maze cell (12,18).
+;
+; Inputs:
+;   None
+;
+; Returns:
+;   A, D, CC — undefined
+;
+; Side effects:
+;   Initializes direct-page player state.
+;==============================================================================
+init_player
+        lda     #12
+        sta     PLAYER_CELL_X
+        lda     #18
+        sta     PLAYER_CELL_Y
+        clr     PLAYER_DIR      ; initially face and move north
+        clr     PLAYER_FACE
+        clr     PLAYER_STEP
+        lda     #DIR_NONE
+        sta     JOY_DIR
+        ldd     #$77CE          ; FB + 140*160 + 156/2
+        std     PLAYER_FB
+        rts
+
+;==============================================================================
+; read_joystick — sample right X/Y and resolve a four-way requested direction.
+;
+; Inputs:
+;   None
+;
+; Returns:
+;   A, B, CC — undefined
+;
+; Side effects:
+;   Updates JOY_X, JOY_Y, JOY_DX, JOY_DY, and JOY_DIR.
+;==============================================================================
+read_joystick
+        lda     #$24            ; CA2 low: right X
+        sta     PIA1_CRA
+        lbsr    joy_read_axis
+        stb     JOY_X
+        lda     #$2C            ; CA2 high: right Y
+        sta     PIA1_CRA
+        lbsr    joy_read_axis
+        stb     JOY_Y
+        lda     #$80
+        sta     PIA2_DA
+
+        lda     JOY_X
+        suba    #32
+        bpl     rj_x_abs
+        nega
+rj_x_abs
+        sta     JOY_DX
+        lda     JOY_Y
+        suba    #32
+        bpl     rj_y_abs
+        nega
+rj_y_abs
+        sta     JOY_DY
+
+        lda     #DIR_NONE
+        sta     JOY_DIR
+        lda     JOY_DX
+        cmpa    JOY_DY
+        blo     rj_vertical
+        cmpa    #8              ; centred dead zone
+        bls     rj_done
+        lda     JOY_X
+        cmpa    #32
+        blo     rj_west
+        lda     #DIR_EAST
+        sta     JOY_DIR
+        rts
+rj_west
+        lda     #DIR_WEST
+        sta     JOY_DIR
+        rts
+rj_vertical
+        lda     JOY_DY
+        cmpa    #8
+        bls     rj_done
+        lda     JOY_Y
+        cmpa    #32
+        blo     rj_north
+        lda     #DIR_SOUTH
+        sta     JOY_DIR
+        rts
+rj_north
+        lda     #DIR_NORTH
+        sta     JOY_DIR
+rj_done
+        rts
+
+;==============================================================================
+; joy_read_axis — convert the selected analog joystick axis through the DAC.
+;
+; Inputs:
+;   PIA1 CA2/CB2 — selected analog source
+;
+; Returns:
+;   B — position, 0..63
+;   A, CC — undefined
+;
+; Side effects:
+;   Sweeps the PIA2 DAC output.
+;==============================================================================
+joy_read_axis
+        clrb
+jra_loop
+        stb     PIA2_DA
+        lda     PIA1_DA
+        bpl     jra_done        ; PA7 clear: DAC reached analog voltage
+        addb    #4
+        bcc     jra_loop
+        ldb     #$FC
+jra_done
+        lsrb
+        lsrb
+        rts
+
+;==============================================================================
+; player_tick — restore, move, collect a dot, and redraw the player.
+;
+; Inputs:
+;   Direct-page player and joystick state
+;
+; Returns:
+;   A, B, D, X, Y, U, CC — undefined
+;
+; Side effects:
+;   Updates player state, framebuffer, saved background, and MAZE_STATE.
+;==============================================================================
+player_tick
+        lbsr    restore_player
+        lda     PLAYER_STEP
+        bne     pt_advance
+        lda     JOY_DIR
+        cmpa    #DIR_NONE
+        beq     pt_check_active
+        lbsr    can_move
+        bcc     pt_check_active
+        lda     JOY_DIR
+        sta     PLAYER_DIR
+        sta     PLAYER_FACE
+pt_check_active
+        lda     PLAYER_DIR
+        cmpa    #DIR_NONE
+        beq     pt_draw
+        lbsr    can_move
+        bcs     pt_advance
+        lda     #DIR_NONE
+        sta     PLAYER_DIR
+        bra     pt_draw
+
+pt_advance
+        ldx     PLAYER_FB
+        lda     PLAYER_DIR
+        beq     pt_north
+        cmpa    #DIR_EAST
+        beq     pt_east
+        cmpa    #DIR_SOUTH
+        beq     pt_south
+        leax    -1,x
+        bra     pt_store_fb
+pt_north
+        leax    -320,x
+        bra     pt_store_fb
+pt_east
+        leax    1,x
+        bra     pt_store_fb
+pt_south
+        leax    320,x
+pt_store_fb
+        stx     PLAYER_FB
+        inc     PLAYER_STEP
+        lda     PLAYER_STEP
+        cmpa    #4
+        blo     pt_draw
+        clr     PLAYER_STEP
+        lda     PLAYER_DIR
+        beq     pt_cell_north
+        cmpa    #DIR_EAST
+        beq     pt_cell_east
+        cmpa    #DIR_SOUTH
+        beq     pt_cell_south
+        dec     PLAYER_CELL_X
+        bra     pt_arrived
+pt_cell_north
+        dec     PLAYER_CELL_Y
+        bra     pt_arrived
+pt_cell_east
+        inc     PLAYER_CELL_X
+        bra     pt_arrived
+pt_cell_south
+        inc     PLAYER_CELL_Y
+pt_arrived
+        lbsr    eat_dot
+pt_draw
+        lbsr    draw_player
+        rts
+
+;==============================================================================
+; player_cell_offset — return row*24+column for the current maze cell.
+;
+; Inputs:
+;   PLAYER_CELL_X, PLAYER_CELL_Y
+;
+; Returns:
+;   D — row-major maze offset, 0..575
+;   CC — undefined
+;==============================================================================
+player_cell_offset
+        lda     #24
+        ldb     PLAYER_CELL_Y
+        mul
+        addb    PLAYER_CELL_X
+        adca    #0
+        rts
+
+;==============================================================================
+; can_move — test the current cell's navigation bit for a direction.
+;
+; Inputs:
+;   A — direction, 0=N, 1=E, 2=S, 3=W
+;
+; Returns:
+;   C — set if passable, clear if blocked
+;   A, B, D, X, Y, CC — otherwise undefined
+;==============================================================================
+can_move
+        pshs    a
+        lbsr    player_cell_offset
+        leax    maze_nav,pcr
+        lda     d,x
+        puls    b
+        leay    direction_bits,pcr
+        anda    b,y
+        beq     cm_blocked
+        orcc    #$01
+        rts
+cm_blocked
+        andcc   #$FE
+        rts
+
+direction_bits
+        fcb     $01,$02,$04,$08
+
+;==============================================================================
+; eat_dot — clear a newly entered dotted cell and redraw its clean tile.
+;
+; Inputs:
+;   Current player cell and framebuffer pointer
+;
+; Returns:
+;   A, B, D, X, Y, U, CC — undefined
+;
+; Side effects:
+;   Clears bit 7 in MAZE_STATE and updates one framebuffer tile.
+;==============================================================================
+eat_dot
+        lbsr    player_cell_offset
+        ldx     #MAZE_STATE
+        leax    d,x
+        lda     ,x
+        bpl     ed_done
+        anda    #$7F
+        sta     ,x
+        ldx     PLAYER_FB
+        leax    642,x           ; cell tile is four pixels inside 16x16 sprite
+        ldb     #MAZE_CLEAN_TILE
+        clra
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        leay    screen_tiles,pcr
+        leay    d,y
+        lbsr    blit_tile
+ed_done
+        rts
+
+;==============================================================================
+; draw_player — save background and mask-blit the selected player frame.
+;
+; Inputs:
+;   Player position, facing, and animation state
+;
+; Returns:
+;   A, B, D, X, Y, U, CC — undefined
+;
+; Side effects:
+;   Writes PLAYER_BG and the 16x16 framebuffer rectangle.
+;==============================================================================
+draw_player
+        lbsr    save_player
+        lda     PLAYER_FACE
+        clrb                    ; D = frame index * 256
+        leay    player_sprites,pcr
+        leay    d,y
+        leau    128,y           ; preserve-mask half of frame
+        ldx     PLAYER_FB
+        lbsr    blit_player_masked
+        rts
+
+;==============================================================================
+; save_player — save the 16x16 framebuffer rectangle under the player.
+;
+; Inputs:
+;   PLAYER_FB
+;
+; Returns:
+;   D, X, Y, U, CC — undefined
+;
+; Side effects:
+;   Writes 128 bytes at PLAYER_BG.
+;==============================================================================
+save_player
+        ldx     PLAYER_FB
+        ldu     #PLAYER_BG
+        ldy     #16
+sp_row
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        leax    152,x
+        leay    -1,y
+        bne     sp_row
+        rts
+
+;==============================================================================
+; restore_player — restore the saved 16x16 player background.
+;
+; Inputs:
+;   PLAYER_FB, PLAYER_BG
+;
+; Returns:
+;   D, X, Y, U, CC — undefined
+;
+; Side effects:
+;   Writes the prior 16x16 rectangle to the framebuffer.
+;==============================================================================
+restore_player
+        ldx     PLAYER_FB
+        ldu     #PLAYER_BG
+        ldy     #16
+rp_row
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        leax    152,x
+        leay    -1,y
+        bne     rp_row
+        rts
+
+;==============================================================================
+; blit_player_masked — transparent 16x16 packed-nibble sprite blit.
+;
+; Inputs:
+;   X — framebuffer destination
+;   Y — 128 packed pixel bytes
+;   U — 128 preserve-mask bytes ($F nibble preserves destination)
+;
+; Returns:
+;   A, X, Y, U, CC — undefined
+;
+; Side effects:
+;   Blends a 16x16 sprite into the framebuffer.
+;==============================================================================
+blit_player_masked
+        lda     #16
+        pshs    a
+bpm_row
+        lda     #8
+        pshs    a
+bpm_byte
+        lda     ,x
+        anda    ,u+
+        ora     ,y+
+        sta     ,x+
+        dec     ,s
+        bne     bpm_byte
+        leas    1,s
+        leax    152,x
+        dec     ,s
+        bne     bpm_row
+        leas    1,s
+        rts
 
 ;==============================================================================
 ; draw_screen — render the compiled 40x24 tile map.
@@ -301,5 +789,6 @@ par_table
 ;   scripts/build.sh compiles tiled/coco-screen.tmx with arcade character data
 ;   before invoking lwasm.
         include "ladybug_screen.inc"
+        include "ladybug_maze.inc"
 
         end
