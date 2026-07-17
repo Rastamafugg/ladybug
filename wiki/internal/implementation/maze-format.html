@@ -32,6 +32,14 @@
         <li><strong>Ownership:</strong> canonical maze and tile metadata are immutable cartridge data. Collected-dot bits and gate orientation are writable game state.</li>
         <li><strong>Rendering:</strong> draw the full static field once at boot in Phase 3; later phases redraw only cells changed by a dot, gate, or moving entity.</li>
       </ul>
+      <p>
+        The MAME capture confirms that the arcade's complete rotated display is
+        24×30 tiles and its maze frame occupies rows 2–27. The CoCo grid keeps
+        arcade rows 3–26: 24 rows including the vertical side walls. The
+        omitted horizontal frame rows become top and bottom edge pixels in the
+        first and last rendered rows. This is the documented 192-pixel-height
+        adaptation; corridor cells and their 8×8 scale remain unchanged.
+      </p>
     </section>
 
     <section>
@@ -135,35 +143,36 @@
     <section>
       <h2>Authoring and generation workflow</h2>
       <p>
-        Proposed implementation workflow: add a semantic
+        <code>scripts/capture_mame_maze.py</code> now produces the immutable
+        <code>assets/arcade/maze_capture.bin</code> and derived
+        <code>maze_capture.json</code> provenance files. The next implementation
+        step adds a semantic
         <code>assets/arcade/maze.json</code> source and a deterministic generator
         that emits an assembly include under <code>build/</code>. The source
         records dimensions, per-cell style and movement mask, dots, nest and
         perimeter flags, and the 20 gate definitions. The generator validates
         the invariants below and selects only referenced graphics.
       </p>
-      <p>
-        This is a new helper and data contract. It is approved as the Phase 3
-        design, but must not be implemented until the next implementation
-        increment is explicitly started.
-      </p>
+      <p>The semantic source must be derived from the capture, not from the incomplete Tiled experiment or screenshot inference.</p>
     </section>
 
     <section>
-      <h2>Exact maze source requirement</h2>
+      <h2>Exact maze source — resolved 2026-07-17</h2>
       <p>
-        The repository contains extracted arcade characters and sprites but no
-        authoritative start-state background RAM or complete maze layout. MAME
-        models Lady Bug's background as a 32×32 array of 8×8 tiles with
-        separate code and colour RAM. That driver describes the hardware, not
-        the game-programmed maze contents.
+        MAME 0.220 and the installed <code>ladybug</code> ROM now provide the
+        authoritative start-state background. The capture helper samples
+        <code>$D000-$D7FF</code> until it finds a stable complete-maze state.
+        The accepted run is frames 2545–2558 with SHA-256
+        <code>d8129bb9f57ce51b0355101115af7eab538b854d31771f6f51917fa072f686f3</code>.
       </p>
       <p>
-        Before authoring <code>maze.json</code>, capture a clean level-one start
-        state from MAME: background tile codes, colour attributes, orientation,
-        and a matching screenshot. Rotate and crop the gameplay portion into
-        the target 24×24 CoCo grid, then retain the raw capture as provenance.
-        A screenshot may validate the result but is not the sole topology source.
+        MAME's raw background is 32×32 tiles. Its visible raw rectangle is
+        columns 1–30 and rows 4–27; applying the driver's <code>ROT270</code>
+        produces the 24×30 arcade display. The JSON records all visible
+        nine-bit tile codes, colour attributes, indices for the whole-sheet
+        counter-clockwise rotation, and the 24×24 CoCo crop. The binary file is
+        the unchanged 2,048-byte RAM dump and remains the final provenance
+        source. A screenshot validates orientation but does not define topology.
       </p>
       <p>
         Hardware reference:
@@ -198,7 +207,9 @@
     <section>
       <h2>Validation gates</h2>
       <ul>
-        <li>Exactly 24 rows and 24 cells per row; every style and graphic reference is in range.</li>
+        <li>The raw capture is exactly 2,048 bytes and matches its recorded SHA-256.</li>
+        <li>The rotated display is exactly 30 rows × 24 cells; the CoCo crop is arcade rows 3–26 and is exactly 24×24.</li>
+        <li>Every semantic style and graphic reference is in range.</li>
         <li>Exactly 20 gates; every gate footprint is inside the grid and maps only to cells marked gate-affected.</li>
         <li>N/E/S/W movement is reciprocal between adjacent non-gate cells; no passable edge exits the grid.</li>
         <li>Initial dot count is emitted and checked against the captured source.</li>
@@ -211,7 +222,7 @@
     <section>
       <h2>Deferred</h2>
       <ul>
-        <li>Exact logical-style count, graphic count, dot count, gate footprint shapes, and cell topology await the authoritative capture.</li>
+        <li>Logical-style count, dot classification, navigation masks, gate footprint shapes, and semantic cell topology still require derivation from the authoritative capture.</li>
         <li>Animated entities and sprite/background restoration remain Phase 4.</li>
         <li>Gate interaction and collision implementation remain Phase 5.</li>
         <li>Per-frame full-maze rendering is not planned; Phase 3 will measure the one-time boot render for reference.</li>

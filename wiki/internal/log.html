@@ -23,6 +23,33 @@
     </header>
 
     <section>
+      <h3>2026-07-17 · lint — MAME maze-capture increment</h3>
+      <p>
+        Repeated the MAME capture into a temporary directory and obtained
+        byte-identical binary and JSON outputs. Python compilation, capture
+        schema and dimensions, the 48 completed cells in the user's rotated
+        Tiled experiment, the full cartridge build, local HTML links, and
+        scoped <code>git diff --check</code> all passed. Existing generated
+        listing whitespace and unrelated working-tree changes were excluded.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-17 · ingest — authoritative MAME maze background capture</h3>
+      <p>
+        Added <code>scripts/capture_mame_maze.py</code> and captured the installed
+        MAME 0.220 <code>ladybug</code> background RAM. The helper samples
+        <code>$D000-$D7FF</code>, selects a stable complete-maze run, and emits
+        the unchanged 2,048-byte dump plus derived JSON. Frames 2545–2558 hash
+        to <code>d8129bb9f57ce51b0355101115af7eab538b854d31771f6f51917fa072f686f3</code>.
+        The capture confirms a 24×30 rotated visible grid and a 24×26 arcade
+        maze frame. The CoCo adaptation keeps arcade rows 3–26 as its 24×24
+        logical grid and renders the omitted horizontal frame rows as edge
+        pixels. Updated the Phase 3 design, roadmap, and arcade-source page.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-16 · lint — Phase 3 architecture documentation</h3>
       <p>
         Scanned all local links in the HTML wiki after adding the Phase 3

@@ -46,10 +46,37 @@
     </section>
 
     <section>
+      <h2>MAME background capture — 2026-07-17</h2>
+      <p>
+        The locally installed MAME 0.220 <code>ladybug</code> driver and ROM were
+        sampled by <code>scripts/capture_mame_maze.py</code>. The helper reads
+        background code RAM <code>$D000-$D3FF</code> and colour RAM
+        <code>$D400-$D7FF</code> once a complete attract-mode maze remains stable
+        for at least ten frames. Frames 2545–2558 produced the accepted raw
+        2,048-byte capture with SHA-256
+        <code>d8129bb9f57ce51b0355101115af7eab538b854d31771f6f51917fa072f686f3</code>.
+      </p>
+      <p>
+        MAME's raw visible rectangle is tile columns 1–30 and rows 4–27.
+        Applying <code>ROT270</code> produces the arcade 24×30 visible grid. Maze
+        frame rows are 2–27; the CoCo 192×192 adaptation retains rows 3–26 and
+        represents the omitted horizontal border rows at the top and bottom
+        pixel edges. Raw and derived data are in
+        <code>assets/arcade/maze_capture.bin</code> and
+        <code>assets/arcade/maze_capture.json</code>.
+      </p>
+      <p>
+        This capture is authoritative for background tile placement and colour
+        attributes. It does not contain sprite RAM, collision rules, or a
+        semantic distinction between walls, dots, gates, and decorative tiles.
+      </p>
+    </section>
+
+    <section>
       <h2>Recommended next ingests</h2>
       <ol>
         <li><strong>Download the Arcade-Museum manual PDF locally</strong>, then ingest the scoring chart and dip-switch settings.</li>
-        <li><strong>MAME driver</strong> — <code>src/mame/drivers/ladybug.cpp</code> and the corresponding video/audio drivers in MAME source. This is the canonical reference for AI behaviour, exact gate count and placement, sound register usage, and dip switches.</li>
+        <li><strong>MAME machine and video drivers</strong> — now consulted for memory and display mapping. They do not contain the game-programmed maze topology or AI behavior.</li>
         <li><strong>ROM disassembly</strong> if one exists publicly — would resolve enemy AI specifics.</li>
       </ol>
     </section>

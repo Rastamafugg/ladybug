@@ -42,7 +42,7 @@
         <li>Tooling: lwasm 4.24 and XRoar 1.10 in WSL. The active automated verification path is <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>; the web app and patched monitor are deferred.</li>
         <li>The deterministic build selects and rotates only required arcade characters. The Phase 2.6 ROM uses 557 bytes before 16 KB padding.</li>
         <li>The deterministic <code>phase26_halt</code> remains before the retained IRQ-enable path.</li>
-        <li>Phase 3 architecture is recorded in <a href="./maze-format.html">tile format and static maze</a>. Next increment: capture the authoritative arcade start-state background, author the validated 24×24 maze source, generate its tables, and render it once at boot.</li>
+        <li>Phase 3 architecture is recorded in <a href="./maze-format.html">tile format and static maze</a>. The authoritative MAME background capture is complete. Next increment: derive the semantic 24×24 maze source, generate its tables, and render it once at boot.</li>
       </ul>
     </section>
 
@@ -120,7 +120,7 @@
       <p><strong>POC tasks:</strong></p>
       <ol>
         <li><strong>Done 2026-07-16:</strong> define the 8×8 tile, layered maze, gate, dot, navigation, renderer, and memory contracts in <a href="./maze-format.html">maze-format</a>.</li>
-        <li>Capture an authoritative level-one start state from MAME background RAM plus a matching screenshot; rotate and crop it into the 24×24 target grid.</li>
+        <li><strong>Done 2026-07-17:</strong> capture an authoritative level-one start state from MAME background RAM, apply <code>ROT270</code>, and crop arcade rows 3–26 into the 24×24 target grid.</li>
         <li>Author the semantic maze source and implement its deterministic validator/generator. Include all 20 turnstile gates and initial dot positions.</li>
         <li>Implement the row-major tile renderer and render once at boot before the deterministic halt.</li>
       </ol>
