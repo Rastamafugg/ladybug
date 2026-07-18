@@ -23,6 +23,34 @@
     </header>
 
     <section>
+      <h3>2026-07-18 · lint — Neutral-stop and diagonal-gate acceptance</h3>
+      <p>
+        Passed Python byte-compilation, deterministic arcade-fidelity checks,
+        the full WSL lwasm build, generated-data assertions, scoped whitespace
+        checks, and parsing/local-link resolution for all 164 HTML pages. Cold
+        XRoar/gdb-mcp verified startup auto-motion, immediate neutral stop after
+        manual control, direction resume, a one-Vbord diagonal, pixel-exact gate
+        17 intermediate/final frames, and correct restoration of present and
+        collected diagonal-corner dots. The 16 KB cartridge contains an
+        8,167-byte linked image followed by <code>$FF</code> padding.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · ingest/implement — Arcade diagonal gates and manual neutral stop</h3>
+      <p>
+        Decoded installed Lady Bug CPU-ROM gate tables at <code>$0CD5</code> and
+        <code>$0CDE</code> and correlated MAME frames 729–730 to establish slash
+        and backslash intermediates lasting one Vbord. The compiler now emits
+        both seven-record frames; runtime restores overwritten dots from mutable
+        maze state before drawing the final gate. Input now stops immediately
+        in the dead zone after the first manual direction while preserving the
+        arcade startup auto-motion. Replacing stored sprite masks with shared
+        source-zero transparency recovered 512 ROM bytes for the transition art.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-18 · lint — Contextual gate-redraw acceptance</h3>
       <p>
         Passed Python byte-compilation, the expanded deterministic MAME

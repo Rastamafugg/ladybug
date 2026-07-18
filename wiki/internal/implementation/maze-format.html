@@ -130,7 +130,7 @@
         <li>At boot, render the complete authored 40×24 map while blanked.</li>
         <li>Before moving the player, restore its prior 16×16 background.</li>
         <li>When entering a dotted semantic cell, clear bit 7 in writable state and blit the clean corridor tile at screen column <code>maze_x+8</code>.</li>
-        <li>Save the new 16×16 background and apply the masked player frame.</li>
+        <li>Save the new 16×16 background and apply the transparent player frame.</li>
       </ol>
       <p>
         Keep the existing single-tile routine for character output and
@@ -177,7 +177,7 @@
         order, applies Tiled horizontal and vertical flip flags, rejects
         diagonal flips and active non-8×8 tilesets, and deduplicates the
         transformed packed graphics. The current authored screen compiles to
-        a 960-byte map and 82 graphics after semantic colour and gate-state expansion.
+        a 960-byte map and 92 graphics after semantic colour, gate-state, and diagonal gate-frame expansion.
       </p>
       <p>
         Derived result: 25 logical styles, 109 initial dots, 20 gates split
@@ -222,16 +222,28 @@
         <thead><tr><th>Current ROM item</th><th>Measured size</th></tr></thead>
         <tbody>
           <tr><td>Authored screen map</td><td>960 B measured</td></tr>
-          <tr><td>82 deduplicated packed graphics</td><td>2,624 B measured</td></tr>
-          <tr><td>Four masked player frames</td><td>1,024 B measured</td></tr>
-          <tr><td><strong>Generated screen payload</strong></td><td><strong>4,608 B plus 220 B gate redraw records</strong></td></tr>
-          <tr><td><strong>Complete unpadded ROM</strong></td><td><strong>8,078 B</strong></td></tr>
+          <tr><td>92 deduplicated packed graphics</td><td>2,944 B measured</td></tr>
+          <tr><td>Four transparent player frames</td><td>512 B measured</td></tr>
+          <tr><td><strong>Generated screen payload</strong></td><td><strong>4,416 B, including 262 B of final/diagonal gate records</strong></td></tr>
+          <tr><td><strong>Complete unpadded ROM</strong></td><td><strong>8,167 B</strong></td></tr>
         </tbody>
       </table>
       <p>
         The Phase 5 build remains within the directly executable 8 KB cartridge
-        window at 8,078 bytes before padding. Further Phase 5 work has 114 bytes
+        window at 8,167 bytes before padding. Further Phase 5 work has 25 bytes
         before an explicit cartridge expansion or data-packing decision is required.
+      </p>
+    </section>
+
+    <section>
+      <h2>Gate transition frame</h2>
+      <p>
+        A pushed gate displays one slash or backslash diagonal frame for exactly
+        one Vbord before the final perpendicular frame. The seven opaque records
+        reproduce arcade character tables at CPU ROM <code>$0CD5</code> and
+        <code>$0CDE</code>. Two diagonal corner records temporarily cover dot
+        cells; finalization redraws each corner from writable
+        <code>MAZE_STATE</code>, preserving collected-dot state.
       </p>
     </section>
 

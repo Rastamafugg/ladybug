@@ -44,6 +44,11 @@ GATE_X        equ $0214         ; active gate pivot column
 GATE_Y        equ $0215         ; active gate pivot row
 DRAW_COUNT    equ $0216         ; gate redraw loop counter
 DRAW_TILE     equ $0217         ; tile ID for draw_cell_tile
+PLAYER_MANUAL equ $0218         ; nonzero after first directional input
+GATE_ANIM_ID  equ $0219         ; rotating gate ID+1; zero when idle
+GATE_ANIM_STYLE equ $021A       ; 0=slash, 1=backslash
+BLIT_ROWS     equ $021B         ; transparent-blit row counter
+BLIT_WIDTH    equ $021C         ; transparent-blit bytes per row
 
 DIR_NORTH     equ 0
 DIR_EAST      equ 1
@@ -229,6 +234,7 @@ mainloop
         beq     mainloop
         sta     LAST_FRAME
         lbsr    read_joystick
+        lbsr    finish_gate_animation
         lda     LAST_FRAME
         anda    #$01
         bne     mainloop
@@ -335,6 +341,8 @@ init_player
         lda     #DIR_NONE
         sta     JOY_DIR
         sta     PLAYER_WANT
+        clr     PLAYER_MANUAL
+        clr     GATE_ANIM_ID
         ldd     #$75EC          ; FB + 137*160 + 152/2; opaque anchor is (-7,-7)
         std     PLAYER_FB
         rts
@@ -405,7 +413,16 @@ rj_north
 rj_request
         sta     JOY_DIR
         sta     PLAYER_WANT      ; buffer turns across intermediate steps
+        lda     #1
+        sta     PLAYER_MANUAL
 rj_done
+        lda     PLAYER_MANUAL
+        beq     rj_return
+        lda     JOY_DIR
+        cmpa    #DIR_NONE
+        bne     rj_return
+        sta     PLAYER_WANT      ; neutral cancels the buffered request
+rj_return
         rts
 
 ;==============================================================================
@@ -449,6 +466,12 @@ jra_done
 ;==============================================================================
 player_tick
         lbsr    restore_player
+        lda     PLAYER_MANUAL
+        beq     pt_input_active
+        lda     JOY_DIR
+        cmpa    #DIR_NONE
+        beq     pt_draw          ; retain direction/step, but stop immediately
+pt_input_active
         lda     PLAYER_STEP
         bne     pt_advance
         lda     PLAYER_WANT
@@ -647,20 +670,32 @@ cm_try_rotate
         cmpb    #DIR_NORTH
         beq     cm_h_endpoint
         cmpb    #DIR_SOUTH
-        bne     cm_blocked
+        lbne    cm_blocked
 cm_h_endpoint
         lda     TEST_Y
         cmpa    GATE_Y
-        bne     cm_blocked
+        lbne    cm_blocked
         lda     TEST_X
         cmpa    GATE_X
         blo     cm_set_west
         bhi     cm_set_east
         bra     cm_blocked
 cm_set_west
+        clr     GATE_ANIM_STYLE
+        ldb     TEST_DIR
+        cmpb    #DIR_NORTH
+        bne     cm_west_style_done
+        inc     GATE_ANIM_STYLE
+cm_west_style_done
         lda     #1
         bra     cm_rotate
 cm_set_east
+        clr     GATE_ANIM_STYLE
+        ldb     TEST_DIR
+        cmpb    #DIR_SOUTH
+        bne     cm_east_style_done
+        inc     GATE_ANIM_STYLE
+cm_east_style_done
         lda     #3
         bra     cm_rotate
 
@@ -681,16 +716,31 @@ cm_v_endpoint
         bhi     cm_set_south
         bra     cm_blocked
 cm_set_north
+        clr     GATE_ANIM_STYLE
+        ldb     TEST_DIR
+        cmpb    #DIR_WEST
+        bne     cm_north_style_done
+        inc     GATE_ANIM_STYLE
+cm_north_style_done
         clra
         bra     cm_rotate
 cm_set_south
+        clr     GATE_ANIM_STYLE
+        ldb     TEST_DIR
+        cmpb    #DIR_EAST
+        bne     cm_south_style_done
+        inc     GATE_ANIM_STYLE
+cm_south_style_done
         lda     #2
 cm_rotate
         ldx     #GATE_STATE
         ldb     GATE_ID
         sta     b,x
         lda     GATE_ID
-        lbsr    draw_gate
+        inca
+        sta     GATE_ANIM_ID
+        deca
+        lbsr    draw_gate_diagonal
         bra     cm_allowed
 
 cm_regular
@@ -734,6 +784,20 @@ test_cell_offset
 ;              re-overlays an intersecting neighbouring gate if present.
 ;==============================================================================
 draw_gate
+        lbsr    restore_gate_background
+        lda     GATE_ID
+        lbsr    draw_gate_overlay
+        leax    gate_redraw_neighbors,pcr
+        ldb     GATE_ID
+        lda     b,x
+        beq     dg_done
+        deca
+        lbsr    draw_gate_overlay
+dg_done
+        rts
+
+; Restore the seven contextual cells without drawing dynamic gate art.
+restore_gate_background
         sta     GATE_ID
         ldb     #3
         mul
@@ -765,16 +829,6 @@ dg_restore
         puls    x,u
         dec     DRAW_COUNT
         bne     dg_restore
-
-        lda     GATE_ID
-        lbsr    draw_gate_overlay
-        leax    gate_redraw_neighbors,pcr
-        ldb     GATE_ID
-        lda     b,x
-        beq     dg_done
-        deca
-        lbsr    draw_gate_overlay
-dg_done
         rts
 
 ;==============================================================================
@@ -819,8 +873,103 @@ dg_tiles
         bne     dg_tiles
         rts
 
+; Draw one arcade diagonal intermediate over a gate-free background.
+draw_gate_diagonal
+        lbsr    restore_gate_background
+        ldd     GATE_X
+        pshs    d
+        leax    gate_redraw_neighbors,pcr
+        ldb     GATE_ID
+        lda     b,x
+        beq     dgd_no_neighbor
+        deca
+        lbsr    draw_gate_overlay
+dgd_no_neighbor
+        puls    d
+        std     GATE_X
+        lda     GATE_ANIM_ID
+        deca
+        sta     GATE_ID
+        lda     GATE_ANIM_STYLE
+        ldb     #21
+        mul
+        leax    gate_diagonal_tiles,pcr
+        leax    d,x
+        lda     #7
+        sta     DRAW_COUNT
+dgd_tile
+        lda     GATE_X
+        adda    ,x+
+        sta     TEST_X
+        lda     GATE_Y
+        adda    ,x+
+        sta     TEST_Y
+        ldb     ,x+
+        pshs    x
+        lbsr    draw_cell_tile
+        puls    x
+        dec     DRAW_COUNT
+        bne     dgd_tile
+        rts
+
+; Complete the pending one-Vbord diagonal frame before this frame's movement.
+finish_gate_animation
+        lda     GATE_ANIM_ID
+        beq     fga_done
+        lbsr    restore_player
+        lbsr    restore_gate_diagonal_dots
+        lda     GATE_ANIM_ID
+        deca
+        lbsr    draw_gate
+        clr     GATE_ANIM_ID
+        lbsr    draw_player
+fga_done
+        rts
+
+; Restore the two dot cells overwritten by the selected diagonal style.
+restore_gate_diagonal_dots
+        lda     GATE_ANIM_ID
+        deca
+        ldb     #3
+        mul
+        leax    maze_gates,pcr
+        leax    d,x
+        ldd     ,x
+        std     GATE_X
+        lda     GATE_ANIM_STYLE
+        lsla
+        lsla
+        leax    gate_diagonal_dot_offsets,pcr
+        leax    a,x
+        lda     #2
+        sta     DRAW_COUNT
+rgdd_cell
+        lda     GATE_X
+        adda    ,x+
+        sta     TEST_X
+        lda     GATE_Y
+        adda    ,x+
+        sta     TEST_Y
+        pshs    x
+        lbsr    test_cell_offset
+        ldx     #MAZE_STATE
+        lda     d,x
+        bpl     rgdd_clean
+        ldb     #MAZE_DOT_TILE
+        bra     rgdd_draw
+rgdd_clean
+        ldb     #MAZE_CLEAN_TILE
+rgdd_draw
+        lbsr    draw_cell_tile
+        puls    x
+        dec     DRAW_COUNT
+        bne     rgdd_cell
+        rts
+
 gate_cross_offsets
         fcb     0,-2,0,-1,-2,0,-1,0,0,0,1,0,0,1
+gate_diagonal_dot_offsets
+        fcb     1,-1,-1,1,-1,-1,1,1
 
 ;==============================================================================
 ; draw_cell_tile
@@ -895,7 +1044,9 @@ draw_cell_overlay
         rola
         leay    screen_tiles,pcr
         leay    d,y
-        lbsr    blit_tile_transparent
+        lda     #8
+        ldb     #4
+        lbsr    blit_transparent
         rts
 
 ;==============================================================================
@@ -953,12 +1104,14 @@ ed_done
 draw_player
         lbsr    save_player
         lda     PLAYER_FACE
-        clrb                    ; D = frame index * 256
+        ldb     #PLAYER_FRAME_SIZE
+        mul
         leay    player_sprites,pcr
         leay    d,y
-        leau    128,y           ; preserve-mask half of frame
         ldx     PLAYER_FB
-        lbsr    blit_player_masked
+        lda     #16
+        ldb     #8
+        lbsr    blit_transparent
         rts
 
 ;==============================================================================
@@ -1019,40 +1172,6 @@ rp_row
         leax    152,x
         leay    -1,y
         bne     rp_row
-        rts
-
-;==============================================================================
-; blit_player_masked — transparent 16x16 packed-nibble sprite blit.
-;
-; Inputs:
-;   X — framebuffer destination
-;   Y — 128 packed pixel bytes
-;   U — 128 preserve-mask bytes ($F nibble preserves destination)
-;
-; Returns:
-;   A, X, Y, U, CC — undefined
-;
-; Side effects:
-;   Blends a 16x16 sprite into the framebuffer.
-;==============================================================================
-blit_player_masked
-        lda     #16
-        pshs    a
-bpm_row
-        lda     #8
-        pshs    a
-bpm_byte
-        lda     ,x
-        anda    ,u+
-        ora     ,y+
-        sta     ,x+
-        dec     ,s
-        bne     bpm_byte
-        leas    1,s
-        leax    152,x
-        dec     ,s
-        bne     bpm_row
-        leas    1,s
         rts
 
 ;==============================================================================
@@ -1132,20 +1251,22 @@ btrow   ldd     ,y++
         puls    u,pc
 
 ;==============================================================================
-; blit_tile_transparent — overlay nonzero packed nibbles from an 8x8 tile.
+; blit_transparent — overlay nonzero packed nibbles from a rectangle.
 ;
 ; Inputs:
+;   A — source row count
+;   B — packed bytes per row (4 for tiles, 8 for player frames)
 ;   X — destination framebuffer byte address
-;   Y — source glyph data, 32 packed 4bpp bytes; colour 0 is transparent
+;   Y — packed 4bpp source data; colour 0 is transparent
 ;
 ; Returns: A, B, X, Y, CC undefined
-; Side effects: blends 8 rows x 4 bytes into the framebuffer.
+; Side effects: blends the requested rectangle into the framebuffer.
 ;==============================================================================
-blit_tile_transparent
-        lda     #8
-        pshs    a
+blit_transparent
+        sta     BLIT_ROWS
+        stb     BLIT_WIDTH
 btt_row
-        lda     #4
+        lda     BLIT_WIDTH
         pshs    a
 btt_byte
         lda     ,y+
@@ -1165,10 +1286,16 @@ btt_low_opaque
         dec     ,s
         bne     btt_byte
         leas    1,s
+        lda     BLIT_WIDTH
+        cmpa    #4
+        beq     btt_tile_row
+        leax    152,x
+        bra     btt_next_row
+btt_tile_row
         leax    156,x
-        dec     ,s
+btt_next_row
+        dec     BLIT_ROWS
         bne     btt_row
-        leas    1,s
         rts
 
 ;==============================================================================

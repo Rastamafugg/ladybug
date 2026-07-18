@@ -128,6 +128,14 @@ result = B &gt;&gt; 2                       ; 0..63 position
         <code>CRA=$3C</code>, <code>CRB=$34</code>, PIA2 <code>CRB=$34</code>,
         and centred axes <code>32,32</code> after a complete input sample.
       </p>
+      <p>
+        Runtime movement distinguishes startup automation from manual control.
+        Before the first directional sample, the player retains the arcade-style
+        automatic north movement. After manual control begins, a centred joystick
+        or released arrow clears the pending request and stops pixel movement on
+        the next movement tick. Retaining the current direction and subcell step
+        allows a later request to resume safely toward a cell centre.
+      </p>
     </section>
 
     <footer class="wiki-footer">

@@ -213,8 +213,8 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
       <h2>Phase 3 maze budget</h2>
       <p>
         The current <a href="./maze-format.html">Phase 3 screen format</a>
-        uses a 960-byte 40×24 map plus 2,624 bytes for 82 deduplicated packed
-        graphics. The Phase 5 linked image is 8,078 bytes before 16 KB padding,
+        uses a 960-byte 40×24 map plus 2,944 bytes for 92 deduplicated packed
+        graphics. The Phase 5 linked image is 8,167 bytes before 16 KB padding,
         so executable code and static data remain inside the active
         <code>$C000-$DFFF</code> cartridge window. The generated semantic maze,
         writable dot state, and 20 gate-state bytes are integrated.
@@ -226,8 +226,8 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
       <p>
         <strong>Current Phase 4 resolution:</strong> curate arcade sprite 0
         for the player, rotate it into four directions, and store four frames
-        as 128 pixel bytes plus 128 preserve-mask bytes. These 1,024 bytes
-        keep the complete unpadded ROM at 5,774 bytes. The full-set
+        as 128 packed pixel bytes with source colour zero treated as transparent.
+        These 512 bytes avoid a separate preserve mask. The full-set
         decision remains open until Phase 6 enemy integration.
       </p>
       <p>

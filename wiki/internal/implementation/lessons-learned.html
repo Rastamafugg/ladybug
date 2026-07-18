@@ -982,9 +982,9 @@ git reset --hard HEAD
         row. Phase 4 moves two pixels per update, retaining byte alignment and
         completing one 8-pixel cell in four updates.
       </p>
-      <p><strong>Why:</strong> this keeps the masked blitter and 128-byte background buffer fixed at eight bytes per row.</p>
+      <p><strong>Why:</strong> this keeps the transparent blitter and 128-byte background buffer fixed at eight bytes per row.</p>
       <p><strong>Applies to:</strong> packed 4bpp moving entities.</p>
-      <p><strong>Citation:</strong> <code>src/main.s</code> <code>player_tick</code> and <code>blit_player_masked</code>.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>player_tick</code> and <code>blit_transparent</code>.</p>
     </section>
 
     <section>
@@ -1080,6 +1080,24 @@ git reset --hard HEAD
         standalone.
       </p>
     </footer>
+    <section>
+      <h2>Use the arcade's diagonal gate tables as a timed transition</h2>
+      <p><strong>Filed 2026-07-18.</strong></p>
+      <p>The Lady Bug program ROM stores slash and backslash transition frames at Z80 <code>$0CD5</code> and <code>$0CDE</code>. MAME exposes the diagonal for one rendered frame before the perpendicular gate replaces it.</p>
+      <p><strong>Why:</strong> rotating directly between horizontal and vertical loses an arcade animation state. The diagonal also overwrites two dot cells, so completion must restore those cells from mutable maze state instead of assuming a dot remains.</p>
+      <p><strong>Applies to:</strong> gate animation, dirty-cell restoration, and future arcade-ROM table extraction.</p>
+      <p><strong>Citation:</strong> installed Lady Bug CPU ROM, MAME gameplay frames 729–730, <code>scripts/build_screen.py</code>, and <code>src/main.s</code>.</p>
+    </section>
+
+    <section>
+      <h2>Derive transparent preserves during blit when ROM is constrained</h2>
+      <p><strong>Filed 2026-07-18.</strong></p>
+      <p>Four player directions require 512 packed pixel bytes. A separate 512-byte nibble-preserve mask duplicates information already encoded by source colour zero.</p>
+      <p><strong>Why:</strong> a shared source-zero transparent blitter recovered 512 cartridge bytes and made the diagonal gate artwork fit in the active 8 KB execution window.</p>
+      <p><strong>Applies to:</strong> player and enemy sprite storage while direct cartridge execution remains limited to <code>$C000-$DFFF</code>.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_screen.py</code> <code>compile_player_sprites</code> and <code>src/main.s</code> <code>blit_transparent</code>.</p>
+    </section>
+
   </main>
 </div>
 </body>

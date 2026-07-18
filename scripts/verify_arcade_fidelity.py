@@ -81,7 +81,7 @@ def blend(base: bytes, overlay: bytes) -> bytes:
 
 
 def verify_gate_graphics() -> None:
-    _, tiles, states, backgrounds, neighbors = compile_screen(
+    screen, tiles, states, diagonals, backgrounds, neighbors, dot_tile = compile_screen(
         ROOT / "tiled/coco-screen.tmx",
         ROOT / "assets/arcade/maze.json",
         ROOT / "assets/arcade/chars.json",
@@ -103,10 +103,34 @@ def verify_gate_graphics() -> None:
                                      (BLACK, PINK, PURPLE, GREEN)))
         assert rendered[offset] == expected
 
+    # MAME frame 729: gate 17's one-frame backslash intermediate.
+    pivot_x, pivot_y = 15, 19
+    intermediate = {
+        (dx, dy): tiles[screen[(pivot_y + dy) * 40 + pivot_x + dx + 8]]
+        for dx in range(-2, 2) for dy in range(-2, 2)
+    }
+    for offset, tile_id in zip(offsets, backgrounds[17]):
+        intermediate[offset] = tiles[tile_id]
+    for dx, dy, tile_id in diagonals[1]:
+        intermediate[(dx, dy)] = tiles[tile_id]
+    expected_codes = {
+        (-2, 0): 50,
+        (-1, -1): 65, (0, -1): 57, (1, -1): 229,
+        (-1, 0): 64, (0, 0): 66, (1, 0): 67,
+        (-1, 1): 229, (0, 1): 68, (1, 1): 69,
+    }
+    for offset, code in expected_codes.items():
+        expected = (tiles[dot_tile] if code == 229 else
+                    pack_tile(recolor(characters[code],
+                                      (BLACK, PINK, PURPLE, GREEN))))
+        assert intermediate[offset] == expected
+
     overlaps = {(gate_id, neighbor - 1)
                 for gate_id, neighbor in enumerate(neighbors)
                 if neighbor and gate_id < neighbor - 1}
     assert overlaps == {(2, 4), (5, 9), (10, 12), (11, 14)}
+    assert [len(records) for records in diagonals] == [7, 7]
+    assert 0 <= dot_tile < len(tiles)
 
 
 def main() -> None:
