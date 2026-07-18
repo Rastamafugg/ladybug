@@ -43,6 +43,7 @@ cmd_build() {
 
     python3 "$ROOT/scripts/build_screen.py" \
         --map "$ROOT/tiled/coco-screen.tmx" \
+        --maze "$ROOT/assets/arcade/maze.json" \
         --chars "$ROOT/assets/arcade/chars.json" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --output "$SCREEN_INC"

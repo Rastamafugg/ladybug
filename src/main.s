@@ -35,6 +35,15 @@ PLAYER_CELL_Y equ $020A         ; semantic maze row
 PLAYER_FB     equ $020B         ; u16 framebuffer pointer at sprite top-left
 JOY_DX        equ $020D         ; absolute X displacement from centre
 JOY_DY        equ $020E         ; absolute Y displacement from centre
+PLAYER_WANT   equ $020F         ; last non-neutral requested direction
+TEST_X        equ $0210         ; candidate/draw maze column
+TEST_Y        equ $0211         ; candidate/draw maze row
+TEST_DIR      equ $0212         ; direction under collision test
+GATE_ID       equ $0213         ; active gate index
+GATE_X        equ $0214         ; active gate pivot column
+GATE_Y        equ $0215         ; active gate pivot row
+DRAW_COUNT    equ $0216         ; gate redraw loop counter
+DRAW_TILE     equ $0217         ; tile ID for draw_cell_tile
 
 DIR_NORTH     equ 0
 DIR_EAST      equ 1
@@ -76,6 +85,7 @@ FB_VIRT    equ  $2000           ; virtual base of framebuffer (PAR1)
 FB_END     equ  $9800           ; one past last FB byte (192 rows × 160 B)
 FB_PHYS    equ  $30             ; physical page 0 of FB
 MAZE_STATE equ  $A000           ; writable 576-byte maze-cell copy (PAR5)
+GATE_STATE equ  $A240           ; rotation state N/W/S/E; parity selects H/V bar
 PLAYER_BG  equ  $A300           ; 128-byte saved background under player
 
 ;==============================================================================
@@ -146,8 +156,7 @@ parloop lda     ,x+
         lda     #$1F            ; VRES=00 HRES=111 CRES=11 (BLANKED)
         sta     GIME_VRES
 
-        lda     #$28            ; bright border (empirically "pink") so a black
-        sta     GIME_BORDER     ;   stripe 0 is visually distinct from the border
+        clr     GIME_BORDER     ; canonical Black outside the active framebuffer
 
         ; FB at phys $30 → physical address $060000.
         ;   Y18=1, Y17=1, Y16..Y3 = 0
@@ -184,6 +193,7 @@ clr_fb  std     ,x++
 
         ; --- Phase 4 state, joystick, and player sprite ---
         lbsr    init_maze_state
+        lbsr    init_gate_state
         lbsr    init_joystick
         lbsr    init_player
         lbsr    draw_player
@@ -210,7 +220,7 @@ clr_fb  std     ,x++
         andcc   #%11101111      ; unmask IRQ
 
 ;==============================================================================
-; mainloop — sample input every Vbord; move two pixels every fourth Vbord.
+; mainloop — sample every Vbord; advance two pixels every second Vbord.
 ;==============================================================================
 mainloop
         sync
@@ -220,7 +230,7 @@ mainloop
         sta     LAST_FRAME
         lbsr    read_joystick
         lda     LAST_FRAME
-        anda    #$03
+        anda    #$01
         bne     mainloop
 phase4_before_tick
         lbsr    player_tick
@@ -249,6 +259,25 @@ ims_copy
         rts
 
 ;==============================================================================
+; init_gate_state
+;
+; Inputs: none
+; Returns: A, B, X, Y, CC undefined
+; Side effects: copies 20 captured initial states to GATE_STATE.
+;==============================================================================
+init_gate_state
+        leax    maze_gates,pcr
+        ldy     #GATE_STATE
+        ldb     #MAZE_GATE_COUNT
+igs_loop
+        lda     2,x
+        sta     ,y+
+        leax    3,x
+        decb
+        bne     igs_loop
+        rts
+
+;==============================================================================
 ; init_joystick — configure the PIAs for right-joystick DAC conversion.
 ;
 ; Inputs:
@@ -267,7 +296,7 @@ init_joystick
         clr     PIA1_CRB        ; select PIA1 PB direction register
         lda     #$FF
         sta     PIA1_DB         ; keyboard columns/output side
-        lda     #$24            ; data register, CA2/CB2 output low
+        lda     #$34            ; data register, static CA2/CB2 output low
         sta     PIA1_CRA
         sta     PIA1_CRB        ; selector 0 = right joystick X
 
@@ -277,7 +306,7 @@ init_joystick
         lda     #$04            ; data-register access
         sta     PIA2_CRA
         clr     PIA2_CRB
-        lda     #$24            ; CB2 low enables analog multiplexer
+        lda     #$34            ; static CB2 low enables analog multiplexer
         sta     PIA2_CRB
         lda     #$80            ; centre DAC while idle
         sta     PIA2_DA
@@ -305,7 +334,8 @@ init_player
         clr     PLAYER_STEP
         lda     #DIR_NONE
         sta     JOY_DIR
-        ldd     #$77CE          ; FB + 140*160 + 156/2
+        sta     PLAYER_WANT
+        ldd     #$75EC          ; FB + 137*160 + 152/2; opaque anchor is (-7,-7)
         std     PLAYER_FB
         rts
 
@@ -322,11 +352,11 @@ init_player
 ;   Updates JOY_X, JOY_Y, JOY_DX, JOY_DY, and JOY_DIR.
 ;==============================================================================
 read_joystick
-        lda     #$24            ; CA2 low: right X
+        lda     #$34            ; static CA2 low: right X
         sta     PIA1_CRA
         lbsr    joy_read_axis
         stb     JOY_X
-        lda     #$2C            ; CA2 high: right Y
+        lda     #$3C            ; static CA2 high: right Y
         sta     PIA1_CRA
         lbsr    joy_read_axis
         stb     JOY_Y
@@ -357,12 +387,10 @@ rj_y_abs
         cmpa    #32
         blo     rj_west
         lda     #DIR_EAST
-        sta     JOY_DIR
-        rts
+        bra     rj_request
 rj_west
         lda     #DIR_WEST
-        sta     JOY_DIR
-        rts
+        bra     rj_request
 rj_vertical
         lda     JOY_DY
         cmpa    #8
@@ -371,11 +399,12 @@ rj_vertical
         cmpa    #32
         blo     rj_north
         lda     #DIR_SOUTH
-        sta     JOY_DIR
-        rts
+        bra     rj_request
 rj_north
         lda     #DIR_NORTH
+rj_request
         sta     JOY_DIR
+        sta     PLAYER_WANT      ; buffer turns across intermediate steps
 rj_done
         rts
 
@@ -422,12 +451,12 @@ player_tick
         lbsr    restore_player
         lda     PLAYER_STEP
         bne     pt_advance
-        lda     JOY_DIR
+        lda     PLAYER_WANT
         cmpa    #DIR_NONE
         beq     pt_check_active
         lbsr    can_move
         bcc     pt_check_active
-        lda     JOY_DIR
+        lda     PLAYER_WANT
         sta     PLAYER_DIR
         sta     PLAYER_FACE
 pt_check_active
@@ -515,23 +544,359 @@ player_cell_offset
 ;   C — set if passable, clear if blocked
 ;   A, B, D, X, Y, CC — otherwise undefined
 ;==============================================================================
+; Side effects: a legal endpoint push updates GATE_STATE and redraws the gate.
 can_move
-        pshs    a
-        lbsr    player_cell_offset
-        leax    maze_nav,pcr
+        sta     TEST_DIR
+        lda     PLAYER_CELL_X
+        sta     TEST_X
+        lda     PLAYER_CELL_Y
+        sta     TEST_Y
+        ldb     TEST_DIR
+        beq     cm_north
+        cmpb    #DIR_EAST
+        beq     cm_east
+        cmpb    #DIR_SOUTH
+        beq     cm_south
+        dec     TEST_X
+        bra     cm_bounds
+cm_north
+        dec     TEST_Y
+        bra     cm_bounds
+cm_east
+        inc     TEST_X
+        bra     cm_bounds
+cm_south
+        inc     TEST_Y
+cm_bounds
+        lda     TEST_X
+        cmpa    #MAZE_WIDTH
+        lbhs    cm_blocked
+        lda     TEST_Y
+        cmpa    #MAZE_HEIGHT
+        lbhs    cm_blocked
+        lbsr    test_cell_offset
+        leax    maze_gate_owner,pcr
         lda     d,x
-        puls    b
-        leay    direction_bits,pcr
-        anda    b,y
+        lbeq    cm_regular
+        deca
+        sta     GATE_ID
+        ldb     #3
+        mul
+        leax    maze_gates,pcr
+        leax    d,x
+        lda     ,x
+        sta     GATE_X
+        lda     1,x
+        sta     GATE_Y
+        ldx     #GATE_STATE
+        ldb     GATE_ID
+        lda     b,x
+
+        ; Both corridors parallel to the current bar remain open.  The four
+        ; states retain rotation direction, but collision depends on parity.
+        bita    #1
+        bne     cm_check_vertical_passages
+        lda     TEST_X
+        cmpa    GATE_X
+        bne     cm_try_rotate
+        lda     GATE_Y
+        deca
+        cmpa    TEST_Y
+        lbeq    cm_pass_horizontal
+        adda    #2
+        cmpa    TEST_Y
+        lbeq    cm_pass_horizontal
+        bra     cm_try_rotate
+cm_check_vertical_passages
+        lda     TEST_Y
+        cmpa    GATE_Y
+        bne     cm_try_rotate
+        lda     GATE_X
+        deca
+        cmpa    TEST_X
+        lbeq    cm_pass_vertical
+        adda    #2
+        cmpa    TEST_X
+        lbeq    cm_pass_vertical
+        bra     cm_try_rotate
+
+cm_pass_horizontal
+        ldb     TEST_DIR
+        cmpb    #DIR_EAST
+        lbeq    cm_allowed
+        cmpb    #DIR_WEST
+        lbeq    cm_allowed
+        bra     cm_try_rotate
+
+cm_pass_vertical
+        ldb     TEST_DIR
+        cmpb    #DIR_NORTH
+        lbeq    cm_allowed
+        cmpb    #DIR_SOUTH
+        lbeq    cm_allowed
+        bra     cm_try_rotate
+
+cm_try_rotate
+        ; A horizontal bar rotates only when a vertical move pushes an end.
+        ldx     #GATE_STATE
+        ldb     GATE_ID
+        lda     b,x
+        bita    #1
+        bne     cm_vertical_bar
+        ldb     TEST_DIR
+        cmpb    #DIR_NORTH
+        beq     cm_h_endpoint
+        cmpb    #DIR_SOUTH
+        bne     cm_blocked
+cm_h_endpoint
+        lda     TEST_Y
+        cmpa    GATE_Y
+        bne     cm_blocked
+        lda     TEST_X
+        cmpa    GATE_X
+        blo     cm_set_west
+        bhi     cm_set_east
+        bra     cm_blocked
+cm_set_west
+        lda     #1
+        bra     cm_rotate
+cm_set_east
+        lda     #3
+        bra     cm_rotate
+
+        ; A vertical bar rotates only when a horizontal move pushes an end.
+cm_vertical_bar
+        ldb     TEST_DIR
+        cmpb    #DIR_EAST
+        beq     cm_v_endpoint
+        cmpb    #DIR_WEST
+        bne     cm_blocked
+cm_v_endpoint
+        lda     TEST_X
+        cmpa    GATE_X
+        bne     cm_blocked
+        lda     TEST_Y
+        cmpa    GATE_Y
+        blo     cm_set_north
+        bhi     cm_set_south
+        bra     cm_blocked
+cm_set_north
+        clra
+        bra     cm_rotate
+cm_set_south
+        lda     #2
+cm_rotate
+        ldx     #GATE_STATE
+        ldb     GATE_ID
+        sta     b,x
+        lda     GATE_ID
+        lbsr    draw_gate
+        bra     cm_allowed
+
+cm_regular
+        lbsr    test_cell_offset
+        leax    maze_nav,pcr
+        ldb     d,x
+        leax    cm_entry_masks,pcr
+        lda     TEST_DIR
+        andb    a,x             ; target must admit the reciprocal direction
         beq     cm_blocked
+cm_allowed
         orcc    #$01
         rts
 cm_blocked
         andcc   #$FE
         rts
 
-direction_bits
-        fcb     $01,$02,$04,$08
+cm_entry_masks
+        fcb     $04,$08,$01,$02 ; requested N/E/S/W enters through S/W/N/E
+
+;==============================================================================
+; test_cell_offset
+;
+; Inputs: TEST_X, TEST_Y
+; Returns: D = row-major maze offset; CC undefined
+;==============================================================================
+test_cell_offset
+        lda     #24
+        ldb     TEST_Y
+        mul
+        addb    TEST_X
+        adca    #0
+        rts
+
+;==============================================================================
+; draw_gate
+;
+; Inputs: A = gate ID, 0..19
+; Returns: A, B, D, X, Y, U, CC undefined
+; Side effects: restores contextual background, overlays this gate, then
+;              re-overlays an intersecting neighbouring gate if present.
+;==============================================================================
+draw_gate
+        sta     GATE_ID
+        ldb     #3
+        mul
+        leax    maze_gates,pcr
+        leax    d,x
+        lda     ,x
+        sta     GATE_X
+        lda     1,x
+        sta     GATE_Y
+
+        lda     GATE_ID
+        ldb     #7
+        mul
+        leau    gate_background_tiles,pcr
+        leau    d,u
+        leax    gate_cross_offsets,pcr
+        lda     #7
+        sta     DRAW_COUNT
+dg_restore
+        lda     GATE_X
+        adda    ,x+
+        sta     TEST_X
+        lda     GATE_Y
+        adda    ,x+
+        sta     TEST_Y
+        ldb     ,u+
+        pshs    x,u
+        lbsr    draw_cell_tile
+        puls    x,u
+        dec     DRAW_COUNT
+        bne     dg_restore
+
+        lda     GATE_ID
+        lbsr    draw_gate_overlay
+        leax    gate_redraw_neighbors,pcr
+        ldb     GATE_ID
+        lda     b,x
+        beq     dg_done
+        deca
+        lbsr    draw_gate_overlay
+dg_done
+        rts
+
+;==============================================================================
+; draw_gate_overlay
+;
+; Inputs: A = gate ID, 0..19
+; Returns: A, B, D, X, Y, U, CC undefined
+; Side effects: transparently overlays five active gate-art tiles.
+;==============================================================================
+draw_gate_overlay
+        sta     GATE_ID
+        ldb     #3
+        mul
+        leax    maze_gates,pcr
+        leax    d,x
+        lda     ,x
+        sta     GATE_X
+        lda     1,x
+        sta     GATE_Y
+
+        ldx     #GATE_STATE
+        ldb     GATE_ID
+        lda     b,x
+        ldb     #15
+        mul
+        leax    gate_state_tiles,pcr
+        leax    d,x
+        lda     #5
+        sta     DRAW_COUNT
+dg_tiles
+        lda     GATE_X
+        adda    ,x+
+        sta     TEST_X
+        lda     GATE_Y
+        adda    ,x+
+        sta     TEST_Y
+        ldb     ,x+
+        pshs    x
+        lbsr    draw_cell_overlay
+        puls    x
+        dec     DRAW_COUNT
+        bne     dg_tiles
+        rts
+
+gate_cross_offsets
+        fcb     0,-2,0,-1,-2,0,-1,0,0,0,1,0,0,1
+
+;==============================================================================
+; draw_cell_tile
+;
+; Inputs: B = screen tile ID; TEST_X,TEST_Y = semantic maze cell
+; Returns: A, B, D, X, Y, U, CC undefined
+; Side effects: writes one 8x8 tile to the framebuffer.
+;==============================================================================
+draw_cell_tile
+        stb     DRAW_TILE
+        lda     TEST_Y
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
+        lda     TEST_X
+        adda    #8
+        lsla
+        lsla
+        leax    a,x
+        ldb     DRAW_TILE
+        clra
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        leay    screen_tiles,pcr
+        leay    d,y
+        lbsr    blit_tile
+        rts
+
+;==============================================================================
+; draw_cell_overlay
+;
+; Inputs: B = transparent gate tile ID; TEST_X,TEST_Y = semantic maze cell
+; Returns: A, B, D, X, Y, U, CC undefined
+; Side effects: blends one gate-only 8x8 tile into the framebuffer.
+;==============================================================================
+draw_cell_overlay
+        stb     DRAW_TILE
+        lda     TEST_Y
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
+        lda     TEST_X
+        adda    #8
+        lsla
+        lsla
+        leax    a,x
+        ldb     DRAW_TILE
+        clra
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        leay    screen_tiles,pcr
+        leay    d,y
+        lbsr    blit_tile_transparent
+        rts
 
 ;==============================================================================
 ; eat_dot — clear a newly entered dotted cell and redraw its clean tile.
@@ -554,7 +919,7 @@ eat_dot
         anda    #$7F
         sta     ,x
         ldx     PLAYER_FB
-        leax    642,x           ; cell tile is four pixels inside 16x16 sprite
+        leax    1124,x          ; cell tile is at row +7, byte +4 in save rect
         ldb     #MAZE_CLEAN_TILE
         clra
         lslb
@@ -765,6 +1130,46 @@ btrow   ldd     ,y++
         blo     btrow
         leas    2,s
         puls    u,pc
+
+;==============================================================================
+; blit_tile_transparent — overlay nonzero packed nibbles from an 8x8 tile.
+;
+; Inputs:
+;   X — destination framebuffer byte address
+;   Y — source glyph data, 32 packed 4bpp bytes; colour 0 is transparent
+;
+; Returns: A, B, X, Y, CC undefined
+; Side effects: blends 8 rows x 4 bytes into the framebuffer.
+;==============================================================================
+blit_tile_transparent
+        lda     #8
+        pshs    a
+btt_row
+        lda     #4
+        pshs    a
+btt_byte
+        lda     ,y+
+        clrb
+        bita    #$F0
+        bne     btt_high_opaque
+        orb     #$F0
+btt_high_opaque
+        bita    #$0F
+        bne     btt_low_opaque
+        orb     #$0F
+btt_low_opaque
+        andb    ,x
+        pshs    b
+        ora     ,s+
+        sta     ,x+
+        dec     ,s
+        bne     btt_byte
+        leas    1,s
+        leax    156,x
+        dec     ,s
+        bne     btt_row
+        leas    1,s
+        rts
 
 ;==============================================================================
 ; irq_handler — Vbord (60 Hz)

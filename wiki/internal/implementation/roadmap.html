@@ -35,15 +35,15 @@
     </section>
 
     <section>
-      <h2>Current state — Phase 4 review gate</h2>
+      <h2>Current state — Phase 5 in progress</h2>
       <ul>
-        <li>Phases 0–3 are complete. Phase 4 implementation is complete and awaiting its user playtest review.</li>
+        <li>Phases 0–4 are implemented. MAME measurement fixed movement at one pixel per 60 Hz frame and confirmed persistent early-turn requests. The Up-as-Left fault was traced to MC6821 C2 strobe configuration and corrected to static axis selection.</li>
         <li><code>src/main.s</code> runs directly from the 16 KB cartridge, configures 320×192×16 RGB output, and renders the authored 40×24 Tiled screen through a generated packed tile atlas.</li>
         <li>Tooling: lwasm 4.24 and XRoar 1.10 in WSL. The active automated verification path is <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>; the web app and patched monitor are deferred.</li>
-        <li>The screen compiler now emits 53 transformed tiles plus four unique masked directions derived from arcade player sprite 0.</li>
-        <li>Vbord IRQ timing, right-joystick DAC/comparator reads, four-way navigation, two-pixel intermediate movement, background save/restore, masked sprite output, collision, and dot removal are implemented.</li>
-        <li>The unpadded Phase 4 ROM is 5,774 bytes and remains inside the active 8 KB cartridge window.</li>
-        <li>Automated Phase 4 acceptance passed. User playtesting remains for movement feel and visible tearing before advancing to Phase 5.</li>
+        <li>The screen compiler emits 82 transformed tiles, four masked player directions, canonical named maze/HUD colours, three east-facing player-palette life markers, and contextual gate backgrounds.</li>
+        <li>Vbord input, two-pixel movement every second frame, eight-pixel cell centres, persistent turn buffering, dots, and four-state endpoint-pushed rotation for all 20 gates are implemented.</li>
+        <li>The unpadded ROM is 8,078 bytes and remains inside the active 8 KB cartridge execution window, leaving 114 bytes.</li>
+        <li>Automated acceptance includes versioned MAME captures for 60 px/s movement, a request held 35 frames before a legal turn, and a complete gate-17 traversal.</li>
       </ul>
     </section>
 
@@ -143,10 +143,10 @@
         <li><strong>Done:</strong> right-joystick X/Y read via PIA2 DAC + comparator (<a href="../../release/reference/coco3/input.html">input reference</a>), with centred dead zone and dominant-axis four-way resolution.</li>
         <li><strong>Done:</strong> the canonical Lady Bug source sprite expanded into four unique directional frames with packed pixels and transparency masks.</li>
         <li><strong>Done:</strong> single-sprite 128-byte background save/restore plus masked 16×16 blit.</li>
-        <li><strong>Done:</strong> two-pixel intermediate movement, semantic navigation collision, and dot removal through writable maze cells.</li>
+        <li><strong>Done:</strong> two-pixel movement every second Vbord, four updates per semantic cell, navigation collision, and dot removal through writable maze cells.</li>
       </ol>
       <p><strong>Exit criterion:</strong> Lady Bug walks the maze under joystick control, walls block movement, and entered dots disappear without scoring.</p>
-      <p><strong>Exit result:</strong> automated acceptance passed. gdb-mcp verified centred joystick values <code>32,32</code>, exact one-cell movement after four two-pixel steps, collision at a blocked edge, dot state <code>$80→$00</code>, and a byte-exact 30,720-byte framebuffer reconstruction. Gate rotation remains Phase 5 because alternate-orientation graphics and navigation were explicitly deferred in <a href="./maze-format.html">maze-format</a>.</p>
+      <p><strong>Exit result:</strong> the first playtest defects were corrected, then calibrated against MAME 0.220. Arcade stage-one motion is exactly one pixel on every 60 Hz frame. An east request issued at frame 620 is retained until the first legal centre at frame 655, where direction changes without a stopped frame. The CoCo uses the collision-safe <code>(-7,-7)</code> anchor, the same 60 px/s cadence through two-pixel updates every second Vbord, four updates per cell, and persistent last-non-neutral input. The Up-as-Left defect was traced to MC6821 C2 strobe values <code>$24/$2C</code> and corrected to static-output values <code>$34/$3C</code>. Cold gdb-mcp verification reproduced the cadence, centred X/Y samples, and cell spacing. User visual/control retesting remains.</p>
       <p><strong>Review gate Q's:</strong></p>
       <ul>
         <li>Does the movement <em>feel right</em> against arcade footage? Record the finding.</li>
@@ -160,6 +160,7 @@
       <p><strong>Goal:</strong> complete the no-enemy game loop. Eating all dots advances to the next stage.</p>
       <p><strong>POC tasks:</strong></p>
       <ol>
+        <li><strong>Done 2026-07-18:</strong> four-state rotating gates with generated five-cell collision crosses, two parallel passages per orientation, contextual seven-cell backgrounds, transparent five-tile overlays, overlapping-neighbour preservation, endpoint-push collision, and dirty redraw. MAME gate 17 was navigated end-to-end to establish the transition.</li>
         <li>Score, lives, level counters in DP.</li>
         <li>Activate the HUD fields at their authored positions in <a href="../game/overview.html">game/overview</a>; the Phase 3 TMX supplies their static initial graphics.</li>
         <li>Dot-eating awards points; HUD updates.</li>

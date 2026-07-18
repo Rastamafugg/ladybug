@@ -25,6 +25,61 @@
     </header>
 
     <section>
+      <h2>PIA C2 static output requires control mode 11</h2>
+      <p>
+        MC6821 control values <code>$24/$2C</code> put CA2/CB2 in strobe
+        modes; bit 4 is clear, so the requested level is not held as a static
+        joystick-multiplexer selection. Use <code>$34</code> for static low and
+        <code>$3C</code> for static high. The incorrect mode made the Up host
+        input sample the wrong axis and appear as the buffered Left request,
+        while startup north movement remained valid because it bypasses input.
+      </p>
+    </section>
+
+    <section>
+      <h2>Arcade gate redraw covers seven cells and five tiles per orientation</h2>
+      <p>
+        The MAME gate-17 transition changes a fifth horizontal tile, character
+        52 at offset (-2,0), and a fifth vertical tile, character 59 at offset
+        (0,-2). A four-record redraw leaves exactly those old endpoints behind.
+        The seven-cell union cannot be cleared to Black: its inactive cells
+        contain contextual wall variants, and four pairs of gate unions overlap.
+        Restore generated gate-free background tiles, transparently overlay all
+        five dynamic tiles, then re-overlay the intersecting neighbour.
+        Collision is orientation-based: both parallel corridors are open, not
+        only one of the four cells surrounding the pivot.
+      </p>
+    </section>
+
+    <section>
+      <h2>Gate tiles combine dynamic art with contextual maze walls</h2>
+      <p>
+        Arcade gate characters are not standalone sprites. Characters 52/56
+        and 59/60 contain identical dynamic gate pixels but different adjacent
+        wall pixels. Replacing an inactive rotation cell with a blank tile
+        deletes the wall; opaque redrawing can also delete a neighbouring gate
+        at one of four shared visual cells. Strip Purple/Green into per-gate
+        background tiles at build time and store gate-only Purple/Green overlays.
+        Gate 17's rotated seven cells then match the MAME frame-730 character
+        set <code>59,61,50,64,62,255,63</code> pixel-for-pixel.
+      </p>
+    </section>
+
+    <section>
+      <h2>Rotating gates need potential edges absent from the start capture</h2>
+      <p>
+        The MAME background capture encodes only each gate's initial
+        orientation. Deriving navigation exclusively from that frame omits
+        the reciprocal external edges needed to leave a newly rotated passage,
+        so the player enters the gate and freezes. Generate all four potential
+        segment edges statically, then let the runtime gate byte select the
+        horizontal or vertical pair of parallel directional segments. Verified on gate 17: horizontal traversal
+        is accepted, perpendicular entry into its open cell is rejected, a
+        north push changes state 0→1, and the following north exit is accepted.
+      </p>
+    </section>
+
+    <section>
       <h2>Tiled CSV layer data must not end with a comma</h2>
       <p>
         A 24×30 CSV tile layer contains 720 GIDs and therefore 719 separators.
@@ -933,6 +988,38 @@ git reset --hard HEAD
     </section>
 
     <section>
+      <h2>Derive sprite orientation and anchor from rendered geometry</h2>
+      <p>Filed 2026-07-18.</p>
+      <p>
+        Raw player sprite 0 faces down before the arcade display rotation. A
+        counter-clockwise transform therefore faces right, not north. The
+        initial generator mislabeled all four directions by 90 degrees. The
+        maze-safe opaque anchor is <code>(-7,-7)</code> from a semantic cell
+        origin, not the nominal 16×16 bounding-box centre at
+        <code>(-4,-4)</code>. A one-pixel shift inside a byte-aligned save
+        rectangle represents the odd horizontal anchor without a ninth byte.
+      </p>
+      <p><strong>Why:</strong> nominal sprite dimensions include transparent margins; visual alignment is determined by opaque pixels against actual maze geometry.</p>
+      <p><strong>Applies to:</strong> generated directional sprites and future entity anchor derivation.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_screen.py</code>; exhaustive clean-maze overlap check run 2026-07-18.</p>
+    </section>
+
+    <section>
+      <h2>Buffer maze turns independently from instantaneous input</h2>
+      <p>Filed 2026-07-18.</p>
+      <p>
+        Testing a requested turn only on the exact cell-centre update discards
+        brief or early input and makes an otherwise correct controller feel
+        unresponsive. Preserve the last non-neutral direction and consume it
+        when a later cell centre permits that edge. At two pixels every second
+        Vbord, the player crosses a cell in eight Vbords at 60 pixels/second.
+      </p>
+      <p><strong>Why:</strong> input sampling and legal-turn evaluation occur at different rates and positions.</p>
+      <p><strong>Applies to:</strong> player movement and any future grid-constrained entity controlled by sampled input.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>read_joystick</code>, <code>PLAYER_WANT</code>, and <code>player_tick</code>.</p>
+    </section>
+
+    <section>
       <h2>Dirty tiles must be applied between sprite restore and save</h2>
       <p>Filed 2026-07-17.</p>
       <p>
@@ -943,6 +1030,34 @@ git reset --hard HEAD
       </p>
       <p><strong>Applies to:</strong> dots, gates, HUD overlays, and any sprite-overlapped dirty cell.</p>
       <p><strong>Citation:</strong> <code>src/main.s</code> <code>player_tick</code> and <code>eat_dot</code>.</p>
+    </section>
+
+    <section>
+      <h2>Measure arcade input behavior by frame, not by feel</h2>
+      <p>Filed 2026-07-18.</p>
+      <p>
+        MAME 0.220 stage-one movement advances exactly one rendered pixel per
+        60 Hz frame. Direction requests persist: an east request made 35 frames
+        before a legal junction turns on the first legal centre without a stop.
+        A gate push changes the background over frames 729–730 while movement
+        continues through the newly opened passage.
+      </p>
+      <p><strong>Why:</strong> subjective speed and responsiveness reports do not discriminate frame cadence, cell spacing, input buffering, and collision timing.</p>
+      <p><strong>Applies to:</strong> player movement, enemy motion, turn buffering, and rotating-gate tests.</p>
+      <p><strong>Citation:</strong> <code>scripts/capture_mame_gameplay.py</code>, <code>scripts/verify_arcade_fidelity.py</code>, and <code>assets/arcade/*_reference.json</code>.</p>
+    </section>
+
+    <section>
+      <h2>MAME 0.220 input fields use logical state</h2>
+      <p>Filed 2026-07-18.</p>
+      <p>
+        <code>ioport_field::set_value</code> reduces its argument to a Boolean.
+        Use 1 for pressed and 0 for released even when the emulated port is
+        electrically active-low. Supplying the active-low mask value silently
+        inverts Start and directional automation.
+      </p>
+      <p><strong>Applies to:</strong> all scripted MAME input capture plans.</p>
+      <p><strong>Citation:</strong> MAME 0.220 <code>src/emu/ioport.cpp</code> and <code>scripts/capture_mame_gameplay.py</code>.</p>
     </section>
 
     <section>

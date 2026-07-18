@@ -54,8 +54,8 @@
         <strong>rotated to side panels</strong>:
       </p>
       <ul>
-        <li><strong>Left panel:</strong> the authored map uses horizontal boxed <code>SPECIAL</code>, <code>EXTRA</code>, and <code>x2x3x5</code> bands.</li>
-        <li><strong>Right panel:</strong> <code>1ST</code>/score, <code>TOP</code>/high score, <code>CREDIT</code>, <code>PART</code>, level/bonus placeholders, and three life icons. <code>UNIVERSAL</code> is omitted.</li>
+        <li><strong>Left panel:</strong> boxed <code>SPECIAL</code>, <code>EXTRA</code>, and <code>x2x3x5</code> bands. Letters begin Grey and illuminate Red, Yellow, or Blue respectively when a matching-colour item advances that target.</li>
+        <li><strong>Right panel:</strong> Light Green <code>1ST</code>/score, Red <code>TOP</code>/high score, White <code>CREDIT</code>, Blue <code>PART</code>, Green vegetable/bonus value, and three player-palette life icons. <code>UNIVERSAL</code> is omitted.</li>
       </ul>
     </section>
 
@@ -67,7 +67,8 @@
         <li><strong>20 green turnstile gates</strong> placed at corridor junctions. The ladybug walking through one rotates it 90°; this can open or seal off paths. Enemies cannot turn gates.
           <ul><li>Constraint: the maze design guarantees that no gate configuration can fully isolate any region of the maze.</li></ul>
         </li>
-        <li><strong>Border circuit timer:</strong> a marker travels around the maze perimeter. Each completed lap releases one enemy from the nest, up to a maximum of (typically) four simultaneous enemies. Border-circuit speed increases on stages 2 and 5.</li>
+        <li><strong>Border circuit timer:</strong> the outer maze boxes begin White with Black separation. Starting at the thirteenth top box from the left, directly below the arcade <code>EXTRA</code> T, timer ticks turn boxes Green clockwise. Completing the circuit releases an enemy and resets all boxes to White. Exact per-level intervals must be measured from MAME; the circuit accelerates on later levels.</li>
+        <li><strong>Maze colours:</strong> regular walls and the two-pixel inner perimeter are Pink; turnstile bars are Green and their pivots Purple. Flowers have a White centre with four Light Blue corner pixels on Black.</li>
       </ul>
     </section>
 
@@ -126,8 +127,8 @@
       <p>
         Three targets compete for collected items: the <code>EXTRA</code>
         word, the <code>SPECIAL</code> word, and the heart multiplier.
-        <strong>Each target is assigned a distinct one of the three colours</strong>
-        (specific colour-to-target mapping is a tuning parameter — TBD).
+        <strong>Each target has a fixed colour:</strong> SPECIAL is Red, EXTRA
+        is Yellow, and the heart multiplier is Blue.
         Because the global cycle has every item displaying the same colour
         at any moment, and each target is bound to a different colour,
         <strong>no tie can occur</strong>: at any instant at most one
@@ -136,6 +137,7 @@
 
       <p><strong>Letters</strong> (word-spelling items: E, X, T, R, A, S, P, C, I, L — E and A appear in both words)</p>
       <ul>
+        <li>HUD target letters begin Grey and change to the target's fixed colour only when the matching letter is collected while the item is that colour.</li>
         <li>Each unique letter spawns at one fixed maze position; its colour follows the global cycle.</li>
         <li>A letter advances a word only when collected while the current global colour equals that word's assigned colour.</li>
         <li>E and A: collected at the EXTRA-colour → advance EXTRA; collected at the SPECIAL-colour → advance SPECIAL; collected at the multiplier-colour → no word progress.</li>
@@ -145,6 +147,7 @@
 
       <p><strong>Hearts</strong> (multiplier items)</p>
       <ul>
+        <li>The Grey <code>x2</code>, <code>x3</code>, and <code>x5</code> HUD fields illuminate Blue in that order as matching Blue hearts are collected.</li>
         <li>A heart only counts toward the multiplier when collected at the multiplier-colour. Counted hearts accumulate in-stage:
           <ul>
             <li>1st → ×2 multiplier on subsequent dots/letters.</li>
@@ -198,7 +201,8 @@
       <ol>
         <li>Maze drawn (single fixed layout, identical every stage), dots/letters/hearts placed at their fixed positions, <strong>fixed number of skulls</strong> placed at randomized positions.</li>
         <li>Border timer starts; ladybug spawned in starting position; nest holds all enemies for this stage.</li>
-        <li>Each border circuit releases one enemy (max 4). After the 4th release, vegetable spawns in nest.</li>
+        <li>Each completed Green border circuit releases one enemy and resets the boxes to White.</li>
+        <li><strong>Provisional:</strong> arcade observation is required to determine when the level vegetable appears in the nest, how long it remains collectible before an enemy release, and how this window changes by level.</li>
         <li>Player eats all dots → stage clears → next stage. Hearts/letters not required for clear.</li>
         <li>Death (enemy contact or skull) → respawn at start; if no lives remain, game over.</li>
       </ol>
@@ -226,7 +230,7 @@
       <h2>Decisions locked (2026-05-05)</h2>
       <ul>
         <li>HUD: the hand-authored <code>tiled/coco-screen.tmx</code> is authoritative. Its left panel has horizontal boxed <code>SPECIAL</code>, <code>EXTRA</code>, and <code>x2x3x5</code> bands; its right panel has score/high-score/credit/part placeholders and the life icons. <code>UNIVERSAL</code> is omitted.</li>
-        <li>Hearts and letters are separate maze entities. Global colour cycle; each of the three targets (EXTRA word, SPECIAL word, heart multiplier) is assigned a distinct colour.</li>
+        <li>Hearts and letters are separate maze entities. Global colour cycle; SPECIAL is Red, EXTRA is Yellow, and the heart multiplier is Blue.</li>
         <li><code>SPECIAL</code> reward: 10,000 points. No bonus round in v1.</li>
         <li>3 starting lives, one-time bonus life at 30,000 points.</li>
         <li>Single fixed maze layout used for every stage.</li>
@@ -239,7 +243,7 @@
       <h2>Deferred (not blocking initial implementation)</h2>
       <ol>
         <li><strong>Colour-cycle timing</strong> — exact period of the global blue/yellow/red cycle, and whether stage-clear or death resets it.</li>
-        <li><strong>Colour-to-target mapping</strong> — which of blue/yellow/red is assigned to EXTRA, SPECIAL, and the heart multiplier.</li>
+        <li><strong>Border/vegetable timing</strong> — measure the per-level timer-box interval, vegetable appearance point, availability duration, and relationship to the next enemy release.</li>
         <li><strong>Enemy AI</strong> — start with simple shortest-path chase + small randomness.</li>
         <li><strong>Sound design</strong> — DAC waveform tables, jingles.</li>
         <li><strong>Input fallback</strong> — joystick is primary; keyboard arrow-key fallback to confirm.</li>

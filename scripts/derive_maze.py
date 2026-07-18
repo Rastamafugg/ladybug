@@ -135,10 +135,12 @@ def derive_gates(codes: list[list[int]]) -> list[dict[str, object]]:
                 orientation = "horizontal"
                 footprint_id = 0
                 offsets = HORIZONTAL_FOOTPRINT
+                pivot = [x, y + 1]
             elif code == VERTICAL_GATE_ANCHOR:
                 orientation = "vertical"
                 footprint_id = 1
                 offsets = VERTICAL_FOOTPRINT
+                pivot = [x + 1, y]
             else:
                 continue
             cells = [[x + dx, y + dy] for dx, dy in offsets]
@@ -151,7 +153,15 @@ def derive_gates(codes: list[list[int]]) -> list[dict[str, object]]:
                     "anchor_offset": y * WIDTH + x,
                     "footprint_id": footprint_id,
                     "initial_orientation": orientation,
+                    "pivot": pivot,
                     "affected_cells": cells,
+                    "rotation_cells": [
+                        [pivot[0], pivot[1] - 1],
+                        [pivot[0] - 1, pivot[1]],
+                        [pivot[0], pivot[1]],
+                        [pivot[0] + 1, pivot[1]],
+                        [pivot[0], pivot[1] + 1],
+                    ],
                 }
             )
     if len(gates) != 20:
@@ -255,6 +265,32 @@ def derive_navigation(
             row.append(value)
         rows.append(row)
 
+    # The capture contains only each gate's initial orientation. Add the
+    # reciprocal external edges for every possible passage segment so that a
+    # player can leave a segment after rotating it. Runtime gate-state parity
+    # decides whether the north/south or west/east passage pair is active.
+    passage_segments = (
+        (0, -1, ((1, 0, NAV_E, NAV_W), (-1, 0, NAV_W, NAV_E))),
+        (-1, 0, ((0, -1, NAV_N, NAV_S), (0, 1, NAV_S, NAV_N))),
+        (0, 1, ((1, 0, NAV_E, NAV_W), (-1, 0, NAV_W, NAV_E))),
+        (1, 0, ((0, -1, NAV_N, NAV_S), (0, 1, NAV_S, NAV_N))),
+    )
+    for gate in gates:
+        pivot_x, pivot_y = gate["pivot"]  # type: ignore[misc]
+        for passage_dx, passage_dy, edges in passage_segments:
+            passage_x = pivot_x + passage_dx
+            passage_y = pivot_y + passage_dy
+            for dx, dy, bit, reciprocal in edges:
+                neighbor_x = passage_x + dx
+                neighbor_y = passage_y + dy
+                if (neighbor_x, neighbor_y) not in walkable:
+                    raise ValueError(
+                        f"gate {gate['id']} passage exits into a wall at "
+                        f"{neighbor_x},{neighbor_y}"
+                    )
+                rows[passage_y][passage_x] |= bit
+                rows[neighbor_y][neighbor_x] |= reciprocal
+
     opposites = ((NAV_N, 0, -1, NAV_S), (NAV_E, 1, 0, NAV_W))
     for y in range(HEIGHT):
         for x in range(WIDTH):
@@ -290,11 +326,12 @@ def render_include(document: dict[str, object]) -> str:
     lines.extend(format_fcb(row) for row in document["maze_cells"])  # type: ignore[arg-type]
     lines.extend(["", "; bits 0-3 N/E/S/W; bit4 gate; bit5 nest; bit6 perimeter", "maze_nav"])
     lines.extend(format_fcb(row) for row in document["maze_nav"])  # type: ignore[arg-type]
-    lines.extend(["", "; anchor offset (u16), footprint ID, initial orientation (0=H,1=V)", "maze_gates"])
+    lines.extend(["", "; gate owner ID+1 for each cell in a gate's five-cell rotation cross", "maze_gate_owner"])
+    lines.extend(format_fcb(row) for row in document["gate_owner"])  # type: ignore[arg-type]
+    lines.extend(["", "; pivot x, pivot y, initial state (0=horizontal, 1=vertical)", "maze_gates"])
     for gate in document["gates"]:  # type: ignore[assignment]
         orientation = 0 if gate["initial_orientation"] == "horizontal" else 1
-        lines.append(f"        fdb     ${gate['anchor_offset']:04X}")
-        lines.append(f"        fcb     ${gate['footprint_id']:02X},${orientation:02X}")
+        lines.append(f"        fcb     ${gate['pivot'][0]:02X},${gate['pivot'][1]:02X},${orientation:02X}")
     lines.extend(
         [
             "",
@@ -333,6 +370,12 @@ def main() -> int:
     connected = connected_size(walkable)
     styles, maze_cells, dot_mask = derive_styles(codes, attributes)
     maze_nav = derive_navigation(walkable, gates)
+    gate_owner = [[0 for _ in range(WIDTH)] for _ in range(HEIGHT)]
+    for gate in gates:
+        for x, y in gate["rotation_cells"]:
+            if gate_owner[y][x]:
+                raise ValueError(f"gate rotation crosses overlap at {x},{y}")
+            gate_owner[y][x] = gate["id"] + 1
     dots = [[x, y] for y in range(HEIGHT) for x in range(WIDTH) if dot_mask[y][x]]
     if len(dots) != 109 or any(tuple(dot) not in walkable for dot in dots):
         raise ValueError("expected 109 dots, all on walkable navigation nodes")
@@ -363,6 +406,7 @@ def main() -> int:
         "styles": styles,
         "maze_cells": maze_cells,
         "maze_nav": maze_nav,
+        "gate_owner": gate_owner,
         "dots": dots,
         "nest_cells": [list(cell) for cell in NEST_CELLS],
         "perimeter_cells": [

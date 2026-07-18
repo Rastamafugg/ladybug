@@ -108,11 +108,25 @@ result = B &gt;&gt; 2                       ; 0..63 position
       <h3>Ladybug Phase 4 configuration</h3>
       <p>
         The bare-metal implementation configures PIA1 PA as input, PIA1 PB as
-        output, and PIA2 PA7-PA2 as output. PIA1 CA2/CB2 use control value
-        <code>$24</code> for low and <code>$2C</code> for high; right X is
+        output, and PIA2 PA7-PA2 as output. PIA1 CA2/CB2 use static-output
+        control value <code>$34</code> for low and <code>$3C</code> for high; right X is
         CA2/CB2 low/low and right Y is high/low. PIA2 CB2 uses
-        <code>$24</code> to enable the analog multiplexer. A live XRoar run
+        <code>$34</code> to enable the analog multiplexer. Values
+        <code>$24/$2C</code> select C2 strobe modes and must not be used for
+        static axis selection. A live XRoar run
         returned the expected centred values <code>32,32</code>.
+      </p>
+      <p>
+        A 2026-07-18 gdb-mcp resolver test forced the four cardinal samples
+        <code>(32,0)</code>, <code>(63,32)</code>, <code>(32,63)</code>, and
+        <code>(0,32)</code>; they resolved to north, east, south, and west.
+        The reported Up-as-Left failure was caused by the former
+        <code>$24/$2C</code> strobe configuration: Y was not held selected and
+        the persistent turn buffer retained the prior Left request. The
+        automatic north movement at startup bypassed input and therefore
+        remained correct. Cold XRoar/gdb-mcp verification now reads
+        <code>CRA=$3C</code>, <code>CRB=$34</code>, PIA2 <code>CRB=$34</code>,
+        and centred axes <code>32,32</code> after a complete input sample.
       </p>
     </section>
 

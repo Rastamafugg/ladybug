@@ -156,13 +156,14 @@
     </section>
 
     <section>
-      <h2>Phase 4 player renderer — implemented 2026-07-17</h2>
+      <h2>Phase 4 player renderer — corrected 2026-07-18</h2>
       <ul>
         <li>Arcade sprite index 0, attribute 0, is the canonical Lady Bug player/life source. Sprite 3 is its rotated directional form, not a distinct animation frame.</li>
-        <li>The build rotates sprite 0 into north/east/south/west, producing four unique 256-byte pixel/mask records.</li>
+        <li>Sprite 0 faces down in raw ROM coordinates. The build rotates it 180 degrees for north, then clockwise for east, south, and west, producing four unique 256-byte pixel/mask records.</li>
         <li>The single player owns one 128-byte background buffer at <code>$A300</code>. Each update restores the old rectangle, moves, applies dirty-tile changes, saves the new rectangle, then blends the sprite.</li>
-        <li>Horizontal movement is two pixels per update so the packed destination remains byte-aligned. Four updates cross one 8-pixel semantic cell.</li>
-        <li>Movement updates every fourth Vbord, while input is sampled every Vbord.</li>
+        <li>The opaque sprite anchor is seven pixels left and seven pixels above the semantic cell origin. The byte-aligned save rectangle starts eight pixels left; generated pixels shift right by one inside it. Exhaustive checking found no opaque sprite pixel over a clean maze-wall pixel at any legal two-pixel substep.</li>
+        <li>Movement is two pixels per update, retaining byte and scanline-pair alignment for the fixed 128-byte save rectangle.</li>
+        <li>Movement updates every second Vbord, yielding the MAME-measured 60 pixels/second. Four updates cross one semantic cell, and the last non-neutral requested direction remains buffered until a cell centre permits the turn.</li>
       </ul>
       <p>
         This validates single-buffer save/restore for one entity. Phase 6 must
@@ -215,13 +216,49 @@
     </section>
 
     <section>
+      <h2>Canonical Universal colour names — 2026-07-18</h2>
+      <p>
+        These names and Universal RGB reference values are authoritative in
+        code, documentation, and review feedback. The GIME column is the
+        nearest two-bit-per-channel RGB code used by the CoCo target.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Name</th><th>Universal RGB</th><th>GIME code</th></tr></thead>
+        <tbody>
+          <tr><td>Red</td><td><code>#de4500</code></td><td><code>$26</code></td></tr>
+          <tr><td>Yellow</td><td><code>#dedf00</code></td><td><code>$36</code></td></tr>
+          <tr><td>Blue</td><td><code>#0096de</code></td><td><code>$19</code></td></tr>
+          <tr><td>Pink</td><td><code>#de96de</code></td><td><code>$3D</code></td></tr>
+          <tr><td>Green</td><td><code>#42df42</code></td><td><code>$17</code></td></tr>
+          <tr><td>White</td><td><code>#dedfde</code></td><td><code>$3F</code></td></tr>
+          <tr><td>Grey</td><td><code>#949694</code></td><td><code>$38</code></td></tr>
+          <tr><td>Black</td><td><code>#000000</code></td><td><code>$00</code></td></tr>
+          <tr><td>Light Green</td><td><code>#94df94</code></td><td><code>$3A</code></td></tr>
+          <tr><td>Purple</td><td><code>#9496de</code></td><td><code>$39</code></td></tr>
+          <tr><td>Dark Green</td><td><code>#00df00</code></td><td><code>$12</code></td></tr>
+          <tr><td>Light Blue</td><td><code>#94dfde</code></td><td><code>$3B</code></td></tr>
+          <tr><td>Dark Red</td><td><code>#de0000</code></td><td><code>$24</code></td></tr>
+          <tr><td>Orange</td><td><code>#de9600</code></td><td><code>$34</code></td></tr>
+        </tbody>
+      </table>
+      <p>
+        Palette slots are named constants in <code>scripts/build_screen.py</code>;
+        slots 14 and 15 remain reserved. Maze geometry uses semantic colours:
+        Pink walls/inner border, White timer boxes, Green gate bars, Purple
+        pivots, and Black-backed Light Blue/White flowers. Bonus letters begin
+        Grey inside Red, Yellow, and Blue borders. Life markers use the same
+        Dark Red/Green/Yellow pen map as the runtime sprite.
+      </p>
+    </section>
+
+    <section>
       <h2>Things deferred to Phase 2 implementation</h2>
       <ol>
         <li><strong>Exact <code>$FF98</code> value.</strong> BP=1 (graphics), other bits TBD when we decide blink, mono, PAL, lines-per-row. Default LPR=001 / PAL=0 / MOCH=0 likely fine.</li>
         <li><strong>Exact <code>$FF99</code> value.</strong> VRES=00 HRES=111 CRES=10 = <code>%00011110</code> = <code>$1E</code> is the candidate; double-check against <a href="../sources/coco3-asm-tepolt.html">coco3-asm-tepolt §Hi-res graphics</a> Table 4-10 once the code is being written.</li>
         <li><strong>Memory map.</strong> Where in physical RAM does the framebuffer live? See <a href="./memory-map.html">memory-map</a>.</li>
         <li><strong>Palette load.</strong> 16 entries × 6-bit codes. Initial palette (greens for the maze, primary RGB for the cycle, white/grey for HUD) gets a small data table.</li>
-        <li><strong>Border colour.</strong> <code>$FF9A</code> 6-bit code. Likely matches the maze background.</li>
+        <li><strong>Border colour.</strong> Resolved to canonical Black (<code>$FF9A=$00</code>) outside the active framebuffer.</li>
         <li><strong>CRES=11 blanking trick.</strong> Tepolt notes <code>CRES=11</code> blanks the screen — useful for setting up the framebuffer without showing tearing. Use it during init.</li>
         <li><strong>Single-buffer vs double-buffer.</strong> Phase 4 implements single-buffer save/restore. User playtesting must still check visible tearing before this becomes the multi-entity Phase 6 policy.</li>
       </ol>

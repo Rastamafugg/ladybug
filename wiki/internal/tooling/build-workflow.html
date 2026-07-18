@@ -42,7 +42,7 @@ tiled/coco-screen.tmx                (hand-authored 40x24 screen)
    │  scripts/derive_maze.py + scripts/build_screen.py
    ▼
 build/ladybug_maze.inc               (semantic cells/navigation/gates)
-build/ladybug_screen.inc             (palette, map, tiles, masked player frames)
+build/ladybug_screen.inc             (palette, map, tiles, player frames, contextual gate redraw data)
    │
 src/*.s                              (hand-written 6809 assembly)
    │
@@ -96,6 +96,7 @@ scripts/build.sh
 python3 scripts/derive_maze.py
 python3 scripts/build_screen.py \
   --map tiled/coco-screen.tmx \
+  --maze assets/arcade/maze.json \
   --chars assets/arcade/chars.json \
   --sprites assets/arcade/sprites.json \
   --output build/ladybug_screen.inc

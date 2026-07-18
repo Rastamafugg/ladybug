@@ -23,6 +23,158 @@
     </header>
 
     <section>
+      <h3>2026-07-18 · lint — Contextual gate-redraw acceptance</h3>
+      <p>
+        Passed Python byte-compilation, the expanded deterministic MAME
+        verifier, the full WSL lwasm build, generated-table assertions, scoped
+        whitespace checks, and all 164 HTML pages/local links. Cold gdb-mcp
+        matched gate 17's rotated seven cells to MAME and preserved both gate
+        overlays in the gate-2/gate-4 shared cell. Confirmed 82 packed tiles,
+        20 seven-byte background records, four reciprocal overlap pairs, and a
+        16 KB cartridge containing an 8,078-byte image followed only by
+        <code>$FF</code> padding.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · debug/verify — Context-preserving gate redraw</h3>
+      <p>
+        Reduced disappearing neighbouring walls/gates to an opaque Black clear
+        across seven-cell visual unions. MAME and the stable maze capture show
+        contextual wall variants inside those unions and four overlapping gate
+        pairs. The screen compiler now emits per-gate stripped backgrounds,
+        gate-only transparent overlays, and reciprocal neighbour IDs. Gate 17
+        matches the MAME frame-730 seven-tile state pixel-for-pixel; live
+        gdb-mcp also verified simultaneous gate-2/gate-4 art at their shared
+        cell. The full build is 8,078 bytes before padding. Recorded the user's
+        fullscreen-only slowdown as an XRoar presentation/vsync observation;
+        ROM cadence remains unchanged.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · lint — Input, gate, and documentation acceptance</h3>
+      <p>
+        Passed Python byte-compilation, deterministic MAME fidelity checks,
+        the full WSL lwasm build, generated-data assertions, and scoped diff
+        whitespace checks. Parsed all 164 HTML pages and resolved every local
+        link with zero errors. Confirmed the generated SPECIAL L uses only
+        Black/Grey, all four gate states contain five records with the two
+        MAME-derived outer offsets, and the padded cartridge contains a
+        7,710-byte linked image followed only by <code>$FF</code> padding.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · debug/verify — Up input and gate redraw corrections</h3>
+      <p>
+        Traced Up-as-Left to MC6821 C2 strobe modes <code>$24/$2C</code> and
+        changed joystick selection to static-output <code>$34/$3C</code>.
+        Corrected the SPECIAL L border classification. Decoded MAME gate-17
+        background changes to add omitted horizontal character 52 and vertical
+        character 59, clear the complete seven-cell visual union, and retain
+        both parallel corridors for each gate orientation. The WSL build and
+        MAME fidelity verifier pass. Cold XRoar/gdb-mcp verified centred
+        <code>32,32</code> axes, correct PIA modes, two pixels every second
+        Vbord, the lower horizontal passage, and both endpoint cleanup
+        directions. The ROM is 7,710 bytes before padding.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · implement/verify — Canonical colours and gate traversal correction</h3>
+      <p>
+        Standardized 14 Universal colour names/RGB references and their GIME
+        codes, replaced captured per-cell colour leakage with semantic maze and
+        HUD colouring, and documented the timer-box, fixed target-colour, and
+        provisional vegetable timing rules. The generated screen now has Pink
+        walls/inner border, White timer boxes, Green/Purple gates, explicit
+        Light Blue/White flowers, Grey initial bonus fields, and the specified
+        score-field colours. Corrected gate topology by generating every
+        potential passage's reciprocal external edges and enforcing segment
+        direction at runtime. Cold gdb-mcp verified cardinal direction
+        resolution plus gate-17 pass, block, rotate, and post-rotation exit.
+        The ROM is 7,714 bytes before padding; held-Up host sampling remains open.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · lint — Movement, gate, graphics, and wiki acceptance</h3>
+      <p>
+        Passed Python byte-compilation, the deterministic MAME fidelity
+        verifier, the full WSL lwasm build, scoped <code>git diff --check</code>,
+        and HTML parsing for all eight changed wiki pages. A generated 320×192
+        preview confirmed uniform outer-wall colouring, red/grey SPECIAL,
+        yellow EXTRA, blue x2x3x5, and three player-palette life markers.
+        Final cold gdb-mcp checks verified two pixels every second Vbord, one
+        cell per four updates, initial gate states, saturated palette bytes,
+        gate-17 <code>0→1</code> rotation, and no repeat rotation.
+        A final cold run at maze cell (2,2) rejected north through its wall and
+        accepted the legal east exit, verifying the reciprocal entrance mask.
+      </p>
+      </section>
+
+      <section>
+      <h3>2026-07-18 · correct — Opposite gate-state rendering</h3>
+      <p>
+        Corrected the generated turnstile states after an opaque-sprite overlap
+        check found that rotating individual 8×8 cells by 180 degrees displaced
+        their pixels from the arcade pivot. The four logical N/W/S/E passage
+        states now use the arcade gate's two visual orientations: states 0/2
+        share horizontal records and states 1/3 share vertical records. The
+        player silhouette has zero opaque-pixel overlap at either perpendicular
+        endpoint in all four resulting states. The same closing review corrected
+        regular-cell collision to test the destination's reciprocal entrance bit
+        instead of merely accepting any destination with a nonzero navigation mask.
+      </p>
+      </section>
+
+    <section>
+      <h3>2026-07-18 · implement/verify — MAME-calibrated movement and rotating gates</h3>
+      <p>
+        Added frame-indexed MAME gameplay capture and reusable speed, early-turn,
+        and gate-17 plans. Accepted measurements are 60 pixels/second, a request
+        retained 35 frames before the first legal turn, and gate rotation at
+        frames 729–730 with uninterrupted traversal. Calibrated the CoCo loop
+        to two pixels every second Vbord and four updates per semantic cell. Implemented all
+        20 gates as four passage states over generated five-cell owner crosses,
+        with endpoint-push collision and dirty redraw. Cold gdb-mcp verified
+        one framebuffer byte every second frame, one cell per eight frames, gate state 17 changing
+        <code>0→1</code>, northward movement, and no second rotation on the next
+        frame. Final unpadded ROM after opposite-state gate deduplication and
+        reciprocal regular-cell collision masking: 7,492 bytes.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · implement/lint — Arcade-attribute maze and semantic HUD colours</h3>
+      <p>
+        Updated the screen compiler to apply captured per-cell arcade colour
+        attributes to the 24×24 maze, use saturated CoCo RGB palette codes,
+        render SPECIAL red/grey, EXTRA yellow, and x2x3x5 blue, and generate
+        all three life markers from the east-facing player sprite and palette.
+        The initial SPECIAL letters remain grey; collected-letter red state is
+        reserved for the Phase 7 letter-state implementation.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · debug/lint — Phase 4 playtest corrections</h3>
+      <p>
+        The first user playtest confirmed dot collection but found incorrect
+        orientation, sprite/wall overlap, slow movement, and missed turns.
+        Discriminating tests reduced these to a 90-degree frame-order error, a
+        <code>(-4,-4)</code> anchor where clean-maze geometry requires
+        <code>(-7,-7)</code>, a four-Vbord cadence, and an unbuffered
+        cell-centre request. The correction produces zero wall-pixel overlaps
+        across 2,048 legal positions, runs at 60 pixels/second, and buffers the
+        last non-neutral request. The 5,775-byte unpadded ROM built cleanly; a
+        cold gdb-mcp run verified an east turn and four two-pixel updates on
+        Vbord counts 180, 182, 184, and 186.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-17 · lint — Phase 4 player movement</h3>
       <p>
         Python compilation, deterministic graphics generation, the WSL lwasm

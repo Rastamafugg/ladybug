@@ -115,6 +115,7 @@ target remote :65520
           <tr><td><code>Connection timed out</code> from <code>target remote :65520</code></td><td>XRoar is not listening where <code>gdb-mcp</code> can reach it. Use <code>-gdb-ip 0.0.0.0</code> for Windows-hosted XRoar reached from WSL.</td></tr>
           <tr><td>Raw TCP connects but GDB does not attach</td><td>Restart XRoar and attach directly without prior <code>/dev/tcp</code> probes; the stub behaves as a single active GDB endpoint. Add <code>-debug-gdb -1</code> if it repeats.</td></tr>
           <tr><td><code>set architecture m6809</code> fails</td><td>The GDB binary is not a 6809 build. <code>m6809-gdb --version</code> should report <code>--target=m6809</code>.</td></tr>
+          <tr><td>Motion slows only in fullscreen</td><td>User-observed on 2026-07-18 for both automatic and joystick movement. This isolates the symptom from Ladybug input and points to XRoar's fullscreen presentation/vsync path. XRoar exposes <code>-vo-vsync</code> and <code>-fskip</code>; compare windowed/fullscreen frame-counter rates before changing game cadence.</td></tr>
         </tbody>
       </table>
     </section>

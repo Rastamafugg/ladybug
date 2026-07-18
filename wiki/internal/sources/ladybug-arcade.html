@@ -89,6 +89,40 @@
       </ol>
     </section>
 
+    <section>
+      <h2>MAME gameplay calibration — 2026-07-18</h2>
+      <p>
+        <code>scripts/capture_mame_gameplay.py</code> drives MAME 0.220 through
+        logical input fields and captures every rendered frame plus background
+        RAM. MAME's <code>ioport_field::set_value</code> accepts logical
+        pressed/released values regardless of the driver's active-low wiring;
+        passing electrical mask values prevents Start and directions from
+        registering. The reusable plans are under <code>scripts/mame_plans/</code>.
+      </p>
+      <p>
+        The accepted stage-one baseline records one pixel of displacement on
+        every 60 Hz frame. A right request at frame 620 is retained until the
+        first legal centre at frame 655 and changes direction without a stopped
+        frame. Gate plan 17 approaches the left end of a horizontal bar from
+        the south; background codes rotate at frames 729–730 and the player
+        continues north from maze row 22 through the new west passage to row 18.
+        The same background delta proves that complete gate graphics use five
+        cells per orientation: horizontal character 52 extends to offset
+        (-2,0), while vertical character 59 extends to offset (0,-2). Their
+        combined dirty-redraw footprint is seven cells.
+        The completed vertical state uses characters
+        <code>59,61,50,64,62,255,63</code> across that union, proving that
+        character 50 is contextual maze background rather than a blank cell.
+        <code>scripts/verify_arcade_fidelity.py</code> checks these facts against
+        <code>gameplay_reference.json</code>, <code>turn_reference.json</code>,
+        and <code>gate_reference.json</code>.
+      </p>
+      <p>
+        Driver evidence: <a href="https://github.com/mamedev/mame/blob/mame0220/src/mame/drivers/ladybug.cpp">MAME 0.220 Lady Bug driver</a>;
+        sprite/background evidence: <a href="https://github.com/mamedev/mame/blob/mame0220/src/mame/video/ladybug.cpp">MAME 0.220 Lady Bug video device</a>.
+      </p>
+    </section>
+
     <footer class="wiki-footer">
       <p>
         Web-ingest only. All claims should be flagged "verify against MAME /

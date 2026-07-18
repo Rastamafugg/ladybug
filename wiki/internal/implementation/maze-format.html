@@ -84,15 +84,15 @@
           </tr>
           <tr>
             <td><code>maze_gates</code></td>
-            <td>20 four-byte records: 16-bit anchor-cell offset, footprint ID, initial orientation.</td>
-            <td>80 B</td>
-            <td>Identifies every turnstile without embedding mutable state in the map.</td>
+            <td>20 three-byte records: pivot X, pivot Y, initial passage state.</td>
+            <td>60 B</td>
+            <td>Identifies every turnstile pivot and its captured north/west initial passage.</td>
           </tr>
           <tr>
-            <td><code>gate_footprints</code></td>
-            <td>Variable records listing each affected cell and its horizontal/vertical graphic and navigation forms.</td>
-            <td>Target ≤128 B</td>
-            <td>Supports the arcade footprint after capture, including a footprint larger than one cell.</td>
+            <td><code>maze_gate_owner</code> / <code>gate_state_tiles</code></td>
+            <td>576 owner bytes plus four states of four signed-offset tile records.</td>
+            <td>624 B</td>
+            <td>Maps each five-cell collision cross to a gate and supplies four directional states using two arcade visual orientations.</td>
           </tr>
         </tbody>
       </table>
@@ -107,12 +107,13 @@
       <h2>Writable state</h2>
       <ul>
         <li><strong>Dots:</strong> Phase 4 copies all 576 <code>maze_cells</code> bytes to <code>$A000-$A23F</code> and clears bit 7 in place when a dot is collected. A later phase may compact this to the planned 72-byte bitmap if RAM pressure requires it.</li>
-        <li><strong>Gates:</strong> one byte per gate in the initial implementation, 20 bytes. Values are horizontal or vertical; bit-packing can be considered only if RAM pressure becomes measured.</li>
-        <li><strong>Static topology:</strong> remains in ROM. A collision query reads <code>maze_nav</code>; only cells marked gate-affected consult the owning gate record and its orientation-specific footprint.</li>
+        <li><strong>Gates:</strong> one byte per gate at <code>$A240-$A253</code>. Values 0/1/2/3 mean the passage is north/west/south/east of the pivot. Opposite passage states reuse the same horizontal or vertical arcade tile set; only the logical opening differs after a 180-degree turn.</li>
+        <li><strong>Dynamic topology:</strong> regular cells use <code>maze_nav</code>. States 0/2 admit east-west travel through the north/south passage cell; states 1/3 admit north-south travel through the west/east passage cell. Pushing a bar endpoint perpendicularly rotates that endpoint into the new segment before movement proceeds.</li>
+        <li><strong>Potential gate edges:</strong> generation adds reciprocal external edges for all four possible passage segments because the MAME start capture contains only the initial orientation. Runtime state still permits only one segment.</li>
       </ul>
       <p>
         The current runtime cost is 576 bytes for writable maze cells. Adding
-        the planned 20 gate bytes still fits comfortably in the
+        the implemented 20 gate bytes fits comfortably in the
         <code>$A000-$BFFF</code> game-state page; bitmap compaction is deferred
         until pressure is measured.
       </p>
@@ -176,15 +177,16 @@
         order, applies Tiled horizontal and vertical flip flags, rejects
         diagonal flips and active non-8×8 tilesets, and deduplicates the
         transformed packed graphics. The current authored screen compiles to
-        a 960-byte map and 53 graphics, totaling 2,656 bytes.
+        a 960-byte map and 82 graphics after semantic colour and gate-state expansion.
       </p>
       <p>
         Derived result: 25 logical styles, 109 initial dots, 20 gates split
         evenly between horizontal and vertical initial orientations, 249
         connected walkable cells, a two-cell central nest release lane, and a
-        92-cell perimeter circuit. The initial gate anchor is the only
-        passable cell in each captured four-cell gate footprint; the three bar
-        cells remain blocked.
+        92-cell perimeter circuit. Every gate owns a non-overlapping five-cell
+        collision cross around its pivot. Gate-state parity selects the two
+        parallel passages for the current horizontal or vertical orientation;
+        the centre remains blocked.
       </p>
     </section>
 
@@ -220,16 +222,16 @@
         <thead><tr><th>Current ROM item</th><th>Measured size</th></tr></thead>
         <tbody>
           <tr><td>Authored screen map</td><td>960 B measured</td></tr>
-          <tr><td>53 deduplicated packed graphics</td><td>1,696 B measured</td></tr>
-          <tr><td><strong>Screen data</strong></td><td><strong>2,656 B</strong></td></tr>
-          <tr><td><strong>Complete unpadded ROM</strong></td><td><strong>2,952 B</strong></td></tr>
+          <tr><td>82 deduplicated packed graphics</td><td>2,624 B measured</td></tr>
+          <tr><td>Four masked player frames</td><td>1,024 B measured</td></tr>
+          <tr><td><strong>Generated screen payload</strong></td><td><strong>4,608 B plus 220 B gate redraw records</strong></td></tr>
+          <tr><td><strong>Complete unpadded ROM</strong></td><td><strong>8,078 B</strong></td></tr>
         </tbody>
       </table>
       <p>
-        The screen compiler emits 2,656 bytes, below the 2,992-byte Phase 3
-        ceiling. The assembled Phase 3 image is 2,952 bytes before cartridge
-        padding. The 1,250-byte semantic maze include remains generated for
-        Phase 4/5 integration but is not yet linked into the static-render ROM.
+        The Phase 5 build remains within the directly executable 8 KB cartridge
+        window at 8,078 bytes before padding. Further Phase 5 work has 114 bytes
+        before an explicit cartridge expansion or data-packing decision is required.
       </p>
     </section>
 
@@ -241,9 +243,10 @@
         <li>Every semantic style and graphic reference is in range.</li>
         <li>Exactly 20 gates; every gate footprint is inside the grid and maps only to cells marked gate-affected.</li>
         <li>N/E/S/W movement is reciprocal between adjacent non-gate cells; no passable edge exits the grid.</li>
+        <li>Runtime regular-cell collision tests the destination cell's reciprocal entrance bit for the requested direction; a nonzero navigation mask alone is insufficient.</li>
         <li>Initial dot count is emitted and checked against the captured source.</li>
         <li>Nest and perimeter-track cells form the captured connected regions.</li>
-        <li>The static generator validates the captured initial state. Before Phase 5 gate interaction is accepted, derive alternate-orientation graphics/navigation and validate the no-isolated-region rule exhaustively or by documented structural proof.</li>
+        <li>The generator validates 20 non-overlapping five-cell collision crosses with no dots. Each orientation transparently overlays five arcade tiles after restoring seven contextual background cells; four overlapping gate pairs trigger a reciprocal neighbour overlay. Versioned MAME evidence verifies gate-17 rotation and traversal; the four-state runtime rule is exercised by cold gdb-mcp.</li>
         <li>Live gdb-mcp verification compares all 192 rendered rows, the 64-pixel side margins, palette/PAR state, halt PC, and reported ROM size.</li>
       </ul>
     </section>
@@ -251,11 +254,9 @@
     <section>
       <h2>Deferred</h2>
       <ul>
-        <li>Alternate gate-orientation graphics and navigation remain Phase 5 work; Phase 3 records the exact captured initial orientation and affected cells.</li>
-        <li>Animated entities and sprite/background restoration remain Phase 4.</li>
-        <li>Gate interaction and collision implementation remain Phase 5.</li>
+        <li>Two-frame visual interpolation of the arcade rotation remains deferred; navigation state changes atomically on the triggering CoCo frame.</li>
         <li>Per-frame full-maze rendering is not planned; Phase 3 uses a verified one-time boot render.</li>
-        <li>A gate-affected collision query may scan the 20 gate records initially. Add a generated cell-to-gate lookup only if Phase 5 measurements require it.</li>
+        <li>The generated owner table avoids a per-collision scan of all 20 gate records.</li>
       </ul>
     </section>
 
