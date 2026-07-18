@@ -42,7 +42,7 @@
         <li>Tooling: lwasm 4.24 and XRoar 1.10 in WSL. The active automated verification path is <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>; the web app and patched monitor are deferred.</li>
         <li>The screen compiler emits 92 transformed tiles, four transparent player directions, canonical named maze/HUD colours, three east-facing player-palette life markers, contextual gate backgrounds, and both diagonal transition styles.</li>
         <li>Vbord input, two-pixel movement every second frame, immediate manual neutral stop, eight-pixel cell centres, early-turn buffering, dots, and four-state endpoint-pushed rotation with a one-Vbord diagonal frame for all 20 gates are implemented.</li>
-        <li>The unpadded ROM is 8,167 bytes and remains inside the active 8 KB cartridge execution window, leaving 25 bytes.</li>
+        <li>The guarded 16 K split is implemented: 1,667 resident bytes at <code>$C000-$C682</code>, 6,500 immutable bytes at <code>$E000-$F963</code>, and independent remaining capacities of 6,525 code bytes and 1,180 asset bytes.</li>
         <li>Automated acceptance includes versioned MAME captures for 60 px/s movement, a request held 35 frames before a legal turn, and a complete gate-17 traversal.</li>
       </ul>
     </section>
@@ -160,6 +160,7 @@
       <p><strong>Goal:</strong> complete the no-enemy game loop. Eating all dots advances to the next stage.</p>
       <p><strong>POC tasks:</strong></p>
       <ol>
+        <li><strong>Done 2026-07-18:</strong> guarded 16 K split layout with resident code below <code>$E000</code>, immutable assets at <code>$E000-$FDFF</code>, map-derived build failures at both boundaries, exact upper-ROM reads, and pixel-exact cold XRoar rendering.</li>
         <li><strong>Done 2026-07-18:</strong> four-state rotating gates with generated five-cell collision crosses, two parallel passages per orientation, contextual seven-cell backgrounds, transparent five-tile overlays, overlapping-neighbour preservation, endpoint-push collision, and dirty redraw. MAME gate 17 was navigated end-to-end to establish the transition.</li>
         <li>Score, lives, level counters in DP.</li>
         <li>Activate the HUD fields at their authored positions in <a href="../game/overview.html">game/overview</a>; the Phase 3 TMX supplies their static initial graphics.</li>
@@ -227,7 +228,7 @@
       <p><strong>Exit criterion:</strong> plays start-to-finish, looks and feels like Lady Bug, no obvious bugs, fits in cart (16 K target; 32 K / banked acceptable if the expansion was triggered earlier).</p>
       <p><strong>Review gate Q's:</strong></p>
       <ul>
-        <li>ROM size — actual vs 16 KB budget. If we overflowed: compress sprites (2bpp+attr / RLE), curate harder, or pivot to bank-switched cart (see <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>).</li>
+        <li>ROM size — resident and asset use against their independent guards. If either overflows: compress/curate first, then evaluate the banked fallback in <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K split layout implemented; banked fallback deferred"</a>.</li>
       </ul>
     </section>
 

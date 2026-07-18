@@ -16,6 +16,60 @@ TESTER_ROM="$BUILD_DIR/tester.rom"
 TESTER_LST="$BUILD_DIR/tester.lst"
 TESTER_MAP="$BUILD_DIR/tester.map"
 CART_BYTES=16384
+RESIDENT_LIMIT=0xE000
+ASSET_LIMIT=0xFE00
+
+guard_layout() {
+    local map="$1"
+    local rom="$2"
+    python3 - "$map" "$rom" "$RESIDENT_LIMIT" "$ASSET_LIMIT" <<'PY'
+import re
+import sys
+
+map_path, rom_path = sys.argv[1], sys.argv[2]
+resident_limit, asset_limit = int(sys.argv[3], 0), int(sys.argv[4], 0)
+symbols = {}
+pattern = re.compile(r"^Symbol: (resident_end|asset_start|asset_end) .* = ([0-9A-Fa-f]+)$")
+with open(map_path, encoding="utf-8") as handle:
+    for line in handle:
+        match = pattern.match(line.rstrip())
+        if match:
+            symbols[match.group(1)] = int(match.group(2), 16)
+
+missing = {"resident_end", "asset_start", "asset_end"} - symbols.keys()
+if missing:
+    sys.exit(f"build: layout map is missing {', '.join(sorted(missing))}")
+if symbols["resident_end"] > resident_limit:
+    sys.exit(
+        f"build: resident region ends at ${symbols['resident_end']:04X}; "
+        f"limit is ${resident_limit:04X}"
+    )
+if symbols["asset_start"] != resident_limit:
+    sys.exit(
+        f"build: asset region starts at ${symbols['asset_start']:04X}; "
+        f"expected ${resident_limit:04X}"
+    )
+if symbols["asset_end"] > asset_limit:
+    sys.exit(
+        f"build: asset region ends at ${symbols['asset_end']:04X}; "
+        f"limit is ${asset_limit:04X}"
+    )
+
+raw_size = len(open(rom_path, "rb").read())
+expected_size = symbols["asset_end"] - 0xC000
+if raw_size != expected_size:
+    sys.exit(
+        f"build: raw ROM is {raw_size} bytes; layout requires {expected_size}"
+    )
+
+resident_used = symbols["resident_end"] - 0xC000
+asset_used = symbols["asset_end"] - symbols["asset_start"]
+print(
+    f"build: resident {resident_used}/{resident_limit - 0xC000} bytes; "
+    f"assets {asset_used}/{asset_limit - resident_limit} bytes"
+)
+PY
+}
 
 pad_cart() {
     local rom="$1"
@@ -56,6 +110,7 @@ cmd_build() {
           -I "$BUILD_DIR" \
           "$SRC_MAIN"
 
+    guard_layout "$MAP" "$ROM"
     pad_cart "$ROM"
 }
 

@@ -23,6 +23,50 @@
     </header>
 
     <section>
+      <h3>2026-07-18 · lint — Split-cartridge acceptance</h3>
+      <p>
+        Passed Python byte-compilation, deterministic arcade fidelity, shell
+        syntax, the complete WSL build, map/address assertions, exact ROM
+        header/alignment/tail checks, scoped whitespace validation, and parsing
+        plus local-link resolution for all 164 HTML pages. Confirmed 1,667 of
+        8,192 resident bytes and 6,500 of 7,680 asset bytes, a 14,692-byte raw
+        span padded to exactly 16 K, and no source changes outside the approved
+        assembly/build/wiki scope. Cold XRoar separately matched the relocated
+        asset range and live framebuffer byte-for-byte.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · implement/verify — Guarded 16 K split cartridge layout</h3>
+      <p>
+        Moved the 6,500-byte immutable block to <code>$E000-$F963</code>, kept
+        1,667 resident bytes below <code>$E000</code>, and added map-derived
+        build failures for both region limits and raw-file/address mismatch.
+        The first guard caught that raw lwasm <code>ORG</code> does not emit a
+        gap; replacing it with <code>ALIGN $2000,$FF</code> produced the correct
+        14,692-byte address-aligned span and 16 K padded image. Cold XRoar read
+        every relocated asset byte exactly, reached the live Phase 4 loop, and
+        rendered a framebuffer matching the generated screen plus initial
+        player pixel-for-pixel.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · query/design — Cartridge-capacity expansion plan</h3>
+      <p>
+        Measured the current linked layout and separated the immediate 8 K code
+        limit from the physical 16 K cartridge capacity. Planned a guarded split
+        with resident code at <code>$C000-$DFFF</code> and the 6,500-byte immutable
+        block relocated to <code>$E000-$FDFF</code>, leaving 6,525 resident-code
+        bytes and 1,180 asset bytes. Local XRoar 1.10 source confirmed that one
+        16 K plain-ROM slot maps its second half at <code>$E000</code>. Defined a
+        later GMC-compatible, low-RAM boot loader and explicit RAM-copy/TY=1
+        handoff as a Phase 6 fallback, gated on measured packed assets and
+        physical deployment compatibility.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-18 · lint — Neutral-stop and diagonal-gate acceptance</h3>
       <p>
         Passed Python byte-compilation, deterministic arcade-fidelity checks,

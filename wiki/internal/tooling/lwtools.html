@@ -83,10 +83,12 @@
       <p>
         <code>raw</code> output is exactly the assembled byte count.
         Cartridge ROMs need to be a power of two; Ladybug uses a 16 KB cart
-        at <code>$C000-$FEFF</code>
-        (<a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>).
-        The top <code>$FF00-$FFFF</code> is the I/O window, not cart-visible,
-        so the cart's last 256 bytes are effectively unused. The build
+        across resident <code>$C000-$DFFF</code> and asset
+        <code>$E000-$FDFF</code> regions
+        (<a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K split layout implemented"</a>).
+        The forced <code>$FE00-$FEFF</code> RAM window and the
+        <code>$FF00-$FFFF</code> I/O window make the final 512 cart bytes
+        inaccessible to Ladybug. The build
         script pads with <code>0xFF</code> to 16384 bytes after assembly:
       </p>
 <pre><code>python3 -c "
@@ -103,6 +105,7 @@ open('build/ladybug.rom','wb').write(data + b'\\xff'*pad)
       <h2>Errors / gotchas</h2>
       <ul>
         <li><strong>No <code>ORG</code>?</strong> Output starts at <code>0</code> — useless for a cart. Always <code>ORG $C000</code> at the top.</li>
+        <li><strong>Raw output does not materialize an <code>ORG</code> gap.</strong> In raw format a later <code>ORG $E000</code> changes symbol addresses but concatenates emitted bytes in the file. Use <code>ALIGN $2000,$FF</code> from the resident region to emit the required address-alignment bytes, then verify raw length against the final map symbol.</li>
         <li><strong>Branch out of range</strong> — <code>lwasm</code> will error with the exact source line; switch <code>BRA</code>→<code>LBRA</code>, <code>BEQ</code>→<code>LBEQ</code>, etc.</li>
         <li><strong>Implicit direct page</strong> — by default DP is <code>0</code>; if we set DPR via <code>SETDP</code> pseudo-op, the assembler trusts us. A mismatch between <code>SETDP</code> and the actual <code>TFR a,dp</code> at runtime silently corrupts addressing.</li>
         <li><strong>Listing line numbers</strong> off by include depth — use <code>--list-nofiles</code> to suppress filenames if grepping hot inner loops.</li>

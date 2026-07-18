@@ -9,7 +9,7 @@
 ;   - Flattening visible Tiled layers and applying horizontal/vertical flips.
 ;   - blit_tile: 8 rows x 4 bytes, stride 160.
 ;   - Polling the right joystick through the PIA DAC/comparator path.
-;   - Masked 16x16 player frames with background save/restore.
+;   - Transparent 16x16 player frames with background save/restore.
 ;   - Semantic maze collision and dot removal.
 ;
 ; Visible: the authored screen with a moving, maze-constrained Lady Bug.
@@ -1317,10 +1317,19 @@ irq_done
 par_table
         fcb     $38,$30,$31,$32,$33,$34,$3E,$3F
 
+resident_end
+
+; Immutable cartridge data occupies the upper ROM region.  Keep executable
+; code and hot constants below $E000; scripts/build.sh enforces both limits.
+        align   $2000,$FF
+asset_start
+
 ;-- Build-generated palette, screen map, and packed tile atlas. --------------
 ;   scripts/build.sh compiles tiled/coco-screen.tmx with arcade character data
 ;   before invoking lwasm.
         include "ladybug_screen.inc"
         include "ladybug_maze.inc"
+
+asset_end
 
         end

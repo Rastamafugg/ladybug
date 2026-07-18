@@ -225,13 +225,14 @@
           <tr><td>92 deduplicated packed graphics</td><td>2,944 B measured</td></tr>
           <tr><td>Four transparent player frames</td><td>512 B measured</td></tr>
           <tr><td><strong>Generated screen payload</strong></td><td><strong>4,416 B, including 262 B of final/diagonal gate records</strong></td></tr>
-          <tr><td><strong>Complete unpadded ROM</strong></td><td><strong>8,167 B</strong></td></tr>
+          <tr><td><strong>Meaningful resident + asset bytes</strong></td><td><strong>8,167 B</strong></td></tr>
+          <tr><td><strong>Address-aligned raw ROM span</strong></td><td><strong>14,692 B before final padding</strong></td></tr>
         </tbody>
       </table>
       <p>
-        The Phase 5 build remains within the directly executable 8 KB cartridge
-        window at 8,167 bytes before padding. Further Phase 5 work has 25 bytes
-        before an explicit cartridge expansion or data-packing decision is required.
+        The Phase 5 split uses 1,667 of 8,192 resident bytes and 6,500 of 7,680
+        asset bytes. Further work has independent headroom of 6,525 code bytes
+        and 1,180 asset bytes before a packing or banked-cartridge decision.
       </p>
     </section>
 

@@ -311,7 +311,7 @@
       </p>
       <p>
         <strong>Applies to:</strong> the cart-size pivot path in
-        <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>.
+        <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K split layout implemented; banked fallback deferred"</a>.
         Use bank-switched, not Init0=11.
       </p>
     </section>
@@ -1096,6 +1096,15 @@ git reset --hard HEAD
       <p><strong>Why:</strong> a shared source-zero transparent blitter recovered 512 cartridge bytes and made the diagonal gate artwork fit in the active 8 KB execution window.</p>
       <p><strong>Applies to:</strong> player and enemy sprite storage while direct cartridge execution remains limited to <code>$C000-$DFFF</code>.</p>
       <p><strong>Citation:</strong> <code>scripts/build_screen.py</code> <code>compile_player_sprites</code> and <code>src/main.s</code> <code>blit_transparent</code>.</p>
+    </section>
+
+    <section>
+      <h2>Raw lwasm ORG changes addresses but does not emit the gap</h2>
+      <p><strong>Filed 2026-07-18.</strong></p>
+      <p>A second <code>ORG $E000</code> placed asset symbols correctly in the map while the raw output remained 8,167 bytes because raw format concatenates emitted blocks.</p>
+      <p><strong>Why:</strong> a cartridge file requires file offset and CPU address offset to agree. <code>ALIGN $2000,$FF</code> emits the 6,525-byte gap, producing a 14,692-byte raw span whose asset bytes begin at file offset <code>$2000</code>.</p>
+      <p><strong>Applies to:</strong> split cartridge layouts and any future multiple-address-region raw build.</p>
+      <p><strong>Citation:</strong> lwtools manual <code>ORG</code>/<code>ALIGN</code> directives, <code>src/main.s</code>, and <code>scripts/build.sh</code>.</p>
     </section>
 
   </main>

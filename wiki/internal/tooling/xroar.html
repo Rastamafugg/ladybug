@@ -220,7 +220,8 @@ target remote :65520
       <h2>Gotchas</h2>
       <ul>
         <li><strong>Cart ROM must be a power of 2.</strong> XRoar will load any size but mapping behaviour for non-pow2 ROMs is undefined.</li>
-        <li><strong><code>-cart-rom</code> is documented only as "mapped from <code>$C000</code>."</strong> XRoar's handling of 32 KB cart files is unverified — observed behaviour in Phase 2.1 testing was consistent with XRoar mapping the <em>lower</em> 16 K of a 32 K file to <code>$C000</code>. If/when we need &gt;16 K cart, plan to use <code>-cart-type gmc</code> rather than rely on Init0=11.</li>
+        <li><strong>Plain 16 K ROM mapping is source-confirmed.</strong> XRoar 1.10 <code>cart_rom_finish()</code> creates one slot sized to a lone ROM file, and <code>rombank_a8()</code> masks a 16 K slot address with <code>$3FFF</code>. A single 16 K <code>-cart-rom</code> therefore covers <code>$C000-$FFFF</code> address offsets, including the usable <code>$E000-$FDFF</code> half. Native 32 K Init0=11 behaviour remains unverified; use a separately validated banked type such as GMC if capacity later exceeds the plain 16 K image.</li>
+        <li><strong>The split-ROM acceptance run passed 2026-07-18.</strong> Cold gdb-mcp reads matched file offsets for <code>palette_table=$E000</code>, <code>screen_map=$E010</code>, <code>maze_cells=$F256</code>, and <code>maze_gates=$F916</code>. The live framebuffer matched the generated 40×24 screen plus initial player pixel-for-pixel.</li>
         <li><strong>Default machine config carries state across runs.</strong> If a previous session changed PAR/palette in a weird way, clear <code>~/.xroar/</code>.</li>
         <li><strong>WSL display</strong> — XRoar opens an X11/Wayland window. WSL2 with WSLg (Win11 default) handles this transparently.</li>
       </ul>

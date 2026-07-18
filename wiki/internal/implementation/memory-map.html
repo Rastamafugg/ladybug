@@ -71,7 +71,7 @@ $A254-$A2FF      5    $34   172 B  Reserved game-state growth
 $A300-$A37F      5    $34   128 B  Player background save buffer
 $A380-$BFFF      5    $34   —      Free game-state RAM
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
-$E000-$FDFF      7    $3F   —      Cart-visible; reserved for data, not active code
+$E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
 $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
 </code></pre>
@@ -93,14 +93,22 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
     <section>
       <h2>Cart ROM image (16 K)</h2>
 <pre><code>file offset   virtual          purpose
-$0000-$3EFF   $C000-$FEFF      autostart magic, entry, code, all data tables
-              $FF00-$FFFF      (not in cart — dedicated I/O)
-$3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
+$0000-$0682   $C000-$C682      autostart magic, entry, resident code/constants
+$0683-$1FFF   $C683-$DFFF      emitted $FF alignment; resident growth
+$2000-$3963   $E000-$F963      immutable graphics, maze, and static tables
+$3964-$3DFF   $F964-$FDFF      final $FF padding; asset growth
+$3E00-$3EFF   $FE00-$FEFF      forced RAM window; cart byte inaccessible
+$3F00-$3FFF   $FF00-$FFFF      dedicated I/O; cart byte inaccessible
 </code></pre>
-      <p>The lwasm source uses a single <code>org</code> block:</p>
+      <p>The lwasm source establishes the cartridge origin and emits the split:</p>
 <pre><code>        org     $C000
         fcc     "DK"            ; autostart magic (BASIC FIRQ -&gt; $C002)
-        ; entry, code, data tables, ...
+        ; entry and resident code
+resident_end
+        align   $2000,$FF        ; materialize file/address gap to $E000
+asset_start
+        ; immutable generated data
+asset_end
 </code></pre>
       <p>
         Build script pads the resulting raw output to 16384 bytes (see
@@ -108,7 +116,7 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
       </p>
       <p>
         If 16 K becomes insufficient, expansion options are documented in
-        <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>.
+        <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K split layout implemented"</a>.
         Expansion requires an explicit bank-switch or copy design because the
         current runtime executes directly from cartridge ROM.
       </p>
@@ -214,9 +222,10 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
       <p>
         The current <a href="./maze-format.html">Phase 3 screen format</a>
         uses a 960-byte 40×24 map plus 2,944 bytes for 92 deduplicated packed
-        graphics. The Phase 5 linked image is 8,167 bytes before 16 KB padding,
-        so executable code and static data remain inside the active
-        <code>$C000-$DFFF</code> cartridge window. The generated semantic maze,
+        graphics. The Phase 5 build contains 8,167 meaningful bytes across a
+        14,692-byte address-aligned raw span before 16 KB padding. Executable
+        code stays in <code>$C000-$DFFF</code> and static data now occupies
+        <code>$E000-$FDFF</code>. The generated semantic maze,
         writable dot state, and 20 gate-state bytes are integrated.
       </p>
     </section>
@@ -239,7 +248,7 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
       <ol>
         <li><strong>Compress sprites to 2bpp + per-sprite attribute byte</strong> — halves sprite ROM to ~7.5 K. Inline expand during blit (~30% cost). Closest to arcade hardware's native layout. <strong>Default plan.</strong></li>
         <li><strong>Curate the sprite set</strong> — drop direction-flip frames; mirror at blit time. Probably reduces 120 → 60-80 frames.</li>
-        <li><strong>Pivot to a software bank-switched cart</strong> — see <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current)"</a>. Universal hardware support; ~half-day refactor; touches only the boot data-copy phase.</li>
+        <li><strong>Pivot to a software bank-switched cart</strong> — see <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K split layout implemented; banked fallback deferred"</a>. Requires a low-RAM loader, explicit copies to other physical pages, a TY=1 handoff, and a separately selected physical cartridge target.</li>
       </ol>
       <p>
         Once a cart holds enough data, the in-RAM data layout still has
@@ -252,6 +261,60 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
         <li><strong>Drop one FB page, use a sliding write window</strong> — frees one PAR for data; renderer gets more complex.</li>
         <li><strong>Move some code out of <code>$E000-$FFFF</code></strong> — frees PAR7. Code lives only in <code>$C000-$DFFF</code> (8 K). Tight.</li>
       </ol>
+    </section>
+
+    <section>
+      <h2>Cartridge-capacity split — implemented 2026-07-18</h2>
+      <p>
+        The immediate limit was the active 8 K code window, not the physical
+        16 K cartridge. The plain ROM is now split into two guarded regions:
+      </p>
+<pre><code>Virtual          Capacity  Planned owner
+$C000-$DFFF      8,192 B   resident executable code and hot constants
+$E000-$FDFF      7,680 B   immutable graphics, maze, and other static data
+$FE00-$FEFF        256 B   forced physical-page-$3F jump table; never cart data
+$FF00-$FFFF        256 B   I/O; never cart data
+</code></pre>
+      <p>
+        The current immutable block begins at <code>palette_table=$C683</code>
+        and is 6,500 bytes. Moving <code>palette_table</code> through the end of
+        the generated maze data to <code>$E000</code> projects
+        <code>asset_end=$F964</code>. That leaves 6,525 bytes for resident-code
+        growth and 1,180 bytes for additional static data, or 7,705 bytes total
+        subject to the independent region limits. All current 6809
+        PC-relative references remain within signed 16-bit reach.
+      </p>
+      <p>
+        <code>src/main.s</code> now emits <code>resident_end</code>, aligns with
+        explicit <code>$FF</code> bytes to <code>asset_start=$E000</code>, and
+        emits <code>asset_end</code>. <code>scripts/build.sh</code> fails the build
+        for <code>resident_end &gt; $E000</code> or
+        <code>asset_end &gt; $FE00</code>, and also rejects a raw-file length that
+        disagrees with <code>asset_end-$C000</code>. Cold XRoar/gdb-mcp read the
+        entire relocated block exactly from <code>$E000-$F963</code>; the live
+        framebuffer matched the generated screen plus initial player
+        pixel-for-pixel. Cartridge type, runtime MMU ownership, and the 16 K
+        output size are unchanged.
+      </p>
+      <h3>Banked fallback for Phase 6+</h3>
+      <p>
+        If packed enemy and object assets exceed the 7,680-byte static region,
+        prototype a GMC-compatible banked image. A low-RAM bootstrap must select
+        each 16 K source bank and copy its payload through a temporary
+        <code>$A000-$BFFF</code> destination mapping into unused physical RAM.
+        It must also copy the resident code page explicitly; same-address writes
+        beneath TY=0 cartridge ROM remain invalid. After loading, switch TY=1,
+        map one resident code page at PAR6 and one swappable asset page at PAR7,
+        restore PAR5 to game state, then enter the runtime. Normal gameplay will
+        not bank-switch cartridge ROM.
+      </p>
+      <p>
+        The banked fallback is not yet approved for implementation. Its gate is
+        a measured Phase 6 asset inventory plus an XRoar GMC proof of bank
+        selection, low-RAM execution, multi-page copying, and TY=1 handoff.
+        Physical cartridge/CoCoSDC compatibility must be selected separately
+        before this becomes the release format.
+      </p>
     </section>
 
     <section>
@@ -271,7 +334,10 @@ $3F00-$3FFF   (file padding)   $FF bytes; never read by hardware
           <tr><td><code>$06-$0C</code></td><td>player direction/facing/step/cell/pointer</td><td>7 B</td><td>Phase 4 player state</td></tr>
           <tr><td><code>$0D-$0E</code></td><td><code>JOY_DX</code>, <code>JOY_DY</code></td><td>2×u8</td><td>Absolute displacement from joystick centre</td></tr>
           <tr><td><code>$0F</code></td><td><code>PLAYER_WANT</code></td><td>u8</td><td>Last non-neutral direction buffered for the next legal cell-centre turn</td></tr>
-          <tr><td><code>$10-$FF</code></td><td>(free)</td><td>240 B</td><td>Future hot state</td></tr>
+          <tr><td><code>$10-$17</code></td><td>collision and gate draw scratch</td><td>8 B</td><td>Phase 5 movement/gate renderer</td></tr>
+          <tr><td><code>$18-$1A</code></td><td>manual-input and gate-animation state</td><td>3 B</td><td>Phase 4/5 runtime</td></tr>
+          <tr><td><code>$1B-$1C</code></td><td>transparent-blit dimensions</td><td>2 B</td><td>Shared renderer</td></tr>
+          <tr><td><code>$1D-$FF</code></td><td>(free)</td><td>227 B</td><td>Future hot state</td></tr>
         </tbody>
       </table>
       <p>Plenty of room. Maintain this table as variables land.</p>

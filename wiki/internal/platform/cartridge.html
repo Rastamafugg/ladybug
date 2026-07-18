@@ -44,7 +44,7 @@
     </section>
 
     <section>
-      <h2>Cart size — 16 K (current); 32 K and bank-switched options deferred</h2>
+      <h2>Cart size — 16 K split layout implemented; banked fallback deferred</h2>
       <p>
         <strong>Decision (2026-05-08, revised same day): 16 K cartridge for
         development.</strong>
@@ -67,35 +67,62 @@
           <strong>32 K via Init0 b1-b0 = <code>11</code>.</strong> GIME-native
           32 K cart mode. Cart visible at <code>$8000-$FEFF</code> after our
           boot enables it. Requires (a) cart hardware that decodes the wider
-          range, and (b) emulator support that we haven't confirmed.
-          Validate at Phase 4 if needed.
+          range, and (b) emulator support that we haven't confirmed. This is
+          not the immediate expansion path because it overlaps the current
+          framebuffer mapping.
         </li>
         <li>
           <strong>Software bank-switched cart.</strong> Two or more 16 K
           banks of ROM, standard <code>$C000-$FEFF</code> window. Software
-          writes a bank-select register to swap. Universally supported
-          (XRoar <code>-cart-type gmc</code>, CoCoSDC, multi-pak, custom
-          hardware). ~half-day refactor — touches only the boot data-copy
-          phase, since runtime is all-RAM regardless. Default fallback if
-          16 K is insufficient.
+          writes a bank-select register to swap. XRoar supports the GMC model,
+          but physical CoCoSDC/custom-hardware compatibility must be selected
+          and verified. Because current code executes from ROM, this requires
+          a low-RAM loader, explicit copies to different physical pages, and a
+          TY=1 handoff. It is the fallback after the 16 K split is exhausted.
         </li>
       </ul>
       <p>
-        <strong>Trigger for the pivot:</strong> Phase 4 sprite-arithmetic
-        gate, when <code>120 sprites × 128 B at 4bpp</code> (or compressed
-        equivalent) plus code, tiles, font, palette, maze, and sound is
-        measured against 16 K.
+        <strong>Trigger for the banked pivot:</strong> the Phase 6 packed-asset
+        inventory exceeds the 7,680-byte <code>$E000-$FDFF</code> static-data
+        region after curation/compression, or resident code exceeds the separate
+        8,192-byte <code>$C000-$DFFF</code> region.
       </p>
       <p><strong>Cart layout in the 16 K image:</strong></p>
 <pre><code>file offset   virtual    purpose
-$0000-$3EFF   $C000-$FEFF   "DK" magic, entry, code, all data tables
-              $FF00-$FFFF   not in cart (dedicated I/O / vectors)
+$0000-$1FFF   $C000-$DFFF   "DK" magic, entry, resident code/hot constants
+$2000-$3DFF   $E000-$FDFF   immutable graphics, maze, and static tables
+$3E00-$3EFF   $FE00-$FEFF   forced RAM jump-table window; cart byte unused
+$3F00-$3FFF   $FF00-$FFFF   dedicated I/O; cart byte unused
 </code></pre>
       <p>
         Cart hardware: standard 16 K EPROM cart shell. CoCoSDC and similar
-        work natively. The ~256 bytes at <code>$FF00-$FFFF</code> aren't
-        cart-visible (dedicated I/O), so the file's last 256 bytes are
-        wasted but harmless.
+        work natively. Init0 bit 3 forces <code>$FE00-$FEFF</code> to RAM and
+        <code>$FF00-$FFFF</code> is dedicated I/O, so the final 512 file bytes
+        are deliberately unused.
+      </p>
+    </section>
+
+    <section>
+      <h2>Immediate split layout — implemented 2026-07-18</h2>
+      <p>
+        The build continues using one plain 16 K ROM. Entry and executable code remain in
+        <code>$C000-$DFFF</code>; relocate immutable data beginning with
+        <code>palette_table</code> to <code>$E000-$FDFF</code>. This yields
+        15,872 usable cartridge bytes without changing cartridge hardware,
+        runtime MMU ownership, or the output format.
+      </p>
+      <p>
+        Local XRoar 1.10 source confirms that a single 16 K
+        <code>-cart-type rom -cart-rom</code> image is loaded as one 16 K ROM
+        slot and addressed with a <code>$3FFF</code> mask. Its second 8 K is
+        therefore read at <code>$E000</code> without <code>-cart-rom2</code>.
+        A cold emulator test read the complete relocated block exactly and
+        rendered the expected framebuffer.
+      </p>
+      <p>
+        Separate assembler labels and build guards enforce the resident and
+        asset boundaries. This ownership split also prepares a later banked
+        loader without committing the release cartridge to GMC hardware now.
       </p>
     </section>
 

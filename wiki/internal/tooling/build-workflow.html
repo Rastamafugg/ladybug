@@ -70,7 +70,7 @@ emulated CoCo 3      (real hardware: write ROM to a 16K EPROM, drop into cart sh
       <table class="wiki-table">
         <thead><tr><th>Command</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen and curated player frames, assemble, and pad. Output includes <code>assets/arcade/maze.json</code>, <code>build/ladybug_maze.inc</code>, <code>build/ladybug_screen.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, and <code>build/ladybug.map</code>.</td></tr>
+          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen and curated player frames, assemble, enforce the resident/asset ROM boundaries, and pad. Output includes <code>assets/arcade/maze.json</code>, <code>build/ladybug_maze.inc</code>, <code>build/ladybug_screen.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, and <code>build/ladybug.map</code>.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch XRoar with the canonical cart profile and map cursor keys to the right CoCo joystick through <code>kjoy0</code>.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
@@ -108,6 +108,15 @@ lwasm -9 --format=raw \
       -I build \
       src/main.s
 </code></pre>
+      <p>
+        The canonical script then reads <code>resident_end</code>,
+        <code>asset_start</code>, and <code>asset_end</code> from the lwasm map.
+        It rejects resident code beyond <code>$E000</code>, an asset start other
+        than <code>$E000</code>, assets beyond <code>$FE00</code>, or a raw-file
+        length inconsistent with <code>asset_end-$C000</code>. A successful
+        current build reports <code>resident 1667/8192</code> and
+        <code>assets 6500/7680</code> before padding.
+      </p>
 
       <h3>2. Pad to 16 KB</h3>
 <pre><code>python3 -c "
@@ -200,7 +209,7 @@ shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coc
       <ul>
         <li><strong><code>lwasm: command not found</code></strong> — WSL <code>~/coco-tools/lwtools</code> not built/installed. Reinstall: <code>cd ~/coco-tools/lwtools &amp;&amp; make &amp;&amp; sudo make install</code>.</li>
         <li><strong><code>xroar: command not found</code></strong> — same pattern under <code>~/coco-tools/xroar</code>; check its <code>INSTALL</code> for SDL/GTK build deps.</li>
-        <li><strong><code>build: ROM is 16385 bytes — exceeds 16 KB</code></strong> — code+data overflowed the 16 KB cart window. Expansion path documented in <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K (current); 32 K and bank-switched options deferred"</a>.</li>
+        <li><strong><code>build: resident region ends...</code> / <code>build: asset region ends...</code></strong> — one guarded split region overflowed before final padding. The fallback is documented in <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K split layout implemented; banked fallback deferred"</a>.</li>
         <li><strong>No xroar window from Windows host</strong> — WSLg should hand off automatically on Win 11. Test with <code>wsl -d Ubuntu -- bash -lc "xeyes"</code> to confirm GUI passthrough; if blank, restart WSL: <code>wsl --shutdown</code>.</li>
         <li><strong>xroar boots to BASIC OK prompt instead of our cart</strong> — <code>-cart-autorun</code> missing, or our <code>JMP</code> at <code>$C000</code> isn't where BASIC's FIRQ handler expects (see boot handshake in <a href="../platform/cartridge.html">platform/cartridge</a>).</li>
       </ul>
