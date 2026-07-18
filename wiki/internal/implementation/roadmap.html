@@ -165,7 +165,7 @@
         <li>Score, lives, level counters in DP.</li>
         <li>Activate the HUD fields at their authored positions in <a href="../game/overview.html">game/overview</a>; the Phase 3 TMX supplies their static initial graphics.</li>
         <li>Dot-eating awards points; HUD updates.</li>
-        <li>Stage-clear detection: all dots gone → reset maze, increment level.</li>
+        <li>Interim Phase 5 stage-clear detection may use all flowers gone; final arcade-fidelity logic must also account for the six bonus circles if the StrategyWiki claim is confirmed in MAME.</li>
         <li>Death → life lost (placeholder, since no enemies yet — debug key for now).</li>
       </ol>
       <p><strong>Exit criterion:</strong> loop of clear-stage → next-stage works indefinitely. Score and HUD accurate.</p>
@@ -177,9 +177,10 @@
       <p><strong>POC tasks:</strong></p>
       <ol>
         <li>Bug entity record (<code>BUG.X</code>, <code>BUG.Y</code>, <code>BUG.STATE</code>, <code>BUG.LEN</code>); fixed-size pool.</li>
-        <li>Border-circuit spawn timer driving bug entry through the gates.</li>
-        <li>Bug AI — simple "head toward Lady Bug, redirected by turnstile state" behaviour.</li>
-        <li>Skull entity + simple movement.</li>
+        <li>Border-circuit spawn timer driving four initial den occupants; measure the claimed speed changes on stages 2 and 5.</li>
+        <li>Bug AI — semi-random corridor wandering outside detection range, steady pursuit inside it, and no gate rotation; verify detection and den-safety rules in MAME.</li>
+        <li>Stationary skull hazards lethal to either side; provisional stage progression is two skulls on stage 1 increasing to six after stage 10, with added skulls replacing food.</li>
+        <li>Skull-killed enemies return to the den for delayed re-release; verify whether skull-caused player death removes remaining skulls.</li>
         <li>Collision → life lost; reset positions.</li>
       </ol>
       <p><strong>Exit criterion:</strong> playable. You can lose the game. Multiple bugs on screen at once.</p>
@@ -190,12 +191,12 @@
       <p><strong>Goal:</strong> the EXTRA/SPECIAL/vegetable system from the design doc.</p>
       <p><strong>POC tasks:</strong></p>
       <ol>
-        <li>Global colour-cycle state in DP, advanced by a timed task.</li>
-        <li>Letter entities (E, X, T, R, A / S, P, E, C, I, A, L), placement and collection logic.</li>
-        <li>Vegetable spawn timer + the 18-vegetable cycle ordered table.</li>
-        <li>Heart entity (×2 / ×3 / ×5 multiplier when colour matches).</li>
-        <li>SPECIAL completion → 10,000-point award.</li>
-        <li>EXTRA completion → +1 life.</li>
+        <li>Global Red → Yellow → Blue colour-cycle state shared by all six stage circles; measure the provisional &lt;1 s / ~4 s / ~7 s durations.</li>
+        <li>Three letter circles plus three heart circles per stage, including selection, placement, collection, and off-colour scoring.</li>
+        <li>Vegetable spawn/recurrence timer plus the 18-vegetable ordered table; frozen enemies remain lethal and may receive a post-freeze speed increase.</li>
+        <li>Blue-heart progression ×2 → ×3 → ×5, reset at stage transition.</li>
+        <li>SPECIAL completion → 10,000-point CoCo adaptation, target reset, and provisional immediate stage advance.</li>
+        <li>EXTRA completion → +1 life, target reset, and provisional immediate stage advance.</li>
       </ol>
       <p><strong>Exit criterion:</strong> the right HUD panel cycles correctly; collecting at the right colour advances the right target; all three reward paths trigger.</p>
     </section>

@@ -33,6 +33,7 @@
         <li><strong>Web search aggregations</strong> (multiple) — gave: vegetable cycle and 1000 → 9500 (+500/level) point scale through level 18, then horseradish constant; base scoring 10/100/300/800 for dot/blue/yellow/red.</li>
         <li><strong>bitvint.com history page</strong> — gave: rotating-gates strategic emphasis, "items earlier yield higher points" claim, skulls as instant-death stationary hazards. Did not detail letter mechanics.</li>
         <li><strong>Wikipedia + arcade reviews</strong> — Arcade Awards 1983 Certificate of Merit (Most Innovative Coin-Op runner-up) for the turnstile mechanic.</li>
+        <li><strong><a href="https://strategywiki.org/wiki/Lady_Bug/Gameplay">StrategyWiki — Lady Bug/Gameplay</a></strong> — full page ingested 2026-07-18. Supplies six-circle stage composition, approximate colour timing, enemy/den/vegetable flow, skull progression, stage-clear claims, and the scoring table. Treat as a secondary source and verify programmed timing/progression against MAME.</li>
       </ul>
     </section>
 
@@ -40,7 +41,6 @@
       <h2>Sources attempted but unavailable</h2>
       <ul>
         <li><strong>Arcade-Museum manual PDF</strong> (<code>arcade-museum.com/manuals-videogames/L/Lady_Bug__1981__Universal.pdf</code>) — fetcher returned binary PDF data, not extractable via WebFetch. Should be downloaded and ingested manually if available.</li>
-        <li><strong>StrategyWiki Lady Bug gameplay page</strong> — 403 on fetch (fetcher blocked).</li>
         <li><strong>xahlee.info optimal-strategy page</strong> — connection refused.</li>
       </ul>
     </section>
@@ -77,6 +77,51 @@
         canonical player/life form; sprite 3 is a rotated directional form.
         The driver maps <code>$7000-$73FF</code> as write-only sprite RAM, so a
         normal CPU-space dump cannot read the video device's private copy.
+      </p>
+    </section>
+
+    <section>
+      <h2>StrategyWiki gameplay ingest — 2026-07-18</h2>
+      <p>
+        StrategyWiki describes four enemies beginning in the den. A clockwise
+        White-to-Green border circuit releases them one at a time, with circuit
+        speed increases on stages 2 and 5. Enemies wander until the player is
+        close, then pursue; they cannot rotate turnstiles. It also claims that
+        enemies inside the den cannot kill a player who enters it. These AI,
+        timing, and den-collision details require MAME verification.
+      </p>
+      <p>
+        Each stage contains six synchronously coloured bonus circles: three
+        letters and three hearts. The stated cycle is Red for less than one
+        second, Yellow for about four seconds, then Blue for about seven seconds.
+        Red matching letters advance SPECIAL, Yellow matching letters advance
+        EXTRA, and Blue hearts advance ×2, ×3, then ×5. Off-colour collection
+        still awards 800/300/100 points according to Red/Yellow/Blue but does not
+        advance a target. Flowers award 10 times the current multiplier;
+        vegetables are not multiplied.
+      </p>
+      <p>
+        The page says normal stage completion requires all flowers and all six
+        circles, while completing either word immediately advances the stage.
+        EXTRA grants a life and resets. It describes SPECIAL as a free game;
+        Ladybug's locked CoCo v1 adaptation remains 10,000 points because a
+        cabinet-credit reward is not meaningful in the standalone port.
+      </p>
+      <p>
+        Skulls are stationary and lethal to either side. The page claims two on
+        stage 1, increasing gradually to six after stage 10, with each added skull
+        replacing food. A skull-killed enemy returns to the den and is released
+        again; a skull-caused player death removes remaining skulls. After all
+        four enemies leave, the vegetable appears. It freezes but does not disarm
+        enemies, may recur after a killed enemy cycles through the den, and is
+        followed by an enemy speed increase when its tune ends. These progression
+        and recurrence rules are now explicit MAME capture targets.
+      </p>
+      <p>
+        The vegetable table confirms eighteen stages from cucumber 1,000 through
+        horseradish 9,500 in 500-point increments. The page also documents
+        separate one- and two-player start buttons; alternating two-player support
+        remains an explicit CoCo v1 scope decision.
       </p>
     </section>
 

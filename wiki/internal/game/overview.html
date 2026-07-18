@@ -81,7 +81,7 @@
         <li><strong>Bonus life at 30,000 points</strong> (one-time award).</li>
         <li>Constant movement speed across all levels (only enemies get faster).</li>
         <li>4-direction joystick control (no diagonal).</li>
-        <li>Touching an enemy costs one life; the enemy returns to the nest.</li>
+        <li>Touching an enemy costs one life. Enemy reset/position behavior after player death must be measured from MAME.</li>
         <li>Touching a skull is instant death.</li>
       </ul>
 
@@ -91,14 +91,18 @@
         <li>From level 9 onward each stage features four different insect types simultaneously.</li>
         <li>AI: chase the ladybug through corridors; cannot shift gates.</li>
         <li>Killable by luring into a skull.</li>
+        <li>A skull-killed enemy returns to the central den, waits briefly, and is released again.</li>
         <li>Frozen for several seconds when the player eats a vegetable; still lethal on contact during the freeze.</li>
+        <li><strong>StrategyWiki claim to verify:</strong> enemies wander semi-randomly until the player is close, then pursue steadily; entering the den is safe while enemies remain inside it.</li>
         <li>Speed increases per level; player speed does not.</li>
       </ul>
 
       <h3>Skulls</h3>
       <ul>
-        <li>Randomly placed each stage, stationary.</li>
+        <li>Randomly placed each stage and stationary.</li>
         <li>Lethal to both ladybug and enemies on contact.</li>
+        <li><strong>StrategyWiki claim to verify:</strong> stage 1 begins with two skulls; the count increases gradually to six after stage 10, with each added skull replacing one food item.</li>
+        <li><strong>StrategyWiki claim to verify:</strong> when the player dies by touching a skull, all remaining skulls disappear for that stage.</li>
       </ul>
     </section>
 
@@ -121,8 +125,10 @@
         <strong>Global colour cycle.</strong> All on-stage letters and all
         on-stage hearts share a <strong>single colour state</strong> that
         changes simultaneously and instantaneously across every item. The
-        colour cycles through blue / yellow / red on a timer (cycle period
-        TBD).
+        colour cycles red → yellow → blue → red. StrategyWiki gives approximate
+        real-time durations of less than one second Red, four seconds Yellow,
+        and seven seconds Blue; exact frame counts and reset behavior require
+        MAME capture.
       </p>
       <p>
         Three targets compete for collected items: the <code>EXTRA</code>
@@ -138,7 +144,7 @@
       <p><strong>Letters</strong> (word-spelling items: E, X, T, R, A, S, P, C, I, L — E and A appear in both words)</p>
       <ul>
         <li>HUD target letters begin Grey and change to the target's fixed colour only when the matching letter is collected while the item is that colour.</li>
-        <li>Each unique letter spawns at one fixed maze position; its colour follows the global cycle.</li>
+        <li>Each stage contains six bonus circles at fixed bonus positions: three letter circles and three hearts. Exact per-stage letter selection and respawn behavior require MAME capture.</li>
         <li>A letter advances a word only when collected while the current global colour equals that word's assigned colour.</li>
         <li>E and A: collected at the EXTRA-colour → advance EXTRA; collected at the SPECIAL-colour → advance SPECIAL; collected at the multiplier-colour → no word progress.</li>
         <li>Letters specific to one word collected at any colour other than their word's colour → no progress.</li>
@@ -162,14 +168,17 @@
 
       <h3>Word completion rewards</h3>
       <ul>
-        <li><strong><code>EXTRA</code></strong> (5 letters E-X-T-R-A) → +1 life.</li>
-        <li><strong><code>SPECIAL</code></strong> (7 letters S-P-E-C-I-A-L) → <strong>10,000 points</strong>. (No bonus round in v1.)</li>
+        <li><strong><code>EXTRA</code></strong> (5 letters E-X-T-R-A) → +1 life; the target resets.</li>
+        <li><strong><code>SPECIAL</code></strong> (7 letters S-P-E-C-I-A-L) → <strong>10,000 points</strong> in the CoCo v1 adaptation; the target resets. StrategyWiki describes the arcade reward as a free game.</li>
+        <li><strong>StrategyWiki claim to verify:</strong> completing either word ends the current stage immediately.</li>
       </ul>
 
       <h3>Vegetable</h3>
       <ul>
         <li>Appears in the central nest area once the fourth enemy has been released.</li>
         <li>Eating it: bonus points (table above) + freezes all enemies for several seconds.</li>
+        <li>Frozen enemies remain lethal. StrategyWiki says they resume with a speed increase when the vegetable tune ends; verify duration and speed change in MAME.</li>
+        <li>If a skull-killed enemy returns to the den, StrategyWiki says the vegetable can reappear after that enemy is released again; verify the exact recurrence condition.</li>
         <li>Vegetable cycle (one per level, fixed sequence through level 18 then horseradish forever):
           <ol>
             <li>Cucumber (1000)</li>
@@ -199,11 +208,11 @@
     <section>
       <h2>Stage flow</h2>
       <ol>
-        <li>Maze drawn (single fixed layout, identical every stage), dots/letters/hearts placed at their fixed positions, <strong>fixed number of skulls</strong> placed at randomized positions.</li>
+        <li>Maze drawn (single fixed layout, identical every stage), flowers and six bonus circles placed at their designated positions, and a stage-dependent number of skulls placed at randomized food positions.</li>
         <li>Border timer starts; ladybug spawned in starting position; nest holds all enemies for this stage.</li>
         <li>Each completed Green border circuit releases one enemy and resets the boxes to White.</li>
-        <li><strong>Provisional:</strong> arcade observation is required to determine when the level vegetable appears in the nest, how long it remains collectible before an enemy release, and how this window changes by level.</li>
-        <li>Player eats all dots → stage clears → next stage. Hearts/letters not required for clear.</li>
+        <li>The vegetable appears after all four enemies have left the den. Arcade observation is still required to determine its availability duration, recurrence after an enemy is killed, and level-dependent timing.</li>
+        <li><strong>StrategyWiki claim to verify:</strong> normal stage clear requires every flower plus all six bonus circles; word completion can also end the stage immediately.</li>
         <li>Death (enemy contact or skull) → respawn at start; if no lives remain, game over.</li>
       </ol>
       <p>The maze is <strong>a single fixed layout used for every stage</strong>. Per-stage variation comes from: enemy types/count/speed, which vegetable appears, and the randomized skull positions.</p>
@@ -234,7 +243,7 @@
         <li><code>SPECIAL</code> reward: 10,000 points. No bonus round in v1.</li>
         <li>3 starting lives, one-time bonus life at 30,000 points.</li>
         <li>Single fixed maze layout used for every stage.</li>
-        <li>Fixed skull count per stage (exact number TBD during maze design — likely 4–6).</li>
+        <li>The former fixed-skull-count assumption is superseded. Use the provisional two-to-six stage progression from StrategyWiki until measured from MAME.</li>
         <li>No "Vegetable Harvest" bonus round in the first release.</li>
       </ul>
     </section>
@@ -242,9 +251,11 @@
     <section>
       <h2>Deferred (not blocking initial implementation)</h2>
       <ol>
-        <li><strong>Colour-cycle timing</strong> — exact period of the global blue/yellow/red cycle, and whether stage-clear or death resets it.</li>
+        <li><strong>Colour-cycle timing</strong> — measure StrategyWiki's approximate Red &lt;1 s, Yellow ~4 s, Blue ~7 s durations and determine whether stage-clear or death resets it.</li>
         <li><strong>Border/vegetable timing</strong> — measure the per-level timer-box interval, vegetable appearance point, availability duration, and relationship to the next enemy release.</li>
-        <li><strong>Enemy AI</strong> — start with simple shortest-path chase + small randomness.</li>
+        <li><strong>Enemy and skull behavior</strong> — verify wander-to-pursuit switching, den safety, skull progression, skull removal after player death, enemy den return/re-release, vegetable recurrence, and post-freeze speed increase.</li>
+        <li><strong>Stage completion</strong> — verify whether all six bonus circles are mandatory and whether either completed word immediately advances the stage.</li>
+        <li><strong>Two-player scope</strong> — StrategyWiki documents separate one- and two-player start buttons; decide whether alternating two-player mode is required for CoCo v1.</li>
         <li><strong>Sound design</strong> — DAC waveform tables, jingles.</li>
         <li><strong>Input fallback</strong> — joystick is primary; keyboard arrow-key fallback to confirm.</li>
       </ol>
@@ -254,7 +265,7 @@
       <h2>Sources</h2>
       <ul>
         <li><a href="../sources/ladybug-arcade.html">Wikipedia: Lady Bug (video game)</a></li>
-        <li>StrategyWiki gameplay/walkthrough pages (partially fetched; full ingest pending)</li>
+        <li><a href="https://strategywiki.org/wiki/Lady_Bug/Gameplay">StrategyWiki Lady Bug gameplay</a> — fully ingested 2026-07-18 as a secondary gameplay source; timing and progression claims remain MAME verification targets.</li>
         <li>Pixelated Arcade tech specs page</li>
         <li>C64-Wiki Ladybug entry (for the 1983 home port — useful but <strong>not authoritative</strong> for arcade-specific rules)</li>
         <li>bitvint.com Lady Bug history page</li>
