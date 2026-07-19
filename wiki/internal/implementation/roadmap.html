@@ -38,11 +38,11 @@
       <h2>Current state — Phase 5 collectible loop implemented</h2>
       <ul>
         <li>Phases 0–4 are implemented. MAME measurement fixed movement at one pixel per 60 Hz frame and confirmed persistent early-turn requests. The Up-as-Left fault was traced to MC6821 C2 strobe configuration and corrected to static axis selection.</li>
-        <li><code>src/main.s</code> runs directly from the 16 KB cartridge, configures 320×192×16 RGB output, and renders the authored 40×24 Tiled screen through a generated packed tile atlas.</li>
+        <li><code>src/gmc_bootstrap.s</code> starts in GMC bank 0, proves banks 2 and 3, selects bank 1, copies the existing runtime into its RAM execution pages, switches to TY=1 all-RAM mode, and enters <code>src/main.s</code>. XRoar verifies the complete handoff.</li>
         <li>Tooling: lwasm 4.24 and XRoar 1.10 in WSL. The active automated verification path is <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>; the web app and patched monitor are deferred.</li>
         <li>The screen compiler emits 92 transformed tiles, packed curated sprite groups, canonical named maze/HUD colours, TMX-authored life markers, contextual gate backgrounds, and both diagonal transition styles.</li>
         <li>Vbord input, two-pixel movement every second frame, arcade-style persistent direction requests, blocked-turn stop at an aligned junction, mid-cell reversal, measured three-step late-turn/gate diagonal correction, eight-pixel cell centres, dots, and four-state endpoint-pushed rotation with a one-Vbord diagonal gate frame are implemented.</li>
-        <li>The guarded 16 K split is implemented. The sprite-direction pass adds four derived player orientations, requested death animation, 30-frame score-plus-character-multiplier pickup replacement, the 18-part vegetable/value HUD, gate-safe object redraw, corrected skull scope, and the first stationary nest enemy. Current use is 8,002 resident bytes and 7,620 asset bytes.</li>
+        <li>The runtime retains its guarded 8 KB resident and 7.5 KB asset windows inside bank 1. The delivered image is four 16 KB GMC banks: bootstrap, runtime, and two expansion banks. Current use is 8,172 resident bytes and 7,672 asset bytes.</li>
         <li>Automated acceptance includes versioned MAME captures for 60 px/s movement, a request held 35 frames before a legal turn, a six-pixel late-corner window, a 30-frame pickup popup, and a complete gate-17 traversal.</li>
       </ul>
     </section>
@@ -230,10 +230,10 @@
         <li>High-score display (session-only — no battery-backed RAM).</li>
         <li>Final maze/sprite/colour polish pass.</li>
       </ol>
-      <p><strong>Exit criterion:</strong> plays start-to-finish, looks and feels like Lady Bug, no obvious bugs, fits in cart (16 K target; 32 K / banked acceptable if the expansion was triggered earlier).</p>
+      <p><strong>Exit criterion:</strong> plays start-to-finish, looks and feels like Lady Bug, no obvious bugs, and fits within the implemented four-bank 64 K GMC layout.</p>
       <p><strong>Review gate Q's:</strong></p>
       <ul>
-        <li>ROM size — resident and asset use against their independent guards. If either overflows: compress/curate first, then evaluate the banked fallback in <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K split layout implemented; banked fallback deferred"</a>.</li>
+        <li>ROM size — runtime resident and asset use against their independent guards, plus total use of the two GMC expansion banks. If a runtime window overflows, move cold payloads into an expansion bank and extend the bootstrap copy contract.</li>
       </ul>
     </section>
 

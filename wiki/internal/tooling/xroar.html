@@ -37,8 +37,7 @@
 <pre><code>xroar \
   -machine coco3 \
   -ram 512 \
-  -cart ladybug \
-  -cart-type rom \
+  -cart-type gmc \
   -cart-rom build/ladybug.rom \
   -cart-autorun \
   -tv-input rgb
@@ -48,13 +47,13 @@
         <tbody>
           <tr><td><code>-machine coco3</code></td><td>NTSC CoCo 3, 1.78 MHz fast clock available, GIME present.</td></tr>
           <tr><td><code>-ram 512</code></td><td>512 KB — matches our target hardware spec.</td></tr>
-          <tr><td><code>-cart ladybug</code></td><td>Define a named cart profile (just a label).</td></tr>
-          <tr><td><code>-cart-type rom</code></td><td>Plain ROM cartridge (no Becker port, no MPI).</td></tr>
-          <tr><td><code>-cart-rom FILE</code></td><td>Path to the 16 KB padded ROM image.</td></tr>
+          <tr><td><code>-cart-type gmc</code></td><td>Game Master Cartridge banking: writes to an even SCS address select a 16 KB bank. Ladybug uses <code>$FF50</code>.</td></tr>
+          <tr><td><code>-cart-rom FILE</code></td><td>Path to the 64 KB four-bank ROM image.</td></tr>
           <tr><td><code>-cart-autorun</code></td><td>Triggers the CART → FIRQ handshake on startup so BASIC dispatches into our <code>JMP entry</code> at <code>$C000</code>.</td></tr>
           <tr><td><code>-tv-input rgb</code></td><td>Decode the GIME's digital RGB output directly. XRoar's default is composite NTSC, which aliases several palette codes. Empirical RGB-mode 6-bit→colour table in <a href="../implementation/lessons-learned.html">lessons-learned</a> §"XRoar RGB monitor palette mapping".</td></tr>
         </tbody>
       </table>
+      <p><strong>Automated banking proof:</strong> <code>scripts/build.sh verify-gmc</code> uses XRoar's instruction trace to prove bank-2 and bank-3 reads, selection and copying of bank 1, the all-RAM handoff, and execution of the relocated runtime main loop.</p>
     </section>
 
     <section>
@@ -91,7 +90,7 @@
         <li><strong>Windows desktop XRoar</strong> — useful for manual visual runs.</li>
       </ul>
       <p>Preferred Codex path: start XRoar from a GDB-MCP session using GDB's <code>shell</code> command:</p>
-<pre><code>shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart ladybug -cart-type rom -cart-rom build/ladybug.rom -cart-autorun -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
+<pre><code>shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart-type gmc -cart-rom build/ladybug.rom -cart-autorun -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
 </code></pre>
       <p>Then attach from a fresh GDB-MCP session with <code>target remote :65520</code>.</p>
       <p>If XRoar is launched on Windows and <code>gdb-mcp</code> runs under its Linux host, bind the stub to all interfaces (<code>-gdb-ip 0.0.0.0</code>).</p>

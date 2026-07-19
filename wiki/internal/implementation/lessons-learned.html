@@ -25,6 +25,20 @@
     </header>
 
     <section>
+      <h2>Establish cartridge visibility before a GMC bootstrap reads its bank</h2>
+      <p><strong>Filed 2026-07-19.</strong></p>
+      <p>BASIC cartridge dispatch can reach the bootstrap with the SAM TY state still selecting RAM. After enabling the GIME MMU and force-$FE00 window, write <code>$FFDE</code> before reading or copying cartridge bytes. The final handoff writes <code>$FFDF</code> only after bank 1 has been copied into RAM.</p>
+      <p><strong>Rule:</strong> make TY state explicit at both sides of a cartridge-to-RAM handoff.</p>
+    </section>
+
+    <section>
+      <h2>LEAU does not provide loop termination flags</h2>
+      <p><strong>Filed 2026-07-19.</strong></p>
+      <p>The bootstrap self-copy initially branched on stale condition codes after <code>LEAU -1,U</code>. On the 6809, LEA updates the index register without setting condition flags.</p>
+      <p><strong>Rule:</strong> follow an LEA-based decrement with an explicit <code>CMPU #0</code>, or use an instruction whose documented flags match the branch.</p>
+    </section>
+
+    <section>
       <h2>Preserve selector registers across palette setup</h2>
       <p><strong>Filed 2026-07-18.</strong></p>
       <p>

@@ -11,12 +11,18 @@ SCREEN_INC="$BUILD_DIR/ladybug_screen.inc"
 RESIDENT_INC="$BUILD_DIR/ladybug_resident.inc"
 MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
 ROM="$BUILD_DIR/ladybug.rom"
+RUNTIME_ROM="$BUILD_DIR/ladybug-runtime.rom"
+BOOT_ROM="$BUILD_DIR/ladybug-gmc-boot.rom"
+BOOT_SRC="$ROOT/src/gmc_bootstrap.s"
+BOOT_LST="$BUILD_DIR/ladybug-gmc-boot.lst"
+BOOT_MAP="$BUILD_DIR/ladybug-gmc-boot.map"
 LST="$BUILD_DIR/ladybug.lst"
 MAP="$BUILD_DIR/ladybug.map"
 TESTER_ROM="$BUILD_DIR/tester.rom"
 TESTER_LST="$BUILD_DIR/tester.lst"
 TESTER_MAP="$BUILD_DIR/tester.map"
 CART_BYTES=16384
+GMC_BYTES=65536
 RESIDENT_LIMIT=0xE000
 ASSET_LIMIT=0xFE00
 
@@ -105,15 +111,41 @@ cmd_build() {
         --resident-output "$RESIDENT_INC"
 
     lwasm -9 --format=raw \
-          --output="$ROM" \
+          --output="$RUNTIME_ROM" \
           --list="$LST" \
           --symbols \
           --map="$MAP" \
           -I "$BUILD_DIR" \
           "$SRC_MAIN"
 
-    guard_layout "$MAP" "$ROM"
-    pad_cart "$ROM"
+    guard_layout "$MAP" "$RUNTIME_ROM"
+    pad_cart "$RUNTIME_ROM"
+
+    lwasm -9 --format=raw \
+          --output="$BOOT_ROM" \
+          --list="$BOOT_LST" \
+          --symbols \
+          --map="$BOOT_MAP" \
+          "$BOOT_SRC"
+    pad_cart "$BOOT_ROM"
+
+    python3 - "$BOOT_ROM" "$RUNTIME_ROM" "$ROM" "$GMC_BYTES" <<'PY'
+import sys
+boot_path, runtime_path, output_path, target = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+boot = open(boot_path, 'rb').read()
+runtime = open(runtime_path, 'rb').read()
+if len(boot) != 0x4000 or len(runtime) != 0x4000:
+    raise SystemExit('build: GMC bank input is not exactly 16 KiB')
+bank2 = bytearray([0xA2] * 0x4000)
+bank3 = bytearray([0xA3] * 0x4000)
+bank2[0x10:0x12] = bytes((0xB2, 0x02))
+bank3[0x10:0x12] = bytes((0xB3, 0x03))
+image = boot + runtime + bank2 + bank3
+if len(image) != target:
+    raise SystemExit(f'build: GMC image is {len(image)} bytes, expected {target}')
+open(output_path, 'wb').write(image)
+print(f'build: GMC banks 4 x 16384 -> {len(image)} bytes ({output_path})')
+PY
 }
 
 cmd_run() {
@@ -121,13 +153,17 @@ cmd_run() {
     exec xroar \
         -machine coco3 \
         -ram 512 \
-        -cart ladybug \
-        -cart-type rom \
+        -cart-type gmc \
         -cart-rom "$ROM" \
         -cart-autorun \
         -tv-input rgb \
         -joy-right kjoy0 \
         ${XROAR_EXTRA:-}
+}
+
+cmd_verify_gmc() {
+    cmd_build
+    python3 "$ROOT/scripts/verify_gmc_boot.py" --rom "$ROM" --map "$MAP"
 }
 
 cmd_tester() {
@@ -165,9 +201,10 @@ cmd_clean() {
 
 case "${1:-build}" in
     build)       cmd_build ;;
+    verify-gmc)  cmd_verify_gmc ;;
     run)         cmd_run ;;
     tester)      cmd_tester ;;
     tester-run)  cmd_tester_run ;;
     clean)       cmd_clean ;;
-    *)           echo "usage: $0 {build|run|tester|tester-run|clean}" >&2; exit 2 ;;
+    *)           echo "usage: $0 {build|verify-gmc|run|tester|tester-run|clean}" >&2; exit 2 ;;
 esac

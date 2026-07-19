@@ -23,6 +23,12 @@
     </header>
 
     <section>
+      <h3>2026-07-19 &middot; implement &mdash; 64 KiB GMC loader and XRoar bank proof</h3>
+      <p>Converted the deliverable from a plain 16 KiB cartridge to four GMC-compatible 16 KiB banks. Bank 0 contains a RAM-relocating bootstrap; bank 1 contains the existing guarded runtime; banks 2 and 3 contain proof signatures and are reserved for expansion. The bootstrap selects banks through even SCS address <code>$FF50</code>, verifies banks 2 and 3, copies bank 1 into physical pages <code>$3E/$3F</code>, restores the asset window, enters TY=1 all-RAM mode, and jumps to the runtime. Added <code>scripts/build.sh verify-gmc</code>; its bounded XRoar trace verifies both signatures, the bank-1 load, handoff, and repeated main-loop execution.</p>
+      <p>QA passed the 64 KiB image-layout assertions, arcade-fidelity suite, source diff check, and a 164-page local-link lint with no dead links.</p>
+    </section>
+
+    <section>
       <h3>2026-07-19 &middot; implement &mdash; first enemy AI pass</h3>
       <p>Disassembled the four-record arcade enemy dispatcher and junction selector at <code>$407E-$43EF</code>, including shared collision rejection, dynamic gate navigation, and per-enemy skull removal. Implemented four CoCo enemy records, one release per completed timer circuit, random legal junction choices, non-rotating gate collision, player death, and single-skull/single-enemy removal. To retain the 16 KiB cartridge, the first pass uses one enemy graphic frame and relocates 240 bytes of cold lookup data. Build use is 8,166 resident and 7,672 asset bytes; arcade-fidelity and source diff checks pass. Smooth movement and live emulator/hardware enemy testing remain.</p>
     </section>

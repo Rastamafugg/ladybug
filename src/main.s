@@ -104,6 +104,7 @@ ENEMY_PTR    equ $0258         ; u16 current enemy record
 ENEMY_COUNT  equ $025A         ; active/released enemy count, 0..4
 ENEMY_WORK   equ $025B         ; loop/candidate scratch
 ENEMY_PROBE  equ $025C         ; nonzero prevents enemies rotating gates
+BOOT_FLAG    equ $02F0         ; $A5 when GMC bootstrap relocated runtime to RAM
 
 DIR_NORTH     equ 0
 DIR_EAST      equ 1
@@ -211,10 +212,14 @@ entry   orcc    #$50            ; mask IRQ + FIRQ
         ; --- Init0 — legacy mode, ACVC IRQ on, force $FExx, MMU still off ---
         lda     #%10101000
         sta     GIME_INIT0
-        sta     SAM_ROMRAM       ; cart map is selected before clearing TY
+        lda     BOOT_FLAG
+        cmpa    #$A5
+        beq     entry_ram_loaded
+        sta     SAM_ROMRAM       ; plain-cart fallback selects TY=0
+entry_ram_loaded
 
-        ; --- Execute directly from cartridge ROM ---
-        ; Keep TY=0. XRoar discards writes to the selected cartridge window,
+        ; --- Enter runtime from direct ROM or GMC-loaded RAM ---
+        ; Direct fallback keeps TY=0. XRoar discards writes to the selected cartridge window,
         ; so the former same-address self-copy never populated phys $3E-$3F.
         ; PAR6=$3E keeps $C000-$DFFF cartridge-backed after MMU enable while
         ; the framebuffer and writable state use ordinary RAM pages below $3C.

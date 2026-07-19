@@ -26,7 +26,7 @@
 
     <section>
       <p>
-        <strong>Active workflow 2026-07-16:</strong> use this build path and
+        <strong>Active workflow 2026-07-19:</strong> use this build path and
         <a href="./xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>
         for automated execution checks. The web app and patched
         <code>-monitor</code> stack are preserved but deferred.
@@ -47,17 +47,16 @@ build/ladybug_resident.inc           (packed four-direction player, death, and v
    │
 src/*.s                              (hand-written 6809 assembly)
    │
-   │  lwasm -9 -I build --format=raw --output=build/ladybug.rom
+   │  lwasm: 16 KB runtime bank + 16 KB bootstrap bank
    ▼
-build/ladybug.rom    (raw binary, exact size)
+build/ladybug-runtime.rom + build/ladybug-gmc-boot.rom
+   │  compose bank 0 bootstrap, bank 1 runtime, banks 2-3 expansion/proof
+   ▼
+build/ladybug.rom    (64 KB, four 16 KB GMC banks)
    │
-   │  pad with 0xFF to 16384 bytes
+   │  xroar -machine coco3 -ram 512 -cart-type gmc -cart-rom ... -cart-autorun -tv-input rgb -joy-right kjoy0
    ▼
-build/ladybug.rom    (16 KB cart-ready)
-   │
-   │  xroar -machine coco3 -ram 512 -cart-type rom -cart-rom ... -cart-autorun -tv-input rgb -joy-right kjoy0
-   ▼
-emulated CoCo 3      (real hardware: write ROM to a 16K EPROM, drop into cart shell)
+emulated CoCo 3      (physical target: GMC-compatible bank-select hardware)
 </code></pre>
     </section>
 
@@ -73,6 +72,7 @@ emulated CoCo 3      (real hardware: write ROM to a 16K EPROM, drop into cart sh
         <tbody>
           <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen and packed curated sprite groups, assemble, enforce the resident/asset ROM boundaries, and pad. Output includes <code>assets/arcade/maze.json</code>, <code>build/ladybug_maze.inc</code>, <code>build/ladybug_screen.inc</code>, <code>build/ladybug_resident.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, and <code>build/ladybug.map</code>.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch XRoar with the canonical cart profile and map cursor keys to the right CoCo joystick through <code>kjoy0</code>.</td></tr>
+          <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then trace a bounded headless XRoar run and verify bank-2 and bank-3 signatures, bank-1 loading, the TY=1 all-RAM handoff, and repeated entry into the relocated main loop.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
       </table>
@@ -120,7 +120,7 @@ lwasm -9 --format=raw \
         <code>assets 7620/7680</code> before padding.
       </p>
 
-      <h3>2. Pad to 16 KB</h3>
+      <h3>2. Pad both source banks to 16 KB and compose the 64 KB GMC image</h3>
 <pre><code>python3 -c "
 data = open('build/ladybug.rom','rb').read()
 pad  = 16384 - len(data)
@@ -132,7 +132,7 @@ print(f'padded {16384-pad} → 16384 bytes')
 
       <h3>3. Run</h3>
 <pre><code>xroar -machine coco3 -ram 512 \
-      -cart ladybug -cart-type rom \
+      -cart-type gmc \
       -cart-rom build/ladybug.rom \
       -cart-autorun \
       -tv-input rgb \
@@ -166,7 +166,7 @@ print(f'padded {16384-pad} → 16384 bytes')
         instead:
       </p>
 <pre><code>shell cd /mnt/d/retro/ladybug &amp;&amp; ./scripts/build.sh build
-shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart ladybug -cart-type rom -cart-rom build/ladybug.rom -cart-autorun -joy-right kjoy0 -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
+shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart-type gmc -cart-rom build/ladybug.rom -cart-autorun -joy-right kjoy0 -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
 </code></pre>
       <p>Then start a fresh GDB-MCP session and attach with:</p>
 <pre><code>target remote :65520
@@ -211,7 +211,7 @@ shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coc
       <ul>
         <li><strong><code>lwasm: command not found</code></strong> — WSL <code>~/coco-tools/lwtools</code> not built/installed. Reinstall: <code>cd ~/coco-tools/lwtools &amp;&amp; make &amp;&amp; sudo make install</code>.</li>
         <li><strong><code>xroar: command not found</code></strong> — same pattern under <code>~/coco-tools/xroar</code>; check its <code>INSTALL</code> for SDL/GTK build deps.</li>
-        <li><strong><code>build: resident region ends...</code> / <code>build: asset region ends...</code></strong> — one guarded split region overflowed before final padding. The fallback is documented in <a href="../platform/cartridge.html">platform/cartridge §"Cart size — 16 K split layout implemented; banked fallback deferred"</a>.</li>
+        <li><strong><code>build: resident region ends...</code> / <code>build: asset region ends...</code></strong> — one guarded runtime-bank region overflowed before final padding. Move new payloads into GMC expansion banks or revise the loader contract documented in <a href="../platform/cartridge.html">platform/cartridge</a>.</li>
         <li><strong>No xroar window from Windows host</strong> — WSLg should hand off automatically on Win 11. Test with <code>wsl -d Ubuntu -- bash -lc "xeyes"</code> to confirm GUI passthrough; if blank, restart WSL: <code>wsl --shutdown</code>.</li>
         <li><strong>xroar boots to BASIC OK prompt instead of our cart</strong> — <code>-cart-autorun</code> missing, or our <code>JMP</code> at <code>$C000</code> isn't where BASIC's FIRQ handler expects (see boot handshake in <a href="../platform/cartridge.html">platform/cartridge</a>).</li>
       </ul>

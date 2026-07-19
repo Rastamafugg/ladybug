@@ -31,7 +31,7 @@
         <li><strong>64 physical pages</strong> of RAM on a 512 K machine, numbered <code>$00-$3F</code>. RAM is populated top-down — <code>$3F</code> is highest.</li>
         <li><strong>Framebuffer</strong> = 30 720 bytes = 4 pages (3.75 actually used). GIME reads it via physical address, bypassing the MMU.</li>
         <li><strong>Code</strong> lives and executes directly from cart ROM at virtual <code>$C000-$DFFF</code>. The current build keeps TY=0 and maps PAR6 to <code>$3E</code>; the former shadow-RAM self-copy/all-RAM transition was removed 2026-07-16.</li>
-        <li><strong>Cart data tables</strong> currently share the 16 K cartridge image with code. A 32 K or bank-switched layout is deferred until measured capacity requires it.</li>
+        <li><strong>Delivery cartridge</strong> is a 64 K GMC image containing four 16 K banks. Bank 1 currently holds the historical runtime payload; banks 2–3 are expansion space.</li>
         <li><strong><code>$FF00-$FFFF</code> is dedicated I/O</strong>, not cart-visible. <strong><code>$FE00-$FEFF</code> is forced</strong> to phys <code>$3F</code> regardless of PAR7 when Init0 b3 is set — the primary jump table stays reachable.</li>
       </ul>
     </section>
@@ -302,10 +302,9 @@ $FF00-$FFFF        256 B   I/O; never cart data
         pixel-for-pixel. Cartridge type, runtime MMU ownership, and the 16 K
         output size are unchanged.
       </p>
-      <h3>Banked fallback for Phase 6+</h3>
+      <h3>Banked loader implemented for Phase 6+</h3>
       <p>
-        If packed enemy and object assets exceed the 7,680-byte static region,
-        prototype a GMC-compatible banked image. A low-RAM bootstrap must select
+        The GMC-compatible banked image uses a low-RAM bootstrap to select
         each 16 K source bank and copy its payload through a temporary
         <code>$A000-$BFFF</code> destination mapping into unused physical RAM.
         It must also copy the resident code page explicitly; same-address writes
@@ -315,11 +314,10 @@ $FF00-$FFFF        256 B   I/O; never cart data
         not bank-switch cartridge ROM.
       </p>
       <p>
-        The banked fallback is not yet approved for implementation. Its gate is
-        a measured Phase 6 asset inventory plus an XRoar GMC proof of bank
-        selection, low-RAM execution, multi-page copying, and TY=1 handoff.
-        Physical cartridge/CoCoSDC compatibility must be selected separately
-        before this becomes the release format.
+        XRoar trace verification confirms bank selection, low-RAM execution,
+        bank-1 multi-page copying, TY=1 handoff, and relocated main-loop execution.
+        Banks 2–3 are reserved but are not yet mapped into the runtime asset model.
+        Physical cartridge/CoCoSDC compatibility remains a separate release decision.
       </p>
     </section>
 
