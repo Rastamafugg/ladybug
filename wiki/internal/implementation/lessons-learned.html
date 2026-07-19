@@ -1181,6 +1181,16 @@ git reset --hard HEAD
       <p><strong>Citation:</strong> lwtools manual <code>ORG</code>/<code>ALIGN</code> directives, <code>src/main.s</code>, and <code>scripts/build.sh</code>.</p>
     </section>
 
+    <section>
+      <h2>A held ideal direction does not verify real gate-turn buffering</h2>
+      <p><strong>Filed 2026-07-19.</strong></p>
+      <p>The current CoCo loop samples analog input every Vbord but executes <code>player_tick</code> only every second Vbord. Mid-cell and gate-turn branches consume live <code>JOY_DIR</code>, not buffered <code>PLAYER_WANT</code>, and a neutral sample clears <code>PLAYER_WANT</code>. A gate request must therefore remain the dominant analog axis on one of three 30 Hz partial-step ticks. Existing MAME plans and cold probes hold an ideal digital direction continuously, so their successful gate-17 route does not measure this real-input requirement or variation across gates.</p>
+      <p><strong>Why:</strong> this creates narrow or apparently pixel-perfect gate activation even though the semantic collision window is nominally 2, 4, and 6 pixels.</p>
+      <p><strong>Applies to:</strong> joystick resolution, late turns, gate pushes, and movement acceptance tests.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>mainloop</code>, <code>read_joystick</code>, and <code>pt_try_late_turn</code>; user hardware observation 2026-07-19.</p>
+      <p><strong>Resolution:</strong> <code>PLAYER_WANT</code> now survives neutral samples, all mid-cell/gate branches consume it, and a perpendicular request that is not yet legal continues along the old axis until the next candidate junction. The 2026-07-19 user hardware retest reported substantially improved gate feel.</p>
+    </section>
+
   </main>
 </div>
 </body>

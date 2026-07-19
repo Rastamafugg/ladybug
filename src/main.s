@@ -1582,13 +1582,6 @@ rj_request
         lda     #1
         sta     PLAYER_MANUAL
 rj_done
-        lda     PLAYER_MANUAL
-        beq     rj_return
-        lda     JOY_DIR
-        cmpa    #DIR_NONE
-        bne     rj_return
-        sta     PLAYER_WANT      ; neutral cancels the buffered request
-rj_return
         rts
 
 ;==============================================================================
@@ -1635,23 +1628,18 @@ player_tick
 pt_alive
         lda     TURN_SNAP
         lbne    pt_snap_advance
-        lda     PLAYER_MANUAL
-        beq     pt_input_active
-        lda     JOY_DIR
-        cmpa    #DIR_NONE
-        lbeq    pt_draw          ; retain direction/step, but stop immediately
 pt_input_active
         lda     PLAYER_STEP
         lbeq    pt_at_center
         lda     PLAYER_MANUAL
         lbeq    pt_advance       ; preserve the automatic entrance movement
-        lda     JOY_DIR
+        lda     PLAYER_WANT      ; arcade request persists through neutral input
         cmpa    PLAYER_DIR
         lbeq    pt_advance
         eora    #2              ; opposite directions differ by bit 1
         cmpa    PLAYER_DIR
         bne     pt_try_late_turn
-        lda     JOY_DIR
+        lda     PLAYER_WANT
         sta     PLAYER_FACE
         lda     #4
         suba    PLAYER_STEP
@@ -1677,12 +1665,12 @@ pt_reversed
         sta     PLAYER_DIR
         lbra    pt_advance
 pt_try_late_turn
-        lda     JOY_DIR
+        lda     PLAYER_WANT
         lbsr    can_move         ; test from the last aligned cell; may turn gate
         bcs     pt_begin_late_turn
         lda     PLAYER_STEP
         cmpa    #3              ; next junction is 2 pixels past sprite midpoint
-        lbne    pt_draw
+        lbne    pt_advance       ; retain request while approaching its junction
         lda     PLAYER_DIR      ; probe requested passage from the upcoming cell
         beq     pt_probe_north
         cmpa    #DIR_EAST
@@ -1700,9 +1688,8 @@ pt_probe_east
 pt_probe_south
         inc     PLAYER_CELL_Y
 pt_probe_turn
-        lda     JOY_DIR
+        lda     PLAYER_WANT
         lbsr    can_move         ; legal gate push occurs at the approached junction
-        pshs    cc
         lda     PLAYER_DIR      ; restore last aligned cell before normal arrival
         beq     pt_unprobe_north
         cmpa    #DIR_EAST
@@ -1720,16 +1707,14 @@ pt_unprobe_east
 pt_unprobe_south
         dec     PLAYER_CELL_Y
 pt_unprobe_done
-        puls    cc
-        lbcc    pt_draw
-        lbra    pt_advance       ; snap remaining 2 pixels to the new cell centre
+        lbra    pt_advance       ; arrive at centre, then retry buffered request
 pt_begin_late_turn
         lda     PLAYER_DIR
         sta     TURN_OLD
         lda     PLAYER_STEP
         sta     TURN_SNAP
         clr     PLAYER_STEP
-        lda     JOY_DIR
+        lda     PLAYER_WANT
         sta     PLAYER_DIR
         sta     PLAYER_FACE
         lbra    pt_draw          ; arcade shows the new face before diagonal snap

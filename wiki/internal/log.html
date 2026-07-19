@@ -23,6 +23,31 @@
     </header>
 
     <section>
+      <h3>2026-07-19 &middot; implement &mdash; persistent gate and late-turn requests</h3>
+      <p>Changed <code>read_joystick</code> so neutral analog samples no longer clear <code>PLAYER_WANT</code>; changed reversal, mid-cell, upcoming-junction, and gate probes to consume that persistent request instead of live <code>JOY_DIR</code>; and kept the old-axis movement advancing until a buffered perpendicular request reaches a legal junction. The guarded build uses 8,062 resident and 7,620 asset bytes. Arcade-fidelity, source control-flow, HTML/link, and diff checks passed; the subsequent user hardware retest reported substantially improved gate feel.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; query &mdash; narrow real-input gate window</h3>
+      <p>Reconciled the user's poor CoCo gate feel with the earlier idealized tests. The loop samples analog input at 60 Hz but runs movement at 30 Hz; mid-cell and gate paths use live <code>JOY_DIR</code>, while neutral clears <code>PLAYER_WANT</code>. Consequently the desired direction must remain dominant on a specific partial-step movement tick. Existing gate-17 and gdb tests held a perfect digital direction continuously and covered only one gate route, so they established geometry and animation but not practical buffering or uniform responsiveness. No implementation change was made pending a targeted fix.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; query &mdash; arcade versus 6809 movement review</h3>
+      <p>Compared the disassembled arcade collision/junction/gate paths with <code>src/main.s</code>. The generated reciprocal navigation bits, 2/4/6-pixel late-turn window, blocked-request stop, requested facing, reversal, endpoint-only gate rules, four gate states, and one-Vbord transition are semantically aligned. Residual differences are manual-neutral stop versus arcade request retention, two-pixel alternate-Vbord motion versus one-pixel every Vbord, and pre-movement <code>can_move</code> gate mutation versus the arcade post-movement detector. The guarded build passed at 8,094 resident and 7,620 asset bytes, and existing arcade-fidelity checks passed; they do not execute the 6809 ROM and therefore do not close the event-ordering gap.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; query &mdash; arcade collision, junction, and gate branches</h3>
+      <p>Extended the installed-ROM analysis through player collision and gate mutation. Identified the packed static passage masks at <code>$0DA2</code>, eleven-band corridor-centre masks at <code>$0DE4/$0DFA</code>, candidate collision routine <code>$3911-$3955</code>, diagonal correction path, post-movement gate detector <code>$3A99-$3C2B</code>, twenty-entry pointer table at <code>$0D1D</code>, gate renderer at <code>$22EB</code>, and dynamic navigation-bit update at <code>$467B</code>. A fresh raw-RAM gate-17 run confirmed correction frames 712-714 and the intermediate/final gate states at frames 729-730.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; query &mdash; arcade player-control ROM investigation</h3>
+      <p>Correlated the MAME 0.220 driver map, installed six-ROM Z80 program image, static disassembly, and a controlled work-RAM capture. Identified the per-frame control call at <code>$07AF</code>, routine <code>$35FF-$388B</code>, one-hot direction encoding, current/requested direction fields, coordinate and correction-target fields, and axis alignment tables. The early-right run confirmed the request transition at frame 654 and the no-stop Up-to-Right turn at frame 655. MAME's headless <code>none</code> debugger backend produced no usable instruction trace, so no unsupported trace hook was retained.</p>
+    </section>
+
+    <section>
       <h3>2026-07-19 · query — approaching-junction steering and angel swoop</h3>
       <p>Made player facing follow every non-neutral joystick or keyboard request even when collision blocks movement. Added an upcoming-cell corner and gate probe at partial step 3, where the junction lies two pixels beyond the 16-pixel sprite midpoint, while retaining the existing correction for the junction just passed. Changed all wing-stage death frames to White and replaced the four-frame lateral zigzag with a symmetric 20-frame eased curve reaching eight pixels to each side. Build, arcade-fidelity checks, and cold gdb-mcp probes passed at 8,094 resident and 7,620 asset bytes.</p>
     </section>

@@ -209,6 +209,83 @@
         the final eleven entries in the rotated sheet's third column.
       </p>
       <p>
+        Program-ROM control inspection identified the per-frame player-control
+        call at <code>$07AF</code> and its routine at <code>$35FF-$388B</code>.
+        Upright play reads the active-low P1 port at <code>$9000</code>, inverts
+        it, masks to the low nibble, and accepts only the four one-hot values:
+        Left <code>$01</code>, Down <code>$02</code>, Right <code>$04</code>, and
+        Up <code>$08</code>. Neutral and multi-direction combinations return
+        without changing the request. Current direction is <code>$6198</code>,
+        the requested direction is the high nibble of <code>$6026</code>, player
+        coordinates are <code>$6027/$6028</code>, and correction targets are
+        <code>$6196/$6197</code>. Axis-specific alignment tables begin at
+        <code>$0DE4</code> and <code>$0DFA</code>.
+      </p>
+      <p>
+        A controlled early-turn capture confirms the state interpretation.
+        Right was held from frame 620 while the entrance movement continued.
+        At frame 654 <code>$6026</code> changed from <code>$82</code> to
+        <code>$42</code>; at frame 655 <code>$6198</code> changed from Up
+        <code>$08</code> to Right <code>$04</code> and <code>$6027</code> began
+        increasing with no stopped frame. This agrees with the previously
+        measured visible turn at frame 655 and distinguishes a retained request
+        from immediate free-axis movement.
+      </p>
+      <p>
+        The collision and junction branches are now mapped. Routine
+        <code>$3911-$3955</code> indexes a packed passage-mask table in ROM at
+        <code>$0DA2</code> from the candidate coordinates. It returns blocked
+        when the nibble does not contain the requested one-hot direction bit.
+        Alignment tables <code>$0DE4</code> and <code>$0DFA</code> are eleven
+        16-bit masks that enumerate legal horizontal or vertical corridor
+        centres for each maze band. Branches <code>$36CE-$3809</code> choose a
+        nearby centre and store it in <code>$6196/$6197</code>. Once accepted,
+        <code>$3869-$388B</code> corrects the old axis by one pixel per frame
+        while <code>$3844-$3868</code> advances one pixel on the new axis. This
+        is the source of the measured diagonal snap and no-stop turn.
+      </p>
+      <p>
+        Gate handling is a separate post-movement call at <code>$3A99-$3C2B</code>.
+        It runs only when requested and current directions match, converts the
+        player edge coordinates to background RAM through <code>$3C0A</code>,
+        and recognizes gate characters <code>$35/$36/$3D/$3E</code>. Detection
+        stores an orientation event in <code>$61C9</code>, a one-frame counter
+        in <code>$61CA</code>, and the gate background pointer in
+        <code>$61CB/$61CC</code>. The pointer table at <code>$0D1D</code> contains
+        all twenty gates. <code>$22EB</code> draws the intermediate or completed
+        gate state; <code>$467B</code> updates the corresponding dynamic
+        navigation bits under <code>$6200</code> so the new gate orientation is
+        reflected outside the immutable maze passage table.
+      </p>
+      <p>
+        The gate traversal capture confirms both phases. At frame 729 the ROM
+        set <code>$61C9=$02</code>, <code>$61CA=$01</code>, and pointer
+        <code>$D269</code> while the diagonal artwork appeared. Frame 730
+        cleared state and counter while retaining the pointer and drawing the
+        completed perpendicular gate. In the same run, the Up turn began at
+        frame 712 and corrected X from 107 to 104 while Y advanced, reaching
+        full alignment without a stationary frame.
+      </p>
+      <p>
+        Comparison with the current 6809 implementation shows equivalent core
+        topology but three deliberate or structural differences. Regular CoCo
+        collision uses generated per-cell reciprocal entry bits in
+        <code>maze_nav</code>, which is semantically equivalent to the arcade
+        passage mask for the cropped maze. Its four-step semantic cells accept
+        perpendicular requests at 2, 4, and 6 pixels and reject the next cell,
+        matching the measured arcade window. The CoCo then corrects two pixels
+        on each axis every second Vbord; the arcade corrects one pixel on each
+        axis every Vbord. Total speed and correction duration match, but the
+        per-frame trajectory does not. The CoCo now retains its last one-hot
+        request through neutral samples and consumes that buffered value in
+        late-turn and gate paths, matching the arcade request lifetime. Finally,
+        CoCo gate rotation is a side effect of
+        <code>can_move</code> before the movement update; the arcade detects the
+        gate in a separate post-movement call. Gate topology and one-Vbord
+        intermediate art match, but exact player/gate event ordering remains a
+        fidelity risk.
+      </p>
+      <p>
         Driver evidence: <a href="https://github.com/mamedev/mame/blob/mame0220/src/mame/drivers/ladybug.cpp">MAME 0.220 Lady Bug driver</a>;
         sprite/background evidence: <a href="https://github.com/mamedev/mame/blob/mame0220/src/mame/video/ladybug.cpp">MAME 0.220 Lady Bug video device</a>.
       </p>

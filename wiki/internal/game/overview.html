@@ -81,6 +81,8 @@
         <li><strong>Bonus life at 30,000 points</strong> (one-time award).</li>
         <li>Constant movement speed across all levels (only enemies get faster).</li>
         <li>4-direction joystick control (no diagonal).</li>
+        <li>Arcade ROM control state is now identified: current direction at <code>$6198</code> uses Left/Down/Right/Up bits <code>$01/$02/$04/$08</code>; the requested direction occupies the high nibble of <code>$6026</code>; and player coordinates are <code>$6027/$6028</code>. The control routine at <code>$35FF-$388B</code> accepts exactly one active direction bit and ignores neutral or multi-direction combinations.</li>
+        <li>Arcade collision uses a packed, immutable passage-mask table at ROM <code>$0DA2</code>; a request is legal when the destination cell mask contains its direction bit. Row/column alignment masks at <code>$0DE4/$0DFA</code> select nearby corridor centres. Accepted perpendicular turns move one pixel on the new axis while correcting the old axis one pixel per frame toward <code>$6196/$6197</code>.</li>
         <li>A perpendicular request remains eligible throughout the three partial two-pixel steps after an aligned junction. If that passage is legal, the arcade corrects the old-axis offset diagonally while beginning the new direction; at the next eight-pixel cell the window has expired. The same rule applies when a legal push rotates a gate.</li>
         <li>Touching an enemy costs one life. Enemy reset/position behavior after player death must be measured from MAME.</li>
         <li>Touching a skull is instant death.</li>
