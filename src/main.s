@@ -1631,9 +1631,14 @@ jra_done
 player_tick
         lbsr    restore_player
 pt_alive
+        lda     PLAYER_MANUAL
+        beq     pt_input_active  ; preserve automatic entrance movement
+        lda     JOY_DIR
+        cmpa    #DIR_NONE
+        lbeq    pt_draw          ; neutral stops immediately without losing buffered turn
+pt_input_active
         lda     TURN_SNAP
         lbne    pt_snap_advance
-pt_input_active
         lda     PLAYER_STEP
         lbeq    pt_at_center
         lda     PLAYER_MANUAL

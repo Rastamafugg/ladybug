@@ -71,6 +71,17 @@ def verify_movement_snap() -> None:
     assert popup["popup_last_frame"] - popup["popup_first_frame"] + 1 == 30
 
 
+def verify_neutral_stop_contract() -> None:
+    source = (ROOT / "src/main.s").read_text(encoding="utf-8")
+    start = source.index("\nplayer_tick\n")
+    end = source.index("pt_snap_advance\n", start)
+    control = source[start:end]
+    assert control.index("lda     JOY_DIR") < control.index("lda     TURN_SNAP")
+    assert "cmpa    #DIR_NONE" in control
+    assert "lbeq    pt_draw          ; neutral stops immediately" in control
+    assert "sta     PLAYER_WANT" not in control[:control.index("pt_input_active\n")]
+
+
 def verify_gate_tables() -> None:
     maze = load("maze.json")
     owner = maze["gate_owner"]
@@ -153,9 +164,10 @@ def main() -> None:
     verify_early_turn()
     verify_gate_capture()
     verify_movement_snap()
+    verify_neutral_stop_contract()
     verify_gate_tables()
     verify_gate_graphics()
-    print("arcade fidelity: 60 px/s, early/late turns, 30-frame popup, gate 17 traversal and graphics verified")
+    print("arcade fidelity: neutral stop, 60 px/s, early/late turns, 30-frame popup, gate 17 traversal and graphics verified")
 
 
 if __name__ == "__main__":
