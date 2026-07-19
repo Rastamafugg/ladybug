@@ -35,14 +35,14 @@
     </section>
 
     <section>
-      <h2>Current state — Phase 5 in progress</h2>
+      <h2>Current state — Phase 5 collectible loop implemented</h2>
       <ul>
         <li>Phases 0–4 are implemented. MAME measurement fixed movement at one pixel per 60 Hz frame and confirmed persistent early-turn requests. The Up-as-Left fault was traced to MC6821 C2 strobe configuration and corrected to static axis selection.</li>
         <li><code>src/main.s</code> runs directly from the 16 KB cartridge, configures 320×192×16 RGB output, and renders the authored 40×24 Tiled screen through a generated packed tile atlas.</li>
         <li>Tooling: lwasm 4.24 and XRoar 1.10 in WSL. The active automated verification path is <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>; the web app and patched monitor are deferred.</li>
         <li>The screen compiler emits 92 transformed tiles, four transparent player directions, canonical named maze/HUD colours, three east-facing player-palette life markers, contextual gate backgrounds, and both diagonal transition styles.</li>
         <li>Vbord input, two-pixel movement every second frame, immediate manual neutral stop, eight-pixel cell centres, early-turn buffering, dots, and four-state endpoint-pushed rotation with a one-Vbord diagonal frame for all 20 gates are implemented.</li>
-        <li>The guarded 16 K split is implemented: 1,667 resident bytes at <code>$C000-$C682</code>, 6,500 immutable bytes at <code>$E000-$F963</code>, and independent remaining capacities of 6,525 code bytes and 1,180 asset bytes.</li>
+        <li>The guarded 16 K split is implemented. Phase 5 now includes 117 placement candidates, exact arcade character composites for skulls/hearts/letters, synchronized colour cycling, the visible 92-box timer, multiplied scoring, word/multiplier HUD progress, the measured shrink-to-wings death sequence, HUD-origin life-marker walk-off, state-preserving entrance respawn, and flower-plus-bonus stage clear. Current use is 5,412 resident bytes and 7,588 asset bytes.</li>
         <li>Automated acceptance includes versioned MAME captures for 60 px/s movement, a request held 35 frames before a legal turn, and a complete gate-17 traversal.</li>
       </ul>
     </section>
@@ -122,7 +122,7 @@
       <ol>
         <li><strong>Done 2026-07-16:</strong> define the 8×8 tile, layered maze, gate, dot, navigation, renderer, and memory contracts in <a href="./maze-format.html">maze-format</a>.</li>
         <li><strong>Done 2026-07-17:</strong> capture an authoritative level-one start state from MAME background RAM, apply <code>ROT270</code>, and crop the complete maze at arcade rows 2–25 into the 24×24 target grid.</li>
-        <li><strong>Done 2026-07-17:</strong> derive the semantic maze and deterministic validator/generator: 25 styles, 109 dots, all 20 initial gate footprints, and a connected 249-cell navigation graph.</li>
+        <li><strong>Done 2026-07-18:</strong> derive the semantic maze and deterministic validator/generator: 25 styles, 117 food-placement candidates, all 20 initial gate footprints, and a connected 249-cell navigation graph. Six bonuses and 2–6 skulls replace candidates at runtime.</li>
         <li><strong>Done 2026-07-17:</strong> compile the authored layered 40×24 TMX into a 960-byte map and 53-tile packed atlas, then render it row-major once at boot before the deterministic halt.</li>
       </ol>
       <p><strong>Exit criterion:</strong> the full Lady Bug playfield is visible and correct against the design doc — outer walls, inner walls, turnstiles, all 20 gates, dots in their starting positions.</p>
@@ -162,43 +162,46 @@
       <ol>
         <li><strong>Done 2026-07-18:</strong> guarded 16 K split layout with resident code below <code>$E000</code>, immutable assets at <code>$E000-$FDFF</code>, map-derived build failures at both boundaries, exact upper-ROM reads, and pixel-exact cold XRoar rendering.</li>
         <li><strong>Done 2026-07-18:</strong> four-state rotating gates with generated five-cell collision crosses, two parallel passages per orientation, contextual seven-cell backgrounds, transparent five-tile overlays, overlapping-neighbour preservation, endpoint-push collision, and dirty redraw. MAME gate 17 was navigated end-to-end to establish the transition.</li>
-        <li>Score, lives, level counters in DP.</li>
-        <li>Activate the HUD fields at their authored positions in <a href="../game/overview.html">game/overview</a>; the Phase 3 TMX supplies their static initial graphics.</li>
-        <li>Dot-eating awards points; HUD updates.</li>
-        <li>Interim Phase 5 stage-clear detection may use all flowers gone; final arcade-fidelity logic must also account for the six bonus circles if the StrategyWiki claim is confirmed in MAME.</li>
-        <li>Death → life lost (placeholder, since no enemies yet — debug key for now).</li>
+        <li><strong>Done 2026-07-18:</strong> packed-BCD score/high score plus lives, stage, and flower counters in DP.</li>
+        <li><strong>Done 2026-07-18:</strong> activate the authored score, high-score, and stage fields with ten shared monochrome digit masks recoloured at runtime.</li>
+        <li><strong>Done 2026-07-18:</strong> flower collection awards 10 points, updates both score rows, and decrements the remaining count.</li>
+        <li><strong>Done 2026-07-18:</strong> normal clear requires all remaining flowers and all six bonuses; completed EXTRA or SPECIAL also requests immediate advancement.</li>
+        <li><strong>Done 2026-07-18:</strong> two-to-six randomized skull hazards, MAME-measured sprite-57-to-68 shrink/wing death animation, removal of only the collided skull, Black life-marker clearing, preserved map state, rightmost-HUD-marker downward walk-off, and a new three-cell entrance walk that stops at (12,18).</li>
+        <li><strong>Done 2026-07-18:</strong> FAQ letter selection groups, three hearts, exact arcade-ROM four-character object composites, 30/150/420-frame synchronized Red/Yellow/Blue cycle, corrected same-record pickup erasure, 100/300/800 multiplied scoring, Blue x2/x3/x5 progression, word HUD progress, EXTRA life, and the 10,000-point CoCo SPECIAL adaptation.</li>
+        <li><strong>Done 2026-07-18:</strong> render the stage-one 92-box border circuit without enemies: one White-to-Green box every nine frames followed by a progressive Green-to-White sweep.</li>
       </ol>
       <p><strong>Exit criterion:</strong> loop of clear-stage → next-stage works indefinitely. Score and HUD accurate.</p>
     </section>
 
     <section>
-      <h2>Phase 6 — Enemies: bug spawner + skull AI</h2>
+      <h2>Phase 7 — Enemies: bug spawner + skull AI</h2>
       <p><strong>Goal:</strong> the game becomes Lady Bug.</p>
       <p><strong>POC tasks:</strong></p>
       <ol>
         <li>Bug entity record (<code>BUG.X</code>, <code>BUG.Y</code>, <code>BUG.STATE</code>, <code>BUG.LEN</code>); fixed-size pool.</li>
         <li>Border-circuit spawn timer driving four initial den occupants; measure the claimed speed changes on stages 2 and 5.</li>
         <li>Bug AI — semi-random corridor wandering outside detection range, steady pursuit inside it, and no gate rotation; verify detection and den-safety rules in MAME.</li>
-        <li>Stationary skull hazards lethal to either side; provisional stage progression is two skulls on stage 1 increasing to six after stage 10, with added skulls replacing food.</li>
-        <li>Skull-killed enemies return to the den for delayed re-release; verify whether skull-caused player death removes remaining skulls.</li>
+        <li><strong>Player-side skull behavior is done:</strong> stage table 2 / 3 / 4 / 5 / 6 at stages 1 / 2–4 / 5–8 / 9–17 / 18+, with only the contacted skull removed after player contact.</li>
+        <li>Skull-killed enemies return to the den for delayed re-release; enemy-side collision remains in this phase.</li>
         <li>Collision → life lost; reset positions.</li>
       </ol>
       <p><strong>Exit criterion:</strong> playable. You can lose the game. Multiple bugs on screen at once.</p>
     </section>
 
     <section>
-      <h2>Phase 7 — Letters + vegetable cycle + colour cycle</h2>
+      <h2>Phase 6 — Letters + vegetable cycle + colour cycle</h2>
       <p><strong>Goal:</strong> the EXTRA/SPECIAL/vegetable system from the design doc.</p>
       <p><strong>POC tasks:</strong></p>
       <ol>
-        <li>Global Red → Yellow → Blue colour-cycle state shared by all six stage circles; measure the provisional &lt;1 s / ~4 s / ~7 s durations.</li>
-        <li>Three letter circles plus three heart circles per stage, including selection, placement, collection, and off-colour scoring.</li>
+        <li><strong>Done:</strong> global Red → Yellow → Blue state shared by all six circles, using MAME-measured 30/150/420-frame holds.</li>
+        <li><strong>Done:</strong> three randomized letter circles plus three heart circles, FAQ selection groups, placement, collection, and off-colour scoring.</li>
         <li>Vegetable spawn/recurrence timer plus the 18-vegetable ordered table; frozen enemies remain lethal and may receive a post-freeze speed increase.</li>
-        <li>Blue-heart progression ×2 → ×3 → ×5, reset at stage transition.</li>
-        <li>SPECIAL completion → 10,000-point CoCo adaptation, target reset, and provisional immediate stage advance.</li>
-        <li>EXTRA completion → +1 life, target reset, and provisional immediate stage advance.</li>
+        <li><strong>Done:</strong> Blue-heart progression ×2 → ×3 → ×5, reset at stage transition.</li>
+        <li><strong>Done:</strong> SPECIAL completion → 10,000-point CoCo adaptation, target reset, and immediate stage advance.</li>
+        <li><strong>Done:</strong> EXTRA completion → +1 life, target reset, and immediate stage advance.</li>
       </ol>
       <p><strong>Exit criterion:</strong> the right HUD panel cycles correctly; collecting at the right colour advances the right target; all three reward paths trigger.</p>
+      <p><strong>Ordering decision:</strong> complete this non-enemy phase before enemy actors so scoring, stage completion, and collectible behavior can be tested independently.</p>
     </section>
 
     <section>

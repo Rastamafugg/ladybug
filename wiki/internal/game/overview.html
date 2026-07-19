@@ -67,7 +67,7 @@
         <li><strong>20 green turnstile gates</strong> placed at corridor junctions. The ladybug walking through one rotates it 90°; this can open or seal off paths. Enemies cannot turn gates.
           <ul><li>Constraint: the maze design guarantees that no gate configuration can fully isolate any region of the maze.</li></ul>
         </li>
-        <li><strong>Border circuit timer:</strong> the outer maze boxes begin White with Black separation. Starting at the thirteenth top box from the left, directly below the arcade <code>EXTRA</code> T, timer ticks turn boxes Green clockwise. Completing the circuit releases an enemy and resets all boxes to White. Exact per-level intervals must be measured from MAME; the circuit accelerates on later levels.</li>
+        <li><strong>Border circuit timer:</strong> the outer maze boxes begin White with Black separation. Starting at the thirteenth top box from the left, directly below the arcade <code>EXTRA</code> T, one box turns Green every nine 60 Hz frames on stage 1. After all 92 boxes are Green, a progressive White sweep follows at the same cadence. The Phase 5 no-enemy build renders this continuously; later-stage intervals remain to be measured.</li>
         <li><strong>Maze colours:</strong> regular walls and the two-pixel inner perimeter are Pink; turnstile bars are Green and their pivots Purple. Flowers have a White centre with four Light Blue corner pixels on Black.</li>
       </ul>
     </section>
@@ -101,8 +101,8 @@
       <ul>
         <li>Randomly placed each stage and stationary.</li>
         <li>Lethal to both ladybug and enemies on contact.</li>
-        <li><strong>StrategyWiki claim to verify:</strong> stage 1 begins with two skulls; the count increases gradually to six after stage 10, with each added skull replacing one food item.</li>
-        <li><strong>StrategyWiki claim to verify:</strong> when the player dies by touching a skull, all remaining skulls disappear for that stage.</li>
+        <li>MAME directly confirms two visible skulls on stage 1. Until later stages are measured, use the FAQ table: 2 on stage 1; 3 on stages 2–4; 4 on stages 5–8; 5 on stages 9–17; 6 on stage 18 onward.</li>
+        <li>A skull collision removes only the skull that was touched. Every other skull remains active. The CoCo implementation preserves collected flowers, bonuses, gates, score, and stage state during the new-ladybug entrance.</li>
       </ul>
     </section>
 
@@ -125,10 +125,15 @@
         <strong>Global colour cycle.</strong> All on-stage letters and all
         on-stage hearts share a <strong>single colour state</strong> that
         changes simultaneously and instantaneously across every item. The
-        colour cycles red → yellow → blue → red. StrategyWiki gives approximate
-        real-time durations of less than one second Red, four seconds Yellow,
-        and seven seconds Blue; exact frame counts and reset behavior require
-        MAME capture.
+        colour cycles red → yellow → blue → red. MAME 0.220 measurement at
+        60 Hz gives exactly 30 frames Red, 150 frames Yellow, and 420 frames
+        Blue after the initial partial cycle: 0.5 s, 2.5 s, and 7 s. The
+        StrategyWiki estimate of roughly four seconds Yellow is not supported
+        by the installed ROM.
+      </p>
+      <p>
+        Compact frame anchors and measurement limits are retained in
+        <a href="../../../assets/arcade/gameplay_rules_reference.json"><code>gameplay_rules_reference.json</code></a>.
       </p>
       <p>
         Three targets compete for collected items: the <code>EXTRA</code>
@@ -144,7 +149,7 @@
       <p><strong>Letters</strong> (word-spelling items: E, X, T, R, A, S, P, C, I, L — E and A appear in both words)</p>
       <ul>
         <li>HUD target letters begin Grey and change to the target's fixed colour only when the matching letter is collected while the item is that colour.</li>
-        <li>Each stage contains six bonus circles at fixed bonus positions: three letter circles and three hearts. Exact per-stage letter selection and respawn behavior require MAME capture.</li>
+        <li>Stage-one MAME capture directly shows six synchronized bonus circles. The FAQ specifies three hearts plus one letter from X/T/R, one from S/P/C/I/L, and one from E/A, all replacing randomized food positions.</li>
         <li>A letter advances a word only when collected while the current global colour equals that word's assigned colour.</li>
         <li>E and A: collected at the EXTRA-colour → advance EXTRA; collected at the SPECIAL-colour → advance SPECIAL; collected at the multiplier-colour → no word progress.</li>
         <li>Letters specific to one word collected at any colour other than their word's colour → no progress.</li>
@@ -208,12 +213,12 @@
     <section>
       <h2>Stage flow</h2>
       <ol>
-        <li>Maze drawn (single fixed layout, identical every stage), flowers and six bonus circles placed at their designated positions, and a stage-dependent number of skulls placed at randomized food positions.</li>
-        <li>Border timer starts; ladybug spawned in starting position; nest holds all enemies for this stage.</li>
-        <li>Each completed Green border circuit releases one enemy and resets the boxes to White.</li>
+        <li>Maze drawn (single fixed layout, identical every stage). All 117 CoCo placement candidates begin as flowers; six bonuses and the stage-dependent skull count then replace unique randomized candidates. Only the three centre-bottom entrance cells remain permanently empty.</li>
+        <li>Border timer starts; Lady Bug walks north through the three-cell entrance, stops at cell (12,18), and remains stationary until directional input. Nest enemies remain deferred.</li>
+        <li>Stage-one MAME advances one of the 92 border boxes every 9 frames. A complete circuit is 828 frames (13.8 s). The following circuit progressively changes the Green boxes back to White at the same cadence; it does not clear every box in one frame.</li>
         <li>The vegetable appears after all four enemies have left the den. Arcade observation is still required to determine its availability duration, recurrence after an enemy is killed, and level-dependent timing.</li>
-        <li><strong>StrategyWiki claim to verify:</strong> normal stage clear requires every flower plus all six bonus circles; word completion can also end the stage immediately.</li>
-        <li>Death (enemy contact or skull) → respawn at start; if no lives remain, game over.</li>
+        <li>Normal stage clear requires every flower plus all six bonus circles; word completion also requests an immediate stage advance. Controlled arcade collection remains the final precedence check.</li>
+        <li>Death (enemy contact or skull) → arcade sprite 57 holds for 30 frames, sprites 58–63 shrink for five frames each, then White wing forms 64–68 fly upward. The rightmost active HUD life marker turns South and walks 24 scanlines off the bottom of the display; only then is the life count decremented. The replacement appears below the maze centre and walks north to (12,18); if no lives remain, game over.</li>
       </ol>
       <p>The maze is <strong>a single fixed layout used for every stage</strong>. Per-stage variation comes from: enemy types/count/speed, which vegetable appears, and the randomized skull positions.</p>
     </section>
@@ -251,8 +256,8 @@
     <section>
       <h2>Deferred (not blocking initial implementation)</h2>
       <ol>
-        <li><strong>Colour-cycle timing</strong> — measure StrategyWiki's approximate Red &lt;1 s, Yellow ~4 s, Blue ~7 s durations and determine whether stage-clear or death resets it.</li>
-        <li><strong>Border/vegetable timing</strong> — measure the per-level timer-box interval, vegetable appearance point, availability duration, and relationship to the next enemy release.</li>
+        <li><strong>Colour-cycle reset</strong> — stage-one durations are measured; determine whether stage-clear or death resets the cycle.</li>
+        <li><strong>Later-stage border/vegetable timing</strong> — stage one is 9 frames per box; measure stages 2 and 5, the vegetable appearance point, availability duration, and relationship to the next enemy release.</li>
         <li><strong>Enemy and skull behavior</strong> — verify wander-to-pursuit switching, den safety, skull progression, skull removal after player death, enemy den return/re-release, vegetable recurrence, and post-freeze speed increase.</li>
         <li><strong>Stage completion</strong> — verify whether all six bonus circles are mandatory and whether either completed word immediately advances the stage.</li>
         <li><strong>Two-player scope</strong> — StrategyWiki documents separate one- and two-player start buttons; decide whether alternating two-player mode is required for CoCo v1.</li>
@@ -266,6 +271,7 @@
       <ul>
         <li><a href="../sources/ladybug-arcade.html">Wikipedia: Lady Bug (video game)</a></li>
         <li><a href="https://strategywiki.org/wiki/Lady_Bug/Gameplay">StrategyWiki Lady Bug gameplay</a> — fully ingested 2026-07-18 as a secondary gameplay source; timing and progression claims remain MAME verification targets.</li>
+        <li><a href="https://gamefaqs.gamespot.com/arcade/563991-lady-bug/faqs/26746">GameFAQs Lady Bug FAQ/Walkthrough</a> — ingested 2026-07-18 for placement arithmetic, letter groups, skull progression, and death cleanup; MAME remains authoritative.</li>
         <li>Pixelated Arcade tech specs page</li>
         <li>C64-Wiki Ladybug entry (for the 1983 home port — useful but <strong>not authoritative</strong> for arcade-specific rules)</li>
         <li>bitvint.com Lady Bug history page</li>

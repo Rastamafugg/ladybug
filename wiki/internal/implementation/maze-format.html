@@ -180,7 +180,7 @@
         a 960-byte map and 92 graphics after semantic colour, gate-state, and diagonal gate-frame expansion.
       </p>
       <p>
-        Derived result: 25 logical styles, 109 initial dots, 20 gates split
+        Derived result: 25 logical styles, 117 food-placement candidates, 20 gates split
         evenly between horizontal and vertical initial orientations, 249
         connected walkable cells, a two-cell central nest release lane, and a
         92-cell perimeter circuit. Every gate owns a non-overlapping five-cell
@@ -230,9 +230,9 @@
         </tbody>
       </table>
       <p>
-        The Phase 5 split uses 1,667 of 8,192 resident bytes and 6,500 of 7,680
-        asset bytes. Further work has independent headroom of 6,525 code bytes
-        and 1,180 asset bytes before a packing or banked-cartridge decision.
+        Phase 5 scoring uses 1,950 of 8,192 resident bytes and 6,820 of 7,680
+        asset bytes. Further work has independent headroom of 6,242 code bytes
+        and 860 asset bytes before a packing or banked-cartridge decision.
       </p>
     </section>
 
@@ -257,7 +257,7 @@
         <li>Exactly 20 gates; every gate footprint is inside the grid and maps only to cells marked gate-affected.</li>
         <li>N/E/S/W movement is reciprocal between adjacent non-gate cells; no passable edge exits the grid.</li>
         <li>Runtime regular-cell collision tests the destination cell's reciprocal entrance bit for the requested direction; a nonzero navigation mask alone is insufficient.</li>
-        <li>Initial dot count is emitted and checked against the captured source.</li>
+        <li>The generator restores eight captured object-overlay nodes as ordinary candidates and requires exactly 117; stage load replaces unique candidates with six bonuses and 2–6 skulls.</li>
         <li>Nest and perimeter-track cells form the captured connected regions.</li>
         <li>The generator validates 20 non-overlapping five-cell collision crosses with no dots. Each orientation transparently overlays five arcade tiles after restoring seven contextual background cells; four overlapping gate pairs trigger a reciprocal neighbour overlay. Versioned MAME evidence verifies gate-17 rotation and traversal; the four-state runtime rule is exercised by cold gdb-mcp.</li>
         <li>Live gdb-mcp verification compares all 192 rendered rows, the 64-pixel side margins, palette/PAR state, halt PC, and reported ROM size.</li>

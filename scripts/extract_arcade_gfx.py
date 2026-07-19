@@ -4,7 +4,7 @@ Extract Lady Bug arcade graphics from the MAME `ladybug` romset.
 
 Decodes per MAME's ladybug.cpp gfxlayouts and palette/lookup PROMs:
   gfx1 (l9.f7 + l0.h7) -> 8x8 chars, 2bpp, 512 tiles
-  gfx2 (l8.l7 + l7.m7) -> 16x16 sprites, 2bpp, 64 sprites
+  gfx2 (l8.l7 + l7.m7) -> 16x16 and 8x8 sprites, 2bpp
   proms:
     10-1.f4 -> 32-entry palette (resistor-weighted RGB)
     10-2.k1 -> char color lookup (256 entries: 64 attrs x 4 pixel-values)
@@ -20,6 +20,7 @@ Outputs (under --out, default assets/arcade/):
   sprite_lookup.json       same for sprites
   chars.json               raw 2bpp pixel grids per tile (list of 8x8 arrays)
   sprites.json             raw 2bpp pixel grids per sprite (list of 16x16)
+  small_sprites.json       raw 2bpp pixel grids per sprite (list of 8x8)
 
 Run:
   python3 scripts/extract_arcade_gfx.py \
@@ -155,6 +156,17 @@ SPRITE_LAYOUT = {
     "char_bits": 64 * 8,
 }
 
+# MAME ladybug.cpp spritelayout2. The arcade object list selects this layout
+# for the skulls and colour-cycling bonus objects.
+SMALL_SPRITE_LAYOUT = {
+    "width": 8, "height": 8, "total": 512,
+    "planes": [1, 0],
+    "xoffset": [0, 2, 4, 6, 8, 10, 12, 14],
+    "yoffset": [7 * 16, 6 * 16, 5 * 16, 4 * 16,
+                3 * 16, 2 * 16, 1 * 16, 0 * 16],
+    "char_bits": 16 * 8,
+}
+
 
 def char_lookup() -> list[list[int]]:
     """
@@ -240,6 +252,7 @@ def main():
     sprite_lut_b = sprite_lookup(bytes(regions["sprite_lut"]), high_nibble=True)
     chars = decode_gfx(bytes(regions["gfx1"]), CHAR_LAYOUT)
     sprites = decode_gfx(bytes(regions["gfx2"]), SPRITE_LAYOUT)
+    small_sprites = decode_gfx(bytes(regions["gfx2"]), SMALL_SPRITE_LAYOUT)
 
     (out / "palette.json").write_text(json.dumps(palette, indent=2))
     (out / "char_lookup.json").write_text(json.dumps(char_lut, indent=2))
@@ -247,6 +260,7 @@ def main():
     (out / "sprite_lookup_b.json").write_text(json.dumps(sprite_lut_b, indent=2))
     (out / "chars.json").write_text(json.dumps(chars))
     (out / "sprites.json").write_text(json.dumps(sprites))
+    (out / "small_sprites.json").write_text(json.dumps(small_sprites))
 
     for a in range(8):
         render_sheet(chars, 8, 8, char_lut[a], palette, cols=32) \
@@ -255,14 +269,21 @@ def main():
             .save(out / f"sprites_setA_attr{a}.png")
         render_sheet(sprites, 16, 16, sprite_lut_b[a], palette, cols=8) \
             .save(out / f"sprites_setB_attr{a}.png")
+        render_sheet(small_sprites, 8, 8, sprite_lut[a], palette, cols=32) \
+            .save(out / f"small_sprites_setA_attr{a}.png")
+        render_sheet(small_sprites, 8, 8, sprite_lut_b[a], palette, cols=32) \
+            .save(out / f"small_sprites_setB_attr{a}.png")
     render_sheet(chars, 8, 8, char_lut[args.char_attr], palette, cols=32) \
         .save(out / "chars_indexed.png")
     render_sheet(sprites, 16, 16, sprite_lut[args.sprite_attr], palette, cols=8) \
         .save(out / "sprites_indexed.png")
     render_raw_sheet(chars, 8, 8, cols=32).save(out / "chars_raw2bpp.png")
     render_raw_sheet(sprites, 16, 16, cols=8).save(out / "sprites_raw2bpp.png")
+    render_raw_sheet(small_sprites, 8, 8, cols=32) \
+        .save(out / "small_sprites_raw2bpp.png")
 
-    print(f"wrote {len(chars)} chars, {len(sprites)} sprites, "
+    print(f"wrote {len(chars)} chars, {len(sprites)} large sprites, "
+          f"{len(small_sprites)} small sprites, "
           f"{len(palette)} palette entries to {out}")
 
 

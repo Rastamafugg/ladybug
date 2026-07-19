@@ -25,6 +25,57 @@
     </header>
 
     <section>
+      <h2>Preserve selector registers across palette setup</h2>
+      <p><strong>Filed 2026-07-18.</strong></p>
+      <p>
+        The collectible renderer copied <code>BONUS_COLOR</code> into its
+        primary-colour scratch, then loaded Pink into A for the accent and
+        accidentally compared that Pink value when selecting the Red, Yellow,
+        or Blue lookup table. The timer state changed correctly while every
+        object redraw remained Blue.
+      </p>
+      <p><strong>Rule:</strong> compare the persisted selector value, not a
+      register subsequently reused to initialize another field.</p>
+    </section>
+
+    <section>
+      <h2>Captured object overlays are food candidates, not permanent blanks</h2>
+      <p>
+        The stable MAME background has eight 2×2 character overlays at the two
+        stage-one skulls and six bonus circles. Normalizing those overlays to
+        clean background originally produced 109 dots and incorrectly treated
+        the eight centres as reserved blanks. The FAQ's replacement arithmetic
+        resolves the ambiguity: restore all eight centres as food candidates,
+        then clear a candidate only when a randomized entity record replaces it.
+        The CoCo maze therefore has 117 candidates and stage 1 displays 109
+        flowers after eight replacements.
+      </p>
+    </section>
+
+    <section>
+      <h2>Pickup erasure must copy the matched entity coordinates</h2>
+      <p>
+        The entity scanner correctly cleared the touched record but called the
+        four-cell restoration routine without first copying that record's X/Y
+        fields into the renderer scratch. The scratch still named the last
+        object drawn, so another object disappeared while the touched object
+        remained in the framebuffer. Copy the matched coordinates before any
+        restoration or HUD call that uses shared renderer state.
+      </p>
+    </section>
+
+    <section>
+      <h2>HUD columns above 31 require a 16-bit unsigned pixel offset</h2>
+      <p>
+        Multiplying HUD tile columns 33–37 by four and using
+        <code>LEAX A,X</code> treats offsets 132–148 as signed negative values.
+        The life-clear routine consequently wrote on the left side and left
+        marker pixels behind. Form a zero-extended D offset and use
+        <code>LEAX D,X</code>, matching the normal HUD tile renderer.
+      </p>
+    </section>
+
+    <section>
       <h2>PIA C2 static output requires control mode 11</h2>
       <p>
         MC6821 control values <code>$24/$2C</code> put CA2/CB2 in strobe

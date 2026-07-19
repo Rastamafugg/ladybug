@@ -43,6 +43,7 @@ tiled/coco-screen.tmx                (hand-authored 40x24 screen)
    ▼
 build/ladybug_maze.inc               (semantic cells/navigation/gates)
 build/ladybug_screen.inc             (palette, map, tiles, player frames, contextual gate redraw data)
+build/ladybug_resident.inc           (curated death-animation frames)
    │
 src/*.s                              (hand-written 6809 assembly)
    │
@@ -70,7 +71,7 @@ emulated CoCo 3      (real hardware: write ROM to a 16K EPROM, drop into cart sh
       <table class="wiki-table">
         <thead><tr><th>Command</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen and curated player frames, assemble, enforce the resident/asset ROM boundaries, and pad. Output includes <code>assets/arcade/maze.json</code>, <code>build/ladybug_maze.inc</code>, <code>build/ladybug_screen.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, and <code>build/ladybug.map</code>.</td></tr>
+          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen and curated player/death frames, assemble, enforce the resident/asset ROM boundaries, and pad. Output includes <code>assets/arcade/maze.json</code>, <code>build/ladybug_maze.inc</code>, <code>build/ladybug_screen.inc</code>, <code>build/ladybug_resident.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, and <code>build/ladybug.map</code>.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch XRoar with the canonical cart profile and map cursor keys to the right CoCo joystick through <code>kjoy0</code>.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
@@ -99,7 +100,8 @@ python3 scripts/build_screen.py \
   --maze assets/arcade/maze.json \
   --chars assets/arcade/chars.json \
   --sprites assets/arcade/sprites.json \
-  --output build/ladybug_screen.inc
+  --output build/ladybug_screen.inc \
+  --resident-output build/ladybug_resident.inc
 lwasm -9 --format=raw \
       --output=build/ladybug.rom \
       --list=build/ladybug.lst \
@@ -114,8 +116,8 @@ lwasm -9 --format=raw \
         It rejects resident code beyond <code>$E000</code>, an asset start other
         than <code>$E000</code>, assets beyond <code>$FE00</code>, or a raw-file
         length inconsistent with <code>asset_end-$C000</code>. A successful
-        current build reports <code>resident 1667/8192</code> and
-        <code>assets 6500/7680</code> before padding.
+        current build reports <code>resident 5412/8192</code> and
+        <code>assets 7588/7680</code> before padding.
       </p>
 
       <h3>2. Pad to 16 KB</h3>

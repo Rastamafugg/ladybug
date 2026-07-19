@@ -8,6 +8,7 @@ SRC_MAIN="$ROOT/src/main.s"
 SRC_TESTER="$ROOT/src/tester/tester.s"
 BUILD_DIR="$ROOT/build"
 SCREEN_INC="$BUILD_DIR/ladybug_screen.inc"
+RESIDENT_INC="$BUILD_DIR/ladybug_resident.inc"
 MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
 ROM="$BUILD_DIR/ladybug.rom"
 LST="$BUILD_DIR/ladybug.lst"
@@ -100,7 +101,8 @@ cmd_build() {
         --maze "$ROOT/assets/arcade/maze.json" \
         --chars "$ROOT/assets/arcade/chars.json" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
-        --output "$SCREEN_INC"
+        --output "$SCREEN_INC" \
+        --resident-output "$RESIDENT_INC"
 
     lwasm -9 --format=raw \
           --output="$ROM" \

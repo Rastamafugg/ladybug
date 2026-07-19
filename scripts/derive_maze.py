@@ -61,6 +61,14 @@ VERTICAL_FOOTPRINT = ((0, 0), (1, -1), (1, 0), (1, 1))
 # The central two-cell release lane is the captured nest navigation region.
 NEST_CELLS = ((12, 11), (12, 12))
 
+# The stable capture contains stage objects over these otherwise blank
+# navigation nodes. They are ordinary dot-bearing placement candidates in the
+# clean maze; randomized skulls and bonuses replace their dots at stage load.
+OBJECT_CANDIDATE_CELLS = {
+    (10, 2), (12, 2), (12, 8), (18, 10),
+    (2, 12), (10, 12), (22, 16), (6, 18),
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -222,7 +230,7 @@ def derive_styles(
         cell_row: list[int] = []
         dot_row: list[int] = []
         for x in range(WIDTH):
-            dot = codes[y][x] == DOT_CODE
+            dot = codes[y][x] == DOT_CODE or (x, y) in OBJECT_CANDIDATE_CELLS
             pair = clean_blank if dot else (codes[y][x], attributes[y][x])
             cell_row.append(style_ids[pair] | (0x80 if dot else 0))
             dot_row.append(1 if dot else 0)
@@ -377,8 +385,8 @@ def main() -> int:
                 raise ValueError(f"gate rotation crosses overlap at {x},{y}")
             gate_owner[y][x] = gate["id"] + 1
     dots = [[x, y] for y in range(HEIGHT) for x in range(WIDTH) if dot_mask[y][x]]
-    if len(dots) != 109 or any(tuple(dot) not in walkable for dot in dots):
-        raise ValueError("expected 109 dots, all on walkable navigation nodes")
+    if len(dots) != 117 or any(tuple(dot) not in walkable for dot in dots):
+        raise ValueError("expected 117 placement dots, all on walkable navigation nodes")
     affected = [tuple(cell) for gate in gates for cell in gate["affected_cells"]]
     if len(set(affected)) != 80:
         raise ValueError("the 20 four-cell gate footprints must not overlap")

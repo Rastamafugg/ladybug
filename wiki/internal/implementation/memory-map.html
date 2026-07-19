@@ -69,7 +69,8 @@ $A000-$A23F      5    $34   576 B  Writable maze-cell copy
 $A240-$A253      5    $34    20 B  Gate states (passage N/W/S/E = 0/1/2/3)
 $A254-$A2FF      5    $34   172 B  Reserved game-state growth
 $A300-$A37F      5    $34   128 B  Player background save buffer
-$A380-$BFFF      5    $34   —      Free game-state RAM
+$A380-$A3AF      5    $34    48 B  Twelve x/y/type/variant collectible records
+$A3B0-$BFFF      5    $34   —      Free game-state RAM
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
@@ -95,8 +96,8 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
 <pre><code>file offset   virtual          purpose
 $0000-$0682   $C000-$C682      autostart magic, entry, resident code/constants
 $0683-$1FFF   $C683-$DFFF      emitted $FF alignment; resident growth
-$2000-$3963   $E000-$F963      immutable graphics, maze, and static tables
-$3964-$3DFF   $F964-$FDFF      final $FF padding; asset growth
+$2000-$3AA3   $E000-$FAA3      immutable graphics, HUD digits, maze, and static tables
+$3AA4-$3DFF   $FAA4-$FDFF      final $FF padding; asset growth
 $3E00-$3EFF   $FE00-$FEFF      forced RAM window; cart byte inaccessible
 $3F00-$3FFF   $FF00-$FFFF      dedicated I/O; cart byte inaccessible
 </code></pre>
@@ -222,8 +223,8 @@ asset_end
       <p>
         The current <a href="./maze-format.html">Phase 3 screen format</a>
         uses a 960-byte 40×24 map plus 2,944 bytes for 92 deduplicated packed
-        graphics. The Phase 5 build contains 8,167 meaningful bytes across a
-        14,692-byte address-aligned raw span before 16 KB padding. Executable
+        graphics. The Phase 5 collectible build contains 10,997 meaningful bytes
+        across a 15,780-byte address-aligned raw span before 16 KB padding. Executable
         code stays in <code>$C000-$DFFF</code> and static data now occupies
         <code>$E000-$FDFF</code>. The generated semantic maze,
         writable dot state, and 20 gate-state bytes are integrated.
@@ -276,12 +277,13 @@ $FE00-$FEFF        256 B   forced physical-page-$3F jump table; never cart data
 $FF00-$FFFF        256 B   I/O; never cart data
 </code></pre>
       <p>
-        The current immutable block begins at <code>palette_table=$C683</code>
-        and is 6,500 bytes. Moving <code>palette_table</code> through the end of
-        the generated maze data to <code>$E000</code> projects
-        <code>asset_end=$F964</code>. That leaves 6,525 bytes for resident-code
-        growth and 1,180 bytes for additional static data, or 7,705 bytes total
-        subject to the independent region limits. All current 6809
+        The current immutable block begins at <code>palette_table=$E000</code>
+        and ends before <code>asset_end=$FDA4</code>. Phase 5 uses 5,412 resident
+        bytes and 7,588 asset bytes, leaving 2,777 bytes for resident-code
+        growth and 92 bytes for additional static data, subject to the
+        independent region limits. The resident total includes twelve curated
+        128-byte death frames because the static asset window cannot hold them.
+        All current 6809
         PC-relative references remain within signed 16-bit reach.
       </p>
       <p>
@@ -291,7 +293,7 @@ $FF00-$FFFF        256 B   I/O; never cart data
         for <code>resident_end &gt; $E000</code> or
         <code>asset_end &gt; $FE00</code>, and also rejects a raw-file length that
         disagrees with <code>asset_end-$C000</code>. Cold XRoar/gdb-mcp read the
-        entire relocated block exactly from <code>$E000-$F963</code>; the live
+        relocated block exactly from <code>$E000-$FAA3</code>; the live
         framebuffer matched the generated screen plus initial player
         pixel-for-pixel. Cartridge type, runtime MMU ownership, and the 16 K
         output size are unchanged.
@@ -337,7 +339,13 @@ $FF00-$FFFF        256 B   I/O; never cart data
           <tr><td><code>$10-$17</code></td><td>collision and gate draw scratch</td><td>8 B</td><td>Phase 5 movement/gate renderer</td></tr>
           <tr><td><code>$18-$1A</code></td><td>manual-input and gate-animation state</td><td>3 B</td><td>Phase 4/5 runtime</td></tr>
           <tr><td><code>$1B-$1C</code></td><td>transparent-blit dimensions</td><td>2 B</td><td>Shared renderer</td></tr>
-          <tr><td><code>$1D-$FF</code></td><td>(free)</td><td>227 B</td><td>Future hot state</td></tr>
+          <tr><td><code>$1D-$22</code></td><td><code>SCORE_BCD</code>, <code>HIGH_BCD</code></td><td>6 B</td><td>Six-digit packed-BCD current and session-high scores</td></tr>
+          <tr><td><code>$23-$26</code></td><td><code>LIVES</code>, <code>STAGE</code>, <code>DOTS_LEFT</code>, <code>STAGE_PENDING</code></td><td>4 B</td><td>Phase 5 no-enemy game loop</td></tr>
+          <tr><td><code>$27-$2E</code></td><td>HUD digit-render scratch</td><td>8 B</td><td>Runtime-coloured numeric HUD</td></tr>
+          <tr><td><code>$2F-$3D</code></td><td>bonus colour/timer, entity counts, RNG, death timer, multiplier, word bits</td><td>15 B</td><td>Phase 5 collectible state</td></tr>
+          <tr><td><code>$3E-$49</code></td><td>entity/object render pointers and scratch</td><td>12 B</td><td>Phase 5 dynamic-object renderer</td></tr>
+          <tr><td><code>$4A-$4E</code></td><td>perimeter timer/index/phase plus death state/frame</td><td>5 B</td><td>Phase 5 timer and death state machines</td></tr>
+          <tr><td><code>$4A-$FF</code></td><td>(free)</td><td>182 B</td><td>Future hot state</td></tr>
         </tbody>
       </table>
       <p>Plenty of room. Maintain this table as variables land.</p>

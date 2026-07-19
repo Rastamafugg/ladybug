@@ -7,6 +7,7 @@ import argparse
 import json
 import math
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 
@@ -38,10 +39,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--driver", default="ladybug")
     parser.add_argument("--frames", type=int, default=900)
     parser.add_argument("--recognize-from", type=int, default=1)
+    parser.add_argument("--skip-player-recognition", action="store_true",
+                        help="retain captures without the expensive full-frame player scan")
+    parser.add_argument("--video-from", type=int, default=1,
+                        help="first frame written to the optional raw-video stream")
     parser.add_argument("--plan", type=Path)
     parser.add_argument(
         "--output", type=Path, default=Path("assets/arcade/gameplay_reference.json")
     )
+    parser.add_argument("--raw-video", type=Path,
+                        help="optionally retain the BGRA32 frame stream")
+    parser.add_argument("--raw-work-ram", type=Path,
+                        help="optionally retain the $6000-$6fff frame stream")
     return parser.parse_args()
 
 
@@ -74,7 +83,8 @@ def lua_table(plan: dict[str, object]) -> str:
 
 
 def lua_script(output: Path, video_output: Path, background_output: Path,
-               plan: dict[str, object], last_frame: int) -> str:
+               work_ram_output: Path,
+               plan: dict[str, object], last_frame: int, video_from: int) -> str:
     return f'''local frame = 0
 local finished = false
 local space = nil
@@ -83,6 +93,7 @@ local video = nil
 local out = assert(io.open("{output.as_posix()}", "w"))
 local vout = assert(io.open("{video_output.as_posix()}", "wb"))
 local bout = assert(io.open("{background_output.as_posix()}", "wb"))
+local rout = assert(io.open("{work_ram_output.as_posix()}", "wb"))
 
 {lua_table(plan)}
 
@@ -117,12 +128,17 @@ local function apply_actions()
 end
 
 local function dump_frame()
-    vout:write(video:pixels())
+    if frame >= {video_from} then vout:write(video:pixels()) end
     local bytes = {{}}
     for address = 0xd000, 0xd7ff do
         bytes[#bytes + 1] = string.char(space:read_u8(address))
     end
     bout:write(table.concat(bytes))
+    bytes = {{}}
+    for address = 0x6000, 0x6fff do
+        bytes[#bytes + 1] = string.char(space:read_u8(address))
+    end
+    rout:write(table.concat(bytes))
 end
 
 emu.register_frame_done(function()
@@ -133,7 +149,7 @@ emu.register_frame_done(function()
     dump_frame()
     out:flush()
     if frame >= {last_frame} then
-        out:close(); vout:close(); bout:close(); finished = true
+        out:close(); vout:close(); bout:close(); rout:close(); finished = true
     end
 end)
 '''
@@ -247,6 +263,23 @@ def background_changes(raw: bytes, frames: int) -> dict[str, list[list[int]]]:
     return changes
 
 
+def memory_changes(raw: bytes, frames: int, base: int) -> dict[str, list[list[int]]]:
+    """Return frame-indexed byte changes for a fixed-size memory capture."""
+    stride = len(raw) // frames
+    if stride * frames != len(raw):
+        raise RuntimeError("memory capture size mismatch")
+    changes: dict[str, list[list[int]]] = {}
+    previous = raw[:stride]
+    for frame in range(2, frames + 1):
+        current = raw[(frame - 1) * stride:frame * stride]
+        delta = [[base + offset, value] for offset, value in enumerate(current)
+                 if value != previous[offset]]
+        if delta:
+            changes[str(frame)] = delta
+        previous = current
+    return changes
+
+
 def main() -> None:
     args = parse_args()
     plan = load_plan(args.plan)
@@ -256,9 +289,13 @@ def main() -> None:
         raw = directory / "capture.tsv"
         video_raw = directory / "video.bin"
         background_raw = directory / "background.bin"
+        work_ram_raw = directory / "work-ram.bin"
         script = directory / "capture.lua"
         with script.open("w", encoding="utf-8", newline="\n") as handle:
-            handle.write(lua_script(raw, video_raw, background_raw, plan, args.frames))
+            handle.write(lua_script(
+                raw, video_raw, background_raw, work_ram_raw, plan, args.frames,
+                args.video_from
+            ))
         command = [
             args.mame,
             args.driver,
@@ -277,25 +314,40 @@ def main() -> None:
         ]
         subprocess.run(command, check=True)
         width, height, inputs = parse_log(raw)
-        positions = locate_player_frames(
-            video_raw.read_bytes(), width, height, args.frames, args.recognize_from
+        video_frames = args.frames - args.video_from + 1
+        positions = {} if args.skip_player_recognition else locate_player_frames(
+            video_raw.read_bytes(), width, height, video_frames,
+            max(1, args.recognize_from - args.video_from + 1)
         )
+        if args.video_from != 1:
+            positions = {str(int(frame) + args.video_from - 1): matches
+                         for frame, matches in positions.items()}
         changes = background_changes(background_raw.read_bytes(), args.frames)
+        work_ram_changes = memory_changes(work_ram_raw.read_bytes(), args.frames, 0x6000)
+        if args.raw_video:
+            args.raw_video.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(video_raw, args.raw_video)
+        if args.raw_work_ram:
+            args.raw_work_ram.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(work_ram_raw, args.raw_work_ram)
     document = {
-        "schema": "ladybug-mame-gameplay-capture-v1",
+        "schema": "ladybug-mame-gameplay-capture-v2",
         "provenance": {"driver": args.driver, "mame_version": version, "frames": args.frames},
         "plan": plan,
-        "video": {"width": width, "height": height, "pixel_format": "BGRA32"},
+        "video": {"width": width, "height": height, "pixel_format": "BGRA32",
+                  "first_frame": args.video_from},
         "inputs": inputs,
         "player": positions,
         "background_changes": changes,
+        "work_ram_changes": work_ram_changes,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8", newline="\n") as handle:
         handle.write(json.dumps(document, indent=2) + "\n")
     print(
         f"gameplay capture: {len(positions)} player frames, "
-        f"{len(changes)} background-change frames -> {args.output}"
+        f"{len(changes)} background-change frames, "
+        f"{len(work_ram_changes)} work-RAM-change frames -> {args.output}"
     )
 
 

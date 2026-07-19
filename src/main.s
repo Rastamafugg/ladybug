@@ -49,12 +49,79 @@ GATE_ANIM_ID  equ $0219         ; rotating gate ID+1; zero when idle
 GATE_ANIM_STYLE equ $021A       ; 0=slash, 1=backslash
 BLIT_ROWS     equ $021B         ; transparent-blit row counter
 BLIT_WIDTH    equ $021C         ; transparent-blit bytes per row
+SCORE_BCD     equ $021D         ; packed BCD score, six digits
+HIGH_BCD      equ $0220         ; packed BCD session high score
+LIVES         equ $0223         ; lives remaining
+STAGE         equ $0224         ; current stage, 1..255
+DOTS_LEFT     equ $0225         ; remaining flowers in this stage
+STAGE_PENDING equ $0226         ; nonzero requests a stage transition
+HUD_X         equ $0227         ; HUD tile column scratch
+HUD_Y         equ $0228         ; HUD tile row scratch
+HUD_COLOR     equ $0229         ; palette index for digit rendering
+HUD_BYTE      equ $022A         ; packed BCD / mask scratch
+HUD_COUNT     equ $022B         ; byte/row loop scratch
+HUD_WIDTH     equ $022C         ; packed-byte loop scratch
+HUD_BCD_BYTE  equ $022D         ; preserved BCD byte during digit blits
+HUD_BCD_COUNT equ $022E         ; packed BCD byte loop
+BONUS_COLOR   equ $022F         ; global bonus colour, palette index
+BONUS_TIMER   equ $0230         ; u16 frames remaining in current colour
+ENTITY_COUNT  equ $0232         ; active entity-table record count
+BONUS_LEFT    equ $0233         ; uncollected hearts and letters
+RNG_STATE     equ $0234         ; u16 placement LFSR
+ENTITY_X      equ $0236         ; entity/draw scratch
+ENTITY_Y      equ $0237
+ENTITY_TYPE   equ $0238
+ENTITY_VARIANT equ $0239
+DEATH_TIMER   equ $023A         ; nonzero while rotating death animation runs
+MULTIPLIER    equ $023B         ; score multiplier: 1,2,3,5
+SPECIAL_BITS equ $023C         ; collected SPECIAL letters, bit per HUD position
+EXTRA_BITS   equ $023D         ; collected EXTRA letters, bit per HUD position
+ENTITY_PTR   equ $023E         ; u16 current entity record pointer
+OBJ_SOURCE   equ $0240         ; u16 object-mask source pointer
+OBJ_ROWS     equ $0242
+OBJ_BYTES    equ $0243
+OBJ_VALUE    equ $0244
+OBJ_INDEX    equ $0245
+OBJ_PRIMARY  equ $0246
+OBJ_ACCENT   equ $0247
+ENTITY_WORK  equ $0248         ; entity placement / loop scratch
+ENTITY_TOTAL equ $0249         ; total records allocated this stage
+BOX_TIMER    equ $024A         ; frames until next perimeter-box update
+BOX_INDEX    equ $024B         ; clockwise perimeter position, 0..91
+BOX_PHASE    equ $024C         ; 0=White-to-Green, 1=Green-to-White
+DEATH_STATE  equ $024D         ; 0=alive, 1=shrink, 2=wings, 3=walk-off
+DEATH_FRAME  equ $024E         ; selected curated death frame
 
 DIR_NORTH     equ 0
 DIR_EAST      equ 1
 DIR_SOUTH     equ 2
 DIR_WEST      equ 3
 DIR_NONE      equ $FF
+
+COLOR_RED         equ 1
+COLOR_YELLOW      equ 2
+COLOR_LIGHT_GREEN equ 8
+COLOR_BLUE        equ 3
+COLOR_PINK        equ 4
+COLOR_WHITE       equ 6
+
+ENTITY_NONE       equ 0
+ENTITY_SKULL      equ 1
+ENTITY_HEART      equ 2
+ENTITY_LETTER     equ 3
+
+OBJECT_SKULL      equ 0
+OBJECT_HEART      equ 1
+OBJECT_A          equ 2
+OBJECT_C          equ 3
+OBJECT_E          equ 4
+OBJECT_I          equ 5
+OBJECT_L          equ 6
+OBJECT_P          equ 7
+OBJECT_R          equ 8
+OBJECT_S          equ 9
+OBJECT_T          equ 10
+OBJECT_X          equ 11
 
 ;------------------------------------------------------------------------------
 ; Hardware
@@ -92,6 +159,7 @@ FB_PHYS    equ  $30             ; physical page 0 of FB
 MAZE_STATE equ  $A000           ; writable 576-byte maze-cell copy (PAR5)
 GATE_STATE equ  $A240           ; rotation state N/W/S/E; parity selects H/V bar
 PLAYER_BG  equ  $A300           ; 128-byte saved background under player
+ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
 
 ;==============================================================================
 ;  Cart ROM
@@ -197,10 +265,20 @@ clr_fb  std     ,x++
         lbsr    draw_screen
 
         ; --- Phase 4 state, joystick, and player sprite ---
+        lbsr    init_game_state
         lbsr    init_maze_state
         lbsr    init_gate_state
         lbsr    init_joystick
+        lbsr    read_joystick
+        lda     RNG_STATE+1
+        eora    JOY_X
+        adda    JOY_Y
+        sta     RNG_STATE+1
+        lbsr    init_entities
         lbsr    init_player
+        lbsr    draw_entities
+        lbsr    draw_hud
+        lbsr    draw_lives
         lbsr    draw_player
 
         ; --- Un-blank: 320×192×16 (CRES=10 + HRES=111 → 4bpp on this build) ---
@@ -235,12 +313,529 @@ mainloop
         sta     LAST_FRAME
         lbsr    read_joystick
         lbsr    finish_gate_animation
+        lbsr    bonus_color_tick
+        lbsr    perimeter_timer_tick
+        lbsr    rng_next         ; stage placement depends on elapsed play time
+        lda     DEATH_STATE
+        beq     main_alive
+        lbsr    death_tick
+        bra     mainloop
+main_alive
         lda     LAST_FRAME
         anda    #$01
         bne     mainloop
 phase4_before_tick
         lbsr    player_tick
+        lda     STAGE_PENDING
+        beq     mainloop
+        lbsr    next_stage
         bra     mainloop
+
+;==============================================================================
+; Phase 5 score, HUD, and no-enemy stage state.
+;==============================================================================
+init_game_state
+        clr     SCORE_BCD
+        clr     SCORE_BCD+1
+        clr     SCORE_BCD+2
+        clr     HIGH_BCD
+        clr     HIGH_BCD+1
+        clr     HIGH_BCD+2
+        lda     #3
+        sta     LIVES
+        lda     #1
+        sta     STAGE
+        lda     #MAZE_DOT_COUNT
+        sta     DOTS_LEFT
+        clr     STAGE_PENDING
+        clr     SPECIAL_BITS
+        clr     EXTRA_BITS
+        clr     DEATH_TIMER
+        clr     DEATH_STATE
+        lda     #1
+        sta     MULTIPLIER
+        ldd     #$1D0F
+        std     RNG_STATE
+        lda     #COLOR_BLUE
+        sta     BONUS_COLOR
+        ldd     #420
+        std     BONUS_TIMER
+        lda     #9
+        sta     BOX_TIMER
+        clr     BOX_INDEX
+        clr     BOX_PHASE
+        rts
+
+next_stage
+        clr     STAGE_PENDING
+        inc     STAGE
+        bne     ns_stage_valid
+        inc     STAGE
+ns_stage_valid
+        lda     #MAZE_DOT_COUNT
+        sta     DOTS_LEFT
+        lda     #1
+        sta     MULTIPLIER
+        lda     #9
+        sta     BOX_TIMER
+        clr     BOX_INDEX
+        clr     BOX_PHASE
+        lbsr    draw_screen
+        lbsr    init_maze_state
+        lbsr    init_gate_state
+        lbsr    init_entities
+        lbsr    init_player
+        lbsr    draw_entities
+        lbsr    draw_hud
+        lbsr    draw_lives
+        lbsr    draw_player
+        rts
+
+add_dot_score
+        lda     MULTIPLIER
+        sta     ENTITY_WORK
+ads_ten_loop
+        lda     SCORE_BCD+2
+        adda    #$10            ; ten points
+        daa
+        sta     SCORE_BCD+2
+        bcc     ads_ten_next
+        lda     SCORE_BCD+1
+        adca    #0
+        daa
+        sta     SCORE_BCD+1
+        bcc     ads_ten_next
+        lda     SCORE_BCD
+        adca    #0
+        daa
+        sta     SCORE_BCD
+ads_ten_next
+        dec     ENTITY_WORK
+        bne     ads_ten_loop
+ads_copy_high
+        ldd     SCORE_BCD
+        std     HIGH_BCD
+        lda     SCORE_BCD+2
+        sta     HIGH_BCD+2
+        lbsr    draw_hud
+        rts
+
+add_bonus_score
+        lda     BONUS_COLOR
+        cmpa    #COLOR_RED
+        beq     abs_red
+        cmpa    #COLOR_YELLOW
+        beq     abs_yellow
+        lda     #1
+        bra     abs_multiply
+abs_yellow
+        lda     #3
+        bra     abs_multiply
+abs_red
+        lda     #8
+abs_multiply
+        ldb     MULTIPLIER
+        mul
+        stb     ENTITY_WORK
+abs_hundred
+        lda     SCORE_BCD+1
+        adda    #$01
+        daa
+        sta     SCORE_BCD+1
+        bcc     abs_next
+        lda     SCORE_BCD
+        adca    #0
+        daa
+        sta     SCORE_BCD
+abs_next
+        dec     ENTITY_WORK
+        bne     abs_hundred
+        ldd     SCORE_BCD
+        std     HIGH_BCD
+        lda     SCORE_BCD+2
+        sta     HIGH_BCD+2
+        lbsr    draw_hud
+        rts
+
+apply_letter_pickup
+        lda     BONUS_COLOR
+        cmpa    #COLOR_RED
+        beq     alp_special
+        cmpa    #COLOR_YELLOW
+        beq     alp_extra
+        rts
+alp_special
+        lda     ENTITY_VARIANT
+        leax    special_letter_bits,pcr
+        ldb     a,x
+        beq     alp_done
+        orb     SPECIAL_BITS
+        stb     SPECIAL_BITS
+        cmpb    #$7F
+        bne     alp_special_draw
+        clr     SPECIAL_BITS
+        lbsr    add_special_score
+        inc     STAGE_PENDING
+alp_special_draw
+        lda     ENTITY_VARIANT
+        leax    special_letter_x,pcr
+        ldb     a,x
+        stb     HUD_X
+        lda     #1
+        sta     HUD_Y
+        lda     #COLOR_RED
+        sta     HUD_COLOR
+        lbsr    draw_recolored_map_tile
+        rts
+alp_extra
+        lda     ENTITY_VARIANT
+        leax    extra_letter_bits,pcr
+        ldb     a,x
+        beq     alp_done
+        orb     EXTRA_BITS
+        stb     EXTRA_BITS
+        cmpb    #$1F
+        bne     alp_extra_draw
+        clr     EXTRA_BITS
+        inc     LIVES
+        inc     STAGE_PENDING
+alp_extra_draw
+        lda     ENTITY_VARIANT
+        leax    extra_letter_x,pcr
+        ldb     a,x
+        stb     HUD_X
+        lda     #4
+        sta     HUD_Y
+        lda     #COLOR_YELLOW
+        sta     HUD_COLOR
+        lbsr    draw_recolored_map_tile
+alp_done
+        rts
+
+add_special_score
+        lda     SCORE_BCD
+        adda    #$01            ; CoCo SPECIAL adaptation: 10,000 points
+        daa
+        sta     SCORE_BCD
+        ldd     SCORE_BCD
+        std     HIGH_BCD
+        lda     SCORE_BCD+2
+        sta     HIGH_BCD+2
+        lbsr    draw_hud
+        rts
+
+draw_multiplier_hud
+        lda     MULTIPLIER
+        cmpa    #2
+        beq     dmh_two
+        cmpa    #3
+        beq     dmh_three
+        lda     #5
+        bra     dmh_draw
+dmh_two
+        lda     #1
+        bra     dmh_draw
+dmh_three
+        lda     #3
+dmh_draw
+        sta     HUD_X
+        lda     #7
+        sta     HUD_Y
+        lda     #COLOR_BLUE
+        sta     HUD_COLOR
+        lbsr    draw_recolored_map_tile
+        inc     HUD_X
+        lbsr    draw_recolored_map_tile
+        rts
+
+; Indexed by object-mask number 0..11.
+special_letter_bits
+        fcb     0,0,$20,$08,$04,$10,$40,$02,0,$01,0,0
+special_letter_x
+        fcb     0,0,6,4,3,5,7,2,0,1,0,0
+extra_letter_bits
+        fcb     0,0,$10,0,$01,0,0,0,$08,0,$04,$02
+extra_letter_x
+        fcb     0,0,5,0,1,0,0,0,4,0,3,2
+
+check_stage_clear
+        lda     DOTS_LEFT
+        bne     csc_done
+        lda     BONUS_LEFT
+        bne     csc_done
+        inc     STAGE_PENDING
+csc_done
+        rts
+
+draw_hud
+        lda     #2
+        sta     HUD_Y
+        lda     #COLOR_LIGHT_GREEN
+        sta     HUD_COLOR
+        ldu     #SCORE_BCD
+        lbsr    draw_bcd_line
+        lda     #5
+        sta     HUD_Y
+        lda     #COLOR_RED
+        sta     HUD_COLOR
+        ldu     #HIGH_BCD
+        lbsr    draw_bcd_line
+        lda     #38
+        sta     HUD_X
+        lda     #10
+        sta     HUD_Y
+        lda     #COLOR_BLUE
+        sta     HUD_COLOR
+        lda     STAGE
+dhu_mod10
+        cmpa    #10
+        blo     dhu_stage_digit
+        suba    #10
+        bra     dhu_mod10
+dhu_stage_digit
+        lbsr    draw_hud_digit
+        rts
+
+draw_bcd_line
+        lda     #33
+        sta     HUD_X
+        lda     #3
+        sta     HUD_BCD_COUNT
+dbl_byte
+        lda     ,u+
+        sta     HUD_BCD_BYTE
+        lsra
+        lsra
+        lsra
+        lsra
+        lbsr    draw_hud_digit
+        inc     HUD_X
+        lda     HUD_BCD_BYTE
+        anda    #$0F
+        lbsr    draw_hud_digit
+        inc     HUD_X
+        dec     HUD_BCD_COUNT
+        bne     dbl_byte
+        rts
+
+; A=digit 0..9. HUD_X/HUD_Y/HUD_COLOR select destination and colour.
+draw_hud_digit
+        ldb     #HUD_DIGIT_SIZE
+        mul
+        leay    hud_digit_tiles,pcr
+        leay    d,y
+        lda     HUD_Y
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
+        clra
+        ldb     HUD_X
+        lslb
+        rola
+        lslb
+        rola
+        leax    d,x             ; HUD columns exceed signed 8-bit A offsets
+        lda     #8
+        sta     HUD_COUNT
+dhd_row
+        lda     #4
+        sta     HUD_WIDTH
+dhd_byte
+        lda     ,y+
+        sta     HUD_BYTE
+        clra
+        ldb     HUD_BYTE
+        bitb    #$F0
+        beq     dhd_low
+        lda     HUD_COLOR
+        lsla
+        lsla
+        lsla
+        lsla
+dhd_low
+        bitb    #$0F
+        beq     dhd_store
+        ora     HUD_COLOR
+dhd_store
+        sta     ,x+
+        dec     HUD_WIDTH
+        bne     dhd_byte
+        leax    156,x
+        dec     HUD_COUNT
+        bne     dhd_row
+        rts
+
+; Recolour the authored non-Black pixels at HUD_X,HUD_Y with HUD_COLOR.
+draw_recolored_map_tile
+        lda     HUD_Y
+        ldb     #40
+        mul
+        addb    HUD_X
+        adca    #0
+        leay    screen_map,pcr
+        ldb     d,y
+        clra
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        leay    screen_tiles,pcr
+        leay    d,y
+        lda     HUD_Y
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
+        clra
+        ldb     HUD_X
+        lslb
+        rola
+        lslb
+        rola
+        leax    d,x
+        lda     #8
+        sta     HUD_COUNT
+drmt_row
+        lda     #4
+        sta     HUD_WIDTH
+drmt_byte
+        lda     ,y+
+        sta     HUD_BYTE
+        clra
+        ldb     HUD_BYTE
+        bitb    #$F0
+        beq     drmt_low
+        lda     HUD_COLOR
+        lsla
+        lsla
+        lsla
+        lsla
+drmt_low
+        bitb    #$0F
+        beq     drmt_store
+        ora     HUD_COLOR
+drmt_store
+        sta     ,x+
+        dec     HUD_WIDTH
+        bne     drmt_byte
+        leax    156,x
+        dec     HUD_COUNT
+        bne     drmt_row
+        rts
+
+draw_lives
+        clr     ENTITY_WORK
+dl_marker
+        lda     ENTITY_WORK
+        lsla
+        adda    #33
+        sta     HUD_X
+        lda     #21
+        sta     HUD_Y
+        lda     ENTITY_WORK
+        cmpa    LIVES
+        bhs     dl_erase
+        lbsr    draw_life_marker
+        bra     dl_next
+dl_erase
+        lbsr    clear_life_marker
+dl_next
+        inc     ENTITY_WORK
+        lda     ENTITY_WORK
+        cmpa    #3
+        blo     dl_marker
+        rts
+
+clear_life_marker
+        lda     HUD_Y
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
+        clra
+        ldb     HUD_X
+        lslb
+        rola
+        lslb
+        rola
+        leax    d,x
+        lda     #16
+        sta     HUD_COUNT
+clm_row
+        ldd     #0
+        std     ,x++
+        std     ,x++
+        std     ,x++
+        std     ,x++
+        leax    152,x
+        dec     HUD_COUNT
+        bne     clm_row
+        rts
+
+draw_life_marker
+        lbsr    draw_authored_hud_tile
+        inc     HUD_X
+        lbsr    draw_authored_hud_tile
+        dec     HUD_X
+        inc     HUD_Y
+        lbsr    draw_authored_hud_tile
+        inc     HUD_X
+        lbsr    draw_authored_hud_tile
+        rts
+
+draw_authored_hud_tile
+        lda     HUD_Y
+        ldb     #40
+        mul
+        addb    HUD_X
+        adca    #0
+        leay    screen_map,pcr
+        ldb     d,y
+draw_hud_tile
+        stb     DRAW_TILE
+        lda     HUD_Y
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
+        clra
+        ldb     HUD_X
+        lslb
+        rola
+        lslb
+        rola
+        leax    d,x
+        ldb     DRAW_TILE
+        clra
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        leay    screen_tiles,pcr
+        leay    d,y
+        lbsr    blit_tile
+        rts
 
 ;==============================================================================
 ; init_maze_state — copy immutable maze cells to writable game-state RAM.
@@ -263,6 +858,462 @@ ims_copy
         cmpy    #MAZE_STATE+576
         blo     ims_copy
         rts
+
+;==============================================================================
+; Randomized stage objects. Each four-byte record is x,y,type,mask index.
+;==============================================================================
+init_entities
+        clr     ENTITY_TOTAL
+        lda     #6
+        sta     BONUS_LEFT
+        lda     STAGE
+        cmpa    #2
+        blo     ie_two_skulls
+        cmpa    #5
+        blo     ie_three_skulls
+        cmpa    #9
+        blo     ie_four_skulls
+        cmpa    #18
+        blo     ie_five_skulls
+        lda     #6
+        bra     ie_place_skulls
+ie_two_skulls
+        lda     #2
+        bra     ie_place_skulls
+ie_three_skulls
+        lda     #3
+        bra     ie_place_skulls
+ie_four_skulls
+        lda     #4
+        bra     ie_place_skulls
+ie_five_skulls
+        lda     #5
+ie_place_skulls
+        sta     ENTITY_WORK
+ie_skull_loop
+        lda     #ENTITY_SKULL
+        ldb     #OBJECT_SKULL
+        lbsr    place_entity
+        dec     ENTITY_WORK
+        bne     ie_skull_loop
+
+        lda     #3
+        sta     ENTITY_WORK
+ie_heart_loop
+        lda     #ENTITY_HEART
+        ldb     #OBJECT_HEART
+        lbsr    place_entity
+        dec     ENTITY_WORK
+        bne     ie_heart_loop
+
+        ; One letter from X/T/R.
+        lbsr    rng_next
+ie_xtr_mod
+        cmpb    #3
+        blo     ie_xtr_pick
+        subb    #3
+        bra     ie_xtr_mod
+ie_xtr_pick
+        leax    letter_xtr,pcr
+        ldb     b,x
+        lda     #ENTITY_LETTER
+        lbsr    place_entity
+
+        ; One letter from S/P/C/I/L.
+        lbsr    rng_next
+ie_spcil_mod
+        cmpb    #5
+        blo     ie_spcil_pick
+        subb    #5
+        bra     ie_spcil_mod
+ie_spcil_pick
+        leax    letter_spcil,pcr
+        ldb     b,x
+        lda     #ENTITY_LETTER
+        lbsr    place_entity
+
+        ; One letter from E/A.
+        lbsr    rng_next
+        andb    #1
+        leax    letter_ea,pcr
+        ldb     b,x
+        lda     #ENTITY_LETTER
+        lbsr    place_entity
+        lda     ENTITY_TOTAL
+        sta     ENTITY_COUNT
+        rts
+
+letter_xtr
+        fcb     OBJECT_X,OBJECT_T,OBJECT_R
+letter_spcil
+        fcb     OBJECT_S,OBJECT_P,OBJECT_C,OBJECT_I,OBJECT_L
+letter_ea
+        fcb     OBJECT_E,OBJECT_A
+
+; A=entity type, B=object-mask index.
+place_entity
+        sta     ENTITY_TYPE
+        stb     ENTITY_VARIANT
+pe_retry
+        lbsr    rng_next
+pe_reduce
+        cmpd    #576
+        blo     pe_candidate
+        subd    #576
+        bra     pe_reduce
+pe_candidate
+        tfr     d,y
+        ldx     #MAZE_STATE
+        leax    d,x
+        lda     ,x
+        bpl     pe_retry
+        anda    #$7F
+        sta     ,x
+        dec     DOTS_LEFT
+
+        clra
+        clr     ENTITY_Y
+        tfr     y,d
+pe_row
+        cmpd    #24
+        blo     pe_coordinates
+        subd    #24
+        inc     ENTITY_Y
+        bra     pe_row
+pe_coordinates
+        stb     ENTITY_X
+        lda     ENTITY_TOTAL
+        ldb     #4
+        mul
+        ldx     #ENTITY_TABLE
+        leax    d,x
+        lda     ENTITY_X
+        sta     ,x+
+        lda     ENTITY_Y
+        sta     ,x+
+        lda     ENTITY_TYPE
+        sta     ,x+
+        lda     ENTITY_VARIANT
+        sta     ,x
+        inc     ENTITY_TOTAL
+        rts
+
+rng_next
+        ldd     RNG_STATE
+        lsra
+        rorb
+        bcc     rn_store
+        eora    #$B4
+rn_store
+        std     RNG_STATE
+        rts
+
+;==============================================================================
+; Dynamic object drawing and the MAME-measured global colour cycle.
+;==============================================================================
+draw_entities
+        ldx     #ENTITY_TABLE
+        lda     ENTITY_COUNT
+        sta     ENTITY_WORK
+de_loop
+        stx     ENTITY_PTR
+        lda     2,x
+        beq     de_next
+        lda     ,x
+        sta     ENTITY_X
+        lda     1,x
+        sta     ENTITY_Y
+        lda     2,x
+        sta     ENTITY_TYPE
+        lda     3,x
+        sta     ENTITY_VARIANT
+        lbsr    draw_entity_object
+de_next
+        ldx     ENTITY_PTR
+        leax    4,x
+        dec     ENTITY_WORK
+        bne     de_loop
+        rts
+
+draw_entity_object
+        lda     ENTITY_VARIANT
+        ldb     #OBJECT_MASK_SIZE
+        mul
+        leay    object_masks,pcr
+        leay    d,y
+        sty     OBJ_SOURCE
+
+        lda     ENTITY_TYPE
+        cmpa    #ENTITY_SKULL
+        bne     deo_bonus
+        lda     #COLOR_YELLOW
+        sta     OBJ_PRIMARY
+        lda     #COLOR_WHITE
+        sta     OBJ_ACCENT
+        leau    object_skull_lut,pcr
+        bra     deo_destination
+deo_bonus
+        lda     BONUS_COLOR
+        sta     OBJ_PRIMARY
+        lda     #COLOR_PINK
+        sta     OBJ_ACCENT
+        lda     OBJ_PRIMARY
+        cmpa    #COLOR_RED
+        beq     deo_red
+        cmpa    #COLOR_YELLOW
+        beq     deo_yellow
+        leau    object_blue_lut,pcr
+        bra     deo_destination
+deo_red
+        leau    object_red_lut,pcr
+        bra     deo_destination
+deo_yellow
+        leau    object_yellow_lut,pcr
+deo_destination
+        lda     ENTITY_Y
+        deca
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
+        lda     ENTITY_X
+        adda    #7
+        lsla
+        lsla
+        leax    a,x
+        lda     #16
+        sta     OBJ_ROWS
+deo_row
+        lda     #4
+        sta     OBJ_BYTES
+deo_byte
+        ldy     OBJ_SOURCE
+        lda     ,y+
+        sty     OBJ_SOURCE
+        sta     OBJ_VALUE
+        lsra
+        lsra
+        lsra
+        lsra
+        sta     OBJ_INDEX
+        leay    object_mask_lut,pcr
+        ldb     a,y
+        andb    ,x
+        orb     a,u
+        stb     ,x+
+        lda     OBJ_VALUE
+        anda    #$0F
+        sta     OBJ_INDEX
+        ldb     a,y
+        andb    ,x
+        orb     a,u
+        stb     ,x+
+        dec     OBJ_BYTES
+        bne     deo_byte
+        leax    152,x
+        dec     OBJ_ROWS
+        bne     deo_row
+        rts
+
+bonus_color_tick
+        lda     LIVES
+        beq     bct_done
+        ldd     BONUS_TIMER
+        subd    #1
+        std     BONUS_TIMER
+        bne     bct_done
+        lda     BONUS_COLOR
+        cmpa    #COLOR_BLUE
+        beq     bct_to_red
+        cmpa    #COLOR_RED
+        beq     bct_to_yellow
+        lda     #COLOR_BLUE
+        sta     BONUS_COLOR
+        ldd     #420
+        bra     bct_redraw
+bct_to_red
+        lda     #COLOR_RED
+        sta     BONUS_COLOR
+        ldd     #30
+        bra     bct_redraw
+bct_to_yellow
+        lda     #COLOR_YELLOW
+        sta     BONUS_COLOR
+        ldd     #150
+bct_redraw
+        std     BONUS_TIMER
+        lbsr    restore_player
+        lbsr    draw_entities
+        lbsr    draw_player
+bct_done
+        rts
+
+; Advance the 92-box release circuit every nine video frames.  Enemies are
+; intentionally absent in Phase 5; the arcade timer remains visible.
+perimeter_timer_tick
+        dec     BOX_TIMER
+        bne     ptt_done
+        lda     #9
+        sta     BOX_TIMER
+        lbsr    perimeter_box_coordinates
+        lda     BOX_PHASE
+        beq     ptt_green
+        lda     #COLOR_WHITE
+        bra     ptt_draw
+ptt_green
+        lda     #5              ; COLOR_GREEN
+ptt_draw
+        sta     HUD_COLOR
+        lbsr    draw_perimeter_box
+        inc     BOX_INDEX
+        lda     BOX_INDEX
+        cmpa    #92
+        blo     ptt_done
+        clr     BOX_INDEX
+        lda     BOX_PHASE
+        eora    #1
+        sta     BOX_PHASE
+ptt_done
+        rts
+
+; Index 0 is the thirteenth top box from the left.  Continue clockwise.
+perimeter_box_coordinates
+        lda     BOX_INDEX
+        cmpa    #12
+        bhs     pbc_right
+        adda    #12
+        sta     TEST_X
+        clr     TEST_Y
+        rts
+pbc_right
+        suba    #12
+        cmpa    #23
+        bhs     pbc_bottom
+        sta     TEST_Y
+        inc     TEST_Y
+        lda     #23
+        sta     TEST_X
+        rts
+pbc_bottom
+        suba    #23
+        cmpa    #23
+        bhs     pbc_left
+        nega
+        adda    #22
+        sta     TEST_X
+        lda     #23
+        sta     TEST_Y
+        rts
+pbc_left
+        suba    #23
+        cmpa    #22
+        bhs     pbc_top_left
+        nega
+        adda    #22
+        sta     TEST_Y
+        clr     TEST_X
+        rts
+pbc_top_left
+        suba    #22
+        sta     TEST_X
+        clr     TEST_Y
+        rts
+
+; Redraw an authored perimeter tile, replacing White pixels only.  Pink inner
+; borders and Black separators remain unchanged.
+draw_perimeter_box
+        lda     TEST_Y
+        ldb     #40
+        mul
+        addb    TEST_X
+        adca    #0
+        addd    #8
+        leay    screen_map,pcr
+        ldb     d,y
+        stb     DRAW_TILE
+        lda     TEST_Y
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
+        lda     TEST_X
+        adda    #8
+        lsla
+        lsla
+        leax    a,x
+        ldb     DRAW_TILE
+        clra
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        leay    screen_tiles,pcr
+        leay    d,y
+        lda     #8
+        sta     HUD_COUNT
+dpb_row
+        lda     #4
+        sta     HUD_WIDTH
+dpb_byte
+        lda     ,y+
+        sta     HUD_BYTE
+        anda    #$F0
+        cmpa    #$60
+        bne     dpb_low
+        lda     HUD_COLOR
+        lsla
+        lsla
+        lsla
+        lsla
+        sta     OBJ_VALUE
+        lda     HUD_BYTE
+        anda    #$0F
+        ora     OBJ_VALUE
+        sta     HUD_BYTE
+dpb_low
+        lda     HUD_BYTE
+        anda    #$0F
+        cmpa    #COLOR_WHITE
+        bne     dpb_store
+        lda     HUD_BYTE
+        anda    #$F0
+        ora     HUD_COLOR
+        sta     HUD_BYTE
+dpb_store
+        lda     HUD_BYTE
+        sta     ,x+
+        dec     HUD_WIDTH
+        bne     dpb_byte
+        leax    156,x
+        dec     HUD_COUNT
+        bne     dpb_row
+        rts
+
+object_mask_lut
+        fcb     $FF,$F0,$F0,$F0,$0F,$00,$00,$00
+        fcb     $0F,$00,$00,$00,$0F,$00,$00,$00
+object_red_lut
+        fcb     $00,$00,$01,$04,$00,$00,$01,$04
+        fcb     $10,$10,$11,$14,$40,$40,$41,$44
+object_yellow_lut
+        fcb     $00,$00,$02,$04,$00,$00,$02,$04
+        fcb     $20,$20,$22,$24,$40,$40,$42,$44
+object_blue_lut
+        fcb     $00,$00,$03,$04,$00,$00,$03,$04
+        fcb     $30,$30,$33,$34,$40,$40,$43,$44
+object_skull_lut
+        fcb     $00,$00,$02,$06,$00,$00,$02,$06
+        fcb     $20,$20,$22,$26,$60,$60,$62,$66
 
 ;==============================================================================
 ; init_gate_state
@@ -333,7 +1384,7 @@ init_joystick
 init_player
         lda     #12
         sta     PLAYER_CELL_X
-        lda     #18
+        lda     #22
         sta     PLAYER_CELL_Y
         clr     PLAYER_DIR      ; initially face and move north
         clr     PLAYER_FACE
@@ -343,7 +1394,7 @@ init_player
         sta     PLAYER_WANT
         clr     PLAYER_MANUAL
         clr     GATE_ANIM_ID
-        ldd     #$75EC          ; FB + 137*160 + 152/2; opaque anchor is (-7,-7)
+        ldd     #$89EC          ; final anchor $75EC plus 32 entrance pixels
         std     PLAYER_FB
         rts
 
@@ -466,14 +1517,28 @@ jra_done
 ;==============================================================================
 player_tick
         lbsr    restore_player
+pt_alive
         lda     PLAYER_MANUAL
         beq     pt_input_active
         lda     JOY_DIR
         cmpa    #DIR_NONE
-        beq     pt_draw          ; retain direction/step, but stop immediately
+        lbeq    pt_draw          ; retain direction/step, but stop immediately
 pt_input_active
         lda     PLAYER_STEP
         bne     pt_advance
+        lda     PLAYER_MANUAL
+        bne     pt_choose_direction
+        lda     PLAYER_CELL_X
+        cmpa    #12
+        bne     pt_choose_direction
+        lda     PLAYER_CELL_Y
+        cmpa    #18
+        bne     pt_choose_direction
+        lda     #DIR_NONE
+        sta     PLAYER_DIR
+        sta     PLAYER_WANT
+        lbra    pt_draw
+pt_choose_direction
         lda     PLAYER_WANT
         cmpa    #DIR_NONE
         beq     pt_check_active
@@ -534,6 +1599,9 @@ pt_cell_east
 pt_cell_south
         inc     PLAYER_CELL_Y
 pt_arrived
+        lbsr    check_entity_pickup
+        lda     DEATH_STATE
+        bne     pt_draw
         lbsr    eat_dot
 pt_draw
         lbsr    draw_player
@@ -972,6 +2040,254 @@ gate_diagonal_dot_offsets
         fcb     1,-1,-1,1,-1,-1,1,1
 
 ;==============================================================================
+; Object collision, pickup, death, and state-preserving respawn.
+;==============================================================================
+check_entity_pickup
+        ldx     #ENTITY_TABLE
+        lda     ENTITY_COUNT
+        sta     ENTITY_WORK
+cep_loop
+        stx     ENTITY_PTR
+        lda     2,x
+        lbeq    cep_next
+        lda     ,x
+        cmpa    PLAYER_CELL_X
+        lbne    cep_next
+        lda     1,x
+        cmpa    PLAYER_CELL_Y
+        lbne    cep_next
+        lda     2,x
+        sta     ENTITY_TYPE
+        lda     3,x
+        sta     ENTITY_VARIANT
+        lda     ,x
+        sta     ENTITY_X
+        lda     1,x
+        sta     ENTITY_Y
+        lda     ENTITY_TYPE
+        cmpa    #ENTITY_SKULL
+        beq     cep_skull
+        clr     2,x
+        lbsr    restore_entity_footprint
+        dec     BONUS_LEFT
+        lbsr    add_bonus_score
+        lda     ENTITY_TYPE
+        cmpa    #ENTITY_HEART
+        bne     cep_letter
+        lda     BONUS_COLOR
+        cmpa    #COLOR_BLUE
+        bne     cep_check_clear
+        lda     MULTIPLIER
+        cmpa    #5
+        beq     cep_check_clear
+        cmpa    #3
+        beq     cep_multiplier_five
+        inca
+        sta     MULTIPLIER
+        lbsr    draw_multiplier_hud
+        bra     cep_check_clear
+cep_multiplier_five
+        lda     #5
+        sta     MULTIPLIER
+        lbsr    draw_multiplier_hud
+        bra     cep_check_clear
+cep_letter
+        lbsr    apply_letter_pickup
+cep_check_clear
+        lbsr    check_stage_clear
+        rts
+cep_skull
+        clr     2,x
+        lbsr    restore_entity_footprint
+        clr     DEATH_TIMER
+        lda     #1
+        sta     DEATH_STATE
+        lda     #DIR_NONE
+        sta     PLAYER_DIR
+        sta     PLAYER_WANT
+        rts
+
+; Arcade death sequence: sprite 57 for 30 frames, sprites 58-63 for five
+; frames each, then white wing sprites 64-68 while the angel flies upward.
+; The requested CoCo transition then walks a normal Lady Bug down the entrance
+; before the replacement walks in from below.
+death_tick
+        lbsr    restore_player
+        lda     DEATH_STATE
+        cmpa    #1
+        beq     dt_shrink
+        cmpa    #2
+        beq     dt_wings
+        lbra    dt_walkoff
+dt_shrink
+        lda     DEATH_TIMER
+        cmpa    #30
+        blo     dt_first_circle
+        suba    #30
+        ldb     #1
+dt_shrink_divide
+        cmpa    #5
+        blo     dt_shrink_frame
+        suba    #5
+        incb
+        bra     dt_shrink_divide
+dt_shrink_frame
+        stb     DEATH_FRAME
+        bra     dt_shrink_draw
+dt_first_circle
+        clr     DEATH_FRAME
+dt_shrink_draw
+        lbsr    draw_death_frame
+        inc     DEATH_TIMER
+        lda     DEATH_TIMER
+        cmpa    #60             ; 30 + six five-frame shrink stages
+        lblo    dt_done
+        lda     #2
+        sta     DEATH_STATE
+        clr     DEATH_TIMER
+        rts
+dt_wings
+        ldx     PLAYER_FB
+        leax    -160,x
+        stx     PLAYER_FB
+        lda     DEATH_TIMER
+        ldb     #0
+dt_wing_divide
+        cmpa    #6
+        blo     dt_wing_modulo
+        suba    #6
+        incb
+        cmpb    #5
+        blo     dt_wing_divide
+        clrb
+        bra     dt_wing_divide
+dt_wing_modulo
+        addb    #7
+        stb     DEATH_FRAME
+        lbsr    draw_death_frame
+        inc     DEATH_TIMER
+        lda     DEATH_TIMER
+        cmpa    #144
+        blo     dt_done
+        lbsr    restore_player
+        lda     LIVES
+        beq     dt_game_over
+        deca
+        lsla
+        adda    #33
+        sta     HUD_X
+        lda     #21
+        sta     HUD_Y
+        lbsr    clear_life_marker
+        lda     #3
+        sta     DEATH_STATE
+        lda     #24
+        sta     DEATH_TIMER
+        lda     #DIR_SOUTH
+        sta     PLAYER_FACE
+        sta     PLAYER_DIR
+        lda     HUD_Y
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
+        clra
+        ldb     HUD_X
+        lslb
+        rola
+        lslb
+        rola
+        leax    d,x
+        stx     PLAYER_FB
+        lbsr    draw_player
+        rts
+dt_walkoff
+        ldx     PLAYER_FB
+        leax    160,x
+        stx     PLAYER_FB
+        dec     DEATH_TIMER
+        beq     dt_finish_walkoff
+        lbsr    draw_player
+        rts
+dt_finish_walkoff
+        lda     LIVES
+        beq     dt_game_over
+        dec     LIVES
+        lbsr    draw_lives
+        lda     LIVES
+        beq     dt_game_over
+        lbsr    init_player
+        clr     DEATH_STATE
+        lbsr    draw_player
+        rts
+dt_game_over
+        clr     DEATH_STATE
+dt_done
+        rts
+
+draw_death_frame
+        lbsr    save_player
+        lda     DEATH_FRAME
+        ldb     #DEATH_FRAME_SIZE
+        mul
+        leay    death_sprites,pcr
+        leay    d,y
+        ldx     PLAYER_FB
+        lda     #16
+        ldb     #8
+        lbsr    blit_transparent
+        rts
+cep_next
+        ldx     ENTITY_PTR
+        leax    4,x
+        dec     ENTITY_WORK
+        lbne    cep_loop
+        rts
+
+restore_entity_footprint
+        lda     ENTITY_X
+        deca
+        sta     TEST_X
+        lda     ENTITY_Y
+        deca
+        sta     TEST_Y
+        lbsr    draw_maze_state_cell
+        inc     TEST_X
+        lbsr    draw_maze_state_cell
+        dec     TEST_X
+        inc     TEST_Y
+        lbsr    draw_maze_state_cell
+        inc     TEST_X
+        lbsr    draw_maze_state_cell
+        rts
+
+draw_maze_state_cell
+        lbsr    test_cell_offset
+        ldx     #MAZE_STATE
+        lda     d,x
+        bmi     dmsc_dot
+        ; Recover this cell's authored screen tile unless it was a consumed dot.
+        lda     TEST_Y
+        ldb     #40
+        mul
+        addb    TEST_X
+        adca    #0
+        addd    #8
+        leax    screen_map,pcr
+        ldb     d,x
+        cmpb    #MAZE_DOT_TILE
+        bne     dmsc_draw
+        ldb     #MAZE_CLEAN_TILE
+        bra     dmsc_draw
+dmsc_dot
+        ldb     #MAZE_DOT_TILE
+dmsc_draw
+        lbsr    draw_cell_tile
+        rts
+
+;==============================================================================
 ; draw_cell_tile
 ;
 ; Inputs: B = screen tile ID; TEST_X,TEST_Y = semantic maze cell
@@ -1086,6 +2402,9 @@ eat_dot
         leay    screen_tiles,pcr
         leay    d,y
         lbsr    blit_tile
+        lbsr    add_dot_score
+        dec     DOTS_LEFT
+        lbsr    check_stage_clear
 ed_done
         rts
 
@@ -1316,6 +2635,10 @@ irq_done
 ;-- PAR values for executive set (PAR0..PAR7) ---------------------------------
 par_table
         fcb     $38,$30,$31,$32,$33,$34,$3E,$3F
+
+; Curated animation frames occupy resident ROM because the immutable asset
+; window is at its guard limit.
+        include "ladybug_resident.inc"
 
 resident_end
 

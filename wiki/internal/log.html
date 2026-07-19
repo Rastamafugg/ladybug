@@ -23,6 +23,123 @@
     </header>
 
     <section>
+      <h3>2026-07-18 · lint — colour, skull, and HUD-respawn regressions</h3>
+      <p>
+        Corrected object lookup selection so the shared 30/150/420-frame state
+        visibly redraws Red, Yellow, and Blue; changed skull contact to clear
+        only the collided record; and moved the downward walk-off origin from
+        the maze start to the rightmost active HUD life marker. Live gdb-mcp
+        verified Blue-to-Red lookup dispatch, one-of-two skull removal, marker
+        origin (37,21), South facing, deferred 3-to-2 life decrement, and the
+        replacement entrance state. The guarded build uses 5,412 resident and
+        7,588 asset bytes.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · lint — exact-object and death acceptance</h3>
+      <p>
+        Passed the guarded 16 KB build, Python compilation, HTML parsing and
+        local-link checks, TMX parsing, exact-mask validation, and live gdb-mcp
+        regressions. A synthetic pickup at (18,22) cleared only its matched
+        entity record and restored that same coordinate; the removed life
+        marker was Black across all 16 rows; the border circuit completed its
+        Green sweep and entered reset; and the death state advanced through
+        shrink, wing flight, the 48-scanline walk-off, and replacement entry.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · implementation — exact objects, border timer, and arcade death</h3>
+      <p>
+        Replaced generated collectible placeholders with the arcade ROM's exact
+        four-character heart, skull, and ten-letter composites. Corrected pickup
+        restoration to use the matched record, added the measured nine-frame
+        92-box Green/White circuit, and fixed life clearing to use an unsigned
+        framebuffer offset. MAME skull-collision capture established sprite 57
+        for 30 frames, sprites 58–63 for five frames each, and White wing forms
+        64–68 from the following frame. Added that death state machine plus the
+        requested downward walk-off and replacement entrance. Guarded build use
+        is 5,415/8,192 resident bytes and 7,588/7,680 asset bytes.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · lint — FAQ collectible-loop acceptance</h3>
+      <p>
+        Passed Python compilation, the guarded WSL build, HTML parsing/link
+        checks, and a cold gdb-mcp runtime audit. Live state showed 117
+        candidates becoming 109 flowers plus two skulls, three hearts, and
+        FAQ-valid X/I/A letters; the entrance stopped at (12,18); colour
+        transitions loaded 30 then 150 frames; skull death removed both skulls,
+        reduced lives 3→2, and preserved the other entities; a Blue heart
+        awarded 100 points, advanced ×1→×2, and reduced six bonuses to five.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · implementation — randomized skulls and bonus circles</h3>
+      <p>
+        Expanded the semantic maze to 117 food candidates and added a twelve-
+        record runtime entity table. Stage load now places three hearts, FAQ-
+        selected letters, and the stage-table skull count at unique PRNG-selected
+        candidates. Added 16×16 packed object masks, exact 30/150/420-frame
+        global colour cycling, multiplied pickup/dot scoring, target HUD progress,
+        word rewards, rotating skull death, skull cleanup, life-marker removal,
+        state-preserving respawn, and the three-cell entrance stop.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · ingest — GameFAQs gameplay rules</h3>
+      <p>
+        Ingested the GameFAQs FAQ/Walkthrough: 121 arcade food positions before
+        replacement, three hearts, letter groups X/T/R + S/P/C/I/L + E/A,
+        stage skull counts 2/3/4/5/6, skull-death cleanup, next-stage multiplier
+        reset, word-completion stage advance, and the reported pickup pause.
+        Retained MAME precedence for exact colour timing and marked pickup-pause
+        duration for controlled measurement.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · lint — Phase 5 acceptance</h3>
+      <p>
+        Passed Python compilation, shell syntax, deterministic arcade-fidelity
+        verification, the guarded 16 K build, compact MAME-evidence invariants,
+        scoped whitespace checks, and parsing plus local-link resolution for all
+        164 HTML pages. Cold gdb-mcp reads verified <code>000020</code> score and
+        high score, 107 remaining flowers, correct digit pixels, and a forced
+        stage 2 reset with 109 flowers and preserved lives/score.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · implementation — Phase 5 score, HUD, and stage loop</h3>
+      <p>
+        Added six-digit packed-BCD current/high score, lives, stage, and flower
+        counters; ten runtime-coloured digit masks; 10-point flower scoring;
+        and a provisional flower-only stage transition that preserves score and
+        lives while resetting maze, gates, player, and HUD. Reordered the
+        non-enemy bonus phase before enemy actors. Cold XRoar verification
+        observed automatic 20-point collection and a forced stage 1-to-2 reset.
+      </p>
+    </section>
+
+    <section>
+      <h3>2026-07-18 · query — MAME StrategyWiki timing verification</h3>
+      <p>
+        Extended the MAME capture harness to retain work-RAM deltas and optional
+        raw streams. Stage-one capture confirmed two visible skulls, six globally
+        synchronized bonus circles, 30/150/420-frame Red/Yellow/Blue holds, and
+        one border box every nine frames across 92 boxes. It disproved the
+        approximate four-second Yellow hold and showed a progressive White reset
+        sweep. Later-stage, completion, vegetable, den, and enemy claims remain
+        explicitly unverified.
+      </p>
+    </section>
+
+    <section>
       <h3>2026-07-18 · lint — StrategyWiki gameplay ingest acceptance</h3>
       <p>
         Parsed all 164 HTML pages, resolved every local link, passed scoped

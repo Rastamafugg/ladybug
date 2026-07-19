@@ -1,0 +1,41 @@
+{
+  "schema": "ladybug-mame-rules-reference-v1",
+  "provenance": {
+    "driver": "ladybug",
+    "mame_version": "0.220 (mame0220)",
+    "capture_script": "scripts/capture_mame_gameplay.py",
+    "input_plan": "scripts/mame_plans/baseline-speed.json",
+    "capture_frames": 1800,
+    "refresh_hz": 60
+  },
+  "observations": {
+    "stage_1_skulls_visible": 2,
+    "stage_bonus_circles_visible": 6,
+    "bonus_colours_are_global": true,
+    "bonus_colour_cycle": [
+      {"colour": "Red", "frames": 30},
+      {"colour": "Yellow", "frames": 150},
+      {"colour": "Blue", "frames": 420}
+    ],
+    "bonus_cycle_frames": 600,
+    "border_box_interval_frames": 9,
+    "border_boxes": 92,
+    "border_circuit_frames": 828,
+    "border_reset": "progressive white sweep at the same nine-frame interval"
+  },
+  "frame_evidence": {
+    "bonus_transitions": [
+      {"frame": 1253, "colour": "Red"},
+      {"frame": 1283, "colour": "Yellow"},
+      {"frame": 1433, "colour": "Blue"}
+    ],
+    "first_green_border_box": 662,
+    "last_green_border_box": 1481,
+    "first_white_reset_box": 1490
+  },
+  "limits": [
+    "The capture directly verifies stage-one visible state and timing only.",
+    "Stage-clear requirements, word-completion transition, later-stage border speeds, den safety, vegetable recurrence, and post-freeze enemy speed remain unverified.",
+    "Enemy behavior was observed but is excluded from the current implementation scope."
+  ]
+}

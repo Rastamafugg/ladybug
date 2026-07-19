@@ -45,12 +45,12 @@
         <code>assets/arcade/</code>:
       </p>
       <ul>
-        <li><code>chars.json</code> / <code>sprites.json</code> — raw 2bpp pixel grids (512 × 8×8 chars, 128 × 16×16 sprites). <strong>Authoritative shape data.</strong></li>
+        <li><code>chars.json</code> / <code>sprites.json</code> / <code>small_sprites.json</code> — raw 2bpp pixel grids (512 × 8×8 chars, 128 × 16×16 sprites, and the alternate 512 × 8×8 sprite decode). <strong>Authoritative shape data.</strong></li>
         <li><code>palette.json</code> — 32 RGB triples, decoded from PROM <code>10-2.k1</code>.</li>
         <li><code>char_lookup.json</code> — char <code>lut[attr][pixval] -&gt; palette index</code>, computed by formula (no PROM).</li>
         <li><code>sprite_lookup_a.json</code> / <code>sprite_lookup_b.json</code> — sprite <code>lut[attr][pixval] -&gt; palette index</code> for the two sprite color sets.</li>
         <li><code>chars_attr0..7.png</code>, <code>sprites_setA_attr0..7.png</code>, <code>sprites_setB_attr0..7.png</code> — colorized sheet previews.</li>
-        <li><code>chars_raw2bpp.png</code>, <code>sprites_raw2bpp.png</code> — greyscale raw-pixval sheets for shape verification.</li>
+        <li><code>chars_raw2bpp.png</code>, <code>sprites_raw2bpp.png</code>, <code>small_sprites_raw2bpp.png</code> — greyscale raw-pixval sheets for shape verification.</li>
       </ul>
       <p>Run: <code>python3 scripts/extract_arcade_gfx.py --rom ~/mame/roms/ladybug.zip --out assets/arcade/</code></p>
     </section>

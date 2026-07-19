@@ -34,6 +34,7 @@
         <li><strong>bitvint.com history page</strong> — gave: rotating-gates strategic emphasis, "items earlier yield higher points" claim, skulls as instant-death stationary hazards. Did not detail letter mechanics.</li>
         <li><strong>Wikipedia + arcade reviews</strong> — Arcade Awards 1983 Certificate of Merit (Most Innovative Coin-Op runner-up) for the turnstile mechanic.</li>
         <li><strong><a href="https://strategywiki.org/wiki/Lady_Bug/Gameplay">StrategyWiki — Lady Bug/Gameplay</a></strong> — full page ingested 2026-07-18. Supplies six-circle stage composition, approximate colour timing, enemy/den/vegetable flow, skull progression, stage-clear claims, and the scoring table. Treat as a secondary source and verify programmed timing/progression against MAME.</li>
+        <li><strong><a href="https://gamefaqs.gamespot.com/arcade/563991-lady-bug/faqs/26746">GameFAQs — Lady Bug FAQ/Walkthrough</a></strong> — rules sections ingested 2026-07-18. Supplies the 121 arcade food positions, randomized replacement model, exact letter-selection groups, stage skull-count table, skull-death cleanup, and collectible pause/score descriptions. MAME observations override rounded timing and behavior claims.</li>
       </ul>
     </section>
 
@@ -122,6 +123,42 @@
         horseradish 9,500 in 500-point increments. The page also documents
         separate one- and two-player start buttons; alternating two-player support
         remains an explicit CoCo v1 scope decision.
+      </p>
+    </section>
+
+    <section>
+      <h2>GameFAQs rules ingest — 2026-07-18</h2>
+      <p>
+        The FAQ states that an arcade board has 121 food positions before
+        replacements. Stage load chooses three hearts, three letters, and two
+        through six poison skulls at randomized food positions; every other
+        position contains a flower. The CoCo crop has 117 corresponding
+        placement candidates because the adapted 24×24 maze omits four arcade
+        food positions. Its stage-one result is therefore 109 visible flowers
+        after six bonuses and two skulls replace eight candidates.
+      </p>
+      <p>
+        Letter selection is one random member of <code>X/T/R</code>, one of
+        <code>S/P/C/I/L</code>, and one of <code>E/A</code>. The skull table is
+        two on stage 1, three on stages 2–4, four on stages 5–8, five on stages
+        9–17, and six on stage 18 onward.
+      </p>
+      <p>
+        Contact with poison kills the player and removes every remaining skull;
+        collected flowers, bonuses, gates, score, and stage state remain. The
+        FAQ also reports that gameplay briefly pauses to register a bonus
+        pickup. This is what the earlier “MAME-unverified pickup pause” note
+        meant: it is a secondary-source claim, not an implemented or confirmed
+        delay. The installed MAME ROM remains authoritative: measured holds are
+        exactly 30/150/420 frames for Red/Yellow/Blue, while a controlled pickup
+        capture is still required before adding any pause.
+      </p>
+      <p>
+        A controlled stage-one skull collision captured on 2026-07-18 identified
+        the exact death art and timing. Arcade sprite 57 occupies frames 879–908;
+        sprites 58–63 follow for five frames each through frame 938; White wing
+        sprites 64–68 begin on frame 939 and fly upward. The compact evidence is
+        stored in <code>assets/arcade/death_animation_reference.json</code>.
       </p>
     </section>
 
