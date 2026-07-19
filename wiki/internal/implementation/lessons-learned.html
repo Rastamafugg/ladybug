@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Multiple save-under sprites require phase-separated compositing</h2>
+      <p><strong>Filed 2026-07-19.</strong></p>
+      <p>Interleaving <code>save actor N</code> and <code>draw actor N</code> makes later save buffers capture earlier sprites. Restoring those buffers on the next frame produces duplicates, trails, and unrelated sprite copies. A released-enemy experiment also removed the independent animated den actor, conflating spawner presentation with active-enemy state.</p>
+      <p><strong>Rule:</strong> restore every active actor, apply all background changes, update every actor, save every clean destination, then draw every actor. Keep den occupants and released actors as explicit separate states, and reject the pass if framebuffer-diff tests find pixels outside the union of old and new actor rectangles.</p>
+    </section>
+
+    <section>
       <h2>Establish cartridge visibility before a GMC bootstrap reads its bank</h2>
       <p><strong>Filed 2026-07-19.</strong></p>
       <p>BASIC cartridge dispatch can reach the bootstrap with the SAM TY state still selecting RAM. After enabling the GIME MMU and force-$FE00 window, write <code>$FFDE</code> before reading or copying cartridge bytes. The final handoff writes <code>$FFDF</code> only after bank 1 has been copied into RAM.</p>

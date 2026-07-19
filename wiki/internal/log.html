@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-07-19 &middot; revert &mdash; failed enemy release and banked-rendering attempts</h3>
+      <p>User hardware testing found that the first animated den enemy disappeared and the released-enemy rewrite produced colour streaks plus duplicate sprites at unrelated screen positions. The banked rewrite was discarded completely and commit <code>6980b45</code> was reversed while preserving the 64 KiB GMC loader. Root cause: the multi-enemy loop interleaved save and draw operations, so later background buffers captured earlier sprites and restored them as ghosts; it also replaced rather than preserved the separate animated den actor. The project is reset to the non-collidable four-frame spawner baseline. Future enemy work must prove a restore-all, update-all, save-all, draw-all compositor before adding release or AI.</p>
+    </section>
+
+    <section>
       <h3>2026-07-19 &middot; implement &mdash; 64 KiB GMC loader and XRoar bank proof</h3>
       <p>Converted the deliverable from a plain 16 KiB cartridge to four GMC-compatible 16 KiB banks. Bank 0 contains a RAM-relocating bootstrap; bank 1 contains the existing guarded runtime; banks 2 and 3 contain proof signatures and are reserved for expansion. The bootstrap selects banks through even SCS address <code>$FF50</code>, verifies banks 2 and 3, copies bank 1 into physical pages <code>$3E/$3F</code>, restores the asset window, enters TY=1 all-RAM mode, and jumps to the runtime. Added <code>scripts/build.sh verify-gmc</code>; its bounded XRoar trace verifies both signatures, the bank-1 load, handoff, and repeated main-loop execution.</p>
       <p>QA passed the 64 KiB image-layout assertions, arcade-fidelity suite, source diff check, and a 164-page local-link lint with no dead links.</p>

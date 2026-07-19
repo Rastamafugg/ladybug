@@ -634,7 +634,7 @@ def main() -> None:
     vegetable_sprites = compile_sprite_codes(args.sprites, VEGETABLE_CODES)
     score_sprites = compile_sprite_codes(args.sprites, SCORE_CODES)
     enemy_sprites = compile_sprite_codes(args.sprites, ENEMY_CODES,
-                                           align_right=True)[:1]
+                                           align_right=True)
     multiplier_graphics = [
         pack_tile(recolor(rotate_ccw(chars[code]), (BLACK, BLUE, BLUE, BLUE)))
         for code in MULTIPLIER_CHAR_CODES
