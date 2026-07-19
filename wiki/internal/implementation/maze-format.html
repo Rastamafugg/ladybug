@@ -246,6 +246,15 @@
         cells; finalization redraws each corner from writable
         <code>MAZE_STATE</code>, preserving collected-dot state.
       </p>
+      <p>
+        MAME movement capture adds a positional rule around both ordinary wall
+        ends and gate pushes. A perpendicular turn remains legal at offsets 2,
+        4, and 6 pixels after the aligned path; 8 pixels is too late. The CoCo
+        stores the old direction plus a three-step countdown and corrects two
+        pixels on the old axis while advancing two on the new axis. Gate
+        collision is tested from the last aligned cell before this correction,
+        so the existing owner table and endpoint-push rules remain authoritative.
+      </p>
     </section>
 
     <section>

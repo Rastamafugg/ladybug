@@ -49,6 +49,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--raw-video", type=Path,
                         help="optionally retain the BGRA32 frame stream")
+    parser.add_argument("--raw-background", type=Path,
+                        help="optionally retain the $d000-$d7ff frame stream")
     parser.add_argument("--raw-work-ram", type=Path,
                         help="optionally retain the $6000-$6fff frame stream")
     return parser.parse_args()
@@ -327,6 +329,9 @@ def main() -> None:
         if args.raw_video:
             args.raw_video.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(video_raw, args.raw_video)
+        if args.raw_background:
+            args.raw_background.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(background_raw, args.raw_background)
         if args.raw_work_ram:
             args.raw_work_ram.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(work_ram_raw, args.raw_work_ram)

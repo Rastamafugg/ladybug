@@ -23,6 +23,31 @@
     </header>
 
     <section>
+      <h3>2026-07-19 · query — approaching-junction steering and angel swoop</h3>
+      <p>Made player facing follow every non-neutral joystick or keyboard request even when collision blocks movement. Added an upcoming-cell corner and gate probe at partial step 3, where the junction lies two pixels beyond the 16-pixel sprite midpoint, while retaining the existing correction for the junction just passed. Changed all wing-stage death frames to White and replaced the four-frame lateral zigzag with a symmetric 20-frame eased curve reaching eight pixels to each side. Build, arcade-fidelity checks, and cold gdb-mcp probes passed at 8,094 resident and 7,620 asset bytes.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 · query — directional facing, late-turn snap, and arcade multiplier tiles</h3>
+      <p>MAME 0.220 measurement established a 30-frame pickup popup and a late-corner window accepting offsets 2, 4, and 6 pixels but rejecting the next eight-pixel cell; gate 17 showed the same diagonal correction pattern. Implemented four correctly facing directions derived from the single <code>R2C0,R3C0,R4C0,R3C0</code> source sequence, a two-byte diagonal snap state shared by normal corners and gate pushes, input-independent 30-Vbord popup expiry, and centered x2/x3/x5 character tiles from <code>R5C6</code>, <code>R4C6</code>, and <code>R2C6</code>. Cold gdb-mcp verified three correction updates, gate-17 rotation during a partial step, and neutral-input timer expiry. The guarded build uses 8,002 resident and 7,620 asset bytes.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 · query — single-set animation and blocked-turn control</h3>
+      <p>Changed the player to derive vertical frames from the single authored <code>R2C0,R3C0,R4C0,R3C0</code> sequence, retained one authored enemy sequence, shifted the nest enemy one pixel right, changed collected EXTRA letters from White to Yellow, and corrected joystick handling so blocked perpendicular input stops immediately and opposite input reverses with consistent partial-cell rebasing. Cold gdb-mcp tests verified an unchanged off-centre address on blocked input, immediate north-to-south reversal, and a stopped direction at a side-walled corridor centre. The guarded build uses 7,574 resident and 7,524 asset bytes.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 · query — sprite-reference transform and palette correction</h3>
+      <p>Corrected the 16-column by 8-row PNG reference transform from row-major indexing to the rotated ROM mapping <code>c*8+(7-r)</code>, verified requested player, enemy, and vegetable frames pixel-for-pixel against their PNG crops, made skull graphics entirely White, swapped the life-marker Red and Green pens, and lowered the stationary enemy by eight scanlines into nest cell (12,12). A cold XRoar memory check confirmed drawing at the lower anchor while the guarded build and arcade-fidelity checks remain clean at 7,506 resident and 7,524 asset bytes.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 · query — directed sprite, HUD, and first-enemy pass</h3>
+      <p>Implemented row/column-referenced packed 2bpp player and death animation, palette-preserving score replacement with active multiplier below it, TMX life markers, flower clearing beneath randomized objects, gate-safe object redraw, player-side all-skull removal, the ordered 18-part vegetable/value HUD, and one animated non-collidable enemy in nest cell (12,11). Cold gdb-mcp verified initial framebuffer state, 30-Vbord popup restoration, complete death/respawn flow, and two-of-two skull removal. Build use is 7,506 resident and 7,524 asset bytes.</p>
+    </section>
+
+    <section>
       <h3>2026-07-18 · lint — colour, skull, and HUD-respawn regressions</h3>
       <p>
         Corrected object lookup selection so the shared 30/150/420-frame state

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify versioned MAME timing, turn-buffer, and gate-traversal evidence."""
+"""Verify versioned MAME timing, turning, popup, and gate evidence."""
 
 from __future__ import annotations
 
@@ -54,6 +54,21 @@ def verify_gate_capture() -> None:
     assert one_player(capture, 745)["y"] == 153
     for frame in range(712, 746):
         one_player(capture, frame)
+
+
+def verify_movement_snap() -> None:
+    reference = load("movement_snap_reference.json")
+    observations = reference["observations"]  # type: ignore[assignment]
+    corner = observations["ordinary_corner"]
+    assert corner["accepted_offset_pixels"] == 6
+    assert corner["rejected_offset_pixels"] == 7
+    assert corner["diagonal_correction_frames"] == [746, 747, 748, 749, 750, 751]
+    gate = observations["gate_17"]
+    assert gate["offset_pixels"] == 3
+    assert gate["diagonal_correction_frames"] == [713, 714, 715]
+    popup = observations["score_popup"]
+    assert popup["hold_frames"] == 30
+    assert popup["popup_last_frame"] - popup["popup_first_frame"] + 1 == 30
 
 
 def verify_gate_tables() -> None:
@@ -137,9 +152,10 @@ def main() -> None:
     verify_speed()
     verify_early_turn()
     verify_gate_capture()
+    verify_movement_snap()
     verify_gate_tables()
     verify_gate_graphics()
-    print("arcade fidelity: 60 px/s, 35-frame early-turn buffer, gate 17 traversal, contextual gate graphics verified")
+    print("arcade fidelity: 60 px/s, early/late turns, 30-frame popup, gate 17 traversal and graphics verified")
 
 
 if __name__ == "__main__":

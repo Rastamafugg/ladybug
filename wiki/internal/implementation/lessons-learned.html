@@ -1056,18 +1056,41 @@ git reset --hard HEAD
     </section>
 
     <section>
-      <h2>Buffer maze turns independently from instantaneous input</h2>
+      <h2>Blocked manual turns must override the buffered forward direction</h2>
       <p>Filed 2026-07-18.</p>
       <p>
-        Testing a requested turn only on the exact cell-centre update discards
-        brief or early input and makes an otherwise correct controller feel
-        unresponsive. Preserve the last non-neutral direction and consume it
-        when a later cell centre permits that edge. At two pixels every second
-        Vbord, the player crosses a cell in eight Vbords at 60 pixels/second.
+        Testing a requested turn only on the exact cell-centre update allowed
+        the previous direction to advance through several more updates when
+        the new request faced a wall. A manual perpendicular request now stops
+        immediately when the requested passage is illegal. If the perpendicular
+        passage belongs to the last aligned junction, partial steps 1–3 remain
+        eligible and are corrected diagonally. An opposite request
+        reverses immediately by changing the partial progress to
+        <code>4-step</code> and rebasing the semantic cell to the old direction's
+        target. At two pixels every second Vbord, the player still crosses a
+        cell in eight Vbords at 60 pixels/second.
       </p>
-      <p><strong>Why:</strong> input sampling and legal-turn evaluation occur at different rates and positions.</p>
+      <p><strong>Why:</strong> preserving a stale active direction after a blocked request makes wall input and reversal visibly lag behind the joystick.</p>
       <p><strong>Applies to:</strong> player movement and any future grid-constrained entity controlled by sampled input.</p>
       <p><strong>Citation:</strong> <code>src/main.s</code> <code>read_joystick</code>, <code>PLAYER_WANT</code>, and <code>player_tick</code>.</p>
+    </section>
+
+    <section>
+      <h2>Approaching junctions become steerable when the leading edge crosses them</h2>
+      <p>Filed 2026-07-19.</p>
+      <p>A 16-pixel player that is six centre pixels toward the next eight-pixel cell places the upcoming junction ten pixels from its trailing edge, two pixels beyond the sprite midpoint. At partial step 3, steering may therefore test the upcoming cell and rotate its gate or take its open corner, then snap the remaining two centre pixels to cell alignment. Earlier partial steps remain governed by the junction just passed. A blocked directional request changes <code>PLAYER_FACE</code> immediately without authorizing movement.</p>
+      <p><strong>Why:</strong> collision eligibility follows the visible footprint at both sides of a cell instead of waiting for the centre point, while facing remains a direct representation of live input.</p>
+      <p><strong>Applies to:</strong> player corners, approaching gate pushes, and blocked steering.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>read_joystick</code> and <code>player_tick</code>; cold gdb-mcp probe at cells (5,4) and (6,4), 2026-07-19.</p>
+    </section>
+
+    <section>
+      <h2>Arcade late turns use the full partial-cell window</h2>
+      <p>Filed 2026-07-19.</p>
+      <p>MAME accepted a north turn after the player had moved 2, 4, and 6 pixels beyond the aligned lower-wall endpoint, then corrected diagonally back to the path while advancing north. At 8 pixels the player had reached the next cell and the request could no longer enter that passage. Gate 17 exhibits the same diagonal correction pattern.</p>
+      <p><strong>Why:</strong> a centre-only collision model makes corners and turnstile pushes feel late even when its graph topology is correct.</p>
+      <p><strong>Applies to:</strong> player corners, gate endpoint pushes, and future enemy movement if enemies receive arcade-equivalent steering windows.</p>
+      <p><strong>Citation:</strong> <code>assets/arcade/movement_snap_reference.json</code>, <code>scripts/mame_plans/corner-snap-up.json</code>, and <code>src/main.s</code> <code>TURN_SNAP</code>.</p>
     </section>
 
     <section>

@@ -91,18 +91,29 @@ BOX_INDEX    equ $024B         ; clockwise perimeter position, 0..91
 BOX_PHASE    equ $024C         ; 0=White-to-Green, 1=Green-to-White
 DEATH_STATE  equ $024D         ; 0=alive, 1=shrink, 2=wings, 3=walk-off
 DEATH_FRAME  equ $024E         ; selected curated death frame
+PLAYER_ANIM  equ $024F         ; walk animation phase 0,1,2,3
+PLAYER_ANIM_TIMER equ $0250    ; Vbord countdown to next player frame
+PICKUP_TIMER equ $0251         ; score-sprite hold; zero when inactive
+PICKUP_FRAME equ $0252         ; 0=100, 1=300, 2=800
+ANGEL_SWING  equ $0253         ; 20-frame eased angel-swoop phase
+ENEMY_ANIM   equ $0254         ; first den enemy animation phase
+ENEMY_TIMER  equ $0255         ; Vbord countdown to next enemy frame
+TURN_SNAP    equ $0256         ; diagonal late-turn updates remaining, 0..3
+TURN_OLD     equ $0257         ; direction being corrected during late turn
 
 DIR_NORTH     equ 0
 DIR_EAST      equ 1
 DIR_SOUTH     equ 2
 DIR_WEST      equ 3
 DIR_NONE      equ $FF
+PICKUP_HOLD_FRAMES equ 30      ; measured MAME frames 705-734 inclusive
 
 COLOR_RED         equ 1
 COLOR_YELLOW      equ 2
 COLOR_LIGHT_GREEN equ 8
 COLOR_BLUE        equ 3
 COLOR_PINK        equ 4
+COLOR_GREEN       equ 5
 COLOR_WHITE       equ 6
 
 ENTITY_NONE       equ 0
@@ -160,6 +171,9 @@ MAZE_STATE equ  $A000           ; writable 576-byte maze-cell copy (PAR5)
 GATE_STATE equ  $A240           ; rotation state N/W/S/E; parity selects H/V bar
 PLAYER_BG  equ  $A300           ; 128-byte saved background under player
 ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
+PICKUP_BG   equ $A3B0          ; 64-byte background below score popup
+ENEMY_BG    equ $A3F0          ; 128-byte background under first den enemy
+ENEMY_FB    equ $57EC          ; top-left at lower nest cell (12,12)
 
 ;==============================================================================
 ;  Cart ROM
@@ -279,6 +293,7 @@ clr_fb  std     ,x++
         lbsr    draw_entities
         lbsr    draw_hud
         lbsr    draw_lives
+        lbsr    init_enemy
         lbsr    draw_player
 
         ; --- Un-blank: 320×192×16 (CRES=10 + HRES=111 → 4bpp on this build) ---
@@ -315,17 +330,24 @@ mainloop
         lbsr    finish_gate_animation
         lbsr    bonus_color_tick
         lbsr    perimeter_timer_tick
+        lbsr    player_animation_tick
+        lbsr    enemy_tick
+        lbsr    pickup_tick
         lbsr    rng_next         ; stage placement depends on elapsed play time
         lda     DEATH_STATE
         beq     main_alive
         lbsr    death_tick
         bra     mainloop
 main_alive
+        lda     PICKUP_TIMER
+        bne     mainloop
         lda     LAST_FRAME
         anda    #$01
         bne     mainloop
 phase4_before_tick
         lbsr    player_tick
+        lda     PICKUP_TIMER
+        bne     mainloop
         lda     STAGE_PENDING
         beq     mainloop
         lbsr    next_stage
@@ -352,6 +374,12 @@ init_game_state
         clr     EXTRA_BITS
         clr     DEATH_TIMER
         clr     DEATH_STATE
+        clr     PLAYER_ANIM
+        lda     #8
+        sta     PLAYER_ANIM_TIMER
+        clr     PICKUP_TIMER
+        clr     ANGEL_SWING
+        clr     TURN_SNAP
         lda     #1
         sta     MULTIPLIER
         ldd     #$1D0F
@@ -388,6 +416,7 @@ ns_stage_valid
         lbsr    draw_entities
         lbsr    draw_hud
         lbsr    draw_lives
+        lbsr    init_enemy
         lbsr    draw_player
         rts
 
@@ -594,7 +623,66 @@ dhu_mod10
         bra     dhu_mod10
 dhu_stage_digit
         lbsr    draw_hud_digit
+        lbsr    draw_vegetable_hud
         rts
+
+; Display the stage vegetable at HUD columns 32-33, rows 11-12, followed by
+; its four-digit 1000..9500 value at columns 35-38 on row 12.
+draw_vegetable_hud
+        lda     STAGE
+        cmpa    #18
+        bls     dvh_stage_ok
+        lda     #18
+dvh_stage_ok
+        deca
+        sta     ENTITY_WORK
+        ldb     #PACKED_SPRITE_SIZE
+        mul
+        leay    vegetable_sprites,pcr
+        leay    d,y
+        ldx     #$5780          ; screen column 32, scanline 88
+        leau    sprite_attr0_pairs,pcr
+        lbsr    blit_packed_sprite
+
+        lda     ENTITY_WORK
+        lsla
+        leau    vegetable_values,pcr
+        leau    a,u
+        lda     #35
+        sta     HUD_X
+        lda     #12
+        sta     HUD_Y
+        lda     #COLOR_GREEN
+        sta     HUD_COLOR
+        lda     ,u+
+        sta     HUD_BCD_BYTE
+        lsra
+        lsra
+        lsra
+        lsra
+        lbsr    draw_hud_digit
+        inc     HUD_X
+        lda     HUD_BCD_BYTE
+        anda    #$0F
+        lbsr    draw_hud_digit
+        inc     HUD_X
+        lda     ,u
+        sta     HUD_BCD_BYTE
+        lsra
+        lsra
+        lsra
+        lsra
+        lbsr    draw_hud_digit
+        inc     HUD_X
+        lda     HUD_BCD_BYTE
+        anda    #$0F
+        lbsr    draw_hud_digit
+        rts
+
+vegetable_values
+        fdb     $1000,$1500,$2000,$2500,$3000,$3500
+        fdb     $4000,$4500,$5000,$5500,$6000,$6500
+        fdb     $7000,$7500,$8000,$8500,$9000,$9500
 
 draw_bcd_line
         lda     #33
@@ -941,6 +1029,7 @@ ie_spcil_pick
         lbsr    place_entity
         lda     ENTITY_TOTAL
         sta     ENTITY_COUNT
+        lbsr    erase_entity_footprints
         rts
 
 letter_xtr
@@ -1033,6 +1122,25 @@ de_next
         leax    4,x
         dec     ENTITY_WORK
         bne     de_loop
+        rts
+
+; Placement changes MAZE_STATE before the objects are drawn. Restore each
+; 16x16 footprint once so the authored flowers do not show through sprites.
+erase_entity_footprints
+        ldx     #ENTITY_TABLE
+        lda     ENTITY_COUNT
+        sta     ENTITY_WORK
+eef_loop
+        stx     ENTITY_PTR
+        lda     ,x
+        sta     ENTITY_X
+        lda     1,x
+        sta     ENTITY_Y
+        lbsr    restore_entity_footprint
+        ldx     ENTITY_PTR
+        leax    4,x
+        dec     ENTITY_WORK
+        bne     eef_loop
         rts
 
 draw_entity_object
@@ -1144,9 +1252,14 @@ bct_to_yellow
         ldd     #150
 bct_redraw
         std     BONUS_TIMER
+        lda     PICKUP_TIMER
+        bne     bct_popup
         lbsr    restore_player
         lbsr    draw_entities
         lbsr    draw_player
+        bra     bct_done
+bct_popup
+        lbsr    draw_entities
 bct_done
         rts
 
@@ -1312,8 +1425,8 @@ object_blue_lut
         fcb     $00,$00,$03,$04,$00,$00,$03,$04
         fcb     $30,$30,$33,$34,$40,$40,$43,$44
 object_skull_lut
-        fcb     $00,$00,$02,$06,$00,$00,$02,$06
-        fcb     $20,$20,$22,$26,$60,$60,$62,$66
+        fcb     $00,$00,$06,$06,$00,$00,$06,$06
+        fcb     $60,$60,$66,$66,$60,$60,$66,$66
 
 ;==============================================================================
 ; init_gate_state
@@ -1389,6 +1502,7 @@ init_player
         clr     PLAYER_DIR      ; initially face and move north
         clr     PLAYER_FACE
         clr     PLAYER_STEP
+        clr     TURN_SNAP
         lda     #DIR_NONE
         sta     JOY_DIR
         sta     PLAYER_WANT
@@ -1464,6 +1578,7 @@ rj_north
 rj_request
         sta     JOY_DIR
         sta     PLAYER_WANT      ; buffer turns across intermediate steps
+        sta     PLAYER_FACE      ; facing follows live input even when blocked
         lda     #1
         sta     PLAYER_MANUAL
 rj_done
@@ -1518,6 +1633,8 @@ jra_done
 player_tick
         lbsr    restore_player
 pt_alive
+        lda     TURN_SNAP
+        lbne    pt_snap_advance
         lda     PLAYER_MANUAL
         beq     pt_input_active
         lda     JOY_DIR
@@ -1525,7 +1642,98 @@ pt_alive
         lbeq    pt_draw          ; retain direction/step, but stop immediately
 pt_input_active
         lda     PLAYER_STEP
-        bne     pt_advance
+        lbeq    pt_at_center
+        lda     PLAYER_MANUAL
+        lbeq    pt_advance       ; preserve the automatic entrance movement
+        lda     JOY_DIR
+        cmpa    PLAYER_DIR
+        lbeq    pt_advance
+        eora    #2              ; opposite directions differ by bit 1
+        cmpa    PLAYER_DIR
+        bne     pt_try_late_turn
+        lda     JOY_DIR
+        sta     PLAYER_FACE
+        lda     #4
+        suba    PLAYER_STEP
+        sta     PLAYER_STEP
+        lda     PLAYER_DIR      ; rebase against the old direction's target
+        beq     pt_rebase_north
+        cmpa    #DIR_EAST
+        beq     pt_rebase_east
+        cmpa    #DIR_SOUTH
+        beq     pt_rebase_south
+        dec     PLAYER_CELL_X
+        bra     pt_reversed
+pt_rebase_north
+        dec     PLAYER_CELL_Y
+        bra     pt_reversed
+pt_rebase_east
+        inc     PLAYER_CELL_X
+        bra     pt_reversed
+pt_rebase_south
+        inc     PLAYER_CELL_Y
+pt_reversed
+        lda     PLAYER_WANT
+        sta     PLAYER_DIR
+        lbra    pt_advance
+pt_try_late_turn
+        lda     JOY_DIR
+        lbsr    can_move         ; test from the last aligned cell; may turn gate
+        bcs     pt_begin_late_turn
+        lda     PLAYER_STEP
+        cmpa    #3              ; next junction is 2 pixels past sprite midpoint
+        lbne    pt_draw
+        lda     PLAYER_DIR      ; probe requested passage from the upcoming cell
+        beq     pt_probe_north
+        cmpa    #DIR_EAST
+        beq     pt_probe_east
+        cmpa    #DIR_SOUTH
+        beq     pt_probe_south
+        dec     PLAYER_CELL_X
+        bra     pt_probe_turn
+pt_probe_north
+        dec     PLAYER_CELL_Y
+        bra     pt_probe_turn
+pt_probe_east
+        inc     PLAYER_CELL_X
+        bra     pt_probe_turn
+pt_probe_south
+        inc     PLAYER_CELL_Y
+pt_probe_turn
+        lda     JOY_DIR
+        lbsr    can_move         ; legal gate push occurs at the approached junction
+        pshs    cc
+        lda     PLAYER_DIR      ; restore last aligned cell before normal arrival
+        beq     pt_unprobe_north
+        cmpa    #DIR_EAST
+        beq     pt_unprobe_east
+        cmpa    #DIR_SOUTH
+        beq     pt_unprobe_south
+        inc     PLAYER_CELL_X
+        bra     pt_unprobe_done
+pt_unprobe_north
+        inc     PLAYER_CELL_Y
+        bra     pt_unprobe_done
+pt_unprobe_east
+        dec     PLAYER_CELL_X
+        bra     pt_unprobe_done
+pt_unprobe_south
+        dec     PLAYER_CELL_Y
+pt_unprobe_done
+        puls    cc
+        lbcc    pt_draw
+        lbra    pt_advance       ; snap remaining 2 pixels to the new cell centre
+pt_begin_late_turn
+        lda     PLAYER_DIR
+        sta     TURN_OLD
+        lda     PLAYER_STEP
+        sta     TURN_SNAP
+        clr     PLAYER_STEP
+        lda     JOY_DIR
+        sta     PLAYER_DIR
+        sta     PLAYER_FACE
+        lbra    pt_draw          ; arcade shows the new face before diagonal snap
+pt_at_center
         lda     PLAYER_MANUAL
         bne     pt_choose_direction
         lda     PLAYER_CELL_X
@@ -1543,19 +1751,65 @@ pt_choose_direction
         cmpa    #DIR_NONE
         beq     pt_check_active
         lbsr    can_move
-        bcc     pt_check_active
+        bcc     pt_blocked_request
         lda     PLAYER_WANT
         sta     PLAYER_DIR
         sta     PLAYER_FACE
+        bra     pt_check_active
+pt_blocked_request
+        lda     #DIR_NONE
+        sta     PLAYER_DIR
+        lbra    pt_draw
 pt_check_active
         lda     PLAYER_DIR
         cmpa    #DIR_NONE
-        beq     pt_draw
+        lbeq    pt_draw
         lbsr    can_move
         bcs     pt_advance
         lda     #DIR_NONE
         sta     PLAYER_DIR
-        bra     pt_draw
+        lbra    pt_draw
+
+pt_snap_advance
+        ldx     PLAYER_FB
+        lda     TURN_OLD
+        beq     pt_snap_from_north
+        cmpa    #DIR_EAST
+        beq     pt_snap_from_east
+        cmpa    #DIR_SOUTH
+        beq     pt_snap_from_south
+        leax    1,x              ; reverse old West movement
+        bra     pt_snap_new_axis
+pt_snap_from_north
+        leax    320,x
+        bra     pt_snap_new_axis
+pt_snap_from_east
+        leax    -1,x
+        bra     pt_snap_new_axis
+pt_snap_from_south
+        leax    -320,x
+pt_snap_new_axis
+        lda     PLAYER_DIR
+        beq     pt_snap_north
+        cmpa    #DIR_EAST
+        beq     pt_snap_east
+        cmpa    #DIR_SOUTH
+        beq     pt_snap_south
+        leax    -1,x
+        bra     pt_snap_store
+pt_snap_north
+        leax    -320,x
+        bra     pt_snap_store
+pt_snap_east
+        leax    1,x
+        bra     pt_snap_store
+pt_snap_south
+        leax    320,x
+pt_snap_store
+        stx     PLAYER_FB
+        inc     PLAYER_STEP
+        dec     TURN_SNAP
+        lbra    pt_draw
 
 pt_advance
         ldx     PLAYER_FB
@@ -1604,7 +1858,10 @@ pt_arrived
         bne     pt_draw
         lbsr    eat_dot
 pt_draw
+        lda     PICKUP_TIMER
+        bne     pt_done
         lbsr    draw_player
+pt_done
         rts
 
 ;==============================================================================
@@ -1978,6 +2235,7 @@ dgd_tile
         puls    x
         dec     DRAW_COUNT
         bne     dgd_tile
+        lbsr    draw_entities
         rts
 
 ; Complete the pending one-Vbord diagonal frame before this frame's movement.
@@ -1990,6 +2248,7 @@ finish_gate_animation
         deca
         lbsr    draw_gate
         clr     GATE_ANIM_ID
+        lbsr    draw_entities
         lbsr    draw_player
 fga_done
         rts
@@ -2094,11 +2353,30 @@ cep_multiplier_five
 cep_letter
         lbsr    apply_letter_pickup
 cep_check_clear
+        lbsr    begin_score_popup
         lbsr    check_stage_clear
         rts
 cep_skull
+        ldx     #ENTITY_TABLE
+        lda     ENTITY_COUNT
+        sta     ENTITY_WORK
+cep_skull_loop
+        lda     2,x
+        cmpa    #ENTITY_SKULL
+        bne     cep_skull_next
+        lda     ,x
+        sta     ENTITY_X
+        lda     1,x
+        sta     ENTITY_Y
         clr     2,x
+        pshs    x
         lbsr    restore_entity_footprint
+        puls    x
+cep_skull_next
+        leax    4,x
+        dec     ENTITY_WORK
+        bne     cep_skull_loop
+        lbsr    draw_entities
         clr     DEATH_TIMER
         lda     #1
         sta     DEATH_STATE
@@ -2107,8 +2385,136 @@ cep_skull
         sta     PLAYER_WANT
         rts
 
-; Arcade death sequence: sprite 57 for 30 frames, sprites 58-63 for five
-; frames each, then white wing sprites 64-68 while the angel flies upward.
+; Replace the player with the collected colour's score graphic for the exact
+; 30-frame MAME hold. The Vbord countdown is independent of joystick input.
+; Movement pauses, so the existing player background remains authoritative.
+begin_score_popup
+        lda     BONUS_COLOR
+        cmpa    #COLOR_BLUE
+        beq     bsp_blue
+        cmpa    #COLOR_YELLOW
+        beq     bsp_yellow
+        lda     #2              ; Red 800 frame
+        bra     bsp_frame
+bsp_blue
+        clra                    ; Blue 100 frame
+        bra     bsp_frame
+bsp_yellow
+        lda     #1              ; Yellow 300 frame
+bsp_frame
+        sta     PICKUP_FRAME
+        lda     #PICKUP_HOLD_FRAMES
+        sta     PICKUP_TIMER
+        lbsr    save_player
+        lbsr    save_pickup_lower
+        lbsr    draw_score_popup
+        rts
+
+pickup_tick
+        lda     PICKUP_TIMER
+        beq     put_done
+        dec     PICKUP_TIMER
+        bne     put_done
+        lbsr    restore_player
+        lbsr    restore_pickup_lower
+        lbsr    draw_player
+put_done
+        rts
+
+draw_score_popup
+        lda     PICKUP_FRAME
+        ldb     #PACKED_SPRITE_SIZE
+        mul
+        leay    score_sprites,pcr
+        leay    d,y
+        ldx     PLAYER_FB
+        lda     BONUS_COLOR
+        cmpa    #COLOR_BLUE
+        beq     dsp_blue
+        cmpa    #COLOR_YELLOW
+        beq     dsp_yellow
+        leau    sprite_score_red_pairs,pcr
+        bra     dsp_draw
+dsp_blue
+        leau    sprite_score_blue_pairs,pcr
+        bra     dsp_draw
+dsp_yellow
+        leau    sprite_score_yellow_pairs,pcr
+dsp_draw
+        lbsr    blit_packed_sprite
+        lbsr    draw_popup_multiplier
+        rts
+
+draw_popup_multiplier
+        lda     MULTIPLIER
+        cmpa    #1
+        beq     dpm_done
+        cmpa    #2
+        beq     dpm_two
+        cmpa    #3
+        beq     dpm_three
+        lda     #2
+        bra     dpm_select
+dpm_two
+        clra
+        bra     dpm_select
+dpm_three
+        lda     #1
+dpm_select
+        ldb     #PICKUP_MULTIPLIER_SIZE
+        mul
+        leay    pickup_multiplier_graphics,pcr
+        leay    d,y
+        ldx     PLAYER_FB
+        leax    2562,x           ; centre one 8px arcade tile under 16px score
+        lda     #8
+        ldb     #4
+        lbsr    blit_transparent
+dpm_done
+        rts
+
+save_pickup_lower
+        ldx     PLAYER_FB
+        leax    2560,x
+        ldu     #PICKUP_BG
+        lda     #8
+        sta     HUD_COUNT
+spl_row
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        leax    152,x
+        dec     HUD_COUNT
+        bne     spl_row
+        rts
+
+restore_pickup_lower
+        ldx     PLAYER_FB
+        leax    2560,x
+        ldu     #PICKUP_BG
+        lda     #8
+        sta     HUD_COUNT
+rpl_row
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        leax    152,x
+        dec     HUD_COUNT
+        bne     rpl_row
+        rts
+
+; User-directed death sequence: R6C7 down through R0C7, R5C10 down
+; through R0C10, then the final R7C11 angel swoops upward.
 ; The requested CoCo transition then walks a normal Lady Bug down the entrance
 ; before the replacement walks in from below.
 death_tick
@@ -2140,35 +2546,43 @@ dt_shrink_draw
         lbsr    draw_death_frame
         inc     DEATH_TIMER
         lda     DEATH_TIMER
-        cmpa    #60             ; 30 + six five-frame shrink stages
+        cmpa    #90             ; first frame 30, next twelve 5 each
         lblo    dt_done
         lda     #2
         sta     DEATH_STATE
         clr     DEATH_TIMER
+        clr     ANGEL_SWING
         rts
 dt_wings
         ldx     PLAYER_FB
+        cmpx    #FB_VIRT+160
+        bls     dt_finish_wings
         leax    -160,x
+        lda     ANGEL_SWING
+        leay    angel_swing_deltas,pcr
+        ldb     a,y
+        beq     dt_swing_store
+        bmi     dt_swing_left
+        leax    1,x
+        bra     dt_swing_store
+dt_swing_left
+        leax    -1,x
+dt_swing_store
         stx     PLAYER_FB
-        lda     DEATH_TIMER
-        ldb     #0
-dt_wing_divide
-        cmpa    #6
-        blo     dt_wing_modulo
-        suba    #6
-        incb
-        cmpb    #5
-        blo     dt_wing_divide
-        clrb
-        bra     dt_wing_divide
-dt_wing_modulo
-        addb    #7
-        stb     DEATH_FRAME
+        inc     ANGEL_SWING
+        lda     ANGEL_SWING
+        cmpa    #20
+        blo     dt_swing_phase_ok
+        clr     ANGEL_SWING
+dt_swing_phase_ok
+        lda     #DEATH_ANGEL_FRAME
+        sta     DEATH_FRAME
         lbsr    draw_death_frame
         inc     DEATH_TIMER
         lda     DEATH_TIMER
         cmpa    #144
         blo     dt_done
+dt_finish_wings
         lbsr    restore_player
         lda     LIVES
         beq     dt_game_over
@@ -2186,6 +2600,9 @@ dt_wing_modulo
         lda     #DIR_SOUTH
         sta     PLAYER_FACE
         sta     PLAYER_DIR
+        clr     PLAYER_ANIM
+        lda     #8
+        sta     PLAYER_ANIM_TIMER
         lda     HUD_Y
         ldb     #5
         mul
@@ -2230,15 +2647,26 @@ dt_done
 draw_death_frame
         lbsr    save_player
         lda     DEATH_FRAME
-        ldb     #DEATH_FRAME_SIZE
+        ldb     #PACKED_SPRITE_SIZE
         mul
         leay    death_sprites,pcr
         leay    d,y
         ldx     PLAYER_FB
-        lda     #16
-        ldb     #8
-        lbsr    blit_transparent
+        lda     DEATH_FRAME
+        cmpa    #DEATH_WING_FIRST
+        bhs     ddf_white
+        leau    sprite_red_pairs,pcr
+        bra     ddf_draw
+ddf_white
+        leau    sprite_white_pairs,pcr
+ddf_draw
+        lbsr    blit_packed_sprite
         rts
+
+; Smooth 20-frame lateral cycle: ease to +8 pixels, cross to -8, return.
+angel_swing_deltas
+        fcb     1,1,1,1,0,0,-1,-1,-1,-1
+        fcb     -1,-1,-1,-1,0,0,1,1,1,1
 cep_next
         ldx     ENTITY_PTR
         leax    4,x
@@ -2423,15 +2851,180 @@ ed_done
 draw_player
         lbsr    save_player
         lda     PLAYER_FACE
-        ldb     #PLAYER_FRAME_SIZE
+        lsla
+        lsla
+        adda    PLAYER_ANIM
+dp_frame
+        ldb     #PACKED_SPRITE_SIZE
         mul
         leay    player_sprites,pcr
         leay    d,y
         ldx     PLAYER_FB
-        lda     #16
-        ldb     #8
-        lbsr    blit_transparent
+        leau    sprite_attr0_pairs,pcr
+        lbsr    blit_packed_sprite
         rts
+
+player_animation_tick
+        lda     PICKUP_TIMER
+        bne     pat_done
+        lda     DEATH_STATE
+        beq     pat_count
+        cmpa    #3
+        bne     pat_done
+pat_count
+        dec     PLAYER_ANIM_TIMER
+        bne     pat_done
+        lda     #8
+        sta     PLAYER_ANIM_TIMER
+        inc     PLAYER_ANIM
+        lda     PLAYER_ANIM
+        anda    #3
+        sta     PLAYER_ANIM
+pat_done
+        rts
+
+; First part enemy remains inside the lower nest cell. It is deliberately
+; absent from collision and release logic in this pass.
+init_enemy
+        clr     ENEMY_ANIM
+        lda     #8
+        sta     ENEMY_TIMER
+        lbsr    save_enemy
+        lbsr    draw_enemy
+        rts
+
+enemy_tick
+        dec     ENEMY_TIMER
+        bne     ent_done
+        lda     #8
+        sta     ENEMY_TIMER
+        lbsr    restore_enemy
+        inc     ENEMY_ANIM
+        lda     ENEMY_ANIM
+        anda    #3
+        sta     ENEMY_ANIM
+        lbsr    draw_enemy
+ent_done
+        rts
+
+draw_enemy
+        lda     ENEMY_ANIM
+        ldb     #PACKED_SPRITE_SIZE
+        mul
+        leay    enemy_sprites,pcr
+        leay    d,y
+        ldx     #ENEMY_FB
+        leau    sprite_attr0_pairs,pcr
+        lbsr    blit_packed_sprite
+        rts
+
+save_enemy
+        ldx     #ENEMY_FB
+        ldu     #ENEMY_BG
+        ldy     #16
+se_row
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        leax    152,x
+        leay    -1,y
+        bne     se_row
+        rts
+
+restore_enemy
+        ldx     #ENEMY_FB
+        ldu     #ENEMY_BG
+        ldy     #16
+re_row
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        leax    152,x
+        leay    -1,y
+        bne     re_row
+        rts
+
+; Expand one 16x16 native 2bpp sprite. U selects a 16-byte table mapping
+; each two-pixel source nibble to one packed GIME 4bpp destination byte.
+blit_packed_sprite
+        lda     #16
+        sta     BLIT_ROWS
+bps_row
+        lda     #4
+        sta     BLIT_WIDTH
+bps_byte
+        lda     ,y+
+        sta     OBJ_VALUE
+        lsra
+        lsra
+        lsra
+        lsra
+        lda     a,u
+        lbsr    merge_sprite_byte
+        lda     OBJ_VALUE
+        anda    #$0F
+        lda     a,u
+        lbsr    merge_sprite_byte
+        dec     BLIT_WIDTH
+        bne     bps_byte
+        leax    152,x
+        dec     BLIT_ROWS
+        bne     bps_row
+        rts
+
+; Merge packed source A at X, preserving destination nibbles where source=0.
+merge_sprite_byte
+        sta     HUD_BYTE
+        clrb
+        bita    #$F0
+        bne     msb_high
+        orb     #$F0
+msb_high
+        bita    #$0F
+        bne     msb_low
+        orb     #$0F
+msb_low
+        andb    ,x
+        orb     HUD_BYTE
+        stb     ,x+
+        rts
+
+sprite_attr0_pairs
+        fcb     $00,$0C,$05,$02,$C0,$CC,$C5,$C2
+        fcb     $50,$5C,$55,$52,$20,$2C,$25,$22
+sprite_red_pairs
+        fcb     $00,$01,$01,$01,$10,$11,$11,$11
+        fcb     $10,$11,$11,$11,$10,$11,$11,$11
+sprite_yellow_pairs
+        fcb     $00,$02,$02,$02,$20,$22,$22,$22
+        fcb     $20,$22,$22,$22,$20,$22,$22,$22
+sprite_blue_pairs
+        fcb     $00,$03,$03,$03,$30,$33,$33,$33
+        fcb     $30,$33,$33,$33,$30,$33,$33,$33
+sprite_white_pairs
+        fcb     $00,$06,$06,$06,$60,$66,$66,$66
+        fcb     $60,$66,$66,$66,$60,$66,$66,$66
+; Set-B score palettes preserve the graphic's colored body, Green details,
+; and White digits instead of collapsing all nonzero pens into one shape.
+sprite_score_red_pairs
+        fcb     $00,$01,$05,$06,$10,$11,$15,$16
+        fcb     $50,$51,$55,$56,$60,$61,$65,$66
+sprite_score_yellow_pairs
+        fcb     $00,$02,$05,$06,$20,$22,$25,$26
+        fcb     $50,$52,$55,$56,$60,$62,$65,$66
+sprite_score_blue_pairs
+        fcb     $00,$03,$05,$06,$30,$33,$35,$36
+        fcb     $50,$53,$55,$56,$60,$63,$65,$66
 
 ;==============================================================================
 ; save_player — save the 16x16 framebuffer rectangle under the player.

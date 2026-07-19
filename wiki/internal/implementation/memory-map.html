@@ -70,7 +70,9 @@ $A240-$A253      5    $34    20 B  Gate states (passage N/W/S/E = 0/1/2/3)
 $A254-$A2FF      5    $34   172 B  Reserved game-state growth
 $A300-$A37F      5    $34   128 B  Player background save buffer
 $A380-$A3AF      5    $34    48 B  Twelve x/y/type/variant collectible records
-$A3B0-$BFFF      5    $34   —      Free game-state RAM
+$A3B0-$A3EF      5    $34    64 B  Score-popup lower background buffer
+$A3F0-$A46F      5    $34   128 B  First stationary enemy background buffer
+$A470-$BFFF      5    $34   —      Free game-state RAM
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
@@ -278,9 +280,9 @@ $FF00-$FFFF        256 B   I/O; never cart data
 </code></pre>
       <p>
         The current immutable block begins at <code>palette_table=$E000</code>
-        and ends before <code>asset_end=$FDA4</code>. Phase 5 uses 5,412 resident
-        bytes and 7,588 asset bytes, leaving 2,777 bytes for resident-code
-        growth and 92 bytes for additional static data, subject to the
+        and ends before <code>asset_end=$FDC4</code>. Phase 5 uses 8,094 resident
+        bytes and 7,620 asset bytes, leaving 98 bytes for resident-code
+        growth and 60 bytes for additional static data, subject to the
         independent region limits. The resident total includes twelve curated
         128-byte death frames because the static asset window cannot hold them.
         All current 6809
@@ -345,7 +347,9 @@ $FF00-$FFFF        256 B   I/O; never cart data
           <tr><td><code>$2F-$3D</code></td><td>bonus colour/timer, entity counts, RNG, death timer, multiplier, word bits</td><td>15 B</td><td>Phase 5 collectible state</td></tr>
           <tr><td><code>$3E-$49</code></td><td>entity/object render pointers and scratch</td><td>12 B</td><td>Phase 5 dynamic-object renderer</td></tr>
           <tr><td><code>$4A-$4E</code></td><td>perimeter timer/index/phase plus death state/frame</td><td>5 B</td><td>Phase 5 timer and death state machines</td></tr>
-          <tr><td><code>$4A-$FF</code></td><td>(free)</td><td>182 B</td><td>Future hot state</td></tr>
+          <tr><td><code>$4F-$55</code></td><td>player/pickup/angel/enemy animation state</td><td>7 B</td><td>Curated sprite state machines; angel phase indexes a 20-frame eased lateral cycle</td></tr>
+          <tr><td><code>$56-$57</code></td><td><code>TURN_SNAP</code>, <code>TURN_OLD</code></td><td>2 B</td><td>Late-corner and gate diagonal correction</td></tr>
+          <tr><td><code>$58-$FF</code></td><td>(free)</td><td>168 B</td><td>Future hot state</td></tr>
         </tbody>
       </table>
       <p>Plenty of room. Maintain this table as variables land.</p>

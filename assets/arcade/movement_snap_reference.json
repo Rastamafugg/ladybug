@@ -1,0 +1,41 @@
+{
+  "schema": "ladybug-mame-movement-snap-reference-v1",
+  "provenance": {
+    "driver": "ladybug",
+    "mame_version": "0.220 (unknown)",
+    "refresh_hz": 60,
+    "capture_script": "scripts/capture_mame_gameplay.py",
+    "corner_plan": "scripts/mame_plans/corner-snap-up.json",
+    "pickup_plan": "scripts/mame_plans/pickup-bottom-left.json",
+    "gate_capture": "assets/arcade/gate_reference.json"
+  },
+  "observations": {
+    "ordinary_corner": {
+      "aligned_player_x": 73,
+      "latest_accepted_player_x": 67,
+      "accepted_offset_pixels": 6,
+      "first_new_direction_frame": 745,
+      "diagonal_correction_frames": [746, 747, 748, 749, 750, 751],
+      "first_fully_aligned_frame": 752,
+      "first_rejected_player_x": 66,
+      "rejected_offset_pixels": 7,
+      "rule": "accept any of the three two-pixel partial-cell steps; reject after the next cell is reached"
+    },
+    "gate_17": {
+      "aligned_player_x": 105,
+      "turn_player_x": 108,
+      "offset_pixels": 3,
+      "first_new_direction_frame": 712,
+      "diagonal_correction_frames": [713, 714, 715],
+      "first_fully_aligned_frame": 716
+    },
+    "score_popup": {
+      "last_player_frame_before_popup": 704,
+      "popup_first_frame": 705,
+      "popup_last_frame": 734,
+      "first_restored_player_frame": 735,
+      "hold_frames": 30,
+      "input_during_hold": "left remained pressed"
+    }
+  }
+}

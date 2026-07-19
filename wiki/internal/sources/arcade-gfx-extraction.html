@@ -81,6 +81,9 @@
 
     <section>
       <h2>CoCo 3 target generation</h2>
+      <p><strong>Sprite-sheet coordinates:</strong> review references use <code>RrCc</code> as row then column on <code>sprites_raw2bpp.png</code>, which is 16 columns by 8 rows. The reference PNG is a rotated layout of the 128-entry ROM decode, so the ROM sprite code is <code>c*8+(7-r)</code>. Applying <code>r*16+c</code> selects visibly unrelated sprites.</p>
+      <p><strong>Character-sheet coordinates:</strong> <code>chars_raw2bpp.png</code> is 16 columns by 32 rows and uses the analogous rotated mapping <code>c*32+(31-r)</code>. Popup multiplier references <code>R5C6</code>, <code>R4C6</code>, and <code>R2C6</code> therefore resolve to ROM character codes 218, 219, and 221.</p>
+      <p><strong>Movement timing evidence:</strong> <code>assets/arcade/movement_snap_reference.json</code> summarizes reproducible MAME captures for the six-pixel late-corner window, gate diagonal correction, and 30-frame score-popup hold. <code>capture_mame_gameplay.py --raw-background</code> can retain the per-frame <code>$D000-$D7FF</code> stream when tilemap inspection is required.</p>
       <p>
         <strong>Current Phase 4 path:</strong>
         <code>scripts/build_screen.py</code> resolves the active rotated-sheet

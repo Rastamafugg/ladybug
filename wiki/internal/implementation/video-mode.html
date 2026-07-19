@@ -156,20 +156,23 @@
     </section>
 
     <section>
-      <h2>Phase 4 player renderer — corrected 2026-07-18</h2>
+      <h2>Player and curated-sprite renderer — updated 2026-07-19</h2>
       <ul>
-        <li>Arcade sprite index 0, attribute 0, is the canonical Lady Bug player/life source. Sprite 3 is its rotated directional form, not a distinct animation frame.</li>
-        <li>Sprite 0 faces down in raw ROM coordinates. The build rotates it 180 degrees for north, then clockwise for east, south, and west, producing four unique 128-byte packed-pixel records.</li>
+        <li>The active player uses one north-facing authored sequence, <code>R2C0,R3C0,R4C0,R3C0</code>, at one frame per eight Vbords. The build derives east, south, and west by successive clockwise rotations, producing 16 packed runtime frames without selecting the separate <code>R5C0</code> through <code>R7C0</code> source set. <code>RrCc</code> means row then column on the 16-column by 8-row PNG; the build converts it to rotated ROM order with <code>c*8+(7-r)</code>.</li>
+        <li>Curated player, death, vegetable, score, and enemy shapes remain packed at the arcade-native four pixels per byte. A runtime pair-table expander applies transparent Set-A attribute 0, monochrome death, or Set-B score palettes while writing GIME 4bpp pixels.</li>
         <li>The single player owns one 128-byte background buffer at <code>$A300</code>. Each update restores the old rectangle, moves, applies dirty-tile changes, saves the new rectangle, then blends the sprite.</li>
         <li>The opaque sprite anchor is seven pixels left and seven pixels above the semantic cell origin. The byte-aligned save rectangle starts eight pixels left; generated pixels shift right by one inside it. Exhaustive checking found no opaque sprite pixel over a clean maze-wall pixel at any legal two-pixel substep.</li>
         <li>Movement is two pixels per update, retaining byte and scanline-pair alignment for the fixed 128-byte save rectangle.</li>
-        <li>Movement updates every second Vbord, yielding the MAME-measured 60 pixels/second. Four updates cross one semantic cell. A directional request remains buffered until a cell centre permits the turn; neutral input stops movement immediately after the first manual direction. The arcade startup movement remains automatic until then.</li>
+        <li>Movement updates every second Vbord, yielding the MAME-measured 60 pixels/second. Four updates cross one semantic cell. A legal perpendicular request during partial steps 1–3 begins a diagonal correction: every update removes two pixels of old-axis offset and adds two on the new axis. A blocked request still stops immediately; an opposite request reverses by rebasing partial-cell state. Neutral input stops immediately after the first manual direction. The arcade startup movement remains automatic until then.</li>
       </ul>
       <p>
-        This validates single-buffer save/restore for one entity. Phase 6 must
-        measure multi-entity cost before duplicating the same ownership model
-        for every enemy.
+        The player retains its single buffer. The frozen score popup owns a
+        separate eight-row lower buffer, and the first stationary lower-nest enemy
+        owns one 128-byte buffer. Its one authored animation set is shifted one
+        pixel right inside that buffer. A full moving-enemy ownership policy remains
+        part of the later AI/release pass.
       </p>
+      <p>The 30-frame score popup is Vbord-counted independently of input. Its optional multiplier is one centered 8×8 arcade character tile from <code>chars_raw2bpp.png</code>, stored in the asset window rather than a generated 16×8 strip.</p>
     </section>
 
     <section>
