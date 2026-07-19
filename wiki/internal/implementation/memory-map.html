@@ -71,8 +71,10 @@ $A254-$A2FF      5    $34   172 B  Reserved game-state growth
 $A300-$A37F      5    $34   128 B  Player background save buffer
 $A380-$A3AF      5    $34    48 B  Twelve x/y/type/variant collectible records
 $A3B0-$A3EF      5    $34    64 B  Score-popup lower background buffer
-$A3F0-$A46F      5    $34   128 B  First stationary enemy background buffer
-$A470-$BFFF      5    $34   —      Free game-state RAM
+$A3F0-$A46F      5    $34   128 B  Legacy first-enemy background area
+$A470-$A47F      5    $34    16 B  Four active/x/y/direction enemy records
+$A480-$A67F      5    $34   512 B  Four enemy background buffers
+$A680-$BFFF      5    $34   —      Free game-state RAM
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
@@ -280,10 +282,10 @@ $FF00-$FFFF        256 B   I/O; never cart data
 </code></pre>
       <p>
         The current immutable block begins at <code>palette_table=$E000</code>
-        and ends before <code>asset_end=$FDC4</code>. Phase 5 uses 8,094 resident
-        bytes and 7,620 asset bytes, leaving 98 bytes for resident-code
-        growth and 60 bytes for additional static data, subject to the
-        independent region limits. The resident total includes twelve curated
+        and ends before <code>asset_end=$FDF8</code>. The first enemy pass uses 8,166 resident
+        bytes and 7,672 asset bytes, leaving 26 bytes for resident-code
+        growth and 8 bytes for additional static data, subject to the
+        independent region limits. It retains one enemy graphic frame and relocates cold lookup tables into the asset region. The resident total includes twelve curated
         128-byte death frames because the static asset window cannot hold them.
         All current 6809
         PC-relative references remain within signed 16-bit reach.

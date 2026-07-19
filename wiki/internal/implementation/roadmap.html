@@ -178,12 +178,12 @@
       <p><strong>Goal:</strong> the game becomes Lady Bug.</p>
       <p><strong>POC tasks:</strong></p>
       <ol>
-        <li><strong>Started 2026-07-19:</strong> one non-collidable, unreleased enemy occupies lower nest cell (12,12), shifted one pixel right for spawner alignment, and cycles one authored set <code>R4C1,R5C1,R6C1,R5C1</code>. Directional variants will be derived from that set when movement is added. Bug records and the fixed-size pool remain next.</li>
+        <li><strong>First pass implemented 2026-07-19:</strong> four compact enemy records release sequentially, one per completed 92-box timer circuit. Active enemies advance at 60 px/s in eight-pixel cell steps, select a pseudo-random legal direction at each junction, consume current gate orientation without rotating gates, kill the player on contact, and are removed with only the contacted skull when they hit one. Smooth two-pixel interpolation, directional animation, pursuit bias, and arcade den re-release remain follow-ups.</li>
         <li>Bug entity record (<code>BUG.X</code>, <code>BUG.Y</code>, <code>BUG.STATE</code>, <code>BUG.LEN</code>); fixed-size pool.</li>
         <li>Border-circuit spawn timer driving four initial den occupants; measure the claimed speed changes on stages 2 and 5.</li>
         <li>Bug AI — semi-random corridor wandering outside detection range, steady pursuit inside it, and no gate rotation; verify detection and den-safety rules in MAME.</li>
         <li><strong>Player-side skull behavior is done:</strong> stage table 2 / 3 / 4 / 5 / 6 at stages 1 / 2–4 / 5–8 / 9–17 / 18+, with all skulls removed after player contact.</li>
-        <li>Skull-killed enemies return to the den for delayed re-release; enemy-side collision remains in this phase.</li>
+        <li>Refine skull-killed enemies from first-pass removal to the arcade den return and delayed re-release sequence.</li>
         <li>Collision → life lost; reset positions.</li>
       </ol>
       <p><strong>Exit criterion:</strong> playable. You can lose the game. Multiple bugs on screen at once.</p>

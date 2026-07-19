@@ -167,8 +167,15 @@
       <ol>
         <li><strong>Download the Arcade-Museum manual PDF locally</strong>, then ingest the scoring chart and dip-switch settings.</li>
         <li><strong>MAME machine and video drivers</strong> — now consulted for memory and display mapping. They do not contain the game-programmed maze topology or AI behavior.</li>
-        <li><strong>ROM disassembly</strong> if one exists publicly — would resolve enemy AI specifics.</li>
+        <li><strong>Enemy AI timing refinements</strong> — stage-dependent pursuit bias and exact den re-release delay still require frame captures.</li>
       </ol>
+    </section>
+
+    <section>
+      <h2>Enemy control disassembly</h2>
+      <p>The MAME 0.220 program ROM uses four five-byte records beginning at <code>$602B</code>. Flag bit 1 marks an active enemy; the frame dispatcher at <code>$407E</code> visits all four active records and calls <code>$42BA</code> independently.</p>
+      <p>At an aligned junction, <code>$42BA-$43EF</code> builds a direction candidate, rejects it through the shared maze collision routine at <code>$3911</code> and the gate/tile probe at <code>$4130</code>, and writes the accepted direction back. Candidate seeds at <code>$61C4-$61C7</code> are pseudo-random cardinal bits or rotations of a common bias. Enemies consume dynamic gate-navigation state but do not execute the player's gate-rotation path.</p>
+      <p>The object probe at <code>$437B</code> recognizes a skull, erases that object, and sets one bit in <code>$61B4</code> for the colliding enemy. The next <code>$407E</code> pass clears only that enemy's active flags, confirming per-enemy and per-skull scope.</p>
     </section>
 
     <section>

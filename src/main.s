@@ -100,6 +100,10 @@ ENEMY_ANIM   equ $0254         ; first den enemy animation phase
 ENEMY_TIMER  equ $0255         ; Vbord countdown to next enemy frame
 TURN_SNAP    equ $0256         ; diagonal late-turn updates remaining, 0..3
 TURN_OLD     equ $0257         ; direction being corrected during late turn
+ENEMY_PTR    equ $0258         ; u16 current enemy record
+ENEMY_COUNT  equ $025A         ; active/released enemy count, 0..4
+ENEMY_WORK   equ $025B         ; loop/candidate scratch
+ENEMY_PROBE  equ $025C         ; nonzero prevents enemies rotating gates
 
 DIR_NORTH     equ 0
 DIR_EAST      equ 1
@@ -174,6 +178,8 @@ ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
 PICKUP_BG   equ $A3B0          ; 64-byte background below score popup
 ENEMY_BG    equ $A3F0          ; 128-byte background under first den enemy
 ENEMY_FB    equ $57EC          ; top-left at lower nest cell (12,12)
+ENEMY_TABLE equ $A470          ; four active,x,y,direction records
+ENEMY_BGS   equ $A480          ; four 128-byte background buffers
 
 ;==============================================================================
 ;  Cart ROM
@@ -577,16 +583,6 @@ dmh_draw
         lbsr    draw_recolored_map_tile
         rts
 
-; Indexed by object-mask number 0..11.
-special_letter_bits
-        fcb     0,0,$20,$08,$04,$10,$40,$02,0,$01,0,0
-special_letter_x
-        fcb     0,0,6,4,3,5,7,2,0,1,0,0
-extra_letter_bits
-        fcb     0,0,$10,0,$01,0,0,0,$08,0,$04,$02
-extra_letter_x
-        fcb     0,0,5,0,1,0,0,0,4,0,3,2
-
 check_stage_clear
         lda     DOTS_LEFT
         bne     csc_done
@@ -595,6 +591,9 @@ check_stage_clear
         inc     STAGE_PENDING
 csc_done
         rts
+
+special_letter_bits
+        fcb     0,0,$20,$08,$04,$10,$40,$02,0,$01,0,0
 
 draw_hud
         lda     #2
@@ -1285,6 +1284,7 @@ ptt_draw
         cmpa    #92
         blo     ptt_done
         clr     BOX_INDEX
+        lbsr    enemy_release
         lda     BOX_PHASE
         eora    #1
         sta     BOX_PHASE
@@ -1411,22 +1411,6 @@ dpb_store
         dec     HUD_COUNT
         bne     dpb_row
         rts
-
-object_mask_lut
-        fcb     $FF,$F0,$F0,$F0,$0F,$00,$00,$00
-        fcb     $0F,$00,$00,$00,$0F,$00,$00,$00
-object_red_lut
-        fcb     $00,$00,$01,$04,$00,$00,$01,$04
-        fcb     $10,$10,$11,$14,$40,$40,$41,$44
-object_yellow_lut
-        fcb     $00,$00,$02,$04,$00,$00,$02,$04
-        fcb     $20,$20,$22,$24,$40,$40,$42,$44
-object_blue_lut
-        fcb     $00,$00,$03,$04,$00,$00,$03,$04
-        fcb     $30,$30,$33,$34,$40,$40,$43,$44
-object_skull_lut
-        fcb     $00,$00,$06,$06,$00,$00,$06,$06
-        fcb     $60,$60,$66,$66,$60,$60,$66,$66
 
 ;==============================================================================
 ; init_gate_state
@@ -1970,6 +1954,8 @@ cm_pass_vertical
         bra     cm_try_rotate
 
 cm_try_rotate
+        lda     ENEMY_PROBE
+        lbne    cm_blocked      ; enemies read gate orientation but cannot push
         ; A horizontal bar rotates only when a vertical move pushes an end.
         ldx     #GATE_STATE
         ldb     GATE_ID
@@ -2868,14 +2854,41 @@ pat_count
 pat_done
         rts
 
-; First part enemy remains inside the lower nest cell. It is deliberately
-; absent from collision and release logic in this pass.
+; Four compact enemy records are released one per completed timer circuit.
 init_enemy
         clr     ENEMY_ANIM
+        clr     ENEMY_COUNT
+        clr     ENEMY_PROBE
         lda     #8
         sta     ENEMY_TIMER
+        ldx     #ENEMY_TABLE
+        ldb     #16
+ie_clear
+        clr     ,x+
+        decb
+        bne     ie_clear
+        rts
+
+enemy_release
+        lda     ENEMY_COUNT
+        cmpa    #4
+        bhs     er_done
+        ldb     #4
+        mul
+        ldx     #ENEMY_TABLE
+        leax    d,x
+        lda     #1
+        sta     ,x
+        lda     #12
+        sta     1,x
+        sta     2,x
+        clr     3,x
+        inc     ENEMY_COUNT
+        stx     ENEMY_PTR
+        lbsr    enemy_set_fb
         lbsr    save_enemy
         lbsr    draw_enemy
+er_done
         rts
 
 enemy_tick
@@ -2883,29 +2896,202 @@ enemy_tick
         bne     ent_done
         lda     #8
         sta     ENEMY_TIMER
-        lbsr    restore_enemy
         inc     ENEMY_ANIM
         lda     ENEMY_ANIM
         anda    #3
         sta     ENEMY_ANIM
+        lda     ENEMY_COUNT
+        beq     ent_done
+        sta     ENEMY_WORK
+        ldx     #ENEMY_TABLE
+ent_restore
+        stx     ENEMY_PTR
+        tst     ,x
+        beq     ent_restore_next
+        lbsr    enemy_set_fb
+        lbsr    restore_enemy
+ent_restore_next
+        ldx     ENEMY_PTR
+        leax    4,x
+        dec     ENEMY_WORK
+        bne     ent_restore
+        lda     ENEMY_COUNT
+        sta     ENEMY_WORK
+        ldx     #ENEMY_TABLE
+ent_move
+        stx     ENEMY_PTR
+        tst     ,x
+        beq     ent_next
+        lbsr    enemy_choose_move
+        lbsr    enemy_check_contact
+        ldx     ENEMY_PTR
+        tst     ,x
+        beq     ent_next
+        lbsr    enemy_set_fb
+        lbsr    save_enemy
         lbsr    draw_enemy
+ent_next
+        ldx     ENEMY_PTR
+        leax    4,x
+        dec     ENEMY_WORK
+        bne     ent_move
 ent_done
         rts
 
+; Try four directions beginning with the current LFSR low bits.  This mirrors
+; the arcade's random candidate list followed by collision rejection.
+enemy_choose_move
+        lda     RNG_STATE+1
+        anda    #3
+        sta     3,x
+        ldb     #4
+ecm_try
+        pshs    b,x
+        lda     PLAYER_CELL_X
+        pshs    a
+        lda     1,x
+        sta     PLAYER_CELL_X
+        lda     PLAYER_CELL_Y
+        pshs    a
+        lda     2,x
+        sta     PLAYER_CELL_Y
+        lda     #1
+        sta     ENEMY_PROBE
+        lda     3,x
+        lbsr    can_move
+        bcc     ecm_mark_blocked
+        lda     #2
+        bra     ecm_marked
+ecm_mark_blocked
+        lda     #1
+ecm_marked
+        sta     ENEMY_PROBE
+        puls    a
+        sta     PLAYER_CELL_Y
+        puls    a
+        sta     PLAYER_CELL_X
+        puls    b,x
+        dec     ENEMY_PROBE
+        bne     ecm_go
+        inc     3,x
+        lda     3,x
+        anda    #3
+        sta     3,x
+        decb
+        bne     ecm_try
+        rts
+ecm_go
+        lda     3,x
+        beq     ecm_north
+        cmpa    #DIR_EAST
+        beq     ecm_east
+        cmpa    #DIR_SOUTH
+        beq     ecm_south
+        dec     1,x
+        rts
+ecm_north
+        dec     2,x
+        rts
+ecm_east
+        inc     1,x
+        rts
+ecm_south
+        inc     2,x
+        rts
+
+; Player contact starts the normal death sequence. Skull contact removes only
+; this enemy and the matching skull record.
+enemy_check_contact
+        lda     1,x
+        cmpa    PLAYER_CELL_X
+        bne     ecc_skulls
+        lda     2,x
+        cmpa    PLAYER_CELL_Y
+        bne     ecc_skulls
+        clr     DEATH_TIMER
+        lda     #1
+        sta     DEATH_STATE
+        lda     #DIR_NONE
+        sta     PLAYER_DIR
+        sta     PLAYER_WANT
+        rts
+ecc_skulls
+        ldu     #ENTITY_TABLE
+        ldb     ENTITY_COUNT
+ecc_loop
+        lda     2,u
+        cmpa    #ENTITY_SKULL
+        bne     ecc_next
+        lda     ,u
+        cmpa    1,x
+        bne     ecc_next
+        lda     1,u
+        cmpa    2,x
+        bne     ecc_next
+        clr     2,u
+        clr     ,x
+        lda     ,u
+        sta     ENTITY_X
+        lda     1,u
+        sta     ENTITY_Y
+        pshs    x,u
+        lbsr    restore_entity_footprint
+        puls    x,u
+        rts
+ecc_next
+        leau    4,u
+        decb
+        bne     ecc_loop
+        rts
+
+; Convert enemy cell coordinates to the 16x16 top-left framebuffer pointer:
+; row = y*8-7, byte column = x*4+28.
+enemy_set_fb
+        ldx     ENEMY_PTR
+        lda     2,x
+        ldb     #8
+        mul
+        subb    #7
+        stb     TEST_Y
+        ldd     #FB_VIRT+28
+esf_row
+        tst     TEST_Y
+        beq     esf_rows_done
+        addd    #160
+        dec     TEST_Y
+        bra     esf_row
+esf_rows_done
+        std     ENTITY_PTR
+        ldx     ENEMY_PTR
+        lda     1,x
+        ldb     #4
+        mul
+        addd    ENTITY_PTR
+        std     ENTITY_PTR       ; shared framebuffer-pointer scratch
+        rts
+
 draw_enemy
-        lda     ENEMY_ANIM
+        clra                    ; first pass keeps one packed enemy frame
         ldb     #PACKED_SPRITE_SIZE
         mul
         leay    enemy_sprites,pcr
         leay    d,y
-        ldx     #ENEMY_FB
+        ldx     ENTITY_PTR
         leau    sprite_attr0_pairs,pcr
         lbsr    blit_packed_sprite
         rts
 
 save_enemy
-        ldx     #ENEMY_FB
-        ldu     #ENEMY_BG
+        ldx     ENTITY_PTR
+        lda     ENEMY_PTR+1
+        suba    #$70
+        lsla
+        lsla
+        lsla
+        lsla
+        lsla
+        ldu     #ENEMY_BGS
+        leau    a,u
         ldy     #16
 se_row
         ldd     ,x++
@@ -2922,8 +3108,16 @@ se_row
         rts
 
 restore_enemy
-        ldx     #ENEMY_FB
-        ldu     #ENEMY_BG
+        ldx     ENTITY_PTR
+        lda     ENEMY_PTR+1
+        suba    #$70
+        lsla
+        lsla
+        lsla
+        lsla
+        lsla
+        ldu     #ENEMY_BGS
+        leau    a,u
         ldy     #16
 re_row
         ldd     ,u++
@@ -2983,33 +3177,6 @@ msb_low
         orb     HUD_BYTE
         stb     ,x+
         rts
-
-sprite_attr0_pairs
-        fcb     $00,$0C,$05,$02,$C0,$CC,$C5,$C2
-        fcb     $50,$5C,$55,$52,$20,$2C,$25,$22
-sprite_red_pairs
-        fcb     $00,$01,$01,$01,$10,$11,$11,$11
-        fcb     $10,$11,$11,$11,$10,$11,$11,$11
-sprite_yellow_pairs
-        fcb     $00,$02,$02,$02,$20,$22,$22,$22
-        fcb     $20,$22,$22,$22,$20,$22,$22,$22
-sprite_blue_pairs
-        fcb     $00,$03,$03,$03,$30,$33,$33,$33
-        fcb     $30,$33,$33,$33,$30,$33,$33,$33
-sprite_white_pairs
-        fcb     $00,$06,$06,$06,$60,$66,$66,$66
-        fcb     $60,$66,$66,$66,$60,$66,$66,$66
-; Set-B score palettes preserve the graphic's colored body, Green details,
-; and White digits instead of collapsing all nonzero pens into one shape.
-sprite_score_red_pairs
-        fcb     $00,$01,$05,$06,$10,$11,$15,$16
-        fcb     $50,$51,$55,$56,$60,$61,$65,$66
-sprite_score_yellow_pairs
-        fcb     $00,$02,$05,$06,$20,$22,$25,$26
-        fcb     $50,$52,$55,$56,$60,$62,$65,$66
-sprite_score_blue_pairs
-        fcb     $00,$03,$05,$06,$30,$33,$35,$36
-        fcb     $50,$53,$55,$56,$60,$63,$65,$66
 
 ;==============================================================================
 ; save_player — save the 16x16 framebuffer rectangle under the player.
@@ -3230,6 +3397,55 @@ asset_start
 ;   before invoking lwasm.
         include "ladybug_screen.inc"
         include "ladybug_maze.inc"
+
+; Cold immutable lookup data relocated here to preserve resident code space.
+special_letter_x
+        fcb     0,0,6,4,3,5,7,2,0,1,0,0
+extra_letter_bits
+        fcb     0,0,$10,0,$01,0,0,0,$08,0,$04,$02
+extra_letter_x
+        fcb     0,0,5,0,1,0,0,0,4,0,3,2
+
+object_mask_lut
+        fcb     $FF,$F0,$F0,$F0,$0F,$00,$00,$00
+        fcb     $0F,$00,$00,$00,$0F,$00,$00,$00
+object_red_lut
+        fcb     $00,$00,$01,$04,$00,$00,$01,$04
+        fcb     $10,$10,$11,$14,$40,$40,$41,$44
+object_yellow_lut
+        fcb     $00,$00,$02,$04,$00,$00,$02,$04
+        fcb     $20,$20,$22,$24,$40,$40,$42,$44
+object_blue_lut
+        fcb     $00,$00,$03,$04,$00,$00,$03,$04
+        fcb     $30,$30,$33,$34,$40,$40,$43,$44
+object_skull_lut
+        fcb     $00,$00,$06,$06,$00,$00,$06,$06
+        fcb     $60,$60,$66,$66,$60,$60,$66,$66
+
+sprite_attr0_pairs
+        fcb     $00,$0C,$05,$02,$C0,$CC,$C5,$C2
+        fcb     $50,$5C,$55,$52,$20,$2C,$25,$22
+sprite_red_pairs
+        fcb     $00,$01,$01,$01,$10,$11,$11,$11
+        fcb     $10,$11,$11,$11,$10,$11,$11,$11
+sprite_yellow_pairs
+        fcb     $00,$02,$02,$02,$20,$22,$22,$22
+        fcb     $20,$22,$22,$22,$20,$22,$22,$22
+sprite_blue_pairs
+        fcb     $00,$03,$03,$03,$30,$33,$33,$33
+        fcb     $30,$33,$33,$33,$30,$33,$33,$33
+sprite_white_pairs
+        fcb     $00,$06,$06,$06,$60,$66,$66,$66
+        fcb     $60,$66,$66,$66,$60,$66,$66,$66
+sprite_score_red_pairs
+        fcb     $00,$01,$05,$06,$10,$11,$15,$16
+        fcb     $50,$51,$55,$56,$60,$61,$65,$66
+sprite_score_yellow_pairs
+        fcb     $00,$02,$05,$06,$20,$22,$25,$26
+        fcb     $50,$52,$55,$56,$60,$62,$65,$66
+sprite_score_blue_pairs
+        fcb     $00,$03,$05,$06,$30,$33,$35,$36
+        fcb     $50,$53,$55,$56,$60,$63,$65,$66
 
 asset_end
 
