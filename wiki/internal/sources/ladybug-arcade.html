@@ -176,6 +176,7 @@
       <p>The MAME 0.220 program ROM uses four five-byte records beginning at <code>$602B</code>. Flag bit 1 marks an active enemy; the frame dispatcher at <code>$407E</code> visits all four active records and calls <code>$42BA</code> independently.</p>
       <p>At an aligned junction, <code>$42BA-$43EF</code> builds a direction candidate, rejects it through the shared maze collision routine at <code>$3911</code> and the gate/tile probe at <code>$4130</code>, and writes the accepted direction back. Candidate seeds at <code>$61C4-$61C7</code> are pseudo-random cardinal bits or rotations of a common bias. Enemies consume dynamic gate-navigation state but do not execute the player's gate-rotation path.</p>
       <p>The object probe at <code>$437B</code> recognizes a skull, erases that object, and sets one bit in <code>$61B4</code> for the colliding enemy. The next <code>$407E</code> pass clears only that enemy's active flags, confirming per-enemy and per-skull scope.</p>
+      <p>A 2026-07-19 per-frame release capture, summarized in <code>assets/arcade/enemy_release_reference.json</code>, established the den presentation contract. Record 1 changes from dormant <code>40 10 50 00 00</code> at frame 1480 to active <code>81 58 86 18 01</code> at frame 1481. At frame 1496 the released enemy overlaps a newly visible four-frame den animation; record 2 remains all zero. Therefore the animated den actor is independent of the four active-enemy records and must remain visible while released enemies exit over it.</p>
     </section>
 
     <section>

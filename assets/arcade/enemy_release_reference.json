@@ -1,0 +1,56 @@
+{
+  "schema": "ladybug-mame-enemy-release-reference-v1",
+  "provenance": {
+    "driver": "ladybug",
+    "mame_version": "0.220",
+    "capture_date": "2026-07-19",
+    "plan": "scripts/mame_plans/live-idle-death.json",
+    "work_ram": "$6000-$6fff per frame",
+    "video": "BGRA32 frames 1468-1560"
+  },
+  "enemy_records": {
+    "base": "$602b",
+    "record_size": 5,
+    "snapshots": [
+      {
+        "frame": 548,
+        "records_hex": ["82 58 86 18 01", "40 10 50 00 00", "00 00 00 00 00", "00 00 00 00 00"],
+        "observation": "First gameplay enemy active at the den coordinates."
+      },
+      {
+        "frame": 1480,
+        "records_hex": ["82 58 87 18 01", "40 10 50 00 00", "00 00 00 00 00", "00 00 00 00 00"],
+        "observation": "Second record remains dormant immediately before release."
+      },
+      {
+        "frame": 1481,
+        "records_hex": ["82 58 87 18 01", "81 58 86 18 01", "00 00 00 00 00", "00 00 00 00 00"],
+        "observation": "Second record activates at the den coordinates."
+      }
+    ]
+  },
+  "video_observations": [
+    {
+      "frames": [1478, 1480],
+      "observation": "The four-frame den animation is visible before record 1 activates."
+    },
+    {
+      "frames": [1481, 1488],
+      "observation": "The released enemy begins extending upward from the den."
+    },
+    {
+      "frame": 1496,
+      "observation": "The released enemy overlaps a newly visible den animation."
+    },
+    {
+      "frames": [1504, 1550],
+      "observation": "The released enemy moves above the nest while the separate den animation continues below. Record 2 remains zero, proving the den animation is not the next active record."
+    }
+  ],
+  "implementation_constraints": [
+    "Preserve the independent animated den actor when an enemy record activates.",
+    "Support overlap between the den actor and a released enemy immediately after release.",
+    "Use restore-all, update-all, save-all, draw-all compositing; never let one actor's save buffer capture another actor.",
+    "Framebuffer changes outside the union of old and new actor rectangles are a test failure."
+  ]
+}

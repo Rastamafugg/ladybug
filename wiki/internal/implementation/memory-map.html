@@ -30,8 +30,8 @@
         <li><strong>8 MMU PARs</strong>, each maps an 8 K virtual page to a 6-bit physical-page number (see <a href="../../release/reference/coco3/memory-map.html">CoCo 3 memory map</a>, <a href="../../release/reference/coco3/gime.html">GIME</a>).</li>
         <li><strong>64 physical pages</strong> of RAM on a 512 K machine, numbered <code>$00-$3F</code>. RAM is populated top-down — <code>$3F</code> is highest.</li>
         <li><strong>Framebuffer</strong> = 30 720 bytes = 4 pages (3.75 actually used). GIME reads it via physical address, bypassing the MMU.</li>
-        <li><strong>Code</strong> lives and executes directly from cart ROM at virtual <code>$C000-$DFFF</code>. The current build keeps TY=0 and maps PAR6 to <code>$3E</code>; the former shadow-RAM self-copy/all-RAM transition was removed 2026-07-16.</li>
-        <li><strong>Delivery cartridge</strong> is a 64 K GMC image containing four 16 K banks. Bank 1 currently holds the historical runtime payload; banks 2–3 are expansion space.</li>
+        <li><strong>Resident code</strong> is copied from GMC bank 1 into physical page <code>$3E</code>. The enemy runtime is copied once from bank 3 offset <code>$0800</code> to low RAM <code>$0800-$0FFF</code>.</li>
+        <li><strong>Delivery cartridge</strong> is a 64 K GMC image containing four 16 K banks. Bank 0 is the loader, bank 1 is the resident runtime/assets, bank 2 is reserved, and bank 3 owns the enemy module.</li>
         <li><strong><code>$FF00-$FFFF</code> is dedicated I/O</strong>, not cart-visible. <strong><code>$FE00-$FEFF</code> is forced</strong> to phys <code>$3F</code> regardless of PAR7 when Init0 b3 is set — the primary jump table stays reachable.</li>
       </ul>
     </section>
@@ -42,7 +42,7 @@
       <table class="wiki-table">
         <thead><tr><th>Use</th><th>Pages</th><th>Why</th></tr></thead>
         <tbody>
-          <tr><td>Low RAM (system, DP, stack, scratch)</td><td>1</td><td>Always-on; DP at <code>$0200</code>, stack near <code>$1FFE</code>.</td></tr>
+          <tr><td>Low RAM (system, DP, stack, scratch)</td><td>1</td><td>Always-on; DP at <code>$0000</code>, stack near <code>$1FFE</code>.</td></tr>
           <tr><td>Framebuffer</td><td>4</td><td>Need CPU write access while drawing. Could be 1 with a sliding window, but per-blit PAR juggling adds renderer cost.</td></tr>
           <tr><td>Game-state RAM</td><td>1</td><td>Entity tables, score, frame counters, input state — Phase 4+ stuff that doesn't fit in low RAM.</td></tr>
           <tr><td>Data tables (sprites, tiles, font, maze, palette)</td><td>1-2</td><td>Future RAM-resident or banked design; current tables remain in cart ROM.</td></tr>
@@ -60,7 +60,9 @@
     <section>
       <h2>Phase 4 mapping (current target)</h2>
 <pre><code>Virtual          PAR  Phys  Bytes  Use
-$0000-$1FFF      0    $38   8 K    Low RAM (DP, stack, scratch)
+$0000-$07FF      0    $38   2 K    DP, loader scratch, and low-RAM state
+$0800-$0FFF      0    $38   2 K    Bank-3 enemy runtime copy
+$1000-$1FFF      0    $38   4 K    Free low RAM and stack at $1FFE
 $2000-$3FFF      1    $30   8 K    Framebuffer page 0
 $4000-$5FFF      2    $31   8 K    Framebuffer page 1
 $6000-$7FFF      3    $32   8 K    Framebuffer page 2
@@ -71,8 +73,13 @@ $A254-$A2FF      5    $34   172 B  Reserved game-state growth
 $A300-$A37F      5    $34   128 B  Player background save buffer
 $A380-$A3AF      5    $34    48 B  Twelve x/y/type/variant collectible records
 $A3B0-$A3EF      5    $34    64 B  Score-popup lower background buffer
-$A3F0-$A46F      5    $34   128 B  First stationary enemy background buffer
-$A470-$BFFF      5    $34   —      Free game-state RAM
+$A3F0-$A46F      5    $34   128 B  Compact clean player compositor stage
+$A470-$A487      5    $34    24 B  Four six-byte active-enemy records
+$A488-$A48F      5    $34     8 B  Reserved alignment
+$A490-$A58F      5    $34   256 B  Clean 16-by-32 nest-zone background
+$A590-$A60F      5    $34   128 B  Compact off-screen nest compositor lower half
+$A610-$A68F      5    $34   128 B  Nest upper half / transient old-player stage
+$A690-$BFFF      5    $34   —      Free game-state RAM
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
@@ -280,8 +287,8 @@ $FF00-$FFFF        256 B   I/O; never cart data
 </code></pre>
       <p>
         The current immutable block begins at <code>palette_table=$E000</code>
-        and ends before <code>asset_end=$FDC4</code>. The restored spawner baseline uses 8,068 resident
-        bytes and 7,620 asset bytes, leaving 124 bytes for resident-code
+        and ends before <code>asset_end=$FDC4</code>. The Vbord-first player/death-reset build uses 8,045 resident
+        bytes and 7,620 asset bytes, leaving 147 bytes for resident-code
         growth and 60 bytes for additional static data, subject to the
         independent region limits. The resident total includes twelve curated
         128-byte death frames because the static asset window cannot hold them.
@@ -320,10 +327,13 @@ $FF00-$FFFF        256 B   I/O; never cart data
     </section>
 
     <section>
-      <h2>Direct-page allocation (<code>$0200-$02FF</code>)</h2>
+      <h2>Direct-page allocation (<code>$0000-$00FF</code>)</h2>
       <p>
-        Holding a page at <code>$02xx</code> for hot variables (set
-        2026-05-08, <a href="./coding-conventions.html">coding-conventions §1</a>).
+        Runtime <code>DP</code> is zero and hot variables occupy <code>$00xx</code>.
+        Resident and bank-3 modules must use this same absolute page as well as
+        the same direct addressing contract (corrected 2026-07-20; see
+        <a href="./coding-conventions.html">coding-conventions §1</a>).
+        The loader handshake byte remains outside DP at <code>$02F0</code>.
         Current allocation:
       </p>
       <table class="wiki-table">
@@ -347,7 +357,10 @@ $FF00-$FFFF        256 B   I/O; never cart data
           <tr><td><code>$4A-$4E</code></td><td>perimeter timer/index/phase plus death state/frame</td><td>5 B</td><td>Phase 5 timer and death state machines</td></tr>
           <tr><td><code>$4F-$55</code></td><td>player/pickup/angel/enemy animation state</td><td>7 B</td><td>Curated sprite state machines; angel phase indexes a 20-frame eased lateral cycle</td></tr>
           <tr><td><code>$56-$57</code></td><td><code>TURN_SNAP</code>, <code>TURN_OLD</code></td><td>2 B</td><td>Late-corner and gate diagonal correction</td></tr>
-          <tr><td><code>$58-$FF</code></td><td>(free)</td><td>168 B</td><td>Future hot state</td></tr>
+          <tr><td><code>$58-$66</code></td><td>enemy counts, timers, compositor scratch</td><td>15 B</td><td>Bank-3 enemy runtime</td></tr>
+          <tr><td><code>$67-$6B</code></td><td>old player pointer, erase/save validity, queued player tick</td><td>5 B</td><td>Staged player renderer</td></tr>
+          <tr><td><code>$6C-$6E</code></td><td>player compositor delta and row scratch</td><td>3 B</td><td>Bank-3 player compositor</td></tr>
+          <tr><td><code>$6F-$FF</code></td><td>(free)</td><td>145 B</td><td>Future hot state</td></tr>
         </tbody>
       </table>
       <p>Plenty of room. Maintain this table as variables land.</p>

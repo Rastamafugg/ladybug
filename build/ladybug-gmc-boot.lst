@@ -31,7 +31,7 @@ C01F B7FF90           (c/gmc_bootstrap.s):00030                 sta     GIME_INI
 C022 B7FFDE           (c/gmc_bootstrap.s):00031                 sta     SAM_CART        ; BASIC autorun may leave TY=1; expose GMC ROM
 C025 308D0016         (c/gmc_bootstrap.s):00032                 leax    loader_start,pcr
 C029 108E0300         (c/gmc_bootstrap.s):00033                 ldy     #LOADER_RAM
-C02D CE0063           (c/gmc_bootstrap.s):00034                 ldu     #loader_end-loader_start
+C02D CE0078           (c/gmc_bootstrap.s):00034                 ldu     #loader_end-loader_start
 C030                  (c/gmc_bootstrap.s):00035         boot_copy
 C030 A680             (c/gmc_bootstrap.s):00036                 lda     ,x+
 C032 A7A0             (c/gmc_bootstrap.s):00037                 sta     ,y+
@@ -46,66 +46,80 @@ C03F 8602             (c/gmc_bootstrap.s):00045                 lda     #2
 C041 B7FF50           (c/gmc_bootstrap.s):00046                 sta     GMC_BANK
 C044 FCC010           (c/gmc_bootstrap.s):00047                 ldd     $C010
 C047 1083B202         (c/gmc_bootstrap.s):00048                 cmpd    #$B202
-C04B 2650             (c/gmc_bootstrap.s):00049                 bne     loader_fail
+C04B 2665             (c/gmc_bootstrap.s):00049                 bne     loader_fail
 C04D 8603             (c/gmc_bootstrap.s):00050                 lda     #3
 C04F B7FF50           (c/gmc_bootstrap.s):00051                 sta     GMC_BANK
 C052 FCC010           (c/gmc_bootstrap.s):00052                 ldd     $C010
 C055 1083B303         (c/gmc_bootstrap.s):00053                 cmpd    #$B303
-C059 2642             (c/gmc_bootstrap.s):00054                 bne     loader_fail
+C059 2657             (c/gmc_bootstrap.s):00054                 bne     loader_fail
 C05B 865A             (c/gmc_bootstrap.s):00055                 lda     #$5A
 C05D B702F1           (c/gmc_bootstrap.s):00056                 sta     BOOT_PROOF
                       (c/gmc_bootstrap.s):00057         
-                      (c/gmc_bootstrap.s):00058                 ; Bank 1 contains the current 16 KiB runtime image. Copy its resident
-                      (c/gmc_bootstrap.s):00059                 ; 8 KiB through PAR5 to phys $3E.
-C060 8601             (c/gmc_bootstrap.s):00060                 lda     #1
-C062 B7FF50           (c/gmc_bootstrap.s):00061                 sta     GMC_BANK
-C065 8EC000           (c/gmc_bootstrap.s):00062                 ldx     #$C000
-C068 108EA000         (c/gmc_bootstrap.s):00063                 ldy     #$A000
-C06C                  (c/gmc_bootstrap.s):00064         copy_resident
-C06C EC81             (c/gmc_bootstrap.s):00065                 ldd     ,x++
-C06E EDA1             (c/gmc_bootstrap.s):00066                 std     ,y++
-C070 8CE000           (c/gmc_bootstrap.s):00067                 cmpx    #$E000
-C073 25F7             (c/gmc_bootstrap.s):00068                 blo     copy_resident
-                      (c/gmc_bootstrap.s):00069         
-                      (c/gmc_bootstrap.s):00070                 ; Copy the usable asset window to phys $3F. $FE00-$FFFF remains the
-                      (c/gmc_bootstrap.s):00071                 ; forced-RAM/I/O area and is not cartridge payload.
-C075 863F             (c/gmc_bootstrap.s):00072                 lda     #$3F
-C077 B7FFA5           (c/gmc_bootstrap.s):00073                 sta     PAR_EXEC+5
-C07A 8EE000           (c/gmc_bootstrap.s):00074                 ldx     #$E000
-C07D 108EA000         (c/gmc_bootstrap.s):00075                 ldy     #$A000
-C081                  (c/gmc_bootstrap.s):00076         copy_assets
-C081 EC81             (c/gmc_bootstrap.s):00077                 ldd     ,x++
-C083 EDA1             (c/gmc_bootstrap.s):00078                 std     ,y++
-C085 8CFE00           (c/gmc_bootstrap.s):00079                 cmpx    #$FE00
-C088 25F7             (c/gmc_bootstrap.s):00080                 blo     copy_assets
-                      (c/gmc_bootstrap.s):00081         
-C08A 86A5             (c/gmc_bootstrap.s):00082                 lda     #$A5
-C08C B702F0           (c/gmc_bootstrap.s):00083                 sta     BOOT_FLAG
-C08F 8634             (c/gmc_bootstrap.s):00084                 lda     #$34
-C091 B7FFA5           (c/gmc_bootstrap.s):00085                 sta     PAR_EXEC+5
-C094 B7FFD9           (c/gmc_bootstrap.s):00086                 sta     SAM_FAST
-C097 B7FFDF           (c/gmc_bootstrap.s):00087                 sta     SAM_ALLRAM
-C09A 7EC000           (c/gmc_bootstrap.s):00088                 jmp     $C000
-                      (c/gmc_bootstrap.s):00089         
-C09D                  (c/gmc_bootstrap.s):00090         loader_fail
-C09D 7F02F1           (c/gmc_bootstrap.s):00091                 clr     BOOT_PROOF
-C0A0 20FB             (c/gmc_bootstrap.s):00092                 bra     loader_fail
-C0A2                  (c/gmc_bootstrap.s):00093         loader_end
+                      (c/gmc_bootstrap.s):00058                 ; Bank 3 offset $0800 contains an absolute low-RAM enemy module.
+                      (c/gmc_bootstrap.s):00059                 ; Copying it once avoids frame-time GMC switching and preserves the
+                      (c/gmc_bootstrap.s):00060                 ; resident MMU mapping used by the framebuffer.
+C060 8603             (c/gmc_bootstrap.s):00061                 lda     #3
+C062 B7FF50           (c/gmc_bootstrap.s):00062                 sta     GMC_BANK
+C065 8EC800           (c/gmc_bootstrap.s):00063                 ldx     #$C800
+C068 108E0800         (c/gmc_bootstrap.s):00064                 ldy     #$0800
+C06C                  (c/gmc_bootstrap.s):00065         copy_enemy_runtime
+C06C EC81             (c/gmc_bootstrap.s):00066                 ldd     ,x++
+C06E EDA1             (c/gmc_bootstrap.s):00067                 std     ,y++
+C070 8CD000           (c/gmc_bootstrap.s):00068                 cmpx    #$D000
+C073 25F7             (c/gmc_bootstrap.s):00069                 blo     copy_enemy_runtime
+                      (c/gmc_bootstrap.s):00070         
+                      (c/gmc_bootstrap.s):00071                 ; Bank 1 contains the current 16 KiB runtime image. Copy its resident
+                      (c/gmc_bootstrap.s):00072                 ; 8 KiB through PAR5 to phys $3E.
+C075 8601             (c/gmc_bootstrap.s):00073                 lda     #1
+C077 B7FF50           (c/gmc_bootstrap.s):00074                 sta     GMC_BANK
+C07A 8EC000           (c/gmc_bootstrap.s):00075                 ldx     #$C000
+C07D 108EA000         (c/gmc_bootstrap.s):00076                 ldy     #$A000
+C081                  (c/gmc_bootstrap.s):00077         copy_resident
+C081 EC81             (c/gmc_bootstrap.s):00078                 ldd     ,x++
+C083 EDA1             (c/gmc_bootstrap.s):00079                 std     ,y++
+C085 8CE000           (c/gmc_bootstrap.s):00080                 cmpx    #$E000
+C088 25F7             (c/gmc_bootstrap.s):00081                 blo     copy_resident
+                      (c/gmc_bootstrap.s):00082         
+                      (c/gmc_bootstrap.s):00083                 ; Copy the usable asset window to phys $3F. $FE00-$FFFF remains the
+                      (c/gmc_bootstrap.s):00084                 ; forced-RAM/I/O area and is not cartridge payload.
+C08A 863F             (c/gmc_bootstrap.s):00085                 lda     #$3F
+C08C B7FFA5           (c/gmc_bootstrap.s):00086                 sta     PAR_EXEC+5
+C08F 8EE000           (c/gmc_bootstrap.s):00087                 ldx     #$E000
+C092 108EA000         (c/gmc_bootstrap.s):00088                 ldy     #$A000
+C096                  (c/gmc_bootstrap.s):00089         copy_assets
+C096 EC81             (c/gmc_bootstrap.s):00090                 ldd     ,x++
+C098 EDA1             (c/gmc_bootstrap.s):00091                 std     ,y++
+C09A 8CFE00           (c/gmc_bootstrap.s):00092                 cmpx    #$FE00
+C09D 25F7             (c/gmc_bootstrap.s):00093                 blo     copy_assets
                       (c/gmc_bootstrap.s):00094         
-                      (c/gmc_bootstrap.s):00095                 end
+C09F 86A5             (c/gmc_bootstrap.s):00095                 lda     #$A5
+C0A1 B702F0           (c/gmc_bootstrap.s):00096                 sta     BOOT_FLAG
+C0A4 8634             (c/gmc_bootstrap.s):00097                 lda     #$34
+C0A6 B7FFA5           (c/gmc_bootstrap.s):00098                 sta     PAR_EXEC+5
+C0A9 B7FFD9           (c/gmc_bootstrap.s):00099                 sta     SAM_FAST
+C0AC B7FFDF           (c/gmc_bootstrap.s):00100                 sta     SAM_ALLRAM
+C0AF 7EC000           (c/gmc_bootstrap.s):00101                 jmp     $C000
+                      (c/gmc_bootstrap.s):00102         
+C0B2                  (c/gmc_bootstrap.s):00103         loader_fail
+C0B2 7F02F1           (c/gmc_bootstrap.s):00104                 clr     BOOT_PROOF
+C0B5 20FB             (c/gmc_bootstrap.s):00105                 bra     loader_fail
+C0B7                  (c/gmc_bootstrap.s):00106         loader_end
+                      (c/gmc_bootstrap.s):00107         
+                      (c/gmc_bootstrap.s):00108                 end
 
 Symbol Table:
 [ G] boot_copy                        C030
 [ G] boot_entry                       C002
 [ G] BOOT_FLAG                        02F0
 [ G] BOOT_PROOF                       02F1
-[ G] copy_assets                      C081
-[ G] copy_resident                    C06C
+[ G] copy_assets                      C096
+[ G] copy_enemy_runtime               C06C
+[ G] copy_resident                    C081
 [ G] GIME_INIT0                       FF90
 [ G] GIME_MMU                         FF91
 [ G] GMC_BANK                         FF50
-[ G] loader_end                       C0A2
-[ G] loader_fail                      C09D
+[ G] loader_end                       C0B7
+[ G] loader_fail                      C0B2
 [ G] LOADER_RAM                       0300
 [ G] loader_start                     C03F
 [ G] PAR_EXEC                         FFA0

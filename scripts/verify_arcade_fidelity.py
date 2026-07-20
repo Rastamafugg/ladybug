@@ -82,6 +82,23 @@ def verify_neutral_stop_contract() -> None:
     assert "sta     PLAYER_WANT" not in control[:control.index("pt_input_active\n")]
 
 
+def verify_player_restore_contract() -> None:
+    source = (ROOT / "src/main.s").read_text(encoding="utf-8")
+    tick_start = source.index("\nplayer_tick\n")
+    tick_end = source.index("\n;==============================================================================\n; player_cell_offset", tick_start)
+    tick = source[tick_start:tick_end]
+    prologue = tick[:tick.index("pt_alive\n")]
+    draw = tick[tick.index("\npt_draw\n"):tick.index("\npt_done\n")]
+    expose = tick[tick.index("\nexpose_player_background\n"):]
+    assert "restore_player" not in prologue
+    assert draw.index("jsr     PLAYER_MODULE_COMPOSE") < draw.index("\npt_draw_direct\n")
+    assert expose.index("ldd     PLAYER_OLD_FB") < expose.index("lbsr    restore_player")
+    assert "PLAYER_MODULE_COMPOSE equ $080C" in source
+    assert "pt_arrived\n        lbsr    expose_player_background" not in tick
+    entity = source[source.index("check_entity_pickup\n"):source.index("; Replace the player")]
+    assert "lbsr    expose_player_background" in entity
+
+
 def verify_gate_tables() -> None:
     maze = load("maze.json")
     owner = maze["gate_owner"]
@@ -165,9 +182,10 @@ def main() -> None:
     verify_gate_capture()
     verify_movement_snap()
     verify_neutral_stop_contract()
+    verify_player_restore_contract()
     verify_gate_tables()
     verify_gate_graphics()
-    print("arcade fidelity: neutral stop, 60 px/s, early/late turns, 30-frame popup, gate 17 traversal and graphics verified")
+    print("arcade fidelity: neutral stop, staged player publish, 60 px/s, early/late turns, 30-frame popup, gate 17 traversal and graphics verified")
 
 
 if __name__ == "__main__":

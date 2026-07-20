@@ -16,6 +16,11 @@ BOOT_ROM="$BUILD_DIR/ladybug-gmc-boot.rom"
 BOOT_SRC="$ROOT/src/gmc_bootstrap.s"
 BOOT_LST="$BUILD_DIR/ladybug-gmc-boot.lst"
 BOOT_MAP="$BUILD_DIR/ladybug-gmc-boot.map"
+ENEMY_SRC="$ROOT/src/enemy_runtime.s"
+ENEMY_ROM="$BUILD_DIR/ladybug-enemy-runtime.rom"
+ENEMY_LST="$BUILD_DIR/ladybug-enemy-runtime.lst"
+ENEMY_MAP="$BUILD_DIR/ladybug-enemy-runtime.map"
+RUNTIME_SYMBOLS="$BUILD_DIR/ladybug_runtime_symbols.inc"
 LST="$BUILD_DIR/ladybug.lst"
 MAP="$BUILD_DIR/ladybug.map"
 TESTER_ROM="$BUILD_DIR/tester.rom"
@@ -121,6 +126,36 @@ cmd_build() {
     guard_layout "$MAP" "$RUNTIME_ROM"
     pad_cart "$RUNTIME_ROM"
 
+    python3 - "$MAP" "$RUNTIME_SYMBOLS" <<'PY'
+import re
+import sys
+source, output = sys.argv[1:]
+wanted = {
+    'blit_packed_sprite', 'draw_hud', 'enemy_sprites', 'restore_player',
+    'player_sprites', 'restore_entity_footprint', 'sprite_attr0_pairs',
+    'vegetable_sprites',
+}
+symbols = {}
+for line in open(source, encoding='utf-8'):
+    match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
+    if match and match.group(1) in wanted:
+        symbols[match.group(1)] = match.group(2)
+missing = wanted - symbols.keys()
+if missing:
+    raise SystemExit('build: enemy module symbols missing: ' + ', '.join(sorted(missing)))
+with open(output, 'w', encoding='ascii') as handle:
+    for name in sorted(symbols):
+        handle.write(f'{name} equ ${symbols[name]}\n')
+PY
+
+    lwasm -9 --format=raw \
+          --output="$ENEMY_ROM" \
+          --list="$ENEMY_LST" \
+          --symbols \
+          --map="$ENEMY_MAP" \
+          -I "$BUILD_DIR" \
+          "$ENEMY_SRC"
+
     lwasm -9 --format=raw \
           --output="$BOOT_ROM" \
           --list="$BOOT_LST" \
@@ -129,17 +164,21 @@ cmd_build() {
           "$BOOT_SRC"
     pad_cart "$BOOT_ROM"
 
-    python3 - "$BOOT_ROM" "$RUNTIME_ROM" "$ROM" "$GMC_BYTES" <<'PY'
+    python3 - "$BOOT_ROM" "$RUNTIME_ROM" "$ENEMY_ROM" "$ROM" "$GMC_BYTES" <<'PY'
 import sys
-boot_path, runtime_path, output_path, target = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+boot_path, runtime_path, enemy_path, output_path, target = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], int(sys.argv[5])
 boot = open(boot_path, 'rb').read()
 runtime = open(runtime_path, 'rb').read()
+enemy = open(enemy_path, 'rb').read()
 if len(boot) != 0x4000 or len(runtime) != 0x4000:
     raise SystemExit('build: GMC bank input is not exactly 16 KiB')
+if len(enemy) > 0x800:
+    raise SystemExit(f'build: bank-3 enemy module is {len(enemy)} bytes; limit is 2048')
 bank2 = bytearray([0xA2] * 0x4000)
 bank3 = bytearray([0xA3] * 0x4000)
 bank2[0x10:0x12] = bytes((0xB2, 0x02))
 bank3[0x10:0x12] = bytes((0xB3, 0x03))
+bank3[0x800:0x800 + len(enemy)] = enemy
 image = boot + runtime + bank2 + bank3
 if len(image) != target:
     raise SystemExit(f'build: GMC image is {len(image)} bytes, expected {target}')
@@ -164,6 +203,7 @@ cmd_run() {
 cmd_verify_gmc() {
     cmd_build
     python3 "$ROOT/scripts/verify_gmc_boot.py" --rom "$ROM" --map "$MAP"
+    python3 "$ROOT/scripts/verify_enemy_runtime.py"
 }
 
 cmd_tester() {

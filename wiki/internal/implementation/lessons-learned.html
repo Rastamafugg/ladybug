@@ -25,6 +25,29 @@
     </header>
 
     <section>
+      <h2>Overlapping actors require off-screen final-pixel ownership</h2>
+      <p><strong>Filed 2026-07-19.</strong></p>
+      <p>Correct save-under buffers still flicker when restore and redraw operations are performed directly on a framebuffer being scanned by the GIME. More overlapping actors extend the interval in which the visible nest contains only a partial composition.</p>
+      <p><strong>Rule:</strong> build the entire overlapping nest layer in a compact RAM surface from an authoritative clean background, apply active actors and exactly one top nest actor (dormant enemy or vegetable), then publish only completed rows. A standalone save-under actor must begin its restore/mutate/save/redraw transaction at Vbord; merely delaying restoration until the end of a busy main-loop frame still exposes the player-free interval to scanout. Death restores the player once, invalidates that save-under, atomically clears enemy state, resets and freezes the release circuit, and uses the nest compositor for the final dormant pixels.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>PLAYER_TICK_PENDING</code>; <code>src/enemy_runtime.s</code> <code>compose_enemy_zone</code> and <code>et_begin_death</code>; user XRoar observation 2026-07-19.</p>
+    </section>
+
+    <section>
+      <h2>Encoded sprite size is not the save-under footprint</h2>
+      <p><strong>Filed 2026-07-19.</strong></p>
+      <p>A 16-by-16 2bpp source sprite occupies 64 bytes, while its expanded 4bpp framebuffer rectangle occupies 128 bytes. Reusing the 128-byte save-under size as the animation source stride selected every second frame and then read unrelated asset data. Unconditionally recompositing every stationary actor on every Vbord also made cost grow to five full restore/save/blit passes.</p>
+      <p><strong>Rule:</strong> name source and destination sizes separately. Composite enemies only for movement, an animation-frame change, or an explicit den/vegetable dirty transition.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code>, <code>build/ladybug_resident.inc</code>, and user XRoar observation 2026-07-19.</p>
+    </section>
+
+    <section>
+      <h2>Persistent turn requests and live neutral stopping are separate contracts</h2>
+      <p><strong>Filed 2026-07-19.</strong></p>
+      <p><code>PLAYER_WANT</code> must survive neutral samples for reliable gate turns, but movement must still consult live <code>JOY_DIR</code>. Removing the live-neutral guard caused a centred joystick to continue along <code>PLAYER_WANT</code> until collision.</p>
+      <p><strong>Rule:</strong> after manual control begins, <code>JOY_DIR=DIR_NONE</code> skips movement before turn-snap and junction logic without clearing <code>PLAYER_WANT</code>, <code>PLAYER_DIR</code>, or <code>PLAYER_STEP</code>.</p>
+    </section>
+
+    <section>
       <h2>Multiple save-under sprites require phase-separated compositing</h2>
       <p><strong>Filed 2026-07-19.</strong></p>
       <p>Interleaving <code>save actor N</code> and <code>draw actor N</code> makes later save buffers capture earlier sprites. Restoring those buffers on the next frame produces duplicates, trails, and unrelated sprite copies. A released-enemy experiment also removed the independent animated den actor, conflating spawner presentation with active-enemy state.</p>
@@ -1210,6 +1233,51 @@ git reset --hard HEAD
       <p><strong>Applies to:</strong> joystick resolution, late turns, gate pushes, and movement acceptance tests.</p>
       <p><strong>Citation:</strong> <code>src/main.s</code> <code>mainloop</code>, <code>read_joystick</code>, and <code>pt_try_late_turn</code>; user hardware observation 2026-07-19.</p>
       <p><strong>Resolution:</strong> <code>PLAYER_WANT</code> now survives neutral samples, all mid-cell/gate branches consume it, and a perpendicular request that is not yet legal continues along the old axis until the next candidate junction. The 2026-07-19 user hardware retest reported substantially improved gate feel.</p>
+    </section>
+
+    <section>
+      <h2>SETDP declarations and the runtime DP register are one cross-module ABI</h2>
+      <p><strong>Filed 2026-07-20.</strong></p>
+      <p>The resident module declared <code>SETDP $02</code>, but the running machine retained <code>DP=$00</code>. Direct resident opcodes therefore accessed page zero while bank-3 extended operands accessed absolute <code>$02xx</code>. Rendering appeared partly functional, but enemy collision, cucumber collection, and death reset observed a different copy of player and lifecycle state.</p>
+      <p><strong>Rule:</strong> initialize DP explicitly at the runtime entry and give every independently assembled module the same absolute direct-page symbols. Validate the ABI from a machine snapshot, not only source constants or debugger-written test state.</p>
+      <p><strong>Applies to:</strong> resident/banked module boundaries, direct-page refactors, and runtime probes.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code>, <code>src/enemy_runtime.s</code>, and XRoar snapshot probes on 2026-07-20.</p>
+    </section>
+
+    <section>
+      <h2>Vbord scheduling alone does not make a destructive sprite update atomic</h2>
+      <p><strong>Filed 2026-07-20.</strong></p>
+      <p>Moving player restore/save/redraw to Vbord reduced but did not eliminate flicker because scanout could still observe the interval after the old sprite was erased and before the new sprite was complete.</p>
+      <p><strong>Rule:</strong> construct final actor pixels off-screen, publish the complete new rectangle first, then repair only old-exclusive strips. Use direct exposure only when the underlying maze must change during the same tick.</p>
+      <p><strong>Applies to:</strong> moving save-under sprites and any renderer that mutates the visible framebuffer in multiple passes.</p>
+      <p><strong>Citation:</strong> bank-3 <code>player_compose_impl</code>, framebuffer locality/overlap snapshot probe, and user hardware observation 2026-07-20.</p>
+    </section>
+
+    <section>
+      <h2>A signed branch must immediately follow the instruction that establishes its sign</h2>
+      <p><strong>Filed 2026-07-20.</strong></p>
+      <p>The player compositor loaded signed horizontal delta into A, then loaded pointers and a row count before executing <code>BMI</code>. <code>LDB #16</code> replaced N with zero, so leftward motion always selected the rightward cleanup and left the old right edge visible as a Red smear.</p>
+      <p><strong>Rule:</strong> place <code>TSTA</code> immediately before a sign branch when intervening setup instructions modify condition codes. Verify both directional exclusive edges independently.</p>
+      <p><strong>Applies to:</strong> staged sprite cleanup and any delayed 6809 condition-code test.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>pci_horizontal_strip</code> and the 2026-07-20 left-movement snapshot probe.</p>
+    </section>
+
+    <section>
+      <h2>Resetting timer state does not reset its framebuffer representation</h2>
+      <p><strong>Filed 2026-07-20.</strong></p>
+      <p>Enemy death correctly restored the perimeter timer to <code>9,0,0</code>, but existing Green blocks remained visible because no renderer republished the reset state. The visual appeared frozen until logical progress reached the old boundary.</p>
+      <p><strong>Rule:</strong> a lifecycle reset must update both authoritative state and every retained framebuffer projection. The enemy death latch now distinguishes reset pending from reset published so the 92 White blocks are drawn exactly once.</p>
+      <p><strong>Applies to:</strong> perimeter timer, HUD counters, and other retained-mode visuals.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>reset_perimeter_visual</code>/<code>enemy_tick</code> and the 2026-07-20 all-block framebuffer probe.</p>
+    </section>
+
+    <section>
+      <h2>The life HUD counts reserves, not the active actor</h2>
+      <p><strong>Filed 2026-07-20.</strong></p>
+      <p>A reserve count of one was decremented to zero after its marker walked off, then incorrectly treated as immediate game over. That skipped <code>init_player</code> and resumed control with an off-screen framebuffer pointer while semantic maze coordinates still described the old position.</p>
+      <p><strong>Rule:</strong> test for game over before consuming a reserve. If the pre-death reserve count is nonzero, decrement it and always initialize the replacement, even when the new count is zero. A subsequent death at zero reserves enters the terminal state.</p>
+      <p><strong>Applies to:</strong> death, replacement entrance, life HUD, and future Phase 9 game-over flow.</p>
+      <p><strong>Citation:</strong> user clarification and <code>src/main.s</code> <code>dt_finish_walkoff</code>/<code>dt_game_over</code>, 2026-07-20.</p>
     </section>
 
   </main>

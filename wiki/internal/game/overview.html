@@ -77,7 +77,7 @@
 
       <h3>Player (ladybug)</h3>
       <ul>
-        <li><strong>3 lives at start.</strong></li>
+        <li><strong>3 reserve lives at start.</strong> The HUD counter excludes the currently active ladybug. Consuming the final visible reserve still starts one replacement; game over occurs only when that replacement dies with the reserve counter already at zero.</li>
         <li><strong>Bonus life at 30,000 points</strong> (one-time award).</li>
         <li>Constant movement speed across all levels (only enemies get faster).</li>
         <li>4-direction joystick control (no diagonal).</li>
@@ -186,6 +186,7 @@
       <ul>
         <li>Appears in the central nest area once the fourth enemy has been released.</li>
         <li>Eating it: bonus points (table above) + freezes all enemies for several seconds.</li>
+        <li><strong>Provisional implementation decision, 2026-07-19:</strong> the trigger is current active-enemy count, not cumulative releases. A skull death below four immediately restores the dormant den actor and delays or resets vegetable availability until the count returns to four. Freeze duration is 300 Vbords (5 seconds) pending MAME measurement.</li>
         <li>Frozen enemies remain lethal. StrategyWiki says they resume with a speed increase when the vegetable tune ends; verify duration and speed change in MAME.</li>
         <li>If a skull-killed enemy returns to the den, StrategyWiki says the vegetable can reappear after that enemy is released again; verify the exact recurrence condition.</li>
         <li>Vegetable cycle (one per level, fixed sequence through level 18 then horseradish forever):
@@ -222,7 +223,7 @@
         <li>Stage-one MAME advances one of the 92 border boxes every 9 frames. A complete circuit is 828 frames (13.8 s). The following circuit progressively changes the Green boxes back to White at the same cadence; it does not clear every box in one frame.</li>
         <li>The vegetable appears after all four enemies have left the den. Arcade observation is still required to determine its availability duration, recurrence after an enemy is killed, and level-dependent timing.</li>
         <li>Normal stage clear requires every flower plus all six bonus circles; word completion also requests an immediate stage advance. Controlled arcade collection remains the final precedence check.</li>
-        <li>Death (enemy contact or skull) → the directed sheet sequence runs from <code>R6C7</code> down through <code>R0C7</code>, then <code>R5C10</code> down through <code>R0C10</code>. Final angel <code>R7C11</code> rises in a right/centre/left/centre swoop until its timer completes or it reaches the maze boundary. The rightmost active TMX life marker then becomes the animated player sprite and walks 24 scanlines off-screen; only then is the life count decremented and the replacement enters.</li>
+        <li>Death (enemy contact or skull) → the directed sheet sequence runs from <code>R6C7</code> down through <code>R0C7</code>, then <code>R5C10</code> down through <code>R0C10</code>. Final angel <code>R7C11</code> rises in a right/centre/left/centre swoop until its timer completes or it reaches the maze boundary. The rightmost active TMX reserve marker then becomes the animated player sprite and walks 24 scanlines off-screen; only then is the reserve count decremented and the replacement enters. If the reserve count was already zero at death, the current implementation enters an inert terminal hold pending the Phase 9 game-over screen.</li>
       </ol>
       <p>The maze is <strong>a single fixed layout used for every stage</strong>. Per-stage variation comes from: enemy types/count/speed, which vegetable appears, and the randomized skull positions.</p>
     </section>

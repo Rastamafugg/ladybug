@@ -23,8 +23,68 @@
     </header>
 
     <section>
+      <h3>2026-07-20 &middot; lint &mdash; movement, reserve, and timer-reset acceptance</h3>
+      <p>Passed the guarded build, GMC handoff, bank-3 ABI/compositor proof, arcade-fidelity checks, Python byte-compilation, scoped whitespace checks, and parsing plus local-link resolution for the five updated wiki pages. Fresh-ROM XRoar snapshots separately verified left-edge cleanup locality, reserve-one replacement dispatch, zero-reserve terminal state, and all-White timer publication.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-20 &middot; fix &mdash; left cleanup, reserve-life flow, and visual timer reset</h3>
+      <p>Hardware testing confirmed enemy/skull lifecycle reset and reported a leftward Red smear, reserve-one replacement failure, and retained Green perimeter blocks after logical reset. The compositor's signed delta test had been invalidated by a later <code>LDB</code>; <code>TSTA</code> now immediately precedes <code>BMI</code>. The life counter is now treated as reserves excluding the active ladybug: reserve one is consumed before replacement initialization, while a later death at reserve zero enters terminal state 4 rather than enabling an off-screen controllable actor. Enemy death latch state 1 now requests exactly one all-White redraw of all 92 perimeter blocks before advancing to published state 2. Fresh-ROM snapshot probes verified all 16 old-exclusive right-edge bytes, reserve-one entry, zero-reserve terminal state, and canonical White pixels for all perimeter tiles. Resident use is <code>8109/8192</code>; bank 3 is <code>1227/2048</code>. Remaining gate-turn flicker is isolated to the direct seven-cell gate mutation fallback and requires a separately approved gate-region compositor.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-20 &middot; lint &mdash; compositor and direct-page wiki maintenance</h3>
+      <p>Parsed the updated memory map, roadmap, lessons learned, build workflow, and log as HTML after recording the player compositor, page-zero bank ABI, collision/reset behavior, scratch allocation, and current capacity figures. No new page or index link was required.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-20 &middot; fix &mdash; staged player publish and shared bank-3 collision ABI</h3>
+      <p>User testing found residual player flicker and no enemy, skull, or cucumber interaction. Runtime snapshots isolated a split direct-page ABI: resident direct opcodes used page zero while bank-3 extended operands addressed page two. Both modules now share <code>$0000-$00FF</code>, and entry initializes <code>DP=$00</code> explicitly. The approved fifth bank-3 entry stages clean player background plus final sprite off-screen, publishes the new rectangle before restoring old-only strips, and retains direct exposure only for real maze mutations. Enemy collision now uses footprint overlap on every alive tick, cucumber contact uses the same width window, and static skull contact invokes the reset directly. Build, GMC, source-contract, framebuffer-locality, stopped-enemy, cucumber, and skull snapshot probes pass; the build reports resident <code>8062/8192</code>, assets <code>7620/7680</code>, and bank 3 <code>1226/2048</code>.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; fix &mdash; Vbord-first player rendering and complete death reset</h3>
+      <p>User testing showed that the player still flickered although the staged enemy compositor did not. The player restore/save/redraw transaction was still occurring late enough for GIME scanout to observe its restored, player-free interval. The existing 30 Hz update is now queued and executed at the following Vbord immediately after the nest compositor, preserving player final-pixel ownership at their overlap. Enemy contact branches directly into the established death reset; static-skull death reaches the same reset later in that Vbord. The reset clears all active enemies and vegetable state, publishes the dormant frame immediately, resets the perimeter circuit to index zero/White-to-Green/nine frames, freezes that circuit during death, and continues dormant animation. Build, GMC handoff, arcade-fidelity, and source-level lifecycle/order checks pass. A live XRoar/GDB forced-death probe confirmed all 24 enemy-record bytes zero, active/released/vegetable/freeze state zero, dormant animation at frame zero with timer eight, perimeter state <code>9,0,0</code>, the queued player tick cleared, and dormant pixels published in the nest.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; revert/fix &mdash; failed player staging replaced by late restoration</h3>
+      <p>User testing found broken player control presentation and a persistent Lady Bug trail after the 128-byte overlap-derived player compositor was introduced. Removed that compositor and its fifth bank-3 ABI entry. The replacement retains the established full player save-under: movement and turn logic execute while the old sprite remains visible, then the old rectangle is restored by its saved pointer immediately before the original save-and-draw path. Gate, dot, and pickup mutation frames still restore earlier. Controlled XRoar probes verified old-column erasure, clean new-background capture, one final player draw, and the complete death-edge enemy/dormant reset. The exclusive vegetable layer remains intact.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; fix &mdash; exclusive vegetable layer, player staging, and reliable death reset</h3>
+      <p>Changed the nest compositor so an active vegetable replaces rather than overlays the dormant enemy. Added a 128-byte player staging surface in <code>$A3F0-$A46F</code> and a fifth bank-3 entry point: normal movement now constructs the clean new background, restores only exposed old strips, overlays the selected player frame, and commits completed rows. Gate, dot, and pickup mutation frames explicitly restore first. The death edge restores the current player once and invalidates its save-under before the atomic enemy reset, preventing <code>death_tick</code> from repainting stale enemy pixels. GMC, enemy-runtime, and arcade-control proofs pass; controlled XRoar probes verified stationary and one-byte staged player composition.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; fix &mdash; off-screen enemy overlap composition and death reset</h3>
+      <p>Replaced direct visible restore/save/draw passes with a 256-byte clean nest background and 256-byte compact staging surface. Active enemies render into staging first, the dormant pattern renders above them, and the vegetable renders last; only completed rows are copied to the visible framebuffer. Added a rising-edge death reset that clears all four records, active/released counts, vegetable and freeze state, resets dormant animation to frame zero/timer eight, and suppresses releases until respawn. XRoar verified first-release write locality, four simultaneous active records, and the complete forced-death state reset.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; fix &mdash; enemy animation stride and idle compositor regression</h3>
+      <p>Separated the 64-byte packed source-frame stride from the 128-byte framebuffer/save-under footprint in the bank-3 enemy module. The prior 128-byte source stride skipped valid animation frames and read unrelated asset bytes. Added an explicit dirty/movement gate so stationary enemy scenes perform a full restore/save/draw only on the shared eight-Vbord animation change or a den/vegetable state transition, instead of every Vbord. Fresh XRoar snapshots confirmed the first released enemy moved one pixel north and changed 21 framebuffer bytes with zero writes outside the old/new actor rectangles. A second bounded run reached the fourth release with all four records active and the vegetable-transition dirty flag set.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; implement &mdash; banked enemy release, den compositor, and provisional vegetable freeze</h3>
+      <p>Added a 657-byte enemy runtime in GMC bank 3, copied to low RAM <code>$0800</code> by the bootstrap. Four active records use independent 128-byte backgrounds and a restore-all/update-all/save-all/draw-all compositor; active enemies draw first, the persistent animated den actor draws above them, and an active vegetable draws last. Each completed border circuit releases one enemy. Four active enemies expose the stage vegetable; collection freezes movement for 300 Vbords. A matching skull alone is removed with its enemy, reducing active count and restoring the dormant den state. Updated the GMC trace verifier, added enemy ABI/state and framebuffer-locality verifiers, corrected the snapshot reader's PAR5 mapping, and passed the full GMC and arcade-control checks. A live XRoar release snapshot confirmed record 0 activation and its first northward pixel; the framebuffer diff changed 31 bytes with zero writes outside the old and new enemy rectangles.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; fix &mdash; immediate neutral-input stop restored</h3>
+      <p>Restored the live <code>JOY_DIR=DIR_NONE</code> guard at the start of <code>player_tick</code>. Neutral input now stops before turn-snap or persistent-request movement while retaining <code>PLAYER_WANT</code>, direction, and partial-cell state for responsive resumed turns. Added a source-level ordering regression check to <code>verify_arcade_fidelity.py</code>; GMC and arcade-fidelity verification pass.</p>
+    </section>
+
+    <section>
       <h3>2026-07-19 &middot; revert &mdash; failed enemy release and banked-rendering attempts</h3>
       <p>User hardware testing found that the first animated den enemy disappeared and the released-enemy rewrite produced colour streaks plus duplicate sprites at unrelated screen positions. The banked rewrite was discarded completely and commit <code>6980b45</code> was reversed while preserving the 64 KiB GMC loader. Root cause: the multi-enemy loop interleaved save and draw operations, so later background buffers captured earlier sprites and restored them as ghosts; it also replaced rather than preserved the separate animated den actor. The project is reset to the non-collidable four-frame spawner baseline. Future enemy work must prove a restore-all, update-all, save-all, draw-all compositor before adding release or AI.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-19 &middot; capture &mdash; arcade enemy release and spawner overlap</h3>
+      <p>Captured MAME frames 1-2600 with all four five-byte records at <code>$602B</code>, then retained video around frames 1468-1560. Record 1 changes from dormant <code>40 10 50 00 00</code> at frame 1480 to active <code>81 58 86 18 01</code> at frame 1481. At frame 1496 the exiting enemy overlaps a newly visible den animation, while record 2 remains zero. This proves the den animation is an independent actor and that the renderer must handle immediate spawner/released-enemy overlap. Filed compact evidence as <code>assets/arcade/enemy_release_reference.json</code>.</p>
     </section>
 
     <section>

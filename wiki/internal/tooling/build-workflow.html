@@ -45,12 +45,13 @@ build/ladybug_maze.inc               (semantic cells/navigation/gates)
 build/ladybug_screen.inc             (palette, map, tiles, popup multiplier characters, score/enemy frames, contextual gate redraw data)
 build/ladybug_resident.inc           (packed four-direction player, death, and vegetable frames)
    │
-src/*.s                              (hand-written 6809 assembly)
+src/main.s                           (resident 6809 runtime)
+src/enemy_runtime.s                  (bank-3 low-RAM enemy module)
    │
    │  lwasm: 16 KB runtime bank + 16 KB bootstrap bank
    ▼
-build/ladybug-runtime.rom + build/ladybug-gmc-boot.rom
-   │  compose bank 0 bootstrap, bank 1 runtime, banks 2-3 expansion/proof
+build/ladybug-runtime.rom + build/ladybug-enemy-runtime.rom + build/ladybug-gmc-boot.rom
+   │  compose bank 0 bootstrap, bank 1 runtime, bank 2 reserve, bank 3 enemy module
    ▼
 build/ladybug.rom    (64 KB, four 16 KB GMC banks)
    │
@@ -72,7 +73,7 @@ emulated CoCo 3      (physical target: GMC-compatible bank-select hardware)
         <tbody>
           <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen and packed curated sprite groups, assemble, enforce the resident/asset ROM boundaries, and pad. Output includes <code>assets/arcade/maze.json</code>, <code>build/ladybug_maze.inc</code>, <code>build/ladybug_screen.inc</code>, <code>build/ladybug_resident.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, and <code>build/ladybug.map</code>.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch XRoar with the canonical cart profile and map cursor keys to the right CoCo joystick through <code>kjoy0</code>.</td></tr>
-          <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then trace a bounded headless XRoar run and verify bank-2 and bank-3 signatures, bank-1 loading, the TY=1 all-RAM handoff, and repeated entry into the relocated main loop.</td></tr>
+          <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then trace a bounded headless XRoar run and verify bank signatures, the bank-3 low-RAM copy, bank-1 loading, the TY=1 all-RAM handoff, repeated main-loop execution, and the enemy module ABI/compositor contracts.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
       </table>
@@ -82,6 +83,7 @@ assets/arcade/sprites.json (authoritative decoded sprite shapes)
 assets/arcade/maze_capture.json/bin (authoritative captured background)
 tiled/coco-screen.tmx      (hand-authored layered screen)
 src/main.s                 (top of build, ORG $C000)
+src/enemy_runtime.s        (bank-3 module, ORG $0800)
 scripts/build_screen.py    (TMX flattener and packed-atlas generator)
 scripts/derive_maze.py     (semantic maze validator/generator)
 build/                     (created if missing; generated outputs land here)
@@ -116,7 +118,7 @@ lwasm -9 --format=raw \
         It rejects resident code beyond <code>$E000</code>, an asset start other
         than <code>$E000</code>, assets beyond <code>$FE00</code>, or a raw-file
         length inconsistent with <code>asset_end-$C000</code>. A successful
-        current build reports <code>resident 8002/8192</code> and
+        current build reports <code>resident 8109/8192</code> and
         <code>assets 7620/7680</code> before padding.
       </p>
 

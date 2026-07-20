@@ -18,88 +18,99 @@
         pragma  nodollarlocal,6809
 
 ;------------------------------------------------------------------------------
-; DP allocation (page $02)
+; DP allocation (page $00)
 ;------------------------------------------------------------------------------
-        setdp   $02
+        setdp   $00
 
-LAST_FRAME    equ $0200         ; last processed Vbord counter low byte
-JOY_X         equ $0201         ; right joystick X, 0..63
-FRAMES        equ $0202         ; u16 frame counter
-JOY_Y         equ $0204         ; right joystick Y, 0..63
-JOY_DIR       equ $0205         ; requested direction or $FF
-PLAYER_DIR    equ $0206         ; active direction or $FF
-PLAYER_FACE   equ $0207         ; last active direction, 0..3
-PLAYER_STEP   equ $0208         ; 2-pixel steps since last cell centre, 0..3
-PLAYER_CELL_X equ $0209         ; semantic maze column
-PLAYER_CELL_Y equ $020A         ; semantic maze row
-PLAYER_FB     equ $020B         ; u16 framebuffer pointer at sprite top-left
-JOY_DX        equ $020D         ; absolute X displacement from centre
-JOY_DY        equ $020E         ; absolute Y displacement from centre
-PLAYER_WANT   equ $020F         ; last non-neutral requested direction
-TEST_X        equ $0210         ; candidate/draw maze column
-TEST_Y        equ $0211         ; candidate/draw maze row
-TEST_DIR      equ $0212         ; direction under collision test
-GATE_ID       equ $0213         ; active gate index
-GATE_X        equ $0214         ; active gate pivot column
-GATE_Y        equ $0215         ; active gate pivot row
-DRAW_COUNT    equ $0216         ; gate redraw loop counter
-DRAW_TILE     equ $0217         ; tile ID for draw_cell_tile
-PLAYER_MANUAL equ $0218         ; nonzero after first directional input
-GATE_ANIM_ID  equ $0219         ; rotating gate ID+1; zero when idle
-GATE_ANIM_STYLE equ $021A       ; 0=slash, 1=backslash
-BLIT_ROWS     equ $021B         ; transparent-blit row counter
-BLIT_WIDTH    equ $021C         ; transparent-blit bytes per row
-SCORE_BCD     equ $021D         ; packed BCD score, six digits
-HIGH_BCD      equ $0220         ; packed BCD session high score
-LIVES         equ $0223         ; lives remaining
-STAGE         equ $0224         ; current stage, 1..255
-DOTS_LEFT     equ $0225         ; remaining flowers in this stage
-STAGE_PENDING equ $0226         ; nonzero requests a stage transition
-HUD_X         equ $0227         ; HUD tile column scratch
-HUD_Y         equ $0228         ; HUD tile row scratch
-HUD_COLOR     equ $0229         ; palette index for digit rendering
-HUD_BYTE      equ $022A         ; packed BCD / mask scratch
-HUD_COUNT     equ $022B         ; byte/row loop scratch
-HUD_WIDTH     equ $022C         ; packed-byte loop scratch
-HUD_BCD_BYTE  equ $022D         ; preserved BCD byte during digit blits
-HUD_BCD_COUNT equ $022E         ; packed BCD byte loop
-BONUS_COLOR   equ $022F         ; global bonus colour, palette index
-BONUS_TIMER   equ $0230         ; u16 frames remaining in current colour
-ENTITY_COUNT  equ $0232         ; active entity-table record count
-BONUS_LEFT    equ $0233         ; uncollected hearts and letters
-RNG_STATE     equ $0234         ; u16 placement LFSR
-ENTITY_X      equ $0236         ; entity/draw scratch
-ENTITY_Y      equ $0237
-ENTITY_TYPE   equ $0238
-ENTITY_VARIANT equ $0239
-DEATH_TIMER   equ $023A         ; nonzero while rotating death animation runs
-MULTIPLIER    equ $023B         ; score multiplier: 1,2,3,5
-SPECIAL_BITS equ $023C         ; collected SPECIAL letters, bit per HUD position
-EXTRA_BITS   equ $023D         ; collected EXTRA letters, bit per HUD position
-ENTITY_PTR   equ $023E         ; u16 current entity record pointer
-OBJ_SOURCE   equ $0240         ; u16 object-mask source pointer
-OBJ_ROWS     equ $0242
-OBJ_BYTES    equ $0243
-OBJ_VALUE    equ $0244
-OBJ_INDEX    equ $0245
-OBJ_PRIMARY  equ $0246
-OBJ_ACCENT   equ $0247
-ENTITY_WORK  equ $0248         ; entity placement / loop scratch
-ENTITY_TOTAL equ $0249         ; total records allocated this stage
-BOX_TIMER    equ $024A         ; frames until next perimeter-box update
-BOX_INDEX    equ $024B         ; clockwise perimeter position, 0..91
-BOX_PHASE    equ $024C         ; 0=White-to-Green, 1=Green-to-White
-DEATH_STATE  equ $024D         ; 0=alive, 1=shrink, 2=wings, 3=walk-off
-DEATH_FRAME  equ $024E         ; selected curated death frame
-PLAYER_ANIM  equ $024F         ; walk animation phase 0,1,2,3
-PLAYER_ANIM_TIMER equ $0250    ; Vbord countdown to next player frame
-PICKUP_TIMER equ $0251         ; score-sprite hold; zero when inactive
-PICKUP_FRAME equ $0252         ; 0=100, 1=300, 2=800
-ANGEL_SWING  equ $0253         ; 20-frame eased angel-swoop phase
-ENEMY_ANIM   equ $0254         ; first den enemy animation phase
-ENEMY_TIMER  equ $0255         ; Vbord countdown to next enemy frame
-TURN_SNAP    equ $0256         ; diagonal late-turn updates remaining, 0..3
-TURN_OLD     equ $0257         ; direction being corrected during late turn
+LAST_FRAME    equ $0000         ; last processed Vbord counter low byte
+JOY_X         equ $0001         ; right joystick X, 0..63
+FRAMES        equ $0002         ; u16 frame counter
+JOY_Y         equ $0004         ; right joystick Y, 0..63
+JOY_DIR       equ $0005         ; requested direction or $FF
+PLAYER_DIR    equ $0006         ; active direction or $FF
+PLAYER_FACE   equ $0007         ; last active direction, 0..3
+PLAYER_STEP   equ $0008         ; 2-pixel steps since last cell centre, 0..3
+PLAYER_CELL_X equ $0009         ; semantic maze column
+PLAYER_CELL_Y equ $000A         ; semantic maze row
+PLAYER_FB     equ $000B         ; u16 framebuffer pointer at sprite top-left
+JOY_DX        equ $000D         ; absolute X displacement from centre
+JOY_DY        equ $000E         ; absolute Y displacement from centre
+PLAYER_WANT   equ $000F         ; last non-neutral requested direction
+TEST_X        equ $0010         ; candidate/draw maze column
+TEST_Y        equ $0011         ; candidate/draw maze row
+TEST_DIR      equ $0012         ; direction under collision test
+GATE_ID       equ $0013         ; active gate index
+GATE_X        equ $0014         ; active gate pivot column
+GATE_Y        equ $0015         ; active gate pivot row
+DRAW_COUNT    equ $0016         ; gate redraw loop counter
+DRAW_TILE     equ $0017         ; tile ID for draw_cell_tile
+PLAYER_MANUAL equ $0018         ; nonzero after first directional input
+GATE_ANIM_ID  equ $0019         ; rotating gate ID+1; zero when idle
+GATE_ANIM_STYLE equ $001A       ; 0=slash, 1=backslash
+BLIT_ROWS     equ $001B         ; transparent-blit row counter
+BLIT_WIDTH    equ $001C         ; transparent-blit bytes per row
+SCORE_BCD     equ $001D         ; packed BCD score, six digits
+HIGH_BCD      equ $0020         ; packed BCD session high score
+LIVES         equ $0023         ; lives remaining
+STAGE         equ $0024         ; current stage, 1..255
+DOTS_LEFT     equ $0025         ; remaining flowers in this stage
+STAGE_PENDING equ $0026         ; nonzero requests a stage transition
+HUD_X         equ $0027         ; HUD tile column scratch
+HUD_Y         equ $0028         ; HUD tile row scratch
+HUD_COLOR     equ $0029         ; palette index for digit rendering
+HUD_BYTE      equ $002A         ; packed BCD / mask scratch
+HUD_COUNT     equ $002B         ; byte/row loop scratch
+HUD_WIDTH     equ $002C         ; packed-byte loop scratch
+HUD_BCD_BYTE  equ $002D         ; preserved BCD byte during digit blits
+HUD_BCD_COUNT equ $002E         ; packed BCD byte loop
+BONUS_COLOR   equ $002F         ; global bonus colour, palette index
+BONUS_TIMER   equ $0030         ; u16 frames remaining in current colour
+ENTITY_COUNT  equ $0032         ; active entity-table record count
+BONUS_LEFT    equ $0033         ; uncollected hearts and letters
+RNG_STATE     equ $0034         ; u16 placement LFSR
+ENTITY_X      equ $0036         ; entity/draw scratch
+ENTITY_Y      equ $0037
+ENTITY_TYPE   equ $0038
+ENTITY_VARIANT equ $0039
+DEATH_TIMER   equ $003A         ; nonzero while rotating death animation runs
+MULTIPLIER    equ $003B         ; score multiplier: 1,2,3,5
+SPECIAL_BITS equ $003C         ; collected SPECIAL letters, bit per HUD position
+EXTRA_BITS   equ $003D         ; collected EXTRA letters, bit per HUD position
+ENTITY_PTR   equ $003E         ; u16 current entity record pointer
+OBJ_SOURCE   equ $0040         ; u16 object-mask source pointer
+OBJ_ROWS     equ $0042
+OBJ_BYTES    equ $0043
+OBJ_VALUE    equ $0044
+OBJ_INDEX    equ $0045
+OBJ_PRIMARY  equ $0046
+OBJ_ACCENT   equ $0047
+ENTITY_WORK  equ $0048         ; entity placement / loop scratch
+ENTITY_TOTAL equ $0049         ; total records allocated this stage
+BOX_TIMER    equ $004A         ; frames until next perimeter-box update
+BOX_INDEX    equ $004B         ; clockwise perimeter position, 0..91
+BOX_PHASE    equ $004C         ; 0=White-to-Green, 1=Green-to-White
+DEATH_STATE  equ $004D         ; 0=alive, 1=shrink, 2=wings, 3=walk-off
+DEATH_FRAME  equ $004E         ; selected curated death frame
+PLAYER_ANIM  equ $004F         ; walk animation phase 0,1,2,3
+PLAYER_ANIM_TIMER equ $0050    ; Vbord countdown to next player frame
+PICKUP_TIMER equ $0051         ; score-sprite hold; zero when inactive
+PICKUP_FRAME equ $0052         ; 0=100, 1=300, 2=800
+ANGEL_SWING  equ $0053         ; 20-frame eased angel-swoop phase
+ENEMY_ANIM   equ $0054         ; first den enemy animation phase
+ENEMY_TIMER  equ $0055         ; Vbord countdown to next enemy frame
+TURN_SNAP    equ $0056         ; diagonal late-turn updates remaining, 0..3
+TURN_OLD     equ $0057         ; direction being corrected during late turn
+ENEMY_ACTIVE equ $0058         ; active enemy count, reduced by skull deaths
+ENEMY_RELEASED equ $0059       ; total timer releases this stage
+VEG_STATE    equ $005A         ; 0=dormant enemy, 1=vegetable, 2=collected
+FREEZE_TIMER equ $005B         ; u16 enemy freeze countdown
+ENEMY_WORK   equ $005D         ; banked enemy loop scratch
+ENEMY_PTR    equ $005E         ; u16 banked enemy record pointer
+ENEMY_DEATH_LATCH equ $0062    ; 0=alive, 1=reset pending, 2=reset published
+PLAYER_OLD_FB equ $0067        ; framebuffer pointer owned by PLAYER_BG
+PLAYER_ERASED equ $0069        ; nonzero after old player background is exposed
+PLAYER_BG_VALID equ $006A      ; PLAYER_BG contains restorable pixels
+PLAYER_TICK_PENDING equ $006B  ; nonzero when next Vbord must update/render player
 BOOT_FLAG    equ $02F0         ; $A5 when GMC bootstrap relocated runtime to RAM
 
 DIR_NORTH     equ 0
@@ -173,8 +184,16 @@ GATE_STATE equ  $A240           ; rotation state N/W/S/E; parity selects H/V bar
 PLAYER_BG  equ  $A300           ; 128-byte saved background under player
 ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
 PICKUP_BG   equ $A3B0          ; 64-byte background below score popup
-ENEMY_BG    equ $A3F0          ; 128-byte background under first den enemy
+PLAYER_STAGE equ $A3F0         ; 128-byte off-screen player composition surface
 ENEMY_FB    equ $57EC          ; top-left at lower nest cell (12,12)
+ENEMY_TABLE equ $A470          ; four 6-byte active enemy records
+ENEMY_ZONE_BG equ $A490        ; 256-byte clean 16-by-32 nest background
+
+ENEMY_MODULE_INIT    equ $0800
+ENEMY_MODULE_TICK    equ $0803
+ENEMY_MODULE_RELEASE equ $0806
+ENEMY_MODULE_COLLECT equ $0809
+PLAYER_MODULE_COMPOSE equ $080C
 
 ;==============================================================================
 ;  Cart ROM
@@ -189,7 +208,7 @@ ENEMY_FB    equ $57EC          ; top-left at lower nest cell (12,12)
 entry   orcc    #$50            ; mask IRQ + FIRQ
         lds     #$1FFE          ; stack at top of low RAM page
 
-        lda     #$02            ; DP = $02
+        clra                    ; DP = $00, shared with bank-3 runtime
         tfr     a,dp
 
         ; --- Quiet legacy PIA interrupts ---
@@ -331,16 +350,34 @@ mainloop
         cmpa    LAST_FRAME
         beq     mainloop
         sta     LAST_FRAME
-        lbsr    read_joystick
+        ; Keep every player restore/mutation/redraw at the front of Vbord.
+        ; Logical movement remains 30 Hz, queued by the preceding even frame.
         lbsr    finish_gate_animation
+        lbsr    pickup_tick
+        lbsr    player_animation_tick
+        ; Publish the shared nest first so the player remains the final owner
+        ; when the two regions overlap at the vegetable/spawner cell.
+        lbsr    enemy_tick
+        lda     DEATH_STATE
+        bne     main_after_player
+        tst     PLAYER_TICK_PENDING
+        beq     main_after_player
+        clr     PLAYER_TICK_PENDING
+        lbsr    player_tick
+        lbsr    enemy_collect
+main_after_player
+        lbsr    read_joystick
+        lda     DEATH_STATE
+        bne     main_after_timers
         lbsr    bonus_color_tick
         lbsr    perimeter_timer_tick
-        lbsr    player_animation_tick
-        lbsr    enemy_tick
-        lbsr    pickup_tick
+main_after_timers
         lbsr    rng_next         ; stage placement depends on elapsed play time
         lda     DEATH_STATE
         beq     main_alive
+main_death
+        ; The perimeter release circuit is reset by the enemy death path and
+        ; remains frozen until the replacement player has entered.
         lbsr    death_tick
         bra     mainloop
 main_alive
@@ -350,9 +387,8 @@ main_alive
         anda    #$01
         bne     mainloop
 phase4_before_tick
-        lbsr    player_tick
-        lda     PICKUP_TIMER
-        bne     mainloop
+        lda     #1
+        sta     PLAYER_TICK_PENDING
         lda     STAGE_PENDING
         beq     mainloop
         lbsr    next_stage
@@ -382,6 +418,7 @@ init_game_state
         clr     PLAYER_ANIM
         lda     #8
         sta     PLAYER_ANIM_TIMER
+        clr     PLAYER_TICK_PENDING
         clr     PICKUP_TIMER
         clr     ANGEL_SWING
         clr     TURN_SNAP
@@ -1293,7 +1330,24 @@ ptt_draw
         lda     BOX_PHASE
         eora    #1
         sta     BOX_PHASE
+        lbsr    enemy_release
 ptt_done
+        rts
+
+; Publish the reset timer state immediately. State reset alone leaves the old
+; Green progress visible until the new circuit eventually reaches each tile.
+reset_perimeter_visual
+        clr     BOX_INDEX
+        lda     #COLOR_WHITE
+        sta     HUD_COLOR
+rpv_box
+        lbsr    perimeter_box_coordinates
+        lbsr    draw_perimeter_box
+        inc     BOX_INDEX
+        lda     BOX_INDEX
+        cmpa    #92
+        blo     rpv_box
+        clr     BOX_INDEX
         rts
 
 ; Index 0 is the thirteenth top box from the left.  Continue clockwise.
@@ -1629,7 +1683,9 @@ jra_done
 ;   Updates player state, framebuffer, saved background, and MAZE_STATE.
 ;==============================================================================
 player_tick
-        lbsr    restore_player
+        ldd     PLAYER_FB
+        std     PLAYER_OLD_FB
+        clr     PLAYER_ERASED
 pt_alive
         lda     PLAYER_MANUAL
         beq     pt_input_active  ; preserve automatic entrance movement
@@ -1853,10 +1909,33 @@ pt_arrived
         bne     pt_draw
         lbsr    eat_dot
 pt_draw
+        lda     DEATH_STATE
+        bne     pt_done
         lda     PICKUP_TIMER
         bne     pt_done
+        tst     PLAYER_ERASED
+        bne     pt_draw_direct
+        jsr     PLAYER_MODULE_COMPOSE
+        bra     pt_done
+pt_draw_direct
         lbsr    draw_player
 pt_done
+        rts
+
+; Restore the old player rectangle only when another renderer must mutate the
+; maze beneath it during this tick. Ordinary movement remains off-screen.
+expose_player_background
+        tst     PLAYER_ERASED
+        bne     epb_done
+        inc     PLAYER_ERASED
+        ldd     PLAYER_FB
+        pshs    d
+        ldd     PLAYER_OLD_FB
+        std     PLAYER_FB
+        lbsr    restore_player
+        puls    d
+        std     PLAYER_FB
+epb_done
         rts
 
 ;==============================================================================
@@ -2053,6 +2132,9 @@ cm_set_south
 cm_south_style_done
         lda     #2
 cm_rotate
+        pshs    a
+        lbsr    expose_player_background
+        puls    a
         ldx     #GATE_STATE
         ldb     GATE_ID
         sta     b,x
@@ -2318,6 +2400,8 @@ cep_loop
         sta     ENTITY_X
         lda     1,x
         sta     ENTITY_Y
+        lbsr    expose_player_background
+        ldx     ENTITY_PTR
         lda     ENTITY_TYPE
         cmpa    #ENTITY_SKULL
         beq     cep_skull
@@ -2378,6 +2462,7 @@ cep_skull_next
         lda     #DIR_NONE
         sta     PLAYER_DIR
         sta     PLAYER_WANT
+        lbsr    enemy_tick
         rts
 
 ; Replace the player with the collected colour's score graphic for the exact
@@ -2513,13 +2598,18 @@ rpl_row
 ; The requested CoCo transition then walks a normal Lady Bug down the entrance
 ; before the replacement walks in from below.
 death_tick
+        tst     PLAYER_BG_VALID
+        beq     dt_background_clear
         lbsr    restore_player
+dt_background_clear
         lda     DEATH_STATE
         cmpa    #1
         beq     dt_shrink
         cmpa    #2
         beq     dt_wings
-        lbra    dt_walkoff
+        cmpa    #3
+        lbeq    dt_walkoff
+        rts                     ; state 4: terminal game-over hold
 dt_shrink
         lda     DEATH_TIMER
         cmpa    #30
@@ -2628,14 +2718,18 @@ dt_finish_walkoff
         beq     dt_game_over
         dec     LIVES
         lbsr    draw_lives
-        lda     LIVES
-        beq     dt_game_over
         lbsr    init_player
         clr     DEATH_STATE
         lbsr    draw_player
         rts
 dt_game_over
-        clr     DEATH_STATE
+        lda     #4
+        sta     DEATH_STATE
+        lda     #DIR_NONE
+        sta     PLAYER_DIR
+        sta     PLAYER_WANT
+        clr     PLAYER_TICK_PENDING
+        clr     PLAYER_BG_VALID
 dt_done
         rts
 
@@ -2806,6 +2900,10 @@ eat_dot
         leax    d,x
         lda     ,x
         bpl     ed_done
+        pshs    x
+        lbsr    expose_player_background
+        puls    x
+        lda     ,x
         anda    #$7F
         sta     ,x
         ldx     PLAYER_FB
@@ -2878,75 +2976,29 @@ pat_count
 pat_done
         rts
 
-; First part enemy remains inside the lower nest cell. It is deliberately
-; absent from collision and release logic in this pass.
+; Bank 3 is copied to $0800 by the GMC bootstrap. Fixed entry points keep the
+; resident cartridge image independent of bank-3 link addresses.
 init_enemy
-        clr     ENEMY_ANIM
-        lda     #8
-        sta     ENEMY_TIMER
-        lbsr    save_enemy
-        lbsr    draw_enemy
+        jsr     ENEMY_MODULE_INIT
         rts
 
 enemy_tick
-        dec     ENEMY_TIMER
-        bne     ent_done
-        lda     #8
-        sta     ENEMY_TIMER
-        lbsr    restore_enemy
-        inc     ENEMY_ANIM
-        lda     ENEMY_ANIM
-        anda    #3
-        sta     ENEMY_ANIM
-        lbsr    draw_enemy
-ent_done
+        jsr     ENEMY_MODULE_TICK
+        lda     ENEMY_DEATH_LATCH
+        cmpa    #1
+        bne     etw_done
+        inca
+        sta     ENEMY_DEATH_LATCH
+        lbsr    reset_perimeter_visual
+etw_done
         rts
 
-draw_enemy
-        lda     ENEMY_ANIM
-        ldb     #PACKED_SPRITE_SIZE
-        mul
-        leay    enemy_sprites,pcr
-        leay    d,y
-        ldx     #ENEMY_FB
-        leau    sprite_attr0_pairs,pcr
-        lbsr    blit_packed_sprite
+enemy_release
+        jsr     ENEMY_MODULE_RELEASE
         rts
 
-save_enemy
-        ldx     #ENEMY_FB
-        ldu     #ENEMY_BG
-        ldy     #16
-se_row
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        leax    152,x
-        leay    -1,y
-        bne     se_row
-        rts
-
-restore_enemy
-        ldx     #ENEMY_FB
-        ldu     #ENEMY_BG
-        ldy     #16
-re_row
-        ldd     ,u++
-        std     ,x++
-        ldd     ,u++
-        std     ,x++
-        ldd     ,u++
-        std     ,x++
-        ldd     ,u++
-        std     ,x++
-        leax    152,x
-        leay    -1,y
-        bne     re_row
+enemy_collect
+        jsr     ENEMY_MODULE_COLLECT
         rts
 
 ; Expand one 16x16 native 2bpp sprite. U selects a 16-byte table mapping
@@ -3049,6 +3101,8 @@ sp_row
         leax    152,x
         leay    -1,y
         bne     sp_row
+        lda     #1
+        sta     PLAYER_BG_VALID
         rts
 
 ;==============================================================================
@@ -3079,6 +3133,7 @@ rp_row
         leax    152,x
         leay    -1,y
         bne     rp_row
+        clr     PLAYER_BG_VALID
         rts
 
 ;==============================================================================

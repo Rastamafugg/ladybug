@@ -55,6 +55,19 @@ loader_start
         lda     #$5A
         sta     BOOT_PROOF
 
+        ; Bank 3 offset $0800 contains an absolute low-RAM enemy module.
+        ; Copying it once avoids frame-time GMC switching and preserves the
+        ; resident MMU mapping used by the framebuffer.
+        lda     #3
+        sta     GMC_BANK
+        ldx     #$C800
+        ldy     #$0800
+copy_enemy_runtime
+        ldd     ,x++
+        std     ,y++
+        cmpx    #$D000
+        blo     copy_enemy_runtime
+
         ; Bank 1 contains the current 16 KiB runtime image. Copy its resident
         ; 8 KiB through PAR5 to phys $3E.
         lda     #1
