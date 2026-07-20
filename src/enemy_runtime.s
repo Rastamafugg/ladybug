@@ -10,6 +10,7 @@
         jmp     enemy_release_impl
         jmp     enemy_collect_impl
         jmp     player_compose_impl
+        jmp     gate_compose_impl
 
 ENEMY_ANIM     equ $0054
 ENEMY_TIMER    equ $0055
@@ -35,6 +36,24 @@ PLAYER_OLD_FB   equ $0067
 PLAYER_DX       equ $006C
 PLAYER_DY       equ $006D
 PLAYER_ROW      equ $006E
+GATE_COMPOSE_MODE equ $006F
+GATE_RECT_FB    equ $0070
+GATE_RECT_WIDTH equ $0072
+GATE_RECT_ROWS  equ $0073
+GATE_START_X    equ $0074
+GATE_START_Y    equ $0075
+GATE_END_X      equ $0076
+GATE_END_Y      equ $0077
+GATE_SHADOW_PAGE equ $0078
+GATE_COPY_COUNT equ $0079
+GATE_COPY_ROWS  equ $007A
+GATE_WORK_ID    equ $007B
+ENEMY_CANDIDATE equ $007C
+ENEMY_REVERSE   equ $007D
+GATE_ID         equ $0013
+GATE_X          equ $0014
+GATE_Y          equ $0015
+GATE_ANIM_ID    equ $0019
 PLAYER_CELL_X  equ $0009
 PLAYER_CELL_Y  equ $000A
 PLAYER_FB      equ $000B
@@ -49,6 +68,7 @@ STAGE          equ $0024
 ENTITY_COUNT   equ $0032
 ENTITY_X       equ $0036
 ENTITY_Y       equ $0037
+RNG_STATE      equ $0034
 
 ENTITY_TABLE   equ $A380
 PLAYER_BG      equ $A300
@@ -62,10 +82,15 @@ ENEMY_ZONE_FB  equ $4DEC
 ENEMY_FB       equ $57EC
 SPRITE_SOURCE_SIZE equ 64
 ENEMY_ZONE_ROWS equ 32
-RECORD_SIZE    equ 6
+RECORD_SIZE    equ 8
 DIR_NONE       equ $FF
+GIME_PAR1      equ $FFA1
+GIME_PAR5      equ $FFA5
+SHADOW_PAGE0   equ $2C
+LIVE_PAGE0     equ $30
 
-; Record: active, framebuffer pointer, pixel phase, cell y, saved-background valid.
+; Record: active, framebuffer pointer, pixel phase, cell x, cell y,
+; saved-background valid, selected direction.
 enemy_init_impl
         lbsr    capture_zone_bg
         lbsr    reset_enemy_state
@@ -121,7 +146,9 @@ er_use
         clr     3,x
         lda     #12
         sta     4,x
-        clr     5,x
+        sta     5,x
+        clr     6,x
+        clr     7,x              ; verified den exit begins North
         inc     ENEMY_ACTIVE
         inc     ENEMY_RELEASED
         lda     #1
@@ -203,7 +230,7 @@ et_find_movement
 et_move_scan
         tst     ,x
         beq     et_move_next
-        lda     4,x
+        lda     5,x
         cmpa    #10
         bls     et_move_next
         lda     #1
@@ -229,8 +256,9 @@ et_update_loop
         tst     ,x
         beq     et_update_next
         ; The first AI pass follows the verified den exit north and stops at
-        ; its first maze decision. Junction selection is a later MAME pass.
-        lda     4,x
+        ; its first maze decision. Record a legal junction direction here;
+        ; the general roaming renderer remains a later implementation slice.
+        lda     5,x
         cmpa    #10
         bls     et_contact
         ldd     1,x
@@ -241,7 +269,12 @@ et_update_loop
         cmpa    #8
         blo     et_contact
         clr     3,x
-        dec     4,x
+        dec     5,x
+        lda     5,x
+        cmpa    #10
+        bne     et_after_choice
+        lbsr    enemy_choose_direction
+et_after_choice
         lda     ENEMY_WORK
         pshs    a,x
         lbsr    enemy_skull_test
@@ -307,6 +340,100 @@ ec_score_done
 ec_done
         rts
 
+; First roaming-AI slice: choose a pseudo-random legal direction at the first
+; aligned maze decision. Avoid immediate reversal whenever another regular
+; corridor exists. Gate-owned cells remain blocked until the measured dynamic
+; gate-passage rule and roaming renderer are added.
+enemy_choose_direction
+        stx     ENEMY_PTR
+        lda     7,x
+        eora    #2
+        sta     ENEMY_REVERSE
+        lda     RNG_STATE+1
+        adda    ENEMY_WORK
+        anda    #3
+        sta     ENEMY_CANDIDATE
+        lda     #4
+        sta     GATE_COPY_COUNT
+ecd_scan
+        lda     ENEMY_CANDIDATE
+        cmpa    ENEMY_REVERSE
+        beq     ecd_next
+        lbsr    enemy_direction_legal
+        bcs     ecd_choose
+ecd_next
+        inc     ENEMY_CANDIDATE
+        lda     ENEMY_CANDIDATE
+        anda    #3
+        sta     ENEMY_CANDIDATE
+        dec     GATE_COPY_COUNT
+        bne     ecd_scan
+        lda     ENEMY_REVERSE
+        sta     ENEMY_CANDIDATE
+        lbsr    enemy_direction_legal
+        bcc     ecd_blocked
+ecd_choose
+        ldx     ENEMY_PTR
+        lda     ENEMY_CANDIDATE
+        sta     7,x
+        rts
+ecd_blocked
+        ldx     ENEMY_PTR
+        lda     #DIR_NONE
+        sta     7,x
+        rts
+
+enemy_direction_legal
+        ldx     ENEMY_PTR
+        lda     4,x
+        sta     ENTITY_X
+        lda     5,x
+        sta     ENTITY_Y
+        ldb     ENEMY_CANDIDATE
+        beq     edl_north
+        cmpb    #1
+        beq     edl_east
+        cmpb    #2
+        beq     edl_south
+        dec     ENTITY_X
+        bra     edl_bounds
+edl_north
+        dec     ENTITY_Y
+        bra     edl_bounds
+edl_east
+        inc     ENTITY_X
+        bra     edl_bounds
+edl_south
+        inc     ENTITY_Y
+edl_bounds
+        lda     ENTITY_X
+        cmpa    #24
+        bhs     edl_clear
+        lda     ENTITY_Y
+        cmpa    #24
+        bhs     edl_clear
+        ldb     #24
+        mul
+        addb    ENTITY_X
+        adca    #0
+        ldy     #maze_gate_owner
+        tst     d,y
+        bne     edl_clear
+        ldy     #maze_nav
+        ldb     d,y
+        ldx     #enemy_entry_masks
+        lda     ENEMY_CANDIDATE
+        andb    a,x
+        beq     edl_clear
+        orcc    #$01
+        rts
+edl_clear
+        andcc   #$FE
+        rts
+
+enemy_entry_masks
+        fcb     $04,$08,$01,$02
+
 ; Current active enemies occupy the nest's vertical lane. Use the displayed
 ; 16-by-16 footprints instead of requiring simultaneous cell alignment.
 enemy_player_contact
@@ -343,7 +470,7 @@ est_loop
         bne     est_next
         lda     1,u
         ldx     ENEMY_PTR
-        cmpa    4,x
+        cmpa    5,x
         bne     est_next
         clr     2,u
         lda     ,u
@@ -356,7 +483,7 @@ est_loop
         lbsr    refresh_zone_bg_footprint
         ldx     ENEMY_PTR
         clr     ,x
-        clr     5,x
+        clr     6,x
         dec     ENEMY_ACTIVE
         clr     VEG_STATE
         lda     #1
@@ -389,7 +516,7 @@ cez_copy_bg
 cez_active_loop
         tst     ,u
         beq     cez_active_next
-        lda     4,u
+        lda     5,u
         suba    #10
         ldb     #8
         mul
@@ -637,6 +764,238 @@ ctfr_row
         leax    152,x
         leay    -1,y
         bne     ctfr_row
+        rts
+
+; Render a gate transition against hidden physical framebuffer pages $2C-$2F.
+; The GIME continues scanning live pages $30-$33. Only the exact gate union and
+; player footprint are copied in and published; all resident drawing code runs
+; unchanged through the temporary PAR1-PAR4 mapping.
+gate_compose_impl
+        lda     GATE_ANIM_ID
+        beq     gci_done
+        deca
+        sta     GATE_WORK_ID
+        sta     GATE_ID
+        lbsr    gate_compute_region
+        lbsr    gate_region_to_shadow
+        lbsr    gate_set_player_region
+        lbsr    gate_region_to_shadow
+        lbsr    gate_map_shadow
+        jsr     gate_render_hidden
+        lbsr    gate_map_live
+        lda     GATE_WORK_ID
+        sta     GATE_ID
+        lbsr    gate_compute_region
+        lbsr    gate_region_from_shadow
+        lbsr    gate_set_player_region
+        lbsr    gate_region_from_shadow
+gci_done
+        lda     #$34
+        sta     GIME_PAR5
+        rts
+
+gate_compute_region
+        lda     GATE_WORK_ID
+        ldb     #3
+        mul
+        ldx     #maze_gates
+        leax    d,x
+        lda     ,x
+        sta     GATE_X
+        suba    #2
+        sta     GATE_START_X
+        lda     GATE_X
+        inca
+        sta     GATE_END_X
+        lda     1,x
+        sta     GATE_Y
+        suba    #2
+        sta     GATE_START_Y
+        lda     GATE_Y
+        inca
+        sta     GATE_END_Y
+
+        ldx     #gate_redraw_neighbors
+        ldb     GATE_WORK_ID
+        lda     b,x
+        beq     gcr_dimensions
+        deca
+        ldb     #3
+        mul
+        ldx     #maze_gates
+        leax    d,x
+        lda     ,x
+        suba    #2
+        cmpa    GATE_START_X
+        bhs     gcr_neighbor_end_x
+        sta     GATE_START_X
+gcr_neighbor_end_x
+        lda     ,x
+        inca
+        cmpa    GATE_END_X
+        bls     gcr_neighbor_start_y
+        sta     GATE_END_X
+gcr_neighbor_start_y
+        lda     1,x
+        suba    #2
+        cmpa    GATE_START_Y
+        bhs     gcr_neighbor_end_y
+        sta     GATE_START_Y
+gcr_neighbor_end_y
+        lda     1,x
+        inca
+        cmpa    GATE_END_Y
+        bls     gcr_dimensions
+        sta     GATE_END_Y
+
+gcr_dimensions
+        lda     GATE_END_X
+        suba    GATE_START_X
+        inca
+        lsla
+        lsla
+        sta     GATE_RECT_WIDTH
+        lda     GATE_END_Y
+        suba    GATE_START_Y
+        inca
+        lsla
+        lsla
+        lsla
+        sta     GATE_RECT_ROWS
+
+        lda     GATE_START_Y
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #$2000
+        std     GATE_RECT_FB
+        lda     GATE_START_X
+        adda    #8
+        lsla
+        lsla
+        tfr     a,b
+        clra
+        addd    GATE_RECT_FB
+        std     GATE_RECT_FB
+        rts
+
+gate_set_player_region
+        ldd     PLAYER_FB
+        std     GATE_RECT_FB
+        lda     #8
+        sta     GATE_RECT_WIDTH
+        lda     #16
+        sta     GATE_RECT_ROWS
+        rts
+
+gate_map_shadow
+        lda     #SHADOW_PAGE0
+        sta     GIME_PAR1
+        inca
+        sta     GIME_PAR1+1
+        inca
+        sta     GIME_PAR1+2
+        inca
+        sta     GIME_PAR1+3
+        rts
+
+gate_map_live
+        lda     #LIVE_PAGE0
+        sta     GIME_PAR1
+        inca
+        sta     GIME_PAR1+1
+        inca
+        sta     GIME_PAR1+2
+        inca
+        sta     GIME_PAR1+3
+        rts
+
+; X is a live framebuffer address. Map the corresponding shadow physical page
+; at $A000 and return U at the identical offset inside that page.
+gate_map_shadow_window
+        tfr     x,d
+        cmpa    #$40
+        blo     gmsw_page0
+        cmpa    #$60
+        blo     gmsw_page1
+        cmpa    #$80
+        blo     gmsw_page2
+        lda     #SHADOW_PAGE0+3
+        bra     gmsw_map
+gmsw_page0
+        lda     #SHADOW_PAGE0
+        bra     gmsw_map
+gmsw_page1
+        lda     #SHADOW_PAGE0+1
+        bra     gmsw_map
+gmsw_page2
+        lda     #SHADOW_PAGE0+2
+gmsw_map
+        sta     GATE_SHADOW_PAGE
+        sta     GIME_PAR5
+        tfr     x,d
+        anda    #$1F
+        addd    #$A000
+        tfr     d,u
+        rts
+
+gate_region_to_shadow
+        ldx     GATE_RECT_FB
+        lda     GATE_RECT_ROWS
+        sta     GATE_COPY_ROWS
+grts_row
+        lbsr    gate_map_shadow_window
+        lda     GATE_RECT_WIDTH
+        sta     GATE_COPY_COUNT
+grts_byte
+        lda     ,x+
+        sta     ,u+
+        cmpu    #$C000
+        bne     grts_byte_done
+        inc     GATE_SHADOW_PAGE
+        lda     GATE_SHADOW_PAGE
+        sta     GIME_PAR5
+        ldu     #$A000
+grts_byte_done
+        dec     GATE_COPY_COUNT
+        bne     grts_byte
+        ldb     #160
+        subb    GATE_RECT_WIDTH
+        abx
+        dec     GATE_COPY_ROWS
+        bne     grts_row
+        lda     #$34
+        sta     GIME_PAR5
+        rts
+
+gate_region_from_shadow
+        ldx     GATE_RECT_FB
+        lda     GATE_RECT_ROWS
+        sta     GATE_COPY_ROWS
+grfs_row
+        lbsr    gate_map_shadow_window
+        lda     GATE_RECT_WIDTH
+        sta     GATE_COPY_COUNT
+grfs_byte
+        lda     ,u+
+        sta     ,x+
+        cmpu    #$C000
+        bne     grfs_byte_done
+        inc     GATE_SHADOW_PAGE
+        lda     GATE_SHADOW_PAGE
+        sta     GIME_PAR5
+        ldu     #$A000
+grfs_byte_done
+        dec     GATE_COPY_COUNT
+        bne     grfs_byte
+        ldb     #160
+        subb    GATE_RECT_WIDTH
+        abx
+        dec     GATE_COPY_ROWS
+        bne     grfs_row
+        lda     #$34
+        sta     GIME_PAR5
         rts
 
 draw_enemy_stage

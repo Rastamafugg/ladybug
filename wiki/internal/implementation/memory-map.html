@@ -30,6 +30,7 @@
         <li><strong>8 MMU PARs</strong>, each maps an 8 K virtual page to a 6-bit physical-page number (see <a href="../../release/reference/coco3/memory-map.html">CoCo 3 memory map</a>, <a href="../../release/reference/coco3/gime.html">GIME</a>).</li>
         <li><strong>64 physical pages</strong> of RAM on a 512 K machine, numbered <code>$00-$3F</code>. RAM is populated top-down — <code>$3F</code> is highest.</li>
         <li><strong>Framebuffer</strong> = 30 720 bytes = 4 pages (3.75 actually used). GIME reads it via physical address, bypassing the MMU.</li>
+        <li><strong>Hidden gate framebuffer</strong> = physical pages <code>$2C-$2F</code>. The sixth bank-3 ABI entry maps these pages only while composing a gate region; GIME continues scanning live pages <code>$30-$33</code>.</li>
         <li><strong>Resident code</strong> is copied from GMC bank 1 into physical page <code>$3E</code>. The enemy runtime is copied once from bank 3 offset <code>$0800</code> to low RAM <code>$0800-$0FFF</code>.</li>
         <li><strong>Delivery cartridge</strong> is a 64 K GMC image containing four 16 K banks. Bank 0 is the loader, bank 1 is the resident runtime/assets, bank 2 is reserved, and bank 3 owns the enemy module.</li>
         <li><strong><code>$FF00-$FFFF</code> is dedicated I/O</strong>, not cart-visible. <strong><code>$FE00-$FEFF</code> is forced</strong> to phys <code>$3F</code> regardless of PAR7 when Init0 b3 is set — the primary jump table stays reachable.</li>
@@ -74,8 +75,7 @@ $A300-$A37F      5    $34   128 B  Player background save buffer
 $A380-$A3AF      5    $34    48 B  Twelve x/y/type/variant collectible records
 $A3B0-$A3EF      5    $34    64 B  Score-popup lower background buffer
 $A3F0-$A46F      5    $34   128 B  Compact clean player compositor stage
-$A470-$A487      5    $34    24 B  Four six-byte active-enemy records
-$A488-$A48F      5    $34     8 B  Reserved alignment
+$A470-$A48F      5    $34    32 B  Four eight-byte active-enemy records
 $A490-$A58F      5    $34   256 B  Clean 16-by-32 nest-zone background
 $A590-$A60F      5    $34   128 B  Compact off-screen nest compositor lower half
 $A610-$A68F      5    $34   128 B  Nest upper half / transient old-player stage
@@ -97,6 +97,14 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         (192 rows × 160 bytes/row = 30 720 = <code>$7800</code>; FB occupies
         virtual <code>$2000-$97FF</code>). Free for use as scratch /
         sprite save-restore buffer.
+      </p>
+      <p>
+        Physical pages <code>$2C-$2F</code> form a second, non-scanned
+        framebuffer used only by the gate-region compositor. Bank 3 copies
+        the gate union and player rectangle from live RAM, invokes the
+        resident gate/player renderer against the hidden mapping, then
+        publishes only those completed rectangles back to pages
+        <code>$30-$33</code>.
       </p>
     </section>
 
@@ -360,7 +368,9 @@ $FF00-$FFFF        256 B   I/O; never cart data
           <tr><td><code>$58-$66</code></td><td>enemy counts, timers, compositor scratch</td><td>15 B</td><td>Bank-3 enemy runtime</td></tr>
           <tr><td><code>$67-$6B</code></td><td>old player pointer, erase/save validity, queued player tick</td><td>5 B</td><td>Staged player renderer</td></tr>
           <tr><td><code>$6C-$6E</code></td><td>player compositor delta and row scratch</td><td>3 B</td><td>Bank-3 player compositor</td></tr>
-          <tr><td><code>$6F-$FF</code></td><td>(free)</td><td>145 B</td><td>Future hot state</td></tr>
+          <tr><td><code>$6F-$7B</code></td><td>gate compose mode, region, and MMU-copy scratch</td><td>13 B</td><td>Bank-3 gate-region compositor</td></tr>
+          <tr><td><code>$7C-$7D</code></td><td>AI candidate and reverse direction</td><td>2 B</td><td>Bank-3 enemy junction chooser</td></tr>
+          <tr><td><code>$7E-$FF</code></td><td>(free)</td><td>130 B</td><td>Future hot state</td></tr>
         </tbody>
       </table>
       <p>Plenty of room. Maintain this table as variables land.</p>

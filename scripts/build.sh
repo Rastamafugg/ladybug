@@ -132,6 +132,8 @@ import sys
 source, output = sys.argv[1:]
 wanted = {
     'blit_packed_sprite', 'draw_hud', 'enemy_sprites', 'restore_player',
+    'gate_redraw_neighbors', 'gate_render_hidden', 'maze_gate_owner',
+    'maze_gates', 'maze_nav',
     'player_sprites', 'restore_entity_footprint', 'sprite_attr0_pairs',
     'vegetable_sprites',
 }

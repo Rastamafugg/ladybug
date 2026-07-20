@@ -23,6 +23,16 @@
     </header>
 
     <section>
+      <h3>2026-07-20 &middot; lint &mdash; gate compositor and initial enemy AI acceptance</h3>
+      <p>Passed the guarded full build at resident <code>8127/8192</code>, assets <code>7620/7680</code>, and bank 3 <code>1783/2048</code>; the GMC handoff, six-entry bank-3 ABI/static compositor proof, arcade-fidelity checks, Python byte-compilation, scoped whitespace check, and parsing plus local-link resolution for six updated wiki pages also passed. Fresh-ROM XRoar snapshots verified that the gate transition writes only the dynamic gate union and player rectangle, preserves a distant player, and finishes with valid save-under state; a separate first-junction probe selected a legal non-reversing regular-corridor direction. General roaming composition, dynamic gate passage, and pursuit remain outside this initial AI slice.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-20 &middot; implement &mdash; hidden gate compositor and initial enemy direction AI</h3>
+      <p>The approved sixth bank-3 ABI entry now computes the dynamic gate union, copies it and the player rectangle from live framebuffer pages <code>$30-$33</code> into hidden pages <code>$2C-$2F</code>, invokes the resident renderer there, and publishes only completed rectangles. This removes the visible direct gate restore sequence. Enemy records expanded to eight bytes with semantic X and direction; the verified north exit now chooses a pseudo-random legal non-reversing direction at cell <code>(12,10)</code>, while blocking gate-owned targets until dynamic passage and the general roaming renderer are implemented. Fresh-ROM probes verified gate write locality and a legal first-junction choice. Current use is resident <code>8127/8192</code>, assets <code>7620/7680</code>, and bank 3 <code>1783/2048</code>.</p>
+    </section>
+
+    <section>
       <h3>2026-07-20 &middot; lint &mdash; movement, reserve, and timer-reset acceptance</h3>
       <p>Passed the guarded build, GMC handoff, bank-3 ABI/compositor proof, arcade-fidelity checks, Python byte-compilation, scoped whitespace checks, and parsing plus local-link resolution for the five updated wiki pages. Fresh-ROM XRoar snapshots separately verified left-edge cleanup locality, reserve-one replacement dispatch, zero-reserve terminal state, and all-White timer publication.</p>
     </section>

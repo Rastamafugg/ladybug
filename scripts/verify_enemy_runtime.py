@@ -10,7 +10,7 @@ main = (root / "src/main.s").read_text(encoding="utf-8")
 resident = (root / "build/ladybug_resident.inc").read_text(encoding="utf-8")
 rom = (root / "build/ladybug-enemy-runtime.rom").read_bytes()
 
-if len(rom) < 15 or any(rom[offset] != 0x7E for offset in range(0, 15, 3)):
+if len(rom) < 18 or any(rom[offset] != 0x7E for offset in range(0, 18, 3)):
     raise SystemExit("enemy proof: fixed $0800 jump table is invalid")
 if len(rom) > 0x800:
     raise SystemExit("enemy proof: bank-3 low-RAM module exceeds 2 KiB")
@@ -47,11 +47,21 @@ required = [
     "clr     BOX_PHASE",
     "clr     PLAYER_TICK_PENDING",
     "jmp     player_compose_impl",
+    "jmp     gate_compose_impl",
     "PLAYER_STAGE   equ $A3F0",
     "PLAYER_OLD_STAGE equ $A610",
     "et_contact_scan",
     "lbsr    enemy_player_contact",
     "cmpd    #2400",
+    "RECORD_SIZE    equ 8",
+    "lbsr    enemy_choose_direction",
+    "enemy_direction_legal",
+    "ldy     #maze_gate_owner",
+    "SHADOW_PAGE0   equ $2C",
+    "LIVE_PAGE0     equ $30",
+    "jsr     gate_render_hidden",
+    "lbsr    gate_region_to_shadow",
+    "lbsr    gate_region_from_shadow",
 ]
 missing = [fragment for fragment in required if fragment not in source]
 if missing:
@@ -68,6 +78,16 @@ if main.index("lbsr    enemy_release") < main.index("perimeter_timer_tick"):
     raise SystemExit("enemy proof: release is not driven by the perimeter timer")
 if "setdp   $00" not in main or "clra                    ; DP = $00" not in main:
     raise SystemExit("enemy proof: resident runtime direct page is not explicitly page zero")
+if "GATE_MODULE_COMPOSE equ $080F" not in main:
+    raise SystemExit("enemy proof: gate compositor ABI entry is missing")
+gate_turn_start = main.index("\ncm_rotate\n")
+gate_turn = main[gate_turn_start : main.index("\ncm_regular\n", gate_turn_start)]
+if "expose_player_background" in gate_turn or "jsr     GATE_MODULE_COMPOSE" not in gate_turn:
+    raise SystemExit("enemy proof: gate transition still mutates the visible player region")
+gate_finish_start = main.index("\nfinish_gate_animation\n")
+gate_finish = main[gate_finish_start : main.index("\ngate_render_hidden\n", gate_finish_start)]
+if "restore_player" in gate_finish or "jsr     GATE_MODULE_COMPOSE" not in gate_finish:
+    raise SystemExit("enemy proof: final gate state bypasses hidden composition")
 mainloop = main[main.index("mainloop\n") : main.index(";==============================================================================\n; Phase 5")]
 player_order = [
     "lbsr    finish_gate_animation",
@@ -102,6 +122,6 @@ print(
     f"enemy proof: {len(rom)}/2048 bank-3 bytes; fixed ABI, compact staging, "
     "64-byte source stride, idle render gate, off-screen nest compositor, "
     "immediate death reset, reset/frozen release timer, staged player publish, "
-    "footprint collision, skull decrement, exclusive vegetable layer, and "
-    "300-frame freeze verified"
+    "hidden gate publish, footprint collision, skull decrement, exclusive "
+    "vegetable layer, 300-frame freeze, and first junction choice verified"
 )

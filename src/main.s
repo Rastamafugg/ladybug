@@ -111,6 +111,7 @@ PLAYER_OLD_FB equ $0067        ; framebuffer pointer owned by PLAYER_BG
 PLAYER_ERASED equ $0069        ; nonzero after old player background is exposed
 PLAYER_BG_VALID equ $006A      ; PLAYER_BG contains restorable pixels
 PLAYER_TICK_PENDING equ $006B  ; nonzero when next Vbord must update/render player
+GATE_COMPOSE_MODE equ $006F    ; 0=diagonal intermediate, 1=final gate state
 BOOT_FLAG    equ $02F0         ; $A5 when GMC bootstrap relocated runtime to RAM
 
 DIR_NORTH     equ 0
@@ -194,6 +195,7 @@ ENEMY_MODULE_TICK    equ $0803
 ENEMY_MODULE_RELEASE equ $0806
 ENEMY_MODULE_COLLECT equ $0809
 PLAYER_MODULE_COMPOSE equ $080C
+GATE_MODULE_COMPOSE equ $080F
 
 ;==============================================================================
 ;  Cart ROM
@@ -2132,17 +2134,14 @@ cm_set_south
 cm_south_style_done
         lda     #2
 cm_rotate
-        pshs    a
-        lbsr    expose_player_background
-        puls    a
         ldx     #GATE_STATE
         ldb     GATE_ID
         sta     b,x
         lda     GATE_ID
         inca
         sta     GATE_ANIM_ID
-        deca
-        lbsr    draw_gate_diagonal
+        clr     GATE_COMPOSE_MODE
+        jsr     GATE_MODULE_COMPOSE
         bra     cm_allowed
 
 cm_regular
@@ -2319,15 +2318,34 @@ dgd_tile
 finish_gate_animation
         lda     GATE_ANIM_ID
         beq     fga_done
+        lda     #1
+        sta     GATE_COMPOSE_MODE
+        jsr     GATE_MODULE_COMPOSE
+fga_done
+        rts
+
+; Bank 3 maps a hidden framebuffer before calling this renderer. The visible
+; GIME source remains untouched until bank 3 publishes completed rows.
+gate_render_hidden
+        tst     PLAYER_BG_VALID
+        beq     grh_gate
         lbsr    restore_player
+grh_gate
+        tst     GATE_COMPOSE_MODE
+        bne     grh_final
+        lda     GATE_ANIM_ID
+        deca
+        lbsr    draw_gate_diagonal
+        bra     grh_player
+grh_final
         lbsr    restore_gate_diagonal_dots
         lda     GATE_ANIM_ID
         deca
         lbsr    draw_gate
         clr     GATE_ANIM_ID
         lbsr    draw_entities
+grh_player
         lbsr    draw_player
-fga_done
         rts
 
 ; Restore the two dot cells overwritten by the selected diagonal style.

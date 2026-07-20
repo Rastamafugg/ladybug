@@ -118,8 +118,10 @@ lwasm -9 --format=raw \
         It rejects resident code beyond <code>$E000</code>, an asset start other
         than <code>$E000</code>, assets beyond <code>$FE00</code>, or a raw-file
         length inconsistent with <code>asset_end-$C000</code>. A successful
-        current build reports <code>resident 8109/8192</code> and
-        <code>assets 7620/7680</code> before padding.
+        current build reports <code>resident 8127/8192</code> and
+        <code>assets 7620/7680</code> before padding. The copied bank-3 module
+        reports <code>1783/2048</code>; its six-entry jump table includes the
+        hidden gate-region compositor ABI.
       </p>
 
       <h3>2. Pad both source banks to 16 KB and compose the 64 KB GMC image</h3>

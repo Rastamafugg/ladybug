@@ -1280,6 +1280,24 @@ git reset --hard HEAD
       <p><strong>Citation:</strong> user clarification and <code>src/main.s</code> <code>dt_finish_walkoff</code>/<code>dt_game_over</code>, 2026-07-20.</p>
     </section>
 
+    <section>
+      <h2>Physical scanout and CPU MMU mappings can support a hidden compositor</h2>
+      <p><strong>Filed 2026-07-20.</strong></p>
+      <p>GIME scans the framebuffer by physical address independently of the CPU PAR mappings. Pages <code>$2C-$2F</code> can therefore hold a hidden framebuffer while scanout remains on live pages <code>$30-$33</code>.</p>
+      <p><strong>Rule:</strong> copy only the affected live region into hidden pages, render the complete mutation there with the resident renderer, restore the live mappings, and publish complete dirty rectangles. Preserve the original PAR5 mapping while using <code>$A000</code> as the physical-page copy window.</p>
+      <p><strong>Applies to:</strong> gate animation and other bounded multi-pass maze mutations.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>gate_compose_impl</code> and the 2026-07-20 framebuffer-locality snapshot probe.</p>
+    </section>
+
+    <section>
+      <h2>Separate enemy direction decisions from roaming sprite ownership</h2>
+      <p><strong>Filed 2026-07-20.</strong></p>
+      <p>The reverted first AI attempt combined junction selection with general save-under movement and produced overlap ghosts. The current slice expands each record to hold semantic X and direction, preserves the verified north exit, and records a legal non-reversing direction at the first junction without advancing into an unimplemented renderer.</p>
+      <p><strong>Rule:</strong> validate navigation decisions independently, then add roaming composition with explicit overlap ownership before enabling continuous movement.</p>
+      <p><strong>Applies to:</strong> enemy roaming, pursuit, gate passage, and multi-actor save-under rendering.</p>
+      <p><strong>Citation:</strong> historical commits <code>6980b45</code>/<code>49269f4</code>, <code>src/enemy_runtime.s</code>, and the 2026-07-20 first-junction snapshot probe.</p>
+    </section>
+
   </main>
 </div>
 </body>
