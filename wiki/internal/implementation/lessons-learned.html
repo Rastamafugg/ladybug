@@ -1361,6 +1361,33 @@ git reset --hard HEAD
       <p><strong>Citation:</strong> <code>src/main.s</code> <code>RNG_ENTROPY</code> and <code>scripts/build.sh</code>.</p>
     </section>
 
+    <section>
+      <h2>Use loader-time copies for hot sprite sets that exceed the active asset window</h2>
+      <p><strong>Filed 2026-07-22.</strong></p>
+      <p>The eight enemy types and four generated directions require 8,192 packed bytes while the resident code has one byte free. GMC bank 2 stores the atlas, the bootstrap copies it to physical page <code>$35</code>, and runtime refreshes five low-RAM frame-cache slots only when type, direction, or animation changes.</p>
+      <p><strong>Rule:</strong> copy immutable atlases during boot, then cache only hot frames in an always-mapped region when the render destination shares the available MMU window.</p>
+      <p><strong>Applies to:</strong> enemy animation sets and future hot assets that do not fit in <code>$E000-$FDFF</code>.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_screen.py</code>, <code>scripts/build.sh</code>, <code>src/gmc_bootstrap.s</code>, and <code>src/enemy_runtime.s</code>.</p>
+    </section>
+
+    <section>
+      <h2>Restore a temporary PAR mapping before reusing its copy window</h2>
+      <p><strong>Filed 2026-07-22.</strong></p>
+      <p>The loader mapped PAR5 to physical page <code>$34</code> to copy bank-2 enemy sprites into <code>$A900-$B0FF</code>, then reused <code>$A000-$BFFF</code> for the resident copy without restoring PAR5 to <code>$3E</code>. The resident image overwrote the sprite payload, producing scrambled enemies on every part.</p>
+      <p><strong>Rule:</strong> treat every temporary PAR change as scoped state. Restore or explicitly select the destination page immediately before each loader copy, and verify the final physical RAM bytes rather than only the cartridge-bank source.</p>
+      <p><strong>Applies to:</strong> bootstrap copies, hidden framebuffer windows, and any MMU window reused for multiple physical destinations.</p>
+      <p><strong>Citation:</strong> <code>src/gmc_bootstrap.s</code> and the XRoar snapshot comparison of bank-2 payload bytes with physical <code>$68900-$690FF</code>.</p>
+    </section>
+
+    <section>
+      <h2>Instruction traces identify byte movement, not AI, as the enemy-frame bottleneck</h2>
+      <p><strong>Filed 2026-07-22.</strong></p>
+      <p>A forced four-enemy XRoar instruction trace measured 26,404 executed instructions on a typical movement frame and 31,389 when movement coincided with additional animation work. The 1.78 MHz frame budget is 29,666 cycles, so the typical frame cannot fit even at an impossible one cycle per instruction.</p>
+      <p><strong>Finding:</strong> on the typical frame, shadow-region copies account for 9,884 instructions (37.4%), framebuffer sprite blits 9,536 (36.1%), stage sprite blits 2,390 (9.1%), background restore/save 2,136 (8.1%), and nest composition 907 (3.4%). Enemy logic is 172 instructions (0.7%).</p>
+      <p><strong>Rule:</strong> retain gameplay cadence and optimize representation and copy granularity: eliminate redundant passes, suppress unchanged nest work, pre-expand cached frames, and reduce per-row PAR remapping.</p>
+      <p><strong>Citation:</strong> XRoar <code>-trace</code> capture from a four-record snapshot, <code>src/enemy_runtime.s</code>, and <code>wiki/internal/platform/timing.html</code>.</p>
+    </section>
+
   </main>
 </div>
 </body>

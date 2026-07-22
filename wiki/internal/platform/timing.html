@@ -76,6 +76,36 @@
       </p>
     </section>
 
+    <section>
+      <h2>Four-enemy profile â€” 2026-07-22</h2>
+      <p>
+        A forced four-record XRoar <code>-trace</code> snapshot measured 26,404
+        executed instructions on a normal enemy movement frame. A frame where
+        movement coincided with additional animation work reached 31,389.
+        These are instruction counts, not cycle estimates; because every 6809
+        instruction costs more than one cycle, both conclusively exceed the
+        29,666-cycle 60 Hz budget.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Path</th><th>Instructions</th><th>Typical frame</th></tr></thead>
+        <tbody>
+          <tr><td>Shadow-region copies and per-row mapping</td><td>9,884</td><td>37.4%</td></tr>
+          <tr><td>Framebuffer packed-sprite blits</td><td>9,536</td><td>36.1%</td></tr>
+          <tr><td>Nest/stage packed-sprite blit</td><td>2,390</td><td>9.1%</td></tr>
+          <tr><td>Background restore/save copies</td><td>2,136</td><td>8.1%</td></tr>
+          <tr><td>Nest composition excluding its blit</td><td>907</td><td>3.4%</td></tr>
+          <tr><td>Enemy logic before composition</td><td>172</td><td>0.7%</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The behavior-preserving attack order is: remove the duplicate old-
+        background restore, skip nest composition when only roaming pixels
+        changed, pre-expand low-RAM cached frames to native 4bpp, and replace
+        per-row shadow-window mapping with page-segment copies. Rectangle
+        coalescing is deferred until the lower-risk changes are measured.
+      </p>
+    </section>
+
     <footer class="wiki-footer">
       <p>
         Sources:

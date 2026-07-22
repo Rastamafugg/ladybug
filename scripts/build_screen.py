@@ -70,7 +70,19 @@ VEGETABLE_CODES = (
     tuple(sheet_code(row, 9) for row in range(7, -1, -1)) +
     (sheet_code(7, 10), sheet_code(6, 10))
 )
-ENEMY_CODES = tuple(sheet_code(row, 1) for row in (4, 5, 6, 5))
+ENEMY_CODE_SETS = (
+    tuple(sheet_code(row, 1) for row in (4, 5, 6, 5)),
+    (sheet_code(6, 2), sheet_code(7, 2),
+     sheet_code(0, 1), sheet_code(7, 2)),
+    tuple(sheet_code(row, 3) for row in (2, 3, 4, 3)),
+    tuple(sheet_code(row, 2) for row in (0, 1, 2, 1)),
+    tuple(sheet_code(row, 4) for row in (4, 5, 6, 5)),
+    (sheet_code(6, 5), sheet_code(7, 5),
+     sheet_code(0, 4), sheet_code(7, 5)),
+    tuple(sheet_code(row, 5) for row in (0, 1, 2, 1)),
+    tuple(sheet_code(row, 6) for row in (2, 3, 4, 3)),
+)
+ENEMY_CODES = tuple(code for group in ENEMY_CODE_SETS for code in group)
 MULTIPLIER_CHAR_CODES = tuple(char_sheet_code(row, 6) for row in (5, 4, 2))
 
 OBJECT_NAMES = ("skull", "heart", "A", "C", "E", "I", "L", "P", "R", "S", "T", "X")
@@ -101,6 +113,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sprites", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--resident-output", type=Path, required=True)
+    parser.add_argument("--enemy-output", type=Path, required=True)
     return parser.parse_args()
 
 
@@ -226,6 +239,20 @@ def compile_player_sprites(path: Path) -> list[bytes]:
     for _ in range(4):
         frames.extend(direction)
         direction = [rotate_cw(frame) for frame in direction]
+    return [pack_sprite_2bpp([[0] + row[:15] for row in frame])
+            for frame in frames]
+
+
+def compile_enemy_sprites(path: Path) -> list[bytes]:
+    """Build type-major N/E/S/W animations using the player rotation rule."""
+    sprites = load_sprites(path)
+    frames = []
+    for codes in ENEMY_CODE_SETS:
+        north = [rotate_ccw(sprites[code]) for code in codes]
+        direction = north
+        for _ in range(4):
+            frames.extend(direction)
+            direction = [rotate_cw(frame) for frame in direction]
     return [pack_sprite_2bpp([[0] + row[:15] for row in frame])
             for frame in frames]
 
@@ -541,7 +568,6 @@ def emit_include(path: Path, screen_map: list[int], tiles: list[bytes],
                  gate_backgrounds: list[list[int]],
                  gate_neighbors: list[int], maze_dot_tile_id: int,
                  object_masks: list[bytes], score_sprites: list[bytes],
-                 enemy_sprites: list[bytes],
                  multiplier_graphics: list[bytes]) -> None:
     unique_gate_backgrounds: list[list[int]] = []
     gate_background_index: list[int] = []
@@ -622,7 +648,6 @@ def emit_include(path: Path, screen_map: list[int], tiles: list[bytes],
             lines.append("        fcb     " + ",".join(
                 f"${value:02X}" for value in graphic[offset:offset + 8]))
     emit_packed_sprite_group(lines, "score_sprites", score_sprites, SCORE_CODES)
-    emit_packed_sprite_group(lines, "enemy_sprites", enemy_sprites, ENEMY_CODES)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="ascii")
 
@@ -644,22 +669,23 @@ def main() -> None:
     death_sprites = compile_death_sprites(args.sprites)
     vegetable_sprites = compile_sprite_codes(args.sprites, VEGETABLE_CODES)
     score_sprites = compile_sprite_codes(args.sprites, SCORE_CODES)
-    enemy_sprites = compile_sprite_codes(args.sprites, ENEMY_CODES,
-                                           align_right=True)
+    enemy_sprites = compile_enemy_sprites(args.sprites)
+    args.enemy_output.parent.mkdir(parents=True, exist_ok=True)
+    args.enemy_output.write_bytes(b"".join(enemy_sprites))
     multiplier_graphics = [
         pack_tile(recolor(rotate_ccw(chars[code]), (BLACK, BLUE, BLUE, BLUE)))
         for code in MULTIPLIER_CHAR_CODES
     ]
     emit_include(args.output, screen_map, tiles, clean_tile_id, hud_digits,
                  gate_states, gate_diagonals, gate_backgrounds, gate_neighbors,
-                 maze_dot_tile_id, object_masks, score_sprites, enemy_sprites,
+                 maze_dot_tile_id, object_masks, score_sprites,
                  multiplier_graphics)
     write_resident_include(args.resident_output, player_frames, death_sprites,
                            vegetable_sprites)
 
     data_bytes = (len(screen_map) + len(tiles) * 32 +
                   len(hud_digits) * 32 + len(object_masks) * 64 +
-                  len(score_sprites) * 64 + len(enemy_sprites) * 64 +
+                  len(score_sprites) * 64 +
                   len(multiplier_graphics) * 32)
     print(f"screen: {len(tiles)} unique tiles, {len(player_frames)} player frames, "
           f"{data_bytes} data bytes")

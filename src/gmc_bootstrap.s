@@ -46,14 +46,28 @@ loader_start
         sta     GMC_BANK
         ldd     $C010
         cmpd    #$B202
-        bne     loader_fail
+        lbne    loader_fail
         lda     #3
         sta     GMC_BANK
         ldd     $C010
         cmpd    #$B303
-        bne     loader_fail
+        lbne    loader_fail
         lda     #$5A
         sta     BOOT_PROOF
+
+        ; Bank 2 offset $0800 holds eight N/E/S/W four-frame enemy sets.
+        ; Copy the atlas to physical page $35; runtime caches selected frames.
+        lda     #$35
+        sta     PAR_EXEC+5
+        lda     #2
+        sta     GMC_BANK
+        ldx     #$C800
+        ldy     #$A000
+copy_enemy_sprites
+        ldd     ,x++
+        std     ,y++
+        cmpx    #$E800
+        blo     copy_enemy_sprites
 
         ; Bank 3 offset $0800 contains an absolute low-RAM enemy module.
         ; Copying it once avoids frame-time GMC switching and preserves the
@@ -70,6 +84,8 @@ copy_enemy_runtime
 
         ; Bank 1 contains the current 16 KiB runtime image. Copy its resident
         ; 8 KiB through PAR5 to phys $3E.
+        lda     #$3E
+        sta     PAR_EXEC+5
         lda     #1
         sta     GMC_BANK
         ldx     #$C000

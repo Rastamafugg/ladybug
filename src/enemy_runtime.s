@@ -83,6 +83,8 @@ ENEMY_ZONE_BG  equ $A490
 ENEMY_ZONE_STAGE equ $A590
 ENEMY_BG_BASE  equ $A690
 ENEMY_OLD_FB   equ $A890
+ENEMY_SPRITE_CACHE equ $1800    ; five 64-byte record/dormant frame slots
+ENEMY_CACHE_KEYS equ $1940      ; type/direction/animation key per slot
 ENEMY_ZONE_FB  equ $4DEC
 ENEMY_FB       equ $57EC
 SPRITE_SOURCE_SIZE equ 64
@@ -106,8 +108,7 @@ reset_enemy_state
         clr     ENEMY_ANIM
         lda     #8
         sta     ENEMY_TIMER
-        lda     #9
-        sta     BOX_TIMER
+        lbsr    reload_enemy_box_timer
         clr     BOX_INDEX
         clr     BOX_PHASE
         clr     ENEMY_ACTIVE
@@ -125,6 +126,27 @@ ei_clear
         clr     ,x+
         decb
         bne     ei_clear
+        ldx     #ENEMY_CACHE_KEYS
+        ldb     #5
+        lda     #$FF
+ei_cache_clear
+        sta     ,x+
+        decb
+        bne     ei_cache_clear
+        rts
+
+; Keep death/reset cadence synchronized with the resident perimeter timer.
+reload_enemy_box_timer
+        ldb     #9
+        lda     STAGE
+        cmpa    #2
+        blo     rebt_store
+        subb    #3
+        cmpa    #5
+        blo     rebt_store
+        subb    #3
+rebt_store
+        stb     BOX_TIMER
         rts
 
 enemy_release_impl
@@ -750,6 +772,7 @@ rfs_draw_loop
         beq     rfs_draw_next
         tst     6,x
         beq     rfs_draw_next
+        ldb     7,x
         pshs    x
         ldx     1,x
         lbsr    draw_enemy_fb
@@ -920,11 +943,7 @@ rcftb_row
 
 draw_enemy_fb
         pshs    x
-        lda     ENEMY_ANIM
-        ldb     #SPRITE_SOURCE_SIZE
-        mul
-        ldy     #enemy_sprites
-        leay    d,y
+        lbsr    enemy_sprite_cache
         puls    x
         ldu     #sprite_attr0_pairs
         jsr     blit_packed_sprite
@@ -966,6 +985,7 @@ cez_active_loop
         rola
         addd    #ENEMY_ZONE_STAGE
         tfr     d,x
+        ldb     7,u
         pshs    u
         lbsr    draw_enemy_stage
         puls    u
@@ -980,6 +1000,7 @@ cez_active_next
         cmpa    #1
         beq     cez_vegetable
         ldx     #ENEMY_ZONE_STAGE+128
+        ldb     #0
         lbsr    draw_enemy_stage
         bra     cez_commit
 cez_vegetable
@@ -1436,14 +1457,94 @@ grfs_byte_done
 
 draw_enemy_stage
         pshs    x
-        lda     ENEMY_ANIM
-        ldb     #SPRITE_SOURCE_SIZE
-        mul
-        ldy     #enemy_sprites
-        leay    d,y
+        lbsr    enemy_sprite_cache
         puls    x
         ldu     #sprite_attr0_pairs
         lbsr    blit_stage_sprite
+        rts
+
+; Return a low-RAM cached frame in Y. B is N/E/S/W. Parts 1-8 use one
+; type each; later parts rotate four adjacent types across active records.
+enemy_sprite_cache
+        cmpb    #4
+        blo     esc_direction_ready
+        clrb
+esc_direction_ready
+        stb     STAGE_SOURCE
+        lda     #4
+        suba    ENEMY_WORK
+        cmpa    #4
+        bls     esc_slot_ready
+        lda     #4
+esc_slot_ready
+        sta     STAGE_COUNT
+        lda     STAGE
+        cmpa    #9
+        blo     esc_type_ready
+        deca
+        anda    #7
+        cmpa    #5
+        blo     esc_offset_ready
+        suba    #5
+esc_offset_ready
+        sta     STAGE_PIXEL
+        lda     #4
+        suba    ENEMY_WORK
+        cmpa    #4
+        blo     esc_record_ready
+        clra
+esc_record_ready
+        adda    STAGE_PIXEL
+        inca
+esc_type_ready
+        deca
+        lsla
+        lsla
+        adda    STAGE_SOURCE
+        sta     STAGE_PIXEL
+        lsla
+        lsla
+        ora     ENEMY_ANIM
+        sta     STAGE_PIXEL
+
+        ldx     #ENEMY_CACHE_KEYS
+        ldb     STAGE_COUNT
+        lda     b,x
+        cmpa    STAGE_PIXEL
+        beq     esc_cached
+        lda     STAGE_PIXEL
+        sta     b,x
+        lsra
+        lsra
+        adda    #$A0
+        sta     STAGE_PIXEL
+        lda     ENEMY_ANIM
+        ldb     #SPRITE_SOURCE_SIZE
+        mul
+        adda    STAGE_PIXEL
+        tfr     d,y
+
+        lda     STAGE_COUNT
+        ldb     #SPRITE_SOURCE_SIZE
+        mul
+        addd    #ENEMY_SPRITE_CACHE
+        tfr     d,x
+        lda     #$35
+        sta     GIME_PAR5
+        ldb     #SPRITE_SOURCE_SIZE
+esc_copy
+        lda     ,y+
+        sta     ,x+
+        decb
+        bne     esc_copy
+        lda     #$34
+        sta     GIME_PAR5
+esc_cached
+        lda     STAGE_COUNT
+        ldb     #SPRITE_SOURCE_SIZE
+        mul
+        addd    #ENEMY_SPRITE_CACHE
+        tfr     d,y
         rts
 
 draw_vegetable_stage

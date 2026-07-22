@@ -42,8 +42,9 @@ tiled/coco-screen.tmx                (hand-authored 40x24 screen)
    │  scripts/derive_maze.py + scripts/build_screen.py
    ▼
 build/ladybug_maze.inc               (semantic cells/navigation/gates)
-build/ladybug_screen.inc             (palette, map, tiles, popup multiplier characters, score/enemy frames, contextual gate redraw data)
+build/ladybug_screen.inc             (palette, map, tiles, popup multiplier characters, score frames, contextual gate redraw data)
 build/ladybug_resident.inc           (packed four-direction player, death, and vegetable frames)
+build/ladybug-enemy-sprites.bin      (eight packed N/E/S/W four-frame enemy sets)
    │
 src/main.s                           (resident 6809 runtime)
 src/enemy_runtime.s                  (bank-3 low-RAM enemy module)
@@ -51,7 +52,7 @@ src/enemy_runtime.s                  (bank-3 low-RAM enemy module)
    │  lwasm: 16 KB runtime bank + 16 KB bootstrap bank
    ▼
 build/ladybug-runtime.rom + build/ladybug-enemy-runtime.rom + build/ladybug-gmc-boot.rom
-   │  compose bank 0 bootstrap, bank 1 runtime, bank 2 reserve, bank 3 enemy module
+   │  compose bank 0 bootstrap, bank 1 runtime, bank 2 enemy sprites, bank 3 enemy module
    ▼
 build/ladybug.rom    (64 KB, four 16 KB GMC banks)
    │
@@ -73,7 +74,7 @@ emulated CoCo 3      (physical target: GMC-compatible bank-select hardware)
         <tbody>
           <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen and packed curated sprite groups, assemble, enforce the resident/asset ROM boundaries, and pad. Output includes <code>assets/arcade/maze.json</code>, <code>build/ladybug_maze.inc</code>, <code>build/ladybug_screen.inc</code>, <code>build/ladybug_resident.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, and <code>build/ladybug.map</code>.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch XRoar with the canonical cart profile and map cursor keys to the right CoCo joystick through <code>kjoy0</code>.</td></tr>
-          <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then trace a bounded headless XRoar run and verify bank signatures, the bank-3 low-RAM copy, bank-1 loading, the TY=1 all-RAM handoff, repeated main-loop execution, and the enemy module ABI/compositor contracts.</td></tr>
+          <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then trace a bounded headless XRoar run and verify bank signatures, the bank-2 sprite selection, bank-3 low-RAM copy, bank-1 loading, both fast-clock writes, the TY=1 all-RAM handoff, repeated main-loop execution, and the enemy module ABI/compositor contracts.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
       </table>
@@ -103,7 +104,8 @@ python3 scripts/build_screen.py \
   --chars assets/arcade/chars.json \
   --sprites assets/arcade/sprites.json \
   --output build/ladybug_screen.inc \
-  --resident-output build/ladybug_resident.inc
+  --resident-output build/ladybug_resident.inc \
+  --enemy-output build/ladybug-enemy-sprites.bin
 lwasm -9 --format=raw \
       --output=build/ladybug.rom \
       --list=build/ladybug.lst \
@@ -118,12 +120,15 @@ lwasm -9 --format=raw \
         It rejects resident code beyond <code>$E000</code>, an asset start other
         than <code>$E000</code>, assets beyond <code>$FE00</code>, or a raw-file
         length inconsistent with <code>asset_end-$C000</code>. A successful
-        current build reports <code>resident 8175/8192</code> and
-        <code>assets 7656/7680</code> before padding. The copied bank-3 module
-        reports <code>2543/4096</code>; its six-entry jump table includes the
+        current build reports <code>resident 8191/8192</code> and
+        <code>assets 7432/7680</code> before padding. The copied bank-3 module
+        reports <code>2694/4096</code>; its six-entry jump table includes the
         hidden gate-region compositor ABI. The approved loader copy spans
-        <code>$0800-$17FF</code>, leaving <code>$1800-$1FFE</code> for stack
-        growth.
+        <code>$0800-$17FF</code>; directional caches occupy
+        <code>$1800-$1944</code>, leaving <code>$1945-$1FFE</code> for stack
+        growth. GMC bank 2 contributes a separate 8,192-byte directional enemy
+        atlas copied to physical page <code>$35</code>; selected frames are
+        cached at <code>$1800-$193F</code>.
       </p>
 
       <h3>2. Pad both source banks to 16 KB and compose the 64 KB GMC image</h3>

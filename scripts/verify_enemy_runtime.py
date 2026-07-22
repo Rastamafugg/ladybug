@@ -3,6 +3,8 @@
 
 from pathlib import Path
 
+from build_screen import compile_enemy_sprites
+
 
 root = Path(__file__).resolve().parents[1]
 source = (root / "src/enemy_runtime.s").read_text(encoding="utf-8")
@@ -11,6 +13,7 @@ bootstrap = (root / "src/gmc_bootstrap.s").read_text(encoding="utf-8")
 build_script = (root / "scripts/build.sh").read_text(encoding="utf-8")
 resident = (root / "build/ladybug_resident.inc").read_text(encoding="utf-8")
 rom = (root / "build/ladybug-enemy-runtime.rom").read_bytes()
+sprites = (root / "build/ladybug-enemy-sprites.bin").read_bytes()
 
 if len(rom) < 18 or any(rom[offset] != 0x7E for offset in range(0, 18, 3)):
     raise SystemExit("enemy proof: fixed $0800 jump table is invalid")
@@ -18,6 +21,9 @@ if len(rom) > 0x1000:
     raise SystemExit("enemy proof: bank-3 low-RAM module exceeds 4 KiB")
 if "PACKED_SPRITE_SIZE equ    64" not in resident:
     raise SystemExit("enemy proof: generated packed-sprite source size changed")
+expected_sprites = b"".join(compile_enemy_sprites(root / "assets/arcade/sprites.json"))
+if len(sprites) != 8 * 4 * 4 * 64 or sprites != expected_sprites:
+    raise SystemExit("enemy proof: directional enemy atlas is not the generated 8192-byte payload")
 
 labels = ["cez_copy_bg", "cez_active_loop", "draw_enemy_stage", "cez_commit"]
 positions = [source.index(label) for label in labels]
@@ -44,7 +50,7 @@ required = [
     "cmpa    #4",
     "sta     VEG_STATE",
     "jsr     restore_player",
-    "sta     BOX_TIMER",
+    "stb     BOX_TIMER",
     "clr     BOX_INDEX",
     "clr     BOX_PHASE",
     "clr     PLAYER_TICK_PENDING",
@@ -68,6 +74,9 @@ required = [
     "lbsr    gate_region_from_shadow",
     "ENEMY_BG_BASE  equ $A690",
     "ENEMY_OLD_FB   equ $A890",
+    "ENEMY_SPRITE_CACHE equ $1800",
+    "ENEMY_CACHE_KEYS equ $1940",
+    "lbsr    enemy_sprite_cache",
     "lbsr    roam_prepare_shadow",
     "lbsr    roam_finish_shadow",
     "rps_copy_actor",
@@ -95,6 +104,15 @@ if "GATE_MODULE_COMPOSE equ $080F" not in main:
     raise SystemExit("enemy proof: gate compositor ABI entry is missing")
 if "cmpx    #$D800" not in bootstrap:
     raise SystemExit("enemy proof: bootstrap does not copy the approved 4 KiB bank-3 window")
+if "cmpx    #$E800" not in bootstrap or "ldy     #$A000" not in bootstrap:
+    raise SystemExit("enemy proof: bootstrap does not copy the bank-2 enemy sprite sets")
+sprite_select = source[source.index("\nenemy_sprite_cache\n"):
+                       source.index("\ndraw_vegetable_stage\n")]
+for fragment in ("cmpa    #9", "anda    #7", "cmpa    #5",
+                 "suba    ENEMY_WORK", "sta     GIME_PAR5",
+                 "ENEMY_CACHE_KEYS"):
+    if fragment not in sprite_select:
+        raise SystemExit("enemy proof: directional enemy cache selection changed")
 direction_start = source.index("\nenemy_direction_legal\n")
 direction = source[direction_start : source.index("\nenemy_entry_masks\n", direction_start)]
 if "lda     ENTITY_Y\n        ldb     #24" not in direction:

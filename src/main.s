@@ -435,8 +435,7 @@ init_game_state
         sta     BONUS_COLOR
         ldd     #420
         std     BONUS_TIMER
-        lda     #9
-        sta     BOX_TIMER
+        lbsr    reload_box_timer
         clr     BOX_INDEX
         clr     BOX_PHASE
         rts
@@ -451,8 +450,7 @@ ns_stage_valid
         sta     DOTS_LEFT
         lda     #1
         sta     MULTIPLIER
-        lda     #9
-        sta     BOX_TIMER
+        lbsr    reload_box_timer
         clr     BOX_INDEX
         clr     BOX_PHASE
         lbsr    draw_screen
@@ -650,7 +648,7 @@ draw_hud
         sta     HUD_COLOR
         ldu     #SCORE_BCD
         lbsr    draw_bcd_line
-        lda     #5
+        lda     #6
         sta     HUD_Y
         lda     #COLOR_RED
         sta     HUD_COLOR
@@ -658,7 +656,7 @@ draw_hud
         lbsr    draw_bcd_line
         lda     #38
         sta     HUD_X
-        lda     #10
+        lda     #11
         sta     HUD_Y
         lda     #COLOR_BLUE
         sta     HUD_COLOR
@@ -673,8 +671,8 @@ dhu_stage_digit
         lbsr    draw_vegetable_hud
         rts
 
-; Display the stage vegetable at HUD columns 32-33, rows 11-12, followed by
-; its four-digit 1000..9500 value at columns 35-38 on row 12.
+; Display the stage vegetable at HUD columns 32-33, rows 12-13, followed by
+; its four-digit 1000..9500 value at columns 35-38 on row 13.
 draw_vegetable_hud
         lda     STAGE
         cmpa    #18
@@ -687,7 +685,7 @@ dvh_stage_ok
         mul
         leay    vegetable_sprites,pcr
         leay    d,y
-        ldx     #$5780          ; screen column 32, scanline 88
+        ldx     #$5C80          ; screen column 32, scanline 96
         leau    sprite_attr0_pairs,pcr
         lbsr    blit_packed_sprite
 
@@ -697,7 +695,7 @@ dvh_stage_ok
         leau    a,u
         lda     #35
         sta     HUD_X
-        lda     #12
+        lda     #13
         sta     HUD_Y
         lda     #COLOR_GREEN
         sta     HUD_COLOR
@@ -1308,13 +1306,11 @@ bct_popup
 bct_done
         rts
 
-; Advance the 92-box release circuit every nine video frames.  Enemies are
-; intentionally absent in Phase 5; the arcade timer remains visible.
+; Advance the 92-box release circuit at the current part cadence.
 perimeter_timer_tick
         dec     BOX_TIMER
         bne     ptt_done
-        lda     #9
-        sta     BOX_TIMER
+        lbsr    reload_box_timer
         lbsr    perimeter_box_coordinates
         lda     BOX_PHASE
         beq     ptt_green
@@ -1335,6 +1331,21 @@ ptt_draw
         sta     BOX_PHASE
         lbsr    enemy_release
 ptt_done
+        rts
+
+; The arcade program selects 9 frames on part 1, 6 on parts 2-4, and
+; 3 from part 5 onward (routine $35E3 in the original Z80 program).
+reload_box_timer
+        ldb     #9
+        lda     STAGE
+        cmpa    #2
+        blo     rbt_store
+        subb    #3
+        cmpa    #5
+        blo     rbt_store
+        subb    #3
+rbt_store
+        stb     BOX_TIMER
         rts
 
 ; Publish the reset timer state immediately. State reset alone leaves the old

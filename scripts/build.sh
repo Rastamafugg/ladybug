@@ -9,6 +9,7 @@ SRC_TESTER="$ROOT/src/tester/tester.s"
 BUILD_DIR="$ROOT/build"
 SCREEN_INC="$BUILD_DIR/ladybug_screen.inc"
 RESIDENT_INC="$BUILD_DIR/ladybug_resident.inc"
+ENEMY_SPRITES="$BUILD_DIR/ladybug-enemy-sprites.bin"
 MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
 ROM="$BUILD_DIR/ladybug.rom"
 RUNTIME_ROM="$BUILD_DIR/ladybug-runtime.rom"
@@ -113,7 +114,8 @@ cmd_build() {
         --chars "$ROOT/assets/arcade/chars.json" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --output "$SCREEN_INC" \
-        --resident-output "$RESIDENT_INC"
+        --resident-output "$RESIDENT_INC" \
+        --enemy-output "$ENEMY_SPRITES"
 
     lwasm -9 --format=raw \
           --output="$RUNTIME_ROM" \
@@ -131,7 +133,7 @@ import re
 import sys
 source, output = sys.argv[1:]
 wanted = {
-    'blit_packed_sprite', 'draw_hud', 'enemy_sprites', 'restore_player',
+    'blit_packed_sprite', 'draw_hud', 'restore_player',
     'gate_redraw_neighbors', 'gate_render_hidden', 'maze_gate_owner',
     'maze_gates', 'maze_nav',
     'player_sprites', 'restore_entity_footprint', 'sprite_attr0_pairs',
@@ -166,19 +168,23 @@ PY
           "$BOOT_SRC"
     pad_cart "$BOOT_ROM"
 
-    python3 - "$BOOT_ROM" "$RUNTIME_ROM" "$ENEMY_ROM" "$ROM" "$GMC_BYTES" <<'PY'
+    python3 - "$BOOT_ROM" "$RUNTIME_ROM" "$ENEMY_ROM" "$ENEMY_SPRITES" "$ROM" "$GMC_BYTES" <<'PY'
 import sys
-boot_path, runtime_path, enemy_path, output_path, target = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], int(sys.argv[5])
+boot_path, runtime_path, enemy_path, sprites_path, output_path, target = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], int(sys.argv[6])
 boot = open(boot_path, 'rb').read()
 runtime = open(runtime_path, 'rb').read()
 enemy = open(enemy_path, 'rb').read()
+sprites = open(sprites_path, 'rb').read()
 if len(boot) != 0x4000 or len(runtime) != 0x4000:
     raise SystemExit('build: GMC bank input is not exactly 16 KiB')
 if len(enemy) > 0x1000:
     raise SystemExit(f'build: bank-3 enemy module is {len(enemy)} bytes; limit is 4096')
+if len(sprites) != 0x2000:
+    raise SystemExit(f'build: enemy sprite payload is {len(sprites)} bytes; expected 8192')
 bank2 = bytearray([0xA2] * 0x4000)
 bank3 = bytearray([0xA3] * 0x4000)
 bank2[0x10:0x12] = bytes((0xB2, 0x02))
+bank2[0x800:0x2800] = sprites
 bank3[0x10:0x12] = bytes((0xB3, 0x03))
 bank3[0x800:0x800 + len(enemy)] = enemy
 image = boot + runtime + bank2 + bank3

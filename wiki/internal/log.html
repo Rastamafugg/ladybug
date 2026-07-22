@@ -23,6 +23,41 @@
     </header>
 
     <section>
+      <h3>2026-07-22 &middot; lint &mdash; directional enemy, HUD, and profile acceptance</h3>
+      <p>Passed the guarded GMC build and handoff proof, generated 8,192-byte atlas equality, bank-3 ABI/compositor contracts, HUD row assertions, arcade-fidelity suite, Python byte-compilation, scoped whitespace checks, and all 164 wiki HTML/local-link checks. A cold XRoar probe matched physical page <code>$35</code> to the atlas and matched record directions 0 / 1 / 2 / 3 to the North / East / South / West cache blocks. Runtime hardware visual confirmation and post-optimization re-profiling remain.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-22 &middot; query &mdash; four-enemy instruction profile</h3>
+      <p>A forced four-record XRoar trace measured 26,404 instructions on a normal movement frame and 31,389 when movement coincided with extra animation work, both beyond the 29,666-cycle hardware budget before real opcode costs are applied. Shadow-region copies consumed 37.4%, framebuffer sprite blits 36.1%, stage sprite blits 9.1%, background copies 8.1%, nest composition 3.4%, and enemy logic 0.7%. The roadmap now prioritizes redundant-pass removal, nest-dirty separation, native-format frame caching, and page-segment shadow copies without changing movement, collision, or AI cadence.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-22 &middot; implementation &mdash; directional enemies and remaining HUD rows</h3>
+      <p>Generated North/East/South/West rotations for all eight enemy types using the same clockwise derivation as the player. The 8,192-byte packed atlas is loaded into physical page <code>$35</code>; five keyed low-RAM slots cache the current record and dormant frames while preserving game-state page <code>$34</code> during nest composition. Snapshot probes matched all four direction caches to their atlas blocks. The high-score digits moved to row 6, the vegetable and value moved to rows 12â€“13 / 13, and the authored CREDIT value moved from row 9 to row 10.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-22 &middot; lint &mdash; enemy sprite transport acceptance</h3>
+      <p>Passed the guarded GMC build and handoff proof, bank-3 ABI/compositor contracts, arcade-fidelity suite, Python byte-compilation, scoped whitespace checks, and parsing plus local-link resolution for all 164 wiki pages. A fresh cold XRoar snapshot matched all 2,048 generated bank-2 sprite bytes to live game-state RAM <code>$A900-$B0FF</code>; the same comparison failed at byte zero before the PAR5 restoration.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-22 &middot; fix &mdash; bank-2 enemy sprite overwrite</h3>
+      <p>User hardware testing reported scrambled enemies on every part, including the previously correct first set. A cold XRoar snapshot proved that generated bank-2 bytes did not match live <code>$A900-$B0FF</code>. The sprite copy had left PAR5 on physical page <code>$34</code>, so the following 8 KiB resident copy overwrote the entire payload. The bootstrap now explicitly restores PAR5 to <code>$3E</code> before that copy; a fresh snapshot matches all 2,048 live bytes to the generated payload. The eight three-frame <code>RxCy</code> selections are recorded in the arcade source ingest.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-22 &middot; lint &mdash; clock, HUD, enemy-set, and timer acceptance</h3>
+      <p>Passed the guarded build, GMC handoff and bank-2 payload proof, bank-3 ABI/compositor contracts, arcade-fidelity checks including the PART row and 9 / 6 / 3 timer thresholds, Python byte-compilation, and scoped whitespace checks. Parsed all 164 wiki HTML pages and resolved every local link. Runtime visual confirmation of all eight enemy sets on CoCo hardware remains.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-22 &middot; implementation &mdash; fast-clock guard, HUD row, enemy sets, and timer cadence</h3>
+      <p>Confirmed that both the resident and GMC bootstrap select the CoCo 3 fast clock through SAM address <code>$FFD9</code>, then added build guards for both writes. Moved the PART digit from HUD row 10 to row 11 after the added LADYBUG top-score row. Arcade ROM disassembly established perimeter reloads of 9 / 6 / 3 frames for parts 1 / 2â€“4 / 5+, and identified the eight enemy animation groups plus the part-9-and-later four-type rotation. The generated 2,048-byte sprite payload now resides in GMC bank 2 and is copied to <code>$A900-$B0FF</code> at boot. Guarded build, GMC trace, enemy contracts, and arcade-fidelity checks pass at resident <code>8191/8192</code>, assets <code>7400/7680</code>, and bank 3 <code>2589/4096</code>.</p>
+    </section>
+
+    <section>
       <h3>2026-07-22 &middot; lint &mdash; enemy rendering and collectible-system acceptance</h3>
       <p>Passed the guarded GMC build and handoff proof, strengthened enemy ownership/skull/colour/entropy contracts, arcade-fidelity suite, Python byte-compilation, scoped whitespace check, and two-seed placement assertions. Two randomized cold starts produced different stage-one entity tables and letter selections. A fresh-ROM XRoar probe found the released enemy at <code>(16,18)</code> with save-under ownership valid, confirming that lower-maze actors remain in the roaming compositor. Parsed all 164 wiki HTML pages and resolved every local link. Manual hardware visual confirmation of trails and skull disappearance remains.</p>
     </section>

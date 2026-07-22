@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from build_screen import (BLACK, GREEN, PINK, PURPLE, compile_screen,
@@ -80,6 +81,37 @@ def verify_neutral_stop_contract() -> None:
     assert "cmpa    #DIR_NONE" in control
     assert "lbeq    pt_draw          ; neutral stops immediately" in control
     assert "sta     PLAYER_WANT" not in control[:control.index("pt_input_active\n")]
+
+
+def verify_stage_timer_contract() -> None:
+    source = (ROOT / "src/main.s").read_text(encoding="utf-8")
+    timer = source[source.index("\nreload_box_timer\n"):
+                   source.index("\n; Publish the reset timer state", source.index("\nreload_box_timer\n"))]
+    assert "cmpa    #2" in timer
+    assert "cmpa    #5" in timer
+    assert "ldb     #9" in timer
+    assert timer.count("subb    #3") == 2
+    assert source.count("lbsr    reload_box_timer") == 3
+
+
+def verify_hud_rows() -> None:
+    source = (ROOT / "src/main.s").read_text(encoding="utf-8")
+    hud = source[source.index("\ndraw_hud\n"):
+                 source.index("\ndhu_mod10\n", source.index("\ndraw_hud\n"))]
+    assert "lda     #6\n        sta     HUD_Y" in hud
+    assert "lda     #11\n        sta     HUD_Y" in hud
+    vegetable = source[source.index("\ndraw_vegetable_hud\n"):
+                       source.index("\nvegetable_values\n")]
+    assert "ldx     #$5C80" in vegetable
+    assert "lda     #13\n        sta     HUD_Y" in vegetable
+
+    document = ET.parse(ROOT / "tiled/coco-screen.tmx").getroot()
+    layer = next(item for item in document.findall("layer")
+                 if item.get("name") == "HUD Placeholders")
+    gids = [int(value) for value in (layer.findtext("data") or "").split(",")
+            if value.strip()]
+    assert gids[9 * 40 + 33] == 0
+    assert gids[10 * 40 + 33] == 497
 
 
 def verify_player_restore_contract() -> None:
@@ -182,6 +214,8 @@ def main() -> None:
     verify_gate_capture()
     verify_movement_snap()
     verify_neutral_stop_contract()
+    verify_stage_timer_contract()
+    verify_hud_rows()
     verify_player_restore_contract()
     verify_gate_tables()
     verify_gate_graphics()

@@ -15,7 +15,7 @@
   </nav>
   <main class="wiki-main">
     <header class="wiki-header">
-      <p class="wiki-eyebrow">Source · web ingest</p>
+      <p class="wiki-eyebrow">Source · web and ROM ingest</p>
       <h1>Lady Bug — Arcade Reference (Web Ingest) <span class="wiki-badge">internal</span></h1>
       <p class="wiki-meta">
         Aggregate of public web references consulted on 2026-05-05 to seed
@@ -36,6 +36,37 @@
         <li><strong><a href="https://strategywiki.org/wiki/Lady_Bug/Gameplay">StrategyWiki — Lady Bug/Gameplay</a></strong> — full page ingested 2026-07-18. Supplies six-circle stage composition, approximate colour timing, enemy/den/vegetable flow, skull progression, stage-clear claims, and the scoring table. Treat as a secondary source and verify programmed timing/progression against MAME.</li>
         <li><strong><a href="https://gamefaqs.gamespot.com/arcade/563991-lady-bug/faqs/26746">GameFAQs — Lady Bug FAQ/Walkthrough</a></strong> — rules sections ingested 2026-07-18. Supplies the 121 arcade food positions, randomized replacement model, exact letter-selection groups, stage skull-count table, skull-death cleanup, and collectible pause/score descriptions. MAME observations override rounded timing and behavior claims.</li>
       </ul>
+    </section>
+
+    <section>
+      <h2>Program-ROM timing and enemy selection — 2026-07-22</h2>
+      <p>
+        Disassembly of the installed arcade program ROM resolves the border
+        timing thresholds exactly. Routine <code>$35E3</code> reloads nine
+        frames per perimeter box on part 1, six frames on parts 2–4, and three
+        frames from part 5 onward. This replaces the earlier secondary-source
+        claim with directly programmed data.
+      </p>
+      <p>
+        Enemy setup routine <code>$3087</code> indexes the eight-entry graphic
+        table at <code>$0C8B</code> for parts 1–8. From part 9 onward it derives
+        an offset from <code>(part-1) &amp; 7</code>, folds offsets 5–7 back by five,
+        and adds the active-record index, producing four adjacent enemy types.
+        Forced-part MAME captures matched the source-sheet animation groups
+        headed by ROM sprite codes <code>11,17,29,23,35,41,47,53</code>.
+      </p>
+      <p>
+        The three unique frames per part are: part 1
+        <code>R4C1,R5C1,R6C1</code>; part 2
+        <code>R6C2,R7C2,R0C1</code>; part 3
+        <code>R2C3,R3C3,R4C3</code>; part 4
+        <code>R0C2,R1C2,R2C2</code>; part 5
+        <code>R4C4,R5C4,R6C4</code>; part 6
+        <code>R6C5,R7C5,R0C4</code>; part 7
+        <code>R0C5,R1C5,R2C5</code>; and part 8
+        <code>R2C6,R3C6,R4C6</code>. Animation plays frames
+        1, 2, 3, 2.
+      </p>
     </section>
 
     <section>
