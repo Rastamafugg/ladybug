@@ -1,0 +1,198 @@
+model = "gpt-5.6-sol"
+model_reasoning_effort = "medium"
+personality = "pragmatic"
+
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+
+approvals_reviewer = "user"
+service_tier = "default"
+notify = [ "C:\\Users\\19029\\AppData\\Local\\OpenAI\\Codex\\runtimes\\cua_node\\03b1cdac8af3a530\\bin\\node_modules\\@oai\\sky\\bin\\windows\\codex-computer-use.exe", "turn-ended" ]
+[features]
+shell_tool = true
+multi_agent = true
+js_repl = false
+
+[windows]
+sandbox = "elevated"
+
+[projects.'D:\opendata\mdopendata']
+trust_level = "trusted"
+
+[projects.'D:\retro\stocks-and-bonds']
+trust_level = "trusted"
+
+[projects.'\\?\UNC\wsl.localhost\Ubuntu\home\rastamafugg\coco-tools\CoCoC']
+trust_level = "trusted"
+
+[projects."/home/rastamafugg/coco-tools/CoCoC"]
+trust_level = "trusted"
+
+[projects.'\\?\UNC\wsl.localhost\Ubuntu\home\rastamafugg\projects\planet-pioneers']
+trust_level = "trusted"
+
+[projects.'D:\retro\planet-pioneers']
+trust_level = "trusted"
+
+[projects.'D:\retro\nitros9']
+trust_level = "trusted"
+
+[projects.'d:\retro\ladybug']
+trust_level = "trusted"
+
+[projects.'d:\opendata\llm-tools']
+trust_level = "trusted"
+
+[projects.'d:\opendata\mcp-wiki-project-template']
+trust_level = "trusted"
+
+[projects.'d:\opendata\agent-managed-prompt-database']
+trust_level = "trusted"
+
+[projects.'c:\users\19029\documents\codex\2026-06-21\you-reset-the-jasondeanross-gmail-com']
+trust_level = "trusted"
+
+[projects.'c:\users\19029\documents\codex\2026-06-24\http-192-168-2-15-53317']
+trust_level = "trusted"
+
+[mcp_servers.mdopendata-postgres]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-postgres", "postgresql://mdopendata:mdopendata_dev@127.0.0.1:55432/mdopendata?sslmode=disable"]
+
+[mcp_servers.mdopendata-postgres.tools.query]
+approval_mode = "approve"
+
+[mcp_servers.qgis]
+command = "powershell"
+args = ["-ExecutionPolicy", "Bypass", "-File", "D:\\opendata\\mdopendata\\scripts\\start-qgis-mcp.ps1"]
+
+[mcp_servers.qgis.tools.zoom_to_layer]
+approval_mode = "approve"
+
+[mcp_servers.qgis.tools.render_map]
+approval_mode = "approve"
+
+[mcp_servers.qgis.tools.get_project_info]
+approval_mode = "approve"
+
+[mcp_servers.qgis.tools.ping]
+approval_mode = "approve"
+
+[mcp_servers.qgis.tools.get_qgis_info]
+approval_mode = "approve"
+
+[mcp_servers.qgis.tools.get_layers]
+approval_mode = "approve"
+
+[mcp_servers.qgis.tools.execute_code]
+approval_mode = "approve"
+
+[mcp_servers.gdb-mcp]
+command = "wsl.exe"
+args = ["bash", "-l", "-c", "GDB_PATH=/usr/local/bin/m6809-gdb ~/.local/bin/gdb-mcp"]
+
+[mcp_servers.gdb-mcp.tools.start_session]
+approval_mode = "approve"
+
+[mcp_servers.gdb-mcp.tools.exec_command]
+approval_mode = "approve"
+
+[mcp_servers.gdb-mcp.tools.batch_commands]
+approval_mode = "approve"
+
+[mcp_servers.gdb-mcp.tools.stop_session]
+approval_mode = "approve"
+
+[mcp_servers.gdb-mcp.tools.breakpoint]
+approval_mode = "approve"
+
+[mcp_servers.gdb-mcp.tools.continue_exec]
+approval_mode = "approve"
+
+[mcp_servers.gdb-mcp.tools.print]
+approval_mode = "approve"
+
+[mcp_servers.node_repl]
+args = []
+command = 'C:\Users\19029\AppData\Local\OpenAI\Codex\runtimes\cua_node\03b1cdac8af3a530\bin\node_repl.exe'
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
+NODE_REPL_NODE_MODULE_DIRS = 'C:\Users\19029\AppData\Local\OpenAI\Codex\runtimes\cua_node\03b1cdac8af3a530\bin\node_modules'
+NODE_REPL_NODE_PATH = 'C:\Users\19029\AppData\Local\OpenAI\Codex\runtimes\cua_node\03b1cdac8af3a530\bin\node.exe'
+NODE_REPL_TRUSTED_CODE_PATHS = 'C:\Users\19029\.codex'
+CODEX_HOME = 'C:\Users\19029\.codex'
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "583bf903a6cfb9b00a01e1583381ce921c71d7585085c6fa6b805baa0f60230b,7ed52dae165c3bc22b6d24f282e2c1fbc87f6949fbbe037767a7418d8f517f01"
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
+NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
+NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
+BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
+BROWSER_USE_CODEX_APP_VERSION = "26.715.52143"
+SKY_CUA_NATIVE_PIPE = "1"
+SKY_CUA_NATIVE_PIPE_DIRECTORY = '\\.\pipe\codex-computer-use-caf605c6-19e4-41b0-a02d-89097c678e6c'
+CODEX_CLI_PATH = 'C:\Users\19029\AppData\Local\OpenAI\Codex\bin\5dee10576ec7a5b8\codex.exe'
+
+[marketplaces.openai-bundled]
+last_updated = "2026-07-20T12:36:31Z"
+source_type = "local"
+source = '\\?\C:\Users\19029\.codex\.tmp\bundled-marketplaces\openai-bundled'
+
+[marketplaces.openai-primary-runtime]
+last_updated = "2026-07-16T11:22:40Z"
+source_type = "local"
+source = '\\?\C:\Users\19029\.cache\codex-runtimes\codex-primary-runtime\plugins\openai-primary-runtime'
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+[plugins."template-creator@openai-primary-runtime"]
+enabled = true
+
+[plugins."computer-use@openai-bundled"]
+enabled = true
+
+[plugins."chrome@openai-bundled"]
+enabled = true
+
+[plugins."sites@openai-bundled"]
+enabled = true
+
+[plugins."visualize@openai-bundled"]
+enabled = true
+
+[plugins."browser@openai-bundled"]
+enabled = true
+
+[desktop]
+appearanceTheme = "dark"
+followUpQueueMode = "steer"
+integratedTerminalShell = "powershell"
+runCodexInWindowsSubsystemForLinux = false
+notifications-turn-mode = "off"
+show-context-window-usage = true
+conversationDetailMode = "STEPS_COMMANDS"
+enabled-reasoning-efforts = ["low", "medium", "high", "xhigh"]
+ambient-suggestions-enabled = false
+
+[desktop.open-in-target-preferences]
+global = "githubDesktop"
+
+[desktop.open-in-target-preferences.perPath]
+'C:\Users\19029\.codex\worktrees\abaa\stocks-and-bonds' = "githubDesktop"
+'C:\Users\19029\Documents\Playground' = "githubDesktop"
+'D:\opendata\mdopendata' = "githubDesktop"
+
+[shell_environment_policy.set]
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "583bf903a6cfb9b00a01e1583381ce921c71d7585085c6fa6b805baa0f60230b,7ed52dae165c3bc22b6d24f282e2c1fbc87f6949fbbe037767a7418d8f517f01"
+NODE_REPL_TRUSTED_CODE_PATHS = 'C:\Users\19029\.codex'

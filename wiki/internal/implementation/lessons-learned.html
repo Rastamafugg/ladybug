@@ -1298,6 +1298,69 @@ git reset --hard HEAD
       <p><strong>Citation:</strong> historical commits <code>6980b45</code>/<code>49269f4</code>, <code>src/enemy_runtime.s</code>, and the 2026-07-20 first-junction snapshot probe.</p>
     </section>
 
+    <section>
+      <h2>Moving actor overlap requires restore-all, save-all, draw-all ordering</h2>
+      <p><strong>Filed 2026-07-20.</strong></p>
+      <p>Per-enemy save-under buffers are correct only when every old actor is removed before any new background is captured. Saving and drawing one enemy at a time allows later buffers to capture earlier enemies and produces duplicate sprites or trails.</p>
+      <p><strong>Rule:</strong> copy each old/new dirty union to the hidden framebuffer, restore all valid old backgrounds, update all records, save all clean destinations, draw all actors, then publish complete unions. Retain prior pointers separately so a skull-killed record can still publish its cleaned old footprint after its active byte is cleared.</p>
+      <p><strong>Applies to:</strong> roaming enemies and future moving multi-actor layers.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>roam_prepare_shadow</code>/<code>roam_finish_shadow</code> and the 2026-07-20 roaming locality probe.</p>
+    </section>
+
+    <section>
+      <h2>Preserve row-major offsets across table probes</h2>
+      <p><strong>Filed 2026-07-22.</strong></p>
+      <p>The enemy legality test computed a 16-bit row-major cell offset in D, then loaded the gate owner into A before reusing D for <code>maze_nav</code>. Cells beyond offset 255 consequently wrapped into the first 256 entries. The den guard also treated every target below maze row 10 as den re-entry, stopping the first enemy at <code>(12,11)</code>.</p>
+      <p><strong>Rule:</strong> index the owner table once, preserve the addressed cell pointer when selecting the parallel navigation table, and constrain den exclusion to entrance cell <code>(12,11)</code> approached from outside.</p>
+      <p><strong>Applies to:</strong> parallel maze tables and every 6809 lookup whose offset exceeds eight bits.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>enemy_direction_legal</code> and the 2026-07-22 XRoar enemy-record probes.</p>
+    </section>
+
+    <section>
+      <h2>Retained compositor backgrounds must track underlying mutations</h2>
+      <p><strong>Filed 2026-07-22.</strong></p>
+      <p>The 16-by-32 nest compositor captured its clean background once at initialization. Dot <code>(12,10)</code> lies inside that region, so a later nest publication restored the captured dot even after <code>eat_dot</code> cleared mutable maze state and the visible tile.</p>
+      <p><strong>Rule:</strong> when a retained compositor overlaps mutable scenery, update its authoritative clean background in the same transaction that changes the scenery.</p>
+      <p><strong>Applies to:</strong> dots, skulls, gates, and future scenery beneath retained sprite layers.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>refresh_enemy_zone_dot</code> and <code>src/enemy_runtime.s</code> <code>compose_enemy_zone</code>.</p>
+    </section>
+
+    <section>
+      <h2>Renderer ownership must follow actor state, not coordinates</h2>
+      <p><strong>Filed 2026-07-22.</strong></p>
+      <p>The roaming compositor selected actors only above maze row 11. Once navigation was corrected and an enemy returned to the lower maze, its old roaming pixels were never restored while the nest compositor redrew it at the den's X coordinate.</p>
+      <p><strong>Rule:</strong> use the record's save-under-valid flag as the persistent roaming-ownership bit. Coordinates are valid only for the one-time den-to-roaming handoff.</p>
+      <p><strong>Applies to:</strong> actors that cross renderer regions or later revisit the transition boundary.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> roaming and nest compositor loops.</p>
+    </section>
+
+    <section>
+      <h2>Hidden compositor mutations must update both copies</h2>
+      <p><strong>Filed 2026-07-22.</strong></p>
+      <p>Enemy-skull collision removed the skull from the live framebuffer after the hidden dirty union had already been captured. Publishing that union could restore the skull even though its entity record was cleared.</p>
+      <p><strong>Rule:</strong> after mutating scenery during a hidden composition transaction, copy the cleaned live footprint into the hidden union before publication.</p>
+      <p><strong>Applies to:</strong> skull deaths and any collision that changes scenery inside an in-flight actor union.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>enemy_skull_test</code>.</p>
+    </section>
+
+    <section>
+      <h2>Gameplay timers must not infer actor life from reserve count</h2>
+      <p><strong>Filed 2026-07-22.</strong></p>
+      <p>The collectible colour timer stopped when <code>LIVES</code> reached zero, but that field counts reserve markers and can be zero while the active ladybug is alive.</p>
+      <p><strong>Rule:</strong> use the caller's explicit death/game-over state for lifecycle gating. Reserve count controls replacement availability only.</p>
+      <p><strong>Applies to:</strong> colour cycling, perimeter timing, input, and other active-player systems.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>mainloop</code> and <code>bonus_color_tick</code>.</p>
+    </section>
+
+    <section>
+      <h2>Deterministic emulators require an explicit startup-entropy profile</h2>
+      <p><strong>Filed 2026-07-22.</strong></p>
+      <p>A fixed LFSR seed and neutral joystick made level-one object positions and letter types identical on every cold start. Native RAM power-on contents vary, while emulator RAM initialization is configurable and may be deterministic.</p>
+      <p><strong>Rule:</strong> mix an untouched RAM word and input sample into a nonzero seed, and launch XRoar with <code>-ram-init random</code> when gameplay randomness is under test.</p>
+      <p><strong>Applies to:</strong> cold-start procedural placement and emulator-versus-hardware reproducibility.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>RNG_ENTROPY</code> and <code>scripts/build.sh</code>.</p>
+    </section>
+
   </main>
 </div>
 </body>

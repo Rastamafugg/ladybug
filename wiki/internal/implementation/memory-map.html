@@ -31,7 +31,7 @@
         <li><strong>64 physical pages</strong> of RAM on a 512 K machine, numbered <code>$00-$3F</code>. RAM is populated top-down — <code>$3F</code> is highest.</li>
         <li><strong>Framebuffer</strong> = 30 720 bytes = 4 pages (3.75 actually used). GIME reads it via physical address, bypassing the MMU.</li>
         <li><strong>Hidden gate framebuffer</strong> = physical pages <code>$2C-$2F</code>. The sixth bank-3 ABI entry maps these pages only while composing a gate region; GIME continues scanning live pages <code>$30-$33</code>.</li>
-        <li><strong>Resident code</strong> is copied from GMC bank 1 into physical page <code>$3E</code>. The enemy runtime is copied once from bank 3 offset <code>$0800</code> to low RAM <code>$0800-$0FFF</code>.</li>
+        <li><strong>Resident code</strong> is copied from GMC bank 1 into physical page <code>$3E</code>. The enemy runtime is copied once from bank 3 offset <code>$0800</code> to low RAM <code>$0800-$17FF</code>.</li>
         <li><strong>Delivery cartridge</strong> is a 64 K GMC image containing four 16 K banks. Bank 0 is the loader, bank 1 is the resident runtime/assets, bank 2 is reserved, and bank 3 owns the enemy module.</li>
         <li><strong><code>$FF00-$FFFF</code> is dedicated I/O</strong>, not cart-visible. <strong><code>$FE00-$FEFF</code> is forced</strong> to phys <code>$3F</code> regardless of PAR7 when Init0 b3 is set — the primary jump table stays reachable.</li>
       </ul>
@@ -62,8 +62,8 @@
       <h2>Phase 4 mapping (current target)</h2>
 <pre><code>Virtual          PAR  Phys  Bytes  Use
 $0000-$07FF      0    $38   2 K    DP, loader scratch, and low-RAM state
-$0800-$0FFF      0    $38   2 K    Bank-3 enemy runtime copy
-$1000-$1FFF      0    $38   4 K    Free low RAM and stack at $1FFE
+$0800-$17FF      0    $38   4 K    Bank-3 enemy runtime copy
+$1800-$1FFF      0    $38   2 K    Free low RAM and stack at $1FFE
 $2000-$3FFF      1    $30   8 K    Framebuffer page 0
 $4000-$5FFF      2    $31   8 K    Framebuffer page 1
 $6000-$7FFF      3    $32   8 K    Framebuffer page 2
@@ -79,7 +79,9 @@ $A470-$A48F      5    $34    32 B  Four eight-byte active-enemy records
 $A490-$A58F      5    $34   256 B  Clean 16-by-32 nest-zone background
 $A590-$A60F      5    $34   128 B  Compact off-screen nest compositor lower half
 $A610-$A68F      5    $34   128 B  Nest upper half / transient old-player stage
-$A690-$BFFF      5    $34   —      Free game-state RAM
+$A690-$A88F      5    $34   512 B  Four clean roaming-enemy background buffers
+$A890-$A897      5    $34     8 B  Four prior roaming framebuffer pointers
+$A898-$BFFF      5    $34   —      Free game-state RAM
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
@@ -239,9 +241,9 @@ asset_end
       <h2>Phase 3 maze budget</h2>
       <p>
         The current <a href="./maze-format.html">Phase 3 screen format</a>
-        uses a 960-byte 40×24 map plus 2,944 bytes for 92 deduplicated packed
-        graphics. The Phase 5 collectible build contains 10,997 meaningful bytes
-        across a 15,780-byte address-aligned raw span before 16 KB padding. Executable
+        uses a 960-byte 40×24 map plus 3,072 bytes for 96 deduplicated packed
+        graphics. The current build contains 15,848 meaningful and alignment bytes
+        before 16 KB padding. Executable
         code stays in <code>$C000-$DFFF</code> and static data now occupies
         <code>$E000-$FDFF</code>. The generated semantic maze,
         writable dot state, and 20 gate-state bytes are integrated.
@@ -295,13 +297,28 @@ $FF00-$FFFF        256 B   I/O; never cart data
 </code></pre>
       <p>
         The current immutable block begins at <code>palette_table=$E000</code>
-        and ends before <code>asset_end=$FDC4</code>. The Vbord-first player/death-reset build uses 8,045 resident
-        bytes and 7,620 asset bytes, leaving 147 bytes for resident-code
-        growth and 60 bytes for additional static data, subject to the
+        and ends at <code>asset_end=$FDE8</code>. The build uses 8,175 resident
+        bytes and 7,656 asset bytes, leaving 17 bytes for resident-code
+        growth and 24 bytes for additional static data, subject to the
         independent region limits. The resident total includes twelve curated
         128-byte death frames because the static asset window cannot hold them.
         All current 6809
         PC-relative references remain within signed 16-bit reach.
+      </p>
+      <p>
+        Cold-start entity placement samples untouched game-state RAM at
+        <code>$BFFE-$BFFF</code> before that free range is otherwise used, mixes
+        it with the joystick sample, and forces a nonzero LFSR seed. Physical
+        hardware supplies power-on RAM variation; the canonical XRoar run uses
+        <code>-ram-init random</code> to provide the emulator equivalent.
+      </p>
+      <p>
+        The authored <code>LADYBUG</code> top-score name added four unique
+        32-byte screen glyphs. To retain them inside the asset window, the
+        screen compiler interns the twenty seven-byte contextual gate
+        background records. A twenty-byte gate-to-record index selects four
+        unique records, reducing this table from 140 to 48 bytes without
+        changing the gate renderer's seven-cell record format or visuals.
       </p>
       <p>
         <code>src/main.s</code> now emits <code>resident_end</code>, aligns with
@@ -370,7 +387,8 @@ $FF00-$FFFF        256 B   I/O; never cart data
           <tr><td><code>$6C-$6E</code></td><td>player compositor delta and row scratch</td><td>3 B</td><td>Bank-3 player compositor</td></tr>
           <tr><td><code>$6F-$7B</code></td><td>gate compose mode, region, and MMU-copy scratch</td><td>13 B</td><td>Bank-3 gate-region compositor</td></tr>
           <tr><td><code>$7C-$7D</code></td><td>AI candidate and reverse direction</td><td>2 B</td><td>Bank-3 enemy junction chooser</td></tr>
-          <tr><td><code>$7E-$FF</code></td><td>(free)</td><td>130 B</td><td>Future hot state</td></tr>
+          <tr><td><code>$7E</code></td><td>roaming-presence flag</td><td>u8</td><td>Bank-3 roaming compositor</td></tr>
+          <tr><td><code>$7F-$FF</code></td><td>(free)</td><td>129 B</td><td>Future hot state</td></tr>
         </tbody>
       </table>
       <p>Plenty of room. Maintain this table as variables land.</p>
@@ -382,7 +400,9 @@ $FF00-$FFFF        256 B   I/O; never cart data
         Top of stack at <code>$1FFE</code> (in PAR0, phys <code>$38</code>).
         Grows down. Max realistic depth a few hundred bytes — interrupts
         push 12 (IRQ) or 3 (FIRQ) bytes plus whatever the handler reserves.
-        6 K of stack space is excessive but harmless.
+        The approved 4 K bank-3 copy ends at <code>$17FF</code>, leaving 2 K
+        below the stack top. IRQ nesting and current call depth remain within
+        that margin.
       </p>
     </section>
 

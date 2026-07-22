@@ -23,6 +23,46 @@
     </header>
 
     <section>
+      <h3>2026-07-22 &middot; lint &mdash; enemy rendering and collectible-system acceptance</h3>
+      <p>Passed the guarded GMC build and handoff proof, strengthened enemy ownership/skull/colour/entropy contracts, arcade-fidelity suite, Python byte-compilation, scoped whitespace check, and two-seed placement assertions. Two randomized cold starts produced different stage-one entity tables and letter selections. A fresh-ROM XRoar probe found the released enemy at <code>(16,18)</code> with save-under ownership valid, confirming that lower-maze actors remain in the roaming compositor. Parsed all 164 wiki HTML pages and resolved every local link. Manual hardware visual confirmation of trails and skull disappearance remains.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-22 &middot; fix &mdash; roaming ownership, skull cleanup, colour cycle, and stage entropy</h3>
+      <p>Corrected roaming ownership to follow each enemy's save-under-valid state after the den handoff, preventing lower-maze enemies from leaving trails or being redrawn at the nest. Enemy-skull collision now copies the cleaned live footprint into the captured hidden union before publication. Collectible colour timing no longer stops when reserve lives reach zero. Level one now seeds its LFSR from untouched game-state RAM plus joystick state, and canonical XRoar runs use <code>-ram-init random</code>; two cold-start probes produced different eight-record stage-one entity tables and letter selections. The guarded build uses resident <code>8175/8192</code>, assets <code>7656/7680</code>, and bank 3 <code>2543/4096</code>.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-22 &middot; lint &mdash; nest dot and roaming acceptance</h3>
+      <p>Passed the guarded GMC build and handoff proof, enemy ABI/navigation/nest-background contracts, arcade-fidelity suite, Python byte-compilation, scoped whitespace check, and maze-connectivity assertions. A fresh-ROM XRoar probe confirmed the first released enemy left the den and reached <code>(10,12)</code> moving South. Parsed all 164 wiki HTML pages and resolved every local link. Manual hardware visual confirmation remains.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-22 &middot; fix &mdash; nest dot and enemy navigation</h3>
+      <p>User testing found that dot <code>(12,10)</code> reappeared and released enemies stopped at <code>(12,11)</code>. The nest compositor now synchronizes its retained background when that dot is consumed. Enemy legality now preserves the full row-major offset across the gate-owner and navigation-table probes, uses the target row, and blocks only the actual den entrance instead of every downward crossing from the upper maze. A before/after XRoar probe changed the first enemy from stopped at <code>(12,11)</code>, direction <code>$FF</code>, to active at <code>(10,12)</code>, direction South. The guarded build uses resident <code>8174/8192</code>, assets <code>7656/7680</code>, and bank 3 <code>2530/4096</code>.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-22 &middot; lint &mdash; LADYBUG HUD build acceptance</h3>
+      <p>Passed the guarded GMC build and handoff proof, enemy-runtime ABI proof, arcade-fidelity suite, Python byte-compilation, and scoped whitespace check. Generated-data checks confirmed seven distinct nonblank top-score name cells and a 48-byte interned gate-background table containing twenty indices and four unique records. Parsed all 164 wiki HTML pages and resolved every local link.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-22 &middot; implement &mdash; LADYBUG top-score name</h3>
+      <p>Rebuilt the authored <code>tiled/coco-screen.tmx</code> with the seven-character <code>LADYBUG</code> HUD name. Its four new unique glyphs increased the screen atlas from 92 to 96 tiles, so the compiler now interns the twenty contextual gate-background records through a twenty-byte index and four unique seven-byte records, saving 92 bytes without changing gate visuals. The guarded build passes at resident <code>8133/8192</code>, assets <code>7656/7680</code>, and bank 3 <code>2520/4096</code>.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-20 &middot; lint &mdash; roaming renderer acceptance</h3>
+      <p>Passed the guarded build, approved 4 K bootstrap-copy contract, GMC handoff, six-entry bank-3 ABI proof, restore/save/draw/publish ordering check, arcade-fidelity suite, Python byte-compilation, scoped whitespace check, and parsing plus local-link resolution for six updated wiki pages. The bank-3 module uses <code>2520/4096</code> bytes. A fresh-ROM XRoar probe verified four westbound two-pixel steps, aligned arrival at cell <code>(11,10)</code>, valid clean-background state, 119 changed framebuffer bytes, and zero writes outside the expected nest/roaming dirty union. Residual acceptance is multi-enemy visual testing on hardware; pursuit remains out of scope.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-20 &middot; implement &mdash; general roaming enemy renderer</h3>
+      <p>Expanded the approved bank-3 low-RAM copy from <code>$0800-$0FFF</code> to <code>$0800-$17FF</code> while retaining 2 K of stack space. Four 128-byte clean background buffers and four prior pointers now support phase-separated hidden-framebuffer roaming: copy dirty unions, restore all old actors, update all records, save all destinations, draw all actors, and publish final unions. Released enemies move at 60 pixels/second, choose legal non-reversing directions at every cell, traverse only currently open gate passages without rotating gates, avoid den re-entry, collide with the player throughout the maze, and remove only a matching skull. A fresh-ROM four-step westbound probe reached cell <code>(11,10)</code> with valid background state and zero writes outside the expected union. Current use is resident <code>8127/8192</code>, assets <code>7620/7680</code>, and bank 3 <code>2520/4096</code>.</p>
+    </section>
+
+    <section>
       <h3>2026-07-20 &middot; lint &mdash; gate compositor and initial enemy AI acceptance</h3>
       <p>Passed the guarded full build at resident <code>8127/8192</code>, assets <code>7620/7680</code>, and bank 3 <code>1783/2048</code>; the GMC handoff, six-entry bank-3 ABI/static compositor proof, arcade-fidelity checks, Python byte-compilation, scoped whitespace check, and parsing plus local-link resolution for six updated wiki pages also passed. Fresh-ROM XRoar snapshots verified that the gate transition writes only the dynamic gate union and player rectangle, preserves a distant player, and finishes with valid save-under state; a separate first-junction probe selected a legal non-reversing regular-corridor direction. General roaming composition, dynamic gate passage, and pursuit remain outside this initial AI slice.</p>
     </section>

@@ -68,6 +68,7 @@ BONUS_TIMER   equ $0030         ; u16 frames remaining in current colour
 ENTITY_COUNT  equ $0032         ; active entity-table record count
 BONUS_LEFT    equ $0033         ; uncollected hearts and letters
 RNG_STATE     equ $0034         ; u16 placement LFSR
+RNG_ENTROPY   equ $BFFE         ; untouched game-state RAM sampled at cold start
 ENTITY_X      equ $0036         ; entity/draw scratch
 ENTITY_Y      equ $0037
 ENTITY_TYPE   equ $0038
@@ -187,7 +188,7 @@ ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
 PICKUP_BG   equ $A3B0          ; 64-byte background below score popup
 PLAYER_STAGE equ $A3F0         ; 128-byte off-screen player composition surface
 ENEMY_FB    equ $57EC          ; top-left at lower nest cell (12,12)
-ENEMY_TABLE equ $A470          ; four 6-byte active enemy records
+ENEMY_TABLE equ $A470          ; four 8-byte active enemy records
 ENEMY_ZONE_BG equ $A490        ; 256-byte clean 16-by-32 nest background
 
 ENEMY_MODULE_INIT    equ $0800
@@ -310,10 +311,14 @@ clr_fb  std     ,x++
         lbsr    init_gate_state
         lbsr    init_joystick
         lbsr    read_joystick
-        lda     RNG_STATE+1
+        ldd     RNG_ENTROPY
         eora    JOY_X
-        adda    JOY_Y
-        sta     RNG_STATE+1
+        eorb    JOY_Y
+        cmpd    #0
+        bne     entry_seed_ready
+        ldd     #$1D0F
+entry_seed_ready
+        std     RNG_STATE
         lbsr    init_entities
         lbsr    init_player
         lbsr    draw_entities
@@ -426,8 +431,6 @@ init_game_state
         clr     TURN_SNAP
         lda     #1
         sta     MULTIPLIER
-        ldd     #$1D0F
-        std     RNG_STATE
         lda     #COLOR_BLUE
         sta     BONUS_COLOR
         ldd     #420
@@ -1270,8 +1273,6 @@ deo_byte
         rts
 
 bonus_color_tick
-        lda     LIVES
-        beq     bct_done
         ldd     BONUS_TIMER
         subd    #1
         std     BONUS_TIMER
@@ -2209,7 +2210,9 @@ restore_gate_background
         lda     1,x
         sta     GATE_Y
 
-        lda     GATE_ID
+        leau    gate_background_index,pcr
+        ldb     GATE_ID
+        lda     b,u
         ldb     #7
         mul
         leau    gate_background_tiles,pcr
@@ -2941,10 +2944,36 @@ eat_dot
         leay    screen_tiles,pcr
         leay    d,y
         lbsr    blit_tile
+        lbsr    refresh_enemy_zone_dot
         lbsr    add_dot_score
         dec     DOTS_LEFT
         lbsr    check_stage_clear
 ed_done
+        rts
+
+; Keep the nest compositor's authoritative background synchronized with the
+; collectible directly above the den. Its 8x8 cell begins at compact offset
+; seven rows plus four bytes inside the 16x32 nest surface.
+refresh_enemy_zone_dot
+        lda     PLAYER_CELL_X
+        cmpa    #12
+        bne     red_done
+        lda     PLAYER_CELL_Y
+        cmpa    #10
+        bne     red_done
+        leax    screen_tiles+(MAZE_CLEAN_TILE*32),pcr
+        ldu     #ENEMY_ZONE_BG+60
+        lda     #8
+        sta     DRAW_COUNT
+red_row
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        leau    4,u
+        dec     DRAW_COUNT
+        bne     red_row
+red_done
         rts
 
 ;==============================================================================

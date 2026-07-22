@@ -93,7 +93,7 @@
         <li>Eight distinct insect types. Levels 1–8 each introduce a new type (one type per level on those stages).</li>
         <li>From level 9 onward each stage features four different insect types simultaneously.</li>
         <li>AI: chase the ladybug through corridors; cannot shift gates.</li>
-        <li><strong>Current CoCo implementation boundary:</strong> a released enemy exits north and chooses a pseudo-random legal non-reversing direction at its first maze cell. Gate-owned targets are temporarily treated as blocked. General roaming rendering, dynamic gate passage, detection range, and pursuit remain pending.</li>
+        <li><strong>Current CoCo implementation boundary:</strong> released enemies exit north, roam continuously with pseudo-random legal non-reversing junction choices, traverse passages parallel to a gate's current bar without rotating it, and do not re-enter the den. Detection range and pursuit remain pending.</li>
         <li>Killable by luring into a skull.</li>
         <li>A skull-killed enemy returns to the central den, waits briefly, and is released again.</li>
         <li>Frozen for several seconds when the player eats a vegetable; still lethal on contact during the freeze.</li>
@@ -106,7 +106,7 @@
         <li>Randomly placed each stage and stationary.</li>
         <li>Lethal to both ladybug and enemies on contact.</li>
         <li>MAME directly confirms two visible skulls on stage 1. Until later stages are measured, use the FAQ table: 2 on stage 1; 3 on stages 2–4; 4 on stages 5–8; 5 on stages 9–17; 6 on stage 18 onward.</li>
-        <li>Player contact removes every skull before the death animation. Enemy contact removes only the touched skull; enemy-side collision remains deferred with release and AI logic. The CoCo implementation preserves collected flowers, bonuses, gates, score, and stage state during the new-ladybug entrance.</li>
+        <li>Player contact removes every skull before the death animation. Enemy contact removes only the touched skull and returns that enemy to the den population. The CoCo implementation preserves collected flowers, bonuses, gates, score, and stage state during the new-ladybug entrance.</li>
       </ul>
     </section>
 
@@ -220,13 +220,13 @@
       <h2>Stage flow</h2>
       <ol>
         <li>Maze drawn (single fixed layout, identical every stage). All 117 CoCo placement candidates begin as flowers; six bonuses and the stage-dependent skull count then replace unique randomized candidates. Only the three centre-bottom entrance cells remain permanently empty.</li>
-        <li>Border timer starts; Lady Bug walks north through the three-cell entrance, stops at cell (12,18), and remains stationary until directional input. Nest enemies remain deferred.</li>
+        <li>Border timer starts; Lady Bug walks north through the three-cell entrance, stops at cell (12,18), and remains stationary until directional input. Enemies leave the den at completed border circuits and roam the maze.</li>
         <li>Stage-one MAME advances one of the 92 border boxes every 9 frames. A complete circuit is 828 frames (13.8 s). The following circuit progressively changes the Green boxes back to White at the same cadence; it does not clear every box in one frame.</li>
         <li>The vegetable appears after all four enemies have left the den. Arcade observation is still required to determine its availability duration, recurrence after an enemy is killed, and level-dependent timing.</li>
         <li>Normal stage clear requires every flower plus all six bonus circles; word completion also requests an immediate stage advance. Controlled arcade collection remains the final precedence check.</li>
         <li>Death (enemy contact or skull) → the directed sheet sequence runs from <code>R6C7</code> down through <code>R0C7</code>, then <code>R5C10</code> down through <code>R0C10</code>. Final angel <code>R7C11</code> rises in a right/centre/left/centre swoop until its timer completes or it reaches the maze boundary. The rightmost active TMX reserve marker then becomes the animated player sprite and walks 24 scanlines off-screen; only then is the reserve count decremented and the replacement enters. If the reserve count was already zero at death, the current implementation enters an inert terminal hold pending the Phase 9 game-over screen.</li>
       </ol>
-      <p>The maze is <strong>a single fixed layout used for every stage</strong>. Per-stage variation comes from: enemy types/count/speed, which vegetable appears, and the randomized skull positions.</p>
+      <p>The maze is <strong>a single fixed layout used for every stage</strong>. Per-stage variation comes from enemy types/count/speed, the vegetable, randomized skull and bonus positions, and the three randomized letter selections. Level one mixes power-on RAM and joystick state into the placement LFSR; later levels continue from the per-frame-advanced state.</p>
     </section>
 
     <section>

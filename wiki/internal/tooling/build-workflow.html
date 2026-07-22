@@ -55,7 +55,7 @@ build/ladybug-runtime.rom + build/ladybug-enemy-runtime.rom + build/ladybug-gmc-
    ▼
 build/ladybug.rom    (64 KB, four 16 KB GMC banks)
    │
-   │  xroar -machine coco3 -ram 512 -cart-type gmc -cart-rom ... -cart-autorun -tv-input rgb -joy-right kjoy0
+   │  xroar -machine coco3 -ram 512 -ram-init random -cart-type gmc -cart-rom ... -cart-autorun -tv-input rgb -joy-right kjoy0
    ▼
 emulated CoCo 3      (physical target: GMC-compatible bank-select hardware)
 </code></pre>
@@ -118,10 +118,12 @@ lwasm -9 --format=raw \
         It rejects resident code beyond <code>$E000</code>, an asset start other
         than <code>$E000</code>, assets beyond <code>$FE00</code>, or a raw-file
         length inconsistent with <code>asset_end-$C000</code>. A successful
-        current build reports <code>resident 8127/8192</code> and
-        <code>assets 7620/7680</code> before padding. The copied bank-3 module
-        reports <code>1783/2048</code>; its six-entry jump table includes the
-        hidden gate-region compositor ABI.
+        current build reports <code>resident 8175/8192</code> and
+        <code>assets 7656/7680</code> before padding. The copied bank-3 module
+        reports <code>2543/4096</code>; its six-entry jump table includes the
+        hidden gate-region compositor ABI. The approved loader copy spans
+        <code>$0800-$17FF</code>, leaving <code>$1800-$1FFE</code> for stack
+        growth.
       </p>
 
       <h3>2. Pad both source banks to 16 KB and compose the 64 KB GMC image</h3>
@@ -136,6 +138,7 @@ print(f'padded {16384-pad} → 16384 bytes')
 
       <h3>3. Run</h3>
 <pre><code>xroar -machine coco3 -ram 512 \
+      -ram-init random \
       -cart-type gmc \
       -cart-rom build/ladybug.rom \
       -cart-autorun \
@@ -170,7 +173,7 @@ print(f'padded {16384-pad} → 16384 bytes')
         instead:
       </p>
 <pre><code>shell cd /mnt/d/retro/ladybug &amp;&amp; ./scripts/build.sh build
-shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart-type gmc -cart-rom build/ladybug.rom -cart-autorun -joy-right kjoy0 -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
+shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -ram-init random -cart-type gmc -cart-rom build/ladybug.rom -cart-autorun -joy-right kjoy0 -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
 </code></pre>
       <p>Then start a fresh GDB-MCP session and attach with:</p>
 <pre><code>target remote :65520

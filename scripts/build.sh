@@ -174,8 +174,8 @@ runtime = open(runtime_path, 'rb').read()
 enemy = open(enemy_path, 'rb').read()
 if len(boot) != 0x4000 or len(runtime) != 0x4000:
     raise SystemExit('build: GMC bank input is not exactly 16 KiB')
-if len(enemy) > 0x800:
-    raise SystemExit(f'build: bank-3 enemy module is {len(enemy)} bytes; limit is 2048')
+if len(enemy) > 0x1000:
+    raise SystemExit(f'build: bank-3 enemy module is {len(enemy)} bytes; limit is 4096')
 bank2 = bytearray([0xA2] * 0x4000)
 bank3 = bytearray([0xA3] * 0x4000)
 bank2[0x10:0x12] = bytes((0xB2, 0x02))
@@ -194,6 +194,7 @@ cmd_run() {
     exec xroar \
         -machine coco3 \
         -ram 512 \
+        -ram-init random \
         -cart-type gmc \
         -cart-rom "$ROM" \
         -cart-autorun \

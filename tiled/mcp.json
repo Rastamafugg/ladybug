@@ -1,0 +1,35 @@
+{
+  "mcpServers": {
+    "mdopendata-postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://mdopendata:mdopendata_dev@127.0.0.1:55432/mdopendata?sslmode=disable"
+      ],
+      "approval": "never"
+    },
+    "qgis": {
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "D:\\opendata\\mdopendata\\scripts\\start-qgis-mcp.ps1"
+      ],
+      "approval": "never"
+    },
+    "mdopendata": {
+      "command": "D:\\opendata\\mdopendata\\.venv\\Scripts\\mdopendata-mcp.exe",
+      "args": [],
+      "cwd": "D:\\opendata\\mdopendata\\mcp",
+      "env": {
+        "MDOPENDATA_MCP_DATABASE_URL": "postgresql+psycopg://mdopendata:mdopendata_dev@127.0.0.1:55432/mdopendata",
+        "MDOPENDATA_MCP_SCHEMA_SQL_DIR": "D:\\opendata\\mdopendata\\schema\\sql",
+        "MDOPENDATA_MCP_WIKI_DIR": "D:\\opendata\\mdopendata\\wiki",
+        "MDOPENDATA_MCP_WEB_PUBLIC_DIR": "D:\\opendata\\mdopendata\\web\\public"
+      },
+      "approval": "never"
+    }
+  }
+}

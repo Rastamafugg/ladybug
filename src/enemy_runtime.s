@@ -50,6 +50,7 @@ GATE_COPY_ROWS  equ $007A
 GATE_WORK_ID    equ $007B
 ENEMY_CANDIDATE equ $007C
 ENEMY_REVERSE   equ $007D
+ENEMY_ROAMING   equ $007E
 GATE_ID         equ $0013
 GATE_X          equ $0014
 GATE_Y          equ $0015
@@ -69,6 +70,7 @@ ENTITY_COUNT   equ $0032
 ENTITY_X       equ $0036
 ENTITY_Y       equ $0037
 RNG_STATE      equ $0034
+LAST_FRAME     equ $0000
 
 ENTITY_TABLE   equ $A380
 PLAYER_BG      equ $A300
@@ -76,8 +78,11 @@ PLAYER_STAGE   equ $A3F0
 PLAYER_OLD_STAGE equ $A610      ; upper half of transient enemy staging surface
 ENTITY_SKULL   equ 1
 ENEMY_TABLE    equ $A470
+GATE_STATE     equ $A240
 ENEMY_ZONE_BG  equ $A490
 ENEMY_ZONE_STAGE equ $A590
+ENEMY_BG_BASE  equ $A690
+ENEMY_OLD_FB   equ $A890
 ENEMY_ZONE_FB  equ $4DEC
 ENEMY_FB       equ $57EC
 SPRITE_SOURCE_SIZE equ 64
@@ -171,6 +176,8 @@ et_begin_death
         beq     et_death_player_clear
         jsr     restore_player
 et_death_player_clear
+        clr     ENEMY_MOVE
+        lbsr    roam_despawn_all
         lbsr    reset_enemy_state
         lda     #1
         sta     ENEMY_DEATH_LATCH
@@ -224,15 +231,18 @@ et_freeze_timer
         std     FREEZE_TIMER
         bra     et_render_test
 et_find_movement
+        lda     LAST_FRAME
+        anda    #1
+        bne     et_render_test
         ldx     #ENEMY_TABLE
         lda     #4
         sta     ENEMY_WORK
 et_move_scan
         tst     ,x
         beq     et_move_next
-        lda     5,x
-        cmpa    #10
-        bls     et_move_next
+        lda     7,x
+        cmpa    #DIR_NONE
+        beq     et_move_next
         lda     #1
         sta     ENEMY_MOVE
         sta     ENEMY_DIRTY
@@ -247,34 +257,60 @@ et_render_test
         rts
 
 et_update
+        lbsr    roam_prepare_shadow
         tst     ENEMY_MOVE
-        beq     et_compose
+        lbeq    et_compose
         ldx     #ENEMY_TABLE
         lda     #4
         sta     ENEMY_WORK
 et_update_loop
         tst     ,x
         beq     et_update_next
-        ; The first AI pass follows the verified den exit north and stops at
-        ; its first maze decision. Record a legal junction direction here;
-        ; the general roaming renderer remains a later implementation slice.
-        lda     5,x
-        cmpa    #10
-        bls     et_contact
+        lda     7,x
+        beq     et_step_north
+        cmpa    #1
+        beq     et_step_east
+        cmpa    #2
+        beq     et_step_south
         ldd     1,x
-        subd    #160
+        subd    #1
+        bra     et_store_step
+et_step_north
+        ldd     1,x
+        subd    #320
+        bra     et_store_step
+et_step_east
+        ldd     1,x
+        addd    #1
+        bra     et_store_step
+et_step_south
+        ldd     1,x
+        addd    #320
+et_store_step
         std     1,x
         inc     3,x
         lda     3,x
-        cmpa    #8
+        cmpa    #4
         blo     et_contact
         clr     3,x
+        lda     7,x
+        beq     et_arrive_north
+        cmpa    #1
+        beq     et_arrive_east
+        cmpa    #2
+        beq     et_arrive_south
+        dec     4,x
+        bra     et_choose_arrival
+et_arrive_north
         dec     5,x
-        lda     5,x
-        cmpa    #10
-        bne     et_after_choice
+        bra     et_choose_arrival
+et_arrive_east
+        inc     4,x
+        bra     et_choose_arrival
+et_arrive_south
+        inc     5,x
+et_choose_arrival
         lbsr    enemy_choose_direction
-et_after_choice
         lda     ENEMY_WORK
         pshs    a,x
         lbsr    enemy_skull_test
@@ -283,8 +319,7 @@ et_after_choice
         tst     ,x
         beq     et_update_next
 et_contact
-        lbsr    enemy_player_contact
-        bcc     et_update_next
+        bra     et_update_next
 et_player_death
         lda     #1
         sta     DEATH_STATE
@@ -298,6 +333,7 @@ et_update_next
         bne     et_update_loop
 et_compose
         lbsr    compose_enemy_zone
+        lbsr    roam_finish_shadow
         clr     ENEMY_DIRTY
         rts
 
@@ -340,10 +376,9 @@ ec_score_done
 ec_done
         rts
 
-; First roaming-AI slice: choose a pseudo-random legal direction at the first
-; aligned maze decision. Avoid immediate reversal whenever another regular
-; corridor exists. Gate-owned cells remain blocked until the measured dynamic
-; gate-passage rule and roaming renderer are added.
+; Choose a pseudo-random legal direction at every aligned maze decision.
+; Avoid immediate reversal whenever another corridor exists. Gate-owned cells
+; are legal only when the current bar orientation exposes a parallel passage.
 enemy_choose_direction
         stx     ENEMY_PTR
         lda     7,x
@@ -408,23 +443,88 @@ edl_south
 edl_bounds
         lda     ENTITY_X
         cmpa    #24
-        bhs     edl_clear
+        lbhs    edl_clear
         lda     ENTITY_Y
         cmpa    #24
-        bhs     edl_clear
+        lbhs    edl_clear
+        ldx     ENEMY_PTR
+        lda     5,x
+        cmpa    #10
+        bhi     edl_offset
+        lda     ENTITY_X
+        cmpa    #12
+        bne     edl_offset
+        lda     ENTITY_Y
+        cmpa    #11
+        lbeq    edl_clear       ; do not re-enter the den from cell (12,10)
+edl_offset
+        lda     ENTITY_Y
         ldb     #24
         mul
         addb    ENTITY_X
         adca    #0
         ldy     #maze_gate_owner
-        tst     d,y
-        bne     edl_clear
-        ldy     #maze_nav
-        ldb     d,y
+        leay    d,y
+        lda     ,y
+        bne     edl_gate
+        leay    maze_nav-maze_gate_owner,y
+        ldb     ,y
         ldx     #enemy_entry_masks
         lda     ENEMY_CANDIDATE
         andb    a,x
         beq     edl_clear
+        orcc    #$01
+        rts
+edl_gate
+        deca
+        sta     GATE_WORK_ID
+        ldb     #3
+        mul
+        ldy     #maze_gates
+        leay    d,y
+        lda     ,y
+        sta     GATE_X
+        lda     1,y
+        sta     GATE_Y
+        ldy     #GATE_STATE
+        ldb     GATE_WORK_ID
+        lda     b,y
+        bita    #1
+        bne     edl_vertical_gate
+        lda     ENTITY_X
+        cmpa    GATE_X
+        bne     edl_clear
+        lda     ENTITY_Y
+        suba    GATE_Y
+        beq     edl_clear
+        cmpa    #1
+        beq     edl_horizontal_dir
+        cmpa    #-1
+        bne     edl_clear
+edl_horizontal_dir
+        lda     ENEMY_CANDIDATE
+        cmpa    #1
+        beq     edl_set
+        cmpa    #3
+        beq     edl_set
+        bra     edl_clear
+edl_vertical_gate
+        lda     ENTITY_Y
+        cmpa    GATE_Y
+        bne     edl_clear
+        lda     ENTITY_X
+        suba    GATE_X
+        beq     edl_clear
+        cmpa    #1
+        beq     edl_vertical_dir
+        cmpa    #-1
+        bne     edl_clear
+edl_vertical_dir
+        lda     ENEMY_CANDIDATE
+        beq     edl_set
+        cmpa    #2
+        bne     edl_clear
+edl_set
         orcc    #$01
         rts
 edl_clear
@@ -434,20 +534,23 @@ edl_clear
 enemy_entry_masks
         fcb     $04,$08,$01,$02
 
-; Current active enemies occupy the nest's vertical lane. Use the displayed
-; 16-by-16 footprints instead of requiring simultaneous cell alignment.
+; Compare semantic centres. Adjacent eight-pixel cells still overlap because
+; both actors have 16-by-16 footprints.
 enemy_player_contact
         lda     PLAYER_CELL_X
-        cmpa    #11
-        blo     epc_clear
-        cmpa    #13
+        suba    4,x
+        bpl     epc_x_positive
+        nega
+epc_x_positive
+        cmpa    #1
         bhi     epc_clear
-        ldd     PLAYER_FB
-        subd    1,x
-        cmpd    #2400
-        bge     epc_clear
-        cmpd    #-2400
-        ble     epc_clear
+        lda     PLAYER_CELL_Y
+        suba    5,x
+        bpl     epc_y_positive
+        nega
+epc_y_positive
+        cmpa    #1
+        bhi     epc_clear
         orcc    #$01
         rts
 epc_clear
@@ -466,10 +569,10 @@ est_loop
         cmpa    #ENTITY_SKULL
         bne     est_next
         lda     ,u
-        cmpa    #12
+        ldx     ENEMY_PTR
+        cmpa    4,x
         bne     est_next
         lda     1,u
-        ldx     ENEMY_PTR
         cmpa    5,x
         bne     est_next
         clr     2,u
@@ -482,6 +585,15 @@ est_loop
         puls    u
         lbsr    refresh_zone_bg_footprint
         ldx     ENEMY_PTR
+        ldd     1,x
+        std     GATE_RECT_FB
+        lda     #8
+        sta     GATE_RECT_WIDTH
+        lda     #16
+        sta     GATE_RECT_ROWS
+        pshs    x
+        lbsr    gate_region_to_shadow
+        puls    x
         clr     ,x
         clr     6,x
         dec     ENEMY_ACTIVE
@@ -494,6 +606,328 @@ est_next
         dec     ENEMY_WORK
         bne     est_loop
 est_done
+        rts
+
+; Prepare all old/new roaming unions in the hidden framebuffer, then remove
+; every old enemy there before any destination background is captured.
+roam_prepare_shadow
+        clr     ENEMY_ROAMING
+        ldu     #ENEMY_OLD_FB
+        clra
+        clrb
+        std     ,u
+        std     2,u
+        std     4,u
+        std     6,u
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+rps_copy_loop
+        tst     ,x
+        beq     rps_copy_next
+        tst     6,x
+        bne     rps_copy_actor
+        lda     5,x
+        cmpa    #11
+        bhi     rps_copy_next
+rps_copy_actor
+        inc     ENEMY_ROAMING
+        lbsr    roam_old_slot
+        ldd     1,x
+        std     ,u
+        lbsr    roam_set_prepare_union
+        pshs    x
+        lbsr    gate_region_to_shadow
+        puls    x
+rps_copy_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     rps_copy_loop
+        tst     ENEMY_ROAMING
+        beq     rps_done
+        lbsr    gate_map_shadow
+        ; A transition seeded from the freshly rebuilt nest can overlap an
+        ; established roaming actor. Restore every valid old actor again so
+        ; all destination saves observe actor-free pixels.
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+rfs_clean_loop
+        tst     ,x
+        beq     rfs_clean_next
+        tst     6,x
+        beq     rfs_clean_next
+        lbsr    roam_old_slot
+        ldd     ,u
+        pshs    x
+        tfr     d,x
+        lbsr    roam_bg_address
+        lbsr    roam_copy_bg_to_fb
+        puls    x
+rfs_clean_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     rfs_clean_loop
+
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+rps_restore_loop
+        tst     ,x
+        beq     rps_restore_next
+        tst     6,x
+        beq     rps_restore_next
+        lbsr    roam_old_slot
+        ldd     ,u
+        pshs    x
+        tfr     d,x
+        lbsr    roam_bg_address
+        lbsr    roam_copy_bg_to_fb
+        puls    x
+rps_restore_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     rps_restore_loop
+        lbsr    gate_map_live
+rps_done
+        rts
+
+; After the nest has been republished, stage any newly transitioned enemy,
+; save every clean destination, draw every actor, then publish final unions.
+roam_finish_shadow
+        tst     ENEMY_ROAMING
+        lbeq    rfs_done
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+rfs_seed_loop
+        tst     ,x
+        beq     rfs_seed_next
+        lda     5,x
+        cmpa    #10
+        bhi     rfs_seed_next
+        tst     6,x
+        bne     rfs_seed_next
+        lbsr    roam_set_final_union
+        pshs    x
+        lbsr    gate_region_to_shadow
+        puls    x
+rfs_seed_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     rfs_seed_loop
+
+        lbsr    gate_map_shadow
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+rfs_save_loop
+        tst     ,x
+        beq     rfs_save_next
+        tst     6,x
+        bne     rfs_save_actor
+        lda     5,x
+        cmpa    #10
+        bhi     rfs_save_next
+rfs_save_actor
+        pshs    x
+        ldx     1,x
+        lbsr    roam_bg_address
+        lbsr    roam_copy_fb_to_bg
+        puls    x
+        lda     #1
+        sta     6,x
+rfs_save_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     rfs_save_loop
+
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+rfs_draw_loop
+        tst     ,x
+        beq     rfs_draw_next
+        tst     6,x
+        beq     rfs_draw_next
+        pshs    x
+        ldx     1,x
+        lbsr    draw_enemy_fb
+        puls    x
+rfs_draw_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     rfs_draw_loop
+        lbsr    gate_map_live
+
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+rfs_publish_loop
+        lbsr    roam_old_slot
+        ldd     ,u
+        beq     rfs_publish_next
+        lbsr    roam_set_final_union
+        pshs    x
+        lbsr    gate_region_from_shadow
+        puls    x
+rfs_publish_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     rfs_publish_loop
+rfs_done
+        rts
+
+; Restore and publish every roaming footprint before lifecycle reset clears
+; the records. Nest occupants are removed by the normal nest composition.
+roam_despawn_all
+        lbsr    roam_prepare_shadow
+        tst     ENEMY_ROAMING
+        beq     rda_done
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+rda_loop
+        lbsr    roam_old_slot
+        ldd     ,u
+        beq     rda_next
+        std     GATE_RECT_FB
+        lda     #8
+        sta     GATE_RECT_WIDTH
+        lda     #16
+        sta     GATE_RECT_ROWS
+        pshs    x
+        lbsr    gate_region_from_shadow
+        puls    x
+rda_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     rda_loop
+rda_done
+        rts
+
+; U returns the old-pointer slot or this record's 128-byte background buffer.
+roam_old_slot
+        lda     #4
+        suba    ENEMY_WORK
+        lsla
+        ldu     #ENEMY_OLD_FB
+        leau    a,u
+        rts
+
+roam_bg_address
+        lda     #4
+        suba    ENEMY_WORK
+        ldb     #128
+        mul
+        addd    #ENEMY_BG_BASE
+        tfr     d,u
+        rts
+
+roam_set_prepare_union
+        ldd     1,x
+        std     GATE_RECT_FB
+        lda     #8
+        sta     GATE_RECT_WIDTH
+        lda     #16
+        sta     GATE_RECT_ROWS
+        tst     ENEMY_MOVE
+        beq     rspu_done
+        lda     7,x
+        beq     rspu_north
+        cmpa    #1
+        beq     rspu_east
+        cmpa    #2
+        beq     rspu_south
+        ldd     GATE_RECT_FB
+        subd    #1
+        std     GATE_RECT_FB
+rspu_east
+        inc     GATE_RECT_WIDTH
+        rts
+rspu_north
+        ldd     GATE_RECT_FB
+        subd    #320
+        std     GATE_RECT_FB
+rspu_south
+        lda     #18
+        sta     GATE_RECT_ROWS
+rspu_done
+        rts
+
+roam_set_final_union
+        lbsr    roam_old_slot
+        ldd     ,u
+        std     GATE_RECT_FB
+        lda     #8
+        sta     GATE_RECT_WIDTH
+        lda     #16
+        sta     GATE_RECT_ROWS
+        ldd     1,x
+        subd    ,u
+        beq     rsfu_done
+        cmpd    #1
+        beq     rsfu_horizontal
+        cmpd    #-1
+        beq     rsfu_west
+        cmpd    #320
+        beq     rsfu_vertical
+        ldd     1,x
+        std     GATE_RECT_FB
+rsfu_vertical
+        lda     #18
+        sta     GATE_RECT_ROWS
+        rts
+rsfu_west
+        ldd     1,x
+        std     GATE_RECT_FB
+rsfu_horizontal
+        inc     GATE_RECT_WIDTH
+rsfu_done
+        rts
+
+roam_copy_bg_to_fb
+        ldy     #16
+rcbtf_row
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        leax    152,x
+        leay    -1,y
+        bne     rcbtf_row
+        rts
+
+roam_copy_fb_to_bg
+        ldy     #16
+rcftb_row
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        leax    152,x
+        leay    -1,y
+        bne     rcftb_row
+        rts
+
+draw_enemy_fb
+        pshs    x
+        lda     ENEMY_ANIM
+        ldb     #SPRITE_SOURCE_SIZE
+        mul
+        ldy     #enemy_sprites
+        leay    d,y
+        puls    x
+        ldu     #sprite_attr0_pairs
+        jsr     blit_packed_sprite
         rts
 
 ; Build the complete 16-by-32 nest layer in compact RAM, then publish only
@@ -516,6 +950,8 @@ cez_copy_bg
 cez_active_loop
         tst     ,u
         beq     cez_active_next
+        tst     6,u
+        bne     cez_active_next
         lda     5,u
         suba    #10
         ldb     #8

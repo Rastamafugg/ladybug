@@ -65,7 +65,7 @@ loader_start
 copy_enemy_runtime
         ldd     ,x++
         std     ,y++
-        cmpx    #$D000
+        cmpx    #$D800
         blo     copy_enemy_runtime
 
         ; Bank 1 contains the current 16 KiB runtime image. Copy its resident
