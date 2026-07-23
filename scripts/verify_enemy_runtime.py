@@ -37,7 +37,7 @@ required = [
     "ENEMY_ZONE_STAGE equ $A590",
     "ENEMY_ZONE_FB  equ $4DEC",
     "SPRITE_SOURCE_SIZE equ 64",
-    "tst     ENEMY_DIRTY",
+    "tst     ENEMY_NEST_DIRTY",
     "lbsr    compose_enemy_zone",
     "tst     ENEMY_DEATH_LATCH",
     "lbsr    reset_enemy_state",
@@ -90,6 +90,16 @@ if missing:
     raise SystemExit("enemy proof: missing contracts: " + ", ".join(missing))
 if source.index("et_render_test") > source.index("et_compose"):
     raise SystemExit("enemy proof: idle render gate must precede composition")
+render_start = source.index("\net_render_test\n")
+render = source[render_start : source.index("\nenemy_collect_impl\n", render_start)]
+move_scan = source[source.index("\net_move_scan\n"):render_start]
+if "sta     ENEMY_NEST_DIRTY" in move_scan:
+    raise SystemExit("enemy proof: roaming movement still dirties the nest")
+if render.index("tst     ENEMY_MOVE") < render.index("tst     ENEMY_NEST_DIRTY"):
+    raise SystemExit("enemy proof: nest dirtiness must gate before movement-only rendering")
+compose_tail = render[render.index("\net_compose\n"):]
+if not compose_tail.index("tst     ENEMY_NEST_DIRTY") < compose_tail.index("lbsr    compose_enemy_zone"):
+    raise SystemExit("enemy proof: movement-only frames do not bypass nest composition")
 if source.index("pci_commit_row") > source.index("pci_horizontal_strip"):
     raise SystemExit("enemy proof: final player rows must publish before old strips")
 strip_start = source.index("\npci_horizontal_strip\n")
@@ -126,6 +136,10 @@ if "cmpa    #12" not in dot_sync or "cmpa    #10" not in dot_sync:
 roam_order = ["rps_restore_loop", "rfs_save_loop", "rfs_draw_loop", "rfs_publish_loop"]
 if [source.index(label) for label in roam_order] != sorted(source.index(label) for label in roam_order):
     raise SystemExit("enemy proof: roaming restore/save/draw/publish phase order changed")
+prepare_start = source.index("\nroam_prepare_shadow\n")
+prepare = source[prepare_start : source.index("\nroam_finish_shadow\n", prepare_start)]
+if prepare.count("lbsr    roam_copy_bg_to_fb") != 1:
+    raise SystemExit("enemy proof: old roaming backgrounds must be restored exactly once")
 gate_turn_start = main.index("\ncm_rotate\n")
 gate_turn = main[gate_turn_start : main.index("\ncm_regular\n", gate_turn_start)]
 if "expose_player_background" in gate_turn or "jsr     GATE_MODULE_COMPOSE" not in gate_turn:
@@ -197,7 +211,7 @@ print(
     "64-byte source stride, idle render gate, off-screen nest compositor, "
     "immediate death reset, reset/frozen release timer, staged player publish, "
     "hidden gate publish, footprint collision, skull decrement, exclusive "
-    "vegetable layer, 300-frame freeze, roaming phase separation, dynamic "
+    "vegetable layer, 300-frame freeze, nest-dirty separation, roaming phase separation, dynamic "
     "gate passage, den exit, roaming ownership, hidden skull cleanup, continuous "
     "colour cycling, randomized stage-one seed, nest-dot synchronization, and "
     "junction choice verified"

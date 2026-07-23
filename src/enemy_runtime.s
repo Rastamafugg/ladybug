@@ -20,7 +20,7 @@ VEG_STATE      equ $005A
 FREEZE_TIMER   equ $005B
 ENEMY_WORK     equ $005D
 ENEMY_PTR      equ $005E
-ENEMY_DIRTY    equ $0060
+ENEMY_NEST_DIRTY equ $0060
 ENEMY_MOVE     equ $0061
 ENEMY_DEATH_LATCH equ $0062
 ENEMY_ROW      equ $0063
@@ -116,7 +116,7 @@ reset_enemy_state
         clr     VEG_STATE
         clr     FREEZE_TIMER
         clr     FREEZE_TIMER+1
-        clr     ENEMY_DIRTY
+        clr     ENEMY_NEST_DIRTY
         clr     ENEMY_MOVE
         clr     ENEMY_DEATH_LATCH
         clr     PLAYER_TICK_PENDING
@@ -179,7 +179,7 @@ er_use
         inc     ENEMY_ACTIVE
         inc     ENEMY_RELEASED
         lda     #1
-        sta     ENEMY_DIRTY
+        sta     ENEMY_NEST_DIRTY
         lda     ENEMY_ACTIVE
         cmpa    #4
         bne     er_done
@@ -204,9 +204,9 @@ et_death_player_clear
         lda     #1
         sta     ENEMY_DEATH_LATCH
         lda     #1
-        sta     ENEMY_DIRTY
+        sta     ENEMY_NEST_DIRTY
         lbsr    compose_enemy_zone
-        clr     ENEMY_DIRTY
+        clr     ENEMY_NEST_DIRTY
         rts
 et_death_animate
         ; Death suppresses releases and active movement, but the newly reset
@@ -243,7 +243,7 @@ et_animation_timer
         anda    #3
         sta     ENEMY_ANIM
         lda     #1
-        sta     ENEMY_DIRTY
+        sta     ENEMY_NEST_DIRTY
 et_freeze_timer
         tst     DEATH_STATE
         bne     et_render_test
@@ -267,14 +267,15 @@ et_move_scan
         beq     et_move_next
         lda     #1
         sta     ENEMY_MOVE
-        sta     ENEMY_DIRTY
         bra     et_render_test
 et_move_next
         leax    RECORD_SIZE,x
         dec     ENEMY_WORK
         bne     et_move_scan
 et_render_test
-        tst     ENEMY_DIRTY
+        tst     ENEMY_NEST_DIRTY
+        bne     et_update
+        tst     ENEMY_MOVE
         bne     et_update
         rts
 
@@ -354,9 +355,12 @@ et_update_next
         dec     ENEMY_WORK
         bne     et_update_loop
 et_compose
+        tst     ENEMY_NEST_DIRTY
+        beq     et_finish
         lbsr    compose_enemy_zone
+et_finish
         lbsr    roam_finish_shadow
-        clr     ENEMY_DIRTY
+        clr     ENEMY_NEST_DIRTY
         rts
 
 enemy_collect_impl
@@ -376,7 +380,7 @@ enemy_collect_impl
         lda     #2
         sta     VEG_STATE
         lda     #1
-        sta     ENEMY_DIRTY
+        sta     ENEMY_NEST_DIRTY
         ldd     #300
         std     FREEZE_TIMER
         ; Level-1 cucumber placeholder score: 1,000 points.
@@ -621,7 +625,7 @@ est_loop
         dec     ENEMY_ACTIVE
         clr     VEG_STATE
         lda     #1
-        sta     ENEMY_DIRTY
+        sta     ENEMY_NEST_DIRTY
         rts
 est_next
         leau    4,u
@@ -669,28 +673,8 @@ rps_copy_next
         beq     rps_done
         lbsr    gate_map_shadow
         ; A transition seeded from the freshly rebuilt nest can overlap an
-        ; established roaming actor. Restore every valid old actor again so
+        ; established roaming actor. Restore every valid old actor once so
         ; all destination saves observe actor-free pixels.
-        ldx     #ENEMY_TABLE
-        lda     #4
-        sta     ENEMY_WORK
-rfs_clean_loop
-        tst     ,x
-        beq     rfs_clean_next
-        tst     6,x
-        beq     rfs_clean_next
-        lbsr    roam_old_slot
-        ldd     ,u
-        pshs    x
-        tfr     d,x
-        lbsr    roam_bg_address
-        lbsr    roam_copy_bg_to_fb
-        puls    x
-rfs_clean_next
-        leax    RECORD_SIZE,x
-        dec     ENEMY_WORK
-        bne     rfs_clean_loop
-
         ldx     #ENEMY_TABLE
         lda     #4
         sta     ENEMY_WORK

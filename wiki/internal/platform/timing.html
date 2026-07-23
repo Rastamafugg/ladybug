@@ -104,6 +104,32 @@
         per-row shadow-window mapping with page-segment copies. Rectangle
         coalescing is deferred until the lower-risk changes are measured.
       </p>
+      <p>
+        <strong>First optimization completed 2026-07-23:</strong>
+        <code>roam_prepare_shadow</code> previously ran two adjacent loops
+        that restored the same valid old roaming backgrounds with no
+        intervening framebuffer mutation. It now performs one restore pass,
+        removing 38 bytes from the bank-3 module and one 128-byte background
+        copy per established roaming enemy. The four-enemy estimate is
+        approximately 712 instructions saved. The guarded build, GMC trace
+        proof, enemy-runtime contracts, and a live m6809 GDB-MCP attach passed;
+        a fresh frame trace remains required before replacing the original
+        measured totals.
+      </p>
+      <p>
+        <strong>Second optimization completed 2026-07-23:</strong>
+        direct-page byte <code>$60</code> now means nest/animation dirtiness
+        only, while <code>$61</code> independently requests roaming movement.
+        Movement-only frames still restore, save, draw, and publish roaming
+        unions but branch over <code>compose_enemy_zone</code>. Animation,
+        release, vegetable, skull, death-reset, and retained-background
+        changes still compose the nest. A live GDB-MCP probe stopped after
+        the bypass with <code>$60=0/$61=1</code>, then stopped inside nest
+        composition on an animation frame with <code>$60=1</code>. This
+        targets approximately 3,297 instructions on applicable frames and
+        costs six bank-3 bytes; fresh frame tracing remains the measurement
+        gate.
+      </p>
     </section>
 
     <footer class="wiki-footer">

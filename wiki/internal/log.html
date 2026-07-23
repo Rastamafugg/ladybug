@@ -23,6 +23,16 @@
     </header>
 
     <section>
+      <h3>2026-07-23 &middot; implementation/lint &mdash; separate nest dirtiness from roaming movement</h3>
+      <p>Reinterpreted direct-page byte <code>$60</code> as <code>ENEMY_NEST_DIRTY</code> and retained <code>$61</code> as the independent movement request. Movement-only frames now bypass the unchanged nest compositor while animation, release, vegetable, skull, death-reset, and retained-background changes still invoke it. Structural contracts, guarded build, arcade-fidelity checks, and live m6809 probes passed: <code>$60=0/$61=1</code> branched over composition, while an animation frame entered composition with <code>$60=1</code>. The change targets approximately 3,297 instructions on applicable frames and increases the optimized bank-3 module by six bytes to 2,662 bytes.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-23 &middot; implementation/lint &mdash; remove duplicate roaming-background restore</h3>
+      <p>Removed one of two adjacent <code>roam_prepare_shadow</code> loops that restored identical old roaming backgrounds without an intervening mutation. The change removes 38 bank-3 bytes and one 128-byte background copy per established roaming enemy, approximately 712 instructions in the prior four-enemy profile. Added a structural single-pass contract, passed the guarded build, GMC trace proof, enemy-runtime suite, and live m6809 GDB-MCP attach, and recorded that a fresh frame trace is still required before updating the measured totals.</p>
+    </section>
+
+    <section>
       <h3>2026-07-23 &middot; query/fix &mdash; pickup activation and angel boundary regressions</h3>
       <p>Reduced three CoCo playtest failures to delayed live-multiplier display, an unwrapped angel quarter index, and unchecked framebuffer ascent. Snapshotted the pre-pickup multiplier, repeated the four-quarter lateral cycle, and hid the angel safely after its origin crossed the top edge while retaining the measured animation duration. Updated the enemy-runtime proof from the removed walk-off label to the measured blank-and-respawn contract.</p>
     </section>

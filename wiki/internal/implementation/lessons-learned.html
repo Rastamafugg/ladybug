@@ -25,6 +25,14 @@
     </header>
 
     <section>
+      <h2>Dirty flags must identify compositor ownership</h2>
+      <p><strong>Filed 2026-07-23.</strong></p>
+      <p>A single enemy-dirty flag caused every roaming movement frame to rebuild and publish the unchanged 16-by-32 nest, including its packed-sprite blit. Movement and nest animation share the hidden framebuffer transaction but do not share the same dirty region.</p>
+      <p><strong>Rule:</strong> represent nest/animation dirtiness independently from roaming movement. Run the shared restore/save/draw/publish transaction when either changes, but invoke each retained compositor only when its owned pixels changed.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>ENEMY_NEST_DIRTY</code>, <code>ENEMY_MOVE</code>, and <code>et_compose</code>; live GDB-MCP probes with <code>$60=0/$61=1</code> and <code>$60=1</code>.</p>
+    </section>
+
+    <section>
       <h2>Snapshot reward state before applying a pickup's progression</h2>
       <p><strong>Filed 2026-07-23.</strong></p>
       <p>Blue-heart scoring used the old multiplier correctly, but the delayed popup read the live multiplier after the same pickup advanced it. The displayed reward therefore contradicted the awarded score. The angel path had analogous delayed-state defects: its quarter counter did not wrap and its framebuffer pointer could cross the top boundary while fixed-duration animation continued.</p>
