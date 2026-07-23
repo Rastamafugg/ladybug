@@ -673,7 +673,7 @@ def main() -> None:
     args.enemy_output.parent.mkdir(parents=True, exist_ok=True)
     args.enemy_output.write_bytes(b"".join(enemy_sprites))
     multiplier_graphics = [
-        pack_tile(recolor(rotate_ccw(chars[code]), (BLACK, BLUE, BLUE, BLUE)))
+        pack_tile(recolor(rotate_ccw(chars[code]), (BLACK, WHITE, WHITE, WHITE)))
         for code in MULTIPLIER_CHAR_CODES
     ]
     emit_include(args.output, screen_map, tiles, clean_tile_id, hud_digits,

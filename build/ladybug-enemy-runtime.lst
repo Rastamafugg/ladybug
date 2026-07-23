@@ -3,18 +3,18 @@
                       (c/enemy_runtime.s):00003         
                       (c/enemy_runtime.s):00004                 pragma  nodollarlocal,6809
                       (c/enemy_runtime.s):00005                 include "ladybug_runtime_symbols.inc"
-     D256             (ntime_symbols.inc):00001         blit_packed_sprite equ $D256
+     D1D4             (ntime_symbols.inc):00001         blit_packed_sprite equ $D1D4
      C2EE             (ntime_symbols.inc):00002         draw_hud equ $C2EE
      F086             (ntime_symbols.inc):00003         gate_redraw_neighbors equ $F086
      CDB0             (ntime_symbols.inc):00004         gate_render_hidden equ $CDB0
      FA7A             (ntime_symbols.inc):00005         maze_gate_owner equ $FA7A
      FCBA             (ntime_symbols.inc):00006         maze_gates equ $FCBA
      F83A             (ntime_symbols.inc):00007         maze_nav equ $F83A
-     D3FF             (ntime_symbols.inc):00008         player_sprites equ $D3FF
-     D0F1             (ntime_symbols.inc):00009         restore_entity_footprint equ $D0F1
-     D33D             (ntime_symbols.inc):00010         restore_player equ $D33D
-     D297             (ntime_symbols.inc):00011         sprite_attr0_pairs equ $D297
-     DB7F             (ntime_symbols.inc):00012         vegetable_sprites equ $DB7F
+     D37D             (ntime_symbols.inc):00008         player_sprites equ $D37D
+     D06F             (ntime_symbols.inc):00009         restore_entity_footprint equ $D06F
+     D2BB             (ntime_symbols.inc):00010         restore_player equ $D2BB
+     D215             (ntime_symbols.inc):00011         sprite_attr0_pairs equ $D215
+     DAFD             (ntime_symbols.inc):00012         vegetable_sprites equ $DAFD
                       (c/enemy_runtime.s):00006                 org     $0800
                       (c/enemy_runtime.s):00007         
 0800 7E0812           (c/enemy_runtime.s):00008                 jmp     enemy_init_impl
@@ -208,7 +208,7 @@
 08B1                  (c/enemy_runtime.s):00196         et_begin_death
 08B1 0D6A             (c/enemy_runtime.s):00197                 tst     PLAYER_BG_VALID
 08B3 2703             (c/enemy_runtime.s):00198                 beq     et_death_player_clear
-08B5 BDD33D           (c/enemy_runtime.s):00199                 jsr     restore_player
+08B5 BDD2BB           (c/enemy_runtime.s):00199                 jsr     restore_player
 08B8                  (c/enemy_runtime.s):00200         et_death_player_clear
 08B8 0F61             (c/enemy_runtime.s):00201                 clr     ENEMY_MOVE
 08BA 17040F           (c/enemy_runtime.s):00202                 lbsr    roam_despawn_all
@@ -615,7 +615,7 @@
 0B66 A641             (c/enemy_runtime.s):00603                 lda     1,u
 0B68 9737             (c/enemy_runtime.s):00604                 sta     ENTITY_Y
 0B6A 3440             (c/enemy_runtime.s):00605                 pshs    u
-0B6C BDD0F1           (c/enemy_runtime.s):00606                 jsr     restore_entity_footprint
+0B6C BDD06F           (c/enemy_runtime.s):00606                 jsr     restore_entity_footprint
 0B6F 3540             (c/enemy_runtime.s):00607                 puls    u
 0B71 1706C6           (c/enemy_runtime.s):00608                 lbsr    refresh_zone_bg_footprint
 0B74 9E5E             (c/enemy_runtime.s):00609                 ldx     ENEMY_PTR
@@ -957,8 +957,8 @@
 0DB4 3410             (c/enemy_runtime.s):00945                 pshs    x
 0DB6 170381           (c/enemy_runtime.s):00946                 lbsr    enemy_sprite_cache
 0DB9 3510             (c/enemy_runtime.s):00947                 puls    x
-0DBB CED297           (c/enemy_runtime.s):00948                 ldu     #sprite_attr0_pairs
-0DBE BDD256           (c/enemy_runtime.s):00949                 jsr     blit_packed_sprite
+0DBB CED215           (c/enemy_runtime.s):00948                 ldu     #sprite_attr0_pairs
+0DBE BDD1D4           (c/enemy_runtime.s):00949                 jsr     blit_packed_sprite
 0DC1 39               (c/enemy_runtime.s):00950                 rts
                       (c/enemy_runtime.s):00951         
                       (c/enemy_runtime.s):00952         ; Build the complete 16-by-32 nest layer in compact RAM, then publish only
@@ -1156,10 +1156,10 @@
 0F11 9B4F             (c/enemy_runtime.s):01144                 adda    PLAYER_ANIM
 0F13 C640             (c/enemy_runtime.s):01145                 ldb     #SPRITE_SOURCE_SIZE
 0F15 3D               (c/enemy_runtime.s):01146                 mul
-0F16 108ED3FF         (c/enemy_runtime.s):01147                 ldy     #player_sprites
+0F16 108ED37D         (c/enemy_runtime.s):01147                 ldy     #player_sprites
 0F1A 31AB             (c/enemy_runtime.s):01148                 leay    d,y
 0F1C 8EA3F0           (c/enemy_runtime.s):01149                 ldx     #PLAYER_STAGE
-0F1F CED297           (c/enemy_runtime.s):01150                 ldu     #sprite_attr0_pairs
+0F1F CED215           (c/enemy_runtime.s):01150                 ldu     #sprite_attr0_pairs
 0F22 1702BD           (c/enemy_runtime.s):01151                 lbsr    blit_stage_sprite
                       (c/enemy_runtime.s):01152         
                       (c/enemy_runtime.s):01153                 ; Commit the final new rectangle before removing old-only strips.
@@ -1471,7 +1471,7 @@
 112C 3410             (c/enemy_runtime.s):01459                 pshs    x
 112E 170009           (c/enemy_runtime.s):01460                 lbsr    enemy_sprite_cache
 1131 3510             (c/enemy_runtime.s):01461                 puls    x
-1133 CED297           (c/enemy_runtime.s):01462                 ldu     #sprite_attr0_pairs
+1133 CED215           (c/enemy_runtime.s):01462                 ldu     #sprite_attr0_pairs
 1136 1700A9           (c/enemy_runtime.s):01463                 lbsr    blit_stage_sprite
 1139 39               (c/enemy_runtime.s):01464                 rts
                       (c/enemy_runtime.s):01465         
@@ -1570,14 +1570,14 @@
 11CA                  (c/enemy_runtime.s):01558         dvs_indexed
 11CA C640             (c/enemy_runtime.s):01559                 ldb     #SPRITE_SOURCE_SIZE
 11CC 3D               (c/enemy_runtime.s):01560                 mul
-11CD 108EDB7F         (c/enemy_runtime.s):01561                 ldy     #vegetable_sprites
+11CD 108EDAFD         (c/enemy_runtime.s):01561                 ldy     #vegetable_sprites
 11D1 31AB             (c/enemy_runtime.s):01562                 leay    d,y
 11D3 2004             (c/enemy_runtime.s):01563                 bra     dvs_draw
 11D5                  (c/enemy_runtime.s):01564         dvs_first
-11D5 108EDB7F         (c/enemy_runtime.s):01565                 ldy     #vegetable_sprites
+11D5 108EDAFD         (c/enemy_runtime.s):01565                 ldy     #vegetable_sprites
 11D9                  (c/enemy_runtime.s):01566         dvs_draw
 11D9 3510             (c/enemy_runtime.s):01567                 puls    x
-11DB CED297           (c/enemy_runtime.s):01568                 ldu     #sprite_attr0_pairs
+11DB CED215           (c/enemy_runtime.s):01568                 ldu     #sprite_attr0_pairs
 11DE 170001           (c/enemy_runtime.s):01569                 lbsr    blit_stage_sprite
 11E1 39               (c/enemy_runtime.s):01570                 rts
                       (c/enemy_runtime.s):01571         
@@ -1686,7 +1686,7 @@
                       (c/enemy_runtime.s):01674                 end
 
 Symbol Table:
-[ G] blit_packed_sprite               D256
+[ G] blit_packed_sprite               D1D4
 [ G] blit_stage_sprite                11E2
 [ G] BOX_INDEX                        004B
 [ G] BOX_PHASE                        004C
@@ -1896,7 +1896,7 @@ Symbol Table:
 [ G] PLAYER_OLD_FB                    0067
 [ G] PLAYER_OLD_STAGE                 A610
 [ G] PLAYER_ROW                       006E
-[ G] player_sprites                   D3FF
+[ G] player_sprites                   D37D
 [ G] PLAYER_STAGE                     A3F0
 [ G] PLAYER_TICK_PENDING              006B
 [ G] PLAYER_WANT                      000F
@@ -1910,8 +1910,8 @@ Symbol Table:
 [ G] refresh_zone_bg_footprint        123A
 [ G] reload_enemy_box_timer           0852
 [ G] reset_enemy_state                081C
-[ G] restore_entity_footprint         D0F1
-[ G] restore_player                   D33D
+[ G] restore_entity_footprint         D06F
+[ G] restore_player                   D2BB
 [ G] rfs_clean_loop                   0BE8
 [ G] rfs_clean_next                   0C01
 [ G] rfs_done                         0CCB
@@ -1952,11 +1952,11 @@ Symbol Table:
 [ G] rzbf_row                         126D
 [ G] SCORE_BCD                        001D
 [ G] SHADOW_PAGE0                     002C
-[ G] sprite_attr0_pairs               D297
+[ G] sprite_attr0_pairs               D215
 [ G] SPRITE_SOURCE_SIZE               0040
 [ G] STAGE                            0024
 [ G] STAGE_COUNT                      0064
 [ G] STAGE_PIXEL                      0065
 [ G] STAGE_SOURCE                     0066
 [ G] VEG_STATE                        005A
-[ G] vegetable_sprites                DB7F
+[ G] vegetable_sprites                DAFD

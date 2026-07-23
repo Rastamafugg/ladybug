@@ -1,37 +1,72 @@
 {
-  "schema": "ladybug-mame-bonus-popup-reference-v1",
+  "schema": "ladybug-mame-bonus-popup-reference-v2",
   "provenance": {
     "driver": "ladybug",
-    "mame_version": "0.220 (mame0220)",
-    "capture_script": "scripts/capture_mame_gameplay.py",
-    "input_plan": "scripts/mame_plans/pickup-bottom-left.json",
-    "captured_object": "Yellow T bonus",
-    "capture_frames": 1000
+    "mame_version": "0.220 (unknown)",
+    "capture_mode": "user-controlled MAME AVI",
+    "video": {
+      "frames": 4061,
+      "frame_rate_hz": 60,
+      "width": 192,
+      "height": 240,
+      "pixel_format": "BGR24",
+      "sha256": "bb9bab370d94009c7846b456e4b506cbffa8e93d3ef1fb69b8b7c018485665af"
+    }
   },
   "observations": {
-    "pickup_contact_frame": 703,
-    "popup": {
-      "score": 300,
-      "sprite_code": 55,
-      "sheet_cell": "R0C6",
-      "colour_set": "B",
-      "colour_attribute_candidates": [3, 7],
-      "x": 73,
-      "y": 182,
-      "first_frame": 705,
-      "last_frame": 734,
-      "duration_frames": 30,
-      "replaces_player_sprite": true
-    },
-    "multiplier_variants": {
-      "status": "not captured",
-      "attempts": "Repeated randomized lower-left routes produced a letter, a skull, and an ordinary dot location; none produced a Blue heart before the capture window.",
-      "known_character_codes_from_rom_sheet_only": {
-        "x2": {"character_code": 218, "sheet_cell": "R5C6"},
-        "x3": {"character_code": 219, "sheet_cell": "R4C6"},
-        "x5": {"character_code": 221, "sheet_cell": "R2C6"}
+    "popup_intervals": [
+      {
+        "score": 100,
+        "score_sprite_code": 54,
+        "score_xy": [9, 166],
+        "multiplier": null,
+        "first_frame": 2157,
+        "last_frame": 2186
       },
-      "warning": "The character identities do not establish placement, timing, or composition. Those details remain an explicit MAME capture gate before changing the CoCo multiplier popup."
+      {
+        "score": 100,
+        "score_sprite_code": 54,
+        "score_xy": [105, 182],
+        "multiplier": null,
+        "first_frame": 2323,
+        "last_frame": 2352
+      },
+      {
+        "score": 100,
+        "score_sprite_code": 54,
+        "score_xy": [89, 54],
+        "multiplier": {
+          "value": 2,
+          "character_code": 218,
+          "xy": [96, 64]
+        },
+        "first_frame": 2567,
+        "last_frame": 2596
+      },
+      {
+        "score": 300,
+        "score_sprite_code": 55,
+        "score_xy": [73, 22],
+        "multiplier": {
+          "value": 2,
+          "character_code": 218,
+          "xy": [80, 32]
+        },
+        "first_frame": 2648,
+        "last_frame": 2677
+      }
+    ],
+    "duration_frames": 30,
+    "multiplier_composition": {
+      "score_to_multiplier_delta_xy": [7, 10],
+      "layout": "score above multiplier inside one collectible footprint",
+      "colour": "white",
+      "cadence": "the score and multiplier appear and disappear together"
+    },
+    "known_multiplier_character_codes": {
+      "x2": {"character_code": 218, "sheet_cell": "R5C6", "captured": true},
+      "x3": {"character_code": 219, "sheet_cell": "R4C6", "captured": false},
+      "x5": {"character_code": 221, "sheet_cell": "R2C6", "captured": false}
     }
   }
 }

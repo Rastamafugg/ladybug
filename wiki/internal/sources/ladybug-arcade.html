@@ -202,29 +202,31 @@
         pickup. This is what the earlier “MAME-unverified pickup pause” note
         meant: it is a secondary-source claim, not an implemented or confirmed
         delay. The installed MAME ROM remains authoritative: measured holds are
-        exactly 30/150/420 frames for Red/Yellow/Blue, while a controlled pickup
-        capture is still required before adding any pause.
+        exactly 30/150/420 frames for Red/Yellow/Blue. Controlled pickup
+        captures confirm that each score replacement lasts exactly 30 frames.
       </p>
       <p>
-        A controlled stage-one skull collision, re-analysed pixel-for-pixel on
-        2026-07-23, identified the exact death art and timing. Arcade sprite 57
-        occupies frames 879–908; sprites 58–63 follow for five frames each
-        through frame 938. The White transition is ROM sprites 82–87
-        (<code>R5C10</code> through <code>R0C10</code>) for five frames each,
-        followed by sprite 88 (<code>R7C11</code>) at frame 969. Sprite 88 holds
-        for 30 frames, then begins the measured stepped upward swoop at frame
-        999. The former 64–68 identification was a rotated-sheet conversion
-        error: those codes are bonus and vegetable art. Exact ranges and motion
-        coordinates are stored in
+        A user-controlled, lossless 4,061-frame MAME recording was analysed
+        pixel-for-pixel on 2026-07-23. At collision origin (89,88), arcade
+        sprite 57 occupies frames 2880–2908; sprites 58–63 and White wing
+        sprites 82–87 each follow for five frames. Final angel sprite 88
+        occupies frames 2969–3112: 30 stationary frames followed by 114 moving
+        frames. Its 60-frame path repeats a six-pixel lateral swoop while
+        rising 32 pixels. A 37-frame blank follows, and the replacement appears
+        at frame 3150. Visible death art lasts 233 frames; death through
+        replacement appearance lasts 270. Exact ranges, positions, motion
+        formula, and replacement entrance coordinates are stored in
         <code>assets/arcade/death_animation_reference.json</code>.
       </p>
       <p>
-        A controlled Yellow T pickup at frame 703 produced ROM score sprite 55
-        (<code>R0C6</code>, 300 points) at screen position (73,182) for exactly
-        frames 705–734. Randomized follow-up routes produced a letter, skull,
-        and ordinary-dot position rather than a Blue heart, so multiplier
-        placement and timing remain unverified. The partial evidence and the
-        explicit multiplier capture gate are stored in
+        The same recording contains four exact 30-frame score replacements:
+        two base-value 100 popups, 100 with x2, and 300 with x2. Multiplied
+        captures place White character 218 at (+7,+10) from the score-sprite
+        origin, so the score is above the multiplier and both remain in one
+        collectible footprint. Score and multiplier appear and disappear
+        together. Character-sheet identities 219 and 221 establish x3 and x5;
+        their common renderer uses the captured x2 placement and cadence.
+        Versioned evidence is stored in
         <code>assets/arcade/bonus_popup_reference.json</code>.
       </p>
     </section>

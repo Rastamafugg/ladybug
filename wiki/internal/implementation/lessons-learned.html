@@ -25,6 +25,22 @@
     </header>
 
     <section>
+      <h2>Snapshot reward state before applying a pickup's progression</h2>
+      <p><strong>Filed 2026-07-23.</strong></p>
+      <p>Blue-heart scoring used the old multiplier correctly, but the delayed popup read the live multiplier after the same pickup advanced it. The displayed reward therefore contradicted the awarded score. The angel path had analogous delayed-state defects: its quarter counter did not wrap and its framebuffer pointer could cross the top boundary while fixed-duration animation continued.</p>
+      <p><strong>Rule:</strong> snapshot reward modifiers before mutating pickup progression, reduce repeating phase indices to their documented period, and separate animation timing from render visibility at framebuffer boundaries.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>PICKUP_MULTIPLIER</code> and <code>death_tick</code>; user CoCo playtest 2026-07-23.</p>
+    </section>
+
+    <section>
+      <h2>Measure complete visible intervals before encoding an animation</h2>
+      <p><strong>Filed 2026-07-23.</strong></p>
+      <p>A scripted collision established the death sprite identities but stopped before the angel left and did not establish the blank-to-replacement interval. A user-controlled lossless AVI exposed the complete 233-frame visible sequence, 37-frame blank, 270-frame replacement boundary, and exact score/multiplier composition.</p>
+      <p><strong>Rule:</strong> retain a frame-indexed capture through the first normal frame after an animation. Record each sprite's inclusive range, position changes, blank holds, and restoration boundary. Do not infer total duration from an incomplete sprite match or from source-sheet order.</p>
+      <p><strong>Citation:</strong> <code>assets/arcade/death_animation_reference.json</code>, <code>assets/arcade/bonus_popup_reference.json</code>, and MAME AVI SHA-256 <code>bb9bab370d94009c7846b456e4b506cbffa8e93d3ef1fb69b8b7c018485665af</code>.</p>
+    </section>
+
+    <section>
       <h2>Separate visual overlay repair from collision topology</h2>
       <p><strong>Filed 2026-07-23.</strong></p>
       <p>The arcade live background reports blank code 255 at maze cell (6,17), and a controlled route moves upward through it. Normalizing stale capture overlay code 115 to wall code 49 therefore created a false collision segment. Removing the wall fixed travel but exposed a visual cap that belongs to the authored overlay layer, not the collision layer.</p>

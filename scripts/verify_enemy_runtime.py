@@ -178,9 +178,19 @@ death_start = main.index("\ndeath_tick\n")
 death = main[death_start : main.index("\ndraw_death_frame\n", death_start)]
 if "state 4: terminal game-over hold" not in death or "sta     DEATH_STATE" not in death[death.index("dt_game_over\n"):]:
     raise SystemExit("enemy proof: zero-life path can resume with an off-screen player")
-walkoff_start = death.index("\ndt_finish_walkoff\n")
-walkoff = death[walkoff_start : death.index("\ndt_game_over\n", walkoff_start)]
-if walkoff.count("beq     dt_game_over") != 1 or walkoff.index("dec     LIVES") > walkoff.index("lbsr    init_player"):
+respawn_start = death.index("\ndt_finish_blank\n")
+respawn = death[respawn_start : death.index("\ndt_game_over\n", respawn_start)]
+respawn_order = [
+    "lda     LIVES",
+    "beq     dt_game_over",
+    "deca",
+    "sta     LIVES",
+    "lbsr    draw_lives",
+    "lbsr    init_player",
+]
+if [respawn.index(fragment) for fragment in respawn_order] != sorted(
+        respawn.index(fragment) for fragment in respawn_order
+):
     raise SystemExit("enemy proof: final reserve is not consumed before replacement entry")
 print(
     f"enemy proof: {len(rom)}/4096 bank-3 bytes; fixed ABI, compact staging, "

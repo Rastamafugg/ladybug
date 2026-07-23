@@ -1,60 +1,83 @@
 {
-  "schema": "ladybug-mame-death-animation-reference-v2",
+  "schema": "ladybug-mame-death-animation-reference-v3",
   "provenance": {
     "driver": "ladybug",
-    "mame_version": "0.220 (mame0220)",
-    "capture_script": "scripts/capture_mame_gameplay.py",
-    "input_plan": "scripts/mame_plans/death-skull-late-left.json",
-    "capture_frames": 1200,
-    "raw_video": "temporary diagnostic capture, BGRA32 192x240 from frame 850"
+    "mame_version": "0.220 (unknown)",
+    "capture_mode": "user-controlled MAME AVI",
+    "video": {
+      "frames": 4061,
+      "frame_rate_hz": 60,
+      "width": 192,
+      "height": 240,
+      "pixel_format": "BGR24",
+      "sha256": "bb9bab370d94009c7846b456e4b506cbffa8e93d3ef1fb69b8b7c018485665af"
+    }
   },
   "observations": {
-    "collision_frame": 879,
-    "red_circle_frames": [
-      {"sprite_code": 57, "first_frame": 879, "last_frame": 908},
-      {"sprite_code": 58, "first_frame": 909, "last_frame": 913},
-      {"sprite_code": 59, "first_frame": 914, "last_frame": 918},
-      {"sprite_code": 60, "first_frame": 919, "last_frame": 923},
-      {"sprite_code": 61, "first_frame": 924, "last_frame": 928},
-      {"sprite_code": 62, "first_frame": 929, "last_frame": 933},
-      {"sprite_code": 63, "first_frame": 934, "last_frame": 938}
+    "last_player_frame": {
+      "frame": 2879,
+      "sprite_code": 5,
+      "xy": [89, 88]
+    },
+    "fixed_origin_xy": [89, 88],
+    "shrink_and_wing_frames": [
+      {"sprite_code": 57, "first_frame": 2880, "last_frame": 2908},
+      {"sprite_code": 58, "first_frame": 2909, "last_frame": 2913},
+      {"sprite_code": 59, "first_frame": 2914, "last_frame": 2918},
+      {"sprite_code": 60, "first_frame": 2919, "last_frame": 2923},
+      {"sprite_code": 61, "first_frame": 2924, "last_frame": 2928},
+      {"sprite_code": 62, "first_frame": 2929, "last_frame": 2933},
+      {"sprite_code": 63, "first_frame": 2934, "last_frame": 2938},
+      {"sprite_code": 82, "first_frame": 2939, "last_frame": 2943},
+      {"sprite_code": 83, "first_frame": 2944, "last_frame": 2948},
+      {"sprite_code": 84, "first_frame": 2949, "last_frame": 2953},
+      {"sprite_code": 85, "first_frame": 2954, "last_frame": 2958},
+      {"sprite_code": 86, "first_frame": 2959, "last_frame": 2963},
+      {"sprite_code": 87, "first_frame": 2964, "last_frame": 2968}
     ],
-    "wing_transition_frames": [
-      {"sprite_code": 82, "sheet_cell": "R5C10", "first_frame": 939, "last_frame": 943},
-      {"sprite_code": 83, "sheet_cell": "R4C10", "first_frame": 944, "last_frame": 948},
-      {"sprite_code": 84, "sheet_cell": "R3C10", "first_frame": 949, "last_frame": 953},
-      {"sprite_code": 85, "sheet_cell": "R2C10", "first_frame": 954, "last_frame": 958},
-      {"sprite_code": 86, "sheet_cell": "R1C10", "first_frame": 959, "last_frame": 963},
-      {"sprite_code": 87, "sheet_cell": "R0C10", "first_frame": 964, "last_frame": 968}
-    ],
-    "angel_flight": {
+    "angel": {
       "sprite_code": 88,
       "sheet_cell": "R7C11",
       "colour_set": "B",
       "colour_attribute": 1,
-      "first_frame": 969,
-      "stationary_through_frame": 998,
-      "first_motion_frame": 999,
-      "last_fully_matched_capture_frame": 1095,
-      "start_xy": [12, 153],
-      "position_change_points": [
-        [999, 13, 153], [1000, 14, 153], [1001, 15, 152],
-        [1002, 16, 151], [1003, 17, 150], [1004, 18, 149],
-        [1005, 18, 148], [1006, 18, 147], [1007, 18, 146],
-        [1008, 18, 145], [1014, 17, 145], [1015, 16, 145],
-        [1016, 15, 144], [1017, 14, 143], [1018, 13, 142],
-        [1019, 12, 141], [1020, 12, 140], [1021, 12, 139],
-        [1022, 12, 138], [1023, 12, 137], [1029, 11, 137],
-        [1030, 10, 137], [1031, 9, 136], [1032, 8, 135],
-        [1033, 8, 134], [1034, 8, 133], [1035, 8, 132],
-        [1036, 8, 131], [1037, 8, 130], [1038, 8, 129]
-      ],
-      "motion_note": "The measured path continues the same right/centre/left/centre stepped swoop while rising; it is not the CoCo 20-frame eased lateral loop."
+      "first_frame": 2969,
+      "stationary_last_frame": 2998,
+      "first_motion_frame": 2999,
+      "last_visible_frame": 3112,
+      "stationary_frames": 30,
+      "moving_frames": 114,
+      "start_xy": [89, 88],
+      "last_visible_xy": [89, 25],
+      "motion_formula": {
+        "motion_index": "m = frame - 2999",
+        "quarter": "q = floor(m / 15) mod 4",
+        "phase": "p = m mod 15",
+        "vertical": "rise one pixel for p=2..9; each 60-frame cycle rises 32 pixels",
+        "horizontal": "move right for p=0..5 in quarters 0 and 3; move left for p=0..5 in quarters 1 and 2; amplitude is 6 pixels"
+      }
     },
-    "correction": "The v1 codes 64-68 were a rotated-sheet conversion error; those ROM codes are bonus/vegetable art, not wings."
+    "blank_hold": {
+      "first_frame": 3113,
+      "last_frame": 3149,
+      "duration_frames": 37
+    },
+    "replacement_entrance": {
+      "first_frame": 3150,
+      "first_xy": [9, 208],
+      "east_last_frame": 3230,
+      "turn_north_frame": 3231,
+      "start_position_frame": 3286,
+      "start_xy": [89, 153],
+      "speed_pixels_per_frame": 1
+    },
+    "durations": {
+      "visible_death_art_frames": 233,
+      "death_to_replacement_appearance_frames": 270,
+      "death_to_replacement_start_position_frames": 407
+    }
   },
   "implementation_adaptation": {
-    "after_wing_flight": "face down and walk out through the entrance, then load the replacement Lady Bug below the maze and walk north to the start",
-    "source": "user-requested CoCo transition; not arcade behavior"
+    "rotation": "The CoCo keeps the collision origin and timing but quantizes horizontal angel motion to two pixels every second arcade step.",
+    "replacement": "After the measured 37-frame blank, the replacement uses the existing CoCo below-maze entrance because the arcade bottom-HUD route does not map directly to the 40x24 landscape HUD."
   }
 }

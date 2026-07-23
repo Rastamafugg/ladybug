@@ -90,13 +90,13 @@ ENTITY_TOTAL equ $0049         ; total records allocated this stage
 BOX_TIMER    equ $004A         ; frames until next perimeter-box update
 BOX_INDEX    equ $004B         ; clockwise perimeter position, 0..91
 BOX_PHASE    equ $004C         ; 0=White-to-Green, 1=Green-to-White
-DEATH_STATE  equ $004D         ; 0=alive, 1=shrink, 2=wings, 3=walk-off
+DEATH_STATE  equ $004D         ; 0=alive, 1=shrink/wings, 2=angel, 3=blank, 4=game over
 DEATH_FRAME  equ $004E         ; selected curated death frame
 PLAYER_ANIM  equ $004F         ; walk animation phase 0,1,2,3
 PLAYER_ANIM_TIMER equ $0050    ; Vbord countdown to next player frame
 PICKUP_TIMER equ $0051         ; score-sprite hold; zero when inactive
 PICKUP_FRAME equ $0052         ; 0=100, 1=300, 2=800
-ANGEL_SWING  equ $0053         ; 20-frame eased angel-swoop phase
+PICKUP_MULTIPLIER equ $0053    ; multiplier in force before this pickup
 ENEMY_ANIM   equ $0054         ; first den enemy animation phase
 ENEMY_TIMER  equ $0055         ; Vbord countdown to next enemy frame
 TURN_SNAP    equ $0056         ; diagonal late-turn updates remaining, 0..3
@@ -185,7 +185,6 @@ MAZE_STATE equ  $A000           ; writable 576-byte maze-cell copy (PAR5)
 GATE_STATE equ  $A240           ; rotation state N/W/S/E; parity selects H/V bar
 PLAYER_BG  equ  $A300           ; 128-byte saved background under player
 ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
-PICKUP_BG   equ $A3B0          ; 64-byte background below score popup
 PLAYER_STAGE equ $A3F0         ; 128-byte off-screen player composition surface
 ENEMY_FB    equ $57EC          ; top-left at lower nest cell (12,12)
 ENEMY_TABLE equ $A470          ; four 8-byte active enemy records
@@ -427,7 +426,7 @@ init_game_state
         sta     PLAYER_ANIM_TIMER
         clr     PLAYER_TICK_PENDING
         clr     PICKUP_TIMER
-        clr     ANGEL_SWING
+        clr     PICKUP_MULTIPLIER
         clr     TURN_SNAP
         lda     #1
         sta     MULTIPLIER
@@ -2440,6 +2439,8 @@ cep_loop
         clr     2,x
         lbsr    restore_entity_footprint
         dec     BONUS_LEFT
+        lda     MULTIPLIER
+        sta     PICKUP_MULTIPLIER
         lbsr    add_bonus_score
         lda     ENTITY_TYPE
         cmpa    #ENTITY_HEART
@@ -2518,7 +2519,6 @@ bsp_frame
         lda     #PICKUP_HOLD_FRAMES
         sta     PICKUP_TIMER
         lbsr    save_player
-        lbsr    save_pickup_lower
         lbsr    draw_score_popup
         rts
 
@@ -2528,7 +2528,6 @@ pickup_tick
         dec     PICKUP_TIMER
         bne     put_done
         lbsr    restore_player
-        lbsr    restore_pickup_lower
         lbsr    draw_player
 put_done
         rts
@@ -2540,6 +2539,7 @@ draw_score_popup
         leay    score_sprites,pcr
         leay    d,y
         ldx     PLAYER_FB
+        leax    -800,x          ; score pixels occupy rows 0-5 of the footprint
         lda     BONUS_COLOR
         cmpa    #COLOR_BLUE
         beq     dsp_blue
@@ -2558,7 +2558,7 @@ dsp_draw
         rts
 
 draw_popup_multiplier
-        lda     MULTIPLIER
+        lda     PICKUP_MULTIPLIER
         cmpa    #1
         beq     dpm_done
         cmpa    #2
@@ -2578,57 +2578,16 @@ dpm_select
         leay    pickup_multiplier_graphics,pcr
         leay    d,y
         ldx     PLAYER_FB
-        leax    2562,x           ; centre one 8px arcade tile under 16px score
+        leax    803,x            ; right-centre multiplier in footprint rows 7-12
         lda     #8
         ldb     #4
         lbsr    blit_transparent
 dpm_done
         rts
 
-save_pickup_lower
-        ldx     PLAYER_FB
-        leax    2560,x
-        ldu     #PICKUP_BG
-        lda     #8
-        sta     HUD_COUNT
-spl_row
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        leax    152,x
-        dec     HUD_COUNT
-        bne     spl_row
-        rts
-
-restore_pickup_lower
-        ldx     PLAYER_FB
-        leax    2560,x
-        ldu     #PICKUP_BG
-        lda     #8
-        sta     HUD_COUNT
-rpl_row
-        ldd     ,u++
-        std     ,x++
-        ldd     ,u++
-        std     ,x++
-        ldd     ,u++
-        std     ,x++
-        ldd     ,u++
-        std     ,x++
-        leax    152,x
-        dec     HUD_COUNT
-        bne     rpl_row
-        rts
-
-; User-directed death sequence: R6C7 down through R0C7, R5C10 down
-; through R0C10, then the final R7C11 angel swoops upward.
-; The requested CoCo transition then walks a normal Lady Bug down the entrance
-; before the replacement walks in from below.
+; MAME-measured death sequence: R6C7 for 29 frames, the next twelve
+; shrink/wing frames for five frames each, R7C11 stationary for 30 frames,
+; then 114 moving frames and a 37-frame blank before the replacement enters.
 death_tick
         tst     PLAYER_BG_VALID
         beq     dt_background_clear
@@ -2640,13 +2599,13 @@ dt_background_clear
         cmpa    #2
         beq     dt_wings
         cmpa    #3
-        lbeq    dt_walkoff
+        lbeq    dt_blank
         rts                     ; state 4: terminal game-over hold
 dt_shrink
         lda     DEATH_TIMER
-        cmpa    #30
+        cmpa    #29
         blo     dt_first_circle
-        suba    #30
+        suba    #29
         ldb     #1
 dt_shrink_divide
         cmpa    #5
@@ -2663,92 +2622,80 @@ dt_shrink_draw
         lbsr    draw_death_frame
         inc     DEATH_TIMER
         lda     DEATH_TIMER
-        cmpa    #90             ; first frame 30, next twelve 5 each
+        cmpa    #89             ; first frame 29, next twelve 5 each
         lblo    dt_done
         lda     #2
         sta     DEATH_STATE
         clr     DEATH_TIMER
-        clr     ANGEL_SWING
         rts
 dt_wings
+        lda     DEATH_TIMER
+        cmpa    #144            ; 30 stationary + 114 moving frames
+        bhs     dt_finish_wings
+        ldb     DEATH_FRAME
+        cmpb    #$FF
+        beq     dt_swing_hidden
         ldx     PLAYER_FB
+        cmpa    #30
+        blo     dt_swing_store
+        suba    #30
+        clrb
+dt_swing_quarter
+        cmpa    #15
+        blo     dt_swing_phase
+        suba    #15
+        incb
+        bra     dt_swing_quarter
+dt_swing_phase
+        cmpa    #2
+        blo     dt_swing_horizontal
+        cmpa    #10
+        bhs     dt_swing_horizontal
         cmpx    #FB_VIRT+160
-        bls     dt_finish_wings
-        leax    -160,x
-        lda     ANGEL_SWING
-        leay    angel_swing_deltas,pcr
-        ldb     a,y
-        beq     dt_swing_store
-        bmi     dt_swing_left
+        bhs     dt_swing_rise
+        lda     #$FF            ; origin crossed top edge; keep timing off-screen
+        sta     DEATH_FRAME
+        bra     dt_swing_hidden
+dt_swing_rise
+        leax    -160,x           ; one arcade pixel upward
+dt_swing_horizontal
+        cmpa    #6
+        bhs     dt_swing_store
+        bita    #1
+        beq     dt_swing_store  ; two CoCo pixels every second arcade step
+        andb    #$03            ; repeat the captured four-quarter motion cycle
+        cmpb    #1
+        beq     dt_swing_left
+        cmpb    #2
+        beq     dt_swing_left
         leax    1,x
         bra     dt_swing_store
 dt_swing_left
         leax    -1,x
 dt_swing_store
         stx     PLAYER_FB
-        inc     ANGEL_SWING
-        lda     ANGEL_SWING
-        cmpa    #20
-        blo     dt_swing_phase_ok
-        clr     ANGEL_SWING
-dt_swing_phase_ok
         lda     #DEATH_ANGEL_FRAME
         sta     DEATH_FRAME
         lbsr    draw_death_frame
+dt_swing_hidden
         inc     DEATH_TIMER
-        lda     DEATH_TIMER
-        cmpa    #144
-        blo     dt_done
+        rts
 dt_finish_wings
-        lbsr    restore_player
+        lda     #3
+        sta     DEATH_STATE
+        lda     #37
+        sta     DEATH_TIMER
+        rts
+dt_blank
+        lda     DEATH_TIMER
+        beq     dt_finish_blank
+        dec     DEATH_TIMER
+        rts
+dt_finish_blank
         lda     LIVES
         beq     dt_game_over
         deca
-        lsla
-        adda    #33
-        sta     HUD_X
-        lda     #21
-        sta     HUD_Y
-        lbsr    clear_life_marker
-        lda     #3
-        sta     DEATH_STATE
-        lda     #24
-        sta     DEATH_TIMER
-        lda     #DIR_SOUTH
-        sta     PLAYER_FACE
-        sta     PLAYER_DIR
-        clr     PLAYER_ANIM
-        lda     #8
-        sta     PLAYER_ANIM_TIMER
-        lda     HUD_Y
-        ldb     #5
-        mul
-        tfr     b,a
-        clrb
-        addd    #FB_VIRT
-        tfr     d,x
-        clra
-        ldb     HUD_X
-        lslb
-        rola
-        lslb
-        rola
-        leax    d,x
-        stx     PLAYER_FB
-        lbsr    draw_player
-        rts
-dt_walkoff
-        ldx     PLAYER_FB
-        leax    160,x
-        stx     PLAYER_FB
-        dec     DEATH_TIMER
-        beq     dt_finish_walkoff
-        lbsr    draw_player
-        rts
-dt_finish_walkoff
-        lda     LIVES
-        beq     dt_game_over
-        dec     LIVES
+        sta     LIVES
         lbsr    draw_lives
         lbsr    init_player
         clr     DEATH_STATE
@@ -2784,10 +2731,6 @@ ddf_draw
         lbsr    blit_packed_sprite
         rts
 
-; Smooth 20-frame lateral cycle: ease to +8 pixels, cross to -8, return.
-angel_swing_deltas
-        fcb     1,1,1,1,0,0,-1,-1,-1,-1
-        fcb     -1,-1,-1,-1,0,0,1,1,1,1
 cep_next
         ldx     ENTITY_PTR
         leax    4,x

@@ -72,6 +72,55 @@ def verify_movement_snap() -> None:
     assert popup["popup_last_frame"] - popup["popup_first_frame"] + 1 == 30
 
 
+def verify_animation_captures() -> None:
+    bonus = load("bonus_popup_reference.json")["observations"]  # type: ignore[index]
+    intervals = bonus["popup_intervals"]
+    assert len(intervals) == 4
+    assert all(record["last_frame"] - record["first_frame"] + 1 == 30
+               for record in intervals)
+    multiplied = [record for record in intervals if record["multiplier"]]
+    assert len(multiplied) == 2
+    for record in multiplied:
+        multiplier = record["multiplier"]
+        assert [multiplier["xy"][axis] - record["score_xy"][axis]
+                for axis in range(2)] == [7, 10]
+    assert bonus["multiplier_composition"]["colour"] == "white"
+
+    death = load("death_animation_reference.json")["observations"]  # type: ignore[index]
+    sequence = death["shrink_and_wing_frames"]
+    assert [record["sprite_code"] for record in sequence] == (
+        list(range(57, 64)) + list(range(82, 88))
+    )
+    assert sequence[0]["last_frame"] - sequence[0]["first_frame"] + 1 == 29
+    assert all(record["last_frame"] - record["first_frame"] + 1 == 5
+               for record in sequence[1:])
+    assert death["angel"]["stationary_frames"] == 30
+    assert death["angel"]["moving_frames"] == 114
+    assert death["blank_hold"]["duration_frames"] == 37
+    assert death["durations"] == {
+        "visible_death_art_frames": 233,
+        "death_to_replacement_appearance_frames": 270,
+        "death_to_replacement_start_position_frames": 407,
+    }
+
+    source = (ROOT / "src/main.s").read_text(encoding="utf-8")
+    assert "leax    -800,x          ; score pixels occupy rows 0-5" in source
+    assert "leax    803,x            ; right-centre multiplier" in source
+    assert "cmpa    #89             ; first frame 29" in source
+    assert "cmpa    #144            ; 30 stationary + 114 moving frames" in source
+    assert "lda     #37" in source
+    pickup_snapshot = source.index("sta     PICKUP_MULTIPLIER")
+    pickup_score = source.index("lbsr    add_bonus_score")
+    pickup_advance = source.index("sta     MULTIPLIER", pickup_score)
+    assert pickup_snapshot < pickup_score < pickup_advance
+    assert "draw_popup_multiplier\n        lda     PICKUP_MULTIPLIER" in source
+    assert "andb    #$03            ; repeat the captured four-quarter motion cycle" in source
+    assert "cmpx    #FB_VIRT+160" in source
+    assert "sta     DEATH_FRAME\n        bra     dt_swing_hidden" in source
+    compiler = (ROOT / "scripts/build_screen.py").read_text(encoding="utf-8")
+    assert "(BLACK, WHITE, WHITE, WHITE)" in compiler
+
+
 def verify_neutral_stop_contract() -> None:
     source = (ROOT / "src/main.s").read_text(encoding="utf-8")
     start = source.index("\nplayer_tick\n")
@@ -213,13 +262,14 @@ def main() -> None:
     verify_early_turn()
     verify_gate_capture()
     verify_movement_snap()
+    verify_animation_captures()
     verify_neutral_stop_contract()
     verify_stage_timer_contract()
     verify_hud_rows()
     verify_player_restore_contract()
     verify_gate_tables()
     verify_gate_graphics()
-    print("arcade fidelity: neutral stop, staged player publish, 60 px/s, early/late turns, 30-frame popup, gate 17 traversal and graphics verified")
+    print("arcade fidelity: movement, gates, 30-frame stacked popups, and 270-frame death transition verified")
 
 
 if __name__ == "__main__":
