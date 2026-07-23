@@ -130,6 +130,32 @@
         costs six bank-3 bytes; fresh frame tracing remains the measurement
         gate.
       </p>
+      <p>
+        <strong>Third optimization completed 2026-07-23:</strong>
+        the bank-2 atlas remains packed at 64 bytes per frame, but each of
+        five low-RAM cache slots expands through
+        <code>sprite_attr0_pairs</code> to a native 128-byte 4bpp frame only
+        when its type/direction/animation key changes. Enemy framebuffer and
+        nest draws now consume the native cache directly; player, vegetable,
+        score, and other packed paths are unchanged. The cache grows from
+        320 to 640 bytes and leaves a 1,402-byte stack gap. A live slot-4
+        dump matched an independent expansion of bank-2 frame 3 across all
+        128 bytes, and XRoar was observed executing the native nest blitter.
+        The bank-3 module is 2,751 bytes. A forced four-enemy frame trace is
+        still required to quantify the hot-path reduction.
+      </p>
+      <p>
+        <strong>Player-cache extension completed 2026-07-23:</strong>
+        the selected 64-byte packed player frame now expands into a single
+        128-byte native cache only when <code>PLAYER_FACE*4+PLAYER_ANIM</code>
+        changes. The 30 Hz off-screen player compositor uses the native
+        compact-stage blitter, and resident gate/respawn/popup redraws obtain
+        the same cache through the seventh bank-3 ABI entry. The remaining
+        stack gap is 1,273 bytes. A live cache dump matched generated player
+        frame 3 across all 128 bytes while XRoar executed the native hot
+        compositor. Resident use is 8,071 bytes and bank-3 use is 2,801 bytes.
+        Re-profiling remains required for measured savings.
+      </p>
     </section>
 
     <footer class="wiki-footer">

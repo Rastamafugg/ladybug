@@ -25,6 +25,14 @@
     </header>
 
     <section>
+      <h2>Expand immutable sprites at the hot-cache boundary</h2>
+      <p><strong>Filed 2026-07-23.</strong></p>
+      <p>The packed enemy atlas and resident player frames conserve storage, but expanding the same selected frame inside every framebuffer or compact-stage draw repeats palette lookup and nibble unpacking in the hottest rendering paths.</p>
+      <p><strong>Rule:</strong> keep cold immutable sprites packed, expand a selected frame once when its type/direction/animation or face/animation cache key changes, and let repeated hot draws consume native destination-format pixels. Account for larger caches against stack margin before changing their stride.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>enemy_sprite_cache</code>, <code>player_frame_cache_impl</code>, <code>blit_enemy_fb</code>, and <code>blit_enemy_stage</code>; live 128-byte cache comparisons against the generated enemy and player frames.</p>
+    </section>
+
+    <section>
       <h2>Dirty flags must identify compositor ownership</h2>
       <p><strong>Filed 2026-07-23.</strong></p>
       <p>A single enemy-dirty flag caused every roaming movement frame to rebuild and publish the unchanged 16-by-32 nest, including its packed-sprite blit. Movement and nest animation share the hidden framebuffer transaction but do not share the same dirty region.</p>

@@ -63,9 +63,11 @@
 <pre><code>Virtual          PAR  Phys  Bytes  Use
 $0000-$07FF      0    $38   2 K    DP, loader scratch, and low-RAM state
 $0800-$17FF      0    $38   4 K    Bank-3 enemy runtime copy
-$1800-$193F      0    $38   320 B  Five cached packed enemy frames
-$1940-$1944      0    $38     5 B  Enemy type/direction/animation cache keys
-$1945-$1FFF      0    $38   —      Free low RAM and stack at $1FFE
+$1800-$1A7F      0    $38   640 B  Five cached native 4bpp enemy frames
+$1A80-$1A84      0    $38     5 B  Enemy type/direction/animation cache keys
+$1A85-$1B04      0    $38   128 B  Cached native 4bpp player frame
+$1B05-$1B05      0    $38     1 B  Player face/animation cache key
+$1B06-$1FFF      0    $38   —      Free low RAM and stack at $1FFE
 $2000-$3FFF      1    $30   8 K    Framebuffer page 0
 $4000-$5FFF      2    $31   8 K    Framebuffer page 1
 $6000-$7FFF      3    $32   8 K    Framebuffer page 2
@@ -408,8 +410,10 @@ $FF00-$FFFF        256 B   I/O; never cart data
         Top of stack at <code>$1FFE</code> (in PAR0, phys <code>$38</code>).
         Grows down. Max realistic depth a few hundred bytes — interrupts
         push 12 (IRQ) or 3 (FIRQ) bytes plus whatever the handler reserves.
-        The approved 4 K bank-3 copy ends at <code>$17FF</code>, leaving 2 K
-        below the stack top. IRQ nesting and current call depth remain within
+        The approved 4 K bank-3 copy ends at <code>$17FF</code>. Five native
+        enemy cache frames, one player cache frame, and their keys end at
+        <code>$1B05</code>, leaving 1,273 bytes through
+        <code>$1FFE</code>. IRQ nesting and current call depth remain within
         that margin.
       </p>
     </section>

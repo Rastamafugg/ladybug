@@ -136,7 +136,7 @@
         <li><strong>Pixel:</strong> 4 bits, packed two-per-byte, hi-nibble = leftmost pixel.</li>
         <li><strong>Tile:</strong> 8 × 8 px = 32 bytes. Stored as 8 rows of 4 bytes. Tile data lives in cartridge ROM.</li>
         <li><strong>Sprite source:</strong> 16 × 16 raw 2bpp pixels from the arcade extraction.</li>
-        <li><strong>Runtime player frame:</strong> 128 packed 4bpp pixel bytes. The shared transparent blitter preserves the framebuffer wherever source pen 0 occurs, so no separate preserve mask is stored.</li>
+        <li><strong>Player source frame:</strong> 64 packed 2bpp bytes in the resident image. The selected face/animation expands on a cache-key miss into one 128-byte native 4bpp low-RAM frame; hot movement and resident redraws consume that cache directly. Source pen 0 remains transparent, so no separate preserve mask is stored.</li>
         <li><strong>Glyph (HUD digit, letter):</strong> 8 × 8 = 32 bytes, established by Phase 2.6 and rendered through <code>put_char</code>. A separate 16 × 16 score set remains optional and deferred to HUD work.</li>
       </ul>
       <p>
@@ -159,7 +159,7 @@
       <h2>Player and curated-sprite renderer — updated 2026-07-19</h2>
       <ul>
         <li>The active player uses one north-facing authored sequence, <code>R2C0,R3C0,R4C0,R3C0</code>, at one frame per eight Vbords. The build derives east, south, and west by successive clockwise rotations, producing 16 packed runtime frames without selecting the separate <code>R5C0</code> through <code>R7C0</code> source set. <code>RrCc</code> means row then column on the 16-column by 8-row PNG; the build converts it to rotated ROM order with <code>c*8+(7-r)</code>.</li>
-        <li>Curated player, death, vegetable, score, and enemy shapes remain packed at the arcade-native four pixels per byte. A runtime pair-table expander applies transparent Set-A attribute 0, monochrome death, or Set-B score palettes while writing GIME 4bpp pixels.</li>
+        <li>Curated player, death, vegetable, score, and enemy source shapes remain packed at the arcade-native four pixels per byte. Selected player and enemy frames expand once at their low-RAM cache boundaries; death, vegetable, and score paths retain direct runtime pair-table expansion.</li>
         <li>The single player owns one 128-byte background buffer at <code>$A300</code>. Each update restores the old rectangle, moves, applies dirty-tile changes, saves the new rectangle, then blends the sprite.</li>
         <li>The opaque sprite anchor is seven pixels left and seven pixels above the semantic cell origin. The byte-aligned save rectangle starts eight pixels left; generated pixels shift right by one inside it. Exhaustive checking found no opaque sprite pixel over a clean maze-wall pixel at any legal two-pixel substep.</li>
         <li>Movement is two pixels per update, retaining byte and scanline-pair alignment for the fixed 128-byte save rectangle.</li>

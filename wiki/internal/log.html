@@ -23,6 +23,16 @@
     </header>
 
     <section>
+      <h3>2026-07-23 &middot; implementation/lint &mdash; native-4bpp player frame cache</h3>
+      <p>Confirmed that the active ladybug still expanded its packed frame on every draw, then added a 128-byte native cache at <code>$1A85-$1B04</code> keyed by face and animation at <code>$1B05</code>. The hot bank-3 player compositor and resident gate/respawn/popup redraws now share it through a seventh ABI entry; death, vegetable, and score rendering remain packed. The stack gap is 1,273 bytes, resident use is 8,071/8,192, and bank-3 use is 2,801/4,096. Build and fidelity checks passed, and a live cache dump exactly matched generated player frame 3 while XRoar executed the native hot compositor.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-23 &middot; implementation/lint &mdash; native-4bpp enemy frame cache</h3>
+      <p>Retained the 8,192-byte packed bank-2 atlas but expanded selected frames through the Set-A attribute-0 pair table on cache misses. Five cache slots now occupy <code>$1800-$1A7F</code>, keys occupy <code>$1A80-$1A84</code>, and the remaining stack gap is 1,402 bytes. Enemy framebuffer and nest paths use native transparent blitters while vegetable and other curated sprites retain packed rendering. The bank-3 module is 2,751 bytes. Guarded build and fidelity checks passed; a live 128-byte dormant slot exactly matched independent expansion of bank-2 frame 3 and XRoar executed the native nest blitter. Forced four-enemy re-profiling remains pending.</p>
+    </section>
+
+    <section>
       <h3>2026-07-23 &middot; implementation/lint &mdash; separate nest dirtiness from roaming movement</h3>
       <p>Reinterpreted direct-page byte <code>$60</code> as <code>ENEMY_NEST_DIRTY</code> and retained <code>$61</code> as the independent movement request. Movement-only frames now bypass the unchanged nest compositor while animation, release, vegetable, skull, death-reset, and retained-background changes still invoke it. Structural contracts, guarded build, arcade-fidelity checks, and live m6809 probes passed: <code>$60=0/$61=1</code> branched over composition, while an animation frame entered composition with <code>$60=1</code>. The change targets approximately 3,297 instructions on applicable frames and increases the optimized bank-3 module by six bytes to 2,662 bytes.</p>
     </section>

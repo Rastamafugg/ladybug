@@ -2,6 +2,7 @@
 """Verify the enemy module's fixed ABI and phase-separated compositor."""
 
 from pathlib import Path
+import re
 
 from build_screen import compile_enemy_sprites
 
@@ -15,7 +16,7 @@ resident = (root / "build/ladybug_resident.inc").read_text(encoding="utf-8")
 rom = (root / "build/ladybug-enemy-runtime.rom").read_bytes()
 sprites = (root / "build/ladybug-enemy-sprites.bin").read_bytes()
 
-if len(rom) < 18 or any(rom[offset] != 0x7E for offset in range(0, 18, 3)):
+if len(rom) < 21 or any(rom[offset] != 0x7E for offset in range(0, 21, 3)):
     raise SystemExit("enemy proof: fixed $0800 jump table is invalid")
 if len(rom) > 0x1000:
     raise SystemExit("enemy proof: bank-3 low-RAM module exceeds 4 KiB")
@@ -75,7 +76,10 @@ required = [
     "ENEMY_BG_BASE  equ $A690",
     "ENEMY_OLD_FB   equ $A890",
     "ENEMY_SPRITE_CACHE equ $1800",
-    "ENEMY_CACHE_KEYS equ $1940",
+    "ENEMY_CACHE_KEYS equ $1A80",
+    "ENEMY_CACHE_FRAME_SIZE equ 128",
+    "PLAYER_SPRITE_CACHE equ $1A85",
+    "PLAYER_CACHE_KEY equ $1B05",
     "lbsr    enemy_sprite_cache",
     "lbsr    roam_prepare_shadow",
     "lbsr    roam_finish_shadow",
@@ -83,11 +87,27 @@ required = [
     "rfs_save_actor",
     "roam_copy_bg_to_fb",
     "roam_copy_fb_to_bg",
-    "jsr     blit_packed_sprite",
+    "lbsr    blit_enemy_fb",
+    "lbsr    blit_enemy_stage",
 ]
 missing = [fragment for fragment in required if fragment not in source]
 if missing:
     raise SystemExit("enemy proof: missing contracts: " + ", ".join(missing))
+cache_symbols = {
+    name: int(value[1:], 16) if value.startswith("$") else int(value)
+    for name, value in re.findall(
+        r"^(ENEMY_SPRITE_CACHE|ENEMY_CACHE_KEYS|ENEMY_CACHE_FRAME_SIZE) "
+        r"equ +(\$[0-9A-F]+|[0-9]+)",
+        source,
+        re.MULTILINE,
+    )
+}
+if cache_symbols["ENEMY_CACHE_KEYS"] != (
+    cache_symbols["ENEMY_SPRITE_CACHE"] + 5 * cache_symbols["ENEMY_CACHE_FRAME_SIZE"]
+):
+    raise SystemExit("enemy proof: native cache slots overlap their keys")
+if "PLAYER_CACHE_KEY equ $1B05" not in source or 0x1FFE - 0x1B06 + 1 < 1024:
+    raise SystemExit("enemy proof: native caches leave less than 1 KiB for stack growth")
 if source.index("et_render_test") > source.index("et_compose"):
     raise SystemExit("enemy proof: idle render gate must precede composition")
 render_start = source.index("\net_render_test\n")
@@ -112,6 +132,12 @@ if "setdp   $00" not in main or "clra                    ; DP = $00" not in main
     raise SystemExit("enemy proof: resident runtime direct page is not explicitly page zero")
 if "GATE_MODULE_COMPOSE equ $080F" not in main:
     raise SystemExit("enemy proof: gate compositor ABI entry is missing")
+if "PLAYER_MODULE_CACHE equ $0812" not in main:
+    raise SystemExit("enemy proof: player native-cache ABI entry is missing")
+reset_start = source.index("\nreset_enemy_state\n")
+reset = source[reset_start : source.index("\nreload_enemy_box_timer\n", reset_start)]
+if "sta     PLAYER_CACHE_KEY" not in reset:
+    raise SystemExit("enemy proof: player cache key is not invalidated before first draw")
 if "cmpx    #$D800" not in bootstrap:
     raise SystemExit("enemy proof: bootstrap does not copy the approved 4 KiB bank-3 window")
 if "cmpx    #$E800" not in bootstrap or "ldy     #$A000" not in bootstrap:
@@ -120,9 +146,32 @@ sprite_select = source[source.index("\nenemy_sprite_cache\n"):
                        source.index("\ndraw_vegetable_stage\n")]
 for fragment in ("cmpa    #9", "anda    #7", "cmpa    #5",
                  "suba    ENEMY_WORK", "sta     GIME_PAR5",
-                 "ENEMY_CACHE_KEYS"):
+                 "ENEMY_CACHE_KEYS", "esc_expand",
+                 "ldb     #ENEMY_CACHE_FRAME_SIZE"):
     if fragment not in sprite_select:
         raise SystemExit("enemy proof: directional enemy cache selection changed")
+expand = sprite_select[sprite_select.index("\nesc_expand\n"):
+                       sprite_select.index("\nesc_cached\n")]
+if expand.count("lda     a,u") != 2 or expand.count("sta     ,x+") != 2:
+    raise SystemExit("enemy proof: cache miss does not expand two native bytes per packed byte")
+if "jsr     blit_packed_sprite" in source[source.index("\ndraw_enemy_fb\n"):
+                                         source.index("\ncompose_enemy_zone\n")]:
+    raise SystemExit("enemy proof: framebuffer enemy still uses packed blitter")
+native_stage = source[source.index("\ndraw_enemy_stage\n"):
+                      source.index("\nenemy_sprite_cache\n")]
+if "lbsr    blit_enemy_stage" not in native_stage or "blit_stage_sprite" in native_stage:
+    raise SystemExit("enemy proof: nest enemy still uses packed stage blitter")
+player_compose = source[source.index("\nplayer_compose_impl\n"):
+                        source.index("\npci_done\n")]
+if ("lbsr    player_frame_cache_impl" not in player_compose or
+        "lbsr    blit_enemy_stage" not in player_compose or
+        "blit_stage_sprite" in player_compose):
+    raise SystemExit("enemy proof: hot player compositor still expands packed frames")
+draw_player = main[main.index("\ndraw_player\n"):main.index("\nplayer_animation_tick\n")]
+if ("jsr     PLAYER_MODULE_CACHE" not in draw_player or
+        "lbsr    blit_native_sprite" not in draw_player or
+        "blit_packed_sprite" in draw_player):
+    raise SystemExit("enemy proof: resident player redraw still expands packed frames")
 direction_start = source.index("\nenemy_direction_legal\n")
 direction = source[direction_start : source.index("\nenemy_entry_masks\n", direction_start)]
 if "lda     ENTITY_Y\n        ldb     #24" not in direction:
@@ -211,7 +260,7 @@ print(
     "64-byte source stride, idle render gate, off-screen nest compositor, "
     "immediate death reset, reset/frozen release timer, staged player publish, "
     "hidden gate publish, footprint collision, skull decrement, exclusive "
-    "vegetable layer, 300-frame freeze, nest-dirty separation, roaming phase separation, dynamic "
+    "vegetable layer, 300-frame freeze, native enemy/player caches, nest-dirty separation, roaming phase separation, dynamic "
     "gate passage, den exit, roaming ownership, hidden skull cleanup, continuous "
     "colour cycling, randomized stage-one seed, nest-dot synchronization, and "
     "junction choice verified"

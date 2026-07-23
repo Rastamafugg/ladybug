@@ -11,6 +11,7 @@
         jmp     enemy_collect_impl
         jmp     player_compose_impl
         jmp     gate_compose_impl
+        jmp     player_frame_cache_impl
 
 ENEMY_ANIM     equ $0054
 ENEMY_TIMER    equ $0055
@@ -83,11 +84,14 @@ ENEMY_ZONE_BG  equ $A490
 ENEMY_ZONE_STAGE equ $A590
 ENEMY_BG_BASE  equ $A690
 ENEMY_OLD_FB   equ $A890
-ENEMY_SPRITE_CACHE equ $1800    ; five 64-byte record/dormant frame slots
-ENEMY_CACHE_KEYS equ $1940      ; type/direction/animation key per slot
+ENEMY_SPRITE_CACHE equ $1800    ; five 128-byte native record/dormant frames
+ENEMY_CACHE_KEYS equ $1A80      ; type/direction/animation key per slot
+PLAYER_SPRITE_CACHE equ $1A85   ; active 128-byte native player frame
+PLAYER_CACHE_KEY equ $1B05      ; face/animation key for player cache
 ENEMY_ZONE_FB  equ $4DEC
 ENEMY_FB       equ $57EC
 SPRITE_SOURCE_SIZE equ 64
+ENEMY_CACHE_FRAME_SIZE equ 128
 ENEMY_ZONE_ROWS equ 32
 RECORD_SIZE    equ 8
 DIR_NONE       equ $FF
@@ -133,6 +137,7 @@ ei_cache_clear
         sta     ,x+
         decb
         bne     ei_cache_clear
+        sta     PLAYER_CACHE_KEY
         rts
 
 ; Keep death/reset cadence synchronized with the resident perimeter timer.
@@ -929,8 +934,46 @@ draw_enemy_fb
         pshs    x
         lbsr    enemy_sprite_cache
         puls    x
-        ldu     #sprite_attr0_pairs
-        jsr     blit_packed_sprite
+        lbsr    blit_enemy_fb
+        rts
+
+; blit_enemy_fb: merge one cached native enemy frame into the framebuffer.
+;
+; Inputs:
+;   X - destination framebuffer address
+;   Y - 128-byte native 4bpp frame
+;
+; Returns:
+;   A, B, X, Y, CC - undefined
+;
+; Side effects:
+;   Source-zero nibbles preserve the destination.
+blit_enemy_fb
+        lda     #16
+        sta     STAGE_COUNT
+bef_row
+        lda     #8
+        sta     STAGE_PIXEL
+bef_byte
+        lda     ,y+
+        sta     STAGE_SOURCE
+        clrb
+        bita    #$F0
+        bne     bef_high
+        orb     #$F0
+bef_high
+        bita    #$0F
+        bne     bef_low
+        orb     #$0F
+bef_low
+        andb    ,x
+        orb     STAGE_SOURCE
+        stb     ,x+
+        dec     STAGE_PIXEL
+        bne     bef_byte
+        leax    152,x
+        dec     STAGE_COUNT
+        bne     bef_row
         rts
 
 ; Build the complete 16-by-32 nest layer in compact RAM, then publish only
@@ -1122,17 +1165,9 @@ pci_save_loop
         lda     #1
         sta     PLAYER_BG_VALID
 
-        lda     PLAYER_FACE
-        lsla
-        lsla
-        adda    PLAYER_ANIM
-        ldb     #SPRITE_SOURCE_SIZE
-        mul
-        ldy     #player_sprites
-        leay    d,y
+        lbsr    player_frame_cache_impl
         ldx     #PLAYER_STAGE
-        ldu     #sprite_attr0_pairs
-        lbsr    blit_stage_sprite
+        lbsr    blit_enemy_stage
 
         ; Commit the final new rectangle before removing old-only strips.
         ldx     #PLAYER_STAGE
@@ -1443,8 +1478,7 @@ draw_enemy_stage
         pshs    x
         lbsr    enemy_sprite_cache
         puls    x
-        ldu     #sprite_attr0_pairs
-        lbsr    blit_stage_sprite
+        lbsr    blit_enemy_stage
         rts
 
 ; Return a low-RAM cached frame in Y. B is N/E/S/W. Parts 1-8 use one
@@ -1509,26 +1543,83 @@ esc_type_ready
         tfr     d,y
 
         lda     STAGE_COUNT
-        ldb     #SPRITE_SOURCE_SIZE
+        ldb     #ENEMY_CACHE_FRAME_SIZE
         mul
         addd    #ENEMY_SPRITE_CACHE
         tfr     d,x
         lda     #$35
         sta     GIME_PAR5
+        ldu     #sprite_attr0_pairs
         ldb     #SPRITE_SOURCE_SIZE
-esc_copy
+esc_expand
         lda     ,y+
+        sta     STAGE_SOURCE
+        lsra
+        lsra
+        lsra
+        lsra
+        lda     a,u
+        sta     ,x+
+        lda     STAGE_SOURCE
+        anda    #$0F
+        lda     a,u
         sta     ,x+
         decb
-        bne     esc_copy
+        bne     esc_expand
         lda     #$34
         sta     GIME_PAR5
 esc_cached
         lda     STAGE_COUNT
-        ldb     #SPRITE_SOURCE_SIZE
+        ldb     #ENEMY_CACHE_FRAME_SIZE
         mul
         addd    #ENEMY_SPRITE_CACHE
         tfr     d,y
+        rts
+
+; player_frame_cache_impl: return the selected native 4bpp player frame.
+;
+; Inputs:
+;   PLAYER_FACE - direction 0..3
+;   PLAYER_ANIM - animation phase 0..3
+;
+; Returns:
+;   Y - 128-byte native 4bpp player frame
+;   A, B, X, U, CC - undefined
+;
+; Side effects:
+;   Expands the packed source only when the face/animation key changes.
+player_frame_cache_impl
+        lda     PLAYER_FACE
+        lsla
+        lsla
+        adda    PLAYER_ANIM
+        cmpa    PLAYER_CACHE_KEY
+        beq     pfc_cached
+        sta     PLAYER_CACHE_KEY
+        ldb     #SPRITE_SOURCE_SIZE
+        mul
+        ldy     #player_sprites
+        leay    d,y
+        ldx     #PLAYER_SPRITE_CACHE
+        ldu     #sprite_attr0_pairs
+        ldb     #SPRITE_SOURCE_SIZE
+pfc_expand
+        lda     ,y+
+        sta     STAGE_SOURCE
+        lsra
+        lsra
+        lsra
+        lsra
+        lda     a,u
+        sta     ,x+
+        lda     STAGE_SOURCE
+        anda    #$0F
+        lda     a,u
+        sta     ,x+
+        decb
+        bne     pfc_expand
+pfc_cached
+        ldy     #PLAYER_SPRITE_CACHE
         rts
 
 draw_vegetable_stage
@@ -1551,6 +1642,39 @@ dvs_draw
         puls    x
         ldu     #sprite_attr0_pairs
         lbsr    blit_stage_sprite
+        rts
+
+; blit_enemy_stage: merge one cached native enemy frame into compact staging.
+;
+; Inputs:
+;   X - destination compact-stage address
+;   Y - 128-byte native 4bpp frame
+;
+; Returns:
+;   A, B, X, Y, CC - undefined
+;
+; Side effects:
+;   Source-zero nibbles preserve the destination.
+blit_enemy_stage
+        lda     #ENEMY_CACHE_FRAME_SIZE
+        sta     STAGE_COUNT
+bes_byte
+        lda     ,y+
+        sta     STAGE_SOURCE
+        clrb
+        bita    #$F0
+        bne     bes_high
+        orb     #$F0
+bes_high
+        bita    #$0F
+        bne     bes_low
+        orb     #$0F
+bes_low
+        andb    ,x
+        orb     STAGE_SOURCE
+        stb     ,x+
+        dec     STAGE_COUNT
+        bne     bes_byte
         rts
 
 ; Expand one 64-byte 2bpp source into a compact 128-byte 4bpp surface.

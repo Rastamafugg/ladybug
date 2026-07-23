@@ -120,15 +120,16 @@ lwasm -9 --format=raw \
         It rejects resident code beyond <code>$E000</code>, an asset start other
         than <code>$E000</code>, assets beyond <code>$FE00</code>, or a raw-file
         length inconsistent with <code>asset_end-$C000</code>. A successful
-        current build reports <code>resident 8061/8192</code> and
+        current build reports <code>resident 8071/8192</code> and
         <code>assets 7432/7680</code> before padding. The copied bank-3 module
-        reports <code>2662/4096</code>; its six-entry jump table includes the
-        hidden gate-region compositor ABI. The approved loader copy spans
+        reports <code>2801/4096</code>; its seven-entry jump table includes the
+        hidden gate-region compositor and player-cache ABIs. The approved loader copy spans
         <code>$0800-$17FF</code>; directional caches occupy
-        <code>$1800-$1944</code>, leaving <code>$1945-$1FFE</code> for stack
+        <code>$1800-$1B05</code>, leaving <code>$1B06-$1FFE</code> for stack
         growth. GMC bank 2 contributes a separate 8,192-byte directional enemy
         atlas copied to physical page <code>$35</code>; selected frames are
-        cached at <code>$1800-$193F</code>.
+        expanded to native 4bpp and cached at <code>$1800-$1A7F</code>. The
+        selected player frame is cached at <code>$1A85-$1B04</code>.
       </p>
 
       <h3>2. Pad both source banks to 16 KB and compose the 64 KB GMC image</h3>

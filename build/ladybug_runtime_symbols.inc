@@ -1,12 +1,12 @@
-blit_packed_sprite equ $D1D4
+blit_packed_sprite equ $D1C4
 draw_hud equ $C2EE
 gate_redraw_neighbors equ $F086
 gate_render_hidden equ $CDB0
 maze_gate_owner equ $FA7A
 maze_gates equ $FCBA
 maze_nav equ $F83A
-player_sprites equ $D37D
+player_sprites equ $D387
 restore_entity_footprint equ $D06F
-restore_player equ $D2BB
-sprite_attr0_pairs equ $D215
-vegetable_sprites equ $DAFD
+restore_player equ $D2C5
+sprite_attr0_pairs equ $D21F
+vegetable_sprites equ $DB07
