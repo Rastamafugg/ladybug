@@ -1436,6 +1436,15 @@ git reset --hard HEAD
       <p><strong>Citation:</strong> XRoar <code>-trace</code> capture from a four-record snapshot, <code>src/enemy_runtime.s</code>, and <code>wiki/internal/platform/timing.html</code>.</p>
     </section>
 
+    <section>
+      <h2>Retain temporary MMU mappings across strided page segments</h2>
+      <p><strong>Filed 2026-07-23.</strong></p>
+      <p>The hidden-framebuffer copier rebuilt the PAR5 page selection and window pointer for every scanline even though most 16- or 18-row rectangles remain inside one 8 KiB physical page for many consecutive rows.</p>
+      <p><strong>Rule:</strong> map the first physical page once, advance the window pointer by the same framebuffer stride as the live pointer, and remap only when the window crosses its 8 KiB boundary. Preserve a byte-level handoff for a scanline that itself straddles the boundary, and restore the game-state PAR immediately on exit.</p>
+      <p><strong>Applies to:</strong> hidden framebuffer imports and publication through PAR5, and future strided physical-page transfers.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>gate_region_to_shadow</code>/<code>gate_region_from_shadow</code> and the 2026-07-23 live cross-page GDB test.</p>
+    </section>
+
   </main>
 </div>
 </body>

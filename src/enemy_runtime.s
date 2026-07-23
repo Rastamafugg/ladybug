@@ -1420,8 +1420,8 @@ gate_region_to_shadow
         ldx     GATE_RECT_FB
         lda     GATE_RECT_ROWS
         sta     GATE_COPY_ROWS
-grts_row
         lbsr    gate_map_shadow_window
+grts_row
         lda     GATE_RECT_WIDTH
         sta     GATE_COPY_COUNT
 grts_byte
@@ -1436,11 +1436,21 @@ grts_byte
 grts_byte_done
         dec     GATE_COPY_COUNT
         bne     grts_byte
+        dec     GATE_COPY_ROWS
+        beq     grts_done
         ldb     #160
         subb    GATE_RECT_WIDTH
         abx
-        dec     GATE_COPY_ROWS
-        bne     grts_row
+        clra
+        leau    d,u
+        cmpu    #$C000
+        blo     grts_row
+        leau    -$2000,u
+        inc     GATE_SHADOW_PAGE
+        lda     GATE_SHADOW_PAGE
+        sta     GIME_PAR5
+        bra     grts_row
+grts_done
         lda     #$34
         sta     GIME_PAR5
         rts
@@ -1449,8 +1459,8 @@ gate_region_from_shadow
         ldx     GATE_RECT_FB
         lda     GATE_RECT_ROWS
         sta     GATE_COPY_ROWS
-grfs_row
         lbsr    gate_map_shadow_window
+grfs_row
         lda     GATE_RECT_WIDTH
         sta     GATE_COPY_COUNT
 grfs_byte
@@ -1465,11 +1475,21 @@ grfs_byte
 grfs_byte_done
         dec     GATE_COPY_COUNT
         bne     grfs_byte
+        dec     GATE_COPY_ROWS
+        beq     grfs_done
         ldb     #160
         subb    GATE_RECT_WIDTH
         abx
-        dec     GATE_COPY_ROWS
-        bne     grfs_row
+        clra
+        leau    d,u
+        cmpu    #$C000
+        blo     grfs_row
+        leau    -$2000,u
+        inc     GATE_SHADOW_PAGE
+        lda     GATE_SHADOW_PAGE
+        sta     GIME_PAR5
+        bra     grfs_row
+grfs_done
         lda     #$34
         sta     GIME_PAR5
         rts

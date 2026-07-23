@@ -189,6 +189,26 @@ prepare_start = source.index("\nroam_prepare_shadow\n")
 prepare = source[prepare_start : source.index("\nroam_finish_shadow\n", prepare_start)]
 if prepare.count("lbsr    roam_copy_bg_to_fb") != 1:
     raise SystemExit("enemy proof: old roaming backgrounds must be restored exactly once")
+for start_label, end_label in (
+    ("gate_region_to_shadow", "gate_region_from_shadow"),
+    ("gate_region_from_shadow", "draw_enemy_stage"),
+):
+    start = source.index(f"\n{start_label}\n")
+    region_copy = source[start : source.index(f"\n{end_label}\n", start)]
+    if region_copy.count("lbsr    gate_map_shadow_window") != 1:
+        raise SystemExit(
+            f"enemy proof: {start_label} must map once before its page-segment loop"
+        )
+    row = region_copy.index(f"\n{'grts_row' if start_label.endswith('to_shadow') else 'grfs_row'}\n")
+    if region_copy.index("lbsr    gate_map_shadow_window") > row:
+        raise SystemExit(
+            f"enemy proof: {start_label} remaps the shadow window per row"
+        )
+    for fragment in ("leau    d,u", "leau    -$2000,u", "sta     GIME_PAR5"):
+        if fragment not in region_copy:
+            raise SystemExit(
+                f"enemy proof: {start_label} lacks page-segment step {fragment!r}"
+            )
 gate_turn_start = main.index("\ncm_rotate\n")
 gate_turn = main[gate_turn_start : main.index("\ncm_regular\n", gate_turn_start)]
 if "expose_player_background" in gate_turn or "jsr     GATE_MODULE_COMPOSE" not in gate_turn:

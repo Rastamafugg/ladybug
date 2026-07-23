@@ -156,6 +156,22 @@
         compositor. Resident use is 8,071 bytes and bank-3 use is 2,801 bytes.
         Re-profiling remains required for measured savings.
       </p>
+      <p>
+        <strong>Fourth optimization completed 2026-07-23:</strong>
+        <code>gate_region_to_shadow</code> and
+        <code>gate_region_from_shadow</code> now map PAR5 once at rectangle
+        entry and retain that mapping across scanlines until the 8 KiB window
+        is exhausted. A normal 16-row rectangle eliminates at least 15
+        repeated mapper calls; after accounting for shadow-pointer stride
+        maintenance, the static lower bound is 138 instructions saved per
+        rectangle, or approximately 1,104 instructions across the eight
+        copies in a four-roaming-enemy movement frame. Scanlines that straddle
+        a page still split at <code>$C000</code>, and PAR5 is restored to
+        physical page <code>$34</code> on return. Live GDB tests copied and
+        published exact rows across the <code>$3FFF/$4000</code> boundary.
+        The bank-3 module is 2,845 bytes; a fresh whole-frame trace remains
+        required before replacing the original measured totals.
+      </p>
     </section>
 
     <footer class="wiki-footer">

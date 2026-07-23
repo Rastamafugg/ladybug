@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-07-23 &middot; implementation/lint &mdash; page-segment shadow copies</h3>
+      <p>Changed hidden-framebuffer import and publication to map PAR5 once per 8 KiB page segment instead of once per scanline. The loops advance both live and shadow pointers by the 160-byte framebuffer stride, retain the existing split for a scanline crossing <code>$C000</code>, and restore physical page <code>$34</code> on return. A 16-row rectangle has a static lower bound of 138 instructions saved, approximately 1,104 instructions for eight four-enemy movement copies. The guarded GMC proof passed at 2,845/4,096 bank-3 bytes, and live GDB tests copied and published exact rows across <code>$3FFF/$4000</code>. Arcade-fidelity, Python byte-compilation, scoped whitespace, and all 164 wiki HTML/local-link checks also passed. Fresh whole-frame tracing remains pending.</p>
+    </section>
+
+    <section>
       <h3>2026-07-23 &middot; implementation/lint &mdash; native-4bpp player frame cache</h3>
       <p>Confirmed that the active ladybug still expanded its packed frame on every draw, then added a 128-byte native cache at <code>$1A85-$1B04</code> keyed by face and animation at <code>$1B05</code>. The hot bank-3 player compositor and resident gate/respawn/popup redraws now share it through a seventh ABI entry; death, vegetable, and score rendering remain packed. The stack gap is 1,273 bytes, resident use is 8,071/8,192, and bank-3 use is 2,801/4,096. Build and fidelity checks passed, and a live cache dump exactly matched generated player frame 3 while XRoar executed the native hot compositor.</p>
     </section>
