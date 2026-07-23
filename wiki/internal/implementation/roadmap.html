@@ -228,15 +228,20 @@
     <section>
       <h2>Phase 9 — Polish, attract mode, high score, level progression</h2>
       <p><strong>Goal:</strong> finished game.</p>
-      <p><strong>POC tasks:</strong></p>
+      <p><strong>Presentation assets:</strong> arcade-measured 40×24 TMX maps now cover title / attract, instructions, level start, high-score ranking, and qualifying-score name entry. Runtime sequencing remains. High scores remain session-only with no battery-backed RAM.</p>
+      <p><strong>Approved wiring plan:</strong></p>
       <ol>
-        <li>Title / attract screen.</li>
-        <li>Difficulty curve (skull count or bug speed scaling per stage).</li>
-        <li>30,000-point bonus-life award (one-time, per locked decision).</li>
-        <li>Game-over flow → back to title.</li>
-        <li>High-score display (session-only — no battery-backed RAM).</li>
-        <li>Final maze/sprite/colour polish pass.</li>
+        <li><strong>Compile cold screens:</strong> extend the screen compiler with a presentation-map input list and emit one common character atlas plus per-screen tile-index / palette records. Place these cold records in unused GMC expansion-bank space; do not consume the resident window, which has less than one cache line of headroom.</li>
+        <li><strong>Own flow in one state machine:</strong> add a resident <code>FLOW_STATE</code>, frame deadline, and optional animation-script pointer. States are boot → attract title → instructions → demo level start → demo gameplay → ranking → attract title. Coin or start pre-empts every attract/demo state through one edge-tested input path.</li>
+        <li><strong>Load screens at state boundaries:</strong> a bank-3 cold-screen service maps the selected cartridge/RAM page, expands the static tile map into the hidden framebuffer, restores PAR ownership, then publishes a complete frame during Vbord. Existing gameplay and enemy compositors retain ownership only in gameplay states.</li>
+        <li><strong>Script animations as data:</strong> each non-game screen uses compact frame-count / operation records for flashes, cursor movement, colour changes, and sprite overlays. The 60 Hz Vbord counter is the sole clock. No presentation animation may busy-wait or run a private timer loop.</li>
+        <li><strong>Demo maze:</strong> enter through the normal part-start path with a dedicated demo flag, deterministic seed, fixed input replay, normal collision/AI/rendering, muted score persistence, and a hard frame deadline. Any coin/start edge aborts replay before its next movement tick.</li>
+        <li><strong>Live-game chain:</strong> credit/start → level-start → gameplay → level-clear/next level, or final death → game over → conditional name entry → ranking → attract title. Name entry owns joystick repeat, selection cursor, three-or-ten-letter DIP adaptation, confirmation, timeout, insertion into the session table, and interruption policy.</li>
+        <li><strong>Correct measured animations before integration:</strong> replace the current one-frame angel loop with ROM codes 82–87 followed by code 88 and its captured hold/swoop script. Retain the verified 30-frame score replacement; do not change multiplier composition until x2/x3/x5 MAME captures establish placement and cadence.</li>
+        <li><strong>Acceptance gates:</strong> prove every transition and pre-emption path, compare screen frame hashes against the TMX render, compare scripted animation frame/range data against MAME references, run a complete unattended attract loop, run credit-to-ranking gameplay, and report resident/assets/bank use plus worst-frame instruction count.</li>
       </ol>
+      <p><strong>Viability:</strong> the 60 Hz Vbord scheduler and hidden physical framebuffer already provide the timing and atomic publication boundaries. Cold maps and scripts belong in expansion-bank storage because resident use is approximately 8 KiB of 8 KiB and the asset window is approximately 7.5 KiB of 7.5 KiB. The existing bank-3 ABI must gain bounded cold-screen entry points rather than moving gameplay state or compositor ownership.</p>
+      <p><strong>Remaining game-polish tasks:</strong> difficulty curve, 30,000-point bonus-life award, final screen/sprite/colour pass, and exact multiplier-popup capture.</p>
       <p><strong>Exit criterion:</strong> plays start-to-finish, looks and feels like Lady Bug, no obvious bugs, and fits within the implemented four-bank 64 K GMC layout.</p>
       <p><strong>Review gate Q's:</strong></p>
       <ul>

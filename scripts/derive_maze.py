@@ -41,7 +41,7 @@ OVERLAY_BASE_CODES = {
     111: BLANK_CODE,
     113: BLANK_CODE,
     114: 49,
-    115: 49,
+    115: BLANK_CODE,
     117: 49,
     118: 50,
     134: 50,

@@ -25,6 +25,22 @@
     </header>
 
     <section>
+      <h2>Separate visual overlay repair from collision topology</h2>
+      <p><strong>Filed 2026-07-23.</strong></p>
+      <p>The arcade live background reports blank code 255 at maze cell (6,17), and a controlled route moves upward through it. Normalizing stale capture overlay code 115 to wall code 49 therefore created a false collision segment. Removing the wall fixed travel but exposed a visual cap that belongs to the authored overlay layer, not the collision layer.</p>
+      <p><strong>Rule:</strong> derive navigation from the live base cell, then place non-colliding visual repairs in the TMX overlay layer. Do not encode a decorative continuation as a blocking maze cell.</p>
+      <p><strong>Citation:</strong> MAME frames 748–820, <code>scripts/derive_maze.py</code>, and <code>tiled/coco-screen.tmx</code>.</p>
+    </section>
+
+    <section>
+      <h2>Convert rotated sheet cells before naming ROM sprite codes</h2>
+      <p><strong>Filed 2026-07-23.</strong></p>
+      <p>The prior wing reference called sheet cells <code>R5C10</code> through <code>R0C10</code> ROM codes 64–68. The actual mapping is <code>code = column*8 + (7-row)</code>, yielding 82–87, followed by code 88 at <code>R7C11</code>. Pixel matching against MAME set-B attribute 1 confirms code 88 throughout the flight.</p>
+      <p><strong>Rule:</strong> store both <code>RxCy</code> and resolved ROM code in measured references, and verify at least one full opaque sprite against a captured frame before accepting the selection.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_screen.py</code>, <code>assets/arcade/death_animation_reference.json</code>, and MAME frames 939–1095.</p>
+    </section>
+
+    <section>
       <h2>Overlapping actors require off-screen final-pixel ownership</h2>
       <p><strong>Filed 2026-07-19.</strong></p>
       <p>Correct save-under buffers still flicker when restore and redraw operations are performed directly on a framebuffer being scanned by the GIME. More overlapping actors extend the interval in which the visible nest contains only a partial composition.</p>

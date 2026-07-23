@@ -113,6 +113,27 @@
     </section>
 
     <section>
+      <h2>Attract-sequence screen capture — 2026-07-22</h2>
+      <p>
+        A fresh MAME 0.220 <code>ladybug</code> run sampled video plus background
+        code and colour RAM every ten frames through the first attract cycle.
+        Frame 300 is the stable title state, frame 3310 is the stable
+        <code>TODAY'S HI SCORE</code> table, and frame 3370 is the stable part-one
+        introduction. The latter displays <code>PART 1</code>, the 1,000-point
+        cucumber, two skulls, three enemies, and <code>GOOD LUCK</code>.
+      </p>
+      <p>
+        These states are represented by
+        <code>tiled/coco-attract-screen.tmx</code>,
+        <code>tiled/coco-high-score-screen.tmx</code>, and
+        <code>tiled/coco-level-start-screen.tmx</code>. The title and ranking
+        content retain the arcade's 24-column artwork centered on the 40-column
+        CoCo canvas. The level-start map retains arcade rows 2–25 as its
+        24×24 centre and uses the established CoCo side-HUD adaptation.
+      </p>
+    </section>
+
+    <section>
       <h2>StrategyWiki gameplay ingest — 2026-07-18</h2>
       <p>
         StrategyWiki describes four enemies beginning in the den. A clockwise
@@ -185,11 +206,26 @@
         capture is still required before adding any pause.
       </p>
       <p>
-        A controlled stage-one skull collision captured on 2026-07-18 identified
-        the exact death art and timing. Arcade sprite 57 occupies frames 879–908;
-        sprites 58–63 follow for five frames each through frame 938; White wing
-        sprites 64–68 begin on frame 939 and fly upward. The compact evidence is
-        stored in <code>assets/arcade/death_animation_reference.json</code>.
+        A controlled stage-one skull collision, re-analysed pixel-for-pixel on
+        2026-07-23, identified the exact death art and timing. Arcade sprite 57
+        occupies frames 879–908; sprites 58–63 follow for five frames each
+        through frame 938. The White transition is ROM sprites 82–87
+        (<code>R5C10</code> through <code>R0C10</code>) for five frames each,
+        followed by sprite 88 (<code>R7C11</code>) at frame 969. Sprite 88 holds
+        for 30 frames, then begins the measured stepped upward swoop at frame
+        999. The former 64–68 identification was a rotated-sheet conversion
+        error: those codes are bonus and vegetable art. Exact ranges and motion
+        coordinates are stored in
+        <code>assets/arcade/death_animation_reference.json</code>.
+      </p>
+      <p>
+        A controlled Yellow T pickup at frame 703 produced ROM score sprite 55
+        (<code>R0C6</code>, 300 points) at screen position (73,182) for exactly
+        frames 705–734. Randomized follow-up routes produced a letter, skull,
+        and ordinary-dot position rather than a Blue heart, so multiplier
+        placement and timing remain unverified. The partial evidence and the
+        explicit multiplier capture gate are stored in
+        <code>assets/arcade/bonus_popup_reference.json</code>.
       </p>
     </section>
 
