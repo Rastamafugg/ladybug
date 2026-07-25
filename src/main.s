@@ -128,6 +128,15 @@ RENDER_GATE2_ID equ $008A      ; optional second gate ID+1
 RENDER_GATE2_MODE equ $008B
 RENDER_GATE_STYLE equ $008D
 RENDER_GATE2_STYLE equ $008E
+FB_FRONT_ID    equ $008F       ; 0=A ($30-$33), 1=B ($2C-$2F)
+FB_BACK_ID     equ $0090
+FB_RENDER_PENDING equ $0091
+FB_COMMIT_SEQ  equ $0092       ; u16 successful Vbord commits
+FB_SIM_SEQ     equ $0094       ; u16 committed logical epochs
+FB_MISSED_COMMIT equ $0096     ; u16 Vbords without a ready back image
+FB_RENDER_ACTIVE equ $0098
+FB_WRITE_FRONT_FAULT equ $0099
+FB_INIT_STATE  equ $009A       ; nonzero after cold A/B convergence
 BOOT_FLAG    equ $02F0         ; $A5 when GMC bootstrap relocated runtime to RAM
 
 DIR_NORTH     equ 0
@@ -213,6 +222,7 @@ PLAYER_MODULE_COMPOSE equ $080C
 GATE_MODULE_COMPOSE equ $080F
 PLAYER_MODULE_CACHE equ $0812
 ENEMY_MODULE_RENDER equ $0815
+FB_MODULE_INIT      equ $081B
 
 RF_PLAYER      equ $01
 RF_HUD         equ $02
@@ -355,6 +365,7 @@ entry_seed_ready
         lda     #RF_STAGE
         sta     RENDER_FLAGS
         lbsr    render_frame
+        jsr     FB_MODULE_INIT
 
         ; --- Un-blank: 320×192×16 (CRES=10 + HRES=111 → 4bpp on this build) ---
         lda     #$1E
@@ -441,6 +452,7 @@ main_render
 ; Phase 5 score, HUD, and no-enemy stage state.
 ;==============================================================================
 init_game_state
+        clr     FB_INIT_STATE
         clr     RENDER_FLAGS
         clr     RENDER_FLAGS2
         clr     RENDER_GATE_ID

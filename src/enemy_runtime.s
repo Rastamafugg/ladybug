@@ -14,6 +14,7 @@
         jmp     player_frame_cache_impl
         jmp     enemy_render_impl
         jmp     frame_render_impl
+        jmp     framebuffer_init_impl
 
 ENEMY_ANIM     equ $0054
 ENEMY_TIMER    equ $0055
@@ -70,6 +71,15 @@ RENDER_GATE2_MODE equ $008B
 RENDER_ZONE_Y   equ $008C
 RENDER_GATE_STYLE equ $008D
 RENDER_GATE2_STYLE equ $008E
+FB_FRONT_ID    equ $008F
+FB_BACK_ID     equ $0090
+FB_RENDER_PENDING equ $0091
+FB_COMMIT_SEQ  equ $0092
+FB_SIM_SEQ     equ $0094
+FB_MISSED_COMMIT equ $0096
+FB_RENDER_ACTIVE equ $0098
+FB_WRITE_FRONT_FAULT equ $0099
+FB_INIT_STATE  equ $009A
 GATE_ID         equ $0013
 GATE_X          equ $0014
 GATE_Y          equ $0015
@@ -131,6 +141,26 @@ ENEMY_SPRITE_CACHE equ $1800    ; five 128-byte native record/dormant frames
 ENEMY_CACHE_KEYS equ $1A80      ; type/direction/animation key per slot
 PLAYER_SPRITE_CACHE equ $1A85   ; active 128-byte native player frame
 PLAYER_CACHE_KEY equ $1B05      ; face/animation key for player cache
+FB_META_A      equ $A900        ; 256-byte A ownership/damage ledger
+FB_META_B      equ $AA00        ; 256-byte B ownership/damage ledger
+PLAYER_BG_B    equ $AB00        ; B-side player restoration bytes
+ENEMY_BG_B     equ $AB80        ; four B-side enemy restoration buffers
+FBM_STATE      equ 0
+FBM_DAMAGE     equ 1
+FBM_PLAYER_VALID equ 2
+FBM_PLAYER_KEY equ 3
+FBM_PLAYER_FB  equ 4
+FBM_ENEMIES   equ 8
+FBM_ENEMY_KEYS equ 40
+FBM_MAZE_DAMAGE equ 48          ; 72-byte, 576-cell reserved ledger
+FBM_GATE_DAMAGE equ 120         ; three-byte, 20-gate reserved ledger
+FBM_ENTITY_DAMAGE equ 123       ; twelve-byte record ledger
+FBM_PERIM_DAMAGE equ 135        ; twelve-byte, 92-box reserved ledger
+FBM_HUD_DAMAGE equ 147
+FBM_NEST_DAMAGE equ 149
+FBM_PRESENT_DAMAGE equ 150
+FBM_VALID      equ $01
+FBM_FULL_REBUILD equ $02
 ENEMY_ZONE_FB  equ $4DEC
 ENEMY_FB       equ $57EC
 SPRITE_SOURCE_SIZE equ 64
@@ -446,6 +476,7 @@ eri_done
 
 ; Single framebuffer owner for the completed Vbord state.
 frame_render_impl
+        lbsr    framebuffer_begin_fallback
         lda     RENDER_FLAGS
         bita    #RF_STAGE
         lbne    fri_stage
@@ -561,6 +592,7 @@ fri_gate
         sta     RENDER_GATE_STYLE
         lbsr    gate_compose_impl
 fri_done
+        lbsr    framebuffer_capture_front
         clr     RENDER_FLAGS
         clr     RENDER_FLAGS2
         clr     RENDER_GATE_ID
@@ -608,6 +640,123 @@ fri_stage
         lbsr    enemy_render_impl
         jsr     draw_player
         bra     fri_done
+
+; Phase-3 ownership bootstrap. While display output is still blanked, duplicate
+; the complete A image into physical pages $2C-$2F, then clone the current
+; restoration state and actor metadata. Display commits remain disabled.
+framebuffer_init_impl
+        clr     FB_FRONT_ID
+        lda     #1
+        sta     FB_BACK_ID
+        clr     FB_RENDER_PENDING
+        clr     FB_COMMIT_SEQ
+        clr     FB_COMMIT_SEQ+1
+        clr     FB_SIM_SEQ
+        clr     FB_SIM_SEQ+1
+        clr     FB_MISSED_COMMIT
+        clr     FB_MISSED_COMMIT+1
+        clr     FB_RENDER_ACTIVE
+        clr     FB_WRITE_FRONT_FAULT
+
+        lda     #SHADOW_PAGE0
+        pshs    a
+        ldx     #$2000
+fbi_page
+        lda     ,s
+        sta     GIME_PAR5
+        ldu     #$A000
+        ldy     #4096
+fbi_page_word
+        ldd     ,x++
+        std     ,u++
+        leay    -1,y
+        bne     fbi_page_word
+        inc     ,s
+        cmpx    #$A000
+        blo     fbi_page
+        leas    1,s
+        lda     #$34
+        sta     GIME_PAR5
+
+        ldx     #PLAYER_BG
+        ldu     #PLAYER_BG_B
+        ldy     #64
+fbi_player_bg
+        ldd     ,x++
+        std     ,u++
+        leay    -1,y
+        bne     fbi_player_bg
+        ldx     #ENEMY_BG_BASE
+        ldu     #ENEMY_BG_B
+        ldy     #256
+fbi_enemy_bg
+        ldd     ,x++
+        std     ,u++
+        leay    -1,y
+        bne     fbi_enemy_bg
+
+        ldx     #FB_META_A
+        ldy     #256
+        clra
+        clrb
+fbi_clear_meta
+        std     ,x++
+        leay    -1,y
+        bne     fbi_clear_meta
+        lbsr    framebuffer_capture_a
+        ldx     #FB_META_A
+        ldu     #FB_META_B
+        ldy     #128
+fbi_copy_meta
+        ldd     ,x++
+        std     ,u++
+        leay    -1,y
+        bne     fbi_copy_meta
+        lda     #1
+        sta     FB_INIT_STATE
+        rts
+
+; The fallback shadow compositor owns B as scratch until phase 4. Mark it as
+; requiring a complete rebuild before every normal frame so it cannot be
+; mistaken for a committable persistent snapshot.
+framebuffer_begin_fallback
+        tst     FB_INIT_STATE
+        beq     fbb_done
+        lda     #FBM_FULL_REBUILD
+        sta     FB_META_B+FBM_STATE
+fbb_done
+        rts
+
+framebuffer_capture_front
+        tst     FB_INIT_STATE
+        beq     fbcf_done
+        lbsr    framebuffer_capture_a
+fbcf_done
+        rts
+
+framebuffer_capture_a
+        lda     #FBM_VALID
+        sta     FB_META_A+FBM_STATE
+        clr     FB_META_A+FBM_DAMAGE
+        lda     PLAYER_BG_VALID
+        sta     FB_META_A+FBM_PLAYER_VALID
+        lda     PLAYER_CACHE_KEY
+        sta     FB_META_A+FBM_PLAYER_KEY
+        ldd     PLAYER_FB
+        std     FB_META_A+FBM_PLAYER_FB
+        ldx     #ENEMY_TABLE
+        ldu     #FB_META_A+FBM_ENEMIES
+        ldy     #16
+fbca_enemy
+        ldd     ,x++
+        std     ,u++
+        leay    -1,y
+        bne     fbca_enemy
+        ldd     ENEMY_CACHE_KEYS
+        std     FB_META_A+FBM_ENEMY_KEYS
+        ldd     ENEMY_CACHE_KEYS+2
+        std     FB_META_A+FBM_ENEMY_KEYS+2
+        rts
 
 enemy_collect_impl
         lda     VEG_STATE

@@ -26,7 +26,7 @@
     <section>
       <h2>Status and decision</h2>
       <p>
-        <strong>Approved architecture; migration phases 1 and 2 implemented.</strong> Physical
+        <strong>Approved architecture; migration phases 1 through 3 implemented.</strong> Physical
         pages <code>$30-$33</code> and <code>$2C-$2F</code> become equal
         persistent framebuffer A/B snapshots. The GIME scans one while PAR1
         through PAR4 map the other for rendering. A completed back buffer is
@@ -122,10 +122,24 @@ Per framebuffer:
       </p>
       <p>
         The existing A-side player/enemy save-under storage remains usable.
-        A second set plus metadata and both damage ledgers require less than
-        1 KiB in the free <code>$A898-$BFFD</code> game-state range. PAR5
+        Phase 3 allocates 256-byte metadata/damage blocks at
+        <code>$A900</code> and <code>$AA00</code>, a B-side 128-byte player
+        restoration buffer at <code>$AB00</code>, and four B-side enemy
+        restoration buffers at <code>$AB80-$AD7F</code>. PAR5
         remains physical page <code>$34</code> except while a precompiled
         sprite stream is being read.
+      </p>
+      <p>
+        Always-mapped handshake state occupies direct page
+        <code>$008F-$009A</code>: FRONT/BACK IDs, render-pending, commit and
+        simulation sequences, missed-commit count, render-active, write-to-front
+        fault, and initialization state. Cold boot entry <code>$081B</code>
+        copies all 32 KiB of A pages <code>$30-$33</code> into B pages
+        <code>$2C-$2F</code> while output is blanked, then clones restoration
+        bytes and actor metadata. Swapping remains disabled. Because the old
+        shadow compositor still uses B as scratch, every gameplay render marks
+        B invalid/full-rebuild and refreshes A metadata; no later phase may
+        commit B until it has rebuilt it.
       </p>
     </section>
 
@@ -280,7 +294,7 @@ Per framebuffer:
       <ol>
         <li><strong>Completed 2026-07-23:</strong> generate and validate sparse enemy/player streams, their physical-page index, and the fragmented GMC loader copy table without changing framebuffer ownership. Candidate bank images are emitted but do not replace the active packed atlas yet.</li>
         <li><strong>Completed 2026-07-25:</strong> split player, enemy, gate, score, pickup, death, and timer code into state mutation plus render-intent marking. Bank-3 entries <code>$0815</code>/<code>$0818</code> own enemy and complete-frame rendering; structural verification rejects framebuffer calls from mutation ranges, and the bounded GMC trace proves the central renderer executes.</li>
-        <li>Allocate always-mapped IRQ handshake state plus A/B actor metadata and damage ledgers. Initialize both complete framebuffer images and both restoration states while blanked.</li>
+        <li><strong>Completed 2026-07-25:</strong> allocate always-mapped IRQ handshake state, two 256-byte actor/damage metadata blocks, and B-side player/enemy restoration buffers. Entry <code>$081B</code> initializes identical complete A/B images and restoration state while blanked. The legacy fallback explicitly invalidates B/full-rebuild before using it as shadow scratch and captures current A ownership afterward.</li>
         <li>Render into the non-scanned PAR1-PAR4 mapping and enable the IRQ commit handshake. Retain the old region-copy compositor behind a build-time fallback until equivalence passes.</li>
         <li>Add actor-overlap closure and circular strip save-under updates. Remove the old shadow window, union, publication, and native cache paths only after cycle and image acceptance.</li>
       </ol>

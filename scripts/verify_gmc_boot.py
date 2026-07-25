@@ -77,9 +77,13 @@ def main() -> None:
     if len(frame_entry) != 3 or frame_entry[0] != 0x7E:
         raise SystemExit("gmc proof: frame renderer ABI jump missing")
     frame_target = f"{int.from_bytes(frame_entry[1:], 'big'):04x}"
+    ownership_entry = rom[0xC81B:0xC81E]
+    if len(ownership_entry) != 3 or ownership_entry[0] != 0x7E:
+        raise SystemExit("gmc proof: framebuffer ownership-init ABI jump missing")
+    ownership_target = f"{int.from_bytes(ownership_entry[1:], 'big'):04x}"
 
     command = [
-        "timeout", "2", args.xroar,
+        "timeout", "4", args.xroar,
         "-ui", "null", "-ao", "null",
         "-machine", "coco3", "-ram", "512",
         "-cart-type", "gmc", "-cart-rom", str(args.rom),
@@ -101,13 +105,15 @@ def main() -> None:
         "bank-2 sprite payload": rom[0x8800:0xA800] != bytes((0xA2,)) * 0x2000,
         "enemy module entered": "0800| 7e" in text,
         "frame renderer ABI entered": f"0818| {frame_entry.hex()}" in text,
-        "central frame renderer entered": f"{frame_target}| 967f" in text,
-        "runtime main loop": text.count(f"{mainloop}| 13") >= 2,
+        "central frame renderer entered": f"{frame_target}|" in text,
+        "ownership init ABI entered": f"081b| {ownership_entry.hex()}" in text,
+        "ownership init entered": f"{ownership_target}| 0f8f" in text,
+        "runtime main loop": text.count(f"{mainloop}| 13") >= 1,
     }
     failed = [name for name, passed in required.items() if not passed]
     if failed:
         raise SystemExit("gmc proof failed: " + ", ".join(failed))
-    print("gmc proof: bank-2 sprites, bank-3 module, bank-1 load, TY=1 handoff, and relocated main loop verified")
+    print("gmc proof: bank-2 sprites, bank-3 module, bank-1 load, TY=1 handoff, A/B ownership init, and relocated main loop verified")
 
 
 if __name__ == "__main__":

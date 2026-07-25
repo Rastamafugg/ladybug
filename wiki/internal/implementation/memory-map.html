@@ -85,7 +85,12 @@ $A590-$A60F      5    $34   128 B  Compact off-screen nest compositor lower half
 $A610-$A68F      5    $34   128 B  Nest upper half / transient old-player stage
 $A690-$A88F      5    $34   512 B  Four clean roaming-enemy background buffers
 $A890-$A897      5    $34     8 B  Four prior roaming framebuffer pointers
-$A898-$BFFF      5    $34   —      Free game-state RAM; $BFFE seeds cold-start entropy
+$A898-$A8FF      5    $34   104 B  Reserved alignment before framebuffer metadata
+$A900-$A9FF      5    $34   256 B  Framebuffer A actor metadata and damage ledger
+$AA00-$AAFF      5    $34   256 B  Framebuffer B actor metadata and damage ledger
+$AB00-$AB7F      5    $34   128 B  Framebuffer B player restoration bytes
+$AB80-$AD7F      5    $34   512 B  Four framebuffer B enemy restoration buffers
+$AD80-$BFFF      5    $34   —      Free game-state RAM; $BFFE seeds cold-start entropy
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
@@ -421,10 +426,11 @@ $FF00-$FFFF        256 B   I/O; never cart data
           <tr><td><code>$81-$85</code></td><td>perimeter and recoloured-letter render snapshots</td><td>5 B</td><td>Deferred background/HUD projection</td></tr>
           <tr><td><code>$86-$87</code></td><td>old-enemy ownership mask and enemy-render intents</td><td>2 B</td><td>Bank-3 logic/render handoff</td></tr>
           <tr><td><code>$88-$8E</code></td><td>two ordered gate intents, zone-refresh row, and gate styles</td><td>7 B</td><td>Deferred gate/nest projection</td></tr>
-          <tr><td><code>$8F-$FF</code></td><td>(free)</td><td>113 B</td><td>Future hot state</td></tr>
+          <tr><td><code>$8F-$9A</code></td><td>A/B IDs, readiness, commit/simulation/miss counters, render/fault/init state</td><td>12 B</td><td>Always-mapped framebuffer ownership handshake</td></tr>
+          <tr><td><code>$9B-$FF</code></td><td>(free)</td><td>101 B</td><td>Future hot state</td></tr>
         </tbody>
       </table>
-      <p>The phase-2 intent ABI leaves 113 direct-page bytes free. Maintain this table as variables land.</p>
+      <p>The phase-3 intent and ownership ABI leaves 101 direct-page bytes free. Maintain this table as variables land.</p>
     </section>
 
     <section>
