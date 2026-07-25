@@ -112,6 +112,25 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         publishes only those completed rectangles back to pages
         <code>$30-$33</code>.
       </p>
+      <p>
+        <strong>Planned strict-60-Hz mapping:</strong> the
+        <a href="./ping-pong-framebuffer.html">persistent ping-pong design</a>
+        promotes <code>$2C-$2F</code> to framebuffer B and retains
+        <code>$30-$33</code> as framebuffer A. PAR1-PAR4 always map the
+        non-scanned back buffer. Precompiled sparse enemy streams occupy
+        physical pages <code>$35-$37</code>, player streams occupy
+        <code>$39</code>, and PAR5 maps one stream page only during a draw
+        before returning to game-state page <code>$34</code>. IRQ-visible
+        framebuffer ownership, readiness, commit-sequence, and diagnostic
+        bytes must remain in always-mapped page <code>$38</code>, never
+        behind PAR5. The loader requires an explicit segmented copy plan
+        because the bank-3 runtime fragments the available cartridge source
+        space. Phase 1 now emits verified candidate bank images and a
+        seven-record copy table for these payloads, leaving 1,018 readable
+        expansion-bank bytes. Phase 2 separates gameplay mutation from one
+        bank-3 framebuffer owner through compact direct-page intents. Runtime
+        sparse decoding and persistent A/B framebuffer ownership are not implemented.
+      </p>
     </section>
 
     <section>
@@ -398,10 +417,14 @@ $FF00-$FFFF        256 B   I/O; never cart data
           <tr><td><code>$6F-$7B</code></td><td>gate compose mode, region, and MMU-copy scratch</td><td>13 B</td><td>Bank-3 gate-region compositor</td></tr>
           <tr><td><code>$7C-$7D</code></td><td>AI candidate and reverse direction</td><td>2 B</td><td>Bank-3 enemy junction chooser</td></tr>
           <tr><td><code>$7E</code></td><td>roaming-presence flag</td><td>u8</td><td>Bank-3 roaming compositor</td></tr>
-          <tr><td><code>$7F-$FF</code></td><td>(free)</td><td>129 B</td><td>Future hot state</td></tr>
+          <tr><td><code>$7F-$80</code></td><td>primary/secondary render-intent flags</td><td>2 B</td><td>Phase-2 logic/render ownership boundary</td></tr>
+          <tr><td><code>$81-$85</code></td><td>perimeter and recoloured-letter render snapshots</td><td>5 B</td><td>Deferred background/HUD projection</td></tr>
+          <tr><td><code>$86-$87</code></td><td>old-enemy ownership mask and enemy-render intents</td><td>2 B</td><td>Bank-3 logic/render handoff</td></tr>
+          <tr><td><code>$88-$8E</code></td><td>two ordered gate intents, zone-refresh row, and gate styles</td><td>7 B</td><td>Deferred gate/nest projection</td></tr>
+          <tr><td><code>$8F-$FF</code></td><td>(free)</td><td>113 B</td><td>Future hot state</td></tr>
         </tbody>
       </table>
-      <p>Plenty of room. Maintain this table as variables land.</p>
+      <p>The phase-2 intent ABI leaves 113 direct-page bytes free. Maintain this table as variables land.</p>
     </section>
 
     <section>

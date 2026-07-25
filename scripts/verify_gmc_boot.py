@@ -73,6 +73,10 @@ def main() -> None:
     bank2_signature = relocated_pc(bytes((0xFC, 0xC0, 0x10)), 0)
     bank3_signature = relocated_pc(bytes((0xFC, 0xC0, 0x10)), 1)
     allram = relocated_pc(bytes((0xB7, 0xFF, 0xDF)))
+    frame_entry = rom[0xC818:0xC81B]
+    if len(frame_entry) != 3 or frame_entry[0] != 0x7E:
+        raise SystemExit("gmc proof: frame renderer ABI jump missing")
+    frame_target = f"{int.from_bytes(frame_entry[1:], 'big'):04x}"
 
     command = [
         "timeout", "2", args.xroar,
@@ -96,6 +100,8 @@ def main() -> None:
         "bank-3 module payload": rom[0xC800:0xC80C] != bytes((0xA3,)) * 12,
         "bank-2 sprite payload": rom[0x8800:0xA800] != bytes((0xA2,)) * 0x2000,
         "enemy module entered": "0800| 7e" in text,
+        "frame renderer ABI entered": f"0818| {frame_entry.hex()}" in text,
+        "central frame renderer entered": f"{frame_target}| 967f" in text,
         "runtime main loop": text.count(f"{mainloop}| 13") >= 2,
     }
     failed = [name for name, passed in required.items() if not passed]

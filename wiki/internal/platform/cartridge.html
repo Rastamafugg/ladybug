@@ -51,6 +51,15 @@
       <p>The former 16 K direct-ROM image remains the runtime payload in bank 1. Bank 0 is a low-RAM bootstrap; banks 2 and 3 are reserved expansion payloads with proof signatures. The bootstrap selects banks through the GMC SCS register at <code>$FF50</code>, copies bank 1 into physical pages <code>$3E/$3F</code>, switches TY to all-RAM mode, and enters the unchanged virtual runtime. This avoids gameplay-time bank switching.</p>
       <p><code>scripts/build.sh verify-gmc</code> proves both expansion-bank signatures, bank-1 selection, the TY=1 handoff, and repeated relocated main-loop execution under XRoar 1.10. Physical GMC-compatible hardware remains unverified.</p>
       <p>
+        <strong>Sparse-loader phase 1:</strong> candidate expansion-bank
+        images and a seven-record copy table are generated separately from
+        the delivered image. Every source interval is below bank offset
+        <code>$3E00</code>; the final 512 bytes of each nominal 16 KiB bank
+        are not loader capacity because the CPU sees forced RAM and I/O at
+        <code>$FE00-$FFFF</code>. The candidate layout leaves 1,018 readable
+        bytes after signatures and the reserved enemy module.
+      </p>
+      <p>
         Initially retargeted to 32 K (Init0 b1-b0 = <code>11</code>) when
         ROM-budget analysis suggested 4bpp sprite data would push past 16 K,
         but reverted after Phase 2.1 testing showed XRoar's

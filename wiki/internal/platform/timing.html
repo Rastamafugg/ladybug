@@ -169,8 +169,99 @@
         a page still split at <code>$C000</code>, and PAR5 is restored to
         physical page <code>$34</code> on return. Live GDB tests copied and
         published exact rows across the <code>$3FFF/$4000</code> boundary.
-        The bank-3 module is 2,845 bytes; a fresh whole-frame trace remains
-        required before replacing the original measured totals.
+        The bank-3 module is 2,845 bytes. The post-series measurement below
+        includes this implementation.
+      </p>
+      <h2>Post-optimization four-enemy profile — 2026-07-23</h2>
+      <p>
+        A controlled XRoar trace measured one complete hot-cache,
+        movement-only main-loop iteration with four established roaming
+        enemies. The frame executed 18,212 instructions and 81,370 6809
+        cycles. This is 8,192 instructions, or 31.0%, below the prior
+        26,404-instruction movement frame, but remains 2.74 times the
+        29,666-cycle 60 Hz hardware budget. Nest/stage composition did not
+        execute, confirming the movement-only dirtiness bypass.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Path</th><th>Instructions</th><th>Cycles</th><th>Instruction share</th></tr></thead>
+        <tbody>
+          <tr><td>Shadow import/publish and mapping</td><td>8,464</td><td>39,640</td><td>46.5%</td></tr>
+          <tr><td>Native framebuffer sprite draw/blit</td><td>7,008</td><td>25,728</td><td>38.5%</td></tr>
+          <tr><td>Save-under restore/save</td><td>1,424</td><td>10,312</td><td>7.8%</td></tr>
+          <tr><td>Enemy logic/orchestration</td><td>771</td><td>3,672</td><td>4.2%</td></tr>
+          <tr><td>Resident frame work</td><td>421</td><td>1,578</td><td>2.3%</td></tr>
+          <tr><td>Hot enemy-cache lookup</td><td>124</td><td>440</td><td>0.7%</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The accompanying overlap run sampled 1,280 movement frames from four
+        established enemies following normal maze navigation, for 7,680
+        rectangle-pair opportunities. Of those frames, 1,172 had no
+        overlapping pair and 108 had exactly one. The overlap-area histogram
+        in bytes was: 2×1, 8×1, 16×46, 18×1, 28×6, 32×10, 36×6, 40×6,
+        50×1, 64×9, 72×1, 96×9, 98×1, and 128×10.
+      </p>
+      <p>
+        <strong>Dirty-union coalescing review 2026-07-23:</strong>
+        do not implement runtime coalescing. Only 79 of 1,280 frames had a
+        bounding union smaller than its two 144-byte source rectangles. An
+        oracle coalescer with zero pair-scan, coordinate-conversion, or
+        bookkeeping cost would save 3,780 bytes in one copy phase, or 7,560
+        bytes across import and publication. That is 5.91 bytes per frame and
+        only 0.513% of the 1,474,560 shadow-copy bytes sampled. Real runtime
+        geometry costs would exceed the measured gain.
+      </p>
+      <h2>Next renderer optimization analysis — 2026-07-23</h2>
+      <p>
+        The remaining shadow path is dominated by its per-byte loop rather
+        than mapper setup. Across four 144-byte imports and four publications,
+        the six byte-loop instructions account for 33,408 of 39,640 cycles.
+        The roaming unions are constrained to either 8 bytes by 18 rows or
+        9 bytes by 16 rows. Add roaming-only word-copy kernels that transfer
+        four <code>LDD</code>/<code>STD</code> pairs per row plus the ninth
+        byte when required. Test once per row for the rare physical-page
+        crossing and retain the existing byte splitter for that row. Keep the
+        generic rectangle copier unchanged for gate and player regions.
+        Static modeling of the captured frame reduces this path to
+        approximately 15,700 cycles, saving about 24,000 cycles or 60%.
+      </p>
+      <p>
+        The native framebuffer blitter processed 512 cached bytes: 224 were
+        fully transparent, 224 were fully opaque, and 64 contained one
+        transparent nibble. Its current mask-building loop costs 24,064 of
+        the routine's 25,580 cycles. After the word-copy change, specialize
+        this loop with a B-register byte counter, skip zero bytes, store
+        fully opaque bytes directly, and use a destination mask only for the
+        64 partial bytes. The captured distribution predicts approximately
+        9,800 additional cycles saved without changing cache layout or using
+        more RAM.
+      </p>
+      <p>
+        The recommended order is word-copy roaming transfers, re-profile,
+        then sparse native blitting. The two modeled changes together reduce
+        the measured frame from 81,370 to approximately 47,600 cycles. This
+        fits the 59,332-cycle aggregate envelope of the existing 30 Hz
+        movement cadence but not one 29,666-cycle Vbord interval. Meeting a
+        strict single-Vbord limit requires a later ownership change such as
+        persistent ping-pong framebuffers with per-buffer save-under state;
+        that is a renderer protocol refactor, not a local kernel optimization.
+      </p>
+      <p>
+        <strong>Strict-60-Hz architecture designed 2026-07-23:</strong>
+        the <a href="../implementation/ping-pong-framebuffer.html">persistent
+        ping-pong framebuffer</a> removes normal shadow import/publication by
+        rendering directly into the non-scanned physical framebuffer and
+        selecting it with one <code>$FF9D</code> write at bottom-border
+        Vbord. Per-buffer actor history and damage ledgers keep the older
+        snapshot convergent. Precompiled sparse enemy/player streams and
+        strip-updated circular save-under state provide the additional
+        reduction required beyond the 39,640-cycle copy removal. The modeled
+        steady four-enemy range is 24,500-27,500 cycles; implementation must
+        prove every steady path below 29,666 cycles. In the accepted
+        overload protocol, raw Vbord continues counting but simulation
+        advances once per committed image. A missed Vbord freezes the current
+        logical/render epoch until it commits instead of skipping transient
+        states or catching up timers.
       </p>
     </section>
 

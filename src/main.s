@@ -113,6 +113,21 @@ PLAYER_ERASED equ $0069        ; nonzero after old player background is exposed
 PLAYER_BG_VALID equ $006A      ; PLAYER_BG contains restorable pixels
 PLAYER_TICK_PENDING equ $006B  ; nonzero when next Vbord must update/render player
 GATE_COMPOSE_MODE equ $006F    ; 0=diagonal intermediate, 1=final gate state
+RENDER_FLAGS   equ $007F       ; primary per-Vbord render intents
+RENDER_FLAGS2  equ $0080       ; secondary per-Vbord render intents
+RENDER_BOX_INDEX equ $0081     ; perimeter box snapshot
+RENDER_BOX_COLOR equ $0082     ; perimeter colour snapshot
+RENDER_LETTER_X equ $0083      ; recoloured HUD-letter snapshot
+RENDER_LETTER_Y equ $0084
+RENDER_LETTER_COLOR equ $0085
+ENEMY_OLD_VALID equ $0086      ; saved-background ownership before enemy mutation
+ENEMY_RENDER_FLAGS equ $0087   ; bank-3 renderer intents
+RENDER_GATE_ID equ $0088       ; first queued gate ID+1
+RENDER_GATE_MODE equ $0089     ; first queued gate mode
+RENDER_GATE2_ID equ $008A      ; optional second gate ID+1
+RENDER_GATE2_MODE equ $008B
+RENDER_GATE_STYLE equ $008D
+RENDER_GATE2_STYLE equ $008E
 BOOT_FLAG    equ $02F0         ; $A5 when GMC bootstrap relocated runtime to RAM
 
 DIR_NORTH     equ 0
@@ -197,6 +212,24 @@ ENEMY_MODULE_COLLECT equ $0809
 PLAYER_MODULE_COMPOSE equ $080C
 GATE_MODULE_COMPOSE equ $080F
 PLAYER_MODULE_CACHE equ $0812
+ENEMY_MODULE_RENDER equ $0815
+
+RF_PLAYER      equ $01
+RF_HUD         equ $02
+RF_LIVES       equ $04
+RF_ENTITIES    equ $08
+RF_BOX         equ $10
+RF_DOT         equ $20
+RF_STAGE       equ $40
+RF_DEATH       equ $80
+
+RF2_POPUP      equ $01
+RF2_MULTIPLIER equ $02
+RF2_LETTER     equ $04
+RF2_PERIM_RESET equ $08
+
+ERF_INIT       equ $01
+ERF_DIRTY      equ $02
 
 ;==============================================================================
 ;  Cart ROM
@@ -302,9 +335,6 @@ clr_fb  std     ,x++
         cmpx    #FB_END
         blo     clr_fb
 
-        ; --- Phase 3 authored screen ---
-        lbsr    draw_screen
-
         ; --- Phase 4 state, joystick, and player sprite ---
         lbsr    init_game_state
         lbsr    init_maze_state
@@ -321,11 +351,10 @@ entry_seed_ready
         std     RNG_STATE
         lbsr    init_entities
         lbsr    init_player
-        lbsr    draw_entities
-        lbsr    draw_hud
-        lbsr    draw_lives
         lbsr    init_enemy
-        lbsr    draw_player
+        lda     #RF_STAGE
+        sta     RENDER_FLAGS
+        lbsr    render_frame
 
         ; --- Un-blank: 320×192×16 (CRES=10 + HRES=111 → 4bpp on this build) ---
         lda     #$1E
@@ -340,6 +369,11 @@ entry_seed_ready
         clr     FRAMES
         clr     FRAMES+1
         clr     LAST_FRAME
+        clr     RENDER_FLAGS
+        clr     RENDER_FLAGS2
+        clr     RENDER_GATE_ID
+        clr     RENDER_GATE2_ID
+        clr     ENEMY_RENDER_FLAGS
 
         ; --- Enable Vbord ---
         lda     #%00001000
@@ -386,25 +420,32 @@ main_death
         ; The perimeter release circuit is reset by the enemy death path and
         ; remains frozen until the replacement player has entered.
         lbsr    death_tick
-        bra     mainloop
+        bra     main_render
 main_alive
         lda     PICKUP_TIMER
-        bne     mainloop
+        bne     main_render
         lda     LAST_FRAME
         anda    #$01
-        bne     mainloop
+        bne     main_render
 phase4_before_tick
         lda     #1
         sta     PLAYER_TICK_PENDING
         lda     STAGE_PENDING
-        beq     mainloop
+        beq     main_render
         lbsr    next_stage
+main_render
+        lbsr    render_frame
         bra     mainloop
 
 ;==============================================================================
 ; Phase 5 score, HUD, and no-enemy stage state.
 ;==============================================================================
 init_game_state
+        clr     RENDER_FLAGS
+        clr     RENDER_FLAGS2
+        clr     RENDER_GATE_ID
+        clr     RENDER_GATE2_ID
+        clr     ENEMY_RENDER_FLAGS
         clr     SCORE_BCD
         clr     SCORE_BCD+1
         clr     SCORE_BCD+2
@@ -453,16 +494,14 @@ ns_stage_valid
         lbsr    reload_box_timer
         clr     BOX_INDEX
         clr     BOX_PHASE
-        lbsr    draw_screen
         lbsr    init_maze_state
         lbsr    init_gate_state
         lbsr    init_entities
         lbsr    init_player
-        lbsr    draw_entities
-        lbsr    draw_hud
-        lbsr    draw_lives
         lbsr    init_enemy
-        lbsr    draw_player
+        lda     RENDER_FLAGS
+        ora     #RF_STAGE
+        sta     RENDER_FLAGS
         rts
 
 add_dot_score
@@ -491,7 +530,9 @@ ads_copy_high
         std     HIGH_BCD
         lda     SCORE_BCD+2
         sta     HIGH_BCD+2
-        lbsr    draw_hud
+        lda     RENDER_FLAGS
+        ora     #RF_HUD
+        sta     RENDER_FLAGS
         rts
 
 add_bonus_score
@@ -528,7 +569,9 @@ abs_next
         std     HIGH_BCD
         lda     SCORE_BCD+2
         sta     HIGH_BCD+2
-        lbsr    draw_hud
+        lda     RENDER_FLAGS
+        ora     #RF_HUD
+        sta     RENDER_FLAGS
         rts
 
 apply_letter_pickup
@@ -559,7 +602,15 @@ alp_special_draw
         sta     HUD_Y
         lda     #COLOR_RED
         sta     HUD_COLOR
-        lbsr    draw_recolored_map_tile
+        lda     HUD_X
+        sta     RENDER_LETTER_X
+        lda     HUD_Y
+        sta     RENDER_LETTER_Y
+        lda     HUD_COLOR
+        sta     RENDER_LETTER_COLOR
+        lda     RENDER_FLAGS2
+        ora     #RF2_LETTER
+        sta     RENDER_FLAGS2
         rts
 alp_extra
         lda     ENTITY_VARIANT
@@ -582,7 +633,15 @@ alp_extra_draw
         sta     HUD_Y
         lda     #COLOR_YELLOW
         sta     HUD_COLOR
-        lbsr    draw_recolored_map_tile
+        lda     HUD_X
+        sta     RENDER_LETTER_X
+        lda     HUD_Y
+        sta     RENDER_LETTER_Y
+        lda     HUD_COLOR
+        sta     RENDER_LETTER_COLOR
+        lda     RENDER_FLAGS2
+        ora     #RF2_LETTER
+        sta     RENDER_FLAGS2
 alp_done
         rts
 
@@ -595,7 +654,9 @@ add_special_score
         std     HIGH_BCD
         lda     SCORE_BCD+2
         sta     HIGH_BCD+2
-        lbsr    draw_hud
+        lda     RENDER_FLAGS
+        ora     #RF_HUD
+        sta     RENDER_FLAGS
         rts
 
 draw_multiplier_hud
@@ -1296,13 +1357,21 @@ bct_to_yellow
 bct_redraw
         std     BONUS_TIMER
         lda     PICKUP_TIMER
-        bne     bct_popup
-        lbsr    restore_player
-        lbsr    draw_entities
-        lbsr    draw_player
+        bne     bct_entities
+        tst     PLAYER_ERASED
+        bne     bct_player_marked
+        ldd     PLAYER_FB
+        std     PLAYER_OLD_FB
+        lbsr    expose_player_background
+bct_player_marked
+        lda     RENDER_FLAGS
+        ora     #RF_ENTITIES|RF_PLAYER
+        sta     RENDER_FLAGS
         bra     bct_done
-bct_popup
-        lbsr    draw_entities
+bct_entities
+        lda     RENDER_FLAGS
+        ora     #RF_ENTITIES
+        sta     RENDER_FLAGS
 bct_done
         rts
 
@@ -1319,8 +1388,12 @@ perimeter_timer_tick
 ptt_green
         lda     #5              ; COLOR_GREEN
 ptt_draw
-        sta     HUD_COLOR
-        lbsr    draw_perimeter_box
+        sta     RENDER_BOX_COLOR
+        lda     BOX_INDEX
+        sta     RENDER_BOX_INDEX
+        lda     RENDER_FLAGS
+        ora     #RF_BOX
+        sta     RENDER_FLAGS
         inc     BOX_INDEX
         lda     BOX_INDEX
         cmpa    #92
@@ -1352,16 +1425,9 @@ rbt_store
 ; Green progress visible until the new circuit eventually reaches each tile.
 reset_perimeter_visual
         clr     BOX_INDEX
-        lda     #COLOR_WHITE
-        sta     HUD_COLOR
-rpv_box
-        lbsr    perimeter_box_coordinates
-        lbsr    draw_perimeter_box
-        inc     BOX_INDEX
-        lda     BOX_INDEX
-        cmpa    #92
-        blo     rpv_box
-        clr     BOX_INDEX
+        lda     RENDER_FLAGS2
+        ora     #RF2_PERIM_RESET
+        sta     RENDER_FLAGS2
         rts
 
 ; Index 0 is the thirteenth top box from the left.  Continue clockwise.
@@ -1697,9 +1763,12 @@ jra_done
 ;   Updates player state, framebuffer, saved background, and MAZE_STATE.
 ;==============================================================================
 player_tick
+        tst     PLAYER_ERASED
+        bne     pt_snapshot_ready
         ldd     PLAYER_FB
         std     PLAYER_OLD_FB
         clr     PLAYER_ERASED
+pt_snapshot_ready
 pt_alive
         lda     PLAYER_MANUAL
         beq     pt_input_active  ; preserve automatic entrance movement
@@ -1927,12 +1996,9 @@ pt_draw
         bne     pt_done
         lda     PICKUP_TIMER
         bne     pt_done
-        tst     PLAYER_ERASED
-        bne     pt_draw_direct
-        jsr     PLAYER_MODULE_COMPOSE
-        bra     pt_done
-pt_draw_direct
-        lbsr    draw_player
+        lda     RENDER_FLAGS
+        ora     #RF_PLAYER
+        sta     RENDER_FLAGS
 pt_done
         rts
 
@@ -1942,13 +2008,6 @@ expose_player_background
         tst     PLAYER_ERASED
         bne     epb_done
         inc     PLAYER_ERASED
-        ldd     PLAYER_FB
-        pshs    d
-        ldd     PLAYER_OLD_FB
-        std     PLAYER_FB
-        lbsr    restore_player
-        puls    d
-        std     PLAYER_FB
 epb_done
         rts
 
@@ -2153,7 +2212,7 @@ cm_rotate
         inca
         sta     GATE_ANIM_ID
         clr     GATE_COMPOSE_MODE
-        jsr     GATE_MODULE_COMPOSE
+        lbsr    queue_gate_render
         bra     cm_allowed
 
 cm_regular
@@ -2302,10 +2361,10 @@ draw_gate_diagonal
 dgd_no_neighbor
         puls    d
         std     GATE_X
-        lda     GATE_ANIM_ID
+        lda     RENDER_GATE_ID
         deca
         sta     GATE_ID
-        lda     GATE_ANIM_STYLE
+        lda     RENDER_GATE_STYLE
         ldb     #21
         mul
         leax    gate_diagonal_tiles,pcr
@@ -2334,8 +2393,28 @@ finish_gate_animation
         beq     fga_done
         lda     #1
         sta     GATE_COMPOSE_MODE
-        jsr     GATE_MODULE_COMPOSE
+        lbsr    queue_gate_render
+        clr     GATE_ANIM_ID
 fga_done
+        rts
+
+queue_gate_render
+        lda     RENDER_GATE_ID
+        bne     qgr_second
+        lda     GATE_ANIM_ID
+        sta     RENDER_GATE_ID
+        lda     GATE_COMPOSE_MODE
+        sta     RENDER_GATE_MODE
+        lda     GATE_ANIM_STYLE
+        sta     RENDER_GATE_STYLE
+        rts
+qgr_second
+        lda     GATE_ANIM_ID
+        sta     RENDER_GATE2_ID
+        lda     GATE_COMPOSE_MODE
+        sta     RENDER_GATE2_MODE
+        lda     GATE_ANIM_STYLE
+        sta     RENDER_GATE2_STYLE
         rts
 
 ; Bank 3 maps a hidden framebuffer before calling this renderer. The visible
@@ -2347,16 +2426,15 @@ gate_render_hidden
 grh_gate
         tst     GATE_COMPOSE_MODE
         bne     grh_final
-        lda     GATE_ANIM_ID
+        lda     RENDER_GATE_ID
         deca
         lbsr    draw_gate_diagonal
         bra     grh_player
 grh_final
         lbsr    restore_gate_diagonal_dots
-        lda     GATE_ANIM_ID
+        lda     RENDER_GATE_ID
         deca
         lbsr    draw_gate
-        clr     GATE_ANIM_ID
         lbsr    draw_entities
 grh_player
         lbsr    draw_player
@@ -2364,7 +2442,7 @@ grh_player
 
 ; Restore the two dot cells overwritten by the selected diagonal style.
 restore_gate_diagonal_dots
-        lda     GATE_ANIM_ID
+        lda     RENDER_GATE_ID
         deca
         ldb     #3
         mul
@@ -2372,7 +2450,7 @@ restore_gate_diagonal_dots
         leax    d,x
         ldd     ,x
         std     GATE_X
-        lda     GATE_ANIM_STYLE
+        lda     RENDER_GATE_STYLE
         lsla
         lsla
         leax    gate_diagonal_dot_offsets,pcr
@@ -2438,7 +2516,9 @@ cep_loop
         cmpa    #ENTITY_SKULL
         beq     cep_skull
         clr     2,x
-        lbsr    restore_entity_footprint
+        lda     RENDER_FLAGS
+        ora     #RF_ENTITIES
+        sta     RENDER_FLAGS
         dec     BONUS_LEFT
         lda     MULTIPLIER
         sta     PICKUP_MULTIPLIER
@@ -2456,12 +2536,16 @@ cep_loop
         beq     cep_multiplier_five
         inca
         sta     MULTIPLIER
-        lbsr    draw_multiplier_hud
+        lda     RENDER_FLAGS2
+        ora     #RF2_MULTIPLIER
+        sta     RENDER_FLAGS2
         bra     cep_check_clear
 cep_multiplier_five
         lda     #5
         sta     MULTIPLIER
-        lbsr    draw_multiplier_hud
+        lda     RENDER_FLAGS2
+        ora     #RF2_MULTIPLIER
+        sta     RENDER_FLAGS2
         bra     cep_check_clear
 cep_letter
         lbsr    apply_letter_pickup
@@ -2482,14 +2566,13 @@ cep_skull_loop
         lda     1,x
         sta     ENTITY_Y
         clr     2,x
-        pshs    x
-        lbsr    restore_entity_footprint
-        puls    x
 cep_skull_next
         leax    4,x
         dec     ENTITY_WORK
         bne     cep_skull_loop
-        lbsr    draw_entities
+        lda     RENDER_FLAGS
+        ora     #RF_ENTITIES
+        sta     RENDER_FLAGS
         clr     DEATH_TIMER
         lda     #1
         sta     DEATH_STATE
@@ -2519,8 +2602,10 @@ bsp_frame
         sta     PICKUP_FRAME
         lda     #PICKUP_HOLD_FRAMES
         sta     PICKUP_TIMER
-        lbsr    save_player
-        lbsr    draw_score_popup
+        lbsr    expose_player_background
+        lda     RENDER_FLAGS2
+        ora     #RF2_POPUP
+        sta     RENDER_FLAGS2
         rts
 
 pickup_tick
@@ -2528,8 +2613,12 @@ pickup_tick
         beq     put_done
         dec     PICKUP_TIMER
         bne     put_done
-        lbsr    restore_player
-        lbsr    draw_player
+        ldd     PLAYER_FB
+        std     PLAYER_OLD_FB
+        lbsr    expose_player_background
+        lda     RENDER_FLAGS
+        ora     #RF_PLAYER
+        sta     RENDER_FLAGS
 put_done
         rts
 
@@ -2590,10 +2679,20 @@ dpm_done
 ; shrink/wing frames for five frames each, R7C11 stationary for 30 frames,
 ; then 114 moving frames and a 37-frame blank before the replacement enters.
 death_tick
+        lda     DEATH_STATE
+        cmpa    #4
+        lbeq    dt_done
+        tst     PLAYER_ERASED
+        bne     dt_mark_render
+        ldd     PLAYER_FB
+        std     PLAYER_OLD_FB
         tst     PLAYER_BG_VALID
-        beq     dt_background_clear
-        lbsr    restore_player
-dt_background_clear
+        beq     dt_mark_render
+        lbsr    expose_player_background
+dt_mark_render
+        lda     RENDER_FLAGS
+        ora     #RF_DEATH
+        sta     RENDER_FLAGS
         lda     DEATH_STATE
         cmpa    #1
         beq     dt_shrink
@@ -2620,7 +2719,6 @@ dt_shrink_frame
 dt_first_circle
         clr     DEATH_FRAME
 dt_shrink_draw
-        lbsr    draw_death_frame
         inc     DEATH_TIMER
         lda     DEATH_TIMER
         cmpa    #89             ; first frame 29, next twelve 5 each
@@ -2677,7 +2775,6 @@ dt_swing_store
         stx     PLAYER_FB
         lda     #DEATH_ANGEL_FRAME
         sta     DEATH_FRAME
-        lbsr    draw_death_frame
 dt_swing_hidden
         inc     DEATH_TIMER
         rts
@@ -2697,10 +2794,11 @@ dt_finish_blank
         beq     dt_game_over
         deca
         sta     LIVES
-        lbsr    draw_lives
         lbsr    init_player
         clr     DEATH_STATE
-        lbsr    draw_player
+        lda     RENDER_FLAGS
+        ora     #RF_LIVES|RF_PLAYER
+        sta     RENDER_FLAGS
         rts
 dt_game_over
         lda     #4
@@ -2882,23 +2980,9 @@ eat_dot
         lda     ,x
         anda    #$7F
         sta     ,x
-        ldx     PLAYER_FB
-        leax    1124,x          ; cell tile is at row +7, byte +4 in save rect
-        ldb     #MAZE_CLEAN_TILE
-        clra
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        leay    screen_tiles,pcr
-        leay    d,y
-        lbsr    blit_tile
+        lda     RENDER_FLAGS
+        ora     #RF_DOT
+        sta     RENDER_FLAGS
         lbsr    refresh_enemy_zone_dot
         lbsr    add_dot_score
         dec     DOTS_LEFT
@@ -2929,6 +3013,14 @@ red_row
         dec     DRAW_COUNT
         bne     red_row
 red_done
+        rts
+
+;==============================================================================
+; Framebuffer ownership boundary. Gameplay publishes compact render intents;
+; only this phase invokes framebuffer-writing compositors.
+;==============================================================================
+render_frame
+        jsr     $0818
         rts
 
 ;==============================================================================

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Verify the enemy module's fixed ABI and phase-separated compositor."""
 
+from __future__ import annotations
+
 from pathlib import Path
 import re
 
@@ -16,7 +18,7 @@ resident = (root / "build/ladybug_resident.inc").read_text(encoding="utf-8")
 rom = (root / "build/ladybug-enemy-runtime.rom").read_bytes()
 sprites = (root / "build/ladybug-enemy-sprites.bin").read_bytes()
 
-if len(rom) < 21 or any(rom[offset] != 0x7E for offset in range(0, 21, 3)):
+if len(rom) < 27 or any(rom[offset] != 0x7E for offset in range(0, 27, 3)):
     raise SystemExit("enemy proof: fixed $0800 jump table is invalid")
 if len(rom) > 0x1000:
     raise SystemExit("enemy proof: bank-3 low-RAM module exceeds 4 KiB")
@@ -50,13 +52,14 @@ required = [
     "ldd     #300",
     "cmpa    #4",
     "sta     VEG_STATE",
-    "jsr     restore_player",
     "stb     BOX_TIMER",
     "clr     BOX_INDEX",
     "clr     BOX_PHASE",
     "clr     PLAYER_TICK_PENDING",
     "jmp     player_compose_impl",
     "jmp     gate_compose_impl",
+    "jmp     enemy_render_impl",
+    "jmp     frame_render_impl",
     "PLAYER_STAGE   equ $A3F0",
     "PLAYER_OLD_STAGE equ $A610",
     "et_contact_scan",
@@ -83,7 +86,7 @@ required = [
     "lbsr    enemy_sprite_cache",
     "lbsr    roam_prepare_shadow",
     "lbsr    roam_finish_shadow",
-    "rps_copy_actor",
+    "rsn_actor",
     "rfs_save_actor",
     "roam_copy_bg_to_fb",
     "roam_copy_fb_to_bg",
@@ -110,6 +113,14 @@ if "PLAYER_CACHE_KEY equ $1B05" not in source or 0x1FFE - 0x1B06 + 1 < 1024:
     raise SystemExit("enemy proof: native caches leave less than 1 KiB for stack growth")
 if source.index("et_render_test") > source.index("et_compose"):
     raise SystemExit("enemy proof: idle render gate must precede composition")
+tick_head = source[source.index("\nenemy_tick_impl\n"):
+                   source.index("\net_snapshot_ready\n")]
+if not (
+    tick_head.index("bita    #ERF_DIRTY")
+    < tick_head.index("bne     et_snapshot_ready")
+    < tick_head.index("lbsr    roam_snapshot_old")
+):
+    raise SystemExit("enemy proof: repeated same-Vbord enemy logic can overwrite its old snapshot")
 render_start = source.index("\net_render_test\n")
 render = source[render_start : source.index("\nenemy_collect_impl\n", render_start)]
 move_scan = source[source.index("\net_move_scan\n"):render_start]
@@ -211,12 +222,12 @@ for start_label, end_label in (
             )
 gate_turn_start = main.index("\ncm_rotate\n")
 gate_turn = main[gate_turn_start : main.index("\ncm_regular\n", gate_turn_start)]
-if "expose_player_background" in gate_turn or "jsr     GATE_MODULE_COMPOSE" not in gate_turn:
-    raise SystemExit("enemy proof: gate transition still mutates the visible player region")
+if "expose_player_background" in gate_turn or "lbsr    queue_gate_render" not in gate_turn:
+    raise SystemExit("enemy proof: gate transition does not publish a render intent")
 gate_finish_start = main.index("\nfinish_gate_animation\n")
 gate_finish = main[gate_finish_start : main.index("\ngate_render_hidden\n", gate_finish_start)]
-if "restore_player" in gate_finish or "jsr     GATE_MODULE_COMPOSE" not in gate_finish:
-    raise SystemExit("enemy proof: final gate state bypasses hidden composition")
+if "restore_player" in gate_finish or "lbsr    queue_gate_render" not in gate_finish:
+    raise SystemExit("enemy proof: final gate state bypasses the render queue")
 mainloop = main[main.index("mainloop\n") : main.index(";==============================================================================\n; Phase 5")]
 player_order = [
     "lbsr    finish_gate_animation",
@@ -232,14 +243,29 @@ if positions != sorted(positions):
 phase_tick = main[main.index("phase4_before_tick") : main.index(";==============================================================================\n; Phase 5")]
 if "sta     PLAYER_TICK_PENDING" not in phase_tick or "lbsr    player_tick" in phase_tick:
     raise SystemExit("enemy proof: 30 Hz player update is not deferred to Vbord")
+player_head = main[main.index("\nplayer_tick\n"):main.index("\npt_alive\n")]
+player_snapshot_order = [
+    "tst     PLAYER_ERASED",
+    "bne     pt_snapshot_ready",
+    "ldd     PLAYER_FB",
+    "std     PLAYER_OLD_FB",
+]
+if [player_head.index(fragment) for fragment in player_snapshot_order] != sorted(
+    player_head.index(fragment) for fragment in player_snapshot_order
+):
+    raise SystemExit("enemy proof: an earlier same-Vbord player exposure can be overwritten")
 skull = main[main.index("cep_skull\n") : main.index("; Replace the player")]
 if "lbsr    enemy_tick" not in skull:
     raise SystemExit("enemy proof: static skull does not trigger direct enemy reset")
 enemy_skull_start = source.index("\nenemy_skull_test\n")
 enemy_skull = source[enemy_skull_start : source.index("\nest_next\n", enemy_skull_start)]
-skull_order = ["jsr     restore_entity_footprint", "lbsr    gate_region_to_shadow", "clr     ,x"]
-if [enemy_skull.index(fragment) for fragment in skull_order] != sorted(enemy_skull.index(fragment) for fragment in skull_order):
-    raise SystemExit("enemy proof: skull cleanup is not synchronized into the hidden union")
+for fragment in ("clr     2,u", "clr     ,x", "sta     ENEMY_NEST_DIRTY",
+                 "sta     ENEMY_RENDER_FLAGS"):
+    if fragment not in enemy_skull:
+        raise SystemExit("enemy proof: skull cleanup does not publish state/render intents")
+for fragment in ("restore_entity_footprint", "gate_region_to_shadow"):
+    if fragment in enemy_skull:
+        raise SystemExit("enemy proof: skull gameplay path still writes framebuffer state")
 nest_start = source.index("\ncez_active_loop\n")
 nest_actor = source[nest_start : source.index("\ncez_active_next\n", nest_start)]
 if "tst     6,u" not in nest_actor or "cmpa    #10" in nest_actor:
@@ -261,6 +287,13 @@ death_start = main.index("\ndeath_tick\n")
 death = main[death_start : main.index("\ndraw_death_frame\n", death_start)]
 if "state 4: terminal game-over hold" not in death or "sta     DEATH_STATE" not in death[death.index("dt_game_over\n"):]:
     raise SystemExit("enemy proof: zero-life path can resume with an off-screen player")
+death_snapshot = death[:death.index("\ndt_mark_render\n")]
+if not (
+    death_snapshot.index("tst     PLAYER_ERASED")
+    < death_snapshot.index("bne     dt_mark_render")
+    < death_snapshot.index("std     PLAYER_OLD_FB")
+):
+    raise SystemExit("enemy proof: death can overwrite an earlier same-Vbord player exposure")
 respawn_start = death.index("\ndt_finish_blank\n")
 respawn = death[respawn_start : death.index("\ndt_game_over\n", respawn_start)]
 respawn_order = [
@@ -268,15 +301,95 @@ respawn_order = [
     "beq     dt_game_over",
     "deca",
     "sta     LIVES",
-    "lbsr    draw_lives",
     "lbsr    init_player",
+    "ora     #RF_LIVES|RF_PLAYER",
 ]
 if [respawn.index(fragment) for fragment in respawn_order] != sorted(
-        respawn.index(fragment) for fragment in respawn_order
+    respawn.index(fragment) for fragment in respawn_order
 ):
     raise SystemExit("enemy proof: final reserve is not consumed before replacement entry")
+
+# Phase 2 ownership proof: gameplay/state routines may call other mutation
+# routines, but they must not directly invoke any framebuffer-writing path.
+framebuffer_call = re.compile(
+    r"\b(?:lbsr|jsr)\s+("
+    r"draw_\w+|restore_\w+|save_player|blit_\w+|"
+    r"PLAYER_MODULE_COMPOSE|GATE_MODULE_COMPOSE|ENEMY_MODULE_RENDER"
+    r")"
+)
+
+
+def assert_state_only(text: str, ranges: list[tuple[str, str]], owner: str) -> None:
+    for start_label, end_label in ranges:
+        start = text.index(f"\n{start_label}\n")
+        end = text.index(f"\n{end_label}\n", start)
+        match = framebuffer_call.search(text[start:end])
+        if match:
+            raise SystemExit(
+                f"enemy proof: {owner} state routine {start_label} directly "
+                f"calls framebuffer path {match.group(1)}"
+            )
+
+
+assert_state_only(
+    main,
+    [
+        ("next_stage", "add_dot_score"),
+        ("add_dot_score", "add_bonus_score"),
+        ("add_bonus_score", "apply_letter_pickup"),
+        ("apply_letter_pickup", "add_special_score"),
+        ("add_special_score", "draw_multiplier_hud"),
+        ("bonus_color_tick", "perimeter_timer_tick"),
+        ("perimeter_timer_tick", "reload_box_timer"),
+        ("reset_perimeter_visual", "perimeter_box_coordinates"),
+        ("player_tick", "player_cell_offset"),
+        ("cm_rotate", "cm_regular"),
+        ("finish_gate_animation", "gate_render_hidden"),
+        ("check_entity_pickup", "draw_score_popup"),
+        ("death_tick", "draw_death_frame"),
+        ("eat_dot", "refresh_enemy_zone_dot"),
+    ],
+    "resident",
+)
+assert_state_only(
+    source,
+    [
+        ("enemy_init_impl", "reset_enemy_state"),
+        ("enemy_release_impl", "enemy_tick_impl"),
+        ("enemy_tick_impl", "enemy_render_impl"),
+        ("enemy_collect_impl", "enemy_choose_direction"),
+        ("enemy_skull_test", "est_next"),
+    ],
+    "bank-3",
+)
+mainloop = main[main.index("\nmainloop\n") : main.index("\ninit_game_state\n")]
+if mainloop.count("lbsr    render_frame") != 1:
+    raise SystemExit("enemy proof: mainloop must enter the framebuffer owner exactly once")
+frame_renderer = source[source.index("\nframe_render_impl\n"):
+                        source.index("\nenemy_collect_impl\n")]
+for fragment in (
+    "lbsr    enemy_render_impl",
+    "lbsr    player_compose_impl",
+    "lbsr    gate_compose_impl",
+    "jsr     draw_hud",
+    "jsr     draw_player",
+):
+    if fragment not in frame_renderer:
+        raise SystemExit("enemy proof: central frame renderer is incomplete: " + fragment)
+render_order = [
+    "lbsr    render_exposed_player",
+    "jsr     erase_entity_footprints",
+    "jsr     draw_maze_state_cell",
+    "lbsr    enemy_render_impl",
+    "lbsr    player_compose_impl",
+    "lbsr    gate_compose_impl",
+]
+if [frame_renderer.index(fragment) for fragment in render_order] != sorted(
+    frame_renderer.index(fragment) for fragment in render_order
+):
+    raise SystemExit("enemy proof: background, enemy, player, and gate layer order changed")
 print(
-    f"enemy proof: {len(rom)}/4096 bank-3 bytes; fixed ABI, compact staging, "
+    f"enemy proof: {len(rom)}/4096 bank-3 bytes; fixed ABI, state/render ownership, compact staging, "
     "64-byte source stride, idle render gate, off-screen nest compositor, "
     "immediate death reset, reset/frozen release timer, staged player publish, "
     "hidden gate publish, footprint collision, skull decrement, exclusive "

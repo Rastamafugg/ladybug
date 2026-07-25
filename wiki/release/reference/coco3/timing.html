@@ -37,7 +37,7 @@
       <table class="wiki-table">
         <thead><tr><th>Source</th><th>Rate</th><th>Path</th><th>Where to enable</th></tr></thead>
         <tbody>
-          <tr><td><strong>Vbord (vertical sync)</strong></td><td>60 Hz (16.67 ms)</td><td>GIME ACVC</td><td><code>$FF92</code> bit 3, plus Init0 bit 5</td></tr>
+          <tr><td><strong>Vbord (bottom-border edge)</strong></td><td>60 Hz (16.67 ms)</td><td>GIME ACVC</td><td><code>$FF92</code> bit 3, plus Init0 bit 5</td></tr>
           <tr><td><strong>Hbord (horizontal sync)</strong></td><td>~15.7 kHz (63.5 µs)</td><td>GIME ACVC</td><td><code>$FF92</code> bit 4</td></tr>
           <tr><td><strong>Timer (programmable)</strong></td><td>12-bit reload at 63.5 µs or 70 ns ticks</td><td>GIME ACVC</td><td><code>$FF94/95</code> reload, <code>$FF92</code> bit 5</td></tr>
           <tr><td>PIA1 CB1 (legacy 60 Hz VSYNC)</td><td>60 Hz</td><td>PIA1</td><td><code>$FF03</code> bit 0</td></tr>
@@ -52,6 +52,12 @@
         <li>They share the GIME's interrupt-ack mechanism (read <code>$FF92</code> to clear), so an interrupt handler only has one ack point regardless of which source fired.</li>
         <li>They don't disturb the keyboard/joystick code path that reuses PIA1.</li>
       </ol>
+      <p>
+        Vbord is generated when vertical scan reaches the bottom border,
+        after the active image. This makes its handler the appropriate point
+        to select a completed back-buffer base before the next active frame.
+        Read <code>$FF92</code> to acknowledge it.
+      </p>
       <p>
         FIRQ priority — IRQ &lt; FIRQ &lt; NMI — means an FIRQ for serial /
         cartridge can preempt the main IRQ.

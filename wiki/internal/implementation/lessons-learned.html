@@ -25,6 +25,42 @@
     </header>
 
     <section>
+      <h2>GMC payload capacity excludes the forced-RAM and I/O tail of every bank</h2>
+      <p><strong>Filed 2026-07-23.</strong></p>
+      <p>A preliminary sparse-stream packing counted all 16 KiB of each GMC bank. The CPU can read cartridge data only at <code>$C000-$FDFF</code>, so bank offsets <code>$3E00-$3FFF</code> map to forced RAM and dedicated I/O rather than cartridge bytes.</p>
+      <p><strong>Rule:</strong> constrain every loader source interval to bank offsets below <code>$3E00</code>. Validate both file offsets and their CPU addresses; nominal ROM-file capacity is not runtime-readable capacity.</p>
+      <p><strong>Applies to:</strong> sparse sprite payloads, cold presentation screens, and every future GMC bank-to-RAM copy.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_sparse_sprites.py</code>, <a href="../platform/cartridge.html">cartridge layout</a>, and the phase-1 sparse loader proof.</p>
+    </section>
+
+    <section>
+      <h2>Persistent framebuffer swaps require per-buffer history</h2>
+      <p><strong>Filed 2026-07-23.</strong></p>
+      <p>Changing the GIME display base removes dirty-region publication, but the old front buffer becomes an older world snapshot as soon as it becomes the next back buffer. A shared save-under buffer or one-shot dirty flag cannot restore that snapshot correctly.</p>
+      <p><strong>Rule:</strong> each physical framebuffer owns actor positions, frame keys, clean save-under data, and pending background damage. Logic mutates authoritative state without drawing; the back renderer restores its own history, projects current damage, saves clean destinations, draws final layers, and only then requests a Vbord commit.</p>
+      <p><strong>Applies to:</strong> persistent double buffering, moving actor overlap, gate transients, nest animation, pickups, deaths, and stage rebuilds.</p>
+      <p><strong>Citation:</strong> <a href="./ping-pong-framebuffer.html">persistent ping-pong framebuffer design</a>, fresh four-enemy trace, and GIME vertical-offset/Vbord references.</p>
+    </section>
+
+    <section>
+      <h2>IRQ-visible state must not live behind a temporary MMU mapping</h2>
+      <p><strong>Filed 2026-07-23.</strong></p>
+      <p>A ping-pong renderer may map PAR5 from game-state page <code>$34</code> to a sparse-sprite page while Vbord remains enabled. An IRQ that reads handshake fields through PAR5 would then observe sprite bytes instead of ownership state.</p>
+      <p><strong>Rule:</strong> place framebuffer ownership, readiness, sequence counters, and IRQ diagnostics in always-mapped physical page <code>$38</code>. Keep the IRQ independent of PAR5, and treat every temporary PAR5 mapping as scoped and non-nestable.</p>
+      <p><strong>Applies to:</strong> framebuffer commits, sparse sprite decoding, loader windows, and future interruptible MMU windows.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> IRQ/MMU layout and the pre-implementation review of <a href="./ping-pong-framebuffer.html">persistent ping-pong buffering</a>.</p>
+    </section>
+
+    <section>
+      <h2>Missed publication must freeze the logical render epoch</h2>
+      <p><strong>Filed 2026-07-23.</strong></p>
+      <p>If Vbord arrives before a back image is ready, the old front remains visible. Advancing gameplay from the free-running Vbord counter would skip transient gate, popup, release, or death states while the unfinished image still represents the prior epoch.</p>
+      <p><strong>Rule:</strong> advance simulation once per committed render transaction. On a missed Vbord, finish and publish the same frozen epoch; do not catch up timers or retarget the buffer.</p>
+      <p><strong>Applies to:</strong> persistent double buffering, animation cadence, movement staggering, and overload recovery.</p>
+      <p><strong>Citation:</strong> the pre-implementation review of <a href="./ping-pong-framebuffer.html">persistent ping-pong buffering</a>.</p>
+    </section>
+
+    <section>
       <h2>Expand immutable sprites at the hot-cache boundary</h2>
       <p><strong>Filed 2026-07-23.</strong></p>
       <p>The packed enemy atlas and resident player frames conserve storage, but expanding the same selected frame inside every framebuffer or compact-stage draw repeats palette lookup and nibble unpacking in the hottest rendering paths.</p>

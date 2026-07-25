@@ -23,6 +23,41 @@
     </header>
 
     <section>
+      <h3>2026-07-25 &middot; implementation/lint &mdash; state mutation separated from framebuffer rendering</h3>
+      <p>Implemented strict-60-Hz migration phase 2. Player, enemy, gate, score, pickup, death, stage, colour, and perimeter gameplay paths now mutate authoritative state and publish compact direct-page render intents. A single bank-3 frame renderer at ABI entry <code>$0818</code> consumes those intents once per Vbord; entry <code>$0815</code> separately consumes enemy pointer/ownership snapshots after mutation. A two-record gate queue preserves a final gate frame followed by a new diagonal frame in the same epoch. The structural verifier rejects framebuffer calls from mutation ranges, and the bounded GMC trace proves both the relocated main loop and central renderer execute. Current build use is 8,146/8,192 resident bytes and 3,269/4,096 bank-3 bytes. A full local-link lint found no missing HTML targets. Persistent A/B allocation, sparse runtime decoding, and Vbord swapping remain for later phases.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-23 &middot; implementation/lint &mdash; sparse actor atlases and segmented GMC plan</h3>
+      <p>Implemented strict-60-Hz phase 1 without changing the active renderer or framebuffer owner. The canonical build now generates a 24,148-byte indexed enemy stream payload across physical pages <code>$35-$37</code> and a 2,478-byte indexed player payload for page <code>$39</code>. An independent decoder compares all 128 enemy and 16 player frames byte-for-byte with native 4bpp expansion, checks row commands and page boundaries, and reconstructs both payloads through the emitted seven-record loader table. Candidate bank-2/bank-3 images preserve signatures and the current enemy module. Corrected the capacity model to exclude per-bank offsets <code>$3E00-$3FFF</code>, which map to <code>$FE00-$FFFF</code>; the validated CPU-readable spare capacity is 1,018 bytes rather than 2,042. The active packed atlas remains in the delivered ROM until runtime sparse decoding is implemented.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-23 &middot; query/review &mdash; ping-pong framebuffer edge cases</h3>
+      <p>Reviewed the persistent A/B protocol against the current IRQ, PAR5 sprite/cache windows, gate and death timing, entity erasure, actor save-under ownership, and fragmented GMC banks. Corrected two blocking gaps by moving all IRQ-visible handshake state to always-mapped physical page <code>$38</code> and defining simulation as one frozen logical epoch per successful commit, with no timer catch-up after a missed Vbord. Tightened damage records to preserve old erase footprints, made actor closure transitive across buffer-old/logical-new rectangles and background damage, specified appearance/disappearance and save-under update modes, bound transient presentations and stage rebuilds to commit epochs, and required an explicit validated GMC segment-copy table. Added forced-delay, PAR5-interrupt, entity-removal, overlap, and rebuild acceptance cases.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-23 &middot; query/design &mdash; persistent ping-pong framebuffer</h3>
+      <p>Designed the strict-60-Hz renderer protocol. Physical pages <code>$30-$33</code> and <code>$2C-$2F</code> become persistent A/B snapshots; bottom-border Vbord commits a completed back buffer with one <code>$FF9D</code> write. Each buffer owns actor positions, clean save-under history, and pending current-state damage, while game logic stops drawing directly. Exact generated-asset analysis found that 128 indexed/no-cross-page enemy command streams require 24,148 bytes in physical pages <code>$35-$37</code>, and 16 player streams require 2,478 bytes in page <code>$39</code>; both fit the two GMC expansion banks after replacing packed caches. Removing normal shadow transfer, union publication, runtime cache expansion, and most destination saves models the steady four-enemy path at 24,500-27,500 cycles. Filed migration order, writer guard, convergence tests, missed-commit diagnostics, and a hard 29,666-cycle acceptance gate.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-23 &middot; query/design &mdash; remaining shadow-copy and native-blit paths</h3>
+      <p>Reduced the fresh trace to individual hot instructions. The shadow path spends 33,408 of 39,640 cycles in six per-byte copy/count instructions across 1,152 bytes; mapper and row overhead are secondary. Selected a roaming-only 8/9-byte word-copy kernel with a rare crossing-row fallback while preserving the generic gate/player copier, modeled at approximately 24,000 cycles saved. The native blitter sees 224 zero, 224 fully opaque, and 64 partial bytes among 512, so a B-counter sparse loop can skip zeros, directly store opaque bytes, and mask only partial bytes for approximately 9,800 further cycles without cache growth. Together they model at approximately 47,600 cycles: inside the existing 30 Hz aggregate envelope but not one Vbord interval.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-23 &middot; query/profile &mdash; optimized four-enemy frame and dirty-union overlap</h3>
+      <p>Captured one controlled hot-cache, movement-only four-enemy XRoar frame at 18,212 instructions and 81,370 6809 cycles, down 8,192 instructions or 31.0% from the prior 26,404-instruction frame but still 2.74 times the 60 Hz hardware budget. Shadow import/publication remains the largest path at 8,464 instructions and 39,640 cycles. A 1,280-frame normal-navigation sample produced 108 frames with one overlapping pair and 1,172 with none; only 79 frames had a smaller bounding union. A zero-overhead oracle would save 7,560 of 1,474,560 import/publication bytes, 0.513%, so runtime dirty-union coalescing is rejected.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-23 &middot; query/design &mdash; dirty-union coalescing gate</h3>
+      <p>Reviewed coalescing after committing the lower-risk renderer series. Four moving enemies generate four 144-byte imports and four 144-byte publications, but an always-on coalescer must scan rectangle pairs and derive row/column bounds from framebuffer-pointer records even when no actors overlap. Bounding-box merging is not automatically profitable: slight diagonal overlap can copy more than the original 288 bytes. Deferred implementation until a fresh optimized four-enemy trace and overlap histogram prove material savings. If the gate passes, the bounded design uses at most four descriptors, merges only cost-reducing pairs, and does not cross prepare, transition-seed, or final-publication phase boundaries.</p>
+    </section>
+
+    <section>
       <h3>2026-07-23 &middot; implementation/lint &mdash; page-segment shadow copies</h3>
       <p>Changed hidden-framebuffer import and publication to map PAR5 once per 8 KiB page segment instead of once per scanline. The loops advance both live and shadow pointers by the 160-byte framebuffer stride, retain the existing split for a scanline crossing <code>$C000</code>, and restore physical page <code>$34</code> on return. A 16-row rectangle has a static lower bound of 138 instructions saved, approximately 1,104 instructions for eight four-enemy movement copies. The guarded GMC proof passed at 2,845/4,096 bank-3 bytes, and live GDB tests copied and published exact rows across <code>$3FFF/$4000</code>. Arcade-fidelity, Python byte-compilation, scoped whitespace, and all 164 wiki HTML/local-link checks also passed. Fresh whole-frame tracing remains pending.</p>
     </section>

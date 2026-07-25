@@ -45,6 +45,8 @@ build/ladybug_maze.inc               (semantic cells/navigation/gates)
 build/ladybug_screen.inc             (palette, map, tiles, popup multiplier characters, score frames, contextual gate redraw data)
 build/ladybug_resident.inc           (packed four-direction player, death, and vegetable frames)
 build/ladybug-enemy-sprites.bin      (eight packed N/E/S/W four-frame enemy sets)
+build/ladybug-enemy-sparse.bin       (128 indexed native-4bpp sparse streams)
+build/ladybug-player-sparse.bin      (16 indexed native-4bpp sparse streams)
    │
 src/main.s                           (resident 6809 runtime)
 src/enemy_runtime.s                  (bank-3 low-RAM enemy module)
@@ -52,6 +54,8 @@ src/enemy_runtime.s                  (bank-3 low-RAM enemy module)
    │  lwasm: 16 KB runtime bank + 16 KB bootstrap bank
    ▼
 build/ladybug-runtime.rom + build/ladybug-enemy-runtime.rom + build/ladybug-gmc-boot.rom
+build/ladybug-sparse-bank2.bin + build/ladybug-sparse-bank3.bin (candidate only)
+build/ladybug-sparse-loader.inc + build/ladybug-sparse-layout.json (candidate proof)
    │  compose bank 0 bootstrap, bank 1 runtime, bank 2 enemy sprites, bank 3 enemy module
    ▼
 build/ladybug.rom    (64 KB, four 16 KB GMC banks)
@@ -72,7 +76,7 @@ emulated CoCo 3      (physical target: GMC-compatible bank-select hardware)
       <table class="wiki-table">
         <thead><tr><th>Command</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen and packed curated sprite groups, assemble, enforce the resident/asset ROM boundaries, and pad. Output includes <code>assets/arcade/maze.json</code>, <code>build/ladybug_maze.inc</code>, <code>build/ladybug_screen.inc</code>, <code>build/ladybug_resident.inc</code>, <code>build/ladybug.rom</code>, <code>build/ladybug.lst</code>, and <code>build/ladybug.map</code>.</td></tr>
+          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen and packed curated sprite groups, assemble, enforce the resident/asset ROM boundaries, generate and independently verify indexed sparse enemy/player streams plus their candidate segmented GMC layout, and pad. The sparse candidate artifacts do not replace the active packed renderer yet.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch XRoar with the canonical cart profile and map cursor keys to the right CoCo joystick through <code>kjoy0</code>.</td></tr>
           <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then trace a bounded headless XRoar run and verify bank signatures, the bank-2 sprite selection, bank-3 low-RAM copy, bank-1 loading, both fast-clock writes, the TY=1 all-RAM handoff, repeated main-loop execution, and the enemy module ABI/compositor contracts.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
@@ -86,6 +90,8 @@ tiled/coco-screen.tmx      (hand-authored layered screen)
 src/main.s                 (top of build, ORG $C000)
 src/enemy_runtime.s        (bank-3 module, ORG $0800)
 scripts/build_screen.py    (TMX flattener and packed-atlas generator)
+scripts/build_sparse_sprites.py (indexed sparse streams and candidate GMC layout)
+scripts/verify_sparse_sprites.py (independent stream decoder and loader proof)
 scripts/derive_maze.py     (semantic maze validator/generator)
 build/                     (created if missing; generated outputs land here)
 scripts/build.sh
@@ -130,6 +136,21 @@ lwasm -9 --format=raw \
         atlas copied to physical page <code>$35</code>; selected frames are
         expanded to native 4bpp and cached at <code>$1800-$1A7F</code>. The
         selected player frame is cached at <code>$1A85-$1B04</code>.
+      </p>
+      <p>
+        After assembling the enemy module, phase 1 also runs
+        <code>build_sparse_sprites.py</code> and
+        <code>verify_sparse_sprites.py</code>. The outputs are
+        <code>ladybug-enemy-sparse.bin</code>,
+        <code>ladybug-player-sparse.bin</code>,
+        <code>ladybug-sparse-bank2.bin</code>,
+        <code>ladybug-sparse-bank3.bin</code>,
+        <code>ladybug-sparse-loader.inc</code>, and
+        <code>ladybug-sparse-layout.json</code>. The proof decodes every frame,
+        checks physical-page containment and signatures, excludes inaccessible
+        GMC offsets <code>$3E00-$3FFF</code>, and reconstructs both physical
+        payloads from all seven copy records. Candidate capacity is 1,018
+        CPU-readable bytes spare.
       </p>
 
       <h3>2. Pad both source banks to 16 KB and compose the 64 KB GMC image</h3>

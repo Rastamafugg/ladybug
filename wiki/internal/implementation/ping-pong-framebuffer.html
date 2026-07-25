@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Persistent Ping-Pong Framebuffer — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation · architecture</p>
+      <h1>Persistent Ping-Pong Framebuffer <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Phased replacement for region import/publication, targeting one complete
+        steady-gameplay transaction per 60 Hz Vbord interval.
+      </p>
+    </header>
+
+    <section>
+      <h2>Status and decision</h2>
+      <p>
+        <strong>Approved architecture; migration phases 1 and 2 implemented.</strong> Physical
+        pages <code>$30-$33</code> and <code>$2C-$2F</code> become equal
+        persistent framebuffer A/B snapshots. The GIME scans one while PAR1
+        through PAR4 map the other for rendering. A completed back buffer is
+        committed at Vbord by changing only <code>$FF9D</code>; normal
+        gameplay no longer imports or publishes dirty rectangles.
+      </p>
+      <p>
+        Phase 2 now enforces the first ownership boundary: gameplay routines
+        mutate authoritative state and publish compact render intents, while
+        bank-3 entry <code>$0818</code> is the single per-Vbord framebuffer
+        owner. Enemy logic snapshots prior actor pointers and save-under
+        ownership before mutation; bank-3 entry <code>$0815</code> consumes
+        those snapshots during rendering. Gate intents retain up to two ordered
+        operations so a pending final frame and a new diagonal frame cannot
+        overwrite each other in one epoch. A build-time structural proof rejects
+        direct framebuffer calls from player, enemy, gate, score, pickup, death,
+        and timer mutation ranges.
+      </p>
+      <p>
+        The persistent A/B swap itself remains unimplemented. This is a protocol refactor. Game logic must stop drawing directly,
+        each framebuffer must own its own actor restoration state, and every
+        background mutation must remain pending until both buffers have
+        projected the current logical state.
+      </p>
+    </section>
+
+    <section>
+      <h2>Pre-implementation edge-case review</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Severity</th><th>Failure mode</th><th>Required disposition</th></tr></thead>
+        <tbody>
+          <tr><td>Blocking</td><td>Vbord reads ownership state while PAR5 maps sprite data</td><td>Keep every IRQ-visible byte in always-mapped page <code>$38</code></td></tr>
+          <tr><td>Blocking</td><td>A missed Vbord advances timers past an uncommitted transient</td><td>Freeze one logical/render epoch until commit; schedule from commit sequence</td></tr>
+          <tr><td>High</td><td>Current-state damage cannot erase a removed or moved object's old pixels</td><td>Record old footprint coverage for both buffers before mutating the record</td></tr>
+          <tr><td>High</td><td>Restoring one actor erases an overlapping unchanged actor</td><td>Compute transitive closure over buffer-old and logical-new rectangles plus underlay damage</td></tr>
+          <tr><td>High</td><td>Gate, popup, death, or rebuild state is skipped or later reappears</td><td>Bind transient lifetime and full-rebuild barriers to successful commits</td></tr>
+          <tr><td>Medium</td><td>Aggregate GMC free bytes fit but fragmented source intervals do not</td><td>Generate and validate an explicit segmented loader copy table</td></tr>
+        </tbody>
+      </table>
+      <p>
+        These dispositions are incorporated below. Residual proof gates remain
+        the real-hardware <code>$FF9D</code> latch point, complete render-path
+        cycle measurements, and image convergence under forced interrupt and
+        delay tests.
+      </p>
+    </section>
+
+    <section>
+      <h2>Hardware basis</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Buffer</th><th>Physical pages</th><th>Base</th><th><code>$FF9D/$FF9E</code></th></tr></thead>
+        <tbody>
+          <tr><td>A</td><td><code>$30-$33</code></td><td><code>$60000</code></td><td><code>$C0/$00</code></td></tr>
+          <tr><td>B</td><td><code>$2C-$2F</code></td><td><code>$58000</code></td><td><code>$B0/$00</code></td></tr>
+        </tbody>
+      </table>
+      <p>
+        GIME scanout uses the physical vertical-offset address independently
+        of the CPU MMU. Both buffers are 8 KiB aligned, so their low offset
+        byte is always zero and the swap is one write to <code>$FF9D</code>.
+        The documented Vbord IRQ occurs when vertical scan reaches the bottom
+        border, leaving the lower border and vertical blank before the next
+        active image. The IRQ handler is therefore the sole display-base
+        owner. Real-hardware Phase 10 must still verify that the write is
+        latched without a split frame.
+      </p>
+    </section>
+
+    <section>
+      <h2>Ownership state</h2>
+<pre><code>FB_FRONT_ID       0=A, 1=B
+FB_BACK_ID        opposite of FRONT
+FB_RENDER_PENDING back image is complete and may be committed
+FB_COMMIT_SEQ     incremented by the Vbord IRQ after a swap
+FB_SIM_SEQ        logical transaction number; advances once per commit
+FB_MISSED_COMMIT  Vbord arrived before the transaction was ready
+FB_RENDER_ACTIVE  diagnostic: CPU currently owns and writes BACK
+
+Per framebuffer:
+  player: valid, framebuffer pointer, frame key, 128-byte clean background
+  enemy[4]: valid, framebuffer pointer, frame key,
+            128-byte clean background, horizontal/vertical ring phase
+  damage: full rebuild, maze cells, gates, entities, perimeter, HUD,
+          nest, popup/death presentation
+</code></pre>
+      <p>
+        Every field read or written by the IRQ, including the FRONT/BACK IDs,
+        readiness flag, sequence counters, and diagnostics, must live in
+        always-mapped physical page <code>$38</code>. It must not live behind
+        PAR5: sprite decoding temporarily maps PAR5 away from game-state page
+        <code>$34</code>, and Vbord may interrupt that decoder. The IRQ does
+        not read per-buffer actor or damage metadata.
+      </p>
+      <p>
+        The existing A-side player/enemy save-under storage remains usable.
+        A second set plus metadata and both damage ledgers require less than
+        1 KiB in the free <code>$A898-$BFFD</code> game-state range. PAR5
+        remains physical page <code>$34</code> except while a precompiled
+        sprite stream is being read.
+      </p>
+    </section>
+
+    <section>
+      <h2>Frame transaction</h2>
+      <ol>
+        <li><strong>Wait for ownership.</strong> Main code does not begin another transaction while <code>FB_RENDER_PENDING</code> is set. After the IRQ commits, map the new back buffer into PAR1-PAR4 and assert that it is not FRONT.</li>
+        <li><strong>Advance one logical epoch without drawing.</strong> Sample input and update movement, collision, timers, score, gate, entity, and death state exactly once. Freeze that state until this image commits. Use <code>FB_SIM_SEQ</code>, not the free-running Vbord counter, for even/odd player-enemy staggering and gameplay timers.</li>
+        <li><strong>Select actor closure.</strong> Seed the set with actors whose position, frame, visibility, or underlay differs from that buffer's metadata, including every actor touched by pending background damage. Repeatedly add any actor whose buffer-old or logical-new footprint intersects any selected old/new footprint.</li>
+        <li><strong>Expose clean background.</strong> Restore every selected actor from this buffer's own save-under state before applying background damage. No actor is saved or drawn during this phase.</li>
+        <li><strong>Project pending background state.</strong> Apply damage in fixed order: maze cells, gates, entities/perimeter, HUD/lives, nest, then popup/death presentation. Clear only the target buffer's pending records after their projections finish.</li>
+        <li><strong>Maintain clean destinations.</strong> A frame-only change at the same position retains its existing save-under bytes. A normal one-byte horizontal or two-row vertical move rotates the circular background and captures only the exposed strip. Appearance, disappearance, arbitrary movement, clipping, or any intersecting underlay damage uses the explicit full-capture or no-destination case.</li>
+        <li><strong>Draw final layers.</strong> Draw roaming enemies, then the player or its presentation replacement last, preserving the current player-over-enemy ownership. Record valid/hidden state, frame key, logical destination, and ring phase for this buffer.</li>
+        <li><strong>Publish readiness.</strong> Restore PAR5 to page <code>$34</code> and finish target metadata, then briefly mask IRQ, clear <code>FB_RENDER_ACTIVE</code>, and set <code>FB_RENDER_PENDING</code> as one handoff. Do not alter <code>$FF9D</code> or FRONT/BACK IDs in main code.</li>
+        <li><strong>Commit at Vbord.</strong> The IRQ acknowledges <code>$FF92</code>, updates the raw Vbord counter, and, only when pending, derives <code>$C0</code> or <code>$B0</code> from BACK, writes <code>$FF9D</code>, exchanges FRONT/BACK IDs, clears pending, and increments both commit and simulation sequences.</li>
+      </ol>
+      <p>
+        If Vbord arrives while rendering is active and readiness is clear, the
+        IRQ leaves the old front selected and increments
+        <code>FB_MISSED_COMMIT</code>. Main finishes the same frozen logical
+        epoch, marks it ready, and waits for a later Vbord. It does not catch
+        up timers, run another logic epoch, change a transient presentation,
+        or switch the target buffer. This prevents partial display and makes
+        overload degrade by slowing simulation rather than skipping retained
+        states. Acceptance still requires zero misses during steady gameplay.
+      </p>
+    </section>
+
+    <section>
+      <h2>Damage ledger</h2>
+      <p>
+        Damage represents current logical state, not a replay of historical
+        drawing commands. Persistent mutations set the relevant bit for both
+        buffers; applying one buffer clears only its copy. Multiple mutations
+        before a buffer is reused coalesce naturally to the latest state.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Damage class</th><th>State source</th><th>Projection</th></tr></thead>
+        <tbody>
+          <tr><td>Maze cells</td><td><code>MAZE_STATE</code></td><td>Base tile/dot restoration before higher layers</td></tr>
+          <tr><td>Gates</td><td>gate state + animation phase</td><td>Context background, gate overlay, diagonal/final frame</td></tr>
+          <tr><td>Entities</td><td>entity records + bonus colour</td><td>Erase old footprints, draw current objects</td></tr>
+          <tr><td>Perimeter</td><td>box phase/index</td><td>Current White/Green box projection</td></tr>
+          <tr><td>HUD/lives</td><td>score, words, stage, multiplier, lives</td><td>Idempotent field redraw</td></tr>
+          <tr><td>Nest</td><td>enemy/vegetable animation state</td><td>Clean nest background plus current nest actors</td></tr>
+          <tr><td>Presentation</td><td>pickup/death state</td><td>Popup or death layer replacing the player</td></tr>
+        </tbody>
+      </table>
+      <p>
+        A damage record must retain enough erase coverage even after logical
+        state changes. Maze damage is a per-buffer cell bitset. Entity removal
+        marks every cell in the old footprint for both buffers before clearing
+        the record; appearance or movement also marks its new footprint.
+        HUD fields use field bits, and gate, perimeter, nest, and presentation
+        records identify the affected region or a full-region rebuild. A
+        coarse class bit without old-footprint coverage is insufficient.
+      </p>
+      <p>
+        A transient gate diagonal is transaction-scoped state and remains
+        frozen until the diagonal image commits, even after a missed Vbord.
+        Only the following committed epoch advances to the persistent final
+        gate state and marks both buffers, so the diagonal cannot be skipped
+        or reappear. Popup, death, respawn, nest-to-roaming handoff, and actor
+        disappearance use the same visible/hidden plus epoch rule. Stage
+        rebuilds use a full-rebuild barrier: gameplay state is frozen, the
+        front remains displayed, one back image is built and committed, then
+        the other buffer is rebuilt to the same state before normal epochs
+        resume.
+      </p>
+    </section>
+
+    <section>
+      <h2>Sparse sprite streams</h2>
+      <p>
+        Removing shadow transfers alone leaves approximately 41,730 cycles in
+        the measured frame, so persistent buffering must be paired with a
+        faster native draw representation. The build should precompile each
+        native frame into row command streams:
+      </p>
+<pre><code>row:
+  $FF                               end row
+  start, opaque_length, pixels...   direct stores
+  start, partial_length|$80,
+         mask,pixel pairs...        destination-preserving merges
+</code></pre>
+      <p>
+        Phase 1 now generates and independently verifies this representation
+        on every canonical build. The 128 enemy
+        frames require 23,466 stream bytes. A 384-byte page/offset index and
+        298 bytes of no-cross-page padding produce 24,148 bytes, fitting
+        physical pages <code>$35-$37</code> with 428 bytes free. Sixteen
+        player frames require 2,430 stream bytes plus a 48-byte index and fit
+        physical page <code>$39</code>. These payloads replace the 8,192-byte
+        packed enemy atlas and resident packed player frames, fit the free
+        space across GMC banks 2 and 3 after the reserved 4 KiB enemy module,
+        and remove frame-time expansion/cache misses.
+      </p>
+      <p>
+        During a draw, PAR5 maps the indexed stream page. The decoder may use
+        only registers, direct page, stack, and the PAR1-PAR4 back
+        framebuffer until PAR5 is restored to page <code>$34</code>. All
+        decoder scratch and every IRQ-visible byte must therefore be in
+        physical page <code>$38</code>; per-buffer metadata is read before
+        mapping and written after restoration. PAR5 ownership is scoped and
+        non-nestable.
+      </p>
+      <p>
+        Aggregate GMC capacity is not a sufficient loader proof because bank
+        3's 4 KiB enemy module splits its free space. The stream generator
+        must emit an explicit ROM-segment-to-physical-page copy table, avoid
+        the two bank signature words, prohibit a frame from crossing an 8 KiB
+        physical page, and validate every source and destination interval for
+        overlap and bounds.
+      </p>
+      <p>
+        The implemented seven-record packing uses only CPU-readable bank
+        offsets below <code>$3E00</code>. Bank 2
+        <code>$0020-$3DFF</code> supplies 15,840 bytes, bank 3
+        <code>$1800-$3DFF</code> supplies 9,728 bytes, and 1,058 bytes come
+        from pre-runtime bank-3 intervals that exclude signature offsets
+        <code>$0010-$0011</code>. Offsets <code>$3E00-$3FFF</code> are not
+        loader capacity because they appear at forced-RAM/I/O addresses
+        <code>$FE00-$FFFF</code>. The two candidate expansion banks retain
+        1,018 CPU-readable bytes after signatures and the reserved 4 KiB
+        enemy module.
+      </p>
+    </section>
+
+    <section>
+      <h2>Cycle model</h2>
+      <table class="wiki-table">
+        <thead><tr><th>Change from measured frame</th><th>Modeled effect</th></tr></thead>
+        <tbody>
+          <tr><td>Remove region import/publication and mapping</td><td>−39,640 cycles</td></tr>
+          <tr><td>Remove dirty-union setup/publish orchestration</td><td>approximately −1,200 to −1,500</td></tr>
+          <tr><td>Replace native raster blits/cache lookup with sparse streams</td><td>approximately −13,000 to −15,000</td></tr>
+          <tr><td>Add damage, actor-closure, mapping, and commit bookkeeping</td><td>approximately +800 to +1,200</td></tr>
+          <tr><td>Strip-update circular save-under state</td><td>approximately −2,500 to −3,500 on four-enemy movement</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The resulting steady four-enemy movement estimate is approximately
+        24,500-27,500 cycles. This is a feasibility range, not acceptance
+        evidence. Implementation must measure complete frames and keep every
+        steady-gameplay path below 29,666 cycles; the engineering target is
+        at most 27,000 to reserve IRQ and future sound headroom.
+      </p>
+    </section>
+
+    <section>
+      <h2>Migration order</h2>
+      <ol>
+        <li><strong>Completed 2026-07-23:</strong> generate and validate sparse enemy/player streams, their physical-page index, and the fragmented GMC loader copy table without changing framebuffer ownership. Candidate bank images are emitted but do not replace the active packed atlas yet.</li>
+        <li><strong>Completed 2026-07-25:</strong> split player, enemy, gate, score, pickup, death, and timer code into state mutation plus render-intent marking. Bank-3 entries <code>$0815</code>/<code>$0818</code> own enemy and complete-frame rendering; structural verification rejects framebuffer calls from mutation ranges, and the bounded GMC trace proves the central renderer executes.</li>
+        <li>Allocate always-mapped IRQ handshake state plus A/B actor metadata and damage ledgers. Initialize both complete framebuffer images and both restoration states while blanked.</li>
+        <li>Render into the non-scanned PAR1-PAR4 mapping and enable the IRQ commit handshake. Retain the old region-copy compositor behind a build-time fallback until equivalence passes.</li>
+        <li>Add actor-overlap closure and circular strip save-under updates. Remove the old shadow window, union, publication, and native cache paths only after cycle and image acceptance.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Acceptance gates</h2>
+      <ul>
+        <li>Decode every enemy and player stream and compare all 4bpp pixels with independent expansion of the packed source.</li>
+        <li>Validate the GMC copy table, signature exclusions, physical destinations, and no-cross-page frame rule; compare all copied RAM payloads with generated inputs.</li>
+        <li>Cold initialization produces identical A/B 30,720-byte hashes and valid per-buffer restoration metadata.</li>
+        <li>No framebuffer writer is reachable outside the render transaction or blanked full-rebuild path.</li>
+        <li>Alternating snapshots converge after dots, entity removal, gates, pickups, colour changes, perimeter resets, nest transitions, actor appearance/disappearance, deaths, stage resets, and transitive three-actor overlap.</li>
+        <li>Force Vbord during PAR5 sprite decoding and confirm that IRQ state, mapping restoration, and the stream output remain exact.</li>
+        <li>Force one- and two-Vbord renderer delays during gate diagonal, popup expiry, enemy release, death, and stage rebuild; confirm one logical advance per commit and no skipped or stale presentation.</li>
+        <li>Vbord commits alternate <code>$C0/$B0</code> without mixed-frame rows; missed-commit and write-to-front diagnostics remain zero.</li>
+        <li>Profile four-enemy movement, player movement, movement plus animation, gate transition, pickup, and death paths. Each steady frame must be below 29,666 cycles and the normal target is at most 27,000.</li>
+        <li>Repeat the swap and scanout proof on physical CoCo 3 hardware in Phase 10.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Basis:
+        <a href="../platform/timing.html">platform timing/profile</a>,
+        <a href="./memory-map.html">memory map</a>,
+        <a href="../../release/reference/coco3/gime.html">GIME registers</a>,
+        <a href="../../release/reference/coco3/timing.html">Vbord timing</a>,
+        <code>src/main.s</code>, <code>src/enemy_runtime.s</code>,
+        <code>scripts/build_screen.py</code>,
+        <code>scripts/build_sparse_sprites.py</code>,
+        <code>scripts/verify_sparse_sprites.py</code>, and the 2026-07-23
+        four-enemy trace.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

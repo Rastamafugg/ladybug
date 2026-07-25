@@ -10,6 +10,12 @@ BUILD_DIR="$ROOT/build"
 SCREEN_INC="$BUILD_DIR/ladybug_screen.inc"
 RESIDENT_INC="$BUILD_DIR/ladybug_resident.inc"
 ENEMY_SPRITES="$BUILD_DIR/ladybug-enemy-sprites.bin"
+SPARSE_ENEMY="$BUILD_DIR/ladybug-enemy-sparse.bin"
+SPARSE_PLAYER="$BUILD_DIR/ladybug-player-sparse.bin"
+SPARSE_BANK2="$BUILD_DIR/ladybug-sparse-bank2.bin"
+SPARSE_BANK3="$BUILD_DIR/ladybug-sparse-bank3.bin"
+SPARSE_LOADER="$BUILD_DIR/ladybug-sparse-loader.inc"
+SPARSE_MANIFEST="$BUILD_DIR/ladybug-sparse-layout.json"
 MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
 ROM="$BUILD_DIR/ladybug.rom"
 RUNTIME_ROM="$BUILD_DIR/ladybug-runtime.rom"
@@ -134,6 +140,10 @@ import sys
 source, output = sys.argv[1:]
 wanted = {
     'blit_packed_sprite', 'draw_hud', 'restore_player',
+    'draw_death_frame', 'draw_entities', 'draw_lives', 'draw_maze_state_cell',
+    'draw_multiplier_hud', 'draw_perimeter_box', 'draw_player',
+    'draw_recolored_map_tile', 'draw_score_popup', 'draw_screen',
+    'erase_entity_footprints', 'perimeter_box_coordinates', 'save_player',
     'gate_redraw_neighbors', 'gate_render_hidden', 'maze_gate_owner',
     'maze_gates', 'maze_nav',
     'player_sprites', 'restore_entity_footprint', 'sprite_attr0_pairs',
@@ -159,6 +169,26 @@ PY
           --map="$ENEMY_MAP" \
           -I "$BUILD_DIR" \
           "$ENEMY_SRC"
+
+    python3 "$ROOT/scripts/build_sparse_sprites.py" \
+        --sprites "$ROOT/assets/arcade/sprites.json" \
+        --enemy-runtime "$ENEMY_ROM" \
+        --enemy-output "$SPARSE_ENEMY" \
+        --player-output "$SPARSE_PLAYER" \
+        --bank2-output "$SPARSE_BANK2" \
+        --bank3-output "$SPARSE_BANK3" \
+        --loader-output "$SPARSE_LOADER" \
+        --manifest-output "$SPARSE_MANIFEST"
+
+    python3 "$ROOT/scripts/verify_sparse_sprites.py" \
+        --sprites "$ROOT/assets/arcade/sprites.json" \
+        --enemy-runtime "$ENEMY_ROM" \
+        --enemy-payload "$SPARSE_ENEMY" \
+        --player-payload "$SPARSE_PLAYER" \
+        --bank2 "$SPARSE_BANK2" \
+        --bank3 "$SPARSE_BANK3" \
+        --loader "$SPARSE_LOADER" \
+        --manifest "$SPARSE_MANIFEST"
 
     lwasm -9 --format=raw \
           --output="$BOOT_ROM" \

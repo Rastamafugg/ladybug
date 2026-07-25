@@ -12,6 +12,8 @@
         jmp     player_compose_impl
         jmp     gate_compose_impl
         jmp     player_frame_cache_impl
+        jmp     enemy_render_impl
+        jmp     frame_render_impl
 
 ENEMY_ANIM     equ $0054
 ENEMY_TIMER    equ $0055
@@ -52,10 +54,31 @@ GATE_WORK_ID    equ $007B
 ENEMY_CANDIDATE equ $007C
 ENEMY_REVERSE   equ $007D
 ENEMY_ROAMING   equ $007E
+RENDER_FLAGS    equ $007F
+RENDER_FLAGS2   equ $0080
+RENDER_BOX_INDEX equ $0081
+RENDER_BOX_COLOR equ $0082
+RENDER_LETTER_X equ $0083
+RENDER_LETTER_Y equ $0084
+RENDER_LETTER_COLOR equ $0085
+ENEMY_OLD_VALID equ $0086
+ENEMY_RENDER_FLAGS equ $0087
+RENDER_GATE_ID  equ $0088
+RENDER_GATE_MODE equ $0089
+RENDER_GATE2_ID equ $008A
+RENDER_GATE2_MODE equ $008B
+RENDER_ZONE_Y   equ $008C
+RENDER_GATE_STYLE equ $008D
+RENDER_GATE2_STYLE equ $008E
 GATE_ID         equ $0013
 GATE_X          equ $0014
 GATE_Y          equ $0015
 GATE_ANIM_ID    equ $0019
+TEST_X          equ $0010
+TEST_Y          equ $0011
+HUD_X           equ $0027
+HUD_Y           equ $0028
+HUD_COLOR       equ $0029
 PLAYER_CELL_X  equ $0009
 PLAYER_CELL_Y  equ $000A
 PLAYER_FB      equ $000B
@@ -64,6 +87,9 @@ PLAYER_FACE    equ $0007
 PLAYER_WANT    equ $000F
 PLAYER_ANIM    equ $004F
 DEATH_STATE    equ $004D
+DEATH_FRAME    equ $004E
+PICKUP_TIMER   equ $0051
+PLAYER_ERASED equ $0069
 SCORE_BCD      equ $001D
 HIGH_BCD       equ $0020
 STAGE          equ $0024
@@ -72,6 +98,23 @@ ENTITY_X       equ $0036
 ENTITY_Y       equ $0037
 RNG_STATE      equ $0034
 LAST_FRAME     equ $0000
+
+RF_ENTITIES    equ $08
+RF_PLAYER      equ $01
+RF_HUD         equ $02
+RF_LIVES       equ $04
+RF_BOX         equ $10
+RF_DOT         equ $20
+RF_STAGE       equ $40
+RF_DEATH       equ $80
+RF2_POPUP      equ $01
+RF2_MULTIPLIER equ $02
+RF2_LETTER     equ $04
+RF2_PERIM_RESET equ $08
+ERF_INIT       equ $01
+ERF_DIRTY      equ $02
+ERF_ZONE_REFRESH equ $04
+COLOR_WHITE    equ 6
 
 ENTITY_TABLE   equ $A380
 PLAYER_BG      equ $A300
@@ -103,9 +146,10 @@ LIVE_PAGE0     equ $30
 ; Record: active, framebuffer pointer, pixel phase, cell x, cell y,
 ; saved-background valid, selected direction.
 enemy_init_impl
-        lbsr    capture_zone_bg
         lbsr    reset_enemy_state
-        lbsr    compose_enemy_zone
+        lda     ENEMY_RENDER_FLAGS
+        ora     #ERF_INIT|ERF_DIRTY
+        sta     ENEMY_RENDER_FLAGS
         rts
 
 reset_enemy_state
@@ -185,6 +229,9 @@ er_use
         inc     ENEMY_RELEASED
         lda     #1
         sta     ENEMY_NEST_DIRTY
+        lda     ENEMY_RENDER_FLAGS
+        ora     #ERF_DIRTY
+        sta     ENEMY_RENDER_FLAGS
         lda     ENEMY_ACTIVE
         cmpa    #4
         bne     er_done
@@ -194,24 +241,25 @@ er_done
         rts
 
 enemy_tick_impl
+        lda     ENEMY_RENDER_FLAGS
+        bita    #ERF_DIRTY
+        bne     et_snapshot_ready
+        lbsr    roam_snapshot_old
+et_snapshot_ready
         lda     DEATH_STATE
         beq     et_alive
         tst     ENEMY_DEATH_LATCH
         bne     et_death_animate
 et_begin_death
-        tst     PLAYER_BG_VALID
-        beq     et_death_player_clear
-        jsr     restore_player
-et_death_player_clear
         clr     ENEMY_MOVE
-        lbsr    roam_despawn_all
         lbsr    reset_enemy_state
         lda     #1
         sta     ENEMY_DEATH_LATCH
         lda     #1
         sta     ENEMY_NEST_DIRTY
-        lbsr    compose_enemy_zone
-        clr     ENEMY_NEST_DIRTY
+        lda     ENEMY_RENDER_FLAGS
+        ora     #ERF_DIRTY
+        sta     ENEMY_RENDER_FLAGS
         rts
 et_death_animate
         ; Death suppresses releases and active movement, but the newly reset
@@ -285,7 +333,6 @@ et_render_test
         rts
 
 et_update
-        lbsr    roam_prepare_shadow
         tst     ENEMY_MOVE
         lbeq    et_compose
         ldx     #ENEMY_TABLE
@@ -360,13 +407,207 @@ et_update_next
         dec     ENEMY_WORK
         bne     et_update_loop
 et_compose
-        tst     ENEMY_NEST_DIRTY
-        beq     et_finish
-        lbsr    compose_enemy_zone
 et_finish
+        lda     ENEMY_RENDER_FLAGS
+        ora     #ERF_DIRTY
+        sta     ENEMY_RENDER_FLAGS
+        rts
+
+; Consume gameplay-owned enemy intents after all state mutation for this Vbord.
+enemy_render_impl
+        lda     ENEMY_RENDER_FLAGS
+        bita    #ERF_INIT
+        beq     eri_refresh
+        lbsr    capture_zone_bg
+eri_refresh
+        lda     ENEMY_RENDER_FLAGS
+        bita    #ERF_ZONE_REFRESH
+        beq     eri_dirty
+        lda     #12
+        sta     ENTITY_X
+        lda     RENDER_ZONE_Y
+        sta     ENTITY_Y
+        jsr     restore_entity_footprint
+        lbsr    refresh_zone_bg_footprint
+eri_dirty
+        lda     ENEMY_RENDER_FLAGS
+        bita    #ERF_DIRTY
+        beq     eri_done
+        lbsr    roam_prepare_shadow
+        tst     ENEMY_NEST_DIRTY
+        beq     eri_finish
+        lbsr    compose_enemy_zone
+eri_finish
         lbsr    roam_finish_shadow
         clr     ENEMY_NEST_DIRTY
+eri_done
+        clr     ENEMY_RENDER_FLAGS
         rts
+
+; Single framebuffer owner for the completed Vbord state.
+frame_render_impl
+        lda     RENDER_FLAGS
+        bita    #RF_STAGE
+        lbne    fri_stage
+        lbsr    render_exposed_player
+
+        lda     RENDER_FLAGS
+        bita    #RF_ENTITIES
+        beq     fri_dot
+        jsr     erase_entity_footprints
+        jsr     draw_entities
+fri_dot
+        lda     RENDER_FLAGS
+        bita    #RF_DOT
+        beq     fri_hud
+        lda     PLAYER_CELL_X
+        sta     TEST_X
+        lda     PLAYER_CELL_Y
+        sta     TEST_Y
+        jsr     draw_maze_state_cell
+fri_hud
+        lbsr    enemy_render_impl
+        lda     RENDER_FLAGS
+        bita    #RF_HUD
+        beq     fri_lives
+        jsr     draw_hud
+fri_lives
+        lda     RENDER_FLAGS
+        bita    #RF_LIVES
+        beq     fri_box
+        jsr     draw_lives
+fri_box
+        lda     RENDER_FLAGS
+        bita    #RF_BOX
+        beq     fri_secondary
+        lda     BOX_INDEX
+        pshs    a
+        lda     RENDER_BOX_INDEX
+        sta     BOX_INDEX
+        lda     RENDER_BOX_COLOR
+        sta     HUD_COLOR
+        jsr     perimeter_box_coordinates
+        jsr     draw_perimeter_box
+        puls    a
+        sta     BOX_INDEX
+fri_secondary
+        lda     RENDER_FLAGS2
+        bita    #RF2_PERIM_RESET
+        beq     fri_multiplier
+        lbsr    render_perimeter_reset
+fri_multiplier
+        lda     RENDER_FLAGS2
+        bita    #RF2_MULTIPLIER
+        beq     fri_letter
+        jsr     draw_multiplier_hud
+fri_letter
+        lda     RENDER_FLAGS2
+        bita    #RF2_LETTER
+        beq     fri_presentation
+        lda     RENDER_LETTER_X
+        sta     HUD_X
+        lda     RENDER_LETTER_Y
+        sta     HUD_Y
+        lda     RENDER_LETTER_COLOR
+        sta     HUD_COLOR
+        jsr     draw_recolored_map_tile
+fri_presentation
+        lda     RENDER_FLAGS2
+        bita    #RF2_POPUP
+        beq     fri_death
+        jsr     save_player
+        jsr     draw_score_popup
+        bra     fri_gate
+fri_death
+        lda     RENDER_FLAGS
+        bita    #RF_DEATH
+        beq     fri_player
+        lda     DEATH_STATE
+        beq     fri_player
+        cmpa    #3
+        bhs     fri_gate
+        lda     DEATH_FRAME
+        cmpa    #$FF
+        beq     fri_gate
+        jsr     draw_death_frame
+        bra     fri_gate
+fri_player
+        lda     RENDER_FLAGS
+        bita    #RF_PLAYER
+        beq     fri_gate
+        lda     PICKUP_TIMER
+        bne     fri_gate
+        lda     DEATH_STATE
+        bne     fri_gate
+        tst     PLAYER_ERASED
+        bne     fri_player_direct
+        lbsr    player_compose_impl
+        bra     fri_gate
+fri_player_direct
+        jsr     draw_player
+fri_gate
+        lda     RENDER_GATE_ID
+        beq     fri_done
+        lda     RENDER_GATE_MODE
+        sta     GATE_COMPOSE_MODE
+        lbsr    gate_compose_impl
+        lda     RENDER_GATE2_ID
+        beq     fri_done
+        sta     RENDER_GATE_ID
+        lda     RENDER_GATE2_MODE
+        sta     RENDER_GATE_MODE
+        sta     GATE_COMPOSE_MODE
+        lda     RENDER_GATE2_STYLE
+        sta     RENDER_GATE_STYLE
+        lbsr    gate_compose_impl
+fri_done
+        clr     RENDER_FLAGS
+        clr     RENDER_FLAGS2
+        clr     RENDER_GATE_ID
+        clr     RENDER_GATE2_ID
+        clr     PLAYER_ERASED
+        rts
+
+render_exposed_player
+        tst     PLAYER_ERASED
+        beq     rep_done
+        tst     PLAYER_BG_VALID
+        beq     rep_done
+        ldd     PLAYER_FB
+        pshs    d
+        ldd     PLAYER_OLD_FB
+        std     PLAYER_FB
+        jsr     restore_player
+        puls    d
+        std     PLAYER_FB
+rep_done
+        rts
+
+render_perimeter_reset
+        lda     BOX_INDEX
+        pshs    a
+        clr     BOX_INDEX
+        lda     #COLOR_WHITE
+        sta     HUD_COLOR
+rpr_box
+        jsr     perimeter_box_coordinates
+        jsr     draw_perimeter_box
+        inc     BOX_INDEX
+        lda     BOX_INDEX
+        cmpa    #92
+        blo     rpr_box
+        puls    a
+        sta     BOX_INDEX
+        rts
+
+fri_stage
+        jsr     draw_screen
+        jsr     draw_entities
+        jsr     draw_hud
+        jsr     draw_lives
+        lbsr    enemy_render_impl
+        jsr     draw_player
+        bra     fri_done
 
 enemy_collect_impl
         lda     VEG_STATE
@@ -386,6 +627,9 @@ enemy_collect_impl
         sta     VEG_STATE
         lda     #1
         sta     ENEMY_NEST_DIRTY
+        lda     ENEMY_RENDER_FLAGS
+        ora     #ERF_DIRTY
+        sta     ENEMY_RENDER_FLAGS
         ldd     #300
         std     FREEZE_TIMER
         ; Level-1 cucumber placeholder score: 1,000 points.
@@ -403,7 +647,9 @@ ec_score_done
         std     HIGH_BCD
         lda     SCORE_BCD+2
         sta     HIGH_BCD+2
-        jsr     draw_hud
+        lda     RENDER_FLAGS
+        ora     #$02
+        sta     RENDER_FLAGS
 ec_done
         rts
 
@@ -611,26 +857,20 @@ est_loop
         sta     ENTITY_X
         lda     1,u
         sta     ENTITY_Y
-        pshs    u
-        jsr     restore_entity_footprint
-        puls    u
-        lbsr    refresh_zone_bg_footprint
+        sta     RENDER_ZONE_Y
         ldx     ENEMY_PTR
-        ldd     1,x
-        std     GATE_RECT_FB
-        lda     #8
-        sta     GATE_RECT_WIDTH
-        lda     #16
-        sta     GATE_RECT_ROWS
-        pshs    x
-        lbsr    gate_region_to_shadow
-        puls    x
         clr     ,x
         clr     6,x
         dec     ENEMY_ACTIVE
         clr     VEG_STATE
         lda     #1
         sta     ENEMY_NEST_DIRTY
+        lda     RENDER_FLAGS
+        ora     #RF_ENTITIES
+        sta     RENDER_FLAGS
+        lda     ENEMY_RENDER_FLAGS
+        ora     #ERF_DIRTY|ERF_ZONE_REFRESH
+        sta     ENEMY_RENDER_FLAGS
         rts
 est_next
         leau    4,u
@@ -639,10 +879,9 @@ est_next
 est_done
         rts
 
-; Prepare all old/new roaming unions in the hidden framebuffer, then remove
-; every old enemy there before any destination background is captured.
-roam_prepare_shadow
-        clr     ENEMY_ROAMING
+; Snapshot framebuffer ownership before gameplay mutates any enemy record.
+; This routine writes state only; the renderer consumes the snapshot later.
+roam_snapshot_old
         ldu     #ENEMY_OLD_FB
         clra
         clrb
@@ -650,23 +889,62 @@ roam_prepare_shadow
         std     2,u
         std     4,u
         std     6,u
+        clr     ENEMY_OLD_VALID
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+rsn_loop
+        tst     ,x
+        beq     rsn_next
+        tst     6,x
+        bne     rsn_actor
+        lda     5,x
+        cmpa    #11
+        bhi     rsn_next
+rsn_actor
+        lbsr    roam_old_slot
+        ldd     1,x
+        std     ,u
+        tst     6,x
+        beq     rsn_next
+        lda     #4
+        suba    ENEMY_WORK
+        ldy     #roam_slot_masks
+        ldb     a,y
+        orb     ENEMY_OLD_VALID
+        stb     ENEMY_OLD_VALID
+rsn_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     rsn_loop
+        rts
+
+roam_slot_masks
+        fcb     1,2,4,8
+
+; Import the final old/new unions after gameplay mutation, then remove every
+; owned old actor in shadow before capturing any destination background.
+roam_prepare_shadow
+        clr     ENEMY_ROAMING
         ldx     #ENEMY_TABLE
         lda     #4
         sta     ENEMY_WORK
 rps_copy_loop
-        tst     ,x
-        beq     rps_copy_next
-        tst     6,x
-        bne     rps_copy_actor
-        lda     5,x
-        cmpa    #11
-        bhi     rps_copy_next
-rps_copy_actor
-        inc     ENEMY_ROAMING
         lbsr    roam_old_slot
-        ldd     1,x
-        std     ,u
-        lbsr    roam_set_prepare_union
+        ldd     ,u
+        beq     rps_copy_next
+        inc     ENEMY_ROAMING
+        tst     ,x
+        beq     rps_old_only
+        lbsr    roam_set_final_union
+        bra     rps_copy_region
+rps_old_only
+        std     GATE_RECT_FB
+        lda     #8
+        sta     GATE_RECT_WIDTH
+        lda     #16
+        sta     GATE_RECT_ROWS
+rps_copy_region
         pshs    x
         lbsr    gate_region_to_shadow
         puls    x
@@ -684,9 +962,11 @@ rps_copy_next
         lda     #4
         sta     ENEMY_WORK
 rps_restore_loop
-        tst     ,x
-        beq     rps_restore_next
-        tst     6,x
+        lda     #4
+        suba    ENEMY_WORK
+        ldy     #roam_slot_masks
+        ldb     a,y
+        andb    ENEMY_OLD_VALID
         beq     rps_restore_next
         lbsr    roam_old_slot
         ldd     ,u
@@ -1247,7 +1527,7 @@ ctfr_row
 ; player footprint are copied in and published; all resident drawing code runs
 ; unchanged through the temporary PAR1-PAR4 mapping.
 gate_compose_impl
-        lda     GATE_ANIM_ID
+        lda     RENDER_GATE_ID
         beq     gci_done
         deca
         sta     GATE_WORK_ID
