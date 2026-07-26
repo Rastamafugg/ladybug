@@ -15,6 +15,7 @@ main = (root / "src/main.s").read_text(encoding="utf-8")
 bootstrap = (root / "src/gmc_bootstrap.s").read_text(encoding="utf-8")
 build_script = (root / "scripts/build.sh").read_text(encoding="utf-8")
 resident = (root / "build/ladybug_resident.inc").read_text(encoding="utf-8")
+enemy_map = (root / "build/ladybug-enemy-runtime.map").read_text(encoding="utf-8")
 rom = (root / "build/ladybug-enemy-runtime.rom").read_bytes()
 sprites = (root / "build/ladybug-enemy-sprites.bin").read_bytes()
 
@@ -82,6 +83,8 @@ required = [
     "lbsr    gate_region_from_shadow",
     "ENEMY_BG_BASE  equ $A690",
     "ENEMY_OLD_FB   equ $A890",
+    "ENEMY_BG_RING  equ $A898",
+    "FBM_ENEMY_RINGS equ 44",
     "ENEMY_SPRITE_CACHE equ $1800",
     "ENEMY_CACHE_KEYS equ $1A80",
     "ENEMY_CACHE_FRAME_SIZE equ 128",
@@ -94,6 +97,8 @@ required = [
     "rfs_save_actor",
     "roam_copy_bg_to_fb",
     "roam_copy_fb_to_bg",
+    "roam_update_background",
+    "roam_capture_ring_row",
     "lbsr    blit_enemy_fb",
     "lbsr    blit_enemy_stage",
 ]
@@ -433,7 +438,7 @@ closure_draw = source[source.index("\nactor_closure_draw\n"):
                       source.index("\nframebuffer_init_impl\n")]
 draw_order = [
     "acd_save_loop",
-    "lbsr    roam_copy_fb_to_bg",
+    "lbsr    roam_update_background",
     "acd_draw_loop",
     "lbsr    draw_enemy_fb",
     "tst     PICKUP_TIMER",
@@ -445,6 +450,79 @@ if [closure_draw.index(fragment) for fragment in draw_order] != sorted(
     closure_draw.index(fragment) for fragment in draw_order
 ):
     raise SystemExit("enemy proof: actor save/draw painter order changed")
+
+ring_update = source[source.index("\nroam_update_background\n"):
+                     source.index("\nroam_set_prepare_union\n")]
+for fragment in (
+    "cmpd    #1",
+    "cmpd    #-1",
+    "cmpd    #320",
+    "cmpd    #-320",
+    "rub_horizontal",
+    "rub_vertical",
+    "roam_capture_ring_row",
+    "clr     ,u",
+):
+    if fragment not in ring_update:
+        raise SystemExit("enemy proof: circular save-under path is incomplete: " + fragment)
+for legacy in ("roam_prepare_shadow", "roam_finish_shadow", "gate_region_to_shadow"):
+    if re.search(rf"^Symbol: {legacy} ", enemy_map, re.MULTILINE):
+        raise SystemExit("enemy proof: persistent image still contains legacy shadow code: " + legacy)
+
+# Prove the packed row/column phase equations across wraps and direction turns.
+world = [[row * 100 + col for col in range(80)] for row in range(80)]
+backing = [[world[20 + row][20 + col] for col in range(8)] for row in range(16)]
+row_phase = col_phase = 0
+x_pos = y_pos = 20
+
+def restore_ring() -> list[list[int]]:
+    return [
+        [
+            backing[(row + row_phase) & 15][(col + col_phase) & 7]
+            for col in range(8)
+        ]
+        for row in range(16)
+    ]
+
+def move_ring(dx: int, dy: int) -> None:
+    global row_phase, col_phase, x_pos, y_pos
+    old_row, old_col = row_phase, col_phase
+    x_pos += dx
+    y_pos += dy
+    if dx == 1:
+        col_phase = (old_col + 1) & 7
+        for row in range(16):
+            backing[(row + old_row) & 15][old_col] = world[y_pos + row][x_pos + 7]
+    elif dx == -1:
+        col_phase = (old_col - 1) & 7
+        for row in range(16):
+            backing[(row + old_row) & 15][col_phase] = world[y_pos + row][x_pos]
+    elif dy == 2:
+        row_phase = (old_row + 2) & 15
+        for row in range(14, 16):
+            physical_row = (old_row + row - 14) & 15
+            for col in range(8):
+                backing[physical_row][(col + old_col) & 7] = world[y_pos + row][x_pos + col]
+    elif dy == -2:
+        row_phase = (old_row - 2) & 15
+        for row in range(2):
+            physical_row = (row_phase + row) & 15
+            for col in range(8):
+                backing[physical_row][(col + old_col) & 7] = world[y_pos + row][x_pos + col]
+    else:
+        raise AssertionError("unsupported ring test delta")
+
+for delta in (
+    [(1, 0)] * 9
+    + [(0, 2)] * 9
+    + [(-1, 0)] * 11
+    + [(0, -2)] * 10
+    + [(1, 0), (0, 2), (-1, 0), (0, -2)] * 3
+):
+    move_ring(*delta)
+    expected = [row[x_pos:x_pos + 8] for row in world[y_pos:y_pos + 16]]
+    if restore_ring() != expected:
+        raise SystemExit(f"enemy proof: circular save-under diverged after delta {delta}")
 
 background = source[source.index("\nframe_render_background\n"):
                     source.index("\nrender_exposed_player\n")]
@@ -522,9 +600,16 @@ for fragment in (
     "FBM_PLAYER_FB,u",
     "FBM_ENEMIES,u",
     "sta     ENEMY_OLD_VALID",
+    "std     ENEMY_BG_RING",
+    "std     ENEMY_BG_RING+2",
 ):
     if fragment not in prepare:
         raise SystemExit("enemy proof: back-buffer hydration is incomplete: " + fragment)
+swap = prepare.index("lbsr    framebuffer_swap_player_bg")
+rehydrate = prepare.index("lbsr    framebuffer_back_meta", swap)
+enemies = prepare.index("leau    FBM_ENEMIES,u")
+if not swap < rehydrate < enemies:
+    raise SystemExit("enemy proof: B-side player swap clobbers the metadata pointer")
 finish = source[source.index("\nframebuffer_finish_back\n"):
                 source.index("\nframebuffer_back_meta\n")]
 for fragment in (
@@ -605,6 +690,9 @@ for fragment in (
     "anda    #RF_HUD|RF_LIVES|RF_ENTITIES|RF_BOX|RF_DOT|RF_STAGE",
     "anda    #RF2_MULTIPLIER|RF2_LETTER|RF2_PERIM_RESET",
     "clr     8,u",
+    "lda     #ERF_NEST",
+    "sta     8,u",
+    "ora     8,u",
 ):
     if fragment not in queue:
         raise SystemExit("enemy proof: transient actor state leaked into damage ledger")
@@ -613,7 +701,7 @@ print(
     "64-byte source stride, idle render gate, off-screen nest compositor, "
     "immediate death reset, reset/frozen release timer, staged player publish, "
     "hidden gate publish, footprint collision, skull decrement, exclusive "
-    "vegetable layer, 300-frame freeze, native enemy/player caches, nest-dirty separation, roaming phase separation, dynamic "
+    "vegetable layer, 300-frame freeze, native enemy/player caches, nest-dirty separation, circular save-under, dynamic "
     "gate passage, den exit, roaming ownership, hidden skull cleanup, continuous "
     "colour cycling, randomized stage-one seed, nest-dot synchronization, and "
     "junction choice verified"

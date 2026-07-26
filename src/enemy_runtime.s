@@ -83,6 +83,10 @@ FB_MISSED_COMMIT equ $0096
 FB_RENDER_ACTIVE equ $0098
 FB_WRITE_FRONT_FAULT equ $0099
 FB_INIT_STATE  equ $009A
+ENEMY_CAPTURE_DIRTY equ $009B
+RING_PHASE     equ $009C
+RING_ROW       equ $009D
+RING_BASE      equ $009E
 GATE_ID         equ $0013
 GATE_X          equ $0014
 GATE_Y          equ $0015
@@ -128,6 +132,7 @@ RF2_PERIM_RESET equ $08
 ERF_INIT       equ $01
 ERF_DIRTY      equ $02
 ERF_ZONE_REFRESH equ $04
+ERF_NEST       equ $08
 COLOR_WHITE    equ 6
 
 ENTITY_TABLE   equ $A380
@@ -141,6 +146,7 @@ ENEMY_ZONE_BG  equ $A490
 ENEMY_ZONE_STAGE equ $A590
 ENEMY_BG_BASE  equ $A690
 ENEMY_OLD_FB   equ $A890
+ENEMY_BG_RING  equ $A898        ; packed row/column phase for current BACK
 ENEMY_SPRITE_CACHE equ $1800    ; five 128-byte native record/dormant frames
 ENEMY_CACHE_KEYS equ $1A80      ; type/direction/animation key per slot
 PLAYER_SPRITE_CACHE equ $1A85   ; active 128-byte native player frame
@@ -156,6 +162,7 @@ FBM_PLAYER_KEY equ 3
 FBM_PLAYER_FB  equ 4
 FBM_ENEMIES   equ 8
 FBM_ENEMY_KEYS equ 40
+FBM_ENEMY_RINGS equ 44
 FBM_MAZE_DAMAGE equ 48          ; 72-byte, 576-cell reserved ledger
 FBM_GATE_DAMAGE equ 120         ; three-byte, 20-gate reserved ledger
 FBM_ENTITY_DAMAGE equ 123       ; twelve-byte record ledger
@@ -211,6 +218,7 @@ reset_enemy_state
         clr     ENEMY_DEATH_LATCH
         clr     PLAYER_TICK_PENDING
         clr     ENEMY_OLD_VALID
+        clr     ENEMY_CAPTURE_DIRTY
         ldx     #ENEMY_OLD_FB
         clra
         clrb
@@ -218,6 +226,8 @@ reset_enemy_state
         std     2,x
         std     4,x
         std     6,x
+        std     ENEMY_BG_RING
+        std     ENEMY_BG_RING+2
         ldx     #ENEMY_TABLE
         ldb     #RECORD_SIZE*4
 ei_clear
@@ -481,11 +491,14 @@ eri_refresh
         lbsr    refresh_zone_bg_footprint
 eri_dirty
         lda     ENEMY_RENDER_FLAGS
-        bita    #ERF_DIRTY
+        bita    #ERF_DIRTY|ERF_NEST
         beq     eri_done
         ifne    PERSISTENT_FB
         tst     ENEMY_NEST_DIRTY
+        bne     eri_nest
+        bita    #ERF_NEST
         beq     eri_finish
+eri_nest
         lbsr    compose_enemy_zone
 eri_finish
         else
@@ -508,9 +521,11 @@ frame_render_impl
         lbcs    fri_abort
         tst     FB_INIT_STATE
         beq     fri_render
+        clr     ENEMY_CAPTURE_DIRTY
         lbsr    actor_closure_restore
         lbsr    framebuffer_queue_damage
         lbsr    framebuffer_project_damage
+        lbsr    roam_mark_underlay
         else
         lbsr    framebuffer_begin_fallback
         endc
@@ -560,6 +575,7 @@ fbpd_load
         bne     fbpd_load
         ldd     ,u
         std     PLAYER_CELL_X
+        lbsr    roam_mark_underlay
         lbsr    framebuffer_back_meta
         clr     FBM_DAMAGE,u
         lbsr    frame_render_background
@@ -603,15 +619,40 @@ fbqd_copy
         lda     1,u
         anda    #RF2_MULTIPLIER|RF2_LETTER|RF2_PERIM_RESET
         sta     1,u
-        clr     8,u              ; ENEMY_RENDER_FLAGS belongs to actor closure
+        clr     8,u              ; roaming flags belong to actor closure
+        tst     ENEMY_NEST_DIRTY
+        beq     fbqd_nest_done
+        lda     #ERF_NEST
+        sta     8,u
+fbqd_nest_done
         clr     FBM_DAMAGE-FBM_PENDING_INTENTS,u
         lda     ,u
         ora     1,u
+        ora     8,u
         ora     9,u              ; RENDER_GATE_ID
         ora     11,u             ; RENDER_GATE2_ID
         beq     fbqd_done
         inc     FBM_DAMAGE-FBM_PENDING_INTENTS,u
 fbqd_done
+        rts
+
+; Any projected layer that can intersect a roaming footprint invalidates strip
+; reuse for this BACK transaction. HUD, lives, and perimeter never intersect.
+roam_mark_underlay
+        lda     RENDER_FLAGS
+        anda    #RF_ENTITIES|RF_DOT|RF_STAGE
+        bne     rmu_dirty
+        lda     ENEMY_RENDER_FLAGS
+        anda    #ERF_INIT|ERF_ZONE_REFRESH|ERF_NEST
+        bne     rmu_dirty
+        tst     ENEMY_NEST_DIRTY
+        bne     rmu_dirty
+        lda     RENDER_GATE_ID
+        ora     RENDER_GATE2_ID
+        beq     rmu_done
+rmu_dirty
+        inc     ENEMY_CAPTURE_DIRTY
+rmu_done
         rts
 
 frame_render_pass
@@ -851,9 +892,7 @@ acd_save_loop
         bhi     acd_save_next
 acd_save_actor
         pshs    x
-        ldx     1,x
-        lbsr    roam_bg_address
-        lbsr    roam_copy_fb_to_bg
+        lbsr    roam_update_background
         puls    x
         lda     #1
         sta     6,x
@@ -1011,6 +1050,7 @@ fbp_owned
         tst     FB_BACK_ID
         beq     fbp_enemies
         lbsr    framebuffer_swap_player_bg
+        lbsr    framebuffer_back_meta
 fbp_enemies
         leau    FBM_ENEMIES,u
         ldy     #ENEMY_OLD_FB
@@ -1032,6 +1072,11 @@ fbp_enemy_next
         lda     ENEMY_WORK
         cmpa    #4
         blo     fbp_enemy
+        leau    4,u
+        ldd     ,u
+        std     ENEMY_BG_RING
+        ldd     2,u
+        std     ENEMY_BG_RING+2
 fbp_ok
         andcc   #$FE
         rts
@@ -1098,6 +1143,10 @@ fbcb_enemy
         std     ,u
         ldd     ENEMY_CACHE_KEYS+2
         std     2,u
+        ldd     ENEMY_BG_RING
+        std     4,u
+        ldd     ENEMY_BG_RING+2
+        std     6,u
         rts
 
 ; Vbord is the only display-owner commit point. The handler touches only
@@ -1161,6 +1210,10 @@ fbca_enemy
         std     FB_META_A+FBM_ENEMY_KEYS
         ldd     ENEMY_CACHE_KEYS+2
         std     FB_META_A+FBM_ENEMY_KEYS+2
+        ldd     ENEMY_BG_RING
+        std     FB_META_A+FBM_ENEMY_RINGS
+        ldd     ENEMY_BG_RING+2
+        std     FB_META_A+FBM_ENEMY_RINGS+2
         rts
 
         ifeq    PERSISTENT_FB
@@ -1495,6 +1548,7 @@ roam_slot_masks
 
 ; Import the final old/new unions after gameplay mutation, then remove every
 ; owned old actor in shadow before capturing any destination background.
+        ifeq    PERSISTENT_FB
 roam_prepare_shadow
         clr     ENEMY_ROAMING
         ldx     #ENEMY_TABLE
@@ -1668,6 +1722,7 @@ rda_next
         bne     rda_loop
 rda_done
         rts
+        endc
 
 ; U returns the old-pointer slot or this record's 128-byte background buffer.
 roam_old_slot
@@ -1693,6 +1748,205 @@ rba_done
         tfr     d,u
         rts
 
+        ifne    PERSISTENT_FB
+; U returns this actor's packed row/column ring phase.
+roam_ring_slot
+        lda     #4
+        suba    ENEMY_WORK
+        ldu     #ENEMY_BG_RING
+        leau    a,u
+        rts
+
+; Retain an unchanged clean destination, rotate/capture a recognized exposed
+; strip, or normalize with a full capture for every conservative fallback.
+; Input: X = current enemy record.
+roam_update_background
+        tst     ENEMY_CAPTURE_DIRTY
+        bne     rub_full
+        lda     #4
+        suba    ENEMY_WORK
+        ldy     #roam_slot_masks
+        ldb     a,y
+        andb    ENEMY_OLD_VALID
+        beq     rub_full
+        lbsr    roam_old_slot
+        ldd     1,x
+        subd    ,u
+        beq     rub_done
+        cmpd    #1
+        beq     rub_right
+        cmpd    #-1
+        beq     rub_left
+        cmpd    #320
+        lbeq    rub_down
+        cmpd    #-320
+        lbeq    rub_up
+rub_full
+        pshs    x
+        lbsr    roam_ring_slot
+        clr     ,u
+        puls    x
+        pshs    x
+        ldx     1,x
+        lbsr    roam_bg_address
+        lbsr    roam_copy_fb_to_bg
+        puls    x
+rub_done
+        rts
+rub_right
+        lda     #7
+        bra     rub_horizontal
+rub_left
+        clra
+rub_horizontal
+        sta     RING_ROW        ; exposed framebuffer column
+        pshs    x
+        lbsr    roam_ring_slot
+        lda     ,u
+        sta     RING_PHASE
+        anda    #7
+        sta     GATE_COPY_COUNT ; old column phase
+        lda     RING_PHASE
+        anda    #$F0
+        sta     RING_PHASE
+        ldb     GATE_COPY_COUNT
+        tst     RING_ROW
+        beq     rub_shift_left
+        incb
+        bra     rub_store_column
+rub_shift_left
+        decb
+rub_store_column
+        andb    #7
+        orb     RING_PHASE
+        stb     ,u
+        tst     RING_ROW
+        bne     rub_right_slot
+        andb    #7
+        stb     GATE_COPY_COUNT ; new phase owns the exposed left column
+rub_right_slot
+        puls    x
+        pshs    x
+        ldx     1,x
+        tst     RING_ROW
+        beq     rub_horizontal_fb
+        leax    7,x
+rub_horizontal_fb
+        lbsr    roam_bg_address
+        stu     RING_BASE
+        lda     RING_PHASE
+        lsra
+        lsra
+        lsra
+        lsra
+        sta     RING_ROW
+        lda     #16
+        sta     GATE_COPY_ROWS
+rub_column_loop
+        lda     RING_ROW
+        ldb     #8
+        mul
+        addd    RING_BASE
+        tfr     d,u
+        ldb     GATE_COPY_COUNT
+        lda     ,x
+        sta     b,u
+        leax    160,x
+        inc     RING_ROW
+        lda     RING_ROW
+        anda    #15
+        sta     RING_ROW
+        dec     GATE_COPY_ROWS
+        bne     rub_column_loop
+        puls    x
+        rts
+
+rub_down
+        lda     #14
+        bra     rub_vertical
+rub_up
+        clra
+rub_vertical
+        sta     GATE_COPY_ROWS  ; first exposed framebuffer row
+        pshs    x
+        lbsr    roam_ring_slot
+        lda     ,u
+        sta     RING_PHASE
+        anda    #$F0
+        lsra
+        lsra
+        lsra
+        lsra
+        sta     RING_ROW
+        lda     RING_PHASE
+        anda    #7
+        sta     RING_PHASE
+        tst     GATE_COPY_ROWS
+        beq     rub_shift_up
+        lda     RING_ROW        ; down overwrites the old top rows
+        sta     GATE_COPY_COUNT
+        adda    #2              ; new logical row zero maps old logical row two
+        bra     rub_store_row
+rub_shift_up
+        lda     RING_ROW
+        suba    #2
+        anda    #15
+        sta     GATE_COPY_COUNT ; up overwrites the old bottom rows
+rub_store_row
+        anda    #15
+        sta     RING_ROW        ; new row phase and first physical target
+        lsla
+        lsla
+        lsla
+        lsla
+        ora     RING_PHASE
+        sta     ,u
+        lda     GATE_COPY_COUNT
+        sta     RING_ROW
+        puls    x
+        pshs    x
+        ldx     1,x
+        tst     GATE_COPY_ROWS
+        beq     rub_vertical_fb
+        leax    2240,x
+rub_vertical_fb
+        lbsr    roam_bg_address
+        stu     RING_BASE
+        lda     #2
+        sta     GATE_COPY_ROWS
+rub_row_loop
+        lda     RING_ROW
+        ldb     #8
+        mul
+        addd    RING_BASE
+        tfr     d,u
+        lbsr    roam_capture_ring_row
+        leax    152,x
+        inc     RING_ROW
+        lda     RING_ROW
+        anda    #15
+        sta     RING_ROW
+        dec     GATE_COPY_ROWS
+        bne     rub_row_loop
+        puls    x
+        rts
+
+; Capture one logical framebuffer row into a column-rotated physical row.
+roam_capture_ring_row
+        ldb     RING_PHASE
+        lda     #8
+        sta     GATE_COPY_COUNT
+rcrr_byte
+        lda     ,x+
+        sta     b,u
+        incb
+        andb    #7
+        dec     GATE_COPY_COUNT
+        bne     rcrr_byte
+        rts
+        endc
+
+        ifeq    PERSISTENT_FB
 roam_set_prepare_union
         ldd     1,x
         std     GATE_RECT_FB
@@ -1754,8 +2008,79 @@ rsfu_horizontal
         inc     GATE_RECT_WIDTH
 rsfu_done
         rts
+        endc
 
 roam_copy_bg_to_fb
+        ifne    PERSISTENT_FB
+        stu     RING_BASE
+        lbsr    roam_ring_slot
+        lda     ,u
+        sta     RING_PHASE
+        anda    #$F0
+        lsra
+        lsra
+        lsra
+        lsra
+        sta     RING_ROW
+        lda     RING_PHASE
+        anda    #7
+        sta     RING_PHASE
+        lda     #16
+        sta     GATE_COPY_ROWS
+rcbtf_ring_row
+        lda     RING_ROW
+        ldb     #8
+        mul
+        addd    RING_BASE
+        tfr     d,u
+        pshs    u
+        ldb     RING_PHASE
+        leau    b,u
+        negb
+        addb    #8
+        stb     GATE_COPY_COUNT
+rcbtf_ring_first
+        ldb     GATE_COPY_COUNT
+        cmpb    #2
+        blo     rcbtf_ring_first_byte
+        ldd     ,u++
+        std     ,x++
+        dec     GATE_COPY_COUNT
+        dec     GATE_COPY_COUNT
+        bra     rcbtf_ring_first
+rcbtf_ring_first_byte
+        tst     GATE_COPY_COUNT
+        beq     rcbtf_ring_wrap
+        lda     ,u
+        sta     ,x+
+rcbtf_ring_wrap
+        puls    u
+        lda     RING_PHASE
+        sta     GATE_COPY_COUNT
+rcbtf_ring_second
+        ldb     GATE_COPY_COUNT
+        cmpb    #2
+        blo     rcbtf_ring_second_byte
+        ldd     ,u++
+        std     ,x++
+        dec     GATE_COPY_COUNT
+        dec     GATE_COPY_COUNT
+        bra     rcbtf_ring_second
+rcbtf_ring_second_byte
+        tst     GATE_COPY_COUNT
+        beq     rcbtf_ring_next
+        lda     ,u
+        sta     ,x+
+rcbtf_ring_next
+        leax    152,x
+        inc     RING_ROW
+        lda     RING_ROW
+        anda    #15
+        sta     RING_ROW
+        dec     GATE_COPY_ROWS
+        bne     rcbtf_ring_row
+        rts
+        else
         ldy     #16
 rcbtf_row
         ldd     ,u++
@@ -1770,6 +2095,7 @@ rcbtf_row
         leay    -1,y
         bne     rcbtf_row
         rts
+        endc
 
 roam_copy_fb_to_bg
         ldy     #16
@@ -2142,6 +2468,7 @@ gci_done
         sta     GIME_PAR5
         rts
 
+        ifeq    PERSISTENT_FB
 gate_compute_region
         lda     GATE_WORK_ID
         ldb     #3
@@ -2247,6 +2574,7 @@ gate_map_shadow
         inca
         sta     GIME_PAR1+3
         rts
+        endc
 
 gate_map_live
         lda     #LIVE_PAGE0
@@ -2269,6 +2597,7 @@ gml_map
 
 ; X is a live framebuffer address. Map the corresponding shadow physical page
 ; at $A000 and return U at the identical offset inside that page.
+        ifeq    PERSISTENT_FB
 gate_map_shadow_window
         tfr     x,d
         cmpa    #$40
@@ -2373,6 +2702,7 @@ grfs_done
         lda     #$34
         sta     GIME_PAR5
         rts
+        endc
 
 draw_enemy_stage
         pshs    x

@@ -246,6 +246,48 @@
         persistent ping-pong framebuffers with per-buffer save-under state;
         that is a renderer protocol refactor, not a local kernel optimization.
       </p>
+      <h2>Persistent framebuffer four-enemy profile — 2026-07-26</h2>
+      <p>
+        A fresh controlled XRoar trace measured one hot-cache, movement-only
+        persistent-BACK render with four established roaming enemies, two
+        moving east and two west. Excluding the single <code>SYNC</code>
+        instruction's 21,102-cycle VBlank wait, active work is 16,211
+        instructions and 68,297 cycles. This is 13,073 cycles, or 16.1%,
+        below the 81,370-cycle 2026-07-23 frame, but still 2.30 times the
+        29,666-cycle strict-60-Hz budget. The complete render-to-render
+        interval is 89,399 elapsed cycles because it waits for the next
+        VBlank after active work.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Path</th><th>Instructions</th><th>Cycles</th><th>Active-cycle share</th></tr></thead>
+        <tbody>
+          <tr><td>Native enemy framebuffer blits</td><td>6,992</td><td>25,588</td><td>37.5%</td></tr>
+          <tr><td>Circular save-under restore</td><td>4,096</td><td>19,236</td><td>28.2%</td></tr>
+          <tr><td>Native player framebuffer blit</td><td>2,011</td><td>8,203</td><td>12.0%</td></tr>
+          <tr><td>Horizontal ring strip update</td><td>1,178</td><td>5,730</td><td>8.4%</td></tr>
+          <tr><td>Framebuffer ownership and actor orchestration</td><td>693</td><td>3,368</td><td>4.9%</td></tr>
+          <tr><td>Player save and restore</td><td>363</td><td>2,606</td><td>3.8%</td></tr>
+          <tr><td>Resident loop, IRQ, cache lookup, and other work</td><td>809</td><td>3,256</td><td>4.8%</td></tr>
+          <tr><td>Enemy logic</td><td>69</td><td>310</td><td>0.5%</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Live byte-level strip proof exercised four simultaneous horizontal
+        updates and four simultaneous vertical updates against the mapped
+        BACK framebuffer. After each transaction, decoding all four circular
+        save-under buffers matched all 512 clean framebuffer bytes. The 64
+        newly exposed bytes per direction also matched independently, no
+        backing byte outside the permitted physical column or row slots
+        changed, and <code>ENEMY_CAPTURE_DIRTY</code> remained zero.
+      </p>
+      <p>
+        The proof also found a B-owner hydration defect: swapping the B-side
+        player background left <code>U</code> at <code>$AB80</code>, so enemy
+        metadata was read from restoration storage instead of
+        <code>FB_META_B</code>. <code>framebuffer_prepare_back</code> now
+        reacquires the metadata base after that swap, and the verifier
+        enforces swap, reacquire, then enemy-record access ordering.
+      </p>
       <p>
         <strong>Strict-60-Hz architecture designed 2026-07-23:</strong>
         the <a href="../implementation/ping-pong-framebuffer.html">persistent

@@ -85,7 +85,8 @@ $A590-$A60F      5    $34   128 B  Compact off-screen nest compositor lower half
 $A610-$A68F      5    $34   128 B  Nest upper half / transient old-player stage
 $A690-$A88F      5    $34   512 B  Four clean roaming-enemy background buffers
 $A890-$A897      5    $34     8 B  Four prior roaming framebuffer pointers
-$A898-$A8FF      5    $34   104 B  Reserved alignment before framebuffer metadata
+$A898-$A89B      5    $34     4 B  Current BACK enemy save-under row/column ring phases
+$A89C-$A8FF      5    $34   100 B  Reserved alignment before framebuffer metadata
 $A900-$A9FF      5    $34   256 B  Framebuffer A actor metadata and damage ledger
 $AA00-$AAFF      5    $34   256 B  Framebuffer B actor metadata and damage ledger
 $AB00-$AB7F      5    $34   128 B  Framebuffer B player restoration bytes
@@ -136,9 +137,10 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         <code>$C0/$B0</code> display offsets only from the Vbord IRQ. Runtime
         damage projection uses an 18-byte persistent-intent record inside each
         256-byte metadata block. Conservative five-actor closure restores all
-        buffer-old actors before projection and captures all current enemy
-        destinations afterward. Runtime sparse decoding and circular
-        save-under updates remain.
+        buffer-old actors before projection. Four packed ring bytes at metadata
+        offset 44 preserve buffer-local row/column phase; recognized one-byte
+        horizontal and two-row vertical moves capture only exposed strips.
+        Runtime sparse decoding and final cycle/image acceptance remain.
       </p>
     </section>
 
@@ -431,10 +433,11 @@ $FF00-$FFFF        256 B   I/O; never cart data
           <tr><td><code>$86-$87</code></td><td>old-enemy ownership mask and enemy-render intents</td><td>2 B</td><td>Bank-3 logic/render handoff</td></tr>
           <tr><td><code>$88-$8E</code></td><td>two ordered gate intents, zone-refresh row, and gate styles</td><td>7 B</td><td>Deferred gate/nest projection</td></tr>
           <tr><td><code>$8F-$9A</code></td><td>A/B IDs, readiness, commit/simulation/miss counters, render/fault/init state</td><td>12 B</td><td>Always-mapped framebuffer ownership handshake</td></tr>
-          <tr><td><code>$9B-$FF</code></td><td>(free)</td><td>101 B</td><td>Future hot state</td></tr>
+          <tr><td><code>$9B-$9F</code></td><td>enemy underlay-invalid flag plus ring-copy phase/row/base scratch</td><td>5 B</td><td>Persistent circular save-under renderer</td></tr>
+          <tr><td><code>$A0-$FF</code></td><td>(free)</td><td>96 B</td><td>Future hot state</td></tr>
         </tbody>
       </table>
-      <p>The phase-3 intent and ownership ABI leaves 101 direct-page bytes free. Maintain this table as variables land.</p>
+      <p>The current intent, ownership, and ring-copy ABI leaves 96 direct-page bytes free. Maintain this table as variables land.</p>
     </section>
 
     <section>

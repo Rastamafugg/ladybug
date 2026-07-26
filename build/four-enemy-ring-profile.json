@@ -1,0 +1,89 @@
+{
+  "captured": "2026-07-26",
+  "scenario": {
+    "emulator": "XRoar 1.10",
+    "frame": "one complete hot-cache, movement-only main-render interval",
+    "active_enemies": 4,
+    "enemy_positions": [[4, 4], [16, 4], [4, 16], [16, 16]],
+    "movement": ["east", "east", "west", "west"],
+    "nest_dirty": false,
+    "underlay_dirty": false,
+    "animation_tick": false
+  },
+  "profile": {
+    "instructions": 16211,
+    "active_cycles": 68297,
+    "elapsed_cycles": 89399,
+    "sync_wait_cycles": 21102,
+    "hardware_budget_cycles": 29666,
+    "budget_multiple": 2.302,
+    "previous_active_cycles": 81370,
+    "cycle_reduction": 13073,
+    "cycle_reduction_percent": 16.1,
+    "paths": [
+      {
+        "name": "native enemy framebuffer blits",
+        "instructions": 6992,
+        "cycles": 25588
+      },
+      {
+        "name": "circular save-under restore",
+        "instructions": 4096,
+        "cycles": 19236
+      },
+      {
+        "name": "native player framebuffer blit",
+        "instructions": 2011,
+        "cycles": 8203
+      },
+      {
+        "name": "horizontal ring strip update",
+        "instructions": 1178,
+        "cycles": 5730
+      },
+      {
+        "name": "framebuffer ownership and actor orchestration",
+        "instructions": 693,
+        "cycles": 3368
+      },
+      {
+        "name": "player save and restore",
+        "instructions": 363,
+        "cycles": 2606
+      },
+      {
+        "name": "enemy logic",
+        "instructions": 69,
+        "cycles": 310
+      },
+      {
+        "name": "resident loop, IRQ, cache lookup, and uncategorized work",
+        "instructions": 809,
+        "cycles": 3256
+      }
+    ]
+  },
+  "live_strip_proof": {
+    "horizontal": {
+      "directions": ["right", "right", "left", "left"],
+      "final_ring_phases_hex": ["01", "01", "07", "07"],
+      "decoded_bytes_matching_clean_framebuffer": "512/512",
+      "exposed_bytes_matching_clean_framebuffer": "64/64",
+      "changed_bytes_outside_permitted_ring_slots": 0,
+      "fallback_full_capture_count": 0
+    },
+    "vertical": {
+      "directions": ["up", "down", "up", "down"],
+      "final_ring_phases_hex": ["E1", "21", "E7", "27"],
+      "decoded_bytes_matching_clean_framebuffer": "512/512",
+      "exposed_bytes_matching_clean_framebuffer": "64/64",
+      "changed_bytes_outside_permitted_ring_slots": 0,
+      "fallback_full_capture_count": 0
+    }
+  },
+  "artifacts": {
+    "trace": "build/four-enemy-ring-profile.trace",
+    "horizontal_prefix": "build/four-enemy-ring-horizontal-",
+    "vertical_prefix": "build/four-enemy-ring-vertical-"
+  }
+}
