@@ -23,6 +23,26 @@
     </header>
 
     <section>
+      <h3>2026-07-26 &middot; profile/proof/lint &mdash; destination-delta four-enemy frame</h3>
+      <p>Captured hot-cache horizontal four-enemy traces after both framebuffer owners were hydrated. Owner A costs 27,531 active cycles and owner B costs 28,067, passing the strict 29,666-cycle budget by 2,135/1,599 cycles while remaining above the 27,000-cycle engineering target. Four sparse enemy draws cost 8,800 cycles; segmented horizontal capture costs 3,062/3,050. Independent live BACK captures match 512/512 enemy framebuffer bytes, 512/512 enemy save-under bytes, and 128/128 player framebuffer/save-under bytes with no out-of-footprint writes; framebuffer SHA-256 is <code>f828503e85646af0d777e1142c833d8ad46ad91120cb7c2e8b74a2df0684a658</code>. Added a reusable verifier and PNG/JSON proof artifacts. Remaining acceptance work covers movement-plus-animation, gate, pickup, death, and distribution profiles.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-26 &middot; implementation/lint &mdash; shared destination deltas, segmented capture, and sparse index mirrors</h3>
+      <p>Replaced row-framed enemy/player streams with one ABI shared by framebuffer and compact-stage decoders: normal destination deltas, a <code>$FF</code> extended framebuffer/stage delta, and a zero extended delta terminator. Payloads are now 22,683/2,294 bytes, saving 1,649 bytes and leaving 2,667 readable GMC bytes spare. The bootstrap mirrors the 384-byte enemy index to <code>$0500</code> and the 48-byte player index to <code>$0680</code>; runtime maps only the selected payload page and restores page <code>$34</code> at decoder termination. Horizontal circular-strip capture now uses at most two linear physical segments; all 128 row-phase/slot combinations pass. A live bootstrap test caught and corrected invalid reliance on <code>LEAU</code> condition codes. Full GMC, sparse, ownership, circular-ring, and arcade-fidelity proofs pass at 4,006/4,096 bank-3 bytes. Fresh complete-frame profiling remains required.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-26 &middot; implementation/lint &mdash; owner-selected player save-under</h3>
+      <p>Replaced steady A/B player-background exchanges with direct-page pointer <code>$00A2</code>. Initial rendering selects <code>PLAYER_BG</code>; each persistent BACK preparation selects <code>PLAYER_BG</code> or <code>PLAYER_BG_B</code> from the owner ID, and resident save/restore plus staged player composition dereference the pointer. Cold initialization still clones A restoration state to B once. The removed path executed 256 swap-loop iterations and 7,168 cycles on the affected captured owner. Three consecutive live GDB stops proved owner/pointer alternation <code>0/$A300</code>, <code>1/$AB00</code>, <code>0/$A300</code>. Full GMC, sparse, ownership, compatibility, arcade-fidelity, and source checks pass; resident use is 7,103/8,192 and bank-3 use is 4,024/4,096 bytes. Fresh complete-frame cycle/image profiling remains.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-26 &middot; query/design &mdash; remaining interpreter and adjacent bottlenecks</h3>
+      <p>Attributed the four-enemy decoder's 10,692 cycles without overlapping categories: 3,082 command-header/address/type, 3,292 partial body, 1,914 opaque body/returns, 1,664 row termination/advance, 684 length dispatch, and 56 setup/return. Designed a shared destination-delta stream whose rare escape carries both framebuffer and compact-stage deltas; it retains payload handlers and projects 1,576 enemy plus 404 player cycles saved while reducing generated payloads by 1,647 bytes. The trace also exposes two larger adjacent opportunities: two physical player save-under exchanges execute 7,168 loop cycles, and per-row circular-column address reconstruction costs 4,800 cycles. Owner-selected save-under pointers followed by segmented linear column capture and delta streams project both captured owners near 28.5-28.9 K cycles, with less than 1.2 K strict-budget margin requiring fresh worst-frame proof.</p>
+    </section>
+
+    <section>
       <h3>2026-07-26 &middot; query/design &mdash; XRoar external-sound emulation paths</h3>
       <p>Inspected the installed XRoar 1.10 source and current MAME device references. XRoar already emulates the Ladybug GMC's 4 MHz SN76489: even SCS writes bank-switch and odd writes program sound, making <code>$FF51</code> an immediate no-MPI backend matching one arcade chip. XRoar also models independent Multi-Pak CTS/SCS routing but has no attachable Tandy Speech/Sound or SuperSprite FM+ part. Full Speech/Sound emulation needs TMS7040 firmware, 2 K RAM, AY891x, SP0256, status/timing, and audio; a sound-only SuperSprite part needs existing AY891x plus a new YM2413 core at the MAME-confirmed MPI register map. Recorded an incremental plan: GMC first, compatibility device only if hardware-backend validation requires it.</p>
     </section>

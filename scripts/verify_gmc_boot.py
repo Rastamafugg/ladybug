@@ -30,6 +30,15 @@ def main() -> None:
     loader_source = (Path(__file__).resolve().parents[1] / "src/gmc_bootstrap.s").read_text(
         encoding="utf-8"
     )
+    loader_include = (
+        Path(__file__).resolve().parents[1] / "build/ladybug-sparse-loader.inc"
+    ).read_text(encoding="ascii")
+    segment_match = re.search(
+        r"^SPARSE_COPY_SEGMENT_COUNT equ ([0-9]+)$", loader_include, re.MULTILINE
+    )
+    if not segment_match:
+        raise SystemExit("gmc proof: generated sparse segment count is missing")
+    expected_sparse_segments = int(segment_match.group(1))
     enemy_map = (
         Path(__file__).resolve().parents[1] / "build/ladybug-enemy-runtime.map"
     ).read_text(encoding="utf-8")
@@ -144,8 +153,9 @@ def main() -> None:
         "bank 2 signature": f"{bank2_signature}| fcc010" in text and "a=b2 b=02" in text,
         "bank 3 signature": f"{bank3_signature}| fcc010" in text and "a=b3 b=03" in text,
         "bank-3 module selected": f"{bank_writes[2]}| b7ff50" in text,
-        "seven sparse source segments selected": (
-            len(sparse_bank_writes) == 7 and set(sparse_bank_writes) == {"02", "03"}
+        "generated sparse source segments selected": (
+            len(sparse_bank_writes) == expected_sparse_segments and
+            set(sparse_bank_writes) == {"02", "03"}
         ),
         "sparse destination pages selected": set(sparse_page_writes) == {"35", "36", "37", "39"},
         "runtime bank selected": f"{bank_writes[4]}| b7ff50" in text,

@@ -37,7 +37,7 @@ BOX_PHASE      equ $004C
 STAGE_COUNT    equ $0064
 STAGE_PIXEL    equ $0065
 STAGE_SOURCE   equ $0066
-PLAYER_BG_VALID equ $006A
+PLAYER_BG_VALID equ $006A       ; PLAYER_BG_PTR contains restorable pixels
 PLAYER_TICK_PENDING equ $006B
 PLAYER_OLD_FB   equ $0067
 PLAYER_DX       equ $006C
@@ -87,9 +87,7 @@ ENEMY_CAPTURE_DIRTY equ $009B
 RING_PHASE     equ $009C
 RING_ROW       equ $009D
 RING_BASE      equ $009E
-SPARSE_ROWS    equ $009F
-SPARSE_COUNT   equ $00A0
-SPARSE_PAGE    equ $00A1
+PLAYER_BG_PTR  equ $00A2        ; selected A/B player save-under buffer
 GATE_ID         equ $0013
 GATE_X          equ $0014
 GATE_Y          equ $0015
@@ -190,10 +188,8 @@ FB_SCRATCH_PAGE0 equ $2C
         endc
 FB_B_PAGE0     equ $2C
 LIVE_PAGE0     equ $30
-SPARSE_ENEMY_INDEX_PAGE equ $35
-SPARSE_ENEMY_INDEX_ADDR equ $A000
-SPARSE_PLAYER_INDEX_PAGE equ $39
-SPARSE_PLAYER_INDEX_ADDR equ $A000
+SPARSE_ENEMY_INDEX_ADDR equ $0500
+SPARSE_PLAYER_INDEX_ADDR equ $0680
 
 ; Record: active, framebuffer pointer, pixel phase, cell x, cell y,
 ; saved-background valid, selected direction.
@@ -1042,11 +1038,12 @@ fbp_owned
         sta     PLAYER_BG_VALID
         ldd     FBM_PLAYER_FB,u
         std     PLAYER_OLD_FB
+        ldx     #PLAYER_BG
         tst     FB_BACK_ID
         beq     fbp_enemies
-        lbsr    framebuffer_swap_player_bg
-        lbsr    framebuffer_back_meta
+        ldx     #PLAYER_BG_B
 fbp_enemies
+        stx     PLAYER_BG_PTR
         leau    FBM_ENEMIES,u
         ldy     #ENEMY_OLD_FB
         clr     ENEMY_OLD_VALID
@@ -1076,15 +1073,12 @@ fbp_ok
         andcc   #$FE
         rts
 
-; Capture buffer-local ownership, restore the A-side player save-under when B
-; was rendered, then publish readiness as one IRQ-masked transaction.
+; Capture buffer-local ownership, then publish readiness as one IRQ-masked
+; transaction. PLAYER_BG_PTR continues to identify the rendered owner.
 framebuffer_finish_back
         tst     FB_INIT_STATE
         beq     fbf_done
         lbsr    framebuffer_capture_back
-        tst     FB_BACK_ID
-        beq     fbf_ready
-        lbsr    framebuffer_swap_player_bg
 fbf_ready
         orcc    #$10
         clr     FB_RENDER_ACTIVE
@@ -1100,19 +1094,6 @@ framebuffer_back_meta
         beq     fbm_done
         ldu     #FB_META_B
 fbm_done
-        rts
-
-framebuffer_swap_player_bg
-        ldx     #PLAYER_BG
-        ldu     #PLAYER_BG_B
-        ldy     #128
-fbsp_loop
-        lda     ,x
-        ldb     ,u
-        stb     ,x+
-        sta     ,u+
-        leay    -1,y
-        bne     fbsp_loop
         rts
 
 framebuffer_capture_back
@@ -1826,31 +1807,38 @@ rub_right_slot
         leax    7,x
 rub_horizontal_fb
         lbsr    roam_bg_address
-        stu     RING_BASE
+        ldb     GATE_COPY_COUNT
+        leau    b,u
         lda     RING_PHASE
         lsra
         lsra
         lsra
         lsra
         sta     RING_ROW
-        lda     #16
-        sta     GATE_COPY_ROWS
-rub_column_loop
-        lda     RING_ROW
-        ldb     #8
-        mul
-        addd    RING_BASE
-        tfr     d,u
-        ldb     GATE_COPY_COUNT
+        lsla
+        lsla
+        lsla
+        leau    a,u
+        ldb     #16
+        subb    RING_ROW
+rub_column_first
         lda     ,x
-        sta     b,u
+        sta     ,u
         leax    160,x
-        inc     RING_ROW
-        lda     RING_ROW
-        anda    #15
-        sta     RING_ROW
-        dec     GATE_COPY_ROWS
-        bne     rub_column_loop
+        leau    8,u
+        decb
+        bne     rub_column_first
+        ldb     RING_ROW
+        beq     rub_column_done
+        leau    -128,u
+rub_column_second
+        lda     ,x
+        sta     ,u
+        leax    160,x
+        leau    8,u
+        decb
+        bne     rub_column_second
+rub_column_done
         puls    x
         rts
 
@@ -2264,7 +2252,6 @@ draw_enemy_fb
         lbsr    enemy_frame_number
         lbsr    sparse_enemy_stream
         lbsr    sparse_blit_fb
-        lbsr    sparse_restore_page
         rts
 
 ; Build the complete 16-by-32 nest layer in compact RAM, then publish only
@@ -2346,7 +2333,7 @@ cez_commit_row
 ; exposed edge pixels. Publish the complete new sprite before erasing only the
 ; old strips it no longer covers, so scanout never sees a player-free frame.
 player_compose_impl
-        ldx     #PLAYER_BG
+        ldx     PLAYER_BG_PTR
         ldu     #PLAYER_OLD_STAGE
         ldy     #64
 pci_copy_old
@@ -2446,7 +2433,7 @@ pci_next_row
 
         ; Preserve the clean result before overlaying the selected frame.
         ldx     #PLAYER_STAGE
-        ldu     #PLAYER_BG
+        ldu     PLAYER_BG_PTR
         ldy     #64
 pci_save_loop
         ldd     ,x++
@@ -2463,7 +2450,6 @@ pci_save_loop
         lbsr    sparse_player_stream
         ldx     #PLAYER_STAGE
         lbsr    sparse_blit_stage
-        lbsr    sparse_restore_page
 
         ; Commit the final new rectangle before removing old-only strips.
         ldx     #PLAYER_STAGE
@@ -2821,7 +2807,6 @@ draw_enemy_stage
         lbsr    enemy_frame_number
         lbsr    sparse_enemy_stream
         lbsr    sparse_blit_stage
-        lbsr    sparse_restore_page
         rts
 
 ; Return the indexed sparse frame number in A. B is N/E/S/W. Parts 1-8 use
@@ -2886,57 +2871,48 @@ player_draw_impl
         adda    PLAYER_ANIM
         lbsr    sparse_player_stream
         lbsr    sparse_blit_fb
-        lbsr    sparse_restore_page
         rts
 
-; Resolve A's enemy index entry and map its stream page. X is preserved.
+; Resolve A's always-mapped enemy index entry and map its stream page.
 sparse_enemy_stream
         ldb     #3
         mul
         ldu     #SPARSE_ENEMY_INDEX_ADDR
         leau    d,u
-        lda     #SPARSE_ENEMY_INDEX_PAGE
-        sta     GIME_PAR5
         lda     ,u
-        sta     SPARSE_PAGE
-        ldu     1,u
-        lda     SPARSE_PAGE
         sta     GIME_PAR5
+        ldu     1,u
         rts
 
-; Resolve A's player index entry and map its stream page. X is preserved.
+; Resolve A's always-mapped player index entry and map its stream page.
 sparse_player_stream
         ldb     #3
         mul
         ldu     #SPARSE_PLAYER_INDEX_ADDR
         leau    d,u
-        lda     #SPARSE_PLAYER_INDEX_PAGE
-        sta     GIME_PAR5
         lda     ,u
-        sta     SPARSE_PAGE
-        ldu     1,u
-        lda     SPARSE_PAGE
         sta     GIME_PAR5
+        ldu     1,u
         rts
 
-; Decode one indexed stream directly into the mapped BACK framebuffer.
+; Decode shared destination deltas into the mapped BACK framebuffer.
 sparse_blit_fb
-        lda     #16
-        sta     SPARSE_ROWS
-        bra     sbf_row
+        bra     sbf_delta
 sbf_partial
         andb    #$7F
 sbf_partial_byte
         lda     ,u+
-        anda    ,y
+        anda    ,x
         ora     ,u+
-        sta     ,y+
+        sta     ,x+
         decb
         bne     sbf_partial_byte
-sbf_row
-        lda     ,u+
-        bmi     sbf_next_row
-        leay    a,x
+sbf_delta
+        ldb     ,u+
+        cmpb    #$FF
+        beq     sbf_extended
+        abx
+sbf_command
         ldb     ,u+
         bmi     sbf_partial
         cmpb    #5
@@ -2948,10 +2924,10 @@ sbf_row
         beq     sbf_opaque6
 sbf_opaque_byte
         lda     ,u+
-        sta     ,y+
+        sta     ,x+
         decb
         bne     sbf_opaque_byte
-        bra     sbf_row
+        bra     sbf_delta
 sbf_opaque_small
         cmpb    #2
         beq     sbf_opaque2
@@ -2959,71 +2935,77 @@ sbf_opaque_small
         bra     sbf_opaque3
 sbf_opaque5
         ldd     ,u++
-        std     ,y++
+        std     ,x++
 sbf_opaque3
         ldd     ,u++
-        std     ,y++
+        std     ,x++
 sbf_opaque1
         lda     ,u+
-        sta     ,y+
-        bra     sbf_row
+        sta     ,x+
+        bra     sbf_delta
 sbf_opaque6
         ldd     ,u++
-        std     ,y++
+        std     ,x++
         ldd     ,u++
-        std     ,y++
+        std     ,x++
         ldd     ,u++
-        std     ,y++
-        bra     sbf_row
+        std     ,x++
+        bra     sbf_delta
 sbf_opaque4
         ldd     ,u++
-        std     ,y++
+        std     ,x++
 sbf_opaque2
         ldd     ,u++
-        std     ,y++
-        bra     sbf_row
-sbf_next_row
-        leax    160,x
-        dec     SPARSE_ROWS
-        bne     sbf_row
+        std     ,x++
+        bra     sbf_delta
+sbf_extended
+        ldd     ,u++
+        beq     sparse_decode_done
+        leax    d,x
+        leau    1,u
+        bra     sbf_command
+
+sparse_decode_done
+        lda     #$34
+        sta     GIME_PAR5
         rts
 
-; Decode one indexed stream into the always-mapped 8-byte-wide actor stage.
+; Decode shared destination deltas into the 8-byte-wide actor stage.
 sparse_blit_stage
-        lda     #16
-        sta     SPARSE_ROWS
-sbs_row
-        lda     ,u+
-        bmi     sbs_next_row
-        leay    a,x
+sbs_delta
+        ldb     ,u+
+        cmpb    #$FF
+        beq     sbs_extended
+        bitb    #$80
+        beq     sbs_add_delta
+        subb    #152
+sbs_add_delta
+        abx
+sbs_command
         ldb     ,u+
         bmi     sbs_partial
 sbs_opaque_byte
         lda     ,u+
-        sta     ,y+
+        sta     ,x+
         decb
         bne     sbs_opaque_byte
-        bra     sbs_row
+        bra     sbs_delta
 sbs_partial
         andb    #$7F
 sbs_partial_byte
         lda     ,u+
-        anda    ,y
+        anda    ,x
         ora     ,u+
-        sta     ,y+
+        sta     ,x+
         decb
         bne     sbs_partial_byte
-        bra     sbs_row
-sbs_next_row
-        leax    8,x
-        dec     SPARSE_ROWS
-        bne     sbs_row
-        rts
-
-sparse_restore_page
-        lda     #$34
-        sta     GIME_PAR5
-        rts
+        bra     sbs_delta
+sbs_extended
+        ldd     ,u++
+        beq     sparse_decode_done
+        ldb     ,u+
+        abx
+        bra     sbs_command
 
 draw_vegetable_stage
         pshs    x

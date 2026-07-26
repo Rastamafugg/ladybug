@@ -1,0 +1,183 @@
+{
+  "captured": "2026-07-26",
+  "scenario": {
+    "active_enemies": 4,
+    "movement": [
+      "east",
+      "east",
+      "west",
+      "west"
+    ],
+    "enemy_frames": [
+      5,
+      5,
+      13,
+      13
+    ],
+    "format": "shared destination-delta sparse streams",
+    "strip_capture": "segmented horizontal tail/head",
+    "index_mapping": "mirrored $0500/$0680; one payload map per draw"
+  },
+  "hardware_budget_cycles": 29666,
+  "owners": {
+    "A": {
+      "instructions": 5687,
+      "active_instructions": 5686,
+      "elapsed_cycles": 29612,
+      "sync_wait_cycles": 2081,
+      "active_cycles": 27531,
+      "budget_margin_cycles": 2135,
+      "budget_multiple": 0.928,
+      "enemy_decoder_body_cycles": 8236,
+      "player_decoder_body_cycles": 1910,
+      "paths": [
+        {
+          "name": "circular save-under restore",
+          "instructions": 1105,
+          "cycles": 7445,
+          "share_percent": 27.0
+        },
+        {
+          "name": "segmented horizontal strip capture",
+          "instructions": 718,
+          "cycles": 3062,
+          "share_percent": 11.1
+        },
+        {
+          "name": "four sparse enemy draws",
+          "instructions": 2080,
+          "cycles": 8800,
+          "share_percent": 32.0
+        },
+        {
+          "name": "player restoration and sparse draw",
+          "instructions": 672,
+          "cycles": 3402,
+          "share_percent": 12.4
+        },
+        {
+          "name": "enemy logic",
+          "instructions": 201,
+          "cycles": 882,
+          "share_percent": 3.2
+        },
+        {
+          "name": "ownership, IRQ, and remaining orchestration",
+          "instructions": 910,
+          "cycles": 3940,
+          "share_percent": 14.3
+        }
+      ]
+    },
+    "B": {
+      "instructions": 5819,
+      "active_instructions": 5818,
+      "elapsed_cycles": 30525,
+      "sync_wait_cycles": 2458,
+      "active_cycles": 28067,
+      "budget_margin_cycles": 1599,
+      "budget_multiple": 0.946,
+      "enemy_decoder_body_cycles": 8236,
+      "player_decoder_body_cycles": 1910,
+      "paths": [
+        {
+          "name": "circular save-under restore",
+          "instructions": 1101,
+          "cycles": 7433,
+          "share_percent": 26.5
+        },
+        {
+          "name": "segmented horizontal strip capture",
+          "instructions": 714,
+          "cycles": 3050,
+          "share_percent": 10.9
+        },
+        {
+          "name": "four sparse enemy draws",
+          "instructions": 2080,
+          "cycles": 8800,
+          "share_percent": 31.4
+        },
+        {
+          "name": "player restoration and sparse draw",
+          "instructions": 672,
+          "cycles": 3402,
+          "share_percent": 12.1
+        },
+        {
+          "name": "enemy logic",
+          "instructions": 296,
+          "cycles": 1259,
+          "share_percent": 4.5
+        },
+        {
+          "name": "ownership, IRQ, and remaining orchestration",
+          "instructions": 955,
+          "cycles": 4123,
+          "share_percent": 14.7
+        }
+      ]
+    }
+  },
+  "live_framebuffer_proof": {
+    "actors": [
+      {
+        "slot": 0,
+        "pointer_hex": "2FCE",
+        "frame": 5,
+        "direction": 1,
+        "ring_phase_hex": "00",
+        "framebuffer_match": 128,
+        "saveunder_match": 128
+      },
+      {
+        "slot": 1,
+        "pointer_hex": "2FEE",
+        "frame": 5,
+        "direction": 1,
+        "ring_phase_hex": "00",
+        "framebuffer_match": 128,
+        "saveunder_match": 128
+      },
+      {
+        "slot": 2,
+        "pointer_hex": "6FCA",
+        "frame": 13,
+        "direction": 3,
+        "ring_phase_hex": "00",
+        "framebuffer_match": 128,
+        "saveunder_match": 128
+      },
+      {
+        "slot": 3,
+        "pointer_hex": "6FEA",
+        "frame": 13,
+        "direction": 3,
+        "ring_phase_hex": "00",
+        "framebuffer_match": 128,
+        "saveunder_match": 128
+      }
+    ],
+    "enemy_framebuffer_match": 512,
+    "enemy_framebuffer_total": 512,
+    "saveunder_match": 512,
+    "saveunder_total": 512,
+    "enemy_changes_outside_footprints": 0,
+    "player_pointer_hex": "4E8C",
+    "player_frame": 3,
+    "player_framebuffer_match": 128,
+    "player_saveunder_match": 128,
+    "player_changes_outside_footprint": 0,
+    "framebuffer_sha256": "f828503e85646af0d777e1142c833d8ad46ad91120cb7c2e8b74a2df0684a658"
+  },
+  "artifacts": {
+    "owner_a_trace": "build/four-enemy-delta-owner-a.trace",
+    "owner_b_trace": "build/four-enemy-delta-owner-b.trace",
+    "clean": "build/four-enemy-delta-clean.bin",
+    "enemies": "build/four-enemy-delta-enemies.bin",
+    "framebuffer": "build/four-enemy-delta-framebuffer.bin",
+    "saveunder": "build/four-enemy-delta-saveunder.bin",
+    "ring": "build/four-enemy-delta-ring.bin",
+    "image": "build/four-enemy-delta-framebuffer.png"
+  }
+}

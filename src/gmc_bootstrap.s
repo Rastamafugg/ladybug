@@ -93,6 +93,32 @@ copy_sparse_bytes
         dec     BOOT_SEGMENTS
         bne     copy_sparse_segment
 
+        ; Mirror the sparse indexes into always-mapped PAR0 low RAM. Runtime
+        ; resolution then maps only the selected payload page.
+        lda     #SPARSE_ENEMY_PAYLOAD_PAGE
+        sta     PAR_EXEC+5
+        ldx     #$A000
+        ldy     #SPARSE_ENEMY_INDEX_ADDR
+        ldu     #SPARSE_ENEMY_INDEX_BYTES/2
+copy_enemy_sparse_index
+        ldd     ,x++
+        std     ,y++
+        leau    -1,u
+        cmpu    #0
+        bne     copy_enemy_sparse_index
+
+        lda     #SPARSE_PLAYER_PAYLOAD_PAGE
+        sta     PAR_EXEC+5
+        ldx     #$A000
+        ldy     #SPARSE_PLAYER_INDEX_ADDR
+        ldu     #SPARSE_PLAYER_INDEX_BYTES/2
+copy_player_sparse_index
+        ldd     ,x++
+        std     ,y++
+        leau    -1,u
+        cmpu    #0
+        bne     copy_player_sparse_index
+
         ; Bank 1 contains the current 16 KiB runtime image. Copy its resident
         ; 8 KiB through PAR5 to phys $3E.
         lda     #$3E

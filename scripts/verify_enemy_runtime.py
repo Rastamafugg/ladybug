@@ -82,13 +82,12 @@ required = [
     "ENEMY_OLD_FB   equ $A890",
     "ENEMY_BG_RING  equ $A898",
     "FBM_ENEMY_RINGS equ 44",
-    "SPARSE_ENEMY_INDEX_PAGE equ $35",
-    "SPARSE_PLAYER_INDEX_PAGE equ $39",
+    "SPARSE_ENEMY_INDEX_ADDR equ $0500",
+    "SPARSE_PLAYER_INDEX_ADDR equ $0680",
     "lbsr    sparse_enemy_stream",
     "lbsr    sparse_player_stream",
     "lbsr    sparse_blit_fb",
     "lbsr    sparse_blit_stage",
-    "lbsr    sparse_restore_page",
     "lbsr    roam_prepare_shadow",
     "lbsr    roam_finish_shadow",
     "rsn_actor",
@@ -160,6 +159,10 @@ for fragment in (
     "lda     #SPARSE_COPY_SEGMENT_COUNT",
     "copy_sparse_segment",
     "copy_sparse_bytes",
+    "copy_enemy_sparse_index",
+    "copy_player_sparse_index",
+    "#SPARSE_ENEMY_INDEX_ADDR",
+    "#SPARSE_PLAYER_INDEX_ADDR",
 ):
     if fragment not in bootstrap:
         raise SystemExit("enemy proof: sparse loader is incomplete: " + fragment)
@@ -174,7 +177,7 @@ for fragment in ("cmpa    #9", "anda    #7", "cmpa    #5",
 enemy_draw = source[source.index("\ndraw_enemy_fb\n"):
                     source.index("\ncompose_enemy_zone\n")]
 for fragment in ("lbsr    enemy_frame_number", "lbsr    sparse_enemy_stream",
-                 "lbsr    sparse_blit_fb", "lbsr    sparse_restore_page"):
+                 "lbsr    sparse_blit_fb"):
     if fragment not in enemy_draw:
         raise SystemExit("enemy proof: framebuffer enemy sparse path is incomplete")
 stage_draw = source[source.index("\ndraw_enemy_stage\n"):
@@ -183,8 +186,7 @@ if "lbsr    sparse_blit_stage" not in stage_draw:
     raise SystemExit("enemy proof: nest enemy does not use the sparse stage decoder")
 player_compose = source[source.index("\nplayer_compose_impl\n"):
                         source.index("\npci_done\n")]
-for fragment in ("lbsr    sparse_player_stream", "lbsr    sparse_blit_stage",
-                 "lbsr    sparse_restore_page"):
+for fragment in ("lbsr    sparse_player_stream", "lbsr    sparse_blit_stage"):
     if fragment not in player_compose:
         raise SystemExit("enemy proof: staged player sparse path is incomplete")
 draw_player = main[main.index("\ndraw_player\n"):main.index("\nplayer_animation_tick\n")]
@@ -196,7 +198,6 @@ for fragment in (
     "SPARSE_ENEMY_INDEX_ADDR",
     "SPARSE_PLAYER_INDEX_ADDR",
     "ldb     #3",
-    "sta     SPARSE_PAGE",
     "ldu     1,u",
     "sta     GIME_PAR5",
 ):
@@ -205,8 +206,10 @@ for fragment in (
 sparse_fb = source[source.index("\nsparse_blit_fb\n"):
                    source.index("\nsparse_blit_stage\n")]
 for fragment in (
-    "bmi     sbf_next_row",
-    "leay    a,x",
+    "cmpb    #$FF",
+    "sbf_extended",
+    "leax    d,x",
+    "leau    1,u",
     "bmi     sbf_partial",
     "cmpb    #5",
     "blo     sbf_opaque_small",
@@ -218,19 +221,16 @@ for fragment in (
     "sbf_opaque6",
     "sbf_opaque4",
     "ldd     ,u++",
-    "std     ,y++",
-    "sta     ,y+",
-    "anda    ,y",
+    "std     ,x++",
+    "sta     ,x+",
+    "anda    ,x",
     "ora     ,u+",
     "decb",
-    "leax    160,x",
 ):
     if fragment not in sparse_fb:
         raise SystemExit("enemy proof: framebuffer sparse decoder is incomplete: " + fragment)
 if "stb     SPARSE_COUNT" in sparse_fb or "dec     SPARSE_COUNT" in sparse_fb:
     raise SystemExit("enemy proof: framebuffer sparse decoder still spills command counts")
-if "cmpa    #$FF" in sparse_fb:
-    raise SystemExit("enemy proof: framebuffer row parser restored its redundant compare")
 small_dispatch = """sbf_opaque_small
         cmpb    #2
         beq     sbf_opaque2
@@ -239,12 +239,12 @@ small_dispatch = """sbf_opaque_small
 if small_dispatch not in sparse_fb:
     raise SystemExit("enemy proof: short opaque dispatch no longer covers 1/2/3")
 partial_start = sparse_fb.index("\nsbf_partial\n")
-row_start = sparse_fb.index("\nsbf_row\n")
-if partial_start > row_start:
-    raise SystemExit("enemy proof: partial decoder no longer falls through to row parser")
-partial_fallthrough = sparse_fb[partial_start:row_start]
-if "bra     sbf_row" in partial_fallthrough:
-    raise SystemExit("enemy proof: partial decoder restored its per-command row branch")
+delta_start = sparse_fb.index("\nsbf_delta\n")
+if partial_start > delta_start:
+    raise SystemExit("enemy proof: partial decoder no longer falls through to delta parser")
+partial_fallthrough = sparse_fb[partial_start:delta_start]
+if "bra     sbf_delta" in partial_fallthrough:
+    raise SystemExit("enemy proof: partial decoder restored its per-command parser branch")
 specialized_opaque = {
     1: ("byte",),
     2: ("word",),
@@ -256,29 +256,29 @@ specialized_opaque = {
 specialized_blocks = {
     5: """sbf_opaque5
         ldd     ,u++
-        std     ,y++
+        std     ,x++
 sbf_opaque3
         ldd     ,u++
-        std     ,y++
+        std     ,x++
 sbf_opaque1
         lda     ,u+
-        sta     ,y+
-        bra     sbf_row""",
+        sta     ,x+
+        bra     sbf_delta""",
     6: """sbf_opaque6
         ldd     ,u++
-        std     ,y++
+        std     ,x++
         ldd     ,u++
-        std     ,y++
+        std     ,x++
         ldd     ,u++
-        std     ,y++
-        bra     sbf_row""",
+        std     ,x++
+        bra     sbf_delta""",
     4: """sbf_opaque4
         ldd     ,u++
-        std     ,y++
+        std     ,x++
 sbf_opaque2
         ldd     ,u++
-        std     ,y++
-        bra     sbf_row""",
+        std     ,x++
+        bra     sbf_delta""",
 }
 for length, operations in specialized_opaque.items():
     copied = []
@@ -300,21 +300,22 @@ for length, block in specialized_blocks.items():
             f"enemy proof: opaque-{length} shared-tail instruction order changed"
         )
 sparse_stage = source[source.index("\nsparse_blit_stage\n"):
-                      source.index("\nsparse_restore_page\n")]
+                      source.index("\ndraw_vegetable_stage\n")]
 for fragment in (
-    "bmi     sbs_next_row", "bmi     sbs_partial", "anda    ,y",
-    "ora     ,u+", "decb", "leax    8,x"
+    "cmpb    #$FF", "bitb    #$80", "subb    #152", "sbs_extended",
+    "bmi     sbs_partial", "anda    ,x", "ora     ,u+", "decb",
+    "ldb     ,u+", "abx"
 ):
     if fragment not in sparse_stage:
         raise SystemExit("enemy proof: stage sparse decoder is incomplete: " + fragment)
 if "stb     SPARSE_COUNT" in sparse_stage or "dec     SPARSE_COUNT" in sparse_stage:
     raise SystemExit("enemy proof: stage sparse decoder still spills command counts")
-if "cmpa    #$FF" in sparse_stage:
-    raise SystemExit("enemy proof: stage row parser restored its redundant compare")
-sparse_restore = source[source.index("\nsparse_restore_page\n"):
-                        source.index("\ndraw_vegetable_stage\n")]
-if "lda     #$34" not in sparse_restore or "sta     GIME_PAR5" not in sparse_restore:
+decode_done = source[source.index("\nsparse_decode_done\n"):
+                     source.index("\nsparse_blit_stage\n")]
+if "lda     #$34" not in decode_done or "sta     GIME_PAR5" not in decode_done:
     raise SystemExit("enemy proof: sparse decoder does not restore game-state PAR5")
+if "sparse_restore_page" in source:
+    raise SystemExit("enemy proof: sparse wrappers retain a separate PAR5 restore call")
 for obsolete in ("ladybug-enemy-sprites.bin", "ENEMY_SPRITES"):
     if obsolete in build_script:
         raise SystemExit("enemy proof: build still depends on the packed enemy atlas")
@@ -581,6 +582,9 @@ for fragment in (
     "cmpd    #320",
     "cmpd    #-320",
     "rub_horizontal",
+    "rub_column_first",
+    "rub_column_second",
+    "leau    -128,u",
     "rub_vertical",
     "roam_capture_ring_row",
     "clr     ,u",
@@ -616,6 +620,30 @@ for fragment in (
 world = [[row * 100 + col for col in range(80)] for row in range(80)]
 backing = [[world[20 + row][20 + col] for col in range(8)] for row in range(16)]
 row_phase = col_phase = 0
+
+
+def segmented_column_capture(
+        storage: list[list[int]], phase: int, slot: int, pixels: list[int]
+) -> None:
+    """Model the two contiguous physical segments used by rub_horizontal_fb."""
+    first_count = 16 - phase
+    for index, pixel in enumerate(pixels[:first_count]):
+        storage[phase + index][slot] = pixel
+    for index, pixel in enumerate(pixels[first_count:]):
+        storage[index][slot] = pixel
+
+
+for phase in range(16):
+    for slot in range(8):
+        model = [[-1] * 8 for _ in range(16)]
+        pixels = [phase * 1000 + slot * 100 + row for row in range(16)]
+        segmented_column_capture(model, phase, slot, pixels)
+        for row, pixel in enumerate(pixels):
+            if model[(phase + row) & 15][slot] != pixel:
+                raise SystemExit(
+                    "enemy proof: segmented horizontal capture diverged "
+                    f"at row phase {phase}, slot {slot}"
+                )
 x_pos = y_pos = 20
 
 def restore_ring() -> list[list[int]]:
@@ -751,6 +779,13 @@ if metadata_symbols != {
     "ENEMY_BG_B": 0xAB80,
 }:
     raise SystemExit("enemy proof: phase-3 ownership/restoration allocation changed")
+pointer_symbols = {
+    "enemy": re.search(r"^PLAYER_BG_PTR +equ \$([0-9A-F]+)", source, re.MULTILINE),
+    "resident": re.search(r"^PLAYER_BG_PTR +equ \$([0-9A-F]+)", main, re.MULTILINE),
+}
+if any(match is None or int(match.group(1), 16) != 0x00A2
+       for match in pointer_symbols.values()):
+    raise SystemExit("enemy proof: resident/bank-3 player save-under pointer ABI changed")
 if not (
     frame_renderer.index("lbsr    framebuffer_prepare_back")
     < frame_renderer.index("lbcs    fri_abort")
@@ -772,6 +807,9 @@ for fragment in (
     "orcc    #$01",
     "lbsr    gate_map_live",
     "FBM_PLAYER_FB,u",
+    "ldx     #PLAYER_BG",
+    "ldx     #PLAYER_BG_B",
+    "stx     PLAYER_BG_PTR",
     "FBM_ENEMIES,u",
     "sta     ENEMY_OLD_VALID",
     "std     ENEMY_BG_RING",
@@ -779,11 +817,19 @@ for fragment in (
 ):
     if fragment not in prepare:
         raise SystemExit("enemy proof: back-buffer hydration is incomplete: " + fragment)
-swap = prepare.index("lbsr    framebuffer_swap_player_bg")
-rehydrate = prepare.index("lbsr    framebuffer_back_meta", swap)
+pointer_order = [
+    "ldx     #PLAYER_BG",
+    "tst     FB_BACK_ID",
+    "ldx     #PLAYER_BG_B",
+    "stx     PLAYER_BG_PTR",
+]
+if [prepare.index(fragment) for fragment in pointer_order] != sorted(
+    prepare.index(fragment) for fragment in pointer_order
+):
+    raise SystemExit("enemy proof: back owner does not select its player save-under")
 enemies = prepare.index("leau    FBM_ENEMIES,u")
-if not swap < rehydrate < enemies:
-    raise SystemExit("enemy proof: B-side player swap clobbers the metadata pointer")
+if prepare.index("stx     PLAYER_BG_PTR") > enemies:
+    raise SystemExit("enemy proof: player save-under selection follows enemy hydration")
 finish = source[source.index("\nframebuffer_finish_back\n"):
                 source.index("\nframebuffer_back_meta\n")]
 for fragment in (
@@ -795,8 +841,20 @@ for fragment in (
 ):
     if fragment not in finish:
         raise SystemExit("enemy proof: atomic ready publication is incomplete: " + fragment)
+if "framebuffer_swap_player_bg" in source or "fbsp_loop" in source:
+    raise SystemExit("enemy proof: physical player save-under swapping was restored")
+player_compose = source[source.index("\nplayer_compose_impl\n"):
+                        source.index("\ncopy_two_fb_rows\n")]
+if player_compose.count("PLAYER_BG_PTR") != 2 or "#PLAYER_BG" in player_compose:
+    raise SystemExit("enemy proof: player compositor bypasses the selected save-under")
+save_player = main[main.index("\nsave_player\n"):main.index("\nrestore_player\n")]
+restore_player = main[main.index("\nrestore_player\n"):main.index("\n;==============================================================================\n; draw_screen")]
+if "ldu     PLAYER_BG_PTR" not in save_player or "#PLAYER_BG" in save_player:
+    raise SystemExit("enemy proof: resident player save bypasses the selected save-under")
+if "ldu     PLAYER_BG_PTR" not in restore_player or "#PLAYER_BG" in restore_player:
+    raise SystemExit("enemy proof: resident player restore bypasses the selected save-under")
 boot = main[main.index("entry_seed_ready\n"):main.index("; --- Un-blank")]
-boot_order = ["lbsr    render_frame", "jsr     FB_MODULE_INIT"]
+boot_order = ["std     PLAYER_BG_PTR", "lbsr    render_frame", "jsr     FB_MODULE_INIT"]
 if [boot.index(fragment) for fragment in boot_order] != sorted(
     boot.index(fragment) for fragment in boot_order
 ):

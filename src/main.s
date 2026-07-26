@@ -108,9 +108,9 @@ FREEZE_TIMER equ $005B         ; u16 enemy freeze countdown
 ENEMY_WORK   equ $005D         ; banked enemy loop scratch
 ENEMY_PTR    equ $005E         ; u16 banked enemy record pointer
 ENEMY_DEATH_LATCH equ $0062    ; 0=alive, 1=reset pending, 2=reset published
-PLAYER_OLD_FB equ $0067        ; framebuffer pointer owned by PLAYER_BG
+PLAYER_OLD_FB equ $0067        ; framebuffer pointer owned by PLAYER_BG_PTR
 PLAYER_ERASED equ $0069        ; nonzero after old player background is exposed
-PLAYER_BG_VALID equ $006A      ; PLAYER_BG contains restorable pixels
+PLAYER_BG_VALID equ $006A      ; PLAYER_BG_PTR contains restorable pixels
 PLAYER_TICK_PENDING equ $006B  ; nonzero when next Vbord must update/render player
 GATE_COMPOSE_MODE equ $006F    ; 0=diagonal intermediate, 1=final gate state
 RENDER_FLAGS   equ $007F       ; primary per-Vbord render intents
@@ -124,6 +124,7 @@ ENEMY_OLD_VALID equ $0086      ; saved-background ownership before enemy mutatio
 ENEMY_RENDER_FLAGS equ $0087   ; bank-3 renderer intents
 RENDER_GATE_ID equ $0088       ; first queued gate ID+1
 RENDER_GATE_MODE equ $0089     ; first queued gate mode
+PLAYER_BG_PTR equ $00A2        ; selected A/B player save-under buffer
 RENDER_GATE2_ID equ $008A      ; optional second gate ID+1
 RENDER_GATE2_MODE equ $008B
 RENDER_GATE_STYLE equ $008D
@@ -359,6 +360,8 @@ clr_fb  std     ,x++
         ldd     #$1D0F
 entry_seed_ready
         std     RNG_STATE
+        ldd     #PLAYER_BG
+        std     PLAYER_BG_PTR
         lbsr    init_entities
         lbsr    init_player
         lbsr    init_enemy
@@ -3049,7 +3052,7 @@ render_frame
 ;   A, B, D, X, Y, U, CC — undefined
 ;
 ; Side effects:
-;   Writes PLAYER_BG and the 16x16 framebuffer rectangle.
+;   Writes the selected player save-under and the 16x16 framebuffer rectangle.
 ;==============================================================================
 draw_player
         lbsr    save_player
@@ -3183,11 +3186,11 @@ sprite_score_blue_pairs
 ;   D, X, Y, U, CC — undefined
 ;
 ; Side effects:
-;   Writes 128 bytes at PLAYER_BG.
+;   Writes 128 bytes at PLAYER_BG_PTR.
 ;==============================================================================
 save_player
         ldx     PLAYER_FB
-        ldu     #PLAYER_BG
+        ldu     PLAYER_BG_PTR
         ldy     #16
 sp_row
         ldd     ,x++
@@ -3209,7 +3212,7 @@ sp_row
 ; restore_player — restore the saved 16x16 player background.
 ;
 ; Inputs:
-;   PLAYER_FB, PLAYER_BG
+;   PLAYER_FB, PLAYER_BG_PTR
 ;
 ; Returns:
 ;   D, X, Y, U, CC — undefined
@@ -3219,7 +3222,7 @@ sp_row
 ;==============================================================================
 restore_player
         ldx     PLAYER_FB
-        ldu     #PLAYER_BG
+        ldu     PLAYER_BG_PTR
         ldy     #16
 rp_row
         ldd     ,u++

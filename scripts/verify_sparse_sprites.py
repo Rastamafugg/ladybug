@@ -71,59 +71,89 @@ def decode_payload(
             for index in range(128)
         )
         blended = bytearray(background)
-        for row in range(16):
-            occupied = 0
-            while True:
-                if cursor >= len(payload):
-                    raise ValueError(f"frame {frame_number} stream is truncated")
-                start = payload[cursor]
-                cursor += 1
-                if start == 0xFF:
+        framebuffer_cursor = 0
+        stage_cursor = 0
+        occupied = bytearray(128)
+        while True:
+            if cursor >= len(payload):
+                raise ValueError(f"frame {frame_number} stream is truncated")
+            token = payload[cursor]
+            cursor += 1
+            if token == 0xFF:
+                if cursor + 2 > len(payload):
+                    raise ValueError(f"frame {frame_number} delta escape is truncated")
+                framebuffer_delta = (payload[cursor] << 8) | payload[cursor + 1]
+                cursor += 2
+                if framebuffer_delta == 0:
                     break
                 if cursor >= len(payload):
-                    raise ValueError(f"frame {frame_number} command is truncated")
-                control = payload[cursor]
+                    raise ValueError(f"frame {frame_number} stage delta is truncated")
+                stage_delta = payload[cursor]
                 cursor += 1
-                partial = bool(control & 0x80)
-                length = control & 0x7F
-                if start >= 8 or length == 0 or start + length > 8:
-                    raise ValueError(f"frame {frame_number} has invalid row command")
-                mask_bits = ((1 << length) - 1) << start
-                if occupied & mask_bits:
-                    raise ValueError(f"frame {frame_number} writes a row byte twice")
-                occupied |= mask_bits
-                for column in range(start, start + length):
-                    if partial:
-                        if cursor + 2 > len(payload):
-                            raise ValueError(
-                                f"frame {frame_number} partial command is truncated"
-                            )
-                        mask, pixel = payload[cursor:cursor + 2]
-                        cursor += 2
-                        if mask not in (0x0F, 0xF0):
-                            raise ValueError(
-                                f"frame {frame_number} has invalid partial mask"
-                            )
-                        if pixel & mask:
-                            raise ValueError(
-                                f"frame {frame_number} mask does not cover zero nibble"
-                            )
-                        decoded[row * 8 + column] = pixel
-                        target = row * 8 + column
-                        blended[target] = (blended[target] & mask) | pixel
-                    else:
-                        if cursor >= len(payload):
-                            raise ValueError(
-                                f"frame {frame_number} opaque command is truncated"
-                            )
-                        pixel = payload[cursor]
-                        cursor += 1
-                        if not pixel & 0xF0 or not pixel & 0x0F:
-                            raise ValueError(
-                                f"frame {frame_number} opaque byte is transparent"
-                            )
-                        decoded[row * 8 + column] = pixel
-                        blended[row * 8 + column] = pixel
+            else:
+                framebuffer_delta = token
+                if token < 0x80:
+                    stage_delta = token
+                elif token <= 167:
+                    stage_delta = token - 152
+                else:
+                    raise ValueError(
+                        f"frame {frame_number} has invalid shared delta {token}"
+                    )
+            framebuffer_cursor += framebuffer_delta
+            stage_cursor += stage_delta
+            row, column = divmod(stage_cursor, 8)
+            if (
+                row >= 16 or
+                framebuffer_cursor != row * 160 + column
+            ):
+                raise ValueError(
+                    f"frame {frame_number} framebuffer/stage destinations diverge"
+                )
+            if cursor >= len(payload):
+                raise ValueError(f"frame {frame_number} command is truncated")
+            control = payload[cursor]
+            cursor += 1
+            partial = bool(control & 0x80)
+            length = control & 0x7F
+            if length == 0 or column + length > 8:
+                raise ValueError(f"frame {frame_number} has invalid command length")
+            for target in range(stage_cursor, stage_cursor + length):
+                if occupied[target]:
+                    raise ValueError(f"frame {frame_number} writes a byte twice")
+                occupied[target] = 1
+                if partial:
+                    if cursor + 2 > len(payload):
+                        raise ValueError(
+                            f"frame {frame_number} partial command is truncated"
+                        )
+                    mask, pixel = payload[cursor:cursor + 2]
+                    cursor += 2
+                    if mask not in (0x0F, 0xF0):
+                        raise ValueError(
+                            f"frame {frame_number} has invalid partial mask"
+                        )
+                    if pixel & mask:
+                        raise ValueError(
+                            f"frame {frame_number} mask does not cover zero nibble"
+                        )
+                    decoded[target] = pixel
+                    blended[target] = (blended[target] & mask) | pixel
+                else:
+                    if cursor >= len(payload):
+                        raise ValueError(
+                            f"frame {frame_number} opaque command is truncated"
+                        )
+                    pixel = payload[cursor]
+                    cursor += 1
+                    if not pixel & 0xF0 or not pixel & 0x0F:
+                        raise ValueError(
+                            f"frame {frame_number} opaque byte is transparent"
+                        )
+                    decoded[target] = pixel
+                    blended[target] = pixel
+            framebuffer_cursor += length
+            stage_cursor += length
         native = expected_native(packed_frame)
         if decoded != native:
             raise ValueError(f"frame {frame_number} does not decode pixel-exactly")
@@ -285,7 +315,7 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct enemy payload")
     if reconstructed["player"] != player_payload:
         raise SystemExit("sparse proof: loader does not reconstruct player payload")
-    if manifest["gmc"]["spare_bytes"] != 1018:
+    if manifest["gmc"]["spare_bytes"] != 2667:
         raise SystemExit("sparse proof: unexpected CPU-readable GMC spare capacity")
 
     print(

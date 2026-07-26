@@ -457,6 +457,139 @@
         is
         <code>e3a32da2a11d22f186c6737226453eadfe12ea80e94513fdf8164b4dc4f91d5b</code>.
       </p>
+      <h2>Remaining interpreter and adjacent bottlenecks &mdash; 2026-07-26</h2>
+      <p>
+        Address-level attribution of the four enemy decodes accounts for all
+        10,692 decoder cycles without overlap. The current two-byte command
+        header is not individually expensive; repeated row termination and
+        row-base maintenance are the removable interpreter cost.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Decoder work</th><th>Cycles</th><th>Measured frequency</th></tr></thead>
+        <tbody>
+          <tr><td>Command header, destination address, and type test</td><td>3,082</td><td>134 commands</td></tr>
+          <tr><td>Partial normalization and read-modify-write body</td><td>3,292</td><td>80 commands / 116 bytes</td></tr>
+          <tr><td>Opaque payload copy and return branches</td><td>1,914</td><td>54 commands</td></tr>
+          <tr><td>Row terminators and framebuffer-row advance</td><td>1,664</td><td>64 rows, including 10 empty rows</td></tr>
+          <tr><td>Opaque-length dispatch</td><td>684</td><td>54 commands</td></tr>
+          <tr><td>Decoder setup and return</td><td>56</td><td>four frames</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The viable interpreter redesign is a destination-delta stream. Keep
+        the existing length/type byte and payload bodies, but replace each row
+        start with the unsigned framebuffer delta from the prior command end.
+        Register X becomes the advancing destination cursor, so a normal
+        command uses <code>LDB ,U+</code>, sentinel test, <code>ABX</code>,
+        then the unchanged type/length load. Delta <code>$FF</code> escapes to
+        a 16-bit framebuffer delta plus an 8-bit compact-stage delta; a zero
+        framebuffer delta ends the frame without the stage byte. Normal
+        cross-row deltas are <code>152-167</code>, so the stage decoder obtains
+        its equivalent by subtracting 152; the explicit stage byte handles
+        skipped rows. Only two long escapes occur in frames 5/1/1/13. The
+        static model removes 1,576 enemy cycles and 404 player cycles from the
+        captured frame. Across all generated actors it also removes 1,647
+        payload bytes, increasing readable GMC spare space from 1,018 to
+        approximately 2,665 bytes. The design retains the current index,
+        partial encoding, and both framebuffer/stage destinations.
+      </p>
+      <p>
+        Two adjacent paths have higher aggregate payoff. The captured owner
+        physically exchanges the 128-byte A/B player save-under twice:
+        256 loop iterations consume 7,168 cycles, excluding call/setup
+        overhead. Selecting <code>PLAYER_BG</code> or <code>PLAYER_BG_B</code>
+        through an always-mapped direct-page pointer removes that copy while
+        preserving buffer-local ownership. The horizontal circular-strip loop
+        consumes 4,800 cycles across four enemies because every row recomputes
+        <code>base + row*8</code>. Computing the physical column once and
+        copying the tail/head row segments linearly models the loop at roughly
+        1,664 cycles, saving about 3,100 cycles on the captured phase-zero
+        path. Vertical movement keeps the existing generic row capture.
+      </p>
+      <p>
+        <strong>Owner-selected player save-under implemented
+        2026-07-26:</strong> direct-page pointer <code>$00A2</code> selects
+        <code>$A300</code> or <code>$AB00</code> during BACK preparation.
+        Resident player save/restore and bank-3 player composition now use the
+        selected pointer, and frame completion leaves both owner-local buffers
+        stationary. This removes the measured 7,168 swap-loop cycles plus
+        call/setup overhead from the affected owner. Live GDB stops proved
+        BACK/pointer alternation <code>0/$A300</code>,
+        <code>1/$AB00</code>, <code>0/$A300</code>; the guarded GMC and
+        compatibility builds pass at 4,024/4,096 bank-3 bytes. A fresh
+        complete-frame profile remains required before replacing the prior
+        41,070/33,623 owner totals.
+      </p>
+      <p>
+        <strong>Destination delta, segmented capture, and mirrored index
+        implemented 2026-07-26:</strong> exact generated payloads are now
+        22,683 enemy bytes and 2,294 player bytes, 1,649 bytes below the
+        row-framed form and leaving 2,667 readable GMC bytes spare. The
+        framebuffer decoder advances X directly; the stage decoder translates
+        shared adjacent-row deltas and consumes explicit stage deltas only for
+        long escapes. Enemy/player indexes are mirrored into always-mapped
+        <code>$0500/$0680</code>, removing index-page mapping and three direct
+        page scratch bytes. Decoder termination performs the single restore to
+        game-state page <code>$34</code>. Holding a sparse page across actor
+        draws is not valid because frame selection and actor orchestration
+        access page <code>$34</code> between calls.
+      </p>
+      <p>
+        Horizontal circular capture now computes
+        <code>ring + row_phase*8 + column_slot</code> once, copies
+        <code>16-row_phase</code> rows linearly, wraps by 128 bytes, then
+        copies the remaining <code>row_phase</code> rows. Vertical capture is
+        unchanged. The independent model covers all sixteen row phases and
+        eight column slots. The prior static cycle estimates require a fresh
+        complete-frame profile before strict-budget acceptance.
+      </p>
+      <p>
+        Destination-delta streams, segmented horizontal capture, and
+        always-mapped index resolution are implemented. Cross-actor
+        payload-page batching remains invalid without first relocating or
+        staging the page-<code>$34</code> actor state used between draws.
+        Duplicate-frame multi-draw and partial-mask stream splitting remain
+        situational or negative.
+      </p>
+      <h2>Destination-delta four-enemy profile &mdash; 2026-07-26</h2>
+      <p>
+        A fresh controlled XRoar profile measured a hot-cache horizontal
+        four-enemy transaction after both framebuffer owners were hydrated.
+        Slots zero and one moved east with frame 5; slots two and three moved
+        west with frame 13. The complete A-owner interval costs 27,531 active
+        cycles and the B-owner interval costs 28,067. Both pass the strict
+        29,666-cycle hardware budget by 2,135 and 1,599 cycles respectively.
+        They remain 531 and 1,067 cycles above the 27,000-cycle engineering
+        target.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Path</th><th>A cycles</th><th>B cycles</th></tr></thead>
+        <tbody>
+          <tr><td>Circular save-under restore</td><td>7,445</td><td>7,433</td></tr>
+          <tr><td>Segmented horizontal strip capture</td><td>3,062</td><td>3,050</td></tr>
+          <tr><td>Four sparse enemy draws</td><td>8,800</td><td>8,800</td></tr>
+          <tr><td>Player restoration and sparse draw</td><td>3,402</td><td>3,402</td></tr>
+          <tr><td>Enemy logic</td><td>882</td><td>1,259</td></tr>
+          <tr><td>Ownership, IRQ, and remaining orchestration</td><td>3,940</td><td>4,123</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The four complete enemy draws now cost 8,800 cycles versus 11,441 for
+        the prior row-framed interpreter, a 2,641-cycle or 23.1% reduction.
+        Segmented horizontal capture costs approximately 3,050 cycles versus
+        the prior 6,152-cycle horizontal strip update, about 50.2% lower.
+        The enemy and player decoder bodies cost 8,236 and 1,910 cycles.
+      </p>
+      <p>
+        Independent live proof captured actor-free BACK, the enemy-only
+        result, and the completed player presentation. It matches 512/512
+        enemy framebuffer bytes, 512/512 owner-selected save-under bytes, and
+        128/128 player framebuffer/save-under bytes, with no write outside an
+        actor footprint. The completed framebuffer SHA-256 is
+        <code>f828503e85646af0d777e1142c833d8ad46ad91120cb7c2e8b74a2df0684a658</code>.
+        The controlled movement case passes; movement-plus-animation, gate,
+        pickup, death, and distribution profiling remain acceptance work.
+      </p>
       <p>
         <strong>Strict-60-Hz architecture designed 2026-07-23:</strong>
         the <a href="../implementation/ping-pong-framebuffer.html">persistent

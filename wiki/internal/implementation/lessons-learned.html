@@ -25,6 +25,28 @@
     </header>
 
     <section>
+      <h2>Keep sparse control data always mapped; scope payload mappings to one decode</h2>
+      <p>The original three-byte sparse index lived at the start of each PAR5 payload and required mapping the index page before mapping the selected stream page. Mirroring the 384-byte enemy and 48-byte player indexes into free PAR0 low RAM removes that first mapping and its direct-page page scratch.</p>
+      <p><strong>Rule:</strong> mirror small, read-only dispatch metadata into an always-mapped page when its payload must be banked. Restore the banked window at the decoder terminator, not through a second wrapper call. Do not retain the payload mapping across callers that access state owned by the displaced page.</p>
+      <p><strong>Citation:</strong> <code>src/gmc_bootstrap.s</code>, <code>src/enemy_runtime.s</code>, and the bounded GMC trace entering both decoders while actor state remains on PAR5 page <code>$34</code>.</p>
+    </section>
+
+    <section>
+      <h2>Segment circular captures at the physical wrap</h2>
+      <p>A horizontal exposed-column capture previously recomputed <code>base + row*8</code> for every logical row. Physical ring rows are contiguous, so one initial phase calculation yields a tail segment followed by an optional head segment.</p>
+      <p><strong>Rule:</strong> compute the physical start once, walk the contiguous stride, subtract the ring size at the wrap, and finish the second segment. Retain the generic indexed path only for operations that update a complete row.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>rub_horizontal_fb</code> and the verifier model covering sixteen row phases by eight column slots.</p>
+    </section>
+
+    <section>
+      <h2>Select buffer-local history; do not exchange its contents</h2>
+      <p>A persistent framebuffer owner previously obtained its player save-under by exchanging all 128 bytes between fixed A-side working storage and B-side storage before rendering, then exchanging them again afterward. The affected transaction executed 256 swap-loop iterations and spent 7,168 cycles on byte movement alone.</p>
+      <p><strong>Rule:</strong> when each owner already has fixed storage, select that storage through an always-mapped pointer for the transaction. Clone initial state once, but keep steady-state history stationary and move only ownership metadata.</p>
+      <p><strong>Applies to:</strong> ping-pong save-under buffers, per-buffer damage ledgers, animation history, and other fixed owner-local state.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code>/<code>src/enemy_runtime.s</code> <code>PLAYER_BG_PTR</code>, alternating A/B/A GDB proof, and the 2026-07-26 interpreter-adjacent trace attribution.</p>
+    </section>
+
+    <section>
       <h2>Use existing sentinel sign bits and share fixed-copy tails</h2>
       <p>The sparse row parser compared every start byte with <code>$FF</code> even though valid starts are only <code>$00-$07</code>. Its short opaque lengths also re-entered a generic byte loop despite being suffixes of existing fixed length-four and length-five copy bodies.</p>
       <p><strong>Rule:</strong> when the valid data range is nonnegative and the sentinel is negative, branch directly on N after the load. Label fixed-copy suffixes so shorter measured lengths reuse the same ordered instruction tails instead of duplicating code.</p>

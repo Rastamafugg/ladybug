@@ -32,7 +32,7 @@ C01F B7FF90           (c/gmc_bootstrap.s):00031                 sta     GIME_INI
 C022 B7FFDE           (c/gmc_bootstrap.s):00032                 sta     SAM_CART        ; BASIC autorun may leave TY=1; expose GMC ROM
 C025 308D0016         (c/gmc_bootstrap.s):00033                 leax    loader_start,pcr
 C029 108E0300         (c/gmc_bootstrap.s):00034                 ldy     #LOADER_RAM
-C02D CE00E6           (c/gmc_bootstrap.s):00035                 ldu     #loader_end-loader_start
+C02D CE010C           (c/gmc_bootstrap.s):00035                 ldu     #loader_end-loader_start
 C030                  (c/gmc_bootstrap.s):00036         boot_copy
 C030 A680             (c/gmc_bootstrap.s):00037                 lda     ,x+
 C032 A7A0             (c/gmc_bootstrap.s):00038                 sta     ,y+
@@ -47,12 +47,12 @@ C03F 8602             (c/gmc_bootstrap.s):00046                 lda     #2
 C041 B7FF50           (c/gmc_bootstrap.s):00047                 sta     GMC_BANK
 C044 FCC010           (c/gmc_bootstrap.s):00048                 ldd     $C010
 C047 1083B202         (c/gmc_bootstrap.s):00049                 cmpd    #$B202
-C04B 10260099         (c/gmc_bootstrap.s):00050                 lbne    loader_fail
+C04B 102600CF         (c/gmc_bootstrap.s):00050                 lbne    loader_fail
 C04F 8603             (c/gmc_bootstrap.s):00051                 lda     #3
 C051 B7FF50           (c/gmc_bootstrap.s):00052                 sta     GMC_BANK
 C054 FCC010           (c/gmc_bootstrap.s):00053                 ldd     $C010
 C057 1083B303         (c/gmc_bootstrap.s):00054                 cmpd    #$B303
-C05B 10260089         (c/gmc_bootstrap.s):00055                 lbne    loader_fail
+C05B 102600BF         (c/gmc_bootstrap.s):00055                 lbne    loader_fail
 C05F 865A             (c/gmc_bootstrap.s):00056                 lda     #$5A
 C061 B702F1           (c/gmc_bootstrap.s):00057                 sta     BOOT_PROOF
                       (c/gmc_bootstrap.s):00058         
@@ -71,8 +71,8 @@ C077 25F7             (c/gmc_bootstrap.s):00070                 blo     copy_ene
                       (c/gmc_bootstrap.s):00071         
                       (c/gmc_bootstrap.s):00072                 ; Copy the indexed sparse enemy/player streams into physical pages
                       (c/gmc_bootstrap.s):00073                 ; $35-$37 and $39 using the generated fragmented-bank plan.
-C079 308D0070         (c/gmc_bootstrap.s):00074                 leax    sparse_copy_table,pcr
-C07D 8607             (c/gmc_bootstrap.s):00075                 lda     #SPARSE_COPY_SEGMENT_COUNT
+C079 308D00A6         (c/gmc_bootstrap.s):00074                 leax    sparse_copy_table,pcr
+C07D 8605             (c/gmc_bootstrap.s):00075                 lda     #SPARSE_COPY_SEGMENT_COUNT
 C07F B702F2           (c/gmc_bootstrap.s):00076                 sta     BOOT_SEGMENTS
 C082                  (c/gmc_bootstrap.s):00077         copy_sparse_segment
 C082 A680             (c/gmc_bootstrap.s):00078                 lda     ,x+
@@ -93,79 +93,101 @@ C09F 3510             (c/gmc_bootstrap.s):00092                 puls    x
 C0A1 7A02F2           (c/gmc_bootstrap.s):00093                 dec     BOOT_SEGMENTS
 C0A4 26DC             (c/gmc_bootstrap.s):00094                 bne     copy_sparse_segment
                       (c/gmc_bootstrap.s):00095         
-                      (c/gmc_bootstrap.s):00096                 ; Bank 1 contains the current 16 KiB runtime image. Copy its resident
-                      (c/gmc_bootstrap.s):00097                 ; 8 KiB through PAR5 to phys $3E.
-C0A6 863E             (c/gmc_bootstrap.s):00098                 lda     #$3E
+                      (c/gmc_bootstrap.s):00096                 ; Mirror the sparse indexes into always-mapped PAR0 low RAM. Runtime
+                      (c/gmc_bootstrap.s):00097                 ; resolution then maps only the selected payload page.
+C0A6 8635             (c/gmc_bootstrap.s):00098                 lda     #SPARSE_ENEMY_PAYLOAD_PAGE
 C0A8 B7FFA5           (c/gmc_bootstrap.s):00099                 sta     PAR_EXEC+5
-C0AB 8601             (c/gmc_bootstrap.s):00100                 lda     #1
-C0AD B7FF50           (c/gmc_bootstrap.s):00101                 sta     GMC_BANK
-C0B0 8EC000           (c/gmc_bootstrap.s):00102                 ldx     #$C000
-C0B3 108EA000         (c/gmc_bootstrap.s):00103                 ldy     #$A000
-C0B7                  (c/gmc_bootstrap.s):00104         copy_resident
-C0B7 EC81             (c/gmc_bootstrap.s):00105                 ldd     ,x++
-C0B9 EDA1             (c/gmc_bootstrap.s):00106                 std     ,y++
-C0BB 8CE000           (c/gmc_bootstrap.s):00107                 cmpx    #$E000
-C0BE 25F7             (c/gmc_bootstrap.s):00108                 blo     copy_resident
+C0AB 8EA000           (c/gmc_bootstrap.s):00100                 ldx     #$A000
+C0AE 108E0500         (c/gmc_bootstrap.s):00101                 ldy     #SPARSE_ENEMY_INDEX_ADDR
+C0B2 CE00C0           (c/gmc_bootstrap.s):00102                 ldu     #SPARSE_ENEMY_INDEX_BYTES/2
+C0B5                  (c/gmc_bootstrap.s):00103         copy_enemy_sparse_index
+C0B5 EC81             (c/gmc_bootstrap.s):00104                 ldd     ,x++
+C0B7 EDA1             (c/gmc_bootstrap.s):00105                 std     ,y++
+C0B9 335F             (c/gmc_bootstrap.s):00106                 leau    -1,u
+C0BB 11830000         (c/gmc_bootstrap.s):00107                 cmpu    #0
+C0BF 26F4             (c/gmc_bootstrap.s):00108                 bne     copy_enemy_sparse_index
                       (c/gmc_bootstrap.s):00109         
-                      (c/gmc_bootstrap.s):00110                 ; Copy the usable asset window to phys $3F. $FE00-$FFFF remains the
-                      (c/gmc_bootstrap.s):00111                 ; forced-RAM/I/O area and is not cartridge payload.
-C0C0 863F             (c/gmc_bootstrap.s):00112                 lda     #$3F
-C0C2 B7FFA5           (c/gmc_bootstrap.s):00113                 sta     PAR_EXEC+5
-C0C5 8EE000           (c/gmc_bootstrap.s):00114                 ldx     #$E000
-C0C8 108EA000         (c/gmc_bootstrap.s):00115                 ldy     #$A000
-C0CC                  (c/gmc_bootstrap.s):00116         copy_assets
-C0CC EC81             (c/gmc_bootstrap.s):00117                 ldd     ,x++
-C0CE EDA1             (c/gmc_bootstrap.s):00118                 std     ,y++
-C0D0 8CFE00           (c/gmc_bootstrap.s):00119                 cmpx    #$FE00
-C0D3 25F7             (c/gmc_bootstrap.s):00120                 blo     copy_assets
+C0C1 8639             (c/gmc_bootstrap.s):00110                 lda     #SPARSE_PLAYER_PAYLOAD_PAGE
+C0C3 B7FFA5           (c/gmc_bootstrap.s):00111                 sta     PAR_EXEC+5
+C0C6 8EA000           (c/gmc_bootstrap.s):00112                 ldx     #$A000
+C0C9 108E0680         (c/gmc_bootstrap.s):00113                 ldy     #SPARSE_PLAYER_INDEX_ADDR
+C0CD CE0018           (c/gmc_bootstrap.s):00114                 ldu     #SPARSE_PLAYER_INDEX_BYTES/2
+C0D0                  (c/gmc_bootstrap.s):00115         copy_player_sparse_index
+C0D0 EC81             (c/gmc_bootstrap.s):00116                 ldd     ,x++
+C0D2 EDA1             (c/gmc_bootstrap.s):00117                 std     ,y++
+C0D4 335F             (c/gmc_bootstrap.s):00118                 leau    -1,u
+C0D6 11830000         (c/gmc_bootstrap.s):00119                 cmpu    #0
+C0DA 26F4             (c/gmc_bootstrap.s):00120                 bne     copy_player_sparse_index
                       (c/gmc_bootstrap.s):00121         
-C0D5 86A5             (c/gmc_bootstrap.s):00122                 lda     #$A5
-C0D7 B702F0           (c/gmc_bootstrap.s):00123                 sta     BOOT_FLAG
-C0DA 8634             (c/gmc_bootstrap.s):00124                 lda     #$34
-C0DC B7FFA5           (c/gmc_bootstrap.s):00125                 sta     PAR_EXEC+5
-C0DF B7FFD9           (c/gmc_bootstrap.s):00126                 sta     SAM_FAST
-C0E2 B7FFDF           (c/gmc_bootstrap.s):00127                 sta     SAM_ALLRAM
-C0E5 7EC000           (c/gmc_bootstrap.s):00128                 jmp     $C000
-                      (c/gmc_bootstrap.s):00129         
-C0E8                  (c/gmc_bootstrap.s):00130         loader_fail
-C0E8 7F02F1           (c/gmc_bootstrap.s):00131                 clr     BOOT_PROOF
-C0EB 20FB             (c/gmc_bootstrap.s):00132                 bra     loader_fail
-                      (c/gmc_bootstrap.s):00133         
-                      (c/gmc_bootstrap.s):00134                 include "ladybug-sparse-loader.inc"
+                      (c/gmc_bootstrap.s):00122                 ; Bank 1 contains the current 16 KiB runtime image. Copy its resident
+                      (c/gmc_bootstrap.s):00123                 ; 8 KiB through PAR5 to phys $3E.
+C0DC 863E             (c/gmc_bootstrap.s):00124                 lda     #$3E
+C0DE B7FFA5           (c/gmc_bootstrap.s):00125                 sta     PAR_EXEC+5
+C0E1 8601             (c/gmc_bootstrap.s):00126                 lda     #1
+C0E3 B7FF50           (c/gmc_bootstrap.s):00127                 sta     GMC_BANK
+C0E6 8EC000           (c/gmc_bootstrap.s):00128                 ldx     #$C000
+C0E9 108EA000         (c/gmc_bootstrap.s):00129                 ldy     #$A000
+C0ED                  (c/gmc_bootstrap.s):00130         copy_resident
+C0ED EC81             (c/gmc_bootstrap.s):00131                 ldd     ,x++
+C0EF EDA1             (c/gmc_bootstrap.s):00132                 std     ,y++
+C0F1 8CE000           (c/gmc_bootstrap.s):00133                 cmpx    #$E000
+C0F4 25F7             (c/gmc_bootstrap.s):00134                 blo     copy_resident
+                      (c/gmc_bootstrap.s):00135         
+                      (c/gmc_bootstrap.s):00136                 ; Copy the usable asset window to phys $3F. $FE00-$FFFF remains the
+                      (c/gmc_bootstrap.s):00137                 ; forced-RAM/I/O area and is not cartridge payload.
+C0F6 863F             (c/gmc_bootstrap.s):00138                 lda     #$3F
+C0F8 B7FFA5           (c/gmc_bootstrap.s):00139                 sta     PAR_EXEC+5
+C0FB 8EE000           (c/gmc_bootstrap.s):00140                 ldx     #$E000
+C0FE 108EA000         (c/gmc_bootstrap.s):00141                 ldy     #$A000
+C102                  (c/gmc_bootstrap.s):00142         copy_assets
+C102 EC81             (c/gmc_bootstrap.s):00143                 ldd     ,x++
+C104 EDA1             (c/gmc_bootstrap.s):00144                 std     ,y++
+C106 8CFE00           (c/gmc_bootstrap.s):00145                 cmpx    #$FE00
+C109 25F7             (c/gmc_bootstrap.s):00146                 blo     copy_assets
+                      (c/gmc_bootstrap.s):00147         
+C10B 86A5             (c/gmc_bootstrap.s):00148                 lda     #$A5
+C10D B702F0           (c/gmc_bootstrap.s):00149                 sta     BOOT_FLAG
+C110 8634             (c/gmc_bootstrap.s):00150                 lda     #$34
+C112 B7FFA5           (c/gmc_bootstrap.s):00151                 sta     PAR_EXEC+5
+C115 B7FFD9           (c/gmc_bootstrap.s):00152                 sta     SAM_FAST
+C118 B7FFDF           (c/gmc_bootstrap.s):00153                 sta     SAM_ALLRAM
+C11B 7EC000           (c/gmc_bootstrap.s):00154                 jmp     $C000
+                      (c/gmc_bootstrap.s):00155         
+C11E                  (c/gmc_bootstrap.s):00156         loader_fail
+C11E 7F02F1           (c/gmc_bootstrap.s):00157                 clr     BOOT_PROOF
+C121 20FB             (c/gmc_bootstrap.s):00158                 bra     loader_fail
+                      (c/gmc_bootstrap.s):00159         
+                      (c/gmc_bootstrap.s):00160                 include "ladybug-sparse-loader.inc"
                       (sparse-loader.inc):00001         ; Generated by scripts/build_sparse_sprites.py; do not edit.
-     0035             (sparse-loader.inc):00002         SPARSE_ENEMY_INDEX_PAGE equ $35
-     A000             (sparse-loader.inc):00003         SPARSE_ENEMY_INDEX_ADDR equ $A000
-     0039             (sparse-loader.inc):00004         SPARSE_PLAYER_INDEX_PAGE equ $39
-     A000             (sparse-loader.inc):00005         SPARSE_PLAYER_INDEX_ADDR equ $A000
-     0008             (sparse-loader.inc):00006         SPARSE_COPY_SEGMENT_BYTES equ 8
-     0007             (sparse-loader.inc):00007         SPARSE_COPY_SEGMENT_COUNT equ 7
-                      (sparse-loader.inc):00008         
-                      (sparse-loader.inc):00009         ; bank, destination page, source CPU address, destination window, count
-C0ED                  (sparse-loader.inc):00010         sparse_copy_table
-                      (sparse-loader.inc):00011                 ; enemy+$0000
-C0ED 0235             (sparse-loader.inc):00012                 fcb     $02,$35
-C0EF C020A0002000     (sparse-loader.inc):00013                 fdb     $C020,$A000,$2000
-                      (sparse-loader.inc):00014                 ; enemy+$2000
-C0F5 0236             (sparse-loader.inc):00015                 fcb     $02,$36
-C0F7 E020A0001DE0     (sparse-loader.inc):00016                 fdb     $E020,$A000,$1DE0
-                      (sparse-loader.inc):00017                 ; enemy+$3DE0
-C0FD 0336             (sparse-loader.inc):00018                 fcb     $03,$36
-C0FF D800BDE00220     (sparse-loader.inc):00019                 fdb     $D800,$BDE0,$0220
-                      (sparse-loader.inc):00020                 ; enemy+$4000
-C105 0337             (sparse-loader.inc):00021                 fcb     $03,$37
-C107 DA20A0001E54     (sparse-loader.inc):00022                 fdb     $DA20,$A000,$1E54
-                      (sparse-loader.inc):00023                 ; player+$0000
-C10D 0339             (sparse-loader.inc):00024                 fcb     $03,$39
-C10F F874A000058C     (sparse-loader.inc):00025                 fdb     $F874,$A000,$058C
-                      (sparse-loader.inc):00026                 ; player+$058C
-C115 0339             (sparse-loader.inc):00027                 fcb     $03,$39
-C117 C000A58C0010     (sparse-loader.inc):00028                 fdb     $C000,$A58C,$0010
-                      (sparse-loader.inc):00029                 ; player+$059C
-C11D 0339             (sparse-loader.inc):00030                 fcb     $03,$39
-C11F C012A59C0412     (sparse-loader.inc):00031                 fdb     $C012,$A59C,$0412
-C125                  (c/gmc_bootstrap.s):00135         loader_end
-                      (c/gmc_bootstrap.s):00136         
-                      (c/gmc_bootstrap.s):00137                 end
+     0035             (sparse-loader.inc):00002         SPARSE_ENEMY_PAYLOAD_PAGE equ $35
+     0039             (sparse-loader.inc):00003         SPARSE_PLAYER_PAYLOAD_PAGE equ $39
+     0500             (sparse-loader.inc):00004         SPARSE_ENEMY_INDEX_ADDR equ $0500
+     0680             (sparse-loader.inc):00005         SPARSE_PLAYER_INDEX_ADDR equ $0680
+     0180             (sparse-loader.inc):00006         SPARSE_ENEMY_INDEX_BYTES equ 384
+     0030             (sparse-loader.inc):00007         SPARSE_PLAYER_INDEX_BYTES equ 48
+     0008             (sparse-loader.inc):00008         SPARSE_COPY_SEGMENT_BYTES equ 8
+     0005             (sparse-loader.inc):00009         SPARSE_COPY_SEGMENT_COUNT equ 5
+                      (sparse-loader.inc):00010         
+                      (sparse-loader.inc):00011         ; bank, destination page, source CPU address, destination window, count
+C123                  (sparse-loader.inc):00012         sparse_copy_table
+                      (sparse-loader.inc):00013                 ; enemy+$0000
+C123 0235             (sparse-loader.inc):00014                 fcb     $02,$35
+C125 C020A0002000     (sparse-loader.inc):00015                 fdb     $C020,$A000,$2000
+                      (sparse-loader.inc):00016                 ; enemy+$2000
+C12B 0236             (sparse-loader.inc):00017                 fcb     $02,$36
+C12D E020A0001DE0     (sparse-loader.inc):00018                 fdb     $E020,$A000,$1DE0
+                      (sparse-loader.inc):00019                 ; enemy+$3DE0
+C133 0336             (sparse-loader.inc):00020                 fcb     $03,$36
+C135 D800BDE00220     (sparse-loader.inc):00021                 fdb     $D800,$BDE0,$0220
+                      (sparse-loader.inc):00022                 ; enemy+$4000
+C13B 0337             (sparse-loader.inc):00023                 fcb     $03,$37
+C13D DA20A000189B     (sparse-loader.inc):00024                 fdb     $DA20,$A000,$189B
+                      (sparse-loader.inc):00025                 ; player+$0000
+C143 0339             (sparse-loader.inc):00026                 fcb     $03,$39
+C145 F2BBA00008F6     (sparse-loader.inc):00027                 fdb     $F2BB,$A000,$08F6
+C14B                  (c/gmc_bootstrap.s):00161         loader_end
+                      (c/gmc_bootstrap.s):00162         
+                      (c/gmc_bootstrap.s):00163                 end
 
 Symbol Table:
 [ G] boot_copy                        C030
@@ -173,16 +195,18 @@ Symbol Table:
 [ G] BOOT_FLAG                        02F0
 [ G] BOOT_PROOF                       02F1
 [ G] BOOT_SEGMENTS                    02F2
-[ G] copy_assets                      C0CC
+[ G] copy_assets                      C102
 [ G] copy_enemy_runtime               C070
-[ G] copy_resident                    C0B7
+[ G] copy_enemy_sparse_index          C0B5
+[ G] copy_player_sparse_index         C0D0
+[ G] copy_resident                    C0ED
 [ G] copy_sparse_bytes                C097
 [ G] copy_sparse_segment              C082
 [ G] GIME_INIT0                       FF90
 [ G] GIME_MMU                         FF91
 [ G] GMC_BANK                         FF50
-[ G] loader_end                       C125
-[ G] loader_fail                      C0E8
+[ G] loader_end                       C14B
+[ G] loader_fail                      C11E
 [ G] LOADER_RAM                       0300
 [ G] loader_start                     C03F
 [ G] PAR_EXEC                         FFA0
@@ -190,9 +214,11 @@ Symbol Table:
 [ G] SAM_CART                         FFDE
 [ G] SAM_FAST                         FFD9
 [ G] SPARSE_COPY_SEGMENT_BYTES        0008
-[ G] SPARSE_COPY_SEGMENT_COUNT        0007
-[ G] sparse_copy_table                C0ED
-[ G] SPARSE_ENEMY_INDEX_ADDR          A000
-[ G] SPARSE_ENEMY_INDEX_PAGE          0035
-[ G] SPARSE_PLAYER_INDEX_ADDR         A000
-[ G] SPARSE_PLAYER_INDEX_PAGE         0039
+[ G] SPARSE_COPY_SEGMENT_COUNT        0005
+[ G] sparse_copy_table                C123
+[ G] SPARSE_ENEMY_INDEX_ADDR          0500
+[ G] SPARSE_ENEMY_INDEX_BYTES         0180
+[ G] SPARSE_ENEMY_PAYLOAD_PAGE        0035
+[ G] SPARSE_PLAYER_INDEX_ADDR         0680
+[ G] SPARSE_PLAYER_INDEX_BYTES        0030
+[ G] SPARSE_PLAYER_PAYLOAD_PAGE       0039
