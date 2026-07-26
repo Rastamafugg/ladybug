@@ -5,6 +5,8 @@
         include "ladybug_runtime_symbols.inc"
         org     $0800
 
+PERSISTENT_FB  equ 1
+
         jmp     enemy_init_impl
         jmp     enemy_tick_impl
         jmp     enemy_release_impl
@@ -15,6 +17,7 @@
         jmp     enemy_render_impl
         jmp     frame_render_impl
         jmp     framebuffer_init_impl
+        jmp     framebuffer_irq_impl
 
 ENEMY_ANIM     equ $0054
 ENEMY_TIMER    equ $0055
@@ -108,6 +111,7 @@ ENTITY_X       equ $0036
 ENTITY_Y       equ $0037
 RNG_STATE      equ $0034
 LAST_FRAME     equ $0000
+FRAMES         equ $0002
 
 RF_ENTITIES    equ $08
 RF_PLAYER      equ $01
@@ -170,7 +174,14 @@ RECORD_SIZE    equ 8
 DIR_NONE       equ $FF
 GIME_PAR1      equ $FFA1
 GIME_PAR5      equ $FFA5
-SHADOW_PAGE0   equ $2C
+GIME_IRQEN     equ $FF92
+GIME_VOFF1     equ $FF9D
+        ifne    PERSISTENT_FB
+FB_SCRATCH_PAGE0 equ $28
+        else
+FB_SCRATCH_PAGE0 equ $2C
+        endc
+FB_B_PAGE0     equ $2C
 LIVE_PAGE0     equ $30
 
 ; Record: active, framebuffer pointer, pixel phase, cell x, cell y,
@@ -198,6 +209,14 @@ reset_enemy_state
         clr     ENEMY_MOVE
         clr     ENEMY_DEATH_LATCH
         clr     PLAYER_TICK_PENDING
+        clr     ENEMY_OLD_VALID
+        ldx     #ENEMY_OLD_FB
+        clra
+        clrb
+        std     ,x
+        std     2,x
+        std     4,x
+        std     6,x
         ldx     #ENEMY_TABLE
         ldb     #RECORD_SIZE*4
 ei_clear
@@ -476,7 +495,12 @@ eri_done
 
 ; Single framebuffer owner for the completed Vbord state.
 frame_render_impl
+        ifne    PERSISTENT_FB
+        lbsr    framebuffer_prepare_back
+        lbcs    fri_abort
+        else
         lbsr    framebuffer_begin_fallback
+        endc
         lda     RENDER_FLAGS
         bita    #RF_STAGE
         lbne    fri_stage
@@ -592,12 +616,19 @@ fri_gate
         sta     RENDER_GATE_STYLE
         lbsr    gate_compose_impl
 fri_done
-        lbsr    framebuffer_capture_front
+        ifne    PERSISTENT_FB
+        lbsr    framebuffer_finish_back
+        else
+        lbsr    framebuffer_finish_fallback
+        endc
         clr     RENDER_FLAGS
         clr     RENDER_FLAGS2
         clr     RENDER_GATE_ID
         clr     RENDER_GATE2_ID
         clr     PLAYER_ERASED
+        rts
+fri_abort
+        clr     FB_RENDER_ACTIVE
         rts
 
 render_exposed_player
@@ -658,7 +689,7 @@ framebuffer_init_impl
         clr     FB_RENDER_ACTIVE
         clr     FB_WRITE_FRONT_FAULT
 
-        lda     #SHADOW_PAGE0
+        lda     #FB_B_PAGE0
         pshs    a
         ldx     #$2000
 fbi_page
@@ -716,22 +747,155 @@ fbi_copy_meta
         sta     FB_INIT_STATE
         rts
 
-; The fallback shadow compositor owns B as scratch until phase 4. Mark it as
-; requiring a complete rebuild before every normal frame so it cannot be
-; mistaken for a committable persistent snapshot.
-framebuffer_begin_fallback
+; Map and hydrate the non-scanned owner before any framebuffer write. Actor
+; save-under ownership is buffer-local; the logical records remain untouched.
+framebuffer_prepare_back
         tst     FB_INIT_STATE
-        beq     fbb_done
-        lda     #FBM_FULL_REBUILD
-        sta     FB_META_B+FBM_STATE
-fbb_done
+        beq     fbp_ok
+        lda     FB_BACK_ID
+        cmpa    FB_FRONT_ID
+        bne     fbp_owned
+        inc     FB_WRITE_FRONT_FAULT
+        orcc    #$01
+        rts
+fbp_owned
+        lda     #1
+        sta     FB_RENDER_ACTIVE
+        lbsr    gate_map_live
+        lbsr    framebuffer_back_meta
+        lda     FBM_PLAYER_VALID,u
+        sta     PLAYER_BG_VALID
+        ldd     FBM_PLAYER_FB,u
+        std     PLAYER_OLD_FB
+        tst     FB_BACK_ID
+        beq     fbp_enemies
+        lbsr    framebuffer_swap_player_bg
+fbp_enemies
+        leau    FBM_ENEMIES,u
+        ldy     #ENEMY_OLD_FB
+        clr     ENEMY_OLD_VALID
+        ldx     #roam_slot_masks
+        clr     ENEMY_WORK
+fbp_enemy
+        ldd     1,u
+        std     ,y++
+        tst     6,u
+        beq     fbp_enemy_next
+        ldb     ENEMY_WORK
+        lda     b,x
+        ora     ENEMY_OLD_VALID
+        sta     ENEMY_OLD_VALID
+fbp_enemy_next
+        leau    RECORD_SIZE,u
+        inc     ENEMY_WORK
+        lda     ENEMY_WORK
+        cmpa    #4
+        blo     fbp_enemy
+fbp_ok
+        andcc   #$FE
         rts
 
-framebuffer_capture_front
+; Capture buffer-local ownership, restore the A-side player save-under when B
+; was rendered, then publish readiness as one IRQ-masked transaction.
+framebuffer_finish_back
         tst     FB_INIT_STATE
-        beq     fbcf_done
-        lbsr    framebuffer_capture_a
-fbcf_done
+        beq     fbf_done
+        lbsr    framebuffer_capture_back
+        tst     FB_BACK_ID
+        beq     fbf_ready
+        lbsr    framebuffer_swap_player_bg
+fbf_ready
+        orcc    #$10
+        clr     FB_RENDER_ACTIVE
+        lda     #1
+        sta     FB_RENDER_PENDING
+        andcc   #$EF
+fbf_done
+        rts
+
+framebuffer_back_meta
+        ldu     #FB_META_A
+        tst     FB_BACK_ID
+        beq     fbm_done
+        ldu     #FB_META_B
+fbm_done
+        rts
+
+framebuffer_swap_player_bg
+        ldx     #PLAYER_BG
+        ldu     #PLAYER_BG_B
+        ldy     #128
+fbsp_loop
+        lda     ,x
+        ldb     ,u
+        stb     ,x+
+        sta     ,u+
+        leay    -1,y
+        bne     fbsp_loop
+        rts
+
+framebuffer_capture_back
+        lbsr    framebuffer_back_meta
+        lda     #FBM_VALID
+        sta     FBM_STATE,u
+        clr     FBM_DAMAGE,u
+        lda     PLAYER_BG_VALID
+        sta     FBM_PLAYER_VALID,u
+        lda     PLAYER_CACHE_KEY
+        sta     FBM_PLAYER_KEY,u
+        ldd     PLAYER_FB
+        std     FBM_PLAYER_FB,u
+        leau    FBM_ENEMIES,u
+        ldx     #ENEMY_TABLE
+        ldy     #16
+fbcb_enemy
+        ldd     ,x++
+        std     ,u++
+        leay    -1,y
+        bne     fbcb_enemy
+        ldd     ENEMY_CACHE_KEYS
+        std     ,u
+        ldd     ENEMY_CACHE_KEYS+2
+        std     2,u
+        rts
+
+; Vbord is the only display-owner commit point. The handler touches only
+; always-mapped direct-page state and the display offset register; PAR5 state
+; is therefore irrelevant even when sparse decoding is interrupted.
+framebuffer_irq_impl
+        lda     GIME_IRQEN
+        inc     FRAMES+1
+        bne     fbiq_ready
+        inc     FRAMES
+fbiq_ready
+        tst     FB_RENDER_PENDING
+        beq     fbiq_missed
+        lda     #$C0
+        tst     FB_BACK_ID
+        beq     fbiq_publish
+        lda     #$B0
+fbiq_publish
+        sta     GIME_VOFF1
+        lda     FB_FRONT_ID
+        ldb     FB_BACK_ID
+        stb     FB_FRONT_ID
+        sta     FB_BACK_ID
+        clr     FB_RENDER_PENDING
+        inc     FB_COMMIT_SEQ+1
+        bne     fbiq_sim
+        inc     FB_COMMIT_SEQ
+fbiq_sim
+        inc     FB_SIM_SEQ+1
+        bne     fbiq_done
+        inc     FB_SIM_SEQ
+fbiq_done
+        rts
+fbiq_missed
+        tst     FB_RENDER_ACTIVE
+        beq     fbiq_done
+        inc     FB_MISSED_COMMIT+1
+        bne     fbiq_done
+        inc     FB_MISSED_COMMIT
         rts
 
 framebuffer_capture_a
@@ -757,6 +921,23 @@ fbca_enemy
         ldd     ENEMY_CACHE_KEYS+2
         std     FB_META_A+FBM_ENEMY_KEYS+2
         rts
+
+        ifeq    PERSISTENT_FB
+framebuffer_begin_fallback
+        tst     FB_INIT_STATE
+        beq     fbb_done
+        lda     #FBM_FULL_REBUILD
+        sta     FB_META_B+FBM_STATE
+fbb_done
+        rts
+
+framebuffer_finish_fallback
+        tst     FB_INIT_STATE
+        beq     fbff_done
+        lbsr    framebuffer_capture_a
+fbff_done
+        rts
+        endc
 
 enemy_collect_impl
         lda     VEG_STATE
@@ -1261,7 +1442,13 @@ roam_bg_address
         suba    ENEMY_WORK
         ldb     #128
         mul
+        tst     FB_BACK_ID
+        bne     rba_buffer_b
         addd    #ENEMY_BG_BASE
+        bra     rba_done
+rba_buffer_b
+        addd    #ENEMY_BG_B
+rba_done
         tfr     d,u
         rts
 
@@ -1795,7 +1982,7 @@ gate_set_player_region
         rts
 
 gate_map_shadow
-        lda     #SHADOW_PAGE0
+        lda     #FB_SCRATCH_PAGE0
         sta     GIME_PAR1
         inca
         sta     GIME_PAR1+1
@@ -1807,6 +1994,14 @@ gate_map_shadow
 
 gate_map_live
         lda     #LIVE_PAGE0
+        ifne    PERSISTENT_FB
+        tst     FB_INIT_STATE
+        beq     gml_map
+        tst     FB_BACK_ID
+        beq     gml_map
+        lda     #FB_B_PAGE0
+gml_map
+        endc
         sta     GIME_PAR1
         inca
         sta     GIME_PAR1+1
@@ -1826,16 +2021,16 @@ gate_map_shadow_window
         blo     gmsw_page1
         cmpa    #$80
         blo     gmsw_page2
-        lda     #SHADOW_PAGE0+3
+        lda     #FB_SCRATCH_PAGE0+3
         bra     gmsw_map
 gmsw_page0
-        lda     #SHADOW_PAGE0
+        lda     #FB_SCRATCH_PAGE0
         bra     gmsw_map
 gmsw_page1
-        lda     #SHADOW_PAGE0+1
+        lda     #FB_SCRATCH_PAGE0+1
         bra     gmsw_map
 gmsw_page2
-        lda     #SHADOW_PAGE0+2
+        lda     #FB_SCRATCH_PAGE0+2
 gmsw_map
         sta     GATE_SHADOW_PAGE
         sta     GIME_PAR5

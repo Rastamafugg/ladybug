@@ -81,6 +81,10 @@ def main() -> None:
     if len(ownership_entry) != 3 or ownership_entry[0] != 0x7E:
         raise SystemExit("gmc proof: framebuffer ownership-init ABI jump missing")
     ownership_target = f"{int.from_bytes(ownership_entry[1:], 'big'):04x}"
+    commit_entry = rom[0xC81E:0xC821]
+    if len(commit_entry) != 3 or commit_entry[0] != 0x7E:
+        raise SystemExit("gmc proof: framebuffer Vbord-commit ABI jump missing")
+    commit_target = f"{int.from_bytes(commit_entry[1:], 'big'):04x}"
 
     command = [
         "timeout", "4", args.xroar,
@@ -94,6 +98,20 @@ def main() -> None:
         trace.seek(0)
         text = trace.read()
 
+    commit_writes = [
+        int(value, 16)
+        for pc, value in re.findall(
+            r"^([0-9a-f]{4})\| b7ff9d .* a=([0-9a-f]{2}) ",
+            text,
+            re.MULTILINE,
+        )
+        if 0x0800 <= int(pc, 16) < 0x1800
+    ]
+    commit_alternates = (
+        len(commit_writes) >= 4
+        and set(commit_writes) == {0xB0, 0xC0}
+        and all(a != b for a, b in zip(commit_writes, commit_writes[1:]))
+    )
     required = {
         "bank 2 signature": f"{bank2_signature}| fcc010" in text and "a=b2 b=02" in text,
         "bank 3 signature": f"{bank3_signature}| fcc010" in text and "a=b3 b=03" in text,
@@ -108,12 +126,15 @@ def main() -> None:
         "central frame renderer entered": f"{frame_target}|" in text,
         "ownership init ABI entered": f"081b| {ownership_entry.hex()}" in text,
         "ownership init entered": f"{ownership_target}| 0f8f" in text,
+        "Vbord commit ABI entered": f"081e| {commit_entry.hex()}" in text,
+        "Vbord commit handler entered": f"{commit_target}|" in text,
+        "Vbord display owners alternate": commit_alternates,
         "runtime main loop": text.count(f"{mainloop}| 13") >= 1,
     }
     failed = [name for name, passed in required.items() if not passed]
     if failed:
         raise SystemExit("gmc proof failed: " + ", ".join(failed))
-    print("gmc proof: bank-2 sprites, bank-3 module, bank-1 load, TY=1 handoff, A/B ownership init, and relocated main loop verified")
+    print("gmc proof: bank-2 sprites, bank-3 module, bank-1 load, TY=1 handoff, A/B ownership init, Vbord commit entry, and relocated main loop verified")
 
 
 if __name__ == "__main__":

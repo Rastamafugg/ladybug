@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-07-25 &middot; implementation/lint &mdash; BACK rendering and Vbord commit handshake</h3>
+      <p>Committed phase 3 as <code>fb19f69</code>. Phase 4 maps the selected non-scanned framebuffer through PAR1-PAR4, restores and captures buffer-local player/enemy ownership, moves the compatibility compositor surface to physical pages <code>$28-$2B</code>, and publishes readiness under an IRQ mask. New ABI entry <code>$081E</code> acknowledges Vbord, alternates <code>$FF9D</code> between <code>$B0/$C0</code>, exchanges FRONT/BACK, advances commit/simulation sequences, and counts active-render misses without consulting PAR5. Build constant <code>PERSISTENT_FB=0</code> retains the phase-3 fixed-A fallback. Closing review made equal FRONT/BACK fail closed and initialized cold enemy-old ownership before the first compositor pass. Full GMC verification passes and the bounded trace proves repeated alternating commit writes. The external GDB round trip was attempted but hit the documented XRoar <code>vMustReplyEmpty</code> stub failure.</p>
+    </section>
+
+    <section>
       <h3>2026-07-25 &middot; implementation/lint &mdash; persistent A/B allocation and ownership metadata</h3>
       <p>Implemented strict-60-Hz migration phase 3. Direct page <code>$008F-$009A</code> now holds always-mapped FRONT/BACK IDs, render readiness, commit/simulation/miss counters, renderer/fault diagnostics, and initialization state. Two 256-byte actor/damage metadata blocks occupy <code>$A900-$AAFF</code>; B-side player and four-enemy restoration buffers occupy <code>$AB00-$AD7F</code>. New bank-3 ABI entry <code>$081B</code> runs while output is blanked, copies all 32 KiB of framebuffer A into physical pages <code>$2C-$2F</code>, clones restoration bytes, and initializes identical ownership metadata. Swapping remains disabled. The legacy shadow compositor marks B invalid/full-rebuild before each gameplay render and refreshes A actor metadata afterward, preventing scratch-modified B from being committed. The bounded GMC trace proves ownership initialization and main-loop entry. Current use is 8,151/8,192 resident bytes and 3,493/4,096 bank-3 bytes.</p>
     </section>

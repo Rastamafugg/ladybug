@@ -18,7 +18,7 @@ resident = (root / "build/ladybug_resident.inc").read_text(encoding="utf-8")
 rom = (root / "build/ladybug-enemy-runtime.rom").read_bytes()
 sprites = (root / "build/ladybug-enemy-sprites.bin").read_bytes()
 
-if len(rom) < 30 or any(rom[offset] != 0x7E for offset in range(0, 30, 3)):
+if len(rom) < 33 or any(rom[offset] != 0x7E for offset in range(0, 33, 3)):
     raise SystemExit("enemy proof: fixed $0800 jump table is invalid")
 if len(rom) > 0x1000:
     raise SystemExit("enemy proof: bank-3 low-RAM module exceeds 4 KiB")
@@ -34,6 +34,7 @@ if positions != sorted(positions):
     raise SystemExit("enemy proof: off-screen compositor phase order changed")
 
 required = [
+    "PERSISTENT_FB  equ 1",
     "PLAYER_CELL_X  equ $0009",
     "DEATH_STATE    equ $004D",
     "ENEMY_ZONE_BG  equ $A490",
@@ -61,6 +62,7 @@ required = [
     "jmp     enemy_render_impl",
     "jmp     frame_render_impl",
     "jmp     framebuffer_init_impl",
+    "jmp     framebuffer_irq_impl",
     "PLAYER_STAGE   equ $A3F0",
     "PLAYER_OLD_STAGE equ $A610",
     "et_contact_scan",
@@ -72,7 +74,8 @@ required = [
     "ldy     #maze_gate_owner",
     "leay    maze_nav-maze_gate_owner,y",
     "do not re-enter the den from cell (12,10)",
-    "SHADOW_PAGE0   equ $2C",
+    "FB_SCRATCH_PAGE0 equ $28",
+    "FB_B_PAGE0     equ $2C",
     "LIVE_PAGE0     equ $30",
     "jsr     gate_render_hidden",
     "lbsr    gate_region_to_shadow",
@@ -148,10 +151,15 @@ if "PLAYER_MODULE_CACHE equ $0812" not in main:
     raise SystemExit("enemy proof: player native-cache ABI entry is missing")
 if "FB_MODULE_INIT      equ $081B" not in main:
     raise SystemExit("enemy proof: framebuffer ownership-init ABI entry is missing")
+if "FB_MODULE_IRQ       equ $081E" not in main:
+    raise SystemExit("enemy proof: framebuffer Vbord-commit ABI entry is missing")
 reset_start = source.index("\nreset_enemy_state\n")
 reset = source[reset_start : source.index("\nreload_enemy_box_timer\n", reset_start)]
 if "sta     PLAYER_CACHE_KEY" not in reset:
     raise SystemExit("enemy proof: player cache key is not invalidated before first draw")
+for fragment in ("clr     ENEMY_OLD_VALID", "ldx     #ENEMY_OLD_FB", "std     6,x"):
+    if fragment not in reset:
+        raise SystemExit("enemy proof: cold enemy ownership is not initialized: " + fragment)
 if "cmpx    #$D800" not in bootstrap:
     raise SystemExit("enemy proof: bootstrap does not copy the approved 4 KiB bank-3 window")
 if "cmpx    #$E800" not in bootstrap or "ldy     #$A000" not in bootstrap:
@@ -393,9 +401,9 @@ if [frame_renderer.index(fragment) for fragment in render_order] != sorted(
     raise SystemExit("enemy proof: background, enemy, player, and gate layer order changed")
 
 ownership_init = source[source.index("\nframebuffer_init_impl\n"):
-                        source.index("\nframebuffer_begin_fallback\n")]
+                        source.index("\nframebuffer_prepare_back\n")]
 for fragment in (
-    "lda     #SHADOW_PAGE0",
+    "lda     #FB_B_PAGE0",
     "sta     GIME_PAR5",
     "ldy     #4096",
     "cmpx    #$A000",
@@ -425,15 +433,43 @@ if metadata_symbols != {
     "ENEMY_BG_B": 0xAB80,
 }:
     raise SystemExit("enemy proof: phase-3 ownership/restoration allocation changed")
-fallback = source[source.index("\nframebuffer_begin_fallback\n"):
-                  source.index("\nframebuffer_capture_front\n")]
-if "sta     FB_META_B+FBM_STATE" not in fallback or "FBM_FULL_REBUILD" not in fallback:
-    raise SystemExit("enemy proof: fallback renderer can leave scratch-modified B valid")
 if not (
-    frame_renderer.index("lbsr    framebuffer_begin_fallback")
-    < frame_renderer.index("lbsr    framebuffer_capture_front")
+    frame_renderer.index("lbsr    framebuffer_prepare_back")
+    < frame_renderer.index("lbcs    fri_abort")
+    < frame_renderer.index("lbsr    framebuffer_finish_back")
 ):
-    raise SystemExit("enemy proof: frame ownership metadata does not bracket rendering")
+    raise SystemExit("enemy proof: back-buffer ownership does not bracket rendering")
+for fragment in (
+    "framebuffer_begin_fallback",
+    "framebuffer_finish_fallback",
+    "ifeq    PERSISTENT_FB",
+):
+    if fragment not in source:
+        raise SystemExit("enemy proof: build-time compatibility fallback is missing")
+prepare = source[source.index("\nframebuffer_prepare_back\n"):
+                 source.index("\nframebuffer_finish_back\n")]
+for fragment in (
+    "cmpa    FB_FRONT_ID",
+    "inc     FB_WRITE_FRONT_FAULT",
+    "orcc    #$01",
+    "lbsr    gate_map_live",
+    "FBM_PLAYER_FB,u",
+    "FBM_ENEMIES,u",
+    "sta     ENEMY_OLD_VALID",
+):
+    if fragment not in prepare:
+        raise SystemExit("enemy proof: back-buffer hydration is incomplete: " + fragment)
+finish = source[source.index("\nframebuffer_finish_back\n"):
+                source.index("\nframebuffer_back_meta\n")]
+for fragment in (
+    "lbsr    framebuffer_capture_back",
+    "orcc    #$10",
+    "sta     FB_RENDER_PENDING",
+    "clr     FB_RENDER_ACTIVE",
+    "andcc   #$EF",
+):
+    if fragment not in finish:
+        raise SystemExit("enemy proof: atomic ready publication is incomplete: " + fragment)
 boot = main[main.index("entry_seed_ready\n"):main.index("; --- Un-blank")]
 boot_order = ["lbsr    render_frame", "jsr     FB_MODULE_INIT"]
 if [boot.index(fragment) for fragment in boot_order] != sorted(
@@ -447,10 +483,31 @@ after_ownership_init = boot[boot.index("jsr     FB_MODULE_INIT"):]
 if "clr     FB_INIT_STATE" in after_ownership_init:
     raise SystemExit("enemy proof: post-boot setup discards initialized A/B ownership")
 irq = main[main.index("\nirq_handler\n"):main.index("\npar_table\n")]
-if "GIME_VOFF1" in irq or "FB_RENDER_PENDING" in irq:
-    raise SystemExit("enemy proof: phase 3 enabled framebuffer commits before phase 4")
+if "jsr     FB_MODULE_IRQ" not in irq:
+    raise SystemExit("enemy proof: resident IRQ does not delegate the Vbord commit")
+irq_impl = source[source.index("\nframebuffer_irq_impl\n"):]
+irq_order = [
+    "lda     GIME_IRQEN",
+    "tst     FB_RENDER_PENDING",
+    "sta     GIME_VOFF1",
+    "stb     FB_FRONT_ID",
+    "sta     FB_BACK_ID",
+    "clr     FB_RENDER_PENDING",
+    "inc     FB_COMMIT_SEQ+1",
+    "inc     FB_SIM_SEQ+1",
+]
+if [irq_impl.index(fragment) for fragment in irq_order] != sorted(
+    irq_impl.index(fragment) for fragment in irq_order
+):
+    raise SystemExit("enemy proof: Vbord ownership commit order changed")
+mapping = source[source.index("\ngate_map_shadow\n"):
+                 source.index("\ngate_map_shadow_window\n")]
+if "lda     #FB_SCRATCH_PAGE0" not in mapping:
+    raise SystemExit("enemy proof: region compositor still aliases framebuffer B")
+if "tst     FB_BACK_ID" not in mapping or "lda     #FB_B_PAGE0" not in mapping:
+    raise SystemExit("enemy proof: PAR1-PAR4 do not select the current back owner")
 print(
-    f"enemy proof: {len(rom)}/4096 bank-3 bytes; fixed ABI, state/render ownership, A/B cold convergence, fallback invalidation, compact staging, "
+    f"enemy proof: {len(rom)}/4096 bank-3 bytes; fixed ABI, state/render ownership, A/B cold convergence, back-buffer hydration, Vbord commit handshake, compact staging, "
     "64-byte source stride, idle render gate, off-screen nest compositor, "
     "immediate death reset, reset/frozen release timer, staged player publish, "
     "hidden gate publish, footprint collision, skull decrement, exclusive "

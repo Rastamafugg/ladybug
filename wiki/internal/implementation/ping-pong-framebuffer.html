@@ -136,10 +136,12 @@ Per framebuffer:
         fault, and initialization state. Cold boot entry <code>$081B</code>
         copies all 32 KiB of A pages <code>$30-$33</code> into B pages
         <code>$2C-$2F</code> while output is blanked, then clones restoration
-        bytes and actor metadata. Swapping remains disabled. Because the old
-        shadow compositor still uses B as scratch, every gameplay render marks
-        B invalid/full-rebuild and refreshes A metadata; no later phase may
-        commit B until it has rebuilt it.
+        bytes and actor metadata. Phase 4 promotes B to a persistent owner,
+        moves the compatibility compositor surface to physical pages
+        <code>$28-$2B</code>, hydrates actor restoration state from the
+        selected buffer's metadata, and maps only BACK through PAR1-PAR4.
+        Setting the bank-3 build constant <code>PERSISTENT_FB</code> to zero
+        retains the phase-3 fixed-A/B-as-scratch fallback for equivalence tests.
       </p>
     </section>
 
@@ -295,8 +297,8 @@ Per framebuffer:
         <li><strong>Completed 2026-07-23:</strong> generate and validate sparse enemy/player streams, their physical-page index, and the fragmented GMC loader copy table without changing framebuffer ownership. Candidate bank images are emitted but do not replace the active packed atlas yet.</li>
         <li><strong>Completed 2026-07-25:</strong> split player, enemy, gate, score, pickup, death, and timer code into state mutation plus render-intent marking. Bank-3 entries <code>$0815</code>/<code>$0818</code> own enemy and complete-frame rendering; structural verification rejects framebuffer calls from mutation ranges, and the bounded GMC trace proves the central renderer executes.</li>
         <li><strong>Completed 2026-07-25:</strong> allocate always-mapped IRQ handshake state, two 256-byte actor/damage metadata blocks, and B-side player/enemy restoration buffers. Entry <code>$081B</code> initializes identical complete A/B images and restoration state while blanked. The legacy fallback explicitly invalidates B/full-rebuild before using it as shadow scratch and captures current A ownership afterward.</li>
-        <li>Render into the non-scanned PAR1-PAR4 mapping and enable the IRQ commit handshake. Retain the old region-copy compositor behind a build-time fallback until equivalence passes.</li>
-        <li>Add actor-overlap closure and circular strip save-under updates. Remove the old shadow window, union, publication, and native cache paths only after cycle and image acceptance.</li>
+        <li><strong>Completed 2026-07-25:</strong> render through the non-scanned PAR1-PAR4 BACK mapping, hydrate and capture buffer-local actor ownership, and publish readiness atomically. Vbord entry <code>$081E</code> alone writes <code>$FF9D</code>, exchanges FRONT/BACK, and advances commit/simulation sequences. The compatibility compositor now uses pages <code>$28-$2B</code>; a bounded trace proves repeated <code>$B0/$C0</code> alternation.</li>
+        <li>Add damage-ledger projection, actor-overlap closure, and circular strip save-under updates. Remove the compatibility shadow window, union, publication, and native cache paths only after cycle and image acceptance.</li>
       </ol>
     </section>
 

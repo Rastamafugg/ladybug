@@ -111,11 +111,9 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
       </p>
       <p>
         Physical pages <code>$2C-$2F</code> form a second, non-scanned
-        framebuffer used only by the gate-region compositor. Bank 3 copies
-        the gate union and player rectangle from live RAM, invokes the
-        resident gate/player renderer against the hidden mapping, then
-        publishes only those completed rectangles back to pages
-        <code>$30-$33</code>.
+        framebuffer B. Physical pages <code>$28-$2B</code> are the temporary
+        compatibility surface for the established region compositor; they
+        are never scanned and are not a persistent framebuffer owner.
       </p>
       <p>
         <strong>Planned strict-60-Hz mapping:</strong> the
@@ -133,8 +131,10 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         space. Phase 1 now emits verified candidate bank images and a
         seven-record copy table for these payloads, leaving 1,018 readable
         expansion-bank bytes. Phase 2 separates gameplay mutation from one
-        bank-3 framebuffer owner through compact direct-page intents. Runtime
-        sparse decoding and persistent A/B framebuffer ownership are not implemented.
+        bank-3 framebuffer owner through compact direct-page intents. Phase 4
+        maps the selected BACK owner into PAR1-PAR4 and commits alternating
+        <code>$C0/$B0</code> display offsets only from the Vbord IRQ. Runtime
+        sparse decoding and damage-ledger projection remain.
       </p>
     </section>
 

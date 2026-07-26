@@ -223,6 +223,7 @@ GATE_MODULE_COMPOSE equ $080F
 PLAYER_MODULE_CACHE equ $0812
 ENEMY_MODULE_RENDER equ $0815
 FB_MODULE_INIT      equ $081B
+FB_MODULE_IRQ       equ $081E
 
 RF_PLAYER      equ $01
 RF_HUD         equ $02
@@ -398,10 +399,14 @@ entry_seed_ready
 ;==============================================================================
 mainloop
         sync
+        tst     FB_RENDER_PENDING
+        bne     mainloop
         lda     FRAMES+1
         cmpa    LAST_FRAME
         beq     mainloop
         sta     LAST_FRAME
+        lda     #1
+        sta     FB_RENDER_ACTIVE
         ; Keep every player restore/mutation/redraw at the front of Vbord.
         ; Logical movement remains 30 Hz, queued by the preceding even frame.
         lbsr    finish_gate_animation
@@ -435,7 +440,7 @@ main_death
 main_alive
         lda     PICKUP_TIMER
         bne     main_render
-        lda     LAST_FRAME
+        lda     FB_SIM_SEQ+1
         anda    #$01
         bne     main_render
 phase4_before_tick
@@ -3378,11 +3383,7 @@ btt_next_row
 ; irq_handler — Vbord (60 Hz)
 ;==============================================================================
 irq_handler
-        lda     GIME_IRQEN
-        inc     FRAMES+1
-        bne     irq_done
-        inc     FRAMES
-irq_done
+        jsr     FB_MODULE_IRQ
         rti
 
 ;==============================================================================
