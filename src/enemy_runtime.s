@@ -163,6 +163,7 @@ FBM_PERIM_DAMAGE equ 135        ; twelve-byte, 92-box reserved ledger
 FBM_HUD_DAMAGE equ 147
 FBM_NEST_DAMAGE equ 149
 FBM_PRESENT_DAMAGE equ 150
+FBM_PENDING_INTENTS equ 160       ; 18-byte intent block plus dot cell coverage
 FBM_VALID      equ $01
 FBM_FULL_REBUILD equ $02
 ENEMY_ZONE_FB  equ $4DEC
@@ -498,9 +499,114 @@ frame_render_impl
         ifne    PERSISTENT_FB
         lbsr    framebuffer_prepare_back
         lbcs    fri_abort
+        tst     FB_INIT_STATE
+        beq     fri_render
+        lbsr    framebuffer_queue_damage
+        lbsr    framebuffer_project_damage
         else
         lbsr    framebuffer_begin_fallback
         endc
+fri_render
+        lbsr    frame_render_pass
+        ifne    PERSISTENT_FB
+        lbsr    framebuffer_finish_back
+        else
+        lbsr    framebuffer_finish_fallback
+        endc
+        clr     RENDER_FLAGS
+        clr     RENDER_FLAGS2
+        clr     RENDER_GATE_ID
+        clr     RENDER_GATE2_ID
+        clr     PLAYER_ERASED
+        rts
+fri_abort
+        clr     FB_RENDER_ACTIVE
+        rts
+
+; Project one persistent-damage record without consuming the current epoch's
+; intents. The record contains exact affected coverage, while each drawing
+; routine reads the latest frozen logical state.
+framebuffer_project_damage
+        lbsr    framebuffer_back_meta
+        tst     FBM_DAMAGE,u
+        beq     fbpd_done
+        lda     PLAYER_ERASED
+        pshs    a
+        clr     PLAYER_ERASED
+        ldd     PLAYER_CELL_X
+        pshs    d
+        ldx     #RENDER_FLAGS
+        ldb     #16
+fbpd_save
+        lda     ,x+
+        pshs    a
+        decb
+        bne     fbpd_save
+        leau    FBM_PENDING_INTENTS,u
+        ldx     #RENDER_FLAGS
+        ldb     #16
+fbpd_load
+        lda     ,u+
+        sta     ,x+
+        decb
+        bne     fbpd_load
+        ldd     ,u
+        std     PLAYER_CELL_X
+        lbsr    framebuffer_back_meta
+        clr     FBM_DAMAGE,u
+        lbsr    frame_render_pass
+        ldx     #RENDER_GATE2_STYLE
+        ldb     #16
+fbpd_restore
+        puls    a
+        sta     ,x
+        leax    -1,x
+        decb
+        bne     fbpd_restore
+        puls    d
+        std     PLAYER_CELL_X
+        puls    a
+        sta     PLAYER_ERASED
+fbpd_done
+        rts
+
+; Queue this epoch's persistent coverage for the buffer not currently being
+; rendered. Actor/popup/death state is buffer-local and is excluded here.
+framebuffer_queue_damage
+        ldu     #FB_META_B
+        tst     FB_BACK_ID
+        beq     fbqd_meta
+        ldu     #FB_META_A
+fbqd_meta
+        leau    FBM_PENDING_INTENTS,u
+        ldx     #RENDER_FLAGS
+        ldb     #16
+fbqd_copy
+        lda     ,x+
+        sta     ,u+
+        decb
+        bne     fbqd_copy
+        ldd     PLAYER_CELL_X
+        std     ,u
+        leau    -16,u
+        lda     ,u
+        anda    #RF_HUD|RF_LIVES|RF_ENTITIES|RF_BOX|RF_DOT|RF_STAGE
+        sta     ,u
+        lda     1,u
+        anda    #RF2_MULTIPLIER|RF2_LETTER|RF2_PERIM_RESET
+        sta     1,u
+        clr     8,u              ; ENEMY_RENDER_FLAGS belongs to actor closure
+        clr     FBM_DAMAGE-FBM_PENDING_INTENTS,u
+        lda     ,u
+        ora     1,u
+        ora     9,u              ; RENDER_GATE_ID
+        ora     11,u             ; RENDER_GATE2_ID
+        beq     fbqd_done
+        inc     FBM_DAMAGE-FBM_PENDING_INTENTS,u
+fbqd_done
+        rts
+
+frame_render_pass
         lda     RENDER_FLAGS
         bita    #RF_STAGE
         lbne    fri_stage
@@ -616,19 +722,6 @@ fri_gate
         sta     RENDER_GATE_STYLE
         lbsr    gate_compose_impl
 fri_done
-        ifne    PERSISTENT_FB
-        lbsr    framebuffer_finish_back
-        else
-        lbsr    framebuffer_finish_fallback
-        endc
-        clr     RENDER_FLAGS
-        clr     RENDER_FLAGS2
-        clr     RENDER_GATE_ID
-        clr     RENDER_GATE2_ID
-        clr     PLAYER_ERASED
-        rts
-fri_abort
-        clr     FB_RENDER_ACTIVE
         rts
 
 render_exposed_player

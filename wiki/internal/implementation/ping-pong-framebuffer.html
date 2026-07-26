@@ -178,6 +178,19 @@ Per framebuffer:
         buffers; applying one buffer clears only its copy. Multiple mutations
         before a buffer is reused coalesce naturally to the latest state.
       </p>
+      <p>
+        The implemented first projection pass uses the stronger scheduler
+        invariant that exactly one committed epoch separates consecutive uses
+        of the same buffer. Bytes <code>160-177</code> of each metadata block
+        hold one persistent-intent record: primary/secondary flags, gate,
+        perimeter, letter, and zone payloads, plus the exact dot cell. Before
+        rendering BACK, bank 3 queues the current record for the other buffer,
+        loads and clears BACK's record, projects it from the current frozen
+        logical state, restores the current intent block, and then renders the
+        current epoch. Player, popup, death, and roaming-actor intents are
+        deliberately excluded; their underlay intersections remain inputs to
+        the actor-closure phase.
+      </p>
       <table class="wiki-table">
         <thead><tr><th>Damage class</th><th>State source</th><th>Projection</th></tr></thead>
         <tbody>
@@ -298,7 +311,8 @@ Per framebuffer:
         <li><strong>Completed 2026-07-25:</strong> split player, enemy, gate, score, pickup, death, and timer code into state mutation plus render-intent marking. Bank-3 entries <code>$0815</code>/<code>$0818</code> own enemy and complete-frame rendering; structural verification rejects framebuffer calls from mutation ranges, and the bounded GMC trace proves the central renderer executes.</li>
         <li><strong>Completed 2026-07-25:</strong> allocate always-mapped IRQ handshake state, two 256-byte actor/damage metadata blocks, and B-side player/enemy restoration buffers. Entry <code>$081B</code> initializes identical complete A/B images and restoration state while blanked. The legacy fallback explicitly invalidates B/full-rebuild before using it as shadow scratch and captures current A ownership afterward.</li>
         <li><strong>Completed 2026-07-25:</strong> render through the non-scanned PAR1-PAR4 BACK mapping, hydrate and capture buffer-local actor ownership, and publish readiness atomically. Vbord entry <code>$081E</code> alone writes <code>$FF9D</code>, exchanges FRONT/BACK, and advances commit/simulation sequences. The compatibility compositor now uses pages <code>$28-$2B</code>; a bounded trace proves repeated <code>$B0/$C0</code> alternation.</li>
-        <li>Add damage-ledger projection, actor-overlap closure, and circular strip save-under updates. Remove the compatibility shadow window, union, publication, and native cache paths only after cycle and image acceptance.</li>
+        <li><strong>Completed 2026-07-25:</strong> add an 18-byte per-buffer persistent-damage record and project the skipped epoch from current frozen state before the current render. Exact dot cells and existing gate/perimeter/HUD/entity payloads are retained; actor and presentation intents stay outside the ledger. The bounded GMC trace proves both queue and projection paths execute while display commits continue alternating.</li>
+        <li>Add actor-overlap closure and circular strip save-under updates. Remove the compatibility shadow window, union, publication, and native cache paths only after cycle and image acceptance.</li>
       </ol>
     </section>
 

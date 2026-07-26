@@ -506,8 +506,44 @@ if "lda     #FB_SCRATCH_PAGE0" not in mapping:
     raise SystemExit("enemy proof: region compositor still aliases framebuffer B")
 if "tst     FB_BACK_ID" not in mapping or "lda     #FB_B_PAGE0" not in mapping:
     raise SystemExit("enemy proof: PAR1-PAR4 do not select the current back owner")
+damage = source[source.index("\nframebuffer_project_damage\n"):
+                source.index("\nframe_render_pass\n")]
+damage_order = [
+    "lbsr    framebuffer_queue_damage",
+    "lbsr    framebuffer_project_damage",
+]
+frame_head = source[source.index("\nframe_render_impl\n"):
+                    source.index("\nframebuffer_project_damage\n")]
+if [frame_head.index(fragment) for fragment in damage_order] != sorted(
+    frame_head.index(fragment) for fragment in damage_order
+):
+    raise SystemExit("enemy proof: damage is not queued before back-buffer projection")
+for fragment in (
+    "FBM_PENDING_INTENTS equ 160",
+    "tst     FBM_DAMAGE,u",
+    "clr     PLAYER_ERASED",
+    "ldd     PLAYER_CELL_X",
+    "std     PLAYER_CELL_X",
+    "sta     PLAYER_ERASED",
+    "clr     FBM_DAMAGE,u",
+    "lbsr    frame_render_pass",
+    "ora     9,u",
+    "ora     11,u",
+    "inc     FBM_DAMAGE-FBM_PENDING_INTENTS,u",
+):
+    if fragment not in source:
+        raise SystemExit("enemy proof: persistent damage ledger is incomplete: " + fragment)
+queue = source[source.index("\nframebuffer_queue_damage\n"):
+               source.index("\nframe_render_pass\n")]
+for fragment in (
+    "anda    #RF_HUD|RF_LIVES|RF_ENTITIES|RF_BOX|RF_DOT|RF_STAGE",
+    "anda    #RF2_MULTIPLIER|RF2_LETTER|RF2_PERIM_RESET",
+    "clr     8,u",
+):
+    if fragment not in queue:
+        raise SystemExit("enemy proof: transient actor state leaked into damage ledger")
 print(
-    f"enemy proof: {len(rom)}/4096 bank-3 bytes; fixed ABI, state/render ownership, A/B cold convergence, back-buffer hydration, Vbord commit handshake, compact staging, "
+    f"enemy proof: {len(rom)}/4096 bank-3 bytes; fixed ABI, state/render ownership, A/B cold convergence, back-buffer hydration, persistent damage projection, Vbord commit handshake, compact staging, "
     "64-byte source stride, idle render gate, off-screen nest compositor, "
     "immediate death reset, reset/frozen release timer, staged player publish, "
     "hidden gate publish, footprint collision, skull decrement, exclusive "

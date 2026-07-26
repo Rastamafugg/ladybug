@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-07-25 &middot; implementation/lint &mdash; per-buffer persistent-damage projection</h3>
+      <p>Committed BACK rendering and the Vbord handshake as <code>72d690d</code>. Each A/B metadata block now owns an 18-byte persistent-intent record containing exact dot-cell coverage plus existing gate, perimeter, HUD, entity, stage, letter, and zone payloads. Before rendering BACK, bank 3 queues a non-empty current persistent record for the other buffer, projects and clears BACK's skipped-epoch record from current frozen state, restores the current intent block, and renders the current epoch. Player exposure is suppressed during the background-only replay; actor, popup, and death intents remain excluded pending actor-overlap closure. Full GMC verification passes, the bounded trace enters both queue and projection routines while commits alternate, all sparse sprites remain pixel-exact, and bank-3 use is 3,927/4,096 bytes.</p>
+    </section>
+
+    <section>
       <h3>2026-07-25 &middot; implementation/lint &mdash; BACK rendering and Vbord commit handshake</h3>
       <p>Committed phase 3 as <code>fb19f69</code>. Phase 4 maps the selected non-scanned framebuffer through PAR1-PAR4, restores and captures buffer-local player/enemy ownership, moves the compatibility compositor surface to physical pages <code>$28-$2B</code>, and publishes readiness under an IRQ mask. New ABI entry <code>$081E</code> acknowledges Vbord, alternates <code>$FF9D</code> between <code>$B0/$C0</code>, exchanges FRONT/BACK, advances commit/simulation sequences, and counts active-render misses without consulting PAR5. Build constant <code>PERSISTENT_FB=0</code> retains the phase-3 fixed-A fallback. Closing review made equal FRONT/BACK fail closed and initialized cold enemy-old ownership before the first compositor pass. Full GMC verification passes and the bounded trace proves repeated alternating commit writes. The external GDB round trip was attempted but hit the documented XRoar <code>vMustReplyEmpty</code> stub failure.</p>
     </section>

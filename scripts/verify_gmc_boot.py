@@ -30,6 +30,17 @@ def main() -> None:
     loader_source = (Path(__file__).resolve().parents[1] / "src/gmc_bootstrap.s").read_text(
         encoding="utf-8"
     )
+    enemy_map = (
+        Path(__file__).resolve().parents[1] / "build/ladybug-enemy-runtime.map"
+    ).read_text(encoding="utf-8")
+    damage_symbols = {}
+    for name in ("framebuffer_queue_damage", "framebuffer_project_damage"):
+        symbol = re.search(
+            rf"^Symbol: {name} .* = ([0-9A-Fa-f]+)$", enemy_map, re.MULTILINE
+        )
+        if not symbol:
+            raise SystemExit(f"gmc proof: {name} missing from enemy map")
+        damage_symbols[name] = symbol.group(1).lower()
     if "sta     SAM_FAST" not in main_source or "SAM_FAST   equ  $FFD9" not in main_source:
         raise SystemExit("gmc proof: resident fast-clock selection missing")
     if "sta     SAM_FAST" not in loader_source or "SAM_FAST    equ $FFD9" not in loader_source:
@@ -129,6 +140,8 @@ def main() -> None:
         "Vbord commit ABI entered": f"081e| {commit_entry.hex()}" in text,
         "Vbord commit handler entered": f"{commit_target}|" in text,
         "Vbord display owners alternate": commit_alternates,
+        "damage queue entered": f"{damage_symbols['framebuffer_queue_damage']}|" in text,
+        "damage projection entered": f"{damage_symbols['framebuffer_project_damage']}|" in text,
         "runtime main loop": text.count(f"{mainloop}| 13") >= 1,
     }
     failed = [name for name, passed in required.items() if not passed]
