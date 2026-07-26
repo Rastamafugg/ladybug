@@ -25,6 +25,14 @@
     </header>
 
     <section>
+      <h2>Dispatch circular row-zero restores once per actor, not once per byte</h2>
+      <p>A generic circular decoder recomputed physical row addresses and dynamically split the wrapped column range for every one of 16 rows. Four horizontal enemy restores consumed 20,003 cycles even though horizontal movement never changes the packed row phase.</p>
+      <p><strong>Rule:</strong> when row phase is zero, dispatch the eight column phases once to fixed four-word row loops; synthesize an odd wrapped word with separate A/B loads. Retain the generic decoder for nonzero row phases so vertical movement preserves the same ring format.</p>
+      <p><strong>Applies to:</strong> fixed-size circular save-under buffers where one dimension remains unrotated across the common movement path.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>roam_copy_bg_to_fb</code>, the eight-phase ring model, and the 2026-07-26 four-enemy fast-restore profile.</p>
+    </section>
+
+    <section>
       <h2>GMC payload capacity excludes the forced-RAM and I/O tail of every bank</h2>
       <p><strong>Filed 2026-07-23.</strong></p>
       <p>A preliminary sparse-stream packing counted all 16 KiB of each GMC bank. The CPU can read cartridge data only at <code>$C000-$FDFF</code>, so bank offsets <code>$3E00-$3FFF</code> map to forced RAM and dedicated I/O rather than cartridge bytes.</p>

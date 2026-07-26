@@ -272,14 +272,14 @@ Per framebuffer:
         overlap and bounds.
       </p>
       <p>
-        The implemented seven-record packing uses only CPU-readable bank
+        The delivered seven-record packing uses only CPU-readable bank
         offsets below <code>$3E00</code>. Bank 2
         <code>$0020-$3DFF</code> supplies 15,840 bytes, bank 3
         <code>$1800-$3DFF</code> supplies 9,728 bytes, and 1,058 bytes come
         from pre-runtime bank-3 intervals that exclude signature offsets
         <code>$0010-$0011</code>. Offsets <code>$3E00-$3FFF</code> are not
         loader capacity because they appear at forced-RAM/I/O addresses
-        <code>$FE00-$FFFF</code>. The two candidate expansion banks retain
+        <code>$FE00-$FFFF</code>. The two active expansion banks retain
         1,018 CPU-readable bytes after signatures and the reserved 4 KiB
         enemy module.
       </p>
@@ -316,8 +316,10 @@ Per framebuffer:
         <li><strong>Completed 2026-07-25:</strong> add an 18-byte per-buffer persistent-damage record and project the skipped epoch from current frozen state before the current render. Exact dot cells and existing gate/perimeter/HUD/entity payloads are retained; actor and presentation intents stay outside the ledger. The bounded GMC trace proves both queue and projection paths execute while display commits continue alternating.</li>
         <li><strong>Completed 2026-07-26:</strong> add conservative five-actor overlap closure. BACK restores the player and all buffer-old enemies before either damage pass, renders every background layer including background-only gates, fully captures all current roaming destinations, draws enemies, then publishes the current player/popup/death presentation last. The legacy shadow path remains only behind <code>PERSISTENT_FB=0</code>.</li>
         <li><strong>Completed 2026-07-26:</strong> add per-buffer circular enemy save-under. Four packed metadata bytes retain row/column phase; recognized horizontal/vertical movement captures 16 exposed bytes, unchanged animation frames retain their clean destination, and underlay/discontinuous cases fall back to full capture. The persistent image omits legacy shadow-window, dirty-union, and publication code; <code>PERSISTENT_FB=0</code> still assembles the compatibility implementation.</li>
-        <li><strong>Measured 2026-07-26:</strong> live four-actor horizontal and vertical strip transactions each decoded to 512/512 clean framebuffer bytes, matched 64/64 exposed bytes, and changed no byte outside the permitted ring slots. The fresh horizontal movement frame costs 68,297 active cycles, so runtime sparse decoding remains mandatory. The same proof corrected B-owner hydration to reacquire <code>FB_META_B</code> after the player-background swap clobbers <code>U</code>.</li>
-        <li>Add the runtime sparse-stream decoder, remove native cache expansion, then perform final cycle and image acceptance.</li>
+        <li><strong>Measured 2026-07-26:</strong> live four-actor horizontal and vertical strip transactions each decoded to 512/512 clean framebuffer bytes, matched 64/64 exposed bytes, and changed no byte outside the permitted ring slots. The pre-sparse horizontal movement frame costs 68,297 active cycles and established the need for runtime sparse decoding. The same proof corrected B-owner hydration to reacquire <code>FB_META_B</code> after the player-background swap clobbers <code>U</code>.</li>
+        <li><strong>Completed 2026-07-26:</strong> load the generated seven sparse segments into pages <code>$35-$37/$39</code>, replace cached native enemy/player drawing with page-indexed opaque/partial command decoding, and move the shared 256-byte player/nest compositor to always-mapped low RAM. PAR5 is restored to page <code>$34</code> after every draw; the packed enemy atlas, packed resident player frames, native caches, and cache keys are absent from the delivered image.</li>
+        <li><strong>Measured 2026-07-26; image pass, cycle fail:</strong> independent live decode matches 512/512 enemy, 128/128 player, and 512/512 circular save-under bytes with no writes outside actor footprints. The A-owner frame costs 57,619 active cycles and the B owner costs 62,311, so both remain above the 29,666-cycle gate. B pays 4,692 extra cycles for two player save-under swaps.</li>
+        <li><strong>Optimized and measured 2026-07-26:</strong> horizontal row phase zero dispatches all eight column phases to fixed four-word restore loops; vertical row phases retain the generic decoder. Circular restore falls from 20,003 to 6,131 cycles, a 69.3% reduction. Fresh A/B intervals cost 36,801/44,078 cycles and remain over budget; live framebuffer and save-under proof remains exact.</li>
       </ol>
     </section>
 

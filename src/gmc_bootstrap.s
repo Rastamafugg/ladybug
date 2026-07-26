@@ -10,6 +10,7 @@ SAM_CART    equ $FFDE
 SAM_ALLRAM  equ $FFDF
 BOOT_FLAG   equ $02F0
 BOOT_PROOF  equ $02F1
+BOOT_SEGMENTS equ $02F2
 LOADER_RAM  equ $0300
 
         org $C000
@@ -55,20 +56,6 @@ loader_start
         lda     #$5A
         sta     BOOT_PROOF
 
-        ; Bank 2 offset $0800 holds eight N/E/S/W four-frame enemy sets.
-        ; Copy the atlas to physical page $35; runtime caches selected frames.
-        lda     #$35
-        sta     PAR_EXEC+5
-        lda     #2
-        sta     GMC_BANK
-        ldx     #$C800
-        ldy     #$A000
-copy_enemy_sprites
-        ldd     ,x++
-        std     ,y++
-        cmpx    #$E800
-        blo     copy_enemy_sprites
-
         ; Bank 3 offset $0800 contains an absolute low-RAM enemy module.
         ; Copying it once avoids frame-time GMC switching and preserves the
         ; resident MMU mapping used by the framebuffer.
@@ -81,6 +68,30 @@ copy_enemy_runtime
         std     ,y++
         cmpx    #$D800
         blo     copy_enemy_runtime
+
+        ; Copy the indexed sparse enemy/player streams into physical pages
+        ; $35-$37 and $39 using the generated fragmented-bank plan.
+        leax    sparse_copy_table,pcr
+        lda     #SPARSE_COPY_SEGMENT_COUNT
+        sta     BOOT_SEGMENTS
+copy_sparse_segment
+        lda     ,x+
+        sta     GMC_BANK
+        lda     ,x+
+        sta     PAR_EXEC+5
+        ldu     ,x++
+        ldy     ,x++
+        ldd     ,x++
+        pshs    x
+        tfr     d,x
+copy_sparse_bytes
+        lda     ,u+
+        sta     ,y+
+        leax    -1,x
+        bne     copy_sparse_bytes
+        puls    x
+        dec     BOOT_SEGMENTS
+        bne     copy_sparse_segment
 
         ; Bank 1 contains the current 16 KiB runtime image. Copy its resident
         ; 8 KiB through PAR5 to phys $3E.
@@ -119,6 +130,8 @@ copy_assets
 loader_fail
         clr     BOOT_PROOF
         bra     loader_fail
+
+        include "ladybug-sparse-loader.inc"
 loader_end
 
         end

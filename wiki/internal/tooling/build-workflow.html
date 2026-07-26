@@ -43,8 +43,7 @@ tiled/coco-screen.tmx                (hand-authored 40x24 screen)
    ▼
 build/ladybug_maze.inc               (semantic cells/navigation/gates)
 build/ladybug_screen.inc             (palette, map, tiles, popup multiplier characters, score frames, contextual gate redraw data)
-build/ladybug_resident.inc           (packed four-direction player, death, and vegetable frames)
-build/ladybug-enemy-sprites.bin      (eight packed N/E/S/W four-frame enemy sets)
+build/ladybug_resident.inc           (packed death and vegetable frames)
 build/ladybug-enemy-sparse.bin       (128 indexed native-4bpp sparse streams)
 build/ladybug-player-sparse.bin      (16 indexed native-4bpp sparse streams)
    │
@@ -54,9 +53,9 @@ src/enemy_runtime.s                  (bank-3 low-RAM enemy module)
    │  lwasm: 16 KB runtime bank + 16 KB bootstrap bank
    ▼
 build/ladybug-runtime.rom + build/ladybug-enemy-runtime.rom + build/ladybug-gmc-boot.rom
-build/ladybug-sparse-bank2.bin + build/ladybug-sparse-bank3.bin (candidate only)
-build/ladybug-sparse-loader.inc + build/ladybug-sparse-layout.json (candidate proof)
-   │  compose bank 0 bootstrap, bank 1 runtime, bank 2 enemy sprites, bank 3 enemy module
+build/ladybug-sparse-bank2.bin + build/ladybug-sparse-bank3.bin (delivered expansion banks)
+build/ladybug-sparse-loader.inc + build/ladybug-sparse-layout.json (active loader plan and proof)
+   │  compose bank 0 bootstrap, bank 1 runtime, sparse banks 2/3
    ▼
 build/ladybug.rom    (64 KB, four 16 KB GMC banks)
    │
@@ -76,9 +75,9 @@ emulated CoCo 3      (physical target: GMC-compatible bank-select hardware)
       <table class="wiki-table">
         <thead><tr><th>Command</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile the authored Tiled screen and packed curated sprite groups, assemble, enforce the resident/asset ROM boundaries, generate and independently verify indexed sparse enemy/player streams plus their candidate segmented GMC layout, and pad. The sparse candidate artifacts do not replace the active packed renderer yet.</td></tr>
+          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile retained packed death/vegetable assets, assemble, generate and independently verify indexed sparse enemy/player streams plus their segmented GMC layout, assemble the generated loader table, compose the delivered sparse banks, enforce all ROM boundaries, and pad.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch XRoar with the canonical cart profile and map cursor keys to the right CoCo joystick through <code>kjoy0</code>.</td></tr>
-          <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then trace a bounded headless XRoar run and verify bank signatures, the bank-2 sprite selection, bank-3 low-RAM copy, bank-1 loading, both fast-clock writes, the TY=1 all-RAM handoff, repeated main-loop execution, and the enemy module ABI/compositor contracts.</td></tr>
+          <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then trace a bounded headless XRoar run and verify bank signatures, all seven sparse copy segments and four destination pages, bank-3 low-RAM copy, bank-1 loading, both fast-clock writes, sparse framebuffer/stage decoder execution, the TY=1 all-RAM handoff, repeated main-loop execution, and enemy-module contracts.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
       </table>
@@ -89,8 +88,8 @@ assets/arcade/maze_capture.json/bin (authoritative captured background)
 tiled/coco-screen.tmx      (hand-authored layered screen)
 src/main.s                 (top of build, ORG $C000)
 src/enemy_runtime.s        (bank-3 module, ORG $0800)
-scripts/build_screen.py    (TMX flattener and packed-atlas generator)
-scripts/build_sparse_sprites.py (indexed sparse streams and candidate GMC layout)
+scripts/build_screen.py    (TMX flattener and retained packed-asset generator)
+scripts/build_sparse_sprites.py (indexed sparse streams and active GMC layout)
 scripts/verify_sparse_sprites.py (independent stream decoder and loader proof)
 scripts/derive_maze.py     (semantic maze validator/generator)
 build/                     (created if missing; generated outputs land here)
@@ -110,8 +109,7 @@ python3 scripts/build_screen.py \
   --chars assets/arcade/chars.json \
   --sprites assets/arcade/sprites.json \
   --output build/ladybug_screen.inc \
-  --resident-output build/ladybug_resident.inc \
-  --enemy-output build/ladybug-enemy-sprites.bin
+  --resident-output build/ladybug_resident.inc
 lwasm -9 --format=raw \
       --output=build/ladybug.rom \
       --list=build/ladybug.lst \
@@ -126,16 +124,14 @@ lwasm -9 --format=raw \
         It rejects resident code beyond <code>$E000</code>, an asset start other
         than <code>$E000</code>, assets beyond <code>$FE00</code>, or a raw-file
         length inconsistent with <code>asset_end-$C000</code>. A successful
-        current build reports <code>resident 8071/8192</code> and
+        current build reports <code>resident 7100/8192</code> and
         <code>assets 7432/7680</code> before padding. The copied bank-3 module
-        reports <code>2845/4096</code>; its seven-entry jump table includes the
-        hidden gate-region compositor and player-cache ABIs. The approved loader copy spans
-        <code>$0800-$17FF</code>; directional caches occupy
-        <code>$1800-$1B05</code>, leaving <code>$1B06-$1FFE</code> for stack
-        growth. GMC bank 2 contributes a separate 8,192-byte directional enemy
-        atlas copied to physical page <code>$35</code>; selected frames are
-        expanded to native 4bpp and cached at <code>$1800-$1A7F</code>. The
-        selected player frame is cached at <code>$1A85-$1B04</code>.
+        reports <code>4010/4096</code>; its eleven-entry jump table includes
+        direct sparse player draw plus framebuffer/stage decoders. The approved
+        module copy spans <code>$0800-$17FF</code>; a shared actor stage occupies
+        <code>$1800-$18FF</code>, leaving <code>$1900-$1FFE</code> for stack
+        growth. Generated enemy streams occupy physical pages
+        <code>$35-$37</code> and player streams occupy page <code>$39</code>.
       </p>
       <p>
         After assembling the enemy module, phase 1 also runs
@@ -149,8 +145,8 @@ lwasm -9 --format=raw \
         <code>ladybug-sparse-layout.json</code>. The proof decodes every frame,
         checks physical-page containment and signatures, excludes inaccessible
         GMC offsets <code>$3E00-$3FFF</code>, and reconstructs both physical
-        payloads from all seven copy records. Candidate capacity is 1,018
-        CPU-readable bytes spare.
+        payloads from all seven copy records. The generated banks and loader
+        are the delivered path, with 1,018 CPU-readable bytes spare.
       </p>
 
       <h3>2. Pad both source banks to 16 KB and compose the 64 KB GMC image</h3>

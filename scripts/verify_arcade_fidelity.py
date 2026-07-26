@@ -172,8 +172,10 @@ def verify_player_restore_contract() -> None:
     draw = tick[tick.index("\npt_draw\n"):tick.index("\npt_done\n")]
     expose = tick[tick.index("\nexpose_player_background\n"):]
     assert "restore_player" not in prologue
-    assert draw.index("jsr     PLAYER_MODULE_COMPOSE") < draw.index("\npt_draw_direct\n")
-    assert expose.index("ldd     PLAYER_OLD_FB") < expose.index("lbsr    restore_player")
+    assert "ora     #RF_PLAYER" in draw
+    assert "restore_player" not in draw
+    assert "inc     PLAYER_ERASED" in expose
+    assert "restore_player" not in expose
     assert "PLAYER_MODULE_COMPOSE equ $080C" in source
     assert "pt_arrived\n        lbsr    expose_player_background" not in tick
     entity = source[source.index("check_entity_pickup\n"):source.index("; Replace the player")]

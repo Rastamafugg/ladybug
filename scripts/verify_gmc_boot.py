@@ -39,6 +39,8 @@ def main() -> None:
         "actor_closure_draw",
         "framebuffer_queue_damage",
         "framebuffer_project_damage",
+        "sparse_blit_fb",
+        "sparse_blit_stage",
     ):
         symbol = re.search(
             rf"^Symbol: {name} .* = ([0-9A-Fa-f]+)$", enemy_map, re.MULTILINE
@@ -114,6 +116,16 @@ def main() -> None:
         trace.seek(0)
         text = trace.read()
 
+    sparse_bank_writes = re.findall(
+        rf"^{bank_writes[3]}\| b7ff50 .* a=([0-9a-f]{{2}}) ",
+        text,
+        re.MULTILINE,
+    )
+    sparse_page_writes = re.findall(
+        r"^[0-9a-f]{4}\| b7ffa5 .* a=(35|36|37|39) ",
+        text,
+        re.MULTILINE,
+    )
     commit_writes = [
         int(value, 16)
         for pc, value in re.findall(
@@ -131,12 +143,15 @@ def main() -> None:
     required = {
         "bank 2 signature": f"{bank2_signature}| fcc010" in text and "a=b2 b=02" in text,
         "bank 3 signature": f"{bank3_signature}| fcc010" in text and "a=b3 b=03" in text,
-        "bank-2 sprites selected": f"{bank_writes[2]}| b7ff50" in text,
-        "bank-3 module selected": f"{bank_writes[3]}| b7ff50" in text,
+        "bank-3 module selected": f"{bank_writes[2]}| b7ff50" in text,
+        "seven sparse source segments selected": (
+            len(sparse_bank_writes) == 7 and set(sparse_bank_writes) == {"02", "03"}
+        ),
+        "sparse destination pages selected": set(sparse_page_writes) == {"35", "36", "37", "39"},
         "runtime bank selected": f"{bank_writes[4]}| b7ff50" in text,
         "all-RAM handoff": f"{allram}| b7ffdf" in text,
         "bank-3 module payload": rom[0xC800:0xC80C] != bytes((0xA3,)) * 12,
-        "bank-2 sprite payload": rom[0x8800:0xA800] != bytes((0xA2,)) * 0x2000,
+        "bank-2 sparse payload": rom[0x8020:0x9E00] != bytes((0xA2,)) * 0x1DE0,
         "enemy module entered": "0800| 7e" in text,
         "frame renderer ABI entered": f"0818| {frame_entry.hex()}" in text,
         "central frame renderer entered": f"{frame_target}|" in text,
@@ -149,12 +164,14 @@ def main() -> None:
         "damage projection entered": f"{damage_symbols['framebuffer_project_damage']}|" in text,
         "actor closure restore entered": f"{damage_symbols['actor_closure_restore']}|" in text,
         "actor closure draw entered": f"{damage_symbols['actor_closure_draw']}|" in text,
+        "sparse framebuffer decoder entered": f"{damage_symbols['sparse_blit_fb']}|" in text,
+        "sparse stage decoder entered": f"{damage_symbols['sparse_blit_stage']}|" in text,
         "runtime main loop": text.count(f"{mainloop}| 13") >= 1,
     }
     failed = [name for name, passed in required.items() if not passed]
     if failed:
         raise SystemExit("gmc proof failed: " + ", ".join(failed))
-    print("gmc proof: bank-2 sprites, bank-3 module, bank-1 load, TY=1 handoff, A/B ownership init, actor closure, Vbord commit entry, and relocated main loop verified")
+    print("gmc proof: segmented sparse payload load, bank-3 module, bank-1 load, sparse runtime decoders, TY=1 handoff, A/B ownership init, actor closure, Vbord commit entry, and relocated main loop verified")
 
 
 if __name__ == "__main__":

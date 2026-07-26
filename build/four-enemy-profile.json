@@ -1,0 +1,93 @@
+{
+  "captured": "2026-07-23",
+  "scenario": {
+    "emulator": "XRoar 1.10",
+    "frame": "one complete hot-cache, movement-only main-loop iteration",
+    "active_enemies": 4,
+    "enemy_positions": [[4, 4], [16, 4], [4, 16], [16, 16]],
+    "nest_dirty": false,
+    "animation_tick": false
+  },
+  "profile": {
+    "instructions": 18212,
+    "cycles": 81370,
+    "hardware_budget_cycles": 29666,
+    "budget_multiple": 2.743,
+    "previous_instructions": 26404,
+    "instruction_reduction": 8192,
+    "instruction_reduction_percent": 31.0,
+    "paths": [
+      {
+        "name": "shadow import/publish and mapping",
+        "instructions": 8464,
+        "cycles": 39640
+      },
+      {
+        "name": "native framebuffer sprite draw/blit",
+        "instructions": 7008,
+        "cycles": 25728
+      },
+      {
+        "name": "save-under restore/save",
+        "instructions": 1424,
+        "cycles": 10312
+      },
+      {
+        "name": "enemy logic/orchestration",
+        "instructions": 771,
+        "cycles": 3672
+      },
+      {
+        "name": "resident frame work",
+        "instructions": 421,
+        "cycles": 1578
+      },
+      {
+        "name": "hot enemy-cache lookup",
+        "instructions": 124,
+        "cycles": 440
+      }
+    ]
+  },
+  "overlap_sample": {
+    "method": "four established enemies followed normal maze navigation; each sample was taken at roam_prepare_shadow on a movement frame",
+    "frames": 1280,
+    "pair_opportunities": 7680,
+    "frames_by_overlapping_pair_count": {
+      "0": 1172,
+      "1": 108
+    },
+    "overlap_area_bytes_histogram": {
+      "2": 1,
+      "8": 1,
+      "16": 46,
+      "18": 1,
+      "28": 6,
+      "32": 10,
+      "36": 6,
+      "40": 6,
+      "50": 1,
+      "64": 9,
+      "72": 1,
+      "96": 9,
+      "98": 1,
+      "128": 10
+    },
+    "frames_with_cost_reducing_bounding_union": 79,
+    "bounding_union_saving_bytes_histogram": {
+      "16": 40,
+      "32": 9,
+      "46": 1,
+      "64": 9,
+      "88": 1,
+      "96": 9,
+      "126": 1,
+      "128": 9
+    },
+    "total_saving_bytes_one_copy_pass": 3780,
+    "total_saving_bytes_import_and_publish": 7560,
+    "mean_saving_bytes_per_frame_import_and_publish": 5.90625,
+    "maximum_copy_bytes_saved_percent": 0.513
+  },
+  "decision": "Do not implement runtime dirty-union coalescing. Even an oracle that pays no geometry or bookkeeping cost would remove only 0.513 percent of the shadow-copy bytes in this sample."
+}

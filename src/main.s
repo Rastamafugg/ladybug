@@ -209,7 +209,6 @@ MAZE_STATE equ  $A000           ; writable 576-byte maze-cell copy (PAR5)
 GATE_STATE equ  $A240           ; rotation state N/W/S/E; parity selects H/V bar
 PLAYER_BG  equ  $A300           ; 128-byte saved background under player
 ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
-PLAYER_STAGE equ $A3F0         ; 128-byte off-screen player composition surface
 ENEMY_FB    equ $57EC          ; top-left at lower nest cell (12,12)
 ENEMY_TABLE equ $A470          ; four 8-byte active enemy records
 ENEMY_ZONE_BG equ $A490        ; 256-byte clean 16-by-32 nest background
@@ -220,7 +219,7 @@ ENEMY_MODULE_RELEASE equ $0806
 ENEMY_MODULE_COLLECT equ $0809
 PLAYER_MODULE_COMPOSE equ $080C
 GATE_MODULE_COMPOSE equ $080F
-PLAYER_MODULE_CACHE equ $0812
+PLAYER_MODULE_DRAW  equ $0812
 ENEMY_MODULE_RENDER equ $0815
 FB_MODULE_INIT      equ $081B
 FB_MODULE_IRQ       equ $081E
@@ -3054,9 +3053,8 @@ render_frame
 ;==============================================================================
 draw_player
         lbsr    save_player
-        jsr     PLAYER_MODULE_CACHE
         ldx     PLAYER_FB
-        lbsr    blit_native_sprite
+        jsr     PLAYER_MODULE_DRAW
         rts
 
 player_animation_tick
@@ -3129,23 +3127,6 @@ bps_byte
         leax    152,x
         dec     BLIT_ROWS
         bne     bps_row
-        rts
-
-; Merge one cached native 4bpp 16x16 sprite into the framebuffer.
-blit_native_sprite
-        lda     #16
-        sta     BLIT_ROWS
-bns_row
-        lda     #8
-        sta     BLIT_WIDTH
-bns_byte
-        lda     ,y+
-        lbsr    merge_sprite_byte
-        dec     BLIT_WIDTH
-        bne     bns_byte
-        leax    152,x
-        dec     BLIT_ROWS
-        bne     bns_row
         rts
 
 ; Merge packed source A at X, preserving destination nibbles where source=0.

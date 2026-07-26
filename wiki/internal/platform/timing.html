@@ -289,6 +289,72 @@
         enforces swap, reacquire, then enemy-record access ordering.
       </p>
       <p>
+        This 68,297-cycle capture is the pre-sparse baseline. Runtime sparse
+        decoding replaced the native enemy/player caches on 2026-07-26.
+      </p>
+      <h2>Post-decoder four-enemy profile — 2026-07-26</h2>
+      <p>
+        A controlled, hydrated A-owner horizontal-movement frame using the
+        runtime indexed sparse streams executes 12,456 active instructions
+        and 57,619 active cycles. This removes 10,678 cycles, or 15.6%, from
+        the 68,297-cycle native-frame baseline, but remains 1.94 times the
+        29,666-cycle strict-60-Hz budget. The alternating B owner costs
+        62,311 active cycles, 4,692 more than A, because it swaps the
+        128-byte player save-under on both prepare and finish.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Path</th><th>Instructions</th><th>Cycles</th><th>Active-cycle share</th></tr></thead>
+        <tbody>
+          <tr><td>Circular save-under restore</td><td>4,259</td><td>20,003</td><td>34.7%</td></tr>
+          <tr><td>Sparse enemy framebuffer decode</td><td>2,924</td><td>13,560</td><td>23.5%</td></tr>
+          <tr><td>Horizontal ring strip update</td><td>1,262</td><td>6,074</td><td>10.5%</td></tr>
+          <tr><td>Enemy mutation and ownership snapshot</td><td>1,288</td><td>5,391</td><td>9.4%</td></tr>
+          <tr><td>Resident loop, IRQ, and uncategorized work</td><td>1,234</td><td>4,651</td><td>8.1%</td></tr>
+          <tr><td>Sparse player framebuffer decode</td><td>705</td><td>3,262</td><td>5.7%</td></tr>
+          <tr><td>Player save and restore</td><td>363</td><td>2,606</td><td>4.5%</td></tr>
+          <tr><td>Framebuffer ownership and actor orchestration</td><td>421</td><td>2,072</td><td>3.6%</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Live framebuffer proof captured actor-free BACK, the four-enemy
+        result, and the final player result from the same B-owner transaction.
+        Independent host decoding matched all 512 enemy footprint bytes and
+        all 128 player footprint bytes. Decoding the four circular save-under
+        buffers matched all 512 clean framebuffer bytes; neither actor pass
+        changed a byte outside its permitted footprints. The final
+        30,720-byte framebuffer hash is
+        <code>5c69fa71f04564e42cef5bbdb1a8357d50e8ef67b15dd2d32b8ed59343c923d9</code>.
+        Image correctness passes; strict-60-Hz cycle acceptance fails.
+      </p>
+      <h2>Phase-dispatched circular restore — 2026-07-26</h2>
+      <p>
+        The horizontal steady path now tests the packed row phase once per
+        actor and dispatches column phases zero through seven to fixed
+        four-word row loops. Odd phases synthesize the single wrapped word
+        with separate <code>LDA</code>/<code>LDB</code> loads. Any nonzero
+        row phase retains the generic row/column decoder used after vertical
+        movement. This preserves the circular format and consumes 4,010 of
+        the 4,096 bank-3 bytes.
+      </p>
+      <p>
+        On the controlled four-enemy horizontal transaction, circular restore
+        falls from 4,259 instructions and 20,003 cycles to 923 instructions
+        and 6,131 cycles. The direct like-for-like kernel saving is 13,872
+        cycles, or 69.3%. The captured complete A-owner interval is 7,358
+        instructions and 36,801 active cycles; B is 44,078 cycles. These
+        complete-frame totals use a different 30 Hz enemy-mutation cadence
+        from the preceding A capture, so only the restore-path delta is an
+        attributable optimization comparison. Both owners still fail the
+        29,666-cycle gate.
+      </p>
+      <p>
+        The fresh live proof again matches 512/512 enemy, 128/128 player, and
+        512/512 circular save-under bytes with zero writes outside actor
+        footprints. The structural verifier models all eight fixed word
+        orders, repeated horizontal/vertical wraps, and direction changes;
+        the compatibility <code>PERSISTENT_FB=0</code> image also assembles.
+      </p>
+      <p>
         <strong>Strict-60-Hz architecture designed 2026-07-23:</strong>
         the <a href="../implementation/ping-pong-framebuffer.html">persistent
         ping-pong framebuffer</a> removes normal shadow import/publication by

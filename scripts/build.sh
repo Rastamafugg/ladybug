@@ -9,7 +9,6 @@ SRC_TESTER="$ROOT/src/tester/tester.s"
 BUILD_DIR="$ROOT/build"
 SCREEN_INC="$BUILD_DIR/ladybug_screen.inc"
 RESIDENT_INC="$BUILD_DIR/ladybug_resident.inc"
-ENEMY_SPRITES="$BUILD_DIR/ladybug-enemy-sprites.bin"
 SPARSE_ENEMY="$BUILD_DIR/ladybug-enemy-sparse.bin"
 SPARSE_PLAYER="$BUILD_DIR/ladybug-player-sparse.bin"
 SPARSE_BANK2="$BUILD_DIR/ladybug-sparse-bank2.bin"
@@ -120,8 +119,7 @@ cmd_build() {
         --chars "$ROOT/assets/arcade/chars.json" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --output "$SCREEN_INC" \
-        --resident-output "$RESIDENT_INC" \
-        --enemy-output "$ENEMY_SPRITES"
+        --resident-output "$RESIDENT_INC"
 
     lwasm -9 --format=raw \
           --output="$RUNTIME_ROM" \
@@ -147,7 +145,7 @@ wanted = {
     'draw_gate', 'draw_gate_diagonal', 'gate_redraw_neighbors',
     'gate_render_hidden', 'maze_gate_owner',
     'maze_gates', 'maze_nav',
-    'player_sprites', 'restore_entity_footprint', 'sprite_attr0_pairs',
+    'restore_entity_footprint', 'sprite_attr0_pairs',
     'restore_gate_diagonal_dots', 'vegetable_sprites',
 }
 symbols = {}
@@ -196,28 +194,24 @@ PY
           --list="$BOOT_LST" \
           --symbols \
           --map="$BOOT_MAP" \
+          -I "$BUILD_DIR" \
           "$BOOT_SRC"
     pad_cart "$BOOT_ROM"
 
-    python3 - "$BOOT_ROM" "$RUNTIME_ROM" "$ENEMY_ROM" "$ENEMY_SPRITES" "$ROM" "$GMC_BYTES" <<'PY'
+    python3 - "$BOOT_ROM" "$RUNTIME_ROM" "$ENEMY_ROM" "$SPARSE_BANK2" "$SPARSE_BANK3" "$ROM" "$GMC_BYTES" <<'PY'
 import sys
-boot_path, runtime_path, enemy_path, sprites_path, output_path, target = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], int(sys.argv[6])
+boot_path, runtime_path, enemy_path, bank2_path, bank3_path, output_path, target = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], int(sys.argv[7])
 boot = open(boot_path, 'rb').read()
 runtime = open(runtime_path, 'rb').read()
 enemy = open(enemy_path, 'rb').read()
-sprites = open(sprites_path, 'rb').read()
-if len(boot) != 0x4000 or len(runtime) != 0x4000:
+bank2 = open(bank2_path, 'rb').read()
+bank3 = open(bank3_path, 'rb').read()
+if any(len(bank) != 0x4000 for bank in (boot, runtime, bank2, bank3)):
     raise SystemExit('build: GMC bank input is not exactly 16 KiB')
 if len(enemy) > 0x1000:
     raise SystemExit(f'build: bank-3 enemy module is {len(enemy)} bytes; limit is 4096')
-if len(sprites) != 0x2000:
-    raise SystemExit(f'build: enemy sprite payload is {len(sprites)} bytes; expected 8192')
-bank2 = bytearray([0xA2] * 0x4000)
-bank3 = bytearray([0xA3] * 0x4000)
-bank2[0x10:0x12] = bytes((0xB2, 0x02))
-bank2[0x800:0x2800] = sprites
-bank3[0x10:0x12] = bytes((0xB3, 0x03))
-bank3[0x800:0x800 + len(enemy)] = enemy
+if bank3[0x800:0x800 + len(enemy)] != enemy:
+    raise SystemExit('build: sparse bank-3 runtime payload differs from assembled module')
 image = boot + runtime + bank2 + bank3
 if len(image) != target:
     raise SystemExit(f'build: GMC image is {len(image)} bytes, expected {target}')

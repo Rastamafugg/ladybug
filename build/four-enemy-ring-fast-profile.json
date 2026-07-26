@@ -1,0 +1,146 @@
+{
+  "captured": "2026-07-26",
+  "scenario": {
+    "active_enemies": 4,
+    "movement": [
+      "east",
+      "east",
+      "west",
+      "west"
+    ],
+    "ring_old_phases_hex": [
+      "00",
+      "00",
+      "00",
+      "00"
+    ],
+    "decoder": "runtime indexed sparse streams",
+    "restore": "phase-dispatched horizontal word-copy fast path"
+  },
+  "profile": {
+    "instructions": 7358,
+    "active_cycles": 36801,
+    "elapsed_cycles": 59931,
+    "sync_wait_cycles": 23130,
+    "paths": [
+      {
+        "name": "sparse enemy framebuffer decode",
+        "instructions": 2939,
+        "cycles": 13656,
+        "share_percent": 37.1
+      },
+      {
+        "name": "circular save-under restore",
+        "instructions": 923,
+        "cycles": 6131,
+        "share_percent": 16.7
+      },
+      {
+        "name": "horizontal ring strip update",
+        "instructions": 1262,
+        "cycles": 6074,
+        "share_percent": 16.5
+      },
+      {
+        "name": "sparse player framebuffer decode",
+        "instructions": 705,
+        "cycles": 3262,
+        "share_percent": 8.9
+      },
+      {
+        "name": "player save and restore",
+        "instructions": 363,
+        "cycles": 2606,
+        "share_percent": 7.1
+      },
+      {
+        "name": "resident loop, IRQ, and uncategorized work",
+        "instructions": 549,
+        "cycles": 2150,
+        "share_percent": 5.8
+      },
+      {
+        "name": "framebuffer ownership and actor orchestration",
+        "instructions": 420,
+        "cycles": 2062,
+        "share_percent": 5.6
+      },
+      {
+        "name": "enemy logic",
+        "instructions": 197,
+        "cycles": 860,
+        "share_percent": 2.3
+      }
+    ],
+    "hardware_budget_cycles": 29666,
+    "budget_multiple": 1.241,
+    "raw_interval_reduction_vs_post_decoder": 20818,
+    "raw_interval_reduction_percent": 36.1,
+    "restore_cycle_reduction": 13872,
+    "comparison_note": "The full-frame interval has a different 30 Hz enemy-mutation cadence from the prior A capture; restore_cycle_reduction is the direct like-for-like kernel result.",
+    "alternating_b_owner": {
+      "instructions": 8910,
+      "active_cycles": 44078,
+      "budget_multiple": 1.486,
+      "raw_interval_reduction_vs_post_decoder": 18233
+    }
+  },
+  "live_framebuffer_proof": {
+    "actors": [
+      {
+        "slot": 0,
+        "pointer_hex": "2FCE",
+        "frame": 5,
+        "framebuffer_match": 128,
+        "saveunder_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "01"
+      },
+      {
+        "slot": 1,
+        "pointer_hex": "2FEE",
+        "frame": 5,
+        "framebuffer_match": 128,
+        "saveunder_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "01"
+      },
+      {
+        "slot": 2,
+        "pointer_hex": "6FCA",
+        "frame": 13,
+        "framebuffer_match": 128,
+        "saveunder_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "07"
+      },
+      {
+        "slot": 3,
+        "pointer_hex": "6FEA",
+        "frame": 13,
+        "framebuffer_match": 128,
+        "saveunder_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "07"
+      }
+    ],
+    "enemy_framebuffer_match": 512,
+    "enemy_framebuffer_total": 512,
+    "saveunder_match": 512,
+    "saveunder_total": 512,
+    "enemy_changes_outside_footprints": 0,
+    "player_framebuffer_match": 128,
+    "player_framebuffer_total": 128,
+    "player_changes_outside_footprint": 0,
+    "framebuffer_sha256": "1195b56eaa3dc4536beacd2e1b8d8b513f29851a3f39b94dd155c253f5cf0861"
+  },
+  "artifacts": {
+    "trace": "build/four-enemy-ring-fast-profile.trace",
+    "image": "build/four-enemy-ring-fast-framebuffer.png",
+    "clean": "build/four-enemy-ring-fast-clean.bin",
+    "enemies": "build/four-enemy-ring-fast-enemies.bin",
+    "framebuffer": "build/four-enemy-ring-fast-framebuffer.bin",
+    "saveunder": "build/four-enemy-ring-fast-saveunder.bin",
+    "ring": "build/four-enemy-ring-fast-ring.bin"
+  }
+}

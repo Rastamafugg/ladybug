@@ -13,7 +13,7 @@ PERSISTENT_FB  equ 1
         jmp     enemy_collect_impl
         jmp     player_compose_impl
         jmp     gate_compose_impl
-        jmp     player_frame_cache_impl
+        jmp     player_draw_impl
         jmp     enemy_render_impl
         jmp     frame_render_impl
         jmp     framebuffer_init_impl
@@ -87,6 +87,9 @@ ENEMY_CAPTURE_DIRTY equ $009B
 RING_PHASE     equ $009C
 RING_ROW       equ $009D
 RING_BASE      equ $009E
+SPARSE_ROWS    equ $009F
+SPARSE_COUNT   equ $00A0
+SPARSE_PAGE    equ $00A1
 GATE_ID         equ $0013
 GATE_X          equ $0014
 GATE_Y          equ $0015
@@ -137,20 +140,17 @@ COLOR_WHITE    equ 6
 
 ENTITY_TABLE   equ $A380
 PLAYER_BG      equ $A300
-PLAYER_STAGE   equ $A3F0
-PLAYER_OLD_STAGE equ $A610      ; upper half of transient enemy staging surface
+ACTOR_STAGE    equ $1800        ; always-mapped low-RAM sparse decode surface
+PLAYER_STAGE   equ ACTOR_STAGE
+PLAYER_OLD_STAGE equ ACTOR_STAGE+128
 ENTITY_SKULL   equ 1
 ENEMY_TABLE    equ $A470
 GATE_STATE     equ $A240
 ENEMY_ZONE_BG  equ $A490
-ENEMY_ZONE_STAGE equ $A590
+ENEMY_ZONE_STAGE equ ACTOR_STAGE
 ENEMY_BG_BASE  equ $A690
 ENEMY_OLD_FB   equ $A890
 ENEMY_BG_RING  equ $A898        ; packed row/column phase for current BACK
-ENEMY_SPRITE_CACHE equ $1800    ; five 128-byte native record/dormant frames
-ENEMY_CACHE_KEYS equ $1A80      ; type/direction/animation key per slot
-PLAYER_SPRITE_CACHE equ $1A85   ; active 128-byte native player frame
-PLAYER_CACHE_KEY equ $1B05      ; face/animation key for player cache
 FB_META_A      equ $A900        ; 256-byte A ownership/damage ledger
 FB_META_B      equ $AA00        ; 256-byte B ownership/damage ledger
 PLAYER_BG_B    equ $AB00        ; B-side player restoration bytes
@@ -158,10 +158,10 @@ ENEMY_BG_B     equ $AB80        ; four B-side enemy restoration buffers
 FBM_STATE      equ 0
 FBM_DAMAGE     equ 1
 FBM_PLAYER_VALID equ 2
-FBM_PLAYER_KEY equ 3
+FBM_PLAYER_RESERVED equ 3
 FBM_PLAYER_FB  equ 4
 FBM_ENEMIES   equ 8
-FBM_ENEMY_KEYS equ 40
+FBM_ENEMY_RESERVED equ 40
 FBM_ENEMY_RINGS equ 44
 FBM_MAZE_DAMAGE equ 48          ; 72-byte, 576-cell reserved ledger
 FBM_GATE_DAMAGE equ 120         ; three-byte, 20-gate reserved ledger
@@ -176,7 +176,6 @@ FBM_FULL_REBUILD equ $02
 ENEMY_ZONE_FB  equ $4DEC
 ENEMY_FB       equ $57EC
 SPRITE_SOURCE_SIZE equ 64
-ENEMY_CACHE_FRAME_SIZE equ 128
 ENEMY_ZONE_ROWS equ 32
 RECORD_SIZE    equ 8
 DIR_NONE       equ $FF
@@ -191,6 +190,10 @@ FB_SCRATCH_PAGE0 equ $2C
         endc
 FB_B_PAGE0     equ $2C
 LIVE_PAGE0     equ $30
+SPARSE_ENEMY_INDEX_PAGE equ $35
+SPARSE_ENEMY_INDEX_ADDR equ $A000
+SPARSE_PLAYER_INDEX_PAGE equ $39
+SPARSE_PLAYER_INDEX_ADDR equ $A000
 
 ; Record: active, framebuffer pointer, pixel phase, cell x, cell y,
 ; saved-background valid, selected direction.
@@ -234,14 +237,6 @@ ei_clear
         clr     ,x+
         decb
         bne     ei_clear
-        ldx     #ENEMY_CACHE_KEYS
-        ldb     #5
-        lda     #$FF
-ei_cache_clear
-        sta     ,x+
-        decb
-        bne     ei_cache_clear
-        sta     PLAYER_CACHE_KEY
         rts
 
 ; Keep death/reset cadence synchronized with the resident perimeter timer.
@@ -1127,8 +1122,7 @@ framebuffer_capture_back
         clr     FBM_DAMAGE,u
         lda     PLAYER_BG_VALID
         sta     FBM_PLAYER_VALID,u
-        lda     PLAYER_CACHE_KEY
-        sta     FBM_PLAYER_KEY,u
+        clr     FBM_PLAYER_RESERVED,u
         ldd     PLAYER_FB
         std     FBM_PLAYER_FB,u
         leau    FBM_ENEMIES,u
@@ -1139,9 +1133,9 @@ fbcb_enemy
         std     ,u++
         leay    -1,y
         bne     fbcb_enemy
-        ldd     ENEMY_CACHE_KEYS
+        clra
+        clrb
         std     ,u
-        ldd     ENEMY_CACHE_KEYS+2
         std     2,u
         ldd     ENEMY_BG_RING
         std     4,u
@@ -1194,8 +1188,7 @@ framebuffer_capture_a
         clr     FB_META_A+FBM_DAMAGE
         lda     PLAYER_BG_VALID
         sta     FB_META_A+FBM_PLAYER_VALID
-        lda     PLAYER_CACHE_KEY
-        sta     FB_META_A+FBM_PLAYER_KEY
+        clr     FB_META_A+FBM_PLAYER_RESERVED
         ldd     PLAYER_FB
         std     FB_META_A+FBM_PLAYER_FB
         ldx     #ENEMY_TABLE
@@ -1206,10 +1199,10 @@ fbca_enemy
         std     ,u++
         leay    -1,y
         bne     fbca_enemy
-        ldd     ENEMY_CACHE_KEYS
-        std     FB_META_A+FBM_ENEMY_KEYS
-        ldd     ENEMY_CACHE_KEYS+2
-        std     FB_META_A+FBM_ENEMY_KEYS+2
+        clra
+        clrb
+        std     FB_META_A+FBM_ENEMY_RESERVED
+        std     FB_META_A+FBM_ENEMY_RESERVED+2
         ldd     ENEMY_BG_RING
         std     FB_META_A+FBM_ENEMY_RINGS
         ldd     ENEMY_BG_RING+2
@@ -2016,6 +2009,160 @@ roam_copy_bg_to_fb
         lbsr    roam_ring_slot
         lda     ,u
         sta     RING_PHASE
+        bita    #$F0
+        lbne    rcbtf_ring_setup
+        anda    #7
+        lsla
+        ldu     RING_BASE
+        ldy     #rcbtf_fast_table
+        ldy     a,y
+        jmp     ,y
+
+rcbtf_fast_table
+        fdb     rcbtf_phase0,rcbtf_phase1,rcbtf_phase2,rcbtf_phase3
+        fdb     rcbtf_phase4,rcbtf_phase5,rcbtf_phase6,rcbtf_phase7
+
+rcbtf_phase0
+        ldy     #16
+rcbtf_phase0_row
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        leax    152,x
+        leay    -1,y
+        bne     rcbtf_phase0_row
+        rts
+
+rcbtf_phase1
+        ldy     #16
+rcbtf_phase1_row
+        ldd     1,u
+        std     ,x++
+        ldd     3,u
+        std     ,x++
+        ldd     5,u
+        std     ,x++
+        lda     7,u
+        ldb     ,u
+        std     ,x++
+        leau    8,u
+        leax    152,x
+        leay    -1,y
+        bne     rcbtf_phase1_row
+        rts
+
+rcbtf_phase2
+        ldy     #16
+rcbtf_phase2_row
+        ldd     2,u
+        std     ,x++
+        ldd     4,u
+        std     ,x++
+        ldd     6,u
+        std     ,x++
+        ldd     ,u
+        std     ,x++
+        leau    8,u
+        leax    152,x
+        leay    -1,y
+        bne     rcbtf_phase2_row
+        rts
+
+rcbtf_phase3
+        ldy     #16
+rcbtf_phase3_row
+        ldd     3,u
+        std     ,x++
+        ldd     5,u
+        std     ,x++
+        lda     7,u
+        ldb     ,u
+        std     ,x++
+        ldd     1,u
+        std     ,x++
+        leau    8,u
+        leax    152,x
+        leay    -1,y
+        bne     rcbtf_phase3_row
+        rts
+
+rcbtf_phase4
+        ldy     #16
+rcbtf_phase4_row
+        ldd     4,u
+        std     ,x++
+        ldd     6,u
+        std     ,x++
+        ldd     ,u
+        std     ,x++
+        ldd     2,u
+        std     ,x++
+        leau    8,u
+        leax    152,x
+        leay    -1,y
+        bne     rcbtf_phase4_row
+        rts
+
+rcbtf_phase5
+        ldy     #16
+rcbtf_phase5_row
+        ldd     5,u
+        std     ,x++
+        lda     7,u
+        ldb     ,u
+        std     ,x++
+        ldd     1,u
+        std     ,x++
+        ldd     3,u
+        std     ,x++
+        leau    8,u
+        leax    152,x
+        leay    -1,y
+        bne     rcbtf_phase5_row
+        rts
+
+rcbtf_phase6
+        ldy     #16
+rcbtf_phase6_row
+        ldd     6,u
+        std     ,x++
+        ldd     ,u
+        std     ,x++
+        ldd     2,u
+        std     ,x++
+        ldd     4,u
+        std     ,x++
+        leau    8,u
+        leax    152,x
+        leay    -1,y
+        bne     rcbtf_phase6_row
+        rts
+
+rcbtf_phase7
+        ldy     #16
+rcbtf_phase7_row
+        lda     7,u
+        ldb     ,u
+        std     ,x++
+        ldd     1,u
+        std     ,x++
+        ldd     3,u
+        std     ,x++
+        ldd     5,u
+        std     ,x++
+        leau    8,u
+        leax    152,x
+        leay    -1,y
+        bne     rcbtf_phase7_row
+        rts
+
+rcbtf_ring_setup
+        lda     RING_PHASE
         anda    #$F0
         lsra
         lsra
@@ -2114,49 +2261,10 @@ rcftb_row
         rts
 
 draw_enemy_fb
-        pshs    x
-        lbsr    enemy_sprite_cache
-        puls    x
-        lbsr    blit_enemy_fb
-        rts
-
-; blit_enemy_fb: merge one cached native enemy frame into the framebuffer.
-;
-; Inputs:
-;   X - destination framebuffer address
-;   Y - 128-byte native 4bpp frame
-;
-; Returns:
-;   A, B, X, Y, CC - undefined
-;
-; Side effects:
-;   Source-zero nibbles preserve the destination.
-blit_enemy_fb
-        lda     #16
-        sta     STAGE_COUNT
-bef_row
-        lda     #8
-        sta     STAGE_PIXEL
-bef_byte
-        lda     ,y+
-        sta     STAGE_SOURCE
-        clrb
-        bita    #$F0
-        bne     bef_high
-        orb     #$F0
-bef_high
-        bita    #$0F
-        bne     bef_low
-        orb     #$0F
-bef_low
-        andb    ,x
-        orb     STAGE_SOURCE
-        stb     ,x+
-        dec     STAGE_PIXEL
-        bne     bef_byte
-        leax    152,x
-        dec     STAGE_COUNT
-        bne     bef_row
+        lbsr    enemy_frame_number
+        lbsr    sparse_enemy_stream
+        lbsr    sparse_blit_fb
+        lbsr    sparse_restore_page
         rts
 
 ; Build the complete 16-by-32 nest layer in compact RAM, then publish only
@@ -2348,9 +2456,14 @@ pci_save_loop
         lda     #1
         sta     PLAYER_BG_VALID
 
-        lbsr    player_frame_cache_impl
+        lda     PLAYER_FACE
+        lsla
+        lsla
+        adda    PLAYER_ANIM
+        lbsr    sparse_player_stream
         ldx     #PLAYER_STAGE
-        lbsr    blit_enemy_stage
+        lbsr    sparse_blit_stage
+        lbsr    sparse_restore_page
 
         ; Commit the final new rectangle before removing old-only strips.
         ldx     #PLAYER_STAGE
@@ -2705,151 +2818,180 @@ grfs_done
         endc
 
 draw_enemy_stage
-        pshs    x
-        lbsr    enemy_sprite_cache
-        puls    x
-        lbsr    blit_enemy_stage
+        lbsr    enemy_frame_number
+        lbsr    sparse_enemy_stream
+        lbsr    sparse_blit_stage
+        lbsr    sparse_restore_page
         rts
 
-; Return a low-RAM cached frame in Y. B is N/E/S/W. Parts 1-8 use one
-; type each; later parts rotate four adjacent types across active records.
-enemy_sprite_cache
+; Return the indexed sparse frame number in A. B is N/E/S/W. Parts 1-8 use
+; one type each; later parts rotate four adjacent types across active records.
+enemy_frame_number
         cmpb    #4
-        blo     esc_direction_ready
+        blo     efn_direction_ready
         clrb
-esc_direction_ready
+efn_direction_ready
         stb     STAGE_SOURCE
         lda     #4
         suba    ENEMY_WORK
         cmpa    #4
-        bls     esc_slot_ready
+        bls     efn_slot_ready
         lda     #4
-esc_slot_ready
+efn_slot_ready
         sta     STAGE_COUNT
         lda     STAGE
         cmpa    #9
-        blo     esc_type_ready
+        blo     efn_type_ready
         deca
         anda    #7
         cmpa    #5
-        blo     esc_offset_ready
+        blo     efn_offset_ready
         suba    #5
-esc_offset_ready
+efn_offset_ready
         sta     STAGE_PIXEL
         lda     #4
         suba    ENEMY_WORK
         cmpa    #4
-        blo     esc_record_ready
+        blo     efn_record_ready
         clra
-esc_record_ready
+efn_record_ready
         adda    STAGE_PIXEL
         inca
-esc_type_ready
+efn_type_ready
         deca
         lsla
         lsla
         adda    STAGE_SOURCE
-        sta     STAGE_PIXEL
         lsla
         lsla
         ora     ENEMY_ANIM
-        sta     STAGE_PIXEL
-
-        ldx     #ENEMY_CACHE_KEYS
-        ldb     STAGE_COUNT
-        lda     b,x
-        cmpa    STAGE_PIXEL
-        beq     esc_cached
-        lda     STAGE_PIXEL
-        sta     b,x
-        lsra
-        lsra
-        adda    #$A0
-        sta     STAGE_PIXEL
-        lda     ENEMY_ANIM
-        ldb     #SPRITE_SOURCE_SIZE
-        mul
-        adda    STAGE_PIXEL
-        tfr     d,y
-
-        lda     STAGE_COUNT
-        ldb     #ENEMY_CACHE_FRAME_SIZE
-        mul
-        addd    #ENEMY_SPRITE_CACHE
-        tfr     d,x
-        lda     #$35
-        sta     GIME_PAR5
-        ldu     #sprite_attr0_pairs
-        ldb     #SPRITE_SOURCE_SIZE
-esc_expand
-        lda     ,y+
-        sta     STAGE_SOURCE
-        lsra
-        lsra
-        lsra
-        lsra
-        lda     a,u
-        sta     ,x+
-        lda     STAGE_SOURCE
-        anda    #$0F
-        lda     a,u
-        sta     ,x+
-        decb
-        bne     esc_expand
-        lda     #$34
-        sta     GIME_PAR5
-esc_cached
-        lda     STAGE_COUNT
-        ldb     #ENEMY_CACHE_FRAME_SIZE
-        mul
-        addd    #ENEMY_SPRITE_CACHE
-        tfr     d,y
         rts
 
-; player_frame_cache_impl: return the selected native 4bpp player frame.
+; player_draw_impl: draw the selected player stream into BACK.
 ;
 ; Inputs:
 ;   PLAYER_FACE - direction 0..3
 ;   PLAYER_ANIM - animation phase 0..3
+;   X - destination framebuffer address
 ;
 ; Returns:
-;   Y - 128-byte native 4bpp player frame
-;   A, B, X, U, CC - undefined
+;   A, B, X, Y, U, CC - undefined
 ;
 ; Side effects:
-;   Expands the packed source only when the face/animation key changes.
-player_frame_cache_impl
+;   Temporarily maps PAR5 to the indexed player stream and restores page $34.
+player_draw_impl
         lda     PLAYER_FACE
         lsla
         lsla
         adda    PLAYER_ANIM
-        cmpa    PLAYER_CACHE_KEY
-        beq     pfc_cached
-        sta     PLAYER_CACHE_KEY
-        ldb     #SPRITE_SOURCE_SIZE
+        lbsr    sparse_player_stream
+        lbsr    sparse_blit_fb
+        lbsr    sparse_restore_page
+        rts
+
+; Resolve A's enemy index entry and map its stream page. X is preserved.
+sparse_enemy_stream
+        ldb     #3
         mul
-        ldy     #player_sprites
-        leay    d,y
-        ldx     #PLAYER_SPRITE_CACHE
-        ldu     #sprite_attr0_pairs
-        ldb     #SPRITE_SOURCE_SIZE
-pfc_expand
-        lda     ,y+
-        sta     STAGE_SOURCE
-        lsra
-        lsra
-        lsra
-        lsra
-        lda     a,u
-        sta     ,x+
-        lda     STAGE_SOURCE
-        anda    #$0F
-        lda     a,u
-        sta     ,x+
-        decb
-        bne     pfc_expand
-pfc_cached
-        ldy     #PLAYER_SPRITE_CACHE
+        ldu     #SPARSE_ENEMY_INDEX_ADDR
+        leau    d,u
+        lda     #SPARSE_ENEMY_INDEX_PAGE
+        sta     GIME_PAR5
+        lda     ,u
+        sta     SPARSE_PAGE
+        ldu     1,u
+        lda     SPARSE_PAGE
+        sta     GIME_PAR5
+        rts
+
+; Resolve A's player index entry and map its stream page. X is preserved.
+sparse_player_stream
+        ldb     #3
+        mul
+        ldu     #SPARSE_PLAYER_INDEX_ADDR
+        leau    d,u
+        lda     #SPARSE_PLAYER_INDEX_PAGE
+        sta     GIME_PAR5
+        lda     ,u
+        sta     SPARSE_PAGE
+        ldu     1,u
+        lda     SPARSE_PAGE
+        sta     GIME_PAR5
+        rts
+
+; Decode one indexed stream directly into the mapped BACK framebuffer.
+sparse_blit_fb
+        lda     #16
+        sta     SPARSE_ROWS
+sbf_row
+        lda     ,u+
+        cmpa    #$FF
+        beq     sbf_next_row
+        leay    a,x
+        ldb     ,u+
+        bmi     sbf_partial
+        stb     SPARSE_COUNT
+sbf_opaque_byte
+        lda     ,u+
+        sta     ,y+
+        dec     SPARSE_COUNT
+        bne     sbf_opaque_byte
+        bra     sbf_row
+sbf_partial
+        andb    #$7F
+        stb     SPARSE_COUNT
+sbf_partial_byte
+        lda     ,u+
+        anda    ,y
+        ora     ,u+
+        sta     ,y+
+        dec     SPARSE_COUNT
+        bne     sbf_partial_byte
+        bra     sbf_row
+sbf_next_row
+        leax    160,x
+        dec     SPARSE_ROWS
+        bne     sbf_row
+        rts
+
+; Decode one indexed stream into the always-mapped 8-byte-wide actor stage.
+sparse_blit_stage
+        lda     #16
+        sta     SPARSE_ROWS
+sbs_row
+        lda     ,u+
+        cmpa    #$FF
+        beq     sbs_next_row
+        leay    a,x
+        ldb     ,u+
+        bmi     sbs_partial
+        stb     SPARSE_COUNT
+sbs_opaque_byte
+        lda     ,u+
+        sta     ,y+
+        dec     SPARSE_COUNT
+        bne     sbs_opaque_byte
+        bra     sbs_row
+sbs_partial
+        andb    #$7F
+        stb     SPARSE_COUNT
+sbs_partial_byte
+        lda     ,u+
+        anda    ,y
+        ora     ,u+
+        sta     ,y+
+        dec     SPARSE_COUNT
+        bne     sbs_partial_byte
+        bra     sbs_row
+sbs_next_row
+        leax    8,x
+        dec     SPARSE_ROWS
+        bne     sbs_row
+        rts
+
+sparse_restore_page
+        lda     #$34
+        sta     GIME_PAR5
         rts
 
 draw_vegetable_stage
@@ -2872,39 +3014,6 @@ dvs_draw
         puls    x
         ldu     #sprite_attr0_pairs
         lbsr    blit_stage_sprite
-        rts
-
-; blit_enemy_stage: merge one cached native enemy frame into compact staging.
-;
-; Inputs:
-;   X - destination compact-stage address
-;   Y - 128-byte native 4bpp frame
-;
-; Returns:
-;   A, B, X, Y, CC - undefined
-;
-; Side effects:
-;   Source-zero nibbles preserve the destination.
-blit_enemy_stage
-        lda     #ENEMY_CACHE_FRAME_SIZE
-        sta     STAGE_COUNT
-bes_byte
-        lda     ,y+
-        sta     STAGE_SOURCE
-        clrb
-        bita    #$F0
-        bne     bes_high
-        orb     #$F0
-bes_high
-        bita    #$0F
-        bne     bes_low
-        orb     #$0F
-bes_low
-        andb    ,x
-        orb     STAGE_SOURCE
-        stb     ,x+
-        dec     STAGE_COUNT
-        bne     bes_byte
         rts
 
 ; Expand one 64-byte 2bpp source into a compact 128-byte 4bpp surface.

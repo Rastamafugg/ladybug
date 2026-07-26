@@ -1,0 +1,177 @@
+{
+  "captured": "2026-07-26",
+  "scenario": {
+    "emulator": "XRoar 1.10",
+    "frame": "one complete hydrated A-owner horizontal-movement main-render interval",
+    "active_enemies": 4,
+    "enemy_positions": [
+      [
+        4,
+        4
+      ],
+      [
+        16,
+        4
+      ],
+      [
+        4,
+        16
+      ],
+      [
+        16,
+        16
+      ]
+    ],
+    "movement": [
+      "east",
+      "east",
+      "west",
+      "west"
+    ],
+    "enemy_animation_frame": 1,
+    "nest_dirty": false,
+    "underlay_dirty": false,
+    "decoder": "runtime indexed sparse streams"
+  },
+  "profile": {
+    "instructions": 12456,
+    "active_cycles": 57619,
+    "elapsed_cycles": 59988,
+    "sync_wait_cycles": 2369,
+    "paths": [
+      {
+        "name": "circular save-under restore",
+        "instructions": 4259,
+        "cycles": 20003,
+        "share_percent": 34.7
+      },
+      {
+        "name": "sparse enemy framebuffer decode",
+        "instructions": 2924,
+        "cycles": 13560,
+        "share_percent": 23.5
+      },
+      {
+        "name": "horizontal ring strip update",
+        "instructions": 1262,
+        "cycles": 6074,
+        "share_percent": 10.5
+      },
+      {
+        "name": "enemy logic",
+        "instructions": 1288,
+        "cycles": 5391,
+        "share_percent": 9.4
+      },
+      {
+        "name": "resident loop, IRQ, and uncategorized work",
+        "instructions": 1234,
+        "cycles": 4651,
+        "share_percent": 8.1
+      },
+      {
+        "name": "sparse player framebuffer decode",
+        "instructions": 705,
+        "cycles": 3262,
+        "share_percent": 5.7
+      },
+      {
+        "name": "player save and restore",
+        "instructions": 363,
+        "cycles": 2606,
+        "share_percent": 4.5
+      },
+      {
+        "name": "framebuffer ownership and actor orchestration",
+        "instructions": 421,
+        "cycles": 2072,
+        "share_percent": 3.6
+      }
+    ],
+    "hardware_budget_cycles": 29666,
+    "budget_multiple": 1.942,
+    "previous_ring_active_cycles": 68297,
+    "cycle_reduction": 10678,
+    "cycle_reduction_percent": 15.6,
+    "alternating_b_owner": {
+      "instructions": 13301,
+      "active_cycles": 62311,
+      "elapsed_cycles": 64092,
+      "sync_wait_cycles": 1781,
+      "budget_multiple": 2.1,
+      "additional_cycles_vs_a": 4692,
+      "cause": "two 128-byte player save-under swaps"
+    }
+  },
+  "live_framebuffer_proof": {
+    "enemy_frames": [
+      {
+        "slot": 0,
+        "pointer_hex": "2FCE",
+        "direction": 1,
+        "frame": 5,
+        "framebuffer_bytes_matching_independent_decode": 128,
+        "framebuffer_bytes_total": 128,
+        "saveunder_bytes_matching_clean_framebuffer": 128,
+        "saveunder_bytes_total": 128,
+        "ring_phase_hex": "01"
+      },
+      {
+        "slot": 1,
+        "pointer_hex": "2FEE",
+        "direction": 1,
+        "frame": 5,
+        "framebuffer_bytes_matching_independent_decode": 128,
+        "framebuffer_bytes_total": 128,
+        "saveunder_bytes_matching_clean_framebuffer": 128,
+        "saveunder_bytes_total": 128,
+        "ring_phase_hex": "01"
+      },
+      {
+        "slot": 2,
+        "pointer_hex": "6FCA",
+        "direction": 3,
+        "frame": 13,
+        "framebuffer_bytes_matching_independent_decode": 128,
+        "framebuffer_bytes_total": 128,
+        "saveunder_bytes_matching_clean_framebuffer": 128,
+        "saveunder_bytes_total": 128,
+        "ring_phase_hex": "07"
+      },
+      {
+        "slot": 3,
+        "pointer_hex": "6FEA",
+        "direction": 3,
+        "frame": 13,
+        "framebuffer_bytes_matching_independent_decode": 128,
+        "framebuffer_bytes_total": 128,
+        "saveunder_bytes_matching_clean_framebuffer": 128,
+        "saveunder_bytes_total": 128,
+        "ring_phase_hex": "07"
+      }
+    ],
+    "enemy_framebuffer_bytes_matching_independent_decode": 512,
+    "enemy_framebuffer_bytes_total": 512,
+    "saveunder_bytes_matching_clean_framebuffer": 512,
+    "saveunder_bytes_total": 512,
+    "enemy_changes_outside_four_footprints": 0,
+    "player": {
+      "pointer_hex": "75EC",
+      "frame": 1,
+      "framebuffer_bytes_matching_independent_decode": 128,
+      "framebuffer_bytes_total": 128,
+      "changes_outside_player_footprint": 0
+    },
+    "framebuffer_sha256": "5c69fa71f04564e42cef5bbdb1a8357d50e8ef67b15dd2d32b8ed59343c923d9",
+    "png": "build/four-enemy-sparse-framebuffer.png"
+  },
+  "artifacts": {
+    "trace": "build/four-enemy-sparse-profile.trace",
+    "clean_framebuffer": "build/four-enemy-sparse-clean.bin",
+    "enemy_framebuffer": "build/four-enemy-sparse-enemies.bin",
+    "final_framebuffer": "build/four-enemy-sparse-framebuffer.bin",
+    "saveunder": "build/four-enemy-sparse-saveunder.bin",
+    "ring_phases": "build/four-enemy-sparse-ring.bin",
+    "image": "build/four-enemy-sparse-framebuffer.png"
+  }
+}

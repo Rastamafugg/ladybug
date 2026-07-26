@@ -66,6 +66,11 @@ def decode_payload(
             raise ValueError(f"frame {frame_number} points outside its payload")
         cursor = offset
         decoded = bytearray(128)
+        background = bytearray(
+            ((frame_number * 37 + index * 73 + 0x5A) & 0xFF)
+            for index in range(128)
+        )
+        blended = bytearray(background)
         for row in range(16):
             occupied = 0
             while True:
@@ -104,6 +109,8 @@ def decode_payload(
                                 f"frame {frame_number} mask does not cover zero nibble"
                             )
                         decoded[row * 8 + column] = pixel
+                        target = row * 8 + column
+                        blended[target] = (blended[target] & mask) | pixel
                     else:
                         if cursor >= len(payload):
                             raise ValueError(
@@ -116,8 +123,20 @@ def decode_payload(
                                 f"frame {frame_number} opaque byte is transparent"
                             )
                         decoded[row * 8 + column] = pixel
-        if decoded != expected_native(packed_frame):
+                        blended[row * 8 + column] = pixel
+        native = expected_native(packed_frame)
+        if decoded != native:
             raise ValueError(f"frame {frame_number} does not decode pixel-exactly")
+        expected_blend = bytearray(background)
+        for index, pixel in enumerate(native):
+            mask = (0xF0 if not pixel & 0xF0 else 0) | (
+                0x0F if not pixel & 0x0F else 0
+            )
+            expected_blend[index] = (expected_blend[index] & mask) | pixel
+        if blended != expected_blend:
+            raise ValueError(
+                f"frame {frame_number} does not preserve transparent background nibbles"
+            )
         if offset // PAGE_BYTES != (cursor - 1) // PAGE_BYTES:
             raise ValueError(f"frame {frame_number} crosses a physical page")
         ranges.append((offset, cursor))
@@ -271,7 +290,7 @@ def main() -> None:
 
     print(
         f"sparse proof: {len(enemy_ranges)} enemy and {len(player_ranges)} player "
-        f"frames decode pixel-exactly; {len(loader)} loader segments reconstruct "
+        f"frames decode and blend pixel-exactly; {len(loader)} loader segments reconstruct "
         f"both payloads with {manifest['gmc']['spare_bytes']} bytes spare"
     )
 

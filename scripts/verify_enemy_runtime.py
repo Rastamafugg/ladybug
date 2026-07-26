@@ -6,9 +6,6 @@ from __future__ import annotations
 from pathlib import Path
 import re
 
-from build_screen import compile_enemy_sprites
-
-
 root = Path(__file__).resolve().parents[1]
 source = (root / "src/enemy_runtime.s").read_text(encoding="utf-8")
 main = (root / "src/main.s").read_text(encoding="utf-8")
@@ -17,17 +14,15 @@ build_script = (root / "scripts/build.sh").read_text(encoding="utf-8")
 resident = (root / "build/ladybug_resident.inc").read_text(encoding="utf-8")
 enemy_map = (root / "build/ladybug-enemy-runtime.map").read_text(encoding="utf-8")
 rom = (root / "build/ladybug-enemy-runtime.rom").read_bytes()
-sprites = (root / "build/ladybug-enemy-sprites.bin").read_bytes()
 
 if len(rom) < 33 or any(rom[offset] != 0x7E for offset in range(0, 33, 3)):
     raise SystemExit("enemy proof: fixed $0800 jump table is invalid")
 if len(rom) > 0x1000:
     raise SystemExit("enemy proof: bank-3 low-RAM module exceeds 4 KiB")
 if "PACKED_SPRITE_SIZE equ    64" not in resident:
-    raise SystemExit("enemy proof: generated packed-sprite source size changed")
-expected_sprites = b"".join(compile_enemy_sprites(root / "assets/arcade/sprites.json"))
-if len(sprites) != 8 * 4 * 4 * 64 or sprites != expected_sprites:
-    raise SystemExit("enemy proof: directional enemy atlas is not the generated 8192-byte payload")
+    raise SystemExit("enemy proof: retained death/vegetable packed-source size changed")
+if "player_sprites" in resident:
+    raise SystemExit("enemy proof: packed player frames remain in the resident image")
 
 labels = ["cez_copy_bg", "cez_active_loop", "draw_enemy_stage", "cez_commit"]
 positions = [source.index(label) for label in labels]
@@ -39,7 +34,7 @@ required = [
     "PLAYER_CELL_X  equ $0009",
     "DEATH_STATE    equ $004D",
     "ENEMY_ZONE_BG  equ $A490",
-    "ENEMY_ZONE_STAGE equ $A590",
+    "ENEMY_ZONE_STAGE equ ACTOR_STAGE",
     "ENEMY_ZONE_FB  equ $4DEC",
     "SPRITE_SOURCE_SIZE equ 64",
     "tst     ENEMY_NEST_DIRTY",
@@ -60,12 +55,14 @@ required = [
     "clr     PLAYER_TICK_PENDING",
     "jmp     player_compose_impl",
     "jmp     gate_compose_impl",
+    "jmp     player_draw_impl",
     "jmp     enemy_render_impl",
     "jmp     frame_render_impl",
     "jmp     framebuffer_init_impl",
     "jmp     framebuffer_irq_impl",
-    "PLAYER_STAGE   equ $A3F0",
-    "PLAYER_OLD_STAGE equ $A610",
+    "ACTOR_STAGE    equ $1800",
+    "PLAYER_STAGE   equ ACTOR_STAGE",
+    "PLAYER_OLD_STAGE equ ACTOR_STAGE+128",
     "et_contact_scan",
     "lbsr    enemy_player_contact",
     "cmpa    #1",
@@ -85,12 +82,13 @@ required = [
     "ENEMY_OLD_FB   equ $A890",
     "ENEMY_BG_RING  equ $A898",
     "FBM_ENEMY_RINGS equ 44",
-    "ENEMY_SPRITE_CACHE equ $1800",
-    "ENEMY_CACHE_KEYS equ $1A80",
-    "ENEMY_CACHE_FRAME_SIZE equ 128",
-    "PLAYER_SPRITE_CACHE equ $1A85",
-    "PLAYER_CACHE_KEY equ $1B05",
-    "lbsr    enemy_sprite_cache",
+    "SPARSE_ENEMY_INDEX_PAGE equ $35",
+    "SPARSE_PLAYER_INDEX_PAGE equ $39",
+    "lbsr    sparse_enemy_stream",
+    "lbsr    sparse_player_stream",
+    "lbsr    sparse_blit_fb",
+    "lbsr    sparse_blit_stage",
+    "lbsr    sparse_restore_page",
     "lbsr    roam_prepare_shadow",
     "lbsr    roam_finish_shadow",
     "rsn_actor",
@@ -99,27 +97,19 @@ required = [
     "roam_copy_fb_to_bg",
     "roam_update_background",
     "roam_capture_ring_row",
-    "lbsr    blit_enemy_fb",
-    "lbsr    blit_enemy_stage",
 ]
 missing = [fragment for fragment in required if fragment not in source]
 if missing:
     raise SystemExit("enemy proof: missing contracts: " + ", ".join(missing))
-cache_symbols = {
-    name: int(value[1:], 16) if value.startswith("$") else int(value)
-    for name, value in re.findall(
-        r"^(ENEMY_SPRITE_CACHE|ENEMY_CACHE_KEYS|ENEMY_CACHE_FRAME_SIZE) "
-        r"equ +(\$[0-9A-F]+|[0-9]+)",
-        source,
-        re.MULTILINE,
-    )
-}
-if cache_symbols["ENEMY_CACHE_KEYS"] != (
-    cache_symbols["ENEMY_SPRITE_CACHE"] + 5 * cache_symbols["ENEMY_CACHE_FRAME_SIZE"]
+for legacy in (
+    "ENEMY_SPRITE_CACHE", "ENEMY_CACHE_KEYS", "PLAYER_SPRITE_CACHE",
+    "PLAYER_CACHE_KEY", "enemy_sprite_cache", "player_frame_cache_impl",
+    "blit_enemy_fb", "blit_enemy_stage",
 ):
-    raise SystemExit("enemy proof: native cache slots overlap their keys")
-if "PLAYER_CACHE_KEY equ $1B05" not in source or 0x1FFE - 0x1B06 + 1 < 1024:
-    raise SystemExit("enemy proof: native caches leave less than 1 KiB for stack growth")
+    if legacy in source:
+        raise SystemExit("enemy proof: obsolete native-cache path remains: " + legacy)
+if 0x1FFE - 0x1900 + 1 < 1024:
+    raise SystemExit("enemy proof: low-RAM actor stage leaves less than 1 KiB for stack growth")
 if source.index("et_render_test") > source.index("et_compose"):
     raise SystemExit("enemy proof: idle render gate must precede composition")
 tick_head = source[source.index("\nenemy_tick_impl\n"):
@@ -152,53 +142,94 @@ if "setdp   $00" not in main or "clra                    ; DP = $00" not in main
     raise SystemExit("enemy proof: resident runtime direct page is not explicitly page zero")
 if "GATE_MODULE_COMPOSE equ $080F" not in main:
     raise SystemExit("enemy proof: gate compositor ABI entry is missing")
-if "PLAYER_MODULE_CACHE equ $0812" not in main:
-    raise SystemExit("enemy proof: player native-cache ABI entry is missing")
+if "PLAYER_MODULE_DRAW  equ $0812" not in main:
+    raise SystemExit("enemy proof: player sparse-draw ABI entry is missing")
 if "FB_MODULE_INIT      equ $081B" not in main:
     raise SystemExit("enemy proof: framebuffer ownership-init ABI entry is missing")
 if "FB_MODULE_IRQ       equ $081E" not in main:
     raise SystemExit("enemy proof: framebuffer Vbord-commit ABI entry is missing")
 reset_start = source.index("\nreset_enemy_state\n")
 reset = source[reset_start : source.index("\nreload_enemy_box_timer\n", reset_start)]
-if "sta     PLAYER_CACHE_KEY" not in reset:
-    raise SystemExit("enemy proof: player cache key is not invalidated before first draw")
 for fragment in ("clr     ENEMY_OLD_VALID", "ldx     #ENEMY_OLD_FB", "std     6,x"):
     if fragment not in reset:
         raise SystemExit("enemy proof: cold enemy ownership is not initialized: " + fragment)
 if "cmpx    #$D800" not in bootstrap:
     raise SystemExit("enemy proof: bootstrap does not copy the approved 4 KiB bank-3 window")
-if "cmpx    #$E800" not in bootstrap or "ldy     #$A000" not in bootstrap:
-    raise SystemExit("enemy proof: bootstrap does not copy the bank-2 enemy sprite sets")
-sprite_select = source[source.index("\nenemy_sprite_cache\n"):
-                       source.index("\ndraw_vegetable_stage\n")]
+for fragment in (
+    'include "ladybug-sparse-loader.inc"',
+    "lda     #SPARSE_COPY_SEGMENT_COUNT",
+    "copy_sparse_segment",
+    "copy_sparse_bytes",
+):
+    if fragment not in bootstrap:
+        raise SystemExit("enemy proof: sparse loader is incomplete: " + fragment)
+if "copy_enemy_sprites" in bootstrap:
+    raise SystemExit("enemy proof: bootstrap still copies the packed enemy atlas")
+sprite_select = source[source.index("\nenemy_frame_number\n"):
+                       source.index("\nplayer_draw_impl\n")]
 for fragment in ("cmpa    #9", "anda    #7", "cmpa    #5",
-                 "suba    ENEMY_WORK", "sta     GIME_PAR5",
-                 "ENEMY_CACHE_KEYS", "esc_expand",
-                 "ldb     #ENEMY_CACHE_FRAME_SIZE"):
+                 "suba    ENEMY_WORK", "ora     ENEMY_ANIM"):
     if fragment not in sprite_select:
-        raise SystemExit("enemy proof: directional enemy cache selection changed")
-expand = sprite_select[sprite_select.index("\nesc_expand\n"):
-                       sprite_select.index("\nesc_cached\n")]
-if expand.count("lda     a,u") != 2 or expand.count("sta     ,x+") != 2:
-    raise SystemExit("enemy proof: cache miss does not expand two native bytes per packed byte")
-if "jsr     blit_packed_sprite" in source[source.index("\ndraw_enemy_fb\n"):
-                                         source.index("\ncompose_enemy_zone\n")]:
-    raise SystemExit("enemy proof: framebuffer enemy still uses packed blitter")
-native_stage = source[source.index("\ndraw_enemy_stage\n"):
-                      source.index("\nenemy_sprite_cache\n")]
-if "lbsr    blit_enemy_stage" not in native_stage or "blit_stage_sprite" in native_stage:
-    raise SystemExit("enemy proof: nest enemy still uses packed stage blitter")
+        raise SystemExit("enemy proof: directional sparse-frame selection changed")
+enemy_draw = source[source.index("\ndraw_enemy_fb\n"):
+                    source.index("\ncompose_enemy_zone\n")]
+for fragment in ("lbsr    enemy_frame_number", "lbsr    sparse_enemy_stream",
+                 "lbsr    sparse_blit_fb", "lbsr    sparse_restore_page"):
+    if fragment not in enemy_draw:
+        raise SystemExit("enemy proof: framebuffer enemy sparse path is incomplete")
+stage_draw = source[source.index("\ndraw_enemy_stage\n"):
+                    source.index("\nenemy_frame_number\n")]
+if "lbsr    sparse_blit_stage" not in stage_draw:
+    raise SystemExit("enemy proof: nest enemy does not use the sparse stage decoder")
 player_compose = source[source.index("\nplayer_compose_impl\n"):
                         source.index("\npci_done\n")]
-if ("lbsr    player_frame_cache_impl" not in player_compose or
-        "lbsr    blit_enemy_stage" not in player_compose or
-        "blit_stage_sprite" in player_compose):
-    raise SystemExit("enemy proof: hot player compositor still expands packed frames")
+for fragment in ("lbsr    sparse_player_stream", "lbsr    sparse_blit_stage",
+                 "lbsr    sparse_restore_page"):
+    if fragment not in player_compose:
+        raise SystemExit("enemy proof: staged player sparse path is incomplete")
 draw_player = main[main.index("\ndraw_player\n"):main.index("\nplayer_animation_tick\n")]
-if ("jsr     PLAYER_MODULE_CACHE" not in draw_player or
-        "lbsr    blit_native_sprite" not in draw_player or
-        "blit_packed_sprite" in draw_player):
-    raise SystemExit("enemy proof: resident player redraw still expands packed frames")
+if "jsr     PLAYER_MODULE_DRAW" not in draw_player or "blit_native_sprite" in main:
+    raise SystemExit("enemy proof: resident player sparse draw ABI is incomplete")
+sparse_resolve = source[source.index("\nsparse_enemy_stream\n"):
+                        source.index("\nsparse_blit_fb\n")]
+for fragment in (
+    "SPARSE_ENEMY_INDEX_ADDR",
+    "SPARSE_PLAYER_INDEX_ADDR",
+    "ldb     #3",
+    "sta     SPARSE_PAGE",
+    "ldu     1,u",
+    "sta     GIME_PAR5",
+):
+    if fragment not in sparse_resolve:
+        raise SystemExit("enemy proof: sparse index resolution is incomplete: " + fragment)
+sparse_fb = source[source.index("\nsparse_blit_fb\n"):
+                   source.index("\nsparse_blit_stage\n")]
+for fragment in (
+    "cmpa    #$FF",
+    "leay    a,x",
+    "bmi     sbf_partial",
+    "sta     ,y+",
+    "anda    ,y",
+    "ora     ,u+",
+    "leax    160,x",
+):
+    if fragment not in sparse_fb:
+        raise SystemExit("enemy proof: framebuffer sparse decoder is incomplete: " + fragment)
+sparse_stage = source[source.index("\nsparse_blit_stage\n"):
+                      source.index("\nsparse_restore_page\n")]
+for fragment in ("bmi     sbs_partial", "anda    ,y", "ora     ,u+", "leax    8,x"):
+    if fragment not in sparse_stage:
+        raise SystemExit("enemy proof: stage sparse decoder is incomplete: " + fragment)
+sparse_restore = source[source.index("\nsparse_restore_page\n"):
+                        source.index("\ndraw_vegetable_stage\n")]
+if "lda     #$34" not in sparse_restore or "sta     GIME_PAR5" not in sparse_restore:
+    raise SystemExit("enemy proof: sparse decoder does not restore game-state PAR5")
+for obsolete in ("ladybug-enemy-sprites.bin", "ENEMY_SPRITES"):
+    if obsolete in build_script:
+        raise SystemExit("enemy proof: build still depends on the packed enemy atlas")
+for fragment in ("SPARSE_BANK2", "SPARSE_BANK3", "sparse bank-3 runtime payload"):
+    if fragment not in build_script:
+        raise SystemExit("enemy proof: delivered GMC image does not use sparse banks")
 direction_start = source.index("\nenemy_direction_legal\n")
 direction = source[direction_start : source.index("\nenemy_entry_masks\n", direction_start)]
 if "lda     ENTITY_Y\n        ldb     #24" not in direction:
@@ -469,6 +500,27 @@ for legacy in ("roam_prepare_shadow", "roam_finish_shadow", "gate_region_to_shad
     if re.search(rf"^Symbol: {legacy} ", enemy_map, re.MULTILINE):
         raise SystemExit("enemy proof: persistent image still contains legacy shadow code: " + legacy)
 
+ring_restore = source[source.index("\nroam_copy_bg_to_fb\n"):
+                      source.index("\nroam_copy_fb_to_bg\n")]
+for fragment in (
+    "bita    #$F0",
+    "lbne    rcbtf_ring_setup",
+    "ldy     #rcbtf_fast_table",
+    "ldy     a,y",
+    "jmp     ,y",
+    "rcbtf_phase0",
+    "rcbtf_phase1",
+    "rcbtf_phase2",
+    "rcbtf_phase3",
+    "rcbtf_phase4",
+    "rcbtf_phase5",
+    "rcbtf_phase6",
+    "rcbtf_phase7",
+    "rcbtf_ring_setup",
+):
+    if fragment not in ring_restore:
+        raise SystemExit("enemy proof: circular restore fast path is incomplete: " + fragment)
+
 # Prove the packed row/column phase equations across wraps and direction turns.
 world = [[row * 100 + col for col in range(80)] for row in range(80)]
 backing = [[world[20 + row][20 + col] for col in range(8)] for row in range(16)]
@@ -483,6 +535,37 @@ def restore_ring() -> list[list[int]]:
         ]
         for row in range(16)
     ]
+
+def restore_horizontal_fast(phase: int) -> list[list[int]]:
+    return [
+        [backing[row][(col + phase) & 7] for col in range(8)]
+        for row in range(16)
+    ]
+
+fast_phase_pairs = {
+    0: ((0, 1), (2, 3), (4, 5), (6, 7)),
+    1: ((1, 2), (3, 4), (5, 6), (7, 0)),
+    2: ((2, 3), (4, 5), (6, 7), (0, 1)),
+    3: ((3, 4), (5, 6), (7, 0), (1, 2)),
+    4: ((4, 5), (6, 7), (0, 1), (2, 3)),
+    5: ((5, 6), (7, 0), (1, 2), (3, 4)),
+    6: ((6, 7), (0, 1), (2, 3), (4, 5)),
+    7: ((7, 0), (1, 2), (3, 4), (5, 6)),
+}
+for phase in range(8):
+    copied_columns = [
+        column for pair in fast_phase_pairs[phase] for column in pair
+    ]
+    if copied_columns != [(phase + column) & 7 for column in range(8)]:
+        raise SystemExit(
+            f"enemy proof: circular restore word order diverged at column phase {phase}"
+        )
+    row_phase, col_phase = 0, phase
+    if restore_horizontal_fast(phase) != restore_ring():
+        raise SystemExit(
+            f"enemy proof: circular restore fast path diverged at column phase {phase}"
+        )
+row_phase = col_phase = 0
 
 def move_ring(dx: int, dy: int) -> None:
     global row_phase, col_phase, x_pos, y_pos
@@ -698,10 +781,10 @@ for fragment in (
         raise SystemExit("enemy proof: transient actor state leaked into damage ledger")
 print(
     f"enemy proof: {len(rom)}/4096 bank-3 bytes; fixed ABI, state/render ownership, A/B cold convergence, back-buffer hydration, persistent damage projection, Vbord commit handshake, compact staging, "
-    "64-byte source stride, idle render gate, off-screen nest compositor, "
+    "indexed sparse enemy/player streams, segmented loader, idle render gate, off-screen nest compositor, "
     "immediate death reset, reset/frozen release timer, staged player publish, "
     "hidden gate publish, footprint collision, skull decrement, exclusive "
-    "vegetable layer, 300-frame freeze, native enemy/player caches, nest-dirty separation, circular save-under, dynamic "
+    "vegetable layer, 300-frame freeze, nest-dirty separation, circular save-under, dynamic "
     "gate passage, den exit, roaming ownership, hidden skull cleanup, continuous "
     "colour cycling, randomized stage-one seed, nest-dot synchronization, and "
     "junction choice verified"

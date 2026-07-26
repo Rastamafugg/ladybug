@@ -1,4 +1,4 @@
-blit_packed_sprite equ $D21C
+blit_packed_sprite equ $D219
 draw_death_frame equ $D0AA
 draw_entities equ $C662
 draw_gate equ $CCE9
@@ -11,7 +11,7 @@ draw_perimeter_box equ $C81E
 draw_player equ $D1D7
 draw_recolored_map_tile equ $C453
 draw_score_popup equ $CF6A
-draw_screen equ $D341
+draw_screen equ $D324
 erase_entity_footprints equ $C68B
 gate_redraw_neighbors equ $F086
 gate_render_hidden equ $CDFD
@@ -19,10 +19,9 @@ maze_gate_owner equ $FA7A
 maze_gates equ $FCBA
 maze_nav equ $F83A
 perimeter_box_coordinates equ $C7DD
-player_sprites equ $D3D9
 restore_entity_footprint equ $D0D9
 restore_gate_diagonal_dots equ $CE20
-restore_player equ $D31D
-save_player equ $D2F7
-sprite_attr0_pairs equ $D277
-vegetable_sprites equ $DB59
+restore_player equ $D300
+save_player equ $D2DA
+sprite_attr0_pairs equ $D25A
+vegetable_sprites equ $D73C
