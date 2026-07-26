@@ -1,0 +1,139 @@
+{
+  "captured": "2026-07-26",
+  "scenario": {
+    "active_enemies": 4,
+    "movement": [
+      "east",
+      "east",
+      "west",
+      "west"
+    ],
+    "decoder": "register-counted sparse streams with opaque 4/5/6-byte word copies",
+    "restore": "phase-dispatched horizontal word-copy fast path"
+  },
+  "profile": {
+    "instructions": 6913,
+    "active_cycles": 35167,
+    "elapsed_cycles": 55927,
+    "sync_wait_cycles": 20760,
+    "paths": [
+      {
+        "name": "sparse enemy framebuffer decode",
+        "instructions": 2874,
+        "cycles": 12307,
+        "share_percent": 35.0
+      },
+      {
+        "name": "horizontal ring strip update",
+        "instructions": 916,
+        "cycles": 6152,
+        "share_percent": 17.5
+      },
+      {
+        "name": "circular save-under restore",
+        "instructions": 923,
+        "cycles": 6131,
+        "share_percent": 17.4
+      },
+      {
+        "name": "sparse player framebuffer decode",
+        "instructions": 608,
+        "cycles": 2649,
+        "share_percent": 7.5
+      },
+      {
+        "name": "player save and restore",
+        "instructions": 363,
+        "cycles": 2606,
+        "share_percent": 7.4
+      },
+      {
+        "name": "framebuffer ownership and actor orchestration",
+        "instructions": 420,
+        "cycles": 2062,
+        "share_percent": 5.9
+      },
+      {
+        "name": "resident loop, IRQ, and uncategorized work",
+        "instructions": 515,
+        "cycles": 2018,
+        "share_percent": 5.7
+      },
+      {
+        "name": "enemy logic",
+        "instructions": 294,
+        "cycles": 1242,
+        "share_percent": 3.5
+      }
+    ],
+    "hardware_budget_cycles": 29666,
+    "budget_multiple": 1.185,
+    "enemy_decoder_baseline_cycles": 13656,
+    "enemy_decoder_cycle_reduction": 1349,
+    "enemy_decoder_reduction_percent": 9.9,
+    "comparison_note": "The enemy decoder result is the direct like-for-like path comparison; full A/B totals retain the game's alternating 30 Hz mutation cadence.",
+    "alternating_b_owner": {
+      "instructions": 9506,
+      "active_cycles": 45262,
+      "budget_multiple": 1.526
+    }
+  },
+  "live_framebuffer_proof": {
+    "actors": [
+      {
+        "slot": 0,
+        "pointer_hex": "2FCE",
+        "frame": 5,
+        "framebuffer_match": 128,
+        "saveunder_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "01"
+      },
+      {
+        "slot": 1,
+        "pointer_hex": "2FEE",
+        "frame": 5,
+        "framebuffer_match": 128,
+        "saveunder_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "01"
+      },
+      {
+        "slot": 2,
+        "pointer_hex": "6FCA",
+        "frame": 13,
+        "framebuffer_match": 128,
+        "saveunder_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "07"
+      },
+      {
+        "slot": 3,
+        "pointer_hex": "6FEA",
+        "frame": 13,
+        "framebuffer_match": 128,
+        "saveunder_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "07"
+      }
+    ],
+    "enemy_framebuffer_match": 512,
+    "enemy_framebuffer_total": 512,
+    "saveunder_match": 512,
+    "saveunder_total": 512,
+    "enemy_changes_outside_footprints": 0,
+    "player_framebuffer_match": 128,
+    "player_framebuffer_total": 128,
+    "player_changes_outside_footprint": 0,
+    "framebuffer_sha256": "d3f45f12a5424c88763a5b7a86b5e38982da6ccb937a55cb6cac3ea5993e32bd"
+  },
+  "artifacts": {
+    "trace": "build/four-enemy-sparse-fast-profile.trace",
+    "image": "build/four-enemy-sparse-fast-framebuffer.png",
+    "clean": "build/four-enemy-sparse-fast-clean.bin",
+    "enemies": "build/four-enemy-sparse-fast-enemies.bin",
+    "framebuffer": "build/four-enemy-sparse-fast-framebuffer.bin",
+    "saveunder": "build/four-enemy-sparse-fast-saveunder.bin",
+    "ring": "build/four-enemy-sparse-fast-ring.bin"
+  }
+}

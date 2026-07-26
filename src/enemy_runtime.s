@@ -2930,22 +2930,48 @@ sbf_row
         leay    a,x
         ldb     ,u+
         bmi     sbf_partial
-        stb     SPARSE_COUNT
+        cmpb    #5
+        beq     sbf_opaque5
+        cmpb    #6
+        beq     sbf_opaque6
+        cmpb    #4
+        beq     sbf_opaque4
 sbf_opaque_byte
         lda     ,u+
         sta     ,y+
-        dec     SPARSE_COUNT
+        decb
         bne     sbf_opaque_byte
+        bra     sbf_row
+sbf_opaque5
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        lda     ,u+
+        sta     ,y+
+        bra     sbf_row
+sbf_opaque6
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        bra     sbf_row
+sbf_opaque4
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
         bra     sbf_row
 sbf_partial
         andb    #$7F
-        stb     SPARSE_COUNT
 sbf_partial_byte
         lda     ,u+
         anda    ,y
         ora     ,u+
         sta     ,y+
-        dec     SPARSE_COUNT
+        decb
         bne     sbf_partial_byte
         bra     sbf_row
 sbf_next_row
@@ -2965,22 +2991,20 @@ sbs_row
         leay    a,x
         ldb     ,u+
         bmi     sbs_partial
-        stb     SPARSE_COUNT
 sbs_opaque_byte
         lda     ,u+
         sta     ,y+
-        dec     SPARSE_COUNT
+        decb
         bne     sbs_opaque_byte
         bra     sbs_row
 sbs_partial
         andb    #$7F
-        stb     SPARSE_COUNT
 sbs_partial_byte
         lda     ,u+
         anda    ,y
         ora     ,u+
         sta     ,y+
-        dec     SPARSE_COUNT
+        decb
         bne     sbs_partial_byte
         bra     sbs_row
 sbs_next_row

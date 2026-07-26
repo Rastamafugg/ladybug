@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-07-26 &middot; implementation/profile/lint &mdash; sparse framebuffer decoder fast path</h3>
+      <p>Committed the sparse runtime decoder, circular-restore profile, and proof artifacts as <code>be96fae</code>, then retained sparse command counts in register B and specialized framebuffer opaque lengths four, five, and six with ordered word copies. The four-enemy enemy-decode path falls from 13,656 to 12,307 cycles, saving 1,349 cycles or 9.9%; the complete A-owner interval falls from 36,801 to 35,167 active cycles, while the alternating B capture is 45,262 cycles under its different 30 Hz mutation cadence. Both remain above the 29,666-cycle gate. Independent live proof matches 512/512 enemy, 128/128 player, and 512/512 save-under bytes with no out-of-footprint writes. Full GMC verification, specialized byte-order models, and the <code>PERSISTENT_FB=0</code> compatibility build pass at 4,048/4,096 bank-3 bytes.</p>
+    </section>
+
+    <section>
       <h3>2026-07-26 &middot; implementation/profile/lint &mdash; phase-dispatched circular restore</h3>
       <p>Replaced the steady horizontal circular restore decoder with a one-time eight-phase dispatch and fixed four-word row loops; odd phases form the wrapped word with separate A/B loads, while nonzero row phases retain the generic vertical decoder. The bank-3 module is 4,010/4,096 bytes. Circular restore falls from 4,259 instructions and 20,003 cycles to 923 instructions and 6,131 cycles, saving 13,872 cycles or 69.3%. Fresh complete A/B intervals cost 36,801/44,078 cycles and remain above the 29,666-cycle gate. Independent live proof matches 512/512 enemy, 128/128 player, and 512/512 save-under bytes with no out-of-footprint writes. Full GMC verification, all eight word-order models, repeated ring wraps/turns, and the <code>PERSISTENT_FB=0</code> compatibility assembly pass.</p>
     </section>

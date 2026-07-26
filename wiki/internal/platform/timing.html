@@ -354,6 +354,34 @@
         orders, repeated horizontal/vertical wraps, and direction changes;
         the compatibility <code>PERSISTENT_FB=0</code> image also assembles.
       </p>
+      <h2>Sparse framebuffer decoder fast path â€” 2026-07-26</h2>
+      <p>
+        Sparse opaque and partial command lengths now remain in register B
+        instead of being spilled to direct page for every command byte. The
+        framebuffer decoder additionally handles the captured high-frequency
+        opaque lengths four, five, and six with ordered
+        <code>LDD</code>/<code>STD</code> word copies; other lengths retain
+        the generic byte loop. The stage decoder uses the same register
+        counter without framebuffer-only word specialization. Bank-3 use is
+        4,048 of 4,096 bytes.
+      </p>
+      <p>
+        On the same controlled four-enemy horizontal transaction, the enemy
+        decode path falls from 13,656 to 12,307 cycles, saving 1,349 cycles
+        or 9.9%. The complete A-owner interval falls from 36,801 to 35,167
+        active cycles. Its alternating B interval is 45,262 cycles, but the
+        full-owner comparison retains the game's different 30 Hz mutation
+        cadence; the 1,349-cycle decoder delta is the direct attributable
+        result. Both owners still fail the 29,666-cycle gate.
+      </p>
+      <p>
+        Independent live decoding matches 512/512 enemy, 128/128 player, and
+        512/512 circular save-under bytes with no out-of-footprint writes.
+        The framebuffer hash is
+        <code>d3f45f12a5424c88763a5b7a86b5e38982da6ccb937a55cb6cac3ea5993e32bd</code>.
+        Structural verification models the specialized byte order for all
+        three lengths, and the <code>PERSISTENT_FB=0</code> image assembles.
+      </p>
       <p>
         <strong>Strict-60-Hz architecture designed 2026-07-23:</strong>
         the <a href="../implementation/ping-pong-framebuffer.html">persistent

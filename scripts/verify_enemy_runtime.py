@@ -208,18 +208,58 @@ for fragment in (
     "cmpa    #$FF",
     "leay    a,x",
     "bmi     sbf_partial",
+    "cmpb    #5",
+    "sbf_opaque5",
+    "sbf_opaque6",
+    "sbf_opaque4",
+    "ldd     ,u++",
+    "std     ,y++",
     "sta     ,y+",
     "anda    ,y",
     "ora     ,u+",
+    "decb",
     "leax    160,x",
 ):
     if fragment not in sparse_fb:
         raise SystemExit("enemy proof: framebuffer sparse decoder is incomplete: " + fragment)
+if "stb     SPARSE_COUNT" in sparse_fb or "dec     SPARSE_COUNT" in sparse_fb:
+    raise SystemExit("enemy proof: framebuffer sparse decoder still spills command counts")
+specialized_opaque = {
+    4: ("word", "word"),
+    5: ("word", "word", "byte"),
+    6: ("word", "word", "word"),
+}
+for length, operations in specialized_opaque.items():
+    block = [f"sbf_opaque{length}"]
+    copied = []
+    cursor = 0
+    for operation in operations:
+        if operation == "word":
+            block.extend(("        ldd     ,u++", "        std     ,y++"))
+            copied.extend((cursor, cursor + 1))
+            cursor += 2
+        else:
+            block.extend(("        lda     ,u+", "        sta     ,y+"))
+            copied.append(cursor)
+            cursor += 1
+    block.append("        bra     sbf_row")
+    if "\n".join(block) not in sparse_fb:
+        raise SystemExit(
+            f"enemy proof: opaque-{length} specialization changed instruction order"
+        )
+    if copied != list(range(length)):
+        raise SystemExit(
+            f"enemy proof: opaque-{length} word-copy model changed byte order"
+        )
 sparse_stage = source[source.index("\nsparse_blit_stage\n"):
                       source.index("\nsparse_restore_page\n")]
-for fragment in ("bmi     sbs_partial", "anda    ,y", "ora     ,u+", "leax    8,x"):
+for fragment in (
+    "bmi     sbs_partial", "anda    ,y", "ora     ,u+", "decb", "leax    8,x"
+):
     if fragment not in sparse_stage:
         raise SystemExit("enemy proof: stage sparse decoder is incomplete: " + fragment)
+if "stb     SPARSE_COUNT" in sparse_stage or "dec     SPARSE_COUNT" in sparse_stage:
+    raise SystemExit("enemy proof: stage sparse decoder still spills command counts")
 sparse_restore = source[source.index("\nsparse_restore_page\n"):
                         source.index("\ndraw_vegetable_stage\n")]
 if "lda     #$34" not in sparse_restore or "sta     GIME_PAR5" not in sparse_restore:

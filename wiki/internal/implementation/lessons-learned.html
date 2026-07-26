@@ -25,6 +25,14 @@
     </header>
 
     <section>
+      <h2>Keep short sparse-command counts in B and specialize only measured common lengths</h2>
+      <p>The framebuffer decoder spent most of its 13,656-cycle four-enemy path repeatedly storing and decrementing a direct-page command count. Opaque lengths five, six, and four were the repeated lengths with enough bytes to benefit from word copies after dispatch cost.</p>
+      <p><strong>Rule:</strong> retain each command count in B across its byte loop and use ordered <code>LDD</code>/<code>STD</code> copies only for measured profitable opaque lengths. Keep the generic loop for all other lengths and masked partial commands.</p>
+      <p><strong>Applies to:</strong> compact command streams whose hot count can remain register-owned and whose length histogram justifies a bounded specialization.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>sparse_blit_fb</code>/<code>sparse_blit_stage</code>, <code>scripts/verify_enemy_runtime.py</code>, and the 2026-07-26 optimized sparse-decoder profile.</p>
+    </section>
+
+    <section>
       <h2>Dispatch circular row-zero restores once per actor, not once per byte</h2>
       <p>A generic circular decoder recomputed physical row addresses and dynamically split the wrapped column range for every one of 16 rows. Four horizontal enemy restores consumed 20,003 cycles even though horizontal movement never changes the packed row phase.</p>
       <p><strong>Rule:</strong> when row phase is zero, dispatch the eight column phases once to fixed four-word row loops; synthesize an odd wrapped word with separate A/B loads. Retain the generic decoder for nonzero row phases so vertical movement preserves the same ring format.</p>
