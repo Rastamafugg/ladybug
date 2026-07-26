@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-07-26 &middot; implementation/lint &mdash; persistent actor-overlap closure</h3>
+      <p>Committed damage-ledger projection as <code>a311f2b</code>, then implemented a conservative transitive closure over the player and four enemies. Each BACK transaction restores the buffer-old player first and all saved enemies second, projects skipped and current background state through a background-only pass, fully captures every current roaming destination, draws all enemies, and publishes the player, popup, or death presentation last. Persistent gate rendering now calls resident diagonal/final background primitives directly, so damage replay cannot save or draw an actor. The compatibility shadow compositor remains source-selectable behind <code>PERSISTENT_FB=0</code> and a separate fallback build passes. Full GMC verification passes, its bounded XRoar trace enters both closure phases while display commits alternate, sparse payloads remain pixel-exact, and bank-3 use is 4,037/4,096 bytes. The GDB-MCP smoke attempt reached the all-RAM loop, but post-MMU low-memory reads returned framebuffer-like data and did not provide a reliable image-level acceptance result; circular strip capture, runtime sparse decoding, and final emulator/hardware image acceptance remain.</p>
+    </section>
+
+    <section>
       <h3>2026-07-25 &middot; implementation/lint &mdash; per-buffer persistent-damage projection</h3>
       <p>Committed BACK rendering and the Vbord handshake as <code>72d690d</code>. Each A/B metadata block now owns an 18-byte persistent-intent record containing exact dot-cell coverage plus existing gate, perimeter, HUD, entity, stage, letter, and zone payloads. Before rendering BACK, bank 3 queues a non-empty current persistent record for the other buffer, projects and clears BACK's skipped-epoch record from current frozen state, restores the current intent block, and renders the current epoch. Player exposure is suppressed during the background-only replay; actor, popup, and death intents remain excluded pending actor-overlap closure. Full GMC verification passes, the bounded trace enters both queue and projection routines while commits alternate, all sparse sprites remain pixel-exact, and bank-3 use is 3,927/4,096 bytes.</p>
     </section>

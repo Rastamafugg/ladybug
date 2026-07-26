@@ -134,9 +134,11 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         bank-3 framebuffer owner through compact direct-page intents. Phase 4
         maps the selected BACK owner into PAR1-PAR4 and commits alternating
         <code>$C0/$B0</code> display offsets only from the Vbord IRQ. Runtime
-        damage projection now uses an 18-byte persistent-intent record inside
-        each 256-byte metadata block. Runtime sparse decoding, actor-overlap
-        closure, and circular save-under updates remain.
+        damage projection uses an 18-byte persistent-intent record inside each
+        256-byte metadata block. Conservative five-actor closure restores all
+        buffer-old actors before projection and captures all current enemy
+        destinations afterward. Runtime sparse decoding and circular
+        save-under updates remain.
       </p>
     </section>
 

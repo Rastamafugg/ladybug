@@ -1,6 +1,8 @@
 blit_packed_sprite equ $D21C
 draw_death_frame equ $D0AA
 draw_entities equ $C662
+draw_gate equ $CCE9
+draw_gate_diagonal equ $CD87
 draw_hud equ $C328
 draw_lives equ $C4B7
 draw_maze_state_cell equ $D0F8
@@ -19,6 +21,7 @@ maze_nav equ $F83A
 perimeter_box_coordinates equ $C7DD
 player_sprites equ $D3D9
 restore_entity_footprint equ $D0D9
+restore_gate_diagonal_dots equ $CE20
 restore_player equ $D31D
 save_player equ $D2F7
 sprite_attr0_pairs equ $D277

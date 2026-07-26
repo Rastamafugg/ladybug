@@ -34,7 +34,12 @@ def main() -> None:
         Path(__file__).resolve().parents[1] / "build/ladybug-enemy-runtime.map"
     ).read_text(encoding="utf-8")
     damage_symbols = {}
-    for name in ("framebuffer_queue_damage", "framebuffer_project_damage"):
+    for name in (
+        "actor_closure_restore",
+        "actor_closure_draw",
+        "framebuffer_queue_damage",
+        "framebuffer_project_damage",
+    ):
         symbol = re.search(
             rf"^Symbol: {name} .* = ([0-9A-Fa-f]+)$", enemy_map, re.MULTILINE
         )
@@ -142,12 +147,14 @@ def main() -> None:
         "Vbord display owners alternate": commit_alternates,
         "damage queue entered": f"{damage_symbols['framebuffer_queue_damage']}|" in text,
         "damage projection entered": f"{damage_symbols['framebuffer_project_damage']}|" in text,
+        "actor closure restore entered": f"{damage_symbols['actor_closure_restore']}|" in text,
+        "actor closure draw entered": f"{damage_symbols['actor_closure_draw']}|" in text,
         "runtime main loop": text.count(f"{mainloop}| 13") >= 1,
     }
     failed = [name for name, passed in required.items() if not passed]
     if failed:
         raise SystemExit("gmc proof failed: " + ", ".join(failed))
-    print("gmc proof: bank-2 sprites, bank-3 module, bank-1 load, TY=1 handoff, A/B ownership init, Vbord commit entry, and relocated main loop verified")
+    print("gmc proof: bank-2 sprites, bank-3 module, bank-1 load, TY=1 handoff, A/B ownership init, actor closure, Vbord commit entry, and relocated main loop verified")
 
 
 if __name__ == "__main__":

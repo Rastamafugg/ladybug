@@ -388,17 +388,83 @@ for fragment in (
     if fragment not in frame_renderer:
         raise SystemExit("enemy proof: central frame renderer is incomplete: " + fragment)
 render_order = [
-    "lbsr    render_exposed_player",
-    "jsr     erase_entity_footprints",
-    "jsr     draw_maze_state_cell",
-    "lbsr    enemy_render_impl",
-    "lbsr    player_compose_impl",
-    "lbsr    gate_compose_impl",
+    "lbsr    frame_render_background",
+    "lbsr    actor_closure_draw",
 ]
 if [frame_renderer.index(fragment) for fragment in render_order] != sorted(
     frame_renderer.index(fragment) for fragment in render_order
 ):
-    raise SystemExit("enemy proof: background, enemy, player, and gate layer order changed")
+    raise SystemExit("enemy proof: background must precede actor closure drawing")
+
+frame_owner = source[source.index("\nframe_render_impl\n"):
+                     source.index("\nframebuffer_project_damage\n")]
+owner_order = [
+    "lbsr    framebuffer_prepare_back",
+    "lbsr    actor_closure_restore",
+    "lbsr    framebuffer_queue_damage",
+    "lbsr    framebuffer_project_damage",
+    "lbsr    frame_render_pass",
+    "lbsr    framebuffer_finish_back",
+]
+if [frame_owner.index(fragment) for fragment in owner_order] != sorted(
+    frame_owner.index(fragment) for fragment in owner_order
+):
+    raise SystemExit("enemy proof: persistent closure does not bracket background projection")
+
+projection = source[source.index("\nframebuffer_project_damage\n"):
+                    source.index("\nframebuffer_queue_damage\n")]
+if "lbsr    frame_render_background" not in projection or "actor_closure_draw" in projection:
+    raise SystemExit("enemy proof: damage replay is not background-only")
+
+closure_restore = source[source.index("\nactor_closure_restore\n"):
+                         source.index("\nactor_closure_draw\n")]
+restore_order = [
+    "jsr     restore_player",
+    "sta     PLAYER_ERASED",
+    "acr_enemy_loop",
+    "lbsr    roam_copy_bg_to_fb",
+]
+if [closure_restore.index(fragment) for fragment in restore_order] != sorted(
+    closure_restore.index(fragment) for fragment in restore_order
+):
+    raise SystemExit("enemy proof: player must be restored before all old enemies")
+
+closure_draw = source[source.index("\nactor_closure_draw\n"):
+                      source.index("\nframebuffer_init_impl\n")]
+draw_order = [
+    "acd_save_loop",
+    "lbsr    roam_copy_fb_to_bg",
+    "acd_draw_loop",
+    "lbsr    draw_enemy_fb",
+    "tst     PICKUP_TIMER",
+    "jsr     draw_score_popup",
+    "tst     PLAYER_ERASED",
+    "jsr     draw_player",
+]
+if [closure_draw.index(fragment) for fragment in draw_order] != sorted(
+    closure_draw.index(fragment) for fragment in draw_order
+):
+    raise SystemExit("enemy proof: actor save/draw painter order changed")
+
+background = source[source.index("\nframe_render_background\n"):
+                    source.index("\nrender_exposed_player\n")]
+background_order = [
+    "jsr     erase_entity_footprints",
+    "jsr     draw_maze_state_cell",
+    "lbsr    enemy_render_impl",
+    "lbsr    gate_compose_impl",
+]
+if [background.index(fragment) for fragment in background_order] != sorted(
+    background.index(fragment) for fragment in background_order
+):
+    raise SystemExit("enemy proof: persistent background layer order changed")
+
+gate_compositor = source[source.index("\ngate_compose_impl\n"):
+                         source.index("\ngate_compute_region\n")]
+for fragment in ("jsr     draw_gate_diagonal", "jsr     restore_gate_diagonal_dots",
+                 "jsr     draw_gate", "jsr     draw_entities"):
+    if fragment not in gate_compositor:
+        raise SystemExit("enemy proof: persistent gate path is not background-only: " + fragment)
 
 ownership_init = source[source.index("\nframebuffer_init_impl\n"):
                         source.index("\nframebuffer_prepare_back\n")]

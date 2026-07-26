@@ -144,10 +144,11 @@ wanted = {
     'draw_multiplier_hud', 'draw_perimeter_box', 'draw_player',
     'draw_recolored_map_tile', 'draw_score_popup', 'draw_screen',
     'erase_entity_footprints', 'perimeter_box_coordinates', 'save_player',
-    'gate_redraw_neighbors', 'gate_render_hidden', 'maze_gate_owner',
+    'draw_gate', 'draw_gate_diagonal', 'gate_redraw_neighbors',
+    'gate_render_hidden', 'maze_gate_owner',
     'maze_gates', 'maze_nav',
     'player_sprites', 'restore_entity_footprint', 'sprite_attr0_pairs',
-    'vegetable_sprites',
+    'restore_gate_diagonal_dots', 'vegetable_sprites',
 }
 symbols = {}
 for line in open(source, encoding='utf-8'):

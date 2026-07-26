@@ -483,12 +483,19 @@ eri_dirty
         lda     ENEMY_RENDER_FLAGS
         bita    #ERF_DIRTY
         beq     eri_done
+        ifne    PERSISTENT_FB
+        tst     ENEMY_NEST_DIRTY
+        beq     eri_finish
+        lbsr    compose_enemy_zone
+eri_finish
+        else
         lbsr    roam_prepare_shadow
         tst     ENEMY_NEST_DIRTY
         beq     eri_finish
         lbsr    compose_enemy_zone
 eri_finish
         lbsr    roam_finish_shadow
+        endc
         clr     ENEMY_NEST_DIRTY
 eri_done
         clr     ENEMY_RENDER_FLAGS
@@ -501,6 +508,7 @@ frame_render_impl
         lbcs    fri_abort
         tst     FB_INIT_STATE
         beq     fri_render
+        lbsr    actor_closure_restore
         lbsr    framebuffer_queue_damage
         lbsr    framebuffer_project_damage
         else
@@ -554,7 +562,7 @@ fbpd_load
         std     PLAYER_CELL_X
         lbsr    framebuffer_back_meta
         clr     FBM_DAMAGE,u
-        lbsr    frame_render_pass
+        lbsr    frame_render_background
         ldx     #RENDER_GATE2_STYLE
         ldb     #16
 fbpd_restore
@@ -607,10 +615,21 @@ fbqd_done
         rts
 
 frame_render_pass
+        lbsr    frame_render_background
+        ifne    PERSISTENT_FB
+        lbsr    actor_closure_draw
+        endc
+        rts
+
+; Draw only persistent background state. Damage replay uses this entry so an
+; older ledger cannot save or publish actor pixels before closure completes.
+frame_render_background
         lda     RENDER_FLAGS
         bita    #RF_STAGE
-        lbne    fri_stage
+        lbne    fri_stage_background
+        ifeq    PERSISTENT_FB
         lbsr    render_exposed_player
+        endc
 
         lda     RENDER_FLAGS
         bita    #RF_ENTITIES
@@ -664,7 +683,7 @@ fri_multiplier
 fri_letter
         lda     RENDER_FLAGS2
         bita    #RF2_LETTER
-        beq     fri_presentation
+        beq     fri_gate
         lda     RENDER_LETTER_X
         sta     HUD_X
         lda     RENDER_LETTER_Y
@@ -672,48 +691,14 @@ fri_letter
         lda     RENDER_LETTER_COLOR
         sta     HUD_COLOR
         jsr     draw_recolored_map_tile
-fri_presentation
-        lda     RENDER_FLAGS2
-        bita    #RF2_POPUP
-        beq     fri_death
-        jsr     save_player
-        jsr     draw_score_popup
-        bra     fri_gate
-fri_death
-        lda     RENDER_FLAGS
-        bita    #RF_DEATH
-        beq     fri_player
-        lda     DEATH_STATE
-        beq     fri_player
-        cmpa    #3
-        bhs     fri_gate
-        lda     DEATH_FRAME
-        cmpa    #$FF
-        beq     fri_gate
-        jsr     draw_death_frame
-        bra     fri_gate
-fri_player
-        lda     RENDER_FLAGS
-        bita    #RF_PLAYER
-        beq     fri_gate
-        lda     PICKUP_TIMER
-        bne     fri_gate
-        lda     DEATH_STATE
-        bne     fri_gate
-        tst     PLAYER_ERASED
-        bne     fri_player_direct
-        lbsr    player_compose_impl
-        bra     fri_gate
-fri_player_direct
-        jsr     draw_player
 fri_gate
         lda     RENDER_GATE_ID
-        beq     fri_done
+        beq     fri_background_done
         lda     RENDER_GATE_MODE
         sta     GATE_COMPOSE_MODE
         lbsr    gate_compose_impl
         lda     RENDER_GATE2_ID
-        beq     fri_done
+        beq     fri_background_done
         sta     RENDER_GATE_ID
         lda     RENDER_GATE2_MODE
         sta     RENDER_GATE_MODE
@@ -721,8 +706,51 @@ fri_gate
         lda     RENDER_GATE2_STYLE
         sta     RENDER_GATE_STYLE
         lbsr    gate_compose_impl
+fri_background_done
+        ifeq    PERSISTENT_FB
+        bra     fri_presentation
+        else
+        rts
+        endc
+
+        ifeq    PERSISTENT_FB
+fri_presentation
+        lda     RENDER_FLAGS2
+        bita    #RF2_POPUP
+        beq     fri_death
+        jsr     save_player
+        jsr     draw_score_popup
+        bra     fri_done
+fri_death
+        lda     RENDER_FLAGS
+        bita    #RF_DEATH
+        beq     fri_player
+        lda     DEATH_STATE
+        beq     fri_player
+        cmpa    #3
+        bhs     fri_done
+        lda     DEATH_FRAME
+        cmpa    #$FF
+        beq     fri_done
+        jsr     draw_death_frame
+        bra     fri_done
+fri_player
+        lda     RENDER_FLAGS
+        bita    #RF_PLAYER
+        beq     fri_done
+        lda     PICKUP_TIMER
+        bne     fri_done
+        lda     DEATH_STATE
+        bne     fri_done
+        tst     PLAYER_ERASED
+        bne     fri_player_direct
+        lbsr    player_compose_impl
+        bra     fri_done
+fri_player_direct
+        jsr     draw_player
 fri_done
         rts
+        endc
 
 render_exposed_player
         tst     PLAYER_ERASED
@@ -756,14 +784,134 @@ rpr_box
         sta     BOX_INDEX
         rts
 
-fri_stage
+fri_stage_background
         jsr     draw_screen
         jsr     draw_entities
         jsr     draw_hud
         jsr     draw_lives
         lbsr    enemy_render_impl
+        ifeq    PERSISTENT_FB
         jsr     draw_player
-        bra     fri_done
+        endc
+        rts
+
+        ifne    PERSISTENT_FB
+; Conservative transitive overlap closure for the five moving actors.
+; Restoring every owned old footprint avoids geometry bookkeeping and ensures
+; no destination background is captured until every prior actor is absent.
+actor_closure_restore
+        tst     PLAYER_BG_VALID
+        beq     acr_enemies
+        ldd     PLAYER_FB
+        pshs    d
+        ldd     PLAYER_OLD_FB
+        std     PLAYER_FB
+        jsr     restore_player
+        puls    d
+        std     PLAYER_FB
+        lda     #1
+        sta     PLAYER_ERASED
+acr_enemies
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+acr_enemy_loop
+        lda     #4
+        suba    ENEMY_WORK
+        ldy     #roam_slot_masks
+        ldb     a,y
+        andb    ENEMY_OLD_VALID
+        beq     acr_enemy_next
+        lbsr    roam_old_slot
+        ldd     ,u
+        pshs    x
+        tfr     d,x
+        lbsr    roam_bg_address
+        lbsr    roam_copy_bg_to_fb
+        puls    x
+acr_enemy_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     acr_enemy_loop
+        rts
+
+; Capture every current roaming destination from actor-free BACK, then draw
+; enemies and the player presentation in stable painter order.
+actor_closure_draw
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+acd_save_loop
+        tst     ,x
+        beq     acd_save_next
+        tst     6,x
+        bne     acd_save_actor
+        lda     5,x
+        cmpa    #10
+        bhi     acd_save_next
+acd_save_actor
+        pshs    x
+        ldx     1,x
+        lbsr    roam_bg_address
+        lbsr    roam_copy_fb_to_bg
+        puls    x
+        lda     #1
+        sta     6,x
+acd_save_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     acd_save_loop
+
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+acd_draw_loop
+        tst     ,x
+        beq     acd_draw_next
+        tst     6,x
+        beq     acd_draw_next
+        ldb     7,x
+        pshs    x
+        ldx     1,x
+        lbsr    draw_enemy_fb
+        puls    x
+acd_draw_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     acd_draw_loop
+
+        tst     PICKUP_TIMER
+        beq     acd_death
+acd_popup
+        jsr     save_player
+        jsr     draw_score_popup
+        rts
+acd_death
+        lda     RENDER_FLAGS
+        bita    #RF_DEATH
+        beq     acd_player
+        lda     DEATH_STATE
+        beq     acd_player
+        cmpa    #3
+        bhs     acd_done
+        lda     DEATH_FRAME
+        cmpa    #$FF
+        beq     acd_done
+        jsr     draw_death_frame
+        rts
+acd_player
+        lda     DEATH_STATE
+        bne     acd_done
+        lda     RENDER_FLAGS
+        bita    #RF_PLAYER|RF_STAGE
+        bne     acd_draw_player
+        tst     PLAYER_ERASED
+        beq     acd_done
+acd_draw_player
+        jsr     draw_player
+acd_done
+        rts
+        endc
 
 ; Phase-3 ownership bootstrap. While display output is still blanked, duplicate
 ; the complete A image into physical pages $2C-$2F, then clone the current
@@ -1958,6 +2106,20 @@ ctfr_row
 gate_compose_impl
         lda     RENDER_GATE_ID
         beq     gci_done
+        ifne    PERSISTENT_FB
+        tst     GATE_COMPOSE_MODE
+        bne     gci_final
+        lda     RENDER_GATE_ID
+        deca
+        jsr     draw_gate_diagonal
+        bra     gci_done
+gci_final
+        jsr     restore_gate_diagonal_dots
+        lda     RENDER_GATE_ID
+        deca
+        jsr     draw_gate
+        jsr     draw_entities
+        else
         deca
         sta     GATE_WORK_ID
         sta     GATE_ID
@@ -1974,6 +2136,7 @@ gate_compose_impl
         lbsr    gate_region_from_shadow
         lbsr    gate_set_player_region
         lbsr    gate_region_from_shadow
+        endc
 gci_done
         lda     #$34
         sta     GIME_PAR5

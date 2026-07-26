@@ -150,10 +150,10 @@ Per framebuffer:
       <ol>
         <li><strong>Wait for ownership.</strong> Main code does not begin another transaction while <code>FB_RENDER_PENDING</code> is set. After the IRQ commits, map the new back buffer into PAR1-PAR4 and assert that it is not FRONT.</li>
         <li><strong>Advance one logical epoch without drawing.</strong> Sample input and update movement, collision, timers, score, gate, entity, and death state exactly once. Freeze that state until this image commits. Use <code>FB_SIM_SEQ</code>, not the free-running Vbord counter, for even/odd player-enemy staggering and gameplay timers.</li>
-        <li><strong>Select actor closure.</strong> Seed the set with actors whose position, frame, visibility, or underlay differs from that buffer's metadata, including every actor touched by pending background damage. Repeatedly add any actor whose buffer-old or logical-new footprint intersects any selected old/new footprint.</li>
-        <li><strong>Expose clean background.</strong> Restore every selected actor from this buffer's own save-under state before applying background damage. No actor is saved or drawn during this phase.</li>
+        <li><strong>Select actor closure.</strong> The implemented bounded policy selects all five moving actors: player plus four enemies. This is a conservative transitive closure over every buffer-old and logical-new rectangle, including actors touched by pending background damage, and avoids geometry bookkeeping in the 59-byte bank-3 remainder.</li>
+        <li><strong>Expose clean background.</strong> Restore the player first, then every buffer-old enemy from this buffer's own save-under state before applying background damage. No actor is saved or drawn during this phase; player-first removal prevents its save-under from reintroducing an enemy above the clean enemy restore.</li>
         <li><strong>Project pending background state.</strong> Apply damage in fixed order: maze cells, gates, entities/perimeter, HUD/lives, nest, then popup/death presentation. Clear only the target buffer's pending records after their projections finish.</li>
-        <li><strong>Maintain clean destinations.</strong> A frame-only change at the same position retains its existing save-under bytes. A normal one-byte horizontal or two-row vertical move rotates the circular background and captures only the exposed strip. Appearance, disappearance, arbitrary movement, clipping, or any intersecting underlay damage uses the explicit full-capture or no-destination case.</li>
+        <li><strong>Maintain clean destinations.</strong> The implemented closure fully captures every current roaming destination after all background projection and before any actor draw. Circular strip rotation remains the next optimization; until then, full capture is the correctness baseline for movement, appearance, disappearance, arbitrary movement, and underlay damage.</li>
         <li><strong>Draw final layers.</strong> Draw roaming enemies, then the player or its presentation replacement last, preserving the current player-over-enemy ownership. Record valid/hidden state, frame key, logical destination, and ring phase for this buffer.</li>
         <li><strong>Publish readiness.</strong> Restore PAR5 to page <code>$34</code> and finish target metadata, then briefly mask IRQ, clear <code>FB_RENDER_ACTIVE</code>, and set <code>FB_RENDER_PENDING</code> as one handoff. Do not alter <code>$FF9D</code> or FRONT/BACK IDs in main code.</li>
         <li><strong>Commit at Vbord.</strong> The IRQ acknowledges <code>$FF92</code>, updates the raw Vbord counter, and, only when pending, derives <code>$C0</code> or <code>$B0</code> from BACK, writes <code>$FF9D</code>, exchanges FRONT/BACK IDs, clears pending, and increments both commit and simulation sequences.</li>
@@ -189,7 +189,9 @@ Per framebuffer:
         logical state, restores the current intent block, and then renders the
         current epoch. Player, popup, death, and roaming-actor intents are
         deliberately excluded; their underlay intersections remain inputs to
-        the actor-closure phase.
+        the actor-closure phase. Damage replay enters a background-only pass:
+        gate diagonals/final gates call resident background primitives directly
+        and cannot restore, save, or draw the player.
       </p>
       <table class="wiki-table">
         <thead><tr><th>Damage class</th><th>State source</th><th>Projection</th></tr></thead>
@@ -312,7 +314,8 @@ Per framebuffer:
         <li><strong>Completed 2026-07-25:</strong> allocate always-mapped IRQ handshake state, two 256-byte actor/damage metadata blocks, and B-side player/enemy restoration buffers. Entry <code>$081B</code> initializes identical complete A/B images and restoration state while blanked. The legacy fallback explicitly invalidates B/full-rebuild before using it as shadow scratch and captures current A ownership afterward.</li>
         <li><strong>Completed 2026-07-25:</strong> render through the non-scanned PAR1-PAR4 BACK mapping, hydrate and capture buffer-local actor ownership, and publish readiness atomically. Vbord entry <code>$081E</code> alone writes <code>$FF9D</code>, exchanges FRONT/BACK, and advances commit/simulation sequences. The compatibility compositor now uses pages <code>$28-$2B</code>; a bounded trace proves repeated <code>$B0/$C0</code> alternation.</li>
         <li><strong>Completed 2026-07-25:</strong> add an 18-byte per-buffer persistent-damage record and project the skipped epoch from current frozen state before the current render. Exact dot cells and existing gate/perimeter/HUD/entity payloads are retained; actor and presentation intents stay outside the ledger. The bounded GMC trace proves both queue and projection paths execute while display commits continue alternating.</li>
-        <li>Add actor-overlap closure and circular strip save-under updates. Remove the compatibility shadow window, union, publication, and native cache paths only after cycle and image acceptance.</li>
+        <li><strong>Completed 2026-07-26:</strong> add conservative five-actor overlap closure. BACK restores the player and all buffer-old enemies before either damage pass, renders every background layer including background-only gates, fully captures all current roaming destinations, draws enemies, then publishes the current player/popup/death presentation last. The legacy shadow path remains only behind <code>PERSISTENT_FB=0</code>.</li>
+        <li>Add circular strip save-under updates and the runtime sparse-stream decoder. Remove the compatibility shadow window, union, publication, and native cache paths only after cycle and image acceptance.</li>
       </ol>
     </section>
 
