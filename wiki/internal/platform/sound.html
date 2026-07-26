@@ -50,6 +50,84 @@
     </section>
 
     <section>
+      <h2>External sound offload candidate</h2>
+      <p>
+        <strong>Preferred path after XRoar source review (2026-07-26): use the
+        SN76489 already present in the Games Master Cartridge.</strong> The
+        delivered Ladybug image already requires the GMC, whose hardware and
+        XRoar model include one 4 MHz SN76489. Writes to any odd SCS address
+        program sound; Ladybug can reserve <code>$FF51</code>, alongside its
+        existing even-address <code>$FF50</code> bank-select convention. This
+        provides three autonomous square-wave voices plus noise, matches one of
+        the arcade board's two SN76489 chips, and requires neither an MPI nor a
+        new XRoar device.
+      </p>
+      <p>
+        <strong>Optional expansion architecture: use another autonomous PSG or
+        FM cartridge through a CoCo-3-compatible Multi-Pak Interface.</strong>
+        The 6809 would enqueue semantic events such as dot, bonus, death, and
+        stage clear. A bounded foreground service would translate only new
+        events or note boundaries into sound-chip register writes. Tone,
+        noise, envelope, and FM waveform generation would then continue in
+        cartridge hardware without sample-rate interrupts.
+      </p>
+      <p>
+        This removes the continuous DAC/PB1 production cost, but not every
+        audio cost: the game still owns event arbitration and, unless the
+        cartridge has its own sequencer, melody note scheduling. Those duties
+        can run at 30 or 60 Hz and should require only a small bounded number of
+        writes. No sound work belongs in the Vbord handler beyond publishing
+        or consuming one queue flag.
+      </p>
+      <ul>
+        <li>
+          <strong>Best original-era offload: Tandy Speech/Sound Cartridge
+          26-3144/26-3144A.</strong> Its PIC7040, AY-3-8913, and 2 K RAM accept
+          stored sound or register strings in eight buffers; one command can
+          execute a buffered effect. It is therefore the only investigated
+          option that offloads both waveform generation and short effect
+          sequencing. It uses <code>$FF7D-$FF7E</code> and the cartridge SND
+          input. Most units require the documented 1.78 MHz CoCo 3
+          modification; availability and aging hardware are release risks.
+        </li>
+        <li>
+          <strong>Best modern candidate: SuperSprite FM+.</strong> Its YM2149
+          provides three PSG tone channels plus noise/envelope, and its YM2413
+          provides autonomous FM voices. It supports MPI-mode
+          <code>$FF5x</code> addressing. The chips sustain sound after register
+          writes, but the board does not provide a documented independent
+          music CPU, so Ladybug must still issue note/effect changes. Audio is
+          delivered through the board's A/V path, not assumed to use the
+          CoCo's cartridge-SND selector.
+        </li>
+        <li>
+          <strong>Reject Orchestra-90 for CPU relief.</strong> Its two
+          write-only 8-bit DACs at <code>$FF7A-$FF7B</code> still require the
+          6809 to stream samples at an audio rate. It improves resolution and
+          stereo output, not processor headroom.
+        </li>
+      </ul>
+      <p>
+        The current GMC bootstrap uses SCS register <code>$FF50</code>, while
+        the runtime subsequently executes from RAM. With an MPI, boot must
+        leave SCS routed to the Ladybug slot until all GMC payloads are copied,
+        then route SCS to the external sound slot and leave it there. The MPI
+        independently selects CTS/CART and SCS through <code>$FF7F</code>.
+        Exact SuperSprite register addresses, A/V cabling, SCS decoding, and
+        coexistence with the GMC bank register require a physical-board proof
+        before this becomes a release requirement.
+      </p>
+      <p>
+        Recommended product policy: retain internal sound as a minimal fallback
+        or allow silence, make GMC SN76489 the primary enhanced backend, and
+        detect/configure other hardware only as optional backends. Do not make
+        scarce original hardware mandatory. For arcade character, the GMC
+        SN76489 is exact chip-family prior art; YM2149/AY-3-8913 PSG is closer
+        than YM2413 FM when an alternate cartridge is used.
+      </p>
+    </section>
+
+    <section>
       <h2>Selector setup gotcha</h2>
       <p>
         From a cold reset, BASIC sets up usable defaults for the audio
@@ -64,7 +142,9 @@
         <a href="../sources/coco-asm-tepolt.html">coco-asm-tepolt</a> ch. 10
         (DAC, selector, comparator, listings 10-2 SLTON);
         <a href="../sources/coco3-asm-tepolt.html">coco3-asm-tepolt</a>
-        ch. 7 (split FF22).
+        ch. 7 (split FF22);
+        <a href="../sources/sound-cartridges.html">sound-cartridge web and
+        manual ingest</a>.
       </p>
     </footer>
   </main>

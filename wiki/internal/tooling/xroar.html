@@ -73,6 +73,66 @@
       </table>
     </section>
 
+    <section>
+      <h2>Sound-cartridge emulation status</h2>
+      <ul>
+        <li>
+          <strong>GMC SN76489: implemented and already active.</strong>
+          XRoar's <code>gmc</code> part contains a 4 MHz SN76489 and connects
+          it to cartridge audio. Even SCS writes select the ROM bank; odd SCS
+          writes program the sound chip. The current invocation therefore
+          needs no MPI or additional option for GMC sound.
+        </li>
+        <li>
+          <strong>Multi-Pak: implemented.</strong> Define named cartridge
+          profiles, make <code>mpi</code> the machine cartridge, populate
+          slots with <code>-mpi-load-cart SLOT=NAME</code>, and choose the
+          boot slot with <code>-mpi-slot</code>. XRoar models independent
+          CTS/CART and SCS routing through <code>$FF7F</code>.
+        </li>
+        <li>
+          <strong>Tandy Speech/Sound Cartridge: not implemented as an XRoar
+          cartridge type.</strong> A full model needs the TMS7040 firmware,
+          2 K RAM, existing AY891x synthesis, SP0256 speech, status/timing at
+          <code>$FF7D-$FF7E</code>, serialization, and audio attachment. A
+          Ladybug-only compatibility model can omit speech and interpret the
+          documented buffered sound command protocol directly.
+        </li>
+        <li>
+          <strong>SuperSprite FM+: not implemented as an XRoar cartridge
+          type.</strong> A sound-only model needs MPI-mode registers
+          <code>$FF56-$FF57</code> for YM2413 and
+          <code>$FF5C-$FF5D</code> for YM2149. XRoar already has an AY891x
+          core but no YM2413 part. Full-board fidelity additionally requires
+          the V9958, 128 K VRAM, video switching, NMI, and alternate native
+          <code>$FF7x</code> decode.
+        </li>
+      </ul>
+      <p>
+        MAME's BSD-licensed <code>coco_ssc.cpp</code> and
+        <code>dragon_msx2.cpp</code> provide primary reference implementations
+        for both missing devices. The lowest-risk progression is GMC sound
+        first, then a sound-only SuperSprite or Speech/Sound compatibility
+        part only if real-hardware backend testing still requires it.
+      </p>
+      <p><strong>MPI configuration shape for future named devices:</strong></p>
+<pre><code>xroar -machine coco3 -ram 512 \
+  -cart ladybug -cart-type gmc -cart-rom build/ladybug.rom -cart-autorun \
+  -cart external-sound -cart-type DEVICE_TYPE \
+  -cart mpi -mpi-load-cart 0=external-sound -mpi-load-cart 1=ladybug \
+  -mpi-slot 1 -machine-cart mpi -tv-input rgb
+</code></pre>
+      <p>
+        Placing the sound cartridge before the GMC also works around the current
+        MPI sound-interface attachment rule, which attaches the first
+        sound-capable slot to XRoar's single cartridge-audio callback. After
+        bootstrap, Ladybug would write <code>$10</code> to
+        <code>$FF7F</code> to retain CTS/CART on slot 1 and route SCS to slot 0.
+        A Speech/Sound model at <code>$FF7D-$FF7E</code> is broadcast outside
+        SCS and does not require that final SCS route.
+      </p>
+    </section>
+
     <section id="gdb-mcp-round-trip">
       <h2>GDB-MCP round trip — active workflow</h2>
       <p>Use this workflow for automated Ladybug execution checks. The web app and private XRoar monitor are deferred.</p>

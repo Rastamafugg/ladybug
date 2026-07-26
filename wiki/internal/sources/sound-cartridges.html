@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>External Sound Cartridges — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Sources</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Source · hardware manuals and vendor pages</p>
+      <h1>External Sound Cartridges <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">
+        Sources consulted 2026-07-26 for low-CPU Ladybug audio.
+      </p>
+    </header>
+
+    <section>
+      <h2>Sources and extracted facts</h2>
+      <ul>
+        <li>
+          <strong><a href="https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Speech-Sound%20Cartridge%20%28Tandy%29.pdf">Tandy Speech/Sound Cartridge owner's manual</a>.</strong>
+          The cartridge accepts commands at <code>$FF7E</code>, reset at
+          <code>$FF7D</code>, contains eight sound buffers of up to 64 bytes,
+          and can execute stored sound-data or PSG-register strings. Its
+          AY-3-8913 provides three tone channels, noise, and a hardware envelope.
+        </li>
+        <li>
+          <strong><a href="https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Speech-Sound%20Cartridge%20Service%20Manual%20%28Tandy%29.pdf">Tandy Speech/Sound service manual and CoCo 3 modification note</a>.</strong>
+          Most units need a voltage-inverter and clock-input modification at
+          1.78 MHz; without clock correction, sound effects run one octave high.
+        </li>
+        <li>
+          <strong><a href="https://dragonpluselectronics.com/product/supersprite-fm-6x09-for-dragon-and-coco-computers/">DragonPlus SuperSprite FM+ product specification</a>.</strong>
+          The board contains YM2149 PSG and YM2413 FM chips, supports
+          <code>$FF5x</code> MPI mode and <code>$FF7x</code> native mode, and
+          mixes audio into its routed A/V output.
+        </li>
+        <li>
+          <strong><a href="https://www.trailingedge.com/trs80/Coco-Multi-Pakom.pdf">Tandy Multi-Pak owner's manual</a>.</strong>
+          Software register <code>$FF7F</code> independently routes SCS and
+          CTS/CART among four slots. This permits a RAM-resident game to retain
+          or disconnect its ROM slot while routing SCS I/O to a sound board.
+        </li>
+        <li>
+          <strong>Orchestra-90 hardware map.</strong> Its left/right outputs
+          are write-only 8-bit DACs at <code>$FF7A-$FF7B</code>. This requires
+          audio-rate CPU writes and is not a synthesis offload.
+        </li>
+        <li>
+          <strong>Local XRoar 1.10 source:
+          <code>src/gmc.c</code>, <code>src/mpi.c</code>,
+          <code>src/sn76489.c</code>, and <code>src/ay891x.c</code>.</strong>
+          GMC already contains an emulated 4 MHz SN76489; even/odd SCS writes
+          select banks/program sound. MPI independently routes ROM and I/O.
+          AY891x synthesis exists, but no Speech/Sound or SuperSprite cartridge
+          profile and no YM2413 core are present.
+        </li>
+        <li>
+          <strong><a href="https://github.com/mamedev/mame/blob/master/src/devices/bus/coco/coco_ssc.cpp">MAME CoCo Speech/Sound device</a>.</strong>
+          This BSD-licensed reference models the TMS7040, its firmware, 2 K RAM,
+          AY-3-8913, SP0256, sound-activity circuit, and host interface at
+          <code>$FF7D-$FF7E</code>.
+        </li>
+        <li>
+          <strong><a href="https://github.com/mamedev/mame/blob/master/src/devices/bus/coco/dragon_msx2.cpp">MAME SuperSprite FM+ device</a>.</strong>
+          This BSD-licensed reference establishes MPI-mode addresses:
+          YM2413 at <code>$FF56-$FF57</code>, V9958 at
+          <code>$FF58-$FF5B</code>, YM2149 address/data at
+          <code>$FF5C-$FF5D</code>, and video select at <code>$FF5E</code>.
+        </li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Limits</h2>
+      <p>
+        Physical coexistence with the Ladybug GMC image has not been tested.
+        Product availability can change. MAME confirms the emulated register
+        map, but A/V routing and timing must still be verified against the
+        current user guide and a physical CoCo 3/MPI setup before locking a
+        backend ABI.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Web/manual ingest. Project conclusions are recorded in
+        <a href="../platform/sound.html">platform/sound</a>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

@@ -23,8 +23,18 @@
     </header>
 
     <section>
+      <h3>2026-07-26 &middot; query/design &mdash; XRoar external-sound emulation paths</h3>
+      <p>Inspected the installed XRoar 1.10 source and current MAME device references. XRoar already emulates the Ladybug GMC's 4 MHz SN76489: even SCS writes bank-switch and odd writes program sound, making <code>$FF51</code> an immediate no-MPI backend matching one arcade chip. XRoar also models independent Multi-Pak CTS/SCS routing but has no attachable Tandy Speech/Sound or SuperSprite FM+ part. Full Speech/Sound emulation needs TMS7040 firmware, 2 K RAM, AY891x, SP0256, status/timing, and audio; a sound-only SuperSprite part needs existing AY891x plus a new YM2413 core at the MAME-confirmed MPI register map. Recorded an incremental plan: GMC first, compatibility device only if hardware-backend validation requires it.</p>
+    </section>
+
+    <section>
       <h3>2026-07-26 &middot; implementation/profile/lint &mdash; row/command interpreter fast path</h3>
       <p>Implemented partial-handler fall-through, replaced redundant <code>$FF</code> comparisons with sign tests in both sparse decoders, and routed opaque lengths one through three to fixed tails shared with the existing length-four/five word-copy bodies. The sparse ABI and seven-segment loader remain unchanged. On identical enemy frames 5/1/1/13, the path falls from 12,307 to 11,441 cycles, saving 866 cycles or 7.0%. Complete alternating owners cost 41,070/33,623 cycles and still exceed 29,666. Independent live proof matches 512/512 enemy, 128/128 player, and 512/512 save-under bytes with no out-of-footprint writes. Full GMC verification passes at 4,054/4,096 bank-3 bytes.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-26 &middot; query/design &mdash; external sound offload path</h3>
+      <p>Assessed original-era and modern sound cartridges against the measured strict-60-Hz deficit. An autonomous PSG/FM device removes audio-rate DAC writes: the original Tandy Speech/Sound Cartridge additionally buffers and executes short effects through its onboard PIC7040, while SuperSprite FM+ sustains YM2149/YM2413 voices but still needs bounded note/event register updates. Orchestra-90 is rejected for CPU relief because its dual DACs require continuous streaming. Recorded an MPI architecture in which the GMC slot owns SCS through bootstrap loading, then a sound slot owns SCS while Ladybug runs from RAM; physical CoCo 3, A/V routing, register-map, and 1.78 MHz compatibility proofs remain required.</p>
     </section>
 
     <section>
