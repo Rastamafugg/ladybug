@@ -2923,30 +2923,47 @@ sparse_player_stream
 sparse_blit_fb
         lda     #16
         sta     SPARSE_ROWS
+        bra     sbf_row
+sbf_partial
+        andb    #$7F
+sbf_partial_byte
+        lda     ,u+
+        anda    ,y
+        ora     ,u+
+        sta     ,y+
+        decb
+        bne     sbf_partial_byte
 sbf_row
         lda     ,u+
-        cmpa    #$FF
-        beq     sbf_next_row
+        bmi     sbf_next_row
         leay    a,x
         ldb     ,u+
         bmi     sbf_partial
         cmpb    #5
         beq     sbf_opaque5
+        cmpb    #4
+        blo     sbf_opaque_small
+        beq     sbf_opaque4
         cmpb    #6
         beq     sbf_opaque6
-        cmpb    #4
-        beq     sbf_opaque4
 sbf_opaque_byte
         lda     ,u+
         sta     ,y+
         decb
         bne     sbf_opaque_byte
         bra     sbf_row
+sbf_opaque_small
+        cmpb    #2
+        beq     sbf_opaque2
+        blo     sbf_opaque1
+        bra     sbf_opaque3
 sbf_opaque5
         ldd     ,u++
         std     ,y++
+sbf_opaque3
         ldd     ,u++
         std     ,y++
+sbf_opaque1
         lda     ,u+
         sta     ,y+
         bra     sbf_row
@@ -2961,18 +2978,9 @@ sbf_opaque6
 sbf_opaque4
         ldd     ,u++
         std     ,y++
+sbf_opaque2
         ldd     ,u++
         std     ,y++
-        bra     sbf_row
-sbf_partial
-        andb    #$7F
-sbf_partial_byte
-        lda     ,u+
-        anda    ,y
-        ora     ,u+
-        sta     ,y+
-        decb
-        bne     sbf_partial_byte
         bra     sbf_row
 sbf_next_row
         leax    160,x
@@ -2986,8 +2994,7 @@ sparse_blit_stage
         sta     SPARSE_ROWS
 sbs_row
         lda     ,u+
-        cmpa    #$FF
-        beq     sbs_next_row
+        bmi     sbs_next_row
         leay    a,x
         ldb     ,u+
         bmi     sbs_partial

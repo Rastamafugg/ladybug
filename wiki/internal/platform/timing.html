@@ -382,6 +382,81 @@
         Structural verification models the specialized byte order for all
         three lengths, and the <code>PERSISTENT_FB=0</code> image assembles.
       </p>
+      <h2>Partial-nibble path analysis &mdash; 2026-07-26</h2>
+      <p>
+        The optimized A-owner trace selects enemy frames 5, 1, 1, and 13.
+        Their framebuffer decodes execute 80 masked partial commands covering
+        116 destination bytes: 46 length-one, 32 length-two, and two
+        length-three commands. The branch into the partial handler plus its
+        body costs 3,772 cycles, or 30.6% of the 12,307-cycle enemy path and
+        10.7% of the complete 35,167-cycle frame.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Partial work</th><th>Cycles</th><th>Finding</th></tr></thead>
+        <tbody>
+          <tr><td>Mask/pixel read-modify-write</td><td>2,552</td><td>116 executions of <code>LDA/ANDA/ORA/STA</code>; required by nibble transparency</td></tr>
+          <tr><td>Byte loop control</td><td>580</td><td><code>DECB/BNE</code></td></tr>
+          <tr><td>Count normalization and return branch</td><td>400</td><td>80 commands; the return <code>BRA sbf_row</code> alone costs 240</td></tr>
+          <tr><td>Partial type branch</td><td>240</td><td>80 taken <code>BMI</code> branches</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The viable incremental change is layout-only: place
+        <code>sbf_partial</code> before <code>sbf_row</code>, branch over it
+        once at decoder entry, and let every completed partial command fall
+        through into the row parser. This removes 80 return branches at a cost
+        of four entry branches, for a projected net saving of 228 enemy cycles.
+        It exchanges one two-byte branch for another and is therefore
+        code-size neutral at 4,048/4,096 bank-3 bytes. The projected enemy
+        path is 12,079 cycles and the complete
+        A-owner frame is approximately 34,939 cycles, still 5,273 over the
+        strict gate.
+      </p>
+      <p>
+        Length-one or length-two dispatch is rejected: the comparison cost
+        paid by all 80 commands cancels the avoided loop control. Mask-
+        orientation commands are also rejected. Across all 128 frames, 452
+        of 2,688 partial commands mix <code>$F0</code> and <code>$0F</code>
+        masks; splitting them creates 524 extra command runs. In the measured
+        frames it creates 14 extra runs, and their approximately 25-cycle
+        command-parser cost consumes the four-cycle-per-byte immediate-mask
+        opportunity. A partial-only change therefore cannot close the frame
+        budget; the broader row/command interpreter costs 5,756 enemy cycles
+        and is the next architectural target.
+      </p>
+      <h2>Row/command interpreter fast path &mdash; 2026-07-26</h2>
+      <p>
+        The implemented decoder retains the existing sparse payload and
+        seven-segment loader. Because every valid row start is
+        <code>$00-$07</code>, framebuffer and stage decoders now detect the
+        <code>$FF</code> row terminator directly with <code>BMI</code>,
+        removing a compare for every command and row end. Opaque length five
+        remains the first dispatch. A lower-than-four branch routes lengths
+        one, two, and three through fixed tails shared with the existing
+        length-five and length-four word-copy bodies; length seven remains on
+        the generic byte loop. The partial handler falls through to the row
+        parser. Bank-3 use is 4,054/4,096 bytes.
+      </p>
+      <p>
+        On the identical enemy frame mix 5/1/1/13, the enemy path falls from
+        12,307 to 11,441 cycles, saving 866 cycles or 7.0%. This agrees within
+        four cycles with the 862-cycle static model. Framebuffer decode itself
+        costs 10,692 cycles and frame selection/page mapping costs 749. The
+        partial body plus type branches costs 3,532 cycles; row framing and
+        command addressing/dispatch together cost 5,486, so command
+        interpretation remains the larger structural target.
+      </p>
+      <p>
+        Complete captured owners cost 41,070 and 33,623 active cycles under
+        their different alternating 30 Hz mutation work. They are not a
+        like-for-like full-frame comparison with the earlier A capture; the
+        866-cycle enemy-path delta is attributable. Even the favorable owner
+        exceeds 29,666 by 3,957 cycles. Independent live proof matches
+        512/512 enemy, 128/128 player, and 512/512 circular save-under bytes
+        with no writes outside actor footprints. The final framebuffer hash
+        is
+        <code>e3a32da2a11d22f186c6737226453eadfe12ea80e94513fdf8164b4dc4f91d5b</code>.
+      </p>
       <p>
         <strong>Strict-60-Hz architecture designed 2026-07-23:</strong>
         the <a href="../implementation/ping-pong-framebuffer.html">persistent

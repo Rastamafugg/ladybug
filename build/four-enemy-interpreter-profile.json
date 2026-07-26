@@ -1,0 +1,98 @@
+{
+  "captured": "2026-07-26",
+  "scenario": {
+    "active_enemies": 4,
+    "movement": [
+      "east",
+      "east",
+      "west",
+      "west"
+    ],
+    "decoder": "partial fall-through, sign-tested row terminators, frequency-routed shared opaque tails"
+  },
+  "profile": {
+    "instructions": 8311,
+    "active_cycles": 41070,
+    "elapsed_cycles": 60129,
+    "sync_wait_cycles": 19059,
+    "enemy_path": {
+      "instructions": 2512,
+      "cycles": 11441,
+      "partial_body_cycles": 3292,
+      "partial_type_branch_cycles": 240
+    },
+    "hardware_budget_cycles": 29666,
+    "budget_multiple": 1.384,
+    "budget_over_cycles": 11404,
+    "enemy_decoder_baseline_cycles": 12307,
+    "enemy_decoder_cycle_reduction": 866,
+    "enemy_decoder_reduction_percent": 7.0,
+    "comparison_note": "The 866-cycle enemy-path delta uses the identical 5/1/1/13 frame mix. Complete A/B totals retain different alternating 30 Hz mutation work and are not compared with the prior A total.",
+    "alternating_b_owner": {
+      "instructions": 6712,
+      "active_cycles": 33623,
+      "budget_multiple": 1.133,
+      "budget_over_cycles": 3957
+    }
+  },
+  "live_framebuffer_proof": {
+    "actors": [
+      {
+        "slot": 0,
+        "pointer_hex": "2FCE",
+        "frame": 5,
+        "framebuffer_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "01",
+        "saveunder_match": 128
+      },
+      {
+        "slot": 1,
+        "pointer_hex": "2FEE",
+        "frame": 1,
+        "framebuffer_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "01",
+        "saveunder_match": 128
+      },
+      {
+        "slot": 2,
+        "pointer_hex": "6FCA",
+        "frame": 1,
+        "framebuffer_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "07",
+        "saveunder_match": 128
+      },
+      {
+        "slot": 3,
+        "pointer_hex": "6FEA",
+        "frame": 13,
+        "framebuffer_match": 128,
+        "bytes_total": 128,
+        "ring_phase_hex": "07",
+        "saveunder_match": 128
+      }
+    ],
+    "enemy_framebuffer_match": 512,
+    "enemy_framebuffer_total": 512,
+    "saveunder_owner": "A",
+    "saveunder_match": 512,
+    "saveunder_total": 512,
+    "enemy_changes_outside_footprints": 0,
+    "player_framebuffer_match": 128,
+    "player_framebuffer_total": 128,
+    "player_changes_outside_footprint": 0,
+    "framebuffer_sha256": "e3a32da2a11d22f186c6737226453eadfe12ea80e94513fdf8164b4dc4f91d5b"
+  },
+  "artifacts": {
+    "trace": "build/four-enemy-interpreter-profile.trace",
+    "image": "build/four-enemy-interpreter-framebuffer.png",
+    "clean": "build/four-enemy-interpreter-clean.bin",
+    "enemies": "build/four-enemy-interpreter-enemies.bin",
+    "framebuffer": "build/four-enemy-interpreter-framebuffer.bin",
+    "saveunder_a": "build/four-enemy-interpreter-saveunder-a.bin",
+    "saveunder_b": "build/four-enemy-interpreter-saveunder-b.bin",
+    "ring": "build/four-enemy-interpreter-ring.bin"
+  }
+}

@@ -25,6 +25,14 @@
     </header>
 
     <section>
+      <h2>Use existing sentinel sign bits and share fixed-copy tails</h2>
+      <p>The sparse row parser compared every start byte with <code>$FF</code> even though valid starts are only <code>$00-$07</code>. Its short opaque lengths also re-entered a generic byte loop despite being suffixes of existing fixed length-four and length-five copy bodies.</p>
+      <p><strong>Rule:</strong> when the valid data range is nonnegative and the sentinel is negative, branch directly on N after the load. Label fixed-copy suffixes so shorter measured lengths reuse the same ordered instruction tails instead of duplicating code.</p>
+      <p><strong>Applies to:</strong> compact interpreters with a constrained code bank, a validated token range, and repeated fixed-length payload prefixes or suffixes.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>sparse_blit_fb</code>/<code>sparse_blit_stage</code>, the independent 128-enemy/16-player sparse proof, and the 2026-07-26 row/command profile.</p>
+    </section>
+
+    <section>
       <h2>Keep short sparse-command counts in B and specialize only measured common lengths</h2>
       <p>The framebuffer decoder spent most of its 13,656-cycle four-enemy path repeatedly storing and decrementing a direct-page command count. Opaque lengths five, six, and four were the repeated lengths with enough bytes to benefit from word copies after dispatch cost.</p>
       <p><strong>Rule:</strong> retain each command count in B across its byte loop and use ordered <code>LDD</code>/<code>STD</code> copies only for measured profitable opaque lengths. Keep the generic loop for all other lengths and masked partial commands.</p>

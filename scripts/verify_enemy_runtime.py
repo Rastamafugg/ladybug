@@ -205,10 +205,15 @@ for fragment in (
 sparse_fb = source[source.index("\nsparse_blit_fb\n"):
                    source.index("\nsparse_blit_stage\n")]
 for fragment in (
-    "cmpa    #$FF",
+    "bmi     sbf_next_row",
     "leay    a,x",
     "bmi     sbf_partial",
     "cmpb    #5",
+    "blo     sbf_opaque_small",
+    "sbf_opaque_small",
+    "sbf_opaque3",
+    "sbf_opaque2",
+    "sbf_opaque1",
     "sbf_opaque5",
     "sbf_opaque6",
     "sbf_opaque4",
@@ -224,42 +229,88 @@ for fragment in (
         raise SystemExit("enemy proof: framebuffer sparse decoder is incomplete: " + fragment)
 if "stb     SPARSE_COUNT" in sparse_fb or "dec     SPARSE_COUNT" in sparse_fb:
     raise SystemExit("enemy proof: framebuffer sparse decoder still spills command counts")
+if "cmpa    #$FF" in sparse_fb:
+    raise SystemExit("enemy proof: framebuffer row parser restored its redundant compare")
+small_dispatch = """sbf_opaque_small
+        cmpb    #2
+        beq     sbf_opaque2
+        blo     sbf_opaque1
+        bra     sbf_opaque3"""
+if small_dispatch not in sparse_fb:
+    raise SystemExit("enemy proof: short opaque dispatch no longer covers 1/2/3")
+partial_start = sparse_fb.index("\nsbf_partial\n")
+row_start = sparse_fb.index("\nsbf_row\n")
+if partial_start > row_start:
+    raise SystemExit("enemy proof: partial decoder no longer falls through to row parser")
+partial_fallthrough = sparse_fb[partial_start:row_start]
+if "bra     sbf_row" in partial_fallthrough:
+    raise SystemExit("enemy proof: partial decoder restored its per-command row branch")
 specialized_opaque = {
+    1: ("byte",),
+    2: ("word",),
+    3: ("word", "byte"),
     4: ("word", "word"),
     5: ("word", "word", "byte"),
     6: ("word", "word", "word"),
 }
+specialized_blocks = {
+    5: """sbf_opaque5
+        ldd     ,u++
+        std     ,y++
+sbf_opaque3
+        ldd     ,u++
+        std     ,y++
+sbf_opaque1
+        lda     ,u+
+        sta     ,y+
+        bra     sbf_row""",
+    6: """sbf_opaque6
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        bra     sbf_row""",
+    4: """sbf_opaque4
+        ldd     ,u++
+        std     ,y++
+sbf_opaque2
+        ldd     ,u++
+        std     ,y++
+        bra     sbf_row""",
+}
 for length, operations in specialized_opaque.items():
-    block = [f"sbf_opaque{length}"]
     copied = []
     cursor = 0
     for operation in operations:
         if operation == "word":
-            block.extend(("        ldd     ,u++", "        std     ,y++"))
             copied.extend((cursor, cursor + 1))
             cursor += 2
         else:
-            block.extend(("        lda     ,u+", "        sta     ,y+"))
             copied.append(cursor)
             cursor += 1
-    block.append("        bra     sbf_row")
-    if "\n".join(block) not in sparse_fb:
-        raise SystemExit(
-            f"enemy proof: opaque-{length} specialization changed instruction order"
-        )
     if copied != list(range(length)):
         raise SystemExit(
             f"enemy proof: opaque-{length} word-copy model changed byte order"
         )
+for length, block in specialized_blocks.items():
+    if block not in sparse_fb:
+        raise SystemExit(
+            f"enemy proof: opaque-{length} shared-tail instruction order changed"
+        )
 sparse_stage = source[source.index("\nsparse_blit_stage\n"):
                       source.index("\nsparse_restore_page\n")]
 for fragment in (
-    "bmi     sbs_partial", "anda    ,y", "ora     ,u+", "decb", "leax    8,x"
+    "bmi     sbs_next_row", "bmi     sbs_partial", "anda    ,y",
+    "ora     ,u+", "decb", "leax    8,x"
 ):
     if fragment not in sparse_stage:
         raise SystemExit("enemy proof: stage sparse decoder is incomplete: " + fragment)
 if "stb     SPARSE_COUNT" in sparse_stage or "dec     SPARSE_COUNT" in sparse_stage:
     raise SystemExit("enemy proof: stage sparse decoder still spills command counts")
+if "cmpa    #$FF" in sparse_stage:
+    raise SystemExit("enemy proof: stage row parser restored its redundant compare")
 sparse_restore = source[source.index("\nsparse_restore_page\n"):
                         source.index("\ndraw_vegetable_stage\n")]
 if "lda     #$34" not in sparse_restore or "sta     GIME_PAR5" not in sparse_restore:
