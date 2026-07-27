@@ -18,8 +18,8 @@
       <p class="wiki-eyebrow">Internal · platform</p>
       <h1>Timing — frame budget <span class="wiki-badge">internal</span></h1>
       <p class="wiki-meta">
-        Project-specific decisions on clock rate and interrupt source, plus
-        the Phase 1 frame-budget partition.
+        Current 60 Hz execution contract, measurement rules, acceptance gates,
+        and the historical optimization record.
       </p>
     </header>
 
@@ -28,6 +28,24 @@
         Reference content (clock options, IRQ sources, 6809 IRQ/FIRQ
         timing) is in
         <a href="../../release/reference/coco3/timing.html">release/reference/coco3/timing</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Routine-work overview</h2>
+      <ul>
+        <li><strong>Hardware contract:</strong> Ladybug runs the 6809 at 1.78 MHz and uses the GIME ACVC Vbord IRQ as its 60 Hz commit boundary. One frame therefore has a strict budget of 29,666 active CPU cycles; the engineering target is at most 27,000 cycles to reserve IRQ and future sound headroom.</li>
+        <li><strong>Execution contract:</strong> game logic advances one frozen simulation epoch, renders it into the non-scanned BACK framebuffer, and publishes readiness. At Vbord, the IRQ commits only a complete BACK image by writing <code>$FF9D</code>, exchanges FRONT/BACK ownership, and advances the commit and simulation sequences.</li>
+        <li><strong>Overload behavior:</strong> if rendering misses Vbord, the IRQ retains the current FRONT image and increments the missed-commit diagnostic. The runtime finishes the same frozen epoch and commits it later; it does not skip transient states, catch up timers, or begin another logical epoch. Correct degradation is not timing acceptance: steady gameplay still requires zero missed commits.</li>
+        <li><strong>What to measure:</strong> use complete active intervals from one <code>frame_render_impl</code> entry to the next and exclude only an identified <code>SYNC</code> wait. Instruction counts alone are insufficient because 6809 instructions have variable cycle costs. Compare A and B owners with equivalent hydrated actor metadata and retain real alternate-owner damage replay.</li>
+        <li><strong>Current rendering model:</strong> persistent A/B framebuffers own independent actor history and damage ledgers. Sparse enemy/player streams, circular save-under restoration, generated gate transition streams, and owner-selected player history avoid frame-time shadow publication and A/B history exchange.</li>
+        <li><strong>Acceptance status:</strong> the controlled four-enemy movement case measures 27,531/28,067 cycles for A/B and passes the strict hardware limit, but broader paths remain the controlling gate. Movement plus animation, pickup, death, and gate scenarios require current complete-frame proof below 29,666 cycles on both owners; generated gate-stream totals are presently projected rather than final accepted complete-frame measurements.</li>
+        <li><strong>Routine verification:</strong> build with <code>scripts/build.sh build</code>, use the <a href="../tooling/xroar.html#gdb-mcp-round-trip">GDB-MCP/XRoar round trip</a> for live traces, and run the path-specific profile verifier. Require matching framebuffer/save-under output, no out-of-footprint writes, correct PAR5 restoration, alternating commits, and zero ownership diagnostics alongside the cycle result.</li>
+      </ul>
+      <p>
+        The sections below retain dated baselines and optimization history.
+        Treat explicitly dated measurements as historical evidence unless a
+        later section identifies them as the current acceptance result.
       </p>
     </section>
 
@@ -281,26 +299,32 @@
         changed, and <code>ENEMY_CAPTURE_DIRTY</code> remained zero.
       </p>
       <p>
-        The proof also found a B-owner hydration defect: swapping the B-side
-        player background left <code>U</code> at <code>$AB80</code>, so enemy
+        This historical proof also found a B-owner hydration defect in the
+        former physical-swap implementation: exchanging the B-side player
+        background left <code>U</code> at <code>$AB80</code>, so enemy
         metadata was read from restoration storage instead of
-        <code>FB_META_B</code>. <code>framebuffer_prepare_back</code> now
-        reacquires the metadata base after that swap, and the verifier
-        enforces swap, reacquire, then enemy-record access ordering.
+        <code>FB_META_B</code>. The subsequent owner-selected pointer
+        implementation removed that frame-time exchange entirely; current
+        <code>framebuffer_prepare_back</code> selects <code>PLAYER_BG</code>
+        or <code>PLAYER_BG_B</code> through direct-page pointer
+        <code>$00A2</code>.
       </p>
       <p>
         This 68,297-cycle capture is the pre-sparse baseline. Runtime sparse
         decoding replaced the native enemy/player caches on 2026-07-26.
       </p>
-      <h2>Post-decoder four-enemy profile — 2026-07-26</h2>
+      <h2>Historical post-decoder, pre-pointer profile — 2026-07-26</h2>
       <p>
         A controlled, hydrated A-owner horizontal-movement frame using the
         runtime indexed sparse streams executes 12,456 active instructions
         and 57,619 active cycles. This removes 10,678 cycles, or 15.6%, from
         the 68,297-cycle native-frame baseline, but remains 1.94 times the
-        29,666-cycle strict-60-Hz budget. The alternating B owner costs
-        62,311 active cycles, 4,692 more than A, because it swaps the
-        128-byte player save-under on both prepare and finish.
+        29,666-cycle strict-60-Hz budget. In this superseded implementation,
+        the alternating B owner costs 62,311 active cycles, 4,692 more than A,
+        because it exchanges the 128-byte player save-under on both prepare
+        and finish. Current code selects stationary owner-local save-under
+        storage through direct-page pointer <code>$00A2</code>, so these
+        exchanges are not a current A/B cost.
       </p>
       <table class="wiki-table">
         <thead><tr><th>Path</th><th>Instructions</th><th>Cycles</th><th>Active-cycle share</th></tr></thead>
@@ -647,6 +671,33 @@
         diagonal cells, while B restores contextual/dot cells and performs
         five transparent gate-tile blends. A generated opaque final-cell or
         transition-delta representation is the next gate-specific target.
+      </p>
+      <h3>Generated gate transition streams &mdash; 2026-07-27</h3>
+      <p>
+        The screen compiler evaluates all 168 gate, destination-parity,
+        diagonal-style, and visual-neighbour cases and proves they reduce to
+        six canonical gate-relative streams. Four streams convert the prior
+        final orientation to a diagonal; two source-agnostic final streams
+        accept either the prior final orientation or a diagonal after the two
+        dynamic dot cells are restored. Destination deltas address opaque
+        contiguous runs. The complete indexed payload is 832 bytes on
+        physical page <code>$39</code>.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Owner phase</th><th>Live writes</th><th>Prior gate cycles</th><th>Projected like-for-like gate cycles</th><th>Projected four-enemy frame</th></tr></thead>
+        <tbody>
+          <tr><td>A diagonal</td><td>60</td><td>9,419</td><td>2,432</td><td>29,751; fail by 85</td></tr>
+          <tr><td>B final</td><td>86</td><td>17,565</td><td>4,877</td><td>33,443; fail by 3,777</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Controlled XRoar traces match every generated destination address and
+        byte value. The live scenario also contains one static entity
+        overlapping gate 0, so its raw gate totals are 9,557/12,098 cycles;
+        the table removes that scenario-specific object draw and substitutes
+        the prior 569-cycle empty entity filter for a like-for-like comparison.
+        Gate-cell composition is no longer the dominant B-owner cost, but the
+        final path and adjacent actor work still prevent strict acceptance.
       </p>
       <p>
         <strong>Strict-60-Hz architecture designed 2026-07-23:</strong>
