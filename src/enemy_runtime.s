@@ -2299,11 +2299,17 @@ cez_active_next
         dec     ENEMY_WORK
         bne     cez_active_loop
 
-        ; The vegetable replaces the dormant actor. A collected vegetable
-        ; returns the nest to the dormant pattern until the count drops.
+        ; The vegetable replaces the dormant actor. Keep the nest empty after
+        ; collection while all four enemies remain active.
         lda     VEG_STATE
         cmpa    #1
         beq     cez_vegetable
+        cmpa    #2
+        bne     cez_dormant
+        lda     ENEMY_ACTIVE
+        cmpa    #4
+        beq     cez_commit
+cez_dormant
         ldx     #ENEMY_ZONE_STAGE+128
         ldb     #0
         lbsr    draw_enemy_stage

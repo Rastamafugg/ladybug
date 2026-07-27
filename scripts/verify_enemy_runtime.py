@@ -175,6 +175,12 @@ for fragment in ("lda     DOTS_LEFT", "lda     BONUS_LEFT"):
         raise SystemExit("enemy proof: stage clear omits collectible: " + fragment)
 if "VEG_STATE" in stage_clear:
     raise SystemExit("enemy proof: vegetable incorrectly gates stage clear")
+nest = source[source.index("\ncompose_enemy_zone\n"):
+              source.index("\nplayer_compose_impl\n")]
+for fragment in ("cmpa    #2", "lda     ENEMY_ACTIVE",
+                 "cmpa    #4", "beq     cez_commit"):
+    if fragment not in nest:
+        raise SystemExit("enemy proof: collected vegetable nest rule missing: " + fragment)
 sprite_select = source[source.index("\nenemy_frame_number\n"):
                        source.index("\nplayer_draw_impl\n")]
 for fragment in ("cmpa    #9", "anda    #7", "cmpa    #5",

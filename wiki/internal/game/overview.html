@@ -187,7 +187,7 @@
       <ul>
         <li>Appears in the central nest area once the fourth enemy has been released.</li>
         <li>Eating it: bonus points (table above) + freezes all enemies for several seconds.</li>
-        <li><strong>Provisional implementation decision, 2026-07-19:</strong> the trigger is current active-enemy count, not cumulative releases. A skull death below four immediately restores the dormant den actor and delays or resets vegetable availability until the count returns to four. Freeze duration is 300 Vbords (5 seconds) pending MAME measurement.</li>
+        <li><strong>Implementation decision, corrected 2026-07-27:</strong> the trigger is current active-enemy count, not cumulative releases. The vegetable never contributes to normal stage completion. After collection, the nest remains empty while four enemies are active; a skull death below four restores the dormant den actor, and a stage/death reset reinitializes the nest. Freeze duration is 300 Vbords (5 seconds) pending MAME measurement.</li>
         <li>Frozen enemies remain lethal. StrategyWiki says they resume with a speed increase when the vegetable tune ends; verify duration and speed change in MAME.</li>
         <li>If a skull-killed enemy returns to the den, StrategyWiki says the vegetable can reappear after that enemy is released again; verify the exact recurrence condition.</li>
         <li>Vegetable cycle (one per level, fixed sequence through level 18 then horseradish forever):
