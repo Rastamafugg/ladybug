@@ -1129,10 +1129,10 @@ git reset --hard HEAD
         whose build runs under WSL must keep LF endings on disk.
       </p>
       <p>
-        <strong>Applies to:</strong> any nested third-party Unix project
-        we vendor for WSL build (currently just XRoar; future candidates:
-        MAME for the cart-RAM comparison test). Set
-        <code>core.autocrlf=false</code> at clone time.
+        <strong>Applies to:</strong> any shell script executed through WSL.
+        The Ladybug repository now enforces <code>*.sh text eol=lf</code> in
+        <code>.gitattributes</code>; nested third-party repositories still
+        require their own attributes or <code>core.autocrlf=false</code>.
       </p>
       <p>
         <strong>Citation:</strong> XRoar bring-up under WSL,
