@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Persistent damage replay can multiply transient renderer cost</h2>
+      <p>A gate diagonal is a persistent background mutation. The first BACK owner draws it and queues coverage for the alternate owner. On the following frame, that owner must replay the diagonal before drawing the current final gate, producing two full gate compositions in one transaction. The measured event work is 66,027 cycles on the first owner and 140,296 cycles on the second.</p>
+      <p><strong>Rule:</strong> budget a transient background effect across both framebuffer owners. A renderer that is acceptable once may still fail when damage projection and the next logical phase coincide. Prefer compact retained gate state or bounded footprint primitives that can project the final state directly.</p>
+      <p><strong>Citation:</strong> controlled gate traces in <code>build/remaining-gate-owner-a.trace</code>/<code>build/remaining-gate-owner-b.trace</code> and <code>wiki/internal/platform/timing.html</code>.</p>
+    </section>
+
+    <section>
       <h2>Respawn must invalidate every framebuffer owner's actor history</h2>
       <p>Changing the player position at the end of the death sequence left both persistent framebuffer ledgers marked with valid save-under history from the prior life. Alternating owners could therefore restore stale player rectangles during the replacement life.</p>
       <p><strong>Rule:</strong> when an actor teleports or is recreated, clear its global validity and every buffer-local validity record before the new position is drawn.</p>

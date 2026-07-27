@@ -587,8 +587,45 @@
         128/128 player framebuffer/save-under bytes, with no write outside an
         actor footprint. The completed framebuffer SHA-256 is
         <code>f828503e85646af0d777e1142c833d8ad46ad91120cb7c2e8b74a2df0684a658</code>.
-        The controlled movement case passes; movement-plus-animation, gate,
-        pickup, death, and distribution profiling remain acceptance work.
+        The controlled movement case passes; distribution profiling remains
+        acceptance work.
+      </p>
+      <h2>Remaining strict-budget gameplay paths &mdash; 2026-07-26</h2>
+      <p>
+        Controlled traces retained the same four horizontal roaming enemies
+        and player position. Each interval begins at
+        <code>frame_render_impl</code> and ends at its next invocation.
+        Explicit per-owner actor metadata makes A/B comparisons like-for-like.
+        Pre-scenario ledger residue is cleared, while damage produced by the
+        tested event is retained for the following owner so the measured
+        sequence includes the persistent-buffer replay contract.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Path</th><th>A cycles</th><th>B cycles</th><th>Strict result</th></tr></thead>
+        <tbody>
+          <tr><td>Movement plus nest animation</td><td>39,201</td><td>40,550</td><td>fail by 9,535 / 10,884</td></tr>
+          <tr><td>Gate diagonal, then replay plus final gate</td><td>96,919</td><td>172,304</td><td>fail by 67,253 / 142,638</td></tr>
+          <tr><td>Blue x5 pickup popup</td><td>37,331</td><td>37,324</td><td>fail by 7,665 / 7,658</td></tr>
+          <tr><td>Death angel frame</td><td>35,266</td><td>34,648</td><td>fail by 5,600 / 4,982</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Nest composition executes once on each owner and costs 9,064 cycles.
+        The A owner renders the current animation; B projects its queued
+        persistent replay. Gate composition is the decisive failure: the
+        diagonal frame costs 66,027 cycles inside a 96,919-cycle A interval,
+        while B must project that diagonal and draw the current final gate.
+        Its two gate compositions cost 140,296 cycles inside a 172,304-cycle
+        interval.
+      </p>
+      <p>
+        The persistent Blue x5 popup draws through the packed-sprite path and
+        costs 11,504 cycles on each owner. The death angel packed-sprite path
+        costs 10,684. Both replace the normal sparse player presentation but
+        still leave the complete intervals above budget. All four remaining
+        controlled paths therefore fail strict 60 Hz. The overload handshake
+        preserves logical order by freezing simulation until commit, but it
+        does not satisfy the strict one-commit-per-Vbord objective.
       </p>
       <p>
         <strong>Strict-60-Hz architecture designed 2026-07-23:</strong>

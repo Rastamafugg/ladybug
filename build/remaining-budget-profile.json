@@ -1,0 +1,167 @@
+{
+  "captured": "2026-07-26",
+  "hardware_budget_cycles": 29666,
+  "method": "controlled frame_render_impl injection with explicit A/B actor metadata; trace begins at frame_render_impl and ends at the next invocation",
+  "scenarios": {
+    "animation": {
+      "label": "movement plus animation",
+      "sequence": "A current nest animation; B projected nest replay",
+      "owners": {
+        "A": {
+          "instructions": 7534,
+          "active_instructions": 7533,
+          "elapsed_cycles": 60587,
+          "sync_wait_cycles": 21386,
+          "active_cycles": 39201,
+          "budget_margin_cycles": -9535,
+          "passes_strict_budget": false,
+          "event_path": {
+            "name": "nest composition",
+            "executions": 1,
+            "instructions": 1751,
+            "cycles": 9064,
+            "active_share_percent": 23.1
+          },
+          "sparse_actor_draws": 5
+        },
+        "B": {
+          "instructions": 7862,
+          "active_instructions": 7861,
+          "elapsed_cycles": 60126,
+          "sync_wait_cycles": 19576,
+          "active_cycles": 40550,
+          "budget_margin_cycles": -10884,
+          "passes_strict_budget": false,
+          "event_path": {
+            "name": "nest composition",
+            "executions": 1,
+            "instructions": 1751,
+            "cycles": 9064,
+            "active_share_percent": 22.4
+          },
+          "sparse_actor_draws": 5
+        }
+      }
+    },
+    "gate": {
+      "label": "gate diagonal transition",
+      "sequence": "A diagonal frame; B projected diagonal plus final gate frame",
+      "owners": {
+        "A": {
+          "instructions": 20288,
+          "active_instructions": 20287,
+          "elapsed_cycles": 119916,
+          "sync_wait_cycles": 22997,
+          "active_cycles": 96919,
+          "budget_margin_cycles": -67253,
+          "passes_strict_budget": false,
+          "event_path": {
+            "name": "gate composition",
+            "executions": 1,
+            "instructions": 14337,
+            "cycles": 66027,
+            "active_share_percent": 68.1
+          },
+          "sparse_actor_draws": 5
+        },
+        "B": {
+          "instructions": 37216,
+          "active_instructions": 37215,
+          "elapsed_cycles": 179904,
+          "sync_wait_cycles": 7600,
+          "active_cycles": 172304,
+          "budget_margin_cycles": -142638,
+          "passes_strict_budget": false,
+          "event_path": {
+            "name": "gate composition",
+            "executions": 2,
+            "instructions": 30994,
+            "cycles": 140296,
+            "active_share_percent": 81.4
+          },
+          "sparse_actor_draws": 5
+        }
+      }
+    },
+    "pickup": {
+      "label": "blue x5 pickup popup",
+      "sequence": "persistent popup presentation on both owners",
+      "owners": {
+        "A": {
+          "instructions": 8336,
+          "active_instructions": 8335,
+          "elapsed_cycles": 59773,
+          "sync_wait_cycles": 22442,
+          "active_cycles": 37331,
+          "budget_margin_cycles": -7665,
+          "passes_strict_budget": false,
+          "event_path": {
+            "name": "popup drawing",
+            "executions": 1,
+            "instructions": 3044,
+            "cycles": 11504,
+            "active_share_percent": 30.8
+          },
+          "sparse_actor_draws": 4
+        },
+        "B": {
+          "instructions": 8334,
+          "active_instructions": 8333,
+          "elapsed_cycles": 59964,
+          "sync_wait_cycles": 22640,
+          "active_cycles": 37324,
+          "budget_margin_cycles": -7658,
+          "passes_strict_budget": false,
+          "event_path": {
+            "name": "popup drawing",
+            "executions": 1,
+            "instructions": 3044,
+            "cycles": 11504,
+            "active_share_percent": 30.8
+          },
+          "sparse_actor_draws": 4
+        }
+      }
+    },
+    "death": {
+      "label": "death angel frame",
+      "sequence": "persistent angel presentation on both owners",
+      "owners": {
+        "A": {
+          "instructions": 7806,
+          "active_instructions": 7805,
+          "elapsed_cycles": 60002,
+          "sync_wait_cycles": 24736,
+          "active_cycles": 35266,
+          "budget_margin_cycles": -5600,
+          "passes_strict_budget": false,
+          "event_path": {
+            "name": "death-frame drawing",
+            "executions": 1,
+            "instructions": 2686,
+            "cycles": 10684,
+            "active_share_percent": 30.3
+          },
+          "sparse_actor_draws": 4
+        },
+        "B": {
+          "instructions": 7668,
+          "active_instructions": 7667,
+          "elapsed_cycles": 59353,
+          "sync_wait_cycles": 24705,
+          "active_cycles": 34648,
+          "budget_margin_cycles": -4982,
+          "passes_strict_budget": false,
+          "event_path": {
+            "name": "death-frame drawing",
+            "executions": 1,
+            "instructions": 2686,
+            "cycles": 10684,
+            "active_share_percent": 30.8
+          },
+          "sparse_actor_draws": 4
+        }
+      }
+    }
+  }
+}
