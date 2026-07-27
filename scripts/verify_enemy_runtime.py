@@ -168,6 +168,13 @@ for fragment in (
         raise SystemExit("enemy proof: sparse loader is incomplete: " + fragment)
 if "copy_enemy_sprites" in bootstrap:
     raise SystemExit("enemy proof: bootstrap still copies the packed enemy atlas")
+stage_clear = main[main.index("\ncheck_stage_clear\n"):
+                   main.index("\ndraw_hud\n")]
+for fragment in ("lda     DOTS_LEFT", "lda     BONUS_LEFT"):
+    if fragment not in stage_clear:
+        raise SystemExit("enemy proof: stage clear omits collectible: " + fragment)
+if "VEG_STATE" in stage_clear:
+    raise SystemExit("enemy proof: vegetable incorrectly gates stage clear")
 sprite_select = source[source.index("\nenemy_frame_number\n"):
                        source.index("\nplayer_draw_impl\n")]
 for fragment in ("cmpa    #9", "anda    #7", "cmpa    #5",

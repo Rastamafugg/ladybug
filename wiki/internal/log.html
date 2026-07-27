@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-07-27 &middot; correction/lint &mdash; vegetable excluded from stage completion</h3>
+      <p>Corrected the 2026-07-26 requirement interpretation: the centre vegetable is an optional bonus and never gates normal stage completion. <code>check_stage_clear</code> again depends only on remaining flowers and the six regular bonus circles, while the collected-vegetable nest-empty behavior remains unchanged. Updated the regression proof, game overview, and roadmap.</p>
+    </section>
+
+    <section>
       <h3>2026-07-26 &middot; profile/proof/lint &mdash; destination-delta four-enemy frame</h3>
       <p>Captured hot-cache horizontal four-enemy traces after both framebuffer owners were hydrated. Owner A costs 27,531 active cycles and owner B costs 28,067, passing the strict 29,666-cycle budget by 2,135/1,599 cycles while remaining above the 27,000-cycle engineering target. Four sparse enemy draws cost 8,800 cycles; segmented horizontal capture costs 3,062/3,050. Independent live BACK captures match 512/512 enemy framebuffer bytes, 512/512 enemy save-under bytes, and 128/128 player framebuffer/save-under bytes with no out-of-footprint writes; framebuffer SHA-256 is <code>f828503e85646af0d777e1142c833d8ad46ad91120cb7c2e8b74a2df0684a658</code>. Added a reusable verifier and PNG/JSON proof artifacts. Remaining acceptance work covers movement-plus-animation, gate, pickup, death, and distribution profiles.</p>
     </section>
