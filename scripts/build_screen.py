@@ -113,6 +113,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sprites", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--resident-output", type=Path, required=True)
+    parser.add_argument("--gate-output", type=Path, required=True)
     return parser.parse_args()
 
 
@@ -175,6 +176,244 @@ def strip_gate_pens(tile: bytes) -> bytes:
             low = BLACK
         result.append((high << 4) | low)
     return bytes(result)
+
+
+def blend_gate_tile(background: bytes, foreground: bytes) -> bytes:
+    """Blend a transparent gate tile over one native 4bpp background tile."""
+    result = bytearray()
+    for base, overlay in zip(background, foreground):
+        base_high, base_low = base >> 4, base & 0x0F
+        gate_high, gate_low = overlay >> 4, overlay & 0x0F
+        result.append(
+            ((gate_high or base_high) << 4) | (gate_low or base_low)
+        )
+    return bytes(result)
+
+
+def encode_gate_patch(patch: dict[int, int]) -> bytes:
+    """Encode gate-relative framebuffer runs with destination deltas."""
+    ordered = sorted(patch.items())
+    if not ordered:
+        raise ValueError("gate transition patch is empty")
+    runs: list[tuple[int, bytearray]] = []
+    for offset, value in ordered:
+        if runs and offset == runs[-1][0] + len(runs[-1][1]):
+            runs[-1][1].append(value)
+        else:
+            runs.append((offset, bytearray((value,))))
+
+    output = bytearray()
+    first_offset, first_values = runs[0]
+    if not -0x8000 <= first_offset <= 0x7FFF:
+        raise ValueError("gate transition initial offset exceeds signed 16 bits")
+    output.extend((
+        (first_offset >> 8) & 0xFF,
+        first_offset & 0xFF,
+        len(first_values),
+    ))
+    output.extend(first_values)
+    previous = first_offset + len(first_values)
+    for offset, values in runs[1:]:
+        delta = offset - previous
+        if not 0 < delta <= 0xFFFF:
+            raise ValueError("gate transition deltas must advance")
+        if delta <= 0xFE:
+            output.append(delta)
+        else:
+            output.extend((0, delta >> 8, delta & 0xFF))
+        output.append(len(values))
+        output.extend(values)
+        previous = offset + len(values)
+    output.append(0xFF)
+    return bytes(output)
+
+
+def compile_gate_transition_streams(
+    screen_map: list[int],
+    tiles: list[bytes],
+    gate_states: list[list[tuple[int, int, int]]],
+    gate_diagonals: list[list[tuple[int, int, int]]],
+    gate_backgrounds: list[list[int]],
+    gate_neighbors: list[int],
+    maze: dict[str, object],
+) -> tuple[bytes, list[dict[str, int]]]:
+    """Generate six gate-relative persistent-framebuffer patch streams."""
+    cross_offsets = (
+        (0, -2), (0, -1), (-2, 0), (-1, 0),
+        (0, 0), (1, 0), (0, 1),
+    )
+    dot_offsets = (
+        ((1, -1), (-1, 1)),
+        ((-1, -1), (1, 1)),
+    )
+    diagonal_offsets = {
+        (dx, dy)
+        for records in gate_diagonals
+        for dx, dy, _tile_id in records
+    }
+    transition_offsets = set(cross_offsets) | diagonal_offsets
+    gates = maze["gates"]
+    if not isinstance(gates, list):
+        raise ValueError("maze gates must be a list")
+
+    canonical: list[dict[int, int] | None] = [None] * 6
+    cases = [0] * 6
+
+    for gate_id, gate in enumerate(gates):
+        if not isinstance(gate, dict):
+            raise ValueError("maze gate record must be an object")
+        pivot_x, pivot_y = gate["pivot"]
+
+        def authored(position: tuple[int, int]) -> bytes:
+            x = pivot_x + position[0]
+            y = pivot_y + position[1]
+            return tiles[screen_map[y * SCREEN_WIDTH + x + 8]]
+
+        def clean(position: tuple[int, int]) -> bytes:
+            if position in cross_offsets:
+                index = cross_offsets.index(position)
+                return tiles[gate_backgrounds[gate_id][index]]
+            return authored(position)
+
+        def overlay(
+            image: dict[tuple[int, int], bytes],
+            overlay_gate_id: int,
+            state: int,
+        ) -> None:
+            other = gates[overlay_gate_id]
+            if not isinstance(other, dict):
+                raise ValueError("maze gate record must be an object")
+            other_x, other_y = other["pivot"]
+            for dx, dy, tile_id in gate_states[state & 1]:
+                position = (
+                    other_x + dx - pivot_x,
+                    other_y + dy - pivot_y,
+                )
+                image[position] = blend_gate_tile(
+                    image.get(position, authored(position)),
+                    tiles[tile_id],
+                )
+
+        def old_final(new_parity: int, neighbor_parity: int) -> dict[tuple[int, int], bytes]:
+            image = {position: clean(position) for position in transition_offsets}
+            overlay(image, gate_id, 1 - new_parity)
+            neighbor = gate_neighbors[gate_id]
+            if neighbor:
+                overlay(image, neighbor - 1, neighbor_parity)
+            return image
+
+        def diagonal(
+            new_parity: int,
+            style: int,
+            neighbor_parity: int,
+        ) -> dict[tuple[int, int], bytes]:
+            image = old_final(new_parity, neighbor_parity)
+            for position in cross_offsets:
+                image[position] = clean(position)
+            neighbor = gate_neighbors[gate_id]
+            if neighbor:
+                overlay(image, neighbor - 1, neighbor_parity)
+            for dx, dy, tile_id in gate_diagonals[style]:
+                image[(dx, dy)] = tiles[tile_id]
+            return image
+
+        def final(
+            source: dict[tuple[int, int], bytes],
+            new_parity: int,
+            neighbor_parity: int,
+        ) -> dict[tuple[int, int], bytes]:
+            image = dict(source)
+            for position in cross_offsets:
+                image[position] = clean(position)
+            overlay(image, gate_id, new_parity)
+            neighbor = gate_neighbors[gate_id]
+            if neighbor:
+                overlay(image, neighbor - 1, neighbor_parity)
+            return image
+
+        def flatten(image: dict[tuple[int, int], bytes]) -> dict[int, int]:
+            result: dict[int, int] = {}
+            for (cell_x, cell_y), tile in image.items():
+                for byte_index, value in enumerate(tile):
+                    row, column = divmod(byte_index, 4)
+                    offset = cell_y * 1280 + cell_x * 4 + row * 160 + column
+                    result[offset] = value
+            return result
+
+        neighbor_states = (0, 1) if gate_neighbors[gate_id] else (0,)
+        for new_parity in (0, 1):
+            for neighbor_parity in neighbor_states:
+                old = old_final(new_parity, neighbor_parity)
+                old_flat = flatten(old)
+                diagonal_images = []
+                for style in (0, 1):
+                    target = diagonal(new_parity, style, neighbor_parity)
+                    target_flat = flatten(target)
+                    patch = {
+                        offset: value
+                        for offset, value in target_flat.items()
+                        if old_flat.get(offset) != value
+                    }
+                    stream_id = new_parity * 2 + style
+                    if canonical[stream_id] is None:
+                        canonical[stream_id] = patch
+                    elif canonical[stream_id] != patch:
+                        raise ValueError(
+                            f"gate {gate_id} diagonal transition is not canonical"
+                        )
+                    cases[stream_id] += 1
+                    diagonal_images.append((style, target))
+
+                final_target = final(old, new_parity, neighbor_parity)
+                final_flat = flatten(final_target)
+                final_patch: dict[int, int] = {}
+                sources = [old]
+                for style, image in diagonal_images:
+                    restored = dict(image)
+                    for position in dot_offsets[style]:
+                        restored[position] = authored(position)
+                    sources.append(restored)
+                for source in sources:
+                    source_flat = flatten(source)
+                    for offset, value in final_flat.items():
+                        if source_flat.get(offset) != value:
+                            existing = final_patch.get(offset)
+                            if existing is not None and existing != value:
+                                raise ValueError(
+                                    f"gate {gate_id} final patch has conflicting values"
+                                )
+                            final_patch[offset] = value
+                stream_id = 4 + new_parity
+                if canonical[stream_id] is None:
+                    canonical[stream_id] = final_patch
+                elif canonical[stream_id] != final_patch:
+                    raise ValueError(
+                        f"gate {gate_id} final transition is not canonical"
+                    )
+                cases[stream_id] += 1
+
+    streams = [encode_gate_patch(patch) for patch in canonical if patch is not None]
+    if len(streams) != 6:
+        raise ValueError("gate transition generator did not produce six streams")
+    index_bytes = len(streams) * 2
+    payload = bytearray(b"\x00" * index_bytes)
+    manifest = []
+    for stream_id, stream in enumerate(streams):
+        offset = len(payload)
+        payload[stream_id * 2:stream_id * 2 + 2] = bytes(
+            (offset >> 8, offset & 0xFF)
+        )
+        payload.extend(stream)
+        manifest.append({
+            "stream": stream_id,
+            "kind": "diagonal" if stream_id < 4 else "final",
+            "parity": stream_id // 2 if stream_id < 4 else stream_id - 4,
+            "style": stream_id & 1 if stream_id < 4 else -1,
+            "offset": offset,
+            "length": len(stream),
+            "cases": cases[stream_id],
+        })
+    return bytes(payload), manifest
 
 
 def gime_rgb(code: int) -> tuple[int, int, int]:
@@ -673,12 +912,23 @@ def main() -> None:
                  multiplier_graphics)
     write_resident_include(args.resident_output, death_sprites,
                            vegetable_sprites)
+    maze = json.loads(args.maze.read_text(encoding="utf-8"))
+    gate_payload, gate_manifest = compile_gate_transition_streams(
+        screen_map, tiles, gate_states, gate_diagonals, gate_backgrounds,
+        gate_neighbors, maze,
+    )
+    args.gate_output.parent.mkdir(parents=True, exist_ok=True)
+    args.gate_output.write_bytes(gate_payload)
 
     data_bytes = (len(screen_map) + len(tiles) * 32 +
                   len(hud_digits) * 32 + len(object_masks) * 64 +
                   len(score_sprites) * 64 +
                   len(multiplier_graphics) * 32)
-    print(f"screen: {len(tiles)} unique tiles, {data_bytes} data bytes")
+    print(
+        f"screen: {len(tiles)} unique tiles, {data_bytes} data bytes, "
+        f"{len(gate_payload)} gate-transition bytes "
+        f"({sum(item['cases'] for item in gate_manifest)} verified cases)"
+    )
 
 
 if __name__ == "__main__":

@@ -2561,16 +2561,11 @@ gate_compose_impl
         ifne    PERSISTENT_FB
         tst     GATE_COMPOSE_MODE
         bne     gci_final
-        lda     RENDER_GATE_ID
-        deca
-        jsr     draw_gate_diagonal
+        jsr     draw_gate_transition
         bra     gci_done
 gci_final
         jsr     restore_gate_diagonal_dots
-        lda     RENDER_GATE_ID
-        deca
-        jsr     draw_gate
-        jsr     draw_gate_entities
+        jsr     draw_gate_transition
         else
         deca
         sta     GATE_WORK_ID

@@ -117,6 +117,8 @@ GATE_START_X   equ $0074       ; gate/entity redraw union, inclusive
 GATE_START_Y   equ $0075
 GATE_END_X     equ $0076
 GATE_END_Y     equ $0077
+GATE_TRANSITION_PAGE equ $39
+GATE_TRANSITION_PAYLOAD equ $A8F6
 RENDER_FLAGS   equ $007F       ; primary per-Vbord render intents
 RENDER_FLAGS2  equ $0080       ; secondary per-Vbord render intents
 RENDER_BOX_INDEX equ $0081     ; perimeter box snapshot
@@ -2475,6 +2477,86 @@ dgd_tile
         puls    x
         dec     DRAW_COUNT
         bne     dgd_tile
+        lbsr    draw_gate_entities
+        rts
+
+;==============================================================================
+; draw_gate_transition
+;
+; Inputs: RENDER_GATE_ID = gate ID+1; GATE_COMPOSE_MODE; RENDER_GATE_STYLE
+; Returns: A, B, D, X, Y, U, CC undefined
+; Side effects: applies one generated gate-relative byte-patch stream directly
+;               to persistent BACK, then redraws intersecting static entities.
+;==============================================================================
+draw_gate_transition
+        lda     RENDER_GATE_ID
+        deca
+        sta     GATE_ID
+        ldb     #3
+        mul
+        leax    maze_gates,pcr
+        leax    d,x
+        ldd     ,x
+        std     GATE_X
+
+        lda     GATE_Y
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
+        lda     GATE_X
+        adda    #8
+        lsla
+        lsla
+        leax    a,x
+
+        ldu     #GATE_STATE
+        ldb     GATE_ID
+        lda     b,u
+        anda    #1
+        tst     GATE_COMPOSE_MODE
+        bne     dgt_final
+        lsla
+        adda    RENDER_GATE_STYLE
+        bra     dgt_index
+dgt_final
+        adda    #4
+dgt_index
+        lsla
+        tfr     a,b
+        lda     #GATE_TRANSITION_PAGE
+        sta     PAR_EXEC+5
+        ldu     #GATE_TRANSITION_PAYLOAD
+        ldd     b,u
+        leau    d,u
+
+        ldd     ,u++
+        leax    d,x
+        bra     dgt_length
+dgt_token
+        ldb     ,u+
+        cmpb    #$FF
+        beq     dgt_done
+        tstb
+        beq     dgt_extended
+        abx
+dgt_length
+        ldb     ,u+
+dgt_store
+        lda     ,u+
+        sta     ,x+
+        decb
+        bne     dgt_store
+        bra     dgt_token
+dgt_extended
+        ldd     ,u++
+        leax    d,x
+        bra     dgt_length
+dgt_done
+        lda     #$34
+        sta     PAR_EXEC+5
         lbsr    draw_gate_entities
         rts
 

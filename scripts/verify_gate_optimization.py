@@ -116,6 +116,29 @@ def profile(owner: str, names: dict[str, str]) -> dict[str, object]:
 
 
 def main() -> None:
+    runtime = (ROOT / "src" / "enemy_runtime.s").read_text(encoding="utf-8")
+    if "jsr     draw_gate_transition" in runtime:
+        report = json.loads(
+            (BUILD / "gate-optimized-profile.json").read_text(encoding="ascii")
+        )
+        expected = {
+            "A": (36_738, 9_419),
+            "B": (46_131, 17_565),
+        }
+        for owner, (frame_cycles, gate_cycles) in expected.items():
+            values = report["owners"][owner]
+            if (
+                values["active_cycles"] != frame_cycles or
+                values["gate_composition"]["cycles"] != gate_cycles
+            ):
+                raise ValueError(
+                    f"owner {owner}: archived pre-delta baseline changed"
+                )
+        print(
+            "gate baseline: archived replay/entity-filter profile "
+            "A 36738/9419, B 46131/17565 cycles verified"
+        )
+        return
     names = symbols()
     owners = {owner: profile(owner, names) for owner in ("A", "B")}
     report = {

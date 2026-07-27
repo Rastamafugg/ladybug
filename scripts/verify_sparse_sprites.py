@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--enemy-runtime", type=Path, required=True)
     parser.add_argument("--enemy-payload", type=Path, required=True)
     parser.add_argument("--player-payload", type=Path, required=True)
+    parser.add_argument("--gate-payload", type=Path, required=True)
     parser.add_argument("--bank2", type=Path, required=True)
     parser.add_argument("--bank3", type=Path, required=True)
     parser.add_argument("--loader", type=Path, required=True)
@@ -220,6 +221,7 @@ def main() -> None:
     player_frames = compile_player_sprites(args.sprites)
     enemy_payload = args.enemy_payload.read_bytes()
     player_payload = args.player_payload.read_bytes()
+    gate_payload = args.gate_payload.read_bytes()
     enemy_ranges = decode_payload(enemy_payload, enemy_frames, 0x35)
     player_ranges = decode_payload(player_payload, player_frames, 0x39)
     bank2 = args.bank2.read_bytes()
@@ -239,6 +241,8 @@ def main() -> None:
         raise SystemExit("sparse proof: enemy manifest hash mismatch")
     if manifest["player"]["sha256"] != sha256(player_payload):
         raise SystemExit("sparse proof: player manifest hash mismatch")
+    if manifest["gate"]["sha256"] != sha256(gate_payload):
+        raise SystemExit("sparse proof: gate manifest hash mismatch")
     if manifest["gmc"]["bank2_sha256"] != sha256(bank2):
         raise SystemExit("sparse proof: bank-2 manifest hash mismatch")
     if manifest["gmc"]["bank3_sha256"] != sha256(bank3):
@@ -251,10 +255,12 @@ def main() -> None:
     reconstructed = {
         "enemy": bytearray(len(enemy_payload)),
         "player": bytearray(len(player_payload)),
+        "gate": bytearray(len(gate_payload)),
     }
     coverage = {
         "enemy": bytearray(len(enemy_payload)),
         "player": bytearray(len(player_payload)),
+        "gate": bytearray(len(gate_payload)),
     }
     source_coverage = {
         2: bytearray(CART_READABLE_BYTES),
@@ -293,9 +299,20 @@ def main() -> None:
         )
         target = segment["target"]
         target_offset = segment["target_offset"]
-        target_page_base = 0x35 if target == "enemy" else 0x39
-        expected_page = target_page_base + target_offset // PAGE_BYTES
-        expected_address = WINDOW_BASE + target_offset % PAGE_BYTES
+        if target == "enemy":
+            target_page_base = 0x35
+            target_address = WINDOW_BASE
+        elif target == "player":
+            target_page_base = 0x39
+            target_address = WINDOW_BASE
+        elif target == "gate":
+            target_page_base = 0x39
+            target_address = manifest["gate"]["address"]
+        else:
+            raise SystemExit(f"sparse proof: unknown loader target {target}")
+        absolute_offset = target_address - WINDOW_BASE + target_offset
+        expected_page = target_page_base + absolute_offset // PAGE_BYTES
+        expected_address = WINDOW_BASE + absolute_offset % PAGE_BYTES
         if (
             segment["destination_page"] != expected_page or
             segment["destination_address"] != expected_address
@@ -309,19 +326,25 @@ def main() -> None:
             raise SystemExit("sparse proof: target segment coverage overlaps")
         reconstructed[target][target_offset:destination_end] = source
         coverage[target][target_offset:destination_end] = b"\x01" * count
-    if not all(coverage["enemy"]) or not all(coverage["player"]):
+    if (
+        not all(coverage["enemy"]) or
+        not all(coverage["player"]) or
+        not all(coverage["gate"])
+    ):
         raise SystemExit("sparse proof: loader target coverage has gaps")
     if reconstructed["enemy"] != enemy_payload:
         raise SystemExit("sparse proof: loader does not reconstruct enemy payload")
     if reconstructed["player"] != player_payload:
         raise SystemExit("sparse proof: loader does not reconstruct player payload")
-    if manifest["gmc"]["spare_bytes"] != 2667:
+    if reconstructed["gate"] != gate_payload:
+        raise SystemExit("sparse proof: loader does not reconstruct gate payload")
+    if manifest["gmc"]["spare_bytes"] != 1835:
         raise SystemExit("sparse proof: unexpected CPU-readable GMC spare capacity")
 
     print(
         f"sparse proof: {len(enemy_ranges)} enemy and {len(player_ranges)} player "
         f"frames decode and blend pixel-exactly; {len(loader)} loader segments reconstruct "
-        f"both payloads with {manifest['gmc']['spare_bytes']} bytes spare"
+        f"actor and gate payloads with {manifest['gmc']['spare_bytes']} bytes spare"
     )
 
 

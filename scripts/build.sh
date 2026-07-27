@@ -11,6 +11,7 @@ SCREEN_INC="$BUILD_DIR/ladybug_screen.inc"
 RESIDENT_INC="$BUILD_DIR/ladybug_resident.inc"
 SPARSE_ENEMY="$BUILD_DIR/ladybug-enemy-sparse.bin"
 SPARSE_PLAYER="$BUILD_DIR/ladybug-player-sparse.bin"
+GATE_TRANSITIONS="$BUILD_DIR/ladybug-gate-transitions.bin"
 SPARSE_BANK2="$BUILD_DIR/ladybug-sparse-bank2.bin"
 SPARSE_BANK3="$BUILD_DIR/ladybug-sparse-bank3.bin"
 SPARSE_LOADER="$BUILD_DIR/ladybug-sparse-loader.inc"
@@ -119,7 +120,8 @@ cmd_build() {
         --chars "$ROOT/assets/arcade/chars.json" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --output "$SCREEN_INC" \
-        --resident-output "$RESIDENT_INC"
+        --resident-output "$RESIDENT_INC" \
+        --gate-output "$GATE_TRANSITIONS"
 
     lwasm -9 --format=raw \
           --output="$RUNTIME_ROM" \
@@ -142,7 +144,8 @@ wanted = {
     'draw_multiplier_hud', 'draw_perimeter_box', 'draw_player',
     'draw_recolored_map_tile', 'draw_score_popup', 'draw_screen',
     'erase_entity_footprints', 'perimeter_box_coordinates', 'save_player',
-    'draw_gate', 'draw_gate_diagonal', 'draw_gate_entities', 'draw_all_gates',
+    'draw_gate', 'draw_gate_diagonal', 'draw_gate_entities',
+    'draw_gate_transition', 'draw_all_gates',
     'draw_word_progress_hud', 'gate_redraw_neighbors',
     'gate_render_hidden', 'maze_gate_owner',
     'maze_gates', 'maze_nav',
@@ -175,6 +178,7 @@ PY
         --enemy-runtime "$ENEMY_ROM" \
         --enemy-output "$SPARSE_ENEMY" \
         --player-output "$SPARSE_PLAYER" \
+        --gate-input "$GATE_TRANSITIONS" \
         --bank2-output "$SPARSE_BANK2" \
         --bank3-output "$SPARSE_BANK3" \
         --loader-output "$SPARSE_LOADER" \
@@ -185,6 +189,7 @@ PY
         --enemy-runtime "$ENEMY_ROM" \
         --enemy-payload "$SPARSE_ENEMY" \
         --player-payload "$SPARSE_PLAYER" \
+        --gate-payload "$GATE_TRANSITIONS" \
         --bank2 "$SPARSE_BANK2" \
         --bank3 "$SPARSE_BANK3" \
         --loader "$SPARSE_LOADER" \

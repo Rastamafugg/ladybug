@@ -763,12 +763,35 @@ if [background.index(fragment) for fragment in background_order] != sorted(
 
 gate_compositor = source[source.index("\ngate_compose_impl\n"):
                          source.index("\ngate_compute_region\n")]
-for fragment in ("jsr     draw_gate_diagonal", "jsr     restore_gate_diagonal_dots",
-                 "jsr     draw_gate", "jsr     draw_gate_entities"):
+for fragment in ("jsr     restore_gate_diagonal_dots",
+                 "jsr     draw_gate_transition"):
     if fragment not in gate_compositor:
         raise SystemExit("enemy proof: persistent gate path is not background-only: " + fragment)
-if "jsr     draw_entities" in gate_compositor:
-    raise SystemExit("enemy proof: persistent gate path redraws every entity")
+for legacy in ("jsr     draw_gate_diagonal\n", "jsr     draw_gate\n",
+               "jsr     draw_gate_entities\n", "jsr     draw_entities\n"):
+    if legacy in gate_compositor:
+        raise SystemExit("enemy proof: persistent gate path retains legacy composition: " + legacy)
+
+gate_transition = main[
+    main.index("\ndraw_gate_transition\n"):
+    main.index("\nfinish_gate_animation\n")
+]
+for fragment in (
+    "ldu     #GATE_TRANSITION_PAYLOAD",
+    "lda     #GATE_TRANSITION_PAGE",
+    "sta     PAR_EXEC+5",
+    "leax    d,x",
+    "abx",
+    "sta     ,x+",
+    "lda     #$34",
+    "lbsr    draw_gate_entities",
+):
+    if fragment not in gate_transition:
+        raise SystemExit("enemy proof: gate transition decoder is incomplete: " + fragment)
+if gate_transition.index("sta     PAR_EXEC+5") > gate_transition.index(
+    "ldu     #GATE_TRANSITION_PAYLOAD"
+):
+    raise SystemExit("enemy proof: gate stream index is read before page mapping")
 
 damage_projection = source[source.index("\nframebuffer_project_damage\n"):
                            source.index("\nframebuffer_queue_damage\n")]
