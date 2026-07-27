@@ -721,6 +721,51 @@ check_stage_clear
 csc_done
         rts
 
+;==============================================================================
+; draw_word_progress_hud
+;
+; Inputs: SPECIAL_BITS, EXTRA_BITS
+; Returns: A, B, X, Y, U, CC undefined
+; Side effects: redraws every collected SPECIAL/EXTRA letter in the HUD
+;==============================================================================
+draw_word_progress_hud
+        lda     SPECIAL_BITS
+        sta     HUD_BYTE
+        lda     #1
+        sta     HUD_X
+dwph_special
+        lsr     HUD_BYTE
+        bcc     dwph_special_next
+        lda     #1
+        sta     HUD_Y
+        lda     #COLOR_RED
+        sta     HUD_COLOR
+        lbsr    draw_recolored_map_tile
+dwph_special_next
+        inc     HUD_X
+        lda     HUD_X
+        cmpa    #8
+        blo     dwph_special
+
+        lda     EXTRA_BITS
+        sta     HUD_BYTE
+        lda     #1
+        sta     HUD_X
+dwph_extra
+        lsr     HUD_BYTE
+        bcc     dwph_extra_next
+        lda     #4
+        sta     HUD_Y
+        lda     #COLOR_YELLOW
+        sta     HUD_COLOR
+        lbsr    draw_recolored_map_tile
+dwph_extra_next
+        inc     HUD_X
+        lda     HUD_X
+        cmpa    #6
+        blo     dwph_extra
+        rts
+
 draw_hud
         lda     #2
         sta     HUD_Y

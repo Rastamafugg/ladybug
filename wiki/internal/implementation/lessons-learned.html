@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Stage rebuilds must reapply session-persistent HUD state</h2>
+      <p>The static stage image replaced persistent SPECIAL/EXTRA highlights with Grey source tiles even though their logical bits survived the transition.</p>
+      <p><strong>Rule:</strong> after drawing the static HUD, redraw every session-persistent field from its logical state. Treat authored HUD tiles as the unlit baseline.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>fri_stage_background</code> and <code>src/main.s</code> <code>draw_word_progress_hud</code>.</p>
+    </section>
+
+    <section>
       <h2>Stage rebuilds must reapply runtime gate state</h2>
       <p>The static TMX image and the generated runtime gate overlays were separate representations. A stage rebuild exposed incorrectly oriented authored gate sections until the player rotated those gates.</p>
       <p><strong>Rule:</strong> after drawing a static stage image, redraw every gate from <code>GATE_STATE</code>. Treat the static map as gate background, not authoritative dynamic state.</p>

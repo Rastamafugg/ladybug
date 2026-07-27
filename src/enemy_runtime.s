@@ -821,6 +821,7 @@ fri_stage_background
         jsr     draw_all_gates
         jsr     draw_entities
         jsr     draw_hud
+        jsr     draw_word_progress_hud
         jsr     draw_lives
         lbsr    enemy_render_impl
         ifeq    PERSISTENT_FB
