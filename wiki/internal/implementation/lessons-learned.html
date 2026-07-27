@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Respawn must invalidate every framebuffer owner's actor history</h2>
+      <p>Changing the player position at the end of the death sequence left both persistent framebuffer ledgers marked with valid save-under history from the prior life. Alternating owners could therefore restore stale player rectangles during the replacement life.</p>
+      <p><strong>Rule:</strong> when an actor teleports or is recreated, clear its global validity and every buffer-local validity record before the new position is drawn.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>dt_finish_blank</code> and the A/B player metadata at <code>FB_META_A</code>/<code>FB_META_B</code>.</p>
+    </section>
+
+    <section>
       <h2>Stage rebuilds must reapply session-persistent HUD state</h2>
       <p>The static stage image replaced persistent SPECIAL/EXTRA highlights with Grey source tiles even though their logical bits survived the transition.</p>
       <p><strong>Rule:</strong> after drawing the static HUD, redraw every session-persistent field from its logical state. Treat authored HUD tiles as the unlit baseline.</p>

@@ -28,6 +28,11 @@
     </section>
 
     <section>
+      <h3>2026-07-26 &middot; implementation/lint &mdash; collectible, nest, gate, word, and respawn corrections</h3>
+      <p>Corrected five playtest defects: verified that the centre vegetable remains optional for stage clear; collecting it with four active enemies leaves the nest empty until an enemy death or reset restores the dormant actor; full stage rendering reapplies all gates from canonical runtime state; SPECIAL/EXTRA bits and highlights persist across stages while the multiplier alone resets; and player respawn invalidates both framebuffer owners&rsquo; stale save-under metadata. Updated the game overview, roadmap, and lessons learned. Full GMC and enemy-runtime verification, sparse payload reconstruction, and arcade-fidelity checks pass at 7,193/8,192 resident bytes, 7,432/7,680 asset bytes, and 4,022/4,096 bank-3 bytes.</p>
+    </section>
+
+    <section>
       <h3>2026-07-26 &middot; profile/proof/lint &mdash; destination-delta four-enemy frame</h3>
       <p>Captured hot-cache horizontal four-enemy traces after both framebuffer owners were hydrated. Owner A costs 27,531 active cycles and owner B costs 28,067, passing the strict 29,666-cycle budget by 2,135/1,599 cycles while remaining above the 27,000-cycle engineering target. Four sparse enemy draws cost 8,800 cycles; segmented horizontal capture costs 3,062/3,050. Independent live BACK captures match 512/512 enemy framebuffer bytes, 512/512 enemy save-under bytes, and 128/128 player framebuffer/save-under bytes with no out-of-footprint writes; framebuffer SHA-256 is <code>f828503e85646af0d777e1142c833d8ad46ad91120cb7c2e8b74a2df0684a658</code>. Added a reusable verifier and PNG/JSON proof artifacts. Remaining acceptance work covers movement-plus-animation, gate, pickup, death, and distribution profiles.</p>
     </section>

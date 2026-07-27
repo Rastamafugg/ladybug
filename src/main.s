@@ -213,6 +213,9 @@ ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
 ENEMY_FB    equ $57EC          ; top-left at lower nest cell (12,12)
 ENEMY_TABLE equ $A470          ; four 8-byte active enemy records
 ENEMY_ZONE_BG equ $A490        ; 256-byte clean 16-by-32 nest background
+FB_META_A   equ $A900          ; A framebuffer ownership ledger
+FB_META_B   equ $AA00          ; B framebuffer ownership ledger
+FBM_PLAYER_VALID equ 2
 
 ENEMY_MODULE_INIT    equ $0800
 ENEMY_MODULE_TICK    equ $0803
@@ -2878,6 +2881,9 @@ dt_finish_blank
         beq     dt_game_over
         deca
         sta     LIVES
+        clr     PLAYER_BG_VALID
+        clr     FB_META_A+FBM_PLAYER_VALID
+        clr     FB_META_B+FBM_PLAYER_VALID
         lbsr    init_player
         clr     DEATH_STATE
         lda     RENDER_FLAGS

@@ -177,6 +177,13 @@ for fragment in ("lda     DOTS_LEFT", "lda     BONUS_LEFT"):
         raise SystemExit("enemy proof: stage clear omits collectible: " + fragment)
 if "VEG_STATE" in stage_clear:
     raise SystemExit("enemy proof: vegetable incorrectly gates stage clear")
+respawn = main[main.index("\ndt_finish_blank\n"):
+               main.index("\ndt_game_over\n")]
+for fragment in ("clr     PLAYER_BG_VALID",
+                 "clr     FB_META_A+FBM_PLAYER_VALID",
+                 "clr     FB_META_B+FBM_PLAYER_VALID"):
+    if fragment not in respawn:
+        raise SystemExit("enemy proof: respawn retains player history: " + fragment)
 nest = source[source.index("\ncompose_enemy_zone\n"):
               source.index("\nplayer_compose_impl\n")]
 for fragment in ("cmpa    #2", "lda     ENEMY_ACTIVE",
