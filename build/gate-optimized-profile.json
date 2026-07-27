@@ -1,0 +1,62 @@
+{
+  "captured": "2026-07-27",
+  "hardware_budget_cycles": 29666,
+  "scenario": "four horizontal roaming enemies; A draws gate-0 diagonal; B coalesces the queued diagonal and draws the same gate final",
+  "optimization": "same-gate final replay coalescing plus gate-union entity filtering",
+  "baseline": {
+    "A": {
+      "active_cycles": 96919,
+      "gate_cycles": 66027,
+      "gate_calls": 1
+    },
+    "B": {
+      "active_cycles": 172304,
+      "gate_cycles": 140296,
+      "gate_calls": 2
+    }
+  },
+  "owners": {
+    "A": {
+      "instructions": 6918,
+      "active_instructions": 6917,
+      "active_cycles": 36738,
+      "budget_margin_cycles": -7072,
+      "passes_strict_budget": false,
+      "gate_composition": {
+        "calls": 1,
+        "instructions": 1618,
+        "cycles": 9419
+      },
+      "improvement": {
+        "frame_cycles_saved": 60181,
+        "frame_percent": 62.1,
+        "gate_cycles_saved": 56608,
+        "gate_percent": 85.7,
+        "gate_calls_removed": 0
+      }
+    },
+    "B": {
+      "instructions": 9521,
+      "active_instructions": 9520,
+      "active_cycles": 46131,
+      "budget_margin_cycles": -16465,
+      "passes_strict_budget": false,
+      "gate_composition": {
+        "calls": 1,
+        "instructions": 3923,
+        "cycles": 17565
+      },
+      "improvement": {
+        "frame_cycles_saved": 126173,
+        "frame_percent": 73.2,
+        "gate_cycles_saved": 122731,
+        "gate_percent": 87.5,
+        "gate_calls_removed": 1
+      }
+    }
+  },
+  "artifacts": {
+    "owner_a_trace": "build/gate-opt-owner-a.trace",
+    "owner_b_trace": "build/gate-opt-owner-b.trace"
+  }
+}

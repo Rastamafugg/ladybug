@@ -28,6 +28,7 @@
       <h2>Persistent damage replay can multiply transient renderer cost</h2>
       <p>A gate diagonal is a persistent background mutation. The first BACK owner draws it and queues coverage for the alternate owner. On the following frame, that owner must replay the diagonal before drawing the current final gate, producing two full gate compositions in one transaction. The measured event work is 66,027 cycles on the first owner and 140,296 cycles on the second.</p>
       <p><strong>Rule:</strong> budget a transient background effect across both framebuffer owners. A renderer that is acceptable once may still fail when damage projection and the next logical phase coincide. Prefer compact retained gate state or bounded footprint primitives that can project the final state directly.</p>
+      <p><strong>Resolution 2026-07-27:</strong> when the current epoch draws the same gate&rsquo;s authoritative final state, discard that BACK owner&rsquo;s queued diagonal before projection. The final compositor restores the complete affected union, so replaying the transient first has no visible value. Redraw only static entities whose 16&times;16 footprints intersect the gate-plus-neighbour union; a global entity pass multiplied the bounded gate mutation by every collectible on the stage.</p>
       <p><strong>Citation:</strong> controlled gate traces in <code>build/remaining-gate-owner-a.trace</code>/<code>build/remaining-gate-owner-b.trace</code> and <code>wiki/internal/platform/timing.html</code>.</p>
     </section>
 

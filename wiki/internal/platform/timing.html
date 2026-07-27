@@ -627,6 +627,27 @@
         preserves logical order by freezing simulation until commit, but it
         does not satisfy the strict one-commit-per-Vbord objective.
       </p>
+      <h3>Gate replay and entity redraw optimization &mdash; 2026-07-27</h3>
+      <p>
+        A controlled repeat with the same four horizontal enemies coalesces a
+        queued diagonal when the current epoch already draws the same
+        gate&rsquo;s final state. Gate composition now redraws only static
+        entities whose 16&times;16 footprints intersect the gate and its
+        visual neighbour. Owner A falls from 96,919 to 36,738 active cycles,
+        saving 60,181 or 62.1%; its gate path falls from 66,027 to 9,419.
+        Owner B falls from 172,304 to 46,131, saving 126,173 or 73.2%; its
+        gate path falls from two compositions totalling 140,296 cycles to one
+        17,565-cycle final composition. Neither trace enters the global entity
+        renderer.
+      </p>
+      <p>
+        Replay multiplication is removed, but strict 60 Hz still fails by
+        7,072 cycles on A and 16,465 on B. The remaining work is cell
+        composition itself: A restores seven contextual cells and draws seven
+        diagonal cells, while B restores contextual/dot cells and performs
+        five transparent gate-tile blends. A generated opaque final-cell or
+        transition-delta representation is the next gate-specific target.
+      </p>
       <p>
         <strong>Strict-60-Hz architecture designed 2026-07-23:</strong>
         the <a href="../implementation/ping-pong-framebuffer.html">persistent

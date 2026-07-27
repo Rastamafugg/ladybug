@@ -764,9 +764,36 @@ if [background.index(fragment) for fragment in background_order] != sorted(
 gate_compositor = source[source.index("\ngate_compose_impl\n"):
                          source.index("\ngate_compute_region\n")]
 for fragment in ("jsr     draw_gate_diagonal", "jsr     restore_gate_diagonal_dots",
-                 "jsr     draw_gate", "jsr     draw_entities"):
+                 "jsr     draw_gate", "jsr     draw_gate_entities"):
     if fragment not in gate_compositor:
         raise SystemExit("enemy proof: persistent gate path is not background-only: " + fragment)
+if "jsr     draw_entities" in gate_compositor:
+    raise SystemExit("enemy proof: persistent gate path redraws every entity")
+
+damage_projection = source[source.index("\nframebuffer_project_damage\n"):
+                           source.index("\nframebuffer_queue_damage\n")]
+for fragment in (
+    "cmpa    FBM_PENDING_INTENTS+9,u",
+    "clr     FBM_PENDING_INTENTS+9,u",
+    "cmpa    FBM_PENDING_INTENTS+11,u",
+    "clr     FBM_PENDING_INTENTS+11,u",
+):
+    if fragment not in damage_projection:
+        raise SystemExit("enemy proof: same-gate final replay coalescing is missing")
+
+gate_entity_filter = main[
+    main.index("\ndraw_gate_entities\n"):
+    main.index("\ngate_cross_offsets\n")
+]
+for fragment in (
+    "cmpa    GATE_START_X",
+    "cmpa    GATE_END_X",
+    "cmpa    GATE_START_Y",
+    "cmpa    GATE_END_Y",
+    "lbsr    draw_entity_object",
+):
+    if fragment not in gate_entity_filter:
+        raise SystemExit("enemy proof: gate entity-footprint filter is incomplete")
 
 ownership_init = source[source.index("\nframebuffer_init_impl\n"):
                         source.index("\nframebuffer_prepare_back\n")]

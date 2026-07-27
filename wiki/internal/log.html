@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-07-27 &middot; implementation/profile/lint &mdash; gate replay coalescing and bounded entity redraw</h3>
+      <p>Discarded a queued diagonal when the current epoch already renders the same gate&rsquo;s authoritative final state, and replaced the gate compositor&rsquo;s global static-entity redraw with a gate-plus-neighbour footprint filter. A controlled four-enemy repeat reduces owner A from 96,919 to 36,738 active cycles and owner B from 172,304 to 46,131; gate work falls from 66,027/140,296 to 9,419/17,565, B executes one composition instead of two, and neither trace enters <code>draw_entities</code>. Full GMC, enemy-runtime, arcade-fidelity, trace, and link proofs pass at 7,350/8,192 resident bytes and 4,066/4,096 bank-3 bytes. Both gate frames remain over strict budget, leaving opaque or transition-delta gate-cell composition as the next target.</p>
+    </section>
+
+    <section>
       <h3>2026-07-27 &middot; implementation/lint &mdash; enforce LF for WSL shell scripts</h3>
       <p>Added a repository <code>.gitattributes</code> rule declaring <code>*.sh text eol=lf</code> after Windows Git checked out <code>scripts/build.sh</code> with a <code>bash\r</code> shebang under global <code>core.autocrlf=true</code>. Renormalized the active build script and verified direct WSL execution.</p>
     </section>

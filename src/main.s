@@ -113,6 +113,10 @@ PLAYER_ERASED equ $0069        ; nonzero after old player background is exposed
 PLAYER_BG_VALID equ $006A      ; PLAYER_BG_PTR contains restorable pixels
 PLAYER_TICK_PENDING equ $006B  ; nonzero when next Vbord must update/render player
 GATE_COMPOSE_MODE equ $006F    ; 0=diagonal intermediate, 1=final gate state
+GATE_START_X   equ $0074       ; gate/entity redraw union, inclusive
+GATE_START_Y   equ $0075
+GATE_END_X     equ $0076
+GATE_END_Y     equ $0077
 RENDER_FLAGS   equ $007F       ; primary per-Vbord render intents
 RENDER_FLAGS2  equ $0080       ; secondary per-Vbord render intents
 RENDER_BOX_INDEX equ $0081     ; perimeter box snapshot
@@ -2471,7 +2475,7 @@ dgd_tile
         puls    x
         dec     DRAW_COUNT
         bne     dgd_tile
-        lbsr    draw_entities
+        lbsr    draw_gate_entities
         rts
 
 ; Complete the pending one-Vbord diagonal frame before this frame's movement.
@@ -2565,6 +2569,104 @@ rgdd_draw
         puls    x
         dec     DRAW_COUNT
         bne     rgdd_cell
+        rts
+
+;==============================================================================
+; draw_gate_entities
+;
+; Inputs: RENDER_GATE_ID = gate ID+1; ENTITY_TABLE/ENTITY_COUNT
+; Returns: A, B, D, X, Y, U, CC undefined
+; Side effects: redraws only static objects intersecting the restored
+;               current-gate plus visual-neighbour union.
+;==============================================================================
+draw_gate_entities
+        lda     RENDER_GATE_ID
+        deca
+        pshs    a
+        ldb     #3
+        mul
+        leax    maze_gates,pcr
+        leax    d,x
+        lda     ,x
+        suba    #2
+        sta     GATE_START_X
+        lda     ,x
+        inca
+        sta     GATE_END_X
+        lda     1,x
+        suba    #2
+        sta     GATE_START_Y
+        lda     1,x
+        inca
+        sta     GATE_END_Y
+
+        puls    b
+        leax    gate_redraw_neighbors,pcr
+        lda     b,x
+        beq     dge_scan
+        deca
+        ldb     #3
+        mul
+        leax    maze_gates,pcr
+        leax    d,x
+        lda     ,x
+        suba    #2
+        cmpa    GATE_START_X
+        bhs     dge_neighbor_end_x
+        sta     GATE_START_X
+dge_neighbor_end_x
+        lda     ,x
+        inca
+        cmpa    GATE_END_X
+        bls     dge_neighbor_start_y
+        sta     GATE_END_X
+dge_neighbor_start_y
+        lda     1,x
+        suba    #2
+        cmpa    GATE_START_Y
+        bhs     dge_neighbor_end_y
+        sta     GATE_START_Y
+dge_neighbor_end_y
+        lda     1,x
+        inca
+        cmpa    GATE_END_Y
+        bls     dge_scan
+        sta     GATE_END_Y
+
+dge_scan
+        ldx     #ENTITY_TABLE
+        lda     ENTITY_COUNT
+        sta     ENTITY_WORK
+dge_loop
+        stx     ENTITY_PTR
+        lda     2,x
+        beq     dge_next
+        lda     ,x
+        cmpa    GATE_START_X
+        blo     dge_next
+        deca
+        cmpa    GATE_END_X
+        bhi     dge_next
+        lda     1,x
+        cmpa    GATE_START_Y
+        blo     dge_next
+        deca
+        cmpa    GATE_END_Y
+        bhi     dge_next
+        lda     ,x
+        sta     ENTITY_X
+        lda     1,x
+        sta     ENTITY_Y
+        lda     2,x
+        sta     ENTITY_TYPE
+        lda     3,x
+        sta     ENTITY_VARIANT
+        lbsr    draw_entity_object
+dge_next
+        ldx     ENTITY_PTR
+        leax    4,x
+        dec     ENTITY_WORK
+        bne     dge_loop
         rts
 
 gate_cross_offsets

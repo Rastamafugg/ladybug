@@ -544,6 +544,25 @@ framebuffer_project_damage
         lbsr    framebuffer_back_meta
         tst     FBM_DAMAGE,u
         beq     fbpd_done
+        ; The current final state fully replaces this owner's queued diagonal
+        ; for the same gate.  Do not replay a historical transient immediately
+        ; before drawing the authoritative final state.
+        tst     RENDER_GATE_MODE
+        beq     fbpd_save_current
+        lda     RENDER_GATE_ID
+        beq     fbpd_save_current
+        cmpa    FBM_PENDING_INTENTS+9,u
+        bne     fbpd_second_gate
+        clr     FBM_PENDING_INTENTS+9,u
+        clr     FBM_PENDING_INTENTS+10,u
+        clr     FBM_PENDING_INTENTS+13,u
+fbpd_second_gate
+        cmpa    FBM_PENDING_INTENTS+11,u
+        bne     fbpd_save_current
+        clr     FBM_PENDING_INTENTS+11,u
+        clr     FBM_PENDING_INTENTS+12,u
+        clr     FBM_PENDING_INTENTS+14,u
+fbpd_save_current
         lda     PLAYER_ERASED
         pshs    a
         clr     PLAYER_ERASED
@@ -2551,7 +2570,7 @@ gci_final
         lda     RENDER_GATE_ID
         deca
         jsr     draw_gate
-        jsr     draw_entities
+        jsr     draw_gate_entities
         else
         deca
         sta     GATE_WORK_ID
