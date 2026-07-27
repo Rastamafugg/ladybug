@@ -2287,6 +2287,26 @@ draw_gate
 dg_done
         rts
 
+;==============================================================================
+; draw_all_gates
+;
+; Inputs: GATE_STATE
+; Returns: A, B, D, X, Y, U, CC undefined
+; Side effects: replaces authored gate pixels with canonical runtime overlays
+;==============================================================================
+draw_all_gates
+        clr     GATE_ID
+dag_loop
+        lda     GATE_ID
+        pshs    a
+        lbsr    draw_gate
+        puls    a
+        inca
+        sta     GATE_ID
+        cmpa    #MAZE_GATE_COUNT
+        blo     dag_loop
+        rts
+
 ; Restore the seven contextual cells without drawing dynamic gate art.
 restore_gate_background
         sta     GATE_ID

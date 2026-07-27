@@ -818,6 +818,7 @@ rpr_box
 
 fri_stage_background
         jsr     draw_screen
+        jsr     draw_all_gates
         jsr     draw_entities
         jsr     draw_hud
         jsr     draw_lives

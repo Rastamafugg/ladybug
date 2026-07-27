@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Stage rebuilds must reapply runtime gate state</h2>
+      <p>The static TMX image and the generated runtime gate overlays were separate representations. A stage rebuild exposed incorrectly oriented authored gate sections until the player rotated those gates.</p>
+      <p><strong>Rule:</strong> after drawing a static stage image, redraw every gate from <code>GATE_STATE</code>. Treat the static map as gate background, not authoritative dynamic state.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>fri_stage_background</code> and <code>src/main.s</code> <code>draw_all_gates</code>.</p>
+    </section>
+
+    <section>
       <h2>Keep sparse control data always mapped; scope payload mappings to one decode</h2>
       <p>The original three-byte sparse index lived at the start of each PAR5 payload and required mapping the index page before mapping the selected stream page. Mirroring the 384-byte enemy and 48-byte player indexes into free PAR0 low RAM removes that first mapping and its direct-page page scratch.</p>
       <p><strong>Rule:</strong> mirror small, read-only dispatch metadata into an always-mapped page when its payload must be banked. Restore the banked window at the decoder terminator, not through a second wrapper call. Do not retain the payload mapping across callers that access state owned by the displaced page.</p>

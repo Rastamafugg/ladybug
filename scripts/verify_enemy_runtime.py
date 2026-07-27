@@ -96,6 +96,7 @@ required = [
     "roam_copy_fb_to_bg",
     "roam_update_background",
     "roam_capture_ring_row",
+    "jsr     draw_all_gates",
 ]
 missing = [fragment for fragment in required if fragment not in source]
 if missing:
