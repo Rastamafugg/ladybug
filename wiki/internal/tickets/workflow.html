@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket Workflow — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./template.html">Template</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · work management</p>
+      <h1>Ticket Workflow <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">From conversation intake through approval, delegation, integration, and closure.</p>
+    </header>
+
+    <section>
+      <h2>Principles</h2>
+      <ul>
+        <li>The ticket page is the canonical work contract; conversation explains and approves it.</li>
+        <li>The roadmap defines milestones; the ticket index defines executable order.</li>
+        <li>Approval fixes outcome, scope, targets, and acceptance criteria. Assignment adds execution detail without changing them.</li>
+        <li>Measured, projected, historical, and required values must be labeled separately and tied to a source revision or artifact.</li>
+        <li>Implementation completion is not acceptance. Failed targets remain failed and produce a linked follow-up or a return to <code>Ready</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Lifecycle</h2>
+      <ol>
+        <li><strong>Draft:</strong> intake exists, but requirements or evidence are incomplete.</li>
+        <li><strong>Proposed:</strong> approval brief is complete and awaits explicit user approval.</li>
+        <li><strong>Approved:</strong> the user approved outcome, scope, targets, and acceptance criteria.</li>
+        <li><strong>Ready:</strong> dependencies, design, owned artifacts, commands, evidence, and commit boundaries are complete.</li>
+        <li><strong>In Progress:</strong> one owner is executing the assignment contract.</li>
+        <li><strong>Verification:</strong> implementation is complete and the QA role is evaluating current-revision evidence.</li>
+        <li><strong>Done:</strong> all required criteria pass, evidence and commits are recorded, and integration is complete.</li>
+      </ol>
+      <p>
+        <code>Blocked</code> records a concrete external dependency or repeated impasse;
+        <code>Deferred</code> preserves valid work outside the current plan;
+        <code>Rejected</code> records a declined proposal and rationale; and
+        <code>Superseded</code> links to the replacement ticket. Side states must not
+        erase evidence or decision history.
+      </p>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <p>The approval response and proposed ticket must contain:</p>
+      <ul>
+        <li>direct recommendation and intended outcome;</li>
+        <li>why the work matters now and how it fits the roadmap;</li>
+        <li>observed baseline with source revision and evidence artifact;</li>
+        <li>in-scope and out-of-scope boundaries;</li>
+        <li>normal scenarios, rare paths, edge cases, replay/integration cases, and failure modes;</li>
+        <li>options, tradeoffs, rejected alternatives, dependencies, ordering, risks, and capacity implications;</li>
+        <li>target improvement and exact success measurements;</li>
+        <li>what user decision advances the ticket to <code>Approved</code>.</li>
+      </ul>
+      <p>
+        Before the first response table, define labels and terminology, units,
+        baseline, target, margin formula, scenario or owner names, aggregation method,
+        evidence freshness, and pass/fail thresholds. For example, state whether a
+        cycle figure is a complete-frame maximum or a projected subroutine saving
+        before displaying either value in a table.
+      </p>
+    </section>
+
+    <section>
+      <h2>Assignment and subagent contract</h2>
+      <p>
+        Assignment begins only from a <code>Ready</code> ticket. The assignment repeats
+        the approved objective and acceptance criteria, then adds exact files,
+        ownership boundaries, worktree or branch, constraints, required commands,
+        retained evidence, wiki updates, separate commit requirement, and completion
+        report format. It must explicitly prohibit scope drift.
+      </p>
+      <ul>
+        <li>Give one subagent one bounded ticket or independently committable step.</li>
+        <li>Do not parallelize unresolved dependencies or shared writable files without a named integration owner and conflict plan.</li>
+        <li>Require periodic reports of current measurement versus target, not only activity summaries.</li>
+        <li>Require rejected experiments and regressions to be reported and reverted before commit.</li>
+        <li>Require a separate commit with tests, evidence, capacity, residual risk, and target result.</li>
+        <li>Do not let subagents push or close tickets unless the assignment explicitly grants that authority.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Integration and verification</h2>
+      <ul>
+        <li>Inspect and integrate each delegated commit separately.</li>
+        <li>Regenerate maps, binaries, traces, and reports from combined source; never resolve generated artifacts by selecting a stale side.</li>
+        <li>Recheck combined memory, payload, stack, direct-page, and other hard capacity limits.</li>
+        <li>Force required rare paths. Missing required scenarios fail verification.</li>
+        <li>Test natural replay, alternating ownership, cadence coupling, and other sequences that isolated forcing can conceal.</li>
+        <li>Report hardware, engineering, behavioral, diagnostic, and capacity targets independently.</li>
+        <li>Keep temporary captures untracked unless the ticket names them as retained evidence.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Conversation response forms</h2>
+      <h3>Approval response</h3>
+      <ol>
+        <li>State the recommendation and decision required.</li>
+        <li>Define terminology, units, scenarios, baselines, targets, margins, and evidence before any table.</li>
+        <li>Summarize current evidence and why work is needed.</li>
+        <li>List each proposed item with work, intended improvement, success measurement, dependencies/order, risks, and exclusions.</li>
+        <li>Explain alternatives and identify what approval authorizes.</li>
+      </ol>
+      <h3>Assignment message</h3>
+      <ol>
+        <li>Name and link the <code>Ready</code> ticket; repeat the approved objective and non-goals.</li>
+        <li>Assign exact artifacts, ownership boundary, worktree/branch, and dependency position.</li>
+        <li>Specify implementation constraints, required scenarios, targets, commands, evidence, and wiki updates.</li>
+        <li>Require one bounded commit and a completion report containing result versus target, tests, capacity, rejected experiments, and residual risk.</li>
+      </ol>
+      <h3>Progress and completion response</h3>
+      <ol>
+        <li>Report current measured result versus target, completed evidence, remaining work, and concrete blockers.</li>
+        <li>At completion, distinguish implementation success from acceptance, state the justified lifecycle transition, and identify any follow-up ticket.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Ticket maintenance</h2>
+      <p>
+        Every lifecycle transition adds a dated decision-log entry. Update the ticket
+        index status, priority, order, and dependencies in the same change. Completion
+        records commit hashes, commands, evidence links, measured results, rejected
+        experiments, residual risks, capacity changes, and the QA verdict. Append a
+        corresponding entry to the project log.
+      </p>
+      <p>
+        Any material change to an approved outcome, scope, target, acceptance
+        criterion, dependency order, or risk profile returns the ticket to
+        <code>Proposed</code> for renewed approval. Completed, rejected, deferred, and
+        superseded tickets remain indexed as history; they are never deleted merely
+        to keep the active queue short.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>This workflow is enforced by <code>AGENTS.md</code> and the role skills under <code>.agents/skills/</code>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

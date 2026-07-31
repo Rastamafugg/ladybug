@@ -15,6 +15,9 @@ Determine and state explicitly:
 2. **The scope boundaries** — what is in and out of scope.
 3. **The affected code, docs, scripts, and workflow artifacts** — concrete files/paths.
 4. **The most appropriate next role** — using the routing criteria below.
+5. **The ticket disposition** — identify an existing ticket, create a `Draft`/`Proposed` ticket for substantive new work, or state why the request is a minor query that needs no ticket.
+
+Consult [the ticket workflow](../../../wiki/internal/tickets/workflow.html) and [active ticket index](../../../wiki/internal/tickets/index.html) before routing. Do not duplicate an existing ticket; update it or link the relationship.
 
 ## Step 2 — Route
 
@@ -30,7 +33,9 @@ Pick exactly one next role:
 
 - If the task would introduce a new abstraction, helper module, protocol, workflow change, or architectural refactor that the user did not explicitly request, **obtain approval before implementation**.
 - After any implementation task, finish in `qa-reviewer`.
+- Do not route implementation until the canonical ticket is `Approved` and its dependencies, assignment contract, and verification plan make it `Ready`.
+- When several tickets are candidates, state their dependency order and select the highest-ordered ready item. Parallel delegation requires independent scope and non-overlapping writable artifacts.
 
 ## Output of this role
 
-A short classification block naming objective, scope, affected artifacts, and the next role — then invoke that role's skill.
+A short classification block naming objective, scope, affected artifacts, ticket/status, ordering or dependencies, and the next role — then invoke that role's skill.

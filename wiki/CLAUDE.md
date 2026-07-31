@@ -25,6 +25,7 @@ wiki/
 │   ├── implementation/       — coding conventions, data structures, lessons learned, roadmap
 │   ├── platform/             — project-specific platform commentary
 │   ├── tooling/              — build workflow, lwtools, XRoar, web-app architecture
+│   ├── tickets/              — approval queue, workflow, template, and executable work items
 │   ├── sources/              — one page per raw source under ../docs/
 │   └── backlog/              — open issues, deferred investigations
 └── release/                  — stable public reference; independent of the deferred web app
@@ -111,6 +112,17 @@ Each `release/reference/6809/{mnemonic}.html` follows this body shape:
 
 ## Workflows
 
+### Tickets (new work)
+
+1. Consult `internal/tickets/index.html` before defining substantive new functionality, bug fixes, performance work, tooling changes, or documentation projects.
+2. Create or update one canonical ticket using `internal/tickets/template.html`; do not duplicate roadmap or backlog prose as an unlinked work item.
+3. Complete the approval brief and set status to `Proposed`. Only explicit user approval advances it to `Approved`.
+4. Add dependencies, ordering, exact artifacts, commands, ownership, evidence, and commit boundaries before setting it to `Ready`.
+5. Keep the ticket, ticket index, and decision log synchronized through `In Progress`, `Verification`, and `Done` or an explicit side state.
+6. Append substantive ticket creation, approval, scope change, integration result, and closure to `internal/log.html`.
+
+Ticket IDs use `<TYPE>-NNN` with `FEAT`, `BUG`, `PERF`, `TOOL`, `DOC`, or `RSCH`. The full lifecycle and delegation rules are canonical in `internal/tickets/workflow.html`.
+
 ### Ingest (new source)
 
 1. Read the source under `../docs/`.
@@ -153,6 +165,12 @@ Every ingest, substantive query, or lint pass gets a dated entry in `internal/lo
 ```
 
 Newest entries at the top.
+
+## Tables and numerical evidence
+
+- Introduce terminology before the first table: define non-obvious labels, units, scenarios/owners, baseline, target, margin calculation, aggregation method, source revision/artifact, and pass/fail rule.
+- State whether numerical values are measured maxima/minima/averages, single observations, historical values, projections, or requirements.
+- Do not use an empty or missing required scenario as a pass. Record missing coverage as a failed or incomplete verification.
 
 ## Things to prefer
 

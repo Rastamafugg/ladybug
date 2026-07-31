@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Work Tickets — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./workflow.html">Ticket workflow</a>
+    <a href="./template.html">Ticket template</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · work management</p>
+      <h1>Work Tickets <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Canonical approval, ordering, delegation, and completion queue.</p>
+    </header>
+
+    <section>
+      <h2>How to read the queue</h2>
+      <p>
+        Ticket IDs use a work-type prefix and a three-digit sequence. Status is the
+        current lifecycle state, not a completion percentage. Priority describes
+        urgency: P0 is an immediate project stop, P1 blocks the active milestone,
+        P2 is normal planned work, and P3 is deferred improvement. Order is the
+        recommended execution position among currently listed work; lower numbers
+        run first. A dependency names work that must be integrated before the ticket
+        can become <code>Ready</code>.
+      </p>
+      <p>
+        In the table below, <strong>ID</strong> links to the canonical ticket,
+        <strong>Type</strong> classifies the work, <strong>Status</strong> controls
+        whether implementation is authorized, <strong>Priority</strong> and
+        <strong>Order</strong> control selection, and <strong>Depends on</strong>
+        records sequencing. None of the numerical values are progress estimates.
+      </p>
+      <table class="wiki-table">
+        <thead>
+          <tr><th>ID</th><th>Type</th><th>Status</th><th>Priority</th><th>Order</th><th>Summary</th><th>Depends on</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><a href="./doc-001-work-management-workflow.html">DOC-001</a></td><td>Documentation/workflow</td><td>Verification</td><td>P1</td><td>0</td><td>Add approval, ticket, and delegation workflow</td><td>—</td></tr>
+          <tr><td><a href="./perf-001-gate-closure.html">PERF-001</a></td><td>Performance</td><td>Proposed</td><td>P1</td><td>1</td><td>Close gate and overlap frame costs</td><td>—</td></tr>
+          <tr><td><a href="./perf-002-structural-nest-reset.html">PERF-002</a></td><td>Performance</td><td>Proposed</td><td>P1</td><td>2</td><td>Bound structural death-reset nest composition</td><td>PERF-001 integration review</td></tr>
+          <tr><td><a href="./perf-003-common-actor-closure.html">PERF-003</a></td><td>Performance</td><td>Proposed</td><td>P1</td><td>3</td><td>Reduce common actor closure and replay costs</td><td>PERF-001, PERF-002</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Selection rule</h2>
+      <p>
+        Select the lowest-order <code>Ready</code> ticket compatible with the active
+        roadmap phase. <code>Proposed</code> tickets require explicit user approval.
+        Parallel delegation is allowed only when dependencies are resolved and
+        writable artifacts do not overlap, or when an integration owner and conflict
+        plan are defined before assignment.
+      </p>
+    </section>
+
+    <section>
+      <h2>Relationship to roadmap and backlog</h2>
+      <p>
+        The <a href="../implementation/roadmap.html">roadmap</a> describes product
+        phases and milestone outcomes. Tickets are executable units. The
+        <a href="../backlog/index.html">backlog</a> retains investigations and
+        deferred context; actionable work should be promoted into a ticket and link
+        back to its source rather than being implemented directly from a backlog note.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Process definition: <a href="./workflow.html">ticket workflow</a>. Copy structure from <a href="./template.html">ticket template</a>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

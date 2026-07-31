@@ -17,6 +17,8 @@ Used when the task involves module boundaries, memory pressure, runtime ownershi
   - Input / sound / timing → the corresponding HTML pages under `wiki/release/reference/coco3/` and `wiki/internal/platform/`
   - Prior observed findings → [wiki/internal/implementation/lessons-learned.html](../../../wiki/internal/implementation/lessons-learned.html)
 - Prefer hardware-reference-confirmed interfaces over speculation. The wiki's platform pages cite the authoritative sections of the GIME and 6809 reference docs.
+- Update the canonical ticket with the selected design, rejected alternatives, module/ownership boundaries, capacity effects, integration risks, and verification consequences. Do not change the approved outcome, targets, or scope without returning the ticket for user approval.
+- Convert an `Approved` ticket into a delegation-ready contract only after exact owned artifacts, dependency order, commands, evidence, commit boundary, and integration checks are specified.
 
 ## Guardrails
 
