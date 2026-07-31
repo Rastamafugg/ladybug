@@ -28,9 +28,11 @@ PEN_MAP = (0x0, 0xC, 0x5, 0x2)
 EXPECTED_ENEMY_BYTES = 22_683
 EXPECTED_PLAYER_BYTES = 2_294
 EXPECTED_GATE_BYTES = 832
+EXPECTED_PRESENTATION_BYTES = 896
 ENEMY_INDEX_MIRROR = 0x0500
 PLAYER_INDEX_MIRROR = 0x0680
 GATE_PAYLOAD_ADDRESS = WINDOW_BASE + EXPECTED_PLAYER_BYTES
+PRESENTATION_PAYLOAD_ADDRESS = GATE_PAYLOAD_ADDRESS + EXPECTED_GATE_BYTES
 
 
 @dataclass(frozen=True)
@@ -71,6 +73,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--enemy-output", type=Path, required=True)
     parser.add_argument("--player-output", type=Path, required=True)
     parser.add_argument("--gate-input", type=Path, required=True)
+    parser.add_argument("--presentation-input", type=Path, required=True)
     parser.add_argument("--bank2-output", type=Path, required=True)
     parser.add_argument("--bank3-output", type=Path, required=True)
     parser.add_argument("--loader-output", type=Path, required=True)
@@ -227,6 +230,7 @@ def target_chunks(
 
 def pack_candidate_banks(
         enemy_payload: bytes, player_payload: bytes, gate_payload: bytes,
+        presentation_payload: bytes,
         enemy_runtime: bytes
 ) -> tuple[bytes, bytes, list[CopySegment]]:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
@@ -260,7 +264,9 @@ def pack_candidate_banks(
         target_chunks("player", player_payload, PLAYER_PAGE_BASE) +
         target_chunks(
             "gate", gate_payload, PLAYER_PAGE_BASE, GATE_PAYLOAD_ADDRESS
-        )
+        ) +
+        target_chunks("presentation", presentation_payload, PLAYER_PAGE_BASE,
+                      PRESENTATION_PAYLOAD_ADDRESS)
     )
 
     segments: list[CopySegment] = []
@@ -320,6 +326,7 @@ def write_loader_include(path: Path, segments: list[CopySegment]) -> None:
         f"SPARSE_ENEMY_PAYLOAD_PAGE equ ${ENEMY_PAGE_BASE:02X}",
         f"SPARSE_PLAYER_PAYLOAD_PAGE equ ${PLAYER_PAGE_BASE:02X}",
         f"GATE_TRANSITION_PAYLOAD_ADDR equ ${GATE_PAYLOAD_ADDRESS:04X}",
+        f"PRESENTATION_PAYLOAD_ADDR equ ${PRESENTATION_PAYLOAD_ADDRESS:04X}",
         f"SPARSE_ENEMY_INDEX_ADDR equ ${ENEMY_INDEX_MIRROR:04X}",
         f"SPARSE_PLAYER_INDEX_ADDR equ ${PLAYER_INDEX_MIRROR:04X}",
         "SPARSE_ENEMY_INDEX_BYTES equ 384",
@@ -356,6 +363,7 @@ def main() -> None:
         player_frames, PLAYER_PAGE_BASE, PLAYER_PAGE_COUNT
     )
     gate_payload = args.gate_input.read_bytes()
+    presentation_payload = args.presentation_input.read_bytes()
     if len(enemy_payload) != EXPECTED_ENEMY_BYTES:
         raise SystemExit(
             f"sparse: enemy payload is {len(enemy_payload)} bytes; "
@@ -371,10 +379,16 @@ def main() -> None:
             f"sparse: gate payload is {len(gate_payload)} bytes; "
             f"review expected {EXPECTED_GATE_BYTES}"
         )
+    if len(presentation_payload) != EXPECTED_PRESENTATION_BYTES:
+        raise SystemExit(
+            f"sparse: presentation payload is {len(presentation_payload)} bytes; "
+            f"review expected {EXPECTED_PRESENTATION_BYTES}"
+        )
 
     enemy_runtime = args.enemy_runtime.read_bytes()
     bank2, bank3, segments = pack_candidate_banks(
-        enemy_payload, player_payload, gate_payload, enemy_runtime
+        enemy_payload, player_payload, gate_payload, presentation_payload,
+        enemy_runtime
     )
     outputs = (
         (args.enemy_output, enemy_payload),
@@ -432,6 +446,12 @@ def main() -> None:
             "address": GATE_PAYLOAD_ADDRESS,
             "sha256": digest(gate_payload),
         },
+        "presentation": {
+            "bytes": len(presentation_payload),
+            "page": PLAYER_PAGE_BASE,
+            "address": PRESENTATION_PAYLOAD_ADDRESS,
+            "sha256": digest(presentation_payload),
+        },
         "gmc": {
             "readable_bytes_per_bank": CART_READABLE_BYTES,
             "enemy_runtime_reserved": ENEMY_RUNTIME_RESERVED,
@@ -462,6 +482,7 @@ def main() -> None:
         f"sparse: enemy {len(enemy_payload)}/{ENEMY_PAGE_COUNT * PAGE_BYTES}, "
         f"player {len(player_payload)}/{PLAYER_PAGE_COUNT * PAGE_BYTES}, "
         f"gate {len(gate_payload)} bytes, "
+        f"presentation {len(presentation_payload)} bytes, "
         f"{len(segments)} loader segments, "
         f"{manifest['gmc']['spare_bytes']} CPU-readable GMC bytes spare"
     )

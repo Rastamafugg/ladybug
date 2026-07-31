@@ -236,6 +236,8 @@ PLAYER_MODULE_DRAW  equ $0812
 ENEMY_MODULE_RENDER equ $0815
 FB_MODULE_INIT      equ $081B
 FB_MODULE_IRQ       equ $081E
+PRESENTATION_MODULE_DRAW equ $0821
+GIME_PAR5           equ $FFA5
 
 RF_PLAYER      equ $01
 RF_HUD         equ $02
@@ -2947,26 +2949,23 @@ put_done
 
 draw_score_popup
         lda     PICKUP_FRAME
-        ldb     #PACKED_SPRITE_SIZE
+        pshs    a
+        lda     BONUS_COLOR
+        deca
+        ldb     #3
         mul
-        leay    score_sprites,pcr
-        leay    d,y
+        addb    ,s+
+        adca    #0
+        lslb
+        rola
+        leau    popup_sparse_streams,pcr
+        leau    d,u
+        ldu     ,u
         ldx     PLAYER_FB
         leax    -800,x          ; score pixels occupy rows 0-5 of the footprint
-        lda     BONUS_COLOR
-        cmpa    #COLOR_BLUE
-        beq     dsp_blue
-        cmpa    #COLOR_YELLOW
-        beq     dsp_yellow
-        leau    sprite_score_red_pairs,pcr
-        bra     dsp_draw
-dsp_blue
-        leau    sprite_score_blue_pairs,pcr
-        bra     dsp_draw
-dsp_yellow
-        leau    sprite_score_yellow_pairs,pcr
-dsp_draw
-        lbsr    blit_packed_sprite
+        lda     #PRESENTATION_PAYLOAD_PAGE
+        sta     GIME_PAR5
+        jsr     PRESENTATION_MODULE_DRAW
         lbsr    draw_popup_multiplier
         rts
 
@@ -2986,15 +2985,15 @@ dpm_two
 dpm_three
         lda     #1
 dpm_select
-        ldb     #PICKUP_MULTIPLIER_SIZE
-        mul
-        leay    pickup_multiplier_graphics,pcr
-        leay    d,y
+        lsla
+        leau    popup_multiplier_sparse_streams,pcr
+        leau    a,u
+        ldu     ,u
         ldx     PLAYER_FB
         leax    803,x            ; right-centre multiplier in footprint rows 7-12
-        lda     #8
-        ldb     #4
-        lbsr    blit_transparent
+        lda     #PRESENTATION_PAYLOAD_PAGE
+        sta     GIME_PAR5
+        jsr     PRESENTATION_MODULE_DRAW
 dpm_done
         rts
 
@@ -3140,20 +3139,12 @@ dt_done
 draw_death_frame
         lbsr    save_player
         lda     DEATH_FRAME
-        ldb     #PACKED_SPRITE_SIZE
-        mul
-        leay    death_sprites,pcr
-        leay    d,y
+        lsla
+        leau    death_sparse_streams,pcr
+        leau    a,u
+        ldu     ,u
         ldx     PLAYER_FB
-        lda     DEATH_FRAME
-        cmpa    #DEATH_WING_FIRST
-        bhs     ddf_white
-        leau    sprite_red_pairs,pcr
-        bra     ddf_draw
-ddf_white
-        leau    sprite_white_pairs,pcr
-ddf_draw
-        lbsr    blit_packed_sprite
+        jsr     PRESENTATION_MODULE_DRAW
         rts
 
 cep_next

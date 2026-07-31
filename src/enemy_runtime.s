@@ -18,6 +18,7 @@ PERSISTENT_FB  equ 1
         jmp     frame_render_impl
         jmp     framebuffer_init_impl
         jmp     framebuffer_irq_impl
+        jmp     sparse_blit_fb
 
 ENEMY_ANIM     equ $0054
 ENEMY_TIMER    equ $0055

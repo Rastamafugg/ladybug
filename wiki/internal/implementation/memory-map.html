@@ -131,8 +131,9 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         bytes must remain in always-mapped page <code>$38</code>, never
         behind PAR5. The loader requires an explicit segmented copy plan
         because the bank-3 runtime fragments the available cartridge source
-        space. The delivered bank images and eight-record loader table place
-        these payloads with 1,835 readable expansion-bank bytes left. At boot,
+        space. The delivered bank images and nine-record loader table place
+        these payloads plus 896 bytes of popup presentation streams with 939
+        readable expansion-bank bytes left. At boot,
         the loader mirrors the 384-byte enemy index to <code>$0500</code> and
         the 48-byte player index to <code>$0680</code>. Runtime index lookup
         therefore requires no preliminary PAR5 mapping: it resolves each

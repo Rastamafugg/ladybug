@@ -135,6 +135,12 @@ def main() -> None:
         measured(trace_sections(BUILD / f"perf-death-{owner.lower()}.raw.trace", frame_pc)[0], owner)
         for owner in ("A", "B")
     ]
+    death_reset = [
+        measured(trace_sections(
+            BUILD / f"perf-death-reset-{owner.lower()}.raw.trace", frame_pc
+        )[0], owner)
+        for owner in ("A", "B")
+    ]
     gate = alternating_sections(BUILD / "perf-gate.raw.trace", frame_pc, 0)[:2]
     for interval in gate:
         interval["gate_compositions"] = interval["pcs"].count(
@@ -185,6 +191,7 @@ def main() -> None:
             "movement_plus_nest_animation": [without_pcs(item) for item in animation],
             "blue_x5_popup": [without_pcs(item) for item in popup],
             "death_angel": death,
+            "death_reset_with_nest": death_reset,
             "gate_diagonal_final": [without_pcs(item) for item in gate],
         },
         "acceptance": {
@@ -204,6 +211,10 @@ def main() -> None:
             "death": [
                 "build/perf-death-a.raw.trace",
                 "build/perf-death-b.raw.trace",
+            ],
+            "death_reset_with_nest": [
+                "build/perf-death-reset-a.raw.trace",
+                "build/perf-death-reset-b.raw.trace",
             ],
             "gate": "build/perf-gate.raw.trace",
         },

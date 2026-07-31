@@ -154,9 +154,9 @@ Generated build/*.inc / *.bin / layout.json   |
         <tbody>
           <tr><td><code>build/ladybug_maze.inc</code></td><td><code>derive_maze.py</code></td><td><code>main.s</code></td><td>Review generator and semantic source together.</td></tr>
           <tr><td><code>build/ladybug_screen.inc</code></td><td><code>build_screen.py</code></td><td><code>main.s</code></td><td>Contains screen map, tiles, HUD, masks, and tables.</td></tr>
-          <tr><td><code>build/ladybug_resident.inc</code></td><td><code>build_screen.py</code></td><td><code>main.s</code></td><td>Contains retained packed death/vegetable presentation data.</td></tr>
+          <tr><td><code>build/ladybug_resident.inc</code></td><td><code>build_screen.py</code></td><td><code>main.s</code></td><td>Contains sparse death streams, popup stream pointers, and retained packed vegetable data.</td></tr>
           <tr><td><code>build/ladybug_runtime_symbols.inc</code></td><td><code>build.sh</code> from resident map</td><td><code>enemy_runtime.s</code></td><td>Absolute cross-module ABI; never hand-edit.</td></tr>
-          <tr><td><code>build/ladybug-sparse-loader.inc</code></td><td><code>build_sparse_sprites.py</code></td><td><code>gmc_bootstrap.s</code></td><td>Generated eight-record fragmented copy plan.</td></tr>
+          <tr><td><code>build/ladybug-sparse-loader.inc</code></td><td><code>build_sparse_sprites.py</code></td><td><code>gmc_bootstrap.s</code></td><td>Generated nine-record fragmented copy plan.</td></tr>
           <tr><td><code>build/ladybug-sparse-layout.json</code></td><td><code>build_sparse_sprites.py</code></td><td>Verifiers and reviewers</td><td>Canonical generated page/address/count manifest.</td></tr>
           <tr><td><code>build/ladybug.rom</code></td><td><code>build.sh</code></td><td>XRoar / cartridge</td><td>Four-bank 64 KiB delivered image; do not edit.</td></tr>
         </tbody>
@@ -194,7 +194,7 @@ mainloop + Vbord framebuffer commits
     <section>
       <h2>Cross-module jump-table ABI</h2>
       <p>
-        The first 33 bytes of <code>enemy_runtime.s</code> are eleven
+        The first 36 bytes of <code>enemy_runtime.s</code> are twelve
         three-byte absolute JMP entries. Resident code calls fixed addresses;
         internal bank-3 labels may move without changing callers.
       </p>

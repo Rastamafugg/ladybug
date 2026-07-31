@@ -42,11 +42,12 @@ tiled/coco-screen.tmx                (hand-authored 40x24 screen)
    │  scripts/derive_maze.py + scripts/build_screen.py
    ▼
 build/ladybug_maze.inc               (semantic cells/navigation/gates)
-build/ladybug_screen.inc             (palette, map, tiles, popup multiplier characters, score frames, contextual gate redraw data)
-build/ladybug_resident.inc           (packed death and vegetable frames)
+build/ladybug_screen.inc             (palette, map, tiles, contextual gate redraw data)
+build/ladybug_resident.inc           (sparse death streams and packed vegetable frames)
 build/ladybug-enemy-sparse.bin       (128 indexed native-4bpp sparse streams)
 build/ladybug-player-sparse.bin      (16 indexed native-4bpp sparse streams)
 build/ladybug-gate-transitions.bin   (six indexed gate-relative run streams)
+build/ladybug-presentation-sparse.bin (popup colour/score and multiplier streams)
    │
 src/main.s                           (resident 6809 runtime)
 src/enemy_runtime.s                  (bank-3 low-RAM enemy module)
@@ -76,7 +77,7 @@ emulated CoCo 3      (physical target: GMC-compatible bank-select hardware)
       <table class="wiki-table">
         <thead><tr><th>Command</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables, compile retained packed death/vegetable assets and gate transition runs, assemble, generate and independently verify indexed sparse enemy/player/gate streams plus their segmented GMC layout, assemble the generated loader table, compose the delivered sparse banks, enforce all ROM boundaries, and pad.</td></tr>
+          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables; compile sparse death, popup, and gate presentation plus retained packed vegetable assets; assemble; independently verify indexed sparse enemy/player/presentation streams and their segmented GMC layout; assemble the generated loader table; compose the delivered sparse banks; enforce all ROM boundaries; and pad.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch XRoar with the canonical cart profile and map cursor keys to the right CoCo joystick through <code>kjoy0</code>.</td></tr>
           <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then trace a bounded headless XRoar run and verify bank signatures, the generated sparse copy-segment count and four destination pages, bank-3 low-RAM copy, bank-1 loading, both fast-clock writes, sparse framebuffer/stage decoder execution, the TY=1 all-RAM handoff, repeated main-loop execution, and enemy-module contracts.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
@@ -92,6 +93,7 @@ src/enemy_runtime.s        (bank-3 module, ORG $0800)
 scripts/build_screen.py    (TMX flattener and retained packed-asset generator)
 scripts/build_sparse_sprites.py (indexed sparse streams and active GMC layout)
 scripts/verify_sparse_sprites.py (independent stream decoder and loader proof)
+scripts/verify_presentation_sparse.py (popup/death pixel and transparency proof)
 scripts/derive_maze.py     (semantic maze validator/generator)
 build/                     (created if missing; generated outputs land here)
 scripts/build.sh
@@ -111,7 +113,8 @@ python3 scripts/build_screen.py \
   --sprites assets/arcade/sprites.json \
   --output build/ladybug_screen.inc \
   --resident-output build/ladybug_resident.inc \
-  --gate-output build/ladybug-gate-transitions.bin
+  --gate-output build/ladybug-gate-transitions.bin \
+  --presentation-output build/ladybug-presentation-sparse.bin
 lwasm -9 --format=raw \
       --output=build/ladybug.rom \
       --list=build/ladybug.lst \
@@ -126,14 +129,14 @@ lwasm -9 --format=raw \
         It rejects resident code beyond <code>$E000</code>, an asset start other
         than <code>$E000</code>, assets beyond <code>$FE00</code>, or a raw-file
         length inconsistent with <code>asset_end-$C000</code>. A successful
-        current build reports <code>resident 7466/8192</code> and
-        <code>assets 7432/7680</code> before padding. The copied bank-3 module
-        reports <code>4057/4096</code>; its eleven-entry jump table includes
+        current build reports <code>resident 7598/8192</code> and
+        <code>assets 7144/7680</code> before padding. The copied bank-3 module
+        reports <code>4058/4096</code>; its twelve-entry jump table includes
         direct sparse player draw plus framebuffer/stage decoders. The approved
         module copy spans <code>$0800-$17FF</code>; a shared actor stage occupies
         <code>$1800-$18FF</code>, leaving <code>$1900-$1FFE</code> for stack
         growth. Generated enemy streams occupy physical pages
-        <code>$35-$37</code>; player and gate streams share page <code>$39</code>.
+        <code>$35-$37</code>; player, gate, and popup presentation streams share page <code>$39</code>.
       </p>
       <p>
         After assembling the enemy module, phase 1 also runs
@@ -142,14 +145,15 @@ lwasm -9 --format=raw \
         <code>ladybug-enemy-sparse.bin</code>,
         <code>ladybug-player-sparse.bin</code>,
         <code>ladybug-gate-transitions.bin</code>,
+        <code>ladybug-presentation-sparse.bin</code>,
         <code>ladybug-sparse-bank2.bin</code>,
         <code>ladybug-sparse-bank3.bin</code>,
         <code>ladybug-sparse-loader.inc</code>, and
         <code>ladybug-sparse-layout.json</code>. The proof decodes every frame,
         checks physical-page containment and signatures, excludes inaccessible
         GMC offsets <code>$3E00-$3FFF</code>, and reconstructs all physical
-        payloads from all eight copy records. The generated banks and loader
-        are the delivered path, with 1,835 CPU-readable bytes spare. The
+        payloads from all nine copy records. The generated banks and loader
+        are the delivered path, with 939 CPU-readable bytes spare. The
         loader mirrors enemy/player indexes into always-mapped low RAM at
         <code>$0500/$0680</code> before the runtime handoff.
       </p>

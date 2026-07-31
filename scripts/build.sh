@@ -12,6 +12,7 @@ RESIDENT_INC="$BUILD_DIR/ladybug_resident.inc"
 SPARSE_ENEMY="$BUILD_DIR/ladybug-enemy-sparse.bin"
 SPARSE_PLAYER="$BUILD_DIR/ladybug-player-sparse.bin"
 GATE_TRANSITIONS="$BUILD_DIR/ladybug-gate-transitions.bin"
+PRESENTATION_SPARSE="$BUILD_DIR/ladybug-presentation-sparse.bin"
 SPARSE_BANK2="$BUILD_DIR/ladybug-sparse-bank2.bin"
 SPARSE_BANK3="$BUILD_DIR/ladybug-sparse-bank3.bin"
 SPARSE_LOADER="$BUILD_DIR/ladybug-sparse-loader.inc"
@@ -121,7 +122,8 @@ cmd_build() {
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --output "$SCREEN_INC" \
         --resident-output "$RESIDENT_INC" \
-        --gate-output "$GATE_TRANSITIONS"
+        --gate-output "$GATE_TRANSITIONS" \
+        --presentation-output "$PRESENTATION_SPARSE"
 
     lwasm -9 --format=raw \
           --output="$RUNTIME_ROM" \
@@ -180,6 +182,7 @@ PY
         --enemy-output "$SPARSE_ENEMY" \
         --player-output "$SPARSE_PLAYER" \
         --gate-input "$GATE_TRANSITIONS" \
+        --presentation-input "$PRESENTATION_SPARSE" \
         --bank2-output "$SPARSE_BANK2" \
         --bank3-output "$SPARSE_BANK3" \
         --loader-output "$SPARSE_LOADER" \
@@ -191,10 +194,13 @@ PY
         --enemy-payload "$SPARSE_ENEMY" \
         --player-payload "$SPARSE_PLAYER" \
         --gate-payload "$GATE_TRANSITIONS" \
+        --presentation-payload "$PRESENTATION_SPARSE" \
         --bank2 "$SPARSE_BANK2" \
         --bank3 "$SPARSE_BANK3" \
         --loader "$SPARSE_LOADER" \
         --manifest "$SPARSE_MANIFEST"
+
+    python3 "$ROOT/scripts/verify_presentation_sparse.py"
 
     lwasm -9 --format=raw \
           --output="$BOOT_ROM" \

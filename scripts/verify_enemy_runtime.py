@@ -15,7 +15,7 @@ resident = (root / "build/ladybug_resident.inc").read_text(encoding="utf-8")
 enemy_map = (root / "build/ladybug-enemy-runtime.map").read_text(encoding="utf-8")
 rom = (root / "build/ladybug-enemy-runtime.rom").read_bytes()
 
-if len(rom) < 33 or any(rom[offset] != 0x7E for offset in range(0, 33, 3)):
+if len(rom) < 36 or any(rom[offset] != 0x7E for offset in range(0, 36, 3)):
     raise SystemExit("enemy proof: fixed $0800 jump table is invalid")
 if len(rom) > 0x1000:
     raise SystemExit("enemy proof: bank-3 low-RAM module exceeds 4 KiB")

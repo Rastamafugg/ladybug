@@ -2,12 +2,13 @@
 SPARSE_ENEMY_PAYLOAD_PAGE equ $35
 SPARSE_PLAYER_PAYLOAD_PAGE equ $39
 GATE_TRANSITION_PAYLOAD_ADDR equ $A8F6
+PRESENTATION_PAYLOAD_ADDR equ $AC36
 SPARSE_ENEMY_INDEX_ADDR equ $0500
 SPARSE_PLAYER_INDEX_ADDR equ $0680
 SPARSE_ENEMY_INDEX_BYTES equ 384
 SPARSE_PLAYER_INDEX_BYTES equ 48
 SPARSE_COPY_SEGMENT_BYTES equ 8
-SPARSE_COPY_SEGMENT_COUNT equ 8
+SPARSE_COPY_SEGMENT_COUNT equ 9
 
 ; bank, destination page, source CPU address, destination window, count
 sparse_copy_table
@@ -35,3 +36,6 @@ sparse_copy_table
         ; gate+$025F
         fcb     $03,$39
         fdb     $C012,$AB55,$00E1
+        ; presentation+$0000
+        fcb     $03,$39
+        fdb     $C0F3,$AC36,$0380

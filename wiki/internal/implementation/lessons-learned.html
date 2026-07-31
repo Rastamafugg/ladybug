@@ -32,6 +32,13 @@
     </section>
 
     <section>
+      <h2>Pre-expand sparse presentations when packed decode dominates the frame</h2>
+      <p>Packed popup and death expansion consumed about 9,000 cycles per presentation. Full native frames were fast but required 1,792 bytes for death alone; build-time sparse streams reused the existing decoder, removed the packed colour lookup and merge loop, and fit with 939 expansion bytes still free. Exhaustive A/B capture reduced popup from 34,763 to at most 25,185 cycles and isolated death presentation from 43,575 to at most 24,524 cycles.</p>
+      <p><strong>Rule:</strong> compare native, packed, and sparse sizes against complete-interval cycle attribution. Keep build-time pre-expansion when it reuses a proven decoder and every required variant remains explicitly verified.</p>
+      <p><strong>Citation:</strong> <code>scripts/verify_presentation_sparse.py</code>, <code>scripts/verify_presentation_profiles.py</code>, and <code>build/performance-presentation.json</code>.</p>
+    </section>
+
+    <section>
       <h2>Optimize circular restore by separating row and column phase</h2>
       <p>The generic vertical-ring restore recomputed a physical row address and byte wrap for every logical row, costing 4,840 cycles per enemy at a nonzero row phase. Selecting one of eight fixed column copiers once and executing at most two contiguous row segments reduced the controlling discontinuity frame from 45,034 to the mid-30K range. Four-byte <code>PULU D,Y</code> transfers further reduce phase-zero restore, vertical capture, and player save-under copies.</p>
       <p><strong>Rule:</strong> when both axes are circular, dispatch the small fixed axis once and segment only the wrapping axis. Do not repeat address multiplication and wrap decisions inside every row.</p>

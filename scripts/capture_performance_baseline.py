@@ -191,13 +191,30 @@ def main() -> None:
             death,
             [
                 "003A=00", "004D=02", "004E=0D", "0062=02",
-                "007F=80", "0080=00",
+                "0060=00", "0087=00", "007F=80", "0080=00",
+                "A901=00", "AA01=00", "A9A8=00", "AAA8=00",
                 f"008F={front:02X}", f"0090={back:02X}",
             ],
         )
         capture_trace(
             death,
             BUILD / f"perf-death-{owner}.raw.trace",
+            stop_pc,
+            1,
+        )
+        death_reset = BUILD / f"perf-death-reset-{owner}.sna"
+        patch_snapshot(
+            hydrated,
+            death_reset,
+            [
+                "003A=00", "004D=02", "004E=0D", "0062=02",
+                "0060=01", "0087=08", "007F=80", "0080=00",
+                f"008F={front:02X}", f"0090={back:02X}",
+            ],
+        )
+        capture_trace(
+            death_reset,
+            BUILD / f"perf-death-reset-{owner}.raw.trace",
             stop_pc,
             1,
         )

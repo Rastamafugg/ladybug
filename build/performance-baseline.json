@@ -1,11 +1,11 @@
 {
   "captured": "2026-07-31",
-  "source_commit": "b6ef97199efea98d7bdcb30d6687ec11fffd66d4",
+  "source_commit": "8a4f9dc605d2989a482e271e7455bad38f14eac4",
   "source_sha256": {
-    "src/main.s": "1613fbb877fd9050de602cb351a1303b8cc0f91a74ac9b2fdd25307a4931bc70",
-    "src/enemy_runtime.s": "75acfbfda4ae24e2f10487448df2095a18fa7d23c8553f46839514174e4f21af",
-    "scripts/build_screen.py": "968bd9849f512f2665ecd5d15fe8944fc9417adf58ebd2ab43d6cd511d2e6b24",
-    "scripts/build_sparse_sprites.py": "5d7cd1c4d51de4bc8145626afa2e143c6a8e9db9255361a44a4bf5ac71d006f2"
+    "src/main.s": "60d154a98f413387892040942119d7364520a78b9810c57f3f33853d040be5d5",
+    "src/enemy_runtime.s": "efb657a794a9cda4695b4b85a38387dc8de399edaded0317d8df5a33043cb512",
+    "scripts/build_screen.py": "4e347ac66a02038a6eb59c36662a842c597a5d0032205ffd531af706b5fa8826",
+    "scripts/build_sparse_sprites.py": "19f128bc238feeec2bc0f232361b2b529ea2ea1f35c982cd56027479757e2d20"
   },
   "measurement_contract": "complete frame_render_impl-to-next-render-call active interval; only identified SYNC waits excluded",
   "hardware_budget_cycles": 29666,
@@ -212,39 +212,59 @@
     "blue_x5_popup": [
       {
         "owner": "A",
-        "instructions": 7827,
-        "active_cycles": 34763,
-        "hardware_margin_cycles": -5097,
-        "engineering_margin_cycles": -7763,
-        "passes_hardware_budget": false,
-        "passes_engineering_target": false
+        "instructions": 5207,
+        "active_cycles": 25056,
+        "hardware_margin_cycles": 4610,
+        "engineering_margin_cycles": 1944,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
       },
       {
         "owner": "B",
-        "instructions": 7827,
-        "active_cycles": 34749,
-        "hardware_margin_cycles": -5083,
-        "engineering_margin_cycles": -7749,
-        "passes_hardware_budget": false,
-        "passes_engineering_target": false
+        "instructions": 5242,
+        "active_cycles": 25183,
+        "hardware_margin_cycles": 4483,
+        "engineering_margin_cycles": 1817,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
       }
     ],
     "death_angel": [
       {
         "owner": "A",
-        "instructions": 8882,
-        "active_cycles": 43587,
-        "hardware_margin_cycles": -13921,
-        "engineering_margin_cycles": -16587,
+        "instructions": 5036,
+        "active_cycles": 24186,
+        "hardware_margin_cycles": 5480,
+        "engineering_margin_cycles": 2814,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
+      },
+      {
+        "owner": "B",
+        "instructions": 5039,
+        "active_cycles": 24193,
+        "hardware_margin_cycles": 5473,
+        "engineering_margin_cycles": 2807,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
+      }
+    ],
+    "death_reset_with_nest": [
+      {
+        "owner": "A",
+        "instructions": 6713,
+        "active_cycles": 35558,
+        "hardware_margin_cycles": -5892,
+        "engineering_margin_cycles": -8558,
         "passes_hardware_budget": false,
         "passes_engineering_target": false
       },
       {
         "owner": "B",
-        "instructions": 8881,
-        "active_cycles": 43582,
-        "hardware_margin_cycles": -13916,
-        "engineering_margin_cycles": -16582,
+        "instructions": 6712,
+        "active_cycles": 35553,
+        "hardware_margin_cycles": -5887,
+        "engineering_margin_cycles": -8553,
         "passes_hardware_budget": false,
         "passes_engineering_target": false
       }
@@ -289,6 +309,10 @@
     "death": [
       "build/perf-death-a.raw.trace",
       "build/perf-death-b.raw.trace"
+    ],
+    "death_reset_with_nest": [
+      "build/perf-death-reset-a.raw.trace",
+      "build/perf-death-reset-b.raw.trace"
     ],
     "gate": "build/perf-gate.raw.trace"
   }
