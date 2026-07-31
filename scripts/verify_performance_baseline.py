@@ -10,6 +10,8 @@ import subprocess
 from datetime import date
 from pathlib import Path
 
+from read_snapshot import find_ram
+
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
@@ -102,6 +104,8 @@ def main() -> None:
         "compose_enemy_zone",
         "compose_enemy_animation",
         "gate_compose_impl",
+        "fbiq_missed",
+        "fbp_write_front_fault",
     }
     missing = required - enemy_symbols.keys()
     if missing:
@@ -126,6 +130,7 @@ def main() -> None:
 
     player = alternating_sections(BUILD / "perf-player.raw.trace", frame_pc, 0)
     animation = []
+    animation_replay = {}
     for owner, initial_back in (("A", 1), ("B", 0)):
         intervals = alternating_sections(
             BUILD / f"perf-animation-{owner.lower()}.raw.trace",
@@ -137,20 +142,46 @@ def main() -> None:
             for interval in intervals
             if interval["pcs"].count(enemy_symbols["compose_enemy_animation"])
         ]
-        if len(matches) != 1 or matches[0]["owner"] != owner:
-            raise ValueError(f"animation trace did not isolate owner {owner}")
-        animation.extend(matches)
+        other = "B" if owner == "A" else "A"
+        owners = [interval["owner"] for interval in matches]
+        if len(matches) != 2 or owners != [owner, other]:
+            raise ValueError(
+                f"animation trace did not prove natural {owner}/{other} replay: {owners}"
+            )
+        if any(interval["pcs"].count(enemy_symbols["compose_enemy_animation"]) != 1
+               for interval in matches):
+            raise ValueError("animation replay did not use exactly one bounded composition")
+        animation_replay[owner] = owners
+        if owner == "A":
+            animation.extend(matches)
     popup = alternating_sections(BUILD / "perf-popup.raw.trace", frame_pc, 0)[-2:]
-    death = [
-        measured(trace_sections(BUILD / f"perf-death-{owner.lower()}.raw.trace", frame_pc)[0], owner)
-        for owner in ("A", "B")
-    ]
-    death_reset = [
-        measured(trace_sections(
-            BUILD / f"perf-death-reset-{owner.lower()}.raw.trace", frame_pc
-        )[0], owner)
-        for owner in ("A", "B")
-    ]
+    death = []
+    death_reset = []
+    for owner in ("A", "B"):
+        for target, stem in ((death, "death"), (death_reset, "death-reset")):
+            section = trace_sections(
+                BUILD / f"perf-{stem}-{owner.lower()}.raw.trace", frame_pc
+            )[0]
+            interval = measured(section, owner)
+            interval["pcs"] = section["pcs"]
+            target.append(interval)
+    discontinuity_by_owner = {}
+    for stem, initial_back in (("a", 0), ("b", 1)):
+        intervals = alternating_sections(
+            BUILD / f"perf-discontinuity-{stem}.raw.trace", frame_pc, initial_back
+        )
+        for interval in intervals:
+            interval["full_captures"] = interval["pcs"].count(
+                enemy_symbols["rub_full"]
+            )
+            if interval["full_captures"] == 4:
+                discontinuity_by_owner.setdefault(interval["owner"], interval)
+    if set(discontinuity_by_owner) != {"A", "B"}:
+        raise ValueError(
+            "forced discontinuity did not execute four full captures on both owners: "
+            + repr({owner: item["full_captures"] for owner, item in discontinuity_by_owner.items()})
+        )
+    discontinuities = [discontinuity_by_owner[owner] for owner in ("A", "B")]
     gate = alternating_sections(BUILD / "perf-gate.raw.trace", frame_pc, 0)[:2]
     for interval in gate:
         interval["gate_compositions"] = interval["pcs"].count(
@@ -167,11 +198,46 @@ def main() -> None:
         for interval in vertical
         if interval["vertical_captures"] == 4 and interval["full_captures"] == 0
     ]
-    discontinuities = [
-        interval
-        for interval in horizontal + vertical
-        if interval["full_captures"]
-    ]
+    all_intervals = (
+        player + horizontal_movement + vertical_movement + discontinuities
+        + animation + popup + death + death_reset + gate
+    )
+    write_front_fault_events = sum(
+        interval.get("pcs", []).count(enemy_symbols["fbp_write_front_fault"])
+        for interval in all_intervals
+    )
+    missed_commit_events = sum(
+        interval.get("pcs", []).count(enemy_symbols["fbiq_missed"])
+        for interval in all_intervals
+    )
+    if write_front_fault_events:
+        raise ValueError(f"captured {write_front_fault_events} write-to-front faults")
+
+    hydrated_ram = find_ram((BUILD / "perf-four-hydrated.sna").read_bytes())
+    framebuffer_a = hydrated_ram[0x60000:0x60000 + 30_720]
+    framebuffer_b = hydrated_ram[0x58000:0x58000 + 30_720]
+    if framebuffer_a != framebuffer_b:
+        raise ValueError("hydrated A/B framebuffers did not converge byte-exactly")
+    convergence_sha256 = hashlib.sha256(framebuffer_a).hexdigest()
+
+    layout = json.loads((BUILD / "ladybug-sparse-layout.json").read_text(encoding="ascii"))
+    capacity = {
+        "resident_used": int(symbols(BUILD / "ladybug.map")["resident_end"], 16) - 0xC000,
+        "resident_limit": 8192,
+        "assets_used": int(symbols(BUILD / "ladybug.map")["asset_end"], 16) - 0xE000,
+        "assets_limit": 7680,
+        "bank3_used": (BUILD / "ladybug-enemy-runtime.rom").stat().st_size,
+        "bank3_limit": 4096,
+        "direct_page_spare": 95,
+        "stack_spare": 1791,
+        "expansion_payload_spare": layout["gmc"]["spare_bytes"],
+    }
+    if any(capacity[used] > capacity[limit] for used, limit in (
+        ("resident_used", "resident_limit"),
+        ("assets_used", "assets_limit"),
+        ("bank3_used", "bank3_limit"),
+    )):
+        raise ValueError(f"capacity limit exceeded: {capacity}")
 
     report = {
         "captured": date.today().isoformat(),
@@ -193,6 +259,13 @@ def main() -> None:
         ),
         "hardware_budget_cycles": HARDWARE_BUDGET,
         "engineering_target_cycles": ENGINEERING_TARGET,
+        "capacity": capacity,
+        "diagnostics": {
+            "write_front_fault_events": write_front_fault_events,
+            "missed_commit_events": missed_commit_events,
+            "animation_replay": animation_replay,
+            "hydrated_ab_convergence_sha256": convergence_sha256,
+        },
         "scenarios": {
             "player": [without_pcs(item) for item in player],
             "horizontal_four_enemy": [without_pcs(item) for item in horizontal_movement],
@@ -200,14 +273,25 @@ def main() -> None:
             "movement_discontinuity": [without_pcs(item) for item in discontinuities],
             "movement_plus_nest_animation": [without_pcs(item) for item in animation],
             "blue_x5_popup": [without_pcs(item) for item in popup],
-            "death_angel": death,
-            "death_reset_with_nest": death_reset,
+            "death_angel": [without_pcs(item) for item in death],
+            "death_reset_with_nest": [without_pcs(item) for item in death_reset],
             "gate_diagonal_final": [without_pcs(item) for item in gate],
         },
         "acceptance": {
             "current_revision_complete_frame_evidence": True,
-            "all_steady_paths_below_hardware_budget": False,
-            "all_normal_paths_at_engineering_target": False,
+            "forced_discontinuity_present_for_both_owners": len(discontinuities) == 2,
+            "natural_animation_replay_verified": animation_replay == {
+                "A": ["A", "B"], "B": ["B", "A"]
+            },
+            "zero_write_to_front_faults": write_front_fault_events == 0,
+            "zero_missed_commit_events": missed_commit_events == 0,
+            "exact_hydrated_ab_convergence": True,
+            "all_sampled_paths_below_hardware_budget": all(
+                int(item["active_cycles"]) < HARDWARE_BUDGET for item in all_intervals
+            ),
+            "all_sampled_paths_at_engineering_target": all(
+                int(item["active_cycles"]) <= ENGINEERING_TARGET for item in all_intervals
+            ),
         },
         "artifacts": {
             "horizontal": "build/perf-four-horizontal.raw.trace",
@@ -230,6 +314,10 @@ def main() -> None:
             "death": [
                 "build/perf-death-a.raw.trace",
                 "build/perf-death-b.raw.trace",
+            ],
+            "discontinuity": [
+                "build/perf-discontinuity-a.raw.trace",
+                "build/perf-discontinuity-b.raw.trace",
             ],
             "death_reset_with_nest": [
                 "build/perf-death-reset-a.raw.trace",

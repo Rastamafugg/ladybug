@@ -196,7 +196,7 @@ def main() -> None:
             animation,
             BUILD / f"perf-animation-{owner}.raw.trace",
             stop_pc,
-            2,
+            3,
         )
         capture_snapshot(
             BUILD / f"perf-animation-{owner}-fast.sna",
@@ -268,6 +268,30 @@ def main() -> None:
             BUILD / f"perf-death-reset-{owner}.raw.trace",
             stop_pc,
             1,
+        )
+
+    # Force the conservative discontinuity fallback independently for both
+    # owners. These stale prior pointers are compared but never dereferenced;
+    # each differs from the current destination by more than a legal strip.
+    for owner, front, back in (("a", 1, 0), ("b", 0, 1)):
+        discontinuity = BUILD / f"perf-discontinuity-{owner}.sna"
+        patch_snapshot(
+            hydrated,
+            discontinuity,
+            moving_patch((1, 1, 3, 3)) + [
+                "0061=01", "0087=02",
+                "A909=20", "A90A=00", "A911=21", "A912=00",
+                "A919=22", "A91A=00", "A921=23", "A922=00",
+                "AA09=20", "AA0A=00", "AA11=21", "AA12=00",
+                "AA19=22", "AA1A=00", "AA21=23", "AA22=00",
+                f"008F={front:02X}", f"0090={back:02X}",
+            ],
+        )
+        capture_trace(
+            discontinuity,
+            BUILD / f"perf-discontinuity-{owner}.raw.trace",
+            stop_pc,
+            3,
         )
 
     gate = BUILD / "perf-gate.sna"

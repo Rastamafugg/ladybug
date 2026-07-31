@@ -1,15 +1,41 @@
 {
   "captured": "2026-07-31",
-  "source_commit": "2aece4ad195fa169c4af9577b56f96351fa69b52",
+  "source_commit": "82e1524e4dc2e2b6ea888b90ed0d1922fc57629c",
   "source_sha256": {
     "src/main.s": "a8b47d790d8d9f85f964197754b533deeb12d73afd6252487b4b0eb44bbb2f47",
-    "src/enemy_runtime.s": "c3cfab49a65a03e87ef6dacecc119369be8f9de84d833b30c5d71ab33fec7f8e",
+    "src/enemy_runtime.s": "8483bc369751ec895922792798656ef08f7b99d66c0438ae64af9463524b0521",
     "scripts/build_screen.py": "4e347ac66a02038a6eb59c36662a842c597a5d0032205ffd531af706b5fa8826",
     "scripts/build_sparse_sprites.py": "19f128bc238feeec2bc0f232361b2b529ea2ea1f35c982cd56027479757e2d20"
   },
   "measurement_contract": "complete frame_render_impl-to-next-render-call active interval; only identified SYNC waits excluded",
   "hardware_budget_cycles": 29666,
   "engineering_target_cycles": 27000,
+  "capacity": {
+    "resident_used": 7741,
+    "resident_limit": 8192,
+    "assets_used": 7144,
+    "assets_limit": 7680,
+    "bank3_used": 4062,
+    "bank3_limit": 4096,
+    "direct_page_spare": 95,
+    "stack_spare": 1791,
+    "expansion_payload_spare": 939
+  },
+  "diagnostics": {
+    "write_front_fault_events": 0,
+    "missed_commit_events": 5,
+    "animation_replay": {
+      "A": [
+        "A",
+        "B"
+      ],
+      "B": [
+        "B",
+        "A"
+      ]
+    },
+    "hydrated_ab_convergence_sha256": "2f2943c3e99f4e0161461d5933750d57385ca8e49e6f23b01945f0400f992b0b"
+  },
   "scenarios": {
     "player": [
       {
@@ -188,25 +214,46 @@
         "full_captures": 0
       }
     ],
-    "movement_discontinuity": [],
+    "movement_discontinuity": [
+      {
+        "owner": "A",
+        "instructions": 5417,
+        "active_cycles": 28302,
+        "hardware_margin_cycles": 1364,
+        "engineering_margin_cycles": -1302,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": false,
+        "full_captures": 4
+      },
+      {
+        "owner": "B",
+        "instructions": 5545,
+        "active_cycles": 28829,
+        "hardware_margin_cycles": 837,
+        "engineering_margin_cycles": -1829,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": false,
+        "full_captures": 4
+      }
+    ],
     "movement_plus_nest_animation": [
       {
         "owner": "A",
-        "instructions": 5003,
-        "active_cycles": 24894,
-        "hardware_margin_cycles": 4772,
-        "engineering_margin_cycles": 2106,
+        "instructions": 5006,
+        "active_cycles": 24915,
+        "hardware_margin_cycles": 4751,
+        "engineering_margin_cycles": 2085,
         "passes_hardware_budget": true,
         "passes_engineering_target": true
       },
       {
         "owner": "B",
-        "instructions": 5006,
-        "active_cycles": 24901,
-        "hardware_margin_cycles": 4765,
-        "engineering_margin_cycles": 2099,
+        "instructions": 5795,
+        "active_cycles": 28222,
+        "hardware_margin_cycles": 1444,
+        "engineering_margin_cycles": -1222,
         "passes_hardware_budget": true,
-        "passes_engineering_target": true
+        "passes_engineering_target": false
       }
     ],
     "blue_x5_popup": [
@@ -294,8 +341,13 @@
   },
   "acceptance": {
     "current_revision_complete_frame_evidence": true,
-    "all_steady_paths_below_hardware_budget": false,
-    "all_normal_paths_at_engineering_target": false
+    "forced_discontinuity_present_for_both_owners": true,
+    "natural_animation_replay_verified": true,
+    "zero_write_to_front_faults": true,
+    "zero_missed_commit_events": false,
+    "exact_hydrated_ab_convergence": true,
+    "all_sampled_paths_below_hardware_budget": false,
+    "all_sampled_paths_at_engineering_target": false
   },
   "artifacts": {
     "horizontal": "build/perf-four-horizontal.raw.trace",
@@ -318,6 +370,10 @@
     "death": [
       "build/perf-death-a.raw.trace",
       "build/perf-death-b.raw.trace"
+    ],
+    "discontinuity": [
+      "build/perf-discontinuity-a.raw.trace",
+      "build/perf-discontinuity-b.raw.trace"
     ],
     "death_reset_with_nest": [
       "build/perf-death-reset-a.raw.trace",

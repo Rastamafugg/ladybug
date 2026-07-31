@@ -998,6 +998,7 @@ framebuffer_prepare_back
         lda     FB_BACK_ID
         cmpa    FB_FRONT_ID
         bne     fbp_owned
+fbp_write_front_fault
         inc     FB_WRITE_FRONT_FAULT
         orcc    #$01
         rts

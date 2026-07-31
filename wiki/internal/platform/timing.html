@@ -132,6 +132,36 @@
         Structural release, vegetable, death-reset, and overlap paths continue through
         the complete 16-by-32 compositor.
       </p>
+      <h3>Task 6 integrated acceptance result</h3>
+      <table class="wiki-table">
+        <thead><tr><th>Scenario</th><th>Maximum cycles</th><th>29,666 hardware</th><th>27,000 engineering</th></tr></thead>
+        <tbody>
+          <tr><td>Player</td><td>13,226</td><td>pass</td><td>pass</td></tr>
+          <tr><td>Four-enemy horizontal</td><td>28,763</td><td>pass</td><td>fail by 1,763</td></tr>
+          <tr><td>Four-enemy vertical</td><td>27,887</td><td>pass</td><td>fail by 887</td></tr>
+          <tr><td>Forced four-enemy discontinuity</td><td>28,829</td><td>pass</td><td>fail by 1,829</td></tr>
+          <tr><td>Natural A/B nest-animation replay</td><td>28,222</td><td>pass</td><td>fail by 1,222</td></tr>
+          <tr><td>Popup, all colour/multiplier owners</td><td>25,152</td><td>pass</td><td>pass</td></tr>
+          <tr><td>Death presentation, all frame owners</td><td>24,491</td><td>pass</td><td>pass</td></tr>
+          <tr><td>Death reset plus structural nest</td><td>35,590</td><td>fail by 5,924</td><td>fail by 8,590</td></tr>
+          <tr><td>Gate diagonal/final</td><td>36,837</td><td>fail by 7,171</td><td>fail by 9,837</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Task 6 forces exactly four full captures on both framebuffer owners instead
+        of accepting an absent fallback. Natural animation replay is also traced
+        across consecutive owners; the replay is correct but its coincident roaming
+        strip work exposes the 28,222-cycle maximum hidden by isolated owner forcing.
+        Captured diagnostics contain zero writes to FRONT, byte-exact hydrated A/B
+        convergence, and five missed-commit entries: one horizontal interval, both
+        structural death-reset intervals, and both gate intervals. Integrated strict
+        acceptance is therefore false.
+      </p>
+      <p>
+        Capacity remains valid at 7,741/8,192 resident bytes, 7,144/7,680 asset
+        bytes, 4,062/4,096 bank-3 bytes, 95 direct-page bytes free, 1,791 stack
+        bytes free, and 939 readable expansion bytes free.
+      </p>
     </section>
 
     <section>

@@ -37,7 +37,7 @@ required = [
     "ENEMY_ZONE_STAGE equ ACTOR_STAGE",
     "ENEMY_ZONE_FB  equ $4DEC",
     "SPRITE_SOURCE_SIZE equ 64",
-    "tst     ENEMY_NEST_DIRTY",
+    "anda    #ERF_NEST|ERF_NEST_ANIM",
     "lbsr    compose_enemy_zone",
     "tst     ENEMY_DEATH_LATCH",
     "lbsr    reset_enemy_state",
@@ -126,11 +126,28 @@ render = source[render_start : source.index("\nenemy_collect_impl\n", render_sta
 move_scan = source[source.index("\net_move_scan\n"):render_start]
 if "sta     ENEMY_NEST_DIRTY" in move_scan:
     raise SystemExit("enemy proof: roaming movement still dirties the nest")
-if render.index("tst     ENEMY_MOVE") < render.index("tst     ENEMY_NEST_DIRTY"):
-    raise SystemExit("enemy proof: nest dirtiness must gate before movement-only rendering")
-compose_tail = render[render.index("\net_compose\n"):]
-if not compose_tail.index("tst     ENEMY_NEST_DIRTY") < compose_tail.index("lbsr    compose_enemy_zone"):
+enemy_render = source[source.index("\nenemy_render_impl\n"):
+                      source.index("\nframe_render_impl\n")]
+for fragment in (
+    "bita    #ERF_NEST_ANIM",
+    "bita    #ERF_NEST",
+    "lbsr    compose_enemy_zone",
+):
+    if fragment not in enemy_render:
+        raise SystemExit("enemy proof: normalized nest intent missing: " + fragment)
+nest_anim_test = enemy_render.index("bita    #ERF_NEST_ANIM")
+nest_test = enemy_render.index("bita    #ERF_NEST", nest_anim_test + 1)
+if not nest_anim_test < nest_test < enemy_render.index("lbsr    compose_enemy_zone"):
     raise SystemExit("enemy proof: movement-only frames do not bypass nest composition")
+queue = source[source.index("\nframebuffer_queue_damage\n"):
+               source.index("\nroam_mark_underlay\n")]
+for fragment in (
+    "lda     ENEMY_RENDER_FLAGS",
+    "anda    #ERF_NEST|ERF_NEST_ANIM",
+    "sta     8,u",
+):
+    if fragment not in queue:
+        raise SystemExit("enemy proof: queued nest intent is not normalized: " + fragment)
 if source.index("pci_commit_row") > source.index("pci_horizontal_strip"):
     raise SystemExit("enemy proof: final player rows must publish before old strips")
 strip_start = source.index("\npci_horizontal_strip\n")
@@ -1004,8 +1021,8 @@ queue = source[source.index("\nframebuffer_queue_damage\n"):
 for fragment in (
     "anda    #RF_HUD|RF_LIVES|RF_ENTITIES|RF_BOX|RF_DOT|RF_STAGE",
     "anda    #RF2_MULTIPLIER|RF2_LETTER|RF2_PERIM_RESET",
-    "clr     8,u",
-    "lda     #ERF_NEST",
+    "lda     ENEMY_RENDER_FLAGS",
+    "anda    #ERF_NEST|ERF_NEST_ANIM",
     "sta     8,u",
     "ora     8,u",
 ):
