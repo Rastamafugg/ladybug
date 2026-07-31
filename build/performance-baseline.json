@@ -1,0 +1,296 @@
+{
+  "captured": "2026-07-31",
+  "source_commit": "82a3cc2bb3e765445d133f635ef237688d5ce154",
+  "source_sha256": {
+    "src/main.s": "57a9036261b52b12fa40615b8f2a3f8ab11a84fec51d507f331295a98ba962ab",
+    "src/enemy_runtime.s": "a5c1b75c65b32890adf012601a62aeb444e2c14b631b4395ea24ce361e0ad2b7",
+    "scripts/build_screen.py": "856e1a8ff69e037af0a4c250d6741931d8e3924c435805a6b02c24ed72456ee8",
+    "scripts/build_sparse_sprites.py": "59439fd5a9ecf97a6302e81bcce4421c14ddbc1d2f3c05bd3d378bb81b22ec6e"
+  },
+  "measurement_contract": "complete frame_render_impl-to-next-render-call active interval; only identified SYNC waits excluded",
+  "hardware_budget_cycles": 29666,
+  "engineering_target_cycles": 27000,
+  "scenarios": {
+    "player": [
+      {
+        "owner": "A",
+        "instructions": 1829,
+        "active_cycles": 8883,
+        "hardware_margin_cycles": 20783,
+        "engineering_margin_cycles": 18117,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
+      },
+      {
+        "owner": "B",
+        "instructions": 1915,
+        "active_cycles": 9237,
+        "hardware_margin_cycles": 20429,
+        "engineering_margin_cycles": 17763,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
+      },
+      {
+        "owner": "A",
+        "instructions": 3595,
+        "active_cycles": 17998,
+        "hardware_margin_cycles": 11668,
+        "engineering_margin_cycles": 9002,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
+      },
+      {
+        "owner": "B",
+        "instructions": 4620,
+        "active_cycles": 21865,
+        "hardware_margin_cycles": 7801,
+        "engineering_margin_cycles": 5135,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
+      },
+      {
+        "owner": "A",
+        "instructions": 2804,
+        "active_cycles": 12529,
+        "hardware_margin_cycles": 17137,
+        "engineering_margin_cycles": 14471,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
+      },
+      {
+        "owner": "B",
+        "instructions": 1888,
+        "active_cycles": 9126,
+        "hardware_margin_cycles": 20540,
+        "engineering_margin_cycles": 17874,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
+      },
+      {
+        "owner": "A",
+        "instructions": 1820,
+        "active_cycles": 8837,
+        "hardware_margin_cycles": 20829,
+        "engineering_margin_cycles": 18163,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
+      },
+      {
+        "owner": "B",
+        "instructions": 1886,
+        "active_cycles": 9107,
+        "hardware_margin_cycles": 20559,
+        "engineering_margin_cycles": 17893,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true
+      }
+    ],
+    "horizontal_four_enemy": [
+      {
+        "owner": "A",
+        "instructions": 5569,
+        "active_cycles": 26950,
+        "hardware_margin_cycles": 2716,
+        "engineering_margin_cycles": 50,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true,
+        "horizontal_captures": 4,
+        "full_captures": 0
+      },
+      {
+        "owner": "B",
+        "instructions": 5697,
+        "active_cycles": 27473,
+        "hardware_margin_cycles": 2193,
+        "engineering_margin_cycles": -473,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": false,
+        "horizontal_captures": 4,
+        "full_captures": 0
+      },
+      {
+        "owner": "A",
+        "instructions": 5698,
+        "active_cycles": 26952,
+        "hardware_margin_cycles": 2714,
+        "engineering_margin_cycles": 48,
+        "passes_hardware_budget": true,
+        "passes_engineering_target": true,
+        "horizontal_captures": 4,
+        "full_captures": 0
+      },
+      {
+        "owner": "B",
+        "instructions": 6493,
+        "active_cycles": 30284,
+        "hardware_margin_cycles": -618,
+        "engineering_margin_cycles": -3284,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false,
+        "horizontal_captures": 4,
+        "full_captures": 0
+      },
+      {
+        "owner": "A",
+        "instructions": 6382,
+        "active_cycles": 29759,
+        "hardware_margin_cycles": -93,
+        "engineering_margin_cycles": -2759,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false,
+        "horizontal_captures": 4,
+        "full_captures": 0
+      }
+    ],
+    "vertical_four_enemy": [
+      {
+        "owner": "A",
+        "instructions": 6463,
+        "active_cycles": 30629,
+        "hardware_margin_cycles": -963,
+        "engineering_margin_cycles": -3629,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false,
+        "vertical_captures": 4,
+        "full_captures": 0
+      },
+      {
+        "owner": "B",
+        "instructions": 6459,
+        "active_cycles": 30603,
+        "hardware_margin_cycles": -937,
+        "engineering_margin_cycles": -3603,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false,
+        "vertical_captures": 4,
+        "full_captures": 0
+      }
+    ],
+    "movement_discontinuity": [
+      {
+        "owner": "B",
+        "instructions": 7275,
+        "active_cycles": 36333,
+        "hardware_margin_cycles": -6667,
+        "engineering_margin_cycles": -9333,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false,
+        "vertical_captures": 0,
+        "full_captures": 4
+      },
+      {
+        "owner": "A",
+        "instructions": 9372,
+        "active_cycles": 45034,
+        "hardware_margin_cycles": -15368,
+        "engineering_margin_cycles": -18034,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false,
+        "vertical_captures": 0,
+        "full_captures": 4
+      }
+    ],
+    "movement_plus_nest_animation": [
+      {
+        "owner": "B",
+        "instructions": 6755,
+        "active_cycles": 36337,
+        "hardware_margin_cycles": -6671,
+        "engineering_margin_cycles": -9337,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false
+      },
+      {
+        "owner": "A",
+        "instructions": 7003,
+        "active_cycles": 37340,
+        "hardware_margin_cycles": -7674,
+        "engineering_margin_cycles": -10340,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false
+      }
+    ],
+    "blue_x5_popup": [
+      {
+        "owner": "A",
+        "instructions": 8172,
+        "active_cycles": 36451,
+        "hardware_margin_cycles": -6785,
+        "engineering_margin_cycles": -9451,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false
+      },
+      {
+        "owner": "B",
+        "instructions": 8172,
+        "active_cycles": 36437,
+        "hardware_margin_cycles": -6771,
+        "engineering_margin_cycles": -9437,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false
+      }
+    ],
+    "death_angel": [
+      {
+        "owner": "A",
+        "instructions": 9222,
+        "active_cycles": 45263,
+        "hardware_margin_cycles": -15597,
+        "engineering_margin_cycles": -18263,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false
+      },
+      {
+        "owner": "B",
+        "instructions": 9221,
+        "active_cycles": 45258,
+        "hardware_margin_cycles": -15592,
+        "engineering_margin_cycles": -18258,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false
+      }
+    ],
+    "gate_diagonal_final": [
+      {
+        "owner": "A",
+        "instructions": 7989,
+        "active_cycles": 39707,
+        "hardware_margin_cycles": -10041,
+        "engineering_margin_cycles": -12707,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false,
+        "gate_compositions": 1
+      },
+      {
+        "owner": "B",
+        "instructions": 8309,
+        "active_cycles": 41031,
+        "hardware_margin_cycles": -11365,
+        "engineering_margin_cycles": -14031,
+        "passes_hardware_budget": false,
+        "passes_engineering_target": false,
+        "gate_compositions": 1
+      }
+    ]
+  },
+  "acceptance": {
+    "current_revision_complete_frame_evidence": true,
+    "all_steady_paths_below_hardware_budget": false,
+    "all_normal_paths_at_engineering_target": false
+  },
+  "artifacts": {
+    "horizontal": "build/perf-four-horizontal.raw.trace",
+    "vertical": [
+      "build/perf-four-vertical.raw.trace",
+      "build/perf-four-vertical-a.raw.trace"
+    ],
+    "player": "build/perf-player.raw.trace",
+    "animation": "build/perf-animation.raw.trace",
+    "popup": "build/perf-popup.raw.trace",
+    "death": [
+      "build/perf-death-a.raw.trace",
+      "build/perf-death-b.raw.trace"
+    ],
+    "gate": "build/perf-gate.raw.trace"
+  }
+}

@@ -39,13 +39,44 @@
         <li><strong>Overload behavior:</strong> if rendering misses Vbord, the IRQ retains the current FRONT image and increments the missed-commit diagnostic. The runtime finishes the same frozen epoch and commits it later; it does not skip transient states, catch up timers, or begin another logical epoch. Correct degradation is not timing acceptance: steady gameplay still requires zero missed commits.</li>
         <li><strong>What to measure:</strong> use complete active intervals from one <code>frame_render_impl</code> entry to the next and exclude only an identified <code>SYNC</code> wait. Instruction counts alone are insufficient because 6809 instructions have variable cycle costs. Compare A and B owners with equivalent hydrated actor metadata and retain real alternate-owner damage replay.</li>
         <li><strong>Current rendering model:</strong> persistent A/B framebuffers own independent actor history and damage ledgers. Sparse enemy/player streams, circular save-under restoration, generated gate transition streams, and owner-selected player history avoid frame-time shadow publication and A/B history exchange.</li>
-        <li><strong>Acceptance status:</strong> the controlled four-enemy movement case measures 27,531/28,067 cycles for A/B and passes the strict hardware limit, but broader paths remain the controlling gate. Movement plus animation, pickup, death, and gate scenarios require current complete-frame proof below 29,666 cycles on both owners; generated gate-stream totals are presently projected rather than final accepted complete-frame measurements.</li>
+        <li><strong>Acceptance status:</strong> the reproducible 2026-07-31 current-revision baseline supersedes the earlier controlled sample. Horizontal four-enemy movement ranges from 26,950 to 30,284 cycles, vertical movement costs 30,603/30,629 cycles, and discontinuity frames cost 36,333/45,034 cycles. Player-only movement passes at no more than 21,865 cycles, but strict 60 Hz rendering acceptance is false.</li>
         <li><strong>Routine verification:</strong> build with <code>scripts/build.sh build</code>, use the <a href="../tooling/xroar.html#gdb-mcp-round-trip">GDB-MCP/XRoar round trip</a> for live traces, and run the path-specific profile verifier. Require matching framebuffer/save-under output, no out-of-footprint writes, correct PAR5 restoration, alternating commits, and zero ownership diagnostics alongside the cycle result.</li>
       </ul>
       <p>
         The sections below retain dated baselines and optimization history.
         Treat explicitly dated measurements as historical evidence unless a
         later section identifies them as the current acceptance result.
+      </p>
+    </section>
+
+    <section>
+      <h2>Current-revision performance baseline &mdash; 2026-07-31</h2>
+      <p>
+        <code>scripts/capture_performance_baseline.py</code> produces deterministic
+        XRoar snapshots and complete active traces for the current maps.
+        <code>scripts/verify_performance_baseline.py</code> resolves symbols dynamically,
+        records the source commit and generator hashes, and excludes only the identified
+        <code>SYNC</code> wait. Results are stored in
+        <code>build/performance-baseline.json</code>.
+      </p>
+      <table>
+        <thead><tr><th>Scenario</th><th>Complete active cycles</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Player distribution</td><td>8,837&ndash;21,865</td><td>Passes 27,000 engineering target</td></tr>
+          <tr><td>Horizontal four-enemy distribution</td><td>26,950&ndash;30,284</td><td>Fails strict limit at the upper tail</td></tr>
+          <tr><td>Vertical four-enemy owners A/B</td><td>30,629 / 30,603</td><td>Fails strict limit by 963 / 937</td></tr>
+          <tr><td>Movement discontinuity owners B/A</td><td>36,333 / 45,034</td><td>Fails strict limit</td></tr>
+          <tr><td>Movement plus nest animation owners B/A</td><td>36,337 / 37,340</td><td>Fails strict limit</td></tr>
+          <tr><td>Blue-times-five popup owners A/B</td><td>36,451 / 36,437</td><td>Fails strict limit</td></tr>
+          <tr><td>Death angel owners A/B</td><td>45,263 / 45,258</td><td>Fails strict limit</td></tr>
+          <tr><td>Gate diagonal/final owners A/B</td><td>39,707 / 41,031</td><td>Fails strict limit</td></tr>
+        </tbody>
+      </table>
+      <p>
+        The 27,531/28,067-cycle horizontal measurements below remain valid historical
+        evidence for one hydrated phase, but do not establish distribution acceptance.
+        Current acceptance requires both owners, horizontal and vertical motion, ring
+        phases, arrivals, turns, and full-capture fallbacks.
       </p>
     </section>
 

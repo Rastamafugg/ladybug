@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>A passing horizontal sample is not renderer distribution acceptance</h2>
+      <p>A hydrated horizontal sample measured 27,531/28,067 cycles, but a current-revision distribution found a 30,284-cycle horizontal junction frame, 30,603/30,629-cycle vertical frames, and 36,333/45,034-cycle discontinuity frames. The earlier sample was correct for its phase but did not cover the controlling paths.</p>
+      <p><strong>Rule:</strong> require complete A/B distributions across horizontal and vertical motion, ring phases, arrivals, turns, and full-capture fallbacks. Record the source commit and relevant generator hashes with every acceptance result.</p>
+      <p><strong>Citation:</strong> <code>scripts/capture_performance_baseline.py</code>, <code>scripts/verify_performance_baseline.py</code>, and <code>build/performance-baseline.json</code>.</p>
+    </section>
+
+    <section>
       <h2>Persistent damage replay can multiply transient renderer cost</h2>
       <p>A gate diagonal is a persistent background mutation. The first BACK owner draws it and queues coverage for the alternate owner. On the following frame, that owner must replay the diagonal before drawing the current final gate, producing two full gate compositions in one transaction. The measured event work is 66,027 cycles on the first owner and 140,296 cycles on the second.</p>
       <p><strong>Rule:</strong> budget a transient background effect across both framebuffer owners. A renderer that is acceptable once may still fail when damage projection and the next logical phase coincide. Prefer compact retained gate state or bounded footprint primitives that can project the final state directly.</p>

@@ -23,6 +23,21 @@
     </header>
 
     <section>
+      <h3>2026-07-31 &middot; implementation/profile/lint &mdash; current-revision performance baseline</h3>
+      <p>Added deterministic snapshot patching, a current-map XRoar capture driver, and a complete-active-cycle verifier that records the source commit and generator hashes. The refreshed distribution measures player-only movement at no more than 21,865 cycles, horizontal four-enemy movement at 26,950&ndash;30,284, vertical movement at 30,603/30,629, discontinuities at 36,333/45,034, nest animation at 36,337/37,340, popup at 36,451/36,437, death at 45,263/45,258, and gate at 39,707/41,031. Updated the timing contract, roadmap, and lessons learned so the earlier passing horizontal sample is retained as historical evidence rather than current acceptance.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-31 &middot; query/design &mdash; performance-closure work queue</h3>
+      <p>Converted the performance review into a six-task implementation-ready queue: refreshed same-revision acceptance profiles, common-path headroom, measured popup/death representation replacement, bounded nest-animation updates, gate/overlap closure, and integrated acceptance. Added explicit complete-frame targets, proof obligations, dependencies, and capacity guards to the Phase 7 roadmap; presentation work must reuse an existing decoder or blitter unless an approved design first recovers space because only 39 copied bank-3 bytes remain.</p>
+    </section>
+
+    <section>
+      <h3>2026-07-31 &middot; query &mdash; performance optimization status review</h3>
+      <p>Reviewed the current roadmap, timing contract, persistent-framebuffer acceptance gates, checked-in profile artifacts, and optimization verifiers. Confirmed that controlled four-enemy movement passes the 29,666-cycle hardware ceiling at 27,531/28,067 cycles but remains 531/1,067 cycles above the 27,000-cycle engineering target; movement plus animation, pickup, and death retain failing complete-frame measurements, while generated gate streams retain projected four-enemy totals of 29,751/33,443 cycles rather than accepted complete-frame results. Prioritized fresh same-revision A/B and distribution profiling, followed by shared sparse/destination-run treatment for popup/death presentation, bounded nest-animation updates, and owner-B gate/common-path reduction.</p>
+    </section>
+
+    <section>
       <h3>2026-07-27 &middot; implementation/query &mdash; source code structure guide</h3>
       <p>Added a canonical development and review guide covering the assembly and generator inventory, build-time artifact flow, cold boot, fixed bank-3 jump-table ABI, condensed runtime memory map, state ownership, main-loop and Vbord commit flows, change-impact verification matrix, and code-review checklist. Linked the new page from the implementation index; diagrams use dependency-free text blocks and tables use the existing wiki schema.</p>
     </section>
