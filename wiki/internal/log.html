@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-07-31 &middot; implementation/profile/lint &mdash; common-path renderer headroom</h3>
+      <p>Replaced per-row generic vertical-ring restore with fixed column dispatch plus two row segments, added phase-zero word-pull restore/capture and player save-under copies, halved the joystick DAC sweep with an exact midpoint refinement, used static navigation masks on non-gate cells while retaining dynamic-gate and den fallbacks, and bounded enemy skull scans to the guaranteed skull-record prefix. Current complete traces reduce horizontal four-enemy movement from 26,950&ndash;30,284 to 25,211&ndash;28,800 and vertical movement from 30,603/30,629 to 27,387&ndash;27,920; strict hardware movement passes, but the 25,000/27,000 engineering objectives remain unmet. Removed player-identity caching and mask-elided sparse-stream experiments after measurement showed regressions.</p>
+    </section>
+
+    <section>
       <h3>2026-07-31 &middot; implementation/profile/lint &mdash; current-revision performance baseline</h3>
       <p>Added deterministic snapshot patching, a current-map XRoar capture driver, and a complete-active-cycle verifier that records the source commit and generator hashes. The refreshed distribution measures player-only movement at no more than 21,865 cycles, horizontal four-enemy movement at 26,950&ndash;30,284, vertical movement at 30,603/30,629, discontinuities at 36,333/45,034, nest animation at 36,337/37,340, popup at 36,451/36,437, death at 45,263/45,258, and gate at 39,707/41,031. Updated the timing contract, roadmap, and lessons learned so the earlier passing horizontal sample is retained as historical evidence rather than current acceptance.</p>
     </section>

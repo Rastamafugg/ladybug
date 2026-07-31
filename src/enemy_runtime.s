@@ -1316,6 +1316,25 @@ ecd_blocked
 
 enemy_direction_legal
         ldx     ENEMY_PTR
+        lda     5,x
+        cmpa    #11
+        blo     edl_slow         ; retain the den-entrance exception
+        ldb     #24
+        mul
+        addb    4,x
+        adca    #0
+        ldy     #maze_nav
+        leay    d,y
+        lda     ,y
+        bita    #$10
+        bne     edl_slow         ; dynamic gate topology needs the full test
+        ldy     #enemy_exit_masks
+        ldb     ENEMY_CANDIDATE
+        anda    b,y
+        lbeq    edl_clear
+        orcc    #$01
+        rts
+edl_slow
         lda     4,x
         sta     ENTITY_X
         lda     5,x
@@ -1429,6 +1448,8 @@ edl_clear
 
 enemy_entry_masks
         fcb     $04,$08,$01,$02
+enemy_exit_masks
+        fcb     $01,$02,$04,$08
 
 ; Compare semantic centres. Adjacent eight-pixel cells still overlap because
 ; both actors have 16-by-16 footprints.
@@ -1463,7 +1484,11 @@ enemy_skull_test
 est_loop
         lda     2,u
         cmpa    #ENTITY_SKULL
-        bne     est_next
+        beq     est_skull
+        tsta
+        beq     est_next         ; cleared skulls remain inside the prefix
+        rts                      ; randomized skull records are always first
+est_skull
         lda     ,u
         ldx     ENEMY_PTR
         cmpa    4,x
@@ -1936,6 +1961,19 @@ rub_row_loop
 ; Capture one logical framebuffer row into a column-rotated physical row.
 roam_capture_ring_row
         ldb     RING_PHASE
+        bne     rcrr_rotated
+        ; The dominant phase-zero row is contiguous in both source and ring.
+        ; Pull four bytes per instruction and leave X at the next FB byte.
+        exg     x,u
+        pulu    d,y
+        std     ,x++
+        sty     ,x++
+        pulu    d,y
+        std     ,x++
+        sty     ,x++
+        tfr     u,x
+        rts
+rcrr_rotated
         lda     #8
         sta     GATE_COPY_COUNT
 rcrr_byte
@@ -2020,6 +2058,9 @@ roam_copy_bg_to_fb
         sta     RING_PHASE
         bita    #$F0
         lbne    rcbtf_ring_setup
+        lda     #16
+        sta     GATE_COPY_ROWS
+        lda     RING_PHASE
         anda    #7
         lsla
         ldu     RING_BASE
@@ -2028,27 +2069,27 @@ roam_copy_bg_to_fb
         jmp     ,y
 
 rcbtf_fast_table
-        fdb     rcbtf_phase0,rcbtf_phase1,rcbtf_phase2,rcbtf_phase3
-        fdb     rcbtf_phase4,rcbtf_phase5,rcbtf_phase6,rcbtf_phase7
+        fdb     rcbtf_phase0_rows,rcbtf_phase1_rows
+        fdb     rcbtf_phase2_rows,rcbtf_phase3_rows
+        fdb     rcbtf_phase4_rows,rcbtf_phase5_rows
+        fdb     rcbtf_phase6_rows,rcbtf_phase7_rows
 
 rcbtf_phase0
-        ldy     #16
+rcbtf_phase0_rows
 rcbtf_phase0_row
-        ldd     ,u++
+        pulu    d,y
         std     ,x++
-        ldd     ,u++
+        sty     ,x++
+        pulu    d,y
         std     ,x++
-        ldd     ,u++
-        std     ,x++
-        ldd     ,u++
-        std     ,x++
+        sty     ,x++
         leax    152,x
-        leay    -1,y
+        dec     GATE_COPY_ROWS
         bne     rcbtf_phase0_row
         rts
 
 rcbtf_phase1
-        ldy     #16
+rcbtf_phase1_rows
 rcbtf_phase1_row
         ldd     1,u
         std     ,x++
@@ -2061,12 +2102,12 @@ rcbtf_phase1_row
         std     ,x++
         leau    8,u
         leax    152,x
-        leay    -1,y
+        dec     GATE_COPY_ROWS
         bne     rcbtf_phase1_row
         rts
 
 rcbtf_phase2
-        ldy     #16
+rcbtf_phase2_rows
 rcbtf_phase2_row
         ldd     2,u
         std     ,x++
@@ -2078,12 +2119,12 @@ rcbtf_phase2_row
         std     ,x++
         leau    8,u
         leax    152,x
-        leay    -1,y
+        dec     GATE_COPY_ROWS
         bne     rcbtf_phase2_row
         rts
 
 rcbtf_phase3
-        ldy     #16
+rcbtf_phase3_rows
 rcbtf_phase3_row
         ldd     3,u
         std     ,x++
@@ -2096,12 +2137,12 @@ rcbtf_phase3_row
         std     ,x++
         leau    8,u
         leax    152,x
-        leay    -1,y
+        dec     GATE_COPY_ROWS
         bne     rcbtf_phase3_row
         rts
 
 rcbtf_phase4
-        ldy     #16
+rcbtf_phase4_rows
 rcbtf_phase4_row
         ldd     4,u
         std     ,x++
@@ -2113,12 +2154,12 @@ rcbtf_phase4_row
         std     ,x++
         leau    8,u
         leax    152,x
-        leay    -1,y
+        dec     GATE_COPY_ROWS
         bne     rcbtf_phase4_row
         rts
 
 rcbtf_phase5
-        ldy     #16
+rcbtf_phase5_rows
 rcbtf_phase5_row
         ldd     5,u
         std     ,x++
@@ -2131,12 +2172,12 @@ rcbtf_phase5_row
         std     ,x++
         leau    8,u
         leax    152,x
-        leay    -1,y
+        dec     GATE_COPY_ROWS
         bne     rcbtf_phase5_row
         rts
 
 rcbtf_phase6
-        ldy     #16
+rcbtf_phase6_rows
 rcbtf_phase6_row
         ldd     6,u
         std     ,x++
@@ -2148,12 +2189,12 @@ rcbtf_phase6_row
         std     ,x++
         leau    8,u
         leax    152,x
-        leay    -1,y
+        dec     GATE_COPY_ROWS
         bne     rcbtf_phase6_row
         rts
 
 rcbtf_phase7
-        ldy     #16
+rcbtf_phase7_rows
 rcbtf_phase7_row
         lda     7,u
         ldb     ,u
@@ -2166,7 +2207,7 @@ rcbtf_phase7_row
         std     ,x++
         leau    8,u
         leax    152,x
-        leay    -1,y
+        dec     GATE_COPY_ROWS
         bne     rcbtf_phase7_row
         rts
 
@@ -2177,64 +2218,29 @@ rcbtf_ring_setup
         lsra
         lsra
         lsra
-        sta     RING_ROW
-        lda     RING_PHASE
-        anda    #7
-        sta     RING_PHASE
-        lda     #16
-        sta     GATE_COPY_ROWS
-rcbtf_ring_row
-        lda     RING_ROW
+        sta     RING_ROW        ; first physical row
         ldb     #8
         mul
         addd    RING_BASE
         tfr     d,u
-        pshs    u
-        ldb     RING_PHASE
-        leau    b,u
-        negb
-        addb    #8
-        stb     GATE_COPY_COUNT
-rcbtf_ring_first
-        ldb     GATE_COPY_COUNT
-        cmpb    #2
-        blo     rcbtf_ring_first_byte
-        ldd     ,u++
-        std     ,x++
-        dec     GATE_COPY_COUNT
-        dec     GATE_COPY_COUNT
-        bra     rcbtf_ring_first
-rcbtf_ring_first_byte
-        tst     GATE_COPY_COUNT
-        beq     rcbtf_ring_wrap
-        lda     ,u
-        sta     ,x+
-rcbtf_ring_wrap
-        puls    u
         lda     RING_PHASE
-        sta     GATE_COPY_COUNT
-rcbtf_ring_second
-        ldb     GATE_COPY_COUNT
-        cmpb    #2
-        blo     rcbtf_ring_second_byte
-        ldd     ,u++
-        std     ,x++
-        dec     GATE_COPY_COUNT
-        dec     GATE_COPY_COUNT
-        bra     rcbtf_ring_second
-rcbtf_ring_second_byte
-        tst     GATE_COPY_COUNT
-        beq     rcbtf_ring_next
-        lda     ,u
-        sta     ,x+
-rcbtf_ring_next
-        leax    152,x
-        inc     RING_ROW
+        anda    #7
+        lsla
+        ldy     #rcbtf_fast_table
+        ldy     a,y
+        sty     RING_BASE       ; selected column-phase row copier
+        clra
+        ldb     #16
+        subb    RING_ROW
+        stb     GATE_COPY_ROWS
+        jsr     [RING_BASE]
         lda     RING_ROW
-        anda    #15
-        sta     RING_ROW
-        dec     GATE_COPY_ROWS
-        bne     rcbtf_ring_row
+        beq     rcbtf_ring_done
+        leau    -128,u
+        tfr     a,b
+        stb     GATE_COPY_ROWS
+        jsr     [RING_BASE]
+rcbtf_ring_done
         rts
         else
         ldy     #16
@@ -2956,26 +2962,29 @@ sbf_opaque_small
         blo     sbf_opaque1
         bra     sbf_opaque3
 sbf_opaque5
-        ldd     ,u++
+        pulu    d,y
         std     ,x++
-sbf_opaque3
-        ldd     ,u++
-        std     ,x++
+        sty     ,x++
 sbf_opaque1
         lda     ,u+
         sta     ,x+
         bra     sbf_delta
+sbf_opaque3
+        ldd     ,u++
+        std     ,x++
+        bra     sbf_opaque1
 sbf_opaque6
-        ldd     ,u++
+        pulu    d,y
         std     ,x++
-        ldd     ,u++
-        std     ,x++
+        sty     ,x++
         ldd     ,u++
         std     ,x++
         bra     sbf_delta
 sbf_opaque4
-        ldd     ,u++
+        pulu    d,y
         std     ,x++
+        sty     ,x++
+        bra     sbf_delta
 sbf_opaque2
         ldd     ,u++
         std     ,x++

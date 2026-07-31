@@ -111,6 +111,7 @@ ENEMY_DEATH_LATCH equ $0062    ; 0=alive, 1=reset pending, 2=reset published
 PLAYER_OLD_FB equ $0067        ; framebuffer pointer owned by PLAYER_BG_PTR
 PLAYER_ERASED equ $0069        ; nonzero after old player background is exposed
 PLAYER_BG_VALID equ $006A      ; PLAYER_BG_PTR contains restorable pixels
+PLAYER_COPY_ROWS equ $006E      ; save-under copy loop scratch
 PLAYER_TICK_PENDING equ $006B  ; nonzero when next Vbord must update/render player
 GATE_COMPOSE_MODE equ $006F    ; 0=diagonal intermediate, 1=final gate state
 GATE_START_X   equ $0074       ; gate/entity redraw union, inclusive
@@ -1814,10 +1815,21 @@ joy_read_axis
 jra_loop
         stb     PIA2_DA
         lda     PIA1_DA
-        bpl     jra_done        ; PA7 clear: DAC reached analog voltage
-        addb    #4
+        bpl     jra_refine      ; PA7 clear: DAC reached analog voltage
+        addb    #8
         bcc     jra_loop
         ldb     #$FC
+        bra     jra_done
+jra_refine
+        subb    #4              ; test the skipped midpoint
+        bcc     jra_refine_test
+        clrb
+        bra     jra_done
+jra_refine_test
+        stb     PIA2_DA
+        lda     PIA1_DA
+        bpl     jra_done
+        addb    #4
 jra_done
         lsrb
         lsrb
@@ -3446,18 +3458,18 @@ sprite_score_blue_pairs
 save_player
         ldx     PLAYER_FB
         ldu     PLAYER_BG_PTR
-        ldy     #16
+        exg     x,u             ; U = framebuffer source, X = linear save-under
+        lda     #16
+        sta     PLAYER_COPY_ROWS
 sp_row
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        leax    152,x
-        leay    -1,y
+        pulu    d,y
+        std     ,x++
+        sty     ,x++
+        pulu    d,y
+        std     ,x++
+        sty     ,x++
+        leau    152,u
+        dec     PLAYER_COPY_ROWS
         bne     sp_row
         lda     #1
         sta     PLAYER_BG_VALID
@@ -3478,18 +3490,17 @@ sp_row
 restore_player
         ldx     PLAYER_FB
         ldu     PLAYER_BG_PTR
-        ldy     #16
+        lda     #16
+        sta     PLAYER_COPY_ROWS
 rp_row
-        ldd     ,u++
+        pulu    d,y
         std     ,x++
-        ldd     ,u++
+        sty     ,x++
+        pulu    d,y
         std     ,x++
-        ldd     ,u++
-        std     ,x++
-        ldd     ,u++
-        std     ,x++
+        sty     ,x++
         leax    152,x
-        leay    -1,y
+        dec     PLAYER_COPY_ROWS
         bne     rp_row
         clr     PLAYER_BG_VALID
         rts

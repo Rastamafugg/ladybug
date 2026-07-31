@@ -277,29 +277,24 @@ specialized_opaque = {
 }
 specialized_blocks = {
     5: """sbf_opaque5
-        ldd     ,u++
+        pulu    d,y
         std     ,x++
-sbf_opaque3
-        ldd     ,u++
-        std     ,x++
+        sty     ,x++
 sbf_opaque1
         lda     ,u+
         sta     ,x+
         bra     sbf_delta""",
     6: """sbf_opaque6
-        ldd     ,u++
+        pulu    d,y
         std     ,x++
-        ldd     ,u++
-        std     ,x++
+        sty     ,x++
         ldd     ,u++
         std     ,x++
         bra     sbf_delta""",
     4: """sbf_opaque4
-        ldd     ,u++
+        pulu    d,y
         std     ,x++
-sbf_opaque2
-        ldd     ,u++
-        std     ,x++
+        sty     ,x++
         bra     sbf_delta""",
 }
 for length, operations in specialized_opaque.items():

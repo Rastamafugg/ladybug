@@ -259,6 +259,47 @@ def verify_gate_graphics() -> None:
     assert 0 <= dot_tile < len(tiles)
 
 
+def verify_joystick_refinement() -> None:
+    """The coarse/refine DAC sweep must equal the original four-count sweep."""
+    for analog in range(256):
+        original = next(
+            (dac >> 2 for dac in range(0, 256, 4) if dac >= analog),
+            0x3F,
+        )
+        coarse = next(
+            (dac for dac in range(0, 256, 8) if dac >= analog),
+            None,
+        )
+        if coarse is None:
+            refined = 0xFC
+        elif coarse < 4:
+            refined = 0
+        elif coarse - 4 >= analog:
+            refined = coarse - 4
+        else:
+            refined = coarse
+        assert refined >> 2 == original
+
+
+def verify_enemy_navigation_fast_path() -> None:
+    """Static non-gate exit bits equal destination reciprocal-entry tests."""
+    maze = load("maze.json")
+    nav = maze["maze_nav"]
+    deltas = ((0, -1), (1, 0), (0, 1), (-1, 0))
+    reciprocal = (4, 8, 1, 2)
+    for y, row in enumerate(nav):
+        for x, value in enumerate(row):
+            if y < 11 or value & 0x10:
+                continue
+            for direction, ((dx, dy), entry) in enumerate(zip(deltas, reciprocal)):
+                target_x, target_y = x + dx, y + dy
+                target_open = (
+                    0 <= target_x < 24 and 0 <= target_y < 24 and
+                    bool(nav[target_y][target_x] & entry)
+                )
+                assert bool(value & (1 << direction)) == target_open
+
+
 def main() -> None:
     verify_speed()
     verify_early_turn()
@@ -271,6 +312,8 @@ def main() -> None:
     verify_player_restore_contract()
     verify_gate_tables()
     verify_gate_graphics()
+    verify_joystick_refinement()
+    verify_enemy_navigation_fast_path()
     print("arcade fidelity: movement, gates, 30-frame stacked popups, and 270-frame death transition verified")
 
 

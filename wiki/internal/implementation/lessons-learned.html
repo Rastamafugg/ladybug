@@ -25,6 +25,20 @@
     </header>
 
     <section>
+      <h2>Optimize circular restore by separating row and column phase</h2>
+      <p>The generic vertical-ring restore recomputed a physical row address and byte wrap for every logical row, costing 4,840 cycles per enemy at a nonzero row phase. Selecting one of eight fixed column copiers once and executing at most two contiguous row segments reduced the controlling discontinuity frame from 45,034 to the mid-30K range. Four-byte <code>PULU D,Y</code> transfers further reduce phase-zero restore, vertical capture, and player save-under copies.</p>
+      <p><strong>Rule:</strong> when both axes are circular, dispatch the small fixed axis once and segment only the wrapping axis. Do not repeat address multiplication and wrap decisions inside every row.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>roam_copy_bg_to_fb</code>/<code>roam_capture_ring_row</code> and <code>src/main.s</code> <code>save_player</code>/<code>restore_player</code>.</p>
+    </section>
+
+    <section>
+      <h2>Reject optimizations whose guards exceed their measured reuse</h2>
+      <p>A reserved player-metadata byte could identify an owner-local presentation, but the measured player frame changes at the active cadence, so the overlap and damage guards added 280&ndash;283 cycles without removing a restore. Removing per-byte sparse masks saved 2,915 payload bytes, but splitting mixed-nibble runs added enough commands to increase horizontal and vertical maxima by 111 and 345 cycles.</p>
+      <p><strong>Rule:</strong> measure reuse frequency and command fragmentation before retaining cache metadata or denser encodings. Capacity improvement alone is not a hot-path improvement.</p>
+      <p><strong>Citation:</strong> Task 2 experimental current-revision XRoar captures and <code>build/performance-baseline.json</code>.</p>
+    </section>
+
+    <section>
       <h2>A passing horizontal sample is not renderer distribution acceptance</h2>
       <p>A hydrated horizontal sample measured 27,531/28,067 cycles, but a current-revision distribution found a 30,284-cycle horizontal junction frame, 30,603/30,629-cycle vertical frames, and 36,333/45,034-cycle discontinuity frames. The earlier sample was correct for its phase but did not cover the controlling paths.</p>
       <p><strong>Rule:</strong> require complete A/B distributions across horizontal and vertical motion, ring phases, arrivals, turns, and full-capture fallbacks. Record the source commit and relevant generator hashes with every acceptance result.</p>

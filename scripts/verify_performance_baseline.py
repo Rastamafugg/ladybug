@@ -36,7 +36,7 @@ def trace_sections(path: Path, frame_pc: str) -> list[dict[str, object]]:
     ]
     # XRoar 1.10 reports the first restored-snapshot instruction at PC $0000,
     # while decoding and executing the saved frame_render_impl instruction.
-    if lines and lines[0].startswith("0000| 170348"):
+    if lines and lines[0].startswith("0000|"):
         lines[0] = frame_pc + lines[0][4:]
     starts = [index for index, line in enumerate(lines) if line.startswith(frame_pc + "|")]
     if not starts:
