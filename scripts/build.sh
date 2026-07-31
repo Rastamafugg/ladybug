@@ -153,6 +153,7 @@ wanted = {
     'gate_render_hidden', 'maze_gate_owner',
     'maze_gates', 'maze_nav',
     'restore_entity_footprint', 'sprite_attr0_pairs',
+    'reload_enemy_box_timer', 'reset_enemy_state',
     'restore_gate_diagonal_dots', 'vegetable_sprites',
 }
 symbols = {}

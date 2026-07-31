@@ -24,9 +24,11 @@ maze_gate_owner equ $F95A
 maze_gates equ $FB9A
 maze_nav equ $F71A
 perimeter_box_coordinates equ $C821
+reload_enemy_box_timer equ $D598
+reset_enemy_state equ $D558
 restore_entity_footprint equ $D281
 restore_gate_diagonal_dots equ $CEFE
 restore_player equ $D4A7
 save_player equ $D482
 sprite_attr0_pairs equ $D402
-vegetable_sprites equ $D96A
+vegetable_sprites equ $D9BD

@@ -188,6 +188,14 @@
     </section>
 
     <section>
+      <h2>Cache final bounded layers after scoped sparse expansion</h2>
+      <p><strong>Filed 2026-07-31.</strong></p>
+      <p>A dormant animation frame did not require active-actor closure, but restoring its background and decoding the sparse sprite still left the complete interval near the movement ceiling. Four final 128-byte dormant rectangles fit in free game-state RAM, while the sparse source temporarily owns PAR5 and therefore cannot decode directly into that storage.</p>
+      <p><strong>Rule:</strong> expand through an always-mapped stage, restore PAR5, then copy the completed native frame into owner-neutral page-34 cache storage. Carry animation-only damage separately through A/B replay and do not invalidate unrelated roaming save-under strips. Keep the complete compositor as the structural fallback.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>build_enemy_nest_cache</code> and <code>compose_enemy_animation</code>, <code>scripts/verify_nest_animation.py</code>, and the 24,951/24,958-cycle complete A/B traces.</p>
+    </section>
+
+    <section>
       <h2>Snapshot reward state before applying a pickup's progression</h2>
       <p><strong>Filed 2026-07-23.</strong></p>
       <p>Blue-heart scoring used the old multiplier correctly, but the delayed popup read the live multiplier after the same pickup advanced it. The displayed reward therefore contradicted the awarded score. The angel path had analogous delayed-state defects: its quarter counter did not wrap and its framebuffer pointer could cross the top boundary while fixed-duration animation continued.</p>

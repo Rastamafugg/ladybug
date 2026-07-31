@@ -49,10 +49,7 @@ required = [
     "ldd     #300",
     "cmpa    #4",
     "sta     VEG_STATE",
-    "stb     BOX_TIMER",
     "clr     BOX_INDEX",
-    "clr     BOX_PHASE",
-    "clr     PLAYER_TICK_PENDING",
     "jmp     player_compose_impl",
     "jmp     gate_compose_impl",
     "jmp     player_draw_impl",
@@ -102,6 +99,9 @@ required = [
 missing = [fragment for fragment in required if fragment not in source]
 if missing:
     raise SystemExit("enemy proof: missing contracts: " + ", ".join(missing))
+for fragment in ("stb     BOX_TIMER", "clr     BOX_PHASE", "clr     PLAYER_TICK_PENDING"):
+    if fragment not in source and fragment not in main:
+        raise SystemExit("enemy proof: missing relocated contract: " + fragment)
 for legacy in (
     "ENEMY_SPRITE_CACHE", "ENEMY_CACHE_KEYS", "PLAYER_SPRITE_CACHE",
     "PLAYER_CACHE_KEY", "enemy_sprite_cache", "player_frame_cache_impl",
@@ -149,8 +149,8 @@ if "FB_MODULE_INIT      equ $081B" not in main:
     raise SystemExit("enemy proof: framebuffer ownership-init ABI entry is missing")
 if "FB_MODULE_IRQ       equ $081E" not in main:
     raise SystemExit("enemy proof: framebuffer Vbord-commit ABI entry is missing")
-reset_start = source.index("\nreset_enemy_state\n")
-reset = source[reset_start : source.index("\nreload_enemy_box_timer\n", reset_start)]
+reset_start = main.index("\nreset_enemy_state\n")
+reset = main[reset_start : main.index("\nreload_enemy_box_timer\n", reset_start)]
 for fragment in ("clr     ENEMY_OLD_VALID", "ldx     #ENEMY_OLD_FB", "std     6,x"):
     if fragment not in reset:
         raise SystemExit("enemy proof: cold enemy ownership is not initialized: " + fragment)
@@ -190,6 +190,22 @@ for fragment in ("cmpa    #2", "lda     ENEMY_ACTIVE",
                  "cmpa    #4", "beq     cez_commit"):
     if fragment not in nest:
         raise SystemExit("enemy proof: collected vegetable nest rule missing: " + fragment)
+for fragment in (
+    "ERF_NEST_ANIM  equ $10",
+    "ENEMY_NEST_CACHE equ $AD80",
+    "lbsr    compose_enemy_animation",
+    "lbsr    build_enemy_nest_cache",
+    "lbra    cez_commit_row",
+    "ldu     #ENEMY_ZONE_STAGE",
+    "lbsr    sparse_blit_stage",
+):
+    if fragment not in source:
+        raise SystemExit("enemy proof: bounded nest animation path missing: " + fragment)
+if not source.index("tst     ENEMY_NEST_DIRTY", source.index("et_animation_timer")) < source.index("ora     #ERF_NEST_ANIM"):
+    raise SystemExit("enemy proof: structural nest dirtiness does not dominate animation")
+for fragment in ("reset_enemy_state", "reload_enemy_box_timer"):
+    if fragment not in main:
+        raise SystemExit("enemy proof: cold reset helper was not moved to resident code: " + fragment)
 sprite_select = source[source.index("\nenemy_frame_number\n"):
                        source.index("\nplayer_draw_impl\n")]
 for fragment in ("cmpa    #9", "anda    #7", "cmpa    #5",
@@ -415,7 +431,7 @@ if "lbsr    enemy_tick" not in skull:
     raise SystemExit("enemy proof: static skull does not trigger direct enemy reset")
 enemy_skull_start = source.index("\nenemy_skull_test\n")
 enemy_skull = source[enemy_skull_start : source.index("\nest_next\n", enemy_skull_start)]
-for fragment in ("clr     2,u", "clr     ,x", "sta     ENEMY_NEST_DIRTY",
+for fragment in ("clr     2,u", "clr     ,x", "inc     ENEMY_NEST_DIRTY",
                  "sta     ENEMY_RENDER_FLAGS"):
     if fragment not in enemy_skull:
         raise SystemExit("enemy proof: skull cleanup does not publish state/render intents")
@@ -510,7 +526,7 @@ assert_state_only(
 assert_state_only(
     source,
     [
-        ("enemy_init_impl", "reset_enemy_state"),
+        ("enemy_init_impl", "enemy_release_impl"),
         ("enemy_release_impl", "enemy_tick_impl"),
         ("enemy_tick_impl", "enemy_render_impl"),
         ("enemy_collect_impl", "enemy_choose_direction"),

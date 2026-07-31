@@ -10,12 +10,15 @@ import subprocess
 from pathlib import Path
 
 from patch_snapshot_state import patch_snapshot
+from read_snapshot import find_ram
 
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
 ROM = BUILD / "ladybug.rom"
 ENEMY_TABLE = BUILD / "four-enemy-delta-enemy-table.bin"
+NEST_CACHE_PHYS = (0x34 << 13) + 0x0D80
+NEST_OFFSET = 0x57EC - 0x2000
 
 
 def parse_args() -> argparse.Namespace:
@@ -100,6 +103,16 @@ def capture_trace(snapshot: Path, output: Path, stop_pc: int, intervals: int) ->
     )
 
 
+def write_nest_proof(snapshot: Path, output: Path, framebuffer_base: int) -> None:
+    ram = find_ram(snapshot.read_bytes())
+    proof = bytearray(ram[NEST_CACHE_PHYS:NEST_CACHE_PHYS + 512])
+    start = framebuffer_base + NEST_OFFSET
+    for row in range(16):
+        offset = start + row * 160
+        proof.extend(ram[offset:offset + 8])
+    output.write_bytes(proof)
+
+
 COMMON_PATCHES = [
     "0030=7F", "0031=FF",  # keep bonus-colour work outside the sample
     "004A=FF",              # keep perimeter work outside the sample
@@ -168,13 +181,51 @@ def main() -> None:
 
     capture_trace(baseline, BUILD / "perf-player.raw.trace", stop_pc, 8)
 
-    animation = BUILD / "perf-animation.sna"
-    patch_snapshot(
-        hydrated,
-        animation,
-        moving_patch((1, 1, 3, 3)) + ["0055=01"],
-    )
-    capture_trace(animation, BUILD / "perf-animation.raw.trace", stop_pc, 4)
+    for owner, front, back in (("a", 0, 1), ("b", 1, 0)):
+        animation = BUILD / f"perf-animation-{owner}.sna"
+        patch_snapshot(
+            hydrated,
+            animation,
+            moving_patch((1, 1, 3, 3)) + [
+                "0055=01", "005A=00",
+                "A901=00", "AA01=00",
+                f"008F={front:02X}", f"0090={back:02X}",
+            ],
+        )
+        capture_trace(
+            animation,
+            BUILD / f"perf-animation-{owner}.raw.trace",
+            stop_pc,
+            2,
+        )
+        capture_snapshot(
+            BUILD / f"perf-animation-{owner}-fast.sna",
+            frame_pc,
+            2,
+            animation,
+        )
+        write_nest_proof(
+            BUILD / f"perf-animation-{owner}-fast.sna",
+            BUILD / f"perf-animation-{owner}-fast-proof.bin",
+            0x58000 if owner == "a" else 0x60000,
+        )
+        full_animation = BUILD / f"perf-animation-{owner}-full-source.sna"
+        patch_snapshot(
+            animation,
+            full_animation,
+            ["0060=01", "0087=02"],
+        )
+        capture_snapshot(
+            BUILD / f"perf-animation-{owner}-full.sna",
+            frame_pc,
+            2,
+            full_animation,
+        )
+        write_nest_proof(
+            BUILD / f"perf-animation-{owner}-full.sna",
+            BUILD / f"perf-animation-{owner}-full-proof.bin",
+            0x58000 if owner == "a" else 0x60000,
+        )
 
     popup = BUILD / "perf-popup.sna"
     patch_snapshot(

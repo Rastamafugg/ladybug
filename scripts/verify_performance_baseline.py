@@ -100,6 +100,7 @@ def main() -> None:
         "rub_vertical",
         "rub_full",
         "compose_enemy_zone",
+        "compose_enemy_animation",
         "gate_compose_impl",
     }
     missing = required - enemy_symbols.keys()
@@ -124,12 +125,21 @@ def main() -> None:
         interval["full_captures"] = pcs.count(enemy_symbols["rub_full"])
 
     player = alternating_sections(BUILD / "perf-player.raw.trace", frame_pc, 0)
-    animation = alternating_sections(BUILD / "perf-animation.raw.trace", frame_pc, 0)
-    animation = [
-        interval
-        for interval in animation
-        if interval["pcs"].count(enemy_symbols["compose_enemy_zone"])
-    ]
+    animation = []
+    for owner, initial_back in (("A", 1), ("B", 0)):
+        intervals = alternating_sections(
+            BUILD / f"perf-animation-{owner.lower()}.raw.trace",
+            frame_pc,
+            initial_back,
+        )
+        matches = [
+            interval
+            for interval in intervals
+            if interval["pcs"].count(enemy_symbols["compose_enemy_animation"])
+        ]
+        if len(matches) != 1 or matches[0]["owner"] != owner:
+            raise ValueError(f"animation trace did not isolate owner {owner}")
+        animation.extend(matches)
     popup = alternating_sections(BUILD / "perf-popup.raw.trace", frame_pc, 0)[-2:]
     death = [
         measured(trace_sections(BUILD / f"perf-death-{owner.lower()}.raw.trace", frame_pc)[0], owner)
@@ -206,7 +216,16 @@ def main() -> None:
                 "build/perf-four-vertical-a.raw.trace",
             ],
             "player": "build/perf-player.raw.trace",
-            "animation": "build/perf-animation.raw.trace",
+            "animation": [
+                "build/perf-animation-a.raw.trace",
+                "build/perf-animation-b.raw.trace",
+            ],
+            "animation_pixel_proof": [
+                "build/perf-animation-a-fast-proof.bin",
+                "build/perf-animation-a-full-proof.bin",
+                "build/perf-animation-b-fast-proof.bin",
+                "build/perf-animation-b-full-proof.bin",
+            ],
             "popup": "build/perf-popup.raw.trace",
             "death": [
                 "build/perf-death-a.raw.trace",

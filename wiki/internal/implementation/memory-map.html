@@ -91,7 +91,8 @@ $A900-$A9FF      5    $34   256 B  Framebuffer A actor metadata and damage ledge
 $AA00-$AAFF      5    $34   256 B  Framebuffer B actor metadata and damage ledger
 $AB00-$AB7F      5    $34   128 B  Framebuffer B player restoration bytes
 $AB80-$AD7F      5    $34   512 B  Four framebuffer B enemy restoration buffers
-$AD80-$BFFF      5    $34   —      Free game-state RAM; $BFFE seeds cold-start entropy
+$AD80-$AF7F      5    $34   512 B  Four native dormant-nest animation frames
+$AF80-$BFFF      5    $34   —      Free game-state RAM; $BFFE seeds cold-start entropy
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
@@ -115,6 +116,15 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         framebuffer B. Physical pages <code>$28-$2B</code> are the temporary
         compatibility surface for the established region compositor; they
         are never scanned and are not a persistent framebuffer owner.
+      </p>
+      <p>
+        The dormant-nest cache at <code>$AD80-$AF7F</code> is rebuilt when
+        <code>ENEMY_ZONE_BG</code> is captured. Sparse expansion occurs in the
+        always-mapped <code>$1800</code> actor stage while PAR5 owns its stream,
+        then the completed native frame is copied to page <code>$34</code> after
+        PAR5 restoration. Animation-only damage publishes one cached 16-by-16
+        rectangle; release, vegetable, death-reset, and overlap changes retain
+        the complete 16-by-32 compositor.
       </p>
       <p>
         <strong>Implemented strict-60-Hz mapping:</strong> the

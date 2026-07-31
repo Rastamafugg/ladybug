@@ -107,6 +107,8 @@ VEG_STATE    equ $005A         ; 0=dormant enemy, 1=vegetable, 2=collected
 FREEZE_TIMER equ $005B         ; u16 enemy freeze countdown
 ENEMY_WORK   equ $005D         ; banked enemy loop scratch
 ENEMY_PTR    equ $005E         ; u16 banked enemy record pointer
+ENEMY_NEST_DIRTY equ $0060
+ENEMY_MOVE   equ $0061
 ENEMY_DEATH_LATCH equ $0062    ; 0=alive, 1=reset pending, 2=reset published
 PLAYER_OLD_FB equ $0067        ; framebuffer pointer owned by PLAYER_BG_PTR
 PLAYER_ERASED equ $0069        ; nonzero after old player background is exposed
@@ -222,6 +224,8 @@ ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
 ENEMY_FB    equ $57EC          ; top-left at lower nest cell (12,12)
 ENEMY_TABLE equ $A470          ; four 8-byte active enemy records
 ENEMY_ZONE_BG equ $A490        ; 256-byte clean 16-by-32 nest background
+ENEMY_OLD_FB equ $A890
+ENEMY_BG_RING equ $A898
 FB_META_A   equ $A900          ; A framebuffer ownership ledger
 FB_META_B   equ $AA00          ; B framebuffer ownership ledger
 FBM_PLAYER_VALID equ 2
@@ -3666,6 +3670,56 @@ btt_next_row
 irq_handler
         jsr     FB_MODULE_IRQ
         rti
+
+; Cold enemy lifecycle reset lives in resident space so the frame-critical
+; bank-3 module retains room for bounded compositor paths.
+reset_enemy_state
+        clr     ENEMY_ANIM
+        lda     #8
+        sta     ENEMY_TIMER
+        bsr     reload_enemy_box_timer
+        clr     BOX_INDEX
+        clr     BOX_PHASE
+        clr     ENEMY_ACTIVE
+        clr     ENEMY_RELEASED
+        clr     VEG_STATE
+        clr     FREEZE_TIMER
+        clr     FREEZE_TIMER+1
+        clr     ENEMY_NEST_DIRTY
+        clr     ENEMY_MOVE
+        clr     ENEMY_DEATH_LATCH
+        clr     PLAYER_TICK_PENDING
+        clr     ENEMY_OLD_VALID
+        clr     ENEMY_CAPTURE_DIRTY
+        ldx     #ENEMY_OLD_FB
+        clra
+        clrb
+        std     ,x
+        std     2,x
+        std     4,x
+        std     6,x
+        std     ENEMY_BG_RING
+        std     ENEMY_BG_RING+2
+        ldx     #ENEMY_TABLE
+        ldb     #32
+reset_enemy_clear
+        clr     ,x+
+        decb
+        bne     reset_enemy_clear
+        rts
+
+reload_enemy_box_timer
+        ldb     #9
+        lda     STAGE
+        cmpa    #2
+        blo     reload_enemy_box_store
+        subb    #3
+        cmpa    #5
+        blo     reload_enemy_box_store
+        subb    #3
+reload_enemy_box_store
+        stb     BOX_TIMER
+        rts
 
 ;==============================================================================
 ; Data tables (read directly from cartridge ROM)

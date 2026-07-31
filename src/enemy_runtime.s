@@ -135,6 +135,7 @@ ERF_INIT       equ $01
 ERF_DIRTY      equ $02
 ERF_ZONE_REFRESH equ $04
 ERF_NEST       equ $08
+ERF_NEST_ANIM  equ $10
 COLOR_WHITE    equ 6
 
 ENTITY_TABLE   equ $A380
@@ -146,6 +147,7 @@ ENTITY_SKULL   equ 1
 ENEMY_TABLE    equ $A470
 GATE_STATE     equ $A240
 ENEMY_ZONE_BG  equ $A490
+ENEMY_NEST_CACHE equ $AD80      ; four native dormant frames, 4 * 128 bytes
 ENEMY_ZONE_STAGE equ ACTOR_STAGE
 ENEMY_BG_BASE  equ $A690
 ENEMY_OLD_FB   equ $A890
@@ -201,55 +203,6 @@ enemy_init_impl
         sta     ENEMY_RENDER_FLAGS
         rts
 
-reset_enemy_state
-        clr     ENEMY_ANIM
-        lda     #8
-        sta     ENEMY_TIMER
-        lbsr    reload_enemy_box_timer
-        clr     BOX_INDEX
-        clr     BOX_PHASE
-        clr     ENEMY_ACTIVE
-        clr     ENEMY_RELEASED
-        clr     VEG_STATE
-        clr     FREEZE_TIMER
-        clr     FREEZE_TIMER+1
-        clr     ENEMY_NEST_DIRTY
-        clr     ENEMY_MOVE
-        clr     ENEMY_DEATH_LATCH
-        clr     PLAYER_TICK_PENDING
-        clr     ENEMY_OLD_VALID
-        clr     ENEMY_CAPTURE_DIRTY
-        ldx     #ENEMY_OLD_FB
-        clra
-        clrb
-        std     ,x
-        std     2,x
-        std     4,x
-        std     6,x
-        std     ENEMY_BG_RING
-        std     ENEMY_BG_RING+2
-        ldx     #ENEMY_TABLE
-        ldb     #RECORD_SIZE*4
-ei_clear
-        clr     ,x+
-        decb
-        bne     ei_clear
-        rts
-
-; Keep death/reset cadence synchronized with the resident perimeter timer.
-reload_enemy_box_timer
-        ldb     #9
-        lda     STAGE
-        cmpa    #2
-        blo     rebt_store
-        subb    #3
-        cmpa    #5
-        blo     rebt_store
-        subb    #3
-rebt_store
-        stb     BOX_TIMER
-        rts
-
 enemy_release_impl
         tst     DEATH_STATE
         bne     er_done
@@ -279,10 +232,9 @@ er_use
         clr     7,x              ; verified den exit begins North
         inc     ENEMY_ACTIVE
         inc     ENEMY_RELEASED
-        lda     #1
-        sta     ENEMY_NEST_DIRTY
+        inc     ENEMY_NEST_DIRTY
         lda     ENEMY_RENDER_FLAGS
-        ora     #ERF_DIRTY
+        ora     #ERF_DIRTY|ERF_NEST
         sta     ENEMY_RENDER_FLAGS
         lda     ENEMY_ACTIVE
         cmpa    #4
@@ -307,10 +259,9 @@ et_begin_death
         lbsr    reset_enemy_state
         lda     #1
         sta     ENEMY_DEATH_LATCH
-        lda     #1
-        sta     ENEMY_NEST_DIRTY
+        inc     ENEMY_NEST_DIRTY
         lda     ENEMY_RENDER_FLAGS
-        ora     #ERF_DIRTY
+        ora     #ERF_DIRTY|ERF_NEST
         sta     ENEMY_RENDER_FLAGS
         rts
 et_death_animate
@@ -347,8 +298,12 @@ et_animation_timer
         lda     ENEMY_ANIM
         anda    #3
         sta     ENEMY_ANIM
-        lda     #1
-        sta     ENEMY_NEST_DIRTY
+        tst     ENEMY_NEST_DIRTY
+        bne     et_freeze_timer
+        inc     ENEMY_NEST_DIRTY
+        lda     ENEMY_RENDER_FLAGS
+        ora     #ERF_NEST_ANIM
+        sta     ENEMY_RENDER_FLAGS
 et_freeze_timer
         tst     DEATH_STATE
         bne     et_render_test
@@ -483,15 +438,17 @@ eri_refresh
         lbsr    refresh_zone_bg_footprint
 eri_dirty
         lda     ENEMY_RENDER_FLAGS
-        bita    #ERF_DIRTY|ERF_NEST
+        bita    #ERF_DIRTY|ERF_NEST|ERF_NEST_ANIM
         beq     eri_done
         ifne    PERSISTENT_FB
-        tst     ENEMY_NEST_DIRTY
-        bne     eri_nest
+        bita    #ERF_NEST_ANIM
+        bne     eri_nest_anim
         bita    #ERF_NEST
         beq     eri_finish
-eri_nest
         lbsr    compose_enemy_zone
+        bra     eri_finish
+eri_nest_anim
+        lbsr    compose_enemy_animation
 eri_finish
         else
         lbsr    roam_prepare_shadow
@@ -630,12 +587,9 @@ fbqd_copy
         lda     1,u
         anda    #RF2_MULTIPLIER|RF2_LETTER|RF2_PERIM_RESET
         sta     1,u
-        clr     8,u              ; roaming flags belong to actor closure
-        tst     ENEMY_NEST_DIRTY
-        beq     fbqd_nest_done
-        lda     #ERF_NEST
+        lda     ENEMY_RENDER_FLAGS
+        anda    #ERF_NEST|ERF_NEST_ANIM
         sta     8,u
-fbqd_nest_done
         clr     FBM_DAMAGE-FBM_PENDING_INTENTS,u
         lda     ,u
         ora     1,u
@@ -655,14 +609,7 @@ roam_mark_underlay
         bne     rmu_dirty
         lda     ENEMY_RENDER_FLAGS
         anda    #ERF_INIT|ERF_ZONE_REFRESH|ERF_NEST
-        bne     rmu_dirty
-        tst     ENEMY_NEST_DIRTY
-        bne     rmu_dirty
-        lda     RENDER_GATE_ID
-        ora     RENDER_GATE2_ID
         beq     rmu_done
-        ; Gate composition marks only intersecting roaming destinations.
-        rts
 rmu_dirty
         lda     #$FF
         sta     ENEMY_CAPTURE_DIRTY
@@ -1248,10 +1195,9 @@ enemy_collect_impl
         bhi     ec_done
         lda     #2
         sta     VEG_STATE
-        lda     #1
-        sta     ENEMY_NEST_DIRTY
+        inc     ENEMY_NEST_DIRTY
         lda     ENEMY_RENDER_FLAGS
-        ora     #ERF_DIRTY
+        ora     #ERF_DIRTY|ERF_NEST
         sta     ENEMY_RENDER_FLAGS
         ldd     #300
         std     FREEZE_TIMER
@@ -1511,13 +1457,12 @@ est_skull
         clr     6,x
         dec     ENEMY_ACTIVE
         clr     VEG_STATE
-        lda     #1
-        sta     ENEMY_NEST_DIRTY
+        inc     ENEMY_NEST_DIRTY
         lda     RENDER_FLAGS
         ora     #RF_ENTITIES
         sta     RENDER_FLAGS
         lda     ENEMY_RENDER_FLAGS
-        ora     #ERF_DIRTY|ERF_ZONE_REFRESH
+        ora     #ERF_DIRTY|ERF_ZONE_REFRESH|ERF_NEST
         sta     ENEMY_RENDER_FLAGS
         rts
 est_next
@@ -1785,20 +1730,12 @@ roam_ring_slot
 ; strip, or normalize with a full capture for every conservative fallback.
 ; Input: X = current enemy record.
 roam_update_background
-        tst     ENEMY_CAPTURE_DIRTY
-        beq     rub_check_old
-        bmi     rub_full
         lda     #4
         suba    ENEMY_WORK
         ldy     #roam_slot_masks
         ldb     a,y
-        andb    ENEMY_CAPTURE_DIRTY
+        bitb    ENEMY_CAPTURE_DIRTY
         bne     rub_full
-rub_check_old
-        lda     #4
-        suba    ENEMY_WORK
-        ldy     #roam_slot_masks
-        ldb     a,y
         andb    ENEMY_OLD_VALID
         beq     rub_full
         lbsr    roam_old_slot
@@ -2374,6 +2311,23 @@ cez_commit_row
         bne     cez_commit_row
         rts
 
+; Animation-only nest damage may update the dormant rectangle directly in
+; hidden BACK. Structural changes and nest-owned active overlap retain the
+; complete 16-by-32 compositor above.
+compose_enemy_animation
+        lda     VEG_STATE
+        bne     cea_done
+        lda     ENEMY_ANIM
+        ldb     #128
+        mul
+        addd    #ENEMY_NEST_CACHE
+        tfr     d,x
+        ldu     #ENEMY_FB
+        ldy     #16
+        lbra    cez_commit_row
+cea_done
+        rts
+
 ; Build the clean new player rectangle from the old save-under plus newly
 ; exposed edge pixels. Publish the complete new sprite before erasing only the
 ; old strips it no longer covers, so scanout never sees a player-free frame.
@@ -2580,11 +2534,11 @@ gate_compose_impl
         tst     GATE_COMPOSE_MODE
         bne     gci_final
         jsr     draw_gate_transition
-        jsr     mark_gate_enemy_overlap
-        bra     gci_done
+        bra     gci_mark_overlap
 gci_final
         jsr     restore_gate_diagonal_dots
         jsr     draw_gate_transition
+gci_mark_overlap
         jsr     mark_gate_enemy_overlap
         else
         deca
@@ -3127,6 +3081,44 @@ czb_row
         leax    152,x
         leay    -1,y
         bne     czb_row
+        lbsr    build_enemy_nest_cache
+        rts
+
+; Expand the four stage-selected dormant frames once when the authoritative
+; nest background is captured. Animation frames then publish one native
+; 16-by-16 rectangle without sparse decoding or a 16-by-32 rebuild.
+build_enemy_nest_cache
+        lda     ENEMY_ANIM
+        pshs    a
+        clr     ENEMY_ANIM
+        clr     ENEMY_WORK
+        ldu     #ENEMY_NEST_CACHE
+benc_frame
+        pshs    u
+        ldx     #ENEMY_ZONE_BG+128
+        ldu     #ENEMY_ZONE_STAGE
+        lbsr    copy_nest_128
+        ldx     #ENEMY_ZONE_STAGE
+        ldb     #0
+        lbsr    draw_enemy_stage
+        puls    u
+        ldx     #ENEMY_ZONE_STAGE
+        lbsr    copy_nest_128
+        inc     ENEMY_ANIM
+        lda     ENEMY_ANIM
+        cmpa    #4
+        blo     benc_frame
+        puls    a
+        sta     ENEMY_ANIM
+        rts
+
+copy_nest_128
+        ldy     #64
+bnc_copy
+        ldd     ,x++
+        std     ,u++
+        leay    -1,y
+        bne     bnc_copy
         rts
 
 ; A removed skull redraws one 16-by-16 clean footprint. Copy that footprint
