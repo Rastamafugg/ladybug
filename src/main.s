@@ -118,6 +118,7 @@ GATE_START_X   equ $0074       ; gate/entity redraw union, inclusive
 GATE_START_Y   equ $0075
 GATE_END_X     equ $0076
 GATE_END_Y     equ $0077
+GATE_COPY_COUNT equ $0079     ; shared gate/actor scan scratch
 GATE_TRANSITION_PAGE equ $39
 GATE_TRANSITION_PAYLOAD equ $A8F6
 RENDER_FLAGS   equ $007F       ; primary per-Vbord render intents
@@ -145,6 +146,7 @@ FB_MISSED_COMMIT equ $0096     ; u16 Vbords without a ready back image
 FB_RENDER_ACTIVE equ $0098
 FB_WRITE_FRONT_FAULT equ $0099
 FB_INIT_STATE  equ $009A       ; nonzero after cold A/B convergence
+ENEMY_CAPTURE_DIRTY equ $009B  ; $FF all actors, otherwise per-slot bits
 BOOT_FLAG    equ $02F0         ; $A5 when GMC bootstrap relocated runtime to RAM
 
 DIR_NORTH     equ 0
@@ -2761,6 +2763,44 @@ dge_next
         leax    4,x
         dec     ENTITY_WORK
         bne     dge_loop
+        rts
+
+; Mark only roaming actor destinations that intersect the gate mutation.
+; ENEMY_CAPTURE_DIRTY=$FF remains the all-actor fallback for non-gate damage;
+; positive values are per-slot full-capture bits consumed by bank 3.
+mark_gate_enemy_overlap
+        ldx     #ENEMY_TABLE
+        lda     #1
+        sta     GATE_COPY_COUNT
+        ldb     #4
+        stb     ENEMY_WORK
+mgeo_loop
+        tst     ,x
+        beq     mgeo_next
+        tst     6,x
+        beq     mgeo_next
+        lda     4,x
+        inca
+        cmpa    GATE_START_X
+        blo     mgeo_next
+        suba    #3
+        cmpa    GATE_END_X
+        bhi     mgeo_next
+        lda     5,x
+        inca
+        cmpa    GATE_START_Y
+        blo     mgeo_next
+        suba    #3
+        cmpa    GATE_END_Y
+        bhi     mgeo_next
+        lda     ENEMY_CAPTURE_DIRTY
+        ora     GATE_COPY_COUNT
+        sta     ENEMY_CAPTURE_DIRTY
+mgeo_next
+        asl     GATE_COPY_COUNT
+        leax    8,x
+        dec     ENEMY_WORK
+        bne     mgeo_loop
         rts
 
 gate_cross_offsets

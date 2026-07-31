@@ -146,6 +146,7 @@ wanted = {
     'erase_entity_footprints', 'perimeter_box_coordinates', 'save_player',
     'draw_gate', 'draw_gate_diagonal', 'draw_gate_entities',
     'draw_gate_transition', 'draw_all_gates',
+    'mark_gate_enemy_overlap',
     'draw_word_progress_hud', 'gate_redraw_neighbors',
     'gate_render_hidden', 'maze_gate_owner',
     'maze_gates', 'maze_nav',

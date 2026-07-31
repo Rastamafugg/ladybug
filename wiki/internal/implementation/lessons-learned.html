@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Bounded scenery damage needs bounded actor recapture</h2>
+      <p>A gate transition previously set one global dirty byte, forcing all four roaming actors through full 128-byte background captures even when their destinations did not intersect the gate. A four-bit overlap mask reduced the complete gate owners from 37,968/39,292 to 32,868/36,894 cycles while retaining the all-actor fallback for unrelated damage.</p>
+      <p><strong>Rule:</strong> represent bounded mutable-scenery overlap per actor. Full-capture only intersecting current destinations after old actors are restored and scenery is projected; retain conservative global invalidation for unbounded or mixed damage.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>mark_gate_enemy_overlap</code>, <code>src/enemy_runtime.s</code> <code>roam_update_background</code>, and <code>build/gate-performance.json</code>.</p>
+    </section>
+
+    <section>
       <h2>Optimize circular restore by separating row and column phase</h2>
       <p>The generic vertical-ring restore recomputed a physical row address and byte wrap for every logical row, costing 4,840 cycles per enemy at a nonzero row phase. Selecting one of eight fixed column copiers once and executing at most two contiguous row segments reduced the controlling discontinuity frame from 45,034 to the mid-30K range. Four-byte <code>PULU D,Y</code> transfers further reduce phase-zero restore, vertical capture, and player save-under copies.</p>
       <p><strong>Rule:</strong> when both axes are circular, dispatch the small fixed axis once and segment only the wrapping axis. Do not repeat address multiplication and wrap decisions inside every row.</p>

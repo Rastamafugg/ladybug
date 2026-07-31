@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-07-31 &middot; implementation/profile/lint &mdash; bounded gate overlap recapture</h3>
+      <p>Replaced the gate path&rsquo;s global four-actor capture invalidation with a bounded four-bit overlap mask while retaining the all-actor fallback for other underlay damage. Fresh current-map complete traces reduce gate diagonal/final owners from 37,968/39,292 to 32,868/36,894 cycles; one composition, replay coalescing, bounded overlapping-static-entity selection, all 168 generated cases, the 832-byte payload, dynamic-dot restoration, and PAR5 restoration remain. Added a current-address attribution verifier and recorded that the 27,000-cycle target still fails by 5,868/9,894 cycles. Two entity-renderer experiments were removed after measured regressions.</p>
+    </section>
+
+    <section>
       <h3>2026-07-31 &middot; implementation/profile/lint &mdash; common-path renderer headroom</h3>
       <p>Replaced per-row generic vertical-ring restore with fixed column dispatch plus two row segments, added phase-zero word-pull restore/capture and player save-under copies, halved the joystick DAC sweep with an exact midpoint refinement, used static navigation masks on non-gate cells while retaining dynamic-gate and den fallbacks, and bounded enemy skull scans to the guaranteed skull-record prefix. Current complete traces reduce horizontal four-enemy movement from 26,950&ndash;30,284 to 25,211&ndash;28,800 and vertical movement from 30,603/30,629 to 27,387&ndash;27,920; strict hardware movement passes, but the 25,000/27,000 engineering objectives remain unmet. Removed player-identity caching and mask-elided sparse-stream experiments after measurement showed regressions.</p>
     </section>

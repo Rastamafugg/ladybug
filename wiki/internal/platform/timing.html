@@ -39,7 +39,7 @@
         <li><strong>Overload behavior:</strong> if rendering misses Vbord, the IRQ retains the current FRONT image and increments the missed-commit diagnostic. The runtime finishes the same frozen epoch and commits it later; it does not skip transient states, catch up timers, or begin another logical epoch. Correct degradation is not timing acceptance: steady gameplay still requires zero missed commits.</li>
         <li><strong>What to measure:</strong> use complete active intervals from one <code>frame_render_impl</code> entry to the next and exclude only an identified <code>SYNC</code> wait. Instruction counts alone are insufficient because 6809 instructions have variable cycle costs. Compare A and B owners with equivalent hydrated actor metadata and retain real alternate-owner damage replay.</li>
         <li><strong>Current rendering model:</strong> persistent A/B framebuffers own independent actor history and damage ledgers. Sparse enemy/player streams, circular save-under restoration, generated gate transition streams, and owner-selected player history avoid frame-time shadow publication and A/B history exchange.</li>
-        <li><strong>Acceptance status:</strong> Task 2 recapture reduces the sampled horizontal four-enemy distribution to 25,211&ndash;28,800 cycles and vertical movement to 27,387&ndash;27,920, so both now pass the strict 29,666-cycle hardware limit. They do not meet the 25,000 common-path objective or the 27,000-cycle engineering target. Nest animation, popup, death, and gate scenarios remain above the hardware limit, so integrated strict 60 Hz acceptance is false.</li>
+        <li><strong>Acceptance status:</strong> Task 2 recapture reduces the sampled horizontal four-enemy distribution to 25,211&ndash;28,800 cycles and vertical movement to 27,387&ndash;27,920. Task 5 reduces the controlled gate diagonal/final owners to 32,868/36,894 cycles by recapturing only roaming actors whose destinations intersect the bounded gate mutation. The movement and gate paths do not meet the 27,000-cycle engineering target; nest animation, popup, death, and gate scenarios remain above the hardware limit, so integrated strict 60 Hz acceptance is false.</li>
         <li><strong>Routine verification:</strong> build with <code>scripts/build.sh build</code>, use the <a href="../tooling/xroar.html#gdb-mcp-round-trip">GDB-MCP/XRoar round trip</a> for live traces, and run the path-specific profile verifier. Require matching framebuffer/save-under output, no out-of-footprint writes, correct PAR5 restoration, alternating commits, and zero ownership diagnostics alongside the cycle result.</li>
       </ul>
       <p>
@@ -89,6 +89,27 @@
         and 39,292 cycles. The earlier 45,034-cycle discontinuity is no longer reached
         by the short deterministic vertical sequence; Task 6 must force that fallback
         explicitly rather than treating its absence as acceptance.
+      </p>
+      <h3>Task 5 gate and overlap result</h3>
+      <p>
+        Current-map complete traces replace the stale address-bound gate proof. The
+        controlled gate-0 diagonal on owner A and alternate-owner final projection on
+        owner B fall from 37,968/39,292 to 32,868/36,894 cycles. Gate damage now carries
+        a four-bit roaming-overlap mask: intersecting destinations receive a full
+        128-byte recapture, while eligible non-overlapping actors retain strip capture;
+        unrelated underlay damage retains the all-actor fallback. Both owners execute
+        one generated gate composition and one bounded static-entity selection, proving
+        replay coalescing without the stale projected-total substitution.
+      </p>
+      <p>
+        The result misses the 27,000-cycle target by 5,868/9,894 cycles. Current
+        attribution identifies the overlapping static-object redraw at 7,694 cycles
+        and B-owner actor closure at 14,881 cycles as the remaining controlling costs.
+        Two mask/clip renderer experiments were removed after increasing the measured
+        frame. The six source-agnostic streams remain 832 bytes, all 168 generated cases
+        pass, dynamic-dot restoration and PAR5 restoration remain active, and the
+        current proof is <code>scripts/verify_gate_performance.py</code> with
+        <code>build/gate-performance.json</code>.
       </p>
     </section>
 

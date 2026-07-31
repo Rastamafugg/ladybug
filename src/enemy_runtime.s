@@ -660,8 +660,11 @@ roam_mark_underlay
         lda     RENDER_GATE_ID
         ora     RENDER_GATE2_ID
         beq     rmu_done
+        ; Gate composition marks only intersecting roaming destinations.
+        rts
 rmu_dirty
-        inc     ENEMY_CAPTURE_DIRTY
+        lda     #$FF
+        sta     ENEMY_CAPTURE_DIRTY
 rmu_done
         rts
 
@@ -1782,7 +1785,15 @@ roam_ring_slot
 ; Input: X = current enemy record.
 roam_update_background
         tst     ENEMY_CAPTURE_DIRTY
+        beq     rub_check_old
+        bmi     rub_full
+        lda     #4
+        suba    ENEMY_WORK
+        ldy     #roam_slot_masks
+        ldb     a,y
+        andb    ENEMY_CAPTURE_DIRTY
         bne     rub_full
+rub_check_old
         lda     #4
         suba    ENEMY_WORK
         ldy     #roam_slot_masks
@@ -2568,10 +2579,12 @@ gate_compose_impl
         tst     GATE_COMPOSE_MODE
         bne     gci_final
         jsr     draw_gate_transition
+        jsr     mark_gate_enemy_overlap
         bra     gci_done
 gci_final
         jsr     restore_gate_diagonal_dots
         jsr     draw_gate_transition
+        jsr     mark_gate_enemy_overlap
         else
         deca
         sta     GATE_WORK_ID
