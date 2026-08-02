@@ -177,9 +177,17 @@ def runtime_snapshot_proof(masks: bytes, luts: dict[str, bytes]) -> str:
             cache_ptr = int.from_bytes(record[entry + 2:entry + 4], "big")
             fb_ptr = int.from_bytes(record[entry + 4:entry + 6], "big")
             ex, ey = ram[table_phys + slot * 4], ram[table_phys + slot * 4 + 1]
-            expected_fb = 0x2000 + (ey - 1) * 160 + (ex + 7) * 4
+            # build_gate_entity_lists uses 8-bit MUL by five then transfers
+            # the low product into A, yielding (y-1)*$0500 = *1280.
+            expected_fb = 0x2000 + (ey - 1) * 1280 + (ex + 7) * 4
             if entity_ptr != 0xA380 + slot * 4 or cache_ptr != 0xB000 + slot * 128 or fb_ptr != expected_fb:
-                raise ValueError(f"runtime cache proof: gate {gate} association differs")
+                raise ValueError(
+                    f"runtime cache proof: gate {gate} slot {slot} association differs; "
+                    f"bounds={tuple(record[:4])}/{(start_x,start_y,end_x,end_y)} "
+                    f"entity={entity_ptr:04X}/{0xA380 + slot * 4:04X} "
+                    f"cache={cache_ptr:04X}/{0xB000 + slot * 128:04X} "
+                    f"fb={fb_ptr:04X}/{expected_fb:04X} xy={ex},{ey}"
+                )
     return (
         f"runtime snapshot: {entity_count} emitted cache records and 20 association records exact "
         f"({12 - entity_count} unused cache slots)"
