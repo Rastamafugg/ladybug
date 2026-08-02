@@ -28,5 +28,5 @@ patch_snapshot(hydrated, snapshot, moving_patch((1, 1, 3, 3)) + [
     '{\n  "gate_id": %d,\n  "association_count": 0,\n  "snapshot": "build/perf-gate-no-overlap.sna",\n  "trace": "build/perf-gate-no-overlap.raw.trace"\n}\n' % gate,
     encoding="ascii",
 )
-capture_trace(snapshot, BUILD / "perf-gate-no-overlap.raw.trace", stop_pc, 1)
+capture_trace(snapshot, BUILD / "perf-gate-no-overlap.raw.trace", stop_pc, 2)
 print(f"no-overlap capture: gate {gate}, association count 0, frame PC ${frame_pc:04X}")

@@ -16,8 +16,8 @@ enemy = symbols(BUILD / "ladybug-enemy-runtime.map")
 resident = symbols(BUILD / "ladybug.map")
 names = {**resident, **enemy}
 parts = sections(BUILD / "perf-gate-no-overlap.raw.trace", names["frame_render_impl"])
-if not parts:
-    raise SystemExit("no-overlap proof: missing complete worklist")
+if len(parts) < 2:
+    raise SystemExit("no-overlap proof: incomplete trace; capture two closing frame boundaries")
 lines, cycles = parts[0]
 active = sum(cycle for line, cycle in zip(lines, cycles) if "| 13 " not in line)
 if active > TARGET:
