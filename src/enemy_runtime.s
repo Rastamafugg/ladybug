@@ -146,7 +146,6 @@ PLAYER_OLD_STAGE equ ACTOR_STAGE+128
 ENTITY_SKULL   equ 1
 ENEMY_TABLE    equ $A470
 GATE_STATE     equ $A240
-FRAMEBUFFER_PROJECT_GATE_ONLY equ $CF30
 ENEMY_ZONE_BG  equ $A490
 ENEMY_NEST_CACHE equ $AD80      ; four native dormant frames, 4 * 128 bytes
 ENEMY_ZONE_STAGE equ ACTOR_STAGE
@@ -527,7 +526,7 @@ fbpd_second_gate
         clr     FBM_PENDING_INTENTS+12,u
         clr     FBM_PENDING_INTENTS+14,u
 fbpd_gate_only
-        jsr     FRAMEBUFFER_PROJECT_GATE_ONLY
+        jsr     framebuffer_project_gate_only
         bcs     fbpd_done
 fbpd_save_current
         lda     PLAYER_ERASED

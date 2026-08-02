@@ -17,6 +17,7 @@ draw_score_popup equ $D286
 draw_screen equ $D62D
 draw_word_progress_hud equ $C32D
 erase_entity_footprints equ $C6D5
+framebuffer_project_gate_only equ $CF30
 gate_redraw_neighbors equ $F086
 gate_render_hidden equ $CF9D
 mark_gate_enemy_overlap equ $D146

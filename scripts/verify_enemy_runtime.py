@@ -596,6 +596,12 @@ if [frame_owner.index(fragment) for fragment in owner_order] != sorted(
 if "frame_render_pass" in source:
     raise SystemExit("enemy proof: obsolete frame pass must not hide fast gate projection")
 
+runtime_symbols = (root / "build" / "ladybug_runtime_symbols.inc").read_text(encoding="ascii")
+if "framebuffer_project_gate_only equ $" not in runtime_symbols:
+    raise SystemExit("enemy proof: gate fast path must use a generated resident symbol")
+if "FRAMEBUFFER_PROJECT_GATE_ONLY equ" in source:
+    raise SystemExit("enemy proof: gate fast path must not hardcode a resident address")
+
 if "fbpd_generic\n        andcc   #$FE" not in source:
     raise SystemExit("enemy proof: generic damage projection must clear fast-path carry")
 
