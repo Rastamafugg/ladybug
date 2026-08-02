@@ -1439,6 +1439,8 @@ deo_byte
 ; 29..37 pairs in 10..12 row-bounded runs, so the 128-byte/entity allocation
 ; remains hard bounded while preserving both writes generated from every source
 ; byte.  The cache is refreshed with every normal draw/recolour.
+; Inputs: U selected LUT; ENTITY_PTR and draw scratch. Returns: registers undefined.
+; Side effects: writes one bounded sparse cache record for the current entity.
 cache_entity_overlay
         ; draw_entity_object leaves U on its selected colour LUT.
         stu     OBJ_CACHE_LUT
@@ -1489,6 +1491,8 @@ cache_entity_overflow
 
 ; A contains one original object-mask nibble and X its exact framebuffer
 ; destination.  Preserve=$FF is the only omitted operation.
+; Inputs: A mask nibble, X destination, U cache write pointer. Returns: X next destination.
+; Side effects: appends an exact nontransparent operation or terminates a run.
 cache_entity_operation
         leay    object_mask_lut,pcr
         ldb     a,y
@@ -2725,6 +2729,8 @@ dgt_done
 ; Called from bank-3 projection with U at the target framebuffer ledger.
 ; Carry set means a sole queued gate was projected; clear leaves U and all
 ; current render state intact for the generic projection path.
+; Inputs: U framebuffer metadata. Returns: registers undefined.
+; Side effects: projects the pending gate-only damage worklist.
 framebuffer_project_gate_only
         lda     FBM_PENDING_INTENTS,u
         ora     FBM_PENDING_INTENTS+1,u
@@ -2851,6 +2857,8 @@ rgdd_draw
 ; Record: start/end bounds, count, then up to twelve stable
 ; {entity-table pointer, native-overlay pointer, framebuffer pointer} triples.
 ; The entity type remains live: a collected entity skips its precomputed triple.
+; Inputs: stage entity table and maze gate data. Returns: registers undefined.
+; Side effects: builds all 20 bounded gate/entity association records.
 build_gate_entity_lists
         clr     GATE_ID
 bgel_gate
@@ -3028,6 +3036,8 @@ dge_done
 ; Apply one selected static entity's exact sparse original operations.  U is
 ; the precomputed cache pointer and X is the precomputed framebuffer base.
 ; Transparent nibbles are absent, matching draw_entity_object exactly.
+; Inputs: U sparse cache record, X framebuffer base. Returns: registers undefined.
+; Side effects: replays exact cached preserve-mask/value operations.
 replay_gate_entity_overlay
         lda     ,u+
         beq     rgeo_done
