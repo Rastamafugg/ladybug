@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 from patch_snapshot_state import patch_snapshot
-from read_snapshot import find_ram
+from read_snapshot import RAM_MARKER, cpu_to_phys, find_ram
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -141,6 +141,26 @@ def moving_patch(directions: tuple[int, int, int, int]) -> list[str]:
     return result
 
 
+def swap_framebuffer_owners(source: Path, target: Path, patches: list[str]) -> None:
+    """Create an equivalent logical state with physical A/B ownership reversed."""
+    snapshot = bytearray(source.read_bytes())
+    start = snapshot.index(RAM_MARKER) + len(RAM_MARKER)
+    ram = memoryview(snapshot)[start:start + 0x80000]
+    def swap(left: int, right: int, size: int) -> None:
+        saved = bytes(ram[left:left + size])
+        ram[left:left + size] = ram[right:right + size]
+        ram[right:right + size] = saved
+    swap(0x60000, 0x58000, 0x8000)  # physical framebuffer A/B pages
+    base = 0x34 << 13
+    swap(base + 0x900, base + 0xA00, 0x100)  # ownership/pending ledgers
+    swap(base + 0x300, base + 0xB00, 0x80)   # player save-under
+    swap(base + 0x690, base + 0xB80, 0x200)  # four enemy save-under records
+    for assignment in patches:
+        address, value = assignment.split("=", 1)
+        ram[cpu_to_phys(int(address, 16))] = int(value, 16)
+    target.write_bytes(snapshot)
+
+
 def main() -> None:
     args = parse_args()
     if not args.skip_build:
@@ -178,14 +198,14 @@ def main() -> None:
         capture_snapshot(BUILD / "perf-gate-final.sna", frame_pc, 1, gate)
         capture_trace(gate, BUILD / "perf-gate.raw.trace", stop_pc, 3)
         reversed_gate = BUILD / "perf-gate-reversed.sna"
-        patch_snapshot(
+        swap_framebuffer_owners(
             hydrated,
             reversed_gate,
             moving_patch((1, 1, 3, 3)) + [
                 "0018=01", "0019=00",
                 "0088=01", "0089=00", "008A=00", "008B=00",
                 "008D=00", "008E=00", "A240=01",
-                "008F=01", "0090=00",
+                "008F=00", "0090=01",
             ],
         )
         capture_trace(reversed_gate, BUILD / "perf-gate-reversed.raw.trace", stop_pc, 3)
