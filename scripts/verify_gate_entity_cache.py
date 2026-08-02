@@ -150,20 +150,36 @@ def runtime_snapshot_proof(masks: bytes, luts: dict[str, bytes]) -> str:
             )
 
     lists_phys = cpu_to_phys(0xB600)
+    gates = bytes_after(ROOT / "build" / "ladybug_maze.inc", "maze_gates", 60)
+    neighbours = bytes_after(ROOT / "build" / "ladybug_screen.inc", "gate_redraw_neighbors", 20)
     for gate in range(20):
         record = ram[lists_phys + gate * 77:lists_phys + (gate + 1) * 77]
+        gx, gy = gates[gate * 3], gates[gate * 3 + 1]
+        start_x, end_x, start_y, end_y = gx - 2, gx + 1, gy - 2, gy + 1
+        neighbour = neighbours[gate]
+        if neighbour:
+            nx, ny = gates[(neighbour - 1) * 3], gates[(neighbour - 1) * 3 + 1]
+            start_x, end_x = min(start_x, nx - 2), max(end_x, nx + 1)
+            start_y, end_y = min(start_y, ny - 2), max(end_y, ny + 1)
+        if tuple(record[:4]) != (start_x, start_y, end_x, end_y):
+            raise ValueError(f"runtime cache proof: gate {gate} bounds differ")
+        expected_slots = []
+        for slot in range(entity_count):
+            ex, ey = ram[table_phys + slot * 4], ram[table_phys + slot * 4 + 1]
+            if ex >= start_x and ex - 1 <= end_x and ey >= start_y and ey - 1 <= end_y:
+                expected_slots.append(slot)
         count = record[4]
-        if count > 12:
-            raise ValueError(f"runtime cache proof: gate {gate} count exceeds 12")
-        for index in range(count):
+        if count != len(expected_slots):
+            raise ValueError(f"runtime cache proof: gate {gate} count differs")
+        for index, slot in enumerate(expected_slots):
             entry = 5 + index * 6
             entity_ptr = int.from_bytes(record[entry:entry + 2], "big")
             cache_ptr = int.from_bytes(record[entry + 2:entry + 4], "big")
-            if not 0xA380 <= entity_ptr < 0xA380 + entity_count * 4 or (entity_ptr - 0xA380) % 4:
-                raise ValueError(f"runtime cache proof: gate {gate} invalid entity pointer")
-            slot = (entity_ptr - 0xA380) // 4
-            if cache_ptr != 0xB000 + slot * 128:
-                raise ValueError(f"runtime cache proof: gate {gate} cache pointer mismatch")
+            fb_ptr = int.from_bytes(record[entry + 4:entry + 6], "big")
+            ex, ey = ram[table_phys + slot * 4], ram[table_phys + slot * 4 + 1]
+            expected_fb = 0x2000 + (ey - 1) * 160 + (ex + 7) * 4
+            if entity_ptr != 0xA380 + slot * 4 or cache_ptr != 0xB000 + slot * 128 or fb_ptr != expected_fb:
+                raise ValueError(f"runtime cache proof: gate {gate} association differs")
     return (
         f"runtime snapshot: {entity_count} emitted cache records and 20 association records exact "
         f"({12 - entity_count} unused cache slots)"
