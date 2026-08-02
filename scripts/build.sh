@@ -228,28 +228,45 @@ PY
 
     python3 "$ROOT/scripts/verify_presentation_sparse.py"
 
+    local boot_rom_tmp="${BOOT_ROM}.tmp"
+    local boot_lst_tmp="${BOOT_LST}.tmp"
+    local boot_map_tmp="${BOOT_MAP}.tmp"
     lwasm -9 --format=raw \
-          --output="$BOOT_ROM" \
-          --list="$BOOT_LST" \
+          --output="$boot_rom_tmp" \
+          --list="$boot_lst_tmp" \
           --symbols \
-          --map="$BOOT_MAP" \
+          --map="$boot_map_tmp" \
           -I "$BUILD_DIR" \
           "$BOOT_SRC"
+    python3 - "$boot_rom_tmp" "$BOOT_ROM" "$boot_lst_tmp" "$BOOT_LST" "$boot_map_tmp" "$BOOT_MAP" <<'PY'
+import os
+import sys
+for source, destination in zip(sys.argv[1::2], sys.argv[2::2]):
+    os.replace(source, destination)
+PY
     guard_boot_overflow "$BOOT_MAP"
     pad_cart "$BOOT_ROM"
 
     python3 - "$BOOT_ROM" "$SPARSE_BANK0" "$RUNTIME_ROM" "$ENEMY_ROM" "$SPARSE_BANK2" "$SPARSE_BANK3" "$SPARSE_MANIFEST" "$ROM" "$GMC_BYTES" <<'PY'
 import hashlib
 import json
+import os
 import sys
 boot_path, bank0_path, runtime_path, enemy_path, bank2_path, bank3_path, manifest_path, output_path, target = sys.argv[1:9] + [int(sys.argv[9])]
-boot = bytearray(open(boot_path, 'rb').read())
-bank0 = open(bank0_path, 'rb').read()
-runtime = open(runtime_path, 'rb').read()
-enemy = open(enemy_path, 'rb').read()
-bank2 = open(bank2_path, 'rb').read()
-bank3 = open(bank3_path, 'rb').read()
-manifest = json.load(open(manifest_path, encoding='ascii'))
+with open(boot_path, 'rb') as stream:
+    boot = bytearray(stream.read())
+with open(bank0_path, 'rb') as stream:
+    bank0 = stream.read()
+with open(runtime_path, 'rb') as stream:
+    runtime = stream.read()
+with open(enemy_path, 'rb') as stream:
+    enemy = stream.read()
+with open(bank2_path, 'rb') as stream:
+    bank2 = stream.read()
+with open(bank3_path, 'rb') as stream:
+    bank3 = stream.read()
+with open(manifest_path, encoding='ascii') as stream:
+    manifest = json.load(stream)
 if any(len(bank) != 0x4000 for bank in (boot, bank0, runtime, bank2, bank3)):
     raise SystemExit('build: GMC bank input is not exactly 16 KiB')
 if len(enemy) > 0x1000:
@@ -266,16 +283,21 @@ for segment in manifest['gmc']['segments']:
     if any(value != 0xFF for value in boot[start:end]):
         raise SystemExit('build: bank-0 overflow segment overlaps assembled boot bytes')
     boot[start:end] = bank0[start:end]
-open(boot_path, 'wb').write(boot)
+with open(boot_path, 'wb') as stream:
+    stream.write(boot)
 image = bytes(boot) + runtime + bank2 + bank3
 if len(image) != target:
     raise SystemExit(f'build: GMC image is {len(image)} bytes, expected {target}')
-open(output_path, 'wb').write(image)
+with open(output_path, 'wb') as stream:
+    stream.write(image)
 digest = lambda data: hashlib.sha256(data).hexdigest()
 manifest['gmc']['final_bank0_sha256'] = digest(bytes(boot))
 manifest['gmc']['bank1_sha256'] = digest(runtime)
 manifest['gmc']['final_image_sha256'] = digest(image)
-open(manifest_path, 'w', encoding='ascii').write(json.dumps(manifest, indent=2) + '\n')
+manifest_temp_path = manifest_path + '.tmp'
+with open(manifest_temp_path, 'w', encoding='ascii') as stream:
+    stream.write(json.dumps(manifest, indent=2) + '\n')
+os.replace(manifest_temp_path, manifest_path)
 print(f'build: GMC banks 4 x 16384 -> {len(image)} bytes ({output_path})')
 PY
 }

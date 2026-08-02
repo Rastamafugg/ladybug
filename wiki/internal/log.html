@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-08-02 &middot; integration/process &mdash; TOOL-001 accepted; PERF-002 reactivated</h3>
+      <p>Parent QA accepted and squash-merged <a href="./tickets/tool-001-bank0-overflow.html">TOOL-001</a> through PR #2 as <code>29309a2dc78e81b686a7c70ace9dd9ea3eee8724</code>. Clean-checkout build, exact-boundary/one-byte-excess packing, XRoar bank-0 low-RAM copy, enemy-runtime, performance-baseline, syntax, and HTML-link verification passed. Current CPU-readable cartridge source spare is 14,731 bytes; runtime destination guards remain independent. TOOL-001 moved to Done. PERF-002 refreshed against the integrated base at 35,597/35,592 cycles for the forced death-reset structural worklist and moved to Ready for its existing Terra medium assignment.</p>
+    </section>
+
+    <section>
       <h3>2026-08-02 &middot; implementation/verification &mdash; TOOL-001 bank-0 overflow</h3>
       <p>Implemented a manifest-driven <code>$0800-$3DFF</code> bank-0 overflow source pool, a low-RAM destination sentinel in the unchanged eight-byte copy descriptor, exact boot-image overlay, loader/pool and inaccessible-tail guards, final-image hashes, and a permanent two-byte bank-0 execution proof. Static and XRoar verification pass: the exact source boundary reconstructs across banks 2/3/0, one extra byte fails, the boot loader ends at <code>$C177</code>, the delivered image is 65,536 bytes, and XRoar observes bank 0 copying <code>$B0,$0F</code> to <code>$06B0-$06B1</code> before the normal TY=1 handoff. Exact interval accounting corrects the former banks-2/3 spare value from 939 to 909 bytes; bank 0 raises current total spare source capacity to 14,731 bytes. Clean detached-checkout build, XRoar, enemy-runtime, performance-baseline, syntax, and HTML-link checks pass on implementation commit <code>4e6a584</code>; TOOL-001 remains in Verification pending parent merge.</p>
     </section>
