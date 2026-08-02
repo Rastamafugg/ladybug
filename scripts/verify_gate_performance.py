@@ -87,6 +87,29 @@ def main() -> None:
         if item["calls"].get("draw_gate_entities", {}).get("count") != 1:
             raise ValueError(f"owner {owner} did not use bounded entity selection")
         report.append(item)
+    reversed_report = []
+    for phase, (lines, cycle_values) in zip(
+        ("diagonal/current", "final/pending projection"),
+        sections(BUILD / "perf-gate-reversed.raw.trace", enemy["frame_render_impl"]),
+    ):
+        sync = sum(value for line, value in zip(lines, cycle_values) if "| 13 " in line)
+        item = {
+            "phase": phase,
+            "starting_owner": "reversed (front=B, back=A)",
+            "active_cycles": sum(cycle_values) - sync,
+        }
+        item["calls"] = {
+            name: {"count": len(values), "cycles": values}
+            for name in wanted
+            if (values := calls(lines, cycle_values, names[name]))
+        }
+        item["target_margin_cycles"] = TARGET - item["active_cycles"]
+        item["passes_target"] = item["active_cycles"] <= TARGET
+        if item["calls"].get("gate_compose_impl", {}).get("count") != 1:
+            raise ValueError(f"reversed {phase} did not coalesce to one gate composition")
+        if item["calls"].get("draw_gate_entities", {}).get("count") != 1:
+            raise ValueError(f"reversed {phase} did not use bounded entity selection")
+        reversed_report.append(item)
     payload = BUILD / "ladybug-gate-transitions.bin"
     if payload.stat().st_size != 832:
         raise ValueError("generated six-stream gate payload changed size")
@@ -103,8 +126,10 @@ def main() -> None:
         "payload_bytes": payload.stat().st_size,
         "payload_sha256": hashlib.sha256(payload.read_bytes()).hexdigest(),
         "target_cycles": TARGET,
-        "target_met": all(item["passes_target"] for item in report),
+        "target_met": all(item["passes_target"] for item in report + reversed_report),
         "owners": report,
+        "reversed_start_owner": reversed_report,
+        "reversed_start_trace": "build/perf-gate-reversed.raw.trace",
     }
     (BUILD / "gate-performance.json").write_text(
         json.dumps(output, indent=2) + "\n", encoding="ascii"

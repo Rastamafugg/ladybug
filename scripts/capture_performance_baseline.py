@@ -177,6 +177,18 @@ def main() -> None:
         )
         capture_snapshot(BUILD / "perf-gate-final.sna", frame_pc, 1, gate)
         capture_trace(gate, BUILD / "perf-gate.raw.trace", stop_pc, 3)
+        reversed_gate = BUILD / "perf-gate-reversed.sna"
+        patch_snapshot(
+            hydrated,
+            reversed_gate,
+            moving_patch((1, 1, 3, 3)) + [
+                "0018=01", "0019=00",
+                "0088=01", "0089=00", "008A=00", "008B=00",
+                "008D=00", "008E=00", "A240=01",
+                "008F=01", "0090=00",
+            ],
+        )
+        capture_trace(reversed_gate, BUILD / "perf-gate-reversed.raw.trace", stop_pc, 3)
         print("performance capture: current-revision gate scenario written to build/")
         return
 
