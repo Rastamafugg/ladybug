@@ -3,41 +3,41 @@
                       (c/enemy_runtime.s):00003         
                       (c/enemy_runtime.s):00004                 pragma  nodollarlocal,6809
                       (c/enemy_runtime.s):00005                 include "ladybug_runtime_symbols.inc"
-     D526             (ntime_symbols.inc):00001         blit_packed_sprite equ $D526
-     CDD8             (ntime_symbols.inc):00002         draw_all_gates equ $CDD8
-     D3C7             (ntime_symbols.inc):00003         draw_death_frame equ $D3C7
+     D582             (ntime_symbols.inc):00001         blit_packed_sprite equ $D582
+     CE32             (ntime_symbols.inc):00002         draw_all_gates equ $CE32
+     D423             (ntime_symbols.inc):00003         draw_death_frame equ $D423
      C6A9             (ntime_symbols.inc):00004         draw_entities equ $C6A9
-     CDC1             (ntime_symbols.inc):00005         draw_gate equ $CDC1
-     CE72             (ntime_symbols.inc):00006         draw_gate_diagonal equ $CE72
-     D0EB             (ntime_symbols.inc):00007         draw_gate_entities equ $D0EB
-     CEBC             (ntime_symbols.inc):00008         draw_gate_transition equ $CEBC
+     CE1B             (ntime_symbols.inc):00005         draw_gate equ $CE1B
+     CECC             (ntime_symbols.inc):00006         draw_gate_diagonal equ $CECC
+     D145             (ntime_symbols.inc):00007         draw_gate_entities equ $D145
+     CF16             (ntime_symbols.inc):00008         draw_gate_transition equ $CF16
      C36C             (ntime_symbols.inc):00009         draw_hud equ $C36C
      C4FB             (ntime_symbols.inc):00010         draw_lives equ $C4FB
-     D405             (ntime_symbols.inc):00011         draw_maze_state_cell equ $D405
+     D461             (ntime_symbols.inc):00011         draw_maze_state_cell equ $D461
      C2CB             (ntime_symbols.inc):00012         draw_multiplier_hud equ $C2CB
-     C8E3             (ntime_symbols.inc):00013         draw_perimeter_box equ $C8E3
-     D4E4             (ntime_symbols.inc):00014         draw_player equ $D4E4
+     C93D             (ntime_symbols.inc):00013         draw_perimeter_box equ $C93D
+     D540             (ntime_symbols.inc):00014         draw_player equ $D540
      C497             (ntime_symbols.inc):00015         draw_recolored_map_tile equ $C497
-     D286             (ntime_symbols.inc):00016         draw_score_popup equ $D286
-     D62D             (ntime_symbols.inc):00017         draw_screen equ $D62D
+     D2E2             (ntime_symbols.inc):00016         draw_score_popup equ $D2E2
+     D689             (ntime_symbols.inc):00017         draw_screen equ $D689
      C32D             (ntime_symbols.inc):00018         draw_word_progress_hud equ $C32D
-     C6D5             (ntime_symbols.inc):00019         erase_entity_footprints equ $C6D5
-     CF30             (ntime_symbols.inc):00020         framebuffer_project_gate_only equ $CF30
+     C6E1             (ntime_symbols.inc):00019         erase_entity_footprints equ $C6E1
+     CF8A             (ntime_symbols.inc):00020         framebuffer_project_gate_only equ $CF8A
      F086             (ntime_symbols.inc):00021         gate_redraw_neighbors equ $F086
-     CF9D             (ntime_symbols.inc):00022         gate_render_hidden equ $CF9D
-     D146             (ntime_symbols.inc):00023         mark_gate_enemy_overlap equ $D146
+     CFF7             (ntime_symbols.inc):00022         gate_render_hidden equ $CFF7
+     D1A2             (ntime_symbols.inc):00023         mark_gate_enemy_overlap equ $D1A2
      F95A             (ntime_symbols.inc):00024         maze_gate_owner equ $F95A
      FB9A             (ntime_symbols.inc):00025         maze_gates equ $FB9A
      F71A             (ntime_symbols.inc):00026         maze_nav equ $F71A
-     C8A2             (ntime_symbols.inc):00027         perimeter_box_coordinates equ $C8A2
-     D6FD             (ntime_symbols.inc):00028         reload_enemy_box_timer equ $D6FD
-     D6BD             (ntime_symbols.inc):00029         reset_enemy_state equ $D6BD
-     D3E6             (ntime_symbols.inc):00030         restore_entity_footprint equ $D3E6
-     CFC0             (ntime_symbols.inc):00031         restore_gate_diagonal_dots equ $CFC0
-     D60C             (ntime_symbols.inc):00032         restore_player equ $D60C
-     D5E7             (ntime_symbols.inc):00033         save_player equ $D5E7
-     D567             (ntime_symbols.inc):00034         sprite_attr0_pairs equ $D567
-     DB22             (ntime_symbols.inc):00035         vegetable_sprites equ $DB22
+     C8FC             (ntime_symbols.inc):00027         perimeter_box_coordinates equ $C8FC
+     D759             (ntime_symbols.inc):00028         reload_enemy_box_timer equ $D759
+     D719             (ntime_symbols.inc):00029         reset_enemy_state equ $D719
+     D442             (ntime_symbols.inc):00030         restore_entity_footprint equ $D442
+     D01A             (ntime_symbols.inc):00031         restore_gate_diagonal_dots equ $D01A
+     D668             (ntime_symbols.inc):00032         restore_player equ $D668
+     D643             (ntime_symbols.inc):00033         save_player equ $D643
+     D5C3             (ntime_symbols.inc):00034         sprite_attr0_pairs equ $D5C3
+     DB7E             (ntime_symbols.inc):00035         vegetable_sprites equ $DB7E
                       (c/enemy_runtime.s):00006                 org     $0800
                       (c/enemy_runtime.s):00007         
      0001             (c/enemy_runtime.s):00008         PERSISTENT_FB  equ 1
@@ -232,7 +232,7 @@
                       (c/enemy_runtime.s):00197         ; Record: active, framebuffer pointer, pixel phase, cell x, cell y,
                       (c/enemy_runtime.s):00198         ; saved-background valid, selected direction.
 0824                  (c/enemy_runtime.s):00199         enemy_init_impl
-0824 17CE96           (c/enemy_runtime.s):00200                 lbsr    reset_enemy_state
+0824 17CEF2           (c/enemy_runtime.s):00200                 lbsr    reset_enemy_state
 0827 9687             (c/enemy_runtime.s):00201                 lda     ENEMY_RENDER_FLAGS
 0829 8A03             (c/enemy_runtime.s):00202                 ora     #ERF_INIT|ERF_DIRTY
 082B 9787             (c/enemy_runtime.s):00203                 sta     ENEMY_RENDER_FLAGS
@@ -291,7 +291,7 @@
 0885 2612             (c/enemy_runtime.s):00256                 bne     et_death_animate
 0887                  (c/enemy_runtime.s):00257         et_begin_death
 0887 0F61             (c/enemy_runtime.s):00258                 clr     ENEMY_MOVE
-0889 17CE31           (c/enemy_runtime.s):00259                 lbsr    reset_enemy_state
+0889 17CE8D           (c/enemy_runtime.s):00259                 lbsr    reset_enemy_state
 088C 8601             (c/enemy_runtime.s):00260                 lda     #1
 088E 9762             (c/enemy_runtime.s):00261                 sta     ENEMY_DEATH_LATCH
 0890 0C60             (c/enemy_runtime.s):00262                 inc     ENEMY_NEST_DIRTY
@@ -469,7 +469,7 @@
 09AC 9736             (c/enemy_runtime.s):00434                 sta     ENTITY_X
 09AE 968C             (c/enemy_runtime.s):00435                 lda     RENDER_ZONE_Y
 09B0 9737             (c/enemy_runtime.s):00436                 sta     ENTITY_Y
-09B2 BDD3E6           (c/enemy_runtime.s):00437                 jsr     restore_entity_footprint
+09B2 BDD442           (c/enemy_runtime.s):00437                 jsr     restore_entity_footprint
 09B5 170DE7           (c/enemy_runtime.s):00438                 lbsr    refresh_zone_bg_footprint
 09B8                  (c/enemy_runtime.s):00439         eri_dirty
 09B8 9687             (c/enemy_runtime.s):00440                 lda     ENEMY_RENDER_FLAGS
@@ -561,7 +561,7 @@
 0A34 6FC900AC         (c/enemy_runtime.s):00526                 clr     FBM_PENDING_INTENTS+12,u
 0A38 6FC900AE         (c/enemy_runtime.s):00527                 clr     FBM_PENDING_INTENTS+14,u
 0A3C                  (c/enemy_runtime.s):00528         fbpd_gate_only
-0A3C BDCF30           (c/enemy_runtime.s):00529                 jsr     framebuffer_project_gate_only
+0A3C BDCF8A           (c/enemy_runtime.s):00529                 jsr     framebuffer_project_gate_only
 0A3F 254D             (c/enemy_runtime.s):00530                 bcs     fbpd_done
 0A41                  (c/enemy_runtime.s):00531         fbpd_save_current
 0A41 9669             (c/enemy_runtime.s):00532                 lda     PLAYER_ERASED
@@ -676,7 +676,7 @@
 0AF3 967F             (c/enemy_runtime.s):00641                 lda     RENDER_FLAGS
 0AF5 8508             (c/enemy_runtime.s):00642                 bita    #RF_ENTITIES
 0AF7 2706             (c/enemy_runtime.s):00643                 beq     fri_dot
-0AF9 BDC6D5           (c/enemy_runtime.s):00644                 jsr     erase_entity_footprints
+0AF9 BDC6E1           (c/enemy_runtime.s):00644                 jsr     erase_entity_footprints
 0AFC BDC6A9           (c/enemy_runtime.s):00645                 jsr     draw_entities
 0AFF                  (c/enemy_runtime.s):00646         fri_dot
 0AFF 967F             (c/enemy_runtime.s):00647                 lda     RENDER_FLAGS
@@ -686,7 +686,7 @@
 0B07 9710             (c/enemy_runtime.s):00651                 sta     TEST_X
 0B09 960A             (c/enemy_runtime.s):00652                 lda     PLAYER_CELL_Y
 0B0B 9711             (c/enemy_runtime.s):00653                 sta     TEST_Y
-0B0D BDD405           (c/enemy_runtime.s):00654                 jsr     draw_maze_state_cell
+0B0D BDD461           (c/enemy_runtime.s):00654                 jsr     draw_maze_state_cell
 0B10                  (c/enemy_runtime.s):00655         fri_hud
 0B10 17FE88           (c/enemy_runtime.s):00656                 lbsr    enemy_render_impl
 0B13 967F             (c/enemy_runtime.s):00657                 lda     RENDER_FLAGS
@@ -708,8 +708,8 @@
 0B31 974B             (c/enemy_runtime.s):00673                 sta     BOX_INDEX
 0B33 9682             (c/enemy_runtime.s):00674                 lda     RENDER_BOX_COLOR
 0B35 9729             (c/enemy_runtime.s):00675                 sta     HUD_COLOR
-0B37 BDC8A2           (c/enemy_runtime.s):00676                 jsr     perimeter_box_coordinates
-0B3A BDC8E3           (c/enemy_runtime.s):00677                 jsr     draw_perimeter_box
+0B37 BDC8FC           (c/enemy_runtime.s):00676                 jsr     perimeter_box_coordinates
+0B3A BDC93D           (c/enemy_runtime.s):00677                 jsr     draw_perimeter_box
 0B3D 3502             (c/enemy_runtime.s):00678                 puls    a
 0B3F 974B             (c/enemy_runtime.s):00679                 sta     BOX_INDEX
 0B41                  (c/enemy_runtime.s):00680         fri_secondary
@@ -803,7 +803,7 @@
 0B91 3406             (c/enemy_runtime.s):00768                 pshs    d
 0B93 DC67             (c/enemy_runtime.s):00769                 ldd     PLAYER_OLD_FB
 0B95 DD0B             (c/enemy_runtime.s):00770                 std     PLAYER_FB
-0B97 BDD60C           (c/enemy_runtime.s):00771                 jsr     restore_player
+0B97 BDD668           (c/enemy_runtime.s):00771                 jsr     restore_player
 0B9A 3506             (c/enemy_runtime.s):00772                 puls    d
 0B9C DD0B             (c/enemy_runtime.s):00773                 std     PLAYER_FB
 0B9E                  (c/enemy_runtime.s):00774         rep_done
@@ -816,8 +816,8 @@
 0BA5 8606             (c/enemy_runtime.s):00781                 lda     #COLOR_WHITE
 0BA7 9729             (c/enemy_runtime.s):00782                 sta     HUD_COLOR
 0BA9                  (c/enemy_runtime.s):00783         rpr_box
-0BA9 BDC8A2           (c/enemy_runtime.s):00784                 jsr     perimeter_box_coordinates
-0BAC BDC8E3           (c/enemy_runtime.s):00785                 jsr     draw_perimeter_box
+0BA9 BDC8FC           (c/enemy_runtime.s):00784                 jsr     perimeter_box_coordinates
+0BAC BDC93D           (c/enemy_runtime.s):00785                 jsr     draw_perimeter_box
 0BAF 0C4B             (c/enemy_runtime.s):00786                 inc     BOX_INDEX
 0BB1 964B             (c/enemy_runtime.s):00787                 lda     BOX_INDEX
 0BB3 815C             (c/enemy_runtime.s):00788                 cmpa    #92
@@ -827,8 +827,8 @@
 0BBB 39               (c/enemy_runtime.s):00792                 rts
                       (c/enemy_runtime.s):00793         
 0BBC                  (c/enemy_runtime.s):00794         fri_stage_background
-0BBC BDD62D           (c/enemy_runtime.s):00795                 jsr     draw_screen
-0BBF BDCDD8           (c/enemy_runtime.s):00796                 jsr     draw_all_gates
+0BBC BDD689           (c/enemy_runtime.s):00795                 jsr     draw_screen
+0BBF BDCE32           (c/enemy_runtime.s):00796                 jsr     draw_all_gates
 0BC2 BDC6A9           (c/enemy_runtime.s):00797                 jsr     draw_entities
 0BC5 BDC36C           (c/enemy_runtime.s):00798                 jsr     draw_hud
 0BC8 BDC32D           (c/enemy_runtime.s):00799                 jsr     draw_word_progress_hud
@@ -850,7 +850,7 @@
 0BD8 3406             (c/enemy_runtime.s):00815                 pshs    d
 0BDA DC67             (c/enemy_runtime.s):00816                 ldd     PLAYER_OLD_FB
 0BDC DD0B             (c/enemy_runtime.s):00817                 std     PLAYER_FB
-0BDE BDD60C           (c/enemy_runtime.s):00818                 jsr     restore_player
+0BDE BDD668           (c/enemy_runtime.s):00818                 jsr     restore_player
 0BE1 3506             (c/enemy_runtime.s):00819                 puls    d
 0BE3 DD0B             (c/enemy_runtime.s):00820                 std     PLAYER_FB
 0BE5 8601             (c/enemy_runtime.s):00821                 lda     #1
@@ -925,8 +925,8 @@
 0C5C 0D51             (c/enemy_runtime.s):00890                 tst     PICKUP_TIMER
 0C5E 2707             (c/enemy_runtime.s):00891                 beq     acd_death
 0C60                  (c/enemy_runtime.s):00892         acd_popup
-0C60 BDD5E7           (c/enemy_runtime.s):00893                 jsr     save_player
-0C63 BDD286           (c/enemy_runtime.s):00894                 jsr     draw_score_popup
+0C60 BDD643           (c/enemy_runtime.s):00893                 jsr     save_player
+0C63 BDD2E2           (c/enemy_runtime.s):00894                 jsr     draw_score_popup
 0C66 39               (c/enemy_runtime.s):00895                 rts
 0C67                  (c/enemy_runtime.s):00896         acd_death
 0C67 967F             (c/enemy_runtime.s):00897                 lda     RENDER_FLAGS
@@ -939,7 +939,7 @@
 0C75 964E             (c/enemy_runtime.s):00904                 lda     DEATH_FRAME
 0C77 81FF             (c/enemy_runtime.s):00905                 cmpa    #$FF
 0C79 2715             (c/enemy_runtime.s):00906                 beq     acd_done
-0C7B BDD3C7           (c/enemy_runtime.s):00907                 jsr     draw_death_frame
+0C7B BDD423           (c/enemy_runtime.s):00907                 jsr     draw_death_frame
 0C7E 39               (c/enemy_runtime.s):00908                 rts
 0C7F                  (c/enemy_runtime.s):00909         acd_player
 0C7F 964D             (c/enemy_runtime.s):00910                 lda     DEATH_STATE
@@ -950,7 +950,7 @@
 0C89 0D69             (c/enemy_runtime.s):00915                 tst     PLAYER_ERASED
 0C8B 2703             (c/enemy_runtime.s):00916                 beq     acd_done
 0C8D                  (c/enemy_runtime.s):00917         acd_draw_player
-0C8D BDD4E4           (c/enemy_runtime.s):00918                 jsr     draw_player
+0C8D BDD540           (c/enemy_runtime.s):00918                 jsr     draw_player
 0C90                  (c/enemy_runtime.s):00919         acd_done
 0C90 39               (c/enemy_runtime.s):00920                 rts
                       (c/enemy_runtime.s):00921                 endc
@@ -2574,13 +2574,13 @@
                       (c/enemy_runtime.s):02539                 ifne    PERSISTENT_FB
 1590 0D6F             (c/enemy_runtime.s):02540                 tst     GATE_COMPOSE_MODE
 1592 2605             (c/enemy_runtime.s):02541                 bne     gci_final
-1594 BDCEBC           (c/enemy_runtime.s):02542                 jsr     draw_gate_transition
+1594 BDCF16           (c/enemy_runtime.s):02542                 jsr     draw_gate_transition
 1597 2006             (c/enemy_runtime.s):02543                 bra     gci_mark_overlap
 1599                  (c/enemy_runtime.s):02544         gci_final
-1599 BDCFC0           (c/enemy_runtime.s):02545                 jsr     restore_gate_diagonal_dots
-159C BDCEBC           (c/enemy_runtime.s):02546                 jsr     draw_gate_transition
+1599 BDD01A           (c/enemy_runtime.s):02545                 jsr     restore_gate_diagonal_dots
+159C BDCF16           (c/enemy_runtime.s):02546                 jsr     draw_gate_transition
 159F                  (c/enemy_runtime.s):02547         gci_mark_overlap
-159F BDD146           (c/enemy_runtime.s):02548                 jsr     mark_gate_enemy_overlap
+159F BDD1A2           (c/enemy_runtime.s):02548                 jsr     mark_gate_enemy_overlap
                       (c/enemy_runtime.s):02549                 else
                       (c/enemy_runtime.s):02550                 deca
                       (c/enemy_runtime.s):02551                 sta     GATE_WORK_ID
@@ -3058,14 +3058,14 @@
 16EC                  (c/enemy_runtime.s):03023         dvs_indexed
 16EC C640             (c/enemy_runtime.s):03024                 ldb     #SPRITE_SOURCE_SIZE
 16EE 3D               (c/enemy_runtime.s):03025                 mul
-16EF 108EDB22         (c/enemy_runtime.s):03026                 ldy     #vegetable_sprites
+16EF 108EDB7E         (c/enemy_runtime.s):03026                 ldy     #vegetable_sprites
 16F3 31AB             (c/enemy_runtime.s):03027                 leay    d,y
 16F5 2004             (c/enemy_runtime.s):03028                 bra     dvs_draw
 16F7                  (c/enemy_runtime.s):03029         dvs_first
-16F7 108EDB22         (c/enemy_runtime.s):03030                 ldy     #vegetable_sprites
+16F7 108EDB7E         (c/enemy_runtime.s):03030                 ldy     #vegetable_sprites
 16FB                  (c/enemy_runtime.s):03031         dvs_draw
 16FB 3510             (c/enemy_runtime.s):03032                 puls    x
-16FD CED567           (c/enemy_runtime.s):03033                 ldu     #sprite_attr0_pairs
+16FD CED5C3           (c/enemy_runtime.s):03033                 ldu     #sprite_attr0_pairs
 1700 170001           (c/enemy_runtime.s):03034                 lbsr    blit_stage_sprite
 1703 39               (c/enemy_runtime.s):03035                 rts
                       (c/enemy_runtime.s):03036         
@@ -3229,7 +3229,7 @@ Symbol Table:
 [ G] actor_closure_restore            0BD2
 [ G] ACTOR_STAGE                      1800
 [ G] benc_frame                       176A
-[ G] blit_packed_sprite               D526
+[ G] blit_packed_sprite               D582
 [ G] blit_stage_sprite                1704
 [ G] bnc_copy                         1796
 [ G] BOX_INDEX                        004B
@@ -3256,24 +3256,24 @@ Symbol Table:
 [ G] DEATH_FRAME                      004E
 [ G] DEATH_STATE                      004D
 [ G] DIR_NONE                         00FF
-[ G] draw_all_gates                   CDD8
-[ G] draw_death_frame                 D3C7
+[ G] draw_all_gates                   CE32
+[ G] draw_death_frame                 D423
 [ G] draw_enemy_fb                    1382
 [ G] draw_enemy_stage                 15C4
 [ G] draw_entities                    C6A9
-[ G] draw_gate                        CDC1
-[ G] draw_gate_diagonal               CE72
-[ G] draw_gate_entities               D0EB
-[ G] draw_gate_transition             CEBC
+[ G] draw_gate                        CE1B
+[ G] draw_gate_diagonal               CECC
+[ G] draw_gate_entities               D145
+[ G] draw_gate_transition             CF16
 [ G] draw_hud                         C36C
 [ G] draw_lives                       C4FB
-[ G] draw_maze_state_cell             D405
+[ G] draw_maze_state_cell             D461
 [ G] draw_multiplier_hud              C2CB
-[ G] draw_perimeter_box               C8E3
-[ G] draw_player                      D4E4
+[ G] draw_perimeter_box               C93D
+[ G] draw_player                      D540
 [ G] draw_recolored_map_tile          C497
-[ G] draw_score_popup                 D286
-[ G] draw_screen                      D62D
+[ G] draw_score_popup                 D2E2
+[ G] draw_screen                      D689
 [ G] draw_vegetable_stage             16DF
 [ G] draw_word_progress_hud           C32D
 [ G] dvs_draw                         16FB
@@ -3353,7 +3353,7 @@ Symbol Table:
 [ G] er_done                          0875
 [ G] er_find                          083F
 [ G] er_use                           084A
-[ G] erase_entity_footprints          C6D5
+[ G] erase_entity_footprints          C6E1
 [ G] ERF_DIRTY                        0002
 [ G] ERF_INIT                         0001
 [ G] ERF_NEST                         0008
@@ -3469,7 +3469,7 @@ Symbol Table:
 [ G] framebuffer_irq_impl             0DD4
 [ G] framebuffer_prepare_back         0D1F
 [ G] framebuffer_project_damage       0A05
-[ G] framebuffer_project_gate_only    CF30
+[ G] framebuffer_project_gate_only    CF8A
 [ G] framebuffer_queue_damage         0A8F
 [ G] FRAMES                           0002
 [ G] FREEZE_TIMER                     005B
@@ -3499,7 +3499,7 @@ Symbol Table:
 [ G] GATE_RECT_ROWS                   0073
 [ G] GATE_RECT_WIDTH                  0072
 [ G] gate_redraw_neighbors            F086
-[ G] gate_render_hidden               CF9D
+[ G] gate_render_hidden               CFF7
 [ G] GATE_SHADOW_PAGE                 0078
 [ G] GATE_START_X                     0074
 [ G] GATE_START_Y                     0075
@@ -3521,7 +3521,7 @@ Symbol Table:
 [ G] HUD_Y                            0028
 [ G] LAST_FRAME                       0000
 [ G] LIVE_PAGE0                       0030
-[ G] mark_gate_enemy_overlap          D146
+[ G] mark_gate_enemy_overlap          D1A2
 [ G] maze_gate_owner                  F95A
 [ G] maze_gates                       FB9A
 [ G] maze_nav                         F71A
@@ -3544,7 +3544,7 @@ Symbol Table:
 [ G] pci_save_loop                    14EC
 [ G] pci_up                           1460
 [ G] pci_visible_row                  14C7
-[ G] perimeter_box_coordinates        C8A2
+[ G] perimeter_box_coordinates        C8FC
 [ G] PERSISTENT_FB                    0001
 [ G] PICKUP_TIMER                     0051
 [ G] PLAYER_ANIM                      004F
@@ -3602,7 +3602,7 @@ Symbol Table:
 [ G] rcrr_rotated                     120B
 [ G] RECORD_SIZE                      0008
 [ G] refresh_zone_bg_footprint        179F
-[ G] reload_enemy_box_timer           D6FD
+[ G] reload_enemy_box_timer           D759
 [ G] RENDER_BOX_COLOR                 0082
 [ G] RENDER_BOX_INDEX                 0081
 [ G] render_exposed_player            0B87
@@ -3620,10 +3620,10 @@ Symbol Table:
 [ G] render_perimeter_reset           0B9F
 [ G] RENDER_ZONE_Y                    008C
 [ G] rep_done                         0B9E
-[ G] reset_enemy_state                D6BD
-[ G] restore_entity_footprint         D3E6
-[ G] restore_gate_diagonal_dots       CFC0
-[ G] restore_player                   D60C
+[ G] reset_enemy_state                D719
+[ G] restore_entity_footprint         D442
+[ G] restore_gate_diagonal_dots       D01A
+[ G] restore_player                   D668
 [ G] RF2_LETTER                       0004
 [ G] RF2_MULTIPLIER                   0002
 [ G] RF2_PERIM_RESET                  0008
@@ -3677,7 +3677,7 @@ Symbol Table:
 [ G] rub_vertical_fb                  11CC
 [ G] rzbf_done                        17EA
 [ G] rzbf_row                         17D2
-[ G] save_player                      D5E7
+[ G] save_player                      D643
 [ G] sbf_command                      164B
 [ G] sbf_delta                        1644
 [ G] sbf_extended                     169D
@@ -3706,7 +3706,7 @@ Symbol Table:
 [ G] sparse_enemy_stream              1615
 [ G] SPARSE_PLAYER_INDEX_ADDR         0680
 [ G] sparse_player_stream             1625
-[ G] sprite_attr0_pairs               D567
+[ G] sprite_attr0_pairs               D5C3
 [ G] SPRITE_SOURCE_SIZE               0040
 [ G] STAGE                            0024
 [ G] STAGE_COUNT                      0064
@@ -3715,4 +3715,4 @@ Symbol Table:
 [ G] TEST_X                           0010
 [ G] TEST_Y                           0011
 [ G] VEG_STATE                        005A
-[ G] vegetable_sprites                DB22
+[ G] vegetable_sprites                DB7E
