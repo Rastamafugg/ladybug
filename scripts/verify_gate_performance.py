@@ -90,13 +90,15 @@ def main() -> None:
             raise ValueError(f"owner {owner} did not use bounded entity selection")
         report.append(item)
     reversed_report = []
-    for phase, (lines, cycle_values) in zip(
-        ("diagonal/current target=B", "final/pending projection target=A"),
+    for phase, target, (lines, cycle_values) in zip(
+        ("diagonal/current", "final/pending projection"), ("B", "A"),
         sections(BUILD / "perf-gate-reversed.raw.trace", enemy["frame_render_impl"]),
     ):
         sync = sum(value for line, value in zip(lines, cycle_values) if "| 13 " in line)
         item = {
             "phase": phase,
+            "worklist": phase,
+            "framebuffer_target": target,
             "starting_owner": "reversed (front=A, back=B)",
             "active_cycles": sum(cycle_values) - sync,
         }
