@@ -39,7 +39,7 @@ def cache_from_postdraw(mask_bytes, lut, postdraw):
 
 def replay(pairs, gate):
     out = bytearray(gate)
-    for i in range(64):
+    for i in range(128):
         out[i] = (out[i] & pairs[i * 2]) | pairs[i * 2 + 1]
     return out
 
@@ -51,7 +51,7 @@ luts = {name: bytes_after(main, "object_" + name + "_lut", 16)
 masks = bytes_after(screen, "object_masks", 12 * 64)
 if len(masks) != 768 or "GATE_ENTITY_RECORD_SIZE equ 77" not in main.read_text(encoding="utf-8"):
     raise SystemExit("gate cache proof: variant or 77-byte association record missing")
-patterns = [bytes(range(64)), bytes((i * 37 + 19) & 255 for i in range(64)), bytes([0x55, 0xAA]) * 32]
+patterns = [bytes(range(128)), bytes((i * 37 + 19) & 255 for i in range(128)), bytes([0x55, 0xAA]) * 64]
 cases = 0
 for variant in range(12):
     source = masks[variant * 64:(variant + 1) * 64]
