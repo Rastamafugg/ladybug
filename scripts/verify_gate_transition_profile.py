@@ -193,7 +193,7 @@ def main() -> None:
     if len(set(captures.values())) != 3:
         raise ValueError("controlled gate framebuffer captures did not change")
     report = {
-        "captured": "2026-07-27",
+        "captured": "2026-08-02",
         "hardware_budget_cycles": BUDGET,
         "scenario": (
             "live gate-0 horizontal-to-vertical transition; owner A diagonal "

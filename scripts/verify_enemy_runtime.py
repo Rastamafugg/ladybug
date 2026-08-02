@@ -581,13 +581,34 @@ owner_order = [
     "lbsr    actor_closure_restore",
     "lbsr    framebuffer_queue_damage",
     "lbsr    framebuffer_project_damage",
-    "lbsr    frame_render_pass",
+    "lbsr    roam_mark_underlay",
+    "bcs     fri_actor_closure",
+    "lbsr    frame_render_background",
+    "\nfri_actor_closure\n",
+    "lbsr    actor_closure_draw",
     "lbsr    framebuffer_finish_back",
 ]
 if [frame_owner.index(fragment) for fragment in owner_order] != sorted(
     frame_owner.index(fragment) for fragment in owner_order
 ):
     raise SystemExit("enemy proof: persistent closure does not bracket background projection")
+
+if "frame_render_pass" in source:
+    raise SystemExit("enemy proof: obsolete frame pass must not hide fast gate projection")
+
+runtime_symbols = (root / "build" / "ladybug_runtime_symbols.inc").read_text(encoding="ascii")
+if "framebuffer_project_gate_only equ $" not in runtime_symbols:
+    raise SystemExit("enemy proof: gate fast path must use a generated resident symbol")
+if "FRAMEBUFFER_PROJECT_GATE_ONLY equ" in source:
+    raise SystemExit("enemy proof: gate fast path must not hardcode a resident address")
+
+if "fbpd_generic\n        andcc   #$FE" not in source:
+    raise SystemExit("enemy proof: generic damage projection must clear fast-path carry")
+
+underlay = source[source.index("\nroam_mark_underlay\n"):
+                  source.index("\nframe_render_background\n")]
+if "pshs    cc" not in underlay or "puls    cc" not in underlay:
+    raise SystemExit("enemy proof: underlay marking must preserve fast-path carry")
 
 projection = source[source.index("\nframebuffer_project_damage\n"):
                     source.index("\nframebuffer_queue_damage\n")]
@@ -832,6 +853,10 @@ for fragment in (
     if fragment not in damage_projection:
         raise SystemExit("enemy proof: same-gate final replay coalescing is missing")
 
+gate_entity_builder = main[
+    main.index("\nbuild_gate_entity_lists\n"):
+    main.index("\ndraw_gate_entities\n")
+]
 gate_entity_filter = main[
     main.index("\ndraw_gate_entities\n"):
     main.index("\ngate_cross_offsets\n")
@@ -841,10 +866,18 @@ for fragment in (
     "cmpa    GATE_END_X",
     "cmpa    GATE_START_Y",
     "cmpa    GATE_END_Y",
-    "lbsr    draw_entity_object",
+):
+    if fragment not in gate_entity_builder:
+        raise SystemExit("enemy proof: gate entity-footprint filter is incomplete")
+for fragment in (
+    "GATE_ENTITY_RECORD_SIZE",
+    "ldx     ,y++",
+    "lda     2,x",
+    "ldu     ,y++",
+    "lbsr    replay_gate_entity_overlay",
 ):
     if fragment not in gate_entity_filter:
-        raise SystemExit("enemy proof: gate entity-footprint filter is incomplete")
+        raise SystemExit("enemy proof: gate cached replay records are incomplete")
 
 ownership_init = source[source.index("\nframebuffer_init_impl\n"):
                         source.index("\nframebuffer_prepare_back\n")]
@@ -990,7 +1023,7 @@ if "lda     #FB_SCRATCH_PAGE0" not in mapping:
 if "tst     FB_BACK_ID" not in mapping or "lda     #FB_B_PAGE0" not in mapping:
     raise SystemExit("enemy proof: PAR1-PAR4 do not select the current back owner")
 damage = source[source.index("\nframebuffer_project_damage\n"):
-                source.index("\nframe_render_pass\n")]
+                source.index("\nroam_mark_underlay\n")]
 damage_order = [
     "lbsr    framebuffer_queue_damage",
     "lbsr    framebuffer_project_damage",
@@ -1009,7 +1042,7 @@ for fragment in (
     "std     PLAYER_CELL_X",
     "sta     PLAYER_ERASED",
     "clr     FBM_DAMAGE,u",
-    "lbsr    frame_render_pass",
+    "bcs     fri_actor_closure",
     "ora     9,u",
     "ora     11,u",
     "inc     FBM_DAMAGE-FBM_PENDING_INTENTS,u",
@@ -1017,7 +1050,7 @@ for fragment in (
     if fragment not in source:
         raise SystemExit("enemy proof: persistent damage ledger is incomplete: " + fragment)
 queue = source[source.index("\nframebuffer_queue_damage\n"):
-               source.index("\nframe_render_pass\n")]
+               source.index("\nroam_mark_underlay\n")]
 for fragment in (
     "anda    #RF_HUD|RF_LIVES|RF_ENTITIES|RF_BOX|RF_DOT|RF_STAGE",
     "anda    #RF2_MULTIPLIER|RF2_LETTER|RF2_PERIM_RESET",

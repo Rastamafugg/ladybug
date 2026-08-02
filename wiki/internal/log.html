@@ -23,6 +23,26 @@
     </header>
 
     <section>
+      <h3>2026-08-02 &middot; verification &mdash; PERF-001 parent-QA handoff</h3>
+      <p>Rebuilt the exact sparse-cache revision and reran GMC, gate-performance, gate-optimization, complete-baseline, transition-profile, no-overlap, semantic cache/association, enemy-runtime, and HTML shell checks. The ticket remains Verification pending parent integration. Measured gate worklists remain at most 26,991 cycles with a 9-cycle final margin; forced no-overlap is 24,669 cycles. Legacy transition-profile projections remain 30,073 and 33,765 cycles and are not gate-acceptance measurements.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-02 &middot; implementation/verification &mdash; PERF-001 exact sparse entity cache</h3>
+      <p>Rejected the compact cache because it merged 128 original destination operations into 64 and failed independent semantics. Replaced it with a bounded sparse-run cache at <code>$B000-$B57F</code>, including short/extended deltas, row-bounded runs, exact mask/value pairs, and pre-write capacity guards. Independent parsing/model/replay proof passes 432 variant/LUT/pattern cases with a 99/128-byte maximum; a fresh XRoar snapshot proves eight emitted active records exactly and validates all 20 association entity/cache pointers. Fresh measured worklists are 26,505 and 26,991 cycles in the natural order, 26,512 and 26,984 reversed, against the 27,000 maximum. Resident capacity is 8,190/8,192 bytes.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-02 &middot; implementation/verification &mdash; PERF-001 gate closure</h3>
+      <p>Implemented fixed 77-byte per-gate entity records at <code>$B600-$BC03</code> with bounds, count, and entity/cache/framebuffer pointer triples. Fresh WSL/XRoar evidence measures diagonal/current 26,432 and final/pending projection 26,918 active cycles against the 27,000 maximum. GMC, sparse pixel, 168-case generation, current-map transition, runtime ownership, and complete baseline verifiers pass. Capacity is 8,098/8,192 resident and 4,075/4,096 bank-3 bytes. PERF-001 moves to Verification; unrelated death-reset/common-actor failures and three sampled missed commits remain for successor/integration work.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-02 &middot; verification/rejection &mdash; PERF-001 native entity-overlay candidate</h3>
+      <p>Built and inspected the interrupted twelve-entity native mask/value overlay candidate on <code>perf/perf-001-gate-closure</code>. The candidate was reverted because it only replaced the 7,694-cycle intersecting-static-object redraw and left final pending projection and actor closure unchanged, so it could not meet the 27,000-cycle final-worklist target from the 36,837-cycle baseline. The canonical build and static guards pass, but XRoar is absent, current-revision capture cannot run, and the local gate-transition and complete-baseline verifiers lack required capture artifacts. Historical 32,835 diagonal/current and 36,837 final/pending-projection measurements remain failure evidence, not a result for the candidate. PERF-001 remains Ready.</p>
+    </section>
+
+    <section>
       <h3>2026-08-02 &middot; approval/design &mdash; PERF-001 through PERF-003 assignment contracts</h3>
       <p>User approved all three performance tickets. Completed sequential high-reasoning sub-agent contracts with isolated branches/worktrees, exact artifact ownership, implementation constraints, commands, retained evidence, separate PRs, completion reports, and parent-owned integration. PERF-001 is Ready. PERF-002 and PERF-003 remain Approved until their ordered predecessor merges and supplies a refreshed base, capacity result, and scenario-first baseline; the shared bank-3/runtime artifacts prohibit concurrent execution.</p>
     </section>

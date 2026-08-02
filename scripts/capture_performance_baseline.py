@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 
 from patch_snapshot_state import patch_snapshot
-from read_snapshot import find_ram
+from read_snapshot import RAM_MARKER, cpu_to_phys, find_ram
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +27,11 @@ def parse_args() -> argparse.Namespace:
         "--skip-build",
         action="store_true",
         help="reuse the existing canonical build outputs",
+    )
+    parser.add_argument(
+        "--gate-only",
+        action="store_true",
+        help="capture only the hydrated gate diagonal/final sequence",
     )
     return parser.parse_args()
 
@@ -136,6 +141,26 @@ def moving_patch(directions: tuple[int, int, int, int]) -> list[str]:
     return result
 
 
+def swap_framebuffer_owners(source: Path, target: Path, patches: list[str]) -> None:
+    """Create an equivalent logical state with physical A/B ownership reversed."""
+    snapshot = bytearray(source.read_bytes())
+    start = snapshot.index(RAM_MARKER) + len(RAM_MARKER)
+    ram = memoryview(snapshot)[start:start + 0x80000]
+    def swap(left: int, right: int, size: int) -> None:
+        saved = bytes(ram[left:left + size])
+        ram[left:left + size] = ram[right:right + size]
+        ram[right:right + size] = saved
+    swap(0x60000, 0x58000, 0x8000)  # physical framebuffer A/B pages
+    base = 0x34 << 13
+    swap(base + 0x900, base + 0xA00, 0x100)  # ownership/pending ledgers
+    swap(base + 0x300, base + 0xB00, 0x80)   # player save-under
+    swap(base + 0x690, base + 0xB80, 0x200)  # four enemy save-under records
+    for assignment in patches:
+        address, value = assignment.split("=", 1)
+        ram[cpu_to_phys(int(address, 16))] = int(value, 16)
+    target.write_bytes(snapshot)
+
+
 def main() -> None:
     args = parse_args()
     if not args.skip_build:
@@ -158,6 +183,34 @@ def main() -> None:
     )
     hydrated = BUILD / "perf-four-hydrated.sna"
     capture_snapshot(hydrated, frame_pc, 5, static)
+
+    if args.gate_only:
+        gate = BUILD / "perf-gate.sna"
+        patch_snapshot(
+            hydrated,
+            gate,
+            moving_patch((1, 1, 3, 3)) + [
+                "0018=01", "0019=00",
+                "0088=01", "0089=00", "008A=00", "008B=00",
+                "008D=00", "008E=00", "A240=01",
+            ],
+        )
+        capture_snapshot(BUILD / "perf-gate-final.sna", frame_pc, 1, gate)
+        capture_trace(gate, BUILD / "perf-gate.raw.trace", stop_pc, 3)
+        reversed_gate = BUILD / "perf-gate-reversed.sna"
+        swap_framebuffer_owners(
+            hydrated,
+            reversed_gate,
+            moving_patch((1, 1, 3, 3)) + [
+                "0018=01", "0019=00",
+                "0088=01", "0089=00", "008A=00", "008B=00",
+                "008D=00", "008E=00", "A240=01",
+                "008F=00", "0090=01",
+            ],
+        )
+        capture_trace(reversed_gate, BUILD / "perf-gate-reversed.raw.trace", stop_pc, 3)
+        print("performance capture: current-revision gate scenario written to build/")
+        return
 
     horizontal = BUILD / "perf-four-horizontal.sna"
     patch_snapshot(hydrated, horizontal, moving_patch((1, 1, 3, 3)))

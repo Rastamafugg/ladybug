@@ -1,15 +1,25 @@
 {
+  "source_commit": "2d451abaac9c5fd5c58e13221e49a293a2272552",
+  "baseline_revision": "82e1524",
+  "baseline_artifact": "historical gate attribution capture",
+  "material_sha256": {
+    "src/main.s": "1cd84f7357b1b0d0914ed31ce25847b672e07af91d089f4c363282b1ffb93bfb",
+    "src/enemy_runtime.s": "8555bcf1eeda9a335b71786291f91864e1d1913ae5a203f0c7ca01ac5a38392d",
+    "scripts/verify_gate_performance.py": "90655d89e0be925569cb1156d19e13e66c8edc95ae7781c42f4caf530c731b0e"
+  },
   "measurement_contract": "complete frame_render_impl-to-next-render-call active interval; only identified SYNC waits excluded; symbols resolved from current maps",
   "scenario": "gate-0 diagonal on A, alternate-owner final projection on B; four horizontal enemies and one bounded overlapping static entity",
   "generated_cases": 168,
   "payload_bytes": 832,
   "payload_sha256": "63e7c3597db1d90c177f1afb9278c587744614c1ac79b6a7cec26c78d06021ff",
   "target_cycles": 27000,
-  "target_met": false,
-  "owners": [
+  "target_met": true,
+  "worklists": [
     {
-      "owner": "A",
-      "active_cycles": 32835,
+      "phase": "diagonal/current",
+      "worklist": "diagonal/current",
+      "framebuffer_target": "A",
+      "active_cycles": 26505,
       "calls": {
         "framebuffer_prepare_back": {
           "count": 1,
@@ -26,31 +36,31 @@
         "framebuffer_project_damage": {
           "count": 1,
           "cycles": [
-            50
+            56
           ]
         },
         "frame_render_background": {
           "count": 1,
           "cycles": [
-            10045
+            4181
           ]
         },
         "gate_compose_impl": {
           "count": 1,
           "cycles": [
-            9879
+            4015
           ]
         },
         "draw_gate_transition": {
           "count": 1,
           "cycles": [
-            9517
+            3653
           ]
         },
         "draw_gate_entities": {
           "count": 1,
           "cycles": [
-            7694
+            1830
           ]
         },
         "mark_gate_enemy_overlap": {
@@ -62,7 +72,7 @@
         "actor_closure_draw": {
           "count": 1,
           "cycles": [
-            12174
+            12078
           ]
         },
         "draw_enemy_fb": {
@@ -75,14 +85,16 @@
           ]
         }
       },
-      "baseline_cycles": 37968,
-      "improvement_cycles": 5133,
-      "target_margin_cycles": -5835,
-      "passes_target": false
+      "baseline_cycles": 32835,
+      "improvement_cycles": 6330,
+      "target_margin_cycles": 495,
+      "passes_target": true
     },
     {
-      "owner": "B",
-      "active_cycles": 36837,
+      "phase": "final/pending projection",
+      "worklist": "final/pending projection",
+      "framebuffer_target": "B",
+      "active_cycles": 26991,
       "calls": {
         "framebuffer_prepare_back": {
           "count": 1,
@@ -99,32 +111,25 @@
         "framebuffer_project_damage": {
           "count": 1,
           "cycles": [
-            11122
-          ]
-        },
-        "frame_render_background": {
-          "count": 2,
-          "cycles": [
-            10045,
-            167
+            4228
           ]
         },
         "gate_compose_impl": {
           "count": 1,
           "cycles": [
-            9879
+            14218
           ]
         },
         "draw_gate_transition": {
           "count": 1,
           "cycles": [
-            9517
+            3653
           ]
         },
         "draw_gate_entities": {
           "count": 1,
           "cycles": [
-            7694
+            1830
           ]
         },
         "mark_gate_enemy_overlap": {
@@ -136,16 +141,7 @@
         "actor_closure_draw": {
           "count": 1,
           "cycles": [
-            14873
-          ]
-        },
-        "rub_horizontal": {
-          "count": 4,
-          "cycles": [
-            816,
-            821,
-            6,
-            6
+            12087
           ]
         },
         "draw_enemy_fb": {
@@ -153,15 +149,160 @@
           "cycles": [
             1942,
             1942,
-            2196,
+            2100,
             2100
           ]
         }
       },
-      "baseline_cycles": 39292,
-      "improvement_cycles": 2455,
-      "target_margin_cycles": -9837,
-      "passes_target": false
+      "baseline_cycles": 36837,
+      "improvement_cycles": 9846,
+      "target_margin_cycles": 9,
+      "passes_target": true
     }
-  ]
+  ],
+  "reversed_start_owner": [
+    {
+      "phase": "diagonal/current",
+      "worklist": "diagonal/current",
+      "framebuffer_target": "B",
+      "starting_owner": "reversed (front=A, back=B)",
+      "active_cycles": 26512,
+      "calls": {
+        "framebuffer_prepare_back": {
+          "count": 1,
+          "cycles": [
+            470
+          ]
+        },
+        "actor_closure_restore": {
+          "count": 1,
+          "cycles": [
+            6579
+          ]
+        },
+        "framebuffer_project_damage": {
+          "count": 1,
+          "cycles": [
+            59
+          ]
+        },
+        "frame_render_background": {
+          "count": 1,
+          "cycles": [
+            4181
+          ]
+        },
+        "gate_compose_impl": {
+          "count": 1,
+          "cycles": [
+            4015
+          ]
+        },
+        "draw_gate_transition": {
+          "count": 1,
+          "cycles": [
+            3653
+          ]
+        },
+        "draw_gate_entities": {
+          "count": 1,
+          "cycles": [
+            1830
+          ]
+        },
+        "mark_gate_enemy_overlap": {
+          "count": 1,
+          "cycles": [
+            322
+          ]
+        },
+        "actor_closure_draw": {
+          "count": 1,
+          "cycles": [
+            12078
+          ]
+        },
+        "draw_enemy_fb": {
+          "count": 4,
+          "cycles": [
+            1942,
+            1942,
+            2100,
+            2100
+          ]
+        }
+      },
+      "target_margin_cycles": 488,
+      "passes_target": true
+    },
+    {
+      "phase": "final/pending projection",
+      "worklist": "final/pending projection",
+      "framebuffer_target": "A",
+      "starting_owner": "reversed (front=A, back=B)",
+      "active_cycles": 26984,
+      "calls": {
+        "framebuffer_prepare_back": {
+          "count": 1,
+          "cycles": [
+            462
+          ]
+        },
+        "actor_closure_restore": {
+          "count": 1,
+          "cycles": [
+            6591
+          ]
+        },
+        "framebuffer_project_damage": {
+          "count": 1,
+          "cycles": [
+            4225
+          ]
+        },
+        "gate_compose_impl": {
+          "count": 1,
+          "cycles": [
+            14218
+          ]
+        },
+        "draw_gate_transition": {
+          "count": 1,
+          "cycles": [
+            3653
+          ]
+        },
+        "draw_gate_entities": {
+          "count": 1,
+          "cycles": [
+            1830
+          ]
+        },
+        "mark_gate_enemy_overlap": {
+          "count": 1,
+          "cycles": [
+            322
+          ]
+        },
+        "actor_closure_draw": {
+          "count": 1,
+          "cycles": [
+            12087
+          ]
+        },
+        "draw_enemy_fb": {
+          "count": 4,
+          "cycles": [
+            1942,
+            1942,
+            2100,
+            2100
+          ]
+        }
+      },
+      "target_margin_cycles": 16,
+      "passes_target": true
+    }
+  ],
+  "reversed_start_trace": "build/perf-gate-reversed.raw.trace"
 }

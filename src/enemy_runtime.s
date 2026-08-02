@@ -475,11 +475,16 @@ frame_render_impl
         lbsr    framebuffer_queue_damage
         lbsr    framebuffer_project_damage
         lbsr    roam_mark_underlay
+        bcs     fri_actor_closure
         else
         lbsr    framebuffer_begin_fallback
         endc
 fri_render
-        lbsr    frame_render_pass
+        lbsr    frame_render_background
+        ifne    PERSISTENT_FB
+fri_actor_closure
+        lbsr    actor_closure_draw
+        endc
         ifne    PERSISTENT_FB
         lbsr    framebuffer_finish_back
         else
@@ -501,25 +506,28 @@ fri_abort
 framebuffer_project_damage
         lbsr    framebuffer_back_meta
         tst     FBM_DAMAGE,u
-        beq     fbpd_done
-        ; The current final state fully replaces this owner's queued diagonal
-        ; for the same gate.  Do not replay a historical transient immediately
-        ; before drawing the authoritative final state.
+        lbeq    fbpd_generic
+        ; Coalesce an obsolete matching final before replaying any other
+        ; pending coverage; a historical diagonal must never replace it.
         tst     RENDER_GATE_MODE
-        beq     fbpd_save_current
+        beq     fbpd_gate_only
         lda     RENDER_GATE_ID
-        beq     fbpd_save_current
+        beq     fbpd_gate_only
         cmpa    FBM_PENDING_INTENTS+9,u
         bne     fbpd_second_gate
         clr     FBM_PENDING_INTENTS+9,u
         clr     FBM_PENDING_INTENTS+10,u
         clr     FBM_PENDING_INTENTS+13,u
+        bra     fbpd_save_current
 fbpd_second_gate
         cmpa    FBM_PENDING_INTENTS+11,u
-        bne     fbpd_save_current
+        bne     fbpd_gate_only
         clr     FBM_PENDING_INTENTS+11,u
         clr     FBM_PENDING_INTENTS+12,u
         clr     FBM_PENDING_INTENTS+14,u
+fbpd_gate_only
+        jsr     framebuffer_project_gate_only
+        bcs     fbpd_done
 fbpd_save_current
         lda     PLAYER_ERASED
         pshs    a
@@ -559,6 +567,8 @@ fbpd_restore
         std     PLAYER_CELL_X
         puls    a
         sta     PLAYER_ERASED
+fbpd_generic
+        andcc   #$FE
 fbpd_done
         rts
 
@@ -604,6 +614,7 @@ fbqd_done
 ; Any projected layer that can intersect a roaming footprint invalidates strip
 ; reuse for this BACK transaction. HUD, lives, and perimeter never intersect.
 roam_mark_underlay
+        pshs    cc
         lda     RENDER_FLAGS
         anda    #RF_ENTITIES|RF_DOT|RF_STAGE
         bne     rmu_dirty
@@ -614,13 +625,7 @@ rmu_dirty
         lda     #$FF
         sta     ENEMY_CAPTURE_DIRTY
 rmu_done
-        rts
-
-frame_render_pass
-        lbsr    frame_render_background
-        ifne    PERSISTENT_FB
-        lbsr    actor_closure_draw
-        endc
+        puls    cc
         rts
 
 ; Draw only persistent background state. Damage replay uses this entry so an

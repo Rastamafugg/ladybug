@@ -110,19 +110,27 @@ ENEMY_PTR    equ $005E         ; u16 banked enemy record pointer
 ENEMY_NEST_DIRTY equ $0060
 ENEMY_MOVE   equ $0061
 ENEMY_DEATH_LATCH equ $0062    ; 0=alive, 1=reset pending, 2=reset published
+OBJ_CACHE_BASE equ $0063       ; u16 beginning of this entity's 128-byte record
 PLAYER_OLD_FB equ $0067        ; framebuffer pointer owned by PLAYER_BG_PTR
 PLAYER_ERASED equ $0069        ; nonzero after old player background is exposed
 PLAYER_BG_VALID equ $006A      ; PLAYER_BG_PTR contains restorable pixels
 PLAYER_COPY_ROWS equ $006E      ; save-under copy loop scratch
 PLAYER_TICK_PENDING equ $006B  ; nonzero when next Vbord must update/render player
+OBJ_CACHE_CURSOR equ $006C     ; u16 destination immediately after last cached op
 GATE_COMPOSE_MODE equ $006F    ; 0=diagonal intermediate, 1=final gate state
 GATE_START_X   equ $0074       ; gate/entity redraw union, inclusive
 GATE_START_Y   equ $0075
 GATE_END_X     equ $0076
 GATE_END_Y     equ $0077
 GATE_COPY_COUNT equ $0079     ; shared gate/actor scan scratch
+GATE_ENTITY_SLOT equ $0070    ; stage-built gate/entity association scratch
+OBJ_CACHE_LUT  equ $0071       ; u16 selected object colour lookup
+OBJ_CACHE_REMAIN equ $0073     ; bytes remaining after run-count header
+OBJ_CACHE_RUN_LENGTH equ $007A ; u16 current cache run-length byte pointer
 GATE_TRANSITION_PAGE equ $39
 GATE_TRANSITION_PAYLOAD equ $A8F6
+FBM_DAMAGE equ 1
+FBM_PENDING_INTENTS equ 160
 RENDER_FLAGS   equ $007F       ; primary per-Vbord render intents
 RENDER_FLAGS2  equ $0080       ; secondary per-Vbord render intents
 RENDER_BOX_INDEX equ $0081     ; perimeter box snapshot
@@ -221,6 +229,9 @@ MAZE_STATE equ  $A000           ; writable 576-byte maze-cell copy (PAR5)
 GATE_STATE equ  $A240           ; rotation state N/W/S/E; parity selects H/V bar
 PLAYER_BG  equ  $A300           ; 128-byte saved background under player
 ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
+ENTITY_GATE_CACHE equ $B000     ; twelve 16x16 static overlays, 128 bytes each
+GATE_ENTITY_LISTS equ $B600     ; 20 x 77-byte gate/entity replay records, ends $BC03
+GATE_ENTITY_RECORD_SIZE equ 77  ; bounds/count + twelve {entity, cache, framebuffer} pointers
 ENEMY_FB    equ $57EC          ; top-left at lower nest cell (12,12)
 ENEMY_TABLE equ $A470          ; four 8-byte active enemy records
 ENEMY_ZONE_BG equ $A490        ; 256-byte clean 16-by-32 nest background
@@ -1217,6 +1228,7 @@ ie_spcil_pick
         lbsr    place_entity
         lda     ENTITY_TOTAL
         sta     ENTITY_COUNT
+        lbsr    build_gate_entity_lists
         lbsr    erase_entity_footprints
         rts
 
@@ -1290,6 +1302,8 @@ rn_store
 ;==============================================================================
 draw_entities
         ldx     #ENTITY_TABLE
+        ldd     #ENTITY_GATE_CACHE
+        std     OBJ_CACHE_BASE
         lda     ENTITY_COUNT
         sta     ENTITY_WORK
 de_loop
@@ -1305,9 +1319,13 @@ de_loop
         lda     3,x
         sta     ENTITY_VARIANT
         lbsr    draw_entity_object
+        lbsr    cache_entity_overlay
 de_next
         ldx     ENTITY_PTR
         leax    4,x
+        ldd     OBJ_CACHE_BASE
+        addd    #128
+        std     OBJ_CACHE_BASE
         dec     ENTITY_WORK
         bne     de_loop
         rts
@@ -1379,6 +1397,7 @@ deo_destination
         lsla
         lsla
         leax    a,x
+        stx     OBJ_CACHE_CURSOR ; cache builder reuses this exact base
         lda     #16
         sta     OBJ_ROWS
 deo_row
@@ -1411,6 +1430,133 @@ deo_byte
         leax    152,x
         dec     OBJ_ROWS
         bne     deo_row
+        rts
+
+; Store the original nontransparent destination operations as bounded sparse
+; runs.  The record begins with a run count.  Each run is
+; {delta-from-prior-cursor, length, preserve-mask, opaque-value...}; delta is
+; one byte except $FF followed by a 16-bit delta.  A normal object produces
+; 29..37 pairs in 10..12 row-bounded runs, so the 128-byte/entity allocation
+; remains hard bounded while preserving both writes generated from every source
+; byte.  The cache is refreshed with every normal draw/recolour.
+; Inputs: U selected LUT; ENTITY_PTR and draw scratch. Returns: registers undefined.
+; Side effects: writes one bounded sparse cache record for the current entity.
+cache_entity_overlay
+        ; draw_entity_object leaves U on its selected colour LUT.
+        stu     OBJ_CACHE_LUT
+        ldu     OBJ_CACHE_BASE
+        clr     ,u
+        leau    1,u
+        lda     #127
+        sta     OBJ_CACHE_REMAIN
+        clr     OBJ_CACHE_RUN_LENGTH ; current run-length byte pointer, or zero
+        clr     OBJ_CACHE_RUN_LENGTH+1
+
+        ldx     OBJ_SOURCE
+        leax    -OBJECT_MASK_SIZE,x
+        stx     OBJ_SOURCE
+        ldx     OBJ_CACHE_CURSOR
+        lda     #16
+        sta     OBJ_ROWS
+ceo_row
+        lda     #4
+        sta     OBJ_BYTES
+ceo_byte
+        ldy     OBJ_SOURCE
+        lda     ,y+
+        sty     OBJ_SOURCE
+        sta     OBJ_INDEX
+        lsra
+        lsra
+        lsra
+        lsra
+        lbsr    cache_entity_operation
+        lda     OBJ_INDEX
+        anda    #$0F
+        lbsr    cache_entity_operation
+        dec     OBJ_BYTES
+        bne     ceo_byte
+        clr     OBJ_CACHE_RUN_LENGTH ; runs are always row-bounded
+        clr     OBJ_CACHE_RUN_LENGTH+1
+        leax    152,x
+        dec     OBJ_ROWS
+        bne     ceo_row
+        tst     OBJ_CACHE_REMAIN ; secondary post-build capacity assertion
+        bmi     cache_entity_overflow
+        rts
+
+cache_entity_overflow
+        swi                         ; cache corruption must not be replayed
+        rts
+
+; A contains one original object-mask nibble and X its exact framebuffer
+; destination.  Preserve=$FF is the only omitted operation.
+; Inputs: A mask nibble, X destination, U cache write pointer. Returns: X next destination.
+; Side effects: appends an exact nontransparent operation or terminates a run.
+cache_entity_operation
+        leay    object_mask_lut,pcr
+        ldb     a,y
+        cmpb    #$FF
+        beq     ceo_preserve
+        pshs    b
+        ldy     OBJ_CACHE_LUT
+        lda     a,y
+        sta     OBJ_VALUE
+        tst     OBJ_CACHE_RUN_LENGTH
+        bne     ceo_pair
+
+        ; Begin a run at X.  Cursor is immediately after the prior cached
+        ; operation, or the entity's precomputed framebuffer pointer initially.
+        tfr     x,d
+        subd    OBJ_CACHE_CURSOR
+        tsta
+        bne     ceo_long_delta
+        cmpb    #$FF
+        beq     ceo_long_delta
+        pshs    d
+        lda     OBJ_CACHE_REMAIN
+        suba    #2
+        bcs     cache_entity_overflow
+        sta     OBJ_CACHE_REMAIN
+        puls    d
+        stb     ,u+
+        clr     ,u+
+        bra     ceo_run_header_done
+ceo_long_delta
+        pshs    d
+        lda     OBJ_CACHE_REMAIN
+        suba    #4
+        bcs     cache_entity_overflow
+        sta     OBJ_CACHE_REMAIN
+        puls    d
+        pshs    d
+        lda     #$FF
+        sta     ,u+
+        puls    d
+        std     ,u++
+        clr     ,u+
+ceo_run_header_done
+        inc     [OBJ_CACHE_BASE]
+        leau    -1,u
+        stu     OBJ_CACHE_RUN_LENGTH
+        leau    1,u
+ceo_pair
+        lda     OBJ_CACHE_REMAIN
+        suba    #2
+        bcs     cache_entity_overflow
+        sta     OBJ_CACHE_REMAIN
+        puls    b
+        stb     ,u+
+        lda     OBJ_VALUE
+        sta     ,u+
+        inc     [OBJ_CACHE_RUN_LENGTH]
+        leax    1,x
+        stx     OBJ_CACHE_CURSOR
+        rts
+ceo_preserve
+        clr     OBJ_CACHE_RUN_LENGTH
+        clr     OBJ_CACHE_RUN_LENGTH+1
+        leax    1,x
         rts
 
 bonus_color_tick
@@ -2580,6 +2726,40 @@ dgt_done
         lbsr    draw_gate_entities
         rts
 
+; Called from bank-3 projection with U at the target framebuffer ledger.
+; Carry set means a sole queued gate was projected; clear leaves U and all
+; current render state intact for the generic projection path.
+; Inputs: U framebuffer metadata. Returns: registers undefined.
+; Side effects: projects the pending gate-only damage worklist.
+framebuffer_project_gate_only
+        lda     FBM_PENDING_INTENTS,u
+        ora     FBM_PENDING_INTENTS+1,u
+        ora     FBM_PENDING_INTENTS+8,u
+        ora     FBM_PENDING_INTENTS+11,u
+        bne     fpg_no
+        lda     FBM_PENDING_INTENTS+9,u
+        beq     fpg_no
+        ldd     RENDER_GATE_ID
+        pshs    d
+        lda     RENDER_GATE_STYLE
+        pshs    a
+        ldd     FBM_PENDING_INTENTS+9,u
+        std     RENDER_GATE_ID
+        stb     GATE_COMPOSE_MODE
+        lda     FBM_PENDING_INTENTS+13,u
+        sta     RENDER_GATE_STYLE
+        clr     FBM_DAMAGE,u
+        jsr     GATE_MODULE_COMPOSE
+        puls    a
+        sta     RENDER_GATE_STYLE
+        puls    d
+        std     RENDER_GATE_ID
+        orcc    #$01
+        rts
+fpg_no
+        andcc   #$FE
+        rts
+
 ; Complete the pending one-Vbord diagonal frame before this frame's movement.
 finish_gate_animation
         lda     GATE_ANIM_ID
@@ -2673,102 +2853,218 @@ rgdd_draw
         bne     rgdd_cell
         rts
 
+; Build immutable per-stage replay records for each gate's visual union.
+; Record: start/end bounds, count, then up to twelve stable
+; {entity-table pointer, native-overlay pointer, framebuffer pointer} triples.
+; The entity type remains live: a collected entity skips its precomputed triple.
+; Inputs: stage entity table and maze gate data. Returns: registers undefined.
+; Side effects: builds all 20 bounded gate/entity association records.
+build_gate_entity_lists
+        clr     GATE_ID
+bgel_gate
+        lda     GATE_ID
+        ldb     #GATE_ENTITY_RECORD_SIZE
+        mul
+        addd    #GATE_ENTITY_LISTS
+        tfr     d,y
+        clr     ,y
+        lda     GATE_ID
+        ldb     #3
+        mul
+        leax    maze_gates,pcr
+        leax    d,x
+        lda     ,x
+        suba    #2
+        sta     GATE_START_X
+        lda     ,x
+        inca
+        sta     GATE_END_X
+        lda     1,x
+        suba    #2
+        sta     GATE_START_Y
+        lda     1,x
+        inca
+        sta     GATE_END_Y
+        leax    gate_redraw_neighbors,pcr
+        ldb     GATE_ID
+        lda     b,x
+        beq     bgel_scan
+        deca
+        ldb     #3
+        mul
+        leax    maze_gates,pcr
+        leax    d,x
+        lda     ,x
+        suba    #2
+        cmpa    GATE_START_X
+        bhs     bgel_neighbor_end_x
+        sta     GATE_START_X
+bgel_neighbor_end_x
+        lda     ,x
+        inca
+        cmpa    GATE_END_X
+        bls     bgel_neighbor_start_y
+        sta     GATE_END_X
+bgel_neighbor_start_y
+        lda     1,x
+        suba    #2
+        cmpa    GATE_START_Y
+        bhs     bgel_neighbor_end_y
+        sta     GATE_START_Y
+bgel_neighbor_end_y
+        lda     1,x
+        inca
+        cmpa    GATE_END_Y
+        bls     bgel_scan
+        sta     GATE_END_Y
+bgel_scan
+        ldd     GATE_START_X
+        std     ,y
+        ldd     GATE_END_X
+        std     2,y
+        clr     4,y
+        sty     OBJ_SOURCE
+        clr     GATE_COPY_COUNT
+        leay    5,y
+        ldx     #ENTITY_TABLE
+        lda     ENTITY_COUNT
+        sta     ENTITY_WORK
+        clr     GATE_ENTITY_SLOT
+bgel_entity
+        lda     ,x
+        cmpa    GATE_START_X
+        blo     bgel_next
+        deca
+        cmpa    GATE_END_X
+        bhi     bgel_next
+        lda     1,x
+        cmpa    GATE_START_Y
+        blo     bgel_next
+        deca
+        cmpa    GATE_END_Y
+        bhi     bgel_next
+        inc     GATE_COPY_COUNT
+        ; Entity-table pointer is stable for the stage.
+        stx     ,y++
+        ; ENTITY_GATE_CACHE + slot * 128.
+        clra
+        ldb     GATE_ENTITY_SLOT
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        addd    #ENTITY_GATE_CACHE
+        std     ,y++
+        ; FB_VIRT + (entity_y - 1) * 160 + (entity_x + 7) * 4.
+        lda     1,x
+        deca
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,u
+        lda     ,x
+        adda    #7
+        lsla
+        lsla
+        leau    a,u
+        stu     ,y++
+bgel_next
+        inc     GATE_ENTITY_SLOT
+        leax    4,x
+        dec     ENTITY_WORK
+        bne     bgel_entity
+        ldy     OBJ_SOURCE
+        lda     GATE_COPY_COUNT
+        sta     4,y
+        inc     GATE_ID
+        lda     GATE_ID
+        cmpa    #MAZE_GATE_COUNT
+        lblo    bgel_gate
+        rts
+
 ;==============================================================================
 ; draw_gate_entities
 ;
 ; Inputs: RENDER_GATE_ID = gate ID+1; ENTITY_TABLE/ENTITY_COUNT
 ; Returns: A, B, D, X, Y, U, CC undefined
-; Side effects: redraws only static objects intersecting the restored
+; Side effects: restores cached static objects intersecting the restored
 ;               current-gate plus visual-neighbour union.
 ;==============================================================================
 draw_gate_entities
         lda     RENDER_GATE_ID
         deca
-        pshs    a
-        ldb     #3
+        ldb     #GATE_ENTITY_RECORD_SIZE
         mul
-        leax    maze_gates,pcr
-        leax    d,x
-        lda     ,x
-        suba    #2
-        sta     GATE_START_X
-        lda     ,x
-        inca
-        sta     GATE_END_X
-        lda     1,x
-        suba    #2
-        sta     GATE_START_Y
-        lda     1,x
-        inca
-        sta     GATE_END_Y
-
-        puls    b
-        leax    gate_redraw_neighbors,pcr
-        lda     b,x
-        beq     dge_scan
-        deca
-        ldb     #3
-        mul
-        leax    maze_gates,pcr
-        leax    d,x
-        lda     ,x
-        suba    #2
-        cmpa    GATE_START_X
-        bhs     dge_neighbor_end_x
-        sta     GATE_START_X
-dge_neighbor_end_x
-        lda     ,x
-        inca
-        cmpa    GATE_END_X
-        bls     dge_neighbor_start_y
-        sta     GATE_END_X
-dge_neighbor_start_y
-        lda     1,x
-        suba    #2
-        cmpa    GATE_START_Y
-        bhs     dge_neighbor_end_y
-        sta     GATE_START_Y
-dge_neighbor_end_y
-        lda     1,x
-        inca
-        cmpa    GATE_END_Y
-        bls     dge_scan
-        sta     GATE_END_Y
-
-dge_scan
-        ldx     #ENTITY_TABLE
-        lda     ENTITY_COUNT
+        addd    #GATE_ENTITY_LISTS
+        tfr     d,y
+        ldd     ,y
+        std     GATE_START_X
+        ldd     2,y
+        std     GATE_END_X
+        lda     4,y
         sta     ENTITY_WORK
+        beq     dge_done
+        leay    5,y
 dge_loop
-        stx     ENTITY_PTR
+        ldx     ,y++
         lda     2,x
-        beq     dge_next
-        lda     ,x
-        cmpa    GATE_START_X
-        blo     dge_next
-        deca
-        cmpa    GATE_END_X
-        bhi     dge_next
-        lda     1,x
-        cmpa    GATE_START_Y
-        blo     dge_next
-        deca
-        cmpa    GATE_END_Y
-        bhi     dge_next
-        lda     ,x
-        sta     ENTITY_X
-        lda     1,x
-        sta     ENTITY_Y
-        lda     2,x
-        sta     ENTITY_TYPE
-        lda     3,x
-        sta     ENTITY_VARIANT
-        lbsr    draw_entity_object
+        beq     dge_skip
+        ldu     ,y++
+        ldx     ,y++
+        lbsr    replay_gate_entity_overlay
+        bra     dge_next
+dge_skip
+        leay    4,y
 dge_next
-        ldx     ENTITY_PTR
-        leax    4,x
         dec     ENTITY_WORK
         bne     dge_loop
+dge_done
+        rts
+
+; Apply one selected static entity's exact sparse original operations.  U is
+; the precomputed cache pointer and X is the precomputed framebuffer base.
+; Transparent nibbles are absent, matching draw_entity_object exactly.
+; Inputs: U sparse cache record, X framebuffer base. Returns: registers undefined.
+; Side effects: replays exact cached preserve-mask/value operations.
+replay_gate_entity_overlay
+        lda     ,u+
+        beq     rgeo_done
+        sta     OBJ_ROWS
+rgeo_run
+        ldb     ,u+
+        cmpb    #$FF
+        beq     rgeo_long_delta
+        clra
+        bra     rgeo_delta_ready
+rgeo_long_delta
+        ldd     ,u++
+rgeo_delta_ready
+        leax    d,x
+        ldb     ,u+
+        lbeq    cache_entity_overflow ; malformed zero-length run
+        stb     OBJ_BYTES
+rgeo_pair
+        ldb     ,u+
+        andb    ,x
+        orb     ,u+
+        stb     ,x+
+        dec     OBJ_BYTES
+        bne     rgeo_pair
+        dec     OBJ_ROWS
+        bne     rgeo_run
+rgeo_done
         rts
 
 ; Mark only roaming actor destinations that intersect the gate mutation.
