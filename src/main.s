@@ -3007,8 +3007,8 @@ draw_gate_entities
         std     GATE_END_X
         lda     4,y
         sta     ENTITY_WORK
-        leay    5,y
         beq     dge_done
+        leay    5,y
 dge_loop
         ldx     ,y++
         lda     2,x
