@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import hashlib
 import re
+import subprocess
 from pathlib import Path
 
 
@@ -68,11 +69,12 @@ def main() -> None:
         "rub_horizontal", "rub_vertical", "draw_enemy_fb",
     )
     report = []
-    for owner, (lines, cycle_values) in zip(
-        ("A", "B"), sections(BUILD / "perf-gate.raw.trace", enemy["frame_render_impl"])
+    for phase, owner, (lines, cycle_values) in zip(
+        ("diagonal/current", "final/pending projection"), ("A", "B"),
+        sections(BUILD / "perf-gate.raw.trace", enemy["frame_render_impl"])
     ):
         sync = sum(value for line, value in zip(lines, cycle_values) if "| 13 " in line)
-        item = {"owner": owner, "active_cycles": sum(cycle_values) - sync}
+        item = {"phase": phase, "worklist": phase, "framebuffer_target": owner, "active_cycles": sum(cycle_values) - sync}
         item["calls"] = {
             name: {"count": len(values), "cycles": values}
             for name in wanted
@@ -114,6 +116,8 @@ def main() -> None:
     if payload.stat().st_size != 832:
         raise ValueError("generated six-stream gate payload changed size")
     output = {
+        "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "material_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in ("src/main.s", "src/enemy_runtime.s", "scripts/verify_gate_performance.py")},
         "measurement_contract": (
             "complete frame_render_impl-to-next-render-call active interval; "
             "only identified SYNC waits excluded; symbols resolved from current maps"
@@ -127,7 +131,7 @@ def main() -> None:
         "payload_sha256": hashlib.sha256(payload.read_bytes()).hexdigest(),
         "target_cycles": TARGET,
         "target_met": all(item["passes_target"] for item in report + reversed_report),
-        "owners": report,
+        "worklists": report,
         "reversed_start_owner": reversed_report,
         "reversed_start_trace": "build/perf-gate-reversed.raw.trace",
     }
