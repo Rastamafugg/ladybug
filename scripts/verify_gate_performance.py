@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
-BASELINE = {"A": 37968, "B": 39292}
+BASELINE = {"diagonal/current": 32835, "final/pending projection": 36837}
 TARGET = 27000
 TRACE_RE = re.compile(r"^[0-9a-f]{4}\|.* dt=(\d+)$")
 MAP_RE = re.compile(r"^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$")
@@ -80,8 +80,8 @@ def main() -> None:
             for name in wanted
             if (values := calls(lines, cycle_values, names[name]))
         }
-        item["baseline_cycles"] = BASELINE[owner]
-        item["improvement_cycles"] = BASELINE[owner] - item["active_cycles"]
+        item["baseline_cycles"] = BASELINE[phase]
+        item["improvement_cycles"] = BASELINE[phase] - item["active_cycles"]
         item["target_margin_cycles"] = TARGET - item["active_cycles"]
         item["passes_target"] = item["active_cycles"] <= TARGET
         if item["calls"].get("gate_compose_impl", {}).get("count") != 1:
@@ -117,6 +117,8 @@ def main() -> None:
         raise ValueError("generated six-stream gate payload changed size")
     output = {
         "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "baseline_revision": "82e1524",
+        "baseline_artifact": "historical gate attribution capture",
         "material_sha256": {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in ("src/main.s", "src/enemy_runtime.s", "scripts/verify_gate_performance.py")},
         "measurement_contract": (
             "complete frame_render_impl-to-next-render-call active interval; "
