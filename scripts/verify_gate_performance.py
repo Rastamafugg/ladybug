@@ -58,6 +58,17 @@ def calls(lines: list[str], cycles: list[int], entry: str) -> list[int]:
 
 
 def main() -> None:
+    # Raw traces are intentionally untracked.  Refuse a fresh checkout's stale
+    # captures rather than attributing them to the current source revision.
+    retained = BUILD / "gate-performance.json"
+    if retained.exists():
+        prior = json.loads(retained.read_text(encoding="ascii"))
+        current = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+        if prior.get("source_commit") not in (None, current):
+            raise SystemExit(
+                "gate performance: capture current traces first: "
+                "python scripts/capture_performance_baseline.py --skip-build"
+            )
     enemy = symbols(BUILD / "ladybug-enemy-runtime.map")
     resident = symbols(BUILD / "ladybug.map")
     names = {**resident, **enemy}
