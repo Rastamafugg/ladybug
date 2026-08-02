@@ -23,6 +23,16 @@
     </header>
 
     <section>
+      <h3>2026-08-02 &middot; implementation/verification &mdash; TOOL-001 bank-0 overflow</h3>
+      <p>Implemented a manifest-driven <code>$0800-$3DFF</code> bank-0 overflow source pool, a low-RAM destination sentinel in the unchanged eight-byte copy descriptor, exact boot-image overlay, loader/pool and inaccessible-tail guards, final-image hashes, and a permanent two-byte bank-0 execution proof. Static and XRoar verification pass: the exact source boundary reconstructs across banks 2/3/0, one extra byte fails, the boot loader ends at <code>$C177</code>, the delivered image is 65,536 bytes, and XRoar observes bank 0 copying <code>$B0,$0F</code> to <code>$06B0-$06B1</code> before the normal TY=1 handoff. Exact interval accounting corrects the former banks-2/3 spare value from 939 to 909 bytes; bank 0 raises current total spare source capacity to 14,731 bytes. TOOL-001 moved to Verification pending clean committed-checkout repetition.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-02 &middot; approval/architecture &mdash; bank-0 overflow policy</h3>
+      <p>User explicitly approved using free GMC boot bank 0 as source overflow for banks 1–3, with acceptance based on total CPU-readable cartridge capacity plus all existing runtime and behavioral gates. Created Ready ticket <a href="./tickets/tool-001-bank0-overflow.html">TOOL-001</a> before PERF-002. Selected a fixed <code>$0800-$3DFF</code> bank-0 pool, manifest-driven boot overlay, generated bank-0 copy segments, an always-mapped low-RAM destination descriptor, and no gameplay-time ROM switching. Source-bank limits become packing concerns; destination RAM/MMU, inaccessible offsets, stack, direct page, timing, correctness, and compatibility remain hard limits. PERF-002 was paused at Approved pending TOOL-001 integration; PERF-003 inherits the dependency.</p>
+    </section>
+
+    <section>
       <h3>2026-08-02 &middot; integration/process &mdash; PERF-001 accepted; successor contracts hardened</h3>
       <p>Parent QA accepted and squash-merged PERF-001 as <code>c0b8e4192579e245ab57ea4f137615cf90d2794c</code> after a final clean-checkout, fail-fast capture and verification sequence. Required gate worklists remain at most 26,991 cycles and the forced zero-association case is 24,669 cycles. The merged PERF-002 activation baseline is 35,597 cycles targeting A and 35,592 targeting B with 8,190/8,192 resident bytes used. PERF-002 moved to Ready. PERF-002 and PERF-003 assignment contracts now require independent semantic oracles, mutation checks, forced empty/positive/rare paths, correctness before timing, explicit WSL/XRoar capture prerequisites, incomplete/stale trace rejection, fail-fast commands, phase/worklist-first evidence, material-source provenance, clean-checkout reproducibility, and staged checkpoints. These refinements do not alter approved outcomes, scope, targets, or ordering.</p>
     </section>

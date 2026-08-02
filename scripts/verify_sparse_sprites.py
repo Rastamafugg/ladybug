@@ -16,6 +16,11 @@ PAGE_BYTES = 0x2000
 WINDOW_BASE = 0xA000
 CART_BANK_BYTES = 0x4000
 CART_READABLE_BYTES = 0x3E00
+BOOT_OVERFLOW_START = 0x0800
+BANK2_PAYLOAD_START = 0x0020
+LOW_RAM_DESTINATION_PAGE = 0xFF
+BOOT_OVERFLOW_PROOF_ADDRESS = 0x06B0
+BOOT_OVERFLOW_PROOF = bytes((0xB0, 0x0F))
 PEN_MAP = (0x0, 0xC, 0x5, 0x2)
 
 
@@ -27,6 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--player-payload", type=Path, required=True)
     parser.add_argument("--gate-payload", type=Path, required=True)
     parser.add_argument("--presentation-payload", type=Path, required=True)
+    parser.add_argument("--bank0", type=Path, required=True)
     parser.add_argument("--bank2", type=Path, required=True)
     parser.add_argument("--bank3", type=Path, required=True)
     parser.add_argument("--loader", type=Path, required=True)
@@ -226,10 +232,13 @@ def main() -> None:
     presentation_payload = args.presentation_payload.read_bytes()
     enemy_ranges = decode_payload(enemy_payload, enemy_frames, 0x35)
     player_ranges = decode_payload(player_payload, player_frames, 0x39)
+    bank0 = args.bank0.read_bytes()
     bank2 = args.bank2.read_bytes()
     bank3 = args.bank3.read_bytes()
-    if len(bank2) != CART_BANK_BYTES or len(bank3) != CART_BANK_BYTES:
+    if any(len(bank) != CART_BANK_BYTES for bank in (bank0, bank2, bank3)):
         raise SystemExit("sparse proof: candidate GMC banks are not 16 KiB")
+    if any(value != 0xFF for value in bank0[:BOOT_OVERFLOW_START]):
+        raise SystemExit("sparse proof: bank-0 template enters bootstrap reservation")
     if bank2[0x10:0x12] != bytes((0xB2, 0x02)):
         raise SystemExit("sparse proof: bank-2 signature changed")
     if bank3[0x10:0x12] != bytes((0xB3, 0x03)):
@@ -247,6 +256,8 @@ def main() -> None:
         raise SystemExit("sparse proof: gate manifest hash mismatch")
     if manifest["presentation"]["sha256"] != sha256(presentation_payload):
         raise SystemExit("sparse proof: presentation manifest hash mismatch")
+    if manifest["gmc"]["bank0_sha256"] != sha256(bank0):
+        raise SystemExit("sparse proof: bank-0 manifest hash mismatch")
     if manifest["gmc"]["bank2_sha256"] != sha256(bank2):
         raise SystemExit("sparse proof: bank-2 manifest hash mismatch")
     if manifest["gmc"]["bank3_sha256"] != sha256(bank3):
@@ -269,10 +280,11 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
     }
     source_coverage = {
+        0: bytearray(CART_READABLE_BYTES),
         2: bytearray(CART_READABLE_BYTES),
         3: bytearray(CART_READABLE_BYTES),
     }
-    banks = {2: bank2, 3: bank3}
+    banks = {0: bank0, 2: bank2, 3: bank3}
     for loader_record, segment in zip(loader, manifest_segments):
         expected_record = {
             key: segment[key]
@@ -289,10 +301,21 @@ def main() -> None:
             raise SystemExit("sparse proof: source CPU address mismatches bank offset")
         if source_offset + count > CART_READABLE_BYTES:
             raise SystemExit("sparse proof: segment enters forced-RAM/I/O offsets")
-        if segment["destination_address"] + count > WINDOW_BASE + PAGE_BYTES:
+        if segment["destination_page"] == LOW_RAM_DESTINATION_PAGE:
+            if not (
+                BOOT_OVERFLOW_PROOF_ADDRESS <= segment["destination_address"] and
+                segment["destination_address"] + count <= 0x0800
+            ):
+                raise SystemExit("sparse proof: low-RAM destination is out of range")
+        elif not (
+            WINDOW_BASE <= segment["destination_address"] and
+            segment["destination_address"] + count <= WINDOW_BASE + PAGE_BYTES
+        ):
             raise SystemExit("sparse proof: destination segment crosses a PAR page")
-        if source_offset <= 0x11 and source_offset + count > 0x10:
+        if segment["bank"] in (2, 3) and source_offset <= 0x11 and source_offset + count > 0x10:
             raise SystemExit("sparse proof: segment overlaps a bank signature")
+        if segment["bank"] == 0 and source_offset < BOOT_OVERFLOW_START:
+            raise SystemExit("sparse proof: segment overlaps bank-0 bootstrap reservation")
         if (
             segment["bank"] == 3 and
             source_offset < 0x1800 and source_offset + count > 0x0800
@@ -305,6 +328,15 @@ def main() -> None:
         )
         target = segment["target"]
         target_offset = segment["target_offset"]
+        if target == "boot_overflow_proof":
+            if (
+                segment["destination_page"] != LOW_RAM_DESTINATION_PAGE or
+                segment["destination_address"] != BOOT_OVERFLOW_PROOF_ADDRESS or
+                target_offset != 0 or
+                banks[segment["bank"]][source_offset:source_offset + count] != BOOT_OVERFLOW_PROOF
+            ):
+                raise SystemExit("sparse proof: bank-0 low-RAM proof differs")
+            continue
         if target == "enemy":
             target_page_base = 0x35
             target_address = WINDOW_BASE
@@ -350,8 +382,18 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct gate payload")
     if reconstructed["presentation"] != presentation_payload:
         raise SystemExit("sparse proof: loader does not reconstruct presentation payload")
-    if manifest["gmc"]["spare_bytes"] != 939:
-        raise SystemExit("sparse proof: unexpected CPU-readable GMC spare capacity")
+    expected_usable = (
+        (CART_READABLE_BYTES - BANK2_PAYLOAD_START) +
+        (CART_READABLE_BYTES - 0x1800) + 0x10 + (0x0800 - 0x12) +
+        (CART_READABLE_BYTES - BOOT_OVERFLOW_START)
+    )
+    if manifest["gmc"]["usable_source_bytes"] != expected_usable:
+        raise SystemExit("sparse proof: usable GMC source capacity differs")
+    expected_spare = (
+        expected_usable - manifest["gmc"]["payload_bytes"] - len(BOOT_OVERFLOW_PROOF)
+    )
+    if manifest["gmc"]["spare_bytes"] != expected_spare:
+        raise SystemExit("sparse proof: total CPU-readable GMC spare capacity differs")
 
     print(
         f"sparse proof: {len(enemy_ranges)} enemy and {len(player_ranges)} player "

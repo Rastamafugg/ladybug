@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Cartridge source capacity and runtime destination capacity are independent gates</h2>
+      <p>Counting only the remaining bytes in banks 2 and 3 understated available cartridge source storage and could reject cycle-improving precomputed data even though bank 0 was mostly empty. Bank 0 offsets <code>$0800-$3DFF</code> now form a manifest-owned overflow pool used after the primary source intervals.</p>
+      <p><strong>Rule:</strong> accept per-bank source spill when the complete CPU-readable four-bank allocation fits, but retain independent checks for the loader boundary, destination RAM, MMU ownership, resident/assets/enemy-module windows, direct page, stack, ABI, timing, and behavior. Arbitrary absolute code is not relocatable merely because source ROM space exists.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_sparse_sprites.py</code>, <code>scripts/verify_gmc_overflow.py</code>, <code>src/gmc_bootstrap.s</code>, and <a href="../tickets/tool-001-bank0-overflow.html">TOOL-001</a>.</p>
+    </section>
+
+    <section>
       <h2>Force rare fallbacks and natural replay in acceptance traces</h2>
       <p>A short movement distribution stopped reaching the discontinuity fallback, and isolated owner forcing measured nest animation below 25,000 cycles while missing the natural alternate-owner replay interval at 28,222. Explicit stale owner metadata now forces exactly four full captures on each owner, and three-interval animation traces prove current publication followed by queued replay.</p>
       <p><strong>Rule:</strong> required rare paths must fail verification when absent. For persistent A/B rendering, profile the natural current-to-replay sequence in addition to independently forcing each owner.</p>

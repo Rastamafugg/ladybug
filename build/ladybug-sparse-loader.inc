@@ -8,10 +8,13 @@ SPARSE_PLAYER_INDEX_ADDR equ $0680
 SPARSE_ENEMY_INDEX_BYTES equ 384
 SPARSE_PLAYER_INDEX_BYTES equ 48
 SPARSE_COPY_SEGMENT_BYTES equ 8
-SPARSE_COPY_SEGMENT_COUNT equ 9
+SPARSE_COPY_SEGMENT_COUNT equ 10
 
 ; bank, destination page, source CPU address, destination window, count
 sparse_copy_table
+        ; boot_overflow_proof+$0000
+        fcb     $00,$FF
+        fdb     $C800,$06B0,$0002
         ; enemy+$0000
         fcb     $02,$35
         fdb     $C020,$A000,$2000

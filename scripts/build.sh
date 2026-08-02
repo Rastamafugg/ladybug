@@ -15,6 +15,7 @@ GATE_TRANSITIONS="$BUILD_DIR/ladybug-gate-transitions.bin"
 PRESENTATION_SPARSE="$BUILD_DIR/ladybug-presentation-sparse.bin"
 SPARSE_BANK2="$BUILD_DIR/ladybug-sparse-bank2.bin"
 SPARSE_BANK3="$BUILD_DIR/ladybug-sparse-bank3.bin"
+SPARSE_BANK0="$BUILD_DIR/ladybug-gmc-bank0-overflow.bin"
 SPARSE_LOADER="$BUILD_DIR/ladybug-sparse-loader.inc"
 SPARSE_MANIFEST="$BUILD_DIR/ladybug-sparse-layout.json"
 MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
@@ -38,6 +39,7 @@ CART_BYTES=16384
 GMC_BYTES=65536
 RESIDENT_LIMIT=0xE000
 ASSET_LIMIT=0xFE00
+BOOT_OVERFLOW_START=0xC800
 
 guard_layout() {
     local map="$1"
@@ -102,6 +104,25 @@ if pad < 0:
     sys.exit(f"build: ROM is {len(data)} bytes — exceeds {target} byte cart window")
 open(path, 'wb').write(data + b'\xff' * pad)
 print(f"build: padded {len(data)} → {target} bytes ({path})")
+PY
+}
+
+guard_boot_overflow() {
+    local map="$1"
+    python3 - "$map" "$BOOT_OVERFLOW_START" <<'PY'
+import re
+import sys
+path, limit = sys.argv[1], int(sys.argv[2], 0)
+text = open(path, encoding="utf-8").read()
+match = re.search(r"^Symbol: loader_end .* = ([0-9A-Fa-f]+)$", text, re.MULTILINE)
+if not match:
+    raise SystemExit("build: boot map is missing loader_end")
+end = int(match.group(1), 16)
+if end > limit:
+    raise SystemExit(
+        f"build: loader ends at ${end:04X}; bank-0 overflow starts at ${limit:04X}"
+    )
+print(f"build: boot loader ends at ${end:04X}; overflow starts at ${limit:04X}")
 PY
 }
 
@@ -184,6 +205,7 @@ PY
         --player-output "$SPARSE_PLAYER" \
         --gate-input "$GATE_TRANSITIONS" \
         --presentation-input "$PRESENTATION_SPARSE" \
+        --bank0-output "$SPARSE_BANK0" \
         --bank2-output "$SPARSE_BANK2" \
         --bank3-output "$SPARSE_BANK3" \
         --loader-output "$SPARSE_LOADER" \
@@ -196,10 +218,13 @@ PY
         --player-payload "$SPARSE_PLAYER" \
         --gate-payload "$GATE_TRANSITIONS" \
         --presentation-payload "$PRESENTATION_SPARSE" \
+        --bank0 "$SPARSE_BANK0" \
         --bank2 "$SPARSE_BANK2" \
         --bank3 "$SPARSE_BANK3" \
         --loader "$SPARSE_LOADER" \
         --manifest "$SPARSE_MANIFEST"
+
+    python3 "$ROOT/scripts/verify_gmc_overflow.py"
 
     python3 "$ROOT/scripts/verify_presentation_sparse.py"
 
@@ -210,26 +235,47 @@ PY
           --map="$BOOT_MAP" \
           -I "$BUILD_DIR" \
           "$BOOT_SRC"
+    guard_boot_overflow "$BOOT_MAP"
     pad_cart "$BOOT_ROM"
 
-    python3 - "$BOOT_ROM" "$RUNTIME_ROM" "$ENEMY_ROM" "$SPARSE_BANK2" "$SPARSE_BANK3" "$ROM" "$GMC_BYTES" <<'PY'
+    python3 - "$BOOT_ROM" "$SPARSE_BANK0" "$RUNTIME_ROM" "$ENEMY_ROM" "$SPARSE_BANK2" "$SPARSE_BANK3" "$SPARSE_MANIFEST" "$ROM" "$GMC_BYTES" <<'PY'
+import hashlib
+import json
 import sys
-boot_path, runtime_path, enemy_path, bank2_path, bank3_path, output_path, target = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], int(sys.argv[7])
-boot = open(boot_path, 'rb').read()
+boot_path, bank0_path, runtime_path, enemy_path, bank2_path, bank3_path, manifest_path, output_path, target = sys.argv[1:9] + [int(sys.argv[9])]
+boot = bytearray(open(boot_path, 'rb').read())
+bank0 = open(bank0_path, 'rb').read()
 runtime = open(runtime_path, 'rb').read()
 enemy = open(enemy_path, 'rb').read()
 bank2 = open(bank2_path, 'rb').read()
 bank3 = open(bank3_path, 'rb').read()
-if any(len(bank) != 0x4000 for bank in (boot, runtime, bank2, bank3)):
+manifest = json.load(open(manifest_path, encoding='ascii'))
+if any(len(bank) != 0x4000 for bank in (boot, bank0, runtime, bank2, bank3)):
     raise SystemExit('build: GMC bank input is not exactly 16 KiB')
 if len(enemy) > 0x1000:
     raise SystemExit(f'build: bank-3 enemy module is {len(enemy)} bytes; limit is 4096')
 if bank3[0x800:0x800 + len(enemy)] != enemy:
     raise SystemExit('build: sparse bank-3 runtime payload differs from assembled module')
-image = boot + runtime + bank2 + bank3
+for segment in manifest['gmc']['segments']:
+    if segment['bank'] != 0:
+        continue
+    start = segment['source_offset']
+    end = start + segment['count']
+    if start < 0x0800 or end > 0x3E00:
+        raise SystemExit('build: bank-0 overflow segment is outside $0800-$3DFF')
+    if any(value != 0xFF for value in boot[start:end]):
+        raise SystemExit('build: bank-0 overflow segment overlaps assembled boot bytes')
+    boot[start:end] = bank0[start:end]
+open(boot_path, 'wb').write(boot)
+image = bytes(boot) + runtime + bank2 + bank3
 if len(image) != target:
     raise SystemExit(f'build: GMC image is {len(image)} bytes, expected {target}')
 open(output_path, 'wb').write(image)
+digest = lambda data: hashlib.sha256(data).hexdigest()
+manifest['gmc']['final_bank0_sha256'] = digest(bytes(boot))
+manifest['gmc']['bank1_sha256'] = digest(runtime)
+manifest['gmc']['final_image_sha256'] = digest(image)
+open(manifest_path, 'w', encoding='ascii').write(json.dumps(manifest, indent=2) + '\n')
 print(f'build: GMC banks 4 x 16384 -> {len(image)} bytes ({output_path})')
 PY
 }
@@ -250,7 +296,7 @@ cmd_run() {
 
 cmd_verify_gmc() {
     cmd_build
-    python3 "$ROOT/scripts/verify_gmc_boot.py" --rom "$ROM" --map "$MAP"
+    python3 "$ROOT/scripts/verify_gmc_boot.py" --rom "$ROM" --map "$MAP" --manifest "$SPARSE_MANIFEST"
     python3 "$ROOT/scripts/verify_enemy_runtime.py"
 }
 
