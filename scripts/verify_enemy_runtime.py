@@ -209,7 +209,8 @@ for fragment in ("cmpa    #2", "lda     ENEMY_ACTIVE",
         raise SystemExit("enemy proof: collected vegetable nest rule missing: " + fragment)
 for fragment in (
     "ERF_NEST_ANIM  equ $10",
-    "ENEMY_NEST_CACHE equ $AD80",
+    "ENEMY_RESET_CACHE equ $BC04",
+    "ENEMY_NEST_CACHE equ $BC84",
     "lbsr    compose_enemy_animation",
     "lbsr    build_enemy_nest_cache",
     "lbra    cez_commit_row",
@@ -220,6 +221,9 @@ for fragment in (
         raise SystemExit("enemy proof: bounded nest animation path missing: " + fragment)
 if not source.index("tst     ENEMY_NEST_DIRTY", source.index("et_animation_timer")) < source.index("ora     #ERF_NEST_ANIM"):
     raise SystemExit("enemy proof: structural nest dirtiness does not dominate animation")
+reset_publish = source[source.index("\ncea_reset\n"):source.index("\nplayer_draw_impl\n")]
+if "ldy     #ENEMY_ZONE_ROWS" not in reset_publish or "ENEMY_ZONE_ROWS*2" in reset_publish:
+    raise SystemExit("enemy proof: reset cache publication must commit exactly the 32-row nest zone")
 for fragment in ("reset_enemy_state", "reload_enemy_box_timer"):
     if fragment not in main:
         raise SystemExit("enemy proof: cold reset helper was not moved to resident code: " + fragment)

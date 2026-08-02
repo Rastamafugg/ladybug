@@ -44,8 +44,10 @@ def trace_sections(path: Path, frame_pc: str) -> list[dict[str, object]]:
     if not starts:
         raise ValueError(f"{path}: frame_render_impl was not traced")
     sections = []
-    for position, start in enumerate(starts):
-        end = starts[position + 1] if position + 1 < len(starts) else len(lines)
+    # A measured interval must have both frame-render boundaries.  The trailing
+    # trace tail is diagnostic only and must never become timing evidence.
+    for position, start in enumerate(starts[:-1]):
+        end = starts[position + 1]
         section = lines[start:end]
         cycles = [int(TRACE_RE.match(line).group(1)) // 8 for line in section]
         cycles[0] = 9

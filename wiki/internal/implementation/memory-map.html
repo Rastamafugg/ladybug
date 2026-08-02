@@ -166,6 +166,10 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
     </section>
 
     <section>
+      <h2>PERF-002 reset-cache allocation</h2>
+      <p>The reset cache occupies <code>$BC04-$BC83</code> (128 bytes) and the relocated 512-byte nest-animation cache occupies <code>$BC84-$BE83</code>, both on PAR5 physical page <code>$34</code>. The prior free interval remains available only outside these allocations. This reservation leaves bank 3 at 4,095 of 4,096 bytes; it does not reserve the PERF-004 low-RAM/helper or page-$3A candidates.</p>
+    </section>
+    <section>
       <h2>Cart ROM image (16 K)</h2>
 <pre><code>file offset   virtual          purpose
 $0000-$0682   $C000-$C682      autostart magic, entry, resident code/constants
