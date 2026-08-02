@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-08-02 &middot; implementation/verification &mdash; PERF-001 exact sparse entity cache</h3>
+      <p>Rejected the compact cache because it merged 128 original destination operations into 64 and failed independent semantics. Replaced it with a bounded sparse-run cache at <code>$B000-$B57F</code>, including short/extended deltas, row-bounded runs, exact mask/value pairs, and pre-write capacity guards. Independent parsing/model/replay proof passes 432 variant/LUT/pattern cases with a 99/128-byte maximum; a fresh XRoar snapshot proves eight emitted active records exactly and validates all 20 association entity/cache pointers. Fresh measured worklists are 26,505 and 26,991 cycles in the natural order, 26,512 and 26,984 reversed, against the 27,000 maximum. Resident capacity is 8,190/8,192 bytes.</p>
+    </section>
+
+    <section>
       <h3>2026-08-02 &middot; implementation/verification &mdash; PERF-001 gate closure</h3>
       <p>Implemented fixed 77-byte per-gate entity records at <code>$B600-$BC03</code> with bounds, count, and entity/cache/framebuffer pointer triples. Fresh WSL/XRoar evidence measures diagonal/current 26,432 and final/pending projection 26,918 active cycles against the 27,000 maximum. GMC, sparse pixel, 168-case generation, current-map transition, runtime ownership, and complete baseline verifiers pass. Capacity is 8,098/8,192 resident and 4,075/4,096 bank-3 bytes. PERF-001 moves to Verification; unrelated death-reset/common-actor failures and three sampled missed commits remain for successor/integration work.</p>
     </section>
