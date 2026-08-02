@@ -89,13 +89,13 @@ def main() -> None:
         report.append(item)
     reversed_report = []
     for phase, (lines, cycle_values) in zip(
-        ("diagonal/current", "final/pending projection"),
+        ("diagonal/current target=B", "final/pending projection target=A"),
         sections(BUILD / "perf-gate-reversed.raw.trace", enemy["frame_render_impl"]),
     ):
         sync = sum(value for line, value in zip(lines, cycle_values) if "| 13 " in line)
         item = {
             "phase": phase,
-            "starting_owner": "reversed (front=B, back=A)",
+            "starting_owner": "reversed (front=A, back=B)",
             "active_cycles": sum(cycle_values) - sync,
         }
         item["calls"] = {
