@@ -1077,12 +1077,31 @@
   },
   "gmc": {
     "readable_bytes_per_bank": 15872,
+    "boot_overflow_start": 2048,
+    "boot_overflow_end": 15872,
+    "boot_overflow_proof_address": 1712,
+    "boot_overflow_proof_bytes": 2,
+    "boot_overflow_used_bytes": 2,
+    "boot_overflow_spare_bytes": 13822,
     "enemy_runtime_reserved": 4096,
     "payload_bytes": 26705,
-    "spare_bytes": 939,
+    "source_bytes_including_proof": 26707,
+    "usable_source_bytes": 41438,
+    "spare_bytes": 14731,
+    "bank0_sha256": "83553c52814970deb7983c2f8b19254b908bbfd8142bf271f674aa95facef4dd",
     "bank2_sha256": "59b2bcdab20fb9070dac32b37d95770b3454ee7b94eceabbf9ff2a92fc7aa089",
     "bank3_sha256": "a2431c3ac0641fa8182f39c2f051d6d0276adeec5111a181c73c6ba41dc857e5",
     "segments": [
+      {
+        "bank": 0,
+        "source_offset": 2048,
+        "source_address": 51200,
+        "destination_page": 255,
+        "destination_address": 1712,
+        "count": 2,
+        "target": "boot_overflow_proof",
+        "target_offset": 0
+      },
       {
         "bank": 2,
         "source_offset": 32,
@@ -1173,6 +1192,9 @@
         "target": "presentation",
         "target_offset": 0
       }
-    ]
+    ],
+    "final_bank0_sha256": "981afd0532b71bba78d6359f61b342fe044e098a8e9e49beea9a48789e296e00",
+    "bank1_sha256": "3888a72ee15a97ac0a50a88e01f9f1b3642b507dd0e4f840d3d54131edc0b065",
+    "final_image_sha256": "2d68a11df7dcf8a18f6f3cda0540f446f9d115f81b2591a3f27e0bebfcde9986"
   }
 }

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import re
 import subprocess
 import tempfile
@@ -15,6 +17,7 @@ def main() -> None:
     parser.add_argument("--xroar", default="/usr/local/bin/xroar")
     parser.add_argument("--rom", type=Path, required=True)
     parser.add_argument("--map", type=Path, required=True)
+    parser.add_argument("--manifest", type=Path, required=True)
     args = parser.parse_args()
 
     map_text = args.map.read_text(encoding="utf-8")
@@ -24,6 +27,18 @@ def main() -> None:
     mainloop = match.group(1).lower()
     rom = args.rom.read_bytes()
     boot = rom[:0x4000]
+    manifest = json.loads(args.manifest.read_text(encoding="ascii"))
+    manifest_segments = manifest["gmc"]["segments"]
+    expected_source_banks = {
+        f"{segment['bank']:02x}" for segment in manifest_segments
+    }
+    digest = lambda data: hashlib.sha256(data).hexdigest()
+    if manifest["gmc"]["final_bank0_sha256"] != digest(boot):
+        raise SystemExit("gmc proof: final bank-0 hash differs from manifest")
+    if manifest["gmc"]["bank1_sha256"] != digest(rom[0x4000:0x8000]):
+        raise SystemExit("gmc proof: bank-1 hash differs from manifest")
+    if manifest["gmc"]["final_image_sha256"] != digest(rom):
+        raise SystemExit("gmc proof: final image hash differs from manifest")
     main_source = (Path(__file__).resolve().parents[1] / "src/main.s").read_text(
         encoding="utf-8"
     )
@@ -135,6 +150,12 @@ def main() -> None:
         text,
         re.MULTILINE,
     )
+    low_ram_proof = (
+        # XRoar reports registers after STA ,Y+, so Y is one byte beyond
+        # the address written on each trace line.
+        re.search(r"^[0-9a-f]{4}\| a7a0 .* a=b0 .* y=06b1 ", text, re.MULTILINE)
+        and re.search(r"^[0-9a-f]{4}\| a7a0 .* a=0f .* y=06b2 ", text, re.MULTILINE)
+    )
     commit_writes = [
         int(value, 16)
         for pc, value in re.findall(
@@ -155,8 +176,10 @@ def main() -> None:
         "bank-3 module selected": f"{bank_writes[2]}| b7ff50" in text,
         "generated sparse source segments selected": (
             len(sparse_bank_writes) == expected_sparse_segments and
-            set(sparse_bank_writes) == {"02", "03"}
+            set(sparse_bank_writes) == expected_source_banks
         ),
+        "bank-0 overflow source selected": "00" in sparse_bank_writes,
+        "bank-0 low-RAM proof copied": bool(low_ram_proof),
         "sparse destination pages selected": set(sparse_page_writes) == {"35", "36", "37", "39"},
         "runtime bank selected": f"{bank_writes[4]}| b7ff50" in text,
         "all-RAM handoff": f"{allram}| b7ffdf" in text,

@@ -16,6 +16,8 @@ PAGE_BYTES = 0x2000
 CART_BANK_BYTES = 0x4000
 CART_CPU_BASE = 0xC000
 CART_READABLE_BYTES = 0x3E00
+BOOT_OVERFLOW_START = 0x0800
+BANK2_PAYLOAD_START = 0x0020
 WINDOW_BASE = 0xA000
 ENEMY_PAGE_BASE = 0x35
 ENEMY_PAGE_COUNT = 3
@@ -31,6 +33,9 @@ EXPECTED_GATE_BYTES = 832
 EXPECTED_PRESENTATION_BYTES = 896
 ENEMY_INDEX_MIRROR = 0x0500
 PLAYER_INDEX_MIRROR = 0x0680
+LOW_RAM_DESTINATION_PAGE = 0xFF
+BOOT_OVERFLOW_PROOF_ADDRESS = 0x06B0
+BOOT_OVERFLOW_PROOF = bytes((0xB0, 0x0F))
 GATE_PAYLOAD_ADDRESS = WINDOW_BASE + EXPECTED_PLAYER_BYTES
 PRESENTATION_PAYLOAD_ADDRESS = GATE_PAYLOAD_ADDRESS + EXPECTED_GATE_BYTES
 
@@ -76,6 +81,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--presentation-input", type=Path, required=True)
     parser.add_argument("--bank2-output", type=Path, required=True)
     parser.add_argument("--bank3-output", type=Path, required=True)
+    parser.add_argument("--bank0-output", type=Path, required=True)
     parser.add_argument("--loader-output", type=Path, required=True)
     parser.add_argument("--manifest-output", type=Path, required=True)
     return parser.parse_args()
@@ -231,8 +237,8 @@ def target_chunks(
 def pack_candidate_banks(
         enemy_payload: bytes, player_payload: bytes, gate_payload: bytes,
         presentation_payload: bytes,
-        enemy_runtime: bytes
-) -> tuple[bytes, bytes, list[CopySegment]]:
+    enemy_runtime: bytes
+) -> tuple[bytes, bytes, bytes, list[CopySegment]]:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
     if len(enemy_runtime) > ENEMY_RUNTIME_RESERVED:
         raise ValueError(
@@ -241,6 +247,7 @@ def pack_candidate_banks(
         )
 
     banks = {
+        0: bytearray(b"\xFF" * CART_BANK_BYTES),
         2: bytearray(b"\xA2" * CART_BANK_BYTES),
         3: bytearray(b"\xA3" * CART_BANK_BYTES),
     }
@@ -250,7 +257,7 @@ def pack_candidate_banks(
     banks[3][ENEMY_RUNTIME_OFFSET:runtime_end] = enemy_runtime
 
     sources = [
-        SourceInterval(2, 0x0020, CART_READABLE_BYTES),
+        SourceInterval(2, BANK2_PAYLOAD_START, CART_READABLE_BYTES),
         SourceInterval(
             3,
             ENEMY_RUNTIME_OFFSET + ENEMY_RUNTIME_RESERVED,
@@ -258,6 +265,8 @@ def pack_candidate_banks(
         ),
         SourceInterval(3, 0x0000, SIGNATURE_OFFSET),
         SourceInterval(3, SIGNATURE_OFFSET + 2, ENEMY_RUNTIME_OFFSET),
+        SourceInterval(0, BOOT_OVERFLOW_START + len(BOOT_OVERFLOW_PROOF),
+                       CART_READABLE_BYTES),
     ]
     targets = (
         target_chunks("enemy", enemy_payload, ENEMY_PAGE_BASE) +
@@ -269,7 +278,17 @@ def pack_candidate_banks(
                       PRESENTATION_PAYLOAD_ADDRESS)
     )
 
-    segments: list[CopySegment] = []
+    banks[0][BOOT_OVERFLOW_START:
+             BOOT_OVERFLOW_START + len(BOOT_OVERFLOW_PROOF)] = BOOT_OVERFLOW_PROOF
+    segments: list[CopySegment] = [CopySegment(
+        bank=0,
+        source_offset=BOOT_OVERFLOW_START,
+        destination_page=LOW_RAM_DESTINATION_PAGE,
+        destination_address=BOOT_OVERFLOW_PROOF_ADDRESS,
+        count=len(BOOT_OVERFLOW_PROOF),
+        target="boot_overflow_proof",
+        target_offset=0,
+    )]
     source_index = 0
     source_cursor = sources[0].start
     for target in targets:
@@ -303,8 +322,19 @@ def pack_candidate_banks(
     for segment in segments:
         if segment.source_offset + segment.count > CART_READABLE_BYTES:
             raise ValueError("loader segment enters forced-RAM/I/O cart offsets")
-        if segment.destination_address + segment.count > WINDOW_BASE + PAGE_BYTES:
+        if segment.destination_page == LOW_RAM_DESTINATION_PAGE:
+            if not (
+                BOOT_OVERFLOW_PROOF_ADDRESS <= segment.destination_address and
+                segment.destination_address + segment.count <= 0x0800
+            ):
+                raise ValueError("low-RAM loader segment exceeds overflow destination")
+        elif not (
+            WINDOW_BASE <= segment.destination_address and
+            segment.destination_address + segment.count <= WINDOW_BASE + PAGE_BYTES
+        ):
             raise ValueError("loader segment crosses its PAR5 destination page")
+        if segment.bank == 0 and segment.source_offset < BOOT_OVERFLOW_START:
+            raise ValueError("bank-0 loader segment overlaps bootstrap reservation")
         if (
             segment.bank == 3 and
             segment.source_offset < ENEMY_RUNTIME_OFFSET + ENEMY_RUNTIME_RESERVED and
@@ -317,7 +347,7 @@ def pack_candidate_banks(
         ):
             raise ValueError("loader segment overlaps a bank signature")
 
-    return bytes(banks[2]), bytes(banks[3]), segments
+    return bytes(banks[0]), bytes(banks[2]), bytes(banks[3]), segments
 
 
 def write_loader_include(path: Path, segments: list[CopySegment]) -> None:
@@ -386,13 +416,14 @@ def main() -> None:
         )
 
     enemy_runtime = args.enemy_runtime.read_bytes()
-    bank2, bank3, segments = pack_candidate_banks(
+    bank0, bank2, bank3, segments = pack_candidate_banks(
         enemy_payload, player_payload, gate_payload, presentation_payload,
         enemy_runtime
     )
     outputs = (
         (args.enemy_output, enemy_payload),
         (args.player_output, player_payload),
+        (args.bank0_output, bank0),
         (args.bank2_output, bank2),
         (args.bank3_output, bank3),
     )
@@ -401,10 +432,19 @@ def main() -> None:
         path.write_bytes(data)
     write_loader_include(args.loader_output, segments)
 
-    used_source_bytes = sum(segment.count for segment in segments)
+    proof_bytes = len(BOOT_OVERFLOW_PROOF)
+    used_payload_source_bytes = sum(
+        segment.count for segment in segments
+        if segment.target != "boot_overflow_proof"
+    )
+    bank0_used_bytes = sum(
+        segment.count for segment in segments if segment.bank == 0
+    )
     usable_expansion_bytes = (
-        (CART_READABLE_BYTES - 2) +
-        (CART_READABLE_BYTES - 2 - ENEMY_RUNTIME_RESERVED)
+        (CART_READABLE_BYTES - BANK2_PAYLOAD_START) +
+        (CART_READABLE_BYTES - ENEMY_RUNTIME_OFFSET - ENEMY_RUNTIME_RESERVED) +
+        SIGNATURE_OFFSET + (ENEMY_RUNTIME_OFFSET - SIGNATURE_OFFSET - 2) +
+        (CART_READABLE_BYTES - BOOT_OVERFLOW_START)
     )
     manifest = {
         "format": {
@@ -454,9 +494,22 @@ def main() -> None:
         },
         "gmc": {
             "readable_bytes_per_bank": CART_READABLE_BYTES,
+            "boot_overflow_start": BOOT_OVERFLOW_START,
+            "boot_overflow_end": CART_READABLE_BYTES,
+            "boot_overflow_proof_address": BOOT_OVERFLOW_PROOF_ADDRESS,
+            "boot_overflow_proof_bytes": proof_bytes,
+            "boot_overflow_used_bytes": bank0_used_bytes,
+            "boot_overflow_spare_bytes": (
+                CART_READABLE_BYTES - BOOT_OVERFLOW_START - bank0_used_bytes
+            ),
             "enemy_runtime_reserved": ENEMY_RUNTIME_RESERVED,
-            "payload_bytes": used_source_bytes,
-            "spare_bytes": usable_expansion_bytes - used_source_bytes,
+            "payload_bytes": used_payload_source_bytes,
+            "source_bytes_including_proof": used_payload_source_bytes + proof_bytes,
+            "usable_source_bytes": usable_expansion_bytes,
+            "spare_bytes": (
+                usable_expansion_bytes - used_payload_source_bytes - proof_bytes
+            ),
+            "bank0_sha256": digest(bank0),
             "bank2_sha256": digest(bank2),
             "bank3_sha256": digest(bank3),
             "segments": [

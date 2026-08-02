@@ -55,9 +55,10 @@ src/enemy_runtime.s                  (bank-3 low-RAM enemy module)
    │  lwasm: 16 KB runtime bank + 16 KB bootstrap bank
    ▼
 build/ladybug-runtime.rom + build/ladybug-enemy-runtime.rom + build/ladybug-gmc-boot.rom
-build/ladybug-sparse-bank2.bin + build/ladybug-sparse-bank3.bin (delivered expansion banks)
+build/ladybug-sparse-bank2.bin + build/ladybug-sparse-bank3.bin (primary source banks)
+build/ladybug-gmc-bank0-overflow.bin (manifest-described overflow source image)
 build/ladybug-sparse-loader.inc + build/ladybug-sparse-layout.json (active loader plan and proof)
-   │  compose bank 0 bootstrap, bank 1 runtime, sparse banks 2/3
+   │  overlay exact bank-0 manifest intervals; compose banks 0/1/2/3
    ▼
 build/ladybug.rom    (64 KB, four 16 KB GMC banks)
    │
@@ -77,9 +78,9 @@ emulated CoCo 3      (physical target: GMC-compatible bank-select hardware)
       <table class="wiki-table">
         <thead><tr><th>Command</th><th>What it does</th></tr></thead>
         <tbody>
-          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables; compile sparse death, popup, and gate presentation plus retained packed vegetable assets; assemble; independently verify indexed sparse enemy/player/presentation streams and their segmented GMC layout; assemble the generated loader table; compose the delivered sparse banks; enforce all ROM boundaries; and pad.</td></tr>
+          <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables; compile sparse death, popup, and gate presentation plus retained packed vegetable assets; assemble; independently verify indexed sparse enemy/player/presentation streams and their segmented GMC layout; prove exact-capacity bank-0 overflow and one-byte rejection; assemble the generated loader table; overlay only manifest-owned bank-0 intervals; compose all four banks; enforce loader, source, destination, and ROM boundaries; and pad.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch XRoar with the canonical cart profile and map cursor keys to the right CoCo joystick through <code>kjoy0</code>.</td></tr>
-          <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then trace a bounded headless XRoar run and verify bank signatures, the generated sparse copy-segment count and four destination pages, bank-3 low-RAM copy, bank-1 loading, both fast-clock writes, sparse framebuffer/stage decoder execution, the TY=1 all-RAM handoff, repeated main-loop execution, and enemy-module contracts.</td></tr>
+          <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then trace a bounded headless XRoar run and verify bank signatures, generated source-bank selections including bank 0, the bank-0 proof copy to low RAM, destination pages, bank-3 low-RAM copy, bank-1 loading, final-bank hashes, both fast-clock writes, sparse framebuffer/stage decoder execution, the TY=1 all-RAM handoff, repeated main-loop execution, and enemy-module contracts.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
       </table>
@@ -93,6 +94,7 @@ src/enemy_runtime.s        (bank-3 module, ORG $0800)
 scripts/build_screen.py    (TMX flattener and retained packed-asset generator)
 scripts/build_sparse_sprites.py (indexed sparse streams and active GMC layout)
 scripts/verify_sparse_sprites.py (independent stream decoder and loader proof)
+scripts/verify_gmc_overflow.py (exact source-capacity and one-byte-excess proof)
 scripts/verify_presentation_sparse.py (popup/death pixel and transparency proof)
 scripts/derive_maze.py     (semantic maze validator/generator)
 build/                     (created if missing; generated outputs land here)
@@ -148,17 +150,20 @@ lwasm -9 --format=raw \
         <code>ladybug-presentation-sparse.bin</code>,
         <code>ladybug-sparse-bank2.bin</code>,
         <code>ladybug-sparse-bank3.bin</code>,
+        <code>ladybug-gmc-bank0-overflow.bin</code>,
         <code>ladybug-sparse-loader.inc</code>, and
         <code>ladybug-sparse-layout.json</code>. The proof decodes every frame,
         checks physical-page containment and signatures, excludes inaccessible
         GMC offsets <code>$3E00-$3FFF</code>, and reconstructs all physical
-        payloads from all nine copy records. The generated banks and loader
-        are the delivered path, with 939 CPU-readable bytes spare. The
+        payloads from all ten copy records. A separate boundary proof fills
+        the exact source capacity across banks 2, 3, and 0 and requires one
+        additional byte to fail. The generated banks and loader are the
+        delivered path, with 14,731 CPU-readable source bytes spare. The
         loader mirrors enemy/player indexes into always-mapped low RAM at
         <code>$0500/$0680</code> before the runtime handoff.
       </p>
 
-      <h3>2. Pad both source banks to 16 KB and compose the 64 KB GMC image</h3>
+      <h3>2. Pad source banks to 16 KB and compose the 64 KB GMC image</h3>
 <pre><code>python3 -c "
 data = open('build/ladybug.rom','rb').read()
 pad  = 16384 - len(data)

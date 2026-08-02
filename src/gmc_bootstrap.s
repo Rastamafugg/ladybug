@@ -78,7 +78,10 @@ copy_sparse_segment
         lda     ,x+
         sta     GMC_BANK
         lda     ,x+
+        cmpa    #$FF            ; $FF targets always-mapped low RAM directly
+        beq     copy_sparse_destination_ready
         sta     PAR_EXEC+5
+copy_sparse_destination_ready
         ldu     ,x++
         ldy     ,x++
         ldd     ,x++
