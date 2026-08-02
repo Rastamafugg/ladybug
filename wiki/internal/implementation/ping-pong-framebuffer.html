@@ -112,6 +112,18 @@ Per framebuffer:
   damage: full rebuild, maze cells, gates, entities, perimeter, HUD,
           nest, popup/death presentation
 </code></pre>
+      <h3>Interpreting A/B performance labels</h3>
+      <p>
+        An A- or B-owner measurement identifies the physical framebuffer used as
+        BACK for that interval; it does not identify a fixed class of work or imply
+        that one buffer is intrinsically slower. Successive owners can receive
+        different logical phases, pending-damage replay, actor history, ring phases,
+        and capture modes. Performance evidence must therefore name the scenario
+        phase and executed worklist first, with framebuffer owner as secondary
+        metadata. An owner-specific timing claim requires a controlled crossover:
+        identical starting pixels, ownership metadata, and render intents rendered
+        once into each buffer, with the starting order reversed.
+      </p>
       <p>
         Every field read or written by the IRQ, including the FRONT/BACK IDs,
         readiness flag, sequence counters, and diagnostics, must live in

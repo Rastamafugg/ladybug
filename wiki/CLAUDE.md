@@ -170,6 +170,7 @@ Newest entries at the top.
 
 - Introduce terminology before the first table: define non-obvious labels, units, scenarios/owners, baseline, target, margin calculation, aggregation method, source revision/artifact, and pass/fail rule.
 - State whether numerical values are measured maxima/minima/averages, single observations, historical values, projections, or requirements.
+- For persistent A/B rendering, use scenario phase and executed worklist as the primary measurement label. Buffer owner is secondary metadata, not a causal attribution. Claim an owner-specific timing effect only after a controlled crossover starts from identical pixels, metadata, and render intents and reverses the starting owner.
 - Do not use an empty or missing required scenario as a pass. Record missing coverage as a failed or incomplete verification.
 
 ## Things to prefer
