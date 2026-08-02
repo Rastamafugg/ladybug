@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-08-02 &middot; implementation/verification &mdash; PERF-001 gate closure</h3>
+      <p>Implemented fixed 77-byte per-gate entity records at <code>$B600-$BC03</code> with bounds, count, and entity/cache/framebuffer pointer triples. Fresh WSL/XRoar evidence measures diagonal/current 26,432 and final/pending projection 26,918 active cycles against the 27,000 maximum. GMC, sparse pixel, 168-case generation, current-map transition, runtime ownership, and complete baseline verifiers pass. Capacity is 8,098/8,192 resident and 4,075/4,096 bank-3 bytes. PERF-001 moves to Verification; unrelated death-reset/common-actor failures and three sampled missed commits remain for successor/integration work.</p>
+    </section>
+
+    <section>
       <h3>2026-08-02 &middot; verification/rejection &mdash; PERF-001 native entity-overlay candidate</h3>
       <p>Built and inspected the interrupted twelve-entity native mask/value overlay candidate on <code>perf/perf-001-gate-closure</code>. The candidate was reverted because it only replaced the 7,694-cycle intersecting-static-object redraw and left final pending projection and actor closure unchanged, so it could not meet the 27,000-cycle final-worklist target from the 36,837-cycle baseline. The canonical build and static guards pass, but XRoar is absent, current-revision capture cannot run, and the local gate-transition and complete-baseline verifiers lack required capture artifacts. Historical 32,835 diagonal/current and 36,837 final/pending-projection measurements remain failure evidence, not a result for the candidate. PERF-001 remains Ready.</p>
     </section>

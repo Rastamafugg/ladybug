@@ -28,6 +28,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="reuse the existing canonical build outputs",
     )
+    parser.add_argument(
+        "--gate-only",
+        action="store_true",
+        help="capture only the hydrated gate diagonal/final sequence",
+    )
     return parser.parse_args()
 
 
@@ -158,6 +163,22 @@ def main() -> None:
     )
     hydrated = BUILD / "perf-four-hydrated.sna"
     capture_snapshot(hydrated, frame_pc, 5, static)
+
+    if args.gate_only:
+        gate = BUILD / "perf-gate.sna"
+        patch_snapshot(
+            hydrated,
+            gate,
+            moving_patch((1, 1, 3, 3)) + [
+                "0018=01", "0019=00",
+                "0088=01", "0089=00", "008A=00", "008B=00",
+                "008D=00", "008E=00", "A240=01",
+            ],
+        )
+        capture_snapshot(BUILD / "perf-gate-final.sna", frame_pc, 1, gate)
+        capture_trace(gate, BUILD / "perf-gate.raw.trace", stop_pc, 3)
+        print("performance capture: current-revision gate scenario written to build/")
+        return
 
     horizontal = BUILD / "perf-four-horizontal.sna"
     patch_snapshot(hydrated, horizontal, moving_patch((1, 1, 3, 3)))
