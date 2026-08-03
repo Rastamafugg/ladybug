@@ -1075,22 +1075,32 @@
     "address": 44086,
     "sha256": "cc4b6e94fde821ae76e7167563a73b9ee40e0a0848b1f310c1348e7e5c1e7002"
   },
+  "perimeter_reset": {
+    "bytes": 8189,
+    "page": 58,
+    "address": 40960,
+    "sha256": "00c1c7e68a6458a0a4633ab194c561fb77adeee3990c1a006c72d240dd97e716",
+    "helper_address": 1714,
+    "helper_bytes": 19,
+    "helper_sha256": "24568bbaadd8d15e59d86994e26508db0dc5834cefed1fd1bf2fb69eb2a1eff8",
+    "semantic": "native $2000-relative stores matching complete Green-to-White 92-box reset"
+  },
   "gmc": {
     "readable_bytes_per_bank": 15872,
     "boot_overflow_start": 2048,
     "boot_overflow_end": 15872,
     "boot_overflow_proof_address": 1712,
     "boot_overflow_proof_bytes": 2,
-    "boot_overflow_used_bytes": 2,
-    "boot_overflow_spare_bytes": 13822,
+    "boot_overflow_used_bytes": 8210,
+    "boot_overflow_spare_bytes": 5614,
     "enemy_runtime_reserved": 4096,
-    "payload_bytes": 26705,
-    "source_bytes_including_proof": 26707,
+    "payload_bytes": 34913,
+    "source_bytes_including_proof": 34915,
     "usable_source_bytes": 41438,
-    "spare_bytes": 14731,
-    "bank0_sha256": "83553c52814970deb7983c2f8b19254b908bbfd8142bf271f674aa95facef4dd",
+    "spare_bytes": 6523,
+    "bank0_sha256": "12f7c8b4b0f6b56dea77219e46562ff3b7230ae0515dcfbcc45e6d076eb6ba84",
     "bank2_sha256": "59b2bcdab20fb9070dac32b37d95770b3454ee7b94eceabbf9ff2a92fc7aa089",
-    "bank3_sha256": "f70f079b8e3b7cad342aaff5dfa136edae754e479ccc19c868bd2880a91a867f",
+    "bank3_sha256": "04d769303fb37e859cf6fd2eb6554a090cd1b108b4d22bc8492c4442d33f05d9",
     "segments": [
       {
         "bank": 0,
@@ -1100,6 +1110,26 @@
         "destination_address": 1712,
         "count": 2,
         "target": "boot_overflow_proof",
+        "target_offset": 0
+      },
+      {
+        "bank": 0,
+        "source_offset": 2050,
+        "source_address": 51202,
+        "destination_page": 58,
+        "destination_address": 40960,
+        "count": 8189,
+        "target": "perimeter_reset",
+        "target_offset": 0
+      },
+      {
+        "bank": 0,
+        "source_offset": 10239,
+        "source_address": 59391,
+        "destination_page": 255,
+        "destination_address": 1714,
+        "count": 19,
+        "target": "perimeter_reset_helper",
         "target_offset": 0
       },
       {
@@ -1193,8 +1223,8 @@
         "target_offset": 0
       }
     ],
-    "final_bank0_sha256": "981afd0532b71bba78d6359f61b342fe044e098a8e9e49beea9a48789e296e00",
+    "final_bank0_sha256": "869239769835a662892dd976f85ae8f1f0faf461ad51351e5acdcfd45f4d040b",
     "bank1_sha256": "3888a72ee15a97ac0a50a88e01f9f1b3642b507dd0e4f840d3d54131edc0b065",
-    "final_image_sha256": "2d68a11df7dcf8a18f6f3cda0540f446f9d115f81b2591a3f27e0bebfcde9986"
+    "final_image_sha256": "e1e9ec607533d1f1e3bb80e35da221646e5a8f237cc0488b989a9a62df6de70b"
   }
 }

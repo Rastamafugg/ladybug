@@ -57,13 +57,14 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--case", choices=("zero", "four", "vegetable", "mixed", "generic_control", "structural"))
+    parser.add_argument("--prefix", default="perf002")
     args = parser.parse_args()
     if not args.skip_build:
         subprocess.run([str(ROOT / "scripts" / "build.sh"), "build"], cwd=ROOT, check=True)
     frame_pc = symbol(BUILD / "ladybug-enemy-runtime.map", "frame_render_impl")
     render_pc = symbol(BUILD / "ladybug-enemy-runtime.map", "death_reset_ready")
     stop_pc = symbol(BUILD / "ladybug.map", "main_render")
-    base = BUILD / "perf002-base.sna"
+    base = BUILD / f"{args.prefix}-base.sna"
     capture_snapshot(base, frame_pc, 4)
     common = ["003A=00", "004D=02", "004E=0D", "0062=00", "0060=00", "0087=00", "007F=80", "0080=00"]
     cases = {
@@ -78,12 +79,12 @@ def main() -> None:
     for name in selected:
         patches = cases[name]
         for owner, front, back in (("a", 1, 0), ("b", 0, 1)):
-            snapshot = BUILD / f"perf002-{name}-{owner}.sna"
+            snapshot = BUILD / f"{args.prefix}-{name}-{owner}.sna"
             if owner == "a":
                 patch_snapshot(base, snapshot, patches + [f"008F={front:02X}", f"0090={back:02X}"])
             else:
                 swap_framebuffer_owners(base, snapshot, patches + [f"008F={front:02X}", f"0090={back:02X}"])
-            ready = BUILD / f"perf002-{name}-{owner}-ready.sna"
+            ready = BUILD / f"{args.prefix}-{name}-{owner}-ready.sna"
             capture_snapshot(ready, render_pc, 1, snapshot)
             ready_state = ownership(ready)
             ready_ram = find_ram(ready.read_bytes())
@@ -92,21 +93,21 @@ def main() -> None:
             # Request eight main-render boundaries.  The verifier treats only the
             # seven frame_render_impl-to-frame_render_impl intervals as evidence;
             # any trace tail is diagnostic and is rejected for timing purposes.
-            capture_trace(snapshot, BUILD / f"perf002-{name}-{owner}.raw.trace", frame_pc, 8, timeout=20)
+            capture_trace(snapshot, BUILD / f"{args.prefix}-{name}-{owner}.raw.trace", frame_pc, 8, timeout=20)
             # main_render is reached only after the preceding frame transaction
             # has returned; frame_render_impl itself is an entry boundary.
-            capture_snapshot(BUILD / f"perf002-{name}-{owner}-after.sna", stop_pc, 2, snapshot)
+            capture_snapshot(BUILD / f"{args.prefix}-{name}-{owner}-after.sna", stop_pc, 2, snapshot)
             metadata = {
                 "schema": 2,
                 "scenario": name,
                 "requested_start": owner.upper(),
                 "measurement_contract": "closed frame_render_impl-to-next-frame_render_impl active intervals only; trailing trace tail is diagnostic only",
                 "before": ownership(snapshot),
-                "after": ownership(BUILD / f"perf002-{name}-{owner}-after.sna"),
+                "after": ownership(BUILD / f"{args.prefix}-{name}-{owner}-after.sna"),
                 "material_sha256": material_hashes(),
             }
-            (BUILD / f"perf002-{name}-{owner}.json").write_text(json.dumps(metadata) + "\n", encoding="ascii")
-    print("PERF-002 death-reset captures complete")
+            (BUILD / f"{args.prefix}-{name}-{owner}.json").write_text(json.dumps(metadata) + "\n", encoding="ascii")
+    print(f"{args.prefix} death-reset captures complete")
 
 
 if __name__ == "__main__":

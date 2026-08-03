@@ -170,6 +170,10 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
       <p>The reset cache occupies <code>$BC04-$BC83</code> (128 bytes) and the relocated 512-byte nest-animation cache occupies <code>$BC84-$BE83</code>, both on PAR5 physical page <code>$34</code>. The prior free interval remains available only outside these allocations. This reservation leaves bank 3 at 4,095 of 4,096 bytes; it does not reserve the PERF-004 low-RAM/helper or page-$3A candidates.</p>
     </section>
     <section>
+      <h2>PERF-004 native perimeter-reset allocation</h2>
+      <p>The generated 8,189-byte perimeter-reset program occupies physical page <code>$3A</code>, loaded from bank-0 overflow and invoked through the 19-byte low-RAM gateway <code>$06B2-$06C4</code>. It has 3 bytes of page headroom. The gateway maps PAR5 to <code>$3A</code> only for execution and restores <code>$34</code> before return. Pages <code>$28-$2B</code> remain reserved for the compatibility compositor.</p>
+    </section>
+    <section>
       <h2>Cart ROM image (16 K)</h2>
 <pre><code>file offset   virtual          purpose
 $0000-$0682   $C000-$C682      autostart magic, entry, resident code/constants
