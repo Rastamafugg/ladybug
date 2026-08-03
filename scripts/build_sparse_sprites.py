@@ -9,7 +9,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from build_screen import compile_enemy_sprites, compile_player_sprites
+from build_screen import compile_enemy_sprites, compile_player_sprites, compile_screen
 
 
 PAGE_BYTES = 0x2000
@@ -38,6 +38,12 @@ BOOT_OVERFLOW_PROOF_ADDRESS = 0x06B0
 BOOT_OVERFLOW_PROOF = bytes((0xB0, 0x0F))
 GATE_PAYLOAD_ADDRESS = WINDOW_BASE + EXPECTED_PLAYER_BYTES
 PRESENTATION_PAYLOAD_ADDRESS = GATE_PAYLOAD_ADDRESS + EXPECTED_GATE_BYTES
+PERIMETER_RESET_PAGE = 0x3A
+PERIMETER_RESET_ADDRESS = WINDOW_BASE
+PERIMETER_RESET_SOURCE_OFFSET = BOOT_OVERFLOW_START + len(BOOT_OVERFLOW_PROOF)
+PERIMETER_RESET_HELPER_ADDRESS = 0x06B2
+PERIMETER_RESET_HELPER_LIMIT = 0x0800
+PERIMETER_RMW_HYBRID_CALLS = 77
 
 
 @dataclass(frozen=True)
@@ -79,6 +85,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--player-output", type=Path, required=True)
     parser.add_argument("--gate-input", type=Path, required=True)
     parser.add_argument("--presentation-input", type=Path, required=True)
+    parser.add_argument("--perimeter-map", type=Path, required=True)
+    parser.add_argument("--perimeter-maze", type=Path, required=True)
+    parser.add_argument("--perimeter-chars", type=Path, required=True)
+    parser.add_argument("--perimeter-reset-output", type=Path, required=True)
+    parser.add_argument("--perimeter-helper", type=Path, required=True)
     parser.add_argument("--bank2-output", type=Path, required=True)
     parser.add_argument("--bank3-output", type=Path, required=True)
     parser.add_argument("--bank0-output", type=Path, required=True)
@@ -234,10 +245,136 @@ def target_chunks(
     return chunks
 
 
+def perimeter_coordinates(box: int) -> tuple[int, int]:
+    """Match main.s perimeter_box_coordinates for the complete 92-box ring."""
+    if not 0 <= box < 92:
+        raise ValueError("perimeter box is outside 0..91")
+    if box < 12:
+        return box + 12, 0
+    if box < 35:
+        return 23, box - 11
+    if box < 58:
+        return 22 - (box - 35), 23
+    if box < 80:
+        return 0, 22 - (box - 58)
+    return box - 80, 0
+
+
+def compile_perimeter_reset_payload(
+        screen_map: list[int], tiles: list[bytes]
+) -> bytes:
+    """Generate an old-92-call-equivalent white-nibble projection.
+
+    The native program starts from arbitrary framebuffer bytes.  It sets only
+    authored source nibbles whose value is white (6), preserving every other
+    destination nibble.  Full-white stores precede high and low RMW stores so
+    the categories are idempotent and cannot destroy companion nibbles.
+    """
+    masks: dict[int, int] = {}
+    for box in range(92):
+        cell_x, cell_y = perimeter_coordinates(box)
+        tile = tiles[screen_map[cell_y * 40 + cell_x + 8]]
+        for row in range(8):
+            offset = (cell_y * 5 + row) * 160 + (cell_x + 8) * 4
+            for column, value in enumerate(tile[row * 4:(row + 1) * 4]):
+                mask = (0xF0 if value >> 4 == 6 else 0) | (0x0F if value & 0x0F == 6 else 0)
+                if mask:
+                    masks[offset + column] = masks.get(offset + column, 0) | mask
+    full = sorted(offset for offset, mask in masks.items() if mask == 0xFF)
+    high = sorted(offset for offset, mask in masks.items() if mask == 0xF0)
+    low = sorted(offset for offset, mask in masks.items() if mask == 0x0F)
+    # The generated source currently resolves to 782 full, 230 high-only,
+    # and 414 low-only bytes.  The authoritative invariant is the complete
+    # 1,426-byte union, not an earlier incomplete 757-byte full-write count.
+    if len(full) + len(high) + len(low) != 1426:
+        raise ValueError("perimeter reset authored white-mask coverage changed")
+
+    payload = bytearray()
+    hybrid_calls: list[str] = []
+
+    def extended(kind: str, offset: int) -> None:
+        address = 0x2000 + offset
+        if kind == "full":
+            payload.extend((0x86, 0x66, 0xB7, address >> 8, address & 0xFF))
+        else:
+            if len(hybrid_calls) < PERIMETER_RMW_HYBRID_CALLS:
+                # LDX #destination; JSR local RMW routine.  This replaces a
+                # ten-byte extended RMW sequence with six bytes.  The routine
+                # stays in the same page-$3A native program.
+                payload.extend((0x8E, address >> 8, address & 0xFF, 0xBD, 0, 0))
+                hybrid_calls.append(kind)
+                return
+            keep, set_bits = (0x0F, 0x60) if kind == "high" else (0xF0, 0x06)
+            payload.extend((0xB6, address >> 8, address & 0xFF, 0x84, keep,
+                            0x8A, set_bits, 0xB7, address >> 8, address & 0xFF))
+
+    def indexed(kind: str, offsets: list[int]) -> None:
+        # $10..$1F encode signed -16..-1 and $00..$0F encode 0..15 with X.
+        base = 0x2000 + offsets[0] + 16
+        payload.extend((0x8E, base >> 8, base & 0xFF))
+        if kind == "full":
+            payload.extend((0x86, 0x66))
+            for offset in offsets:
+                payload.extend((0xA7, (offset - (base - 0x2000)) & 0x1F))
+        else:
+            keep, set_bits = (0x0F, 0x60) if kind == "high" else (0xF0, 0x06)
+            index = 0
+            while index < len(offsets):
+                offset = offsets[index]
+                displacement = (offset - (base - 0x2000)) & 0x1F
+                if index + 1 < len(offsets) and offsets[index + 1] == offset + 1:
+                    # D handles adjacent partial bytes in twelve bytes rather
+                    # than two eight-byte A sequences.
+                    payload.extend((0xEC, displacement, 0x84, keep, 0xC4, keep,
+                                    0x8A, set_bits, 0xCA, set_bits, 0xED, displacement))
+                    index += 2
+                else:
+                    payload.extend((0xA6, displacement, 0x84, keep, 0x8A, set_bits,
+                                    0xA7, displacement))
+                    index += 1
+
+    for kind, offsets in (("full", full), ("high", high), ("low", low)):
+        cursor = 0
+        while cursor < len(offsets):
+            run = [offsets[cursor]]
+            cursor += 1
+            # One X base addresses any sparse group spanning 32 bytes through
+            # the signed five-bit indexed range -16..15.  Grouping gaps as
+            # well as adjacent bytes is critical for the 160-byte scan lines.
+            while cursor < len(offsets) and offsets[cursor] <= run[0] + 31:
+                run.append(offsets[cursor]); cursor += 1
+            # LDX costs three bytes.  Indexed wins for two or more adjacent bytes.
+            if len(run) >= 2:
+                indexed(kind, run)
+            else:
+                extended(kind, run[0])
+    payload.append(0x39)       # RTS to the low-RAM PAR5-restoring gateway.
+    high_rmw = len(payload)
+    payload.extend((0xA6, 0x84, 0x84, 0x0F, 0x8A, 0x60, 0xA7, 0x84, 0x39))
+    low_rmw = len(payload)
+    payload.extend((0xA6, 0x84, 0x84, 0xF0, 0x8A, 0x06, 0xA7, 0x84, 0x39))
+    cursor = 0
+    while cursor < len(payload):
+        if payload[cursor:cursor + 4] == b"\x8e" + payload[cursor + 1:cursor + 3] + b"\xbd":
+            kind = hybrid_calls.pop(0)
+            routine = 0xA000 + (high_rmw if kind == "high" else low_rmw)
+            payload[cursor + 4:cursor + 6] = bytes((routine >> 8, routine & 0xFF))
+            cursor += 6
+        else:
+            cursor += 1
+    if hybrid_calls:
+        raise ValueError("perimeter reset hybrid call patching incomplete")
+    if len(payload) > PAGE_BYTES:
+        raise ValueError(
+            f"perimeter reset payload is {len(payload)} bytes; exceeds one page"
+        )
+    return bytes(payload)
+
+
 def pack_candidate_banks(
         enemy_payload: bytes, player_payload: bytes, gate_payload: bytes,
-        presentation_payload: bytes,
-    enemy_runtime: bytes
+        presentation_payload: bytes, enemy_runtime: bytes,
+        perimeter_payload: bytes = b"", perimeter_helper: bytes = b""
 ) -> tuple[bytes, bytes, bytes, list[CopySegment]]:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
     if len(enemy_runtime) > ENEMY_RUNTIME_RESERVED:
@@ -255,6 +392,14 @@ def pack_candidate_banks(
     banks[3][SIGNATURE_OFFSET:SIGNATURE_OFFSET + 2] = bytes((0xB3, 0x03))
     runtime_end = ENEMY_RUNTIME_OFFSET + len(enemy_runtime)
     banks[3][ENEMY_RUNTIME_OFFSET:runtime_end] = enemy_runtime
+    perimeter_end = PERIMETER_RESET_SOURCE_OFFSET + len(perimeter_payload)
+    helper_source_offset = perimeter_end
+    helper_source_end = helper_source_offset + len(perimeter_helper)
+    if helper_source_end > CART_READABLE_BYTES:
+        raise ValueError("perimeter reset payload exceeds bank-0 overflow source")
+    helper_end = PERIMETER_RESET_HELPER_ADDRESS + len(perimeter_helper)
+    if helper_end > PERIMETER_RESET_HELPER_LIMIT:
+        raise ValueError("perimeter helper exceeds $06B2-$07FF allocation")
 
     sources = [
         SourceInterval(2, BANK2_PAYLOAD_START, CART_READABLE_BYTES),
@@ -265,7 +410,7 @@ def pack_candidate_banks(
         ),
         SourceInterval(3, 0x0000, SIGNATURE_OFFSET),
         SourceInterval(3, SIGNATURE_OFFSET + 2, ENEMY_RUNTIME_OFFSET),
-        SourceInterval(0, BOOT_OVERFLOW_START + len(BOOT_OVERFLOW_PROOF),
+        SourceInterval(0, helper_source_end,
                        CART_READABLE_BYTES),
     ]
     targets = (
@@ -280,6 +425,8 @@ def pack_candidate_banks(
 
     banks[0][BOOT_OVERFLOW_START:
              BOOT_OVERFLOW_START + len(BOOT_OVERFLOW_PROOF)] = BOOT_OVERFLOW_PROOF
+    banks[0][PERIMETER_RESET_SOURCE_OFFSET:perimeter_end] = perimeter_payload
+    banks[0][helper_source_offset:helper_source_end] = perimeter_helper
     segments: list[CopySegment] = [CopySegment(
         bank=0,
         source_offset=BOOT_OVERFLOW_START,
@@ -287,6 +434,22 @@ def pack_candidate_banks(
         destination_address=BOOT_OVERFLOW_PROOF_ADDRESS,
         count=len(BOOT_OVERFLOW_PROOF),
         target="boot_overflow_proof",
+        target_offset=0,
+    ), CopySegment(
+        bank=0,
+        source_offset=PERIMETER_RESET_SOURCE_OFFSET,
+        destination_page=PERIMETER_RESET_PAGE,
+        destination_address=PERIMETER_RESET_ADDRESS,
+        count=len(perimeter_payload),
+        target="perimeter_reset",
+        target_offset=0,
+    ), CopySegment(
+        bank=0,
+        source_offset=helper_source_offset,
+        destination_page=LOW_RAM_DESTINATION_PAGE,
+        destination_address=PERIMETER_RESET_HELPER_ADDRESS,
+        count=len(perimeter_helper),
+        target="perimeter_reset_helper",
         target_offset=0,
     )]
     source_index = 0
@@ -394,6 +557,12 @@ def main() -> None:
     )
     gate_payload = args.gate_input.read_bytes()
     presentation_payload = args.presentation_input.read_bytes()
+    screen_map, tiles, *_ = compile_screen(
+        args.perimeter_map, args.perimeter_maze, args.perimeter_chars,
+        args.sprites,
+    )
+    perimeter_payload = compile_perimeter_reset_payload(screen_map, tiles)
+    perimeter_helper = args.perimeter_helper.read_bytes()
     if len(enemy_payload) != EXPECTED_ENEMY_BYTES:
         raise SystemExit(
             f"sparse: enemy payload is {len(enemy_payload)} bytes; "
@@ -418,11 +587,12 @@ def main() -> None:
     enemy_runtime = args.enemy_runtime.read_bytes()
     bank0, bank2, bank3, segments = pack_candidate_banks(
         enemy_payload, player_payload, gate_payload, presentation_payload,
-        enemy_runtime
+        enemy_runtime, perimeter_payload, perimeter_helper
     )
     outputs = (
         (args.enemy_output, enemy_payload),
         (args.player_output, player_payload),
+        (args.perimeter_reset_output, perimeter_payload),
         (args.bank0_output, bank0),
         (args.bank2_output, bank2),
         (args.bank3_output, bank3),
@@ -492,6 +662,16 @@ def main() -> None:
             "address": PRESENTATION_PAYLOAD_ADDRESS,
             "sha256": digest(presentation_payload),
         },
+        "perimeter_reset": {
+            "bytes": len(perimeter_payload),
+            "page": PERIMETER_RESET_PAGE,
+            "address": PERIMETER_RESET_ADDRESS,
+            "sha256": digest(perimeter_payload),
+            "helper_address": PERIMETER_RESET_HELPER_ADDRESS,
+            "helper_bytes": len(perimeter_helper),
+            "helper_sha256": digest(perimeter_helper),
+            "semantic": "native $2000-relative stores matching complete Green-to-White 92-box reset",
+        },
         "gmc": {
             "readable_bytes_per_bank": CART_READABLE_BYTES,
             "boot_overflow_start": BOOT_OVERFLOW_START,
@@ -536,6 +716,7 @@ def main() -> None:
         f"player {len(player_payload)}/{PLAYER_PAGE_COUNT * PAGE_BYTES}, "
         f"gate {len(gate_payload)} bytes, "
         f"presentation {len(presentation_payload)} bytes, "
+        f"perimeter reset {len(perimeter_payload)} bytes, "
         f"{len(segments)} loader segments, "
         f"{manifest['gmc']['spare_bytes']} CPU-readable GMC bytes spare"
     )

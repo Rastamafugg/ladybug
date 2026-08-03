@@ -32,6 +32,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--player-payload", type=Path, required=True)
     parser.add_argument("--gate-payload", type=Path, required=True)
     parser.add_argument("--presentation-payload", type=Path, required=True)
+    parser.add_argument("--perimeter-reset-payload", type=Path, required=True)
+    parser.add_argument("--perimeter-helper", type=Path, required=True)
     parser.add_argument("--bank0", type=Path, required=True)
     parser.add_argument("--bank2", type=Path, required=True)
     parser.add_argument("--bank3", type=Path, required=True)
@@ -230,6 +232,8 @@ def main() -> None:
     player_payload = args.player_payload.read_bytes()
     gate_payload = args.gate_payload.read_bytes()
     presentation_payload = args.presentation_payload.read_bytes()
+    perimeter_reset_payload = args.perimeter_reset_payload.read_bytes()
+    perimeter_helper = args.perimeter_helper.read_bytes()
     enemy_ranges = decode_payload(enemy_payload, enemy_frames, 0x35)
     player_ranges = decode_payload(player_payload, player_frames, 0x39)
     bank0 = args.bank0.read_bytes()
@@ -272,12 +276,14 @@ def main() -> None:
         "player": bytearray(len(player_payload)),
         "gate": bytearray(len(gate_payload)),
         "presentation": bytearray(len(presentation_payload)),
+        "perimeter_reset": bytearray(len(perimeter_reset_payload)),
     }
     coverage = {
         "enemy": bytearray(len(enemy_payload)),
         "player": bytearray(len(player_payload)),
         "gate": bytearray(len(gate_payload)),
         "presentation": bytearray(len(presentation_payload)),
+        "perimeter_reset": bytearray(len(perimeter_reset_payload)),
     }
     source_coverage = {
         0: bytearray(CART_READABLE_BYTES),
@@ -337,6 +343,15 @@ def main() -> None:
             ):
                 raise SystemExit("sparse proof: bank-0 low-RAM proof differs")
             continue
+        if target == "perimeter_reset_helper":
+            if (
+                segment["destination_page"] != LOW_RAM_DESTINATION_PAGE or
+                segment["destination_address"] != manifest["perimeter_reset"]["helper_address"] or
+                target_offset != 0 or
+                banks[segment["bank"]][source_offset:source_offset + count] != perimeter_helper
+            ):
+                raise SystemExit("sparse proof: perimeter helper differs")
+            continue
         if target == "enemy":
             target_page_base = 0x35
             target_address = WINDOW_BASE
@@ -349,6 +364,9 @@ def main() -> None:
         elif target == "presentation":
             target_page_base = 0x39
             target_address = manifest["presentation"]["address"]
+        elif target == "perimeter_reset":
+            target_page_base = manifest["perimeter_reset"]["page"]
+            target_address = manifest["perimeter_reset"]["address"]
         else:
             raise SystemExit(f"sparse proof: unknown loader target {target}")
         absolute_offset = target_address - WINDOW_BASE + target_offset
@@ -371,7 +389,8 @@ def main() -> None:
         not all(coverage["enemy"]) or
         not all(coverage["player"]) or
         not all(coverage["gate"]) or
-        not all(coverage["presentation"])
+        not all(coverage["presentation"]) or
+        not all(coverage["perimeter_reset"])
     ):
         raise SystemExit("sparse proof: loader target coverage has gaps")
     if reconstructed["enemy"] != enemy_payload:
@@ -382,6 +401,8 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct gate payload")
     if reconstructed["presentation"] != presentation_payload:
         raise SystemExit("sparse proof: loader does not reconstruct presentation payload")
+    if reconstructed["perimeter_reset"] != perimeter_reset_payload:
+        raise SystemExit("sparse proof: loader does not reconstruct perimeter reset payload")
     expected_usable = (
         (CART_READABLE_BYTES - BANK2_PAYLOAD_START) +
         (CART_READABLE_BYTES - 0x1800) + 0x10 + (0x0800 - 0x12) +

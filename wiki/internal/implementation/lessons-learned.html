@@ -1633,6 +1633,11 @@ git reset --hard HEAD
       <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>gate_region_to_shadow</code>/<code>gate_region_from_shadow</code> and the 2026-07-23 live cross-page GDB test.</p>
     </section>
 
+    <section>
+      <h2>Generated pixel programs must model partial nibbles from pre-state</h2>
+      <p><strong>Filed 2026-08-03.</strong> PERF-004 rejected a 4,484-byte full-write program because it overwrote non-white companion nibbles. The accepted 8,189-byte hybrid program models 1,426 authored white-mask bytes from arbitrary pre-state: 782 full, 230 high-only, and 414 low-only. It uses 77 local high-RMW calls.</p>
+      <p><strong>Rule:</strong> independently interpret generated machine code and compare it with the original renderer from the pre-boundary region. A one-byte mutation must fail. Do not read traces while capture processes are replacing files.</p>
+    </section>
   </main>
 </div>
 </body>

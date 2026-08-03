@@ -93,7 +93,20 @@ def without_pcs(value: dict[str, object]) -> dict[str, object]:
 
 
 def hash_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """Hash source semantics independently of checkout line endings and paths."""
+    data = path.read_bytes()
+    if path.suffix in (".py", ".s"):
+        data = data.replace(b"\r\n", b"\n")
+    elif path.suffix == ".map":
+        values = []
+        for line in data.decode("utf-8").splitlines():
+            match = MAP_RE.match(line)
+            if match:
+                values.append(f"{match.group(1)}={match.group(2).upper()}\n")
+        if not values:
+            raise ValueError(f"{path}: no symbols for semantic provenance")
+        data = "".join(values).encode("ascii")
+    return hashlib.sha256(data).hexdigest()
 
 
 def main() -> None:

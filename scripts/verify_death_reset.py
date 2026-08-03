@@ -59,6 +59,21 @@ def observation(phase: str, worklist: str, target: str, section: dict[str, objec
 
 def main() -> None:
     sym = symbols(BUILD / "ladybug-enemy-runtime.map")
+    # PERF-004 replaces the 92 generic box calls with a generated native
+    # projection.  Its dedicated verifier proves the same 92-box result at the
+    # publication boundary, including a rejected mutation and all A/B worklists.
+    # Retain this verifier's mixed-path guard: the compatibility compositor must
+    # still be reachable when overlap requires it.
+    source = (ROOT / "src/enemy_runtime.s").read_text(encoding="utf-8")
+    if "jsr     PERIMETER_RESET_HELPER" in source:
+        from verify_perimeter_reset import main as verify_perimeter_reset
+        verify_perimeter_reset()
+        for owner in ("a", "b"):
+            mixed = closed_sections(BUILD / f"perf004-mixed-{owner}.raw.trace", sym["frame_render_impl"])
+            if not any(part["pcs"].count(sym["compose_enemy_zone"]) == 1 for part in mixed):
+                raise SystemExit(f"death-reset proof: mixed generic fallback absent {owner}")
+        print("death-reset proof: PERF-004 native 92-box equivalence and mixed generic fallback pass")
+        return
     required = {"compose_enemy_zone", "compose_enemy_animation", "frame_render_impl", "draw_perimeter_box"}
     if required - sym.keys():
         raise SystemExit("death-reset proof: required symbols missing")
