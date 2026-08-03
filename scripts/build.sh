@@ -20,6 +20,8 @@ SPARSE_LOADER="$BUILD_DIR/ladybug-sparse-loader.inc"
 SPARSE_MANIFEST="$BUILD_DIR/ladybug-sparse-layout.json"
 PERIMETER_RESET="$BUILD_DIR/ladybug-perimeter-reset.bin"
 PERIMETER_HELPER="$BUILD_DIR/ladybug-perimeter-reset-helper.bin"
+PERIMETER_HELPER_MAP="$BUILD_DIR/ladybug-perimeter-reset-helper.map"
+PERIMETER_HELPER_SYMBOLS="$BUILD_DIR/ladybug_enemy_helper_symbols.inc"
 MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
 ROM="$BUILD_DIR/ladybug.rom"
 RUNTIME_ROM="$BUILD_DIR/ladybug-runtime.rom"
@@ -194,6 +196,37 @@ with open(output, 'w', encoding='ascii') as handle:
 PY
 
     lwasm -9 --format=raw \
+          --output="$PERIMETER_HELPER" \
+          --symbols \
+          --map="$PERIMETER_HELPER_MAP" \
+          "$PERIMETER_HELPER_SRC"
+
+    python3 - "$PERIMETER_HELPER_MAP" "$PERIMETER_HELPER_SYMBOLS" <<'PY'
+import re
+import sys
+map_path, output = sys.argv[1:]
+wanted = {
+    'ROAM_COMBINED_RIGHT', 'ROAM_COMBINED_LEFT',
+    'SPARSE_BLIT_STAGE_HELPER', 'SPARSE_ENEMY_STREAM_HELPER',
+    'SPARSE_PLAYER_STREAM_HELPER', 'ROAM_CAPTURE_FULL_HELPER',
+}
+pattern = re.compile(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$')
+symbols = {}
+with open(map_path, encoding='utf-8') as handle:
+    for line in handle:
+        match = pattern.match(line.rstrip())
+        if match and match.group(1) in wanted:
+            symbols[match.group(1)] = match.group(2)
+missing = wanted - symbols.keys()
+if missing:
+    raise SystemExit('build: helper symbols missing: ' + ', '.join(sorted(missing)))
+with open(output, 'w', encoding='ascii') as handle:
+    handle.write('; generated from perimeter helper map; do not edit\n')
+    for name in sorted(symbols):
+        handle.write(f'{name} equ ${symbols[name]}\n')
+PY
+
+    lwasm -9 --format=raw \
           --output="$ENEMY_ROM" \
           --list="$ENEMY_LST" \
           --symbols \
@@ -201,14 +234,10 @@ PY
           -I "$BUILD_DIR" \
           "$ENEMY_SRC"
 
-    lwasm -9 --format=raw \
-          --output="$PERIMETER_HELPER" \
-          --symbols \
-          "$PERIMETER_HELPER_SRC"
-
     python3 "$ROOT/scripts/build_sparse_sprites.py" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
+        --enemy-map "$ENEMY_MAP" \
         --enemy-output "$SPARSE_ENEMY" \
         --player-output "$SPARSE_PLAYER" \
         --gate-input "$GATE_TRANSITIONS" \
@@ -227,6 +256,7 @@ PY
     python3 "$ROOT/scripts/verify_sparse_sprites.py" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
+        --enemy-map "$ENEMY_MAP" \
         --enemy-payload "$SPARSE_ENEMY" \
         --player-payload "$SPARSE_PLAYER" \
         --gate-payload "$GATE_TRANSITIONS" \

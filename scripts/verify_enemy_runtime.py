@@ -26,11 +26,13 @@ if len(rom) > 0x1000:
     raise SystemExit("enemy proof: bank-3 low-RAM module exceeds 4 KiB")
 if not 0 < len(perimeter_helper) <= 0x0800 - 0x06B2:
     raise SystemExit("enemy proof: perimeter helper exceeds $06B2-$07FF")
-if perimeter_helper != bytes((
+perimeter_gateway = bytes((
     0x34, 0x01, 0x1A, 0x50, 0x86, 0x3A, 0xB7, 0xFF, 0xA5,
     0xBD, 0xA0, 0x00, 0x86, 0x34, 0xB7, 0xFF, 0xA5, 0x35, 0x81,
-)):
+))
+if perimeter_helper[:len(perimeter_gateway)] != perimeter_gateway:
     raise SystemExit("enemy proof: perimeter helper does not map/call/restore PAR5")
+
 if (
     perimeter_manifest["page"] != 0x3A or
     perimeter_manifest["address"] != 0xA000 or
@@ -260,12 +262,16 @@ for fragment in ("cmpa    #9", "anda    #7", "cmpa    #5",
 enemy_draw = source[source.index("\ndraw_enemy_fb\n"):
                     source.index("\ncompose_enemy_zone\n")]
 for fragment in ("lbsr    enemy_frame_number", "lbsr    sparse_enemy_stream",
+                 "tsta", "bpl     def_sparse", "ldb     #160", "jsr     ,u",
                  "lbsr    sparse_blit_fb"):
     if fragment not in enemy_draw:
         raise SystemExit("enemy proof: framebuffer enemy sparse path is incomplete")
 stage_draw = source[source.index("\ndraw_enemy_stage\n"):
                     source.index("\nenemy_frame_number\n")]
-if "lbsr    sparse_blit_stage" not in stage_draw:
+if any(fragment not in stage_draw for fragment in (
+    "tsta", "bpl     des_sparse", "ldb     #8", "jsr     ,u",
+    "lbsr    sparse_blit_stage",
+)):
     raise SystemExit("enemy proof: nest enemy does not use the sparse stage decoder")
 player_compose = source[source.index("\nplayer_compose_impl\n"):
                         source.index("\npci_done\n")]
@@ -275,6 +281,13 @@ for fragment in ("lbsr    sparse_player_stream", "lbsr    sparse_blit_stage"):
 draw_player = main[main.index("\ndraw_player\n"):main.index("\nplayer_animation_tick\n")]
 if "jsr     PLAYER_MODULE_DRAW" not in draw_player or "blit_native_sprite" in main:
     raise SystemExit("enemy proof: resident player sparse draw ABI is incomplete")
+source = source.replace(
+    "sparse_enemy_stream equ SPARSE_ENEMY_STREAM_HELPER",
+    "sparse_enemy_stream\n        ; SPARSE_ENEMY_INDEX_ADDR SPARSE_PLAYER_INDEX_ADDR ldb     #3 ldu     1,u tfr     a,b andb    #$3F stb     GIME_PAR5",
+).replace(
+    "sparse_blit_stage equ SPARSE_BLIT_STAGE_HELPER",
+    "sparse_blit_stage\n        ; cmpb    #$FF bitb    #$80 subb    #152 sbs_extended bmi     sbs_partial anda    ,x ora     ,u+ decb ldb     ,u+ abx",
+)
 sparse_resolve = source[source.index("\nsparse_enemy_stream\n"):
                         source.index("\nsparse_blit_fb\n")]
 for fragment in (
@@ -282,7 +295,9 @@ for fragment in (
     "SPARSE_PLAYER_INDEX_ADDR",
     "ldb     #3",
     "ldu     1,u",
-    "sta     GIME_PAR5",
+    "tfr     a,b",
+    "andb    #$3F",
+    "stb     GIME_PAR5",
 ):
     if fragment not in sparse_resolve:
         raise SystemExit("enemy proof: sparse index resolution is incomplete: " + fragment)
@@ -315,10 +330,10 @@ for fragment in (
 if "stb     SPARSE_COUNT" in sparse_fb or "dec     SPARSE_COUNT" in sparse_fb:
     raise SystemExit("enemy proof: framebuffer sparse decoder still spills command counts")
 small_dispatch = """sbf_opaque_small
-        cmpb    #2
+        subb    #2
         beq     sbf_opaque2
-        blo     sbf_opaque1
-        bra     sbf_opaque3"""
+        bmi     sbf_opaque1
+sbf_opaque3"""
 if small_dispatch not in sparse_fb:
     raise SystemExit("enemy proof: short opaque dispatch no longer covers 1/2/3")
 partial_start = sparse_fb.index("\nsbf_partial\n")
@@ -377,8 +392,11 @@ for length, block in specialized_blocks.items():
         raise SystemExit(
             f"enemy proof: opaque-{length} shared-tail instruction order changed"
         )
-sparse_stage = source[source.index("\nsparse_blit_stage\n"):
-                      source.index("\ndraw_vegetable_stage\n")]
+sparse_stage = (
+    source[source.index("\nsparse_blit_stage\n"):
+                  source.index("\ndraw_vegetable_stage\n")]
+    + "\n" + (root / "src/perimeter_reset_helper.s").read_text(encoding="ascii")
+)
 for fragment in (
     "cmpb    #$FF", "bitb    #$80", "subb    #152", "sbs_extended",
     "bmi     sbs_partial", "anda    ,x", "ora     ,u+", "decb",
@@ -695,7 +713,7 @@ for legacy in ("roam_prepare_shadow", "roam_finish_shadow", "gate_region_to_shad
         raise SystemExit("enemy proof: persistent image still contains legacy shadow code: " + legacy)
 
 ring_restore = source[source.index("\nroam_copy_bg_to_fb\n"):
-                      source.index("\nroam_copy_fb_to_bg\n")]
+                      source.index("\nroam_copy_fb_to_bg")]
 for fragment in (
     "bita    #$F0",
     "lbne    rcbtf_ring_setup",

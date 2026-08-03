@@ -184,6 +184,7 @@ DIR_NONE       equ $FF
 GIME_PAR1      equ $FFA1
 GIME_PAR5      equ $FFA5
 PERIMETER_RESET_HELPER equ $06B2
+        include "ladybug_enemy_helper_symbols.inc"
 GIME_IRQEN     equ $FF92
 GIME_VOFF1     equ $FF9D
         ifne    PERSISTENT_FB
@@ -822,6 +823,52 @@ acr_enemy_loop
         ldb     a,y
         andb    ENEMY_OLD_VALID
         beq     acr_enemy_next
+        tst     ENEMY_CAPTURE_DIRTY
+        bne     acr_enemy_full
+        pshs    x
+        lbsr    roam_old_slot
+        ldd     1,x
+        subd    ,u
+        cmpd    #1
+        bne     acr_enemy_left_test
+        clrb
+        bra     acr_enemy_fast
+acr_enemy_left_test
+        incb
+        bne     acr_enemy_restore_full
+        ldb     #1
+acr_enemy_fast
+        pshs    b
+        ldd     ,u
+        tfr     d,x
+        lbsr    roam_bg_address
+        stu     RING_BASE
+        lbsr    roam_ring_slot
+        lda     ,u
+        sta     RING_PHASE
+        ldu     RING_BASE
+        puls    b
+        tstb
+        bne     acr_enemy_left
+        jsr     ROAM_COMBINED_RIGHT
+        bra     acr_enemy_mark
+acr_enemy_left
+        jsr     ROAM_COMBINED_LEFT
+acr_enemy_mark
+        lbsr    roam_ring_slot
+        lda     RING_PHASE
+        sta     ,u
+        lbsr    framebuffer_back_meta
+        leau    FBM_ENEMY_RESERVED,u
+        ldb     #4
+        subb    ENEMY_WORK
+        lda     #1
+        sta     b,u
+        puls    x
+        bra     acr_enemy_next
+acr_enemy_restore_full
+        puls    x
+acr_enemy_full
         lbsr    roam_old_slot
         ldd     ,u
         pshs    x
@@ -838,10 +885,14 @@ acr_enemy_next
 ; Capture every current roaming destination from actor-free BACK, then draw
 ; enemies and the player presentation in stable painter order.
 actor_closure_draw
+        lbsr    framebuffer_back_meta
+        leau    FBM_ENEMY_RESERVED,u
         ldx     #ENEMY_TABLE
         lda     #4
         sta     ENEMY_WORK
 acd_save_loop
+        tst     ,u+
+        bne     acd_save_next
         tst     ,x
         beq     acd_save_next
         tst     6,x
@@ -850,9 +901,11 @@ acd_save_loop
         cmpa    #10
         bhi     acd_save_next
 acd_save_actor
+        pshs    u
         pshs    x
         lbsr    roam_update_background
         puls    x
+        puls    u
         lda     #1
         sta     6,x
 acd_save_next
@@ -999,10 +1052,13 @@ fbp_write_front_fault
         orcc    #$01
         rts
 fbp_owned
-        lda     #1
-        sta     FB_RENDER_ACTIVE
+        inc     FB_RENDER_ACTIVE
         lbsr    gate_map_live
         lbsr    framebuffer_back_meta
+        clra
+        clrb
+        std     FBM_ENEMY_RESERVED,u
+        std     FBM_ENEMY_RESERVED+2,u
         lda     FBM_PLAYER_VALID,u
         sta     PLAYER_BG_VALID
         ldd     FBM_PLAYER_FB,u
@@ -1765,13 +1821,13 @@ rub_right
 rub_left
         clra
 rub_horizontal
-        sta     RING_ROW        ; exposed framebuffer column
+        sta     RING_ROW
         pshs    x
         lbsr    roam_ring_slot
         lda     ,u
         sta     RING_PHASE
         anda    #7
-        sta     GATE_COPY_COUNT ; old column phase
+        sta     GATE_COPY_COUNT
         lda     RING_PHASE
         anda    #$F0
         sta     RING_PHASE
@@ -1789,7 +1845,7 @@ rub_store_column
         tst     RING_ROW
         bne     rub_right_slot
         andb    #7
-        stb     GATE_COPY_COUNT ; new phase owns the exposed left column
+        stb     GATE_COPY_COUNT
 rub_right_slot
         puls    x
         pshs    x
@@ -1833,14 +1889,13 @@ rub_column_second
 rub_column_done
         puls    x
         rts
-
 rub_down
         lda     #14
         bra     rub_vertical
 rub_up
         clra
 rub_vertical
-        sta     GATE_COPY_ROWS  ; first exposed framebuffer row
+        sta     GATE_COPY_ROWS
         pshs    x
         lbsr    roam_ring_slot
         lda     ,u
@@ -1856,18 +1911,18 @@ rub_vertical
         sta     RING_PHASE
         tst     GATE_COPY_ROWS
         beq     rub_shift_up
-        lda     RING_ROW        ; down overwrites the old top rows
+        lda     RING_ROW
         sta     GATE_COPY_COUNT
-        adda    #2              ; new logical row zero maps old logical row two
+        adda    #2
         bra     rub_store_row
 rub_shift_up
         lda     RING_ROW
         suba    #2
         anda    #15
-        sta     GATE_COPY_COUNT ; up overwrites the old bottom rows
+        sta     GATE_COPY_COUNT
 rub_store_row
         anda    #15
-        sta     RING_ROW        ; new row phase and first physical target
+        sta     RING_ROW
         lsla
         lsla
         lsla
@@ -2205,25 +2260,17 @@ rcbtf_row
         rts
         endc
 
-roam_copy_fb_to_bg
-        ldy     #16
-rcftb_row
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        leax    152,x
-        leay    -1,y
-        bne     rcftb_row
-        rts
+roam_copy_fb_to_bg equ ROAM_CAPTURE_FULL_HELPER
 
 draw_enemy_fb
         lbsr    enemy_frame_number
         lbsr    sparse_enemy_stream
+        tsta
+        bpl     def_sparse
+        ldb     #160
+        jsr     ,u
+        rts
+def_sparse
         lbsr    sparse_blit_fb
         rts
 
@@ -2803,6 +2850,12 @@ grfs_done
 draw_enemy_stage
         lbsr    enemy_frame_number
         lbsr    sparse_enemy_stream
+        tsta
+        bpl     des_sparse
+        ldb     #8
+        jsr     ,u
+        rts
+des_sparse
         lbsr    sparse_blit_stage
         rts
 
@@ -2871,26 +2924,10 @@ player_draw_impl
         rts
 
 ; Resolve A's always-mapped enemy index entry and map its stream page.
-sparse_enemy_stream
-        ldb     #3
-        mul
-        ldu     #SPARSE_ENEMY_INDEX_ADDR
-        leau    d,u
-        lda     ,u
-        sta     GIME_PAR5
-        ldu     1,u
-        rts
+sparse_enemy_stream equ SPARSE_ENEMY_STREAM_HELPER
 
 ; Resolve A's always-mapped player index entry and map its stream page.
-sparse_player_stream
-        ldb     #3
-        mul
-        ldu     #SPARSE_PLAYER_INDEX_ADDR
-        leau    d,u
-        lda     ,u
-        sta     GIME_PAR5
-        ldu     1,u
-        rts
+sparse_player_stream equ SPARSE_PLAYER_STREAM_HELPER
 
 ; Decode shared destination deltas into the mapped BACK framebuffer.
 sparse_blit_fb
@@ -2926,10 +2963,13 @@ sbf_opaque_byte
         bne     sbf_opaque_byte
         bra     sbf_delta
 sbf_opaque_small
-        cmpb    #2
+        subb    #2
         beq     sbf_opaque2
-        blo     sbf_opaque1
-        bra     sbf_opaque3
+        bmi     sbf_opaque1
+sbf_opaque3
+        ldd     ,u++
+        std     ,x++
+        bra     sbf_opaque1
 sbf_opaque5
         pulu    d,y
         std     ,x++
@@ -2938,10 +2978,6 @@ sbf_opaque1
         lda     ,u+
         sta     ,x+
         bra     sbf_delta
-sbf_opaque3
-        ldd     ,u++
-        std     ,x++
-        bra     sbf_opaque1
 sbf_opaque6
         pulu    d,y
         std     ,x++
@@ -2971,41 +3007,7 @@ sparse_decode_done
         rts
 
 ; Decode shared destination deltas into the 8-byte-wide actor stage.
-sparse_blit_stage
-sbs_delta
-        ldb     ,u+
-        cmpb    #$FF
-        beq     sbs_extended
-        bitb    #$80
-        beq     sbs_add_delta
-        subb    #152
-sbs_add_delta
-        abx
-sbs_command
-        ldb     ,u+
-        bmi     sbs_partial
-sbs_opaque_byte
-        lda     ,u+
-        sta     ,x+
-        decb
-        bne     sbs_opaque_byte
-        bra     sbs_delta
-sbs_partial
-        andb    #$7F
-sbs_partial_byte
-        lda     ,u+
-        anda    ,x
-        ora     ,u+
-        sta     ,x+
-        decb
-        bne     sbs_partial_byte
-        bra     sbs_delta
-sbs_extended
-        ldd     ,u++
-        beq     sparse_decode_done
-        ldb     ,u+
-        abx
-        bra     sbs_command
+sparse_blit_stage equ SPARSE_BLIT_STAGE_HELPER
 
 draw_vegetable_stage
         pshs    x

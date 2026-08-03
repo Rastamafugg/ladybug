@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import argparse
 import json
 import re
 from pathlib import Path
@@ -24,6 +25,37 @@ ENEMY_FRAMES = (5, 5, 13, 13)
 ENEMY_DIRECTIONS = (1, 1, 3, 3)
 PLAYER_POINTER = 0x4E8C
 PLAYER_FRAME = 3
+MATERIAL = BUILD / "four-enemy-delta-material.json"
+INPUT_ARTIFACTS = (
+    "four-enemy-delta-clean.bin", "four-enemy-delta-enemies.bin",
+    "four-enemy-delta-framebuffer.bin", "four-enemy-delta-saveunder.bin",
+    "four-enemy-delta-ring.bin", "four-enemy-delta-player-saveunder.bin",
+    "four-enemy-delta-enemy-table.bin", "four-enemy-delta-owner-a.trace",
+    "four-enemy-delta-owner-b.trace",
+)
+
+
+def semantic_hash(path: Path) -> str:
+    data = path.read_bytes()
+    if path.suffix in (".py", ".s"):
+        data = data.replace(b"\r\n", b"\n")
+    return hashlib.sha256(data).hexdigest()
+
+
+def current_material() -> dict[str, object]:
+    return {
+        "rom_sha256": semantic_hash(BUILD / "ladybug.rom"),
+        "source_sha256": {
+            name: semantic_hash(ROOT / name) for name in (
+                "src/enemy_runtime.s", "src/perimeter_reset_helper.s",
+                "scripts/build_sparse_sprites.py",
+                "scripts/verify_four_enemy_delta_profile.py",
+            )
+        },
+        "artifact_sha256": {
+            name: semantic_hash(BUILD / name) for name in INPUT_ARTIFACTS
+        },
+    }
 
 
 def trace_profile(path: Path) -> dict[str, object]:
@@ -172,6 +204,14 @@ def render_png(framebuffer: bytes, path: Path) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--refresh-material", action="store_true")
+    args = parser.parse_args()
+    material = current_material()
+    if args.refresh_material:
+        MATERIAL.write_text(json.dumps(material, indent=2) + "\n", encoding="ascii")
+    elif not MATERIAL.exists() or json.loads(MATERIAL.read_text()) != material:
+        raise SystemExit("four-enemy proof: material provenance is stale")
     clean = (BUILD / "four-enemy-delta-clean.bin").read_bytes()
     enemies = (BUILD / "four-enemy-delta-enemies.bin").read_bytes()
     final = (BUILD / "four-enemy-delta-framebuffer.bin").read_bytes()
@@ -244,6 +284,31 @@ def main() -> None:
     if enemy_outside or player_outside:
         raise SystemExit("four-enemy proof: actor write escaped its footprint")
 
+    mutated_enemies = bytearray(enemies)
+    mutated_enemies[ENEMY_POINTERS[0] - FB_BASE] ^= 1
+    if mutated_enemies == expected_enemies:
+        raise SystemExit("four-enemy proof: framebuffer mutation was not rejected")
+    mutated_saveunder = bytearray(saveunder)
+    mutated_saveunder[0] ^= 1
+    phase = ring[0]
+    mutated_logical = bytes(
+        mutated_saveunder[((row + (phase >> 4)) & 15) * 8 +
+                          ((column + (phase & 7)) & 7)]
+        for row in range(16) for column in range(8)
+    )
+    if mutated_logical == framebuffer_rect(clean, ENEMY_POINTERS[0]):
+        raise SystemExit("four-enemy proof: save-under mutation was not rejected")
+    mutated_ring = bytearray(ring)
+    mutated_ring[0] ^= 1
+    phase = mutated_ring[0]
+    ring_logical = bytes(
+        saveunder[((row + (phase >> 4)) & 15) * 8 +
+                  ((column + (phase & 7)) & 7)]
+        for row in range(16) for column in range(8)
+    )
+    if ring_logical == framebuffer_rect(clean, ENEMY_POINTERS[0]):
+        raise SystemExit("four-enemy proof: ring mutation was not rejected")
+
     owner_a = trace_profile(BUILD / "four-enemy-delta-owner-a.trace")
     owner_b = trace_profile(BUILD / "four-enemy-delta-owner-b.trace")
     if min(
@@ -254,7 +319,9 @@ def main() -> None:
     image_path = BUILD / "four-enemy-delta-framebuffer.png"
     render_png(final, image_path)
     report = {
-        "captured": "2026-07-26",
+        "captured": "2026-08-03",
+        "material_manifest": "build/four-enemy-delta-material.json",
+        "mutation_rejection": ["framebuffer", "save-under", "ring"],
         "scenario": {
             "active_enemies": 4,
             "movement": ["east", "east", "west", "west"],

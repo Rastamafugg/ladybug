@@ -20,7 +20,7 @@ sparse_copy_table
         fdb     $C802,$A000,$1FFD
         ; perimeter_reset_helper+$0000
         fcb     $00,$FF
-        fdb     $E7FF,$06B2,$0013
+        fdb     $E7FF,$06B2,$0138
         ; enemy+$0000
         fcb     $02,$35
         fdb     $C020,$A000,$2000
@@ -32,19 +32,19 @@ sparse_copy_table
         fdb     $D800,$BDE0,$0220
         ; enemy+$4000
         fcb     $03,$37
-        fdb     $DA20,$A000,$189B
+        fdb     $DA20,$A000,$1BEB
         ; player+$0000
         fcb     $03,$39
-        fdb     $F2BB,$A000,$08F6
+        fdb     $F60B,$A000,$07F5
+        ; player+$07F5
+        fcb     $03,$39
+        fdb     $C000,$A7F5,$0010
+        ; player+$0805
+        fcb     $03,$39
+        fdb     $C012,$A805,$00F1
         ; gate+$0000
         fcb     $03,$39
-        fdb     $FBB1,$A8F6,$024F
-        ; gate+$024F
-        fcb     $03,$39
-        fdb     $C000,$AB45,$0010
-        ; gate+$025F
-        fcb     $03,$39
-        fdb     $C012,$AB55,$00E1
+        fdb     $C103,$A8F6,$0340
         ; presentation+$0000
         fcb     $03,$39
-        fdb     $C0F3,$AC36,$0380
+        fdb     $C443,$AC36,$0380
