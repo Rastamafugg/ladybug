@@ -182,6 +182,7 @@ RECORD_SIZE    equ 8
 DIR_NONE       equ $FF
 GIME_PAR1      equ $FFA1
 GIME_PAR5      equ $FFA5
+PERIMETER_RESET_HELPER equ $06B2
 GIME_IRQEN     equ $FF92
 GIME_VOFF1     equ $FF9D
         ifne    PERSISTENT_FB
@@ -778,20 +779,8 @@ rep_done
         rts
 
 render_perimeter_reset
-        lda     BOX_INDEX
-        pshs    a
-        clr     BOX_INDEX
-        lda     #COLOR_WHITE
-        sta     HUD_COLOR
-rpr_box
-        jsr     perimeter_box_coordinates
-        jsr     draw_perimeter_box
-        inc     BOX_INDEX
-        lda     BOX_INDEX
-        cmpa    #92
-        blo     rpr_box
-        puls    a
-        sta     BOX_INDEX
+        jsr     PERIMETER_RESET_HELPER
+perimeter_reset_published
         rts
 
 fri_stage_background

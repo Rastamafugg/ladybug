@@ -18,6 +18,8 @@ SPARSE_BANK3="$BUILD_DIR/ladybug-sparse-bank3.bin"
 SPARSE_BANK0="$BUILD_DIR/ladybug-gmc-bank0-overflow.bin"
 SPARSE_LOADER="$BUILD_DIR/ladybug-sparse-loader.inc"
 SPARSE_MANIFEST="$BUILD_DIR/ladybug-sparse-layout.json"
+PERIMETER_RESET="$BUILD_DIR/ladybug-perimeter-reset.bin"
+PERIMETER_HELPER="$BUILD_DIR/ladybug-perimeter-reset-helper.bin"
 MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
 ROM="$BUILD_DIR/ladybug.rom"
 RUNTIME_ROM="$BUILD_DIR/ladybug-runtime.rom"
@@ -29,6 +31,7 @@ ENEMY_SRC="$ROOT/src/enemy_runtime.s"
 ENEMY_ROM="$BUILD_DIR/ladybug-enemy-runtime.rom"
 ENEMY_LST="$BUILD_DIR/ladybug-enemy-runtime.lst"
 ENEMY_MAP="$BUILD_DIR/ladybug-enemy-runtime.map"
+PERIMETER_HELPER_SRC="$ROOT/src/perimeter_reset_helper.s"
 RUNTIME_SYMBOLS="$BUILD_DIR/ladybug_runtime_symbols.inc"
 LST="$BUILD_DIR/ladybug.lst"
 MAP="$BUILD_DIR/ladybug.map"
@@ -198,6 +201,11 @@ PY
           -I "$BUILD_DIR" \
           "$ENEMY_SRC"
 
+    lwasm -9 --format=raw \
+          --output="$PERIMETER_HELPER" \
+          --symbols \
+          "$PERIMETER_HELPER_SRC"
+
     python3 "$ROOT/scripts/build_sparse_sprites.py" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
@@ -205,6 +213,11 @@ PY
         --player-output "$SPARSE_PLAYER" \
         --gate-input "$GATE_TRANSITIONS" \
         --presentation-input "$PRESENTATION_SPARSE" \
+        --perimeter-map "$ROOT/tiled/coco-screen.tmx" \
+        --perimeter-maze "$ROOT/assets/arcade/maze.json" \
+        --perimeter-chars "$ROOT/assets/arcade/chars.json" \
+        --perimeter-reset-output "$PERIMETER_RESET" \
+        --perimeter-helper "$PERIMETER_HELPER" \
         --bank0-output "$SPARSE_BANK0" \
         --bank2-output "$SPARSE_BANK2" \
         --bank3-output "$SPARSE_BANK3" \
@@ -218,6 +231,8 @@ PY
         --player-payload "$SPARSE_PLAYER" \
         --gate-payload "$GATE_TRANSITIONS" \
         --presentation-payload "$PRESENTATION_SPARSE" \
+        --perimeter-reset-payload "$PERIMETER_RESET" \
+        --perimeter-helper "$PERIMETER_HELPER" \
         --bank0 "$SPARSE_BANK0" \
         --bank2 "$SPARSE_BANK2" \
         --bank3 "$SPARSE_BANK3" \

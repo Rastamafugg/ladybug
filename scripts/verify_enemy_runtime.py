@@ -14,11 +14,31 @@ build_script = (root / "scripts/build.sh").read_text(encoding="utf-8")
 resident = (root / "build/ladybug_resident.inc").read_text(encoding="utf-8")
 enemy_map = (root / "build/ladybug-enemy-runtime.map").read_text(encoding="utf-8")
 rom = (root / "build/ladybug-enemy-runtime.rom").read_bytes()
+perimeter_helper = (root / "build/ladybug-perimeter-reset-helper.bin").read_bytes()
+perimeter_payload = (root / "build/ladybug-perimeter-reset.bin").read_bytes()
+perimeter_manifest = __import__("json").loads(
+    (root / "build/ladybug-sparse-layout.json").read_text(encoding="ascii")
+)["perimeter_reset"]
 
 if len(rom) < 36 or any(rom[offset] != 0x7E for offset in range(0, 36, 3)):
     raise SystemExit("enemy proof: fixed $0800 jump table is invalid")
 if len(rom) > 0x1000:
     raise SystemExit("enemy proof: bank-3 low-RAM module exceeds 4 KiB")
+if not 0 < len(perimeter_helper) <= 0x0800 - 0x06B2:
+    raise SystemExit("enemy proof: perimeter helper exceeds $06B2-$07FF")
+if perimeter_helper != bytes((
+    0x34, 0x01, 0x1A, 0x50, 0x86, 0x3A, 0xB7, 0xFF, 0xA5,
+    0xBD, 0xA0, 0x00, 0x86, 0x34, 0xB7, 0xFF, 0xA5, 0x35, 0x81,
+)):
+    raise SystemExit("enemy proof: perimeter helper does not map/call/restore PAR5")
+if (
+    perimeter_manifest["page"] != 0x3A or
+    perimeter_manifest["address"] != 0xA000 or
+    perimeter_manifest["helper_address"] != 0x06B2 or
+    perimeter_manifest["bytes"] != len(perimeter_payload) or
+    perimeter_payload[-1:] != b"\x39"
+):
+    raise SystemExit("enemy proof: perimeter payload layout contract differs")
 if "PACKED_SPRITE_SIZE equ    64" not in resident:
     raise SystemExit("enemy proof: retained death/vegetable packed-source size changed")
 if "player_sprites" in resident:
@@ -49,7 +69,6 @@ required = [
     "ldd     #300",
     "cmpa    #4",
     "sta     VEG_STATE",
-    "clr     BOX_INDEX",
     "jmp     player_compose_impl",
     "jmp     gate_compose_impl",
     "jmp     player_draw_impl",
@@ -99,6 +118,11 @@ required = [
 missing = [fragment for fragment in required if fragment not in source]
 if missing:
     raise SystemExit("enemy proof: missing contracts: " + ", ".join(missing))
+
+perimeter_reset = source[source.index("\nrender_perimeter_reset\n"):
+                         source.index("\nfri_stage_background\n")]
+if "jsr     PERIMETER_RESET_HELPER" not in perimeter_reset or "draw_perimeter_box" in perimeter_reset:
+    raise SystemExit("enemy proof: perimeter reset did not use the native payload gateway")
 for fragment in ("stb     BOX_TIMER", "clr     BOX_PHASE", "clr     PLAYER_TICK_PENDING"):
     if fragment not in source and fragment not in main:
         raise SystemExit("enemy proof: missing relocated contract: " + fragment)
