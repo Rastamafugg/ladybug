@@ -17,7 +17,6 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
 ROM = BUILD / "ladybug.rom"
 ENEMY_TABLE = BUILD / "four-enemy-delta-enemy-table.bin"
-NEST_CACHE_PHYS = (0x34 << 13) + 0x0D80
 NEST_OFFSET = 0x57EC - 0x2000
 
 
@@ -91,9 +90,10 @@ def capture_snapshot(output: Path, frame_pc: int, count: int, source: Path | Non
     run_xroar(arguments, BUILD / f"{output.stem}.log")
 
 
-def capture_trace(snapshot: Path, output: Path, stop_pc: int, intervals: int) -> None:
+def capture_trace(snapshot: Path, output: Path, stop_pc: int, intervals: int, timeout: int = 1) -> None:
     # A snapshot is taken at frame_render_impl, after main_render's call site.
-    # The Nth following main_render therefore closes N complete active intervals.
+    # The first following main_render precedes the next frame-render entry, so
+    # N+1 main_render traps are required to close N measured intervals.
     run_xroar(
         [
             "-load", str(snapshot),
@@ -102,7 +102,7 @@ def capture_trace(snapshot: Path, output: Path, stop_pc: int, intervals: int) ->
             "-trap", f"pc=0x{stop_pc:04x}",
             "-trap-range", str(intervals),
             "-trap-no-trace",
-            "-trap-timeout", "1",
+            "-trap-timeout", str(timeout),
         ],
         output,
     )
@@ -110,7 +110,10 @@ def capture_trace(snapshot: Path, output: Path, stop_pc: int, intervals: int) ->
 
 def write_nest_proof(snapshot: Path, output: Path, framebuffer_base: int) -> None:
     ram = find_ram(snapshot.read_bytes())
-    proof = bytearray(ram[NEST_CACHE_PHYS:NEST_CACHE_PHYS + 512])
+    cache_physical = cpu_to_phys(
+        symbol(BUILD / "ladybug-enemy-runtime.map", "ENEMY_NEST_CACHE")
+    )
+    proof = bytearray(ram[cache_physical:cache_physical + 512])
     start = framebuffer_base + NEST_OFFSET
     for row in range(16):
         offset = start + row * 160
@@ -196,7 +199,7 @@ def main() -> None:
             ],
         )
         capture_snapshot(BUILD / "perf-gate-final.sna", frame_pc, 1, gate)
-        capture_trace(gate, BUILD / "perf-gate.raw.trace", stop_pc, 3)
+        capture_trace(gate, BUILD / "perf-gate.raw.trace", stop_pc, 4)
         reversed_gate = BUILD / "perf-gate-reversed.sna"
         swap_framebuffer_owners(
             hydrated,
@@ -208,17 +211,17 @@ def main() -> None:
                 "008F=00", "0090=01",
             ],
         )
-        capture_trace(reversed_gate, BUILD / "perf-gate-reversed.raw.trace", stop_pc, 3)
+        capture_trace(reversed_gate, BUILD / "perf-gate-reversed.raw.trace", stop_pc, 4)
         print("performance capture: current-revision gate scenario written to build/")
         return
 
     horizontal = BUILD / "perf-four-horizontal.sna"
     patch_snapshot(hydrated, horizontal, moving_patch((1, 1, 3, 3)))
-    capture_trace(horizontal, BUILD / "perf-four-horizontal.raw.trace", stop_pc, 7)
+    capture_trace(horizontal, BUILD / "perf-four-horizontal.raw.trace", stop_pc, 8)
 
     vertical = BUILD / "perf-four-vertical.sna"
     patch_snapshot(hydrated, vertical, moving_patch((0, 0, 2, 2)))
-    capture_trace(vertical, BUILD / "perf-four-vertical.raw.trace", stop_pc, 5)
+    capture_trace(vertical, BUILD / "perf-four-vertical.raw.trace", stop_pc, 6)
     vertical_a = BUILD / "perf-four-vertical-a.sna"
     patch_snapshot(
         vertical,
@@ -229,10 +232,10 @@ def main() -> None:
         vertical_a,
         BUILD / "perf-four-vertical-a.raw.trace",
         stop_pc,
-        3,
+        4,
     )
 
-    capture_trace(baseline, BUILD / "perf-player.raw.trace", stop_pc, 8)
+    capture_trace(baseline, BUILD / "perf-player.raw.trace", stop_pc, 9)
 
     for owner, front, back in (("a", 0, 1), ("b", 1, 0)):
         animation = BUILD / f"perf-animation-{owner}.sna"
@@ -249,7 +252,7 @@ def main() -> None:
             animation,
             BUILD / f"perf-animation-{owner}.raw.trace",
             stop_pc,
-            3,
+            4,
         )
         capture_snapshot(
             BUILD / f"perf-animation-{owner}-fast.sna",
@@ -286,7 +289,7 @@ def main() -> None:
         popup,
         ["0051=1E", "0052=02", "0053=05", "0080=01", "0055=40"],
     )
-    capture_trace(popup, BUILD / "perf-popup.raw.trace", stop_pc, 4)
+    capture_trace(popup, BUILD / "perf-popup.raw.trace", stop_pc, 5)
 
     for owner, front, back in (("a", 1, 0), ("b", 0, 1)):
         death = BUILD / f"perf-death-{owner}.sna"
@@ -304,7 +307,7 @@ def main() -> None:
             death,
             BUILD / f"perf-death-{owner}.raw.trace",
             stop_pc,
-            1,
+            2,
         )
         death_reset = BUILD / f"perf-death-reset-{owner}.sna"
         patch_snapshot(
@@ -320,7 +323,7 @@ def main() -> None:
             death_reset,
             BUILD / f"perf-death-reset-{owner}.raw.trace",
             stop_pc,
-            1,
+            2,
         )
 
     # Force the conservative discontinuity fallback independently for both
@@ -344,7 +347,7 @@ def main() -> None:
             discontinuity,
             BUILD / f"perf-discontinuity-{owner}.raw.trace",
             stop_pc,
-            3,
+            4,
         )
 
     gate = BUILD / "perf-gate.sna"
@@ -357,7 +360,7 @@ def main() -> None:
             "008D=00", "008E=00", "A240=01",
         ],
     )
-    capture_trace(gate, BUILD / "perf-gate.raw.trace", stop_pc, 3)
+    capture_trace(gate, BUILD / "perf-gate.raw.trace", stop_pc, 4)
 
     print("performance capture: current-revision scenarios written to build/")
 

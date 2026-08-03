@@ -147,7 +147,8 @@ ENTITY_SKULL   equ 1
 ENEMY_TABLE    equ $A470
 GATE_STATE     equ $A240
 ENEMY_ZONE_BG  equ $A490
-ENEMY_NEST_CACHE equ $AD80      ; four native dormant frames, 4 * 128 bytes
+ENEMY_RESET_CACHE equ $BC04     ; clean reset upper half, followed by frame-zero
+ENEMY_NEST_CACHE equ $BC84      ; four native dormant frames, 4 * 128 bytes
 ENEMY_ZONE_STAGE equ ACTOR_STAGE
 ENEMY_BG_BASE  equ $A690
 ENEMY_OLD_FB   equ $A890
@@ -261,8 +262,9 @@ et_begin_death
         sta     ENEMY_DEATH_LATCH
         inc     ENEMY_NEST_DIRTY
         lda     ENEMY_RENDER_FLAGS
-        ora     #ERF_DIRTY|ERF_NEST
+        ora     #ERF_DIRTY|ERF_NEST_ANIM
         sta     ENEMY_RENDER_FLAGS
+death_reset_ready
         rts
 et_death_animate
         ; Death suppresses releases and active movement, but the newly reset
@@ -2240,14 +2242,11 @@ draw_enemy_fb
 ; final pixels to the visible framebuffer. Intermediate restores are never
 ; visible, including when every active record overlaps.
 compose_enemy_zone
+cez_copy_bg
         ldx     #ENEMY_ZONE_BG
         ldu     #ENEMY_ZONE_STAGE
-        ldy     #128
-cez_copy_bg
-        ldd     ,x++
-        std     ,u++
-        leay    -1,y
-        bne     cez_copy_bg
+        lbsr    copy_nest_128
+        lbsr    copy_nest_128
 
         ; Active actors first.
         ldu     #ENEMY_TABLE
@@ -2323,6 +2322,8 @@ cez_commit_row
 compose_enemy_animation
         lda     VEG_STATE
         bne     cea_done
+        tst     ENEMY_DEATH_LATCH
+        bne     cea_reset
         lda     ENEMY_ANIM
         ldb     #128
         mul
@@ -2330,6 +2331,11 @@ compose_enemy_animation
         tfr     d,x
         ldu     #ENEMY_FB
         ldy     #16
+        lbra    cez_commit_row
+cea_reset
+        ldx     #ENEMY_RESET_CACHE
+        ldu     #ENEMY_ZONE_FB
+        ldy     #ENEMY_ZONE_ROWS
         lbra    cez_commit_row
 cea_done
         rts
@@ -3116,6 +3122,9 @@ benc_frame
         blo     benc_frame
         puls    a
         sta     ENEMY_ANIM
+        ldx     #ENEMY_ZONE_BG
+        ldu     #ENEMY_RESET_CACHE
+        lbsr    copy_nest_128
         rts
 
 copy_nest_128
@@ -3126,7 +3135,6 @@ bnc_copy
         leay    -1,y
         bne     bnc_copy
         rts
-
 ; A removed skull redraws one 16-by-16 clean footprint. Copy that footprint
 ; into the authoritative compact nest background before recompositing actors.
 refresh_zone_bg_footprint

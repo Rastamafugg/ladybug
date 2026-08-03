@@ -25,6 +25,25 @@
     </header>
 
     <section>
+      <h2>Performance proof extractors must resolve relocated symbols from the final map</h2>
+      <p>PERF-002 moved the native nest cache from <code>$AD80</code> to <code>$BC84</code>, but the baseline proof extractor retained the old physical address. Fresh proof binaries then contained unrelated RAM and correctly failed the fast/full cache-membership check even though the renderer and ROM hashes were stable.</p>
+      <p><strong>Rule:</strong> resolve relocatable runtime evidence addresses from the final assembler map. A hard-coded probe address is acceptable only when the address is an explicit stable ABI guarded by the build.</p>
+      <p><strong>Citation:</strong> <code>scripts/capture_performance_baseline.py</code>, <code>ENEMY_NEST_CACHE</code>, and parent clean-checkout QA for PERF-002.</p>
+    </section>
+
+    <section>
+      <h2>Closed timing evidence needs two frame boundaries</h2>
+      <p>A trace tail after the final observed frame boundary can contain arbitrary partial work and must not be summed or classified as a frame interval. PERF-002’s dedicated capture now requests eight boundaries and accepts exactly seven closed <code>frame_render_impl</code>-to-next-<code>frame_render_impl</code> intervals.</p>
+      <p><strong>Rule:</strong> retain tails only for diagnostics. Reject missing, stale, or incomplete capture metadata before timing classification, and classify a required worklist by exact symbol coverage.</p>
+      <p><strong>Citation:</strong> <code>scripts/capture_death_reset.py</code>, <code>scripts/verify_death_reset.py</code>, and PERF-002.</p>
+    </section>
+    <section>
+      <h2>Natural death reset is dominated by perimeter publication, not framebuffer identity</h2>
+      <p>The native 256-byte nest-reset cache publishes within the isolated target, but the natural death-to-reset frame performs 92 calls to <code>draw_perimeter_box</code>, yielding approximately 242K active cycles. A/B labels identify the physical render target only; controlled runs did not justify an owner-speed interpretation.</p>
+      <p><strong>Rule:</strong> distinguish isolated fast-path proof from the state-machine worklist. When the natural sequence adds an independently expensive phase, retain the failed evidence and create a scoped follow-up rather than expanding the approved optimization.</p>
+      <p><strong>Citation:</strong> PERF-002 closed traces and proposed PERF-004.</p>
+    </section>
+    <section>
       <h2>Cartridge source capacity and runtime destination capacity are independent gates</h2>
       <p>Counting only the remaining bytes in banks 2 and 3 understated available cartridge source storage and could reject cycle-improving precomputed data even though bank 0 was mostly empty. Bank 0 offsets <code>$0800-$3DFF</code> now form a manifest-owned overflow pool used after the primary source intervals.</p>
       <p><strong>Rule:</strong> accept per-bank source spill when the complete CPU-readable four-bank allocation fits, but retain independent checks for the loader boundary, destination RAM, MMU ownership, resident/assets/enemy-module windows, direct page, stack, ABI, timing, and behavior. Arbitrary absolute code is not relocatable merely because source ROM space exists.</p>
