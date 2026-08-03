@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import re
 import shutil
 import subprocess
@@ -16,6 +18,7 @@ from read_snapshot import RAM_MARKER, cpu_to_phys, find_ram
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
 ROM = BUILD / "ladybug.rom"
+MATERIAL = BUILD / "performance-capture-material.json"
 ENEMY_TABLE = BUILD / "four-enemy-delta-enemy-table.bin"
 NEST_OFFSET = 0x57EC - 0x2000
 
@@ -31,6 +34,14 @@ def parse_args() -> argparse.Namespace:
         "--gate-only",
         action="store_true",
         help="capture only the hydrated gate diagonal/final sequence",
+    )
+    parser.add_argument(
+        "--bounded-frames", action="store_true",
+        help="capture one- and two-frame horizontal snapshots, then stop",
+    )
+    parser.add_argument(
+        "--death-reset-only", action="store_true",
+        help="capture only focused A/B death-reset traces, then stop",
     )
     return parser.parse_args()
 
@@ -106,6 +117,50 @@ def capture_trace(snapshot: Path, output: Path, stop_pc: int, intervals: int, ti
         ],
         output,
     )
+def semantic_bytes(path: Path, data: bytes) -> bytes:
+    if path.suffix in (".py", ".s", ".trace"):
+        data = data.replace(b"\r\n", b"\n")
+    return data
+
+
+def semantic_sha256(path: Path) -> str:
+    data = semantic_bytes(path, path.read_bytes())
+    return hashlib.sha256(data).hexdigest()
+
+
+def verify_hash_contract() -> None:
+    lf = hashlib.sha256(b"line\nnext\n").hexdigest()
+    crlf = hashlib.sha256(b"line\r\nnext\r\n".replace(b"\r\n", b"\n")).hexdigest()
+    changed = hashlib.sha256(b"line\nother\n").hexdigest()
+    trace_path = Path("sample.trace")
+    trace_lf = hashlib.sha256(semantic_bytes(trace_path, b"pc dt=8\n")).hexdigest()
+    trace_crlf = hashlib.sha256(
+        semantic_bytes(trace_path, b"pc dt=8\r\n")
+    ).hexdigest()
+    trace_changed = hashlib.sha256(
+        semantic_bytes(trace_path, b"pc dt=16\n")
+    ).hexdigest()
+    if (
+        lf != crlf or lf == changed or
+        trace_lf != trace_crlf or trace_lf == trace_changed or
+        Path("src/main.s").as_posix() != "src/main.s"
+    ):
+        raise SystemExit("capture baseline: semantic hash line-ending/mutation contract failed")
+
+
+def write_capture_material() -> None:
+    verify_hash_contract()
+    sources = (
+        Path("src/main.s"), Path("src/enemy_runtime.s"),
+        Path("src/perimeter_reset_helper.s"), Path("scripts/build_sparse_sprites.py"),
+        Path("scripts/build_screen.py"),
+    )
+    traces = sorted(BUILD.glob("perf-*.raw.trace"))
+    MATERIAL.write_text(json.dumps({
+        "rom_sha256": semantic_sha256(ROM),
+        "source_sha256": {path.as_posix(): semantic_sha256(ROOT / path) for path in sources},
+        "trace_sha256": {path.name: semantic_sha256(path) for path in traces},
+    }, indent=2) + "\n", encoding="ascii")
 
 
 def write_nest_proof(snapshot: Path, output: Path, framebuffer_base: int) -> None:
@@ -187,6 +242,27 @@ def main() -> None:
     hydrated = BUILD / "perf-four-hydrated.sna"
     capture_snapshot(hydrated, frame_pc, 5, static)
 
+    if args.death_reset_only:
+        for owner, front, back in (("a", 1, 0), ("b", 0, 1)):
+            death_reset = BUILD / f"perf-death-reset-{owner}.sna"
+            patch_snapshot(
+                hydrated,
+                death_reset,
+                [
+                    "003A=00", "004D=02", "004E=0D", "0062=02",
+                    "0060=01", "0087=08", "007F=80", "0080=00",
+                    f"008F={front:02X}", f"0090={back:02X}",
+                ],
+            )
+            capture_trace(
+                death_reset,
+                BUILD / f"perf-death-reset-{owner}.raw.trace",
+                stop_pc,
+                2,
+            )
+        print("performance capture: focused death-reset traces written")
+        return
+
     if args.gate_only:
         gate = BUILD / "perf-gate.sna"
         patch_snapshot(
@@ -217,7 +293,16 @@ def main() -> None:
 
     horizontal = BUILD / "perf-four-horizontal.sna"
     patch_snapshot(hydrated, horizontal, moving_patch((1, 1, 3, 3)))
-    capture_trace(horizontal, BUILD / "perf-four-horizontal.raw.trace", stop_pc, 8)
+    if args.bounded_frames:
+        capture_snapshot(BUILD / "perf-bounded-one.sna", stop_pc, 1, horizontal)
+        capture_snapshot(BUILD / "perf-bounded-two.sna", stop_pc, 2, horizontal)
+        print("performance capture: bounded one/two-frame snapshots written")
+        return
+    # Capture beyond the requested closed distribution.  XRoar ends tracing at
+    # main_render, so the final frame-render tail has no closing boundary and
+    # must be discarded by the verifier rather than becoming a favorable or
+    # omitted timing observation.
+    capture_trace(horizontal, BUILD / "perf-four-horizontal.raw.trace", stop_pc, 14, timeout=5)
 
     vertical = BUILD / "perf-four-vertical.sna"
     patch_snapshot(hydrated, vertical, moving_patch((0, 0, 2, 2)))
@@ -361,6 +446,8 @@ def main() -> None:
         ],
     )
     capture_trace(gate, BUILD / "perf-gate.raw.trace", stop_pc, 4)
+
+    write_capture_material()
 
     print("performance capture: current-revision scenarios written to build/")
 

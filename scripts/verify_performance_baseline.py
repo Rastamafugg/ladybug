@@ -92,12 +92,16 @@ def without_pcs(value: dict[str, object]) -> dict[str, object]:
     return {key: item for key, item in value.items() if key != "pcs"}
 
 
+def semantic_bytes(path: Path, data: bytes) -> bytes:
+    if path.suffix in (".py", ".s", ".trace"):
+        data = data.replace(b"\r\n", b"\n")
+    return data
+
+
 def hash_file(path: Path) -> str:
     """Hash source semantics independently of checkout line endings and paths."""
-    data = path.read_bytes()
-    if path.suffix in (".py", ".s"):
-        data = data.replace(b"\r\n", b"\n")
-    elif path.suffix == ".map":
+    data = semantic_bytes(path, path.read_bytes())
+    if path.suffix == ".map":
         values = []
         for line in data.decode("utf-8").splitlines():
             match = MAP_RE.match(line)
@@ -109,11 +113,57 @@ def hash_file(path: Path) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def verify_hash_contract() -> None:
+    lf = hashlib.sha256(b"line\nnext\n").hexdigest()
+    crlf = hashlib.sha256(b"line\r\nnext\r\n".replace(b"\r\n", b"\n")).hexdigest()
+    changed = hashlib.sha256(b"line\nother\n").hexdigest()
+    trace_path = Path("sample.trace")
+    trace_lf = hashlib.sha256(semantic_bytes(trace_path, b"pc dt=8\n")).hexdigest()
+    trace_crlf = hashlib.sha256(
+        semantic_bytes(trace_path, b"pc dt=8\r\n")
+    ).hexdigest()
+    trace_changed = hashlib.sha256(
+        semantic_bytes(trace_path, b"pc dt=16\n")
+    ).hexdigest()
+    if (
+        lf != crlf or lf == changed or
+        trace_lf != trace_crlf or trace_lf == trace_changed or
+        Path("src/main.s").as_posix() != "src/main.s"
+    ):
+        raise ValueError("performance semantic hash line-ending/mutation contract failed")
+
+
+def verify_capture_material() -> None:
+    verify_hash_contract()
+    material_path = BUILD / "performance-capture-material.json"
+    if not material_path.is_file():
+        raise ValueError("performance traces have no capture-material manifest")
+    material = json.loads(material_path.read_text(encoding="ascii"))
+    sources = (
+        Path("src/main.s"), Path("src/enemy_runtime.s"),
+        Path("src/perimeter_reset_helper.s"), Path("scripts/build_sparse_sprites.py"),
+        Path("scripts/build_screen.py"),
+    )
+    if material.get("source_sha256") != {
+        path.as_posix(): hash_file(ROOT / path) for path in sources
+    }:
+        raise ValueError("performance traces are stale for current material source")
+    if material.get("rom_sha256") != hash_file(BUILD / "ladybug.rom"):
+        raise ValueError("performance traces are stale for the current cartridge image")
+    if material.get("trace_sha256") != {
+        path.name: hash_file(path) for path in sorted(BUILD.glob("perf-*.raw.trace"))
+    }:
+        raise ValueError("performance trace hashes differ from capture material")
+
+
 def main() -> None:
+    verify_capture_material()
     enemy_symbols = symbols(BUILD / "ladybug-enemy-runtime.map")
     frame_pc = enemy_symbols["frame_render_impl"]
     required = {
         "rub_horizontal",
+        "ROAM_COMBINED_RIGHT",
+        "ROAM_COMBINED_LEFT",
         "rub_vertical",
         "rub_full",
         "compose_enemy_zone",
@@ -129,9 +179,18 @@ def main() -> None:
     horizontal = alternating_sections(
         BUILD / "perf-four-horizontal.raw.trace", frame_pc, 0
     )
+    if len(horizontal) < 8:
+        raise ValueError(
+            "horizontal capture lacks eight complete frame-render intervals; "
+            "recapture rather than omitting a closed observation"
+        )
     for interval in horizontal:
         pcs = interval["pcs"]
         interval["horizontal_captures"] = pcs.count(enemy_symbols["rub_horizontal"])
+        interval["combined_horizontal"] = (
+            pcs.count(enemy_symbols["ROAM_COMBINED_RIGHT"])
+            + pcs.count(enemy_symbols["ROAM_COMBINED_LEFT"])
+        )
         interval["full_captures"] = pcs.count(enemy_symbols["rub_full"])
 
     vertical = alternating_sections(BUILD / "perf-four-vertical.raw.trace", frame_pc, 0)
@@ -206,7 +265,10 @@ def main() -> None:
     horizontal_movement = [
         interval
         for interval in horizontal
-        if interval["horizontal_captures"] == 4 and interval["full_captures"] == 0
+        if (
+            interval["horizontal_captures"] == 4
+            or interval["combined_horizontal"] == 4
+        ) and interval["full_captures"] == 0
     ]
     vertical_movement = [
         interval

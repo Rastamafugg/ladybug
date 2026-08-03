@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,7 +28,7 @@ ENEMY_RUNTIME_OFFSET = 0x0800
 ENEMY_RUNTIME_RESERVED = 0x1000
 SIGNATURE_OFFSET = 0x0010
 PEN_MAP = (0x0, 0xC, 0x5, 0x2)
-EXPECTED_ENEMY_BYTES = 22_683
+EXPECTED_ENEMY_BYTES = 23_531
 EXPECTED_PLAYER_BYTES = 2_294
 EXPECTED_GATE_BYTES = 832
 EXPECTED_PRESENTATION_BYTES = 896
@@ -44,6 +45,7 @@ PERIMETER_RESET_SOURCE_OFFSET = BOOT_OVERFLOW_START + len(BOOT_OVERFLOW_PROOF)
 PERIMETER_RESET_HELPER_ADDRESS = 0x06B2
 PERIMETER_RESET_HELPER_LIMIT = 0x0800
 PERIMETER_RMW_HYBRID_CALLS = 77
+FAST_ENEMY_FRAMES = frozenset((2, 6, 7, 10, 14, 15))
 
 
 @dataclass(frozen=True)
@@ -81,6 +83,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sprites", type=Path, required=True)
     parser.add_argument("--enemy-runtime", type=Path, required=True)
+    parser.add_argument("--enemy-map", type=Path, required=True)
     parser.add_argument("--enemy-output", type=Path, required=True)
     parser.add_argument("--player-output", type=Path, required=True)
     parser.add_argument("--gate-input", type=Path, required=True)
@@ -183,8 +186,77 @@ def encode_sparse_frame(frame: bytes) -> bytes:
     return bytes(stream)
 
 
+def encode_native_program(frame: bytes, decode_done: int, stride_tail: bool) -> bytes:
+    """Encode a frame as native code while preserving B as destination stride."""
+    native = expand_native_frame(frame)
+    program = bytearray()
+    for row_index in range(16):
+        row = native[row_index * 8:(row_index + 1) * 8]
+        column = 0
+        while column < 8:
+            if row[column] == 0:
+                end = column + 1
+                while end < 8 and row[end] == 0:
+                    end += 1
+                column = end
+                continue
+            opaque = bool(row[column] & 0xF0) and bool(row[column] & 0x0F)
+            if opaque:
+                end = column + 1
+                while (
+                    end < 8 and row[end] & 0xF0 and row[end] & 0x0F
+                ):
+                    end += 1
+                while column + 1 < end:
+                    program.extend((
+                        0xCE, row[column], row[column + 1],  # ldu #word
+                        0xEF, column,                        # stu column,x
+                    ))
+                    column += 2
+                if column < end:
+                    program.extend((0x86, row[column], 0xA7, column))
+                    column += 1
+                continue
+            value = row[column]
+            mask = (0xF0 if not value & 0xF0 else 0) | (
+                0x0F if not value & 0x0F else 0
+            )
+            program.extend((
+                0xA6, column,     # lda column,x
+                0x84, mask,       # anda #mask
+                0x8A, value,      # ora #pixel
+                0xA7, column,     # sta column,x
+            ))
+            column += 1
+        if row_index != 15:
+            program.append(0x3A)  # abx to next row base; B is 8 or 160
+    program.extend((0x7E, decode_done >> 8, decode_done & 0xFF))
+    return bytes(program)
+
+
+def encode_fast_enemy_frame(
+        frame_number: int, frame: bytes, decode_done: int, sparse_fb: int,
+) -> bytes:
+    """Encode one flagged enemy entry as shared FB/stage native code."""
+    return encode_native_program(frame, decode_done, True)
+
+
+def map_symbol(path: Path, name: str) -> int:
+    pattern = re.compile(rf"^Symbol: {re.escape(name)} .* = ([0-9A-Fa-f]+)$")
+    for line in path.read_text(encoding="ascii").splitlines():
+        match = pattern.match(line)
+        if match:
+            value = int(match.group(1), 16)
+            if not 0x0800 <= value < 0x1800:
+                raise ValueError(f"enemy map {name} lies outside the runtime")
+            return value
+    raise ValueError(f"enemy map is missing {name}")
+
+
 def pack_indexed_frames(
-        frames: list[bytes], page_base: int, page_count: int
+        frames: list[bytes], page_base: int, page_count: int,
+        fast_frames: frozenset[int] = frozenset(), decode_done: int = 0,
+        sparse_fb: int = 0,
 ) -> tuple[bytes, list[dict[str, int]], int]:
     """Pack an index followed by streams, padding before page crossings."""
     index_bytes = len(frames) * 3
@@ -192,13 +264,20 @@ def pack_indexed_frames(
     index: list[dict[str, int]] = []
     padding = 0
     for frame_number, packed_frame in enumerate(frames):
-        stream = encode_sparse_frame(packed_frame)
+        fast = frame_number in fast_frames
+        stream = (
+            encode_fast_enemy_frame(
+                frame_number, packed_frame, decode_done, sparse_fb
+            ) if fast else
+            encode_sparse_frame(packed_frame)
+        )
         page_offset = len(payload) % PAGE_BYTES
         if page_offset + len(stream) > PAGE_BYTES:
             pad = PAGE_BYTES - page_offset
             payload.extend(b"\xFF" * pad)
             padding += pad
         offset = len(payload)
+        page_offset = offset % PAGE_BYTES
         page = page_base + offset // PAGE_BYTES
         address = WINDOW_BASE + offset % PAGE_BYTES
         if page >= page_base + page_count:
@@ -206,7 +285,12 @@ def pack_indexed_frames(
                 f"frame {frame_number} exceeds physical pages "
                 f"${page_base:02X}-${page_base + page_count - 1:02X}"
             )
-        entry = bytes((page, address >> 8, address & 0xFF))
+        if fast and page != ENEMY_PAGE_BASE:
+            raise ValueError(f"fast frame {frame_number} spilled outside page $35")
+        if fast and page_offset + len(stream) > PAGE_BYTES:
+            raise ValueError(f"fast frame {frame_number} crosses a physical page")
+        entry_page = page | (0x80 if fast else 0)
+        entry = bytes((entry_page, address >> 8, address & 0xFF))
         payload[frame_number * 3:frame_number * 3 + 3] = entry
         index.append({
             "frame": frame_number,
@@ -214,6 +298,7 @@ def pack_indexed_frames(
             "address": address,
             "length": len(stream),
             "payload_offset": offset,
+            "fast": fast,
         })
         payload.extend(stream)
     return bytes(payload), index, padding
@@ -549,8 +634,11 @@ def main() -> None:
     args = parse_args()
     enemy_frames = compile_enemy_sprites(args.sprites)
     player_frames = compile_player_sprites(args.sprites)
+    decode_done = map_symbol(args.enemy_map, "sparse_decode_done")
+    sparse_fb = map_symbol(args.enemy_map, "sparse_blit_fb")
     enemy_payload, enemy_index, enemy_padding = pack_indexed_frames(
-        enemy_frames, ENEMY_PAGE_BASE, ENEMY_PAGE_COUNT
+        enemy_frames, ENEMY_PAGE_BASE, ENEMY_PAGE_COUNT,
+        FAST_ENEMY_FRAMES, decode_done, sparse_fb,
     )
     player_payload, player_index, player_padding = pack_indexed_frames(
         player_frames, PLAYER_PAGE_BASE, PLAYER_PAGE_COUNT
@@ -568,6 +656,13 @@ def main() -> None:
             f"sparse: enemy payload is {len(enemy_payload)} bytes; "
             f"review expected {EXPECTED_ENEMY_BYTES}"
         )
+    enemy_spare = ENEMY_PAGE_COUNT * PAGE_BYTES - len(enemy_payload)
+    if enemy_spare != 1_045:
+        raise SystemExit(
+            f"sparse: enemy destination margin is {enemy_spare}; expected 1045"
+        )
+    if sum(bool(entry["fast"]) for entry in enemy_index) != 6:
+        raise SystemExit("sparse: fast/fallback enemy partition changed")
     if len(player_payload) != EXPECTED_PLAYER_BYTES:
         raise SystemExit(
             f"sparse: player payload is {len(player_payload)} bytes; "
@@ -634,6 +729,10 @@ def main() -> None:
             "bytes": len(enemy_payload),
             "index_bytes": len(enemy_frames) * 3,
             "padding_bytes": enemy_padding,
+            "destination_spare_bytes": enemy_spare,
+            "fast_frames": sorted(FAST_ENEMY_FRAMES),
+            "fast_decode_done": decode_done,
+            "fast_sparse_fb": sparse_fb,
             "page_base": ENEMY_PAGE_BASE,
             "page_count": ENEMY_PAGE_COUNT,
             "sha256": digest(enemy_payload),
