@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-08-03 &middot; integration &mdash; PERF-003 Done</h3>
+      <p>Parent acceptance reproduced the canonical build, XRoar performance capture, scenario verifier, four-enemy pixel/save-under proof, and enemy-runtime invariant proof from a clean checkout. PERF-003 commit <code>27bce9c</code> merged through PR #5 as <code>f4c719d</code>. Measured maxima remained 19,429 horizontal, 21,323 vertical, 23,781 forced discontinuity, and 19,917 natural replay cycles, all within approved targets, with zero FRONT writes and missed commits. The canonical ticket HTML was repaired after review detected a repeated numeric placeholder in heading tags; runtime and source artifacts were unaffected.</p>
+    </section>
+
+    <section>
       <h3>2026-08-03 &middot; verification &mdash; PERF-003 common actor closure</h3>
       <p>PERF-003 moved to Verification after current-revision capture and correctness checks. Final maxima are horizontal 19,429 cycles, vertical 21,323, forced discontinuity 23,781, and natural replay 19,917, with zero FRONT writes and zero missed commits. Retained changes combine horizontal restore/capture, two-row conservative full capture, generated helper symbols and capture provenance, plus six page-resident row-base enemy programs that preserve B and use U for word writes. Enemy destination capacity is 23,531/24,576, bank-3 runtime is 4,080/4,096, and CPU-readable cartridge source spare is 5,382 bytes.</p>
     </section>
