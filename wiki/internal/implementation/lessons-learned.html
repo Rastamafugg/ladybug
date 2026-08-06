@@ -34,7 +34,7 @@
 
     <section>
       <h2>Stage-load entity rendering requires the same underlay restore as replay</h2>
-      <p><strong>Filed 2026-08-06.</strong> The initial stage compositor draws the authored maze before drawing randomized entities. Because it skipped the entity-footprint restore used by incremental <code>RF_ENTITIES</code> redraws, the authored flower remained visible under a collectible until the first colour-cycle redraw. This is tracked as Proposed <a href="../tickets/bug-003-collectible-underlay.html">BUG-003</a>.</p>
+      <p><strong>Filed 2026-08-06.</strong> The initial stage compositor draws the authored maze before drawing randomized entities. Because it skipped the entity-footprint restore used by incremental <code>RF_ENTITIES</code> redraws, the authored flower remained visible under a collectible until the first colour-cycle redraw. <a href="../tickets/bug-003-collectible-underlay.html">BUG-003</a> now restores those footprints before gate and entity publication.</p>
       <p><strong>Rule:</strong> every stage or full-background path must clear object footprints from the authoritative maze state before drawing entity pixels. Static skull art remains white and is tracked separately as Proposed <a href="../tickets/bug-004-skull-colour-cycle.html">BUG-004</a>.</p>
     </section>
 

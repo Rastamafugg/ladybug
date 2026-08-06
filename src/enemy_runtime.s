@@ -795,6 +795,9 @@ rpr_box
 
 fri_stage_background
         jsr     draw_screen
+        ; Clear authored dot/flower pixels beneath randomized collectibles
+        ; before gate art and entity sprites are published on stage load.
+        jsr     erase_entity_footprints
         jsr     draw_all_gates
         jsr     draw_entities
         jsr     draw_hud
