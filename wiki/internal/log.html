@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-08-06 · analysis/tickets — presentation maze screens</h3>
+      <p>Created Proposed <a href="./tickets/feat-001-presentation-maze-screens.html">FEAT-001</a> from the request to restore the full centre maze on the enter-high-score and instructions maps and add a Tiled game-over map. The approval brief uses <code>tiled/coco-screen.tmx</code> as the 40×24 structural baseline, keeps runtime sequencing and compiler changes out of scope, and awaits explicit user approval before implementation.</p>
+    </section>
+
+    <section>
       <h3>2026-08-06 &middot; approval/implementation &mdash; BUG-002 enemy gate collision</h3>
       <p>User approved BUG-002 for implementation and verification. The ticket advanced from Draft to Ready. Debugging confirmed that the enemy current-cell fast path could enter a gate-owned target without checking <code>GATE_STATE</code>. The fix adds a target-owner check while retaining the bounded static path for ordinary targets; the required oracle currently reports 128,640 cases, 3,200 legacy mismatches, and zero fixed mismatches.</p>
     </section>
