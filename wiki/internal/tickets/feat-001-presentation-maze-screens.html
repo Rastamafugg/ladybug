@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-001 Presentation Maze Screens — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="../implementation/roadmap.html">Roadmap</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Feature · presentation assets</p>
+      <h1>FEAT-001 Presentation Maze Screens <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Restore the full central maze on presentation maps and add the game-over map.</p>
+    </header>
+
+    <section>
+      <h2>Ticket state</h2>
+      <ul>
+        <li><strong>Status:</strong> Ready</li>
+        <li><strong>Created / updated:</strong> 2026-08-06 / 2026-08-06</li>
+        <li><strong>Priority / order:</strong> P2 / 9</li>
+        <li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 9 presentation assets</a></li>
+        <li><strong>Owner:</strong> Codex, dedicated worktree <code>D:\retro\ladybug-feat-001</code>, branch <code>codex/feat-001-presentation-maze-screens</code></li>
+        <li><strong>Dependencies:</strong> none identified</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Update <code>coco-enter-high-score-screen.tmx</code> and <code>coco-instructions-screen.tmx</code> so the central 24×24 maze fills the playfield exactly as in the current gameplay map, while retaining the presentation text. Add <code>coco-game-over-screen.tmx</code> using the same 40×24 CoCo layout and a static <code>GAME OVER</code> presentation. This supplies the missing Tiled assets for the Phase 9 presentation flow and keeps screen layouts consistent with gameplay.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>The structural baseline is <code>tiled/coco-screen.tmx</code>, a 40×24 map whose authored maze occupies columns 8–31 and all 24 rows. The current enter-high-score and instructions maps are also 40×24 maps, but their presentation layers replace the central maze with a panel. The observations are from the current working-tree TMX files on 2026-08-06; they are structural map observations, not runtime measurements.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> the two named TMX updates; a new 40×24 game-over TMX map; full central-maze coverage; static placement of the existing presentation text; map metadata and layer names needed to identify each screen; XML and grid validation; wiki ticket and log updates.</p>
+      <p><strong>Out:</strong> runtime state-machine sequencing, game-over behavior in <code>src/main.s</code>, changes to <code>scripts/build_screen.py</code>, changes to the authoritative gameplay map, new glyph extraction, new sprites, palette changes, and emulator acceptance of a runtime screen that is not yet wired into the game.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li><strong>Enter high score:</strong> the full maze remains visible in the centre; the phrase <code>YOU GET TOP HI SCORE</code> is readable in the unused lower-left area and does not overwrite maze cells or the right HUD.</li>
+        <li><strong>Instructions:</strong> the full maze remains visible in the centre and the existing instruction content remains readable without obscuring the maze's structural boundary or side HUD.</li>
+        <li><strong>Game over:</strong> the new map is 40×24, uses the established CoCo side layout, shows the full centre maze, and contains a readable static <code>GAME OVER</code> message.</li>
+        <li><strong>Map integrity:</strong> every visible cell is covered, all active tiles resolve through <code>chars_raw2bpp.tsx</code>, and no map contains malformed CSV or an out-of-bounds placement.</li>
+        <li><strong>Regression:</strong> the existing gameplay map and its build output remain byte-for-byte unchanged when this asset work is compiled through the normal build.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <ul>
+        <li><strong>Recommended:</strong> use the gameplay maze as the central background contract, then place presentation text in separate visible layers or non-maze cells where the requested layout permits. This preserves the visual and structural baseline and keeps the assets useful for later runtime sequencing.</li>
+        <li><strong>Rejected:</strong> retain the panel-only central layouts. They are the current baseline that prompted the request and do not satisfy the full-maze presentation requirement.</li>
+        <li><strong>Out of scope:</strong> composing the maze at runtime under a panel. That would create a new rendering path and is not required to author the requested Tiled assets.</li>
+      </ul>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>Each affected map parses as a 40×24, 8×8 orthogonal Tiled map with valid CSV layers and the expected screen-role metadata.</li>
+        <li>For both updated maps and the new game-over map, central columns 8–31 match the 24×24 authored maze region of <code>tiled/coco-screen.tmx</code> unless a documented presentation glyph is intentionally overlaid.</li>
+        <li><code>YOU GET TOP HI SCORE</code>, the instructions, and <code>GAME OVER</code> are readable in their intended locations, with no accidental clipping, overlap with the side HUD, or out-of-bounds cells.</li>
+        <li>The new map is named <code>tiled/coco-game-over-screen.tmx</code>, uses the shared character tileset, and follows the established metadata and layer conventions of the existing presentation maps.</li>
+        <li>Focused XML/grid validation passes for all three maps, and <code>scripts/build.sh build</code> plus the existing arcade-fidelity verification pass without changes to the gameplay screen output.</li>
+      </ol>
+
+      <h3>Decision required</h3>
+      <p>User approved this outcome, scope, and acceptance contract on 2026-08-06. The ticket is now <code>Ready</code> because the assignment, artifacts, commands, evidence, and commit boundary are defined below.</p>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Approved objective and non-goals:</strong> implement only the three presentation TMX assets and the ticket evidence described above; do not alter runtime flow, compiler behavior, fonts, sprites, palettes, or the authoritative gameplay map.</li>
+        <li><strong>Owned artifacts:</strong> <code>tiled/coco-enter-high-score-screen.tmx</code>, <code>tiled/coco-instructions-screen.tmx</code>, new <code>tiled/coco-game-over-screen.tmx</code>, and this ticket's implementation and completion evidence. Worktree: <code>D:\retro\ladybug-feat-001</code>. Branch: <code>codex/feat-001-presentation-maze-screens</code>.</li>
+        <li><strong>Implementation constraints:</strong> preserve the 40×24, 8×8 map contract and shared character tileset; use <code>tiled/coco-screen.tmx</code> as the central-maze baseline; keep presentation text readable; do not commit build outputs or unrelated existing worktree artifacts.</li>
+        <li><strong>Required commands and scenarios:</strong> validate XML dimensions, CSV coverage, tileset references, metadata, central-maze equality, and text placement for all three maps; run <code>scripts/build.sh build</code>; run <code>python3 scripts/verify_arcade_fidelity.py</code>; inspect the resulting map render or equivalent tile-grid evidence for enter-high-score, instructions, and game-over scenarios.</li>
+        <li><strong>Evidence:</strong> retain current-revision validation output and visual or tile-grid captures for all three maps as untracked verification artifacts; record command results and any target miss in this ticket.</li>
+        <li><strong>Commit:</strong> one bounded implementation commit on the dedicated branch. Push authority is not required for the implementation branch unless separately requested.</li>
+        <li><strong>Completion report:</strong> include commit, tests and commands, measured result versus each acceptance criterion, unchanged gameplay-map/build result, retained evidence, rejected experiments, residual risks, and whether the ticket can move to <code>Verification</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Verification and completion</h2>
+      <p>Pending implementation. Acceptance requires current-revision map validation, a clean normal build, arcade-fidelity verification, unchanged gameplay screen output, and retained structural evidence for all three maps.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-06 — Proposed from user request. The gameplay map is the central-maze baseline; runtime sequencing and compiler changes are excluded.</li>
+        <li>2026-08-06 — User approved FEAT-001. Added the dedicated worktree assignment, exact owned artifacts, verification commands, evidence rules, and one-commit boundary; advanced the ticket to <code>Ready</code>.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Canonical ticket for presentation-map authoring. See <a href="./workflow.html">ticket workflow</a>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
