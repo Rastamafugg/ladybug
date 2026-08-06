@@ -23,6 +23,16 @@
     </header>
 
     <section>
+      <h3>2026-08-06 &middot; diagnosis/tickets &mdash; gate replay regression and enemy follow-up</h3>
+      <p>Created Proposed <a href="./tickets/bug-001-gate-style-replay.html">BUG-001</a> and dependent Draft <a href="./tickets/bug-002-enemy-gate-collision.html">BUG-002</a>. A live test forced all 20 gates and both diagonal styles through the natural persistent A/B sequence: all 20 style-1 cases retained 13&ndash;20 differing gate-region bytes, while all 20 style-0 cases converged. Pending gate-only replay reads unused intent offset 13 instead of primary style offset 14. A controlled <code>$008C=$00/$FF</code> comparison demonstrated an invalid write to CPU stack address <code>$1FE7</code>, linking the same defect to a crash-capable path. Enemy navigation remains diagnosis-only until BUG-001 removes visual ambiguity.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-06 &middot; approval/implementation &mdash; BUG-001 Ready</h3>
+      <p>User approved BUG-001 for implementation and verification. The ticket advanced to Ready. The assignment correction records that direct-page offset <code>$008C</code> is live <code>RENDER_ZONE_Y</code>; only primary style offset 14, secondary style offset 15, and their coalescing clears are changed.</p>
+    </section>
+
+    <section>
       <h3>2026-08-02 &middot; integration/process &mdash; TOOL-001 accepted; PERF-002 reactivated</h3>
       <p>Parent QA accepted and squash-merged <a href="./tickets/tool-001-bank0-overflow.html">TOOL-001</a> through PR #2 as <code>29309a2dc78e81b686a7c70ace9dd9ea3eee8724</code>. Clean-checkout build, exact-boundary/one-byte-excess packing, XRoar bank-0 low-RAM copy, enemy-runtime, performance-baseline, syntax, and HTML-link verification passed. Current CPU-readable cartridge source spare is 14,731 bytes; runtime destination guards remain independent. TOOL-001 moved to Done. PERF-002 refreshed against the integrated base at 35,597/35,592 cycles for the forced death-reset structural worklist and moved to Ready for its existing Terra medium assignment.</p>
     </section>

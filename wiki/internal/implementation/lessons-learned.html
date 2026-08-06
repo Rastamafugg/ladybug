@@ -25,6 +25,14 @@
     </header>
 
     <section>
+      <h2>Persistent-intent offsets must be named and mutation-tested</h2>
+      <p>A gate-only replay optimization copied a 16-byte render-intent record but loaded offset 13 as the primary gate style. The actual layout places the primary and secondary styles at offsets 14 and 15; offset 13 is unused direct-page byte <code>$008C</code>. Zero-initialized performance fixtures concealed the invalid read. Style 1 restored the wrong pair of diagonal dot cells in one framebuffer, while random nonzero values indexed beyond the two-style offset table. A controlled <code>$00</code>/<code>$FF</code> comparison produced an out-of-framebuffer write at CPU stack address <code>$1FE7</code>.</p>
+      <p><strong>Rule:</strong> define persistent-record offsets once, assert every producer and consumer against that layout, force every enumerated field value in natural replay, and mutate reserved bytes to prove they are inert. Pixel convergence alone is insufficient when an invalid field can redirect a compositor outside its declared write region.</p>
+      <p><strong>Correction:</strong> offset <code>$008C</code> is the live <code>RENDER_ZONE_Y</code> field, not an unused reserved byte. The required mutation test must preserve and vary that field only through valid zone-refresh scenarios; gate-style replay must read offsets 14 and 15 exclusively.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-001-gate-style-replay.html">BUG-001</a>, <code>src/main.s</code> <code>framebuffer_project_gate_only</code>, and the 2026-08-06 all-gate/style XRoar diagnostics at revision <code>deea3c9</code>.</p>
+    </section>
+
+    <section>
       <h2>Cartridge source capacity and runtime destination capacity are independent gates</h2>
       <p>Counting only the remaining bytes in banks 2 and 3 understated available cartridge source storage and could reject cycle-improving precomputed data even though bank 0 was mostly empty. Bank 0 offsets <code>$0800-$3DFF</code> now form a manifest-owned overflow pool used after the primary source intervals.</p>
       <p><strong>Rule:</strong> accept per-bank source spill when the complete CPU-readable four-bank allocation fits, but retain independent checks for the loader boundary, destination RAM, MMU ownership, resident/assets/enemy-module windows, direct page, stack, ABI, timing, and behavior. Arbitrary absolute code is not relocatable merely because source ROM space exists.</p>

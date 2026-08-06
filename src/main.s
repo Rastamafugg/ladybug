@@ -2746,7 +2746,8 @@ framebuffer_project_gate_only
         ldd     FBM_PENDING_INTENTS+9,u
         std     RENDER_GATE_ID
         stb     GATE_COMPOSE_MODE
-        lda     FBM_PENDING_INTENTS+13,u
+        ; Intent byte 13 is RENDER_ZONE_Y; primary gate style is byte 14.
+        lda     FBM_PENDING_INTENTS+14,u
         sta     RENDER_GATE_STYLE
         clr     FBM_DAMAGE,u
         jsr     GATE_MODULE_COMPOSE

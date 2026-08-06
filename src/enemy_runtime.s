@@ -517,14 +517,16 @@ framebuffer_project_damage
         bne     fbpd_second_gate
         clr     FBM_PENDING_INTENTS+9,u
         clr     FBM_PENDING_INTENTS+10,u
-        clr     FBM_PENDING_INTENTS+13,u
+        ; Byte 13 is RENDER_ZONE_Y; primary style is byte 14.
+        clr     FBM_PENDING_INTENTS+14,u
         bra     fbpd_save_current
 fbpd_second_gate
         cmpa    FBM_PENDING_INTENTS+11,u
         bne     fbpd_gate_only
         clr     FBM_PENDING_INTENTS+11,u
         clr     FBM_PENDING_INTENTS+12,u
-        clr     FBM_PENDING_INTENTS+14,u
+        ; Secondary style follows the secondary mode at byte 15.
+        clr     FBM_PENDING_INTENTS+15,u
 fbpd_gate_only
         jsr     framebuffer_project_gate_only
         bcs     fbpd_done
