@@ -1284,12 +1284,19 @@ enemy_direction_legal
         ldy     #maze_nav
         leay    d,y
         lda     ,y
-        bita    #$10
-        bne     edl_slow         ; dynamic gate topology needs the full test
         ldy     #enemy_exit_masks
         ldb     ENEMY_CANDIDATE
         anda    b,y
         lbeq    edl_clear
+        ; A non-gate current cell can still enter a gate-owned target. Recheck
+        ; that target before accepting the static fast path.
+        leau    enemy_target_offsets,pcr
+        ldb     ENEMY_CANDIDATE
+        ldb     b,u
+        leay    b,y
+        leay    maze_gate_owner-maze_nav,y
+        lda     ,y
+        bne     edl_slow         ; target gate state must be authoritative
         orcc    #$01
         rts
 edl_slow
@@ -1408,6 +1415,8 @@ enemy_entry_masks
         fcb     $04,$08,$01,$02
 enemy_exit_masks
         fcb     $01,$02,$04,$08
+enemy_target_offsets
+        fcb     -24,1,24,-1
 
 ; Compare semantic centres. Adjacent eight-pixel cells still overlap because
 ; both actors have 16-by-16 footprints.

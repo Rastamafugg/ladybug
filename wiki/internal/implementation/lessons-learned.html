@@ -25,6 +25,20 @@
     </header>
 
     <section>
+      <h2>Gate legality must validate both current and target ownership paths</h2>
+      <p><strong>Filed 2026-08-06.</strong> Enemy navigation used a static fast path whenever the current cell lacked the dynamic gate bit. Ordinary cells immediately before a gate-owned target could therefore enter the target without consulting <code>GATE_STATE</code>. The independent 128,640-case oracle reproduced 3,200 legacy mismatches across all gates and four states.</p>
+      <p><strong>Rule:</strong> before accepting a static exit, inspect the target's gate-owner record and route gate-owned targets through the dynamic state oracle. Keep the fast path only for ordinary target cells.</p>
+      <p><strong>Applies to:</strong> enemy junction choice, future actor navigation, and any optimized current-cell collision path.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-002-enemy-gate-collision.html">BUG-002</a>, <code>src/enemy_runtime.s</code> <code>enemy_direction_legal</code>, and <code>scripts/verify_bug002_enemy_gate_collision.py</code>.</p>
+    </section>
+
+    <section>
+      <h2>Stage-load entity rendering requires the same underlay restore as replay</h2>
+      <p><strong>Filed 2026-08-06.</strong> The initial stage compositor draws the authored maze before drawing randomized entities. Because it skipped the entity-footprint restore used by incremental <code>RF_ENTITIES</code> redraws, the authored flower remained visible under a collectible until the first colour-cycle redraw. This is tracked as Proposed <a href="../tickets/bug-003-collectible-underlay.html">BUG-003</a>.</p>
+      <p><strong>Rule:</strong> every stage or full-background path must clear object footprints from the authoritative maze state before drawing entity pixels. Static skull art remains white and is tracked separately as Proposed <a href="../tickets/bug-004-skull-colour-cycle.html">BUG-004</a>.</p>
+    </section>
+
+    <section>
       <h2>Persistent-intent offsets must be named and mutation-tested</h2>
       <p>A gate-only replay optimization copied a 16-byte render-intent record but loaded offset 13 as the primary gate style. The actual layout places the primary and secondary styles at offsets 14 and 15; offset 13 is unused direct-page byte <code>$008C</code>. Zero-initialized performance fixtures concealed the invalid read. Style 1 restored the wrong pair of diagonal dot cells in one framebuffer, while random nonzero values indexed beyond the two-style offset table. A controlled <code>$00</code>/<code>$FF</code> comparison produced an out-of-framebuffer write at CPU stack address <code>$1FE7</code>.</p>
       <p><strong>Rule:</strong> define persistent-record offsets once, assert every producer and consumer against that layout, force every enumerated field value in natural replay, and mutate reserved bytes to prove they are inert. Pixel convergence alone is insufficient when an invalid field can redirect a compositor outside its declared write region.</p>
