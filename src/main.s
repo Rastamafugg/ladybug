@@ -1360,6 +1360,8 @@ draw_entity_object
         lda     ENTITY_TYPE
         cmpa    #ENTITY_SKULL
         bne     deo_bonus
+        ; Skull collectibles are static white; BONUS_COLOR applies only to
+        ; hearts and letters in the bonus-colour cycle.
         lda     #COLOR_YELLOW
         sta     OBJ_PRIMARY
         lda     #COLOR_WHITE

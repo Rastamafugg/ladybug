@@ -48,6 +48,11 @@
     </section>
 
     <section>
+      <h3>2026-08-06 &middot; verification &mdash; BUG-004 skull colour exclusion</h3>
+      <p>BUG-004 verification confirmed that the skull branch selects fixed white/static LUT data and never reads <code>BONUS_COLOR</code>. No executable palette-path change was required; BUG-003 removed the underlay artifact that made skulls appear to disappear on the first cycle. The focused verifier and combined build/runtime checks pass. Bank 3 remains exactly full at 4,096/4,096 bytes.</p>
+    </section>
+
+    <section>
       <h3>2026-08-06 &middot; diagnosis/tickets &mdash; gate replay regression and enemy follow-up</h3>
       <p>Created Proposed <a href="./tickets/bug-001-gate-style-replay.html">BUG-001</a> and dependent Draft <a href="./tickets/bug-002-enemy-gate-collision.html">BUG-002</a>. A live test forced all 20 gates and both diagonal styles through the natural persistent A/B sequence: all 20 style-1 cases retained 13&ndash;20 differing gate-region bytes, while all 20 style-0 cases converged. Pending gate-only replay reads unused intent offset 13 instead of primary style offset 14. A controlled <code>$008C=$00/$FF</code> comparison demonstrated an invalid write to CPU stack address <code>$1FE7</code>, linking the same defect to a crash-capable path. Enemy navigation remains diagnosis-only until BUG-001 removes visual ambiguity.</p>
     </section>
