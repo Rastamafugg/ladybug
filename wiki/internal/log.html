@@ -23,6 +23,11 @@
     </header>
 
     <section>
+      <h3>2026-08-07 &middot; diagnosis/tickets &mdash; gate colour replay and respawn flicker</h3>
+      <p>Created Proposed <a href="./tickets/bug-005-gate-colour-replay.html">BUG-005</a> and dependent <a href="./tickets/bug-006-respawn-player-flicker.html">BUG-006</a>. A forced XRoar pending-gate plus nearby collectible case confirmed that entity underlay restoration can overwrite a queued dynamic gate; control versus colour output differed in 19 gate-union bytes on both owners. The respawn path clears both player-valid ledgers but the steady-state actor closure lacks an invalid-owner draw condition, explaining alternating replacement-player visibility. Implementation awaits explicit approval.</p>
+    </section>
+
+    <section>
       <h3>2026-08-07 - query/decision - reconcile local and remote main</h3>
       <p>Compared local <code>main</code> with <code>origin/main</code>. Verified that Tiled commit <code>0b029dc</code> changes only the three presentation <code>.tmx</code> files, while the remote source/script drift predates that merge and comes from earlier PERF integration history. Applied the Tiled commit as <code>26b85b4</code>, then recorded <code>origin/main</code> as the second parent of <code>77314c0</code> while retaining the verified local game tree; no game source or script changes were imported.</p>
     </section>

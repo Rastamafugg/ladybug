@@ -25,6 +25,20 @@
     </header>
 
     <section>
+      <h2>Queued gate projection must precede or follow entity redraw as one transaction</h2>
+      <p><strong>Filed 2026-08-07.</strong> A queued gate final can be projected into BACK before the current epoch's collectible colour redraw. If the current epoch has <code>RF_ENTITIES</code> but no current gate intent, <code>erase_entity_footprints</code> restores static maze tiles over the already projected dynamic gate. A forced nearby-entity case changed 19 bytes in the gate union on both framebuffer owners.</p>
+      <p><strong>Rule:</strong> treat queued gate projection and entity underlay/redraw as one ordered transaction; the authoritative gate union must be the last dynamic layer in any combined replay.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-005-gate-colour-replay.html">BUG-005</a>, <code>framebuffer_project_gate_only</code>, <code>frame_render_background</code>, and <code>erase_entity_footprints</code>.</p>
+    </section>
+
+    <section>
+      <h2>Respawn invalidation requires republishing the replacement actor</h2>
+      <p><strong>Filed 2026-08-07.</strong> Clearing both <code>FBM_PLAYER_VALID</code> bytes prevents stale save-under restoration, but <code>dt_finish_blank</code> requests <code>RF_PLAYER</code> for only one transaction. The steady-state actor closure does not draw an alive player solely when the selected owner's validity is clear, so the next owner can publish without the replacement Ladybug.</p>
+      <p><strong>Rule:</strong> after respawn, require a valid replacement player record on every framebuffer owner before clearing the redraw obligation.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-006-respawn-player-flicker.html">BUG-006</a>, <code>dt_finish_blank</code>, <code>framebuffer_prepare_back</code>, and <code>actor_closure_draw</code>.</p>
+    </section>
+
+    <section>
       <h2>Gate legality must validate both current and target ownership paths</h2>
       <p><strong>Filed 2026-08-06.</strong> Enemy navigation used a static fast path whenever the current cell lacked the dynamic gate bit. Ordinary cells immediately before a gate-owned target could therefore enter the target without consulting <code>GATE_STATE</code>. The independent 128,640-case oracle reproduced 3,200 legacy mismatches across all gates and four states.</p>
       <p><strong>Rule:</strong> before accepting a static exit, inspect the target's gate-owner record and route gate-owned targets through the dynamic state oracle. Keep the fast path only for ordinary target cells.</p>
