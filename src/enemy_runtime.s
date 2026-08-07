@@ -473,7 +473,7 @@ frame_render_impl
         clr     ENEMY_CAPTURE_DIRTY
         lbsr    actor_closure_restore
         lbsr    framebuffer_queue_damage
-        bsr     framebuffer_project_damage
+        lbsr    framebuffer_project_damage
         lbsr    roam_mark_underlay
         bcs     fri_actor_closure
         else
@@ -554,7 +554,7 @@ fbpd_load
         bne     fbpd_load
         ldd     ,u
         std     PLAYER_CELL_X
-        lbsr    roam_mark_underlay
+        bsr     roam_mark_underlay
         lbsr    framebuffer_back_meta
         clr     FBM_DAMAGE,u
         lbsr    frame_render_background
@@ -684,7 +684,7 @@ fri_secondary
         lda     RENDER_FLAGS2
         bita    #RF2_PERIM_RESET
         beq     fri_multiplier
-        lbsr    render_perimeter_reset
+        bsr     render_perimeter_reset
 fri_multiplier
         lda     RENDER_FLAGS2
         bita    #RF2_MULTIPLIER
@@ -919,7 +919,9 @@ acd_player
         bita    #RF_PLAYER|RF_STAGE
         bne     acd_draw_player
         tst     PLAYER_ERASED
-        beq     acd_done
+        bne     acd_draw_player
+        tst     PLAYER_BG_VALID
+        bne     acd_done
 acd_draw_player
         jsr     draw_player
 acd_done
@@ -1017,7 +1019,7 @@ fbp_owned
         lda     #1
         sta     FB_RENDER_ACTIVE
         lbsr    gate_map_live
-        lbsr    framebuffer_back_meta
+        bsr     framebuffer_back_meta
         lda     FBM_PLAYER_VALID,u
         sta     PLAYER_BG_VALID
         ldd     FBM_PLAYER_FB,u
@@ -1081,7 +1083,7 @@ fbm_done
         rts
 
 framebuffer_capture_back
-        lbsr    framebuffer_back_meta
+        bsr     framebuffer_back_meta
         lda     #FBM_VALID
         sta     FBM_STATE,u
         clr     FBM_DAMAGE,u
@@ -1252,7 +1254,7 @@ ecd_scan
         lda     ENEMY_CANDIDATE
         cmpa    ENEMY_REVERSE
         beq     ecd_next
-        lbsr    enemy_direction_legal
+        bsr     enemy_direction_legal
         bcs     ecd_choose
 ecd_next
         inc     ENEMY_CANDIDATE
