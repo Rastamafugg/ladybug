@@ -473,7 +473,7 @@ frame_render_impl
         clr     ENEMY_CAPTURE_DIRTY
         lbsr    actor_closure_restore
         lbsr    framebuffer_queue_damage
-        lbsr    framebuffer_project_damage
+        bsr     framebuffer_project_damage
         lbsr    roam_mark_underlay
         bcs     fri_actor_closure
         else
@@ -510,9 +510,9 @@ framebuffer_project_damage
         ; Coalesce an obsolete matching final before replaying any other
         ; pending coverage; a historical diagonal must never replace it.
         tst     RENDER_GATE_MODE
-        beq     fbpd_gate_only
+        beq     fbpd_project_gate
         lda     RENDER_GATE_ID
-        beq     fbpd_gate_only
+        beq     fbpd_project_gate
         cmpa    FBM_PENDING_INTENTS+9,u
         bne     fbpd_second_gate
         clr     FBM_PENDING_INTENTS+9,u
@@ -522,14 +522,15 @@ framebuffer_project_damage
         bra     fbpd_save_current
 fbpd_second_gate
         cmpa    FBM_PENDING_INTENTS+11,u
-        bne     fbpd_gate_only
+        bne     fbpd_project_gate
         clr     FBM_PENDING_INTENTS+11,u
         clr     FBM_PENDING_INTENTS+12,u
         ; Secondary style follows the secondary mode at byte 15.
         clr     FBM_PENDING_INTENTS+15,u
-fbpd_gate_only
+fbpd_project_gate
         jsr     framebuffer_project_gate_only
-        bcs     fbpd_done
+        bcs     fbpd_save_current
+        rts
 fbpd_save_current
         lda     PLAYER_ERASED
         pshs    a

@@ -2729,10 +2729,11 @@ dgt_done
         rts
 
 ; Called from bank-3 projection with U at the target framebuffer ledger.
-; Carry set means a sole queued gate was projected; clear leaves U and all
-; current render state intact for the generic projection path.
+; Carry set means a sole queued gate was promoted to current render intents;
+; clear leaves the generic projection path selected.
 ; Inputs: U framebuffer metadata. Returns: registers undefined.
-; Side effects: projects the pending gate-only damage worklist.
+; Side effects: promotes the pending gate-only worklist for normal background
+; composition after collectible/entity redraw.
 framebuffer_project_gate_only
         lda     FBM_PENDING_INTENTS,u
         ora     FBM_PENDING_INTENTS+1,u
@@ -2741,26 +2742,24 @@ framebuffer_project_gate_only
         bne     fpg_no
         lda     FBM_PENDING_INTENTS+9,u
         beq     fpg_no
-        ldd     RENDER_GATE_ID
-        pshs    d
-        lda     RENDER_GATE_STYLE
-        pshs    a
         ldd     FBM_PENDING_INTENTS+9,u
+        tst     RENDER_GATE_ID
+        bne     fpg_second
         std     RENDER_GATE_ID
-        stb     GATE_COMPOSE_MODE
-        ; Intent byte 13 is RENDER_ZONE_Y; primary gate style is byte 14.
+        stb     RENDER_GATE_MODE
         lda     FBM_PENDING_INTENTS+14,u
         sta     RENDER_GATE_STYLE
-        clr     FBM_DAMAGE,u
-        jsr     GATE_MODULE_COMPOSE
-        puls    a
-        sta     RENDER_GATE_STYLE
-        puls    d
-        std     RENDER_GATE_ID
-        orcc    #$01
+        bra     fpg_ready
+fpg_second
+        std     RENDER_GATE2_ID
+        stb     RENDER_GATE2_MODE
+        lda     FBM_PENDING_INTENTS+14,u
+        sta     RENDER_GATE2_STYLE
+fpg_ready
+        andcc   #$FE
         rts
 fpg_no
-        andcc   #$FE
+        orcc    #$01
         rts
 
 ; Complete the pending one-Vbord diagonal frame before this frame's movement.
