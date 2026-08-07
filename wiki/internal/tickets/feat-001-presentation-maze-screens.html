@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-001 Presentation Maze Screens - Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="../implementation/roadmap.html">Roadmap</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Feature &middot; presentation assets</p>
+      <h1>FEAT-001 Presentation Maze Screens <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Author arcade-faithful maze-border presentation maps and add the Tiled game-over map.</p>
+    </header>
+
+    <section>
+      <h2>Ticket state</h2>
+      <ul>
+        <li><strong>Status:</strong> Done</li>
+        <li><strong>Created / updated:</strong> 2026-08-06 / 2026-08-07</li>
+        <li><strong>Priority / order:</strong> P2 / 9</li>
+        <li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 9 presentation assets</a></li>
+        <li><strong>Owner:</strong> Codex, dedicated worktree <code>D:\retro\ladybug-feat-001</code>, branch <code>codex/feat-001-presentation-maze-screens</code></li>
+        <li><strong>Dependencies:</strong> resolved through the arcade game-over screenshot documented below</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Update <code>coco-enter-high-score-screen.tmx</code> and <code>coco-instructions-screen.tmx</code> so their visible maze is the arcade-faithful outer maze border only. Add <code>coco-game-over-screen.tmx</code> with the matching arcade presentation border and any unique arcade content that appears above or below that border relocated to the lower-left CoCo HUD. The inner maze walls, gates, gameplay dots, and other interior gameplay content are not part of these presentation maps because they do not appear on the matching arcade presentation screens.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>The current working-tree TMX files on 2026-08-06 show 40&times;24 presentation maps whose central presentation area is bordered but whose intended arcade presentation content is distinct from the gameplay map. <code>tiled/coco-screen.tmx</code> remains the authoritative gameplay map, but its interior walls and gates are explicitly excluded from this ticket. Existing arcade-reference properties and the measured presentation maps provide the source contract. The arcade game-over border and unique upper/lower text were previously verified against the <a href="https://www.mobygames.com/game/10255/lady-bug/screenshots/arcade/656820/">Lady Bug arcade game-over screenshot</a> (192&times;240, source page accessed 2026-08-06). A new MAME 0.277 run on 2026-08-06 captured the instructions state at frames 1000/1280 and the game-over state at frames 6920-7040; the emulator output is 240&times;192 and uses the same full-height presentation frame. No tracked arcade image capture for the qualifying-score name-entry state was present; the existing map property remains a MAME 0.220 forced-qualifying-score reference.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> the two named TMX corrections; a new 40&times;24 game-over TMX map; arcade-faithful outer maze-border cells and presentation content; relocation of game-over content above or below the arcade border to the lower-left HUD; shared character tileset and screen-role metadata; XML, grid, and visual validation; ticket, decision, and log updates.</p>
+      <p><strong>Out:</strong> inner maze walls, gates, gameplay dots, gameplay entities, runtime state-machine sequencing, changes to <code>src/main.s</code>, changes to <code>scripts/build_screen.py</code>, changes to the authoritative gameplay map, new glyph extraction, new sprites, palette changes, and emulator acceptance of a runtime screen not yet wired into the game.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li><strong>Enter high score:</strong> the arcade-faithful border is visible; <code>YOU GET TOP HI SCORE</code> is rendered in the empty lower-left area; the qualifying-score grid remains readable; no inner gameplay walls or gates are present.</li>
+        <li><strong>Instructions:</strong> the arcade-faithful border and measured instruction content remain readable; no inner gameplay walls or gates are present.</li>
+        <li><strong>Game over:</strong> the new map uses the verified arcade border/content arrangement; unique arcade content above or below the border is relocated only to the lower-left HUD; no invented interior gameplay structure is present.</li>
+        <li><strong>Border fidelity:</strong> every border cell matches the selected arcade reference orientation, position, glyph, and colour treatment, subject only to the documented CoCo side-HUD adaptation. The CoCo frame occupies columns 8-31; cap rows are 0-1, side rows are 2-22, and the bottom row is 23, matching <code>coco-level-start-screen.tmx</code> and the MAME captures.</li>
+        <li><strong>Map integrity:</strong> every visible cell is covered, all active tiles resolve through <code>chars_raw2bpp.tsx</code>, and no map contains malformed CSV or an out-of-bounds placement.</li>
+        <li><strong>Regression:</strong> the authoritative gameplay map and its build output remain unchanged.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <ul>
+        <li><strong>Recommended:</strong> preserve or reconstruct the measured arcade presentation border and content for each screen, then apply only the established CoCo relocation of above/below-border content to the lower-left HUD. Keep the presentation maps separate from the gameplay maze.</li>
+        <li><strong>Rejected:</strong> using the full gameplay maze as a presentation background. The earlier implementation commit <code>1f4df6a</code> did this and is rejected by the corrected requirement because its inner walls and gates do not match the arcade presentation screens.</li>
+        <li><strong>Out of scope:</strong> runtime composition of an arcade presentation border or the game-over state machine.</li>
+      </ul>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>Each affected map parses as a 40&times;24, 8&times;8 orthogonal Tiled map with valid CSV layers and the expected screen-role metadata.</li>
+        <li>The enter-high-score and instructions maps contain only the arcade-faithful presentation border and their matching presentation content in the central area; no gameplay inner walls or gates are added.</li>
+        <li>The new game-over map contains the verified arcade presentation border and matching unique content, with any content above or below that border relocated to the lower-left HUD as documented.</li>
+        <li><code>YOU GET TOP HI SCORE</code>, the instructions, and <code>GAME OVER</code> are readable in their intended locations without clipping, accidental HUD overlap, or out-of-bounds cells.</li>
+        <li>Border and presentation-cell comparisons against the selected arcade reference pass for all three maps, with the source frame or capture revision retained in the ticket.</li>
+        <li>Focused XML/grid validation, visual inspection, <code>scripts/build.sh build</code>, and <code>python3 scripts/verify_arcade_fidelity.py</code> pass without changing the gameplay screen output.</li>
+      </ol>
+
+      <h3>Decision required</h3>
+      <p>The user corrected the previously approved outcome on 2026-08-06. This was a material scope change, so the ticket returned from <code>Verification</code> to <code>Proposed</code>. The user explicitly approved the corrected border-only outcome on 2026-08-06, then approved the rows 0-23 border-alignment correction on 2026-08-06. The assignment, source reference, artifacts, commands, evidence rules, and commit boundary are now defined; the ticket is <code>Ready</code>.</p>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <p>Active for the corrected scope. The previous assignment and implementation evidence are superseded by the corrected scope.</p>
+      <ul>
+        <li><strong>Owned artifacts:</strong> <code>tiled/coco-enter-high-score-screen.tmx</code>, <code>tiled/coco-instructions-screen.tmx</code>, new <code>tiled/coco-game-over-screen.tmx</code>, and this ticket's implementation and completion evidence. Worktree: <code>D:\retro\ladybug-feat-001</code>. Branch: <code>codex/feat-001-presentation-maze-screens</code>.</li>
+        <li><strong>Constraints:</strong> preserve the 40&times;24 map contract and shared character tileset; use the cited arcade border/content evidence; exclude gameplay interior walls and gates; keep the game-over upper/lower content in the lower-left HUD; do not commit build outputs or unrelated worktree artifacts.</li>
+        <li><strong>Required verification:</strong> validate XML dimensions, CSV coverage, tileset references, screen metadata, border-only central cells, presentation text placement, and lower-left game-over relocation; run <code>scripts/build.sh build</code>; run <code>python3 scripts/verify_arcade_fidelity.py</code>; inspect visual or tile-grid evidence for all three maps.</li>
+        <li><strong>Evidence:</strong> retain the cited arcade reference URL, focused validation output, build results, arcade-fidelity results, and visual or tile-grid captures for all three maps.</li>
+        <li><strong>Commit:</strong> one bounded implementation commit on the dedicated branch, followed by the ticket/wiki evidence update and QA review.</li>
+        <li><strong>Completion report:</strong> include commit, tests and commands, measured result versus each acceptance criterion, unchanged gameplay-map/build result, retained evidence, rejected experiments, residual risks, and whether the ticket can move to <code>Verification</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Verification and completion</h2>
+      <p><strong>Current-revision QA verdict, 2026-08-07:</strong> user-authored layout corrections are recorded in clean implementation commit <code>0b029dc</code>, covering only the three TMX presentation maps. XML, 40&times;24 grid, layer coverage, and all referenced tilesets validate. <code>wsl -d Ubuntu -- bash -lc "cd /mnt/d/retro/ladybug-feat-001 &amp;&amp; scripts/build.sh build"</code> passed with resident usage <code>8190/8192</code> bytes and assets <code>7144/7680</code> bytes; sparse, GMC, overflow, and presentation proofs passed. <code>python3 scripts/verify_arcade_fidelity.py</code> passed. No source-code, runtime-sequencing, or gameplay-map changes were introduced. FEAT-001 remains <code>Done</code> and is ready for merge review. Existing untracked captures and emulator configuration remain excluded from the commit.</p>
+      <p><strong>Previous-revision QA verdict, 2026-08-06:</strong> implementation commit <code>bde0f50</code> corrected all three base layers to the approved frame: columns 8-31, cap rows 0-1, side rows 2-22, and bottom row 23. Focused XML/grid validation passed for dimensions, exact border equality against <code>coco-level-start-screen.tmx</code>, blank central interiors, valid tiles, and unchanged overlays/HUD content. The subsequent user-authored correction supersedes that map content.</p>
+      <p><strong>Superseding verification finding, 2026-08-06:</strong> implementation commit <code>eadc7e1</code> does not satisfy the clarified border-position criterion. Direct inspection shows the three affected maps place the border at rows 2-23, while <code>coco-level-start-screen.tmx</code> places the cap at rows 0-1, sides at rows 2-22, and the bottom at row 23. MAME 0.277 captures retained as <code>build/attract-1000.png</code>, <code>build/attract-1280.png</code>, and <code>build/gameplay-06920.png</code> confirm the instructions and game-over presentation frames use the full-height frame. The repository contained no tracked arcade image capture for the qualifying-score name-entry state, so that state remains source-referenced but not newly image-captured in this pass. The ticket is not accepted; the next action is an approved TMX alignment correction.</p>
+      <p><strong>Historical evidence for <code>eadc7e1</code>, superseded by the finding above:</strong> the prior focused XML/grid validation confirmed three 40&times;24 maps, exact border-cell equality against the then-established presentation border, blank central interiors in each base layer, valid character GIDs, and overlay counts of 62 enter-high-score cells, 104 instruction cells, and 8 game-over cells. The game-over lower-left HUD relocation was verified across rows 12-17 and did not overwrite the existing life indicators. <code>wsl -d Ubuntu -- bash -lc "cd /mnt/d/retro/ladybug-feat-001 &amp;&amp; scripts/build.sh build"</code> passed with resident usage <code>8190/8192</code> bytes and assets <code>7144/7680</code> bytes. <code>python3 scripts/verify_arcade_fidelity.py</code> passed. The presentation profile regression check passed with maxima <code>25152</code> popup cycles and <code>24491</code> death cycles against the <code>27000</code> target. Visual evidence is retained as untracked <code>build/coco-enter-high-score-screen.png</code>, <code>build/coco-instructions-screen.png</code>, and <code>build/coco-game-over-screen.png</code>. Runtime screen sequencing remains outside scope.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-06 &mdash; Proposed from the original request. The gameplay map was incorrectly treated as the presentation baseline for the full central maze.</li>
+        <li>2026-08-06 &mdash; User approved the original full-maze scope and the ticket advanced to <code>Ready</code>.</li>
+        <li>2026-08-06 &mdash; Implemented commit <code>1f4df6a</code> and recorded passing structural/build checks. This experiment is rejected and not acceptance evidence because it added inner walls and gates that do not match the arcade presentation screens.</li>
+        <li>2026-08-06 &mdash; User corrected the requirement: preserve the arcade-faithful maze border only; exclude inner walls and gates; relocate unique above/below-border game-over content to the lower-left HUD. Ticket returned to <code>Proposed</code> for renewed approval.</li>
+        <li>2026-08-06 &mdash; User approved the corrected border-only scope. The arcade game-over screenshot reference was recorded, dependencies and assignment details were completed, and the ticket advanced to <code>Ready</code>.</li>
+        <li>2026-08-06 &mdash; Implemented commit <code>eadc7e1</code>. Replaced the rejected full-maze bases with arcade-faithful border-only layers, retained the presentation overlays, added the screenshot-backed game-over map, and relocated its unique lower text to the lower-left HUD.</li>
+        <li>2026-08-06 &mdash; QA passed the prior focused map validation, full build, arcade-fidelity verification, presentation profile regression, and visual inspection, but the later MAME alignment check failed the clarified border-position criterion. MAME 0.277 captures confirm the instructions and game-over frame occupy the full 24-row frame; the affected maps currently use rows 2-23 instead of rows 0-23. Ticket returned to <code>Proposed</code> for explicit approval of the alignment correction. No TMX edits were made during this confirmation pass.</li>
+        <li>2026-08-06 &mdash; User reported border misalignment against <code>coco-level-start-screen.tmx</code>. Debugger confirmation found the affected maps use rows 2-23, while the established frame uses cap rows 0-1, sides 2-22, and bottom row 23. MAME 0.277 captured instructions and game-over frames with the full-height frame. The alignment acceptance criterion failed; the ticket remains <code>Proposed</code> pending approval. No implementation change was made.</li>
+        <li>2026-08-06 &mdash; User approved the rows 0-23 border-alignment correction. The ticket advanced from <code>Proposed</code> to <code>Ready</code> for the bounded TMX correction and required verification.</li>
+        <li>2026-08-06 &mdash; Implemented <code>bde0f50</code>. QA revalidated all three TMX borders, the full build, sparse/GMC proofs, arcade-fidelity verification, scope boundaries, and unchanged gameplay artifacts. All current-revision criteria pass; ticket advanced to <code>Done</code>.</li>
+        <li>2026-08-07 &mdash; User manually corrected the three TMX layouts after review. Committed the exact current map changes as clean commit <code>0b029dc</code> on top of current <code>main</code>; validation and the full build pass. The ticket remains <code>Done</code> and the branch is prepared for merge review.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Canonical ticket for presentation-map authoring. See <a href="./workflow.html">ticket workflow</a>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
