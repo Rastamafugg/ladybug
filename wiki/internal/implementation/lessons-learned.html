@@ -1650,6 +1650,24 @@ git reset --hard HEAD
       <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>gate_region_to_shadow</code>/<code>gate_region_from_shadow</code> and the 2026-07-23 live cross-page GDB test.</p>
     </section>
 
+    <section>
+      <h2>Promote queued dynamic scenery into the final background phase</h2>
+      <p><strong>Filed 2026-08-07.</strong></p>
+      <p>A gate-only damage projection can be correct when isolated but still be overwritten by a later collectible or actor-underlay redraw in the same persistent-framebuffer transaction.</p>
+      <p><strong>Rule:</strong> retain queued gate intent as a normal background render intent and compose the authoritative gate after entity and underlay work. Do not publish a dynamic gate before later passes that can touch its union.</p>
+      <p><strong>Applies to:</strong> gate recolouring, persistent A/B replay, and any dynamic scenery overlapped by retained actors.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>framebuffer_project_gate_only</code>/<code>framebuffer_project_damage</code>; BUG-005 focused XRoar replay.</p>
+    </section>
+
+    <section>
+      <h2>Invalid owner ledgers are draw intents for retained actors</h2>
+      <p><strong>Filed 2026-08-07.</strong></p>
+      <p>Respawn blanking invalidates both player save-under ledgers. If steady-state actor closure checks only global render flags, the next owner can remain blank until an unrelated pickup or death redraw occurs.</p>
+      <p><strong>Rule:</strong> while the actor is alive, a clear selected-owner player-valid ledger must force a complete player draw. Restore buffer-local save-under state through the normal closure; never copy stale player pixels between owners.</p>
+      <p><strong>Applies to:</strong> respawn publication, persistent framebuffer ownership, and any retained actor with owner-local validity metadata.</p>
+      <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>actor_closure_draw</code>; BUG-006 focused XRoar replay.</p>
+    </section>
+
   </main>
 </div>
 </body>

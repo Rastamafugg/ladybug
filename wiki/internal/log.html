@@ -23,6 +23,16 @@
     </header>
 
     <section>
+      <h3>2026-08-07 &middot; lint &mdash; BUG ticket links</h3>
+      <p>Validated all local links in the BUG-005 and BUG-006 ticket pages. The broader wiki lint still reports two pre-existing dead FEAT-001 links in the ticket index and its historical log entry; no BUG-005 or BUG-006 link is dead. FEAT-001 remains outside this task scope.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; QA/closure &mdash; BUG-005 and BUG-006</h3>
+      <p>QA rebuilt the combined source at <code>77727f9</code> with resident usage <code>8185/8192</code>, enemy runtime <code>4096/4096</code>, and <code>14731</code> CPU-readable GMC bytes spare. Focused gate replay passed normal and reversed owner phases with zero live gate-cell difference; focused respawn passed 12 natural finish boundaries in both orientations, with both owner ledgers valid and matching player hashes. BUG-001 through BUG-004, gate cache, forced no-overlap, GMC, arcade-fidelity, runtime, and performance baseline checks ran; BUG-005 and BUG-006 moved to Done. The final/pending gate interval measured <code>27111</code> cycles, 111 above the separate PERF target, and was retained for PERF-003 follow-up rather than treated as a bug-correctness failure.</p>
+    </section>
+
+    <section>
       <h3>2026-08-07 &middot; diagnosis/tickets &mdash; gate colour replay and respawn flicker</h3>
       <p>Created Proposed <a href="./tickets/bug-005-gate-colour-replay.html">BUG-005</a> and dependent <a href="./tickets/bug-006-respawn-player-flicker.html">BUG-006</a>. A forced XRoar pending-gate plus nearby collectible case confirmed that entity underlay restoration can overwrite a queued dynamic gate; control versus colour output differed in 19 gate-union bytes on both owners. The respawn path clears both player-valid ledgers but the steady-state actor closure lacks an invalid-owner draw condition, explaining alternating replacement-player visibility. Implementation awaits explicit approval.</p>
     </section>
