@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-001 Arcade Audio Capture and CoCo Sound Design &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal &middot; research ticket</p>
+      <h1>RSCH-001 Arcade Audio Capture and CoCo Sound Design <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Produce an exhaustive, reproducible arcade-audio corpus and a capacity-proven implementation contract for the GMC SN76489.</p>
+    </header>
+
+    <section>
+      <h2>Disposition</h2>
+      <ul>
+        <li><strong>Status:</strong> Approved</li>
+        <li><strong>Created / updated:</strong> 2026-08-07 / 2026-08-07</li>
+        <li><strong>Priority / order:</strong> P2 / 14</li>
+        <li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 8 &mdash; sound</a></li>
+        <li><strong>Owner:</strong> unassigned</li>
+        <li><strong>Dependencies:</strong> capture work may begin independently; final capacity and module placement require FEAT-002 base integration, FEAT-003 capacity decisions, and refreshed PERF-002/PERF-003 timing evidence.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Capture every distinct Lady Bug arcade sound effect and music cue with sufficient evidence to reproduce its musical and temporal behavior, then select and size a CoCo implementation that fits the delivered 64 K Games Master Cartridge image, runtime RAM ownership, and frame-time constraints. The output of this ticket is evidence and an exact proposed implementation contract; it does not add runtime sound.</p>
+
+      <h3>Evidence and baseline</h3>
+      <ul>
+        <li>The official MAME driver maps sound writes to two SN76489 devices at Z80 ranges <code>$B000-$BFFF</code> and <code>$C000-$CFFF</code>. Both chips run at 4 MHz and are mixed equally to mono.</li>
+        <li>The target Games Master Cartridge contains one 4 MHz SN76489, programmed through odd SCS addresses; Ladybug reserves <code>$FF51</code>. It supplies three tone channels and one noise channel without continuous 6809 sample production.</li>
+        <li>MAME supports final-mixer WAV recording. The existing project capture tooling already uses deterministic Lua input plans and frame-indexed work-RAM/video capture, but does not record audio or PSG writes.</li>
+        <li>The active uncommitted FEAT-002 artifacts observed on 2026-08-07 report resident <code>8192/8192</code> bytes, immutable assets <code>7144/7680</code> bytes, bank-3 runtime <code>4096/4096</code> bytes, a 923-byte presentation module, and 2442 CPU-readable GMC source bytes free. These are single worktree observations, not an approved audio allocation, and must be refreshed after FEAT-002 integration.</li>
+        <li>The current rendering contract targets completion of normal render work by 27,000 cycles and a hard 60 Hz interval below approximately 29,666 cycles. Audio must execute after critical render publication in the foreground, never as a sample-rate IRQ.</li>
+      </ul>
+
+      <h3>Scope</h3>
+      <p><strong>In scope:</strong> deterministic MAME input plans; 48 kHz mono WAV captures; frame-indexed writes from both arcade PSGs; event annotations; isolated and natural-sequence cue coverage; cue segmentation and manifests; pitch, duration, volume-envelope, noise, voice, repetition, and overlap analysis; one-chip reduction experiments; GMC SN76489 reference rendering; CPU/memory projections; an exact follow-up feature proposal; and wiki/source provenance.</p>
+      <p><strong>Out of scope:</strong> shipping arcade PCM samples, a continuous DAC player, mandatory external sound cartridges, runtime assembly changes, user approval of the later feature, and physical-hardware acceptance.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li>Inventory title, attract, credit, start, level-start, gameplay, level-clear, death, game-over, ranking, and name-entry audio. A screen or flow with no sound is recorded explicitly as silent evidence.</li>
+        <li>Force every gameplay event that may own audio, including dot consumption, letter and heart collection in relevant colour states, vegetable collection, gate rotation, enemy release or movement cues, skull interaction, bonus or extra-life award, death, and stage completion. The inventory remains evidence-driven; this seed list is not treated as exhaustive.</li>
+        <li>Capture each cue in isolation where the arcade permits it, then repeat it in a natural game sequence. Persistent or overlapping audio must include both forms.</li>
+        <li>Force simultaneous and near-simultaneous events, repeated dots, cue interruption, music plus effects, death during an active effect, stage transition with a lingering voice, pause/freeze if applicable, and attract-to-credit pre-emption.</li>
+        <li>Repeat deterministic captures from clean configuration/state and compare the event manifest, PSG-write trace, segment boundaries, and hashes. Any unstable playback is investigated, not averaged away.</li>
+        <li>Do not mark an unforced rare cue as absent or passing. Missing required evidence leaves the inventory incomplete.</li>
+      </ul>
+
+      <h3>Recommended architecture to validate</h3>
+      <ol>
+        <li><strong>Capture mixed output and commands:</strong> extend the existing Lua-plan workflow to record MAME's 48 kHz final mono mix and log each byte written to both arcade PSG address ranges with frame/subframe ordering. WAV alone is insufficient because it obscures channel ownership, register periods, and collision behavior.</li>
+        <li><strong>Compile an audio corpus:</strong> retain a manifest containing MAME version, driver, ROM hashes, clean-state policy, input plan, cue/event frames, WAV hash, PSG-trace hash, segment offsets, natural/isolated classification, and analysis status. Reference recordings remain research assets and are not linked into the delivered cartridge.</li>
+        <li><strong>Reduce two chips to one:</strong> reconstruct the six arcade tone voices and two noise voices from register traces, classify perceptual priority by cue, then compare deterministic reduction policies. Candidate policy reserves noise for effects, gives music at most two tones, allows one tone effect over music, coalesces repeated low-priority events, and permits death/stage/award cues to pre-empt lower-priority voices. The capture evidence decides the final policy.</li>
+        <li><strong>Use semantic events:</strong> gameplay producers enqueue compact event IDs and parameters. A bounded foreground service runs once per committed simulation tick after render publication, advances 60 Hz note/effect scripts, arbitrates channels, and emits only changed SN76489 bytes to <code>$FF51</code>. The IRQ may expose the frame/commit counter but performs no sound sequencing.</li>
+        <li><strong>Store commands, not samples:</strong> represent effects and music as duration/register or note/instrument records. Prototype generation must report exact engine, state, descriptor, and score sizes before runtime implementation is proposed.</li>
+      </ol>
+
+      <h3>Engineering requirements for the follow-up design</h3>
+      <ul>
+        <li>The audio service has no busy waits, sample-rate interrupts, frame-time cartridge banking, or continuous DAC/PB1 stream.</li>
+        <li>The prototype targets at most 800 6809 cycles for a worst-case 60 Hz audio update, at most 12 PSG data writes in one tick, and zero PSG writes when state is unchanged. These are proposed maxima to validate, not current measurements.</li>
+        <li>Audio runs after the render-ready point so the existing 27,000-cycle render target is measured independently. Combined render plus audio must remain below the approximately 29,666-cycle hardware limit with zero missed commits in every forced overlap case.</li>
+        <li>The research prototype targets no more than 1536 cartridge-source bytes for engine plus all shipped command data, no more than 24 bytes of direct-page state, and a four-entry bounded event queue. Exact allocations require the post-FEAT-002 map; exceeding a target returns the implementation proposal to architecture.</li>
+        <li>The selected destination must be always mapped during gameplay. The preferred candidate is a bounded copied block in the free tail of physical page <code>$34</code>, after FEAT-002 session-data ownership is fixed. Resident and bank-3 windows are currently full and may not be silently enlarged.</li>
+        <li>The build must guard resident, asset, bank-3, GMC source, copied destination, direct-page, stack, queue, and worst-update limits independently. Free physical RAM does not substitute for cartridge source or an executable mapping.</li>
+      </ul>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>A reviewed cue inventory covers every identified game flow and forced event, with explicit silent cases and no required scenario inferred from missing evidence.</li>
+        <li>Every non-silent cue has at least one reproducible WAV segment, dual-PSG write trace, event/timing annotation, provenance record, and natural-sequence capture. Required overlap cases are captured separately.</li>
+        <li>Two clean runs of each deterministic plan produce equivalent cue/event and PSG-command sequences. Audio-file hashes may differ only when a documented MAME mixer/header field explains the difference; decoded sample equivalence is then required.</li>
+        <li>A host-side SN76489 renderer reconstructs the captured arcade traces and renders each proposed one-chip reduction. Review evidence records which tones/noise were retained, merged, delayed, or pre-empted.</li>
+        <li>The recommended one-chip mapping identifies voice ownership, event priority, interruption, retrigger, coalescing, silence, music/effect coexistence, and failure behavior for every cue.</li>
+        <li>A generated size/cycle report uses the post-FEAT-002 combined revision and shows projected engine/data/state/queue usage against every independent limit. The proposed 800-cycle, 12-write, 1536-source-byte, and 24-direct-page-byte maxima either pass or are explicitly revised before feature approval.</li>
+        <li>The ticket produces a separate Proposed feature ticket with exact cue scope, owned artifacts, module addresses, event ABI, descriptor formats, integration order, verification commands, evidence retention, commit boundary, and physical-hardware follow-up.</li>
+      </ul>
+
+      <h3>Dependencies, risks, and exclusions</h3>
+      <ul>
+        <li>Capture requires a legally supplied Lady Bug ROM set and a known MAME build. ROM files and full commercial audio are not added to release artifacts.</li>
+        <li>The arcade's two-chip polyphony cannot be reproduced exactly by one chip. Reduction quality is a product tradeoff and must be reviewed from rendered comparisons.</li>
+        <li>60 Hz command scheduling may miss subframe envelope detail. The trace analysis must identify audible subframe writes; a higher-rate design requires renewed CPU analysis and approval.</li>
+        <li>FEAT-002 currently changes the only plausible low-RAM/game-state placement and GMC headroom. No fixed address or final capacity claim is valid before its integration baseline.</li>
+        <li>XRoar proves the GMC programming path, but physical cartridge audio level, noise, clock, and mixer behavior remain Phase 10 acceptance work.</li>
+      </ul>
+
+      <h3>Decision required</h3>
+      <p>Approved 2026-08-07. Approval authorizes capture/tooling research and the capacity-proven follow-up proposal only; it does not authorize runtime sound implementation.</p>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Approved objective and non-goals:</strong> to be copied unchanged from the approval brief after explicit approval.</li>
+        <li><strong>Owned artifacts:</strong> new audio capture/analyser scripts, deterministic plans under <code>scripts/mame_plans/</code>, research assets under <code>assets/arcade/audio/</code>, this ticket, <code>platform/sound.html</code>, source-ingest pages, and the internal log. Runtime assembly is excluded.</li>
+        <li><strong>Order:</strong> cue inventory and plans; reproducible WAV/PSG capture; isolation and overlap coverage; trace reconstruction; one-chip reduction comparisons; capacity/cycle projection after FEAT-002; follow-up feature proposal.</li>
+        <li><strong>Required commands:</strong> exact commands are added before <code>Ready</code>; they must include clean MAME captures, corpus verification, host PSG reconstruction/reduction, build/map refresh, and wiki link lint.</li>
+        <li><strong>Evidence:</strong> manifests, compact command traces, cue segments or hashes according to repository policy, rendered one-chip comparisons, coverage report, and capacity/cycle report.</li>
+        <li><strong>Worktree / branch:</strong> dedicated <code>D:/retro/ladybug-worktrees/rsch-001</code> worktree on <code>codex/rsch-001-audio-capture</code>.</li>
+        <li><strong>Commit:</strong> one bounded research/tooling commit; no push, merge, feature approval, or runtime implementation authority.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Verification and completion</h2>
+      <p>Pending approval and execution. Completion requires the full corpus, forced coverage, selected reduction policy, post-FEAT-002 capacity report, and separate feature proposal.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-07 &mdash; Proposed from the request to capture arcade sound/music, design a CoCo implementation, and prove CPU and memory viability. Official MAME driver evidence confirms two 4 MHz arcade SN76489 chips; the selected target candidate is the GMC's single 4 MHz SN76489.</li>
+        <li>2026-08-07 &mdash; User approved RSCH-001 for capture and design research in a dedicated worktree. Runtime sound implementation remains outside this approval. Queue order moved to 14 after FEAT-003 was added at order 13; final capacity placement depends on FEAT-002/FEAT-003 decisions.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Canonical research contract. Runtime implementation requires a separate explicitly approved feature ticket.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

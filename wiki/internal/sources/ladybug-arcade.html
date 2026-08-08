@@ -368,10 +368,38 @@
       </p>
     </section>
 
+    <section>
+      <h2>Arcade audio hardware and capture interface</h2>
+      <p>
+        The official MAME driver maps Lady Bug sound writes across Z80 ranges
+        <code>$B000-$BFFF</code> and <code>$C000-$CFFF</code>, one range per
+        SN76489. The machine configuration clocks both PSGs at 4 MHz and routes
+        every output from each device to the mono speaker at equal gain. This
+        confirms that the original program can use six tone voices and two
+        noise generators, while the GMC target provides one same-clock PSG
+        with three tone voices and one noise generator.
+      </p>
+      <p>
+        MAME's <code>-wavwrite</code> option records the final mixer output.
+        Audio-fidelity research must pair that mixed WAV with ordered writes to
+        both sound ranges: the mix alone cannot identify channel ownership,
+        tone/noise periods, attenuation changes, retriggers, or the arcade's
+        collision policy. The existing deterministic Lua gameplay-capture
+        workflow is the project baseline for input plans and frame annotations.
+      </p>
+      <p>
+        Sources: <a href="https://github.com/mamedev/mame/blob/master/src/mame/universal/ladybug.cpp">current official MAME Lady Bug driver</a>
+        and <a href="https://docs.mamedev.org/commandline/commandline-all.html#wavwrite">official MAME command-line recording documentation</a>.
+        The project's established comparison version remains MAME 0.220 until
+        a research ticket deliberately records and approves a newer baseline.
+      </p>
+    </section>
+
     <footer class="wiki-footer">
       <p>
-        Web-ingest only. All claims should be flagged "verify against MAME /
-        manual" before they constrain implementation.
+        Web and official MAME-source ingest. Secondary-source claims still
+        require MAME, ROM, manual, or physical-hardware verification before
+        they constrain implementation.
       </p>
     </footer>
   </main>

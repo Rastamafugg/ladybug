@@ -17,9 +17,7 @@
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal · platform</p>
       <h1>Sound — project plan <span class="wiki-badge">internal</span></h1>
-      <p class="wiki-meta">
-        Choosing between the 6-bit DAC and the PB1 square wave for Ladybug.
-      </p>
+      <p class="wiki-meta">Arcade-reference capture and a bounded GMC SN76489 implementation.</p>
     </header>
 
     <section>
@@ -30,22 +28,29 @@
     </section>
 
     <section>
-      <h2>Choosing for Ladybug</h2>
+      <h2>Selected planning direction</h2>
       <p>
-        The original arcade Lady Bug has melody snippets (during attract,
-        between stages, when collecting heart, on death) and many short
-        SFX (eat dot, eat vegetable, enemy moves through gate, death). A
-        first pass:
+        <strong>Proposed in <a href="../tickets/rsch-001-arcade-audio-capture-design.html">RSCH-001</a>:</strong>
+        use the Games Master Cartridge's 4 MHz SN76489 for the shipped sound
+        implementation. The original arcade uses two equally mixed 4 MHz
+        SN76489 chips, so fidelity work is a measured two-chip-to-one voice
+        reduction rather than PCM sample playback.
       </p>
       <ul>
-        <li><strong>PB1 square wave</strong> for short SFX — cheap, fast, doesn't need a sample table.</li>
-        <li><strong>6-bit DAC</strong> driven from the Vbord IRQ for one melody voice (a stepped-sine table). One channel of melody is faithful to the arcade's mono audio output.</li>
+        <li>Capture MAME's final 48 kHz mono mix and every write to both arcade PSGs under deterministic input plans.</li>
+        <li>Inventory and force isolated, natural-sequence, overlap, interruption, and explicitly silent cases.</li>
+        <li>Reconstruct pitch, volume, noise, timing, and channel ownership from register traces; WAV alone is not sufficient.</li>
+        <li>Compile effects and melodies to compact 60 Hz command records for one GMC PSG.</li>
+        <li>Dispatch semantic game events through a bounded foreground service after render publication. Do not sequence sound in the IRQ.</li>
       </ul>
       <p>
-        Decision deferred to coding-architect. Both share the same IRQ
-        context, which is the constraint that matters: anything we do in
-        sound has to fit in the 60 Hz Vbord handler's slack budget — see
-        <a href="./timing.html">timing</a>.
+        The research target is a worst 60 Hz service of at most 800 6809
+        cycles and 12 changed-register writes, no writes when unchanged, no
+        more than 1536 cartridge-source bytes for engine plus command data,
+        and no more than 24 direct-page bytes. These are proposal limits, not
+        measured results. Exact placement and limits require a refreshed map
+        after FEAT-002 integration; the resident and bank-3 windows are
+        currently full.
       </p>
     </section>
 
@@ -144,7 +149,9 @@
         <a href="../sources/coco3-asm-tepolt.html">coco3-asm-tepolt</a>
         ch. 7 (split FF22);
         <a href="../sources/sound-cartridges.html">sound-cartridge web and
-        manual ingest</a>.
+        manual ingest</a>;
+        <a href="../sources/ladybug-arcade.html">official MAME Lady Bug
+        driver and audio-capture interface</a>.
       </p>
     </footer>
   </main>
