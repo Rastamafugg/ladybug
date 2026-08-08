@@ -17,20 +17,20 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal &middot; performance ticket</p>
-      <h1>PERF-004 Perimeter Reset Publication <span class="wiki-badge">Proposed</span></h1>
+      <h1>PERF-004 Perimeter Reset Publication <span class="wiki-badge">Approved</span></h1>
       <p class="wiki-meta">Replace the 92-box natural death-reset perimeter publication with a bounded exact projection.</p>
     </header>
 
     <section>
       <h2>Identity and ordering</h2>
       <ul>
-        <li><strong>Status:</strong> Proposed</li>
+        <li><strong>Status:</strong> Approved</li>
         <li><strong>Created / updated:</strong> 2026-08-08 / 2026-08-08</li>
         <li><strong>Priority / order:</strong> P1 / 7.5</li>
-        <li><strong>Owner:</strong> unassigned pending approval; parent agent owns integration and closure</li>
-        <li><strong>Dependencies:</strong> PERF-002 natural-replay evidence; PERF-004 must be approved, implemented, integrated, and reprofiled before PERF-003 can become Ready.</li>
+        <li><strong>Owner:</strong> one implementation owner after Ready; parent agent owns integration and closure</li>
+        <li><strong>Dependencies:</strong> PERF-002 natural-replay evidence is satisfied; PERF-004 must be implemented, integrated, and reprofiled before PERF-003 can become Ready.</li>
         <li><strong>Roadmap or source:</strong> PERF-002 required natural-sequence acceptance failure.</li>
-        <li><strong>Approval required:</strong> explicit user approval of this outcome, target, risks, and acceptance criteria.</li>
+        <li><strong>Approval:</strong> user approved this outcome, target, scope, risks, and acceptance criteria on 2026-08-08.</li>
       </ul>
     </section>
 
@@ -75,27 +75,34 @@
     </section>
 
     <section>
-      <h2>Assignment contract after approval</h2>
+      <h2>Ready assignment contract</h2>
       <ul>
-        <li><strong>Owned artifacts:</strong> perimeter reset code in <code>src/main.s</code>/<code>src/enemy_runtime.s</code>, generated payload/build layout as required, low-RAM map, capture/verifier, this ticket, memory map, lessons, ticket index, and log.</li>
-        <li><strong>Constraints:</strong> source may use bank-0 overflow only under TOOL-001 allocation and loader rules; source capacity never substitutes for destination RAM, PAR, ABI, stack, direct-page, or behavior capacity. Reserve and prove the chosen page/helper before writing it.</li>
-        <li><strong>Commands:</strong> clean detached <code>scripts/build.sh build</code>, the dedicated capture/verifier, <code>python scripts/verify_nest_animation.py</code>, <code>python scripts/verify_enemy_runtime.py</code>, <code>python scripts/verify_performance_baseline.py</code>, the GMC/capacity verifier, and wiki link checks using fail-fast execution.</li>
-        <li><strong>Evidence:</strong> retain current-source hashes, closed boundaries, symbol counts, target and margins, raw trace references, exact pixel proof, capacity and mapping state, rejected alternatives, one commit, and a report against every criterion. Parent owns integration and merge.</li>
-        <li><strong>Commit authority:</strong> one bounded implementation commit plus ticket/wiki evidence after approval and Ready transition. Do not merge, change approved scope or targets, or move beyond Verification.</li>
-        <li><strong>Completion report:</strong> commit, selected/rejected representation, commands and exit results, every worklist versus <code>27000</code>, independent pixel proof, forced and natural coverage, total source and destination capacity before/after, retained artifacts, residual risks, and recommended lifecycle state.</li>
+        <li><strong>Assignment state:</strong> approval recorded; the contract is prepared for the <code>Ready</code> transition. Implementation remains unauthorized until the parent agent confirms the contract and advances the ticket.</li>
+        <li><strong>Branch and worktree:</strong> one implementation owner works in <code>D:\retro\ladybug-worktrees\perf-004</code> on <code>perf/perf-004-perimeter-reset</code>, based on the reconciled PERF-002 evidence revision <code>3209025</code>. The parent agent owns integration, combined-source verification, merge, and lifecycle closure.</li>
+        <li><strong>Owned source artifacts:</strong> perimeter-reset paths in <code>src/main.s</code> and <code>src/enemy_runtime.s</code>; <code>src/perimeter_reset_helper.s</code>; <code>scripts/build_sparse_sprites.py</code> and generated loader/layout inputs only as required for the exact native payload; <code>scripts/capture_perimeter_reset.py</code>; <code>scripts/verify_perimeter_reset.py</code>; and retained <code>build/perf004-perimeter-reset.json</code>. Owned wiki artifacts are this ticket, directly affected memory/lessons pages, the ticket index, and the log.</li>
+        <li><strong>Dependency order:</strong> verify the PERF-002 base and unused physical-page/helper ranges; generate and load the exact perimeter payload; implement bounded publication and PAR5 restoration; prove independent pixels and mutation rejection; capture isolated and natural scenarios; run combined integration checks; then hand off to QA. Do not modify PERF-002, PERF-003, FEAT-002, or sound work.</li>
+        <li><strong>Selected design:</strong> generate an exact native reset payload, allocate its cartridge source through the TOOL-001 bank-0 overflow pool, load it at boot to proven-unused physical page <code>$3A</code>, and publish it through a bounded helper within proven-free <code>$06B2-$07FF</code>. Map PAR5 to <code>$3A</code> only during the copy and restore it to <code>$34</code> on every exit. Pages <code>$28-$2B</code> remain reserved for the compatibility compositor.</li>
+        <li><strong>Hard constraints:</strong> preserve exact 92-box-equivalent pixels, A/B persistent ownership, old-footprint and replay behavior, death cadence, generic structural compositor semantics, IRQ-visible state, ABI, stack, direct-page, destination-page, and loader contracts. No gameplay-time ROM switching. Source capacity may use bank 0, but destination, low-RAM, physical-page, code-window, and compatibility capacity remain independent pass/fail gates.</li>
+        <li><strong>Required scenarios:</strong> isolated perimeter publication plus natural death-to-reset with zero enemies, four enemies, and vegetable state; both framebuffer targets; reversed starting order; generic structural fallback; exact pixel equivalence; old-footprint restoration; PAR5 restoration; and unchanged death cadence. Missing required forced or natural cases fails verification.</li>
+        <li><strong>Required commands:</strong> from a clean detached implementation checkout, run <code>scripts/build.sh build</code>, <code>scripts/build.sh verify-gmc</code>, the dedicated capture and verifier, <code>python scripts/verify_death_reset.py</code>, <code>python scripts/verify_nest_animation.py</code>, <code>python scripts/verify_enemy_runtime.py</code>, <code>python scripts/verify_performance_baseline.py</code>, Python syntax checks for modified scripts, and wiki link checks using fail-fast execution.</li>
+        <li><strong>Acceptance and evidence:</strong> each complete natural perimeter-plus-cache worklist is at most <code>27000</code> active cycles; every interval is closed from <code>frame_render_impl</code> to the next such boundary; retain current-source hashes, all closed observations and margins, framebuffer owner as secondary metadata, exact pixel oracle and rejected mutation, 92-box semantic equivalence, PAR5 proof, capacity before/after, raw-trace references, and failure diagnostics.</li>
+        <li><strong>Commit and authority:</strong> one bounded implementation commit plus ticket/wiki evidence. Do not push, merge, close the ticket, alter approved scope or targets, or move beyond Verification. The parent agent must inspect the commit, rebuild from combined source, rerun every acceptance scenario, and invoke QA.</li>
+        <li><strong>Completion report:</strong> commit, commands and exit results, selected/rejected representation, measured range versus <code>27000</code>, exactness and mutation results, source and destination headroom, forced and natural coverage, rejected experiments, residual risks, retained evidence, and recommended lifecycle state.</li>
       </ul>
     </section>
 
     <section>
       <h2>Verification and completion</h2>
-      <p>No implementation or completion evidence exists while this ticket is Proposed. After approval, retain the selected physical-page and low-RAM allocation proofs, current-revision commands and exit results, complete scenario distributions, exact pixel oracle and mutation result, capacity before and after, rejected experiments, commit and PR, residual risks, and the justified lifecycle verdict.</p>
+      <p>No current-main implementation or completion evidence exists. The separate historical PERF-004 worktree is not accepted as integrated evidence. After the Ready assignment, retain the selected physical-page and low-RAM allocation proofs, current-revision commands and exit results, complete scenario distributions, exact pixel oracle and mutation result, capacity before and after, rejected experiments, commit, residual risks, and the justified lifecycle verdict.</p>
     </section>
 
     <section>
       <h2>Decision log</h2>
       <ul>
-        <li>2026-08-08 &mdash; Proposed from PERF-002's failed natural replay. No implementation is authorized.</li>
-        <li>2026-08-08 &mdash; Recommended generated bank-0-overflow source, boot copy to physical page candidate <code>$3A</code>, and a bounded low-RAM helper candidate <code>$06B2-$07FF</code>; these remain design candidates pending approval and capacity proof.</li>
+        <li>2026-08-08 &mdash; Proposed from PERF-002's failed natural replay. No implementation was authorized while Proposed.</li>
+        <li>2026-08-08 &mdash; User approved the proposed outcome, target, scope, risks, and acceptance criteria. PERF-004 advanced to <code>Approved</code>; implementation remains unauthorized until the Ready assignment is confirmed.</li>
+        <li>2026-08-08 &mdash; Prepared the Ready assignment contract with exact branch/worktree, owned artifacts, design boundaries, dependencies, commands, scenarios, evidence, commit authority, and parent integration checks. The historical PERF-004 worktree is not current-main acceptance evidence.</li>
+        <li>2026-08-08 &mdash; Selected generated bank-0-overflow source, boot copy to physical page candidate <code>$3A</code>, and a bounded low-RAM helper candidate <code>$06B2-$07FF</code>; implementation requires Ready transition and capacity proof.</li>
       </ul>
     </section>
 
