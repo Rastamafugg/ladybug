@@ -17,20 +17,20 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal &middot; performance ticket</p>
-      <h1>PERF-004 Perimeter Reset Publication <span class="wiki-badge">Approved</span></h1>
+      <h1>PERF-004 Perimeter Reset Publication <span class="wiki-badge">Ready</span></h1>
       <p class="wiki-meta">Replace the 92-box natural death-reset perimeter publication with a bounded exact projection.</p>
     </header>
 
     <section>
       <h2>Identity and ordering</h2>
       <ul>
-        <li><strong>Status:</strong> Approved</li>
+        <li><strong>Status:</strong> Ready</li>
         <li><strong>Created / updated:</strong> 2026-08-08 / 2026-08-08</li>
         <li><strong>Priority / order:</strong> P1 / 7.5</li>
-        <li><strong>Owner:</strong> one implementation owner after Ready; parent agent owns integration and closure</li>
-        <li><strong>Dependencies:</strong> PERF-002 natural-replay evidence is satisfied; the new capacity-resolution Ready contract is prepared, but PERF-004 remains Approved until a clean combined FEAT-002 base exists. PERF-004 must be integrated and reprofiled before PERF-003 can become Ready.</li>
+        <li><strong>Owner:</strong> one implementation owner on the assigned capacity-resolution worktree; parent agent owns integration and closure</li>
+        <li><strong>Dependencies:</strong> PERF-002 natural-replay evidence is satisfied; clean combined FEAT-002 base commit <code>962ad1e</code> is established and passes build, GMC, Python, and diff checks. PERF-004 must be integrated and reprofiled before PERF-003 can become Ready.</li>
         <li><strong>Roadmap or source:</strong> PERF-002 required natural-sequence acceptance failure.</li>
-        <li><strong>Approval:</strong> user approved the boot-synthesis/page-<code>$20</code>/cold-reduction redesign on 2026-08-08. A new Ready assignment contract is still required.</li>
+        <li><strong>Approval:</strong> user approved the boot-synthesis/page-<code>$20</code>/cold-reduction redesign on 2026-08-08. The Ready assignment contract is complete and the ticket is now authorized for bounded implementation.</li>
       </ul>
     </section>
 
@@ -80,8 +80,8 @@
     <section>
       <h2>Ready assignment contract</h2>
       <ul>
-        <li><strong>Assignment state:</strong> the redesign is approved and the Ready contract is prepared. PERF-004 remains <code>Approved</code> until the parent creates a clean combined FEAT-002 base commit; implementation is not authorized from the current unstaged main or the superseded page-<code>$3A</code> worktree.</li>
-        <li><strong>Branch and worktree:</strong> after the clean combined base exists, one implementation owner works on <code>perf/perf-004-capacity-resolution</code> in <code>D:\retro\ladybug-worktrees\perf-004-capacity</code>. The parent owns creation of that base, integration, combined-source verification, merge, and lifecycle closure.</li>
+        <li><strong>Assignment state:</strong> the redesign is approved, the clean combined FEAT-002 base is commit <code>962ad1e</code>, and PERF-004 is <code>Ready</code>. Implementation is authorized only within this contract; the superseded page-<code>$3A</code> worktree remains excluded.</li>
+        <li><strong>Branch and worktree:</strong> one implementation owner works on <code>perf/perf-004-capacity-resolution</code> in <code>D:\retro\ladybug-worktrees\perf-004-capacity</code>, based on FEAT-002 base <code>962ad1e</code>. The parent owns integration, combined-source verification, merge, and lifecycle closure.</li>
         <li><strong>Owned source artifacts:</strong> <code>src/gmc_bootstrap.s</code>; <code>src/perimeter_reset_helper.s</code>; perimeter integration in <code>src/enemy_runtime.s</code>; <code>scripts/build.sh</code>; <code>scripts/build_sparse_sprites.py</code>; <code>scripts/build_presentation.py</code> only for cold-data reduction; <code>scripts/verify_sparse_sprites.py</code>; <code>scripts/capture_perimeter_reset.py</code>; <code>scripts/verify_perimeter_reset.py</code>; a dedicated page-allocation verifier if required; and retained <code>build/perf004-perimeter-reset.json</code>. Do not alter presentation behavior, sound, high-score behavior, or PERF-003 logic.</li>
         <li><strong>Dependency order:</strong> parent supplies a clean combined FEAT-002 base; prove physical page <code>$20</code> and bootstrap headroom; implement the boot generator from existing screen assets; remove the perimeter payload loader segment; reduce and independently verify cold data; retarget the helper; run source/destination/capacity guards; capture isolated and natural scenarios; run combined integration checks; then hand off to QA.</li>
         <li><strong>Selected design:</strong> synthesize the native perimeter program during boot from existing authored screen data, write it to physical page <code>$20</code>, invoke it through the bounded helper at <code>$06B2-$07FF</code>, and restore PAR5 to <code>$34</code>. Keep FEAT-002 cold data on <code>$3A-$3D</code>. Remove the 4,484-byte perimeter source segment and require at least 524 bytes of cold-payload reduction, targeting 1,409 bytes.</li>
@@ -102,12 +102,12 @@
         <li><strong>Boot ownership:</strong> add a bounded generator to the bank-0 boot region, using existing bank-1 screen assets as input. It must stay inside the <code>$0000-$07FF</code> bootstrap allocation, run before gameplay, write only the candidate page, restore PAR5, and leave the generated bytes hash-identical to the independent build-time oracle.</li>
         <li><strong>Runtime ownership:</strong> the existing low-RAM helper remains the only gameplay entry. The generated native program continues to write the exact Green-to-White perimeter patch, so the isolated <code>16,489-17,738</code>-cycle evidence remains the target to remeasure after relocation.</li>
       </ul>
-      <p><strong>Approval recorded:</strong> the user approved this redesign on 2026-08-08. The material source-placement, destination-page, boot-responsibility, and cold-payload changes are accepted in principle; implementation still requires a new Ready assignment contract.</p>
+      <p><strong>Approval recorded:</strong> the user approved this redesign on 2026-08-08. The material source-placement, destination-page, boot-responsibility, and cold-payload changes are accepted, and the Ready assignment contract is now active against FEAT-002 base <code>962ad1e</code>.</p>
     </section>
 
     <section>
       <h2>Verification and completion</h2>
-      <p>Historical current-main integration exists in commits <code>cf838b5</code> and <code>f1e6463</code>. The superseded PERF-004 footprint passed isolated evidence: the dedicated capture covered zero, four, and vegetable worklists across A/B and reversed ownership with 12 closed intervals at <code>16,489&ndash;17,738</code> active cycles against the <code>27,000</code>-cycle maximum; the narrowest margin was <code>9,262</code> cycles; the 4,484-byte payload, 19-byte helper, page <code>$3A</code>, PAR5 restoration, exact touched-pixel oracle, mutation rejection, build, GMC, compatibility, and link checks passed. Combined FEAT-002 plus PERF-004 <code>scripts/build.sh build</code> failed before loader generation: usable CPU-readable source capacity was <code>41,438</code> bytes, combined payload/proof/helper demand was <code>43,886</code> bytes, and the deficit was <code>2,448</code> bytes; resident RAM was <code>8,192/8,192</code>. Main-tree wiki lint also reported two pre-existing missing <code>feat-001-presentation-maze-screens.html</code> links outside PERF-004. The approved capacity redesign supersedes that footprint; PERF-004 is currently <code>Approved</code> with the new Ready contract prepared and implementation pending a clean combined FEAT-002 base.</p>
+      <p>Historical current-main integration exists in commits <code>cf838b5</code> and <code>f1e6463</code>. The superseded PERF-004 footprint passed isolated evidence: the dedicated capture covered zero, four, and vegetable worklists across A/B and reversed ownership with 12 closed intervals at <code>16,489&ndash;17,738</code> active cycles against the <code>27,000</code>-cycle maximum; the narrowest margin was <code>9,262</code> cycles; the 4,484-byte payload, 19-byte helper, page <code>$3A</code>, PAR5 restoration, exact touched-pixel oracle, mutation rejection, build, GMC, compatibility, and link checks passed. Combined FEAT-002 plus PERF-004 <code>scripts/build.sh build</code> previously failed before loader generation: usable CPU-readable source capacity was <code>41,438</code> bytes, combined payload/proof/helper demand was <code>43,886</code> bytes, and the deficit was <code>2,448</code> bytes; resident RAM was <code>8,192/8,192</code>. Main-tree wiki lint also reported two pre-existing missing <code>feat-001-presentation-maze-screens.html</code> links outside PERF-004. The approved capacity redesign supersedes that footprint. Clean combined FEAT-002 base <code>962ad1e</code> now passes <code>scripts/build.sh build</code>, <code>scripts/build.sh verify-gmc</code>, Python compilation, and <code>git diff --check</code>; PERF-004 is Ready for its bounded implementation.</p>
     </section>
 
     <section>
@@ -120,6 +120,7 @@
         <li>2026-08-08 &mdash; An earlier assignment preparation recorded a Ready transition for the superseded page-<code>$3A</code> design. That transition is historical and does not authorize the current capacity-resolution implementation.</li>
         <li>2026-08-08 &mdash; The approved capacity-resolution redesign requires a clean combined FEAT-002 base before the new Ready transition; the historical PERF-004 worktree is excluded.</li>
         <li>2026-08-08 &mdash; The superseded design selected generated bank-0-overflow source, boot copy to physical page candidate <code>$3A</code>, and a bounded low-RAM helper candidate <code>$06B2-$07FF</code>. The current contract replaces page <code>$3A</code> with candidate page <code>$20</code> and adds the cold-payload reduction gate.</li>
+        <li>2026-08-08 &mdash; Created clean combined FEAT-002 base commit <code>962ad1e</code>. Build, GMC, Python compilation, and diff checks pass. PERF-004 advanced from <code>Approved</code> to <code>Ready</code> with the boot-synthesis/page-<code>$20</code>/cold-reduction assignment contract active.</li>
       </ul>
     </section>
 
