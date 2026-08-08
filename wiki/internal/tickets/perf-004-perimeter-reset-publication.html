@@ -17,14 +17,14 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal &middot; performance ticket</p>
-      <h1>PERF-004 Perimeter Reset Publication <span class="wiki-badge">Ready</span></h1>
+      <h1>PERF-004 Perimeter Reset Publication <span class="wiki-badge">Verification</span></h1>
       <p class="wiki-meta">Replace the 92-box natural death-reset perimeter publication with a bounded exact projection.</p>
     </header>
 
     <section>
       <h2>Identity and ordering</h2>
       <ul>
-        <li><strong>Status:</strong> Ready</li>
+        <li><strong>Status:</strong> Verification</li>
         <li><strong>Created / updated:</strong> 2026-08-08 / 2026-08-08</li>
         <li><strong>Priority / order:</strong> P1 / 7.5</li>
         <li><strong>Owner:</strong> one implementation owner after Ready; parent agent owns integration and closure</li>
@@ -93,12 +93,13 @@
 
     <section>
       <h2>Verification and completion</h2>
-      <p>No current-main implementation or completion evidence exists. The separate historical PERF-004 worktree is not accepted as integrated evidence. After the Ready assignment, retain the selected physical-page and low-RAM allocation proofs, current-revision commands and exit results, complete scenario distributions, exact pixel oracle and mutation result, capacity before and after, rejected experiments, commit, residual risks, and the justified lifecycle verdict.</p>
+      <p>Current-main integration exists in commits <code>cf838b5</code> and <code>f1e6463</code>. PERF-004 isolated evidence passes: the dedicated capture covers zero, four, and vegetable worklists across A/B and reversed ownership with 12 closed intervals at <code>16,489&ndash;17,738</code> active cycles against the <code>27,000</code>-cycle maximum; the narrowest margin is <code>9,262</code> cycles; the 4,484-byte payload, 19-byte helper, page <code>$3A</code>, PAR5 restoration, exact touched-pixel oracle, mutation rejection, build, GMC, compatibility, and link checks pass. Combined FEAT-002 plus PERF-004 <code>scripts/build.sh build</code> currently fails before loader generation: usable CPU-readable source capacity is <code>41,438</code> bytes, combined payload/proof/helper demand is <code>43,886</code> bytes, and the deficit is <code>2,448</code> bytes; resident RAM is <code>8,192/8,192</code>. Therefore PERF-004 is in Verification for capacity remediation and is not accepted or eligible for Done.</p>
     </section>
 
     <section>
       <h2>Decision log</h2>
       <ul>
+        <li>2026-08-08 &mdash; Integrated PERF-004 commits <code>cf838b5</code> and <code>f1e6463</code> into main and restored the uncommitted FEAT-002 worktree changes without committing them. Isolated PERF-004 evidence passed, but the combined FEAT-002 plus PERF-004 build failed the source-capacity gate by <code>2,448</code> bytes and reached <code>8,192/8,192</code> resident bytes. Advanced the canonical ticket to <code>Verification</code> with acceptance withheld pending an approved capacity resolution.</li>
         <li>2026-08-08 &mdash; Proposed from PERF-002's failed natural replay. No implementation was authorized while Proposed.</li>
         <li>2026-08-08 &mdash; User approved the proposed outcome, target, scope, risks, and acceptance criteria. PERF-004 advanced to <code>Approved</code>.</li>
         <li>2026-08-08 &mdash; Prepared the Ready assignment contract with exact branch/worktree, owned artifacts, design boundaries, dependencies, commands, scenarios, evidence, commit authority, and parent integration checks. The historical PERF-004 worktree is not current-main acceptance evidence.</li>
