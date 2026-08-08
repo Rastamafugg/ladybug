@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PERF-004 Perimeter Reset Publication &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal &middot; performance ticket</p>
+      <h1>PERF-004 Perimeter Reset Publication <span class="wiki-badge">Proposed</span></h1>
+      <p class="wiki-meta">Replace the 92-box natural death-reset perimeter publication with a bounded exact projection.</p>
+    </header>
+
+    <section>
+      <h2>Identity and ordering</h2>
+      <ul>
+        <li><strong>Status:</strong> Proposed</li>
+        <li><strong>Created / updated:</strong> 2026-08-08 / 2026-08-08</li>
+        <li><strong>Priority / order:</strong> P1 / 7.5</li>
+        <li><strong>Owner:</strong> unassigned pending approval; parent agent owns integration and closure</li>
+        <li><strong>Dependencies:</strong> PERF-002 natural-replay evidence; PERF-004 must be approved, implemented, integrated, and reprofiled before PERF-003 can become Ready.</li>
+        <li><strong>Roadmap or source:</strong> PERF-002 required natural-sequence acceptance failure.</li>
+        <li><strong>Approval required:</strong> explicit user approval of this outcome, target, risks, and acceptance criteria.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Natural death-to-reset currently redraws 92 perimeter boxes before publishing the nest reset. Retained PERF-002 closed-interval evidence reports <code>241720–242969</code> active cycles for that combined worklist, far above the <code>27000</code>-cycle target. Symbol coverage identifies exactly 92 calls to <code>draw_perimeter_box</code>; this is worklist attribution, not a framebuffer-owner effect.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>At PERF-002 branch commit <code>3209025</code>, represented by <code>build/perf002-death-reset.json</code>, twelve measured closed intervals cover zero enemies, four enemies, and vegetable state across framebuffer targets A and B. The minimum is <code>241720</code>, the maximum is <code>242969</code>, and every observation fails by at least <code>214720</code> cycles. Isolated structural-cache publication is <code>9801–11112</code> cycles, so PERF-003 common-actor work cannot plausibly remove the perimeter-dominated excess.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> native generated perimeter-reset payload, its bounded low-RAM publication helper, source loading/mapping, A/B ownership/replay, and verification.</p>
+      <p><strong>Out:</strong> changes to death cadence, gameplay rules, nest reset cache semantics, generic structural compositor behavior, gameplay-time ROM switching, and PERF-003 work.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li>Force isolated perimeter publication and natural death-to-reset for zero, four, and vegetable structural states.</li>
+        <li>Start with both framebuffer targets and reverse the starting order.</li>
+        <li>Prove 92-box-equivalent exact pixels, old-footprint and ownership behavior, PAR5 restoration, death cadence, and compatibility with the retained generic path.</li>
+        <li>Missing forced cases fail verification.</li>
+      </ul>
+
+      <h3>Recommendation and alternatives</h3>
+      <p>Generate an exact native reset payload at build time, place its source in the bank-0 overflow pool, copy it at boot to unused physical page candidate <code>$3A</code>, and invoke a small low-RAM helper at candidate <code>$06B2-$07FF</code>. Map PAR5 only for the bounded copy and restore it before return. Do not use <code>$28-$2B</code>, which are reserved for the compatibility compositor. Reject the current generic 92-box path and a likely-too-slow per-box direct-copy loop if measured evidence confirms they miss target. No gameplay-time ROM switching is permitted.</p>
+
+      <h3>Constraints and risks</h3>
+      <ul>
+        <li>The helper has at most 334 candidate bytes after the bank-0 proof destination.</li>
+        <li>Physical page <code>$3A</code> must be proven unused.</li>
+        <li>Interrupt-visible state must remain outside the temporary PAR5 mapping.</li>
+        <li>Every exit must restore PAR5 to page <code>$34</code>.</li>
+        <li>Cartridge source headroom does not relax low-RAM, physical-page, code-window, direct-page, stack, ABI, or compatibility limits.</li>
+      </ul>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>Each complete natural combined perimeter-plus-cache-publish worklist is at most <code>27000</code> active cycles, with target margin defined as <code>27000</code> minus measured cycles.</li>
+        <li>Every timed interval is closed from <code>frame_render_impl</code> to the next such boundary; tails are diagnostic only.</li>
+        <li>Exact pixels, 92-box semantic coverage, A/B and reversed replay, PAR5 restoration, cadence, diagnostics, total cartridge capacity, destination capacity, clean build, and compatibility verifiers pass.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Assignment contract after approval</h2>
+      <ul>
+        <li><strong>Owned artifacts:</strong> perimeter reset code in <code>src/main.s</code>/<code>src/enemy_runtime.s</code>, generated payload/build layout as required, low-RAM map, capture/verifier, this ticket, memory map, lessons, ticket index, and log.</li>
+        <li><strong>Constraints:</strong> source may use bank-0 overflow only under TOOL-001 allocation and loader rules; source capacity never substitutes for destination RAM, PAR, ABI, stack, direct-page, or behavior capacity. Reserve and prove the chosen page/helper before writing it.</li>
+        <li><strong>Commands:</strong> clean detached <code>scripts/build.sh build</code>, the dedicated capture/verifier, <code>python scripts/verify_nest_animation.py</code>, <code>python scripts/verify_enemy_runtime.py</code>, <code>python scripts/verify_performance_baseline.py</code>, the GMC/capacity verifier, and wiki link checks using fail-fast execution.</li>
+        <li><strong>Evidence:</strong> retain current-source hashes, closed boundaries, symbol counts, target and margins, raw trace references, exact pixel proof, capacity and mapping state, rejected alternatives, one commit, and a report against every criterion. Parent owns integration and merge.</li>
+        <li><strong>Commit authority:</strong> one bounded implementation commit plus ticket/wiki evidence after approval and Ready transition. Do not merge, change approved scope or targets, or move beyond Verification.</li>
+        <li><strong>Completion report:</strong> commit, selected/rejected representation, commands and exit results, every worklist versus <code>27000</code>, independent pixel proof, forced and natural coverage, total source and destination capacity before/after, retained artifacts, residual risks, and recommended lifecycle state.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Verification and completion</h2>
+      <p>No implementation or completion evidence exists while this ticket is Proposed. After approval, retain the selected physical-page and low-RAM allocation proofs, current-revision commands and exit results, complete scenario distributions, exact pixel oracle and mutation result, capacity before and after, rejected experiments, commit and PR, residual risks, and the justified lifecycle verdict.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-08 &mdash; Proposed from PERF-002's failed natural replay. No implementation is authorized.</li>
+        <li>2026-08-08 &mdash; Recommended generated bank-0-overflow source, boot copy to physical page candidate <code>$3A</code>, and a bounded low-RAM helper candidate <code>$06B2-$07FF</code>; these remain design candidates pending approval and capacity proof.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Canonical performance follow-up for the PERF-002 natural replay failure. Approval and Ready assignment are required before implementation.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
