@@ -17,18 +17,18 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal &middot; documentation ticket</p>
-      <h1>DOC-002 Assembly Source Traceability <span class="wiki-badge">Proposed</span></h1>
+      <h1>DOC-002 Assembly Source Traceability <span class="wiki-badge">Approved</span></h1>
       <p class="wiki-meta">Connect game behavior and memory ownership to modules, routines, data records, and individual assembled source lines.</p>
     </header>
 
     <section>
       <h2>Identity and ordering</h2>
       <ul>
-        <li><strong>Status:</strong> Proposed</li>
+        <li><strong>Status:</strong> Approved</li>
         <li><strong>Created / updated:</strong> 2026-08-08 / 2026-08-08</li>
         <li><strong>Priority / order:</strong> P1 / 16</li>
         <li><strong>Roadmap or source:</strong> project documentation and reusable assembly-project-template goal; supports every implementation phase.</li>
-        <li><strong>Owner:</strong> unassigned</li>
+        <li><strong>Owner:</strong> unassigned; assignment preparation remains pending dependency stabilization.</li>
         <li><strong>Dependencies:</strong> the documentation framework may begin after approval; final FEAT-002 routine, call-graph, memory, and generated-listing coverage depends on the revised FEAT-002 architecture and implementation stabilizing.</li>
         <li><strong>Source revision:</strong> uncommitted working tree based on Git <code>3c9d780f7d4d3ff95a532000527cfe11209feec8</code>, inspected 2026-08-08.</li>
       </ul>
@@ -152,7 +152,8 @@
 
     <section>
       <h2>Verification and completion</h2>
-      <p>No implementation or acceptance evidence exists. The ticket remains <code>Proposed</code>.</p>
+      <p><strong>2026-08-08 QA verdict:</strong> approval-transition verification passed. The canonical ticket, ticket index, and append-only log agree on <code>Approved</code>; the approved architecture, coverage criteria, and acceptance gates are unchanged; and the DOC-002 diff contains no runtime, assembly, build-script, or generated-output changes. The edited-file <code>git diff --check</code> passed and the new DOC-002 links resolve. A repository-wide check remains non-clean because pre-existing generated-listing whitespace and an existing <code>feat-001</code> ticket link are outside this change. No build or emulator run was required because no executable or build artifact changed. No commit exists for this user-authorized working-tree update.</p>
+      <p>DOC-002 is not implementation-accepted and remains <code>Approved</code>. Residual risk is the unresolved FEAT-002 source stabilization dependency and incomplete assignment details. Rejected experiments and capacity/headroom changes: none for this transition.</p>
     </section>
 
     <section>
@@ -160,6 +161,7 @@
       <ul>
         <li>2026-08-08 &mdash; Proposed from the requirement for terminology, program logic, memory structures, module boundaries, and individual assembly lines to be documented as a reusable assembly-project template.</li>
         <li>2026-08-08 &mdash; Selected the hybrid design for approval: semantic documentation remains hand-authored; address, byte, symbol, and source-line relationships are generated from current lwasm artifacts under <code>build/source-reference/</code>.</li>
+        <li>2026-08-08 &mdash; User approved the proposed documentation architecture, coverage definition, artifacts, reusable-template fixture, and acceptance gates. Status advanced from <code>Proposed</code> to <code>Approved</code>; implementation remains blocked from <code>Ready</code> pending FEAT-002 source stabilization and assignment completion.</li>
       </ul>
     </section>
 
