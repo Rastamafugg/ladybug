@@ -9,6 +9,7 @@ from pathlib import Path
 from capture_death_reset import material_digest, material_hashes
 from read_snapshot import find_ram
 from verify_performance_baseline import symbols, trace_sections
+from build_screen import compile_screen
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +42,33 @@ def main() -> None:
     payload = (BUILD / "ladybug-perimeter-reset.bin").read_bytes()
     reset_stores = stores(payload)
     sym = symbols(BUILD / "ladybug-enemy-runtime.map")
+    screen_map, tiles, *_ = compile_screen(ROOT / "tiled/coco-screen.tmx", ROOT / "assets/arcade/maze.json", ROOT / "assets/arcade/chars.json", ROOT / "assets/arcade/sprites.json")
+    green: dict[int, int] = {}
+    expected: dict[int, int] = {}
+    # Independent authored-screen oracle: reproduce the documented 92 logical
+    # tile locations and their final White pixels, not the generated program.
+    for box in range(92):
+        if box < 12: x, y = box + 12, 0
+        elif box < 35: x, y = 23, box - 11
+        elif box < 58: x, y = 22 - (box - 35), 23
+        elif box < 80: x, y = 0, 22 - (box - 58)
+        else: x, y = box - 80, 0
+        tile = tiles[screen_map[y * 40 + x + 8]]
+        for row in range(8):
+            for column, value in enumerate(tile[row * 4:(row + 1) * 4]):
+                address = 0x2000 + (y * 5 + row) * 160 + (x + 8) * 4 + column
+                green_high = 5 if value >> 4 == 6 else value >> 4
+                green_low = 5 if value & 15 == 6 else value & 15
+                white_high = 6 if value >> 4 == 6 else value >> 4
+                white_low = 6 if value & 15 == 6 else value & 15
+                green[address] = (green_high << 4) | green_low
+                expected[address] = (white_high << 4) | white_low
+    expected_payload = {
+        address: value for address, value in expected.items()
+        if green[address] != value
+    }
+    if reset_stores != expected_payload:
+        raise SystemExit("perimeter proof: native payload does not match authored White reset oracle")
     evidence: dict[str, object] = {
         "schema": 1,
         "measurement_contract": "closed frame_render_impl-to-next-frame_render_impl intervals containing the $06B2 helper only",
@@ -62,19 +90,24 @@ def main() -> None:
             after = find_ram((BUILD / f"perf004-{scenario}-{owner}-published.sna").read_bytes())
             target = int(metadata["before"]["completed_target_physical"])
             actual = {address: after[target + address - 0x2000] for address in reset_stores}
-            if actual != reset_stores:
+            if actual != expected_payload:
                 raise SystemExit(f"perimeter proof: final pixels differ {scenario}/{owner}")
-            mutated = dict(reset_stores)
+            # Untouched authored bytes remain outside this worklist so old-footprint
+            # restoration and transient actor ownership are not overwritten.
+            mutated = dict(expected_payload)
             first = next(iter(mutated))
             mutated[first] ^= 1
-            if mutated == actual:
+            if mutated == actual or first not in reset_stores:
                 raise SystemExit("perimeter proof: mutation was accepted")
+            helper = [0x34, 0x01, 0x1A, 0x50, 0x86, 0x3A, 0xB7, 0xFF, 0xA5, 0xBD, 0xA0, 0x00, 0x86, 0x34, 0xB7, 0xFF, 0xA5, 0x35, 0x81]
+            if (BUILD / "ladybug-perimeter-reset-helper.bin").read_bytes() != bytes(helper) or not any("0ba2" in row["pcs"] for row in selected):
+                raise SystemExit("perimeter proof: PAR5 restore/return proof missing")
             evidence["correctness"].append({
                 "worklist": scenario,
                 "framebuffer_target": owner.upper(),
                 "native_payload_pixels_exact": True,
                 "mutation_rejected": True,
-                "par5_restored_to_34": True,
+                "par5_restore_proof": "built helper maps $3A, calls $A000, stores $34 to PAR5, then returns to perimeter_reset_published",
             })
             for row in selected:
                 active = int(row["active_cycles"])
