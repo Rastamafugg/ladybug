@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-002 Attract Mode and Presentation Flow &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal &middot; feature ticket</p>
+      <h1>FEAT-002 Attract Mode and Presentation Flow <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Integrate the authored title, instructions, level-start, and high-score screens with an unattended arcade-style flow.</p>
+    </header>
+
+    <section>
+      <h2>Disposition</h2>
+      <ul>
+        <li><strong>Status:</strong> Proposed</li>
+        <li><strong>Created / updated:</strong> 2026-08-07 / 2026-08-08</li>
+        <li><strong>Priority / order:</strong> P1 / 12</li>
+        <li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 9 &mdash; polish, attract mode, high score, level progression</a></li>
+        <li><strong>Owner:</strong> unassigned</li>
+        <li><strong>Dependencies:</strong> renewed architecture approval; current presentation assets and gameplay services; PERF-002/PERF-003 capacity and timing interactions must be refreshed before assignment. <a href="./bug-007-presentation-startup-stall.html">BUG-007</a> is superseded by this revision because startup, reset, input, and visible-flow correction share the same presentation boundary.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Revised architecture approval brief &mdash; 2026-08-08</h2>
+      <h3>Recommendation and intended outcome</h3>
+      <p>Replace the separate presentation-game implementation with a thin, data-driven presentation director. The director selects states, handles deadlines and credit/start edges, streams static screen records into the hidden framebuffer, and supplies deterministic demo input. Existing gameplay services remain authoritative for actor animation, player movement, gates, enemies, collision, death, and rendering. Approval authorizes this architecture and its measurable targets; it does not authorize implementation until the assignment contract is refreshed and the ticket returns to <code>Ready</code>.</p>
+
+      <h3>Terms, evidence revision, and measurement rules</h3>
+      <ul>
+        <li><strong>Cartridge source byte:</strong> one byte stored in the 65,536-byte GMC image, whether executable code or immutable data.</li>
+        <li><strong>Cold payload:</strong> cartridge-stored presentation data copied at boot to physical RAM pages <code>$3A-$3D</code>.</li>
+        <li><strong>Direct streaming:</strong> decode the selected screen record directly into the hidden BACK framebuffer over bounded Vbord work units; do not first inflate all six tile-index maps into RAM.</li>
+        <li><strong>Presentation director:</strong> the low-RAM flow owner that chooses state and invokes services but does not implement a second actor, movement, collision, maze, or death engine.</li>
+        <li><strong>Exact gameplay-tile reuse:</strong> a presentation tile whose complete 32-byte packed native representation equals a tile already stored in <code>screen_tiles</code>. Palette-remappable similarity is reported separately and is not counted as exact reuse.</li>
+        <li><strong>Complete presentation worklist:</strong> all decode, tile drawing, ownership bookkeeping, dynamic overlay, and publication work performed between two Vbord boundaries. The strict maximum is 29,666 active CPU cycles; the engineering target is 27,000 cycles.</li>
+        <li><strong>Headroom:</strong> capacity limit minus measured use. Cartridge headroom after sound subtracts the proposed 1,536-byte sound allocation from measured CPU-readable GMC source spare.</li>
+        <li><strong>Evidence revision:</strong> uncommitted working tree based on Git <code>3c9d780f7d4d3ff95a532000527cfe11209feec8</code>, measured 2026-08-08. Inputs are <code>build/ladybug-presentation.json</code> SHA-256 <code>798733b9342de3264a0a308c282f6a8e70b86727301c90404840bf02e1ab3e0c</code>, cold payload SHA-256 <code>e5112c81307c4d69f6e5839212799efd3cf31efde2dbb6fb245a2364346ee6c7</code>, and <code>build/ladybug_screen.inc</code> SHA-256 <code>4ce90afdbab8e2d02e0af15a10358ad56687441226626f64c41ece866eb0d390</code>. Byte counts are exact measurements of these artifacts; proposed post-change capacities are projections until rebuilt.</li>
+        <li><strong>Measurement method:</strong> a read-only Python probe decoded all count/value map streams from the cold payload, parsed the 97 packed gameplay tiles from <code>screen_tiles</code>, compared complete 32-byte tile values, constructed a per-cell modal base, and counted candidate encodings exactly. The one-off probe was rerun during review; implementation must convert these calculations into a retained generator/verifier before they can become acceptance evidence.</li>
+      </ul>
+
+      <h3>Observed baseline and reason for revision</h3>
+      <ul>
+        <li>The current build uses resident code <code>8192/8192</code>, bank-3 runtime <code>4096/4096</code>, presentation module <code>1278/1280</code>, resident assets <code>7144/7680</code>, cold presentation payload <code>11398</code>, and 2,055 CPU-readable GMC source bytes spare. Reserving 1,536 sound bytes leaves 519 bytes against the required 512-byte final reserve.</li>
+        <li>The first call to <code>presentation_flow_tick</code> synchronously executes <code>inflate_maps</code> for all six maps. Runtime snapshots observed the CPU inside <code>inflate_emit</code> after approximately four seconds and returning to the main loop only after a second approximately four-second interval.</li>
+        <li>The delivered runtime does not satisfy visible acceptance: the user observed a mostly black attract sequence, odd non-animated sprites, and no successful <code>5</code>-then-<code>1</code> start. Source review confirms start handling is not global, the demo route is not a maze route, and presentation-specific actor behavior duplicates responsibilities already owned by gameplay.</li>
+        <li>The four cold presentation pages contain 32,768 physical bytes. The current source occupies offsets 0&ndash;11,397; a 4,986-byte gap precedes the expanded-map output at offset 16,384; six expanded maps occupy 5,760 bytes; and 10,624 trailing bytes remain. Total unoccupied space is therefore 15,610 bytes. RAM destination capacity is available, but it does not relax cartridge-source or fixed executable-module limits.</li>
+      </ul>
+
+      <h3>Measured tile and map-format comparison</h3>
+      <ul>
+        <li>The gameplay atlas contains 97 tiles; the presentation atlas contains 255 tiles or 8,160 bytes. Fifty-three presentation tiles are exact gameplay-tile matches, representing 1,696 duplicated tile bytes and 4,785 of 5,760 presentation cell references.</li>
+        <li>An exact-reuse resolver encoded as a 255-byte compact index plus a 32-byte source bitmap leaves 202 cold-only tiles. With unchanged map streams, the projected cold payload is 9,989 bytes, a 1,409-byte source reduction before decoder-code changes.</li>
+        <li>An additional 56 tiles are geometrically equivalent under one of 15 measured pen mappings. They cover another 548 cell references, but runtime recolouring or boot-time derivation adds code, descriptors, and cycles. This is an optional measured experiment, not part of the default design.</li>
+        <li>The current six independent count/value RLE maps occupy 3,238 bytes. A synthetic per-cell modal base encoded with RLE plus six 960-bit change masks and replacement values occupies 2,418 bytes, saving 820 bytes. It applies 1,364 overlays after drawing the base across one complete six-screen cycle, so it increases tile work by 23.7 percent relative to six direct 960-cell draws.</li>
+        <li>Among authored-screen bases, game-over plus skip/literal deltas is the smallest measured candidate at 2,524 bytes. It saves 714 bytes but couples unrelated screen definitions and still requires extra tile applications. It is rejected as the default.</li>
+        <li>The selected default keeps independent RLE screen streams, composes shared outer-wall definitions at build time, and decodes only the selected stream directly into BACK. Base-plus-delta remains a fallback only if the rebuilt shared-tile design cannot meet the cartridge engineering target.</li>
+      </ul>
+
+      <h3>Module and ownership design</h3>
+      <ol>
+        <li><strong>Build-time composition:</strong> define one canonical outer-maze-wall layer and require every applicable TMX screen to inherit or validate against it. The compiler may emit independent RLE streams after composition; source reuse does not require runtime redraw coupling.</li>
+        <li><strong>Direct screen stream:</strong> a screen descriptor supplies stream pointer, static duration, next state, input policy, and optional overlay script. The decoder retains source page/offset, run count, tile identifier, cell destination, and remaining cells between Vbords. Only the selected map is decoded.</li>
+        <li><strong>Shared tile resolver:</strong> map identifiers resolve through generated exact-reuse metadata to either resident <code>screen_tiles</code> or the compact cold-only atlas. The resolver must restore PAR5 before returning and must preserve framebuffer ownership rules.</li>
+        <li><strong>Shared actors:</strong> title and instruction records set actor destination, frame, colour/action, and duration, then invoke existing player/enemy sparse drawing and save-under services. Presentation code may sequence actors but may not own an independent movement, animation-frame, collision, or underlay implementation.</li>
+        <li><strong>Demo input provider:</strong> initialize the normal part-one gameplay path with a demo flag and deterministic seed. A compact sequence of <code>{direction, duration}</code> records writes the ordinary player input state; normal movement, enemy AI, gates, collision, death, and framebuffer rendering execute unchanged. Enemy navigation adapted for player control is rejected unless an assembled prototype is both smaller and no slower than the route driver.</li>
+        <li><strong>Sound boundary:</strong> gameplay emits the same future sound events in live and demo modes. The sound dispatcher suppresses consumption while the demo flag is set; no silent fork of gameplay is permitted.</li>
+        <li><strong>Input policy:</strong> one edge scanner runs before state dispatch. Credit edges are accepted in every specified attract/demo presentation state. A valid start edge with available credit pre-empts the current presentation before its next animation or movement update, consumes exactly one credit, and enters level-start.</li>
+        <li><strong>Reset contract:</strong> boot and warm reset initialize presentation state from a reset-owned generation value or explicit boot flag. A retained magic byte alone cannot authorize restoration of an old mode.</li>
+      </ol>
+
+      <h3>Scope and exclusions</h3>
+      <p><strong>In scope:</strong> direct selected-screen streaming; exact gameplay-tile reuse; canonical outer-wall composition; thin presentation-state ownership; shared actor services; deterministic route-driven normal gameplay demo; global credit/start pre-emption; cold/warm attract initialization; title, instruction, level-start, demo, credit, and game-over behavior already assigned to FEAT-002; and current-revision capacity, timing, visual, and natural/forced verification.</p>
+      <p><strong>Out of scope:</strong> FEAT-003 visible high-score records and name traversal; sound synthesis or sound assets; two-player gameplay; battery-backed scores; changes to normal maze, collision, scoring, or enemy rules; frame-time cartridge banking; deferred web/monitor work; and manual prose duplication of generated line listings.</p>
+
+      <h3>Targets and pass/fail measurements</h3>
+      <ul>
+        <li>Cold and warm launch publish a complete attract title within 60 Vbords of the first presentation hook. Warm RAM containing the old magic value must still enter the title state.</li>
+        <li>Every complete presentation worklist is at most 29,666 active cycles; the engineering target is at most 27,000. Missing or timed-out screen phases fail rather than count as passing evidence.</li>
+        <li>Static frame hashes for all six authored maps remain exact. Shared-wall composition must fail generation when an applicable source screen diverges from the canonical wall layer without an explicit documented exception.</li>
+        <li>The presentation module remains within <code>$1900-$1DFF</code>. The engineering target is at least 32 module bytes free after all FEAT-002 behavior; zero to 31 bytes is a reported target miss requiring renewed capacity review even if the hard limit passes.</li>
+        <li>After reserving 1,536 cartridge bytes for sound, at least 512 CPU-readable GMC source bytes remain as a hard gate; the engineering target is at least 1,024 bytes. Every resident, asset, bank-3, direct-page, stack, physical-page, and PAR-scope guard remains independent and passing.</li>
+        <li>A complete natural attract loop visibly executes title, instructions, part-one level-start, normal-engine demo, normal death presentation, and return to title. Forced evidence separately covers every instruction outcome, both demo death causes, credit arrival in every state, start with and without credit, held/alternating/simultaneous keys, subsequent live part transition, and final live death.</li>
+        <li>The demo route uses normal player and enemy update services. Verification must fail if movement, collision, death, or rendering is replaced by presentation-only substitutes.</li>
+      </ul>
+
+      <h3>Options, risks, and decision required</h3>
+      <p><strong>Recommended:</strong> independent RLE streams, direct selected-screen decoding, exact resident-tile reuse, build-time shared-wall composition, and route-driven normal gameplay. This has the lowest architectural coupling and uses the measured 1,409-byte tile-duplication opportunity without accepting the additional draw work of runtime base overlays.</p>
+      <p><strong>Conditional fallback:</strong> add modal-base bitmap/value overlays only if the implemented default misses the 1,024-byte post-sound engineering target and a complete-cycle profile proves every presentation worklist remains at most 27,000 cycles. Palette-remappable boot-time tile derivation is a later fallback under the same renewed measurement gate.</p>
+      <p><strong>Rejected:</strong> synchronous six-map inflation; presentation-owned actor or movement logic; enemy-AI control of the player without a smaller/faster measured prototype; authored-screen coupling to game-over as a runtime base; full pre-rendered framebuffers in cartridge storage; and any result that treats available physical RAM as cartridge-source headroom.</p>
+      <p><strong>Approval requested:</strong> approve the recommended architecture, the hard and engineering targets above, supersession of BUG-007 into FEAT-002, and return of FEAT-002 to <code>Approved</code>. Assignment details and exact verification commands will then be refreshed before the ticket may become <code>Ready</code>.</p>
+    </section>
+
+    <section>
+      <h2>Original approval brief &mdash; historical</h2>
+      <h3>Objective and motivation</h3>
+      <p>Implement the runtime presentation flow requested for the CoCo port. The game currently boots directly into the gameplay renderer, despite the authored 40&times;24 presentation maps and the Phase 9 roadmap contract. The completed feature must provide an unattended attract loop, credit handling, and level-one start selection while preserving the existing gameplay compositor and native-hardware constraints.</p>
+
+      <h3>Evidence and baseline</h3>
+      <ul>
+        <li>Current revision: repository state inspected 2026-08-07.</li>
+        <li><code>tiled/coco-attract-screen.tmx</code>, <code>coco-instructions-screen.tmx</code>, <code>coco-level-start-screen.tmx</code>, and <code>coco-high-score-screen.tmx</code> are 40&times;24 maps with 960 cells each. The high-score map contains the updated authored coin locations.</li>
+        <li><code>scripts/build_screen.py</code> currently compiles only <code>tiled/coco-screen.tmx</code> for the gameplay map and emits popup/multiplier presentation sprites, not full cold presentation maps or animation scripts.</li>
+        <li><code>src/main.s</code> has no flow state, credit counter, keyboard scanner, or presentation-screen sequencing. <code>src/tester/input.s</code> demonstrates an 8-column PIA1 edge scanner, but it is not part of the game runtime.</li>
+        <li>Roadmap Phase 9 already specifies cold maps in GMC expansion storage, a Vbord-driven flow state, scripted animation records, input pre-emption, and a deterministic demo. Those requirements are the design baseline for this ticket.</li>
+      </ul>
+
+      <h3>Scope</h3>
+      <p><strong>In scope:</strong> compile and package the six named presentation TMX maps (<code>attract</code>, <code>instructions</code>, <code>level-start</code>, <code>high-score</code>, <code>game-over</code>, and <code>enter-high-score</code>); add a single Vbord-clocked presentation flow; animate the title actors using existing Lady Bug and enemy sprite data at arcade-reference locations; animate the instruction demonstrations and recolour the relevant authored HUD characters; show level-one and subsequent part values and vegetable sets; add deterministic demo gameplay ending by enemy contact or skull pickup; scan keyboard edge presses for <code>5</code>, <code>6</code>, and <code>1</code>; maintain session credits; show the base high-score screen and authored coin locations; run live gameplay through each subsequent part; show game over after the final reserve expires; atomically publish cold screens through the hidden framebuffer; and verify build, capacity, input, transitions, and gameplay regression. FEAT-003 owns visible high-score records and name entry.</p>
+      <p><strong>Out of scope:</strong> visible high-score record rendering, seven-character name traversal, score insertion presentation, sound, two-player mode, battery-backed high scores, the deferred web application, XRoar monitor/MCP work, and changes to the arcade-derived maze or enemy rules except where required to terminate the demo safely or support existing part progression.</p>
+
+      <h3>Proposed user-visible behavior</h3>
+      <ol>
+        <li>With no credit or start input, loop <code>coco-attract-screen.tmx</code>, then <code>coco-instructions-screen.tmx</code>, then <code>coco-level-start-screen.tmx</code> for part one, then a short level-one demo. After demo death, return to the attract title and repeat.</li>
+        <li>The title phase displays the TMX artwork plus Lady Bug and enemy animation overlays in the measured arcade locations. The instruction phase demonstrates SPECIAL letters, EXTRA letters, three hearts, skulls, and the final flower/collectible value and multiplier rows. The bonus colour cycle is evenly distributed across red, yellow, and blue; Lady Bug collects each demonstration row; the resulting extra-life, extra-credit, and &times;2/&times;3/&times;5 outcomes are shown.</li>
+        <li>When a demonstration collectible is collected, the matching SPECIAL, EXTRA, or multiplier section characters are lit/recoloured for that item. Static authored rows remain unchanged outside the active demonstration.</li>
+        <li>An edge press of <code>5</code> or <code>6</code> adds exactly one session credit, pre-empts the current attract/demo state, and displays the high-score screen with a coin icon at the next valid authored coin location. Repeated edge presses add further coins without requiring a release of unrelated keys. A held key does not add credits every frame.</li>
+        <li>An edge press of <code>1</code> when a credit is available consumes one credit and displays the level-start screen with part one values and the level-one vegetable set, then enters normal level-one gameplay. A start without credit has no gameplay effect.</li>
+        <li>The demo uses a deterministic replay and normal collision/rendering. It runs until a forced route causes enemy collision or skull pickup, then returns to attract after the death presentation. A credit or start edge aborts the demo before its next movement tick.</li>
+        <li>Live play uses the existing game rules. Every successful part clear displays <code>coco-level-start-screen.tmx</code> before the next part, with the current part number, vegetable, value, skull count, enemy lineup, and <code>GOOD LUCK</code> values updated for that part.</li>
+        <li>When the final replacement Lady Bug dies with no reserve remaining, display <code>coco-game-over-screen.tmx</code> and hand qualifying-score presentation to <a href="./feat-003-high-score-presentation.html">FEAT-003</a>.</li>
+      </ol>
+
+      <h3>Scenarios, edge cases, and failure modes</h3>
+      <ul>
+        <li>Cold boot reaches the title without a partially published frame, then completes the full unattended sequence and returns to the title.</li>
+        <li>Credit arrives during each attract phase, each instruction phase, level-start, and demo gameplay. The current phase is abandoned atomically and the high-score presentation begins.</li>
+        <li>Multiple credits arrive while the high-score presentation is visible. Each valid edge advances the next authored coin location and the credit count remains consistent with the right-panel value.</li>
+        <li><code>5</code> and <code>6</code> are held, released, alternated, or pressed simultaneously. Each physical key edge is counted once; simultaneous keys must not double-count one key edge or corrupt the scanner state.</li>
+        <li><code>1</code> is pressed with zero credits, during high-score display, during level-start, and during gameplay. Only the authorized transition consumes a credit; attract/demo pre-emption remains deterministic.</li>
+        <li>A part clear occurs with every live reserve state and at the first and later part values. The next level-start screen must not briefly show the previous part's vegetable or score fields.</li>
+        <li>The instruction row completion paths are forced independently for SPECIAL, EXTRA, blue-heart multiplier progression, skull interaction, and the final flower/collectible row. Missing a required rare path is a verification failure.</li>
+        <li>Both demo death causes are forced in verification: enemy contact and skull pickup. The demo must not hang if the route reaches a wall, a missing entity, or a depleted life state.</li>
+        <li>Both framebuffer owners are tested at every screen boundary. No write-to-front, missed-commit, stale owner metadata, or gameplay A/B divergence is accepted.</li>
+        <li>All presentation maps remain bounded by the generated asset manifest. Resident, direct-page, stack, bank-3 runtime, and total GMC capacity guards must pass; cold screen payloads must not silently displace the enemy module.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <ol>
+        <li><strong>Recommended:</strong> one resident flow state machine with data-driven screen records and animation scripts, cold map/tile payloads in expansion-bank storage, and one edge-tested keyboard service shared by attract and gameplay. This matches the Phase 9 roadmap, keeps presentation timing on the 60 Hz Vbord clock, and preserves gameplay ownership boundaries.</li>
+        <li><strong>Rejected for this ticket:</strong> hard-wire each screen as a separate assembly routine. It minimizes initial design work but duplicates map data, consumes scarce resident bytes, and makes pre-emption and frame-hash verification inconsistent.</li>
+        <li><strong>Rejected for this ticket:</strong> use the deferred web app or XRoar monitor as the presentation controller. That does not satisfy native-hardware execution and would not prove the delivered ROM behavior.</li>
+      </ol>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>All six TMX maps compile from source, remain 40&times;24, and produce static framebuffer hashes matching an independent TMX renderer for every authored static layer.</li>
+        <li>The unattended sequence executes in the required order and repeats after demo death. Every transition is atomic, Vbord-clocked, and pre-emptible by the specified input edges.</li>
+        <li>Title actor positions and instruction animation ranges are recorded as data and verified against the available arcade-reference captures or explicitly marked as projected where no capture exists.</li>
+        <li>Instruction demonstrations visibly complete SPECIAL, EXTRA, blue-heart &times;2/&times;3/&times;5, skull, and final flower/collectible value/multiplier cases, including the corresponding section-character lighting.</li>
+        <li>Credit/start keyboard behavior passes edge, held-key, alternating-key, simultaneous-key, no-credit, and multi-credit scenarios. Coin icons use only valid locations authored in <code>coco-high-score-screen.tmx</code>.</li>
+        <li>Level-one start shows the authored part-one values and vegetable set, consumes exactly one credit, and enters the existing gameplay path without changing normal collision, enemy, or framebuffer semantics.</li>
+        <li>Live part transitions show the level-start map for every subsequent part and preserve the current part's vegetable/value, skull, enemy, score, life, and flower state when gameplay resumes.</li>
+        <li>Forced demo verification passes both enemy-collision and skull-pickup death paths, and pre-emption interrupts the replay before the next movement update.</li>
+        <li><code>scripts/build.sh build</code>, the generated manifest/capacity guards, arcade-fidelity checks, focused presentation checks, and the gdb-mcp round trip pass on the combined revision. Report resident/assets/bank use, worst presentation/gameplay frame, retained evidence, and residual risks.</li>
+      </ul>
+
+      <h3>Locked defaults</h3>
+      <ul>
+        <li><code>5</code> and <code>6</code> are equivalent single-credit inputs; <code>1</code> is Player 1 start and consumes one credit.</li>
+        <li>The high-score screen remains visible until a start edge or the configured attract timeout; each new credit resets the timeout.</li>
+        <li>The shipped attract loop uses one deterministic route; verification forces both enemy-collision and skull-pickup demo death causes.</li>
+      </ul>
+
+      <h3>Historical decision</h3>
+      <p>User approved Plan A with seven-character names and three-byte scores. Visible high-score records and name entry were later moved to Proposed <a href="./feat-003-high-score-presentation.html">FEAT-003</a>. The prior <code>Done</code> disposition is superseded by the revised approval brief because observed runtime behavior does not satisfy FEAT-002 acceptance.</p>
+    </section>
+
+    <section>
+      <h2>Superseded Plan A architecture &mdash; historical</h2>
+      <ul>
+        <li><strong>Resident hook:</strong> add one seven-byte main-loop hook that calls <code>PRESENTATION_FLOW_TICK</code> at <code>$1900</code>, returns zero for normal gameplay, and returns nonzero when the presentation module owns the current Vbord. This avoids extending the full bank-3 enemy ABI.</li>
+        <li><strong>Copied module:</strong> add <code>src/presentation_runtime.s</code>, assembled for <code>$1900-$1DFF</code> and copied during GMC boot. It owns the flow state machine, PIA1 keyboard edge scan, screen-chunk scheduler, scripted overlays, credit/high-score/name-entry logic, and live/demo transition decisions. The stack begins at <code>$1E00</code>; the integrated build must prove the resulting stack margin.</li>
+        <li><strong>Cold data:</strong> add <code>scripts/build_presentation.py</code> to flatten the six maps into six 960-byte tile-index maps sharing one transformed native tile atlas, then store bounded two-byte RLE streams plus coin-slot metadata in physical pages <code>$3A-$3D</code>. The build must reject a payload above <code>12939</code> bytes or a destination crossing four pages.</li>
+        <li><strong>Framebuffer ownership:</strong> the module renders cold screens and dynamic overlays into the existing hidden BACK owner. It clears <code>FB_RENDER_ACTIVE</code> during multi-Vbord construction, sets <code>FB_RENDER_PENDING</code> only after a complete frame is ready, and restores PAR5 to page <code>$34</code> before returning. Existing IRQ ownership and bank-3 gameplay compositor behavior remain unchanged.</li>
+        <li><strong>Flow states:</strong> boot/title, instructions, demo level-start, demo gameplay, high-score ranking, live level-start, live gameplay, game over, and enter-high-score. Credit edges pre-empt attract/demo/live presentation states. Stage clear is intercepted before the existing <code>next_stage</code> path, then the module invokes that path and presents the next part before returning normal gameplay ownership.</li>
+        <li><strong>Input:</strong> scan PIA1 columns 0&ndash;7 with row bit <code>$10</code> for keys <code>1</code>, <code>5</code>, and <code>6</code>; compare against an eight-byte previous-column image; restore the joystick PIA configuration before <code>read_joystick</code>. <code>5</code>/<code>6</code> add one credit per edge. <code>1</code> consumes one credit only when a start transition is valid.</li>
+        <li><strong>Session data:</strong> reserve game-state RAM from <code>$AF80</code> for flow state, timers, cursor, credits, keyboard image, nine fixed-size score/name records, pending name, and insertion scratch. Each record uses four bytes for a score value plus seven name bytes, or 11 bytes including a spare/terminator if the implementation needs it; the preferred packed layout uses a three-byte unsigned score plus seven name bytes, 10 bytes per record and 90 bytes for the table. Keep the table session-only; starting a new game must not clear it.</li>
+        <li><strong>Dynamic presentation:</strong> FEAT-002 keeps the cold payload unchanged for dynamic actors. The copied module owns six instruction phase destinations covering the two final rows, even red/yellow/blue rotation, framebuffer cell recolouring, pixel-step actor traversal, and restore/save/draw of the prior 16&times;16 footprint through the resident player save-under contract. Title actors resolve the existing loader-mirrored sparse indexes at <code>$0500/$0680</code> and use capture-backed destinations recorded in <code>assets/arcade/attract_actor_reference.json</code>. High-score display records and name-grid data remain FEAT-003 work.</li>
+        <li><strong>Name entry:</strong> joystick movement advances the Lady Bug cursor over the authored character grid. On entering a letter or symbol cell, append it immediately until seven characters are stored. Entering the authored <code>END</code> cell performs one strict descending score insertion, shifts lower entries, drops the ninth record, and returns to attract.</li>
+      </ul>
+
+      <h3>Capacity and risk decision</h3>
+      <p>The approved Plan A reserves the copied module at <code>$1900-$1DFF</code>, keeps the stack floor at <code>$1E00</code>, and limits the cold payload to <code>12939</code> bytes. The integrated build currently uses <code>1278/1280</code> module bytes, <code>11398</code> cold bytes, and <code>2055</code> CPU-readable GMC source bytes spare. After the proposed <code>1536</code>-byte sound allocation, <code>519</code> bytes remain against the required <code>512</code>-byte reserve. A module overflow, cold-payload overflow, destination-page overflow, or measured stack margin below 256 bytes remains a design failure.</p>
+
+      <h3>Approved Plan A capacity revision</h3>
+      <ul>
+        <li><strong>Module reservation:</strong> extend the copied presentation module from <code>$1900-$1BFF</code> to <code>$1900-$1DFF</code> (1280 bytes; the inclusive address range is the authority). Move the stack floor to <code>$1E00</code> and require a measured stack high-water margin of at least 256 bytes in the combined runtime probe.</li>
+        <li><strong>Cold format:</strong> retain the four-page physical destination at <code>$3A-$3D</code>, but encode each six-map tile-index stream with bounded run-length records. The module inflates the maps before the first frame, leaving the shared native atlas available at its generated offset. The current six-map data projects from 5760 raw bytes to approximately 3238 bytes with two-byte run records; this is a projection, not acceptance evidence.</li>
+        <li><strong>Dynamic records:</strong> keep the cold payload unchanged for FEAT-002 dynamic actors. The module contains the six instruction destinations and colour phases, while title actors reuse the loader-mirrored sparse indexes. The generated cold payload must remain at or below <code>12939</code> bytes, the combined module-plus-cold budget remains <code>14219</code> bytes, and the measured GMC source margin must remain at least 512 bytes after the proposed sound allocation.</li>
+        <li><strong>Verification gate:</strong> the compiler must report raw and encoded map sizes, the inflater must have an independent six-map hash proof, <code>scripts/verify_presentation_flow.py</code> must cover dynamic labels, phase rotation, actor traversal, death paths, and sound reserve, and the build must reject module overflow, stack margin below 256 bytes, cold payload above 12939 bytes, combined module-plus-cold usage above 14219 bytes, destination-page overflow, or any coin offset not present in the high-score TMX.</li>
+      </ul>
+
+      <h3>Rejected alternatives</h3>
+      <ul>
+        <li>Resident-only flow code: rejected because the current resident window has only seven bytes of headroom.</li>
+        <li>Additional bank-3 service: rejected because the current enemy module occupies its full 4 KiB reservation.</li>
+        <li>Frame-time GMC bank switching: rejected because it conflicts with the no-frame-time-cartridge-banking rule and complicates IRQ/PAR ownership.</li>
+        <li>Six pre-expanded 30,720-byte framebuffers: rejected because they exceed the GMC source budget; shared tile atlas plus tile-index maps remain within the intended cold-data budget.</li>
+      </ul>
+
+      <h3>Assignment contract</h3>
+      <ul>
+        <li><strong>Owned artifacts:</strong> <code>src/presentation_runtime.s</code>, <code>src/main.s</code>, <code>src/gmc_bootstrap.s</code>, <code>scripts/build_presentation.py</code>, <code>scripts/build_sparse_sprites.py</code>, <code>scripts/build.sh</code>, focused presentation verifiers, generated build outputs, and the linked wiki pages.</li>
+        <li><strong>Order:</strong> RLE compiler/data format and capacity proof; loader/module assembly and low-RAM copy; resident hook and state transitions; dynamic overlays and seven-character high-score insertion; live/demo integration; then combined verification.</li>
+        <li><strong>Required commands:</strong> <code>scripts/build.sh build</code>, <code>scripts/build.sh verify-gmc</code>, the new presentation static/hash and flow verifiers, arcade-fidelity regression, Python compilation, and the documented gdb-mcp round trip.</li>
+        <li><strong>Evidence:</strong> generated raw/encoded six-map hashes, manifest payload/module/stack margins, nine 10-byte high-score records including <code>9,999,999</code>, seven-character name traversal, forced key-edge cases, complete attract loop, both demo death causes, level progression, game-over qualification branches, name insertion cases, and both framebuffer-owner start orders.</li>
+        <li><strong>Commit:</strong> one bounded implementation commit after architecture approval; no push or ticket closure authority is granted.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Superseded assignment handoff &mdash; historical</h2>
+      <p>Plan A was approved and implemented with resident <code>8192/8192</code>, presentation module <code>1278/1280</code>, cold presentation payload <code>11,398</code> bytes, and <code>2,055</code> CPU-readable GMC source bytes spare. That handoff is no longer active. No revised implementation assignment exists while this ticket is <code>Proposed</code>.</p>
+    </section>
+
+    <section>
+      <h2>Prior verification and completion claim &mdash; historical</h2>
+      <p>QA previously accepted the residual FEAT-002 presentation slice from structural and forced evidence. Subsequent natural execution produced a mostly black attract sequence, odd non-animated actors, and no successful credit/start path. The prior acceptance is retained as historical evidence but is not current acceptance.</p>
+      <ul>
+        <li><strong>Measured current revision:</strong> resident <code>8192/8192</code> bytes, asset <code>7144/7680</code> bytes, bank-3 runtime <code>4096/4096</code> bytes, presentation module <code>1278/1280</code> bytes, cold payload <code>11,398</code> bytes, combined module-plus-cold <code>12,676</code> bytes of the <code>14,219</code>-byte Plan A budget, and GMC source spare <code>2,055</code> bytes. After the proposed <code>1,536</code>-byte sound allocation, the measured source margin is <code>519</code> bytes against the required <code>512</code>-byte reserve.</li>
+        <li><strong>Passing commands:</strong> <code>scripts/build.sh build</code>, <code>scripts/build.sh verify-gmc</code>, <code>scripts/verify_presentation_flow.py</code>, independent six-map hash proof, sparse-loader proof, GMC overflow proof, existing sparse presentation proof, Python compilation, and the integrated natural-plus-forced GDB/XRoar probe.</li>
+        <li><strong>Implemented in this slice:</strong> title Lady Bug and enemy overlays reuse the loaded sparse player/enemy indexes; the instruction screen executes six row phases covering SPECIAL, EXTRA, hearts/multiplier, skulls, and both final flower/collectible rows with an even red/yellow/blue cycle, recolours the relevant authored cells, advances the Lady Bug overlay across each phase, and transitions to level start after the bounded 192-frame sequence; demo gameplay drives the existing player/enemy/render path and can force enemy or skull termination through <code>PRES_DEMO_CAUSE</code>.</li>
+        <li><strong>Residual behavior gaps:</strong> no remaining FEAT-002 dynamic presentation gap is known. Instruction actors restore the prior 16&times;16 save-under before each move, and title positions are wired from the retained MAME capture reference. Visible high-score rendering, joystick name traversal, score insertion presentation, and end-to-end XRoar name-entry acceptance remain Proposed <a href="./feat-003-high-score-presentation.html">FEAT-003</a> scope. FEAT-002 does not add a second sprite payload or consume cold-payload bytes for dynamic actors. The rejected renderer/cache experiment exceeded the locked module by <code>203</code> bytes; no capacity guard is failing in the current revision.</li>
+        <li><strong>Probe result:</strong> the delayed all-instruction trace was replaced by separate natural and forced phases. The forced gameplay phase uses a free local GDB port, stops at the assembled presentation entry, patches <code>PRES_MODE=MODE_LEVEL</code>, <code>PRES_CONTEXT=1</code>, and an expired level timer, then self-disables breakpoints after recording all required paths. A second bounded two-cycle phase forces the skull branch, resets to a fresh demo, and forces the enemy branch. It does not modify the production ROM or runtime source.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-07 &mdash; Proposed from the user's request to integrate the four presentation TMX maps, add the arcade-style attract/demo loop, and wire credit/start input. Existing map assets and Phase 9 roadmap requirements were used as the baseline. Awaiting explicit approval.</li>
+        <li>2026-08-07 &mdash; User approved FEAT-002 with the proposed defaults: <code>5</code>/<code>6</code> equivalent credit edges, <code>1</code> consumes one credit, high-score timeout policy, configured three-or-ten-character name limit, and immediate character append on Lady Bug traversal.</li>
+        <li>2026-08-07 &mdash; User approved the copied <code>$1900-$1BFF</code> presentation module, cold data in physical pages <code>$3A-$3D</code>, seven-byte resident hook, and no bank-3 ABI extension. FEAT-002 advanced to <code>Ready</code> with the bounded assignment contract.</li>
+        <li>2026-08-07 &mdash; Runtime diagnosis confirmed four integration defects: raw module data preceded the copied entry point, the initial screen call used an uninitialized map index, a nonzero-only magic check accepted uncleared RAM, and gameplay reset cleared framebuffer ownership without reinitializing it. The fixes retain coin locations as constants, initialize the attract map explicitly, require magic <code>$A5</code>, reinitialize framebuffer ownership, and release one demo enemy. The 30-second XRoar probe now passes owner alternation, damage queue/projection, actor closure, sparse decoders, and the relocated main loop.</li>
+        <li>2026-08-07 &mdash; Architecture reassessment found the approved contract exhausted before dynamic presentation behavior can be added: resident <code>8192/8192</code>, bank-3 runtime <code>4096/4096</code>, module <code>768/768</code>, cold payload <code>13,888</code>, and GMC source spare <code>75</code>. Proposed revision: extend the module to 1024 bytes, relocate the stack floor to <code>$1E00</code> with a 256-byte measured margin, RLE-compress the six map streams during cold-payload generation, and reserve a 512-byte final GMC margin for dynamic records. FEAT-002 returned to <code>Proposed</code> for renewed approval.</li>
+        <li>2026-08-07 &mdash; User approved Plan A with seven-character names and three-byte scores supporting <code>9,999,999</code>. The RLE map format, <code>$1900-$1DFF</code> 1280-byte module reservation, 12,939-byte cold-payload ceiling, combined 14,219-byte module-plus-cold budget, and 512-byte GMC margin are now locked. FEAT-002 advanced to <code>Ready</code> for bounded implementation.</li>
+        <li>2026-08-07 &mdash; User specified seven-character high-score names and scores through <code>9,999,999</code>. The proposed fixed record is 10 bytes: a three-byte unsigned score plus seven padded name bytes; nine records require 90 bytes. This requirement fits the existing <code>$AF80</code> session area and does not by itself change the cold-data budget.</li>
+        <li>2026-08-07 &mdash; Implementation generated six RLE map streams, inflated them into physical pages <code>$3C-$3D</code>, added coin overlay constants, keyboard credit flow, three-byte score qualification, and descending nine-record insertion. Current capacity is module <code>1278/1280</code>, cold payload <code>11398</code>, and GMC source spare <code>2055</code>. Manual GDB forced gameplay reaches the queue, projection, actor-restore, and actor-draw paths; the bounded trace probe does not yet force gameplay after the new attract sequence.</li>
+        <li>2026-08-07 &mdash; Option 2 implemented. <code>scripts/verify_gmc_boot.py</code> now separates a bounded natural boot/attract trace from a forced GDB gameplay phase. The forced phase stops at <code>$1900</code>, patches the live-level state, and records actor restore, damage queue/projection, sparse stage/framebuffer decoders, actor draw, four alternating Vbord commits, and completion. <code>scripts/build.sh verify-gmc</code> passes with the current Plan A measurements: module <code>1254/1280</code>, cold payload <code>11398</code>, and GMC source spare <code>2079</code>. FEAT-002 remains <code>In Progress</code> because dynamic overlays and name entry remain incomplete.</li>
+        <li>2026-08-07 &mdash; Implemented the bounded high-score state slice within the locked module ceiling: seven-byte pending-name accumulation, END-only commit, seven-byte record copy, corrected insertion-index tracking, and unchanged three-byte score storage. The integrated build uses module <code>1280/1280</code>, cold payload <code>11398</code>, and GMC source spare <code>2053</code>; build, presentation proof, Python compilation, and the two-phase GMC probe pass. Visible ranking-field rendering and joystick/Lady Bug grid traversal remain follow-up work, so FEAT-002 remains <code>In Progress</code>.</li>
+        <li>2026-08-07 &mdash; Attempted the approved visible high-score slice with seven name glyphs rendered through <code>draw_tile_id</code>, seven decimal digits rendered through the resident <code>draw_hud_digit</code> helper, and a synchronized 9×7 session display cache shifted with the fixed records. The assembled module ended at <code>$1ECB</code>, <code>203</code> bytes beyond the locked <code>$1E00</code> ceiling. The experiment was reverted; the last passing revision remains module <code>1280/1280</code>, cold payload <code>11398</code>, and GMC source spare <code>2053</code>. FEAT-002 remains <code>In Progress</code> pending a smaller implementation or renewed capacity decision.</li>
+        <li>2026-08-07 &mdash; Moved visible high-score record rendering, joystick name traversal, and end-to-end name-entry acceptance into Proposed <a href="./feat-003-high-score-presentation.html">FEAT-003</a>. FEAT-002 remains In Progress because dynamic actor/instruction overlays and forced demo death scenarios are still open; it cannot move to Done solely by extracting the high-score scope.</li>
+        <li>2026-08-08 &mdash; QA verified the dynamic-flow build, six instruction phases, capacity reserve, natural boot, forced gameplay, and separate skull/enemy demo-death probes. Acceptance remains rejected because the pixel-step instruction actor traversal does not restore its previous two-by-two footprint and the title actor coordinates are still projected rather than capture-backed. FEAT-002 remains In Progress with those residuals explicitly retained.</li>
+        <li>2026-08-08 &mdash; Implemented the residual FEAT-002 fixes. Instruction traversal now reuses the resident <code>save_player</code>/<code>restore_player</code> routines with the existing 128-byte <code>$A300</code> save-under buffer, and title actor destinations are derived from retained MAME contact frame 6 through the established rotation and CoCo-centering transform. The focused proof checks the capture hash, transform, source wiring, and restore/save/draw order. Current measured capacity is module <code>1278/1280</code>, cold payload <code>11398</code>, combined <code>12676/14219</code>, GMC spare <code>2055</code>, and post-sound reserve margin <code>519/512</code>. Full build, focused proof, natural-plus-forced XRoar probe, arcade-fidelity regression, sparse proof, enemy proof, Python compilation, and diff check pass; QA review is now required.</li>
+        <li>2026-08-08 &mdash; QA accepted FEAT-002 and advanced it to <code>Done</code>. Current evidence passes the build, focused presentation proof, natural-plus-forced XRoar/GDB probe, sparse and enemy proofs, arcade-fidelity regression, Python compilation, and diff check. FEAT-003 remains the owner of visible high-score records, seven-character name traversal, and name-entry rendering.</li>
+        <li>2026-08-08 &mdash; Natural user execution invalidated the prior completion claim: the attract sequence is mostly black with odd non-animated actors, and repeated <code>5</code>/<code>1</code> input did not start live play. Measured packing analysis found 53 exact gameplay-tile matches covering 4,785/5,760 presentation cells and projects a 1,409-byte cold-payload reduction from exact tile reuse. Independent RLE remains the default map format; modal-base bitmap/value overlays save 820 map bytes but add 1,364 tile applications per complete six-screen cycle. FEAT-002 returned to <code>Proposed</code> with a shared-engine/direct-streaming approval brief, and BUG-007 was superseded into it.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Canonical feature contract. Update this page, the ticket index, and the internal log at every lifecycle transition.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

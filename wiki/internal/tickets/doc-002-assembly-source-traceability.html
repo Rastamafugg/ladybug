@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOC-002 Assembly Source Traceability &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal &middot; documentation ticket</p>
+      <h1>DOC-002 Assembly Source Traceability <span class="wiki-badge">Proposed</span></h1>
+      <p class="wiki-meta">Connect game behavior and memory ownership to modules, routines, data records, and individual assembled source lines.</p>
+    </header>
+
+    <section>
+      <h2>Identity and ordering</h2>
+      <ul>
+        <li><strong>Status:</strong> Proposed</li>
+        <li><strong>Created / updated:</strong> 2026-08-08 / 2026-08-08</li>
+        <li><strong>Priority / order:</strong> P1 / 16</li>
+        <li><strong>Roadmap or source:</strong> project documentation and reusable assembly-project-template goal; supports every implementation phase.</li>
+        <li><strong>Owner:</strong> unassigned</li>
+        <li><strong>Dependencies:</strong> the documentation framework may begin after approval; final FEAT-002 routine, call-graph, memory, and generated-listing coverage depends on the revised FEAT-002 architecture and implementation stabilizing.</li>
+        <li><strong>Source revision:</strong> uncommitted working tree based on Git <code>3c9d780f7d4d3ff95a532000527cfe11209feec8</code>, inspected 2026-08-08.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective, recommendation, and intended outcome</h3>
+      <p>Create a two-layer documentation system. Hand-authored wiki pages remain authoritative for terminology, rationale, architecture, contracts, memory ownership, data layouts, and traceability. A generic build tool joins assembly source with the lwasm listing and symbol map to produce a disposable line-level HTML browser under <code>build/source-reference/</code>. This gives a reader a path from game behavior to exact addresses, emitted bytes, instructions, symbols, and source lines without manually duplicating generated addresses in the wiki.</p>
+
+      <h3>Definitions and coverage rules</h3>
+      <ul>
+        <li><strong>Controlled term:</strong> a Ladybug-specific or non-obvious hardware, memory, rendering, timing, packing, workflow, or data-layout term. Standard English does not require glossary duplication.</li>
+        <li><strong>Module:</strong> one independently assembled source unit or generated payload with a defined address range, owner, imports, exports, lifetime, and capacity limit.</li>
+        <li><strong>Routine contract:</strong> purpose, inputs, outputs, clobbered registers, memory reads/writes, side effects, invariants, callers, callees, and timing or size notes where material.</li>
+        <li><strong>Basic block:</strong> one straight-line sequence entered at its first instruction and exited by a branch, call, jump, return, or fall-through boundary.</li>
+        <li><strong>Memory structure:</strong> any fixed address, direct-page field, record, array, table, framebuffer metadata area, payload, stack interval, virtual range, or physical-page allocation.</li>
+        <li><strong>Line-level source browser:</strong> generated HTML showing every assembly source line, its source file and line number, assembled address, emitted bytes, label, enclosing routine/basic block, and links to applicable instruction, routine, symbol, and memory documentation.</li>
+        <li><strong>Documented:</strong> the item has one canonical definition, all other uses link to it, and automated coverage verifies that the definition still resolves. Merely appearing in a generated symbol list is not sufficient.</li>
+      </ul>
+
+      <h3>Evidence and baseline</h3>
+      <ul>
+        <li><a href="../implementation/source-structure.html">Source structure</a> describes module ownership, generated interfaces, the fixed jump ABI, and major call flow, but it does not catalog every routine or provide behavior-to-line traceability.</li>
+        <li><a href="../implementation/memory-map.html">Memory map</a> records major regions and many direct-page fields, but allocation descriptions, structure-field definitions, lifecycle rules, and source references are not represented through one uniformly linted schema.</li>
+        <li><a href="../implementation/coding-conventions.html">Coding conventions</a> requires contracts for non-trivial routines. Current sources are inconsistent: <code>src/main.s</code> contains many contract banners, while <code>src/presentation_runtime.s</code> has no complete <code>Inputs</code>/<code>Returns</code>/<code>Side effects</code> routine headers.</li>
+        <li>The build already emits lwasm listing and map artifacts for the resident runtime, enemy runtime, presentation runtime, and GMC bootstrap. These contain the address, byte, symbol, and source relationships required for a generated browser.</li>
+        <li>The release reference already provides one page per 6809 mnemonic. Generated instruction links can reuse that reference instead of repeating mnemonic definitions in every routine.</li>
+        <li>Descriptions have used terms such as resident, cold payload, PAR5 scope, framebuffer owner, save-under, render intent, GMC source interval, and presentation module without a single enforced controlled vocabulary. This allows architectural assumptions to appear before their definitions.</li>
+      </ul>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> controlled glossary; hierarchical behavior-to-source guide; complete physical/virtual/cartridge memory atlas; module catalog; routine contracts and call graph; data-layout catalog; requirement-to-code-to-test traceability; generic lwasm listing/map parser; generated line-level HTML browser; documentation coverage manifest and lint; reusable assembly-project documentation template; wiki navigation, workflow, and build instructions; and initial coverage of all shipped Ladybug runtime modules.</p>
+      <p><strong>Out:</strong> changing gameplay behavior; rewriting standard Motorola instruction reference pages; documenting third-party emulator or tool source line by line; replacing assembly comments with wiki prose; generating the hand-authored architectural rationale; requiring prose for self-explanatory local branch labels; and publishing the internal wiki as player-facing documentation.</p>
+
+      <h3>Information architecture</h3>
+      <ol>
+        <li><strong>Glossary:</strong> one alphabetical page defining controlled terms, units, acronyms, ownership words, lifecycle words, and links to detailed pages. Hand-authored pages link the first material use of each controlled term.</li>
+        <li><strong>Behavior guide:</strong> each game state and user-visible sequence links to its state record, director transition, gameplay service, data records, and verification scenarios.</li>
+        <li><strong>Architecture and module catalog:</strong> one page records module boundaries, source and destination ranges, imports/exports, owners, lifetimes, call direction, mutable state, generated inputs, and capacity guards.</li>
+        <li><strong>Memory atlas:</strong> every cartridge interval, virtual address range, physical page, direct-page byte, stack interval, framebuffer allocation, fixed jump, copied module, and persistent record has one owner and one canonical definition. Each definition includes address, length in bytes, unit, mutability, initialization, lifetime, aliases, and source references.</li>
+        <li><strong>Routine catalog and call graph:</strong> every externally callable or non-trivial routine has the complete contract. Local basic blocks inherit the routine contract and receive a concise block purpose where control flow is not self-evident.</li>
+        <li><strong>Data-layout catalog:</strong> every record and table lists field offset, width, encoding, valid range, sentinel values, owner, producers, consumers, reset rule, and capacity formula.</li>
+        <li><strong>Traceability matrix:</strong> each approved ticket scenario links through behavior/state, module/routine, data structures, exact source ranges, verifier scenario, and retained evidence. Missing rare-path evidence remains a failed link, not a pass.</li>
+        <li><strong>Generated line browser:</strong> a clean build parses source, includes, listing, and map outputs and emits one stable HTML anchor per source line, symbol, routine, and address. Emitting and non-emitting lines are both shown. Standard mnemonics link to <code>wiki/release/reference/6809/</code>; project symbols link to their canonical hand-authored definition.</li>
+        <li><strong>Reusable template:</strong> document the minimum directory layout, source-comment contract, memory-manifest fields, generated-artifact interface, lint rules, and adoption sequence required to reuse the system in another bare-metal assembly project.</li>
+      </ol>
+
+      <h3>Proposed artifacts and boundaries</h3>
+      <ul>
+        <li><code>wiki/internal/implementation/glossary.html</code>: controlled vocabulary.</li>
+        <li><code>wiki/internal/implementation/source-guide.html</code>: top-down behavior, architecture, module, and traceability entry point.</li>
+        <li><code>wiki/internal/implementation/routine-catalog.html</code>: routine contracts and call relationships, split by module only if page size becomes unusable.</li>
+        <li><code>wiki/internal/implementation/data-layouts.html</code>: records, fields, tables, and lifecycle.</li>
+        <li><code>wiki/internal/implementation/memory-map.html</code> and <code>source-structure.html</code>: normalized ownership and links to the new catalogs rather than duplicate definitions.</li>
+        <li><code>wiki/internal/implementation/assembly-project-template.html</code>: reusable process and schema.</li>
+        <li><code>scripts/build_source_reference.py</code>: generic, read-only parser/generator using explicit command-line inputs; no Ladybug addresses hard-coded in the parser.</li>
+        <li><code>scripts/verify_source_documentation.py</code>: coverage, uniqueness, link, stale-address, and generated-output checks.</li>
+        <li><code>scripts/source_reference.json</code>: project-specific source modules, listing/map inputs, wiki symbol anchors, exclusions, and coverage policy. Generated HTML remains under <code>build/source-reference/</code> and is not hand-edited.</li>
+      </ul>
+
+      <h3>Scenarios, edge cases, and failure modes</h3>
+      <ul>
+        <li>A reader starts from an attract-mode behavior, follows the transition and memory ownership, opens the responsible routine, then reaches the exact assembly lines and 6809 instruction references.</li>
+        <li>A reader starts from a direct-page address, finds its width and owner, then finds every source read/write and every routine contract that names it.</li>
+        <li>A reader starts from a crash address or GDB program counter and resolves it to module, routine, basic block, source line, emitted bytes, and relevant memory structures.</li>
+        <li>An included source line, generated symbol, multiple labels on one address, data-only line, conditional-assembly line, macro expansion, non-emitting comment, and relocated copied module are represented without losing source provenance.</li>
+        <li>A source edit moves a routine or renumbers a direct-page field. Regeneration updates line addresses; lint rejects stale hand-authored numeric claims and duplicate ownership.</li>
+        <li>A new routine, fixed jump, direct-page symbol, persistent record, or generated ABI entry is added without documentation. The verifier fails and names the missing canonical definition.</li>
+        <li>A local branch label requires no separate prose when its enclosing documented basic block explains it. A local label referenced outside that block becomes a documented symbol.</li>
+        <li>A controlled term is used before definition or with conflicting definitions. Glossary/link lint fails.</li>
+        <li>A required ticket scenario has no trace to a verifier or current evidence. Traceability reports it as incomplete.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <ol>
+        <li><strong>Recommended hybrid:</strong> hand-author semantic documentation and generate address/byte/line relationships from lwasm artifacts. This preserves rationale while preventing address and line-number drift.</li>
+        <li><strong>Rejected manual line encyclopedia:</strong> duplicate every source line and address in hand-authored HTML. It creates immediate synchronization risk and is impractical as a reusable template.</li>
+        <li><strong>Rejected generated-only documentation:</strong> expose listings and symbol tables without contracts or rationale. It explains encoding but not ownership, intent, invariants, or game behavior.</li>
+        <li><strong>Rejected source comments only:</strong> comments remain necessary for local reasoning, but they cannot provide cross-module memory ownership, ticket traceability, global call flow, or controlled terminology by themselves.</li>
+      </ol>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>A clean documented build generates the line-level browser for every shipped Ladybug assembly module and resolves every emitted address in each configured listing to a source line or explicit generated/relocation record.</li>
+        <li>Every assembly source line appears in the generated browser. Every instruction line shows address, emitted bytes, enclosing routine/basic block, and a valid mnemonic-reference link; non-emitting lines are explicitly marked.</li>
+        <li>Every non-trivial routine has one complete contract. Every local label belongs to a documented routine/basic block, and every externally referenced label has a canonical catalog entry.</li>
+        <li>Every fixed address, direct-page allocation, copied module, persistent RAM record, physical page, virtual range, cartridge interval, framebuffer structure, stack boundary, generated ABI entry, and structured table field has exactly one documented owner and definition.</li>
+        <li>Every controlled term used in the new implementation documentation is defined in the glossary and linked on first material use. Standard 6809 mnemonics resolve to the existing release instruction reference.</li>
+        <li>FEAT-002 scenarios are traceable from acceptance criterion through state, routine, data, source range, verifier, and current evidence. Missing required scenarios make the documentation verifier fail.</li>
+        <li>The generator and verifier run from a clean checkout using documented commands, reject deliberately missing symbol/routine/memory definitions, and reject a stale listing or map whose material-source hash differs.</li>
+        <li>The reusable template contains no Ladybug-specific address requirement and can generate a minimal source browser for a supplied fixture project with at least two modules, one copied/relocated module, one data record, and one cross-module call.</li>
+        <li>Wiki link lint passes, new pages are indexed, the build workflow documents generation, and the completion report records coverage counts, exclusions, generated output location, command results, residual gaps, and one bounded commit.</li>
+      </ul>
+
+      <h3>Risks and controls</h3>
+      <ul>
+        <li><strong>Documentation volume:</strong> generated addresses and line views remain build artifacts; only semantic contracts are hand-authored.</li>
+        <li><strong>False completeness:</strong> coverage counts do not establish correctness. Acceptance also samples behavior-to-line, address-to-owner, and memory-write traces manually.</li>
+        <li><strong>Parser coupling:</strong> fixtures cover include depth, conditional assembly, data lines, copied-module relocation, and multiple labels. Unsupported listing constructs fail explicitly.</li>
+        <li><strong>Wiki policy:</strong> the hand-authored HTML rule remains unchanged. Generated HTML is confined to <code>build/source-reference/</code>; the wiki documents how to regenerate and interpret it.</li>
+        <li><strong>Stabilization order:</strong> document stable architecture first, then routine/data details, then regenerate and lint after integrated FEAT-002 source.</li>
+      </ul>
+
+      <h3>Decision required</h3>
+      <p>Approval authorizes the hybrid hand-authored/generated documentation architecture, the listed coverage definition, the proposed artifacts, the reusable-template fixture, and the acceptance gates. It does not authorize runtime behavior changes or advancement to <code>Ready</code> until exact ownership, commands, evidence files, and commit boundaries are completed.</p>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Approved objective and non-goals:</strong> pending explicit approval; preserve the approval brief without expansion into runtime implementation.</li>
+        <li><strong>Owned artifacts:</strong> proposed wiki pages and source-reference scripts/configuration listed above, ticket index, build-workflow documentation, wiki log, and bounded fixture inputs. Runtime assembly is read-only except for routine-header comments explicitly approved during assignment.</li>
+        <li><strong>Implementation constraints:</strong> no generated file is hand-edited; no address is treated as current without material-source hashes; no required item may be excluded merely to reach a coverage percentage; generated HTML remains outside the hand-authored wiki tree.</li>
+        <li><strong>Required commands and scenarios:</strong> exact clean-build, generation, lint, mutation, fixture, link-check, and FEAT-002 trace commands must be added before <code>Ready</code>.</li>
+        <li><strong>Evidence:</strong> coverage manifest, source/listing/map hashes, missing-item mutation results, fixture output, link report, and sampled top-down/bottom-up traces.</li>
+        <li><strong>Commit:</strong> one bounded documentation/tooling commit after approval and <code>Ready</code>; no push, merge, or ticket-close authority is granted.</li>
+        <li><strong>Completion report:</strong> commit, commands, coverage results versus criteria, excluded constructs, generated output location, changed workflow, reusable-fixture result, residual risks, and recommended lifecycle state.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Verification and completion</h2>
+      <p>No implementation or acceptance evidence exists. The ticket remains <code>Proposed</code>.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-08 &mdash; Proposed from the requirement for terminology, program logic, memory structures, module boundaries, and individual assembly lines to be documented as a reusable assembly-project template.</li>
+        <li>2026-08-08 &mdash; Selected the hybrid design for approval: semantic documentation remains hand-authored; address, byte, symbol, and source-line relationships are generated from current lwasm artifacts under <code>build/source-reference/</code>.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Canonical documentation-project approval contract. Update this page, the ticket index, and the internal log at every lifecycle transition.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-003 High-Score Presentation and Name Entry &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </div>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal &middot; feature ticket</p>
+      <h1>FEAT-003 High-Score Presentation and Name Entry <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Complete the visible nine-entry high-score table and joystick-driven qualifying-score name entry removed from FEAT-002.</p>
+    </header>
+
+    <section>
+      <h2>Disposition</h2>
+      <ul>
+        <li><strong>Status:</strong> Proposed</li>
+        <li><strong>Created / updated:</strong> 2026-08-07 / 2026-08-07</li>
+        <li><strong>Priority / order:</strong> P1 / 13</li>
+        <li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 9 &mdash; polish, attract mode, high score, level progression</a></li>
+        <li><strong>Owner:</strong> unassigned</li>
+        <li><strong>Dependencies:</strong> FEAT-002 base presentation flow; RSCH-001 sound capacity report before final memory allocation.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Finish the high-score behavior required by FEAT-002 without changing the approved seven-character name and three-byte score record format. The work is separated because the first complete visible renderer measured <code>203</code> bytes beyond the locked <code>$1900-$1DFF</code> module window, and final allocation must account for sound.</p>
+      <h3>Evidence and baseline</h3>
+      <ul>
+        <li>Current revision passes the Plan A build with a <code>1280/1280</code>-byte presentation module, <code>11398</code>-byte cold payload, and <code>2053</code> GMC source bytes spare.</li>
+        <li>The current state slice stores nine records at <code>$AF84</code>, each containing a three-byte unsigned score and seven name bytes, and performs bounded insertion.</li>
+        <li>The rejected visible renderer used <code>draw_tile_id</code>, the resident digit helper, and a 9&times;7 display cache; it ended at <code>$1ECB</code> versus the <code>$1E00</code> module limit.</li>
+      </ul>
+      <h3>Scope</h3>
+      <p><strong>In scope:</strong> visible seven-character names, visible decimal scores through <code>9,999,999</code>, authored high-score row placement, coin overlay preservation, joystick traversal over the enter-high-score grid, immediate character append, END completion, strict qualification, descending insertion, ninth-entry truncation, and forced natural/integrated verification.</p>
+      <p><strong>Out of scope:</strong> attract/instruction actor animation, sound runtime implementation, changes to the approved record format, battery-backed scores, resident-window expansion without renewed approval, and changes to normal gameplay rules.</p>
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li>Render all nine rows with seven name cells and seven decimal digits, including zero values and a seeded <code>9,999,999</code> record.</li>
+        <li>Traverse letters, symbols, blanks, repeated cells, and END; append each visited character once and prevent writes beyond seven bytes.</li>
+        <li>Verify qualifying scores above the first entry, between entries, above the last entry, equal to an entry, and non-qualifying values.</li>
+        <li>Verify one insertion, lower-record shifting, ninth-record removal, held END behavior, interruption, and both framebuffer-owner start orders.</li>
+      </ul>
+      <h3>Options and recommendation</h3>
+      <ol>
+        <li><strong>Preferred:</strong> compact map-load or tile-patch rendering within Plan A, with a jointly reserved sound budget and at least 512 bytes of post-feature combined headroom.</li>
+        <li><strong>Alternative:</strong> expand the presentation module only as part of a combined high-score-plus-sound capacity revision. A 224-byte local expansion is insufficient for the proposed sound ceiling and release reserve.</li>
+      </ol>
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>Visible names and seven decimal score digits match all nine session records, including a forced <code>9,999,999</code> value.</li>
+        <li>Name traversal and END insertion meet all scenarios without mutating incomplete entries.</li>
+        <li>The selected design passes module, stack, cold-payload, GMC-source, direct-page, and sound-reservation capacity gates.</li>
+        <li>Build, presentation proof, forced rare-path checks, and the integrated GDB/XRoar verification pass on the combined revision.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Approved objective and non-goals:</strong> unchanged from the approved brief after explicit approval.</li>
+        <li><strong>Owned artifacts:</strong> presentation runtime, presentation generator/verifiers, FEAT-003, linked ticket index/log, and generated evidence.</li>
+        <li><strong>Implementation constraints:</strong> preserve the seven-byte name and three-byte score records; no unapproved resident, bank-3, frame-time banking, or sound ABI changes.</li>
+        <li><strong>Required commands:</strong> <code>scripts/build.sh build</code>, <code>scripts/build.sh verify-gmc</code>, presentation proof, Python compilation, and forced/integrated high-score scenarios.</li>
+        <li><strong>Commit:</strong> one bounded implementation commit after approval and Ready transition.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Verification and completion</h2>
+      <p>Pending approval. Completion requires current-revision rendering evidence, name-entry evidence, capacity results jointly accounting for sound, and QA review.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-07 &mdash; Created from FEAT-002 residual scope after the complete visible renderer exceeded the locked module by <code>203</code> bytes. FEAT-003 is Proposed and does not authorize implementation.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Canonical feature contract. Update this page, the ticket index, and the internal log at every lifecycle transition.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

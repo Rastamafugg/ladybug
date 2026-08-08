@@ -44,6 +44,30 @@
     </section>
 
     <section>
+      <h2>Proposed presentation and documentation revisions</h2>
+      <p>
+        Revised <a href="../tickets/feat-002-attract-mode-integration.html">FEAT-002</a>
+        is <code>Proposed</code>, not current architecture. It would retain a thin
+        low-RAM presentation director while replacing synchronous six-map inflation
+        with bounded direct decoding of only the selected screen. Static screens
+        would reuse exact resident gameplay tiles through generated resolver data;
+        applicable outer-wall layers would share one build-time definition; title
+        and instruction actors would invoke existing actor services; and demo mode
+        would run normal gameplay with a compact deterministic input route and muted
+        sound dispatch. Until approval and implementation, the module inventory and
+        call flow below describe the current working tree.
+      </p>
+      <p>
+        Proposed <a href="../tickets/doc-002-assembly-source-traceability.html">DOC-002</a>
+        would add a controlled glossary, normalized memory atlas, routine and data
+        catalogs, requirement-to-source traceability, and a generated lwasm
+        source/listing browser under <code>build/source-reference/</code>. Semantic
+        rationale would remain hand-authored in the wiki; generated addresses,
+        bytes, and source-line relationships would remain build artifacts.
+      </p>
+    </section>
+
+    <section>
       <h2>System structure</h2>
 <pre><code>Authoritative assets and maps
   assets/arcade/* + tiled/coco-screen.tmx
@@ -69,6 +93,11 @@ Generated build/*.inc / *.bin / layout.json   |
             +-----------+-----------+
                         |
                         v
+              src/presentation_runtime.s
+              copied low-RAM flow module
+              $1900-$1DFF
+                        |
+                        v
                src/gmc_bootstrap.s
                bank-0 loader + copy plan
                         |
@@ -77,7 +106,8 @@ Generated build/*.inc / *.bin / layout.json   |
                four 16 KiB GMC banks
 </code></pre>
       <p>
-        The three assembly files are assembled separately. They do not share
+        The three gameplay/loader assembly files are assembled separately; the
+        presentation module is a fourth fixed-address low-RAM module. They do not share
         linker relocation. Their contract consists of fixed entry addresses,
         generated absolute resident symbols, identical direct-page addresses,
         and agreed MMU mappings.
@@ -102,8 +132,13 @@ Generated build/*.inc / *.bin / layout.json   |
             <td>Must fit <code>$0800-$17FF</code>. Code may temporarily map PAR5, but must restore page <code>$34</code> before accessing game-state data or returning.</td>
           </tr>
           <tr>
+            <td><code>src/presentation_runtime.s</code></td>
+            <td>Copied low-RAM presentation owner: flow state machine, keyboard edge scan, cold-map chunk renderer, credit/start handling, title actor overlays, six-phase instruction recolour/traversal, live/demo/game-over transitions, and bounded name-screen handoff. Session ranking remains a FEAT-003 follow-up.</td>
+            <td>Must fit <code>$1900-$1DFF</code>; stack floor is <code>$1E00</code>. It may borrow PAR5 for cold data or sparse actor streams but must restore page <code>$34</code> before returning. Instruction actors reuse the resident 128-byte player save-under at <code>PLAYER_BG_PTR</code>; title destinations are capture-backed in <code>assets/arcade/attract_actor_reference.json</code>.</td>
+          </tr>
+          <tr>
             <td><code>src/gmc_bootstrap.s</code></td>
-            <td>Bank-0 cold loader. Copies runtime, bank-3 module, sparse/gate payloads, and mirrored indexes into physical RAM before TY=1 handoff.</td>
+            <td>Bank-0 cold loader. Copies runtime, bank-3 module, presentation module, sparse/gate payloads, cold presentation data, and mirrored indexes into physical RAM before TY=1 handoff.</td>
             <td>Runs partly from <code>$0300</code>. Every temporary PAR5 destination mapping is explicit. No frame-time cartridge banking is allowed.</td>
           </tr>
           <tr>
@@ -155,9 +190,11 @@ Generated build/*.inc / *.bin / layout.json   |
           <tr><td><code>build/ladybug_maze.inc</code></td><td><code>derive_maze.py</code></td><td><code>main.s</code></td><td>Review generator and semantic source together.</td></tr>
           <tr><td><code>build/ladybug_screen.inc</code></td><td><code>build_screen.py</code></td><td><code>main.s</code></td><td>Contains screen map, tiles, HUD, masks, and tables.</td></tr>
           <tr><td><code>build/ladybug_resident.inc</code></td><td><code>build_screen.py</code></td><td><code>main.s</code></td><td>Contains sparse death streams, popup stream pointers, and retained packed vegetable data.</td></tr>
+          <tr><td><code>build/ladybug-presentation-cold.bin/.inc/.json</code></td><td><code>scripts/build_presentation.py</code></td><td><code>src/presentation_runtime.s</code> and loader manifest</td><td>Current revision contains a shared transformed atlas and six bounded RLE tile-index maps in <code>11398</code> bytes under the <code>12939</code>-byte cold-payload ceiling.</td></tr>
           <tr><td><code>build/ladybug_runtime_symbols.inc</code></td><td><code>build.sh</code> from resident map</td><td><code>enemy_runtime.s</code></td><td>Absolute cross-module ABI; never hand-edit.</td></tr>
           <tr><td><code>build/ladybug-gmc-bank0-overflow.bin</code></td><td><code>build_sparse_sprites.py</code></td><td><code>build.sh</code></td><td>Bank-0 overflow template; only manifest-owned intervals are overlaid onto the assembled boot image.</td></tr>
           <tr><td><code>build/ladybug-sparse-loader.inc</code></td><td><code>build_sparse_sprites.py</code></td><td><code>gmc_bootstrap.s</code></td><td>Generated manifest-driven fragmented copy plan.</td></tr>
+          <tr><td><code>build/ladybug-presentation-runtime.bin</code></td><td><code>lwasm</code> from <code>src/presentation_runtime.s</code></td><td><code>build_sparse_sprites.py</code></td><td>Current revision is copied to low RAM <code>$1900-$1DFF</code>; measured module use is <code>1278/1280</code> bytes with the stack floor at <code>$1E00</code>.</td></tr>
           <tr><td><code>build/ladybug-sparse-layout.json</code></td><td><code>build_sparse_sprites.py</code></td><td>Verifiers and reviewers</td><td>Canonical generated page/address/count manifest.</td></tr>
           <tr><td><code>build/ladybug.rom</code></td><td><code>build.sh</code></td><td>XRoar / cartridge</td><td>Four-bank 64 KiB delivered image; do not edit.</td></tr>
         </tbody>
@@ -174,7 +211,9 @@ GMC bank 0: boot_entry
   - relocate loader to $0300
   - prove bank signatures
   - copy bank-3 module to $0800-$17FF
+  - copy presentation module to $1900-$1DFF
   - copy sparse/gate segments to pages $35-$37/$39
+  - copy cold presentation data to pages $3A-$3D
   - mirror indexes to $0500/$0680
   - copy resident code/assets to pages $3E/$3F
   - set BOOT_FLAG, TY=1, jump $C000
@@ -248,8 +287,10 @@ $FF00-$FFFF  PIA/GIME/SAM/I/O         dedicated addresses
           <tr><td><code>$0500/$0680</code></td><td>Mirrored sparse indexes</td><td>Lookup occurs before mapping the payload through PAR5.</td></tr>
           <tr><td><code>$0800-$17FF</code></td><td><code>enemy_runtime.s</code></td><td>Hard 4 KiB limit; current end comes from <code>enemy_runtime_end</code> in the map.</td></tr>
           <tr><td><code>$1800-$18FF</code></td><td>Actor staging</td><td>Always mapped so PAR5 may remain payload-owned during decode.</td></tr>
+          <tr><td><code>$1900-$1DFF</code></td><td><code>presentation_runtime.s</code></td><td>Copied flow module; hard 1280-byte limit. <code>$1E00-$1FFE</code> is the stack floor and requires the measured margin guard.</td></tr>
           <tr><td><code>$2C-$2F</code>, <code>$30-$33</code></td><td>Persistent framebuffer B/A</td><td>GIME scans FRONT; CPU writes BACK. Only Vbord IRQ exchanges ownership.</td></tr>
           <tr><td><code>$35-$37</code>, <code>$39</code></td><td>Sparse enemy/player/gate payloads</td><td>PAR5 mapping is scoped and must return to game-state page <code>$34</code>.</td></tr>
+          <tr><td><code>$3A-$3D</code></td><td>Cold presentation data</td><td>Presentation maps, shared atlas, patch descriptors, and scripts are copied at boot; PAR5 is the only CPU window used to read them.</td></tr>
           <tr><td><code>$A000-$AD7F</code></td><td>Maze, entities, actor history, A/B ledgers</td><td>Authoritative logical state and per-buffer retained history are distinct.</td></tr>
           <tr><td><code>$C000-$DFFF</code></td><td>Resident code</td><td>Guarded 8 KiB region; raw assembly layout must agree with map symbols.</td></tr>
           <tr><td><code>$E000-$FDFF</code></td><td>Resident immutable assets</td><td>Guarded 7.5 KiB region; <code>$FE00+</code> is not cartridge payload.</td></tr>
@@ -274,6 +315,7 @@ $FF00-$FFFF  PIA/GIME/SAM/I/O         dedicated addresses
           <tr><td>Framebuffer pixels</td><td><code>frame_render_impl</code></td><td>Only the mapped BACK owner is writable during normal gameplay.</td></tr>
           <tr><td>Actor save-under/history</td><td>Each physical framebuffer</td><td>A and B retain independent player/enemy positions, frame keys, backgrounds, and ring phases.</td></tr>
           <tr><td>Persistent background damage</td><td>Each physical framebuffer</td><td>Mark both owners; clear only the copy projected into the current BACK.</td></tr>
+          <tr><td>Presentation state/data</td><td><code>presentation_runtime.s</code> plus direct-page <code>$A4-$B4</code>/<code>$3A-$3D</code></td><td>Current module owns transient flow state in the reserved direct-page tail and hidden BACK construction. The planned session table at <code>$AF80-$BFFF</code> remains unimplemented.</td></tr>
           <tr><td>Display ownership</td><td>Vbord IRQ</td><td>Only <code>framebuffer_irq_impl</code> writes <code>$FF9D</code> and exchanges FRONT/BACK IDs.</td></tr>
           <tr><td>PAR5</td><td>Current scoped operation</td><td>Normally page <code>$34</code>; payload decoders may borrow it but must restore it before state access or return.</td></tr>
         </tbody>
@@ -288,6 +330,10 @@ $FF00-$FFFF  PIA/GIME/SAM/I/O         dedicated addresses
   +-- wait while FB_RENDER_PENDING != 0
   +-- require a new Vbord frame count
   +-- set FB_RENDER_ACTIVE
+  |
+  +-- presentation_flow_tick -> $1900
+  |     +-- returns zero: continue gameplay path
+  |     +-- returns nonzero: owns presentation Vbord; skip gameplay renderer
   |
   +-- finish_gate_animation
   +-- pickup_tick

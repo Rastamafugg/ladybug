@@ -13,6 +13,14 @@
     <a href="./index.html">Internal</a>
   </nav>
   <main class="wiki-main">
+    <section>
+      <h3>2026-08-08 &middot; architecture/tickets &mdash; FEAT-002 shared engine and DOC-002 traceability</h3>
+      <p>Returned <a href="./tickets/feat-002-attract-mode-integration.html">FEAT-002</a> to <code>Proposed</code> after natural execution invalidated the prior completion claim. The revised brief proposes bounded direct decoding of the selected screen, exact reuse of resident gameplay tiles, build-time shared outer-wall composition, shared actor/gameplay services, deterministic route-driven demo input, global credit/start policy, and explicit cold/warm reset ownership. Current-artifact measurement found 53/255 exact reusable presentation tiles covering 4,785/5,760 cell references; a bitmap-plus-index resolver projects cold payload from 11,398 to 9,989 bytes. Current independent map RLE is 3,238 bytes; modal-base bitmap/value overlays measure 2,418 bytes but add 1,364 tile applications per six-screen cycle, so independent direct streams remain recommended. BUG-007 is superseded into FEAT-002. Created Proposed <a href="./tickets/doc-002-assembly-source-traceability.html">DOC-002</a> for glossary, memory atlas, routine/data catalogs, traceability, a generated lwasm line browser, and a reusable assembly-project documentation template.</p>
+    </section>
+    <section>
+      <h3>2026-08-08 &middot; diagnose &mdash; FEAT-002 startup stall and attract bypass</h3>
+      <p>Ran the current canonical GMC build and separate GDB/XRoar snapshots. Fresh launch enters the presentation hook at <code>$1900</code>, then spends the initial interval in synchronous <code>inflate_maps</code>/<code>inflate_emit</code>; no-trace snapshots found <code>PRES_REMAIN=$035C</code> after approximately four seconds and the main loop after another four seconds. The source also confirms that retained <code>PRES_MAGIC=$A5</code> bypasses first-run initialization on warm reset. Created <a href="./tickets/bug-007-presentation-startup-stall.html">BUG-007</a> as Proposed. No runtime fix was implemented.</p>
+    </section>
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal · log</p>
       <h1>Wiki Log <span class="wiki-badge">internal</span></h1>
@@ -21,9 +29,45 @@
         and milestones. Newest entries at the top.
       </p>
     </header>
+
+    <section>
+      <h3>2026-08-08 &middot; implementation/verification &mdash; FEAT-002 residual presentation fixes</h3>
+      <p>Restored instruction actor underlays within the locked module by reusing the resident <code>save_player</code>/<code>restore_player</code> routines and the existing 128-byte <code>PLAYER_BG_PTR</code> buffer. Replaced projected title destinations with capture-backed coordinates retained in <code>assets/arcade/attract_actor_reference.json</code>, including the MAME contact-frame hash, extraction rule, rotation, centering, and 160-byte scanline transform. The focused proof checks restore/save/draw ordering and capture consistency. Current measurements are module <code>1278/1280</code>, cold payload <code>11398</code>, combined <code>12676/14219</code>, GMC spare <code>2055</code>, and <code>519</code> bytes after the proposed <code>1536</code>-byte sound allocation against the <code>512</code>-byte reserve. Full build, focused presentation proof, natural-plus-forced XRoar verification, both forced demo-death branches, arcade-fidelity regression, sparse proof, enemy proof, Python compilation, and diff check pass. QA accepted FEAT-002 as <code>Done</code>; FEAT-003 remains the high-score presentation follow-up.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-08 &middot; implementation &mdash; FEAT-002 dynamic presentation slice</h3>
+      <p>Implemented the residual FEAT-002 presentation behavior inside the locked module. Title actors reuse the loader's sparse player/enemy indexes; instruction presentation uses six authored row destinations covering both final rows, an even red/yellow/blue cycle, in-place cell recolouring, and pixel-step Lady Bug traversal; demo gameplay drives the existing player/enemy/render path and supports forced enemy or skull termination. Added <code>scripts/verify_presentation_flow.py</code> and a two-cycle GDB probe to require the dynamic symbols, phase data, death paths, and capacity contract. Current measurements are module <code>1275/1280</code>, cold payload <code>11398/12939</code>, combined <code>12673/14219</code>, GMC source spare <code>2058</code>, and <code>522</code> bytes remaining after the proposed <code>1536</code>-byte sound allocation against the <code>512</code>-byte reserve. Build, focused presentation proof, GMC/XRoar probe, sparse proof, and enemy-runtime proof pass. QA rejects acceptance because prior instruction actor footprints are not restored and title coordinates remain projected rather than capture-backed; FEAT-002 stays In Progress. High-score rendering/name entry remain FEAT-003.</p>
+    </section>
+
     <section>
       <h3>2026-08-07 &middot; approval &mdash; RSCH-001 arcade audio research</h3>
       <p>User approved <a href="./tickets/rsch-001-arcade-audio-capture-design.html">RSCH-001</a> for arcade-audio capture, one-chip reduction research, and a capacity-proven CoCo sound design in a dedicated <code>codex/rsch-001-audio-capture</code> worktree. The ticket is <code>Approved</code>, not <code>Ready</code>: exact capture commands and retained-evidence policy remain to be completed in the assignment contract. Runtime sound implementation is not authorized. FEAT-003 now owns queue order 13, so RSCH-001 is order 14 and its final placement depends on FEAT-002/FEAT-003 capacity decisions.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; scope split &mdash; FEAT-003 high-score presentation</h3>
+      <p>Separated visible high-score record rendering, joystick name traversal, and end-to-end name-entry acceptance from FEAT-002 into Proposed <a href="./tickets/feat-003-high-score-presentation.html">FEAT-003</a>. FEAT-002 remains In Progress because dynamic actor/instruction overlays and forced demo death verification are still open. RSCH-001 now depends on the combined FEAT-002/FEAT-003 capacity decision before sound runtime allocation is finalized.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; QA/blocker &mdash; FEAT-002 visible high-score rendering capacity</h3>
+      <p>Attempted visible rendering of seven-character names and seven decimal score digits inside the approved <code>$1900-$1DFF</code> presentation module. The design reused resident <code>draw_hud_digit</code>, presentation <code>draw_tile_id</code>, and a synchronized 9×7 session display cache; assembly ended at <code>$1ECB</code>, exceeding the <code>$1E00</code> ceiling by <code>203</code> bytes. The unbuildable experiment was reverted. The restored revision passes <code>scripts/build.sh build</code>, <code>scripts/build.sh verify-gmc</code>, the independent presentation proof, and Python compilation with module <code>1280/1280</code>, cold payload <code>11398</code>, and GMC source spare <code>2053</code>. Visible high-score rendering remains incomplete and requires a smaller design or renewed capacity approval.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; implementation/QA &mdash; FEAT-002 bounded high-score state slice</h3>
+      <p>Added bounded seven-byte pending-name accumulation to the copied presentation module, made <code>1</code> an END action only after seven values, copied the pending name into the selected fixed 10-byte record, and corrected strict score qualification to retain the current insertion index. The integrated Plan A build passes with resident <code>8192/8192</code>, module <code>1280/1280</code>, cold payload <code>11398</code>, combined module-plus-cold <code>12678/14219</code>, and GMC source spare <code>2053</code>. The independent presentation proof, Python compilation, and natural-plus-forced GMC probe pass. Visible ranking-field rendering, joystick/Lady Bug grid traversal, dynamic actor/instruction overlays, and forced demo-death coverage remain incomplete; FEAT-002 stays <code>In Progress</code>.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; implementation/QA &mdash; FEAT-002 Option 2 forced gameplay probe</h3>
+      <p>Replaced the delayed all-instruction GMC trace requirement with separate natural and forced phases. The natural XRoar trace proves loader, MMU, presentation entry, ownership, and normal attract-flow evidence. The forced GDB phase allocates a free local stub port, stops at <code>$1900</code>, patches <code>PRES_MODE=MODE_LEVEL</code>, <code>PRES_CONTEXT=1</code>, and an expired level timer, then requires actor restore, damage queue/projection, sparse stage/framebuffer decoders, actor draw, and four alternating Vbord commits. <code>scripts/build.sh build</code>, <code>scripts/build.sh verify-gmc</code>, the independent presentation proof, and Python compilation pass. Current Plan A measurements are module <code>1254/1280</code>, cold payload <code>11398</code>, and GMC source spare <code>2079</code>. FEAT-002 remains <code>In Progress</code>; dynamic presentation overlays and name entry remain incomplete.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; implementation/QA &mdash; FEAT-002 Plan A runtime integration</h3>
+      <p>Implemented the RLE presentation payload and copied runtime module under the approved Plan A bounds. The current build uses six 960-cell maps, 255 shared tiles, <code>11398</code> cold bytes, a <code>1254/1280</code>-byte module, and <code>2079</code> CPU-readable GMC source bytes spare. Map inflation, authored coin destinations, credit edge handling, high-score qualification, three-byte score storage, and bounded descending nine-record score insertion are assembled and covered by the static proofs. A manual GDB/XRoar run reached <code>$1900</code>, damage queue, damage projection, actor restore, and actor draw after forcing gameplay. The bounded all-instruction trace still reports missing damage paths because the attract/instruction sequence delays gameplay beyond the trace scenario; dynamic actor/instruction overlays and complete name-entry traversal remain unverified. The name-entry stub is non-mutating until cursor traversal is implemented. FEAT-002 remains <code>In Progress</code>.</p>
     </section>
 
     <section>
@@ -31,6 +75,60 @@
       <p>Created Proposed <a href="./tickets/rsch-001-arcade-audio-capture-design.html">RSCH-001</a>. Official MAME driver evidence confirms two equally mixed 4 MHz SN76489 chips at Z80 sound ranges <code>$B000-$BFFF</code> and <code>$C000-$CFFF</code>; the target candidate is the GMC's single 4 MHz SN76489 at <code>$FF51</code>. The plan captures both mixed 48 kHz WAV output and dual-chip command traces, forces isolated and natural cue coverage, evaluates an explicit two-chip-to-one reduction, and produces a post-FEAT-002 size/cycle contract before any runtime feature is proposed. No runtime source changed.</p>
     </section>
 
+    <section>
+      <h3>2026-08-07 &middot; approval &mdash; FEAT-002 Plan A capacity and high-score format</h3>
+      <p>User approved Plan A with seven-character high-score names and three-byte scores supporting <code>9,999,999</code>. The ticket is now <code>Ready</code>. The locked implementation contract expands the copied module to <code>$1900-$1DFF</code> (1280 bytes inclusive), moves the stack floor to <code>$1E00</code>, RLE-compresses the six map streams, caps the cold payload at <code>12,939</code> bytes, caps the combined module-plus-cold budget at <code>14,219</code> bytes, and requires a 512-byte GMC source margin. Nine fixed records require 90 bytes before flow-state scratch.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; requirements &mdash; FEAT-002 high-score record size</h3>
+      <p>User specified seven-character high-score names and values through <code>9,999,999</code>. The proposed fixed-width record uses a three-byte unsigned score and seven padded name bytes, requiring 10 bytes per entry and 90 bytes for nine entries. The table fits in the existing <code>$AF80</code> game-state area. The physical-RAM alternative was also reviewed: free physical pages can hold mutable tables and work buffers, but cannot add GMC source capacity or executable code without a new MMU and loader ownership design.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; architecture gate &mdash; FEAT-002 dynamic presentation capacity</h3>
+      <p>Reassessed the approved FEAT-002 layout before adding dynamic instruction presentation and coin publication. Current evidence is resident <code>8192/8192</code>, bank-3 runtime <code>4096/4096</code>, copied module <code>768/768</code>, cold payload <code>13,888</code> bytes, and GMC source spare <code>75</code> bytes. The remaining behavior cannot be added inside those bounds without silent overflow or an unapproved ownership change. FEAT-002 is returned to <code>Proposed</code> with a capacity revision: extend the module to <code>$1900-$1DFF</code>, move the stack floor to <code>$1E00</code> with a measured 256-byte margin, RLE-compress the six map streams during cold-payload generation, and cap the revised cold payload at <code>13,195</code> bytes. The combined new module-plus-cold budget is <code>14,219</code> bytes, preserving a 512-byte GMC margin. The current six-map RLE estimate is approximately 3,238 bytes versus 5,760 raw bytes; this is a projection pending implementation and independent hash proof.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; debugger/QA &mdash; FEAT-002 XRoar runtime probe</h3>
+      <p>Reduced the failed runtime probe to four causes and corrected them within the approved FEAT-002 scope. The copied module began with nine emitted coin-slot bytes before the intended <code>$1900</code> entry; the initial attract call passed scanner residue <code>$34</code> as the screen index; a nonzero-only sentinel accepted uncleared RAM as initialized; and the demo reset cleared <code>FB_INIT_STATE</code> without rerunning framebuffer ownership initialization. The demo also now releases one enemy so the required damage paths are exercised. Current results: <code>scripts/build.sh build</code>, all static proofs, and <code>scripts/build.sh verify-gmc</code> pass; presentation module <code>768/768</code>, cold payload <code>13,888</code>, GMC spare <code>75</code>. FEAT-002 remains <code>In Progress</code> because dynamic animation, coin publication, high-score ranking, and name entry remain incomplete.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; QA review &mdash; FEAT-002 current revision</h3>
+      <p>QA retained the current-revision evidence: the combined build, independent six-map hash proof, sparse-loader reconstruction, GMC overflow proof, and existing sparse presentation proof pass. The gdb/XRoar round trip fails because Vbord owner alternation, damage queue/projection, and actor-closure restore are not observed during the runtime probe. Measured capacity is resident <code>8192/8192</code>, bank 3 <code>4096/4096</code>, presentation module <code>767/768</code>, cold payload <code>13,888</code>, and GMC spare <code>76</code>. FEAT-002 remains <code>In Progress</code>; no completion claim is made.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; implementation start &mdash; FEAT-002</h3>
+      <p>Advanced FEAT-002 to <code>In Progress</code>. Added the six-map presentation compiler, shared native tile atlas, four-page cold payload, copied low-RAM flow module, GMC loader targets, and seven-byte main-loop hook. The first combined build passes with resident <code>8192/8192</code>, module <code>745/768</code>, cold payload <code>13,888</code> bytes, and <code>98</code> CPU-readable GMC bytes spare. Runtime transition and rare-path verification remain pending.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; approval/assignment &mdash; FEAT-002 architecture</h3>
+      <p>User approved the FEAT-002 architecture and advanced the ticket to <code>Ready</code>. The assignment contract fixes the copied <code>$1900-$1BFF</code> module, cold pages <code>$3A-$3D</code>, exact writable artifacts, capacity boundaries, verification commands, retained evidence, and one bounded implementation commit. Runtime implementation may now begin; ticket closure still requires integrated QA.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; architecture &mdash; FEAT-002 presentation ownership and capacity</h3>
+      <p>Selected a copied <code>src/presentation_runtime.s</code> module at low RAM <code>$1900-$1BFF</code>, a seven-byte resident handled hook, and cold presentation data in physical pages <code>$3A-$3D</code>. The design preserves the full bank-3 enemy module, keeps PAR5 scoped to page <code>$34</code> on return, uses a shared transformed atlas plus six tile-index maps, and requires the current 14,731-byte GMC source margin and post-reservation stack margin to pass. FEAT-002 remains Approved pending user acceptance of this architecture before implementation.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; approval &mdash; FEAT-002 attract mode and presentation flow</h3>
+      <p>User approved <a href="./tickets/feat-002-attract-mode-integration.html">FEAT-002</a> with the proposed defaults: <code>5</code>/<code>6</code> equivalent credit edges, <code>1</code> consuming one credit, the proposed high-score timeout, the configured three-or-ten-character name limit, and immediate append when Lady Bug traverses a character or symbol. The ticket advanced to <code>Approved</code>; coding-architect design is required before implementation.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; scope update &mdash; live progression and high-score entry</h3>
+      <p>Expanded Proposed <a href="./tickets/feat-002-attract-mode-integration.html">FEAT-002</a> with the user's live-game continuation: level-start before every subsequent part, final-life game-over presentation, strict qualifying-score comparison against the nine-entry table, Lady Bug character/symbol traversal on the enter-high-score map, END completion, descending insertion, and last-entry removal. The proposal remains unapproved and no runtime source changed.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-07 &middot; analysis/tickets &mdash; attract mode and presentation flow</h3>
+      <p>Created Proposed <a href="./tickets/feat-002-attract-mode-integration.html">FEAT-002</a> from the request to integrate the attract, instructions, level-start, and high-score TMX maps. The approval brief defines the Vbord-clocked sequence, instruction-row outcomes and lighting, edge-tested <code>5</code>/<code>6</code>/<code>1</code> input, authored coin locations, deterministic demo death paths, hidden-framebuffer publication, and capacity gates. The ticket awaits explicit approval; no runtime source was changed.</p>
+    </section>
 
     <section>
       <h3>2026-08-07 &middot; lint &mdash; BUG ticket links</h3>
