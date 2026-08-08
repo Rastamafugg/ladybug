@@ -14,6 +14,10 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-08 &middot; architecture proposal &mdash; PERF-004/FEAT-002 capacity resolution</h3>
+      <p>Proposed replacing the 4,484-byte PERF-004 GMC source payload with boot-time synthesis from existing authored screen assets, writing the generated native program to a separately proven-free physical page candidate <code>$20</code> while preserving the FEAT-002 cold pages at <code>$3A-$3D</code>. The combined source deficit is <code>2,448</code> bytes; after removing the payload and retaining the 19-byte helper, at least <code>524</code> additional cold-payload bytes must be reduced to preserve the approved post-sound engineering margin of <code>1,024</code> bytes. PERF-004 returned to <code>Proposed</code> because source placement, destination ownership, boot responsibilities, and capacity targets changed.</p>
+    </section>
+    <section>
       <h3>2026-08-08 &middot; verification &mdash; PERF-004 main integration capacity gate</h3>
       <p>Integrated PERF-004 commits <code>cf838b5</code> and <code>f1e6463</code> into main and restored the uncommitted FEAT-002 changes without committing them. Isolated PERF-004 capture and verification pass across zero, four, and vegetable worklists, A/B and reversed ownership, with 12 closed intervals at <code>16,489&ndash;17,738</code> cycles against the <code>27,000</code>-cycle maximum. The combined FEAT-002 plus PERF-004 build fails before loader generation: usable CPU-readable source capacity is <code>41,438</code> bytes versus <code>43,886</code> bytes required, a <code>2,448</code>-byte deficit; resident RAM is <code>8,192/8,192</code>. Main-tree wiki lint also reports two pre-existing missing <code>feat-001-presentation-maze-screens.html</code> links outside PERF-004. PERF-004 moved to <code>Verification</code> with acceptance withheld pending an approved capacity resolution.</p>
     </section>
