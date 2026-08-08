@@ -34,6 +34,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--presentation-payload", type=Path, required=True)
     parser.add_argument("--perimeter-reset-payload", type=Path, required=True)
     parser.add_argument("--perimeter-helper", type=Path, required=True)
+    parser.add_argument("--presentation-cold", type=Path, required=True)
+    parser.add_argument("--presentation-module", type=Path, required=True)
     parser.add_argument("--bank0", type=Path, required=True)
     parser.add_argument("--bank2", type=Path, required=True)
     parser.add_argument("--bank3", type=Path, required=True)
@@ -234,6 +236,8 @@ def main() -> None:
     presentation_payload = args.presentation_payload.read_bytes()
     perimeter_reset_payload = args.perimeter_reset_payload.read_bytes()
     perimeter_helper = args.perimeter_helper.read_bytes()
+    presentation_cold = args.presentation_cold.read_bytes()
+    presentation_module = args.presentation_module.read_bytes()
     enemy_ranges = decode_payload(enemy_payload, enemy_frames, 0x35)
     player_ranges = decode_payload(player_payload, player_frames, 0x39)
     bank0 = args.bank0.read_bytes()
@@ -260,6 +264,10 @@ def main() -> None:
         raise SystemExit("sparse proof: gate manifest hash mismatch")
     if manifest["presentation"]["sha256"] != sha256(presentation_payload):
         raise SystemExit("sparse proof: presentation manifest hash mismatch")
+    if manifest["presentation_cold"]["sha256"] != sha256(presentation_cold):
+        raise SystemExit("sparse proof: presentation cold manifest hash mismatch")
+    if manifest["presentation_module"]["sha256"] != sha256(presentation_module):
+        raise SystemExit("sparse proof: presentation module manifest hash mismatch")
     if manifest["gmc"]["bank0_sha256"] != sha256(bank0):
         raise SystemExit("sparse proof: bank-0 manifest hash mismatch")
     if manifest["gmc"]["bank2_sha256"] != sha256(bank2):
@@ -277,6 +285,8 @@ def main() -> None:
         "gate": bytearray(len(gate_payload)),
         "presentation": bytearray(len(presentation_payload)),
         "perimeter_reset": bytearray(len(perimeter_reset_payload)),
+        "presentation_cold": bytearray(len(presentation_cold)),
+        "presentation_module": bytearray(len(presentation_module)),
     }
     coverage = {
         "enemy": bytearray(len(enemy_payload)),
@@ -284,6 +294,8 @@ def main() -> None:
         "gate": bytearray(len(gate_payload)),
         "presentation": bytearray(len(presentation_payload)),
         "perimeter_reset": bytearray(len(perimeter_reset_payload)),
+        "presentation_cold": bytearray(len(presentation_cold)),
+        "presentation_module": bytearray(len(presentation_module)),
     }
     source_coverage = {
         0: bytearray(CART_READABLE_BYTES),
@@ -308,7 +320,13 @@ def main() -> None:
         if source_offset + count > CART_READABLE_BYTES:
             raise SystemExit("sparse proof: segment enters forced-RAM/I/O offsets")
         if segment["destination_page"] == LOW_RAM_DESTINATION_PAGE:
-            if not (
+            if segment["target"] == "presentation_module":
+                if not (
+                    0x1900 <= segment["destination_address"] and
+                    segment["destination_address"] + count <= 0x1E00
+                ):
+                    raise SystemExit("sparse proof: presentation module is out of range")
+            elif not (
                 BOOT_OVERFLOW_PROOF_ADDRESS <= segment["destination_address"] and
                 segment["destination_address"] + count <= 0x0800
             ):
@@ -367,6 +385,26 @@ def main() -> None:
         elif target == "perimeter_reset":
             target_page_base = manifest["perimeter_reset"]["page"]
             target_address = manifest["perimeter_reset"]["address"]
+        elif target == "presentation_cold":
+            target_page_base = 0x3A
+            target_address = manifest["presentation_cold"]["address"]
+        elif target == "presentation_module":
+            expected_page = LOW_RAM_DESTINATION_PAGE
+            expected_address = manifest["presentation_module"]["address"] + target_offset
+            source = banks[segment["bank"]][source_offset:source_offset + count]
+            destination_end = target_offset + count
+            if (
+                segment["destination_page"] != expected_page or
+                segment["destination_address"] != expected_address
+            ):
+                raise SystemExit("sparse proof: module destination does not match target offset")
+            if destination_end > len(reconstructed[target]):
+                raise SystemExit("sparse proof: module segment exceeds payload")
+            if any(coverage[target][target_offset:destination_end]):
+                raise SystemExit("sparse proof: module target coverage overlaps")
+            reconstructed[target][target_offset:destination_end] = source
+            coverage[target][target_offset:destination_end] = b"\x01" * count
+            continue
         else:
             raise SystemExit(f"sparse proof: unknown loader target {target}")
         absolute_offset = target_address - WINDOW_BASE + target_offset
@@ -390,7 +428,9 @@ def main() -> None:
         not all(coverage["player"]) or
         not all(coverage["gate"]) or
         not all(coverage["presentation"]) or
-        not all(coverage["perimeter_reset"])
+        not all(coverage["perimeter_reset"]) or
+        not all(coverage["presentation_cold"]) or
+        not all(coverage["presentation_module"])
     ):
         raise SystemExit("sparse proof: loader target coverage has gaps")
     if reconstructed["enemy"] != enemy_payload:
@@ -403,6 +443,10 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct presentation payload")
     if reconstructed["perimeter_reset"] != perimeter_reset_payload:
         raise SystemExit("sparse proof: loader does not reconstruct perimeter reset payload")
+    if reconstructed["presentation_cold"] != presentation_cold:
+        raise SystemExit("sparse proof: loader does not reconstruct presentation cold data")
+    if reconstructed["presentation_module"] != presentation_module:
+        raise SystemExit("sparse proof: loader does not reconstruct presentation module")
     expected_usable = (
         (CART_READABLE_BYTES - BANK2_PAYLOAD_START) +
         (CART_READABLE_BYTES - 0x1800) + 0x10 + (0x0800 - 0x12) +
@@ -419,7 +463,7 @@ def main() -> None:
     print(
         f"sparse proof: {len(enemy_ranges)} enemy and {len(player_ranges)} player "
         f"frames decode and blend pixel-exactly; {len(loader)} loader segments reconstruct "
-        f"actor, gate, and presentation payloads with "
+        f"actor, gate, presentation, cold, and module payloads with "
         f"{manifest['gmc']['spare_bytes']} bytes spare"
     )
 

@@ -1,0 +1,32 @@
+{
+  "schema": "ladybug-mame-attract-actor-reference-v1",
+  "provenance": {
+    "driver": "ladybug",
+    "mame_version": "0.220 (unknown)",
+    "capture": "captures/mame-interactive/contact-indexed.png",
+    "capture_sha256": "A4D95A03D2BC53ED9682897335E2865D4651FFCE23DD0C303051C8238FF26367",
+    "contact_frame": 6,
+    "contact_grid": {"columns": 17, "rows": 8, "cell_pixels": [96, 120]},
+    "source_pixels": [192, 240]
+  },
+  "extraction": {
+    "rule": "The retained contact frame is a nearest-neighbour 1/2 thumbnail. The orange Lady Bug sprite begins at thumbnail [32,8], and the purple enemy sprite begins at thumbnail [78,16]; coordinates are doubled to source pixels.",
+    "rotation": "Apply the established MAME ROT270 counter-clockwise transform. For a 16x16 sprite, logical_x = raw_y and logical_y = 192 - raw_x - 16.",
+    "coco_centering": "The rotated 240x192 arcade image is centered in the 320x192 CoCo framebuffer with a 40-pixel horizontal offset.",
+    "framebuffer": "Actor sparse streams use the 160-byte CoCo scanline stride; byte_x is pixel_x / 2 and the base is $2000."
+  },
+  "actors": {
+    "player": {
+      "role": "orange Lady Bug",
+      "raw_top_left": [64, 16],
+      "coco_pixel_top_left": [56, 112],
+      "presentation_destination": "$661C"
+    },
+    "enemy": {
+      "role": "purple enemy",
+      "raw_top_left": [156, 32],
+      "coco_pixel_top_left": [72, 20],
+      "presentation_destination": "$2CA4"
+    }
+  }
+}

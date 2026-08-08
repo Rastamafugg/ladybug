@@ -89,6 +89,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--perimeter-chars", type=Path, required=True)
     parser.add_argument("--perimeter-reset-output", type=Path, required=True)
     parser.add_argument("--perimeter-helper", type=Path, required=True)
+    parser.add_argument("--presentation-cold", type=Path, required=True)
+    parser.add_argument("--presentation-module", type=Path, required=True)
     parser.add_argument("--bank2-output", type=Path, required=True)
     parser.add_argument("--bank3-output", type=Path, required=True)
     parser.add_argument("--bank0-output", type=Path, required=True)
@@ -307,8 +309,10 @@ def compile_perimeter_reset_payload(
 
 def pack_candidate_banks(
         enemy_payload: bytes, player_payload: bytes, gate_payload: bytes,
-        presentation_payload: bytes, enemy_runtime: bytes,
-        perimeter_payload: bytes = b"", perimeter_helper: bytes = b""
+        presentation_payload: bytes,
+        enemy_runtime: bytes, presentation_cold: bytes = b"",
+        presentation_module: bytes = b"", perimeter_payload: bytes = b"",
+        perimeter_helper: bytes = b""
 ) -> tuple[bytes, bytes, bytes, list[CopySegment]]:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
     if len(enemy_runtime) > ENEMY_RUNTIME_RESERVED:
@@ -354,7 +358,11 @@ def pack_candidate_banks(
             "gate", gate_payload, PLAYER_PAGE_BASE, GATE_PAYLOAD_ADDRESS
         ) +
         target_chunks("presentation", presentation_payload, PLAYER_PAGE_BASE,
-                      PRESENTATION_PAYLOAD_ADDRESS)
+                      PRESENTATION_PAYLOAD_ADDRESS) +
+        target_chunks("presentation_cold", presentation_cold, 0x3A,
+                      WINDOW_BASE) +
+        target_chunks("presentation_module", presentation_module, 0xFF,
+                      0x1900)
     )
 
     banks[0][BOOT_OVERFLOW_START:
@@ -420,7 +428,13 @@ def pack_candidate_banks(
         if segment.source_offset + segment.count > CART_READABLE_BYTES:
             raise ValueError("loader segment enters forced-RAM/I/O cart offsets")
         if segment.destination_page == LOW_RAM_DESTINATION_PAGE:
-            if not (
+            if segment.target == "presentation_module":
+                if not (
+                    0x1900 <= segment.destination_address and
+                    segment.destination_address + segment.count <= 0x1E00
+                ):
+                    raise ValueError("presentation module exceeds low-RAM reservation")
+            elif not (
                 BOOT_OVERFLOW_PROOF_ADDRESS <= segment.destination_address and
                 segment.destination_address + segment.count <= 0x0800
             ):
@@ -519,9 +533,12 @@ def main() -> None:
         )
 
     enemy_runtime = args.enemy_runtime.read_bytes()
+    presentation_cold = args.presentation_cold.read_bytes()
+    presentation_module = args.presentation_module.read_bytes()
     bank0, bank2, bank3, segments = pack_candidate_banks(
         enemy_payload, player_payload, gate_payload, presentation_payload,
-        enemy_runtime, perimeter_payload, perimeter_helper
+        enemy_runtime, presentation_cold, presentation_module,
+        perimeter_payload, perimeter_helper
     )
     outputs = (
         (args.enemy_output, enemy_payload),
@@ -605,6 +622,19 @@ def main() -> None:
             "helper_bytes": len(perimeter_helper),
             "helper_sha256": digest(perimeter_helper),
             "semantic": "native $2000-relative stores matching complete Green-to-White 92-box reset",
+        },
+        "presentation_cold": {
+            "bytes": len(presentation_cold),
+            "page": 0x3A,
+            "page_count": 4,
+            "address": WINDOW_BASE,
+            "sha256": digest(presentation_cold),
+        },
+        "presentation_module": {
+            "bytes": len(presentation_module),
+            "page": LOW_RAM_DESTINATION_PAGE,
+            "address": 0x1900,
+            "sha256": digest(presentation_module),
         },
         "gmc": {
             "readable_bytes_per_bank": CART_READABLE_BYTES,

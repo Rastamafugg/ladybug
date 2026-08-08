@@ -438,6 +438,10 @@ mainloop
         sta     LAST_FRAME
         lda     #1
         sta     FB_RENDER_ACTIVE
+        jsr     $1900
+        beq     main_game_tick
+        bra     mainloop
+main_game_tick
         ; Keep every player restore/mutation/redraw at the front of Vbord.
         ; Logical movement remains 30 Hz, queued by the preceding even frame.
         lbsr    finish_gate_animation

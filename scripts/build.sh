@@ -13,6 +13,14 @@ SPARSE_ENEMY="$BUILD_DIR/ladybug-enemy-sparse.bin"
 SPARSE_PLAYER="$BUILD_DIR/ladybug-player-sparse.bin"
 GATE_TRANSITIONS="$BUILD_DIR/ladybug-gate-transitions.bin"
 PRESENTATION_SPARSE="$BUILD_DIR/ladybug-presentation-sparse.bin"
+PRESENTATION_COLD="$BUILD_DIR/ladybug-presentation-cold.bin"
+PRESENTATION_INC="$BUILD_DIR/ladybug_presentation.inc"
+PRESENTATION_MANIFEST="$BUILD_DIR/ladybug-presentation.json"
+PRESENTATION_MODULE="$BUILD_DIR/ladybug-presentation-runtime.bin"
+PRESENTATION_MODULE_SRC="$ROOT/src/presentation_runtime.s"
+PRESENTATION_MODULE_LST="$BUILD_DIR/ladybug-presentation-runtime.lst"
+PRESENTATION_MODULE_MAP="$BUILD_DIR/ladybug-presentation-runtime.map"
+PRESENTATION_SYMBOLS="$BUILD_DIR/ladybug_presentation_symbols.inc"
 SPARSE_BANK2="$BUILD_DIR/ladybug-sparse-bank2.bin"
 SPARSE_BANK3="$BUILD_DIR/ladybug-sparse-bank3.bin"
 SPARSE_BANK0="$BUILD_DIR/ladybug-gmc-bank0-overflow.bin"
@@ -43,6 +51,8 @@ GMC_BYTES=65536
 RESIDENT_LIMIT=0xE000
 ASSET_LIMIT=0xFE00
 BOOT_OVERFLOW_START=0xC800
+PRESENTATION_MODULE_START=0x1900
+PRESENTATION_MODULE_LIMIT=0x1E00
 
 guard_layout() {
     local map="$1"
@@ -129,6 +139,21 @@ print(f"build: boot loader ends at ${end:04X}; overflow starts at ${limit:04X}")
 PY
 }
 
+guard_presentation_module() {
+    local module="$1"
+    python3 - "$module" "$PRESENTATION_MODULE_START" "$PRESENTATION_MODULE_LIMIT" <<'PY'
+import sys
+path, start, limit = sys.argv[1], int(sys.argv[2], 0), int(sys.argv[3], 0)
+size = len(open(path, 'rb').read())
+if start + size > limit:
+    raise SystemExit(
+        f"build: presentation module ends at ${start + size:04X}; "
+        f"limit is ${limit:04X}"
+    )
+print(f"build: presentation module {size}/{limit - start} bytes")
+PY
+}
+
 cmd_build() {
     [[ -f "$SRC_MAIN" ]] || { echo "build: $SRC_MAIN not found" >&2; exit 1; }
     mkdir -p "$BUILD_DIR"
@@ -148,6 +173,19 @@ cmd_build() {
         --resident-output "$RESIDENT_INC" \
         --gate-output "$GATE_TRANSITIONS" \
         --presentation-output "$PRESENTATION_SPARSE"
+
+    python3 "$ROOT/scripts/build_presentation.py" \
+        --tiled-dir "$ROOT/tiled" \
+        --chars "$ROOT/assets/arcade/chars.json" \
+        --output "$PRESENTATION_COLD" \
+        --include-output "$PRESENTATION_INC" \
+        --manifest-output "$PRESENTATION_MANIFEST"
+
+    python3 "$ROOT/scripts/verify_presentation.py" \
+        --tiled-dir "$ROOT/tiled" \
+        --chars "$ROOT/assets/arcade/chars.json" \
+        --payload "$PRESENTATION_COLD" \
+        --manifest "$PRESENTATION_MANIFEST"
 
     lwasm -9 --format=raw \
           --output="$RUNTIME_ROM" \
@@ -193,6 +231,39 @@ with open(output, 'w', encoding='ascii') as handle:
         handle.write(f'{name} equ ${symbols[name]}\n')
 PY
 
+    python3 - "$MAP" "$PRESENTATION_SYMBOLS" <<'PY'
+import re
+import sys
+source, output = sys.argv[1:]
+wanted = {
+    'init_game_state': 'PRES_MAIN_INIT',
+    'init_maze_state': 'PRES_MAIN_MAZE',
+    'init_gate_state': 'PRES_MAIN_GATES',
+    'init_entities': 'PRES_MAIN_ENTITIES',
+    'init_player': 'PRES_MAIN_PLAYER',
+    'init_enemy': 'PRES_MAIN_ENEMY',
+    'read_joystick': 'PRES_MAIN_READ_JOY',
+    'player_tick': 'PRES_MAIN_PLAYER_TICK',
+    'enemy_tick': 'PRES_MAIN_ENEMY_TICK',
+    'death_tick': 'PRES_MAIN_DEATH',
+    'render_frame': 'PRES_MAIN_RENDER',
+    'next_stage': 'PRES_MAIN_NEXT_STAGE',
+    'save_player': 'PRES_MAIN_SAVE_PLAYER',
+    'restore_player': 'PRES_MAIN_RESTORE_PLAYER',
+}
+symbols = {}
+for line in open(source, encoding='utf-8'):
+    match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
+    if match and match.group(1) in wanted:
+        symbols[wanted[match.group(1)]] = match.group(2)
+missing = set(wanted.values()) - symbols.keys()
+if missing:
+    raise SystemExit('build: presentation symbols missing: ' + ', '.join(sorted(missing)))
+with open(output, 'w', encoding='ascii') as handle:
+    for name in sorted(symbols):
+        handle.write(f'{name} equ ${symbols[name]}\n')
+PY
+
     lwasm -9 --format=raw \
           --output="$ENEMY_ROM" \
           --list="$ENEMY_LST" \
@@ -206,6 +277,15 @@ PY
           --symbols \
           "$PERIMETER_HELPER_SRC"
 
+    lwasm -9 --format=raw \
+          --output="$PRESENTATION_MODULE" \
+          --list="$PRESENTATION_MODULE_LST" \
+          --symbols \
+          --map="$PRESENTATION_MODULE_MAP" \
+          -I "$BUILD_DIR" \
+          "$PRESENTATION_MODULE_SRC"
+    guard_presentation_module "$PRESENTATION_MODULE"
+
     python3 "$ROOT/scripts/build_sparse_sprites.py" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
@@ -218,6 +298,8 @@ PY
         --perimeter-chars "$ROOT/assets/arcade/chars.json" \
         --perimeter-reset-output "$PERIMETER_RESET" \
         --perimeter-helper "$PERIMETER_HELPER" \
+        --presentation-cold "$PRESENTATION_COLD" \
+        --presentation-module "$PRESENTATION_MODULE" \
         --bank0-output "$SPARSE_BANK0" \
         --bank2-output "$SPARSE_BANK2" \
         --bank3-output "$SPARSE_BANK3" \
@@ -233,6 +315,8 @@ PY
         --presentation-payload "$PRESENTATION_SPARSE" \
         --perimeter-reset-payload "$PERIMETER_RESET" \
         --perimeter-helper "$PERIMETER_HELPER" \
+        --presentation-cold "$PRESENTATION_COLD" \
+        --presentation-module "$PRESENTATION_MODULE" \
         --bank0 "$SPARSE_BANK0" \
         --bank2 "$SPARSE_BANK2" \
         --bank3 "$SPARSE_BANK3" \
@@ -333,6 +417,7 @@ cmd_run() {
 
 cmd_verify_gmc() {
     cmd_build
+    python3 "$ROOT/scripts/verify_presentation_flow.py"
     python3 "$ROOT/scripts/verify_gmc_boot.py" --rom "$ROM" --map "$MAP" --manifest "$SPARSE_MANIFEST"
     python3 "$ROOT/scripts/verify_enemy_runtime.py"
 }

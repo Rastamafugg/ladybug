@@ -54,6 +54,7 @@
         </tbody>
       </table>
       <p><strong>Automated banking proof:</strong> <code>scripts/build.sh verify-gmc</code> uses XRoar's instruction trace to prove bank-2 and bank-3 reads, selection and copying of bank 1, the all-RAM handoff, and execution of the relocated runtime main loop.</p>
+      <p><strong>Attract-flow timing constraint:</strong> when a presentation module owns the initial Vbord sequence, <code>scripts/verify_gmc_boot.py</code> uses two phases. The natural trace proves loader, MMU, presentation entry, frame ownership, and normal attract-flow evidence. A separate GDB-stub phase stops at <code>$1900</code>, patches CPU-visible presentation state to an expired live level, and requires actor restore, damage queue/projection, both sparse decoders, actor draw, and four alternating Vbord commits. A missing required phase fails verification; increasing the natural trace timeout is not a substitute for forced rare-path coverage.</p>
     </section>
 
     <section>

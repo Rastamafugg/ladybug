@@ -68,7 +68,8 @@ $0680-$06AF      0    $38    48 B  Mirrored 16-entry player sparse index
 $06B0-$07FF      0    $38   336 B  Loader-addressable overflow destinations; $06B0-$06B1 boot proof
 $0800-$17FF      0    $38   4 K    Bank-3 enemy runtime copy
 $1800-$18FF      0    $38   256 B  Shared player/nest sparse-decode compositor stage
-$1900-$1FFF      0    $38   —      Free low RAM and stack at $1FFE
+$1900-$1BFF      0    $38   768 B  Copied presentation flow module
+$1C00-$1FFF      0    $38   —      Stack and remaining low-RAM margin at $1FFE
 $2000-$3FFF      1    $30   8 K    Framebuffer page 0
 $4000-$5FFF      2    $31   8 K    Framebuffer page 1
 $6000-$7FFF      3    $32   8 K    Framebuffer page 2
@@ -93,6 +94,7 @@ $AB00-$AB7F      5    $34   128 B  Framebuffer B player restoration bytes
 $AB80-$AD7F      5    $34   512 B  Four framebuffer B enemy restoration buffers
 $AD80-$AF7F      5    $34   512 B  Four native dormant-nest animation frames
 $AF80-$BFFF      5    $34   —      Free game-state RAM; $BFFE seeds cold-start entropy
+$3A-$3D          —    —     32 K   Physical cold presentation data copied at boot; selected page is mapped through PAR5
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
@@ -134,7 +136,9 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         non-scanned back buffer. Precompiled sparse enemy streams occupy
         physical pages <code>$35-$37</code>, player streams occupy
         <code>$39:$A000-$A8F5</code>, and the 832-byte six-stream gate
-        transition payload occupies <code>$39:$A8F6-$AC35</code>. PAR5 maps
+        transition payload occupies <code>$39:$A8F6-$AC35</code>. Cold
+        presentation data occupies physical pages <code>$3A-$3D</code> and
+        is read through the same scoped PAR5 window. PAR5 maps
         one stream page only during a draw
         before returning to game-state page <code>$34</code>. IRQ-visible
         framebuffer ownership, readiness, commit-sequence, and diagnostic
@@ -142,9 +146,11 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         behind PAR5. The loader requires an explicit segmented copy plan
         because the bank-3 runtime fragments the available cartridge source
         space. The delivered bank images and ten-record loader table place
-        these payloads plus 896 bytes of popup presentation streams and a
-        two-byte bank-0 execution proof with 14,731 CPU-readable cartridge
-        source bytes left. At boot,
+        these payloads plus 896 bytes of popup presentation streams, the
+        copied presentation module, and a two-byte bank-0 execution proof.
+        The current FEAT-002 build leaves 76 CPU-readable GMC source bytes
+        spare after a 13,888-byte cold payload. The presentation compiler
+        must fit its cold payload inside that measured source margin. At boot,
         the loader mirrors the 384-byte enemy index to <code>$0500</code> and
         the 48-byte player index to <code>$0680</code>. Runtime index lookup
         therefore requires no preliminary PAR5 mapping: it resolves each
@@ -162,6 +168,17 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         offset 44 preserve buffer-local row/column phase; recognized one-byte
         horizontal and two-row vertical moves capture only exposed strips.
         Final cycle/image acceptance remains.
+      </p>
+      <p>
+        <strong>FEAT-002 capacity revision approved 2026-08-07:</strong> the
+        current copied presentation module fills <code>$1900-$1BFF</code> and
+        the current cold payload leaves only 75 CPU-readable GMC source bytes.
+        The approved revision extends the module through <code>$1DFF</code>
+        (1280 bytes inclusive),
+        moves the stack floor to <code>$1E00</code>, and stores bounded
+        run-length map streams that are inflated into the existing four-page
+        destination before presentation begins. This is not the active runtime
+        map for the next FEAT-002 implementation revision.
       </p>
     </section>
 
@@ -463,10 +480,11 @@ $FF00-$FFFF        256 B   I/O; never cart data
           <tr><td><code>$9B-$9E</code></td><td>enemy underlay-invalid flag plus ring-copy phase/row/base scratch</td><td>4 B</td><td>Persistent circular save-under renderer</td></tr>
           <tr><td><code>$9F-$A1</code></td><td>(free)</td><td>3 B</td><td>Freed by destination-delta decoding and mirrored sparse indexes</td></tr>
           <tr><td><code>$A2-$A3</code></td><td>selected A/B player save-under pointer</td><td>u16</td><td>Persistent framebuffer owner selection</td></tr>
-          <tr><td><code>$A4-$FF</code></td><td>(free)</td><td>92 B</td><td>Future hot state</td></tr>
+            <tr><td><code>$A4-$CB</code></td><td>Presentation runtime</td><td>40 B</td><td>Flow, key-edge, map-loader, timer, framebuffer destination, score conversion, insertion, and bounded name-entry state; reserved by FEAT-002.</td></tr>
+            <tr><td><code>$CC-$FF</code></td><td>(free)</td><td>52 B</td><td>Remaining direct-page hot-state margin after the current FEAT-002 slice.</td></tr>
         </tbody>
       </table>
-      <p>The current intent, ownership, ring-copy, and player save-under ABI leaves 95 direct-page bytes free. Maintain this table as variables land.</p>
+      <p>The current intent, ownership, ring-copy, player save-under ABI, and FEAT-002 state leave 55 direct-page bytes free in the listed hot-state ranges. Maintain this table as variables land.</p>
     </section>
 
     <section>

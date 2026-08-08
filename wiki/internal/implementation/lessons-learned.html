@@ -25,6 +25,46 @@
     </header>
 
     <section>
+      <h2>Presentation actor overlays require the existing save-under contract</h2>
+      <p><strong>Filed 2026-08-08.</strong> A transparent sparse actor blit does not remove pixels from its previous framebuffer footprint. FEAT-002 instruction traversal left trails until each movement restored the prior 16&times;16 rectangle through the resident <code>save_player</code>/<code>restore_player</code> routines and the already-owned <code>PLAYER_BG_PTR</code> buffer. The presentation module now selects <code>$A300</code>, clears <code>PLAYER_BG_VALID</code> on screen load, and orders restore, save, then draw within the 1280-byte module.</p>
+      <p><strong>Rule:</strong> every presentation actor that moves over static pixels must reuse an owned save-under buffer or a verified static redraw path; transparent drawing alone is not restoration.</p>
+    </section>
+
+    <section>
+      <h2>Arcade presentation coordinates require retained capture and transform evidence</h2>
+      <p><strong>Filed 2026-08-08.</strong> Projected actor positions are not arcade evidence. FEAT-002 retains the MAME contact capture hash, frame number, thumbnail extraction rule, established counter-clockwise rotation, CoCo centering offset, and final framebuffer destinations in <code>assets/arcade/attract_actor_reference.json</code>. <code>scripts/verify_presentation_flow.py</code> rejects a changed capture hash or source constants that do not match the recorded transform.</p>
+      <p><strong>Rule:</strong> preserve the source capture and deterministic coordinate transform with the code; a comment or visual estimate is insufficient.</p>
+    </section>
+
+    <section>
+      <h2>Copied raw modules must have executable bytes at the loader destination</h2>
+      <p>FEAT-002 assembled a low-RAM module with emitted metadata before the code's absolute <code>$1900</code> origin. The raw binary concatenated that metadata before the code, so the loader copied data to the call target and XRoar decoded it as instructions. The static map symbol alone did not prove raw-image entry alignment.</p>
+      <p><strong>Rule:</strong> require the first copied byte at every relocated entry to be an executable opcode, and keep compile-time metadata out of the raw prefix unless the entry stub explicitly skips it.</p>
+    </section>
+
+    <section>
+      <h2>Presentation sentinels must validate an exact value in uncleared RAM</h2>
+      <p>FEAT-002 used a nonzero-only presentation magic test. Cold RAM contained a nonzero byte, so initialization was skipped and the presentation mode became an unrelated opcode byte. An exact magic comparison now distinguishes initialized state from arbitrary RAM contents.</p>
+      <p><strong>Rule:</strong> use an exact multi-state initialization marker whenever a copied module owns RAM that is not cleared by the platform boot path.</p>
+    </section>
+
+    <section>
+      <h2>Gameplay re-entry must restore persistent framebuffer ownership</h2>
+      <p>The presentation demo reused <code>init_game_state</code>, which clears <code>FB_INIT_STATE</code>. Without rerunning framebuffer ownership initialization, the persistent compositor intentionally skipped restore, damage queue, and damage projection, leaving the runtime probe unable to cover those paths.</p>
+      <p><strong>Rule:</strong> any presentation-to-gameplay re-entry that resets logical state must rehydrate all persistent renderer ownership ledgers before the next frame.</p>
+    </section>
+
+    <section>
+      <h2>Cold-screen atlases can consume the source budget before the page budget</h2>
+      <p>FEAT-002's six 40&times;24 maps fit within four physical 8 KiB destination pages, but coordinate-dependent palette transforms produced 254 shared native tiles and a 13,888-byte payload. The current GMC source layout retains only 76 bytes after the copied presentation module. Source-capacity, destination-page, module-size, and stack-margin checks must remain separate; a destination fit is not evidence of source headroom.</p>
+    </section>
+
+    <section>
+      <h2>Presentation pre-emption must retain a controlled gameplay probe</h2>
+      <p>Adding a boot attract loop changes the first observable runtime path. Existing gameplay compositor proofs that assume immediate gameplay can fail without proving a presentation-to-gameplay transition. Runtime verification must either force the transition with an input/replay control or use a bounded probe long enough to reach normal gameplay; a loader-only pass is insufficient.</p>
+    </section>
+
+    <section>
       <h2>Queued gate projection must precede or follow entity redraw as one transaction</h2>
       <p><strong>Filed 2026-08-07.</strong> A queued gate final can be projected into BACK before the current epoch's collectible colour redraw. If the current epoch has <code>RF_ENTITIES</code> but no current gate intent, <code>erase_entity_footprints</code> restores static maze tiles over the already projected dynamic gate. A forced nearby-entity case changed 19 bytes in the gate union on both framebuffer owners.</p>
       <p><strong>Rule:</strong> treat queued gate projection and entity underlay/redraw as one ordered transaction; the authoritative gate union must be the last dynamic layer in any combined replay.</p>
