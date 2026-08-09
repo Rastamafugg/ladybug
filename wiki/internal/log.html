@@ -14,6 +14,10 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-09 &middot; implementation/verification &mdash; BUG-008 sparse destination repair</h3>
+      <p>Implemented the approved BUG-008 repair in <code>codex/bug-008-live-start-handoff</code>. <code>sparse_enemy_stream</code> and <code>sparse_player_stream</code> now compute the mapped index address in U before selecting the payload page, preserving caller-owned X and removing four transfer instructions. Bank-3 use is 4,081/4,096 bytes, leaving 15 bytes free. Added <code>scripts/verify_bug008_live_start.py</code> with normal presentation credit/start event injection, decoder-entry X and direct-page snapshots, entity-count, stack, framebuffer ownership, publication, front-write-fault, and 20-second deadline checks. The focused proof and canonical <code>verify-gmc</code> pass, including forced gameplay and demo phases. BUG-008 moved to Verification; natural manual 5-then-1 confirmation remains pending because the retained harness has no keyboard-control surface.</p>
+    </section>
+    <section>
       <h3>2026-08-09 &middot; checkpoint/assignment &mdash; BUG-008 advanced to Ready</h3>
       <p>Committed the combined FEAT-002/PERF-004 implementation and evidence as immutable checkpoint <code>448bab1d3ef17b681e3c613ecfee0aec13142bf6</code>. Created branch <code>codex/bug-008-live-start-handoff</code> and worktree <code>D:\retro\ladybug-worktrees\bug-008-live-start-handoff</code> from that exact revision. A fresh canonical rebuild retained the measured capacity limits and passed presentation, sparse, allocation, syntax, perimeter, and death-reset proofs; <code>verify-gmc</code> failed the forced skull and enemy demo-death markers after loader handoff, preserving the expected BUG-008 baseline. The exact source revision, owned files, 20-second focused deadline, commands, scenarios, evidence, and commit authority are now fixed, so BUG-008 advanced from Approved to Ready without a production repair.</p>
     </section>

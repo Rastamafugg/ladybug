@@ -53,7 +53,7 @@
 0818 7E09D3           (c/enemy_runtime.s):00018                 jmp     frame_render_impl
 081B 7E0C7E           (c/enemy_runtime.s):00019                 jmp     framebuffer_init_impl
 081E 7E0DBF           (c/enemy_runtime.s):00020                 jmp     framebuffer_irq_impl
-0821 7E1643           (c/enemy_runtime.s):00021                 jmp     sparse_blit_fb
+0821 7E163B           (c/enemy_runtime.s):00021                 jmp     sparse_blit_fb
                       (c/enemy_runtime.s):00022         
      0054             (c/enemy_runtime.s):00023         ENEMY_ANIM     equ $0054
      0055             (c/enemy_runtime.s):00024         ENEMY_TIMER    equ $0055
@@ -463,7 +463,7 @@
 099B 9687             (c/enemy_runtime.s):00428                 lda     ENEMY_RENDER_FLAGS
 099D 8501             (c/enemy_runtime.s):00429                 bita    #ERF_INIT
 099F 2703             (c/enemy_runtime.s):00430                 beq     eri_refresh
-09A1 170DA3           (c/enemy_runtime.s):00431                 lbsr    capture_zone_bg
+09A1 170D9B           (c/enemy_runtime.s):00431                 lbsr    capture_zone_bg
 09A4                  (c/enemy_runtime.s):00432         eri_refresh
 09A4 9687             (c/enemy_runtime.s):00433                 lda     ENEMY_RENDER_FLAGS
 09A6 8504             (c/enemy_runtime.s):00434                 bita    #ERF_ZONE_REFRESH
@@ -473,7 +473,7 @@
 09AE 968C             (c/enemy_runtime.s):00438                 lda     RENDER_ZONE_Y
 09B0 9737             (c/enemy_runtime.s):00439                 sta     ENTITY_Y
 09B2 BDD442           (c/enemy_runtime.s):00440                 jsr     restore_entity_footprint
-09B5 170DF5           (c/enemy_runtime.s):00441                 lbsr    refresh_zone_bg_footprint
+09B5 170DED           (c/enemy_runtime.s):00441                 lbsr    refresh_zone_bg_footprint
 09B8                  (c/enemy_runtime.s):00442         eri_dirty
 09B8 9687             (c/enemy_runtime.s):00443                 lda     ENEMY_RENDER_FLAGS
 09BA 851A             (c/enemy_runtime.s):00444                 bita    #ERF_DIRTY|ERF_NEST|ERF_NEST_ANIM
@@ -2276,7 +2276,7 @@
 137E                  (c/enemy_runtime.s):02241         draw_enemy_fb
 137E 170249           (c/enemy_runtime.s):02242                 lbsr    enemy_frame_number
 1381 17028D           (c/enemy_runtime.s):02243                 lbsr    sparse_enemy_stream
-1384 1702BC           (c/enemy_runtime.s):02244                 lbsr    sparse_blit_fb
+1384 1702B4           (c/enemy_runtime.s):02244                 lbsr    sparse_blit_fb
 1387 39               (c/enemy_runtime.s):02245                 rts
                       (c/enemy_runtime.s):02246         
                       (c/enemy_runtime.s):02247         ; Build the complete 16-by-32 nest layer in compact RAM, then publish only
@@ -2341,7 +2341,7 @@
 13E6 2006             (c/enemy_runtime.s):02306                 bra     cez_commit
 13E8                  (c/enemy_runtime.s):02307         cez_vegetable
 13E8 8E1880           (c/enemy_runtime.s):02308                 ldx     #ENEMY_ZONE_STAGE+128
-13EB 1702FF           (c/enemy_runtime.s):02309                 lbsr    draw_vegetable_stage
+13EB 1702F7           (c/enemy_runtime.s):02309                 lbsr    draw_vegetable_stage
 13EE                  (c/enemy_runtime.s):02310         cez_commit
 13EE 8E1800           (c/enemy_runtime.s):02311                 ldx     #ENEMY_ZONE_STAGE
 13F1 CE4DEC           (c/enemy_runtime.s):02312                 ldu     #ENEMY_ZONE_FB
@@ -2495,9 +2495,9 @@
 14F6 48               (c/enemy_runtime.s):02460                 lsla
 14F7 48               (c/enemy_runtime.s):02461                 lsla
 14F8 9B4F             (c/enemy_runtime.s):02462                 adda    PLAYER_ANIM
-14FA 17012D           (c/enemy_runtime.s):02463                 lbsr    sparse_player_stream
+14FA 170129           (c/enemy_runtime.s):02463                 lbsr    sparse_player_stream
 14FD 8E1800           (c/enemy_runtime.s):02464                 ldx     #PLAYER_STAGE
-1500 1701B8           (c/enemy_runtime.s):02465                 lbsr    sparse_blit_stage
+1500 1701B0           (c/enemy_runtime.s):02465                 lbsr    sparse_blit_stage
                       (c/enemy_runtime.s):02466         
                       (c/enemy_runtime.s):02467                 ; Commit the final new rectangle before removing old-only strips.
 1503 8E1800           (c/enemy_runtime.s):02468                 ldx     #PLAYER_STAGE
@@ -2851,7 +2851,7 @@
 15C0                  (c/enemy_runtime.s):02816         draw_enemy_stage
 15C0 170007           (c/enemy_runtime.s):02817                 lbsr    enemy_frame_number
 15C3 17004B           (c/enemy_runtime.s):02818                 lbsr    sparse_enemy_stream
-15C6 1700F2           (c/enemy_runtime.s):02819                 lbsr    sparse_blit_stage
+15C6 1700EA           (c/enemy_runtime.s):02819                 lbsr    sparse_blit_stage
 15C9 39               (c/enemy_runtime.s):02820                 rts
                       (c/enemy_runtime.s):02821         
                       (c/enemy_runtime.s):02822         ; Return the indexed sparse frame number in A. B is N/E/S/W. Parts 1-8 use
@@ -2914,318 +2914,314 @@
 1606 48               (c/enemy_runtime.s):02879                 lsla
 1607 48               (c/enemy_runtime.s):02880                 lsla
 1608 9B4F             (c/enemy_runtime.s):02881                 adda    PLAYER_ANIM
-160A 17001D           (c/enemy_runtime.s):02882                 lbsr    sparse_player_stream
-160D 170033           (c/enemy_runtime.s):02883                 lbsr    sparse_blit_fb
+160A 170019           (c/enemy_runtime.s):02882                 lbsr    sparse_player_stream
+160D 17002B           (c/enemy_runtime.s):02883                 lbsr    sparse_blit_fb
 1610 39               (c/enemy_runtime.s):02884                 rts
                       (c/enemy_runtime.s):02885         
                       (c/enemy_runtime.s):02886         ; Resolve A's always-mapped enemy index entry and map its stream page.
 1611                  (c/enemy_runtime.s):02887         sparse_enemy_stream
 1611 C603             (c/enemy_runtime.s):02888                 ldb     #3
 1613 3D               (c/enemy_runtime.s):02889                 mul
-1614 1F01             (c/enemy_runtime.s):02890                 tfr     d,x
-1616 8635             (c/enemy_runtime.s):02891                 lda     #SPARSE_ENEMY_PAYLOAD_PAGE
-1618 B7FFA5           (c/enemy_runtime.s):02892                 sta     GIME_PAR5
-161B CEA000           (c/enemy_runtime.s):02893                 ldu     #SPARSE_ENEMY_INDEX_ADDR
-161E 1F10             (c/enemy_runtime.s):02894                 tfr     x,d
-1620 33CB             (c/enemy_runtime.s):02895                 leau    d,u
-1622 A6C4             (c/enemy_runtime.s):02896                 lda     ,u
-1624 B7FFA5           (c/enemy_runtime.s):02897                 sta     GIME_PAR5
-1627 EE41             (c/enemy_runtime.s):02898                 ldu     1,u
-1629 39               (c/enemy_runtime.s):02899                 rts
-                      (c/enemy_runtime.s):02900         
-                      (c/enemy_runtime.s):02901         ; Resolve A's always-mapped player index entry and map its stream page.
-162A                  (c/enemy_runtime.s):02902         sparse_player_stream
-162A C603             (c/enemy_runtime.s):02903                 ldb     #3
-162C 3D               (c/enemy_runtime.s):02904                 mul
-162D 1F01             (c/enemy_runtime.s):02905                 tfr     d,x
-162F 8639             (c/enemy_runtime.s):02906                 lda     #SPARSE_PLAYER_PAYLOAD_PAGE
-1631 B7FFA5           (c/enemy_runtime.s):02907                 sta     GIME_PAR5
-1634 CEA000           (c/enemy_runtime.s):02908                 ldu     #SPARSE_PLAYER_INDEX_ADDR
-1637 1F10             (c/enemy_runtime.s):02909                 tfr     x,d
-1639 33CB             (c/enemy_runtime.s):02910                 leau    d,u
-163B A6C4             (c/enemy_runtime.s):02911                 lda     ,u
-163D B7FFA5           (c/enemy_runtime.s):02912                 sta     GIME_PAR5
-1640 EE41             (c/enemy_runtime.s):02913                 ldu     1,u
-1642 39               (c/enemy_runtime.s):02914                 rts
-                      (c/enemy_runtime.s):02915         
-                      (c/enemy_runtime.s):02916         ; Decode shared destination deltas into the mapped BACK framebuffer.
-1643                  (c/enemy_runtime.s):02917         sparse_blit_fb
-1643 200D             (c/enemy_runtime.s):02918                 bra     sbf_delta
-1645                  (c/enemy_runtime.s):02919         sbf_partial
-1645 C47F             (c/enemy_runtime.s):02920                 andb    #$7F
-1647                  (c/enemy_runtime.s):02921         sbf_partial_byte
-1647 A6C0             (c/enemy_runtime.s):02922                 lda     ,u+
-1649 A484             (c/enemy_runtime.s):02923                 anda    ,x
-164B AAC0             (c/enemy_runtime.s):02924                 ora     ,u+
-164D A780             (c/enemy_runtime.s):02925                 sta     ,x+
-164F 5A               (c/enemy_runtime.s):02926                 decb
-1650 26F5             (c/enemy_runtime.s):02927                 bne     sbf_partial_byte
-1652                  (c/enemy_runtime.s):02928         sbf_delta
-1652 E6C0             (c/enemy_runtime.s):02929                 ldb     ,u+
-1654 C1FF             (c/enemy_runtime.s):02930                 cmpb    #$FF
-1656 2753             (c/enemy_runtime.s):02931                 beq     sbf_extended
-1658 3A               (c/enemy_runtime.s):02932                 abx
-1659                  (c/enemy_runtime.s):02933         sbf_command
-1659 E6C0             (c/enemy_runtime.s):02934                 ldb     ,u+
-165B 2BE8             (c/enemy_runtime.s):02935                 bmi     sbf_partial
-165D C105             (c/enemy_runtime.s):02936                 cmpb    #5
-165F 271B             (c/enemy_runtime.s):02937                 beq     sbf_opaque5
-1661 C104             (c/enemy_runtime.s):02938                 cmpb    #4
-1663 250F             (c/enemy_runtime.s):02939                 blo     sbf_opaque_small
-1665 2735             (c/enemy_runtime.s):02940                 beq     sbf_opaque4
-1667 C106             (c/enemy_runtime.s):02941                 cmpb    #6
-1669 2724             (c/enemy_runtime.s):02942                 beq     sbf_opaque6
-166B                  (c/enemy_runtime.s):02943         sbf_opaque_byte
-166B A6C0             (c/enemy_runtime.s):02944                 lda     ,u+
-166D A780             (c/enemy_runtime.s):02945                 sta     ,x+
-166F 5A               (c/enemy_runtime.s):02946                 decb
-1670 26F9             (c/enemy_runtime.s):02947                 bne     sbf_opaque_byte
-1672 20DE             (c/enemy_runtime.s):02948                 bra     sbf_delta
-1674                  (c/enemy_runtime.s):02949         sbf_opaque_small
-1674 C102             (c/enemy_runtime.s):02950                 cmpb    #2
-1676 272D             (c/enemy_runtime.s):02951                 beq     sbf_opaque2
-1678 2509             (c/enemy_runtime.s):02952                 blo     sbf_opaque1
-167A 200D             (c/enemy_runtime.s):02953                 bra     sbf_opaque3
-167C                  (c/enemy_runtime.s):02954         sbf_opaque5
-167C 3726             (c/enemy_runtime.s):02955                 pulu    d,y
-167E ED81             (c/enemy_runtime.s):02956                 std     ,x++
-1680 10AF81           (c/enemy_runtime.s):02957                 sty     ,x++
-1683                  (c/enemy_runtime.s):02958         sbf_opaque1
-1683 A6C0             (c/enemy_runtime.s):02959                 lda     ,u+
-1685 A780             (c/enemy_runtime.s):02960                 sta     ,x+
-1687 20C9             (c/enemy_runtime.s):02961                 bra     sbf_delta
-1689                  (c/enemy_runtime.s):02962         sbf_opaque3
-1689 ECC1             (c/enemy_runtime.s):02963                 ldd     ,u++
-168B ED81             (c/enemy_runtime.s):02964                 std     ,x++
-168D 20F4             (c/enemy_runtime.s):02965                 bra     sbf_opaque1
-168F                  (c/enemy_runtime.s):02966         sbf_opaque6
-168F 3726             (c/enemy_runtime.s):02967                 pulu    d,y
-1691 ED81             (c/enemy_runtime.s):02968                 std     ,x++
-1693 10AF81           (c/enemy_runtime.s):02969                 sty     ,x++
-1696 ECC1             (c/enemy_runtime.s):02970                 ldd     ,u++
-1698 ED81             (c/enemy_runtime.s):02971                 std     ,x++
-169A 20B6             (c/enemy_runtime.s):02972                 bra     sbf_delta
-169C                  (c/enemy_runtime.s):02973         sbf_opaque4
-169C 3726             (c/enemy_runtime.s):02974                 pulu    d,y
-169E ED81             (c/enemy_runtime.s):02975                 std     ,x++
-16A0 10AF81           (c/enemy_runtime.s):02976                 sty     ,x++
-16A3 20AD             (c/enemy_runtime.s):02977                 bra     sbf_delta
-16A5                  (c/enemy_runtime.s):02978         sbf_opaque2
-16A5 ECC1             (c/enemy_runtime.s):02979                 ldd     ,u++
-16A7 ED81             (c/enemy_runtime.s):02980                 std     ,x++
-16A9 20A7             (c/enemy_runtime.s):02981                 bra     sbf_delta
-16AB                  (c/enemy_runtime.s):02982         sbf_extended
-16AB ECC1             (c/enemy_runtime.s):02983                 ldd     ,u++
-16AD 2706             (c/enemy_runtime.s):02984                 beq     sparse_decode_done
-16AF 308B             (c/enemy_runtime.s):02985                 leax    d,x
-16B1 3341             (c/enemy_runtime.s):02986                 leau    1,u
-16B3 20A4             (c/enemy_runtime.s):02987                 bra     sbf_command
-                      (c/enemy_runtime.s):02988         
-16B5                  (c/enemy_runtime.s):02989         sparse_decode_done
-16B5 8634             (c/enemy_runtime.s):02990                 lda     #$34
-16B7 B7FFA5           (c/enemy_runtime.s):02991                 sta     GIME_PAR5
-16BA 39               (c/enemy_runtime.s):02992                 rts
-                      (c/enemy_runtime.s):02993         
-                      (c/enemy_runtime.s):02994         ; Decode shared destination deltas into the 8-byte-wide actor stage.
-16BB                  (c/enemy_runtime.s):02995         sparse_blit_stage
-16BB                  (c/enemy_runtime.s):02996         sbs_delta
-16BB E6C0             (c/enemy_runtime.s):02997                 ldb     ,u+
-16BD C1FF             (c/enemy_runtime.s):02998                 cmpb    #$FF
-16BF 2723             (c/enemy_runtime.s):02999                 beq     sbs_extended
-16C1 C580             (c/enemy_runtime.s):03000                 bitb    #$80
-16C3 2702             (c/enemy_runtime.s):03001                 beq     sbs_add_delta
-16C5 C098             (c/enemy_runtime.s):03002                 subb    #152
-16C7                  (c/enemy_runtime.s):03003         sbs_add_delta
-16C7 3A               (c/enemy_runtime.s):03004                 abx
-16C8                  (c/enemy_runtime.s):03005         sbs_command
-16C8 E6C0             (c/enemy_runtime.s):03006                 ldb     ,u+
-16CA 2B09             (c/enemy_runtime.s):03007                 bmi     sbs_partial
-16CC                  (c/enemy_runtime.s):03008         sbs_opaque_byte
-16CC A6C0             (c/enemy_runtime.s):03009                 lda     ,u+
-16CE A780             (c/enemy_runtime.s):03010                 sta     ,x+
-16D0 5A               (c/enemy_runtime.s):03011                 decb
-16D1 26F9             (c/enemy_runtime.s):03012                 bne     sbs_opaque_byte
-16D3 20E6             (c/enemy_runtime.s):03013                 bra     sbs_delta
-16D5                  (c/enemy_runtime.s):03014         sbs_partial
-16D5 C47F             (c/enemy_runtime.s):03015                 andb    #$7F
-16D7                  (c/enemy_runtime.s):03016         sbs_partial_byte
-16D7 A6C0             (c/enemy_runtime.s):03017                 lda     ,u+
-16D9 A484             (c/enemy_runtime.s):03018                 anda    ,x
-16DB AAC0             (c/enemy_runtime.s):03019                 ora     ,u+
-16DD A780             (c/enemy_runtime.s):03020                 sta     ,x+
-16DF 5A               (c/enemy_runtime.s):03021                 decb
-16E0 26F5             (c/enemy_runtime.s):03022                 bne     sbs_partial_byte
-16E2 20D7             (c/enemy_runtime.s):03023                 bra     sbs_delta
-16E4                  (c/enemy_runtime.s):03024         sbs_extended
-16E4 ECC1             (c/enemy_runtime.s):03025                 ldd     ,u++
-16E6 27CD             (c/enemy_runtime.s):03026                 beq     sparse_decode_done
-16E8 E6C0             (c/enemy_runtime.s):03027                 ldb     ,u+
-16EA 3A               (c/enemy_runtime.s):03028                 abx
-16EB 20DB             (c/enemy_runtime.s):03029                 bra     sbs_command
-                      (c/enemy_runtime.s):03030         
-16ED                  (c/enemy_runtime.s):03031         draw_vegetable_stage
-16ED 3410             (c/enemy_runtime.s):03032                 pshs    x
-16EF 9624             (c/enemy_runtime.s):03033                 lda     STAGE
-16F1 2712             (c/enemy_runtime.s):03034                 beq     dvs_first
-16F3 4A               (c/enemy_runtime.s):03035                 deca
-16F4 8112             (c/enemy_runtime.s):03036                 cmpa    #18
-16F6 2502             (c/enemy_runtime.s):03037                 blo     dvs_indexed
-16F8 8611             (c/enemy_runtime.s):03038                 lda     #17
-16FA                  (c/enemy_runtime.s):03039         dvs_indexed
-16FA C640             (c/enemy_runtime.s):03040                 ldb     #SPRITE_SOURCE_SIZE
-16FC 3D               (c/enemy_runtime.s):03041                 mul
+1614 CEA000           (c/enemy_runtime.s):02890                 ldu     #SPARSE_ENEMY_INDEX_ADDR
+1617 33CB             (c/enemy_runtime.s):02891                 leau    d,u
+1619 8635             (c/enemy_runtime.s):02892                 lda     #SPARSE_ENEMY_PAYLOAD_PAGE
+161B B7FFA5           (c/enemy_runtime.s):02893                 sta     GIME_PAR5
+161E A6C4             (c/enemy_runtime.s):02894                 lda     ,u
+1620 B7FFA5           (c/enemy_runtime.s):02895                 sta     GIME_PAR5
+1623 EE41             (c/enemy_runtime.s):02896                 ldu     1,u
+1625 39               (c/enemy_runtime.s):02897                 rts
+                      (c/enemy_runtime.s):02898         
+                      (c/enemy_runtime.s):02899         ; Resolve A's always-mapped player index entry and map its stream page.
+1626                  (c/enemy_runtime.s):02900         sparse_player_stream
+1626 C603             (c/enemy_runtime.s):02901                 ldb     #3
+1628 3D               (c/enemy_runtime.s):02902                 mul
+1629 CEA000           (c/enemy_runtime.s):02903                 ldu     #SPARSE_PLAYER_INDEX_ADDR
+162C 33CB             (c/enemy_runtime.s):02904                 leau    d,u
+162E 8639             (c/enemy_runtime.s):02905                 lda     #SPARSE_PLAYER_PAYLOAD_PAGE
+1630 B7FFA5           (c/enemy_runtime.s):02906                 sta     GIME_PAR5
+1633 A6C4             (c/enemy_runtime.s):02907                 lda     ,u
+1635 B7FFA5           (c/enemy_runtime.s):02908                 sta     GIME_PAR5
+1638 EE41             (c/enemy_runtime.s):02909                 ldu     1,u
+163A 39               (c/enemy_runtime.s):02910                 rts
+                      (c/enemy_runtime.s):02911         
+                      (c/enemy_runtime.s):02912         ; Decode shared destination deltas into the mapped BACK framebuffer.
+163B                  (c/enemy_runtime.s):02913         sparse_blit_fb
+163B 200D             (c/enemy_runtime.s):02914                 bra     sbf_delta
+163D                  (c/enemy_runtime.s):02915         sbf_partial
+163D C47F             (c/enemy_runtime.s):02916                 andb    #$7F
+163F                  (c/enemy_runtime.s):02917         sbf_partial_byte
+163F A6C0             (c/enemy_runtime.s):02918                 lda     ,u+
+1641 A484             (c/enemy_runtime.s):02919                 anda    ,x
+1643 AAC0             (c/enemy_runtime.s):02920                 ora     ,u+
+1645 A780             (c/enemy_runtime.s):02921                 sta     ,x+
+1647 5A               (c/enemy_runtime.s):02922                 decb
+1648 26F5             (c/enemy_runtime.s):02923                 bne     sbf_partial_byte
+164A                  (c/enemy_runtime.s):02924         sbf_delta
+164A E6C0             (c/enemy_runtime.s):02925                 ldb     ,u+
+164C C1FF             (c/enemy_runtime.s):02926                 cmpb    #$FF
+164E 2753             (c/enemy_runtime.s):02927                 beq     sbf_extended
+1650 3A               (c/enemy_runtime.s):02928                 abx
+1651                  (c/enemy_runtime.s):02929         sbf_command
+1651 E6C0             (c/enemy_runtime.s):02930                 ldb     ,u+
+1653 2BE8             (c/enemy_runtime.s):02931                 bmi     sbf_partial
+1655 C105             (c/enemy_runtime.s):02932                 cmpb    #5
+1657 271B             (c/enemy_runtime.s):02933                 beq     sbf_opaque5
+1659 C104             (c/enemy_runtime.s):02934                 cmpb    #4
+165B 250F             (c/enemy_runtime.s):02935                 blo     sbf_opaque_small
+165D 2735             (c/enemy_runtime.s):02936                 beq     sbf_opaque4
+165F C106             (c/enemy_runtime.s):02937                 cmpb    #6
+1661 2724             (c/enemy_runtime.s):02938                 beq     sbf_opaque6
+1663                  (c/enemy_runtime.s):02939         sbf_opaque_byte
+1663 A6C0             (c/enemy_runtime.s):02940                 lda     ,u+
+1665 A780             (c/enemy_runtime.s):02941                 sta     ,x+
+1667 5A               (c/enemy_runtime.s):02942                 decb
+1668 26F9             (c/enemy_runtime.s):02943                 bne     sbf_opaque_byte
+166A 20DE             (c/enemy_runtime.s):02944                 bra     sbf_delta
+166C                  (c/enemy_runtime.s):02945         sbf_opaque_small
+166C C102             (c/enemy_runtime.s):02946                 cmpb    #2
+166E 272D             (c/enemy_runtime.s):02947                 beq     sbf_opaque2
+1670 2509             (c/enemy_runtime.s):02948                 blo     sbf_opaque1
+1672 200D             (c/enemy_runtime.s):02949                 bra     sbf_opaque3
+1674                  (c/enemy_runtime.s):02950         sbf_opaque5
+1674 3726             (c/enemy_runtime.s):02951                 pulu    d,y
+1676 ED81             (c/enemy_runtime.s):02952                 std     ,x++
+1678 10AF81           (c/enemy_runtime.s):02953                 sty     ,x++
+167B                  (c/enemy_runtime.s):02954         sbf_opaque1
+167B A6C0             (c/enemy_runtime.s):02955                 lda     ,u+
+167D A780             (c/enemy_runtime.s):02956                 sta     ,x+
+167F 20C9             (c/enemy_runtime.s):02957                 bra     sbf_delta
+1681                  (c/enemy_runtime.s):02958         sbf_opaque3
+1681 ECC1             (c/enemy_runtime.s):02959                 ldd     ,u++
+1683 ED81             (c/enemy_runtime.s):02960                 std     ,x++
+1685 20F4             (c/enemy_runtime.s):02961                 bra     sbf_opaque1
+1687                  (c/enemy_runtime.s):02962         sbf_opaque6
+1687 3726             (c/enemy_runtime.s):02963                 pulu    d,y
+1689 ED81             (c/enemy_runtime.s):02964                 std     ,x++
+168B 10AF81           (c/enemy_runtime.s):02965                 sty     ,x++
+168E ECC1             (c/enemy_runtime.s):02966                 ldd     ,u++
+1690 ED81             (c/enemy_runtime.s):02967                 std     ,x++
+1692 20B6             (c/enemy_runtime.s):02968                 bra     sbf_delta
+1694                  (c/enemy_runtime.s):02969         sbf_opaque4
+1694 3726             (c/enemy_runtime.s):02970                 pulu    d,y
+1696 ED81             (c/enemy_runtime.s):02971                 std     ,x++
+1698 10AF81           (c/enemy_runtime.s):02972                 sty     ,x++
+169B 20AD             (c/enemy_runtime.s):02973                 bra     sbf_delta
+169D                  (c/enemy_runtime.s):02974         sbf_opaque2
+169D ECC1             (c/enemy_runtime.s):02975                 ldd     ,u++
+169F ED81             (c/enemy_runtime.s):02976                 std     ,x++
+16A1 20A7             (c/enemy_runtime.s):02977                 bra     sbf_delta
+16A3                  (c/enemy_runtime.s):02978         sbf_extended
+16A3 ECC1             (c/enemy_runtime.s):02979                 ldd     ,u++
+16A5 2706             (c/enemy_runtime.s):02980                 beq     sparse_decode_done
+16A7 308B             (c/enemy_runtime.s):02981                 leax    d,x
+16A9 3341             (c/enemy_runtime.s):02982                 leau    1,u
+16AB 20A4             (c/enemy_runtime.s):02983                 bra     sbf_command
+                      (c/enemy_runtime.s):02984         
+16AD                  (c/enemy_runtime.s):02985         sparse_decode_done
+16AD 8634             (c/enemy_runtime.s):02986                 lda     #$34
+16AF B7FFA5           (c/enemy_runtime.s):02987                 sta     GIME_PAR5
+16B2 39               (c/enemy_runtime.s):02988                 rts
+                      (c/enemy_runtime.s):02989         
+                      (c/enemy_runtime.s):02990         ; Decode shared destination deltas into the 8-byte-wide actor stage.
+16B3                  (c/enemy_runtime.s):02991         sparse_blit_stage
+16B3                  (c/enemy_runtime.s):02992         sbs_delta
+16B3 E6C0             (c/enemy_runtime.s):02993                 ldb     ,u+
+16B5 C1FF             (c/enemy_runtime.s):02994                 cmpb    #$FF
+16B7 2723             (c/enemy_runtime.s):02995                 beq     sbs_extended
+16B9 C580             (c/enemy_runtime.s):02996                 bitb    #$80
+16BB 2702             (c/enemy_runtime.s):02997                 beq     sbs_add_delta
+16BD C098             (c/enemy_runtime.s):02998                 subb    #152
+16BF                  (c/enemy_runtime.s):02999         sbs_add_delta
+16BF 3A               (c/enemy_runtime.s):03000                 abx
+16C0                  (c/enemy_runtime.s):03001         sbs_command
+16C0 E6C0             (c/enemy_runtime.s):03002                 ldb     ,u+
+16C2 2B09             (c/enemy_runtime.s):03003                 bmi     sbs_partial
+16C4                  (c/enemy_runtime.s):03004         sbs_opaque_byte
+16C4 A6C0             (c/enemy_runtime.s):03005                 lda     ,u+
+16C6 A780             (c/enemy_runtime.s):03006                 sta     ,x+
+16C8 5A               (c/enemy_runtime.s):03007                 decb
+16C9 26F9             (c/enemy_runtime.s):03008                 bne     sbs_opaque_byte
+16CB 20E6             (c/enemy_runtime.s):03009                 bra     sbs_delta
+16CD                  (c/enemy_runtime.s):03010         sbs_partial
+16CD C47F             (c/enemy_runtime.s):03011                 andb    #$7F
+16CF                  (c/enemy_runtime.s):03012         sbs_partial_byte
+16CF A6C0             (c/enemy_runtime.s):03013                 lda     ,u+
+16D1 A484             (c/enemy_runtime.s):03014                 anda    ,x
+16D3 AAC0             (c/enemy_runtime.s):03015                 ora     ,u+
+16D5 A780             (c/enemy_runtime.s):03016                 sta     ,x+
+16D7 5A               (c/enemy_runtime.s):03017                 decb
+16D8 26F5             (c/enemy_runtime.s):03018                 bne     sbs_partial_byte
+16DA 20D7             (c/enemy_runtime.s):03019                 bra     sbs_delta
+16DC                  (c/enemy_runtime.s):03020         sbs_extended
+16DC ECC1             (c/enemy_runtime.s):03021                 ldd     ,u++
+16DE 27CD             (c/enemy_runtime.s):03022                 beq     sparse_decode_done
+16E0 E6C0             (c/enemy_runtime.s):03023                 ldb     ,u+
+16E2 3A               (c/enemy_runtime.s):03024                 abx
+16E3 20DB             (c/enemy_runtime.s):03025                 bra     sbs_command
+                      (c/enemy_runtime.s):03026         
+16E5                  (c/enemy_runtime.s):03027         draw_vegetable_stage
+16E5 3410             (c/enemy_runtime.s):03028                 pshs    x
+16E7 9624             (c/enemy_runtime.s):03029                 lda     STAGE
+16E9 2712             (c/enemy_runtime.s):03030                 beq     dvs_first
+16EB 4A               (c/enemy_runtime.s):03031                 deca
+16EC 8112             (c/enemy_runtime.s):03032                 cmpa    #18
+16EE 2502             (c/enemy_runtime.s):03033                 blo     dvs_indexed
+16F0 8611             (c/enemy_runtime.s):03034                 lda     #17
+16F2                  (c/enemy_runtime.s):03035         dvs_indexed
+16F2 C640             (c/enemy_runtime.s):03036                 ldb     #SPRITE_SOURCE_SIZE
+16F4 3D               (c/enemy_runtime.s):03037                 mul
+16F5 108EDB7E         (c/enemy_runtime.s):03038                 ldy     #vegetable_sprites
+16F9 31AB             (c/enemy_runtime.s):03039                 leay    d,y
+16FB 2004             (c/enemy_runtime.s):03040                 bra     dvs_draw
+16FD                  (c/enemy_runtime.s):03041         dvs_first
 16FD 108EDB7E         (c/enemy_runtime.s):03042                 ldy     #vegetable_sprites
-1701 31AB             (c/enemy_runtime.s):03043                 leay    d,y
-1703 2004             (c/enemy_runtime.s):03044                 bra     dvs_draw
-1705                  (c/enemy_runtime.s):03045         dvs_first
-1705 108EDB7E         (c/enemy_runtime.s):03046                 ldy     #vegetable_sprites
-1709                  (c/enemy_runtime.s):03047         dvs_draw
-1709 3510             (c/enemy_runtime.s):03048                 puls    x
-170B CED5C3           (c/enemy_runtime.s):03049                 ldu     #sprite_attr0_pairs
-170E 170001           (c/enemy_runtime.s):03050                 lbsr    blit_stage_sprite
-1711 39               (c/enemy_runtime.s):03051                 rts
-                      (c/enemy_runtime.s):03052         
-                      (c/enemy_runtime.s):03053         ; Expand one 64-byte 2bpp source into a compact 128-byte 4bpp surface.
-1712                  (c/enemy_runtime.s):03054         blit_stage_sprite
-1712 8640             (c/enemy_runtime.s):03055                 lda     #SPRITE_SOURCE_SIZE
-1714 9764             (c/enemy_runtime.s):03056                 sta     STAGE_COUNT
-1716                  (c/enemy_runtime.s):03057         bss_source
-1716 A6A0             (c/enemy_runtime.s):03058                 lda     ,y+
-1718 9766             (c/enemy_runtime.s):03059                 sta     STAGE_SOURCE
-171A 44               (c/enemy_runtime.s):03060                 lsra
-171B 44               (c/enemy_runtime.s):03061                 lsra
-171C 44               (c/enemy_runtime.s):03062                 lsra
-171D 44               (c/enemy_runtime.s):03063                 lsra
-171E A6C6             (c/enemy_runtime.s):03064                 lda     a,u
-1720 17000E           (c/enemy_runtime.s):03065                 lbsr    merge_stage_pixel
-1723 9666             (c/enemy_runtime.s):03066                 lda     STAGE_SOURCE
-1725 840F             (c/enemy_runtime.s):03067                 anda    #$0F
-1727 A6C6             (c/enemy_runtime.s):03068                 lda     a,u
-1729 170005           (c/enemy_runtime.s):03069                 lbsr    merge_stage_pixel
-172C 0A64             (c/enemy_runtime.s):03070                 dec     STAGE_COUNT
-172E 26E6             (c/enemy_runtime.s):03071                 bne     bss_source
-1730 39               (c/enemy_runtime.s):03072                 rts
-                      (c/enemy_runtime.s):03073         
-1731                  (c/enemy_runtime.s):03074         merge_stage_pixel
-1731 9765             (c/enemy_runtime.s):03075                 sta     STAGE_PIXEL
-1733 5F               (c/enemy_runtime.s):03076                 clrb
-1734 85F0             (c/enemy_runtime.s):03077                 bita    #$F0
-1736 2602             (c/enemy_runtime.s):03078                 bne     msp_high
-1738 CAF0             (c/enemy_runtime.s):03079                 orb     #$F0
-173A                  (c/enemy_runtime.s):03080         msp_high
-173A 850F             (c/enemy_runtime.s):03081                 bita    #$0F
-173C 2602             (c/enemy_runtime.s):03082                 bne     msp_low
-173E CA0F             (c/enemy_runtime.s):03083                 orb     #$0F
-1740                  (c/enemy_runtime.s):03084         msp_low
-1740 E484             (c/enemy_runtime.s):03085                 andb    ,x
-1742 DA65             (c/enemy_runtime.s):03086                 orb     STAGE_PIXEL
-1744 E780             (c/enemy_runtime.s):03087                 stb     ,x+
-1746 39               (c/enemy_runtime.s):03088                 rts
-                      (c/enemy_runtime.s):03089         
-1747                  (c/enemy_runtime.s):03090         capture_zone_bg
-1747 8E4DEC           (c/enemy_runtime.s):03091                 ldx     #ENEMY_ZONE_FB
-174A CEA490           (c/enemy_runtime.s):03092                 ldu     #ENEMY_ZONE_BG
-174D 108E0020         (c/enemy_runtime.s):03093                 ldy     #ENEMY_ZONE_ROWS
-1751                  (c/enemy_runtime.s):03094         czb_row
+1701                  (c/enemy_runtime.s):03043         dvs_draw
+1701 3510             (c/enemy_runtime.s):03044                 puls    x
+1703 CED5C3           (c/enemy_runtime.s):03045                 ldu     #sprite_attr0_pairs
+1706 170001           (c/enemy_runtime.s):03046                 lbsr    blit_stage_sprite
+1709 39               (c/enemy_runtime.s):03047                 rts
+                      (c/enemy_runtime.s):03048         
+                      (c/enemy_runtime.s):03049         ; Expand one 64-byte 2bpp source into a compact 128-byte 4bpp surface.
+170A                  (c/enemy_runtime.s):03050         blit_stage_sprite
+170A 8640             (c/enemy_runtime.s):03051                 lda     #SPRITE_SOURCE_SIZE
+170C 9764             (c/enemy_runtime.s):03052                 sta     STAGE_COUNT
+170E                  (c/enemy_runtime.s):03053         bss_source
+170E A6A0             (c/enemy_runtime.s):03054                 lda     ,y+
+1710 9766             (c/enemy_runtime.s):03055                 sta     STAGE_SOURCE
+1712 44               (c/enemy_runtime.s):03056                 lsra
+1713 44               (c/enemy_runtime.s):03057                 lsra
+1714 44               (c/enemy_runtime.s):03058                 lsra
+1715 44               (c/enemy_runtime.s):03059                 lsra
+1716 A6C6             (c/enemy_runtime.s):03060                 lda     a,u
+1718 17000E           (c/enemy_runtime.s):03061                 lbsr    merge_stage_pixel
+171B 9666             (c/enemy_runtime.s):03062                 lda     STAGE_SOURCE
+171D 840F             (c/enemy_runtime.s):03063                 anda    #$0F
+171F A6C6             (c/enemy_runtime.s):03064                 lda     a,u
+1721 170005           (c/enemy_runtime.s):03065                 lbsr    merge_stage_pixel
+1724 0A64             (c/enemy_runtime.s):03066                 dec     STAGE_COUNT
+1726 26E6             (c/enemy_runtime.s):03067                 bne     bss_source
+1728 39               (c/enemy_runtime.s):03068                 rts
+                      (c/enemy_runtime.s):03069         
+1729                  (c/enemy_runtime.s):03070         merge_stage_pixel
+1729 9765             (c/enemy_runtime.s):03071                 sta     STAGE_PIXEL
+172B 5F               (c/enemy_runtime.s):03072                 clrb
+172C 85F0             (c/enemy_runtime.s):03073                 bita    #$F0
+172E 2602             (c/enemy_runtime.s):03074                 bne     msp_high
+1730 CAF0             (c/enemy_runtime.s):03075                 orb     #$F0
+1732                  (c/enemy_runtime.s):03076         msp_high
+1732 850F             (c/enemy_runtime.s):03077                 bita    #$0F
+1734 2602             (c/enemy_runtime.s):03078                 bne     msp_low
+1736 CA0F             (c/enemy_runtime.s):03079                 orb     #$0F
+1738                  (c/enemy_runtime.s):03080         msp_low
+1738 E484             (c/enemy_runtime.s):03081                 andb    ,x
+173A DA65             (c/enemy_runtime.s):03082                 orb     STAGE_PIXEL
+173C E780             (c/enemy_runtime.s):03083                 stb     ,x+
+173E 39               (c/enemy_runtime.s):03084                 rts
+                      (c/enemy_runtime.s):03085         
+173F                  (c/enemy_runtime.s):03086         capture_zone_bg
+173F 8E4DEC           (c/enemy_runtime.s):03087                 ldx     #ENEMY_ZONE_FB
+1742 CEA490           (c/enemy_runtime.s):03088                 ldu     #ENEMY_ZONE_BG
+1745 108E0020         (c/enemy_runtime.s):03089                 ldy     #ENEMY_ZONE_ROWS
+1749                  (c/enemy_runtime.s):03090         czb_row
+1749 EC81             (c/enemy_runtime.s):03091                 ldd     ,x++
+174B EDC1             (c/enemy_runtime.s):03092                 std     ,u++
+174D EC81             (c/enemy_runtime.s):03093                 ldd     ,x++
+174F EDC1             (c/enemy_runtime.s):03094                 std     ,u++
 1751 EC81             (c/enemy_runtime.s):03095                 ldd     ,x++
 1753 EDC1             (c/enemy_runtime.s):03096                 std     ,u++
 1755 EC81             (c/enemy_runtime.s):03097                 ldd     ,x++
 1757 EDC1             (c/enemy_runtime.s):03098                 std     ,u++
-1759 EC81             (c/enemy_runtime.s):03099                 ldd     ,x++
-175B EDC1             (c/enemy_runtime.s):03100                 std     ,u++
-175D EC81             (c/enemy_runtime.s):03101                 ldd     ,x++
-175F EDC1             (c/enemy_runtime.s):03102                 std     ,u++
-1761 30890098         (c/enemy_runtime.s):03103                 leax    152,x
-1765 313F             (c/enemy_runtime.s):03104                 leay    -1,y
-1767 26E8             (c/enemy_runtime.s):03105                 bne     czb_row
-1769 170001           (c/enemy_runtime.s):03106                 lbsr    build_enemy_nest_cache
-176C 39               (c/enemy_runtime.s):03107                 rts
-                      (c/enemy_runtime.s):03108         
-                      (c/enemy_runtime.s):03109         ; Expand the four stage-selected dormant frames once when the authoritative
-                      (c/enemy_runtime.s):03110         ; nest background is captured. Animation frames then publish one native
-                      (c/enemy_runtime.s):03111         ; 16-by-16 rectangle without sparse decoding or a 16-by-32 rebuild.
-176D                  (c/enemy_runtime.s):03112         build_enemy_nest_cache
-176D 9654             (c/enemy_runtime.s):03113                 lda     ENEMY_ANIM
-176F 3402             (c/enemy_runtime.s):03114                 pshs    a
-1771 0F54             (c/enemy_runtime.s):03115                 clr     ENEMY_ANIM
-1773 0F5D             (c/enemy_runtime.s):03116                 clr     ENEMY_WORK
-1775 CEAD80           (c/enemy_runtime.s):03117                 ldu     #ENEMY_NEST_CACHE
-1778                  (c/enemy_runtime.s):03118         benc_frame
-1778 3440             (c/enemy_runtime.s):03119                 pshs    u
-177A 8EA510           (c/enemy_runtime.s):03120                 ldx     #ENEMY_ZONE_BG+128
-177D CE1800           (c/enemy_runtime.s):03121                 ldu     #ENEMY_ZONE_STAGE
-1780 17001D           (c/enemy_runtime.s):03122                 lbsr    copy_nest_128
-1783 8E1800           (c/enemy_runtime.s):03123                 ldx     #ENEMY_ZONE_STAGE
-1786 C600             (c/enemy_runtime.s):03124                 ldb     #0
-1788 17FE35           (c/enemy_runtime.s):03125                 lbsr    draw_enemy_stage
-178B 3540             (c/enemy_runtime.s):03126                 puls    u
-178D 8E1800           (c/enemy_runtime.s):03127                 ldx     #ENEMY_ZONE_STAGE
-1790 17000D           (c/enemy_runtime.s):03128                 lbsr    copy_nest_128
-1793 0C54             (c/enemy_runtime.s):03129                 inc     ENEMY_ANIM
-1795 9654             (c/enemy_runtime.s):03130                 lda     ENEMY_ANIM
-1797 8104             (c/enemy_runtime.s):03131                 cmpa    #4
-1799 25DD             (c/enemy_runtime.s):03132                 blo     benc_frame
-179B 3502             (c/enemy_runtime.s):03133                 puls    a
-179D 9754             (c/enemy_runtime.s):03134                 sta     ENEMY_ANIM
-179F 39               (c/enemy_runtime.s):03135                 rts
-                      (c/enemy_runtime.s):03136         
-17A0                  (c/enemy_runtime.s):03137         copy_nest_128
-17A0 108E0040         (c/enemy_runtime.s):03138                 ldy     #64
-17A4                  (c/enemy_runtime.s):03139         bnc_copy
-17A4 EC81             (c/enemy_runtime.s):03140                 ldd     ,x++
-17A6 EDC1             (c/enemy_runtime.s):03141                 std     ,u++
-17A8 313F             (c/enemy_runtime.s):03142                 leay    -1,y
-17AA 26F8             (c/enemy_runtime.s):03143                 bne     bnc_copy
-17AC 39               (c/enemy_runtime.s):03144                 rts
-                      (c/enemy_runtime.s):03145         
-                      (c/enemy_runtime.s):03146         ; A removed skull redraws one 16-by-16 clean footprint. Copy that footprint
-                      (c/enemy_runtime.s):03147         ; into the authoritative compact nest background before recompositing actors.
-17AD                  (c/enemy_runtime.s):03148         refresh_zone_bg_footprint
-17AD 9636             (c/enemy_runtime.s):03149                 lda     ENTITY_X
-17AF 810C             (c/enemy_runtime.s):03150                 cmpa    #12
-17B1 2645             (c/enemy_runtime.s):03151                 bne     rzbf_done
-17B3 9637             (c/enemy_runtime.s):03152                 lda     ENTITY_Y
-17B5 810A             (c/enemy_runtime.s):03153                 cmpa    #10
-17B7 253F             (c/enemy_runtime.s):03154                 blo     rzbf_done
-17B9 810D             (c/enemy_runtime.s):03155                 cmpa    #13
-17BB 243B             (c/enemy_runtime.s):03156                 bhs     rzbf_done
-17BD 800A             (c/enemy_runtime.s):03157                 suba    #10
-17BF C608             (c/enemy_runtime.s):03158                 ldb     #8
-17C1 3D               (c/enemy_runtime.s):03159                 mul
-17C2 D763             (c/enemy_runtime.s):03160                 stb     ENEMY_ROW
-17C4 86A0             (c/enemy_runtime.s):03161                 lda     #160
+1759 30890098         (c/enemy_runtime.s):03099                 leax    152,x
+175D 313F             (c/enemy_runtime.s):03100                 leay    -1,y
+175F 26E8             (c/enemy_runtime.s):03101                 bne     czb_row
+1761 170001           (c/enemy_runtime.s):03102                 lbsr    build_enemy_nest_cache
+1764 39               (c/enemy_runtime.s):03103                 rts
+                      (c/enemy_runtime.s):03104         
+                      (c/enemy_runtime.s):03105         ; Expand the four stage-selected dormant frames once when the authoritative
+                      (c/enemy_runtime.s):03106         ; nest background is captured. Animation frames then publish one native
+                      (c/enemy_runtime.s):03107         ; 16-by-16 rectangle without sparse decoding or a 16-by-32 rebuild.
+1765                  (c/enemy_runtime.s):03108         build_enemy_nest_cache
+1765 9654             (c/enemy_runtime.s):03109                 lda     ENEMY_ANIM
+1767 3402             (c/enemy_runtime.s):03110                 pshs    a
+1769 0F54             (c/enemy_runtime.s):03111                 clr     ENEMY_ANIM
+176B 0F5D             (c/enemy_runtime.s):03112                 clr     ENEMY_WORK
+176D CEAD80           (c/enemy_runtime.s):03113                 ldu     #ENEMY_NEST_CACHE
+1770                  (c/enemy_runtime.s):03114         benc_frame
+1770 3440             (c/enemy_runtime.s):03115                 pshs    u
+1772 8EA510           (c/enemy_runtime.s):03116                 ldx     #ENEMY_ZONE_BG+128
+1775 CE1800           (c/enemy_runtime.s):03117                 ldu     #ENEMY_ZONE_STAGE
+1778 17001D           (c/enemy_runtime.s):03118                 lbsr    copy_nest_128
+177B 8E1800           (c/enemy_runtime.s):03119                 ldx     #ENEMY_ZONE_STAGE
+177E C600             (c/enemy_runtime.s):03120                 ldb     #0
+1780 17FE3D           (c/enemy_runtime.s):03121                 lbsr    draw_enemy_stage
+1783 3540             (c/enemy_runtime.s):03122                 puls    u
+1785 8E1800           (c/enemy_runtime.s):03123                 ldx     #ENEMY_ZONE_STAGE
+1788 17000D           (c/enemy_runtime.s):03124                 lbsr    copy_nest_128
+178B 0C54             (c/enemy_runtime.s):03125                 inc     ENEMY_ANIM
+178D 9654             (c/enemy_runtime.s):03126                 lda     ENEMY_ANIM
+178F 8104             (c/enemy_runtime.s):03127                 cmpa    #4
+1791 25DD             (c/enemy_runtime.s):03128                 blo     benc_frame
+1793 3502             (c/enemy_runtime.s):03129                 puls    a
+1795 9754             (c/enemy_runtime.s):03130                 sta     ENEMY_ANIM
+1797 39               (c/enemy_runtime.s):03131                 rts
+                      (c/enemy_runtime.s):03132         
+1798                  (c/enemy_runtime.s):03133         copy_nest_128
+1798 108E0040         (c/enemy_runtime.s):03134                 ldy     #64
+179C                  (c/enemy_runtime.s):03135         bnc_copy
+179C EC81             (c/enemy_runtime.s):03136                 ldd     ,x++
+179E EDC1             (c/enemy_runtime.s):03137                 std     ,u++
+17A0 313F             (c/enemy_runtime.s):03138                 leay    -1,y
+17A2 26F8             (c/enemy_runtime.s):03139                 bne     bnc_copy
+17A4 39               (c/enemy_runtime.s):03140                 rts
+                      (c/enemy_runtime.s):03141         
+                      (c/enemy_runtime.s):03142         ; A removed skull redraws one 16-by-16 clean footprint. Copy that footprint
+                      (c/enemy_runtime.s):03143         ; into the authoritative compact nest background before recompositing actors.
+17A5                  (c/enemy_runtime.s):03144         refresh_zone_bg_footprint
+17A5 9636             (c/enemy_runtime.s):03145                 lda     ENTITY_X
+17A7 810C             (c/enemy_runtime.s):03146                 cmpa    #12
+17A9 2645             (c/enemy_runtime.s):03147                 bne     rzbf_done
+17AB 9637             (c/enemy_runtime.s):03148                 lda     ENTITY_Y
+17AD 810A             (c/enemy_runtime.s):03149                 cmpa    #10
+17AF 253F             (c/enemy_runtime.s):03150                 blo     rzbf_done
+17B1 810D             (c/enemy_runtime.s):03151                 cmpa    #13
+17B3 243B             (c/enemy_runtime.s):03152                 bhs     rzbf_done
+17B5 800A             (c/enemy_runtime.s):03153                 suba    #10
+17B7 C608             (c/enemy_runtime.s):03154                 ldb     #8
+17B9 3D               (c/enemy_runtime.s):03155                 mul
+17BA D763             (c/enemy_runtime.s):03156                 stb     ENEMY_ROW
+17BC 86A0             (c/enemy_runtime.s):03157                 lda     #160
+17BE D663             (c/enemy_runtime.s):03158                 ldb     ENEMY_ROW
+17C0 3D               (c/enemy_runtime.s):03159                 mul
+17C1 C34DEC           (c/enemy_runtime.s):03160                 addd    #ENEMY_ZONE_FB
+17C4 1F01             (c/enemy_runtime.s):03161                 tfr     d,x
 17C6 D663             (c/enemy_runtime.s):03162                 ldb     ENEMY_ROW
-17C8 3D               (c/enemy_runtime.s):03163                 mul
-17C9 C34DEC           (c/enemy_runtime.s):03164                 addd    #ENEMY_ZONE_FB
-17CC 1F01             (c/enemy_runtime.s):03165                 tfr     d,x
-17CE D663             (c/enemy_runtime.s):03166                 ldb     ENEMY_ROW
-17D0 4F               (c/enemy_runtime.s):03167                 clra
-17D1 58               (c/enemy_runtime.s):03168                 lslb
-17D2 49               (c/enemy_runtime.s):03169                 rola
-17D3 58               (c/enemy_runtime.s):03170                 lslb
-17D4 49               (c/enemy_runtime.s):03171                 rola
-17D5 58               (c/enemy_runtime.s):03172                 lslb
-17D6 49               (c/enemy_runtime.s):03173                 rola
-17D7 C3A490           (c/enemy_runtime.s):03174                 addd    #ENEMY_ZONE_BG
-17DA 1F03             (c/enemy_runtime.s):03175                 tfr     d,u
-17DC 108E0010         (c/enemy_runtime.s):03176                 ldy     #16
-17E0                  (c/enemy_runtime.s):03177         rzbf_row
+17C8 4F               (c/enemy_runtime.s):03163                 clra
+17C9 58               (c/enemy_runtime.s):03164                 lslb
+17CA 49               (c/enemy_runtime.s):03165                 rola
+17CB 58               (c/enemy_runtime.s):03166                 lslb
+17CC 49               (c/enemy_runtime.s):03167                 rola
+17CD 58               (c/enemy_runtime.s):03168                 lslb
+17CE 49               (c/enemy_runtime.s):03169                 rola
+17CF C3A490           (c/enemy_runtime.s):03170                 addd    #ENEMY_ZONE_BG
+17D2 1F03             (c/enemy_runtime.s):03171                 tfr     d,u
+17D4 108E0010         (c/enemy_runtime.s):03172                 ldy     #16
+17D8                  (c/enemy_runtime.s):03173         rzbf_row
+17D8 EC81             (c/enemy_runtime.s):03174                 ldd     ,x++
+17DA EDC1             (c/enemy_runtime.s):03175                 std     ,u++
+17DC EC81             (c/enemy_runtime.s):03176                 ldd     ,x++
+17DE EDC1             (c/enemy_runtime.s):03177                 std     ,u++
 17E0 EC81             (c/enemy_runtime.s):03178                 ldd     ,x++
 17E2 EDC1             (c/enemy_runtime.s):03179                 std     ,u++
 17E4 EC81             (c/enemy_runtime.s):03180                 ldd     ,x++
 17E6 EDC1             (c/enemy_runtime.s):03181                 std     ,u++
-17E8 EC81             (c/enemy_runtime.s):03182                 ldd     ,x++
-17EA EDC1             (c/enemy_runtime.s):03183                 std     ,u++
-17EC EC81             (c/enemy_runtime.s):03184                 ldd     ,x++
-17EE EDC1             (c/enemy_runtime.s):03185                 std     ,u++
-17F0 30890098         (c/enemy_runtime.s):03186                 leax    152,x
-17F4 313F             (c/enemy_runtime.s):03187                 leay    -1,y
-17F6 26E8             (c/enemy_runtime.s):03188                 bne     rzbf_row
-17F8                  (c/enemy_runtime.s):03189         rzbf_done
-17F8 39               (c/enemy_runtime.s):03190                 rts
-                      (c/enemy_runtime.s):03191         
-17F9                  (c/enemy_runtime.s):03192         enemy_runtime_end
-                      (c/enemy_runtime.s):03193                 end
+17E8 30890098         (c/enemy_runtime.s):03182                 leax    152,x
+17EC 313F             (c/enemy_runtime.s):03183                 leay    -1,y
+17EE 26E8             (c/enemy_runtime.s):03184                 bne     rzbf_row
+17F0                  (c/enemy_runtime.s):03185         rzbf_done
+17F0 39               (c/enemy_runtime.s):03186                 rts
+                      (c/enemy_runtime.s):03187         
+17F1                  (c/enemy_runtime.s):03188         enemy_runtime_end
+                      (c/enemy_runtime.s):03189                 end
 
 Symbol Table:
 [ G] acd_death                        0C50
@@ -3244,16 +3240,16 @@ Symbol Table:
 [ G] actor_closure_draw               0BFF
 [ G] actor_closure_restore            0BBB
 [ G] ACTOR_STAGE                      1800
-[ G] benc_frame                       1778
+[ G] benc_frame                       1770
 [ G] blit_packed_sprite               D582
-[ G] blit_stage_sprite                1712
-[ G] bnc_copy                         17A4
+[ G] blit_stage_sprite                170A
+[ G] bnc_copy                         179C
 [ G] BOX_INDEX                        004B
 [ G] BOX_PHASE                        004C
 [ G] BOX_TIMER                        004A
-[ G] bss_source                       1716
-[ G] build_enemy_nest_cache           176D
-[ G] capture_zone_bg                  1747
+[ G] bss_source                       170E
+[ G] build_enemy_nest_cache           1765
+[ G] capture_zone_bg                  173F
 [ G] cea_done                         1429
 [ G] cez_active_loop                  13A1
 [ G] cez_active_next                  13C8
@@ -3265,10 +3261,10 @@ Symbol Table:
 [ G] COLOR_WHITE                      0006
 [ G] compose_enemy_animation          1411
 [ G] compose_enemy_zone               1388
-[ G] copy_nest_128                    17A0
+[ G] copy_nest_128                    1798
 [ G] copy_two_fb_rows                 156B
 [ G] ctfr_row                         156F
-[ G] czb_row                          1751
+[ G] czb_row                          1749
 [ G] DEATH_FRAME                      004E
 [ G] DEATH_STATE                      004D
 [ G] DIR_NONE                         00FF
@@ -3290,11 +3286,11 @@ Symbol Table:
 [ G] draw_recolored_map_tile          C49C
 [ G] draw_score_popup                 D2E2
 [ G] draw_screen                      D689
-[ G] draw_vegetable_stage             16ED
+[ G] draw_vegetable_stage             16E5
 [ G] draw_word_progress_hud           C332
-[ G] dvs_draw                         1709
-[ G] dvs_first                        1705
-[ G] dvs_indexed                      16FA
+[ G] dvs_draw                         1701
+[ G] dvs_first                        16FD
+[ G] dvs_indexed                      16F2
 [ G] ec_done                          0E7E
 [ G] ec_score_done                    0E70
 [ G] ecd_blocked                      0EB9
@@ -3348,7 +3344,7 @@ Symbol Table:
 [ G] ENEMY_REVERSE                    007D
 [ G] ENEMY_ROAMING                    007E
 [ G] ENEMY_ROW                        0063
-[ G] enemy_runtime_end                17F9
+[ G] enemy_runtime_end                17F1
 [ G] enemy_skull_test                 0FEF
 [ G] ENEMY_TABLE                      A470
 [ G] enemy_target_offsets             0FCF
@@ -3542,9 +3538,9 @@ Symbol Table:
 [ G] maze_gate_owner                  F95A
 [ G] maze_gates                       FB9A
 [ G] maze_nav                         F71A
-[ G] merge_stage_pixel                1731
-[ G] msp_high                         173A
-[ G] msp_low                          1740
+[ G] merge_stage_pixel                1729
+[ G] msp_high                         1732
+[ G] msp_low                          1738
 [ G] pci_build                        1465
 [ G] pci_commit_row                   150C
 [ G] pci_copy_old                     1433
@@ -3620,7 +3616,7 @@ Symbol Table:
 [ G] rcrr_byte                        120B
 [ G] rcrr_rotated                     1207
 [ G] RECORD_SIZE                      0008
-[ G] refresh_zone_bg_footprint        17AD
+[ G] refresh_zone_bg_footprint        17A5
 [ G] reload_enemy_box_timer           D759
 [ G] RENDER_BOX_COLOR                 0082
 [ G] RENDER_BOX_INDEX                 0081
@@ -3693,39 +3689,39 @@ Symbol Table:
 [ G] rub_up                           117C
 [ G] rub_vertical                     117D
 [ G] rub_vertical_fb                  11C8
-[ G] rzbf_done                        17F8
-[ G] rzbf_row                         17E0
+[ G] rzbf_done                        17F0
+[ G] rzbf_row                         17D8
 [ G] save_player                      D643
-[ G] sbf_command                      1659
-[ G] sbf_delta                        1652
-[ G] sbf_extended                     16AB
-[ G] sbf_opaque1                      1683
-[ G] sbf_opaque2                      16A5
-[ G] sbf_opaque3                      1689
-[ G] sbf_opaque4                      169C
-[ G] sbf_opaque5                      167C
-[ G] sbf_opaque6                      168F
-[ G] sbf_opaque_byte                  166B
-[ G] sbf_opaque_small                 1674
-[ G] sbf_partial                      1645
-[ G] sbf_partial_byte                 1647
-[ G] sbs_add_delta                    16C7
-[ G] sbs_command                      16C8
-[ G] sbs_delta                        16BB
-[ G] sbs_extended                     16E4
-[ G] sbs_opaque_byte                  16CC
-[ G] sbs_partial                      16D5
-[ G] sbs_partial_byte                 16D7
+[ G] sbf_command                      1651
+[ G] sbf_delta                        164A
+[ G] sbf_extended                     16A3
+[ G] sbf_opaque1                      167B
+[ G] sbf_opaque2                      169D
+[ G] sbf_opaque3                      1681
+[ G] sbf_opaque4                      1694
+[ G] sbf_opaque5                      1674
+[ G] sbf_opaque6                      1687
+[ G] sbf_opaque_byte                  1663
+[ G] sbf_opaque_small                 166C
+[ G] sbf_partial                      163D
+[ G] sbf_partial_byte                 163F
+[ G] sbs_add_delta                    16BF
+[ G] sbs_command                      16C0
+[ G] sbs_delta                        16B3
+[ G] sbs_extended                     16DC
+[ G] sbs_opaque_byte                  16C4
+[ G] sbs_partial                      16CD
+[ G] sbs_partial_byte                 16CF
 [ G] SCORE_BCD                        001D
-[ G] sparse_blit_fb                   1643
-[ G] sparse_blit_stage                16BB
-[ G] sparse_decode_done               16B5
+[ G] sparse_blit_fb                   163B
+[ G] sparse_blit_stage                16B3
+[ G] sparse_decode_done               16AD
 [ G] SPARSE_ENEMY_INDEX_ADDR          A000
 [ G] SPARSE_ENEMY_PAYLOAD_PAGE        0035
 [ G] sparse_enemy_stream              1611
 [ G] SPARSE_PLAYER_INDEX_ADDR         A000
 [ G] SPARSE_PLAYER_PAYLOAD_PAGE       0039
-[ G] sparse_player_stream             162A
+[ G] sparse_player_stream             1626
 [ G] sprite_attr0_pairs               D5C3
 [ G] SPRITE_SOURCE_SIZE               0040
 [ G] STAGE                            0024

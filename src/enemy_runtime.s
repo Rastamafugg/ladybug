@@ -2887,12 +2887,10 @@ player_draw_impl
 sparse_enemy_stream
         ldb     #3
         mul
-        tfr     d,x
+        ldu     #SPARSE_ENEMY_INDEX_ADDR
+        leau    d,u
         lda     #SPARSE_ENEMY_PAYLOAD_PAGE
         sta     GIME_PAR5
-        ldu     #SPARSE_ENEMY_INDEX_ADDR
-        tfr     x,d
-        leau    d,u
         lda     ,u
         sta     GIME_PAR5
         ldu     1,u
@@ -2902,12 +2900,10 @@ sparse_enemy_stream
 sparse_player_stream
         ldb     #3
         mul
-        tfr     d,x
+        ldu     #SPARSE_PLAYER_INDEX_ADDR
+        leau    d,u
         lda     #SPARSE_PLAYER_PAYLOAD_PAGE
         sta     GIME_PAR5
-        ldu     #SPARSE_PLAYER_INDEX_ADDR
-        tfr     x,d
-        leau    d,u
         lda     ,u
         sta     GIME_PAR5
         ldu     1,u
