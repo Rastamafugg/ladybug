@@ -14,8 +14,12 @@ PIA_CRA equ $FF01
 PIA_DB  equ $FF02
 PIA_CRB equ $FF03
 PRESENTATION_MODULE_DRAW equ $0821
-SPARSE_ENEMY_INDEX_ADDR equ $0500
-SPARSE_PLAYER_INDEX_ADDR equ $0680
+BLIT_TILE equ $D6C1
+SPARSE_ENEMY_PAYLOAD_PAGE equ $35
+SPARSE_PLAYER_PAYLOAD_PAGE equ $39
+SPARSE_ENEMY_INDEX_ADDR equ $A000
+SPARSE_PLAYER_INDEX_ADDR equ $A000
+PRESENTATION_GAMEPLAY_TILES equ $E3D0
 ATTRACT_PLAYER_DST equ $661C
 ATTRACT_ENEMY_DST equ $2CA4
 PLAYER_FB equ $000B
@@ -68,6 +72,7 @@ presentation_flow_tick
         clr     PRES_CREDITS
         clr     PRES_CONTEXT
         clr     PRES_DEMO_CAUSE
+        clr     PRES_ACTOR_FRAME
         lda     #$FF
         ldx     #PRES_PREV
         ldb     #3
@@ -75,7 +80,6 @@ pft_prev
         sta     ,x+
         decb
         bne     pft_prev
-        lbsr    inflate_maps
         lda     #PRESENTATION_MAP_ATTRACT
         lbsr    start_screen
         lda     #1
@@ -90,6 +94,23 @@ pft_ready
         lda     #1
         rts
 pft_mode
+        lda     PRES_EVENT
+        bita    #1
+        beq     pft_dispatch
+        tst     PRES_CREDITS
+        beq     pft_dispatch
+        lda     PRES_MODE
+        beq     pft_dispatch
+        cmpa    #MODE_LEVEL
+        beq     pft_dispatch
+        dec     PRES_CREDITS
+        lda     #1
+        sta     PRES_CONTEXT
+        lda     #PRESENTATION_MAP_LEVEL_START
+        lbsr    start_screen
+        lda     #1
+        rts
+pft_dispatch
         lda     PRES_MODE
         beq     normal_tick
         cmpa    #MODE_LOAD
@@ -145,6 +166,12 @@ normal_game
 
 start_screen
         sta     PRES_SCREEN
+        tfr     a,b
+        aslb
+        leax    map_stream_offsets,pcr
+        ldd     b,x
+        std     PRES_IN
+        clr     PRES_RUN
         lda     #MODE_LOAD
         sta     PRES_MODE
         clr     PRES_CELL
@@ -157,12 +184,22 @@ start_screen
         rts
 
 load_tick
-        ldb     #32
+        lda     #32
+        sta     PRES_ROWS
 load_cells
         ldd     PRES_CELL
         cmpd    #PRESENTATION_MAP_BYTES
         bhs     load_done
+        tst     PRES_RUN
+        bne     load_value_ready
+        lbsr    cold_read_byte
+        sta     PRES_RUN
+        lbsr    cold_read_byte
+        sta     PRES_VALUE
+load_value_ready
+        ldb     PRES_VALUE
         lbsr    draw_cell
+        dec     PRES_RUN
         inc     PRES_CELL+1
         bne     load_advance
         inc     PRES_CELL
@@ -177,7 +214,7 @@ load_advance
         addd    #1120
         std     PRES_DST
 load_next
-        decb
+        dec     PRES_ROWS
         bne     load_cells
         clr     ACTIVE
         lda     #1
@@ -206,13 +243,7 @@ load_timer_reset
         rts
 
 draw_cell
-        ldb     PRES_SCREEN
-        aslb
-        leax    map_offsets,pcr
-        ldd     b,x
-        addd    PRES_CELL
-        lbsr    cold_ptr
-        ldb     ,x
+        ldy     PRES_DST
         lbsr    draw_tile_id
         ldd     PRES_DST
         addd    #4
@@ -220,32 +251,31 @@ draw_cell
         rts
 
 draw_tile_id
+        cmpb    #PRESENTATION_GAMEPLAY_TILE_BASE
+        blo     draw_cold_tile
+        subb    #PRESENTATION_GAMEPLAY_TILE_BASE
         clra
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        addd    #PRESENTATION_TILE_OFFSET
+        addd    #PRESENTATION_GAMEPLAY_LOOKUP_OFFSET
         lbsr    cold_ptr
-        tfr     x,y
-        ldx     PRES_DST
-        lda     #8
-draw_rows
-        pshs    a
-        ldd     ,y++
-        std     ,x++
-        ldd     ,y++
-        std     ,x++
-        leax    156,x
-        puls    a
-        deca
-        bne     draw_rows
+        lda     ,x
+        ldb     #32
+        mul
+        ldu     #PRESENTATION_GAMEPLAY_TILES
+        leau    d,u
+        tfr     y,x
+        tfr     u,y
+        jsr     BLIT_TILE
+        rts
+draw_cold_tile
+        tfr     b,a
+        ldb     #32
+        mul
+        addd    #PRESENTATION_TILE_ATLAS_OFFSET
+        lbsr    cold_ptr
+        tfr     x,u
+        tfr     y,x
+        tfr     u,y
+        jsr     BLIT_TILE
         rts
 
 draw_coin_slots
@@ -255,59 +285,14 @@ draw_coin_slots
         lda     PRES_CREDITS
         beq     draw_coins_done
         sta     PRES_COIN_COUNT
-        ldd     #PRESENTATION_COIN_DST_0
-        std     PRES_DST
+        ldy     #PRESENTATION_COIN_DST_0
 draw_coin_next
         ldb     #PRESENTATION_COIN_TILE
         lbsr    draw_tile_id
-        ldd     PRES_DST
-        addd    #PRESENTATION_COIN_DST_1-PRESENTATION_COIN_DST_0
-        std     PRES_DST
+        leay    PRESENTATION_COIN_DST_1-PRESENTATION_COIN_DST_0,y
         dec     PRES_COIN_COUNT
         bne     draw_coin_next
 draw_coins_done
-        rts
-
-; Expand the six count/value map streams into the second half of the
-; four-page cold destination. The source atlas and streams occupy offsets
-; below $4000, so source and output never overlap during inflation.
-inflate_maps
-        leax    map_stream_offsets,pcr
-        leau    map_offsets,pcr
-        ldb     #PRESENTATION_MAP_COUNT
-        stb     PRES_MAPS
-inflate_next_map
-        ldd     ,x++
-        std     PRES_IN
-        ldd     ,u++
-        std     PRES_OUT
-        ldd     #PRESENTATION_MAP_BYTES
-        std     PRES_REMAIN
-        lbsr    inflate_one
-        dec     PRES_MAPS
-        bne     inflate_next_map
-        lda     #$34
-        sta     PAR5
-        rts
-
-inflate_one
-inflate_next_run
-        ldd     PRES_REMAIN
-        beq     inflate_done
-        lbsr    cold_read_byte
-        sta     PRES_RUN
-        lbsr    cold_read_byte
-        sta     PRES_VALUE
-inflate_emit
-        lda     PRES_VALUE
-        lbsr    cold_write_byte
-        dec     PRES_RUN
-        bne     inflate_emit
-        ldd     PRES_REMAIN
-        subd    #1
-        std     PRES_REMAIN
-        bne     inflate_next_run
-inflate_done
         rts
 
 ; Return X as a CPU pointer into the cold physical page selected by D.
@@ -335,17 +320,6 @@ cold_read_byte
         subd    #1
         lbsr    cold_ptr
         lda     ,x
-        rts
-
-cold_write_byte
-        sta     PRES_VALUE
-        ldd     PRES_OUT
-        addd    #1
-        std     PRES_OUT
-        subd    #1
-        lbsr    cold_ptr
-        lda     PRES_VALUE
-        sta     ,x
         rts
 
 map_back
@@ -382,18 +356,6 @@ attract_tick
         ldd     PRES_TIMER
         cmpd    #360
         blo     hold
-        lda     PRES_EVENT
-        bita    #1
-        beq     attract_next
-        tst     PRES_CREDITS
-        beq     attract_next
-        dec     PRES_CREDITS
-        lda     #1
-        sta     PRES_CONTEXT
-        lda     #PRESENTATION_MAP_LEVEL_START
-        lbsr    start_screen
-        lda     #1
-        rts
 attract_next
         lda     #PRESENTATION_MAP_INSTRUCTIONS
         lbsr    start_screen
@@ -528,6 +490,9 @@ scan_next
 ; existing sparse indexes copied by the GMC loader; no presentation payload is
 ; added for these frames.
 attract_overlay
+        lda     PRES_TIMER+1
+        anda    #3
+        sta     PRES_ACTOR_FRAME
         ldx     #ATTRACT_PLAYER_DST
         stx     PRES_DST
         clr     PRES_ACTOR_KIND
@@ -536,13 +501,13 @@ attract_overlay
         stx     PRES_DST
         inc     PRES_ACTOR_KIND
         lbsr    draw_actor_overlay
-        lda     PRES_TIMER+1
-        anda    #3
-        sta     PRES_ACTOR_FRAME
 attract_overlay_done
         rts
 
 instructions_overlay
+        lda     PRES_TIMER+1
+        anda    #3
+        sta     PRES_ACTOR_FRAME
         lda     PRES_TIMER+1
         lsra
         lsra
@@ -606,14 +571,17 @@ highlight_next
 
 draw_actor_overlay
         ldb     PRES_ACTOR_FRAME
-        lda     #3
-        mul
         tst     PRES_ACTOR_KIND
         beq     actor_player_index
-        ldx     #SPARSE_ENEMY_INDEX_ADDR
-        bra     actor_index_ready
+        lda     #SPARSE_ENEMY_PAYLOAD_PAGE
+        bra     actor_index_map
 actor_player_index
-        ldx     #SPARSE_PLAYER_INDEX_ADDR
+        lda     #SPARSE_PLAYER_PAYLOAD_PAGE
+actor_index_map
+        sta     PAR5
+        lda     #3
+        mul
+        ldx     #SPARSE_ENEMY_INDEX_ADDR
 actor_index_ready
         leax    d,x
         lda     ,x

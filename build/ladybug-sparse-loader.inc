@@ -3,24 +3,21 @@ SPARSE_ENEMY_PAYLOAD_PAGE equ $35
 SPARSE_PLAYER_PAYLOAD_PAGE equ $39
 GATE_TRANSITION_PAYLOAD_ADDR equ $A8F6
 PRESENTATION_PAYLOAD_ADDR equ $AC36
-SPARSE_ENEMY_INDEX_ADDR equ $0500
-SPARSE_PLAYER_INDEX_ADDR equ $0680
+SPARSE_ENEMY_INDEX_ADDR equ $A000
+SPARSE_PLAYER_INDEX_ADDR equ $A000
 SPARSE_ENEMY_INDEX_BYTES equ 384
 SPARSE_PLAYER_INDEX_BYTES equ 48
 SPARSE_COPY_SEGMENT_BYTES equ 8
-SPARSE_COPY_SEGMENT_COUNT equ 12
+SPARSE_COPY_SEGMENT_COUNT equ 15
 
 ; bank, destination page, source CPU address, destination window, count
 sparse_copy_table
         ; boot_overflow_proof+$0000
         fcb     $00,$FF
         fdb     $C800,$06B0,$0002
-        ; perimeter_reset+$0000
-        fcb     $00,$3A
-        fdb     $C802,$A000,$1184
         ; perimeter_reset_helper+$0000
         fcb     $00,$FF
-        fdb     $D986,$06B2,$0013
+        fdb     $C802,$06B2,$0013
         ; enemy+$0000
         fcb     $02,$35
         fdb     $C020,$A000,$2000
@@ -48,3 +45,15 @@ sparse_copy_table
         ; presentation+$0000
         fcb     $03,$39
         fdb     $C0F3,$AC36,$0380
+        ; presentation_cold+$0000
+        fcb     $03,$3A
+        fdb     $C473,$A000,$038D
+        ; presentation_cold+$038D
+        fcb     $00,$3A
+        fdb     $C815,$A38D,$1C73
+        ; presentation_cold+$2000
+        fcb     $00,$3B
+        fdb     $E488,$A000,$061B
+        ; presentation_module+$0000
+        fcb     $00,$FF
+        fdb     $EAA3,$1900,$04C6

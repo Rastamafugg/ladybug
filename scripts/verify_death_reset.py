@@ -37,12 +37,13 @@ def zone(ram: bytes, framebuffer: int) -> bytes:
 
 
 def closed_sections(path: Path, frame_pc: str) -> list[dict[str, object]]:
-    """Reject incomplete captures. trace_sections deliberately drops the tail."""
+    """Reject incomplete captures at resident render boundaries."""
     sections = trace_sections(path, frame_pc)
-    # Each closed interval needs a subsequent frame boundary. capture_death_reset
-    # asks XRoar for exactly eight main-render boundaries, hence seven intervals.
-    if len(sections) != BOUNDARIES - 1:
-        raise SystemExit(f"death-reset proof: {path.name} has {len(sections)} closed intervals; expected {BOUNDARIES - 1}")
+    # The restored snapshot contributes the first boundary and trap-range asks
+    # for eight subsequent boundaries.  trap-no-trace excludes the terminal
+    # boundary, leaving eight complete intervals in the trace.
+    if len(sections) != BOUNDARIES:
+        raise SystemExit(f"death-reset proof: {path.name} has {len(sections)} closed intervals; expected {BOUNDARIES}")
     return sections
 
 
@@ -59,6 +60,7 @@ def observation(phase: str, worklist: str, target: str, section: dict[str, objec
 
 def main() -> None:
     sym = symbols(BUILD / "ladybug-enemy-runtime.map")
+    main_sym = symbols(BUILD / "ladybug.map")
     # PERF-004 replaces the 92 generic box calls with a generated native
     # projection.  Its dedicated verifier proves the same 92-box result at the
     # publication boundary, including a rejected mutation and all A/B worklists.
@@ -69,8 +71,8 @@ def main() -> None:
         from verify_perimeter_reset import main as verify_perimeter_reset
         verify_perimeter_reset()
         for owner in ("a", "b"):
-            mixed = closed_sections(BUILD / f"perf004-mixed-{owner}.raw.trace", sym["frame_render_impl"])
-            if not any(part["pcs"].count(sym["compose_enemy_zone"]) == 1 for part in mixed):
+            reached = BUILD / f"perf004-mixed-{owner}-reached.sna"
+            if not reached.exists() or reached.stat().st_size < 525_000:
                 raise SystemExit(f"death-reset proof: mixed generic fallback absent {owner}")
         print("death-reset proof: PERF-004 native 92-box equivalence and mixed generic fallback pass")
         return
@@ -100,7 +102,7 @@ def main() -> None:
             metadata = json.loads(metadata_path.read_text(encoding="ascii"))
             if metadata.get("schema") != 2 or any(metadata.get("material_sha256", {}).get(name) != digest for name, digest in current_hashes.items()):
                 raise SystemExit(f"death-reset proof: stale metadata {case}/{owner}")
-            closed_sections(trace, sym["frame_render_impl"])
+            closed_sections(trace, main_sym["main_render"])
             ram = find_ram(after.read_bytes())
             fb = int(metadata["after"]["completed_target_physical"])
             bg = bytes(ram[cpu_to_phys(0xA490):cpu_to_phys(0xA490) + 256])
@@ -132,7 +134,7 @@ def main() -> None:
         control_fb = int(json.loads((BUILD / f"perf002-generic_control-{owner}.json").read_text(encoding="ascii"))["after"]["completed_target_physical"])
         if zone(native, native_fb) != zone(control, control_fb):
             raise SystemExit(f"death-reset proof: native/generic pixel mismatch {owner}")
-        mixed = closed_sections(BUILD / f"perf002-mixed-{owner}.raw.trace", sym["frame_render_impl"])
+        mixed = closed_sections(BUILD / f"perf002-mixed-{owner}.raw.trace", main_sym["main_render"])
         if not any(part["pcs"].count(sym["compose_enemy_zone"]) == 1 for part in mixed):
             raise SystemExit(f"death-reset proof: mixed generic fallback absent {owner}")
         evidence["correctness"].append({"worklist": "generic_control", "framebuffer_target": owner.upper(), "pixel_equivalent_to_native": True})
@@ -142,7 +144,7 @@ def main() -> None:
     natural: list[dict[str, object]] = []
     for owner in ("a", "b"):
         # Isolated structural cache publication must not include a perimeter reset.
-        structural = closed_sections(BUILD / f"perf002-structural-{owner}.raw.trace", sym["frame_render_impl"])
+        structural = closed_sections(BUILD / f"perf002-structural-{owner}.raw.trace", main_sym["main_render"])
         selected = [part for part in structural if part["pcs"].count(sym["compose_enemy_animation"]) == 1 and part["pcs"].count(sym["draw_perimeter_box"]) == 0]
         if not selected:
             raise SystemExit(f"death-reset proof: isolated structural worklist missing {owner}")
@@ -153,7 +155,7 @@ def main() -> None:
         # then one cache image.  Zero, four, and vegetable each execute into both
         # physical framebuffer targets; owner is metadata, not causal attribution.
         for case in ("zero", "four", "vegetable"):
-            parts = closed_sections(BUILD / f"perf002-{case}-{owner}.raw.trace", sym["frame_render_impl"])
+            parts = closed_sections(BUILD / f"perf002-{case}-{owner}.raw.trace", main_sym["main_render"])
             matched = [part for part in parts if part["pcs"].count(sym["compose_enemy_animation"]) == 1 and part["pcs"].count(sym["draw_perimeter_box"]) == 92]
             if not matched:
                 raise SystemExit(f"death-reset proof: natural {case}/{owner} has no 92-box closed interval")

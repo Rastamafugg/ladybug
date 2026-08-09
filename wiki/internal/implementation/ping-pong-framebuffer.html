@@ -275,9 +275,10 @@ $FF, $0000                          end frame
         and remove frame-time expansion/cache misses.
       </p>
       <p>
-        During boot, the enemy/player indexes are mirrored to always-mapped
-        low RAM at <code>$0500/$0680</code>. A draw resolves the mirrored
-        entry, then PAR5 maps only the selected stream page. The decoder may use
+        During boot, the enemy/player indexes remain at the start of their
+        loaded sparse pages, <code>$35:$A000</code> and <code>$39:$A000</code>.
+        A draw maps the corresponding index page, resolves the entry, then
+        PAR5 maps only the selected stream page. The decoder may use
         only registers, direct page, stack, and the PAR1-PAR4 back
         framebuffer until PAR5 is restored to page <code>$34</code>. All
         decoder scratch and every IRQ-visible byte must therefore be in

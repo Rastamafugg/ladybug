@@ -11,243 +11,556 @@
      02F0             (c/gmc_bootstrap.s):00011         BOOT_FLAG   equ $02F0
      02F1             (c/gmc_bootstrap.s):00012         BOOT_PROOF  equ $02F1
      02F2             (c/gmc_bootstrap.s):00013         BOOT_SEGMENTS equ $02F2
-     0300             (c/gmc_bootstrap.s):00014         LOADER_RAM  equ $0300
-                      (c/gmc_bootstrap.s):00015         
-                      (c/gmc_bootstrap.s):00016                 org $C000
-C000 444B             (c/gmc_bootstrap.s):00017                 fcc "DK"
-                      (c/gmc_bootstrap.s):00018         
-C002                  (c/gmc_bootstrap.s):00019         boot_entry
-C002 1A50             (c/gmc_bootstrap.s):00020                 orcc    #$50
-C004 10CE1FFE         (c/gmc_bootstrap.s):00021                 lds     #$1FFE
-C008 7FFF91           (c/gmc_bootstrap.s):00022                 clr     GIME_MMU
-C00B 8638             (c/gmc_bootstrap.s):00023                 lda     #$38
-C00D B7FFA0           (c/gmc_bootstrap.s):00024                 sta     PAR_EXEC
-C010 863E             (c/gmc_bootstrap.s):00025                 lda     #$3E
-C012 B7FFA5           (c/gmc_bootstrap.s):00026                 sta     PAR_EXEC+5
-C015 B7FFA6           (c/gmc_bootstrap.s):00027                 sta     PAR_EXEC+6
-C018 863F             (c/gmc_bootstrap.s):00028                 lda     #$3F
-C01A B7FFA7           (c/gmc_bootstrap.s):00029                 sta     PAR_EXEC+7
-C01D 866C             (c/gmc_bootstrap.s):00030                 lda     #%01101100      ; MMU + force FExx + SCS for GMC $FF50
-C01F B7FF90           (c/gmc_bootstrap.s):00031                 sta     GIME_INIT0
-C022 B7FFDE           (c/gmc_bootstrap.s):00032                 sta     SAM_CART        ; BASIC autorun may leave TY=1; expose GMC ROM
-C025 308D0016         (c/gmc_bootstrap.s):00033                 leax    loader_start,pcr
-C029 108E0300         (c/gmc_bootstrap.s):00034                 ldy     #LOADER_RAM
-C02D CE0148           (c/gmc_bootstrap.s):00035                 ldu     #loader_end-loader_start
-C030                  (c/gmc_bootstrap.s):00036         boot_copy
-C030 A680             (c/gmc_bootstrap.s):00037                 lda     ,x+
-C032 A7A0             (c/gmc_bootstrap.s):00038                 sta     ,y+
-C034 335F             (c/gmc_bootstrap.s):00039                 leau    -1,u
-C036 11830000         (c/gmc_bootstrap.s):00040                 cmpu    #0
-C03A 26F4             (c/gmc_bootstrap.s):00041                 bne     boot_copy
-C03C 7E0300           (c/gmc_bootstrap.s):00042                 jmp     LOADER_RAM
-                      (c/gmc_bootstrap.s):00043         
-C03F                  (c/gmc_bootstrap.s):00044         loader_start
-                      (c/gmc_bootstrap.s):00045                 ; Prove that banks 2 and 3 expose different signatures at $C010.
-C03F 8602             (c/gmc_bootstrap.s):00046                 lda     #2
-C041 B7FF50           (c/gmc_bootstrap.s):00047                 sta     GMC_BANK
-C044 FCC010           (c/gmc_bootstrap.s):00048                 ldd     $C010
-C047 1083B202         (c/gmc_bootstrap.s):00049                 cmpd    #$B202
-C04B 102600D3         (c/gmc_bootstrap.s):00050                 lbne    loader_fail
-C04F 8603             (c/gmc_bootstrap.s):00051                 lda     #3
-C051 B7FF50           (c/gmc_bootstrap.s):00052                 sta     GMC_BANK
-C054 FCC010           (c/gmc_bootstrap.s):00053                 ldd     $C010
-C057 1083B303         (c/gmc_bootstrap.s):00054                 cmpd    #$B303
-C05B 102600C3         (c/gmc_bootstrap.s):00055                 lbne    loader_fail
-C05F 865A             (c/gmc_bootstrap.s):00056                 lda     #$5A
-C061 B702F1           (c/gmc_bootstrap.s):00057                 sta     BOOT_PROOF
-                      (c/gmc_bootstrap.s):00058         
-                      (c/gmc_bootstrap.s):00059                 ; Bank 3 offset $0800 contains an absolute low-RAM enemy module.
-                      (c/gmc_bootstrap.s):00060                 ; Copying it once avoids frame-time GMC switching and preserves the
-                      (c/gmc_bootstrap.s):00061                 ; resident MMU mapping used by the framebuffer.
-C064 8603             (c/gmc_bootstrap.s):00062                 lda     #3
-C066 B7FF50           (c/gmc_bootstrap.s):00063                 sta     GMC_BANK
-C069 8EC800           (c/gmc_bootstrap.s):00064                 ldx     #$C800
-C06C 108E0800         (c/gmc_bootstrap.s):00065                 ldy     #$0800
-C070                  (c/gmc_bootstrap.s):00066         copy_enemy_runtime
-C070 EC81             (c/gmc_bootstrap.s):00067                 ldd     ,x++
-C072 EDA1             (c/gmc_bootstrap.s):00068                 std     ,y++
-C074 8CD800           (c/gmc_bootstrap.s):00069                 cmpx    #$D800
-C077 25F7             (c/gmc_bootstrap.s):00070                 blo     copy_enemy_runtime
-                      (c/gmc_bootstrap.s):00071         
-                      (c/gmc_bootstrap.s):00072                 ; Copy the indexed sparse enemy/player streams into physical pages
-                      (c/gmc_bootstrap.s):00073                 ; $35-$37 and $39 using the generated fragmented-bank plan.
-C079 308D00AA         (c/gmc_bootstrap.s):00074                 leax    sparse_copy_table,pcr
-C07D 860C             (c/gmc_bootstrap.s):00075                 lda     #SPARSE_COPY_SEGMENT_COUNT
-C07F B702F2           (c/gmc_bootstrap.s):00076                 sta     BOOT_SEGMENTS
-C082                  (c/gmc_bootstrap.s):00077         copy_sparse_segment
-C082 A680             (c/gmc_bootstrap.s):00078                 lda     ,x+
-C084 B7FF50           (c/gmc_bootstrap.s):00079                 sta     GMC_BANK
-C087 A680             (c/gmc_bootstrap.s):00080                 lda     ,x+
-C089 81FF             (c/gmc_bootstrap.s):00081                 cmpa    #$FF            ; $FF targets always-mapped low RAM directly
-C08B 2703             (c/gmc_bootstrap.s):00082                 beq     copy_sparse_destination_ready
-C08D B7FFA5           (c/gmc_bootstrap.s):00083                 sta     PAR_EXEC+5
-C090                  (c/gmc_bootstrap.s):00084         copy_sparse_destination_ready
-C090 EE81             (c/gmc_bootstrap.s):00085                 ldu     ,x++
-C092 10AE81           (c/gmc_bootstrap.s):00086                 ldy     ,x++
-C095 EC81             (c/gmc_bootstrap.s):00087                 ldd     ,x++
-C097 3410             (c/gmc_bootstrap.s):00088                 pshs    x
-C099 1F01             (c/gmc_bootstrap.s):00089                 tfr     d,x
-C09B                  (c/gmc_bootstrap.s):00090         copy_sparse_bytes
-C09B A6C0             (c/gmc_bootstrap.s):00091                 lda     ,u+
-C09D A7A0             (c/gmc_bootstrap.s):00092                 sta     ,y+
-C09F 301F             (c/gmc_bootstrap.s):00093                 leax    -1,x
-C0A1 26F8             (c/gmc_bootstrap.s):00094                 bne     copy_sparse_bytes
-C0A3 3510             (c/gmc_bootstrap.s):00095                 puls    x
-C0A5 7A02F2           (c/gmc_bootstrap.s):00096                 dec     BOOT_SEGMENTS
-C0A8 26D8             (c/gmc_bootstrap.s):00097                 bne     copy_sparse_segment
-                      (c/gmc_bootstrap.s):00098         
-                      (c/gmc_bootstrap.s):00099                 ; Mirror the sparse indexes into always-mapped PAR0 low RAM. Runtime
-                      (c/gmc_bootstrap.s):00100                 ; resolution then maps only the selected payload page.
-C0AA 8635             (c/gmc_bootstrap.s):00101                 lda     #SPARSE_ENEMY_PAYLOAD_PAGE
-C0AC B7FFA5           (c/gmc_bootstrap.s):00102                 sta     PAR_EXEC+5
-C0AF 8EA000           (c/gmc_bootstrap.s):00103                 ldx     #$A000
-C0B2 108E0500         (c/gmc_bootstrap.s):00104                 ldy     #SPARSE_ENEMY_INDEX_ADDR
-C0B6 CE00C0           (c/gmc_bootstrap.s):00105                 ldu     #SPARSE_ENEMY_INDEX_BYTES/2
-C0B9                  (c/gmc_bootstrap.s):00106         copy_enemy_sparse_index
-C0B9 EC81             (c/gmc_bootstrap.s):00107                 ldd     ,x++
-C0BB EDA1             (c/gmc_bootstrap.s):00108                 std     ,y++
-C0BD 335F             (c/gmc_bootstrap.s):00109                 leau    -1,u
-C0BF 11830000         (c/gmc_bootstrap.s):00110                 cmpu    #0
-C0C3 26F4             (c/gmc_bootstrap.s):00111                 bne     copy_enemy_sparse_index
-                      (c/gmc_bootstrap.s):00112         
-C0C5 8639             (c/gmc_bootstrap.s):00113                 lda     #SPARSE_PLAYER_PAYLOAD_PAGE
-C0C7 B7FFA5           (c/gmc_bootstrap.s):00114                 sta     PAR_EXEC+5
-C0CA 8EA000           (c/gmc_bootstrap.s):00115                 ldx     #$A000
-C0CD 108E0680         (c/gmc_bootstrap.s):00116                 ldy     #SPARSE_PLAYER_INDEX_ADDR
-C0D1 CE0018           (c/gmc_bootstrap.s):00117                 ldu     #SPARSE_PLAYER_INDEX_BYTES/2
-C0D4                  (c/gmc_bootstrap.s):00118         copy_player_sparse_index
-C0D4 EC81             (c/gmc_bootstrap.s):00119                 ldd     ,x++
-C0D6 EDA1             (c/gmc_bootstrap.s):00120                 std     ,y++
-C0D8 335F             (c/gmc_bootstrap.s):00121                 leau    -1,u
-C0DA 11830000         (c/gmc_bootstrap.s):00122                 cmpu    #0
-C0DE 26F4             (c/gmc_bootstrap.s):00123                 bne     copy_player_sparse_index
-                      (c/gmc_bootstrap.s):00124         
-                      (c/gmc_bootstrap.s):00125                 ; Bank 1 contains the current 16 KiB runtime image. Copy its resident
-                      (c/gmc_bootstrap.s):00126                 ; 8 KiB through PAR5 to phys $3E.
-C0E0 863E             (c/gmc_bootstrap.s):00127                 lda     #$3E
-C0E2 B7FFA5           (c/gmc_bootstrap.s):00128                 sta     PAR_EXEC+5
-C0E5 8601             (c/gmc_bootstrap.s):00129                 lda     #1
-C0E7 B7FF50           (c/gmc_bootstrap.s):00130                 sta     GMC_BANK
-C0EA 8EC000           (c/gmc_bootstrap.s):00131                 ldx     #$C000
-C0ED 108EA000         (c/gmc_bootstrap.s):00132                 ldy     #$A000
-C0F1                  (c/gmc_bootstrap.s):00133         copy_resident
-C0F1 EC81             (c/gmc_bootstrap.s):00134                 ldd     ,x++
-C0F3 EDA1             (c/gmc_bootstrap.s):00135                 std     ,y++
-C0F5 8CE000           (c/gmc_bootstrap.s):00136                 cmpx    #$E000
-C0F8 25F7             (c/gmc_bootstrap.s):00137                 blo     copy_resident
-                      (c/gmc_bootstrap.s):00138         
-                      (c/gmc_bootstrap.s):00139                 ; Copy the usable asset window to phys $3F. $FE00-$FFFF remains the
-                      (c/gmc_bootstrap.s):00140                 ; forced-RAM/I/O area and is not cartridge payload.
-C0FA 863F             (c/gmc_bootstrap.s):00141                 lda     #$3F
-C0FC B7FFA5           (c/gmc_bootstrap.s):00142                 sta     PAR_EXEC+5
-C0FF 8EE000           (c/gmc_bootstrap.s):00143                 ldx     #$E000
-C102 108EA000         (c/gmc_bootstrap.s):00144                 ldy     #$A000
-C106                  (c/gmc_bootstrap.s):00145         copy_assets
-C106 EC81             (c/gmc_bootstrap.s):00146                 ldd     ,x++
-C108 EDA1             (c/gmc_bootstrap.s):00147                 std     ,y++
-C10A 8CFE00           (c/gmc_bootstrap.s):00148                 cmpx    #$FE00
-C10D 25F7             (c/gmc_bootstrap.s):00149                 blo     copy_assets
-                      (c/gmc_bootstrap.s):00150         
-C10F 86A5             (c/gmc_bootstrap.s):00151                 lda     #$A5
-C111 B702F0           (c/gmc_bootstrap.s):00152                 sta     BOOT_FLAG
-C114 8634             (c/gmc_bootstrap.s):00153                 lda     #$34
-C116 B7FFA5           (c/gmc_bootstrap.s):00154                 sta     PAR_EXEC+5
-C119 B7FFD9           (c/gmc_bootstrap.s):00155                 sta     SAM_FAST
-C11C B7FFDF           (c/gmc_bootstrap.s):00156                 sta     SAM_ALLRAM
-C11F 7EC000           (c/gmc_bootstrap.s):00157                 jmp     $C000
-                      (c/gmc_bootstrap.s):00158         
-C122                  (c/gmc_bootstrap.s):00159         loader_fail
-C122 7F02F1           (c/gmc_bootstrap.s):00160                 clr     BOOT_PROOF
-C125 20FB             (c/gmc_bootstrap.s):00161                 bra     loader_fail
-                      (c/gmc_bootstrap.s):00162         
-                      (c/gmc_bootstrap.s):00163                 include "ladybug-sparse-loader.inc"
+     02F3             (c/gmc_bootstrap.s):00014         BOOT_BOX    equ $02F3
+     02F4             (c/gmc_bootstrap.s):00015         BOOT_CELL_X equ $02F4
+     02F5             (c/gmc_bootstrap.s):00016         BOOT_CELL_Y equ $02F5
+     02F6             (c/gmc_bootstrap.s):00017         BOOT_ROW    equ $02F6
+     02F7             (c/gmc_bootstrap.s):00018         BOOT_COL    equ $02F7
+     02F8             (c/gmc_bootstrap.s):00019         BOOT_TILE_PTR equ $02F8
+     02FA             (c/gmc_bootstrap.s):00020         BOOT_DEST   equ $02FA
+     0300             (c/gmc_bootstrap.s):00021         LOADER_RAM  equ $0300
+     0021             (c/gmc_bootstrap.s):00022         RESIDENT_STAGE_PAGE equ $21
+     0022             (c/gmc_bootstrap.s):00023         ASSET_STAGE_PAGE equ $22
+                      (c/gmc_bootstrap.s):00024         
+                      (c/gmc_bootstrap.s):00025                 org $C000
+C000 444B             (c/gmc_bootstrap.s):00026                 fcc "DK"
+                      (c/gmc_bootstrap.s):00027         
+C002                  (c/gmc_bootstrap.s):00028         boot_entry
+C002 1A50             (c/gmc_bootstrap.s):00029                 orcc    #$50
+C004 10CE1FFE         (c/gmc_bootstrap.s):00030                 lds     #$1FFE
+C008 7FFF91           (c/gmc_bootstrap.s):00031                 clr     GIME_MMU
+C00B 8638             (c/gmc_bootstrap.s):00032                 lda     #$38
+C00D B7FFA0           (c/gmc_bootstrap.s):00033                 sta     PAR_EXEC
+C010 863E             (c/gmc_bootstrap.s):00034                 lda     #$3E
+C012 B7FFA5           (c/gmc_bootstrap.s):00035                 sta     PAR_EXEC+5
+C015 B7FFA6           (c/gmc_bootstrap.s):00036                 sta     PAR_EXEC+6
+C018 863F             (c/gmc_bootstrap.s):00037                 lda     #$3F
+C01A B7FFA7           (c/gmc_bootstrap.s):00038                 sta     PAR_EXEC+7
+C01D 866C             (c/gmc_bootstrap.s):00039                 lda     #%01101100      ; MMU + force FExx + SCS for GMC $FF50
+C01F B7FF90           (c/gmc_bootstrap.s):00040                 sta     GIME_INIT0
+C022 B7FFD9           (c/gmc_bootstrap.s):00041                 sta     SAM_FAST        ; run the boot copy at the normal 1.78 MHz rate
+C025 B7FFDE           (c/gmc_bootstrap.s):00042                 sta     SAM_CART        ; BASIC autorun may leave TY=1; expose GMC ROM
+C028 308D0016         (c/gmc_bootstrap.s):00043                 leax    loader_start,pcr
+C02C 108E0300         (c/gmc_bootstrap.s):00044                 ldy     #LOADER_RAM
+C030 CE034D           (c/gmc_bootstrap.s):00045                 ldu     #loader_end-loader_start
+C033                  (c/gmc_bootstrap.s):00046         boot_copy
+C033 A680             (c/gmc_bootstrap.s):00047                 lda     ,x+
+C035 A7A0             (c/gmc_bootstrap.s):00048                 sta     ,y+
+C037 335F             (c/gmc_bootstrap.s):00049                 leau    -1,u
+C039 11830000         (c/gmc_bootstrap.s):00050                 cmpu    #0
+C03D 26F4             (c/gmc_bootstrap.s):00051                 bne     boot_copy
+C03F 7E0300           (c/gmc_bootstrap.s):00052                 jmp     LOADER_RAM
+                      (c/gmc_bootstrap.s):00053         
+C042                  (c/gmc_bootstrap.s):00054         loader_start
+                      (c/gmc_bootstrap.s):00055                 ; Prove that banks 2 and 3 expose different signatures at $C010.
+C042 8602             (c/gmc_bootstrap.s):00056                 lda     #2
+C044 B7FF50           (c/gmc_bootstrap.s):00057                 sta     GMC_BANK
+C047 FCC010           (c/gmc_bootstrap.s):00058                 ldd     $C010
+C04A 1083B202         (c/gmc_bootstrap.s):00059                 cmpd    #$B202
+C04E 102601A8         (c/gmc_bootstrap.s):00060                 lbne    loader_fail
+C052 8603             (c/gmc_bootstrap.s):00061                 lda     #3
+C054 B7FF50           (c/gmc_bootstrap.s):00062                 sta     GMC_BANK
+C057 FCC010           (c/gmc_bootstrap.s):00063                 ldd     $C010
+C05A 1083B303         (c/gmc_bootstrap.s):00064                 cmpd    #$B303
+C05E 10260198         (c/gmc_bootstrap.s):00065                 lbne    loader_fail
+C062 865A             (c/gmc_bootstrap.s):00066                 lda     #$5A
+C064 B702F1           (c/gmc_bootstrap.s):00067                 sta     BOOT_PROOF
+                      (c/gmc_bootstrap.s):00068         
+                      (c/gmc_bootstrap.s):00069                 ; Bank 3 offset $0800 contains an absolute low-RAM enemy module.
+                      (c/gmc_bootstrap.s):00070                 ; Copying it once avoids frame-time GMC switching and preserves the
+                      (c/gmc_bootstrap.s):00071                 ; resident MMU mapping used by the framebuffer.
+C067 8603             (c/gmc_bootstrap.s):00072                 lda     #3
+C069 B7FF50           (c/gmc_bootstrap.s):00073                 sta     GMC_BANK
+C06C 8EC800           (c/gmc_bootstrap.s):00074                 ldx     #$C800
+C06F 108E0800         (c/gmc_bootstrap.s):00075                 ldy     #$0800
+C073                  (c/gmc_bootstrap.s):00076         copy_enemy_runtime
+C073 EC81             (c/gmc_bootstrap.s):00077                 ldd     ,x++
+C075 EDA1             (c/gmc_bootstrap.s):00078                 std     ,y++
+C077 EC81             (c/gmc_bootstrap.s):00079                 ldd     ,x++
+C079 EDA1             (c/gmc_bootstrap.s):00080                 std     ,y++
+C07B EC81             (c/gmc_bootstrap.s):00081                 ldd     ,x++
+C07D EDA1             (c/gmc_bootstrap.s):00082                 std     ,y++
+C07F EC81             (c/gmc_bootstrap.s):00083                 ldd     ,x++
+C081 EDA1             (c/gmc_bootstrap.s):00084                 std     ,y++
+C083 EC81             (c/gmc_bootstrap.s):00085                 ldd     ,x++
+C085 EDA1             (c/gmc_bootstrap.s):00086                 std     ,y++
+C087 EC81             (c/gmc_bootstrap.s):00087                 ldd     ,x++
+C089 EDA1             (c/gmc_bootstrap.s):00088                 std     ,y++
+C08B EC81             (c/gmc_bootstrap.s):00089                 ldd     ,x++
+C08D EDA1             (c/gmc_bootstrap.s):00090                 std     ,y++
+C08F EC81             (c/gmc_bootstrap.s):00091                 ldd     ,x++
+C091 EDA1             (c/gmc_bootstrap.s):00092                 std     ,y++
+C093 8CD800           (c/gmc_bootstrap.s):00093                 cmpx    #$D800
+C096 25DB             (c/gmc_bootstrap.s):00094                 blo     copy_enemy_runtime
+                      (c/gmc_bootstrap.s):00095         
+                      (c/gmc_bootstrap.s):00096                 ; Copy the indexed sparse enemy/player streams into physical pages
+                      (c/gmc_bootstrap.s):00097                 ; $35-$37 and $39 using the generated fragmented-bank plan.
+C098 308D027B         (c/gmc_bootstrap.s):00098                 leax    sparse_copy_table,pcr
+C09C 860F             (c/gmc_bootstrap.s):00099                 lda     #SPARSE_COPY_SEGMENT_COUNT
+C09E B702F2           (c/gmc_bootstrap.s):00100                 sta     BOOT_SEGMENTS
+C0A1                  (c/gmc_bootstrap.s):00101         copy_sparse_segment
+C0A1 A680             (c/gmc_bootstrap.s):00102                 lda     ,x+
+C0A3 B7FF50           (c/gmc_bootstrap.s):00103                 sta     GMC_BANK
+C0A6 A680             (c/gmc_bootstrap.s):00104                 lda     ,x+
+C0A8 81FF             (c/gmc_bootstrap.s):00105                 cmpa    #$FF            ; $FF targets always-mapped low RAM directly
+C0AA 2703             (c/gmc_bootstrap.s):00106                 beq     copy_sparse_destination_ready
+C0AC B7FFA5           (c/gmc_bootstrap.s):00107                 sta     PAR_EXEC+5
+C0AF                  (c/gmc_bootstrap.s):00108         copy_sparse_destination_ready
+C0AF EE81             (c/gmc_bootstrap.s):00109                 ldu     ,x++
+C0B1 10AE81           (c/gmc_bootstrap.s):00110                 ldy     ,x++
+C0B4 EC81             (c/gmc_bootstrap.s):00111                 ldd     ,x++
+C0B6 3410             (c/gmc_bootstrap.s):00112                 pshs    x
+C0B8 1F01             (c/gmc_bootstrap.s):00113                 tfr     d,x
+C0BA 1F10             (c/gmc_bootstrap.s):00114                 tfr     x,d
+C0BC C401             (c/gmc_bootstrap.s):00115                 andb    #1
+C0BE 270B             (c/gmc_bootstrap.s):00116                 beq     copy_sparse_word
+C0C0 A6C0             (c/gmc_bootstrap.s):00117                 lda     ,u+
+C0C2 A7A0             (c/gmc_bootstrap.s):00118                 sta     ,y+
+C0C4 301F             (c/gmc_bootstrap.s):00119                 leax    -1,x
+C0C6 8C0000           (c/gmc_bootstrap.s):00120                 cmpx    #0
+C0C9 2747             (c/gmc_bootstrap.s):00121                 beq     copy_sparse_done
+C0CB                  (c/gmc_bootstrap.s):00122         copy_sparse_word
+                      (c/gmc_bootstrap.s):00123                 ; Eight-pair unroll keeps loop overhead outside the hot copy path.
+                      (c/gmc_bootstrap.s):00124                 ; The tail handles counts below sixteen bytes and preserves odd sizes.
+C0CB 8C0010           (c/gmc_bootstrap.s):00125                 cmpx    #16
+C0CE 2526             (c/gmc_bootstrap.s):00126                 blo     copy_sparse_tail
+C0D0 ECC1             (c/gmc_bootstrap.s):00127                 ldd     ,u++
+C0D2 EDA1             (c/gmc_bootstrap.s):00128                 std     ,y++
+C0D4 ECC1             (c/gmc_bootstrap.s):00129                 ldd     ,u++
+C0D6 EDA1             (c/gmc_bootstrap.s):00130                 std     ,y++
+C0D8 ECC1             (c/gmc_bootstrap.s):00131                 ldd     ,u++
+C0DA EDA1             (c/gmc_bootstrap.s):00132                 std     ,y++
+C0DC ECC1             (c/gmc_bootstrap.s):00133                 ldd     ,u++
+C0DE EDA1             (c/gmc_bootstrap.s):00134                 std     ,y++
+C0E0 ECC1             (c/gmc_bootstrap.s):00135                 ldd     ,u++
+C0E2 EDA1             (c/gmc_bootstrap.s):00136                 std     ,y++
+C0E4 ECC1             (c/gmc_bootstrap.s):00137                 ldd     ,u++
+C0E6 EDA1             (c/gmc_bootstrap.s):00138                 std     ,y++
+C0E8 ECC1             (c/gmc_bootstrap.s):00139                 ldd     ,u++
+C0EA EDA1             (c/gmc_bootstrap.s):00140                 std     ,y++
+C0EC ECC1             (c/gmc_bootstrap.s):00141                 ldd     ,u++
+C0EE EDA1             (c/gmc_bootstrap.s):00142                 std     ,y++
+C0F0 3010             (c/gmc_bootstrap.s):00143                 leax    -16,x
+C0F2 26D7             (c/gmc_bootstrap.s):00144                 bne     copy_sparse_word
+C0F4 201C             (c/gmc_bootstrap.s):00145                 bra     copy_sparse_done
+C0F6                  (c/gmc_bootstrap.s):00146         copy_sparse_tail
+C0F6 1F10             (c/gmc_bootstrap.s):00147                 tfr     x,d
+C0F8 C401             (c/gmc_bootstrap.s):00148                 andb    #1
+C0FA 270B             (c/gmc_bootstrap.s):00149                 beq     copy_sparse_tail_word
+C0FC A6C0             (c/gmc_bootstrap.s):00150                 lda     ,u+
+C0FE A7A0             (c/gmc_bootstrap.s):00151                 sta     ,y+
+C100 301F             (c/gmc_bootstrap.s):00152                 leax    -1,x
+C102 8C0000           (c/gmc_bootstrap.s):00153                 cmpx    #0
+C105 270B             (c/gmc_bootstrap.s):00154                 beq     copy_sparse_done
+C107                  (c/gmc_bootstrap.s):00155         copy_sparse_tail_word
+C107 ECC1             (c/gmc_bootstrap.s):00156                 ldd     ,u++
+C109 EDA1             (c/gmc_bootstrap.s):00157                 std     ,y++
+C10B 301E             (c/gmc_bootstrap.s):00158                 leax    -2,x
+C10D 8C0000           (c/gmc_bootstrap.s):00159                 cmpx    #0
+C110 26F5             (c/gmc_bootstrap.s):00160                 bne     copy_sparse_tail_word
+C112                  (c/gmc_bootstrap.s):00161         copy_sparse_done
+C112 3510             (c/gmc_bootstrap.s):00162                 puls    x
+C114 7A02F2           (c/gmc_bootstrap.s):00163                 dec     BOOT_SEGMENTS
+C117 2688             (c/gmc_bootstrap.s):00164                 bne     copy_sparse_segment
+                      (c/gmc_bootstrap.s):00165         
+                      (c/gmc_bootstrap.s):00166                 ; Bank 1 contains the current 16 KiB runtime image. Stage its resident
+                      (c/gmc_bootstrap.s):00167                 ; 8 KiB in ordinary RAM while the cartridge remains selected. Physical
+                      (c/gmc_bootstrap.s):00168                 ; pages $3E/$3F are populated only after the all-RAM handoff below.
+C119 8621             (c/gmc_bootstrap.s):00169                 lda     #RESIDENT_STAGE_PAGE
+C11B B7FFA5           (c/gmc_bootstrap.s):00170                 sta     PAR_EXEC+5
+C11E 8601             (c/gmc_bootstrap.s):00171                 lda     #1
+C120 B7FF50           (c/gmc_bootstrap.s):00172                 sta     GMC_BANK
+C123 8EC000           (c/gmc_bootstrap.s):00173                 ldx     #$C000
+C126 108EA000         (c/gmc_bootstrap.s):00174                 ldy     #$A000
+C12A                  (c/gmc_bootstrap.s):00175         copy_resident
+C12A EC81             (c/gmc_bootstrap.s):00176                 ldd     ,x++
+C12C EDA1             (c/gmc_bootstrap.s):00177                 std     ,y++
+C12E EC81             (c/gmc_bootstrap.s):00178                 ldd     ,x++
+C130 EDA1             (c/gmc_bootstrap.s):00179                 std     ,y++
+C132 EC81             (c/gmc_bootstrap.s):00180                 ldd     ,x++
+C134 EDA1             (c/gmc_bootstrap.s):00181                 std     ,y++
+C136 EC81             (c/gmc_bootstrap.s):00182                 ldd     ,x++
+C138 EDA1             (c/gmc_bootstrap.s):00183                 std     ,y++
+C13A EC81             (c/gmc_bootstrap.s):00184                 ldd     ,x++
+C13C EDA1             (c/gmc_bootstrap.s):00185                 std     ,y++
+C13E EC81             (c/gmc_bootstrap.s):00186                 ldd     ,x++
+C140 EDA1             (c/gmc_bootstrap.s):00187                 std     ,y++
+C142 EC81             (c/gmc_bootstrap.s):00188                 ldd     ,x++
+C144 EDA1             (c/gmc_bootstrap.s):00189                 std     ,y++
+C146 EC81             (c/gmc_bootstrap.s):00190                 ldd     ,x++
+C148 EDA1             (c/gmc_bootstrap.s):00191                 std     ,y++
+C14A 8CE000           (c/gmc_bootstrap.s):00192                 cmpx    #$E000
+C14D 25DB             (c/gmc_bootstrap.s):00193                 blo     copy_resident
+                      (c/gmc_bootstrap.s):00194         
+                      (c/gmc_bootstrap.s):00195                 ; Stage the usable asset window. $FE00-$FFFF remains the forced-RAM/I/O
+                      (c/gmc_bootstrap.s):00196                 ; area and is not cartridge payload.
+C14F 8622             (c/gmc_bootstrap.s):00197                 lda     #ASSET_STAGE_PAGE
+C151 B7FFA5           (c/gmc_bootstrap.s):00198                 sta     PAR_EXEC+5
+C154 8EE000           (c/gmc_bootstrap.s):00199                 ldx     #$E000
+C157 108EA000         (c/gmc_bootstrap.s):00200                 ldy     #$A000
+C15B                  (c/gmc_bootstrap.s):00201         copy_assets
+C15B EC81             (c/gmc_bootstrap.s):00202                 ldd     ,x++
+C15D EDA1             (c/gmc_bootstrap.s):00203                 std     ,y++
+C15F EC81             (c/gmc_bootstrap.s):00204                 ldd     ,x++
+C161 EDA1             (c/gmc_bootstrap.s):00205                 std     ,y++
+C163 EC81             (c/gmc_bootstrap.s):00206                 ldd     ,x++
+C165 EDA1             (c/gmc_bootstrap.s):00207                 std     ,y++
+C167 EC81             (c/gmc_bootstrap.s):00208                 ldd     ,x++
+C169 EDA1             (c/gmc_bootstrap.s):00209                 std     ,y++
+C16B EC81             (c/gmc_bootstrap.s):00210                 ldd     ,x++
+C16D EDA1             (c/gmc_bootstrap.s):00211                 std     ,y++
+C16F EC81             (c/gmc_bootstrap.s):00212                 ldd     ,x++
+C171 EDA1             (c/gmc_bootstrap.s):00213                 std     ,y++
+C173 EC81             (c/gmc_bootstrap.s):00214                 ldd     ,x++
+C175 EDA1             (c/gmc_bootstrap.s):00215                 std     ,y++
+C177 EC81             (c/gmc_bootstrap.s):00216                 ldd     ,x++
+C179 EDA1             (c/gmc_bootstrap.s):00217                 std     ,y++
+C17B 8CFE00           (c/gmc_bootstrap.s):00218                 cmpx    #$FE00
+C17E 25DB             (c/gmc_bootstrap.s):00219                 blo     copy_assets
+                      (c/gmc_bootstrap.s):00220         
+                      (c/gmc_bootstrap.s):00221                 ; Synthesize the exact native Green-to-White perimeter program from
+                      (c/gmc_bootstrap.s):00222                 ; the authored screen map and tile atlas now visible through PAR7.
+                      (c/gmc_bootstrap.s):00223                 ; PAR5 is changed only for the generated destination page $20.
+                      (c/gmc_bootstrap.s):00224                 ; Keep GMC bank 1 selected so PAR7 still exposes the authored assets.
+                      (c/gmc_bootstrap.s):00225                 ; The loader itself executes from its relocated low-RAM copy.
+C180 17007C           (c/gmc_bootstrap.s):00226                 lbsr    synthesize_perimeter_reset
+                      (c/gmc_bootstrap.s):00227         
+                      (c/gmc_bootstrap.s):00228                 ; Disconnect cartridge ROM, then publish the staged bank-1 bytes to
+                      (c/gmc_bootstrap.s):00229                 ; their runtime pages. The loader executes from always-mapped low RAM.
+C183 8634             (c/gmc_bootstrap.s):00230                 lda     #$34
+C185 B7FFD9           (c/gmc_bootstrap.s):00231                 sta     SAM_FAST
+C188 B7FFDF           (c/gmc_bootstrap.s):00232                 sta     SAM_ALLRAM
+                      (c/gmc_bootstrap.s):00233         
+C18B 8621             (c/gmc_bootstrap.s):00234                 lda     #RESIDENT_STAGE_PAGE
+C18D B7FFA5           (c/gmc_bootstrap.s):00235                 sta     PAR_EXEC+5
+C190 8EA000           (c/gmc_bootstrap.s):00236                 ldx     #$A000
+C193 108EC000         (c/gmc_bootstrap.s):00237                 ldy     #$C000
+C197                  (c/gmc_bootstrap.s):00238         copy_staged_resident
+C197 EC81             (c/gmc_bootstrap.s):00239                 ldd     ,x++
+C199 EDA1             (c/gmc_bootstrap.s):00240                 std     ,y++
+C19B EC81             (c/gmc_bootstrap.s):00241                 ldd     ,x++
+C19D EDA1             (c/gmc_bootstrap.s):00242                 std     ,y++
+C19F EC81             (c/gmc_bootstrap.s):00243                 ldd     ,x++
+C1A1 EDA1             (c/gmc_bootstrap.s):00244                 std     ,y++
+C1A3 EC81             (c/gmc_bootstrap.s):00245                 ldd     ,x++
+C1A5 EDA1             (c/gmc_bootstrap.s):00246                 std     ,y++
+C1A7 EC81             (c/gmc_bootstrap.s):00247                 ldd     ,x++
+C1A9 EDA1             (c/gmc_bootstrap.s):00248                 std     ,y++
+C1AB EC81             (c/gmc_bootstrap.s):00249                 ldd     ,x++
+C1AD EDA1             (c/gmc_bootstrap.s):00250                 std     ,y++
+C1AF EC81             (c/gmc_bootstrap.s):00251                 ldd     ,x++
+C1B1 EDA1             (c/gmc_bootstrap.s):00252                 std     ,y++
+C1B3 EC81             (c/gmc_bootstrap.s):00253                 ldd     ,x++
+C1B5 EDA1             (c/gmc_bootstrap.s):00254                 std     ,y++
+C1B7 8CC000           (c/gmc_bootstrap.s):00255                 cmpx    #$C000
+C1BA 25DB             (c/gmc_bootstrap.s):00256                 blo     copy_staged_resident
+                      (c/gmc_bootstrap.s):00257         
+C1BC 8622             (c/gmc_bootstrap.s):00258                 lda     #ASSET_STAGE_PAGE
+C1BE B7FFA5           (c/gmc_bootstrap.s):00259                 sta     PAR_EXEC+5
+C1C1 8EA000           (c/gmc_bootstrap.s):00260                 ldx     #$A000
+C1C4 108EE000         (c/gmc_bootstrap.s):00261                 ldy     #$E000
+C1C8                  (c/gmc_bootstrap.s):00262         copy_staged_assets
+C1C8 EC81             (c/gmc_bootstrap.s):00263                 ldd     ,x++
+C1CA EDA1             (c/gmc_bootstrap.s):00264                 std     ,y++
+C1CC EC81             (c/gmc_bootstrap.s):00265                 ldd     ,x++
+C1CE EDA1             (c/gmc_bootstrap.s):00266                 std     ,y++
+C1D0 EC81             (c/gmc_bootstrap.s):00267                 ldd     ,x++
+C1D2 EDA1             (c/gmc_bootstrap.s):00268                 std     ,y++
+C1D4 EC81             (c/gmc_bootstrap.s):00269                 ldd     ,x++
+C1D6 EDA1             (c/gmc_bootstrap.s):00270                 std     ,y++
+C1D8 EC81             (c/gmc_bootstrap.s):00271                 ldd     ,x++
+C1DA EDA1             (c/gmc_bootstrap.s):00272                 std     ,y++
+C1DC EC81             (c/gmc_bootstrap.s):00273                 ldd     ,x++
+C1DE EDA1             (c/gmc_bootstrap.s):00274                 std     ,y++
+C1E0 EC81             (c/gmc_bootstrap.s):00275                 ldd     ,x++
+C1E2 EDA1             (c/gmc_bootstrap.s):00276                 std     ,y++
+C1E4 EC81             (c/gmc_bootstrap.s):00277                 ldd     ,x++
+C1E6 EDA1             (c/gmc_bootstrap.s):00278                 std     ,y++
+C1E8 8CBE00           (c/gmc_bootstrap.s):00279                 cmpx    #$BE00
+C1EB 25DB             (c/gmc_bootstrap.s):00280                 blo     copy_staged_assets
+                      (c/gmc_bootstrap.s):00281         
+C1ED 86A5             (c/gmc_bootstrap.s):00282                 lda     #$A5
+C1EF B702F0           (c/gmc_bootstrap.s):00283                 sta     BOOT_FLAG
+C1F2 8634             (c/gmc_bootstrap.s):00284                 lda     #$34
+C1F4 B7FFA5           (c/gmc_bootstrap.s):00285                 sta     PAR_EXEC+5
+                      (c/gmc_bootstrap.s):00286                 ; Skip the two-byte DK cartridge header when entering the
+                      (c/gmc_bootstrap.s):00287                 ; relocated runtime.
+C1F7 7EC002           (c/gmc_bootstrap.s):00288                 jmp     $C002
+                      (c/gmc_bootstrap.s):00289         
+C1FA                  (c/gmc_bootstrap.s):00290         loader_fail
+C1FA 7F02F1           (c/gmc_bootstrap.s):00291                 clr     BOOT_PROOF
+C1FD 20FB             (c/gmc_bootstrap.s):00292                 bra     loader_fail
+                      (c/gmc_bootstrap.s):00293         
+C1FF                  (c/gmc_bootstrap.s):00294         synthesize_perimeter_reset
+C1FF 8620             (c/gmc_bootstrap.s):00295                 lda     #$20
+C201 B7FFA5           (c/gmc_bootstrap.s):00296                 sta     PAR_EXEC+5
+C204 CEA000           (c/gmc_bootstrap.s):00297                 ldu     #$A000
+C207 7F02F3           (c/gmc_bootstrap.s):00298                 clr     BOOT_BOX
+C20A                  (c/gmc_bootstrap.s):00299         spr_box
+C20A B602F3           (c/gmc_bootstrap.s):00300                 lda     BOOT_BOX
+C20D 810C             (c/gmc_bootstrap.s):00301                 cmpa    #12
+C20F 2516             (c/gmc_bootstrap.s):00302                 blo     spr_top
+C211 8123             (c/gmc_bootstrap.s):00303                 cmpa    #35
+C213 251C             (c/gmc_bootstrap.s):00304                 blo     spr_right
+C215 813A             (c/gmc_bootstrap.s):00305                 cmpa    #58
+C217 2527             (c/gmc_bootstrap.s):00306                 blo     spr_bottom
+C219 8150             (c/gmc_bootstrap.s):00307                 cmpa    #80
+C21B 2532             (c/gmc_bootstrap.s):00308                 blo     spr_left
+C21D 8050             (c/gmc_bootstrap.s):00309                 suba    #80
+C21F B702F4           (c/gmc_bootstrap.s):00310                 sta     BOOT_CELL_X
+C222 7F02F5           (c/gmc_bootstrap.s):00311                 clr     BOOT_CELL_Y
+C225 2033             (c/gmc_bootstrap.s):00312                 bra     spr_cell
+C227                  (c/gmc_bootstrap.s):00313         spr_top
+C227 8B0C             (c/gmc_bootstrap.s):00314                 adda    #12
+C229 B702F4           (c/gmc_bootstrap.s):00315                 sta     BOOT_CELL_X
+C22C 7F02F5           (c/gmc_bootstrap.s):00316                 clr     BOOT_CELL_Y
+C22F 2029             (c/gmc_bootstrap.s):00317                 bra     spr_cell
+C231                  (c/gmc_bootstrap.s):00318         spr_right
+C231 8617             (c/gmc_bootstrap.s):00319                 lda     #23
+C233 B702F4           (c/gmc_bootstrap.s):00320                 sta     BOOT_CELL_X
+C236 B602F3           (c/gmc_bootstrap.s):00321                 lda     BOOT_BOX
+C239 800B             (c/gmc_bootstrap.s):00322                 suba    #11
+C23B B702F5           (c/gmc_bootstrap.s):00323                 sta     BOOT_CELL_Y
+C23E 201A             (c/gmc_bootstrap.s):00324                 bra     spr_cell
+C240                  (c/gmc_bootstrap.s):00325         spr_bottom
+C240 8639             (c/gmc_bootstrap.s):00326                 lda     #57
+C242 B002F3           (c/gmc_bootstrap.s):00327                 suba    BOOT_BOX
+C245 B702F4           (c/gmc_bootstrap.s):00328                 sta     BOOT_CELL_X
+C248 8617             (c/gmc_bootstrap.s):00329                 lda     #23
+C24A B702F5           (c/gmc_bootstrap.s):00330                 sta     BOOT_CELL_Y
+C24D 200B             (c/gmc_bootstrap.s):00331                 bra     spr_cell
+C24F                  (c/gmc_bootstrap.s):00332         spr_left
+C24F 7F02F4           (c/gmc_bootstrap.s):00333                 clr     BOOT_CELL_X
+C252 8650             (c/gmc_bootstrap.s):00334                 lda     #80
+C254 B002F3           (c/gmc_bootstrap.s):00335                 suba    BOOT_BOX
+C257 B702F5           (c/gmc_bootstrap.s):00336                 sta     BOOT_CELL_Y
+C25A                  (c/gmc_bootstrap.s):00337         spr_cell
+                      (c/gmc_bootstrap.s):00338                 ; D = screen-map index y*40+x+8; PAR7 retains the authored assets.
+C25A B602F5           (c/gmc_bootstrap.s):00339                 lda     BOOT_CELL_Y
+C25D C628             (c/gmc_bootstrap.s):00340                 ldb     #40
+C25F 3D               (c/gmc_bootstrap.s):00341                 mul
+C260 FB02F4           (c/gmc_bootstrap.s):00342                 addb    BOOT_CELL_X
+C263 8900             (c/gmc_bootstrap.s):00343                 adca    #0
+C265 CB08             (c/gmc_bootstrap.s):00344                 addb    #8
+C267 8900             (c/gmc_bootstrap.s):00345                 adca    #0
+C269 8EE010           (c/gmc_bootstrap.s):00346                 ldx     #PERIMETER_SCREEN_MAP
+C26C 308B             (c/gmc_bootstrap.s):00347                 leax    d,x
+C26E E684             (c/gmc_bootstrap.s):00348                 ldb     ,x
+C270 4F               (c/gmc_bootstrap.s):00349                 clra
+C271 58               (c/gmc_bootstrap.s):00350                 lslb
+C272 49               (c/gmc_bootstrap.s):00351                 rola
+C273 58               (c/gmc_bootstrap.s):00352                 lslb
+C274 49               (c/gmc_bootstrap.s):00353                 rola
+C275 58               (c/gmc_bootstrap.s):00354                 lslb
+C276 49               (c/gmc_bootstrap.s):00355                 rola
+C277 58               (c/gmc_bootstrap.s):00356                 lslb
+C278 49               (c/gmc_bootstrap.s):00357                 rola
+C279 58               (c/gmc_bootstrap.s):00358                 lslb
+C27A 49               (c/gmc_bootstrap.s):00359                 rola
+C27B 8EE3D0           (c/gmc_bootstrap.s):00360                 ldx     #PERIMETER_SCREEN_TILES
+C27E 318B             (c/gmc_bootstrap.s):00361                 leay    d,x
+C280 10BF02F8         (c/gmc_bootstrap.s):00362                 sty     BOOT_TILE_PTR
+                      (c/gmc_bootstrap.s):00363         
+                      (c/gmc_bootstrap.s):00364                 ; BOOT_DEST = $2000 + ((y*5)*160) + ((x+8)*4).
+C284 B602F5           (c/gmc_bootstrap.s):00365                 lda     BOOT_CELL_Y
+C287 C619             (c/gmc_bootstrap.s):00366                 ldb     #25
+C289 3D               (c/gmc_bootstrap.s):00367                 mul
+C28A 58               (c/gmc_bootstrap.s):00368                 lslb
+C28B 49               (c/gmc_bootstrap.s):00369                 rola
+C28C 58               (c/gmc_bootstrap.s):00370                 lslb
+C28D 49               (c/gmc_bootstrap.s):00371                 rola
+C28E 58               (c/gmc_bootstrap.s):00372                 lslb
+C28F 49               (c/gmc_bootstrap.s):00373                 rola
+C290 58               (c/gmc_bootstrap.s):00374                 lslb
+C291 49               (c/gmc_bootstrap.s):00375                 rola
+C292 58               (c/gmc_bootstrap.s):00376                 lslb
+C293 49               (c/gmc_bootstrap.s):00377                 rola
+C294 C32000           (c/gmc_bootstrap.s):00378                 addd    #$2000
+C297 FD02FA           (c/gmc_bootstrap.s):00379                 std     BOOT_DEST
+C29A B602F4           (c/gmc_bootstrap.s):00380                 lda     BOOT_CELL_X
+C29D 8B08             (c/gmc_bootstrap.s):00381                 adda    #8
+C29F C604             (c/gmc_bootstrap.s):00382                 ldb     #4
+C2A1 3D               (c/gmc_bootstrap.s):00383                 mul
+C2A2 F302FA           (c/gmc_bootstrap.s):00384                 addd    BOOT_DEST
+C2A5 FD02FA           (c/gmc_bootstrap.s):00385                 std     BOOT_DEST
+C2A8 10BE02F8         (c/gmc_bootstrap.s):00386                 ldy     BOOT_TILE_PTR
+C2AC 8605             (c/gmc_bootstrap.s):00387                 lda     #5
+C2AE F602F5           (c/gmc_bootstrap.s):00388                 ldb     BOOT_CELL_Y
+C2B1 C117             (c/gmc_bootstrap.s):00389                 cmpb    #23
+C2B3 2602             (c/gmc_bootstrap.s):00390                 bne     spr_rows_ready
+C2B5 8608             (c/gmc_bootstrap.s):00391                 lda     #8
+C2B7                  (c/gmc_bootstrap.s):00392         spr_rows_ready
+C2B7 B702F6           (c/gmc_bootstrap.s):00393                 sta     BOOT_ROW
+C2BA                  (c/gmc_bootstrap.s):00394         spr_row
+C2BA 8604             (c/gmc_bootstrap.s):00395                 lda     #4
+C2BC B702F7           (c/gmc_bootstrap.s):00396                 sta     BOOT_COL
+C2BF                  (c/gmc_bootstrap.s):00397         spr_byte
+C2BF A6A0             (c/gmc_bootstrap.s):00398                 lda     ,y+
+C2C1 1F89             (c/gmc_bootstrap.s):00399                 tfr     a,b
+C2C3 84F0             (c/gmc_bootstrap.s):00400                 anda    #$F0
+C2C5 8160             (c/gmc_bootstrap.s):00401                 cmpa    #$60
+C2C7 2708             (c/gmc_bootstrap.s):00402                 beq     spr_changed
+C2C9 1F98             (c/gmc_bootstrap.s):00403                 tfr     b,a
+C2CB 840F             (c/gmc_bootstrap.s):00404                 anda    #$0F
+C2CD 8106             (c/gmc_bootstrap.s):00405                 cmpa    #$06
+C2CF 2611             (c/gmc_bootstrap.s):00406                 bne     spr_unchanged
+C2D1                  (c/gmc_bootstrap.s):00407         spr_changed
+C2D1 8686             (c/gmc_bootstrap.s):00408                 lda     #$86
+C2D3 A7C0             (c/gmc_bootstrap.s):00409                 sta     ,u+
+C2D5 1F98             (c/gmc_bootstrap.s):00410                 tfr     b,a
+C2D7 A7C0             (c/gmc_bootstrap.s):00411                 sta     ,u+
+C2D9 86B7             (c/gmc_bootstrap.s):00412                 lda     #$B7
+C2DB A7C0             (c/gmc_bootstrap.s):00413                 sta     ,u+
+C2DD FC02FA           (c/gmc_bootstrap.s):00414                 ldd     BOOT_DEST
+C2E0 EDC1             (c/gmc_bootstrap.s):00415                 std     ,u++
+C2E2                  (c/gmc_bootstrap.s):00416         spr_unchanged
+C2E2 FC02FA           (c/gmc_bootstrap.s):00417                 ldd     BOOT_DEST
+C2E5 C30001           (c/gmc_bootstrap.s):00418                 addd    #1
+C2E8 FD02FA           (c/gmc_bootstrap.s):00419                 std     BOOT_DEST
+C2EB 7A02F7           (c/gmc_bootstrap.s):00420                 dec     BOOT_COL
+C2EE 26CF             (c/gmc_bootstrap.s):00421                 bne     spr_byte
+C2F0 FC02FA           (c/gmc_bootstrap.s):00422                 ldd     BOOT_DEST
+C2F3 C3009C           (c/gmc_bootstrap.s):00423                 addd    #156
+C2F6 FD02FA           (c/gmc_bootstrap.s):00424                 std     BOOT_DEST
+C2F9 7A02F6           (c/gmc_bootstrap.s):00425                 dec     BOOT_ROW
+C2FC 26BC             (c/gmc_bootstrap.s):00426                 bne     spr_row
+C2FE 7C02F3           (c/gmc_bootstrap.s):00427                 inc     BOOT_BOX
+C301 B602F3           (c/gmc_bootstrap.s):00428                 lda     BOOT_BOX
+C304 815C             (c/gmc_bootstrap.s):00429                 cmpa    #92
+C306 1025FF00         (c/gmc_bootstrap.s):00430                 lblo    spr_box
+C30A 8639             (c/gmc_bootstrap.s):00431                 lda     #$39
+C30C A7C0             (c/gmc_bootstrap.s):00432                 sta     ,u+
+C30E 1183C000         (c/gmc_bootstrap.s):00433                 cmpu    #$C000
+C312 1022FEE4         (c/gmc_bootstrap.s):00434                 lbhi    loader_fail
+C316 39               (c/gmc_bootstrap.s):00435                 rts
+                      (c/gmc_bootstrap.s):00436         
+                      (c/gmc_bootstrap.s):00437                 include "ladybug-sparse-loader.inc"
                       (sparse-loader.inc):00001         ; Generated by scripts/build_sparse_sprites.py; do not edit.
      0035             (sparse-loader.inc):00002         SPARSE_ENEMY_PAYLOAD_PAGE equ $35
      0039             (sparse-loader.inc):00003         SPARSE_PLAYER_PAYLOAD_PAGE equ $39
      A8F6             (sparse-loader.inc):00004         GATE_TRANSITION_PAYLOAD_ADDR equ $A8F6
      AC36             (sparse-loader.inc):00005         PRESENTATION_PAYLOAD_ADDR equ $AC36
-     0500             (sparse-loader.inc):00006         SPARSE_ENEMY_INDEX_ADDR equ $0500
-     0680             (sparse-loader.inc):00007         SPARSE_PLAYER_INDEX_ADDR equ $0680
+     A000             (sparse-loader.inc):00006         SPARSE_ENEMY_INDEX_ADDR equ $A000
+     A000             (sparse-loader.inc):00007         SPARSE_PLAYER_INDEX_ADDR equ $A000
      0180             (sparse-loader.inc):00008         SPARSE_ENEMY_INDEX_BYTES equ 384
      0030             (sparse-loader.inc):00009         SPARSE_PLAYER_INDEX_BYTES equ 48
      0008             (sparse-loader.inc):00010         SPARSE_COPY_SEGMENT_BYTES equ 8
-     000C             (sparse-loader.inc):00011         SPARSE_COPY_SEGMENT_COUNT equ 12
+     000F             (sparse-loader.inc):00011         SPARSE_COPY_SEGMENT_COUNT equ 15
                       (sparse-loader.inc):00012         
                       (sparse-loader.inc):00013         ; bank, destination page, source CPU address, destination window, count
-C127                  (sparse-loader.inc):00014         sparse_copy_table
+C317                  (sparse-loader.inc):00014         sparse_copy_table
                       (sparse-loader.inc):00015                 ; boot_overflow_proof+$0000
-C127 00FF             (sparse-loader.inc):00016                 fcb     $00,$FF
-C129 C80006B00002     (sparse-loader.inc):00017                 fdb     $C800,$06B0,$0002
-                      (sparse-loader.inc):00018                 ; perimeter_reset+$0000
-C12F 003A             (sparse-loader.inc):00019                 fcb     $00,$3A
-C131 C802A0001184     (sparse-loader.inc):00020                 fdb     $C802,$A000,$1184
-                      (sparse-loader.inc):00021                 ; perimeter_reset_helper+$0000
-C137 00FF             (sparse-loader.inc):00022                 fcb     $00,$FF
-C139 D98606B20013     (sparse-loader.inc):00023                 fdb     $D986,$06B2,$0013
-                      (sparse-loader.inc):00024                 ; enemy+$0000
-C13F 0235             (sparse-loader.inc):00025                 fcb     $02,$35
-C141 C020A0002000     (sparse-loader.inc):00026                 fdb     $C020,$A000,$2000
-                      (sparse-loader.inc):00027                 ; enemy+$2000
-C147 0236             (sparse-loader.inc):00028                 fcb     $02,$36
-C149 E020A0001DE0     (sparse-loader.inc):00029                 fdb     $E020,$A000,$1DE0
-                      (sparse-loader.inc):00030                 ; enemy+$3DE0
-C14F 0336             (sparse-loader.inc):00031                 fcb     $03,$36
-C151 D800BDE00220     (sparse-loader.inc):00032                 fdb     $D800,$BDE0,$0220
-                      (sparse-loader.inc):00033                 ; enemy+$4000
-C157 0337             (sparse-loader.inc):00034                 fcb     $03,$37
-C159 DA20A000189B     (sparse-loader.inc):00035                 fdb     $DA20,$A000,$189B
-                      (sparse-loader.inc):00036                 ; player+$0000
-C15F 0339             (sparse-loader.inc):00037                 fcb     $03,$39
-C161 F2BBA00008F6     (sparse-loader.inc):00038                 fdb     $F2BB,$A000,$08F6
-                      (sparse-loader.inc):00039                 ; gate+$0000
-C167 0339             (sparse-loader.inc):00040                 fcb     $03,$39
-C169 FBB1A8F6024F     (sparse-loader.inc):00041                 fdb     $FBB1,$A8F6,$024F
-                      (sparse-loader.inc):00042                 ; gate+$024F
-C16F 0339             (sparse-loader.inc):00043                 fcb     $03,$39
-C171 C000AB450010     (sparse-loader.inc):00044                 fdb     $C000,$AB45,$0010
-                      (sparse-loader.inc):00045                 ; gate+$025F
-C177 0339             (sparse-loader.inc):00046                 fcb     $03,$39
-C179 C012AB5500E1     (sparse-loader.inc):00047                 fdb     $C012,$AB55,$00E1
-                      (sparse-loader.inc):00048                 ; presentation+$0000
-C17F 0339             (sparse-loader.inc):00049                 fcb     $03,$39
-C181 C0F3AC360380     (sparse-loader.inc):00050                 fdb     $C0F3,$AC36,$0380
-C187                  (c/gmc_bootstrap.s):00164         loader_end
-                      (c/gmc_bootstrap.s):00165         
-                      (c/gmc_bootstrap.s):00166                 end
+C317 00FF             (sparse-loader.inc):00016                 fcb     $00,$FF
+C319 C80006B00002     (sparse-loader.inc):00017                 fdb     $C800,$06B0,$0002
+                      (sparse-loader.inc):00018                 ; perimeter_reset_helper+$0000
+C31F 00FF             (sparse-loader.inc):00019                 fcb     $00,$FF
+C321 C80206B20013     (sparse-loader.inc):00020                 fdb     $C802,$06B2,$0013
+                      (sparse-loader.inc):00021                 ; enemy+$0000
+C327 0235             (sparse-loader.inc):00022                 fcb     $02,$35
+C329 C020A0002000     (sparse-loader.inc):00023                 fdb     $C020,$A000,$2000
+                      (sparse-loader.inc):00024                 ; enemy+$2000
+C32F 0236             (sparse-loader.inc):00025                 fcb     $02,$36
+C331 E020A0001DE0     (sparse-loader.inc):00026                 fdb     $E020,$A000,$1DE0
+                      (sparse-loader.inc):00027                 ; enemy+$3DE0
+C337 0336             (sparse-loader.inc):00028                 fcb     $03,$36
+C339 D800BDE00220     (sparse-loader.inc):00029                 fdb     $D800,$BDE0,$0220
+                      (sparse-loader.inc):00030                 ; enemy+$4000
+C33F 0337             (sparse-loader.inc):00031                 fcb     $03,$37
+C341 DA20A000189B     (sparse-loader.inc):00032                 fdb     $DA20,$A000,$189B
+                      (sparse-loader.inc):00033                 ; player+$0000
+C347 0339             (sparse-loader.inc):00034                 fcb     $03,$39
+C349 F2BBA00008F6     (sparse-loader.inc):00035                 fdb     $F2BB,$A000,$08F6
+                      (sparse-loader.inc):00036                 ; gate+$0000
+C34F 0339             (sparse-loader.inc):00037                 fcb     $03,$39
+C351 FBB1A8F6024F     (sparse-loader.inc):00038                 fdb     $FBB1,$A8F6,$024F
+                      (sparse-loader.inc):00039                 ; gate+$024F
+C357 0339             (sparse-loader.inc):00040                 fcb     $03,$39
+C359 C000AB450010     (sparse-loader.inc):00041                 fdb     $C000,$AB45,$0010
+                      (sparse-loader.inc):00042                 ; gate+$025F
+C35F 0339             (sparse-loader.inc):00043                 fcb     $03,$39
+C361 C012AB5500E1     (sparse-loader.inc):00044                 fdb     $C012,$AB55,$00E1
+                      (sparse-loader.inc):00045                 ; presentation+$0000
+C367 0339             (sparse-loader.inc):00046                 fcb     $03,$39
+C369 C0F3AC360380     (sparse-loader.inc):00047                 fdb     $C0F3,$AC36,$0380
+                      (sparse-loader.inc):00048                 ; presentation_cold+$0000
+C36F 033A             (sparse-loader.inc):00049                 fcb     $03,$3A
+C371 C473A000038D     (sparse-loader.inc):00050                 fdb     $C473,$A000,$038D
+                      (sparse-loader.inc):00051                 ; presentation_cold+$038D
+C377 003A             (sparse-loader.inc):00052                 fcb     $00,$3A
+C379 C815A38D1C73     (sparse-loader.inc):00053                 fdb     $C815,$A38D,$1C73
+                      (sparse-loader.inc):00054                 ; presentation_cold+$2000
+C37F 003B             (sparse-loader.inc):00055                 fcb     $00,$3B
+C381 E488A000061B     (sparse-loader.inc):00056                 fdb     $E488,$A000,$061B
+                      (sparse-loader.inc):00057                 ; presentation_module+$0000
+C387 00FF             (sparse-loader.inc):00058                 fcb     $00,$FF
+C389 EAA3190004C6     (sparse-loader.inc):00059                 fdb     $EAA3,$1900,$04C6
+                      (c/gmc_bootstrap.s):00438                 include "ladybug-perimeter-boot.inc"
+                      (erimeter-boot.inc):00001         ; Generated from the current authored screen asset map.
+     E010             (erimeter-boot.inc):00002         PERIMETER_SCREEN_MAP equ $E010
+     E3D0             (erimeter-boot.inc):00003         PERIMETER_SCREEN_TILES equ $E3D0
+C38F                  (c/gmc_bootstrap.s):00439         loader_end
+                      (c/gmc_bootstrap.s):00440         
+                      (c/gmc_bootstrap.s):00441                 end
 
 Symbol Table:
-[ G] boot_copy                        C030
+[ G] ASSET_STAGE_PAGE                 0022
+[ G] BOOT_BOX                         02F3
+[ G] BOOT_CELL_X                      02F4
+[ G] BOOT_CELL_Y                      02F5
+[ G] BOOT_COL                         02F7
+[ G] boot_copy                        C033
+[ G] BOOT_DEST                        02FA
 [ G] boot_entry                       C002
 [ G] BOOT_FLAG                        02F0
 [ G] BOOT_PROOF                       02F1
+[ G] BOOT_ROW                         02F6
 [ G] BOOT_SEGMENTS                    02F2
-[ G] copy_assets                      C106
-[ G] copy_enemy_runtime               C070
-[ G] copy_enemy_sparse_index          C0B9
-[ G] copy_player_sparse_index         C0D4
-[ G] copy_resident                    C0F1
-[ G] copy_sparse_bytes                C09B
-[ G] copy_sparse_destination_ready    C090
-[ G] copy_sparse_segment              C082
+[ G] BOOT_TILE_PTR                    02F8
+[ G] copy_assets                      C15B
+[ G] copy_enemy_runtime               C073
+[ G] copy_resident                    C12A
+[ G] copy_sparse_destination_ready    C0AF
+[ G] copy_sparse_done                 C112
+[ G] copy_sparse_segment              C0A1
+[ G] copy_sparse_tail                 C0F6
+[ G] copy_sparse_tail_word            C107
+[ G] copy_sparse_word                 C0CB
+[ G] copy_staged_assets               C1C8
+[ G] copy_staged_resident             C197
 [ G] GATE_TRANSITION_PAYLOAD_ADDR     A8F6
 [ G] GIME_INIT0                       FF90
 [ G] GIME_MMU                         FF91
 [ G] GMC_BANK                         FF50
-[ G] loader_end                       C187
-[ G] loader_fail                      C122
+[ G] loader_end                       C38F
+[ G] loader_fail                      C1FA
 [ G] LOADER_RAM                       0300
-[ G] loader_start                     C03F
+[ G] loader_start                     C042
 [ G] PAR_EXEC                         FFA0
+[ G] PERIMETER_SCREEN_MAP             E010
+[ G] PERIMETER_SCREEN_TILES           E3D0
 [ G] PRESENTATION_PAYLOAD_ADDR        AC36
+[ G] RESIDENT_STAGE_PAGE              0021
 [ G] SAM_ALLRAM                       FFDF
 [ G] SAM_CART                         FFDE
 [ G] SAM_FAST                         FFD9
 [ G] SPARSE_COPY_SEGMENT_BYTES        0008
-[ G] SPARSE_COPY_SEGMENT_COUNT        000C
-[ G] sparse_copy_table                C127
-[ G] SPARSE_ENEMY_INDEX_ADDR          0500
+[ G] SPARSE_COPY_SEGMENT_COUNT        000F
+[ G] sparse_copy_table                C317
+[ G] SPARSE_ENEMY_INDEX_ADDR          A000
 [ G] SPARSE_ENEMY_INDEX_BYTES         0180
 [ G] SPARSE_ENEMY_PAYLOAD_PAGE        0035
-[ G] SPARSE_PLAYER_INDEX_ADDR         0680
+[ G] SPARSE_PLAYER_INDEX_ADDR         A000
 [ G] SPARSE_PLAYER_INDEX_BYTES        0030
 [ G] SPARSE_PLAYER_PAYLOAD_PAGE       0039
+[ G] spr_bottom                       C240
+[ G] spr_box                          C20A
+[ G] spr_byte                         C2BF
+[ G] spr_cell                         C25A
+[ G] spr_changed                      C2D1
+[ G] spr_left                         C24F
+[ G] spr_right                        C231
+[ G] spr_row                          C2BA
+[ G] spr_rows_ready                   C2B7
+[ G] spr_top                          C227
+[ G] spr_unchanged                    C2E2
+[ G] synthesize_perimeter_reset       C1FF

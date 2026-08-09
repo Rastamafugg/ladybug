@@ -31,7 +31,7 @@
         <li><strong>64 physical pages</strong> of RAM on a 512 K machine, numbered <code>$00-$3F</code>. RAM is populated top-down — <code>$3F</code> is highest.</li>
         <li><strong>Framebuffer</strong> = 30 720 bytes = 4 pages (3.75 actually used). GIME reads it via physical address, bypassing the MMU.</li>
         <li><strong>Persistent framebuffer B</strong> = physical pages <code>$2C-$2F</code>. It alternates FRONT/BACK ownership with framebuffer A at <code>$30-$33</code>; the CPU maps only the non-scanned BACK owner through PAR1-PAR4. Physical pages <code>$28-$2B</code> remain the unscanned compatibility compositor surface used only when <code>PERSISTENT_FB=0</code>.</li>
-        <li><strong>Resident code</strong> is copied from GMC bank 1 into physical page <code>$3E</code>. The enemy runtime is copied once from bank 3 offset <code>$0800</code> to low RAM <code>$0800-$17FF</code>.</li>
+        <li><strong>Resident code and assets</strong> are staged from GMC bank 1 in boot-only physical pages <code>$21/$22</code>. After cartridge deselection, they are copied to runtime pages <code>$3E/$3F</code>. Physical page <code>$20</code> owns the boot-synthesized perimeter program. The enemy runtime is copied once from bank 3 offset <code>$0800</code> to low RAM <code>$0800-$17FF</code>.</li>
         <li><strong>Delivery cartridge</strong> is a 64 K GMC image containing four 16 K banks. Bank 0 owns the loader at offsets <code>$0000-$07FF</code> and the overflow source pool at <code>$0800-$3DFF</code>; bank 1 is the resident runtime/assets; and banks 2 and 3 are primary expansion sources, with the enemy module reserved in bank 3.</li>
         <li><strong><code>$FF00-$FFFF</code> is dedicated I/O</strong>, not cart-visible. <strong><code>$FE00-$FEFF</code> is forced</strong> to phys <code>$3F</code> regardless of PAR7 when Init0 b3 is set — the primary jump table stays reachable.</li>
       </ul>
@@ -62,14 +62,13 @@
       <h2>Runtime mapping</h2>
 <pre><code>Virtual          PAR  Phys  Bytes  Use
 $0000-$02FF      0    $38   768 B  Direct page, boot proof, and low-RAM state
-$0300-$04FF      0    $38   512 B  Boot-only relocated GMC loader; free after handoff
-$0500-$067F      0    $38   384 B  Mirrored 128-entry enemy sparse index
-$0680-$06AF      0    $38    48 B  Mirrored 16-entry player sparse index
+$0300-$064C      0    $38   845 B  Boot-only relocated GMC loader; free after handoff
+$064D-$06AF      0    $38    99 B  Boot scratch; no sparse-index mirror
 $06B0-$07FF      0    $38   336 B  Loader-addressable overflow destinations; $06B0-$06B1 boot proof
 $0800-$17FF      0    $38   4 K    Bank-3 enemy runtime copy
 $1800-$18FF      0    $38   256 B  Shared player/nest sparse-decode compositor stage
-$1900-$1BFF      0    $38   768 B  Copied presentation flow module
-$1C00-$1FFF      0    $38   —      Stack and remaining low-RAM margin at $1FFE
+$1900-$1DFF      0    $38  1280 B  Copied presentation flow module; current use 1222 B
+$1E00-$1FFF      0    $38   512 B  Reserved stack window; stack begins at $1FFE
 $2000-$3FFF      1    $30   8 K    Framebuffer page 0
 $4000-$5FFF      2    $31   8 K    Framebuffer page 1
 $6000-$7FFF      3    $32   8 K    Framebuffer page 2
@@ -94,6 +93,8 @@ $AB00-$AB7F      5    $34   128 B  Framebuffer B player restoration bytes
 $AB80-$AD7F      5    $34   512 B  Four framebuffer B enemy restoration buffers
 $AD80-$AF7F      5    $34   512 B  Four native dormant-nest animation frames
 $AF80-$BFFF      5    $34   —      Free game-state RAM; $BFFE seeds cold-start entropy
+$20              —    —      8 K   Boot-synthesized native perimeter-reset program
+$21-$22          —    —     16 K   Boot-only resident/asset staging; reusable after handoff
 $3A-$3D          —    —     32 K   Physical cold presentation data copied at boot; selected page is mapped through PAR5
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
@@ -136,8 +137,9 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         non-scanned back buffer. Precompiled sparse enemy streams occupy
         physical pages <code>$35-$37</code>, player streams occupy
         <code>$39:$A000-$A8F5</code>, and the 832-byte six-stream gate
-        transition payload occupies <code>$39:$A8F6-$AC35</code>. Cold
-        presentation data occupies physical pages <code>$3A-$3D</code> and
+        transition payload occupies <code>$39:$A8F6-$AC35</code>. The native
+        perimeter program is synthesized into physical page <code>$20</code>
+        during boot. Cold presentation data occupies physical pages <code>$3A-$3D</code> and
         is read through the same scoped PAR5 window. PAR5 maps
         one stream page only during a draw
         before returning to game-state page <code>$34</code>. IRQ-visible
@@ -151,12 +153,13 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         The current FEAT-002 build leaves 76 CPU-readable GMC source bytes
         spare after a 13,888-byte cold payload. The presentation compiler
         must fit its cold payload inside that measured source margin. At boot,
-        the loader mirrors the 384-byte enemy index to <code>$0500</code> and
-        the 48-byte player index to <code>$0680</code>. Runtime index lookup
-        therefore requires no preliminary PAR5 mapping: it resolves each
-        three-byte page/address entry, maps only that stream page, decodes
-        directly into BACK or the always-mapped low-RAM actor stage, and
-        restores page <code>$34</code> at the shared decoder terminator.
+        the loader leaves each index at the start of its already-loaded sparse
+        page: enemy index at physical page <code>$35:$A000</code> and player
+        index at <code>$39:$A000</code>. Runtime lookup maps the corresponding
+        index page, resolves the three-byte page/address entry, then maps the
+        selected stream page. This removes the former low-RAM mirror and keeps
+        the relocated loader clear of its destination; the decoder still
+        restores page <code>$34</code> at its shared terminator.
         Gameplay mutation
         remains separated from one
         bank-3 framebuffer owner through compact direct-page intents. Phase 4
@@ -410,8 +413,10 @@ $FF00-$FFFF        256 B   I/O; never cart data
         each 16 K source bank and copy its payload through a temporary
         <code>$A000-$BFFF</code> destination mapping into unused physical RAM.
         It must also copy the resident code page explicitly; same-address writes
-        beneath TY=0 cartridge ROM remain invalid. After loading, switch TY=1,
-        map one resident code page at PAR6 and one swappable asset page at PAR7,
+        beneath selected cartridge ROM remain invalid. The loader therefore
+        stages bank-1 resident/assets in pages <code>$21/$22</code>, selects
+        all-RAM, and only then copies them to pages <code>$3E/$3F</code>. After loading,
+        map one resident code page at PAR6 and one asset page at PAR7,
         restore PAR5 to game state, then enter the runtime. Normal gameplay will
         not bank-switch cartridge ROM.
       </p>
@@ -425,11 +430,10 @@ $FF00-$FFFF        256 B   I/O; never cart data
         fixed overflow source pool allocated only after the primary source
         intervals. The descriptor destination-page sentinel <code>$FF</code>
         copies directly to always-mapped low RAM; other descriptors map PAR5.
-        The loader also mirrors both indexes into
-        always-mapped PAR0. Runtime maps one payload page through PAR5 for
+        Runtime resolves both indexes directly from their payload pages and maps one stream page through PAR5 for
         each draw and restores page <code>$34</code> at frame termination.
-        The loader restores PAR5 to physical page <code>$3E</code> before
-        reusing <code>$A000-$BFFF</code> as the resident-copy destination.
+        The loader restores PAR5 to physical page <code>$34</code> before
+        entering the resident runtime.
         Physical cartridge/CoCoSDC compatibility remains a separate release decision.
       </p>
       <p><strong>Source capacity is not destination capacity.</strong> Bank-0 overflow permits additional cartridge source bytes without gameplay-time ROM switching. It does not relax the independent 8 K resident window, 7.5 K asset window, 4 K copied enemy-module window, low-RAM/stack bounds, physical-page allocation, or runtime ABI. Executable overflow must be assembled as an explicit relocatable segment with a proven RAM destination.</p>

@@ -27,18 +27,20 @@ if len(rom) > 0x1000:
 if not 0 < len(perimeter_helper) <= 0x0800 - 0x06B2:
     raise SystemExit("enemy proof: perimeter helper exceeds $06B2-$07FF")
 if perimeter_helper != bytes((
-    0x34, 0x01, 0x1A, 0x50, 0x86, 0x3A, 0xB7, 0xFF, 0xA5,
+    0x34, 0x01, 0x1A, 0x50, 0x86, 0x20, 0xB7, 0xFF, 0xA5,
     0xBD, 0xA0, 0x00, 0x86, 0x34, 0xB7, 0xFF, 0xA5, 0x35, 0x81,
 )):
     raise SystemExit("enemy proof: perimeter helper does not map/call/restore PAR5")
 if (
-    perimeter_manifest["page"] != 0x3A or
+    perimeter_manifest["page"] != 0x20 or
     perimeter_manifest["address"] != 0xA000 or
+    not perimeter_manifest.get("boot_synthesized") or
+    perimeter_manifest.get("source_bytes") != 0 or
     perimeter_manifest["helper_address"] != 0x06B2 or
     perimeter_manifest["bytes"] != len(perimeter_payload) or
     perimeter_payload[-1:] != b"\x39"
 ):
-    raise SystemExit("enemy proof: perimeter payload layout contract differs")
+    raise SystemExit("enemy proof: boot-synthesized perimeter layout contract differs")
 if "PACKED_SPRITE_SIZE equ    64" not in resident:
     raise SystemExit("enemy proof: retained death/vegetable packed-source size changed")
 if "player_sprites" in resident:
@@ -98,8 +100,10 @@ required = [
     "ENEMY_OLD_FB   equ $A890",
     "ENEMY_BG_RING  equ $A898",
     "FBM_ENEMY_RINGS equ 44",
-    "SPARSE_ENEMY_INDEX_ADDR equ $0500",
-    "SPARSE_PLAYER_INDEX_ADDR equ $0680",
+    "SPARSE_ENEMY_INDEX_ADDR equ $A000",
+    "SPARSE_PLAYER_INDEX_ADDR equ $A000",
+    "SPARSE_ENEMY_PAYLOAD_PAGE equ $35",
+    "SPARSE_PLAYER_PAYLOAD_PAGE equ $39",
     "lbsr    sparse_enemy_stream",
     "lbsr    sparse_player_stream",
     "lbsr    sparse_blit_fb",
@@ -201,11 +205,7 @@ for fragment in (
     'include "ladybug-sparse-loader.inc"',
     "lda     #SPARSE_COPY_SEGMENT_COUNT",
     "copy_sparse_segment",
-    "copy_sparse_bytes",
-    "copy_enemy_sparse_index",
-    "copy_player_sparse_index",
-    "#SPARSE_ENEMY_INDEX_ADDR",
-    "#SPARSE_PLAYER_INDEX_ADDR",
+    "copy_sparse_word",
 ):
     if fragment not in bootstrap:
         raise SystemExit("enemy proof: sparse loader is incomplete: " + fragment)
@@ -487,9 +487,12 @@ bonus_start = main.index("\nbonus_color_tick\n")
 bonus_tick = main[bonus_start : main.index("\nbct_done\n", bonus_start)]
 if "LIVES" in bonus_tick:
     raise SystemExit("enemy proof: collectible colour cycle still depends on reserve lives")
-entry_seed = main[main.index("lbsr    init_joystick") : main.index("lbsr    init_entities")]
+entry_seed = main[
+    main.index("startup_clear_complete") :
+    main.index("startup_fb_init_entry")
+]
 if "RNG_ENTROPY" not in entry_seed or "cmpd    #0" not in entry_seed:
-    raise SystemExit("enemy proof: cold-start entity seed lacks nonzero RAM entropy")
+    raise SystemExit("enemy proof: startup seed lacks nonzero RAM entropy")
 if "-ram-init random" not in build_script:
     raise SystemExit("enemy proof: canonical XRoar run does not provide startup RAM entropy")
 wrapper_start = main.index("\nenemy_tick\n")
@@ -1010,12 +1013,17 @@ if "ldu     PLAYER_BG_PTR" not in save_player or "#PLAYER_BG" in save_player:
     raise SystemExit("enemy proof: resident player save bypasses the selected save-under")
 if "ldu     PLAYER_BG_PTR" not in restore_player or "#PLAYER_BG" in restore_player:
     raise SystemExit("enemy proof: resident player restore bypasses the selected save-under")
-boot = main[main.index("entry_seed_ready\n"):main.index("; --- Un-blank")]
-boot_order = ["std     PLAYER_BG_PTR", "lbsr    render_frame", "jsr     FB_MODULE_INIT"]
+boot = main[
+    main.index("startup_clear_complete\n") :
+    main.index("; --- Un-blank")
+]
+if "lbsr    render_frame" in boot:
+    raise SystemExit("enemy proof: boot renders gameplay before the presentation director")
+boot_order = ["startup_fb_init_entry", "jsr     FB_MODULE_INIT"]
 if [boot.index(fragment) for fragment in boot_order] != sorted(
     boot.index(fragment) for fragment in boot_order
 ):
-    raise SystemExit("enemy proof: A/B convergence does not occur after the blanked full render")
+    raise SystemExit("enemy proof: A/B convergence does not occur before presentation startup")
 game_init = main[main.index("\ninit_game_state\n"):main.index("\nnext_stage\n")]
 if "clr     FB_INIT_STATE" not in game_init:
     raise SystemExit("enemy proof: cold render can observe random ownership-init state")

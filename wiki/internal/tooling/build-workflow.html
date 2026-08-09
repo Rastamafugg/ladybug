@@ -80,7 +80,7 @@ emulated CoCo 3      (physical target: GMC-compatible bank-select hardware)
         <tbody>
           <tr><td><code>scripts/build.sh build</code></td><td>Derive semantic maze tables; compile sparse death, popup, and gate presentation plus retained packed vegetable assets; assemble; independently verify indexed sparse enemy/player/presentation streams and their segmented GMC layout; prove exact-capacity bank-0 overflow and one-byte rejection; assemble the generated loader table; overlay only manifest-owned bank-0 intervals; compose all four banks; enforce loader, source, destination, and ROM boundaries; and pad.</td></tr>
           <tr><td><code>scripts/build.sh run</code></td><td><code>build</code>, then launch XRoar with the canonical cart profile and map cursor keys to the right CoCo joystick through <code>kjoy0</code>.</td></tr>
-          <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then run the focused FEAT-002 presentation-flow capacity proof and trace a bounded headless XRoar run. It verifies bank signatures, generated source-bank selections including bank 0, the bank-0 proof copy to low RAM, destination pages, bank-3 low-RAM copy, bank-1 loading, final-bank hashes, both fast-clock writes, sparse framebuffer/stage decoder execution, the TY=1 all-RAM handoff, repeated main-loop execution, and enemy-module contracts.</td></tr>
+          <tr><td><code>scripts/build.sh verify-gmc</code></td><td><code>build</code>, then run the focused FEAT-002 presentation-flow capacity proof and sequential XRoar/GDB phases: loader handoff, resident startup, natural attract, forced gameplay, and forced demo deaths. Defaults are 10/10/10/20/10 seconds. For startup-only diagnosis, run <code>python3 scripts/verify_gmc_boot.py --startup-only</code>. The loader handoff uses XRoar trace evidence to avoid a one-shot breakpoint race; resident startup stops at the repeating <code>$1900</code> boundary and compares all 15,872 resident bytes exactly. The full verifier checks bank signatures, generated source-bank selections including bank 0, the bank-0 proof copy, boot-only pages <code>$21/$22</code>, bank-3 low-RAM copy, bank-1 staging and all-RAM publication, sparse framebuffer/stage decoders, repeated main-loop execution, and enemy-module contracts. Each phase has an explicit timeout and cleans up its process group.</td></tr>
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
       </table>
@@ -131,13 +131,14 @@ lwasm -9 --format=raw \
         It rejects resident code beyond <code>$E000</code>, an asset start other
         than <code>$E000</code>, assets beyond <code>$FE00</code>, or a raw-file
         length inconsistent with <code>asset_end-$C000</code>. A successful
-        current integrated build reports <code>resident 7741/8192</code> and
+        current integrated build reports <code>resident 8190/8192</code> and
         <code>assets 7144/7680</code> before padding. The copied bank-3 module
-        reports <code>4062/4096</code>; its twelve-entry jump table includes
+        reports <code>4089/4096</code>; its fixed jump table includes
         direct sparse player draw plus framebuffer/stage decoders. The approved
         module copy spans <code>$0800-$17FF</code>; a shared actor stage occupies
-        <code>$1800-$18FF</code>, leaving <code>$1900-$1FFE</code> for stack
-        growth. Generated enemy streams occupy physical pages
+        <code>$1800-$18FF</code>, with the copied presentation module at
+        <code>$1900-$1DFF</code> and the stack reserved at <code>$1E00-$1FFF</code>.
+        Generated enemy streams occupy physical pages
         <code>$35-$37</code>; player, gate, and popup presentation streams share page <code>$39</code>.
       </p>
       <p>
@@ -159,8 +160,9 @@ lwasm -9 --format=raw \
         the exact source capacity across banks 2, 3, and 0 and requires one
         additional byte to fail. The generated banks and loader are the
         delivered path, with 14,731 CPU-readable source bytes spare. The
-        loader mirrors enemy/player indexes into always-mapped low RAM at
-        <code>$0500/$0680</code> before the runtime handoff.
+        loader keeps enemy/player indexes at the start of their loaded sparse
+        pages, <code>$35:$A000</code> and <code>$39:$A000</code>, so their copies
+        cannot overlap the relocated loader before handoff.
       </p>
 
       <h3>2. Pad source banks to 16 KB and compose the 64 KB GMC image</h3>
