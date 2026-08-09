@@ -24,12 +24,12 @@
     <section>
       <h2>Disposition</h2>
       <ul>
-        <li><strong>Status:</strong> Approved</li>
+        <li><strong>Status:</strong> Ready</li>
         <li><strong>Created / updated:</strong> 2026-08-09 / 2026-08-09</li>
         <li><strong>Priority / order:</strong> P2 / 17</li>
         <li><strong>Source:</strong> <a href="./feat-002-attract-mode-integration.html">FEAT-002</a>, <a href="./perf-004-perimeter-reset-publication.html">PERF-004</a>, the 2026-08-09 troubleshooting conversation, retained build/probe evidence, and relevant commits</li>
         <li><strong>Owner:</strong> unassigned</li>
-        <li><strong>Dependencies:</strong> approval is independent of FEAT-002 closure. Before <code>Ready</code>, create a documentation-only lifecycle checkpoint containing this approved ticket, its queue row, and log entries; record that commit as the assignment base; then create the named clean worktree. The evidence baseline already preserved in this ticket replaces dependency on the mutable recovery worktree.</li>
+        <li><strong>Dependencies:</strong> assignment base <code>ed4fb553d63db8e5a374b3f758130fe0781aca46</code>; clean worktree <code>D:/retro/ladybug-worktrees/rsch-002</code> on <code>codex/rsch-002-troubleshooting-retrospective</code>. Approval and implementation are independent of FEAT-002 closure because the evidence baseline is preserved in this ticket.</li>
       </ul>
     </section>
 
@@ -184,14 +184,14 @@ For replacement default flows, the approval brief names the displaced owner and 
       <h3>Required verification commands</h3>
       <pre><code>git diff --check -- AGENTS.md .agents/skills/project-management/SKILL.md .agents/skills/business-analyst/SKILL.md .agents/skills/debugger/SKILL.md .agents/skills/qa-reviewer/SKILL.md wiki/internal/tickets/workflow.html wiki/internal/implementation/lessons-learned.html wiki/internal/tickets/rsch-002-feat-002-troubleshooting-retrospective.html wiki/internal/tickets/index.html wiki/internal/log.html
 
-git diff --name-only &lt;assignment-base&gt;...HEAD
+git diff --name-only ed4fb553d63db8e5a374b3f758130fe0781aca46...HEAD
 
 rg -n "live bytes|authored.*staged.*destination|undocumented hardware|60 seconds|more than 2x|displaced owner|first user-visible frame|natural golden path|does not substitute|marker.*does not prove" AGENTS.md .agents/skills wiki/internal/tickets/workflow.html wiki/internal/implementation/lessons-learned.html
 
 rg -n "project-management|business-analyst|debugger|qa-reviewer" AGENTS.md wiki/internal/tickets/workflow.html
 
-git diff --exit-code &lt;assignment-base&gt;...HEAD -- src scripts assets tiled build</code></pre>
-      <p>Before <code>Ready</code>, replace <code>&lt;assignment-base&gt;</code> with the exact lifecycle-checkpoint commit. The owner must also run the existing local-link check against the changed wiki pages and retain its output. Repository-wide link lint may continue to report the pre-existing missing FEAT-001 page, but no new missing link is permitted.</p>
+git diff --exit-code ed4fb553d63db8e5a374b3f758130fe0781aca46...HEAD -- src scripts assets tiled build</code></pre>
+      <p>The owner must also run the existing local-link check against the changed wiki pages and retain its output. Repository-wide link lint may continue to report the pre-existing missing FEAT-001 page, but no new missing link is permitted.</p>
 
       <h3>Required scenario walkthroughs</h3>
       <ol>
@@ -204,22 +204,22 @@ git diff --exit-code &lt;assignment-base&gt;...HEAD -- src scripts assets tiled 
 
       <h3>Evidence, commit, and completion report</h3>
       <ul>
-        <li><strong>Retain:</strong> assignment-base commit, changed-file allowlist result, exact instruction-location matches, local-link output, all five written scenario verdicts, zero-runtime-delta check, implementation commit, rejected wording experiments, and residual risks.</li>
+        <li><strong>Retain:</strong> assignment-base commit <code>ed4fb553d63db8e5a374b3f758130fe0781aca46</code>, changed-file allowlist result, exact instruction-location matches, local-link output, all five written scenario verdicts, zero-runtime-delta check, implementation commit, rejected wording experiments, and residual risks.</li>
         <li><strong>Commit:</strong> one bounded implementation commit on the assigned branch containing only the allowlisted instruction and wiki files. Do not push, merge, advance to <code>Done</code>, or modify another ticket&rsquo;s status.</li>
         <li><strong>Completion report:</strong> report the commit hash; each command and result; each scenario result against its pass rule; exact changed instructions; runtime-capacity delta of zero; rejected experiments; residual risks; retained evidence; and whether RSCH-002 can move to <code>Verification</code>. Missing evidence is a failed assignment, not a pass.</li>
       </ul>
 
-      <h3>Ready prerequisites still open</h3>
+      <h3>Ready prerequisites completed</h3>
       <ul>
-        <li>Create and record a documentation-only lifecycle checkpoint without staging unrelated build, session, PERF-004, or other user changes currently present on main.</li>
-        <li>Replace every <code>&lt;assignment-base&gt;</code> placeholder above with that checkpoint hash.</li>
-        <li>Create and verify the named clean branch/worktree, then synchronize the ticket and index to <code>Ready</code> with a dated log entry. Until all three steps complete, RSCH-002 remains <code>Approved</code>.</li>
+        <li>Documentation-only lifecycle checkpoint <code>ed4fb553d63db8e5a374b3f758130fe0781aca46</code> contains only the RSCH-002 ticket, queue row, and lifecycle log entries; unrelated build, session, PERF-004, and diagnosis changes remain outside the commit.</li>
+        <li>Every assignment-base command names the exact checkpoint hash.</li>
+        <li>The clean assigned branch/worktree exists at <code>D:/retro/ladybug-worktrees/rsch-002</code>. RSCH-002 is <code>Ready</code> for one bounded implementation owner.</li>
       </ul>
     </section>
 
     <section>
       <h2>Verification and completion</h2>
-      <p>Proposal preparation on 2026-08-09 refreshed the assigned recovery worktree with <code>bash scripts/build.sh verify-gmc</code>; it passed in 37.8 wall-clock seconds with the current bounded phases. Required ticket sections, synchronized lifecycle state, local links, and edited-file whitespace are checked separately. Repository-wide ticket-index link checking still reports the pre-existing missing <code>feat-001-presentation-maze-screens.html</code> page. Option B is approved; assignment preparation and implementation remain pending, and no project instruction or runtime file has changed under RSCH-002.</p>
+      <p>Proposal preparation on 2026-08-09 refreshed the assigned recovery worktree with <code>bash scripts/build.sh verify-gmc</code>; it passed in 37.8 wall-clock seconds with the current bounded phases. The approved lifecycle checkpoint and clean assigned worktree are complete. Required ticket sections, synchronized lifecycle state, local links, edited-file whitespace, checkpoint scope, and worktree cleanliness are checked separately. Repository-wide ticket-index link checking still reports the pre-existing missing <code>feat-001-presentation-maze-screens.html</code> page. No project instruction or runtime file has changed under RSCH-002; implementation may begin only in the assigned worktree.</p>
     </section>
 
     <section>
@@ -229,11 +229,12 @@ git diff --exit-code &lt;assignment-base&gt;...HEAD -- src scripts assets tiled 
         <li>2026-08-09 &mdash; Completed the evidence baseline from main <code>7135cbb</code>, the identified combined-worktree patch, current artifact hashes, PERF-004&rsquo;s retained probe timeline, FEAT-002 requirements, user-visible reports, and a fresh bounded GMC verification. Selected Option B and advanced RSCH-002 to <code>Proposed</code> with exact shared-policy, project-management, business-analysis, debugger, QA, workflow, and lessons-learned changes. No instruction implementation is authorized before explicit approval.</li>
         <li>2026-08-09 &mdash; User approved Option B and authorized the exact named project-instruction changes. RSCH-002 advanced from <code>Proposed</code> to <code>Approved</code>. Runtime work and FEAT-002 lifecycle changes remain excluded; project-instruction implementation waits for a complete Ready assignment contract.</li>
         <li>2026-08-09 &mdash; Prepared the proposed assignment contract with exact ownership, clean branch/worktree, evidence baseline, implementation order, semantic guardrails, zero-runtime-delta rule, commands, five incident walkthroughs, retained evidence, one-commit boundary, completion report, and parent integration duties. RSCH-002 remains <code>Approved</code> until a documentation-only lifecycle checkpoint supplies the exact assignment base and the named clean worktree is created.</li>
+        <li>2026-08-09 &mdash; Created documentation-only lifecycle checkpoint <code>ed4fb553d63db8e5a374b3f758130fe0781aca46</code>, inserted it into every assignment command, created clean worktree <code>D:/retro/ladybug-worktrees/rsch-002</code> on <code>codex/rsch-002-troubleshooting-retrospective</code>, and advanced RSCH-002 from <code>Approved</code> to <code>Ready</code>. Project-instruction implementation is now authorized only under this assignment contract.</li>
       </ul>
     </section>
 
     <footer class="wiki-footer">
-      <p>Approved research and process-correction contract. Assignment completion and a Ready transition are required before project instruction implementation.</p>
+      <p>Ready research and process-correction assignment. Implement only in the named worktree and within the allowlisted instruction and wiki artifacts.</p>
     </footer>
   </main>
 </div>
