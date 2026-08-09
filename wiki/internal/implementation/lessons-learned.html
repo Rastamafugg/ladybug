@@ -25,6 +25,14 @@
     </header>
 
     <section>
+      <h2>FEAT-002 diagnosis requires live-byte and visible-path proof</h2>
+      <p><strong>Filed 2026-08-09.</strong> The FEAT-002 recovery initially appeared to implicate GIME or PAR setup, but live-byte comparison showed bank-0 bootstrap bytes at the supposed resident handoff. Selected cartridge ROM prevented same-destination writes from populating resident RAM; staging resident and asset bytes in boot-only physical pages before all-RAM publication corrected the delivery defect. A separate boot-synthesis defect read bank-0 bootstrap bytes instead of authored bank-1 screen assets until bank 1 was retained during synthesis.</p>
+      <p><strong>Rule:</strong> before interpreting a live symbol or hardware access, compare authored/source, staged, and final destination bytes. Treat undocumented hardware failure as a last-stage hypothesis requiring discriminating software/tool/emulator results plus independent or authoritative support. A runtime marker also proves only code reachability; first visible screen, decoded content, input ownership, and natural sequence require separate evidence.</p>
+      <p><strong>Applies to:</strong> GMC bootstrap and handoff diagnosis, MMU/PAR investigations, presentation startup, bounded XRoar/GDB probes, and QA closure.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/feat-002-attract-mode-integration.html">FEAT-002</a>, <a href="../tickets/perf-004-perimeter-reset-publication.html">PERF-004</a>, <a href="../tickets/rsch-002-feat-002-troubleshooting-retrospective.html">RSCH-002</a>, <code>src/gmc_bootstrap.s</code>, and the 2026-08-09 recovery evidence.</p>
+    </section>
+
+    <section>
       <h2>Presentation actor overlays require the existing save-under contract</h2>
       <p><strong>Filed 2026-08-08.</strong> A transparent sparse actor blit does not remove pixels from its previous framebuffer footprint. FEAT-002 instruction traversal left trails until each movement restored the prior 16&times;16 rectangle through the resident <code>save_player</code>/<code>restore_player</code> routines and the already-owned <code>PLAYER_BG_PTR</code> buffer. The presentation module now selects <code>$A300</code>, clears <code>PLAYER_BG_VALID</code> on screen load, and orders restore, save, then draw within the 1280-byte module.</p>
       <p><strong>Rule:</strong> every presentation actor that moves over static pixels must reuse an owned save-under buffer or a verified static redraw path; transparent drawing alone is not restoration.</p>

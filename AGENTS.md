@@ -44,6 +44,12 @@ Do not begin coding until `project-management` has run. Each role skill contains
 - If a target is missed, say so directly, retain the measured result, and create or update a follow-up ticket. Do not label the work accepted because implementation or testing completed.
 - Record rejected experiments when their result changes the recommended approach. Separate current-revision evidence from historical or projected evidence.
 
+### Runtime diagnosis invariants
+
+- Before interpreting a symbol, map label, or hardware-register access at a live PC, prove that the live bytes match the current built artifact at that address. When loading, copying, banking, relocation, or handoff is involved, compare authored/source, staged, and destination bytes before diagnosing downstream execution.
+- Treat an undocumented hardware defect as a last-stage hypothesis. Do not recommend it until software state, loader/mapping, observation-tool, and emulator-control candidates have discriminating results, and either an independent emulator/physical-hardware reproduction or authoritative hardware evidence supports escalation. Label the hypothesis unconfirmed until then.
+- Every runtime probe must name its phase, success marker, deadline, and the meaning of a timeout. Keep an initial diagnostic phase at or below 60 seconds. Do not increase a phase beyond 60 seconds or by more than 2x without reporting measured progress, the projected benefit, and obtaining user approval. A timeout is evidence about the probe boundary, not proof that the target code is slow.
+
 ## Ticket and Delegation Rules
 
 - Ticket IDs use `<TYPE>-NNN`: `FEAT`, `BUG`, `PERF`, `TOOL`, `DOC`, or `RSCH`. One HTML page under `wiki/internal/tickets/` is canonical for each ticket.

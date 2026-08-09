@@ -18,6 +18,10 @@ Used when the task is ambiguous, requirement-heavy, behavior-changing, or likely
 - Before any table, explain its labels, units, baseline, target, margin calculation, scenario/owner terminology, and pass/fail rule. Identify whether each number is measured, projected, or required.
 - Separate suggested next steps from assignment text. The approval brief must support a go/no-go decision; do not add execution detail that implies approval has already been granted.
 
+Write the golden path as explicit ordered states and transitions before enumerating edge cases. For a replacement flow, identify the old state owner, the new owner, the exact handoff, and initialization that must be deferred or removed.
+
+For inputs that may pre-empt multiple states, define global versus local ownership, edge versus held behavior, simultaneous inputs, invalid-input behavior, cold/warm reset behavior, and the first user-visible frame. Acceptance must verify the complete natural sequence in addition to forced state coverage.
+
 ## Handoff rule
 
 **Do not transition to implementation** until the requirements, scenarios, and edge cases are explicit enough to code safely. If they are not, ask the user.
