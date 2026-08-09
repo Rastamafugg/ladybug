@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-002 FEAT-002 Troubleshooting and Requirements-Translation Retrospective &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal &middot; research ticket</p>
+      <h1>RSCH-002 FEAT-002 Troubleshooting and Requirements-Translation Retrospective <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Convert the FEAT-002 recovery evidence into enforceable debugging, requirements, and verification safeguards.</p>
+    </header>
+
+    <section>
+      <h2>Disposition</h2>
+      <ul>
+        <li><strong>Status:</strong> Approved</li>
+        <li><strong>Created / updated:</strong> 2026-08-09 / 2026-08-09</li>
+        <li><strong>Priority / order:</strong> P2 / 17</li>
+        <li><strong>Source:</strong> <a href="./feat-002-attract-mode-integration.html">FEAT-002</a>, <a href="./perf-004-perimeter-reset-publication.html">PERF-004</a>, the 2026-08-09 troubleshooting conversation, retained build/probe evidence, and relevant commits</li>
+        <li><strong>Owner:</strong> unassigned</li>
+        <li><strong>Dependencies:</strong> approval is independent of FEAT-002 closure. Before <code>Ready</code>, create a documentation-only lifecycle checkpoint containing this approved ticket, its queue row, and log entries; record that commit as the assignment base; then create the named clean worktree. The evidence baseline already preserved in this ticket replaces dependency on the mutable recovery worktree.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Reconstruct the FEAT-002 failure and recovery sequence, determine which observable diagnostic and requirements-handling decisions delayed the repair, and convert accepted findings into precise updates for the project role skills. The intended outcome is a repeatable process that prioritizes software delivery and execution-state evidence, translates user-visible launch behavior into explicit state transitions, bounds runtime probes, and requires natural end-to-end verification before acceptance.</p>
+
+      <h3>Evidence and baseline</h3>
+      <ul>
+        <li><strong>Requested behavior:</strong> the conversation begins with an unattended title, instructions, part-one level-start, and demo loop; <code>5</code>/<code>6</code> add credit; and <code>1</code> starts normal gameplay after the level-start screen. On 2026-08-09 the user clarified that the authored attract TMX must be the first visible cartridge screen and that this replaces gameplay-first launch.</li>
+        <li><strong>Natural failure evidence:</strong> the user reported a mostly black attract sequence with incorrect or non-animated actors and no successful <code>5</code>-then-<code>1</code> start. Later manual execution confirmed that the repaired cartridge loads and accepts credit/start, but new Draft blockers BUG-008 through BUG-013 record remaining natural presentation failures in the assigned worktree.</li>
+        <li><strong>Probe escalation history:</strong> PERF-004 records 120- and 60-second loader observations, a 1427.1-second phased run without post-handoff markers, a 720-second breakpoint attempt inside startup, temporary defaults of 300/1800/60/180/180 seconds for loader/resident/natural/forced/demo, and a 315.1-second control observation. The 1800-second resident deadline was an extrapolation and was explicitly rejected as a hardware or acceptance target.</li>
+        <li><strong>Premature hardware hypothesis:</strong> a register snapshot stopped at symbol address <code>$C033</code>, expected to be immediately before <code>CLR $FF91</code>, and directed the next investigation toward the Init1 or GIME path. No live-byte comparison had yet established that the bytes at <code>$C033</code> were the resident instructions named by the current map.</li>
+        <li><strong>Confirmed delivery defect:</strong> live-byte comparison subsequently showed bank-0 bootstrap bytes at the supposed resident handoff. Selected cartridge ROM prevented same-destination writes from populating resident RAM. The repair stages bank-1 resident and asset bytes in physical pages <code>$21/$22</code>, switches to all-RAM, then publishes them to pages <code>$3E/$3F</code>.</li>
+        <li><strong>Confirmed bank-selection defect:</strong> boot synthesis switched to GMC bank 0 before reading authored bank-1 screen assets. Retaining bank 1 during synthesis restored byte-exact output.</li>
+        <li><strong>Requirements-translation defect:</strong> gameplay initialization originally remained boot-owned. The later repair explicitly deferred gameplay construction until level or demo entry and made credit/start pre-emption global. This establishes that adding presentation calls was insufficient; the feature required replacing the existing startup owner.</li>
+        <li><strong>Observation-tool defect:</strong> retained PERF-004 evidence rejects low-RAM trap snapshots because XRoar 1.10 snapshot capture at that boundary corrupts the serialized presentation module. Resident <code>main_render</code> boundaries replaced those captures.</li>
+        <li><strong>Current reproducible baseline:</strong> main remains at <code>7135cbb</code>. The assigned <code>perf/perf-004-capacity-resolution</code> worktree is based on the same revision and remains uncommitted; its tracked patch snapshot at proposal preparation has Git blob ID <code>c9ac26b872bf9cc9d0a992506e47a17c27acba89</code>. The built GMC SHA-256 is <code>9c16f657d0f22759da7b32452cf32eab39fc69f3d1bb819a51629177cdbe84f9</code>.</li>
+        <li><strong>Current verification observation:</strong> <code>bash scripts/build.sh verify-gmc</code> passed on 2026-08-09 in 37.8 wall-clock seconds. Its separate loader, resident, natural, forced-gameplay, and demo defaults are 10/10/10/20/10 seconds. This proves the current automated markers and structural worklists, not all user-visible FEAT-002 acceptance criteria.</li>
+      </ul>
+
+      <h3>Evidence classification and comparative finding</h3>
+      <ul>
+        <li><strong>Root causes:</strong> resident/assets were not published to RAM while cartridge ROM was selected; boot synthesis read the wrong GMC bank; and presentation did not initially own replacement startup and global input pre-emption.</li>
+        <li><strong>Contributing diagnostic failures:</strong> symbol intent was treated as live-code identity, probe deadlines expanded before marker semantics were validated, and hardware-path speculation gained weight before delivery and observation-tool defects were eliminated.</li>
+        <li><strong>Contributing verification failure:</strong> structural and forced evidence was allowed to stand without proving the complete natural visual and input sequence. Current BUG-009 further shows that an attract-state marker does not prove that the attract TMX was the first published screen.</li>
+        <li><strong>Luna/Sol comparison:</strong> using the user&rsquo;s labels only, the Luna sequence emphasized progressively longer runtime probes, framebuffer-clear timing, and a possible GIME path. The Sol sequence first compared expected and live bytes, separated cartridge source from RAM destination, checked bank ownership, and used phase-specific bounded probes. The evidence supports the latter diagnostic order; it does not establish a hidden model-level cause.</li>
+      </ul>
+
+      <h3>Resolved research questions</h3>
+      <ul>
+        <li>The first decisive missed check was byte identity at the reported PC and handoff destination. A short authored/staged/live comparison would have invalidated the resident-symbol interpretation before register-level speculation.</li>
+        <li>The minimum useful phase order is cartridge delivery, all-RAM handoff, resident entry, resident startup completion, presentation publication, input transition, and gameplay. Each phase needs its own marker and deadline.</li>
+        <li>The undocumented-hardware hypothesis received excess weight because the register snapshot was interpreted through a stale execution-state assumption. Platform maturity was not used as a prior, and independent reproduction or authoritative evidence was not required before escalation.</li>
+        <li>The default-flow requirement failed where presentation was treated as a hook into gameplay boot rather than the new boot-state owner. The displaced gameplay initialization path and global input policy were not made explicit soon enough.</li>
+        <li>Forced marker coverage demonstrated code reachability but not first-frame identity, choreography, input timing, or full natural sequencing. Those are independent acceptance dimensions.</li>
+        <li>Shared invariants belong in <code>AGENTS.md</code> and the ticket workflow. Intake belongs in project-management, transition semantics in business-analysis, the evidence ladder in debugger, and natural-versus-forced closure rules in QA.</li>
+      </ul>
+
+      <h3>Scope</h3>
+      <p><strong>In scope:</strong> an evidence-indexed timeline; observed-versus-inferred classification; causal and contributing-factor analysis; rejected or premature hypotheses; comparison of the diagnostic sequences labeled Luna and Sol in the conversation; requirements-translation analysis; exact proposed and, after approval, implemented changes to <code>.agents/skills/project-management/SKILL.md</code>, <code>business-analyst/SKILL.md</code>, <code>debugger/SKILL.md</code>, and <code>qa-reviewer/SKILL.md</code>; consideration of corresponding <code>AGENTS.md</code> or workflow changes; and focused checks proving the instructions are complete and non-conflicting.</p>
+      <p><strong>Out of scope:</strong> claims about private model reasoning, personality, or capability based only on model names; changing application-wide Codex behavior; fixing additional FEAT-002 or gameplay defects; rewriting project architecture; weakening hardware acceptance; and treating this retrospective as evidence that FEAT-002 itself is complete.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li>A symbol or map names code at an address, but live bytes differ because loading, copying, banking, relocation, or handoff is incomplete.</li>
+        <li>A hardware-register access appears implicated, but the same failure could originate in software state, an emulator control path, debugger timing, or a corrupt observation method.</li>
+        <li>A long-running probe produces no marker. The process must distinguish slow execution from a missed breakpoint, stale process, wrong phase, incorrect address, or probe defect within bounded deadlines.</li>
+        <li>A feature exists in code or can be forced in isolation, but the natural boot sequence never reaches it.</li>
+        <li>A user describes a replacement default flow. Requirements analysis must identify which existing owner is displaced, not merely where the new behavior is inserted.</li>
+        <li>Credit or start input arrives in any attract substate, is held, alternates, or is simultaneous. The owning state machine and acceptance behavior must be explicit.</li>
+        <li>New bugs are reported after a basic manual pass. QA must classify each against the parent ticket criteria before recommending closure or a separate bug ticket.</li>
+        <li>Evidence from different revisions or dirty worktrees conflicts. The retrospective must preserve provenance and must not merge observations into one implied current state.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <p><strong>Option A, narrative only:</strong> record a prose postmortem without changing role contracts. This is low effort but does not prevent recurrence.</p>
+      <p><strong>Option B, evidence-backed process correction:</strong> adopt the exact shared and role-specific changes below. This is recommended because it places each safeguard at the role that must execute it while retaining cross-role invariants in shared policy.</p>
+      <p><strong>Option C, broad agent rewrite:</strong> redesign all project skills. This exceeds the observed problem and risks conflicting or duplicated instructions.</p>
+
+      <h3>Exact proposed project-instruction changes</h3>
+      <p><strong><code>AGENTS.md</code> &mdash; add shared runtime-diagnosis invariants under Rules for getting work done:</strong></p>
+      <pre><code>Before interpreting a symbol, map label, or hardware-register access at a live PC, prove that the live bytes match the current built artifact at that address. When loading, copying, banking, relocation, or handoff is involved, compare authored/source, staged, and destination bytes before diagnosing downstream execution.
+
+Treat an undocumented hardware defect as a last-stage hypothesis. Do not recommend it until software state, loader/mapping, observation-tool, and emulator-control candidates have discriminating results, and either an independent emulator/physical-hardware reproduction or authoritative hardware evidence supports escalation. Label the hypothesis unconfirmed until then.
+
+Every runtime probe must name its phase, success marker, deadline, and the meaning of a timeout. Keep an initial diagnostic phase at or below 60 seconds. Do not increase a phase beyond 60 seconds or by more than 2x without reporting measured progress, the projected benefit, and obtaining user approval. A timeout is evidence about the probe boundary, not proof that the target code is slow.</code></pre>
+
+      <p><strong><code>.agents/skills/project-management/SKILL.md</code> &mdash; add to classification and guardrails:</strong></p>
+      <pre><code>For behavior changes, record the natural user-visible sequence and state whether the request adds behavior or replaces an existing default owner. Name the displaced owner or path.
+
+For a runtime symptom, route to debugger before architecture or platform-defect analysis. A user correction to expected behavior invalidates conflicting assumptions; update the ticket's observed/expected sequence before more implementation or verification.</code></pre>
+
+      <p><strong><code>.agents/skills/business-analyst/SKILL.md</code> &mdash; add to responsibilities:</strong></p>
+      <pre><code>Write the golden path as explicit ordered states and transitions before enumerating edge cases. For a replacement flow, identify the old state owner, the new owner, the exact handoff, and initialization that must be deferred or removed.
+
+For inputs that may pre-empt multiple states, define global versus local ownership, edge versus held behavior, simultaneous inputs, invalid-input behavior, cold/warm reset behavior, and the first user-visible frame. Acceptance must verify the complete natural sequence in addition to forced state coverage.</code></pre>
+
+      <p><strong><code>.agents/skills/debugger/SKILL.md</code> &mdash; add a mandatory evidence ladder:</strong></p>
+      <pre><code>Before proposing a cause, execute this evidence ladder in order unless a step is demonstrably irrelevant:
+1. Reproduce the exact artifact and record revision, dirty-state or patch identity, command, and observed versus expected result.
+2. Bound the failure with phase markers. Each probe names one phase, marker, deadline, and timeout meaning.
+3. At the first unexpected PC or data boundary, compare live bytes/data with the current built artifact. For loaders or banked code, compare source, staged, and final destination bytes.
+4. Validate MMU/PAR/register state and the observation method. Check whether breakpoints, snapshots, traps, or control connections alter or corrupt the state being inspected.
+5. Rank software, build/delivery, mapping, tool, emulator, and hardware hypotheses by evidence and prior likelihood; run the shortest test that separates the leading candidates.
+6. Escalate an undocumented hardware-defect hypothesis only under the shared project invariant.
+
+After one bounded timeout, inspect the last proven marker and probe mechanics before extending the deadline. Do not infer target-code slowness from debugger or emulator wall-clock time without a control measurement.</code></pre>
+
+      <p><strong><code>.agents/skills/qa-reviewer/SKILL.md</code> &mdash; add to responsibilities:</strong></p>
+      <pre><code>For user-visible flows, verify the natural golden path from the delivered cold artifact before using forced-state evidence. Forced tests prove rare paths or reachability; they do not substitute for first-frame identity, sequence, timing, input pre-emption, or visible output.
+
+Require expected screen/state identity and visible-output evidence, not only execution markers. A marker named attract does not prove that the attract asset was published.
+
+Before recommending closure, confirm the tested artifact is revision-identified and integrated, classify every current user-reported defect against the parent acceptance criteria, and treat any missing required natural scenario as a failure.</code></pre>
+
+      <p><strong><code>wiki/internal/tickets/workflow.html</code> &mdash; add to approval and verification policy:</strong></p>
+      <pre><code>Runtime-diagnosis evidence records artifact identity, phase markers, per-phase deadlines, authored/staged/live comparisons when delivery is involved, observation-tool validity, competing hypotheses, and the discriminating result. Timeout duration alone is not a performance measurement.
+
+For replacement default flows, the approval brief names the displaced owner and provides the complete natural state/input sequence. Verification proves first visible output and full natural progression before forced rare paths can contribute acceptance evidence.</code></pre>
+
+      <p><strong><code>wiki/internal/implementation/lessons-learned.html</code> &mdash; add durable FEAT-002 lessons:</strong> record the cartridge-selected write behavior, staged publication pattern, bank-selection requirement for authored assets, live-byte-before-symbol rule, corruptible low-RAM snapshot boundary, and attract-state-marker versus visible-screen distinction with links to FEAT-002, PERF-004, and RSCH-002.</p>
+
+      <p><strong>No proposed change to <code>coding-architect/SKILL.md</code>:</strong> it already requires hardware-reference-confirmed interfaces and constraint validation. Duplicating the debugger evidence ladder there would blur role ownership. Architecture receives confirmed facts from debugging.</p>
+
+      <h3>Expected outcome, measurement, and capacity</h3>
+      <ul>
+        <li><strong>Baseline:</strong> the incident reached a 1427.1-second combined probe and a temporary 1800-second resident deadline before the decisive live-byte comparison. Natural screen identity and start behavior still required user correction after structural checks.</li>
+        <li><strong>Target:</strong> a scenario walkthrough using the revised instructions must route a comparable handoff failure through artifact identity, phase markers, live-byte comparison, mapping/tool validation, and only then hardware escalation. Initial phases remain at or below 60 seconds unless the user approves a documented exception.</li>
+        <li><strong>Pass measurement:</strong> focused text checks find every exact safeguard in its assigned owner; a written replay of the FEAT-002 incident shows the revised debugger would reject the <code>$C033</code> symbol interpretation at the byte-comparison step; and QA rejects an attract marker without framebuffer/screen identity evidence.</li>
+        <li><strong>Capacity:</strong> zero cartridge, runtime RAM, direct-page, stack, or frame-cycle effect. Changes are repository instructions and wiki content only.</li>
+      </ul>
+
+      <h3>Decision required</h3>
+      <p><strong>Approved 2026-08-09:</strong> the user approved Option B and authorized the exact evidence-backed project-instruction changes above. Approval does not authorize runtime fixes, FEAT-002 closure, or broad changes outside the named artifacts. Implementation remains pending a complete Ready assignment contract.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>The retrospective identifies every material claim by conversation event, ticket entry, code revision, diff, build artifact, or retained probe evidence and labels unsupported causal statements as inference.</li>
+        <li>The report separates root causes, contributing process failures, misleading observations, and consequences. It does not use Luna or Sol as a substitute for evidence.</li>
+        <li>The debugging analysis includes a minimal evidence ladder covering reproduction, phase markers, authored/staged/live byte comparison, mapping and register snapshots, control-path validation, and hardware-hypothesis escalation.</li>
+        <li>The requirements analysis records the intended natural sequence as <code>boot -&gt; attract -&gt; credit -&gt; Player 1 start -&gt; level-start -&gt; gameplay</code>, identifies gameplay-first boot as displaced behavior, and defines input ownership across all attract states.</li>
+        <li>Proposed skill edits assign each safeguard to the narrowest applicable role, avoid contradictory or duplicated rules, and preserve the mandatory project-management and closing QA routing.</li>
+        <li>After explicit approval and implementation, focused text checks confirm each required safeguard exists, links resolve, ticket and log states agree, and a scenario walkthrough demonstrates that the revised roles choose the discriminating software checks before undocumented-hardware speculation.</li>
+        <li>The completion report lists changed skill instructions, retained evidence, rejected interpretations, residual risks, and any follow-up ticket. RSCH-002 cannot be marked <code>Done</code> solely because the retrospective was written.</li>
+      </ul>
+
+      <h3>Dependencies, risks, and open questions</h3>
+      <ul>
+        <li>The conversation is useful evidence but may omit private scratch reasoning and tool output. Findings must be limited to observable decisions and artifacts.</li>
+        <li>The current recovery worktree is uncommitted. Its tracked patch ID and key artifact hashes identify this proposal baseline, but the Ready contract must preserve the patch or replace it with commit-identified evidence before execution.</li>
+        <li>Overly rigid hypothesis ordering can suppress legitimate hardware investigation. The intended rule is evidence-based escalation, not a prohibition.</li>
+        <li>Duplicating safeguards in every skill can create drift. Shared policy should own cross-role invariants; role skills should own execution steps.</li>
+        <li>The proposed shared changes affect future project work. Existing approved ticket outcomes do not change, but new diagnosis and verification evidence must follow the revised rules after integration.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Approved objective and non-goals:</strong> implement Option B exactly as approved. Add the evidence ladder, hardware-escalation gate, bounded-probe rule, replacement-flow requirements, natural-first visible QA, workflow policy, and durable lessons. Runtime source, application-wide Codex behavior, FEAT-002 closure, and changes to <code>coding-architect/SKILL.md</code> remain excluded.</li>
+        <li><strong>Owner and integration:</strong> one implementation owner works in the assigned worktree. The parent agent owns checkpoint creation, worktree creation, review of the implementation commit, integration, and final lifecycle changes. No parallel writer may edit the owned files.</li>
+        <li><strong>Owned artifacts:</strong> <code>AGENTS.md</code>; <code>.agents/skills/project-management/SKILL.md</code>; <code>.agents/skills/business-analyst/SKILL.md</code>; <code>.agents/skills/debugger/SKILL.md</code>; <code>.agents/skills/qa-reviewer/SKILL.md</code>; <code>wiki/internal/tickets/workflow.html</code>; <code>wiki/internal/implementation/lessons-learned.html</code>; this ticket; <code>wiki/internal/tickets/index.html</code>; and <code>wiki/internal/log.html</code>. All other files are read-only. <code>.agents/skills/coding-architect/SKILL.md</code>, FEAT-002, PERF-004, BUG-008 through BUG-013, runtime source, scripts, assets, generated files, and build outputs are explicitly excluded.</li>
+        <li><strong>Worktree / branch:</strong> after the lifecycle checkpoint, create <code>D:/retro/ladybug-worktrees/rsch-002</code> on <code>codex/rsch-002-troubleshooting-retrospective</code> from the recorded checkpoint commit. Do not construct the worktree from the dirty main index or from <code>perf/perf-004-capacity-resolution</code>.</li>
+        <li><strong>Evidence baseline:</strong> treat this ticket&rsquo;s main revision <code>7135cbb</code>, tracked recovery-patch ID <code>c9ac26b872bf9cc9d0a992506e47a17c27acba89</code>, GMC SHA-256 <code>9c16f657d0f22759da7b32452cf32eab39fc69f3d1bb819a51629177cdbe84f9</code>, retained PERF-004 decision log, user-visible sequence, and 37.8-second bounded <code>verify-gmc</code> result as read-only evidence. Do not rerun or alter the recovery worktree merely to implement process instructions.</li>
+        <li><strong>Implementation order:</strong> copy the approved shared invariants into <code>AGENTS.md</code>; add the role-specific text to project-management, business-analyst, debugger, and QA without changing existing routing; add the approved diagnostic and replacement-flow rules to ticket workflow; add evidence-linked durable lessons; run the incident walkthroughs; update RSCH-002 to <code>Verification</code> with results; update the index and log; then create one implementation commit.</li>
+        <li><strong>Wording constraint:</strong> preserve the approved semantics and all thresholds. Editorial changes may fit the destination heading and remove duplication, but may not weaken the live-byte prerequisite, undocumented-hardware escalation evidence, initial 60-second ceiling, user-approval exception, displaced-owner requirement, or natural visible-path requirement. Any semantic change returns RSCH-002 to <code>Proposed</code>.</li>
+        <li><strong>Runtime and capacity constraint:</strong> no cartridge, assembly, build, runtime RAM, direct-page, stack, payload, or cycle changes. The expected runtime-capacity delta is exactly zero. A changed file outside the allowlist fails the assignment.</li>
+      </ul>
+
+      <h3>Required verification commands</h3>
+      <pre><code>git diff --check -- AGENTS.md .agents/skills/project-management/SKILL.md .agents/skills/business-analyst/SKILL.md .agents/skills/debugger/SKILL.md .agents/skills/qa-reviewer/SKILL.md wiki/internal/tickets/workflow.html wiki/internal/implementation/lessons-learned.html wiki/internal/tickets/rsch-002-feat-002-troubleshooting-retrospective.html wiki/internal/tickets/index.html wiki/internal/log.html
+
+git diff --name-only &lt;assignment-base&gt;...HEAD
+
+rg -n "live bytes|authored.*staged.*destination|undocumented hardware|60 seconds|more than 2x|displaced owner|first user-visible frame|natural golden path|does not substitute|marker.*does not prove" AGENTS.md .agents/skills wiki/internal/tickets/workflow.html wiki/internal/implementation/lessons-learned.html
+
+rg -n "project-management|business-analyst|debugger|qa-reviewer" AGENTS.md wiki/internal/tickets/workflow.html
+
+git diff --exit-code &lt;assignment-base&gt;...HEAD -- src scripts assets tiled build</code></pre>
+      <p>Before <code>Ready</code>, replace <code>&lt;assignment-base&gt;</code> with the exact lifecycle-checkpoint commit. The owner must also run the existing local-link check against the changed wiki pages and retain its output. Repository-wide link lint may continue to report the pre-existing missing FEAT-001 page, but no new missing link is permitted.</p>
+
+      <h3>Required scenario walkthroughs</h3>
+      <ol>
+        <li><strong>Wrong code at a mapped symbol:</strong> present the historical <code>$C033</code> stop with mismatched live bytes. Pass only if the revised debugger stops at the byte-identity step, compares source/staged/destination data, and does not escalate to GIME.</li>
+        <li><strong>Probe timeout:</strong> present one missed phase marker at 60 seconds. Pass only if the revised debugger inspects the last proven marker and probe mechanics; extending beyond 60 seconds or 2x requires measured progress, projected benefit, and user approval.</li>
+        <li><strong>Replacement launch flow:</strong> present &ldquo;launch in attract instead of gameplay.&rdquo; Pass only if project-management and business-analysis record <code>boot -&gt; attract -&gt; credit -&gt; start -&gt; level-start -&gt; gameplay</code>, identify gameplay startup as displaced ownership, and specify first-frame plus global input behavior.</li>
+        <li><strong>False visual pass:</strong> present an <code>ATTRACT</code> execution marker while the high-score screen is visible. Pass only if QA rejects acceptance until the requested attract stream, decoded cells or framebuffer identity, and natural sequence are proven.</li>
+        <li><strong>Closure after manual bugs:</strong> present a successful credit/start smoke test plus new presentation defects. Pass only if QA classifies each defect against FEAT-002 criteria and withholds closure for in-scope failures.</li>
+      </ol>
+
+      <h3>Evidence, commit, and completion report</h3>
+      <ul>
+        <li><strong>Retain:</strong> assignment-base commit, changed-file allowlist result, exact instruction-location matches, local-link output, all five written scenario verdicts, zero-runtime-delta check, implementation commit, rejected wording experiments, and residual risks.</li>
+        <li><strong>Commit:</strong> one bounded implementation commit on the assigned branch containing only the allowlisted instruction and wiki files. Do not push, merge, advance to <code>Done</code>, or modify another ticket&rsquo;s status.</li>
+        <li><strong>Completion report:</strong> report the commit hash; each command and result; each scenario result against its pass rule; exact changed instructions; runtime-capacity delta of zero; rejected experiments; residual risks; retained evidence; and whether RSCH-002 can move to <code>Verification</code>. Missing evidence is a failed assignment, not a pass.</li>
+      </ul>
+
+      <h3>Ready prerequisites still open</h3>
+      <ul>
+        <li>Create and record a documentation-only lifecycle checkpoint without staging unrelated build, session, PERF-004, or other user changes currently present on main.</li>
+        <li>Replace every <code>&lt;assignment-base&gt;</code> placeholder above with that checkpoint hash.</li>
+        <li>Create and verify the named clean branch/worktree, then synchronize the ticket and index to <code>Ready</code> with a dated log entry. Until all three steps complete, RSCH-002 remains <code>Approved</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Verification and completion</h2>
+      <p>Proposal preparation on 2026-08-09 refreshed the assigned recovery worktree with <code>bash scripts/build.sh verify-gmc</code>; it passed in 37.8 wall-clock seconds with the current bounded phases. Required ticket sections, synchronized lifecycle state, local links, and edited-file whitespace are checked separately. Repository-wide ticket-index link checking still reports the pre-existing missing <code>feat-001-presentation-maze-screens.html</code> page. Option B is approved; assignment preparation and implementation remain pending, and no project instruction or runtime file has changed under RSCH-002.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-09 &mdash; Draft created at the user&rsquo;s request after FEAT-002 reached a manually runnable attract-to-game path. The requested outcome includes evidence-backed project-skill changes intended to prevent premature hardware speculation, skipped delivery-state checks, unbounded probes, and incomplete translation of replacement startup behavior.</li>
+        <li>2026-08-09 &mdash; Completed the evidence baseline from main <code>7135cbb</code>, the identified combined-worktree patch, current artifact hashes, PERF-004&rsquo;s retained probe timeline, FEAT-002 requirements, user-visible reports, and a fresh bounded GMC verification. Selected Option B and advanced RSCH-002 to <code>Proposed</code> with exact shared-policy, project-management, business-analysis, debugger, QA, workflow, and lessons-learned changes. No instruction implementation is authorized before explicit approval.</li>
+        <li>2026-08-09 &mdash; User approved Option B and authorized the exact named project-instruction changes. RSCH-002 advanced from <code>Proposed</code> to <code>Approved</code>. Runtime work and FEAT-002 lifecycle changes remain excluded; project-instruction implementation waits for a complete Ready assignment contract.</li>
+        <li>2026-08-09 &mdash; Prepared the proposed assignment contract with exact ownership, clean branch/worktree, evidence baseline, implementation order, semantic guardrails, zero-runtime-delta rule, commands, five incident walkthroughs, retained evidence, one-commit boundary, completion report, and parent integration duties. RSCH-002 remains <code>Approved</code> until a documentation-only lifecycle checkpoint supplies the exact assignment base and the named clean worktree is created.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Approved research and process-correction contract. Assignment completion and a Ready transition are required before project instruction implementation.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
