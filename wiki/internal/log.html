@@ -14,8 +14,24 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-10 &middot; implementation/QA &mdash; BUG-009 monitor keyboard control</h3>
+      <p>Extended the patched nested XRoar monitor with queued native CoCo scan-code <code>inject_key</code> press/release requests, drained on the emulation thread before each CPU slice. Added the bounded <code>scripts/verify_bug009_monitor_input.py</code> probe and backend <code>MonitorSession.inject_key</code> wrapper. Against the repaired ROM from <code>4c1ff0e</code>, monitor scenarios passed for cold attract, post-publication <code>5</code>/<code>6</code> edges, held-key release followed by a new press, and isolated framebuffer-owner orders <code>(0,1)</code> and <code>(1,0)</code>; all attract framebuffer hashes were <code>54c4aa78520e1726c41912a2ed4913d9be06c3b64b4ad279f52f201ad6f7c4f6</code>. The nested XRoar source is built at <code>src/xroar</code>. A fresh main-worktree <code>verify-gmc</code> rerun did not reach all markers in this environment and remains a residual integration check.</p>
+    </section>
+    <section>
+      <h3>2026-08-10 &middot; QA rerun &mdash; BUG-009 runtime verifier</h3>
+      <p>Verifier commit <code>93c20ba</code> now performs bounded XRoar/GDB cold and state-preserving warm reset-path probes, captures first Vbord framebuffer identity, and confirms natural attract rotation. Current evidence records idle <code>$7F</code> samples, event <code>00</code>, attract request <code>0</code>, matching cold/warm framebuffer hash <code>54c4aa78520e1726c41912a2ed4913d9be06c3b64b4ad279f52f201ad6f7c4f6</code>, and passing build/GMC capacity checks. Natural keyboard-edge, held-key release/new-press, and isolated owner-order scenarios remain unavailable through XRoar null UI; BUG-009 remains Ready.</p>
+    </section>
+    <section>
       <h3>2026-08-10 &middot; QA verdict &mdash; BUG-009 returned to Ready</h3>
       <p>Reviewed implementation commit <code>4c1ff0eaa38ec69500eaf55dc2b30b51baf4e616</code>. Canonical build, combined <code>verify-gmc</code>, source repair, capacity, and static selected-stream/hash checks passed with module <code>1214/1280</code>, combined <code>10969/14219</code>, and GMC spare <code>3743</code>. The focused BUG-009 verifier contains no XRoar/GDB runtime probe and emits <code>BUG009_RUNTIME_PENDING</code>; cold, warm-reset, input-edge, owner-order, first-publication framebuffer, and natural-rotation evidence are missing. Existing attract markers were rejected as insufficient screen-identity proof. Withheld acceptance and retained BUG-009 in <code>Ready</code> pending bounded runtime-verifier completion.</p>
+    </section>
+    <section>
+      <h3>2026-08-10 &middot; approval/assignment preparation &mdash; DOC-003 XRoar runtime-debugging checklist</h3>
+      <p>User explicitly approved the DOC-003 outcome, scope, recommended runbook placement, ten-step sequence, and acceptance criteria. Advanced DOC-003 from Proposed to Approved and fixed its four-file documentation allowlist, clean worktree boundary, implementation order, semantic constraints, exact validation commands, five diagnostic walkthroughs, zero-runtime-delta gate, retained evidence, commit authority, and completion report. Ready still requires a documentation-only lifecycle checkpoint and clean assigned worktree.</p>
+    </section>
+    <section>
+      <h3>2026-08-10 &middot; proposal &mdash; DOC-003 XRoar runtime-debugging checklist</h3>
+      <p>Created Proposed DOC-003 from the RSCH-002 and BUG-008 findings. The proposed checklist orders artifact identity, bounded phase markers, natural XTest input, authored/staged/live byte comparison, transition sentinels, register and mapping validation, exact corrupt-signature searches, hypothesis ranking, natural-first repair verification, and retained evidence. The implementation target is the existing XRoar tooling page; runtime code, probe helpers, and capacity remain excluded pending explicit approval.</p>
     </section>
     <section>
       <h3>2026-08-10 &middot; diagnosis/assignment preparation &mdash; BUG-009 Ready</h3>
@@ -156,6 +172,10 @@
     <section>
       <h3>2026-08-08 &middot; implementation start &mdash; PERF-004 capacity-resolution worktree</h3>
       <p>Began PERF-004 on branch <code>perf/perf-004-capacity-resolution</code> in the assigned worktree. Boot synthesis now reconstructs the exact perimeter stores from generated screen data on physical page <code>$20</code>; the perimeter source segment is removed. The implementation passes <code>scripts/build.sh build</code>, independent presentation, sparse/GMC overflow, page-allocation, and Python syntax checks with module <code>1276/1280</code>, cold <code>9957</code> bytes, combined module/cold <code>11233/14219</code>, <code>3479</code> CPU-readable GMC bytes spare, and loader end <code>$C332</code>. A live headless probe reaches loader execution and advances through the generated sparse-copy table. The bounded combined GMC proof still misses required natural and forced runtime markers; PERF-004 is <code>In Progress</code> and acceptance remains withheld.</p>
+    </section>
+    <section>
+      <h3>2026-08-09 &middot; diagnosis &mdash; PERF-004 main-tree GMC capacity failure</h3>
+      <p>Reproduced <code>scripts/build.sh build</code>, the build phase of <code>scripts/build.sh run</code>, at main revision <code>7135cbb</code>. Resident and presentation-module guards pass, then <code>scripts/build_sparse_sprites.py</code> raises <code>ValueError: sparse payloads exceed CPU-readable GMC capacity</code>. Current demand is <code>39,381</code> payload bytes: enemy <code>22,683</code>, player <code>2,294</code>, gate <code>832</code>, presentation <code>896</code>, cold presentation <code>11,398</code>, and module <code>1,278</code>. The superseded page-<code>$3A</code> layout also reserves the <code>4,484</code>-byte perimeter payload and <code>19</code>-byte helper in bank-0 overflow, leaving <code>36,933</code> usable bytes for those targets, a <code>2,448</code>-byte deficit. This is the known pre-capacity-resolution main-tree state, not an XRoar runtime failure.</p>
     </section>
     <section>
       <h3>2026-08-08 &middot; lifecycle &mdash; PERF-004 Ready</h3>

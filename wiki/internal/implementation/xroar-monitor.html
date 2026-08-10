@@ -26,8 +26,9 @@
 
     <section>
       <p>
-        Core monitor milestones M1–M6a are implemented. The monitor and web
-        integration are preserved but inactive while game development uses
+        Core monitor milestones M1–M6a and the BUG-009 keyboard-control
+        extension are implemented. The monitor and web integration are
+        preserved but inactive while game development uses
         <a href="../tooling/xroar.html#gdb-mcp-round-trip"><code>gdb-mcp</code></a>.
         The outward MCP layer shown below was planned but never implemented;
         see <a href="../backlog/mcp-xroar-server.html">the deferred MCP bridge</a>.
@@ -139,7 +140,7 @@
         <tbody>
           <tr><td><code>set_watchpoint(addr, len, kind)</code></td><td>Real watchpoints.</td></tr>
           <tr><td><code>screen_capture(format)</code></td><td>Framebuffer snapshot for golden-image regression.</td></tr>
-          <tr><td><code>inject_key(coco_key, kind, hold_ms?)</code></td><td>Headless UI driving.</td></tr>
+          <tr><td><code>inject_key(key, action)</code></td><td>Queues one native CoCo scan-code <code>press</code> or <code>release</code> (keys <code>0x00–0x3e</code>) for headless UI driving. The emulation thread drains the queue before each CPU slice, so a held key remains down until an explicit release.</td></tr>
           <tr><td><code>snapshot_save(path)</code> / <code>snapshot_load(path)</code></td><td></td></tr>
           <tr><td><code>events.subscribe(kinds=[...])</code></td><td>Async push channel.</td></tr>
         </tbody>
@@ -212,6 +213,7 @@
         <li>Event push avoids stalling the emu thread via <code>pthread_mutex_trylock</code>.</li>
         <li><code>hsync</code> event kind reserved but not wired (15.7 kHz tick rate would dominate trylock loop).</li>
         <li><code>inject_text</code> end-to-end depends on a CRC-matched BASIC ROM (auto_kbd installs its character-injection breakpoints via CRC list).</li>
+        <li><code>inject_key</code> drives the native keyboard matrix independently of <code>inject_text</code>; analog joystick injection remains out of scope.</li>
         <li>Watchpoints share <code>bp_session</code> with breakpoints; WP fires surface as <code>reason="breakpoint"</code> with <code>bp_id=0</code>.</li>
         <li><code>signal_fs</code> chained delegate is single-instance.</li>
         <li>Deferred to M6b: <code>screen_capture</code>, <code>snapshot_save</code>/<code>snapshot_load</code>.</li>

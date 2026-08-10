@@ -136,7 +136,14 @@
 
     <section id="gdb-mcp-round-trip">
       <h2>GDB-MCP round trip — active workflow</h2>
-      <p>Use this workflow for automated Ladybug execution checks. The web app and private XRoar monitor are deferred.</p>
+      <p>Use this workflow for automated Ladybug execution checks. GDB remains the default path; the patched private XRoar monitor is also available for headless input and owner-order probes.</p>
+
+      <h3>Monitor input control for BUG-009</h3>
+      <p>Build the patched nested XRoar tree, then launch its monitor-enabled binary. The monitor method queues a native CoCo scan-code transition on the emulation thread.</p>
+<pre><code>make -C docs/reference/xroar -j2
+./docs/reference/xroar/src/xroar -ui null -ao null -machine coco3 -ram 512 -cart-type gmc -cart-rom build/ladybug.rom -cart-autorun -monitor 127.0.0.1:17654 -monitor-halt-on-start
+</code></pre>
+      <p>Send <code>{"method":"inject_key","params":{"key":5,"action":"press"}}</code> and a matching <code>release</code> request over the line-delimited JSON-RPC socket. Valid keys are <code>0x00–0x3e</code>; key state persists until release. Run <code>python3 scripts/verify_bug009_monitor_input.py --xroar docs/reference/xroar/src/xroar --rom build/ladybug.rom</code> for the bounded BUG-009 edge, held-key, and framebuffer-owner scenarios. Do not enable <code>-gdb</code> simultaneously.</p>
 
       <h3>1. Build the cartridge</h3>
 <pre><code>cd /mnt/d/retro/ladybug

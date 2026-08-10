@@ -229,6 +229,14 @@ class MonitorSession:
     async def write_registers(self, regs: dict) -> None:
         await self._call("write_registers", regs)
 
+    async def inject_key(self, key: int, action: str) -> None:
+        """Queue one native CoCo keyboard matrix press or release."""
+        if not isinstance(key, int) or not 0 <= key < 0x3F:
+            raise MonitorError("inject_key: key must be a CoCo scan code 0..0x3e")
+        if action not in ("press", "release"):
+            raise MonitorError("inject_key: action must be press or release")
+        await self._call("inject_key", {"key": key, "action": action})
+
     # ---- GIME state (ready for WS-B; not yet wired by main.py) --------
 
     async def read_gime_state(self) -> dict:
