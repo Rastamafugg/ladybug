@@ -14,6 +14,10 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-10 &middot; approval/assignment preparation &mdash; BUG-010 capacity and hold remediation</h3>
+      <p>User approved the remediation after the 56-byte module overrun and absent hold protocol were confirmed. BUG-010 returns to Ready with the original 1,280-byte module boundary restored. The fixed design moves the 112-byte attract overlay block into the existing 334-byte low-RAM helper allocation, extends Vbord selection with transient owner ID 2 for hold offset <code>$A0</code>, copies 30,720 visible bytes in thirty 1,024-byte worklists, hydrates both persistent owners without intermediate publication, preserves input pre-emption, and retains all natural, cycle, capacity, and oracle acceptance gates.</p>
+    </section>
+    <section>
       <h3>2026-08-10 &middot; QA review &mdash; BUG-010 capacity and hold-surface gaps</h3>
       <p>Rebuilt commit <code>9f8bc21</code> and reran the oracle, focused BUG-010, presentation-flow, sparse, and Python compilation proofs. Current margins are resident 2 bytes, assets 536, enemy sparse 1,571, cold 1,095, combined module/cold 3,104, GMC source 2,739, and future-sound 1,203 against a 512-byte reserve. The module is 1,336 bytes against the approved 1,280-byte limit; the temporary 1,344-byte guard does not satisfy the ticket. Source inspection confirms no compatibility pages <code>$28-$2B</code> mapping or Voffset <code>$A0</code> publication; preparation uses only BACK reloads, leaving pending-input pre-emption as a partial-publication risk. BUG-010 remains Verification and requires renewed approval before capacity or ownership changes.</p>
     </section>
