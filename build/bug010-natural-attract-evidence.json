@@ -1,0 +1,42 @@
+{
+  "schema": "ladybug-bug010-natural-attract-evidence-v1",
+  "rom_sha256": "50af6e46496707545b2b3affd612389812bda63897a2c451dfceca392bf2aeeb",
+  "xroar_sha256": "11f4b0a3bdb643e1801ef8ce3c3576bf79224248b1dc6f6921bcf70311120d42",
+  "probe": {
+    "control_plane": "patched XRoar monitor with read_cycles",
+    "natural_input": true,
+    "deadline_seconds": 60,
+    "target_ticks": 558,
+    "observed_attract_tick_entries": 1,
+    "observed_second_attract_tick": false,
+    "result": "timeout_in_first_actor_phase"
+  },
+  "markers": {
+    "initial_publication": {
+      "pc": "0x0DD5",
+      "cpu_cycles": 1602547,
+      "event_ticks": 25640760
+    },
+    "first_attract_tick": {
+      "pc": "0x1BA4",
+      "cpu_cycles": 2966912,
+      "event_ticks": 47470592
+    },
+    "second_attract_tick": {
+      "status": "not_reached",
+      "deadline_seconds": 60,
+      "pause_cpu_cycles": 57997256,
+      "pause_event_ticks": 927956096,
+      "cycles_since_first_attract_tick": 55030344,
+      "hardware_frame_max_cycles": 29666,
+      "engineering_target_cycles": 27000,
+      "interpretation": "lower bound for the incomplete first actor phase; not a completed worklist measurement"
+    }
+  },
+  "acceptance": {
+    "natural_558_tick_completion": "fail",
+    "cycle_capture": "partial_timeout",
+    "cycle_target_proven": false,
+    "required_follow_up": "diagnose first attract actor phase before rerunning natural 558-tick capture"
+  }
+}
