@@ -14,6 +14,10 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-10 &middot; QA closure &mdash; BUG-009 input-capable runtime</h3>
+      <p>Reran the BUG-009 monitor verifier against the integrated ROM with patched XRoar <code>docs/reference/xroar/src/xroar</code>; cold attract, <code>5</code>/<code>6</code> edges, held-key release/new-press, and both isolated owner orders passed. Reran <code>verify_bug009_boot_screen.py</code> with 20-second cold/warm bounds and direct <code>verify_gmc_boot.py</code> with the same XRoar binary; static, cold, warm, natural rotation, sparse payload, forced gameplay, and forced demo markers passed. Accepted BUG-009 as <code>Done</code>. Main commit <code>ee1f12b</code>; nested XRoar commit <code>66f010e</code>.</p>
+    </section>
+    <section>
       <h3>2026-08-10 &middot; implementation/QA &mdash; BUG-009 monitor keyboard control</h3>
       <p>Extended the patched nested XRoar monitor with queued native CoCo scan-code <code>inject_key</code> press/release requests, drained on the emulation thread before each CPU slice. Added the bounded <code>scripts/verify_bug009_monitor_input.py</code> probe and backend <code>MonitorSession.inject_key</code> wrapper. Against the repaired ROM from <code>4c1ff0e</code>, monitor scenarios passed for cold attract, post-publication <code>5</code>/<code>6</code> edges, held-key release followed by a new press, and isolated framebuffer-owner orders <code>(0,1)</code> and <code>(1,0)</code>; all attract framebuffer hashes were <code>54c4aa78520e1726c41912a2ed4913d9be06c3b64b4ad279f52f201ad6f7c4f6</code>. The nested XRoar source is built at <code>src/xroar</code>. A fresh main-worktree <code>verify-gmc</code> rerun did not reach all markers in this environment and remains a residual integration check.</p>
     </section>
