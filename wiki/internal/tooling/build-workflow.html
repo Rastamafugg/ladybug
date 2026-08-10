@@ -192,6 +192,49 @@ print(f'padded {16384-pad} → 16384 bytes')
         <a href="../implementation/lessons-learned.html">lessons-learned</a>
         §"XRoar RGB monitor palette mapping".
       </p>
+      <h3>MAME 0.220 GMC launch</h3>
+      <p>
+        From the repository root in WSL, use the GMC slot explicitly and ask
+        Color BASIC to enter the cartridge payload at <code>$C002</code>:
+      </p>
+<pre><code>mame coco3 \
+      -ext games_master \
+      -cart build/ladybug.rom \
+      -autoboot_delay 1 \
+      -autoboot_command 'EXEC &amp;HC002\n'
+</code></pre>
+      <p>
+        This is the deterministic MAME 0.220 launch command for Ladybug. The
+        <code>games_master</code> extension supplies the four-bank GMC mapper;
+        plain <code>-cart</code> does not select that hardware. The ROM begins
+        with the expected <code>DK</code> signature at <code>$C000</code>, while
+        executable bootstrap code begins at <code>$C002</code>.
+      </p>
+      <p>
+        This command is a BASIC-mediated entry fallback, not proof that MAME
+        reproduced the physical CART/FIRQ auto-start handshake. On local MAME
+        0.220, the GMC <q>Cart Auto-Start</q> field read as on and the mapped
+        bytes at <code>$C000</code> read <code>44 4B</code>, but an unassisted
+        launch remained in BASIC. The command above left BASIC and entered the
+        Ladybug display path within four emulated seconds. Do not combine this
+        launch check with <code>-autoboot_script</code> on this version: the
+        observed script invocation suppressed <code>-autoboot_command</code>.
+        Use a separate MAME plugin, debugger session, or video capture for
+        observation.
+      </p>
+      <p>
+        <strong>Current-image limitation:</strong> Ladybug selects GMC banks at
+        even SCS address <code>$FF50</code>. MAME 0.220's GMC model accepts its
+        bank register only at <code>$FF40</code> and its PSG only at
+        <code>$FF41</code>. Under the command above, the unmodified image enters
+        the bootstrap but fails its bank-signature checks and leaves a striped,
+        corrupted display. A controlled ROM changing only the five bootstrap
+        <code>STA $FF50</code> operands to <code>STA $FF40</code> produced a
+        coherent Ladybug high-score screen under the same four-emulated-second
+        deadline. Until the SCS-address compatibility decision is resolved,
+        this MAME command proves cartridge mapping and entry only; it is not a
+        valid BUG-008 gameplay/framebuffer verifier for the shipped image.
+      </p>
     </section>
 
     <section>

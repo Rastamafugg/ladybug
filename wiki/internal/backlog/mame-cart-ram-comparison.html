@@ -52,7 +52,7 @@
             <li>Halt loop afterward.</li>
           </ul>
         </li>
-        <li>Run under MAME: <code>mame coco3 -cart &lt;path&gt;.rom</code>. Use MAME's debugger (<code>-debug</code>) to inspect.</li>
+        <li>Run under MAME 0.220 with the GMC mapper and deterministic BASIC-mediated entry: <code>mame coco3 -ext games_master -cart &lt;path&gt;.rom -autoboot_delay 1 -autoboot_command 'EXEC &amp;HC002\n'</code>. Use MAME's debugger (<code>-debug</code>) to inspect. This enters the payload but does not itself validate the CART/FIRQ auto-start handshake.</li>
         <li>Run the same ROM under XRoar for direct A/B comparison — expected to show the sentinel <strong>not</strong> present in RAM.</li>
         <li>Record outcome:
           <ul>
@@ -61,6 +61,27 @@
           </ul>
         </li>
       </ol>
+    </section>
+
+    <section>
+      <h2>Launch-path finding</h2>
+      <p>
+        A bounded 2026-08-10 check on MAME 0.220 confirmed that
+        <code>-ext games_master -cart build/ladybug.rom</code> creates the GMC
+        cartridge region and exposes <code>44 4B</code> at <code>$C000</code>.
+        The cartridge auto-start input field was enabled, but the CPU remained
+        in BASIC without an explicit entry command. Adding
+        <code>-autoboot_delay 1 -autoboot_command 'EXEC &amp;HC002\n'</code>
+        entered Ladybug's bootstrap. The unmodified image then failed because
+        it writes the bank selector at <code>$FF50</code>, while MAME 0.220's
+        GMC implementation handles only offset zero, <code>$FF40</code>. A
+        controlled image changing only the five bank-select operands from
+        <code>$FF50</code> to <code>$FF40</code> replaced the striped frame with
+        a coherent Ladybug high-score screen under the same four-second run.
+        This is a confirmed MAME/project GMC-address contract mismatch. It
+        prevents MAME from supplying BUG-008 framebuffer evidence until the
+        compatibility path is resolved; it is not evidence of a GIME defect.
+      </p>
     </section>
 
     <section>
@@ -86,7 +107,10 @@
         <a href="../implementation/lessons-learned.html">lessons-learned §Cart-shadow self-copy is a no-op</a>;
         <a href="../implementation/xroar-monitor.html">xroar-monitor §Address-space model</a>;
         <a href="../platform/cartridge.html">platform/cartridge</a>;
-        MAME source: <code>src/mame/trs/coco3.cpp</code>.
+        MAME 0.220 source:
+        <a href="https://github.com/mamedev/mame/blob/mame0220/src/devices/bus/coco/coco_pak.cpp"><code>coco_pak.cpp</code></a>,
+        <a href="https://github.com/mamedev/mame/blob/mame0220/src/devices/bus/coco/coco_gmc.cpp"><code>coco_gmc.cpp</code></a>, and
+        <a href="https://github.com/mamedev/mame/blob/mame0220/src/mame/drivers/coco3.cpp"><code>coco3.cpp</code></a>.
       </p>
     </footer>
   </main>

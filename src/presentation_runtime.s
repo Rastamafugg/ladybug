@@ -288,7 +288,9 @@ draw_coin_slots
         ldy     #PRESENTATION_COIN_DST_0
 draw_coin_next
         ldb     #PRESENTATION_COIN_TILE
+        pshs    y
         lbsr    draw_tile_id
+        puls    y
         leay    PRESENTATION_COIN_DST_1-PRESENTATION_COIN_DST_0,y
         dec     PRES_COIN_COUNT
         bne     draw_coin_next
