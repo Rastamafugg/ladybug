@@ -73,13 +73,6 @@ presentation_flow_tick
         clr     PRES_CONTEXT
         clr     PRES_DEMO_CAUSE
         clr     PRES_ACTOR_FRAME
-        lda     #$FF
-        ldx     #PRES_PREV
-        ldb     #3
-pft_prev
-        sta     ,x+
-        decb
-        bne     pft_prev
         lda     #PRESENTATION_MAP_ATTRACT
         lbsr    start_screen
         lda     #1
