@@ -1,32 +1,128 @@
 {
-  "schema": "ladybug-mame-attract-actor-reference-v1",
+  "schema": "ladybug-mame-attract-actor-reference-v2",
   "provenance": {
     "driver": "ladybug",
     "mame_version": "0.220 (unknown)",
-    "capture": "captures/mame-interactive/contact-indexed.png",
-    "capture_sha256": "A4D95A03D2BC53ED9682897335E2865D4651FFCE23DD0C303051C8238FF26367",
-    "contact_frame": 6,
-    "contact_grid": {"columns": 17, "rows": 8, "cell_pixels": [96, 120]},
-    "source_pixels": [192, 240]
+    "capture_plan": "scripts/mame_plans/attract-idle.json",
+    "capture_plan_sha256": "8bbb83817cf1804217c355c8f3f26d05ac2a0efb8db7c4c4741347a7382b830f",
+    "capture_command": "python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 1800 --skip-player-recognition --video-from 1 --plan scripts/mame_plans/attract-idle.json --output /tmp/bug010-attract-capture.json --raw-video /tmp/bug010-attract-video.bin",
+    "captured_frames": 1800,
+    "raw_video_sha256": "92367b3530498995be10bcde7139838b5fa41c806a57fe59e96e8a636d799c79",
+    "video": {
+      "width": 192,
+      "height": 240,
+      "pixel_format": "BGRA32",
+      "frame_unit": "one emu.register_frame_done callback"
+    }
   },
-  "extraction": {
-    "rule": "The retained contact frame is a nearest-neighbour 1/2 thumbnail. The orange Lady Bug sprite begins at thumbnail [32,8], and the purple enemy sprite begins at thumbnail [78,16]; coordinates are doubled to source pixels.",
-    "rotation": "Apply the established MAME ROT270 counter-clockwise transform. For a 16x16 sprite, logical_x = raw_y and logical_y = 192 - raw_x - 16.",
-    "coco_centering": "The rotated 240x192 arcade image is centered in the 320x192 CoCo framebuffer with a 40-pixel horizontal offset.",
-    "framebuffer": "Actor sparse streams use the 160-byte CoCo scanline stride; byte_x is pixel_x / 2 and the base is $2000."
+  "title_interval": {
+    "first_complete_frame": 185,
+    "last_complete_frame": 742,
+    "duration_frames": 558,
+    "next_blank_frame": 743,
+    "first_instruction_partial_frame": 744,
+    "first_instruction_complete_frame": 745
+  },
+  "schedule": {
+    "encoding": "initial run followed by a repeating run-length sequence",
+    "first_frame": 185,
+    "last_frame": 742,
+    "initial_phase": 0,
+    "initial_hold_frames": 6,
+    "repeat_phases": [1, 2, 3, 0],
+    "repeat_hold_frames": 8,
+    "conversion_to_coco": "one captured arcade frame maps to one 60 Hz CoCo Vbord tick"
+  },
+  "coordinate_transform": {
+    "source": "MAME 192x240 post-ROT270 video",
+    "sprite_size": [16, 16],
+    "coco_x": "raw_y + 40",
+    "coco_y": "192 - raw_x - 16",
+    "framebuffer_destination": "$2000 + coco_y * 160 + coco_x / 2"
   },
   "actors": {
-    "player": {
-      "role": "orange Lady Bug",
+    "upper_left_yellow": {
       "raw_top_left": [64, 16],
       "coco_pixel_top_left": [56, 112],
-      "presentation_destination": "$661C"
+      "presentation_destination": "$661C",
+      "source_sprite_codes_by_phase": [33, 34, 35, 34],
+      "source_sheet_frames_by_phase": ["R6C4", "R5C4", "R4C4", "R5C4"],
+      "source_flip": "none",
+      "palette_lookup": {"table": "a", "row": 3},
+      "sparse_indexes_by_phase": [66, 65, 64, 65],
+      "rgb_sha256_by_phase": [
+        "37d4476612d1892eec1eb2317845655bb2dea80536a5172fbc41c7b462f7546e",
+        "cdff3a775ff0522b6e5230bfffdc6ce5cb32597ab05c859e074a5629968bed7e",
+        "961a7c1757fd5e740c926ec299f0f799d328923f7d9b6d14d8579c3c279ee1eb",
+        "cdff3a775ff0522b6e5230bfffdc6ce5cb32597ab05c859e074a5629968bed7e"
+      ]
     },
-    "enemy": {
-      "role": "purple enemy",
-      "raw_top_left": [156, 32],
-      "coco_pixel_top_left": [72, 20],
-      "presentation_destination": "$2CA4"
+    "upper_right_purple": {
+      "raw_top_left": [152, 32],
+      "coco_pixel_top_left": [72, 24],
+      "presentation_destination": "$2F24",
+      "source_sprite_codes_by_phase": [6, 7, 8, 7],
+      "source_sheet_frames_by_phase": ["R1C0", "R0C0", "R7C1", "R0C0"],
+      "source_flip": "horizontal",
+      "palette_lookup": {"table": "a", "row": 1},
+      "sparse_indexes_by_phase": [128, 129, 12, 129],
+      "rgb_sha256_by_phase": [
+        "96ae97e5f477997c326138467a0e52491f2ee9916d76e43a194c1ea3cfeaab71",
+        "1279207e553f135adfbf126b39b9478efa83f6cbec1114dbcc11feb519e37f64",
+        "654a1f04a7b9b3a36cb926d559c3f72e3d5d26ef1a507262647cb46048ed2e1a",
+        "1279207e553f135adfbf126b39b9478efa83f6cbec1114dbcc11feb519e37f64"
+      ]
+    },
+    "lower_left_pink": {
+      "raw_top_left": [24, 64],
+      "coco_pixel_top_left": [104, 152],
+      "presentation_destination": "$7F34",
+      "source_sprite_codes_by_phase": [12, 13, 14, 13],
+      "source_sheet_frames_by_phase": ["R3C1", "R2C1", "R1C1", "R2C1"],
+      "source_flip": "none",
+      "palette_lookup": {"table": "a", "row": 2},
+      "sparse_indexes_by_phase": [22, 21, 20, 21],
+      "rgb_sha256_by_phase": [
+        "02c3dc48ffe5e12cb0cb64c361a0f8d2fc3d5eb19d1bbffaae8d85883fcb6558",
+        "c9cbc3ad10439ca5cd963159b9fb0ee6674f93b2da7af1bee5e86a7c7994b317",
+        "d5c9d9719400c9fb269520ac2e55151e99e6dad1112132da5a04c86775a93945",
+        "c9cbc3ad10439ca5cd963159b9fb0ee6674f93b2da7af1bee5e86a7c7994b317"
+      ]
+    },
+    "lower_middle_green": {
+      "raw_top_left": [96, 72],
+      "coco_pixel_top_left": [112, 80],
+      "presentation_destination": "$5238",
+      "source_sprite_codes_by_phase": [27, 28, 29, 28],
+      "source_sheet_frames_by_phase": ["R4C3", "R3C3", "R2C3", "R3C3"],
+      "source_flip": "none",
+      "palette_lookup": {"table": "a", "row": 4},
+      "sparse_indexes_by_phase": [34, 33, 32, 33],
+      "rgb_sha256_by_phase": [
+        "dc946b5b1138d20a8f0b73a6382f5f8a6958bf5ac0439658ca125094ede383f1",
+        "33a61fa592c6f6b70f8115bde9642eb76c722fffb1715c6a0f602d7934aaa8d2",
+        "9c17e21dabb87775e91356eadd2a68f5f84542d1bf71325324917cdd0f721d98",
+        "33a61fa592c6f6b70f8115bde9642eb76c722fffb1715c6a0f602d7934aaa8d2"
+      ]
     }
+  },
+  "boundary_frame_sha256": {
+    "185": "6f4e84f80f057edfce422b2165a6bd3ac176329bf0e912ef2a1a24a808f61437",
+    "742": "e27f0899c2b9c5673738c06b27e651f9dcb6c38b83bb0d2e6715930fac94dcf5",
+    "743": "2e1da928cc32aafb760d6c95706c6c6f317771eb568e917edcf6c484f906c19f",
+    "744": "9f24dcc60144cb8c47e2b3be97de288fbedb48fe9a28c2090f826c544be11332",
+    "745": "a134b84d1309362528c61118ed6e1934d7ef52dae322bde0f121546607d75c35"
+  },
+  "sparse_projection": {
+    "base_frames": 128,
+    "appended_frames": 2,
+    "projected_frames": 130,
+    "base_bytes": 22683,
+    "projected_bytes": 23005,
+    "net_bytes": 322,
+    "base_padding_bytes": 296,
+    "projected_padding_bytes": 290,
+    "projected_last_page": 55,
+    "projected_end_address": 47581
   }
 }
