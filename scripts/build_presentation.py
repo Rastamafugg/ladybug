@@ -31,6 +31,7 @@ from build_screen import (  # noqa: E402
     WHITE,
     YELLOW,
     char_sheet_code,
+    compile_screen,
     load_chars,
     pack_tile,
     parse_csv,
@@ -65,6 +66,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tiled-dir", type=Path, required=True)
     parser.add_argument("--chars", type=Path, required=True)
+    parser.add_argument("--gameplay-map", type=Path, required=True)
+    parser.add_argument("--gameplay-maze", type=Path, required=True)
+    parser.add_argument("--gameplay-chars", type=Path, required=True)
+    parser.add_argument("--gameplay-sprites", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--include-output", type=Path, required=True)
     parser.add_argument("--manifest-output", type=Path, required=True)
@@ -77,6 +82,12 @@ def flatten_map(path: Path) -> tuple[ET.Element, list[int]]:
         SCREEN_WIDTH, SCREEN_HEIGHT
     ):
         raise ValueError(f"{path} must be a 40x24 map")
+    for tileset in root.findall("tileset"):
+        source = tileset.get("source")
+        if source and not (path.parent / source).exists():
+            local_source = path.parent / Path(source).name
+            if local_source.exists():
+                tileset.set("source", local_source.name)
     flattened = [0] * MAP_BYTES
     for layer in root.findall("layer"):
         if layer.get("visible", "1") == "0":
@@ -207,7 +218,12 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_COLD_PAGE equ ${COLD_PAGE:02X}",
         f"PRESENTATION_COLD_PAGE_COUNT equ {COLD_PAGE_COUNT}",
         f"PRESENTATION_COLD_SIZE equ {manifest['cold_payload']['bytes']}",
-        f"PRESENTATION_TILE_OFFSET equ {manifest['tile_offset']}",
+        f"PRESENTATION_TILE_ATLAS_OFFSET equ {manifest['tile_atlas_offset']}",
+        f"PRESENTATION_TILE_OFFSET equ {manifest['tile_atlas_offset']}",
+        f"PRESENTATION_COLD_ONLY_TILE_COUNT equ {manifest['cold_only_tile_count']}",
+        f"PRESENTATION_GAMEPLAY_TILE_BASE equ {manifest['gameplay_tile_base']}",
+        f"PRESENTATION_GAMEPLAY_LOOKUP_OFFSET equ {manifest['gameplay_lookup_offset']}",
+        f"PRESENTATION_GAMEPLAY_LOOKUP_BYTES equ {manifest['gameplay_lookup_bytes']}",
         f"PRESENTATION_MAP_OUTPUT_OFFSET equ ${MAP_OUTPUT_OFFSET:04X}",
         "",
     ]
@@ -258,6 +274,12 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
 def main() -> None:
     args = parse_args()
     chars = load_chars(args.chars)
+    _gameplay_map, gameplay_tiles, *_ = compile_screen(
+        args.gameplay_map,
+        args.gameplay_maze,
+        args.gameplay_chars,
+        args.gameplay_sprites,
+    )
     tiles: list[bytes] = []
     tile_ids: dict[bytes, int] = {}
     maps: list[bytes] = []
@@ -278,15 +300,40 @@ def main() -> None:
     if coin_id == len(tiles):
         tiles.append(coin_tile())
 
+    gameplay_tile_ids = {tile: index for index, tile in enumerate(gameplay_tiles)}
+    cold_tile_ids = [
+        tile_id for tile_id, tile in enumerate(tiles)
+        if tile not in gameplay_tile_ids
+    ]
+    gameplay_match_ids = [
+        tile_id for tile_id, tile in enumerate(tiles)
+        if tile in gameplay_tile_ids
+    ]
+    ordered_ids = cold_tile_ids + gameplay_match_ids
+    remap = {old_id: new_id for new_id, old_id in enumerate(ordered_ids)}
+    maps = [bytes(remap[tile_id] for tile_id in data) for data in maps]
+    for info, data in zip(map_info, maps):
+        info["sha256"] = hashlib.sha256(data).hexdigest()
+    tiles = [tiles[tile_id] for tile_id in ordered_ids]
+    coin_id = remap[coin_id]
+    cold_only_tiles = tiles[:len(cold_tile_ids)]
+    gameplay_lookup = bytes(
+        gameplay_tile_ids[tiles[tile_id]]
+        for tile_id in range(len(cold_tile_ids), len(tiles))
+    )
     encoded_maps = [encode_map(data) for data in maps]
-    tile_offset = 0
-    map_stream_offset = len(tiles) * TILE_BYTES
+    tile_atlas = b"".join(cold_only_tiles)
+    tile_atlas_offset = 0
+    gameplay_lookup_offset = len(tile_atlas)
+    map_stream_offset = gameplay_lookup_offset + len(gameplay_lookup)
     map_stream_offsets = []
     encoded_stream = bytearray()
     for encoded in encoded_maps:
         map_stream_offsets.append(map_stream_offset + len(encoded_stream))
         encoded_stream.extend(encoded)
-    cold_payload = b"".join(tiles) + bytes(encoded_stream)
+    cold_payload = (
+        tile_atlas + gameplay_lookup + bytes(encoded_stream)
+    )
     if len(cold_payload) > COLD_PAYLOAD_LIMIT:
         raise ValueError(
             f"presentation cold payload is {len(cold_payload)} bytes; "
@@ -298,7 +345,12 @@ def main() -> None:
         "map_bytes": MAP_BYTES,
         "tile_count": len(tiles),
         "tile_bytes": TILE_BYTES,
-        "tile_offset": tile_offset,
+        "tile_atlas_offset": tile_atlas_offset,
+        "cold_only_tile_count": len(cold_only_tiles),
+        "gameplay_tile_base": len(cold_only_tiles),
+        "gameplay_lookup_offset": gameplay_lookup_offset,
+        "gameplay_lookup_bytes": len(gameplay_lookup),
+        "gameplay_tile_count": len(gameplay_tiles),
         "map_output_offset": MAP_OUTPUT_OFFSET,
         "map_stream_offsets": map_stream_offsets,
         "map_stream_bytes": [len(encoded) for encoded in encoded_maps],

@@ -31,16 +31,17 @@ EXPECTED_ENEMY_BYTES = 22_683
 EXPECTED_PLAYER_BYTES = 2_294
 EXPECTED_GATE_BYTES = 832
 EXPECTED_PRESENTATION_BYTES = 896
-ENEMY_INDEX_MIRROR = 0x0500
-PLAYER_INDEX_MIRROR = 0x0680
+# Indexes remain at the start of their already-loaded sparse pages.  The
+# former low-RAM mirrors overlapped the relocated GMC loader as that loader
+# grew to carry the generated perimeter reset.
+SPARSE_INDEX_ADDRESS = WINDOW_BASE
 LOW_RAM_DESTINATION_PAGE = 0xFF
 BOOT_OVERFLOW_PROOF_ADDRESS = 0x06B0
 BOOT_OVERFLOW_PROOF = bytes((0xB0, 0x0F))
 GATE_PAYLOAD_ADDRESS = WINDOW_BASE + EXPECTED_PLAYER_BYTES
 PRESENTATION_PAYLOAD_ADDRESS = GATE_PAYLOAD_ADDRESS + EXPECTED_GATE_BYTES
-PERIMETER_RESET_PAGE = 0x3A
+PERIMETER_RESET_PAGE = 0x20
 PERIMETER_RESET_ADDRESS = WINDOW_BASE
-PERIMETER_RESET_SOURCE_OFFSET = BOOT_OVERFLOW_START + len(BOOT_OVERFLOW_PROOF)
 PERIMETER_RESET_HELPER_ADDRESS = 0x06B2
 PERIMETER_RESET_HELPER_LIMIT = 0x0800
 
@@ -264,41 +265,25 @@ def perimeter_coordinates(box: int) -> tuple[int, int]:
 def compile_perimeter_reset_payload(
         screen_map: list[int], tiles: list[bytes]
 ) -> bytes:
-    """Generate native stores equivalent to reset drawing all 92 White boxes."""
-    green: dict[int, int] = {}
-    white: dict[int, int] = {}
-    for color, output in ((5, green), (6, white)):
-        for box in range(92):
-            cell_x, cell_y = perimeter_coordinates(box)
-            tile = tiles[screen_map[cell_y * 40 + cell_x + 8]]
-            for row in range(8):
-                offset = (cell_y * 5 + row) * 160 + (cell_x + 8) * 4
-                for column, value in enumerate(tile[row * 4:(row + 1) * 4]):
-                    high = color if value >> 4 == 6 else value >> 4
-                    low = color if value & 0x0F == 6 else value & 0x0F
-                    output[offset + column] = (high << 4) | low
-
-    # Emit only bytes that differ between a complete Green ring and its reset.
-    # Each store preserves the exact final value of the original 92-call order.
-    patch = {offset: value for offset, value in white.items()
-             if green[offset] != value}
+    """Generate the independent oracle for the boot-synthesized reset program."""
+    patch: dict[int, int] = {}
+    for box in range(92):
+        cell_x, cell_y = perimeter_coordinates(box)
+        tile = tiles[screen_map[cell_y * 40 + cell_x + 8]]
+        # Map rows advance by five pixels. Rows 5-7 are obscured by the next
+        # authored map row except at the bottom edge.
+        for row in range(8 if cell_y == 23 else 5):
+            offset = (cell_y * 5 + row) * 160 + (cell_x + 8) * 4
+            for column, value in enumerate(tile[row * 4:(row + 1) * 4]):
+                # The authored Green ring maps pen 6 to pen 5. Only bytes
+                # containing pen 6 change when the reset publishes White.
+                if value >> 4 == 6 or value & 0x0F == 6:
+                    patch[0x2000 + offset + column] = value
     if not patch:
         raise ValueError("perimeter reset patch is empty")
     payload = bytearray()
-    offsets = sorted(patch)
-    index = 0
-    while index < len(offsets):
-        offset = offsets[index]
-        value = patch[offset]
-        if index + 1 < len(offsets) and offsets[index + 1] == offset + 1:
-            next_value = patch[offsets[index + 1]]
-            payload.extend((0xCC, value, next_value, 0xFD,
-                            (0x2000 + offset) >> 8, (0x2000 + offset) & 0xFF))
-            index += 2
-        else:
-            payload.extend((0x86, value, 0xB7,
-                            (0x2000 + offset) >> 8, (0x2000 + offset) & 0xFF))
-            index += 1
+    for address, value in patch.items():
+        payload.extend((0x86, value, 0xB7, address >> 8, address & 0xFF))
     payload.append(0x39)       # RTS to the low-RAM PAR5-restoring gateway.
     if len(payload) > PAGE_BYTES:
         raise ValueError(
@@ -330,8 +315,7 @@ def pack_candidate_banks(
     banks[3][SIGNATURE_OFFSET:SIGNATURE_OFFSET + 2] = bytes((0xB3, 0x03))
     runtime_end = ENEMY_RUNTIME_OFFSET + len(enemy_runtime)
     banks[3][ENEMY_RUNTIME_OFFSET:runtime_end] = enemy_runtime
-    perimeter_end = PERIMETER_RESET_SOURCE_OFFSET + len(perimeter_payload)
-    helper_source_offset = perimeter_end
+    helper_source_offset = BOOT_OVERFLOW_START + len(BOOT_OVERFLOW_PROOF)
     helper_source_end = helper_source_offset + len(perimeter_helper)
     if helper_source_end > CART_READABLE_BYTES:
         raise ValueError("perimeter reset payload exceeds bank-0 overflow source")
@@ -367,7 +351,6 @@ def pack_candidate_banks(
 
     banks[0][BOOT_OVERFLOW_START:
              BOOT_OVERFLOW_START + len(BOOT_OVERFLOW_PROOF)] = BOOT_OVERFLOW_PROOF
-    banks[0][PERIMETER_RESET_SOURCE_OFFSET:perimeter_end] = perimeter_payload
     banks[0][helper_source_offset:helper_source_end] = perimeter_helper
     segments: list[CopySegment] = [CopySegment(
         bank=0,
@@ -376,14 +359,6 @@ def pack_candidate_banks(
         destination_address=BOOT_OVERFLOW_PROOF_ADDRESS,
         count=len(BOOT_OVERFLOW_PROOF),
         target="boot_overflow_proof",
-        target_offset=0,
-    ), CopySegment(
-        bank=0,
-        source_offset=PERIMETER_RESET_SOURCE_OFFSET,
-        destination_page=PERIMETER_RESET_PAGE,
-        destination_address=PERIMETER_RESET_ADDRESS,
-        count=len(perimeter_payload),
-        target="perimeter_reset",
         target_offset=0,
     ), CopySegment(
         bank=0,
@@ -468,8 +443,8 @@ def write_loader_include(path: Path, segments: list[CopySegment]) -> None:
         f"SPARSE_PLAYER_PAYLOAD_PAGE equ ${PLAYER_PAGE_BASE:02X}",
         f"GATE_TRANSITION_PAYLOAD_ADDR equ ${GATE_PAYLOAD_ADDRESS:04X}",
         f"PRESENTATION_PAYLOAD_ADDR equ ${PRESENTATION_PAYLOAD_ADDRESS:04X}",
-        f"SPARSE_ENEMY_INDEX_ADDR equ ${ENEMY_INDEX_MIRROR:04X}",
-        f"SPARSE_PLAYER_INDEX_ADDR equ ${PLAYER_INDEX_MIRROR:04X}",
+        f"SPARSE_ENEMY_INDEX_ADDR equ ${SPARSE_INDEX_ADDRESS:04X}",
+        f"SPARSE_PLAYER_INDEX_ADDR equ ${SPARSE_INDEX_ADDRESS:04X}",
         "SPARSE_ENEMY_INDEX_BYTES equ 384",
         "SPARSE_PLAYER_INDEX_BYTES equ 48",
         "SPARSE_COPY_SEGMENT_BYTES equ 8",
@@ -575,8 +550,8 @@ def main() -> None:
             "opaque": ["destination_delta", "length", "pixels"],
             "partial": ["destination_delta", "0x80|length", "mask_pixel_pairs"],
             "index_entry": ["physical_page", "window_address_hi", "window_address_lo"],
-            "enemy_index_mirror": ENEMY_INDEX_MIRROR,
-            "player_index_mirror": PLAYER_INDEX_MIRROR,
+            "enemy_index_source": SPARSE_INDEX_ADDRESS,
+            "player_index_source": SPARSE_INDEX_ADDRESS,
             "window_base": WINDOW_BASE,
             "page_bytes": PAGE_BYTES,
         },
@@ -617,11 +592,13 @@ def main() -> None:
             "bytes": len(perimeter_payload),
             "page": PERIMETER_RESET_PAGE,
             "address": PERIMETER_RESET_ADDRESS,
+            "boot_synthesized": True,
+            "source_bytes": 0,
             "sha256": digest(perimeter_payload),
             "helper_address": PERIMETER_RESET_HELPER_ADDRESS,
             "helper_bytes": len(perimeter_helper),
             "helper_sha256": digest(perimeter_helper),
-            "semantic": "native $2000-relative stores matching complete Green-to-White 92-box reset",
+            "semantic": "boot-synthesized native $2000-relative stores matching complete Green-to-White 92-box reset",
         },
         "presentation_cold": {
             "bytes": len(presentation_cold),

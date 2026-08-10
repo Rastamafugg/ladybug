@@ -192,8 +192,10 @@ FB_SCRATCH_PAGE0 equ $2C
         endc
 FB_B_PAGE0     equ $2C
 LIVE_PAGE0     equ $30
-SPARSE_ENEMY_INDEX_ADDR equ $0500
-SPARSE_PLAYER_INDEX_ADDR equ $0680
+SPARSE_ENEMY_PAYLOAD_PAGE equ $35
+SPARSE_PLAYER_PAYLOAD_PAGE equ $39
+SPARSE_ENEMY_INDEX_ADDR equ $A000
+SPARSE_PLAYER_INDEX_ADDR equ $A000
 
 ; Record: active, framebuffer pointer, pixel phase, cell x, cell y,
 ; saved-background valid, selected direction.
@@ -2887,6 +2889,8 @@ sparse_enemy_stream
         mul
         ldu     #SPARSE_ENEMY_INDEX_ADDR
         leau    d,u
+        lda     #SPARSE_ENEMY_PAYLOAD_PAGE
+        sta     GIME_PAR5
         lda     ,u
         sta     GIME_PAR5
         ldu     1,u
@@ -2898,6 +2902,8 @@ sparse_player_stream
         mul
         ldu     #SPARSE_PLAYER_INDEX_ADDR
         leau    d,u
+        lda     #SPARSE_PLAYER_PAYLOAD_PAGE
+        sta     GIME_PAR5
         lda     ,u
         sta     GIME_PAR5
         ldu     1,u

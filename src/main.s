@@ -157,6 +157,7 @@ FB_RENDER_ACTIVE equ $0098
 FB_WRITE_FRONT_FAULT equ $0099
 FB_INIT_STATE  equ $009A       ; nonzero after cold A/B convergence
 ENEMY_CAPTURE_DIRTY equ $009B  ; $FF all actors, otherwise per-slot bits
+PRES_MAGIC     equ $00A4       ; presentation state must be cold on cartridge boot
 BOOT_FLAG    equ $02F0         ; $A5 when GMC bootstrap relocated runtime to RAM
 
 DIR_NORTH     equ 0
@@ -313,8 +314,10 @@ entry_ram_loaded
         ; PAR6=$3E keeps $C000-$DFFF cartridge-backed after MMU enable while
         ; the framebuffer and writable state use ordinary RAM pages below $3C.
 
+startup_par_setup_entry
         ; --- Force executive PAR set ($FFA0-$FFA7) to be active ---
         clr     $FF91
+startup_init1_complete
 
         ; --- Set up MMU PARs (executive set) ---
         ; PAR0 ($0000) = phys $38   low RAM (DP, stack)
@@ -326,16 +329,22 @@ entry_ram_loaded
         ; PAR6 ($C000) = phys $3E   cartridge code (current 8 K window)
         ; PAR7 ($E000) = phys $3F   cartridge/ROM window + IO + jump table
         leax    par_table,pcr
+startup_par_table_ready
         ldy     #PAR_EXEC
+startup_par_register_base
         ldb     #8
+startup_par_count_ready
 parloop lda     ,x+
         sta     ,y+
+startup_par_write_complete
         decb
         bne     parloop
+startup_par_setup_complete
 
         ; --- Fast clock 1.78 MHz ---
         sta     SAM_FAST
 
+startup_video_setup_entry
         ; --- Set up display (still blanked via CRES=11) ---
         lda     #%10000000      ; BP=1 (graphics)
         sta     GIME_VMODE
@@ -355,49 +364,64 @@ parloop lda     ,x+
 
         ; --- Init0 — turn on MMU + switch to hi-res. Display still blanked. ---
         ; %01101000 = COCO=0 MMU=1 ACVCIRQ=1 ACVCFIRQ=0 force-$FExx=1 SCS=0 ROMmap=00
+startup_mmu_enable
         lda     #%01101000
         sta     GIME_INIT0
+startup_mmu_enabled
 
-        ; --- Load palette (16 entries) ---
+; --- Load palette (16 entries) ---
         leax    palette_table,pcr
+startup_palette_entry
         ldy     #PAL_BASE
         ldb     #16
 palloop lda     ,x+
         sta     ,y+
         decb
         bne     palloop
+startup_palette_complete
 
         ; --- Clear FB to palette idx 0 (black) ---
         ; 30720 bytes = 15360 STDs.
         ldx     #FB_VIRT
         ldd     #$0000
+startup_clear_entry
 clr_fb  std     ,x++
         cmpx    #FB_END
         blo     clr_fb
+startup_clear_complete
 
-        ; --- Phase 4 state, joystick, and player sprite ---
-        lbsr    init_game_state
-        lbsr    init_maze_state
-        lbsr    init_gate_state
+        ; Configure the joystick and seed the gameplay LFSR without creating
+        ; gameplay state. The seed survives until the presentation director
+        ; enters the first level or demo.
         lbsr    init_joystick
         lbsr    read_joystick
         ldd     RNG_ENTROPY
         eora    JOY_X
         eorb    JOY_Y
         cmpd    #0
-        bne     entry_seed_ready
+        bne     startup_seed_ready
         ldd     #$1D0F
-entry_seed_ready
+startup_seed_ready
         std     RNG_STATE
+
+        ; --- Presentation-safe framebuffer ownership ---
+        ; Gameplay state is initialized by presentation_runtime when the level
+        ; start screen expires. Boot must not render a gameplay frame before
+        ; the attract map has been published.
+        clr     PRES_MAGIC
+        clr     PLAYER_BG_VALID
+        ldd     #$0000
+        std     PLAYER_FB
         ldd     #PLAYER_BG
         std     PLAYER_BG_PTR
-        lbsr    init_entities
-        lbsr    init_player
-        lbsr    init_enemy
-        lda     #RF_STAGE
-        sta     RENDER_FLAGS
-        lbsr    render_frame
+        clr     ENEMY_OLD_VALID
+        clr     ENEMY_BG_RING
+        clr     ENEMY_BG_RING+1
+        clr     ENEMY_BG_RING+2
+        clr     ENEMY_BG_RING+3
+startup_fb_init_entry
         jsr     FB_MODULE_INIT
+startup_complete
 
         ; --- Un-blank: 320×192×16 (CRES=10 + HRES=111 → 4bpp on this build) ---
         lda     #$1E

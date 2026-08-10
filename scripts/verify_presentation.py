@@ -14,6 +14,7 @@ from build_presentation import (
     MAP_OUTPUT_OFFSET,
     coin_tile,
     compile_map,
+    compile_screen,
     encode_map,
     load_chars,
 )
@@ -23,6 +24,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tiled-dir", type=Path, required=True)
     parser.add_argument("--chars", type=Path, required=True)
+    parser.add_argument("--gameplay-map", type=Path, required=True)
+    parser.add_argument("--gameplay-maze", type=Path, required=True)
+    parser.add_argument("--gameplay-chars", type=Path, required=True)
+    parser.add_argument("--gameplay-sprites", type=Path, required=True)
     parser.add_argument("--payload", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
     return parser.parse_args()
@@ -36,6 +41,12 @@ def main() -> None:
     args = parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
     chars = load_chars(args.chars)
+    _gameplay_map, gameplay_tiles, *_ = compile_screen(
+        args.gameplay_map,
+        args.gameplay_maze,
+        args.gameplay_chars,
+        args.gameplay_sprites,
+    )
     tiles: list[bytes] = []
     tile_ids: dict[bytes, int] = {}
     maps = []
@@ -47,16 +58,32 @@ def main() -> None:
             raise SystemExit(f"presentation proof: {name} is not 960 cells")
         maps.append(data)
     payload = args.payload.read_bytes()
-    encoded_maps = [encode_map(data) for data in maps]
     coin_bytes = coin_tile()
     if coin_bytes not in tiles:
         tiles.append(coin_bytes)
-    expected = b"".join(tiles) + b"".join(encoded_maps)
+    gameplay_tile_ids = {tile: index for index, tile in enumerate(gameplay_tiles)}
+    cold_ids = [index for index, tile in enumerate(tiles)
+                if tile not in gameplay_tile_ids]
+    shared_ids = [index for index, tile in enumerate(tiles)
+                  if tile in gameplay_tile_ids]
+    order = cold_ids + shared_ids
+    remap = {old: new for new, old in enumerate(order)}
+    maps = [bytes(remap[value] for value in data) for data in maps]
+    ordered_tiles = [tiles[index] for index in order]
+    cold_only_tiles = ordered_tiles[:len(cold_ids)]
+    gameplay_lookup = bytes(
+        gameplay_tile_ids[tile] for tile in ordered_tiles[len(cold_ids):]
+    )
+    encoded_maps = [encode_map(data) for data in maps]
+    expected = (
+        b"".join(cold_only_tiles) + gameplay_lookup +
+        b"".join(encoded_maps)
+    )
     if payload != expected:
         raise SystemExit("presentation proof: cold payload differs from independent compile")
     if len(tiles) != manifest["tile_count"]:
         raise SystemExit("presentation proof: tile count differs from manifest")
-    if manifest.get("coin_tile") != tiles.index(coin_bytes):
+    if manifest.get("coin_tile") != remap[tiles.index(coin_bytes)]:
         raise SystemExit("presentation proof: coin tile differs from manifest")
     if manifest["cold_payload"]["bytes"] != len(payload):
         raise SystemExit("presentation proof: payload size differs from manifest")
@@ -64,13 +91,22 @@ def main() -> None:
         raise SystemExit("presentation proof: payload hash differs from manifest")
     if manifest.get("map_output_offset") != MAP_OUTPUT_OFFSET:
         raise SystemExit("presentation proof: map output offset differs")
+    if manifest.get("cold_only_tile_count") != len(cold_only_tiles):
+        raise SystemExit("presentation proof: cold-only tile count differs")
+    if manifest.get("gameplay_tile_base") != len(cold_only_tiles):
+        raise SystemExit("presentation proof: gameplay tile base differs")
+    if manifest.get("gameplay_lookup_offset") != len(cold_only_tiles) * 32:
+        raise SystemExit("presentation proof: gameplay lookup offset differs")
+    if manifest.get("gameplay_lookup_bytes") != len(gameplay_lookup):
+        raise SystemExit("presentation proof: gameplay lookup size differs")
     if manifest.get("map_stream_total_bytes") != sum(map(len, encoded_maps)):
         raise SystemExit("presentation proof: encoded map size differs")
     for index, encoded in enumerate(encoded_maps):
         if manifest["map_stream_bytes"][index] != len(encoded):
             raise SystemExit(f"presentation proof: encoded map {index} size differs")
         if manifest["map_stream_offsets"][index] != (
-                len(tiles) * 32 + sum(map(len, encoded_maps[:index]))
+                len(cold_only_tiles) * 32 + len(gameplay_lookup) +
+                sum(map(len, encoded_maps[:index]))
         ):
             raise SystemExit(f"presentation proof: encoded map {index} offset differs")
         decoded = bytearray()
@@ -83,6 +119,8 @@ def main() -> None:
             raise SystemExit(f"presentation proof: {entry['name']} hash differs")
     if len(payload) > 4 * 0x2000:
         raise SystemExit("presentation proof: cold payload exceeds four pages")
+    if len(payload) > 10874:
+        raise SystemExit("presentation proof: cold payload exceeds PERF-004 minimum reduction limit")
     if len(payload) > manifest["cold_payload_limit"]:
         raise SystemExit("presentation proof: cold payload exceeds Plan A source limit")
     print(

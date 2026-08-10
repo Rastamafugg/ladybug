@@ -33,6 +33,13 @@
     </section>
 
     <section>
+      <h2>Indexed sparse-stream resolvers must preserve caller-owned destinations</h2>
+      <p><strong>Filed 2026-08-09.</strong> BUG-008 passed a framebuffer or stage destination in X, then <code>sparse_enemy_stream</code> and <code>sparse_player_stream</code> reused X to address a three-byte stream-index record. The decoder therefore received an index offset instead of the destination. On first live-stage publication, enemy-stage decode began at <code>$0000</code>, corrupted direct-page state and the return path, and recursively entered <code>frame_render_impl</code>. The repair calculates the indexed U address before payload-page selection, preserving X without a wrapper or second decoder; the bank-3 module fell from 4,089 to 4,081 bytes.</p>
+      <p><strong>Rule:</strong> a resolver inserted between destination setup and decode must preserve the destination register. Runtime verification must assert decoder entry destinations and successful return/publication; proving only that the decoder entry was reached is insufficient.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-008-live-start-handoff-stall.html">BUG-008</a>, <code>src/enemy_runtime.s</code> <code>sparse_enemy_stream</code>/<code>sparse_player_stream</code>, and the 2026-08-09 bounded XRoar/GDB traces.</p>
+    </section>
+
+    <section>
       <h2>Presentation actor overlays require the existing save-under contract</h2>
       <p><strong>Filed 2026-08-08.</strong> A transparent sparse actor blit does not remove pixels from its previous framebuffer footprint. FEAT-002 instruction traversal left trails until each movement restored the prior 16&times;16 rectangle through the resident <code>save_player</code>/<code>restore_player</code> routines and the already-owned <code>PLAYER_BG_PTR</code> buffer. The presentation module now selects <code>$A300</code>, clears <code>PLAYER_BG_VALID</code> on screen load, and orders restore, save, then draw within the 1280-byte module.</p>
       <p><strong>Rule:</strong> every presentation actor that moves over static pixels must reuse an owned save-under buffer or a verified static redraw path; transparent drawing alone is not restoration.</p>

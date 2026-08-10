@@ -11,7 +11,16 @@ SAM_ALLRAM  equ $FFDF
 BOOT_FLAG   equ $02F0
 BOOT_PROOF  equ $02F1
 BOOT_SEGMENTS equ $02F2
+BOOT_BOX    equ $02F3
+BOOT_CELL_X equ $02F4
+BOOT_CELL_Y equ $02F5
+BOOT_ROW    equ $02F6
+BOOT_COL    equ $02F7
+BOOT_TILE_PTR equ $02F8
+BOOT_DEST   equ $02FA
 LOADER_RAM  equ $0300
+RESIDENT_STAGE_PAGE equ $21
+ASSET_STAGE_PAGE equ $22
 
         org $C000
         fcc "DK"
@@ -29,6 +38,7 @@ boot_entry
         sta     PAR_EXEC+7
         lda     #%01101100      ; MMU + force FExx + SCS for GMC $FF50
         sta     GIME_INIT0
+        sta     SAM_FAST        ; run the boot copy at the normal 1.78 MHz rate
         sta     SAM_CART        ; BASIC autorun may leave TY=1; expose GMC ROM
         leax    loader_start,pcr
         ldy     #LOADER_RAM
@@ -66,6 +76,20 @@ loader_start
 copy_enemy_runtime
         ldd     ,x++
         std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
         cmpx    #$D800
         blo     copy_enemy_runtime
 
@@ -87,44 +111,62 @@ copy_sparse_destination_ready
         ldd     ,x++
         pshs    x
         tfr     d,x
-copy_sparse_bytes
+        tfr     x,d
+        andb    #1
+        beq     copy_sparse_word
         lda     ,u+
         sta     ,y+
         leax    -1,x
-        bne     copy_sparse_bytes
+        cmpx    #0
+        beq     copy_sparse_done
+copy_sparse_word
+        ; Eight-pair unroll keeps loop overhead outside the hot copy path.
+        ; The tail handles counts below sixteen bytes and preserves odd sizes.
+        cmpx    #16
+        blo     copy_sparse_tail
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        leax    -16,x
+        bne     copy_sparse_word
+        bra     copy_sparse_done
+copy_sparse_tail
+        tfr     x,d
+        andb    #1
+        beq     copy_sparse_tail_word
+        lda     ,u+
+        sta     ,y+
+        leax    -1,x
+        cmpx    #0
+        beq     copy_sparse_done
+copy_sparse_tail_word
+        ldd     ,u++
+        std     ,y++
+        leax    -2,x
+        cmpx    #0
+        bne     copy_sparse_tail_word
+copy_sparse_done
         puls    x
         dec     BOOT_SEGMENTS
         bne     copy_sparse_segment
 
-        ; Mirror the sparse indexes into always-mapped PAR0 low RAM. Runtime
-        ; resolution then maps only the selected payload page.
-        lda     #SPARSE_ENEMY_PAYLOAD_PAGE
-        sta     PAR_EXEC+5
-        ldx     #$A000
-        ldy     #SPARSE_ENEMY_INDEX_ADDR
-        ldu     #SPARSE_ENEMY_INDEX_BYTES/2
-copy_enemy_sparse_index
-        ldd     ,x++
-        std     ,y++
-        leau    -1,u
-        cmpu    #0
-        bne     copy_enemy_sparse_index
-
-        lda     #SPARSE_PLAYER_PAYLOAD_PAGE
-        sta     PAR_EXEC+5
-        ldx     #$A000
-        ldy     #SPARSE_PLAYER_INDEX_ADDR
-        ldu     #SPARSE_PLAYER_INDEX_BYTES/2
-copy_player_sparse_index
-        ldd     ,x++
-        std     ,y++
-        leau    -1,u
-        cmpu    #0
-        bne     copy_player_sparse_index
-
-        ; Bank 1 contains the current 16 KiB runtime image. Copy its resident
-        ; 8 KiB through PAR5 to phys $3E.
-        lda     #$3E
+        ; Bank 1 contains the current 16 KiB runtime image. Stage its resident
+        ; 8 KiB in ordinary RAM while the cartridge remains selected. Physical
+        ; pages $3E/$3F are populated only after the all-RAM handoff below.
+        lda     #RESIDENT_STAGE_PAGE
         sta     PAR_EXEC+5
         lda     #1
         sta     GMC_BANK
@@ -133,34 +175,267 @@ copy_player_sparse_index
 copy_resident
         ldd     ,x++
         std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
         cmpx    #$E000
         blo     copy_resident
 
-        ; Copy the usable asset window to phys $3F. $FE00-$FFFF remains the
-        ; forced-RAM/I/O area and is not cartridge payload.
-        lda     #$3F
+        ; Stage the usable asset window. $FE00-$FFFF remains the forced-RAM/I/O
+        ; area and is not cartridge payload.
+        lda     #ASSET_STAGE_PAGE
         sta     PAR_EXEC+5
         ldx     #$E000
         ldy     #$A000
 copy_assets
         ldd     ,x++
         std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
         cmpx    #$FE00
         blo     copy_assets
+
+        ; Synthesize the exact native Green-to-White perimeter program from
+        ; the authored screen map and tile atlas now visible through PAR7.
+        ; PAR5 is changed only for the generated destination page $20.
+        ; Keep GMC bank 1 selected so PAR7 still exposes the authored assets.
+        ; The loader itself executes from its relocated low-RAM copy.
+        lbsr    synthesize_perimeter_reset
+
+        ; Disconnect cartridge ROM, then publish the staged bank-1 bytes to
+        ; their runtime pages. The loader executes from always-mapped low RAM.
+        lda     #$34
+        sta     SAM_FAST
+        sta     SAM_ALLRAM
+
+        lda     #RESIDENT_STAGE_PAGE
+        sta     PAR_EXEC+5
+        ldx     #$A000
+        ldy     #$C000
+copy_staged_resident
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        cmpx    #$C000
+        blo     copy_staged_resident
+
+        lda     #ASSET_STAGE_PAGE
+        sta     PAR_EXEC+5
+        ldx     #$A000
+        ldy     #$E000
+copy_staged_assets
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        ldd     ,x++
+        std     ,y++
+        cmpx    #$BE00
+        blo     copy_staged_assets
 
         lda     #$A5
         sta     BOOT_FLAG
         lda     #$34
         sta     PAR_EXEC+5
-        sta     SAM_FAST
-        sta     SAM_ALLRAM
-        jmp     $C000
+        ; Skip the two-byte DK cartridge header when entering the
+        ; relocated runtime.
+        jmp     $C002
 
 loader_fail
         clr     BOOT_PROOF
         bra     loader_fail
 
+synthesize_perimeter_reset
+        lda     #$20
+        sta     PAR_EXEC+5
+        ldu     #$A000
+        clr     BOOT_BOX
+spr_box
+        lda     BOOT_BOX
+        cmpa    #12
+        blo     spr_top
+        cmpa    #35
+        blo     spr_right
+        cmpa    #58
+        blo     spr_bottom
+        cmpa    #80
+        blo     spr_left
+        suba    #80
+        sta     BOOT_CELL_X
+        clr     BOOT_CELL_Y
+        bra     spr_cell
+spr_top
+        adda    #12
+        sta     BOOT_CELL_X
+        clr     BOOT_CELL_Y
+        bra     spr_cell
+spr_right
+        lda     #23
+        sta     BOOT_CELL_X
+        lda     BOOT_BOX
+        suba    #11
+        sta     BOOT_CELL_Y
+        bra     spr_cell
+spr_bottom
+        lda     #57
+        suba    BOOT_BOX
+        sta     BOOT_CELL_X
+        lda     #23
+        sta     BOOT_CELL_Y
+        bra     spr_cell
+spr_left
+        clr     BOOT_CELL_X
+        lda     #80
+        suba    BOOT_BOX
+        sta     BOOT_CELL_Y
+spr_cell
+        ; D = screen-map index y*40+x+8; PAR7 retains the authored assets.
+        lda     BOOT_CELL_Y
+        ldb     #40
+        mul
+        addb    BOOT_CELL_X
+        adca    #0
+        addb    #8
+        adca    #0
+        ldx     #PERIMETER_SCREEN_MAP
+        leax    d,x
+        ldb     ,x
+        clra
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        ldx     #PERIMETER_SCREEN_TILES
+        leay    d,x
+        sty     BOOT_TILE_PTR
+
+        ; BOOT_DEST = $2000 + ((y*5)*160) + ((x+8)*4).
+        lda     BOOT_CELL_Y
+        ldb     #25
+        mul
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        addd    #$2000
+        std     BOOT_DEST
+        lda     BOOT_CELL_X
+        adda    #8
+        ldb     #4
+        mul
+        addd    BOOT_DEST
+        std     BOOT_DEST
+        ldy     BOOT_TILE_PTR
+        lda     #5
+        ldb     BOOT_CELL_Y
+        cmpb    #23
+        bne     spr_rows_ready
+        lda     #8
+spr_rows_ready
+        sta     BOOT_ROW
+spr_row
+        lda     #4
+        sta     BOOT_COL
+spr_byte
+        lda     ,y+
+        tfr     a,b
+        anda    #$F0
+        cmpa    #$60
+        beq     spr_changed
+        tfr     b,a
+        anda    #$0F
+        cmpa    #$06
+        bne     spr_unchanged
+spr_changed
+        lda     #$86
+        sta     ,u+
+        tfr     b,a
+        sta     ,u+
+        lda     #$B7
+        sta     ,u+
+        ldd     BOOT_DEST
+        std     ,u++
+spr_unchanged
+        ldd     BOOT_DEST
+        addd    #1
+        std     BOOT_DEST
+        dec     BOOT_COL
+        bne     spr_byte
+        ldd     BOOT_DEST
+        addd    #156
+        std     BOOT_DEST
+        dec     BOOT_ROW
+        bne     spr_row
+        inc     BOOT_BOX
+        lda     BOOT_BOX
+        cmpa    #92
+        lblo    spr_box
+        lda     #$39
+        sta     ,u+
+        cmpu    #$C000
+        lbhi    loader_fail
+        rts
+
         include "ladybug-sparse-loader.inc"
+        include "ladybug-perimeter-boot.inc"
 loader_end
 
         end

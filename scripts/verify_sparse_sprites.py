@@ -268,6 +268,13 @@ def main() -> None:
         raise SystemExit("sparse proof: presentation cold manifest hash mismatch")
     if manifest["presentation_module"]["sha256"] != sha256(presentation_module):
         raise SystemExit("sparse proof: presentation module manifest hash mismatch")
+    if (
+        manifest["perimeter_reset"]["page"] != 0x20 or
+        manifest["perimeter_reset"]["address"] != WINDOW_BASE or
+        not manifest["perimeter_reset"].get("boot_synthesized") or
+        manifest["perimeter_reset"].get("source_bytes") != 0
+    ):
+        raise SystemExit("sparse proof: perimeter reset is not boot-synthesized at page $20")
     if manifest["gmc"]["bank0_sha256"] != sha256(bank0):
         raise SystemExit("sparse proof: bank-0 manifest hash mismatch")
     if manifest["gmc"]["bank2_sha256"] != sha256(bank2):
@@ -284,7 +291,6 @@ def main() -> None:
         "player": bytearray(len(player_payload)),
         "gate": bytearray(len(gate_payload)),
         "presentation": bytearray(len(presentation_payload)),
-        "perimeter_reset": bytearray(len(perimeter_reset_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
     }
@@ -293,7 +299,6 @@ def main() -> None:
         "player": bytearray(len(player_payload)),
         "gate": bytearray(len(gate_payload)),
         "presentation": bytearray(len(presentation_payload)),
-        "perimeter_reset": bytearray(len(perimeter_reset_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
     }
@@ -382,9 +387,6 @@ def main() -> None:
         elif target == "presentation":
             target_page_base = 0x39
             target_address = manifest["presentation"]["address"]
-        elif target == "perimeter_reset":
-            target_page_base = manifest["perimeter_reset"]["page"]
-            target_address = manifest["perimeter_reset"]["address"]
         elif target == "presentation_cold":
             target_page_base = 0x3A
             target_address = manifest["presentation_cold"]["address"]
@@ -428,8 +430,7 @@ def main() -> None:
         not all(coverage["player"]) or
         not all(coverage["gate"]) or
         not all(coverage["presentation"]) or
-        not all(coverage["perimeter_reset"]) or
-        not all(coverage["presentation_cold"]) or
+            not all(coverage["presentation_cold"]) or
         not all(coverage["presentation_module"])
     ):
         raise SystemExit("sparse proof: loader target coverage has gaps")
@@ -441,8 +442,6 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct gate payload")
     if reconstructed["presentation"] != presentation_payload:
         raise SystemExit("sparse proof: loader does not reconstruct presentation payload")
-    if reconstructed["perimeter_reset"] != perimeter_reset_payload:
-        raise SystemExit("sparse proof: loader does not reconstruct perimeter reset payload")
     if reconstructed["presentation_cold"] != presentation_cold:
         raise SystemExit("sparse proof: loader does not reconstruct presentation cold data")
     if reconstructed["presentation_module"] != presentation_module:

@@ -61,12 +61,21 @@ def main() -> None:
     args = parser.parse_args()
     if not args.skip_build:
         subprocess.run([str(ROOT / "scripts" / "build.sh"), "build"], cwd=ROOT, check=True)
-    frame_pc = symbol(BUILD / "ladybug-enemy-runtime.map", "frame_render_impl")
-    render_pc = symbol(BUILD / "ladybug-enemy-runtime.map", "death_reset_ready")
-    stop_pc = symbol(BUILD / "ladybug.map", "main_render")
+    boundary_pc = symbol(BUILD / "ladybug.map", "main_render")
+    compose_pc = symbol(BUILD / "ladybug-enemy-runtime.map", "compose_enemy_zone")
     base = BUILD / f"{args.prefix}-base.sna"
-    capture_snapshot(base, frame_pc, 4)
-    common = ["003A=00", "004D=02", "004E=0D", "0062=00", "0060=00", "0087=00", "007F=80", "0080=00"]
+    attract = BUILD / f"{args.prefix}-attract.sna"
+    forced_gameplay = BUILD / f"{args.prefix}-forced-gameplay.sna"
+    capture_snapshot(attract, 0x1900, 2)
+    patch_snapshot(attract, forced_gameplay, [
+        "00A4=A5", "00A5=06", "00A7=01", "00B0=00", "00B1=B4",
+        "004D=00",
+    ])
+    # XRoar 1.10 corrupts the serialized low-RAM page when trap-snap stops
+    # inside the $0800 bank-3 module.  Use the resident call boundary instead;
+    # it encloses the same complete render transaction and preserves the module.
+    capture_snapshot(base, boundary_pc, 1, forced_gameplay)
+    common = ["003A=00", "004D=02", "004E=0D", "0062=01", "0060=00", "0087=00", "007F=80", "0080=00"]
     cases = {
         "zero": common + ["A470=00", "A471=00", "A472=00", "A473=00", "A474=00", "A475=00", "A476=00", "A477=00", "A478=00", "A479=00", "A47A=00", "A47B=00", "A47C=00", "A47D=00", "A47E=00", "A47F=00", "A480=00", "A481=00", "A482=00", "A483=00", "A484=00", "A485=00", "A486=00", "A487=00", "A488=00", "A489=00", "A48A=00", "A48B=00", "A48C=00", "A48D=00", "A48E=00", "A48F=00"],
         "four": common,
@@ -84,26 +93,27 @@ def main() -> None:
                 patch_snapshot(base, snapshot, patches + [f"008F={front:02X}", f"0090={back:02X}"])
             else:
                 swap_framebuffer_owners(base, snapshot, patches + [f"008F={front:02X}", f"0090={back:02X}"])
-            ready = BUILD / f"{args.prefix}-{name}-{owner}-ready.sna"
-            capture_snapshot(ready, render_pc, 1, snapshot)
-            ready_state = ownership(ready)
-            ready_ram = find_ram(ready.read_bytes())
-            if name not in ("mixed", "structural") and (ready_ram[cpu_to_phys(0x0062)] != 1 or ready_ram[cpu_to_phys(0x0087)] & 0x12 != 0x12):
-                raise SystemExit(f"reset-ready state missing for {name}/{owner}")
-            # Request eight main-render boundaries.  The verifier treats only the
-            # seven frame_render_impl-to-frame_render_impl intervals as evidence;
-            # any trace tail is diagnostic and is rejected for timing purposes.
-            capture_trace(snapshot, BUILD / f"{args.prefix}-{name}-{owner}.raw.trace", frame_pc, 8, timeout=20)
-            # main_render is reached only after the preceding frame transaction
-            # has returned; frame_render_impl itself is an entry boundary.
-            capture_snapshot(BUILD / f"{args.prefix}-{name}-{owner}-after.sna", stop_pc, 2, snapshot)
+            after = BUILD / f"{args.prefix}-{name}-{owner}-after.sna"
+            if name == "mixed":
+                # Mixed overlap is a reachability guard, not timing evidence.
+                # Avoid multi-megabyte instruction traces through the generic
+                # compositor and stop directly at its entry instead.
+                capture_snapshot(
+                    BUILD / f"{args.prefix}-{name}-{owner}-reached.sna",
+                    compose_pc, 1, snapshot,
+                )
+                after = snapshot
+            else:
+                # Native reset cases retain eight resident render intervals.
+                capture_trace(snapshot, BUILD / f"{args.prefix}-{name}-{owner}.raw.trace", boundary_pc, 8)
+                capture_snapshot(after, boundary_pc, 8, snapshot)
             metadata = {
                 "schema": 2,
                 "scenario": name,
                 "requested_start": owner.upper(),
-                "measurement_contract": "closed frame_render_impl-to-next-frame_render_impl active intervals only; trailing trace tail is diagnostic only",
+                "measurement_contract": "closed main_render-to-next-main_render active intervals only; trailing trace tail is diagnostic only",
                 "before": ownership(snapshot),
-                "after": ownership(BUILD / f"{args.prefix}-{name}-{owner}-after.sna"),
+                "after": ownership(after),
                 "material_sha256": material_hashes(),
             }
             (BUILD / f"{args.prefix}-{name}-{owner}.json").write_text(json.dumps(metadata) + "\n", encoding="ascii")

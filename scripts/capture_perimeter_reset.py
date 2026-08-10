@@ -7,23 +7,23 @@ import subprocess
 import sys
 from pathlib import Path
 
-from capture_performance_baseline import BUILD, capture_snapshot, symbol
+from capture_performance_baseline import BUILD
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> None:
-    command = [sys.executable, str(ROOT / "scripts" / "capture_death_reset.py"),
-               "--prefix", "perf004", *sys.argv[1:]]
-    subprocess.run(command, cwd=ROOT, check=True)
-    published = symbol(BUILD / "ladybug-enemy-runtime.map", "perimeter_reset_published")
-    for scenario in ("zero", "four", "vegetable"):
-        for owner in ("a", "b"):
-            capture_snapshot(
-                BUILD / f"perf004-{scenario}-{owner}-published.sna",
-                published, 1, BUILD / f"perf004-{scenario}-{owner}.sna",
-            )
+    skip_build = "--skip-build" in sys.argv[1:]
+    for index, scenario in enumerate(("zero", "four", "vegetable")):
+        command = [
+            sys.executable,
+            str(ROOT / "scripts" / "capture_death_reset.py"),
+            "--prefix", "perf004", "--case", scenario,
+        ]
+        if skip_build or index:
+            command.append("--skip-build")
+        subprocess.run(command, cwd=ROOT, check=True)
 
 
 if __name__ == "__main__":

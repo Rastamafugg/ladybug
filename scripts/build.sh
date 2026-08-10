@@ -33,6 +33,7 @@ ROM="$BUILD_DIR/ladybug.rom"
 RUNTIME_ROM="$BUILD_DIR/ladybug-runtime.rom"
 BOOT_ROM="$BUILD_DIR/ladybug-gmc-boot.rom"
 BOOT_SRC="$ROOT/src/gmc_bootstrap.s"
+PERIMETER_BOOT_INC="$BUILD_DIR/ladybug-perimeter-boot.inc"
 BOOT_LST="$BUILD_DIR/ladybug-gmc-boot.lst"
 BOOT_MAP="$BUILD_DIR/ladybug-gmc-boot.map"
 ENEMY_SRC="$ROOT/src/enemy_runtime.s"
@@ -177,6 +178,10 @@ cmd_build() {
     python3 "$ROOT/scripts/build_presentation.py" \
         --tiled-dir "$ROOT/tiled" \
         --chars "$ROOT/assets/arcade/chars.json" \
+        --gameplay-map "$ROOT/tiled/coco-screen.tmx" \
+        --gameplay-maze "$ROOT/assets/arcade/maze.json" \
+        --gameplay-chars "$ROOT/assets/arcade/chars.json" \
+        --gameplay-sprites "$ROOT/assets/arcade/sprites.json" \
         --output "$PRESENTATION_COLD" \
         --include-output "$PRESENTATION_INC" \
         --manifest-output "$PRESENTATION_MANIFEST"
@@ -184,6 +189,10 @@ cmd_build() {
     python3 "$ROOT/scripts/verify_presentation.py" \
         --tiled-dir "$ROOT/tiled" \
         --chars "$ROOT/assets/arcade/chars.json" \
+        --gameplay-map "$ROOT/tiled/coco-screen.tmx" \
+        --gameplay-maze "$ROOT/assets/arcade/maze.json" \
+        --gameplay-chars "$ROOT/assets/arcade/chars.json" \
+        --gameplay-sprites "$ROOT/assets/arcade/sprites.json" \
         --payload "$PRESENTATION_COLD" \
         --manifest "$PRESENTATION_MANIFEST"
 
@@ -327,6 +336,26 @@ PY
 
     python3 "$ROOT/scripts/verify_presentation_sparse.py"
 
+    python3 - "$MAP" "$PERIMETER_BOOT_INC" <<'PY'
+import re
+import sys
+
+source, output = sys.argv[1:]
+symbols = {}
+for line in open(source, encoding="utf-8"):
+    match = re.match(r"^Symbol: (screen_map|screen_tiles) .* = ([0-9A-Fa-f]+)$", line.rstrip())
+    if match:
+        symbols[match.group(1)] = int(match.group(2), 16)
+if set(symbols) != {"screen_map", "screen_tiles"}:
+    raise SystemExit("build: runtime map is missing authored screen assets")
+if not (0xE000 <= symbols["screen_map"] < symbols["screen_tiles"] < 0xFE00):
+    raise SystemExit("build: authored screen assets are outside the PAR7 source window")
+with open(output, "w", encoding="ascii") as handle:
+    handle.write("; Generated from the current authored screen asset map.\n")
+    handle.write(f"PERIMETER_SCREEN_MAP equ ${symbols['screen_map']:04X}\n")
+    handle.write(f"PERIMETER_SCREEN_TILES equ ${symbols['screen_tiles']:04X}\n")
+PY
+
     local boot_rom_tmp="${BOOT_ROM}.tmp"
     local boot_lst_tmp="${BOOT_LST}.tmp"
     local boot_map_tmp="${BOOT_MAP}.tmp"
@@ -344,6 +373,10 @@ for source, destination in zip(sys.argv[1::2], sys.argv[2::2]):
     os.replace(source, destination)
 PY
     guard_boot_overflow "$BOOT_MAP"
+    python3 "$ROOT/scripts/verify_perimeter_allocation.py" \
+        --manifest "$SPARSE_MANIFEST" \
+        --bootstrap "$BOOT_SRC" \
+        --helper "$PERIMETER_HELPER"
     pad_cart "$BOOT_ROM"
 
     python3 - "$BOOT_ROM" "$SPARSE_BANK0" "$RUNTIME_ROM" "$ENEMY_ROM" "$SPARSE_BANK2" "$SPARSE_BANK3" "$SPARSE_MANIFEST" "$ROM" "$GMC_BYTES" <<'PY'
