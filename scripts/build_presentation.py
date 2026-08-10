@@ -60,6 +60,30 @@ MAP_BYTES = SCREEN_WIDTH * SCREEN_HEIGHT
 TILE_BYTES = 32
 MAP_OUTPUT_OFFSET = 0x4000
 COLD_PAYLOAD_LIMIT = 12939
+ATTRACT_ACTOR_RECORDS = (
+    (0x661C, (66, 65, 64, 65)),
+    (0x2F24, (128, 129, 12, 129)),
+    (0x7F34, (22, 21, 20, 21)),
+    (0x5238, (34, 33, 32, 33)),
+)
+ATTRACT_ACTOR_UNDERLAY_BYTES = 128
+
+
+def compile_attract_underlays(attract_map: bytes, tiles: list[bytes]) -> bytes:
+    framebuffer = bytearray(0x8000)
+    for cell, tile_id in enumerate(attract_map):
+        row, column = divmod(cell, SCREEN_WIDTH)
+        tile = tiles[tile_id]
+        destination = row * 160 + column * 4
+        for tile_row in range(8):
+            start = destination + tile_row * 160
+            framebuffer[start:start + 4] = tile[tile_row * 4:tile_row * 4 + 4]
+    underlays = bytearray()
+    for destination, _indexes in ATTRACT_ACTOR_RECORDS:
+        offset = destination - 0x2000
+        for row in range(16):
+            underlays.extend(framebuffer[offset + row * 160:offset + row * 160 + 8])
+    return bytes(underlays)
 
 
 def parse_args() -> argparse.Namespace:
@@ -73,6 +97,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--include-output", type=Path, required=True)
     parser.add_argument("--manifest-output", type=Path, required=True)
+    parser.add_argument("--actor-record-output", type=Path, required=True)
+    parser.add_argument("--actor-underlay-output", type=Path, required=True)
     return parser.parse_args()
 
 
@@ -224,6 +250,9 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_GAMEPLAY_TILE_BASE equ {manifest['gameplay_tile_base']}",
         f"PRESENTATION_GAMEPLAY_LOOKUP_OFFSET equ {manifest['gameplay_lookup_offset']}",
         f"PRESENTATION_GAMEPLAY_LOOKUP_BYTES equ {manifest['gameplay_lookup_bytes']}",
+        f"PRESENTATION_ATTRACT_ACTOR_OFFSET equ ${manifest['attract_actor_records']['offset']:04X}",
+        f"PRESENTATION_ATTRACT_ACTOR_BYTES equ {manifest['attract_actor_records']['bytes']}",
+        f"PRESENTATION_ATTRACT_UNDERLAY_BYTES equ {manifest['attract_actor_underlays']['bytes']}",
         f"PRESENTATION_MAP_OUTPUT_OFFSET equ ${MAP_OUTPUT_OFFSET:04X}",
         "",
     ]
@@ -331,9 +360,13 @@ def main() -> None:
     for encoded in encoded_maps:
         map_stream_offsets.append(map_stream_offset + len(encoded_stream))
         encoded_stream.extend(encoded)
-    cold_payload = (
-        tile_atlas + gameplay_lookup + bytes(encoded_stream)
+    attract_actor_records = b"".join(
+        destination.to_bytes(2, "big") + bytes(indexes)
+        for destination, indexes in ATTRACT_ACTOR_RECORDS
     )
+    attract_actor_offset = map_stream_offset + len(encoded_stream)
+    attract_underlays = compile_attract_underlays(maps[0], tiles)
+    cold_payload = tile_atlas + gameplay_lookup + bytes(encoded_stream) + attract_actor_records
     if len(cold_payload) > COLD_PAYLOAD_LIMIT:
         raise ValueError(
             f"presentation cold payload is {len(cold_payload)} bytes; "
@@ -355,6 +388,22 @@ def main() -> None:
         "map_stream_offsets": map_stream_offsets,
         "map_stream_bytes": [len(encoded) for encoded in encoded_maps],
         "map_stream_total_bytes": len(encoded_stream),
+        "attract_actor_records": {
+            "offset": attract_actor_offset,
+            "bytes": len(attract_actor_records),
+            "count": len(ATTRACT_ACTOR_RECORDS),
+            "record_bytes": 6,
+            "records": [
+                {"destination": destination, "sparse_indexes": list(indexes)}
+                for destination, indexes in ATTRACT_ACTOR_RECORDS
+            ],
+        },
+        "attract_actor_underlays": {
+            "offset": None,
+            "bytes": len(attract_underlays),
+            "actor_bytes": ATTRACT_ACTOR_UNDERLAY_BYTES,
+            "storage": "loader-copy-to-$B000",
+        },
         "coin_tile": coin_id,
         "coin_destinations": [
             0x2000 + row * 1280 + 33 * 8
@@ -375,6 +424,10 @@ def main() -> None:
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(cold_payload)
+    args.actor_record_output.parent.mkdir(parents=True, exist_ok=True)
+    args.actor_record_output.write_bytes(attract_actor_records)
+    args.actor_underlay_output.parent.mkdir(parents=True, exist_ok=True)
+    args.actor_underlay_output.write_bytes(attract_underlays)
     args.manifest_output.parent.mkdir(parents=True, exist_ok=True)
     args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",
                                     encoding="ascii")

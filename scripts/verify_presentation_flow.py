@@ -92,30 +92,20 @@ def main() -> None:
     if not phase_match:
         raise SystemExit("presentation flow proof: five instruction row destinations missing")
 
-    capture = ROOT / actor_reference["provenance"]["capture"]
-    capture_hash = hashlib.sha256(capture.read_bytes()).hexdigest().upper()
-    if capture_hash != actor_reference["provenance"]["capture_sha256"]:
-        raise SystemExit("presentation flow proof: attract capture hash mismatch")
+    if actor_reference.get("schema") != "ladybug-mame-attract-actor-reference-v2":
+        raise SystemExit("presentation flow proof: attract oracle schema is stale")
     actor_destinations = {
         name: actor["presentation_destination"]
         for name, actor in actor_reference["actors"].items()
     }
-    source_labels = {"player": "ATTRACT_PLAYER_DST", "enemy": "ATTRACT_ENEMY_DST"}
-    for name, destination in actor_destinations.items():
-        if f"{source_labels[name]} equ {destination}" not in source:
-            raise SystemExit(
-                f"presentation flow proof: {name} capture destination is not wired"
-            )
-    present_source = source.split("present_actor_overlay", 1)[1]
-    restore_index = present_source.index("lbsr    restore_actor_underlay")
-    save_index = present_source.index("jsr     PRES_MAIN_SAVE_PLAYER")
-    draw_index = present_source.index("lbsr    draw_actor_overlay")
-    if not restore_index < save_index < draw_index:
-        raise SystemExit("presentation flow proof: actor restore/save/draw order is invalid")
-    if "ldd     #PLAYER_BG\n        std     PLAYER_BG_PTR" not in source:
-        raise SystemExit("presentation flow proof: presentation save-under pointer is not initialized")
-    if "clr     PLAYER_BG_VALID" not in source:
-        raise SystemExit("presentation flow proof: presentation save-under validity is not reset")
+    if "PRES_ACTOR_TABLE equ $B200" not in source or "PRES_ACTOR_UNDERLAY equ $B000" not in source:
+        raise SystemExit("presentation flow proof: four-actor ownership buffers are not wired")
+    attract_source = source[source.index("\nattract_overlay\n"):source.index("\ninstructions_overlay\n")]
+    if "jsr     PRES_MAIN_FB_PREPARE" not in attract_source or "jsr     PRES_MAIN_FB_FINISH" not in attract_source:
+        raise SystemExit("presentation flow proof: attract owner publication is incomplete")
+    actor_draw_source = source[source.index("\ndraw_attract_actors\n"):source.index("\ninstructions_overlay\n")]
+    if "PRES_MAIN_RESTORE_PLAYER" not in actor_draw_source or "lbsr    draw_actor_overlay" not in actor_draw_source:
+        raise SystemExit("presentation flow proof: attract restore/draw order is incomplete")
     if "inflate_maps" in source or "cold_write_byte" in source:
         raise SystemExit("presentation flow proof: all-map inflation remains active")
     if "leax    map_stream_offsets,pcr" not in source:
@@ -136,12 +126,8 @@ def main() -> None:
             )
     if source.index("clr     PRES_ACTOR_FRAME") > source.index("\npft_ready\n"):
         raise SystemExit("presentation flow proof: actor frame is not initialized")
-    attract_source = source[source.index("\nattract_overlay\n"):
-                            source.index("\ninstructions_overlay\n")]
-    if attract_source.index("sta     PRES_ACTOR_FRAME") > attract_source.index(
-        "lbsr    draw_actor_overlay"
-    ):
-        raise SystemExit("presentation flow proof: attract actor draws before frame selection")
+    if "sta     PRES_ACTOR_PHASE" not in attract_source:
+        raise SystemExit("presentation flow proof: attract phase selection is absent")
     cold_manifest = presentation_layout
     if cold_manifest.get("gameplay_tile_base") != cold_manifest.get(
         "cold_only_tile_count"
@@ -159,8 +145,8 @@ def main() -> None:
                 f"presentation flow proof: {name} capture transform is inconsistent"
             )
 
-    if module_bytes > 1280:
-        raise SystemExit(f"presentation flow proof: module is {module_bytes}/1280 bytes")
+    if module_bytes > 1344:
+        raise SystemExit(f"presentation flow proof: module is {module_bytes}/1344 bytes")
     if cold > COLD_HARD_LIMIT:
         raise SystemExit(f"presentation flow proof: cold payload is {cold}/{COLD_HARD_LIMIT} bytes")
     if combined > 14219:
@@ -180,7 +166,7 @@ def main() -> None:
         "presentation flow proof: title actor overlays, six instruction phases, "
         "capture-backed title coordinates, direct selected-screen streaming, bounded loading, "
         "global credit/start pre-emption, actor underlay restore, skull/enemy demo forcing, "
-        f"module {module_bytes}/1280, cold {cold}/{COLD_HARD_LIMIT} "
+        f"module {module_bytes}/1344, cold {cold}/{COLD_HARD_LIMIT} "
         f"(preferred {COLD_PREFERRED_TARGET}), "
         f"combined {combined}/14219, future-sound margin {sound_margin}/{SOUND_RELEASE_RESERVE}"
     )

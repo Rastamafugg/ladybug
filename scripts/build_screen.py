@@ -496,6 +496,16 @@ def compile_enemy_sprites(path: Path) -> list[bytes]:
             for frame in frames]
 
 
+def compile_attract_extra_enemy_sprites(path: Path) -> list[bytes]:
+    """Build the two captured horizontal-flip frames absent from gameplay."""
+    sprites = load_sprites(path)
+    frames = []
+    for code in (6, 7):
+        pixels = transform(rotate_ccw(sprites[code]), True, False)
+        frames.append(pack_sprite_2bpp([[0] + row[:15] for row in pixels]))
+    return frames
+
+
 def compile_death_sprites(path: Path) -> list[bytes]:
     return compile_sprite_codes(path, DEATH_CODES)
 

@@ -12,6 +12,8 @@ from build_presentation import (
     MAP_FILES,
     MAP_NAMES,
     MAP_OUTPUT_OFFSET,
+    ATTRACT_ACTOR_RECORDS,
+    compile_attract_underlays,
     coin_tile,
     compile_map,
     compile_screen,
@@ -75,9 +77,13 @@ def main() -> None:
         gameplay_tile_ids[tile] for tile in ordered_tiles[len(cold_ids):]
     )
     encoded_maps = [encode_map(data) for data in maps]
+    actor_records = b"".join(
+        destination.to_bytes(2, "big") + bytes(indexes)
+        for destination, indexes in ATTRACT_ACTOR_RECORDS
+    )
     expected = (
         b"".join(cold_only_tiles) + gameplay_lookup +
-        b"".join(encoded_maps)
+        b"".join(encoded_maps) + actor_records
     )
     if payload != expected:
         raise SystemExit("presentation proof: cold payload differs from independent compile")
@@ -101,6 +107,14 @@ def main() -> None:
         raise SystemExit("presentation proof: gameplay lookup size differs")
     if manifest.get("map_stream_total_bytes") != sum(map(len, encoded_maps)):
         raise SystemExit("presentation proof: encoded map size differs")
+    records = manifest.get("attract_actor_records", {})
+    if records.get("offset") != len(expected) - len(actor_records):
+        raise SystemExit("presentation proof: actor-record offset differs")
+    if records.get("bytes") != len(actor_records):
+        raise SystemExit("presentation proof: actor-record size differs")
+    underlays = manifest.get("attract_actor_underlays", {})
+    if underlays.get("bytes") != len(compile_attract_underlays(maps[0], ordered_tiles)):
+        raise SystemExit("presentation proof: actor-underlay size differs")
     for index, encoded in enumerate(encoded_maps):
         if manifest["map_stream_bytes"][index] != len(encoded):
             raise SystemExit(f"presentation proof: encoded map {index} size differs")

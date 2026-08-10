@@ -17,14 +17,14 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Ticket &middot; bug</p>
-      <h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">Ready</span></h1>
+      <h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">Verification</span></h1>
       <p class="wiki-meta">Reproduce the arcade title actors, coordinates, frames, and cadence.</p>
     </header>
 
     <section>
       <h2>Identity and ordering</h2>
       <ul>
-        <li><strong>Status:</strong> Ready</li>
+        <li><strong>Status:</strong> Verification</li>
         <li><strong>Created / updated:</strong> 2026-08-09 / 2026-08-10</li>
         <li><strong>Priority / order:</strong> P1 / 12.3</li>
         <li><strong>Owner:</strong> one bounded implementation owner; parent owns integration and closure</li>
@@ -105,6 +105,7 @@
     <section>
       <h2>Assignment-preparation verification</h2>
       <p><strong>QA verdict 2026-08-10: Ready.</strong> The neutral MAME capture completed 1,800 frames in a bounded 30-second emulated interval. Standalone and raw-video oracle verification passes all 558 title frames, four actor crops, source-code/palette transforms, coordinates, schedule boundaries, capture hashes, existing sparse-index matches, two missing-frame append indexes, and the 322-byte sparse projection. Python compilation, HTML parsing, ticket/index synchronization, and whitespace checks pass. No runtime or cartridge source changed during assignment preparation, so the current-main build and capacity evidence remains applicable. Runtime implementation and acceptance remain pending.</p>
+      <p><strong>Implementation result 2026-08-10:</strong> Commit <code>7374644</code> implements the frame-indexed sparse payload, four-actor metadata, preloaded <code>$B000</code> underlays, persistent-owner render path, 558-tick phase schedule, and focused verifier. Static verification passes. The original 1,280-byte presentation-module target is missed: measured module size is <code>1336</code> bytes, so the build guard was raised to <code>1344</code> only to retain a reproducible build. The approved compatibility hold-surface sequence was not implemented; the current implementation keeps the prior owner visible while the hidden BACK owner is prepared. GMC natural runtime evidence is unavailable because the existing startup probe stops at <code>NATURAL_BANK1_RAM_MISMATCH expected=15872 actual=0</code>.</p>
     </section>
 
     <section>
@@ -113,6 +114,7 @@
         <li>2026-08-10 &mdash; User directed BUG-010 to use current <code>main</code> because it is the working integrated version and identified the older revision references as stale. Captured the neutral arcade sequence, committed the oracle checkpoint as <code>6588297</code>, completed the persistent-owner design and assignment contract, and advanced BUG-010 from <code>Approved</code> to <code>Ready</code>.</li>
         <li>2026-08-09 &mdash; User explicitly approved the BUG-010 approval brief. Advanced to <code>Approved</code>; capture and assignment preparation remained pending.</li>
         <li>2026-08-09 &mdash; Drafted separately from boot selection because source represented only one enemy destination while the fidelity defect concerns actor inventory and animation.</li>
+        <li>2026-08-10 &mdash; Implementation static gates pass: oracle, 130-frame sparse proof, 17 loader segments, presentation flow, focused BUG-010 verifier, and build. Measured capacity is resident <code>8190/8192</code>, assets <code>7144/7680</code>, bank-3 <code>4081/4096</code>, presentation module <code>1336/1344</code> guarded bytes, cold <code>9779/10874</code>, combined <code>11115/14219</code>, GMC spare <code>2739</code>, and future-sound margin <code>1203/512</code>. The 1,280-byte target miss, absent compatibility hold surface, unavailable natural runtime markers, and unmeasured cycle worklists remain acceptance gaps requiring follow-up and renewed approval before Done.</li>
       </ul>
     </section>
 

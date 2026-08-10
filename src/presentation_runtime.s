@@ -224,6 +224,20 @@ load_done
         ldb     PRES_SCREEN
         lda     b,x
         sta     PRES_MODE
+        cmpb    #PRESENTATION_MAP_ATTRACT
+        bne     load_done_normal
+        tst     PRES_PREP_STATE
+        bne     load_done_second_attract
+        lda     #1
+        sta     PRES_PREP_STATE
+        lda     #MODE_ATTRACT
+        sta     PRES_MODE
+        rts
+load_done_second_attract
+        clr     PRES_PREP_STATE
+        lda     #$FF
+        sta     PRES_ACTOR_PHASE
+load_done_normal
         lda     #$FF
         sta     PRES_PHASE
         ldd     #PLAYER_BG
@@ -346,10 +360,18 @@ timer
         std     PRES_TIMER
         rts
 attract_tick
+        tst     PRES_PREP_STATE
+        beq     attract_tick_ready
+        tst     PENDING
+        bne     hold
+        lda     #PRESENTATION_MAP_ATTRACT
+        lbsr    start_screen
+        rts
+attract_tick_ready
         lbsr    timer
         lbsr    attract_overlay
         ldd     PRES_TIMER
-        cmpd    #360
+        cmpd    #558
         blo     hold
 attract_next
         lda     #PRESENTATION_MAP_INSTRUCTIONS
@@ -481,22 +503,65 @@ scan_next
         sta     PIA_CRB
         rts
 
-; Dynamic presentation overlays. Actor sprites are resolved through the
-; existing sparse indexes copied by the GMC loader; no presentation payload is
-; added for these frames.
+; Dynamic presentation overlays. Actor records are generated in the cold
+; presentation payload. The two persistent owners are prepared through the
+; resident framebuffer services before one Vbord publication.
 attract_overlay
-        lda     PRES_TIMER+1
-        anda    #3
-        sta     PRES_ACTOR_FRAME
-        ldx     #ATTRACT_PLAYER_DST
-        stx     PRES_DST
-        clr     PRES_ACTOR_KIND
-        lbsr    draw_actor_overlay
-        ldx     #ATTRACT_ENEMY_DST
-        stx     PRES_DST
-        inc     PRES_ACTOR_KIND
-        lbsr    draw_actor_overlay
+        lbsr    attract_phase
+        cmpa    PRES_ACTOR_PHASE
+        beq     attract_overlay_done
+        sta     PRES_ACTOR_PHASE
+        jsr     PRES_MAIN_FB_PREPARE
+        lbsr    draw_attract_actors
+        jsr     PRES_MAIN_FB_FINISH
 attract_overlay_done
+        rts
+
+attract_phase
+        ldd     PRES_TIMER
+        cmpd    #6
+        blo     attract_phase_zero
+        ldb     PRES_TIMER+1
+        subb    #6
+        lsrb
+        lsrb
+        lsrb
+        andb    #3
+        tfr     b,a
+        inca
+        rts
+attract_phase_zero
+        clra
+        rts
+
+draw_attract_actors
+        ldx     #PRES_ACTOR_TABLE
+        ldu     #PRES_ACTOR_UNDERLAY
+        lda     #1
+        sta     PRES_ACTOR_KIND
+        lda     #4
+        sta     PRES_REMAIN
+draw_attract_actor
+        pshs    x
+        ldd     ,x
+        std     PRES_DST
+        leax    2,x
+        ldb     PRES_ACTOR_PHASE
+        abx
+        lda     ,x
+        sta     PRES_ACTOR_FRAME
+        stu     PLAYER_BG_PTR
+        ldx     PRES_DST
+        stx     PLAYER_FB
+        jsr     PRES_MAIN_RESTORE_PLAYER
+        lbsr    draw_actor_overlay
+        puls    x
+        leax    6,x
+        leau    128,u
+        dec     PRES_REMAIN
+        bne     draw_attract_actor
+        lda     #$34
+        sta     PAR5
         rts
 
 instructions_overlay
@@ -705,6 +770,10 @@ PRES_ACTOR_FRAME equ $00CE
 PRES_HIGHLIGHT equ $00CF
 PRES_ACTOR_KIND equ $00D0
 PRES_DEMO_CAUSE equ $00D1
+PRES_PREP_STATE equ $00D2
+PRES_ACTOR_PHASE equ $00D3
+PRES_ACTOR_TABLE equ $B200
+PRES_ACTOR_UNDERLAY equ $B000
 PRESENTATION_PENDING_NAME equ $AFDE
 
 presentation_module_end

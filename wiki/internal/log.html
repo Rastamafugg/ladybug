@@ -14,6 +14,10 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-10 &middot; implementation/verification &mdash; BUG-010 actor fidelity</h3>
+      <p>Commit <code>7374644</code> implements the four captured actors, append-only sparse indexes 128/129, compact actor records, loader-preloaded <code>$B000</code> underlays, persistent BACK-owner preparation, and 558-tick phase schedule. Oracle, focused BUG-010, presentation-flow, sparse-payload, build, and source compilation gates pass. Measured presentation module is <code>1336</code> bytes against the original <code>1280</code>-byte target; the build guard is <code>1344</code> to retain a reproducible build. The approved compatibility hold-surface step is not present, natural GMC markers stop at the existing bank-1 RAM mismatch, and cycle worklists are unmeasured. BUG-010 remains in Verification with these acceptance gaps.</p>
+    </section>
+    <section>
       <h3>2026-08-10 &middot; capture/assignment preparation &mdash; BUG-010 Ready</h3>
       <p>User selected current <code>main</code> as the BUG-010 baseline and identified the older ticket revision as stale. A neutral MAME 0.220 run retained a reproducible 1,800-frame capture oracle: complete title frames 185&ndash;742 contain four stationary actors, a six-frame initial phase, and synchronized eight-frame recurring phases. Three sequences map to existing sparse indexes; two Purple frames require append-only indexes 128/129 and project a 322-byte enemy-payload increase. Added the capture plan and verifier, committed the oracle as <code>6588297</code>, fixed the persistent-owner hold/underlay design, exact worktree/artifact/command/evidence contract, timing and capacity gates, and advanced BUG-010 from Approved to Ready.</p>
     </section>
