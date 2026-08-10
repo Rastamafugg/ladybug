@@ -2894,9 +2894,11 @@ sparse_enemy_stream
         leau    d,u
         lda     #SPARSE_ENEMY_PAYLOAD_PAGE
         sta     GIME_PAR5
+        ldd     1,u
+        pshs    d
         lda     ,u
         sta     GIME_PAR5
-        ldu     1,u
+        puls    u
         rts
 
 ; Resolve A's always-mapped player index entry and map its stream page.
@@ -2907,9 +2909,11 @@ sparse_player_stream
         leau    d,u
         lda     #SPARSE_PLAYER_PAYLOAD_PAGE
         sta     GIME_PAR5
+        ldd     1,u
+        pshs    d
         lda     ,u
         sta     GIME_PAR5
-        ldu     1,u
+        puls    u
         rts
 
 ; Decode shared destination deltas into the mapped BACK framebuffer.

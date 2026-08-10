@@ -66,7 +66,7 @@ def main() -> None:
         "PRES_DEMO_CAUSE",
         "ENTITY_TABLE equ $A380",
         "jsr     $0809",
-        "inc     PRES_DST+1",
+        "inc     <$AF",
         "PRESENTATION_MAP_LEVEL_START",
         "PRESENTATION_MAP_INSTRUCTIONS",
         "PRESENTATION_MAP_ATTRACT",

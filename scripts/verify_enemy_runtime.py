@@ -277,7 +277,8 @@ for fragment in (
     "SPARSE_ENEMY_INDEX_ADDR",
     "SPARSE_PLAYER_INDEX_ADDR",
     "ldb     #3",
-    "ldu     1,u",
+    "ldd     1,u",
+    "puls    u",
     "sta     GIME_PAR5",
 ):
     if fragment not in sparse_resolve:

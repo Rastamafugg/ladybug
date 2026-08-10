@@ -231,7 +231,6 @@ presentation_attract_phase
         lsra
         lsra
         anda    #3
-        inca
         rts
 presentation_phase_zero
         clra

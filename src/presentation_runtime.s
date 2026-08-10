@@ -569,7 +569,7 @@ instructions_phase_ready
         clr     PRES_ACTOR_KIND
         lbsr    present_actor_overlay
 instructions_move
-        inc     PRES_DST+1
+        inc     <$AF
         lbsr    present_actor_overlay
         rts
 
@@ -607,13 +607,7 @@ highlight_next
 
 draw_actor_overlay
         ldb     PRES_ACTOR_FRAME
-        tst     PRES_ACTOR_KIND
-        beq     actor_player_index
         lda     #SPARSE_ENEMY_PAYLOAD_PAGE
-        bra     actor_index_map
-actor_player_index
-        lda     #SPARSE_PLAYER_PAYLOAD_PAGE
-actor_index_map
         sta     PAR5
         lda     #3
         mul
