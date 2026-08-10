@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Edge-triggered input must retain the sampled cold baseline</h2>
+      <p><strong>Filed 2026-08-10.</strong> BUG-009 called the presentation keyboard scanner before cold-state initialization. That scan correctly stored the idle CoCo keyboard rows as <code>$7F,$7F,$7F</code>, where PA7 is the joystick comparator rather than a keyboard row, and the cold path ignored its arbitrary pre-initialization event result. The cold path then replaced those samples with <code>$FF,$FF,$FF</code>; the next unchanged scan interpreted the PA7 difference as a new active-low edge on every selected credit drive, produced event mask <code>$07</code>, and replaced the pending attract load with high score before first publication.</p>
+      <p><strong>Rule:</strong> initialize an edge detector from the first real hardware sample and suppress that sample's event, then retain the sampled baseline. Do not substitute an assumed all-high idle byte when input ports contain non-keyboard or platform-dependent bits. Verify no-input, held-through-initialization, release, and new-press sequences.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-009-boot-publishes-wrong-screen.html">BUG-009</a>, <code>src/presentation_runtime.s</code> <code>presentation_flow_tick</code>/<code>scan_keys</code>, the <a href="../../release/reference/coco3/input.html">CoCo 3 input reference</a>, and the 2026-08-10 bounded XRoar/GDB capture at checkpoint <code>8183005</code>.</p>
+    </section>
+
+    <section>
       <h2>FEAT-002 diagnosis requires live-byte and visible-path proof</h2>
       <p><strong>Filed 2026-08-09.</strong> The FEAT-002 recovery initially appeared to implicate GIME or PAR setup, but live-byte comparison showed bank-0 bootstrap bytes at the supposed resident handoff. Selected cartridge ROM prevented same-destination writes from populating resident RAM; staging resident and asset bytes in boot-only physical pages before all-RAM publication corrected the delivery defect. A separate boot-synthesis defect read bank-0 bootstrap bytes instead of authored bank-1 screen assets until bank 1 was retained during synthesis.</p>
       <p><strong>Rule:</strong> before interpreting a live symbol or hardware access, compare authored/source, staged, and final destination bytes. Treat undocumented hardware failure as a last-stage hypothesis requiring discriminating software/tool/emulator results plus independent or authoritative support. A runtime marker also proves only code reachability; first visible screen, decoded content, input ownership, and natural sequence require separate evidence.</p>
