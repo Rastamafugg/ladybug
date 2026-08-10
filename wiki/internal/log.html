@@ -14,6 +14,10 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-10 &middot; QA verdict &mdash; BUG-009 returned to Ready</h3>
+      <p>Reviewed implementation commit <code>4c1ff0eaa38ec69500eaf55dc2b30b51baf4e616</code>. Canonical build, combined <code>verify-gmc</code>, source repair, capacity, and static selected-stream/hash checks passed with module <code>1214/1280</code>, combined <code>10969/14219</code>, and GMC spare <code>3743</code>. The focused BUG-009 verifier contains no XRoar/GDB runtime probe and emits <code>BUG009_RUNTIME_PENDING</code>; cold, warm-reset, input-edge, owner-order, first-publication framebuffer, and natural-rotation evidence are missing. Existing attract markers were rejected as insufficient screen-identity proof. Withheld acceptance and retained BUG-009 in <code>Ready</code> pending bounded runtime-verifier completion.</p>
+    </section>
+    <section>
       <h3>2026-08-10 &middot; diagnosis/assignment preparation &mdash; BUG-009 Ready</h3>
       <p>Prepared BUG-009 against integrated checkpoint <code>8183005</code> and advanced it from Approved to Ready. A bounded cold-launch capture proved that the first attract request is replaced before publication: cold initialization overwrites sampled idle keyboard values <code>$7F,$7F,$7F</code> with <code>$FF,$FF,$FF</code>, the next idle scan synthesizes event mask <code>$07</code>, and high-score map 3 completes first. Authored and live 1,226-byte presentation modules match exactly; the first 30,720-byte framebuffer hash matches compiled high score and not attract. The assignment fixes the sampled-baseline repair, dedicated branch/worktree, focused cold/warm verifier, natural and forced scenarios, capacity gates, retained evidence, bounded commit, and authority. Added the resulting sampled-cold-baseline rule to lessons learned.</p>
     </section>
