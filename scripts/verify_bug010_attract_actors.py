@@ -122,6 +122,11 @@ def main() -> None:
     )
     if any(fragment not in source for fragment in required_source):
         fail("persistent-owner runtime contract is incomplete")
+    draw_actor = source[source.index("\ndraw_actor_overlay\n"):
+                        source.index("\n; Recolour each nonzero", source.index("\ndraw_actor_overlay\n"))]
+    resolved_index = draw_actor[draw_actor.index("leax    d,x"):]
+    if resolved_index.index("ldu     1,x") > resolved_index.index("sta     PAR5"):
+        fail("attract sparse resolver remaps PAR5 before preserving the stream address")
 
     module_bytes = len(MODULE.read_bytes())
     helper_bytes = len(HELPER.read_bytes())

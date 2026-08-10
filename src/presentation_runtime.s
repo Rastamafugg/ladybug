@@ -614,9 +614,9 @@ draw_actor_overlay
         ldx     #SPARSE_ENEMY_INDEX_ADDR
 actor_index_ready
         leax    d,x
+        ldu     1,x
         lda     ,x
         sta     PAR5
-        ldu     1,x
         ldx     PRES_DST
         jsr     PRESENTATION_MODULE_DRAW
         rts

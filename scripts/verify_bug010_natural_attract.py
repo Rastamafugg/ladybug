@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MONITOR_INPUT = ROOT / "scripts/verify_bug009_monitor_input.py"
 ROM = ROOT / "build/ladybug.rom"
 EVIDENCE = ROOT / "build/bug010-natural-attract-evidence.json"
+MODULE = ROOT / "build/ladybug-presentation-runtime.bin"
+LAYOUT = ROOT / "build/ladybug-sparse-layout.json"
 
 PUBLISH = 0x0DD5
 ATTRACT_TICK = 0x1BA4
@@ -104,9 +106,35 @@ def main() -> None:
                 "state": read_state(client),
             })
 
+        module = MODULE.read_bytes()
+        module_sha256 = hashlib.sha256(module).hexdigest()
+        staged_module_sha256 = json.loads(
+            LAYOUT.read_text(encoding="ascii")
+        )["presentation_module"]["sha256"]
+        live_module_sha256 = hashlib.sha256(
+            read_bytes(client, 0x1900, len(module))
+        ).hexdigest()
+        if len({module_sha256, staged_module_sha256, live_module_sha256}) != 1:
+            failure = failure or {
+                "error": "presentation_module_identity_mismatch",
+                "deadline_seconds": args.timeout,
+            }
+
         deltas = [
             ticks[index]["cpu_cycles"] - ticks[index - 1]["cpu_cycles"]
             for index in range(1, len(ticks))
+        ]
+        phase_change_worklists = [
+            {
+                "tick_index": index,
+                "timer": ticks[index]["state"]["timer"],
+                "from_phase": ticks[index - 1]["state"]["actor_phase"],
+                "to_phase": ticks[index]["state"]["actor_phase"],
+                "cycles": ticks[index]["cpu_cycles"] - ticks[index - 1]["cpu_cycles"],
+            }
+            for index in range(1, len(ticks))
+            if ticks[index]["state"]["actor_phase"] !=
+            ticks[index - 1]["state"]["actor_phase"]
         ]
         handoff = None
         if failure is None:
@@ -116,9 +144,16 @@ def main() -> None:
             monitor.clear(client, [handoff_id])
 
         result = {
-            "schema": "ladybug-bug010-natural-attract-evidence-v2",
+            "schema": "ladybug-bug010-natural-attract-evidence-v3",
             "rom_sha256": hashlib.sha256(args.rom.read_bytes()).hexdigest(),
             "xroar_sha256": hashlib.sha256(args.xroar.read_bytes()).hexdigest(),
+            "presentation_module_identity": {
+                "bytes": len(module),
+                "authored_sha256": module_sha256,
+                "staged_sha256": staged_module_sha256,
+                "live_sha256": live_module_sha256,
+                "match": len({module_sha256, staged_module_sha256, live_module_sha256}) == 1,
+            },
             "deadline_seconds": args.timeout,
             "target_ticks": TARGET_TICKS,
             "initial_publication": {
@@ -132,18 +167,29 @@ def main() -> None:
             "cycle_deltas": deltas,
             "cycle_max": max(deltas) if deltas else None,
             "cycle_min": min(deltas) if deltas else None,
+            "phase_change_worklists": phase_change_worklists,
+            "phase_change_cycle_max": max(
+                (entry["cycles"] for entry in phase_change_worklists), default=None
+            ),
             "hardware_frame_max_cycles": HARD_MAX_CYCLES,
             "engineering_target_cycles": ENGINEERING_TARGET,
             "natural_558_tick_completion": failure is None and len(ticks) == TARGET_TICKS and handoff is not None,
             "cycle_hardware_target_pass": bool(deltas) and max(deltas) <= HARD_MAX_CYCLES,
             "cycle_engineering_target_pass": bool(deltas) and max(deltas) <= ENGINEERING_TARGET,
+            "phase_change_hardware_target_pass": bool(phase_change_worklists) and max(
+                entry["cycles"] for entry in phase_change_worklists
+            ) <= HARD_MAX_CYCLES,
+            "phase_change_engineering_target_pass": bool(phase_change_worklists) and max(
+                entry["cycles"] for entry in phase_change_worklists
+            ) <= ENGINEERING_TARGET,
         }
         args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="ascii")
         if not result["natural_558_tick_completion"]:
             raise SystemExit(f"BUG-010 natural attract failed: {failure or 'handoff missing'}")
         print(
             f"BUG-010 natural attract pass: {TARGET_TICKS} ticks, handoff PC {handoff.get('pc')}, "
-            f"cycle range {min(deltas)}-{max(deltas)}, evidence={args.output}"
+            f"cycle range {min(deltas)}-{max(deltas)}, "
+            f"phase-change max {result['phase_change_cycle_max']}, evidence={args.output}"
         )
     finally:
         client.close()
