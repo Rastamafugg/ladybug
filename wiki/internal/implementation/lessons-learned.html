@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>BUG-010 hold publication requires a transient owner state</h2>
+      <p><strong>Filed 2026-08-10.</strong> Restoring the presentation module to the locked <code>$1900-$1DFF</code> boundary required moving the attract actor loop into the existing helper allocation. The helper now copies the complete visible framebuffer to <code>$28-$2B</code> in thirty bounded chunks, publishes it only through transient owner ID <code>2</code> at Voffset <code>$A0</code>, and hydrates both persistent A/B owners before normal publication resumes.</p>
+      <p><strong>Rule:</strong> compatibility storage is not a persistent framebuffer owner. Keep its state in always-mapped direct-page bytes, preserve the last complete hold surface across pre-emption, and prohibit intermediate A/B publication while hidden owners are hydrated. Final-pending cancellation must share the pending publication path so an input edge cannot leave a stale commit armed.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-010-attract-actor-fidelity.html">BUG-010</a>, <code>src/perimeter_reset_helper.s</code>, <code>src/presentation_runtime.s</code>, and <code>src/enemy_runtime.s</code>.</p>
+    </section>
+
+    <section>
       <h2>Edge-triggered input must retain the sampled cold baseline</h2>
       <p><strong>Filed 2026-08-10.</strong> BUG-009 called the presentation keyboard scanner before cold-state initialization. That scan correctly stored the idle CoCo keyboard rows as <code>$7F,$7F,$7F</code>, where PA7 is the joystick comparator rather than a keyboard row, and the cold path ignored its arbitrary pre-initialization event result. The cold path then replaced those samples with <code>$FF,$FF,$FF</code>; the next unchanged scan interpreted the PA7 difference as a new active-low edge on every selected credit drive, produced event mask <code>$07</code>, and replaced the pending attract load with high score before first publication.</p>
       <p><strong>Rule:</strong> initialize an edge detector from the first real hardware sample and suppress that sample's event, then retain the sampled baseline. Do not substitute an assumed all-high idle byte when input ports contain non-keyboard or platform-dependent bits. Verify no-input, held-through-initialization, release, and new-press sequences.</p>

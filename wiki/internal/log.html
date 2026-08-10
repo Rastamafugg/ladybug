@@ -14,6 +14,10 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-10 &middot; implementation/verification &mdash; BUG-010 remediation <code>a37b4d4</code></h3>
+      <p>Implemented the approved 56-byte capacity and hold-surface repair on current <code>main</code>. The presentation module is exactly <code>1280/1280</code> bytes; the extended helper is <code>333/334</code> bytes. The helper uses fixed entries at <code>$06C5/$06C7/$06C9</code>, copies the visible framebuffer to <code>$28-$2B</code> in thirty 1,024-byte chunks, requests transient owner ID <code>2</code> at Voffset <code>$A0</code>, and hydrates both persistent owners without intermediate publication. Build, focused BUG-010, presentation-flow, sparse, and enemy structural checks pass. The combined GMC probe does not reach its required natural/forced completion markers in this environment. Runtime cycle worklists, owner-order hashes, and input-pre-emption traces remain required acceptance evidence; BUG-010 remains in Verification.</p>
+    </section>
+    <section>
       <h3>2026-08-10 &middot; approval/assignment preparation &mdash; BUG-010 capacity and hold remediation</h3>
       <p>User approved the remediation after the 56-byte module overrun and absent hold protocol were confirmed. BUG-010 returns to Ready with the original 1,280-byte module boundary restored. The fixed design moves the 112-byte attract overlay block into the existing 334-byte low-RAM helper allocation, extends Vbord selection with transient owner ID 2 for hold offset <code>$A0</code>, copies 30,720 visible bytes in thirty 1,024-byte worklists, hydrates both persistent owners without intermediate publication, preserves input pre-emption, and retains all natural, cycle, capacity, and oracle acceptance gates.</p>
     </section>

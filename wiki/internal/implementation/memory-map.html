@@ -64,7 +64,7 @@
 $0000-$02FF      0    $38   768 B  Direct page, boot proof, and low-RAM state
 $0300-$064C      0    $38   845 B  Boot-only relocated GMC loader; free after handoff
 $064D-$06AF      0    $38    99 B  Boot scratch; no sparse-index mirror
-$06B0-$07FF      0    $38   336 B  Loader-addressable overflow destinations; $06B0-$06B1 boot proof
+$06B0-$07FF      0    $38   336 B  Loader-addressable overflow/helper allocation; $06B0-$06B1 boot proof; BUG-010 helper uses $06C5-$07FF
 $0800-$17FF      0    $38   4 K    Bank-3 enemy runtime copy
 $1800-$18FF      0    $38   256 B  Shared player/nest sparse-decode compositor stage
 $1900-$1DFF      0    $38  1280 B  Copied presentation flow module; current use 1222 B
@@ -182,6 +182,19 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         run-length map streams that are inflated into the existing four-page
         destination before presentation begins. This is not the active runtime
         map for the next FEAT-002 implementation revision.
+      </p>
+      <p>
+        <strong>BUG-010 remediation implemented 2026-08-10:</strong> the
+        presentation module is hard-limited to <code>$1900-$1DFF</code> and
+        measures <code>1280/1280</code> bytes. The extended perimeter helper
+        occupies <code>$06C5-$07FF</code> and measures <code>333/334</code>
+        bytes. It copies the visible <code>30,720</code> bytes to the
+        compatibility surface <code>$28-$2B</code> in thirty 1,024-byte
+        chunks, publishes transient owner ID <code>2</code> at Voffset
+        <code>$A0</code>, then hydrates both persistent owners without an
+        intermediate publication. Hold state uses direct-page
+        <code>$D4-$D9</code>; PAR1 and PAR5 are restored after every chunk and
+        actor pass.
       </p>
     </section>
 
@@ -484,6 +497,7 @@ $FF00-$FFFF        256 B   I/O; never cart data
           <tr><td><code>$9B-$9E</code></td><td>enemy underlay-invalid flag plus ring-copy phase/row/base scratch</td><td>4 B</td><td>Persistent circular save-under renderer</td></tr>
           <tr><td><code>$9F-$A1</code></td><td>(free)</td><td>3 B</td><td>Freed by destination-delta decoding and mirrored sparse indexes</td></tr>
           <tr><td><code>$A2-$A3</code></td><td>selected A/B player save-under pointer</td><td>u16</td><td>Persistent framebuffer owner selection</td></tr>
+          <tr><td><code>$D4-$D9</code></td><td>BUG-010 hold state, chunk, saved A/B IDs, generation, hydration owner</td><td>6 B</td><td>Always-mapped transient compatibility publication state</td></tr>
             <tr><td><code>$A4-$CB</code></td><td>Presentation runtime</td><td>40 B</td><td>Flow, key-edge, map-loader, timer, framebuffer destination, score conversion, insertion, and bounded name-entry state; reserved by FEAT-002.</td></tr>
             <tr><td><code>$CC-$FF</code></td><td>(free)</td><td>52 B</td><td>Remaining direct-page hot-state margin after the current FEAT-002 slice.</td></tr>
         </tbody>

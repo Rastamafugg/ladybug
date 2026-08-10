@@ -17,7 +17,7 @@ sparse_copy_table
         fdb     $C800,$06B0,$0002
         ; perimeter_reset_helper+$0000
         fcb     $00,$FF
-        fdb     $C802,$06B2,$0013
+        fdb     $C802,$06B2,$014D
         ; enemy+$0000
         fcb     $02,$35
         fdb     $C020,$A000,$2000
@@ -50,16 +50,16 @@ sparse_copy_table
         fdb     $C5B5,$A000,$024B
         ; presentation_cold+$024B
         fcb     $00,$3A
-        fdb     $C815,$A24B,$1DB5
+        fdb     $C94F,$A24B,$1DB5
         ; presentation_cold+$2000
         fcb     $00,$3B
-        fdb     $E5CA,$A000,$0633
+        fdb     $E704,$A000,$0633
         ; attract_actor_records+$0000
         fcb     $00,$34
-        fdb     $EBFD,$B200,$0018
+        fdb     $ED37,$B200,$0018
         ; attract_actor_underlays+$0000
         fcb     $00,$34
-        fdb     $EC15,$B000,$0200
+        fdb     $ED4F,$B000,$0200
         ; presentation_module+$0000
         fcb     $00,$FF
-        fdb     $EE15,$1900,$0538
+        fdb     $EF4F,$1900,$0500

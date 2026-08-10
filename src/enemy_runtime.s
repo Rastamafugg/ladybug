@@ -1112,10 +1112,13 @@ framebuffer_irq_impl
 fbiq_ready
         tst     FB_RENDER_PENDING
         beq     fbiq_missed
-        lda     #$C0
-        tst     FB_BACK_ID
-        beq     fbiq_publish
-        lda     #$B0
+        lda     FB_BACK_ID
+        lsla
+        lsla
+        lsla
+        lsla
+        nega
+        adda    #$C0
 fbiq_publish
         sta     GIME_VOFF1
         lda     FB_FRONT_ID

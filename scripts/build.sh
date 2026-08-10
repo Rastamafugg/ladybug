@@ -55,7 +55,9 @@ RESIDENT_LIMIT=0xE000
 ASSET_LIMIT=0xFE00
 BOOT_OVERFLOW_START=0xC800
 PRESENTATION_MODULE_START=0x1900
-PRESENTATION_MODULE_LIMIT=0x1E40
+PRESENTATION_MODULE_LIMIT=0x1E00
+PRESENTATION_HELPER_START=0x06B2
+PRESENTATION_HELPER_LIMIT=0x0800
 
 guard_layout() {
     local map="$1"
@@ -154,6 +156,21 @@ if start + size > limit:
         f"limit is ${limit:04X}"
     )
 print(f"build: presentation module {size}/{limit - start} bytes")
+PY
+}
+
+guard_presentation_helper() {
+    local helper="$1"
+    python3 - "$helper" "$PRESENTATION_HELPER_START" "$PRESENTATION_HELPER_LIMIT" <<'PY'
+import sys
+path, start, limit = sys.argv[1], int(sys.argv[2], 0), int(sys.argv[3], 0)
+size = len(open(path, 'rb').read())
+if start + size > limit:
+    raise SystemExit(
+        f"build: presentation helper ends at ${start + size:04X}; "
+        f"limit is ${limit:04X}"
+    )
+print(f"build: presentation helper {size}/{limit - start} bytes")
 PY
 }
 
@@ -292,6 +309,7 @@ source, output = sys.argv[1:]
 wanted = {
     'framebuffer_prepare_back': 'PRES_MAIN_FB_PREPARE',
     'framebuffer_finish_back': 'PRES_MAIN_FB_FINISH',
+    'framebuffer_capture_back': 'PRES_MAIN_FB_CAPTURE',
 }
 symbols = {}
 for line in open(source, encoding='utf-8'):
@@ -307,11 +325,6 @@ with open(output, 'a', encoding='ascii') as handle:
 PY
 
     lwasm -9 --format=raw \
-          --output="$PERIMETER_HELPER" \
-          --symbols \
-          "$PERIMETER_HELPER_SRC"
-
-    lwasm -9 --format=raw \
           --output="$PRESENTATION_MODULE" \
           --list="$PRESENTATION_MODULE_LST" \
           --symbols \
@@ -319,6 +332,29 @@ PY
           -I "$BUILD_DIR" \
           "$PRESENTATION_MODULE_SRC"
     guard_presentation_module "$PRESENTATION_MODULE"
+
+    python3 - "$PRESENTATION_MODULE_MAP" "$PRESENTATION_SYMBOLS" <<'PY'
+import re
+import sys
+source, output = sys.argv[1:]
+symbols = {}
+for line in open(source, encoding='utf-8'):
+    match = re.match(r'^Symbol: (draw_actor_overlay|map_back) .* = ([0-9A-Fa-f]+)$', line.rstrip())
+    if match:
+        symbols['PRES_MODULE_DRAW_ACTOR' if match.group(1) == 'draw_actor_overlay' else 'PRES_MODULE_MAP_BACK'] = match.group(2)
+if set(symbols) != {'PRES_MODULE_DRAW_ACTOR', 'PRES_MODULE_MAP_BACK'}:
+    raise SystemExit('build: presentation module symbols missing: PRES_MODULE_DRAW_ACTOR, PRES_MODULE_MAP_BACK')
+with open(output, 'a', encoding='ascii') as handle:
+    for name, value in symbols.items():
+        handle.write(f'{name} equ ${value}\n')
+PY
+
+    lwasm -9 --format=raw \
+          --output="$PERIMETER_HELPER" \
+          --symbols \
+          -I "$BUILD_DIR" \
+          "$PERIMETER_HELPER_SRC"
+    guard_presentation_helper "$PERIMETER_HELPER"
 
     python3 "$ROOT/scripts/build_sparse_sprites.py" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
