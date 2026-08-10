@@ -79,7 +79,8 @@ def schedule_phase(frame: int, schedule: dict[str, object]) -> int:
 def validate_reference(reference: dict[str, object]) -> tuple[list[bytes], dict[str, int]]:
     provenance = reference["provenance"]
     plan = ROOT / provenance["capture_plan"]
-    if digest(plan.read_bytes()) != provenance["capture_plan_sha256"]:
+    canonical_plan = plan.read_text(encoding="ascii").replace("\r\n", "\n").encode("ascii")
+    if digest(canonical_plan) != provenance["capture_plan_sha256"]:
         raise SystemExit("attract oracle: capture-plan hash mismatch")
 
     interval = reference["title_interval"]
