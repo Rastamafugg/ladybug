@@ -1,12 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>BUG-010 Attract actor fidelity &mdash; Ladybug</title><link rel="stylesheet" href="../../shared/css/wiki.css"></head>
-<body><div class="wiki-shell"><nav class="wiki-nav"><a href="../../index.html">&larr; Wiki home</a><a href="../index.html">Internal</a><a href="./index.html">Tickets</a><a href="./feat-002-attract-mode-integration.html">FEAT-002</a></nav><main class="wiki-main">
-  <header class="wiki-header"><p class="wiki-eyebrow">Ticket &middot; bug</p><h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">Approved</span></h1><p class="wiki-meta">Reproduce the arcade title actors, coordinates, frames, and cadence.</p></header>
-  <section><h2>Identity and ordering</h2><ul><li><strong>Status:</strong> Approved</li><li><strong>Created / updated:</strong> 2026-08-09 / 2026-08-09</li><li><strong>Priority / order:</strong> P1 / 12.3</li><li><strong>Owner:</strong> unassigned</li><li><strong>Parent:</strong> <a href="./feat-002-attract-mode-integration.html">FEAT-002</a></li><li><strong>Dependencies:</strong> BUG-009 must establish the correct attract framebuffer before actor comparison</li><li><strong>Source revision:</strong> working tree on <code>perf/perf-004-capacity-resolution</code> at base <code>7135cbb</code>, 2026-08-09</li></ul></section>
-  <section><h2>Approval brief</h2><h3>Objective and motivation</h3><p>The attract title must show the complete arcade-referenced Lady Bug and enemy actor sequence using shared gameplay sprite services.</p><h3>Reproduction</h3><ol><li>Allow boot to reach the attract title.</li><li>Observe the actors for a complete title-state duration.</li><li>Compare actor count, identity, coordinates, movement, frames, and cadence with retained arcade captures.</li></ol><h3>Observed versus expected</h3><p><strong>Observed:</strong> only Lady Bug and one enemy are visible, and their animation does not appear correct. Current source defines one player destination and one enemy destination, so it cannot encode a larger arcade actor set.</p><p><strong>Expected:</strong> every actor visible in the selected arcade reference sequence appears at capture-backed coordinates and follows the captured frame and timing sequence.</p><h3>Scope</h3><p><strong>In:</strong> capture-backed actor inventory, coordinate transform, frame sequence, duration records, shared sparse drawing, and underlay restoration. <strong>Out:</strong> title map selection, instruction actors, new sprite art unless a capture proves an absent frame, and independent presentation movement/rendering engines.</p><h3>Discriminating test</h3><p>Extract an actor-by-frame oracle from the retained arcade capture, then compare each published title frame against actor identity, transformed coordinates, sparse frame index, and duration. A static source-label check is insufficient.</p><h3>Acceptance criteria</h3><ul><li>The actor inventory and appearance order match the approved arcade reference interval.</li><li>Coordinates are capture-backed and transformed reproducibly into CoCo screen coordinates.</li><li>Animation frame changes and movement cadence match the reference within one 60 Hz presentation tick after documented frame-rate conversion.</li><li>Each previous actor footprint is restored and no static title cells are damaged.</li><li>No second actor renderer or cold sprite payload is introduced.</li></ul></section>
-  <section><h2>Assignment contract</h2><p>Approved objective; unassigned pending selection of the exact arcade capture interval and a complete <code>Ready</code> contract. Expected artifacts are the retained arcade reference data, <code>src/presentation_runtime.s</code>, focused visual verification, this ticket, index, and log.</p></section>
-  <section><h2>Verification and completion</h2><p>Pending a frame-indexed arcade oracle, natural title capture, pixel comparison, and capacity report.</p></section>
-  <section><h2>Decision log</h2><ul><li>2026-08-09 &mdash; User explicitly approved the BUG-010 approval brief. Advanced to <code>Approved</code>; capture and assignment preparation remain pending.</li><li>2026-08-09 &mdash; Drafted separately from boot selection because source currently represents only one enemy destination while the reported fidelity defect concerns actor inventory and animation.</li></ul></section>
-  <footer class="wiki-footer"><p>Evidence source: user-observed title sequence, <code>src/presentation_runtime.s</code>, and retained arcade captures referenced by FEAT-002.</p></footer>
-</main></div></body></html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-010 Attract actor fidelity &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./feat-002-attract-mode-integration.html">FEAT-002</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Ticket &middot; bug</p>
+      <h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">Ready</span></h1>
+      <p class="wiki-meta">Reproduce the arcade title actors, coordinates, frames, and cadence.</p>
+    </header>
+
+    <section>
+      <h2>Identity and ordering</h2>
+      <ul>
+        <li><strong>Status:</strong> Ready</li>
+        <li><strong>Created / updated:</strong> 2026-08-09 / 2026-08-10</li>
+        <li><strong>Priority / order:</strong> P1 / 12.3</li>
+        <li><strong>Owner:</strong> one bounded implementation owner; parent owns integration and closure</li>
+        <li><strong>Parent:</strong> <a href="./feat-002-attract-mode-integration.html">FEAT-002</a></li>
+        <li><strong>Dependencies:</strong> satisfied; BUG-009 is integrated and closed at current <code>main</code></li>
+        <li><strong>Source revision:</strong> current-<code>main</code> capture checkpoint <code>6588297665e86b2c9bb55062af00096abb6594d5</code>, based on BUG-009 closure <code>44b8d5e</code></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>The attract title must show the complete arcade-referenced actor sequence using the existing gameplay sparse renderer and persistent framebuffer publication path.</p>
+
+      <h3>Reproduction and measured baseline</h3>
+      <ol>
+        <li>Launch the current integrated cartridge without input and allow boot to publish the attract title.</li>
+        <li>Observe the complete title-state interval before instructions.</li>
+        <li>Compare actor inventory, positions, source frames, phase durations, underlay restoration, and framebuffer publication with <code>assets/arcade/attract_actor_reference.json</code>.</li>
+      </ol>
+      <p><strong>Current CoCo baseline:</strong> <code>src/presentation_runtime.s</code> draws only two hard-coded actors at <code>$661C</code> and stale <code>$2CA4</code>, selects only frame values zero through three, redraws every attract tick without restoring four independent footprints, and holds attract for 360 ticks. The BUG-009 closure build at current <code>main</code> measures resident <code>8190/8192</code> bytes, assets <code>7144/7680</code>, bank-3 runtime <code>4081/4096</code>, presentation module <code>1214/1280</code>, cold payload <code>9755/10874</code>, combined module/cold <code>10969/14219</code>, CPU-readable GMC spare <code>3743</code> bytes, and future-sound margin <code>2207/512</code> bytes.</p>
+      <p><strong>Measured arcade oracle:</strong> a neutral-input MAME 0.220 capture records 1,800 consecutive BGRA32 frames. Complete title frames are 185 through 742 inclusive, a single measured interval of 558 frames. Four stationary actors animate synchronously. Phase zero lasts six frames because the complete title begins mid-cycle; phases one, two, three, and zero then repeat in eight-frame holds. Frame 743 is blank, frame 744 begins instruction drawing, and frame 745 is the first complete instruction frame. One capture frame maps to one CoCo 60 Hz Vbord tick. The capture command, raw hash, coordinate transform, four source-code sequences, crop hashes, and boundary hashes are canonical in the oracle.</p>
+      <p>The actors are upper-left Yellow at raw <code>(64,16)</code> / CoCo <code>(56,112)</code> / <code>$661C</code>; upper-right Purple at raw <code>(152,32)</code> / CoCo <code>(72,24)</code> / <code>$2F24</code>; lower-left Pink at raw <code>(24,64)</code> / CoCo <code>(104,152)</code> / <code>$7F34</code>; and lower-middle Green at raw <code>(96,72)</code> / CoCo <code>(112,80)</code> / <code>$5238</code>. Three sequences map entirely to existing enemy sparse indexes. Purple phases zero and one are absent; appending those two capture-proven frames changes the enemy payload from 22,683 to a projected 23,005 bytes, a 322-byte net increase, and remains inside physical pages <code>$35-$37</code> with 1,571 destination bytes spare.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> capture-backed inventory, coordinate transform, frame sequence, duration records, two capture-proven missing sparse frames, existing sparse drawing, four independent underlays, persistent-owner preparation, and focused natural/forced verification. <strong>Out:</strong> title map selection or artwork, instruction actors, gameplay actor behavior or indexes zero through 127, independent actor renderers, cold sprite pixels, sound, and BUG-011 through BUG-013 behavior.</p>
+
+      <h3>Natural sequence, scenarios, and failure cases</h3>
+      <ol>
+        <li>Prior screen remains complete while the attract screen is prepared without visible partial writes.</li>
+        <li>Both persistent owners receive the same complete static title and phase-zero actors before the first title publication.</li>
+        <li>The first complete title frame starts the 558-tick oracle interval: phase zero for six ticks, then synchronized eight-tick phases <code>1,2,3,0</code>.</li>
+        <li>At each phase change, restore all four old footprints, draw all four new frames through the existing sparse decoder, restore PAR5, and publish at Vbord.</li>
+        <li>After tick 558, leave BUG-009 screen selection and the existing instruction-loading transition in control; the arcade partial-draw boundary is evidence, not a requirement to expose a partial CoCo screen.</li>
+      </ol>
+      <ul>
+        <li>Cold launch, warm reset, and the later natural attract-loop return must show the same interval.</li>
+        <li>Initial owner orders <code>(front A, back B)</code> and <code>(front B, back A)</code> must converge to identical title pixels and actor metadata.</li>
+        <li>Credit and start edges during owner preparation, phase restoration, the last title tick, and instruction handoff must pre-empt without a partial title, stale underlay, or lost edge.</li>
+        <li>A missing actor, wrong source code, wrong transform, wrong hold, changed static title cell, write to FRONT, missed commit, PAR5 leak, payload overflow, or absent natural scenario is a failure.</li>
+      </ul>
+
+      <h3>Selected design and rejected alternatives</h3>
+      <p>Use the existing compatibility framebuffer at physical pages <code>$28-$2B</code> only as a pixel-identical hold surface while both persistent owners are prepared. Copy the current visible owner to that surface in bounded chunks, select it at Vbord, render the authored attract map into owners A and B through the existing map loader, capture four canonical 128-byte underlays at <code>$B000-$B1FF</code>, draw phase zero into both owners, then enter normal A/B Vbord publication and start the 558-tick timer. If preparation is pre-empted, retain the complete hold surface until the replacement screen publishes. Pages <code>$28-$2B</code> are already reserved compatibility storage and <code>$B000-$B1FF</code> is within documented free game-state RAM; no new runtime owner or physical allocation is introduced.</p>
+      <p>Append source sprites 6 and 7 with the oracle's horizontal transform to the existing enemy sparse list as indexes 128 and 129. Preserve indexes zero through 127 byte-for-byte. Store only four destinations, sixteen sparse indexes, and timing/underlay metadata in the existing presentation data path. No sprite pixels may enter the cold presentation payload.</p>
+      <p>Rejected alternatives are direct writes to the scanned FRONT owner, which reintroduce destructive sprite tearing; publishing an unsynchronized BACK owner, which reproduces the mostly-black failure; a second actor renderer or cold sprite atlas, which violates approved scope; and changing existing gameplay sparse indexes, which creates unnecessary gameplay risk.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>All four actors, source frames, fixed coordinates, and appearance order match the oracle for every title frame.</li>
+        <li>Phase boundaries match within one 60 Hz tick, total complete-title duration is 558 ticks, and no extra actor-visible pre-roll is introduced.</li>
+        <li>Every old footprint restores to the authored title pixels; both owner orders converge exactly and no static title cell changes.</li>
+        <li>Existing sparse indexes zero through 127 and all gameplay actor behavior remain unchanged; only capture-proven indexes 128 and 129 are appended.</li>
+        <li>No second renderer, cold sprite pixels, FRONT writes, missed commits, PAR5 leak, hard-capacity failure, or required-scenario omission occurs.</li>
+        <li>Every preparation and phase-change worklist completes within the 29,666-cycle hardware maximum; the engineering target is at most 27,000 cycles.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Approved objective and non-goals:</strong> implement the approval brief and acceptance criteria without changing title artwork/selection, instructions, credit screens, demo/gameplay rules, sound, input mapping, renderer ABI, or gameplay sparse indexes.</li>
+        <li><strong>Branch and worktree:</strong> use branch <code>codex/bug-010-attract-actors</code> in <code>D:\retro\ladybug-worktrees\bug-010-attract-actors</code>, starting from current-<code>main</code> capture checkpoint <code>6588297665e86b2c9bb55062af00096abb6594d5</code>. Unrelated dirty PERF-004, generated build, <code>.gitignore</code>, Tiled-session, and DOC-003 files in the parent worktree are excluded.</li>
+        <li><strong>Owned artifacts:</strong> <code>src/presentation_runtime.s</code>; <code>scripts/build_screen.py</code>, <code>scripts/build_sparse_sprites.py</code>, and <code>scripts/build_presentation.py</code> only for the two appended sparse frames and compact actor metadata; a focused <code>scripts/verify_bug010_attract_actors.py</code>; generated presentation/sparse loader, manifest, map, listing, and ROM outputs required by the canonical build; this ticket, ticket index, memory map/source structure/lessons learned if their implemented contracts change, and project log.</li>
+        <li><strong>Read-only evidence and adjacent scope:</strong> <code>assets/arcade/attract_actor_reference.json</code>, <code>scripts/mame_plans/attract-idle.json</code>, and <code>scripts/verify_attract_actor_reference.py</code> are fixed capture evidence unless a repeat capture disproves them. <code>src/main.s</code>, <code>src/enemy_runtime.s</code>, authored TMX maps, BUG-011 through BUG-013, FEAT-003, gameplay actor selection, and keyboard mapping are read-only.</li>
+        <li><strong>Implementation constraints:</strong> use pages <code>$28-$2B</code> only as the bounded presentation hold surface and <code>$B000-$B1FF</code> only for four title underlays. Use existing map, save/restore, sparse decode, PAR5 restoration, and Vbord commit services. Restore-all must precede draw-all. Input scanning remains global during preparation. Any new helper module, expanded runtime window, second renderer, cold sprite pixels, or change to the approved risk/capacity profile requires renewed approval.</li>
+        <li><strong>Capacity gates:</strong> the projected two-frame sparse payload is <code>23005/24576</code> bytes and ends at page <code>$37:$B9DD</code>. Compact cold actor records are projected at 24 bytes. Against the current-main baseline, these data changes project GMC spare of 3,397 bytes and future-sound margin of 1,861 bytes against the 512-byte reserve. The implementation must still assemble resident at or below <code>8192</code>, assets at or below <code>7680</code>, bank-3 at or below <code>4096</code>, presentation module at or below <code>1280</code>, cold payload at or below <code>10874</code>, combined module/cold at or below <code>14219</code>, and retain the 512-byte future-sound reserve. No additional module budget is authorized.</li>
+        <li><strong>Focused verifier:</strong> create a maximum 30-second natural cold phase and separate maximum 30-second natural loop-return phase. Each phase names first title publication and instruction handoff as success markers. Record authored/staged/live module hashes, selected owner, hold-surface state, both A/B framebuffer hashes, actor destinations/indexes/phases, underlay hashes, PAR5, PENDING/ACTIVE, commit/missed/front-write counters, title tick, and exact transition frame. Timeout means the required natural boundary was not reached.</li>
+        <li><strong>Required scenarios:</strong> natural unattended cold boot through instructions; natural complete attract loop returning to title; warm reset; isolated owner orders A/B and B/A from identical pixels and metadata; every phase boundary; last title tick; credit <code>5</code> and <code>6</code> plus start <code>1</code> during hold copy, first-owner load, second-owner load, actor restore, actor draw, and final handoff; oracle mutation rejection; and existing forced gameplay/demo probes.</li>
+        <li><strong>Required commands:</strong> <code>python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 1800 --skip-player-recognition --video-from 1 --plan scripts/mame_plans/attract-idle.json --output /tmp/bug010-attract-capture.json --raw-video /tmp/bug010-attract-video.bin</code>; <code>python3 scripts/verify_attract_actor_reference.py --raw-video /tmp/bug010-attract-video.bin</code>; <code>bash scripts/build.sh build</code>; <code>python3 scripts/verify_bug010_attract_actors.py --rom build/ladybug.rom --map build/ladybug.map --presentation-map build/ladybug-presentation-runtime.map --manifest build/ladybug-presentation.json --oracle assets/arcade/attract_actor_reference.json --cold-timeout 30 --loop-timeout 30</code>; <code>python3 scripts/verify_presentation_flow.py</code>; <code>bash scripts/build.sh verify-gmc</code>; and <code>git diff --check -- src/presentation_runtime.s scripts/build_screen.py scripts/build_sparse_sprites.py scripts/build_presentation.py scripts/verify_bug010_attract_actors.py assets/arcade/attract_actor_reference.json wiki/internal/implementation/memory-map.html wiki/internal/implementation/source-structure.html wiki/internal/implementation/lessons-learned.html wiki/internal/tickets/bug-010-attract-actor-fidelity.html wiki/internal/tickets/index.html wiki/internal/log.html</code>.</li>
+        <li><strong>Retained evidence:</strong> tracked capture plan/oracle/verifier; raw-video, plan, boundary-frame, and actor-crop hashes; exact runtime phase trace; natural cold and loop-return recording; both owner-order A/B hashes; hold-surface and underlay hashes; authored/staged/live identity; sparse index and payload proof; worklist cycles; capacity output; full command output; rejected experiments; and source diff. The 331,776,000-byte raw BGRA capture remains temporary and untracked because its canonical hash and reproduction command are retained.</li>
+        <li><strong>Commit and authority:</strong> produce one bounded BUG-010 implementation commit. The assignee may not merge, push, close BUG-010, modify BUG-011 through BUG-013, or alter approved scope. Rejected experiments must be reverted before commit.</li>
+        <li><strong>Completion report:</strong> provide commit hash; exact commands/results; result against every actor, cadence, owner, input, timing, diagnostic, and capacity target; before/after module/cold/sparse/GMC headroom; natural and forced evidence; rejected experiments; residual risks; and recommendation for <code>Verification</code> or continued work.</li>
+      </ul>
+      <p><strong>Ready gate:</strong> satisfied. The current-main dependency checkpoint, exact capture interval and oracle, design, physical/RAM ownership, artifacts, branch/worktree, hard limits, commands, natural and forced scenarios, evidence retention, commit boundary, and authority are fixed.</p>
+    </section>
+
+    <section>
+      <h2>Assignment-preparation verification</h2>
+      <p><strong>QA verdict 2026-08-10: Ready.</strong> The neutral MAME capture completed 1,800 frames in a bounded 30-second emulated interval. Standalone and raw-video oracle verification passes all 558 title frames, four actor crops, source-code/palette transforms, coordinates, schedule boundaries, capture hashes, existing sparse-index matches, two missing-frame append indexes, and the 322-byte sparse projection. Python compilation, HTML parsing, ticket/index synchronization, and whitespace checks pass. No runtime or cartridge source changed during assignment preparation, so the current-main build and capacity evidence remains applicable. Runtime implementation and acceptance remain pending.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-10 &mdash; User directed BUG-010 to use current <code>main</code> because it is the working integrated version and identified the older revision references as stale. Captured the neutral arcade sequence, committed the oracle checkpoint as <code>6588297</code>, completed the persistent-owner design and assignment contract, and advanced BUG-010 from <code>Approved</code> to <code>Ready</code>.</li>
+        <li>2026-08-09 &mdash; User explicitly approved the BUG-010 approval brief. Advanced to <code>Approved</code>; capture and assignment preparation remained pending.</li>
+        <li>2026-08-09 &mdash; Drafted separately from boot selection because source represented only one enemy destination while the fidelity defect concerns actor inventory and animation.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Canonical evidence: <code>assets/arcade/attract_actor_reference.json</code>, its neutral-input capture plan and verifier, current <code>src/presentation_runtime.s</code>, and BUG-009 current-main closure.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
