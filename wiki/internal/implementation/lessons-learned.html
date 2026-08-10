@@ -1737,6 +1737,14 @@ git reset --hard HEAD
       <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>actor_closure_draw</code>; BUG-006 focused XRoar replay.</p>
     </section>
 
+    <section>
+      <h2>Keep transient publication state separate from hydration ownership</h2>
+      <p><strong>Filed 2026-08-10.</strong> BUG-010 runtime replay exposed two state hazards after the static hold protocol passed: the copy-owner counter reaches value three before transient publication, and actor-overlay execution resumes with PAR5 still pointing at the hold page unless it is explicitly restored.</p>
+      <p><strong>Rule:</strong> discriminate the final publication path from the copy-owner counter without treating owner three as the final-cancel state. Before actor-table or underlay access, restore PAR5 to the game-state page and pass the module renderer's destination through its presentation destination pointer. Keep ID 2 confined to the Vbord publication interval.</p>
+      <p><strong>Applies to:</strong> compatibility hold surfaces, persistent A/B hydration, retained actor restore/draw, and any helper that crosses a banked framebuffer mapping.</p>
+      <p><strong>Citation:</strong> <code>src/perimeter_reset_helper.s</code>; <code>scripts/verify_bug010_runtime.py</code>; BUG-010 runtime evidence.</p>
+    </section>
+
   </main>
 </div>
 </body>

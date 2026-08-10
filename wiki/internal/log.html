@@ -14,6 +14,10 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-10 &middot; runtime verification &mdash; BUG-010 hold and owner protocol</h3>
+      <p>Added <code>scripts/verify_bug010_runtime.py</code> and retained <code>build/bug010-runtime-evidence.json</code> (SHA-256 <code>bb177d9d56db953ac452e52e6ccf2c10358dc26aa50f1d77f69a70b8db5db92</code>). Patched-XRoar monitor replay passes all 30 1,024-byte hold chunks, transient framebuffer ID 2 at Voffset <code>$A0</code>, exact hold/source hash <code>4c7eea521d2218c5965fd3666c694a967a939e29a6928d528b6ed1101176b8ac</code>, isolated A/B and B/A owner orders, two no-publication hydrations, and input pre-emption at copy five to replacement screen 3. The evidence pass also corrected final owner-counter discrimination and restored PAR5/module destination before actor rendering. A bounded 45-second GDB/XRoar cycle probe did not reach <code>hold_copy_chunk</code>; worklist cycle limits, natural 558-tick completion, and the broader GMC natural/forced markers remain unproven. BUG-010 remains in Verification.</p>
+    </section>
+    <section>
       <h3>2026-08-10 &middot; commit correction &mdash; BUG-010</h3>
       <p>The final amended implementation commit is <code>76b27f9</code>; the earlier provisional identifier <code>a37b4d4</code> is superseded. Verification status and evidence gaps are unchanged.</p>
     </section>

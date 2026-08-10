@@ -114,8 +114,8 @@ pht_request
 pht_active
         rts
 pht_publish
-        tst     PRES_HOLD_OWNER
-        bne     pht_cancel_final
+        dec     PRES_HOLD_OWNER
+        beq     pht_cancel_final
         tst     PENDING
         bne     pht_active
         orcc    #$10
@@ -176,6 +176,8 @@ presentation_attract_overlay_impl
         beq     pao_done
         sta     PRES_ACTOR_PHASE
         jsr     PRES_MAIN_FB_PREPARE
+        lda     #$34
+        sta     PAR5
         clr     PRES_ACTOR_KIND
 pao_pass
         ldx     #PRES_ACTOR_TABLE
@@ -192,7 +194,7 @@ pao_restore
         jsr     PRESENTATION_MODULE_RESTORE_PLAYER
         bra     pao_next
 pao_draw_actor
-        std     PLAYER_FB
+        std     PRES_DST
         leax    2,x
         ldb     PRES_ACTOR_PHASE
         abx
@@ -211,8 +213,6 @@ pao_next
         sta     PRES_ACTOR_KIND
         bra     pao_pass
 pao_after_pass
-        lda     #$34
-        sta     PAR5
         lda     PRES_HOLD_STATE
         cmpa    #PRES_HOLD_HYDRATE
         beq     pao_capture
