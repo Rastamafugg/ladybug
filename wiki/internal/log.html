@@ -14,6 +14,10 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-10 &middot; triage &mdash; Post-BUG-008 demo, release, and lifecycle reports</h3>
+      <p>Mapped the player-controllable, non-autonomous demo observation to existing approved BUG-012 because its contract already requires deterministic demo input and excludes live controls. Created Proposed BUG-014 for immediate first-enemy release before perimeter timer expiry and Proposed BUG-015 for an active one-player game returning to attract before final-life game over and optional high-score completion. The new briefs preserve natural golden paths, edge cases, discriminating traces, dependencies, exclusions, and measurable acceptance criteria. No new bug implementation is authorized.</p>
+    </section>
+    <section>
       <h3>2026-08-10 &middot; implementation/verification &mdash; BUG-008 coin destination preservation</h3>
       <p>Implemented the authorized four-byte <code>PSHS Y</code>/<code>PULS Y</code> repair around <code>draw_tile_id</code> in <code>draw_coin_next</code> and committed it as <code>1d85066999cd90d66ce65eb0d8c2714c97fb236e</code>. The presentation module measures <code>1,226/1,280</code> bytes with 54 bytes remaining; cold payload remains 9,755 bytes, combined payload is <code>10,981/14,219</code>, CPU-readable GMC capacity has 3,731 bytes spare, and future-sound margin is <code>2,195/512</code>. A bounded natural XTest <code>5</code>-then-<code>1</code> run matched live presentation bytes to the built artifact, retained resident code <code>81 02 25 10</code>, initialized eight entities, entered mode 0, completed six gameplay loops, and captured a coherent maze, HUD, nest enemy, player, and collectibles. Focused BUG-008 and combined GMC verification pass. BUG-008 remains in Verification pending integration.</p>
     </section>
