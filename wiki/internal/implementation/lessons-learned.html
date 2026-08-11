@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Arcade sprite animation families may cross sheet columns at row wrap</h2>
+      <p><strong>Filed 2026-08-11.</strong> BUG-010 derived each attract family by keeping the selected sheet column fixed while stepping through adjacent rows. Cell <code>(11,3)</code> requires the visible sequence <code>r6c2, r7c2, r0c1, r7c2</code> using zero-based sheet coordinates, so its row-zero frame moves to the preceding column instead of wrapping within column 2.</p>
+      <p><strong>Rule:</strong> treat captured animation-frame identity as authoritative and permit explicit per-phase sheet coordinates. A regular neighboring-row rule is a default, not evidence that every family remains in one column.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-010-attract-actor-fidelity.html">BUG-010</a>, <code>assets/arcade/sprites_raw2bpp.png</code>, <code>scripts/build_presentation.py</code>, and <code>scripts/verify_bug010_attract_actors.py</code>.</p>
+    </section>
+
+    <section>
       <h2>Semantic grayscale names are not raw sprite pen order</h2>
       <p><strong>Filed 2026-08-11.</strong> BUG-010 colour tuples were specified in white, light-grey, dark-grey order, while the raw arcade sprite values encode dark grey, light grey, and white as numeric pens 1, 2, and 3. Directly appending the semantic tuple to transparent pen zero exchanged the requested first and third colours for every actor.</p>
       <p><strong>Rule:</strong> establish raw pen semantics independently before applying named colour substitutions, then validate each non-transparent source pixel against the packed output. Comparing only the set of colours cannot detect a pen permutation.</p>

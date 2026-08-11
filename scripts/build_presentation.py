@@ -79,6 +79,11 @@ ATTRACT_ACTOR_EXPECTED_TILES = {
     (33, 19): 35,
     (5, 20): 2,
 }
+# The (11,3) family crosses to the preceding sheet column for its row-0
+# wrap frame. Keys use actor cell and stored phase; values are sheet row/column.
+ATTRACT_ACTOR_PHASE_OVERRIDES = {
+    ((11, 3), 0): (0, 1),
+}
 ATTRACT_ACTOR_SURFACE_PAGE = 0x3C
 ATTRACT_ACTOR_SURFACE_ADDRESS = 0xA000
 ATTRACT_ACTOR_BYTES = 128
@@ -224,7 +229,10 @@ def compile_attract_surfaces(
             row = int(actor["sheet_row"])
             column = int(actor["sheet_column"])
             phase_rows = ((row + 2) % 8, (row + 1) % 8, row)
-            code = sheet_code(phase_rows[phase], column)
+            phase_cell = ATTRACT_ACTOR_PHASE_OVERRIDES.get(
+                (tuple(actor["cell"]), phase), (phase_rows[phase], column)
+            )
+            code = sheet_code(*phase_cell)
             sprite = sprite_transform(rotate_ccw(sprites[code]), int(actor["flags"]))
             # Raw sprite pens are dark grey, light grey, white for 1, 2, 3.
             # The authored triples are specified as white, light grey, dark grey.

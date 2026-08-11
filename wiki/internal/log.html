@@ -14,6 +14,11 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-11 &middot; correction/verification &mdash; BUG-010 cell (11,3) wrap frame</h3>
+      <p>Replaced source code 23 with code 15 only for the row-zero frame of cell <code>(11,3)</code>, producing the required zero-based sheet sequence <code>r6c2, r7c2, r0c1, r7c2</code>. Per-pixel source verification, the exact cold visible flow, all four natural phase hashes, 71 phase-cycle worklists, 60 hold-copy worklists, owner orders, input pre-emption, and full natural/forced GMC integration pass. The compressed actor payload falls to 1,038 bytes, GMC source spare rises to 2,084, and future-sound margin rises to 548/512. BUG-010 returns to Verification pending the controlled natural-sequence loop-return capture.</p>
+    </section>
+
+    <section>
       <h3>2026-08-11 &middot; correction/verification &mdash; BUG-010 actor pens and starting frames</h3>
       <p>Implementation commit <code>06998ba</code> confirms that raw sprite pens 1, 2, and 3 encode dark grey, light grey, and white, while the approved tuples name white, light grey, and dark grey replacements. Reversing the outer semantic entries corrects all seven actors. The user-authored TMX correction changes cells <code>(11,3)</code> and <code>(27,5)</code> to tiles 98 and 65 with phase families 23/16/17 and 9/10/11. A per-pixel source-to-surface oracle, cold visible flow, all four phase captures, 60 hold-copy samples, and full natural/forced GMC verification pass. Minimum-byte LZSS parsing retains 2,060 GMC source bytes spare and 524 bytes of future-sound margin. BUG-010 returns to Verification pending the controlled natural-sequence loop-return capture.</p>
     </section>

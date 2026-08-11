@@ -30,7 +30,7 @@ BOOT_SOURCE = ROOT / "src/gmc_bootstrap.s"
 SPRITES = ROOT / "assets/arcade/sprites.json"
 
 EXPECTED_ACTORS = (
-    ([11, 3], 0x2F2C, [23, 16, 17], [6, 5, 4], 0xA0000000),
+    ([11, 3], 0x2F2C, [15, 16, 17], [6, 5, 4], 0xA0000000),
     ([35, 4], 0x348C, [45, 46, 47], [6, 2, 13], 0),
     ([27, 5], 0x396C, [9, 10, 11], [6, 5, 9], 0x60000000),
     ([3, 9], 0x4D0C, [33, 34, 35], [6, 2, 13], 0),
@@ -128,7 +128,7 @@ def main() -> None:
     if records.get("bytes") != 2688 or records.get("unique_phases") != 3:
         fail("actor surfaces are not the 7 x 3 x 128-byte format")
     bundle = presentation.get("attract_actor_bundle", {})
-    if (bundle.get("compressed_bytes") != 1062 or bundle.get("metadata_bytes") != 20 or
+    if (bundle.get("compressed_bytes") != 1038 or bundle.get("metadata_bytes") != 20 or
             bundle.get("destination_table_address") != 0xAA80 or
             bundle.get("phase_pointer_address") != 0xAA8E):
         fail("compressed actor bundle differs")
