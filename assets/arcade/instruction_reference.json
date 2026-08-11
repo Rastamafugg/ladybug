@@ -1,0 +1,177 @@
+{
+  "schema": "ladybug-mame-instruction-reference-v1",
+  "provenance": {
+    "driver": "ladybug",
+    "mame_version": "0.220 (unknown)",
+    "capture_plan": "scripts/mame_plans/attract-idle.json",
+    "capture_plan_sha256": "8bbb83817cf1804217c355c8f3f26d05ac2a0efb8db7c4c4741347a7382b830f",
+    "capture_command": "python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 4200 --video-from 650 --plan scripts/mame_plans/attract-idle.json --skip-player-recognition --output build/bug011-mame-instructions-capture.json --raw-video build/bug011-mame-instructions-video.bgra --raw-background build/bug011-mame-instructions-background.bin --raw-work-ram build/bug011-mame-instructions-workram.bin",
+    "captured_frames": 4200,
+    "raw_video_sha256": "381fc8626622cef1e548943006a56bdc84a50eda3239cc09f19f8fcd56fc27fd",
+    "video": {
+      "first_frame": 650,
+      "retained_frames": 3551,
+      "frame_rate_hz": 60,
+      "width": 192,
+      "height": 240,
+      "pixel_format": "BGRA32",
+      "frame_unit": "one emu.register_frame_done callback"
+    }
+  },
+  "instruction_interval": {
+    "first_complete_frame": 745,
+    "last_complete_frame": 2356,
+    "duration_frames": 1612,
+    "next_screen_first_partial_frame": 2357,
+    "next_screen_first_complete_frame": 2359
+  },
+  "colour_clock": {
+    "starting_colour": "red",
+    "starting_value": 800,
+    "first_complete_frame": 745,
+    "first_transition_frame": 776,
+    "dwell_frames": 30,
+    "repeat_order": ["yellow", "blue", "red"],
+    "values": {"red": 800, "yellow": 300, "blue": 100},
+    "last_transition_frame": 2186,
+    "freeze_frame": 2197,
+    "source_rgb": {
+      "red": [255, 81, 0],
+      "yellow": [255, 255, 0],
+      "blue": [0, 174, 255]
+    },
+    "conversion_to_coco": "one captured arcade frame maps to one 60 Hz CoCo Vbord tick"
+  },
+  "rows": [
+    {
+      "name": "EXTRA",
+      "trigger_colour": "yellow",
+      "actor_start_frame": 745,
+      "actor_start_xy": [10, 58],
+      "targets": [
+        {"name": "E", "target_xy": [44, 60], "motion_first_frame": 852, "trigger_frame": 866, "consume_frame": 882},
+        {"name": "X", "target_xy": [60, 60], "motion_first_frame": 958, "trigger_frame": 956, "consume_frame": 972},
+        {"name": "T", "target_xy": [76, 60], "motion_first_frame": 1048, "trigger_frame": 1046, "consume_frame": 1062},
+        {"name": "R", "target_xy": [92, 60], "motion_first_frame": 1138, "trigger_frame": 1136, "consume_frame": 1152},
+        {"name": "A", "target_xy": [108, 60], "motion_first_frame": 1228, "trigger_frame": 1226, "consume_frame": 1242}
+      ],
+      "reward": "ladybug_life",
+      "reward_frame": 1242,
+      "next_row_actor_frame": 1243
+    },
+    {
+      "name": "SPECIAL",
+      "trigger_colour": "red",
+      "actor_start_frame": 1243,
+      "actor_start_xy": [10, 82],
+      "targets": [
+        {"name": "S", "target_xy": [44, 84], "motion_first_frame": 1272, "trigger_frame": 1286, "consume_frame": 1302},
+        {"name": "P", "target_xy": [60, 84], "motion_first_frame": 1378, "trigger_frame": 1376, "consume_frame": 1392},
+        {"name": "E", "target_xy": [76, 84], "motion_first_frame": 1468, "trigger_frame": 1466, "consume_frame": 1482},
+        {"name": "C", "target_xy": [92, 84], "motion_first_frame": 1558, "trigger_frame": 1556, "consume_frame": 1572},
+        {"name": "I", "target_xy": [108, 84], "motion_first_frame": 1648, "trigger_frame": 1646, "consume_frame": 1662},
+        {"name": "A", "target_xy": [124, 84], "motion_first_frame": 1738, "trigger_frame": 1736, "consume_frame": 1752},
+        {"name": "L", "target_xy": [140, 84], "motion_first_frame": 1828, "trigger_frame": 1826, "consume_frame": 1842}
+      ],
+      "reward": "coin",
+      "reward_frame": 1842,
+      "next_row_actor_frame": 1843
+    },
+    {
+      "name": "HEARTS",
+      "trigger_colour": "blue",
+      "actor_start_frame": 1843,
+      "actor_start_xy": [10, 106],
+      "targets": [
+        {"name": "heart_x2", "target_xy": [44, 108], "motion_first_frame": 1872, "trigger_frame": 1886, "consume_frame": 1902, "multiplier": 2},
+        {"name": "heart_x3", "target_xy": [76, 108], "motion_first_frame": 1962, "trigger_frame": 1976, "consume_frame": 1992, "multiplier": 3},
+        {"name": "heart_x5", "target_xy": [108, 108], "motion_first_frame": 2052, "trigger_frame": 2066, "consume_frame": 2082, "multiplier": 5}
+      ],
+      "skull": {
+        "target_xy": [164, 108],
+        "motion_first_frame": 2142,
+        "last_ladybug_frame": 2196,
+        "collision_frame": 2197
+      }
+    }
+  ],
+  "event_frame_sha256": {
+    "866": "e4d2b7c1da027d8cf123e2404d5d9e90d9b5098f48a11f9805f63fc3bc66e51c",
+    "882": "a74b8616483dfd2dee63348c8586dfba47bf39b11f4a551ec6e6ec143791e536",
+    "956": "8a44cea2937589b2d6798023e196c8c46ed772ad078e4cf82da8f6f6188c586e",
+    "972": "2b34612a4ce99d2b44a8f9980f6423b2768c7e7096ba2bb75691a0ff5c225dc7",
+    "1046": "46a63843c9dbb868220daf1315fdf12fce06ab17385e2ce74bf32b5c3de901d3",
+    "1062": "798b83d2aa24dc10ba8d3e9005f20d5cda4b635376f989a35d3f34bed7099d01",
+    "1136": "ce9072885619e89159ae91203aee98d8ae2bf8c89bab8235695228e48788a267",
+    "1152": "9687f0d622559a396b3ed731aa51a39ed74642518bcb75961e59099e721eee87",
+    "1226": "3eb12bd5c277acc3e620ad43bfcab8f210ab59773aa73f8e1d4b1899d8140676",
+    "1242": "1212fb2c65fe0a246da23c949f5334c1d609ad4f1a9e35920ee4f08206fef5af",
+    "1286": "7ea5973d8aa9d5cbd0652173402a8cc02a214cd26ff3f6d7d9387220e8858113",
+    "1302": "7c70ec74ef675852362a95e14ba830cebc73c1cbd821c83e2a94b3bac030c8c1",
+    "1376": "97de0facc26da1c3fd8624a335112032df3e223d0ad9e5cd2952cda7b8bfee76",
+    "1392": "7093d9ca766e29e21c03e1248fe9b9148a7f1e35908d1a9137cf8c234ab25675",
+    "1466": "f9e80286e1383e79cde7f10af2f0694adbf32af947bbd79dfe7cc3b2d171a457",
+    "1482": "a21040e14337be117e9e4b588cc44741e5b88825791d67c5748e1427a6bb7688",
+    "1556": "70fafeed2096daf644e1cdb0d3373fcf5ec64a9ea57b79eaac615359444afbd2",
+    "1572": "17d9131ae3b4ec0554de5efa9bf864f683fbcedba4a7f25c539bf0ccde15ad67",
+    "1646": "da2f070147b0efa65a18e0d1fcfc15a9948cfa34ffc35dfc7d8099b9cac03f6f",
+    "1662": "885fe4ad00b69e13d1a17325ddaf89d66208449eda026fca8097f5f96851c57b",
+    "1736": "829a032692e17d2b8e1921d590bec3213e5390a795949f63ea60c12a51739ec6",
+    "1752": "535859df7ae0c744fc13e0c15f6910a43c35bbf780efc7c7f43d1b5e2a2a1508",
+    "1826": "f60cbe39667d1faf31ae3da0c95d95389fb85704f202feb4a05189b121f238a2",
+    "1842": "99dc4caf07fcb93c639474dc8d5bf05bf728e1f08a6702ae04bc0d10feb85cda",
+    "1886": "25267738227a5239eb34460e085ed94af1e568c5d817873bf26971d3bcb1c184",
+    "1902": "06d607c97a839236bb9c8306a9abe4e916ca617a34b5258c7f728f9b60f2e5b7",
+    "1976": "2ca4a7a5c1fe23c33cc52265ac50869bcb4023bb858fc82197c09286ffd367e9",
+    "1992": "77d301553bd0f7bd35c51c646c1bcc64bbd331fcdb4f5d9d57af8a0b777a2e0a",
+    "2066": "956dca066dd18e77f5ffef6946ac6628113bbbb402ad2fc417f1dcbfa429a32c",
+    "2082": "4609beb93a19c4c2485077555da960455d41ec204c3cee8b989fc006be79c705"
+  },
+  "death_sequence": {
+    "crop_xywh": [156, 100, 24, 24],
+    "impact": {"first_frame": 2197, "last_frame": 2226, "duration_frames": 30, "crop_sha256": "b6f8010705ab8f470c891c21373a27b0ae3c1437e8743984bdd08288ddf0ba56"},
+    "ordered_frames": [
+      {"first_frame": 2227, "last_frame": 2231, "crop_sha256": "ad966668f919af0ce4b779876fff685ca63c4536f8c82b880fe484e533792779"},
+      {"first_frame": 2232, "last_frame": 2236, "crop_sha256": "4dae1dfb65d9df7666dd8d1653483d986c916973cbaa4048e6a41f175735e824"},
+      {"first_frame": 2237, "last_frame": 2241, "crop_sha256": "59ad702ae54c0d89fc0a662b7c8b7950816430a4b11b2d7bb43e337a1006d350"},
+      {"first_frame": 2242, "last_frame": 2246, "crop_sha256": "e249547644f8994dbcb299fa915ceb867164aa56e81b425abced9135018964a2"},
+      {"first_frame": 2247, "last_frame": 2251, "crop_sha256": "adf2f95a099c5d83e8ea3c6eb6b52ef93f5dea945b79dd054068de50167ccc24"},
+      {"first_frame": 2252, "last_frame": 2256, "crop_sha256": "e83c2014560984ac1446aac169cab031288d8cb128885cb5af401cb4184bacf1"},
+      {"first_frame": 2257, "last_frame": 2261, "crop_sha256": "236dfea999265a68c42243987f307c2f19b80c4ae0b25ed247f9866c6b73d25b"},
+      {"first_frame": 2262, "last_frame": 2266, "crop_sha256": "5b3f9d3e146ac4db4969815bd576bb2d046209c3fdebb4aa59d039c39361e284"},
+      {"first_frame": 2267, "last_frame": 2271, "crop_sha256": "c2b7b2d9de10bdd6163990f41f8529f27a18934f99d794836ae6df6a124fe53f"},
+      {"first_frame": 2272, "last_frame": 2276, "crop_sha256": "0c329eb2f1a79b8d6a055da40a5d8804a2b597930c827ee7da8ca75cc4e96b0e"},
+      {"first_frame": 2277, "last_frame": 2281, "crop_sha256": "6897455559e478f711e02cebfd7d1c9f39ba1797b37ad83b0b27fa45ebbd43c3"},
+      {"first_frame": 2282, "last_frame": 2286, "crop_sha256": "d29d0970d8ef566d06c42fcbfd56f22fd359a46d7b87ca2cb1eb2867a20c52ea"},
+      {"first_frame": 2287, "last_frame": 2291, "crop_sha256": "ecfb064dea8dc70022e6b6e8e182fad0d094becc860608d7ec9f91db48937cf0"}
+    ],
+    "angel_hold": {"first_frame": 2292, "last_frame": 2356, "duration_frames": 65, "stationary": true, "crop_sha256": "8e2bb5b939f505f492f0997d9feed95fbe33627f947ec06557dc23f3ca125229"}
+  },
+  "boundary_frame_sha256": {
+    "745": "a134b84d1309362528c61118ed6e1934d7ef52dae322bde0f121546607d75c35",
+    "776": "a6c3920cc2160279d604d76043ddf8f1991075424ef1e2144763c44787125848",
+    "806": "f53130029a4473884c11eb6540df7f1c7a93b37bae3ac4175529313c3cb02dcc",
+    "836": "e8d4523c6fefb78c91a9ad2321c02a3007bcaab174a1f0f3dab578405a5e7220",
+    "1242": "1212fb2c65fe0a246da23c949f5334c1d609ad4f1a9e35920ee4f08206fef5af",
+    "1243": "4e19a4df8eec66276ee88e2c9a8d3c3f70441d3e8a07df23d059053fb8132430",
+    "1842": "99dc4caf07fcb93c639474dc8d5bf05bf728e1f08a6702ae04bc0d10feb85cda",
+    "1843": "c85b22f039bbe893bb9bf3c528e70f55c73dce7cd319a24e50d7e64f0d6e8891",
+    "1902": "06d607c97a839236bb9c8306a9abe4e916ca617a34b5258c7f728f9b60f2e5b7",
+    "1992": "77d301553bd0f7bd35c51c646c1bcc64bbd331fcdb4f5d9d57af8a0b777a2e0a",
+    "2082": "4609beb93a19c4c2485077555da960455d41ec204c3cee8b989fc006be79c705",
+    "2196": "83d527a78ad4bf584eadcaa162d6201834f578749181f22886925a0f0b62a6a6",
+    "2197": "f2078b39a2d8cf08e6f84bcaebee7c683638976869b44cf100d72c92e4799dfb",
+    "2227": "c82fb896ec1a206e94d2982a4d9cb2e280534c4c6d19143c0b559462d250a149",
+    "2292": "6a34666a12800441b89314d851389406ee43c733d77412da7a8ed61d3a11b4d8",
+    "2356": "6a34666a12800441b89314d851389406ee43c733d77412da7a8ed61d3a11b4d8",
+    "2357": "dbcd1f1338010a2aa4323c095e1f53471bd4cda8d8a5ad4e24900b6a8b6d5061",
+    "2359": "303d40d46cd4dd2bd7337087d620c14b6f629fc7fb7414a25c3f976480cb0473"
+  },
+  "implementation_contract": {
+    "point_values": {"red": 800, "yellow": 300, "blue": 100},
+    "hud_colours": {"EXTRA": "yellow", "SPECIAL": "red", "HEARTS": "blue"},
+    "heart_multiplier_destinations": "publish X2, X3, or X5 to both authored point-row fields in the consume epoch",
+    "terminal_adaptation": "replace the source angel pixels with the checkpointed Sprite Locations white-wings surface and keep it stationary for the measured hold",
+    "sound": "excluded from BUG-011"
+  }
+}
