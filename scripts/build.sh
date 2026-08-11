@@ -30,6 +30,8 @@ SPARSE_LOADER="$BUILD_DIR/ladybug-sparse-loader.inc"
 SPARSE_MANIFEST="$BUILD_DIR/ladybug-sparse-layout.json"
 PERIMETER_RESET="$BUILD_DIR/ladybug-perimeter-reset.bin"
 PERIMETER_HELPER="$BUILD_DIR/ladybug-perimeter-reset-helper.bin"
+PERIMETER_HELPER_LST="$BUILD_DIR/ladybug-perimeter-reset-helper.lst"
+PERIMETER_HELPER_MAP="$BUILD_DIR/ladybug-perimeter-reset-helper.map"
 MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
 ROM="$BUILD_DIR/ladybug.rom"
 RUNTIME_ROM="$BUILD_DIR/ladybug-runtime.rom"
@@ -280,6 +282,7 @@ wanted = {
     'next_stage': 'PRES_MAIN_NEXT_STAGE',
     'save_player': 'PRES_MAIN_SAVE_PLAYER',
     'restore_player': 'PRES_MAIN_RESTORE_PLAYER',
+    'blit_tile': 'PRES_MAIN_BLIT_TILE',
 }
 symbols = {}
 for line in open(source, encoding='utf-8'):
@@ -351,7 +354,9 @@ PY
 
     lwasm -9 --format=raw \
           --output="$PERIMETER_HELPER" \
+          --list="$PERIMETER_HELPER_LST" \
           --symbols \
+          --map="$PERIMETER_HELPER_MAP" \
           -I "$BUILD_DIR" \
           "$PERIMETER_HELPER_SRC"
     guard_presentation_helper "$PERIMETER_HELPER"

@@ -20,12 +20,18 @@ HELPER_SOURCE = ROOT / "src/perimeter_reset_helper.s"
 ENEMY_SOURCE = ROOT / "src/enemy_runtime.s"
 MODULE = ROOT / "build/ladybug-presentation-runtime.bin"
 HELPER = ROOT / "build/ladybug-perimeter-reset-helper.bin"
+COMPRESSED = ROOT / "build/ladybug-attract-actor-underlays.bin"
+METADATA = ROOT / "build/ladybug-attract-actor-records.bin"
+BOOT_SOURCE = ROOT / "src/gmc_bootstrap.s"
 
 EXPECTED_ACTORS = (
-    (0x661C, (66, 65, 64, 65)),
-    (0x2F24, (128, 129, 12, 129)),
-    (0x7F34, (22, 21, 20, 21)),
-    (0x5238, (34, 33, 32, 33)),
+    ([11, 3], 0x2F2C, [13, 14, 15], [6, 5, 4]),
+    ([35, 4], 0x348C, [45, 46, 47], [6, 2, 13]),
+    ([27, 5], 0x396C, [5, 6, 7], [6, 5, 9]),
+    ([3, 9], 0x4D0C, [33, 34, 35], [6, 2, 13]),
+    ([10, 15], 0x6B28, [3, 4, 5], [2, 5, 1]),
+    ([33, 19], 0x7F84, [27, 28, 29], [6, 8, 5]),
+    ([5, 20], 0x8414, [21, 22, 23], [6, 2, 13]),
 )
 
 
@@ -43,6 +49,32 @@ def phase_schedule(duration: int) -> list[int]:
     return phases
 
 
+def lzss_expand(data: bytes, expected: int) -> bytes:
+    output = bytearray()
+    cursor = 0
+    while len(output) < expected:
+        flags = data[cursor]
+        cursor += 1
+        for _ in range(8):
+            if len(output) >= expected:
+                break
+            if flags & 1:
+                output.append(data[cursor])
+                cursor += 1
+            else:
+                token = int.from_bytes(data[cursor:cursor + 2], "big")
+                cursor += 2
+                offset, length = token >> 4, (token & 15) + 3
+                if not offset or offset > len(output):
+                    fail("compressed actor stream has an invalid back-reference")
+                for _ in range(length):
+                    output.append(output[-offset])
+            flags >>= 1
+    if cursor != len(data):
+        fail("compressed actor stream has trailing bytes")
+    return bytes(output)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rom", type=Path)
@@ -58,6 +90,7 @@ def main() -> None:
     sparse = json.loads(SPARSE.read_text(encoding="ascii"))
     source = SOURCE.read_text(encoding="ascii")
     helper_source = HELPER_SOURCE.read_text(encoding="ascii")
+    boot_source = BOOT_SOURCE.read_text(encoding="ascii")
     enemy_source = ENEMY_SOURCE.read_text(encoding="ascii")
     module_map = (args.presentation_map or MODULE_MAP).read_text(encoding="ascii")
 
@@ -72,41 +105,47 @@ def main() -> None:
     if phase_schedule(558)[6:38] != [1] * 8 + [2] * 8 + [3] * 8 + [0] * 8:
         fail("recurring eight-tick phase schedule is incorrect")
 
-    records = presentation.get("attract_actor_records", {})
+    records = presentation.get("attract_actor_surfaces", {})
     actual = tuple(
-        (entry["destination"], tuple(entry["sparse_indexes"]))
-        for entry in records.get("records", [])
+        (entry["cell"], entry["destination"], entry["source_codes"], entry["colours"])
+        for entry in records.get("actors", [])
     )
     if actual != EXPECTED_ACTORS:
         fail(f"actor metadata differs: {actual!r}")
-    if records.get("bytes") != 24 or records.get("record_bytes") != 6:
-        fail("actor metadata is not the compact 24-byte format")
-    underlays = presentation.get("attract_actor_underlays", {})
-    if underlays.get("bytes") != 512 or underlays.get("storage") != "loader-copy-to-$B000":
-        fail("underlay payload is not the four-owner 512-byte loader allocation")
+    if records.get("bytes") != 2688 or records.get("unique_phases") != 3:
+        fail("actor surfaces are not the 7 x 3 x 128-byte format")
+    bundle = presentation.get("attract_actor_bundle", {})
+    if (bundle.get("compressed_bytes") != 1067 or bundle.get("metadata_bytes") != 20 or
+            bundle.get("destination_table_address") != 0xAA80 or
+            bundle.get("phase_pointer_address") != 0xAA8E):
+        fail("compressed actor bundle differs")
+    expanded = lzss_expand(COMPRESSED.read_bytes(), 2688)
+    if hashlib.sha256(expanded).hexdigest() != records.get("sha256"):
+        fail("compressed actor surfaces do not expand to the authored payload")
+    if len(METADATA.read_bytes()) != 20:
+        fail("actor destination and phase metadata is not 20 bytes")
+    for fragment in ("decompress_attract_surfaces", "lda     #$3C",
+                     "sta     PAR_EXEC+4", "lda     #$23", "cmpy    #$8A80",
+                     "das_metadata_byte"):
+        if fragment not in boot_source:
+            fail("boot actor-surface decompressor contract is incomplete")
 
     enemy = sparse.get("enemy", {})
     if (enemy.get("frames"), enemy.get("bytes"), enemy.get("index_bytes")) != (130, 23005, 390):
         fail("enemy sparse projection is not 130 frames / 23005 bytes / 390 index bytes")
-    if enemy["index"][128]["frame"] != 128 or enemy["index"][129]["frame"] != 129:
-        fail("appended sparse indexes are absent")
     targets = {
         segment["target"]: segment
         for segment in sparse["gmc"]["segments"]
-        if segment["target"] in {"attract_actor_records", "attract_actor_underlays"}
+        if segment["target"] == "attract_actor_bundle"
     }
-    if targets.get("attract_actor_records", {}).get("destination_address") != 0xB200:
-        fail("actor records are not loaded at $B200")
-    if targets.get("attract_actor_underlays", {}).get("destination_address") != 0xB000:
-        fail("actor underlays are not loaded at $B000")
+    if targets.get("attract_actor_bundle", {}).get("destination_page") != 0x23:
+        fail("compressed actor bundle is not loaded to staging page $23")
 
     for symbol in ("PRES_MAIN_FB_PREPARE", "PRES_MAIN_FB_FINISH",
                    "PRES_MAIN_FB_CAPTURE"):
         if symbol not in module_map and symbol not in source:
             fail(f"runtime symbol or source contract missing: {symbol}")
     required_source = (
-        "PRES_ACTOR_TABLE equ $B200",
-        "PRES_ACTOR_UNDERLAY equ $B000",
         "cmpd    #558",
         "jsr     PRESENTATION_HOLD_BEGIN",
         "jsr     PRESENTATION_HOLD_TICK",
@@ -118,15 +157,12 @@ def main() -> None:
         "PRES_HOLD_GEN equ $00D8",
         "PRES_HOLD_OWNER equ $00D9",
         "PRES_HOLD_HYDRATE equ 3",
-        "PRES_MAIN_RESTORE_PLAYER",
     )
     if any(fragment not in source for fragment in required_source):
         fail("persistent-owner runtime contract is incomplete")
-    draw_actor = source[source.index("\ndraw_actor_overlay\n"):
-                        source.index("\n; Recolour each nonzero", source.index("\ndraw_actor_overlay\n"))]
-    resolved_index = draw_actor[draw_actor.index("leax    d,x"):]
-    if resolved_index.index("ldu     1,x") > resolved_index.index("sta     PAR5"):
-        fail("attract sparse resolver remaps PAR5 before preserving the stream address")
+    tick = source[source.index("\nattract_tick\n"):source.index("\ninstructions_tick\n")]
+    if tick.index("cmpd    #558") > tick.index("jsr     PRESENTATION_ATTRACT_OVERLAY"):
+        fail("final title tick still queues an actor publication before handoff")
 
     module_bytes = len(MODULE.read_bytes())
     helper_bytes = len(HELPER.read_bytes())
@@ -140,7 +176,6 @@ def main() -> None:
         "PRESENTATION_ATTRACT_OVERLAY",
         "hold_copy_chunk",
         "PRES_MAIN_FB_PREPARE",
-        "PRES_MODULE_DRAW_ACTOR",
         "PRES_MAIN_FB_CAPTURE",
         "PRES_MAIN_FB_FINISH",
         "hold_destination_pages",
@@ -161,11 +196,14 @@ def main() -> None:
     if tuple((0xC0 - (owner << 4)) & 0xFF for owner in (0, 1, 2)) != (0xC0, 0xB0, 0xA0):
         fail("transient owner Voffset arithmetic contract is inconsistent")
     target_margin = 1280 - module_bytes
+    sound_margin = sparse["gmc"]["spare_bytes"] - 1536
+    if sound_margin < 512:
+        fail(f"future-sound margin is {sound_margin}/512")
     digest = hashlib.sha256(MODULE.read_bytes()).hexdigest()
     print(
-        f"BUG-010 verifier: title 558 ticks, four actors, phases, hold helper and loader ownership pass; "
+        f"BUG-010 verifier: title 558 ticks, seven authored actors, colours, phases and atomic handoff pass; "
         f"module {module_bytes}/1280 bytes, helper {helper_bytes}/334 bytes, "
-        f"original 1280-byte target margin {target_margin}, "
+        f"module margin {target_margin}, future-sound margin {sound_margin}/512, "
         f"module_sha256 {digest}"
     )
 

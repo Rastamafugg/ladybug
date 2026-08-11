@@ -37,6 +37,7 @@ from build_screen import (  # noqa: E402
     parse_csv,
     recolor,
     rotate_ccw,
+    sheet_code,
     tileset_ranges,
     transform,
 )
@@ -60,30 +61,174 @@ MAP_BYTES = SCREEN_WIDTH * SCREEN_HEIGHT
 TILE_BYTES = 32
 MAP_OUTPUT_OFFSET = 0x4000
 COLD_PAYLOAD_LIMIT = 12939
-ATTRACT_ACTOR_RECORDS = (
-    (0x661C, (66, 65, 64, 65)),
-    (0x2F24, (128, 129, 12, 129)),
-    (0x7F34, (22, 21, 20, 21)),
-    (0x5238, (34, 33, 32, 33)),
-)
-ATTRACT_ACTOR_UNDERLAY_BYTES = 128
+ATTRACT_ACTOR_COLOURS = {
+    (11, 3): (WHITE, GREEN, PINK),
+    (35, 4): (WHITE, YELLOW, ORANGE),
+    (27, 5): (WHITE, GREEN, PURPLE),
+    (3, 9): (WHITE, YELLOW, ORANGE),
+    (10, 15): (YELLOW, GREEN, RED),
+    (33, 19): (WHITE, LIGHT_GREEN, GREEN),
+    (5, 20): (WHITE, YELLOW, ORANGE),
+}
+ATTRACT_ACTOR_EXPECTED_TILES = {
+    (11, 3): 1,
+    (35, 4): 5,
+    (27, 5): 0,
+    (3, 9): 68,
+    (10, 15): 32,
+    (33, 19): 35,
+    (5, 20): 2,
+}
+ATTRACT_ACTOR_SURFACE_PAGE = 0x3C
+ATTRACT_ACTOR_SURFACE_ADDRESS = 0xA000
+ATTRACT_ACTOR_BYTES = 128
+ATTRACT_ACTOR_PHASES = (0, 1, 2)
+ATTRACT_ACTOR_DESTINATION_ADDRESS = 0xAA80
+ATTRACT_ACTOR_PHASE_POINTER_ADDRESS = 0xAA8E
 
 
-def compile_attract_underlays(attract_map: bytes, tiles: list[bytes]) -> bytes:
-    framebuffer = bytearray(0x8000)
+def lzss_compress(data: bytes) -> bytes:
+    """Encode bounded 12-bit-offset, 4-bit-length LZSS groups."""
+    output = bytearray()
+    cursor = 0
+    while cursor < len(data):
+        flag_offset = len(output)
+        output.append(0)
+        flags = 0
+        for bit in range(8):
+            if cursor >= len(data):
+                break
+            best_length = 0
+            best_offset = 0
+            for candidate in range(max(0, cursor - 4095), cursor):
+                length = 0
+                distance = cursor - candidate
+                while (length < 18 and cursor + length < len(data) and
+                       data[candidate + length % distance] == data[cursor + length]):
+                    length += 1
+                if length >= 3 and length > best_length:
+                    best_length = length
+                    best_offset = distance
+            if best_length >= 3:
+                token = (best_offset << 4) | (best_length - 3)
+                output.extend(token.to_bytes(2, "big"))
+                cursor += best_length
+            else:
+                flags |= 1 << bit
+                output.append(data[cursor])
+                cursor += 1
+        output[flag_offset] = flags
+    return bytes(output)
+
+
+def sprite_transform(tile: list[list[int]], flags: int) -> list[list[int]]:
+    """Apply Tiled's orthogonal diagonal, horizontal, then vertical flags."""
+    rows = [row[:] for row in tile]
+    if flags & FLIP_D:
+        rows = [list(row) for row in zip(*rows)]
+    return transform(rows, bool(flags & FLIP_H), bool(flags & FLIP_V))
+
+
+def title_framebuffer(attract_map: bytes, tiles: list[bytes]) -> bytearray:
+    framebuffer = bytearray(0x7800)
     for cell, tile_id in enumerate(attract_map):
         row, column = divmod(cell, SCREEN_WIDTH)
         tile = tiles[tile_id]
-        destination = row * 160 + column * 4
+        destination = row * TILE_SIZE * 160 + column * 4
         for tile_row in range(8):
             start = destination + tile_row * 160
             framebuffer[start:start + 4] = tile[tile_row * 4:tile_row * 4 + 4]
-    underlays = bytearray()
-    for destination, _indexes in ATTRACT_ACTOR_RECORDS:
-        offset = destination - 0x2000
-        for row in range(16):
-            underlays.extend(framebuffer[offset + row * 160:offset + row * 160 + 8])
-    return bytes(underlays)
+    return framebuffer
+
+
+def parse_attract_actors(path: Path) -> list[dict[str, object]]:
+    root = ET.parse(path).getroot()
+    ranges = tileset_ranges(root, path)
+    layer = next((item for item in root.findall("layer")
+                  if item.get("name") == "Sprite Animations"), None)
+    if layer is None:
+        raise ValueError(f"{path}: missing Sprite Animations layer")
+    cells = parse_csv(layer.find("data"), layer.get("name", ""))
+    actors = []
+    for index, gid_with_flags in enumerate(cells):
+        gid = gid_with_flags & GID_MASK
+        if not gid:
+            continue
+        x, y = index % SCREEN_WIDTH, index // SCREEN_WIDTH
+        tileset = next((item for item in ranges
+                        if int(item["firstgid"]) <= gid <= int(item["lastgid"])), None)
+        if tileset is None or tileset["name"] != "sprites_raw2bpp":
+            raise ValueError(f"{path}: actor ({x},{y}) is not a raw sprite tile")
+        tile_id = gid - int(tileset["firstgid"])
+        expected = ATTRACT_ACTOR_EXPECTED_TILES.get((x, y))
+        if expected is None or tile_id != expected:
+            raise ValueError(f"{path}: unexpected actor tile {tile_id} at ({x},{y})")
+        actors.append({
+            "cell": [x, y],
+            "destination": 0x2000 + y * 1280 + x * 4,
+            "tile_id": tile_id,
+            "sheet_row": tile_id // 16,
+            "sheet_column": tile_id % 16,
+            "flags": gid_with_flags & ~GID_MASK,
+            "colours": list(ATTRACT_ACTOR_COLOURS[(x, y)]),
+        })
+    if len(actors) != len(ATTRACT_ACTOR_COLOURS):
+        raise ValueError(f"{path}: expected seven Sprite Animations cells")
+    rectangles = []
+    for actor in actors:
+        x, y = actor["cell"]
+        rect = (x * 8, y * 8, x * 8 + 16, y * 8 + 16)
+        if any(rect[0] < other[2] and other[0] < rect[2] and
+               rect[1] < other[3] and other[1] < rect[3]
+               for other in rectangles):
+            raise ValueError(f"{path}: overlapping actor at ({x},{y})")
+        rectangles.append(rect)
+    return actors
+
+
+def compile_attract_surfaces(
+        attract_map: bytes, tiles: list[bytes], sprites: list[list[list[int]]],
+        actors: list[dict[str, object]]) -> bytes:
+    framebuffer = title_framebuffer(attract_map, tiles)
+    surfaces = bytearray()
+    for phase in ATTRACT_ACTOR_PHASES:
+        for actor in actors:
+            row = int(actor["sheet_row"])
+            column = int(actor["sheet_column"])
+            phase_rows = ((row + 2) % 8, (row + 1) % 8, row)
+            code = sheet_code(phase_rows[phase], column)
+            sprite = sprite_transform(rotate_ccw(sprites[code]), int(actor["flags"]))
+            colours = [BLACK] + list(actor["colours"])
+            destination = int(actor["destination"])
+            offset = destination - 0x2000
+            actor.setdefault("source_codes", []).append(code)
+            composed = bytearray()
+            for sprite_row in range(16):
+                for x in range(0, 16, 2):
+                    underlay = framebuffer[offset + sprite_row * 160 + x // 2]
+                    high = colours[sprite[sprite_row][x]] if sprite[sprite_row][x] else underlay >> 4
+                    low = colours[sprite[sprite_row][x + 1]] if sprite[sprite_row][x + 1] else underlay & 0x0F
+                    composed.append((high << 4) | low)
+            surfaces.extend(composed)
+    return bytes(surfaces)
+
+
+def compose_attract_frames(
+        attract_map: bytes, tiles: list[bytes], surfaces: bytes,
+        actors: list[dict[str, object]]) -> list[bytes]:
+    base = title_framebuffer(attract_map, tiles)
+    frames = []
+    for phase in (0, 1, 2, 1):
+        frame = bytearray(base)
+        for actor_index, actor in enumerate(actors):
+            source = (phase * len(actors) + actor_index) * ATTRACT_ACTOR_BYTES
+            destination = int(actor["destination"]) - 0x2000
+            for row in range(16):
+                frame[destination + row * 160:destination + row * 160 + 8] = (
+                    surfaces[source + row * 8:source + row * 8 + 8]
+                )
+        frames.append(bytes(frame))
+    return frames
 
 
 def parse_args() -> argparse.Namespace:
@@ -117,6 +262,8 @@ def flatten_map(path: Path) -> tuple[ET.Element, list[int]]:
     flattened = [0] * MAP_BYTES
     for layer in root.findall("layer"):
         if layer.get("visible", "1") == "0":
+            continue
+        if layer.get("name") == "Sprite Animations":
             continue
         cells = parse_csv(layer.find("data"), layer.get("name", ""))
         for index, gid in enumerate(cells):
@@ -250,9 +397,11 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_GAMEPLAY_TILE_BASE equ {manifest['gameplay_tile_base']}",
         f"PRESENTATION_GAMEPLAY_LOOKUP_OFFSET equ {manifest['gameplay_lookup_offset']}",
         f"PRESENTATION_GAMEPLAY_LOOKUP_BYTES equ {manifest['gameplay_lookup_bytes']}",
-        f"PRESENTATION_ATTRACT_ACTOR_OFFSET equ ${manifest['attract_actor_records']['offset']:04X}",
-        f"PRESENTATION_ATTRACT_ACTOR_BYTES equ {manifest['attract_actor_records']['bytes']}",
-        f"PRESENTATION_ATTRACT_UNDERLAY_BYTES equ {manifest['attract_actor_underlays']['bytes']}",
+        f"PRESENTATION_ATTRACT_SURFACE_PAGE equ ${ATTRACT_ACTOR_SURFACE_PAGE:02X}",
+        f"PRESENTATION_ATTRACT_SURFACE_ADDRESS equ ${ATTRACT_ACTOR_SURFACE_ADDRESS:04X}",
+        f"PRESENTATION_ATTRACT_SURFACE_BYTES equ {manifest['attract_actor_surfaces']['bytes']}",
+        f"PRESENTATION_ATTRACT_DESTINATION_ADDRESS equ ${ATTRACT_ACTOR_DESTINATION_ADDRESS:04X}",
+        f"PRESENTATION_ATTRACT_PHASE_POINTER_ADDRESS equ ${ATTRACT_ACTOR_PHASE_POINTER_ADDRESS:04X}",
         f"PRESENTATION_MAP_OUTPUT_OFFSET equ ${MAP_OUTPUT_OFFSET:04X}",
         "",
     ]
@@ -303,6 +452,12 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
 def main() -> None:
     args = parse_args()
     chars = load_chars(args.chars)
+    sprites = json.loads(args.gameplay_sprites.read_text(encoding="utf-8"))
+    if isinstance(sprites, dict):
+        sprites = sprites.get("sprites", sprites)
+    if not isinstance(sprites, list) or len(sprites) != 128:
+        raise ValueError(f"{args.gameplay_sprites} must contain 128 sprites")
+    actors = parse_attract_actors(args.tiled_dir / MAP_FILES["attract"])
     _gameplay_map, gameplay_tiles, *_ = compile_screen(
         args.gameplay_map,
         args.gameplay_maze,
@@ -360,13 +515,18 @@ def main() -> None:
     for encoded in encoded_maps:
         map_stream_offsets.append(map_stream_offset + len(encoded_stream))
         encoded_stream.extend(encoded)
-    attract_actor_records = b"".join(
-        destination.to_bytes(2, "big") + bytes(indexes)
-        for destination, indexes in ATTRACT_ACTOR_RECORDS
+    attract_destinations = b"".join(
+        int(actor["destination"]).to_bytes(2, "big") for actor in actors
     )
-    attract_actor_offset = map_stream_offset + len(encoded_stream)
-    attract_underlays = compile_attract_underlays(maps[0], tiles)
-    cold_payload = tile_atlas + gameplay_lookup + bytes(encoded_stream) + attract_actor_records
+    attract_surfaces = compile_attract_surfaces(maps[0], tiles, sprites, actors)
+    attract_frames = compose_attract_frames(maps[0], tiles, attract_surfaces, actors)
+    attract_phase_pointers = b"".join(
+        (ATTRACT_ACTOR_SURFACE_ADDRESS + phase * 896).to_bytes(2, "big")
+        for phase in ATTRACT_ACTOR_PHASES
+    )
+    attract_compressed = lzss_compress(attract_surfaces)
+    attract_metadata = attract_destinations + attract_phase_pointers
+    cold_payload = tile_atlas + gameplay_lookup + bytes(encoded_stream)
     if len(cold_payload) > COLD_PAYLOAD_LIMIT:
         raise ValueError(
             f"presentation cold payload is {len(cold_payload)} bytes; "
@@ -388,21 +548,40 @@ def main() -> None:
         "map_stream_offsets": map_stream_offsets,
         "map_stream_bytes": [len(encoded) for encoded in encoded_maps],
         "map_stream_total_bytes": len(encoded_stream),
-        "attract_actor_records": {
-            "offset": attract_actor_offset,
-            "bytes": len(attract_actor_records),
-            "count": len(ATTRACT_ACTOR_RECORDS),
-            "record_bytes": 6,
-            "records": [
-                {"destination": destination, "sparse_indexes": list(indexes)}
-                for destination, indexes in ATTRACT_ACTOR_RECORDS
+        "attract_actor_destinations": {
+            "bytes": len(attract_destinations),
+            "count": len(actors),
+            "storage": "helper-table",
+            "sha256": hashlib.sha256(attract_destinations).hexdigest(),
+        },
+        "attract_actor_surfaces": {
+            "bytes": len(attract_surfaces),
+            "actor_bytes": ATTRACT_ACTOR_BYTES,
+            "unique_phases": len(ATTRACT_ACTOR_PHASES),
+            "page": ATTRACT_ACTOR_SURFACE_PAGE,
+            "address": ATTRACT_ACTOR_SURFACE_ADDRESS,
+            "storage": "loader-copy-to-page-$3C-$A000",
+            "sha256": hashlib.sha256(attract_surfaces).hexdigest(),
+            "actors": actors,
+            "phase_frame_sha256": [hashlib.sha256(frame).hexdigest()
+                                   for frame in attract_frames],
+            "phase_crop_sha256": [
+                [hashlib.sha256(attract_surfaces[
+                    (phase * len(actors) + actor_index) * ATTRACT_ACTOR_BYTES:
+                    (phase * len(actors) + actor_index + 1) * ATTRACT_ACTOR_BYTES
+                ]).hexdigest() for actor_index in range(len(actors))]
+                for phase in ATTRACT_ACTOR_PHASES
             ],
         },
-        "attract_actor_underlays": {
-            "offset": None,
-            "bytes": len(attract_underlays),
-            "actor_bytes": ATTRACT_ACTOR_UNDERLAY_BYTES,
-            "storage": "loader-copy-to-$B000",
+        "attract_actor_bundle": {
+            "compressed_bytes": len(attract_compressed),
+            "expanded_bytes": len(attract_surfaces),
+            "destination_address": ATTRACT_ACTOR_SURFACE_ADDRESS,
+            "destination_table_address": ATTRACT_ACTOR_DESTINATION_ADDRESS,
+            "phase_pointer_address": ATTRACT_ACTOR_PHASE_POINTER_ADDRESS,
+            "compressed_sha256": hashlib.sha256(attract_compressed).hexdigest(),
+            "metadata_bytes": len(attract_metadata),
+            "metadata_sha256": hashlib.sha256(attract_metadata).hexdigest(),
         },
         "coin_tile": coin_id,
         "coin_destinations": [
@@ -421,13 +600,15 @@ def main() -> None:
                        10 * SCREEN_WIDTH + 33, 12 * SCREEN_WIDTH + 33,
                        14 * SCREEN_WIDTH + 33, 16 * SCREEN_WIDTH + 33,
                        18 * SCREEN_WIDTH + 33],
+        "static_frame_sha256": [hashlib.sha256(title_framebuffer(data, tiles)).hexdigest()
+                                for data in maps],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(cold_payload)
     args.actor_record_output.parent.mkdir(parents=True, exist_ok=True)
-    args.actor_record_output.write_bytes(attract_actor_records)
+    args.actor_record_output.write_bytes(attract_metadata)
     args.actor_underlay_output.parent.mkdir(parents=True, exist_ok=True)
-    args.actor_underlay_output.write_bytes(attract_underlays)
+    args.actor_underlay_output.write_bytes(attract_compressed)
     args.manifest_output.parent.mkdir(parents=True, exist_ok=True)
     args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",
                                     encoding="ascii")

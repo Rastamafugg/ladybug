@@ -19,7 +19,7 @@ LAYOUT = ROOT / "build/ladybug-sparse-layout.json"
 
 PUBLISH = 0x0DD5
 ATTRACT_TICK = 0x1BA4
-ATTRACT_NEXT = 0x1BC1
+ATTRACT_NEXT = 0x1BC3
 FB_FRONT = 0x008F
 FB_BACK = 0x0090
 FB_PENDING = 0x0091
@@ -84,16 +84,28 @@ def main() -> None:
         initial_cycles = client.call("read_cycles")
         monitor.clear(client, [publish_id])
 
-        attract_id = monitor.setup(client, [ATTRACT_TICK])[0]
+        attract_id, handoff_id = monitor.setup(client, [ATTRACT_TICK, ATTRACT_NEXT])
         ticks: list[dict] = []
         failure = None
-        for index in range(TARGET_TICKS):
+        handoff = None
+        for index in range(TARGET_TICKS + 2):
             try:
                 hit = client.run_to_breakpoint(args.timeout)
             except Exception as exc:
                 failure = {
                     "tick_index": index,
                     "error": type(exc).__name__,
+                    "deadline_seconds": args.timeout,
+                }
+                break
+            if hit.get("pc") == ATTRACT_NEXT:
+                handoff = hit
+                break
+            if hit.get("pc") != ATTRACT_TICK:
+                failure = {
+                    "tick_index": index,
+                    "error": "unexpected_natural_breakpoint",
+                    "observed_pc": hit.get("pc"),
                     "deadline_seconds": args.timeout,
                 }
                 break
@@ -136,12 +148,15 @@ def main() -> None:
             if ticks[index]["state"]["actor_phase"] !=
             ticks[index - 1]["state"]["actor_phase"]
         ]
-        handoff = None
-        if failure is None:
-            monitor.clear(client, [attract_id])
-            handoff_id = monitor.setup(client, [ATTRACT_NEXT])[0]
+        if failure is None and handoff is None:
             handoff = client.run_to_breakpoint(args.timeout)
-            monitor.clear(client, [handoff_id])
+        monitor.clear(client, [attract_id, handoff_id])
+        if failure is None and handoff.get("pc") != ATTRACT_NEXT:
+            failure = {
+                "error": "final_branch_did_not_reach_attract_next",
+                "observed_pc": handoff.get("pc"),
+                "deadline_seconds": args.timeout,
+            }
 
         result = {
             "schema": "ladybug-bug010-natural-attract-evidence-v3",

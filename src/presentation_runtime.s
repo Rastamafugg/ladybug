@@ -17,7 +17,7 @@ PRESENTATION_MODULE_DRAW equ $0821
 PRESENTATION_HOLD_BEGIN equ $06C5
 PRESENTATION_HOLD_TICK equ $06C7
 PRESENTATION_ATTRACT_OVERLAY equ $06C9
-BLIT_TILE equ $D6C1
+BLIT_TILE equ PRES_MAIN_BLIT_TILE
 SPARSE_ENEMY_PAYLOAD_PAGE equ $35
 SPARSE_PLAYER_PAYLOAD_PAGE equ $39
 SPARSE_ENEMY_INDEX_ADDR equ $A000
@@ -237,6 +237,8 @@ load_done
         bne     load_done_hold_plain
         lda     #$FF
         sta     PRES_ACTOR_PHASE
+        lda     #$34
+        sta     PAR5
         jsr     PRESENTATION_ATTRACT_OVERLAY
         bra     load_done_hold_owner
 load_done_hold_plain
@@ -406,10 +408,11 @@ attract_tick
 attract_tick_prepare
 attract_tick_ready
         lbsr    timer
-        jsr     PRESENTATION_ATTRACT_OVERLAY
         ldd     PRES_TIMER
         cmpd    #558
-        blo     hold
+        bhs     attract_next
+        jsr     PRESENTATION_ATTRACT_OVERLAY
+        bra     hold
 attract_next
         lda     #PRESENTATION_MAP_INSTRUCTIONS
         lbsr    start_screen
@@ -747,8 +750,6 @@ PRES_HOLD_HYDRATE equ 3
 PRES_HOLD_FINAL equ $81
 FB_FRONT_ID equ $008F
 FB_BACK_ID equ $0090
-PRES_ACTOR_TABLE equ $B200
-PRES_ACTOR_UNDERLAY equ $B000
 PRESENTATION_PENDING_NAME equ $AFDE
 
 presentation_module_end

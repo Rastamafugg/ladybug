@@ -25,6 +25,27 @@
     </header>
 
     <section>
+      <h2>Presentation cold data and game-state aliases require an explicit PAR5 handoff</h2>
+      <p><strong>Filed 2026-08-11.</strong> BUG-010 mapped presentation cold page <code>$3A</code> while loading the title, then called framebuffer preparation before restoring game-state page <code>$34</code>. Preparation wrote <code>ENEMY_OLD_FB</code> at virtual <code>$A890</code>, corrupting six bytes of cold atlas tile 68. The damaged tile appeared twice on the instructions screen and produced deterministic transition artifacts even though the boot-loaded cold payload initially matched its authored hash.</p>
+      <p><strong>Rule:</strong> before calling any renderer or ownership routine that accesses page-34 state, explicitly restore PAR5 to <code>$34</code>. Verify immutable payload identity both immediately after loading and after every cross-module handoff; boot-time identity alone does not prove runtime immutability.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-010-attract-actor-fidelity.html">BUG-010</a>, <code>src/presentation_runtime.s</code>, <code>src/perimeter_reset_helper.s</code>, and <code>scripts/verify_bug010_visible_runtime.py</code>.</p>
+    </section>
+
+    <section>
+      <h2>Framebuffer oracles must scale tile rows by tile height</h2>
+      <p><strong>Filed 2026-08-11.</strong> BUG-010's static oracle placed each 8-pixel TMX row only one 160-byte scanline below the previous row instead of eight scanlines, while runtime rendering correctly advanced 1,280 bytes. Actor-only crops could still pass, but the composed title hash described rows 0&ndash;1 instead of the authored rows 7&ndash;18.</p>
+      <p><strong>Rule:</strong> derive framebuffer destinations as <code>tile_row * tile_height * scanline_stride + tile_column * packed_tile_width</code>. Retain a natural physical-frame comparison in addition to generated hashes so the oracle cannot validate its own coordinate defect.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-010-attract-actor-fidelity.html">BUG-010</a>, <code>scripts/build_presentation.py</code>, and the four-phase physical-frame evidence.</p>
+    </section>
+
+    <section>
+      <h2>Copied modules must import current resident symbols</h2>
+      <p><strong>Filed 2026-08-11.</strong> The presentation module retained a literal <code>BLIT_TILE equ $D6C1</code> while the current resident map placed <code>blit_tile</code> at <code>$D6BF</code>. The build already generated a presentation symbol include for other resident calls, so exporting <code>blit_tile</code> removed the stale-revision dependency.</p>
+      <p><strong>Rule:</strong> copied absolute modules must consume build-generated symbols for every resident call target. Static verification must compare each imported address with the current map; older absolute addresses are not valid evidence for current main.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-010-attract-actor-fidelity.html">BUG-010</a>, <code>scripts/build.sh</code>, and <code>src/presentation_runtime.s</code>.</p>
+    </section>
+
+    <section>
       <h2>BUG-010 hold publication requires a transient owner state</h2>
       <p><strong>Filed 2026-08-10.</strong> Restoring the presentation module to the locked <code>$1900-$1DFF</code> boundary required moving the attract actor loop into the existing helper allocation. The helper now copies the complete visible framebuffer to <code>$28-$2B</code> in thirty bounded chunks, publishes it only through transient owner ID <code>2</code> at Voffset <code>$A0</code>, and hydrates both persistent A/B owners before normal publication resumes.</p>
       <p><strong>Rule:</strong> compatibility storage is not a persistent framebuffer owner. Keep its state in always-mapped direct-page bytes, preserve the last complete hold surface across pre-emption, and prohibit intermediate A/B publication while hidden owners are hydrated. Final-pending cancellation must share the pending publication path so an input edge cannot leave a stale commit armed.</p>

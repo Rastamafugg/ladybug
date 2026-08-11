@@ -93,20 +93,17 @@ def main() -> None:
     if not phase_match:
         raise SystemExit("presentation flow proof: five instruction row destinations missing")
 
-    if actor_reference.get("schema") != "ladybug-mame-attract-actor-reference-v2":
-        raise SystemExit("presentation flow proof: attract oracle schema is stale")
-    actor_destinations = {
-        name: actor["presentation_destination"]
-        for name, actor in actor_reference["actors"].items()
-    }
-    if "PRES_ACTOR_TABLE equ $B200" not in source or "PRES_ACTOR_UNDERLAY equ $B000" not in source:
-        raise SystemExit("presentation flow proof: four-actor ownership buffers are not wired")
+    actor_surfaces = presentation_layout.get("attract_actor_surfaces", {})
+    if (actor_surfaces.get("bytes") != 2688 or
+            len(actor_surfaces.get("actors", [])) != 7):
+        raise SystemExit("presentation flow proof: seven authored actor surfaces are not wired")
     attract_source = helper_source
     if "jsr     PRES_MAIN_FB_PREPARE" not in attract_source or "PRES_MAIN_FB_FINISH" not in attract_source:
         raise SystemExit("presentation flow proof: attract owner publication is incomplete")
-    actor_draw_source = helper_source
-    if "PRES_MAIN_RESTORE_PLAYER" not in actor_draw_source or "PRES_MODULE_DRAW_ACTOR" not in actor_draw_source:
-        raise SystemExit("presentation flow proof: attract restore/draw order is incomplete")
+    for fragment in ("lda     #$3C", "ldx     #$AA8E", "ldx     #$AA80",
+                     "lda     #7", "lda     #16", "leay    152,y"):
+        if fragment not in attract_source:
+            raise SystemExit("presentation flow proof: attract surface-copy worklist is incomplete")
     if "inflate_maps" in source or "cold_write_byte" in source:
         raise SystemExit("presentation flow proof: all-map inflation remains active")
     if "leax    map_stream_offsets,pcr" not in source:
@@ -136,15 +133,10 @@ def main() -> None:
         raise SystemExit("presentation flow proof: gameplay tile partition is ambiguous")
     if cold_manifest.get("gameplay_lookup_bytes", 0) <= 0:
         raise SystemExit("presentation flow proof: gameplay tile lookup is absent")
-    for name, actor in actor_reference["actors"].items():
-        raw_x, raw_y = actor["raw_top_left"]
-        logical_x = raw_y + 40
-        logical_y = 192 - raw_x - 16
-        expected = 0x2000 + logical_y * 160 + logical_x // 2
-        if f"${expected:04X}" != actor["presentation_destination"]:
-            raise SystemExit(
-                f"presentation flow proof: {name} capture transform is inconsistent"
-            )
+    expected_cells = [[11, 3], [35, 4], [27, 5], [3, 9],
+                      [10, 15], [33, 19], [5, 20]]
+    if [actor["cell"] for actor in actor_surfaces["actors"]] != expected_cells:
+        raise SystemExit("presentation flow proof: authored TMX actor cells differ")
 
     helper_bytes = len((ROOT / "build/ladybug-perimeter-reset-helper.bin").read_bytes())
     if module_bytes > 1280:
@@ -167,9 +159,9 @@ def main() -> None:
         raise SystemExit("presentation flow proof: instruction phase schedule is incomplete")
 
     print(
-        "presentation flow proof: title actor overlays, six instruction phases, "
-        "capture-backed title coordinates, direct selected-screen streaming, bounded loading, "
-        "global credit/start pre-emption, actor underlay restore, skull/enemy demo forcing, "
+        "presentation flow proof: seven title actor surfaces, six instruction phases, "
+        "authored TMX coordinates, direct selected-screen streaming, bounded loading, "
+        "global credit/start pre-emption, atomic surface copy, skull/enemy demo forcing, "
         f"module {module_bytes}/1280, helper {helper_bytes}/334, cold {cold}/{COLD_HARD_LIMIT} "
         f"(preferred {COLD_PREFERRED_TARGET}), "
         f"combined {combined}/14219, future-sound margin {sound_margin}/{SOUND_RELEASE_RESERVE}"

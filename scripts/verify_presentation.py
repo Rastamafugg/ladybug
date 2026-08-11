@@ -12,13 +12,20 @@ from build_presentation import (
     MAP_FILES,
     MAP_NAMES,
     MAP_OUTPUT_OFFSET,
-    ATTRACT_ACTOR_RECORDS,
-    compile_attract_underlays,
+    ATTRACT_ACTOR_SURFACE_ADDRESS,
+    ATTRACT_ACTOR_SURFACE_PAGE,
+    ATTRACT_ACTOR_DESTINATION_ADDRESS,
+    ATTRACT_ACTOR_PHASE_POINTER_ADDRESS,
+    compile_attract_surfaces,
+    compose_attract_frames,
+    lzss_compress,
     coin_tile,
     compile_map,
     compile_screen,
     encode_map,
     load_chars,
+    parse_attract_actors,
+    title_framebuffer,
 )
 
 
@@ -43,6 +50,10 @@ def main() -> None:
     args = parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
     chars = load_chars(args.chars)
+    sprites = json.loads(args.gameplay_sprites.read_text(encoding="utf-8"))
+    if isinstance(sprites, dict):
+        sprites = sprites["sprites"]
+    actors = parse_attract_actors(args.tiled_dir / MAP_FILES["attract"])
     _gameplay_map, gameplay_tiles, *_ = compile_screen(
         args.gameplay_map,
         args.gameplay_maze,
@@ -77,13 +88,9 @@ def main() -> None:
         gameplay_tile_ids[tile] for tile in ordered_tiles[len(cold_ids):]
     )
     encoded_maps = [encode_map(data) for data in maps]
-    actor_records = b"".join(
-        destination.to_bytes(2, "big") + bytes(indexes)
-        for destination, indexes in ATTRACT_ACTOR_RECORDS
-    )
     expected = (
         b"".join(cold_only_tiles) + gameplay_lookup +
-        b"".join(encoded_maps) + actor_records
+        b"".join(encoded_maps)
     )
     if payload != expected:
         raise SystemExit("presentation proof: cold payload differs from independent compile")
@@ -107,14 +114,35 @@ def main() -> None:
         raise SystemExit("presentation proof: gameplay lookup size differs")
     if manifest.get("map_stream_total_bytes") != sum(map(len, encoded_maps)):
         raise SystemExit("presentation proof: encoded map size differs")
-    records = manifest.get("attract_actor_records", {})
-    if records.get("offset") != len(expected) - len(actor_records):
-        raise SystemExit("presentation proof: actor-record offset differs")
-    if records.get("bytes") != len(actor_records):
-        raise SystemExit("presentation proof: actor-record size differs")
-    underlays = manifest.get("attract_actor_underlays", {})
-    if underlays.get("bytes") != len(compile_attract_underlays(maps[0], ordered_tiles)):
-        raise SystemExit("presentation proof: actor-underlay size differs")
+    destinations = b"".join(int(actor["destination"]).to_bytes(2, "big")
+                            for actor in actors)
+    destination_manifest = manifest.get("attract_actor_destinations", {})
+    if (destination_manifest.get("bytes") != 14 or
+            destination_manifest.get("sha256") != digest(destinations)):
+        raise SystemExit("presentation proof: seven actor destinations differ")
+    surfaces = compile_attract_surfaces(maps[0], ordered_tiles, sprites, actors)
+    surface_manifest = manifest.get("attract_actor_surfaces", {})
+    if (surface_manifest.get("bytes") != 2688 or
+            surface_manifest.get("page") != ATTRACT_ACTOR_SURFACE_PAGE or
+            surface_manifest.get("address") != ATTRACT_ACTOR_SURFACE_ADDRESS or
+            surface_manifest.get("sha256") != digest(surfaces)):
+        raise SystemExit("presentation proof: attract actor surfaces differ")
+    attract_frames = compose_attract_frames(maps[0], ordered_tiles, surfaces, actors)
+    if surface_manifest.get("phase_frame_sha256") != [digest(frame) for frame in attract_frames]:
+        raise SystemExit("presentation proof: attract composed-frame hashes differ")
+    phase_pointers = b"".join((ATTRACT_ACTOR_SURFACE_ADDRESS + phase * 896).to_bytes(2, "big")
+                              for phase in range(3))
+    compressed = lzss_compress(surfaces)
+    metadata = destinations + phase_pointers
+    bundle_manifest = manifest.get("attract_actor_bundle", {})
+    if (bundle_manifest.get("compressed_bytes") != len(compressed) or
+            bundle_manifest.get("expanded_bytes") != 2688 or
+            bundle_manifest.get("destination_table_address") != ATTRACT_ACTOR_DESTINATION_ADDRESS or
+            bundle_manifest.get("phase_pointer_address") != ATTRACT_ACTOR_PHASE_POINTER_ADDRESS or
+            bundle_manifest.get("compressed_sha256") != digest(compressed) or
+            bundle_manifest.get("metadata_bytes") != 20 or
+            bundle_manifest.get("metadata_sha256") != digest(metadata)):
+        raise SystemExit("presentation proof: attract actor loader bundle differs")
     for index, encoded in enumerate(encoded_maps):
         if manifest["map_stream_bytes"][index] != len(encoded):
             raise SystemExit(f"presentation proof: encoded map {index} size differs")
@@ -131,6 +159,11 @@ def main() -> None:
     for entry, data in zip(manifest["maps"], maps):
         if entry["sha256"] != digest(data):
             raise SystemExit(f"presentation proof: {entry['name']} hash differs")
+    if manifest.get("static_frame_sha256") != [
+            digest(title_framebuffer(data, ordered_tiles))
+            for data in maps
+    ]:
+        raise SystemExit("presentation proof: static framebuffer hashes differ")
     if len(payload) > 4 * 0x2000:
         raise SystemExit("presentation proof: cold payload exceeds four pages")
     if len(payload) > 10874:
