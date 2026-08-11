@@ -18,6 +18,9 @@ BOOT_ROW    equ $02F6
 BOOT_COL    equ $02F7
 BOOT_TILE_PTR equ $02F8
 BOOT_DEST   equ $02FA
+BOOT_LZ_FLAGS equ $02FC
+BOOT_LZ_BITS equ $02FD
+BOOT_LZ_OFFSET equ $02FE
 LOADER_RAM  equ $0300
 RESIDENT_STAGE_PAGE equ $21
 ASSET_STAGE_PAGE equ $22
@@ -52,6 +55,9 @@ boot_copy
         jmp     LOADER_RAM
 
 loader_start
+        lda     #$02
+        tfr     a,dp
+        setdp   $02
         ; Prove that banks 2 and 3 expose different signatures at $C010.
         lda     #2
         sta     GMC_BANK
@@ -141,8 +147,8 @@ copy_sparse_word
         ldd     ,u++
         std     ,y++
         leax    -16,x
-        bne     copy_sparse_word
-        bra     copy_sparse_done
+        beq     copy_sparse_done
+        bra     copy_sparse_word
 copy_sparse_tail
         tfr     x,d
         andb    #1
@@ -279,6 +285,10 @@ copy_staged_assets
         cmpx    #$BE00
         blo     copy_staged_assets
 
+        ; Page $23 stages the compressed bundle while cartridge ROM is selected.
+        ; After all-RAM publication, expand it into presentation page $3C.
+        lbsr    decompress_attract_surfaces
+
         lda     #$A5
         sta     BOOT_FLAG
         lda     #$34
@@ -286,6 +296,62 @@ copy_staged_assets
         ; Skip the two-byte DK cartridge header when entering the
         ; relocated runtime.
         jmp     $C002
+
+decompress_attract_surfaces
+        lda     #$3C
+        sta     PAR_EXEC+4
+        lda     #$23
+        sta     PAR_EXEC+5
+        ldu     #$A000
+        ldy     #$8000
+das_flags
+        lda     ,u+
+        sta     BOOT_LZ_FLAGS
+        lda     #8
+        sta     BOOT_LZ_BITS
+das_token
+        lsr     BOOT_LZ_FLAGS
+        bcc     das_match
+        lda     ,u+
+        sta     ,y+
+        bra     das_next
+das_match
+        ldd     ,u++
+        pshs    b
+        lsra
+        rorb
+        lsra
+        rorb
+        lsra
+        rorb
+        lsra
+        rorb
+        std     BOOT_LZ_OFFSET
+        tfr     y,d
+        subd    BOOT_LZ_OFFSET
+        tfr     d,x
+        puls    b
+        andb    #$0F
+        addb    #3
+das_match_byte
+        lda     ,x+
+        sta     ,y+
+        decb
+        bne     das_match_byte
+das_next
+        cmpy    #$8A80
+        beq     das_done
+        dec     BOOT_LZ_BITS
+        bne     das_token
+        bra     das_flags
+das_done
+        ldb     #20
+das_metadata_byte
+        lda     ,u+
+        sta     ,y+
+        decb
+        bne     das_metadata_byte
+        rts
 
 loader_fail
         clr     BOOT_PROOF

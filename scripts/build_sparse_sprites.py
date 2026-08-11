@@ -353,10 +353,8 @@ def pack_candidate_banks(
                       PRESENTATION_PAYLOAD_ADDRESS) +
         target_chunks("presentation_cold", presentation_cold, 0x3A,
                       WINDOW_BASE) +
-        target_chunks("attract_actor_records", actor_records, 0x34,
-                      0xB200) +
-        target_chunks("attract_actor_underlays", actor_underlays, 0x34,
-                      0xB000) +
+        target_chunks("attract_actor_bundle", actor_underlays + actor_records,
+                      0x23, 0xA000) +
         target_chunks("presentation_module", presentation_module, 0xFF,
                       0x1900)
     )

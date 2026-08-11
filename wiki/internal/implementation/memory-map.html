@@ -92,10 +92,18 @@ $AA00-$AAFF      5    $34   256 B  Framebuffer B actor metadata and damage ledge
 $AB00-$AB7F      5    $34   128 B  Framebuffer B player restoration bytes
 $AB80-$AD7F      5    $34   512 B  Four framebuffer B enemy restoration buffers
 $AD80-$AF7F      5    $34   512 B  Four native dormant-nest animation frames
-$AF80-$BFFF      5    $34   —      Free game-state RAM; $BFFE seeds cold-start entropy
+$AF80-$AF83      5    $34   4 B    Free game-state RAM
+$AF84-$AFDD      5    $34   90 B   Presentation high-score records
+$B000-$B5FF      5    $34   1536 B Gameplay gate/entity static overlay cache
+$B600-$BC03      5    $34   1540 B Gameplay gate/entity replay records
+$BC04-$BFFD      5    $34   1018 B Free game-state RAM
+$BFFE-$BFFF      5    $34   2 B    Cold-start entropy seed
 $20              —    —      8 K   Boot-synthesized native perimeter-reset program
 $21-$22          —    —     16 K   Boot-only resident/asset staging; reusable after handoff
-$3A-$3D          —    —     32 K   Physical cold presentation data copied at boot; selected page is mapped through PAR5
+$23              —    —      8 K   Boot-only compressed attract-surface staging; reusable after all-RAM expansion
+$3A-$3B          —    —     16 K   Physical cold presentation atlas/map streams copied at boot; selected page is mapped through PAR5
+$3C              —    —      8 K   Expanded BUG-010 title actor surfaces and destination/phase metadata, runtime window $A000-$AA93
+$3D              —    —      8 K   Remaining reserved presentation physical page
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window

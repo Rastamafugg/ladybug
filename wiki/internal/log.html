@@ -14,8 +14,28 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-11 &middot; correction/verification &mdash; BUG-010 cell (11,3) wrap frame</h3>
+      <p>Implementation commit <code>5b1f441</code> replaces source code 23 with code 15 only for the row-zero frame of cell <code>(11,3)</code>, producing the required zero-based sheet sequence <code>r6c2, r7c2, r0c1, r7c2</code>. Per-pixel source verification, the exact cold visible flow, all four natural phase hashes, 71 phase-cycle worklists, 60 hold-copy worklists, owner orders, input pre-emption, and full natural/forced GMC integration pass. The compressed actor payload falls to 1,038 bytes, GMC source spare rises to 2,084, and future-sound margin rises to 548/512. BUG-010 returns to Verification pending the controlled natural-sequence loop-return capture.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-11 &middot; correction/verification &mdash; BUG-010 actor pens and starting frames</h3>
+      <p>Implementation commit <code>06998ba</code> confirms that raw sprite pens 1, 2, and 3 encode dark grey, light grey, and white, while the approved tuples name white, light grey, and dark grey replacements. Reversing the outer semantic entries corrects all seven actors. The user-authored TMX correction changes cells <code>(11,3)</code> and <code>(27,5)</code> to tiles 98 and 65 with phase families 23/16/17 and 9/10/11. A per-pixel source-to-surface oracle, cold visible flow, all four phase captures, 60 hold-copy samples, and full natural/forced GMC verification pass. Minimum-byte LZSS parsing retains 2,060 GMC source bytes spare and 524 bytes of future-sound margin. BUG-010 returns to Verification pending the controlled natural-sequence loop-return capture.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-11 &middot; correction &mdash; Page-34 ownership and BUG-010 surface placement</h3>
+      <p>Corrected the stale <code>$AF80-$BFFF</code> free-range entry using current source ownership: high-score records occupy <code>$AF84-$AFDD</code>, gate caches occupy <code>$B000-$BC03</code>, and the entropy seed remains at <code>$BFFE-$BFFF</code>. BUG-010 precomposed actor surfaces use reserved presentation cold page <code>$3C</code> instead of overlapping game-state RAM.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-11 &middot; decision &mdash; BUG-010 replacement contract Ready</h3>
+      <p>Recorded the user-authored seven-cell <code>Sprite Animations</code> TMX layer, cleaned title artwork, exact three-pen arcade colour substitutions, precomposed phase-surface architecture, unchanged hard capacity limits, atomic instructions handoff, and visible runtime evidence requirements. BUG-010 advances through Approved to Ready.</p>
+    </section>
+
+    <section>
       <h3>2026-08-11 &middot; reopen/diagnosis &mdash; BUG-010 visible fidelity and instructions regression</h3>
-      <p>User observation on integrated current <code>main</code> rejects BUG-010 closure: the title contains more animated enemies but still has the wrong visible count, types, colours, and placements, and the following instructions transition behaves erratically with new regressions. The retained arcade frame oracle and exact blank/draw/complete-instructions boundary remain expected. Static crop/schedule checks and execution markers did not prove final visible output. BUG-010 returns from Done to In Progress pending a bounded current-main visual reproduction, first-divergence capture, live artifact identity, and discriminating cause.</p>
+      <p>User observation on integrated current <code>main</code> rejects BUG-010 closure. A bounded natural physical-framebuffer capture at reopening revision <code>b0b7524</code> confirms that the static and marker verifiers did not prove visible output. The raw MAME capture has four correctly coloured actor crops, but the CoCo path discards each actor palette lookup when converting shape-only 2bpp frames through one fixed native pen map. The oracle also rotates actor coordinates independently of the horizontal authored title. At the final title worklist, a newly queued actor publication races the instructions load: the completed instructions pixels become logical FRONT during loading, then the subsequent commit publishes the stale-title owner while instructions actor state advances elsewhere. Same-ROM authored/staged/live identity matches for the 1,270-byte module and 332-byte helper; existing owner/hold verification and 6,223&ndash;6,224-cycle copy worklists still pass, rejecting stale live code and hold-copy failure. BUG-010 is Proposed with the old assignment contract superseded; intended actor count and exact landscape placement require renewed approval before architecture or coding.</p>
     </section>
     <section>
       <h3>2026-08-10 &middot; integration/closure &mdash; BUG-010</h3>
@@ -293,6 +313,16 @@
         and milestones. Newest entries at the top.
       </p>
     </header>
+
+    <section>
+      <h3>2026-08-11 &middot; lint &mdash; BUG-010 replacement closure</h3>
+      <p>Parsed the five changed wiki pages with Python's HTML parser, compiled all changed Python build/verifier scripts, ran the focused source/wiki whitespace check, synchronized the BUG-010 ticket and ticket index at Verification, and completed the canonical GMC build/runtime proof. Generated lwasm listings retain assembler-emitted trailing spaces and are excluded from the source whitespace verdict.</p>
+    </section>
+
+    <section>
+      <h3>2026-08-11 &middot; implement/verify &mdash; BUG-010 seven-actor replacement</h3>
+      <p>Commit <code>e468402</code> compiles the seven authored <code>Sprite Animations</code> cells with their exact Tiled transforms and supplied arcade pen substitutions, updates the cleaned title tiles, packs three unique opaque phases through a 1,067-byte LZSS surface stream, stages the bundle through boot page <code>$23</code>, and expands it into presentation page <code>$3C</code>. Corrected the title oracle's tile-row stride, replaced a stale absolute resident blitter address with a generated symbol, and restored PAR5 before framebuffer preparation to prevent page-34 state writes from corrupting cold atlas data. Full build, static presentation proofs, natural four-phase physical capture, exact title/instructions boundary capture, two-order hold protocol, input pre-emption, and cycle evidence pass. Phase-copy worklists measure 5,123&ndash;5,149 cycles; hold chunks remain 6,223&ndash;6,224. BUG-010 advances to Verification without merge or closure; controlled natural-sequence loop-return capture remains required.</p>
+    </section>
 
     <section>
       <h3>2026-08-08 &middot; implementation/verification &mdash; FEAT-002 residual presentation fixes</h3>

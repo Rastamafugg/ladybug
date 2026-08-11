@@ -49,15 +49,9 @@ PRES_HOLD_COPY equ $80
 PRES_HOLD_PUBLISH equ $81
 PRES_HOLD_HYDRATE equ 3
 PRES_HOLD_FINAL equ $81
-PRES_ACTOR_TABLE equ $B200
-PRES_ACTOR_UNDERLAY equ $B000
 PRES_DST equ $00AE
 PRES_REMAIN equ $00B9
-PRES_ACTOR_FRAME equ $00CE
 PRES_ACTOR_KIND equ $00D0
-PLAYER_FB equ $000B
-PLAYER_BG_PTR equ $00A2
-PRESENTATION_MODULE_RESTORE_PLAYER equ PRES_MAIN_RESTORE_PLAYER
 PRESENTATION_MODULE_CAPTURE_BACK equ PRES_MAIN_FB_CAPTURE
 PRESENTATION_MODULE_MAP_BACK equ PRES_MODULE_MAP_BACK
 
@@ -174,45 +168,45 @@ presentation_attract_overlay_impl
         lbsr    presentation_attract_phase
         cmpa    PRES_ACTOR_PHASE
         beq     pao_done
+pao_phase_change
         sta     PRES_ACTOR_PHASE
         jsr     PRES_MAIN_FB_PREPARE
+        lda     #$3C
+        sta     PAR5
+        lda     PRES_ACTOR_PHASE
+        cmpa    #3
+        bne     pao_phase_ready
+        lda     #1
+pao_phase_ready
+        lsla
+        ldx     #$AA8E
+        ldu     a,x
+        ldx     #$AA80
+        lda     #7
+        sta     PRES_REMAIN
+pao_actor
+        ldd     ,x
+        leax    2,x
+        tfr     d,y
+        lda     #16
+        sta     PRES_ACTOR_KIND
+pao_row
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        ldd     ,u++
+        std     ,y++
+        leay    152,y
+        dec     PRES_ACTOR_KIND
+        bne     pao_row
+        dec     PRES_REMAIN
+        bne     pao_actor
+pao_after_pass
         lda     #$34
         sta     PAR5
-        clr     PRES_ACTOR_KIND
-pao_pass
-        ldx     #PRES_ACTOR_TABLE
-        ldu     #PRES_ACTOR_UNDERLAY
-        lda     #4
-        sta     PRES_REMAIN
-pao_restore
-        pshs    x
-        ldd     ,x
-        tst     PRES_ACTOR_KIND
-        bne     pao_draw_actor
-        stu     PLAYER_BG_PTR
-        std     PLAYER_FB
-        jsr     PRESENTATION_MODULE_RESTORE_PLAYER
-        bra     pao_next
-pao_draw_actor
-        std     PRES_DST
-        leax    2,x
-        ldb     PRES_ACTOR_PHASE
-        abx
-        lda     ,x
-        sta     PRES_ACTOR_FRAME
-        jsr     PRES_MODULE_DRAW_ACTOR
-pao_next
-        puls    x
-        leax    6,x
-        leau    128,u
-        dec     PRES_REMAIN
-        bne     pao_restore
-        tst     PRES_ACTOR_KIND
-        bne     pao_after_pass
-        lda     #1
-        sta     PRES_ACTOR_KIND
-        bra     pao_pass
-pao_after_pass
         lda     PRES_HOLD_STATE
         cmpa    #PRES_HOLD_HYDRATE
         beq     pao_capture
@@ -235,6 +229,7 @@ presentation_attract_phase
 presentation_phase_zero
         clra
         rts
+
 
 hold_source_pages
         fcb     $2C,$2D,$2E,$2F

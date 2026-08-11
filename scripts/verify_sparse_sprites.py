@@ -302,8 +302,7 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
-        "attract_actor_records": bytearray(len(actor_records)),
-        "attract_actor_underlays": bytearray(len(actor_underlays)),
+        "attract_actor_bundle": bytearray(len(actor_underlays) + len(actor_records)),
     }
     coverage = {
         "enemy": bytearray(len(enemy_payload)),
@@ -312,8 +311,7 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
-        "attract_actor_records": bytearray(len(actor_records)),
-        "attract_actor_underlays": bytearray(len(actor_underlays)),
+        "attract_actor_bundle": bytearray(len(actor_underlays) + len(actor_records)),
     }
     source_coverage = {
         0: bytearray(CART_READABLE_BYTES),
@@ -420,12 +418,9 @@ def main() -> None:
             reconstructed[target][target_offset:destination_end] = source
             coverage[target][target_offset:destination_end] = b"\x01" * count
             continue
-        elif target == "attract_actor_records":
-            target_page_base = 0x34
-            target_address = 0xB200
-        elif target == "attract_actor_underlays":
-            target_page_base = 0x34
-            target_address = 0xB000
+        elif target == "attract_actor_bundle":
+            target_page_base = 0x23
+            target_address = 0xA000
         else:
             raise SystemExit(f"sparse proof: unknown loader target {target}")
         absolute_offset = target_address - WINDOW_BASE + target_offset
@@ -450,7 +445,8 @@ def main() -> None:
         not all(coverage["gate"]) or
         not all(coverage["presentation"]) or
             not all(coverage["presentation_cold"]) or
-        not all(coverage["presentation_module"])
+        not all(coverage["presentation_module"]) or
+        not all(coverage["attract_actor_bundle"])
     ):
         raise SystemExit("sparse proof: loader target coverage has gaps")
     if reconstructed["enemy"] != enemy_payload:
@@ -465,10 +461,8 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct presentation cold data")
     if reconstructed["presentation_module"] != presentation_module:
         raise SystemExit("sparse proof: loader does not reconstruct presentation module")
-    if reconstructed["attract_actor_records"] != actor_records:
-        raise SystemExit("sparse proof: loader does not reconstruct actor records")
-    if reconstructed["attract_actor_underlays"] != actor_underlays:
-        raise SystemExit("sparse proof: loader does not reconstruct actor underlays")
+    if reconstructed["attract_actor_bundle"] != actor_underlays + actor_records:
+        raise SystemExit("sparse proof: loader does not reconstruct actor bundle")
     expected_usable = (
         (CART_READABLE_BYTES - BANK2_PAYLOAD_START) +
         (CART_READABLE_BYTES - 0x1800) + 0x10 + (0x0800 - 0x12) +
