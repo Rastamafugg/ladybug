@@ -26,11 +26,11 @@ if len(rom) > 0x1000:
     raise SystemExit("enemy proof: bank-3 low-RAM module exceeds 4 KiB")
 if not 0 < len(perimeter_helper) <= 0x0800 - 0x06B2:
     raise SystemExit("enemy proof: perimeter helper exceeds $06B2-$07FF")
-if perimeter_helper != bytes((
+if perimeter_helper[:19] != bytes((
     0x34, 0x01, 0x1A, 0x50, 0x86, 0x20, 0xB7, 0xFF, 0xA5,
     0xBD, 0xA0, 0x00, 0x86, 0x34, 0xB7, 0xFF, 0xA5, 0x35, 0x81,
 )):
-    raise SystemExit("enemy proof: perimeter helper does not map/call/restore PAR5")
+    raise SystemExit("enemy proof: perimeter reset gateway does not map/call/restore PAR5")
 if (
     perimeter_manifest["page"] != 0x20 or
     perimeter_manifest["address"] != 0xA000 or
@@ -277,7 +277,8 @@ for fragment in (
     "SPARSE_ENEMY_INDEX_ADDR",
     "SPARSE_PLAYER_INDEX_ADDR",
     "ldb     #3",
-    "ldu     1,u",
+    "ldd     1,u",
+    "puls    u",
     "sta     GIME_PAR5",
 ):
     if fragment not in sparse_resolve:

@@ -14,6 +14,9 @@ PIA_CRA equ $FF01
 PIA_DB  equ $FF02
 PIA_CRB equ $FF03
 PRESENTATION_MODULE_DRAW equ $0821
+PRESENTATION_HOLD_BEGIN equ $06C5
+PRESENTATION_HOLD_TICK equ $06C7
+PRESENTATION_ATTRACT_OVERLAY equ $06C9
 BLIT_TILE equ $D6C1
 SPARSE_ENEMY_PAYLOAD_PAGE equ $35
 SPARSE_PLAYER_PAYLOAD_PAGE equ $39
@@ -167,16 +170,27 @@ start_screen
         clr     PRES_RUN
         lda     #MODE_LOAD
         sta     PRES_MODE
-        clr     PRES_CELL
-        clr     PRES_CELL+1
-        clr     PRES_X
-        clr     PRES_Y
+        clra
+        clrb
+        std     PRES_CELL
+        std     PRES_X
+start_screen_map
         ldd     #$2000
         std     PRES_DST
         lbsr    map_back
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_ATTRACT
+        bne     start_screen_done
+        jsr     PRESENTATION_HOLD_BEGIN
+start_screen_done
         rts
 
 load_tick
+        lda     PRES_HOLD_STATE
+        bpl     load_tick_normal
+        jsr     PRESENTATION_HOLD_TICK
+        rts
+load_tick_normal
         lda     #32
         sta     PRES_ROWS
 load_cells
@@ -214,6 +228,42 @@ load_next
         rts
 load_done
         lbsr    draw_coin_slots
+        lda     PRES_HOLD_STATE
+        beq     load_done_publish
+        cmpa    #PRES_HOLD_HYDRATE
+        bne     load_done_publish
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_ATTRACT
+        bne     load_done_hold_plain
+        lda     #$FF
+        sta     PRES_ACTOR_PHASE
+        jsr     PRESENTATION_ATTRACT_OVERLAY
+        bra     load_done_hold_owner
+load_done_hold_plain
+        jsr     PRES_MAIN_FB_CAPTURE
+load_done_hold_owner
+        tst     PRES_HOLD_OWNER
+        bne     load_done_hold_second
+        lda     #1
+        sta     PRES_HOLD_OWNER
+        lda     FB_FRONT_ID
+        ldb     FB_BACK_ID
+        stb     FB_FRONT_ID
+        sta     FB_BACK_ID
+        lda     PRES_SCREEN
+        lbsr    start_screen
+        rts
+load_done_hold_second
+        orcc    #$10
+        lda     FB_FRONT_ID
+        ldb     FB_BACK_ID
+        stb     FB_FRONT_ID
+        sta     FB_BACK_ID
+        andcc   #$EF
+        jsr     PRES_MAIN_FB_FINISH
+        lda     #PRES_HOLD_FINAL
+        sta     PRES_HOLD_STATE
+load_done_publish
         lda     #$34
         sta     PAR5
         orcc    #$10
@@ -224,6 +274,7 @@ load_done
         ldb     PRES_SCREEN
         lda     b,x
         sta     PRES_MODE
+load_done_normal
         lda     #$FF
         sta     PRES_PHASE
         ldd     #PLAYER_BG
@@ -346,10 +397,18 @@ timer
         std     PRES_TIMER
         rts
 attract_tick
+        lda     PRES_HOLD_STATE
+        cmpa    #PRES_HOLD_FINAL
+        bne     attract_tick_prepare
+        tst     PENDING
+        bne     hold
+        clr     PRES_HOLD_STATE
+attract_tick_prepare
+attract_tick_ready
         lbsr    timer
-        lbsr    attract_overlay
+        jsr     PRESENTATION_ATTRACT_OVERLAY
         ldd     PRES_TIMER
-        cmpd    #360
+        cmpd    #558
         blo     hold
 attract_next
         lda     #PRESENTATION_MAP_INSTRUCTIONS
@@ -481,24 +540,6 @@ scan_next
         sta     PIA_CRB
         rts
 
-; Dynamic presentation overlays. Actor sprites are resolved through the
-; existing sparse indexes copied by the GMC loader; no presentation payload is
-; added for these frames.
-attract_overlay
-        lda     PRES_TIMER+1
-        anda    #3
-        sta     PRES_ACTOR_FRAME
-        ldx     #ATTRACT_PLAYER_DST
-        stx     PRES_DST
-        clr     PRES_ACTOR_KIND
-        lbsr    draw_actor_overlay
-        ldx     #ATTRACT_ENEMY_DST
-        stx     PRES_DST
-        inc     PRES_ACTOR_KIND
-        lbsr    draw_actor_overlay
-attract_overlay_done
-        rts
-
 instructions_overlay
         lda     PRES_TIMER+1
         anda    #3
@@ -528,7 +569,7 @@ instructions_phase_ready
         clr     PRES_ACTOR_KIND
         lbsr    present_actor_overlay
 instructions_move
-        inc     PRES_DST+1
+        inc     <$AF
         lbsr    present_actor_overlay
         rts
 
@@ -566,22 +607,16 @@ highlight_next
 
 draw_actor_overlay
         ldb     PRES_ACTOR_FRAME
-        tst     PRES_ACTOR_KIND
-        beq     actor_player_index
         lda     #SPARSE_ENEMY_PAYLOAD_PAGE
-        bra     actor_index_map
-actor_player_index
-        lda     #SPARSE_PLAYER_PAYLOAD_PAGE
-actor_index_map
         sta     PAR5
         lda     #3
         mul
         ldx     #SPARSE_ENEMY_INDEX_ADDR
 actor_index_ready
         leax    d,x
+        ldu     1,x
         lda     ,x
         sta     PAR5
-        ldu     1,x
         ldx     PRES_DST
         jsr     PRESENTATION_MODULE_DRAW
         rts
@@ -648,13 +683,6 @@ instruction_phase_colors
 instruction_phase_starts
         fdb     $3940,$4834,$5234,$7540,$7F34,$8434
 
-map_offsets
-        fdb PRESENTATION_MAP_OUTPUT_OFFSET
-        fdb PRESENTATION_MAP_OUTPUT_OFFSET+PRESENTATION_MAP_BYTES
-        fdb PRESENTATION_MAP_OUTPUT_OFFSET+PRESENTATION_MAP_BYTES*2
-        fdb PRESENTATION_MAP_OUTPUT_OFFSET+PRESENTATION_MAP_BYTES*3
-        fdb PRESENTATION_MAP_OUTPUT_OFFSET+PRESENTATION_MAP_BYTES*4
-        fdb PRESENTATION_MAP_OUTPUT_OFFSET+PRESENTATION_MAP_BYTES*5
 map_stream_offsets
         fdb PRESENTATION_MAP_STREAM_0
         fdb PRESENTATION_MAP_STREAM_1
@@ -705,6 +733,22 @@ PRES_ACTOR_FRAME equ $00CE
 PRES_HIGHLIGHT equ $00CF
 PRES_ACTOR_KIND equ $00D0
 PRES_DEMO_CAUSE equ $00D1
+PRES_PREP_STATE equ $00D2
+PRES_ACTOR_PHASE equ $00D3
+PRES_HOLD_STATE equ $00D4
+PRES_HOLD_CHUNK equ $00D5
+PRES_HOLD_SAVED_FRONT equ $00D6
+PRES_HOLD_SAVED_BACK equ $00D7
+PRES_HOLD_GEN equ $00D8
+PRES_HOLD_OWNER equ $00D9
+PRES_HOLD_COPY equ $80
+PRES_HOLD_PUBLISH equ $81
+PRES_HOLD_HYDRATE equ 3
+PRES_HOLD_FINAL equ $81
+FB_FRONT_ID equ $008F
+FB_BACK_ID equ $0090
+PRES_ACTOR_TABLE equ $B200
+PRES_ACTOR_UNDERLAY equ $B000
 PRESENTATION_PENDING_NAME equ $AFDE
 
 presentation_module_end

@@ -5,10 +5,10 @@ GATE_TRANSITION_PAYLOAD_ADDR equ $A8F6
 PRESENTATION_PAYLOAD_ADDR equ $AC36
 SPARSE_ENEMY_INDEX_ADDR equ $A000
 SPARSE_PLAYER_INDEX_ADDR equ $A000
-SPARSE_ENEMY_INDEX_BYTES equ 384
+SPARSE_ENEMY_INDEX_BYTES equ 390
 SPARSE_PLAYER_INDEX_BYTES equ 48
 SPARSE_COPY_SEGMENT_BYTES equ 8
-SPARSE_COPY_SEGMENT_COUNT equ 15
+SPARSE_COPY_SEGMENT_COUNT equ 17
 
 ; bank, destination page, source CPU address, destination window, count
 sparse_copy_table
@@ -17,7 +17,7 @@ sparse_copy_table
         fdb     $C800,$06B0,$0002
         ; perimeter_reset_helper+$0000
         fcb     $00,$FF
-        fdb     $C802,$06B2,$0013
+        fdb     $C802,$06B2,$014C
         ; enemy+$0000
         fcb     $02,$35
         fdb     $C020,$A000,$2000
@@ -29,31 +29,37 @@ sparse_copy_table
         fdb     $D800,$BDE0,$0220
         ; enemy+$4000
         fcb     $03,$37
-        fdb     $DA20,$A000,$189B
+        fdb     $DA20,$A000,$19DD
         ; player+$0000
         fcb     $03,$39
-        fdb     $F2BB,$A000,$08F6
+        fdb     $F3FD,$A000,$08F6
         ; gate+$0000
         fcb     $03,$39
-        fdb     $FBB1,$A8F6,$024F
-        ; gate+$024F
+        fdb     $FCF3,$A8F6,$010D
+        ; gate+$010D
         fcb     $03,$39
-        fdb     $C000,$AB45,$0010
-        ; gate+$025F
+        fdb     $C000,$AA03,$0010
+        ; gate+$011D
         fcb     $03,$39
-        fdb     $C012,$AB55,$00E1
+        fdb     $C012,$AA13,$0223
         ; presentation+$0000
         fcb     $03,$39
-        fdb     $C0F3,$AC36,$0380
+        fdb     $C235,$AC36,$0380
         ; presentation_cold+$0000
         fcb     $03,$3A
-        fdb     $C473,$A000,$038D
-        ; presentation_cold+$038D
+        fdb     $C5B5,$A000,$024B
+        ; presentation_cold+$024B
         fcb     $00,$3A
-        fdb     $C815,$A38D,$1C73
+        fdb     $C94E,$A24B,$1DB5
         ; presentation_cold+$2000
         fcb     $00,$3B
-        fdb     $E488,$A000,$061B
+        fdb     $E703,$A000,$0633
+        ; attract_actor_records+$0000
+        fcb     $00,$34
+        fdb     $ED36,$B200,$0018
+        ; attract_actor_underlays+$0000
+        fcb     $00,$34
+        fdb     $ED4E,$B000,$0200
         ; presentation_module+$0000
         fcb     $00,$FF
-        fdb     $EAA3,$1900,$04CA
+        fdb     $EF4E,$1900,$04F6

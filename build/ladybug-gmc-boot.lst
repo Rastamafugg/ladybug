@@ -42,7 +42,7 @@ C022 B7FFD9           (c/gmc_bootstrap.s):00041                 sta     SAM_FAST
 C025 B7FFDE           (c/gmc_bootstrap.s):00042                 sta     SAM_CART        ; BASIC autorun may leave TY=1; expose GMC ROM
 C028 308D0016         (c/gmc_bootstrap.s):00043                 leax    loader_start,pcr
 C02C 108E0300         (c/gmc_bootstrap.s):00044                 ldy     #LOADER_RAM
-C030 CE034D           (c/gmc_bootstrap.s):00045                 ldu     #loader_end-loader_start
+C030 CE035D           (c/gmc_bootstrap.s):00045                 ldu     #loader_end-loader_start
 C033                  (c/gmc_bootstrap.s):00046         boot_copy
 C033 A680             (c/gmc_bootstrap.s):00047                 lda     ,x+
 C035 A7A0             (c/gmc_bootstrap.s):00048                 sta     ,y+
@@ -96,7 +96,7 @@ C096 25DB             (c/gmc_bootstrap.s):00094                 blo     copy_ene
                       (c/gmc_bootstrap.s):00096                 ; Copy the indexed sparse enemy/player streams into physical pages
                       (c/gmc_bootstrap.s):00097                 ; $35-$37 and $39 using the generated fragmented-bank plan.
 C098 308D027B         (c/gmc_bootstrap.s):00098                 leax    sparse_copy_table,pcr
-C09C 860F             (c/gmc_bootstrap.s):00099                 lda     #SPARSE_COPY_SEGMENT_COUNT
+C09C 8611             (c/gmc_bootstrap.s):00099                 lda     #SPARSE_COPY_SEGMENT_COUNT
 C09E B702F2           (c/gmc_bootstrap.s):00100                 sta     BOOT_SEGMENTS
 C0A1                  (c/gmc_bootstrap.s):00101         copy_sparse_segment
 C0A1 A680             (c/gmc_bootstrap.s):00102                 lda     ,x+
@@ -442,10 +442,10 @@ C316 39               (c/gmc_bootstrap.s):00435                 rts
      AC36             (sparse-loader.inc):00005         PRESENTATION_PAYLOAD_ADDR equ $AC36
      A000             (sparse-loader.inc):00006         SPARSE_ENEMY_INDEX_ADDR equ $A000
      A000             (sparse-loader.inc):00007         SPARSE_PLAYER_INDEX_ADDR equ $A000
-     0180             (sparse-loader.inc):00008         SPARSE_ENEMY_INDEX_BYTES equ 384
+     0186             (sparse-loader.inc):00008         SPARSE_ENEMY_INDEX_BYTES equ 390
      0030             (sparse-loader.inc):00009         SPARSE_PLAYER_INDEX_BYTES equ 48
      0008             (sparse-loader.inc):00010         SPARSE_COPY_SEGMENT_BYTES equ 8
-     000F             (sparse-loader.inc):00011         SPARSE_COPY_SEGMENT_COUNT equ 15
+     0011             (sparse-loader.inc):00011         SPARSE_COPY_SEGMENT_COUNT equ 17
                       (sparse-loader.inc):00012         
                       (sparse-loader.inc):00013         ; bank, destination page, source CPU address, destination window, count
 C317                  (sparse-loader.inc):00014         sparse_copy_table
@@ -454,7 +454,7 @@ C317 00FF             (sparse-loader.inc):00016                 fcb     $00,$FF
 C319 C80006B00002     (sparse-loader.inc):00017                 fdb     $C800,$06B0,$0002
                       (sparse-loader.inc):00018                 ; perimeter_reset_helper+$0000
 C31F 00FF             (sparse-loader.inc):00019                 fcb     $00,$FF
-C321 C80206B20013     (sparse-loader.inc):00020                 fdb     $C802,$06B2,$0013
+C321 C80206B2014C     (sparse-loader.inc):00020                 fdb     $C802,$06B2,$014C
                       (sparse-loader.inc):00021                 ; enemy+$0000
 C327 0235             (sparse-loader.inc):00022                 fcb     $02,$35
 C329 C020A0002000     (sparse-loader.inc):00023                 fdb     $C020,$A000,$2000
@@ -466,39 +466,45 @@ C337 0336             (sparse-loader.inc):00028                 fcb     $03,$36
 C339 D800BDE00220     (sparse-loader.inc):00029                 fdb     $D800,$BDE0,$0220
                       (sparse-loader.inc):00030                 ; enemy+$4000
 C33F 0337             (sparse-loader.inc):00031                 fcb     $03,$37
-C341 DA20A000189B     (sparse-loader.inc):00032                 fdb     $DA20,$A000,$189B
+C341 DA20A00019DD     (sparse-loader.inc):00032                 fdb     $DA20,$A000,$19DD
                       (sparse-loader.inc):00033                 ; player+$0000
 C347 0339             (sparse-loader.inc):00034                 fcb     $03,$39
-C349 F2BBA00008F6     (sparse-loader.inc):00035                 fdb     $F2BB,$A000,$08F6
+C349 F3FDA00008F6     (sparse-loader.inc):00035                 fdb     $F3FD,$A000,$08F6
                       (sparse-loader.inc):00036                 ; gate+$0000
 C34F 0339             (sparse-loader.inc):00037                 fcb     $03,$39
-C351 FBB1A8F6024F     (sparse-loader.inc):00038                 fdb     $FBB1,$A8F6,$024F
-                      (sparse-loader.inc):00039                 ; gate+$024F
+C351 FCF3A8F6010D     (sparse-loader.inc):00038                 fdb     $FCF3,$A8F6,$010D
+                      (sparse-loader.inc):00039                 ; gate+$010D
 C357 0339             (sparse-loader.inc):00040                 fcb     $03,$39
-C359 C000AB450010     (sparse-loader.inc):00041                 fdb     $C000,$AB45,$0010
-                      (sparse-loader.inc):00042                 ; gate+$025F
+C359 C000AA030010     (sparse-loader.inc):00041                 fdb     $C000,$AA03,$0010
+                      (sparse-loader.inc):00042                 ; gate+$011D
 C35F 0339             (sparse-loader.inc):00043                 fcb     $03,$39
-C361 C012AB5500E1     (sparse-loader.inc):00044                 fdb     $C012,$AB55,$00E1
+C361 C012AA130223     (sparse-loader.inc):00044                 fdb     $C012,$AA13,$0223
                       (sparse-loader.inc):00045                 ; presentation+$0000
 C367 0339             (sparse-loader.inc):00046                 fcb     $03,$39
-C369 C0F3AC360380     (sparse-loader.inc):00047                 fdb     $C0F3,$AC36,$0380
+C369 C235AC360380     (sparse-loader.inc):00047                 fdb     $C235,$AC36,$0380
                       (sparse-loader.inc):00048                 ; presentation_cold+$0000
 C36F 033A             (sparse-loader.inc):00049                 fcb     $03,$3A
-C371 C473A000038D     (sparse-loader.inc):00050                 fdb     $C473,$A000,$038D
-                      (sparse-loader.inc):00051                 ; presentation_cold+$038D
+C371 C5B5A000024B     (sparse-loader.inc):00050                 fdb     $C5B5,$A000,$024B
+                      (sparse-loader.inc):00051                 ; presentation_cold+$024B
 C377 003A             (sparse-loader.inc):00052                 fcb     $00,$3A
-C379 C815A38D1C73     (sparse-loader.inc):00053                 fdb     $C815,$A38D,$1C73
+C379 C94EA24B1DB5     (sparse-loader.inc):00053                 fdb     $C94E,$A24B,$1DB5
                       (sparse-loader.inc):00054                 ; presentation_cold+$2000
 C37F 003B             (sparse-loader.inc):00055                 fcb     $00,$3B
-C381 E488A000061B     (sparse-loader.inc):00056                 fdb     $E488,$A000,$061B
-                      (sparse-loader.inc):00057                 ; presentation_module+$0000
-C387 00FF             (sparse-loader.inc):00058                 fcb     $00,$FF
-C389 EAA3190004CA     (sparse-loader.inc):00059                 fdb     $EAA3,$1900,$04CA
+C381 E703A0000633     (sparse-loader.inc):00056                 fdb     $E703,$A000,$0633
+                      (sparse-loader.inc):00057                 ; attract_actor_records+$0000
+C387 0034             (sparse-loader.inc):00058                 fcb     $00,$34
+C389 ED36B2000018     (sparse-loader.inc):00059                 fdb     $ED36,$B200,$0018
+                      (sparse-loader.inc):00060                 ; attract_actor_underlays+$0000
+C38F 0034             (sparse-loader.inc):00061                 fcb     $00,$34
+C391 ED4EB0000200     (sparse-loader.inc):00062                 fdb     $ED4E,$B000,$0200
+                      (sparse-loader.inc):00063                 ; presentation_module+$0000
+C397 00FF             (sparse-loader.inc):00064                 fcb     $00,$FF
+C399 EF4E190004F6     (sparse-loader.inc):00065                 fdb     $EF4E,$1900,$04F6
                       (c/gmc_bootstrap.s):00438                 include "ladybug-perimeter-boot.inc"
                       (erimeter-boot.inc):00001         ; Generated from the current authored screen asset map.
      E010             (erimeter-boot.inc):00002         PERIMETER_SCREEN_MAP equ $E010
      E3D0             (erimeter-boot.inc):00003         PERIMETER_SCREEN_TILES equ $E3D0
-C38F                  (c/gmc_bootstrap.s):00439         loader_end
+C39F                  (c/gmc_bootstrap.s):00439         loader_end
                       (c/gmc_bootstrap.s):00440         
                       (c/gmc_bootstrap.s):00441                 end
 
@@ -531,7 +537,7 @@ Symbol Table:
 [ G] GIME_INIT0                       FF90
 [ G] GIME_MMU                         FF91
 [ G] GMC_BANK                         FF50
-[ G] loader_end                       C38F
+[ G] loader_end                       C39F
 [ G] loader_fail                      C1FA
 [ G] LOADER_RAM                       0300
 [ G] loader_start                     C042
@@ -544,10 +550,10 @@ Symbol Table:
 [ G] SAM_CART                         FFDE
 [ G] SAM_FAST                         FFD9
 [ G] SPARSE_COPY_SEGMENT_BYTES        0008
-[ G] SPARSE_COPY_SEGMENT_COUNT        000F
+[ G] SPARSE_COPY_SEGMENT_COUNT        0011
 [ G] sparse_copy_table                C317
 [ G] SPARSE_ENEMY_INDEX_ADDR          A000
-[ G] SPARSE_ENEMY_INDEX_BYTES         0180
+[ G] SPARSE_ENEMY_INDEX_BYTES         0186
 [ G] SPARSE_ENEMY_PAYLOAD_PAGE        0035
 [ G] SPARSE_PLAYER_INDEX_ADDR         A000
 [ G] SPARSE_PLAYER_INDEX_BYTES        0030

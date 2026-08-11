@@ -1112,10 +1112,13 @@ framebuffer_irq_impl
 fbiq_ready
         tst     FB_RENDER_PENDING
         beq     fbiq_missed
-        lda     #$C0
-        tst     FB_BACK_ID
-        beq     fbiq_publish
-        lda     #$B0
+        lda     FB_BACK_ID
+        lsla
+        lsla
+        lsla
+        lsla
+        nega
+        adda    #$C0
 fbiq_publish
         sta     GIME_VOFF1
         lda     FB_FRONT_ID
@@ -2891,9 +2894,11 @@ sparse_enemy_stream
         leau    d,u
         lda     #SPARSE_ENEMY_PAYLOAD_PAGE
         sta     GIME_PAR5
+        ldd     1,u
+        pshs    d
         lda     ,u
         sta     GIME_PAR5
-        ldu     1,u
+        puls    u
         rts
 
 ; Resolve A's always-mapped player index entry and map its stream page.
@@ -2904,9 +2909,11 @@ sparse_player_stream
         leau    d,u
         lda     #SPARSE_PLAYER_PAYLOAD_PAGE
         sta     GIME_PAR5
+        ldd     1,u
+        pshs    d
         lda     ,u
         sta     GIME_PAR5
-        ldu     1,u
+        puls    u
         rts
 
 ; Decode shared destination deltas into the mapped BACK framebuffer.

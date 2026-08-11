@@ -9,7 +9,11 @@ import json
 import re
 from pathlib import Path
 
-from build_screen import compile_enemy_sprites, compile_player_sprites
+from build_screen import (
+    compile_attract_extra_enemy_sprites,
+    compile_enemy_sprites,
+    compile_player_sprites,
+)
 
 
 PAGE_BYTES = 0x2000
@@ -35,6 +39,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--perimeter-reset-payload", type=Path, required=True)
     parser.add_argument("--perimeter-helper", type=Path, required=True)
     parser.add_argument("--presentation-cold", type=Path, required=True)
+    parser.add_argument("--actor-records", type=Path, required=True)
+    parser.add_argument("--actor-underlays", type=Path, required=True)
     parser.add_argument("--presentation-module", type=Path, required=True)
     parser.add_argument("--bank0", type=Path, required=True)
     parser.add_argument("--bank2", type=Path, required=True)
@@ -229,6 +235,7 @@ def sha256(data: bytes) -> str:
 def main() -> None:
     args = parse_args()
     enemy_frames = compile_enemy_sprites(args.sprites)
+    enemy_frames.extend(compile_attract_extra_enemy_sprites(args.sprites))
     player_frames = compile_player_sprites(args.sprites)
     enemy_payload = args.enemy_payload.read_bytes()
     player_payload = args.player_payload.read_bytes()
@@ -237,6 +244,8 @@ def main() -> None:
     perimeter_reset_payload = args.perimeter_reset_payload.read_bytes()
     perimeter_helper = args.perimeter_helper.read_bytes()
     presentation_cold = args.presentation_cold.read_bytes()
+    actor_records = args.actor_records.read_bytes()
+    actor_underlays = args.actor_underlays.read_bytes()
     presentation_module = args.presentation_module.read_bytes()
     enemy_ranges = decode_payload(enemy_payload, enemy_frames, 0x35)
     player_ranges = decode_payload(player_payload, player_frames, 0x39)
@@ -293,6 +302,8 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
+        "attract_actor_records": bytearray(len(actor_records)),
+        "attract_actor_underlays": bytearray(len(actor_underlays)),
     }
     coverage = {
         "enemy": bytearray(len(enemy_payload)),
@@ -301,6 +312,8 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
+        "attract_actor_records": bytearray(len(actor_records)),
+        "attract_actor_underlays": bytearray(len(actor_underlays)),
     }
     source_coverage = {
         0: bytearray(CART_READABLE_BYTES),
@@ -328,7 +341,7 @@ def main() -> None:
             if segment["target"] == "presentation_module":
                 if not (
                     0x1900 <= segment["destination_address"] and
-                    segment["destination_address"] + count <= 0x1E00
+                    segment["destination_address"] + count <= 0x1E40
                 ):
                     raise SystemExit("sparse proof: presentation module is out of range")
             elif not (
@@ -407,6 +420,12 @@ def main() -> None:
             reconstructed[target][target_offset:destination_end] = source
             coverage[target][target_offset:destination_end] = b"\x01" * count
             continue
+        elif target == "attract_actor_records":
+            target_page_base = 0x34
+            target_address = 0xB200
+        elif target == "attract_actor_underlays":
+            target_page_base = 0x34
+            target_address = 0xB000
         else:
             raise SystemExit(f"sparse proof: unknown loader target {target}")
         absolute_offset = target_address - WINDOW_BASE + target_offset
@@ -416,7 +435,7 @@ def main() -> None:
             segment["destination_page"] != expected_page or
             segment["destination_address"] != expected_address
         ):
-            raise SystemExit("sparse proof: destination does not match target offset")
+            raise SystemExit(f"sparse proof: destination does not match target offset ({target}: {segment['destination_page']:02X}/{segment['destination_address']:04X} != {expected_page:02X}/{expected_address:04X})")
         source = banks[segment["bank"]][source_offset:source_offset + count]
         destination_end = target_offset + count
         if destination_end > len(reconstructed[target]):
@@ -446,6 +465,10 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct presentation cold data")
     if reconstructed["presentation_module"] != presentation_module:
         raise SystemExit("sparse proof: loader does not reconstruct presentation module")
+    if reconstructed["attract_actor_records"] != actor_records:
+        raise SystemExit("sparse proof: loader does not reconstruct actor records")
+    if reconstructed["attract_actor_underlays"] != actor_underlays:
+        raise SystemExit("sparse proof: loader does not reconstruct actor underlays")
     expected_usable = (
         (CART_READABLE_BYTES - BANK2_PAYLOAD_START) +
         (CART_READABLE_BYTES - 0x1800) + 0x10 + (0x0800 - 0x12) +

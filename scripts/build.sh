@@ -14,6 +14,8 @@ SPARSE_PLAYER="$BUILD_DIR/ladybug-player-sparse.bin"
 GATE_TRANSITIONS="$BUILD_DIR/ladybug-gate-transitions.bin"
 PRESENTATION_SPARSE="$BUILD_DIR/ladybug-presentation-sparse.bin"
 PRESENTATION_COLD="$BUILD_DIR/ladybug-presentation-cold.bin"
+PRESENTATION_ACTOR_RECORDS="$BUILD_DIR/ladybug-attract-actor-records.bin"
+PRESENTATION_ACTOR_UNDERLAYS="$BUILD_DIR/ladybug-attract-actor-underlays.bin"
 PRESENTATION_INC="$BUILD_DIR/ladybug_presentation.inc"
 PRESENTATION_MANIFEST="$BUILD_DIR/ladybug-presentation.json"
 PRESENTATION_MODULE="$BUILD_DIR/ladybug-presentation-runtime.bin"
@@ -54,6 +56,8 @@ ASSET_LIMIT=0xFE00
 BOOT_OVERFLOW_START=0xC800
 PRESENTATION_MODULE_START=0x1900
 PRESENTATION_MODULE_LIMIT=0x1E00
+PRESENTATION_HELPER_START=0x06B2
+PRESENTATION_HELPER_LIMIT=0x0800
 
 guard_layout() {
     local map="$1"
@@ -155,6 +159,21 @@ print(f"build: presentation module {size}/{limit - start} bytes")
 PY
 }
 
+guard_presentation_helper() {
+    local helper="$1"
+    python3 - "$helper" "$PRESENTATION_HELPER_START" "$PRESENTATION_HELPER_LIMIT" <<'PY'
+import sys
+path, start, limit = sys.argv[1], int(sys.argv[2], 0), int(sys.argv[3], 0)
+size = len(open(path, 'rb').read())
+if start + size > limit:
+    raise SystemExit(
+        f"build: presentation helper ends at ${start + size:04X}; "
+        f"limit is ${limit:04X}"
+    )
+print(f"build: presentation helper {size}/{limit - start} bytes")
+PY
+}
+
 cmd_build() {
     [[ -f "$SRC_MAIN" ]] || { echo "build: $SRC_MAIN not found" >&2; exit 1; }
     mkdir -p "$BUILD_DIR"
@@ -184,7 +203,9 @@ cmd_build() {
         --gameplay-sprites "$ROOT/assets/arcade/sprites.json" \
         --output "$PRESENTATION_COLD" \
         --include-output "$PRESENTATION_INC" \
-        --manifest-output "$PRESENTATION_MANIFEST"
+        --manifest-output "$PRESENTATION_MANIFEST" \
+        --actor-record-output "$PRESENTATION_ACTOR_RECORDS" \
+        --actor-underlay-output "$PRESENTATION_ACTOR_UNDERLAYS"
 
     python3 "$ROOT/scripts/verify_presentation.py" \
         --tiled-dir "$ROOT/tiled" \
@@ -281,10 +302,27 @@ PY
           -I "$BUILD_DIR" \
           "$ENEMY_SRC"
 
-    lwasm -9 --format=raw \
-          --output="$PERIMETER_HELPER" \
-          --symbols \
-          "$PERIMETER_HELPER_SRC"
+    python3 - "$ENEMY_MAP" "$PRESENTATION_SYMBOLS" <<'PY'
+import re
+import sys
+source, output = sys.argv[1:]
+wanted = {
+    'framebuffer_prepare_back': 'PRES_MAIN_FB_PREPARE',
+    'framebuffer_finish_back': 'PRES_MAIN_FB_FINISH',
+    'framebuffer_capture_back': 'PRES_MAIN_FB_CAPTURE',
+}
+symbols = {}
+for line in open(source, encoding='utf-8'):
+    match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
+    if match and match.group(1) in wanted:
+        symbols[wanted[match.group(1)]] = match.group(2)
+missing = set(wanted.values()) - symbols.keys()
+if missing:
+    raise SystemExit('build: enemy framebuffer symbols missing: ' + ', '.join(sorted(missing)))
+with open(output, 'a', encoding='ascii') as handle:
+    for name in sorted(symbols):
+        handle.write(f'{name} equ ${symbols[name]}\n')
+PY
 
     lwasm -9 --format=raw \
           --output="$PRESENTATION_MODULE" \
@@ -294,6 +332,29 @@ PY
           -I "$BUILD_DIR" \
           "$PRESENTATION_MODULE_SRC"
     guard_presentation_module "$PRESENTATION_MODULE"
+
+    python3 - "$PRESENTATION_MODULE_MAP" "$PRESENTATION_SYMBOLS" <<'PY'
+import re
+import sys
+source, output = sys.argv[1:]
+symbols = {}
+for line in open(source, encoding='utf-8'):
+    match = re.match(r'^Symbol: (draw_actor_overlay|map_back) .* = ([0-9A-Fa-f]+)$', line.rstrip())
+    if match:
+        symbols['PRES_MODULE_DRAW_ACTOR' if match.group(1) == 'draw_actor_overlay' else 'PRES_MODULE_MAP_BACK'] = match.group(2)
+if set(symbols) != {'PRES_MODULE_DRAW_ACTOR', 'PRES_MODULE_MAP_BACK'}:
+    raise SystemExit('build: presentation module symbols missing: PRES_MODULE_DRAW_ACTOR, PRES_MODULE_MAP_BACK')
+with open(output, 'a', encoding='ascii') as handle:
+    for name, value in symbols.items():
+        handle.write(f'{name} equ ${value}\n')
+PY
+
+    lwasm -9 --format=raw \
+          --output="$PERIMETER_HELPER" \
+          --symbols \
+          -I "$BUILD_DIR" \
+          "$PERIMETER_HELPER_SRC"
+    guard_presentation_helper "$PERIMETER_HELPER"
 
     python3 "$ROOT/scripts/build_sparse_sprites.py" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
@@ -308,6 +369,8 @@ PY
         --perimeter-reset-output "$PERIMETER_RESET" \
         --perimeter-helper "$PERIMETER_HELPER" \
         --presentation-cold "$PRESENTATION_COLD" \
+        --actor-records "$PRESENTATION_ACTOR_RECORDS" \
+        --actor-underlays "$PRESENTATION_ACTOR_UNDERLAYS" \
         --presentation-module "$PRESENTATION_MODULE" \
         --bank0-output "$SPARSE_BANK0" \
         --bank2-output "$SPARSE_BANK2" \
@@ -325,6 +388,8 @@ PY
         --perimeter-reset-payload "$PERIMETER_RESET" \
         --perimeter-helper "$PERIMETER_HELPER" \
         --presentation-cold "$PRESENTATION_COLD" \
+        --actor-records "$PRESENTATION_ACTOR_RECORDS" \
+        --actor-underlays "$PRESENTATION_ACTOR_UNDERLAYS" \
         --presentation-module "$PRESENTATION_MODULE" \
         --bank0 "$SPARSE_BANK0" \
         --bank2 "$SPARSE_BANK2" \

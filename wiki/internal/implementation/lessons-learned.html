@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>BUG-010 hold publication requires a transient owner state</h2>
+      <p><strong>Filed 2026-08-10.</strong> Restoring the presentation module to the locked <code>$1900-$1DFF</code> boundary required moving the attract actor loop into the existing helper allocation. The helper now copies the complete visible framebuffer to <code>$28-$2B</code> in thirty bounded chunks, publishes it only through transient owner ID <code>2</code> at Voffset <code>$A0</code>, and hydrates both persistent A/B owners before normal publication resumes.</p>
+      <p><strong>Rule:</strong> compatibility storage is not a persistent framebuffer owner. Keep its state in always-mapped direct-page bytes, preserve the last complete hold surface across pre-emption, and prohibit intermediate A/B publication while hidden owners are hydrated. Final-pending cancellation must share the pending publication path so an input edge cannot leave a stale commit armed.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-010-attract-actor-fidelity.html">BUG-010</a>, <code>src/perimeter_reset_helper.s</code>, <code>src/presentation_runtime.s</code>, and <code>src/enemy_runtime.s</code>.</p>
+    </section>
+
+    <section>
       <h2>Edge-triggered input must retain the sampled cold baseline</h2>
       <p><strong>Filed 2026-08-10.</strong> BUG-009 called the presentation keyboard scanner before cold-state initialization. That scan correctly stored the idle CoCo keyboard rows as <code>$7F,$7F,$7F</code>, where PA7 is the joystick comparator rather than a keyboard row, and the cold path ignored its arbitrary pre-initialization event result. The cold path then replaced those samples with <code>$FF,$FF,$FF</code>; the next unchanged scan interpreted the PA7 difference as a new active-low edge on every selected credit drive, produced event mask <code>$07</code>, and replaced the pending attract load with high score before first publication.</p>
       <p><strong>Rule:</strong> initialize an edge detector from the first real hardware sample and suppress that sample's event, then retain the sampled baseline. Do not substitute an assumed all-high idle byte when input ports contain non-keyboard or platform-dependent bits. Verify no-input, held-through-initialization, release, and new-press sequences.</p>
@@ -42,8 +49,9 @@
     <section>
       <h2>Indexed sparse-stream resolvers must preserve caller-owned destinations</h2>
       <p><strong>Filed 2026-08-09.</strong> BUG-008 passed a framebuffer or stage destination in X, then <code>sparse_enemy_stream</code> and <code>sparse_player_stream</code> reused X to address a three-byte stream-index record. The decoder therefore received an index offset instead of the destination. On first live-stage publication, enemy-stage decode began at <code>$0000</code>, corrupted direct-page state and the return path, and recursively entered <code>frame_render_impl</code>. The repair calculates the indexed U address before payload-page selection, preserving X without a wrapper or second decoder; the bank-3 module fell from 4,089 to 4,081 bytes.</p>
-      <p><strong>Rule:</strong> a resolver inserted between destination setup and decode must preserve the destination register. Runtime verification must assert decoder entry destinations and successful return/publication; proving only that the decoder entry was reached is insufficient.</p>
-      <p><strong>Citation:</strong> <a href="../tickets/bug-008-live-start-handoff-stall.html">BUG-008</a>, <code>src/enemy_runtime.s</code> <code>sparse_enemy_stream</code>/<code>sparse_player_stream</code>, and the 2026-08-09 bounded XRoar/GDB traces.</p>
+      <p><strong>BUG-010 extension 2026-08-10:</strong> the presentation actor resolver selected the index page, read the stream page byte, remapped PAR5, and only then read the two-byte address through the same virtual pointer. It therefore decoded unrelated bytes and expanded phase-changing title intervals to 104,963&ndash;179,918 cycles. Loading U before the remap, with no instruction-size or allocation change, reduced the complete natural interval and all 69 phase changes to at most 15,017 cycles.</p>
+      <p><strong>Rule:</strong> a resolver inserted between destination setup and decode must preserve the destination register and every multi-byte index field before changing the bank that owns the index window. Runtime verification must assert authored/staged/live module identity, decoder return/publication, and a natural cycle distribution; proving only that decoder entry was reached is insufficient.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-008-live-start-handoff-stall.html">BUG-008</a>, <a href="../tickets/bug-010-attract-actor-fidelity.html">BUG-010</a>, <code>src/enemy_runtime.s</code> <code>sparse_enemy_stream</code>/<code>sparse_player_stream</code>, <code>src/presentation_runtime.s</code> <code>draw_actor_overlay</code>, and the bounded XRoar traces.</p>
     </section>
 
     <section>
@@ -1728,6 +1736,14 @@ git reset --hard HEAD
       <p><strong>Rule:</strong> while the actor is alive, a clear selected-owner player-valid ledger must force a complete player draw. Restore buffer-local save-under state through the normal closure; never copy stale player pixels between owners.</p>
       <p><strong>Applies to:</strong> respawn publication, persistent framebuffer ownership, and any retained actor with owner-local validity metadata.</p>
       <p><strong>Citation:</strong> <code>src/enemy_runtime.s</code> <code>actor_closure_draw</code>; BUG-006 focused XRoar replay.</p>
+    </section>
+
+    <section>
+      <h2>Keep transient publication state separate from hydration ownership</h2>
+      <p><strong>Filed 2026-08-10.</strong> BUG-010 runtime replay exposed two state hazards after the static hold protocol passed: the copy-owner counter reaches value three before transient publication, and actor-overlay execution resumes with PAR5 still pointing at the hold page unless it is explicitly restored.</p>
+      <p><strong>Rule:</strong> discriminate the final publication path from the copy-owner counter without treating owner three as the final-cancel state. Before actor-table or underlay access, restore PAR5 to the game-state page and pass the module renderer's destination through its presentation destination pointer. Keep ID 2 confined to the Vbord publication interval.</p>
+      <p><strong>Applies to:</strong> compatibility hold surfaces, persistent A/B hydration, retained actor restore/draw, and any helper that crosses a banked framebuffer mapping.</p>
+      <p><strong>Citation:</strong> <code>src/perimeter_reset_helper.s</code>; <code>scripts/verify_bug010_runtime.py</code>; BUG-010 runtime evidence.</p>
     </section>
 
   </main>

@@ -9,7 +9,12 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from build_screen import compile_enemy_sprites, compile_player_sprites, compile_screen
+from build_screen import (
+    compile_attract_extra_enemy_sprites,
+    compile_enemy_sprites,
+    compile_player_sprites,
+    compile_screen,
+)
 
 
 PAGE_BYTES = 0x2000
@@ -27,7 +32,7 @@ ENEMY_RUNTIME_OFFSET = 0x0800
 ENEMY_RUNTIME_RESERVED = 0x1000
 SIGNATURE_OFFSET = 0x0010
 PEN_MAP = (0x0, 0xC, 0x5, 0x2)
-EXPECTED_ENEMY_BYTES = 22_683
+EXPECTED_ENEMY_BYTES = 23_005
 EXPECTED_PLAYER_BYTES = 2_294
 EXPECTED_GATE_BYTES = 832
 EXPECTED_PRESENTATION_BYTES = 896
@@ -91,6 +96,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--perimeter-reset-output", type=Path, required=True)
     parser.add_argument("--perimeter-helper", type=Path, required=True)
     parser.add_argument("--presentation-cold", type=Path, required=True)
+    parser.add_argument("--actor-records", type=Path, required=True)
+    parser.add_argument("--actor-underlays", type=Path, required=True)
     parser.add_argument("--presentation-module", type=Path, required=True)
     parser.add_argument("--bank2-output", type=Path, required=True)
     parser.add_argument("--bank3-output", type=Path, required=True)
@@ -297,7 +304,8 @@ def pack_candidate_banks(
         presentation_payload: bytes,
         enemy_runtime: bytes, presentation_cold: bytes = b"",
         presentation_module: bytes = b"", perimeter_payload: bytes = b"",
-        perimeter_helper: bytes = b""
+        perimeter_helper: bytes = b"", actor_records: bytes = b"",
+        actor_underlays: bytes = b""
 ) -> tuple[bytes, bytes, bytes, list[CopySegment]]:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
     if len(enemy_runtime) > ENEMY_RUNTIME_RESERVED:
@@ -345,6 +353,10 @@ def pack_candidate_banks(
                       PRESENTATION_PAYLOAD_ADDRESS) +
         target_chunks("presentation_cold", presentation_cold, 0x3A,
                       WINDOW_BASE) +
+        target_chunks("attract_actor_records", actor_records, 0x34,
+                      0xB200) +
+        target_chunks("attract_actor_underlays", actor_underlays, 0x34,
+                      0xB000) +
         target_chunks("presentation_module", presentation_module, 0xFF,
                       0x1900)
     )
@@ -406,7 +418,7 @@ def pack_candidate_banks(
             if segment.target == "presentation_module":
                 if not (
                     0x1900 <= segment.destination_address and
-                    segment.destination_address + segment.count <= 0x1E00
+                    segment.destination_address + segment.count <= 0x1E40
                 ):
                     raise ValueError("presentation module exceeds low-RAM reservation")
             elif not (
@@ -445,7 +457,7 @@ def write_loader_include(path: Path, segments: list[CopySegment]) -> None:
         f"PRESENTATION_PAYLOAD_ADDR equ ${PRESENTATION_PAYLOAD_ADDRESS:04X}",
         f"SPARSE_ENEMY_INDEX_ADDR equ ${SPARSE_INDEX_ADDRESS:04X}",
         f"SPARSE_PLAYER_INDEX_ADDR equ ${SPARSE_INDEX_ADDRESS:04X}",
-        "SPARSE_ENEMY_INDEX_BYTES equ 384",
+        "SPARSE_ENEMY_INDEX_BYTES equ 390",
         "SPARSE_PLAYER_INDEX_BYTES equ 48",
         "SPARSE_COPY_SEGMENT_BYTES equ 8",
         f"SPARSE_COPY_SEGMENT_COUNT equ {len(segments)}",
@@ -471,6 +483,7 @@ def digest(data: bytes) -> str:
 def main() -> None:
     args = parse_args()
     enemy_frames = compile_enemy_sprites(args.sprites)
+    enemy_frames.extend(compile_attract_extra_enemy_sprites(args.sprites))
     player_frames = compile_player_sprites(args.sprites)
     enemy_payload, enemy_index, enemy_padding = pack_indexed_frames(
         enemy_frames, ENEMY_PAGE_BASE, ENEMY_PAGE_COUNT
@@ -509,11 +522,13 @@ def main() -> None:
 
     enemy_runtime = args.enemy_runtime.read_bytes()
     presentation_cold = args.presentation_cold.read_bytes()
+    actor_records = args.actor_records.read_bytes()
+    actor_underlays = args.actor_underlays.read_bytes()
     presentation_module = args.presentation_module.read_bytes()
     bank0, bank2, bank3, segments = pack_candidate_banks(
         enemy_payload, player_payload, gate_payload, presentation_payload,
         enemy_runtime, presentation_cold, presentation_module,
-        perimeter_payload, perimeter_helper
+        perimeter_payload, perimeter_helper, actor_records, actor_underlays
     )
     outputs = (
         (args.enemy_output, enemy_payload),
