@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Semantic grayscale names are not raw sprite pen order</h2>
+      <p><strong>Filed 2026-08-11.</strong> BUG-010 colour tuples were specified in white, light-grey, dark-grey order, while the raw arcade sprite values encode dark grey, light grey, and white as numeric pens 1, 2, and 3. Directly appending the semantic tuple to transparent pen zero exchanged the requested first and third colours for every actor.</p>
+      <p><strong>Rule:</strong> establish raw pen semantics independently before applying named colour substitutions, then validate each non-transparent source pixel against the packed output. Comparing only the set of colours cannot detect a pen permutation.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-010-attract-actor-fidelity.html">BUG-010</a>, <code>assets/arcade/sprites.json</code>, <code>assets/arcade/sprites_raw2bpp.png</code>, and <code>scripts/verify_bug010_attract_actors.py</code>.</p>
+    </section>
+
+    <section>
       <h2>Presentation cold data and game-state aliases require an explicit PAR5 handoff</h2>
       <p><strong>Filed 2026-08-11.</strong> BUG-010 mapped presentation cold page <code>$3A</code> while loading the title, then called framebuffer preparation before restoring game-state page <code>$34</code>. Preparation wrote <code>ENEMY_OLD_FB</code> at virtual <code>$A890</code>, corrupting six bytes of cold atlas tile 68. The damaged tile appeared twice on the instructions screen and produced deterministic transition artifacts even though the boot-loaded cold payload initially matched its authored hash.</p>
       <p><strong>Rule:</strong> before calling any renderer or ownership routine that accesses page-34 state, explicitly restore PAR5 to <code>$34</code>. Verify immutable payload identity both immediately after loading and after every cross-module handoff; boot-time identity alone does not prove runtime immutability.</p>

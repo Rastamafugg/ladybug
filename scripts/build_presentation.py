@@ -71,9 +71,9 @@ ATTRACT_ACTOR_COLOURS = {
     (5, 20): (WHITE, YELLOW, ORANGE),
 }
 ATTRACT_ACTOR_EXPECTED_TILES = {
-    (11, 3): 1,
+    (11, 3): 98,
     (35, 4): 5,
-    (27, 5): 0,
+    (27, 5): 65,
     (3, 9): 68,
     (10, 15): 32,
     (33, 19): 35,
@@ -88,7 +88,40 @@ ATTRACT_ACTOR_PHASE_POINTER_ADDRESS = 0xAA8E
 
 
 def lzss_compress(data: bytes) -> bytes:
-    """Encode bounded 12-bit-offset, 4-bit-length LZSS groups."""
+    """Encode a minimum-byte bounded 12-bit-offset, 4-bit-length LZSS stream."""
+    matches: list[dict[int, int]] = []
+    for cursor in range(len(data)):
+        offsets: dict[int, int] = {}
+        for candidate in range(max(0, cursor - 4095), cursor):
+            length = 0
+            distance = cursor - candidate
+            while (length < 18 and cursor + length < len(data) and
+                   data[candidate + length % distance] == data[cursor + length]):
+                length += 1
+            for matched in range(3, length + 1):
+                offsets.setdefault(matched, distance)
+        matches.append(offsets)
+
+    infinity = len(data) * 3
+    costs = [[infinity] * 8 for _ in range(len(data) + 1)]
+    choices: list[list[tuple[int, int] | None]] = [
+        [None] * 8 for _ in range(len(data))
+    ]
+    costs[-1] = [0] * 8
+    for cursor in range(len(data) - 1, -1, -1):
+        for slot in range(8):
+            group_byte = 1 if slot == 0 else 0
+            next_slot = (slot + 1) % 8
+            best_cost = group_byte + 1 + costs[cursor + 1][next_slot]
+            best_choice = (1, 0)
+            for length, distance in matches[cursor].items():
+                cost = group_byte + 2 + costs[cursor + length][next_slot]
+                if cost < best_cost or (cost == best_cost and length > best_choice[0]):
+                    best_cost = cost
+                    best_choice = (length, distance)
+            costs[cursor][slot] = best_cost
+            choices[cursor][slot] = best_choice
+
     output = bytearray()
     cursor = 0
     while cursor < len(data):
@@ -98,26 +131,21 @@ def lzss_compress(data: bytes) -> bytes:
         for bit in range(8):
             if cursor >= len(data):
                 break
-            best_length = 0
-            best_offset = 0
-            for candidate in range(max(0, cursor - 4095), cursor):
-                length = 0
-                distance = cursor - candidate
-                while (length < 18 and cursor + length < len(data) and
-                       data[candidate + length % distance] == data[cursor + length]):
-                    length += 1
-                if length >= 3 and length > best_length:
-                    best_length = length
-                    best_offset = distance
-            if best_length >= 3:
-                token = (best_offset << 4) | (best_length - 3)
+            choice = choices[cursor][bit]
+            if choice is None:
+                raise AssertionError("missing LZSS parse choice")
+            length, distance = choice
+            if length >= 3:
+                token = (distance << 4) | (length - 3)
                 output.extend(token.to_bytes(2, "big"))
-                cursor += best_length
+                cursor += length
             else:
                 flags |= 1 << bit
                 output.append(data[cursor])
                 cursor += 1
         output[flag_offset] = flags
+    if len(output) != costs[0][0]:
+        raise AssertionError("LZSS parse size differs from dynamic-programming optimum")
     return bytes(output)
 
 
@@ -198,7 +226,10 @@ def compile_attract_surfaces(
             phase_rows = ((row + 2) % 8, (row + 1) % 8, row)
             code = sheet_code(phase_rows[phase], column)
             sprite = sprite_transform(rotate_ccw(sprites[code]), int(actor["flags"]))
-            colours = [BLACK] + list(actor["colours"])
+            # Raw sprite pens are dark grey, light grey, white for 1, 2, 3.
+            # The authored triples are specified as white, light grey, dark grey.
+            colours = [BLACK, actor["colours"][2], actor["colours"][1],
+                       actor["colours"][0]]
             destination = int(actor["destination"])
             offset = destination - 0x2000
             actor.setdefault("source_codes", []).append(code)

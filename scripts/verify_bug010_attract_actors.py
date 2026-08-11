@@ -7,7 +7,11 @@ import hashlib
 import json
 import re
 import argparse
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from build_screen import FLIP_D, FLIP_H, FLIP_V, rotate_ccw, transform  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,15 +27,16 @@ HELPER = ROOT / "build/ladybug-perimeter-reset-helper.bin"
 COMPRESSED = ROOT / "build/ladybug-attract-actor-underlays.bin"
 METADATA = ROOT / "build/ladybug-attract-actor-records.bin"
 BOOT_SOURCE = ROOT / "src/gmc_bootstrap.s"
+SPRITES = ROOT / "assets/arcade/sprites.json"
 
 EXPECTED_ACTORS = (
-    ([11, 3], 0x2F2C, [13, 14, 15], [6, 5, 4]),
-    ([35, 4], 0x348C, [45, 46, 47], [6, 2, 13]),
-    ([27, 5], 0x396C, [5, 6, 7], [6, 5, 9]),
-    ([3, 9], 0x4D0C, [33, 34, 35], [6, 2, 13]),
-    ([10, 15], 0x6B28, [3, 4, 5], [2, 5, 1]),
-    ([33, 19], 0x7F84, [27, 28, 29], [6, 8, 5]),
-    ([5, 20], 0x8414, [21, 22, 23], [6, 2, 13]),
+    ([11, 3], 0x2F2C, [23, 16, 17], [6, 5, 4], 0xA0000000),
+    ([35, 4], 0x348C, [45, 46, 47], [6, 2, 13], 0),
+    ([27, 5], 0x396C, [9, 10, 11], [6, 5, 9], 0x60000000),
+    ([3, 9], 0x4D0C, [33, 34, 35], [6, 2, 13], 0),
+    ([10, 15], 0x6B28, [3, 4, 5], [2, 5, 1], 0xA0000000),
+    ([33, 19], 0x7F84, [27, 28, 29], [6, 8, 5], 0),
+    ([5, 20], 0x8414, [21, 22, 23], [6, 2, 13], 0),
 )
 
 
@@ -75,6 +80,13 @@ def lzss_expand(data: bytes, expected: int) -> bytes:
     return bytes(output)
 
 
+def transformed_sprite(sprite: list[list[int]], flags: int) -> list[list[int]]:
+    rows = rotate_ccw(sprite)
+    if flags & FLIP_D:
+        rows = [list(row) for row in zip(*rows)]
+    return transform(rows, bool(flags & FLIP_H), bool(flags & FLIP_V))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rom", type=Path)
@@ -107,7 +119,8 @@ def main() -> None:
 
     records = presentation.get("attract_actor_surfaces", {})
     actual = tuple(
-        (entry["cell"], entry["destination"], entry["source_codes"], entry["colours"])
+        (entry["cell"], entry["destination"], entry["source_codes"],
+         entry["colours"], entry["flags"])
         for entry in records.get("actors", [])
     )
     if actual != EXPECTED_ACTORS:
@@ -115,7 +128,7 @@ def main() -> None:
     if records.get("bytes") != 2688 or records.get("unique_phases") != 3:
         fail("actor surfaces are not the 7 x 3 x 128-byte format")
     bundle = presentation.get("attract_actor_bundle", {})
-    if (bundle.get("compressed_bytes") != 1067 or bundle.get("metadata_bytes") != 20 or
+    if (bundle.get("compressed_bytes") != 1062 or bundle.get("metadata_bytes") != 20 or
             bundle.get("destination_table_address") != 0xAA80 or
             bundle.get("phase_pointer_address") != 0xAA8E):
         fail("compressed actor bundle differs")
@@ -124,6 +137,30 @@ def main() -> None:
         fail("compressed actor surfaces do not expand to the authored payload")
     if len(METADATA.read_bytes()) != 20:
         fail("actor destination and phase metadata is not 20 bytes")
+    sprites = json.loads(SPRITES.read_text(encoding="ascii"))
+    actors = records["actors"]
+    for phase in range(3):
+        for actor_index, actor in enumerate(actors):
+            sprite = transformed_sprite(
+                sprites[actor["source_codes"][phase]], actor["flags"]
+            )
+            white, light_grey, dark_grey = actor["colours"]
+            pen_colours = (0, dark_grey, light_grey, white)
+            surface = expanded[
+                (phase * len(actors) + actor_index) * 128:
+                (phase * len(actors) + actor_index + 1) * 128
+            ]
+            for y, row in enumerate(sprite):
+                for x, pen in enumerate(row):
+                    if pen == 0:
+                        continue
+                    packed = surface[y * 8 + x // 2]
+                    actual_colour = packed >> 4 if x % 2 == 0 else packed & 15
+                    if actual_colour != pen_colours[pen]:
+                        fail(
+                            f"actor {actor['cell']} phase {phase} raw pen {pen} "
+                            f"maps to {actual_colour}, expected {pen_colours[pen]}"
+                        )
     for fragment in ("decompress_attract_surfaces", "lda     #$3C",
                      "sta     PAR_EXEC+4", "lda     #$23", "cmpy    #$8A80",
                      "das_metadata_byte"):
