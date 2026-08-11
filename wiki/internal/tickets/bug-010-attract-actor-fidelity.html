@@ -17,20 +17,20 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Ticket &middot; bug</p>
-      <h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">Verification</span></h1>
+      <h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">Done</span></h1>
       <p class="wiki-meta">Reproduce the arcade title actors, coordinates, frames, and cadence.</p>
     </header>
 
     <section>
       <h2>Identity and ordering</h2>
       <ul>
-        <li><strong>Status:</strong> Verification</li>
+        <li><strong>Status:</strong> Done</li>
         <li><strong>Created / updated:</strong> 2026-08-09 / 2026-08-10</li>
         <li><strong>Priority / order:</strong> P1 / 12.3</li>
         <li><strong>Owner:</strong> one bounded implementation owner; parent owns integration and closure</li>
         <li><strong>Parent:</strong> <a href="./feat-002-attract-mode-integration.html">FEAT-002</a></li>
         <li><strong>Dependencies:</strong> satisfied; BUG-009 is integrated and closed at current <code>main</code></li>
-        <li><strong>Source revision:</strong> current-<code>main</code> capture checkpoint <code>6588297665e86b2c9bb55062af00096abb6594d5</code>, implementation <code>9f8bc21</code>, and capacity-review baseline <code>0d6eb30</code></li>
+        <li><strong>Source revision:</strong> current-<code>main</code> capture checkpoint <code>6588297665e86b2c9bb55062af00096abb6594d5</code>, implementation <code>9f8bc21</code>, capacity-review baseline <code>0d6eb30</code>, and verified integration merge <code>2f7569b5a86b44dff15cae2015d272422675e6bb</code></li>
       </ul>
     </section>
 
@@ -116,6 +116,11 @@
       <p><strong>QA verdict 2026-08-10: Ready.</strong> The neutral MAME capture completed 1,800 frames in a bounded 30-second emulated interval. Standalone and raw-video oracle verification passes all 558 title frames, four actor crops, source-code/palette transforms, coordinates, schedule boundaries, capture hashes, existing sparse-index matches, two missing-frame append indexes, and the 322-byte sparse projection. Python compilation, HTML parsing, ticket/index synchronization, and whitespace checks pass. No runtime or cartridge source changed during assignment preparation, so the current-main build and capacity evidence remains applicable. Runtime implementation and acceptance remain pending.</p>
       <p><strong>Implementation result 2026-08-10:</strong> Commit <code>7374644</code> implements the frame-indexed sparse payload, four-actor metadata, preloaded <code>$B000</code> underlays, persistent-owner render path, 558-tick phase schedule, and focused verifier. Static verification passes. The original 1,280-byte presentation-module target is missed: measured module size is <code>1336</code> bytes, so the build guard was raised to <code>1344</code> only to retain a reproducible build. The approved compatibility hold-surface sequence was not implemented; the current implementation keeps the prior owner visible while the hidden BACK owner is prepared. GMC natural runtime evidence is unavailable because the existing startup probe stops at <code>NATURAL_BANK1_RAM_MISMATCH expected=15872 actual=0</code>.</p>
       <p><strong>Remediation result 2026-08-10:</strong> The approved implementation now restores the hard <code>$1900-$1DFF</code> presentation bound at <code>1280/1280</code> bytes and extends the existing helper to <code>333/334</code> bytes with fixed entries at <code>$06C5/$06C7/$06C9</code>. It copies the complete visible framebuffer to <code>$28-$2B</code> in thirty 1,024-byte chunks, publishes transient owner ID <code>2</code> at Voffset <code>$A0</code>, hydrates both A/B owners without intermediate publication, and cancels a final pending commit through the same atomic path on input pre-emption. Focused oracle, presentation-flow, sparse, enemy ABI, build, and static capacity checks pass. Current measured capacity is resident <code>8190/8192</code>, assets <code>7144/7680</code>, bank-3 <code>4082/4096</code>, enemy sparse <code>23005/24576</code>, cold <code>9779/10874</code>, combined <code>11059/14219</code>, GMC source spare <code>2481</code>, and future-sound margin <code>945/512</code>. The combined GMC probe does not complete its required natural and forced markers in this environment; hold-copy cycle worklists, owner-order hashes, and input-pre-emption traces remain unmeasured. BUG-010 remains in Verification.</p>
+    </section>
+
+    <section>
+      <h2>Completion evidence</h2>
+      <p><strong>QA closure 2026-08-10:</strong> Integration merge <code>2f7569b5a86b44dff15cae2015d272422675e6bb</code> combines current <code>main</code> with all BUG-010 implementation and verification commits without conflict. The combined revision passes <code>scripts/build.sh verify-gmc</code>, focused actor/oracle verification, the natural 558-tick capture, the two-order hold/owner runtime verifier, Python compilation, HTML parsing, and scoped whitespace checks. Natural title cadence completes at handoff <code>$1BC1</code>; 69 phase-changing intervals have a measured maximum of <code>15017</code> cycles; 60 one-kilobyte hold worklists have a measured maximum of <code>6224</code> cycles; and both are below the <code>27000</code> engineering target and <code>29666</code> hardware ceiling. Transient owner ID 2 publication, exact hold pixels, both persistent-owner hydration orders, input pre-emption, broad natural boot/attract, forced gameplay, and forced demo paths pass. Authored, staged, and live module/helper hashes match their retained evidence. Final capacity is resident <code>8190/8192</code>, assets <code>7144/7680</code>, bank 3 <code>4090/4096</code>, presentation module <code>1270/1280</code>, helper <code>332/334</code>, enemy sparse <code>23005/24576</code>, cold <code>9779/10874</code>, GMC source spare <code>2492</code>, and future-sound margin <code>956/512</code>. Rejected experiments are the obsolete GDB hold-marker probe, the five-breakpoint monitor probe, and precomposed phase patches; none remain in source. Physical-hardware confirmation remains the project-wide Phase 10 gate and is not a BUG-010 acceptance failure. All approved BUG-010 criteria are accepted and the ticket moves to <code>Done</code>.</p>
     </section>
 
     <section>
