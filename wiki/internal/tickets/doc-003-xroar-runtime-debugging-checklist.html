@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOC-003 XRoar Runtime-Debugging Checklist — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · documentation</p>
+      <h1>DOC-003 XRoar Runtime-Debugging Checklist <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Convert the FEAT-002 and BUG-008 findings into one reusable bounded XRoar/GDB procedure.</p>
+    </header>
+
+    <section>
+      <h2>Identity and ordering</h2>
+      <ul>
+        <li><strong>Status:</strong> Approved</li>
+        <li><strong>Created / updated:</strong> 2026-08-10 / 2026-08-10</li>
+        <li><strong>Priority / order:</strong> P2 / 17.1</li>
+        <li><strong>Owner:</strong> unassigned</li>
+        <li><strong>Source:</strong> <a href="./rsch-002-feat-002-troubleshooting-retrospective.html">RSCH-002</a> and <a href="./bug-008-live-start-handoff-stall.html">BUG-008</a></li>
+        <li><strong>Dependencies:</strong> RSCH-002 and BUG-008 are Done; no runtime dependency</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Add a reusable checklist to the canonical <a href="../tooling/xroar.html">XRoar tooling page</a>. It must guide a future investigator from exact artifact identification through bounded phase probes, natural-input reproduction, live-byte validation, cause discrimination, repair verification, and retained evidence without repeating the FEAT-002 and BUG-008 failures.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>RSCH-002 records that symbol intent was interpreted without first proving live-byte identity, deadlines expanded without valid marker semantics, and a hardware path received weight before software delivery and observation-tool defects were eliminated. BUG-008 records that forced event dispatch proved one real sparse-resolver defect but bypassed the natural credit-screen renderer, where a second register-preservation defect overwrote resident code. The current XRoar page documents commands and limitations but does not provide one ordered, reusable diagnosis checklist.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> one checklist section in <code>wiki/internal/tooling/xroar.html</code>; links to the evidence ladder, BUG-008, RSCH-002, and relevant lessons; explicit natural-versus-forced input guidance; phase deadlines and stop rules; artifact/source/staged/live comparisons; register and call-contract checks; MMU/PAR and observation-tool validation; hypothesis ordering; repair and regression closure; ticket index and log updates. <strong>Out:</strong> game code, XRoar source, GDB scripts, new probe helpers, emulator automation, ticket-policy changes, and claims about private model reasoning.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li>A natural keyboard path differs from a forced state or event-dispatch path.</li>
+        <li>GDB breakpoint installation races emulator execution or external XTest input.</li>
+        <li>A map symbol names expected code but live RAM contains loader data, stale code, or rendered pixels.</li>
+        <li>A corruption is observed during one phase but was written during an earlier screen or handoff.</li>
+        <li>A callee clobbers a register that its caller incorrectly treats as preserved.</li>
+        <li>A watchpoint, snapshot, timeout, or failed reattachment is an observation-tool limitation rather than target evidence.</li>
+        <li>A forced probe passes while the complete natural user-visible sequence fails.</li>
+        <li>An emulator or hardware hypothesis is considered before software, delivery, mapping, and tool candidates are separated.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <p><strong>Recommended:</strong> add the checklist as a named section in the existing XRoar tooling page. This keeps launch commands, GDB limitations, natural XTest input, and diagnosis order in one runbook without adding another navigation target. <strong>Alternative:</strong> create a separate debugging page and link it from XRoar; this provides more expansion room but duplicates context and increases link maintenance. No runtime or memory capacity changes occur under either option.</p>
+
+      <h3>Required checklist sequence</h3>
+      <ol>
+        <li>Record revision, dirty-state identity, build command, ROM hash, map files, emulator version, launch command, and exact natural reproduction.</li>
+        <li>Define each phase, success marker, deadline, and timeout meaning before launch; keep the initial phase at or below 60 seconds and terminate exact owned processes.</li>
+        <li>Install GDB breakpoints before releasing execution or sending XTest keys; distinguish real keyboard input from dispatcher or state injection.</li>
+        <li>At the first unexpected boundary, compare authored bytes, packaged or staged bytes, and live destination bytes before interpreting the symbol or PC.</li>
+        <li>Place code/data sentinels across preceding transitions so the first corrupting phase, not merely the first visible symptom, is identified.</li>
+        <li>Validate MMU/PAR state, register ownership, stack state, routine clobber contracts, destination ranges, and the observation mechanism.</li>
+        <li>Search exact corrupt-byte signatures through built payloads and calculate candidate write addresses before broad tracing.</li>
+        <li>Rank software, build/delivery, mapping, tool, emulator, and hardware candidates; escalate undocumented hardware only with independent or authoritative evidence.</li>
+        <li>Verify the minimal repair first through the complete natural sequence, then forced rare paths, capacity gates, and combined regression checks.</li>
+        <li>Retain failing and passing markers, commands, deadlines, hashes, screenshots or framebuffer evidence, rejected hypotheses, capacity result, and residual risk in the owning ticket.</li>
+      </ol>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>The XRoar page contains all ten ordered checklist steps and an explicit stop rule after one bounded timeout.</li>
+        <li>The checklist states that forced input cannot substitute for natural input when the failure crosses keyboard or presentation states.</li>
+        <li>The checklist requires live-byte identity before symbol, register, mapping, emulator, or hardware interpretation.</li>
+        <li>The checklist includes the XTest/GDB ordering that prevented the BUG-008 input race and the sentinel/signature method that found the coin overwrite.</li>
+        <li>Links resolve locally, HTML structure remains valid, and no files outside the approved documentation allowlist change.</li>
+        <li>Runtime and memory capacity delta is zero.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Approved objective and non-goals:</strong> add the approved ten-step runtime-debugging checklist to the existing XRoar tooling runbook. Do not change game behavior, assembly, build scripts, probe helpers, emulator source, project-wide policy, ticket acceptance criteria, or the approved checklist sequence.</li>
+        <li><strong>Owner and integration:</strong> one documentation owner works in the assigned worktree. The parent agent owns lifecycle-checkpoint creation, worktree creation, implementation review, integration, and final lifecycle changes. No parallel writer may edit the owned files.</li>
+        <li><strong>Owned artifacts:</strong> <code>wiki/internal/tooling/xroar.html</code>; this ticket; <code>wiki/internal/tickets/index.html</code>; and <code>wiki/internal/log.html</code>. Every other file is read-only.</li>
+        <li><strong>Worktree and branch:</strong> after the documentation-only lifecycle checkpoint, create <code>D:/retro/ladybug-worktrees/doc-003-xroar-runtime-debugging-checklist</code> on <code>codex/doc-003-xroar-runtime-debugging-checklist</code> from that exact checkpoint. Do not create it from the dirty main index or another ticket worktree.</li>
+        <li><strong>Implementation order:</strong> insert the checklist in the GDB workflow before troubleshooting and known-limitations material; retain the approved order and stop rules; add evidence links to BUG-008, RSCH-002, and lessons learned; render and inspect the section; run content, link, allowlist, and zero-runtime-delta checks; advance DOC-003 to <code>Verification</code>; update index and log; then create one bounded implementation commit.</li>
+        <li><strong>Content constraint:</strong> use imperative checklist language and distinguish observed facts from inference. Define natural input as emulator-visible key transitions and forced input as direct event/state manipulation. State that a timeout identifies the last proven boundary, not target-code slowness. Editorial compression may remove repetition but may not weaken any acceptance criterion or omit a required step.</li>
+        <li><strong>Runtime and capacity constraint:</strong> no changes under <code>src</code>, <code>scripts</code>, <code>assets</code>, <code>tiled</code>, <code>build</code>, <code>AGENTS.md</code>, or <code>.agents</code>. Runtime RAM, ROM, payload, stack, direct-page, cycle, and future-sound capacity deltas must all remain exactly zero.</li>
+      </ul>
+
+      <h3>Required verification commands</h3>
+      <pre><code>git diff --check -- wiki/internal/tooling/xroar.html wiki/internal/tickets/doc-003-xroar-runtime-debugging-checklist.html wiki/internal/tickets/index.html wiki/internal/log.html
+
+rg -n "artifact identity|success marker|deadline|timeout meaning|XTest|natural input|forced input|authored|staged|live|sentinel|clobber|PAR|signature|undocumented hardware|natural sequence|retained evidence" wiki/internal/tooling/xroar.html
+
+git diff --name-only HEAD^...HEAD
+
+git diff --exit-code HEAD^...HEAD -- src scripts assets tiled build AGENTS.md .agents
+
+python3 - &lt;&lt;'PY'
+from html.parser import HTMLParser
+from pathlib import Path
+
+files = [
+    Path("wiki/internal/tooling/xroar.html"),
+    Path("wiki/internal/tickets/doc-003-xroar-runtime-debugging-checklist.html"),
+    Path("wiki/internal/tickets/index.html"),
+]
+known = {
+    (Path("wiki/internal/tickets/index.html"), "./feat-001-presentation-maze-screens.html"),
+}
+
+class Links(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.hrefs = []
+    def handle_starttag(self, tag, attrs):
+        if tag == "a":
+            self.hrefs.extend(v for k, v in attrs if k == "href")
+
+missing = []
+for page in files:
+    parser = Links()
+    parser.feed(page.read_text(encoding="utf-8"))
+    for href in parser.hrefs:
+        target = href.split("#", 1)[0]
+        if target and "://" not in target and (page, href) not in known and not (page.parent / target).resolve().exists():
+            missing.append(f"{page}: {href}")
+if missing:
+    raise SystemExit("\n".join(missing))
+print("DOC-003 local links pass")
+PY</code></pre>
+
+      <h3>Required scenario walkthroughs</h3>
+      <ol>
+        <li><strong>Natural input race:</strong> a probe needs <code>5</code> then <code>1</code>. Pass only if the checklist installs breakpoints before continuing and sending XTest input, identifies the events as natural emulator input, and does not substitute dispatcher injection.</li>
+        <li><strong>Mapped symbol mismatch:</strong> the PC equals a current map symbol but live bytes differ from the artifact. Pass only if diagnosis stops at authored/staged/live comparison before interpreting the routine or hardware access.</li>
+        <li><strong>Delayed symptom:</strong> resident code is first observed corrupt during level-start hold. Pass only if transition sentinels identify whether an earlier screen wrote the damage and the hold is not labeled the writer without evidence.</li>
+        <li><strong>Register-contract overwrite:</strong> corrupt bytes match a tile payload. Pass only if the checklist searches the exact signature, calculates candidate destinations, and checks caller/callee register ownership and destination ranges.</li>
+        <li><strong>Hardware escalation:</strong> a PAR or GIME symptom remains after one timeout. Pass only if software, delivery, mapping, observation-tool, and emulator-control candidates receive discriminating tests before undocumented hardware, which additionally requires independent reproduction or authoritative evidence.</li>
+      </ol>
+
+      <h3>Evidence, commit, and completion report</h3>
+      <ul>
+        <li><strong>Retain:</strong> lifecycle-checkpoint revision, changed-file allowlist, exact checklist-term matches, local-link output, rendered-page inspection result, all five written walkthrough verdicts, zero-runtime-delta result, implementation commit, rejected wording alternatives, and residual risks.</li>
+        <li><strong>Commit:</strong> one bounded documentation commit on the assigned branch containing only the four owned files. Do not push, merge, advance to <code>Done</code>, or modify another ticket&rsquo;s status.</li>
+        <li><strong>Completion report:</strong> report commit hash; every command and result; each walkthrough result against its pass rule; rendered location; runtime-capacity delta of zero; rejected alternatives; residual risks; retained evidence; and whether DOC-003 can move to <code>Verification</code>. Missing required evidence is a failure.</li>
+      </ul>
+
+      <h3>Ready prerequisites remaining</h3>
+      <ul>
+        <li>Create a documentation-only lifecycle checkpoint containing DOC-003 proposal and approval state, its queue row, and its log entries while excluding unrelated dirty main files.</li>
+        <li>Record the checkpoint revision in this contract and create the clean assigned branch/worktree from that exact revision.</li>
+        <li>After both prerequisites pass, advance DOC-003 from <code>Approved</code> to <code>Ready</code>. No checklist implementation is authorized before then.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Verification and completion</h2>
+      <p><strong>Approval-transition position:</strong> the user explicitly approved the outcome, scope, recommendation, ten-step sequence, and acceptance criteria. DOC-003 is <code>Approved</code>, not <code>Ready</code> or implementation-accepted. The scoped <code>git diff --check</code>, status synchronization, and DOC-003 local links pass. A broader ticket-index link scan retains the pre-existing missing <code>feat-001-presentation-maze-screens.html</code> target; the assignment command allowlists only that baseline defect and fails on every new missing link. Verification must later inspect the rendered checklist in context, confirm every acceptance statement, prove zero runtime-file delta, and record the implementing commit.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-10 — User explicitly approved DOC-003. Advanced it from <code>Proposed</code> to <code>Approved</code> and prepared the Ready assignment contract. Lifecycle checkpoint and clean assigned worktree remain required before <code>Ready</code>.</li>
+        <li>2026-08-10 — User requested a reusable XRoar runtime-debugging checklist from the recorded Luna/Sol and BUG-008 findings. Created DOC-003 as Proposed; no checklist implementation is authorized before explicit approval.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Evidence sources: RSCH-002 troubleshooting retrospective, BUG-008 natural XTest and resident-overwrite diagnosis, and the current XRoar tooling runbook.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
