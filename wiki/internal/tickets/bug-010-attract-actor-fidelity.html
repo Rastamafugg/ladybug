@@ -17,14 +17,14 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Ticket &middot; bug</p>
-      <h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">Done</span></h1>
+      <h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">In Progress</span></h1>
       <p class="wiki-meta">Reproduce the arcade title actors, coordinates, frames, and cadence.</p>
     </header>
 
     <section>
       <h2>Identity and ordering</h2>
       <ul>
-        <li><strong>Status:</strong> Done</li>
+        <li><strong>Status:</strong> In Progress</li>
         <li><strong>Created / updated:</strong> 2026-08-09 / 2026-08-10</li>
         <li><strong>Priority / order:</strong> P1 / 12.3</li>
         <li><strong>Owner:</strong> one bounded implementation owner; parent owns integration and closure</li>
@@ -120,6 +120,7 @@
 
     <section>
       <h2>Completion evidence</h2>
+      <p><strong>Reopened 2026-08-11:</strong> Current-main user observation rejects the 2026-08-10 closure. The title now shows more animated enemies, but the visible count, enemy types, colours, and screen placements do not match the arcade title. Continuing into instructions also behaves erratically and exposes new transition bugs introduced by the BUG-010 changes. Expected behavior remains the retained arcade frame oracle plus a clean, deterministic frame-743 blank/frame-744 draw/frame-745 complete-instructions handoff. Exact current-main reproduction, first divergent frame, authored/staged/live identity, and causal discrimination are now required before another fix. The prior static crop/schedule proof and marker-only transition evidence are insufficient as visual acceptance; BUG-010 returns to <code>In Progress</code>.</p>
       <p><strong>QA closure 2026-08-10:</strong> Integration merge <code>2f7569b5a86b44dff15cae2015d272422675e6bb</code> combines current <code>main</code> with all BUG-010 implementation and verification commits without conflict. The combined revision passes <code>scripts/build.sh verify-gmc</code>, focused actor/oracle verification, the natural 558-tick capture, the two-order hold/owner runtime verifier, Python compilation, HTML parsing, and scoped whitespace checks. Natural title cadence completes at handoff <code>$1BC1</code>; 69 phase-changing intervals have a measured maximum of <code>15017</code> cycles; 60 one-kilobyte hold worklists have a measured maximum of <code>6224</code> cycles; and both are below the <code>27000</code> engineering target and <code>29666</code> hardware ceiling. Transient owner ID 2 publication, exact hold pixels, both persistent-owner hydration orders, input pre-emption, broad natural boot/attract, forced gameplay, and forced demo paths pass. Authored, staged, and live module/helper hashes match their retained evidence. Final capacity is resident <code>8190/8192</code>, assets <code>7144/7680</code>, bank 3 <code>4090/4096</code>, presentation module <code>1270/1280</code>, helper <code>332/334</code>, enemy sparse <code>23005/24576</code>, cold <code>9779/10874</code>, GMC source spare <code>2492</code>, and future-sound margin <code>956/512</code>. Rejected experiments are the obsolete GDB hold-marker probe, the five-breakpoint monitor probe, and precomposed phase patches; none remain in source. Physical-hardware confirmation remains the project-wide Phase 10 gate and is not a BUG-010 acceptance failure. All approved BUG-010 criteria are accepted and the ticket moves to <code>Done</code>.</p>
     </section>
 
