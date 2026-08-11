@@ -14,6 +14,10 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-10 &middot; runtime measurement &mdash; BUG-010 hold-copy cycles</h3>
+      <p>Replaced the obsolete unavailable timing field with a dedicated two-marker XRoar monitor measurement from helper call site <code>$06FB</code> through return <code>$06FE</code>. Thirty one-kilobyte chunks in each isolated A/B and B/A order produce 60 worklists at <code>6223..6224</code> CPU cycles; 58 scheduled-entry intervals are <code>14978..14991</code>. The maximum passes the 27,000 engineering target by 20,776 cycles and the 29,666 hardware ceiling by 23,442. Authored, staged, and live helper hashes match. The retained evidence SHA-256 is <code>09a3d99b334d570078911a6392772c742395f009285c42c19889f8b07f56d1d3</code>. A five-breakpoint combined probe timed out and was rejected; the unchanged three-marker protocol verifier and separate two-marker timing run both pass. BUG-010 remains Verification pending parent integration and closure authority.</p>
+    </section>
+    <section>
       <h3>2026-08-10 &middot; runtime remediation &mdash; BUG-010 attract phase cycles</h3>
       <p>The presentation-specific sparse resolver read its two-byte stream address after remapping PAR5 away from the enemy index page. A same-size instruction reorder now preserves U first. The final bounded natural capture completed 558 ticks, 69 phase changes, and handoff <code>$1BC1</code> with a <code>14965..15017</code>-cycle distribution, reducing the prior maximum by 164,901 cycles and passing both 29,666 hardware and 27,000 engineering limits. Authored, staged, and live module hashes match. Build, focused BUG-010, presentation flow, hold/owner runtime, natural capture, and broad GMC natural/forced verification pass. Evidence SHA-256 is <code>e0be66481ac6f970f73abf69031517e445fbdf33bbaa1ac3b660bc71802569ec</code>; BUG-010 remains Verification only because hold-copy cycle measurement is still unavailable.</p>
     </section>

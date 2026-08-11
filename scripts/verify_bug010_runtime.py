@@ -16,9 +16,13 @@ MONITOR_INPUT = ROOT / "scripts/verify_bug009_monitor_input.py"
 ROM = ROOT / "build/ladybug.rom"
 PRESENTATION_MAP = ROOT / "build/ladybug-presentation-runtime.map"
 EVIDENCE = ROOT / "build/bug010-runtime-evidence.json"
+HELPER = ROOT / "build/ladybug-perimeter-reset-helper.bin"
+LAYOUT = ROOT / "build/ladybug-sparse-layout.json"
 
 HOLD_BEGIN = 0x06C5
+HOLD_COPY_CALL = 0x06FB
 HOLD_COPY_CHUNK = 0x074B
+HOLD_COPY_RETURN = 0x06FE
 PUBLISH = 0x0DD5
 LOAD_DONE = 0x1A5E
 FB_FRONT = 0x008F
@@ -91,6 +95,10 @@ def state(monitor, client) -> dict[str, int]:
     }
 
 
+def cycles(client) -> dict[str, int]:
+    return client.call("read_cycles")
+
+
 def hold_hashes(monitor, client, front: int) -> tuple[str, str]:
     hold = read_bytes(monitor, client, HOLD_PHYSICAL, FRAMEBUFFER_BYTES, "physical")
     source_page = 0x30 if front == 0 else 0x2C
@@ -127,6 +135,9 @@ def run_order(monitor, rom: Path, order: tuple[int, int]) -> dict:
             client.call("write_memory", {"addr": FB_BACK, "data": f"{order[1]:02x}"})
         configured = state(monitor, client)
         monitor.clear(client, [begin_id])
+        live_helper_sha256 = hashlib.sha256(
+            read_bytes(monitor, client, 0x06B2, len(HELPER.read_bytes()))
+        ).hexdigest()
         breakpoint_ids = monitor.setup(client, [HOLD_COPY_CHUNK, PUBLISH, LOAD_DONE])
 
         chunks: list[dict] = []
@@ -168,6 +179,7 @@ def run_order(monitor, rom: Path, order: tuple[int, int]) -> dict:
             raise RuntimeError(f"final publication contract failed: {final_publish}")
         return {
             "order": list(order),
+            "live_helper_sha256": live_helper_sha256,
             "initial": initial,
             "configured": configured,
             "chunks": chunks,
@@ -176,6 +188,63 @@ def run_order(monitor, rom: Path, order: tuple[int, int]) -> dict:
             "final_publish": final_publish,
             "hold_sha256": hold_hash,
             "source_sha256": source_hash,
+        }
+    finally:
+        client.close()
+        monitor.stop(process)
+        process.wait(timeout=2)
+
+
+def run_cycle_order(monitor, rom: Path, order: tuple[int, int]) -> dict:
+    process, client = monitor.launch(monitor_binary, rom, monitor.free_port())
+    try:
+        begin_id = monitor.setup(client, [HOLD_BEGIN])[0]
+        begin_hit = client.run_to_breakpoint(20)
+        if begin_hit.get("pc") != HOLD_BEGIN:
+            raise RuntimeError(f"cycle hold begin PC mismatch: {begin_hit}")
+        if order != (0, 1):
+            client.call("write_memory", {"addr": FB_FRONT, "data": f"{order[0]:02x}"})
+            client.call("write_memory", {"addr": FB_BACK, "data": f"{order[1]:02x}"})
+        monitor.clear(client, [begin_id])
+        breakpoint_ids = monitor.setup(client, [HOLD_COPY_CALL, HOLD_COPY_RETURN])
+        worklists: list[dict] = []
+        entry_cycles: list[int] = []
+        copy_start: dict | None = None
+        while len(worklists) < 30:
+            hit = client.run_to_breakpoint(30)
+            pc = hit.get("pc")
+            if pc == HOLD_COPY_CALL:
+                if copy_start is not None:
+                    raise RuntimeError("hold copy call observed before prior return")
+                current = state(monitor, client)
+                start = cycles(client)
+                entry_cycles.append(start["cpu_cycles"])
+                copy_start = {"state": current, "cycles": start}
+            elif pc == HOLD_COPY_RETURN:
+                if copy_start is None:
+                    raise RuntimeError("hold copy return observed without call marker")
+                end = cycles(client)
+                start = copy_start["cycles"]
+                worklists.append({
+                    "generation": copy_start["state"]["generation"],
+                    "copy_page_index": copy_start["state"]["owner"],
+                    "chunk": copy_start["state"]["chunk"],
+                    "start_cpu_cycles": start["cpu_cycles"],
+                    "end_cpu_cycles": end["cpu_cycles"],
+                    "cpu_cycles": end["cpu_cycles"] - start["cpu_cycles"],
+                    "event_ticks": end["event_ticks"] - start["event_ticks"],
+                })
+                copy_start = None
+            else:
+                raise RuntimeError(f"unexpected cycle breakpoint {hit}")
+        monitor.clear(client, breakpoint_ids)
+        return {
+            "order": list(order),
+            "worklists": worklists,
+            "entry_intervals": [
+                entry_cycles[index] - entry_cycles[index - 1]
+                for index in range(1, len(entry_cycles))
+            ],
         }
     finally:
         client.close()
@@ -232,24 +301,71 @@ def main() -> None:
     global monitor_binary
     monitor_binary = args.xroar
     monitor = load_monitor_module()
+    orders = [run_order(monitor, args.rom, (0, 1)), run_order(monitor, args.rom, (1, 0))]
+    cycle_orders = [
+        run_cycle_order(monitor, args.rom, (0, 1)),
+        run_cycle_order(monitor, args.rom, (1, 0)),
+    ]
+    helper_sha256 = hashlib.sha256(HELPER.read_bytes()).hexdigest()
+    staged_helper_sha256 = json.loads(
+        LAYOUT.read_text(encoding="ascii")
+    )["perimeter_reset"]["helper_sha256"]
+    live_helper_hashes = {
+        order["live_helper_sha256"] for order in orders
+    }
+    if live_helper_hashes != {helper_sha256} or staged_helper_sha256 != helper_sha256:
+        raise RuntimeError(
+            "hold helper identity mismatch: "
+            f"authored={helper_sha256}, staged={staged_helper_sha256}, "
+            f"live={sorted(live_helper_hashes)}"
+        )
+    worklist_cycles = [
+        worklist["cpu_cycles"]
+        for order in cycle_orders
+        for worklist in order["worklists"]
+    ]
+    entry_intervals = [
+        interval
+        for order in cycle_orders
+        for interval in order["entry_intervals"]
+    ]
     results = {
-        "schema": "ladybug-bug010-runtime-evidence-v1",
+        "schema": "ladybug-bug010-runtime-evidence-v2",
         "rom_sha256": hashlib.sha256(args.rom.read_bytes()).hexdigest(),
+        "xroar_sha256": hashlib.sha256(args.xroar.read_bytes()).hexdigest(),
+        "helper_identity": {
+            "bytes": len(HELPER.read_bytes()),
+            "authored_sha256": helper_sha256,
+            "staged_sha256": staged_helper_sha256,
+            "live_sha256": next(iter(live_helper_hashes)),
+            "match": True,
+        },
         "load_done": read_map_symbol(PRESENTATION_MAP, "load_done"),
         "publish": read_map_symbol(ROOT / "build/ladybug-enemy-runtime.map", "fbiq_publish"),
         "cycle_measurement": {
-            "status": "unavailable",
-            "reason": "bounded XRoar/GDB probe did not reach hold_copy_chunk within 45 seconds",
+            "status": "measured",
+            "definition": "CPU cycles from the hold-copy call site at $06FB through return at $06FE",
+            "marker_deadline_seconds": 30,
+            "sample_count": len(worklist_cycles),
+            "minimum_cycles": min(worklist_cycles),
+            "maximum_cycles": max(worklist_cycles),
+            "entry_interval_sample_count": len(entry_intervals),
+            "entry_interval_minimum_cycles": min(entry_intervals),
+            "entry_interval_maximum_cycles": max(entry_intervals),
             "target_cycles": 27000,
             "hard_max_cycles": 29666,
+            "engineering_target_pass": max(worklist_cycles) <= 27000,
+            "hardware_maximum_pass": max(worklist_cycles) <= 29666,
         },
-        "orders": [run_order(monitor, args.rom, (0, 1)), run_order(monitor, args.rom, (1, 0))],
+        "orders": orders,
+        "cycle_orders": cycle_orders,
         "input_preemption": run_input_preemption(monitor, args.rom),
     }
     args.output.write_text(json.dumps(results, indent=2) + "\n", encoding="ascii")
     print(
-        "BUG-010 runtime evidence: 30 hold chunks, transient ID-2 hash, "
+        "BUG-010 runtime evidence: 60 measured hold chunks, transient ID-2 hash, "
         "two owner hydrations, A/B and B/A orders, and input pre-emption pass; "
+        f"hold worklist range {min(worklist_cycles)}-{max(worklist_cycles)} cycles; "
         f"evidence={args.output}"
     )
 
