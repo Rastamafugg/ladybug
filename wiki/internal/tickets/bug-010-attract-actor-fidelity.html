@@ -17,15 +17,15 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Ticket &middot; bug</p>
-      <h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">In Progress</span></h1>
+      <h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">Proposed</span></h1>
       <p class="wiki-meta">Reproduce the arcade title actors, coordinates, frames, and cadence.</p>
     </header>
 
     <section>
       <h2>Identity and ordering</h2>
       <ul>
-        <li><strong>Status:</strong> In Progress</li>
-        <li><strong>Created / updated:</strong> 2026-08-09 / 2026-08-10</li>
+        <li><strong>Status:</strong> Proposed</li>
+        <li><strong>Created / updated:</strong> 2026-08-09 / 2026-08-11</li>
         <li><strong>Priority / order:</strong> P1 / 12.3</li>
         <li><strong>Owner:</strong> one bounded implementation owner; parent owns integration and closure</li>
         <li><strong>Parent:</strong> <a href="./feat-002-attract-mode-integration.html">FEAT-002</a></li>
@@ -91,7 +91,50 @@
     </section>
 
     <section>
-      <h2>Assignment contract</h2>
+      <h2>2026-08-11 reopening approval brief</h2>
+      <p>This section supersedes the prior actor, coordinate, rendering, transition, and verification requirements. The earlier assignment contract is inactive. A material replacement requires explicit approval, architecture review, and a new Ready assignment contract before implementation.</p>
+
+      <h3>Reproduction and discriminating diagnosis</h3>
+      <ol>
+        <li>Build integrated current <code>main</code> at reopening revision <code>b0b75240c6cc140d438af88e32b431b7e0aef917</code>, launch without input, and stop at the natural title tick and title-to-instructions boundary.</li>
+        <li>Compare the visible physical framebuffer, palette, actor crops, persistent-owner state, timer, and save-under state with the retained 1,800-frame MAME capture and its four sprite crops.</li>
+        <li>Continue through instructions publication and the first instructions actor update; a successful PC marker or timer alone does not pass.</li>
+      </ol>
+      <p><strong>Observed title:</strong> the raw MAME capture still passes its hash and crop verifier and contains four stationary, synchronously animated actors. Current main also stores and draws four actor records, so the user-reported count difference is not resolved by the record count and remains an explicit requirement question. Visible type and colour are wrong: <code>verify_attract_actor_reference.py</code> validates each RGB crop, then independently reduces the sprite to shape-only 2bpp data. <code>build_sparse_sprites.py</code> expands every such shape through one fixed <code>PEN_MAP</code>. The actor-specific arcade palette table and row never reach the live sparse stream. Static verification therefore accepts the correct shapes while current main displays the wrong colours.</p>
+      <p><strong>Observed placement:</strong> the oracle mandates <code>coco_x = raw_y + 40</code> and <code>coco_y = 192 - raw_x - 16</code>. That rotates the actor coordinates from the 192&times;240 post-rotation MAME frame, while the authored CoCo title remains a horizontal 320&times;192 adaptation. The verifier checks that self-selected transform but does not compare the composed CoCo screen with a visible target. Exact replacement coordinates must be approved as part of the landscape adaptation.</p>
+      <p><strong>Observed transition:</strong> at the last title worklist, <code>attract_tick</code> increments the timer to 558, renders the next actor phase, queues <code>PENDING</code>, and immediately calls <code>start_screen</code> for instructions. The instructions loader remains mapped to the same physical owner while the queued title publication changes logical FRONT/BACK ownership at Vbord. In one bounded natural observation, load completion had FRONT 1 containing the complete instructions frame and BACK 0 containing the stale title; the subsequent publication selected owner 0 and returned the visible display to the title. Instructions actor state then advanced against the other mapped surface. This discriminates the regression from actor duration, emulator control, or an instructions-map defect.</p>
+      <p><strong>Verification gap:</strong> the prior focused verifier validates records, source fragments, hashes, capacities, and schedule metadata but never reads the physical visible framebuffer. The 558-tick verifier reads execution markers and ownership state but never validates visible actor crops or boundary screens. Those passes are execution evidence only and cannot satisfy visible fidelity.</p>
+      <p><strong>Artifact identity and retained runtime baseline:</strong> the same-ROM bounded runs match the authored, staged, and live 1,270-byte presentation module at SHA-256 <code>b9a51ef4f98a81532ed68fee47f9eca23b160290a3558dca76d48493f8a0749d</code> and the 332-byte helper at <code>a951d5353a5ae87876d9f459e000b00fe18fde9e8a7e394e9e46898c13c23abd</code>. The existing owner/hold scenarios and 6,223&ndash;6,224-cycle copy worklists still pass. This rejects stale live code and hold-copy failure as causes; it does not accept the visible title or handoff.</p>
+
+      <h3>Required outcome and golden path</h3>
+      <ol>
+        <li>A complete title publishes atomically with the approved actor count, identities, arcade palette colours, landscape-adapted coordinates, source frames, and cadence.</li>
+        <li>Every phase restores all approved footprints, draws the exact next coloured crops into the hidden owner, and publishes only the completed owner at Vbord.</li>
+        <li>The final visible title frame completes without queuing an actor publication that can overlap the next screen load.</li>
+        <li>The complete title remains visible while instructions is prepared in a stable hidden owner.</li>
+        <li>One Vbord commit publishes the complete instructions screen; its save-under pointer, validity, actor destination, and phase initialize only after that owner is stable.</li>
+        <li>The first and subsequent instructions actor updates restore and draw only against instructions pixels. No stale title, partial instructions frame, rollback, damaged title, or wrong-owner write is visible.</li>
+      </ol>
+
+      <h3>Scope, options, and open requirements</h3>
+      <p><strong>In:</strong> title actor inventory, identities, palette-correct frames, approved landscape placement, exact visible cadence, final-title publication ordering, title-to-instructions owner handoff, save-under initialization, and visible-frame verification. <strong>Out:</strong> instructions choreography fidelity owned by BUG-011, title lettering or static artwork unless required by the approved placement decision, demo/gameplay rules, sound, and unrelated presentation screens.</p>
+      <p><strong>Recommended placement option:</strong> derive a new landscape composition from the visible MAME frame, preserving each actor's semantic position relative to the title rather than rotating actor coordinates independently. Approve exact 320&times;192 pixel coordinates and composed reference images before coding. <strong>Alternative:</strong> the user supplies exact actor count, identities, colours, and coordinates for the adapted screen. Retaining the current rotated transform is rejected because it reproduces the reported placement defect.</p>
+      <p><strong>Open requirements:</strong> the retained arcade evidence contains four actors, while the user reports the amount is wrong; the intended count must be stated. Exact landscape coordinates or a reference layout must also be approved. These decisions affect actor records, underlay allocation, sparse packing, runtime worklists, and visible acceptance and cannot be inferred from the invalidated contract.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>A retained visible target defines the approved count, identity, colour, and exact 320&times;192 top-left coordinate of every actor for all four phases.</li>
+        <li>Natural cold boot, natural loop return, and isolated owner orders compare each composed visible actor crop pixel-for-pixel with that target; missing visible capture fails.</li>
+        <li>The 558 complete-title frames and every phase boundary match the approved cadence without an extra final actor publication.</li>
+        <li>Natural boundary capture proves a stable complete title, hidden complete instructions owner, single atomic instructions publication, and at least two correct instructions actor restores/draws.</li>
+        <li>Authored, staged, and live bytes match before interpreting runtime state. PAR state, save-under state, owner metadata, pending/active flags, and missed/front-write counters remain valid.</li>
+        <li>All module, helper, sparse, cold, GMC, future-sound, and 29,666-cycle hardware limits pass after the replacement rendering design; a missed limit returns the ticket to Proposed.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Superseded assignment contract</h2>
+      <p>The following 2026-08-10 contract is retained as historical evidence only and must not be implemented or used for acceptance.</p>
       <ul>
         <li><strong>Approved objective and non-goals:</strong> implement the approval brief and acceptance criteria without changing title artwork/selection, instructions, credit screens, demo/gameplay rules, sound, input mapping, renderer ABI, or gameplay sparse indexes.</li>
         <li><strong>Branch and worktree:</strong> use branch <code>codex/bug-010-attract-actors</code> in <code>D:\retro\ladybug-worktrees\bug-010-attract-actors</code>, starting from current-<code>main</code> capture checkpoint <code>6588297665e86b2c9bb55062af00096abb6594d5</code>. Unrelated dirty PERF-004, generated build, <code>.gitignore</code>, Tiled-session, and DOC-003 files in the parent worktree are excluded.</li>
@@ -106,7 +149,7 @@
         <li><strong>Commit and authority:</strong> produce one bounded BUG-010 remediation commit on top of implementation <code>9f8bc21</code> and review <code>0d6eb30</code>. The assignee may not merge, push, close BUG-010, modify BUG-011 through BUG-013, or alter approved scope. Rejected experiments must be reverted before commit.</li>
         <li><strong>Completion report:</strong> provide commit hash; exact commands/results; result against every actor, cadence, owner, input, timing, diagnostic, and capacity target; before/after module/cold/sparse/GMC headroom; natural and forced evidence; rejected experiments; residual risks; and recommendation for <code>Verification</code> or continued work.</li>
       </ul>
-      <p><strong>Ready gate:</strong> satisfied for remediation. User approval fixes the 1,280-byte module restoration, existing-helper extension, transient ID-2 Vbord protocol, 1,024-byte copy chunk, no-publication A/B hydration, exact ownership, hard limits, commands, scenarios, evidence, commit boundary, and authority.</p>
+      <p><strong>Historical Ready gate (superseded):</strong> the 2026-08-10 remediation gate was satisfied under the prior contract. Its module restoration, helper extension, transient ID-2 protocol, copy chunks, and owner hydration remain historical evidence but do not authorize the replacement work.</p>
     </section>
 
     <section>
@@ -120,7 +163,7 @@
 
     <section>
       <h2>Completion evidence</h2>
-      <p><strong>Reopened 2026-08-11:</strong> Current-main user observation rejects the 2026-08-10 closure. The title now shows more animated enemies, but the visible count, enemy types, colours, and screen placements do not match the arcade title. Continuing into instructions also behaves erratically and exposes new transition bugs introduced by the BUG-010 changes. Expected behavior remains the retained arcade frame oracle plus a clean, deterministic frame-743 blank/frame-744 draw/frame-745 complete-instructions handoff. Exact current-main reproduction, first divergent frame, authored/staged/live identity, and causal discrimination are now required before another fix. The prior static crop/schedule proof and marker-only transition evidence are insufficient as visual acceptance; BUG-010 returns to <code>In Progress</code>.</p>
+      <p><strong>Reopened and diagnosed 2026-08-11:</strong> Current-main user observation rejects the 2026-08-10 closure. The title now shows more animated enemies, but the visible count, enemy types, colours, and screen placements do not meet the required presentation. Current-main reproduction confirms actor palette loss, an invalid independently rotated placement transform, and a final-title pending-publication race that exposes the completed instructions owner during loading and then publishes the stale title owner. The prior static crop/schedule proof and marker-only transition evidence are insufficient as visual acceptance. BUG-010 is <code>Proposed</code>; the replacement approval brief above is canonical.</p>
       <p><strong>QA closure 2026-08-10:</strong> Integration merge <code>2f7569b5a86b44dff15cae2015d272422675e6bb</code> combines current <code>main</code> with all BUG-010 implementation and verification commits without conflict. The combined revision passes <code>scripts/build.sh verify-gmc</code>, focused actor/oracle verification, the natural 558-tick capture, the two-order hold/owner runtime verifier, Python compilation, HTML parsing, and scoped whitespace checks. Natural title cadence completes at handoff <code>$1BC1</code>; 69 phase-changing intervals have a measured maximum of <code>15017</code> cycles; 60 one-kilobyte hold worklists have a measured maximum of <code>6224</code> cycles; and both are below the <code>27000</code> engineering target and <code>29666</code> hardware ceiling. Transient owner ID 2 publication, exact hold pixels, both persistent-owner hydration orders, input pre-emption, broad natural boot/attract, forced gameplay, and forced demo paths pass. Authored, staged, and live module/helper hashes match their retained evidence. Final capacity is resident <code>8190/8192</code>, assets <code>7144/7680</code>, bank 3 <code>4090/4096</code>, presentation module <code>1270/1280</code>, helper <code>332/334</code>, enemy sparse <code>23005/24576</code>, cold <code>9779/10874</code>, GMC source spare <code>2492</code>, and future-sound margin <code>956/512</code>. Rejected experiments are the obsolete GDB hold-marker probe, the five-breakpoint monitor probe, and precomposed phase patches; none remain in source. Physical-hardware confirmation remains the project-wide Phase 10 gate and is not a BUG-010 acceptance failure. All approved BUG-010 criteria are accepted and the ticket moves to <code>Done</code>.</p>
     </section>
 
