@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Control-flow evidence needs a fallback when repeated monitor breakpoints become intermittent</h2>
+      <p><strong>Filed 2026-08-11.</strong> BUG-010's returned-attract probe intermittently failed to stop on a refreshed <code>start_screen</code> or <code>start_screen_map</code> breakpoint after the proven name-screen input edge, even though the same runtime path completed in successful captures. Stepping five instructions from <code>name_tick</code> to the exact <code>start_screen</code> PC and thirteen more to <code>start_screen_map</code> proved the required edge and transition without changing game state.</p>
+      <p><strong>Rule:</strong> if a repeated observation breakpoint becomes unreliable, retain the miss as an observation-tool result and switch to a bounded instruction-step proof with explicit starting PC, ending PC, and instruction count. Do not infer a target-code failure from the breakpoint miss alone.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-010-attract-actor-fidelity.html">BUG-010</a> and <code>scripts/verify_bug010_loop_return.py</code>.</p>
+    </section>
+
+    <section>
       <h2>Arcade sprite animation families may cross sheet columns at row wrap</h2>
       <p><strong>Filed 2026-08-11.</strong> BUG-010 derived each attract family by keeping the selected sheet column fixed while stepping through adjacent rows. Cell <code>(11,3)</code> requires the visible sequence <code>r6c2, r7c2, r0c1, r7c2</code> using zero-based sheet coordinates, so its row-zero frame moves to the preceding column instead of wrapping within column 2.</p>
       <p><strong>Rule:</strong> treat captured animation-frame identity as authoritative and permit explicit per-phase sheet coordinates. A regular neighboring-row rule is a default, not evidence that every family remains in one column.</p>
