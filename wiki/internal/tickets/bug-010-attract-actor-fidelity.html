@@ -17,14 +17,14 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Ticket &middot; bug</p>
-      <h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">Proposed</span></h1>
+      <h1>BUG-010 &mdash; Attract title actor set and animation lack arcade fidelity <span class="wiki-badge">Ready</span></h1>
       <p class="wiki-meta">Reproduce the arcade title actors, coordinates, frames, and cadence.</p>
     </header>
 
     <section>
       <h2>Identity and ordering</h2>
       <ul>
-        <li><strong>Status:</strong> Proposed</li>
+        <li><strong>Status:</strong> Ready</li>
         <li><strong>Created / updated:</strong> 2026-08-09 / 2026-08-11</li>
         <li><strong>Priority / order:</strong> P1 / 12.3</li>
         <li><strong>Owner:</strong> one bounded implementation owner; parent owns integration and closure</li>
@@ -116,10 +116,14 @@
         <li>The first and subsequent instructions actor updates restore and draw only against instructions pixels. No stale title, partial instructions frame, rollback, damaged title, or wrong-owner write is visible.</li>
       </ol>
 
-      <h3>Scope, options, and open requirements</h3>
-      <p><strong>In:</strong> title actor inventory, identities, palette-correct frames, approved landscape placement, exact visible cadence, final-title publication ordering, title-to-instructions owner handoff, save-under initialization, and visible-frame verification. <strong>Out:</strong> instructions choreography fidelity owned by BUG-011, title lettering or static artwork unless required by the approved placement decision, demo/gameplay rules, sound, and unrelated presentation screens.</p>
-      <p><strong>Recommended placement option:</strong> derive a new landscape composition from the visible MAME frame, preserving each actor's semantic position relative to the title rather than rotating actor coordinates independently. Approve exact 320&times;192 pixel coordinates and composed reference images before coding. <strong>Alternative:</strong> the user supplies exact actor count, identities, colours, and coordinates for the adapted screen. Retaining the current rotated transform is rejected because it reproduces the reported placement defect.</p>
-      <p><strong>Open requirements:</strong> the retained arcade evidence contains four actors, while the user reports the amount is wrong; the intended count must be stated. Exact landscape coordinates or a reference layout must also be approved. These decisions affect actor records, underlay allocation, sparse packing, runtime worklists, and visible acceptance and cannot be inferred from the invalidated contract.</p>
+      <h3>Approved scope and authored target</h3>
+      <p><strong>In:</strong> the cleaned title cells in the original TMX layer; all seven non-empty cells in the authored <code>Sprite Animations</code> layer; each cell's tile identity, orthogonal Tiled transform, top-left cell coordinate, four-phase family, and supplied arcade colour substitution; exact visible cadence; final-title publication ordering; title-to-instructions owner handoff; and visible-frame verification. <strong>Out:</strong> instructions choreography fidelity owned by BUG-011, demo/gameplay rules, sound, and unrelated presentation screens.</p>
+      <p><strong>Approved target:</strong> <code>tiled/coco-attract-screen.tmx</code> at asset commit <code>4b3fc73</code> is authoritative for count, placement, source tile, rotation/reflection, and cleaned static title artwork. The seven cells are <code>(11,3)</code>, <code>(35,4)</code>, <code>(27,5)</code>, <code>(3,9)</code>, <code>(10,15)</code>, <code>(33,19)</code>, and <code>(5,20)</code>, where coordinates are zero-based 8-pixel TMX cells and each actor occupies a 16&times;16-pixel rectangle. Source pens white, light grey, and dark grey map respectively to: white/green/pink; white/yellow/orange; white/green/purple; white/yellow/orange; yellow/green/red; white/light-green/green; and white/yellow/orange in the same cell order. Transparent source pen zero retains the cleaned title underlay.</p>
+
+      <h3>Selected architecture and capacity contract</h3>
+      <p>Compile only the original title layer as static map data and parse <code>Sprite Animations</code> independently. Derive each selected sprite's four-frame family from the raw sprite sheet, apply the complete Tiled H/V/diagonal transform, substitute the approved three visible pens, and precompose each 16&times;16 phase over the compiled title pixels. The seven rectangles are non-overlapping. Store three unique opaque 128-byte rectangles per actor because animation phase three aliases phase one: 2,688 bytes total, phase-major, plus a 14-byte destination table. Load these bytes into documented free page-34 game-state RAM at <code>$AF80-$B9FF</code> and <code>$BA00-$BA0D</code>. Runtime copies seven eight-byte-wide, sixteen-row rectangles to hidden BACK on a phase change; it performs no transparency decode and requires no mutable title underlay.</p>
+      <p>This replaces the 512-byte underlay payload and 24-byte actor records. The projected GMC source increase is 2,166 bytes against 2,492 measured spare, leaving 326 bytes before build measurement. The presentation cold payload remains at or below 10,874 bytes, gameplay sparse indexes and the 23,005/24,576-byte enemy payload remain unchanged, and no new low-RAM, resident, bank-3, module, helper, framebuffer, or runtime-window budget is authorized. Appending palette-specific sparse frames was rejected because its projected 3,498-byte payload exceeds enemy sparse capacity by 1,927 bytes. A runtime palette mapper was rejected because it adds renderer state and work without improving the authored visible oracle.</p>
+      <p>At title tick 558, transition before scheduling another actor copy or publication. The instruction loader may begin only with no title actor commit pending; the complete title remains selected while instructions is built in one stable hidden owner, followed by one Vbord publication. Existing hold-surface and global input-pre-emption protocols remain unchanged.</p>
 
       <h3>Acceptance criteria</h3>
       <ul>
@@ -130,6 +134,17 @@
         <li>Authored, staged, and live bytes match before interpreting runtime state. PAR state, save-under state, owner metadata, pending/active flags, and missed/front-write counters remain valid.</li>
         <li>All module, helper, sparse, cold, GMC, future-sound, and 29,666-cycle hardware limits pass after the replacement rendering design; a missed limit returns the ticket to Proposed.</li>
       </ul>
+
+      <h3>Ready assignment contract</h3>
+      <ul>
+        <li><strong>Owned artifacts:</strong> <code>scripts/build_presentation.py</code>, <code>scripts/build_sparse_sprites.py</code>, <code>scripts/build.sh</code>, <code>src/perimeter_reset_helper.s</code>, <code>src/presentation_runtime.s</code>, focused BUG-010 and presentation verifiers, generated build artifacts, this ticket, ticket index, applicable memory-map/lessons pages, and project log. The authored TMX is fixed input. Unrelated dirty files in the main worktree are excluded.</li>
+        <li><strong>Implementation constraints:</strong> preserve the seven authored cells and exact colour order; reject missing, additional, overlapping, non-sprite, or unsupported layer entries; preserve gameplay sprite indexes; keep hold publication and owner metadata compatible; and do not expose a partially loaded title or instructions screen.</li>
+        <li><strong>Capacity and timing gates:</strong> resident at most 8,192 bytes; assets at most 7,680; bank 3 at most 4,096; presentation module at most 1,280; helper ending at or before <code>$0800</code>; enemy sparse at most 24,576; cold at most 10,874; combined module/cold at most 14,219; at least 512 bytes future-sound margin; every hold or phase-copy worklist at most 29,666 cycles, with an engineering target of 27,000.</li>
+        <li><strong>Verification:</strong> build and static verifiers must prove TMX inventory, transforms, source phase families, colour substitutions, opaque precomposition, exact title-map changes, non-overlap, loader destinations, payload identity, capacities, cadence, and no final pending title commit. A bounded natural 558-tick run must capture physical visible pixels for all four phases, stable title/instructions boundary frames, one instructions publication, and at least two instructions actor updates. Both isolated owner orders and the natural sequence are required; a missing path fails.</li>
+        <li><strong>Commands and evidence:</strong> run <code>scripts/build.sh build</code>, the focused BUG-010 static and runtime verifiers, <code>scripts/verify_presentation_flow.py</code>, <code>scripts/build.sh verify-gmc</code>, Python compilation, HTML parsing, and scoped <code>git diff --check</code>. Retain phase/full-frame hashes, worklist cycles, owner/PAR/pending traces, authored/staged/live hashes, exact capacity output, rejected experiments, and the implementation commit.</li>
+        <li><strong>Authority:</strong> implement on <code>codex/bug-010-reopen</code> from diagnosis <code>c779298</code> plus authored asset <code>4b3fc73</code>. Do not merge, push, close the ticket, or alter BUG-011 through BUG-013. A missed hard gate or material scope change returns BUG-010 to Proposed.</li>
+      </ul>
+      <p><strong>Ready decision 2026-08-11:</strong> the user-authored layer resolves count, placement, identity, and transform; the supplied seven colour triples resolve the final open palette requirement. The architecture fits the approved physical allocation and projected cartridge source margin without changing a hard capacity target. BUG-010 advances through Approved to Ready.</p>
     </section>
 
     <section>
