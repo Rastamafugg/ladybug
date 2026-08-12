@@ -20,10 +20,8 @@ PRES_HIGHLIGHT equ $00CF
 PRES_COLOUR_TIMER equ $00D0
 PRES_WORK equ $00D1
 PLAYER_FB equ $000B
-PLAYER_BG_PTR equ $00A2
 PLAYER_BG_VALID equ $006A
 PLAYER_OLD_FB equ $0067
-PLAYER_BG equ $A300
 FB_BACK equ $0090
 
 ; Boot scratch is free after handoff.  The development verifier reads this
@@ -123,8 +121,6 @@ irt_init
         sta     PRES_COLOUR_TIMER
         ldd     #PRESENTATION_INSTRUCTION_ANCHOR_0
         std     PRES_OUT
-        ldd     #PLAYER_BG
-        std     PLAYER_BG_PTR
         clr     PLAYER_BG_VALID
         lbsr    recolour_collectibles
         lbsr    draw_value
@@ -406,6 +402,8 @@ draw_multiplier_pair
         jmp     PRES_MODULE_DRAW_TILE
 
 restore_actor
+        lda     #$34
+        sta     PAR5
         tst     PLAYER_BG_VALID
         beq     restore_done
         ldd     PLAYER_OLD_FB
@@ -417,14 +415,15 @@ restore_done
 present_player
         bsr     restore_actor
         ldd     PRES_OUT
-        subd    #160
         std     PLAYER_FB
         jsr     PRES_MAIN_SAVE_PLAYER
+player_underlay_saved
         lda     PRES_TIMER+1
         lsra
         lsra
         lsra
         anda    #3
+        adda    #4
         sta     PRES_ACTOR_FRAME
         lda     #SPARSE_PLAYER_PAYLOAD_PAGE
         sta     PAR5
@@ -475,7 +474,6 @@ death_traced
         lbsr    restore_actor
         lbsr    clear_consumed_targets
         ldd     PRES_OUT
-        subd    #160
         std     PLAYER_FB
         jsr     PRES_MAIN_SAVE_PLAYER
         lda     PRES_ACTOR_FRAME

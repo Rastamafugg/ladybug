@@ -214,7 +214,10 @@ start_screen_map
         lbsr    map_back
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_ATTRACT
+        beq     start_screen_hold
+        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
         bne     start_screen_done
+start_screen_hold
         jsr     PRESENTATION_HOLD_BEGIN
 start_screen_done
         rts
@@ -465,6 +468,13 @@ attract_next
         lda     #1
         rts
 instructions_tick
+        lda     PRES_HOLD_STATE
+        cmpa    #PRES_HOLD_FINAL
+        bne     instructions_tick_ready
+        tst     PENDING
+        bne     hold
+        clr     PRES_HOLD_STATE
+instructions_tick_ready
         lbsr    timer
         jsr     INSTRUCTION_RUNTIME_TICK
 instructions_runtime_return

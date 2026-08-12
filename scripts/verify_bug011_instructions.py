@@ -110,6 +110,63 @@ def main() -> None:
         if fragment not in helper_source:
             raise SystemExit(f"BUG-011 proof: missing runtime operation {fragment}")
 
+    if not re.search(
+        r"start_screen_map.*?cmpa\s+#PRESENTATION_MAP_ATTRACT.*?"
+        r"cmpa\s+#PRESENTATION_MAP_INSTRUCTIONS.*?"
+        r"jsr\s+PRESENTATION_HOLD_BEGIN",
+        module_source, re.DOTALL,
+    ):
+        raise SystemExit(
+            "BUG-011 proof: instruction load does not hydrate both framebuffer owners"
+        )
+    if not re.search(
+        r"instructions_tick\s+lda\s+PRES_HOLD_STATE\s+"
+        r"cmpa\s+#PRES_HOLD_FINAL.*?clr\s+PRES_HOLD_STATE",
+        module_source, re.DOTALL,
+    ):
+        raise SystemExit(
+            "BUG-011 proof: instruction mode does not release completed hydration"
+        )
+    if not re.search(
+        r"present_player.*?anda\s+#3\s+adda\s+#4\s+"
+        r"sta\s+PRES_ACTOR_FRAME",
+        helper_source, re.DOTALL,
+    ):
+        raise SystemExit("BUG-011 proof: instruction player is not east-facing")
+    for routine, end in (("present_player", "irt_death"),
+                         ("present_death", "death_frame_published")):
+        body = helper_source[
+            helper_source.index(f"\n{routine}\n"):
+            helper_source.index(f"\n{end}\n")
+        ]
+        if not re.search(
+            r"ldd\s+PRES_OUT\s+std\s+PLAYER_FB\s+"
+            r"jsr\s+PRES_MAIN_SAVE_PLAYER", body,
+        ):
+            raise SystemExit(
+                f"BUG-011 proof: {routine} save-under differs from draw destination"
+            )
+        if "subd    #160" in body:
+            raise SystemExit(
+                f"BUG-011 proof: {routine} retains displaced save-under"
+            )
+    init_body = helper_source[
+        helper_source.index("\nirt_init\n"):
+        helper_source.index("\nirt_complete\n")
+    ]
+    if "PLAYER_BG_PTR" in init_body:
+        raise SystemExit(
+            "BUG-011 proof: initialization overrides owner-selected save-under"
+        )
+    restore_body = helper_source[
+        helper_source.index("\nrestore_actor\n"):
+        helper_source.index("\npresent_player\n")
+    ]
+    if not re.search(r"lda\s+#\$34\s+sta\s+PAR5", restore_body):
+        raise SystemExit(
+            "BUG-011 proof: actor save-under does not restore page-34 state"
+        )
+
     colour = 1
     transitions = {}
     for tick in range(1, choreography["death_collision_tick"] + 1):
@@ -126,6 +183,7 @@ def main() -> None:
     print(
         "BUG-011 proof: 16 generated events, 30-frame colour clock, "
         "life/coin/X2-X3-X5 outcomes, 30+13x5 death schedule, held angel, "
+        "east player, exact save-under, dual-owner instruction hydration, "
         f"helper {len(helper)}/938, director {len(module)}/1280, "
         f"GMC spare {layout['gmc']['spare_bytes']}"
     )

@@ -19,6 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MONITOR_PATH = ROOT / "scripts/verify_bug009_monitor_input.py"
 PRESENTATION_MAP = ROOT / "build/ladybug-presentation-runtime.map"
+MAIN_MAP = ROOT / "build/ladybug.map"
 MANIFEST = ROOT / "build/ladybug-presentation.json"
 LAYOUT = ROOT / "build/ladybug-sparse-layout.json"
 HELPER = ROOT / "build/ladybug-instruction-runtime.bin"
@@ -224,14 +225,17 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
         if bytes(cold_live[:len(cold_expected)]) != cold_expected:
             raise SystemExit("BUG-011 runtime: live cold payload differs")
         static_owner = read_byte(client, FB_FRONT)
-        static_frame = read_owner(client, static_owner)
-        if digest(static_frame) != manifest["static_frame_sha256"][1]:
+        static_frames = {owner: read_owner(client, owner) for owner in (0, 1)}
+        expected_static = manifest["static_frame_sha256"][1]
+        static_hashes = {
+            owner: digest(frame) for owner, frame in static_frames.items()
+        }
+        if any(value != expected_static for value in static_hashes.values()):
             raise SystemExit(
-                "BUG-011 runtime: initial instruction frame differs; "
-                f"owner={static_owner} "
-                f"live={digest(static_frame)} "
-                f"expected={manifest['static_frame_sha256'][1]}"
+                "BUG-011 runtime: both initial instruction owners are not hydrated; "
+                f"live={static_hashes} expected={expected_static}"
             )
+        static_frame = static_frames[static_owner]
         write_byte(client, FB_FRONT, owner_order[0])
         write_byte(client, FB_BACK, owner_order[1])
         write_byte(client, 0xFF9D, 0xC0 if owner_order[0] == 0 else 0xB0)
@@ -341,6 +345,54 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
         if not any(angel):
             raise SystemExit("BUG-011 runtime: held angel surface is empty")
         monitor.clear(client, ids)
+
+        reset_entry = symbols(MAIN_MAP)["entry"]
+        post_terminal = []
+        expected_stack = None
+        for phase, marker_name, screen_index in (
+            ("level-start active", "level_tick", 2),
+            ("attract loop resumed", "attract_tick", 0),
+        ):
+            marker = presentation_symbols[marker_name]
+            phase_ids = monitor.setup(client, [marker, reset_entry])
+            phase_hit = client.run_to_breakpoint(timeout)
+            monitor.clear(client, phase_ids)
+            if phase_hit.get("pc") == reset_entry:
+                raise SystemExit(
+                    f"BUG-011 runtime: reset entered after terminal during {phase}"
+                )
+            if phase_hit.get("pc") != marker:
+                raise SystemExit(
+                    f"BUG-011 runtime: {phase} timeout: {phase_hit}"
+                )
+            registers = client.call("read_registers")
+            stack = registers.get("s", registers.get("S"))
+            if expected_stack is None:
+                expected_stack = stack
+            elif stack != expected_stack:
+                raise SystemExit(
+                    "BUG-011 runtime: stack changed after terminal: "
+                    f"${expected_stack:04X} -> ${stack:04X}"
+                )
+            visible_owner = read_byte(client, FB_FRONT)
+            visible_frame = read_owner(client, visible_owner)
+            expected_visible = manifest["static_frame_sha256"][screen_index]
+            visible_hash = digest(visible_frame)
+            if visible_hash != expected_visible:
+                raise SystemExit(
+                    f"BUG-011 runtime: {phase} visible frame differs; "
+                    f"live={visible_hash} expected={expected_visible}"
+                )
+            post_terminal.append({
+                "phase": phase,
+                "marker": marker,
+                "reset_marker": reset_entry,
+                "stack": stack,
+                "screen": read_byte(client, PRES_SCREEN),
+                "mode": read_byte(client, PRES_MODE),
+                "visible_owner": visible_owner,
+                "visible_sha256": visible_hash,
+            })
         return {
             "owner_order": owner_order,
             "staged_sha256": digest(staged_live),
@@ -349,10 +401,12 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
             "trace": trace,
             "front_owner": front_owner,
             "initial_static_sha256": digest(static_frame),
+            "initial_owner_sha256": static_hashes,
             "final_frame_sha256": digest(frame),
             "angel_sha256": digest(angel),
             "terminal_timer": choreography["next_screen_tick"],
             "next_screen": 2,
+            "post_terminal": post_terminal,
         }
     finally:
         try:
@@ -389,8 +443,8 @@ def main() -> None:
     }, indent=2) + "\n", encoding="ascii")
     print(
         "BUG-011 runtime: both starting-owner orders passed 48 colour transitions, "
-        "16 consumes, 15 death/angel surfaces, exact helper identity, and "
-        "level-start handoff"
+        "16 consumes, 15 death/angel surfaces, exact helper identity, "
+        "level-start handoff, and reset-free return to attract"
     )
 
 
