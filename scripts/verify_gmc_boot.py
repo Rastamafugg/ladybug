@@ -138,22 +138,26 @@ def main() -> None:
     )
     if not presentation_entry or presentation_entry.group(1).lower() != "1900":
         raise SystemExit("gmc proof: presentation entry is not assembled at $1900")
+    development = "instruction_runtime" in manifest
     presentation_symbols = {}
-    for name in ("demo_force_death", "demo_force_enemy_death"):
-        symbol = re.search(
-            rf"^Symbol: {name} .* = ([0-9A-Fa-f]+)$",
-            presentation_map,
-            re.MULTILINE,
-        )
-        if not symbol:
-            raise SystemExit(f"gmc proof: presentation symbol missing: {name}")
-        presentation_symbols[name] = symbol.group(1).lower()
+    if not development:
+        for name in ("demo_force_death", "demo_force_enemy_death"):
+            symbol = re.search(
+                rf"^Symbol: {name} .* = ([0-9A-Fa-f]+)$",
+                presentation_map,
+                re.MULTILINE,
+            )
+            if not symbol:
+                raise SystemExit(f"gmc proof: presentation symbol missing: {name}")
+            presentation_symbols[name] = symbol.group(1).lower()
     presentation_module = (
         Path(__file__).resolve().parents[1] / "build/ladybug-presentation-runtime.bin"
     ).read_bytes()
-    if not presentation_module or presentation_module[0] != 0x17:
+    expected_entry_opcode = 0xB6 if development else 0x17
+    if not presentation_module or presentation_module[0] != expected_entry_opcode:
         raise SystemExit(
-            "gmc proof: presentation module at $1900 does not begin with executable LBSR"
+            "gmc proof: presentation module at $1900 does not begin with "
+            f"the expected profile entry opcode ${expected_entry_opcode:02X}"
         )
     damage_symbols = {}
     for name in (
@@ -325,20 +329,22 @@ def main() -> None:
         args.resident_timeout,
         args.forced_timeout,
     )
-    print("gmc phase: forced demo deaths", flush=True)
-    demo_text = run_forced_demo_death_probe(
-        args.xroar,
-        args.gdb,
-        args.rom,
-        args.gdb_port,
-        presentation_entry.group(1),
-        presentation_symbols,
-        handoff,
-        startup_symbols,
-        args.loader_timeout,
-        args.resident_timeout,
-        args.demo_timeout,
-    )
+    demo_text = "DEVELOPMENT_PROFILE_DEMO_BYPASSED"
+    if not development:
+        print("gmc phase: forced demo deaths", flush=True)
+        demo_text = run_forced_demo_death_probe(
+            args.xroar,
+            args.gdb,
+            args.rom,
+            args.gdb_port,
+            presentation_entry.group(1),
+            presentation_symbols,
+            handoff,
+            startup_symbols,
+            args.loader_timeout,
+            args.resident_timeout,
+            args.demo_timeout,
+        )
     forced_required = {
         "forced loader handoff": "FORCED_LOADER_HANDOFF" in forced_text,
         "forced resident startup completion": (
@@ -354,13 +360,16 @@ def main() -> None:
             "FORCED_COMMIT_OWNERS_DISTINCT" in forced_text
         ),
         "forced gameplay completion": "FORCED_COMPLETE" in forced_text,
-        "forced skull demo death": "DEMO_SKULL_FORCED" in demo_text,
-        "forced enemy demo death": "DEMO_ENEMY_FORCED" in demo_text,
-        "demo loader handoff": "DEMO_LOADER_HANDOFF" in demo_text,
-        "demo resident startup completion": (
-            "DEMO_RESIDENT_STARTUP_COMPLETE" in demo_text
-        ),
     }
+    if not development:
+        forced_required.update({
+            "forced skull demo death": "DEMO_SKULL_FORCED" in demo_text,
+            "forced enemy demo death": "DEMO_ENEMY_FORCED" in demo_text,
+            "demo loader handoff": "DEMO_LOADER_HANDOFF" in demo_text,
+            "demo resident startup completion": (
+                "DEMO_RESIDENT_STARTUP_COMPLETE" in demo_text
+            ),
+        })
     required = {**natural_required, **forced_required}
     failed = [name for name, passed in required.items() if not passed]
     if failed:

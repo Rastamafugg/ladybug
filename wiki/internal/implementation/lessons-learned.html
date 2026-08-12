@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Presentation helpers must preserve PAR5 and accumulator-owned offsets across renderer calls</h2>
+      <p><strong>Filed 2026-08-11.</strong> BUG-011 exposed three independent live failures. The development attract-load path bypassed the title helper that restored PAR5, then captured framebuffer metadata while page <code>$3A</code> was selected and corrupted the cold atlas. The instruction player resolver selected page <code>$39</code> after calculating its three-byte index offset in D, overwriting A and changing the offset. The death scheduler loaded its counter into A after calculating a 16-bit time delta in D, changing zero to 256 and selecting death surface 52.</p>
+      <p><strong>Rule:</strong> restore page <code>$34</code> before any page-34 state or metadata service; map an index page before calculating an offset in D or preserve D explicitly; and do not use either half of D for scratch while a 16-bit value remains live. Compare authored, staged, and live bytes before interpreting downstream rendering failures.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-011-instruction-choreography.html">BUG-011</a>, <code>src/instruction_runtime.s</code>, <code>src/presentation_runtime.s</code>, and <code>scripts/verify_bug011_runtime.py</code>.</p>
+    </section>
+
+    <section>
       <h2>Control-flow evidence needs a fallback when repeated monitor breakpoints become intermittent</h2>
       <p><strong>Filed 2026-08-11.</strong> BUG-010's returned-attract probe intermittently failed to stop on a refreshed <code>start_screen</code> or <code>start_screen_map</code> breakpoint after the proven name-screen input edge, even though the same runtime path completed in successful captures. Stepping five instructions from <code>name_tick</code> to the exact <code>start_screen</code> PC and thirteen more to <code>start_screen_map</code> proved the required edge and transition without changing game state.</p>
       <p><strong>Rule:</strong> if a repeated observation breakpoint becomes unreliable, retain the miss as an observation-tool result and switch to a bounded instruction-step proof with explicit starting PC, ending PC, and instruction count. Do not infer a target-code failure from the breakpoint miss alone.</p>

@@ -17,6 +17,7 @@ PRESENTATION_MODULE_DRAW equ $0821
 PRESENTATION_HOLD_BEGIN equ $06C5
 PRESENTATION_HOLD_TICK equ $06C7
 PRESENTATION_ATTRACT_OVERLAY equ $06C9
+INSTRUCTION_RUNTIME_TICK equ $0300
 BLIT_TILE equ PRES_MAIN_BLIT_TILE
 SPARSE_ENEMY_PAYLOAD_PAGE equ $35
 SPARSE_PLAYER_PAYLOAD_PAGE equ $39
@@ -65,6 +66,13 @@ MODE_NAME equ 8
         org $1900
 
 presentation_flow_tick
+        ifne    BUG011_DEVELOPMENT_PROFILE
+        lda     PRES_MAGIC
+        cmpa    #$A5
+        beq     pft_helper_ready
+        lbsr    install_instruction_runtime
+pft_helper_ready
+        endc
         lbsr    scan_keys
         lda     PRES_MAGIC
         cmpa    #$A5
@@ -115,21 +123,47 @@ pft_dispatch
         lbeq    attract_tick
         cmpa    #MODE_INSTRUCTIONS
         lbeq    instructions_tick
+        ifeq    BUG011_DEVELOPMENT_PROFILE
         cmpa    #MODE_DEMO
         lbeq    demo_tick
+        endc
         cmpa    #MODE_CREDIT
         lbeq    credit_tick
         cmpa    #MODE_LEVEL
         lbeq    level_tick
+        ifne    BUG011_DEVELOPMENT_PROFILE
+        lbra    attract_tick
+        else
         cmpa    #MODE_GAMEOVER
         lbeq    gameover_tick
         lbra    name_tick
+        endc
+
+        ifne    BUG011_DEVELOPMENT_PROFILE
+install_instruction_runtime
+        lda     #$23
+        sta     PAR5
+        ldx     #$A422
+        ldy     #$0300
+install_instruction_byte
+        lda     ,x+
+        sta     ,y+
+        cmpy    #$06AA
+        blo     install_instruction_byte
+        lda     #$34
+        sta     PAR5
+        rts
+        endc
 
 normal_tick
         lda     DEATH
         cmpa    #4
         bne     normal_stage
+        ifne    BUG011_DEVELOPMENT_PROFILE
+        lda     #PRESENTATION_MAP_ATTRACT
+        else
         lda     #PRESENTATION_MAP_GAME_OVER
+        endc
         lbsr    start_screen
         lda     #1
         rts
@@ -227,7 +261,9 @@ load_next
         lda     #1
         rts
 load_done
+        ifeq    BUG011_DEVELOPMENT_PROFILE
         lbsr    draw_coin_slots
+        endc
         lda     PRES_HOLD_STATE
         beq     load_done_publish
         cmpa    #PRES_HOLD_HYDRATE
@@ -235,13 +271,19 @@ load_done
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_ATTRACT
         bne     load_done_hold_plain
+        ifeq    BUG011_DEVELOPMENT_PROFILE
         lda     #$FF
         sta     PRES_ACTOR_PHASE
         lda     #$34
         sta     PAR5
         jsr     PRESENTATION_ATTRACT_OVERLAY
         bra     load_done_hold_owner
+        else
+        bra     load_done_hold_plain
+        endc
 load_done_hold_plain
+        lda     #$34
+        sta     PAR5
         jsr     PRES_MAIN_FB_CAPTURE
 load_done_hold_owner
         tst     PRES_HOLD_OWNER
@@ -324,6 +366,7 @@ draw_cold_tile
         jsr     BLIT_TILE
         rts
 
+        ifeq    BUG011_DEVELOPMENT_PROFILE
 draw_coin_slots
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
@@ -342,6 +385,7 @@ draw_coin_next
         bne     draw_coin_next
 draw_coins_done
         rts
+        endc
 
 ; Return X as a CPU pointer into the cold physical page selected by D.
 cold_ptr
@@ -411,7 +455,9 @@ attract_tick_ready
         ldd     PRES_TIMER
         cmpd    #558
         bhs     attract_next
+        ifeq    BUG011_DEVELOPMENT_PROFILE
         jsr     PRESENTATION_ATTRACT_OVERLAY
+        endc
         bra     hold
 attract_next
         lda     #PRESENTATION_MAP_INSTRUCTIONS
@@ -420,10 +466,10 @@ attract_next
         rts
 instructions_tick
         lbsr    timer
-        lbsr    instructions_overlay
-        ldd     PRES_TIMER
-        cmpd    #192
-        blo     hold
+        jsr     INSTRUCTION_RUNTIME_TICK
+instructions_runtime_return
+        tsta
+        beq     hold
         lda     #PRESENTATION_MAP_LEVEL_START
         lbsr    start_screen
         lda     #1
@@ -442,6 +488,12 @@ level_tick
         blo     hold
         tst     PRES_CONTEXT
         bne     live_begin
+        ifne    BUG011_DEVELOPMENT_PROFILE
+        lda     #PRESENTATION_MAP_ATTRACT
+        lbsr    start_screen
+        lda     #1
+        rts
+        else
         lbsr    init_gameplay
         clr     PRES_TIMER
         clr     PRES_TIMER+1
@@ -449,6 +501,7 @@ level_tick
         sta     PRES_MODE
         clra
         rts
+        endc
 live_begin
         lbsr    init_gameplay
         lda     #RF_STAGE
@@ -466,6 +519,7 @@ init_gameplay
         jsr     $081B
         jsr     $0806
         rts
+        ifeq    BUG011_DEVELOPMENT_PROFILE
 demo_tick
         lda     DEATH
         beq     demo_run
@@ -504,6 +558,7 @@ name_tick
         lbsr    start_screen
         lda     #1
         rts
+        endc
 add_credit
         lda     PRES_CREDITS
         cmpa    #PRESENTATION_COIN_SLOT_COUNT
@@ -543,6 +598,7 @@ scan_next
         sta     PIA_CRB
         rts
 
+        ifeq    BUG011_DEVELOPMENT_PROFILE
 instructions_overlay
         lda     PRES_TIMER+1
         anda    #3
@@ -607,6 +663,7 @@ highlight_next
         dec     PRES_ROWS
         bne     highlight_next
         rts
+        endc
 
 draw_actor_overlay
         ldb     PRES_ACTOR_FRAME
@@ -649,6 +706,7 @@ colour_tile_skip
         bne     colour_tile_row
         rts
 
+        ifeq    BUG011_DEVELOPMENT_PROFILE
 demo_drive
         inc     PRES_TIMER+1
         lda     #DIR_E
@@ -685,6 +743,7 @@ instruction_phase_colors
         fcb     1,2,3,1,2,3
 instruction_phase_starts
         fdb     $3940,$4834,$5234,$7540,$7F34,$8434
+        endc
 
 map_stream_offsets
         fdb PRESENTATION_MAP_STREAM_0

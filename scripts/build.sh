@@ -23,6 +23,10 @@ PRESENTATION_MODULE_SRC="$ROOT/src/presentation_runtime.s"
 PRESENTATION_MODULE_LST="$BUILD_DIR/ladybug-presentation-runtime.lst"
 PRESENTATION_MODULE_MAP="$BUILD_DIR/ladybug-presentation-runtime.map"
 PRESENTATION_SYMBOLS="$BUILD_DIR/ladybug_presentation_symbols.inc"
+INSTRUCTION_RUNTIME="$BUILD_DIR/ladybug-instruction-runtime.bin"
+INSTRUCTION_RUNTIME_SRC="$ROOT/src/instruction_runtime.s"
+INSTRUCTION_RUNTIME_LST="$BUILD_DIR/ladybug-instruction-runtime.lst"
+INSTRUCTION_RUNTIME_MAP="$BUILD_DIR/ladybug-instruction-runtime.map"
 SPARSE_BANK2="$BUILD_DIR/ladybug-sparse-bank2.bin"
 SPARSE_BANK3="$BUILD_DIR/ladybug-sparse-bank3.bin"
 SPARSE_BANK0="$BUILD_DIR/ladybug-gmc-bank0-overflow.bin"
@@ -60,6 +64,14 @@ PRESENTATION_MODULE_START=0x1900
 PRESENTATION_MODULE_LIMIT=0x1E00
 PRESENTATION_HELPER_START=0x06B2
 PRESENTATION_HELPER_LIMIT=0x0800
+INSTRUCTION_RUNTIME_START=0x0300
+INSTRUCTION_RUNTIME_LIMIT=0x06AA
+LADYBUG_PROFILE="${LADYBUG_PROFILE:-development}"
+case "$LADYBUG_PROFILE" in
+    development) BUG011_DEVELOPMENT_PROFILE=1 ;;
+    release) BUG011_DEVELOPMENT_PROFILE=0 ;;
+    *) echo "build: LADYBUG_PROFILE must be development or release" >&2; exit 2 ;;
+esac
 
 guard_layout() {
     local map="$1"
@@ -176,9 +188,26 @@ print(f"build: presentation helper {size}/{limit - start} bytes")
 PY
 }
 
+guard_instruction_runtime() {
+    local helper="$1"
+    python3 - "$helper" "$INSTRUCTION_RUNTIME_START" "$INSTRUCTION_RUNTIME_LIMIT" <<'PY'
+import sys
+path, start, limit = sys.argv[1], int(sys.argv[2], 0), int(sys.argv[3], 0)
+size = len(open(path, 'rb').read())
+if start + size > limit:
+    raise SystemExit(
+        f"build: instruction runtime ends at ${start + size:04X}; "
+        f"limit is ${limit:04X}"
+    )
+print(f"build: instruction runtime {size}/{limit - start} bytes")
+PY
+}
+
 cmd_build() {
     [[ -f "$SRC_MAIN" ]] || { echo "build: $SRC_MAIN not found" >&2; exit 1; }
     mkdir -p "$BUILD_DIR"
+
+    echo "build: profile $LADYBUG_PROFILE"
 
     python3 "$ROOT/scripts/derive_maze.py" \
         --capture "$ROOT/assets/arcade/maze_capture.json" \
@@ -220,6 +249,7 @@ cmd_build() {
         --manifest "$PRESENTATION_MANIFEST"
 
     lwasm -9 --format=raw \
+          -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
           --output="$RUNTIME_ROM" \
           --list="$LST" \
           --symbols \
@@ -328,6 +358,7 @@ with open(output, 'a', encoding='ascii') as handle:
 PY
 
     lwasm -9 --format=raw \
+          -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
           --output="$PRESENTATION_MODULE" \
           --list="$PRESENTATION_MODULE_LST" \
           --symbols \
@@ -341,16 +372,37 @@ import re
 import sys
 source, output = sys.argv[1:]
 symbols = {}
+wanted = {
+    'draw_actor_overlay': 'PRES_MODULE_DRAW_ACTOR',
+    'map_back': 'PRES_MODULE_MAP_BACK',
+    'draw_tile_id': 'PRES_MODULE_DRAW_TILE',
+    'cold_ptr': 'PRES_MODULE_COLD_PTR',
+    'colour_tile': 'PRES_MODULE_COLOUR_TILE',
+}
 for line in open(source, encoding='utf-8'):
-    match = re.match(r'^Symbol: (draw_actor_overlay|map_back) .* = ([0-9A-Fa-f]+)$', line.rstrip())
-    if match:
-        symbols['PRES_MODULE_DRAW_ACTOR' if match.group(1) == 'draw_actor_overlay' else 'PRES_MODULE_MAP_BACK'] = match.group(2)
-if set(symbols) != {'PRES_MODULE_DRAW_ACTOR', 'PRES_MODULE_MAP_BACK'}:
-    raise SystemExit('build: presentation module symbols missing: PRES_MODULE_DRAW_ACTOR, PRES_MODULE_MAP_BACK')
+    match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
+    if match and match.group(1) in wanted:
+        symbols[wanted[match.group(1)]] = match.group(2)
+required = {
+    'PRES_MODULE_DRAW_ACTOR', 'PRES_MODULE_MAP_BACK',
+    'PRES_MODULE_DRAW_TILE', 'PRES_MODULE_COLD_PTR',
+    'PRES_MODULE_COLOUR_TILE',
+}
+if set(symbols) != required:
+    raise SystemExit('build: presentation module symbols missing: ' + ', '.join(sorted(required - set(symbols))))
 with open(output, 'a', encoding='ascii') as handle:
     for name, value in symbols.items():
         handle.write(f'{name} equ ${value}\n')
 PY
+
+    lwasm -9 --format=raw \
+          --output="$INSTRUCTION_RUNTIME" \
+          --list="$INSTRUCTION_RUNTIME_LST" \
+          --symbols \
+          --map="$INSTRUCTION_RUNTIME_MAP" \
+          -I "$BUILD_DIR" \
+          "$INSTRUCTION_RUNTIME_SRC"
+    guard_instruction_runtime "$INSTRUCTION_RUNTIME"
 
     lwasm -9 --format=raw \
           --output="$PERIMETER_HELPER" \
@@ -377,6 +429,7 @@ PY
         --actor-records "$PRESENTATION_ACTOR_RECORDS" \
         --actor-underlays "$PRESENTATION_ACTOR_UNDERLAYS" \
         --presentation-module "$PRESENTATION_MODULE" \
+        --instruction-runtime "$INSTRUCTION_RUNTIME" \
         --bank0-output "$SPARSE_BANK0" \
         --bank2-output "$SPARSE_BANK2" \
         --bank3-output "$SPARSE_BANK3" \
@@ -396,6 +449,7 @@ PY
         --actor-records "$PRESENTATION_ACTOR_RECORDS" \
         --actor-underlays "$PRESENTATION_ACTOR_UNDERLAYS" \
         --presentation-module "$PRESENTATION_MODULE" \
+        --instruction-runtime "$INSTRUCTION_RUNTIME" \
         --bank0 "$SPARSE_BANK0" \
         --bank2 "$SPARSE_BANK2" \
         --bank3 "$SPARSE_BANK3" \

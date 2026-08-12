@@ -62,8 +62,8 @@
       <h2>Runtime mapping</h2>
 <pre><code>Virtual          PAR  Phys  Bytes  Use
 $0000-$02FF      0    $38   768 B  Direct page, boot proof, and low-RAM state
-$0300-$064C      0    $38   845 B  Boot-only relocated GMC loader; free after handoff
-$064D-$06AF      0    $38    99 B  Boot scratch; no sparse-index mirror
+$0300-$06A9      0    $38   938 B  Boot-only relocated GMC loader; free after handoff and reused by the BUG-011 development helper
+$06AA-$06AF      0    $38     6 B  BUG-011 development runtime trace
 $06B0-$07FF      0    $38   336 B  Loader-addressable overflow/helper allocation; $06B0-$06B1 boot proof; BUG-010 helper uses $06C5-$07FF
 $0800-$17FF      0    $38   4 K    Bank-3 enemy runtime copy
 $1800-$18FF      0    $38   256 B  Shared player/nest sparse-decode compositor stage
@@ -548,6 +548,11 @@ $FF00-$FFFF        256 B   I/O; never cart data
         <a href="./roadmap.html">roadmap</a>.
       </p>
     </footer>
+    <section>
+      <h2>Development-first presentation profile</h2>
+      <p><strong>Approved 2026-08-11 for BUG-011 development:</strong> functional correctness precedes release packing. The presentation build may conditionally bypass unrelated title animation, unattended demo play, high-score coin rendering, game-over delay, and name-entry flow while retaining boot, the instruction sequence, credit/start pre-emption, level-start, and live gameplay. Omitted source remains available behind an explicit profile and is restored by PERF-005 after the functional source-tree milestone.</p>
+      <p>This policy does not relax runtime safety. The <code>$1E00-$1FFF</code> stack window, direct-page ownership, loader destinations, framebuffer/MMU ownership, PAR restoration, and authored/staged/live byte identity remain hard boundaries. Cartridge reserve, future-sound reserve, release-profile module fit, and engineering cycle headroom are recorded during development but become acceptance gates only in PERF-005.</p>
+    </section>
   </main>
 </div>
 </body>

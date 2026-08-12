@@ -43,15 +43,23 @@ def main() -> None:
     cold = layout["presentation_cold"]["bytes"]
     combined = module_bytes + cold
     source_spare = layout["gmc"]["spare_bytes"]
+    development = "instruction_runtime" in layout
 
-    required_symbols = (
+    required_symbols = ((
+        "install_instruction_runtime",
+        "instructions_tick",
+        "draw_actor_overlay",
+        "draw_tile_id",
+        "cold_ptr",
+        "colour_tile",
+    ) if development else (
         "instructions_overlay",
         "highlight_phase",
         "draw_actor_overlay",
         "demo_drive",
         "demo_force_death",
         "demo_force_enemy_death",
-    )
+    ))
     missing = [name for name in required_symbols if name not in symbols]
     if missing:
         raise SystemExit("presentation flow proof: missing symbols: " + ", ".join(missing))
@@ -61,12 +69,6 @@ def main() -> None:
         "SPARSE_PLAYER_INDEX_ADDR equ $A000",
         "SPARSE_ENEMY_PAYLOAD_PAGE equ $35",
         "SPARSE_PLAYER_PAYLOAD_PAGE equ $39",
-        "instruction_phase_colors",
-        "fcb     1,2,3,1,2,3",
-        "PRES_DEMO_CAUSE",
-        "ENTITY_TABLE equ $A380",
-        "jsr     $0809",
-        "inc     <$AF",
         "PRESENTATION_MAP_LEVEL_START",
         "PRESENTATION_MAP_INSTRUCTIONS",
         "PRESENTATION_MAP_ATTRACT",
@@ -76,9 +78,22 @@ def main() -> None:
         "PLAYER_BG_VALID equ $006A",
         "PRES_MAIN_SAVE_PLAYER",
         "PRES_MAIN_RESTORE_PLAYER",
-        "restore_actor_underlay",
-        "present_actor_overlay",
     )
+    if development:
+        required_source += (
+            "INSTRUCTION_RUNTIME_TICK equ $0300",
+            "install_instruction_runtime",
+            "ldy     #$0300",
+            "cmpy    #$06AA",
+            "lda     #$23",
+            "ldx     #$A422",
+        )
+    else:
+        required_source += (
+            "instruction_phase_colors", "fcb     1,2,3,1,2,3",
+            "PRES_DEMO_CAUSE", "ENTITY_TABLE equ $A380", "jsr     $0809",
+            "inc     <$AF", "restore_actor_underlay", "present_actor_overlay",
+        )
     missing_source = [fragment for fragment in required_source if fragment not in source]
     if missing_source:
         raise SystemExit(
@@ -86,12 +101,13 @@ def main() -> None:
             ", ".join(missing_source)
         )
 
-    phase_match = re.search(
-        r"instruction_phase_starts\s+fdb\s+\$3940,\$4834,\$5234,\$7540,\$7F34,\$8434",
-        source,
-    )
-    if not phase_match:
-        raise SystemExit("presentation flow proof: five instruction row destinations missing")
+    if not development:
+        phase_match = re.search(
+            r"instruction_phase_starts\s+fdb\s+\$3940,\$4834,\$5234,\$7540,\$7F34,\$8434",
+            source,
+        )
+        if not phase_match:
+            raise SystemExit("presentation flow proof: instruction row destinations missing")
 
     actor_surfaces = presentation_layout.get("attract_actor_surfaces", {})
     if (actor_surfaces.get("bytes") != 2688 or
@@ -148,20 +164,23 @@ def main() -> None:
     if combined > 14219:
         raise SystemExit(f"presentation flow proof: module+cold is {combined}/14219 bytes")
     sound_margin = source_spare - SOUND_SOURCE_BUDGET
-    if sound_margin < SOUND_RELEASE_RESERVE:
+    if not development and sound_margin < SOUND_RELEASE_RESERVE:
         raise SystemExit(
             f"presentation flow proof: future-sound margin is {sound_margin}; "
             f"required reserve is {SOUND_RELEASE_RESERVE}"
         )
 
-    phases = {min(frame >> 5, 5) for frame in range(192)}
-    if phases != {0, 1, 2, 3, 4, 5}:
-        raise SystemExit("presentation flow proof: instruction phase schedule is incomplete")
+    if not development:
+        phases = {min(frame >> 5, 5) for frame in range(192)}
+        if phases != {0, 1, 2, 3, 4, 5}:
+            raise SystemExit("presentation flow proof: instruction phase schedule is incomplete")
 
     print(
-        "presentation flow proof: seven title actor surfaces, six instruction phases, "
+        f"presentation flow proof: {'development helper' if development else 'release flow'}, "
+        "seven title actor surfaces, "
         "authored TMX coordinates, direct selected-screen streaming, bounded loading, "
-        "global credit/start pre-emption, atomic surface copy, skull/enemy demo forcing, "
+        "global credit/start pre-emption, atomic surface copy, "
+        f"{'deferred demo forcing' if development else 'skull/enemy demo forcing'}, "
         f"module {module_bytes}/1280, helper {helper_bytes}/334, cold {cold}/{COLD_HARD_LIMIT} "
         f"(preferred {COLD_PREFERRED_TARGET}), "
         f"combined {combined}/14219, future-sound margin {sound_margin}/{SOUND_RELEASE_RESERVE}"

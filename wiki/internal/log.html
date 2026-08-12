@@ -14,6 +14,34 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-12 &middot; verification &mdash; BUG-011 residual runtime evidence</h3>
+      <p>Completed the four remaining BUG-011 requirements. Fresh XRoar processes independently force all 16 targets and three row completions; a soft reset from stale phase 8 returns to timer 0, phase 255, the exact static frame, identical helper bytes, and zero helper trace; credit and valid-start pre-empt without another instruction mutation at row, movement, death, and pause boundaries; and 40 branch-complete worklist measurements retain a 21,645-cycle maximum, 8,021 cycles below hardware and 5,355 below the engineering target. Development-profile credit insertion now requests the static high-score screen while coin-count rendering remains deferred. The full assignment command set passes, capacity is module 954/1280, helper 866/938, cold 9704/10874, combined 10658/14219, GMC spare 1424, and future-sound margin -112/512. BUG-011 advances to Verification; PERF-005 retains the non-gating capacity and cycle baseline.</p>
+    </section>
+    <section>
+      <h3>2026-08-11 &middot; implementation &mdash; BUG-011 development choreography</h3>
+      <p>The development profile now compiles twelve-byte semantic event records from the instruction TMX, including colored HUD glyphs, and stages an 866-byte helper behind the page-<code>$23</code> attract bundle for installation at <code>$0300-$06A9</code>. Both framebuffer-owner orders complete 48 color transitions, 16 consumes, life/coin and X5 persistence, 15 death/angel surfaces, the 65-frame hold, and level-start handoff from an exact static frame. Live diagnosis rejected repeated low-RAM breakpoint sampling, a page-<code>$3D</code> stage, an implicit player index page, a D-clobbering death counter, transparent black-tile erasure, and an un-restored development PAR5 handoff. Current non-gating capacity is module 949/1280 bytes, helper 866/938, cold 9704/10874, GMC spare 1429, and future-sound margin -107/512; PERF-005 owns release restoration and fit.</p>
+    </section>
+    <section>
+      <h3>2026-08-11 &middot; lint &mdash; Development-profile ticket links</h3>
+      <p>Checked BUG-011, PERF-005, the ticket index, the memory-map decision, and the wiki log after the development-first policy update. The new PERF-005 and cross-ticket links resolve. Three pre-existing missing targets remain: <code>feat-001-presentation-maze-screens.html</code>, <code>doc-003-xroar-runtime-debugging-checklist.html</code>, and the log link to the missing FEAT-001 page.</p>
+    </section>
+    <section>
+      <h3>2026-08-11 &middot; decision &mdash; Development-first memory policy</h3>
+      <p>The user prioritized a fully working source tree over release packing during bug repair. BUG-011 now uses an explicit development profile that retains boot, instruction choreography, credit/start pre-emption, level-start, and live gameplay while temporarily bypassing unrelated title animation, demo, high-score coin rendering, game-over delay, and name entry. Runtime safety boundaries remain mandatory. PERF-005 records the later whole-tree review, restoration, optimization, and cartridge-fit work; BUG-011 advances through renewed approval and Ready back to In Progress.</p>
+    </section>
+    <section>
+      <h3>2026-08-11 &middot; lifecycle &mdash; BUG-011 architecture exception proposed</h3>
+      <p>Semantic TMX compilation passes with a 9,688/10,874-byte cold payload and preserves the 1,277/1,280-byte copied module baseline. A complete direct runtime draft assembled through <code>$1FD4</code>, 468 bytes beyond the fixed <code>$1E00</code> boundary, and was rejected and reverted. The viable bounded design stages a new at-most-512-byte instruction helper in cold data, installs it after boot into freed loader RAM <code>$0300-$04FF</code> from a 37-byte <code>$068D-$06B1</code> trampoline, retains all fixed helper ABI entries at <code>$06B2+</code>, and removes duplicated death streams to preserve the 512-byte future-sound margin. Because this changes approved runtime ownership and writable artifacts, BUG-011 returns to Proposed pending explicit user approval.</p>
+    </section>
+    <section>
+      <h3>2026-08-11 &middot; query &mdash; BUG-011 arcade instruction oracle</h3>
+      <p>A neutral MAME 0.220 capture at 60 Hz records the complete instruction screen at frames 745&ndash;2356. The measured colour dwell is 30 frames with <code>800/300/100</code> for red/yellow/blue; the sequence contains 15 ordered pickups, both row rewards, skull collision, a 30-frame impact, thirteen five-frame death surfaces, and a 65-frame stationary angel hold before the next-screen transition at frame 2357. <code>scripts/verify_instruction_reference.py</code> passes both normalized-structure and full raw-video hash/pixel verification against <code>assets/arcade/instruction_reference.json</code>. The user corrected the previously approved red value from <code>500</code> to arcade-accurate <code>800</code>, supplying renewed approval for that criterion.</p>
+    </section>
+    <section>
+      <h3>2026-08-11 &middot; lifecycle &mdash; BUG-011 implementation started</h3>
+      <p>The user directed execution from the Ready contract. Checkpoint <code>5b5369e62bf744820c1dfbf9434407082a48a938</code>, branch <code>codex/bug-011-instruction-choreography</code>, and clean worktree <code>D:\retro\ladybug-bug011</code> match the assignment. BUG-011 advances to In Progress with the frame-indexed arcade oracle as the active first gate; runtime implementation remains prohibited until that oracle is complete and independently verified.</p>
+    </section>
+    <section>
       <h3>2026-08-11 &middot; lifecycle &mdash; BUG-011 Ready assignment checkpoint</h3>
       <p>User-authored commit <code>5b5369e62bf744820c1dfbf9434407082a48a938</code> fixes the instruction TMX bytes, including row starts, life and coin rewards, white-angel endpoint, and two multiplier placeholders. The approved sequential choreography, capture-first timing gate, generated cold-data design, existing renderer/publication ownership, exact writable artifacts, two-commit boundary, commands, evidence, capacity limits, and completion report are assigned to one Codex owner on <code>codex/bug-011-instruction-choreography</code> in <code>D:\retro\ladybug-bug011</code>. BUG-011 advances from Approved to Ready; BUG-012 and BUG-013 remain unassigned to prevent shared-runtime overlap.</p>
     </section>

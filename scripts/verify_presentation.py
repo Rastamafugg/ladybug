@@ -12,6 +12,7 @@ from build_presentation import (
     MAP_FILES,
     MAP_NAMES,
     MAP_OUTPUT_OFFSET,
+    PAGE_BYTES,
     ATTRACT_ACTOR_SURFACE_ADDRESS,
     ATTRACT_ACTOR_SURFACE_PAGE,
     ATTRACT_ACTOR_DESTINATION_ADDRESS,
@@ -25,6 +26,7 @@ from build_presentation import (
     encode_map,
     load_chars,
     parse_attract_actors,
+    parse_instruction_contract,
     title_framebuffer,
 )
 
@@ -70,6 +72,9 @@ def main() -> None:
         if len(data) != 960:
             raise SystemExit(f"presentation proof: {name} is not 960 cells")
         maps.append(data)
+    instruction = parse_instruction_contract(
+        args.tiled_dir / MAP_FILES["instructions"], chars, sprites, tiles, tile_ids
+    )
     payload = args.payload.read_bytes()
     coin_bytes = coin_tile()
     if coin_bytes not in tiles:
@@ -82,17 +87,38 @@ def main() -> None:
     order = cold_ids + shared_ids
     remap = {old: new for new, old in enumerate(order)}
     maps = [bytes(remap[value] for value in data) for data in maps]
+    event_table = bytearray(instruction["event_table"])
+    event_bytes = len(event_table) // len(instruction["events"])
+    for index, event in enumerate(instruction["events"]):
+        if event["hud_destination"]:
+            event_table[index * event_bytes + 11] = remap[event["hud_tile_id"]]
+    instruction["event_table"] = bytes(event_table)
     ordered_tiles = [tiles[index] for index in order]
     cold_only_tiles = ordered_tiles[:len(cold_ids)]
     gameplay_lookup = bytes(
         gameplay_tile_ids[tile] for tile in ordered_tiles[len(cold_ids):]
     )
     encoded_maps = [encode_map(data) for data in maps]
-    expected = (
+    expected = bytearray(
         b"".join(cold_only_tiles) + gameplay_lookup +
         b"".join(encoded_maps)
     )
-    if payload != expected:
+    event_offset = len(expected)
+    expected.extend(instruction["event_table"])
+    pointer_offset = len(expected)
+    streams = [*instruction["death_streams"], instruction["angel_stream"]]
+    expected.extend(bytes(len(streams) * 2))
+    stream_offsets = []
+    for stream in streams:
+        page_offset = len(expected) % PAGE_BYTES
+        if page_offset + len(stream) > PAGE_BYTES:
+            expected.extend(bytes(PAGE_BYTES - page_offset))
+        stream_offsets.append(len(expected))
+        expected.extend(stream)
+    for index, offset in enumerate(stream_offsets):
+        start = pointer_offset + index * 2
+        expected[start:start + 2] = offset.to_bytes(2, "big")
+    if payload != bytes(expected):
         raise SystemExit("presentation proof: cold payload differs from independent compile")
     if len(tiles) != manifest["tile_count"]:
         raise SystemExit("presentation proof: tile count differs from manifest")
@@ -114,6 +140,14 @@ def main() -> None:
         raise SystemExit("presentation proof: gameplay lookup size differs")
     if manifest.get("map_stream_total_bytes") != sum(map(len, encoded_maps)):
         raise SystemExit("presentation proof: encoded map size differs")
+    choreography = manifest.get("instruction_choreography", {})
+    if (choreography.get("event_table_offset") != event_offset or
+            choreography.get("event_table_bytes") != len(instruction["event_table"]) or
+            choreography.get("event_table_sha256") != digest(instruction["event_table"]) or
+            choreography.get("death_pointer_offset") != pointer_offset or
+            choreography.get("death_stream_offsets") != stream_offsets or
+            choreography.get("death_stream_sha256") != [digest(stream) for stream in streams]):
+        raise SystemExit("presentation proof: instruction choreography payload differs")
     destinations = b"".join(int(actor["destination"]).to_bytes(2, "big")
                             for actor in actors)
     destination_manifest = manifest.get("attract_actor_destinations", {})

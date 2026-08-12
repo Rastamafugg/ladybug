@@ -25,6 +25,9 @@ BANK2_PAYLOAD_START = 0x0020
 LOW_RAM_DESTINATION_PAGE = 0xFF
 BOOT_OVERFLOW_PROOF_ADDRESS = 0x06B0
 BOOT_OVERFLOW_PROOF = bytes((0xB0, 0x0F))
+INSTRUCTION_RUNTIME_PAGE = 0x23
+INSTRUCTION_RUNTIME_ADDRESS = 0xA422
+INSTRUCTION_RUNTIME_BYTES = 0x3AA
 PEN_MAP = (0x0, 0xC, 0x5, 0x2)
 
 
@@ -42,6 +45,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--actor-records", type=Path, required=True)
     parser.add_argument("--actor-underlays", type=Path, required=True)
     parser.add_argument("--presentation-module", type=Path, required=True)
+    parser.add_argument("--instruction-runtime", type=Path, required=True)
     parser.add_argument("--bank0", type=Path, required=True)
     parser.add_argument("--bank2", type=Path, required=True)
     parser.add_argument("--bank3", type=Path, required=True)
@@ -247,6 +251,10 @@ def main() -> None:
     actor_records = args.actor_records.read_bytes()
     actor_underlays = args.actor_underlays.read_bytes()
     presentation_module = args.presentation_module.read_bytes()
+    instruction_runtime = args.instruction_runtime.read_bytes()
+    instruction_runtime_stage = instruction_runtime.ljust(
+        INSTRUCTION_RUNTIME_BYTES, b"\x00"
+    )
     enemy_ranges = decode_payload(enemy_payload, enemy_frames, 0x35)
     player_ranges = decode_payload(player_payload, player_frames, 0x39)
     bank0 = args.bank0.read_bytes()
@@ -278,6 +286,11 @@ def main() -> None:
     if manifest["presentation_module"]["sha256"] != sha256(presentation_module):
         raise SystemExit("sparse proof: presentation module manifest hash mismatch")
     if (
+        manifest["instruction_runtime"]["sha256"] != sha256(instruction_runtime) or
+        manifest["instruction_runtime"]["staged_sha256"] != sha256(instruction_runtime_stage)
+    ):
+        raise SystemExit("sparse proof: instruction runtime manifest hash mismatch")
+    if (
         manifest["perimeter_reset"]["page"] != 0x20 or
         manifest["perimeter_reset"]["address"] != WINDOW_BASE or
         not manifest["perimeter_reset"].get("boot_synthesized") or
@@ -302,7 +315,9 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
-        "attract_actor_bundle": bytearray(len(actor_underlays) + len(actor_records)),
+        "attract_actor_bundle": bytearray(
+            len(actor_underlays) + len(actor_records) + INSTRUCTION_RUNTIME_BYTES
+        ),
     }
     coverage = {
         "enemy": bytearray(len(enemy_payload)),
@@ -311,7 +326,9 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
-        "attract_actor_bundle": bytearray(len(actor_underlays) + len(actor_records)),
+        "attract_actor_bundle": bytearray(
+            len(actor_underlays) + len(actor_records) + INSTRUCTION_RUNTIME_BYTES
+        ),
     }
     source_coverage = {
         0: bytearray(CART_READABLE_BYTES),
@@ -461,7 +478,9 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct presentation cold data")
     if reconstructed["presentation_module"] != presentation_module:
         raise SystemExit("sparse proof: loader does not reconstruct presentation module")
-    if reconstructed["attract_actor_bundle"] != actor_underlays + actor_records:
+    if reconstructed["attract_actor_bundle"] != (
+        actor_underlays + actor_records + instruction_runtime_stage
+    ):
         raise SystemExit("sparse proof: loader does not reconstruct actor bundle")
     expected_usable = (
         (CART_READABLE_BYTES - BANK2_PAYLOAD_START) +
@@ -479,7 +498,7 @@ def main() -> None:
     print(
         f"sparse proof: {len(enemy_ranges)} enemy and {len(player_ranges)} player "
         f"frames decode and blend pixel-exactly; {len(loader)} loader segments reconstruct "
-        f"actor, gate, presentation, cold, and module payloads with "
+        f"actor, gate, presentation, cold, module, and instruction payloads with "
         f"{manifest['gmc']['spare_bytes']} bytes spare"
     )
 

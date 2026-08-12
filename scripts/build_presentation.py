@@ -31,9 +31,13 @@ from build_screen import (  # noqa: E402
     WHITE,
     YELLOW,
     char_sheet_code,
+    compile_death_sprites,
     compile_screen,
+    encode_sparse_native,
+    expand_sprite,
     load_chars,
     pack_tile,
+    pack_sprite_2bpp,
     parse_csv,
     recolor,
     rotate_ccw,
@@ -60,7 +64,7 @@ COLD_PAGE_COUNT = 4
 MAP_BYTES = SCREEN_WIDTH * SCREEN_HEIGHT
 TILE_BYTES = 32
 MAP_OUTPUT_OFFSET = 0x4000
-COLD_PAYLOAD_LIMIT = 12939
+COLD_PAYLOAD_LIMIT = 10874
 ATTRACT_ACTOR_COLOURS = {
     (11, 3): (WHITE, GREEN, PINK),
     (35, 4): (WHITE, YELLOW, ORANGE),
@@ -90,6 +94,31 @@ ATTRACT_ACTOR_BYTES = 128
 ATTRACT_ACTOR_PHASES = (0, 1, 2)
 ATTRACT_ACTOR_DESTINATION_ADDRESS = 0xAA80
 ATTRACT_ACTOR_PHASE_POINTER_ADDRESS = 0xAA8E
+INSTRUCTION_REFERENCE = (
+    Path(__file__).resolve().parents[1]
+    / "assets" / "arcade" / "instruction_reference.json"
+)
+INSTRUCTION_STATIC_LAYERS = (
+    "Arcade Maze Border",
+    "CoCo Side HUD",
+    "Instructions Overlay",
+)
+INSTRUCTION_METADATA_LAYER = "Sprite Locations"
+INSTRUCTION_ANCHORS = ((10, 8), (10, 11), (10, 14))
+INSTRUCTION_LIFE_ROOT = (28, 7)
+INSTRUCTION_COIN_ROOT = (28, 10)
+INSTRUCTION_ANGEL_ROOT = (28, 14)
+INSTRUCTION_MULTIPLIER_ROOTS = ((27, 17), (27, 20))
+INSTRUCTION_TARGETS = (
+    ((13, 7), (1, 4)), ((15, 7), (2, 4)), ((17, 7), (3, 4)),
+    ((19, 7), (4, 4)), ((21, 7), (5, 4)),
+    ((13, 10), (1, 1)), ((15, 10), (2, 1)), ((17, 10), (3, 1)),
+    ((19, 10), (4, 1)), ((21, 10), (5, 1)), ((23, 10), (6, 1)),
+    ((25, 10), (7, 1)),
+    ((13, 13), (1, 7)), ((17, 13), (3, 7)), ((21, 13), (5, 7)),
+    ((28, 13), (0, 0)),
+)
+INSTRUCTION_EVENT_BYTES = 12
 
 
 def lzss_compress(data: bytes) -> bytes:
@@ -286,6 +315,14 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def screen_role(root: ET.Element, path: Path) -> str:
+    return next(
+        (item.get("value") for item in root.findall("./properties/property")
+         if item.get("name") == "screen-role"),
+        path.stem,
+    )
+
+
 def flatten_map(path: Path) -> tuple[ET.Element, list[int]]:
     root = ET.parse(path).getroot()
     if (int(root.attrib["width"]), int(root.attrib["height"])) != (
@@ -298,12 +335,29 @@ def flatten_map(path: Path) -> tuple[ET.Element, list[int]]:
             local_source = path.parent / Path(source).name
             if local_source.exists():
                 tileset.set("source", local_source.name)
+    role = screen_role(root, path)
+    layers = root.findall("layer")
+    if role == "instructions":
+        names = [layer.get("name", "") for layer in layers]
+        missing = [name for name in (*INSTRUCTION_STATIC_LAYERS,
+                                     INSTRUCTION_METADATA_LAYER)
+                   if names.count(name) != 1]
+        extras = [name for name in names
+                  if name not in (*INSTRUCTION_STATIC_LAYERS,
+                                  INSTRUCTION_METADATA_LAYER)]
+        if missing or extras:
+            raise ValueError(
+                f"{path}: instruction layer contract mismatch; "
+                f"missing/duplicate={missing}, unexpected={extras}"
+            )
+        selected = [layer for name in INSTRUCTION_STATIC_LAYERS
+                    for layer in layers if layer.get("name") == name]
+    else:
+        selected = [layer for layer in layers
+                    if layer.get("visible", "1") != "0"
+                    and layer.get("name") != "Sprite Animations"]
     flattened = [0] * MAP_BYTES
-    for layer in root.findall("layer"):
-        if layer.get("visible", "1") == "0":
-            continue
-        if layer.get("name") == "Sprite Animations":
-            continue
+    for layer in selected:
         cells = parse_csv(layer.find("data"), layer.get("name", ""))
         for index, gid in enumerate(cells):
             if gid & GID_MASK:
@@ -341,11 +395,7 @@ def compile_map(
     tile_ids: dict[bytes, int],
 ) -> tuple[bytes, dict[str, object]]:
     root, flattened = flatten_map(path)
-    role = next(
-        (item.get("value") for item in root.findall("./properties/property")
-         if item.get("name") == "screen-role"),
-        path.stem,
-    )
+    role = screen_role(root, path)
     ranges = tileset_ranges(root, path)
     rotated = [rotate_ccw(tile) for tile in chars]
     output = bytearray()
@@ -385,6 +435,224 @@ def compile_map(
             raise ValueError("presentation atlas exceeds one-byte tile IDs")
         output.append(tile_id)
     return bytes(output), {"role": role, "path": str(path)}
+
+
+def framebuffer_destination(cell: tuple[int, int]) -> int:
+    x, y = cell
+    return 0x2000 + y * 1280 + x * 4
+
+
+def instruction_char_tile(
+    root: ET.Element,
+    path: Path,
+    gid_with_flags: int,
+    cell: tuple[int, int],
+    chars: list[list[list[int]]],
+    pen_map: tuple[int, int, int, int] | None = None,
+) -> bytes:
+    gid = gid_with_flags & GID_MASK
+    ranges = tileset_ranges(root, path)
+    tileset = next(
+        (item for item in ranges
+         if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
+        None,
+    )
+    if tileset is None or tileset["name"] != "chars_raw2bpp":
+        raise ValueError(f"{path}: instruction metadata GID {gid} is not a char tile")
+    if gid_with_flags & FLIP_D:
+        raise ValueError(f"{path}: instruction char metadata uses a diagonal flip")
+    sheet_index = gid - int(tileset["firstgid"])
+    code = (sheet_index % 16) * 32 + (31 - sheet_index // 16)
+    tile = transform(
+        rotate_ccw(chars[code]), bool(gid_with_flags & FLIP_H),
+        bool(gid_with_flags & FLIP_V),
+    )
+    x, y = cell
+    return pack_tile(recolor(
+        tile,
+        pen_map if pen_map is not None
+        else presentation_pen_map("instructions", x, y),
+    ))
+
+
+def register_tile(tile: bytes, tiles: list[bytes], tile_ids: dict[bytes, int]) -> int:
+    tile_id = tile_ids.setdefault(tile, len(tiles))
+    if tile_id == len(tiles):
+        tiles.append(tile)
+    return tile_id
+
+
+def parse_instruction_contract(
+    path: Path,
+    chars: list[list[list[int]]],
+    sprites: list[list[list[int]]],
+    tiles: list[bytes],
+    tile_ids: dict[bytes, int],
+) -> dict[str, object]:
+    root = ET.parse(path).getroot()
+    layers = {layer.get("name", ""): layer for layer in root.findall("layer")}
+    metadata = layers.get(INSTRUCTION_METADATA_LAYER)
+    if metadata is None:
+        raise ValueError(f"{path}: missing {INSTRUCTION_METADATA_LAYER} layer")
+    cells = parse_csv(metadata.find("data"), INSTRUCTION_METADATA_LAYER)
+    records = {
+        (index % SCREEN_WIDTH, index // SCREEN_WIDTH): gid
+        for index, gid in enumerate(cells) if gid & GID_MASK
+    }
+    expected = {
+        **{cell: 0xA0000221 for cell in INSTRUCTION_ANCHORS},
+        (28, 7): 456, (29, 7): 440, (28, 8): 488, (29, 8): 472,
+        (28, 10): 376, (29, 10): 328, (28, 11): 296, (29, 11): 344,
+        INSTRUCTION_ANGEL_ROOT: 523,
+        (27, 17): 147, (28, 17): 417,
+        (27, 20): 147, (28, 20): 417,
+    }
+    if records != expected:
+        missing = sorted(set(expected) - set(records))
+        extra = sorted(set(records) - set(expected))
+        wrong = sorted(cell for cell in set(records) & set(expected)
+                       if records[cell] != expected[cell])
+        raise ValueError(
+            f"{path}: Sprite Locations contract mismatch; "
+            f"missing={missing}, extra={extra}, wrong={wrong}"
+        )
+
+    overlay = layers["Instructions Overlay"]
+    overlay_cells = parse_csv(overlay.find("data"), overlay.get("name", ""))
+    hud_layer = layers["CoCo Side HUD"]
+    hud_cells = parse_csv(hud_layer.find("data"), hud_layer.get("name", ""))
+    for target, hud in INSTRUCTION_TARGETS:
+        for dy in range(2):
+            for dx in range(2):
+                index = (target[1] + dy) * SCREEN_WIDTH + target[0] + dx
+                if not overlay_cells[index] & GID_MASK:
+                    raise ValueError(f"{path}: incomplete target at {target}")
+        if hud != (0, 0):
+            index = hud[1] * SCREEN_WIDTH + hud[0]
+            if not hud_cells[index] & GID_MASK:
+                raise ValueError(f"{path}: missing HUD target at {hud}")
+
+    reward_tiles: dict[str, list[int]] = {}
+    for name, root_cell in (("life", INSTRUCTION_LIFE_ROOT),
+                            ("coin", INSTRUCTION_COIN_ROOT)):
+        ids = []
+        for dy in range(2):
+            for dx in range(2):
+                cell = (root_cell[0] + dx, root_cell[1] + dy)
+                ids.append(register_tile(
+                    instruction_char_tile(root, path, records[cell], cell, chars),
+                    tiles, tile_ids,
+                ))
+        reward_tiles[name] = ids
+
+    rotated = [rotate_ccw(tile) for tile in chars]
+    value_tiles: dict[str, list[int]] = {}
+    for colour, value in (("red", 1), ("yellow", 2), ("blue", 3)):
+        value_tiles[colour] = [register_tile(
+            pack_tile(recolor(rotated[digit], (BLACK, value, value, value))),
+            tiles, tile_ids,
+        ) for digit in (8, 0, 0) if colour == "red"]
+        if colour == "yellow":
+            value_tiles[colour] = [register_tile(
+                pack_tile(recolor(rotated[digit], (BLACK, value, value, value))),
+                tiles, tile_ids,
+            ) for digit in (3, 0, 0)]
+        if colour == "blue":
+            value_tiles[colour] = [register_tile(
+                pack_tile(recolor(rotated[digit], (BLACK, value, value, value))),
+                tiles, tile_ids,
+            ) for digit in (1, 0, 0)]
+    black_tile = register_tile(bytes(TILE_BYTES), tiles, tile_ids)
+    multiplier_x = register_tile(
+        instruction_char_tile(root, path, records[(27, 17)], (27, 17), chars),
+        tiles, tile_ids,
+    )
+    multiplier_tiles = {
+        str(value): [multiplier_x, register_tile(
+            pack_tile(recolor(rotated[value], (BLACK, WHITE, WHITE, WHITE))),
+            tiles, tile_ids,
+        )]
+        for value in (2, 3, 5)
+    }
+
+    reference = json.loads(INSTRUCTION_REFERENCE.read_text(encoding="ascii"))
+    first = int(reference["instruction_interval"]["first_complete_frame"])
+    source_targets = [target for row in reference["rows"]
+                      for target in row["targets"]]
+    source_targets.append(reference["rows"][2]["skull"])
+    if len(source_targets) != len(INSTRUCTION_TARGETS):
+        raise ValueError("instruction oracle/TMX target counts differ")
+    event_table = bytearray()
+    event_manifest = []
+    for index, (source, (target, hud)) in enumerate(
+            zip(source_targets, INSTRUCTION_TARGETS)):
+        motion = int(source["motion_first_frame"]) - first
+        consume_key = "collision_frame" if index == 15 else "consume_frame"
+        consume = int(source[consume_key]) - first
+        # The actor roots are authored one tile row below the collectible
+        # glyphs. Keep movement horizontal in that actor row while ending one
+        # packed byte left of the target so the 16-pixel Lady Bug overlaps it.
+        goal = framebuffer_destination(target) + 1280 - 1
+        target_destination = framebuffer_destination(target)
+        hud_destination = 0 if hud == (0, 0) else framebuffer_destination(hud)
+        hud_tile_id = 0
+        if hud_destination:
+            trigger_colour = 2 if index < 5 else 1 if index < 12 else 3
+            hud_index = hud[1] * SCREEN_WIDTH + hud[0]
+            hud_tile_id = register_tile(instruction_char_tile(
+                root, path, hud_cells[hud_index], hud, chars,
+                (BLACK, trigger_colour, trigger_colour, trigger_colour),
+            ), tiles, tile_ids)
+        record = (
+            motion.to_bytes(2, "big") + consume.to_bytes(2, "big")
+            + goal.to_bytes(2, "big") + target_destination.to_bytes(2, "big")
+            + hud_destination.to_bytes(2, "big") + bytes((index, hud_tile_id))
+        )
+        event_table.extend(record)
+        event_manifest.append({
+            "index": index,
+            "name": source.get("name", "skull"),
+            "motion_tick": motion,
+            "consume_tick": consume,
+            "goal_destination": goal,
+            "target_destination": target_destination,
+            "hud_destination": hud_destination,
+            "hud_tile_id": hud_tile_id,
+        })
+
+    death_frames = compile_death_sprites(path.parents[1] / "assets" / "arcade" / "sprites.json")
+    death_streams = [encode_sparse_native(
+        expand_sprite(frame, (0, RED, RED, RED) if index < 7
+                      else (0, WHITE, WHITE, WHITE)), 16, 8,
+    ) for index, frame in enumerate(death_frames)]
+    angel_pixels = rotate_ccw(sprites[10])
+    angel_frame = pack_sprite_2bpp(angel_pixels)
+    angel_stream = encode_sparse_native(
+        expand_sprite(angel_frame, (0, WHITE, WHITE, WHITE)), 16, 8
+    )
+    return {
+        "anchors": [framebuffer_destination(cell) for cell in INSTRUCTION_ANCHORS],
+        "reward_destinations": {
+            "life": framebuffer_destination(INSTRUCTION_LIFE_ROOT),
+            "coin": framebuffer_destination(INSTRUCTION_COIN_ROOT),
+        },
+        "reward_tile_ids": reward_tiles,
+        "multiplier_destinations": [framebuffer_destination(cell)
+                                    for cell in INSTRUCTION_MULTIPLIER_ROOTS],
+        "multiplier_tile_ids": multiplier_tiles,
+        "value_destination": framebuffer_destination((16, 20)),
+        "value_tile_ids": value_tiles,
+        "black_tile_id": black_tile,
+        "event_table": bytes(event_table),
+        "events": event_manifest,
+        "death_streams": death_streams,
+        "angel_stream": angel_stream,
+        "angel_source_code": 10,
+        "death_collision_tick": int(reference["rows"][2]["skull"]["collision_frame"]) - first,
+        "angel_tick": int(reference["death_sequence"]["angel_hold"]["first_frame"]) - first,
+        "next_screen_tick": int(reference["instruction_interval"]["next_screen_first_partial_frame"]) - first,
+        "colour_dwell_frames": int(reference["colour_clock"]["dwell_frames"]),
+    }
 
 
 def encode_map(data: bytes) -> bytes:
@@ -456,6 +724,47 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         lines.append(
             f"PRESENTATION_MAP_STREAM_{index}_BYTES equ {len(encoded)}"
         )
+    instruction = manifest["instruction_choreography"]
+    lines.extend((
+        "",
+        "; BUG-011 semantic instruction choreography.",
+        f"PRESENTATION_INSTRUCTION_EVENT_OFFSET equ ${instruction['event_table_offset']:04X}",
+        f"PRESENTATION_INSTRUCTION_EVENT_BYTES equ {instruction['event_record_bytes']}",
+        f"PRESENTATION_INSTRUCTION_EVENT_COUNT equ {len(instruction['events'])}",
+        f"PRESENTATION_INSTRUCTION_DEATH_POINTERS equ ${instruction['death_pointer_offset']:04X}",
+        f"PRESENTATION_INSTRUCTION_DEATH_COUNT equ {len(instruction['death_stream_offsets'])}",
+        f"PRESENTATION_INSTRUCTION_DEATH_TICK equ {instruction['death_collision_tick']}",
+        f"PRESENTATION_INSTRUCTION_ANGEL_TICK equ {instruction['angel_tick']}",
+        f"PRESENTATION_INSTRUCTION_NEXT_TICK equ {instruction['next_screen_tick']}",
+        f"PRESENTATION_INSTRUCTION_COLOUR_DWELL equ {instruction['colour_dwell_frames']}",
+        f"PRESENTATION_INSTRUCTION_BLACK_TILE equ {instruction['black_tile_id']}",
+        f"PRESENTATION_INSTRUCTION_VALUE_DST equ ${instruction['value_destination']:04X}",
+        f"PRESENTATION_INSTRUCTION_LIFE_DST equ ${instruction['reward_destinations']['life']:04X}",
+        f"PRESENTATION_INSTRUCTION_COIN_DST equ ${instruction['reward_destinations']['coin']:04X}",
+        f"PRESENTATION_INSTRUCTION_MULTIPLIER_0 equ ${instruction['multiplier_destinations'][0]:04X}",
+        f"PRESENTATION_INSTRUCTION_MULTIPLIER_1 equ ${instruction['multiplier_destinations'][1]:04X}",
+        f"PRESENTATION_INSTRUCTION_EXTRA_SPAN equ ${framebuffer_destination((13, 7)):04X}",
+        f"PRESENTATION_INSTRUCTION_SPECIAL_SPAN equ ${framebuffer_destination((13, 10)):04X}",
+        f"PRESENTATION_INSTRUCTION_HEART_SPAN equ ${framebuffer_destination((13, 13)):04X}",
+        f"PRESENTATION_INSTRUCTION_ICON_SPAN equ ${framebuffer_destination((13, 19)):04X}",
+    ))
+    for index, destination in enumerate(instruction["anchors"]):
+        lines.append(f"PRESENTATION_INSTRUCTION_ANCHOR_{index} equ ${destination:04X}")
+    for name in ("red", "yellow", "blue"):
+        for index, tile_id in enumerate(instruction["value_tile_ids"][name]):
+            lines.append(
+                f"PRESENTATION_INSTRUCTION_VALUE_{name.upper()}_{index} equ {tile_id}"
+            )
+    for name in ("life", "coin"):
+        for index, tile_id in enumerate(instruction["reward_tile_ids"][name]):
+            lines.append(
+                f"PRESENTATION_INSTRUCTION_{name.upper()}_{index} equ {tile_id}"
+            )
+    for value in (2, 3, 5):
+        for index, tile_id in enumerate(instruction["multiplier_tile_ids"][str(value)]):
+            lines.append(
+                f"PRESENTATION_INSTRUCTION_X{value}_{index} equ {tile_id}"
+            )
     lines.append(f"PRESENTATION_COIN_TILE equ {manifest['coin_tile']}")
     rotated = [rotate_ccw(tile) for tile in chars]
     for code in range(37):
@@ -519,6 +828,10 @@ def main() -> None:
         })
         map_info.append(info)
 
+    instruction = parse_instruction_contract(
+        args.tiled_dir / MAP_FILES["instructions"], chars, sprites, tiles, tile_ids
+    )
+
     coin_id = tile_ids.setdefault(coin_tile(), len(tiles))
     if coin_id == len(tiles):
         tiles.append(coin_tile())
@@ -539,6 +852,18 @@ def main() -> None:
         info["sha256"] = hashlib.sha256(data).hexdigest()
     tiles = [tiles[tile_id] for tile_id in ordered_ids]
     coin_id = remap[coin_id]
+    instruction["black_tile_id"] = remap[int(instruction["black_tile_id"])]
+    for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
+        instruction[group] = {
+            name: [remap[int(tile_id)] for tile_id in ids]
+            for name, ids in instruction[group].items()
+        }
+    event_table = bytearray(instruction["event_table"])
+    for index, event in enumerate(instruction["events"]):
+        hud_tile_id = remap[int(event["hud_tile_id"])] if event["hud_destination"] else 0
+        event["hud_tile_id"] = hud_tile_id
+        event_table[index * INSTRUCTION_EVENT_BYTES + 11] = hud_tile_id
+    instruction["event_table"] = bytes(event_table)
     cold_only_tiles = tiles[:len(cold_tile_ids)]
     gameplay_lookup = bytes(
         gameplay_tile_ids[tiles[tile_id]]
@@ -565,7 +890,22 @@ def main() -> None:
     )
     attract_compressed = lzss_compress(attract_surfaces)
     attract_metadata = attract_destinations + attract_phase_pointers
-    cold_payload = tile_atlas + gameplay_lookup + bytes(encoded_stream)
+    cold_payload = bytearray(tile_atlas + gameplay_lookup + bytes(encoded_stream))
+    instruction_event_offset = len(cold_payload)
+    cold_payload.extend(instruction["event_table"])
+    instruction_death_pointer_offset = len(cold_payload)
+    death_streams = [*instruction["death_streams"], instruction["angel_stream"]]
+    cold_payload.extend(bytes(len(death_streams) * 2))
+    death_stream_offsets = []
+    for stream in death_streams:
+        page_offset = len(cold_payload) % PAGE_BYTES
+        if page_offset + len(stream) > PAGE_BYTES:
+            cold_payload.extend(bytes(PAGE_BYTES - page_offset))
+        death_stream_offsets.append(len(cold_payload))
+        cold_payload.extend(stream)
+    for index, offset in enumerate(death_stream_offsets):
+        start = instruction_death_pointer_offset + index * 2
+        cold_payload[start:start + 2] = offset.to_bytes(2, "big")
     if len(cold_payload) > COLD_PAYLOAD_LIMIT:
         raise ValueError(
             f"presentation cold payload is {len(cold_payload)} bytes; "
@@ -587,6 +927,33 @@ def main() -> None:
         "map_stream_offsets": map_stream_offsets,
         "map_stream_bytes": [len(encoded) for encoded in encoded_maps],
         "map_stream_total_bytes": len(encoded_stream),
+        "instruction_choreography": {
+            "metadata_layer": INSTRUCTION_METADATA_LAYER,
+            "static_layers": list(INSTRUCTION_STATIC_LAYERS),
+            "anchors": instruction["anchors"],
+            "reward_destinations": instruction["reward_destinations"],
+            "reward_tile_ids": instruction["reward_tile_ids"],
+            "multiplier_destinations": instruction["multiplier_destinations"],
+            "multiplier_tile_ids": instruction["multiplier_tile_ids"],
+            "value_destination": instruction["value_destination"],
+            "value_tile_ids": instruction["value_tile_ids"],
+            "black_tile_id": instruction["black_tile_id"],
+            "event_record_bytes": INSTRUCTION_EVENT_BYTES,
+            "event_table_offset": instruction_event_offset,
+            "event_table_bytes": len(instruction["event_table"]),
+            "event_table_sha256": hashlib.sha256(instruction["event_table"]).hexdigest(),
+            "events": instruction["events"],
+            "death_pointer_offset": instruction_death_pointer_offset,
+            "death_stream_offsets": death_stream_offsets,
+            "death_stream_bytes": [len(stream) for stream in death_streams],
+            "death_stream_sha256": [hashlib.sha256(stream).hexdigest()
+                                    for stream in death_streams],
+            "death_collision_tick": instruction["death_collision_tick"],
+            "angel_tick": instruction["angel_tick"],
+            "next_screen_tick": instruction["next_screen_tick"],
+            "colour_dwell_frames": instruction["colour_dwell_frames"],
+            "angel_source_code": instruction["angel_source_code"],
+        },
         "attract_actor_destinations": {
             "bytes": len(attract_destinations),
             "count": len(actors),
@@ -643,7 +1010,7 @@ def main() -> None:
                                 for data in maps],
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_bytes(cold_payload)
+    args.output.write_bytes(bytes(cold_payload))
     args.actor_record_output.parent.mkdir(parents=True, exist_ok=True)
     args.actor_record_output.write_bytes(attract_metadata)
     args.actor_underlay_output.parent.mkdir(parents=True, exist_ok=True)

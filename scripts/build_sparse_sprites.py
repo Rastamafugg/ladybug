@@ -49,6 +49,9 @@ PERIMETER_RESET_PAGE = 0x20
 PERIMETER_RESET_ADDRESS = WINDOW_BASE
 PERIMETER_RESET_HELPER_ADDRESS = 0x06B2
 PERIMETER_RESET_HELPER_LIMIT = 0x0800
+INSTRUCTION_RUNTIME_PAGE = 0x23
+INSTRUCTION_RUNTIME_ADDRESS = 0xA422
+INSTRUCTION_RUNTIME_BYTES = 0x3AA
 
 
 @dataclass(frozen=True)
@@ -99,6 +102,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--actor-records", type=Path, required=True)
     parser.add_argument("--actor-underlays", type=Path, required=True)
     parser.add_argument("--presentation-module", type=Path, required=True)
+    parser.add_argument("--instruction-runtime", type=Path, required=True)
     parser.add_argument("--bank2-output", type=Path, required=True)
     parser.add_argument("--bank3-output", type=Path, required=True)
     parser.add_argument("--bank0-output", type=Path, required=True)
@@ -304,7 +308,8 @@ def pack_candidate_banks(
         presentation_payload: bytes,
         enemy_runtime: bytes, presentation_cold: bytes = b"",
         presentation_module: bytes = b"", perimeter_payload: bytes = b"",
-        perimeter_helper: bytes = b"", actor_records: bytes = b"",
+        perimeter_helper: bytes = b"", instruction_runtime: bytes = b"",
+        actor_records: bytes = b"",
         actor_underlays: bytes = b""
 ) -> tuple[bytes, bytes, bytes, list[CopySegment]]:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
@@ -330,6 +335,12 @@ def pack_candidate_banks(
     helper_end = PERIMETER_RESET_HELPER_ADDRESS + len(perimeter_helper)
     if helper_end > PERIMETER_RESET_HELPER_LIMIT:
         raise ValueError("perimeter helper exceeds $06B2-$07FF allocation")
+    if len(instruction_runtime) > INSTRUCTION_RUNTIME_BYTES:
+        raise ValueError("instruction runtime exceeds freed $0300-$064C loader RAM")
+    instruction_runtime_stage = (
+        instruction_runtime.ljust(INSTRUCTION_RUNTIME_BYTES, b"\x00")
+        if instruction_runtime else b""
+    )
 
     sources = [
         SourceInterval(2, BANK2_PAYLOAD_START, CART_READABLE_BYTES),
@@ -353,7 +364,8 @@ def pack_candidate_banks(
                       PRESENTATION_PAYLOAD_ADDRESS) +
         target_chunks("presentation_cold", presentation_cold, 0x3A,
                       WINDOW_BASE) +
-        target_chunks("attract_actor_bundle", actor_underlays + actor_records,
+        target_chunks("attract_actor_bundle", actor_underlays + actor_records +
+                      instruction_runtime_stage,
                       0x23, 0xA000) +
         target_chunks("presentation_module", presentation_module, 0xFF,
                       0x1900)
@@ -523,10 +535,12 @@ def main() -> None:
     actor_records = args.actor_records.read_bytes()
     actor_underlays = args.actor_underlays.read_bytes()
     presentation_module = args.presentation_module.read_bytes()
+    instruction_runtime = args.instruction_runtime.read_bytes()
     bank0, bank2, bank3, segments = pack_candidate_banks(
         enemy_payload, player_payload, gate_payload, presentation_payload,
         enemy_runtime, presentation_cold, presentation_module,
-        perimeter_payload, perimeter_helper, actor_records, actor_underlays
+        perimeter_payload, perimeter_helper, instruction_runtime,
+        actor_records, actor_underlays
     )
     outputs = (
         (args.enemy_output, enemy_payload),
@@ -625,6 +639,18 @@ def main() -> None:
             "page": LOW_RAM_DESTINATION_PAGE,
             "address": 0x1900,
             "sha256": digest(presentation_module),
+        },
+        "instruction_runtime": {
+            "bytes": len(instruction_runtime),
+            "staged_bytes": INSTRUCTION_RUNTIME_BYTES,
+            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_address": INSTRUCTION_RUNTIME_ADDRESS,
+            "destination_address": 0x0300,
+            "destination_end": 0x06AA,
+            "sha256": digest(instruction_runtime),
+            "staged_sha256": digest(instruction_runtime.ljust(
+                INSTRUCTION_RUNTIME_BYTES, b"\x00"
+            )),
         },
         "gmc": {
             "readable_bytes_per_bank": CART_READABLE_BYTES,
