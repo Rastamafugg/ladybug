@@ -127,7 +127,22 @@ def main() -> None:
         last_demo_state: dict[str, object] = {}
         demo_samples: list[dict[str, object]] = []
         if args.demo_call_limit == 0:
-            return_hit = client.run_to_breakpoint(args.timeout)
+            try:
+                return_hit = client.run_to_breakpoint(args.timeout)
+            except Exception as exc:
+                failure = {
+                    "type": type(exc).__name__,
+                    "phase": "post-demo-screen-request",
+                    "deadline_seconds": args.timeout,
+                }
+                args.output.write_text(json.dumps({
+                    "schema": "ladybug-bug012-natural-loop-v1",
+                    "rom_sha256": hashlib.sha256(args.rom.read_bytes()).hexdigest(),
+                    "screen_requests": requests,
+                    "demo_entry": True,
+                    "failure": failure,
+                }, indent=2) + "\n", encoding="ascii")
+                raise SystemExit(f"BUG-012 natural: {failure}") from exc
         else:
             trace_address = main_syms["player_tick"]
             aux_id = monitor.setup(client, [trace_address])[0]
@@ -155,6 +170,19 @@ def main() -> None:
         if args.demo_call_limit:
             monitor.clear(client, [aux_id])
         if return_hit is None:
+            failure = {
+                "type": "trace_limit",
+                "player_tick_limit": args.demo_call_limit,
+                "last_state": last_demo_state,
+                "samples": demo_samples,
+            }
+            args.output.write_text(json.dumps({
+                "schema": "ladybug-bug012-natural-loop-v1",
+                "rom_sha256": hashlib.sha256(args.rom.read_bytes()).hexdigest(),
+                "screen_requests": requests,
+                "demo_entry": True,
+                "failure": failure,
+            }, indent=2) + "\n", encoding="ascii")
             raise SystemExit(
                 f"BUG-012 natural: no post-demo screen request within {args.demo_call_limit} route ticks; "
                 f"samples={demo_samples}"
