@@ -15,6 +15,13 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h2>Raw sprite sheet tile IDs are not runtime sprite codes</h2>
+      <p><strong>Filed 2026-08-13.</strong> BUG-011's terminal marker used raw sheet tile 10 at row 0, column 10. Directly indexing the extracted sprite list selected runtime code 10 and displayed an enemy; resolving the same cell through the sheet layout produced the intended angel-wings code 87.</p>
+      <p><strong>Rule:</strong> metadata compilation must remove Tiled tileset flags, resolve <code>firstgid</code>, validate the source tileset, and translate sheet row/column through the established sprite-code mapping. Never treat a raw Tiled tile offset as a runtime sprite code.</p>
+      <p><strong>Capacity extension:</strong> when the shared character atlas is full, a metadata-authored static sprite may remain an explicit sparse overlay drawn during screen hydration. Its destination, palette, surface hash, and both framebuffer owners still require verification.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-011-instruction-choreography.html">BUG-011</a>, <code>scripts/build_presentation.py</code>, and <code>scripts/verify_bug011_rendering.py</code>.</p>
+    </section>
+    <section>
       <h2>Tiled visibility is not a runtime layer-ownership contract</h2>
       <p><strong>Filed 2026-08-13.</strong> BUG-016 failed when the presentation compiler flattened every visible layer except one animation name. Current Tiled maps intentionally expose raw-sprite marker layers and logo-frame authoring layers, so visibility admitted unsupported sprite GIDs and would also have silently overwritten the static screen. The compiler now selects exact static layers by screen role, validates metadata and deferred layers separately, and records each ownership decision plus current marker coordinates in the generated manifest.</p>
       <p><strong>Rule:</strong> treat semantic layer names and role-specific validation as the build interface. Reject duplicate, missing, unknown, misplaced, or wrong-tileset records; do not infer runtime ownership from authoring visibility.</p>
