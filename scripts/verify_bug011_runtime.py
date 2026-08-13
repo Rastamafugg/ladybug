@@ -103,6 +103,12 @@ def read_word(client, address: int) -> int:
     return int.from_bytes(read_bytes(client, address, 2), "big")
 
 
+def write_word(client, address: int, value: int) -> None:
+    client.call("write_memory", {
+        "addr": address, "data": value.to_bytes(2, "big").hex(),
+    })
+
+
 def write_byte(client, address: int, value: int) -> None:
     client.call("write_memory", {"addr": address, "data": f"{value:02x}"})
 
@@ -240,6 +246,15 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
         write_byte(client, FB_BACK, owner_order[1])
         write_byte(client, 0xFF9D, 0xC0 if owner_order[0] == 0 else 0xB0)
         monitor.clear(client, ids)
+        return_pc = presentation_symbols["instructions_runtime_return"]
+        init_ids = monitor.setup(client, [return_pc])
+        init_hit = client.run_to_breakpoint(timeout)
+        monitor.clear(client, init_ids)
+        if init_hit.get("pc") != return_pc:
+            raise SystemExit(f"BUG-011 runtime: first initialization timeout {init_hit}")
+        first_initialised_hashes = sorted(
+            digest(read_owner(client, owner)) for owner in (0, 1)
+        )
         load_tick = presentation_symbols["load_tick"]
         ids = monitor.setup(client, [load_tick])
         hit = client.run_to_breakpoint(timeout)
@@ -256,6 +271,21 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
             )
         if read_byte(client, TRACE_MAGIC) != 0xA5:
             raise SystemExit("BUG-011 runtime: helper trace was not initialized")
+        saved_par5 = read_byte(client, PAR5)
+        cold_after = bytearray()
+        for page in range(0x3A, 0x3E):
+            write_byte(client, PAR5, page)
+            cold_after.extend(read_bytes(client, 0xA000, 0x2000))
+        write_byte(client, PAR5, saved_par5)
+        if bytes(cold_after[:len(cold_expected)]) != cold_expected:
+            differences = [
+                index for index, pair in enumerate(zip(cold_after, cold_expected))
+                if pair[0] != pair[1]
+            ]
+            raise SystemExit(
+                "BUG-011 runtime: choreography corrupted cold payload; "
+                f"first={differences[:8]} count={len(differences)}"
+            )
 
         trace = {
             "colour_transitions": read_byte(client, TRACE_COLOURS),
@@ -264,7 +294,11 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
             "owner_mask": read_byte(client, TRACE_OWNERS),
         }
         if trace["colour_transitions"] != 48:
-            raise SystemExit(f"BUG-011 runtime: colour trace differs: {trace}")
+            raise SystemExit(
+                "BUG-011 runtime: colour trace differs: "
+                f"{trace} phase={read_byte(client, PRES_PHASE)} "
+                f"timer={read_word(client, PRES_TIMER)}"
+            )
         if trace["consume_count"] != 16:
             raise SystemExit(f"BUG-011 runtime: consume trace differs: {trace}")
         if trace["death_surface_count"] != 15:
@@ -282,10 +316,18 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
             frame_tile(frame, event["target_destination"] + offset)
             for offset in (0, 4, 1280, 1284)
         ] for event in choreography["events"]]
-        hud = [
-            frame_tile(frame, event["hud_destination"])
-            for event in choreography["events"] if event["hud_destination"]
-        ]
+        hud = []
+        expected_hud = []
+        for event in choreography["events"]:
+            if not event["hud_destination"]:
+                continue
+            hud.append(frame_tile(frame, event["hud_destination"]))
+            expected_hud.append(expected_tile(manifest, event["hud_tile_id"]))
+            if event["hud_tile_2_id"]:
+                hud.append(frame_tile(frame, event["hud_destination"] + 4))
+                expected_hud.append(expected_tile(
+                    manifest, event["hud_tile_2_id"]
+                ))
         target_residue = targets[:15] + [targets[15][:2]]
         if any(any(any(tile) for tile in surface) for surface in target_residue):
             visible = [
@@ -296,19 +338,23 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
                 if any(any(tile) for tile in surface)
             ]
             raise SystemExit(
-                f"BUG-011 runtime: consumed targets remain visible: {visible}"
+                "BUG-011 runtime: consumed targets remain visible: "
+                f"{visible} owner_state={read_bytes(client, 0x00D2, 6).hex()} "
+                f"front={read_byte(client, FB_FRONT)} back={read_byte(client, FB_BACK)}"
             )
         if any(not any(tile) for tile in hud):
             dark = [index for index, tile in enumerate(hud) if not any(tile)]
             raise SystemExit(
                 f"BUG-011 runtime: consumed HUD targets are not lit: {dark}"
             )
-        expected_hud = [
-            expected_tile(manifest, event["hud_tile_id"])
-            for event in choreography["events"] if event["hud_destination"]
-        ]
         if hud != expected_hud:
-            raise SystemExit("BUG-011 runtime: final HUD colours/pixels differ")
+            differences = [
+                (index, hud[index].hex(), expected_hud[index].hex())
+                for index in range(len(hud)) if hud[index] != expected_hud[index]
+            ]
+            raise SystemExit(
+                f"BUG-011 runtime: final HUD colours/pixels differ: {differences}"
+            )
 
         for reward_name in ("life", "coin"):
             destination = choreography["reward_destinations"][reward_name]
@@ -402,6 +448,35 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
                 "visible_owner": visible_owner,
                 "visible_sha256": visible_hash,
             })
+        write_word(client, PRES_TIMER, 557)
+        repeat_ids = monitor.setup(client, [instructions_tick])
+        repeat_hit = client.run_to_breakpoint(timeout)
+        monitor.clear(client, repeat_ids)
+        if repeat_hit.get("pc") != instructions_tick:
+            raise SystemExit(f"BUG-011 runtime: repeat instruction entry timeout {repeat_hit}")
+        repeat_static_hashes = {
+            owner: digest(read_owner(client, owner)) for owner in (0, 1)
+        }
+        if any(value != expected_static for value in repeat_static_hashes.values()):
+            raise SystemExit(
+                "BUG-011 runtime: repeat instruction owners differ; "
+                f"live={repeat_static_hashes} expected={expected_static}"
+            )
+        repeat_init_ids = monitor.setup(client, [return_pc])
+        repeat_init_hit = client.run_to_breakpoint(timeout)
+        monitor.clear(client, repeat_init_ids)
+        if repeat_init_hit.get("pc") != return_pc:
+            raise SystemExit(
+                f"BUG-011 runtime: repeat initialization timeout {repeat_init_hit}"
+            )
+        repeat_initialised_hashes = sorted(
+            digest(read_owner(client, owner)) for owner in (0, 1)
+        )
+        if repeat_initialised_hashes != first_initialised_hashes:
+            raise SystemExit(
+                "BUG-011 runtime: repeat initialization pixels differ; "
+                f"first={first_initialised_hashes} repeat={repeat_initialised_hashes}"
+            )
         return {
             "owner_order": owner_order,
             "staged_sha256": digest(staged_live),
@@ -416,6 +491,8 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
             "terminal_timer": choreography["next_screen_tick"],
             "next_screen": 2,
             "post_terminal": post_terminal,
+            "repeat_static_sha256": repeat_static_hashes,
+            "repeat_initialised_sha256": repeat_initialised_hashes,
         }
     finally:
         try:

@@ -90,6 +90,8 @@ def main() -> None:
     event_table = bytearray(instruction["event_table"])
     event_bytes = len(event_table) // len(instruction["events"])
     for index, event in enumerate(instruction["events"]):
+        if event["hud_tile_2_id"]:
+            event_table[index * event_bytes + 10] = remap[event["hud_tile_2_id"]]
         if event["hud_destination"]:
             event_table[index * event_bytes + 11] = remap[event["hud_tile_id"]]
     instruction["event_table"] = bytes(event_table)
@@ -103,6 +105,18 @@ def main() -> None:
         b"".join(cold_only_tiles) + gameplay_lookup +
         b"".join(encoded_maps)
     )
+    event_count = len(instruction["events"])
+    for padding in range(PAGE_BYTES):
+        start = len(expected) + padding
+        if all(
+            (start + index * event_bytes) % PAGE_BYTES
+            <= PAGE_BYTES - event_bytes
+            for index in range(event_count)
+        ):
+            expected.extend(bytes(padding))
+            break
+    else:
+        raise SystemExit("presentation proof: event table cannot be page-aligned")
     event_offset = len(expected)
     expected.extend(instruction["event_table"])
     colour_pointer_offset = len(expected)

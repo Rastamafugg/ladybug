@@ -14,11 +14,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_screen import (  # noqa: E402
     BLACK,
     BLUE,
+    DARK_RED,
     FLIP_D,
     FLIP_H,
     FLIP_V,
     GID_MASK,
     GREEN,
+    GREY,
     LIGHT_BLUE,
     LIGHT_GREEN,
     ORANGE,
@@ -369,6 +371,8 @@ def presentation_pen_map(role: str, x: int, y: int) -> tuple[int, int, int, int]
     """Apply the established CoCo palette adaptation to authored raw chars."""
     if x < 8 and y < 9:
         colour = (RED, YELLOW, BLUE)[y // 3]
+        if y % 3 == 1 and x != 0:
+            colour = GREY
         return (BLACK, colour, colour, colour)
     if x >= 32:
         colour = {
@@ -382,6 +386,8 @@ def presentation_pen_map(role: str, x: int, y: int) -> tuple[int, int, int, int]
     if role == "level-start" and 8 <= x < 32:
         return (BLACK, PINK, WHITE, PINK)
     if role in ("game-over", "enter-high-score", "high-score"):
+        return (BLACK, WHITE, WHITE, WHITE)
+    if role == "instructions" and 28 <= x < 30 and 13 <= y < 15:
         return (BLACK, WHITE, WHITE, WHITE)
     if 8 <= x < 32:
         return (BLACK, PINK, PURPLE, GREEN)
@@ -533,6 +539,10 @@ def parse_instruction_contract(
                 raise ValueError(f"{path}: missing HUD target at {hud}")
 
     reward_tiles: dict[str, list[int]] = {}
+    reward_pen_maps = {
+        "life": (BLACK, GREEN, DARK_RED, YELLOW),
+        "coin": (BLACK, GREY, GREY, WHITE),
+    }
     for name, root_cell in (("life", INSTRUCTION_LIFE_ROOT),
                             ("coin", INSTRUCTION_COIN_ROOT)):
         ids = []
@@ -540,7 +550,10 @@ def parse_instruction_contract(
             for dx in range(2):
                 cell = (root_cell[0] + dx, root_cell[1] + dy)
                 ids.append(register_tile(
-                    instruction_char_tile(root, path, records[cell], cell, chars),
+                    instruction_char_tile(
+                        root, path, records[cell], cell, chars,
+                        reward_pen_maps[name],
+                    ),
                     tiles, tile_ids,
                 ))
         reward_tiles[name] = ids
@@ -563,12 +576,12 @@ def parse_instruction_contract(
                 tiles, tile_ids,
             ) for digit in (1, 0, 0)]
     black_tile = register_tile(bytes(TILE_BYTES), tiles, tile_ids)
-    multiplier_x = register_tile(
-        instruction_char_tile(root, path, records[(27, 17)], (27, 17), chars),
-        tiles, tile_ids,
-    )
     multiplier_tiles = {
-        str(value): [multiplier_x, register_tile(
+        str(value): [register_tile(instruction_char_tile(
+            root, path,
+            hud_cells[7 * SCREEN_WIDTH + 1], (1, 7), chars,
+            (BLACK, BLUE, BLUE, BLUE),
+        ), tiles, tile_ids), register_tile(
             pack_tile(recolor(rotated[value], (BLACK, WHITE, WHITE, WHITE))),
             tiles, tile_ids,
         )]
@@ -597,6 +610,7 @@ def parse_instruction_contract(
         target_destination = framebuffer_destination(target)
         hud_destination = 0 if hud == (0, 0) else framebuffer_destination(hud)
         hud_tile_id = 0
+        hud_tile_2_id = 0
         if hud_destination:
             trigger_colour = 2 if index < 5 else 1 if index < 12 else 3
             hud_index = hud[1] * SCREEN_WIDTH + hud[0]
@@ -604,10 +618,18 @@ def parse_instruction_contract(
                 root, path, hud_cells[hud_index], hud, chars,
                 (BLACK, trigger_colour, trigger_colour, trigger_colour),
             ), tiles, tile_ids)
+            if 12 <= index < 15:
+                second = (hud[0] + 1, hud[1])
+                second_index = second[1] * SCREEN_WIDTH + second[0]
+                hud_tile_2_id = register_tile(instruction_char_tile(
+                    root, path, hud_cells[second_index], second, chars,
+                    (BLACK, trigger_colour, trigger_colour, trigger_colour),
+                ), tiles, tile_ids)
         record = (
             motion.to_bytes(2, "big") + consume.to_bytes(2, "big")
             + goal.to_bytes(2, "big") + target_destination.to_bytes(2, "big")
-            + hud_destination.to_bytes(2, "big") + bytes((index, hud_tile_id))
+            + hud_destination.to_bytes(2, "big")
+            + bytes((hud_tile_2_id, hud_tile_id))
         )
         event_table.extend(record)
         event_manifest.append({
@@ -619,6 +641,7 @@ def parse_instruction_contract(
             "target_destination": target_destination,
             "hud_destination": hud_destination,
             "hud_tile_id": hud_tile_id,
+            "hud_tile_2_id": hud_tile_2_id,
         })
         if index < 15:
             operations = []
@@ -636,8 +659,8 @@ def parse_instruction_contract(
                     for column, value in enumerate(packed_row):
                         high, low = value >> 4, value & 15
                         selector = (
-                            (2 if high and not (index >= 12 and high == PINK) else 0)
-                            | (1 if low and not (index >= 12 and low == PINK) else 0)
+                            (2 if (high == PINK if index >= 12 else high != 0) else 0)
+                            | (1 if (low == PINK if index >= 12 else low != 0) else 0)
                         )
                         if selector:
                             destination = (dy * 8 + row) * 160 + column
@@ -775,6 +798,7 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_INSTRUCTION_DEATH_TICK equ {instruction['death_collision_tick']}",
         f"PRESENTATION_INSTRUCTION_ANGEL_TICK equ {instruction['angel_tick']}",
         f"PRESENTATION_INSTRUCTION_ANGEL_DST equ ${instruction['angel_destination']:04X}",
+        f"PRESENTATION_INSTRUCTION_SKULL_DST equ ${instruction['events'][-1]['target_destination']:04X}",
         f"PRESENTATION_INSTRUCTION_NEXT_TICK equ {instruction['next_screen_tick']}",
         f"PRESENTATION_INSTRUCTION_COLOUR_DWELL equ {instruction['colour_dwell_frames']}",
         f"PRESENTATION_INSTRUCTION_BLACK_TILE equ {instruction['black_tile_id']}",
@@ -901,7 +925,10 @@ def main() -> None:
     event_table = bytearray(instruction["event_table"])
     for index, event in enumerate(instruction["events"]):
         hud_tile_id = remap[int(event["hud_tile_id"])] if event["hud_destination"] else 0
+        hud_tile_2_id = remap[int(event["hud_tile_2_id"])] if event["hud_tile_2_id"] else 0
         event["hud_tile_id"] = hud_tile_id
+        event["hud_tile_2_id"] = hud_tile_2_id
+        event_table[index * INSTRUCTION_EVENT_BYTES + 10] = hud_tile_2_id
         event_table[index * INSTRUCTION_EVENT_BYTES + 11] = hud_tile_id
     instruction["event_table"] = bytes(event_table)
     cold_only_tiles = tiles[:len(cold_tile_ids)]
@@ -931,6 +958,18 @@ def main() -> None:
     attract_compressed = lzss_compress(attract_surfaces)
     attract_metadata = attract_destinations + attract_phase_pointers
     cold_payload = bytearray(tile_atlas + gameplay_lookup + bytes(encoded_stream))
+    event_count = len(instruction["event_table"]) // INSTRUCTION_EVENT_BYTES
+    for padding in range(PAGE_BYTES):
+        start = len(cold_payload) + padding
+        if all(
+            (start + index * INSTRUCTION_EVENT_BYTES) % PAGE_BYTES
+            <= PAGE_BYTES - INSTRUCTION_EVENT_BYTES
+            for index in range(event_count)
+        ):
+            cold_payload.extend(bytes(padding))
+            break
+    else:
+        raise ValueError("instruction event table cannot be page-aligned")
     instruction_event_offset = len(cold_payload)
     cold_payload.extend(instruction["event_table"])
     instruction_colour_pointer_offset = len(cold_payload)

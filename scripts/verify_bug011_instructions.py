@@ -69,6 +69,10 @@ def main() -> None:
         raise SystemExit("BUG-011 proof: a collectible lacks its HUD destination")
     if events[-1]["hud_destination"] != 0:
         raise SystemExit("BUG-011 proof: skull unexpectedly has a HUD destination")
+    if any(event["hud_tile_2_id"] for event in events[:12]):
+        raise SystemExit("BUG-011 proof: a letter has an unexpected second HUD tile")
+    if any(not event["hud_tile_2_id"] for event in events[12:15]):
+        raise SystemExit("BUG-011 proof: a multiplier lacks its second HUD tile")
 
     runtime = layout["instruction_runtime"]
     if runtime != {

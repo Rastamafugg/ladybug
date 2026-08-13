@@ -235,8 +235,21 @@ def forced_capture(monitor, binary: Path, rom: Path, timeout: float,
             expected = runtime.expected_tile(manifest, hud_event["hud_tile_id"])
             if actual != expected:
                 raise SystemExit(
-                    f"BUG-011 evidence: forced target {index} HUD {hud_index} differs"
+                    f"BUG-011 evidence: forced target {index} HUD {hud_index} differs; "
+                    f"actual={actual.hex()} expected={expected.hex()} owner={owner}"
                 )
+            if hud_event["hud_tile_2_id"]:
+                actual = runtime.frame_tile(
+                    frame, hud_event["hud_destination"] + 4
+                )
+                expected = runtime.expected_tile(
+                    manifest, hud_event["hud_tile_2_id"]
+                )
+                if actual != expected:
+                    raise SystemExit(
+                        f"BUG-011 evidence: forced target {index} HUD pair "
+                        f"{hud_index} differs"
+                    )
         if index >= 4 and not verify_reward(frame, manifest, "life"):
             raise SystemExit(f"BUG-011 evidence: target {index} lacks life reward")
         if index >= 11 and not verify_reward(frame, manifest, "coin"):

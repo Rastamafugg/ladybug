@@ -84,8 +84,7 @@ irt_event
         cmpd    ,x
         blo     irt_draw_player
         cmpd    2,x
-        beq     consume_event
-        bhs     irt_draw_player
+        bhs     consume_event
         ldd     PRES_OUT
         cmpd    4,x
         bhs     irt_draw_player
@@ -144,8 +143,6 @@ event_ptr_a
         jmp     PRES_MODULE_COLD_PTR
 
 consume_event
-        lda     10,x
-        sta     PRES_WORK
         inc     IRT_TRACE_CONSUMES
         lbsr    restore_actor
         lda     PRES_PHASE
@@ -158,11 +155,21 @@ consume_event
         lbsr    event_ptr_a
         ldy     8,x
         beq     consume_reward
+        ldb     10,x
+        beq     consume_hud_primary
+        lda     11,x
+        pshs    a,y
+        leay    4,y
+        jsr     PRES_MODULE_DRAW_TILE
+        puls    b,y
+        bra     consume_hud_draw
+consume_hud_primary
         ldb     11,x
+consume_hud_draw
         jsr     PRES_MODULE_DRAW_TILE
 
 consume_reward
-        lda     PRES_WORK
+        lda     PRES_PHASE
         cmpa    #4
         bne     consume_special
         lbsr    draw_life_reward
@@ -181,10 +188,12 @@ consume_heart
         blo     consume_advance
         cmpa    #15
         bhs     consume_advance
+        sta     PRES_WORK
         lbsr    draw_multipliers
 consume_advance
         inc     PRES_PHASE
-        lda     PRES_WORK
+        lda     PRES_PHASE
+        suba    #1
         cmpa    #15
         beq     consume_skull
         lbsr    present_player
@@ -277,7 +286,17 @@ aps_event
         lbsr    event_ptr_a
         ldy     8,x
         beq     aps_next
+        ldb     10,x
+        beq     aps_hud_primary
+        lda     11,x
+        pshs    a,y
+        leay    4,y
+        jsr     PRES_MODULE_DRAW_TILE
+        puls    b,y
+        bra     aps_hud_draw
+aps_hud_primary
         ldb     11,x
+aps_hud_draw
         jsr     PRES_MODULE_DRAW_TILE
         bra     aps_next
 aps_unconsumed
@@ -318,6 +337,7 @@ aps_done
 
 clear_target
         ldx     PRES_DST
+clear_target_x
         ldy     #16
         clra
         clrb
@@ -329,20 +349,6 @@ ct_row
         leax    160,x
         leay    -1,y
         bne     ct_row
-        rts
-
-clear_consumed_targets
-        clr     PRES_WORK
-cct_next
-        lda     PRES_WORK
-        lbsr    event_ptr_a
-        ldd     6,x
-        std     PRES_DST
-        bsr     clear_target
-        inc     PRES_WORK
-        lda     PRES_WORK
-        cmpa    #PRESENTATION_INSTRUCTION_EVENT_COUNT
-        blo     cct_next
         rts
 
 draw_value
@@ -497,19 +503,17 @@ present_death
         inc     IRT_TRACE_DEATHS
 death_traced
         lbsr    restore_actor
-        lbsr    clear_consumed_targets
+        ldx     #PRESENTATION_INSTRUCTION_SKULL_DST
+        lbsr    clear_target_x
         ldd     PRES_OUT
         std     PLAYER_FB
         jsr     PRES_MAIN_SAVE_PLAYER
         lda     PRES_ACTOR_FRAME
         cmpa    #PRESENTATION_INSTRUCTION_DEATH_COUNT-1
         bne     death_surface_ready
-        pshs    a
         ldd     PRES_OUT
         std     PRES_DST
         lbsr    clear_target
-        puls    a
-        sta     PRES_ACTOR_FRAME
 death_surface_ready
         lda     PRES_ACTOR_FRAME
         ldb     #2

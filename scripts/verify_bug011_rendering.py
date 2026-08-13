@@ -67,7 +67,7 @@ def recoloured_surface(source: bytes, colour: int, heart: bool) -> bytes:
         for shift in (4, 0):
             pixel = (value >> shift) & 0x0F
             if pixel:
-                pixel = 4 if heart and pixel == 4 else colour
+                pixel = colour if not heart or pixel == 4 else pixel
             packed |= pixel << shift
         output.append(packed)
     return bytes(output)
@@ -110,6 +110,52 @@ def main() -> None:
                 "BUG-011 rendering: instruction owners differ at entry: "
                 f"{static_hashes} expected={expected_static}"
             )
+        choreography = manifest["instruction_choreography"]
+        for index, event in enumerate(choreography["events"][:15]):
+            destinations = [event["hud_destination"]]
+            if event["hud_tile_2_id"]:
+                destinations.append(event["hud_destination"] + 4)
+            for destination in destinations:
+                colours = {
+                    nibble for value in runtime.frame_tile(
+                        static_frames[0], destination
+                    ) for nibble in (value >> 4, value & 15) if nibble
+                }
+                if colours != {7}:
+                    raise SystemExit(
+                        "BUG-011 rendering: initial HUD target is highlighted; "
+                        f"target={index} destination=${destination:04X} "
+                        f"colours={sorted(colours)}"
+                    )
+        skull = choreography["events"][15]["target_destination"]
+        skull_colours = {
+            nibble for value in frame_rect(static_frames[0], skull)
+            for nibble in (value >> 4, value & 15) if nibble
+        }
+        if skull_colours != {6}:
+            raise SystemExit(
+                f"BUG-011 rendering: skull is not white: {sorted(skull_colours)}"
+            )
+        reward_colours = {}
+        for name in ("life", "coin"):
+            pixels = b"".join(
+                runtime.expected_tile(manifest, tile_id)
+                for tile_id in choreography["reward_tile_ids"][name]
+            )
+            reward_colours[name] = {
+                nibble for value in pixels
+                for nibble in (value >> 4, value & 15) if nibble
+            }
+        if reward_colours["life"] != {2, 5, 12}:
+            raise SystemExit(
+                "BUG-011 rendering: life reward palette differs: "
+                f"{sorted(reward_colours['life'])}"
+            )
+        if reward_colours["coin"] != {6, 7}:
+            raise SystemExit(
+                "BUG-011 rendering: coin reward palette differs: "
+                f"{sorted(reward_colours['coin'])}"
+            )
 
         # Enter the first motion boundary quickly. The resident timer increments
         # before each helper call: 105 -> init at 106, then movement at 107/108.
@@ -124,7 +170,6 @@ def main() -> None:
 
         first_owner = runtime.read_byte(client, runtime.FB_BACK)
         first_destination = runtime.read_word(client, PRES_OUT)
-        choreography = manifest["instruction_choreography"]
         if first_destination != choreography["anchors"][0]:
             raise SystemExit(
                 "BUG-011 rendering: actor is not on the authored first row; "
@@ -139,10 +184,15 @@ def main() -> None:
             expected = recoloured_surface(original, 1, index >= 12)
             actual = frame_rect(initial_frame, event["target_destination"])
             if actual != expected:
+                differences = [
+                    (offset, actual[offset], expected[offset], original[offset])
+                    for offset in range(len(actual))
+                    if actual[offset] != expected[offset]
+                ][:8]
                 raise SystemExit(
                     "BUG-011 rendering: complete collectible colour surface differs; "
                     f"target={index} actual={runtime.digest(actual)} "
-                    f"expected={runtime.digest(expected)}"
+                    f"expected={runtime.digest(expected)} differences={differences}"
                 )
         save_under_address = 0xA300 if first_owner == 0 else 0xAB00
         saved_underlay = runtime.read_bytes(client, save_under_address, 128)
