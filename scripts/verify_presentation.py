@@ -19,6 +19,7 @@ from build_presentation import (
     ATTRACT_ACTOR_SURFACE_PAGE,
     ATTRACT_ACTOR_DESTINATION_ADDRESS,
     ATTRACT_ACTOR_PHASE_POINTER_ADDRESS,
+    blend_native_surface,
     compile_attract_surfaces,
     compose_attract_frames,
     lzss_compress,
@@ -142,6 +143,12 @@ def main() -> None:
         start = colour_pointer_offset + index * 2
         expected[start:start + 2] = offset.to_bytes(2, "big")
         expected.extend(stream)
+    cucumber_stream = instruction["cucumber_stream"]
+    cucumber_page_offset = len(expected) % PAGE_BYTES
+    if cucumber_page_offset + len(cucumber_stream) > PAGE_BYTES:
+        expected.extend(bytes(PAGE_BYTES - cucumber_page_offset))
+    cucumber_offset = len(expected)
+    expected.extend(cucumber_stream)
     pointer_offset = len(expected)
     streams = [*instruction["death_streams"], instruction["angel_stream"]]
     expected.extend(bytes(len(streams) * 2))
@@ -181,6 +188,8 @@ def main() -> None:
     if (choreography.get("event_table_offset") != event_offset or
             choreography.get("event_table_bytes") != len(instruction["event_table"]) or
             choreography.get("event_table_sha256") != digest(instruction["event_table"]) or
+            choreography.get("cucumber_stream_offset") != cucumber_offset or
+            choreography.get("cucumber_stream_bytes") != len(cucumber_stream) or
             choreography.get("death_pointer_offset") != pointer_offset or
             choreography.get("death_stream_offsets") != stream_offsets or
             choreography.get("death_stream_sha256") != [digest(stream) for stream in streams]):
@@ -238,10 +247,16 @@ def main() -> None:
                 raise SystemExit(
                     f"presentation proof: {entry['name']} {field} differs"
                 )
-    if manifest.get("static_frame_sha256") != [
-            digest(title_framebuffer(data, ordered_tiles))
-            for data in maps
-    ]:
+    static_frame_hashes = []
+    for index, data in enumerate(maps):
+        frame = title_framebuffer(data, ordered_tiles)
+        if index == MAP_NAMES.index("instructions"):
+            blend_native_surface(
+                frame, instruction["cucumber_destination"],
+                instruction["cucumber_native"],
+            )
+        static_frame_hashes.append(digest(frame))
+    if manifest.get("static_frame_sha256") != static_frame_hashes:
         raise SystemExit("presentation proof: static framebuffer hashes differ")
     if len(payload) > 4 * 0x2000:
         raise SystemExit("presentation proof: cold payload exceeds four pages")

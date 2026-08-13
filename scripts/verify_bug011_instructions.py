@@ -51,20 +51,33 @@ def main() -> None:
     if choreography["colour_dwell_frames"] != 30:
         raise SystemExit("BUG-011 proof: colour dwell is not 30 frames")
     if (
-        choreography["death_collision_tick"] != 1452 or
-        choreography["angel_tick"] != 1547 or
-        choreography["next_screen_tick"] != 1612
+        choreography["death_collision_tick"] != 1632 or
+        choreography["angel_tick"] != 1727 or
+        choreography["next_screen_tick"] != 1792
     ):
         raise SystemExit("BUG-011 proof: death/angel/handoff timing differs")
-    for event in events:
+    expected_goals = [
+        0x4334, 0x433C, 0x4344, 0x434C, 0x4354,
+        0x5234, 0x523C, 0x5244, 0x524C, 0x5254, 0x525C, 0x5264,
+        0x6134, 0x6144, 0x6154, 0x6170,
+    ]
+    for event, expected_goal in zip(events, expected_goals):
         if event["motion_tick"] >= event["consume_tick"]:
             raise SystemExit(f"BUG-011 proof: nonpositive motion interval for {event['name']}")
-        if event["goal_destination"] != event["target_destination"] - 1:
-            raise SystemExit(f"BUG-011 proof: actor goal row differs for {event['name']}")
+        if event["goal_destination"] != expected_goal:
+            raise SystemExit(f"BUG-011 proof: authored actor stop differs for {event['name']}")
+    if (events[5]["motion_tick"] - events[4]["consume_tick"] != 90 or
+            events[12]["motion_tick"] - events[11]["consume_tick"] != 90):
+        raise SystemExit("BUG-011 proof: row 2/3 full-cycle waits differ")
     if choreography["anchors"] != [0x4328, 0x5228, 0x6128]:
         raise SystemExit("BUG-011 proof: actor baseline conversion differs")
-    if choreography["angel_destination"] != 0x6670:
+    if choreography["angel_destination"] != 0x6170:
         raise SystemExit("BUG-011 proof: authored angel destination differs")
+    if choreography["angel_source_code"] != 87:
+        raise SystemExit("BUG-011 proof: authored wings marker resolves incorrectly")
+    if (choreography["cucumber_destination"] != 0x5C80 or
+            choreography["cucumber_source_code"] != 64):
+        raise SystemExit("BUG-011 proof: authored cucumber marker resolves incorrectly")
     if any(event["hud_destination"] == 0 for event in events[:15]):
         raise SystemExit("BUG-011 proof: a collectible lacks its HUD destination")
     if events[-1]["hud_destination"] != 0:

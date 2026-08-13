@@ -110,6 +110,7 @@ INSTRUCTION_ANCHORS = ((10, 8), (10, 11), (10, 14))
 INSTRUCTION_LIFE_ROOT = (28, 7)
 INSTRUCTION_COIN_ROOT = (28, 10)
 INSTRUCTION_ANGEL_ROOT = (28, 14)
+INSTRUCTION_CUCUMBER_MARKER = (32, 13)
 INSTRUCTION_MULTIPLIER_ROOTS = ((27, 17), (27, 20))
 INSTRUCTION_TARGETS = (
     ((13, 7), (1, 4)), ((15, 7), (2, 4)), ((17, 7), (3, 4)),
@@ -121,6 +122,11 @@ INSTRUCTION_TARGETS = (
     ((28, 13), (0, 0)),
 )
 INSTRUCTION_EVENT_BYTES = 12
+INSTRUCTION_STOPS = (
+    (13, 8), (15, 8), (17, 8), (19, 8), (21, 8),
+    (13, 11), (15, 11), (17, 11), (19, 11), (21, 11), (23, 11),
+    (25, 11), (13, 14), (17, 14), (21, 14), INSTRUCTION_ANGEL_ROOT,
+)
 PRESENTATION_LAYER_CONTRACTS = {
     "attract": {
         "static": ("Attract Title and Prompts",),
@@ -173,7 +179,7 @@ INSTRUCTION_RAW_SPRITE_MARKERS = {
     (19, 8): 593, (21, 8): 593,
     (13, 11): 593, (15, 11): 593, (17, 11): 593,
     (19, 11): 593, (21, 11): 593, (23, 11): 593, (25, 11): 593,
-    (32, 13): 633,
+    INSTRUCTION_CUCUMBER_MARKER: 633,
     (13, 14): 593, (17, 14): 593, (21, 14): 593,
     INSTRUCTION_ANGEL_ROOT: 523,
 }
@@ -268,6 +274,21 @@ def title_framebuffer(attract_map: bytes, tiles: list[bytes]) -> bytearray:
             start = destination + tile_row * 160
             framebuffer[start:start + 4] = tile[tile_row * 4:tile_row * 4 + 4]
     return framebuffer
+
+
+def blend_native_surface(
+    framebuffer: bytearray, destination: int, surface: bytes,
+    width: int = 8, rows: int = 16,
+) -> None:
+    """Blend a packed native surface into a presentation framebuffer."""
+    offset = destination - 0x2000
+    for row in range(rows):
+        for column in range(width):
+            source = surface[row * width + column]
+            target = framebuffer[offset + row * 160 + column]
+            high = source & 0xF0 or target & 0xF0
+            low = source & 0x0F or target & 0x0F
+            framebuffer[offset + row * 160 + column] = high | low
 
 
 def parse_attract_actors(path: Path) -> list[dict[str, object]]:
@@ -526,7 +547,7 @@ def presentation_pen_map(role: str, x: int, y: int) -> tuple[int, int, int, int]
         colour = {
             1: LIGHT_GREEN, 2: LIGHT_GREEN,
             4: RED, 5: RED,
-            7: WHITE, 8: WHITE,
+            7: WHITE, 8: WHITE, 9: WHITE,
             10: BLUE, 11: BLUE,
             12: GREEN,
         }.get(y, BLACK)
@@ -537,6 +558,10 @@ def presentation_pen_map(role: str, x: int, y: int) -> tuple[int, int, int, int]
         return (BLACK, WHITE, WHITE, WHITE)
     if role == "instructions" and 28 <= x < 30 and 13 <= y < 15:
         return (BLACK, WHITE, WHITE, WHITE)
+    if role == "instructions" and 13 <= x < 23 and 13 <= y < 15:
+        return (BLACK, PINK, PURPLE, PINK)
+    if role == "instructions" and (x == 31 or y == 23):
+        return (BLACK, PINK, PURPLE, PURPLE)
     if 8 <= x < 32:
         return (BLACK, PINK, PURPLE, GREEN)
     return (BLACK, WHITE, WHITE, WHITE)
@@ -633,6 +658,26 @@ def instruction_char_tile(
     ))
 
 
+def instruction_sprite(
+    root: ET.Element, path: Path, gid_with_flags: int,
+    sprites: list[list[list[int]]],
+) -> tuple[list[list[int]], int]:
+    gid = gid_with_flags & GID_MASK
+    tileset = next(
+        (item for item in tileset_ranges(root, path)
+         if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
+        None,
+    )
+    if tileset is None or tileset["name"] != "sprites_raw2bpp":
+        raise ValueError(f"{path}: instruction sprite GID {gid} is not raw sprite data")
+    tile = gid - int(tileset["firstgid"])
+    code = sheet_code(tile // 16, tile % 16)
+    pixels = sprite_transform(
+        rotate_ccw(sprites[code]), gid_with_flags & ~GID_MASK
+    )
+    return pixels, code
+
+
 def register_tile(tile: bytes, tiles: list[bytes], tile_ids: dict[bytes, int]) -> int:
     tile_id = tile_ids.setdefault(tile, len(tiles))
     if tile_id == len(tiles):
@@ -661,6 +706,18 @@ def parse_instruction_contract(
         {**INSTRUCTION_CHARACTER_METADATA, **INSTRUCTION_RAW_SPRITE_MARKERS},
     )
 
+    cucumber_gid = records[INSTRUCTION_CUCUMBER_MARKER]
+    cucumber_pixels, cucumber_code = instruction_sprite(
+        root, path, cucumber_gid, sprites
+    )
+    cucumber_native = expand_sprite(
+        pack_sprite_2bpp(cucumber_pixels), (BLACK, DARK_RED, PURPLE, YELLOW)
+    )
+    cucumber_root = (
+        INSTRUCTION_CUCUMBER_MARKER[0], INSTRUCTION_CUCUMBER_MARKER[1] - 1
+    )
+    cucumber_stream = encode_sparse_native(cucumber_native, 16, 8)
+
     overlay = layers["Instructions Overlay"]
     overlay_cells = parse_csv(overlay.find("data"), overlay.get("name", ""))
     hud_layer = layers["CoCo Side HUD"]
@@ -679,7 +736,7 @@ def parse_instruction_contract(
     reward_tiles: dict[str, list[int]] = {}
     reward_pen_maps = {
         "life": (BLACK, GREEN, DARK_RED, YELLOW),
-        "coin": (BLACK, GREY, GREY, WHITE),
+        "coin": (BLACK, WHITE, WHITE, GREY),
     }
     for name, root_cell in (("life", INSTRUCTION_LIFE_ROOT),
                             ("coin", INSTRUCTION_COIN_ROOT)):
@@ -736,15 +793,20 @@ def parse_instruction_contract(
     event_table = bytearray()
     event_manifest = []
     target_colour_streams = []
-    for index, (source, (target, hud)) in enumerate(
-            zip(source_targets, INSTRUCTION_TARGETS)):
-        motion = int(source["motion_first_frame"]) - first
+    row_time_offsets = (0, 90, 180)
+    for index, (source, (target, hud), stop) in enumerate(
+            zip(source_targets, INSTRUCTION_TARGETS, INSTRUCTION_STOPS)):
+        row = 0 if index < 5 else 1 if index < 12 else 2
+        motion = int(source["motion_first_frame"]) - first + row_time_offsets[row]
         consume_key = "collision_frame" if index == 15 else "consume_frame"
-        consume = int(source[consume_key]) - first
-        # Sprite Locations records the actor baseline cell. Convert it to the
-        # 16x16 framebuffer root used by save/draw, then end one packed byte
-        # left of the target so the Lady Bug overlaps it.
-        goal = framebuffer_destination(target) - 1
+        consume = int(source[consume_key]) - first + row_time_offsets[row]
+        if index == 5:
+            motion = event_manifest[4]["consume_tick"] + 90
+        elif index == 12:
+            motion = event_manifest[11]["consume_tick"] + 90
+        # Sprite Locations records each actor baseline. Convert the authored
+        # stop to the 16x16 framebuffer root used by save/draw.
+        goal = framebuffer_destination(stop) - 1280
         target_destination = framebuffer_destination(target)
         hud_destination = 0 if hud == (0, 0) else framebuffer_destination(hud)
         hud_tile_id = 0
@@ -790,6 +852,7 @@ def parse_instruction_contract(
                     root, path,
                     overlay_cells[(target[1] + dy) * SCREEN_WIDTH + target[0] + dx],
                     (target[0] + dx, target[1] + dy), chars,
+                    (BLACK, 1, 2, 3) if index >= 12 else None,
                 ) for dx in range(2)]
                 for row in range(8):
                     packed_row = (row_tiles[0][row * 4:row * 4 + 4]
@@ -797,8 +860,8 @@ def parse_instruction_contract(
                     for column, value in enumerate(packed_row):
                         high, low = value >> 4, value & 15
                         selector = (
-                            (2 if (high == PINK if index >= 12 else high != 0) else 0)
-                            | (1 if (low == PINK if index >= 12 else low != 0) else 0)
+                            (2 if (high == 1 if index >= 12 else high != 0) else 0)
+                            | (1 if (low == 1 if index >= 12 else low != 0) else 0)
                         )
                         if selector:
                             destination = (dy * 8 + row) * 160 + column
@@ -821,7 +884,10 @@ def parse_instruction_contract(
         expand_sprite(frame, (0, RED, RED, RED) if index < 7
                       else (0, WHITE, WHITE, WHITE)), 16, 8,
     ) for index, frame in enumerate(death_frames)]
-    angel_pixels = rotate_ccw(sprites[10])
+    angel_gid = records[INSTRUCTION_ANGEL_ROOT]
+    angel_pixels, angel_code = instruction_sprite(
+        root, path, angel_gid, sprites
+    )
     angel_frame = pack_sprite_2bpp(angel_pixels)
     angel_stream = encode_sparse_native(
         expand_sprite(angel_frame, (0, WHITE, WHITE, WHITE)), 16, 8
@@ -834,6 +900,10 @@ def parse_instruction_contract(
             "coin": framebuffer_destination(INSTRUCTION_COIN_ROOT),
         },
         "reward_tile_ids": reward_tiles,
+        "cucumber_destination": framebuffer_destination(cucumber_root),
+        "cucumber_source_code": cucumber_code,
+        "cucumber_stream": cucumber_stream,
+        "cucumber_native": cucumber_native,
         "multiplier_destinations": [framebuffer_destination(cell)
                                     for cell in INSTRUCTION_MULTIPLIER_ROOTS],
         "multiplier_tile_ids": multiplier_tiles,
@@ -845,11 +915,11 @@ def parse_instruction_contract(
         "events": event_manifest,
         "death_streams": death_streams,
         "angel_stream": angel_stream,
-        "angel_destination": framebuffer_destination(INSTRUCTION_ANGEL_ROOT),
-        "angel_source_code": 10,
-        "death_collision_tick": int(reference["rows"][2]["skull"]["collision_frame"]) - first,
-        "angel_tick": int(reference["death_sequence"]["angel_hold"]["first_frame"]) - first,
-        "next_screen_tick": int(reference["instruction_interval"]["next_screen_first_partial_frame"]) - first,
+        "angel_destination": framebuffer_destination(INSTRUCTION_ANGEL_ROOT) - 1280,
+        "angel_source_code": angel_code,
+        "death_collision_tick": int(reference["rows"][2]["skull"]["collision_frame"]) - first + 180,
+        "angel_tick": int(reference["death_sequence"]["angel_hold"]["first_frame"]) - first + 180,
+        "next_screen_tick": int(reference["instruction_interval"]["next_screen_first_partial_frame"]) - first + 180,
         "colour_dwell_frames": int(reference["colour_clock"]["dwell_frames"]),
     }
 
@@ -972,6 +1042,8 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_INSTRUCTION_EVENT_BYTES equ {instruction['event_record_bytes']}",
         f"PRESENTATION_INSTRUCTION_EVENT_COUNT equ {len(instruction['events'])}",
         f"PRESENTATION_INSTRUCTION_COLOUR_POINTERS equ ${instruction['colour_pointer_offset']:04X}",
+        f"PRESENTATION_INSTRUCTION_CUCUMBER_STREAM equ ${instruction['cucumber_stream_offset']:04X}",
+        f"PRESENTATION_INSTRUCTION_CUCUMBER_DST equ ${instruction['cucumber_destination']:04X}",
         f"PRESENTATION_INSTRUCTION_DEATH_POINTERS equ ${instruction['death_pointer_offset']:04X}",
         f"PRESENTATION_INSTRUCTION_DEATH_COUNT equ {len(instruction['death_stream_offsets'])}",
         f"PRESENTATION_INSTRUCTION_DEATH_TICK equ {instruction['death_collision_tick']}",
@@ -1064,7 +1136,6 @@ def main() -> None:
     maps, map_info = compile_profile_maps(
         args.tiled_dir, chars, tiles, tile_ids, bool(args.development_profile)
     )
-
     instruction = parse_instruction_contract(
         args.tiled_dir / MAP_FILES["instructions"], chars, sprites, tiles, tile_ids
     )
@@ -1159,6 +1230,12 @@ def main() -> None:
     for index, offset in enumerate(colour_stream_offsets):
         start = instruction_colour_pointer_offset + index * 2
         cold_payload[start:start + 2] = offset.to_bytes(2, "big")
+    cucumber_stream = instruction["cucumber_stream"]
+    cucumber_page_offset = len(cold_payload) % PAGE_BYTES
+    if cucumber_page_offset + len(cucumber_stream) > PAGE_BYTES:
+        cold_payload.extend(bytes(PAGE_BYTES - cucumber_page_offset))
+    instruction_cucumber_offset = len(cold_payload)
+    cold_payload.extend(cucumber_stream)
     instruction_death_pointer_offset = len(cold_payload)
     death_streams = [*instruction["death_streams"], instruction["angel_stream"]]
     cold_payload.extend(bytes(len(death_streams) * 2))
@@ -1177,6 +1254,15 @@ def main() -> None:
             f"presentation cold payload is {len(cold_payload)} bytes; "
             f"limit is {COLD_PAYLOAD_LIMIT}"
         )
+    static_frame_hashes = []
+    for index, data in enumerate(maps):
+        frame = title_framebuffer(data, tiles)
+        if index == MAP_NAMES.index("instructions"):
+            blend_native_surface(
+                frame, instruction["cucumber_destination"],
+                instruction["cucumber_native"],
+            )
+        static_frame_hashes.append(hashlib.sha256(frame).hexdigest())
     manifest = {
         "maps": map_info,
         "map_count": len(maps),
@@ -1236,6 +1322,10 @@ def main() -> None:
             "colour_pointer_offset": instruction_colour_pointer_offset,
             "colour_stream_offsets": colour_stream_offsets,
             "colour_stream_bytes": [len(stream) for stream in colour_streams],
+            "cucumber_destination": instruction["cucumber_destination"],
+            "cucumber_source_code": instruction["cucumber_source_code"],
+            "cucumber_stream_offset": instruction_cucumber_offset,
+            "cucumber_stream_bytes": len(cucumber_stream),
             "death_pointer_offset": instruction_death_pointer_offset,
             "death_stream_offsets": death_stream_offsets,
             "death_stream_bytes": [len(stream) for stream in death_streams],
@@ -1300,8 +1390,7 @@ def main() -> None:
                        10 * SCREEN_WIDTH + 33, 12 * SCREEN_WIDTH + 33,
                        14 * SCREEN_WIDTH + 33, 16 * SCREEN_WIDTH + 33,
                        18 * SCREEN_WIDTH + 33],
-        "static_frame_sha256": [hashlib.sha256(title_framebuffer(data, tiles)).hexdigest()
-                                for data in maps],
+        "static_frame_sha256": static_frame_hashes,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(bytes(cold_payload))

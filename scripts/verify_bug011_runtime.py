@@ -293,7 +293,7 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
             "death_surface_count": read_byte(client, TRACE_DEATHS),
             "owner_mask": read_byte(client, TRACE_OWNERS),
         }
-        if trace["colour_transitions"] != 48:
+        if trace["colour_transitions"] != 54:
             raise SystemExit(
                 "BUG-011 runtime: colour trace differs: "
                 f"{trace} phase={read_byte(client, PRES_PHASE)} "
@@ -328,7 +328,7 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
                 expected_hud.append(expected_tile(
                     manifest, event["hud_tile_2_id"]
                 ))
-        target_residue = targets[:15] + [targets[15][:2]]
+        target_residue = targets[:15]
         if any(any(any(tile) for tile in surface) for surface in target_residue):
             visible = [
                 (index, choreography["events"][index]["target_destination"],
@@ -528,7 +528,7 @@ def main() -> None:
         "scenarios": results,
     }, indent=2) + "\n", encoding="ascii")
     print(
-        "BUG-011 runtime: both starting-owner orders passed 48 colour transitions, "
+        "BUG-011 runtime: both starting-owner orders passed 54 colour transitions, "
         "16 consumes, 15 death/angel surfaces, exact helper identity, "
         "level-start handoff, and reset-free return to attract"
     )

@@ -73,6 +73,31 @@ def recoloured_surface(source: bytes, colour: int, heart: bool) -> bytes:
     return bytes(output)
 
 
+def recoloured_by_stream(source: bytes, colour: int, stream: bytes) -> bytes:
+    output = bytearray(source)
+    count = stream[0]
+    cursor = 0
+    source_offset = 1
+    for _ in range(count):
+        delta = stream[source_offset]
+        source_offset += 1
+        if delta == 0xFF:
+            delta = int.from_bytes(stream[source_offset:source_offset + 2], "big")
+            source_offset += 2
+        cursor += delta
+        selector = stream[source_offset]
+        source_offset += 1
+        row, column = divmod(cursor, 160)
+        destination = row * 8 + column
+        value = output[destination]
+        if selector & 2:
+            value = (colour << 4) | (value & 15)
+        if selector & 1:
+            value = (value & 0xF0) | colour
+        output[destination] = value
+    return bytes(output)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--xroar", type=Path, default=Path(
@@ -111,6 +136,40 @@ def main() -> None:
                 f"{static_hashes} expected={expected_static}"
             )
         choreography = manifest["instruction_choreography"]
+        credit_colours = {
+            nibble for value in runtime.frame_tile(static_frames[0], 0x4D84)
+            for nibble in (value >> 4, value & 15) if nibble
+        }
+        if credit_colours != {6}:
+            raise SystemExit(
+                f"BUG-011 rendering: raised CREDIT 0 is not white: {sorted(credit_colours)}"
+            )
+        cucumber_colours = {
+            nibble for value in frame_rect(
+                static_frames[0], choreography["cucumber_destination"]
+            ) for nibble in (value >> 4, value & 15) if nibble
+        }
+        if cucumber_colours != {2, 9}:
+            raise SystemExit(
+                f"BUG-011 rendering: cucumber palette differs: {sorted(cucumber_colours)}"
+            )
+        border_colours = set()
+        for row in range(24):
+            tile = runtime.frame_tile(static_frames[0], 0x2000 + row * 1280 + 31 * 4)
+            border_colours.update(
+                nibble for value in tile
+                for nibble in (value >> 4, value & 15) if nibble
+            )
+        for column in range(8, 32):
+            tile = runtime.frame_tile(static_frames[0], 0x2000 + 23 * 1280 + column * 4)
+            border_colours.update(
+                nibble for value in tile
+                for nibble in (value >> 4, value & 15) if nibble
+            )
+        if border_colours != {9}:
+            raise SystemExit(
+                f"BUG-011 rendering: right/bottom border is not purple: {sorted(border_colours)}"
+            )
         for index, event in enumerate(choreography["events"][:15]):
             destinations = [event["hud_destination"]]
             if event["hud_tile_2_id"]:
@@ -177,11 +236,27 @@ def main() -> None:
                 f"expected=${choreography['anchors'][0]:04X}"
             )
         initial_frame = runtime.read_owner(client, first_owner)
+        cold = runtime.COLD.read_bytes()
         for index, event in enumerate(choreography["events"][:15]):
             original = frame_rect(
                 static_frames[first_owner], event["target_destination"]
             )
-            expected = recoloured_surface(original, 1, index >= 12)
+            if index >= 12:
+                colours = {
+                    nibble for value in original
+                    for nibble in (value >> 4, value & 15) if nibble
+                }
+                if colours != {4}:
+                    raise SystemExit(
+                        f"BUG-011 rendering: heart is not gameplay pink: {sorted(colours)}"
+                    )
+                offset = choreography["colour_stream_offsets"][index]
+                length = choreography["colour_stream_bytes"][index]
+                expected = recoloured_by_stream(
+                    original, 1, cold[offset:offset + length]
+                )
+            else:
+                expected = recoloured_surface(original, 1, False)
             actual = frame_rect(initial_frame, event["target_destination"])
             if actual != expected:
                 differences = [

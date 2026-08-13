@@ -264,6 +264,15 @@ load_next
         lda     #1
         rts
 load_done
+        ldb     PRES_SCREEN
+        cmpb    #PRESENTATION_MAP_INSTRUCTIONS
+        bne     load_done_no_cucumber
+        ldd     #PRESENTATION_INSTRUCTION_CUCUMBER_STREAM
+        lbsr    cold_ptr
+        tfr     x,u
+        ldx     #PRESENTATION_INSTRUCTION_CUCUMBER_DST
+        jsr     PRESENTATION_MODULE_DRAW
+load_done_no_cucumber
         ifeq    BUG011_DEVELOPMENT_PROFILE
         lbsr    draw_coin_slots
         endc
