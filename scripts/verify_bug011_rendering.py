@@ -5,9 +5,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from build_screen import compile_player_sprites
+from build_presentation import instruction_char_tile
+from build_screen import (
+    BLACK, BLUE, GREY, PINK, RED, WHITE, YELLOW,
+    compile_player_sprites, load_chars, parse_csv,
+)
 import verify_bug011_runtime as runtime
 
 
@@ -172,12 +177,41 @@ def main() -> None:
                 }
                 if not colours:
                     continue
-                expected = {9} if y % 3 == 1 and x != 0 else {6}
+                expected = (
+                    {GREY} if y % 3 == 1 and x != 0
+                    else {(RED, YELLOW, BLUE)[y // 3]}
+                )
                 if colours != expected:
                     raise SystemExit(
-                        "BUG-011 rendering: timer-box palette differs; "
+                        "BUG-011 rendering: bonus-HUD palette differs; "
                         f"cell=({x},{y}) colours={sorted(colours)}"
                     )
+        tmx = runtime.ROOT / "tiled/coco-instructions-screen.tmx"
+        root = ET.parse(tmx).getroot()
+        border = next(
+            layer for layer in root.findall("layer")
+            if layer.get("name") == "Arcade Maze Border"
+        )
+        border_cells = parse_csv(border.find("data"), border.get("name", ""))
+        chars = load_chars(runtime.ROOT / "assets/arcade/chars.json")
+        timer_cells = (
+            [(x, y) for y in (0, 23) for x in range(8, 32)]
+            + [(x, y) for x in (8, 31) for y in range(1, 23)]
+        )
+        for x, y in timer_cells:
+            gid = border_cells[y * 40 + x]
+            expected = instruction_char_tile(
+                root, tmx, gid, (x, y), chars,
+                (BLACK, PINK, WHITE, PINK),
+            )
+            actual = runtime.frame_tile(
+                static_frames[0], 0x2000 + y * 1280 + x * 4
+            )
+            if actual != expected:
+                raise SystemExit(
+                    "BUG-011 rendering: timer-box level-start palette differs; "
+                    f"cell=({x},{y})"
+                )
         cucumber_colours = {
             nibble for value in frame_rect(
                 static_frames[0], choreography["cucumber_destination"]
@@ -186,23 +220,6 @@ def main() -> None:
         if cucumber_colours != {2, 9}:
             raise SystemExit(
                 f"BUG-011 rendering: cucumber palette differs: {sorted(cucumber_colours)}"
-            )
-        border_colours = set()
-        for row in range(24):
-            tile = runtime.frame_tile(static_frames[0], 0x2000 + row * 1280 + 31 * 4)
-            border_colours.update(
-                nibble for value in tile
-                for nibble in (value >> 4, value & 15) if nibble
-            )
-        for column in range(8, 32):
-            tile = runtime.frame_tile(static_frames[0], 0x2000 + 23 * 1280 + column * 4)
-            border_colours.update(
-                nibble for value in tile
-                for nibble in (value >> 4, value & 15) if nibble
-            )
-        if border_colours != {9}:
-            raise SystemExit(
-                f"BUG-011 rendering: right/bottom border is not purple: {sorted(border_colours)}"
             )
         for index, event in enumerate(choreography["events"][:15]):
             destinations = [event["hud_destination"]]
@@ -214,7 +231,7 @@ def main() -> None:
                         static_frames[0], destination
                     ) for nibble in (value >> 4, value & 15) if nibble
                 }
-                if colours != {9}:
+                if colours != {GREY}:
                     raise SystemExit(
                         "BUG-011 rendering: initial HUD target is highlighted; "
                         f"target={index} destination=${destination:04X} "

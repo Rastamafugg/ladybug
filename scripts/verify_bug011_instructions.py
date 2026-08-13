@@ -66,9 +66,12 @@ def main() -> None:
             raise SystemExit(f"BUG-011 proof: nonpositive motion interval for {event['name']}")
         if event["goal_destination"] != expected_goal:
             raise SystemExit(f"BUG-011 proof: authored actor stop differs for {event['name']}")
-    if [events[index]["motion_tick"] for index in (0, 5, 12)] != [121, 631, 1321]:
+    aligned = (0, 5, 12, 13, 14)
+    if [events[index]["motion_tick"] for index in aligned] != [
+        121, 631, 1321, 1411, 1501,
+    ]:
         raise SystemExit("BUG-011 proof: row trigger-colour motion edges differ")
-    for index, trigger in ((0, 2), (5, 1), (12, 3)):
+    for index, trigger in ((0, 2), (5, 1), (12, 3), (13, 3), (14, 3)):
         tick = events[index]["motion_tick"]
         colour = ((tick - 1) % 90) // 30 + 1
         if colour != trigger or (tick - 1) % 30:
@@ -93,6 +96,12 @@ def main() -> None:
         raise SystemExit("BUG-011 proof: a letter has an unexpected second HUD tile")
     if any(not event["hud_tile_2_id"] for event in events[12:15]):
         raise SystemExit("BUG-011 proof: a multiplier lacks its second HUD tile")
+    for offset, length in zip(
+        choreography["colour_stream_offsets"],
+        choreography["colour_stream_bytes"],
+    ):
+        if offset % 0x2000 + length > 0x2000:
+            raise SystemExit("BUG-011 proof: a colour stream crosses a cold page")
 
     runtime = layout["instruction_runtime"]
     if runtime != {

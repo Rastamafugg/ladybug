@@ -540,7 +540,9 @@ def flatten_map(path: Path) -> tuple[ET.Element, list[int]]:
 def presentation_pen_map(role: str, x: int, y: int) -> tuple[int, int, int, int]:
     """Apply the established CoCo palette adaptation to authored raw chars."""
     if x < 8 and y < 9:
-        colour = PURPLE if y % 3 == 1 and x != 0 else WHITE
+        colour = (RED, YELLOW, BLUE)[y // 3]
+        if y % 3 == 1 and x != 0:
+            colour = GREY
         return (BLACK, colour, colour, colour)
     if x >= 32:
         colour = {
@@ -559,8 +561,8 @@ def presentation_pen_map(role: str, x: int, y: int) -> tuple[int, int, int, int]
         return (BLACK, WHITE, WHITE, WHITE)
     if role == "instructions" and 13 <= x < 23 and 13 <= y < 15:
         return (BLACK, PINK, PURPLE, PINK)
-    if role == "instructions" and (x == 31 or y == 23):
-        return (BLACK, PINK, PURPLE, PURPLE)
+    if role == "instructions" and (x in (8, 31) or y in (0, 23)):
+        return (BLACK, PINK, WHITE, PINK)
     if 8 <= x < 32:
         return (BLACK, PINK, PURPLE, GREEN)
     return (BLACK, WHITE, WHITE, WHITE)
@@ -799,11 +801,11 @@ def parse_instruction_contract(
         motion = int(source["motion_first_frame"]) - first + row_time_offsets[row]
         consume_key = "collision_frame" if index == 15 else "consume_frame"
         consume = int(source[consume_key]) - first + row_time_offsets[row]
-        # The first movement on each row begins only after its collectible
-        # trigger colour is visible. Rows two and three must also remain at
-        # their authored start for at least one complete red/yellow/blue cycle.
+        # Trigger-sensitive movements begin only after their collectible
+        # colour is visible. Rows two and three must also remain at their
+        # authored start for at least one complete red/yellow/blue cycle.
         trigger_colour = 2 if index < 5 else 1 if index < 12 else 3
-        if index in (0, 5, 12):
+        if index in (0, 5, 12, 13, 14):
             earliest = motion
             if index == 5:
                 earliest = event_manifest[4]["consume_tick"] + 90
@@ -1236,6 +1238,9 @@ def main() -> None:
     cold_payload.extend(bytes(len(colour_streams) * 2))
     colour_stream_offsets = []
     for stream in colour_streams:
+        page_offset = len(cold_payload) % PAGE_BYTES
+        if page_offset + len(stream) > PAGE_BYTES:
+            cold_payload.extend(bytes(PAGE_BYTES - page_offset))
         colour_stream_offsets.append(len(cold_payload))
         cold_payload.extend(stream)
     for index, offset in enumerate(colour_stream_offsets):

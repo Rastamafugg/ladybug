@@ -139,6 +139,9 @@ def main() -> None:
     colour_streams = instruction["target_colour_streams"]
     expected.extend(bytes(len(colour_streams) * 2))
     for index, stream in enumerate(colour_streams):
+        page_offset = len(expected) % PAGE_BYTES
+        if page_offset + len(stream) > PAGE_BYTES:
+            expected.extend(bytes(PAGE_BYTES - page_offset))
         offset = len(expected)
         start = colour_pointer_offset + index * 2
         expected[start:start + 2] = offset.to_bytes(2, "big")

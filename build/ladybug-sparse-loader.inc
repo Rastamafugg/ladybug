@@ -53,10 +53,10 @@ sparse_copy_table
         fdb     $C94D,$A24B,$1DB5
         ; presentation_cold+$2000
         fcb     $00,$3B
-        fdb     $E702,$A000,$091E
+        fdb     $E702,$A000,$05DC
         ; attract_actor_bundle+$0000
         fcb     $00,$23
-        fdb     $F020,$A000,$07CC
+        fdb     $ECDE,$A000,$07CC
         ; presentation_module+$0000
         fcb     $00,$FF
-        fdb     $F7EC,$1900,$042F
+        fdb     $F4AA,$1900,$042F
