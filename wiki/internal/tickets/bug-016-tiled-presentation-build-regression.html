@@ -16,14 +16,14 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal · bug</p>
-      <h1>BUG-016 Tiled presentation build regression <span class="wiki-badge">In Progress</span></h1>
+      <h1>BUG-016 Tiled presentation build regression <span class="wiki-badge">Done</span></h1>
       <p class="wiki-meta">Make the presentation compiler accept the current Tiled layer contract.</p>
     </header>
 
     <section>
       <h2>Disposition</h2>
       <ul>
-        <li><strong>Status:</strong> In Progress</li>
+        <li><strong>Status:</strong> Done</li>
         <li><strong>Created / updated:</strong> 2026-08-13 / 2026-08-13</li>
         <li><strong>Priority / order:</strong> P1 / 12.9</li>
         <li><strong>Roadmap or source:</strong> <a href="../implementation/roadmap.html">presentation assets</a>; revision <code>76d930b</code></li>
@@ -98,12 +98,16 @@
 
     <section>
       <h2>Verification and completion</h2>
-      <p>Implementation began from revision <code>a9b104e</code> after explicit user approval. Current acceptance evidence remains pending.</p>
+      <p><strong>Implementation commit:</strong> <code>9547162</code>. Python syntax compilation, the BUG-016 focused verifier, the explicit release-atlas rejection, <code>scripts/build.sh build</code>, <code>scripts/verify_presentation_flow.py</code>, and <code>scripts/build.sh verify-gmc</code> pass against the committed source and ROM SHA-256 <code>6f383bb88cebcb6f564c7cb40cf94d4d3e1b8ff080015ea87d9bd887cbb80158</code>. Natural boot/attract and forced gameplay pass the segmented loader, module, sparse decoder, ownership, Vbord commit, and main-loop checks.</p>
+      <p><strong>Acceptance result:</strong> all six current TMX maps compile in order; the manifest retains each authored-frame hash and records the explicit name-entry development placeholder. The focused proof validates six role contracts, twenty-two raw markers, four deferred logo layers, and five required negative diagnostics. The payload has six map slots, 255/256 shared tiles, and <code>10,653/10,874</code> cold bytes with SHA-256 <code>1681329f8a1639ce5441bc4e8fc718e4b08a8d8542925fbaec2d9c4bf2d5bb36</code>. Presentation module <code>1,050/1,280</code>, instruction runtime <code>931/938</code>, helper <code>331/334</code>, resident <code>8,190/8,192</code>, assets <code>7,144/7,680</code>, and GMC source spare 379 bytes all pass their active guards.</p>
+      <p><strong>Capacity change:</strong> cold data increased from 10,444 to 10,653 bytes and GMC source spare decreased from 588 to 379 bytes; fixed module sizes did not grow. The non-gating preferred cold target remains missed at 10,653 versus 9,989 bytes, and future-sound margin remains missed at -1,157 versus +512 bytes. PERF-005 retains both release targets and the 268-entry release-atlas restoration.</p>
+      <p><strong>Residual scope:</strong> logo animation, vegetable/pickup marker rendering, high-score coin behavior, and release name entry remain intentionally unimplemented. The rejected high-score placeholder result is retained in the design section. Wiki HTML parses and all new links resolve; two previously documented missing FEAT-001 links remain outside scope. QA accepts BUG-016 and advances it to Done.</p>
     </section>
 
     <section>
       <h2>Decision log</h2>
       <ul>
+        <li>2026-08-13 &mdash; QA accepted implementation commit <code>9547162</code>. All BUG-016 criteria pass with current committed build, payload, natural GMC integration, negative diagnostics, hashes, and capacity evidence; the ticket advanced through Verification to Done.</li>
         <li>2026-08-13 &mdash; Exact role selection exposed a 268-tile release atlas against the one-byte limit. The approved development profile keeps all six authored compiles and hashes but emits a black placeholder for unreachable name entry; runtime protocol and memory ownership remain unchanged, and PERF-005 retains release restoration.</li>
         <li>2026-08-13 &mdash; User explicitly approved the proposed outcome, scope, targets, and acceptance criteria. Dependencies, exact ownership, commands, evidence, commit boundary, and exclusions were added without changing the approved contract; the ticket advanced through Approved and Ready to In Progress.</li>
         <li>2026-08-13 — Proposed from the reproduced build failure after the Tiled screen update. The first confirmed cause is visible metadata-layer flattening of raw sprite GIDs; a second confirmed contract boundary is the updated instruction marker set. No production change made pending approval.</li>
