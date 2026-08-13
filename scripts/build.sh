@@ -25,6 +25,7 @@ PRESENTATION_MODULE_MAP="$BUILD_DIR/ladybug-presentation-runtime.map"
 PRESENTATION_SYMBOLS="$BUILD_DIR/ladybug_presentation_symbols.inc"
 INSTRUCTION_RUNTIME="$BUILD_DIR/ladybug-instruction-runtime.bin"
 INSTRUCTION_RUNTIME_SRC="$ROOT/src/instruction_runtime.s"
+DEMO_RUNTIME_SRC="$ROOT/src/demo_runtime.s"
 INSTRUCTION_RUNTIME_LST="$BUILD_DIR/ladybug-instruction-runtime.lst"
 INSTRUCTION_RUNTIME_MAP="$BUILD_DIR/ladybug-instruction-runtime.map"
 SPARSE_BANK2="$BUILD_DIR/ladybug-sparse-bank2.bin"
@@ -66,7 +67,7 @@ PRESENTATION_HELPER_START=0x06B2
 PRESENTATION_HELPER_LIMIT=0x0800
 INSTRUCTION_RUNTIME_START=0x0300
 INSTRUCTION_RUNTIME_LIMIT=0x06AA
-LADYBUG_PROFILE="${LADYBUG_PROFILE:-development}"
+LADYBUG_PROFILE="${LADYBUG_PROFILE:-release}"
 case "$LADYBUG_PROFILE" in
     development) BUG011_DEVELOPMENT_PROFILE=1 ;;
     release) BUG011_DEVELOPMENT_PROFILE=0 ;;
@@ -232,6 +233,7 @@ cmd_build() {
         --gameplay-maze "$ROOT/assets/arcade/maze.json" \
         --gameplay-chars "$ROOT/assets/arcade/chars.json" \
         --gameplay-sprites "$ROOT/assets/arcade/sprites.json" \
+        --demo-route "$ROOT/assets/arcade/demo_route.json" \
         --output "$PRESENTATION_COLD" \
         --include-output "$PRESENTATION_INC" \
         --manifest-output "$PRESENTATION_MANIFEST" \
@@ -246,6 +248,7 @@ cmd_build() {
         --gameplay-maze "$ROOT/assets/arcade/maze.json" \
         --gameplay-chars "$ROOT/assets/arcade/chars.json" \
         --gameplay-sprites "$ROOT/assets/arcade/sprites.json" \
+        --demo-route "$ROOT/assets/arcade/demo_route.json" \
         --payload "$PRESENTATION_COLD" \
         --manifest "$PRESENTATION_MANIFEST" \
         --development-profile "$BUG011_DEVELOPMENT_PROFILE"
@@ -310,6 +313,7 @@ wanted = {
     'init_entities': 'PRES_MAIN_ENTITIES',
     'init_player': 'PRES_MAIN_PLAYER',
     'init_enemy': 'PRES_MAIN_ENEMY',
+    'can_move': 'PRES_MAIN_CAN_MOVE',
     'read_joystick': 'PRES_MAIN_READ_JOY',
     'player_tick': 'PRES_MAIN_PLAYER_TICK',
     'enemy_tick': 'PRES_MAIN_ENEMY_TICK',
@@ -363,8 +367,23 @@ with open(output, 'a', encoding='ascii') as handle:
         handle.write(f'{name} equ ${symbols[name]}\n')
 PY
 
+    if [[ "$BUG011_DEVELOPMENT_PROFILE" == 1 ]]; then
+        PRESENTATION_AUX_RUNTIME_BYTES="$((INSTRUCTION_RUNTIME_LIMIT - INSTRUCTION_RUNTIME_START))"
+    else
+        lwasm -9 --format=raw \
+              --output="$INSTRUCTION_RUNTIME" \
+              --list="$INSTRUCTION_RUNTIME_LST" \
+              --symbols \
+              --map="$INSTRUCTION_RUNTIME_MAP" \
+              -I "$BUILD_DIR" \
+              "$DEMO_RUNTIME_SRC"
+        guard_instruction_runtime "$INSTRUCTION_RUNTIME"
+        PRESENTATION_AUX_RUNTIME_BYTES="$(wc -c < "$INSTRUCTION_RUNTIME")"
+    fi
+
     lwasm -9 --format=raw \
           -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
+          -DPRESENTATION_AUX_RUNTIME_BYTES="$PRESENTATION_AUX_RUNTIME_BYTES" \
           --output="$PRESENTATION_MODULE" \
           --list="$PRESENTATION_MODULE_LST" \
           --symbols \
@@ -402,14 +421,22 @@ with open(output, 'a', encoding='ascii') as handle:
         handle.write(f'{name} equ ${value}\n')
 PY
 
-    lwasm -9 --format=raw \
-          --output="$INSTRUCTION_RUNTIME" \
-          --list="$INSTRUCTION_RUNTIME_LST" \
-          --symbols \
-          --map="$INSTRUCTION_RUNTIME_MAP" \
-          -I "$BUILD_DIR" \
-          "$INSTRUCTION_RUNTIME_SRC"
-    guard_instruction_runtime "$INSTRUCTION_RUNTIME"
+    if [[ "$BUG011_DEVELOPMENT_PROFILE" == 1 ]]; then
+        lwasm -9 --format=raw \
+              --output="$INSTRUCTION_RUNTIME" \
+              --list="$INSTRUCTION_RUNTIME_LST" \
+              --symbols \
+              --map="$INSTRUCTION_RUNTIME_MAP" \
+              -I "$BUILD_DIR" \
+              "$INSTRUCTION_RUNTIME_SRC"
+        guard_instruction_runtime "$INSTRUCTION_RUNTIME"
+        python3 - "$INSTRUCTION_RUNTIME" "$PRESENTATION_AUX_RUNTIME_BYTES" <<'PY'
+import sys
+path, size = sys.argv[1], int(sys.argv[2])
+data = open(path, "rb").read()
+open(path, "wb").write(data.ljust(size, b"\x00"))
+PY
+    fi
 
     lwasm -9 --format=raw \
           --output="$PERIMETER_HELPER" \
@@ -437,6 +464,7 @@ PY
         --actor-underlays "$PRESENTATION_ACTOR_UNDERLAYS" \
         --presentation-module "$PRESENTATION_MODULE" \
         --instruction-runtime "$INSTRUCTION_RUNTIME" \
+        --aux-runtime-role "$LADYBUG_PROFILE" \
         --bank0-output "$SPARSE_BANK0" \
         --bank2-output "$SPARSE_BANK2" \
         --bank3-output "$SPARSE_BANK3" \
@@ -457,6 +485,7 @@ PY
         --actor-underlays "$PRESENTATION_ACTOR_UNDERLAYS" \
         --presentation-module "$PRESENTATION_MODULE" \
         --instruction-runtime "$INSTRUCTION_RUNTIME" \
+        --aux-runtime-role "$LADYBUG_PROFILE" \
         --bank0 "$SPARSE_BANK0" \
         --bank2 "$SPARSE_BANK2" \
         --bank3 "$SPARSE_BANK3" \
@@ -546,8 +575,10 @@ for segment in manifest['gmc']['segments']:
     if any(value != 0xFF for value in boot[start:end]):
         raise SystemExit('build: bank-0 overflow segment overlaps assembled boot bytes')
     boot[start:end] = bank0[start:end]
-with open(boot_path, 'wb') as stream:
+boot_final_path = boot_path + '.final.tmp'
+with open(boot_final_path, 'wb') as stream:
     stream.write(boot)
+os.replace(boot_final_path, boot_path)
 image = bytes(boot) + runtime + bank2 + bank3
 if len(image) != target:
     raise SystemExit(f'build: GMC image is {len(image)} bytes, expected {target}')

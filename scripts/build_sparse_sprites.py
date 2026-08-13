@@ -103,6 +103,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--actor-underlays", type=Path, required=True)
     parser.add_argument("--presentation-module", type=Path, required=True)
     parser.add_argument("--instruction-runtime", type=Path, required=True)
+    parser.add_argument("--aux-runtime-role", choices=("development", "release"), required=True)
     parser.add_argument("--bank2-output", type=Path, required=True)
     parser.add_argument("--bank3-output", type=Path, required=True)
     parser.add_argument("--bank0-output", type=Path, required=True)
@@ -337,10 +338,7 @@ def pack_candidate_banks(
         raise ValueError("perimeter helper exceeds $06B2-$07FF allocation")
     if len(instruction_runtime) > INSTRUCTION_RUNTIME_BYTES:
         raise ValueError("instruction runtime exceeds freed $0300-$064C loader RAM")
-    instruction_runtime_stage = (
-        instruction_runtime.ljust(INSTRUCTION_RUNTIME_BYTES, b"\x00")
-        if instruction_runtime else b""
-    )
+    instruction_runtime_stage = instruction_runtime
 
     sources = [
         SourceInterval(2, BANK2_PAYLOAD_START, CART_READABLE_BYTES),
@@ -536,6 +534,7 @@ def main() -> None:
     actor_underlays = args.actor_underlays.read_bytes()
     presentation_module = args.presentation_module.read_bytes()
     instruction_runtime = args.instruction_runtime.read_bytes()
+    instruction_runtime_stage = instruction_runtime
     bank0, bank2, bank3, segments = pack_candidate_banks(
         enemy_payload, player_payload, gate_payload, presentation_payload,
         enemy_runtime, presentation_cold, presentation_module,
@@ -641,16 +640,15 @@ def main() -> None:
             "sha256": digest(presentation_module),
         },
         "instruction_runtime": {
+            "role": "instructions" if args.aux_runtime_role == "development" else "demo-route",
             "bytes": len(instruction_runtime),
-            "staged_bytes": INSTRUCTION_RUNTIME_BYTES,
+            "staged_bytes": len(instruction_runtime_stage),
             "stage_page": INSTRUCTION_RUNTIME_PAGE,
             "stage_address": INSTRUCTION_RUNTIME_ADDRESS,
             "destination_address": 0x0300,
             "destination_end": 0x06AA,
             "sha256": digest(instruction_runtime),
-            "staged_sha256": digest(instruction_runtime.ljust(
-                INSTRUCTION_RUNTIME_BYTES, b"\x00"
-            )),
+            "staged_sha256": digest(instruction_runtime_stage),
         },
         "gmc": {
             "readable_bytes_per_bank": CART_READABLE_BYTES,

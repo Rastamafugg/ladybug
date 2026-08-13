@@ -18,6 +18,7 @@ PRESENTATION_HOLD_BEGIN equ $06C5
 PRESENTATION_HOLD_TICK equ $06C7
 PRESENTATION_ATTRACT_OVERLAY equ $06C9
 INSTRUCTION_RUNTIME_TICK equ $0300
+DEMO_RUNTIME_TICK equ $0300
 BLIT_TILE equ PRES_MAIN_BLIT_TILE
 SPARSE_ENEMY_PAYLOAD_PAGE equ $35
 SPARSE_PLAYER_PAYLOAD_PAGE equ $39
@@ -43,6 +44,7 @@ PLAYER_DIR equ $0006
 PLAYER_FACE equ $0007
 PLAYER_WANT equ $000F
 PLAYER_MANUAL equ $0018
+PLAYER_STEP equ $0008
 PLAYER_CELL_X equ $0009
 PLAYER_CELL_Y equ $000A
 SCORE   equ $001D
@@ -66,13 +68,11 @@ MODE_NAME equ 8
         org $1900
 
 presentation_flow_tick
-        ifne    BUG011_DEVELOPMENT_PROFILE
         lda     PRES_MAGIC
         cmpa    #$A5
         beq     pft_helper_ready
-        lbsr    install_instruction_runtime
+        lbsr    install_aux_runtime
 pft_helper_ready
-        endc
         lbsr    scan_keys
         lda     PRES_MAGIC
         cmpa    #$A5
@@ -83,6 +83,7 @@ pft_helper_ready
         clr     PRES_CREDITS
         clr     PRES_CONTEXT
         clr     PRES_DEMO_CAUSE
+        clr     PRES_DEMO_ROUTE
         clr     PRES_ACTOR_FRAME
         lda     #PRESENTATION_MAP_ATTRACT
         lbsr    start_screen
@@ -121,8 +122,10 @@ pft_dispatch
         lbeq    load_tick
         cmpa    #MODE_ATTRACT
         lbeq    attract_tick
+        ifne    BUG011_DEVELOPMENT_PROFILE
         cmpa    #MODE_INSTRUCTIONS
         lbeq    instructions_tick
+        endc
         ifeq    BUG011_DEVELOPMENT_PROFILE
         cmpa    #MODE_DEMO
         lbeq    demo_tick
@@ -139,21 +142,20 @@ pft_dispatch
         lbra    name_tick
         endc
 
-        ifne    BUG011_DEVELOPMENT_PROFILE
-install_instruction_runtime
+install_aux_runtime
         lda     #$23
         sta     PAR5
         ldx     #$A422
         ldy     #$0300
-install_instruction_byte
+        ldu     #PRESENTATION_AUX_RUNTIME_BYTES
+install_aux_runtime_byte
         lda     ,x+
         sta     ,y+
-        cmpy    #$06AA
-        blo     install_instruction_byte
+        leau    -1,u
+        bne     install_aux_runtime_byte
         lda     #$34
         sta     PAR5
         rts
-        endc
 
 normal_tick
         lda     DEATH
@@ -472,10 +474,15 @@ attract_tick_ready
         endc
         bra     hold
 attract_next
+        ifne    BUG011_DEVELOPMENT_PROFILE
         lda     #PRESENTATION_MAP_INSTRUCTIONS
+        else
+        lda     #PRESENTATION_MAP_LEVEL_START
+        endc
         lbsr    start_screen
         lda     #1
         rts
+        ifne    BUG011_DEVELOPMENT_PROFILE
 instructions_tick
         lda     PRES_HOLD_STATE
         cmpa    #PRES_HOLD_FINAL
@@ -493,6 +500,7 @@ instructions_runtime_return
         lbsr    start_screen
         lda     #1
         rts
+        endc
 credit_tick
         lbsr    timer
         cmpd    #600
@@ -516,6 +524,12 @@ level_tick
         lbsr    init_gameplay
         clr     PRES_TIMER
         clr     PRES_TIMER+1
+        lda     #1              ; arcade entry 0 is neutral during maze entry
+        sta     PRES_DEMO_ROUTE
+        lda     #$FF
+        sta     PRES_DEMO_LAST_X
+        sta     PRES_DEMO_LAST_Y
+        sta     PRES_DEMO_DIR
         lda     #MODE_DEMO
         sta     PRES_MODE
         clra
@@ -547,16 +561,20 @@ demo_tick
         lda     DEATH
         cmpa    #4
         lbne    hold
-        lda     #PRESENTATION_MAP_GAME_OVER
+        lda     #PRESENTATION_MAP_ATTRACT
         lbsr    start_screen
         lda     #1
         rts
 demo_run
-        lbsr    demo_drive
+        lbsr    timer
+        jsr     DEMO_RUNTIME_TICK
         ldd     PRES_TIMER
-        cmpd    #180
+        cmpd    #3600
         blo     demo_return
-        lbsr    demo_force_death
+        lda     #PRESENTATION_MAP_ATTRACT
+        lbsr    start_screen
+        lda     #1
+        rts
 demo_return
         clra
         rts
@@ -616,73 +634,6 @@ scan_next
         sta     PIA_CRA
         sta     PIA_CRB
         rts
-
-        ifeq    BUG011_DEVELOPMENT_PROFILE
-instructions_overlay
-        lda     PRES_TIMER+1
-        anda    #3
-        sta     PRES_ACTOR_FRAME
-        lda     PRES_TIMER+1
-        lsra
-        lsra
-        lsra
-        lsra
-        lsra
-        cmpa    #6
-        blo     instructions_phase_ready
-        lda     #5
-instructions_phase_ready
-        cmpa    PRES_PHASE
-        beq     instructions_move
-        sta     PRES_PHASE
-        ldb     PRES_PHASE
-        leax    instruction_phase_colors,pcr
-        lda     b,x
-        sta     PRES_HIGHLIGHT
-        lbsr    highlight_phase
-        ldb     PRES_PHASE
-        leax    instruction_phase_starts,pcr
-        ldd     b,x
-        std     PRES_DST
-        clr     PRES_ACTOR_KIND
-        lbsr    present_actor_overlay
-instructions_move
-        inc     <$AF
-        lbsr    present_actor_overlay
-        rts
-
-restore_actor_underlay
-        tst     PLAYER_BG_VALID
-        beq     restore_actor_done
-        jsr     PRES_MAIN_RESTORE_PLAYER
-restore_actor_done
-        rts
-
-present_actor_overlay
-        lbsr    restore_actor_underlay
-        ldx     PRES_DST
-        stx     PLAYER_FB
-        jsr     PRES_MAIN_SAVE_PLAYER
-        lbsr    draw_actor_overlay
-        rts
-
-highlight_phase
-        ldb     PRES_PHASE
-        leax    instruction_phase_starts,pcr
-        ldd     b,x
-        std     PRES_DST
-        lda     #10
-        sta     PRES_ROWS
-highlight_next
-        ldx     PRES_DST
-        lbsr    colour_tile
-        ldd     PRES_DST
-        addd    #4
-        std     PRES_DST
-        dec     PRES_ROWS
-        bne     highlight_next
-        rts
-        endc
 
 draw_actor_overlay
         ldb     PRES_ACTOR_FRAME
@@ -776,37 +727,6 @@ colour_surface_advance
         rts
 
         ifeq    BUG011_DEVELOPMENT_PROFILE
-demo_drive
-        inc     PRES_TIMER+1
-        lda     #DIR_E
-        sta     JOY_DIR
-        sta     PLAYER_WANT
-        lda     PRES_TIMER+1
-        anda    #3
-        bne     demo_drive_done
-        jsr     PRES_MAIN_PLAYER_TICK
-        jsr     PRES_MAIN_ENEMY_TICK
-        jsr     PRES_MAIN_RENDER
-demo_drive_done
-        rts
-
-demo_force_death
-        tst     PRES_DEMO_CAUSE
-        beq     demo_force_enemy_death
-        ldx     #ENTITY_TABLE
-        lda     PLAYER_CELL_X
-        sta     ,x
-        lda     PLAYER_CELL_Y
-        sta     1,x
-        lda     #1
-        sta     2,x
-        jsr     $0809
-demo_force_enemy_death
-        lda     #1
-        sta     DEATH
-        clr     DEATH_T
-        rts
-
 instruction_phase_rows
 instruction_phase_colors
         fcb     1,2,3,1,2,3
@@ -822,7 +742,11 @@ map_stream_offsets
         fdb PRESENTATION_MAP_STREAM_4
         fdb PRESENTATION_MAP_STREAM_5
 screen_modes
+        ifne    BUG011_DEVELOPMENT_PROFILE
         fcb MODE_ATTRACT,MODE_INSTRUCTIONS,MODE_LEVEL,MODE_CREDIT,MODE_GAMEOVER,MODE_NAME
+        else
+        fcb MODE_ATTRACT,MODE_LEVEL,MODE_LEVEL,MODE_CREDIT,MODE_GAMEOVER,MODE_NAME
+        endc
 scan_drives
         fcb $FD,$DF,$BF
 scan_bits
@@ -873,6 +797,11 @@ PRES_HOLD_SAVED_FRONT equ $00D6
 PRES_HOLD_SAVED_BACK equ $00D7
 PRES_HOLD_GEN equ $00D8
 PRES_HOLD_OWNER equ $00D9
+PRES_DEMO_ROUTE equ $00DA
+PRES_DEMO_LAST_X equ $00DB
+PRES_DEMO_LAST_Y equ $00DC
+PRES_DEMO_DIR equ $00DD
+PRES_DEMO_NEXT equ $00DE
 PRES_HOLD_COPY equ $80
 PRES_HOLD_PUBLISH equ $81
 PRES_HOLD_HYDRATE equ 3

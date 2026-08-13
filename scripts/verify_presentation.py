@@ -28,6 +28,7 @@ from build_presentation import (
     compile_screen,
     encode_map,
     load_chars,
+    load_demo_route,
     parse_attract_actors,
     parse_instruction_contract,
     pack_tile,
@@ -45,6 +46,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gameplay-maze", type=Path, required=True)
     parser.add_argument("--gameplay-chars", type=Path, required=True)
     parser.add_argument("--gameplay-sprites", type=Path, required=True)
+    parser.add_argument("--demo-route", type=Path, required=True)
     parser.add_argument("--payload", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--development-profile", type=int, choices=(0, 1), default=0)
@@ -57,6 +59,7 @@ def digest(data: bytes) -> str:
 
 def main() -> None:
     args = parse_args()
+    development_profile = bool(args.development_profile)
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
     chars = load_chars(args.chars)
     sprites = json.loads(args.gameplay_sprites.read_text(encoding="utf-8"))
@@ -72,14 +75,21 @@ def main() -> None:
     tiles: list[bytes] = []
     tile_ids: dict[bytes, int] = {}
     maps, map_info = compile_profile_maps(
-        args.tiled_dir, chars, tiles, tile_ids, bool(args.development_profile)
+        args.tiled_dir, chars, tiles, tile_ids, development_profile
     )
     for name, data in zip(MAP_NAMES, maps):
         if len(data) != 960:
             raise SystemExit(f"presentation proof: {name} is not 960 cells")
-    instruction = parse_instruction_contract(
-        args.tiled_dir / MAP_FILES["instructions"], chars, sprites, tiles, tile_ids
-    )
+    if development_profile:
+        instruction = parse_instruction_contract(
+            args.tiled_dir / MAP_FILES["instructions"], chars, sprites,
+            tiles, tile_ids,
+        )
+    else:
+        instruction = parse_instruction_contract(
+            args.tiled_dir / MAP_FILES["instructions"], chars, sprites, [], {}
+        )
+    demo_route, demo_route_manifest = load_demo_route(args.demo_route)
     payload = args.payload.read_bytes()
     coin_bytes = coin_tile()
     if coin_bytes not in tiles:
@@ -94,14 +104,22 @@ def main() -> None:
     order = cold_ids + shared_ids
     remap = {old: new for new, old in enumerate(order)}
     maps = [bytes(remap[value] for value in data) for data in maps]
-    event_table = bytearray(instruction["event_table"])
-    event_bytes = len(event_table) // len(instruction["events"])
-    for index, event in enumerate(instruction["events"]):
-        if event["hud_tile_2_id"]:
-            event_table[index * event_bytes + 10] = remap[event["hud_tile_2_id"]]
-        if event["hud_destination"]:
-            event_table[index * event_bytes + 11] = remap[event["hud_tile_id"]]
-    instruction["event_table"] = bytes(event_table)
+    if development_profile:
+        event_table = bytearray(instruction["event_table"])
+        event_bytes = len(event_table) // len(instruction["events"])
+        for index, event in enumerate(instruction["events"]):
+            if event["hud_tile_2_id"]:
+                event_table[index * event_bytes + 10] = remap[event["hud_tile_2_id"]]
+            if event["hud_destination"]:
+                event_table[index * event_bytes + 11] = remap[event["hud_tile_id"]]
+        instruction["event_table"] = bytes(event_table)
+    else:
+        event_bytes = 12
+        instruction["event_table"] = b""
+        instruction["target_colour_streams"] = []
+        instruction["cucumber_stream"] = b""
+        instruction["death_streams"] = []
+        instruction["angel_stream"] = b""
     ordered_tiles = [tiles[index] for index in order]
     rotated_chars = [rotate_ccw(tile) for tile in chars]
     omitted_glyphs = [
@@ -109,7 +127,7 @@ def main() -> None:
         if pack_tile(recolor(
             rotated_chars[code], (BLACK, WHITE, WHITE, WHITE)
         )) not in ordered_tiles
-    ] if args.development_profile else []
+    ] if development_profile else []
     if manifest.get("development_omitted_glyph_codes") != omitted_glyphs:
         raise SystemExit("presentation proof: omitted development glyphs differ")
     cold_only_tiles = ordered_tiles[:len(cold_ids)]
@@ -121,7 +139,7 @@ def main() -> None:
         b"".join(cold_only_tiles) + gameplay_lookup +
         b"".join(encoded_maps)
     )
-    event_count = len(instruction["events"])
+    event_count = len(instruction["events"]) if development_profile else 0
     for padding in range(PAGE_BYTES):
         start = len(expected) + padding
         if all(
@@ -153,7 +171,10 @@ def main() -> None:
     cucumber_offset = len(expected)
     expected.extend(cucumber_stream)
     pointer_offset = len(expected)
-    streams = [*instruction["death_streams"], instruction["angel_stream"]]
+    streams = (
+        [*instruction["death_streams"], instruction["angel_stream"]]
+        if development_profile else []
+    )
     expected.extend(bytes(len(streams) * 2))
     stream_offsets = []
     for stream in streams:
@@ -165,6 +186,8 @@ def main() -> None:
     for index, offset in enumerate(stream_offsets):
         start = pointer_offset + index * 2
         expected[start:start + 2] = offset.to_bytes(2, "big")
+    demo_route_offset = len(expected)
+    expected.extend(demo_route)
     if payload != bytes(expected):
         raise SystemExit("presentation proof: cold payload differs from independent compile")
     if len(tiles) != manifest["tile_count"]:
@@ -188,7 +211,8 @@ def main() -> None:
     if manifest.get("map_stream_total_bytes") != sum(map(len, encoded_maps)):
         raise SystemExit("presentation proof: encoded map size differs")
     choreography = manifest.get("instruction_choreography", {})
-    if (choreography.get("event_table_offset") != event_offset or
+    if (choreography.get("emitted") != development_profile or
+            choreography.get("event_table_offset") != event_offset or
             choreography.get("event_table_bytes") != len(instruction["event_table"]) or
             choreography.get("event_table_sha256") != digest(instruction["event_table"]) or
             choreography.get("cucumber_stream_offset") != cucumber_offset or
@@ -197,6 +221,14 @@ def main() -> None:
             choreography.get("death_stream_offsets") != stream_offsets or
             choreography.get("death_stream_sha256") != [digest(stream) for stream in streams]):
         raise SystemExit("presentation proof: instruction choreography payload differs")
+    route_manifest = manifest.get("demo_route", {})
+    expected_route_manifest = {
+        **demo_route_manifest,
+        "cold_offset": demo_route_offset,
+        "bytes": len(demo_route),
+    }
+    if route_manifest != expected_route_manifest:
+        raise SystemExit("presentation proof: demo route provenance differs")
     destinations = b"".join(int(actor["destination"]).to_bytes(2, "big")
                             for actor in actors)
     destination_manifest = manifest.get("attract_actor_destinations", {})
@@ -253,7 +285,7 @@ def main() -> None:
     static_frame_hashes = []
     for index, data in enumerate(maps):
         frame = title_framebuffer(data, ordered_tiles)
-        if index == MAP_NAMES.index("instructions"):
+        if development_profile and index == MAP_NAMES.index("instructions"):
             blend_native_surface(
                 frame, instruction["cucumber_destination"],
                 instruction["cucumber_native"],

@@ -43,22 +43,20 @@ def main() -> None:
     cold = layout["presentation_cold"]["bytes"]
     combined = module_bytes + cold
     source_spare = layout["gmc"]["spare_bytes"]
-    development = "instruction_runtime" in layout
+    development = bool(presentation_layout.get("development_profile"))
 
     required_symbols = ((
-        "install_instruction_runtime",
+        "install_aux_runtime",
         "instructions_tick",
         "draw_actor_overlay",
         "draw_tile_id",
         "cold_ptr",
         "colour_tile",
     ) if development else (
-        "instructions_overlay",
-        "highlight_phase",
+        "install_aux_runtime",
         "draw_actor_overlay",
-        "demo_drive",
-        "demo_force_death",
-        "demo_force_enemy_death",
+        "demo_tick",
+        "demo_run",
     ))
     missing = [name for name in required_symbols if name not in symbols]
     if missing:
@@ -76,23 +74,21 @@ def main() -> None:
         "ATTRACT_ENEMY_DST equ $2CA4",
         "PLAYER_BG_PTR equ $00A2",
         "PLAYER_BG_VALID equ $006A",
-        "PRES_MAIN_SAVE_PLAYER",
-        "PRES_MAIN_RESTORE_PLAYER",
+        "install_aux_runtime",
+        "ldy     #$0300",
+        "ldu     #PRESENTATION_AUX_RUNTIME_BYTES",
+        "lda     #$23",
+        "ldx     #$A422",
     )
     if development:
         required_source += (
             "INSTRUCTION_RUNTIME_TICK equ $0300",
-            "install_instruction_runtime",
-            "ldy     #$0300",
-            "cmpy    #$06AA",
-            "lda     #$23",
-            "ldx     #$A422",
+            "PRES_MAIN_SAVE_PLAYER",
+            "PRES_MAIN_RESTORE_PLAYER",
         )
     else:
         required_source += (
-            "instruction_phase_colors", "fcb     1,2,3,1,2,3",
-            "PRES_DEMO_CAUSE", "ENTITY_TABLE equ $A380", "jsr     $0809",
-            "inc     <$AF", "restore_actor_underlay", "present_actor_overlay",
+            "DEMO_RUNTIME_TICK equ $0300", "PRES_DEMO_ROUTE",
         )
     missing_source = [fragment for fragment in required_source if fragment not in source]
     if missing_source:
@@ -100,14 +96,6 @@ def main() -> None:
             "presentation flow proof: source contract missing: " +
             ", ".join(missing_source)
         )
-
-    if not development:
-        phase_match = re.search(
-            r"instruction_phase_starts\s+fdb\s+\$3940,\$4834,\$5234,\$7540,\$7F34,\$8434",
-            source,
-        )
-        if not phase_match:
-            raise SystemExit("presentation flow proof: instruction row destinations missing")
 
     actor_surfaces = presentation_layout.get("attract_actor_surfaces", {})
     if (actor_surfaces.get("bytes") != 2688 or
@@ -170,17 +158,12 @@ def main() -> None:
             f"required reserve is {SOUND_RELEASE_RESERVE}"
         )
 
-    if not development:
-        phases = {min(frame >> 5, 5) for frame in range(192)}
-        if phases != {0, 1, 2, 3, 4, 5}:
-            raise SystemExit("presentation flow proof: instruction phase schedule is incomplete")
-
     print(
         f"presentation flow proof: {'development helper' if development else 'release flow'}, "
         "seven title actor surfaces, "
         "authored TMX coordinates, direct selected-screen streaming, bounded loading, "
         "global credit/start pre-emption, atomic surface copy, "
-        f"{'deferred demo forcing' if development else 'skull/enemy demo forcing'}, "
+        f"{'instruction choreography' if development else 'arcade-route demo'}, "
         f"module {module_bytes}/1280, helper {helper_bytes}/334, cold {cold}/{COLD_HARD_LIMIT} "
         f"(preferred {COLD_PREFERRED_TARGET}), "
         f"combined {combined}/14219, future-sound margin {sound_margin}/{SOUND_RELEASE_RESERVE}"

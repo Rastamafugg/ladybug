@@ -46,6 +46,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--actor-underlays", type=Path, required=True)
     parser.add_argument("--presentation-module", type=Path, required=True)
     parser.add_argument("--instruction-runtime", type=Path, required=True)
+    parser.add_argument("--aux-runtime-role", choices=("development", "release"), required=True)
     parser.add_argument("--bank0", type=Path, required=True)
     parser.add_argument("--bank2", type=Path, required=True)
     parser.add_argument("--bank3", type=Path, required=True)
@@ -252,9 +253,7 @@ def main() -> None:
     actor_underlays = args.actor_underlays.read_bytes()
     presentation_module = args.presentation_module.read_bytes()
     instruction_runtime = args.instruction_runtime.read_bytes()
-    instruction_runtime_stage = instruction_runtime.ljust(
-        INSTRUCTION_RUNTIME_BYTES, b"\x00"
-    )
+    instruction_runtime_stage = instruction_runtime
     enemy_ranges = decode_payload(enemy_payload, enemy_frames, 0x35)
     player_ranges = decode_payload(player_payload, player_frames, 0x39)
     bank0 = args.bank0.read_bytes()
@@ -286,6 +285,8 @@ def main() -> None:
     if manifest["presentation_module"]["sha256"] != sha256(presentation_module):
         raise SystemExit("sparse proof: presentation module manifest hash mismatch")
     if (
+        manifest["instruction_runtime"].get("role") !=
+            ("instructions" if args.aux_runtime_role == "development" else "demo-route") or
         manifest["instruction_runtime"]["sha256"] != sha256(instruction_runtime) or
         manifest["instruction_runtime"]["staged_sha256"] != sha256(instruction_runtime_stage)
     ):
@@ -316,7 +317,7 @@ def main() -> None:
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
         "attract_actor_bundle": bytearray(
-            len(actor_underlays) + len(actor_records) + INSTRUCTION_RUNTIME_BYTES
+            len(actor_underlays) + len(actor_records) + len(instruction_runtime_stage)
         ),
     }
     coverage = {
@@ -327,7 +328,7 @@ def main() -> None:
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
         "attract_actor_bundle": bytearray(
-            len(actor_underlays) + len(actor_records) + INSTRUCTION_RUNTIME_BYTES
+            len(actor_underlays) + len(actor_records) + len(instruction_runtime_stage)
         ),
     }
     source_coverage = {

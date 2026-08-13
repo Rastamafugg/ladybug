@@ -61,6 +61,7 @@ MAP_FILES = {
     name: f"coco-{name}-screen.tmx" for name in MAP_NAMES
 }
 DEVELOPMENT_PLACEHOLDER_MAPS = ("game-over", "enter-high-score")
+RELEASE_PLACEHOLDER_MAPS = ("instructions",)
 PAGE_BYTES = 0x2000
 COLD_PAGE = 0x3A
 COLD_PAGE_COUNT = 4
@@ -396,6 +397,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gameplay-maze", type=Path, required=True)
     parser.add_argument("--gameplay-chars", type=Path, required=True)
     parser.add_argument("--gameplay-sprites", type=Path, required=True)
+    parser.add_argument("--demo-route", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--include-output", type=Path, required=True)
     parser.add_argument("--manifest-output", type=Path, required=True)
@@ -974,9 +976,13 @@ def compile_profile_maps(
     """Validate every map while omitting unreachable development-profile maps."""
     maps: list[bytes | None] = []
     map_info: list[dict[str, object]] = []
+    placeholder_maps = (
+        DEVELOPMENT_PLACEHOLDER_MAPS if development_profile
+        else RELEASE_PLACEHOLDER_MAPS
+    )
     for name in MAP_NAMES:
         path = tiled_dir / MAP_FILES[name]
-        if development_profile and name in DEVELOPMENT_PLACEHOLDER_MAPS:
+        if name in placeholder_maps:
             isolated_tiles: list[bytes] = []
             isolated_ids: dict[bytes, int] = {}
             authored, info = compile_map(
@@ -984,7 +990,10 @@ def compile_profile_maps(
             )
             authored_frame = title_framebuffer(authored, isolated_tiles)
             maps.append(None)
-            emission = "development-profile-black-placeholder"
+            emission = (
+                "development-profile-black-placeholder" if development_profile
+                else "release-profile-black-placeholder"
+            )
         else:
             authored, info = compile_map(path, chars, tiles, tile_ids)
             authored_frame = title_framebuffer(authored, tiles)
@@ -998,15 +1007,41 @@ def compile_profile_maps(
             "emission": emission,
         })
         map_info.append(info)
-    if development_profile:
+    if placeholder_maps:
         black_tile_id = tile_ids.get(bytes(TILE_BYTES))
         if black_tile_id is None:
             black_tile_id = register_tile(bytes(TILE_BYTES), tiles, tile_ids)
-        for name in DEVELOPMENT_PLACEHOLDER_MAPS:
+        for name in placeholder_maps:
             maps[MAP_NAMES.index(name)] = bytes((black_tile_id,)) * MAP_BYTES
     if any(data is None for data in maps):
         raise AssertionError("presentation profile left an unresolved map slot")
     return [data for data in maps if data is not None], map_info
+
+
+def load_demo_route(path: Path) -> tuple[bytes, dict[str, object]]:
+    """Validate and convert the arcade ROM direction stream to CoCo ordinals."""
+    record = json.loads(path.read_text(encoding="ascii"))
+    source = bytes(record["bytes"])
+    if len(source) != 188 or source[-1] != 0xFF:
+        raise ValueError(f"{path}: demo route must contain 187 actions plus $FF")
+    if hashlib.sha256(source).hexdigest() != record["route_sha256"]:
+        raise ValueError(f"{path}: demo route SHA-256 differs")
+    if record["rom_offset"] != 0x0EF8 or record["action_count"] != 187:
+        raise ValueError(f"{path}: demo route provenance differs")
+    if source[0] != 0 or any(value not in (1, 2, 4, 8) for value in source[1:-1]):
+        raise ValueError(f"{path}: demo route contains an illegal direction")
+    conversion = {0: 0xFF, 1: 3, 2: 2, 4: 1, 8: 0}
+    converted = bytes(conversion[value] for value in source[:-1])
+    return converted, {
+        "source": record["source"],
+        "program_sha256": record["program_sha256"],
+        "rom_offset": record["rom_offset"],
+        "source_bytes": len(source),
+        "source_sha256": record["route_sha256"],
+        "action_count": len(converted),
+        "converted_sha256": hashlib.sha256(converted).hexdigest(),
+        "encoding": "CoCo ordinals north/east/south/west=0/1/2/3; initial neutral=$FF",
+    }
 
 
 def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
@@ -1047,6 +1082,13 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         lines.append(
             f"PRESENTATION_MAP_STREAM_{index}_BYTES equ {len(encoded)}"
         )
+    demo_route = manifest["demo_route"]
+    lines.extend((
+        "",
+        "; BUG-012 arcade-derived demo direction stream.",
+        f"PRESENTATION_DEMO_ROUTE_OFFSET equ ${demo_route['cold_offset']:04X}",
+        f"PRESENTATION_DEMO_ROUTE_ACTIONS equ {demo_route['action_count']}",
+    ))
     instruction = manifest["instruction_choreography"]
     lines.extend((
         "",
@@ -1131,6 +1173,7 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
 
 def main() -> None:
     args = parse_args()
+    development_profile = bool(args.development_profile)
     chars = load_chars(args.chars)
     sprites = json.loads(args.gameplay_sprites.read_text(encoding="utf-8"))
     if isinstance(sprites, dict):
@@ -1147,11 +1190,18 @@ def main() -> None:
     tiles: list[bytes] = []
     tile_ids: dict[bytes, int] = {}
     maps, map_info = compile_profile_maps(
-        args.tiled_dir, chars, tiles, tile_ids, bool(args.development_profile)
+        args.tiled_dir, chars, tiles, tile_ids, development_profile
     )
-    instruction = parse_instruction_contract(
-        args.tiled_dir / MAP_FILES["instructions"], chars, sprites, tiles, tile_ids
-    )
+    if development_profile:
+        instruction = parse_instruction_contract(
+            args.tiled_dir / MAP_FILES["instructions"], chars, sprites,
+            tiles, tile_ids,
+        )
+    else:
+        instruction = parse_instruction_contract(
+            args.tiled_dir / MAP_FILES["instructions"], chars, sprites, [], {}
+        )
+    demo_route, demo_route_manifest = load_demo_route(args.demo_route)
 
     coin_id = tile_ids.setdefault(coin_tile(), len(tiles))
     if coin_id == len(tiles):
@@ -1177,21 +1227,28 @@ def main() -> None:
         info["sha256"] = hashlib.sha256(data).hexdigest()
     tiles = [tiles[tile_id] for tile_id in ordered_ids]
     coin_id = remap[coin_id]
-    instruction["black_tile_id"] = remap[int(instruction["black_tile_id"])]
-    for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
-        instruction[group] = {
-            name: [remap[int(tile_id)] for tile_id in ids]
-            for name, ids in instruction[group].items()
-        }
-    event_table = bytearray(instruction["event_table"])
-    for index, event in enumerate(instruction["events"]):
-        hud_tile_id = remap[int(event["hud_tile_id"])] if event["hud_destination"] else 0
-        hud_tile_2_id = remap[int(event["hud_tile_2_id"])] if event["hud_tile_2_id"] else 0
-        event["hud_tile_id"] = hud_tile_id
-        event["hud_tile_2_id"] = hud_tile_2_id
-        event_table[index * INSTRUCTION_EVENT_BYTES + 10] = hud_tile_2_id
-        event_table[index * INSTRUCTION_EVENT_BYTES + 11] = hud_tile_id
-    instruction["event_table"] = bytes(event_table)
+    if development_profile:
+        instruction["black_tile_id"] = remap[int(instruction["black_tile_id"])]
+        for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
+            instruction[group] = {
+                name: [remap[int(tile_id)] for tile_id in ids]
+                for name, ids in instruction[group].items()
+            }
+        event_table = bytearray(instruction["event_table"])
+        for index, event in enumerate(instruction["events"]):
+            hud_tile_id = remap[int(event["hud_tile_id"])] if event["hud_destination"] else 0
+            hud_tile_2_id = remap[int(event["hud_tile_2_id"])] if event["hud_tile_2_id"] else 0
+            event["hud_tile_id"] = hud_tile_id
+            event["hud_tile_2_id"] = hud_tile_2_id
+            event_table[index * INSTRUCTION_EVENT_BYTES + 10] = hud_tile_2_id
+            event_table[index * INSTRUCTION_EVENT_BYTES + 11] = hud_tile_id
+        instruction["event_table"] = bytes(event_table)
+    else:
+        instruction["event_table"] = b""
+        instruction["target_colour_streams"] = []
+        instruction["cucumber_stream"] = b""
+        instruction["death_streams"] = []
+        instruction["angel_stream"] = b""
     cold_only_tiles = tiles[:len(cold_tile_ids)]
     gameplay_lookup = bytes(
         gameplay_tile_ids[tiles[tile_id]]
@@ -1253,7 +1310,10 @@ def main() -> None:
     instruction_cucumber_offset = len(cold_payload)
     cold_payload.extend(cucumber_stream)
     instruction_death_pointer_offset = len(cold_payload)
-    death_streams = [*instruction["death_streams"], instruction["angel_stream"]]
+    death_streams = (
+        [*instruction["death_streams"], instruction["angel_stream"]]
+        if development_profile else []
+    )
     cold_payload.extend(bytes(len(death_streams) * 2))
     death_stream_offsets = []
     for stream in death_streams:
@@ -1265,6 +1325,8 @@ def main() -> None:
     for index, offset in enumerate(death_stream_offsets):
         start = instruction_death_pointer_offset + index * 2
         cold_payload[start:start + 2] = offset.to_bytes(2, "big")
+    demo_route_offset = len(cold_payload)
+    cold_payload.extend(demo_route)
     if len(cold_payload) > COLD_PAYLOAD_LIMIT:
         raise ValueError(
             f"presentation cold payload is {len(cold_payload)} bytes; "
@@ -1273,7 +1335,7 @@ def main() -> None:
     static_frame_hashes = []
     for index, data in enumerate(maps):
         frame = title_framebuffer(data, tiles)
-        if index == MAP_NAMES.index("instructions"):
+        if development_profile and index == MAP_NAMES.index("instructions"):
             blend_native_surface(
                 frame, instruction["cucumber_destination"],
                 instruction["cucumber_native"],
@@ -1320,6 +1382,7 @@ def main() -> None:
         "map_stream_bytes": [len(encoded) for encoded in encoded_maps],
         "map_stream_total_bytes": len(encoded_stream),
         "instruction_choreography": {
+            "emitted": development_profile,
             "metadata_layer": INSTRUCTION_METADATA_LAYER,
             "static_layers": list(INSTRUCTION_STATIC_LAYERS),
             "anchors": instruction["anchors"],
@@ -1353,6 +1416,11 @@ def main() -> None:
             "next_screen_tick": instruction["next_screen_tick"],
             "colour_dwell_frames": instruction["colour_dwell_frames"],
             "angel_source_code": instruction["angel_source_code"],
+        },
+        "demo_route": {
+            **demo_route_manifest,
+            "cold_offset": demo_route_offset,
+            "bytes": len(demo_route),
         },
         "attract_actor_destinations": {
             "bytes": len(attract_destinations),
