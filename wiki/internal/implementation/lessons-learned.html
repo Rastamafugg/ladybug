@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Metadata anchors and visible tile footprints require explicit conversion contracts</h2>
+      <p><strong>Filed 2026-08-13.</strong> BUG-011 treated a Tiled actor baseline cell as the top-left address consumed by a 16&times;16 save/draw service, placing the Lady Bug eight pixels low. The same implementation and verifier treated 2&times;2 collectible art as one 8&times;8 tile, so only the upper corner changed colour or cleared. A whole-byte recolour also filled transparent partner nibbles and could not retain the hearts' pink surround.</p>
+      <p><strong>Rule:</strong> generated metadata must name whether an anchor is a baseline, center, or framebuffer root and perform the conversion once. Regression evidence must cover the complete authored footprint. For multi-pen graphics, emit per-nibble selectors from the source surface instead of inferring transparency or semantic colours from one destination byte.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-011-instruction-choreography.html">BUG-011</a>, <code>scripts/build_presentation.py</code>, <code>src/instruction_runtime.s</code>, and <code>scripts/verify_bug011_rendering.py</code>.</p>
+    </section>
+
+    <section>
       <h2>Presentation helpers must preserve PAR5 and accumulator-owned offsets across renderer calls</h2>
       <p><strong>Filed 2026-08-11; extended 2026-08-12.</strong> BUG-011 exposed three independent live failures. The development attract-load path bypassed the title helper that restored PAR5, then captured framebuffer metadata while page <code>$3A</code> was selected and corrupted the cold atlas. The instruction player resolver selected page <code>$39</code> after calculating its three-byte index offset in D, overwriting A and changing the offset. The death scheduler loaded its counter into A after calculating a 16-bit time delta in D, changing zero to 256 and selecting death surface 52. The reopened rendering repair found the same ownership class after value/collectible drawing: <code>save_player</code> ran before PAR5 returned to page <code>$34</code>, so a clean underlay was written through the wrong physical page and later restoration exposed garbage from the real owner buffer.</p>
       <p><strong>Rule:</strong> restore page <code>$34</code> before any page-34 state or metadata service; map an index page before calculating an offset in D or preserve D explicitly; and do not use either half of D for scratch while a 16-bit value remains live. Compare authored, staged, and live bytes before interpreting downstream rendering failures.</p>
