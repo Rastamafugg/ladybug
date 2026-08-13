@@ -16,18 +16,18 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal · bug</p>
-      <h1>BUG-016 Tiled presentation build regression <span class="wiki-badge">Proposed</span></h1>
+      <h1>BUG-016 Tiled presentation build regression <span class="wiki-badge">In Progress</span></h1>
       <p class="wiki-meta">Make the presentation compiler accept the current Tiled layer contract.</p>
     </header>
 
     <section>
       <h2>Disposition</h2>
       <ul>
-        <li><strong>Status:</strong> Proposed</li>
+        <li><strong>Status:</strong> In Progress</li>
         <li><strong>Created / updated:</strong> 2026-08-13 / 2026-08-13</li>
         <li><strong>Priority / order:</strong> P1 / 12.9</li>
         <li><strong>Roadmap or source:</strong> <a href="../implementation/roadmap.html">presentation assets</a>; revision <code>76d930b</code></li>
-        <li><strong>Owner:</strong> unassigned</li>
+        <li><strong>Owner:</strong> primary agent</li>
         <li><strong>Dependencies:</strong> none identified</li>
       </ul>
     </section>
@@ -84,17 +84,28 @@
 
     <section>
       <h2>Assignment contract</h2>
-      <p>Pending explicit approval. After approval, prepare a Ready contract naming the exact owned source, test, generated, ticket, index, log, and wiki artifacts; preserve the out-of-scope runtime boundary; require one bounded commit; and retain the compiler diagnostics, generated manifest, build output, and focused-layer evidence.</p>
+      <p><strong>Owned artifacts:</strong> <code>scripts/build_presentation.py</code>, a focused <code>scripts/verify_bug016_presentation_layers.py</code> verifier, <code>scripts/build.sh</code> integration for that verifier, generated presentation outputs under <code>build/</code>, and this ticket, ticket index, implementation lesson, and wiki log. Existing dirty generated enemy listing/symbol files and <code>ladybug.tiled-session</code> are user-owned and must not be included in the bounded commit.</p>
+      <p><strong>Implementation constraints:</strong> define one exact layer contract for each of the six current screen roles; select static character layers by semantic name rather than Tiled visibility; parse metadata and animation layers separately; validate the current instruction and level-start raw-sprite marker coordinates/GIDs plus existing instruction character metadata; reject duplicate, missing, unknown, misplaced, or unsupported layers with explicit diagnostics; record deferred logo-frame ownership without implementing it. Do not edit TMX assets or runtime rendering.</p>
+      <p><strong>Verification:</strong> run <code>python3 -m py_compile scripts/build_presentation.py scripts/verify_bug016_presentation_layers.py</code>, the focused verifier against all six TMX maps including negative contract mutations, <code>bash scripts/build.sh build</code>, the existing presentation and sparse verifiers included by that build, and the wiki link/lint check. Retain focused-layer output, generated manifest hashes and bounds, full build capacity output, rejected experiments, and residual ownership gaps. Deliver one bounded commit and a completion report with tests, result versus target, changed capacity, and residual risk.</p>
+    </section>
+
+    <section>
+      <h2>Design and packing resolution</h2>
+      <p>The compiler now owns one exact semantic layer contract for each screen role. Static layers accept only <code>chars_raw2bpp</code>; metadata, compiler-consumed animation, and deferred logo-frame layers are separately named and validated. Instruction and level-start mixed metadata records are exact, including transformed GIDs, coordinates, tileset ownership, and the twenty-two current raw-sprite markers. The manifest records each role contract, authored-frame hash, emitted-map hash, marker record, and deferred owner.</p>
+      <p>Exact static selection exposed 248 map tiles plus twenty instruction-runtime tiles, exceeding the one-byte 256-tile protocol before the synthetic coin tile. Widening tile IDs, changing the runtime decoder, or changing memory ownership was rejected as outside scope. The already approved development-first policy permits name-entry flow to be omitted: the compiler still compiles and hashes the authored name-entry map in sixth position, but emits an explicit constant-black placeholder for that unreachable runtime slot and omits eight name-entry-only glyph constants. This yields 255 tiles and preserves the existing map and runtime protocol. Release-profile restoration remains owned by <a href="./perf-005-release-capacity-review.html">PERF-005</a>.</p>
+      <p><strong>Rejected experiment:</strong> using the high-score map as the unreachable name-entry placeholder retained a duplicate compressed stream and measured <code>11,261/10,874</code> cold bytes, failing the source guard by 387 bytes. The constant-black placeholder measured <code>10,653/10,874</code>, leaving 221 cold bytes; no failed artifact was retained.</p>
     </section>
 
     <section>
       <h2>Verification and completion</h2>
-      <p>No implementation or acceptance evidence exists. The current baseline is a failed build at revision <code>76d930b</code>. The ticket cannot advance beyond Proposed until the user approves the outcome, scope, targets, and acceptance criteria.</p>
+      <p>Implementation began from revision <code>a9b104e</code> after explicit user approval. Current acceptance evidence remains pending.</p>
     </section>
 
     <section>
       <h2>Decision log</h2>
       <ul>
+        <li>2026-08-13 &mdash; Exact role selection exposed a 268-tile release atlas against the one-byte limit. The approved development profile keeps all six authored compiles and hashes but emits a black placeholder for unreachable name entry; runtime protocol and memory ownership remain unchanged, and PERF-005 retains release restoration.</li>
+        <li>2026-08-13 &mdash; User explicitly approved the proposed outcome, scope, targets, and acceptance criteria. Dependencies, exact ownership, commands, evidence, commit boundary, and exclusions were added without changing the approved contract; the ticket advanced through Approved and Ready to In Progress.</li>
         <li>2026-08-13 — Proposed from the reproduced build failure after the Tiled screen update. The first confirmed cause is visible metadata-layer flattening of raw sprite GIDs; a second confirmed contract boundary is the updated instruction marker set. No production change made pending approval.</li>
       </ul>
     </section>

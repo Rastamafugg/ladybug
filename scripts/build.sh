@@ -236,7 +236,8 @@ cmd_build() {
         --include-output "$PRESENTATION_INC" \
         --manifest-output "$PRESENTATION_MANIFEST" \
         --actor-record-output "$PRESENTATION_ACTOR_RECORDS" \
-        --actor-underlay-output "$PRESENTATION_ACTOR_UNDERLAYS"
+        --actor-underlay-output "$PRESENTATION_ACTOR_UNDERLAYS" \
+        --development-profile "$BUG011_DEVELOPMENT_PROFILE"
 
     python3 "$ROOT/scripts/verify_presentation.py" \
         --tiled-dir "$ROOT/tiled" \
@@ -246,6 +247,11 @@ cmd_build() {
         --gameplay-chars "$ROOT/assets/arcade/chars.json" \
         --gameplay-sprites "$ROOT/assets/arcade/sprites.json" \
         --payload "$PRESENTATION_COLD" \
+        --manifest "$PRESENTATION_MANIFEST" \
+        --development-profile "$BUG011_DEVELOPMENT_PROFILE"
+
+    python3 "$ROOT/scripts/verify_bug016_presentation_layers.py" \
+        --tiled-dir "$ROOT/tiled" \
         --manifest "$PRESENTATION_MANIFEST"
 
     lwasm -9 --format=raw \

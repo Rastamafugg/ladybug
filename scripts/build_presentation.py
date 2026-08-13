@@ -121,6 +121,71 @@ INSTRUCTION_TARGETS = (
     ((28, 13), (0, 0)),
 )
 INSTRUCTION_EVENT_BYTES = 12
+PRESENTATION_LAYER_CONTRACTS = {
+    "attract": {
+        "static": ("Attract Title and Prompts",),
+        "metadata": (),
+        "runtime": ("Sprite Animations",),
+        "deferred": ("Logo Frame 1", "Logo Frame 2"),
+    },
+    "instructions": {
+        "static": INSTRUCTION_STATIC_LAYERS,
+        "metadata": (INSTRUCTION_METADATA_LAYER,),
+        "runtime": (),
+        "deferred": (),
+    },
+    "level-start": {
+        "static": ("Level Start Panel", "CoCo Side HUD"),
+        "metadata": ("Sprite Locations",),
+        "runtime": (),
+        "deferred": (),
+    },
+    "high-score": {
+        "static": ("High Score Table and Branding",),
+        "metadata": ("Coin Positions",),
+        "runtime": (),
+        "deferred": ("Logo Frame 1", "Logo Frame 2"),
+    },
+    "game-over": {
+        "static": ("Arcade Maze Border", "CoCo Side HUD", "Game Over Overlay"),
+        "metadata": (),
+        "runtime": (),
+        "deferred": (),
+    },
+    "enter-high-score": {
+        "static": (
+            "Arcade Maze Border", "CoCo Side HUD", "Enter High Score Overlay",
+        ),
+        "metadata": (),
+        "runtime": (),
+        "deferred": (),
+    },
+}
+INSTRUCTION_CHARACTER_METADATA = {
+    (28, 7): 456, (29, 7): 440, (28, 8): 488, (29, 8): 472,
+    (28, 10): 376, (29, 10): 328, (28, 11): 296, (29, 11): 344,
+    (27, 17): 147, (28, 17): 417,
+    (27, 20): 147, (28, 20): 417,
+}
+INSTRUCTION_RAW_SPRITE_MARKERS = {
+    **{cell: 0xA0000221 for cell in INSTRUCTION_ANCHORS},
+    (13, 8): 593, (15, 8): 593, (17, 8): 593,
+    (19, 8): 593, (21, 8): 593,
+    (13, 11): 593, (15, 11): 593, (17, 11): 593,
+    (19, 11): 593, (21, 11): 593, (23, 11): 593, (25, 11): 593,
+    (32, 13): 633,
+    (13, 14): 593, (17, 14): 593, (21, 14): 593,
+    INSTRUCTION_ANGEL_ROOT: 523,
+}
+LEVEL_START_METADATA = {
+    **{(x, 2): 497 for x in range(33, 39)},
+    **{(x, 6): 497 for x in range(33, 39)},
+    (16, 7): 633,
+    (19, 7): 481, (20, 7): 497, (21, 7): 497, (22, 7): 497,
+    (33, 9): 497,
+    (32, 13): 633,
+    (35, 13): 481, (36, 13): 497, (37, 13): 497, (38, 13): 497,
+}
 
 
 def lzss_compress(data: bytes) -> bytes:
@@ -314,6 +379,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--manifest-output", type=Path, required=True)
     parser.add_argument("--actor-record-output", type=Path, required=True)
     parser.add_argument("--actor-underlay-output", type=Path, required=True)
+    parser.add_argument("--development-profile", type=int, choices=(0, 1), default=0)
     return parser.parse_args()
 
 
@@ -323,6 +389,105 @@ def screen_role(root: ET.Element, path: Path) -> str:
          if item.get("name") == "screen-role"),
         path.stem,
     )
+
+
+def layer_records(layer: ET.Element) -> dict[tuple[int, int], int]:
+    cells = parse_csv(layer.find("data"), layer.get("name", ""))
+    return {
+        (index % SCREEN_WIDTH, index // SCREEN_WIDTH): gid
+        for index, gid in enumerate(cells) if gid & GID_MASK
+    }
+
+
+def require_records(
+    path: Path, label: str, actual: dict[tuple[int, int], int],
+    expected: dict[tuple[int, int], int],
+) -> None:
+    if actual == expected:
+        return
+    missing = sorted(set(expected) - set(actual))
+    extra = sorted(set(actual) - set(expected))
+    wrong = sorted(cell for cell in set(actual) & set(expected)
+                   if actual[cell] != expected[cell])
+    raise ValueError(
+        f"{path}: {label} contract mismatch; "
+        f"missing={missing}, extra={extra}, wrong={wrong}"
+    )
+
+
+def validate_layer_tilesets(
+    path: Path, root: ET.Element, layer: ET.Element, allowed: tuple[str, ...],
+) -> None:
+    ranges = tileset_ranges(root, path)
+    for cell, gid_with_flags in layer_records(layer).items():
+        gid = gid_with_flags & GID_MASK
+        tileset = next(
+            (item for item in ranges
+             if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
+            None,
+        )
+        name = None if tileset is None else str(tileset["name"])
+        if name not in allowed:
+            raise ValueError(
+                f"{path}: layer {layer.get('name')!r} cell {cell} uses "
+                f"unsupported tileset {name!r}; expected one of {allowed}"
+            )
+
+
+def validate_presentation_layers(
+    root: ET.Element, path: Path,
+) -> dict[str, object]:
+    role = screen_role(root, path)
+    contract = PRESENTATION_LAYER_CONTRACTS.get(role)
+    if contract is None:
+        raise ValueError(f"{path}: unsupported presentation screen role {role!r}")
+    layers = root.findall("layer")
+    names = [layer.get("name", "") for layer in layers]
+    required = tuple(name for owner in contract.values() for name in owner)
+    missing = [name for name in required if names.count(name) != 1]
+    unexpected = [name for name in names if name not in required]
+    if missing or unexpected:
+        raise ValueError(
+            f"{path}: {role} layer contract mismatch; "
+            f"missing/duplicate={missing}, unexpected={unexpected}"
+        )
+    by_name = {layer.get("name", ""): layer for layer in layers}
+    for name in contract["static"]:
+        validate_layer_tilesets(path, root, by_name[name], ("chars_raw2bpp",))
+    for name in contract["deferred"]:
+        validate_layer_tilesets(path, root, by_name[name], ("chars_raw2bpp",))
+    if role == "attract":
+        validate_layer_tilesets(
+            path, root, by_name["Sprite Animations"], ("sprites_raw2bpp",)
+        )
+    if role == "high-score":
+        validate_layer_tilesets(
+            path, root, by_name["Coin Positions"], ("chars_raw2bpp",)
+        )
+    if role == "instructions":
+        records = layer_records(by_name[INSTRUCTION_METADATA_LAYER])
+        require_records(
+            path, "instruction character and raw-sprite metadata", records,
+            {**INSTRUCTION_CHARACTER_METADATA, **INSTRUCTION_RAW_SPRITE_MARKERS},
+        )
+        validate_layer_tilesets(
+            path, root, by_name[INSTRUCTION_METADATA_LAYER],
+            ("chars_raw2bpp", "sprites_raw2bpp"),
+        )
+    if role == "level-start":
+        records = layer_records(by_name["Sprite Locations"])
+        require_records(path, "level-start metadata", records, LEVEL_START_METADATA)
+        validate_layer_tilesets(
+            path, root, by_name["Sprite Locations"],
+            ("chars_raw2bpp", "sprites_raw2bpp"),
+        )
+    return {
+        "role": role,
+        "static_layers": list(contract["static"]),
+        "metadata_layers": list(contract["metadata"]),
+        "runtime_layers": list(contract["runtime"]),
+        "deferred_layers": list(contract["deferred"]),
+    }
 
 
 def flatten_map(path: Path) -> tuple[ET.Element, list[int]]:
@@ -337,27 +502,10 @@ def flatten_map(path: Path) -> tuple[ET.Element, list[int]]:
             local_source = path.parent / Path(source).name
             if local_source.exists():
                 tileset.set("source", local_source.name)
-    role = screen_role(root, path)
+    layer_contract = validate_presentation_layers(root, path)
     layers = root.findall("layer")
-    if role == "instructions":
-        names = [layer.get("name", "") for layer in layers]
-        missing = [name for name in (*INSTRUCTION_STATIC_LAYERS,
-                                     INSTRUCTION_METADATA_LAYER)
-                   if names.count(name) != 1]
-        extras = [name for name in names
-                  if name not in (*INSTRUCTION_STATIC_LAYERS,
-                                  INSTRUCTION_METADATA_LAYER)]
-        if missing or extras:
-            raise ValueError(
-                f"{path}: instruction layer contract mismatch; "
-                f"missing/duplicate={missing}, unexpected={extras}"
-            )
-        selected = [layer for name in INSTRUCTION_STATIC_LAYERS
-                    for layer in layers if layer.get("name") == name]
-    else:
-        selected = [layer for layer in layers
-                    if layer.get("visible", "1") != "0"
-                    and layer.get("name") != "Sprite Animations"]
+    selected = [layer for name in layer_contract["static_layers"]
+                for layer in layers if layer.get("name") == name]
     flattened = [0] * MAP_BYTES
     for layer in selected:
         cells = parse_csv(layer.find("data"), layer.get("name", ""))
@@ -440,7 +588,11 @@ def compile_map(
         if tile_id > 255:
             raise ValueError("presentation atlas exceeds one-byte tile IDs")
         output.append(tile_id)
-    return bytes(output), {"role": role, "path": str(path)}
+    return bytes(output), {
+        "role": role,
+        "path": str(path),
+        "layer_contract": validate_presentation_layers(root, path),
+    }
 
 
 def framebuffer_destination(cell: tuple[int, int]) -> int:
@@ -485,6 +637,8 @@ def register_tile(tile: bytes, tiles: list[bytes], tile_ids: dict[bytes, int]) -
     tile_id = tile_ids.setdefault(tile, len(tiles))
     if tile_id == len(tiles):
         tiles.append(tile)
+    if tile_id > 255:
+        raise ValueError("presentation atlas exceeds one-byte tile IDs")
     return tile_id
 
 
@@ -501,27 +655,11 @@ def parse_instruction_contract(
     if metadata is None:
         raise ValueError(f"{path}: missing {INSTRUCTION_METADATA_LAYER} layer")
     cells = parse_csv(metadata.find("data"), INSTRUCTION_METADATA_LAYER)
-    records = {
-        (index % SCREEN_WIDTH, index // SCREEN_WIDTH): gid
-        for index, gid in enumerate(cells) if gid & GID_MASK
-    }
-    expected = {
-        **{cell: 0xA0000221 for cell in INSTRUCTION_ANCHORS},
-        (28, 7): 456, (29, 7): 440, (28, 8): 488, (29, 8): 472,
-        (28, 10): 376, (29, 10): 328, (28, 11): 296, (29, 11): 344,
-        INSTRUCTION_ANGEL_ROOT: 523,
-        (27, 17): 147, (28, 17): 417,
-        (27, 20): 147, (28, 20): 417,
-    }
-    if records != expected:
-        missing = sorted(set(expected) - set(records))
-        extra = sorted(set(records) - set(expected))
-        wrong = sorted(cell for cell in set(records) & set(expected)
-                       if records[cell] != expected[cell])
-        raise ValueError(
-            f"{path}: Sprite Locations contract mismatch; "
-            f"missing={missing}, extra={extra}, wrong={wrong}"
-        )
+    records = layer_records(metadata)
+    require_records(
+        path, "Sprite Locations", records,
+        {**INSTRUCTION_CHARACTER_METADATA, **INSTRUCTION_RAW_SPRITE_MARKERS},
+    )
 
     overlay = layers["Instructions Overlay"]
     overlay_cells = parse_csv(overlay.find("data"), overlay.get("name", ""))
@@ -747,6 +885,47 @@ def coin_tile() -> bytes:
     return pack_tile(pixels)
 
 
+def compile_profile_maps(
+    tiled_dir: Path, chars: list[list[list[int]]], tiles: list[bytes],
+    tile_ids: dict[bytes, int], development_profile: bool,
+) -> tuple[list[bytes], list[dict[str, object]]]:
+    """Compile every authored map while omitting unreachable name entry from dev data."""
+    maps: list[bytes | None] = []
+    map_info: list[dict[str, object]] = []
+    for name in MAP_NAMES:
+        path = tiled_dir / MAP_FILES[name]
+        if development_profile and name == "enter-high-score":
+            isolated_tiles: list[bytes] = []
+            isolated_ids: dict[bytes, int] = {}
+            authored, info = compile_map(
+                path, chars, isolated_tiles, isolated_ids
+            )
+            authored_frame = title_framebuffer(authored, isolated_tiles)
+            maps.append(None)
+            emission = "development-profile-black-placeholder"
+        else:
+            authored, info = compile_map(path, chars, tiles, tile_ids)
+            authored_frame = title_framebuffer(authored, tiles)
+            maps.append(authored)
+            emission = "authored"
+        info.update({
+            "name": name,
+            "bytes": len(authored),
+            "authored_map_sha256": hashlib.sha256(authored).hexdigest(),
+            "authored_frame_sha256": hashlib.sha256(authored_frame).hexdigest(),
+            "emission": emission,
+        })
+        map_info.append(info)
+    if development_profile:
+        black_tile_id = tile_ids.get(bytes(TILE_BYTES))
+        if black_tile_id is None:
+            black_tile_id = register_tile(bytes(TILE_BYTES), tiles, tile_ids)
+        maps[MAP_NAMES.index("enter-high-score")] = bytes((black_tile_id,)) * MAP_BYTES
+    if any(data is None for data in maps):
+        raise AssertionError("presentation profile left an unresolved map slot")
+    return [data for data in maps if data is not None], map_info
+
+
 def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
                  encoded_maps: list[bytes], manifest: dict[str, object],
                  chars: list[list[list[int]]]) -> None:
@@ -833,6 +1012,10 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
     rotated = [rotate_ccw(tile) for tile in chars]
     for code in range(37):
         packed = pack_tile(recolor(rotated[code], (BLACK, WHITE, WHITE, WHITE)))
+        if packed not in tiles:
+            if not manifest["development_profile"]:
+                raise ValueError(f"presentation glyph {code} is absent from atlas")
+            continue
         lines.append(f"PRESENTATION_GLYPH_{code} equ {tiles.index(packed)}")
     for index, destination in enumerate(manifest["coin_destinations"]):
         lines.append(f"PRESENTATION_COIN_DST_{index} equ ${destination:04X}")
@@ -878,19 +1061,9 @@ def main() -> None:
     )
     tiles: list[bytes] = []
     tile_ids: dict[bytes, int] = {}
-    maps: list[bytes] = []
-    map_info: list[dict[str, object]] = []
-    for name in MAP_NAMES:
-        map_bytes, info = compile_map(
-            args.tiled_dir / MAP_FILES[name], chars, tiles, tile_ids
-        )
-        maps.append(map_bytes)
-        info.update({
-            "name": name,
-            "bytes": len(map_bytes),
-            "sha256": hashlib.sha256(map_bytes).hexdigest(),
-        })
-        map_info.append(info)
+    maps, map_info = compile_profile_maps(
+        args.tiled_dir, chars, tiles, tile_ids, bool(args.development_profile)
+    )
 
     instruction = parse_instruction_contract(
         args.tiled_dir / MAP_FILES["instructions"], chars, sprites, tiles, tile_ids
@@ -899,6 +1072,10 @@ def main() -> None:
     coin_id = tile_ids.setdefault(coin_tile(), len(tiles))
     if coin_id == len(tiles):
         tiles.append(coin_tile())
+    if len(tiles) > 256:
+        raise ValueError(
+            f"presentation atlas contains {len(tiles)} tiles; one-byte limit is 256"
+        )
 
     gameplay_tile_ids = {tile: index for index, tile in enumerate(gameplay_tiles)}
     cold_tile_ids = [
@@ -1003,6 +1180,30 @@ def main() -> None:
     manifest = {
         "maps": map_info,
         "map_count": len(maps),
+        "development_profile": bool(args.development_profile),
+        "development_omitted_glyph_codes": [
+            code for code in range(37)
+            if pack_tile(recolor(
+                [row[:] for row in rotate_ccw(chars[code])],
+                (BLACK, WHITE, WHITE, WHITE),
+            )) not in tiles
+        ] if args.development_profile else [],
+        "layer_contracts": {
+            info["name"]: info["layer_contract"] for info in map_info
+        },
+        "raw_sprite_markers": {
+            "instructions": [
+                {"cell": list(cell), "gid": value & GID_MASK,
+                 "flags": value & ~GID_MASK}
+                for cell, value in sorted(INSTRUCTION_RAW_SPRITE_MARKERS.items())
+            ],
+            "level-start": [
+                {"cell": list(cell), "gid": value & GID_MASK,
+                 "flags": value & ~GID_MASK}
+                for cell, value in sorted(LEVEL_START_METADATA.items())
+                if (value & GID_MASK) == 633
+            ],
+        },
         "map_bytes": MAP_BYTES,
         "tile_count": len(tiles),
         "tile_bytes": TILE_BYTES,

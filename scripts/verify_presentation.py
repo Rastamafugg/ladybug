@@ -9,10 +9,12 @@ import json
 from pathlib import Path
 
 from build_presentation import (
+    BLACK,
     MAP_FILES,
     MAP_NAMES,
     MAP_OUTPUT_OFFSET,
     PAGE_BYTES,
+    WHITE,
     ATTRACT_ACTOR_SURFACE_ADDRESS,
     ATTRACT_ACTOR_SURFACE_PAGE,
     ATTRACT_ACTOR_DESTINATION_ADDRESS,
@@ -21,12 +23,15 @@ from build_presentation import (
     compose_attract_frames,
     lzss_compress,
     coin_tile,
-    compile_map,
+    compile_profile_maps,
     compile_screen,
     encode_map,
     load_chars,
     parse_attract_actors,
     parse_instruction_contract,
+    pack_tile,
+    recolor,
+    rotate_ccw,
     title_framebuffer,
 )
 
@@ -41,6 +46,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gameplay-sprites", type=Path, required=True)
     parser.add_argument("--payload", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--development-profile", type=int, choices=(0, 1), default=0)
     return parser.parse_args()
 
 
@@ -64,14 +70,12 @@ def main() -> None:
     )
     tiles: list[bytes] = []
     tile_ids: dict[bytes, int] = {}
-    maps = []
-    for name in MAP_NAMES:
-        data, _info = compile_map(
-            args.tiled_dir / MAP_FILES[name], chars, tiles, tile_ids
-        )
+    maps, map_info = compile_profile_maps(
+        args.tiled_dir, chars, tiles, tile_ids, bool(args.development_profile)
+    )
+    for name, data in zip(MAP_NAMES, maps):
         if len(data) != 960:
             raise SystemExit(f"presentation proof: {name} is not 960 cells")
-        maps.append(data)
     instruction = parse_instruction_contract(
         args.tiled_dir / MAP_FILES["instructions"], chars, sprites, tiles, tile_ids
     )
@@ -79,6 +83,8 @@ def main() -> None:
     coin_bytes = coin_tile()
     if coin_bytes not in tiles:
         tiles.append(coin_bytes)
+    if len(tiles) > 256:
+        raise SystemExit("presentation proof: atlas exceeds one-byte tile IDs")
     gameplay_tile_ids = {tile: index for index, tile in enumerate(gameplay_tiles)}
     cold_ids = [index for index, tile in enumerate(tiles)
                 if tile not in gameplay_tile_ids]
@@ -96,6 +102,15 @@ def main() -> None:
             event_table[index * event_bytes + 11] = remap[event["hud_tile_id"]]
     instruction["event_table"] = bytes(event_table)
     ordered_tiles = [tiles[index] for index in order]
+    rotated_chars = [rotate_ccw(tile) for tile in chars]
+    omitted_glyphs = [
+        code for code in range(37)
+        if pack_tile(recolor(
+            rotated_chars[code], (BLACK, WHITE, WHITE, WHITE)
+        )) not in ordered_tiles
+    ] if args.development_profile else []
+    if manifest.get("development_omitted_glyph_codes") != omitted_glyphs:
+        raise SystemExit("presentation proof: omitted development glyphs differ")
     cold_only_tiles = ordered_tiles[:len(cold_ids)]
     gameplay_lookup = bytes(
         gameplay_tile_ids[tile] for tile in ordered_tiles[len(cold_ids):]
@@ -215,6 +230,14 @@ def main() -> None:
     for entry, data in zip(manifest["maps"], maps):
         if entry["sha256"] != digest(data):
             raise SystemExit(f"presentation proof: {entry['name']} hash differs")
+    if manifest.get("development_profile") != bool(args.development_profile):
+        raise SystemExit("presentation proof: development profile differs")
+    for entry, expected in zip(manifest["maps"], map_info):
+        for field in ("authored_map_sha256", "authored_frame_sha256", "emission"):
+            if entry.get(field) != expected[field]:
+                raise SystemExit(
+                    f"presentation proof: {entry['name']} {field} differs"
+                )
     if manifest.get("static_frame_sha256") != [
             digest(title_framebuffer(data, ordered_tiles))
             for data in maps

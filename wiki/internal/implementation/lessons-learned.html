@@ -14,6 +14,13 @@
     <a href="./index.html">Implementation</a>
   </nav>
   <main class="wiki-main">
+    <section>
+      <h2>Tiled visibility is not a runtime layer-ownership contract</h2>
+      <p><strong>Filed 2026-08-13.</strong> BUG-016 failed when the presentation compiler flattened every visible layer except one animation name. Current Tiled maps intentionally expose raw-sprite marker layers and logo-frame authoring layers, so visibility admitted unsupported sprite GIDs and would also have silently overwritten the static screen. The compiler now selects exact static layers by screen role, validates metadata and deferred layers separately, and records each ownership decision plus current marker coordinates in the generated manifest.</p>
+      <p><strong>Rule:</strong> treat semantic layer names and role-specific validation as the build interface. Reject duplicate, missing, unknown, misplaced, or wrong-tileset records; do not infer runtime ownership from authoring visibility.</p>
+      <p><strong>Capacity extension:</strong> compiling every authored map can exceed a shared one-byte atlas even when a development profile makes one flow unreachable. Compile and hash omitted authored material separately, emit an explicit minimal placeholder only when an already approved profile owns that exclusion, and record omitted glyphs and release restoration. Do not widen the runtime protocol implicitly.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-016-tiled-presentation-build-regression.html">BUG-016</a>, <code>scripts/build_presentation.py</code>, and <code>scripts/verify_bug016_presentation_layers.py</code>.</p>
+    </section>
     <header class="wiki-header">
       <p class="wiki-eyebrow">Implementation · findings</p>
       <h1>Lessons Learned <span class="wiki-badge">internal</span></h1>
