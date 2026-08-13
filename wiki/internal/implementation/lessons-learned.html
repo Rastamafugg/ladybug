@@ -1818,7 +1818,7 @@ git reset --hard HEAD
 
     <section>
       <h2>Banked pointers expire when their MMU window is remapped</h2>
-      <p><strong>Filed 2026-08-13.</strong> BUG-011 exposed three related failures: a twelve-byte cold event record crossed an 8 KiB page boundary, a saved virtual pointer was reused after a tile draw remapped PAR5, and a save-under write ran while PAR5 still selected immutable cold data.</p>
+      <p><strong>Filed 2026-08-13; extended by <code>6d8d159</code>.</strong> BUG-011 exposed four related failures: a twelve-byte cold event record crossed an 8 KiB page boundary, a generated colour-selector stream crossed the same boundary after atlas repacking, a saved virtual pointer was reused after a tile draw remapped PAR5, and a save-under write ran while PAR5 still selected immutable cold data. The colour decoder continued from <code>$BFFF</code> into unrelated virtual code and produced a stray recolour outside its target.</p>
       <p><strong>Rule:</strong> keep fixed records wholly inside one mapped page, preserve required values rather than window-relative pointers across callees that can remap the window, and restore the destination mapping before every write through a banked address. Verify immutable bank identity after the complete natural sequence, not only at load time.</p>
       <p><strong>Applies to:</strong> cold presentation tables, sparse decoders, save-under buffers, tile atlases, and all PAR5-backed structures.</p>
       <p><strong>Citation:</strong> <code>scripts/build_presentation.py</code>, <code>src/instruction_runtime.s</code>, and <code>scripts/verify_bug011_runtime.py</code>; BUG-011 repeat-entry evidence.</p>
