@@ -14,6 +14,14 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h3>2026-08-13 &middot; lint &mdash; BUG-011 palette and repeat-entry closure</h3>
+      <p>Updated the canonical ticket, ticket index, MMU-pointer lesson, and closure log for commit <code>d8ee26f</code>. Current BUG-011 links resolve; the previously recorded unrelated FEAT-001 missing targets remain outside scope.</p>
+    </section>
+    <section>
+      <h3>2026-08-13 &middot; closure &mdash; BUG-011 palette, HUD, and repeat-entry repair</h3>
+      <p>Corrected unhighlighted initial progress cells, paired heart-HUD publication, gameplay-compatible life colours, white/grey coin, white skull, and outer-heart cycling. Natural diagnosis proved the repeat-entry corruption was a 128-byte save-under write into the cold presentation bank; the repair restores mapping ownership, prevents event records from crossing 8 KiB pages, and avoids retaining banked pointers across tile draws. ROM SHA-256 <code>1b05652bb2a00fcd23d0c7206647455cf8626648c01de2d25d03f77f5dfc218c</code> passes exact second-entry initialization, both owner orders, all natural and forced BUG-011 evidence, presentation flow, and GMC integration. Capacity is module 1,050/1,280, helper 931/938, cold 10,444/10,874, combined 11,494/14,219, and GMC spare 588; the 20,785-cycle maximum leaves 8,881 hardware cycles and 6,215 engineering-target cycles.</p>
+    </section>
+    <section>
       <h3>2026-08-13 &middot; lint &mdash; BUG-011 full-surface closure</h3>
       <p>Validated local links after the ticket, index, lesson, and log updates. The BUG-011 links resolve. The broader wiki retains two pre-existing missing FEAT-001 targets in the ticket index and historical log; they remain outside BUG-011 scope.</p>
     </section>
