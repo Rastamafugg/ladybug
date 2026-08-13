@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-016 Tiled presentation build regression — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&#8592; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · bug</p>
+      <h1>BUG-016 Tiled presentation build regression <span class="wiki-badge">Proposed</span></h1>
+      <p class="wiki-meta">Make the presentation compiler accept the current Tiled layer contract.</p>
+    </header>
+
+    <section>
+      <h2>Disposition</h2>
+      <ul>
+        <li><strong>Status:</strong> Proposed</li>
+        <li><strong>Created / updated:</strong> 2026-08-13 / 2026-08-13</li>
+        <li><strong>Priority / order:</strong> P1 / 12.9</li>
+        <li><strong>Roadmap or source:</strong> <a href="../implementation/roadmap.html">presentation assets</a>; revision <code>76d930b</code></li>
+        <li><strong>Owner:</strong> unassigned</li>
+        <li><strong>Dependencies:</strong> none identified</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Restore a successful presentation build after the Tiled screen update while preserving the authored separation between static map art, sprite-location markers, and animation-frame layers. The failure blocks all cartridge builds at the active presentation asset stage.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>At revision <code>76d930bd55fc31a84c7959c4eb8f5b5dc852160d</code>, with only generated listing/symbol files and <code>ladybug.tiled-session</code> dirty, <code>bash scripts/build.sh build</code> reaches maze and gameplay-screen generation, then fails at <code>scripts/build_presentation.py:427</code> with <code>ValueError: /mnt/d/retro/ladybug/tiled/coco-level-start-screen.tmx: unsupported tileset 'sprites_raw2bpp'</code>. <code>flatten_map()</code> selects visible layers except <code>Sprite Animations</code>; the current level-start <code>Sprite Locations</code> layer is therefore flattened into the static map and contains raw sprite GID <code>633</code> at <code>(16,7)</code> and <code>(32,13)</code>. The updated instruction <code>Sprite Locations</code> layer also contains raw sprite markers <code>593</code> and <code>633</code>, but <code>parse_instruction_contract()</code> currently requires its exact record set to be character metadata. These are source-data and compiler-contract observations, not emulator observations.</p>
+
+      <h3>Reproduction</h3>
+      <ol>
+        <li>Use revision <code>76d930b</code> with the current Tiled files.</li>
+        <li>Run <code>bash scripts/build.sh build</code>.</li>
+        <li>Observe the unsupported <code>sprites_raw2bpp</code> error from <code>compile_map()</code>.</li>
+      </ol>
+
+      <h3>Observed versus expected</h3>
+      <p><strong>Observed:</strong> the build stops before presentation payload emission. The static-map compiler consumes a metadata layer containing raw sprite markers.</p>
+      <p><strong>Expected:</strong> static presentation maps compile from their static character layers; sprite-location markers and unsupported animation layers are either consumed by an explicit compiler contract or excluded from static-map flattening without contaminating the atlas.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> <code>scripts/build_presentation.py</code>, role-specific Tiled layer selection and validation, the current six presentation TMX maps, focused compiler tests or verifiers, generated presentation outputs, and this ticket's evidence. <strong>Out:</strong> new runtime rendering for vegetable markers, pickup markers, or logo-frame animation; gameplay behavior; new asset formats; memory-map changes; and high-score/name-entry behavior.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li>All six current presentation maps compile in their existing order.</li>
+        <li>Level-start and instruction sprite-location markers do not enter the static character atlas.</li>
+        <li>Existing instruction character metadata remains exact and valid.</li>
+        <li>Unknown raw-sprite markers, misplaced character metadata, duplicate required layers, and unexpected visible layers fail with explicit diagnostics.</li>
+        <li>Attract and high-score logo-frame layers retain a declared non-runtime ownership decision and do not silently overwrite the static map.</li>
+        <li>Generated payload, manifest, include, capacity, and assembly outputs remain internally consistent.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <p><strong>Recommended:</strong> make presentation layer selection role-specific, explicitly classify marker/animation layers, and validate raw sprite markers separately from static character cells. This preserves the authored Tiled data and fixes the current build contract without inventing runtime behavior.</p>
+      <p><strong>Rejected for this ticket:</strong> deleting the new sprite markers or logo-frame layers, because that discards the authored screen enhancements; implementing runtime logo and marker animation, because it expands the approved outcome into new presentation behavior and requires a separate ticket.</p>
+
+      <h3>Discriminating test</h3>
+      <p>Run the focused compiler against the current six maps and assert that the selected static layers contain no GID in the <code>sprites_raw2bpp</code> range. Separately parse the declared marker layers and assert the known marker coordinates/GIDs and the existing instruction character metadata. Then run the complete build. A passing build without these layer assertions is insufficient because it could silently discard or flatten the new authored data.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li><code>bash scripts/build.sh build</code> passes at the repaired revision.</li>
+        <li>All six current TMX maps compile and the generated manifest records the expected map count and payload bounds.</li>
+        <li>Static maps contain only supported character tiles; marker and animation layers are not silently merged into static output.</li>
+        <li>Instruction metadata and current raw sprite marker coordinates are validated by a focused current-revision test.</li>
+        <li>Existing presentation, sparse, GMC, capacity, Python syntax, and assembly checks pass.</li>
+        <li>The completion report records generated hashes, tests, capacity result, rejected experiments, and any residual runtime ownership gap.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <p>Pending explicit approval. After approval, prepare a Ready contract naming the exact owned source, test, generated, ticket, index, log, and wiki artifacts; preserve the out-of-scope runtime boundary; require one bounded commit; and retain the compiler diagnostics, generated manifest, build output, and focused-layer evidence.</p>
+    </section>
+
+    <section>
+      <h2>Verification and completion</h2>
+      <p>No implementation or acceptance evidence exists. The current baseline is a failed build at revision <code>76d930b</code>. The ticket cannot advance beyond Proposed until the user approves the outcome, scope, targets, and acceptance criteria.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-13 — Proposed from the reproduced build failure after the Tiled screen update. The first confirmed cause is visible metadata-layer flattening of raw sprite GIDs; a second confirmed contract boundary is the updated instruction marker set. No production change made pending approval.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Canonical bug record for the current Tiled presentation build regression.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
