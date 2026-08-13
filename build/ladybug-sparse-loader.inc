@@ -8,7 +8,7 @@ SPARSE_PLAYER_INDEX_ADDR equ $A000
 SPARSE_ENEMY_INDEX_BYTES equ 390
 SPARSE_PLAYER_INDEX_BYTES equ 48
 SPARSE_COPY_SEGMENT_BYTES equ 8
-SPARSE_COPY_SEGMENT_COUNT equ 16
+SPARSE_COPY_SEGMENT_COUNT equ 15
 
 ; bank, destination page, source CPU address, destination window, count
 sparse_copy_table
@@ -50,13 +50,10 @@ sparse_copy_table
         fdb     $C5B5,$A000,$024B
         ; presentation_cold+$024B
         fcb     $00,$3A
-        fdb     $C94D,$A24B,$1DB5
-        ; presentation_cold+$2000
-        fcb     $00,$3B
-        fdb     $E702,$A000,$05DC
+        fdb     $C94D,$A24B,$1BB0
         ; attract_actor_bundle+$0000
         fcb     $00,$23
-        fdb     $ECDE,$A000,$07CC
+        fdb     $E4FD,$A000,$04A9
         ; presentation_module+$0000
         fcb     $00,$FF
-        fdb     $F4AA,$1900,$042F
+        fdb     $E9A6,$1900,$04D4

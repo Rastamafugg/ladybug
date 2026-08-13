@@ -45,7 +45,7 @@ C022 B7FFD9           (c/gmc_bootstrap.s):00044                 sta     SAM_FAST
 C025 B7FFDE           (c/gmc_bootstrap.s):00045                 sta     SAM_CART        ; BASIC autorun may leave TY=1; expose GMC ROM
 C028 308D0016         (c/gmc_bootstrap.s):00046                 leax    loader_start,pcr
 C02C 108E0300         (c/gmc_bootstrap.s):00047                 ldy     #LOADER_RAM
-C030 CE038D           (c/gmc_bootstrap.s):00048                 ldu     #loader_end-loader_start
+C030 CE0385           (c/gmc_bootstrap.s):00048                 ldu     #loader_end-loader_start
 C033                  (c/gmc_bootstrap.s):00049         boot_copy
 C033 A680             (c/gmc_bootstrap.s):00050                 lda     ,x+
 C035 A7A0             (c/gmc_bootstrap.s):00051                 sta     ,y+
@@ -102,7 +102,7 @@ C099 25DB             (c/gmc_bootstrap.s):00100                 blo     copy_ene
                       (c/gmc_bootstrap.s):00102                 ; Copy the indexed sparse enemy/player streams into physical pages
                       (c/gmc_bootstrap.s):00103                 ; $35-$37 and $39 using the generated fragmented-bank plan.
 C09B 308D02B0         (c/gmc_bootstrap.s):00104                 leax    sparse_copy_table,pcr
-C09F 8610             (c/gmc_bootstrap.s):00105                 lda     #SPARSE_COPY_SEGMENT_COUNT
+C09F 860F             (c/gmc_bootstrap.s):00105                 lda     #SPARSE_COPY_SEGMENT_COUNT
 C0A1 97F2             (c/gmc_bootstrap.s):00106                 sta     BOOT_SEGMENTS
 C0A3                  (c/gmc_bootstrap.s):00107         copy_sparse_segment
 C0A3 A680             (c/gmc_bootstrap.s):00108                 lda     ,x+
@@ -511,7 +511,7 @@ C34E 39               (c/gmc_bootstrap.s):00501                 rts
      0186             (sparse-loader.inc):00008         SPARSE_ENEMY_INDEX_BYTES equ 390
      0030             (sparse-loader.inc):00009         SPARSE_PLAYER_INDEX_BYTES equ 48
      0008             (sparse-loader.inc):00010         SPARSE_COPY_SEGMENT_BYTES equ 8
-     0010             (sparse-loader.inc):00011         SPARSE_COPY_SEGMENT_COUNT equ 16
+     000F             (sparse-loader.inc):00011         SPARSE_COPY_SEGMENT_COUNT equ 15
                       (sparse-loader.inc):00012         
                       (sparse-loader.inc):00013         ; bank, destination page, source CPU address, destination window, count
 C34F                  (sparse-loader.inc):00014         sparse_copy_table
@@ -553,21 +553,18 @@ C3A7 033A             (sparse-loader.inc):00049                 fcb     $03,$3A
 C3A9 C5B5A000024B     (sparse-loader.inc):00050                 fdb     $C5B5,$A000,$024B
                       (sparse-loader.inc):00051                 ; presentation_cold+$024B
 C3AF 003A             (sparse-loader.inc):00052                 fcb     $00,$3A
-C3B1 C94DA24B1DB5     (sparse-loader.inc):00053                 fdb     $C94D,$A24B,$1DB5
-                      (sparse-loader.inc):00054                 ; presentation_cold+$2000
-C3B7 003B             (sparse-loader.inc):00055                 fcb     $00,$3B
-C3B9 E702A00005DC     (sparse-loader.inc):00056                 fdb     $E702,$A000,$05DC
-                      (sparse-loader.inc):00057                 ; attract_actor_bundle+$0000
-C3BF 0023             (sparse-loader.inc):00058                 fcb     $00,$23
-C3C1 ECDEA00007CC     (sparse-loader.inc):00059                 fdb     $ECDE,$A000,$07CC
-                      (sparse-loader.inc):00060                 ; presentation_module+$0000
-C3C7 00FF             (sparse-loader.inc):00061                 fcb     $00,$FF
-C3C9 F4AA1900042F     (sparse-loader.inc):00062                 fdb     $F4AA,$1900,$042F
+C3B1 C94DA24B1BB0     (sparse-loader.inc):00053                 fdb     $C94D,$A24B,$1BB0
+                      (sparse-loader.inc):00054                 ; attract_actor_bundle+$0000
+C3B7 0023             (sparse-loader.inc):00055                 fcb     $00,$23
+C3B9 E4FDA00004A9     (sparse-loader.inc):00056                 fdb     $E4FD,$A000,$04A9
+                      (sparse-loader.inc):00057                 ; presentation_module+$0000
+C3BF 00FF             (sparse-loader.inc):00058                 fcb     $00,$FF
+C3C1 E9A6190004D4     (sparse-loader.inc):00059                 fdb     $E9A6,$1900,$04D4
                       (c/gmc_bootstrap.s):00504                 include "ladybug-perimeter-boot.inc"
                       (erimeter-boot.inc):00001         ; Generated from the current authored screen asset map.
      E010             (erimeter-boot.inc):00002         PERIMETER_SCREEN_MAP equ $E010
      E3D0             (erimeter-boot.inc):00003         PERIMETER_SCREEN_TILES equ $E3D0
-C3CF                  (c/gmc_bootstrap.s):00505         loader_end
+C3C7                  (c/gmc_bootstrap.s):00505         loader_end
                       (c/gmc_bootstrap.s):00506         
                       (c/gmc_bootstrap.s):00507                 end
 
@@ -611,7 +608,7 @@ Symbol Table:
 [ G] GIME_INIT0                       FF90
 [ G] GIME_MMU                         FF91
 [ G] GMC_BANK                         FF50
-[ G] loader_end                       C3CF
+[ G] loader_end                       C3C7
 [ G] loader_fail                      C257
 [ G] LOADER_RAM                       0300
 [ G] loader_start                     C042
@@ -624,7 +621,7 @@ Symbol Table:
 [ G] SAM_CART                         FFDE
 [ G] SAM_FAST                         FFD9
 [ G] SPARSE_COPY_SEGMENT_BYTES        0008
-[ G] SPARSE_COPY_SEGMENT_COUNT        0010
+[ G] SPARSE_COPY_SEGMENT_COUNT        000F
 [ G] sparse_copy_table                C34F
 [ G] SPARSE_ENEMY_INDEX_ADDR          A000
 [ G] SPARSE_ENEMY_INDEX_BYTES         0186
