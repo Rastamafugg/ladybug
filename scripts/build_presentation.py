@@ -60,6 +60,7 @@ MAP_NAMES = (
 MAP_FILES = {
     name: f"coco-{name}-screen.tmx" for name in MAP_NAMES
 }
+DEVELOPMENT_PLACEHOLDER_MAPS = ("game-over", "enter-high-score")
 PAGE_BYTES = 0x2000
 COLD_PAGE = 0x3A
 COLD_PAGE_COUNT = 4
@@ -181,7 +182,7 @@ INSTRUCTION_RAW_SPRITE_MARKERS = {
     (19, 11): 593, (21, 11): 593, (23, 11): 593, (25, 11): 593,
     INSTRUCTION_CUCUMBER_MARKER: 633,
     (13, 14): 593, (17, 14): 593, (21, 14): 593,
-    INSTRUCTION_ANGEL_ROOT: 523,
+    INSTRUCTION_ANGEL_ROOT: 636,
 }
 LEVEL_START_METADATA = {
     **{(x, 2): 497 for x in range(33, 39)},
@@ -539,17 +540,15 @@ def flatten_map(path: Path) -> tuple[ET.Element, list[int]]:
 def presentation_pen_map(role: str, x: int, y: int) -> tuple[int, int, int, int]:
     """Apply the established CoCo palette adaptation to authored raw chars."""
     if x < 8 and y < 9:
-        colour = (RED, YELLOW, BLUE)[y // 3]
-        if y % 3 == 1 and x != 0:
-            colour = GREY
+        colour = PURPLE if y % 3 == 1 and x != 0 else WHITE
         return (BLACK, colour, colour, colour)
     if x >= 32:
         colour = {
-            1: LIGHT_GREEN, 2: LIGHT_GREEN,
+            1: LIGHT_GREEN, 2: WHITE,
             4: RED, 5: RED,
             7: WHITE, 8: WHITE, 9: WHITE,
             10: BLUE, 11: BLUE,
-            12: GREEN,
+            12: GREEN, 13: WHITE,
         }.get(y, BLACK)
         return (BLACK, colour, colour, colour)
     if role == "level-start" and 8 <= x < 32:
@@ -800,10 +799,22 @@ def parse_instruction_contract(
         motion = int(source["motion_first_frame"]) - first + row_time_offsets[row]
         consume_key = "collision_frame" if index == 15 else "consume_frame"
         consume = int(source[consume_key]) - first + row_time_offsets[row]
-        if index == 5:
-            motion = event_manifest[4]["consume_tick"] + 90
-        elif index == 12:
-            motion = event_manifest[11]["consume_tick"] + 90
+        # The first movement on each row begins only after its collectible
+        # trigger colour is visible. Rows two and three must also remain at
+        # their authored start for at least one complete red/yellow/blue cycle.
+        trigger_colour = 2 if index < 5 else 1 if index < 12 else 3
+        if index in (0, 5, 12):
+            earliest = motion
+            if index == 5:
+                earliest = event_manifest[4]["consume_tick"] + 90
+            elif index == 12:
+                earliest = event_manifest[11]["consume_tick"] + 90
+            while not (
+                motion >= earliest
+                and ((motion - 1) % 90) // 30 + 1 == trigger_colour
+                and (motion - 1) % 30 == 0
+            ):
+                motion += 1
         # Sprite Locations records each actor baseline. Convert the authored
         # stop to the 16x16 framebuffer root used by save/draw.
         goal = framebuffer_destination(stop) - 1280
@@ -812,7 +823,6 @@ def parse_instruction_contract(
         hud_tile_id = 0
         hud_tile_2_id = 0
         if hud_destination:
-            trigger_colour = 2 if index < 5 else 1 if index < 12 else 3
             hud_index = hud[1] * SCREEN_WIDTH + hud[0]
             hud_tile_id = register_tile(instruction_char_tile(
                 root, path, hud_cells[hud_index], hud, chars,
@@ -959,12 +969,12 @@ def compile_profile_maps(
     tiled_dir: Path, chars: list[list[list[int]]], tiles: list[bytes],
     tile_ids: dict[bytes, int], development_profile: bool,
 ) -> tuple[list[bytes], list[dict[str, object]]]:
-    """Compile every authored map while omitting unreachable name entry from dev data."""
+    """Validate every map while omitting unreachable development-profile maps."""
     maps: list[bytes | None] = []
     map_info: list[dict[str, object]] = []
     for name in MAP_NAMES:
         path = tiled_dir / MAP_FILES[name]
-        if development_profile and name == "enter-high-score":
+        if development_profile and name in DEVELOPMENT_PLACEHOLDER_MAPS:
             isolated_tiles: list[bytes] = []
             isolated_ids: dict[bytes, int] = {}
             authored, info = compile_map(
@@ -990,7 +1000,8 @@ def compile_profile_maps(
         black_tile_id = tile_ids.get(bytes(TILE_BYTES))
         if black_tile_id is None:
             black_tile_id = register_tile(bytes(TILE_BYTES), tiles, tile_ids)
-        maps[MAP_NAMES.index("enter-high-score")] = bytes((black_tile_id,)) * MAP_BYTES
+        for name in DEVELOPMENT_PLACEHOLDER_MAPS:
+            maps[MAP_NAMES.index(name)] = bytes((black_tile_id,)) * MAP_BYTES
     if any(data is None for data in maps):
         raise AssertionError("presentation profile left an unresolved map slot")
     return [data for data in maps if data is not None], map_info

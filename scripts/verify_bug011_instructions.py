@@ -66,14 +66,21 @@ def main() -> None:
             raise SystemExit(f"BUG-011 proof: nonpositive motion interval for {event['name']}")
         if event["goal_destination"] != expected_goal:
             raise SystemExit(f"BUG-011 proof: authored actor stop differs for {event['name']}")
-    if (events[5]["motion_tick"] - events[4]["consume_tick"] != 90 or
-            events[12]["motion_tick"] - events[11]["consume_tick"] != 90):
-        raise SystemExit("BUG-011 proof: row 2/3 full-cycle waits differ")
+    if [events[index]["motion_tick"] for index in (0, 5, 12)] != [121, 631, 1321]:
+        raise SystemExit("BUG-011 proof: row trigger-colour motion edges differ")
+    for index, trigger in ((0, 2), (5, 1), (12, 3)):
+        tick = events[index]["motion_tick"]
+        colour = ((tick - 1) % 90) // 30 + 1
+        if colour != trigger or (tick - 1) % 30:
+            raise SystemExit("BUG-011 proof: first row movement is off its colour edge")
+    if (events[5]["motion_tick"] - events[4]["consume_tick"] < 90 or
+            events[12]["motion_tick"] - events[11]["consume_tick"] < 90):
+        raise SystemExit("BUG-011 proof: row 2/3 full-cycle waits are too short")
     if choreography["anchors"] != [0x4328, 0x5228, 0x6128]:
         raise SystemExit("BUG-011 proof: actor baseline conversion differs")
     if choreography["angel_destination"] != 0x6170:
         raise SystemExit("BUG-011 proof: authored angel destination differs")
-    if choreography["angel_source_code"] != 87:
+    if choreography["angel_source_code"] != 88:
         raise SystemExit("BUG-011 proof: authored wings marker resolves incorrectly")
     if (choreography["cucumber_destination"] != 0x5C80 or
             choreography["cucumber_source_code"] != 64):

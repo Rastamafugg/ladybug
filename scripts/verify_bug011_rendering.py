@@ -144,6 +144,40 @@ def main() -> None:
             raise SystemExit(
                 f"BUG-011 rendering: raised CREDIT 0 is not white: {sorted(credit_colours)}"
             )
+        for label, cells in (
+            ("TOP score value", [(x, 2) for x in range(33, 39)]),
+            ("vegetable points value", [(x, 13) for x in range(34, 39)]),
+        ):
+            colours = set()
+            for x, y in cells:
+                tile = runtime.frame_tile(
+                    static_frames[0], 0x2000 + y * 1280 + x * 4
+                )
+                colours.update(
+                    nibble for value in tile
+                    for nibble in (value >> 4, value & 15) if nibble
+                )
+            if colours != {6}:
+                raise SystemExit(
+                    f"BUG-011 rendering: {label} is not visible white: {sorted(colours)}"
+                )
+        for y in range(9):
+            for x in range(8):
+                tile = runtime.frame_tile(
+                    static_frames[0], 0x2000 + y * 1280 + x * 4
+                )
+                colours = {
+                    nibble for value in tile
+                    for nibble in (value >> 4, value & 15) if nibble
+                }
+                if not colours:
+                    continue
+                expected = {9} if y % 3 == 1 and x != 0 else {6}
+                if colours != expected:
+                    raise SystemExit(
+                        "BUG-011 rendering: timer-box palette differs; "
+                        f"cell=({x},{y}) colours={sorted(colours)}"
+                    )
         cucumber_colours = {
             nibble for value in frame_rect(
                 static_frames[0], choreography["cucumber_destination"]
@@ -180,7 +214,7 @@ def main() -> None:
                         static_frames[0], destination
                     ) for nibble in (value >> 4, value & 15) if nibble
                 }
-                if colours != {7}:
+                if colours != {9}:
                     raise SystemExit(
                         "BUG-011 rendering: initial HUD target is highlighted; "
                         f"target={index} destination=${destination:04X} "
@@ -217,8 +251,8 @@ def main() -> None:
             )
 
         # Enter the first motion boundary quickly. The resident timer increments
-        # before each helper call: 105 -> init at 106, then movement at 107/108.
-        write_word(client, runtime.PRES_TIMER, 105)
+        # before each helper call: 119 -> init at 120, then movement at 121/122.
+        write_word(client, runtime.PRES_TIMER, 119)
         helper_symbols = runtime.symbols(HELPER_MAP)
         saved_pc = helper_symbols["player_underlay_saved"]
         saved_ids = monitor.setup(client, [saved_pc])
