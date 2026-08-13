@@ -70,6 +70,13 @@
     </section>
 
     <section>
+      <h2>Program-ROM demo route &mdash; 2026-08-13</h2>
+      <p>The arcade demo uses a fixed direction stream rather than algorithmic intersection selection. Attract initialization sets bit 4 at work RAM <code>$605F</code> and stores ROM address <code>$0EF8</code> in route pointer <code>$61D8</code>. Player-control routine <code>$35FF-$3642</code> tests that flag; live play reads the joystick through <code>$9000/$9001</code>, while demo play reads the byte addressed by <code>$61D8</code>.</p>
+      <p>The pointer advances only when the player reaches the routine's aligned decision boundary. If the following byte is <code>$FF</code>, the pointer backs up and holds the final direction. ROM <code>$0EF8-$0FB3</code> contains 187 direction bytes followed by <code>$FF</code>. Legal direction values use Left/Down/Right/Up <code>$01/$02/$04/$08</code>; the first byte is neutral <code>$00</code>. This is directly programmed behavior, not an inference from repeated video.</p>
+      <p>The official MAME driver maps player controls at <code>$9000/$9001</code> but does not implement demo policy; that policy resides in the original game ROM. The retained <code>attract-idle.json</code> plan injects no controls and is consistent with ROM-owned substitution.</p>
+    </section>
+
+    <section>
       <h2>Sources attempted but unavailable</h2>
       <ul>
         <li><strong>Arcade-Museum manual PDF</strong> (<code>arcade-museum.com/manuals-videogames/L/Lady_Bug__1981__Universal.pdf</code>) — fetcher returned binary PDF data, not extractable via WebFetch. Should be downloaded and ingested manually if available.</li>

@@ -134,7 +134,7 @@ Generated build/*.inc / *.bin / layout.json   |
           <tr>
             <td><code>src/presentation_runtime.s</code></td>
             <td>Copied low-RAM presentation owner: flow state machine, keyboard edge scan, cold-map chunk renderer, credit/start handling, title actor overlays, generated EXTRA/SPECIAL/hearts/skull choreography, live/demo/game-over transitions, and bounded name-screen handoff. Session ranking remains a FEAT-003 follow-up.</td>
-            <td>Must fit <code>$1900-$1DFF</code>; stack floor is <code>$1E00</code>. It may borrow PAR5 for cold data or sparse actor streams but must restore page <code>$34</code> before returning. BUG-011 keeps row/target/reward/death/hold records in generated cold data, reuses the resident 128-byte player save-under and existing death renderer, and may not duplicate TMX coordinates or add a renderer. Title destinations remain capture-backed in <code>assets/arcade/attract_actor_reference.json</code>.</td>
+            <td>Must fit <code>$1900-$1DFF</code>; stack floor is <code>$1E00</code>. It may borrow PAR5 for cold data or sparse actor streams but must restore page <code>$34</code> before returning. BUG-011 keeps row/target/reward/death/hold records in generated cold data, reuses the resident 128-byte player save-under and existing death renderer, and may not duplicate TMX coordinates or add a renderer. BUG-012 gives the release profile a compact <code>$0300</code> demo director and retains the instruction helper only in development. Title destinations remain capture-backed in <code>assets/arcade/attract_actor_reference.json</code>.</td>
           </tr>
           <tr>
             <td><code>src/gmc_bootstrap.s</code></td>
