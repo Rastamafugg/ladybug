@@ -16,7 +16,7 @@
   <main class="wiki-main">
     <section>
       <h2>Raw sprite sheet tile IDs are not runtime sprite codes</h2>
-      <p><strong>Filed 2026-08-13.</strong> BUG-011's terminal marker used raw sheet tile 10 at row 0, column 10. Directly indexing the extracted sprite list selected runtime code 10 and displayed an enemy; resolving the same cell through the sheet layout produced the intended angel-wings code 87.</p>
+      <p><strong>Filed 2026-08-13; extended after <code>a1bce3d</code>.</strong> BUG-011's prior terminal marker used raw sheet tile 10 at row 0, column 10. Directly indexing the extracted sprite list selected runtime code 10 and displayed an enemy; resolving the same cell through the sheet layout produced wings code 87. The user then selected raw GID 636 at row 7, column 11, which resolves to the final wings code 88. Both revisions require sheet translation rather than direct indexing.</p>
       <p><strong>Rule:</strong> metadata compilation must remove Tiled tileset flags, resolve <code>firstgid</code>, validate the source tileset, and translate sheet row/column through the established sprite-code mapping. Never treat a raw Tiled tile offset as a runtime sprite code.</p>
       <p><strong>Capacity extension:</strong> when the shared character atlas is full, a metadata-authored static sprite may remain an explicit sparse overlay drawn during screen hydration. Its destination, palette, surface hash, and both framebuffer owners still require verification.</p>
       <p><strong>Citation:</strong> <a href="../tickets/bug-011-instruction-choreography.html">BUG-011</a>, <code>scripts/build_presentation.py</code>, and <code>scripts/verify_bug011_rendering.py</code>.</p>
