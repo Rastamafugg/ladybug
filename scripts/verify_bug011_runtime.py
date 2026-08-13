@@ -278,19 +278,22 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
 
         front_owner = read_byte(client, FB_FRONT)
         frame = read_owner(client, front_owner)
-        targets = [
-            frame_tile(frame, event["target_destination"])
-            for event in choreography["events"]
-        ]
+        targets = [[
+            frame_tile(frame, event["target_destination"] + offset)
+            for offset in (0, 4, 1280, 1284)
+        ] for event in choreography["events"]]
         hud = [
             frame_tile(frame, event["hud_destination"])
             for event in choreography["events"] if event["hud_destination"]
         ]
-        if any(any(tile) for tile in targets):
+        target_residue = targets[:15] + [targets[15][:2]]
+        if any(any(any(tile) for tile in surface) for surface in target_residue):
             visible = [
                 (index, choreography["events"][index]["target_destination"],
-                 sum(value != 0 for value in tile), tile.hex())
-                for index, tile in enumerate(targets) if any(tile)
+                 sum(value != 0 for tile in surface for value in tile),
+                 [tile.hex() for tile in surface])
+                for index, surface in enumerate(target_residue)
+                if any(any(tile) for tile in surface)
             ]
             raise SystemExit(
                 f"BUG-011 runtime: consumed targets remain visible: {visible}"
@@ -341,6 +344,12 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
         if value_actual != value_expected:
             raise SystemExit("BUG-011 runtime: final 800 value differs")
         angel_destination = read_word(client, 0x00B7)
+        if angel_destination != choreography["angel_destination"]:
+            raise SystemExit(
+                "BUG-011 runtime: held angel is not at authored destination; "
+                f"actual=${angel_destination:04X} "
+                f"expected=${choreography['angel_destination']:04X}"
+            )
         angel = frame_tile(frame, angel_destination, width=8, rows=16)
         if not any(angel):
             raise SystemExit("BUG-011 runtime: held angel surface is empty")

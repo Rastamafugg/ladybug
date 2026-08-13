@@ -105,6 +105,14 @@ def main() -> None:
     )
     event_offset = len(expected)
     expected.extend(instruction["event_table"])
+    colour_pointer_offset = len(expected)
+    colour_streams = instruction["target_colour_streams"]
+    expected.extend(bytes(len(colour_streams) * 2))
+    for index, stream in enumerate(colour_streams):
+        offset = len(expected)
+        start = colour_pointer_offset + index * 2
+        expected[start:start + 2] = offset.to_bytes(2, "big")
+        expected.extend(stream)
     pointer_offset = len(expected)
     streams = [*instruction["death_streams"], instruction["angel_stream"]]
     expected.extend(bytes(len(streams) * 2))

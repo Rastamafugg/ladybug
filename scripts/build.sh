@@ -378,6 +378,7 @@ wanted = {
     'draw_tile_id': 'PRES_MODULE_DRAW_TILE',
     'cold_ptr': 'PRES_MODULE_COLD_PTR',
     'colour_tile': 'PRES_MODULE_COLOUR_TILE',
+    'colour_surface': 'PRES_MODULE_COLOUR_SURFACE',
 }
 for line in open(source, encoding='utf-8'):
     match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
@@ -386,7 +387,7 @@ for line in open(source, encoding='utf-8'):
 required = {
     'PRES_MODULE_DRAW_ACTOR', 'PRES_MODULE_MAP_BACK',
     'PRES_MODULE_DRAW_TILE', 'PRES_MODULE_COLD_PTR',
-    'PRES_MODULE_COLOUR_TILE',
+    'PRES_MODULE_COLOUR_TILE', 'PRES_MODULE_COLOUR_SURFACE',
 }
 if set(symbols) != required:
     raise SystemExit('build: presentation module symbols missing: ' + ', '.join(sorted(required - set(symbols))))

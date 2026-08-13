@@ -584,15 +584,16 @@ def parse_instruction_contract(
         raise ValueError("instruction oracle/TMX target counts differ")
     event_table = bytearray()
     event_manifest = []
+    target_colour_streams = []
     for index, (source, (target, hud)) in enumerate(
             zip(source_targets, INSTRUCTION_TARGETS)):
         motion = int(source["motion_first_frame"]) - first
         consume_key = "collision_frame" if index == 15 else "consume_frame"
         consume = int(source[consume_key]) - first
-        # The actor roots are authored one tile row below the collectible
-        # glyphs. Keep movement horizontal in that actor row while ending one
-        # packed byte left of the target so the 16-pixel Lady Bug overlaps it.
-        goal = framebuffer_destination(target) + 1280 - 1
+        # Sprite Locations records the actor baseline cell. Convert it to the
+        # 16x16 framebuffer root used by save/draw, then end one packed byte
+        # left of the target so the Lady Bug overlaps it.
+        goal = framebuffer_destination(target) - 1
         target_destination = framebuffer_destination(target)
         hud_destination = 0 if hud == (0, 0) else framebuffer_destination(hud)
         hud_tile_id = 0
@@ -619,6 +620,40 @@ def parse_instruction_contract(
             "hud_destination": hud_destination,
             "hud_tile_id": hud_tile_id,
         })
+        if index < 15:
+            operations = []
+            cursor = 0
+            operation_count = 0
+            for dy in range(2):
+                row_tiles = [instruction_char_tile(
+                    root, path,
+                    overlay_cells[(target[1] + dy) * SCREEN_WIDTH + target[0] + dx],
+                    (target[0] + dx, target[1] + dy), chars,
+                ) for dx in range(2)]
+                for row in range(8):
+                    packed_row = (row_tiles[0][row * 4:row * 4 + 4]
+                                  + row_tiles[1][row * 4:row * 4 + 4])
+                    for column, value in enumerate(packed_row):
+                        high, low = value >> 4, value & 15
+                        selector = (
+                            (2 if high and not (index >= 12 and high == PINK) else 0)
+                            | (1 if low and not (index >= 12 and low == PINK) else 0)
+                        )
+                        if selector:
+                            destination = (dy * 8 + row) * 160 + column
+                            delta = destination - cursor
+                            if not 0 <= delta <= 0xFFFF:
+                                raise ValueError("instruction colour delta is invalid")
+                            if delta <= 0xFE:
+                                operations.extend((delta, selector))
+                            else:
+                                operations.extend((0xFF, delta >> 8,
+                                                   delta & 0xFF, selector))
+                            operation_count += 1
+                            cursor = destination
+            target_colour_streams.append(
+                bytes((operation_count,)) + bytes(operations)
+            )
 
     death_frames = compile_death_sprites(path.parents[1] / "assets" / "arcade" / "sprites.json")
     death_streams = [encode_sparse_native(
@@ -631,7 +666,8 @@ def parse_instruction_contract(
         expand_sprite(angel_frame, (0, WHITE, WHITE, WHITE)), 16, 8
     )
     return {
-        "anchors": [framebuffer_destination(cell) for cell in INSTRUCTION_ANCHORS],
+        "anchors": [framebuffer_destination(cell) - 1280
+                    for cell in INSTRUCTION_ANCHORS],
         "reward_destinations": {
             "life": framebuffer_destination(INSTRUCTION_LIFE_ROOT),
             "coin": framebuffer_destination(INSTRUCTION_COIN_ROOT),
@@ -644,9 +680,11 @@ def parse_instruction_contract(
         "value_tile_ids": value_tiles,
         "black_tile_id": black_tile,
         "event_table": bytes(event_table),
+        "target_colour_streams": target_colour_streams,
         "events": event_manifest,
         "death_streams": death_streams,
         "angel_stream": angel_stream,
+        "angel_destination": framebuffer_destination(INSTRUCTION_ANGEL_ROOT),
         "angel_source_code": 10,
         "death_collision_tick": int(reference["rows"][2]["skull"]["collision_frame"]) - first,
         "angel_tick": int(reference["death_sequence"]["angel_hold"]["first_frame"]) - first,
@@ -731,10 +769,12 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_INSTRUCTION_EVENT_OFFSET equ ${instruction['event_table_offset']:04X}",
         f"PRESENTATION_INSTRUCTION_EVENT_BYTES equ {instruction['event_record_bytes']}",
         f"PRESENTATION_INSTRUCTION_EVENT_COUNT equ {len(instruction['events'])}",
+        f"PRESENTATION_INSTRUCTION_COLOUR_POINTERS equ ${instruction['colour_pointer_offset']:04X}",
         f"PRESENTATION_INSTRUCTION_DEATH_POINTERS equ ${instruction['death_pointer_offset']:04X}",
         f"PRESENTATION_INSTRUCTION_DEATH_COUNT equ {len(instruction['death_stream_offsets'])}",
         f"PRESENTATION_INSTRUCTION_DEATH_TICK equ {instruction['death_collision_tick']}",
         f"PRESENTATION_INSTRUCTION_ANGEL_TICK equ {instruction['angel_tick']}",
+        f"PRESENTATION_INSTRUCTION_ANGEL_DST equ ${instruction['angel_destination']:04X}",
         f"PRESENTATION_INSTRUCTION_NEXT_TICK equ {instruction['next_screen_tick']}",
         f"PRESENTATION_INSTRUCTION_COLOUR_DWELL equ {instruction['colour_dwell_frames']}",
         f"PRESENTATION_INSTRUCTION_BLACK_TILE equ {instruction['black_tile_id']}",
@@ -893,6 +933,16 @@ def main() -> None:
     cold_payload = bytearray(tile_atlas + gameplay_lookup + bytes(encoded_stream))
     instruction_event_offset = len(cold_payload)
     cold_payload.extend(instruction["event_table"])
+    instruction_colour_pointer_offset = len(cold_payload)
+    colour_streams = instruction["target_colour_streams"]
+    cold_payload.extend(bytes(len(colour_streams) * 2))
+    colour_stream_offsets = []
+    for stream in colour_streams:
+        colour_stream_offsets.append(len(cold_payload))
+        cold_payload.extend(stream)
+    for index, offset in enumerate(colour_stream_offsets):
+        start = instruction_colour_pointer_offset + index * 2
+        cold_payload[start:start + 2] = offset.to_bytes(2, "big")
     instruction_death_pointer_offset = len(cold_payload)
     death_streams = [*instruction["death_streams"], instruction["angel_stream"]]
     cold_payload.extend(bytes(len(death_streams) * 2))
@@ -943,6 +993,9 @@ def main() -> None:
             "event_table_bytes": len(instruction["event_table"]),
             "event_table_sha256": hashlib.sha256(instruction["event_table"]).hexdigest(),
             "events": instruction["events"],
+            "colour_pointer_offset": instruction_colour_pointer_offset,
+            "colour_stream_offsets": colour_stream_offsets,
+            "colour_stream_bytes": [len(stream) for stream in colour_streams],
             "death_pointer_offset": instruction_death_pointer_offset,
             "death_stream_offsets": death_stream_offsets,
             "death_stream_bytes": [len(stream) for stream in death_streams],
@@ -950,6 +1003,7 @@ def main() -> None:
                                     for stream in death_streams],
             "death_collision_tick": instruction["death_collision_tick"],
             "angel_tick": instruction["angel_tick"],
+            "angel_destination": instruction["angel_destination"],
             "next_screen_tick": instruction["next_screen_tick"],
             "colour_dwell_frames": instruction["colour_dwell_frames"],
             "angel_source_code": instruction["angel_source_code"],

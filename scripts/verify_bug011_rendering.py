@@ -60,6 +60,19 @@ def blend_frame(target: bytearray, destination: int, sprite: bytes) -> None:
             target[index] = (target[index] & mask) | pixel
 
 
+def recoloured_surface(source: bytes, colour: int, heart: bool) -> bytes:
+    output = bytearray()
+    for value in source:
+        packed = 0
+        for shift in (4, 0):
+            pixel = (value >> shift) & 0x0F
+            if pixel:
+                pixel = 4 if heart and pixel == 4 else colour
+            packed |= pixel << shift
+        output.append(packed)
+    return bytes(output)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--xroar", type=Path, default=Path(
@@ -111,6 +124,26 @@ def main() -> None:
 
         first_owner = runtime.read_byte(client, runtime.FB_BACK)
         first_destination = runtime.read_word(client, PRES_OUT)
+        choreography = manifest["instruction_choreography"]
+        if first_destination != choreography["anchors"][0]:
+            raise SystemExit(
+                "BUG-011 rendering: actor is not on the authored first row; "
+                f"actual=${first_destination:04X} "
+                f"expected=${choreography['anchors'][0]:04X}"
+            )
+        initial_frame = runtime.read_owner(client, first_owner)
+        for index, event in enumerate(choreography["events"][:15]):
+            original = frame_rect(
+                static_frames[first_owner], event["target_destination"]
+            )
+            expected = recoloured_surface(original, 1, index >= 12)
+            actual = frame_rect(initial_frame, event["target_destination"])
+            if actual != expected:
+                raise SystemExit(
+                    "BUG-011 rendering: complete collectible colour surface differs; "
+                    f"target={index} actual={runtime.digest(actual)} "
+                    f"expected={runtime.digest(expected)}"
+                )
         save_under_address = 0xA300 if first_owner == 0 else 0xAB00
         saved_underlay = runtime.read_bytes(client, save_under_address, 128)
         expected_underlay = frame_rect(static_frames[first_owner], first_destination)
@@ -233,6 +266,7 @@ def main() -> None:
             "moved_frame": moved_frame_index,
             "movement_hits": movement_hits,
             "initial_save_under_sha256": runtime.digest(saved_underlay),
+            "complete_colour_surfaces": 15,
             "moved_frame_sha256": runtime.digest(moved_frame),
             "exact_restoration": True,
         }

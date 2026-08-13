@@ -109,6 +109,99 @@ def verify_reward(frame: bytes, manifest: dict[str, object], name: str) -> bool:
     return [runtime.frame_tile(frame, item) for item in destinations] == expected
 
 
+def target_surface(frame: bytes, destination: int) -> list[bytes]:
+    return [runtime.frame_tile(frame, destination + offset)
+            for offset in (0, 4, 1280, 1284)]
+
+
+def blend_sparse_underlay(underlay: bytes, stream: bytes) -> bytes:
+    output = bytearray(underlay)
+    source = 0
+    cursor = 0
+    while True:
+        delta = stream[source]
+        source += 1
+        if delta == 0xFF:
+            delta = (stream[source] << 8) | stream[source + 1]
+            source += 2
+            if delta == 0:
+                return bytes(output)
+            source += 1  # reserved byte consumed by the 6809 decoder
+        cursor += delta
+        control = stream[source]
+        source += 1
+        transparent = bool(control & 0x80)
+        length = control & 0x7F
+        for _ in range(length):
+            row, column = divmod(cursor, 160)
+            if row >= 16 or column >= 8:
+                raise SystemExit(
+                    "BUG-011 evidence: death stream leaves 16x16 footprint"
+                )
+            target = row * 8 + column
+            if transparent:
+                mask, value = stream[source:source + 2]
+                source += 2
+                output[target] = (output[target] & mask) | value
+            else:
+                output[target] = stream[source]
+                source += 1
+            cursor += 1
+
+
+def forced_death_capture(monitor, binary: Path, rom: Path, timeout: float,
+                         manifest: dict[str, object], index: int) -> dict[str, object]:
+    process, client, syms = boot_to_instructions(monitor, binary, rom, timeout)
+    try:
+        initialise_once(client, syms, timeout)
+        choreography = manifest["instruction_choreography"]
+        if index == len(choreography["death_stream_offsets"]) - 1:
+            timer = choreography["angel_tick"]
+        elif index == 0:
+            timer = choreography["death_collision_tick"]
+        else:
+            timer = choreography["death_collision_tick"] + 30 + (index - 1) * 5
+        force_worklist(
+            client, syms, timeout, 16, timer - 1, 3,
+            choreography["events"][-1]["goal_destination"],
+        )
+        owner = runtime.read_byte(client, runtime.FB_BACK)
+        destination = runtime.read_word(client, PRES_OUT)
+        expected_destination = (
+            choreography["angel_destination"] if index == 14
+            else choreography["events"][-1]["goal_destination"]
+        )
+        if destination != expected_destination:
+            raise SystemExit(
+                f"BUG-011 evidence: death {index} destination differs; "
+                f"actual=${destination:04X} expected=${expected_destination:04X}"
+            )
+        current_save_under = runtime.read_word(client, 0x00A2)
+        save_under_address = 0xAB00 if current_save_under == 0xA300 else 0xA300
+        underlay = runtime.read_bytes(client, save_under_address, 128)
+        cold = runtime.COLD.read_bytes()
+        offset = choreography["death_stream_offsets"][index]
+        length = choreography["death_stream_bytes"][index]
+        expected = blend_sparse_underlay(underlay, cold[offset:offset + length])
+        frame = runtime.read_owner(client, owner)
+        actual = runtime.frame_tile(frame, destination, width=8, rows=16)
+        if actual != expected:
+            raise SystemExit(
+                f"BUG-011 evidence: death {index} footprint differs; "
+                f"actual={runtime.digest(actual)} expected={runtime.digest(expected)}"
+            )
+        return {
+            "index": index,
+            "owner": owner,
+            "destination": destination,
+            "surface_sha256": runtime.digest(actual),
+            "underlay_sha256": runtime.digest(underlay),
+            "exact_surface": True,
+        }
+    finally:
+        close(monitor, process, client)
+
+
 def forced_capture(monitor, binary: Path, rom: Path, timeout: float,
                    manifest: dict[str, object], index: int) -> dict[str, object]:
     process, client, syms = boot_to_instructions(monitor, binary, rom, timeout)
@@ -125,12 +218,13 @@ def forced_capture(monitor, binary: Path, rom: Path, timeout: float,
         frame = runtime.read_owner(client, owner)
         events = manifest["instruction_choreography"]["events"]
         for target_index, target in enumerate(events):
-            tile = runtime.frame_tile(frame, target["target_destination"])
-            if target_index <= index and any(tile):
+            surface = target_surface(frame, target["target_destination"])
+            visible = any(any(tile) for tile in surface)
+            if target_index <= index and visible:
                 raise SystemExit(
                     f"BUG-011 evidence: forced target {index} left target {target_index} visible"
                 )
-            if target_index > index and not any(tile):
+            if target_index > index and not visible:
                 raise SystemExit(
                     f"BUG-011 evidence: forced target {index} erased future target {target_index}"
                 )
@@ -156,7 +250,7 @@ def forced_capture(monitor, binary: Path, rom: Path, timeout: float,
             "back_owner": owner,
             "frame_sha256": runtime.digest(frame),
             "target_sha256": runtime.digest(runtime.frame_tile(
-                frame, event["target_destination"])),
+                frame, event["target_destination"], width=8, rows=16)),
             "cycles": cycles,
         }
     finally:
@@ -396,6 +490,12 @@ def main() -> None:
         forced_capture(monitor, args.xroar, args.rom, args.timeout, manifest, index)
         for index in range(16)
     ]
+    death = [
+        forced_death_capture(
+            monitor, args.xroar, args.rom, args.timeout, manifest, index,
+        )
+        for index in range(15)
+    ]
     inputs = [
         preemption(monitor, args.xroar, args.rom, args.timeout,
                    manifest, boundary, action)
@@ -410,6 +510,7 @@ def main() -> None:
             monitor, args.xroar, args.rom, args.timeout, manifest,
         ),
         "forced_target_captures": forced,
+        "forced_death_captures": death,
         "input_preemption": inputs,
         "worklist_cycles": worklist_cycle_maximum(
             monitor, args.xroar, args.rom, args.timeout,
@@ -419,8 +520,9 @@ def main() -> None:
     }
     args.output.write_text(json.dumps(result, indent=2) + "\n", encoding="ascii")
     print(
-        "BUG-011 evidence pass: warm reset, 16 independent target captures, "
-        "8 boundary input scenarios, and a branch-complete worklist maximum"
+        "BUG-011 evidence pass: warm reset, 16 complete target captures, "
+        "15 exact death/angel footprints, 8 boundary input scenarios, and a "
+        "branch-complete worklist maximum"
     )
 
 

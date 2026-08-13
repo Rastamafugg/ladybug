@@ -59,10 +59,12 @@ def main() -> None:
     for event in events:
         if event["motion_tick"] >= event["consume_tick"]:
             raise SystemExit(f"BUG-011 proof: nonpositive motion interval for {event['name']}")
-        if event["goal_destination"] // 1280 != (
-            event["target_destination"] + 1280
-        ) // 1280:
+        if event["goal_destination"] != event["target_destination"] - 1:
             raise SystemExit(f"BUG-011 proof: actor goal row differs for {event['name']}")
+    if choreography["anchors"] != [0x4328, 0x5228, 0x6128]:
+        raise SystemExit("BUG-011 proof: actor baseline conversion differs")
+    if choreography["angel_destination"] != 0x6670:
+        raise SystemExit("BUG-011 proof: authored angel destination differs")
     if any(event["hud_destination"] == 0 for event in events[:15]):
         raise SystemExit("BUG-011 proof: a collectible lacks its HUD destination")
     if events[-1]["hud_destination"] != 0:

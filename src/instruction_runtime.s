@@ -49,7 +49,6 @@ instruction_runtime_tick
         cmpa    #$FF
         beq     irt_init
         lbsr    restore_actor
-        lbsr    sync_persistent_state
         lda     PRES_PHASE
         cmpa    #PRESENTATION_INSTRUCTION_EVENT_COUNT
         lbhs    irt_death
@@ -66,11 +65,17 @@ instruction_runtime_tick
         sta     PRES_HIGHLIGHT
 irt_colour_ready
         inc     IRT_TRACE_COLOURS
-        lbsr    recolour_collectibles
-        lbsr    draw_value
+        ldx     #IRT_OWNER_A_PHASE
+        tst     FB_BACK
+        beq     irt_colour_invalidate
+        ldx     #IRT_OWNER_B_PHASE
+irt_colour_invalidate
+        lda     #$FF
+        sta     1,x
 irt_colour_published
 
 irt_event
+        lbsr    sync_persistent_state
         lda     PRES_PHASE
         cmpa    #PRESENTATION_INSTRUCTION_EVENT_COUNT
         lbhs    irt_death
@@ -198,13 +203,29 @@ rc_next
         lda     PRES_WORK
         lbsr    event_ptr_a
         ldd     6,x
-        tfr     d,x
-        jsr     PRES_MODULE_COLOUR_TILE
+        tfr     d,y
+        lbsr    recolour_target
         inc     PRES_WORK
         lda     PRES_WORK
         cmpa    #15
         blo     rc_next
         rts
+
+; Recolour the complete 2x2 authored surface through its generated sparse
+; nibble-selector stream. The stream excludes transparent and pink pixels.
+recolour_target
+        sty     PRES_DST
+        clra
+        ldb     PRES_WORK
+        lslb
+        rola
+        addd    #PRESENTATION_INSTRUCTION_COLOUR_POINTERS
+        jsr     PRES_MODULE_COLD_PTR
+        ldd     ,x
+        jsr     PRES_MODULE_COLD_PTR
+        tfr     x,u
+        ldx     PRES_DST
+        jmp     PRES_MODULE_COLOUR_SURFACE
 
 ; Reconstruct persistent mutations on the currently mapped BACK owner before
 ; drawing its owner-local actor frame.
@@ -265,8 +286,8 @@ aps_unconsumed
         lda     PRES_WORK
         lbsr    event_ptr_a
         ldd     6,x
-        tfr     d,x
-        jsr     PRES_MODULE_COLOUR_TILE
+        tfr     d,y
+        lbsr    recolour_target
 aps_next
         inc     PRES_WORK
         lda     PRES_WORK
@@ -297,12 +318,14 @@ aps_done
 
 clear_target
         ldx     PRES_DST
-        ldy     #8
+        ldy     #16
         clra
         clrb
 ct_row
         std     ,x
         std     2,x
+        std     4,x
+        std     6,x
         leax    160,x
         leay    -1,y
         bne     ct_row
@@ -460,6 +483,8 @@ death_index_ready
         bsr     present_death
         lbra    irt_active
 death_angel
+        ldd     #PRESENTATION_INSTRUCTION_ANGEL_DST
+        std     PRES_OUT
         ldb     #PRESENTATION_INSTRUCTION_DEATH_COUNT-1
         bsr     present_death
         lbra    irt_active
@@ -476,6 +501,16 @@ death_traced
         ldd     PRES_OUT
         std     PLAYER_FB
         jsr     PRES_MAIN_SAVE_PLAYER
+        lda     PRES_ACTOR_FRAME
+        cmpa    #PRESENTATION_INSTRUCTION_DEATH_COUNT-1
+        bne     death_surface_ready
+        pshs    a
+        ldd     PRES_OUT
+        std     PRES_DST
+        lbsr    clear_target
+        puls    a
+        sta     PRES_ACTOR_FRAME
+death_surface_ready
         lda     PRES_ACTOR_FRAME
         ldb     #2
         mul

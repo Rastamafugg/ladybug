@@ -691,7 +691,7 @@ actor_index_ready
         jsr     PRESENTATION_MODULE_DRAW
         rts
 
-; Recolour each nonzero packed pixel pair in the selected instruction cells.
+; Recolour each nonzero packed pixel pair in the selected instruction cell.
 colour_tile
         lda     #8
         sta     PRES_RUN
@@ -714,6 +714,56 @@ colour_tile_skip
         leax    156,x
         dec     PRES_RUN
         bne     colour_tile_row
+        rts
+
+; U selects a generated {count, delta, nibble-selector} stream and X selects
+; its 16x16 destination. Selectors 1/2/3 replace low/high/both nibbles.
+colour_surface
+        ldb     ,u+
+        stb     PRES_RUN
+colour_surface_next
+        ldb     ,u+
+        cmpb    #$FF
+        beq     colour_surface_extended
+        abx
+        bra     colour_surface_selector
+colour_surface_extended
+        ldd     ,u++
+        leax    d,x
+colour_surface_selector
+        lda     ,u+
+        cmpa    #3
+        beq     colour_surface_both
+        cmpa    #2
+        beq     colour_surface_high
+        lda     ,x
+        anda    #$F0
+        ora     PRES_HIGHLIGHT
+        sta     ,x
+        bra     colour_surface_advance
+colour_surface_high
+        lda     PRES_HIGHLIGHT
+        lsla
+        lsla
+        lsla
+        lsla
+        sta     PRES_VALUE
+        lda     ,x
+        anda    #$0F
+        ora     PRES_VALUE
+        sta     ,x
+        bra     colour_surface_advance
+colour_surface_both
+        lda     PRES_HIGHLIGHT
+        lsla
+        lsla
+        lsla
+        lsla
+        adda    PRES_HIGHLIGHT
+        sta     ,x
+colour_surface_advance
+        dec     PRES_RUN
+        bne     colour_surface_next
         rts
 
         ifeq    BUG011_DEVELOPMENT_PROFILE
@@ -779,6 +829,7 @@ PRES_CELL equ $00AA
 PRES_X equ $00AC
 PRES_Y equ $00AD
 PRES_DST equ $00AE
+PRES_WORK equ $00D1
 PRES_TIMER equ $00B0
 PRES_PREV equ $00B2
 PRES_IN equ $00B5
