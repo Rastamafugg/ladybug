@@ -19,7 +19,7 @@ ENEMY_MAP = ROOT / "build/ladybug-enemy-runtime.map"
 PRES_MODE = 0x00A5
 DEATH_STATE = 0x004D
 DEATH_TIMER = 0x003A
-LIVES = 0x0025
+LIVES = 0x0023
 SCORE = 0x001D
 PLAYER_CELL_X = 0x0009
 PLAYER_CELL_Y = 0x000A
@@ -27,6 +27,7 @@ ENTITY_COUNT = 0x0032
 ENTITY_TABLE = 0xA380
 ENEMY_ACTIVE = 0x0058
 ENEMY_TABLE = 0xA470
+PAR5 = 0xFFA5
 
 
 def load_monitor():
@@ -88,15 +89,26 @@ def run_case(monitor, binary: Path, rom: Path, timeout: float,
         lives_before = read_byte(client, LIVES)
         score_before = read_bytes(client, SCORE, 3).hex()
         player = (read_byte(client, PLAYER_CELL_X), read_byte(client, PLAYER_CELL_Y))
+        write_bytes(client, PAR5, b"\x34")
 
         if cause == "enemy":
-            collision_id = monitor.setup(client, [enemy_syms["et_player_death"]])[0]
+            collision_id = monitor.setup(client, [main_syms["main_after_player"]])[0]
             ids.append(collision_id)
             record = bytes((1, 0x57, 0xEC, 0, player[0], player[1], 0, 0xFF))
             write_bytes(client, ENEMY_TABLE, record)
             write_bytes(client, ENEMY_ACTIVE, b"\x01")
+            injected = read_bytes(client, ENEMY_TABLE, 8)
+            if injected != record:
+                raise RuntimeError(f"enemy injection differs: record={injected.hex()}")
             hit = client.run_to_breakpoint(timeout)
-            expected_pc = enemy_syms["et_player_death"]
+            expected_pc = main_syms["main_after_player"]
+            live_player = (read_byte(client, PLAYER_CELL_X), read_byte(client, PLAYER_CELL_Y))
+            if hit.get("pc") != expected_pc or live_player != player:
+                raise RuntimeError(
+                    f"enemy post-tick boundary differs: hit={hit} player={live_player}"
+                )
+            if read_byte(client, DEATH_STATE) != 1:
+                raise RuntimeError("enemy tick did not enter ordinary death state")
         else:
             collision_id = monitor.setup(client, [main_syms["cep_skull"]])[0]
             ids.append(collision_id)
@@ -122,6 +134,9 @@ def run_case(monitor, binary: Path, rom: Path, timeout: float,
         result = {
             "cause": cause,
             "collision_pc": expected_pc,
+            "collision_service_pc": (
+                enemy_syms["et_player_death"] if cause == "enemy" else expected_pc
+            ),
             "player_cell": list(player),
             "death_state": read_byte(client, DEATH_STATE),
             "death_timer": read_byte(client, DEATH_TIMER),
@@ -156,16 +171,20 @@ def main() -> None:
     parser.add_argument("--rom", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--timeout", type=float, default=60.0)
+    parser.add_argument("--cause", choices=("skull", "enemy", "both"), default="both")
     args = parser.parse_args()
     monitor = load_monitor()
     module_syms = symbols(MODULE_MAP)
     main_syms = symbols(MAIN_MAP)
     enemy_syms = symbols(ENEMY_MAP)
-    cases = [
-        run_case(monitor, args.xroar, args.rom, args.timeout, cause,
-                 module_syms, main_syms, enemy_syms)
-        for cause in ("skull", "enemy")
-    ]
+    causes = ("skull", "enemy") if args.cause == "both" else (args.cause,)
+    cases = []
+    for cause in causes:
+        cases.append(run_case(
+            monitor, args.xroar, args.rom, args.timeout, cause,
+            module_syms, main_syms, enemy_syms,
+        ))
+        print(f"BUG-012 forced collision pass: {cause}")
     evidence = {
         "schema": "ladybug-bug012-forced-collisions-v1",
         "rom_sha256": hashlib.sha256(args.rom.read_bytes()).hexdigest(),
@@ -173,7 +192,7 @@ def main() -> None:
         "cases": cases,
     }
     args.output.write_text(json.dumps(evidence, indent=2) + "\n", encoding="ascii")
-    print("BUG-012 forced collisions pass: skull and enemy services return to attract")
+    print(f"BUG-012 forced collisions pass: {', '.join(causes)} return to attract")
 
 
 if __name__ == "__main__":

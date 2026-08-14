@@ -524,8 +524,7 @@ level_tick
         lbsr    init_gameplay
         clr     PRES_TIMER
         clr     PRES_TIMER+1
-        lda     #1              ; arcade entry 0 is neutral during maze entry
-        sta     PRES_DEMO_ROUTE
+        clr     PRES_DEMO_ROUTE ; CoCo walk starts after automatic maze entry
         lda     #$FF
         sta     PRES_DEMO_LAST_X
         sta     PRES_DEMO_LAST_Y

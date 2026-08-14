@@ -8,7 +8,7 @@ import json
 import re
 from pathlib import Path
 
-from build_presentation import load_demo_route
+from build_presentation import load_demo_route, load_demo_walk
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -32,7 +32,12 @@ def main() -> None:
         (ROOT / "build/ladybug-sparse-layout.json").read_text(encoding="ascii")
     )
     payload = (ROOT / "build/ladybug-presentation-cold.bin").read_bytes()
-    route, provenance = load_demo_route(ROOT / "assets/arcade/demo_route.json")
+    _arcade_route, arcade_provenance = load_demo_route(
+        ROOT / "assets/arcade/demo_route.json"
+    )
+    route, provenance = load_demo_walk(
+        ROOT / "assets/arcade/demo_walk.json", arcade_provenance
+    )
     source = (ROOT / "src/presentation_runtime.s").read_text(encoding="ascii")
     demo_source = (ROOT / "src/demo_runtime.s").read_text(encoding="ascii")
     module_symbols = symbols(ROOT / "build/ladybug-presentation-runtime.map")
@@ -85,7 +90,7 @@ def main() -> None:
     for fragment in (
         "tst     PLAYER_STEP", "PRES_DEMO_LAST_X", "PRES_DEMO_LAST_Y",
         "PRESENTATION_DEMO_ROUTE_ACTIONS", "sta     PLAYER_WANT",
-        "lda     #$34", "sta     PAR5", "jsr     PRES_MAIN_CAN_MOVE",
+        "bita    #1", "lda     #$34", "sta     PAR5", "demo_route_hold",
     ):
         if fragment not in demo_source:
             raise SystemExit(f"BUG-012 proof: demo route contract missing {fragment}")
@@ -101,7 +106,7 @@ def main() -> None:
     cold_bytes = len(payload)
     print(
         "BUG-012 structural proof: release attract->level->demo wiring, "
-        f"187 arcade actions ({hashlib.sha256(route).hexdigest()}), "
+        f"147 CoCo node actions ({hashlib.sha256(route).hexdigest()}), "
         "no instruction payload, no forced death, direct attract return; "
         f"module {module_bytes}/1280, cold {cold_bytes}/10874, "
         f"GMC spare {layout['gmc']['spare_bytes']} bytes"

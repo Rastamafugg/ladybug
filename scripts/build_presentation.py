@@ -398,6 +398,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gameplay-chars", type=Path, required=True)
     parser.add_argument("--gameplay-sprites", type=Path, required=True)
     parser.add_argument("--demo-route", type=Path, required=True)
+    parser.add_argument("--demo-walk", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--include-output", type=Path, required=True)
     parser.add_argument("--manifest-output", type=Path, required=True)
@@ -1044,6 +1045,80 @@ def load_demo_route(path: Path) -> tuple[bytes, dict[str, object]]:
     }
 
 
+def load_demo_walk(path: Path, route: dict[str, object]) -> tuple[bytes, dict[str, object]]:
+    """Validate the explicit CoCo node walk and its arcade provenance link."""
+    record = json.loads(path.read_text(encoding="ascii"))
+    actions = bytes(record["actions"])
+    action_count = int(record["action_count"])
+    if len(actions) != action_count + 1 or actions[-1] != 0xFF:
+        raise ValueError(f"{path}: demo walk must contain action_count actions plus $FF")
+    if any(value not in (0, 1, 2, 3) for value in actions[:-1]):
+        raise ValueError(f"{path}: demo walk contains an illegal CoCo ordinal")
+    if hashlib.sha256(actions).hexdigest() != record["walk_sha256"]:
+        raise ValueError(f"{path}: demo walk SHA-256 differs")
+    text = str(record["action_text"])
+    if bytes("NESW".index(value) for value in text) != actions[:-1]:
+        raise ValueError(f"{path}: demo walk action text differs")
+    if (record["source_route_sha256"] != route["source_sha256"] or
+            record["source_program_sha256"] != route["program_sha256"] or
+            record["source_action_count"] != route["action_count"]):
+        raise ValueError(f"{path}: demo walk arcade provenance differs")
+    position = list(record["start_cell"])
+    movement = ((0, -2), (2, 0), (0, 2), (-2, 0))
+    positions = []
+    for direction in actions[:-1]:
+        positions.append(tuple(position))
+        dx, dy = movement[direction]
+        position[0] += dx
+        position[1] += dy
+    if position != record["end_cell"]:
+        raise ValueError(f"{path}: demo walk endpoint differs")
+    for detour in record["detours"]:
+        offset = int(detour["action_offset"])
+        detour_text = str(detour["actions"])
+        if positions[offset] != tuple(detour["anchor"]):
+            raise ValueError(f"{path}: detour anchor differs at action {offset}")
+        if text[offset:offset + len(detour_text)] != detour_text:
+            raise ValueError(f"{path}: detour actions differ at action {offset}")
+        x, y = detour["anchor"]
+        for value in detour_text:
+            dx, dy = movement["NESW".index(value)]
+            x += dx
+            y += dy
+        if [x, y] != detour["anchor"]:
+            raise ValueError(f"{path}: detour does not return to its anchor")
+    backbone = text
+    for detour in reversed(record["detours"]):
+        offset = int(detour["action_offset"])
+        count = len(str(detour["actions"]))
+        backbone = backbone[:offset] + backbone[offset + count:]
+    backbone_bytes = bytes("NESW".index(value) for value in backbone)
+    if (backbone != record["arcade_backbone_action_text"] or
+            len(backbone) + 1 != record["arcade_node_count"] or
+            hashlib.sha256(backbone_bytes).hexdigest() !=
+            record["arcade_backbone_sha256"]):
+        raise ValueError(f"{path}: arcade backbone relationship differs")
+    return actions, {
+        "source": route["source"],
+        "program_sha256": route["program_sha256"],
+        "rom_offset": route["rom_offset"],
+        "source_bytes": route["source_bytes"],
+        "source_sha256": route["source_sha256"],
+        "arcade_action_count": route["action_count"],
+        "arcade_converted_sha256": route["converted_sha256"],
+        "arcade_node_count": record["arcade_node_count"],
+        "arcade_backbone_sha256": record["arcade_backbone_sha256"],
+        "action_count": action_count,
+        "walk_sha256": record["walk_sha256"],
+        "encoding": record["encoding"],
+        "start_cell": record["start_cell"],
+        "end_cell": record["end_cell"],
+        "collectible_cells": record["collectible_cells"],
+        "quadrant_order": record["quadrant_order"],
+        "detours": record["detours"],
+    }
+
+
 def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
                  encoded_maps: list[bytes], manifest: dict[str, object],
                  chars: list[list[list[int]]]) -> None:
@@ -1201,7 +1276,10 @@ def main() -> None:
         instruction = parse_instruction_contract(
             args.tiled_dir / MAP_FILES["instructions"], chars, sprites, [], {}
         )
-    demo_route, demo_route_manifest = load_demo_route(args.demo_route)
+    _arcade_route, arcade_route_manifest = load_demo_route(args.demo_route)
+    demo_walk, demo_walk_manifest = load_demo_walk(
+        args.demo_walk, arcade_route_manifest
+    )
 
     coin_id = tile_ids.setdefault(coin_tile(), len(tiles))
     if coin_id == len(tiles):
@@ -1326,7 +1404,7 @@ def main() -> None:
         start = instruction_death_pointer_offset + index * 2
         cold_payload[start:start + 2] = offset.to_bytes(2, "big")
     demo_route_offset = len(cold_payload)
-    cold_payload.extend(demo_route)
+    cold_payload.extend(demo_walk)
     if len(cold_payload) > COLD_PAYLOAD_LIMIT:
         raise ValueError(
             f"presentation cold payload is {len(cold_payload)} bytes; "
@@ -1418,9 +1496,9 @@ def main() -> None:
             "angel_source_code": instruction["angel_source_code"],
         },
         "demo_route": {
-            **demo_route_manifest,
+            **demo_walk_manifest,
             "cold_offset": demo_route_offset,
-            "bytes": len(demo_route),
+            "bytes": len(demo_walk),
         },
         "attract_actor_destinations": {
             "bytes": len(attract_destinations),

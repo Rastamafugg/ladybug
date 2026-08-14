@@ -29,6 +29,7 @@ from build_presentation import (
     encode_map,
     load_chars,
     load_demo_route,
+    load_demo_walk,
     parse_attract_actors,
     parse_instruction_contract,
     pack_tile,
@@ -47,6 +48,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gameplay-chars", type=Path, required=True)
     parser.add_argument("--gameplay-sprites", type=Path, required=True)
     parser.add_argument("--demo-route", type=Path, required=True)
+    parser.add_argument("--demo-walk", type=Path, required=True)
     parser.add_argument("--payload", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--development-profile", type=int, choices=(0, 1), default=0)
@@ -89,7 +91,10 @@ def main() -> None:
         instruction = parse_instruction_contract(
             args.tiled_dir / MAP_FILES["instructions"], chars, sprites, [], {}
         )
-    demo_route, demo_route_manifest = load_demo_route(args.demo_route)
+    _arcade_route, arcade_route_manifest = load_demo_route(args.demo_route)
+    demo_walk, demo_walk_manifest = load_demo_walk(
+        args.demo_walk, arcade_route_manifest
+    )
     payload = args.payload.read_bytes()
     coin_bytes = coin_tile()
     if coin_bytes not in tiles:
@@ -187,7 +192,7 @@ def main() -> None:
         start = pointer_offset + index * 2
         expected[start:start + 2] = offset.to_bytes(2, "big")
     demo_route_offset = len(expected)
-    expected.extend(demo_route)
+    expected.extend(demo_walk)
     if payload != bytes(expected):
         raise SystemExit("presentation proof: cold payload differs from independent compile")
     if len(tiles) != manifest["tile_count"]:
@@ -223,9 +228,9 @@ def main() -> None:
         raise SystemExit("presentation proof: instruction choreography payload differs")
     route_manifest = manifest.get("demo_route", {})
     expected_route_manifest = {
-        **demo_route_manifest,
+        **demo_walk_manifest,
         "cold_offset": demo_route_offset,
-        "bytes": len(demo_route),
+        "bytes": len(demo_walk),
     }
     if route_manifest != expected_route_manifest:
         raise SystemExit("presentation proof: demo route provenance differs")

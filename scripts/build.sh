@@ -26,6 +26,7 @@ PRESENTATION_SYMBOLS="$BUILD_DIR/ladybug_presentation_symbols.inc"
 INSTRUCTION_RUNTIME="$BUILD_DIR/ladybug-instruction-runtime.bin"
 INSTRUCTION_RUNTIME_SRC="$ROOT/src/instruction_runtime.s"
 DEMO_RUNTIME_SRC="$ROOT/src/demo_runtime.s"
+DEMO_WALK="$ROOT/assets/arcade/demo_walk.json"
 INSTRUCTION_RUNTIME_LST="$BUILD_DIR/ladybug-instruction-runtime.lst"
 INSTRUCTION_RUNTIME_MAP="$BUILD_DIR/ladybug-instruction-runtime.map"
 SPARSE_BANK2="$BUILD_DIR/ladybug-sparse-bank2.bin"
@@ -234,6 +235,7 @@ cmd_build() {
         --gameplay-chars "$ROOT/assets/arcade/chars.json" \
         --gameplay-sprites "$ROOT/assets/arcade/sprites.json" \
         --demo-route "$ROOT/assets/arcade/demo_route.json" \
+        --demo-walk "$DEMO_WALK" \
         --output "$PRESENTATION_COLD" \
         --include-output "$PRESENTATION_INC" \
         --manifest-output "$PRESENTATION_MANIFEST" \
@@ -249,6 +251,7 @@ cmd_build() {
         --gameplay-chars "$ROOT/assets/arcade/chars.json" \
         --gameplay-sprites "$ROOT/assets/arcade/sprites.json" \
         --demo-route "$ROOT/assets/arcade/demo_route.json" \
+        --demo-walk "$DEMO_WALK" \
         --payload "$PRESENTATION_COLD" \
         --manifest "$PRESENTATION_MANIFEST" \
         --development-profile "$BUG011_DEVELOPMENT_PROFILE"

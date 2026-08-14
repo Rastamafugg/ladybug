@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MONITOR_INPUT = ROOT / "scripts/verify_bug009_monitor_input.py"
 MODULE_MAP = ROOT / "build/ladybug-presentation-runtime.map"
-MAIN_MAP = ROOT / "build/ladybug.map"
+AUXILIARY_MAP = ROOT / "build/ladybug-instruction-runtime.map"
 PRES_MODE = 0x00A5
 PRES_CONTEXT = 0x00A7
 PRES_CREDITS = 0x00A8
@@ -120,7 +120,7 @@ def input_case(monitor, binary: Path, rom: Path, timeout: float,
 
 
 def demo_ownership_case(monitor, binary: Path, rom: Path, timeout: float,
-                        module_syms: dict[str, int], main_syms: dict[str, int]) -> dict[str, int]:
+                        module_syms: dict[str, int], auxiliary_syms: dict[str, int]) -> dict[str, int]:
     process, client = monitor.launch(binary, rom, monitor.free_port())
     ids: list[int] = []
     try:
@@ -138,24 +138,24 @@ def demo_ownership_case(monitor, binary: Path, rom: Path, timeout: float,
         injected = (route_direction + 1) & 3
         write_byte(client, JOY_DIR, injected)
         write_byte(client, PLAYER_WANT, injected)
-        player_id = client.call("set_breakpoint", {
-            "addr": main_syms["player_tick"], "kind": "exec",
-        })["id"]
-        ids.append(player_id)
         monitor.clear(client, [demo_id])
         ids.remove(demo_id)
+        player_id = client.call("set_breakpoint", {
+            "addr": auxiliary_syms["demo_route_advance"], "kind": "exec",
+        })["id"]
+        ids.append(player_id)
         hit = client.run_to_breakpoint(timeout)
-        if hit.get("pc") != main_syms["player_tick"]:
-            raise RuntimeError(f"player input marker missing {hit}")
+        if hit.get("pc") != auxiliary_syms["demo_route_advance"]:
+            raise RuntimeError(f"post-demo-runtime input marker missing {hit}")
         result = {
             "route_direction": route_direction,
             "injected_live_direction": injected,
-            "joy_at_player_tick": read_byte(client, JOY_DIR),
-            "want_at_player_tick": read_byte(client, PLAYER_WANT),
+            "joy_before_route_advance": read_byte(client, JOY_DIR),
+            "want_before_route_advance": read_byte(client, PLAYER_WANT),
         }
-        if result["joy_at_player_tick"] != route_direction:
+        if result["joy_before_route_advance"] != route_direction:
             raise RuntimeError(f"live input retained JOY_DIR ownership {result}")
-        if result["want_at_player_tick"] != route_direction:
+        if result["want_before_route_advance"] != route_direction:
             raise RuntimeError(f"live input retained PLAYER_WANT ownership {result}")
         return result
     finally:
@@ -175,27 +175,34 @@ def main() -> None:
     parser.add_argument("--rom", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--timeout", type=float, default=60.0)
+    parser.add_argument(
+        "--scenario", choices=("all", "preemption", "ownership"), default="all"
+    )
     args = parser.parse_args()
     monitor = load_monitor()
     module_syms = symbols(MODULE_MAP)
-    main_syms = symbols(MAIN_MAP)
+    auxiliary_syms = symbols(AUXILIARY_MAP)
     cases = []
-    for boundary in ("attract", "level", "demo", "death"):
+    if args.scenario in ("all", "preemption"):
+        for boundary in ("attract", "level", "demo", "death"):
+            cases.append(input_case(
+                monitor, args.xroar, args.rom, args.timeout, module_syms,
+                boundary, 5, 3,
+            ))
         cases.append(input_case(
             monitor, args.xroar, args.rom, args.timeout, module_syms,
-            boundary, 5, 3,
+            "demo", 5, 3, pending=True,
         ))
-    cases.append(input_case(
-        monitor, args.xroar, args.rom, args.timeout, module_syms,
-        "demo", 5, 3, pending=True,
-    ))
-    for boundary in ("attract", "demo", "death"):
-        cases.append(input_case(
-            monitor, args.xroar, args.rom, args.timeout, module_syms,
-            boundary, 1, 2,
-        ))
-    ownership = demo_ownership_case(
-        monitor, args.xroar, args.rom, args.timeout, module_syms, main_syms
+        for boundary in ("attract", "demo", "death"):
+            cases.append(input_case(
+                monitor, args.xroar, args.rom, args.timeout, module_syms,
+                boundary, 1, 2,
+            ))
+    ownership = (
+        demo_ownership_case(
+            monitor, args.xroar, args.rom, args.timeout, module_syms, auxiliary_syms
+        )
+        if args.scenario in ("all", "ownership") else None
     )
     evidence = {
         "schema": "ladybug-bug012-input-boundaries-v1",
@@ -205,7 +212,7 @@ def main() -> None:
         "demo_input_ownership": ownership,
     }
     args.output.write_text(json.dumps(evidence, indent=2) + "\n", encoding="ascii")
-    print("BUG-012 input boundaries pass: credit/start pre-emption and demo ownership")
+    print(f"BUG-012 input boundaries pass: scenario={args.scenario}")
 
 
 if __name__ == "__main__":
