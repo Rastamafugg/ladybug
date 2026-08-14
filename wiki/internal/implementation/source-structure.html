@@ -115,6 +115,13 @@ Generated build/*.inc / *.bin / layout.json   |
     </section>
 
     <section>
+      <h2>BUG-012 full-coverage demo route architecture</h2>
+      <p>BUG-012 selects an explicit uncompressed 147-action CoCo node walk plus a <code>$FF</code> terminator. The build retains the original 188-byte arcade control-call stream as immutable provenance, while <code>assets/arcade/demo_walk.json</code> owns the deployed node actions, backbone relationship, four return-to-anchor detours, and exact coverage/hash metadata. Runtime consumes one action only at a new even/even semantic maze cell and delegates legality, gate rotation, collection, collision, and rendering to the normal player/gameplay services.</p>
+      <p>This separation is deliberate. The arcade pointer can advance twice at a turning node and its mapped path covers only 104 of the adapted maze's 117 placement cells; replaying those bytes as a legality-buffered queue deadlocks. An explicit node walk is deterministic and machine-verifiable without adding frame-time pathfinding. Uncompressed storage is selected because 148 bytes are 39 bytes smaller than the current deployed stream, the cold-data margin exceeds three kilobytes, and a two-bit decoder would add unnecessary code and bank-boundary risk.</p>
+      <p>The release auxiliary remains copied at <code>$0300</code> within the existing <code>$0300-$06A9</code> allocation. A design assembly measures 133 bytes against the 938-byte guard, compared with the current 135-byte auxiliary. The route-index initialization remains the only permitted flow-module change; no new direct-page byte, module boundary, or resident gameplay interface is introduced.</p>
+    </section>
+
+    <section>
       <h2>Source inventory and ownership</h2>
       <table class="wiki-table">
         <thead>
