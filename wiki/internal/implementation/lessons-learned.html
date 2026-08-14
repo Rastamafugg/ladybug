@@ -15,6 +15,12 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h2>Autonomous route consumption needs a semantic-node latch</h2>
+      <p><strong>Finding:</strong> even/even alignment alone does not prove a new route boundary. Presentation can tick twice before player movement leaves the same cell, so a route consumer without a last-cell latch advances twice and corrupts the deterministic path.</p>
+      <p><strong>Rule:</strong> consume at most one autonomous action for each distinct aligned semantic cell. Retain the last consumed cell as the cadence latch, but leave movement legality and gate mutation to ordinary gameplay services.</p>
+      <p><strong>Diagnostic rule:</strong> hazard-disabled coverage probes must preserve collectible-counter semantics. Remove skull records after placement and use an explicit temporary completion sentinel; do not retype skulls as bonus collectibles because that changes bonus accounting.</p>
+    </section>
+    <section>
       <h2>Raw sprite sheet tile IDs are not runtime sprite codes</h2>
       <p><strong>Filed 2026-08-13; extended after <code>a1bce3d</code>.</strong> BUG-011's prior terminal marker used raw sheet tile 10 at row 0, column 10. Directly indexing the extracted sprite list selected runtime code 10 and displayed an enemy; resolving the same cell through the sheet layout produced wings code 87. The user then selected raw GID 636 at row 7, column 11, which resolves to the final wings code 88. Both revisions require sheet translation rather than direct indexing.</p>
       <p><strong>Rule:</strong> metadata compilation must remove Tiled tileset flags, resolve <code>firstgid</code>, validate the source tileset, and translate sheet row/column through the established sprite-code mapping. Never treat a raw Tiled tile offset as a runtime sprite code.</p>
