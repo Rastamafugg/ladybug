@@ -14,6 +14,10 @@
   </nav>
 <main class="wiki-main">
     <section>
+      <h3>2026-08-14 &middot; integration &mdash; BUG-012 deployed checkout</h3>
+      <p>Integrated BUG-012 into <code>codex/bug-012-demo-loop</code> as commits <code>0c41e22</code>, <code>4acc612</code>, and <code>60edd55</code>. Preserved the existing <code>src/main.s</code> and Tiled-session changes and retained the pre-integration generated outputs in a named recoverable stash. Combined development/release builds, <code>verify-gmc</code>, offline 147/147 route proof, structural flow proof, and the live skull/enemy-free 117/117 collection test pass. Deployed ROM SHA-256 <code>c0ed4b2716926683c301725c3d5b833cad732357be00ccb83c5f2eee50899417</code> matches isolated QA exactly. BUG-012 remains Verification because PERF-003 still owns the zero-missed-commit criterion.</p>
+    </section>
+    <section>
       <h3>2026-08-14 &middot; query &mdash; BUG-012 deployment mismatch</h3>
       <p>The user reported that the ladybug still stops at the prior route location and requested a skull/enemy-free full-collection test. The shared checkout remains at pre-implementation revision <code>0fd9223</code>, ROM SHA-256 <code>f412729c1ef09989666c360e81eba0c570556fe0c9e089cc0ecc059dec6c518d</code>, without <code>demo_walk.json</code>. Rechecking implementation ROM SHA-256 <code>c0ed4b2716926683c301725c3d5b833cad732357be00ccb83c5f2eee50899417</code> passes 147/147 legal actions and 117/117 collectibles with zero remaining and terminal <code>DIR_NONE</code>. The confirmed cause is deployment-version mismatch; the dirty shared checkout was not modified.</p>
     </section>
