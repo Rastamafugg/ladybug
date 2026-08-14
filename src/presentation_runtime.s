@@ -548,7 +548,6 @@ init_gameplay
         jsr     PRES_MAIN_PLAYER
         jsr     PRES_MAIN_ENEMY
         jsr     $081B
-        jsr     $0806
         lda     #RF_STAGE       ; replace the presentation map on both A/B owners
         sta     $007F
         rts
