@@ -14,6 +14,10 @@
   </nav>
 <main class="wiki-main">
     <section>
+      <h3>2026-08-14 &middot; query &mdash; BUG-012 deployment mismatch</h3>
+      <p>The user reported that the ladybug still stops at the prior route location and requested a skull/enemy-free full-collection test. The shared checkout remains at pre-implementation revision <code>0fd9223</code>, ROM SHA-256 <code>f412729c1ef09989666c360e81eba0c570556fe0c9e089cc0ecc059dec6c518d</code>, without <code>demo_walk.json</code>. Rechecking implementation ROM SHA-256 <code>c0ed4b2716926683c301725c3d5b833cad732357be00ccb83c5f2eee50899417</code> passes 147/147 legal actions and 117/117 collectibles with zero remaining and terminal <code>DIR_NONE</code>. The confirmed cause is deployment-version mismatch; the dirty shared checkout was not modified.</p>
+    </section>
+    <section>
       <h3>2026-08-14 &middot; lint &mdash; BUG-012 implementation evidence</h3>
       <p>Checked the eight synchronized BUG-012 ticket, index, game, implementation, and log pages for local HTML targets and whitespace errors. No newly added link is missing and <code>git diff --check</code> passes. The two previously recorded missing FEAT-001 references in the ticket index and historical log remain outside this update.</p>
     </section>
