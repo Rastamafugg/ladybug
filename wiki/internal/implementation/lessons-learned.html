@@ -1830,6 +1830,14 @@ git reset --hard HEAD
       <p><strong>Citation:</strong> <code>scripts/build_presentation.py</code>, <code>src/instruction_runtime.s</code>, and <code>scripts/verify_bug011_runtime.py</code>; BUG-011 repeat-entry evidence.</p>
     </section>
 
+    <section>
+      <h2>Assert render-active state at the mutation boundary, not before dispatch</h2>
+      <p><strong>Filed 2026-08-14.</strong> BUG-012 implementation proved that the resident loop sets <code>FB_RENDER_ACTIVE</code> before calling the presentation dispatcher. A presentation-owned transition that waits for ACTIVE to clear therefore returns through its hold path forever.</p>
+      <p><strong>Rule:</strong> when one dispatcher selects between presentation ownership and gameplay mutation, assert render-active state only after the dispatcher selects gameplay and immediately before mutation begins. A state flag cannot simultaneously mean outer callback dispatch and an in-flight renderer if the callback must test renderer idleness.</p>
+      <p><strong>Applies to:</strong> presentation-to-gameplay handoff, missed-commit diagnostics, and any shared dispatcher that selects a retained compositor owner.</p>
+      <p><strong>Citation:</strong> <code>src/main.s</code> <code>mainloop</code>, <code>src/presentation_runtime.s</code> <code>level_tick</code>, and the reverted BUG-012 first implementation probe.</p>
+    </section>
+
   </main>
 </div>
 </body>

@@ -14,6 +14,18 @@
   </nav>
 <main class="wiki-main">
     <section>
+      <h3>2026-08-14 &middot; lint &mdash; BUG-012 ownership proposal</h3>
+      <p>Checked all six changed wiki pages for whitespace and local HTML targets. The BUG-012 changes introduce no missing link. The two pre-existing missing FEAT-001 targets in the ticket index and historical log remain outside this scope.</p>
+    </section>
+    <section>
+      <h3>2026-08-14 &middot; implementation finding &mdash; BUG-012 ownership scope correction</h3>
+      <p>The first clean-handoff candidate assembled within every capacity limit, but bounded instruction stepping proved the Ready active-render gate cannot reach gameplay initialization: resident <code>mainloop</code> asserts <code>FB_RENDER_ACTIVE=1</code> immediately before every presentation callback. The candidate source and verifier changes were reverted. Proposed moving that existing assertion to the zero-return gameplay branch before mutation, which expands ownership to <code>src/main.s</code>, projects resident use from 8190/8192 to 8188/8192, and changes missed-commit accounting so presentation-dispatch IRQs are excluded. BUG-012 returns from In Progress to Proposed for explicit approval of that scope and protocol change.</p>
+    </section>
+    <section>
+      <h3>2026-08-14 &middot; implementation start &mdash; BUG-012 clean handoff</h3>
+      <p>The user directed the Ready BUG-012 clean-handoff correction to begin. Created <code>codex/bug-012-clean-handoff</code> in <code>D:\retro\ladybug-worktrees\bug-012-clean-handoff</code> from immutable checkpoint <code>a9c2c1c</code>, incorporated readiness commit <code>80e4798</code>, and advanced the ticket and queue to In Progress. Implementation remains bounded to presentation-owned re-entry, physical-scanout verification, generated outputs, and synchronized evidence; gameplay, cold initialization, IRQ publication, BUG-017 through BUG-020, PERF-003, and PERF-005 remain excluded.</p>
+    </section>
+    <section>
       <h3>2026-08-14 &middot; readiness &mdash; BUG-012 clean handoff</h3>
       <p>Prepared the authorized BUG-012 correction from production checkpoint <code>a9c2c1c</code>. The selected presentation-owned re-entry waits for idle publication, restores PAR5, invalidates both owner ledgers, preserves logical and physical scanout ownership, and lets the existing full-stage transaction rebuild BACK. The 34-byte design projects the presentation module at 1268/1280 bytes with no enemy/resident growth. Fixed-owner normalization, cold-copy reuse, full-owner hydration, and transient hold publication were rejected. Exact worktree, artifacts, Vbord-by-Vbord physical scanout proof, controlled crossover, rare paths, mutation failures, capacity gates, commands, evidence, and two-commit completion contract are fixed; BUG-012 returns Verification &rarr; Ready without production-code changes.</p>
     </section>
