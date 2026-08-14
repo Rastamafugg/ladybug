@@ -34,6 +34,11 @@ PLAYER_MANUAL = 0x0018
 JOY_DIR = 0x0005
 FB_START = 0x2000
 FB_BYTES = 0x7800
+FB_FRONT = 0x008F
+FB_BACK = 0x0090
+FB_COMMIT_SEQ = 0x0092
+FB_MISSED_COMMIT = 0x0096
+FB_WRITE_FRONT_FAULT = 0x0099
 
 
 def load_monitor():
@@ -80,6 +85,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--demo-call-limit", type=int, default=1000)
+    parser.add_argument("--initial-owner", type=int, choices=(0, 1))
     args = parser.parse_args()
 
     syms = symbols(MODULE_MAP)
@@ -103,6 +109,13 @@ def main() -> None:
                 break
             if hit.get("pc") != start_screen:
                 raise SystemExit(f"BUG-012 natural: unexpected breakpoint {hit}")
+            if not requests and args.initial_owner is not None:
+                client.call("write_memory", {
+                    "addr": FB_FRONT, "data": f"{args.initial_owner:02x}",
+                })
+                client.call("write_memory", {
+                    "addr": FB_BACK, "data": f"{1 - args.initial_owner:02x}",
+                })
             requests.append({
                 "map": register(client, "a"),
                 "mode": read_byte(client, PRES_MODE),
@@ -193,11 +206,18 @@ def main() -> None:
         death = read_byte(client, DEATH)
         route_index = read_byte(client, PRES_ROUTE)
         death_timer = read_byte(client, 0x003A)
+        front_write_faults = read_byte(client, FB_WRITE_FRONT_FAULT)
+        missed_commits = int.from_bytes(read_bytes(client, FB_MISSED_COMMIT, 2), "big")
+        commit_sequence = int.from_bytes(read_bytes(client, FB_COMMIT_SEQ, 2), "big")
         if return_map != 0 or death != 3 or death_timer != 0:
             raise SystemExit(
                 "BUG-012 natural: demo did not return through natural completed death; "
                 f"map={return_map} death={death} death_timer={death_timer} "
                 f"route={route_index} last={last_demo_state}"
+            )
+        if front_write_faults != 0:
+            raise SystemExit(
+                f"BUG-012 natural: FRONT writes detected: {front_write_faults}"
             )
 
         monitor.clear(client, [start_id])
@@ -223,6 +243,10 @@ def main() -> None:
             "demo_entry": True,
             "natural_death_state": death,
             "natural_death_timer": death_timer,
+            "initial_owner": args.initial_owner,
+            "front_write_faults": front_write_faults,
+            "missed_commits": missed_commits,
+            "commit_sequence": commit_sequence,
             "route_index_at_return": route_index,
             "demo_runtime_calls": demo_calls,
             "last_demo_state": last_demo_state,
