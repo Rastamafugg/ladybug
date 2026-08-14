@@ -537,8 +537,6 @@ level_tick
         endc
 live_begin
         lbsr    init_gameplay
-        lda     #RF_STAGE
-        sta     $007F
         clr     PRES_MODE
         clra
         rts
@@ -551,16 +549,22 @@ init_gameplay
         jsr     PRES_MAIN_ENEMY
         jsr     $081B
         jsr     $0806
+        lda     #RF_STAGE       ; replace the presentation map on both A/B owners
+        sta     $007F
         rts
         ifeq    BUG011_DEVELOPMENT_PROFILE
 demo_tick
         lda     DEATH
         beq     demo_run
+        cmpa    #3
+        bne     demo_death_tick
+        tst     DEATH_T
+        beq     demo_death_done ; first complete death ends the demo before respawn
+demo_death_tick
         jsr     PRES_MAIN_DEATH
         jsr     PRES_MAIN_RENDER
-        lda     DEATH
-        cmpa    #4
-        lbne    hold
+        lbra    hold
+demo_death_done
         lda     #PRESENTATION_MAP_ATTRACT
         lbsr    start_screen
         lda     #1

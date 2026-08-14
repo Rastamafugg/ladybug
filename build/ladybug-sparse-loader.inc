@@ -56,4 +56,4 @@ sparse_copy_table
         fdb     $E4FD,$A000,$04A9
         ; presentation_module+$0000
         fcb     $00,$FF
-        fdb     $E9A6,$1900,$04D4
+        fdb     $E9A6,$1900,$04D7

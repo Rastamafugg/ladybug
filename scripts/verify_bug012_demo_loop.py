@@ -69,12 +69,19 @@ def main() -> None:
 
     attract = source[source.index("\nattract_next\n"):source.index("\ninstructions_tick\n")]
     demo = source[source.index("\ndemo_tick\n"):source.index("\ngameover_tick\n")]
+    gameplay_init = source[source.index("\ninit_gameplay\n"):source.index("\ndemo_tick\n")]
     if "PRESENTATION_MAP_LEVEL_START" not in attract:
         raise SystemExit("BUG-012 proof: release attract does not select level start")
     if "demo_force_death" in source or "sta     DEATH" in demo:
         raise SystemExit("BUG-012 proof: timer-forced demo death remains")
     if "PRESENTATION_MAP_ATTRACT" not in demo or "PRESENTATION_MAP_GAME_OVER" in demo:
         raise SystemExit("BUG-012 proof: demo death does not return directly to attract")
+    for fragment in ("lda     #RF_STAGE", "sta     $007F"):
+        if fragment not in gameplay_init:
+            raise SystemExit(f"BUG-012 proof: shared gameplay publication missing {fragment}")
+    for fragment in ("cmpa    #3", "tst     DEATH_T", "beq     demo_death_done"):
+        if fragment not in demo:
+            raise SystemExit(f"BUG-012 proof: first-death completion boundary missing {fragment}")
     for fragment in (
         "tst     PLAYER_STEP", "PRES_DEMO_LAST_X", "PRES_DEMO_LAST_Y",
         "PRESENTATION_DEMO_ROUTE_ACTIONS", "sta     PLAYER_WANT",

@@ -192,10 +192,12 @@ def main() -> None:
         return_map = register(client, "a")
         death = read_byte(client, DEATH)
         route_index = read_byte(client, PRES_ROUTE)
-        if return_map != 0 or death != 4:
+        death_timer = read_byte(client, 0x003A)
+        if return_map != 0 or death != 3 or death_timer != 0:
             raise SystemExit(
                 "BUG-012 natural: demo did not return through natural completed death; "
-                f"map={return_map} death={death} route={route_index} last={last_demo_state}"
+                f"map={return_map} death={death} death_timer={death_timer} "
+                f"route={route_index} last={last_demo_state}"
             )
 
         monitor.clear(client, [start_id])
@@ -220,6 +222,7 @@ def main() -> None:
             "logical_pre_demo_maps": logical_maps,
             "demo_entry": True,
             "natural_death_state": death,
+            "natural_death_timer": death_timer,
             "route_index_at_return": route_index,
             "demo_runtime_calls": demo_calls,
             "last_demo_state": last_demo_state,
@@ -232,7 +235,7 @@ def main() -> None:
         args.output.write_text(json.dumps(evidence, indent=2) + "\n", encoding="ascii")
         print(
             "BUG-012 natural loop pass: logical maps 0,2,demo,0; "
-            f"natural death=4 route_index={route_index}; evidence={args.output}"
+            f"natural death-complete state=3 timer=0 route_index={route_index}; evidence={args.output}"
         )
     finally:
         client.close()
