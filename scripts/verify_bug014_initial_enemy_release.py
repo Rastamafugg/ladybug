@@ -118,11 +118,16 @@ def static_contract() -> dict[str, object]:
     body = source[begin:end]
     services = [
         "PRES_MAIN_INIT", "PRES_MAIN_MAZE", "PRES_MAIN_GATES",
-        "PRES_MAIN_ENTITIES", "PRES_MAIN_PLAYER", "PRES_MAIN_ENEMY", "$081B",
+        "PRES_MAIN_ENTITIES", "PRES_MAIN_PLAYER", "PRES_MAIN_ENEMY",
     ]
     offsets = [body.find(f"jsr     {service}") for service in services]
     if any(offset < 0 for offset in offsets) or offsets != sorted(offsets):
         raise RuntimeError(f"initializer service order mismatch: {list(zip(services, offsets))}")
+    reentry = body.find("lbsr    gameplay_reentry")
+    if reentry < 0 or reentry > offsets[0]:
+        raise RuntimeError("owner-preserving gameplay re-entry does not precede initialization")
+    if "jsr     $081B" in body:
+        raise RuntimeError("visible initialization restored the cold fixed-owner ABI")
     if "jsr     $0806" in body:
         raise RuntimeError("initializer still owns direct enemy release")
     main = MAIN_SOURCE.read_text(encoding="utf-8")
@@ -133,6 +138,8 @@ def static_contract() -> dict[str, object]:
         raise RuntimeError("perimeter timer no longer owns the 92-box release")
     return {
         "initializer_services_in_order": services,
+        "owner_preserving_reentry_before_services": True,
+        "cold_fixed_owner_abi_absent": True,
         "initializer_has_direct_release": False,
         "timer_release_owner": "perimeter_timer_tick",
         "part_one_ticks_per_advance": PART_ONE_TICKS_PER_ADVANCE,
