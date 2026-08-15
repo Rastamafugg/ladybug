@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tiled MCP read-only surface — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tooling</a>
+    <a href="../tickets/tool-003-read-only-mcp-surface.html">TOOL-003</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>Tiled MCP read-only surface <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Protocol design for exposing Tiled project context and safe inspection tools.</p>
+    </header>
+
+    <section><h2>Decision status</h2>
+      <p><a href="../tickets/tool-003-read-only-mcp-surface.html">TOOL-003</a> is <strong>Proposed</strong>. This page records the Ladybug-specific rationale. The full contract is maintained in <code>D:\retro\tiled-mcp\docs\mcp-read-only-surface.md</code>. No MCP implementation is authorized until the user approves the exact namespace, schemas, security boundary, and exclusions.</p>
+    </section>
+
+    <section><h2>Selected boundary</h2>
+      <p>Use standard MCP resources for raw Tiled files and normalized, read-only views. Use model-controlled tools for parameterized inventory, inspection, reference-graph construction, validation, and dry-run translation planning. Do not create a raw-read tool that duplicates <code>resources/read</code>.</p>
+      <p>Use a custom <code>tiled://</code> scheme with configured project aliases and project-relative paths. Do not expose host absolute paths. Canonicalize and contain every path, reject traversal and symlink escapes, preserve SHA-256 provenance, and fail explicitly for malformed or unsupported data.</p>
+    </section>
+
+    <section><h2>First surface</h2>
+      <ul>
+        <li><code>tiled://project/{id}/manifest</code> — project inventory anchor.</li>
+        <li><code>tiled://project/{id}/file{?path}</code> — raw text or binary file content.</li>
+        <li><code>tiled://project/{id}/normalized{?path,view}</code> — bounded JSON views for summary, layers, tilesets, objects, and references.</li>
+        <li><code>tiled_inventory</code> — filtered deterministic inventory.</li>
+        <li><code>tiled_inspect</code> — one normalized resource view.</li>
+        <li><code>tiled_resolve_references</code> — bounded external-reference graph.</li>
+        <li><code>tiled_validate</code> — generic or target-profile validation without writes.</li>
+        <li><code>tiled_plan_translation</code> — dry-run target plan with unsupported-feature diagnostics.</li>
+      </ul>
+    </section>
+
+    <section><h2>Ladybug constraints</h2>
+      <p>A Tiled resource is authored input, not assembly source. A successful normalized read or translation plan does not prove GIME palette correctness, 6809 packing, GMC source capacity, RAM/MMU destination capacity, or visible runtime behavior. The future Ladybug adapter must retain the existing Python oracle and verifier boundaries.</p>
+    </section>
+
+    <footer class="wiki-footer"><p>Primary public references: <a href="https://modelcontextprotocol.io/specification/2026-07-28/server/resources">MCP resources</a>, <a href="https://modelcontextprotocol.io/specification/2026-07-28/server/tools">MCP tools</a>, and <a href="https://doc.mapeditor.org/en/latest/reference/json-map-format/">Tiled JSON map format</a>.</p></footer>
+  </main>
+</div>
+</body>
+</html>

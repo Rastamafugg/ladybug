@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOOL-003 — Read-only MCP surface — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>TOOL-003 — Read-only MCP surface <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Define the first MCP resources and model-controlled tools for Tiled project inspection.</p>
+    </header>
+
+    <section><h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Define a small, read-only MCP contract for <code>D:\retro\tiled-mcp</code> that exposes Tiled project files, normalized metadata, references, validation, and dry-run translation planning. The contract must let a later implementation agent build the server without mixing MCP transport, filesystem security, Tiled parsing, or Ladybug target policy.</p>
+      <h3>Evidence and baseline</h3>
+      <p>The current target repository contains a deterministic local inventory core, GID decoding, and target-neutral translation interfaces, but no MCP transport or resource URI namespace. The design baseline is MCP specification revision <code>2026-07-28</code>, with legacy <code>2025-11-25</code> compatibility treated as an implementation decision. Ladybug's existing Tiled maps, TSX assets, Python generators, oracle vocabulary, and target-capacity rules are the first target-profile reference.</p>
+      <h3>Scope</h3>
+      <p><strong>In:</strong> URI namespace, resource templates, project manifest, raw and normalized resource representations, five read-only tools, JSON Schemas, provenance, caching, pagination, diagnostics, security rules, and implementation order. <strong>Out:</strong> MCP transport code, Tiled UI control, source mutation, image editing, network fetching, authentication implementation, assembly emission, and target runtime changes.</p>
+      <h3>Scenarios and edge cases</h3>
+      <p>Open a configured project alias; list resources deterministically; read text and binary files; inspect JSON maps and tilesets; resolve external TSX, template, and image references; handle malformed JSON, missing references, unsupported formats, infinite maps, GID transform flags, symlink escapes, path traversal, oversized files, duplicate aliases, stale cache data, and a dry-run translation that reports unsupported target features without writing files.</p>
+      <h3>Options and recommendation</h3>
+      <p>Use standard MCP resources for raw and normalized context, and tools only for queries or computations that need arguments. Do not create a raw-read tool that duplicates <code>resources/read</code>. Use a custom <code>tiled://</code> URI scheme with project aliases and query-encoded relative paths; never expose host absolute paths as the public identifier.</p>
+      <h3>Acceptance criteria</h3>
+      <p>The design names exact resource URIs and templates, defines the five tool inputs and outputs, specifies read-only annotations, deterministic ordering and pagination, error and diagnostic semantics, path and symlink containment, provenance and cache rules, protocol-version handling, and the first implementation sequence. The design is reviewable without claiming that MCP behavior is implemented.</p>
+    </section>
+
+    <section><h2>Selected design</h2>
+      <p>Resources are application-controlled context. Tools are model-controlled functions and must be marked read-only, idempotent, non-destructive, and closed-world. The first server advertises <code>resources</code> and <code>tools</code> capabilities without change notifications until a filesystem watcher is deliberately implemented. The core remains deterministic and local.</p>
+      <p>Project aliases map to an allowlisted root configured outside the protocol payload. The server canonicalizes every requested path, rejects traversal and symlink escapes, and returns private, provenance-bearing content. A resource read returns text for text formats and base64 binary content for images or other binary files.</p>
+    </section>
+
+    <section><h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Owned artifacts:</strong> <code>D:\retro\tiled-mcp\docs\mcp-read-only-surface.md</code>, target README/architecture links, and this ticket plus the Ladybug tooling summary and log.</li>
+        <li><strong>Constraints:</strong> design only; no MCP transport or parser implementation; follow the current MCP specification without coupling the core to a specific SDK; preserve raw Tiled values and explicit target diagnostics.</li>
+        <li><strong>Required review:</strong> schema review, path-containment review, deterministic-order review, and comparison against the official MCP resources/tools specification.</li>
+        <li><strong>Evidence:</strong> design document, official MCP/Tiled reference links, rejected alternatives, and local-link validation.</li>
+        <li><strong>Commit:</strong> one bounded documentation commit; implementation requires renewed approval and a separate Ready assignment.</li>
+      </ul>
+    </section>
+
+    <section><h2>Verification and completion</h2><p>Pending user approval of the design before implementation. No MCP code is authorized by this ticket.</p></section>
+    <section><h2>Decision log</h2>
+      <ul>
+        <li>2026-08-15 — User requested the design of the first read-only MCP resources and tools.</li>
+        <li>2026-08-15 — Coding architecture selected standard MCP resources for raw/normalized context and five read-only tools for queries, graph resolution, validation, and dry-run planning.</li>
+        <li>2026-08-15 — TOOL-003 remains Proposed. Implementation requires explicit approval of the resource namespace, tool schemas, security boundary, and scope exclusions.</li>
+      </ul>
+    </section>
+    <footer class="wiki-footer"><p>Canonical design: <code>D:\retro\tiled-mcp\docs\mcp-read-only-surface.md</code>.</p></footer>
+  </main>
+</div>
+</body>
+</html>
