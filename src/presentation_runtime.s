@@ -34,6 +34,9 @@ PLAYER_BG equ $A300
 BACK_ID equ $0090
 PENDING equ $0091
 ACTIVE  equ $0098
+FB_INIT_STATE equ $009A
+FB_META_A equ $A900
+FB_META_END equ $AB00
 ENTITY_TABLE equ $A380
 ENTITY_SKULL equ 1
 DEATH   equ $004D
@@ -262,7 +265,6 @@ load_advance
 load_next
         dec     PRES_ROWS
         bne     load_cells
-        clr     ACTIVE
         lda     #1
         rts
 load_done
@@ -448,7 +450,6 @@ map_store
         rts
 
 hold
-        clr     ACTIVE
         lda     #1
         rts
 timer
@@ -513,6 +514,10 @@ level_tick
         lbsr    timer
         cmpd    #180
         blo     hold
+        tst     PENDING
+        bne     hold
+        tst     ACTIVE
+        bne     hold
         tst     PRES_CONTEXT
         bne     live_begin
         ifne    BUG011_DEVELOPMENT_PROFILE
@@ -540,15 +545,39 @@ live_begin
         clra
         rts
 init_gameplay
+        lbsr    gameplay_reentry
         jsr     PRES_MAIN_INIT
         jsr     PRES_MAIN_MAZE
         jsr     PRES_MAIN_GATES
         jsr     PRES_MAIN_ENTITIES
         jsr     PRES_MAIN_PLAYER
         jsr     PRES_MAIN_ENEMY
-        jsr     $081B
+        inc     FB_INIT_STATE   ; shared initialization clears this ownership flag
         lda     #RF_STAGE       ; replace the presentation map on both A/B owners
         sta     $007F
+        rts
+gameplay_reentry
+        lda     #$34            ; shared initializers write game-state through PAR5
+        sta     PAR5
+        lda     BACK_ID         ; owner 0 -> $30; owner 1 -> $2C
+        nega
+        lsla
+        lsla
+        adda    #$30
+        ldx     #PAR1
+        ldb     #4
+gameplay_reentry_map_page
+        sta     ,x+
+        inca
+        decb
+        bne     gameplay_reentry_map_page
+        ldx     #FB_META_A      ; invalidate both 256-byte A/B ledgers
+        clra
+        clrb
+gameplay_reentry_clear
+        std     ,x++
+        cmpx    #FB_META_END
+        blo     gameplay_reentry_clear
         rts
         ifeq    BUG011_DEVELOPMENT_PROFILE
 demo_tick

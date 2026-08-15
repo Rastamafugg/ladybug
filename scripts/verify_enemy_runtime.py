@@ -582,6 +582,17 @@ assert_state_only(
 mainloop = main[main.index("\nmainloop\n") : main.index("\ninit_game_state\n")]
 if mainloop.count("lbsr    render_frame") != 1:
     raise SystemExit("enemy proof: mainloop must enter the framebuffer owner exactly once")
+presentation_call = mainloop.index("jsr     $1900")
+active_assertion = mainloop.index("sta     FB_RENDER_ACTIVE")
+first_gameplay_mutation = mainloop.index("lbsr    finish_gate_animation")
+if not presentation_call < active_assertion < first_gameplay_mutation:
+    raise SystemExit(
+        "enemy proof: render-active must begin after presentation selects gameplay "
+        "and before the first gameplay mutation"
+    )
+presentation_dispatch = mainloop[mainloop.index("sta     LAST_FRAME"):presentation_call]
+if "FB_RENDER_ACTIVE" in presentation_dispatch:
+    raise SystemExit("enemy proof: presentation dispatch is incorrectly render-active")
 frame_renderer = source[source.index("\nframe_render_impl\n"):
                         source.index("\nenemy_collect_impl\n")]
 for fragment in (
