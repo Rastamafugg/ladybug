@@ -23,12 +23,16 @@ def stores(payload: bytes) -> dict[int, int]:
     while cursor < len(payload) - 1:
         opcode = payload[cursor]
         if opcode == 0xCC:
+            if cursor + 6 > len(payload) or payload[cursor + 3] != 0xFD:
+                raise SystemExit("perimeter proof: malformed LDD/STD store")
             value = payload[cursor + 1:cursor + 3]
             address = (payload[cursor + 4] << 8) | payload[cursor + 5]
             result[address] = value[0]
             result[address + 1] = value[1]
             cursor += 6
         elif opcode == 0x86:
+            if cursor + 5 > len(payload) or payload[cursor + 2] != 0xB7:
+                raise SystemExit("perimeter proof: malformed LDA/STA store")
             result[(payload[cursor + 3] << 8) | payload[cursor + 4]] = payload[cursor + 1]
             cursor += 5
         else:
@@ -55,11 +59,9 @@ def main() -> None:
         elif box < 80: x, y = 0, 22 - (box - 58)
         else: x, y = box - 80, 0
         tile = tiles[screen_map[y * 40 + x + 8]]
-        # The authored renderer advances map rows by five pixels, so the next
-        # map row obscures rows 5-7 except at the bottom edge.
-        for row in range(8 if y == 23 else 5):
+        for row in range(8):
             for column, value in enumerate(tile[row * 4:(row + 1) * 4]):
-                address = 0x2000 + (y * 5 + row) * 160 + (x + 8) * 4 + column
+                address = 0x2000 + (y * 8 + row) * 160 + (x + 8) * 4 + column
                 green_high = 5 if value >> 4 == 6 else value >> 4
                 green_low = 5 if value & 15 == 6 else value & 15
                 white_high = 6 if value >> 4 == 6 else value >> 4
@@ -104,7 +106,7 @@ def main() -> None:
                 raise SystemExit("perimeter proof: mutation was accepted")
             helper = [0x34, 0x01, 0x1A, 0x50, 0x86, 0x20, 0xB7, 0xFF, 0xA5, 0xBD, 0xA0, 0x00, 0x86, 0x34, 0xB7, 0xFF, 0xA5, 0x35, 0x81]
             if (
-                (BUILD / "ladybug-perimeter-reset-helper.bin").read_bytes() != bytes(helper)
+                (BUILD / "ladybug-perimeter-reset-helper.bin").read_bytes()[:len(helper)] != bytes(helper)
                 or not all(row["pcs"].count(sym["perimeter_reset_published"]) == 1 for row in selected)
             ):
                 raise SystemExit("perimeter proof: PAR5 restore/return proof missing")

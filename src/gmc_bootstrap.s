@@ -427,20 +427,13 @@ spr_cell
         leay    d,x
         sty     BOOT_TILE_PTR
 
-        ; BOOT_DEST = $2000 + ((y*5)*160) + ((x+8)*4).
+        ; BOOT_DEST = $2000 + ((y*8)*160) + ((x+8)*4).
+        ; y*5 shifted into D's high byte is y*5*256 = y*8*160.
         lda     BOOT_CELL_Y
-        ldb     #25
+        ldb     #5
         mul
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
+        tfr     b,a
+        clrb
         addd    #$2000
         std     BOOT_DEST
         lda     BOOT_CELL_X
@@ -450,41 +443,55 @@ spr_cell
         addd    BOOT_DEST
         std     BOOT_DEST
         ldy     BOOT_TILE_PTR
-        lda     #5
-        ldb     BOOT_CELL_Y
-        cmpb    #23
-        bne     spr_rows_ready
         lda     #8
-spr_rows_ready
         sta     BOOT_ROW
 spr_row
         lda     #4
         sta     BOOT_COL
 spr_byte
         lda     ,y+
-        tfr     a,b
-        anda    #$F0
-        cmpa    #$60
-        beq     spr_changed
-        tfr     b,a
-        anda    #$0F
-        cmpa    #$06
-        bne     spr_unchanged
-spr_changed
+        bsr     spr_byte_changed
+        bne     spr_advance_one
+        pshs    b               ; retain first changed byte while peeking
+        lda     BOOT_COL
+        cmpa    #1
+        beq     spr_single
+        lda     ,y
+        bsr     spr_byte_changed
+        bne     spr_single
+        ; Two adjacent changed bytes use LDD #value16 / STD address.
+        lda     #$CC
+        sta     ,u+
+        puls    a
+        sta     ,u+
+        stb     ,u+
+        lda     #$FD
+        sta     ,u+
+        ldd     BOOT_DEST
+        std     ,u++
+        leay    1,y
+        addd    #2
+        std     BOOT_DEST
+        dec     BOOT_COL
+        dec     BOOT_COL
+        bne     spr_byte
+        bra     spr_next_row
+spr_single
         lda     #$86
         sta     ,u+
-        tfr     b,a
+        puls    a
         sta     ,u+
         lda     #$B7
         sta     ,u+
         ldd     BOOT_DEST
         std     ,u++
-spr_unchanged
+spr_advance_one
         ldd     BOOT_DEST
         addd    #1
         std     BOOT_DEST
         dec     BOOT_COL
         bne     spr_byte
+spr_next_row
         ldd     BOOT_DEST
         addd    #156
         std     BOOT_DEST
@@ -498,6 +505,19 @@ spr_unchanged
         sta     ,u+
         cmpu    #$C000
         lbhi    loader_fail
+        rts
+
+; A = packed tile byte. Return Z=1 when either nibble uses authored White 6;
+; B retains the original byte for native-program emission.
+spr_byte_changed
+        tfr     a,b
+        anda    #$F0
+        cmpa    #$60
+        beq     spr_byte_changed_done
+        tfr     b,a
+        anda    #$0F
+        cmpa    #$06
+spr_byte_changed_done
         rts
 
         include "ladybug-sparse-loader.inc"

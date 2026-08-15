@@ -282,10 +282,8 @@ def compile_perimeter_reset_payload(
     for box in range(92):
         cell_x, cell_y = perimeter_coordinates(box)
         tile = tiles[screen_map[cell_y * 40 + cell_x + 8]]
-        # Map rows advance by five pixels. Rows 5-7 are obscured by the next
-        # authored map row except at the bottom edge.
-        for row in range(8 if cell_y == 23 else 5):
-            offset = (cell_y * 5 + row) * 160 + (cell_x + 8) * 4
+        for row in range(8):
+            offset = (cell_y * 8 + row) * 160 + (cell_x + 8) * 4
             for column, value in enumerate(tile[row * 4:(row + 1) * 4]):
                 # The authored Green ring maps pen 6 to pen 5. Only bytes
                 # containing pen 6 change when the reset publishes White.
@@ -294,8 +292,19 @@ def compile_perimeter_reset_payload(
     if not patch:
         raise ValueError("perimeter reset patch is empty")
     payload = bytearray()
-    for address, value in patch.items():
+    stores = list(patch.items())
+    cursor = 0
+    while cursor < len(stores):
+        address, value = stores[cursor]
+        if cursor + 1 < len(stores) and stores[cursor + 1][0] == address + 1:
+            next_value = stores[cursor + 1][1]
+            payload.extend((
+                0xCC, value, next_value, 0xFD, address >> 8, address & 0xFF,
+            ))
+            cursor += 2
+            continue
         payload.extend((0x86, value, 0xB7, address >> 8, address & 0xFF))
+        cursor += 1
     payload.append(0x39)       # RTS to the low-RAM PAR5-restoring gateway.
     if len(payload) > PAGE_BYTES:
         raise ValueError(

@@ -45,7 +45,7 @@ C022 B7FFD9           (c/gmc_bootstrap.s):00044                 sta     SAM_FAST
 C025 B7FFDE           (c/gmc_bootstrap.s):00045                 sta     SAM_CART        ; BASIC autorun may leave TY=1; expose GMC ROM
 C028 308D0016         (c/gmc_bootstrap.s):00046                 leax    loader_start,pcr
 C02C 108E0300         (c/gmc_bootstrap.s):00047                 ldy     #LOADER_RAM
-C030 CE0385           (c/gmc_bootstrap.s):00048                 ldu     #loader_end-loader_start
+C030 CE03A8           (c/gmc_bootstrap.s):00048                 ldu     #loader_end-loader_start
 C033                  (c/gmc_bootstrap.s):00049         boot_copy
 C033 A680             (c/gmc_bootstrap.s):00050                 lda     ,x+
 C035 A7A0             (c/gmc_bootstrap.s):00051                 sta     ,y+
@@ -101,7 +101,7 @@ C099 25DB             (c/gmc_bootstrap.s):00100                 blo     copy_ene
                       (c/gmc_bootstrap.s):00101         
                       (c/gmc_bootstrap.s):00102                 ; Copy the indexed sparse enemy/player streams into physical pages
                       (c/gmc_bootstrap.s):00103                 ; $35-$37 and $39 using the generated fragmented-bank plan.
-C09B 308D02B0         (c/gmc_bootstrap.s):00104                 leax    sparse_copy_table,pcr
+C09B 308D02D3         (c/gmc_bootstrap.s):00104                 leax    sparse_copy_table,pcr
 C09F 860F             (c/gmc_bootstrap.s):00105                 lda     #SPARSE_COPY_SEGMENT_COUNT
 C0A1 97F2             (c/gmc_bootstrap.s):00106                 sta     BOOT_SEGMENTS
 C0A3                  (c/gmc_bootstrap.s):00107         copy_sparse_segment
@@ -427,80 +427,100 @@ C2C6 8EE3D0           (c/gmc_bootstrap.s):00426                 ldx     #PERIMET
 C2C9 318B             (c/gmc_bootstrap.s):00427                 leay    d,x
 C2CB 109FF8           (c/gmc_bootstrap.s):00428                 sty     BOOT_TILE_PTR
                       (c/gmc_bootstrap.s):00429         
-                      (c/gmc_bootstrap.s):00430                 ; BOOT_DEST = $2000 + ((y*5)*160) + ((x+8)*4).
-C2CE 96F5             (c/gmc_bootstrap.s):00431                 lda     BOOT_CELL_Y
-C2D0 C619             (c/gmc_bootstrap.s):00432                 ldb     #25
-C2D2 3D               (c/gmc_bootstrap.s):00433                 mul
-C2D3 58               (c/gmc_bootstrap.s):00434                 lslb
-C2D4 49               (c/gmc_bootstrap.s):00435                 rola
-C2D5 58               (c/gmc_bootstrap.s):00436                 lslb
-C2D6 49               (c/gmc_bootstrap.s):00437                 rola
-C2D7 58               (c/gmc_bootstrap.s):00438                 lslb
-C2D8 49               (c/gmc_bootstrap.s):00439                 rola
-C2D9 58               (c/gmc_bootstrap.s):00440                 lslb
-C2DA 49               (c/gmc_bootstrap.s):00441                 rola
-C2DB 58               (c/gmc_bootstrap.s):00442                 lslb
-C2DC 49               (c/gmc_bootstrap.s):00443                 rola
-C2DD C32000           (c/gmc_bootstrap.s):00444                 addd    #$2000
-C2E0 DDFA             (c/gmc_bootstrap.s):00445                 std     BOOT_DEST
-C2E2 96F4             (c/gmc_bootstrap.s):00446                 lda     BOOT_CELL_X
-C2E4 8B08             (c/gmc_bootstrap.s):00447                 adda    #8
-C2E6 C604             (c/gmc_bootstrap.s):00448                 ldb     #4
-C2E8 3D               (c/gmc_bootstrap.s):00449                 mul
-C2E9 D3FA             (c/gmc_bootstrap.s):00450                 addd    BOOT_DEST
-C2EB DDFA             (c/gmc_bootstrap.s):00451                 std     BOOT_DEST
-C2ED 109EF8           (c/gmc_bootstrap.s):00452                 ldy     BOOT_TILE_PTR
-C2F0 8605             (c/gmc_bootstrap.s):00453                 lda     #5
-C2F2 D6F5             (c/gmc_bootstrap.s):00454                 ldb     BOOT_CELL_Y
-C2F4 C117             (c/gmc_bootstrap.s):00455                 cmpb    #23
-C2F6 2602             (c/gmc_bootstrap.s):00456                 bne     spr_rows_ready
-C2F8 8608             (c/gmc_bootstrap.s):00457                 lda     #8
-C2FA                  (c/gmc_bootstrap.s):00458         spr_rows_ready
-C2FA 97F6             (c/gmc_bootstrap.s):00459                 sta     BOOT_ROW
-C2FC                  (c/gmc_bootstrap.s):00460         spr_row
-C2FC 8604             (c/gmc_bootstrap.s):00461                 lda     #4
-C2FE 97F7             (c/gmc_bootstrap.s):00462                 sta     BOOT_COL
-C300                  (c/gmc_bootstrap.s):00463         spr_byte
-C300 A6A0             (c/gmc_bootstrap.s):00464                 lda     ,y+
-C302 1F89             (c/gmc_bootstrap.s):00465                 tfr     a,b
-C304 84F0             (c/gmc_bootstrap.s):00466                 anda    #$F0
-C306 8160             (c/gmc_bootstrap.s):00467                 cmpa    #$60
-C308 2708             (c/gmc_bootstrap.s):00468                 beq     spr_changed
-C30A 1F98             (c/gmc_bootstrap.s):00469                 tfr     b,a
-C30C 840F             (c/gmc_bootstrap.s):00470                 anda    #$0F
-C30E 8106             (c/gmc_bootstrap.s):00471                 cmpa    #$06
-C310 2610             (c/gmc_bootstrap.s):00472                 bne     spr_unchanged
-C312                  (c/gmc_bootstrap.s):00473         spr_changed
-C312 8686             (c/gmc_bootstrap.s):00474                 lda     #$86
-C314 A7C0             (c/gmc_bootstrap.s):00475                 sta     ,u+
-C316 1F98             (c/gmc_bootstrap.s):00476                 tfr     b,a
-C318 A7C0             (c/gmc_bootstrap.s):00477                 sta     ,u+
-C31A 86B7             (c/gmc_bootstrap.s):00478                 lda     #$B7
-C31C A7C0             (c/gmc_bootstrap.s):00479                 sta     ,u+
-C31E DCFA             (c/gmc_bootstrap.s):00480                 ldd     BOOT_DEST
-C320 EDC1             (c/gmc_bootstrap.s):00481                 std     ,u++
-C322                  (c/gmc_bootstrap.s):00482         spr_unchanged
-C322 DCFA             (c/gmc_bootstrap.s):00483                 ldd     BOOT_DEST
-C324 C30001           (c/gmc_bootstrap.s):00484                 addd    #1
-C327 DDFA             (c/gmc_bootstrap.s):00485                 std     BOOT_DEST
-C329 0AF7             (c/gmc_bootstrap.s):00486                 dec     BOOT_COL
-C32B 26D3             (c/gmc_bootstrap.s):00487                 bne     spr_byte
-C32D DCFA             (c/gmc_bootstrap.s):00488                 ldd     BOOT_DEST
-C32F C3009C           (c/gmc_bootstrap.s):00489                 addd    #156
-C332 DDFA             (c/gmc_bootstrap.s):00490                 std     BOOT_DEST
-C334 0AF6             (c/gmc_bootstrap.s):00491                 dec     BOOT_ROW
-C336 26C4             (c/gmc_bootstrap.s):00492                 bne     spr_row
-C338 0CF3             (c/gmc_bootstrap.s):00493                 inc     BOOT_BOX
-C33A 96F3             (c/gmc_bootstrap.s):00494                 lda     BOOT_BOX
-C33C 815C             (c/gmc_bootstrap.s):00495                 cmpa    #92
-C33E 1025FF23         (c/gmc_bootstrap.s):00496                 lblo    spr_box
-C342 8639             (c/gmc_bootstrap.s):00497                 lda     #$39
-C344 A7C0             (c/gmc_bootstrap.s):00498                 sta     ,u+
-C346 1183C000         (c/gmc_bootstrap.s):00499                 cmpu    #$C000
-C34A 1022FF09         (c/gmc_bootstrap.s):00500                 lbhi    loader_fail
-C34E 39               (c/gmc_bootstrap.s):00501                 rts
-                      (c/gmc_bootstrap.s):00502         
-                      (c/gmc_bootstrap.s):00503                 include "ladybug-sparse-loader.inc"
+                      (c/gmc_bootstrap.s):00430                 ; BOOT_DEST = $2000 + ((y*8)*160) + ((x+8)*4).
+                      (c/gmc_bootstrap.s):00431                 ; y*5 shifted into D's high byte is y*5*256 = y*8*160.
+C2CE 96F5             (c/gmc_bootstrap.s):00432                 lda     BOOT_CELL_Y
+C2D0 C605             (c/gmc_bootstrap.s):00433                 ldb     #5
+C2D2 3D               (c/gmc_bootstrap.s):00434                 mul
+C2D3 1F98             (c/gmc_bootstrap.s):00435                 tfr     b,a
+C2D5 5F               (c/gmc_bootstrap.s):00436                 clrb
+C2D6 C32000           (c/gmc_bootstrap.s):00437                 addd    #$2000
+C2D9 DDFA             (c/gmc_bootstrap.s):00438                 std     BOOT_DEST
+C2DB 96F4             (c/gmc_bootstrap.s):00439                 lda     BOOT_CELL_X
+C2DD 8B08             (c/gmc_bootstrap.s):00440                 adda    #8
+C2DF C604             (c/gmc_bootstrap.s):00441                 ldb     #4
+C2E1 3D               (c/gmc_bootstrap.s):00442                 mul
+C2E2 D3FA             (c/gmc_bootstrap.s):00443                 addd    BOOT_DEST
+C2E4 DDFA             (c/gmc_bootstrap.s):00444                 std     BOOT_DEST
+C2E6 109EF8           (c/gmc_bootstrap.s):00445                 ldy     BOOT_TILE_PTR
+C2E9 8608             (c/gmc_bootstrap.s):00446                 lda     #8
+C2EB 97F6             (c/gmc_bootstrap.s):00447                 sta     BOOT_ROW
+C2ED                  (c/gmc_bootstrap.s):00448         spr_row
+C2ED 8604             (c/gmc_bootstrap.s):00449                 lda     #4
+C2EF 97F7             (c/gmc_bootstrap.s):00450                 sta     BOOT_COL
+C2F1                  (c/gmc_bootstrap.s):00451         spr_byte
+C2F1 A6A0             (c/gmc_bootstrap.s):00452                 lda     ,y+
+C2F3 8D6E             (c/gmc_bootstrap.s):00453                 bsr     spr_byte_changed
+C2F5 263F             (c/gmc_bootstrap.s):00454                 bne     spr_advance_one
+C2F7 3404             (c/gmc_bootstrap.s):00455                 pshs    b               ; retain first changed byte while peeking
+C2F9 96F7             (c/gmc_bootstrap.s):00456                 lda     BOOT_COL
+C2FB 8101             (c/gmc_bootstrap.s):00457                 cmpa    #1
+C2FD 2727             (c/gmc_bootstrap.s):00458                 beq     spr_single
+C2FF A6A4             (c/gmc_bootstrap.s):00459                 lda     ,y
+C301 8D60             (c/gmc_bootstrap.s):00460                 bsr     spr_byte_changed
+C303 2621             (c/gmc_bootstrap.s):00461                 bne     spr_single
+                      (c/gmc_bootstrap.s):00462                 ; Two adjacent changed bytes use LDD #value16 / STD address.
+C305 86CC             (c/gmc_bootstrap.s):00463                 lda     #$CC
+C307 A7C0             (c/gmc_bootstrap.s):00464                 sta     ,u+
+C309 3502             (c/gmc_bootstrap.s):00465                 puls    a
+C30B A7C0             (c/gmc_bootstrap.s):00466                 sta     ,u+
+C30D E7C0             (c/gmc_bootstrap.s):00467                 stb     ,u+
+C30F 86FD             (c/gmc_bootstrap.s):00468                 lda     #$FD
+C311 A7C0             (c/gmc_bootstrap.s):00469                 sta     ,u+
+C313 DCFA             (c/gmc_bootstrap.s):00470                 ldd     BOOT_DEST
+C315 EDC1             (c/gmc_bootstrap.s):00471                 std     ,u++
+C317 3121             (c/gmc_bootstrap.s):00472                 leay    1,y
+C319 C30002           (c/gmc_bootstrap.s):00473                 addd    #2
+C31C DDFA             (c/gmc_bootstrap.s):00474                 std     BOOT_DEST
+C31E 0AF7             (c/gmc_bootstrap.s):00475                 dec     BOOT_COL
+C320 0AF7             (c/gmc_bootstrap.s):00476                 dec     BOOT_COL
+C322 26CD             (c/gmc_bootstrap.s):00477                 bne     spr_byte
+C324 201B             (c/gmc_bootstrap.s):00478                 bra     spr_next_row
+C326                  (c/gmc_bootstrap.s):00479         spr_single
+C326 8686             (c/gmc_bootstrap.s):00480                 lda     #$86
+C328 A7C0             (c/gmc_bootstrap.s):00481                 sta     ,u+
+C32A 3502             (c/gmc_bootstrap.s):00482                 puls    a
+C32C A7C0             (c/gmc_bootstrap.s):00483                 sta     ,u+
+C32E 86B7             (c/gmc_bootstrap.s):00484                 lda     #$B7
+C330 A7C0             (c/gmc_bootstrap.s):00485                 sta     ,u+
+C332 DCFA             (c/gmc_bootstrap.s):00486                 ldd     BOOT_DEST
+C334 EDC1             (c/gmc_bootstrap.s):00487                 std     ,u++
+C336                  (c/gmc_bootstrap.s):00488         spr_advance_one
+C336 DCFA             (c/gmc_bootstrap.s):00489                 ldd     BOOT_DEST
+C338 C30001           (c/gmc_bootstrap.s):00490                 addd    #1
+C33B DDFA             (c/gmc_bootstrap.s):00491                 std     BOOT_DEST
+C33D 0AF7             (c/gmc_bootstrap.s):00492                 dec     BOOT_COL
+C33F 26B0             (c/gmc_bootstrap.s):00493                 bne     spr_byte
+C341                  (c/gmc_bootstrap.s):00494         spr_next_row
+C341 DCFA             (c/gmc_bootstrap.s):00495                 ldd     BOOT_DEST
+C343 C3009C           (c/gmc_bootstrap.s):00496                 addd    #156
+C346 DDFA             (c/gmc_bootstrap.s):00497                 std     BOOT_DEST
+C348 0AF6             (c/gmc_bootstrap.s):00498                 dec     BOOT_ROW
+C34A 26A1             (c/gmc_bootstrap.s):00499                 bne     spr_row
+C34C 0CF3             (c/gmc_bootstrap.s):00500                 inc     BOOT_BOX
+C34E 96F3             (c/gmc_bootstrap.s):00501                 lda     BOOT_BOX
+C350 815C             (c/gmc_bootstrap.s):00502                 cmpa    #92
+C352 1025FF0F         (c/gmc_bootstrap.s):00503                 lblo    spr_box
+C356 8639             (c/gmc_bootstrap.s):00504                 lda     #$39
+C358 A7C0             (c/gmc_bootstrap.s):00505                 sta     ,u+
+C35A 1183C000         (c/gmc_bootstrap.s):00506                 cmpu    #$C000
+C35E 1022FEF5         (c/gmc_bootstrap.s):00507                 lbhi    loader_fail
+C362 39               (c/gmc_bootstrap.s):00508                 rts
+                      (c/gmc_bootstrap.s):00509         
+                      (c/gmc_bootstrap.s):00510         ; A = packed tile byte. Return Z=1 when either nibble uses authored White 6;
+                      (c/gmc_bootstrap.s):00511         ; B retains the original byte for native-program emission.
+C363                  (c/gmc_bootstrap.s):00512         spr_byte_changed
+C363 1F89             (c/gmc_bootstrap.s):00513                 tfr     a,b
+C365 84F0             (c/gmc_bootstrap.s):00514                 anda    #$F0
+C367 8160             (c/gmc_bootstrap.s):00515                 cmpa    #$60
+C369 2706             (c/gmc_bootstrap.s):00516                 beq     spr_byte_changed_done
+C36B 1F98             (c/gmc_bootstrap.s):00517                 tfr     b,a
+C36D 840F             (c/gmc_bootstrap.s):00518                 anda    #$0F
+C36F 8106             (c/gmc_bootstrap.s):00519                 cmpa    #$06
+C371                  (c/gmc_bootstrap.s):00520         spr_byte_changed_done
+C371 39               (c/gmc_bootstrap.s):00521                 rts
+                      (c/gmc_bootstrap.s):00522         
+                      (c/gmc_bootstrap.s):00523                 include "ladybug-sparse-loader.inc"
                       (sparse-loader.inc):00001         ; Generated by scripts/build_sparse_sprites.py; do not edit.
      0035             (sparse-loader.inc):00002         SPARSE_ENEMY_PAYLOAD_PAGE equ $35
      0039             (sparse-loader.inc):00003         SPARSE_PLAYER_PAYLOAD_PAGE equ $39
@@ -514,59 +534,59 @@ C34E 39               (c/gmc_bootstrap.s):00501                 rts
      000F             (sparse-loader.inc):00011         SPARSE_COPY_SEGMENT_COUNT equ 15
                       (sparse-loader.inc):00012         
                       (sparse-loader.inc):00013         ; bank, destination page, source CPU address, destination window, count
-C34F                  (sparse-loader.inc):00014         sparse_copy_table
+C372                  (sparse-loader.inc):00014         sparse_copy_table
                       (sparse-loader.inc):00015                 ; boot_overflow_proof+$0000
-C34F 00FF             (sparse-loader.inc):00016                 fcb     $00,$FF
-C351 C80006B00002     (sparse-loader.inc):00017                 fdb     $C800,$06B0,$0002
+C372 00FF             (sparse-loader.inc):00016                 fcb     $00,$FF
+C374 C80006B00002     (sparse-loader.inc):00017                 fdb     $C800,$06B0,$0002
                       (sparse-loader.inc):00018                 ; perimeter_reset_helper+$0000
-C357 00FF             (sparse-loader.inc):00019                 fcb     $00,$FF
-C359 C80206B2014B     (sparse-loader.inc):00020                 fdb     $C802,$06B2,$014B
+C37A 00FF             (sparse-loader.inc):00019                 fcb     $00,$FF
+C37C C80206B2014B     (sparse-loader.inc):00020                 fdb     $C802,$06B2,$014B
                       (sparse-loader.inc):00021                 ; enemy+$0000
-C35F 0235             (sparse-loader.inc):00022                 fcb     $02,$35
-C361 C020A0002000     (sparse-loader.inc):00023                 fdb     $C020,$A000,$2000
+C382 0235             (sparse-loader.inc):00022                 fcb     $02,$35
+C384 C020A0002000     (sparse-loader.inc):00023                 fdb     $C020,$A000,$2000
                       (sparse-loader.inc):00024                 ; enemy+$2000
-C367 0236             (sparse-loader.inc):00025                 fcb     $02,$36
-C369 E020A0001DE0     (sparse-loader.inc):00026                 fdb     $E020,$A000,$1DE0
+C38A 0236             (sparse-loader.inc):00025                 fcb     $02,$36
+C38C E020A0001DE0     (sparse-loader.inc):00026                 fdb     $E020,$A000,$1DE0
                       (sparse-loader.inc):00027                 ; enemy+$3DE0
-C36F 0336             (sparse-loader.inc):00028                 fcb     $03,$36
-C371 D800BDE00220     (sparse-loader.inc):00029                 fdb     $D800,$BDE0,$0220
+C392 0336             (sparse-loader.inc):00028                 fcb     $03,$36
+C394 D800BDE00220     (sparse-loader.inc):00029                 fdb     $D800,$BDE0,$0220
                       (sparse-loader.inc):00030                 ; enemy+$4000
-C377 0337             (sparse-loader.inc):00031                 fcb     $03,$37
-C379 DA20A00019DD     (sparse-loader.inc):00032                 fdb     $DA20,$A000,$19DD
+C39A 0337             (sparse-loader.inc):00031                 fcb     $03,$37
+C39C DA20A00019DD     (sparse-loader.inc):00032                 fdb     $DA20,$A000,$19DD
                       (sparse-loader.inc):00033                 ; player+$0000
-C37F 0339             (sparse-loader.inc):00034                 fcb     $03,$39
-C381 F3FDA00008F6     (sparse-loader.inc):00035                 fdb     $F3FD,$A000,$08F6
+C3A2 0339             (sparse-loader.inc):00034                 fcb     $03,$39
+C3A4 F3FDA00008F6     (sparse-loader.inc):00035                 fdb     $F3FD,$A000,$08F6
                       (sparse-loader.inc):00036                 ; gate+$0000
-C387 0339             (sparse-loader.inc):00037                 fcb     $03,$39
-C389 FCF3A8F6010D     (sparse-loader.inc):00038                 fdb     $FCF3,$A8F6,$010D
+C3AA 0339             (sparse-loader.inc):00037                 fcb     $03,$39
+C3AC FCF3A8F6010D     (sparse-loader.inc):00038                 fdb     $FCF3,$A8F6,$010D
                       (sparse-loader.inc):00039                 ; gate+$010D
-C38F 0339             (sparse-loader.inc):00040                 fcb     $03,$39
-C391 C000AA030010     (sparse-loader.inc):00041                 fdb     $C000,$AA03,$0010
+C3B2 0339             (sparse-loader.inc):00040                 fcb     $03,$39
+C3B4 C000AA030010     (sparse-loader.inc):00041                 fdb     $C000,$AA03,$0010
                       (sparse-loader.inc):00042                 ; gate+$011D
-C397 0339             (sparse-loader.inc):00043                 fcb     $03,$39
-C399 C012AA130223     (sparse-loader.inc):00044                 fdb     $C012,$AA13,$0223
+C3BA 0339             (sparse-loader.inc):00043                 fcb     $03,$39
+C3BC C012AA130223     (sparse-loader.inc):00044                 fdb     $C012,$AA13,$0223
                       (sparse-loader.inc):00045                 ; presentation+$0000
-C39F 0339             (sparse-loader.inc):00046                 fcb     $03,$39
-C3A1 C235AC360380     (sparse-loader.inc):00047                 fdb     $C235,$AC36,$0380
+C3C2 0339             (sparse-loader.inc):00046                 fcb     $03,$39
+C3C4 C235AC360380     (sparse-loader.inc):00047                 fdb     $C235,$AC36,$0380
                       (sparse-loader.inc):00048                 ; presentation_cold+$0000
-C3A7 033A             (sparse-loader.inc):00049                 fcb     $03,$3A
-C3A9 C5B5A000024B     (sparse-loader.inc):00050                 fdb     $C5B5,$A000,$024B
+C3CA 033A             (sparse-loader.inc):00049                 fcb     $03,$3A
+C3CC C5B5A000024B     (sparse-loader.inc):00050                 fdb     $C5B5,$A000,$024B
                       (sparse-loader.inc):00051                 ; presentation_cold+$024B
-C3AF 003A             (sparse-loader.inc):00052                 fcb     $00,$3A
-C3B1 C94DA24B1B89     (sparse-loader.inc):00053                 fdb     $C94D,$A24B,$1B89
+C3D2 003A             (sparse-loader.inc):00052                 fcb     $00,$3A
+C3D4 C94DA24B1B89     (sparse-loader.inc):00053                 fdb     $C94D,$A24B,$1B89
                       (sparse-loader.inc):00054                 ; attract_actor_bundle+$0000
-C3B7 0023             (sparse-loader.inc):00055                 fcb     $00,$23
-C3B9 E4D6A00004B1     (sparse-loader.inc):00056                 fdb     $E4D6,$A000,$04B1
+C3DA 0023             (sparse-loader.inc):00055                 fcb     $00,$23
+C3DC E4D6A00004B1     (sparse-loader.inc):00056                 fdb     $E4D6,$A000,$04B1
                       (sparse-loader.inc):00057                 ; presentation_module+$0000
-C3BF 00FF             (sparse-loader.inc):00058                 fcb     $00,$FF
-C3C1 E987190004FC     (sparse-loader.inc):00059                 fdb     $E987,$1900,$04FC
-                      (c/gmc_bootstrap.s):00504                 include "ladybug-perimeter-boot.inc"
+C3E2 00FF             (sparse-loader.inc):00058                 fcb     $00,$FF
+C3E4 E987190004FC     (sparse-loader.inc):00059                 fdb     $E987,$1900,$04FC
+                      (c/gmc_bootstrap.s):00524                 include "ladybug-perimeter-boot.inc"
                       (erimeter-boot.inc):00001         ; Generated from the current authored screen asset map.
      E010             (erimeter-boot.inc):00002         PERIMETER_SCREEN_MAP equ $E010
      E3D0             (erimeter-boot.inc):00003         PERIMETER_SCREEN_TILES equ $E3D0
-C3C7                  (c/gmc_bootstrap.s):00505         loader_end
-                      (c/gmc_bootstrap.s):00506         
-                      (c/gmc_bootstrap.s):00507                 end
+C3EA                  (c/gmc_bootstrap.s):00525         loader_end
+                      (c/gmc_bootstrap.s):00526         
+                      (c/gmc_bootstrap.s):00527                 end
 
 Symbol Table:
 [ G] ASSET_STAGE_PAGE                 0022
@@ -608,7 +628,7 @@ Symbol Table:
 [ G] GIME_INIT0                       FF90
 [ G] GIME_MMU                         FF91
 [ G] GMC_BANK                         FF50
-[ G] loader_end                       C3C7
+[ G] loader_end                       C3EA
 [ G] loader_fail                      C257
 [ G] LOADER_RAM                       0300
 [ G] loader_start                     C042
@@ -622,22 +642,24 @@ Symbol Table:
 [ G] SAM_FAST                         FFD9
 [ G] SPARSE_COPY_SEGMENT_BYTES        0008
 [ G] SPARSE_COPY_SEGMENT_COUNT        000F
-[ G] sparse_copy_table                C34F
+[ G] sparse_copy_table                C372
 [ G] SPARSE_ENEMY_INDEX_ADDR          A000
 [ G] SPARSE_ENEMY_INDEX_BYTES         0186
 [ G] SPARSE_ENEMY_PAYLOAD_PAGE        0035
 [ G] SPARSE_PLAYER_INDEX_ADDR         A000
 [ G] SPARSE_PLAYER_INDEX_BYTES        0030
 [ G] SPARSE_PLAYER_PAYLOAD_PAGE       0039
+[ G] spr_advance_one                  C336
 [ G] spr_bottom                       C293
 [ G] spr_box                          C265
-[ G] spr_byte                         C300
+[ G] spr_byte                         C2F1
+[ G] spr_byte_changed                 C363
+[ G] spr_byte_changed_done            C371
 [ G] spr_cell                         C2A7
-[ G] spr_changed                      C312
 [ G] spr_left                         C29F
+[ G] spr_next_row                     C341
 [ G] spr_right                        C287
-[ G] spr_row                          C2FC
-[ G] spr_rows_ready                   C2FA
+[ G] spr_row                          C2ED
+[ G] spr_single                       C326
 [ G] spr_top                          C27F
-[ G] spr_unchanged                    C322
 [ G] synthesize_perimeter_reset       C25B
