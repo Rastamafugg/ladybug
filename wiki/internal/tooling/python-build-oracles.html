@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python build and oracles — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tooling</a>
+    <a href="./build-workflow.html">Build runbook</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>Python build and oracles <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">How authored data becomes generated assembly, GMC payloads, and the delivered ROM image.</p>
+    </header>
+
+    <section>
+      <h2>Purpose</h2>
+      <p>Ladybug's Python programs are build tools and evidence producers around the 6809 source. They do not run on the CoCo 3. They read authored or captured data, validate its contract, derive compact representations, emit assembly or binary artifacts, and independently check that the emitted artifacts preserve the intended result.</p>
+      <p>This page complements the <a href="./build-workflow.html">build and deploy runbook</a>. The runbook is the command reference. This page defines the ownership vocabulary needed to decide whether a Python program is a source transformer, an oracle, a verifier, or part of the delivery composer.</p>
+    </section>
+
+    <section>
+      <h2>Oracle definition</h2>
+      <p>An <strong>oracle</strong> is a deterministic, independently checkable expected-result model. It answers what the result must be for a defined input and contract. An oracle may be represented by source data, a captured frame, a JSON record, a mathematical model, a hash, a decoded byte stream, or a set of invariants. The representation is not the definition; authority, determinism, and an observable pass/fail comparison are.</p>
+      <p>An oracle is not automatically the code that produces the result. A generator may implement the same rule as the runtime and still be a weak oracle if it shares the same bug. Strong checks compare independent representations or derive expected values from an authority that the implementation does not rewrite. A runtime capture can be evidence of visible behavior, but it is not a complete oracle unless the capture plan, expected state sequence, provenance, and comparison rule are fixed.</p>
+      <p>In this project, the word <strong>oracle</strong> therefore means “expected result and its provenance,” while <strong>verifier</strong> means “program that compares an observed or generated result against that expectation.” A Python file can contain both roles, but the page, ticket, and output should identify which role is active.</p>
+    </section>
+
+    <section>
+      <h2>Oracle categories in Ladybug</h2>
+      <ul>
+        <li><strong>Reference oracle:</strong> an approved external or captured authority, such as <code>assets/arcade/maze_capture.bin</code>, <code>assets/arcade/maze_capture.json</code>, arcade pixel JSON, or a MAME capture plan. It defines the source behavior or pixels.</li>
+        <li><strong>Semantic oracle:</strong> a derived model with explicit invariants, such as <code>assets/arcade/maze.json</code> and the navigation, gate ownership, dot, and connectivity checks produced by <code>scripts/derive_maze.py</code>.</li>
+        <li><strong>Representation oracle:</strong> an expected byte-level or stream-level result, such as sparse frame indexes, run streams, gate transition streams, generated include contents, hashes, and reconstructed bank payloads.</li>
+        <li><strong>Build guard:</strong> a hard contract that must fail closed, such as resident/asset limits, page boundaries, 16 KiB bank size, accessible GMC offsets, destination bounds, or exact raw-file length. A guard is an oracle for a constraint, not proof of visual fidelity.</li>
+        <li><strong>Runtime oracle:</strong> a planned sequence of input, phase, deadline, marker, and expected state used by XRoar/GDB or another observation tool. It proves execution behavior only for the covered sequence and does not replace static artifact checks.</li>
+      </ul>
+      <p>Required rare paths are not passing evidence when they are absent. A verifier must force required rare paths or report the coverage as incomplete. Natural replay and isolated forced coverage are separate when persistent ownership, timing, or ordering can differ.</p>
+    </section>
+
+    <section>
+      <h2>Python ownership map</h2>
+      <p>The current build uses these roles. Generated files under <code>build/</code> are disposable products of the current source revision unless a ticket explicitly retains them as evidence.</p>
+      <ul>
+        <li><code>scripts/derive_maze.py</code> validates the approved raw MAME capture, derives semantic maze cells, styles, navigation, gates, owners, and dots, and emits <code>assets/arcade/maze.json</code> plus <code>build/ladybug_maze.inc</code>.</li>
+        <li><code>scripts/build_screen.py</code> consumes the Tiled gameplay map, semantic maze, arcade character data, and sprite data. It flattens layers, resolves GIDs and transforms, packs native tiles and sprites, and emits <code>build/ladybug_screen.inc</code>, resident includes, gate-transition streams, and popup/presentation streams.</li>
+        <li><code>scripts/build_presentation.py</code> consumes the Tiled presentation maps and shared arcade assets. It validates layer contracts and metadata, compiles map streams, cold presentation data, instruction choreography, actor surfaces, and a manifest with hashes and offsets.</li>
+        <li><code>scripts/build_sparse_sprites.py</code> turns packed actor and presentation data into indexed sparse streams, computes target chunks, assigns source-bank intervals and RAM destinations, synthesizes the perimeter reset program, and emits the loader include and GMC layout manifest. Its perimeter generator is an independent expected-result model for the boot-synthesized reset program.</li>
+        <li><code>scripts/verify_*.py</code> programs independently decode or inspect outputs, compare hashes and reconstructed bytes, exercise boundary cases, and run focused or runtime scenarios. They are evidence producers, not additional source authorities.</li>
+        <li>Inline Python blocks in <code>scripts/build.sh</code> perform small delivery guards and map-symbol extraction. They are part of the build contract but should not become a second general-purpose generator without a ticket.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Python-to-ROM pipeline</h2>
+      <pre><code>authored/captured inputs
+  Tiled TMX/TSX + arcade JSON/bin + capture plans
+        │
+        ├─ derive_maze.py ─────────────── semantic JSON + maze assembly include
+        ├─ build_screen.py ────────────── screen/resident/presentation binaries/includes
+        ├─ build_presentation.py ──────── cold payload + presentation include + manifest
+        └─ build_sparse_sprites.py ────── indexed streams + source banks + loader plan
+        │
+        ├─ independent Python verifiers and capacity proofs
+        └─ lwasm -9 --format=raw
+             src/main.s       → runtime bank + listing/map
+             src/enemy_runtime.s → bank-3 module
+             src/presentation_runtime.s → copied presentation module
+             src/gmc_bootstrap.s → boot bank + loader map
+        │
+        ├─ map-symbol and destination guards
+        ├─ pad each source bank to 16 KiB with 0xFF
+        ├─ overlay manifest-owned bank-0 overflow intervals only
+        └─ concatenate bank 0, bank 1, bank 2, bank 3
+             → build/ladybug.rom, exactly 65,536 bytes
+             → XRoar GMC boot/runtime verification</code></pre>
+      <p><code>scripts/build.sh build</code> is the canonical orchestration entry point. It first regenerates semantic and presentation products, then assembles the runtime modules, extracts stable symbols into generated includes, builds sparse payloads and the loader plan, proves capacity boundaries, assembles the bootstrap, overlays only declared bank-0 intervals, and composes the four 16 KiB banks. The ROM image is therefore a delivery artifact assembled from several independently guarded products, not the direct output of one Python script.</p>
+    </section>
+
+    <section>
+      <h2>Artifact classes and authority</h2>
+      <p><strong>Authored source</strong> includes Tiled maps, tilesets, arcade JSON/bin captures, and 6809 source. <strong>Derived source</strong> includes semantic JSON, generated assembly includes, sparse streams, manifests, listings, and maps. <strong>Delivered artifacts</strong> include padded runtime banks, the bootstrap bank, and the final four-bank GMC image. <strong>Observed evidence</strong> includes verifier reports, XRoar/GDB traces, screenshots, and hashes. When these disagree, stop at the earliest boundary, compare the authored/staged/destination bytes, and do not diagnose runtime behavior from a symbol alone.</p>
+      <p>Generated outputs are reproducible only when the input paths, profile, Tiled revision, source revision, tool versions, and relevant hashes are retained. A generated include is not an independent oracle merely because it is checked into a build directory. The authoritative expectation must be identified in the ticket or manifest.</p>
+    </section>
+
+    <section>
+      <h2>Failure interpretation</h2>
+      <ul>
+        <li>A semantic validation failure means the input contract or reference capture is invalid for the current generator.</li>
+        <li>A generated-output mismatch means the transformation, stale artifact, or source identity must be investigated before runtime diagnosis.</li>
+        <li>A capacity failure means the target boundary was exceeded. It is not accepted because assembly completed.</li>
+        <li>A runtime timeout identifies the observation boundary and deadline. It is not a performance measurement or proof that target code is slow.</li>
+        <li>A visual mismatch requires a visible-output oracle or capture comparison; a source hash and a successful build are insufficient.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Commands</h2>
+      <pre><code>scripts/build.sh build
+scripts/build.sh verify-gmc
+python3 scripts/derive_maze.py
+python3 scripts/build_screen.py --help
+python3 scripts/build_presentation.py --help
+python3 scripts/build_sparse_sprites.py --help</code></pre>
+      <p>Use the full <a href="./build-workflow.html">build runbook</a> for required arguments and emulator launch details. Use the relevant ticket for the exact evidence, forced rare paths, deadlines, and pass/fail rule.</p>
+    </section>
+
+    <section>
+      <h2>Relation to Tiled MCP</h2>
+      <p>The future <code>D:\retro\tiled-mcp</code> project uses this pipeline as a template. Its core should preserve the distinction between authored Tiled resources, normalized intermediate data, target-specific generators, and independent verifiers. It must not infer that a Tiled map is already assembly source, or that a successful export proves CoCo memory, palette, tile-packing, or GMC capacity. See <a href="../tickets/tool-002-tiled-mcp-starter.html">TOOL-002</a> for the bounded starter contract.</p>
+    </section>
+
+    <footer class="wiki-footer"><p>Source revision: Ladybug main checkout, 2026-08-15. Primary commands and ownership are implemented in <code>scripts/build.sh</code> and the cited Python scripts.</p></footer>
+  </main>
+</div>
+</body>
+</html>

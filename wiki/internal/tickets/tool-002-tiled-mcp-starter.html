@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOOL-002 — Tiled MCP starter — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>TOOL-002 — Tiled MCP starter <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Create a bounded design and package scaffold for a future Tiled resource MCP server.</p>
+    </header>
+
+    <section><h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Start <code>D:\retro\tiled-mcp</code> as a repository that a later agent can use to design and build an MCP plugin for Tiled project resources, image assets, and translation to target assembly data. The repository must use Ladybug's existing Tiled/JSON/assembly pipeline as a concrete template while remaining reusable for other targets.</p>
+      <h3>Evidence and baseline</h3>
+      <p>The target repository currently contains only its MIT license. Ladybug already contains hand-authored TMX/TSX resources, JSON asset contracts, Python generators, generated assembly includes, binary payloads, and capacity guards. Official Tiled documentation for JSON maps, layers, objects, custom properties, templates, custom export formats, and scripting is the public reference baseline.</p>
+      <h3>Scope</h3>
+      <p><strong>In:</strong> repository README, Python package scaffold, resource inventory model, translation interface boundaries, agent handoff/design documentation, installation/configuration/use notes, capability roadmap, Ladybug template mapping, tests for the starter model, and links to public Tiled references. <strong>Out:</strong> a working MCP transport, Tiled UI plugin, write-back mutation commands, image conversion implementation, target assembly compiler, authentication, remote resource fetching, and exposure of every Tiled feature.</p>
+      <h3>Scenarios and edge cases</h3>
+      <p>Inventory a project containing TMX, TSX, JSON maps, external tilesets, templates, images, and project files; distinguish unsupported or unknown files; preserve relative paths; handle malformed JSON; recognize global tile IDs versus local tile IDs; represent custom properties/classes without losing raw values; keep source and generated artifacts separate; and allow a later target adapter to reject unsupported transformations explicitly.</p>
+      <h3>Options and recommendation</h3>
+      <p>Use a dependency-light Python core with a neutral intermediate resource model and adapter interfaces. Keep MCP transport and Tiled-in-process scripting outside the core. This follows Tiled's documented JSON/TMX model and avoids making Python export-plugin compatibility the foundation of the system.</p>
+      <h3>Acceptance criteria</h3>
+      <p>The repository can be installed locally, inventories a fixture or supplied directory deterministically, exposes typed resource and translation boundaries, documents how a future MCP agent should proceed, links the public Tiled references, includes Ladybug's source/derived/delivered artifact mapping, and passes package tests and syntax checks. No claim of MCP compatibility is made until an actual MCP server is implemented and tested.</p>
+    </section>
+
+    <section><h2>Architecture and ownership</h2>
+      <p><strong>Core model:</strong> resource discovery and normalized metadata. <strong>Format adapters:</strong> TMX/TSX/JSON/project/template readers. <strong>Target adapters:</strong> translation from normalized resources to target-specific assembly or binary plans. <strong>Protocol adapter:</strong> future MCP tools/resources/prompts. <strong>CLI:</strong> local inspection and deterministic diagnostics. The core owns no Tiled UI state and no target-specific memory assumptions.</p>
+    </section>
+
+    <section><h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Owned artifacts:</strong> all new files under <code>D:\retro\tiled-mcp</code>; Ladybug changes are limited to this ticket, ticket index, and project log unless separately approved.</li>
+        <li><strong>Constraints:</strong> no dependency on a running Tiled process; no network access at runtime; preserve raw resource paths and values; fail closed on malformed input; do not claim unsupported Tiled features.</li>
+        <li><strong>Required commands:</strong> <code>python -m compileall</code> for package sources, package tests, CLI inventory against a fixture, and repository status/diff inspection.</li>
+        <li><strong>Evidence:</strong> test output, deterministic inventory output, source tree, public-reference links, and an explicit non-goal list.</li>
+        <li><strong>Commit:</strong> one bounded starter commit; no push or merge authority.</li>
+        <li><strong>Completion report:</strong> commit, files, tests/results, supported starter behaviors, excluded features, and next-agent handoff.</li>
+      </ul>
+    </section>
+
+    <section><h2>Verification and completion</h2><p>Pending implementation and QA. MCP protocol behavior is intentionally unverified and out of scope for this starter.</p></section>
+    <section><h2>Decision log</h2>
+      <ul>
+        <li>2026-08-15 — User explicitly requested that the target repository be started after the Ladybug wiki documentation.</li>
+        <li>2026-08-15 — Business analysis limited this ticket to a design-ready scaffold and rejected implicit scope expansion to a full MCP server.</li>
+        <li>2026-08-15 — Coding architecture selected a dependency-light core, neutral intermediate model, separate format/target/protocol adapters, and deterministic local inspection.</li>
+        <li>2026-08-15 — Ticket advanced through Approved and Ready; implementation began after DOC-004 documentation was added.</li>
+      </ul>
+    </section>
+    <footer class="wiki-footer"><p>Public references are listed in the target repository's documentation and are not vendored.</p></footer>
+  </main>
+</div>
+</body>
+</html>

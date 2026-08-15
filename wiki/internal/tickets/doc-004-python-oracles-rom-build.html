@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOC-004 — Python oracles and ROM build — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · documentation</p>
+      <h1>DOC-004 — Python oracles and ROM build <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Define the Python build roles, oracle contract, generated artifacts, and ROM assembly path.</p>
+    </header>
+
+    <section><h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Document how Ladybug's Python programs transform authored Tiled, JSON, and captured arcade data into generated assembly/binary artifacts, how those artifacts are assembled into the four-bank ROM, and what “oracle” means in this project. This is needed before the Tiled MCP work uses Ladybug as a template.</p>
+      <h3>Evidence and baseline</h3>
+      <p>Current revision 2026-08-15 contains Python generators and verifiers called by <code>scripts/build.sh</code>, including <code>derive_maze.py</code>, <code>build_screen.py</code>, <code>build_presentation.py</code>, <code>build_sparse_sprites.py</code>, and independent verification scripts. Existing pages describe commands and outputs but do not define the shared oracle terminology or the complete Python-to-ROM ownership boundary.</p>
+      <h3>Scope</h3>
+      <p><strong>In:</strong> one internal HTML page, links from tooling/build indexes, definition and taxonomy of oracle roles, Python input/output ownership, generated-file rules, ROM/bank composition narrative, command references, and a dated project-log entry. <strong>Out:</strong> Python refactors, new build behavior, MCP implementation, runtime changes, and replacing existing verification scripts.</p>
+      <h3>Scenarios and edge cases</h3>
+      <p>Cover a normal <code>scripts/build.sh build</code>; a Tiled map change; a captured-asset change; a generated include or binary mismatch; a source-bank capacity failure; a successful bank-0 overflow composition; a failed one-byte-over-capacity proof; release versus development profile; and a runtime verifier that is not equivalent to a build-time oracle.</p>
+      <h3>Options and recommendation</h3>
+      <p>Use one canonical “Python build and oracle” page linked from the existing runbook. Do not duplicate the full build runbook or create a second terminology page. Define an oracle by its expected-result authority and independent checkability, not by the implementation language or by whether it emits bytes.</p>
+      <h3>Acceptance criteria</h3>
+      <p>The page defines oracle, generator, verifier, reference capture, staged artifact, and delivered artifact; identifies the current scripts and their inputs/outputs; explains raw <code>lwasm</code> output, padding, bank composition, and hard guards; links from tooling navigation and the build runbook; passes local-link validation; and records the revision and decision in <code>wiki/internal/log.html</code>.</p>
+    </section>
+
+    <section><h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Owned artifacts:</strong> <code>wiki/internal/tooling/python-build-oracles.html</code>, <code>wiki/internal/tooling/index.html</code>, <code>wiki/internal/tooling/build-workflow.html</code>, this ticket, ticket index, and <code>wiki/internal/log.html</code>.</li>
+        <li><strong>Constraints:</strong> hand-authored HTML; no Markdown wiki page; preserve existing commands and claims unless corrected by current source; no runtime or build-script changes.</li>
+        <li><strong>Required commands:</strong> local HTML target scan, Python syntax compilation for cited scripts, and <code>scripts/build.sh build</code> if available in the current environment.</li>
+        <li><strong>Evidence:</strong> changed-file list, local-link result, syntax result, build result, and current source revision.</li>
+        <li><strong>Commit:</strong> one bounded documentation commit; integration remains parent-owned.</li>
+        <li><strong>Completion report:</strong> commit, pages changed, commands/results, build outcome, and residual documentation gaps.</li>
+      </ul>
+    </section>
+
+    <section><h2>Verification and completion</h2><p>Pending implementation and QA.</p></section>
+    <section><h2>Decision log</h2>
+      <ul>
+        <li>2026-08-15 — User explicitly requested the documentation outcome and authorized the exact scope above.</li>
+        <li>2026-08-15 — Business analysis selected a single canonical page and separated oracle, generator, verifier, and delivered-artifact responsibilities.</li>
+        <li>2026-08-15 — Ticket advanced through Approved and Ready; implementation began in the parent checkout. No Python or runtime behavior change is authorized.</li>
+      </ul>
+    </section>
+    <footer class="wiki-footer"><p>Canonical evidence: the linked HTML page, local-link scan, Python syntax result, and build result.</p></footer>
+  </main>
+</div>
+</body>
+</html>
