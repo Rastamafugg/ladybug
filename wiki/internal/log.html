@@ -14,6 +14,10 @@
   </nav>
 <main class="wiki-main">
     <section>
+      <h3>2026-08-15 &middot; architecture/assignment &mdash; BUG-017 perimeter vertical stride</h3>
+      <p>Prepared approved BUG-017 as Ready from deployed closure commit <code>7d8545e</code> in isolated branch <code>codex/bug-017-perimeter-vertical-stride</code>. Inspection corrected the execution-level diagnosis: incremental <code>draw_perimeter_box</code> already computes the authored eight-scanline stride through <code>row * 5 * 256</code>; the defect is confined to boot synthesis and the Python reset oracle's literal <code>row * 5 * 160</code>. A corrected byte-only payload would exceed physical page <code>$20</code> by 319 bytes, so the selected existing-format paired-store encoding projects 5,751 bytes with 2,441 spare and a 17,303-cycle maximum against the 27,000-cycle target. Fixed source ownership, read-only boundaries, both-owner natural enemy and forced-skull scenarios, commands, evidence, commit, and completion-report requirements. No production implementation was performed.</p>
+    </section>
+    <section>
       <h3>2026-08-15 &middot; verification/acceptance &mdash; BUG-014 initial enemy release</h3>
       <p>The user visually verified BUG-014 on the deployed artifact. Synchronized the focused static verifier with BUG-012's approved owner-preserving <code>gameplay_reentry</code> and explicitly rejected restoration of cold fixed-owner ABI <code>$081B</code>. Current ROM SHA-256 <code>6a7eba7b9719b20456e764fa8b200c48c34ada01b7e262b3682d0d9656dabcff</code> passes randomized demo owner-zero/owner-one and live owner-zero dormant startup plus controlled owner-zero/owner-one release after exactly 92 advances at nine committed frames per advance, with zero premature activation and zero FRONT-write faults. Existing BUG-012 combined build, GMC, natural death, ownership, and capacity evidence remains current because only the verifier changed. BUG-019 retains separate nest-exit choreography. BUG-014 advances from Verification to Done; retained evidence is <code>build/bug014-initial-enemy-release.json</code>.</p>
     </section>
