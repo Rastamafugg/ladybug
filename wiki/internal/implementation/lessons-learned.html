@@ -1838,6 +1838,14 @@ git reset --hard HEAD
       <p><strong>Citation:</strong> <code>src/main.s</code> <code>mainloop</code>, <code>src/presentation_runtime.s</code> <code>level_tick</code>, and the reverted BUG-012 first implementation probe.</p>
     </section>
 
+    <section>
+      <h2>Shared state initializers can still mutate the mapped framebuffer</h2>
+      <p><strong>Filed 2026-08-15.</strong> BUG-012 first restored only PAR5 before shared gameplay initialization. A Vbord trace still found two changed bytes in the scanned level-start image; bounded stepping localized them to <code>init_entities</code>/<code>erase_entity_footprints</code>, which draw through PAR1&ndash;PAR4 while clearing entity state.</p>
+      <p><strong>Rule:</strong> before calling a shared state initializer during a visible handoff, inspect its transitive render effects and map every framebuffer window to the existing logical BACK. Restoring the state window alone is insufficient. Preserve logical owners and physical scanout selection; do not relabel ownership to fit a fixed initializer.</p>
+      <p><strong>Applies to:</strong> presentation-to-gameplay handoff, respawn, stage reset, and any shared initializer that combines state reset with footprint cleanup.</p>
+      <p><strong>Citation:</strong> BUG-012 physical Vbord evidence, <code>src/presentation_runtime.s</code> <code>gameplay_reentry</code>, and <code>src/enemy_runtime.s</code> entity initialization.</p>
+    </section>
+
   </main>
 </div>
 </body>
