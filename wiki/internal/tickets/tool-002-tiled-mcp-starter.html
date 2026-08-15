@@ -50,13 +50,17 @@
       </ul>
     </section>
 
-    <section><h2>Verification and completion</h2><p>Pending implementation and QA. MCP protocol behavior is intentionally unverified and out of scope for this starter.</p></section>
+    <section><h2>Verification and completion</h2>
+      <p><strong>QA verdict:</strong> all starter acceptance criteria pass. Implementation commit <code>4361028cbe6dea3c8b0bb7d4e73f603ec3ac4e4a</code> adds the package, tests, fixtures, README, architecture, Ladybug mapping, public Tiled references, and next-agent handoff. Cleanup commit <code>53e3f92535b9a182239095cff884bb41c6fc6d1f</code> removes generated <code>egg-info</code>/<code>__pycache__</code> artifacts and adds ignore rules. <code>python -m unittest discover -s tests -v</code>, <code>python -m compileall -q src tests</code>, editable installation without dependencies, and deterministic fixture inventory all pass.</p>
+      <p><strong>Residual risk:</strong> MCP transport, live Tiled integration, TMX/TSX parsing, write-back mutation, image conversion, assembly emission, and broad Tiled feature exposure remain intentionally unimplemented and must be separate future tickets. No network or running Tiled process is required by the starter.</p>
+    </section>
     <section><h2>Decision log</h2>
       <ul>
         <li>2026-08-15 — User explicitly requested that the target repository be started after the Ladybug wiki documentation.</li>
         <li>2026-08-15 — Business analysis limited this ticket to a design-ready scaffold and rejected implicit scope expansion to a full MCP server.</li>
         <li>2026-08-15 — Coding architecture selected a dependency-light core, neutral intermediate model, separate format/target/protocol adapters, and deterministic local inspection.</li>
         <li>2026-08-15 — Ticket advanced through Approved and Ready; implementation began after DOC-004 documentation was added.</li>
+        <li>2026-08-15 — QA passed package tests, syntax checks, editable install, and deterministic inventory. Commits <code>4361028</code> and <code>53e3f92</code> are integrated; TOOL-002 advanced Verification &rarr; Done. MCP behavior remains out of scope.</li>
       </ul>
     </section>
     <footer class="wiki-footer"><p>Public references are listed in the target repository's documentation and are not vendored.</p></footer>

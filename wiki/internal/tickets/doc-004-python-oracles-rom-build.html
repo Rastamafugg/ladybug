@@ -46,12 +46,16 @@
       </ul>
     </section>
 
-    <section><h2>Verification and completion</h2><p>Pending implementation and QA.</p></section>
+    <section><h2>Verification and completion</h2>
+      <p><strong>QA verdict:</strong> all acceptance criteria pass. Commit <code>6736f0ffba536100207afd7003bebc78ef04ad51</code> adds the canonical page, navigation links, synchronized ticket contracts, and project-log entry. The current <code>scripts/build.sh build</code> completes with maze/presentation proofs, sparse stream proof, exact GMC overflow proof, capacity guards, and a 65,536-byte four-bank ROM. New-page HTML link validation passes. The full wiki scan still reports the two pre-existing missing <code>FEAT-001</code> targets in the existing ticket index/log; they are outside DOC-004.</p>
+      <p><strong>Residual risk:</strong> the page documents current source ownership and commands but does not replace future source-ingest work or runtime visual verification. No build or runtime source changed.</p>
+    </section>
     <section><h2>Decision log</h2>
       <ul>
         <li>2026-08-15 — User explicitly requested the documentation outcome and authorized the exact scope above.</li>
         <li>2026-08-15 — Business analysis selected a single canonical page and separated oracle, generator, verifier, and delivered-artifact responsibilities.</li>
         <li>2026-08-15 — Ticket advanced through Approved and Ready; implementation began in the parent checkout. No Python or runtime behavior change is authorized.</li>
+        <li>2026-08-15 — QA passed the scoped HTML links and canonical build. Commit <code>6736f0f</code> is integrated; DOC-004 advanced Verification &rarr; Done. The two pre-existing FEAT-001 link failures remain outside scope.</li>
       </ul>
     </section>
     <footer class="wiki-footer"><p>Canonical evidence: the linked HTML page, local-link scan, Python syntax result, and build result.</p></footer>
