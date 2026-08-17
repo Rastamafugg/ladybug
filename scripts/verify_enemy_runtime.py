@@ -164,9 +164,9 @@ for fragment in (
     if fragment not in enemy_render:
         raise SystemExit("enemy proof: normalized nest intent missing: " + fragment)
 nest_anim_test = enemy_render.index("bita    #ERF_NEST_ANIM")
-nest_test = enemy_render.index("bita    #ERF_NEST", nest_anim_test + 1)
-if not nest_anim_test < nest_test < enemy_render.index("lbsr    compose_enemy_zone"):
-    raise SystemExit("enemy proof: movement-only frames do not bypass nest composition")
+nest_test = enemy_render.index("bita    #ERF_NEST")
+if not nest_test < nest_anim_test < enemy_render.index("lbsr    compose_enemy_zone"):
+    raise SystemExit("enemy proof: structural nest intent does not dominate animation-only intent")
 queue = source[source.index("\nframebuffer_queue_damage\n"):
                source.index("\nroam_mark_underlay\n")]
 for fragment in (
@@ -244,6 +244,9 @@ for fragment in (
         raise SystemExit("enemy proof: bounded nest animation path missing: " + fragment)
 if not source.index("tst     ENEMY_NEST_DIRTY", source.index("et_animation_timer")) < source.index("ora     #ERF_NEST_ANIM"):
     raise SystemExit("enemy proof: structural nest dirtiness does not dominate animation")
+render_nest = source[source.index("\neri_dirty\n"):source.index("\neri_finish\n")]
+if render_nest.index("bita    #ERF_NEST") > render_nest.index("bita    #ERF_NEST_ANIM"):
+    raise SystemExit("enemy proof: structural nest composition does not dominate animation-only composition")
 for fragment in ("reset_enemy_state", "reload_enemy_box_timer"):
     if fragment not in main:
         raise SystemExit("enemy proof: cold reset helper was not moved to resident code: " + fragment)
@@ -482,8 +485,25 @@ for fragment in ("restore_entity_footprint", "gate_region_to_shadow"):
         raise SystemExit("enemy proof: skull gameplay path still writes framebuffer state")
 nest_start = source.index("\ncez_active_loop\n")
 nest_actor = source[nest_start : source.index("\ncez_active_next\n", nest_start)]
-if "tst     6,u" not in nest_actor or "cmpa    #10" in nest_actor:
+for fragment in (
+    "tst     6,u", "suba    #11", "cmpa    #1", "bhi     cez_active_next",
+    "inca", "suba    3,u",
+):
+    if fragment not in nest_actor:
+        raise SystemExit("enemy proof: BUG-019 compact ownership/interpolation guard missing: " + fragment)
+if nest_actor.count("suba    3,u") != 1 or "ldb     #16" not in nest_actor:
+    raise SystemExit("enemy proof: compact nest interpolation is not two scanlines per phase")
+if "cmpa    #10" in nest_actor or "subb    3,u" in nest_actor:
     raise SystemExit("enemy proof: nest compositor does not use actor ownership state")
+movement_scan = source[source.index("\net_find_movement\n"):source.index("\net_render_test\n")]
+for fragment in ("lda     ENEMY_MOVE", "ora     #ERF_DIRTY", "tst     6,x", "ora     #ERF_NEST", "sta     ENEMY_MOVE"):
+    if fragment not in movement_scan:
+        raise SystemExit("enemy proof: nest-owned movement render intent missing: " + fragment)
+if "bra     et_render_test" in movement_scan:
+    raise SystemExit("enemy proof: movement scan stops before later nest-owned actors")
+movement_finish = source[source.index("\net_finish\n"):source.index("; Consume gameplay-owned", source.index("\net_finish\n"))]
+if "ora     ENEMY_MOVE" not in movement_finish:
+    raise SystemExit("enemy proof: movement-specific render intent is not published")
 bonus_start = main.index("\nbonus_color_tick\n")
 bonus_tick = main[bonus_start : main.index("\nbct_done\n", bonus_start)]
 if "LIVES" in bonus_tick:

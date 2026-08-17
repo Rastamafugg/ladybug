@@ -1,0 +1,815 @@
+{
+  "schema": "ladybug-bug019-nest-exit-v1",
+  "mode": "demo",
+  "initial_owner": 0,
+  "scenario": "multiple-release",
+  "phase_deadline_seconds": 60.0,
+  "success_markers": [
+    "cold-attract",
+    "initialized-part-one",
+    "framebuffer-finish-back"
+  ],
+  "timeout_meaning": "failure of the named observation boundary only",
+  "screen_requests": [
+    0
+  ],
+  "rom_sha256": "74ccb023d967037e4cba92e043eba5973f65877f54d3dc18965b13dcefc9a751",
+  "artifact_identity": {
+    "authored_sprite_source_sha256": "af2adb1a494b6a641deb38931ee93220b9638ffca4d42e8e37d7d8683945e42d",
+    "generated_payload_sha256": "688af5ca9c98802096aa50cf47ef65b78077205f7d77a4d70415bbfb4d51029d",
+    "bank_staged_payload_sha256": "688af5ca9c98802096aa50cf47ef65b78077205f7d77a4d70415bbfb4d51029d",
+    "live_physical_payload_sha256": "688af5ca9c98802096aa50cf47ef65b78077205f7d77a4d70415bbfb4d51029d",
+    "selected_part_one_entries": [
+      {
+        "frame": 0,
+        "page": 53,
+        "address": 41350,
+        "length": 207,
+        "sha256": "449ec370717be49b816cfd750c6c9665f00b1195aae6e7d593efd8d4c5d2095a"
+      },
+      {
+        "frame": 1,
+        "page": 53,
+        "address": 41557,
+        "length": 196,
+        "sha256": "cfe2f492cac14269ff4dbfe4fe00020cdb7ab3a438bde911ce287d5735adf8e0"
+      },
+      {
+        "frame": 2,
+        "page": 53,
+        "address": 41753,
+        "length": 199,
+        "sha256": "210a0b1c6ba34d6592eb3076dfb8b67d2dee6bea120fc5cde19fefb08f753d2b"
+      },
+      {
+        "frame": 3,
+        "page": 53,
+        "address": 41952,
+        "length": 196,
+        "sha256": "cfe2f492cac14269ff4dbfe4fe00020cdb7ab3a438bde911ce287d5735adf8e0"
+      },
+      {
+        "frame": 4,
+        "page": 53,
+        "address": 42148,
+        "length": 162,
+        "sha256": "5aaa77ec40437ed3cdb6ff779c610ab3cea9baee077bd8e1bf0a2d5b115c12ae"
+      },
+      {
+        "frame": 5,
+        "page": 53,
+        "address": 42310,
+        "length": 156,
+        "sha256": "125a993bf30f7e2ddeaed2bdf05c95057cc95bceee5aca1983b67c5829cb4aea"
+      },
+      {
+        "frame": 6,
+        "page": 53,
+        "address": 42466,
+        "length": 142,
+        "sha256": "f19822d28161054ae42700e90e377be08b2cd00fc9226d857f9dab3d21a5468a"
+      },
+      {
+        "frame": 7,
+        "page": 53,
+        "address": 42608,
+        "length": 156,
+        "sha256": "125a993bf30f7e2ddeaed2bdf05c95057cc95bceee5aca1983b67c5829cb4aea"
+      },
+      {
+        "frame": 8,
+        "page": 53,
+        "address": 42764,
+        "length": 207,
+        "sha256": "4bec49275f833ac3b698bb39f18ba0a49c4a97c4d7733d2487fd7ea0482f10a2"
+      },
+      {
+        "frame": 9,
+        "page": 53,
+        "address": 42971,
+        "length": 196,
+        "sha256": "66c12c81ba1fe8e92a4f15ea1ca83871593a7824f4f04a0102a2918233686ec5"
+      },
+      {
+        "frame": 10,
+        "page": 53,
+        "address": 43167,
+        "length": 199,
+        "sha256": "f6190497af77d15649f191e2aabd00a42aa2c19f1b0afba88b392265d751045b"
+      },
+      {
+        "frame": 11,
+        "page": 53,
+        "address": 43366,
+        "length": 196,
+        "sha256": "66c12c81ba1fe8e92a4f15ea1ca83871593a7824f4f04a0102a2918233686ec5"
+      },
+      {
+        "frame": 12,
+        "page": 53,
+        "address": 43562,
+        "length": 174,
+        "sha256": "958af7c0173f4bbc49a167f09caf703926411d2d32c2abbe6673ff5b0985280f"
+      },
+      {
+        "frame": 13,
+        "page": 53,
+        "address": 43736,
+        "length": 168,
+        "sha256": "e17a6f0a8b8e6008369d609e3d0df22a9b6eb118ac23bafb0c1749b726b6a1d8"
+      },
+      {
+        "frame": 14,
+        "page": 53,
+        "address": 43904,
+        "length": 154,
+        "sha256": "a6c287fec14c01a299114b730af9df3a71b4bdaa49a30e0e42ef0ef082aa7cf4"
+      },
+      {
+        "frame": 15,
+        "page": 53,
+        "address": 44058,
+        "length": 168,
+        "sha256": "e17a6f0a8b8e6008369d609e3d0df22a9b6eb118ac23bafb0c1749b726b6a1d8"
+      }
+    ],
+    "all_equal": true
+  },
+  "static_oracle": {
+    "phase_offsets_scanlines": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "source_guards": [
+      "tst     6,u",
+      "suba    #11",
+      "cmpa    #1",
+      "bhi     cez_active_next",
+      "inca",
+      "suba    3,u",
+      "ldb     #16"
+    ],
+    "mutations": [],
+    "pass": true
+  },
+  "scenario_detail": {
+    "forced": false,
+    "natural_part_one_initialization": true
+  },
+  "samples": [
+    {
+      "label": "multiple-release-row-12-phase-0",
+      "logical_phase": "nest-exit-commit",
+      "executed_worklist": "background, compact rows 12/11, dormant-last, persistent row 10+",
+      "back_owner": 0,
+      "actor": {
+        "slot": 0,
+        "active": 1,
+        "fb": 22508,
+        "phase": 0,
+        "cell_x": 12,
+        "cell_y": 12,
+        "persistent": 0,
+        "direction": 0
+      },
+      "actor_records": [
+        {
+          "slot": 0,
+          "active": 1,
+          "fb": 22508,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 12,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 1,
+          "active": 1,
+          "fb": 19948,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 10,
+          "persistent": 1,
+          "direction": 1
+        },
+        {
+          "slot": 2,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 3,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        }
+      ],
+      "offset_scanlines": 0,
+      "compact_paint_count": 1,
+      "persistent_paint_count": 0,
+      "overlap_pixels": 129,
+      "overlap_sha256": "cf4d86afb36b89e35307e328a1b91453adc1a12db764e3f6db76830c8bf43d9d",
+      "crop_palette_sha256": "d6323967a0bbc15e5e5a1a061f0b2e9c8a7cf101dbfad3b73387e437b1e575f1",
+      "crop_rgb_sha256": "80702bbea782eb7d91d563cde5044d383e3faa0001d10b27b9699f09c843e9c9",
+      "physical_owner_crop_sha256": {
+        "0": "d6323967a0bbc15e5e5a1a061f0b2e9c8a7cf101dbfad3b73387e437b1e575f1",
+        "1": "d6ca46a08956faf47ed76e7444fefcf3fbec52073165a835fddcbf64efca963b"
+      },
+      "outside_union_sha256": "d47fdb45cb3ea1cc5ab923fedf821fff06807f3c9e5ec9b0ea848ffd3fe58dbe",
+      "oracle_pixel_exact": true
+    },
+    {
+      "label": "multiple-release-row-12-phase-1",
+      "logical_phase": "nest-exit-commit",
+      "executed_worklist": "background, compact rows 12/11, dormant-last, persistent row 10+",
+      "back_owner": 1,
+      "actor": {
+        "slot": 0,
+        "active": 1,
+        "fb": 22188,
+        "phase": 1,
+        "cell_x": 12,
+        "cell_y": 12,
+        "persistent": 0,
+        "direction": 0
+      },
+      "actor_records": [
+        {
+          "slot": 0,
+          "active": 1,
+          "fb": 22188,
+          "phase": 1,
+          "cell_x": 12,
+          "cell_y": 12,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 1,
+          "active": 1,
+          "fb": 19948,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 10,
+          "persistent": 1,
+          "direction": 1
+        },
+        {
+          "slot": 2,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 3,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        }
+      ],
+      "offset_scanlines": 2,
+      "compact_paint_count": 1,
+      "persistent_paint_count": 0,
+      "overlap_pixels": 95,
+      "overlap_sha256": "1f374c524a618ec7505ebbabfacff80a3aa944aa04661da2c92f909f43aa4df7",
+      "crop_palette_sha256": "5df29f53913f39bb77250bc88d57bb38b28fe6914374e78d31e9872dcca81be8",
+      "crop_rgb_sha256": "89e97aec486f25892c5b9f6b03168a44abb47e1cbcfa95a929e48ef36374f38f",
+      "physical_owner_crop_sha256": {
+        "0": "d6323967a0bbc15e5e5a1a061f0b2e9c8a7cf101dbfad3b73387e437b1e575f1",
+        "1": "5df29f53913f39bb77250bc88d57bb38b28fe6914374e78d31e9872dcca81be8"
+      },
+      "outside_union_sha256": "a81f26bea5ae8cea66b2e432bf25b7cc9751d50a99a6ad4166bf5f3e0a7e68a0",
+      "oracle_pixel_exact": true
+    },
+    {
+      "label": "multiple-release-row-12-phase-2",
+      "logical_phase": "nest-exit-commit",
+      "executed_worklist": "background, compact rows 12/11, dormant-last, persistent row 10+",
+      "back_owner": 0,
+      "actor": {
+        "slot": 0,
+        "active": 1,
+        "fb": 21868,
+        "phase": 2,
+        "cell_x": 12,
+        "cell_y": 12,
+        "persistent": 0,
+        "direction": 0
+      },
+      "actor_records": [
+        {
+          "slot": 0,
+          "active": 1,
+          "fb": 21868,
+          "phase": 2,
+          "cell_x": 12,
+          "cell_y": 12,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 1,
+          "active": 1,
+          "fb": 19948,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 10,
+          "persistent": 1,
+          "direction": 1
+        },
+        {
+          "slot": 2,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 3,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        }
+      ],
+      "offset_scanlines": 4,
+      "compact_paint_count": 1,
+      "persistent_paint_count": 0,
+      "overlap_pixels": 79,
+      "overlap_sha256": "147a4f392b20ea64550b858679d29cd5c37173f1e07369e05d6f573a7ed515c7",
+      "crop_palette_sha256": "2f76ae746068f6ef4b10a0babacf4b2bf0611428dcbdd89c390336b558bc5820",
+      "crop_rgb_sha256": "e801c182ecbafd0d6bc0b0cd702d547fb2cf3d018f5ef60338315bb74d3b3d00",
+      "physical_owner_crop_sha256": {
+        "0": "2f76ae746068f6ef4b10a0babacf4b2bf0611428dcbdd89c390336b558bc5820",
+        "1": "5df29f53913f39bb77250bc88d57bb38b28fe6914374e78d31e9872dcca81be8"
+      },
+      "outside_union_sha256": "2897c911c5046abb27d622517d2cc1d793f3c59d4b1e24e094f2fef718a56121",
+      "oracle_pixel_exact": true
+    },
+    {
+      "label": "multiple-release-row-12-phase-3",
+      "logical_phase": "nest-exit-commit",
+      "executed_worklist": "background, compact rows 12/11, dormant-last, persistent row 10+",
+      "back_owner": 1,
+      "actor": {
+        "slot": 0,
+        "active": 1,
+        "fb": 21548,
+        "phase": 3,
+        "cell_x": 12,
+        "cell_y": 12,
+        "persistent": 0,
+        "direction": 0
+      },
+      "actor_records": [
+        {
+          "slot": 0,
+          "active": 1,
+          "fb": 21548,
+          "phase": 3,
+          "cell_x": 12,
+          "cell_y": 12,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 1,
+          "active": 1,
+          "fb": 19948,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 10,
+          "persistent": 1,
+          "direction": 1
+        },
+        {
+          "slot": 2,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 3,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        }
+      ],
+      "offset_scanlines": 6,
+      "compact_paint_count": 1,
+      "persistent_paint_count": 0,
+      "overlap_pixels": 57,
+      "overlap_sha256": "f42d41d318ba3f3dd02e42e59e3efadcc3b178e41b2f62b29e8730e65026d05c",
+      "crop_palette_sha256": "871ea21c1c53d3f3053159a42152b2805a90da34c3fb981c1e76e4d5c11e7011",
+      "crop_rgb_sha256": "0a014c69de77c4e8c7766e182ae9acac0f04a26d4bedbcd9c35aff2cd4e34502",
+      "physical_owner_crop_sha256": {
+        "0": "2f76ae746068f6ef4b10a0babacf4b2bf0611428dcbdd89c390336b558bc5820",
+        "1": "871ea21c1c53d3f3053159a42152b2805a90da34c3fb981c1e76e4d5c11e7011"
+      },
+      "outside_union_sha256": "383950dd0371c721cbe97fedc5130dabec2d681dc6d50c7dd5b9048a081015cb",
+      "oracle_pixel_exact": true
+    },
+    {
+      "label": "multiple-release-row-11-phase-0",
+      "logical_phase": "nest-exit-commit",
+      "executed_worklist": "background, compact rows 12/11, dormant-last, persistent row 10+",
+      "back_owner": 0,
+      "actor": {
+        "slot": 0,
+        "active": 1,
+        "fb": 21228,
+        "phase": 0,
+        "cell_x": 12,
+        "cell_y": 11,
+        "persistent": 0,
+        "direction": 0
+      },
+      "actor_records": [
+        {
+          "slot": 0,
+          "active": 1,
+          "fb": 21228,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 11,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 1,
+          "active": 1,
+          "fb": 19948,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 10,
+          "persistent": 1,
+          "direction": 1
+        },
+        {
+          "slot": 2,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 3,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        }
+      ],
+      "offset_scanlines": 0,
+      "compact_paint_count": 1,
+      "persistent_paint_count": 0,
+      "overlap_pixels": 39,
+      "overlap_sha256": "76d3ff5061b40cae3fa01f624c9d4a1b58be71d4f209daa2f88def13d83100f4",
+      "crop_palette_sha256": "335c48c6a079ad2a1783cddc0f978ce06c4d5063519bf41af377e7b385216706",
+      "crop_rgb_sha256": "b198432fbb924de734cc97ef80f744bf6bc72152a7d2ea07c7cb5edbfe1e4bb6",
+      "physical_owner_crop_sha256": {
+        "0": "335c48c6a079ad2a1783cddc0f978ce06c4d5063519bf41af377e7b385216706",
+        "1": "871ea21c1c53d3f3053159a42152b2805a90da34c3fb981c1e76e4d5c11e7011"
+      },
+      "outside_union_sha256": "a029691cc686c011f195fc99af8f0aadd92b116d36806c9239af0445ca46170f",
+      "oracle_pixel_exact": true
+    },
+    {
+      "label": "multiple-release-row-11-phase-1",
+      "logical_phase": "nest-exit-commit",
+      "executed_worklist": "background, compact rows 12/11, dormant-last, persistent row 10+",
+      "back_owner": 1,
+      "actor": {
+        "slot": 0,
+        "active": 1,
+        "fb": 20908,
+        "phase": 1,
+        "cell_x": 12,
+        "cell_y": 11,
+        "persistent": 0,
+        "direction": 0
+      },
+      "actor_records": [
+        {
+          "slot": 0,
+          "active": 1,
+          "fb": 20908,
+          "phase": 1,
+          "cell_x": 12,
+          "cell_y": 11,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 1,
+          "active": 1,
+          "fb": 19948,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 10,
+          "persistent": 1,
+          "direction": 1
+        },
+        {
+          "slot": 2,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 3,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        }
+      ],
+      "offset_scanlines": 2,
+      "compact_paint_count": 1,
+      "persistent_paint_count": 0,
+      "overlap_pixels": 18,
+      "overlap_sha256": "f1f416decb270b0e690b0e0881c839b3dca50f9500d77a47a464417805eea170",
+      "crop_palette_sha256": "90a292f838f837c10060cc70964d36773faef07b35f2d4cdccd6b317bda74f3b",
+      "crop_rgb_sha256": "04826253721c0f7348a0b4c3bfdfdd794bf9896846d2e904c4f8da8b336b36dc",
+      "physical_owner_crop_sha256": {
+        "0": "335c48c6a079ad2a1783cddc0f978ce06c4d5063519bf41af377e7b385216706",
+        "1": "90a292f838f837c10060cc70964d36773faef07b35f2d4cdccd6b317bda74f3b"
+      },
+      "outside_union_sha256": "7ad392b42dad721149f10071e9e034262c8a48af872300bb6b91e89af3077539",
+      "oracle_pixel_exact": true
+    },
+    {
+      "label": "multiple-release-row-11-phase-2",
+      "logical_phase": "nest-exit-commit",
+      "executed_worklist": "background, compact rows 12/11, dormant-last, persistent row 10+",
+      "back_owner": 0,
+      "actor": {
+        "slot": 0,
+        "active": 1,
+        "fb": 20588,
+        "phase": 2,
+        "cell_x": 12,
+        "cell_y": 11,
+        "persistent": 0,
+        "direction": 0
+      },
+      "actor_records": [
+        {
+          "slot": 0,
+          "active": 1,
+          "fb": 20588,
+          "phase": 2,
+          "cell_x": 12,
+          "cell_y": 11,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 1,
+          "active": 1,
+          "fb": 19948,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 10,
+          "persistent": 1,
+          "direction": 1
+        },
+        {
+          "slot": 2,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 3,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        }
+      ],
+      "offset_scanlines": 4,
+      "compact_paint_count": 1,
+      "persistent_paint_count": 0,
+      "overlap_pixels": 4,
+      "overlap_sha256": "2e178c26c645d154d6106f6b6d54c19874ce231e322006502f265a49c2fbbb6a",
+      "crop_palette_sha256": "a756784edadf5934849c084067c997ae993947b9ff8caf1a2c90ac89ddf132e6",
+      "crop_rgb_sha256": "a833daf82fdff02ff81c0f9637b11cca023a3bac20c89c9f5d1d29ae39053b27",
+      "physical_owner_crop_sha256": {
+        "0": "a756784edadf5934849c084067c997ae993947b9ff8caf1a2c90ac89ddf132e6",
+        "1": "90a292f838f837c10060cc70964d36773faef07b35f2d4cdccd6b317bda74f3b"
+      },
+      "outside_union_sha256": "a7879ac39b1b4bb25c32f4c6307a065f9e8680f2b8b18ed41ad7ab51dd2cc375",
+      "oracle_pixel_exact": true
+    },
+    {
+      "label": "multiple-release-row-11-phase-3",
+      "logical_phase": "nest-exit-commit",
+      "executed_worklist": "background, compact rows 12/11, dormant-last, persistent row 10+",
+      "back_owner": 1,
+      "actor": {
+        "slot": 0,
+        "active": 1,
+        "fb": 20268,
+        "phase": 3,
+        "cell_x": 12,
+        "cell_y": 11,
+        "persistent": 0,
+        "direction": 0
+      },
+      "actor_records": [
+        {
+          "slot": 0,
+          "active": 1,
+          "fb": 20268,
+          "phase": 3,
+          "cell_x": 12,
+          "cell_y": 11,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 1,
+          "active": 1,
+          "fb": 19948,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 10,
+          "persistent": 1,
+          "direction": 1
+        },
+        {
+          "slot": 2,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 3,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        }
+      ],
+      "offset_scanlines": 6,
+      "compact_paint_count": 1,
+      "persistent_paint_count": 0,
+      "overlap_pixels": 2,
+      "overlap_sha256": "31609426297325bdb28c86ab3ceeed4a3c438966733fd61b8aea00ee8b23b7bc",
+      "crop_palette_sha256": "8e0a1af095a7bcc9041deffc20cfaec91ab87c60ba00233e1ec2b571152305b7",
+      "crop_rgb_sha256": "ee1d537133cd06aa3e798731aac9006b42dbcf098ad411ef1a2dabab6d2c131a",
+      "physical_owner_crop_sha256": {
+        "0": "a756784edadf5934849c084067c997ae993947b9ff8caf1a2c90ac89ddf132e6",
+        "1": "8e0a1af095a7bcc9041deffc20cfaec91ab87c60ba00233e1ec2b571152305b7"
+      },
+      "outside_union_sha256": "aaa558a24a30a19a94098673c2064ad99c2f69c8cc646c33458ab0bc672c3239",
+      "oracle_pixel_exact": true
+    },
+    {
+      "label": "multiple-release-row-10-phase-0",
+      "logical_phase": "nest-exit-commit",
+      "executed_worklist": "background, compact rows 12/11, dormant-last, persistent row 10+",
+      "back_owner": 0,
+      "actor": {
+        "slot": 0,
+        "active": 1,
+        "fb": 19948,
+        "phase": 0,
+        "cell_x": 12,
+        "cell_y": 10,
+        "persistent": 1,
+        "direction": 0
+      },
+      "actor_records": [
+        {
+          "slot": 0,
+          "active": 1,
+          "fb": 19948,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 10,
+          "persistent": 1,
+          "direction": 0
+        },
+        {
+          "slot": 1,
+          "active": 1,
+          "fb": 19948,
+          "phase": 0,
+          "cell_x": 12,
+          "cell_y": 10,
+          "persistent": 1,
+          "direction": 1
+        },
+        {
+          "slot": 2,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        },
+        {
+          "slot": 3,
+          "active": 0,
+          "fb": 0,
+          "phase": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "persistent": 0,
+          "direction": 0
+        }
+      ],
+      "offset_scanlines": 0,
+      "compact_paint_count": 0,
+      "persistent_paint_count": 1,
+      "overlap_pixels": 0,
+      "overlap_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "crop_palette_sha256": "51c601c2561ea43fe2246699942788210d72776ecd281d6349367dbe7ce062fe",
+      "crop_rgb_sha256": "d88968cf131ac5015b45a940b0286dad8a572ed5cc64be22775b94be6b3aed3c",
+      "physical_owner_crop_sha256": {
+        "0": "51c601c2561ea43fe2246699942788210d72776ecd281d6349367dbe7ce062fe",
+        "1": "8e0a1af095a7bcc9041deffc20cfaec91ab87c60ba00233e1ec2b571152305b7"
+      },
+      "outside_union_sha256": "c36f9be96bccc41855071d5478fa3562d4f6320bd5ca5f9193aebf4cf645d959",
+      "oracle_pixel_exact": true
+    }
+  ],
+  "phase_offsets_scanlines": [
+    0,
+    2,
+    4,
+    6
+  ],
+  "compact_to_persistent_transition": "row 11 phase 3 to row 10 phase 0",
+  "missing_frames": 0,
+  "duplicated_frames": 0,
+  "jump_scanlines": 0,
+  "front_write_faults": 0,
+  "png_sha256": "738e3956408f85e900c6a02d4e219d14618b98e0111798d4e0679306cf684bd2",
+  "pass": true
+}

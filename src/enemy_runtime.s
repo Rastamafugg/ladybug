@@ -328,9 +328,13 @@ et_move_scan
         lda     7,x
         cmpa    #DIR_NONE
         beq     et_move_next
-        lda     #1
+        lda     ENEMY_MOVE
+        ora     #ERF_DIRTY
+        tst     6,x
+        bne     et_mark_move
+        ora     #ERF_NEST
+et_mark_move
         sta     ENEMY_MOVE
-        bra     et_render_test
 et_move_next
         leax    RECORD_SIZE,x
         dec     ENEMY_WORK
@@ -419,7 +423,7 @@ et_update_next
 et_compose
 et_finish
         lda     ENEMY_RENDER_FLAGS
-        ora     #ERF_DIRTY
+        ora     ENEMY_MOVE
         sta     ENEMY_RENDER_FLAGS
         rts
 
@@ -444,14 +448,15 @@ eri_dirty
         bita    #ERF_DIRTY|ERF_NEST|ERF_NEST_ANIM
         beq     eri_done
         ifne    PERSISTENT_FB
-        bita    #ERF_NEST_ANIM
-        bne     eri_nest_anim
         bita    #ERF_NEST
+        bne     eri_nest
+        bita    #ERF_NEST_ANIM
         beq     eri_finish
-        lbsr    compose_enemy_zone
-        bra     eri_finish
 eri_nest_anim
         lbsr    compose_enemy_animation
+        bra     eri_finish
+eri_nest
+        lbsr    compose_enemy_zone
 eri_finish
         else
         lbsr    roam_prepare_shadow
@@ -2270,17 +2275,15 @@ cez_active_loop
         tst     6,u
         bne     cez_active_next
         lda     5,u
-        suba    #10
-        ldb     #8
+        suba    #11
+        cmpa    #1
+        bhi     cez_active_next
+        inca
+        lsla
+        lsla
+        suba    3,u
+        ldb     #16
         mul
-        subb    3,u
-        sbca    #0
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
         addd    #ENEMY_ZONE_STAGE
         tfr     d,x
         ldb     7,u
