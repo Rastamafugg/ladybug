@@ -40,23 +40,52 @@
       <p>Project aliases map to an allowlisted root configured outside the protocol payload. The server canonicalizes every requested path, rejects traversal and symlink escapes, and returns private, provenance-bearing content. A resource read returns text for text formats and base64 binary content for images or other binary files.</p>
     </section>
 
+    <section><h2>Approval and first implementation assignment</h2>
+      <p><strong>Approval:</strong> On 2026-08-17 the user approved the read-only MCP design, including the <code>tiled://</code> namespace, configured project aliases, raw and normalized resource separation, five read-only tools, deterministic ordering, provenance, diagnostics, cache rules, and explicit scope exclusions. This approval does not authorize write operations, live Tiled control, remote fetching, assembly emission, or runtime changes.</p>
+      <p><strong>Assignment objective:</strong> Implement the first design step: a dependency-free project registry and URI/path security boundary that later MCP resources and tools can call. The implementation must not add MCP transport or parse Tiled formats.</p>
+      <h3>Owned artifacts and boundary</h3>
+      <ul>
+        <li><strong>Repository:</strong> <code>D:\retro\tiled-mcp</code>; isolated worktree <code>D:\retro\tiled-mcp-worktrees\tool-003-project-boundary</code>; branch <code>codex/tool-003-project-boundary</code>; base target revision <code>12bba94</code>.</li>
+        <li><strong>Implementation files:</strong> add <code>src/tiled_mcp/project.py</code> for validated project aliases and root containment, add <code>src/tiled_mcp/uri.py</code> for <code>tiled://</code> project/file URI parsing, and add <code>tests/test_project_boundary.py</code>.</li>
+        <li><strong>Permitted synchronization:</strong> update <code>README.md</code> only if required to document the accepted project configuration shape and local test command. Do not modify Tiled resources, Ladybug source, generated assembly, or ROM artifacts.</li>
+        <li><strong>Core integration:</strong> reuse <code>ResourceRecord</code> and existing deterministic inventory behavior where useful. Do not change <code>resources.py</code> discovery semantics in this assignment.</li>
+      </ul>
+      <h3>Required behavior</h3>
+      <ul>
+        <li>Accept a JSON-serializable configuration shaped as <code>{&quot;projects&quot;: {&quot;alias&quot;: &quot;root&quot;}}</code>; validate aliases against <code>^[A-Za-z0-9._-]+$</code>, resolve roots, and reject missing or non-directory roots.</li>
+        <li>Parse only the approved project URI forms needed by this step, preserving project alias and query-decoded relative POSIX path without exposing host paths.</li>
+        <li>Reject absolute paths, drive-letter paths, UNC paths, URL schemes, empty paths, traversal segments, encoded traversal, and backslash traversal before filesystem access.</li>
+        <li>Resolve the candidate path and prove it remains under the configured root. Reject symlink or junction escapes with stable diagnostics such as <code>PROJECT_UNKNOWN</code>, <code>PATH_ABSOLUTE</code>, <code>PATH_TRAVERSAL</code>, <code>SYMLINK_ESCAPE</code>, and <code>RESOURCE_NOT_FOUND</code>.</li>
+        <li>Keep the parser and registry transport-independent. No MCP SDK, server loop, <code>resources/list</code>, <code>resources/read</code>, tool handler, Tiled parser, or target adapter is part of this assignment.</li>
+      </ul>
+      <h3>Verification contract</h3>
+      <ul>
+        <li>Run <code>python -m unittest discover -s tests -v</code>; all existing and new tests must pass.</li>
+        <li>Run <code>python -m compileall -q src tests</code>.</li>
+        <li>Run <code>python -m tiled_mcp inventory tests/fixtures</code> and confirm unchanged deterministic output.</li>
+        <li>Force tests for valid in-root resolution, unknown aliases, malformed aliases, POSIX and Windows absolute paths, UNC paths, URL schemes, literal and percent-encoded traversal, missing resources, and an outside-root symlink or junction. Symlink support must not be silently skipped; an environment that cannot execute that security test remains incomplete.</li>
+        <li>Inspect the final diff for read-only behavior, no generated artifacts, no network dependency, and no changes outside the assigned files.</li>
+      </ul>
+      <h3>Evidence and handoff</h3>
+      <p>Retain test output, compile output, deterministic inventory output, the security-case list, and the final diff. Produce one bounded commit with no push or merge authority. The completion report must state the commit, exact files, results versus each verification requirement, rejected experiments, residual risks, and whether the parent can integrate the commit. Parent integration must rerun the combined tests and inspect the target branch before changing the ticket to <code>Verification</code>.</p>
+    </section>
+
     <section><h2>Assignment contract</h2>
       <ul>
-        <li><strong>Owned artifacts:</strong> <code>D:\retro\tiled-mcp\docs\mcp-read-only-surface.md</code>, target README/architecture links, and this ticket plus the Ladybug tooling summary and log.</li>
-        <li><strong>Constraints:</strong> design only; no MCP transport or parser implementation; follow the current MCP specification without coupling the core to a specific SDK; preserve raw Tiled values and explicit target diagnostics.</li>
-        <li><strong>Required review:</strong> schema review, path-containment review, deterministic-order review, and comparison against the official MCP resources/tools specification.</li>
-        <li><strong>Evidence:</strong> design document, official MCP/Tiled reference links, rejected alternatives, and local-link validation.</li>
-        <li><strong>Commit:</strong> one bounded documentation commit; implementation requires renewed approval and a separate Ready assignment.</li>
+        <li><strong>Design artifacts:</strong> <code>D:\retro\tiled-mcp\docs\mcp-read-only-surface.md</code>, target README/architecture links, and this ticket plus the Ladybug tooling summary and log remain the source of the approved protocol contract.</li>
+        <li><strong>Design constraints:</strong> do not couple the core to a specific MCP SDK; preserve raw Tiled values and explicit target diagnostics; keep the protocol boundary closed-world and read-only.</li>
+        <li><strong>Implementation sequencing:</strong> this assignment is step 1 only. Resource listing/raw reads, normalized views, inventory/inspection tools, reference graphs, validation, translation planning, and protocol-version adapters remain later steps.</li>
       </ul>
     </section>
 
-    <section><h2>Verification and completion</h2><p>Design review is complete. Target design commit <code>12bba94d2aaca05b8e14ffdb9fc5f0d3c2c21438</code> and Ladybug documentation commit <code>1d0494d827839a3a92f54ad8589c948fd31f28b3</code> contain the contract, references, security rules, rejected alternatives, and wiki synchronization. Scoped HTML-link validation passes; the package's existing four stdlib tests remain passing. TOOL-003 remains Proposed pending user approval. No MCP code is authorized by this ticket.</p></section>
+    <section><h2>Verification and completion</h2><p>Design review is complete. Target design commit <code>12bba94d2aaca05b8e14ffdb9fc5f0d3c2c21438</code> and Ladybug documentation commit <code>1d0494d827839a3a92f54ad8589c948fd31f28b3</code> contain the contract, references, security rules, rejected alternatives, and wiki synchronization. Scoped HTML-link validation passes; the package's existing four stdlib tests remain passing. The design is approved and the first implementation assignment is Ready. No implementation has begun.</p></section>
     <section><h2>Decision log</h2>
       <ul>
         <li>2026-08-15 — User requested the design of the first read-only MCP resources and tools.</li>
         <li>2026-08-15 — Coding architecture selected standard MCP resources for raw/normalized context and five read-only tools for queries, graph resolution, validation, and dry-run planning.</li>
-        <li>2026-08-15 — TOOL-003 remains Proposed. Implementation requires explicit approval of the resource namespace, tool schemas, security boundary, and scope exclusions.</li>
         <li>2026-08-15 — Design review passed on target commit <code>12bba94</code> and Ladybug commit <code>1d0494d</code>. The lifecycle remains Proposed because implementation approval was not granted.</li>
+        <li>2026-08-17 — User approved the design and authorized preparation of the first bounded implementation assignment. The selected first step is the dependency-free project alias and <code>tiled://</code> URI/path containment boundary; later MCP resources, tools, parsing, and translation remain sequenced separately.</li>
+        <li>2026-08-17 — TOOL-003 advanced Proposed &rarr; Approved &rarr; Ready. No target implementation was performed during readiness preparation.</li>
       </ul>
     </section>
     <footer class="wiki-footer"><p>Canonical design: <code>D:\retro\tiled-mcp\docs\mcp-read-only-surface.md</code>.</p></footer>
