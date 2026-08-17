@@ -78,7 +78,7 @@
       </ul>
     </section>
 
-    <section><h2>Verification and completion</h2><p>Design review is complete. Target design commit <code>12bba94d2aaca05b8e14ffdb9fc5f0d3c2c21438</code> and Ladybug documentation commit <code>1d0494d827839a3a92f54ad8589c948fd31f28b3</code> contain the contract, references, security rules, rejected alternatives, and wiki synchronization. Scoped HTML-link validation passes; the package's existing four stdlib tests remain passing. The first implementation assignment is now In Progress in the isolated project-boundary worktree. No completion evidence is recorded yet.</p></section>
+    <section><h2>Verification and completion</h2><p>Design review is complete. Target design commit <code>12bba94d2aaca05b8e14ffdb9fc5f0d3c2c21438</code> and Ladybug documentation commit <code>1d0494d827839a3a92f54ad8589c948fd31f28b3</code> contain the contract, references, security rules, rejected alternatives, and wiki synchronization. The first implementation commit <code>5817d10</code> was inspected and integrated into target main as <code>936e729</code>. Current integrated verification passes with <code>PYTHONPATH=src python -m unittest discover -s tests -v</code> (11 tests), <code>PYTHONPATH=src python -m compileall -q src tests</code>, deterministic fixture inventory, successful outside-root symlink rejection, and clean diff/status checks. QA accepts the bounded project/URI boundary assignment. MCP transport, resource handlers, Tiled parsing, normalization, translation planning, write operations, and network access remain intentionally unimplemented and require separate tickets.</p></section>
     <section><h2>Decision log</h2>
       <ul>
         <li>2026-08-15 — User requested the design of the first read-only MCP resources and tools.</li>
@@ -87,6 +87,7 @@
         <li>2026-08-17 — User approved the design and authorized preparation of the first bounded implementation assignment. The selected first step is the dependency-free project alias and <code>tiled://</code> URI/path containment boundary; later MCP resources, tools, parsing, and translation remain sequenced separately.</li>
         <li>2026-08-17 — TOOL-003 advanced Proposed &rarr; Approved &rarr; Ready. No target implementation was performed during readiness preparation.</li>
         <li>2026-08-17 — User directed the Ready assignment to begin. TOOL-003 advanced Ready &rarr; In Progress on branch <code>codex/tool-003-project-boundary</code> in the isolated worktree <code>D:\retro\tiled-mcp-worktrees\tool-003-project-boundary</code>. Parent integration and QA remain required.</li>
+        <li>2026-08-17 — QA accepted the integrated first implementation boundary. Isolated commit <code>5817d10</code> was parent-integrated as <code>936e729</code>; all 11 tests and required security, compile, inventory, and diff checks pass. TOOL-003 advances In Progress &rarr; Verification &rarr; Done for this bounded step. Remaining read-only MCP resources/tools are future sequenced work, not evidence of current MCP compatibility.</li>
       </ul>
     </section>
     <footer class="wiki-footer"><p>Canonical design: <code>D:\retro\tiled-mcp\docs\mcp-read-only-surface.md</code>.</p></footer>
