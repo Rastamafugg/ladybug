@@ -31,7 +31,20 @@ PLAYER_PAGE_COUNT = 1
 ENEMY_RUNTIME_OFFSET = 0x0800
 ENEMY_RUNTIME_RESERVED = 0x1000
 SIGNATURE_OFFSET = 0x0010
-PEN_MAP = (0x0, 0xC, 0x5, 0x2)
+LEGACY_ENEMY_PEN_MAP = (0x0, 0xC, 0x5, 0x2)
+PART_ONE_ENEMY_PEN_MAP = (0x0, 0x9, 0x5, 0x6)
+GAMEPLAY_ENEMY_PEN_MAPS = (
+    PART_ONE_ENEMY_PEN_MAP,
+    LEGACY_ENEMY_PEN_MAP,
+    LEGACY_ENEMY_PEN_MAP,
+    LEGACY_ENEMY_PEN_MAP,
+    LEGACY_ENEMY_PEN_MAP,
+    LEGACY_ENEMY_PEN_MAP,
+    LEGACY_ENEMY_PEN_MAP,
+    LEGACY_ENEMY_PEN_MAP,
+)
+ATTRACT_EXTRA_ENEMY_PEN_MAP = LEGACY_ENEMY_PEN_MAP
+PLAYER_PEN_MAP = LEGACY_ENEMY_PEN_MAP
 EXPECTED_ENEMY_BYTES = 23_005
 EXPECTED_PLAYER_BYTES = 2_294
 EXPECTED_GATE_BYTES = 832
@@ -112,10 +125,22 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def expand_native_frame(frame: bytes) -> bytes:
+def validate_pen_map(pen_map: tuple[int, int, int, int]) -> None:
+    if len(pen_map) != 4:
+        raise ValueError("pen map must contain exactly four palette indexes")
+    if pen_map[0] != 0:
+        raise ValueError("pen map must preserve source transparency at index zero")
+    if any(not 0 <= value <= 0x0F for value in pen_map):
+        raise ValueError("pen map indexes must fit four bits")
+
+
+def expand_native_frame(
+        frame: bytes, pen_map: tuple[int, int, int, int]
+) -> bytes:
     """Expand a packed 2bpp 16x16 frame to native 4bpp bytes."""
     if len(frame) != 64:
         raise ValueError(f"packed frame is {len(frame)} bytes; expected 64")
+    validate_pen_map(pen_map)
     native = bytearray()
     for value in frame:
         pixels = (
@@ -125,15 +150,17 @@ def expand_native_frame(frame: bytes) -> bytes:
             value & 0x03,
         )
         native.extend((
-            (PEN_MAP[pixels[0]] << 4) | PEN_MAP[pixels[1]],
-            (PEN_MAP[pixels[2]] << 4) | PEN_MAP[pixels[3]],
+            (pen_map[pixels[0]] << 4) | pen_map[pixels[1]],
+            (pen_map[pixels[2]] << 4) | pen_map[pixels[3]],
         ))
     return bytes(native)
 
 
-def encode_sparse_frame(frame: bytes) -> bytes:
+def encode_sparse_frame(
+        frame: bytes, pen_map: tuple[int, int, int, int]
+) -> bytes:
     """Encode one frame as shared framebuffer/stage destination deltas."""
-    native = expand_native_frame(frame)
+    native = expand_native_frame(frame, pen_map)
     stream = bytearray()
     framebuffer_cursor = 0
     stage_cursor = 0
@@ -198,15 +225,18 @@ def encode_sparse_frame(frame: bytes) -> bytes:
 
 
 def pack_indexed_frames(
-        frames: list[bytes], page_base: int, page_count: int
+        frames: list[bytes], pen_maps: list[tuple[int, int, int, int]],
+        page_base: int, page_count: int
 ) -> tuple[bytes, list[dict[str, int]], int]:
     """Pack an index followed by streams, padding before page crossings."""
+    if len(frames) != len(pen_maps):
+        raise ValueError("each indexed frame must have one explicit pen map")
     index_bytes = len(frames) * 3
     payload = bytearray(b"\x00" * index_bytes)
     index: list[dict[str, int]] = []
     padding = 0
-    for frame_number, packed_frame in enumerate(frames):
-        stream = encode_sparse_frame(packed_frame)
+    for frame_number, (packed_frame, pen_map) in enumerate(zip(frames, pen_maps)):
+        stream = encode_sparse_frame(packed_frame, pen_map)
         page_offset = len(payload) % PAGE_BYTES
         if page_offset + len(stream) > PAGE_BYTES:
             pad = PAGE_BYTES - page_offset
@@ -497,16 +527,56 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def family_manifest(frames: list[bytes]) -> list[dict[str, object]]:
+    families = []
+    for family, pen_map in enumerate(GAMEPLAY_ENEMY_PEN_MAPS, start=1):
+        first = (family - 1) * 16
+        streams = b"".join(
+            encode_sparse_frame(frame, pen_map)
+            for frame in frames[first:first + 16]
+        )
+        families.append({
+            "family": family,
+            "frame_first": first,
+            "frame_last": first + 15,
+            "pen_map": list(pen_map),
+            "map_source": (
+                "BUG-010 upper-right-purple attract actor"
+                if family == 1 else "retained pre-BUG-018 gameplay mapping"
+            ),
+            "stream_sha256": digest(streams),
+        })
+    extra_streams = b"".join(
+        encode_sparse_frame(frame, ATTRACT_EXTRA_ENEMY_PEN_MAP)
+        for frame in frames[128:130]
+    )
+    families.append({
+        "family": "attract-extra",
+        "frame_first": 128,
+        "frame_last": 129,
+        "pen_map": list(ATTRACT_EXTRA_ENEMY_PEN_MAP),
+        "map_source": "retained BUG-010 appended horizontal-flip contract",
+        "stream_sha256": digest(extra_streams),
+    })
+    return families
+
+
 def main() -> None:
     args = parse_args()
     enemy_frames = compile_enemy_sprites(args.sprites)
     enemy_frames.extend(compile_attract_extra_enemy_sprites(args.sprites))
     player_frames = compile_player_sprites(args.sprites)
+    enemy_pen_maps = [
+        pen_map
+        for pen_map in GAMEPLAY_ENEMY_PEN_MAPS
+        for _ in range(16)
+    ] + [ATTRACT_EXTRA_ENEMY_PEN_MAP] * 2
     enemy_payload, enemy_index, enemy_padding = pack_indexed_frames(
-        enemy_frames, ENEMY_PAGE_BASE, ENEMY_PAGE_COUNT
+        enemy_frames, enemy_pen_maps, ENEMY_PAGE_BASE, ENEMY_PAGE_COUNT
     )
     player_payload, player_index, player_padding = pack_indexed_frames(
-        player_frames, PLAYER_PAGE_BASE, PLAYER_PAGE_COUNT
+        player_frames, [PLAYER_PEN_MAP] * len(player_frames),
+        PLAYER_PAGE_BASE, PLAYER_PAGE_COUNT
     )
     gate_payload = args.gate_input.read_bytes()
     presentation_payload = args.presentation_input.read_bytes()
@@ -599,6 +669,7 @@ def main() -> None:
             "page_count": ENEMY_PAGE_COUNT,
             "sha256": digest(enemy_payload),
             "index": enemy_index,
+            "palette_families": family_manifest(enemy_frames),
         },
         "player": {
             "frames": len(player_frames),

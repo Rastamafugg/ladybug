@@ -1,0 +1,209 @@
+{
+  "schema": "ladybug-bug014-initial-enemy-release-v1",
+  "rom_sha256": "a87c6b0f238d2dcd68fd8489d4c4dac7c4663a62c1fbbb7818474685af69a245",
+  "phase_deadline_seconds": 60.0,
+  "static_contract": {
+    "initializer_services_in_order": [
+      "PRES_MAIN_INIT",
+      "PRES_MAIN_MAZE",
+      "PRES_MAIN_GATES",
+      "PRES_MAIN_ENTITIES",
+      "PRES_MAIN_PLAYER",
+      "PRES_MAIN_ENEMY"
+    ],
+    "owner_preserving_reentry_before_services": true,
+    "cold_fixed_owner_abi_absent": true,
+    "initializer_has_direct_release": false,
+    "timer_release_owner": "perimeter_timer_tick",
+    "part_one_ticks_per_advance": 9,
+    "first_release_box_advances": 92,
+    "projected_first_release_ticks": 828
+  },
+  "startup_cases": [
+    {
+      "mode": "demo",
+      "initial_owner": 0,
+      "screen_requests": [
+        0
+      ],
+      "randomized_contamination": {
+        "box_timer": 22,
+        "box_index": 119,
+        "box_phase": 246,
+        "enemy_active": 231,
+        "enemy_released": 60,
+        "nest_dirty": 235,
+        "render_flags": 110,
+        "enemy_render_flags": 137
+      },
+      "first_gameplay_tick": {
+        "box_timer": 9,
+        "box_index": 0,
+        "box_phase": 0,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "nest_dirty": 0,
+        "render_flags": 64,
+        "enemy_render_flags": 3,
+        "fb_front": 1,
+        "fb_back": 0,
+        "front_write_faults": 0
+      }
+    },
+    {
+      "mode": "demo",
+      "initial_owner": 1,
+      "screen_requests": [
+        0
+      ],
+      "randomized_contamination": {
+        "box_timer": 22,
+        "box_index": 119,
+        "box_phase": 246,
+        "enemy_active": 231,
+        "enemy_released": 60,
+        "nest_dirty": 235,
+        "render_flags": 110,
+        "enemy_render_flags": 137
+      },
+      "first_gameplay_tick": {
+        "box_timer": 9,
+        "box_index": 0,
+        "box_phase": 0,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "nest_dirty": 0,
+        "render_flags": 64,
+        "enemy_render_flags": 3,
+        "fb_front": 0,
+        "fb_back": 1,
+        "front_write_faults": 0
+      }
+    },
+    {
+      "mode": "live",
+      "initial_owner": 0,
+      "screen_requests": [
+        0,
+        3,
+        2
+      ],
+      "randomized_contamination": {
+        "box_timer": 22,
+        "box_index": 119,
+        "box_phase": 246,
+        "enemy_active": 231,
+        "enemy_released": 60,
+        "nest_dirty": 235,
+        "render_flags": 110,
+        "enemy_render_flags": 137
+      },
+      "first_gameplay_tick": {
+        "box_timer": 9,
+        "box_index": 0,
+        "box_phase": 0,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "nest_dirty": 0,
+        "render_flags": 64,
+        "enemy_render_flags": 3,
+        "fb_front": 0,
+        "fb_back": 1,
+        "front_write_faults": 0
+      }
+    }
+  ],
+  "release_cases": [
+    {
+      "initial_owner": 0,
+      "screen_requests": [
+        0,
+        3,
+        2
+      ],
+      "randomized_contamination": {
+        "box_timer": 22,
+        "box_index": 119,
+        "box_phase": 246,
+        "enemy_active": 231,
+        "enemy_released": 60,
+        "nest_dirty": 235,
+        "render_flags": 110,
+        "enemy_render_flags": 137
+      },
+      "box_advances_before_release": 92,
+      "immediately_before_expiry": {
+        "box_timer": 9,
+        "box_index": 91,
+        "box_phase": 0,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "nest_dirty": 0,
+        "render_flags": 0,
+        "enemy_render_flags": 0,
+        "fb_front": 1,
+        "fb_back": 0,
+        "front_write_faults": 0
+      },
+      "after_first_release": {
+        "box_timer": 9,
+        "box_index": 0,
+        "box_phase": 1,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "nest_dirty": 1,
+        "render_flags": 16,
+        "enemy_render_flags": 10,
+        "fb_front": 1,
+        "fb_back": 0,
+        "front_write_faults": 0
+      }
+    },
+    {
+      "initial_owner": 1,
+      "screen_requests": [
+        0,
+        3,
+        2
+      ],
+      "randomized_contamination": {
+        "box_timer": 22,
+        "box_index": 119,
+        "box_phase": 246,
+        "enemy_active": 231,
+        "enemy_released": 60,
+        "nest_dirty": 235,
+        "render_flags": 110,
+        "enemy_render_flags": 137
+      },
+      "box_advances_before_release": 92,
+      "immediately_before_expiry": {
+        "box_timer": 9,
+        "box_index": 91,
+        "box_phase": 0,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "nest_dirty": 0,
+        "render_flags": 0,
+        "enemy_render_flags": 0,
+        "fb_front": 0,
+        "fb_back": 1,
+        "front_write_faults": 0
+      },
+      "after_first_release": {
+        "box_timer": 9,
+        "box_index": 0,
+        "box_phase": 1,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "nest_dirty": 1,
+        "render_flags": 16,
+        "enemy_render_flags": 10,
+        "fb_front": 0,
+        "fb_back": 1,
+        "front_write_faults": 0
+      }
+    }
+  ],
+  "runtime_service_trace": "not retained: monitor resume semantics made the probe intrusive"
+}

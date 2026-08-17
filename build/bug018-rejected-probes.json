@@ -1,0 +1,32 @@
+{
+  "schema": "ladybug-bug018-rejected-probes-v1",
+  "rom_sha256": "a87c6b0f238d2dcd68fd8489d4c4dac7c4663a62c1fbbb7818474685af69a245",
+  "rejected": [
+    {
+      "probe": "natural-roaming-draw",
+      "result": "timeout",
+      "deadline_seconds": 60,
+      "meaning": "the roaming-draw observation boundary was not reached; no conclusion about target speed or palette correctness",
+      "replacement": "capture the naturally initialized dormant part-one actor, then force absent directions in the same initialized state"
+    },
+    {
+      "probe": "cold-cache-builder-as-visible-proof",
+      "result": "rejected",
+      "meaning": "draws into temporary stage address $1800 are not published framebuffer evidence",
+      "replacement": "accept only the natural dormant composition at stage address $1880 and its complete framebuffer commit"
+    },
+    {
+      "probe": "structural-commit-as-16-rows",
+      "result": "rejected",
+      "meaning": "176 stepped instructions complete only the first 16 rows of the 32-row structural nest composition",
+      "replacement": "step all 352 loop instructions before interpreting the dormant 16-by-16 framebuffer crop"
+    },
+    {
+      "probe": "bug012-player-tick-trace-limit-1000",
+      "result": "timeout",
+      "deadline_seconds": 60,
+      "meaning": "the repeated player_tick observation boundary became intrusive and did not observe post-death return",
+      "replacement": "the boundary-only natural probe with demo-call-limit 0 passed both owners and retained maps 0,2,demo,0, death state 3, timer 0, and route index 25"
+    }
+  ]
+}

@@ -16,6 +16,8 @@ from build_screen import (
 )
 
 
+ROOT = Path(__file__).resolve().parents[1]
+BUILD = ROOT / "build"
 PAGE_BYTES = 0x2000
 WINDOW_BASE = 0xA000
 CART_BANK_BYTES = 0x4000
@@ -28,34 +30,45 @@ BOOT_OVERFLOW_PROOF = bytes((0xB0, 0x0F))
 INSTRUCTION_RUNTIME_PAGE = 0x23
 INSTRUCTION_RUNTIME_ADDRESS = 0xA422
 INSTRUCTION_RUNTIME_BYTES = 0x3AA
-PEN_MAP = (0x0, 0xC, 0x5, 0x2)
+LEGACY_PEN_MAP = (0x0, 0xC, 0x5, 0x2)
+PART_ONE_PEN_MAP = (0x0, 0x9, 0x5, 0x6)
+GAMEPLAY_ENEMY_PEN_MAPS = (
+    PART_ONE_PEN_MAP,
+    LEGACY_PEN_MAP,
+    LEGACY_PEN_MAP,
+    LEGACY_PEN_MAP,
+    LEGACY_PEN_MAP,
+    LEGACY_PEN_MAP,
+    LEGACY_PEN_MAP,
+    LEGACY_PEN_MAP,
+)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sprites", type=Path, required=True)
-    parser.add_argument("--enemy-runtime", type=Path, required=True)
-    parser.add_argument("--enemy-payload", type=Path, required=True)
-    parser.add_argument("--player-payload", type=Path, required=True)
-    parser.add_argument("--gate-payload", type=Path, required=True)
-    parser.add_argument("--presentation-payload", type=Path, required=True)
-    parser.add_argument("--perimeter-reset-payload", type=Path, required=True)
-    parser.add_argument("--perimeter-helper", type=Path, required=True)
-    parser.add_argument("--presentation-cold", type=Path, required=True)
-    parser.add_argument("--actor-records", type=Path, required=True)
-    parser.add_argument("--actor-underlays", type=Path, required=True)
-    parser.add_argument("--presentation-module", type=Path, required=True)
-    parser.add_argument("--instruction-runtime", type=Path, required=True)
-    parser.add_argument("--aux-runtime-role", choices=("development", "release"), required=True)
-    parser.add_argument("--bank0", type=Path, required=True)
-    parser.add_argument("--bank2", type=Path, required=True)
-    parser.add_argument("--bank3", type=Path, required=True)
-    parser.add_argument("--loader", type=Path, required=True)
-    parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--sprites", type=Path, default=ROOT / "assets/arcade/sprites.json")
+    parser.add_argument("--enemy-runtime", type=Path, default=BUILD / "ladybug-enemy-runtime.rom")
+    parser.add_argument("--enemy-payload", type=Path, default=BUILD / "ladybug-enemy-sparse.bin")
+    parser.add_argument("--player-payload", type=Path, default=BUILD / "ladybug-player-sparse.bin")
+    parser.add_argument("--gate-payload", type=Path, default=BUILD / "ladybug-gate-transitions.bin")
+    parser.add_argument("--presentation-payload", type=Path, default=BUILD / "ladybug-presentation-sparse.bin")
+    parser.add_argument("--perimeter-reset-payload", type=Path, default=BUILD / "ladybug-perimeter-reset.bin")
+    parser.add_argument("--perimeter-helper", type=Path, default=BUILD / "ladybug-perimeter-reset-helper.bin")
+    parser.add_argument("--presentation-cold", type=Path, default=BUILD / "ladybug-presentation-cold.bin")
+    parser.add_argument("--actor-records", type=Path, default=BUILD / "ladybug-attract-actor-records.bin")
+    parser.add_argument("--actor-underlays", type=Path, default=BUILD / "ladybug-attract-actor-underlays.bin")
+    parser.add_argument("--presentation-module", type=Path, default=BUILD / "ladybug-presentation-runtime.bin")
+    parser.add_argument("--instruction-runtime", type=Path, default=BUILD / "ladybug-instruction-runtime.bin")
+    parser.add_argument("--aux-runtime-role", choices=("development", "release"), default="release")
+    parser.add_argument("--bank0", type=Path, default=BUILD / "ladybug-gmc-bank0-overflow.bin")
+    parser.add_argument("--bank2", type=Path, default=BUILD / "ladybug-sparse-bank2.bin")
+    parser.add_argument("--bank3", type=Path, default=BUILD / "ladybug-sparse-bank3.bin")
+    parser.add_argument("--loader", type=Path, default=BUILD / "ladybug-sparse-loader.inc")
+    parser.add_argument("--manifest", type=Path, default=BUILD / "ladybug-sparse-layout.json")
     return parser.parse_args()
 
 
-def expected_native(frame: bytes) -> bytes:
+def expected_native(frame: bytes, pen_map: tuple[int, int, int, int]) -> bytes:
     output = bytearray()
     for value in frame:
         pixels = (
@@ -65,21 +78,24 @@ def expected_native(frame: bytes) -> bytes:
             value & 3,
         )
         output.extend((
-            (PEN_MAP[pixels[0]] << 4) | PEN_MAP[pixels[1]],
-            (PEN_MAP[pixels[2]] << 4) | PEN_MAP[pixels[3]],
+            (pen_map[pixels[0]] << 4) | pen_map[pixels[1]],
+            (pen_map[pixels[2]] << 4) | pen_map[pixels[3]],
         ))
     return bytes(output)
 
 
 def decode_payload(
-        payload: bytes, frames: list[bytes], page_base: int
+        payload: bytes, frames: list[bytes], pen_maps: list[tuple[int, int, int, int]],
+        page_base: int
 ) -> list[tuple[int, int]]:
     """Decode every indexed stream and return its [start,end) payload range."""
+    if len(frames) != len(pen_maps):
+        raise ValueError("each frame requires one explicit verifier pen map")
     index_bytes = len(frames) * 3
     if len(payload) < index_bytes:
         raise ValueError("payload is shorter than its frame index")
     ranges = []
-    for frame_number, packed_frame in enumerate(frames):
+    for frame_number, (packed_frame, pen_map) in enumerate(zip(frames, pen_maps)):
         entry = payload[frame_number * 3:frame_number * 3 + 3]
         page, address = entry[0], (entry[1] << 8) | entry[2]
         if not WINDOW_BASE <= address < WINDOW_BASE + PAGE_BYTES:
@@ -177,7 +193,7 @@ def decode_payload(
                     blended[target] = pixel
             framebuffer_cursor += length
             stage_cursor += length
-        native = expected_native(packed_frame)
+        native = expected_native(packed_frame, pen_map)
         if decoded != native:
             raise ValueError(f"frame {frame_number} does not decode pixel-exactly")
         expected_blend = bytearray(background)
@@ -242,6 +258,11 @@ def main() -> None:
     enemy_frames = compile_enemy_sprites(args.sprites)
     enemy_frames.extend(compile_attract_extra_enemy_sprites(args.sprites))
     player_frames = compile_player_sprites(args.sprites)
+    enemy_pen_maps = [
+        pen_map
+        for pen_map in GAMEPLAY_ENEMY_PEN_MAPS
+        for _ in range(16)
+    ] + [LEGACY_PEN_MAP] * 2
     enemy_payload = args.enemy_payload.read_bytes()
     player_payload = args.player_payload.read_bytes()
     gate_payload = args.gate_payload.read_bytes()
@@ -254,8 +275,10 @@ def main() -> None:
     presentation_module = args.presentation_module.read_bytes()
     instruction_runtime = args.instruction_runtime.read_bytes()
     instruction_runtime_stage = instruction_runtime
-    enemy_ranges = decode_payload(enemy_payload, enemy_frames, 0x35)
-    player_ranges = decode_payload(player_payload, player_frames, 0x39)
+    enemy_ranges = decode_payload(enemy_payload, enemy_frames, enemy_pen_maps, 0x35)
+    player_ranges = decode_payload(
+        player_payload, player_frames, [LEGACY_PEN_MAP] * len(player_frames), 0x39
+    )
     bank0 = args.bank0.read_bytes()
     bank2 = args.bank2.read_bytes()
     bank3 = args.bank3.read_bytes()
@@ -272,6 +295,16 @@ def main() -> None:
         raise SystemExit("sparse proof: candidate bank-3 runtime changed")
 
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
+    palette_families = manifest["enemy"].get("palette_families", [])
+    expected_family_maps = [list(value) for value in GAMEPLAY_ENEMY_PEN_MAPS]
+    if (
+        len(palette_families) != 9 or
+        [item["pen_map"] for item in palette_families[:8]] != expected_family_maps or
+        palette_families[8]["pen_map"] != list(LEGACY_PEN_MAP) or
+        (palette_families[8]["frame_first"], palette_families[8]["frame_last"]) !=
+            (128, 129)
+    ):
+        raise SystemExit("sparse proof: explicit enemy-family palette provenance differs")
     if manifest["enemy"]["sha256"] != sha256(enemy_payload):
         raise SystemExit("sparse proof: enemy manifest hash mismatch")
     if manifest["player"]["sha256"] != sha256(player_payload):
