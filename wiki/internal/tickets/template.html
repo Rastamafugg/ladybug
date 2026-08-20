@@ -30,22 +30,23 @@
         <li><strong>Roadmap or source:</strong> link</li>
         <li><strong>Owner:</strong> unassigned</li>
         <li><strong>Dependencies:</strong> none identified</li>
+        <li><strong>Bug cost class / ceiling:</strong> Compact, Standard, or High-risk / projected weekly-token share and approved ceiling; omit for non-bug tickets.</li>
       </ul>
     </section>
 
     <section>
       <h2>Approval brief</h2>
       <h3>Objective and motivation</h3><p>State the user-visible or project outcome and why it is needed now.</p>
-      <h3>Evidence and baseline</h3><p>Record observed facts, source revision, artifacts, units, and whether values are maxima, averages, projections, or single observations. For persistent A/B rendering, label scenario phase and executed worklist first and buffer owner second; require a controlled crossover before attributing timing to owner identity.</p>
+      <h3>Evidence and baseline</h3><p>Record observed facts, source revision, artifacts, units, and whether values are maxima, averages, projections, or single observations. For bug work, distinguish repository evidence from user-reported token usage and label quota projections as estimates when telemetry is unavailable. For persistent A/B rendering, label scenario phase and executed worklist first and buffer owner second; require a controlled crossover before attributing timing to owner identity.</p>
       <h3>Scope</h3><p><strong>In:</strong> exact behavior and artifacts. <strong>Out:</strong> explicit exclusions.</p>
-      <h3>Scenarios and edge cases</h3><p>List normal, boundary, rare, replay/integration, failure, and regression cases.</p>
+      <h3>Scenarios and edge cases</h3><p>List normal, boundary, rare, replay/integration, failure, and regression cases. Map every bug scenario to one distinct risk; prefer pairwise coverage and justify every Cartesian interaction.</p>
       <h3>Options and recommendation</h3><p>Compare viable options, risks, capacity effects, rejected alternatives, and the recommended approach.</p>
       <h3>Acceptance criteria</h3><p>State measurable behavior, performance, diagnostic, capacity, compatibility, and evidence requirements.</p>
     </section>
 
     <section>
       <h2>Type-specific evidence</h2>
-      <p><strong>Bug:</strong> exact reproduction, observed result, expected result, environment/revision, hypotheses, and discriminating test.</p>
+      <p><strong>Bug:</strong> exact reproduction, observed result, expected result, environment/revision, hypotheses, confirmed cause or explicit uncertainty, discriminating test, Compact/Standard/High-risk class, projected weekly-token share, ceiling, reclassification triggers, and smallest sufficient verification set. A Compact ticket may combine required fields but may not omit them.</p>
       <p><strong>Feature:</strong> user-visible behavior, compatibility/migration, defaults, failure behavior, and affected workflows.</p>
     </section>
 
@@ -55,7 +56,8 @@
         <li><strong>Approved objective and non-goals:</strong> repeat without modification.</li>
         <li><strong>Owned artifacts:</strong> exact files, modules, wiki pages, generated outputs, and worktree/branch.</li>
         <li><strong>Implementation constraints:</strong> architecture, capacity, compatibility, authority, and prohibited scope.</li>
-        <li><strong>Required commands and scenarios:</strong> build, focused tests, integration tests, and forced rare cases.</li>
+        <li><strong>Required commands and scenarios:</strong> build, focused tests, integration tests, and only those forced rare cases mapped to a distinct risk.</li>
+        <li><strong>Cost controls:</strong> approved ceiling, cumulative probe count, verifier-size exception if any, and stop/reassessment conditions.</li>
         <li><strong>Evidence:</strong> artifacts to retain and freshness metadata.</li>
         <li><strong>Commit:</strong> one bounded commit; push/merge authority stated explicitly.</li>
         <li><strong>Completion report:</strong> result versus target, tests, commit, capacity, rejected experiments, and residual risk.</li>
@@ -64,7 +66,7 @@
 
     <section>
       <h2>Verification and completion</h2>
-      <p>Record current-revision commands, results, integration checks, target verdict, evidence links, commit hashes, residual risk, and justified final status.</p>
+      <p>Record current-revision commands, results, integration checks, target verdict, cost result versus ceiling, approved exceptions, concise evidence links or hashes, commit hashes, residual risk, and justified final status.</p>
     </section>
 
     <section>

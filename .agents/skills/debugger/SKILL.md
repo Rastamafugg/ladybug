@@ -16,6 +16,7 @@ Used when the task begins from a reported error, unexpected runtime behavior, fa
   - [wiki/internal/platform/](../../../wiki/internal/platform/) and [wiki/release/reference/coco3/](../../../wiki/release/reference/coco3/) — subsystem-specific HTML pages
 - Form a **discriminating test** before committing to a fix.
 - Maintain the bug ticket with exact reproduction, observed versus expected behavior, environment/revision, competing hypotheses, the discriminating test, confirmed cause, regression scope, and retained evidence.
+- Preserve the assigned cost class and budget ceiling. Prefer source inspection, existing static checks, and existing verifier paths before creating new runtime probes or ticket-specific harnesses.
 
 Before proposing a cause, execute this evidence ladder in order unless a step is demonstrably irrelevant:
 
@@ -28,9 +29,21 @@ Before proposing a cause, execute this evidence ladder in order unless a step is
 
 After one bounded timeout, inspect the last proven marker and probe mechanics before extending the deadline. Do not infer target-code slowness from debugger or emulator wall-clock time without a control measurement.
 
+Count and record rejected probes and observation-tool timeouts. Stop and return to project-management before another experiment when any of these conditions occurs:
+
+- two distinct probes have been rejected;
+- two observation-tool timeouts have occurred;
+- the confirmed or leading cause expands into another subsystem;
+- the projected work reaches the assigned token ceiling;
+- the proposed verifier exceeds the Compact limit in `AGENTS.md`.
+
+The reassessment must report the last proven boundary, remaining competing causes, expected value of the next probe, revised cost class, revised budget estimate, and a lower-cost alternative. Do not continue until the user approves any required budget or scope expansion.
+
 ## Handoff rule
 
 **Do not transition to implementation** until the failure has been reduced to observed facts plus a discriminating cause — **unless the user explicitly approves a hypothesis-driven fix**.
+
+At handoff, specify the smallest verification set that proves the cause and guards the affected boundary. Do not carry every diagnostic probe forward as a permanent acceptance test.
 
 After the fix lands, finish in `qa-reviewer`.
 
