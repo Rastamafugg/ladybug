@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOC-005 Bounded Bug Workflow &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Ticket &middot; documentation/workflow</p>
+      <h1>DOC-005 &mdash; Bound bug-fixing cost and verification scope <span class="wiki-badge">Ready</span></h1>
+      <p class="wiki-meta">Add proportional bug classes, token ceilings, diagnostic stop rules, and risk-mapped QA.</p>
+    </header>
+
+    <section>
+      <h2>Identity and ordering</h2>
+      <ul>
+        <li><strong>Status:</strong> Ready.</li>
+        <li><strong>Created / updated:</strong> 2026-08-20 / 2026-08-20.</li>
+        <li><strong>Priority / order:</strong> P1 / 12.735.</li>
+        <li><strong>Owner:</strong> unassigned; the assigned parent agent will implement directly without delegation.</li>
+        <li><strong>Source:</strong> user-requested audit of BUG-018 and BUG-019 token cost.</li>
+        <li><strong>Dependencies:</strong> explicit user approval received 2026-08-20; implementation should precede the next bug assignment so the revised policy can govern it.</li>
+        <li><strong>Assignment baseline:</strong> <code>main</code> at <code>5027596e0f0789b4aeb11ea347d8f3ef500120ba</code> plus the documentation-only DOC-005 lifecycle checkpoint containing this Ready contract.</li>
+        <li><strong>Runtime capacity:</strong> zero change; this ticket owns instruction and workflow documentation only.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Keep correctness, artifact identity, natural-path verification, and hard capacity gates while preventing small bug fixes from consuming a disproportionate share of the user&rsquo;s weekly token allocation. Replace the current one-size-fits-all bug process with explicit Compact, Standard, and High-risk classes; proportional verification; cumulative diagnostic stop rules; and budget checkpoints.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>The user reports that BUG-018 and BUG-019 each consumed approximately 20&ndash;50% of a weekly token allocation. This percentage is a user observation because repository artifacts do not contain authoritative token telemetry. Historical commit statistics show the work-shape mismatch: BUG-018 added 82 and deleted 11 lines in its production generator while adding 759 lines across two dedicated verifiers, 5,348 total insertions, four mode/owner captures, and four rejected probes. BUG-019 changed 37 assembly lines while adding a 454-line dedicated verifier, 6,303 total insertions, six focused captures, and six rejected probes. The repository contains 56 Python verifier programs totaling 15,243 lines at the audit revision. These are historical single-revision observations from commits <code>8a5747d</code> and <code>ac575f6</code>, not projections or token measurements.</p>
+
+      <h3>Natural process sequence</h3>
+      <ol>
+        <li>Project management records the bug objective, confirmed knowledge, affected boundary, cost class, estimated weekly-token share, ceiling, and smallest sufficient verification set.</li>
+        <li>The approval brief maps every scenario to one distinct risk and obtains explicit approval under the existing lifecycle.</li>
+        <li>Diagnosis uses existing source, static checks, and shared verifiers first; cumulative rejected probes, timeouts, root-cause expansion, or budget pressure trigger reassessment.</li>
+        <li>A Ready Compact bug defaults to direct parent implementation without delegation or duplicate integration verification.</li>
+        <li>QA runs the focused discriminating test, natural golden path, relevant adjacent regression, standard build, and relevant capacity checks; it expands coverage only for a named independent risk.</li>
+        <li>The completion record reports result versus behavior targets and budget ceiling, retains concise deterministic summaries, and records any approved exception.</li>
+      </ol>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> exact synchronized changes to <code>AGENTS.md</code>, <code>.agents/skills/project-management/SKILL.md</code>, <code>business-analyst/SKILL.md</code>, <code>debugger/SKILL.md</code>, <code>qa-reviewer/SKILL.md</code>, <code>wiki/internal/tickets/workflow.html</code>, and <code>wiki/internal/tickets/template.html</code>; three bug cost classes; 5% and 10% default ceilings; High-risk negotiated ceilings; cumulative diagnostic stops; risk-to-scenario mapping; pairwise default coverage; direct Compact execution; a 200-nonblank-line Compact verifier escalation threshold; concise passing evidence; exact walkthrough verification; index and log synchronization.</p>
+      <p><strong>Out:</strong> retroactive reclassification or deletion of existing tickets/evidence; runtime, assembly, scripts, assets, generated build artifacts, XRoar, Codex application-wide behavior, weekly-quota telemetry implementation, weakening artifact-identity or hard capacity requirements, automatic approval, changes to <code>coding-architect</code>, and implementation of a shared verifier framework.</p>
+
+      <h3>Scenarios, edge cases, and failure modes</h3>
+      <ul>
+        <li>A palette/data correction with a confirmed cause, existing pattern, two or fewer production files, and no ownership or capacity-boundary change qualifies as Compact.</li>
+        <li>A renderer-ownership, persistent-framebuffer, cross-phase handoff, loader/MMU/mapping, unresolved corruption, or hard-boundary change cannot qualify as Compact.</li>
+        <li>If Codex cannot read the weekly quota meter, the estimate is labeled as such; user input is requested only as the ceiling approaches.</li>
+        <li>Two rejected probes or observation-tool timeouts force reassessment; a deterministic rerun after correcting identified probe mechanics does not count as a new probe.</li>
+        <li>A Compact bug whose cause expands into another subsystem is reclassified before more experiments or implementation.</li>
+        <li>Mode and owner combinations use pairwise coverage unless their interaction is a named risk; persistent-owner defects may still require a complete crossover.</li>
+        <li>A Compact verifier projected above 200 nonblank lines requires a revised estimate and user approval before creation; the limit is an escalation trigger, not a correctness target or permission to compress unreadable code.</li>
+        <li>Failed traces and evidence required for reproduction remain retained; large passing traces may be summarized only when deterministic hashes and results prove the same criterion.</li>
+        <li>Emergency authorization, explicit user requests for exhaustive verification, and High-risk work remain available but must record their ceiling and rationale.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <p><strong>Recommended Option A:</strong> implement the complete synchronized patch below. Expected outcome: Compact bugs target no more than 5% of weekly allocation and Standard bugs no more than 10%, with explicit approval before exceeding either. Success is measured by instruction-consistency checks and walkthroughs that reject BUG-018-style Cartesian over-verification and stop BUG-019-style cumulative probe expansion. <strong>Option B:</strong> add budget checkpoints only; this is lower-edit but leaves the mechanisms that create excess work unchanged. <strong>Option C:</strong> retain current policy; this preserves maximum uniformity but accepts the reported 20&ndash;50% per-bug cost. Option A is recommended because it changes both the budget signal and the process that consumes it.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>All seven target files contain consistent Compact, Standard, and High-risk definitions and no contradictory eligibility rule.</li>
+        <li>Compact and Standard default weekly-token ceilings are exactly 5% and 10%; High-risk requires an explicit user-approved ceiling.</li>
+        <li>The policy stops before exceeding a ceiling and after two rejected probes, two observation-tool timeouts, or one material root-cause expansion.</li>
+        <li>Compact eligibility excludes runtime ownership, protocols, loader/MMU/mapping, hard memory or timing boundaries, persistent-framebuffer interaction, cross-phase handoffs, and unresolved corruption.</li>
+        <li>Compact verification defaults to a focused discriminating test, one natural golden path, one relevant adjacent regression, standard build, and relevant capacity guards.</li>
+        <li>Every added scenario must map to a distinct risk; pairwise coverage is preferred over a Cartesian matrix unless the interaction is under test.</li>
+        <li>Compact work defaults to direct parent implementation and requires approval before adding more than 200 nonblank lines of ticket-specific verification code.</li>
+        <li>Passing evidence defaults to concise summaries and hashes while failure/reproduction evidence remains retained.</li>
+        <li>Five policy walkthroughs pass, HTML and local links pass, edited-file whitespace passes, and the diff contains no runtime or build-artifact change.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Exact proposed instruction patch</h2>
+      <p>This patch is the approved text candidate for <code>AGENTS.md</code> and the four role skills. Approval fixes this wording and semantics; material changes return DOC-005 to Proposed.</p>
+      <pre><code>diff --git a/AGENTS.md b/AGENTS.md
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ Current Development Workflow
++- Classify each bug as &lt;code&gt;Compact&lt;/code&gt;, &lt;code&gt;Standard&lt;/code&gt;, or &lt;code&gt;High-risk&lt;/code&gt; before preparing its assignment:
++  - &lt;code&gt;Compact&lt;/code&gt; requires a confirmed cause, an existing implementation pattern, no new runtime ownership or protocol, no loader/MMU/mapping change, no hard-boundary pressure, at most two projected production files, and no unresolved behavior question.
++  - &lt;code&gt;Standard&lt;/code&gt; covers bounded changes that fail one or more Compact conditions but do not introduce a new technical pattern or material architectural risk.
++  - &lt;code&gt;High-risk&lt;/code&gt; covers runtime ownership, protocol, loader/MMU/mapping, hard memory or timing boundaries, persistent-framebuffer interaction, cross-phase handoffs, or unresolved corruption.
++- Use the least expensive verification set that covers every identified risk. Do not multiply mode, framebuffer-owner, phase, and scenario combinations unless the ticket identifies an independent interaction that requires the full cross-product.
+@@ Work-Approval Standard
++- Every bug approval brief must state its cost class and projected share of the user's weekly token allocation. The default ceilings are 5% for Compact and 10% for Standard. High-risk work requires an explicit user-approved ceiling. If current quota usage is unavailable to the agent, label the projection as an estimate and ask the user only when the estimate approaches its ceiling.
++- Before projected or observed work exceeds its ceiling, stop and report completed evidence, remaining work, the reason the ceiling is insufficient, the revised estimate, and lower-cost alternatives. Continue only after explicit user approval.
+@@ Runtime diagnosis invariants
++- A probe is one distinct diagnostic experiment intended to separate competing causes. After two rejected probes, two observation-tool timeouts, or one discovery that materially expands the root cause or affected subsystem, stop and reassess the bug class, remaining verification, and budget before running another experiment. A deterministic rerun after correcting identified probe mechanics is not a new probe.
+@@ Ticket and Delegation Rules
+-- Every ticket must contain objective, motivation, in/out scope, scenarios and edge cases, evidence/baseline with revision, acceptance criteria, dependencies and ordering, constraints/risks, assignment contract, verification plan, decision log, and completion evidence. Bug tickets also require reproduction, observed versus expected behavior, and a discriminating test. Feature tickets also require user-visible behavior and compatibility implications.
++- Every ticket must contain objective, motivation, in/out scope, scenarios and edge cases, evidence/baseline with revision, acceptance criteria, dependencies and ordering, constraints/risks, assignment contract, verification plan, decision log, and completion evidence. Compact bug tickets may combine these fields into a concise approval-and-assignment section, but may not omit reproduction, observed versus expected behavior, confirmed cause, discriminating test, cost class, budget ceiling, or measurable acceptance. Feature tickets also require user-visible behavior and compatibility implications.
++- For Compact bugs, default to direct implementation by the parent agent after the ticket is Approved and Ready. Do not create a separate worktree, delegate the implementation, or duplicate the full verification suite unless the user requests delegation or an identified integration risk requires it.
++- Each required verification scenario must name the distinct risk it covers. Prefer pairwise coverage over a Cartesian scenario matrix. Add the full matrix only when the interaction itself is a stated risk.
++- Reuse an existing verifier or shared harness before creating a ticket-specific verifier. A Compact bug may not add more than 200 nonblank lines of ticket-specific verification code without reporting the reason, reclassifying the cost estimate, and obtaining user approval.
++- Retain concise verification summaries, hashes, and failing evidence by default. Retain large passing JSON traces, frame sequences, or duplicate generated artifacts only when an acceptance criterion requires later inspection or reproduction.
+
+diff --git a/.agents/skills/project-management/SKILL.md b/.agents/skills/project-management/SKILL.md
+--- a/.agents/skills/project-management/SKILL.md
++++ b/.agents/skills/project-management/SKILL.md
+@@ Step 1 — Classify
++6. &lt;strong&gt;The cost class and ceiling&lt;/strong&gt; — classify bug work as Compact, Standard, or High-risk using &lt;code&gt;AGENTS.md&lt;/code&gt;; record the projected weekly-token share and applicable approval ceiling.
++7. &lt;strong&gt;The smallest sufficient verification set&lt;/strong&gt; — map each proposed scenario to a distinct identified risk and reject redundant mode/owner/phase combinations.
+@@ Step 2 — Route
+-- <strong>Direct implementation</strong> — only when the requested code change is narrow, already approved, and sufficiently specified.
++- &lt;strong&gt;Direct implementation&lt;/strong&gt; — when the requested code change is narrow, already approved, sufficiently specified, and Ready. This is the default execution route for Compact bugs.
+@@ Step 3 — Guardrails before handoff
++- Do not classify a bug as Compact when it changes runtime ownership, protocols, loader/MMU/mapping behavior, hard memory or timing boundaries, persistent-framebuffer interaction, cross-phase handoffs, or unresolved corruption.
++- If the projected work approaches its cost ceiling, stop before implementation or further investigation and obtain approval for a revised ceiling or reduced scope.
++- Do not require a worktree, delegation, exhaustive scenario matrix, or new ticket-specific harness for a Compact bug unless a named risk requires it.
+@@ Output of this role
+-A short classification block naming objective, scope, affected artifacts, ticket/status, ordering or dependencies, and the next role — then invoke that role's skill.
++A short classification block naming objective, scope, affected artifacts, ticket/status, cost class, budget ceiling, smallest sufficient verification set, ordering or dependencies, and the next role — then invoke that role's skill.
+
+diff --git a/.agents/skills/business-analyst/SKILL.md b/.agents/skills/business-analyst/SKILL.md
+--- a/.agents/skills/business-analyst/SKILL.md
++++ b/.agents/skills/business-analyst/SKILL.md
+@@ Responsibilities
++- Record the project-management cost class, projected weekly-token share, applicable ceiling, and the conditions that would force reclassification.
++- For each proposed verification scenario, name the distinct failure risk it covers. Remove redundant scenarios and use pairwise mode/owner/phase coverage unless an interaction is itself part of the reported defect.
++
++For Compact bugs, keep the approval brief concise. Combine compatible required fields, omit irrelevant option analysis, and specify only:
++
++- exact reproduction and confirmed cause;
++- intended fix and explicit exclusions;
++- focused discriminating test;
++- one natural golden path;
++- one adjacent regression where applicable;
++- standard build and capacity gates;
++- cost ceiling and stop conditions.
+@@ Handoff rule
++Do not expand a Compact bug into exhaustive rare-path or scenario-matrix analysis without a named risk. If analysis reveals runtime ownership, protocol, mapping, hard-boundary, cross-phase, or unresolved behavior implications, return to project-management for reclassification and a revised budget estimate.
+
+diff --git a/.agents/skills/debugger/SKILL.md b/.agents/skills/debugger/SKILL.md
+--- a/.agents/skills/debugger/SKILL.md
++++ b/.agents/skills/debugger/SKILL.md
+@@ Responsibilities
++- Preserve the assigned cost class and budget ceiling. Prefer source inspection, existing static checks, and existing verifier paths before creating new runtime probes or ticket-specific harnesses.
+@@ Evidence ladder
++Count and record rejected probes and observation-tool timeouts. Stop and return to project-management before another experiment when any of these conditions occurs:
++
++- two distinct probes have been rejected;
++- two observation-tool timeouts have occurred;
++- the confirmed or leading cause expands into another subsystem;
++- the projected work reaches the assigned token ceiling;
++- the proposed verifier exceeds the Compact limit in &lt;code&gt;AGENTS.md&lt;/code&gt;.
++
++The reassessment must report the last proven boundary, remaining competing causes, expected value of the next probe, revised cost class, revised budget estimate, and a lower-cost alternative. Do not continue until the user approves any required budget or scope expansion.
+@@ Handoff rule
++At handoff, specify the smallest verification set that proves the cause and guards the affected boundary. Do not carry every diagnostic probe forward as a permanent acceptance test.
+
+diff --git a/.agents/skills/qa-reviewer/SKILL.md b/.agents/skills/qa-reviewer/SKILL.md
+--- a/.agents/skills/qa-reviewer/SKILL.md
++++ b/.agents/skills/qa-reviewer/SKILL.md
+@@ Responsibilities
++- Confirm the ticket retained its approved cost class and budget ceiling. If implementation or verification exceeded either without approval, return the ticket to Ready or Proposed as appropriate.
++- Require every verification scenario to identify the distinct risk it covers. Remove duplicate coverage and prefer pairwise mode/owner/phase cases over a Cartesian matrix unless the interaction itself is under test.
++- For a Compact bug, the default sufficient set is the focused discriminating test, one complete natural golden path, one adjacent regression when applicable, the standard build, and relevant capacity guards. Add rare paths, additional owners, or additional modes only for named independent risks.
++- For directly implemented Compact bugs, do not duplicate an unchanged full verification suite solely to reproduce an earlier passing run. Run the focused current-revision checks and any integration checks whose inputs changed.
++- Reuse existing verifiers and shared harnesses. Before accepting more than 200 nonblank lines of new ticket-specific verification code for a Compact bug, require recorded user approval of the revised cost.
++- Retain concise summaries, hashes, failures, and evidence required for reproduction. Do not require large passing traces or duplicate generated artifacts when a deterministic summary proves the same criterion.
+@@ Output
+-A short verdict: ticket/status, what was verified, result versus targets, regressions and integration checks, residual risk, evidence/commit, and the justified next lifecycle state.
++A short verdict: ticket/status, cost result versus ceiling, what was verified, result versus targets, regressions and integration checks, residual risk, evidence/commit, and the justified next lifecycle state.</code></pre>
+    </section>
+
+    <section>
+      <h2>Exact proposed workflow synchronization</h2>
+      <p>The canonical workflow receives the same rules rather than merely linking to the agent instructions.</p>
+      <pre><code>diff --git a/wiki/internal/tickets/workflow.html b/wiki/internal/tickets/workflow.html
+--- a/wiki/internal/tickets/workflow.html
++++ b/wiki/internal/tickets/workflow.html
+@@ Principles
++        &lt;li&gt;Bug effort is proportional to identified risk. Compact bugs use a focused path; Standard and High-risk bugs expand only for named independent risks.&lt;/li&gt;
++        &lt;li&gt;Every bug records a projected weekly-token share and ceiling. Work stops for explicit approval before the ceiling is exceeded.&lt;/li&gt;
+@@ after Approval brief
++    &lt;section&gt;
++      &lt;h2&gt;Bug cost and verification classes&lt;/h2&gt;
++      &lt;ul&gt;
++        &lt;li&gt;&lt;strong&gt;Compact:&lt;/strong&gt; confirmed cause, existing pattern, no runtime ownership or protocol, no loader/MMU/mapping change, no hard-boundary pressure, at most two projected production files, and no unresolved behavior question. Default ceiling: 5% of weekly allocation.&lt;/li&gt;
++        &lt;li&gt;&lt;strong&gt;Standard:&lt;/strong&gt; bounded work that fails a Compact condition without introducing a new technical pattern or material architectural risk. Default ceiling: 10% of weekly allocation.&lt;/li&gt;
++        &lt;li&gt;&lt;strong&gt;High-risk:&lt;/strong&gt; runtime ownership, protocol, loader/MMU/mapping, hard memory or timing boundaries, persistent-framebuffer interaction, cross-phase handoffs, or unresolved corruption. The user approves its ceiling explicitly.&lt;/li&gt;
++      &lt;/ul&gt;
++      &lt;p&gt;Every scenario names the distinct risk it covers. Use pairwise mode, owner, phase, and scenario coverage unless the interaction itself is under test. Before exceeding a ceiling, report completed evidence, remaining work, the reason, revised estimate, and lower-cost alternatives, then wait for approval.&lt;/p&gt;
++    &lt;/section&gt;
+@@ Assignment and subagent contract
++      &lt;p&gt;A Ready Compact bug defaults to direct parent implementation without a separate worktree, delegation, or duplicated integration suite. An identified integration risk or explicit user request may override this default.&lt;/p&gt;
++      &lt;p&gt;Reuse existing verifiers and shared harnesses. More than 200 nonblank lines of ticket-specific verification for a Compact bug requires a revised cost estimate and explicit user approval before creation.&lt;/p&gt;
+@@ Integration and verification
++        &lt;li&gt;Map every required scenario to a distinct risk; prefer pairwise coverage and reject redundant Cartesian combinations.&lt;/li&gt;
++        &lt;li&gt;For Compact bugs, default to the discriminating test, one natural golden path, one relevant adjacent regression, the standard build, and relevant capacity guards.&lt;/li&gt;
++        &lt;li&gt;Retain concise summaries, hashes, and failing evidence by default; retain large passing traces only when required for reproduction or later inspection.&lt;/li&gt;
+@@ Runtime-diagnosis evidence
++      &lt;p&gt;After two rejected probes, two observation-tool timeouts, or one material root-cause expansion, stop and reassess class, remaining verification, and budget before another experiment. A deterministic rerun after correcting identified probe mechanics is not a new probe.&lt;/p&gt;
+@@ Approval response
++        &lt;li&gt;For bug work, state the cost class, projected weekly-token share, ceiling, stop conditions, and risk-to-scenario mapping.&lt;/li&gt;
+@@ Progress and completion response
++        &lt;li&gt;For bug work, report projected or observed cost versus the approved ceiling and any approved exception.&lt;/li&gt;</code></pre>
+    </section>
+
+    <section>
+      <h2>Exact proposed template synchronization</h2>
+      <pre><code>diff --git a/wiki/internal/tickets/template.html b/wiki/internal/tickets/template.html
+--- a/wiki/internal/tickets/template.html
++++ b/wiki/internal/tickets/template.html
+@@ Identity
++        &lt;li&gt;&lt;strong&gt;Bug cost class / ceiling:&lt;/strong&gt; Compact, Standard, or High-risk / projected weekly-token share and approved ceiling; omit for non-bug tickets.&lt;/li&gt;
+@@ Evidence and baseline
+-      &lt;h3&gt;Evidence and baseline&lt;/h3&gt;&lt;p&gt;Record observed facts, source revision, artifacts, units, and whether values are maxima, averages, projections, or single observations. For persistent A/B rendering, label scenario phase and executed worklist first and buffer owner second; require a controlled crossover before attributing timing to owner identity.&lt;/p&gt;
++      &lt;h3&gt;Evidence and baseline&lt;/h3&gt;&lt;p&gt;Record observed facts, source revision, artifacts, units, and whether values are maxima, averages, projections, or single observations. For bug work, distinguish repository evidence from user-reported token usage and label quota projections as estimates when telemetry is unavailable. For persistent A/B rendering, label scenario phase and executed worklist first and buffer owner second; require a controlled crossover before attributing timing to owner identity.&lt;/p&gt;
+@@ Scenarios and edge cases
+-      &lt;h3&gt;Scenarios and edge cases&lt;/h3&gt;&lt;p&gt;List normal, boundary, rare, replay/integration, failure, and regression cases.&lt;/p&gt;
++      &lt;h3&gt;Scenarios and edge cases&lt;/h3&gt;&lt;p&gt;List normal, boundary, rare, replay/integration, failure, and regression cases. Map every bug scenario to one distinct risk; prefer pairwise coverage and justify every Cartesian interaction.&lt;/p&gt;
+@@ Type-specific evidence
+-      &lt;p&gt;&lt;strong&gt;Bug:&lt;/strong&gt; exact reproduction, observed result, expected result, environment/revision, hypotheses, and discriminating test.&lt;/p&gt;
++      &lt;p&gt;&lt;strong&gt;Bug:&lt;/strong&gt; exact reproduction, observed result, expected result, environment/revision, hypotheses, confirmed cause or explicit uncertainty, discriminating test, Compact/Standard/High-risk class, projected weekly-token share, ceiling, reclassification triggers, and smallest sufficient verification set. A Compact ticket may combine required fields but may not omit them.&lt;/p&gt;
+@@ Assignment contract
+-        &lt;li&gt;&lt;strong&gt;Required commands and scenarios:&lt;/strong&gt; build, focused tests, integration tests, and forced rare cases.&lt;/li&gt;
++        &lt;li&gt;&lt;strong&gt;Required commands and scenarios:&lt;/strong&gt; build, focused tests, integration tests, and only those forced rare cases mapped to a distinct risk.&lt;/li&gt;
++        &lt;li&gt;&lt;strong&gt;Cost controls:&lt;/strong&gt; approved ceiling, cumulative probe count, verifier-size exception if any, and stop/reassessment conditions.&lt;/li&gt;
+@@ Verification and completion
+-      &lt;p&gt;Record current-revision commands, results, integration checks, target verdict, evidence links, commit hashes, residual risk, and justified final status.&lt;/p&gt;
++      &lt;p&gt;Record current-revision commands, results, integration checks, target verdict, cost result versus ceiling, approved exceptions, concise evidence links or hashes, commit hashes, residual risk, and justified final status.&lt;/p&gt;</code></pre>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Approved objective and non-goals:</strong> apply the exact seven-file policy patch recorded above so future bug work uses proportional classification, token ceilings, cumulative diagnostic stops, risk-mapped verification, direct Compact execution, verifier-size escalation, and concise evidence. Do not change the approved wording or semantics, reclassify existing tickets, delete evidence, implement quota telemetry or a shared verifier framework, alter runtime behavior, or begin another bug.</li>
+        <li><strong>Owned artifacts:</strong> <code>AGENTS.md</code>; the four named role skills; <code>wiki/internal/tickets/workflow.html</code>; <code>wiki/internal/tickets/template.html</code>; this ticket; ticket index; wiki log.</li>
+        <li><strong>Read-only artifacts:</strong> <code>src/</code>, <code>scripts/</code>, <code>assets/</code>, <code>tiled/</code>, <code>build/</code>, all other skills, tickets, roadmap content, and release wiki.</li>
+        <li><strong>Branch and worktree:</strong> at assignment start create branch <code>codex/doc-005-bounded-bug-workflow</code> in <code>D:\retro\ladybug-worktrees\doc-005-bounded-bug-workflow</code> from the committed Ready checkpoint containing this contract. Record that exact checkpoint hash in the implementation-start decision log. Do not create the worktree from another ticket branch or a dirty parent index.</li>
+        <li><strong>Implementation order:</strong> apply shared <code>AGENTS.md</code> rules; apply project-management, business-analyst, debugger, and qa-reviewer changes; synchronize workflow and template; compare the resulting text with the approved patch; run exact-term, contradiction, scenario, allowlist, whitespace, and local-link checks; update DOC-005 to Verification with evidence; update index and log; then create one bounded commit.</li>
+        <li><strong>Change control:</strong> editorial changes are allowed only for HTML escaping, surrounding context, or grammar that does not alter an approved rule. Any material change to class eligibility, 5%/10% ceilings, stop thresholds, direct-execution default, verifier threshold, evidence policy, scope, target, or risk returns DOC-005 to Proposed for renewed approval.</li>
+        <li><strong>Commit boundary and authority:</strong> produce one documentation/process implementation commit containing only the ten owned files. Do not push, merge, assign another agent, advance to Done, or begin another ticket. The parent agent owns QA, integration, and final lifecycle changes.</li>
+        <li><strong>Runtime/capacity:</strong> source, ROM, RAM, timing, payload, stack, direct-page, and GMC deltas must be zero.</li>
+        <li><strong>Retained evidence:</strong> exact changed-file list; scoped whitespace output; exact-term matches; class-consistency and contradiction review; five walkthrough verdicts; local-link output; zero-runtime-delta output; final diff; implementation commit; rejected wording changes; residual risks.</li>
+        <li><strong>Completion report:</strong> report the Ready checkpoint, implementation commit, exact changed files, each command and walkthrough result, approved text fidelity, zero runtime/capacity delta, rejected changes, residual risks, retained evidence, and whether DOC-005 can advance to Verification.</li>
+      </ul>
+      <p><strong>Ready gate:</strong> satisfied. User approval fixes the objective, exact patch, class definitions, ceilings, thresholds, scope, risks, and acceptance criteria. Dependencies, ordering, owned/read-only artifacts, branch/worktree, implementation sequence, verification commands, evidence, commit boundary, authority, and completion report are complete. No policy implementation has begun.</p>
+    </section>
+
+    <section>
+      <h2>Verification plan</h2>
+      <p>Run scoped whitespace and changed-file allowlist checks; require exact matches for the three classes, 5%/10% ceilings, High-risk approval, cumulative stop rules, pairwise coverage, direct Compact implementation, 200-line escalation, and concise evidence. Validate local HTML links and walk through these cases:</p>
+      <ol>
+        <li><strong>BUG-018 analogue:</strong> confirmed build-time palette mapping with no runtime ownership or hard-boundary pressure. Pass only if classified Compact and limited to a focused oracle, one natural path, one adjacent regression, build, and capacity checks unless a new risk is named.</li>
+        <li><strong>BUG-019 analogue:</strong> renderer ownership, persistent framebuffer interaction, cross-phase handoff, and one-byte headroom. Pass only if Compact is rejected and the higher class receives an explicit budget estimate.</li>
+        <li><strong>Cumulative probes:</strong> two rejected monitor experiments occur. Pass only if a third experiment waits for reassessment and any needed user approval.</li>
+        <li><strong>Unavailable quota telemetry:</strong> the agent cannot read current weekly usage. Pass only if it labels the projection as estimated and does not claim measured quota.</li>
+        <li><strong>Verifier expansion:</strong> a Compact fix proposes 250 new verifier lines. Pass only if the process stops before creation, reports the reason and revised estimate, and obtains approval or reduces/reuses the harness.</li>
+      </ol>
+      <h3>Required commands</h3>
+      <pre><code>git diff --check READY_CHECKPOINT...HEAD -- AGENTS.md .agents/skills/project-management/SKILL.md .agents/skills/business-analyst/SKILL.md .agents/skills/debugger/SKILL.md .agents/skills/qa-reviewer/SKILL.md wiki/internal/tickets/workflow.html wiki/internal/tickets/template.html wiki/internal/tickets/doc-005-bounded-bug-workflow.html wiki/internal/tickets/index.html wiki/internal/log.html
+
+git diff --name-only READY_CHECKPOINT...HEAD
+
+git diff --exit-code READY_CHECKPOINT...HEAD -- src scripts assets tiled build wiki/release .agents/skills/coding-architect/SKILL.md
+
+rg -n "Compact|Standard|High-risk|5%|10%|two rejected probes|two observation-tool timeouts|pairwise|200 nonblank|concise" AGENTS.md .agents/skills/project-management/SKILL.md .agents/skills/business-analyst/SKILL.md .agents/skills/debugger/SKILL.md .agents/skills/qa-reviewer/SKILL.md wiki/internal/tickets/workflow.html wiki/internal/tickets/template.html
+
+rg -n "runtime ownership|protocol|loader/MMU/mapping|hard memory or timing|persistent-framebuffer|cross-phase|unresolved corruption" AGENTS.md .agents/skills/project-management/SKILL.md wiki/internal/tickets/workflow.html
+
+rg -n "DOC-005|Status:&lt;/strong&gt; Verification|&gt;Verification&lt;" wiki/internal/tickets/doc-005-bounded-bug-workflow.html wiki/internal/tickets/index.html wiki/internal/log.html</code></pre>
+      <p>Replace <code>READY_CHECKPOINT</code> with the exact committed Ready checkpoint recorded at assignment start. Run scoped local-link validation for the ticket, workflow, template, index, and log. No ROM build or emulator run is required because the changed-file allowlist and zero-runtime-delta check prohibit executable changes.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-20 &mdash; User explicitly approved DOC-005 and directed Ready preparation. Approval fixes the complete instruction/workflow/template patch, Compact/Standard/High-risk definitions, 5%/10% ceilings, High-risk approval rule, cumulative diagnostic stops, risk-mapped pairwise verification, direct Compact implementation, 200-line escalation trigger, concise evidence policy, scope, risks, and acceptance criteria. Completed the exact assignment artifacts, boundaries, branch/worktree, commands, evidence, commit authority, completion report, and Ready gate; advanced Proposed &rarr; Approved &rarr; Ready. No policy implementation was performed.</li>
+        <li>2026-08-20 &mdash; User requested a Proposed process ticket containing the reviewed instruction patch plus canonical workflow and template synchronization. Created DOC-005 as Proposed. No active instruction, workflow, template, runtime, or build artifact was changed.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Evidence: BUG-018 and BUG-019 tickets, commits <code>8a5747d</code> and <code>ac575f6</code>, verifier inventory at the 2026-08-20 audit revision, and user-reported weekly-allocation impact.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
