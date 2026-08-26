@@ -1,4 +1,52 @@
 ; FEAT-002 low-RAM presentation flow, copied to $1900 during GMC boot.
+; DOC-002 source-contract mirror begins. Canonical definitions:
+; wiki/internal/implementation/routine-catalog.html
+; DOC-002 source-contract mirror profile copy Inputs: Source and destination identities, bounded count or stream metadata, and any required mapped page
+; DOC-002 source-contract mirror profile copy Outputs: Copied, decoded, merged, cached, or addressed data plus caller-visible pointer progress
+; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
+; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
+; DOC-002 source-contract mirror profile copy Side effects: May temporarily map PAR5 while moving or decoding data
+; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; temporary mappings are restored before returning
+; DOC-002 source-contract mirror profile input Inputs: PIA input state, prior sampled state, and axis or key selection
+; DOC-002 source-contract mirror profile input Outputs: Normalized input state, edge bits, or axis sample
+; DOC-002 source-contract mirror profile input Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile input Reads: PIA registers and prior input samples
+; DOC-002 source-contract mirror profile input Writes: Owned input state and temporary PIA scan selection
+; DOC-002 source-contract mirror profile input Side effects: Temporarily drives keyboard or joystick scan hardware
+; DOC-002 source-contract mirror profile input Invariants: PIA control and drive state are restored to the runtime convention before return
+; DOC-002 source-contract mirror profile presentation Inputs: Presentation state, interval timer, input edges, current map, and the selected auxiliary profile
+; DOC-002 source-contract mirror profile presentation Outputs: Updated presentation state and the dispatcher retain/release status when applicable
+; DOC-002 source-contract mirror profile presentation Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile presentation Reads: Presentation direct-page state, cold payloads, authored map streams, and input state
+; DOC-002 source-contract mirror profile presentation Writes: Presentation state, mapped BACK pixels, and presentation-owned persistent metadata
+; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
+; DOC-002 source-contract mirror profile presentation Invariants: Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned
+; DOC-002 source-contract mirror profile render Inputs: Current render intent, selected actor or tile state, and a valid BACK or staging destination
+; DOC-002 source-contract mirror profile render Outputs: Updated destination pixels and any owner-local history required by later restoration
+; DOC-002 source-contract mirror profile render Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile render Reads: Authoritative gameplay state, immutable art streams, and current owner-local background metadata
+; DOC-002 source-contract mirror profile render Writes: BACK or staging pixels, render scratch, and owner-local save-under or damage metadata
+; DOC-002 source-contract mirror profile render Side effects: Changes a non-visible composition surface or its metadata
+; DOC-002 source-contract mirror profile render Invariants: The routine never selects the visible FRONT surface; temporary PAR5 mappings expire or restore before return
+; DOC-002 source-contract mirror contract add_credit profile=presentation: Add credit.
+; DOC-002 source-contract mirror contract cold_ptr profile=copy: Resolve a pointer into the currently mapped presentation cold payload.
+; DOC-002 source-contract mirror contract cold_read_byte profile=copy: Read one byte from the presentation cold payload while preserving mapping ownership.
+; DOC-002 source-contract mirror contract colour_surface profile=render: Apply a generated sparse nibble-colour stream to a selected 16-by-16 presentation surface.
+; DOC-002 source-contract mirror contract colour_tile profile=render: Replace every nonzero packed pixel pair in one selected 8-by-8 instruction tile.
+; DOC-002 source-contract mirror contract draw_actor_overlay profile=render: Draw the selected presentation actor stream into the current presentation destination.
+; DOC-002 source-contract mirror contract draw_cell profile=render: Draw cell.
+; DOC-002 source-contract mirror contract draw_coin_slots profile=render: Draw coin slots.
+; DOC-002 source-contract mirror contract draw_tile_id profile=render: Draw tile id.
+; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
+; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Initialize gameplay.
+; DOC-002 source-contract mirror contract install_aux_runtime profile=presentation: Install aux runtime.
+; DOC-002 source-contract mirror contract map_back profile=copy: Map back.
+; DOC-002 source-contract mirror contract presentation_flow_tick profile=presentation: Dispatch the current presentation interval and return retain or release status.
+; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys.
+; DOC-002 source-contract mirror contract start_screen profile=presentation: Initialize and draw the requested presentation screen.
+; DOC-002 source-contract mirror contract timer profile=presentation: Advance and return the current presentation interval timer.
+; DOC-002 source-contract mirror ends.
         pragma  nodollarlocal,6809
         setdp   $00
         include "ladybug_presentation.inc"

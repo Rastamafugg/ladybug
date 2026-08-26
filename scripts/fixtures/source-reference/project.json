@@ -1,0 +1,118 @@
+{
+  "title": "Source reference fixture",
+  "revision": "fixture-1",
+  "instruction_reference": null,
+  "exclusions": [],
+  "contract_profiles": {
+    "fixture": {
+      "inputs": "Fixture caller state",
+      "outputs": "Fixture result state",
+      "clobbers": "A and condition codes",
+      "reads": "Fixture source bytes",
+      "writes": "Fixture destination bytes",
+      "side_effects": "Fixture-only state change",
+      "invariants": "Returns with a balanced stack"
+    }
+  },
+  "modules": [
+    {
+      "id": "module-a",
+      "title": "Fixture module A",
+      "source": "module_a.s",
+      "listing": "module_a.lst",
+      "map": "module_a.map",
+      "external_symbols": ["worker"],
+      "routines": [
+        {
+          "name": "entry",
+          "semantic_id": "https://example.invalid/docs#fixture-entry",
+          "profile": "fixture",
+          "purpose": "Enter fixture module A",
+          "reasons": ["exported"]
+        }
+      ],
+      "basic_blocks": [
+        {
+          "name": "data_record",
+          "routine": "entry",
+          "purpose": "Two-byte fixture data record"
+        }
+      ]
+    },
+    {
+      "id": "module-b",
+      "title": "Fixture copied module B",
+      "source": "module_b.s",
+      "listing": "module_b.lst",
+      "map": "module_b.map",
+      "routines": [
+        {
+          "name": "worker",
+          "semantic_id": "https://example.invalid/docs#fixture-worker",
+          "profile": "fixture",
+          "purpose": "Execute the copied fixture worker",
+          "reasons": ["exported"]
+        }
+      ],
+      "relocations": [
+        {
+          "id": "module-b-copy",
+          "length": 1,
+          "assembled": {"address": "0x2000"},
+          "cartridge_staged": {"address": "0xC100"},
+          "runtime_destination": {"address": "0x3000", "physical_page": "0x21"}
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "label_rules": [
+      {
+        "pattern": "FIXTURE_CONST",
+        "kind": "constant",
+        "reason": "Assembly-time fixture constant with no runtime storage"
+      }
+    ],
+    "required_routines": ["entry", "worker"],
+    "required_symbols": ["entry", "worker"],
+    "required_evidence": [
+      "structural",
+      "representation",
+      "delivery",
+      "runtime-reachability",
+      "visible-output",
+      "timing"
+    ],
+    "memory_structures": [
+      {
+        "id": "fixture-record",
+        "owner": "module-a",
+        "semantic_id": "https://example.invalid/docs#fixture-record",
+        "symbols": ["data_record"]
+      }
+    ],
+    "required_scenarios": ["fixture-copy"],
+    "scenarios": [
+      {
+        "id": "fixture-copy",
+        "criterion": "Copied module remains traceable",
+        "behavior": "Module A calls the copied worker",
+        "state": "fixture execution",
+        "module": "module-a",
+        "routine": "entry",
+        "memory": ["fixture-record"],
+        "source": [{"module": "module-a", "file": "module_a.s", "line": 4}],
+        "verifier": "fixture generation and mutation suite",
+        "evidence": ["fixture-delivery"]
+      }
+    ]
+  },
+  "evidence": [
+    {"id": "fixture-structural", "dimension": "structural", "state": "pass", "artifact": "module_a.s", "sha256": "auto"},
+    {"id": "fixture-representation", "dimension": "representation", "state": "pass", "artifact": "module_a.lst", "sha256": "auto"},
+    {"id": "fixture-delivery", "dimension": "delivery", "state": "pass", "artifact": "module_b.s", "sha256": "auto"},
+    {"id": "fixture-runtime", "dimension": "runtime-reachability", "state": "pass", "artifact": "module_b.map", "sha256": "auto"},
+    {"id": "fixture-visible", "dimension": "visible-output", "state": "pass", "artifact": "module_a.s", "sha256": "auto"},
+    {"id": "fixture-timing", "dimension": "timing", "state": "pass", "artifact": "module_b.s", "sha256": "auto"}
+  ]
+}

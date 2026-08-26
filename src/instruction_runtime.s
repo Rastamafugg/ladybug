@@ -1,6 +1,47 @@
 ; BUG-011 development instruction choreography.  The GMC loader stages this
 ; image behind the attract bundle in physical page $23; presentation startup
 ; copies it into boot-only RAM.
+; DOC-002 source-contract mirror begins. Canonical definitions:
+; wiki/internal/implementation/routine-catalog.html
+; DOC-002 source-contract mirror profile copy Inputs: Source and destination identities, bounded count or stream metadata, and any required mapped page
+; DOC-002 source-contract mirror profile copy Outputs: Copied, decoded, merged, cached, or addressed data plus caller-visible pointer progress
+; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
+; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
+; DOC-002 source-contract mirror profile copy Side effects: May temporarily map PAR5 while moving or decoding data
+; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; temporary mappings are restored before returning
+; DOC-002 source-contract mirror profile presentation Inputs: Presentation state, interval timer, input edges, current map, and the selected auxiliary profile
+; DOC-002 source-contract mirror profile presentation Outputs: Updated presentation state and the dispatcher retain/release status when applicable
+; DOC-002 source-contract mirror profile presentation Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile presentation Reads: Presentation direct-page state, cold payloads, authored map streams, and input state
+; DOC-002 source-contract mirror profile presentation Writes: Presentation state, mapped BACK pixels, and presentation-owned persistent metadata
+; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
+; DOC-002 source-contract mirror profile presentation Invariants: Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned
+; DOC-002 source-contract mirror profile render Inputs: Current render intent, selected actor or tile state, and a valid BACK or staging destination
+; DOC-002 source-contract mirror profile render Outputs: Updated destination pixels and any owner-local history required by later restoration
+; DOC-002 source-contract mirror profile render Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile render Reads: Authoritative gameplay state, immutable art streams, and current owner-local background metadata
+; DOC-002 source-contract mirror profile render Writes: BACK or staging pixels, render scratch, and owner-local save-under or damage metadata
+; DOC-002 source-contract mirror profile render Side effects: Changes a non-visible composition surface or its metadata
+; DOC-002 source-contract mirror profile render Invariants: The routine never selects the visible FRONT surface; temporary PAR5 mappings expire or restore before return
+; DOC-002 source-contract mirror contract apply_persistent_state profile=presentation: Apply persistent state.
+; DOC-002 source-contract mirror contract clear_target profile=render: Clear target.
+; DOC-002 source-contract mirror contract clear_target_x profile=render: Clear target x.
+; DOC-002 source-contract mirror contract draw_coin_reward profile=render: Draw coin reward.
+; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
+; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
+; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
+; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
+; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
+; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.
+; DOC-002 source-contract mirror contract present_death profile=presentation: Apply the development instruction death-presentation event.
+; DOC-002 source-contract mirror contract present_player profile=presentation: Apply the development instruction player-presentation event.
+; DOC-002 source-contract mirror contract recolour_collectibles profile=render: Recolour collectibles.
+; DOC-002 source-contract mirror contract recolour_target profile=render: Recolour target.
+; DOC-002 source-contract mirror contract restore_actor profile=render: Restore actor.
+; DOC-002 source-contract mirror contract store_owner_state profile=presentation: Store owner state.
+; DOC-002 source-contract mirror contract sync_persistent_state profile=presentation: Synchronize persistent state.
+; DOC-002 source-contract mirror ends.
         pragma  nodollarlocal,6809
         setdp   $00
         include "ladybug_presentation.inc"

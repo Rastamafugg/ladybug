@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Source Traceability Guide &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="../../index.html">&larr; Wiki home</a><a href="../index.html">Internal</a><a href="./index.html">Implementation</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation &middot; traceability</p>
+      <h1>Source Traceability Guide <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Navigation from behavior and memory ownership to current source lines, and back from an address to its semantic owner.</p>
+    </header>
+
+    <section>
+      <h2>Controlled vocabulary</h2>
+      <p><a href="./glossary.html#term-authored-source">Authored source</a>, <a href="./glossary.html#term-generated-reference">generated reference</a>, <a href="./glossary.html#term-publication">publication</a>, and <a href="./glossary.html#term-evidence-dimension">evidence dimension</a> use the glossary definitions throughout this guide.</p>
+    </section>
+
+    <section>
+      <h2>Authority boundary</h2>
+      <p>This wiki owns meaning, rationale, ownership, and stable semantic IDs. Concise assembly headers mirror local register and side-effect contracts. The generated browser owns current addresses, emitted bytes, source-line relationships, symbols, and artifact hashes. A generated page is current only when its manifest hashes match the authored source, listing, map, and binary from one build.</p>
+    </section>
+
+    <section>
+      <h2>Top-down trace</h2>
+      <ol>
+        <li>Start with <a href="./source-structure.html">source structure</a> for the owning module and control phase.</li>
+        <li>Use <a href="./routine-catalog.html">routine catalog</a> for inputs, side effects, state ownership, callers, and callees.</li>
+        <li>Use <a href="./data-layouts.html">data layouts</a> and <a href="./memory-map.html">memory map</a> for record fields and virtual, physical, and cartridge identities.</li>
+        <li>Regenerate <code>build/source-reference/</code> and follow the routine or symbol link to the exact current line, address, and bytes.</li>
+        <li>Confirm the required evidence dimension. Structural reachability does not prove delivery, visible output, or timing.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Bottom-up trace</h2>
+      <ol>
+        <li>Start from the observed PC, address, symbol, or direct-page byte.</li>
+        <li>Use the generated address or symbol index to identify the assembled module and source line.</li>
+        <li>If the module is copied or banked, follow its declared assembled, cartridge-staged, and runtime-destination relationship before interpreting live bytes.</li>
+        <li>Follow the stable semantic link to the routine, structure, or memory owner in this wiki.</li>
+        <li>Verify that the live artifact hash matches the generated manifest before drawing a runtime conclusion.</li>
+      </ol>
+    </section>
+
+    <section id="current-trace-samples">
+      <h2>Current trace samples</h2>
+      <ul>
+        <li><strong>Attract behavior to line:</strong> the current deployed FEAT-002 loop enters <code>presentation_flow_tick</code>, streams the selected map through <code>start_screen_map</code>, advances at <code>attract_tick</code>, and publishes through the shared render transaction. The generated presentation module page resolves these labels to current lines and bytes.</li>
+        <li><strong>PC to owner:</strong> current PC <code>$1BE7</code> resolves through <code>addresses.html</code> to the emitting instruction at <code>src/presentation_runtime.s:509</code>, the <code>attract_tick</code> block selected by <code>presentation_flow_tick</code>, and the presentation-flow state definition.</li>
+        <li><strong>Direct page to writers:</strong> <code>$0091</code> is the render-pending protocol byte. The generated memory-reference lists enumerate configured aliases, definitions, reads, and writes, while the render-transaction definition assigns producer and Vbord publication ownership.</li>
+        <li><strong>Delivery path:</strong> bank-1 resident bytes are related as assembled <code>$C000</code>, cartridge-staged <code>$A000</code>, and final runtime <code>$C000</code>. Startup evidence proves the staged and destination byte identities before resident symbols are interpreted.</li>
+      </ul>
+    </section>
+
+    <section id="current-evidence">
+      <h2>Current evidence binding</h2>
+      <p>The certified revision <code>fac594fea1af6f33eb8bd60ed5d71c4f72eee16c</code> records six independent dimensions below. This committed section is the concise retained evidence summary used by a clean documentation build; large passing captures and traces remain disposable. A passing evidence state means the stated observation is revision-identified and reproducible by its named command. It does not convert accepted baseline bugs into passing gameplay behavior.</p>
+      <ul>
+        <li id="evidence-structural"><strong>Structural:</strong> authored assembly source at revision <code>fac594f</code>; the source-reference manifest binds each configured source file to its SHA-256 digest.</li>
+        <li id="evidence-representation"><strong>Representation:</strong> seven module pages, global address/symbol/routine/source indexes, stable line and symbol anchors, routine/basic-block ownership, memory references, and current source/listing/map/binary hashes are regenerated and independently checked by <code>verify_source_documentation.py --all</code>.</li>
+        <li id="evidence-delivery"><strong>Delivery:</strong> <code>verify_gmc_boot.py --startup-only</code> passed 10-second loader and resident phases. The 15,872-byte authored resident interval, cartridge bank-1 interval, and live <code>$C000-$FDFF</code> destination matched SHA-256 <code>b99ed5d7a096c407a5a3ef6a61aded17d1facf868a9213f9e4b6ae4d73234020</code>. The final 65,536-byte ROM SHA-256 is <code>74ccb023d967037e4cba92e043eba5973f65877f54d3dc18965b13dcefc9a751</code>.</li>
+        <li id="evidence-runtime"><strong>Runtime reachability:</strong> the full <code>verify_gmc_boot.py</code> run passed the 10-second natural boot/attract phase, 20-second forced gameplay phase, and 10-second forced demo-death phase, including natural main-loop and presentation markers plus the copied-module, actor-closure, Vbord-publication, and relocated-main-loop boundaries.</li>
+        <li id="evidence-visible"><strong>Visible output:</strong> a naturally published 30,720-byte FRONT capture at presentation mode 2, timer 2, phase 0 matched the independently generated attract phase-0 frame at SHA-256 <code>d3815c316c02781b66c07e7eb82f53862c496120c17a71d625d2dc57673cd78b</code> within a 30-second deadline.</li>
+        <li id="evidence-timing"><strong>Timing:</strong> one natural <code>presentation_flow_tick</code>-to-next-call-site trace, SHA-256 <code>1346e9ef638e81d55691dd9af1178bec33c85605e8b14ee2946f19b377f09611</code>, executed 3,713 instructions in 29,982 elapsed cycles. Subtracting 7,813 synchronization-wait cycles leaves 22,169 active cycles, passing the 27,000-cycle engineering maximum. This is one measured worklist, not an owner-attributed average.</li>
+      </ul>
+    </section>
+
+    <section id="traceability-matrix">
+      <h2>Current traceability matrix</h2>
+      <ul>
+        <li><strong>FEAT-002 deployed loop:</strong> current child-scope criterion &rarr; natural boot/attract state &rarr; presentation module and <code>presentation_flow_tick</code> &rarr; presentation-flow and render-transaction records &rarr; <code>src/presentation_runtime.s:121</code>, <code>:264</code>, and <code>:508</code> &rarr; full <code>verify_gmc_boot.py</code> natural/forced phases &rarr; runtime, visible-output, and timing evidence.</li>
+        <li><strong>Bank-1 delivery:</strong> delivery identity criterion &rarr; loader/resident startup state &rarr; GMC bootstrap and <code>boot_entry</code> &rarr; bank-1 publication record &rarr; <code>src/gmc_bootstrap.s:186</code>, <code>:258</code>, and <code>:307</code> &rarr; startup-only GMC verifier &rarr; delivery evidence.</li>
+        <li><strong>PC lookup sample:</strong> observed PC <code>$1BE7</code> &rarr; attract-hold state &rarr; presentation module and the <code>attract_tick</code> block selected by <code>presentation_flow_tick</code> &rarr; presentation-flow state &rarr; emitting <code>src/presentation_runtime.s:509</code> &rarr; generated address/line inspection &rarr; representation and runtime evidence.</li>
+        <li><strong>Direct-page lookup sample:</strong> byte <code>$0091</code> &rarr; Vbord publication state &rarr; enemy runtime and <code>framebuffer_irq_impl</code> &rarr; render-transaction record &rarr; <code>src/enemy_runtime.s:1237</code>, <code>:1239</code>, and <code>:1241</code> &rarr; generated reference inspection plus natural FRONT capture &rarr; representation and visible-output evidence.</li>
+      </ul>
+      <p>The machine-readable records are in <code>scripts/source_reference.json</code>. The current generated browser contains 3,095 typed references across the three trace structures and eleven exhaustive ownership categories. Ten required FEAT-002 scenarios and three DOC-002 trace samples are configured. The verifier rejects a missing required scenario or a scenario with a missing criterion, state, module, routine, memory definition, exact source line, verifier, or passing evidence record.</p>
+    </section>
+
+    <section>
+      <h2>Current generation commands</h2>
+<pre><code>scripts/build.sh build
+python3 scripts/build_source_reference.py \
+  --config scripts/source_reference.json \
+  --output build/source-reference
+python3 scripts/verify_source_documentation.py \
+  --config scripts/source_reference.json \
+  --wiki-root wiki \
+  --generated-root build/source-reference \
+  --all
+</code></pre>
+      <p>The implementation also accepts explicit <code>--source-root</code> and <code>--artifact-root</code> values so a detached canonical build can be documented without overwriting a dirty workspace artifact. The generated manifest records the three approved non-shipped exclusions: <code>src/diag_minimal.s</code>, <code>src/rom_probe.s</code>, and <code>src/tester/</code>, each with its reason.</p>
+    </section>
+
+    <footer class="wiki-footer"><p>Generated output is disposable and is not committed. Missing required coverage is a verifier failure, not an exclusion opportunity.</p></footer>
+  </main>
+</div>
+</body>
+</html>

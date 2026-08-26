@@ -1,5 +1,19 @@
 ; Ladybug GMC bank loader. Bank 0 executes here, then this routine runs from
 ; low RAM while selecting bank 1 and copying the runtime into physical RAM.
+; DOC-002 source-contract mirror begins. Canonical definitions:
+; wiki/internal/implementation/routine-catalog.html
+; DOC-002 source-contract mirror profile boot Inputs: The declared cartridge bank, staged payload, destination identity, and bootstrap mapping state
+; DOC-002 source-contract mirror profile boot Outputs: Installed runtime bytes or a non-returning transfer to the next boot phase
+; DOC-002 source-contract mirror profile boot Clobbers: All CPU registers and condition codes
+; DOC-002 source-contract mirror profile boot Reads: Cartridge-staged payloads, generated size symbols, and bootstrap tables
+; DOC-002 source-contract mirror profile boot Writes: Declared RAM destinations, PAR registers, boot scratch, and decompressed surfaces
+; DOC-002 source-contract mirror profile boot Side effects: Changes MMU mappings and copies or synthesizes executable/data payloads
+; DOC-002 source-contract mirror profile boot Invariants: Authored, staged, and destination byte identities remain distinct and every transfer obeys its generated size bound
+; DOC-002 source-contract mirror contract boot_entry profile=boot: Establish bootstrap mappings and transfer control into the low-RAM loader.
+; DOC-002 source-contract mirror contract decompress_attract_surfaces profile=boot: Decompress attract surfaces.
+; DOC-002 source-contract mirror contract spr_byte_changed profile=boot: Test whether synthesis changed the current perimeter-reset output byte.
+; DOC-002 source-contract mirror contract synthesize_perimeter_reset profile=boot: Synthesize perimeter reset.
+; DOC-002 source-contract mirror ends.
 
 GMC_BANK    equ $FF50
 GIME_INIT0  equ $FF90

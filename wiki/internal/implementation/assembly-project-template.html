@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assembly Documentation Project Template &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="../../index.html">&larr; Wiki home</a><a href="../index.html">Internal</a><a href="./index.html">Implementation</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation &middot; reusable template</p>
+      <h1>Assembly Documentation Project Template <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Minimum structure for reusing DOC-002 with another lwasm bare-metal project.</p>
+    </header>
+
+    <section>
+      <h2>Controlled vocabulary</h2>
+      <p><a href="./glossary.html#term-routine-contract">Routine contract</a>, <a href="./glossary.html#term-basic-block">basic block</a>, <a href="./glossary.html#term-runtime-destination">runtime destination</a>, and <a href="./glossary.html#term-evidence-dimension">evidence dimension</a> use the glossary definitions throughout this template.</p>
+    </section>
+
+    <section>
+      <h2>Required inputs</h2>
+      <ul>
+        <li>One configuration file declaring modules, top-level sources, listings, maps, optional binaries, include roots, profile-inactive source units, relocations, fixed or indirect calls, exclusions, semantic IDs, and evidence.</li>
+        <li>One lwasm listing and map for every active assembled module. Profile-inactive modules may be source-only and must state that representation evidence is missing.</li>
+        <li>Hand-authored HTML definitions for controlled terms, routine contracts, data layouts, memory ownership, and architectural rationale.</li>
+        <li>Concise source headers mirroring local inputs, returns, clobbers, and side effects without duplicating revision-specific addresses.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Package contract</h2>
+<pre><code>build_source_reference.py        thin generation CLI
+verify_source_documentation.py   thin verification CLI
+source_reference/
+  model.py source_parser.py listing_parser.py map_parser.py
+  normalize.py coverage.py links.py render.py verify.py
+fixtures/source-reference/       two-module relocation fixture
+</code></pre>
+      <p>The parser package contains no project address constants. Configuration and serialization are the only untyped boundaries. Internal records are immutable and typed.</p>
+    </section>
+
+    <section>
+      <h2>Adoption sequence</h2>
+      <ol>
+        <li>Build one revision and retain source, listing, map, binary, tool-version, profile, and final-image hashes.</li>
+        <li>Declare every active and profile-inactive module plus every delivery identity.</li>
+        <li>Generate module pages and global address, symbol, routine, and source indexes.</li>
+        <li>Classify every global label as routine, basic block, data/constant exclusion, or failure.</li>
+        <li>Add canonical routine, memory, and scenario evidence definitions until the verifier passes without broad exclusions.</li>
+        <li>Run the reusable fixture and mutation suite before adopting the output as a navigation aid.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Reusable proof</h2>
+      <p><code>scripts/fixtures/source-reference/project.json</code> supplies two modules, one include, emitted instructions and data, a cross-module call, a copied runtime destination, all six evidence dimensions, and nine mutation failures. The mutations remove required routine, symbol, memory-owner, scenario-evidence, and required-scenario records; stale the revision; materially change a listing and a map; and break a generated link. It contains no Ladybug address requirement.</p>
+    </section>
+
+    <section>
+      <h2>Memory and scenario records</h2>
+      <p>Each memory definition declares a stable ID, one canonical owner, one semantic HTML anchor, and every assembly symbol alias that resolves to that definition. Normalization expands those aliases into immutable reference records containing module, file, line, symbol, and definition/read/write/read-write access.</p>
+      <p>Each required scenario declares its criterion, behavior, state, module, owning routine, memory-definition IDs, exact source records, verifier description, and one or more passing evidence IDs. A separate required-scenario ID set makes an omitted scenario fail verification. A missing field, unresolved source line, unknown routine or memory ID, or non-passing evidence record also fails.</p>
+      <p>Every intentionally omitted source path has one manifest exclusion record containing the exact path and a non-empty reason. Exclusions do not reduce a required coverage set.</p>
+    </section>
+
+    <footer class="wiki-footer"><p>Generated HTML remains disposable. The host project's hand-authored documentation remains the semantic authority.</p></footer>
+  </main>
+</div>
+</body>
+</html>

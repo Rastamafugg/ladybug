@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assembly and Runtime Glossary &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation &middot; controlled vocabulary</p>
+      <h1>Assembly and Runtime Glossary <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Canonical meanings for source, memory, rendering, delivery, and evidence terms used by DOC-002.</p>
+    </header>
+
+    <section>
+      <h2>Authority and source terms</h2>
+      <dl>
+        <dt id="term-authored-source"><strong>Authored source</strong></dt>
+        <dd>A version-controlled assembly, Python, asset, or configuration input changed by a maintainer. A listing, map, generated include, or rendered browser is not authored source.</dd>
+        <dt id="term-canonical-definition"><strong>Canonical definition</strong></dt>
+        <dd>The single hand-authored semantic definition for a term, routine, structure, or ownership contract. Generated symbol presence alone is not a canonical definition.</dd>
+        <dt id="term-generated-reference"><strong>Generated reference</strong></dt>
+        <dd>Disposable revision-bound HTML produced from source, listing, map, configuration, and hashes under <code>build/source-reference/</code>.</dd>
+        <dt id="term-routine-contract"><strong>Routine contract</strong></dt>
+        <dd>Purpose, inputs, returns, clobbers, memory reads and writes, side effects, invariants, callers, callees, and material timing or size constraints.</dd>
+        <dt id="term-basic-block"><strong>Basic block</strong></dt>
+        <dd>A straight-line control region entered at its first instruction and exited by branch, call, jump, return, or fall-through. It inherits its owning routine contract.</dd>
+      </dl>
+    </section>
+
+    <section>
+      <h2>Memory and delivery terms</h2>
+      <dl>
+        <dt id="term-assembled-address"><strong>Assembled address</strong></dt>
+        <dd>The address lwasm assigns to an emitted source span. In raw output it is not necessarily the same as a file offset because <code>ORG</code> does not materialize gaps.</dd>
+        <dt id="term-cartridge-staged-address"><strong>Cartridge-staged address</strong></dt>
+        <dd>The cartridge source or temporary CPU window used while the bootstrap transports bytes. It is distinct from both the assembled identity and stable runtime destination.</dd>
+        <dt id="term-runtime-destination"><strong>Runtime destination</strong></dt>
+        <dd>The stable virtual address and, where relevant, physical page from which code or data is consumed after boot publication.</dd>
+        <dt id="term-par5-scope"><strong>PAR5 scope</strong></dt>
+        <dd>The interval during which one selected physical page owns virtual <code>$A000-$BFFF</code>. Every pointer into that window expires when PAR5 changes.</dd>
+        <dt id="term-authoritative-state"><strong>Authoritative state</strong></dt>
+        <dd>The logical record whose value controls behavior. Pixels, save-under bytes, and generated caches are projections unless explicitly named as authorities.</dd>
+      </dl>
+    </section>
+
+    <section>
+      <h2>Rendering and evidence terms</h2>
+      <dl>
+        <dt id="term-render-intent"><strong>Render intent</strong></dt>
+        <dd>A compact request describing logical visual work that the central BACK compositor must apply.</dd>
+        <dt id="term-framebuffer-owner"><strong>Framebuffer owner</strong></dt>
+        <dd>The persistent A or B surface selected as FRONT or BACK for one transaction. Owner identity is metadata, not a causal timing explanation.</dd>
+        <dt id="term-publication"><strong>Publication</strong></dt>
+        <dd>The IRQ-time act that makes one fully composed PENDING framebuffer visible. Drawing into BACK is not publication.</dd>
+        <dt id="term-evidence-dimension"><strong>Evidence dimension</strong></dt>
+        <dd>One of structural, representation, delivery, runtime reachability, visible output, or timing. Each dimension is independently pass, fail, missing, or stale and is bound to an artifact hash.</dd>
+      </dl>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>DOC-002 controlled vocabulary. Add a term only when its meaning is project-specific or materially non-obvious.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

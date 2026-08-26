@@ -1,6 +1,148 @@
 ;==============================================================================
 ; Ladybug — main.s
 ;==============================================================================
+; DOC-002 source-contract mirror begins. Canonical definitions:
+; wiki/internal/implementation/routine-catalog.html
+; DOC-002 source-contract mirror profile copy Inputs: Source and destination identities, bounded count or stream metadata, and any required mapped page
+; DOC-002 source-contract mirror profile copy Outputs: Copied, decoded, merged, cached, or addressed data plus caller-visible pointer progress
+; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
+; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
+; DOC-002 source-contract mirror profile copy Side effects: May temporarily map PAR5 while moving or decoding data
+; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; temporary mappings are restored before returning
+; DOC-002 source-contract mirror profile framebuffer Inputs: ACTIVE/PENDING state, BACK identity, owner metadata, and the current worklist
+; DOC-002 source-contract mirror profile framebuffer Outputs: A prepared, captured, finished, or published framebuffer transaction as named by the routine
+; DOC-002 source-contract mirror profile framebuffer Clobbers: A, B, D, X, Y, U, and condition codes unless the fixed entry contract narrows them
+; DOC-002 source-contract mirror profile framebuffer Reads: Always-mapped framebuffer protocol bytes and owner-local metadata
+; DOC-002 source-contract mirror profile framebuffer Writes: Framebuffer protocol bytes, BACK pixels, owner-local metadata, and GIME display offset only at IRQ publication
+; DOC-002 source-contract mirror profile framebuffer Side effects: Advances one bounded phase of the persistent A/B transaction
+; DOC-002 source-contract mirror profile framebuffer Invariants: Foreground code may arm PENDING but only Vbord IRQ publishes FRONT; mapping-sensitive pointers do not outlive PAR changes
+; DOC-002 source-contract mirror profile input Inputs: PIA input state, prior sampled state, and axis or key selection
+; DOC-002 source-contract mirror profile input Outputs: Normalized input state, edge bits, or axis sample
+; DOC-002 source-contract mirror profile input Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile input Reads: PIA registers and prior input samples
+; DOC-002 source-contract mirror profile input Writes: Owned input state and temporary PIA scan selection
+; DOC-002 source-contract mirror profile input Side effects: Temporarily drives keyboard or joystick scan hardware
+; DOC-002 source-contract mirror profile input Invariants: PIA control and drive state are restored to the runtime convention before return
+; DOC-002 source-contract mirror profile movement Inputs: Current actor coordinates, direction, maze topology, gate state, and collision state
+; DOC-002 source-contract mirror profile movement Outputs: A legality result, selected direction, contact result, or updated actor state
+; DOC-002 source-contract mirror profile movement Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile movement Reads: Authoritative actor records, maze and gate tables, and movement scratch
+; DOC-002 source-contract mirror profile movement Writes: Owned actor state, collision flags, and render intents required by the movement result
+; DOC-002 source-contract mirror profile movement Side effects: May change authoritative gameplay state and queue later composition
+; DOC-002 source-contract mirror profile movement Invariants: Movement remains on legal semantic cells and does not write framebuffer pixels directly
+; DOC-002 source-contract mirror profile render Inputs: Current render intent, selected actor or tile state, and a valid BACK or staging destination
+; DOC-002 source-contract mirror profile render Outputs: Updated destination pixels and any owner-local history required by later restoration
+; DOC-002 source-contract mirror profile render Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile render Reads: Authoritative gameplay state, immutable art streams, and current owner-local background metadata
+; DOC-002 source-contract mirror profile render Writes: BACK or staging pixels, render scratch, and owner-local save-under or damage metadata
+; DOC-002 source-contract mirror profile render Side effects: Changes a non-visible composition surface or its metadata
+; DOC-002 source-contract mirror profile render Invariants: The routine never selects the visible FRONT surface; temporary PAR5 mappings expire or restore before return
+; DOC-002 source-contract mirror profile root Inputs: Entry-specific machine state and the shared direct-page protocol named by the routine purpose
+; DOC-002 source-contract mirror profile root Outputs: Control transfers or status values defined by the routine purpose
+; DOC-002 source-contract mirror profile root Clobbers: A, B, D, X, Y, U, and condition codes unless the caller-facing entry contract states otherwise
+; DOC-002 source-contract mirror profile root Reads: Always-mapped direct-page protocol state plus the module-owned state required by the selected operation
+; DOC-002 source-contract mirror profile root Writes: Module-owned state and mapped hardware registers required to establish or dispatch the operation
+; DOC-002 source-contract mirror profile root Side effects: May change mapping, interrupt, rendering, or lifecycle ownership as stated by the routine purpose
+; DOC-002 source-contract mirror profile root Invariants: The stack remains balanced and every temporary PAR mapping is restored or deliberately handed off before return
+; DOC-002 source-contract mirror profile state Inputs: Current authoritative gameplay or presentation state; register arguments are named by the routine label and immediate caller
+; DOC-002 source-contract mirror profile state Outputs: Updated authoritative state and condition codes used by the immediate caller
+; DOC-002 source-contract mirror profile state Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile state Reads: Owned direct-page and page-$34 state needed for the operation
+; DOC-002 source-contract mirror profile state Writes: Only the owned state fields and render intents required by the operation
+; DOC-002 source-contract mirror profile state Side effects: May enqueue rendering work but does not publish FRONT
+; DOC-002 source-contract mirror profile state Invariants: Authoritative state changes precede their render intents; framebuffer publication remains IRQ-owned
+; DOC-002 source-contract mirror contract add_bonus_score profile=state: Add bonus score.
+; DOC-002 source-contract mirror contract add_dot_score profile=state: Add dot score.
+; DOC-002 source-contract mirror contract add_special_score profile=state: Add special score.
+; DOC-002 source-contract mirror contract apply_letter_pickup profile=state: Apply letter pickup.
+; DOC-002 source-contract mirror contract begin_score_popup profile=state: Begin score popup.
+; DOC-002 source-contract mirror contract blit_packed_sprite profile=render: Blit packed sprite.
+; DOC-002 source-contract mirror contract blit_tile profile=render: Blit tile.
+; DOC-002 source-contract mirror contract blit_transparent profile=render: Blit transparent.
+; DOC-002 source-contract mirror contract bonus_color_tick profile=state: Advance bonus color state for one scheduled tick.
+; DOC-002 source-contract mirror contract build_gate_entity_lists profile=copy: Build gate entity lists.
+; DOC-002 source-contract mirror contract cache_entity_operation profile=copy: Cache entity operation.
+; DOC-002 source-contract mirror contract cache_entity_overlay profile=copy: Cache entity overlay.
+; DOC-002 source-contract mirror contract can_move profile=movement: Determine whether move.
+; DOC-002 source-contract mirror contract check_entity_pickup profile=state: Check entity pickup.
+; DOC-002 source-contract mirror contract check_stage_clear profile=state: Check stage clear.
+; DOC-002 source-contract mirror contract clear_life_marker profile=state: Clear life marker.
+; DOC-002 source-contract mirror contract death_tick profile=state: Advance death state for one scheduled tick.
+; DOC-002 source-contract mirror contract draw_all_gates profile=render: Draw all gates.
+; DOC-002 source-contract mirror contract draw_authored_hud_tile profile=render: Draw authored hud tile.
+; DOC-002 source-contract mirror contract draw_bcd_line profile=render: Draw bcd line.
+; DOC-002 source-contract mirror contract draw_cell_overlay profile=render: Draw cell overlay.
+; DOC-002 source-contract mirror contract draw_cell_tile profile=render: Draw cell tile.
+; DOC-002 source-contract mirror contract draw_death_frame profile=render: Draw death frame.
+; DOC-002 source-contract mirror contract draw_entities profile=render: Draw entities.
+; DOC-002 source-contract mirror contract draw_entity_object profile=render: Draw entity object.
+; DOC-002 source-contract mirror contract draw_gate profile=render: Draw gate.
+; DOC-002 source-contract mirror contract draw_gate_diagonal profile=render: Draw gate diagonal.
+; DOC-002 source-contract mirror contract draw_gate_entities profile=render: Draw gate entities.
+; DOC-002 source-contract mirror contract draw_gate_overlay profile=render: Draw gate overlay.
+; DOC-002 source-contract mirror contract draw_gate_transition profile=render: Draw gate transition.
+; DOC-002 source-contract mirror contract draw_hud profile=render: Draw hud.
+; DOC-002 source-contract mirror contract draw_hud_digit profile=render: Draw hud digit.
+; DOC-002 source-contract mirror contract draw_hud_tile profile=render: Draw hud tile.
+; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
+; DOC-002 source-contract mirror contract draw_lives profile=render: Draw lives.
+; DOC-002 source-contract mirror contract draw_maze_state_cell profile=render: Draw maze state cell.
+; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Draw multiplier hud.
+; DOC-002 source-contract mirror contract draw_perimeter_box profile=render: Draw perimeter box.
+; DOC-002 source-contract mirror contract draw_player profile=render: Draw player.
+; DOC-002 source-contract mirror contract draw_popup_multiplier profile=render: Draw popup multiplier.
+; DOC-002 source-contract mirror contract draw_recolored_map_tile profile=render: Draw recolored map tile.
+; DOC-002 source-contract mirror contract draw_score_popup profile=render: Draw score popup.
+; DOC-002 source-contract mirror contract draw_screen profile=render: Draw screen.
+; DOC-002 source-contract mirror contract draw_vegetable_hud profile=render: Draw vegetable hud.
+; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Draw word progress hud.
+; DOC-002 source-contract mirror contract eat_dot profile=state: Consume the current maze dot, update score and remaining-dot state, and queue the required HUD or stage work.
+; DOC-002 source-contract mirror contract enemy_collect profile=state: Dispatch vegetable collection to the installed enemy runtime.
+; DOC-002 source-contract mirror contract enemy_release profile=movement: Dispatch an enemy release request to the installed enemy runtime.
+; DOC-002 source-contract mirror contract enemy_tick profile=movement: Advance enemy state for one scheduled tick.
+; DOC-002 source-contract mirror contract entry profile=root: Enter and initialize the stable resident runtime.
+; DOC-002 source-contract mirror contract erase_entity_footprints profile=render: Restore authored cell pixels beneath every placed entity before runtime overlays are composed.
+; DOC-002 source-contract mirror contract expose_player_background profile=render: Expose the background beneath the player for persistent redraw.
+; DOC-002 source-contract mirror contract finish_gate_animation profile=state: Finish gate animation.
+; DOC-002 source-contract mirror contract framebuffer_project_gate_only profile=framebuffer: Promote pending gate-only intents into the normal framebuffer background worklist.
+; DOC-002 source-contract mirror contract gate_render_hidden profile=render: Recompose a gate mutation on the mapped hidden framebuffer without changing visible ownership.
+; DOC-002 source-contract mirror contract init_enemy profile=state: Initialize enemy.
+; DOC-002 source-contract mirror contract init_entities profile=state: Initialize entities.
+; DOC-002 source-contract mirror contract init_game_state profile=state: Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for a new game.
+; DOC-002 source-contract mirror contract init_gate_state profile=state: Initialize gate state.
+; DOC-002 source-contract mirror contract init_joystick profile=state: Initialize joystick.
+; DOC-002 source-contract mirror contract init_maze_state profile=state: Initialize maze state.
+; DOC-002 source-contract mirror contract init_player profile=state: Initialize player.
+; DOC-002 source-contract mirror contract irq_handler profile=framebuffer: Service Vbord by delegating the sole framebuffer publication point, then return from interrupt.
+; DOC-002 source-contract mirror contract joy_read_axis profile=input: Sample and normalize one joystick axis through the PIA comparator.
+; DOC-002 source-contract mirror contract mark_gate_enemy_overlap profile=state: Mark roaming enemy captures whose destinations intersect the current gate mutation.
+; DOC-002 source-contract mirror contract merge_sprite_byte profile=state: Merge sprite byte.
+; DOC-002 source-contract mirror contract next_stage profile=state: Advance the stage and reinitialize maze, gate, entity, player, enemy, bonus, and render state.
+; DOC-002 source-contract mirror contract perimeter_box_coordinates profile=copy: Convert the active perimeter box index into its semantic screen coordinates.
+; DOC-002 source-contract mirror contract perimeter_timer_tick profile=state: Advance perimeter timer state for one scheduled tick.
+; DOC-002 source-contract mirror contract pickup_tick profile=state: Advance pickup state for one scheduled tick.
+; DOC-002 source-contract mirror contract place_entity profile=state: Place entity.
+; DOC-002 source-contract mirror contract player_animation_tick profile=state: Advance player animation state for one scheduled tick.
+; DOC-002 source-contract mirror contract player_cell_offset profile=movement: Convert the player's semantic cell coordinates into a row-major maze offset.
+; DOC-002 source-contract mirror contract player_tick profile=movement: Advance player state for one scheduled tick.
+; DOC-002 source-contract mirror contract queue_gate_render profile=state: Record the current gate as pending framebuffer work.
+; DOC-002 source-contract mirror contract read_joystick profile=input: Read joystick.
+; DOC-002 source-contract mirror contract refresh_enemy_zone_dot profile=state: Refresh enemy zone dot.
+; DOC-002 source-contract mirror contract reload_box_timer profile=state: Reload box timer.
+; DOC-002 source-contract mirror contract reload_enemy_box_timer profile=state: Reload enemy box timer.
+; DOC-002 source-contract mirror contract render_frame profile=render: Render frame.
+; DOC-002 source-contract mirror contract replay_gate_entity_overlay profile=state: Replay gate entity overlay.
+; DOC-002 source-contract mirror contract reset_enemy_state profile=state: Reset enemy state.
+; DOC-002 source-contract mirror contract reset_perimeter_visual profile=state: Reset perimeter visual.
+; DOC-002 source-contract mirror contract restore_entity_footprint profile=render: Restore entity footprint.
+; DOC-002 source-contract mirror contract restore_gate_background profile=render: Restore gate background.
+; DOC-002 source-contract mirror contract restore_gate_diagonal_dots profile=render: Restore gate diagonal dots.
+; DOC-002 source-contract mirror contract restore_player profile=render: Restore player.
+; DOC-002 source-contract mirror contract rng_next profile=state: Advance rng next and return its next value.
+; DOC-002 source-contract mirror contract save_player profile=render: Save player.
+; DOC-002 source-contract mirror contract test_cell_offset profile=movement: Test cell offset.
+; DOC-002 source-contract mirror ends.
 ; Phase 4: joystick-driven Lady Bug movement over the authored screen.
 ;
 ; Builds on Phase 2.3 (hi-res 320×192×16 + MMU + palette + IRQ tick) by:

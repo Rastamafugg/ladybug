@@ -108,6 +108,44 @@ scripts/build.sh
     </section>
 
     <section>
+      <h2>Assembly source-reference generation</h2>
+      <p>
+        DOC-002 adds a read-only documentation stage after a passing assembly
+        build. Hand-authored wiki pages remain the semantic authority. The
+        generated browser under <code>build/source-reference/</code> binds source
+        lines, assembled addresses, emitted bytes, symbols, routines, delivery
+        identities, and evidence states to current artifact hashes.
+      </p>
+<pre><code>python3 scripts/build_source_reference.py \
+  --config scripts/source_reference.json \
+  --output build/source-reference
+
+python3 scripts/verify_source_documentation.py \
+  --config scripts/source_reference.json \
+  --wiki-root wiki \
+  --generated-root build/source-reference \
+  --all
+</code></pre>
+      <p>
+        A dirty workspace may use explicit <code>--source-root</code> and
+        <code>--artifact-root</code> paths from a detached canonical build. This
+        prevents documentation work from overwriting retained failure evidence.
+        The configuration records profile-inactive authored modules as source-only;
+        their lines remain visible while emitted addresses and representation
+        evidence remain explicitly absent until that profile is assembled.
+      </p>
+      <p>
+        The reusable proof is
+        <code>python3 scripts/verify_source_documentation.py --fixture scripts/fixtures/source-reference/project.json --generated-root build/source-reference-fixture --all</code>.
+        Add <code>--mutation-suite</code> to require all nine independent
+        rejections: missing routine, symbol, memory owner, scenario evidence,
+        or required scenario; stale revision; materially changed listing or
+        map; and broken link. The generated manifest also records each
+        intentionally omitted source path and its reason.
+      </p>
+    </section>
+
+    <section>
       <h2>Manual equivalents</h2>
 
       <h3>1. Assemble</h3>

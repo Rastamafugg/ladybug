@@ -1,6 +1,33 @@
 ; PERF-004 low-RAM gateway for the generated perimeter-reset program.
 ; The boot-synthesized payload occupies physical page $20 and returns here before PAR5 is
 ; restored to the game-state page.  This code must remain within $06B2-$07FF.
+; DOC-002 source-contract mirror begins. Canonical definitions:
+; wiki/internal/implementation/routine-catalog.html
+; DOC-002 source-contract mirror profile copy Inputs: Source and destination identities, bounded count or stream metadata, and any required mapped page
+; DOC-002 source-contract mirror profile copy Outputs: Copied, decoded, merged, cached, or addressed data plus caller-visible pointer progress
+; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
+; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
+; DOC-002 source-contract mirror profile copy Side effects: May temporarily map PAR5 while moving or decoding data
+; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; temporary mappings are restored before returning
+; DOC-002 source-contract mirror profile presentation Inputs: Presentation state, interval timer, input edges, current map, and the selected auxiliary profile
+; DOC-002 source-contract mirror profile presentation Outputs: Updated presentation state and the dispatcher retain/release status when applicable
+; DOC-002 source-contract mirror profile presentation Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile presentation Reads: Presentation direct-page state, cold payloads, authored map streams, and input state
+; DOC-002 source-contract mirror profile presentation Writes: Presentation state, mapped BACK pixels, and presentation-owned persistent metadata
+; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
+; DOC-002 source-contract mirror profile presentation Invariants: Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned
+; DOC-002 source-contract mirror profile root Inputs: Entry-specific machine state and the shared direct-page protocol named by the routine purpose
+; DOC-002 source-contract mirror profile root Outputs: Control transfers or status values defined by the routine purpose
+; DOC-002 source-contract mirror profile root Clobbers: A, B, D, X, Y, U, and condition codes unless the caller-facing entry contract states otherwise
+; DOC-002 source-contract mirror profile root Reads: Always-mapped direct-page protocol state plus the module-owned state required by the selected operation
+; DOC-002 source-contract mirror profile root Writes: Module-owned state and mapped hardware registers required to establish or dispatch the operation
+; DOC-002 source-contract mirror profile root Side effects: May change mapping, interrupt, rendering, or lifecycle ownership as stated by the routine purpose
+; DOC-002 source-contract mirror profile root Invariants: The stack remains balanced and every temporary PAR mapping is restored or deliberately handed off before return
+; DOC-002 source-contract mirror contract PERIMETER_RESET_HELPER profile=root: Map and invoke the synthesized perimeter reset payload, then restore PAR5.
+; DOC-002 source-contract mirror contract hold_copy_chunk profile=copy: Copy one bounded chunk while constructing or restoring a held presentation surface.
+; DOC-002 source-contract mirror contract presentation_attract_phase profile=presentation: Advance the helper-owned attract overlay phase.
+; DOC-002 source-contract mirror ends.
 
         pragma  nodollarlocal,6809
         setdp   $00

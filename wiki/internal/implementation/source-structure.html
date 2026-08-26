@@ -58,12 +58,81 @@
         call flow below describe the current working tree.
       </p>
       <p>
-        Proposed <a href="../tickets/doc-002-assembly-source-traceability.html">DOC-002</a>
-        would add a controlled glossary, normalized memory atlas, routine and data
+        In-progress <a href="../tickets/doc-002-assembly-source-traceability.html">DOC-002</a>
+        will add a controlled glossary, normalized memory atlas, routine and data
         catalogs, requirement-to-source traceability, and a generated lwasm
         source/listing browser under <code>build/source-reference/</code>. Semantic
         rationale would remain hand-authored in the wiki; generated addresses,
         bytes, and source-line relationships would remain build artifacts.
+      </p>
+    </section>
+
+    <section>
+      <h2>DOC-002 selected documentation-tool structure</h2>
+      <p>
+        The 2026-08-25 user checkpoint selected thin command-line entry points over
+        a private generic package. Ladybug-specific module, address, exclusion, and
+        policy data belongs in <code>scripts/source_reference.json</code>, not in the
+        parsers or renderers.
+      </p>
+<pre><code>scripts/build_source_reference.py       thin generation CLI
+scripts/verify_source_documentation.py  thin verification CLI
+scripts/source_reference/
+  __init__.py
+  model.py             immutable typed records and enums
+  source_parser.py     authored source and include structure
+  listing_parser.py    emitted spans, bytes, and source associations
+  map_parser.py        symbols and assembled address identities
+  normalize.py         joined modules, blocks, calls, and delivery identities
+  coverage.py          configured documentation requirements and exclusions
+  links.py             stable semantic and generated anchors
+  render.py            disposable generated HTML
+  verify.py            independent output, coverage, hash, and link checks
+</code></pre>
+      <p>
+        Module boundaries exchange frozen records for modules, source lines,
+        emitted spans, symbols, routines, basic blocks, memory references, call
+        edges, relocations, and evidence. Configuration dictionaries are converted
+        at ingress; generated JSON and HTML are serialization outputs, not the
+        internal model. The generation path is parse, normalize, apply coverage and
+        link policy, then render. Verification may reuse the typed records and raw
+        parsers, but it re-derives required sets and inspects emitted anchors, links,
+        hashes, and evidence states instead of trusting the renderer's conclusions.
+      </p>
+      <p>
+        Hand-authored wiki HTML owns semantic meaning and stable IDs. Concise source
+        headers mirror local register, memory, and side-effect contracts. Generated
+        pages own revision-specific addresses, bytes, and source/listing/map
+        relationships. The approved semantic hubs remain bounded pages and split
+        only after measured size or navigation failure. Generated output contains
+        one line browser per assembled module plus global address, symbol, routine,
+        and source-file indexes.
+      </p>
+      <p>
+        Coverage fails closed. Every exported, called, hardware-touching,
+        shared-state-mutating, or otherwise non-trivial routine requires a canonical
+        contract. Every global label must be documented, explicitly excluded with a
+        reason, or classified as a basic block. Direct calls are extracted; fixed
+        jumps, indirect calls, and relocation/copy relationships are declared in
+        configuration. Each relationship distinguishes assembled/source,
+        cartridge-staged, and runtime-destination address identities.
+      </p>
+      <p>
+        Evidence is multidimensional rather than a single pass flag. Structural,
+        representation, delivery, runtime-reachability, visible-output, and timing
+        evidence each has an independent <code>pass</code>, <code>fail</code>,
+        <code>missing</code>, or <code>stale</code> state bound to an artifact hash.
+        A passing structural or runtime-reachability check therefore cannot imply
+        visible-output or timing proof.
+      </p>
+      <p>
+        <strong>Implementation status 2026-08-25:</strong> the selected package,
+        configuration, relocation fixture, mutation suite, semantic hubs, and
+        generated module/global pages now exist. An isolated exact-revision release
+        build generates seven module pages and 11,934 source lines. Verification is
+        intentionally fail-closed while 202 routine contracts, 131 authored-label
+        classifications, and five evidence dimensions remain open; these counts are
+        single observations from the generated DOC-002 manifest, not acceptance.
       </p>
     </section>
 
@@ -145,7 +214,7 @@ Generated build/*.inc / *.bin / layout.json   |
           </tr>
           <tr>
             <td><code>src/gmc_bootstrap.s</code></td>
-            <td>Bank-0 cold loader. Copies runtime, bank-3 module, presentation module, sparse/gate payloads, cold presentation data, and mirrored indexes into physical RAM before TY=1 handoff.</td>
+            <td>Bank-0 cold loader. Copies runtime, bank-3 module, presentation module, sparse/gate payloads, cold presentation data, and page-local indexes into physical RAM before TY=1 handoff.</td>
             <td>Runs partly from <code>$0300</code>. Every temporary PAR5 destination mapping is explicit. No frame-time cartridge banking is allowed.</td>
           </tr>
           <tr>
@@ -197,16 +266,168 @@ Generated build/*.inc / *.bin / layout.json   |
           <tr><td><code>build/ladybug_maze.inc</code></td><td><code>derive_maze.py</code></td><td><code>main.s</code></td><td>Review generator and semantic source together.</td></tr>
           <tr><td><code>build/ladybug_screen.inc</code></td><td><code>build_screen.py</code></td><td><code>main.s</code></td><td>Contains screen map, tiles, HUD, masks, and tables.</td></tr>
           <tr><td><code>build/ladybug_resident.inc</code></td><td><code>build_screen.py</code></td><td><code>main.s</code></td><td>Contains sparse death streams, popup stream pointers, and retained packed vegetable data.</td></tr>
-          <tr><td><code>build/ladybug-presentation-cold.bin/.inc/.json</code></td><td><code>scripts/build_presentation.py</code></td><td><code>src/presentation_runtime.s</code> and loader manifest</td><td>Current revision contains a shared transformed atlas and six bounded RLE tile-index maps in <code>11398</code> bytes under the <code>12939</code>-byte cold-payload ceiling.</td></tr>
+          <tr><td><code>build/ladybug-presentation-cold.bin/.inc/.json</code></td><td><code>scripts/build_presentation.py</code></td><td><code>src/presentation_runtime.s</code> and loader manifest</td><td>The inspected 2026-08-22 artifact contains a shared transformed atlas and six bounded RLE tile-index maps in <code>7636</code> bytes.</td></tr>
           <tr><td><code>build/ladybug_runtime_symbols.inc</code></td><td><code>build.sh</code> from resident map</td><td><code>enemy_runtime.s</code></td><td>Absolute cross-module ABI; never hand-edit.</td></tr>
           <tr><td><code>build/ladybug-gmc-bank0-overflow.bin</code></td><td><code>build_sparse_sprites.py</code></td><td><code>build.sh</code></td><td>Bank-0 overflow template; only manifest-owned intervals are overlaid onto the assembled boot image.</td></tr>
           <tr><td><code>build/ladybug-sparse-loader.inc</code></td><td><code>build_sparse_sprites.py</code></td><td><code>gmc_bootstrap.s</code></td><td>Generated manifest-driven fragmented copy plan.</td></tr>
-          <tr><td><code>build/ladybug-presentation-runtime.bin</code></td><td><code>lwasm</code> from <code>src/presentation_runtime.s</code></td><td><code>build_sparse_sprites.py</code></td><td>Current revision is copied to low RAM <code>$1900-$1DFF</code>; measured module use is <code>1280/1280</code> bytes with the stack floor at <code>$1E00</code>.</td></tr>
-          <tr><td><code>build/ladybug-perimeter-reset-helper.bin</code></td><td><code>lwasm</code> from <code>src/perimeter_reset_helper.s</code></td><td><code>gmc_bootstrap.s</code> and presentation runtime</td><td>Fixed helper ABI at <code>$06C5/$06C7/$06C9</code>; current BUG-010 hold/actor implementation uses <code>333/334</code> bytes and restores PAR1/PAR5 at each bounded worklist.</td></tr>
+          <tr><td><code>build/ladybug-presentation-runtime.bin</code></td><td><code>lwasm</code> from <code>src/presentation_runtime.s</code></td><td><code>build_sparse_sprites.py</code></td><td>Copied to low RAM <code>$1900-$1DFF</code>; the inspected 2026-08-22 artifact uses <code>1276/1280</code> bytes with the stack floor at <code>$1E00</code>.</td></tr>
+          <tr><td><code>build/ladybug-perimeter-reset-helper.bin</code></td><td><code>lwasm</code> from <code>src/perimeter_reset_helper.s</code></td><td><code>gmc_bootstrap.s</code> and presentation runtime</td><td>Fixed helper ABI at <code>$06C5/$06C7/$06C9</code>; the inspected 2026-08-22 artifact uses <code>331/334</code> bytes and restores PAR1/PAR5 at each bounded worklist.</td></tr>
           <tr><td><code>build/ladybug-sparse-layout.json</code></td><td><code>build_sparse_sprites.py</code></td><td>Verifiers and reviewers</td><td>Canonical generated page/address/count manifest.</td></tr>
           <tr><td><code>build/ladybug.rom</code></td><td><code>build.sh</code></td><td>XRoar / cartridge</td><td>Four-bank 64 KiB delivered image; do not edit.</td></tr>
         </tbody>
       </table>
+    </section>
+
+    <section>
+      <h2>Build and verification architecture</h2>
+      <p>
+        <code>scripts/build.sh</code> is an ordered dependency graph, not a
+        single assembly command. Authored Tiled maps, captured arcade data,
+        route records, and assembly source are the inputs. Python generators
+        produce semantic JSON, generated includes, encoded payloads, module
+        manifests, source-bank images, and the loader plan. Six independent
+        lwasm invocations then establish the resident, enemy, profile-selected
+        auxiliary, presentation, perimeter-helper, and bootstrap address
+        spaces. The delivery composer overlays only manifest-owned bank-0
+        intervals and concatenates four exact 16 KiB banks into the 65,536-byte
+        GMC image.
+      </p>
+<pre><code>authored/captured inputs
+  +-- derive_maze.py ------> maze.json + ladybug_maze.inc
+  +-- build_screen.py -----> screen/resident includes + gate/presentation streams
+  +-- build_presentation.py -> cold payload + include + manifest + actor bundles
+  |                              |
+  |                              +-- presentation and layer-contract checks
+  |
+  +-- lwasm main.s --------> padded bank 1 + listing/map
+         |
+         +-- extract resident addresses -> ladybug_runtime_symbols.inc
+         |       |
+         |       +-- lwasm enemy_runtime.s -> bank-3 low-RAM module + map
+         |
+         +-- extract resident/enemy addresses -> ladybug_presentation_symbols.inc
+                 |
+                 +-- lwasm profile auxiliary, presentation runtime, and helper
+                         |
+                         +-- build_sparse_sprites.py
+                               -> banks 0/2/3 + loader include + layout manifest
+                               -> sparse, capacity, presentation, allocation checks
+                                      |
+                                      +-- lwasm gmc_bootstrap.s to temporary outputs
+                                      +-- guard loader/overflow boundary
+                                      +-- overlay declared bank-0 segments
+                                      +-- concatenate banks 0/1/2/3
+                                      +-- record final SHA-256 identities
+                                             |
+                                             +-- build/ladybug.rom
+</code></pre>
+      <h3>Assembly and generated-ABI ordering</h3>
+      <p>
+        The resident is assembled first because its map supplies absolute
+        service and data addresses to <code>enemy_runtime.s</code> and
+        <code>presentation_runtime.s</code>. The enemy map then contributes
+        framebuffer-ownership entries to the presentation symbol include. A
+        release build assembles its demo auxiliary before the presentation
+        module and passes the exact byte count. A development build passes the
+        fixed auxiliary reservation first, then assembles and pads its
+        instruction auxiliary after the presentation module. Presentation
+        module symbols then bind the perimeter helper. Finally, the sparse
+        packer can place all assembled modules and payloads and emit the copy
+        records consumed by the bootstrap. Generated symbol includes are build
+        interfaces between separately assembled modules; they are not stable
+        hand-authored APIs and must never be edited directly.
+      </p>
+      <p>
+        Release and development profiles reuse output paths but assemble
+        different auxiliary owners at <code>$0300</code>. Release builds place
+        <code>demo_runtime.s</code> there; development builds reserve the whole
+        <code>$0300-$06A9</code> interval, assemble
+        <code>instruction_runtime.s</code>, and pad it to that reservation. A
+        reproducible artifact identity therefore requires the profile as well
+        as source, generator, tool, and input hashes.
+      </p>
+      <h3>Fail-closed delivery guards</h3>
+      <p>
+        The build stops on the first failing command. It rejects resident code
+        beyond <code>$E000</code>, misplaced or oversized assets beyond
+        <code>$FE00</code>, inconsistent raw length, enemy code beyond 4096
+        bytes, presentation and helper interval overflow, boot code crossing
+        the bank-0 overflow start, non-16-KiB bank inputs, bank-3 content that
+        differs from the assembled enemy module, undeclared or nonblank bank-0
+        overlays, and a final image other than 65,536 bytes. The sparse packer
+        separately excludes the CPU-inaccessible <code>$3E00-$3FFF</code>
+        cartridge tail, prevents frame/page and destination crossings, and
+        records every source segment in the layout manifest.
+      </p>
+      <p>
+        Bootstrap binary, listing, and map publication uses temporary files
+        followed by replacement, and final bank-0/manifest replacement is also
+        staged. Other generated files are written directly. The build
+        directory is therefore disposable but not transactionally atomic as a
+        whole: only a completely passing command establishes a mutually
+        consistent artifact set. Running <code>build</code> also overwrites
+        listings and maps, which is why the current modified enemy listing must
+        be preserved or retired before DOC-002 certifies a fresh baseline.
+      </p>
+      <h3>Verification ladder and independence</h3>
+      <p>
+        Generator validation proves authored-input and encoding contracts.
+        Build-time verifiers then decode sparse streams, reconstruct manifest
+        segments, compare pixels and hashes, exercise exact-capacity and
+        one-byte-overflow cases, inspect allocations, and enforce structural
+        source/map contracts. Independence is per check, not per filename:
+        sparse and presentation decoders are separate implementations, but
+        several expected-frame compilers are imported from generator modules;
+        the presentation verifier reuses substantial presentation compiler
+        logic; and the GMC overflow proof calls the production packer with a
+        constructed boundary payload. These checks strongly detect corrupted
+        representations and contract drift, but shared producer logic can
+        preserve the same semantic error on both sides.
+      </p>
+      <p>
+        <code>scripts/build.sh verify-gmc</code> first repeats the complete
+        build. It then applies static presentation capacity/structure checks,
+        runs bounded XRoar/GDB phases for loader handoff, resident startup,
+        natural attract entry, forced gameplay renderer paths, and release-demo
+        deaths, and finally applies the enemy-runtime structural and mathematical
+        models. The runtime phase proves authored/staged/live delivery and
+        required control-path reachability. Entry markers and successful hashes
+        do not prove visible screen identity, full gameplay correctness, or
+        timing outside the named phases; tickets requiring those properties
+        must add explicit pixel, state-sequence, or cycle evidence.
+      </p>
+      <h3>Evidence and documentation boundary</h3>
+      <p>
+        Hand-authored wiki pages own meaning: terminology, rationale, behavior,
+        ownership, invariants, data layouts, module contracts, and scenario
+        intent. Listings, maps, binaries, manifests, generated includes, hashes,
+        and the planned line-level browser are revision-derived evidence. The
+        browser will live under <code>build/source-reference/</code> and may be
+        regenerated or discarded; it cannot become the canonical definition of
+        an owner or contract. <code>scripts/source_reference.json</code> will
+        contain Ladybug-specific module inputs and policy, while the parser and
+        renderer must remain generic and take all source/listing/map/relocation
+        relationships explicitly.
+      </p>
+      <p>
+        A valid documentation baseline must bind material authored-source
+        hashes, build profile, lwasm version, listings, maps, module binaries,
+        layout manifests, and final ROM hash from the same passing build.
+        Coverage verification must reject stale hashes, unresolved emitted
+        addresses, undocumented owners, and missing required scenarios. Fixture
+        and mutation tests are necessary because a generated page that merely
+        renders successfully proves neither parser coverage nor semantic
+        completeness.
+      </p>
+      <p>
+        The current inspected 2026-08-22 release artifact is a single
+        observation, not a certified rebuild: final ROM SHA-256
+        <code>74ccb023d967037e4cba92e043eba5973f65877f54d3dc18965b13dcefc9a751</code>,
+        15 loader segments, 3965 readable GMC source bytes spare, and six cold
+        presentation maps in 7636 bytes. The current runbook contains older
+        capacity observations that DOC-002 must normalize after a safe rebuild;
+        they are not substituted for current-revision evidence here.
+      </p>
     </section>
 
     <section>
@@ -221,10 +442,14 @@ GMC bank 0: boot_entry
   - copy bank-3 module to $0800-$17FF
   - copy presentation module to $1900-$1DFF
   - copy sparse/gate segments to pages $35-$37/$39
-  - copy cold presentation data to pages $3A-$3D
-  - mirror indexes to $0500/$0680
-  - copy resident code/assets to pages $3E/$3F
-  - set BOOT_FLAG, TY=1, jump $C000
+  - copy the current cold presentation payload to page $3A
+  - stage bank-1 resident bytes in physical page $21
+  - stage bank-1 asset bytes in physical page $22
+  - synthesize the perimeter program while bank 1 remains selected
+  - select all-RAM mode
+  - publish staged resident/assets to physical pages $3E/$3F
+  - expand the page-$23 attract bundle into page $3C
+  - restore PAR5=$34, set BOOT_FLAG=$A5, jump $C002
       |
       v
 Resident: entry
@@ -237,9 +462,70 @@ Resident: entry
       v
 mainloop + Vbord framebuffer commits
 </code></pre>
+      <h3>Why bank 1 uses a two-hop copy</h3>
+      <p>
+        With the cartridge selected, bank 1 is readable through the CPU cartridge
+        window: resident bytes at <code>$C000-$DFFF</code> and asset bytes at
+        <code>$E000-$FDFF</code>. The current delivery path does not assume that a
+        write to those same CPU addresses can reach the underlying RAM while the
+        cartridge owns the read window. The loader therefore executes from
+        always-mapped low RAM and uses PAR5's separate <code>$A000-$BFFF</code>
+        window for temporary storage.
+      </p>
+      <ol>
+        <li>
+          Select physical page <code>$21</code> in PAR5 and GMC bank 1, then copy
+          exactly 8192 resident bytes from cartridge <code>$C000-$DFFF</code> to
+          staging window <code>$A000-$BFFF</code>.
+        </li>
+        <li>
+          Select physical page <code>$22</code> in PAR5, then copy the 7680-byte
+          usable asset interval from cartridge <code>$E000-$FDFF</code> to
+          <code>$A000-$BDFF</code>. Cartridge addresses <code>$FE00-$FFFF</code>
+          are not payload: forced RAM occupies <code>$FE00-$FEFF</code> and I/O
+          occupies <code>$FF00-$FFFF</code>.
+        </li>
+        <li>
+          Keep bank 1 selected while the low-RAM loader synthesizes the perimeter
+          reset program from the authored asset tables into physical page
+          <code>$20</code>.
+        </li>
+        <li>
+          Strobe SAM all-RAM mode. PAR6 and PAR7 already select final physical
+          pages <code>$3E</code> and <code>$3F</code>, so CPU destinations
+          <code>$C000-$DFFF</code> and <code>$E000-$FDFF</code> now refer to RAM,
+          not the GMC cartridge window.
+        </li>
+        <li>
+          Remap PAR5 to staging page <code>$21</code> and copy
+          <code>$A000-$BFFF</code> to final resident destination
+          <code>$C000-$DFFF</code>. Remap PAR5 to page <code>$22</code> and copy
+          <code>$A000-$BDFF</code> to final asset destination
+          <code>$E000-$FDFF</code>.
+        </li>
+        <li>
+          Expand the attract bundle staged in page <code>$23</code> into physical
+          page <code>$3C</code>, set <code>BOOT_FLAG=$A5</code>, restore
+          PAR5 to authoritative game-state page <code>$34</code>, and jump to
+          <code>$C002</code>. The two-byte <code>DK</code> cartridge header remains
+          at <code>$C000-$C001</code> and is data, not an instruction entry.
+        </li>
+      </ol>
+      <p>
+        Pages <code>$21</code> and <code>$22</code> are boot-only staging owners,
+        not runtime ABI regions. After publication, the stable virtual ABI is
+        resident code at <code>$C000-$DFFF</code> through PAR6/page
+        <code>$3E</code>, immutable assets at <code>$E000-$FDFF</code> through
+        PAR7/page <code>$3F</code>, and normal game state at
+        <code>$A000-$BFFF</code> through PAR5/page <code>$34</code>. See
+        <a href="./memory-map.html">memory-map</a> for the complete physical and
+        virtual allocation and
+        <a href="./lessons-learned.html">lessons-learned</a>
+        for the cart-shadow self-copy evidence and scoped-PAR rule.
+      </p>
     </section>
 
-    <section>
+    <section id="generated-abi">
       <h2>Cross-module jump-table ABI</h2>
       <p>
         The first 36 bytes of <code>enemy_runtime.s</code> are twelve
@@ -262,6 +548,7 @@ mainloop + Vbord framebuffer commits
           <tr><td><code>$0818</code></td><td><code>frame_render_impl</code></td><td>Single complete-frame renderer and ownership boundary.</td></tr>
           <tr><td><code>$081B</code></td><td><code>framebuffer_init_impl</code></td><td>Cold A/B image and restoration-state convergence.</td></tr>
           <tr><td><code>$081E</code></td><td><code>framebuffer_irq_impl</code></td><td>Vbord acknowledge, commit, ownership exchange, counters.</td></tr>
+          <tr><td><code>$0821</code></td><td><code>sparse_blit_fb</code></td><td>Decode a presentation/player sparse stream directly into the mapped framebuffer.</td></tr>
         </tbody>
       </table>
       <p>
@@ -269,15 +556,56 @@ mainloop + Vbord framebuffer commits
         constants in <code>main.s</code>, structural verification, generated
         maps, and this table together.
       </p>
+      <h3>Other control ABIs</h3>
+      <ul>
+        <li><strong>Resident entry <code>$C002</code>:</strong> both direct-cartridge autorun and the GMC loader skip the two-byte <code>DK</code> header and enter the resident initialization sequence here.</li>
+        <li><strong>Presentation entry <code>$1900</code>:</strong> <code>mainloop</code> calls one fixed dispatcher. An A/condition-code result of zero releases the interval to gameplay; nonzero means presentation owns the interval and foreground gameplay must not run.</li>
+        <li><strong>Profile-selected auxiliary <code>$0300</code>:</strong> the release build installs <code>demo_runtime_tick</code>; the development profile installs <code>instruction_runtime_tick</code>. They are mutually exclusive implementations of one low-RAM slot, not simultaneous modules.</li>
+        <li><strong>Presentation helper entries:</strong> <code>$06B2</code> is the perimeter-program gateway; <code>$06C5/$06C7/$06C9</code> are fixed hold-begin, hold-tick, and attract-overlay jumps.</li>
+        <li><strong>Generated absolute bindings:</strong> presentation and auxiliary modules call resident, enemy-runtime, and presentation-internal routines through <code>build/ladybug_presentation_symbols.inc</code>. These addresses are regenerated from current maps and are not stable hand-authored entry slots.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Control ownership and dispatch contract</h2>
+      <p>Ladybug has two control domains. Foreground code owns presentation dispatch, gameplay mutation, and BACK construction. The Vbord IRQ owns only time observation and display publication. The IRQ never invokes gameplay logic, presentation logic, or a framebuffer compositor.</p>
+<pre><code>cartridge autorun -> $C002
+  GMC image: bank-0 bootstrap -> relocated loader -> all-RAM publication -> $C002
+  direct image: resident entry at $C002
+
+$C002 resident startup
+  mask IRQ/FIRQ, set S=$1FFE and DP=$00
+  install PARs, video mode, palette, and initial framebuffer
+  initialize persistent A/B ownership while display is blanked
+  install JMP irq_handler at forced-RAM slot $FEF7
+  enable only ACVC Vbord in $FF92, unmask IRQ
+  enter mainloop
+
+mainloop foreground interval
+  SYNC -> reject pending/unseen Vbord -> call $1900 presentation dispatcher
+    nonzero -> presentation owned the interval; return to SYNC
+    zero    -> set FB_RENDER_ACTIVE; run gameplay mutation and BACK rendering
+  renderer captures owner-local state, clears ACTIVE, sets PENDING atomically
+
+Vbord IRQ interval
+  acknowledge $FF92 and increment FRAMES
+  if PENDING: publish BACK, swap IDs, increment commit/simulation sequences
+  otherwise: leave FRONT unchanged; count a miss only if ACTIVE is set
+  RTI to the interrupted foreground instruction
+</code></pre>
+      <p>The presentation dispatcher is itself a state machine. <code>MODE_LOAD</code> incrementally constructs a screen; attract, credit, level-start, game-over, and name modes normally return nonzero and retain the foreground interval. In the default release profile, demo mode first calls the auxiliary director at <code>$0300</code> to supply ordinary joystick-direction state, then returns zero so the normal gameplay mutation and renderer execute. Normal live mode also returns zero unless it initiates a presentation transition.</p>
+      <p>Gameplay re-entry is an explicit cross-domain handoff. Presentation restores PAR5 to page <code>$34</code>, maps the current logical BACK into PAR1-PAR4, invalidates both framebuffer ledgers, calls generated resident initialization bindings in dependency order, marks ownership initialized, and raises a full-stage render intent. It does not bypass the ordinary gameplay renderer after returning zero.</p>
+      <p>The only installed runtime hardware service in current authored source is the ACVC Vbord IRQ. Cartridge FIRQ participates in the ROM autorun path before Ladybug takes control, but the resident runtime masks FIRQ and installs no authored FIRQ or NMI handler. SWI is not implemented as the proposed syscall layer: the single current <code>SWI</code> is a fail-stop cache-overflow diagnostic, and no authored SWI service handler is installed.</p>
     </section>
 
     <section>
       <h2>Runtime memory map</h2>
 <pre><code>Virtual CPU view                     Physical owner
-$0000-$07FF  DP, handshake, indexes  PAR0 -> page $38
+$0000-$07FF  DP, bootstrap/aux/helper PAR0 -> page $38
 $0800-$17FF  bank-3 runtime           PAR0 -> page $38
 $1800-$18FF  actor decode stage       PAR0 -> page $38
-$1900-$1FFF  free + stack             PAR0 -> page $38
+$1900-$1DFF  presentation runtime     PAR0 -> page $38
+$1E00-$1FFF  stack window             PAR0 -> page $38
 $2000-$9FFF  current BACK framebuffer PAR1-4 -> A $30-$33 or B $2C-$2F
 $A000-$BFFF  game state / temp payload PAR5 -> normally $34
 $C000-$DFFF  resident code            PAR6 -> page $3E
@@ -292,15 +620,17 @@ $FF00-$FFFF  PIA/GIME/SAM/I/O         dedicated addresses
         <tbody>
           <tr><td><code>$0000-$00FF</code></td><td>Shared direct-page ABI</td><td>Runtime DP is zero in every independently assembled module. Do not duplicate or renumber a variable in one module only.</td></tr>
           <tr><td><code>$008F-$009A</code></td><td>Framebuffer IRQ handshake</td><td>Always mapped; IRQ must not depend on PAR5.</td></tr>
-          <tr><td><code>$0500/$0680</code></td><td>Mirrored sparse indexes</td><td>Lookup occurs before mapping the payload through PAR5.</td></tr>
           <tr><td><code>$0800-$17FF</code></td><td><code>enemy_runtime.s</code></td><td>Hard 4 KiB limit; current end comes from <code>enemy_runtime_end</code> in the map.</td></tr>
           <tr><td><code>$1800-$18FF</code></td><td>Actor staging</td><td>Always mapped so PAR5 may remain payload-owned during decode.</td></tr>
           <tr><td><code>$1900-$1DFF</code></td><td><code>presentation_runtime.s</code></td><td>Copied flow module; hard 1280-byte limit. <code>$1E00-$1FFE</code> is the stack floor and requires the measured margin guard.</td></tr>
           <tr><td><code>$06C5-$07FF</code></td><td><code>perimeter_reset_helper.s</code></td><td>Fixed BUG-010 hold begin/tick/overlay entries; extension remains inside the existing 334-byte helper allocation.</td></tr>
+          <tr><td><code>$23</code></td><td>Compressed attract/auxiliary staging</td><td>Boot expands the title surfaces into page <code>$3C</code>, but the page remains live until <code>presentation_runtime.s</code> installs the release auxiliary at <code>$0300</code>.</td></tr>
           <tr><td><code>$28-$2B</code></td><td>Transient compatibility hold surface</td><td>Never a persistent owner; visible only while Voffset <code>$A0</code> is selected for transient framebuffer ID <code>2</code>.</td></tr>
           <tr><td><code>$2C-$2F</code>, <code>$30-$33</code></td><td>Persistent framebuffer B/A</td><td>GIME scans FRONT; CPU writes BACK. Only Vbord IRQ exchanges ownership.</td></tr>
-          <tr><td><code>$35-$37</code>, <code>$39</code></td><td>Sparse enemy/player/gate payloads</td><td>PAR5 mapping is scoped and must return to game-state page <code>$34</code>.</td></tr>
-          <tr><td><code>$3A-$3D</code></td><td>Cold presentation data</td><td>Presentation maps, shared atlas, patch descriptors, and scripts are copied at boot; PAR5 is the only CPU window used to read them.</td></tr>
+          <tr><td><code>$35-$37</code>, <code>$39</code></td><td>Sparse enemy/player/gate payloads</td><td>Enemy and player indexes begin in their loaded payload pages. PAR5 lookup/mapping is scoped and must return to game-state page <code>$34</code>.</td></tr>
+          <tr><td><code>$3A</code></td><td>Current cold presentation data</td><td>The current maps, shared atlas, patch descriptors, and scripts occupy one page and are read through PAR5.</td></tr>
+          <tr><td><code>$3B/$3D</code></td><td>Reserved presentation capacity</td><td>Currently unused; not an alias for the page-<code>$3C</code> title surfaces.</td></tr>
+          <tr><td><code>$3C</code></td><td>Expanded title actor surfaces</td><td>Created from the page-<code>$23</code> bundle at boot and read through scoped PAR5 mappings.</td></tr>
           <tr><td><code>$A000-$AD7F</code></td><td>Maze, entities, actor history, A/B ledgers</td><td>Authoritative logical state and per-buffer retained history are distinct.</td></tr>
           <tr><td><code>$C000-$DFFF</code></td><td>Resident code</td><td>Guarded 8 KiB region; raw assembly layout must agree with map symbols.</td></tr>
           <tr><td><code>$E000-$FDFF</code></td><td>Resident immutable assets</td><td>Guarded 7.5 KiB region; <code>$FE00+</code> is not cartridge payload.</td></tr>
@@ -325,11 +655,113 @@ $FF00-$FFFF  PIA/GIME/SAM/I/O         dedicated addresses
           <tr><td>Framebuffer pixels</td><td><code>frame_render_impl</code></td><td>Only the mapped BACK owner is writable during normal gameplay.</td></tr>
           <tr><td>Actor save-under/history</td><td>Each physical framebuffer</td><td>A and B retain independent player/enemy positions, frame keys, backgrounds, and ring phases.</td></tr>
           <tr><td>Persistent background damage</td><td>Each physical framebuffer</td><td>Mark both owners; clear only the copy projected into the current BACK.</td></tr>
-          <tr><td>Presentation state/data</td><td><code>presentation_runtime.s</code> plus direct-page <code>$A4-$B4</code>/<code>$3A-$3D</code></td><td>Current module owns transient flow state in the reserved direct-page tail and hidden BACK construction. The planned session table at <code>$AF80-$BFFF</code> remains unimplemented.</td></tr>
+          <tr><td>Presentation state/data</td><td><code>presentation_runtime.s</code> plus direct-page <code>$A4-$DE</code>, cold page <code>$3A</code>, and title-surface page <code>$3C</code></td><td>The module owns phase-scoped flow state and hidden BACK construction. Direct-page aliases at <code>$D0-$D9</code> are safe only under their documented mutually exclusive lifetimes.</td></tr>
           <tr><td>Display ownership</td><td>Vbord IRQ</td><td>Only <code>framebuffer_irq_impl</code> writes <code>$FF9D</code> and exchanges FRONT/BACK IDs.</td></tr>
           <tr><td>PAR5</td><td>Current scoped operation</td><td>Normally page <code>$34</code>; payload decoders may borrow it but must restore it before state access or return.</td></tr>
         </tbody>
       </table>
+    </section>
+
+    <section>
+      <h2>Rendering representations and data-flow contract</h2>
+      <p>
+        Rendering crosses five representations. Authoritative gameplay state
+        records the maze, gates, entities, actors, score, and timers. The
+        renderer copies a 16-byte direct-page transfer window beginning at
+        <code>RENDER_FLAGS=$007F</code>. Its render fields form a compact
+        transaction of flag classes plus snapshots such as the affected cell,
+        perimeter box, recolored letter, and gate identities and modes. The
+        window also spans renderer working state, so the damage queue filters
+        and replaces fields rather than treating all 16 bytes as persistent
+        intent.
+        Each physical framebuffer retains its own reconstruction history and
+        damage ledger. Generated dense or sparse asset streams supply encoded
+        pixel operations. The final projection is the persistent image in
+        physical framebuffer A or B. Pixels and intent flags are projections;
+        neither replaces authoritative gameplay state.
+      </p>
+<pre><code>authoritative gameplay mutation
+  -> set flags and snapshot transient render payload
+  -> framebuffer_prepare_back maps and hydrates BACK's private history
+  -> actor_closure_restore removes BACK's old player and four enemies
+  -> framebuffer_queue_damage copies filtered persistent coverage to the other owner
+  -> framebuffer_project_damage redraws this BACK's older coverage from current state
+  -> frame_render_background applies the current background transaction
+  -> actor_closure_draw captures clean destinations, then draws enemies and player layer
+  -> framebuffer_finish_back captures BACK history and sets PENDING
+  -> Vbord IRQ publishes the complete image and exchanges FRONT/BACK IDs
+</code></pre>
+      <h3>Intent and damage lifetimes</h3>
+      <p>
+        Gameplay routines mutate logical records and OR render flags; they do
+        not directly redraw the final moving-actor layer. When a payload can
+        change again before rendering, the intent block freezes the old
+        coverage or drawing parameters. The current transaction is consumed
+        only after the complete BACK render. Before that happens,
+        <code>framebuffer_queue_damage</code> copies it to the metadata of the
+        framebuffer that is not currently BACK, then retains only persistent
+        background classes: HUD, lives, entities, changed maze cell, stage,
+        perimeter, multiplier, letter, nest, and gate coverage. Player, popup,
+        death, and roaming-enemy presentation are excluded because actors use
+        buffer-local reconstruction instead.
+      </p>
+      <p>
+        When an owner next becomes BACK, <code>framebuffer_project_damage</code>
+        temporarily replaces the live intent block with that owner's pending
+        record, redraws the affected background from the latest authoritative
+        state, clears only that owner's ledger, and restores the live
+        transaction. This is an idempotent state projection, not a replay of
+        historical drawing commands. Background work intersecting a roaming
+        footprint invalidates strip reuse and forces a safe capture path.
+      </p>
+      <h3>Actor closure and owner-local history</h3>
+      <p>
+        A and B can contain different prior world epochs, so each owner keeps
+        private player and enemy positions, valid bits, save-under pixels, and
+        enemy ring phases. The conservative closure restores the old player
+        and all four old enemy footprints before any new destination is
+        captured. It then captures clean current destinations, draws roaming
+        enemies, and draws popup, death, or the live player last. The ordering
+        makes player-layer ownership explicit and prevents one actor's pixels
+        from being captured as another actor's background.
+      </p>
+      <p>
+        Enemy save-under storage is a circular 8-by-16-byte representation.
+        An unchanged destination reuses its clean capture; a one-byte
+        horizontal move or two-row vertical move captures only the exposed
+        strip; discontinuous motion or intersecting background damage falls
+        back to a full 128-byte capture. This changes the cost of maintaining
+        history, not its ownership.
+      </p>
+      <h3>Encoded asset boundary</h3>
+      <p>
+        Sparse player and enemy indexes are page-local three-byte
+        page/address entries. The resolver first maps the index page through
+        PAR5, then maps the selected payload page and returns its stream
+        pointer. A stream contains destination deltas, opaque byte runs,
+        masked partial-byte runs, and an extended-delta command; the
+        <code>$FF,$0000</code> terminator restores PAR5 to state page
+        <code>$34</code>. <code>sparse_blit_fb</code> decodes directly into the
+        mapped BACK, while <code>sparse_blit_stage</code> expands the same
+        representation into the always-mapped actor stage at <code>$1800</code>.
+        Sprite or frame selection occurs before decoding; the stream itself is
+        a sequence of destination operations rather than semantic actor state.
+      </p>
+      <h3>Presentation as an alternate BACK producer</h3>
+      <p>
+        Presentation screens bypass gameplay render intents. In
+        <code>MODE_LOAD</code>, <code>presentation_runtime.s</code> maps BACK,
+        reads the run-length encoded map from cold page <code>$3A</code>, and
+        expands 32 cells per foreground tick. Each tile ID selects either a
+        cold-atlas tile or a gameplay-tile lookup before the ordinary tile
+        blitter writes BACK. Optional sparse overlays use the fixed
+        <code>$0821</code> draw service. Completion restores PAR5 to
+        <code>$34</code>, performs any required owner hydration, atomically sets
+        <code>FB_RENDER_PENDING</code>, and advances the presentation mode.
+        Gameplay composition and presentation streaming therefore produce the
+        same publication object, a complete hidden BACK image, through
+        different upstream data paths.
+      </p>
     </section>
 
     <section>
@@ -339,12 +771,12 @@ $FF00-$FFFF  PIA/GIME/SAM/I/O         dedicated addresses
   +-- SYNC until IRQ
   +-- wait while FB_RENDER_PENDING != 0
   +-- require a new Vbord frame count
-  +-- set FB_RENDER_ACTIVE
   |
   +-- presentation_flow_tick -> $1900
   |     +-- returns zero: continue gameplay path
   |     +-- returns nonzero: owns presentation Vbord; skip gameplay renderer
   |
+  +-- set FB_RENDER_ACTIVE
   +-- finish_gate_animation
   +-- pickup_tick
   +-- player_animation_tick
@@ -407,6 +839,7 @@ RTI; mainloop resumes after SYNC
         handler does not read framebuffer metadata or game state behind PAR5,
         so an interrupt during sparse decoding cannot redirect ownership reads.
       </p>
+      <p>The IRQ is deliberately a publication service rather than a game-tick callback. It can interrupt any foreground phase, but it changes visible ownership only when <code>FB_RENDER_PENDING</code> proves a complete BACK transaction. A Vbord that arrives while <code>FB_RENDER_ACTIVE</code> is set records a missed commit and leaves both the visible FRONT and logical epoch unchanged.</p>
     </section>
 
     <section>

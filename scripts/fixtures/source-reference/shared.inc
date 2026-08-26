@@ -1,0 +1,1 @@
+FIXTURE_CONST equ $01

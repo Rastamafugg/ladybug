@@ -1,0 +1,6 @@
+                      (module_a.s):00001                 include "shared.inc"
+     0001             (shared.inc):00001         FIXTURE_CONST equ $01
+1000                  (module_a.s):00003                 org $1000
+1000 BD2000           (module_a.s):00004         entry   jsr worker
+1003 AABB             (module_a.s):00005         data_record fcb $AA,$BB
+1005 39               (module_a.s):00006                 rts

@@ -1,0 +1,2620 @@
+{
+  "title": "Ladybug assembly source reference",
+  "revision": "fac594fea1af6f33eb8bd60ed5d71c4f72eee16c",
+  "instruction_reference": "../../wiki/release/reference/6809/{mnemonic}.html",
+  "exclusions": [
+    {
+      "path": "src/diag_minimal.s",
+      "reason": "Non-shipped diagnostic program"
+    },
+    {
+      "path": "src/rom_probe.s",
+      "reason": "Non-shipped probe program"
+    },
+    {
+      "path": "src/tester/",
+      "reason": "Non-shipped tester tree"
+    }
+  ],
+  "modules": [
+    {
+      "id": "resident-runtime",
+      "title": "Resident runtime",
+      "source": "src/main.s",
+      "listing": "ladybug.lst",
+      "map": "ladybug.map",
+      "binary": "ladybug-runtime.rom",
+      "routines": [
+        {
+          "name": "add_bonus_score",
+          "profile": "state",
+          "purpose": "Add bonus score.",
+          "reasons": []
+        },
+        {
+          "name": "add_dot_score",
+          "profile": "state",
+          "purpose": "Add dot score.",
+          "reasons": []
+        },
+        {
+          "name": "add_special_score",
+          "profile": "state",
+          "purpose": "Add special score.",
+          "reasons": []
+        },
+        {
+          "name": "apply_letter_pickup",
+          "profile": "state",
+          "purpose": "Apply letter pickup.",
+          "reasons": []
+        },
+        {
+          "name": "begin_score_popup",
+          "profile": "state",
+          "purpose": "Begin score popup.",
+          "reasons": []
+        },
+        {
+          "name": "blit_packed_sprite",
+          "profile": "render",
+          "purpose": "Blit packed sprite.",
+          "reasons": []
+        },
+        {
+          "name": "blit_tile",
+          "profile": "render",
+          "purpose": "Blit tile.",
+          "reasons": []
+        },
+        {
+          "name": "blit_transparent",
+          "profile": "render",
+          "purpose": "Blit transparent.",
+          "reasons": []
+        },
+        {
+          "name": "bonus_color_tick",
+          "profile": "state",
+          "purpose": "Advance bonus color state for one scheduled tick.",
+          "reasons": []
+        },
+        {
+          "name": "build_gate_entity_lists",
+          "profile": "copy",
+          "purpose": "Build gate entity lists.",
+          "reasons": []
+        },
+        {
+          "name": "cache_entity_operation",
+          "profile": "copy",
+          "purpose": "Cache entity operation.",
+          "reasons": []
+        },
+        {
+          "name": "cache_entity_overlay",
+          "profile": "copy",
+          "purpose": "Cache entity overlay.",
+          "reasons": []
+        },
+        {
+          "name": "can_move",
+          "profile": "movement",
+          "purpose": "Determine whether move.",
+          "reasons": []
+        },
+        {
+          "name": "check_entity_pickup",
+          "profile": "state",
+          "purpose": "Check entity pickup.",
+          "reasons": []
+        },
+        {
+          "name": "check_stage_clear",
+          "profile": "state",
+          "purpose": "Check stage clear.",
+          "reasons": []
+        },
+        {
+          "name": "clear_life_marker",
+          "profile": "state",
+          "purpose": "Clear life marker.",
+          "reasons": []
+        },
+        {
+          "name": "death_tick",
+          "profile": "state",
+          "purpose": "Advance death state for one scheduled tick.",
+          "reasons": []
+        },
+        {
+          "name": "draw_all_gates",
+          "profile": "render",
+          "purpose": "Draw all gates.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "draw_authored_hud_tile",
+          "profile": "render",
+          "purpose": "Draw authored hud tile.",
+          "reasons": []
+        },
+        {
+          "name": "draw_bcd_line",
+          "profile": "render",
+          "purpose": "Draw bcd line.",
+          "reasons": []
+        },
+        {
+          "name": "draw_cell_overlay",
+          "profile": "render",
+          "purpose": "Draw cell overlay.",
+          "reasons": []
+        },
+        {
+          "name": "draw_cell_tile",
+          "profile": "render",
+          "purpose": "Draw cell tile.",
+          "reasons": []
+        },
+        {
+          "name": "draw_death_frame",
+          "profile": "render",
+          "purpose": "Draw death frame.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "draw_entities",
+          "profile": "render",
+          "purpose": "Draw entities.",
+          "reasons": []
+        },
+        {
+          "name": "draw_entity_object",
+          "profile": "render",
+          "purpose": "Draw entity object.",
+          "reasons": []
+        },
+        {
+          "name": "draw_gate",
+          "profile": "render",
+          "purpose": "Draw gate.",
+          "reasons": []
+        },
+        {
+          "name": "draw_gate_diagonal",
+          "profile": "render",
+          "purpose": "Draw gate diagonal.",
+          "reasons": []
+        },
+        {
+          "name": "draw_gate_entities",
+          "profile": "render",
+          "purpose": "Draw gate entities.",
+          "reasons": []
+        },
+        {
+          "name": "draw_gate_overlay",
+          "profile": "render",
+          "purpose": "Draw gate overlay.",
+          "reasons": []
+        },
+        {
+          "name": "draw_gate_transition",
+          "profile": "render",
+          "purpose": "Draw gate transition.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "draw_hud",
+          "profile": "render",
+          "purpose": "Draw hud.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "draw_hud_digit",
+          "profile": "render",
+          "purpose": "Draw hud digit.",
+          "reasons": []
+        },
+        {
+          "name": "draw_hud_tile",
+          "profile": "render",
+          "purpose": "Draw hud tile.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "draw_life_marker",
+          "profile": "render",
+          "purpose": "Draw life marker.",
+          "reasons": []
+        },
+        {
+          "name": "draw_lives",
+          "profile": "render",
+          "purpose": "Draw lives.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "draw_maze_state_cell",
+          "profile": "render",
+          "purpose": "Draw maze state cell.",
+          "reasons": []
+        },
+        {
+          "name": "draw_multiplier_hud",
+          "profile": "render",
+          "purpose": "Draw multiplier hud.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "draw_perimeter_box",
+          "profile": "render",
+          "purpose": "Draw perimeter box.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "draw_player",
+          "profile": "render",
+          "purpose": "Draw player.",
+          "reasons": []
+        },
+        {
+          "name": "draw_popup_multiplier",
+          "profile": "render",
+          "purpose": "Draw popup multiplier.",
+          "reasons": []
+        },
+        {
+          "name": "draw_recolored_map_tile",
+          "profile": "render",
+          "purpose": "Draw recolored map tile.",
+          "reasons": []
+        },
+        {
+          "name": "draw_score_popup",
+          "profile": "render",
+          "purpose": "Draw score popup.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "draw_screen",
+          "profile": "render",
+          "purpose": "Draw screen.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "draw_vegetable_hud",
+          "profile": "render",
+          "purpose": "Draw vegetable hud.",
+          "reasons": []
+        },
+        {
+          "name": "draw_word_progress_hud",
+          "profile": "render",
+          "purpose": "Draw word progress hud.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "eat_dot",
+          "profile": "state",
+          "purpose": "Consume the current maze dot, update score and remaining-dot state, and queue the required HUD or stage work.",
+          "reasons": []
+        },
+        {
+          "name": "enemy_collect",
+          "profile": "state",
+          "purpose": "Dispatch vegetable collection to the installed enemy runtime.",
+          "reasons": []
+        },
+        {
+          "name": "enemy_release",
+          "profile": "movement",
+          "purpose": "Dispatch an enemy release request to the installed enemy runtime.",
+          "reasons": []
+        },
+        {
+          "name": "enemy_tick",
+          "profile": "movement",
+          "purpose": "Advance enemy state for one scheduled tick.",
+          "reasons": []
+        },
+        {
+          "name": "entry",
+          "profile": "root",
+          "purpose": "Enter and initialize the stable resident runtime.",
+          "reasons": [
+            "exported",
+            "hardware-touching"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-entry"
+        },
+        {
+          "name": "erase_entity_footprints",
+          "profile": "render",
+          "purpose": "Restore authored cell pixels beneath every placed entity before runtime overlays are composed.",
+          "reasons": []
+        },
+        {
+          "name": "expose_player_background",
+          "profile": "render",
+          "purpose": "Expose the background beneath the player for persistent redraw.",
+          "reasons": []
+        },
+        {
+          "name": "finish_gate_animation",
+          "profile": "state",
+          "purpose": "Finish gate animation.",
+          "reasons": []
+        },
+        {
+          "name": "framebuffer_project_gate_only",
+          "profile": "framebuffer",
+          "purpose": "Promote pending gate-only intents into the normal framebuffer background worklist.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "gate_render_hidden",
+          "profile": "render",
+          "purpose": "Recompose a gate mutation on the mapped hidden framebuffer without changing visible ownership.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "init_enemy",
+          "profile": "state",
+          "purpose": "Initialize enemy.",
+          "reasons": []
+        },
+        {
+          "name": "init_entities",
+          "profile": "state",
+          "purpose": "Initialize entities.",
+          "reasons": []
+        },
+        {
+          "name": "init_game_state",
+          "profile": "state",
+          "purpose": "Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for a new game.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "init_gate_state",
+          "profile": "state",
+          "purpose": "Initialize gate state.",
+          "reasons": []
+        },
+        {
+          "name": "init_joystick",
+          "profile": "state",
+          "purpose": "Initialize joystick.",
+          "reasons": []
+        },
+        {
+          "name": "init_maze_state",
+          "profile": "state",
+          "purpose": "Initialize maze state.",
+          "reasons": []
+        },
+        {
+          "name": "init_player",
+          "profile": "state",
+          "purpose": "Initialize player.",
+          "reasons": []
+        },
+        {
+          "name": "irq_handler",
+          "profile": "framebuffer",
+          "purpose": "Service Vbord by delegating the sole framebuffer publication point, then return from interrupt.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "joy_read_axis",
+          "profile": "input",
+          "purpose": "Sample and normalize one joystick axis through the PIA comparator.",
+          "reasons": []
+        },
+        {
+          "name": "mark_gate_enemy_overlap",
+          "profile": "state",
+          "purpose": "Mark roaming enemy captures whose destinations intersect the current gate mutation.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "merge_sprite_byte",
+          "profile": "state",
+          "purpose": "Merge sprite byte.",
+          "reasons": []
+        },
+        {
+          "name": "next_stage",
+          "profile": "state",
+          "purpose": "Advance the stage and reinitialize maze, gate, entity, player, enemy, bonus, and render state.",
+          "reasons": []
+        },
+        {
+          "name": "perimeter_box_coordinates",
+          "profile": "copy",
+          "purpose": "Convert the active perimeter box index into its semantic screen coordinates.",
+          "reasons": []
+        },
+        {
+          "name": "perimeter_timer_tick",
+          "profile": "state",
+          "purpose": "Advance perimeter timer state for one scheduled tick.",
+          "reasons": []
+        },
+        {
+          "name": "pickup_tick",
+          "profile": "state",
+          "purpose": "Advance pickup state for one scheduled tick.",
+          "reasons": []
+        },
+        {
+          "name": "place_entity",
+          "profile": "state",
+          "purpose": "Place entity.",
+          "reasons": []
+        },
+        {
+          "name": "player_animation_tick",
+          "profile": "state",
+          "purpose": "Advance player animation state for one scheduled tick.",
+          "reasons": []
+        },
+        {
+          "name": "player_cell_offset",
+          "profile": "movement",
+          "purpose": "Convert the player's semantic cell coordinates into a row-major maze offset.",
+          "reasons": []
+        },
+        {
+          "name": "player_tick",
+          "profile": "movement",
+          "purpose": "Advance player state for one scheduled tick.",
+          "reasons": []
+        },
+        {
+          "name": "queue_gate_render",
+          "profile": "state",
+          "purpose": "Record the current gate as pending framebuffer work.",
+          "reasons": []
+        },
+        {
+          "name": "read_joystick",
+          "profile": "input",
+          "purpose": "Read joystick.",
+          "reasons": []
+        },
+        {
+          "name": "refresh_enemy_zone_dot",
+          "profile": "state",
+          "purpose": "Refresh enemy zone dot.",
+          "reasons": []
+        },
+        {
+          "name": "reload_box_timer",
+          "profile": "state",
+          "purpose": "Reload box timer.",
+          "reasons": []
+        },
+        {
+          "name": "reload_enemy_box_timer",
+          "profile": "state",
+          "purpose": "Reload enemy box timer.",
+          "reasons": []
+        },
+        {
+          "name": "render_frame",
+          "profile": "render",
+          "purpose": "Render frame.",
+          "reasons": []
+        },
+        {
+          "name": "replay_gate_entity_overlay",
+          "profile": "state",
+          "purpose": "Replay gate entity overlay.",
+          "reasons": []
+        },
+        {
+          "name": "reset_enemy_state",
+          "profile": "state",
+          "purpose": "Reset enemy state.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "reset_perimeter_visual",
+          "profile": "state",
+          "purpose": "Reset perimeter visual.",
+          "reasons": []
+        },
+        {
+          "name": "restore_entity_footprint",
+          "profile": "render",
+          "purpose": "Restore entity footprint.",
+          "reasons": []
+        },
+        {
+          "name": "restore_gate_background",
+          "profile": "render",
+          "purpose": "Restore gate background.",
+          "reasons": []
+        },
+        {
+          "name": "restore_gate_diagonal_dots",
+          "profile": "render",
+          "purpose": "Restore gate diagonal dots.",
+          "reasons": []
+        },
+        {
+          "name": "restore_player",
+          "profile": "render",
+          "purpose": "Restore player.",
+          "reasons": []
+        },
+        {
+          "name": "rng_next",
+          "profile": "state",
+          "purpose": "Advance rng next and return its next value.",
+          "reasons": []
+        },
+        {
+          "name": "save_player",
+          "profile": "render",
+          "purpose": "Save player.",
+          "reasons": []
+        },
+        {
+          "name": "test_cell_offset",
+          "profile": "movement",
+          "purpose": "Test cell offset.",
+          "reasons": []
+        }
+      ],
+      "relocations": [
+        {
+          "id": "resident-bank1-publication",
+          "length": 15872,
+          "assembled": {
+            "address": "0xC000"
+          },
+          "cartridge_staged": {
+            "address": "0xA000",
+            "physical_page": "0x21"
+          },
+          "runtime_destination": {
+            "address": "0xC000",
+            "physical_page": "0x3E"
+          }
+        }
+      ],
+      "external_symbols": [
+        "ENEMY_MODULE_COLLECT",
+        "ENEMY_MODULE_INIT",
+        "ENEMY_MODULE_RELEASE",
+        "ENEMY_MODULE_TICK",
+        "FB_MODULE_INIT",
+        "FB_MODULE_IRQ",
+        "PLAYER_MODULE_DRAW",
+        "PRESENTATION_MODULE_DRAW"
+      ],
+      "label_classifications": [
+        {
+          "name": "asset_end",
+          "kind": "boundary",
+          "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        },
+        {
+          "name": "asset_start",
+          "kind": "boundary",
+          "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        },
+        {
+          "name": "cm_entry_masks",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "extra_letter_bits",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "extra_letter_x",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "gate_cross_offsets",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "gate_diagonal_dot_offsets",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "letter_ea",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "letter_spcil",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "letter_xtr",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "object_blue_lut",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "object_mask_lut",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "object_red_lut",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "object_skull_lut",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "object_yellow_lut",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "par_table",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "resident_end",
+          "kind": "boundary",
+          "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        },
+        {
+          "name": "special_letter_bits",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "special_letter_x",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "sprite_attr0_pairs",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "sprite_blue_pairs",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "sprite_red_pairs",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "sprite_score_blue_pairs",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "sprite_score_red_pairs",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "sprite_score_yellow_pairs",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "sprite_white_pairs",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "sprite_yellow_pairs",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "vegetable_values",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        }
+      ],
+      "basic_blocks": [
+        {
+          "name": "ads_copy_high",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "main_death",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "main_game_tick",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "phase4_before_tick",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "pt_alive",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_clear_complete",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_clear_entry",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_complete",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_fb_init_entry",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_init1_complete",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_mmu_enable",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_mmu_enabled",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_palette_complete",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_palette_entry",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_par_count_ready",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_par_register_base",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_par_setup_complete",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_par_setup_entry",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_par_table_ready",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_par_write_complete",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "startup_video_setup_entry",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        }
+      ]
+    },
+    {
+      "id": "enemy-runtime",
+      "title": "Enemy and framebuffer runtime",
+      "source": "src/enemy_runtime.s",
+      "listing": "ladybug-enemy-runtime.lst",
+      "map": "ladybug-enemy-runtime.map",
+      "binary": "ladybug-enemy-runtime.rom",
+      "external_symbols": [
+        "PERIMETER_RESET_HELPER",
+        "blit_packed_sprite",
+        "draw_all_gates",
+        "draw_death_frame",
+        "draw_entities",
+        "draw_gate",
+        "draw_gate_diagonal",
+        "draw_gate_entities",
+        "draw_gate_transition",
+        "draw_hud",
+        "draw_lives",
+        "draw_maze_state_cell",
+        "draw_multiplier_hud",
+        "draw_perimeter_box",
+        "draw_player",
+        "draw_recolored_map_tile",
+        "draw_score_popup",
+        "draw_screen",
+        "draw_word_progress_hud",
+        "erase_entity_footprints",
+        "framebuffer_project_gate_only",
+        "gate_redraw_neighbors",
+        "gate_render_hidden",
+        "mark_gate_enemy_overlap",
+        "maze_gate_owner",
+        "reload_enemy_box_timer",
+        "reset_enemy_state",
+        "restore_entity_footprint",
+        "restore_gate_diagonal_dots",
+        "perimeter_box_coordinates",
+        "restore_player",
+        "save_player"
+      ],
+      "routines": [
+        {
+          "name": "actor_closure_draw",
+          "profile": "render",
+          "purpose": "Draw the actors selected by the current damage closure.",
+          "reasons": []
+        },
+        {
+          "name": "actor_closure_restore",
+          "profile": "render",
+          "purpose": "Restore background for the actors selected by the current damage closure.",
+          "reasons": []
+        },
+        {
+          "name": "blit_stage_sprite",
+          "profile": "render",
+          "purpose": "Blit stage sprite.",
+          "reasons": []
+        },
+        {
+          "name": "build_enemy_nest_cache",
+          "profile": "copy",
+          "purpose": "Build enemy nest cache.",
+          "reasons": []
+        },
+        {
+          "name": "capture_zone_bg",
+          "profile": "render",
+          "purpose": "Capture the current zone background before an actor overlay changes it.",
+          "reasons": []
+        },
+        {
+          "name": "compose_enemy_animation",
+          "profile": "render",
+          "purpose": "Compose enemy animation.",
+          "reasons": []
+        },
+        {
+          "name": "compose_enemy_zone",
+          "profile": "render",
+          "purpose": "Compose enemy zone.",
+          "reasons": []
+        },
+        {
+          "name": "copy_nest_128",
+          "profile": "copy",
+          "purpose": "Copy nest 128.",
+          "reasons": []
+        },
+        {
+          "name": "copy_two_fb_rows",
+          "profile": "copy",
+          "purpose": "Copy two fb rows.",
+          "reasons": []
+        },
+        {
+          "name": "draw_enemy_fb",
+          "profile": "render",
+          "purpose": "Draw enemy fb.",
+          "reasons": []
+        },
+        {
+          "name": "draw_enemy_stage",
+          "profile": "render",
+          "purpose": "Draw enemy stage.",
+          "reasons": []
+        },
+        {
+          "name": "draw_vegetable_stage",
+          "profile": "render",
+          "purpose": "Draw vegetable stage.",
+          "reasons": []
+        },
+        {
+          "name": "enemy_choose_direction",
+          "profile": "movement",
+          "purpose": "Select a legal enemy direction from maze, gate, and target state.",
+          "reasons": []
+        },
+        {
+          "name": "enemy_collect_impl",
+          "profile": "state",
+          "purpose": "Resolve the vegetable collection transition and its enemy-state consequences.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "enemy_direction_legal",
+          "profile": "movement",
+          "purpose": "Test whether a proposed enemy direction is legal at the current semantic cell.",
+          "reasons": []
+        },
+        {
+          "name": "enemy_frame_number",
+          "profile": "copy",
+          "purpose": "Resolve the animation frame number for the current enemy state and direction.",
+          "reasons": []
+        },
+        {
+          "name": "enemy_init_impl",
+          "profile": "state",
+          "purpose": "Reset enemy lifecycle state and mark enemy composition dirty.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "enemy_player_contact",
+          "profile": "movement",
+          "purpose": "Test and resolve contact between an active enemy and the player.",
+          "reasons": []
+        },
+        {
+          "name": "enemy_release_impl",
+          "profile": "movement",
+          "purpose": "Release an eligible enemy from the nest into authoritative gameplay state.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "enemy_render_impl",
+          "profile": "render",
+          "purpose": "Compose current enemy actors and their owner-local background history.",
+          "reasons": []
+        },
+        {
+          "name": "enemy_skull_test",
+          "profile": "movement",
+          "purpose": "Test whether the current enemy position triggers the skull interaction.",
+          "reasons": []
+        },
+        {
+          "name": "enemy_tick_impl",
+          "profile": "movement",
+          "purpose": "Advance enemy lifecycle, movement, contact, and render-intent state for one gameplay tick.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "frame_render_background",
+          "profile": "render",
+          "purpose": "Reconstruct BACK background work before actor overlays are drawn.",
+          "reasons": []
+        },
+        {
+          "name": "frame_render_impl",
+          "profile": "root",
+          "purpose": "Compose the selected BACK surface and arm its completed transaction.",
+          "reasons": [
+            "exported",
+            "shared-state-mutating"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-frame-render-impl"
+        },
+        {
+          "name": "framebuffer_back_meta",
+          "profile": "framebuffer",
+          "purpose": "Resolve the owner-local metadata record for the current BACK framebuffer.",
+          "reasons": []
+        },
+        {
+          "name": "framebuffer_begin_fallback",
+          "profile": "framebuffer",
+          "purpose": "Begin the bounded full-surface fallback transaction.",
+          "reasons": []
+        },
+        {
+          "name": "framebuffer_capture_a",
+          "profile": "framebuffer",
+          "purpose": "Capture owner-A restoration state for persistent A/B initialization.",
+          "reasons": []
+        },
+        {
+          "name": "framebuffer_capture_back",
+          "profile": "framebuffer",
+          "purpose": "Capture current BACK owner metadata after composition.",
+          "reasons": []
+        },
+        {
+          "name": "framebuffer_finish_back",
+          "profile": "framebuffer",
+          "purpose": "Finish the current BACK transaction and arm PENDING publication.",
+          "reasons": []
+        },
+        {
+          "name": "framebuffer_finish_fallback",
+          "profile": "framebuffer",
+          "purpose": "Finish the fallback full-surface transaction.",
+          "reasons": []
+        },
+        {
+          "name": "framebuffer_init_impl",
+          "profile": "framebuffer",
+          "purpose": "Clone the initial surface and initialize persistent A/B owner metadata while display output is blanked.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "framebuffer_irq_impl",
+          "profile": "framebuffer",
+          "purpose": "Publish a completed PENDING framebuffer at Vbord and maintain frame counters.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "framebuffer_prepare_back",
+          "profile": "framebuffer",
+          "purpose": "Prepare owner-local history and damage state for the selected BACK framebuffer.",
+          "reasons": []
+        },
+        {
+          "name": "framebuffer_project_damage",
+          "profile": "framebuffer",
+          "purpose": "Project pending damage intents into the selected BACK worklist.",
+          "reasons": []
+        },
+        {
+          "name": "framebuffer_queue_damage",
+          "profile": "framebuffer",
+          "purpose": "Append one bounded damage intent to owner-local metadata.",
+          "reasons": []
+        },
+        {
+          "name": "gate_compose_impl",
+          "profile": "render",
+          "purpose": "Compose the selected gate mutation and its intersecting overlays into BACK.",
+          "reasons": []
+        },
+        {
+          "name": "gate_compute_region",
+          "profile": "copy",
+          "purpose": "Compute the bounded framebuffer region affected by the current gate.",
+          "reasons": []
+        },
+        {
+          "name": "gate_map_live",
+          "profile": "copy",
+          "purpose": "Map the live gate region used for final composition.",
+          "reasons": []
+        },
+        {
+          "name": "gate_map_shadow",
+          "profile": "copy",
+          "purpose": "Map the shadow gate region used for restoration.",
+          "reasons": []
+        },
+        {
+          "name": "gate_map_shadow_window",
+          "profile": "copy",
+          "purpose": "Map the page window containing the current shadow gate region.",
+          "reasons": []
+        },
+        {
+          "name": "gate_region_from_shadow",
+          "profile": "copy",
+          "purpose": "Translate a shadow-region identity into the live region representation.",
+          "reasons": []
+        },
+        {
+          "name": "gate_region_to_shadow",
+          "profile": "copy",
+          "purpose": "Translate a live gate region into its shadow representation.",
+          "reasons": []
+        },
+        {
+          "name": "gate_set_player_region",
+          "profile": "copy",
+          "purpose": "Add the player's footprint to the current gate damage region when they intersect.",
+          "reasons": []
+        },
+        {
+          "name": "merge_stage_pixel",
+          "profile": "render",
+          "purpose": "Merge stage pixel.",
+          "reasons": []
+        },
+        {
+          "name": "player_compose_impl",
+          "profile": "render",
+          "purpose": "Compose the player and its owner-local save-under history into BACK.",
+          "reasons": []
+        },
+        {
+          "name": "player_draw_impl",
+          "profile": "state",
+          "purpose": "Draw the selected player sparse stream into BACK.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "refresh_zone_bg_footprint",
+          "profile": "copy",
+          "purpose": "Refresh zone bg footprint.",
+          "reasons": []
+        },
+        {
+          "name": "render_exposed_player",
+          "profile": "render",
+          "purpose": "Render exposed player.",
+          "reasons": []
+        },
+        {
+          "name": "render_perimeter_reset",
+          "profile": "render",
+          "purpose": "Render perimeter reset.",
+          "reasons": []
+        },
+        {
+          "name": "roam_bg_address",
+          "profile": "copy",
+          "purpose": "Resolve the background-ring address for one roaming actor slot.",
+          "reasons": []
+        },
+        {
+          "name": "roam_capture_ring_row",
+          "profile": "copy",
+          "purpose": "Capture one framebuffer row into a roaming actor background-ring slot.",
+          "reasons": []
+        },
+        {
+          "name": "roam_copy_bg_to_fb",
+          "profile": "copy",
+          "purpose": "Restore a roaming actor background record into framebuffer pixels.",
+          "reasons": []
+        },
+        {
+          "name": "roam_copy_fb_to_bg",
+          "profile": "copy",
+          "purpose": "Capture framebuffer pixels into a roaming actor background record.",
+          "reasons": []
+        },
+        {
+          "name": "roam_finish_shadow",
+          "profile": "copy",
+          "purpose": "Finalize shadow metadata after roaming actor restoration.",
+          "reasons": []
+        },
+        {
+          "name": "roam_mark_underlay",
+          "profile": "copy",
+          "purpose": "Mark the roaming actor underlay that must be captured after background work.",
+          "reasons": []
+        },
+        {
+          "name": "roam_old_slot",
+          "profile": "copy",
+          "purpose": "Resolve the prior background-ring slot for one roaming actor.",
+          "reasons": []
+        },
+        {
+          "name": "roam_prepare_shadow",
+          "profile": "copy",
+          "purpose": "Prepare shadow state for a roaming actor update.",
+          "reasons": []
+        },
+        {
+          "name": "roam_ring_slot",
+          "profile": "copy",
+          "purpose": "Resolve the current background-ring slot for one roaming actor.",
+          "reasons": []
+        },
+        {
+          "name": "roam_set_final_union",
+          "profile": "copy",
+          "purpose": "Commit the union of old and new roaming actor damage regions.",
+          "reasons": []
+        },
+        {
+          "name": "roam_snapshot_old",
+          "profile": "copy",
+          "purpose": "Snapshot the prior roaming actor position and background ownership.",
+          "reasons": []
+        },
+        {
+          "name": "roam_update_background",
+          "profile": "copy",
+          "purpose": "Update roaming actor background history after composition.",
+          "reasons": []
+        },
+        {
+          "name": "sparse_blit_fb",
+          "profile": "render",
+          "purpose": "Decode a sparse sprite stream directly into framebuffer pixels.",
+          "reasons": []
+        },
+        {
+          "name": "sparse_blit_stage",
+          "profile": "render",
+          "purpose": "Decode a sparse sprite stream into the bounded stage buffer.",
+          "reasons": []
+        },
+        {
+          "name": "sparse_enemy_stream",
+          "profile": "render",
+          "purpose": "Resolve the sparse stream for the selected enemy frame.",
+          "reasons": []
+        },
+        {
+          "name": "sparse_player_stream",
+          "profile": "render",
+          "purpose": "Resolve the sparse stream for the selected player frame.",
+          "reasons": []
+        }
+      ],
+      "relocations": [
+        {
+          "id": "enemy-low-ram-copy",
+          "length": 4095,
+          "assembled": {
+            "address": "0x0800"
+          },
+          "runtime_destination": {
+            "address": "0x0800",
+            "physical_page": "0x38"
+          }
+        }
+      ],
+      "label_classifications": [
+        {
+          "name": "enemy_entry_masks",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "enemy_exit_masks",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "enemy_runtime_end",
+          "kind": "boundary",
+          "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        },
+        {
+          "name": "enemy_target_offsets",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "perimeter_reset_published",
+          "kind": "boundary",
+          "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        },
+        {
+          "name": "rcbtf_fast_table",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase0",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase0_rows",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase1",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase1_rows",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase2",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase2_rows",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase3",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase3_rows",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase4",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase4_rows",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase5",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase5_rows",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase6",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase6_rows",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase7",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "rcbtf_phase7_rows",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "roam_slot_masks",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        }
+      ],
+      "basic_blocks": [
+        {
+          "name": "acd_popup",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "eri_nest_anim",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "et_finish",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "fbf_ready",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "fbiq_publish",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "fbp_write_front_fault",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "fbpd_done",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        }
+      ]
+    },
+    {
+      "id": "presentation-runtime",
+      "title": "Presentation flow runtime",
+      "source": "src/presentation_runtime.s",
+      "listing": "ladybug-presentation-runtime.lst",
+      "map": "ladybug-presentation-runtime.map",
+      "binary": "ladybug-presentation-runtime.bin",
+      "routines": [
+        {
+          "name": "add_credit",
+          "profile": "presentation",
+          "purpose": "Add credit.",
+          "reasons": []
+        },
+        {
+          "name": "cold_ptr",
+          "profile": "copy",
+          "purpose": "Resolve a pointer into the currently mapped presentation cold payload.",
+          "reasons": []
+        },
+        {
+          "name": "cold_read_byte",
+          "profile": "copy",
+          "purpose": "Read one byte from the presentation cold payload while preserving mapping ownership.",
+          "reasons": []
+        },
+        {
+          "name": "colour_surface",
+          "profile": "render",
+          "purpose": "Apply a generated sparse nibble-colour stream to a selected 16-by-16 presentation surface.",
+          "reasons": [
+            "non-trivial"
+          ]
+        },
+        {
+          "name": "colour_tile",
+          "profile": "render",
+          "purpose": "Replace every nonzero packed pixel pair in one selected 8-by-8 instruction tile.",
+          "reasons": [
+            "non-trivial"
+          ]
+        },
+        {
+          "name": "draw_actor_overlay",
+          "profile": "render",
+          "purpose": "Draw the selected presentation actor stream into the current presentation destination.",
+          "reasons": [
+            "non-trivial"
+          ]
+        },
+        {
+          "name": "draw_cell",
+          "profile": "render",
+          "purpose": "Draw cell.",
+          "reasons": []
+        },
+        {
+          "name": "draw_coin_slots",
+          "profile": "render",
+          "purpose": "Draw coin slots.",
+          "reasons": []
+        },
+        {
+          "name": "draw_tile_id",
+          "profile": "render",
+          "purpose": "Draw tile id.",
+          "reasons": []
+        },
+        {
+          "name": "gameplay_reentry",
+          "profile": "presentation",
+          "purpose": "Restore gameplay mappings and state after presentation releases the interval.",
+          "reasons": []
+        },
+        {
+          "name": "init_gameplay",
+          "profile": "presentation",
+          "purpose": "Initialize gameplay.",
+          "reasons": []
+        },
+        {
+          "name": "install_aux_runtime",
+          "profile": "presentation",
+          "purpose": "Install aux runtime.",
+          "reasons": []
+        },
+        {
+          "name": "map_back",
+          "profile": "copy",
+          "purpose": "Map back.",
+          "reasons": []
+        },
+        {
+          "name": "presentation_flow_tick",
+          "profile": "presentation",
+          "purpose": "Dispatch the current presentation interval and return retain or release status.",
+          "reasons": [
+            "exported",
+            "shared-state-mutating"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-presentation-flow-tick"
+        },
+        {
+          "name": "scan_keys",
+          "profile": "input",
+          "purpose": "Scan keys.",
+          "reasons": []
+        },
+        {
+          "name": "start_screen",
+          "profile": "presentation",
+          "purpose": "Initialize and draw the requested presentation screen.",
+          "reasons": []
+        },
+        {
+          "name": "timer",
+          "profile": "presentation",
+          "purpose": "Advance and return the current presentation interval timer.",
+          "reasons": []
+        }
+      ],
+      "relocations": [
+        {
+          "id": "presentation-low-ram-copy",
+          "length": 1276,
+          "assembled": {
+            "address": "0x1900"
+          },
+          "runtime_destination": {
+            "address": "0x1900",
+            "physical_page": "0x38"
+          }
+        }
+      ],
+      "external_symbols": [
+        "BLIT_TILE",
+        "DEMO_RUNTIME_TICK",
+        "INSTRUCTION_RUNTIME_TICK",
+        "PRESENTATION_ATTRACT_OVERLAY",
+        "PRESENTATION_HOLD_BEGIN",
+        "PRESENTATION_HOLD_TICK",
+        "PRESENTATION_MODULE_DRAW",
+        "PRES_MAIN_DEATH",
+        "PRES_MAIN_ENEMY",
+        "PRES_MAIN_ENTITIES",
+        "PRES_MAIN_FB_CAPTURE",
+        "PRES_MAIN_FB_FINISH",
+        "PRES_MAIN_GATES",
+        "PRES_MAIN_INIT",
+        "PRES_MAIN_MAZE",
+        "PRES_MAIN_NEXT_STAGE",
+        "PRES_MAIN_PLAYER",
+        "PRES_MAIN_RENDER"
+      ],
+      "label_classifications": [
+        {
+          "name": "instruction_phase_colors",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "instruction_phase_rows",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "instruction_phase_starts",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "map_stream_offsets",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "presentation_module_end",
+          "kind": "boundary",
+          "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        },
+        {
+          "name": "scan_bits",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "scan_drives",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "screen_modes",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "start_screen_map",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        }
+      ],
+      "basic_blocks": [
+        {
+          "name": "actor_index_ready",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "attract_tick_ready",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "load_done_normal",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "load_timer_reset",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        }
+      ]
+    },
+    {
+      "id": "release-demo-runtime",
+      "title": "Release demo director",
+      "source": "src/demo_runtime.s",
+      "listing": "ladybug-instruction-runtime.lst",
+      "map": "ladybug-instruction-runtime.map",
+      "binary": "ladybug-instruction-runtime.bin",
+      "routines": [
+        {
+          "name": "demo_runtime_tick",
+          "profile": "presentation",
+          "purpose": "Advance the deterministic release-demo route at eligible semantic cells.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-demo-runtime-tick"
+        }
+      ],
+      "relocations": [
+        {
+          "id": "release-demo-low-ram-copy",
+          "length": 143,
+          "assembled": {
+            "address": "0x0300"
+          },
+          "runtime_destination": {
+            "address": "0x0300",
+            "physical_page": "0x38"
+          }
+        }
+      ],
+      "label_classifications": [
+        {
+          "name": "demo_runtime_end",
+          "kind": "boundary",
+          "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        }
+      ],
+      "basic_blocks": [
+        {
+          "name": "demo_route_advance",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "demo_route_advanced",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "demo_route_held",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "demo_route_reasserted",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        }
+      ]
+    },
+    {
+      "id": "development-instruction-runtime",
+      "title": "Development instruction choreography",
+      "source": "src/instruction_runtime.s",
+      "listing": null,
+      "map": null,
+      "routines": [
+        {
+          "name": "apply_persistent_state",
+          "profile": "presentation",
+          "purpose": "Apply persistent state.",
+          "reasons": []
+        },
+        {
+          "name": "clear_target",
+          "profile": "render",
+          "purpose": "Clear target.",
+          "reasons": []
+        },
+        {
+          "name": "clear_target_x",
+          "profile": "render",
+          "purpose": "Clear target x.",
+          "reasons": []
+        },
+        {
+          "name": "draw_coin_reward",
+          "profile": "render",
+          "purpose": "Draw coin reward.",
+          "reasons": []
+        },
+        {
+          "name": "draw_life_reward",
+          "profile": "render",
+          "purpose": "Draw life reward.",
+          "reasons": []
+        },
+        {
+          "name": "draw_multiplier_pair",
+          "profile": "render",
+          "purpose": "Draw multiplier pair.",
+          "reasons": []
+        },
+        {
+          "name": "draw_multipliers",
+          "profile": "render",
+          "purpose": "Draw multipliers.",
+          "reasons": []
+        },
+        {
+          "name": "draw_value",
+          "profile": "render",
+          "purpose": "Draw value.",
+          "reasons": []
+        },
+        {
+          "name": "event_ptr_a",
+          "profile": "copy",
+          "purpose": "Resolve the current development instruction event record into an address.",
+          "reasons": []
+        },
+        {
+          "name": "instruction_runtime_tick",
+          "profile": "presentation",
+          "purpose": "Advance the development instruction choreography and its persistent state.",
+          "reasons": [
+            "exported",
+            "profile-selected"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-instruction-runtime-tick"
+        },
+        {
+          "name": "present_death",
+          "profile": "presentation",
+          "purpose": "Apply the development instruction death-presentation event.",
+          "reasons": []
+        },
+        {
+          "name": "present_player",
+          "profile": "presentation",
+          "purpose": "Apply the development instruction player-presentation event.",
+          "reasons": []
+        },
+        {
+          "name": "recolour_collectibles",
+          "profile": "render",
+          "purpose": "Recolour collectibles.",
+          "reasons": []
+        },
+        {
+          "name": "recolour_target",
+          "profile": "render",
+          "purpose": "Recolour target.",
+          "reasons": []
+        },
+        {
+          "name": "restore_actor",
+          "profile": "render",
+          "purpose": "Restore actor.",
+          "reasons": []
+        },
+        {
+          "name": "store_owner_state",
+          "profile": "presentation",
+          "purpose": "Store owner state.",
+          "reasons": []
+        },
+        {
+          "name": "sync_persistent_state",
+          "profile": "presentation",
+          "purpose": "Synchronize persistent state.",
+          "reasons": []
+        }
+      ],
+      "relocations": [
+        {
+          "id": "development-instruction-low-ram-copy",
+          "length": 938,
+          "assembled": {
+            "address": "0x0300"
+          },
+          "runtime_destination": {
+            "address": "0x0300",
+            "physical_page": "0x38"
+          }
+        }
+      ],
+      "external_symbols": [
+        "PRESENTATION_MODULE_DRAW",
+        "PRES_MAIN_FB_FINISH",
+        "PRES_MAIN_FB_PREPARE",
+        "PRES_MAIN_RESTORE_PLAYER",
+        "PRES_MAIN_SAVE_PLAYER",
+        "PRES_MODULE_COLD_PTR",
+        "PRES_MODULE_DRAW_TILE"
+      ]
+    },
+    {
+      "id": "perimeter-helper",
+      "title": "Perimeter reset and presentation helper",
+      "source": "src/perimeter_reset_helper.s",
+      "listing": "ladybug-perimeter-reset-helper.lst",
+      "map": "ladybug-perimeter-reset-helper.map",
+      "binary": "ladybug-perimeter-reset-helper.bin",
+      "routines": [
+        {
+          "name": "PERIMETER_RESET_HELPER",
+          "profile": "root",
+          "purpose": "Map and invoke the synthesized perimeter reset payload, then restore PAR5.",
+          "reasons": [
+            "exported",
+            "hardware-touching"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-perimeter-reset-helper"
+        },
+        {
+          "name": "hold_copy_chunk",
+          "profile": "copy",
+          "purpose": "Copy one bounded chunk while constructing or restoring a held presentation surface.",
+          "reasons": []
+        },
+        {
+          "name": "presentation_attract_phase",
+          "profile": "presentation",
+          "purpose": "Advance the helper-owned attract overlay phase.",
+          "reasons": []
+        }
+      ],
+      "relocations": [
+        {
+          "id": "perimeter-helper-low-ram-copy",
+          "length": 331,
+          "assembled": {
+            "address": "0x06B2"
+          },
+          "runtime_destination": {
+            "address": "0x06B2",
+            "physical_page": "0x38"
+          }
+        }
+      ],
+      "external_symbols": [
+        "PRESENTATION_MODULE_MAP_BACK",
+        "PRES_MAIN_FB_PREPARE"
+      ],
+      "label_classifications": [
+        {
+          "name": "hold_destination_pages",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "hold_source_pages",
+          "kind": "data",
+          "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        }
+      ],
+      "basic_blocks": [
+        {
+          "name": "pao_after_pass",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "pao_phase_change",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "pht_copy",
+          "routine": null,
+          "purpose": "Named internal control point within the enclosing routine"
+        }
+      ]
+    },
+    {
+      "id": "gmc-bootstrap",
+      "title": "GMC bootstrap",
+      "source": "src/gmc_bootstrap.s",
+      "listing": "ladybug-gmc-boot.lst",
+      "map": "ladybug-gmc-boot.map",
+      "binary": "ladybug-gmc-boot.rom",
+      "routines": [
+        {
+          "name": "boot_entry",
+          "profile": "boot",
+          "purpose": "Establish bootstrap mappings and transfer control into the low-RAM loader.",
+          "reasons": [
+            "exported",
+            "hardware-touching"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-boot-entry"
+        },
+        {
+          "name": "decompress_attract_surfaces",
+          "profile": "boot",
+          "purpose": "Decompress attract surfaces.",
+          "reasons": []
+        },
+        {
+          "name": "spr_byte_changed",
+          "profile": "boot",
+          "purpose": "Test whether synthesis changed the current perimeter-reset output byte.",
+          "reasons": []
+        },
+        {
+          "name": "synthesize_perimeter_reset",
+          "profile": "boot",
+          "purpose": "Synthesize perimeter reset.",
+          "reasons": []
+        }
+      ],
+      "label_classifications": [
+        {
+          "name": "loader_end",
+          "kind": "boundary",
+          "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        },
+        {
+          "name": "loader_start",
+          "kind": "boundary",
+          "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "source_contract_marker": "DOC-002 source-contract mirror",
+    "controlled_term_pages": [
+      "internal/implementation/source-guide.html",
+      "internal/implementation/routine-catalog.html",
+      "internal/implementation/data-layouts.html",
+      "internal/implementation/assembly-project-template.html"
+    ],
+    "controlled_terms": [
+      {"term": "authored source", "definition_id": "term-authored-source"},
+      {"term": "canonical definition", "definition_id": "term-canonical-definition"},
+      {"term": "generated reference", "definition_id": "term-generated-reference"},
+      {"term": "routine contract", "definition_id": "term-routine-contract"},
+      {"term": "basic block", "definition_id": "term-basic-block"},
+      {"term": "assembled address", "definition_id": "term-assembled-address"},
+      {"term": "cartridge-staged address", "definition_id": "term-cartridge-staged-address"},
+      {"term": "runtime destination", "definition_id": "term-runtime-destination"},
+      {"term": "PAR5 scope", "definition_id": "term-par5-scope"},
+      {"term": "authoritative state", "definition_id": "term-authoritative-state"},
+      {"term": "render intent", "definition_id": "term-render-intent"},
+      {"term": "framebuffer owner", "definition_id": "term-framebuffer-owner"},
+      {"term": "publication", "definition_id": "term-publication"},
+      {"term": "evidence dimension", "definition_id": "term-evidence-dimension"}
+    ],
+    "required_symbols": [
+      "entry",
+      "frame_render_impl",
+      "presentation_flow_tick"
+    ],
+    "required_evidence": [
+      "structural",
+      "representation",
+      "delivery",
+      "runtime-reachability",
+      "visible-output",
+      "timing"
+    ],
+    "memory_structures": [
+      {
+        "id": "render-transaction",
+        "owner": "resident runtime owns protocol state; presentation and gameplay produce complete BACK images; Vbord IRQ publishes",
+        "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-render-transaction",
+        "symbols": ["FB_FRONT_ID", "FB_BACK_ID", "FB_RENDER_PENDING", "PENDING", "FB_RENDER_ACTIVE", "ACTIVE"]
+      },
+      {
+        "id": "presentation-flow-state",
+        "owner": "presentation runtime",
+        "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-presentation-flow-state",
+        "symbols": ["PRES_MODE", "PRES_TIMER", "PRES_PHASE", "PRES_SCREEN", "PRES_HOLD_STATE"]
+      },
+      {
+        "id": "bank1-resident-publication",
+        "owner": "GMC bootstrap until handoff; resident runtime after publication",
+        "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-bank1-publication",
+        "symbols": ["BOOT_FLAG"]
+      }
+    ],
+    "required_ownership_categories": [
+      "fixed-address",
+      "direct-page",
+      "copied-module",
+      "persistent-record",
+      "physical-page",
+      "virtual-range",
+      "cartridge-interval",
+      "framebuffer-structure",
+      "stack-boundary",
+      "generated-abi",
+      "structured-table"
+    ],
+    "required_ownership_items": [
+      "direct-page-$0000-$00ff",
+      "software-and-hardware-fixed-address-aliases",
+      "configured-relocation-records",
+      "render-transaction",
+      "presentation-flow",
+      "gameplay-state",
+      "entity-table",
+      "player-history-a",
+      "player-history-b",
+      "enemy-history-a",
+      "enemy-history-b",
+      "damage-ledger-a",
+      "damage-ledger-b",
+      "session-score-state",
+      "page-$20",
+      "pages-$21-$23",
+      "pages-$28-$2b",
+      "pages-$2c-$2f",
+      "pages-$30-$33",
+      "page-$34",
+      "pages-$35-$37",
+      "page-$38",
+      "page-$39",
+      "pages-$3a-$3d",
+      "pages-$3e-$3f",
+      "$0000-$01ff",
+      "$0200-$02ff",
+      "$0300-$06b1",
+      "$06b2-$07ff",
+      "$0800-$17ff",
+      "$1800-$18ff",
+      "$1900-$1dff",
+      "$1e00-$1fff",
+      "$2000-$9fff",
+      "$a000-$bfff",
+      "$c000-$dfff",
+      "$e000-$fdff",
+      "$fe00-$feff",
+      "$ff00-$ffff",
+      "bank0-loader-$0000-$07ff",
+      "bank0-overflow-$0800-$3dff",
+      "bank1-resident-$0000-$1fff",
+      "bank1-assets-$2000-$3dff",
+      "bank2-primary-source",
+      "bank3-enemy-reserve-$0800-$17ff",
+      "bank3-primary-source",
+      "all-banks-inaccessible-$3e00-$3fff",
+      "compatibility-hold-surface",
+      "persistent-framebuffer-a",
+      "persistent-framebuffer-b",
+      "render-transaction-metadata",
+      "player-save-under-a",
+      "player-save-under-b",
+      "enemy-ring-history-a",
+      "enemy-ring-history-b",
+      "pending-damage-a",
+      "pending-damage-b",
+      "stack-floor-$1e00",
+      "stack-initial-$1ffe",
+      "stack-window-$1e00-$1fff",
+      "resident-entry-$c002",
+      "enemy-runtime-jump-table",
+      "presentation-module-entry",
+      "release-or-development-$0300-entry",
+      "perimeter-helper-fixed-jumps",
+      "resident-symbol-include",
+      "presentation-symbol-include",
+      "sparse-loader-include",
+      "sparse-index-record",
+      "sparse-command-stream",
+      "loader-copy-record",
+      "address-identity-record",
+      "call-edge-record",
+      "label-classification-record",
+      "evidence-record",
+      "presentation-screen-record",
+      "demo-route-record",
+      "entity-record",
+      "render-intent-record"
+    ],
+    "ownership_inventory": [
+      {
+        "id": "all-direct-page-addresses",
+        "category": "direct-page",
+        "owner": "The declaring runtime subsystem owns each field; lifecycle aliases share one absolute slot only in mutually exclusive phases",
+        "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-direct-page",
+        "equ_ranges": [{"start": "0x0000", "end": "0x00ff"}],
+        "items": ["direct-page-$0000-$00ff"]
+      },
+      {
+        "id": "all-fixed-address-aliases",
+        "category": "fixed-address",
+        "owner": "The declaring module owns software addresses; the named CoCo/GIME/PIA device owns hardware-register aliases",
+        "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-fixed-addresses",
+        "equ_ranges": [{"start": "0x0100", "end": "0xffff"}],
+        "items": ["software-and-hardware-fixed-address-aliases"]
+      },
+      {
+        "id": "all-copied-modules",
+        "category": "copied-module",
+        "owner": "The bootstrap owns bytes through copy and validation; the destination module owns them after handoff",
+        "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-copied-modules",
+        "model": "relocations",
+        "items": ["configured-relocation-records"]
+      },
+      {
+        "id": "all-persistent-records",
+        "category": "persistent-record",
+        "owner": "The named gameplay, presentation, or framebuffer subsystem owns the authoritative record for its documented lifetime",
+        "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-persistent-records",
+        "items": ["render-transaction", "presentation-flow", "gameplay-state", "entity-table", "player-history-a", "player-history-b", "enemy-history-a", "enemy-history-b", "damage-ledger-a", "damage-ledger-b", "session-score-state"]
+      },
+      {
+        "id": "all-physical-pages",
+        "category": "physical-page",
+        "owner": "The runtime memory atlas assigns one phase-qualified owner to every allocated physical page interval",
+        "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-physical-pages",
+        "items": ["page-$20", "pages-$21-$23", "pages-$28-$2b", "pages-$2c-$2f", "pages-$30-$33", "page-$34", "pages-$35-$37", "page-$38", "page-$39", "pages-$3a-$3d", "pages-$3e-$3f"]
+      },
+      {
+        "id": "all-virtual-ranges",
+        "category": "virtual-range",
+        "owner": "The active executive PAR mapping and scoped PAR5 borrower own each virtual range",
+        "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-virtual-ranges",
+        "items": ["$0000-$01ff", "$0200-$02ff", "$0300-$06b1", "$06b2-$07ff", "$0800-$17ff", "$1800-$18ff", "$1900-$1dff", "$1e00-$1fff", "$2000-$9fff", "$a000-$bfff", "$c000-$dfff", "$e000-$fdff", "$fe00-$feff", "$ff00-$ffff"]
+      },
+      {
+        "id": "all-cartridge-intervals",
+        "category": "cartridge-interval",
+        "owner": "The sparse-layout manifest and bootstrap own every CPU-readable GMC source interval",
+        "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-cartridge-intervals",
+        "items": ["bank0-loader-$0000-$07ff", "bank0-overflow-$0800-$3dff", "bank1-resident-$0000-$1fff", "bank1-assets-$2000-$3dff", "bank2-primary-source", "bank3-enemy-reserve-$0800-$17ff", "bank3-primary-source", "all-banks-inaccessible-$3e00-$3fff"]
+      },
+      {
+        "id": "all-framebuffer-structures",
+        "category": "framebuffer-structure",
+        "owner": "Each physical framebuffer owns pixels and its A/B-local actor history; direct-page protocol state owns publication only",
+        "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-framebuffer-structures",
+        "items": ["compatibility-hold-surface", "persistent-framebuffer-a", "persistent-framebuffer-b", "render-transaction-metadata", "player-save-under-a", "player-save-under-b", "enemy-ring-history-a", "enemy-ring-history-b", "pending-damage-a", "pending-damage-b"]
+      },
+      {
+        "id": "all-stack-boundaries",
+        "category": "stack-boundary",
+        "owner": "The 6809 system stack exclusively owns $1e00-$1fff after copied-module publication",
+        "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-stack",
+        "items": ["stack-floor-$1e00", "stack-initial-$1ffe", "stack-window-$1e00-$1fff"]
+      },
+      {
+        "id": "all-generated-abi-entries",
+        "category": "generated-abi",
+        "owner": "The exporting module owns each entry; build-generated includes bind consumers to current map addresses",
+        "semantic_id": "../../wiki/internal/implementation/source-structure.html#generated-abi",
+        "items": ["resident-entry-$c002", "enemy-runtime-jump-table", "presentation-module-entry", "release-or-development-$0300-entry", "perimeter-helper-fixed-jumps", "resident-symbol-include", "presentation-symbol-include", "sparse-loader-include"]
+      },
+      {
+        "id": "all-structured-tables",
+        "category": "structured-table",
+        "owner": "Each authored data label belongs to its declaring module; generated table fields belong to their producing generator schema",
+        "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-structured-tables",
+        "label_kinds": ["data"],
+        "items": ["sparse-index-record", "sparse-command-stream", "loader-copy-record", "address-identity-record", "call-edge-record", "label-classification-record", "evidence-record", "presentation-screen-record", "demo-route-record", "entity-record", "render-intent-record"]
+      }
+    ],
+    "required_scenarios": [
+      "feat-002-current-deployed-attract-loop",
+      "feat-002-cold-and-warm-title",
+      "feat-002-title-to-level-start",
+      "feat-002-level-start-to-demo",
+      "feat-002-both-demo-deaths",
+      "feat-002-demo-return-to-title",
+      "feat-002-credit-input-boundary",
+      "feat-002-start-input-boundary",
+      "feat-002-live-gameplay-handoff",
+      "feat-002-instruction-profile-exclusion"
+    ],
+    "scenarios": [
+      {
+        "id": "feat-002-current-deployed-attract-loop",
+        "criterion": "FEAT-002 current child-scope deployed loop reaches the natural presentation and gameplay phases",
+        "behavior": "Cold boot publishes the attract title, advances the attract director, enters normal-engine demo gameplay, and reaches the shared presentation path",
+        "state": "natural boot and attract",
+        "module": "presentation-runtime",
+        "routine": "presentation_flow_tick",
+        "memory": ["presentation-flow-state", "render-transaction"],
+        "source": [
+          {"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 121},
+          {"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 264},
+          {"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 508}
+        ],
+        "verifier": "python3 scripts/verify_gmc_boot.py with natural and forced phases",
+        "evidence": ["baseline-runtime", "baseline-visible", "baseline-timing"]
+      },
+      {
+        "id": "feat-002-cold-and-warm-title",
+        "criterion": "Cold and stale warm presentation state both select and publish the current attract title",
+        "behavior": "The presentation dispatcher normalizes cold or stale state before the first title stream and shared publication",
+        "state": "cold or stale warm boot",
+        "module": "presentation-runtime",
+        "routine": "presentation_flow_tick",
+        "memory": ["presentation-flow-state", "render-transaction"],
+        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 121}],
+        "verifier": "startup and natural phases of scripts/verify_gmc_boot.py plus retained first-FRONT identity",
+        "evidence": ["baseline-delivery", "baseline-runtime", "baseline-visible"]
+      },
+      {
+        "id": "feat-002-title-to-level-start",
+        "criterion": "The deployed attract title advances to the part-one level-start producer",
+        "behavior": "Attract timing selects the level-start screen without introducing a second renderer",
+        "state": "attract expiry and level-start load",
+        "module": "presentation-runtime",
+        "routine": "start_screen",
+        "memory": ["presentation-flow-state", "render-transaction"],
+        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 250}],
+        "verifier": "natural presentation phase of scripts/verify_gmc_boot.py",
+        "evidence": ["baseline-runtime", "baseline-visible"]
+      },
+      {
+        "id": "feat-002-level-start-to-demo",
+        "criterion": "The level-start deadline enters normal-engine demo gameplay",
+        "behavior": "Level state initializes gameplay and transfers control to the shared demo/gameplay services",
+        "state": "level-start expiry",
+        "module": "presentation-runtime",
+        "routine": "presentation_flow_tick",
+        "memory": ["presentation-flow-state", "render-transaction"],
+        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 561}],
+        "verifier": "natural presentation plus forced gameplay phases of scripts/verify_gmc_boot.py",
+        "evidence": ["baseline-runtime", "baseline-timing"]
+      },
+      {
+        "id": "feat-002-both-demo-deaths",
+        "criterion": "Current demo termination remains traceable through enemy-contact and skull-pickup causes",
+        "behavior": "The demo director observes ordinary gameplay death state and enters the shared death presentation for either forced cause",
+        "state": "forced demo enemy or skull death",
+        "module": "presentation-runtime",
+        "routine": "presentation_flow_tick",
+        "memory": ["presentation-flow-state", "render-transaction"],
+        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 631}],
+        "verifier": "forced demo-death phase of scripts/verify_gmc_boot.py",
+        "evidence": ["baseline-runtime"]
+      },
+      {
+        "id": "feat-002-demo-return-to-title",
+        "criterion": "A completed deployed demo death returns to the attract title",
+        "behavior": "The demo-death completion path selects the attract screen and re-enters the presentation stream",
+        "state": "demo death complete",
+        "module": "presentation-runtime",
+        "routine": "presentation_flow_tick",
+        "memory": ["presentation-flow-state", "render-transaction"],
+        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 642}],
+        "verifier": "natural loop-return marker and retained title FRONT identity",
+        "evidence": ["baseline-runtime", "baseline-visible"]
+      },
+      {
+        "id": "feat-002-credit-input-boundary",
+        "criterion": "Credit edges are traceable to the one scanner and presentation state owner even where current bug tickets retain behavior defects",
+        "behavior": "The shared keyboard edge scanner records credit input before presentation dispatch",
+        "state": "credit edge in presentation flow",
+        "module": "presentation-runtime",
+        "routine": "scan_keys",
+        "memory": ["presentation-flow-state"],
+        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 687}],
+        "verifier": "source-reference call/state trace; current BUG-013 remains deferred evidence about behavior",
+        "evidence": ["baseline-structural", "baseline-representation"]
+      },
+      {
+        "id": "feat-002-start-input-boundary",
+        "criterion": "Player-one start with or without credit is traceable to presentation ownership without claiming deferred bug closure",
+        "behavior": "The dispatcher consumes the scanner result and selects the authorized live-start path only from presentation state",
+        "state": "start edge with current credit state",
+        "module": "presentation-runtime",
+        "routine": "presentation_flow_tick",
+        "memory": ["presentation-flow-state"],
+        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 121}],
+        "verifier": "source-reference control trace plus current FEAT-002/BUG ticket evidence",
+        "evidence": ["baseline-structural", "baseline-representation"]
+      },
+      {
+        "id": "feat-002-live-gameplay-handoff",
+        "criterion": "The presentation-to-live-gameplay handoff resolves to the shared initialization and render owners",
+        "behavior": "Presentation maps gameplay state and BACK, runs shared initialization, and releases normal gameplay ownership",
+        "state": "authorized live gameplay re-entry",
+        "module": "presentation-runtime",
+        "routine": "gameplay_reentry",
+        "memory": ["presentation-flow-state", "render-transaction"],
+        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 607}],
+        "verifier": "forced gameplay integration phase of scripts/verify_gmc_boot.py",
+        "evidence": ["baseline-runtime", "baseline-visible"]
+      },
+      {
+        "id": "feat-002-instruction-profile-exclusion",
+        "criterion": "The current release profile records the instruction choreography as authored but profile-inactive rather than silently omitting it",
+        "behavior": "The release auxiliary at $0300 is the demo route; instruction_runtime.s remains source-visible development material with no release emission",
+        "state": "release profile selection",
+        "module": "development-instruction-runtime",
+        "routine": "instruction_runtime_tick",
+        "memory": ["presentation-flow-state"],
+        "source": [{"module": "development-instruction-runtime", "file": "src/instruction_runtime.s", "line": 1}],
+        "verifier": "source-only module representation plus explicit profile/exclusion manifest",
+        "evidence": ["baseline-structural", "baseline-representation"]
+      },
+      {
+        "id": "doc-002-bank1-delivery",
+        "criterion": "Authored resident bytes remain identifiable through bank-1 staging and all-RAM publication",
+        "behavior": "Bootstrap stages the bank-1 resident interval, copies it into the final all-RAM mapping, sets the handoff flag, and enters the resident runtime",
+        "state": "loader and resident startup",
+        "module": "gmc-bootstrap",
+        "routine": "boot_entry",
+        "memory": ["bank1-resident-publication"],
+        "source": [
+          {"module": "gmc-bootstrap", "file": "src/gmc_bootstrap.s", "line": 186},
+          {"module": "gmc-bootstrap", "file": "src/gmc_bootstrap.s", "line": 258},
+          {"module": "gmc-bootstrap", "file": "src/gmc_bootstrap.s", "line": 307}
+        ],
+        "verifier": "python3 scripts/verify_gmc_boot.py --startup-only",
+        "evidence": ["baseline-delivery"]
+      },
+      {
+        "id": "doc-002-pc-to-attract-owner",
+        "criterion": "A live presentation PC resolves to its module, routine, exact source line, and owned state",
+        "behavior": "The attract tick advances the presentation timer and retains presentation ownership until the next state",
+        "state": "attract hold",
+        "module": "presentation-runtime",
+        "routine": "presentation_flow_tick",
+        "memory": ["presentation-flow-state"],
+        "source": [
+          {"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 509},
+          {"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 518}
+        ],
+        "verifier": "generated addresses.html and module-presentation-runtime.html anchor inspection",
+        "evidence": ["baseline-representation", "baseline-runtime"]
+      },
+      {
+        "id": "doc-002-direct-page-publication-owner",
+        "criterion": "A direct-page publication byte resolves to its owner and every configured read/write reference",
+        "behavior": "Vbord publishes the completed BACK image, swaps FRONT/BACK ownership, and clears pending state",
+        "state": "interrupt-time framebuffer publication",
+        "module": "enemy-runtime",
+        "routine": "framebuffer_irq_impl",
+        "memory": ["render-transaction"],
+        "source": [
+          {"module": "enemy-runtime", "file": "src/enemy_runtime.s", "line": 1237},
+          {"module": "enemy-runtime", "file": "src/enemy_runtime.s", "line": 1239},
+          {"module": "enemy-runtime", "file": "src/enemy_runtime.s", "line": 1241}
+        ],
+        "verifier": "generated memory-reference list plus natural FRONT capture",
+        "evidence": ["baseline-representation", "baseline-visible"]
+      }
+    ],
+    "label_rules": [
+      {
+        "file_pattern": "^build/",
+        "kind": "generated",
+        "reason": "Build-generated include symbol; semantic ownership belongs to the producing build step"
+      },
+      {
+        "pattern": "[A-Z][A-Z0-9_.]*",
+        "kind": "constant",
+        "reason": "Assembly-time constant, hardware alias, direct-page alias, or fixed entry address with no owned storage at this label"
+      }
+    ]
+  },
+  "evidence": [
+    {
+      "id": "baseline-structural",
+      "dimension": "structural",
+      "state": "pass",
+      "artifact": "src/main.s",
+      "sha256": "auto",
+      "note": "Authored source at the isolated baseline revision"
+    },
+    {
+    "id": "baseline-representation",
+    "dimension": "representation",
+    "state": "pass",
+    "artifact": "wiki/internal/implementation/source-guide.html",
+    "sha256": "auto",
+    "note": "Generated anchors, address lookup, routine ownership, memory references, and artifact hashes verified"
+    },
+    {
+      "id": "baseline-delivery",
+      "dimension": "delivery",
+    "state": "pass",
+    "artifact": "wiki/internal/implementation/source-guide.html",
+    "sha256": "auto",
+    "note": "Bank-1 staged bytes and final all-RAM resident bytes matched the certified ROM interval"
+    },
+    {
+      "id": "baseline-runtime",
+      "dimension": "runtime-reachability",
+    "state": "pass",
+    "artifact": "wiki/internal/implementation/source-guide.html",
+    "sha256": "auto",
+    "note": "Natural main loop and presentation plus forced gameplay/demo integration markers reached"
+    },
+    {
+      "id": "baseline-visible",
+      "dimension": "visible-output",
+    "state": "pass",
+    "artifact": "wiki/internal/implementation/source-guide.html",
+    "sha256": "auto",
+    "note": "Live published FRONT bytes matched the independently generated attract phase-0 frame; existing visual bugs remain accepted baseline"
+    },
+    {
+      "id": "baseline-timing",
+      "dimension": "timing",
+    "state": "pass",
+    "artifact": "wiki/internal/implementation/source-guide.html",
+    "sha256": "auto",
+    "note": "One natural presentation interval retained as an XRoar timing trace; evidence pass does not resolve existing performance bugs"
+    }
+  ],
+  "routine_catalog": "../../wiki/internal/implementation/routine-catalog.html",
+  "contract_profiles": {
+    "root": {
+      "inputs": "Entry-specific machine state and the shared direct-page protocol named by the routine purpose",
+      "outputs": "Control transfers or status values defined by the routine purpose",
+      "clobbers": "A, B, D, X, Y, U, and condition codes unless the caller-facing entry contract states otherwise",
+      "reads": "Always-mapped direct-page protocol state plus the module-owned state required by the selected operation",
+      "writes": "Module-owned state and mapped hardware registers required to establish or dispatch the operation",
+      "side_effects": "May change mapping, interrupt, rendering, or lifecycle ownership as stated by the routine purpose",
+      "invariants": "The stack remains balanced and every temporary PAR mapping is restored or deliberately handed off before return"
+    },
+    "state": {
+      "inputs": "Current authoritative gameplay or presentation state; register arguments are named by the routine label and immediate caller",
+      "outputs": "Updated authoritative state and condition codes used by the immediate caller",
+      "clobbers": "A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present",
+      "reads": "Owned direct-page and page-$34 state needed for the operation",
+      "writes": "Only the owned state fields and render intents required by the operation",
+      "side_effects": "May enqueue rendering work but does not publish FRONT",
+      "invariants": "Authoritative state changes precede their render intents; framebuffer publication remains IRQ-owned"
+    },
+    "render": {
+      "inputs": "Current render intent, selected actor or tile state, and a valid BACK or staging destination",
+      "outputs": "Updated destination pixels and any owner-local history required by later restoration",
+      "clobbers": "A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present",
+      "reads": "Authoritative gameplay state, immutable art streams, and current owner-local background metadata",
+      "writes": "BACK or staging pixels, render scratch, and owner-local save-under or damage metadata",
+      "side_effects": "Changes a non-visible composition surface or its metadata",
+      "invariants": "The routine never selects the visible FRONT surface; temporary PAR5 mappings expire or restore before return"
+    },
+    "framebuffer": {
+      "inputs": "ACTIVE/PENDING state, BACK identity, owner metadata, and the current worklist",
+      "outputs": "A prepared, captured, finished, or published framebuffer transaction as named by the routine",
+      "clobbers": "A, B, D, X, Y, U, and condition codes unless the fixed entry contract narrows them",
+      "reads": "Always-mapped framebuffer protocol bytes and owner-local metadata",
+      "writes": "Framebuffer protocol bytes, BACK pixels, owner-local metadata, and GIME display offset only at IRQ publication",
+      "side_effects": "Advances one bounded phase of the persistent A/B transaction",
+      "invariants": "Foreground code may arm PENDING but only Vbord IRQ publishes FRONT; mapping-sensitive pointers do not outlive PAR changes"
+    },
+    "movement": {
+      "inputs": "Current actor coordinates, direction, maze topology, gate state, and collision state",
+      "outputs": "A legality result, selected direction, contact result, or updated actor state",
+      "clobbers": "A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present",
+      "reads": "Authoritative actor records, maze and gate tables, and movement scratch",
+      "writes": "Owned actor state, collision flags, and render intents required by the movement result",
+      "side_effects": "May change authoritative gameplay state and queue later composition",
+      "invariants": "Movement remains on legal semantic cells and does not write framebuffer pixels directly"
+    },
+    "copy": {
+      "inputs": "Source and destination identities, bounded count or stream metadata, and any required mapped page",
+      "outputs": "Copied, decoded, merged, cached, or addressed data plus caller-visible pointer progress",
+      "clobbers": "A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present",
+      "reads": "The declared source stream, table, framebuffer rows, or metadata record",
+      "writes": "Only the declared bounded destination record, cache, row range, or scratch fields",
+      "side_effects": "May temporarily map PAR5 while moving or decoding data",
+      "invariants": "Counts and destination bounds are honored; temporary mappings are restored before returning"
+    },
+    "presentation": {
+      "inputs": "Presentation state, interval timer, input edges, current map, and the selected auxiliary profile",
+      "outputs": "Updated presentation state and the dispatcher retain/release status when applicable",
+      "clobbers": "A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present",
+      "reads": "Presentation direct-page state, cold payloads, authored map streams, and input state",
+      "writes": "Presentation state, mapped BACK pixels, and presentation-owned persistent metadata",
+      "side_effects": "May retain the foreground interval or produce a complete presentation surface",
+      "invariants": "Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned"
+    },
+    "input": {
+      "inputs": "PIA input state, prior sampled state, and axis or key selection",
+      "outputs": "Normalized input state, edge bits, or axis sample",
+      "clobbers": "A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present",
+      "reads": "PIA registers and prior input samples",
+      "writes": "Owned input state and temporary PIA scan selection",
+      "side_effects": "Temporarily drives keyboard or joystick scan hardware",
+      "invariants": "PIA control and drive state are restored to the runtime convention before return"
+    },
+    "boot": {
+      "inputs": "The declared cartridge bank, staged payload, destination identity, and bootstrap mapping state",
+      "outputs": "Installed runtime bytes or a non-returning transfer to the next boot phase",
+      "clobbers": "All CPU registers and condition codes",
+      "reads": "Cartridge-staged payloads, generated size symbols, and bootstrap tables",
+      "writes": "Declared RAM destinations, PAR registers, boot scratch, and decompressed surfaces",
+      "side_effects": "Changes MMU mappings and copies or synthesizes executable/data payloads",
+      "invariants": "Authored, staged, and destination byte identities remain distinct and every transfer obeys its generated size bound"
+    }
+  }
+}

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Routine Catalog &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="../../index.html">&larr; Wiki home</a><a href="../index.html">Internal</a><a href="./index.html">Implementation</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation &middot; <a href="./glossary.html#term-routine-contract">routine contracts</a></p>
+      <h1>Routine Catalog <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Canonical purpose and interface contracts for every exported, called, fixed-entry, hardware-touching, shared-state-mutating, or otherwise non-trivial routine in the current release topology.</p>
+    </header>
+
+    <section>
+      <h2>Controlled vocabulary</h2>
+      <p><a href="./glossary.html#term-routine-contract">Routine contract</a>, <a href="./glossary.html#term-authoritative-state">authoritative state</a>, <a href="./glossary.html#term-render-intent">render intent</a>, and <a href="./glossary.html#term-publication">publication</a> use the glossary definitions throughout this catalog.</p>
+    </section>
+
+    <section id="contract-composition">
+      <h2>How to read a contract</h2>
+      <p>Each routine contract is the combination of its unique purpose below and one named interface profile. The profile supplies inputs, outputs, conservative clobbers, memory reads, memory writes, side effects, and invariants. A narrower source-local header overrides the conservative register set but may not widen memory ownership or weaken an invariant. Generated module pages add current callers, callees, source lines, addresses, and emitted bytes; they do not own semantic meaning.</p>
+      <p>In each routine table, <strong>label</strong> is the authored global symbol and stable link target, <strong>purpose</strong> is that routine's owned operation, <strong>profile</strong> selects the complete interface contract, and <strong>coverage reason</strong> states why fail-closed documentation requires the routine.</p>
+    </section>
+
+    <section id="contract-profiles">
+      <h2>Interface profiles</h2>
+      <section id="profile-root">
+        <h3>Root and hardware gateway</h3>
+        <p><strong>Inputs:</strong> Entry-specific machine state and the shared direct-page protocol named by the routine purpose.</p>
+        <p><strong>Outputs:</strong> Control transfers or status values defined by the routine purpose.</p>
+        <p><strong>Clobbers:</strong> A, B, D, X, Y, U, and condition codes unless the caller-facing entry contract states otherwise.</p>
+        <p><strong>Reads:</strong> Always-mapped direct-page protocol state plus the module-owned state required by the selected operation.</p>
+        <p><strong>Writes:</strong> Module-owned state and mapped hardware registers required to establish or dispatch the operation.</p>
+        <p><strong>Side effects:</strong> May change mapping, interrupt, rendering, or lifecycle ownership as stated by the routine purpose.</p>
+        <p><strong>Invariants:</strong> The stack remains balanced and every temporary PAR mapping is restored or deliberately handed off before return.</p>
+      </section>
+      <section id="profile-state">
+        <h3>Authoritative state mutation</h3>
+        <p><strong>Inputs:</strong> Current authoritative gameplay or presentation state; register arguments are named by the routine label and immediate caller.</p>
+        <p><strong>Outputs:</strong> Updated authoritative state and condition codes used by the immediate caller.</p>
+        <p><strong>Clobbers:</strong> A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present.</p>
+        <p><strong>Reads:</strong> Owned direct-page and page-$34 state needed for the operation.</p>
+        <p><strong>Writes:</strong> Only the owned state fields and render intents required by the operation.</p>
+        <p><strong>Side effects:</strong> May enqueue rendering work but does not publish FRONT.</p>
+        <p><strong>Invariants:</strong> Authoritative state changes precede their render intents; framebuffer publication remains IRQ-owned.</p>
+      </section>
+      <section id="profile-render">
+        <h3>BACK and staging rendering</h3>
+        <p><strong>Inputs:</strong> Current render intent, selected actor or tile state, and a valid BACK or staging destination.</p>
+        <p><strong>Outputs:</strong> Updated destination pixels and any owner-local history required by later restoration.</p>
+        <p><strong>Clobbers:</strong> A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present.</p>
+        <p><strong>Reads:</strong> Authoritative gameplay state, immutable art streams, and current owner-local background metadata.</p>
+        <p><strong>Writes:</strong> BACK or staging pixels, render scratch, and owner-local save-under or damage metadata.</p>
+        <p><strong>Side effects:</strong> Changes a non-visible composition surface or its metadata.</p>
+        <p><strong>Invariants:</strong> The routine never selects the visible FRONT surface; temporary PAR5 mappings expire or restore before return.</p>
+      </section>
+      <section id="profile-framebuffer">
+        <h3>Persistent framebuffer protocol</h3>
+        <p><strong>Inputs:</strong> ACTIVE/PENDING state, BACK identity, owner metadata, and the current worklist.</p>
+        <p><strong>Outputs:</strong> A prepared, captured, finished, or published framebuffer transaction as named by the routine.</p>
+        <p><strong>Clobbers:</strong> A, B, D, X, Y, U, and condition codes unless the fixed entry contract narrows them.</p>
+        <p><strong>Reads:</strong> Always-mapped framebuffer protocol bytes and owner-local metadata.</p>
+        <p><strong>Writes:</strong> Framebuffer protocol bytes, BACK pixels, owner-local metadata, and GIME display offset only at IRQ publication.</p>
+        <p><strong>Side effects:</strong> Advances one bounded phase of the persistent A/B transaction.</p>
+        <p><strong>Invariants:</strong> Foreground code may arm PENDING but only Vbord IRQ publishes FRONT; mapping-sensitive pointers do not outlive PAR changes.</p>
+      </section>
+      <section id="profile-movement">
+        <h3>Movement and collision</h3>
+        <p><strong>Inputs:</strong> Current actor coordinates, direction, maze topology, gate state, and collision state.</p>
+        <p><strong>Outputs:</strong> A legality result, selected direction, contact result, or updated actor state.</p>
+        <p><strong>Clobbers:</strong> A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present.</p>
+        <p><strong>Reads:</strong> Authoritative actor records, maze and gate tables, and movement scratch.</p>
+        <p><strong>Writes:</strong> Owned actor state, collision flags, and render intents required by the movement result.</p>
+        <p><strong>Side effects:</strong> May change authoritative gameplay state and queue later composition.</p>
+        <p><strong>Invariants:</strong> Movement remains on legal semantic cells and does not write framebuffer pixels directly.</p>
+      </section>
+      <section id="profile-copy">
+        <h3>Bounded copy, cache, and address transformation</h3>
+        <p><strong>Inputs:</strong> Source and destination identities, bounded count or stream metadata, and any required mapped page.</p>
+        <p><strong>Outputs:</strong> Copied, decoded, merged, cached, or addressed data plus caller-visible pointer progress.</p>
+        <p><strong>Clobbers:</strong> A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present.</p>
+        <p><strong>Reads:</strong> The declared source stream, table, framebuffer rows, or metadata record.</p>
+        <p><strong>Writes:</strong> Only the declared bounded destination record, cache, row range, or scratch fields.</p>
+        <p><strong>Side effects:</strong> May temporarily map PAR5 while moving or decoding data.</p>
+        <p><strong>Invariants:</strong> Counts and destination bounds are honored; temporary mappings are restored before returning.</p>
+      </section>
+      <section id="profile-presentation">
+        <h3>Presentation interval</h3>
+        <p><strong>Inputs:</strong> Presentation state, interval timer, input edges, current map, and the selected auxiliary profile.</p>
+        <p><strong>Outputs:</strong> Updated presentation state and the dispatcher retain/release status when applicable.</p>
+        <p><strong>Clobbers:</strong> A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present.</p>
+        <p><strong>Reads:</strong> Presentation direct-page state, cold payloads, authored map streams, and input state.</p>
+        <p><strong>Writes:</strong> Presentation state, mapped BACK pixels, and presentation-owned persistent metadata.</p>
+        <p><strong>Side effects:</strong> May retain the foreground interval or produce a complete presentation surface.</p>
+        <p><strong>Invariants:</strong> Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned.</p>
+      </section>
+      <section id="profile-input">
+        <h3>PIA input sampling</h3>
+        <p><strong>Inputs:</strong> PIA input state, prior sampled state, and axis or key selection.</p>
+        <p><strong>Outputs:</strong> Normalized input state, edge bits, or axis sample.</p>
+        <p><strong>Clobbers:</strong> A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present.</p>
+        <p><strong>Reads:</strong> PIA registers and prior input samples.</p>
+        <p><strong>Writes:</strong> Owned input state and temporary PIA scan selection.</p>
+        <p><strong>Side effects:</strong> Temporarily drives keyboard or joystick scan hardware.</p>
+        <p><strong>Invariants:</strong> PIA control and drive state are restored to the runtime convention before return.</p>
+      </section>
+      <section id="profile-boot">
+        <h3>Bootstrap and delivery</h3>
+        <p><strong>Inputs:</strong> The declared cartridge bank, staged payload, destination identity, and bootstrap mapping state.</p>
+        <p><strong>Outputs:</strong> Installed runtime bytes or a non-returning transfer to the next boot phase.</p>
+        <p><strong>Clobbers:</strong> All CPU registers and condition codes.</p>
+        <p><strong>Reads:</strong> Cartridge-staged payloads, generated size symbols, and bootstrap tables.</p>
+        <p><strong>Writes:</strong> Declared RAM destinations, PAR registers, boot scratch, and decompressed surfaces.</p>
+        <p><strong>Side effects:</strong> Changes MMU mappings and copies or synthesizes executable/data payloads.</p>
+        <p><strong>Invariants:</strong> Authored, staged, and destination byte identities remain distinct and every transfer obeys its generated size bound.</p>
+      </section>
+    </section>
+
+    <section id="module-resident-runtime">
+      <h2>Resident runtime</h2>
+      <table>
+        <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
+        <tbody>
+          <tr id="routine-resident-runtime-add-bonus-score"><td><code>add_bonus_score</code></td><td>Add bonus score.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-add-dot-score"><td><code>add_dot_score</code></td><td>Add dot score.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-add-special-score"><td><code>add_special_score</code></td><td>Add special score.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-apply-letter-pickup"><td><code>apply_letter_pickup</code></td><td>Apply letter pickup.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-begin-score-popup"><td><code>begin_score_popup</code></td><td>Begin score popup.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-blit-packed-sprite"><td><code>blit_packed_sprite</code></td><td>Blit packed sprite.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-blit-tile"><td><code>blit_tile</code></td><td>Blit tile.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-blit-transparent"><td><code>blit_transparent</code></td><td>Blit transparent.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-bonus-color-tick"><td><code>bonus_color_tick</code></td><td>Advance bonus color state for one scheduled tick.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-build-gate-entity-lists"><td><code>build_gate_entity_lists</code></td><td>Build gate entity lists.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-cache-entity-operation"><td><code>cache_entity_operation</code></td><td>Cache entity operation.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-cache-entity-overlay"><td><code>cache_entity_overlay</code></td><td>Cache entity overlay.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-can-move"><td><code>can_move</code></td><td>Determine whether move.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-check-entity-pickup"><td><code>check_entity_pickup</code></td><td>Check entity pickup.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-check-stage-clear"><td><code>check_stage_clear</code></td><td>Check stage clear.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-clear-life-marker"><td><code>clear_life_marker</code></td><td>Clear life marker.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-death-tick"><td><code>death_tick</code></td><td>Advance death state for one scheduled tick.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-all-gates"><td><code>draw_all_gates</code></td><td>Draw all gates.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-draw-authored-hud-tile"><td><code>draw_authored_hud_tile</code></td><td>Draw authored hud tile.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-bcd-line"><td><code>draw_bcd_line</code></td><td>Draw bcd line.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-cell-overlay"><td><code>draw_cell_overlay</code></td><td>Draw cell overlay.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-cell-tile"><td><code>draw_cell_tile</code></td><td>Draw cell tile.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-death-frame"><td><code>draw_death_frame</code></td><td>Draw death frame.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-draw-entities"><td><code>draw_entities</code></td><td>Draw entities.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-entity-object"><td><code>draw_entity_object</code></td><td>Draw entity object.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-gate"><td><code>draw_gate</code></td><td>Draw gate.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-gate-diagonal"><td><code>draw_gate_diagonal</code></td><td>Draw gate diagonal.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-gate-entities"><td><code>draw_gate_entities</code></td><td>Draw gate entities.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-gate-overlay"><td><code>draw_gate_overlay</code></td><td>Draw gate overlay.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-gate-transition"><td><code>draw_gate_transition</code></td><td>Draw gate transition.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-draw-hud"><td><code>draw_hud</code></td><td>Draw hud.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-draw-hud-digit"><td><code>draw_hud_digit</code></td><td>Draw hud digit.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-hud-tile"><td><code>draw_hud_tile</code></td><td>Draw hud tile.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-draw-life-marker"><td><code>draw_life_marker</code></td><td>Draw life marker.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-lives"><td><code>draw_lives</code></td><td>Draw lives.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-draw-maze-state-cell"><td><code>draw_maze_state_cell</code></td><td>Draw maze state cell.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-multiplier-hud"><td><code>draw_multiplier_hud</code></td><td>Draw multiplier hud.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-draw-perimeter-box"><td><code>draw_perimeter_box</code></td><td>Draw perimeter box.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-draw-player"><td><code>draw_player</code></td><td>Draw player.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-popup-multiplier"><td><code>draw_popup_multiplier</code></td><td>Draw popup multiplier.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-recolored-map-tile"><td><code>draw_recolored_map_tile</code></td><td>Draw recolored map tile.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-score-popup"><td><code>draw_score_popup</code></td><td>Draw score popup.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-draw-screen"><td><code>draw_screen</code></td><td>Draw screen.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-draw-vegetable-hud"><td><code>draw_vegetable_hud</code></td><td>Draw vegetable hud.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-draw-word-progress-hud"><td><code>draw_word_progress_hud</code></td><td>Draw word progress hud.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-eat-dot"><td><code>eat_dot</code></td><td>Consume the current maze dot, update score and remaining-dot state, and queue the required HUD or stage work.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-enemy-collect"><td><code>enemy_collect</code></td><td>Dispatch vegetable collection to the installed enemy runtime.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-enemy-release"><td><code>enemy_release</code></td><td>Dispatch an enemy release request to the installed enemy runtime.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-enemy-tick"><td><code>enemy_tick</code></td><td>Advance enemy state for one scheduled tick.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-entry"><td><code>entry</code></td><td>Enter and initialize the stable resident runtime.</td><td><a href="#profile-root">Root and hardware gateway</a></td><td>exported, hardware-touching</td></tr>
+          <tr id="routine-resident-runtime-erase-entity-footprints"><td><code>erase_entity_footprints</code></td><td>Restore authored cell pixels beneath every placed entity before runtime overlays are composed.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-expose-player-background"><td><code>expose_player_background</code></td><td>Expose the background beneath the player for persistent redraw.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-finish-gate-animation"><td><code>finish_gate_animation</code></td><td>Finish gate animation.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-framebuffer-project-gate-only"><td><code>framebuffer_project_gate_only</code></td><td>Promote pending gate-only intents into the normal framebuffer background worklist.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-gate-render-hidden"><td><code>gate_render_hidden</code></td><td>Recompose a gate mutation on the mapped hidden framebuffer without changing visible ownership.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-init-enemy"><td><code>init_enemy</code></td><td>Initialize enemy.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-init-entities"><td><code>init_entities</code></td><td>Initialize entities.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-init-game-state"><td><code>init_game_state</code></td><td>Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for a new game.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-init-gate-state"><td><code>init_gate_state</code></td><td>Initialize gate state.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-init-joystick"><td><code>init_joystick</code></td><td>Initialize joystick.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-init-maze-state"><td><code>init_maze_state</code></td><td>Initialize maze state.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-init-player"><td><code>init_player</code></td><td>Initialize player.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-irq-handler"><td><code>irq_handler</code></td><td>Service Vbord by delegating the sole framebuffer publication point, then return from interrupt.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-joy-read-axis"><td><code>joy_read_axis</code></td><td>Sample and normalize one joystick axis through the PIA comparator.</td><td><a href="#profile-input">PIA input sampling</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-mark-gate-enemy-overlap"><td><code>mark_gate_enemy_overlap</code></td><td>Mark roaming enemy captures whose destinations intersect the current gate mutation.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-merge-sprite-byte"><td><code>merge_sprite_byte</code></td><td>Merge sprite byte.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-next-stage"><td><code>next_stage</code></td><td>Advance the stage and reinitialize maze, gate, entity, player, enemy, bonus, and render state.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-perimeter-box-coordinates"><td><code>perimeter_box_coordinates</code></td><td>Convert the active perimeter box index into its semantic screen coordinates.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-perimeter-timer-tick"><td><code>perimeter_timer_tick</code></td><td>Advance perimeter timer state for one scheduled tick.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-pickup-tick"><td><code>pickup_tick</code></td><td>Advance pickup state for one scheduled tick.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-place-entity"><td><code>place_entity</code></td><td>Place entity.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-player-animation-tick"><td><code>player_animation_tick</code></td><td>Advance player animation state for one scheduled tick.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-player-cell-offset"><td><code>player_cell_offset</code></td><td>Convert the player&#x27;s semantic cell coordinates into a row-major maze offset.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-player-tick"><td><code>player_tick</code></td><td>Advance player state for one scheduled tick.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-queue-gate-render"><td><code>queue_gate_render</code></td><td>Record the current gate as pending framebuffer work.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-read-joystick"><td><code>read_joystick</code></td><td>Read joystick.</td><td><a href="#profile-input">PIA input sampling</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-refresh-enemy-zone-dot"><td><code>refresh_enemy_zone_dot</code></td><td>Refresh enemy zone dot.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-reload-box-timer"><td><code>reload_box_timer</code></td><td>Reload box timer.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-reload-enemy-box-timer"><td><code>reload_enemy_box_timer</code></td><td>Reload enemy box timer.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-render-frame"><td><code>render_frame</code></td><td>Render frame.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-replay-gate-entity-overlay"><td><code>replay_gate_entity_overlay</code></td><td>Replay gate entity overlay.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-reset-enemy-state"><td><code>reset_enemy_state</code></td><td>Reset enemy state.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-reset-perimeter-visual"><td><code>reset_perimeter_visual</code></td><td>Reset perimeter visual.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-restore-entity-footprint"><td><code>restore_entity_footprint</code></td><td>Restore entity footprint.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-restore-gate-background"><td><code>restore_gate_background</code></td><td>Restore gate background.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-restore-gate-diagonal-dots"><td><code>restore_gate_diagonal_dots</code></td><td>Restore gate diagonal dots.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-restore-player"><td><code>restore_player</code></td><td>Restore player.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-rng-next"><td><code>rng_next</code></td><td>Advance rng next and return its next value.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-save-player"><td><code>save_player</code></td><td>Save player.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-test-cell-offset"><td><code>test_cell_offset</code></td><td>Test cell offset.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="module-enemy-runtime">
+      <h2>Enemy and framebuffer runtime</h2>
+      <table>
+        <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
+        <tbody>
+          <tr id="routine-enemy-runtime-actor-closure-draw"><td><code>actor_closure_draw</code></td><td>Draw the actors selected by the current damage closure.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-actor-closure-restore"><td><code>actor_closure_restore</code></td><td>Restore background for the actors selected by the current damage closure.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-blit-stage-sprite"><td><code>blit_stage_sprite</code></td><td>Blit stage sprite.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-build-enemy-nest-cache"><td><code>build_enemy_nest_cache</code></td><td>Build enemy nest cache.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-capture-zone-bg"><td><code>capture_zone_bg</code></td><td>Capture the current zone background before an actor overlay changes it.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-compose-enemy-animation"><td><code>compose_enemy_animation</code></td><td>Compose enemy animation.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-compose-enemy-zone"><td><code>compose_enemy_zone</code></td><td>Compose enemy zone.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-copy-nest-128"><td><code>copy_nest_128</code></td><td>Copy nest 128.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-copy-two-fb-rows"><td><code>copy_two_fb_rows</code></td><td>Copy two fb rows.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-draw-enemy-fb"><td><code>draw_enemy_fb</code></td><td>Draw enemy fb.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-draw-enemy-stage"><td><code>draw_enemy_stage</code></td><td>Draw enemy stage.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-draw-vegetable-stage"><td><code>draw_vegetable_stage</code></td><td>Draw vegetable stage.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-enemy-choose-direction"><td><code>enemy_choose_direction</code></td><td>Select a legal enemy direction from maze, gate, and target state.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-enemy-collect-impl"><td><code>enemy_collect_impl</code></td><td>Resolve the vegetable collection transition and its enemy-state consequences.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
+          <tr id="routine-enemy-runtime-enemy-direction-legal"><td><code>enemy_direction_legal</code></td><td>Test whether a proposed enemy direction is legal at the current semantic cell.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-enemy-frame-number"><td><code>enemy_frame_number</code></td><td>Resolve the animation frame number for the current enemy state and direction.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-enemy-init-impl"><td><code>enemy_init_impl</code></td><td>Reset enemy lifecycle state and mark enemy composition dirty.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
+          <tr id="routine-enemy-runtime-enemy-player-contact"><td><code>enemy_player_contact</code></td><td>Test and resolve contact between an active enemy and the player.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-enemy-release-impl"><td><code>enemy_release_impl</code></td><td>Release an eligible enemy from the nest into authoritative gameplay state.</td><td><a href="#profile-movement">Movement and collision</a></td><td>exported</td></tr>
+          <tr id="routine-enemy-runtime-enemy-render-impl"><td><code>enemy_render_impl</code></td><td>Compose current enemy actors and their owner-local background history.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-enemy-skull-test"><td><code>enemy_skull_test</code></td><td>Test whether the current enemy position triggers the skull interaction.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-enemy-tick-impl"><td><code>enemy_tick_impl</code></td><td>Advance enemy lifecycle, movement, contact, and render-intent state for one gameplay tick.</td><td><a href="#profile-movement">Movement and collision</a></td><td>exported</td></tr>
+          <tr id="routine-enemy-runtime-frame-render-background"><td><code>frame_render_background</code></td><td>Reconstruct BACK background work before actor overlays are drawn.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-frame-render-impl"><td><code>frame_render_impl</code></td><td>Compose the selected BACK surface and arm its completed transaction.</td><td><a href="#profile-root">Root and hardware gateway</a></td><td>exported, shared-state-mutating</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-back-meta"><td><code>framebuffer_back_meta</code></td><td>Resolve the owner-local metadata record for the current BACK framebuffer.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-begin-fallback"><td><code>framebuffer_begin_fallback</code></td><td>Begin the bounded full-surface fallback transaction.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-capture-a"><td><code>framebuffer_capture_a</code></td><td>Capture owner-A restoration state for persistent A/B initialization.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-capture-back"><td><code>framebuffer_capture_back</code></td><td>Capture current BACK owner metadata after composition.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-finish-back"><td><code>framebuffer_finish_back</code></td><td>Finish the current BACK transaction and arm PENDING publication.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-finish-fallback"><td><code>framebuffer_finish_fallback</code></td><td>Finish the fallback full-surface transaction.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-init-impl"><td><code>framebuffer_init_impl</code></td><td>Clone the initial surface and initialize persistent A/B owner metadata while display output is blanked.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>exported</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-irq-impl"><td><code>framebuffer_irq_impl</code></td><td>Publish a completed PENDING framebuffer at Vbord and maintain frame counters.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>exported</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-prepare-back"><td><code>framebuffer_prepare_back</code></td><td>Prepare owner-local history and damage state for the selected BACK framebuffer.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-project-damage"><td><code>framebuffer_project_damage</code></td><td>Project pending damage intents into the selected BACK worklist.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-queue-damage"><td><code>framebuffer_queue_damage</code></td><td>Append one bounded damage intent to owner-local metadata.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-gate-compose-impl"><td><code>gate_compose_impl</code></td><td>Compose the selected gate mutation and its intersecting overlays into BACK.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-gate-compute-region"><td><code>gate_compute_region</code></td><td>Compute the bounded framebuffer region affected by the current gate.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-gate-map-live"><td><code>gate_map_live</code></td><td>Map the live gate region used for final composition.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-gate-map-shadow"><td><code>gate_map_shadow</code></td><td>Map the shadow gate region used for restoration.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-gate-map-shadow-window"><td><code>gate_map_shadow_window</code></td><td>Map the page window containing the current shadow gate region.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-gate-region-from-shadow"><td><code>gate_region_from_shadow</code></td><td>Translate a shadow-region identity into the live region representation.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-gate-region-to-shadow"><td><code>gate_region_to_shadow</code></td><td>Translate a live gate region into its shadow representation.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-gate-set-player-region"><td><code>gate_set_player_region</code></td><td>Add the player&#x27;s footprint to the current gate damage region when they intersect.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-merge-stage-pixel"><td><code>merge_stage_pixel</code></td><td>Merge stage pixel.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-perimeter-box-coordinates"><td><code>perimeter_box_coordinates</code></td><td>Convert the active perimeter box index into its semantic screen coordinates.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-player-compose-impl"><td><code>player_compose_impl</code></td><td>Compose the player and its owner-local save-under history into BACK.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-player-draw-impl"><td><code>player_draw_impl</code></td><td>Draw the selected player sparse stream into BACK.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
+          <tr id="routine-enemy-runtime-refresh-zone-bg-footprint"><td><code>refresh_zone_bg_footprint</code></td><td>Refresh zone bg footprint.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-render-exposed-player"><td><code>render_exposed_player</code></td><td>Render exposed player.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-render-perimeter-reset"><td><code>render_perimeter_reset</code></td><td>Render perimeter reset.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-restore-player"><td><code>restore_player</code></td><td>Restore player.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-bg-address"><td><code>roam_bg_address</code></td><td>Resolve the background-ring address for one roaming actor slot.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-capture-ring-row"><td><code>roam_capture_ring_row</code></td><td>Capture one framebuffer row into a roaming actor background-ring slot.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-copy-bg-to-fb"><td><code>roam_copy_bg_to_fb</code></td><td>Restore a roaming actor background record into framebuffer pixels.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-copy-fb-to-bg"><td><code>roam_copy_fb_to_bg</code></td><td>Capture framebuffer pixels into a roaming actor background record.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-finish-shadow"><td><code>roam_finish_shadow</code></td><td>Finalize shadow metadata after roaming actor restoration.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-mark-underlay"><td><code>roam_mark_underlay</code></td><td>Mark the roaming actor underlay that must be captured after background work.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-old-slot"><td><code>roam_old_slot</code></td><td>Resolve the prior background-ring slot for one roaming actor.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-prepare-shadow"><td><code>roam_prepare_shadow</code></td><td>Prepare shadow state for a roaming actor update.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-ring-slot"><td><code>roam_ring_slot</code></td><td>Resolve the current background-ring slot for one roaming actor.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-set-final-union"><td><code>roam_set_final_union</code></td><td>Commit the union of old and new roaming actor damage regions.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-snapshot-old"><td><code>roam_snapshot_old</code></td><td>Snapshot the prior roaming actor position and background ownership.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-roam-update-background"><td><code>roam_update_background</code></td><td>Update roaming actor background history after composition.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-save-player"><td><code>save_player</code></td><td>Save player.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-sparse-blit-fb"><td><code>sparse_blit_fb</code></td><td>Decode a sparse sprite stream directly into framebuffer pixels.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-sparse-blit-stage"><td><code>sparse_blit_stage</code></td><td>Decode a sparse sprite stream into the bounded stage buffer.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-sparse-enemy-stream"><td><code>sparse_enemy_stream</code></td><td>Resolve the sparse stream for the selected enemy frame.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-sparse-player-stream"><td><code>sparse_player_stream</code></td><td>Resolve the sparse stream for the selected player frame.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="module-presentation-runtime">
+      <h2>Presentation flow runtime</h2>
+      <table>
+        <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
+        <tbody>
+          <tr id="routine-presentation-runtime-add-credit"><td><code>add_credit</code></td><td>Add credit.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-cold-ptr"><td><code>cold_ptr</code></td><td>Resolve a pointer into the currently mapped presentation cold payload.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-cold-read-byte"><td><code>cold_read_byte</code></td><td>Read one byte from the presentation cold payload while preserving mapping ownership.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-colour-surface"><td><code>colour_surface</code></td><td>Apply a generated sparse nibble-colour stream to a selected 16-by-16 presentation surface.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>non-trivial</td></tr>
+          <tr id="routine-presentation-runtime-colour-tile"><td><code>colour_tile</code></td><td>Replace every nonzero packed pixel pair in one selected 8-by-8 instruction tile.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>non-trivial</td></tr>
+          <tr id="routine-presentation-runtime-draw-actor-overlay"><td><code>draw_actor_overlay</code></td><td>Draw the selected presentation actor stream into the current presentation destination.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>non-trivial</td></tr>
+          <tr id="routine-presentation-runtime-draw-cell"><td><code>draw_cell</code></td><td>Draw cell.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-draw-coin-slots"><td><code>draw_coin_slots</code></td><td>Draw coin slots.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-draw-tile-id"><td><code>draw_tile_id</code></td><td>Draw tile id.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-gameplay-reentry"><td><code>gameplay_reentry</code></td><td>Restore gameplay mappings and state after presentation releases the interval.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-init-gameplay"><td><code>init_gameplay</code></td><td>Initialize gameplay.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-install-aux-runtime"><td><code>install_aux_runtime</code></td><td>Install aux runtime.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-map-back"><td><code>map_back</code></td><td>Map back.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-presentation-flow-tick"><td><code>presentation_flow_tick</code></td><td>Dispatch the current presentation interval and return retain or release status.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>exported, shared-state-mutating</td></tr>
+          <tr id="routine-presentation-runtime-scan-keys"><td><code>scan_keys</code></td><td>Scan keys.</td><td><a href="#profile-input">PIA input sampling</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-start-screen"><td><code>start_screen</code></td><td>Initialize and draw the requested presentation screen.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-timer"><td><code>timer</code></td><td>Advance and return the current presentation interval timer.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="module-release-demo-runtime">
+      <h2>Release demo director</h2>
+      <table>
+        <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
+        <tbody>
+          <tr id="routine-demo-runtime-tick"><td><code>demo_runtime_tick</code></td><td>Advance the deterministic release-demo route at eligible semantic cells.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>exported</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="module-development-instruction-runtime">
+      <h2>Development instruction choreography</h2>
+      <table>
+        <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
+        <tbody>
+          <tr id="routine-development-instruction-runtime-apply-persistent-state"><td><code>apply_persistent_state</code></td><td>Apply persistent state.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-clear-target"><td><code>clear_target</code></td><td>Clear target.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-clear-target-x"><td><code>clear_target_x</code></td><td>Clear target x.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-draw-coin-reward"><td><code>draw_coin_reward</code></td><td>Draw coin reward.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-draw-life-reward"><td><code>draw_life_reward</code></td><td>Draw life reward.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-draw-multiplier-pair"><td><code>draw_multiplier_pair</code></td><td>Draw multiplier pair.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-draw-multipliers"><td><code>draw_multipliers</code></td><td>Draw multipliers.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-draw-value"><td><code>draw_value</code></td><td>Draw value.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-event-ptr-a"><td><code>event_ptr_a</code></td><td>Resolve the current development instruction event record into an address.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-instruction-runtime-tick"><td><code>instruction_runtime_tick</code></td><td>Advance the development instruction choreography and its persistent state.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>exported, profile-selected</td></tr>
+          <tr id="routine-development-instruction-runtime-present-death"><td><code>present_death</code></td><td>Apply the development instruction death-presentation event.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-present-player"><td><code>present_player</code></td><td>Apply the development instruction player-presentation event.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-recolour-collectibles"><td><code>recolour_collectibles</code></td><td>Recolour collectibles.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-recolour-target"><td><code>recolour_target</code></td><td>Recolour target.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-restore-actor"><td><code>restore_actor</code></td><td>Restore actor.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-store-owner-state"><td><code>store_owner_state</code></td><td>Store owner state.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+          <tr id="routine-development-instruction-runtime-sync-persistent-state"><td><code>sync_persistent_state</code></td><td>Synchronize persistent state.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="module-perimeter-helper">
+      <h2>Perimeter reset and presentation helper</h2>
+      <table>
+        <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
+        <tbody>
+          <tr id="routine-perimeter-reset-helper"><td><code>PERIMETER_RESET_HELPER</code></td><td>Map and invoke the synthesized perimeter reset payload, then restore PAR5.</td><td><a href="#profile-root">Root and hardware gateway</a></td><td>exported, hardware-touching</td></tr>
+          <tr id="routine-perimeter-helper-hold-copy-chunk"><td><code>hold_copy_chunk</code></td><td>Copy one bounded chunk while constructing or restoring a held presentation surface.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
+          <tr id="routine-perimeter-helper-presentation-attract-phase"><td><code>presentation_attract_phase</code></td><td>Advance the helper-owned attract overlay phase.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="module-gmc-bootstrap">
+      <h2>GMC bootstrap</h2>
+      <table>
+        <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
+        <tbody>
+          <tr id="routine-boot-entry"><td><code>boot_entry</code></td><td>Establish bootstrap mappings and transfer control into the low-RAM loader.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>exported, hardware-touching</td></tr>
+          <tr id="routine-gmc-bootstrap-decompress-attract-surfaces"><td><code>decompress_attract_surfaces</code></td><td>Decompress attract surfaces.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called</td></tr>
+          <tr id="routine-gmc-bootstrap-spr-byte-changed"><td><code>spr_byte_changed</code></td><td>Test whether synthesis changed the current perimeter-reset output byte.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called</td></tr>
+          <tr id="routine-gmc-bootstrap-synthesize-perimeter-reset"><td><code>synthesize_perimeter_reset</code></td><td>Synthesize perimeter reset.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="wiki-footer"><p>DOC-002 routine coverage is fail-closed. Adding a required routine without an explicit purpose, complete profile, and unique semantic anchor fails verification.</p></footer>
+  </main>
+</div>
+</body>
+</html>

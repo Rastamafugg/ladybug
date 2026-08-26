@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Layout Catalog &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="../../index.html">&larr; Wiki home</a><a href="../index.html">Internal</a><a href="./index.html">Implementation</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation &middot; data ownership</p>
+      <h1>Data Layout Catalog <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Canonical record, array, table, and protocol layouts; addresses remain normalized in the memory atlas and generated browser.</p>
+    </header>
+
+    <section>
+      <h2>Controlled vocabulary</h2>
+      <p><a href="./glossary.html#term-basic-block">Basic block</a>, <a href="./glossary.html#term-assembled-address">assembled address</a>, <a href="./glossary.html#term-cartridge-staged-address">cartridge-staged address</a>, <a href="./glossary.html#term-runtime-destination">runtime destination</a>, <a href="./glossary.html#term-authoritative-state">authoritative state</a>, <a href="./glossary.html#term-publication">publication</a>, and <a href="./glossary.html#term-evidence-dimension">evidence dimension</a> use the glossary definitions throughout this catalog.</p>
+    </section>
+
+    <section id="layout-render-transaction">
+      <h2>Render transaction</h2>
+      <p>The always-mapped direct page owns BACK selection, ACTIVE/PENDING state, commit and simulation sequences, missed-commit count, and render flags. Gameplay mutates authoritative state before composition. The selected framebuffer owns pixels and its local actor/save-under history. IRQ owns only final publication.</p>
+      <p>Reset clears both owner histories and protocol state. A completed compositor transaction atomically converts ACTIVE to PENDING with interrupts masked; Vbord converts PENDING into visible FRONT ownership.</p>
+    </section>
+
+    <section id="layout-presentation-flow-state">
+      <h2>Presentation flow state</h2>
+      <p>The presentation runtime owns the always-mapped mode, screen, timer, phase, and hold-state bytes. <code>PRES_MODE</code> selects the director branch, <code>PRES_SCREEN</code> selects the streamed authored map, <code>PRES_TIMER</code> is the state-local 16-bit interval count, and phase/hold fields retain bounded producer progress across Vbords. Reset or a state transition initializes these fields; the resident foreground loop calls <code>presentation_flow_tick</code>, and presentation helpers are the only normal producers.</p>
+    </section>
+
+    <section id="layout-bank1-publication">
+      <h2>Bank-1 resident publication</h2>
+      <p>The GMC bootstrap owns the resident image while it is cartridge-selected and while it is staged at virtual <code>$A000-$DDFF</code>. It copies the exact 15,872-byte interval into the final all-RAM <code>$C000-$FDFF</code> destination, sets <code>BOOT_FLAG</code> at <code>$02F0</code>, and transfers control to the resident entry. After handoff, the resident runtime owns the destination; the staging window is no longer authoritative.</p>
+    </section>
+
+    <section id="layout-copied-modules">
+      <h2>Copied modules</h2>
+      <p>Every configured relocation record carries one assembled identity, optional cartridge-staged identity, runtime destination, physical page when applicable, exact byte length, bootstrap owner through copy/validation, and runtime owner after handoff. The source-reference verifier derives the complete copied-module set from these records and rejects an omitted, duplicate, or ownerless record.</p>
+    </section>
+
+    <section id="layout-persistent-records">
+      <h2>Persistent records</h2>
+      <p>The exhaustive persistent families are the render transaction, presentation flow, authoritative gameplay state, entity table, A/B player and enemy histories, A/B damage ledgers, and session score state. Each family has one phase-qualified owner, reset rule, producer set, consumer set, lifetime, and canonical detailed page. Lifecycle aliases are one allocation with mutually exclusive meanings, not free or duplicate storage.</p>
+    </section>
+
+    <section id="layout-framebuffer-structures">
+      <h2>Framebuffer structures</h2>
+      <p>The complete set is the compatibility hold surface, persistent framebuffer A, persistent framebuffer B, direct-page render metadata, A/B player save-under histories, A/B enemy ring histories, and A/B pending-damage ledgers. A physical framebuffer owns its pixels and local histories. The direct-page protocol owns ACTIVE, PENDING, FRONT/BACK selection, and publication sequencing but never owns completed pixels.</p>
+    </section>
+
+    <section id="layout-structured-tables">
+      <h2>Structured tables</h2>
+      <p>Every authored data label is assigned to its declaring module through the typed data-label inventory. Required field schemas cover sparse index records, sparse command streams, loader copy records, address identities, call edges, label classifications, evidence records, presentation screen records, demo route records, entity records, and render-intent records. A schema definition owns field offset, width, encoding, range or sentinel, producer, consumer, reset/lifetime rule, and capacity formula; generated instances remain revision-bound build output.</p>
+    </section>
+
+    <section id="layout-address-identity">
+      <h2>Address identity record</h2>
+      <p>Every copied or relocated payload records an assembled address, optional cartridge-staged address, runtime virtual destination, optional physical page, byte length, owning module, and stable relationship ID. These identities must not be collapsed into one unqualified address.</p>
+    </section>
+
+    <section id="layout-call-edge">
+      <h2>Call-edge record</h2>
+      <p>A call edge records source module, file, line, caller, target, and one of direct, tail-jump, fixed-jump, or indirect kind. Direct calls are extracted from active source. Fixed and indirect relationships are declared because absence of static inference is not absence of control flow.</p>
+    </section>
+
+    <section id="layout-label-classification">
+      <h2>Global-label classification</h2>
+      <p>Every authored global label resolves to exactly one routine, inferred or declared basic block, typed data label, or boundary label. Assembly-time uppercase aliases are classified as constants with a recorded rule; labels originating in <code>build/</code> includes are classified as generated interfaces whose semantic owner is the producing build step. A rule is expanded into concrete typed records for the current symbol set, so a new unmatched label remains a verification failure.</p>
+      <p><strong>Data</strong> identifies an immutable table or packed record. <strong>Boundary</strong> identifies a start, end, size, or publication marker. <strong>Constant</strong> has no storage at its label. <strong>Generated</strong> is imported from a build-produced interface. Basic blocks carry a concise control-purpose record and inherit the complete contract of their enclosing routine.</p>
+    </section>
+
+    <section id="layout-evidence">
+      <h2>Evidence record</h2>
+      <p>Each record has a stable ID, one evidence dimension, one state, an artifact path, SHA-256 hash, and optional note. Valid dimensions are structural, representation, delivery, runtime reachability, visible output, and timing. Valid states are pass, fail, missing, and stale.</p>
+    </section>
+
+    <section>
+      <h2>Detailed current layouts</h2>
+      <p><a href="./memory-map.html">Memory map</a> is canonical for direct-page bytes, virtual ranges, physical pages, cartridge intervals, framebuffer pages, and stack. This catalog is canonical for copied-module, persistent-record, framebuffer-history, and structured-table schemas. <a href="./ping-pong-framebuffer.html">Persistent ping-pong framebuffer</a> supplies the detailed owner-local history and damage-ledger behavior. The machine-readable ownership inventory assigns every derived fixed-address symbol, typed data label, relocation, and enumerated nonsymbol allocation to exactly one of these definitions.</p>
+    </section>
+
+    <footer class="wiki-footer"><p>Initial DOC-002 data schema. Every added record requires owner, width, encoding, reset rule, lifetime, producers, consumers, and capacity rule.</p></footer>
+  </main>
+</div>
+</body>
+</html>

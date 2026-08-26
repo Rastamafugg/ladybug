@@ -24,7 +24,7 @@
       </p>
     </header>
 
-    <section>
+    <section id="memory-physical-pages">
       <h2>Constraints recap</h2>
       <ul>
         <li><strong>8 MMU PARs</strong>, each maps an 8 K virtual page to a 6-bit physical-page number (see <a href="../../release/reference/coco3/memory-map.html">CoCo 3 memory map</a>, <a href="../../release/reference/coco3/gime.html">GIME</a>).</li>
@@ -38,8 +38,8 @@
     </section>
 
     <section>
-      <h2>Page-budget arithmetic</h2>
-      <p>What we want simultaneously mapped after boot:</p>
+      <h2>Historical Phase-2 page-budget arithmetic</h2>
+      <p>This table is retained as design history and does not describe the current copied-runtime map below. The original Phase-2 estimate was:</p>
       <table class="wiki-table">
         <thead><tr><th>Use</th><th>Pages</th><th>Why</th></tr></thead>
         <tbody>
@@ -58,7 +58,7 @@
       </p>
     </section>
 
-    <section>
+    <section id="memory-virtual-ranges">
       <h2>Runtime mapping</h2>
 <pre><code>Virtual          PAR  Phys  Bytes  Use
 $0000-$02FF      0    $38   768 B  Direct page, boot proof, and low-RAM state
@@ -67,7 +67,7 @@ $06AA-$06AF      0    $38     6 B  BUG-011 development runtime trace
 $06B0-$07FF      0    $38   336 B  Loader-addressable overflow/helper allocation; $06B0-$06B1 boot proof; BUG-010 helper uses $06C5-$07FF
 $0800-$17FF      0    $38   4 K    Bank-3 enemy runtime copy
 $1800-$18FF      0    $38   256 B  Shared player/nest sparse-decode compositor stage
-$1900-$1DFF      0    $38  1280 B  Copied presentation flow module; current use 1222 B
+$1900-$1DFF      0    $38  1280 B  Copied presentation flow module; current inspected use 1276 B
 $1E00-$1FFF      0    $38   512 B  Reserved stack window; stack begins at $1FFE
 $2000-$3FFF      1    $30   8 K    Framebuffer page 0
 $4000-$5FFF      2    $31   8 K    Framebuffer page 1
@@ -100,15 +100,27 @@ $BC04-$BFFD      5    $34   1018 B Free game-state RAM
 $BFFE-$BFFF      5    $34   2 B    Cold-start entropy seed
 $20              —    —      8 K   Boot-synthesized native perimeter-reset program
 $21-$22          —    —     16 K   Boot-only resident/asset staging; reusable after handoff
-$23              —    —      8 K   Boot-only compressed attract-surface staging; reusable after all-RAM expansion
-$3A-$3B          —    —     16 K   Physical cold presentation atlas/map streams copied at boot; selected page is mapped through PAR5
+$23              —    —      8 K   Compressed attract/auxiliary staging; retained until the release auxiliary is installed at $0300
+$3A              —    —      8 K   Current 7636-byte cold presentation atlas/map payload; mapped through PAR5
+$3B              —    —      8 K   Reserved presentation capacity; currently unused
 $3C              —    —      8 K   Expanded BUG-010 title actor surfaces and destination/phase metadata, runtime window $A000-$AA93
-$3D              —    —      8 K   Remaining reserved presentation physical page
+$3D              —    —      8 K   Reserved presentation capacity; currently unused
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
 $E000-$FDFF      7    $3F   7.5 K  Cart-visible immutable asset region
 $FE00-$FEFF      —    $3F   256 B  Forced RAM jump-table window
 $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
 </code></pre>
+      <h3>How to reason about ownership</h3>
+      <p>An address alone does not identify its storage owner. A CPU address names a virtual location; the current PAR mapping identifies the physical page behind that location; the lifecycle phase and subsystem contract identify who may mutate it and how long a pointer remains valid.</p>
+      <ul>
+        <li><strong>Authoritative owner:</strong> the source of truth for logical state. Maze, gate, entity, score, and retained game records normally live in physical page <code>$34</code>.</li>
+        <li><strong>Projection owner:</strong> storage that represents authoritative state without replacing it. Persistent framebuffer A or B owns pixels; each buffer-local ledger and save-under set owns the history required to update those pixels.</li>
+        <li><strong>Mapping owner:</strong> the routine currently permitted to repoint a PAR. PAR5 is normally page <code>$34</code>, but a bounded loader, decoder, presentation, or helper operation may borrow it for another page.</li>
+        <li><strong>Protocol owner:</strong> the component permitted to publish a shared transition. The Vbord IRQ alone publishes a completed BACK buffer as FRONT and exchanges the direct-page owner IDs.</li>
+        <li><strong>Lifetime:</strong> boot-only staging lasts through publication; initialization staging lasts until its consumer installs or expands it; persistent runtime state lasts across frames; a scoped alias lasts only until the owning routine restores the stable mapping.</li>
+      </ul>
+      <p>The stable runtime mappings are PAR0 <code>$38</code>, PAR1-PAR4 the current BACK framebuffer, PAR5 normally <code>$34</code>, PAR6 <code>$3E</code>, and PAR7 <code>$3F</code>. Every pointer into virtual <code>$A000-$BFFF</code> expires when PAR5 changes. A borrower must restore PAR5 to <code>$34</code> before game-state access, publication, or return. IRQ-visible state therefore remains in always-mapped page <code>$38</code>; an interrupt cannot assume PAR5 still names game state.</p>
+      <p>GIME scanout is a separate physical reader. Its vertical-offset registers select physical framebuffer A (<code>$30-$33</code>, base <code>$60000</code>) or B (<code>$2C-$2F</code>, base <code>$58000</code>) independently of the CPU MMU. PAR1-PAR4 map only the non-scanned BACK owner for normal rendering. Physical pages <code>$28-$2B</code> are a transient compatibility surface, not a third persistent A/B owner.</p>
       <p>
         GIME <code>$FF9D/$FF9E</code> (vertical-offset) points at physical
         address of phys page <code>$30</code> = <code>$30 &lt;&lt; 13 = $060000</code>.
@@ -147,8 +159,10 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         <code>$39:$A000-$A8F5</code>, and the 832-byte six-stream gate
         transition payload occupies <code>$39:$A8F6-$AC35</code>. The native
         perimeter program is synthesized into physical page <code>$20</code>
-        during boot. Cold presentation data occupies physical pages <code>$3A-$3D</code> and
-        is read through the same scoped PAR5 window. PAR5 maps
+        during boot. The current cold presentation payload occupies physical page <code>$3A</code>;
+        pages <code>$3B/$3D</code> remain reserved capacity, while page <code>$3C</code>
+        owns the expanded title actor surfaces. These payloads are read through the
+        same scoped PAR5 window. PAR5 maps
         one stream page only during a draw
         before returning to game-state page <code>$34</code>. IRQ-visible
         framebuffer ownership, readiness, commit-sequence, and diagnostic
@@ -194,8 +208,8 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
       <p>
         <strong>BUG-010 remediation implemented 2026-08-10:</strong> the
         presentation module is hard-limited to <code>$1900-$1DFF</code> and
-        measures <code>1280/1280</code> bytes. The extended perimeter helper
-        occupies <code>$06C5-$07FF</code> and measures <code>333/334</code>
+        the inspected 2026-08-22 artifact measures <code>1276/1280</code> bytes. The extended perimeter helper
+        occupies <code>$06C5-$07FF</code>; the inspected 2026-08-22 artifact measures <code>331/334</code>
         bytes. It copies the visible <code>30,720</code> bytes to the
         compatibility surface <code>$28-$2B</code> in thirty 1,024-byte
         chunks, publishes transient owner ID <code>2</code> at Voffset
@@ -206,7 +220,7 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
       </p>
     </section>
 
-    <section>
+    <section id="memory-cartridge-intervals">
       <h2>Cart ROM image (16 K)</h2>
 <pre><code>file offset   virtual          purpose
 $0000-$0682   $C000-$C682      autostart magic, entry, resident code/constants
@@ -460,7 +474,12 @@ $FF00-$FFFF        256 B   I/O; never cart data
       <p><strong>Source capacity is not destination capacity.</strong> Bank-0 overflow permits additional cartridge source bytes without gameplay-time ROM switching. It does not relax the independent 8 K resident window, 7.5 K asset window, 4 K copied enemy-module window, low-RAM/stack bounds, physical-page allocation, or runtime ABI. Executable overflow must be assembled as an explicit relocatable segment with a proven RAM destination.</p>
     </section>
 
-    <section>
+    <section id="memory-fixed-addresses">
+      <h2>Fixed-address ownership</h2>
+      <p>Every four-hex-digit <code>EQU</code> outside direct page is a fixed-address claim. Software addresses belong to the declaring module or generated ABI exporter; <code>$FF00-$FFFF</code> hardware aliases belong to the named PIA, GIME, SAM, or cartridge device and are borrowed only by routines whose contracts permit that access. The source-reference verifier derives this complete set from all seven shipped modules and rejects an unowned or multiply owned address alias.</p>
+    </section>
+
+    <section id="memory-direct-page">
       <h2>Direct-page allocation (<code>$0000-$00FF</code>)</h2>
       <p>
         Runtime <code>DP</code> is zero and hot variables occupy <code>$00xx</code>.
@@ -505,15 +524,17 @@ $FF00-$FFFF        256 B   I/O; never cart data
           <tr><td><code>$9B-$9E</code></td><td>enemy underlay-invalid flag plus ring-copy phase/row/base scratch</td><td>4 B</td><td>Persistent circular save-under renderer</td></tr>
           <tr><td><code>$9F-$A1</code></td><td>(free)</td><td>3 B</td><td>Freed by destination-delta decoding and mirrored sparse indexes</td></tr>
           <tr><td><code>$A2-$A3</code></td><td>selected A/B player save-under pointer</td><td>u16</td><td>Persistent framebuffer owner selection</td></tr>
-          <tr><td><code>$D4-$D9</code></td><td>BUG-010 hold state, chunk, saved A/B IDs, generation, hydration owner</td><td>6 B</td><td>Always-mapped transient compatibility publication state</td></tr>
-            <tr><td><code>$A4-$CB</code></td><td>Presentation runtime</td><td>40 B</td><td>Flow, key-edge, map-loader, timer, framebuffer destination, score conversion, insertion, and bounded name-entry state; reserved by FEAT-002.</td></tr>
-            <tr><td><code>$CC-$FF</code></td><td>(free)</td><td>52 B</td><td>Remaining direct-page hot-state margin after the current FEAT-002 slice.</td></tr>
+          <tr><td><code>$A4-$CF</code></td><td>Presentation runtime</td><td>44 B</td><td>Flow, key-edge, map-loader, timer, framebuffer destination, score conversion, insertion, bounded name-entry, and actor state.</td></tr>
+          <tr><td><code>$D0-$D3</code></td><td>Scoped presentation/instruction aliases</td><td>4 B</td><td>Meaning depends on the active presentation phase; the independent modules intentionally share these fixed direct-page slots.</td></tr>
+          <tr><td><code>$D4-$D9</code></td><td>Compatibility hold/helper state</td><td>6 B</td><td>Always-mapped transient publication state; instruction-runtime aliases at <code>$D6-$D7</code> are lifecycle-separated.</td></tr>
+          <tr><td><code>$DA-$DE</code></td><td>Release demo-route state</td><td>5 B</td><td>Route pointer, last semantic cell, direction, and next action shared with the copied demo director.</td></tr>
+          <tr><td><code>$DF-$FF</code></td><td>(free)</td><td>33 B</td><td>Current unassigned direct-page tail.</td></tr>
         </tbody>
       </table>
-      <p>The current intent, ownership, ring-copy, player save-under ABI, and FEAT-002 state leave 55 direct-page bytes free in the listed hot-state ranges. Maintain this table as variables land.</p>
+      <p>The current table leaves three bytes at <code>$9F-$A1</code> and 33 bytes at <code>$DF-$FF</code> unassigned. Aliased slots are not free: their safety depends on mutually exclusive lifecycle phases and identical absolute definitions in every independently assembled consumer.</p>
     </section>
 
-    <section>
+    <section id="memory-stack">
       <h2>Stack</h2>
       <p>
         Top of stack at <code>$1FFE</code> (in PAR0, phys <code>$38</code>).
