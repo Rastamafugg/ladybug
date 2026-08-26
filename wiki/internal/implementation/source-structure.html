@@ -58,12 +58,12 @@
         call flow below describe the current working tree.
       </p>
       <p>
-        In-progress <a href="../tickets/doc-002-assembly-source-traceability.html">DOC-002</a>
-        will add a controlled glossary, normalized memory atlas, routine and data
-        catalogs, requirement-to-source traceability, and a generated lwasm
+        Completed <a href="../tickets/doc-002-assembly-source-traceability.html">DOC-002</a>
+        provides the controlled glossary, normalized memory atlas, routine and data
+        catalogs, requirement-to-source traceability, and generated lwasm
         source/listing browser under <code>build/source-reference/</code>. Semantic
-        rationale would remain hand-authored in the wiki; generated addresses,
-        bytes, and source-line relationships would remain build artifacts.
+        rationale remains hand-authored in the wiki; generated addresses, bytes,
+        and source-line relationships remain build artifacts.
       </p>
     </section>
 
@@ -126,13 +126,13 @@ scripts/source_reference/
         visible-output or timing proof.
       </p>
       <p>
-        <strong>Implementation status 2026-08-25:</strong> the selected package,
+        <strong>Implementation status 2026-08-26:</strong> the selected package,
         configuration, relocation fixture, mutation suite, semantic hubs, and
-        generated module/global pages now exist. An isolated exact-revision release
-        build generates seven module pages and 11,934 source lines. Verification is
-        intentionally fail-closed while 202 routine contracts, 131 authored-label
-        classifications, and five evidence dimensions remain open; these counts are
-        single observations from the generated DOC-002 manifest, not acceptance.
+        generated module/global pages are complete. The clean documented release
+        build generates seven module pages and 12,327 source lines. Current
+        verification passes with 197 canonical routine contracts, 1,932 authored-label
+        classifications, and six independent evidence dimensions; these are
+        current-revision acceptance counts recorded by DOC-002.
       </p>
     </section>
 
@@ -366,8 +366,10 @@ Generated build/*.inc / *.bin / layout.json   |
         directory is therefore disposable but not transactionally atomic as a
         whole: only a completely passing command establishes a mutually
         consistent artifact set. Running <code>build</code> also overwrites
-        listings and maps, which is why the current modified enemy listing must
-        be preserved or retired before DOC-002 certifies a fresh baseline.
+        listings and maps, so a modified listing must be preserved or retired
+        before certifying a new baseline. DOC-002 certified its baseline in a
+        detached exact-revision worktree; future tickets must repeat that boundary
+        when dirty artifacts are in scope.
       </p>
       <h3>Verification ladder and independence</h3>
       <p>
@@ -401,11 +403,11 @@ Generated build/*.inc / *.bin / layout.json   |
         Hand-authored wiki pages own meaning: terminology, rationale, behavior,
         ownership, invariants, data layouts, module contracts, and scenario
         intent. Listings, maps, binaries, manifests, generated includes, hashes,
-        and the planned line-level browser are revision-derived evidence. The
-        browser will live under <code>build/source-reference/</code> and may be
+        and the line-level browser are revision-derived evidence. The browser
+        lives under <code>build/source-reference/</code> and may be
         regenerated or discarded; it cannot become the canonical definition of
-        an owner or contract. <code>scripts/source_reference.json</code> will
-        contain Ladybug-specific module inputs and policy, while the parser and
+        an owner or contract. <code>scripts/source_reference.json</code> contains
+        Ladybug-specific module inputs and policy, while the parser and
         renderer must remain generic and take all source/listing/map/relocation
         relationships explicitly.
       </p>
@@ -420,13 +422,13 @@ Generated build/*.inc / *.bin / layout.json   |
         completeness.
       </p>
       <p>
-        The current inspected 2026-08-22 release artifact is a single
-        observation, not a certified rebuild: final ROM SHA-256
+        The certified DOC-002 exact-revision release artifact records final ROM
+        SHA-256
         <code>74ccb023d967037e4cba92e043eba5973f65877f54d3dc18965b13dcefc9a751</code>,
         15 loader segments, 3965 readable GMC source bytes spare, and six cold
-        presentation maps in 7636 bytes. The current runbook contains older
-        capacity observations that DOC-002 must normalize after a safe rebuild;
-        they are not substituted for current-revision evidence here.
+        presentation maps in 7636 bytes. These values are retained as baseline
+        evidence; later source, listing, or map changes require a fresh build and
+        regenerated browser.
       </p>
     </section>
 
