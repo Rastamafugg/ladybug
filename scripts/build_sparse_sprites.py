@@ -116,7 +116,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--actor-underlays", type=Path, required=True)
     parser.add_argument("--presentation-module", type=Path, required=True)
     parser.add_argument("--instruction-runtime", type=Path, required=True)
-    parser.add_argument("--aux-runtime-role", choices=("development", "release"), required=True)
+    parser.add_argument("--demo-runtime", type=Path, required=True)
+    parser.add_argument("--aux-runtime-role", choices=("development", "release", "complete"), required=True)
     parser.add_argument("--bank2-output", type=Path, required=True)
     parser.add_argument("--bank3-output", type=Path, required=True)
     parser.add_argument("--bank0-output", type=Path, required=True)
@@ -349,6 +350,7 @@ def pack_candidate_banks(
         enemy_runtime: bytes, presentation_cold: bytes = b"",
         presentation_module: bytes = b"", perimeter_payload: bytes = b"",
         perimeter_helper: bytes = b"", instruction_runtime: bytes = b"",
+        demo_runtime: bytes = b"", aux_runtime_role: str = "release",
         actor_records: bytes = b"",
         actor_underlays: bytes = b""
 ) -> tuple[bytes, bytes, bytes, list[CopySegment]]:
@@ -377,7 +379,14 @@ def pack_candidate_banks(
         raise ValueError("perimeter helper exceeds $06B2-$07FF allocation")
     if len(instruction_runtime) > INSTRUCTION_RUNTIME_BYTES:
         raise ValueError("instruction runtime exceeds freed $0300-$064C loader RAM")
-    instruction_runtime_stage = instruction_runtime
+    if len(demo_runtime) > INSTRUCTION_RUNTIME_BYTES:
+        raise ValueError("demo runtime exceeds freed $0300-$064C loader RAM")
+    if aux_runtime_role == "development":
+        aux_runtime_stage = instruction_runtime
+    elif aux_runtime_role == "complete":
+        aux_runtime_stage = instruction_runtime + demo_runtime
+    else:
+        aux_runtime_stage = demo_runtime
 
     sources = [
         SourceInterval(2, BANK2_PAYLOAD_START, CART_READABLE_BYTES),
@@ -402,7 +411,7 @@ def pack_candidate_banks(
         target_chunks("presentation_cold", presentation_cold, 0x3A,
                       WINDOW_BASE) +
         target_chunks("attract_actor_bundle", actor_underlays + actor_records +
-                      instruction_runtime_stage,
+                      aux_runtime_stage,
                       0x23, 0xA000) +
         target_chunks("presentation_module", presentation_module, 0xFF,
                       0x1900)
@@ -613,11 +622,18 @@ def main() -> None:
     actor_underlays = args.actor_underlays.read_bytes()
     presentation_module = args.presentation_module.read_bytes()
     instruction_runtime = args.instruction_runtime.read_bytes()
-    instruction_runtime_stage = instruction_runtime
+    demo_runtime = args.demo_runtime.read_bytes()
+    if args.aux_runtime_role == "development":
+        aux_runtime_stage = instruction_runtime
+    elif args.aux_runtime_role == "complete":
+        aux_runtime_stage = instruction_runtime + demo_runtime
+    else:
+        aux_runtime_stage = demo_runtime
     bank0, bank2, bank3, segments = pack_candidate_banks(
         enemy_payload, player_payload, gate_payload, presentation_payload,
         enemy_runtime, presentation_cold, presentation_module,
-        perimeter_payload, perimeter_helper, instruction_runtime,
+        perimeter_payload, perimeter_helper, instruction_runtime, demo_runtime,
+        args.aux_runtime_role,
         actor_records, actor_underlays
     )
     outputs = (
@@ -719,16 +735,14 @@ def main() -> None:
             "address": 0x1900,
             "sha256": digest(presentation_module),
         },
-        "instruction_runtime": {
-            "role": "instructions" if args.aux_runtime_role == "development" else "demo-route",
-            "bytes": len(instruction_runtime),
-            "staged_bytes": len(instruction_runtime_stage),
+        "aux_runtime": {
+            "role": args.aux_runtime_role,
             "stage_page": INSTRUCTION_RUNTIME_PAGE,
             "stage_address": INSTRUCTION_RUNTIME_ADDRESS,
             "destination_address": 0x0300,
             "destination_end": 0x06AA,
-            "sha256": digest(instruction_runtime),
-            "staged_sha256": digest(instruction_runtime_stage),
+            "staged_bytes": len(aux_runtime_stage),
+            "staged_sha256": digest(aux_runtime_stage),
         },
         "gmc": {
             "readable_bytes_per_bank": CART_READABLE_BYTES,
@@ -765,6 +779,29 @@ def main() -> None:
             ],
         },
     }
+    if args.aux_runtime_role in ("development", "complete"):
+        manifest["instruction_runtime"] = {
+            "role": "instructions",
+            "bytes": len(instruction_runtime),
+            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_address": INSTRUCTION_RUNTIME_ADDRESS,
+            "destination_address": 0x0300,
+            "destination_end": 0x06AA,
+            "sha256": digest(instruction_runtime),
+        }
+    if args.aux_runtime_role in ("release", "complete"):
+        demo_stage_address = INSTRUCTION_RUNTIME_ADDRESS + (
+            len(instruction_runtime) if args.aux_runtime_role == "complete" else 0
+        )
+        manifest["demo_runtime"] = {
+            "role": "demo-route",
+            "bytes": len(demo_runtime),
+            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_address": demo_stage_address,
+            "destination_address": 0x0300,
+            "destination_end": 0x06AA,
+            "sha256": digest(demo_runtime),
+        }
     args.manifest_output.parent.mkdir(parents=True, exist_ok=True)
     args.manifest_output.write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="ascii"

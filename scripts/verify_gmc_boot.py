@@ -138,9 +138,11 @@ def main() -> None:
     )
     if not presentation_entry or presentation_entry.group(1).lower() != "1900":
         raise SystemExit("gmc proof: presentation entry is not assembled at $1900")
-    development = "instruction_runtime" in manifest
+    runtime_role = manifest.get("aux_runtime", {}).get("role", "release")
+    development = runtime_role == "development"
+    complete = runtime_role == "complete"
     presentation_symbols = {}
-    if not development:
+    if runtime_role == "release":
         for name in ("demo_force_death", "demo_force_enemy_death"):
             symbol = re.search(
                 rf"^Symbol: {name} .* = ([0-9A-Fa-f]+)$",
@@ -153,7 +155,7 @@ def main() -> None:
     presentation_module = (
         Path(__file__).resolve().parents[1] / "build/ladybug-presentation-runtime.bin"
     ).read_bytes()
-    expected_entry_opcode = 0xB6 if development else 0x17
+    expected_entry_opcode = 0xB6 if development or complete else 0x17
     if not presentation_module or presentation_module[0] != expected_entry_opcode:
         raise SystemExit(
             "gmc proof: presentation module at $1900 does not begin with "
@@ -330,7 +332,7 @@ def main() -> None:
         args.forced_timeout,
     )
     demo_text = "DEVELOPMENT_PROFILE_DEMO_BYPASSED"
-    if not development:
+    if runtime_role == "release":
         print("gmc phase: forced demo deaths", flush=True)
         demo_text = run_forced_demo_death_probe(
             args.xroar,
@@ -361,7 +363,7 @@ def main() -> None:
         ),
         "forced gameplay completion": "FORCED_COMPLETE" in forced_text,
     }
-    if not development:
+    if runtime_role == "release":
         forced_required.update({
             "forced skull demo death": "DEMO_SKULL_FORCED" in demo_text,
             "forced enemy demo death": "DEMO_ENEMY_FORCED" in demo_text,

@@ -59,7 +59,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--actor-underlays", type=Path, default=BUILD / "ladybug-attract-actor-underlays.bin")
     parser.add_argument("--presentation-module", type=Path, default=BUILD / "ladybug-presentation-runtime.bin")
     parser.add_argument("--instruction-runtime", type=Path, default=BUILD / "ladybug-instruction-runtime.bin")
-    parser.add_argument("--aux-runtime-role", choices=("development", "release"), default="release")
+    parser.add_argument("--demo-runtime", type=Path, default=BUILD / "ladybug-demo-runtime.bin")
+    parser.add_argument("--aux-runtime-role", choices=("development", "release", "complete"), default="release")
     parser.add_argument("--bank0", type=Path, default=BUILD / "ladybug-gmc-bank0-overflow.bin")
     parser.add_argument("--bank2", type=Path, default=BUILD / "ladybug-sparse-bank2.bin")
     parser.add_argument("--bank3", type=Path, default=BUILD / "ladybug-sparse-bank3.bin")
@@ -274,7 +275,13 @@ def main() -> None:
     actor_underlays = args.actor_underlays.read_bytes()
     presentation_module = args.presentation_module.read_bytes()
     instruction_runtime = args.instruction_runtime.read_bytes()
-    instruction_runtime_stage = instruction_runtime
+    demo_runtime = args.demo_runtime.read_bytes()
+    if args.aux_runtime_role == "development":
+        aux_runtime_stage = instruction_runtime
+    elif args.aux_runtime_role == "complete":
+        aux_runtime_stage = instruction_runtime + demo_runtime
+    else:
+        aux_runtime_stage = demo_runtime
     enemy_ranges = decode_payload(enemy_payload, enemy_frames, enemy_pen_maps, 0x35)
     player_ranges = decode_payload(
         player_payload, player_frames, [LEGACY_PEN_MAP] * len(player_frames), 0x39
@@ -317,13 +324,14 @@ def main() -> None:
         raise SystemExit("sparse proof: presentation cold manifest hash mismatch")
     if manifest["presentation_module"]["sha256"] != sha256(presentation_module):
         raise SystemExit("sparse proof: presentation module manifest hash mismatch")
-    if (
-        manifest["instruction_runtime"].get("role") !=
-            ("instructions" if args.aux_runtime_role == "development" else "demo-route") or
-        manifest["instruction_runtime"]["sha256"] != sha256(instruction_runtime) or
-        manifest["instruction_runtime"]["staged_sha256"] != sha256(instruction_runtime_stage)
-    ):
+    if manifest["aux_runtime"]["role"] != args.aux_runtime_role:
+        raise SystemExit("sparse proof: auxiliary runtime profile mismatch")
+    if manifest["aux_runtime"]["staged_sha256"] != sha256(aux_runtime_stage):
+        raise SystemExit("sparse proof: auxiliary runtime staged hash mismatch")
+    if args.aux_runtime_role in ("development", "complete") and manifest.get("instruction_runtime", {}).get("sha256") != sha256(instruction_runtime):
         raise SystemExit("sparse proof: instruction runtime manifest hash mismatch")
+    if args.aux_runtime_role in ("release", "complete") and manifest.get("demo_runtime", {}).get("sha256") != sha256(demo_runtime):
+        raise SystemExit("sparse proof: demo runtime manifest hash mismatch")
     if (
         manifest["perimeter_reset"]["page"] != 0x20 or
         manifest["perimeter_reset"]["address"] != WINDOW_BASE or
@@ -350,7 +358,7 @@ def main() -> None:
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
         "attract_actor_bundle": bytearray(
-            len(actor_underlays) + len(actor_records) + len(instruction_runtime_stage)
+            len(actor_underlays) + len(actor_records) + len(aux_runtime_stage)
         ),
     }
     coverage = {
@@ -361,7 +369,7 @@ def main() -> None:
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
         "attract_actor_bundle": bytearray(
-            len(actor_underlays) + len(actor_records) + len(instruction_runtime_stage)
+            len(actor_underlays) + len(actor_records) + len(aux_runtime_stage)
         ),
     }
     source_coverage = {
@@ -513,7 +521,7 @@ def main() -> None:
     if reconstructed["presentation_module"] != presentation_module:
         raise SystemExit("sparse proof: loader does not reconstruct presentation module")
     if reconstructed["attract_actor_bundle"] != (
-        actor_underlays + actor_records + instruction_runtime_stage
+        actor_underlays + actor_records + aux_runtime_stage
     ):
         raise SystemExit("sparse proof: loader does not reconstruct actor bundle")
     expected_usable = (
@@ -532,7 +540,7 @@ def main() -> None:
     print(
         f"sparse proof: {len(enemy_ranges)} enemy and {len(player_ranges)} player "
         f"frames decode and blend pixel-exactly; {len(loader)} loader segments reconstruct "
-        f"actor, gate, presentation, cold, module, and instruction payloads with "
+        f"actor, gate, presentation, cold, module, and auxiliary payloads with "
         f"{manifest['gmc']['spare_bytes']} bytes spare"
     )
 

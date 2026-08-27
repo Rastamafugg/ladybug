@@ -405,6 +405,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--actor-record-output", type=Path, required=True)
     parser.add_argument("--actor-underlay-output", type=Path, required=True)
     parser.add_argument("--development-profile", type=int, choices=(0, 1), default=0)
+    parser.add_argument("--complete-profile", type=int, choices=(0, 1), default=0)
     return parser.parse_args()
 
 
@@ -1423,6 +1424,7 @@ def main() -> None:
         "maps": map_info,
         "map_count": len(maps),
         "development_profile": bool(args.development_profile),
+        "complete_profile": bool(args.complete_profile),
         "development_omitted_glyph_codes": [
             code for code in range(37)
             if pack_tile(recolor(

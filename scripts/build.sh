@@ -26,9 +26,12 @@ PRESENTATION_SYMBOLS="$BUILD_DIR/ladybug_presentation_symbols.inc"
 INSTRUCTION_RUNTIME="$BUILD_DIR/ladybug-instruction-runtime.bin"
 INSTRUCTION_RUNTIME_SRC="$ROOT/src/instruction_runtime.s"
 DEMO_RUNTIME_SRC="$ROOT/src/demo_runtime.s"
+DEMO_RUNTIME="$BUILD_DIR/ladybug-demo-runtime.bin"
 DEMO_WALK="$ROOT/assets/arcade/demo_walk.json"
 INSTRUCTION_RUNTIME_LST="$BUILD_DIR/ladybug-instruction-runtime.lst"
 INSTRUCTION_RUNTIME_MAP="$BUILD_DIR/ladybug-instruction-runtime.map"
+DEMO_RUNTIME_LST="$BUILD_DIR/ladybug-demo-runtime.lst"
+DEMO_RUNTIME_MAP="$BUILD_DIR/ladybug-demo-runtime.map"
 SPARSE_BANK2="$BUILD_DIR/ladybug-sparse-bank2.bin"
 SPARSE_BANK3="$BUILD_DIR/ladybug-sparse-bank3.bin"
 SPARSE_BANK0="$BUILD_DIR/ladybug-gmc-bank0-overflow.bin"
@@ -70,9 +73,10 @@ INSTRUCTION_RUNTIME_START=0x0300
 INSTRUCTION_RUNTIME_LIMIT=0x06AA
 LADYBUG_PROFILE="${LADYBUG_PROFILE:-release}"
 case "$LADYBUG_PROFILE" in
-    development) BUG011_DEVELOPMENT_PROFILE=1 ;;
-    release) BUG011_DEVELOPMENT_PROFILE=0 ;;
-    *) echo "build: LADYBUG_PROFILE must be development or release" >&2; exit 2 ;;
+    development) BUG011_DEVELOPMENT_PROFILE=1; COMPLETE_PROFILE=0 ;;
+    release) BUG011_DEVELOPMENT_PROFILE=0; COMPLETE_PROFILE=0 ;;
+    complete) BUG011_DEVELOPMENT_PROFILE=1; COMPLETE_PROFILE=1 ;;
+    *) echo "build: LADYBUG_PROFILE must be development, release, or complete" >&2; exit 2 ;;
 esac
 
 guard_layout() {
@@ -192,16 +196,17 @@ PY
 
 guard_instruction_runtime() {
     local helper="$1"
-    python3 - "$helper" "$INSTRUCTION_RUNTIME_START" "$INSTRUCTION_RUNTIME_LIMIT" <<'PY'
+    local label="${2:-instruction runtime}"
+    python3 - "$helper" "$INSTRUCTION_RUNTIME_START" "$INSTRUCTION_RUNTIME_LIMIT" "$label" <<'PY'
 import sys
-path, start, limit = sys.argv[1], int(sys.argv[2], 0), int(sys.argv[3], 0)
+path, start, limit, label = sys.argv[1], int(sys.argv[2], 0), int(sys.argv[3], 0), sys.argv[4]
 size = len(open(path, 'rb').read())
 if start + size > limit:
     raise SystemExit(
-        f"build: instruction runtime ends at ${start + size:04X}; "
+        f"build: {label} ends at ${start + size:04X}; "
         f"limit is ${limit:04X}"
     )
-print(f"build: instruction runtime {size}/{limit - start} bytes")
+print(f"build: {label} {size}/{limit - start} bytes")
 PY
 }
 
@@ -241,7 +246,8 @@ cmd_build() {
         --manifest-output "$PRESENTATION_MANIFEST" \
         --actor-record-output "$PRESENTATION_ACTOR_RECORDS" \
         --actor-underlay-output "$PRESENTATION_ACTOR_UNDERLAYS" \
-        --development-profile "$BUG011_DEVELOPMENT_PROFILE"
+        --development-profile "$BUG011_DEVELOPMENT_PROFILE" \
+        --complete-profile "$COMPLETE_PROFILE"
 
     python3 "$ROOT/scripts/verify_presentation.py" \
         --tiled-dir "$ROOT/tiled" \
@@ -370,23 +376,31 @@ with open(output, 'a', encoding='ascii') as handle:
         handle.write(f'{name} equ ${symbols[name]}\n')
 PY
 
-    if [[ "$BUG011_DEVELOPMENT_PROFILE" == 1 ]]; then
-        PRESENTATION_AUX_RUNTIME_BYTES="$((INSTRUCTION_RUNTIME_LIMIT - INSTRUCTION_RUNTIME_START))"
+    PRESENTATION_INSTRUCTION_RUNTIME_BYTES="$((INSTRUCTION_RUNTIME_LIMIT - INSTRUCTION_RUNTIME_START))"
+    lwasm -9 --format=raw \
+          --output="$DEMO_RUNTIME" \
+          --list="$DEMO_RUNTIME_LST" \
+          --symbols \
+          --map="$DEMO_RUNTIME_MAP" \
+          -I "$BUILD_DIR" \
+          "$DEMO_RUNTIME_SRC"
+    guard_instruction_runtime "$DEMO_RUNTIME" "demo runtime"
+
+    AUX_RUNTIME_STAGE_BASE="$((0xA000 + $(wc -c < "$PRESENTATION_ACTOR_UNDERLAYS") + $(wc -c < "$PRESENTATION_ACTOR_RECORDS")))"
+    INSTRUCTION_RUNTIME_STAGE_ADDRESS="$AUX_RUNTIME_STAGE_BASE"
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then
+        DEMO_RUNTIME_STAGE_ADDRESS="$((AUX_RUNTIME_STAGE_BASE + PRESENTATION_INSTRUCTION_RUNTIME_BYTES))"
     else
-        lwasm -9 --format=raw \
-              --output="$INSTRUCTION_RUNTIME" \
-              --list="$INSTRUCTION_RUNTIME_LST" \
-              --symbols \
-              --map="$INSTRUCTION_RUNTIME_MAP" \
-              -I "$BUILD_DIR" \
-              "$DEMO_RUNTIME_SRC"
-        guard_instruction_runtime "$INSTRUCTION_RUNTIME"
-        PRESENTATION_AUX_RUNTIME_BYTES="$(wc -c < "$INSTRUCTION_RUNTIME")"
+        DEMO_RUNTIME_STAGE_ADDRESS="$AUX_RUNTIME_STAGE_BASE"
     fi
 
     lwasm -9 --format=raw \
           -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
-          -DPRESENTATION_AUX_RUNTIME_BYTES="$PRESENTATION_AUX_RUNTIME_BYTES" \
+          -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
+          -DPRESENTATION_INSTRUCTION_RUNTIME_ADDRESS="$INSTRUCTION_RUNTIME_STAGE_ADDRESS" \
+          -DPRESENTATION_INSTRUCTION_RUNTIME_BYTES="$PRESENTATION_INSTRUCTION_RUNTIME_BYTES" \
+          -DPRESENTATION_DEMO_RUNTIME_ADDRESS="$DEMO_RUNTIME_STAGE_ADDRESS" \
+          -DPRESENTATION_DEMO_RUNTIME_BYTES="$(wc -c < "$DEMO_RUNTIME")" \
           --output="$PRESENTATION_MODULE" \
           --list="$PRESENTATION_MODULE_LST" \
           --symbols \
@@ -424,22 +438,20 @@ with open(output, 'a', encoding='ascii') as handle:
         handle.write(f'{name} equ ${value}\n')
 PY
 
-    if [[ "$BUG011_DEVELOPMENT_PROFILE" == 1 ]]; then
-        lwasm -9 --format=raw \
-              --output="$INSTRUCTION_RUNTIME" \
-              --list="$INSTRUCTION_RUNTIME_LST" \
-              --symbols \
-              --map="$INSTRUCTION_RUNTIME_MAP" \
-              -I "$BUILD_DIR" \
-              "$INSTRUCTION_RUNTIME_SRC"
-        guard_instruction_runtime "$INSTRUCTION_RUNTIME"
-        python3 - "$INSTRUCTION_RUNTIME" "$PRESENTATION_AUX_RUNTIME_BYTES" <<'PY'
+    lwasm -9 --format=raw \
+          --output="$INSTRUCTION_RUNTIME" \
+          --list="$INSTRUCTION_RUNTIME_LST" \
+          --symbols \
+          --map="$INSTRUCTION_RUNTIME_MAP" \
+          -I "$BUILD_DIR" \
+          "$INSTRUCTION_RUNTIME_SRC"
+    guard_instruction_runtime "$INSTRUCTION_RUNTIME"
+    python3 - "$INSTRUCTION_RUNTIME" "$PRESENTATION_INSTRUCTION_RUNTIME_BYTES" <<'PY'
 import sys
 path, size = sys.argv[1], int(sys.argv[2])
 data = open(path, "rb").read()
 open(path, "wb").write(data.ljust(size, b"\x00"))
 PY
-    fi
 
     lwasm -9 --format=raw \
           --output="$PERIMETER_HELPER" \
@@ -467,6 +479,7 @@ PY
         --actor-underlays "$PRESENTATION_ACTOR_UNDERLAYS" \
         --presentation-module "$PRESENTATION_MODULE" \
         --instruction-runtime "$INSTRUCTION_RUNTIME" \
+        --demo-runtime "$DEMO_RUNTIME" \
         --aux-runtime-role "$LADYBUG_PROFILE" \
         --bank0-output "$SPARSE_BANK0" \
         --bank2-output "$SPARSE_BANK2" \
@@ -488,6 +501,7 @@ PY
         --actor-underlays "$PRESENTATION_ACTOR_UNDERLAYS" \
         --presentation-module "$PRESENTATION_MODULE" \
         --instruction-runtime "$INSTRUCTION_RUNTIME" \
+        --demo-runtime "$DEMO_RUNTIME" \
         --aux-runtime-role "$LADYBUG_PROFILE" \
         --bank0 "$SPARSE_BANK0" \
         --bank2 "$SPARSE_BANK2" \

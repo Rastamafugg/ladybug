@@ -44,20 +44,36 @@ def main() -> None:
     combined = module_bytes + cold
     source_spare = layout["gmc"]["spare_bytes"]
     development = bool(presentation_layout.get("development_profile"))
+    complete = bool(presentation_layout.get("complete_profile"))
+    if complete:
+        aux = layout.get("aux_runtime", {})
+        instruction_runtime = layout.get("instruction_runtime", {})
+        demo_runtime = layout.get("demo_runtime", {})
+        if aux.get("role") != "complete":
+            raise SystemExit("presentation flow proof: complete profile manifest role is missing")
+        if instruction_runtime.get("role") != "instructions":
+            raise SystemExit("presentation flow proof: instruction runtime is not staged")
+        if demo_runtime.get("role") != "demo-route":
+            raise SystemExit("presentation flow proof: demo runtime is not staged")
+        if demo_runtime.get("stage_address") != (
+                instruction_runtime.get("stage_address", 0) +
+                instruction_runtime.get("bytes", 0)):
+            raise SystemExit("presentation flow proof: auxiliary stage order is not contiguous")
+        if aux.get("staged_bytes") != (
+                instruction_runtime.get("bytes", 0) + demo_runtime.get("bytes", 0)):
+            raise SystemExit("presentation flow proof: auxiliary staged size is inconsistent")
 
-    required_symbols = ((
+    required_symbols = [
         "install_aux_runtime",
-        "instructions_tick",
         "draw_actor_overlay",
         "draw_tile_id",
         "cold_ptr",
         "colour_tile",
-    ) if development else (
-        "install_aux_runtime",
-        "draw_actor_overlay",
-        "demo_tick",
-        "demo_run",
-    ))
+    ]
+    if development:
+        required_symbols.append("instructions_tick")
+    if not development or complete:
+        required_symbols.extend(("demo_tick", "demo_run"))
     missing = [name for name in required_symbols if name not in symbols]
     if missing:
         raise SystemExit("presentation flow proof: missing symbols: " + ", ".join(missing))
@@ -76,19 +92,21 @@ def main() -> None:
         "PLAYER_BG_VALID equ $006A",
         "install_aux_runtime",
         "ldy     #$0300",
-        "ldu     #PRESENTATION_AUX_RUNTIME_BYTES",
         "lda     #$23",
-        "ldx     #$A422",
     )
     if development:
         required_source += (
             "INSTRUCTION_RUNTIME_TICK equ $0300",
-            "PRES_MAIN_SAVE_PLAYER",
-            "PRES_MAIN_RESTORE_PLAYER",
+            "install_instruction_runtime",
+            "PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS",
+            "PRESENTATION_INSTRUCTION_RUNTIME_BYTES",
         )
-    else:
+    if not development or complete:
         required_source += (
-            "DEMO_RUNTIME_TICK equ $0300", "PRES_DEMO_ROUTE",
+            "DEMO_RUNTIME_TICK equ $0300",
+            "install_demo_runtime",
+            "PRESENTATION_DEMO_RUNTIME_ADDRESS",
+            "PRESENTATION_DEMO_RUNTIME_BYTES",
         )
     missing_source = [fragment for fragment in required_source if fragment not in source]
     if missing_source:
