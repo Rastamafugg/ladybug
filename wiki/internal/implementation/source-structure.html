@@ -184,6 +184,28 @@ Generated build/*.inc / *.bin / layout.json   |
     </section>
 
     <section>
+      <h2>Resident rendering deduplication</h2>
+      <p>
+        PERF-006 keeps the resident renderer within <code>src/main.s</code> while
+        sharing two implementation paths. <code>draw_hud_digit</code> and
+        <code>draw_recolored_map_tile</code> retain separate source selection,
+        then converge on one unchanged 70-byte destination-and-recolour tail.
+        <code>draw_perimeter_box</code>, <code>draw_cell_tile</code>, and
+        <code>draw_cell_overlay</code> call <code>prepare_cell_tile</code> for
+        their common framebuffer and packed-tile pointer calculation.
+      </p>
+      <p>
+        The tile helper uses the immutable 24-entry
+        <code>cell_row_addresses</code> table for semantic rows 0 through 23.
+        This trades 48 resident data bytes for lower call overhead while retaining
+        a net resident reduction. The helpers do not change framebuffer ownership,
+        PAR mappings, direct-page allocation, tile formats, or caller-visible
+        renderer contracts. The GMC sparse loader separately removes only the
+        reverse register transfer that copied X back into an unchanged D value.
+      </p>
+    </section>
+
+    <section>
       <h2>BUG-012 full-coverage demo route architecture</h2>
       <p>BUG-012 selects an explicit uncompressed 147-action CoCo node walk plus a <code>$FF</code> terminator. The build retains the original 188-byte arcade control-call stream as immutable provenance, while <code>assets/arcade/demo_walk.json</code> owns the deployed node actions, backbone relationship, four return-to-anchor detours, and exact coverage/hash metadata. Runtime consumes one action only at a new even/even semantic maze cell and delegates legality, gate rotation, collection, collision, and rendering to the normal player/gameplay services.</p>
       <p>This separation is deliberate. The arcade pointer can advance twice at a turning node and its mapped path covers only 104 of the adapted maze's 117 placement cells; replaying those bytes as a legality-buffered queue deadlocks. An explicit node walk is deterministic and machine-verifiable without adding frame-time pathfinding. Uncompressed storage is selected because 148 bytes are 39 bytes smaller than the current deployed stream, the cold-data margin exceeds three kilobytes, and a two-bit decoder would add unnecessary code and bank-boundary risk.</p>

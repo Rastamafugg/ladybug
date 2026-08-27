@@ -488,6 +488,12 @@
           "reasons": []
         },
         {
+          "name": "prepare_cell_tile",
+          "profile": "render",
+          "purpose": "Resolve one semantic maze cell and screen tile to framebuffer and tile-source pointers.",
+          "reasons": []
+        },
+        {
           "name": "player_animation_tick",
           "profile": "state",
           "purpose": "Advance player animation state for one scheduled tick.",
@@ -641,6 +647,11 @@
           "name": "asset_start",
           "kind": "boundary",
           "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        },
+        {
+          "name": "cell_row_addresses",
+          "kind": "data",
+          "reason": "Authored immutable framebuffer row-address table owned by the resident renderer"
         },
         {
           "name": "cm_entry_masks",

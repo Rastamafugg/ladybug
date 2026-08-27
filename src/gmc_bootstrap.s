@@ -131,7 +131,6 @@ copy_sparse_destination_ready
         ldd     ,x++
         pshs    x
         tfr     d,x
-        tfr     x,d
         andb    #1
         beq     copy_sparse_word
         lda     ,u+

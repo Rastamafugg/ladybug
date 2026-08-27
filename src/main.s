@@ -123,6 +123,7 @@
 ; DOC-002 source-contract mirror contract perimeter_timer_tick profile=state: Advance perimeter timer state for one scheduled tick.
 ; DOC-002 source-contract mirror contract pickup_tick profile=state: Advance pickup state for one scheduled tick.
 ; DOC-002 source-contract mirror contract place_entity profile=state: Place entity.
+; DOC-002 source-contract mirror contract prepare_cell_tile profile=render: Resolve one semantic maze cell and screen tile to framebuffer and tile-source pointers.
 ; DOC-002 source-contract mirror contract player_animation_tick profile=state: Advance player animation state for one scheduled tick.
 ; DOC-002 source-contract mirror contract player_cell_offset profile=movement: Convert the player's semantic cell coordinates into a row-major maze offset.
 ; DOC-002 source-contract mirror contract player_tick profile=movement: Advance player state for one scheduled tick.
@@ -1079,6 +1080,30 @@ draw_hud_digit
         ldb     #HUD_DIGIT_SIZE
         mul
         leay    hud_digit_tiles,pcr
+        bra     drmt_recolour
+
+; Recolour the authored non-Black pixels at HUD_X,HUD_Y with HUD_COLOR.
+draw_recolored_map_tile
+        lda     HUD_Y
+        ldb     #40
+        mul
+        addb    HUD_X
+        adca    #0
+        leay    screen_map,pcr
+        ldb     d,y
+        clra
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        lslb
+        rola
+        leay    screen_tiles,pcr
+drmt_recolour
         leay    d,y
         lda     HUD_Y
         ldb     #5
@@ -1093,7 +1118,7 @@ draw_hud_digit
         rola
         lslb
         rola
-        leax    d,x             ; HUD columns exceed signed 8-bit A offsets
+        leax    d,x
         lda     #8
         sta     HUD_COUNT
 dhd_row
@@ -1122,72 +1147,6 @@ dhd_store
         leax    156,x
         dec     HUD_COUNT
         bne     dhd_row
-        rts
-
-; Recolour the authored non-Black pixels at HUD_X,HUD_Y with HUD_COLOR.
-draw_recolored_map_tile
-        lda     HUD_Y
-        ldb     #40
-        mul
-        addb    HUD_X
-        adca    #0
-        leay    screen_map,pcr
-        ldb     d,y
-        clra
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        leay    screen_tiles,pcr
-        leay    d,y
-        lda     HUD_Y
-        ldb     #5
-        mul
-        tfr     b,a
-        clrb
-        addd    #FB_VIRT
-        tfr     d,x
-        clra
-        ldb     HUD_X
-        lslb
-        rola
-        lslb
-        rola
-        leax    d,x
-        lda     #8
-        sta     HUD_COUNT
-drmt_row
-        lda     #4
-        sta     HUD_WIDTH
-drmt_byte
-        lda     ,y+
-        sta     HUD_BYTE
-        clra
-        ldb     HUD_BYTE
-        bitb    #$F0
-        beq     drmt_low
-        lda     HUD_COLOR
-        lsla
-        lsla
-        lsla
-        lsla
-drmt_low
-        bitb    #$0F
-        beq     drmt_store
-        ora     HUD_COLOR
-drmt_store
-        sta     ,x+
-        dec     HUD_WIDTH
-        bne     drmt_byte
-        leax    156,x
-        dec     HUD_COUNT
-        bne     drmt_row
         rts
 
 draw_lives
@@ -1883,33 +1842,7 @@ draw_perimeter_box
         addd    #8
         leay    screen_map,pcr
         ldb     d,y
-        stb     DRAW_TILE
-        lda     TEST_Y
-        ldb     #5
-        mul
-        tfr     b,a
-        clrb
-        addd    #FB_VIRT
-        tfr     d,x
-        lda     TEST_X
-        adda    #8
-        lsla
-        lsla
-        leax    a,x
-        ldb     DRAW_TILE
-        clra
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        leay    screen_tiles,pcr
-        leay    d,y
+        lbsr    prepare_cell_tile
         lda     #8
         sta     HUD_COUNT
 dpb_row
@@ -3667,21 +3600,20 @@ dmsc_draw
         rts
 
 ;==============================================================================
-; draw_cell_tile
+; prepare_cell_tile
 ;
 ; Inputs: B = screen tile ID; TEST_X,TEST_Y = semantic maze cell
-; Returns: A, B, D, X, Y, U, CC undefined
-; Side effects: writes one 8x8 tile to the framebuffer.
+; Returns: X = framebuffer destination; Y = packed tile source
+; Clobbers: A, B, D, CC
 ;==============================================================================
-draw_cell_tile
+prepare_cell_tile
         stb     DRAW_TILE
-        lda     TEST_Y
-        ldb     #5
-        mul
-        tfr     b,a
-        clrb
-        addd    #FB_VIRT
-        tfr     d,x
+        clra
+        ldb     TEST_Y
+        lslb
+        rola
+        leay    cell_row_addresses,pcr
+        ldx     d,y
         lda     TEST_X
         adda    #8
         lsla
@@ -3701,6 +3633,25 @@ draw_cell_tile
         rola
         leay    screen_tiles,pcr
         leay    d,y
+        rts
+
+cell_row_addresses
+        fdb     FB_VIRT+(0*1280),FB_VIRT+(1*1280),FB_VIRT+(2*1280),FB_VIRT+(3*1280)
+        fdb     FB_VIRT+(4*1280),FB_VIRT+(5*1280),FB_VIRT+(6*1280),FB_VIRT+(7*1280)
+        fdb     FB_VIRT+(8*1280),FB_VIRT+(9*1280),FB_VIRT+(10*1280),FB_VIRT+(11*1280)
+        fdb     FB_VIRT+(12*1280),FB_VIRT+(13*1280),FB_VIRT+(14*1280),FB_VIRT+(15*1280)
+        fdb     FB_VIRT+(16*1280),FB_VIRT+(17*1280),FB_VIRT+(18*1280),FB_VIRT+(19*1280)
+        fdb     FB_VIRT+(20*1280),FB_VIRT+(21*1280),FB_VIRT+(22*1280),FB_VIRT+(23*1280)
+
+;==============================================================================
+; draw_cell_tile
+;
+; Inputs: B = screen tile ID; TEST_X,TEST_Y = semantic maze cell
+; Returns: A, B, D, X, Y, U, CC undefined
+; Side effects: writes one 8x8 tile to the framebuffer.
+;==============================================================================
+draw_cell_tile
+        lbsr    prepare_cell_tile
         lbsr    blit_tile
         rts
 
@@ -3712,33 +3663,7 @@ draw_cell_tile
 ; Side effects: blends one gate-only 8x8 tile into the framebuffer.
 ;==============================================================================
 draw_cell_overlay
-        stb     DRAW_TILE
-        lda     TEST_Y
-        ldb     #5
-        mul
-        tfr     b,a
-        clrb
-        addd    #FB_VIRT
-        tfr     d,x
-        lda     TEST_X
-        adda    #8
-        lsla
-        lsla
-        leax    a,x
-        ldb     DRAW_TILE
-        clra
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        leay    screen_tiles,pcr
-        leay    d,y
+        lbsr    prepare_cell_tile
         lda     #8
         ldb     #4
         lbsr    blit_transparent

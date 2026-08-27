@@ -118,8 +118,16 @@ def static_contract(payload: bytes) -> tuple[dict[int, int], dict[str, object]]:
     begin = source.index("\ndraw_perimeter_box\n")
     end = source.index("\ndpb_row\n", begin)
     incremental = source[begin:end]
-    for fragment in ("ldb     #5", "mul", "tfr     b,a", "clrb"):
-        if fragment not in incremental:
+    prepare_begin = source.index("\nprepare_cell_tile\n")
+    prepare_end = source.index("\n        rts", prepare_begin)
+    preparation = source[prepare_begin:prepare_end]
+    if "lbsr    prepare_cell_tile" not in incremental:
+        raise RuntimeError("perimeter renderer does not use shared tile preparation")
+    for fragment in (
+        "ldb     TEST_Y", "lslb", "rola",
+        "leay    cell_row_addresses,pcr", "ldx     d,y",
+    ):
+        if fragment not in preparation:
             raise RuntimeError("incremental eight-pixel identity changed")
     bootstrap = (ROOT / "src/gmc_bootstrap.s").read_text(encoding="utf-8")
     if "LDD #value16 / STD address" not in bootstrap or "lda     #8" not in bootstrap:
@@ -145,7 +153,7 @@ def static_contract(payload: bytes) -> tuple[dict[int, int], dict[str, object]]:
         "paired_store_opcodes": pair_count,
         "five_stride_mutation_rejected": True,
         "first_mutated_address": first_non_top,
-        "incremental_renderer_unchanged": True,
+        "incremental_renderer_shared_addressing": True,
     }
 
 
