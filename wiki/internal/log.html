@@ -14,6 +14,10 @@
   </nav>
 <main class="wiki-main">
     <section>
+      <h3>2026-08-26 &middot; integration/QA &mdash; PERF-006 memory deduplication</h3>
+      <p>User authorized controlled integration. Integrated implementation commit <code>cf37bab</code> on <code>main</code> as <code>8141669</code> without staging or overwriting unrelated working-tree changes. A clean isolated build passed with resident <code>8092/8192</code>, direct GMC boot/attract/gameplay proof passed, BUG-017 perimeter geometry and both-owner reset proof passed, source traceability passed at <code>198/198</code> routines and <code>1931/1931</code> labels with <code>9/9</code> mutation rejections, and sparse/allocation/capacity checks passed. The inherited BUG-011 instruction-manifest and enemy phase-order verifier failures reproduce at baseline <code>038ef92</code>; PERF-006 remains in <code>Verification</code> pending explicit closure review. Unrelated main-workspace changes remain unstaged.</p>
+    </section>
+    <section>
       <h3>2026-08-26 &middot; verification &mdash; PERF-006 memory deduplication</h3>
       <p>Completed the approved loader, HUD-tail, and tile-preparation deduplications. Release resident usage changed from 8188/8192 to 8092/8192 bytes and the boot loader raw size changed from 1002 to 1000 bytes. GMC publication, natural dual-owner pixels, perimeter pixels, capacity guards, and DOC-002 traceability pass. Baseline-differential checks retain the pre-existing enemy-verifier, BUG-011 helper-identity, gate-timing, and BUG-005 pixel failures without modifying them. Advanced <a href="./tickets/perf-006-behavior-preserving-memory-deduplication.html">PERF-006</a> to Verification for user acceptance.</p>
     </section>
@@ -24,6 +28,14 @@
     <section>
       <h3>2026-08-26 &middot; approval/assignment &mdash; PERF-006 behavior-preserving memory deduplication</h3>
       <p>User approved the redundant sparse-loader transfer removal, resident HUD-tail deduplication, resident tile-preparation deduplication, and the explicit 15% High-risk weekly-token ceiling. Created <a href="./tickets/perf-006-behavior-preserving-memory-deduplication.html">PERF-006</a> with exact scope, projected savings, ownership exclusions, risk-mapped verification, clean worktree, stop conditions, evidence, and commit boundaries; advanced it to Ready. Runtime source and generated artifacts remain unchanged at this checkpoint.</p>
+    </section>
+    <section>
+      <h3>2026-08-26 &middot; approval &mdash; PERF-006 behavior-preserving memory deduplication</h3>
+      <p>User explicitly approved work on the redundant sparse-loader transfer, resident HUD-tail deduplication, and resident tile-preparation deduplication. Created <a href="./tickets/perf-006-behavior-preserving-memory-deduplication.html">PERF-006</a> as an Approved, bounded performance ticket. The work is High-risk because it touches the boot loader and hard resident/timing boundaries; estimated use is 10% of the weekly allocation and the requested 15% ceiling remains pending explicit approval, so the ticket is not Ready and no runtime source or build input changed.</p>
+    </section>
+    <section>
+      <h3>2026-08-26 &middot; architecture/query &mdash; release memory optimization audit</h3>
+      <p>Audited the certified DOC-002 source/artifact baseline at <code>fac594fea1af6f33eb8bd60ed5d71c4f72eee16c</code> without changing runtime source or build inputs. Confirmed two resident exact-duplication candidates: a 70-byte emitted span shared by <code>draw_hud_digit</code> and <code>draw_recolored_map_tile</code> (about 61 bytes net if factored, with render-cycle verification required), and a 28-byte emitted address/tile-preparation span shared by <code>draw_perimeter_box</code>, <code>draw_cell_tile</code>, and <code>draw_cell_overlay</code> (about 46 bytes net if factored, also timing-sensitive). Confirmed five identical 32-byte unrolled copy bodies in <code>gmc_bootstrap.s</code> (about 112 bytes net if factored); this affects boot/cartridge reserve, not steady-state frame capacity. Found one redundant <code>tfr d,x</code> / <code>tfr x,d</code> pair in the sparse loader, a high-confidence 2-byte boot-only cleanup. The eight phase-specialized enemy background copiers remain a larger but timing-sensitive PERF-003 candidate. Repeated direct-page and hardware <code>EQU</code> declarations, DOC-002 comments, development-only helpers, and diagnostic/test sources are source-only or non-shipped and were not counted as runtime savings. No optimization was implemented or approved.</p>
     </section>
     <section>
       <h3>2026-08-26 &middot; documentation maintenance &mdash; DOC-002 source-structure status</h3>
@@ -92,6 +104,10 @@
     <section>
       <h3>2026-08-23 &middot; assignment &mdash; DOC-002 current-source traceability</h3>
       <p>User selected the current working code as the DOC-002 baseline and explicitly deferred existing bugs until the documentation ticket completes. Removed FEAT-002 stabilization as a dependency; completed exact artifact ownership, current-source hashing, generation and mutation commands, risk-mapped verification, retained evidence, dirty-worktree integration, and commit boundaries; and added five architecture walkthroughs plus a user structure checkpoint before final implementation. Advanced <a href="./tickets/doc-002-assembly-source-traceability.html">DOC-002</a> from <code>Approved</code> to <code>Ready</code> without changing its approved hybrid outcome, scope, or acceptance criteria. Focused QA confirmed lifecycle consistency, link resolution, balanced ticket structure, edited-file whitespace, and zero authored-runtime/build-input change. No build, emulator run, commit, memory allocation, or capacity change was required.</p>
+    </section>
+    <section>
+      <h3>2026-08-22 · query/ingest — screen rendering pipeline and BUG-020</h3>
+      <p>Traced the current state-to-pixel path through <code>src/main.s</code>, <code>src/enemy_runtime.s</code>, and <code>scripts/build_screen.py</code>. Added the linked <a href="./implementation/screen-rendering.html">screen rendering pipeline guide</a>, explaining framebuffer coordinates, render intents, persistent BACK composition, owner-local save-under state, death presentation, sparse stream generation, and the confirmed BUG-020 generator asymmetry. Connected the guide from the implementation index, source structure, video mode, and ping-pong framebuffer. No runtime, generated, or build artifact changed.</p>
     </section>
     <section>
       <h3>2026-08-20 &middot; integration/acceptance &mdash; DOC-005 bounded bug workflow</h3>
