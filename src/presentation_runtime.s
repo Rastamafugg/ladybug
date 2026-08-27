@@ -115,6 +115,17 @@ MODE_CREDIT equ 5
 MODE_LEVEL equ 6
 MODE_GAMEOVER equ 7
 MODE_NAME equ 8
+PRES_CONTEXT_NEXT_STAGE equ 2
+
+        ifne    COMPLETE_PROFILE
+ATTRACT_OVERLAY_ENABLED equ 1
+        else
+        ifeq    BUG011_DEVELOPMENT_PROFILE
+ATTRACT_OVERLAY_ENABLED equ 1
+        else
+ATTRACT_OVERLAY_ENABLED equ 0
+        endc
+        endc
 
         org $1900
 
@@ -177,9 +188,14 @@ pft_dispatch
         cmpa    #MODE_INSTRUCTIONS
         lbeq    instructions_tick
         endc
+        ifne    COMPLETE_PROFILE
+        cmpa    #MODE_DEMO
+        lbeq    demo_tick
+        else
         ifeq    BUG011_DEVELOPMENT_PROFILE
         cmpa    #MODE_DEMO
         lbeq    demo_tick
+        endc
         endc
         cmpa    #MODE_CREDIT
         lbeq    credit_tick
@@ -194,15 +210,40 @@ pft_dispatch
         endc
 
 install_aux_runtime
+        ifne    COMPLETE_PROFILE
+        lbsr    install_instruction_runtime
+        rts
+
+install_instruction_runtime
+        ldx     #PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS
+        ldu     #PRESENTATION_INSTRUCTION_RUNTIME_BYTES
+        bra     install_aux_runtime_copy
+
+install_demo_runtime
+        ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
+        ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
+install_aux_runtime_copy
         lda     #$23
         sta     PAR5
-        ldx     #$A422
         ldy     #$0300
-        ldu     #PRESENTATION_AUX_RUNTIME_BYTES
+        bra     install_aux_runtime_byte
+        else
+        ifne    BUG011_DEVELOPMENT_PROFILE
+        ldx     #PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS
+        ldu     #PRESENTATION_INSTRUCTION_RUNTIME_BYTES
+        else
+        ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
+        ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
+        endc
+        lda     #$23
+        sta     PAR5
+        ldy     #$0300
+        endc
 install_aux_runtime_byte
         lda     ,x+
         sta     ,y+
         leau    -1,u
+        cmpu    #0
         bne     install_aux_runtime_byte
         lda     #$34
         sta     PAR5
@@ -224,7 +265,11 @@ normal_stage
         tst     STAGE_PENDING
         beq     normal_start
         jsr     PRES_MAIN_NEXT_STAGE
+        ifne    COMPLETE_PROFILE
+        lda     #PRES_CONTEXT_NEXT_STAGE
+        else
         lda     #1
+        endc
         sta     PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
         lbsr    start_screen
@@ -249,6 +294,19 @@ normal_game
 
 start_screen
         sta     PRES_SCREEN
+        ifne    COMPLETE_PROFILE
+        cmpa    #PRESENTATION_MAP_ATTRACT
+        bne     start_screen_context_ready
+        clr     PRES_CONTEXT
+start_screen_context_ready
+        endc
+        ifne    COMPLETE_PROFILE
+        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+        bne     start_screen_no_instruction_install
+        lbsr    install_instruction_runtime
+        lda     PRES_SCREEN       ; installer restores PAR5 through A
+start_screen_no_instruction_install
+        endc
         tfr     a,b
         aslb
         leax    map_stream_offsets,pcr
@@ -335,7 +393,7 @@ load_done_no_cucumber
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_ATTRACT
         bne     load_done_hold_plain
-        ifeq    BUG011_DEVELOPMENT_PROFILE
+        ifne    ATTRACT_OVERLAY_ENABLED
         lda     #$FF
         sta     PRES_ACTOR_PHASE
         lda     #$34
@@ -518,7 +576,7 @@ attract_tick_ready
         ldd     PRES_TIMER
         cmpd    #558
         bhs     attract_next
-        ifeq    BUG011_DEVELOPMENT_PROFILE
+        ifne    ATTRACT_OVERLAY_ENABLED
         jsr     PRESENTATION_ATTRACT_OVERLAY
         endc
         bra     hold
@@ -562,12 +620,46 @@ level_tick
         lbsr    timer
         cmpd    #180
         blo     hold
+        ifne    COMPLETE_PROFILE
+        lda     PRES_CONTEXT
+        beq     level_tick_demo_check
+        cmpa    #PRES_CONTEXT_NEXT_STAGE
+        bne     live_begin
+        clr     PRES_CONTEXT
+        clr     PRES_MODE
+        clra
+        rts
+level_tick_demo_check
+        endc
         tst     PENDING
+        ifne    COMPLETE_PROFILE
+        lbne    hold
+        else
         bne     hold
+        endc
         tst     ACTIVE
+        ifne    COMPLETE_PROFILE
+        lbne    hold
+        else
         bne     hold
+        endc
         tst     PRES_CONTEXT
         bne     live_begin
+        ifne    COMPLETE_PROFILE
+        lbsr    init_gameplay
+        clr     PRES_TIMER
+        clr     PRES_TIMER+1
+        clr     PRES_DEMO_ROUTE ; CoCo walk starts after automatic maze entry
+        lda     #$FF
+        sta     PRES_DEMO_LAST_X
+        sta     PRES_DEMO_LAST_Y
+        sta     PRES_DEMO_DIR
+        lbsr    install_demo_runtime
+        lda     #MODE_DEMO
+        sta     PRES_MODE
+        clra
+        rts
+        else
         ifne    BUG011_DEVELOPMENT_PROFILE
         lda     #PRESENTATION_MAP_ATTRACT
         lbsr    start_screen
@@ -586,6 +678,7 @@ level_tick
         sta     PRES_MODE
         clra
         rts
+        endc
         endc
 live_begin
         lbsr    init_gameplay
@@ -627,6 +720,37 @@ gameplay_reentry_clear
         cmpx    #FB_META_END
         blo     gameplay_reentry_clear
         rts
+        ifne    COMPLETE_PROFILE
+demo_tick
+        lda     DEATH
+        beq     demo_run
+        cmpa    #3
+        bne     demo_death_tick
+        tst     DEATH_T
+        beq     demo_death_done
+demo_death_tick
+        jsr     PRES_MAIN_DEATH
+        jsr     PRES_MAIN_RENDER
+        lbra    hold
+demo_death_done
+        lda     #PRESENTATION_MAP_ATTRACT
+        lbsr    start_screen
+        lda     #1
+        rts
+demo_run
+        lbsr    timer
+        jsr     DEMO_RUNTIME_TICK
+        ldd     PRES_TIMER
+        cmpd    #3600
+        blo     demo_return
+        lda     #PRESENTATION_MAP_ATTRACT
+        lbsr    start_screen
+        lda     #1
+        rts
+demo_return
+        clra
+        rts
+        else
         ifeq    BUG011_DEVELOPMENT_PROFILE
 demo_tick
         lda     DEATH
@@ -675,6 +799,7 @@ name_tick
         lda     #1
         rts
         endc
+        endc
 add_credit
         lda     PRES_CREDITS
         cmpa    #PRESENTATION_COIN_SLOT_COUNT
@@ -694,6 +819,9 @@ scan_loop
         lda     b,x
         sta     PIA_DB
         lda     PIA_DA
+        ifne    COMPLETE_PROFILE
+        anda    #$7F            ; PA7 is joystick comparator, not a key row
+        endc
         pshs    a
         coma
         anda    b,y

@@ -188,6 +188,8 @@ GATE_Y        equ $0015         ; active gate pivot row
 DRAW_COUNT    equ $0016         ; gate redraw loop counter
 DRAW_TILE     equ $0017         ; tile ID for draw_cell_tile
 PLAYER_MANUAL equ $0018         ; nonzero after first directional input
+PRES_MODE     equ $00A5         ; presentation dispatcher mode
+MODE_DEMO     equ 4              ; autonomous demo owns joystick direction
 GATE_ANIM_ID  equ $0019         ; rotating gate ID+1; zero when idle
 GATE_ANIM_STYLE equ $001A       ; 0=slash, 1=backslash
 BLIT_ROWS     equ $001B         ; transparent-blit row counter
@@ -624,7 +626,11 @@ main_game_tick
         lbsr    player_tick
         lbsr    enemy_collect
 main_after_player
+        lda     PRES_MODE
+        cmpa    #MODE_DEMO
+        beq     main_demo_input_owned
         lbsr    read_joystick
+main_demo_input_owned
         lda     DEATH_STATE
         bne     main_after_timers
         lbsr    bonus_color_tick
@@ -649,6 +655,9 @@ phase4_before_tick
         sta     PLAYER_TICK_PENDING
         lda     STAGE_PENDING
         beq     main_render
+        lda     PRES_MODE
+        cmpa    #MODE_DEMO
+        bne     main_render
         lbsr    next_stage
 main_render
         lbsr    render_frame

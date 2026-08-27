@@ -15,6 +15,42 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h2>Separate new-game initialization from next-stage initialization</h2>
+      <p><strong>Filed 2026-08-27.</strong> The shared <code>init_gameplay</code> path invokes <code>init_game_state</code>, which correctly resets a new session to stage 1 but must not be reused after <code>next_stage</code> has already advanced the live session. A presentation level-start handoff therefore needs an explicit preinitialized-stage marker.</p>
+      <p><strong>Rule:</strong> let the presentation state machine own the live stage boundary, preserve the incremented stage through the level-start screen, and distinguish that state from a new credit/start initialization. Demo stage advancement remains owned by the gameplay loop.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-015-live-game-attract-timeout.html">BUG-015</a>, <code>src/main.s</code>, and <code>src/presentation_runtime.s</code>.</p>
+    </section>
+    <section>
+      <h2>Clear session context when complete attract begins</h2>
+      <p><strong>Filed 2026-08-27.</strong> The complete profile uses <code>PRES_CONTEXT</code> to distinguish a credited live session from the unattended demo. Leaving the live value set after game over causes the next level-start screen to select <code>live_begin</code>, so a later attract loop appears to restart gameplay.</p>
+      <p><strong>Rule:</strong> reset live-session context at the complete attract boundary before the next level-start dispatch. A fresh attract cycle must enter the autonomous demo branch and retain the physical-input gate.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-015-live-game-attract-timeout.html">BUG-015</a>, <code>src/presentation_runtime.s</code>, and <code>scripts/verify_bug015_complete_runtime.py</code>.</p>
+    </section>
+    <section>
+      <h2>Mask the joystick comparator before publishing keyboard edges</h2>
+      <p><strong>Filed 2026-08-27.</strong> PIA1 PA7 is the joystick comparator, not a keyboard-row bit. The presentation scanner previously compared and stored the full PIA1 byte, so moving the joystick could publish credit-event bits and enter the high-score map from an active game.</p>
+      <p><strong>Rule:</strong> mask PA7 before comparing or storing keyboard samples. Keep keyboard credit/start ownership separate from analog joystick state.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-015-live-game-attract-timeout.html">BUG-015</a>, <code>src/presentation_runtime.s</code>, and <code>src/main.s</code>.</p>
+    </section>
+    <section>
+      <h2>Demo direction must own input after presentation dispatch</h2>
+      <p><strong>Filed 2026-08-27.</strong> The outer <code>mainloop</code> invokes <code>main_game_tick</code> after a zero return from <code>presentation_flow_tick</code>. Complete-profile <code>demo_tick</code> returns zero after the auxiliary route director runs, so the unconditional <code>read_joystick</code> overwrites the route and makes the demo player-responsive.</p>
+      <p><strong>Rule:</strong> when demo mode is active, skip physical joystick sampling in the shared gameplay tick and retain the auxiliary route director as the sole direction owner. Preserve ordinary gameplay mutation and rendering for the demo path.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-015-live-game-attract-timeout.html">BUG-015</a>, <code>src/main.s</code>, and <code>src/demo_runtime.s</code>.</p>
+    </section>
+    <section>
+      <h2>Counted copy loops require an explicit condition-code producer</h2>
+      <p><strong>Filed 2026-08-27.</strong> The shared auxiliary-runtime copier used <code>LEAU -1,U</code> followed by <code>BNE</code>. Because <code>LEAU</code> does not provide the required zero test, the branch reused the flag from the copied byte and stopped at the first zero-valued runtime byte. The complete instruction runtime therefore copied only six bytes before execution.</p>
+      <p><strong>Rule:</strong> after decrementing a 16-bit copy count, compare the count explicitly before branching. Verify the complete destination range immediately after installation; matching entry bytes do not prove that the entire overlay was copied.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-021-complete-instructions-map-selector.html">BUG-021</a>, <code>src/presentation_runtime.s</code>, and <code>scripts/verify_bug021_complete_instructions.py</code>.</p>
+    </section>
+    <section>
+      <h2>Runtime installers must preserve caller-owned selectors</h2>
+      <p><strong>Filed 2026-08-27.</strong> The complete-profile <code>start_screen</code> path stores the requested presentation map ID in <code>PRES_SCREEN</code>, then installs the instruction overlay. The installer restores <code>PAR5</code> by loading <code>$34</code> into A; using A immediately afterward as the map-table index reads outside <code>map_stream_offsets</code> and produces garbage screen data.</p>
+      <p><strong>Rule:</strong> treat an installer as a clobbering call unless its contract explicitly preserves the selector. Preserve or reload caller-owned IDs after every runtime install before table indexing. Prove the authored, staged, destination-runtime, and selected-stream identities separately.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/bug-021-complete-instructions-map-selector.html">BUG-021</a>, <code>src/presentation_runtime.s</code>, and the complete-profile build artifacts dated 2026-08-27.</p>
+    </section>
+    <section>
       <h2>Autonomous route consumption needs a semantic-node latch</h2>
       <p><strong>Finding:</strong> even/even alignment alone does not prove a new route boundary. Presentation can tick twice before player movement leaves the same cell, so a route consumer without a last-cell latch advances twice and corrupts the deterministic path.</p>
       <p><strong>Rule:</strong> consume at most one autonomous action for each distinct aligned semantic cell. Retain the last consumed cell as the cadence latch, but leave movement legality and gate mutation to ordinary gameplay services.</p>
@@ -1011,7 +1047,7 @@
       <p>
         <strong>Fix:</strong> use <code>leau -1,u</code>,
         <code>cmpu #0</code>, <code>bne</code>. The rule was already present in
-        <a href="../platform/6809.html#lea-ops">platform/6809</a> and the
+        <a href="../platform/6809.html">platform/6809</a> and the
         public <a href="../../release/reference/6809/leau.html">LEAU reference</a>;
         the live failure demonstrates why loop reviews must check the flag
         producer immediately before every conditional branch.
