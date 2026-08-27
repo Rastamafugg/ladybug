@@ -339,6 +339,39 @@ shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coc
     </section>
 
     <section>
+      <h2>Reproducibility artifacts</h2>
+      <p>
+        The reproducibility authority is the committed source tree, the
+        selected <code>LADYBUG_PROFILE</code>, the build and verification
+        scripts, and the identified assembler/XRoar toolchain. The
+        repository-wide <code>/build</code> directory is disposable and
+        ignored by default; it contains generated ROMs, binaries, maps,
+        listings, manifests, loader tables, and verifier evidence. Recreate
+        it with the profile-specific build command before running a verifier.
+      </p>
+      <p>
+        Historical generated files that are already tracked under
+        <code>build/</code> are legacy snapshots, not the canonical build
+        result. Do not update or add individual generated files there. A
+        tracked reproducibility bundle is permitted only under a dedicated
+        path outside <code>build/</code>, with one exact profile and source
+        revision per bundle. It must contain the deliverable ROM, every
+        non-regenerable or profile-specific payload required to interpret
+        it, the relevant maps and manifests, a provenance record containing
+        the source revision, profile, build command, assembler/toolchain
+        identity, and a complete SHA-256 file.
+      </p>
+      <p>
+        Listing-only changes, mixed-profile outputs, partial auxiliary
+        payloads, and evidence copied from an unrecorded dirty tree are not
+        reproducibility artifacts. Natural XRoar evidence is normally
+        retained as a concise ticket record and an ignored JSON capture; it
+        is promoted into a tracked bundle only when later inspection or
+        independent reproduction is an explicit acceptance requirement.
+      </p>
+    </section>
+
+    <section>
       <h2>When this runbook breaks</h2>
       <ul>
         <li><strong><code>lwasm: command not found</code></strong> — WSL <code>~/coco-tools/lwtools</code> not built/installed. Reinstall: <code>cd ~/coco-tools/lwtools &amp;&amp; make &amp;&amp; sudo make install</code>.</li>
