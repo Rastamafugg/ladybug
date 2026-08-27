@@ -1,0 +1,42 @@
+{
+  "schema": "ladybug-reproducibility-provenance-v1",
+  "ticket": "FEAT-004",
+  "profile": "complete",
+  "source_revision": "1665af25f3742148078814513725c721fedf59c6",
+  "production_input_worktree_clean": true,
+  "generated_utc": "2026-08-27T14:49:58.6498131Z",
+  "build_command": "LADYBUG_PROFILE=complete bash scripts/build.sh build",
+  "verification_commands": [
+    "python3 scripts/verify_presentation_flow.py",
+    "python3 scripts/verify_sparse_sprites.py --aux-runtime-role complete",
+    "python3 scripts/verify_gmc_boot.py --xroar docs/reference/xroar/src/xroar --rom build/ladybug.rom --map build/ladybug.map --manifest build/ladybug-sparse-layout.json",
+    "python3 scripts/verify_bug021_complete_instructions.py --xroar docs/reference/xroar/src/xroar --rom build/ladybug.rom --timeout 40",
+    "python3 scripts/verify_feat004_complete_natural.py --xroar docs/reference/xroar/src/xroar --rom build/ladybug.rom --timeout 40",
+    "python3 -m py_compile scripts/verify_feat004_complete_natural.py"
+  ],
+  "toolchain": {
+    "assembler": "lwasm from lwtools 4.24",
+    "assembler_path": "/usr/local/bin/lwasm",
+    "assembler_sha256": "8b1f92a1de6ea8b736085291391ae5a6d7e8c8fd19c98b6827da287a0b3d8cf4",
+    "xroar": "XRoar 1.11",
+    "xroar_path": "docs/reference/xroar/src/xroar",
+    "xroar_sha256": "11f4b0a3bdb643e1801ef8ce3c3576bf79224248b1dc6f6921bcf70311120d42",
+    "python": "Python 3.8.10",
+    "host": "Linux 6.6.87.2-microsoft-standard-WSL2 x86_64 GNU/Linux"
+  },
+  "deliverable": {
+    "path": "ladybug.rom",
+    "sha256": "48d1c061549930c9ebf408ed007e0c680debe6ddb2c86e97859e7082e3f1ec36",
+    "bytes": 65536
+  },
+  "natural_evidence": {
+    "path": "feat004-complete-natural.json",
+    "sequence": "request-0 -> visible-0 -> request-1 -> visible-1 -> request-2 -> visible-2 -> level-start -> demo"
+  },
+  "hash_manifest": {
+    "path": "SHA256SUMS.txt",
+    "scope": "all bundle files except SHA256SUMS.txt itself",
+    "algorithm": "SHA-256"
+  },
+  "policy": "Generated build outputs are isolated outside build; the bundle is one exact profile and source revision with provenance and complete hashes."
+}
