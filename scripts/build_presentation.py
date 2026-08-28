@@ -494,6 +494,55 @@ def enter_high_score_edge_masks() -> bytes:
     return bytes(masks)
 
 
+def enter_high_score_full_edge_masks(path: Path) -> bytes:
+    """Encode passable N/E/S/W edges for the authored 24x24 maze window."""
+    root = ET.parse(path).getroot()
+    overlay = next(
+        layer for layer in root.findall("layer")
+        if layer.get("name") == "Enter High Score Overlay"
+    )
+    cells = parse_csv(overlay.find("data"), overlay.get("name", ""))
+    wall_cells = {
+        (x - 8, y)
+        for y in range(SCREEN_HEIGHT)
+        for x in range(8, 32)
+        if cells[y * SCREEN_WIDTH + x] and
+        raw_char_code(root, path, cells[y * SCREEN_WIDTH + x])
+        == ENTER_HIGH_SCORE_INNER_WALL_CODE
+    }
+    masks = bytearray([0x0F] * (24 * 24))
+
+    def index(x: int, y: int) -> int:
+        return y * 24 + x
+
+    for y in range(24):
+        for x in range(24):
+            mask = 0 if (x, y) in wall_cells else 0x0F
+            if x == 0:
+                mask &= ~0x08
+            if y == 0:
+                mask &= ~0x01
+            if x == 23:
+                mask &= ~0x02
+            if y == 23:
+                mask &= ~0x04
+            masks[index(x, y)] = mask
+
+    # A wall cell is not a corridor. Clear both sides of every edge touching it
+    # so movement cannot enter, leave, or cross an authored inner-wall tile.
+    for wall_x, wall_y in wall_cells:
+        for dx, dy, bit, opposite in (
+            (0, -1, 0x01, 0x04), (1, 0, 0x02, 0x08),
+            (0, 1, 0x04, 0x01), (-1, 0, 0x08, 0x02),
+        ):
+            other_x = wall_x + dx
+            other_y = wall_y + dy
+            if 0 <= other_x < 24 and 0 <= other_y < 24:
+                masks[index(other_x, other_y)] &= ~opposite
+        masks[index(wall_x, wall_y)] = 0
+    return bytes(masks)
+
+
 def raw_char_code(root: ET.Element, path: Path, gid: int) -> int:
     ranges = tileset_ranges(root, path)
     tileset = next(
@@ -1121,6 +1170,19 @@ def parse_enter_high_score_contract(
         node_tile_ids.extend(row_tiles)
     node_cells.extend(((11, 20), (15, 20), (19, 20), (23, 20), (27, 20)))
     node_tile_ids.extend((0xFE, 0xFF, 0xFF, 0xFF, 0xFD))
+    action_records = [
+        (cell, tile_id) for cell, tile_id in zip(node_cells, node_tile_ids)
+        if tile_id != 0xFF
+    ]
+    default_codes = (21, 10, 13, 34, 11, 30, 16)  # LADYBUG in chars_raw2bpp
+    glyph_by_code = {
+        raw_char_code(root, path, overlay_cells[y * SCREEN_WIDTH + x]): tile_id
+        for (x, y), tile_id in zip(grid_cells, grid_tiles)
+    }
+    try:
+        default_name_tile_ids = [glyph_by_code[code] for code in default_codes]
+    except KeyError as exc:
+        raise ValueError(f"{path}: missing LADYBUG fixture glyph code {exc.args[0]}")
     return {
         "cursor_stream": cursor_stream,
         "cursor_source_code": cursor_code,
@@ -1130,6 +1192,10 @@ def parse_enter_high_score_contract(
         "grid_tile_ids": grid_tiles,
         "node_cells": node_cells,
         "node_tile_ids": node_tile_ids,
+        "action_records": [
+            [cell[0], cell[1], tile_id] for cell, tile_id in action_records
+        ],
+        "default_name_tile_ids": default_name_tile_ids,
         "node_destinations": [
             framebuffer_destination(cell) - 1280 for cell in node_cells
         ],
@@ -1447,6 +1513,10 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_NAME_ENTRY_TIMER_COUNT equ {name_entry['timer_box_count']}",
         f"PRESENTATION_NAME_ENTRY_EDGE_MASK_TABLE equ ${name_entry['edge_mask_table_offset']:04X}",
         f"PRESENTATION_NAME_ENTRY_EDGE_MASK_BYTES equ {name_entry['edge_mask_table_bytes']}",
+        f"PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE equ ${name_entry['full_edge_mask_table_offset']:04X}",
+        f"PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_BYTES equ {name_entry['full_edge_mask_table_bytes']}",
+        f"PRESENTATION_NAME_ENTRY_ACTION_TABLE equ ${name_entry['action_table_offset']:04X}",
+        f"PRESENTATION_NAME_ENTRY_ACTION_BYTES equ {name_entry['action_table_bytes']}",
     ))
     lines.append("PRESENTATION_NAME_ENTRY_GRID_TILES")
     lines.append("PRESENTATION_NAME_ENTRY_GRID_CELLS")
@@ -1458,6 +1528,10 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         ))
     lines.append("PRESENTATION_NAME_ENTRY_NODE_DESTINATIONS")
     lines.append("        endc")
+    for index, tile_id in enumerate(name_entry["default_name_tile_ids"]):
+        lines.append(
+            f"PRESENTATION_HIGHSCORE_DEFAULT_NAME_{index} equ ${int(tile_id):02X}"
+        )
     lines.append(f"PRESENTATION_COIN_TILE equ {manifest['coin_tile']}")
     rotated = [rotate_ccw(tile) for tile in chars]
     for code in range(37):
@@ -1536,6 +1610,7 @@ def main() -> None:
             "score_destinations": [], "top_destinations": [],
             "top_right_destinations": [],
             "node_cells": [], "node_tile_ids": [], "node_destinations": [],
+            "action_records": [], "default_name_tile_ids": [],
             "timer_base_tile_ids": [], "timer_green_tile_ids": [],
             "timer_table_offset": 0,
             "timer_frames_per_box": ENTER_HIGH_SCORE_TIMER_FRAMES,
@@ -1543,6 +1618,12 @@ def main() -> None:
             "edge_mask_table_offset": 0,
             "edge_mask_table_bytes": 0,
             "edge_masks": [],
+            "full_edge_mask_table_offset": 0,
+            "full_edge_mask_table_bytes": 0,
+            "full_edge_masks": [],
+            "action_table_offset": 0,
+            "action_table_bytes": 0,
+            "action_table": [],
         }
     )
     if development_profile:
@@ -1630,6 +1711,9 @@ def main() -> None:
         name_entry["node_tile_ids"] = [
             tile_id if tile_id in (0xFD, 0xFE, 0xFF) else remap[int(tile_id)]
             for tile_id in name_entry["node_tile_ids"]
+        ]
+        name_entry["default_name_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["default_name_tile_ids"]
         ]
         name_entry["timer_base_tile_ids"] = [
             remap[int(tile_id)] for tile_id in name_entry["timer_base_tile_ids"]
@@ -1735,6 +1819,28 @@ def main() -> None:
     name_entry_edge_mask_offset = len(cold_payload)
     edge_masks = enter_high_score_edge_masks() if name_entry["grid_tile_ids"] else b""
     cold_payload.extend(edge_masks)
+    name_entry["edge_mask_table_offset"] = name_entry_edge_mask_offset
+    name_entry["edge_mask_table_bytes"] = len(edge_masks)
+    name_entry["edge_masks"] = list(edge_masks)
+    full_edge_masks = (
+        enter_high_score_full_edge_masks(args.tiled_dir / MAP_FILES["enter-high-score"])
+        if name_entry["grid_tile_ids"] else b""
+    )
+    name_entry_full_edge_mask_offset = len(cold_payload)
+    cold_payload.extend(full_edge_masks)
+    action_table = bytes(
+        byte
+        for x, y, tile_id in name_entry["action_records"]
+        for byte in (x - 8, y, tile_id)
+    )
+    name_entry_action_offset = len(cold_payload)
+    cold_payload.extend(action_table)
+    name_entry["full_edge_mask_table_offset"] = name_entry_full_edge_mask_offset
+    name_entry["full_edge_mask_table_bytes"] = len(full_edge_masks)
+    name_entry["full_edge_masks"] = list(full_edge_masks)
+    name_entry["action_table_offset"] = name_entry_action_offset
+    name_entry["action_table_bytes"] = len(action_table)
+    name_entry["action_table"] = list(action_table)
     if len(cold_payload) > COLD_PAYLOAD_LIMIT:
         raise ValueError(
             f"presentation cold payload is {len(cold_payload)} bytes; "
@@ -1845,6 +1951,8 @@ def main() -> None:
             "grid_tile_ids": name_entry["grid_tile_ids"],
             "node_cells": [list(cell) for cell in name_entry["node_cells"]],
             "node_tile_ids": name_entry["node_tile_ids"],
+            "action_records": name_entry["action_records"],
+            "default_name_tile_ids": name_entry["default_name_tile_ids"],
             "node_destinations": name_entry["node_destinations"],
             "cl_cells": [list(cell) for cell in name_entry["cl_cells"]],
             "end_cells": [list(cell) for cell in name_entry["end_cells"]],
@@ -1862,6 +1970,12 @@ def main() -> None:
             "edge_mask_table_offset": name_entry_edge_mask_offset,
             "edge_mask_table_bytes": len(edge_masks),
             "edge_masks": list(edge_masks),
+            "full_edge_mask_table_offset": name_entry["full_edge_mask_table_offset"],
+            "full_edge_mask_table_bytes": name_entry["full_edge_mask_table_bytes"],
+            "full_edge_masks": name_entry["full_edge_masks"],
+            "action_table_offset": name_entry["action_table_offset"],
+            "action_table_bytes": name_entry["action_table_bytes"],
+            "action_table": name_entry["action_table"],
         },
         "high_score_table": {
             "record_rows": list(HIGH_SCORE_RECORD_ROWS),

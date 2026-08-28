@@ -16,6 +16,7 @@
         include "ladybug_presentation_symbols.inc"
 
 PAR5    equ $FFA5
+PLAYER_DIR equ $0006
 PLAYER_FACE equ $0007
 PLAYER_STEP equ $0008
 PLAYER_FB equ $000B
@@ -78,6 +79,9 @@ PAR3 equ $FFA3
 PAR4 equ $FFA4
 JOY_DIR equ $0005
 PRES_MODULE_DRAW equ $0821
+PRES_MAIN_PLAYER_DRAW equ $0812
+PLAYER_ANIM equ $004F
+PLAYER_ANIM_TIMER equ $0050
 
         org $0300
 
@@ -192,15 +196,15 @@ init_scores_row
         sta     ,u+
         clr     ,u+
         clr     ,u+
-        tfr     a,b
-        ldx     #score_glyphs
-        leax    b,x
-        ldb     ,x
+        pshs    a
+        ldx     #highscore_default_name_data
         ldy     #7
 init_scores_name
-        stb     ,u+
+        lda     ,x+
+        sta     ,u+
         leay    -1,y
         bne     init_scores_name
+        puls    a
         deca
         bne     init_scores_row
         inc     PRES_HS_READY
@@ -221,8 +225,19 @@ prepare_name
         lda     #2
         sta     PRES_NAME_COL
         lda     #DIR_NONE
-        sta     PRES_NAME_LAST_DIR
-        clr     PRES_NAME_REPEAT
+        sta     PLAYER_DIR
+        sta     PLAYER_WANT
+        lda     #DIR_N
+        sta     PLAYER_FACE
+        clr     PLAYER_ANIM
+        lda     #8
+        sta     PLAYER_ANIM_TIMER
+        lda     #11
+        sta     PLAYER_CELL_X
+        sta     PRES_NAME_COL
+        lda     #22
+        sta     PLAYER_CELL_Y
+        sta     PRES_NAME_ROW
         ldx     #PRES_PENDING_NAME
         lda     #PRES_HS_BLACK
         ldb     #PRESENTATION_HIGHSCORE_NAME_BYTES
@@ -264,79 +279,29 @@ qualify_found
 name_tick
         jsr     PRES_MAIN_READ_JOY
 name_joy_ready
+        lbsr    name_animation_tick
         tst     PRES_NAME_STEPS
         bne     name_move_active
-        lda     JOY_DIR
+        lda     PLAYER_WANT
         cmpa    #DIR_NONE
         beq     name_idle
-        cmpa    PRES_NAME_LAST_DIR
-        bne     name_move_now
-        dec     PRES_NAME_REPEAT
-        bne     name_idle
-name_move_now
-        sta     PRES_NAME_LAST_DIR
-        lda     #6
-        sta     PRES_NAME_REPEAT
-name_move_active
-        lbsr    move_name_cursor
-        tsta
+        lbsr    name_can_move
         beq     name_idle
-        lda     #1
+        lda     PLAYER_WANT
+        sta     PLAYER_DIR
+        sta     PLAYER_FACE
+        lda     #4
+        sta     PRES_NAME_STEPS
+name_move_active
+        lbsr    name_advance
         rts
 name_idle
         clra
         rts
 
-move_name_cursor
-        tst     PRES_NAME_STEPS
-        bne     name_advance
-        lda     PRES_NAME_ROW
-        cmpa    #9
-        lbeq    name_marker_edge
-name_edge_lookup
-        lda     PRES_NAME_ROW
-        ldb     #5
-        mul
-        addb    PRES_NAME_COL
-        addd    #PRESENTATION_NAME_ENTRY_EDGE_MASK_TABLE
-        jsr     PRES_MODULE_COLD_PTR
-        ldb     ,x
-        lda     JOY_DIR
-        cmpa    #DIR_N
-        beq     name_edge_n
-        cmpa    #DIR_E
-        beq     name_edge_e
-        cmpa    #DIR_S
-        beq     name_edge_s
-        bitb    #8
-        bra     name_edge_result
-name_edge_n
-        bitb    #1
-        bra     name_edge_result
-name_edge_e
-        bitb    #2
-        bra     name_edge_result
-name_edge_s
-        bitb    #4
-name_edge_result
-        beq     name_edge_blocked
-name_begin_move
-        lda     JOY_DIR
-        sta     PRES_NAME_DIR
-        cmpa    #DIR_N
-        beq     name_vertical_steps
-        cmpa    #DIR_S
-        bne     name_horizontal_steps
-name_vertical_steps
-        lda     #8
-        bra     name_steps_ready
-name_horizontal_steps
-        lda     #16
-name_steps_ready
-        sta     PRES_NAME_STEPS
 name_advance
         ldx     PLAYER_FB
-        lda     PRES_NAME_DIR
+        lda     PLAYER_DIR
         cmpa    #DIR_N
         beq     name_step_n
         cmpa    #DIR_E
@@ -357,67 +322,113 @@ name_step_store
         stx     PLAYER_FB
         dec     PRES_NAME_STEPS
         bne     name_cursor_redraw
-        lda     PRES_NAME_DIR
+        lda     PLAYER_DIR
         cmpa    #DIR_N
         bne     move_s
         dec     PRES_NAME_ROW
+        dec     PLAYER_CELL_Y
         bra     move_node
 move_s
         cmpa    #DIR_S
         bne     move_w
         inc     PRES_NAME_ROW
+        inc     PLAYER_CELL_Y
         bra     move_node
 move_w
         cmpa    #DIR_W
         bne     move_e
         dec     PRES_NAME_COL
+        dec     PLAYER_CELL_X
         bra     move_node
 move_e
         inc     PRES_NAME_COL
+        inc     PLAYER_CELL_X
         bra     move_node
 name_cursor_redraw
         lbsr    update_name_frame
         clra
         rts
-name_marker_edge
-        lda     JOY_DIR
-        cmpa    #DIR_N
-        bne     name_edge_blocked
-        bra     name_begin_move
-name_edge_blocked
-        lda     #$34
-        sta     PAR5
+move_node
+        lbsr    name_cell_arrival
+        tsta
+        bne     move_end
+        lbsr    update_name_frame
         clra
         rts
-move_node
-        lda     PRES_NAME_ROW
-        ldb     #5
+move_end
+        lbsr    update_name_frame
+        lda     #1
+        rts
+
+name_can_move
+        sta     PRES_NAME_TILE
+        lda     PLAYER_CELL_Y
+        ldb     #24
         mul
-        addb    PRES_NAME_COL
-        tfr     d,x
-        ldx     #PRES_MAIN_NAME_NODE_TILES
-        abx
+        addb    PLAYER_CELL_X
+        adca    #0
+        addd    #PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE
+        jsr     PRES_MODULE_COLD_PTR
         ldb     ,x
-        cmpb    #PRES_NAME_END
-        beq     move_end
-        cmpb    #PRES_NAME_CL
-        beq     move_cl
-        cmpb    #PRES_NAME_END
-        bhs     move_redraw
+        lda     #$34
+        sta     PAR5
+        lda     PRES_NAME_TILE
+        cmpa    #DIR_N
+        beq     name_can_n
+        cmpa    #DIR_E
+        beq     name_can_e
+        cmpa    #DIR_S
+        beq     name_can_s
+        bitb    #8
+        bra     name_can_result
+name_can_n
+        bitb    #1
+        bra     name_can_result
+name_can_e
+        bitb    #2
+        bra     name_can_result
+name_can_s
+        bitb    #4
+name_can_result
+        beq     name_can_blocked
+        lda     #1
+        rts
+name_can_blocked
+        clra
+        rts
+
+name_cell_arrival
+        ldd     #PRESENTATION_NAME_ENTRY_ACTION_TABLE
+        jsr     PRES_MODULE_COLD_PTR
+        ldb     #PRESENTATION_NAME_ENTRY_ACTION_BYTES/3
+name_action_loop
+        lda     PLAYER_CELL_X
+        cmpa    ,x
+        bne     name_action_next
+        lda     PLAYER_CELL_Y
+        cmpa    1,x
+        bne     name_action_next
+        lda     2,x
+        sta     PRES_NAME_TILE
+        cmpa    #PRES_NAME_END
+        beq     name_action_end
+        lbsr    restore_cursor
+        lda     PRES_NAME_TILE
+        cmpa    #PRES_NAME_CL
+        beq     name_action_cl
         lda     PRES_NAME_LEN
         cmpa    #7
-        bhs     move_redraw
-        stb     PRES_NAME_TILE
+        bhs     name_action_done
         tfr     a,b
         ldx     #PRES_PENDING_NAME
         abx
         lda     PRES_NAME_TILE
         sta     ,x
         inc     PRES_NAME_LEN
-        bra     move_redraw
-move_cl
+        bra     name_action_done
+name_action_cl
         tst     PRES_NAME_LEN
-        beq     move_redraw
+        beq     name_action_done
         dec     PRES_NAME_LEN
         ldx     #PRES_PENDING_NAME
         lda     PRES_NAME_LEN
@@ -425,12 +436,29 @@ move_cl
         abx
         ldb     #PRES_HS_BLACK
         stb     ,x
-move_redraw
-        lbsr    update_name_frame
+name_action_done
         clra
         rts
-move_end
+name_action_next
+        leax    3,x
+        decb
+        bne     name_action_loop
+        clra
+        rts
+name_action_end
         lda     #1
+        rts
+
+name_animation_tick
+        dec     PLAYER_ANIM_TIMER
+        bne     name_animation_done
+        lda     #8
+        sta     PLAYER_ANIM_TIMER
+        inc     PLAYER_ANIM
+        lda     PLAYER_ANIM
+        anda    #3
+        sta     PLAYER_ANIM
+name_animation_done
         rts
 
         ifne    0
@@ -482,8 +510,6 @@ commit_done
         endc
 render_name_screen
         clr     PRES_NAME_STEPS
-        lda     #DIR_NONE
-        sta     PRES_NAME_DIR
         lbsr    prepare_name
         jsr     PRES_MODULE_MAP_BACK
         lbsr    draw_name_fields
@@ -545,7 +571,6 @@ entry_top_left
 render_high_score
         lbsr    init_scores
         lbsr    draw_high_score_screen
-        lbsr    draw_entry_scores
         rts
 
 draw_high_score_screen
@@ -740,12 +765,7 @@ capture_a
 
 draw_cursor
         ldx     PLAYER_FB
-        pshs    x
-        ldd     #PRESENTATION_NAME_ENTRY_CURSOR_OFFSET
-        jsr     PRES_MODULE_COLD_PTR
-        tfr     x,u
-        puls    x
-        jmp     PRES_MODULE_DRAW
+        jmp     PRES_MAIN_PLAYER_DRAW
 
 score_glyphs
         fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
@@ -753,6 +773,15 @@ score_glyphs
         fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
         fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
         fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
+
+highscore_default_name_data
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_0
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_1
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_2
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_3
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_4
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_5
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_6
 
         ifne    0
 draw_tile

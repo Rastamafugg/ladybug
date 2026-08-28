@@ -15,6 +15,27 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h2>Presentation-only full-maze collision must be authored separately</h2>
+      <p><strong>Filed 2026-08-28.</strong> FEAT-003 name entry initially reused a selectable-node graph, which allowed interpolation only between character and control cells. The normal gameplay <code>can_move</code> path cannot be reused directly because it owns the gameplay maze, gates, pickup events, and render side effects.</p>
+      <p><strong>Rule:</strong> when an isolated presentation screen needs gameplay-like steering, generate a presentation-owned passability table from the authored screen geometry, keep the player draw ABI shared, and keep screen-specific arrival actions in the presentation auxiliary. Store sparse action records instead of a full action lookup when only a small set of cells has behavior.</p>
+      <p><strong>Applies to:</strong> high-score name entry, authored maze overlays, continuous cursor motion, and any presentation screen that borrows gameplay movement feel without borrowing gameplay state ownership.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_presentation.py</code>, <code>src/demo_runtime.s</code>, and FEAT-003 revised repair assignment.</p>
+    </section>
+
+    <section>
+      <h2>Restore PAR5 before presentation action writes</h2>
+      <p><strong>Filed 2026-08-28.</strong> FEAT-003 action lookup reads its generated table from cold presentation data, leaving PAR5 mapped to the cold page. Writing the accepted name character or CL deletion through the page-34 address range while that mapping remained active made the table appear unchanged or corrupted.</p>
+      <p><strong>Rule:</strong> treat cold-data reads as selector-clobbering operations. Restore the page-34 mapping before every name-buffer or cursor-state write, and verify both the generated source bytes and the live page-34 result.</p>
+      <p><strong>Citation:</strong> <code>src/demo_runtime.s</code>, <code>scripts/build_presentation.py</code>, and FEAT-003 focused verification evidence.</p>
+    </section>
+
+    <section>
+      <h2>Profile-specific generated data must not inflate copied code windows</h2>
+      <p><strong>Filed 2026-08-27.</strong> FEAT-003 initially emitted name-entry tables in the shared generated include, so raw table bytes were prepended to every assembled runtime and consumed the presentation module's copied-window budget even when the module did not use them. The tables are now emitted only for the auxiliary runtime; the presentation module retains constants and generated cold cursor data.</p>
+      <p><strong>Rule:</strong> classify generated include content as constants, copied runtime data, auxiliary data, or cold payload before assembly. Profile-gate raw bytes at the include boundary and measure each copied artifact independently.</p>
+      <p><strong>Citation:</strong> FEAT-003, <code>scripts/build_presentation.py</code>, <code>scripts/build.sh</code>, and <code>src/demo_runtime.s</code>.</p>
+    </section>
+    <section>
       <h2>Separate new-game initialization from next-stage initialization</h2>
       <p><strong>Filed 2026-08-27.</strong> The shared <code>init_gameplay</code> path invokes <code>init_game_state</code>, which correctly resets a new session to stage 1 but must not be reused after <code>next_stage</code> has already advanced the live session. A presentation level-start handoff therefore needs an explicit preinitialized-stage marker.</p>
       <p><strong>Rule:</strong> let the presentation state machine own the live stage boundary, preserve the incremented stage through the level-start screen, and distinguish that state from a new credit/start initialization. Demo stage advancement remains owned by the gameplay loop.</p>
@@ -202,8 +223,24 @@
     </section>
 
     <section>
+      <h2>Boot-expand immutable cold atlases when GMC source is tighter than destination RAM</h2>
+      <p>FEAT-003 retained the four-page cold destination but its complete profile exceeded the CPU-readable GMC source pool after the authored high-score flow and both auxiliary runtimes were combined. LZSS-compressing the immutable native tile atlas reduced the complete cold payload from <code>11829</code> to <code>7450</code> bytes. The boot loader expands the atlas once into physical page <code>$3B</code>; page <code>$3A</code> remains the mapped source for map streams and metadata, and runtime tile reads use the expanded page without frame-time bank switching.</p>
+      <p><strong>Rule:</strong> when immutable presentation data is source-capacity bound, separate compressed source identity from expanded runtime identity, verify the independent round trip and output bound, and reserve the expansion page explicitly before changing the loader.</p>
+      <p><strong>Citation:</strong> <a href="../tickets/feat-003-high-score-presentation.html">FEAT-003</a>, <code>scripts/build_presentation.py</code>, <code>src/gmc_bootstrap.s</code>, and <code>src/presentation_runtime.s</code>.</p>
+    </section>
+
+    <section>
       <h2>Presentation pre-emption must retain a controlled gameplay probe</h2>
       <p>Adding a boot attract loop changes the first observable runtime path. Existing gameplay compositor proofs that assume immediate gameplay can fail without proving a presentation-to-gameplay transition. Runtime verification must either force the transition with an input/replay control or use a bounded probe long enough to reach normal gameplay; a loader-only pass is insufficient.</p>
+    </section>
+
+    <section>
+      <h2>Bootstrap copy destinations must not overlap control tables</h2>
+      <p><strong>Filed 2026-08-27.</strong> The complete-profile sparse loader placed <code>sparse_copy_table</code> at low RAM <code>$0682-$06F9</code> while its first boot-proof copy targeted <code>$06B0</code>. The copy wrote source bytes <code>B0 0F</code> over a later segment count, changing <code>19DD</code> to <code>B00F</code>; the loader then branched through overwritten bytes around <code>$03C5</code> and never reached the resident handoff.</p>
+      <p><strong>Rule:</strong> prove that every generated loader table, code interval, stack interval, and copy destination is disjoint before assembly. A valid source payload and a valid destination address are insufficient when the destination aliases the loader's future control data.</p>
+      <p><strong>Extension:</strong> a boot decompressor also requires distinct virtual windows for compressed input and expanded output. FEAT-003 initially mapped both page <code>$3A</code> and page <code>$3B</code> through the same PAR5-visible address range, causing the decoder to overwrite its input and run past the expected output boundary. The corrected path reads page <code>$3A</code> through PAR4 and writes page <code>$3B</code> through PAR5; the runtime atlas offset and mapping contract now have independent static and startup checks.</p>
+      <p><strong>Applies to:</strong> GMC bootstrap copies, low-RAM relocated loaders, generated sparse segment tables, proof payloads, and boot-time decompression destinations.</p>
+      <p><strong>Citation:</strong> <code>src/gmc_bootstrap.s</code>, <code>scripts/build_sparse_sprites.py</code>, <code>build/ladybug-sparse-loader.inc</code>, and the 2026-08-27 XRoar trace.</p>
     </section>
 
     <section>

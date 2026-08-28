@@ -38,6 +38,7 @@ from build_presentation import (
     parse_attract_actors,
     parse_enter_high_score_contract,
     enter_high_score_edge_masks,
+    enter_high_score_full_edge_masks,
     parse_instruction_contract,
     perimeter_box_cells,
     pack_tile,
@@ -146,6 +147,7 @@ def main() -> None:
         else {
             "grid_tile_ids": [], "cursor_stream": b"", "node_tile_ids": [],
             "node_cells": [], "node_destinations": [],
+            "action_records": [], "default_name_tile_ids": [],
             "top_right_destinations": [],
         }
     )
@@ -203,6 +205,9 @@ def main() -> None:
         name_entry["node_tile_ids"] = [
             tile_id if tile_id in (0xFD, 0xFE, 0xFF) else remap[int(tile_id)]
             for tile_id in name_entry["node_tile_ids"]
+        ]
+        name_entry["default_name_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["default_name_tile_ids"]
         ]
         name_entry["timer_base_tile_ids"] = [
             remap[int(tile_id)] for tile_id in name_entry["timer_base_tile_ids"]
@@ -298,6 +303,20 @@ def main() -> None:
     name_entry_edge_mask_offset = len(expected)
     edge_masks = enter_high_score_edge_masks() if name_entry["grid_tile_ids"] else b""
     expected.extend(edge_masks)
+    full_edge_mask_offset = len(expected)
+    full_edge_masks = (
+        enter_high_score_full_edge_masks(
+            args.tiled_dir / MAP_FILES["enter-high-score"]
+        ) if name_entry["grid_tile_ids"] else b""
+    )
+    expected.extend(full_edge_masks)
+    action_table = bytes(
+        byte
+        for x, y, tile_id in name_entry.get("action_records", [])
+        for byte in (x - 8, y, tile_id)
+    )
+    action_table_offset = len(expected)
+    expected.extend(action_table)
     if payload != bytes(expected):
         raise SystemExit("presentation proof: cold payload differs from independent compile")
     if len(tiles) != manifest["tile_count"]:
@@ -406,6 +425,8 @@ def main() -> None:
         name_manifest.get("grid_tile_ids") != name_entry["grid_tile_ids"] or
         name_manifest.get("node_tile_ids") != name_entry["node_tile_ids"] or
         name_manifest.get("node_cells") != [list(cell) for cell in name_entry["node_cells"]] or
+        name_manifest.get("action_records") != name_entry.get("action_records", []) or
+        name_manifest.get("default_name_tile_ids") != name_entry.get("default_name_tile_ids", []) or
         name_manifest.get("node_destinations") != name_entry["node_destinations"] or
         name_manifest.get("top_right_destinations") != name_entry.get("top_right_destinations", []) or
         name_manifest.get("timer_table_offset") != name_entry_timer_offset or
@@ -414,7 +435,13 @@ def main() -> None:
         name_manifest.get("timer_green_tile_ids") != name_entry.get("timer_green_tile_ids", []) or
         name_manifest.get("edge_mask_table_offset") != name_entry_edge_mask_offset or
         name_manifest.get("edge_mask_table_bytes") != len(edge_masks) or
-        name_manifest.get("edge_masks") != list(edge_masks)
+        name_manifest.get("edge_masks") != list(edge_masks) or
+        name_manifest.get("full_edge_mask_table_offset") != full_edge_mask_offset or
+        name_manifest.get("full_edge_mask_table_bytes") != len(full_edge_masks) or
+        name_manifest.get("full_edge_masks") != list(full_edge_masks) or
+        name_manifest.get("action_table_offset") != action_table_offset or
+        name_manifest.get("action_table_bytes") != len(action_table) or
+        name_manifest.get("action_table") != list(action_table)
     ):
         raise SystemExit("presentation proof: name-entry metadata differs")
     for entry, expected in zip(manifest["maps"], map_info):
