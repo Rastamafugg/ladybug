@@ -56,6 +56,7 @@ SPARSE_INDEX_ADDRESS = WINDOW_BASE
 LOW_RAM_DESTINATION_PAGE = 0xFF
 BOOT_OVERFLOW_PROOF_ADDRESS = 0x06B0
 BOOT_OVERFLOW_PROOF = bytes((0xB0, 0x0F))
+SPARSE_COPY_TABLE_RAM = 0x0200
 GATE_PAYLOAD_ADDRESS = WINDOW_BASE + EXPECTED_PLAYER_BYTES
 PRESENTATION_PAYLOAD_ADDRESS = GATE_PAYLOAD_ADDRESS + EXPECTED_GATE_BYTES
 PERIMETER_RESET_PAGE = 0x20
@@ -117,7 +118,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--presentation-module", type=Path, required=True)
     parser.add_argument("--instruction-runtime", type=Path, required=True)
     parser.add_argument("--demo-runtime", type=Path, required=True)
-    parser.add_argument("--aux-runtime-role", choices=("development", "release", "complete"), required=True)
+    parser.add_argument(
+        "--aux-runtime-role",
+        choices=("highscore-test", "development", "release", "complete"),
+        required=True,
+    )
     parser.add_argument("--bank2-output", type=Path, required=True)
     parser.add_argument("--bank3-output", type=Path, required=True)
     parser.add_argument("--bank0-output", type=Path, required=True)
@@ -516,6 +521,8 @@ def write_loader_include(path: Path, segments: list[CopySegment]) -> None:
         "SPARSE_ENEMY_INDEX_BYTES equ 390",
         "SPARSE_PLAYER_INDEX_BYTES equ 48",
         "SPARSE_COPY_SEGMENT_BYTES equ 8",
+        f"SPARSE_COPY_TABLE_RAM equ ${SPARSE_COPY_TABLE_RAM:04X}",
+        f"SPARSE_COPY_TABLE_BYTES equ {len(segments) * 8}",
         f"SPARSE_COPY_SEGMENT_COUNT equ {len(segments)}",
         "",
         "; bank, destination page, source CPU address, destination window, count",
@@ -750,6 +757,8 @@ def main() -> None:
             "boot_overflow_end": CART_READABLE_BYTES,
             "boot_overflow_proof_address": BOOT_OVERFLOW_PROOF_ADDRESS,
             "boot_overflow_proof_bytes": proof_bytes,
+            "sparse_copy_table_ram": SPARSE_COPY_TABLE_RAM,
+            "sparse_copy_table_bytes": len(segments) * 8,
             "boot_overflow_used_bytes": bank0_used_bytes,
             "boot_overflow_spare_bytes": (
                 CART_READABLE_BYTES - BOOT_OVERFLOW_START - bank0_used_bytes
@@ -789,7 +798,7 @@ def main() -> None:
             "destination_end": 0x06AA,
             "sha256": digest(instruction_runtime),
         }
-    if args.aux_runtime_role in ("release", "complete"):
+    if args.aux_runtime_role in ("highscore-test", "release", "complete"):
         demo_stage_address = INSTRUCTION_RUNTIME_ADDRESS + (
             len(instruction_runtime) if args.aux_runtime_role == "complete" else 0
         )

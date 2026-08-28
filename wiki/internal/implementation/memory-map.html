@@ -61,13 +61,16 @@
     <section id="memory-virtual-ranges">
       <h2>Runtime mapping</h2>
 <pre><code>Virtual          PAR  Phys  Bytes  Use
-$0000-$02FF      0    $38   768 B  Direct page, boot proof, and low-RAM state
-$0300-$06A9      0    $38   938 B  Boot-only relocated GMC loader; after handoff the release copies the 143-byte BUG-012 demo director at $0300, while the development profile may use the full BUG-011 instruction helper
-$06AA-$06AF      0    $38     6 B  BUG-011 development runtime trace
-$06B0-$07FF      0    $38   336 B  Loader-addressable overflow/helper allocation; $06B0-$06B1 boot proof; BUG-010 helper uses $06C5-$07FF
+$0000-$01FF      0    $38   512 B  Direct page, boot proof, and low-RAM state
+$0200-$0277      0    $38   120 B  Active generated sparse-copy table; copied before any generated segment is processed
+$0278-$02FF      0    $38   136 B  Direct page and boot scratch
+$0300-$0697      0    $38   920 B  Boot-only relocated GMC loader code; after handoff complete/release may install the 143-byte demo, development installs the 931-byte instruction helper, and highscore-test installs its 877-byte UI auxiliary
+$0698-$070F      0    $38   120 B  Boot-only relocated sparse-table source; copied to $0200-$0277 before this interval is reused by proof/helper destinations
+$06B0-$06B1      0    $38     2 B  Bank-0 overflow execution proof
+$06B2-$07FF      0    $38   334 B  Perimeter-reset helper allocation
 $0800-$17FF      0    $38   4 K    Bank-3 enemy runtime copy
 $1800-$18FF      0    $38   256 B  Shared player/nest sparse-decode compositor stage
-$1900-$1DFF      0    $38  1280 B  Copied presentation flow module; current inspected use 1276 B
+$1900-$1DFF      0    $38  1280 B  Copied presentation flow module; highscore-test uses 1197 B, complete 1273 B, release 1280 B, and development 1118 B
 $1E00-$1FFF      0    $38   512 B  Reserved stack window; stack begins at $1FFE
 $2000-$3FFF      1    $30   8 K    Framebuffer page 0
 $4000-$5FFF      2    $31   8 K    Framebuffer page 1
@@ -101,8 +104,8 @@ $BFFE-$BFFF      5    $34   2 B    Cold-start entropy seed
 $20              —    —      8 K   Boot-synthesized native perimeter-reset program
 $21-$22          —    —     16 K   Boot-only resident/asset staging; reusable after handoff
 $23              —    —      8 K   Compressed attract/auxiliary staging; retained until the release auxiliary is installed at $0300
-$3A              —    —      8 K   Current 7636-byte cold presentation atlas/map payload; mapped through PAR5
-$3B              —    —      8 K   Reserved presentation capacity; currently unused
+$3A              —    —      8 K   Compressed cold presentation maps/metadata; mapped through PAR5
+$3B              —    —      8 K   Boot-expanded native presentation tile atlas; mapped through PAR5 for tile reads
 $3C              —    —      8 K   Expanded BUG-010 title actor surfaces and destination/phase metadata, runtime window $A000-$AA93
 $3D              —    —      8 K   Reserved presentation capacity; currently unused
 $C000-$DFFF      6    $3E   8 K    Active cartridge code window
@@ -160,9 +163,12 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         transition payload occupies <code>$39:$A8F6-$AC35</code>. The native
         perimeter program is synthesized into physical page <code>$20</code>
         during boot. The current cold presentation payload occupies physical page <code>$3A</code>;
-        pages <code>$3B/$3D</code> remain reserved capacity, while page <code>$3C</code>
-        owns the expanded title actor surfaces. These payloads are read through the
-        same scoped PAR5 window. PAR5 maps
+        highscore-test expands its compressed atlas into physical page <code>$3B</code> at boot;
+        its page <code>$3D</code> remains reserved capacity, while page <code>$3C</code>
+        owns the expanded title actor surfaces. The atlas expansion reads page
+        <code>$3A</code> through PAR4 and writes page <code>$3B</code> through PAR5;
+        runtime cold-tile reads use the expanded page through the same scoped PAR5
+        window. PAR5 maps
         one stream page only during a draw
         before returning to game-state page <code>$34</code>. IRQ-visible
         framebuffer ownership, readiness, commit-sequence, and diagnostic
@@ -171,7 +177,11 @@ $FF00-$FFFF      —    —     256 B  Dedicated I/O and hardware vectors
         because the bank-3 runtime fragments the available cartridge source
         space. The delivered bank images and ten-record loader table place
         these payloads plus 896 bytes of popup presentation streams, the
-        copied presentation module, and a two-byte bank-0 execution proof.
+        copied presentation module, a relocated active sparse-copy table at
+        <code>$0200-$0277</code>, and a two-byte bank-0 execution proof.
+        Generated low-RAM destinations are checked for pairwise disjointness and
+        for overlap with relocated loader code, the active table, helper allocation,
+        and stack before the final image is composed.
         The current FEAT-002 build leaves 76 CPU-readable GMC source bytes
         spare after a 13,888-byte cold payload. The presentation compiler
         must fit its cold payload inside that measured source margin. At boot,
@@ -572,6 +582,7 @@ $FF00-$FFFF        256 B   I/O; never cart data
     <section>
       <h2>Development-first presentation profile</h2>
       <p><strong>Approved 2026-08-11 for BUG-011 development:</strong> functional correctness precedes release packing. The presentation build may conditionally bypass unrelated title animation, unattended demo play, high-score coin rendering, game-over delay, and name-entry flow while retaining boot, the instruction sequence, credit/start pre-emption, level-start, and live gameplay. Omitted source remains available behind an explicit profile and is restored by PERF-005 after the functional source-tree milestone.</p>
+      <p><strong>FEAT-004 overlay profile 2026-08-26:</strong> <code>LADYBUG_PROFILE=complete</code> compiles the authored instructions map and both auxiliary sources. The padded instruction runtime and 143-byte demo runtime are staged consecutively in page <code>$23</code>; presentation copies only the phase-selected runtime to <code>$0300-$06A9</code>. The complete profile preserves the development map placeholders for game-over and name entry and does not alter the default release profile.</p>
       <p><strong>BUG-016 application 2026-08-13:</strong> all six authored maps are compiled, layer-validated, and frame-hashed, but the unreachable name-entry runtime slot emits a constant-black map and omits eight name-entry-only glyph constants. This retains the one-byte tile protocol at <code>255/256</code> entries and the cold source payload at <code>10,653/10,874</code> bytes. The full release set requires 268 entries before the synthetic coin tile and remains a PERF-005 restoration constraint; no runtime decoder or memory boundary changed.</p>
       <p>This policy does not relax runtime safety. The <code>$1E00-$1FFF</code> stack window, direct-page ownership, loader destinations, framebuffer/MMU ownership, PAR restoration, and authored/staged/live byte identity remain hard boundaries. Cartridge reserve, future-sound reserve, release-profile module fit, and engineering cycle headroom are recorded during development but become acceptance gates only in PERF-005.</p>
     </section>

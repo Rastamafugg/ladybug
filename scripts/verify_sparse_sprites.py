@@ -27,6 +27,7 @@ BANK2_PAYLOAD_START = 0x0020
 LOW_RAM_DESTINATION_PAGE = 0xFF
 BOOT_OVERFLOW_PROOF_ADDRESS = 0x06B0
 BOOT_OVERFLOW_PROOF = bytes((0xB0, 0x0F))
+SPARSE_COPY_TABLE_RAM = 0x0200
 INSTRUCTION_RUNTIME_PAGE = 0x23
 INSTRUCTION_RUNTIME_ADDRESS = 0xA422
 INSTRUCTION_RUNTIME_BYTES = 0x3AA
@@ -60,7 +61,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--presentation-module", type=Path, default=BUILD / "ladybug-presentation-runtime.bin")
     parser.add_argument("--instruction-runtime", type=Path, default=BUILD / "ladybug-instruction-runtime.bin")
     parser.add_argument("--demo-runtime", type=Path, default=BUILD / "ladybug-demo-runtime.bin")
-    parser.add_argument("--aux-runtime-role", choices=("development", "release", "complete"), default="release")
+    parser.add_argument(
+        "--aux-runtime-role",
+        choices=("highscore-test", "development", "release", "complete"),
+        default="release",
+    )
     parser.add_argument("--bank0", type=Path, default=BUILD / "ladybug-gmc-bank0-overflow.bin")
     parser.add_argument("--bank2", type=Path, default=BUILD / "ladybug-sparse-bank2.bin")
     parser.add_argument("--bank3", type=Path, default=BUILD / "ladybug-sparse-bank3.bin")
@@ -348,6 +353,27 @@ def main() -> None:
 
     loader = parse_loader(args.loader)
     manifest_segments = manifest["gmc"]["segments"]
+    if manifest["gmc"].get("sparse_copy_table_ram") != SPARSE_COPY_TABLE_RAM:
+        raise SystemExit("sparse proof: sparse table RAM address differs")
+    low_ram = []
+    for segment in manifest_segments:
+        if segment["destination_page"] != LOW_RAM_DESTINATION_PAGE:
+            continue
+        start = segment["destination_address"]
+        end = start + segment["count"]
+        low_ram.append((segment["target"], start, end))
+    table_end = (
+        SPARSE_COPY_TABLE_RAM +
+        manifest["gmc"].get("sparse_copy_table_bytes", 0)
+    )
+    low_ram.append(("active sparse copy table", SPARSE_COPY_TABLE_RAM, table_end))
+    for index, left in enumerate(low_ram):
+        for right in low_ram[index + 1:]:
+            if left[2] > right[1] and right[2] > left[1]:
+                raise SystemExit(
+                    "sparse proof: low-RAM destination overlap: "
+                    f"{left[0]} and {right[0]}"
+                )
     if len(loader) != len(manifest_segments):
         raise SystemExit("sparse proof: loader and manifest segment counts differ")
     reconstructed = {

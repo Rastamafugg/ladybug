@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src/presentation_runtime.s"
 HELPER_SOURCE = ROOT / "src/perimeter_reset_helper.s"
+BOOT_SOURCE = ROOT / "src/gmc_bootstrap.s"
 PRESENTATION_MAP = ROOT / "build/ladybug-presentation-runtime.map"
 MODULE = ROOT / "build/ladybug-presentation-runtime.bin"
 LAYOUT = ROOT / "build/ladybug-sparse-layout.json"
@@ -35,6 +36,7 @@ def symbol_map(text: str) -> dict[str, int]:
 def main() -> None:
     source = SOURCE.read_text(encoding="ascii")
     helper_source = HELPER_SOURCE.read_text(encoding="ascii")
+    boot_source = BOOT_SOURCE.read_text(encoding="ascii")
     symbols = symbol_map(PRESENTATION_MAP.read_text(encoding="ascii"))
     layout = json.loads(LAYOUT.read_text(encoding="ascii"))
     presentation_layout = json.loads(PRESENTATION_LAYOUT.read_text(encoding="ascii"))
@@ -45,6 +47,7 @@ def main() -> None:
     source_spare = layout["gmc"]["spare_bytes"]
     development = bool(presentation_layout.get("development_profile"))
     complete = bool(presentation_layout.get("complete_profile"))
+    highscore_test = bool(presentation_layout.get("highscore_test_profile"))
     if complete:
         aux = layout.get("aux_runtime", {})
         instruction_runtime = layout.get("instruction_runtime", {})
@@ -72,7 +75,9 @@ def main() -> None:
     ]
     if development:
         required_symbols.append("instructions_tick")
-    if not development or complete:
+    if highscore_test:
+        required_symbols.extend(("demo_tick", "name_tick", "module_commit_name"))
+    elif not development or complete:
         required_symbols.extend(("demo_tick", "demo_run"))
     missing = [name for name in required_symbols if name not in symbols]
     if missing:
@@ -97,7 +102,7 @@ def main() -> None:
     if development:
         required_source += (
             "INSTRUCTION_RUNTIME_TICK equ $0300",
-            "install_instruction_runtime",
+            "install_aux_runtime",
             "PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS",
             "PRESENTATION_INSTRUCTION_RUNTIME_BYTES",
         )
@@ -128,8 +133,22 @@ def main() -> None:
             raise SystemExit("presentation flow proof: attract surface-copy worklist is incomplete")
     if "inflate_maps" in source or "cold_write_byte" in source:
         raise SystemExit("presentation flow proof: all-map inflation remains active")
-    if "leax    map_stream_offsets,pcr" not in source:
+    if "ldx     #PRES_MAIN_MAP_STREAM_OFFSETS" not in source:
         raise SystemExit("presentation flow proof: selected-screen stream is not initialized")
+    for fragment in (
+        "decompress_presentation_atlas",
+        "PRESENTATION_TILE_ATLAS_EXPANDED_BYTES",
+        "lda     #PRESENTATION_COLD_PAGE",
+        "sta     PAR_EXEC+4",
+        "lda     #PRESENTATION_COLD_PAGE+1",
+        "sta     PAR_EXEC+5",
+        "ldu     #$8000+PRESENTATION_TILE_ATLAS_SOURCE_OFFSET",
+        "cmpy    #$A000+PRESENTATION_TILE_ATLAS_EXPANDED_BYTES",
+    ):
+        if fragment not in boot_source:
+            raise SystemExit(
+                "presentation flow proof: boot atlas expansion is incomplete"
+            )
     load_source = source[source.index("\nload_tick\n"):source.index("\nload_done\n")]
     if "sta     PRES_ROWS" not in load_source or "dec     PRES_ROWS" not in load_source:
         raise SystemExit("presentation flow proof: load budget is not memory-backed")
@@ -176,12 +195,20 @@ def main() -> None:
             f"required reserve is {SOUND_RELEASE_RESERVE}"
         )
 
+    profile_label = (
+        "high-score test flow" if highscore_test else
+        "development helper" if development else "release flow"
+    )
+    behavior_label = (
+        "credit/start isolation, test auxiliary" if highscore_test else
+        "global credit/start pre-emption, instruction choreography" if development else
+        "global credit/start pre-emption, arcade-route demo"
+    )
     print(
-        f"presentation flow proof: {'development helper' if development else 'release flow'}, "
+        f"presentation flow proof: {profile_label}, "
         "seven title actor surfaces, "
         "authored TMX coordinates, direct selected-screen streaming, bounded loading, "
-        "global credit/start pre-emption, atomic surface copy, "
-        f"{'instruction choreography' if development else 'arcade-route demo'}, "
+        f"{behavior_label}, atomic surface copy, "
         f"module {module_bytes}/1280, helper {helper_bytes}/334, cold {cold}/{COLD_HARD_LIMIT} "
         f"(preferred {COLD_PREFERRED_TARGET}), "
         f"combined {combined}/14219, future-sound margin {sound_margin}/{SOUND_RELEASE_RESERVE}"

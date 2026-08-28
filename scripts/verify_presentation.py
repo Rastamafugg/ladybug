@@ -27,10 +27,15 @@ from build_presentation import (
     compile_profile_maps,
     compile_screen,
     encode_map,
+    framebuffer_destination,
+    HIGH_SCORE_NAME_COLUMN,
+    HIGH_SCORE_RECORD_ROWS,
+    HIGH_SCORE_SCORE_COLUMN,
     load_chars,
     load_demo_route,
     load_demo_walk,
     parse_attract_actors,
+    parse_enter_high_score_contract,
     parse_instruction_contract,
     pack_tile,
     recolor,
@@ -52,6 +57,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--payload", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--development-profile", type=int, choices=(0, 1), default=0)
+    parser.add_argument("--complete-profile", type=int, choices=(0, 1), default=0)
+    parser.add_argument("--highscore-test-profile", type=int, choices=(0, 1), default=0)
     return parser.parse_args()
 
 
@@ -59,9 +66,43 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def lzss_expand(stream: bytes, expected_bytes: int) -> bytes:
+    output = bytearray()
+    cursor = 0
+    while len(output) < expected_bytes:
+        if cursor >= len(stream):
+            raise ValueError("compressed atlas ended before its output bound")
+        flags = stream[cursor]
+        cursor += 1
+        for bit in range(8):
+            if len(output) >= expected_bytes:
+                break
+            if flags & (1 << bit):
+                if cursor >= len(stream):
+                    raise ValueError("compressed atlas literal is truncated")
+                output.append(stream[cursor])
+                cursor += 1
+                continue
+            if cursor + 2 > len(stream):
+                raise ValueError("compressed atlas match is truncated")
+            token = int.from_bytes(stream[cursor:cursor + 2], "big")
+            cursor += 2
+            distance = token >> 4
+            length = (token & 0x0F) + 3
+            if distance == 0 or distance > len(output):
+                raise ValueError("compressed atlas match distance is invalid")
+            for _ in range(length):
+                output.append(output[-distance])
+                if len(output) > expected_bytes:
+                    raise ValueError("compressed atlas exceeds its output bound")
+    return bytes(output)
+
+
 def main() -> None:
     args = parse_args()
     development_profile = bool(args.development_profile)
+    complete_profile = bool(args.complete_profile)
+    highscore_test_profile = bool(args.highscore_test_profile)
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
     chars = load_chars(args.chars)
     sprites = json.loads(args.gameplay_sprites.read_text(encoding="utf-8"))
@@ -77,7 +118,8 @@ def main() -> None:
     tiles: list[bytes] = []
     tile_ids: dict[bytes, int] = {}
     maps, map_info = compile_profile_maps(
-        args.tiled_dir, chars, tiles, tile_ids, development_profile
+        args.tiled_dir, chars, tiles, tile_ids, development_profile,
+        highscore_test_profile,
     )
     for name, data in zip(MAP_NAMES, maps):
         if len(data) != 960:
@@ -91,6 +133,18 @@ def main() -> None:
         instruction = parse_instruction_contract(
             args.tiled_dir / MAP_FILES["instructions"], chars, sprites, [], {}
         )
+    name_entry = (
+        parse_enter_high_score_contract(
+            args.tiled_dir / MAP_FILES["enter-high-score"], chars, sprites,
+            tiles, tile_ids,
+        )
+        if highscore_test_profile
+        else {
+            "grid_tile_ids": [], "cursor_stream": b"", "node_tile_ids": [],
+            "node_cells": [], "node_destinations": [],
+            "top_right_destinations": [],
+        }
+    )
     _arcade_route, arcade_route_manifest = load_demo_route(args.demo_route)
     demo_walk, demo_walk_manifest = load_demo_walk(
         args.demo_walk, arcade_route_manifest
@@ -125,6 +179,14 @@ def main() -> None:
         instruction["cucumber_stream"] = b""
         instruction["death_streams"] = []
         instruction["angel_stream"] = b""
+    if name_entry["grid_tile_ids"]:
+        name_entry["grid_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["grid_tile_ids"]
+        ]
+        name_entry["node_tile_ids"] = [
+            tile_id if tile_id in (0xFD, 0xFE, 0xFF) else remap[int(tile_id)]
+            for tile_id in name_entry["node_tile_ids"]
+        ]
     ordered_tiles = [tiles[index] for index in order]
     rotated_chars = [rotate_ccw(tile) for tile in chars]
     omitted_glyphs = [
@@ -140,9 +202,16 @@ def main() -> None:
         gameplay_tile_ids[tile] for tile in ordered_tiles[len(cold_ids):]
     )
     encoded_maps = [encode_map(data) for data in maps]
+    tile_atlas = b"".join(cold_only_tiles)
+    stored_tile_atlas = (
+        lzss_compress(tile_atlas) if highscore_test_profile else tile_atlas
+    )
+    if highscore_test_profile:
+        expanded_tile_atlas = lzss_expand(stored_tile_atlas, len(tile_atlas))
+        if expanded_tile_atlas != tile_atlas:
+            raise SystemExit("presentation proof: compressed tile atlas does not expand")
     expected = bytearray(
-        b"".join(cold_only_tiles) + gameplay_lookup +
-        b"".join(encoded_maps)
+        stored_tile_atlas + gameplay_lookup + b"".join(encoded_maps)
     )
     event_count = len(instruction["events"]) if development_profile else 0
     for padding in range(PAGE_BYTES):
@@ -191,6 +260,8 @@ def main() -> None:
     for index, offset in enumerate(stream_offsets):
         start = pointer_offset + index * 2
         expected[start:start + 2] = offset.to_bytes(2, "big")
+    name_entry_cursor_offset = len(expected)
+    expected.extend(name_entry["cursor_stream"])
     demo_route_offset = len(expected)
     expected.extend(demo_walk)
     if payload != bytes(expected):
@@ -209,7 +280,14 @@ def main() -> None:
         raise SystemExit("presentation proof: cold-only tile count differs")
     if manifest.get("gameplay_tile_base") != len(cold_only_tiles):
         raise SystemExit("presentation proof: gameplay tile base differs")
-    if manifest.get("gameplay_lookup_offset") != len(cold_only_tiles) * 32:
+    if manifest.get("tile_atlas_compressed_bytes") != len(stored_tile_atlas):
+        raise SystemExit("presentation proof: compressed tile atlas size differs")
+    if manifest.get("tile_atlas_expanded_bytes") != len(cold_only_tiles) * 32:
+        raise SystemExit("presentation proof: expanded tile atlas size differs")
+    expected_runtime_offset = PAGE_BYTES if highscore_test_profile else 0
+    if manifest.get("tile_atlas_runtime_offset") != expected_runtime_offset:
+        raise SystemExit("presentation proof: tile atlas runtime page offset differs")
+    if manifest.get("gameplay_lookup_offset") != len(stored_tile_atlas):
         raise SystemExit("presentation proof: gameplay lookup offset differs")
     if manifest.get("gameplay_lookup_bytes") != len(gameplay_lookup):
         raise SystemExit("presentation proof: gameplay lookup size differs")
@@ -267,7 +345,7 @@ def main() -> None:
         if manifest["map_stream_bytes"][index] != len(encoded):
             raise SystemExit(f"presentation proof: encoded map {index} size differs")
         if manifest["map_stream_offsets"][index] != (
-                len(cold_only_tiles) * 32 + len(gameplay_lookup) +
+                len(stored_tile_atlas) + len(gameplay_lookup) +
                 sum(map(len, encoded_maps[:index]))
         ):
             raise SystemExit(f"presentation proof: encoded map {index} offset differs")
@@ -281,6 +359,23 @@ def main() -> None:
             raise SystemExit(f"presentation proof: {entry['name']} hash differs")
     if manifest.get("development_profile") != bool(args.development_profile):
         raise SystemExit("presentation proof: development profile differs")
+    if manifest.get("complete_profile") != complete_profile:
+        raise SystemExit("presentation proof: complete profile differs")
+    if manifest.get("highscore_test_profile") != highscore_test_profile:
+        raise SystemExit("presentation proof: high-score test profile differs")
+    name_manifest = manifest.get("high_score_name_entry", {})
+    if (
+        name_manifest.get("emitted") != bool(name_entry["grid_tile_ids"]) or
+        name_manifest.get("cursor_stream_offset") != name_entry_cursor_offset or
+        name_manifest.get("cursor_stream_bytes") != len(name_entry["cursor_stream"]) or
+        name_manifest.get("cursor_stream_sha256") != digest(name_entry["cursor_stream"]) or
+        name_manifest.get("grid_tile_ids") != name_entry["grid_tile_ids"] or
+        name_manifest.get("node_tile_ids") != name_entry["node_tile_ids"] or
+        name_manifest.get("node_cells") != [list(cell) for cell in name_entry["node_cells"]] or
+        name_manifest.get("node_destinations") != name_entry["node_destinations"] or
+        name_manifest.get("top_right_destinations") != name_entry.get("top_right_destinations", [])
+    ):
+        raise SystemExit("presentation proof: name-entry metadata differs")
     for entry, expected in zip(manifest["maps"], map_info):
         for field in ("authored_map_sha256", "authored_frame_sha256", "emission"):
             if entry.get(field) != expected[field]:
@@ -298,6 +393,21 @@ def main() -> None:
         static_frame_hashes.append(digest(frame))
     if manifest.get("static_frame_sha256") != static_frame_hashes:
         raise SystemExit("presentation proof: static framebuffer hashes differ")
+    expected_high_score = {
+        "record_rows": list(HIGH_SCORE_RECORD_ROWS),
+        "name_column": HIGH_SCORE_NAME_COLUMN,
+        "score_column": HIGH_SCORE_SCORE_COLUMN,
+        "name_destinations": [
+            framebuffer_destination((HIGH_SCORE_NAME_COLUMN, row))
+            for row in HIGH_SCORE_RECORD_ROWS
+        ],
+        "score_destinations": [
+            framebuffer_destination((HIGH_SCORE_SCORE_COLUMN, row))
+            for row in HIGH_SCORE_RECORD_ROWS
+        ],
+    }
+    if manifest.get("high_score_table") != expected_high_score:
+        raise SystemExit("presentation proof: high-score table metadata differs")
     if len(payload) > 4 * 0x2000:
         raise SystemExit("presentation proof: cold payload exceeds four pages")
     if len(payload) > 10874:

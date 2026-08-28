@@ -135,7 +135,9 @@ presentation_flow_tick
         beq     pft_helper_ready
         lbsr    install_aux_runtime
 pft_helper_ready
+        ifeq    HIGHSCORE_TEST_PROFILE
         lbsr    scan_keys
+        endc
         lda     PRES_MAGIC
         cmpa    #$A5
         beq     pft_ready
@@ -147,11 +149,18 @@ pft_helper_ready
         clr     PRES_DEMO_CAUSE
         clr     PRES_DEMO_ROUTE
         clr     PRES_ACTOR_FRAME
+        ifne    HIGHSCORE_TEST_PROFILE
+        lda     #PRESENTATION_MAP_ENTER_HIGH_SCORE
+        else
         lda     #PRESENTATION_MAP_ATTRACT
+        endc
         lbsr    start_screen
         lda     #1
         rts
 pft_ready
+        ifne    HIGHSCORE_TEST_PROFILE
+        lbra    pft_dispatch
+        endc
         lda     PRES_EVENT
         anda    #$06
         beq     pft_mode
@@ -201,6 +210,13 @@ pft_dispatch
         lbeq    credit_tick
         cmpa    #MODE_LEVEL
         lbeq    level_tick
+        ifne    HIGHSCORE_TEST_PROFILE
+        cmpa    #MODE_GAMEOVER
+        lbeq    gameover_tick
+        cmpa    #MODE_NAME
+        lbeq    name_tick
+        lbra    attract_tick
+        else
         ifne    BUG011_DEVELOPMENT_PROFILE
         lbra    attract_tick
         else
@@ -208,8 +224,12 @@ pft_dispatch
         lbeq    gameover_tick
         lbra    name_tick
         endc
+        endc
 
 install_aux_runtime
+        ifne    HIGHSCORE_TEST_PROFILE
+        pshs    a
+        endc
         ifne    COMPLETE_PROFILE
         lbsr    install_instruction_runtime
         rts
@@ -247,16 +267,23 @@ install_aux_runtime_byte
         bne     install_aux_runtime_byte
         lda     #$34
         sta     PAR5
+        ifne    HIGHSCORE_TEST_PROFILE
+        puls    a
+        endc
         rts
 
 normal_tick
         lda     DEATH
         cmpa    #4
         bne     normal_stage
+        ifne    HIGHSCORE_TEST_PROFILE
+        lda     #PRESENTATION_MAP_GAME_OVER
+        else
         ifne    BUG011_DEVELOPMENT_PROFILE
         lda     #PRESENTATION_MAP_ATTRACT
         else
         lda     #PRESENTATION_MAP_GAME_OVER
+        endc
         endc
         lbsr    start_screen
         lda     #1
@@ -294,6 +321,7 @@ normal_game
 
 start_screen
         sta     PRES_SCREEN
+        ifeq    HIGHSCORE_TEST_PROFILE
         ifne    COMPLETE_PROFILE
         cmpa    #PRESENTATION_MAP_ATTRACT
         bne     start_screen_context_ready
@@ -304,12 +332,17 @@ start_screen_context_ready
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
         bne     start_screen_no_instruction_install
         lbsr    install_instruction_runtime
-        lda     PRES_SCREEN       ; installer restores PAR5 through A
+        lda     PRES_SCREEN
 start_screen_no_instruction_install
+        endc
         endc
         tfr     a,b
         aslb
+        ifne    HIGHSCORE_TEST_PROFILE
+        ldx     #PRES_MAIN_MAP_STREAM_OFFSETS
+        else
         leax    map_stream_offsets,pcr
+        endc
         ldd     b,x
         std     PRES_IN
         clr     PRES_RUN
@@ -327,7 +360,16 @@ start_screen_map
         cmpa    #PRESENTATION_MAP_ATTRACT
         beq     start_screen_hold
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+        ifne    HIGHSCORE_TEST_PROFILE
+        beq     start_screen_hold
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        beq     start_screen_hold
+        cmpa    #PRESENTATION_MAP_ENTER_HIGH_SCORE
+        beq     start_screen_hold
+        bra     start_screen_done
+        else
         bne     start_screen_done
+        endc
 start_screen_hold
         jsr     PRESENTATION_HOLD_BEGIN
 start_screen_done
@@ -386,6 +428,21 @@ load_done_no_cucumber
         ifeq    BUG011_DEVELOPMENT_PROFILE
         lbsr    draw_coin_slots
         endc
+        ifne    HIGHSCORE_TEST_PROFILE
+        ldb     PRES_SCREEN
+        cmpb    #PRESENTATION_MAP_HIGH_SCORE
+        beq     load_done_dynamic_high
+        cmpb    #PRESENTATION_MAP_ENTER_HIGH_SCORE
+        bne     load_done_dynamic_ready
+        jsr     DEMO_RUNTIME_TICK
+        bra     load_done_dynamic_ready
+load_done_dynamic_high
+        ifne    COMPLETE_PROFILE
+        lbsr    install_demo_runtime
+        endc
+        jsr     DEMO_RUNTIME_TICK
+load_done_dynamic_ready
+        endc
         lda     PRES_HOLD_STATE
         beq     load_done_publish
         cmpa    #PRES_HOLD_HYDRATE
@@ -436,7 +493,11 @@ load_done_publish
         lda     #1
         sta     PENDING
         andcc   #$EF
+        ifne    HIGHSCORE_TEST_PROFILE
+        ldx     #PRES_MAIN_SCREEN_MODES
+        else
         ldx     #screen_modes
+        endc
         ldb     PRES_SCREEN
         lda     b,x
         sta     PRES_MODE
@@ -582,7 +643,13 @@ attract_tick_ready
         bra     hold
 attract_next
         ifne    BUG011_DEVELOPMENT_PROFILE
+        ifne    HIGHSCORE_TEST_PROFILE
+        clr     PRES_CONTEXT
+        endc
         lda     #PRESENTATION_MAP_INSTRUCTIONS
+        ifne    HIGHSCORE_TEST_PROFILE
+        lbsr    install_aux_runtime
+        endc
         else
         lda     #PRESENTATION_MAP_LEVEL_START
         endc
@@ -609,6 +676,11 @@ instructions_runtime_return
         rts
         endc
 credit_tick
+        ifne    HIGHSCORE_TEST_PROFILE
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        lbeq    hold
+        endc
         lbsr    timer
         cmpd    #600
         blo     hold
@@ -720,6 +792,22 @@ gameplay_reentry_clear
         cmpx    #FB_META_END
         blo     gameplay_reentry_clear
         rts
+        ifne    HIGHSCORE_TEST_PROFILE
+demo_tick
+        lbra    hold
+gameover_tick
+        lbra    hold
+name_tick
+        jsr     DEMO_RUNTIME_TICK
+        tsta
+        lbeq    hold
+        lbsr    module_commit_name
+        clr     PRES_HOLD_STATE
+        lda     #PRESENTATION_MAP_HIGH_SCORE
+        lbsr    start_screen
+        lda     #1
+        rts
+        else
         ifne    COMPLETE_PROFILE
 demo_tick
         lda     DEATH
@@ -800,6 +888,7 @@ name_tick
         rts
         endc
         endc
+        endc
 add_credit
         lda     PRES_CREDITS
         cmpa    #PRESENTATION_COIN_SLOT_COUNT
@@ -809,12 +898,522 @@ add_credit
 add_coin
         rts
 
+        ifne    0
+init_high_scores
+        lda     #$34
+        sta     PAR5
+        ldx     #PRESENTATION_HIGHSCORE_BASE
+        ldu     #90
+        clra
+init_high_scores_loop
+        sta     ,x+
+        leau    -1,u
+        bne     init_high_scores_loop
+        rts
+
+prepare_name_entry
+        ldx     #SCORE
+        ldu     #PRES_SCORE_H
+        ldb     #3
+prepare_name_score
+        lda     ,x+
+        sta     ,u+
+        decb
+        bne     prepare_name_score
+        clr     PRES_NAME_LEN
+        lda     #8
+        sta     PRES_NAME_ROW
+        lda     #2
+        sta     PRES_NAME_COL
+        lda     #DIR_NONE
+        sta     PRES_NAME_LAST_DIR
+        clr     PRES_NAME_REPEAT
+        rts
+
+qualify_score
+        lda     #$FF
+        sta     PRES_INSERT
+        lda     #$34
+        sta     PAR5
+        ldx     #PRESENTATION_HIGHSCORE_BASE
+        clrb
+qualify_next
+        lda     PRES_SCORE_H
+        cmpa    ,x
+        bhi     qualify_found
+        blo     qualify_advance
+        lda     PRES_SCORE_M
+        cmpa    1,x
+        bhi     qualify_found
+        blo     qualify_advance
+        lda     PRES_SCORE_L
+        cmpa    2,x
+        bhi     qualify_found
+qualify_advance
+        leax    10,x
+        incb
+        cmpb    #PRESENTATION_HIGHSCORE_COUNT
+        blo     qualify_next
+        rts
+qualify_found
+        stb     PRES_INSERT
+        rts
+
+name_input_tick
+        jsr     PRES_MAIN_READ_JOY
+        lda     JOY_DIR
+        cmpa    #DIR_NONE
+        beq     name_input_none
+        cmpa    PRES_NAME_LAST_DIR
+        bne     name_input_move
+        dec     PRES_NAME_REPEAT
+        bne     name_input_none
+name_input_move
+        sta     PRES_NAME_LAST_DIR
+        lda     #6
+        sta     PRES_NAME_REPEAT
+        lbsr    name_move
+        tsta
+        rts
+name_input_none
+        clra
+        rts
+
+name_move
+        lda     JOY_DIR
+        cmpa    #DIR_N
+        bne     name_move_south
+        tst     PRES_NAME_ROW
+        beq     name_moved
+        dec     PRES_NAME_ROW
+        bra     name_moved
+name_move_south
+        cmpa    #DIR_S
+        bne     name_move_west
+        lda     PRES_NAME_ROW
+        cmpa    #8
+        bhs     name_moved
+        inc     PRES_NAME_ROW
+        bra     name_moved
+name_move_west
+        cmpa    #DIR_W
+        bne     name_move_east
+        tst     PRES_NAME_COL
+        beq     name_moved
+        dec     PRES_NAME_COL
+        bra     name_moved
+name_move_east
+        lda     PRES_NAME_COL
+        cmpa    #4
+        bhs     name_moved
+        inc     PRES_NAME_COL
+name_moved
+        lda     PRES_NAME_ROW
+        ldb     #5
+        mul
+        addb    PRES_NAME_COL
+        tfr     d,x
+        leax    PRESENTATION_NAME_ENTRY_NODE_TILES,pcr
+        abx
+        ldb     ,x
+        cmpb    #PRES_NAME_END
+        beq     name_end
+        cmpb    #PRES_NAME_CL
+        beq     name_delete
+        cmpb    #PRES_NAME_END
+        bhs     name_redraw
+        lda     PRES_NAME_LEN
+        cmpa    #PRESENTATION_HIGHSCORE_NAME_BYTES
+        bhs     name_redraw
+        stb     PRES_NAME_TILE
+        tfr     a,b
+        ldx     #PRESENTATION_PENDING_NAME
+        abx
+        lda     PRES_NAME_TILE
+        sta     ,x
+        inc     PRES_NAME_LEN
+        bra     name_redraw
+name_delete
+        tst     PRES_NAME_LEN
+        beq     name_redraw
+        dec     PRES_NAME_LEN
+        ldx     #PRESENTATION_PENDING_NAME
+        lda     PRES_NAME_LEN
+        leax    a,x
+        ldb     #PRESENTATION_NAME_ENTRY_BLACK_TILE
+        stb     ,x
+name_redraw
+        lbsr    name_update_frame
+        clra
+        rts
+name_end
+        lda     #1
+        rts
+
+commit_name
+        lda     PRES_INSERT
+        cmpa    #$FF
+        beq     commit_done
+        sta     PRES_TMP_H
+        lda     #$34
+        sta     PAR5
+        ldx     #PRESENTATION_HIGHSCORE_BASE+70
+        ldu     #PRESENTATION_HIGHSCORE_BASE+80
+commit_shift
+        lda     PRES_TMP_H
+        cmpa    PRES_INSERT
+        blo     commit_write
+        ldb     #10
+commit_record
+        lda     ,x+
+        sta     ,u+
+        decb
+        bne     commit_record
+        leax    -20,x
+        leau    -20,u
+        dec     PRES_TMP_H
+        bra     commit_shift
+commit_write
+        ldx     #PRESENTATION_HIGHSCORE_BASE
+        ldb     PRES_INSERT
+        beq     commit_write_score
+commit_find
+        leax    10,x
+        decb
+        bne     commit_find
+commit_write_score
+        lda     PRES_SCORE_H
+        sta     ,x+
+        lda     PRES_SCORE_M
+        sta     ,x+
+        lda     PRES_SCORE_L
+        sta     ,x+
+        ldu     #PRESENTATION_PENDING_NAME
+        ldb     #PRESENTATION_HIGHSCORE_NAME_BYTES
+commit_write_name
+        lda     ,u+
+        sta     ,x+
+        decb
+        bne     commit_write_name
+commit_done
+        rts
+
+draw_name_screen
+        lbsr    map_back
+        lbsr    draw_name_fields
+        lbsr    draw_entry_scores
+        lbsr    name_capture_initial
+        lbsr    name_draw_cursor
+        lda     #$34
+        sta     PAR5
+        rts
+
+draw_name_fields
+        ldy     #PRESENTATION_NAME_ENTRY_NAME_DST
+        ldb     #PRESENTATION_NAME_ENTRY_BLACK_TILE
+        lda     #PRESENTATION_HIGHSCORE_NAME_BYTES
+draw_name_clear
+        pshs    a,y
+        lbsr    draw_tile_id
+        puls    a,y
+        leay    4,y
+        deca
+        bne     draw_name_clear
+        ldx     #PRESENTATION_PENDING_NAME
+        ldy     #PRESENTATION_NAME_ENTRY_NAME_DST
+        lda     PRES_NAME_LEN
+        beq     draw_name_done
+draw_name_chars
+        ldb     ,x+
+        pshs    a,x,y
+        lbsr    draw_tile_id
+        puls    a,x,y
+        leay    4,y
+        deca
+        bne     draw_name_chars
+draw_name_done
+        rts
+
+draw_entry_scores
+        ldx     #PRES_SCORE_H
+        ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
+        lbsr    draw_score
+        lda     #$34
+        sta     PAR5
+        ldx     #PRESENTATION_HIGHSCORE_BASE
+        ldd     ,x
+        std     PRES_TMP_H
+        ldd     2,x
+        std     PRES_TMP_L
+        ldx     #PRES_TMP_H
+        ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
+        lbsr    draw_score
+        rts
+
+draw_high_score_screen
+        lda     #$34
+        sta     PAR5
+        ldx     #PRESENTATION_HIGHSCORE_BASE
+        ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
+        ldy     #PRESENTATION_HIGHSCORE_TOP_SCORE_DST
+        lbsr    draw_high_score_entry
+        leau    PRESENTATION_HIGHSCORE_ENTRY_NAME_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,u
+        leay    PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST-PRESENTATION_HIGHSCORE_TOP_SCORE_DST-24,y
+        ldb     #PRESENTATION_HIGHSCORE_COUNT-1
+draw_high_score_rows
+        lbsr    draw_high_score_entry
+        leau    1280,u
+        leay    1256,y
+        decb
+        bne     draw_high_score_rows
+        rts
+
+draw_high_score_entry
+        stx     PRES_NAME_PTR
+        pshs    y
+        tfr     u,y
+        ldx     PRES_NAME_PTR
+        leax    3,x
+        lbsr    draw_name_record
+        puls    y
+        ldx     PRES_NAME_PTR
+        lbsr    draw_score
+        leax    7,x
+        rts
+
+draw_name_record
+        ldb     #PRESENTATION_HIGHSCORE_NAME_BYTES
+draw_name_record_loop
+        lda     ,x+
+        pshs    b,x,y
+        tsta
+        bne     draw_name_record_tile
+        ldb     #PRESENTATION_NAME_ENTRY_BLACK_TILE
+        bra     draw_name_record_draw
+draw_name_record_tile
+        tfr     a,b
+draw_name_record_draw
+        lbsr    draw_tile_id
+        puls    b,x,y
+        leay    4,y
+        decb
+        bne     draw_name_record_loop
+        rts
+
+draw_score
+        stx     PRES_NAME_PTR
+        lda     #3
+        sta     PRES_DIGIT
+draw_score_byte
+        ldx     PRES_NAME_PTR
+        lda     ,x+
+        stx     PRES_NAME_PTR
+        sta     PRES_VALUE
+        lsra
+        lsra
+        lsra
+        lsra
+        anda    #$0F
+        lbsr    draw_score_digit
+        lda     PRES_VALUE
+        anda    #$0F
+        lbsr    draw_score_digit
+        dec     PRES_DIGIT
+        bne     draw_score_byte
+        rts
+draw_score_digit
+        tfr     a,b
+        ldx     #score_glyphs
+        abx
+        ldb     ,x
+        pshs    y
+        lbsr    draw_tile_id
+        puls    y
+        leay    4,y
+        rts
+
+name_capture_initial
+        lda     #$34
+        sta     PAR5
+        ldx     #PRESENTATION_NAME_ENTRY_CURSOR_DST
+        ldu     #PRES_CURSOR_SAVE_A
+        lbsr    cursor_capture
+        ldx     #PRES_CURSOR_SAVE_A
+        ldu     #PRES_CURSOR_SAVE_B
+        ldy     #64
+name_copy_save
+        ldd     ,x++
+        std     ,u++
+        leay    -1,y
+        bne     name_copy_save
+        rts
+
+name_update_frame
+        lda     FB_BACK_ID
+        sta     PRES_NAME_OWNER
+        jsr     PRES_MAIN_FB_PREPARE
+        lbsr    map_back
+        lbsr    cursor_restore
+        lbsr    draw_name_fields
+        lbsr    name_capture_owner
+        lbsr    name_draw_cursor
+        lda     #$34
+        sta     PAR5
+        jmp     PRES_MAIN_FB_FINISH
+
+cursor_capture
+        ldy     #16
+cursor_capture_row
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        leax    152,x
+        leay    -1,y
+        bne     cursor_capture_row
+        rts
+
+cursor_restore
+        lda     PRES_NAME_OWNER
+        beq     cursor_restore_a
+        ldu     #PRES_CURSOR_SAVE_B
+        bra     cursor_restore_ready
+cursor_restore_a
+        ldu     #PRES_CURSOR_SAVE_A
+cursor_restore_ready
+        ldx     #PRESENTATION_NAME_ENTRY_CURSOR_DST
+        ldy     #16
+cursor_restore_row
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        leax    152,x
+        leay    -1,y
+        bne     cursor_restore_row
+        rts
+
+name_capture_owner
+        lda     PRES_NAME_OWNER
+        beq     name_capture_a
+        ldu     #PRES_CURSOR_SAVE_B
+        bra     name_capture_ready
+name_capture_a
+        ldu     #PRES_CURSOR_SAVE_A
+name_capture_ready
+        ldx     #PRESENTATION_NAME_ENTRY_CURSOR_DST
+        lbsr    cursor_capture
+        rts
+
+name_draw_cursor
+        lda     PRES_NAME_ROW
+        ldb     #5
+        mul
+        addb    PRES_NAME_COL
+        lslb
+        ldx     #PRESENTATION_NAME_ENTRY_NODE_DESTINATIONS
+        abx
+        ldd     ,x
+        tfr     d,x
+        ldd     #PRESENTATION_NAME_ENTRY_CURSOR_OFFSET
+        lbsr    cold_ptr
+        tfr     x,u
+        jsr     PRESENTATION_MODULE_DRAW
+        rts
+
+score_glyphs
+        fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
+        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_3
+        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
+        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
+        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
+
+        endc
+
+        ifne    HIGHSCORE_TEST_PROFILE
+module_qualify_score
+        lda     #$FF
+        sta     PRES_INSERT
+        ldx     #PRESENTATION_HIGHSCORE_BASE
+        clrb
+module_qualify_loop
+        ldd     PRES_SCORE_H
+        cmpd    ,x
+        bhi     module_qualify_found
+        blo     module_qualify_next
+        lda     PRES_SCORE_L
+        cmpa    2,x
+        bhi     module_qualify_found
+module_qualify_next
+        leax    10,x
+        incb
+        cmpb    #PRESENTATION_HIGHSCORE_COUNT
+        blo     module_qualify_loop
+        rts
+module_qualify_found
+        stb     PRES_INSERT
+        rts
+
+module_commit_name
+        ldx     #PRESENTATION_HIGHSCORE_BASE+80
+        ldu     #PRESENTATION_HIGHSCORE_BASE+90
+        ldb     #PRESENTATION_HIGHSCORE_COUNT-1
+        subb    PRES_INSERT
+        beq     module_commit_write
+        lda     #PRESENTATION_HIGHSCORE_RECORD_BYTES
+        mul
+        tfr     d,y
+module_commit_shift
+        lda     ,-x
+        sta     ,-u
+        leay    -1,y
+        bne     module_commit_shift
+module_commit_write
+        ldx     #PRESENTATION_HIGHSCORE_BASE
+        ldb     PRES_INSERT
+module_commit_find
+        beq     module_commit_score
+        leax    10,x
+        decb
+        bra     module_commit_find
+module_commit_score
+        ldd     PRES_SCORE_H
+        std     ,x++
+        lda     PRES_SCORE_L
+        sta     ,x+
+        ldu     #PRESENTATION_PENDING_NAME
+        ldd     ,u++
+        std     ,x++
+        ldb     #5
+module_commit_name_loop
+        lda     ,u+
+        sta     ,x+
+        decb
+        bne     module_commit_name_loop
+module_commit_done
+        rts
+        endc
+
 scan_keys
         clr     PRES_EVENT
         ldy     #PRES_PREV
+        ifne    HIGHSCORE_TEST_PROFILE
+        ldx     #PRES_MAIN_SCAN_DRIVES
+        ldu     #PRES_MAIN_SCAN_BITS
+        clrb
+        else
         leax    scan_drives,pcr
         leau    scan_bits,pcr
         ldb     #0
+        endc
 scan_loop
         lda     b,x
         sta     PIA_DB
@@ -841,7 +1440,12 @@ scan_next
         sta     PIA_CRA
         sta     PIA_CRB
         rts
-
+        ifne    HIGHSCORE_TEST_PROFILE
+draw_actor_overlay
+        rts
+colour_tile equ draw_actor_overlay
+colour_surface equ draw_actor_overlay
+        else
 draw_actor_overlay
         ldb     PRES_ACTOR_FRAME
         lda     #SPARSE_ENEMY_PAYLOAD_PAGE
@@ -932,6 +1536,7 @@ colour_surface_advance
         dec     PRES_RUN
         bne     colour_surface_next
         rts
+        endc
 
         ifeq    BUG011_DEVELOPMENT_PROFILE
 instruction_phase_rows
@@ -941,6 +1546,7 @@ instruction_phase_starts
         fdb     $3940,$4834,$5234,$7540,$7F34,$8434
         endc
 
+        ifeq    HIGHSCORE_TEST_PROFILE
 map_stream_offsets
         fdb PRESENTATION_MAP_STREAM_0
         fdb PRESENTATION_MAP_STREAM_1
@@ -958,6 +1564,7 @@ scan_drives
         fcb $FD,$DF,$BF
 scan_bits
         fcb $01,$02,$04
+        endc
 
 PRES_MAGIC equ $00A4
 PRES_MODE equ $00A5
@@ -1016,6 +1623,18 @@ PRES_HOLD_FINAL equ $81
 FB_FRONT_ID equ $008F
 FB_BACK_ID equ $0090
 PRESENTATION_PENDING_NAME equ $AFDE
+PRES_NAME_ROW equ $00DF
+PRES_NAME_COL equ $00E0
+PRES_NAME_REPEAT equ $00E1
+PRES_NAME_LAST_DIR equ $00E2
+PRES_NAME_OWNER equ $00E3
+PRES_NAME_PTR equ $00E4
+PRES_NAME_TILE equ $00E6
+PRES_NAME_FLAGS equ $00E7
+PRES_CURSOR_SAVE_A equ $A590
+PRES_CURSOR_SAVE_B equ $A610
+PRES_NAME_CL equ $FE
+PRES_NAME_END equ $FD
 
 presentation_module_end
         end

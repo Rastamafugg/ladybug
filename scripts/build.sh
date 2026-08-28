@@ -17,6 +17,7 @@ PRESENTATION_COLD="$BUILD_DIR/ladybug-presentation-cold.bin"
 PRESENTATION_ACTOR_RECORDS="$BUILD_DIR/ladybug-attract-actor-records.bin"
 PRESENTATION_ACTOR_UNDERLAYS="$BUILD_DIR/ladybug-attract-actor-underlays.bin"
 PRESENTATION_INC="$BUILD_DIR/ladybug_presentation.inc"
+PRESENTATION_RESIDENT_INC="$BUILD_DIR/ladybug_presentation_resident.inc"
 PRESENTATION_MANIFEST="$BUILD_DIR/ladybug-presentation.json"
 PRESENTATION_MODULE="$BUILD_DIR/ladybug-presentation-runtime.bin"
 PRESENTATION_MODULE_SRC="$ROOT/src/presentation_runtime.s"
@@ -71,12 +72,13 @@ PRESENTATION_HELPER_START=0x06B2
 PRESENTATION_HELPER_LIMIT=0x0800
 INSTRUCTION_RUNTIME_START=0x0300
 INSTRUCTION_RUNTIME_LIMIT=0x06AA
-LADYBUG_PROFILE="${LADYBUG_PROFILE:-release}"
+LADYBUG_PROFILE="${LADYBUG_PROFILE:-highscore-test}"
 case "$LADYBUG_PROFILE" in
-    development) BUG011_DEVELOPMENT_PROFILE=1; COMPLETE_PROFILE=0 ;;
-    release) BUG011_DEVELOPMENT_PROFILE=0; COMPLETE_PROFILE=0 ;;
-    complete) BUG011_DEVELOPMENT_PROFILE=1; COMPLETE_PROFILE=1 ;;
-    *) echo "build: LADYBUG_PROFILE must be development, release, or complete" >&2; exit 2 ;;
+    highscore-test) BUG011_DEVELOPMENT_PROFILE=0; COMPLETE_PROFILE=0; HIGHSCORE_TEST_PROFILE=1 ;;
+    development) BUG011_DEVELOPMENT_PROFILE=1; COMPLETE_PROFILE=0; HIGHSCORE_TEST_PROFILE=0 ;;
+    release) BUG011_DEVELOPMENT_PROFILE=0; COMPLETE_PROFILE=0; HIGHSCORE_TEST_PROFILE=0 ;;
+    complete) BUG011_DEVELOPMENT_PROFILE=1; COMPLETE_PROFILE=1; HIGHSCORE_TEST_PROFILE=0 ;;
+    *) echo "build: LADYBUG_PROFILE must be highscore-test, development, release, or complete" >&2; exit 2 ;;
 esac
 
 guard_layout() {
@@ -164,6 +166,95 @@ print(f"build: boot loader ends at ${end:04X}; overflow starts at ${limit:04X}")
 PY
 }
 
+guard_generated_loader_intervals() {
+    local map="$1"
+    local manifest="$2"
+    local loader="$3"
+    python3 - "$map" "$manifest" "$loader" <<'PY'
+import json
+import re
+import sys
+
+map_path, manifest_path, loader_path = sys.argv[1:]
+map_text = open(map_path, encoding="utf-8").read()
+loader_text = open(loader_path, encoding="ascii").read()
+with open(manifest_path, encoding="ascii") as stream:
+    manifest = json.load(stream)
+
+def symbol(name):
+    match = re.search(
+        rf"^Symbol: {name} .* = ([0-9A-Fa-f]+)$", map_text, re.MULTILINE
+    )
+    if not match:
+        raise SystemExit(f"build: boot map is missing {name}")
+    return int(match.group(1), 16)
+
+loader_start = symbol("loader_start")
+table_start = symbol("sparse_copy_table_start")
+table_end = symbol("sparse_copy_table_end")
+loader_end = symbol("loader_end")
+table_ram_match = re.search(
+    r"^SPARSE_COPY_TABLE_RAM equ \$([0-9A-Fa-f]+)$",
+    loader_text,
+    re.MULTILINE,
+)
+if not table_ram_match:
+    raise SystemExit("build: generated loader table RAM address is missing")
+table_ram = int(table_ram_match.group(1), 16)
+
+relocated_table_start = 0x0300 + table_start - loader_start
+relocated_table_end = 0x0300 + table_end - loader_start
+relocated_loader_end = 0x0300 + loader_end - loader_start
+if relocated_table_end != relocated_loader_end:
+    raise SystemExit("build: sparse table is not the final relocated loader data")
+
+reserved = [
+    ("relocated loader code", 0x0300, relocated_table_start),
+    ("active sparse copy table", table_ram, table_ram + table_end - table_start),
+    ("perimeter helper allocation", 0x06B2, 0x0800),
+    ("stack window", 0x1E00, 0x2000),
+]
+
+def overlaps(left, right):
+    return left[1] > right[0] and right[1] > left[0]
+
+low_ram = []
+for segment in manifest["gmc"]["segments"]:
+    if segment["destination_page"] != 0xFF:
+        continue
+    start = segment["destination_address"]
+    end = start + segment["count"]
+    interval = (start, end)
+    low_ram.append((segment["target"], start, end))
+    for name, reserved_start, reserved_end in reserved:
+        if (
+            name == "perimeter helper allocation" and
+            segment["target"] == "perimeter_reset_helper"
+        ):
+            continue
+        if overlaps(interval, (reserved_start, reserved_end)):
+            raise SystemExit(
+                f"build: generated {segment['target']} destination "
+                f"${start:04X}-${end - 1:04X} overlaps {name} "
+                f"${reserved_start:04X}-${reserved_end - 1:04X}"
+            )
+
+for index, left in enumerate(low_ram):
+    for right in low_ram[index + 1:]:
+        if overlaps((left[1], left[2]), (right[1], right[2])):
+            raise SystemExit(
+                "build: generated low-RAM destinations overlap: "
+                f"{left[0]} and {right[0]}"
+            )
+
+print(
+    "loader interval proof: generated low-RAM destinations are disjoint "
+    f"from loader code, active table ${table_ram:04X}-"
+    f"${table_ram + table_end - table_start - 1:04X}, helper allocation, and stack"
+)
+PY
+}
+
 guard_presentation_module() {
     local module="$1"
     python3 - "$module" "$PRESENTATION_MODULE_START" "$PRESENTATION_MODULE_LIMIT" <<'PY'
@@ -247,7 +338,36 @@ cmd_build() {
         --actor-record-output "$PRESENTATION_ACTOR_RECORDS" \
         --actor-underlay-output "$PRESENTATION_ACTOR_UNDERLAYS" \
         --development-profile "$BUG011_DEVELOPMENT_PROFILE" \
-        --complete-profile "$COMPLETE_PROFILE"
+        --complete-profile "$COMPLETE_PROFILE" \
+        --highscore-test-profile "$HIGHSCORE_TEST_PROFILE"
+
+    python3 - "$PRESENTATION_MANIFEST" "$PRESENTATION_RESIDENT_INC" "$BUG011_DEVELOPMENT_PROFILE" <<'PY'
+import json
+import sys
+
+manifest_path, output_path, development = sys.argv[1:]
+manifest = json.loads(open(manifest_path, encoding="ascii").read())
+offsets = manifest["map_stream_offsets"]
+node_tiles = manifest["high_score_name_entry"]["node_tile_ids"]
+if len(offsets) != 6:
+    raise SystemExit("build: expected six presentation map offsets")
+screen_modes = (2, 3, 6, 5, 7, 8) if int(development) else (2, 6, 6, 5, 7, 8)
+lines = [
+    "; Generated resident-owned presentation constants.",
+    "presentation_map_stream_offsets",
+    "        fdb     " + ",".join(f"${value:04X}" for value in offsets),
+    "presentation_screen_modes",
+    "        fcb     " + ",".join(str(value) for value in screen_modes),
+    "presentation_scan_drives",
+    "        fcb     $FD,$DF,$BF",
+    "presentation_scan_bits",
+    "        fcb     $01,$02,$04",
+    "presentation_name_node_tiles",
+    "        fcb     " + ",".join(f"${value:02X}" for value in node_tiles),
+    "",
+]
+open(output_path, "w", encoding="ascii").write("\n".join(lines))
+PY
 
     python3 "$ROOT/scripts/verify_presentation.py" \
         --tiled-dir "$ROOT/tiled" \
@@ -260,7 +380,9 @@ cmd_build() {
         --demo-walk "$DEMO_WALK" \
         --payload "$PRESENTATION_COLD" \
         --manifest "$PRESENTATION_MANIFEST" \
-        --development-profile "$BUG011_DEVELOPMENT_PROFILE"
+        --development-profile "$BUG011_DEVELOPMENT_PROFILE" \
+        --complete-profile "$COMPLETE_PROFILE" \
+        --highscore-test-profile "$HIGHSCORE_TEST_PROFILE"
 
     python3 "$ROOT/scripts/verify_bug016_presentation_layers.py" \
         --tiled-dir "$ROOT/tiled" \
@@ -268,6 +390,7 @@ cmd_build() {
 
     lwasm -9 --format=raw \
           -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
+          -DHIGHSCORE_TEST_PROFILE="$HIGHSCORE_TEST_PROFILE" \
           --output="$RUNTIME_ROM" \
           --list="$LST" \
           --symbols \
@@ -311,10 +434,10 @@ with open(output, 'w', encoding='ascii') as handle:
         handle.write(f'{name} equ ${symbols[name]}\n')
 PY
 
-    python3 - "$MAP" "$PRESENTATION_SYMBOLS" <<'PY'
+    python3 - "$MAP" "$PRESENTATION_SYMBOLS" "$HIGHSCORE_TEST_PROFILE" <<'PY'
 import re
 import sys
-source, output = sys.argv[1:]
+source, output, highscore_test = sys.argv[1:]
 wanted = {
     'init_game_state': 'PRES_MAIN_INIT',
     'init_maze_state': 'PRES_MAIN_MAZE',
@@ -333,6 +456,15 @@ wanted = {
     'restore_player': 'PRES_MAIN_RESTORE_PLAYER',
     'blit_tile': 'PRES_MAIN_BLIT_TILE',
 }
+if int(highscore_test):
+    wanted.update({
+        'presentation_map_stream_offsets': 'PRES_MAIN_MAP_STREAM_OFFSETS',
+        'presentation_screen_modes': 'PRES_MAIN_SCREEN_MODES',
+        'presentation_scan_drives': 'PRES_MAIN_SCAN_DRIVES',
+        'presentation_scan_bits': 'PRES_MAIN_SCAN_BITS',
+        'presentation_name_node_tiles': 'PRES_MAIN_NAME_NODE_TILES',
+        'presentation_add_credit': 'PRES_MAIN_ADD_CREDIT',
+    })
 symbols = {}
 for line in open(source, encoding='utf-8'):
     match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
@@ -377,15 +509,6 @@ with open(output, 'a', encoding='ascii') as handle:
 PY
 
     PRESENTATION_INSTRUCTION_RUNTIME_BYTES="$((INSTRUCTION_RUNTIME_LIMIT - INSTRUCTION_RUNTIME_START))"
-    lwasm -9 --format=raw \
-          --output="$DEMO_RUNTIME" \
-          --list="$DEMO_RUNTIME_LST" \
-          --symbols \
-          --map="$DEMO_RUNTIME_MAP" \
-          -I "$BUILD_DIR" \
-          "$DEMO_RUNTIME_SRC"
-    guard_instruction_runtime "$DEMO_RUNTIME" "demo runtime"
-
     AUX_RUNTIME_STAGE_BASE="$((0xA000 + $(wc -c < "$PRESENTATION_ACTOR_UNDERLAYS") + $(wc -c < "$PRESENTATION_ACTOR_RECORDS")))"
     INSTRUCTION_RUNTIME_STAGE_ADDRESS="$AUX_RUNTIME_STAGE_BASE"
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then
@@ -397,10 +520,12 @@ PY
     lwasm -9 --format=raw \
           -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
           -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
+          -DHIGHSCORE_TEST_PROFILE="$HIGHSCORE_TEST_PROFILE" \
           -DPRESENTATION_INSTRUCTION_RUNTIME_ADDRESS="$INSTRUCTION_RUNTIME_STAGE_ADDRESS" \
           -DPRESENTATION_INSTRUCTION_RUNTIME_BYTES="$PRESENTATION_INSTRUCTION_RUNTIME_BYTES" \
           -DPRESENTATION_DEMO_RUNTIME_ADDRESS="$DEMO_RUNTIME_STAGE_ADDRESS" \
-          -DPRESENTATION_DEMO_RUNTIME_BYTES="$(wc -c < "$DEMO_RUNTIME")" \
+          -DPRESENTATION_DEMO_RUNTIME_BYTES=0 \
+          -DPRESENTATION_NAME_ENTRY_DATA=0 \
           --output="$PRESENTATION_MODULE" \
           --list="$PRESENTATION_MODULE_LST" \
           --symbols \
@@ -439,6 +564,36 @@ with open(output, 'a', encoding='ascii') as handle:
 PY
 
     lwasm -9 --format=raw \
+          -DHIGHSCORE_TEST_PROFILE="$HIGHSCORE_TEST_PROFILE" \
+          -DPRESENTATION_NAME_ENTRY_DATA=0 \
+          --output="$DEMO_RUNTIME" \
+          --list="$DEMO_RUNTIME_LST" \
+          --symbols \
+          --map="$DEMO_RUNTIME_MAP" \
+          -I "$BUILD_DIR" \
+          "$DEMO_RUNTIME_SRC"
+    guard_instruction_runtime "$DEMO_RUNTIME" "demo runtime"
+
+    lwasm -9 --format=raw \
+          -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
+          -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
+          -DHIGHSCORE_TEST_PROFILE="$HIGHSCORE_TEST_PROFILE" \
+          -DPRESENTATION_INSTRUCTION_RUNTIME_ADDRESS="$INSTRUCTION_RUNTIME_STAGE_ADDRESS" \
+          -DPRESENTATION_INSTRUCTION_RUNTIME_BYTES="$PRESENTATION_INSTRUCTION_RUNTIME_BYTES" \
+          -DPRESENTATION_DEMO_RUNTIME_ADDRESS="$DEMO_RUNTIME_STAGE_ADDRESS" \
+          -DPRESENTATION_DEMO_RUNTIME_BYTES="$(wc -c < "$DEMO_RUNTIME")" \
+          -DPRESENTATION_NAME_ENTRY_DATA=0 \
+          --output="$PRESENTATION_MODULE" \
+          --list="$PRESENTATION_MODULE_LST" \
+          --symbols \
+          --map="$PRESENTATION_MODULE_MAP" \
+          -I "$BUILD_DIR" \
+          "$PRESENTATION_MODULE_SRC"
+    guard_presentation_module "$PRESENTATION_MODULE"
+
+    lwasm -9 --format=raw \
+          -DHIGHSCORE_TEST_PROFILE=0 \
+          -DPRESENTATION_NAME_ENTRY_DATA=0 \
           --output="$INSTRUCTION_RUNTIME" \
           --list="$INSTRUCTION_RUNTIME_LST" \
           --symbols \
@@ -537,6 +692,7 @@ PY
     local boot_lst_tmp="${BOOT_LST}.tmp"
     local boot_map_tmp="${BOOT_MAP}.tmp"
     lwasm -9 --format=raw \
+          -DHIGHSCORE_TEST_PROFILE="$HIGHSCORE_TEST_PROFILE" \
           --output="$boot_rom_tmp" \
           --list="$boot_lst_tmp" \
           --symbols \
@@ -550,6 +706,9 @@ for source, destination in zip(sys.argv[1::2], sys.argv[2::2]):
     os.replace(source, destination)
 PY
     guard_boot_overflow "$BOOT_MAP"
+    if [[ "$HIGHSCORE_TEST_PROFILE" == 1 ]]; then
+        guard_generated_loader_intervals "$BOOT_MAP" "$SPARSE_MANIFEST" "$SPARSE_LOADER"
+    fi
     python3 "$ROOT/scripts/verify_perimeter_allocation.py" \
         --manifest "$SPARSE_MANIFEST" \
         --bootstrap "$BOOT_SRC" \
@@ -611,6 +770,12 @@ with open(manifest_temp_path, 'w', encoding='ascii') as stream:
 os.replace(manifest_temp_path, manifest_path)
 print(f'build: GMC banks 4 x 16384 -> {len(image)} bytes ({output_path})')
 PY
+    python3 "$ROOT/scripts/verify_feat003_profile_isolation.py" \
+        --profile "$LADYBUG_PROFILE" \
+        --rom "$ROM" \
+        --presentation-manifest "$PRESENTATION_MANIFEST" \
+        --sparse-manifest "$SPARSE_MANIFEST" \
+        --module "$PRESENTATION_MODULE"
 }
 
 cmd_run() {
@@ -630,8 +795,19 @@ cmd_run() {
 cmd_verify_gmc() {
     cmd_build
     python3 "$ROOT/scripts/verify_presentation_flow.py"
-    python3 "$ROOT/scripts/verify_gmc_boot.py" --rom "$ROM" --map "$MAP" --manifest "$SPARSE_MANIFEST"
-    python3 "$ROOT/scripts/verify_enemy_runtime.py"
+    if [[ "$HIGHSCORE_TEST_PROFILE" == 1 ]]; then
+        python3 "$ROOT/scripts/verify_gmc_boot.py" \
+            --rom "$ROM" --map "$MAP" --manifest "$SPARSE_MANIFEST" \
+            --startup-only
+        python3 "$ROOT/scripts/verify_feat003_highscore_test.py" \
+            --rom "$ROM" --output "$BUILD_DIR/feat003-highscore-test.json" \
+            --initial-png "$BUILD_DIR/feat003-highscore-test-initial.png" \
+            --updated-png "$BUILD_DIR/feat003-highscore-test-updated.png"
+    else
+        python3 "$ROOT/scripts/verify_gmc_boot.py" \
+            --rom "$ROM" --map "$MAP" --manifest "$SPARSE_MANIFEST"
+        python3 "$ROOT/scripts/verify_enemy_runtime.py"
+    fi
 }
 
 cmd_tester() {

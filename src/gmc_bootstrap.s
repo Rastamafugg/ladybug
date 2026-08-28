@@ -38,6 +38,11 @@ BOOT_LZ_OFFSET equ $02FE
 LOADER_RAM  equ $0300
 RESIDENT_STAGE_PAGE equ $21
 ASSET_STAGE_PAGE equ $22
+PRESENTATION_NAME_ENTRY_DATA equ 0
+
+        ifne    HIGHSCORE_TEST_PROFILE
+        include "ladybug_presentation.inc"
+        endc
 
         org $C000
         fcc "DK"
@@ -116,6 +121,17 @@ copy_enemy_runtime
         ; Copy the indexed sparse enemy/player streams into physical pages
         ; $35-$37 and $39 using the generated fragmented-bank plan.
         leax    sparse_copy_table,pcr
+        ifne    HIGHSCORE_TEST_PROFILE
+        ldy     #SPARSE_COPY_TABLE_RAM
+        ldu     #SPARSE_COPY_TABLE_BYTES
+copy_sparse_table
+        lda     ,x+
+        sta     ,y+
+        leau    -1,u
+        cmpu    #0
+        bne     copy_sparse_table
+        ldx     #SPARSE_COPY_TABLE_RAM
+        endc
         lda     #SPARSE_COPY_SEGMENT_COUNT
         sta     BOOT_SEGMENTS
 copy_sparse_segment
@@ -301,6 +317,9 @@ copy_staged_assets
         ; Page $23 stages the compressed bundle while cartridge ROM is selected.
         ; After all-RAM publication, expand it into presentation page $3C.
         lbsr    decompress_attract_surfaces
+        ifne    HIGHSCORE_TEST_PROFILE
+        lbsr    decompress_presentation_atlas
+        endc
 
         lda     #$A5
         sta     BOOT_FLAG
@@ -365,6 +384,61 @@ das_metadata_byte
         decb
         bne     das_metadata_byte
         rts
+
+        ifne    HIGHSCORE_TEST_PROFILE
+decompress_presentation_atlas
+        ; Read the compressed atlas from page $3A through PAR4, and expand
+        ; it into page $3B through PAR5. Runtime tile reads use the latter
+        ; page at the atlas offset $2000.
+        lda     #PRESENTATION_COLD_PAGE
+        sta     PAR_EXEC+4
+        lda     #PRESENTATION_COLD_PAGE+1
+        sta     PAR_EXEC+5
+        ldu     #$8000+PRESENTATION_TILE_ATLAS_SOURCE_OFFSET
+        ldy     #$A000
+dpa_flags
+        lda     ,u+
+        sta     BOOT_LZ_FLAGS
+        lda     #8
+        sta     BOOT_LZ_BITS
+dpa_token
+        lsr     BOOT_LZ_FLAGS
+        bcc     dpa_match
+        lda     ,u+
+        sta     ,y+
+        bra     dpa_next
+dpa_match
+        ldd     ,u++
+        pshs    b
+        lsra
+        rorb
+        lsra
+        rorb
+        lsra
+        rorb
+        lsra
+        rorb
+        std     BOOT_LZ_OFFSET
+        tfr     y,d
+        subd    BOOT_LZ_OFFSET
+        tfr     d,x
+        puls    b
+        andb    #$0F
+        addb    #3
+dpa_match_byte
+        lda     ,x+
+        sta     ,y+
+        decb
+        bne     dpa_match_byte
+dpa_next
+        cmpy    #$A000+PRESENTATION_TILE_ATLAS_EXPANDED_BYTES
+        beq     dpa_done
+        dec     BOOT_LZ_BITS
+        bne     dpa_token
+        bra     dpa_flags
+dpa_done
+        rts
+        endc
 
 loader_fail
         clr     BOOT_PROOF
@@ -533,7 +607,13 @@ spr_byte_changed
 spr_byte_changed_done
         rts
 
+        ifne    HIGHSCORE_TEST_PROFILE
+sparse_copy_table_start
+        endc
         include "ladybug-sparse-loader.inc"
+        ifne    HIGHSCORE_TEST_PROFILE
+sparse_copy_table_end
+        endc
         include "ladybug-perimeter-boot.inc"
 loader_end
 

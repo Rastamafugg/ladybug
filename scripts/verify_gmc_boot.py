@@ -141,6 +141,7 @@ def main() -> None:
     runtime_role = manifest.get("aux_runtime", {}).get("role", "release")
     development = runtime_role == "development"
     complete = runtime_role == "complete"
+    highscore_test = runtime_role == "highscore-test"
     presentation_symbols = {}
     if runtime_role == "release":
         for name in ("demo_force_death", "demo_force_enemy_death"):
@@ -155,7 +156,7 @@ def main() -> None:
     presentation_module = (
         Path(__file__).resolve().parents[1] / "build/ladybug-presentation-runtime.bin"
     ).read_bytes()
-    expected_entry_opcode = 0xB6 if development or complete else 0x17
+    expected_entry_opcode = 0xB6 if development or complete or highscore_test else 0x17
     if not presentation_module or presentation_module[0] != expected_entry_opcode:
         raise SystemExit(
             "gmc proof: presentation module at $1900 does not begin with "

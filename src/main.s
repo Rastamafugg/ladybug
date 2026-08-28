@@ -4134,6 +4134,18 @@ par_table
 ; window is at its guard limit.
         include "ladybug_resident.inc"
 
+        ifne    HIGHSCORE_TEST_PROFILE
+presentation_add_credit
+        lda     $00A8
+        cmpa    #9
+        bhs     presentation_add_credit_done
+        inc     $00A8
+presentation_add_credit_done
+        rts
+
+        include "ladybug_presentation_resident.inc"
+        endc
+
 resident_end
 
 ; Immutable cartridge data occupies the upper ROM region.  Keep executable

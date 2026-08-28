@@ -108,6 +108,35 @@ INSTRUCTION_STATIC_LAYERS = (
     "Instructions Overlay",
 )
 INSTRUCTION_METADATA_LAYER = "Sprite Locations"
+ENTER_HIGH_SCORE_METADATA_LAYER = "Sprite Locations"
+ENTER_HIGH_SCORE_CURSOR_MARKER = {(19, 22): 545}
+ENTER_HIGH_SCORE_GRID_ROWS = (
+    ((16, 4), (20, 4), (24, 4)),
+    ((12, 6), (16, 6), (20, 6), (24, 6), (28, 6)),
+    ((12, 8), (16, 8), (20, 8), (24, 8), (28, 8)),
+    ((12, 10), (16, 10), (20, 10), (24, 10), (28, 10)),
+    ((12, 12), (16, 12), (20, 12), (24, 12), (28, 12)),
+    ((12, 14), (16, 14), (20, 14), (24, 14), (28, 14)),
+    ((12, 16), (16, 16), (20, 16), (24, 16), (28, 16)),
+    ((12, 18), (16, 18), (20, 18), (24, 18), (28, 18)),
+)
+ENTER_HIGH_SCORE_CL_CELLS = ((11, 4), (27, 4), (11, 20))
+ENTER_HIGH_SCORE_END_CELLS = ((27, 20),)
+ENTER_HIGH_SCORE_NAME_DESTINATIONS = tuple(
+    0x2000 + 5 * 1280 + (33 + index) * 4 for index in range(7)
+)
+ENTER_HIGH_SCORE_SCORE_DESTINATIONS = tuple(
+    0x2000 + 2 * 1280 + (33 + index) * 4 for index in range(6)
+)
+ENTER_HIGH_SCORE_TOP_DESTINATIONS = tuple(
+    0x2000 + 13 * 1280 + (1 + index) * 4 for index in range(6)
+)
+ENTER_HIGH_SCORE_TOP_RIGHT_DESTINATIONS = tuple(
+    0x2000 + 6 * 1280 + (33 + index) * 4 for index in range(6)
+)
+HIGH_SCORE_RECORD_ROWS = (2, 4, 5, 6, 7, 8, 9, 10, 11)
+HIGH_SCORE_NAME_COLUMN = 16
+HIGH_SCORE_SCORE_COLUMN = 27
 INSTRUCTION_ANCHORS = ((10, 8), (10, 11), (10, 14))
 INSTRUCTION_LIFE_ROOT = (28, 7)
 INSTRUCTION_COIN_ROOT = (28, 10)
@@ -164,7 +193,7 @@ PRESENTATION_LAYER_CONTRACTS = {
         "static": (
             "Arcade Maze Border", "CoCo Side HUD", "Enter High Score Overlay",
         ),
-        "metadata": (),
+        "metadata": (ENTER_HIGH_SCORE_METADATA_LAYER,),
         "runtime": (),
         "deferred": (),
     },
@@ -406,6 +435,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--actor-underlay-output", type=Path, required=True)
     parser.add_argument("--development-profile", type=int, choices=(0, 1), default=0)
     parser.add_argument("--complete-profile", type=int, choices=(0, 1), default=0)
+    parser.add_argument("--highscore-test-profile", type=int, choices=(0, 1), default=0)
     return parser.parse_args()
 
 
@@ -506,6 +536,20 @@ def validate_presentation_layers(
         validate_layer_tilesets(
             path, root, by_name["Sprite Locations"],
             ("chars_raw2bpp", "sprites_raw2bpp"),
+        )
+    if role == "enter-high-score":
+        metadata_layer = by_name[ENTER_HIGH_SCORE_METADATA_LAYER]
+        records = layer_records(metadata_layer)
+        require_records(
+            path, "enter-high-score cursor metadata", records,
+            ENTER_HIGH_SCORE_CURSOR_MARKER,
+        )
+        if metadata_layer.get("offsety") != "1":
+            raise ValueError(
+                f"{path}: {ENTER_HIGH_SCORE_METADATA_LAYER} must retain offsety=1"
+            )
+        validate_layer_tilesets(
+            path, root, metadata_layer, ("sprites_raw2bpp",)
         )
     return {
         "role": role,
@@ -940,6 +984,86 @@ def parse_instruction_contract(
     }
 
 
+def parse_enter_high_score_contract(
+    path: Path,
+    chars: list[list[list[int]]],
+    sprites: list[list[list[int]]],
+    tiles: list[bytes],
+    tile_ids: dict[bytes, int],
+) -> dict[str, object]:
+    """Compile the authored name-entry keypad and cursor start marker."""
+    root = ET.parse(path).getroot()
+    layers = {layer.get("name", ""): layer for layer in root.findall("layer")}
+    metadata = layers[ENTER_HIGH_SCORE_METADATA_LAYER]
+    records = layer_records(metadata)
+    require_records(
+        path, "enter-high-score cursor metadata", records,
+        ENTER_HIGH_SCORE_CURSOR_MARKER,
+    )
+    cursor_pixels, cursor_code = instruction_sprite(
+        root, path, records[(19, 22)], sprites
+    )
+    cursor_native = expand_sprite(
+        pack_sprite_2bpp(cursor_pixels), (BLACK, DARK_RED, GREEN, YELLOW)
+    )
+    cursor_stream = encode_sparse_native(cursor_native, 16, 8)
+    overlay = layers["Enter High Score Overlay"]
+    overlay_cells = parse_csv(overlay.find("data"), overlay.get("name", ""))
+    grid_tiles: list[int] = []
+    grid_cells: list[tuple[int, int]] = []
+    for row in ENTER_HIGH_SCORE_GRID_ROWS:
+        for cell in row:
+            index = cell[1] * SCREEN_WIDTH + cell[0]
+            gid = overlay_cells[index]
+            if not gid & GID_MASK:
+                raise ValueError(f"{path}: missing name-entry character at {cell}")
+            grid_cells.append(cell)
+            grid_tiles.append(register_tile(
+                instruction_char_tile(
+                    root, path, gid, cell, chars,
+                    (BLACK, WHITE, WHITE, WHITE),
+                ),
+                tiles, tile_ids,
+            ))
+    for cell in (*ENTER_HIGH_SCORE_CL_CELLS, *ENTER_HIGH_SCORE_END_CELLS):
+        x, y = cell
+        if not overlay_cells[y * SCREEN_WIDTH + x] & GID_MASK:
+            raise ValueError(f"{path}: missing control marker at {cell}")
+    node_cells = []
+    node_tile_ids = []
+    for row_index, row in enumerate(ENTER_HIGH_SCORE_GRID_ROWS):
+        if row_index == 0:
+            row_cells = ((11, 4), *row, (27, 4))
+            row_tiles = (0xFE, *grid_tiles[:3], 0xFE)
+        else:
+            start = 3 + (row_index - 1) * 5
+            row_cells = row
+            row_tiles = tuple(grid_tiles[start:start + 5])
+        node_cells.extend(row_cells)
+        node_tile_ids.extend(row_tiles)
+    node_cells.extend(((11, 20), (15, 20), (19, 20), (23, 20), (27, 20)))
+    node_tile_ids.extend((0xFE, 0xFF, 0xFF, 0xFF, 0xFD))
+    return {
+        "cursor_stream": cursor_stream,
+        "cursor_source_code": cursor_code,
+        "cursor_destination": framebuffer_destination((19, 22)) - 1280,
+        "cursor_cell": (19, 22),
+        "grid_cells": grid_cells,
+        "grid_tile_ids": grid_tiles,
+        "node_cells": node_cells,
+        "node_tile_ids": node_tile_ids,
+        "node_destinations": [
+            framebuffer_destination(cell) - 1280 for cell in node_cells
+        ],
+        "cl_cells": list(ENTER_HIGH_SCORE_CL_CELLS),
+        "end_cells": list(ENTER_HIGH_SCORE_END_CELLS),
+        "name_destinations": list(ENTER_HIGH_SCORE_NAME_DESTINATIONS),
+        "score_destinations": list(ENTER_HIGH_SCORE_SCORE_DESTINATIONS),
+        "top_destinations": list(ENTER_HIGH_SCORE_TOP_DESTINATIONS),
+        "top_right_destinations": list(ENTER_HIGH_SCORE_TOP_RIGHT_DESTINATIONS),
+    }
+
+
 def encode_map(data: bytes) -> bytes:
     """Encode a tile-index map as count/value pairs."""
     encoded = bytearray()
@@ -974,12 +1098,14 @@ def coin_tile() -> bytes:
 def compile_profile_maps(
     tiled_dir: Path, chars: list[list[list[int]]], tiles: list[bytes],
     tile_ids: dict[bytes, int], development_profile: bool,
+    highscore_test_profile: bool = False,
 ) -> tuple[list[bytes], list[dict[str, object]]]:
     """Validate every map while omitting unreachable development-profile maps."""
     maps: list[bytes | None] = []
     map_info: list[dict[str, object]] = []
     placeholder_maps = (
-        DEVELOPMENT_PLACEHOLDER_MAPS if development_profile
+        RELEASE_PLACEHOLDER_MAPS if highscore_test_profile
+        else DEVELOPMENT_PLACEHOLDER_MAPS if development_profile
         else RELEASE_PLACEHOLDER_MAPS
     )
     for name in MAP_NAMES:
@@ -1132,8 +1258,11 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_COLD_PAGE equ ${COLD_PAGE:02X}",
         f"PRESENTATION_COLD_PAGE_COUNT equ {COLD_PAGE_COUNT}",
         f"PRESENTATION_COLD_SIZE equ {manifest['cold_payload']['bytes']}",
-        f"PRESENTATION_TILE_ATLAS_OFFSET equ {manifest['tile_atlas_offset']}",
-        f"PRESENTATION_TILE_OFFSET equ {manifest['tile_atlas_offset']}",
+        f"PRESENTATION_TILE_ATLAS_OFFSET equ {manifest['tile_atlas_runtime_offset']}",
+        f"PRESENTATION_TILE_OFFSET equ {manifest['tile_atlas_runtime_offset']}",
+        f"PRESENTATION_TILE_ATLAS_SOURCE_OFFSET equ {manifest['tile_atlas_offset']}",
+        f"PRESENTATION_TILE_ATLAS_COMPRESSED_BYTES equ {manifest['tile_atlas_compressed_bytes']}",
+        f"PRESENTATION_TILE_ATLAS_EXPANDED_BYTES equ {manifest['tile_atlas_expanded_bytes']}",
         f"PRESENTATION_COLD_ONLY_TILE_COUNT equ {manifest['cold_only_tile_count']}",
         f"PRESENTATION_GAMEPLAY_TILE_BASE equ {manifest['gameplay_tile_base']}",
         f"PRESENTATION_GAMEPLAY_LOOKUP_OFFSET equ {manifest['gameplay_lookup_offset']}",
@@ -1211,6 +1340,40 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
             lines.append(
                 f"PRESENTATION_INSTRUCTION_X{value}_{index} equ {tile_id}"
             )
+    name_entry = manifest["high_score_name_entry"]
+    name_dst = name_entry["name_destinations"][0] if name_entry["name_destinations"] else 0
+    score_dst = name_entry["score_destinations"][0] if name_entry["score_destinations"] else 0
+    top_dst = name_entry["top_destinations"][0] if name_entry["top_destinations"] else 0
+    top_right_dst = (
+        name_entry["top_right_destinations"][0]
+        if name_entry["top_right_destinations"] else 0
+    )
+    lines.extend((
+        "",
+        "; FEAT-003 authored high-score name-entry contract.",
+        f"PRESENTATION_NAME_ENTRY_CURSOR_OFFSET equ ${name_entry['cursor_stream_offset']:04X}",
+        f"PRESENTATION_NAME_ENTRY_CURSOR_BYTES equ {name_entry['cursor_stream_bytes']}",
+        f"PRESENTATION_NAME_ENTRY_CURSOR_DST equ ${name_entry['cursor_destination']:04X}",
+        f"PRESENTATION_NAME_ENTRY_CURSOR_CODE equ {name_entry['cursor_source_code']}",
+        f"PRESENTATION_NAME_ENTRY_GRID_COUNT equ {len(name_entry['grid_cells'])}",
+        f"PRESENTATION_NAME_ENTRY_CL_COUNT equ {len(name_entry['cl_cells'])}",
+        f"PRESENTATION_NAME_ENTRY_END_COUNT equ {len(name_entry['end_cells'])}",
+        f"PRESENTATION_NAME_ENTRY_NAME_DST equ ${name_dst:04X}",
+        f"PRESENTATION_NAME_ENTRY_SCORE_DST equ ${score_dst:04X}",
+        f"PRESENTATION_NAME_ENTRY_TOP_DST equ ${top_dst:04X}",
+        f"PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST equ ${top_right_dst:04X}",
+        f"PRESENTATION_NAME_ENTRY_BLACK_TILE equ {manifest['black_tile']}",
+    ))
+    lines.append("PRESENTATION_NAME_ENTRY_GRID_TILES")
+    lines.append("PRESENTATION_NAME_ENTRY_GRID_CELLS")
+    lines.append("PRESENTATION_NAME_ENTRY_NODE_TILES")
+    lines.append("        ifne    PRESENTATION_NAME_ENTRY_DATA")
+    if name_entry["node_tile_ids"]:
+        lines.append("        fcb     " + ",".join(
+            f"${int(tile_id):02X}" for tile_id in name_entry["node_tile_ids"]
+        ))
+    lines.append("PRESENTATION_NAME_ENTRY_NODE_DESTINATIONS")
+    lines.append("        endc")
     lines.append(f"PRESENTATION_COIN_TILE equ {manifest['coin_tile']}")
     rotated = [rotate_ccw(tile) for tile in chars]
     for code in range(37):
@@ -1242,6 +1405,10 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         "PRESENTATION_HIGHSCORE_SCORE_BYTES equ 3",
         "PRESENTATION_HIGHSCORE_NAME_BYTES equ 7",
         "PRESENTATION_HIGHSCORE_COUNT equ 9",
+        f"PRESENTATION_HIGHSCORE_TOP_NAME_DST equ ${framebuffer_destination((HIGH_SCORE_NAME_COLUMN, HIGH_SCORE_RECORD_ROWS[0])):04X}",
+        f"PRESENTATION_HIGHSCORE_TOP_SCORE_DST equ ${framebuffer_destination((HIGH_SCORE_SCORE_COLUMN, HIGH_SCORE_RECORD_ROWS[0])):04X}",
+        f"PRESENTATION_HIGHSCORE_ENTRY_NAME_DST equ ${framebuffer_destination((HIGH_SCORE_NAME_COLUMN, HIGH_SCORE_RECORD_ROWS[1])):04X}",
+        f"PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST equ ${framebuffer_destination((HIGH_SCORE_SCORE_COLUMN, HIGH_SCORE_RECORD_ROWS[1])):04X}",
     ))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="ascii")
@@ -1250,6 +1417,8 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
 def main() -> None:
     args = parse_args()
     development_profile = bool(args.development_profile)
+    complete_profile = bool(args.complete_profile)
+    highscore_test_profile = bool(args.highscore_test_profile)
     chars = load_chars(args.chars)
     sprites = json.loads(args.gameplay_sprites.read_text(encoding="utf-8"))
     if isinstance(sprites, dict):
@@ -1266,7 +1435,24 @@ def main() -> None:
     tiles: list[bytes] = []
     tile_ids: dict[bytes, int] = {}
     maps, map_info = compile_profile_maps(
-        args.tiled_dir, chars, tiles, tile_ids, development_profile
+        args.tiled_dir, chars, tiles, tile_ids, development_profile,
+        highscore_test_profile,
+    )
+    name_entry = (
+        parse_enter_high_score_contract(
+            args.tiled_dir / MAP_FILES["enter-high-score"], chars, sprites,
+            tiles, tile_ids,
+        )
+        if highscore_test_profile
+        else {
+            "cursor_stream": b"", "cursor_source_code": 0,
+            "cursor_destination": 0, "cursor_cell": (19, 22),
+            "grid_cells": [], "grid_tile_ids": [], "cl_cells": [],
+            "end_cells": [], "name_destinations": [],
+            "score_destinations": [], "top_destinations": [],
+            "top_right_destinations": [],
+            "node_cells": [], "node_tile_ids": [], "node_destinations": [],
+        }
     )
     if development_profile:
         instruction = parse_instruction_contract(
@@ -1328,6 +1514,14 @@ def main() -> None:
         instruction["cucumber_stream"] = b""
         instruction["death_streams"] = []
         instruction["angel_stream"] = b""
+    if name_entry["grid_tile_ids"]:
+        name_entry["grid_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["grid_tile_ids"]
+        ]
+        name_entry["node_tile_ids"] = [
+            tile_id if tile_id in (0xFD, 0xFE, 0xFF) else remap[int(tile_id)]
+            for tile_id in name_entry["node_tile_ids"]
+        ]
     cold_only_tiles = tiles[:len(cold_tile_ids)]
     gameplay_lookup = bytes(
         gameplay_tile_ids[tiles[tile_id]]
@@ -1335,8 +1529,11 @@ def main() -> None:
     )
     encoded_maps = [encode_map(data) for data in maps]
     tile_atlas = b"".join(cold_only_tiles)
+    stored_tile_atlas = (
+        lzss_compress(tile_atlas) if highscore_test_profile else tile_atlas
+    )
     tile_atlas_offset = 0
-    gameplay_lookup_offset = len(tile_atlas)
+    gameplay_lookup_offset = len(stored_tile_atlas)
     map_stream_offset = gameplay_lookup_offset + len(gameplay_lookup)
     map_stream_offsets = []
     encoded_stream = bytearray()
@@ -1354,7 +1551,9 @@ def main() -> None:
     )
     attract_compressed = lzss_compress(attract_surfaces)
     attract_metadata = attract_destinations + attract_phase_pointers
-    cold_payload = bytearray(tile_atlas + gameplay_lookup + bytes(encoded_stream))
+    cold_payload = bytearray(
+        stored_tile_atlas + gameplay_lookup + bytes(encoded_stream)
+    )
     event_count = len(instruction["event_table"]) // INSTRUCTION_EVENT_BYTES
     for padding in range(PAGE_BYTES):
         start = len(cold_payload) + padding
@@ -1404,6 +1603,10 @@ def main() -> None:
     for index, offset in enumerate(death_stream_offsets):
         start = instruction_death_pointer_offset + index * 2
         cold_payload[start:start + 2] = offset.to_bytes(2, "big")
+    name_entry_cursor_offset = len(cold_payload)
+    cold_payload.extend(name_entry["cursor_stream"])
+    name_entry["cursor_stream_offset"] = name_entry_cursor_offset
+    name_entry["cursor_stream_bytes"] = len(name_entry["cursor_stream"])
     demo_route_offset = len(cold_payload)
     cold_payload.extend(demo_walk)
     if len(cold_payload) > COLD_PAYLOAD_LIMIT:
@@ -1425,6 +1628,7 @@ def main() -> None:
         "map_count": len(maps),
         "development_profile": bool(args.development_profile),
         "complete_profile": bool(args.complete_profile),
+        "highscore_test_profile": highscore_test_profile,
         "development_omitted_glyph_codes": [
             code for code in range(37)
             if pack_tile(recolor(
@@ -1452,6 +1656,9 @@ def main() -> None:
         "tile_count": len(tiles),
         "tile_bytes": TILE_BYTES,
         "tile_atlas_offset": tile_atlas_offset,
+        "tile_atlas_compressed_bytes": len(stored_tile_atlas),
+        "tile_atlas_expanded_bytes": len(tile_atlas),
+        "tile_atlas_runtime_offset": PAGE_BYTES if highscore_test_profile else 0,
         "cold_only_tile_count": len(cold_only_tiles),
         "gameplay_tile_base": len(cold_only_tiles),
         "gameplay_lookup_offset": gameplay_lookup_offset,
@@ -1497,6 +1704,42 @@ def main() -> None:
             "colour_dwell_frames": instruction["colour_dwell_frames"],
             "angel_source_code": instruction["angel_source_code"],
         },
+        "high_score_name_entry": {
+            "emitted": bool(name_entry["grid_tile_ids"]),
+            "metadata_layer": ENTER_HIGH_SCORE_METADATA_LAYER,
+            "cursor_cell": list(name_entry["cursor_cell"]),
+            "cursor_destination": name_entry["cursor_destination"],
+            "cursor_source_code": name_entry["cursor_source_code"],
+            "cursor_stream_offset": name_entry_cursor_offset,
+            "cursor_stream_bytes": len(name_entry["cursor_stream"]),
+            "cursor_stream_sha256": hashlib.sha256(
+                name_entry["cursor_stream"]
+            ).hexdigest(),
+            "grid_cells": [list(cell) for cell in name_entry["grid_cells"]],
+            "grid_tile_ids": name_entry["grid_tile_ids"],
+            "node_cells": [list(cell) for cell in name_entry["node_cells"]],
+            "node_tile_ids": name_entry["node_tile_ids"],
+            "node_destinations": name_entry["node_destinations"],
+            "cl_cells": [list(cell) for cell in name_entry["cl_cells"]],
+            "end_cells": [list(cell) for cell in name_entry["end_cells"]],
+            "name_destinations": name_entry["name_destinations"],
+            "score_destinations": name_entry["score_destinations"],
+            "top_destinations": name_entry["top_destinations"],
+            "top_right_destinations": name_entry["top_right_destinations"],
+        },
+        "high_score_table": {
+            "record_rows": list(HIGH_SCORE_RECORD_ROWS),
+            "name_column": HIGH_SCORE_NAME_COLUMN,
+            "score_column": HIGH_SCORE_SCORE_COLUMN,
+            "name_destinations": [
+                framebuffer_destination((HIGH_SCORE_NAME_COLUMN, row))
+                for row in HIGH_SCORE_RECORD_ROWS
+            ],
+            "score_destinations": [
+                framebuffer_destination((HIGH_SCORE_SCORE_COLUMN, row))
+                for row in HIGH_SCORE_RECORD_ROWS
+            ],
+        },
         "demo_route": {
             **demo_walk_manifest,
             "cold_offset": demo_route_offset,
@@ -1538,6 +1781,7 @@ def main() -> None:
             "metadata_sha256": hashlib.sha256(attract_metadata).hexdigest(),
         },
         "coin_tile": coin_id,
+        "black_tile": tiles.index(bytes(TILE_BYTES)),
         "coin_destinations": [
             0x2000 + row * 1280 + 33 * 8
             for row in (2, 4, 6, 8, 10, 12, 14, 16, 18)
