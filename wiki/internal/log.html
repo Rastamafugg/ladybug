@@ -14,6 +14,10 @@
   </nav>
 <main class="wiki-main">
     <section>
+      <h3>2026-08-28 &middot; requirements/architecture &mdash; FEAT-003 authored name spans</h3>
+      <p>The user clarified the dynamic name ownership in the updated <code>tiled/coco-enter-high-score-screen.tmx</code>. The <code>Enter High Score Overlay</code> <code>LADYBUG</code> at row <code>19</code>, columns <code>1</code>&ndash;<code>7</code> is a placeholder that must be blank on entry-screen hydration and then contain the pending player's entered name. The <code>CoCo Side HUD</code> <code>LADYBUG</code> at row <code>5</code>, columns <code>33</code>&ndash;<code>39</code> is a placeholder for the current ranked top-record name, including the player's name after a top-score insertion. FEAT-003 remains <code>Proposed</code>; the repair must use these authored spans as generated destinations and the same tile-ID path as the entry field/high-score table. Estimate remains 12% under the existing explicit 15% High-risk ceiling. No source change was authorized.</p>
+    </section>
+    <section>
       <h3>2026-08-28 &middot; diagnosis/requirements &mdash; FEAT-003 joystick release, dynamic names, and mockup rows</h3>
       <p>New acceptance reports identify three residuals in the default <code>highscore-test</code> artifact at commit <code>78b03ff</code>: name-entry motion continues after joystick release because the path uses persistent <code>PLAYER_WANT</code> instead of gating on current <code>JOY_DIR</code>; entry/HUD TOP-name destinations are not covered by the dynamic record-name verifier even though the generated default fixture is derived from the entry-grid glyph IDs; and the authored high-score TMX still contains static <code>UNIVERSAL</code>/<code>10000</code> example rows below the dynamic table. FEAT-003 returns to <code>Proposed</code>. The bounded repair is estimated at 12% of weekly tokens under the existing explicit 15% High-risk ceiling; no source repair is authorized pending renewed approval.</p>
     </section>
