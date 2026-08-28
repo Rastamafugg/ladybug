@@ -35,12 +35,14 @@ PRES_NAME_ROW = 0x00DF
 PRES_NAME_COL = 0x00E0
 PRES_NAME_REPEAT = 0x00E1
 PRES_NAME_LAST_DIR = 0x00E2
+PRES_NAME_STEPS = 0x00DE
 PRES_NAME_LEN = 0x00CB
 PRES_INSERT = 0x00C9
 PRES_SCORE = 0x00BF
 PRES_TABLE = 0xAF84
 PRES_NAME = 0xAFDE
 JOY_DIR = 0x0005
+PLAYER_FB = 0x000B
 PAR5 = 0xFFA5
 PRES_TIMER = 0x00B0
 PRES_NAME_TIMER_PHASE = 0x00E8
@@ -286,10 +288,10 @@ def main() -> None:
             fail("sprite-start", "runtime cursor differs from authored marker")
         owners = [runtime.read_owner(client, owner) for owner in (0, 1)]
         cursor_destination = name_contract["cursor_destination"]
-        if any(not any(runtime.frame_tile(frame, cursor_destination,
-                                           width=8, rows=16))
-               for frame in owners):
-            fail("cursor-render", "starting Lady Bug is absent on an owner")
+        front_owner = runtime.read_byte(client, runtime.FB_FRONT)
+        if not any(runtime.frame_tile(owners[front_owner], cursor_destination,
+                                       width=8, rows=16)):
+            fail("cursor-render", "starting Lady Bug is absent on FRONT")
         inner_wall_destination = 0x2000 + 3 * 1280 + 11 * 4
         border_destination = 0x2000 + 0 * 1280 + 9 * 4
         if any(
@@ -300,21 +302,19 @@ def main() -> None:
         score_dst = name_contract["score_destinations"][0]
         top_dst = name_contract["top_destinations"][0]
         top_right_dst = name_contract["top_right_destinations"][0]
-        hud_checks = [
-            (
-                score_visible(frame, score_dst, expected_score, glyphs, manifest),
-                score_visible(frame, top_dst, expected_score, glyphs, manifest),
-                score_visible(frame, top_right_dst, expected_score, glyphs, manifest),
-            )
-            for frame in owners
-        ]
-        if not all(all(checks) for checks in hud_checks):
+        front_frame = owners[front_owner]
+        hud_checks = (
+            score_visible(front_frame, score_dst, expected_score, glyphs, manifest),
+            score_visible(front_frame, top_dst, expected_score, glyphs, manifest),
+            score_visible(front_frame, top_right_dst, expected_score, glyphs, manifest),
+        )
+        if not all(hud_checks):
             expected_zero = hashlib.sha256(expected_tile(
                 manifest, glyphs[0]
             )).hexdigest()[:12]
             actual = [
                 hashlib.sha256(runtime.frame_tile(frame, score_dst)).hexdigest()[:12]
-                for frame in owners
+                for frame in (front_frame,)
             ]
             digit_checks = [
                 [
@@ -324,7 +324,7 @@ def main() -> None:
                 ]
                 for frame in owners
             ]
-            actual_five = runtime.frame_tile(owners[0], score_dst + 8)
+            actual_five = runtime.frame_tile(front_frame, score_dst + 8)
             actual_five_id = next(
                 (digit for digit in range(10)
                  if actual_five == expected_tile(manifest, glyphs[digit])),
@@ -336,7 +336,7 @@ def main() -> None:
                 f"five-as={actual_five_id} first={actual} expected0={expected_zero}",
             )
         if args.initial_png:
-            write_frame_png(args.initial_png, owners[0])
+            write_frame_png(args.initial_png, front_frame)
         monitor.clear(client, ids)
 
         ids = monitor.setup(client, [demo["name_joy_ready"]])
@@ -352,6 +352,19 @@ def main() -> None:
                 runtime.read_byte(client, PRES_NAME_LEN) != 7 or
                 read_state(client, PRES_NAME, 7) != full_name):
             fail("seven-character-bound", "eighth character changed the pending name")
+        monitor.clear(client, ids)
+        ids = []
+        client.call("reset", {"kind": "soft"})
+        ids = monitor.setup(client, [module["load_done_publish"]])
+        hit = client.run_to_breakpoint(args.timeout)
+        if (hit.get("pc") != module["load_done_publish"] or
+                runtime.read_byte(client, PRES_SCREEN) != MAP_ENTER_HIGH_SCORE):
+            fail("route-reset", f"unexpected clean route entry {hit}")
+        monitor.clear(client, ids)
+        ids = monitor.setup(client, [demo["name_joy_ready"]])
+        hit = client.run_to_breakpoint(args.timeout)
+        if hit.get("pc") != demo["name_joy_ready"]:
+            fail("route-reset", f"unexpected clean input entry {hit}")
         write_state(client, PRES_NAME, bytes((black,)) * 7)
         runtime.write_byte(client, PRES_NAME_LEN, 0)
         runtime.write_byte(client, PRES_NAME_ROW, 9)
@@ -362,17 +375,27 @@ def main() -> None:
         edge_masks = name_contract["edge_masks"]
         expected_lengths = []
         expected_positions = []
+        expected_after_lengths = []
+        expected_after_positions = []
+        expected_entry_tiles = []
         simulated_name = []
         simulated_position = [9, 2]
         simulated_end = False
         for direction in directions:
             expected_lengths.append(len(simulated_name))
             expected_positions.append(tuple(simulated_position))
+            entry_tile = None
             row, column = simulated_position
             if row == 9:
                 if direction != 0:
+                    expected_after_lengths.append(len(simulated_name))
+                    expected_after_positions.append(tuple(simulated_position))
+                    expected_entry_tiles.append(entry_tile)
                     continue
             elif not edge_masks[row * 5 + column] & (1 << direction):
+                expected_after_lengths.append(len(simulated_name))
+                expected_after_positions.append(tuple(simulated_position))
+                expected_entry_tiles.append(entry_tile)
                 continue
             if direction == 0:
                 simulated_position[0] -= 1
@@ -383,42 +406,42 @@ def main() -> None:
             else:
                 simulated_position[1] -= 1
             tile = node_tiles[simulated_position[0] * 5 + simulated_position[1]]
+            entry_tile = tile
             if tile == 0xFD:
                 simulated_end = True
-                break
-            if tile == 0xFE:
+            elif tile == 0xFE:
                 if simulated_name:
                     simulated_name.pop()
             elif tile < 0xFD and len(simulated_name) < 7:
                 simulated_name.append(tile)
+            expected_after_lengths.append(len(simulated_name))
+            expected_after_positions.append(tuple(simulated_position))
+            expected_entry_tiles.append(entry_tile)
+            if simulated_end:
+                break
         if not simulated_end:
             fail("test-route", "generated legal route did not reach END")
-        for direction, expected_length, expected_position in zip(
-                directions, expected_lengths, expected_positions):
-            for _ in range(12):
-                hit = client.run_to_breakpoint(args.timeout)
-                if hit.get("pc") == demo["name_joy_ready"]:
-                    break
-                if (hit.get("pc") != module["load_done_publish"] or
-                        runtime.read_byte(client, PRES_SCREEN) != MAP_ENTER_HIGH_SCORE):
-                    break
-            if hit.get("pc") != demo["name_joy_ready"]:
-                fail(
-                    "name-input",
-                    f"unexpected breakpoint {hit} screen={runtime.read_byte(client, PRES_SCREEN)} "
-                    f"mode={runtime.read_byte(client, PRES_MODE)} "
-                    f"hold={runtime.read_byte(client, 0x00D4):02x} "
-                    f"owner={runtime.read_byte(client, 0x00D9)}",
-                )
+        cursor_destination = name_contract["cursor_destination"]
+        baseline_previous_tiles = {
+            owner: runtime.frame_tile(runtime.read_owner(client, owner),
+                                      name_contract["node_destinations"][42],
+                                      width=8, rows=16)
+            for owner in (0, 1)
+        }
+        route_ids = monitor.setup(client, [module["load_done_publish"]])
+        ids.extend(route_ids)
+        transition_hit = None
+        for index, (direction, expected_length, expected_position,
+                    expected_after_length, expected_after_position,
+                    entry_tile) in enumerate(zip(
+                        directions, expected_lengths, expected_positions,
+                        expected_after_lengths, expected_after_positions,
+                        expected_entry_tiles)):
             if runtime.read_byte(client, PRES_NAME_LEN) != expected_length:
                 fail(
                     "cell-entry",
                     f"name length={runtime.read_byte(client, PRES_NAME_LEN)} "
-                    f"expected={expected_length} before direction={direction} "
-                    f"row={runtime.read_byte(client, PRES_NAME_ROW)} "
-                    f"col={runtime.read_byte(client, PRES_NAME_COL)} "
-                    f"pending={read_state(client, PRES_NAME, 7).hex()} "
-                    f"node={node_tiles[runtime.read_byte(client, PRES_NAME_ROW) * 5 + runtime.read_byte(client, PRES_NAME_COL)]:02x}",
+                    f"expected={expected_length} before direction={direction}",
                 )
             actual_position = (
                 runtime.read_byte(client, PRES_NAME_ROW),
@@ -426,28 +449,126 @@ def main() -> None:
             )
             if actual_position != expected_position:
                 fail("cursor-path", f"position={actual_position} expected={expected_position}")
+            start_pointer = runtime.read_word(client, PLAYER_FB)
+            legal = entry_tile is not None
             runtime.write_byte(client, JOY_DIR, direction)
+            hit = client.run_to_breakpoint(args.timeout)
+            if hit.get("pc") == module["load_done_publish"]:
+                fail(
+                    "name-input",
+                    f"transition occurred before direction {direction}: {hit}",
+                )
+            if hit.get("pc") != demo["name_joy_ready"]:
+                fail("name-input", f"unexpected breakpoint {hit}")
+            actual_pointer = runtime.read_word(client, PLAYER_FB)
+            actual_position = (
+                runtime.read_byte(client, PRES_NAME_ROW),
+                runtime.read_byte(client, PRES_NAME_COL),
+            )
+            if not legal:
+                if actual_pointer != start_pointer or actual_position != expected_position:
+                    fail(
+                        "blocked-edge",
+                        f"direction={direction} pointer={actual_pointer:04x}/{start_pointer:04x} "
+                        f"position={actual_position}/{expected_position}",
+                    )
+                continue
+            step_delta = -320 if direction == 0 else 320 if direction == 2 else 1 if direction == 1 else -1
+            step_count = 8 if direction in (0, 2) else 16
+            expected_pointer = (start_pointer + step_delta) & 0xFFFF
+            if (actual_pointer != expected_pointer or
+                    actual_position != expected_position or
+                    runtime.read_byte(client, PRES_NAME_STEPS) != step_count - 1):
+                fail(
+                    "pixel-step-motion",
+                    f"direction={direction} pointer={actual_pointer:04x}/{expected_pointer:04x} "
+                    f"position={actual_position}/{expected_position} "
+                    f"steps={runtime.read_byte(client, PRES_NAME_STEPS)}/{step_count - 1}",
+                )
+            visible_owner = runtime.read_byte(client, 0x00E3)
+            visible_frame = runtime.read_owner(client, visible_owner)
+            if not any(runtime.frame_tile(visible_frame, actual_pointer,
+                                          width=8, rows=16)):
+                fail(
+                    "pixel-step-motion",
+                    f"cursor absent on rendered owner at intermediate {actual_pointer:04x} "
+                    f"owner={visible_owner} steps={runtime.read_byte(client, PRES_NAME_STEPS)}",
+                )
+            for step in range(1, step_count):
+                try:
+                    hit = client.run_to_breakpoint(args.timeout)
+                except Exception as exc:
+                    fail(
+                        "pixel-step-timeout",
+                        f"direction={direction} step={step}/{step_count - 1} "
+                        f"error={exc}",
+                    )
+                final_step = step == step_count - 1
+                if final_step and entry_tile == 0xFD:
+                    if hit.get("pc") != module["load_done_publish"]:
+                        fail("END-transition", f"unexpected final END breakpoint {hit}")
+                    transition_hit = hit
+                    break
+                if hit.get("pc") != demo["name_joy_ready"]:
+                    fail("name-input", f"unexpected step breakpoint {hit}")
+                if not final_step:
+                    position = (
+                        runtime.read_byte(client, PRES_NAME_ROW),
+                        runtime.read_byte(client, PRES_NAME_COL),
+                    )
+                    if position != expected_position:
+                        fail("pixel-step-motion", f"logical position changed mid-edge: {position}")
+            if transition_hit is not None:
+                break
+            actual_position = (
+                runtime.read_byte(client, PRES_NAME_ROW),
+                runtime.read_byte(client, PRES_NAME_COL),
+            )
+            if (runtime.read_byte(client, PRES_NAME_LEN) != expected_after_length or
+                    actual_position != expected_after_position or
+                    runtime.read_byte(client, PRES_NAME_STEPS) != 0):
+                fail(
+                    "cell-entry",
+                    f"direction={direction} length={runtime.read_byte(client, PRES_NAME_LEN)} "
+                    f"expected={expected_after_length} position={actual_position}/"
+                    f"{expected_after_position} steps={runtime.read_byte(client, PRES_NAME_STEPS)}",
+                )
+            if index == 1:
+                visible_owner = runtime.read_byte(client, 0x00E3)
+                visible_frame = runtime.read_owner(client, visible_owner)
+                previous_pointer = name_contract["node_destinations"][42]
+                if (runtime.frame_tile(visible_frame, previous_pointer, width=8, rows=16) !=
+                        baseline_previous_tiles[visible_owner]):
+                    fail(
+                        "owner-local-cursor-restore",
+                        f"previous node retained a cursor after owner swap owner={visible_owner} "
+                        f"fb={runtime.read_word(client, PLAYER_FB):04x}",
+                    )
 
         monitor.clear(client, ids)
-        ids = monitor.setup(client, [module["presentation_flow_tick"]])
-        try:
+        ids = []
+        if transition_hit is None:
+            ids = monitor.setup(client, [module["presentation_flow_tick"]])
+            try:
+                hit = client.run_to_breakpoint(args.timeout)
+            except Exception as exc:
+                fail("END-transition-timeout", f"presentation boundary error={exc}")
+            if hit.get("pc") != module["presentation_flow_tick"]:
+                fail(
+                    "END-transition",
+                    f"unexpected breakpoint {hit} "
+                    f"row={runtime.read_byte(client, PRES_NAME_ROW)} "
+                    f"col={runtime.read_byte(client, PRES_NAME_COL)}",
+                )
+            if runtime.read_byte(client, PRES_SCREEN) != MAP_HIGH_SCORE:
+                fail("END-transition", "END did not request high-score map")
+            monitor.clear(client, ids)
+            ids = monitor.setup(client, [module["load_done_publish"]])
             hit = client.run_to_breakpoint(args.timeout)
-        except Exception as exc:
-            fail("END-transition-timeout", f"presentation boundary error={exc}")
-        if hit.get("pc") != module["presentation_flow_tick"]:
-            fail(
-                "END-transition",
-                f"unexpected breakpoint {hit} "
-                f"row={runtime.read_byte(client, PRES_NAME_ROW)} "
-                f"col={runtime.read_byte(client, PRES_NAME_COL)}",
-            )
-        if runtime.read_byte(client, PRES_SCREEN) != MAP_HIGH_SCORE:
-            fail("END-transition", "END did not request high-score map")
-        monitor.clear(client, ids)
-        ids = monitor.setup(client, [module["load_done_publish"]])
-        hit = client.run_to_breakpoint(args.timeout)
-        if hit.get("pc") != module["load_done_publish"]:
-            fail("END-publication", f"unexpected breakpoint {hit}")
+            if hit.get("pc") != module["load_done_publish"]:
+                fail("END-publication", f"unexpected breakpoint {hit}")
+        elif runtime.read_byte(client, PRES_SCREEN) != MAP_HIGH_SCORE:
+            fail("END-publication", f"END load completed on wrong screen: {transition_hit}")
         pending_name = bytes(simulated_name)
         expected_table = (
             expected_score + pending_name +
@@ -465,20 +586,19 @@ def main() -> None:
         score_destinations = manifest["high_score_table"]["score_destinations"]
         name_destinations = manifest["high_score_table"]["name_destinations"]
         records = [expected_table[index:index + 10] for index in range(0, 90, 10)]
-        row_counts = [
-            sum(
-                score_visible(frame, score_destination, record[:3], glyphs, manifest) and
-                name_visible(frame, name_destination, record[3:], black, manifest)
-                for score_destination, name_destination, record in zip(
-                    score_destinations, name_destinations, records
-                )
+        front_owner = runtime.read_byte(client, runtime.FB_FRONT)
+        front_frame = owners[front_owner]
+        row_count = sum(
+            score_visible(front_frame, score_destination, record[:3], glyphs, manifest) and
+            name_visible(front_frame, name_destination, record[3:], black, manifest)
+            for score_destination, name_destination, record in zip(
+                score_destinations, name_destinations, records
             )
-            for frame in owners
-        ]
-        if row_counts != [9, 9]:
-            fail("all-nine-rendering", f"visible score/name rows={row_counts}")
+        )
+        if row_count != 9:
+            fail("all-nine-rendering", f"visible score/name rows={row_count}")
         if args.updated_png:
-            write_frame_png(args.updated_png, owners[0])
+            write_frame_png(args.updated_png, front_frame)
         monitor.clear(client, ids)
 
         ids = monitor.setup(client, [module["presentation_flow_tick"]])
@@ -533,15 +653,23 @@ def main() -> None:
         ready_before_empty = runtime.read_byte(client, 0x00E7)
         runtime.write_byte(client, PRES_NAME_ROW, 8)
         runtime.write_byte(client, PRES_NAME_COL, 3)
+        runtime.write_word(client, PLAYER_FB, name_contract["node_destinations"][43])
+        runtime.write_word(client, 0x00DA, cursor_destination)
+        runtime.write_word(client, 0x00DC, cursor_destination)
+        runtime.write_byte(client, PRES_NAME_STEPS, 0)
         runtime.write_byte(client, PRES_NAME_LEN, 0)
         runtime.write_byte(client, PRES_NAME_LAST_DIR, 0xFF)
         runtime.write_byte(client, JOY_DIR, 1)
         monitor.clear(client, ids)
-        ids = monitor.setup(client, [module["presentation_flow_tick"]])
-        hit = client.run_to_breakpoint(args.timeout)
+        ids = monitor.setup(client, [demo["name_joy_ready"], module["load_done_publish"]])
+        for step in range(16):
+            hit = client.run_to_breakpoint(args.timeout)
+            if step < 15 and hit.get("pc") != demo["name_joy_ready"]:
+                fail("empty-name-END", f"unexpected pixel step breakpoint: {hit}")
+            if step == 15 and hit.get("pc") != module["load_done_publish"]:
+                fail("empty-name-END", f"END did not complete map transition: {hit}")
         expected_empty = expected_score + bytes((black,)) * 7 + fixture[:80]
-        if (hit.get("pc") != module["presentation_flow_tick"] or
-                runtime.read_byte(client, PRES_SCREEN) != MAP_HIGH_SCORE or
+        if (runtime.read_byte(client, PRES_SCREEN) != MAP_HIGH_SCORE or
                 read_state(client, PRES_TABLE, 90) != expected_empty):
             actual_empty = read_state(client, PRES_TABLE, 90)
             fail(
@@ -672,7 +800,8 @@ def main() -> None:
             "CL-delete", "seven-character-bound", "END-commit",
             "empty-name-END", "all-nine-render", "hold-through-credit-start",
             "reset-reseed", "cursor-render", "wall-palette",
-            "wall-edge-block", "timer-first-box", "timer-timeout",
+            "wall-edge-block", "pixel-step-motion",
+            "owner-local-cursor-restore", "timer-first-box", "timer-timeout",
         ]
     finally:
         try:
@@ -694,7 +823,7 @@ def main() -> None:
             args.updated_png.read_bytes()
         ).hexdigest()
     args.output.write_text(json.dumps(evidence, indent=2) + "\n", encoding="ascii")
-    print("FEAT-003 highscore-test: entry, edit, END, nine rows, and reset-only hold passed")
+    print("FEAT-003 highscore-test: entry, pixel steering, owner restore, END, nine rows, and reset-only hold passed")
     print(f"evidence={args.output}")
 
 

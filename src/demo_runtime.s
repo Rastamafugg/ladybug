@@ -18,6 +18,7 @@
 PAR5    equ $FFA5
 PLAYER_FACE equ $0007
 PLAYER_STEP equ $0008
+PLAYER_FB equ $000B
 PLAYER_CELL_X equ $0009
 PLAYER_CELL_Y equ $000A
 PLAYER_WANT equ $000F
@@ -34,6 +35,12 @@ PRES_NAME_OWNER equ $00E3
 PRES_NAME_PTR equ $00E4
 PRES_NAME_TILE equ $00E6
 PRES_HS_READY equ $00E7
+; High-score test only: demo-route scratch bytes hold the two owner-local
+; cursor destinations; the name tile byte holds the latched move direction.
+PRES_NAME_PTR_A equ $00DA
+PRES_NAME_PTR_B equ $00DC
+PRES_NAME_STEPS equ $00DE
+PRES_NAME_DIR equ $00E6
 PRES_MODE equ $00A5
 PRES_SCREEN equ $00A6
 PRES_IN equ $00B5
@@ -257,6 +264,8 @@ qualify_found
 name_tick
         jsr     PRES_MAIN_READ_JOY
 name_joy_ready
+        tst     PRES_NAME_STEPS
+        bne     name_move_active
         lda     JOY_DIR
         cmpa    #DIR_NONE
         beq     name_idle
@@ -268,6 +277,7 @@ name_move_now
         sta     PRES_NAME_LAST_DIR
         lda     #6
         sta     PRES_NAME_REPEAT
+name_move_active
         lbsr    move_name_cursor
         tsta
         beq     name_idle
@@ -278,14 +288,11 @@ name_idle
         rts
 
 move_name_cursor
+        tst     PRES_NAME_STEPS
+        bne     name_advance
         lda     PRES_NAME_ROW
         cmpa    #9
-        bne     name_edge_lookup
-        lda     JOY_DIR
-        cmpa    #DIR_N
-        bne     name_edge_blocked
-        dec     PRES_NAME_ROW
-        bra     move_node
+        lbeq    name_marker_edge
 name_edge_lookup
         lda     PRES_NAME_ROW
         ldb     #5
@@ -313,40 +320,75 @@ name_edge_s
         bitb    #4
 name_edge_result
         beq     name_edge_blocked
-        lda     #$34
-        sta     PAR5
+name_begin_move
         lda     JOY_DIR
+        sta     PRES_NAME_DIR
+        cmpa    #DIR_N
+        beq     name_vertical_steps
+        cmpa    #DIR_S
+        bne     name_horizontal_steps
+name_vertical_steps
+        lda     #8
+        bra     name_steps_ready
+name_horizontal_steps
+        lda     #16
+name_steps_ready
+        sta     PRES_NAME_STEPS
+name_advance
+        ldx     PLAYER_FB
+        lda     PRES_NAME_DIR
+        cmpa    #DIR_N
+        beq     name_step_n
+        cmpa    #DIR_E
+        beq     name_step_e
+        cmpa    #DIR_S
+        beq     name_step_s
+        leax    -1,x
+        bra     name_step_store
+name_step_n
+        leax    -320,x
+        bra     name_step_store
+name_step_e
+        leax    1,x
+        bra     name_step_store
+name_step_s
+        leax    320,x
+name_step_store
+        stx     PLAYER_FB
+        dec     PRES_NAME_STEPS
+        bne     name_cursor_redraw
+        lda     PRES_NAME_DIR
         cmpa    #DIR_N
         bne     move_s
-        tst     PRES_NAME_ROW
-        beq     move_node
         dec     PRES_NAME_ROW
         bra     move_node
 move_s
         cmpa    #DIR_S
         bne     move_w
-        lda     PRES_NAME_ROW
-        cmpa    #8
-        bhs     move_node
         inc     PRES_NAME_ROW
         bra     move_node
 move_w
         cmpa    #DIR_W
         bne     move_e
-        tst     PRES_NAME_COL
-        beq     move_node
         dec     PRES_NAME_COL
         bra     move_node
+move_e
+        inc     PRES_NAME_COL
+        bra     move_node
+name_cursor_redraw
+        lbsr    update_name_frame
+        clra
+        rts
+name_marker_edge
+        lda     JOY_DIR
+        cmpa    #DIR_N
+        bne     name_edge_blocked
+        bra     name_begin_move
 name_edge_blocked
         lda     #$34
         sta     PAR5
         clra
         rts
-move_e
-        lda     PRES_NAME_COL
-        cmpa    #4
-        bhs     move_node
-        inc     PRES_NAME_COL
 move_node
         lda     PRES_NAME_ROW
         ldb     #5
@@ -439,6 +481,9 @@ commit_done
         rts
         endc
 render_name_screen
+        clr     PRES_NAME_STEPS
+        lda     #DIR_NONE
+        sta     PRES_NAME_DIR
         lbsr    prepare_name
         jsr     PRES_MODULE_MAP_BACK
         lbsr    draw_name_fields
@@ -602,7 +647,9 @@ capture_initial
         lda     #$34
         sta     PAR5
         ldx     #PRESENTATION_NAME_ENTRY_CURSOR_DST
-        stx     PRES_NAME_PTR
+        stx     PLAYER_FB
+        stx     PRES_NAME_PTR_A
+        stx     PRES_NAME_PTR_B
         ldu     #PRES_CURSOR_SAVE_A
         lbsr    capture_cursor
         ldx     #PRES_CURSOR_SAVE_A
@@ -621,7 +668,10 @@ update_name_frame
         jsr     PRES_MAIN_FB_PREPARE
         jsr     PRES_MODULE_MAP_BACK
         lbsr    restore_cursor
+        tst     PRES_NAME_STEPS
+        bne     update_cursor_only
         lbsr    draw_name_fields
+update_cursor_only
         lbsr    capture_owner
         lbsr    draw_cursor
         lda     #$34
@@ -645,14 +695,17 @@ capture_row
         rts
 
 restore_cursor
+        lda     #$34
+        sta     PAR5
         lda     PRES_NAME_OWNER
         beq     restore_a
         ldu     #PRES_CURSOR_SAVE_B
+        ldx     PRES_NAME_PTR_B
         bra     restore_ready
 restore_a
         ldu     #PRES_CURSOR_SAVE_A
+        ldx     PRES_NAME_PTR_A
 restore_ready
-        ldx     PRES_NAME_PTR
         ldy     #16
 restore_row
         ldd     ,u++
@@ -669,66 +722,30 @@ restore_row
         rts
 
 capture_owner
+        lda     #$34
+        sta     PAR5
         lda     PRES_NAME_OWNER
         beq     capture_a
         ldu     #PRES_CURSOR_SAVE_B
-        bra     capture_ready
+        ldx     PLAYER_FB
+        stx     PRES_NAME_PTR_B
+        lbsr    capture_cursor
+        rts
 capture_a
         ldu     #PRES_CURSOR_SAVE_A
-capture_ready
-        ldx     PRES_NAME_PTR
+        ldx     PLAYER_FB
+        stx     PRES_NAME_PTR_A
         lbsr    capture_cursor
         rts
 
 draw_cursor
-        lbsr    name_node_destination
-        tfr     d,x
-        stx     PRES_NAME_PTR
+        ldx     PLAYER_FB
         pshs    x
         ldd     #PRESENTATION_NAME_ENTRY_CURSOR_OFFSET
         jsr     PRES_MODULE_COLD_PTR
         tfr     x,u
         puls    x
         jmp     PRES_MODULE_DRAW
-
-name_node_destination
-        lda     PRES_NAME_ROW
-        beq     name_node_top
-        cmpa    #8
-        beq     name_node_bottom
-        cmpa    #9
-        beq     name_node_marker
-        deca
-        ldb     #10
-        mul
-        tfr     b,a
-        clrb
-        addd    #$3930
-        bra     name_node_column
-name_node_top
-        lda     PRES_NAME_COL
-        ldb     #2
-        mul
-        leax    name_node_top_destinations,pcr
-        abx
-        ldd     ,x
-        rts
-name_node_bottom
-        ldd     #$7F2C
-name_node_column
-        tfr     d,x
-        lda     PRES_NAME_COL
-        ldb     #$10
-        mul
-        leax    d,x
-        tfr     x,d
-        rts
-name_node_marker
-        ldd     #PRESENTATION_NAME_ENTRY_CURSOR_DST
-        rts
-
-name_node_top_destinations
-        fdb     $2F2C,$2F40,$2F50,$2F60,$2F6C
 
 score_glyphs
         fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
