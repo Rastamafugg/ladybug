@@ -10,6 +10,7 @@ from pathlib import Path
 
 from build_presentation import (
     BLACK,
+    GREEN,
     MAP_FILES,
     MAP_NAMES,
     MAP_OUTPUT_OFFSET,
@@ -36,9 +37,12 @@ from build_presentation import (
     load_demo_walk,
     parse_attract_actors,
     parse_enter_high_score_contract,
+    enter_high_score_edge_masks,
     parse_instruction_contract,
+    perimeter_box_cells,
     pack_tile,
     recolor,
+    replace_packed_colour,
     rotate_ccw,
     title_framebuffer,
 )
@@ -155,6 +159,19 @@ def main() -> None:
         tiles.append(coin_bytes)
     if len(tiles) > 256:
         raise SystemExit("presentation proof: atlas exceeds one-byte tile IDs")
+    if name_entry["grid_tile_ids"]:
+        enter_map = maps[MAP_NAMES.index("enter-high-score")]
+        base_ids = []
+        green_ids = []
+        for x, y in perimeter_box_cells():
+            base_id = enter_map[y * 40 + x]
+            base_ids.append(base_id)
+            green_tile = replace_packed_colour(tiles[base_id], WHITE, GREEN)
+            green_ids.append(tiles.index(green_tile) if green_tile in tiles else len(tiles))
+            if green_ids[-1] == len(tiles):
+                tiles.append(green_tile)
+        name_entry["timer_base_tile_ids"] = base_ids
+        name_entry["timer_green_tile_ids"] = green_ids
     gameplay_tile_ids = {tile: index for index, tile in enumerate(gameplay_tiles)}
     cold_ids = [index for index, tile in enumerate(tiles)
                 if tile not in gameplay_tile_ids]
@@ -186,6 +203,12 @@ def main() -> None:
         name_entry["node_tile_ids"] = [
             tile_id if tile_id in (0xFD, 0xFE, 0xFF) else remap[int(tile_id)]
             for tile_id in name_entry["node_tile_ids"]
+        ]
+        name_entry["timer_base_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["timer_base_tile_ids"]
+        ]
+        name_entry["timer_green_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["timer_green_tile_ids"]
         ]
     ordered_tiles = [tiles[index] for index in order]
     rotated_chars = [rotate_ccw(tile) for tile in chars]
@@ -264,6 +287,17 @@ def main() -> None:
     expected.extend(name_entry["cursor_stream"])
     demo_route_offset = len(expected)
     expected.extend(demo_walk)
+    name_entry_timer_offset = len(expected)
+    for cell, base_id, green_id in zip(
+            perimeter_box_cells(), name_entry.get("timer_base_tile_ids", []),
+            name_entry.get("timer_green_tile_ids", [])):
+        expected.extend(
+            framebuffer_destination(cell).to_bytes(2, "big") +
+            bytes((base_id, green_id))
+        )
+    name_entry_edge_mask_offset = len(expected)
+    edge_masks = enter_high_score_edge_masks() if name_entry["grid_tile_ids"] else b""
+    expected.extend(edge_masks)
     if payload != bytes(expected):
         raise SystemExit("presentation proof: cold payload differs from independent compile")
     if len(tiles) != manifest["tile_count"]:
@@ -373,7 +407,14 @@ def main() -> None:
         name_manifest.get("node_tile_ids") != name_entry["node_tile_ids"] or
         name_manifest.get("node_cells") != [list(cell) for cell in name_entry["node_cells"]] or
         name_manifest.get("node_destinations") != name_entry["node_destinations"] or
-        name_manifest.get("top_right_destinations") != name_entry.get("top_right_destinations", [])
+        name_manifest.get("top_right_destinations") != name_entry.get("top_right_destinations", []) or
+        name_manifest.get("timer_table_offset") != name_entry_timer_offset or
+        name_manifest.get("timer_table_bytes") != len(name_entry.get("timer_base_tile_ids", [])) * 4 or
+        name_manifest.get("timer_base_tile_ids") != name_entry.get("timer_base_tile_ids", []) or
+        name_manifest.get("timer_green_tile_ids") != name_entry.get("timer_green_tile_ids", []) or
+        name_manifest.get("edge_mask_table_offset") != name_entry_edge_mask_offset or
+        name_manifest.get("edge_mask_table_bytes") != len(edge_masks) or
+        name_manifest.get("edge_masks") != list(edge_masks)
     ):
         raise SystemExit("presentation proof: name-entry metadata differs")
     for entry, expected in zip(manifest["maps"], map_info):

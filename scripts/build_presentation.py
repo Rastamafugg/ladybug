@@ -122,6 +122,9 @@ ENTER_HIGH_SCORE_GRID_ROWS = (
 )
 ENTER_HIGH_SCORE_CL_CELLS = ((11, 4), (27, 4), (11, 20))
 ENTER_HIGH_SCORE_END_CELLS = ((27, 20),)
+ENTER_HIGH_SCORE_INNER_WALL_CODE = 49
+ENTER_HIGH_SCORE_TIMER_FRAMES = 60
+ENTER_HIGH_SCORE_TIMER_COUNT = 92
 ENTER_HIGH_SCORE_NAME_DESTINATIONS = tuple(
     0x2000 + 5 * 1280 + (33 + index) * 4 for index in range(7)
 )
@@ -455,6 +458,55 @@ def layer_records(layer: ET.Element) -> dict[tuple[int, int], int]:
     }
 
 
+def perimeter_box_cells() -> tuple[tuple[int, int], ...]:
+    """Return screen cells for the documented 92-box clockwise circuit."""
+    cells: list[tuple[int, int]] = []
+    for maze_x in range(12, 24):
+        cells.append((8 + maze_x, 0))
+    for maze_y in range(1, 24):
+        cells.append((31, maze_y))
+    for maze_x in range(22, -1, -1):
+        cells.append((8 + maze_x, 23))
+    for maze_y in range(22, 0, -1):
+        cells.append((8, maze_y))
+    for maze_x in range(0, 12):
+        cells.append((8 + maze_x, 0))
+    if len(cells) != ENTER_HIGH_SCORE_TIMER_COUNT:
+        raise AssertionError("enter-high-score perimeter must contain 92 boxes")
+    return tuple(cells)
+
+
+def enter_high_score_edge_masks() -> bytes:
+    """Encode passable N/E/S/W edges for the 9x5 selectable-node grid."""
+    masks = bytearray()
+    for row in range(9):
+        for column in range(5):
+            mask = 0
+            if row and column in (0, 4):
+                mask |= 1
+            if column < 4:
+                mask |= 2
+            if row < 8 and column in (0, 4):
+                mask |= 4
+            if column:
+                mask |= 8
+            masks.append(mask)
+    return bytes(masks)
+
+
+def raw_char_code(root: ET.Element, path: Path, gid: int) -> int:
+    ranges = tileset_ranges(root, path)
+    tileset = next(
+        (item for item in ranges
+         if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
+        None,
+    )
+    if tileset is None or tileset["name"] != "chars_raw2bpp":
+        return -1
+    sheet_index = gid - int(tileset["firstgid"])
+    return (sheet_index % 16) * 32 + (31 - sheet_index // 16)
+
+
 def require_records(
     path: Path, label: str, actual: dict[tuple[int, int], int],
     expected: dict[tuple[int, int], int],
@@ -560,7 +612,7 @@ def validate_presentation_layers(
     }
 
 
-def flatten_map(path: Path) -> tuple[ET.Element, list[int]]:
+def flatten_map(path: Path) -> tuple[ET.Element, list[int], list[str]]:
     root = ET.parse(path).getroot()
     if (int(root.attrib["width"]), int(root.attrib["height"])) != (
         SCREEN_WIDTH, SCREEN_HEIGHT
@@ -577,15 +629,20 @@ def flatten_map(path: Path) -> tuple[ET.Element, list[int]]:
     selected = [layer for name in layer_contract["static_layers"]
                 for layer in layers if layer.get("name") == name]
     flattened = [0] * MAP_BYTES
+    sources = [""] * MAP_BYTES
     for layer in selected:
         cells = parse_csv(layer.find("data"), layer.get("name", ""))
         for index, gid in enumerate(cells):
             if gid & GID_MASK:
                 flattened[index] = gid
-    return root, flattened
+                sources[index] = layer.get("name", "")
+    return root, flattened, sources
 
 
-def presentation_pen_map(role: str, x: int, y: int) -> tuple[int, int, int, int]:
+def presentation_pen_map(
+        role: str, x: int, y: int, source_layer: str = "",
+        raw_code: int = -1,
+) -> tuple[int, int, int, int]:
     """Apply the established CoCo palette adaptation to authored raw chars."""
     if x < 8 and y < 9:
         colour = (RED, YELLOW, BLUE)[y // 3]
@@ -603,7 +660,16 @@ def presentation_pen_map(role: str, x: int, y: int) -> tuple[int, int, int, int]
         return (BLACK, colour, colour, colour)
     if role == "level-start" and 8 <= x < 32:
         return (BLACK, PINK, WHITE, PINK)
-    if role in ("game-over", "enter-high-score", "high-score"):
+    if role == "enter-high-score":
+        if source_layer == "Arcade Maze Border":
+            if (x, y) in perimeter_box_cells():
+                return (BLACK, PINK, WHITE, PINK)
+            return (BLACK, PINK, PINK, PINK)
+        if (source_layer == "Enter High Score Overlay" and
+                raw_code == ENTER_HIGH_SCORE_INNER_WALL_CODE):
+            return (BLACK, PINK, PINK, PINK)
+        return (BLACK, WHITE, WHITE, WHITE)
+    if role in ("game-over", "high-score"):
         return (BLACK, WHITE, WHITE, WHITE)
     if role == "instructions" and 28 <= x < 30 and 13 <= y < 15:
         return (BLACK, WHITE, WHITE, WHITE)
@@ -622,7 +688,7 @@ def compile_map(
     tiles: list[bytes],
     tile_ids: dict[bytes, int],
 ) -> tuple[bytes, dict[str, object]]:
-    root, flattened = flatten_map(path)
+    root, flattened, sources = flatten_map(path)
     role = screen_role(root, path)
     ranges = tileset_ranges(root, path)
     rotated = [rotate_ccw(tile) for tile in chars]
@@ -654,7 +720,10 @@ def compile_map(
                 bool(gid_with_flags & FLIP_V),
             )
             packed = pack_tile(tile if role == "attract" else recolor(
-                tile, presentation_pen_map(role, x, y)
+                tile, presentation_pen_map(
+                    role, x, y, sources[index],
+                    raw_char_code(root, path, gid),
+                )
             ))
         tile_id = tile_ids.setdefault(packed, len(tiles))
         if tile_id == len(tiles):
@@ -734,6 +803,15 @@ def register_tile(tile: bytes, tiles: list[bytes], tile_ids: dict[bytes, int]) -
     if tile_id > 255:
         raise ValueError("presentation atlas exceeds one-byte tile IDs")
     return tile_id
+
+
+def replace_packed_colour(tile: bytes, source: int, target: int) -> bytes:
+    output = bytearray()
+    for value in tile:
+        high = target if value >> 4 == source else value >> 4
+        low = target if (value & 0x0F) == source else value & 0x0F
+        output.append((high << 4) | low)
+    return bytes(output)
 
 
 def parse_instruction_contract(
@@ -1363,6 +1441,12 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_NAME_ENTRY_TOP_DST equ ${top_dst:04X}",
         f"PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST equ ${top_right_dst:04X}",
         f"PRESENTATION_NAME_ENTRY_BLACK_TILE equ {manifest['black_tile']}",
+        f"PRESENTATION_NAME_ENTRY_TIMER_TABLE equ ${name_entry['timer_table_offset']:04X}",
+        f"PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES equ 4",
+        f"PRESENTATION_NAME_ENTRY_TIMER_FRAMES equ {name_entry['timer_frames_per_box']}",
+        f"PRESENTATION_NAME_ENTRY_TIMER_COUNT equ {name_entry['timer_box_count']}",
+        f"PRESENTATION_NAME_ENTRY_EDGE_MASK_TABLE equ ${name_entry['edge_mask_table_offset']:04X}",
+        f"PRESENTATION_NAME_ENTRY_EDGE_MASK_BYTES equ {name_entry['edge_mask_table_bytes']}",
     ))
     lines.append("PRESENTATION_NAME_ENTRY_GRID_TILES")
     lines.append("PRESENTATION_NAME_ENTRY_GRID_CELLS")
@@ -1452,6 +1536,13 @@ def main() -> None:
             "score_destinations": [], "top_destinations": [],
             "top_right_destinations": [],
             "node_cells": [], "node_tile_ids": [], "node_destinations": [],
+            "timer_base_tile_ids": [], "timer_green_tile_ids": [],
+            "timer_table_offset": 0,
+            "timer_frames_per_box": ENTER_HIGH_SCORE_TIMER_FRAMES,
+            "timer_box_count": ENTER_HIGH_SCORE_TIMER_COUNT,
+            "edge_mask_table_offset": 0,
+            "edge_mask_table_bytes": 0,
+            "edge_masks": [],
         }
     )
     if development_profile:
@@ -1475,6 +1566,24 @@ def main() -> None:
         raise ValueError(
             f"presentation atlas contains {len(tiles)} tiles; one-byte limit is 256"
         )
+
+    if name_entry["grid_tile_ids"]:
+        enter_map = maps[MAP_NAMES.index("enter-high-score")]
+        timer_base_tile_ids = []
+        timer_green_tile_ids = []
+        for x, y in perimeter_box_cells():
+            base_id = enter_map[y * SCREEN_WIDTH + x]
+            timer_base_tile_ids.append(base_id)
+            timer_green_tile_ids.append(register_tile(
+                replace_packed_colour(tiles[base_id], WHITE, GREEN),
+                tiles, tile_ids,
+            ))
+        name_entry["timer_base_tile_ids"] = timer_base_tile_ids
+        name_entry["timer_green_tile_ids"] = timer_green_tile_ids
+        if len(tiles) > 256:
+            raise ValueError(
+                f"presentation atlas contains {len(tiles)} tiles; one-byte limit is 256"
+            )
 
     gameplay_tile_ids = {tile: index for index, tile in enumerate(gameplay_tiles)}
     cold_tile_ids = [
@@ -1521,6 +1630,12 @@ def main() -> None:
         name_entry["node_tile_ids"] = [
             tile_id if tile_id in (0xFD, 0xFE, 0xFF) else remap[int(tile_id)]
             for tile_id in name_entry["node_tile_ids"]
+        ]
+        name_entry["timer_base_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["timer_base_tile_ids"]
+        ]
+        name_entry["timer_green_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["timer_green_tile_ids"]
         ]
     cold_only_tiles = tiles[:len(cold_tile_ids)]
     gameplay_lookup = bytes(
@@ -1609,6 +1724,17 @@ def main() -> None:
     name_entry["cursor_stream_bytes"] = len(name_entry["cursor_stream"])
     demo_route_offset = len(cold_payload)
     cold_payload.extend(demo_walk)
+    name_entry_timer_offset = len(cold_payload)
+    for cell, base_id, green_id in zip(
+            perimeter_box_cells(), name_entry["timer_base_tile_ids"],
+            name_entry["timer_green_tile_ids"]):
+        cold_payload.extend(
+            framebuffer_destination(cell).to_bytes(2, "big") +
+            bytes((base_id, green_id))
+        )
+    name_entry_edge_mask_offset = len(cold_payload)
+    edge_masks = enter_high_score_edge_masks() if name_entry["grid_tile_ids"] else b""
+    cold_payload.extend(edge_masks)
     if len(cold_payload) > COLD_PAYLOAD_LIMIT:
         raise ValueError(
             f"presentation cold payload is {len(cold_payload)} bytes; "
@@ -1726,6 +1852,16 @@ def main() -> None:
             "score_destinations": name_entry["score_destinations"],
             "top_destinations": name_entry["top_destinations"],
             "top_right_destinations": name_entry["top_right_destinations"],
+            "timer_table_offset": name_entry_timer_offset,
+            "timer_table_bytes": len(name_entry["timer_base_tile_ids"]) * 4,
+            "timer_frames_per_box": ENTER_HIGH_SCORE_TIMER_FRAMES,
+            "timer_box_count": ENTER_HIGH_SCORE_TIMER_COUNT,
+            "timer_cells": [list(cell) for cell in perimeter_box_cells()],
+            "timer_base_tile_ids": name_entry["timer_base_tile_ids"],
+            "timer_green_tile_ids": name_entry["timer_green_tile_ids"],
+            "edge_mask_table_offset": name_entry_edge_mask_offset,
+            "edge_mask_table_bytes": len(edge_masks),
+            "edge_masks": list(edge_masks),
         },
         "high_score_table": {
             "record_rows": list(HIGH_SCORE_RECORD_ROWS),

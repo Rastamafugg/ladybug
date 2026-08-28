@@ -510,6 +510,10 @@ load_done_normal
 load_timer_reset
         clr     PRES_TIMER
         clr     PRES_TIMER+1
+        ifne    HIGHSCORE_TEST_PROFILE
+        clr     PRES_NAME_TIMER_PHASE
+        clr     PRES_NAME_TIMER_BOX
+        endc
         lda     #1
         rts
 
@@ -798,15 +802,50 @@ demo_tick
 gameover_tick
         lbra    hold
 name_tick
+        lbsr    timer
+        lda     PRES_NAME_TIMER_PHASE
+        inca
+        sta     PRES_NAME_TIMER_PHASE
+        cmpa    #PRESENTATION_NAME_ENTRY_TIMER_FRAMES
+        blo     name_input
+        clr     PRES_NAME_TIMER_PHASE
+        lda     PRES_NAME_TIMER_BOX
+        lbsr    name_timer_draw
+        inc     PRES_NAME_TIMER_BOX
+        lda     PRES_NAME_TIMER_BOX
+        cmpa    #PRESENTATION_NAME_ENTRY_TIMER_COUNT
+        bhs     name_timeout
+name_input
         jsr     DEMO_RUNTIME_TICK
         tsta
-        lbeq    hold
+        lbeq    name_hold
+name_timeout
         lbsr    module_commit_name
         clr     PRES_HOLD_STATE
         lda     #PRESENTATION_MAP_HIGH_SCORE
         lbsr    start_screen
         lda     #1
         rts
+name_hold
+        lbra    hold
+
+name_timer_draw
+        sta     PRES_TMP_H
+        lda     FB_BACK_ID
+        sta     PRES_NAME_OWNER
+        jsr     PRES_MAIN_FB_PREPARE
+        lda     PRES_TMP_H
+        ldb     #PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES
+        mul
+        addd    #PRESENTATION_NAME_ENTRY_TIMER_TABLE
+        lbsr    cold_ptr
+        ldd     ,x
+        tfr     d,y
+        ldb     3,x
+        lbsr    draw_tile_id
+        lda     #$34
+        sta     PAR5
+        jmp     PRES_MAIN_FB_FINISH
         else
         ifne    COMPLETE_PROFILE
 demo_tick
@@ -1323,9 +1362,11 @@ name_draw_cursor
         abx
         ldd     ,x
         tfr     d,x
+        pshs    x
         ldd     #PRESENTATION_NAME_ENTRY_CURSOR_OFFSET
         lbsr    cold_ptr
         tfr     x,u
+        puls    x
         jsr     PRESENTATION_MODULE_DRAW
         rts
 
@@ -1631,6 +1672,8 @@ PRES_NAME_OWNER equ $00E3
 PRES_NAME_PTR equ $00E4
 PRES_NAME_TILE equ $00E6
 PRES_NAME_FLAGS equ $00E7
+PRES_NAME_TIMER_PHASE equ $00E8
+PRES_NAME_TIMER_BOX equ $00E9
 PRES_CURSOR_SAVE_A equ $A590
 PRES_CURSOR_SAVE_B equ $A610
 PRES_NAME_CL equ $FE

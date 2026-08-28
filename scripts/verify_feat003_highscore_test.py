@@ -42,6 +42,9 @@ PRES_TABLE = 0xAF84
 PRES_NAME = 0xAFDE
 JOY_DIR = 0x0005
 PAR5 = 0xFFA5
+PRES_TIMER = 0x00B0
+PRES_NAME_TIMER_PHASE = 0x00E8
+PRES_NAME_TIMER_BOX = 0x00E9
 MAP_HIGH_SCORE = 3
 MAP_ENTER_HIGH_SCORE = 5
 MODE_NAME = 8
@@ -150,6 +153,18 @@ def name_visible(frame: bytes, destination: int, name: bytes, black: int,
     )
 
 
+def tile_uses_only(frame: bytes, destination: int, colours: set[int]) -> bool:
+    return all(
+        nibble in colours
+        for value in runtime.frame_tile(frame, destination)
+        for nibble in (value >> 4, value & 0x0F)
+    )
+
+
+def tile_matches(frame: bytes, destination: int, expected: bytes) -> bool:
+    return runtime.frame_tile(frame, destination) == expected
+
+
 def png_chunk(kind: bytes, data: bytes) -> bytes:
     return (struct.pack(">I", len(data)) + kind + data +
             struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF))
@@ -195,6 +210,7 @@ def main() -> None:
         fail("artifact-profile", "manifest is not highscore-test")
     module = symbols(MODULE_MAP)
     demo = symbols(DEMO_MAP)
+    main_symbols = symbols(ROOT / "build/ladybug.map")
     required_module = ("presentation_flow_tick", "load_done_publish")
     required_demo = ("name_joy_ready",)
     if any(name not in module for name in required_module):
@@ -207,6 +223,18 @@ def main() -> None:
     name_contract = manifest["high_score_name_entry"]
     node_tiles = name_contract["node_tile_ids"]
     black = manifest["black_tile"]
+    timer_cells = [tuple(cell) for cell in name_contract["timer_cells"]]
+    if (len(timer_cells) != 92 or len(set(timer_cells)) != 92 or
+            len(name_contract["timer_base_tile_ids"]) != 92 or
+            len(name_contract["timer_green_tile_ids"]) != 92 or
+            len(name_contract["edge_masks"]) != 45):
+        fail(
+            "generated-contract",
+            f"timer cells={len(timer_cells)} unique={len(set(timer_cells))} "
+            f"base={len(name_contract['timer_base_tile_ids'])} "
+            f"green={len(name_contract['timer_green_tile_ids'])} "
+            f"edges={len(name_contract['edge_masks'])}",
+        )
     fixture = b"".join(
         bytes((rank, 0, 0)) + bytes((glyphs[rank],)) * 7
         for rank in range(9, 0, -1)
@@ -257,6 +285,18 @@ def main() -> None:
                 runtime.read_byte(client, PRES_NAME_COL)) != (8, 2):
             fail("sprite-start", "runtime cursor differs from authored marker")
         owners = [runtime.read_owner(client, owner) for owner in (0, 1)]
+        cursor_destination = name_contract["node_destinations"][42]
+        if any(not any(runtime.frame_tile(frame, cursor_destination,
+                                           width=8, rows=16))
+               for frame in owners):
+            fail("cursor-render", "starting Lady Bug is absent on an owner")
+        inner_wall_destination = 0x2000 + 3 * 1280 + 11 * 4
+        border_destination = 0x2000 + 0 * 1280 + 9 * 4
+        if any(
+                not tile_uses_only(frame, inner_wall_destination, {0, 4}) or
+                not tile_uses_only(frame, border_destination, {0, 4, 6})
+                for frame in owners):
+            fail("wall-palette", "inner or border wall is not wall-coloured")
         score_dst = name_contract["score_destinations"][0]
         top_dst = name_contract["top_destinations"][0]
         top_right_dst = name_contract["top_right_destinations"][0]
@@ -318,14 +358,38 @@ def main() -> None:
         runtime.write_byte(client, PRES_NAME_COL, 2)
         runtime.write_byte(client, PRES_NAME_REPEAT, 0)
         runtime.write_byte(client, PRES_NAME_LAST_DIR, 0xFF)
-        directions = [0, 2, 3, 0, 2, 3, 1, 0, 2, 1, 0, 2, 1, 0, 2, 1]
-        expected_lengths = [0, 1, 1, 1, 2, 2, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4]
-        expected_positions = [
-            (8, 2), (7, 2), (8, 2), (8, 1),
-            (7, 1), (8, 1), (8, 0), (8, 1),
-            (7, 1), (8, 1), (8, 2), (7, 2),
-            (8, 2), (8, 3), (7, 3), (8, 3),
-        ]
+        directions = [0, 3, 0, 3, 0, 1, 0, 1, 0, 1, 0, 1, 3, 0, 3, 0, 3, 0, 3, 2, 1, 0, 1, 0, 1, 0, 1]
+        edge_masks = name_contract["edge_masks"]
+        expected_lengths = []
+        expected_positions = []
+        simulated_name = []
+        simulated_position = [8, 2]
+        simulated_end = False
+        for direction in directions:
+            expected_lengths.append(len(simulated_name))
+            expected_positions.append(tuple(simulated_position))
+            row, column = simulated_position
+            if not edge_masks[row * 5 + column] & (1 << direction):
+                continue
+            if direction == 0:
+                simulated_position[0] -= 1
+            elif direction == 1:
+                simulated_position[1] += 1
+            elif direction == 2:
+                simulated_position[0] += 1
+            else:
+                simulated_position[1] -= 1
+            tile = node_tiles[simulated_position[0] * 5 + simulated_position[1]]
+            if tile == 0xFD:
+                simulated_end = True
+                break
+            if tile == 0xFE:
+                if simulated_name:
+                    simulated_name.pop()
+            elif tile < 0xFD and len(simulated_name) < 7:
+                simulated_name.append(tile)
+        if not simulated_end:
+            fail("test-route", "generated legal route did not reach END")
         for direction, expected_length, expected_position in zip(
                 directions, expected_lengths, expected_positions):
             for _ in range(12):
@@ -349,7 +413,9 @@ def main() -> None:
                     f"name length={runtime.read_byte(client, PRES_NAME_LEN)} "
                     f"expected={expected_length} before direction={direction} "
                     f"row={runtime.read_byte(client, PRES_NAME_ROW)} "
-                    f"col={runtime.read_byte(client, PRES_NAME_COL)}",
+                    f"col={runtime.read_byte(client, PRES_NAME_COL)} "
+                    f"pending={read_state(client, PRES_NAME, 7).hex()} "
+                    f"node={node_tiles[runtime.read_byte(client, PRES_NAME_ROW) * 5 + runtime.read_byte(client, PRES_NAME_COL)]:02x}",
                 )
             actual_position = (
                 runtime.read_byte(client, PRES_NAME_ROW),
@@ -379,11 +445,19 @@ def main() -> None:
         hit = client.run_to_breakpoint(args.timeout)
         if hit.get("pc") != module["load_done_publish"]:
             fail("END-publication", f"unexpected breakpoint {hit}")
-        pending_name = bytes((node_tiles[37], node_tiles[36], node_tiles[37], node_tiles[38]))
-        expected_table = expected_score + pending_name + bytes((black,)) * 3 + fixture[:80]
+        pending_name = bytes(simulated_name)
+        expected_table = (
+            expected_score + pending_name +
+            bytes((black,)) * (7 - len(pending_name)) + fixture[:80]
+        )
         actual_table = read_state(client, PRES_TABLE, 90)
         if actual_table != expected_table:
-            fail("commit-once", "ranked table differs after END")
+            fail(
+                "commit-once",
+                f"ranked table differs after END expected={expected_table[:10].hex()} "
+                f"actual={actual_table[:10].hex()} pending={pending_name.hex()} "
+                f"sim={simulated_position}",
+            )
         owners = [runtime.read_owner(client, owner) for owner in (0, 1)]
         score_destinations = manifest["high_score_table"]["score_destinations"]
         name_destinations = manifest["high_score_table"]["name_destinations"]
@@ -485,11 +559,84 @@ def main() -> None:
                 runtime.read_byte(client, PRES_SCREEN) != MAP_ENTER_HIGH_SCORE or
                 read_state(client, PRES_TABLE, 90) != fixture):
             fail("second-reset-reseed", "reset after empty END retained ranking state")
+        monitor.clear(client, ids)
+        ids = monitor.setup(client, [demo["name_joy_ready"]])
+        hit = client.run_to_breakpoint(args.timeout)
+        if hit.get("pc") != demo["name_joy_ready"]:
+            fail("timer-entry", f"unexpected breakpoint {hit}")
+        runtime.write_byte(client, JOY_DIR, 0xFF)
+        write_state(client, PRES_NAME, bytes((node_tiles[35],)) + bytes((black,)) * 6)
+        runtime.write_byte(client, PRES_NAME_LEN, 1)
+        runtime.write_byte(client, PRES_TIMER, 0)
+        runtime.write_byte(client, PRES_TIMER + 1, 59)
+        runtime.write_byte(client, PRES_NAME_TIMER_PHASE, 59)
+        runtime.write_byte(client, PRES_NAME_TIMER_BOX, 0)
+        monitor.clear(client, ids)
+        ids = monitor.setup(client, [demo["name_joy_ready"]])
+        hit = client.run_to_breakpoint(args.timeout)
+        if (hit.get("pc") != demo["name_joy_ready"] or
+                runtime.read_byte(client, PRES_SCREEN) != MAP_ENTER_HIGH_SCORE or
+                runtime.read_bytes(client, PRES_TIMER, 2) != bytes((0, 60)) or
+                runtime.read_byte(client, PRES_NAME_TIMER_BOX) != 1):
+            fail(
+                "timer-first-box",
+                f"timer state after first box={hit} screen={runtime.read_byte(client, PRES_SCREEN)} "
+                f"timer={runtime.read_bytes(client, PRES_TIMER, 2).hex()} "
+                f"phase={runtime.read_byte(client, PRES_NAME_TIMER_PHASE)} "
+                f"box={runtime.read_byte(client, PRES_NAME_TIMER_BOX)}",
+            )
+        monitor.clear(client, ids)
+        ids = monitor.setup(client, [main_symbols["irq_handler"]])
+        for _ in range(2):
+            hit = client.run_to_breakpoint(args.timeout)
+            if hit.get("pc") != main_symbols["irq_handler"]:
+                fail("timer-publication", f"unexpected IRQ breakpoint {hit}")
+        timer_cell = name_contract["timer_cells"][0]
+        timer_destination = 0x2000 + timer_cell[1] * 1280 + timer_cell[0] * 4
+        front = runtime.read_byte(client, 0x008F)
+        if not tile_matches(
+                runtime.read_owner(client, front), timer_destination,
+                expected_tile(manifest, name_contract["timer_green_tile_ids"][0])):
+            actual_timer = runtime.frame_tile(runtime.read_owner(client, front), timer_destination)
+            expected_timer = expected_tile(manifest, name_contract["timer_green_tile_ids"][0])
+            owner_tiles = {
+                owner: runtime.frame_tile(runtime.read_owner(client, owner), timer_destination).hex()
+                for owner in (0, 1)
+            }
+            fail(
+                "timer-render",
+                f"first border box did not turn green on FRONT owner={front} "
+                f"cell={timer_cell} actual={actual_timer.hex()} expected={expected_timer.hex()} "
+                f"owners={owner_tiles}",
+            )
+        runtime.write_byte(client, PRES_TIMER, 0x15)
+        runtime.write_byte(client, PRES_TIMER + 1, 0x8F)
+        runtime.write_byte(client, PRES_NAME_TIMER_PHASE, 59)
+        runtime.write_byte(client, PRES_NAME_TIMER_BOX, 91)
+        monitor.clear(client, ids)
+        ids = monitor.setup(client, [module["name_timeout"]])
+        hit = client.run_to_breakpoint(args.timeout)
+        if hit.get("pc") != module["name_timeout"]:
+            fail("timer-timeout", f"timeout marker was not reached: {hit}")
+        monitor.clear(client, ids)
+        ids = monitor.setup(client, [module["presentation_flow_tick"]])
+        hit = client.run_to_breakpoint(args.timeout)
+        timeout_table = expected_score + bytes((node_tiles[35],)) + bytes((black,)) * 6 + fixture[:80]
+        if (hit.get("pc") != module["presentation_flow_tick"] or
+                runtime.read_byte(client, PRES_SCREEN) != MAP_HIGH_SCORE or
+                read_state(client, PRES_TABLE, 90) != timeout_table):
+            fail(
+                "timer-timeout",
+                f"timeout did not accept partial name hit={hit} "
+                f"screen={runtime.read_byte(client, PRES_SCREEN)} "
+                f"first={read_state(client, PRES_TABLE, 10).hex()}",
+            )
         evidence["events"] = [
             "direct-enter-high-score", "dummy-nine-rows", "character-entry",
             "CL-delete", "seven-character-bound", "END-commit",
             "empty-name-END", "all-nine-render", "hold-through-credit-start",
-            "reset-reseed",
+            "reset-reseed", "cursor-render", "wall-palette",
+            "wall-edge-block", "timer-first-box", "timer-timeout",
         ]
     finally:
         try:

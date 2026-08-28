@@ -269,6 +269,34 @@ name_idle
         rts
 
 move_name_cursor
+        lda     PRES_NAME_ROW
+        ldb     #5
+        mul
+        addb    PRES_NAME_COL
+        addd    #PRESENTATION_NAME_ENTRY_EDGE_MASK_TABLE
+        jsr     PRES_MODULE_COLD_PTR
+        ldb     ,x
+        lda     JOY_DIR
+        cmpa    #DIR_N
+        beq     name_edge_n
+        cmpa    #DIR_E
+        beq     name_edge_e
+        cmpa    #DIR_S
+        beq     name_edge_s
+        bitb    #8
+        bra     name_edge_result
+name_edge_n
+        bitb    #1
+        bra     name_edge_result
+name_edge_e
+        bitb    #2
+        bra     name_edge_result
+name_edge_s
+        bitb    #4
+name_edge_result
+        beq     name_edge_blocked
+        lda     #$34
+        sta     PAR5
         lda     JOY_DIR
         cmpa    #DIR_N
         bne     move_s
@@ -291,6 +319,11 @@ move_w
         beq     move_node
         dec     PRES_NAME_COL
         bra     move_node
+name_edge_blocked
+        lda     #$34
+        sta     PAR5
+        clra
+        rts
 move_e
         lda     PRES_NAME_COL
         cmpa    #4
@@ -631,9 +664,11 @@ capture_ready
 draw_cursor
         lbsr    name_node_destination
         tfr     d,x
+        pshs    x
         ldd     #PRESENTATION_NAME_ENTRY_CURSOR_OFFSET
         jsr     PRES_MODULE_COLD_PTR
         tfr     x,u
+        puls    x
         jmp     PRES_MODULE_DRAW
 
 name_node_destination
