@@ -14,6 +14,10 @@
   </nav>
 <main class="wiki-main">
     <section>
+      <h3>2026-08-28 &middot; diagnosis/requirements &mdash; FEAT-003 full-maze steering and TOP-name display</h3>
+      <p>The user reported that the current pixel-steering implementation still snaps between selectable character/control locations and does not traverse ordinary maze cells, while the TOP name appears corrupted. Source inspection confirms the movement limitation: the default path uses a generated 45-byte edge mask for the 9&times;5 selectable-node grid, so pixel interpolation occurs only between those nodes. A corrected bounded live probe with varied name tiles reached END and rendered the top record correctly; record bytes were <code>5D 5E 90 91 92 91 A0</code>, with all nine top-name slots matching generated glyphs. The TOP report is therefore not reproduced and requires identification of the affected screen row. Full-maze pass-through movement is a material acceptance expansion, so FEAT-003 returns to <code>Proposed</code> pending a revised brief under the existing 15% High-risk ceiling. No source repair was applied.</p>
+    </section>
+    <section>
       <h3>2026-08-28 &middot; implementation/QA &mdash; FEAT-003 gameplay-style steering and owner-local destinations</h3>
       <p>Current-revision QA passes the default <code>highscore-test</code> behavior contract. The implementation advances the Lady Bug by 2-pixel steps, keeps the logical cell unchanged until arrival, and preserves one cursor destination per framebuffer owner with PAR5 restored to page <code>$34</code>. Focused evidence covers cursor restoration, wall palette and blocking, CL/END, all-nine rows, reset hold, timer boxes 0 and 1, the generated disjoint-interval guard, and startup-only GDB markers. Highscore-test capacity is module <code>1279/1280</code>, auxiliary <code>905/938</code>, resident <code>8182/8192</code>, and helper <code>331/334</code>. Complete-profile build and natural evidence are retained as supplemental non-regression evidence; they are not required for this isolated profile change. The full 92-box natural timer trace remains unrun.</p>
     </section>

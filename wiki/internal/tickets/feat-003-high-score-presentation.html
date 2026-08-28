@@ -24,13 +24,22 @@
     <section>
       <h2>Disposition</h2>
       <ul>
-        <li><strong>Status:</strong> Verification; gameplay-style pixel steering and per-owner cursor destinations implemented and QA-verified</li>
+        <li><strong>Status:</strong> Proposed; full-maze joystick steering and TOP-name display residuals require revised acceptance</li>
         <li><strong>Created / updated:</strong> 2026-08-07 / 2026-08-28</li>
         <li><strong>Priority / order:</strong> P1 / 14</li>
         <li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 9 &mdash; polish, attract mode, high score, level progression</a></li>
         <li><strong>Owner:</strong> parent agent in <code>D:/retro/ladybug</code>; current dirty checkout</li>
         <li><strong>Dependencies:</strong> FEAT-004 committed profile and reproducibility bundle; user-authored enter-high-score TMX marker. RSCH-001 is no longer a dependency because sound and production integration are excluded.</li>
       </ul>
+    </section>
+
+    <section>
+      <h2>Current residual diagnosis &mdash; full-maze steering and TOP-name display</h2>
+      <p><strong>Observed report:</strong> the current Lady Bug moves with gameplay-style pixel interpolation but snaps between character/control locations instead of traversing ordinary maze cells. The expected behavior is continuous joystick navigation bounded by maze walls, with characters, CL, and END treated as pass-through cells that trigger their actions on cell arrival. The user also reports garbage graphics in the TOP name display.</p>
+      <p><strong>Confirmed movement cause:</strong> <code>scripts/build_presentation.py</code> emits a 45-byte edge-mask table for the 9&times;5 selectable-node grid, and <code>move_name_cursor</code> rejects directions using that table before advancing <code>PLAYER_FB</code>. The current 2-pixel steps therefore interpolate only between selectable character, CL, and END nodes; they do not use the full maze cell topology or the normal gameplay <code>can_move</code> path. This is a confirmed acceptance failure.</p>
+      <p><strong>TOP-name diagnostic:</strong> the existing focused verifier used a repeated dummy character, so it could miss a varied-name or field-selection defect. A bounded corrected live probe with varied character tiles reached END and compared the rendered top record against the generated glyph tiles: record bytes were <code>5D 5E 90 91 92 91 A0</code>, and all nine rendered top-name slots, including the two cleared tail slots, matched. The reported visual error is not reproduced at current revision <code>dcbed29</code>. The next test must identify whether the report refers to the post-END high-score table's top name row or the enter-high-score screen's left-HUD TOP field.</p>
+      <h3>Required scope decision</h3>
+      <p>Full-maze pass-through navigation is a material expansion beyond the approved selectable-node movement contract. FEAT-003 returns from <code>Verification</code> to <code>Proposed</code> for a revised movement acceptance brief; the existing 15% High-risk ceiling remains recorded, but no source repair is authorized until the full-maze topology, cell-entry action timing, capacity impact, and TOP-name field are fixed.</p>
     </section>
 
     <section>
