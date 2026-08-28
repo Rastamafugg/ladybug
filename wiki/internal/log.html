@@ -14,6 +14,10 @@
   </nav>
 <main class="wiki-main">
     <section>
+      <h3>2026-08-28 &middot; diagnosis &mdash; FEAT-003 high-score overlay and default records</h3>
+      <p>The attached post-END capture confirms high-score layout corruption beyond the earlier varied-name probe. Source inspection identifies <code>render_high_score</code> calling enter-screen <code>draw_entry_scores</code> after drawing the high-score table; its three name-entry destinations overlay the high-score map and explain the duplicated scores, misalignment, and retained maze graphics. The default <code>init_scores</code> fixture separately fills each seven-byte name with the row-rank glyph, producing repeated names rather than <code>LADYBUG</code>. The requested fixture is TOP through 9TH with scores <code>090000</code> through <code>010000</code>, all named <code>LADYBUG</code>. FEAT-003 remains <code>Proposed</code>; no source repair was applied. Full-maze pass-through steering remains a separate material acceptance expansion.</p>
+    </section>
+    <section>
       <h3>2026-08-28 &middot; diagnosis/requirements &mdash; FEAT-003 full-maze steering and TOP-name display</h3>
       <p>The user reported that the current pixel-steering implementation still snaps between selectable character/control locations and does not traverse ordinary maze cells, while the TOP name appears corrupted. Source inspection confirms the movement limitation: the default path uses a generated 45-byte edge mask for the 9&times;5 selectable-node grid, so pixel interpolation occurs only between those nodes. A corrected bounded live probe with varied name tiles reached END and rendered the top record correctly; record bytes were <code>5D 5E 90 91 92 91 A0</code>, with all nine top-name slots matching generated glyphs. The TOP report is therefore not reproduced and requires identification of the affected screen row. Full-maze pass-through movement is a material acceptance expansion, so FEAT-003 returns to <code>Proposed</code> pending a revised brief under the existing 15% High-risk ceiling. No source repair was applied.</p>
     </section>
