@@ -803,9 +803,8 @@ gameover_tick
         lbra    hold
 name_tick
         lbsr    timer
+        inc     PRES_NAME_TIMER_PHASE
         lda     PRES_NAME_TIMER_PHASE
-        inca
-        sta     PRES_NAME_TIMER_PHASE
         cmpa    #PRESENTATION_NAME_ENTRY_TIMER_FRAMES
         blo     name_input
         clr     PRES_NAME_TIMER_PHASE
@@ -818,7 +817,7 @@ name_tick
 name_input
         jsr     DEMO_RUNTIME_TICK
         tsta
-        lbeq    name_hold
+        beq     name_hold
 name_timeout
         lbsr    module_commit_name
         clr     PRES_HOLD_STATE
@@ -832,8 +831,8 @@ name_hold
 name_timer_draw
         sta     PRES_TMP_H
         lda     FB_BACK_ID
-        sta     PRES_NAME_OWNER
         jsr     PRES_MAIN_FB_PREPARE
+name_timer_next
         lda     PRES_TMP_H
         ldb     #PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES
         mul
@@ -843,6 +842,8 @@ name_timer_draw
         tfr     d,y
         ldb     3,x
         lbsr    draw_tile_id
+        dec     PRES_TMP_H
+        bpl     name_timer_next
         lda     #$34
         sta     PAR5
         jmp     PRES_MAIN_FB_FINISH

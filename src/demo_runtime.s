@@ -179,14 +179,23 @@ init_scores
         sta     PAR5
         tst     PRES_HS_READY
         bne     init_scores_done
-        ldx     #highscore_fixture
         ldu     #PRES_HIGHSCORE_BASE
-        ldb     #90
-init_scores_loop
-        lda     ,x+
+        lda     #9
+init_scores_row
         sta     ,u+
-        decb
-        bne     init_scores_loop
+        clr     ,u+
+        clr     ,u+
+        tfr     a,b
+        ldx     #score_glyphs
+        leax    b,x
+        ldb     ,x
+        ldy     #7
+init_scores_name
+        stb     ,u+
+        leay    -1,y
+        bne     init_scores_name
+        deca
+        bne     init_scores_row
         inc     PRES_HS_READY
 init_scores_done
         rts
@@ -200,7 +209,7 @@ prepare_name
         clr     PRES_SCORE_L
         clr     PRES_INSERT
         clr     PRES_NAME_LEN
-        lda     #8
+        lda     #9
         sta     PRES_NAME_ROW
         lda     #2
         sta     PRES_NAME_COL
@@ -269,6 +278,15 @@ name_idle
         rts
 
 move_name_cursor
+        lda     PRES_NAME_ROW
+        cmpa    #9
+        bne     name_edge_lookup
+        lda     JOY_DIR
+        cmpa    #DIR_N
+        bne     name_edge_blocked
+        dec     PRES_NAME_ROW
+        bra     move_node
+name_edge_lookup
         lda     PRES_NAME_ROW
         ldb     #5
         mul
@@ -584,6 +602,7 @@ capture_initial
         lda     #$34
         sta     PAR5
         ldx     #PRESENTATION_NAME_ENTRY_CURSOR_DST
+        stx     PRES_NAME_PTR
         ldu     #PRES_CURSOR_SAVE_A
         lbsr    capture_cursor
         ldx     #PRES_CURSOR_SAVE_A
@@ -633,7 +652,7 @@ restore_cursor
 restore_a
         ldu     #PRES_CURSOR_SAVE_A
 restore_ready
-        ldx     #PRESENTATION_NAME_ENTRY_CURSOR_DST
+        ldx     PRES_NAME_PTR
         ldy     #16
 restore_row
         ldd     ,u++
@@ -657,13 +676,14 @@ capture_owner
 capture_a
         ldu     #PRES_CURSOR_SAVE_A
 capture_ready
-        ldx     #PRESENTATION_NAME_ENTRY_CURSOR_DST
+        ldx     PRES_NAME_PTR
         lbsr    capture_cursor
         rts
 
 draw_cursor
         lbsr    name_node_destination
         tfr     d,x
+        stx     PRES_NAME_PTR
         pshs    x
         ldd     #PRESENTATION_NAME_ENTRY_CURSOR_OFFSET
         jsr     PRES_MODULE_COLD_PTR
@@ -676,6 +696,8 @@ name_node_destination
         beq     name_node_top
         cmpa    #8
         beq     name_node_bottom
+        cmpa    #9
+        beq     name_node_marker
         deca
         ldb     #10
         mul
@@ -701,6 +723,9 @@ name_node_column
         leax    d,x
         tfr     x,d
         rts
+name_node_marker
+        ldd     #PRESENTATION_NAME_ENTRY_CURSOR_DST
+        rts
 
 name_node_top_destinations
         fdb     $2F2C,$2F40,$2F50,$2F60,$2F6C
@@ -711,44 +736,6 @@ score_glyphs
         fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
         fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
         fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
-
-highscore_fixture
-        fcb     $09,$00,$00
-        fcb     PRESENTATION_GLYPH_9,PRESENTATION_GLYPH_9,PRESENTATION_GLYPH_9
-        fcb     PRESENTATION_GLYPH_9,PRESENTATION_GLYPH_9,PRESENTATION_GLYPH_9
-        fcb     PRESENTATION_GLYPH_9
-        fcb     $08,$00,$00
-        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_8
-        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_8
-        fcb     PRESENTATION_GLYPH_8
-        fcb     $07,$00,$00
-        fcb     PRESENTATION_GLYPH_7,PRESENTATION_GLYPH_7,PRESENTATION_GLYPH_7
-        fcb     PRESENTATION_GLYPH_7,PRESENTATION_GLYPH_7,PRESENTATION_GLYPH_7
-        fcb     PRESENTATION_GLYPH_7
-        fcb     $06,$00,$00
-        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_6
-        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_6
-        fcb     PRESENTATION_GLYPH_6
-        fcb     $05,$00,$00
-        fcb     PRESENTATION_GLYPH_5,PRESENTATION_GLYPH_5,PRESENTATION_GLYPH_5
-        fcb     PRESENTATION_GLYPH_5,PRESENTATION_GLYPH_5,PRESENTATION_GLYPH_5
-        fcb     PRESENTATION_GLYPH_5
-        fcb     $04,$00,$00
-        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_4
-        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_4
-        fcb     PRESENTATION_GLYPH_4
-        fcb     $03,$00,$00
-        fcb     PRESENTATION_GLYPH_3,PRESENTATION_GLYPH_3,PRESENTATION_GLYPH_3
-        fcb     PRESENTATION_GLYPH_3,PRESENTATION_GLYPH_3,PRESENTATION_GLYPH_3
-        fcb     PRESENTATION_GLYPH_3
-        fcb     $02,$00,$00
-        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_2
-        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_2
-        fcb     PRESENTATION_GLYPH_2
-        fcb     $01,$00,$00
-        fcb     PRESENTATION_GLYPH_1,PRESENTATION_GLYPH_1,PRESENTATION_GLYPH_1
-        fcb     PRESENTATION_GLYPH_1,PRESENTATION_GLYPH_1,PRESENTATION_GLYPH_1
-        fcb     PRESENTATION_GLYPH_1
 
         ifne    0
 draw_tile

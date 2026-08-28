@@ -282,10 +282,10 @@ def main() -> None:
         if read_state(client, PRES_NAME, 7) != bytes((black,)) * 7:
             fail("pending-name", "name is not blank")
         if (runtime.read_byte(client, PRES_NAME_ROW),
-                runtime.read_byte(client, PRES_NAME_COL)) != (8, 2):
+                runtime.read_byte(client, PRES_NAME_COL)) != (9, 2):
             fail("sprite-start", "runtime cursor differs from authored marker")
         owners = [runtime.read_owner(client, owner) for owner in (0, 1)]
-        cursor_destination = name_contract["node_destinations"][42]
+        cursor_destination = name_contract["cursor_destination"]
         if any(not any(runtime.frame_tile(frame, cursor_destination,
                                            width=8, rows=16))
                for frame in owners):
@@ -354,7 +354,7 @@ def main() -> None:
             fail("seven-character-bound", "eighth character changed the pending name")
         write_state(client, PRES_NAME, bytes((black,)) * 7)
         runtime.write_byte(client, PRES_NAME_LEN, 0)
-        runtime.write_byte(client, PRES_NAME_ROW, 8)
+        runtime.write_byte(client, PRES_NAME_ROW, 9)
         runtime.write_byte(client, PRES_NAME_COL, 2)
         runtime.write_byte(client, PRES_NAME_REPEAT, 0)
         runtime.write_byte(client, PRES_NAME_LAST_DIR, 0xFF)
@@ -363,13 +363,16 @@ def main() -> None:
         expected_lengths = []
         expected_positions = []
         simulated_name = []
-        simulated_position = [8, 2]
+        simulated_position = [9, 2]
         simulated_end = False
         for direction in directions:
             expected_lengths.append(len(simulated_name))
             expected_positions.append(tuple(simulated_position))
             row, column = simulated_position
-            if not edge_masks[row * 5 + column] & (1 << direction):
+            if row == 9:
+                if direction != 0:
+                    continue
+            elif not edge_masks[row * 5 + column] & (1 << direction):
                 continue
             if direction == 0:
                 simulated_position[0] -= 1
@@ -609,6 +612,39 @@ def main() -> None:
                 f"cell={timer_cell} actual={actual_timer.hex()} expected={expected_timer.hex()} "
                 f"owners={owner_tiles}",
             )
+        runtime.write_byte(client, PRES_TIMER, 0)
+        runtime.write_byte(client, PRES_TIMER + 1, 59)
+        runtime.write_byte(client, PRES_NAME_TIMER_PHASE, 59)
+        runtime.write_byte(client, PRES_NAME_TIMER_BOX, 1)
+        monitor.clear(client, ids)
+        ids = monitor.setup(client, [demo["name_joy_ready"]])
+        hit = client.run_to_breakpoint(args.timeout)
+        if (hit.get("pc") != demo["name_joy_ready"] or
+                runtime.read_bytes(client, PRES_TIMER, 2) != bytes((0, 60)) or
+                runtime.read_byte(client, PRES_NAME_TIMER_BOX) != 2):
+            fail(
+                "timer-second-box",
+                f"timer state after second box={hit} screen={runtime.read_byte(client, PRES_SCREEN)} "
+                f"timer={runtime.read_bytes(client, PRES_TIMER, 2).hex()} "
+                f"phase={runtime.read_byte(client, PRES_NAME_TIMER_PHASE)} "
+                f"box={runtime.read_byte(client, PRES_NAME_TIMER_BOX)}",
+            )
+        monitor.clear(client, ids)
+        ids = monitor.setup(client, [main_symbols["irq_handler"]])
+        for _ in range(2):
+            hit = client.run_to_breakpoint(args.timeout)
+            if hit.get("pc") != main_symbols["irq_handler"]:
+                fail("timer-publication", f"unexpected IRQ breakpoint={hit}")
+        front = runtime.read_byte(client, 0x008F)
+        for index, cell in enumerate(name_contract["timer_cells"][:2]):
+            destination = 0x2000 + cell[1] * 1280 + cell[0] * 4
+            if not tile_matches(
+                    runtime.read_owner(client, front), destination,
+                    expected_tile(manifest, name_contract["timer_green_tile_ids"][index])):
+                fail(
+                    "timer-sequence",
+                    f"box {index} is not green on cumulative FRONT owner={front} cell={cell}",
+                )
         runtime.write_byte(client, PRES_TIMER, 0x15)
         runtime.write_byte(client, PRES_TIMER + 1, 0x8F)
         runtime.write_byte(client, PRES_NAME_TIMER_PHASE, 59)
