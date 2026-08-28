@@ -78,6 +78,7 @@ PAR2 equ $FFA2
 PAR3 equ $FFA3
 PAR4 equ $FFA4
 JOY_DIR equ $0005
+FRAMES equ $0002
 PRES_MODULE_DRAW equ $0821
 PRES_MAIN_PLAYER_DRAW equ $0812
 PLAYER_ANIM equ $004F
@@ -279,7 +280,9 @@ qualify_found
 name_tick
         jsr     PRES_MAIN_READ_JOY
 name_joy_ready
-        lbsr    name_animation_tick
+        lda     FRAMES+1
+        lsra
+        bcs     name_idle
         tst     PRES_NAME_STEPS
         bne     name_move_active
         lda     PLAYER_WANT
@@ -449,18 +452,6 @@ name_action_end
         lda     #1
         rts
 
-name_animation_tick
-        dec     PLAYER_ANIM_TIMER
-        bne     name_animation_done
-        lda     #8
-        sta     PLAYER_ANIM_TIMER
-        inc     PLAYER_ANIM
-        lda     PLAYER_ANIM
-        anda    #3
-        sta     PLAYER_ANIM
-name_animation_done
-        rts
-
         ifne    0
 commit_name
         lda     PRES_INSERT
@@ -523,9 +514,9 @@ draw_name_fields
         ldb     #PRES_HS_BLACK
         lda     #7
 draw_name_blank
-        pshs    a,y
+        pshs    a,b,y
         jsr     PRES_MODULE_DRAW_TILE
-        puls    a,y
+        puls    a,b,y
         leay    4,y
         deca
         bne     draw_name_blank

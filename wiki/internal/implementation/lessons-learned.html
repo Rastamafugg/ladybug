@@ -15,6 +15,27 @@
   </nav>
   <main class="wiki-main">
     <section>
+      <h2>Perimeter cells must be blocked on both sides of a presentation boundary</h2>
+      <p><strong>Filed 2026-08-28.</strong> FEAT-003 initially cleared only outward edge bits on perimeter cells. A neighboring corridor could therefore enter a cell representing the outer wall even though movement from that cell outward was blocked.</p>
+      <p><strong>Rule:</strong> when generating a bounded presentation topology, mark perimeter cells non-enterable and clear the corresponding inward edge on each adjacent cell. Assert both the cell masks and forced runtime attempts from every side.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_presentation.py</code>, <code>scripts/verify_feat003_highscore_test.py</code>, and FEAT-003 verification evidence.</p>
+    </section>
+
+    <section>
+      <h2>Use the IRQ frame counter when presentation hold suppresses simulation</h2>
+      <p><strong>Filed 2026-08-28.</strong> FEAT-003 name-entry hold can prevent the presentation simulation sequence from advancing. Gating movement on that sequence silently removes the intended gameplay-rate cadence even though Vbord interrupts continue.</p>
+      <p><strong>Rule:</strong> use the live <code>FRAMES</code> counter for cadence decisions while a presentation path suppresses simulation ticks. Reuse the shared player animation owner instead of adding a second animation clock.</p>
+      <p><strong>Citation:</strong> <code>src/demo_runtime.s</code> and FEAT-003 focused verification evidence.</p>
+    </section>
+
+    <section>
+      <h2>Preserve tile IDs across renderer calls in blank-field loops</h2>
+      <p><strong>Filed 2026-08-28.</strong> The presentation tile renderer clobbers register <code>B</code>. A blank-name loop that kept the black tile ID only in <code>B</code> drew one correct slot followed by alternating garbage, which also obscured whether CL deletion had cleared the visible field.</p>
+      <p><strong>Rule:</strong> preserve or reload every tile ID across a renderer call, and verify the complete destination span rather than only the first slot.</p>
+      <p><strong>Citation:</strong> <code>src/demo_runtime.s</code>, <code>scripts/verify_feat003_highscore_test.py</code>, and the FEAT-003 initial-frame evidence.</p>
+    </section>
+
+    <section>
       <h2>Presentation-only full-maze collision must be authored separately</h2>
       <p><strong>Filed 2026-08-28.</strong> FEAT-003 name entry initially reused a selectable-node graph, which allowed interpolation only between character and control cells. The normal gameplay <code>can_move</code> path cannot be reused directly because it owns the gameplay maze, gates, pickup events, and render side effects.</p>
       <p><strong>Rule:</strong> when an isolated presentation screen needs gameplay-like steering, generate a presentation-owned passability table from the authored screen geometry, keep the player draw ABI shared, and keep screen-specific arrival actions in the presentation auxiliary. Store sparse action records instead of a full action lookup when only a small set of cells has behavior.</p>

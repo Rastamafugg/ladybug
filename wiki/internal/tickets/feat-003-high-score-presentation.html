@@ -24,13 +24,23 @@
     <section>
       <h2>Disposition</h2>
       <ul>
-        <li><strong>Status:</strong> Proposed; new boundary, cadence, name-field, and CL residuals recorded 2026-08-28</li>
+        <li><strong>Status:</strong> Verification; revised boundary, cadence, name-field, and CL repair implemented 2026-08-28</li>
         <li><strong>Created / updated:</strong> 2026-08-07 / 2026-08-28</li>
         <li><strong>Priority / order:</strong> P1 / 14</li>
         <li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 9 &mdash; polish, attract mode, high score, level progression</a></li>
         <li><strong>Owner:</strong> parent agent in <code>D:/retro/ladybug</code>; current dirty checkout</li>
         <li><strong>Dependencies:</strong> FEAT-004 committed profile and reproducibility bundle; user-authored enter-high-score TMX marker. RSCH-001 is no longer a dependency because sound and production integration are excluded.</li>
       </ul>
+    </section>
+
+    <section>
+      <h2>Current verification &mdash; revised boundary, cadence, name field, and CL repair</h2>
+      <p><strong>Approval and scope:</strong> the user approved this revised FEAT-003 repair on 2026-08-28 under the existing <strong>15%</strong> High-risk weekly-token ceiling. The default <code>highscore-test</code> profile is the acceptance target. Complete-profile work is recorded only as a conditional non-regression guard because <code>src/demo_runtime.s</code> is shared; it is not a second feature target.</p>
+      <p><strong>Implemented:</strong> generated perimeter cells are non-enterable and their inward edges are blocked; name-entry movement is gated by the shared 60 Hz frame counter to match the gameplay cadence; the regular player animation/draw path is reused; the pending name field is the seven-slot left-HUD gap between <code>TOP</code> and <code>000000</code>; tile ID state is preserved across blank-field renderer calls; and all three CL cells are forced in the focused route. The initial pending name is blank, outer and authored inner walls block movement, characters/CL/END remain pass-through, and END commits the current name/score.
+      </p>
+      <p><strong>Measurements:</strong> current default presentation module is <code>1279/1280</code> bytes, highscore auxiliary is <code>920/938</code>, cold payload is <code>5293/10874</code>, resident is <code>8182/8192</code>, helper is <code>331/334</code>, and the GMC image is exactly <code>65536</code> bytes with <code>5528</code> CPU-readable spare bytes. The generated disjoint-interval guard passes.</p>
+      <p><strong>Verification:</strong> <code>bash scripts/build.sh verify-gmc</code> passes the default build, capacity guards, generated interval guards, startup-only GDB markers, and the focused FEAT-003 probe. The focused probe passes entry blank-field rendering, gameplay-rate pixel steering, outer/inner wall blocking, all-three-CL deletion, END ranking, nine-row rendering, owner restoration, and reset-only hold. Complete shared-artifact identity passes with SHA-256 <code>48d1c061549930c9ebf408ed007e0c680debe6ddb2c86e97859e7082e3f1ec36</code>. The supplemental complete natural-flow script remains stopped by its pre-existing source guard before execution and is not a FEAT-003 acceptance gate.</p>
+      <p><strong>Evidence:</strong> <a href="../../build/feat003-highscore-test.json">focused verifier JSON</a>, <a href="../../build/feat003-highscore-test-initial.png">initial entry frame</a>, and <a href="../../build/feat003-highscore-test-updated.png">post-END frame</a>. The ticket remains in <code>Verification</code> pending user acceptance and is not marked <code>Done</code>.</p>
     </section>
 
     <section>
@@ -47,7 +57,7 @@
       </ul>
       <h3>Capacity and risk gates</h3>
       <ul>
-        <li>Baseline revision is <code>ab67e29</code>; the current highscore-test cold payload is <code>5293/10874</code> bytes, so the 576-byte collision table plus 126-byte cell-action table remains within the existing cold-payload limit. The current highscore auxiliary is <code>935/938</code> bytes and the presentation module is <code>1279/1280</code>; source replacement must leave both within their existing boundaries.</li>
+        <li>Baseline revision is <code>ab67e29</code>; the current highscore-test cold payload is <code>5293/10874</code> bytes, so the 576-byte collision table plus 126-byte cell-action table remains within the existing cold-payload limit. The assignment baseline was auxiliary <code>935/938</code> bytes; the repaired result is <code>920/938</code>. The presentation module remains <code>1279/1280</code>; both remain within their existing boundaries.</li>
         <li>The generated disjoint-interval guard, page-$34 restoration, exact 65,536-byte GMC image, and existing resident/helper limits remain mandatory. A limit failure, new loader/MMU contract, new resident ABI, or new framebuffer protocol returns FEAT-003 to <code>Proposed</code> for renewed approval.</li>
       </ul>
       <h3>Assignment contract</h3>

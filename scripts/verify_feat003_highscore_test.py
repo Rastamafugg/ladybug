@@ -157,6 +157,16 @@ def name_visible(frame: bytes, destination: int, name: bytes, black: int,
     )
 
 
+def entry_name_visible(frame: bytes, destinations: list[int], name: bytes,
+                       black: int, manifest: dict[str, object]) -> bool:
+    tiles = list(name) + [black] * (7 - len(name))
+    return all(
+        runtime.frame_tile(frame, destination) ==
+        expected_tile(manifest, tile)
+        for destination, tile in zip(destinations, tiles)
+    )
+
+
 def tile_uses_only(frame: bytes, destination: int, colours: set[int]) -> bool:
     return all(
         nibble in colours
@@ -322,16 +332,34 @@ def main() -> None:
         score_dst = name_contract["score_destinations"][0]
         top_dst = name_contract["top_destinations"][0]
         top_right_dst = name_contract["top_right_destinations"][0]
+        name_destinations = name_contract["name_destinations"]
+        expected_name_destinations = [
+            0x2000 + 19 * 1280 + (1 + index) * 4
+            for index in range(7)
+        ]
+        if name_destinations != expected_name_destinations:
+            fail(
+                "entry-name-destination",
+                f"generated destinations={name_destinations} "
+                f"expected={expected_name_destinations}",
+            )
         front_frame = owners[front_owner]
         hud_checks = (
             score_visible(front_frame, score_dst, expected_score, glyphs, manifest),
             score_visible(front_frame, top_dst, expected_score, glyphs, manifest),
             score_visible(front_frame, top_right_dst, expected_score, glyphs, manifest),
+            entry_name_visible(front_frame, name_destinations, b"", black, manifest),
         )
         if not all(hud_checks):
+            if args.initial_png:
+                write_frame_png(args.initial_png, front_frame)
             expected_zero = hashlib.sha256(expected_tile(
                 manifest, glyphs[0]
             )).hexdigest()[:12]
+            name_tiles = [
+                runtime.frame_tile(front_frame, destination).hex()
+                for destination in name_destinations
+            ]
             actual = [
                 hashlib.sha256(runtime.frame_tile(frame, score_dst)).hexdigest()[:12]
                 for frame in (front_frame,)
@@ -353,7 +381,9 @@ def main() -> None:
             fail(
                 "entry-HUD",
                 f"pending and TOP score checks={hud_checks} digits={digit_checks} "
-                f"five-as={actual_five_id} first={actual} expected0={expected_zero}",
+                f"five-as={actual_five_id} first={actual} expected0={expected_zero} "
+                f"name-dst={[hex(value) for value in name_destinations]} "
+                f"name-tiles={name_tiles}",
             )
         if args.initial_png:
             write_frame_png(args.initial_png, front_frame)
@@ -394,6 +424,17 @@ def main() -> None:
         runtime.write_byte(client, PRES_NAME_REPEAT, 0)
         runtime.write_byte(client, PRES_NAME_LAST_DIR, 0xFF)
         full_edges = name_contract["full_edge_masks"]
+        if any(full_edges[x] & 0x01 for x in range(24)):
+            fail("generated-boundary", "top perimeter admits north entry")
+        if any(full_edges[23 * 24 + x] & 0x04 for x in range(24)):
+            fail("generated-boundary", "bottom perimeter admits south entry")
+        if any(full_edges[y * 24 + 1] & 0x08 for y in range(24)):
+            fail("generated-boundary", "left perimeter admits west entry")
+        if any(full_edges[y * 24 + 22] & 0x02 for y in range(24)):
+            fail("generated-boundary", "right perimeter admits east entry")
+        if any(full_edges[y * 24 + x] for y in range(24)
+               for x in range(24) if x in (0, 23) or y in (0, 23)):
+            fail("generated-boundary", "perimeter cell remains passable")
         action_map = {
             (int(x) - 8, int(y)): int(tile)
             for x, y, tile in name_contract["action_records"]
@@ -401,8 +442,45 @@ def main() -> None:
         start_position = (11, 22)
         char_cells = [cell for cell, tile in action_map.items()
                       if tile not in (0xFD, 0xFE)]
-        cl_cell = next(cell for cell, tile in action_map.items() if tile == 0xFE)
+        cl_cells = [cell for cell, tile in action_map.items() if tile == 0xFE]
         end_cell = next(cell for cell, tile in action_map.items() if tile == 0xFD)
+        cursor_destination = name_contract["cursor_destination"]
+
+        def set_probe_position(position: tuple[int, int]) -> None:
+            x, y = position
+            pointer = (cursor_destination +
+                       (x - start_position[0]) * 4 +
+                       (y - start_position[1]) * 1280) & 0xFFFF
+            runtime.write_byte(client, PRES_NAME_COL, x)
+            runtime.write_byte(client, PRES_NAME_ROW, y)
+            runtime.write_byte(client, 0x0009, x)
+            runtime.write_byte(client, 0x000A, y)
+            runtime.write_word(client, PLAYER_FB, pointer)
+            runtime.write_word(client, 0x00DA, pointer)
+            runtime.write_word(client, 0x00DC, pointer)
+            runtime.write_byte(client, PRES_NAME_STEPS, 0)
+
+        boundary_cases = (
+            ((1, 1), 3), ((1, 1), 0),
+            ((22, 22), 1), ((22, 22), 2),
+        )
+        for position, direction in boundary_cases:
+            set_probe_position(position)
+            expected_pointer = runtime.read_word(client, PLAYER_FB)
+            runtime.write_byte(client, JOY_DIR, direction)
+            runtime.write_byte(client, PLAYER_WANT, direction)
+            for _ in range(2):
+                hit = client.run_to_breakpoint(args.timeout)
+                if hit.get("pc") != demo["name_joy_ready"]:
+                    fail("runtime-boundary", f"unexpected breakpoint: {hit}")
+            if (runtime.read_word(client, PLAYER_FB) != expected_pointer or
+                    runtime.read_byte(client, PRES_NAME_STEPS) != 0 or
+                    (runtime.read_byte(client, 0x0009),
+                     runtime.read_byte(client, 0x000A)) != position):
+                fail("runtime-boundary", f"blocked entry moved from {position} direction={direction}")
+        set_probe_position(start_position)
+        runtime.write_byte(client, JOY_DIR, 0xFF)
+        runtime.write_byte(client, PLAYER_WANT, 0xFF)
 
         def route_between(start: tuple[int, int], target: tuple[int, int]) -> list[int]:
             from collections import deque
@@ -431,7 +509,12 @@ def main() -> None:
                 cursor = previous[cursor]
             return result[::-1]
 
-        waypoints = (char_cells[0], cl_cell, char_cells[1], end_cell)
+        waypoints = (
+            char_cells[0], cl_cells[0],
+            char_cells[1], cl_cells[1],
+            char_cells[2], cl_cells[2],
+            end_cell,
+        )
         directions = []
         simulated_position = start_position
         for target in waypoints:
@@ -450,28 +533,9 @@ def main() -> None:
             simulated_position = (x, y)
         simulated_name = []
         simulated_position = list(start_position)
-        start_pointer = runtime.read_word(client, PLAYER_FB)
-        runtime.write_byte(client, PLAYER_WANT, 0)
-        hit = client.run_to_breakpoint(args.timeout)
-        if (hit.get("pc") != demo["name_joy_ready"] or
-                runtime.read_word(client, PLAYER_FB) != start_pointer or
-                runtime.read_byte(client, PRES_NAME_STEPS) != 0):
-            saved_par5 = runtime.read_byte(client, PAR5)
-            runtime.write_byte(client, PAR5, 0x3A)
-            live_mask = runtime.read_byte(client, 0xB40A)
-            runtime.write_byte(client, PAR5, saved_par5)
-            fail(
-                "full-maze-wall-block",
-                f"north edge from start was not blocked: {hit} "
-                f"pointer={runtime.read_word(client, PLAYER_FB):04x}/{start_pointer:04x} "
-                f"steps={runtime.read_byte(client, PRES_NAME_STEPS)} "
-                f"want={runtime.read_byte(client, PLAYER_WANT)} "
-                f"cells=({runtime.read_byte(client, 0x0009)} "
-                f"{runtime.read_byte(client, 0x000A)}) "
-                f"mask={live_mask:02x}",
-            )
+        runtime.write_byte(client, PLAYER_WANT, 0xFF)
+        runtime.write_byte(client, JOY_DIR, 0xFF)
         clean_start_tile = read_state(client, PRES_CURSOR_SAVE_A, 128)
-        cursor_destination = name_contract["cursor_destination"]
         route_ids = monitor.setup(client, [module["load_done_publish"]])
         ids.extend(route_ids)
         transition_hit = None
@@ -483,60 +547,73 @@ def main() -> None:
             )
             runtime.write_byte(client, JOY_DIR, direction)
             runtime.write_byte(client, PLAYER_WANT, direction)
-            hit = client.run_to_breakpoint(args.timeout)
-            if hit.get("pc") == module["load_done_publish"]:
-                fail(
-                    "name-input",
-                    f"transition occurred before direction {direction}: {hit}",
-                )
-            if hit.get("pc") != demo["name_joy_ready"]:
-                fail("name-input", f"unexpected breakpoint {hit}")
-            actual_pointer = runtime.read_word(client, PLAYER_FB)
             step_delta = -320 if direction == 0 else 320 if direction == 2 else 1 if direction == 1 else -1
-            expected_pointer = (start_pointer + step_delta) & 0xFFFF
-            if (actual_pointer != expected_pointer or
-                    (runtime.read_byte(client, PRES_NAME_COL),
-                     runtime.read_byte(client, PRES_NAME_ROW)) != before_position or
-                    runtime.read_byte(client, PRES_NAME_STEPS) != 3):
-                fail(
-                    "pixel-step-motion",
-                    f"direction={direction} pointer={actual_pointer:04x}/{expected_pointer:04x} "
-                    f"position={(runtime.read_byte(client, PRES_NAME_COL), runtime.read_byte(client, PRES_NAME_ROW))}/"
-                    f"{before_position} steps={runtime.read_byte(client, PRES_NAME_STEPS)}/3",
-                )
-            visible_owner = runtime.read_byte(client, 0x00E3)
-            visible_frame = runtime.read_owner(client, visible_owner)
-            if not any(runtime.frame_tile(visible_frame, actual_pointer,
-                                          width=8, rows=16)):
-                fail(
-                    "pixel-step-motion",
-                    f"cursor absent on rendered owner at intermediate {actual_pointer:04x} "
-                    f"owner={visible_owner} steps={runtime.read_byte(client, PRES_NAME_STEPS)}",
-                )
-            for step in range(1, 4):
-                try:
-                    hit = client.run_to_breakpoint(args.timeout)
-                except Exception as exc:
-                    fail(
-                        "pixel-step-timeout",
-                        f"direction={direction} step={step}/3 "
-                        f"error={exc}",
-                    )
-                final_step = step == 3
-                if final_step and hit.get("pc") == module["load_done_publish"]:
-                    if direction != directions[-1]:
-                        fail("END-transition", f"unexpected early transition {hit}")
-                    transition_hit = hit
+            expected_pointer = start_pointer
+            actual_pointer = start_pointer
+            for step in range(4):
+                calls = 0
+                while True:
+                    try:
+                        hit = client.run_to_breakpoint(args.timeout)
+                    except Exception as exc:
+                        fail(
+                            "pixel-step-timeout",
+                            f"direction={direction} step={step + 1}/4 error={exc}",
+                        )
+                    if hit.get("pc") == module["load_done_publish"]:
+                        if step != 3 or direction != directions[-1]:
+                            fail("END-transition", f"unexpected early transition {hit}")
+                        transition_hit = hit
+                        break
+                    if hit.get("pc") != demo["name_joy_ready"]:
+                        fail("name-input", f"unexpected step breakpoint {hit}")
+                    calls += 1
+                    actual_pointer = runtime.read_word(client, PLAYER_FB)
+                    if actual_pointer != expected_pointer:
+                        expected_pointer = (expected_pointer + step_delta) & 0xFFFF
+                        if actual_pointer != expected_pointer:
+                            fail(
+                                "pixel-step-motion",
+                                f"direction={direction} step={step + 1} "
+                                f"pointer={actual_pointer:04x}/{expected_pointer:04x}",
+                            )
+                        if step and calls != 2:
+                            fail(
+                                "gameplay-cadence",
+                                f"direction={direction} step={step + 1} "
+                                f"eligible interval={calls}, expected=2",
+                            )
+                        break
+                    if calls >= 2:
+                        fail(
+                            "gameplay-cadence",
+                            f"direction={direction} step={step + 1} had no movement "
+                            f"within two Vbords",
+                        )
+                if transition_hit is not None:
                     break
-                if hit.get("pc") != demo["name_joy_ready"]:
-                    fail("name-input", f"unexpected step breakpoint {hit}")
-                if not final_step:
-                    position = (
-                        runtime.read_byte(client, PRES_NAME_COL),
-                        runtime.read_byte(client, PRES_NAME_ROW),
+                position = (
+                    runtime.read_byte(client, PRES_NAME_COL),
+                    runtime.read_byte(client, PRES_NAME_ROW),
+                )
+                if step < 3 and position != before_position:
+                    fail("pixel-step-motion", f"logical position changed mid-edge: {position}")
+                expected_steps = 3 - step
+                if runtime.read_byte(client, PRES_NAME_STEPS) != expected_steps:
+                    fail(
+                        "pixel-step-motion",
+                        f"direction={direction} step={step + 1} steps="
+                        f"{runtime.read_byte(client, PRES_NAME_STEPS)}/{expected_steps}",
                     )
-                    if position != before_position:
-                        fail("pixel-step-motion", f"logical position changed mid-edge: {position}")
+                visible_owner = runtime.read_byte(client, 0x00E3)
+                visible_frame = runtime.read_owner(client, visible_owner)
+                if not any(runtime.frame_tile(visible_frame, actual_pointer,
+                                              width=8, rows=16)):
+                    fail(
+                        "pixel-step-motion",
+                        f"cursor absent on rendered owner at intermediate {actual_pointer:04x} "
+                        f"owner={visible_owner} steps={runtime.read_byte(client, PRES_NAME_STEPS)}",
+                    )
             if transition_hit is not None:
                 break
             if runtime.read_byte(client, PRES_NAME_STEPS) != 0:
@@ -718,12 +795,16 @@ def main() -> None:
         runtime.write_byte(client, PLAYER_WANT, 1)
         monitor.clear(client, ids)
         ids = monitor.setup(client, [demo["name_joy_ready"], module["load_done_publish"]])
-        for step in range(4):
+        empty_end_transition = False
+        for step in range(8):
             hit = client.run_to_breakpoint(args.timeout)
-            if step < 3 and hit.get("pc") != demo["name_joy_ready"]:
+            if hit.get("pc") == module["load_done_publish"]:
+                empty_end_transition = True
+                break
+            if hit.get("pc") != demo["name_joy_ready"]:
                 fail("empty-name-END", f"unexpected pixel step breakpoint: {hit}")
-            if step == 3 and hit.get("pc") != module["load_done_publish"]:
-                fail("empty-name-END", f"END did not complete map transition: {hit}")
+        if not empty_end_transition:
+            fail("empty-name-END", "END did not complete map transition within eight intervals")
         expected_empty = expected_score + bytes((black,)) * 7 + fixture[:80]
         if (runtime.read_byte(client, PRES_SCREEN) != MAP_HIGH_SCORE or
                 read_state(client, PRES_TABLE, 90) != expected_empty):

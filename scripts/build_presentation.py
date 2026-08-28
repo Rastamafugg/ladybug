@@ -126,7 +126,7 @@ ENTER_HIGH_SCORE_INNER_WALL_CODE = 49
 ENTER_HIGH_SCORE_TIMER_FRAMES = 60
 ENTER_HIGH_SCORE_TIMER_COUNT = 92
 ENTER_HIGH_SCORE_NAME_DESTINATIONS = tuple(
-    0x2000 + 5 * 1280 + (33 + index) * 4 for index in range(7)
+    0x2000 + 19 * 1280 + (1 + index) * 4 for index in range(7)
 )
 ENTER_HIGH_SCORE_SCORE_DESTINATIONS = tuple(
     0x2000 + 2 * 1280 + (33 + index) * 4 for index in range(6)
@@ -510,6 +510,12 @@ def enter_high_score_full_edge_masks(path: Path) -> bytes:
         raw_char_code(root, path, cells[y * SCREEN_WIDTH + x])
         == ENTER_HIGH_SCORE_INNER_WALL_CODE
     }
+    wall_cells.update(
+        (x, y)
+        for y in range(24)
+        for x in range(24)
+        if x in (0, 23) or y in (0, 23)
+    )
     masks = bytearray([0x0F] * (24 * 24))
 
     def index(x: int, y: int) -> int:
