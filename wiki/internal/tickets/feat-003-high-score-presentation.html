@@ -24,13 +24,29 @@
     <section>
       <h2>Disposition</h2>
       <ul>
-        <li><strong>Status:</strong> Verification; revised boundary, cadence, name-field, and CL repair implemented 2026-08-28</li>
+        <li><strong>Status:</strong> Proposed; joystick-release, dynamic-name, and high-score mockup residuals recorded 2026-08-28</li>
         <li><strong>Created / updated:</strong> 2026-08-07 / 2026-08-28</li>
         <li><strong>Priority / order:</strong> P1 / 14</li>
         <li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 9 &mdash; polish, attract mode, high score, level progression</a></li>
         <li><strong>Owner:</strong> parent agent in <code>D:/retro/ladybug</code>; current dirty checkout</li>
         <li><strong>Dependencies:</strong> FEAT-004 committed profile and reproducibility bundle; user-authored enter-high-score TMX marker. RSCH-001 is no longer a dependency because sound and production integration are excluded.</li>
       </ul>
+    </section>
+
+    <section>
+      <h2>Current residual diagnosis &mdash; joystick release, dynamic name tiles, and mockup cleanup</h2>
+      <p><strong>Baseline:</strong> current default <code>highscore-test</code> artifact is commit <code>78b03ff</code> with ROM SHA-256 <code>7c4795e0ccb81b16d7ba04382f9ab89739da55a31e0c28d8f3c74e4f464cf081</code>. The existing focused verifier passes its current contract, but the new report identifies acceptance gaps that it does not cover.</p>
+      <p><strong>Confirmed joystick cause:</strong> <code>PRES_MAIN_READ_JOY</code> sets <code>JOY_DIR</code> to <code>DIR_NONE</code> on release but intentionally retains <code>PLAYER_WANT</code> for normal gameplay turn buffering. <code>name_tick</code> checks <code>PRES_NAME_STEPS</code> first and then starts new motion from <code>PLAYER_WANT</code>, so a released joystick continues the previous name-entry direction. The name path must gate movement on the current <code>JOY_DIR</code> while retaining any partial pixel step for resumption, matching the gameplay stop semantics.</p>
+      <p><strong>Confirmed name-rendering ownership gap:</strong> the generated default <code>LADYBUG</code> fixture is derived from the same entry-grid glyph IDs used by character arrival actions. However, <code>draw_entry_scores</code> renders only score digits, and the current verifier does not compare the entry-screen left/right TOP-name destinations or a newly entered name against the entry-field glyph tiles. The reported random graphics therefore remain an unconfirmed live-source split between static map pixels, dynamic destinations, and record tile bytes; destination-level live comparison is required before attributing it to the atlas generator.</p>
+      <p><strong>Confirmed mockup cause:</strong> <code>tiled/coco-high-score-screen.tmx</code> contains static example rows for <code>UNIVERSAL</code> and <code>10000</code> in the <code>High Score Table and Branding</code> layer below the dynamic table. <code>draw_high_score_screen</code> overwrites only the generated nine record rows, so those authored examples remain visible. The retained <a href="../../build/inspect-high-score.png">static high-score capture</a> shows the values directly.</p>
+      <h3>Proposed bounded repair</h3>
+      <ul>
+        <li><strong>Joystick release:</strong> in <code>src/demo_runtime.s</code>, return without advancing when the current joystick sample is neutral, including while a four-pixel cell traversal is partially complete. Preserve the partial step and resume it only after a new directional sample.</li>
+        <li><strong>Single name-tile contract:</strong> extend <code>scripts/build_presentation.py</code> metadata with authored destinations for the entry-screen TOP names and make both HUD TOP-name paths draw the current record bytes through the same <code>draw_record_name</code> tile-ID path used by the high-score table. The pending entry field remains blank initially and continues to use the arrival tile IDs.</li>
+        <li><strong>Mockup cleanup:</strong> remove the static <code>UNIVERSAL</code>/<code>10000</code> example cells from the high-score TMX layer while retaining the authored title and logo layers. Add a source/frame assertion that the lower high-score area contains no example rows.</li>
+        <li><strong>Verification:</strong> extend the existing focused probe with release freeze/resume, varied-name tile identity at the entry field and both TOP-name destinations, nine dynamic rows, and a no-<code>UNIVERSAL</code>/no-<code>10000</code> high-score frame check. Complete-profile testing remains conditional only if shared code or generated artifacts change.</li>
+      </ul>
+      <p><strong>Cost and approval:</strong> cost class remains <strong>High-risk</strong> because the repair crosses persistent framebuffer rendering, generated tile ownership, authored-map data, and the existing near-full <code>1280</code>-byte presentation boundary. Projected effort is <strong>12%</strong> of the weekly token allocation, an estimate with <strong>3%</strong> ceiling margin, under the existing explicit <strong>15%</strong> ceiling. Implementation remains unauthorized until this revised scope is approved and the ticket is returned to <code>Ready</code>.</p>
     </section>
 
     <section>
