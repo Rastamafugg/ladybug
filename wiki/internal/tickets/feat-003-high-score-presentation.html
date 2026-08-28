@@ -24,7 +24,7 @@
     <section>
       <h2>Disposition</h2>
       <ul>
-        <li><strong>Status:</strong> Verification; revised overlay, LADYBUG fixture, and full-maze steering repair approved 2026-08-28</li>
+        <li><strong>Status:</strong> Proposed; new boundary, cadence, name-field, and CL residuals recorded 2026-08-28</li>
         <li><strong>Created / updated:</strong> 2026-08-07 / 2026-08-28</li>
         <li><strong>Priority / order:</strong> P1 / 14</li>
         <li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 9 &mdash; polish, attract mode, high score, level progression</a></li>
@@ -62,6 +62,24 @@
         <li>Call gameplay <code>can_move</code> and <code>player_tick</code> directly: rejected because those routines own normal maze state, gates, pickup behavior, and gameplay rendering side effects; the isolated screen requires a presentation-owned topology and arrival-action hook.</li>
         <li>Store a 24&times;24 action lookup table: rejected as unnecessary; a compact generated list of 42 three-byte cell records preserves authored coordinates with lower data cost.</li>
       </ul>
+    </section>
+
+    <section>
+      <h2>Current residual diagnosis &mdash; boundary, cadence, and name-field behavior</h2>
+      <p><strong>Observed report:</strong> the Lady Bug can leave the outer maze, moves faster than normal gameplay, the TOP/name field displays garbage or appears in the wrong place on both screens, the initial entry name is not visibly blank in the intended field, and CL does not visibly delete the last character. The user also reports remaining high-score-screen alignment and garbage issues.</p>
+      <p><strong>Confirmed boundary cause:</strong> <code>enter_high_score_full_edge_masks</code> clears only the outward edge bits on cells at relative coordinates <code>x=0</code>, <code>x=23</code>, <code>y=0</code>, and <code>y=23</code>. It does not clear the inward edges from adjacent corridor cells, so movement can enter a perimeter wall cell before the next outward move is rejected. The fix must make perimeter cells non-enterable while preserving the authored inner-wall topology.</p>
+      <p><strong>Confirmed cadence cause:</strong> <code>name_tick</code> calls <code>DEMO_RUNTIME_TICK</code> on each presentation tick and <code>name_advance</code> moves one pixel each call. Normal gameplay sets <code>PLAYER_TICK_PENDING</code> on the alternating <code>FB_SIM_SEQ</code> cadence and advances the player once per eligible 30 Hz tick. The name-entry path therefore runs at approximately twice the gameplay movement rate and does not share the gameplay cadence contract.</p>
+      <p><strong>Confirmed field-selection cause:</strong> <code>PRESENTATION_NAME_ENTRY_NAME_DST</code> is generated from screen row <code>5</code>, columns <code>33</code>&ndash;<code>39</code>, which is the right panel. The requested pending name belongs in the left-HUD row between the <code>TOP</code> label and the <code>000000</code> value. <code>prepare_name</code> does clear the seven-byte pending buffer, but the current visible-field destination does not match the stated contract.</p>
+      <p><strong>TOP rendering status:</strong> the current focused artifact has rendered the committed high-score top name correctly in its retained updated frame, so the reported high-score-table garbage is not independently reproduced at commit <code>6e0e7ba</code>. The entry-screen field mismatch is reproduced by source inspection. A follow-up visual probe must distinguish the left-HUD pending-name field from the post-END high-score table and compare both framebuffer owners after map hydration.</p>
+      <p><strong>CL status:</strong> the current action table contains three CL records and <code>name_cell_arrival</code> decrements <code>PRES_NAME_LEN</code> and clears the final pending tile. The current verifier covers a routed CL case but does not force and inspect all three CL locations in the intended visible field. The failure is therefore unresolved, not attributed to a confirmed source defect.</p>
+      <h3>Discriminating verification</h3>
+      <ul>
+        <li>Force one attempted move from each interior neighbor into every perimeter wall cell and assert unchanged pixel position, logical cell, and owner frames.</li>
+        <li>Measure one full cell traversal against the normal player cadence and assert the same eligible-tick count and pixel-step interval.</li>
+        <li>Cold-boot and post-END-capture separate left-HUD entry-name, right-HUD score, and high-score-table top-name destinations on both owners.</li>
+        <li>For each CL cell, seed a one-character name, route to the cell, and assert buffer length, cleared tile, and visible left-HUD field after publication.</li>
+      </ul>
+      <p><strong>Disposition:</strong> these reports materially change the approved movement cadence and visible name-field contract. FEAT-003 returns from <code>Verification</code> to <code>Proposed</code>; no source repair is authorized until the revised outcome and assignment are approved. Cost class remains <strong>High-risk</strong> with the existing approved <strong>15%</strong> weekly-token ceiling.</p>
     </section>
 
     <section>
