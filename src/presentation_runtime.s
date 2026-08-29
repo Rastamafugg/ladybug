@@ -166,6 +166,7 @@ pft_ready
         beq     pft_mode
         lbsr    add_credit
         lda     #PRESENTATION_MAP_HIGH_SCORE
+        clr     PENDING
         lbsr    start_screen
         lda     #1
         rts
@@ -285,7 +286,7 @@ normal_tick
         lda     #PRESENTATION_MAP_GAME_OVER
         endc
         endc
-        lbsr    start_screen
+        bsr     start_screen
         lda     #1
         rts
 normal_stage
@@ -299,7 +300,7 @@ normal_stage
         endc
         sta     PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
-        lbsr    start_screen
+        bsr     start_screen
         lda     #1
         rts
 normal_start
@@ -312,7 +313,7 @@ normal_start
         lda     #1
         sta     PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
-        lbsr    start_screen
+        bsr     start_screen
         lda     #1
         rts
 normal_game
@@ -361,8 +362,6 @@ start_screen_map
         beq     start_screen_hold
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
         ifne    HIGHSCORE_TEST_PROFILE
-        beq     start_screen_hold
-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
         beq     start_screen_hold
         cmpa    #PRESENTATION_MAP_ENTER_HIGH_SCORE
         beq     start_screen_hold
@@ -685,7 +684,7 @@ credit_tick
         cmpa    #PRESENTATION_MAP_HIGH_SCORE
         lbeq    hold
         endc
-        lbsr    timer
+        bsr     timer
         cmpd    #600
         blo     hold
         lda     #PRESENTATION_MAP_ATTRACT
@@ -822,6 +821,7 @@ name_timeout
         lbsr    module_commit_name
         clr     PRES_HOLD_STATE
         lda     #PRESENTATION_MAP_HIGH_SCORE
+        clr     PENDING
         lbsr    start_screen
         lda     #1
         rts
@@ -846,7 +846,7 @@ name_timer_next
         bpl     name_timer_next
         lda     #$34
         sta     PAR5
-        jmp     PRES_MAIN_FB_FINISH
+        rts
         else
         ifne    COMPLETE_PROFILE
 demo_tick
@@ -1291,6 +1291,8 @@ name_copy_save
 name_update_frame
         lda     FB_BACK_ID
         sta     PRES_NAME_OWNER
+        lda     #$34
+        sta     PAR5
         jsr     PRES_MAIN_FB_PREPARE
         lbsr    map_back
         lbsr    cursor_restore
@@ -1624,8 +1626,13 @@ PRES_PREV equ $00B2
 PRES_IN equ $00B5
 PRES_OUT equ $00B7
 PRES_REMAIN equ $00B9
+        ifne    HIGHSCORE_TEST_PROFILE
+PRES_RUN equ $00EA
+PRES_VALUE equ $00EB
+        else
 PRES_RUN equ $00BB
 PRES_VALUE equ $00BC
+        endc
 PRES_MAPS equ $00BD
 PRES_COIN_COUNT equ $00BE
 PRES_SCORE_H equ $00BF

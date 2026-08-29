@@ -206,6 +206,12 @@ def main() -> None:
             tile_id if tile_id in (0xFD, 0xFE, 0xFF) else remap[int(tile_id)]
             for tile_id in name_entry["node_tile_ids"]
         ]
+        name_entry["action_records"] = [
+            [x, y, remap[int(tile_id)]]
+            if tile_id not in (0xFD, 0xFE, 0xFF)
+            else [x, y, tile_id]
+            for x, y, tile_id in name_entry["action_records"]
+        ]
         name_entry["default_name_tile_ids"] = [
             remap[int(tile_id)] for tile_id in name_entry["default_name_tile_ids"]
         ]

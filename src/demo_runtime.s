@@ -73,6 +73,7 @@ DIR_S equ 2
 DIR_W equ 3
 DIR_NONE equ $FF
 FB_BACK_ID equ $0090
+FB_RENDER_ACTIVE equ $0098
 PAR1 equ $FFA1
 PAR2 equ $FFA2
 PAR3 equ $FFA3
@@ -233,7 +234,7 @@ prepare_name
         clr     PLAYER_ANIM
         lda     #8
         sta     PLAYER_ANIM_TIMER
-        lda     #11
+        lda     #19
         sta     PLAYER_CELL_X
         sta     PRES_NAME_COL
         lda     #22
@@ -280,6 +281,9 @@ qualify_found
 name_tick
         jsr     PRES_MAIN_READ_JOY
 name_joy_ready
+        lda     JOY_DIR
+        cmpa    #DIR_NONE
+        beq     name_idle
         lda     FRAMES+1
         lsra
         bcs     name_idle
@@ -299,6 +303,10 @@ name_move_active
         lbsr    name_advance
         rts
 name_idle
+        tst     FB_RENDER_ACTIVE
+        beq     name_idle_done
+        lbsr    update_name_frame
+name_idle_done
         clra
         rts
 
@@ -370,6 +378,7 @@ name_can_move
         mul
         addb    PLAYER_CELL_X
         adca    #0
+        subd    #8
         addd    #PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE
         jsr     PRES_MODULE_COLD_PTR
         ldb     ,x
@@ -405,7 +414,10 @@ name_cell_arrival
         jsr     PRES_MODULE_COLD_PTR
         ldb     #PRESENTATION_NAME_ENTRY_ACTION_BYTES/3
 name_action_loop
+        ; The generated action table is local to the 24-cell maze window;
+        ; player coordinates remain screen-space columns 8..31.
         lda     PLAYER_CELL_X
+        suba    #8
         cmpa    ,x
         bne     name_action_next
         lda     PLAYER_CELL_Y
@@ -415,7 +427,8 @@ name_action_loop
         sta     PRES_NAME_TILE
         cmpa    #PRES_NAME_END
         beq     name_action_end
-        lbsr    restore_cursor
+        lda     #$34
+        sta     PAR5
         lda     PRES_NAME_TILE
         cmpa    #PRES_NAME_CL
         beq     name_action_cl
@@ -510,28 +523,18 @@ render_name_screen
         rts
 
 draw_name_fields
-        ldy     #PRESENTATION_NAME_ENTRY_NAME_DST
-        ldb     #PRES_HS_BLACK
-        lda     #7
-draw_name_blank
-        pshs    a,b,y
-        jsr     PRES_MODULE_DRAW_TILE
-        puls    a,b,y
-        leay    4,y
-        deca
-        bne     draw_name_blank
         ldx     #PRES_PENDING_NAME
         ldy     #PRESENTATION_NAME_ENTRY_NAME_DST
-        lda     PRES_NAME_LEN
-        beq     draw_name_done
-draw_name_loop
-        ldb     ,x+
-        pshs    a,x,y
-        jsr     PRES_MODULE_DRAW_TILE
-        puls    a,x,y
-        leay    4,y
-        deca
-        bne     draw_name_loop
+        lbsr    draw_record_name
+        lda     PRES_INSERT
+        bne     entry_name_top_old
+        ldx     #PRES_PENDING_NAME
+        bra     entry_name_top_draw
+entry_name_top_old
+        ldx     #PRES_HIGHSCORE_BASE+3
+entry_name_top_draw
+        ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
+        lbsr    draw_record_name
 draw_name_done
         rts
 
@@ -560,6 +563,7 @@ entry_top_left
         rts
 
 render_high_score
+        jsr     PRES_MODULE_MAP_BACK
         lbsr    init_scores
         lbsr    draw_high_score_screen
         rts
@@ -615,17 +619,6 @@ record_name_draw
         leay    4,y
         decb
         bne     record_name_loop
-        ldb     #2
-record_name_clear_tail
-        lda     #$34
-        sta     PAR5
-        pshs    b,y
-        ldb     #PRES_HS_BLACK
-        jsr     PRES_MODULE_DRAW_TILE
-        puls    b,y
-        leay    4,y
-        decb
-        bne     record_name_clear_tail
         rts
 
 draw_score
@@ -681,13 +674,12 @@ capture_copy
 update_name_frame
         lda     FB_BACK_ID
         sta     PRES_NAME_OWNER
+        lda     #$34
+        sta     PAR5
         jsr     PRES_MAIN_FB_PREPARE
         jsr     PRES_MODULE_MAP_BACK
         lbsr    restore_cursor
-        tst     PRES_NAME_STEPS
-        bne     update_cursor_only
         lbsr    draw_name_fields
-update_cursor_only
         lbsr    capture_owner
         lbsr    draw_cursor
         lda     #$34

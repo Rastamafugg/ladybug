@@ -13,7 +13,57 @@
     <a href="../index.html">Internal</a>
     <a href="./index.html">Implementation</a>
   </nav>
-  <main class="wiki-main">
+<main class="wiki-main">
+    <section>
+      <h2>Close every dynamic overlay before arming framebuffer publication</h2>
+      <p><strong>Filed 2026-08-28.</strong> FEAT-003 timer drawing updated one BACK owner and armed publication before synchronizing that owner&rsquo;s retained cursor and pending-name pixels. The Vbord IRQ could therefore publish a correct timer box with a one-step-old player destination and prior name field.</p>
+      <p><strong>Rule:</strong> a presentation transaction that touches one persistent owner must complete every dynamic layer whose state is shared across owners before setting the publication-ready flag. Leave BACK active but unpublished across cooperating renderers, and let only the final closure routine arm publication.</p>
+      <p><strong>Citation:</strong> <code>src/presentation_runtime.s</code> <code>name_timer_draw</code>, <code>src/demo_runtime.s</code> <code>update_name_frame</code>, and FEAT-003 timer convergence evidence.</p>
+    </section>
+
+    <section>
+      <h2>Keep authored wall glyphs and corridor gaps distinct</h2>
+      <p><strong>Filed 2026-08-28.</strong> FEAT-003 initially filled every blank interval between separated two-cell wall glyphs. Static connectivity then showed that this converted the intended character-column corridors into a single right-edge route, matching the visible report that most character spaces could not be approached.</p>
+      <p><strong>Rule:</strong> block the cells represented by authored wall glyphs, preserve blank intervals as corridors unless the source explicitly marks them as wall, and assert that every authored action cell is reachable from the cursor start while every perimeter cell remains non-enterable.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_presentation.py</code>, <code>scripts/verify_feat003_highscore_test.py</code>, and FEAT-003 current verification evidence.</p>
+    </section>
+
+    <section>
+      <h2>Apply one palette contract to static high-score regions</h2>
+      <p><strong>Filed 2026-08-28.</strong> The high-score map compiler had flattened the table, footer, and Lady Bug branding to white even though the established arcade adaptation uses light blue HUD text and pink branding.</p>
+      <p><strong>Rule:</strong> map authored high-score regions by semantic screen coordinates: light blue for title/table/footer text, pink for the branding art, and preserve the registered mark as text. Verify representative generated tiles before relying on a runtime screenshot.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_presentation.py</code>, <code>scripts/verify_feat003_highscore_test.py</code>, and the retained high-score frame.</p>
+    </section>
+
+    <section>
+      <h2>Normalize action-table coordinates at the consumer</h2>
+      <p><strong>Filed 2026-08-28.</strong> FEAT-003 already normalized collision coordinates from screen columns to the local maze table, but its compact action records were emitted with the same local origin while runtime arrival matching still compared raw screen columns. This made character, CL, and END actions unreachable despite correct visual positions.</p>
+      <p><strong>Rule:</strong> document the coordinate space of every generated table and normalize at each consumer boundary; include a source guard and a reachability check for all action records.</p>
+      <p><strong>Citation:</strong> <code>src/demo_runtime.s</code>, <code>scripts/build_presentation.py</code>, and FEAT-003 focused verification.</p>
+    </section>
+
+    <section>
+      <h2>Visual gaps inside an authored wall span are not movement openings</h2>
+      <p><strong>Filed 2026-08-28.</strong> The enter-high-score overlay draws horizontal wall sections as separated two-cell glyphs. Treating only the raw wall glyph cells as collision left the blank visual gaps passable, allowing the Lady Bug through the left half of each section.</p>
+      <p><strong>Rule:</strong> derive collision from the complete authored wall span, not only from nonzero art cells. Preserve explicitly designated traversal corridors and action cells outside the span.</p>
+      <p><strong>Citation:</strong> <code>scripts/build_presentation.py</code>, <code>scripts/verify_feat003_highscore_test.py</code>, and FEAT-003 current residual evidence.</p>
+    </section>
+
+    <section>
+      <h2>Normalize authored screen coordinates before table lookup</h2>
+      <p><strong>Filed 2026-08-28.</strong> FEAT-003 stores the entry cursor and action records in screen columns <code>8..31</code>, but its generated 24&times;24 collision table uses local columns <code>0..23</code>. Using the screen coordinate directly happened to match some repeating wall patterns while indexing the wrong row for right-side cells and leaving parts of the authored wall contract untested.</p>
+      <p><strong>Rule:</strong> keep authored destinations in screen coordinates for rendering and convert once to the generated table origin for collision lookup. Use the same conversion in the verifier's forced wall approaches.</p>
+      <p><strong>Citation:</strong> <code>src/demo_runtime.s</code>, <code>scripts/build_presentation.py</code>, <code>scripts/verify_feat003_highscore_test.py</code>, and FEAT-003 current residual evidence.</p>
+    </section>
+
+    <section>
+      <h2>Protect cold map streams before shared framebuffer preparation</h2>
+      <p><strong>Filed 2026-08-28.</strong> FEAT-003 boundary inspection found a live high-score map-stream divergence at offset <code>+119</code>, which mapped to physical <code>$A890</code>, the resident enemy save-under address. The entry-screen update path called shared framebuffer preparation while PAR5 still selected cold page <code>$3A</code>, so the presentation map data was overwritten during a cursor handoff even though the boot-time payload identity was correct.</p>
+      <p><strong>Rule:</strong> restore PAR5 to the game-state page <code>$34</code> immediately before any shared framebuffer-preparation or save-under routine that addresses page-34 state. A boot-time cold-payload check is insufficient; compare the immutable map stream again at the live transition boundary.</p>
+      <p><strong>Related rule:</strong> when generated atlas IDs are remapped after parsing, remap every consumer table, including sparse action records. Otherwise authored node and default-name tiles can be valid while arrival-rendered name tiles index unrelated graphics.</p>
+      <p><strong>Citation:</strong> <code>src/presentation_runtime.s</code>, <code>scripts/build_presentation.py</code>, <code>scripts/verify_presentation.py</code>, and FEAT-003 boundary evidence.</p>
+    </section>
+
     <section>
       <h2>Perimeter cells must be blocked on both sides of a presentation boundary</h2>
       <p><strong>Filed 2026-08-28.</strong> FEAT-003 initially cleared only outward edge bits on perimeter cells. A neighboring corridor could therefore enter a cell representing the outer wall even though movement from that cell outward was blocked.</p>

@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import verify_bug011_runtime as runtime  # noqa: E402
-from build_screen import PALETTE, gime_rgb  # noqa: E402
+from build_screen import LIGHT_BLUE, PALETTE, PINK, gime_rgb  # noqa: E402
 
 
 ROM = ROOT / "build/ladybug.rom"
@@ -119,6 +119,35 @@ def expected_tile(manifest: dict[str, object], tile_id: int) -> bytes:
     return RUNTIME_ROM.read_bytes()[offset:offset + 32]
 
 
+def expected_map_frame(manifest: dict[str, object], map_index: int) -> bytes:
+    """Decode one generated map into the native presentation framebuffer."""
+    cold = COLD.read_bytes()
+    start = int(manifest["map_stream_offsets"][map_index])
+    length = int(manifest["map_stream_bytes"][map_index])
+    encoded = cold[start:start + length]
+    cells = bytearray()
+    for index in range(0, len(encoded), 2):
+        cells.extend(bytes((encoded[index + 1],)) * encoded[index])
+    if len(cells) != 40 * 24:
+        raise ValueError(f"generated map {map_index} has {len(cells)} cells")
+    frame = bytearray(0x7800)
+    for cell_index, tile_id in enumerate(cells):
+        row, column = divmod(cell_index, 40)
+        destination = row * 1280 + column * 4
+        tile = expected_tile(manifest, tile_id)
+        for tile_row in range(8):
+            start = destination + tile_row * 160
+            frame[start:start + 4] = tile[tile_row * 4:tile_row * 4 + 4]
+    return bytes(frame)
+
+
+def frame_diff(actual: bytes, expected: bytes, start: int) -> tuple[int, str | None]:
+    end = min(len(actual), start + 16 * 1280)
+    differences = [index for index in range(start, end)
+                   if actual[index] != expected[index]]
+    return len(differences), (f"{differences[0]:04x}" if differences else None)
+
+
 def read_state(client, address: int, length: int) -> bytes:
     saved = runtime.read_byte(client, PAR5)
     try:
@@ -149,7 +178,7 @@ def score_visible(frame: bytes, destination: int, score: bytes,
 
 def name_visible(frame: bytes, destination: int, name: bytes, black: int,
                  manifest: dict[str, object]) -> bool:
-    tiles = [tile or black for tile in name] + [black, black]
+    tiles = [tile or black for tile in name]
     return all(
         runtime.frame_tile(frame, destination + index * 4) ==
         expected_tile(manifest, tile)
@@ -206,6 +235,10 @@ def fail(marker: str, detail: str) -> None:
     raise SystemExit(f"FEAT-003 highscore-test: marker={marker} failure={detail}")
 
 
+def digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--xroar", type=Path, default=XROAR)
@@ -217,6 +250,10 @@ def main() -> None:
     )
     parser.add_argument("--initial-png", type=Path)
     parser.add_argument("--updated-png", type=Path)
+    parser.add_argument(
+        "--boundary-only", action="store_true",
+        help="skip the exhaustive input matrix and capture the END transition",
+    )
     args = parser.parse_args()
 
     manifest = json.loads(MANIFEST.read_text(encoding="ascii"))
@@ -225,7 +262,9 @@ def main() -> None:
     module = symbols(MODULE_MAP)
     demo = symbols(DEMO_MAP)
     main_symbols = symbols(ROOT / "build/ladybug.map")
-    required_module = ("presentation_flow_tick", "load_done_publish")
+    required_module = (
+        "presentation_flow_tick", "load_done_dynamic_high", "load_done_publish",
+    )
     required_demo = ("name_joy_ready",)
     if any(name not in module for name in required_module):
         fail("module-symbols", "required presentation symbol missing")
@@ -254,6 +293,7 @@ def main() -> None:
             f"actions={len(name_contract['action_table'])}",
         )
     default_name = bytes(name_contract["default_name_tile_ids"])
+    top_name_tiles = bytes(name_contract["top_name_tile_ids"])
     demo_source = (ROOT / "src/demo_runtime.s").read_text(encoding="ascii")
     high_score_start = demo_source.index("\nrender_high_score\n")
     high_score_source = demo_source[high_score_start:].split(
@@ -261,7 +301,12 @@ def main() -> None:
     )[0]
     if "draw_entry_scores" in high_score_source:
         fail("high-score-overlay", "render_high_score still draws the entry-screen HUD")
-    if len(default_name) != 7:
+    name_start = demo_source.index("\nname_cell_arrival\n")
+    name_source = demo_source[name_start:].split("\n        ifne    0\n", 1)[0]
+    if "suba    #8" not in name_source:
+        fail("action-coordinate-origin", "runtime action lookup does not normalize screen X")
+    if (len(default_name) != 7 or top_name_tiles != default_name or
+            list(name_contract["authored_name_codes"]) != [21, 10, 13, 34, 11, 30, 16]):
         fail("dummy-fixture", f"generated LADYBUG fixture has {len(default_name)} tiles")
     fixture = b"".join(
         bytes((rank, 0, 0)) + default_name
@@ -271,11 +316,23 @@ def main() -> None:
 
     monitor = runtime.load_monitor()
     process, client = runtime.launch_fast(monitor, args.xroar, args.rom)
+    boundary_evidence: dict[str, object] = {}
     evidence: dict[str, object] = {
         "schema": "ladybug-feat003-highscore-test-v1",
         "rom_sha256": hashlib.sha256(args.rom.read_bytes()).hexdigest(),
         "events": [],
+        "high_score_transition_boundaries": boundary_evidence,
     }
+    expected_high_score = expected_map_frame(manifest, MAP_HIGH_SCORE)
+    if not tile_uses_only(expected_high_score,
+                          0x2000 + 12 * 4,
+                          {0, LIGHT_BLUE}):
+        fail("high-score-colour", "table/title tile is not light blue")
+    if not tile_uses_only(expected_high_score,
+                          0x2000 + 15 * 1280 + 9 * 4,
+                          {0, PINK}):
+        fail("high-score-colour", "Lady Bug logo tile is not pink")
+    write_frame_png(ROOT / "build/feat003-boundary-expected.png", expected_high_score)
     ids: list[int] = []
     try:
         ids = monitor.setup(client, [module["load_done_publish"]])
@@ -301,6 +358,27 @@ def main() -> None:
         )
         if live_atlas != expected_atlas:
             fail("expanded-atlas", "boot destination differs from generated source")
+        saved_par5 = runtime.read_byte(client, PAR5)
+        try:
+            runtime.write_byte(client, PAR5, 0x3A)
+            live_cold = runtime.read_bytes(
+                client, 0xA000, int(manifest["cold_payload_limit"])
+            )
+        finally:
+            runtime.write_byte(client, PAR5, saved_par5)
+        expected_cold = COLD.read_bytes()
+        cold_first_diff = next(
+            (index for index, pair in enumerate(zip(live_cold, expected_cold))
+             if pair[0] != pair[1]),
+            None,
+        )
+        if cold_first_diff is not None:
+            fail(
+                "cold-payload-identity",
+                f"first divergence at +${cold_first_diff:04x} "
+                f"live={live_cold[cold_first_diff]:02x} "
+                f"expected={expected_cold[cold_first_diff]:02x}",
+            )
         if read_state(client, PRES_TABLE, 90) != fixture:
             fail(
                 "dummy-table",
@@ -314,7 +392,7 @@ def main() -> None:
         if read_state(client, PRES_NAME, 7) != bytes((black,)) * 7:
             fail("pending-name", "name is not blank")
         if (runtime.read_byte(client, PRES_NAME_ROW),
-                runtime.read_byte(client, PRES_NAME_COL)) != (22, 11):
+                runtime.read_byte(client, PRES_NAME_COL)) != (22, 19):
             fail("sprite-start", "runtime cursor differs from authored marker")
         owners = [runtime.read_owner(client, owner) for owner in (0, 1)]
         cursor_destination = name_contract["cursor_destination"]
@@ -333,15 +411,20 @@ def main() -> None:
         top_dst = name_contract["top_destinations"][0]
         top_right_dst = name_contract["top_right_destinations"][0]
         name_destinations = name_contract["name_destinations"]
-        expected_name_destinations = [
-            0x2000 + 19 * 1280 + (1 + index) * 4
-            for index in range(7)
-        ]
+        top_name_destinations = name_contract["top_name_destinations"]
+        expected_name_destinations = [0x2000 + 19 * 1280 + (1 + index) * 4 for index in range(7)]
+        expected_top_name_destinations = [0x2000 + 5 * 1280 + (33 + index) * 4 for index in range(7)]
         if name_destinations != expected_name_destinations:
             fail(
                 "entry-name-destination",
                 f"generated destinations={name_destinations} "
                 f"expected={expected_name_destinations}",
+            )
+        if top_name_destinations != expected_top_name_destinations:
+            fail(
+                "entry-top-name-destination",
+                f"generated destinations={top_name_destinations} "
+                f"expected={expected_top_name_destinations}",
             )
         front_frame = owners[front_owner]
         hud_checks = (
@@ -349,6 +432,7 @@ def main() -> None:
             score_visible(front_frame, top_dst, expected_score, glyphs, manifest),
             score_visible(front_frame, top_right_dst, expected_score, glyphs, manifest),
             entry_name_visible(front_frame, name_destinations, b"", black, manifest),
+            entry_name_visible(front_frame, top_name_destinations, b"", black, manifest),
         )
         if not all(hud_checks):
             if args.initial_png:
@@ -396,7 +480,7 @@ def main() -> None:
         full_name = bytes((default_name[0],)) * 7
         write_state(client, PRES_NAME, full_name)
         runtime.write_byte(client, PRES_NAME_LEN, 7)
-        runtime.write_byte(client, JOY_DIR, 0)
+        runtime.write_byte(client, JOY_DIR, 0xFF)
         hit = client.run_to_breakpoint(args.timeout)
         if (hit.get("pc") != demo["name_joy_ready"] or
                 runtime.read_byte(client, PRES_NAME_LEN) != 7 or
@@ -418,8 +502,8 @@ def main() -> None:
         write_state(client, PRES_NAME, bytes((black,)) * 7)
         runtime.write_byte(client, PRES_NAME_LEN, 0)
         runtime.write_byte(client, PRES_NAME_ROW, 22)
-        runtime.write_byte(client, PRES_NAME_COL, 11)
-        runtime.write_byte(client, 0x0009, 11)
+        runtime.write_byte(client, PRES_NAME_COL, 19)
+        runtime.write_byte(client, 0x0009, 19)
         runtime.write_byte(client, 0x000A, 22)
         runtime.write_byte(client, PRES_NAME_REPEAT, 0)
         runtime.write_byte(client, PRES_NAME_LAST_DIR, 0xFF)
@@ -435,16 +519,46 @@ def main() -> None:
         if any(full_edges[y * 24 + x] for y in range(24)
                for x in range(24) if x in (0, 23) or y in (0, 23)):
             fail("generated-boundary", "perimeter cell remains passable")
+        if (any(full_edges[24 + x] for x in range(24)) or
+                any(full_edges[y * 24 + 22] for y in range(24))):
+            fail(
+                "generated-footprint-boundary",
+                "top or right sprite-anchor exclusion remains passable",
+            )
         action_map = {
-            (int(x) - 8, int(y)): int(tile)
+            (int(x), int(y)): int(tile)
             for x, y, tile in name_contract["action_records"]
         }
-        start_position = (11, 22)
+        start_position = (19, 22)
         char_cells = [cell for cell, tile in action_map.items()
                       if tile not in (0xFD, 0xFE)]
         cl_cells = [cell for cell, tile in action_map.items() if tile == 0xFE]
         end_cell = next(cell for cell, tile in action_map.items() if tile == 0xFD)
         cursor_destination = name_contract["cursor_destination"]
+
+        # The authored records use screen-space X while the collision table
+        # and packed action table use maze-local X.  Every selectable cell and
+        # control must remain reachable from the authored cursor start through
+        # the generated full-maze edges.
+        reachable = {start_position}
+        pending = [start_position]
+        while pending:
+            sx, sy = pending.pop()
+            local_x = sx - 8
+            mask = full_edges[sy * 24 + local_x]
+            for bit, dx, dy in ((1, 0, -1), (2, 1, 0),
+                                (4, 0, 1), (8, -1, 0)):
+                if not mask & bit:
+                    continue
+                next_position = (sx + dx, sy + dy)
+                if (8 <= next_position[0] < 32 and
+                        0 <= next_position[1] < 24 and
+                        next_position not in reachable):
+                    reachable.add(next_position)
+                    pending.append(next_position)
+        unreachable = sorted(set(action_map) - reachable)
+        if unreachable:
+            fail("generated-reachability", f"unreachable action cells={unreachable}")
 
         def set_probe_position(position: tuple[int, int]) -> None:
             x, y = position
@@ -459,25 +573,99 @@ def main() -> None:
             runtime.write_word(client, 0x00DA, pointer)
             runtime.write_word(client, 0x00DC, pointer)
             runtime.write_byte(client, PRES_NAME_STEPS, 0)
+            runtime.write_byte(client, JOY_DIR, 0xFF)
+            runtime.write_byte(client, PLAYER_WANT, 0xFF)
+            runtime.write_byte(client, 0x0006, 0xFF)
+
+        set_probe_position(start_position)
+        hit = client.run_to_breakpoint(args.timeout)
+        if hit.get("pc") != demo["name_joy_ready"]:
+            fail("release-stop", f"initial movement probe stopped at {hit}")
+        for _ in range(2):
+            runtime.write_byte(client, JOY_DIR, 1)
+            runtime.write_byte(client, PLAYER_WANT, 1)
+            hit = client.run_to_breakpoint(args.timeout)
+            if hit.get("pc") != demo["name_joy_ready"]:
+                fail("release-stop", f"movement tick stopped at {hit}")
+            if runtime.read_byte(client, PRES_NAME_STEPS):
+                break
+        partial_pointer = runtime.read_word(client, PLAYER_FB)
+        partial_steps = runtime.read_byte(client, PRES_NAME_STEPS)
+        if partial_pointer == name_contract["cursor_destination"] or partial_steps != 3:
+            fail(
+                "release-stop",
+                f"movement did not enter partial pixel step pointer={partial_pointer:04x} "
+                f"steps={partial_steps}",
+            )
+        for _ in range(2):
+            runtime.write_byte(client, JOY_DIR, 0xFF)
+            hit = client.run_to_breakpoint(args.timeout)
+            if hit.get("pc") != demo["name_joy_ready"]:
+                fail("release-stop", f"neutral input probe stopped at {hit}")
+        if (runtime.read_word(client, PLAYER_FB) != partial_pointer or
+                runtime.read_byte(client, PRES_NAME_STEPS) != partial_steps):
+            fail(
+                "release-stop",
+                "neutral joystick advanced or discarded the partial pixel step",
+            )
+        monitor.clear(client, ids)
+        ids = []
+        client.call("reset", {"kind": "soft"})
+        ids = monitor.setup(client, [demo["name_joy_ready"]])
+        hit = client.run_to_breakpoint(args.timeout)
+        if hit.get("pc") != demo["name_joy_ready"]:
+            fail("release-stop", f"clean-state reset stopped at {hit}")
 
         boundary_cases = (
-            ((1, 1), 3), ((1, 1), 0),
-            ((22, 22), 1), ((22, 22), 2),
+            ((9, 2), 3), ((9, 2), 0),
+            ((29, 22), 1), ((29, 22), 2),
         )
         for position, direction in boundary_cases:
             set_probe_position(position)
             expected_pointer = runtime.read_word(client, PLAYER_FB)
-            runtime.write_byte(client, JOY_DIR, direction)
-            runtime.write_byte(client, PLAYER_WANT, direction)
             for _ in range(2):
                 hit = client.run_to_breakpoint(args.timeout)
                 if hit.get("pc") != demo["name_joy_ready"]:
                     fail("runtime-boundary", f"unexpected breakpoint: {hit}")
+                runtime.write_byte(client, JOY_DIR, direction)
+                runtime.write_byte(client, PLAYER_WANT, direction)
             if (runtime.read_word(client, PLAYER_FB) != expected_pointer or
                     runtime.read_byte(client, PRES_NAME_STEPS) != 0 or
                     (runtime.read_byte(client, 0x0009),
                      runtime.read_byte(client, 0x000A)) != position):
-                fail("runtime-boundary", f"blocked entry moved from {position} direction={direction}")
+                fail(
+                    "runtime-boundary",
+                    f"blocked entry moved from {position} direction={direction} "
+                    f"to={(runtime.read_byte(client, 0x0009), runtime.read_byte(client, 0x000A))} "
+                    f"pointer={runtime.read_word(client, PLAYER_FB):04x} steps={runtime.read_byte(client, PRES_NAME_STEPS)}",
+                )
+        wall_cells = [] if args.boundary_only else [
+            (x + 8, y) for y in range(1, 23) for x in range(1, 23)
+            if full_edges[y * 24 + x] == 0
+        ]
+        directions = ((0, -1, 0), (1, 0, 1), (0, 1, 2), (-1, 0, 3))
+        for wall_x, wall_y in wall_cells:
+            for dx, dy, direction in directions:
+                position = (wall_x - dx, wall_y - dy)
+                if not (8 < position[0] < 31 and 0 < position[1] < 23):
+                    continue
+                set_probe_position(position)
+                expected_pointer = runtime.read_word(client, PLAYER_FB)
+                for _ in range(2):
+                    hit = client.run_to_breakpoint(args.timeout)
+                    if hit.get("pc") != demo["name_joy_ready"]:
+                        fail("inner-wall-block", f"unexpected breakpoint: {hit}")
+                    runtime.write_byte(client, JOY_DIR, direction)
+                    runtime.write_byte(client, PLAYER_WANT, direction)
+                if (runtime.read_word(client, PLAYER_FB) != expected_pointer or
+                        runtime.read_byte(client, PRES_NAME_STEPS) != 0 or
+                        (runtime.read_byte(client, 0x0009),
+                         runtime.read_byte(client, 0x000A)) != position):
+                    fail(
+                        "inner-wall-block",
+                        f"entered wall {(wall_x, wall_y)} from {position} "
+                        f"direction={direction} pointer={runtime.read_word(client, PLAYER_FB):04x}",
+                    )
         set_probe_position(start_position)
         runtime.write_byte(client, JOY_DIR, 0xFF)
         runtime.write_byte(client, PLAYER_WANT, 0xFF)
@@ -494,8 +682,8 @@ def main() -> None:
                     break
                 for direction, (dx, dy, bit) in enumerate(directions):
                     next_cell = (x + dx, y + dy)
-                    if (0 <= next_cell[0] < 24 and 0 <= next_cell[1] < 24 and
-                            full_edges[y * 24 + x] & bit and
+                    if (8 <= next_cell[0] <= 31 and 0 <= next_cell[1] < 24 and
+                            full_edges[y * 24 + (x - 8)] & bit and
                             next_cell not in previous):
                         previous[next_cell] = (x, y)
                         previous_direction[next_cell] = direction
@@ -536,21 +724,109 @@ def main() -> None:
         runtime.write_byte(client, PLAYER_WANT, 0xFF)
         runtime.write_byte(client, JOY_DIR, 0xFF)
         clean_start_tile = read_state(client, PRES_CURSOR_SAVE_A, 128)
-        route_ids = monitor.setup(client, [module["load_done_publish"]])
+        route_ids = monitor.setup(
+            client,
+            [module["load_done_dynamic_high"], module["load_done_publish"]],
+        )
         ids.extend(route_ids)
         transition_hit = None
+
+        def capture_high_score_boundary(label: str) -> None:
+            owners_at_boundary = {
+                owner: runtime.read_owner(client, owner) for owner in (0, 1)
+            }
+            map_offset = int(manifest["map_stream_offsets"][MAP_HIGH_SCORE])
+            map_bytes = int(manifest["map_stream_bytes"][MAP_HIGH_SCORE])
+            expected_map_stream = COLD.read_bytes()[
+                map_offset:map_offset + map_bytes
+            ]
+            saved_par5 = runtime.read_byte(client, PAR5)
+            live_pages = {}
+            try:
+                for page in range(0x20, 0x40):
+                    runtime.write_byte(client, PAR5, page)
+                    page_stream = runtime.read_bytes(
+                        client, 0xA000 + map_offset, map_bytes
+                    )
+                    live_pages[f"{page:02x}"] = {
+                        "sha256": digest(page_stream),
+                        "matches": page_stream == expected_map_stream,
+                        "first16": page_stream[:16].hex(),
+                    }
+                runtime.write_byte(client, PAR5, 0x3A)
+                live_map_stream = runtime.read_bytes(
+                    client, 0xA000 + map_offset, map_bytes
+                )
+            finally:
+                runtime.write_byte(client, PAR5, saved_par5)
+            map_first_diff = next(
+                (index for index, pair in enumerate(zip(live_map_stream, expected_map_stream))
+                 if pair[0] != pair[1]),
+                None,
+            )
+            if map_first_diff is not None:
+                fail(
+                    "high-score-cold-preservation",
+                    f"map stream diverged before dynamic render at +${map_first_diff:04x}",
+                )
+            lower_diffs = {}
+            for owner, frame in owners_at_boundary.items():
+                count, first = frame_diff(
+                    frame, expected_high_score, 0x2000 + 16 * 1280
+                )
+                lower_diffs[str(owner)] = {
+                    "sha256": digest(frame),
+                    "lower_diff_bytes": count,
+                    "lower_first_offset": first,
+                }
+            boundary_evidence[label] = {
+                "front_owner": runtime.read_byte(client, runtime.FB_FRONT),
+                "back_owner": runtime.read_byte(client, runtime.FB_BACK),
+                "screen": runtime.read_byte(client, PRES_SCREEN),
+                "pres_in": runtime.read_word(client, 0x00B5),
+                "pres_cell": runtime.read_word(client, 0x00AA),
+                "pres_dst": runtime.read_word(client, 0x00AE),
+                "pres_run": runtime.read_byte(client, 0x00EA),
+                "pres_value": runtime.read_byte(client, 0x00EB),
+                "live_map_stream_matches": live_map_stream == expected_map_stream,
+                "live_map_stream_sha256": digest(live_map_stream),
+                "live_map_stream_first16": live_map_stream[:16].hex(),
+                "live_map_stream_first_diff": map_first_diff,
+                "live_map_stream_window": (
+                    live_map_stream[max(0, (map_first_diff or 0) - 8):
+                                    (map_first_diff or 0) + 24].hex()
+                    if map_first_diff is not None else ""
+                ),
+                "expected_map_stream_window": (
+                    expected_map_stream[max(0, (map_first_diff or 0) - 8):
+                                       (map_first_diff or 0) + 24].hex()
+                    if map_first_diff is not None else ""
+                ),
+                "cold_page_scan": live_pages,
+                "owners": lower_diffs,
+            }
+            if label == "before-dynamic-render":
+                write_frame_png(
+                    ROOT / "build/feat003-boundary-before-dynamic-owner0.png",
+                    owners_at_boundary[0],
+                )
+                write_frame_png(
+                    ROOT / "build/feat003-boundary-before-dynamic-owner1.png",
+                    owners_at_boundary[1],
+                )
+
         for direction in directions:
             start_pointer = runtime.read_word(client, PLAYER_FB)
             before_position = (
                 runtime.read_byte(client, PRES_NAME_COL),
                 runtime.read_byte(client, PRES_NAME_ROW),
             )
-            runtime.write_byte(client, JOY_DIR, direction)
-            runtime.write_byte(client, PLAYER_WANT, direction)
             step_delta = -320 if direction == 0 else 320 if direction == 2 else 1 if direction == 1 else -1
             expected_pointer = start_pointer
             actual_pointer = start_pointer
             for step in range(4):
+                runtime.write_byte(client, JOY_DIR, direction)
+                runtime.write_byte(client, PLAYER_WANT, direction)
                 calls = 0
                 while True:
                     try:
@@ -560,13 +836,26 @@ def main() -> None:
                             "pixel-step-timeout",
                             f"direction={direction} step={step + 1}/4 error={exc}",
                         )
+                    if hit.get("pc") == module["load_done_dynamic_high"]:
+                        if step != 3 or direction != directions[-1]:
+                            fail("END-transition", f"unexpected early dynamic boundary {hit}")
+                        capture_high_score_boundary("before-dynamic-render")
+                        hit = client.run_to_breakpoint(args.timeout)
+                        if hit.get("pc") != module["load_done_publish"]:
+                            fail("END-transition", f"dynamic render did not reach publish {hit}")
+                        capture_high_score_boundary("before-publication")
+                        transition_hit = hit
+                        break
                     if hit.get("pc") == module["load_done_publish"]:
                         if step != 3 or direction != directions[-1]:
                             fail("END-transition", f"unexpected early transition {hit}")
+                        capture_high_score_boundary("before-publication")
                         transition_hit = hit
                         break
                     if hit.get("pc") != demo["name_joy_ready"]:
                         fail("name-input", f"unexpected step breakpoint {hit}")
+                    runtime.write_byte(client, JOY_DIR, direction)
+                    runtime.write_byte(client, PLAYER_WANT, direction)
                     calls += 1
                     actual_pointer = runtime.read_word(client, PLAYER_FB)
                     if actual_pointer != expected_pointer:
@@ -577,18 +866,21 @@ def main() -> None:
                                 f"direction={direction} step={step + 1} "
                                 f"pointer={actual_pointer:04x}/{expected_pointer:04x}",
                             )
-                        if step and calls != 2:
-                            fail(
-                                "gameplay-cadence",
-                                f"direction={direction} step={step + 1} "
-                                f"eligible interval={calls}, expected=2",
-                            )
+                        runtime.write_byte(client, JOY_DIR, 0xFF)
                         break
-                    if calls >= 2:
+                    # The breakpoint is before the injected sample executes.
+                    # Starting on an ineligible parity therefore needs three
+                    # observed boundaries to cover two executed Vbords.
+                    if calls >= 3:
                         fail(
                             "gameplay-cadence",
                             f"direction={direction} step={step + 1} had no movement "
-                            f"within two Vbords",
+                            f"within two executed Vbords joy={runtime.read_byte(client, JOY_DIR)} "
+                            f"want={runtime.read_byte(client, PLAYER_WANT)} "
+                            f"dir={runtime.read_byte(client, 0x0006)} "
+                            f"cell={(runtime.read_byte(client, 0x0009), runtime.read_byte(client, 0x000A))} "
+                            f"frames={runtime.read_word(client, 0x0002):04x} "
+                            f"steps={runtime.read_byte(client, PRES_NAME_STEPS)}",
                         )
                 if transition_hit is not None:
                     break
@@ -692,8 +984,20 @@ def main() -> None:
             hit = client.run_to_breakpoint(args.timeout)
             if hit.get("pc") != module["load_done_publish"]:
                 fail("END-publication", f"unexpected breakpoint {hit}")
+            monitor.clear(client, ids)
         elif runtime.read_byte(client, PRES_SCREEN) != MAP_HIGH_SCORE:
             fail("END-publication", f"END load completed on wrong screen: {transition_hit}")
+        ids = monitor.setup(client, [module["presentation_flow_tick"]])
+        hit = client.run_to_breakpoint(args.timeout)
+        if hit.get("pc") != module["presentation_flow_tick"]:
+            fail("END-publication", f"publish body did not return to dispatcher: {hit}")
+        if runtime.read_byte(client, 0x0091) != 0:
+            hit = client.run_to_breakpoint(args.timeout)
+            if hit.get("pc") != module["presentation_flow_tick"]:
+                fail("END-publication", f"unexpected second dispatcher boundary: {hit}")
+        if runtime.read_byte(client, 0x0091) != 0:
+            fail("END-publication", "post-END framebuffer publication remains pending")
+        capture_high_score_boundary("after-publication")
         pending_name = bytes(simulated_name)
         expected_table = (
             expected_score + pending_name +
@@ -709,7 +1013,7 @@ def main() -> None:
             )
         owners = [runtime.read_owner(client, owner) for owner in (0, 1)]
         score_destinations = manifest["high_score_table"]["score_destinations"]
-        name_destinations = manifest["high_score_table"]["name_destinations"]
+        high_score_name_destinations = manifest["high_score_table"]["name_destinations"]
         records = [expected_table[index:index + 10] for index in range(0, 90, 10)]
         front_owner = runtime.read_byte(client, runtime.FB_FRONT)
         front_frame = owners[front_owner]
@@ -717,16 +1021,13 @@ def main() -> None:
             score_visible(front_frame, score_destination, record[:3], glyphs, manifest) and
             name_visible(front_frame, name_destination, record[3:], black, manifest)
             for score_destination, name_destination, record in zip(
-                score_destinations, name_destinations, records
+                score_destinations, high_score_name_destinations, records
             )
         )
         if row_count != 9:
             fail("all-nine-rendering", f"visible score/name rows={row_count}")
         if args.updated_png:
             write_frame_png(args.updated_png, front_frame)
-        monitor.clear(client, ids)
-
-        ids = monitor.setup(client, [module["presentation_flow_tick"]])
         for key in (5, 6):
             client.call("inject_key", {"key": key, "action": "press"})
             for _ in range(4):
@@ -776,10 +1077,12 @@ def main() -> None:
         if live_demo != DEMO_RUNTIME.read_bytes():
             fail("reset-auxiliary-identity", "reset changed the $0300 test runtime")
         ready_before_empty = runtime.read_byte(client, 0x00E7)
-        end_start_position = (18, 20)
+        # Start one traversable cell before END so the bounded probe measures
+        # the empty-name transition rather than an unrelated long walk.
+        end_start_position = (26, 20)
         end_start_pointer = (
             cursor_destination +
-            (end_start_position[0] - 11) * 4 +
+            (end_start_position[0] - 19) * 4 +
             (end_start_position[1] - 22) * 1280
         ) & 0xFFFF
         runtime.write_byte(client, PRES_NAME_ROW, end_start_position[1])
@@ -792,19 +1095,30 @@ def main() -> None:
         runtime.write_byte(client, PRES_NAME_STEPS, 0)
         runtime.write_byte(client, PRES_NAME_LEN, 0)
         runtime.write_byte(client, PRES_NAME_LAST_DIR, 0xFF)
+        runtime.write_byte(client, JOY_DIR, 0xFF)
         runtime.write_byte(client, PLAYER_WANT, 1)
         monitor.clear(client, ids)
         ids = monitor.setup(client, [demo["name_joy_ready"], module["load_done_publish"]])
         empty_end_transition = False
-        for step in range(8):
+        for step in range(12):
             hit = client.run_to_breakpoint(args.timeout)
             if hit.get("pc") == module["load_done_publish"]:
                 empty_end_transition = True
                 break
             if hit.get("pc") != demo["name_joy_ready"]:
                 fail("empty-name-END", f"unexpected pixel step breakpoint: {hit}")
+            runtime.write_byte(client, JOY_DIR, 1)
+            runtime.write_byte(client, PLAYER_WANT, 1)
         if not empty_end_transition:
-            fail("empty-name-END", "END did not complete map transition within eight intervals")
+            fail(
+                "empty-name-END",
+                f"END did not complete map transition within twelve intervals "
+                f"cell={(runtime.read_byte(client, 9), runtime.read_byte(client, 10))} "
+                f"pointer={runtime.read_word(client, PLAYER_FB):04x} "
+                f"steps={runtime.read_byte(client, PRES_NAME_STEPS)} "
+                f"joy={runtime.read_byte(client, JOY_DIR)} "
+                f"want={runtime.read_byte(client, PLAYER_WANT)}",
+            )
         expected_empty = expected_score + bytes((black,)) * 7 + fixture[:80]
         if (runtime.read_byte(client, PRES_SCREEN) != MAP_HIGH_SCORE or
                 read_state(client, PRES_TABLE, 90) != expected_empty):
@@ -832,6 +1146,17 @@ def main() -> None:
         hit = client.run_to_breakpoint(args.timeout)
         if hit.get("pc") != demo["name_joy_ready"]:
             fail("timer-entry", f"unexpected breakpoint {hit}")
+        timer_cursor_start = runtime.read_word(client, PLAYER_FB)
+        for _ in range(2):
+            runtime.write_byte(client, JOY_DIR, 1)
+            runtime.write_byte(client, PLAYER_WANT, 1)
+            hit = client.run_to_breakpoint(args.timeout)
+            if hit.get("pc") != demo["name_joy_ready"]:
+                fail("timer-cursor-setup", f"unexpected breakpoint {hit}")
+            if runtime.read_word(client, PLAYER_FB) != timer_cursor_start:
+                break
+        if runtime.read_word(client, PLAYER_FB) == timer_cursor_start:
+            fail("timer-cursor-setup", "cursor did not create an owner-local lag")
         runtime.write_byte(client, JOY_DIR, 0xFF)
         write_state(client, PRES_NAME, bytes((default_name[0],)) + bytes((black,)) * 6)
         runtime.write_byte(client, PRES_NAME_LEN, 1)
@@ -862,6 +1187,30 @@ def main() -> None:
         timer_cell = name_contract["timer_cells"][0]
         timer_destination = 0x2000 + timer_cell[1] * 1280 + timer_cell[0] * 4
         front = runtime.read_byte(client, 0x008F)
+        front_pointer = runtime.read_word(
+            client, 0x00DA if front == 0 else 0x00DC
+        )
+        if front_pointer != runtime.read_word(client, PLAYER_FB):
+            fail(
+                "timer-cursor-convergence",
+                f"timer published stale cursor owner={front} "
+                f"owner-pointer={front_pointer:04x} "
+                f"current={runtime.read_word(client, PLAYER_FB):04x}",
+            )
+        if not entry_name_visible(
+                runtime.read_owner(client, front), name_destinations,
+                bytes((default_name[0],)), black, manifest):
+            owner_name_tiles = {
+                owner: [runtime.frame_tile(runtime.read_owner(client, owner), destination).hex()
+                        for destination in name_destinations]
+                for owner in (0, 1)
+            }
+            fail(
+                "timer-name-convergence",
+                f"timer published a stale pending name front={front} "
+                f"state={read_state(client, PRES_NAME, 7).hex()} "
+                f"owners={owner_name_tiles}",
+            )
         if not tile_matches(
                 runtime.read_owner(client, front), timer_destination,
                 expected_tile(manifest, name_contract["timer_green_tile_ids"][0])):

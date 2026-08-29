@@ -125,9 +125,9 @@ ENTER_HIGH_SCORE_END_CELLS = ((27, 20),)
 ENTER_HIGH_SCORE_INNER_WALL_CODE = 49
 ENTER_HIGH_SCORE_TIMER_FRAMES = 60
 ENTER_HIGH_SCORE_TIMER_COUNT = 92
-ENTER_HIGH_SCORE_NAME_DESTINATIONS = tuple(
-    0x2000 + 19 * 1280 + (1 + index) * 4 for index in range(7)
-)
+ENTER_HIGH_SCORE_PENDING_NAME_CELLS = tuple((1 + index, 19) for index in range(7))
+ENTER_HIGH_SCORE_TOP_NAME_CELLS = tuple((33 + index, 5) for index in range(7))
+ENTER_HIGH_SCORE_DEFAULT_CODES = (21, 10, 13, 34, 11, 30, 16)  # LADYBUG
 ENTER_HIGH_SCORE_SCORE_DESTINATIONS = tuple(
     0x2000 + 2 * 1280 + (33 + index) * 4 for index in range(6)
 )
@@ -510,6 +510,9 @@ def enter_high_score_full_edge_masks(path: Path) -> bytes:
         raw_char_code(root, path, cells[y * SCREEN_WIDTH + x])
         == ENTER_HIGH_SCORE_INNER_WALL_CODE
     }
+    # Each authored wall glyph occupies two adjacent cells.  The blank
+    # intervals between glyphs are deliberate vertical corridors used to
+    # reach the character columns; do not convert those corridors to walls.
     wall_cells.update(
         (x, y)
         for y in range(24)
@@ -534,9 +537,21 @@ def enter_high_score_full_edge_masks(path: Path) -> bytes:
                 mask &= ~0x04
             masks[index(x, y)] = mask
 
-    # A wall cell is not a corridor. Clear both sides of every edge touching it
-    # so movement cannot enter, leave, or cross an authored inner-wall tile.
-    for wall_x, wall_y in wall_cells:
+    # PLAYER_FB is the 16x16 sprite's top-left address while PLAYER_CELL is
+    # anchored one tile below that address.  The sprite therefore extends one
+    # logical tile right of PLAYER_CELL and one tile above it.  Exclude the
+    # otherwise-open top/right anchor lanes so opaque player pixels cannot
+    # overlap the authored perimeter.
+    blocked_cells = wall_cells | {
+        (x, y)
+        for y in range(24)
+        for x in range(24)
+        if x == 22 or y == 1
+    }
+
+    # A blocked cell is not a corridor. Clear both sides of every edge touching
+    # it so movement cannot enter, leave, or cross the blocked tile.
+    for wall_x, wall_y in blocked_cells:
         for dx, dy, bit, opposite in (
             (0, -1, 0x01, 0x04), (1, 0, 0x02, 0x08),
             (0, 1, 0x04, 0x01), (-1, 0, 0x08, 0x02),
@@ -696,7 +711,7 @@ def flatten_map(path: Path) -> tuple[ET.Element, list[int], list[str]]:
 
 def presentation_pen_map(
         role: str, x: int, y: int, source_layer: str = "",
-        raw_code: int = -1,
+        raw_code: int = -1, highscore_test_profile: bool = False,
 ) -> tuple[int, int, int, int]:
     """Apply the established CoCo palette adaptation to authored raw chars."""
     if x < 8 and y < 9:
@@ -724,6 +739,14 @@ def presentation_pen_map(
                 raw_code == ENTER_HIGH_SCORE_INNER_WALL_CODE):
             return (BLACK, PINK, PINK, PINK)
         return (BLACK, WHITE, WHITE, WHITE)
+    if role == "high-score" and highscore_test_profile:
+        # The arcade high-score table and footer use the light-blue HUD pen;
+        # the central Lady Bug branding remains pink.  The registered mark at
+        # the right of the logo is part of the HUD text, not the logo.
+        if (source_layer == "High Score Table and Branding" and
+                13 <= y <= 18 and x < 30):
+            return (BLACK, PINK, PINK, PINK)
+        return (BLACK, LIGHT_BLUE, LIGHT_BLUE, LIGHT_BLUE)
     if role in ("game-over", "high-score"):
         return (BLACK, WHITE, WHITE, WHITE)
     if role == "instructions" and 28 <= x < 30 and 13 <= y < 15:
@@ -742,6 +765,7 @@ def compile_map(
     chars: list[list[list[int]]],
     tiles: list[bytes],
     tile_ids: dict[bytes, int],
+    highscore_test_profile: bool = False,
 ) -> tuple[bytes, dict[str, object]]:
     root, flattened, sources = flatten_map(path)
     role = screen_role(root, path)
@@ -777,7 +801,7 @@ def compile_map(
             packed = pack_tile(tile if role == "attract" else recolor(
                 tile, presentation_pen_map(
                     role, x, y, sources[index],
-                    raw_char_code(root, path, gid),
+                    raw_char_code(root, path, gid), highscore_test_profile,
                 )
             ))
         tile_id = tile_ids.setdefault(packed, len(tiles))
@@ -1180,7 +1204,43 @@ def parse_enter_high_score_contract(
         (cell, tile_id) for cell, tile_id in zip(node_cells, node_tile_ids)
         if tile_id != 0xFF
     ]
-    default_codes = (21, 10, 13, 34, 11, 30, 16)  # LADYBUG in chars_raw2bpp
+    pending_name_cells = ENTER_HIGH_SCORE_PENDING_NAME_CELLS
+    top_name_cells = ENTER_HIGH_SCORE_TOP_NAME_CELLS
+
+    def authored_name_span(layer_name: str, cells: tuple[tuple[int, int], ...]) -> tuple[list[int], list[int]]:
+        layer = layers[layer_name]
+        layer_cells = parse_csv(layer.find("data"), layer.get("name", ""))
+        raw_codes = [
+            raw_char_code(root, path, layer_cells[y * SCREEN_WIDTH + x])
+            for x, y in cells
+        ]
+        if raw_codes != list(ENTER_HIGH_SCORE_DEFAULT_CODES):
+            raise ValueError(
+                f"{path}: {layer_name} authored name span must be LADYBUG, "
+                f"got raw codes {raw_codes}"
+            )
+        span_tile_ids = [
+            register_tile(
+                instruction_char_tile(
+                    root, path, layer_cells[y * SCREEN_WIDTH + x], (x, y), chars,
+                    (BLACK, WHITE, WHITE, WHITE),
+                ),
+                tiles, tile_ids,
+            )
+            for x, y in cells
+        ]
+        return span_tile_ids, [framebuffer_destination(cell) for cell in cells]
+
+    pending_name_tile_ids, pending_name_destinations = authored_name_span(
+        "Enter High Score Overlay", pending_name_cells
+    )
+    top_name_tile_ids, top_name_destinations = authored_name_span(
+        "CoCo Side HUD", top_name_cells
+    )
+    if top_name_tile_ids != pending_name_tile_ids:
+        raise ValueError(f"{path}: HUD and entry name spans do not share tile IDs")
+
+    default_codes = ENTER_HIGH_SCORE_DEFAULT_CODES
     glyph_by_code = {
         raw_char_code(root, path, overlay_cells[y * SCREEN_WIDTH + x]): tile_id
         for (x, y), tile_id in zip(grid_cells, grid_tiles)
@@ -1201,13 +1261,15 @@ def parse_enter_high_score_contract(
         "action_records": [
             [cell[0], cell[1], tile_id] for cell, tile_id in action_records
         ],
-        "default_name_tile_ids": default_name_tile_ids,
+        "default_name_tile_ids": pending_name_tile_ids,
+        "top_name_tile_ids": top_name_tile_ids,
         "node_destinations": [
             framebuffer_destination(cell) - 1280 for cell in node_cells
         ],
         "cl_cells": list(ENTER_HIGH_SCORE_CL_CELLS),
         "end_cells": list(ENTER_HIGH_SCORE_END_CELLS),
-        "name_destinations": list(ENTER_HIGH_SCORE_NAME_DESTINATIONS),
+        "name_destinations": pending_name_destinations,
+        "top_name_destinations": top_name_destinations,
         "score_destinations": list(ENTER_HIGH_SCORE_SCORE_DESTINATIONS),
         "top_destinations": list(ENTER_HIGH_SCORE_TOP_DESTINATIONS),
         "top_right_destinations": list(ENTER_HIGH_SCORE_TOP_RIGHT_DESTINATIONS),
@@ -1273,7 +1335,9 @@ def compile_profile_maps(
                 else "release-profile-black-placeholder"
             )
         else:
-            authored, info = compile_map(path, chars, tiles, tile_ids)
+            authored, info = compile_map(
+                path, chars, tiles, tile_ids, highscore_test_profile
+            )
             authored_frame = title_framebuffer(authored, tiles)
             maps.append(authored)
             emission = "authored"
@@ -1492,6 +1556,7 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
             )
     name_entry = manifest["high_score_name_entry"]
     name_dst = name_entry["name_destinations"][0] if name_entry["name_destinations"] else 0
+    top_name_dst = name_entry["top_name_destinations"][0] if name_entry["top_name_destinations"] else 0
     score_dst = name_entry["score_destinations"][0] if name_entry["score_destinations"] else 0
     top_dst = name_entry["top_destinations"][0] if name_entry["top_destinations"] else 0
     top_right_dst = (
@@ -1509,6 +1574,7 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_NAME_ENTRY_CL_COUNT equ {len(name_entry['cl_cells'])}",
         f"PRESENTATION_NAME_ENTRY_END_COUNT equ {len(name_entry['end_cells'])}",
         f"PRESENTATION_NAME_ENTRY_NAME_DST equ ${name_dst:04X}",
+        f"PRESENTATION_NAME_ENTRY_TOP_NAME_DST equ ${top_name_dst:04X}",
         f"PRESENTATION_NAME_ENTRY_SCORE_DST equ ${score_dst:04X}",
         f"PRESENTATION_NAME_ENTRY_TOP_DST equ ${top_dst:04X}",
         f"PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST equ ${top_right_dst:04X}",
@@ -1612,7 +1678,7 @@ def main() -> None:
             "cursor_stream": b"", "cursor_source_code": 0,
             "cursor_destination": 0, "cursor_cell": (19, 22),
             "grid_cells": [], "grid_tile_ids": [], "cl_cells": [],
-            "end_cells": [], "name_destinations": [],
+            "end_cells": [], "name_destinations": [], "top_name_destinations": [],
             "score_destinations": [], "top_destinations": [],
             "top_right_destinations": [],
             "node_cells": [], "node_tile_ids": [], "node_destinations": [],
@@ -1718,8 +1784,17 @@ def main() -> None:
             tile_id if tile_id in (0xFD, 0xFE, 0xFF) else remap[int(tile_id)]
             for tile_id in name_entry["node_tile_ids"]
         ]
+        name_entry["action_records"] = [
+            [x, y, remap[int(tile_id)]]
+            if tile_id not in (0xFD, 0xFE, 0xFF)
+            else [x, y, tile_id]
+            for x, y, tile_id in name_entry["action_records"]
+        ]
         name_entry["default_name_tile_ids"] = [
             remap[int(tile_id)] for tile_id in name_entry["default_name_tile_ids"]
+        ]
+        name_entry["top_name_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["top_name_tile_ids"]
         ]
         name_entry["timer_base_tile_ids"] = [
             remap[int(tile_id)] for tile_id in name_entry["timer_base_tile_ids"]
@@ -1959,10 +2034,13 @@ def main() -> None:
             "node_tile_ids": name_entry["node_tile_ids"],
             "action_records": name_entry["action_records"],
             "default_name_tile_ids": name_entry["default_name_tile_ids"],
+            "authored_name_codes": list(ENTER_HIGH_SCORE_DEFAULT_CODES),
+            "top_name_tile_ids": name_entry.get("top_name_tile_ids", []),
             "node_destinations": name_entry["node_destinations"],
             "cl_cells": [list(cell) for cell in name_entry["cl_cells"]],
             "end_cells": [list(cell) for cell in name_entry["end_cells"]],
             "name_destinations": name_entry["name_destinations"],
+            "top_name_destinations": name_entry["top_name_destinations"],
             "score_destinations": name_entry["score_destinations"],
             "top_destinations": name_entry["top_destinations"],
             "top_right_destinations": name_entry["top_right_destinations"],

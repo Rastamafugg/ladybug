@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPLETE_SHA256 = "48d1c061549930c9ebf408ed007e0c680debe6ddb2c86e97859e7082e3f1ec36"
+COMPLETE_SHA256 = "b065057e74b448ea22acbafe5dcb4773f46d338fd9f66c99dd37b68e7fcb05fc"
 
 
 def main() -> None:

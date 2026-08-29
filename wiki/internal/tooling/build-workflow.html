@@ -89,7 +89,7 @@ emulated CoCo 3      (physical target: GMC-compatible bank-select hardware)
           <tr><td><code>scripts/build.sh clean</code></td><td><code>rm -rf build/</code>.</td></tr>
         </tbody>
       </table>
-      <p><strong>FEAT-003 profile isolation:</strong> the unset default is <code>highscore-test</code>, which cold-boots the deterministic name-entry harness and holds updated rankings until reset. Its <code>verify-gmc</code> branch runs startup-only delivery plus the focused UI/ranking probe. Explicit <code>release</code>, <code>development</code>, and <code>complete</code> remain available; explicit <code>complete</code> reproduces the FEAT-004 bundle ROM SHA-256 <code>48d1c061549930c9ebf408ed007e0c680debe6ddb2c86e97859e7082e3f1ec36</code>.</p>
+      <p><strong>FEAT-003 profile isolation:</strong> the unset default is <code>highscore-test</code>, which cold-boots the deterministic name-entry harness and holds updated rankings until reset. Its <code>verify-gmc</code> branch runs startup-only delivery plus the focused UI/ranking probe. Explicit <code>release</code>, <code>development</code>, and <code>complete</code> remain available; explicit <code>complete</code> is a conditional shared-artifact non-regression guard. The current complete build differs from retained baseline <code>b065057e74b448ea22acbafe5dcb4773f46d338fd9f66c99dd37b68e7fcb05fc</code> with observed SHA-256 <code>8584537249bedafc20c0ba054e5111e0e087d08063ff5248e718225ab4e08f91</code>.</p>
       <p>Source layout the script assumes:</p>
 <pre><code>assets/arcade/chars.json   (authoritative decoded character shapes)
 assets/arcade/sprites.json (authoritative decoded sprite shapes)
