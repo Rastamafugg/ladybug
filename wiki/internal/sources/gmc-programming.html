@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Programming the Game Master Cartridge — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Sources</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Source · GMC programming</p>
+      <h1>Programming the Game Master Cartridge <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">External programming notes for GMC banking, SN76489 sound, MPI routing, emulators, and VGM playback.</p>
+    </header>
+
+    <section>
+      <h2>Source identity</h2>
+      <p>
+        <strong><a href="https://docs.google.com/document/d/17JzrNqIHZaFmtHEeFSevpkJtbWOn2-2EjxMB2cQlxsY/edit?tab=t.0">Programming the Game Master Cartridge</a></strong>
+        is a publicly viewable Google document. It was accessed and ingested on
+        2026-08-30. The document exposes no revision identifier, author metadata,
+        or publication date in the rendered view; claims below therefore use the
+        access date as the source revision marker.
+      </p>
+    </section>
+
+    <section>
+      <h2>Extracted source facts</h2>
+      <ul>
+        <li>Non-ROM programs can reach GMC hardware through an MPI by routing SCS to the GMC with <code>$FF7F</code>; the document recommends a GMC in MPI slot 1 when a fixed slot policy is acceptable.</li>
+        <li>The GMC provides up to 64K of bank-switched ROM. Each bank exposes almost 16K because the CoCo cartridge exceptions occupy the <code>$FFXX</code> range and, on the CoCo 3, the <code>$FEXX</code> range.</li>
+        <li>The document identifies <code>$FF40</code> as the write-only bank-select register and <code>$FF41</code> as the write-only SN76489 register.</li>
+        <li>The SN76489 uses a recommended 4 MHz oscillator, has no readable status, and requires at least 32 on-board oscillator cycles between writes. Oscillator frequency changes require corresponding tone-period changes.</li>
+        <li>Cartridge audio must be routed through the CoCo analog mux. The example writes <code>$34</code> to <code>$FF01</code>, <code>$3F</code> to <code>$FF03</code>, and <code>$38</code> to <code>$FF23</code>.</li>
+        <li>The SN76489 tone generators power on enabled at high volume. The document recommends writing attenuation values <code>$9F</code>, <code>$BF</code>, <code>$DF</code>, and <code>$FF</code> before enabling cartridge audio, with sufficient spacing.</li>
+        <li>VGM data and raw converted streams are possible input formats. The document also points to conversion tools for clock-rate transposition, sampling-rate correction, and raw playback output.</li>
+        <li>Example emulator commands use an XRoar GMC cartridge and a MAME GMC extension. The document notes that MAME later renamed <code>games_master</code> to <code>gmc</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Comparison with Ladybug</h2>
+      <p>
+        The comparison target is the approved <a href="../tickets/feat-006-gmc-audio-event-integration.html">FEAT-006</a>
+        design, not a completed audio runtime. Current assembly has no shipped
+        sound service or <code>$FF51</code> write path.
+      </p>
+      <h3>Aligned decisions</h3>
+      <ul>
+        <li>Ladybug uses a four-bank, 64K GMC image and treats the cartridge-visible bank payload as almost 16K per bank.</li>
+        <li>The loader selects banks and copies executable or data payloads during boot, then runs the game from RAM. This is more conservative than bank switching during gameplay and protects the persistent framebuffer mapping.</li>
+        <li>FEAT-006 targets the GMC's 4 MHz single SN76489, uses register commands rather than samples, and reduces the arcade's two-chip audio to one chip.</li>
+        <li>FEAT-006 schedules semantic events in a bounded foreground service, emits only changed register bytes, forbids audio sequencing in the IRQ, and requires reset/startup muting.</li>
+      </ul>
+      <h3>Intentional differences</h3>
+      <ul>
+        <li>The document's MPI guidance is for programs that are not distributed on a GMC. Ladybug's shipped image already requires the GMC and does not add an MPI dependency.</li>
+        <li>The document emphasizes VGM/raw playback. Ladybug instead compiles MAME PSG traces into compact semantic command records so event ownership, interruption, channel arbitration, and memory usage remain explicit. VGM remains a possible offline import or comparison format, not the runtime ABI.</li>
+        <li>Ladybug uses redundant CoCo 3 SCS aliases <code>$FF50</code> for banking and <code>$FF51</code> for sound. Local XRoar dispatches GMC behavior by SCS parity, but the project's MAME 0.220 evidence accepts only the primary <code>$FF40/$FF41</code> addresses. This is an emulator-compatibility and physical-hardware acceptance issue, not a resolved portability fact.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Required follow-up</h2>
+      <ul>
+        <li>FEAT-006 must encode and verify the 32-oscillator-cycle write-spacing rule without polling a nonexistent status bit.</li>
+        <li>The audio service must initialize the cartridge-SND mux and prove that legacy DAC/PB1 state cannot override or contaminate the selected output.</li>
+        <li>Cold boot, warm reset, replacement, explicit stop, and game-over paths must prove that all four channels are muted before any new cue is exposed.</li>
+        <li>A compatibility test must compare <code>$FF40/$FF41</code> and <code>$FF50/$FF51</code> on the selected emulator and, later, on physical GMC hardware. No address change is authorized by this source ingest.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Limits and provenance</h2>
+      <p>
+        The document is a programming guide, not a hardware schematic or a
+        physical validation report. Its register addresses, timing advice, audio
+        mux sequence, emulator commands, and format recommendations are retained
+        as source claims. Project acceptance still depends on the current
+        <a href="../platform/cartridge.html">cartridge strategy</a>,
+        <a href="../platform/sound.html">sound plan</a>,
+        <a href="../tooling/xroar.html">XRoar evidence</a>, and physical GMC proof.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Ingested from the linked Google document on 2026-08-30. No source revision identifier was exposed.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

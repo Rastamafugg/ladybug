@@ -51,6 +51,15 @@
       <p>The former 16 K direct-ROM image remains the runtime payload in bank 1. Bank 0 contains the low-RAM bootstrap at offsets <code>$0000-$07FF</code> and a fixed overflow source pool at <code>$0800-$3DFF</code>; banks 2 and 3 remain the primary expansion sources. The bootstrap selects banks through the GMC SCS register at <code>$FF50</code>, copies manifest-described payloads from banks 2, 3, and 0, copies bank 1 into physical pages <code>$3E/$3F</code>, switches TY to all-RAM mode, and enters the unchanged virtual runtime. This avoids gameplay-time bank switching.</p>
       <p><code>scripts/build.sh verify-gmc</code> proves both expansion-bank signatures, a bank-0 source copy into always-mapped low RAM, bank-1 selection, the TY=1 handoff, and repeated relocated main-loop execution under XRoar 1.10. Physical GMC-compatible hardware remains unverified.</p>
       <p>
+        The ingested <a href="../sources/gmc-programming.html">GMC programming guide</a>
+        agrees with the 64 K maximum and almost-16 K bank windows. It names the
+        primary bank register as <code>$FF40</code>; Ladybug currently writes the
+        redundant CoCo 3 SCS alias <code>$FF50</code>. Local XRoar accepts the
+        alias, while the existing MAME 0.220 evidence requires <code>$FF40</code>.
+        The alias choice remains a compatibility decision pending physical GMC
+        proof and is not changed by this ingest.
+      </p>
+      <p>
         <strong>Manifest-driven loader:</strong> candidate source-bank
         images and a copy table are generated separately from
         the delivered image. Every source interval is below bank offset

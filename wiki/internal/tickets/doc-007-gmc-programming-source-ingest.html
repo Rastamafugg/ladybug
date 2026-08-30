@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOC-007 GMC programming source ingest — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="../sources/gmc-programming.html">GMC source</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · documentation</p>
+      <h1>DOC-007 — GMC programming source ingest <span class="wiki-badge">Done</span></h1>
+      <p class="wiki-meta">Ingest the external GMC programming guide and reconcile it with Ladybug's bank, sound, and emulator approach.</p>
+    </header>
+
+    <section>
+      <h2>Disposition</h2>
+      <ul>
+        <li><strong>Status:</strong> Done</li>
+        <li><strong>Created / updated:</strong> 2026-08-30 / 2026-08-30</li>
+        <li><strong>Priority / order:</strong> P2 / 15.1</li>
+        <li><strong>Roadmap or source:</strong> <a href="../sources/gmc-programming.html">Programming the Game Master Cartridge</a></li>
+        <li><strong>Owner:</strong> parent agent</li>
+        <li><strong>Dependencies:</strong> existing GMC, sound, and XRoar documentation</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Capture the external document's GMC banking, SN76489, MPI, mux, reset, timing, emulator, and VGM guidance, then record which claims validate or constrain the approved Ladybug sound design.</p>
+      <h3>Scope</h3>
+      <p><strong>In:</strong> source page, source index, sound/cartridge/XRoar propagation, platform index wording, ticket index, and project log. <strong>Out:</strong> assembly changes, sound-runtime implementation, emulator changes, address migration, physical-hardware claims, and VGM tooling.</p>
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>The source page records source identity, extracted facts, project comparison, limitations, and unresolved address compatibility.</li>
+        <li>All affected indexes and platform/tooling pages link to the source or reflect the comparison without changing approved FEAT-006 scope.</li>
+        <li>The log records the ingest and the verification pass.</li>
+        <li>Changed HTML has balanced structural tags, valid local links, and clean whitespace.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Completion evidence</h2>
+      <p>Source was exported from the public Google document and read in full. The new source page and propagated pages record the address alias discrepancy, MPI boundary, command-record decision, write-spacing requirement, mux setup, and power-on mute requirement. Focused HTML/link validation and <code>git diff --check</code> passed after propagation. The source-page SHA-256 is <code>7B3478E940D15AB09D73D919ED627CA87EDDEE31A3722EA90622B1665FEEE5D1</code>. No source, ROM, build script, emulator, or runtime artifact changed. The DOC-007 documentation changes are committed separately; unrelated pre-existing worktree changes remain uncommitted.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-30 — User approved the proposed GMC source-page and wiki updates.</li>
+        <li>2026-08-30 — Ingested the external guide. Retained the document's <code>$FF40/$FF41</code> primary addresses while documenting Ladybug's current <code>$FF50/$FF51</code> aliases as an unresolved compatibility boundary.</li>
+        <li>2026-08-30 — Completed propagation and focused QA. FEAT-006 scope remains unchanged.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Documentation-only ticket. Runtime implementation remains governed by FEAT-006.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

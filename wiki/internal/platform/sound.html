@@ -55,6 +55,29 @@
     </section>
 
     <section>
+      <h2>GMC programming guide comparison</h2>
+      <p>
+        The ingested <a href="../sources/gmc-programming.html">GMC programming guide</a>
+        confirms the 64 K bank limit, almost-16 K usable bank windows, 4 MHz
+        SN76489 target, write-only sound interface, 32-oscillator-cycle write
+        spacing, cartridge audio mux requirement, and power-on mute requirement.
+        These facts reinforce FEAT-006's command-stream and reset design.
+      </p>
+      <ul>
+        <li>Ladybug intentionally uses boot-time bank selection and RAM publication; it does not bank switch during gameplay.</li>
+        <li>The guide's MPI slot-routing path is for non-ROM programs and is not a dependency of the shipped GMC image.</li>
+        <li>The guide's VGM/raw playback path is retained as an offline import or comparison option. The runtime remains semantic command records compiled from arcade PSG traces.</li>
+        <li>The guide names <code>$FF40/$FF41</code>, while Ladybug currently uses the CoCo 3 aliases <code>$FF50/$FF51</code>. XRoar accepts the parity-based aliases, but existing MAME 0.220 evidence requires the primary addresses. This remains an emulator and physical-hardware compatibility gate.</li>
+      </ul>
+      <p>
+        FEAT-006 must explicitly verify fixed write spacing without status polling,
+        cartridge-SND mux initialization, and complete muting across cold boot,
+        warm reset, replacement, explicit stop, and game-over. This source ingest
+        does not authorize changing the current address constants.
+      </p>
+    </section>
+
+    <section>
       <h2>External sound offload candidate</h2>
       <p>
         <strong>Preferred path after XRoar source review (2026-07-26): use the
@@ -151,7 +174,8 @@
         <a href="../sources/sound-cartridges.html">sound-cartridge web and
         manual ingest</a>;
         <a href="../sources/ladybug-arcade.html">official MAME Lady Bug
-        driver and audio-capture interface</a>.
+        driver and audio-capture interface</a>;
+        <a href="../sources/gmc-programming.html">GMC programming guide</a>.
       </p>
     </footer>
   </main>
