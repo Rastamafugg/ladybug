@@ -1,0 +1,188 @@
+{
+  "schema": "ladybug-gmc-cue-descriptor-design-v1",
+  "status": "provisional-research",
+  "revision": "2026-08-29-r2",
+  "scope": "Host-verifiable descriptor and arbitration contract for a future runtime feature; this artifact does not authorize runtime implementation.",
+  "clock": {
+    "sequencer_hz": 60,
+    "psg_clock_hz": 4000000,
+    "psg_write_address": "0xFF51"
+  },
+  "event_queue": {
+    "entry_bytes": 2,
+    "entries": 4,
+    "fields": [
+      {"offset": 0, "name": "cue_id", "type": "u8"},
+      {"offset": 1, "name": "parameter", "type": "u8"}
+    ],
+    "overflow": "Drop the incoming event, increment a saturating diagnostic counter, and never overwrite an older queued event."
+  },
+  "active_cues": {
+    "slots": 4,
+    "layout": "One persistent music-bed slot and three transient effect/jingle/system slots.",
+    "music_admission": "A new music cue replaces the music-bed slot according to the game-state transition; channel pre-emption never discards the bed's virtual timeline.",
+    "transient_admission": "Apply same-cue retrigger first, then use a free transient slot. If all three are occupied, replace the oldest preemptible transient having the lowest priority only when the incoming priority is strictly higher; otherwise drop the incoming event and increment the diagnostic counter."
+  },
+  "descriptor": {
+    "bytes": 8,
+    "lookup": "cue_id indexes an eight-byte table, allowing a three-bit left shift before adding the table base.",
+    "fields": [
+      {
+        "offset": 0,
+        "name": "policy",
+        "bits": {
+          "7..5": "priority, 0 lowest through 7 highest",
+          "4..3": "class: 0 music, 1 effect, 2 jingle, 3 system",
+          "2..1": "retrigger: 0 ignore, 1 restart, 2 queue-one, 3 invalid",
+          "0": "exclusive: when set, allocation is all requested voices or silence"
+        }
+      },
+      {
+        "offset": 1,
+        "name": "resources",
+        "bits": {
+          "7..6": "preferred tone count, 0 through 3",
+          "5..4": "minimum tone count, 0 through 3",
+          "3": "noise required",
+          "2": "noise optional",
+          "1": "noise uses tone-2 as its clock and must allocate tone-2 plus noise atomically",
+          "0": "degradable: preferred voices may be dropped down to the minimum"
+        }
+      },
+      {
+        "offset": 2,
+        "name": "suspension",
+        "bits": {
+          "7..6": "resume mode: 0 continue timeline, 1 pause timeline, 2 restart stream, 3 terminate cue",
+          "5": "preemptible by a strictly higher-priority cue",
+          "4": "restore only at the next note boundary; zero restores on the next service tick",
+          "3..0": "must be zero"
+        }
+      },
+      {
+        "offset": 3,
+        "name": "voice_rank",
+        "bits": {
+          "7..6": "logical tone 0 drop rank",
+          "5..4": "logical tone 1 drop rank",
+          "3..2": "logical tone 2 drop rank",
+          "1..0": "logical noise drop rank"
+        },
+        "rule": "Rank 0 is retained first and rank 3 is dropped first; equal ranks use logical voice number."
+      },
+      {"offset": 4, "name": "stream_address_hi", "type": "u8"},
+      {"offset": 5, "name": "stream_address_lo", "type": "u8"},
+      {
+        "offset": 6,
+        "name": "voice_mask",
+        "bits": {
+          "0": "logical tone 0 present",
+          "1": "logical tone 1 present",
+          "2": "logical tone 2 present",
+          "3": "logical noise present",
+          "7..4": "must be zero"
+        }
+      },
+      {
+        "offset": 7,
+        "name": "parameter_policy",
+        "bits": {
+          "7..6": "parameter mode: 0 ignored, 1 signed transpose biased by 32, 2 variant, 3 intensity",
+          "5..0": "maximum accepted value for variant or intensity; zero for ignored or transpose"
+        }
+      }
+    ]
+  },
+  "stream_commands": [
+    {"opcode": "0x00", "name": "END", "bytes": 1, "effect": "Release every logical voice and remove the cue."},
+    {"opcode": "0x01", "name": "LOOP", "bytes": 1, "effect": "Return to the first command after descriptor activation."},
+    {"opcode": "0x02", "name": "WAIT", "bytes": 2, "operands": "ticks:u8", "constraint": "ticks must be 1 through 255"},
+    {"opcode": "0x10..0x12", "name": "SET_TONE", "bytes": 4, "operands": "period_lo:u8, period_hi:u8, attenuation:u8", "constraint": "opcode low two bits select logical tone; period is little-endian 1 through 1023; attenuation is 0 through 15"},
+    {"opcode": "0x14..0x16", "name": "SET_PERIOD", "bytes": 3, "operands": "period_lo:u8, period_hi:u8", "constraint": "period is little-endian 1 through 1023"},
+    {"opcode": "0x18..0x1A", "name": "SET_VOLUME", "bytes": 2, "operands": "attenuation:u8", "constraint": "attenuation is 0 through 15"},
+    {"opcode": "0x1C", "name": "SET_NOISE", "bytes": 3, "operands": "control:u8, attenuation:u8", "constraint": "control is the SN76489 three-bit noise control and attenuation is 0 through 15; rate selector 3 is invalid unless the descriptor declares atomic tone-2-clocked noise"},
+    {"opcode": "0x1D", "name": "SET_NOISE_VOLUME", "bytes": 2, "operands": "attenuation:u8"},
+    {"opcode": "0x1E", "name": "MUTE", "bytes": 2, "operands": "logical_voice_mask:u8"}
+  ],
+  "invalid_stream_rule": "Any undefined opcode, invalid logical voice, zero WAIT, period outside 1 through 1023, or attenuation outside 0 through 15 terminates the cue and increments a saturating diagnostic counter.",
+  "arbitration": {
+    "physical_voices": ["tone0", "tone1", "tone2", "noise"],
+    "retrigger_state": "queue-one sets one saturating pending-retrigger bit on the active cue; END consumes that bit by restarting the cue once.",
+    "suspension_boundary": "Dropping an optional voice never pauses the cue. Falling below the minimum resource declaration applies the cue's continue, pause, restart, or terminate mode to the whole cue.",
+    "service_order": [
+      "Apply END and release operations from the previous tick.",
+      "Drain queued events in FIFO order and apply each descriptor's retrigger rule.",
+      "Advance virtual cue streams whose suspension rule permits advancement.",
+      "Build required and optional logical-voice requests; treat tone-2-clocked noise as one atomic request.",
+      "Allocate by descending cue priority, required before optional, current owner before a new owner on an exact tie, then cue ID and logical voice number.",
+      "Reject an exclusive request unless all requested resources fit; reject a non-exclusive request unless its minimum resources fit.",
+      "Map retained tones to the lowest-numbered available physical tone while preserving an unchanged owner-to-channel mapping when possible.",
+      "Apply each displaced cue's continue, pause, restart, or terminate rule.",
+      "Diff the winning desired PSG state against the shadow state and emit only changed bytes."
+    ],
+    "strict_preemption": "A cue may displace a preemptible owner only when its priority is strictly higher. Equal priority never steals an owned channel.",
+    "write_bound": "A complete desired-state change is at most eleven SN76489 bytes: three tone period pairs, three tone volumes, one noise control, and one noise volume.",
+    "music_default": "Gameplay music is degradable, preemptible, and normally requests two preferred tones with one minimum tone. Its timeline continues while a voice is displaced, then the current note is restored on the next service tick.",
+    "critical_default": "Death, stage-complete, and award jingles request exclusive ownership and terminate or restart displaced gameplay music according to the separately reviewed cue descriptor."
+  },
+  "flower_worked_example": {
+    "semantic_status": "validated-cue",
+    "current_anchor": {
+      "suite": "audio-flower-isolation-suite",
+      "control_plan": "flower-isolation-control",
+      "treatment_plan": "flower-isolation-treatment",
+      "diverge_frame": 690,
+      "event_frame": 704,
+      "finding": "The treatment changes background code $D246 from flower $E5 to empty $FF and collected display $D344 from $FF to $01; the control leaves both values unchanged.",
+      "rom_finding": "The flower-removal branch is $094A-$0955, the tile write is $094C, and MAME reports post-instruction PC $094D.",
+      "trace_finding": "Treatment-only writes are chip-0 noise E6/F1 at frame 704, E4/F1 at frame 708, FF/FF at frame 712, and a final FF at frame 716. Both repeats are identical."
+    },
+    "isolation_evidence": {
+      "result": "assets/arcade/audio/flower-isolation-result.json",
+      "coverage_status": "complete",
+      "repeat_count": 2,
+      "first_changed_psg_write_frame": 704,
+      "effect_only_wav": "build/audio/flower-isolation/flower-effect-only-repeat-01.wav"
+    },
+    "normalized_stream": [
+      "SET_NOISE control=$06 attenuation=$01",
+      "WAIT 4",
+      "SET_NOISE control=$04 attenuation=$01",
+      "WAIT 4",
+      "SET_NOISE_VOLUME attenuation=$0F",
+      "WAIT 4",
+      "END"
+    ],
+    "descriptor_after_proof": {
+      "symbol": "sfx.flower",
+      "bytes": ["0x8A", "0x08", "0x20", "0xFC", "HI(flower_stream)", "LO(flower_stream)", "0x08", "0x00"],
+      "decoded": {
+        "class": "effect",
+        "priority": 4,
+        "retrigger": "restart",
+        "exclusive": false,
+        "voices": "one required fixed-clock noise voice",
+        "resume_when_preempted": "continue its timeline",
+        "preemptible": true,
+        "parameter": "ignored"
+      },
+      "music_interaction": "The measured cue uses fixed-clock noise only, so it coexists with all three music tones and does not pre-empt music. The matched control proves all non-noise writes remain unchanged through the cue window.",
+      "retrigger_interaction": "A second flower event restarts the same active effect instead of allocating another instance; this remains a design rule because retrigger was not exercised by the isolation pair."
+    }
+  },
+  "translation_artifacts": {
+    "policy": "assets/arcade/audio/gmc-cue-policy.json",
+    "generator": "scripts/build_gmc_sound_data.py",
+    "manifest": "build/audio/gmc-runtime/gmc-runtime-cues.json",
+    "include": "build/audio/gmc-runtime/gmc_sound_data.inc",
+    "binary": "build/audio/gmc-runtime/gmc_sound_data.bin",
+    "result": "Eighteen descriptors and sixteen deduplicated command streams occupy 3478 projected bytes: 144 descriptor bytes and 3334 stream bytes.",
+    "level_start_reduction": "Cue 6 is the only source cue above one-GMC capacity. Preliminary isolated rendering drops source stream 0 at ROM $1031; its RMS error is 2116.215091 versus 2842.038620, 2954.366530, and 2975.179268 for dropping streams 1, 2, and 3.",
+    "death_stop_rule": "Cue 13 is priority 6, preemptible, and terminates when displaced. Cue 16 is priority 7 and atomically owns two tones for its attenuation-15 records, so the original silent channel-stop command terminates the death cue without allowing it to resume.",
+    "acceptance_limit": "The generated data is deterministic and source-command exact after the declared cue-6 reduction. It remains a placement projection until linked runtime size, timing, arbitration, and physical-GMC checks pass."
+  },
+  "open_gates": [
+    "Measure descriptor, active-state, direct-page, cycle, and changed-write costs against the RSCH-001 limits after FEAT-002 and FEAT-003 integration.",
+    "Move the runtime contract into a separate Proposed feature ticket before changing assembly source."
+  ]
+}

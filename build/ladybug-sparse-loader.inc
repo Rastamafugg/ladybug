@@ -8,7 +8,11 @@ SPARSE_PLAYER_INDEX_ADDR equ $A000
 SPARSE_ENEMY_INDEX_BYTES equ 390
 SPARSE_PLAYER_INDEX_BYTES equ 48
 SPARSE_COPY_SEGMENT_BYTES equ 8
-SPARSE_COPY_SEGMENT_COUNT equ 15
+SPARSE_COPY_TABLE_RAM equ $0200
+SPARSE_COPY_TABLE_BYTES equ 96
+SPARSE_COPY_SEGMENT_COUNT equ 12
+GMC_LZSS_DESCRIPTOR_BYTES equ 14
+GMC_LZSS_STREAM_COUNT equ 4
 
 ; bank, destination page, source CPU address, destination window, count
 sparse_copy_table
@@ -20,40 +24,48 @@ sparse_copy_table
         fdb     $C802,$06B2,$014B
         ; enemy+$0000
         fcb     $02,$35
-        fdb     $C020,$A000,$2000
+        fdb     $E125,$A000,$1CDB
+        ; enemy+$1CDB
+        fcb     $03,$35
+        fdb     $D800,$BCDB,$0325
         ; enemy+$2000
-        fcb     $02,$36
-        fdb     $E020,$A000,$1DE0
-        ; enemy+$3DE0
         fcb     $03,$36
-        fdb     $D800,$BDE0,$0220
+        fdb     $DB25,$A000,$2000
         ; enemy+$4000
         fcb     $03,$37
-        fdb     $DA20,$A000,$19DD
-        ; player+$0000
-        fcb     $03,$39
-        fdb     $F3FD,$A000,$08F6
-        ; gate+$0000
-        fcb     $03,$39
-        fdb     $FCF3,$A8F6,$010D
-        ; gate+$010D
-        fcb     $03,$39
-        fdb     $C000,$AA03,$0010
-        ; gate+$011D
-        fcb     $03,$39
-        fdb     $C012,$AA13,$0223
-        ; presentation+$0000
-        fcb     $03,$39
-        fdb     $C235,$AC36,$0380
-        ; presentation_cold+$0000
-        fcb     $03,$3A
-        fdb     $C5B5,$A000,$024B
-        ; presentation_cold+$024B
-        fcb     $00,$3A
-        fdb     $C94D,$A24B,$1B89
+        fdb     $FB25,$A000,$02DB
+        ; enemy+$42DB
+        fcb     $03,$37
+        fdb     $C000,$A2DB,$0010
+        ; enemy+$42EB
+        fcb     $03,$37
+        fdb     $C012,$A2EB,$07EE
+        ; enemy+$4AD9
+        fcb     $00,$37
+        fdb     $C94D,$AAD9,$0F04
         ; attract_actor_bundle+$0000
         fcb     $00,$23
-        fdb     $E4D6,$A000,$04B1
+        fdb     $D851,$A000,$0FD3
+        ; phase_tile_patches+$0000
+        fcb     $00,$23
+        fdb     $E824,$B000,$0080
         ; presentation_module+$0000
         fcb     $00,$FF
-        fdb     $E987,$1900,$04FC
+        fdb     $E8A4,$1900,$0500
+
+; bank, destination page, source start/end, destination start/end, compressed/raw lengths
+gmc_lzss_stream_table
+        ; page39
+        fcb     $02,$39
+        fdb     $C020,$C4AC,$A000,$AFB6,$048C,$0FB6
+        ; presentation_page_3a
+        fcb     $02,$3A
+        fdb     $C4AC,$CF52,$A000,$C000,$0AA6,$2000
+        ; presentation_page_3b
+        fcb     $02,$3B
+        fdb     $CF52,$D78E,$A000,$B2B4,$083C,$12B4
+        ; audio_page_3d
+        fcb     $02,$3D
+        fdb     $D78E,$E125,$A000,$B30D,$0997,$130D
+gmc_lzss_stream_end
+        fcb     $FF

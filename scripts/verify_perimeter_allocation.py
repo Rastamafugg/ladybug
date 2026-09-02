@@ -49,12 +49,14 @@ def main() -> None:
         raise SystemExit("allocation proof: resident staging page is not $21")
     if "ASSET_STAGE_PAGE equ $22" not in bootstrap:
         raise SystemExit("allocation proof: asset staging page is not $22")
-    synthesis_setup = bootstrap.split("copy_assets", 1)[1].split(
-        "lbsr    synthesize_perimeter_reset", 1
-    )[0]
-    if "sta     GMC_BANK" in synthesis_setup:
+    synthesis_call = "lda     #1\n        sta     GMC_BANK\n        lbsr    synthesize_perimeter_reset"
+    if synthesis_call not in bootstrap:
         raise SystemExit(
             "allocation proof: boot synthesis hides bank-1 authored assets"
+        )
+    if bootstrap.index(synthesis_call) > bootstrap.index("copy_sparse_table"):
+        raise SystemExit(
+            "allocation proof: permanent low-RAM copies precede boot synthesis"
         )
     if "sta     SAM_ALLRAM" not in bootstrap:
         raise SystemExit("allocation proof: staged payloads are not followed by all-RAM")

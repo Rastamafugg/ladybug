@@ -47,6 +47,7 @@ from build_screen import (  # noqa: E402
     tileset_ranges,
     transform,
 )
+from gmc_lzss import compress as lzss_compress  # noqa: E402
 
 
 MAP_NAMES = (
@@ -228,68 +229,6 @@ LEVEL_START_METADATA = {
 }
 
 
-def lzss_compress(data: bytes) -> bytes:
-    """Encode a minimum-byte bounded 12-bit-offset, 4-bit-length LZSS stream."""
-    matches: list[dict[int, int]] = []
-    for cursor in range(len(data)):
-        offsets: dict[int, int] = {}
-        for candidate in range(max(0, cursor - 4095), cursor):
-            length = 0
-            distance = cursor - candidate
-            while (length < 18 and cursor + length < len(data) and
-                   data[candidate + length % distance] == data[cursor + length]):
-                length += 1
-            for matched in range(3, length + 1):
-                offsets.setdefault(matched, distance)
-        matches.append(offsets)
-
-    infinity = len(data) * 3
-    costs = [[infinity] * 8 for _ in range(len(data) + 1)]
-    choices: list[list[tuple[int, int] | None]] = [
-        [None] * 8 for _ in range(len(data))
-    ]
-    costs[-1] = [0] * 8
-    for cursor in range(len(data) - 1, -1, -1):
-        for slot in range(8):
-            group_byte = 1 if slot == 0 else 0
-            next_slot = (slot + 1) % 8
-            best_cost = group_byte + 1 + costs[cursor + 1][next_slot]
-            best_choice = (1, 0)
-            for length, distance in matches[cursor].items():
-                cost = group_byte + 2 + costs[cursor + length][next_slot]
-                if cost < best_cost or (cost == best_cost and length > best_choice[0]):
-                    best_cost = cost
-                    best_choice = (length, distance)
-            costs[cursor][slot] = best_cost
-            choices[cursor][slot] = best_choice
-
-    output = bytearray()
-    cursor = 0
-    while cursor < len(data):
-        flag_offset = len(output)
-        output.append(0)
-        flags = 0
-        for bit in range(8):
-            if cursor >= len(data):
-                break
-            choice = choices[cursor][bit]
-            if choice is None:
-                raise AssertionError("missing LZSS parse choice")
-            length, distance = choice
-            if length >= 3:
-                token = (distance << 4) | (length - 3)
-                output.extend(token.to_bytes(2, "big"))
-                cursor += length
-            else:
-                flags |= 1 << bit
-                output.append(data[cursor])
-                cursor += 1
-        output[flag_offset] = flags
-    if len(output) != costs[0][0]:
-        raise AssertionError("LZSS parse size differs from dynamic-programming optimum")
-    return bytes(output)
-
-
 def sprite_transform(tile: list[list[int]], flags: int) -> list[list[int]]:
     """Apply Tiled's orthogonal diagonal, horizontal, then vertical flags."""
     rows = [row[:] for row in tile]
@@ -436,6 +375,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--manifest-output", type=Path, required=True)
     parser.add_argument("--actor-record-output", type=Path, required=True)
     parser.add_argument("--actor-underlay-output", type=Path, required=True)
+    parser.add_argument("--tile-patch-output", type=Path, required=True)
+    parser.add_argument("--timer-record-output", type=Path, required=True)
     parser.add_argument("--development-profile", type=int, choices=(0, 1), default=0)
     parser.add_argument("--complete-profile", type=int, choices=(0, 1), default=0)
     parser.add_argument("--highscore-test-profile", type=int, choices=(0, 1), default=0)
@@ -766,12 +707,13 @@ def compile_map(
     tiles: list[bytes],
     tile_ids: dict[bytes, int],
     highscore_test_profile: bool = False,
-) -> tuple[bytes, dict[str, object]]:
+    allow_phase_overlay: bool = False,
+) -> tuple[list[int] | bytes, dict[str, object]]:
     root, flattened, sources = flatten_map(path)
     role = screen_role(root, path)
     ranges = tileset_ranges(root, path)
     rotated = [rotate_ccw(tile) for tile in chars]
-    output = bytearray()
+    output: list[int] = []
     for index, gid_with_flags in enumerate(flattened):
         x = index % SCREEN_WIDTH
         y = index // SCREEN_WIDTH
@@ -807,10 +749,10 @@ def compile_map(
         tile_id = tile_ids.setdefault(packed, len(tiles))
         if tile_id == len(tiles):
             tiles.append(packed)
-        if tile_id > 255:
+        if tile_id > 255 and not allow_phase_overlay:
             raise ValueError("presentation atlas exceeds one-byte tile IDs")
         output.append(tile_id)
-    return bytes(output), {
+    return output if allow_phase_overlay else bytes(output), {
         "role": role,
         "path": str(path),
         "layer_contract": validate_presentation_layers(root, path),
@@ -879,8 +821,6 @@ def register_tile(tile: bytes, tiles: list[bytes], tile_ids: dict[bytes, int]) -
     tile_id = tile_ids.setdefault(tile, len(tiles))
     if tile_id == len(tiles):
         tiles.append(tile)
-    if tile_id > 255:
-        raise ValueError("presentation atlas exceeds one-byte tile IDs")
     return tile_id
 
 
@@ -1046,7 +986,7 @@ def parse_instruction_contract(
             motion.to_bytes(2, "big") + consume.to_bytes(2, "big")
             + goal.to_bytes(2, "big") + target_destination.to_bytes(2, "big")
             + hud_destination.to_bytes(2, "big")
-            + bytes((hud_tile_2_id, hud_tile_id))
+            + bytes((0, 0))  # remapped tile IDs are installed after phase packing
         )
         event_table.extend(record)
         event_manifest.append({
@@ -1310,13 +1250,14 @@ def coin_tile() -> bytes:
 def compile_profile_maps(
     tiled_dir: Path, chars: list[list[list[int]]], tiles: list[bytes],
     tile_ids: dict[bytes, int], development_profile: bool,
-    highscore_test_profile: bool = False,
+    highscore_test_profile: bool = False, complete_profile: bool = False,
 ) -> tuple[list[bytes], list[dict[str, object]]]:
     """Validate every map while omitting unreachable development-profile maps."""
     maps: list[bytes | None] = []
     map_info: list[dict[str, object]] = []
     placeholder_maps = (
-        RELEASE_PLACEHOLDER_MAPS if highscore_test_profile
+        () if complete_profile
+        else RELEASE_PLACEHOLDER_MAPS if highscore_test_profile
         else DEVELOPMENT_PLACEHOLDER_MAPS if development_profile
         else RELEASE_PLACEHOLDER_MAPS
     )
@@ -1336,7 +1277,9 @@ def compile_profile_maps(
             )
         else:
             authored, info = compile_map(
-                path, chars, tiles, tile_ids, highscore_test_profile
+                path, chars, tiles, tile_ids,
+                highscore_test_profile,
+                complete_profile,
             )
             authored_frame = title_framebuffer(authored, tiles)
             maps.append(authored)
@@ -1344,7 +1287,10 @@ def compile_profile_maps(
         info.update({
             "name": name,
             "bytes": len(authored),
-            "authored_map_sha256": hashlib.sha256(authored).hexdigest(),
+            "authored_map_sha256": hashlib.sha256(
+                bytes(authored) if max(authored, default=0) <= 255
+                else b"".join(int(value).to_bytes(2, "big") for value in authored)
+            ).hexdigest(),
             "authored_frame_sha256": hashlib.sha256(authored_frame).hexdigest(),
             "emission": emission,
         })
@@ -1481,6 +1427,9 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_GAMEPLAY_TILE_BASE equ {manifest['gameplay_tile_base']}",
         f"PRESENTATION_GAMEPLAY_LOOKUP_OFFSET equ {manifest['gameplay_lookup_offset']}",
         f"PRESENTATION_GAMEPLAY_LOOKUP_BYTES equ {manifest['gameplay_lookup_bytes']}",
+        f"PRESENTATION_PHASE_TILE_OVERLAY_ENABLED equ {1 if manifest['phase_tile_overlay']['enabled'] else 0}",
+        f"PRESENTATION_PHASE_TILE_SLOT_0 equ {manifest['phase_tile_overlay']['slot_ids'][0] if manifest['phase_tile_overlay']['slot_ids'] else 0}",
+        f"PRESENTATION_PHASE_TILE_SLOT_1 equ {manifest['phase_tile_overlay']['slot_ids'][1] if manifest['phase_tile_overlay']['slot_ids'] else 0}",
         f"PRESENTATION_ATTRACT_SURFACE_PAGE equ ${ATTRACT_ACTOR_SURFACE_PAGE:02X}",
         f"PRESENTATION_ATTRACT_SURFACE_ADDRESS equ ${ATTRACT_ACTOR_SURFACE_ADDRESS:04X}",
         f"PRESENTATION_ATTRACT_SURFACE_BYTES equ {manifest['attract_actor_surfaces']['bytes']}",
@@ -1666,14 +1615,23 @@ def main() -> None:
     tile_ids: dict[bytes, int] = {}
     maps, map_info = compile_profile_maps(
         args.tiled_dir, chars, tiles, tile_ids, development_profile,
-        highscore_test_profile,
+        highscore_test_profile, complete_profile,
     )
+    if development_profile:
+        instruction = parse_instruction_contract(
+            args.tiled_dir / MAP_FILES["instructions"], chars, sprites,
+            tiles, tile_ids,
+        )
+    else:
+        instruction = parse_instruction_contract(
+            args.tiled_dir / MAP_FILES["instructions"], chars, sprites, [], {}
+        )
     name_entry = (
         parse_enter_high_score_contract(
             args.tiled_dir / MAP_FILES["enter-high-score"], chars, sprites,
             tiles, tile_ids,
         )
-        if highscore_test_profile
+        if highscore_test_profile or complete_profile
         else {
             "cursor_stream": b"", "cursor_source_code": 0,
             "cursor_destination": 0, "cursor_cell": (19, 22),
@@ -1698,15 +1656,6 @@ def main() -> None:
             "action_table": [],
         }
     )
-    if development_profile:
-        instruction = parse_instruction_contract(
-            args.tiled_dir / MAP_FILES["instructions"], chars, sprites,
-            tiles, tile_ids,
-        )
-    else:
-        instruction = parse_instruction_contract(
-            args.tiled_dir / MAP_FILES["instructions"], chars, sprites, [], {}
-        )
     _arcade_route, arcade_route_manifest = load_demo_route(args.demo_route)
     demo_walk, demo_walk_manifest = load_demo_walk(
         args.demo_walk, arcade_route_manifest
@@ -1715,7 +1664,7 @@ def main() -> None:
     coin_id = tile_ids.setdefault(coin_tile(), len(tiles))
     if coin_id == len(tiles):
         tiles.append(coin_tile())
-    if len(tiles) > 256:
+    if len(tiles) > 256 and not complete_profile:
         raise ValueError(
             f"presentation atlas contains {len(tiles)} tiles; one-byte limit is 256"
         )
@@ -1733,22 +1682,118 @@ def main() -> None:
             ))
         name_entry["timer_base_tile_ids"] = timer_base_tile_ids
         name_entry["timer_green_tile_ids"] = timer_green_tile_ids
-        if len(tiles) > 256:
+        if len(tiles) > 256 and not complete_profile:
             raise ValueError(
                 f"presentation atlas contains {len(tiles)} tiles; one-byte limit is 256"
             )
 
     gameplay_tile_ids = {tile: index for index, tile in enumerate(gameplay_tiles)}
+    timer_green_tiles: list[bytes] = []
+    timer_green_indexes: list[int] = []
+    for tile_id in name_entry["timer_green_tile_ids"]:
+        tile = tiles[int(tile_id)]
+        try:
+            index = timer_green_tiles.index(tile)
+        except ValueError:
+            index = len(timer_green_tiles)
+            timer_green_tiles.append(tile)
+        timer_green_indexes.append(index)
+    live_tile_ids = set().union(*(set(data) for data in maps))
+    live_tile_ids.add(coin_id)
+    if development_profile:
+        live_tile_ids.add(int(instruction["black_tile_id"]))
+        for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
+            for ids in instruction[group].values():
+                live_tile_ids.update(int(tile_id) for tile_id in ids)
+        for event in instruction["events"]:
+            if event["hud_destination"]:
+                live_tile_ids.add(int(event["hud_tile_id"]))
+                if event["hud_tile_2_id"]:
+                    live_tile_ids.add(int(event["hud_tile_2_id"]))
+    if name_entry["grid_tile_ids"]:
+        for key in (
+            "grid_tile_ids", "default_name_tile_ids", "top_name_tile_ids",
+            "timer_base_tile_ids",
+        ):
+            live_tile_ids.update(int(tile_id) for tile_id in name_entry[key])
+        live_tile_ids.update(
+            int(tile_id) for tile_id in name_entry["node_tile_ids"]
+            if tile_id not in (0xFD, 0xFE, 0xFF)
+        )
+        live_tile_ids.update(
+            int(tile_id) for _x, _y, tile_id in name_entry["action_records"]
+            if tile_id not in (0xFD, 0xFE, 0xFF)
+        )
+        if complete_profile and name_entry["timer_green_tile_ids"]:
+            # Retain one phase-native green perimeter tile in the atlas; the
+            # seven additional timer variants live in bounded cold tile data.
+            live_tile_ids.add(int(name_entry["timer_green_tile_ids"][0]))
+    overlay_pairs: list[tuple[int, int]] = []
+    if complete_profile:
+        overflow = len(live_tile_ids) - 256
+        if overflow != 2:
+            raise ValueError(
+                f"complete presentation union needs {overflow} overlaid tile slots; "
+                "approved design requires exactly two; "
+                f"live={len(live_tile_ids)} timer-green="
+                f"{len(set(name_entry['timer_green_tile_ids']))}"
+            )
+        instruction_ids = set(maps[MAP_NAMES.index("instructions")])
+        highscore_ids = set().union(*(
+            set(maps[MAP_NAMES.index(name)])
+            for name in ("game-over", "enter-high-score", "high-score")
+        ))
+        other_ids = set().union(*(
+            set(maps[MAP_NAMES.index(name)])
+            for name in ("attract", "level-start")
+        ))
+        instruction_candidates = sorted(
+            tile_id for tile_id in instruction_ids - highscore_ids - other_ids
+            if tile_id in live_tile_ids and tiles[tile_id] not in gameplay_tile_ids
+        )
+        highscore_candidates = sorted(
+            tile_id for tile_id in highscore_ids - instruction_ids - other_ids
+            if tile_id in live_tile_ids and tiles[tile_id] not in gameplay_tile_ids
+        )
+        if len(instruction_candidates) < 2 or len(highscore_candidates) < 2:
+            raise ValueError("complete presentation lacks two phase-exclusive tile pairs")
+        overlay_pairs = list(zip(
+            instruction_candidates[:2], highscore_candidates[:2]
+        ))
+    elif len(live_tile_ids) > 256:
+        raise ValueError("presentation atlas exceeds one-byte tile IDs")
+
+    overlay_replacements = {
+        highscore_id: instruction_id
+        for instruction_id, highscore_id in overlay_pairs
+    }
+    representative_ids = [
+        tile_id for tile_id in sorted(live_tile_ids)
+        if tile_id not in overlay_replacements
+    ]
     cold_tile_ids = [
-        tile_id for tile_id, tile in enumerate(tiles)
-        if tile not in gameplay_tile_ids
+        tile_id for tile_id in representative_ids
+        if tiles[tile_id] not in gameplay_tile_ids
     ]
     gameplay_match_ids = [
-        tile_id for tile_id, tile in enumerate(tiles)
-        if tile in gameplay_tile_ids
+        tile_id for tile_id in representative_ids
+        if tiles[tile_id] in gameplay_tile_ids
     ]
     ordered_ids = cold_tile_ids + gameplay_match_ids
-    remap = {old_id: new_id for new_id, old_id in enumerate(ordered_ids)}
+    representative_remap = {
+        old_id: new_id for new_id, old_id in enumerate(ordered_ids)
+    }
+    remap = {
+        old_id: representative_remap[overlay_replacements.get(old_id, old_id)]
+        for old_id in live_tile_ids
+    }
+    instruction_patch_set = b"".join(
+        tiles[instruction_id] for instruction_id, _highscore_id in overlay_pairs
+    )
+    highscore_patch_set = b"".join(
+        tiles[highscore_id] for _instruction_id, highscore_id in overlay_pairs
+    )
+    overlay_slots = [remap[instruction_id] for instruction_id, _ in overlay_pairs]
     maps = [bytes(remap[tile_id] for tile_id in data) for data in maps]
     for info, data in zip(map_info, maps):
         info["sha256"] = hashlib.sha256(data).hexdigest()
@@ -1799,9 +1844,7 @@ def main() -> None:
         name_entry["timer_base_tile_ids"] = [
             remap[int(tile_id)] for tile_id in name_entry["timer_base_tile_ids"]
         ]
-        name_entry["timer_green_tile_ids"] = [
-            remap[int(tile_id)] for tile_id in name_entry["timer_green_tile_ids"]
-        ]
+        name_entry["timer_green_tile_ids"] = []
     cold_only_tiles = tiles[:len(cold_tile_ids)]
     gameplay_lookup = bytes(
         gameplay_tile_ids[tiles[tile_id]]
@@ -1889,13 +1932,15 @@ def main() -> None:
     name_entry["cursor_stream_bytes"] = len(name_entry["cursor_stream"])
     demo_route_offset = len(cold_payload)
     cold_payload.extend(demo_walk)
+    name_entry_timer_tiles_offset = len(cold_payload)
+    cold_payload.extend(b"".join(timer_green_tiles))
     name_entry_timer_offset = len(cold_payload)
-    for cell, base_id, green_id in zip(
-            perimeter_box_cells(), name_entry["timer_base_tile_ids"],
-            name_entry["timer_green_tile_ids"]):
+    for cell, green_index in zip(perimeter_box_cells(), timer_green_indexes):
         cold_payload.extend(
             framebuffer_destination(cell).to_bytes(2, "big") +
-            bytes((base_id, green_id))
+            (name_entry_timer_tiles_offset + green_index * TILE_BYTES).to_bytes(
+                2, "big"
+            )
         )
     name_entry_edge_mask_offset = len(cold_payload)
     edge_masks = enter_high_score_edge_masks() if name_entry["grid_tile_ids"] else b""
@@ -1922,14 +1967,28 @@ def main() -> None:
     name_entry["action_table_offset"] = name_entry_action_offset
     name_entry["action_table_bytes"] = len(action_table)
     name_entry["action_table"] = list(action_table)
-    if len(cold_payload) > COLD_PAYLOAD_LIMIT:
+    effective_cold_limit = PAGE_BYTES * 2 if complete_profile else COLD_PAYLOAD_LIMIT
+    if len(cold_payload) > effective_cold_limit:
         raise ValueError(
             f"presentation cold payload is {len(cold_payload)} bytes; "
-            f"limit is {COLD_PAYLOAD_LIMIT}"
+            f"limit is {effective_cold_limit}"
         )
     static_frame_hashes = []
+    highscore_phase_tiles = list(tiles)
+    for slot_id, tile in zip(
+            overlay_slots,
+            (highscore_patch_set[index:index + TILE_BYTES]
+             for index in range(0, len(highscore_patch_set), TILE_BYTES))):
+        highscore_phase_tiles[slot_id] = tile
     for index, data in enumerate(maps):
-        frame = title_framebuffer(data, tiles)
+        frame = title_framebuffer(
+            data,
+            highscore_phase_tiles if index in (
+                MAP_NAMES.index("game-over"),
+                MAP_NAMES.index("enter-high-score"),
+                MAP_NAMES.index("high-score"),
+            ) else tiles,
+        )
         if development_profile and index == MAP_NAMES.index("instructions"):
             blend_native_surface(
                 frame, instruction["cucumber_destination"],
@@ -1972,6 +2031,14 @@ def main() -> None:
         "tile_atlas_compressed_bytes": len(stored_tile_atlas),
         "tile_atlas_expanded_bytes": len(tile_atlas),
         "tile_atlas_runtime_offset": PAGE_BYTES if highscore_test_profile else 0,
+        "phase_tile_overlay": {
+            "enabled": bool(overlay_pairs),
+            "slot_ids": overlay_slots,
+            "instruction_patch_bytes": len(instruction_patch_set),
+            "highscore_patch_bytes": len(highscore_patch_set),
+            "instruction_patch_sha256": hashlib.sha256(instruction_patch_set).hexdigest(),
+            "highscore_patch_sha256": hashlib.sha256(highscore_patch_set).hexdigest(),
+        },
         "cold_only_tile_count": len(cold_only_tiles),
         "gameplay_tile_base": len(cold_only_tiles),
         "gameplay_lookup_offset": gameplay_lookup_offset,
@@ -2046,6 +2113,8 @@ def main() -> None:
             "top_right_destinations": name_entry["top_right_destinations"],
             "timer_table_offset": name_entry_timer_offset,
             "timer_table_bytes": len(name_entry["timer_base_tile_ids"]) * 4,
+            "timer_tile_data_offset": name_entry_timer_tiles_offset,
+            "timer_tile_data_bytes": len(timer_green_tiles) * TILE_BYTES,
             "timer_frames_per_box": ENTER_HIGH_SCORE_TIMER_FRAMES,
             "timer_box_count": ENTER_HIGH_SCORE_TIMER_COUNT,
             "timer_cells": [list(cell) for cell in perimeter_box_cells()],
@@ -2122,7 +2191,7 @@ def main() -> None:
         ],
         "cold_page": COLD_PAGE,
         "cold_page_count": COLD_PAGE_COUNT,
-        "cold_payload_limit": COLD_PAYLOAD_LIMIT,
+        "cold_payload_limit": effective_cold_limit,
         "cold_payload": {
             "bytes": len(cold_payload),
             "sha256": hashlib.sha256(cold_payload).hexdigest(),
@@ -2140,6 +2209,21 @@ def main() -> None:
     args.actor_record_output.write_bytes(attract_metadata)
     args.actor_underlay_output.parent.mkdir(parents=True, exist_ok=True)
     args.actor_underlay_output.write_bytes(attract_compressed)
+    args.tile_patch_output.parent.mkdir(parents=True, exist_ok=True)
+    args.tile_patch_output.write_bytes(instruction_patch_set + highscore_patch_set)
+    timer_record_bytes = len(name_entry["timer_base_tile_ids"]) * 4
+    args.timer_record_output.parent.mkdir(parents=True, exist_ok=True)
+    timer_records = bytes(cold_payload[
+        name_entry_timer_offset:name_entry_timer_offset + timer_record_bytes
+    ])
+    timer_lines = ["; Generated name-entry timer records for the page-$23 helper."]
+    for offset in range(0, len(timer_records), 16):
+        timer_lines.append(
+            "        fcb     " + ",".join(
+                f"${value:02X}" for value in timer_records[offset:offset + 16]
+            )
+        )
+    args.timer_record_output.write_text("\n".join(timer_lines) + "\n", encoding="ascii")
     args.manifest_output.parent.mkdir(parents=True, exist_ok=True)
     args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",
                                     encoding="ascii")

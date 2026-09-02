@@ -77,6 +77,22 @@
         CR bits configured for "CA2/CB2 = output, hold value = bit 3 of the
         CR".
       </p>
+      <p>
+        Selector A (audio) and selector B (joystick comparator input) are the
+        two halves of one switch and therefore share PIA1 CA2/CB2. Selecting
+        right-joystick X or Y on B simultaneously changes A from cartridge
+        SND position 2 to DAC position 0 or cassette position 1. PIA2 CB2 is
+        a master gate for A only; it cannot preserve cartridge audio while B
+        selects a joystick axis. The documented internal circuit provides no
+        independent cartridge-audio bypass or sample-and-hold path.
+      </p>
+      <p>
+        PB1 remains independently summed, but it is only a one-bit source and
+        cannot reproduce the GMC's three tone channels plus noise. Software
+        using analog joystick axes and GMC audio must therefore accept brief
+        source interruptions, schedule samples around audio, reduce sampling
+        frequency, or change the control/audio hardware contract.
+      </p>
     </section>
 
     <footer class="wiki-footer">

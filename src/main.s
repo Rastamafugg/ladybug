@@ -164,6 +164,12 @@
 ; DP allocation (page $00)
 ;------------------------------------------------------------------------------
         setdp   $00
+        include "ladybug_audio_symbols.inc"
+
+AUDIO_ENGINE_EXEC   equ $0300
+AUDIO_INIT_EXEC     equ $0303
+AUDIO_ENQUEUE_EXEC  equ $0306
+PRES_NAME_PTR       equ $00E4
 
 LAST_FRAME    equ $0000         ; last processed Vbord counter low byte
 JOY_X         equ $0001         ; right joystick X, 0..63
@@ -626,11 +632,6 @@ main_game_tick
         lbsr    player_tick
         lbsr    enemy_collect
 main_after_player
-        lda     PRES_MODE
-        cmpa    #MODE_DEMO
-        beq     main_demo_input_owned
-        lbsr    read_joystick
-main_demo_input_owned
         lda     DEATH_STATE
         bne     main_after_timers
         lbsr    bonus_color_tick
@@ -661,6 +662,12 @@ phase4_before_tick
         lbsr    next_stage
 main_render
         lbsr    render_frame
+        lda     PRES_MODE
+        cmpa    #MODE_DEMO
+        beq     main_demo_input_owned
+        lbsr    read_joystick
+main_demo_input_owned
+        jsr     AUDIO_ENGINE_EXEC
         bra     mainloop
 
 ;==============================================================================
@@ -921,6 +928,8 @@ extra_letter_x
         fcb     0,0,5,0,1,0,0,0,4,0,3,2
 
 check_stage_clear
+        tst     STAGE_PENDING
+        bne     csc_done
         lda     DOTS_LEFT
         bne     csc_done
         lda     BONUS_LEFT
@@ -1038,11 +1047,11 @@ dvh_stage_ok
         lsra
         lsra
         lsra
-        lbsr    draw_hud_digit
+        bsr     draw_hud_digit
         inc     HUD_X
         lda     HUD_BCD_BYTE
         anda    #$0F
-        lbsr    draw_hud_digit
+        bsr     draw_hud_digit
         inc     HUD_X
         lda     ,u
         sta     HUD_BCD_BYTE
@@ -1050,11 +1059,11 @@ dvh_stage_ok
         lsra
         lsra
         lsra
-        lbsr    draw_hud_digit
+        bsr     draw_hud_digit
         inc     HUD_X
         lda     HUD_BCD_BYTE
         anda    #$0F
-        lbsr    draw_hud_digit
+        bsr     draw_hud_digit
         rts
 
 vegetable_values
@@ -1074,11 +1083,11 @@ dbl_byte
         lsra
         lsra
         lsra
-        lbsr    draw_hud_digit
+        bsr     draw_hud_digit
         inc     HUD_X
         lda     HUD_BCD_BYTE
         anda    #$0F
-        lbsr    draw_hud_digit
+        bsr     draw_hud_digit
         inc     HUD_X
         dec     HUD_BCD_COUNT
         bne     dbl_byte
@@ -1210,14 +1219,14 @@ clm_row
         rts
 
 draw_life_marker
-        lbsr    draw_authored_hud_tile
+        bsr     draw_authored_hud_tile
         inc     HUD_X
-        lbsr    draw_authored_hud_tile
+        bsr     draw_authored_hud_tile
         dec     HUD_X
         inc     HUD_Y
-        lbsr    draw_authored_hud_tile
+        bsr     draw_authored_hud_tile
         inc     HUD_X
-        lbsr    draw_authored_hud_tile
+        bsr     draw_authored_hud_tile
         rts
 
 draw_authored_hud_tile
@@ -1317,7 +1326,7 @@ ie_place_skulls
 ie_skull_loop
         lda     #ENTITY_SKULL
         ldb     #OBJECT_SKULL
-        lbsr    place_entity
+        bsr     place_entity
         dec     ENTITY_WORK
         bne     ie_skull_loop
 
@@ -1326,7 +1335,7 @@ ie_skull_loop
 ie_heart_loop
         lda     #ENTITY_HEART
         ldb     #OBJECT_HEART
-        lbsr    place_entity
+        bsr     place_entity
         dec     ENTITY_WORK
         bne     ie_heart_loop
 
@@ -1341,7 +1350,7 @@ ie_xtr_pick
         leax    letter_xtr,pcr
         ldb     b,x
         lda     #ENTITY_LETTER
-        lbsr    place_entity
+        bsr     place_entity
 
         ; One letter from S/P/C/I/L.
         lbsr    rng_next
@@ -1354,7 +1363,7 @@ ie_spcil_pick
         leax    letter_spcil,pcr
         ldb     b,x
         lda     #ENTITY_LETTER
-        lbsr    place_entity
+        bsr     place_entity
 
         ; One letter from E/A.
         lbsr    rng_next
@@ -1362,7 +1371,7 @@ ie_spcil_pick
         leax    letter_ea,pcr
         ldb     b,x
         lda     #ENTITY_LETTER
-        lbsr    place_entity
+        bsr     place_entity
         lda     ENTITY_TOTAL
         sta     ENTITY_COUNT
         lbsr    build_gate_entity_lists
@@ -1609,10 +1618,10 @@ ceo_byte
         lsra
         lsra
         lsra
-        lbsr    cache_entity_operation
+        bsr     cache_entity_operation
         lda     OBJ_INDEX
         anda    #$0F
-        lbsr    cache_entity_operation
+        bsr     cache_entity_operation
         dec     OBJ_BYTES
         bne     ceo_byte
         clr     OBJ_CACHE_RUN_LENGTH ; runs are always row-bounded
@@ -1944,11 +1953,9 @@ init_joystick
         clr     PIA1_CRA        ; select PIA1 PA direction register
         clr     PIA1_DA         ; all PA bits input, including comparator PA7
         clr     PIA1_CRB        ; select PIA1 PB direction register
-        lda     #$FF
-        sta     PIA1_DB         ; keyboard columns/output side
-        lda     #$34            ; data register, static CA2/CB2 output low
-        sta     PIA1_CRA
-        sta     PIA1_CRB        ; selector 0 = right joystick X
+        ldd     #$FF34
+        std     PIA1_DB         ; PB output DDR, then data/CB2-low control
+        stb     PIA1_CRA        ; data register, static CA2 low: right X
 
         clr     PIA2_CRA        ; select PIA2 PA direction register
         lda     #$FC
@@ -1956,10 +1963,9 @@ init_joystick
         lda     #$04            ; data-register access
         sta     PIA2_CRA
         clr     PIA2_CRB
-        lda     #$34            ; static CB2 low enables analog multiplexer
+        ldd     #$3480          ; analog mux enabled, centred DAC value
         sta     PIA2_CRB
-        lda     #$80            ; centre DAC while idle
-        sta     PIA2_DA
+        stb     PIA2_DA
         rts
 
 ;==============================================================================
@@ -2006,12 +2012,14 @@ init_player
 ;==============================================================================
 read_joystick
         lda     #$34            ; static CA2 low: right X
+        sta     PIA2_CRB        ; break analog route before selecting joystick
         sta     PIA1_CRA
-        lbsr    joy_read_axis
+        sta     PIA1_CRB        ; selector 0 = right joystick
+        bsr     joy_read_axis
         stb     JOY_X
         lda     #$3C            ; static CA2 high: right Y
         sta     PIA1_CRA
-        lbsr    joy_read_axis
+        bsr     joy_read_axis
         stb     JOY_Y
         lda     #$80
         sta     PIA2_DA
@@ -3574,14 +3582,14 @@ restore_entity_footprint
         lda     ENTITY_Y
         deca
         sta     TEST_Y
-        lbsr    draw_maze_state_cell
+        bsr     draw_maze_state_cell
         inc     TEST_X
-        lbsr    draw_maze_state_cell
+        bsr     draw_maze_state_cell
         dec     TEST_X
         inc     TEST_Y
-        lbsr    draw_maze_state_cell
+        bsr     draw_maze_state_cell
         inc     TEST_X
-        lbsr    draw_maze_state_cell
+        bsr     draw_maze_state_cell
         rts
 
 draw_maze_state_cell
@@ -3782,8 +3790,6 @@ pat_count
 pat_done
         rts
 
-; Bank 3 is copied to $0800 by the GMC bootstrap. Fixed entry points keep the
-; resident cartridge image independent of bank-3 link addresses.
 init_enemy
         jsr     ENEMY_MODULE_INIT
         rts
@@ -3823,11 +3829,11 @@ bps_byte
         lsra
         lsra
         lda     a,u
-        lbsr    merge_sprite_byte
+        bsr     merge_sprite_byte
         lda     OBJ_VALUE
         anda    #$0F
         lda     a,u
-        lbsr    merge_sprite_byte
+        bsr     merge_sprite_byte
         dec     BLIT_WIDTH
         bne     bps_byte
         leax    152,x
@@ -4133,6 +4139,56 @@ par_table
 ; Curated animation frames occupy resident ROM because the immutable asset
 ; window is at its guard limit.
         include "ladybug_resident.inc"
+
+        ifne    COMPLETE_PROFILE
+        include "ladybug_presentation.inc"
+        include "ladybug_presentation_resident.inc"
+install_phase_tiles_for_screen
+        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+        beq     install_phase_tiles_select
+        cmpa    #PRESENTATION_MAP_GAME_OVER
+        beq     install_phase_tiles_select
+        cmpa    #PRESENTATION_MAP_ENTER_HIGH_SCORE
+        beq     install_phase_tiles_select
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        beq     install_phase_tiles_select
+        rts
+install_phase_tiles_select
+        pshs    a
+        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+        bne     install_highscore_tiles
+        ldx     #$9000
+        bra     install_phase_tiles
+install_highscore_tiles
+        ldx     #$9040
+install_phase_tiles
+        lda     PAR_EXEC+4
+        pshs    a
+        lda     #$23
+        sta     PAR_EXEC+4
+        lda     #PRESENTATION_COLD_PAGE
+        sta     PAR_EXEC+5
+        ldy     #$A000+PRESENTATION_TILE_ATLAS_OFFSET+PRESENTATION_PHASE_TILE_SLOT_0*32
+        ldb     #64
+install_phase_tile
+        lda     ,x+
+        sta     ,y+
+        decb
+        bne     install_phase_tile
+        puls    a
+        sta     PAR_EXEC+4
+        lda     #$34
+        sta     PAR_EXEC+5
+        puls    a,pc
+
+; Return bridge for code executing from page $23 through a routine that
+; temporarily changes PAR5.  The caller stores its page-$23 continuation in
+; PRES_NAME_PTR before placing this address on the hardware stack.
+presentation_page23_resume
+        lda     #$23
+        sta     PAR_EXEC+5
+        jmp     [PRES_NAME_PTR]
+        endc
 
         ifne    HIGHSCORE_TEST_PROFILE
 presentation_add_credit

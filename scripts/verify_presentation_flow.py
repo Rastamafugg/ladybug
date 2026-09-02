@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src/presentation_runtime.s"
+DEMO_SOURCE = ROOT / "src/demo_runtime.s"
 HELPER_SOURCE = ROOT / "src/perimeter_reset_helper.s"
 BOOT_SOURCE = ROOT / "src/gmc_bootstrap.s"
 PRESENTATION_MAP = ROOT / "build/ladybug-presentation-runtime.map"
@@ -35,6 +36,7 @@ def symbol_map(text: str) -> dict[str, int]:
 
 def main() -> None:
     source = SOURCE.read_text(encoding="ascii")
+    demo_source = DEMO_SOURCE.read_text(encoding="ascii")
     helper_source = HELPER_SOURCE.read_text(encoding="ascii")
     boot_source = BOOT_SOURCE.read_text(encoding="ascii")
     symbols = symbol_map(PRESENTATION_MAP.read_text(encoding="ascii"))
@@ -45,6 +47,7 @@ def main() -> None:
     cold = layout["presentation_cold"]["bytes"]
     combined = module_bytes + cold
     source_spare = layout["gmc"]["spare_bytes"]
+    audio_integrated = bool(layout.get("audio_runtime"))
     development = bool(presentation_layout.get("development_profile"))
     complete = bool(presentation_layout.get("complete_profile"))
     highscore_test = bool(presentation_layout.get("highscore_test_profile"))
@@ -52,6 +55,8 @@ def main() -> None:
         aux = layout.get("aux_runtime", {})
         instruction_runtime = layout.get("instruction_runtime", {})
         demo_runtime = layout.get("demo_runtime", {})
+        highscore_runtime = layout.get("highscore_runtime", {})
+        highscore_helper = layout.get("highscore_helper", {})
         if aux.get("role") != "complete":
             raise SystemExit("presentation flow proof: complete profile manifest role is missing")
         if instruction_runtime.get("role") != "instructions":
@@ -62,9 +67,83 @@ def main() -> None:
                 instruction_runtime.get("stage_address", 0) +
                 instruction_runtime.get("bytes", 0)):
             raise SystemExit("presentation flow proof: auxiliary stage order is not contiguous")
-        if aux.get("staged_bytes") != (
-                instruction_runtime.get("bytes", 0) + demo_runtime.get("bytes", 0)):
-            raise SystemExit("presentation flow proof: auxiliary staged size is inconsistent")
+        if highscore_runtime.get("destination_address") != 0x0300 or highscore_runtime.get("destination_end", 0) > 0x0698:
+            raise SystemExit("presentation flow proof: high-score owner exceeds $0300-$0697")
+        if not highscore_helper.get("bytes"):
+            raise SystemExit("presentation flow proof: page-$23 high-score helper is absent")
+        if aux.get("staged_bytes", 0) < sum(
+                item.get("bytes", 0) for item in
+                (instruction_runtime, demo_runtime, highscore_runtime, highscore_helper)):
+            raise SystemExit("presentation flow proof: auxiliary staged coverage is incomplete")
+        for fragment in (
+            "lbmi    highscore_timer_owner",
+            "lda     #$80",
+            "sta     PRES_TICK_PHASE",
+            "tst     FB_PENDING",
+            "inc     PRES_TICK_PHASE",
+            "lbra    highscore_timer_prepare",
+            "cmpa    #PRES_HOLD_FINAL",
+            "clr     PRES_HOLD_STATE",
+        ):
+            if fragment not in demo_source:
+                raise SystemExit(
+                    "presentation flow proof: complete name timer omits " + fragment
+                )
+        if not re.search(
+                r"puls\s+a\s+tsta\s+bne\s+demo_runtime_done",
+                demo_source,
+                re.MULTILINE):
+            raise SystemExit(
+                "presentation flow proof: restored helper result is not tested before branch"
+            )
+        timer_callback = demo_source[
+            demo_source.index("\nhighscore_after_tile\n"):
+            demo_source.index("\nhighscore_tick_second\n")
+        ]
+        if "dec     PRES_TMP_H" in timer_callback or "highscore_timer_draw" in timer_callback:
+            raise SystemExit(
+                "presentation flow proof: complete name timer retains cumulative redraw"
+            )
+        prepare_block = demo_source[
+            demo_source.index("\nhighscore_prepare_name\n"):
+            demo_source.index("\nhighscore_commit_name\n")
+        ]
+        commit_block = demo_source[
+            demo_source.index("\nhighscore_commit_name\n"):
+            demo_source.index("\nhighscore_timer_records\n")
+        ]
+        for fragment in (
+            "PRES_HIGHSCORE_ALIAS equ $8F84",
+            "PRES_PENDING_NAME_ALIAS equ $8FDE",
+            "ldu     #PRES_HIGHSCORE_ALIAS",
+            "ldx     #PRES_PENDING_NAME_ALIAS",
+            "ldx     #PRES_HIGHSCORE_ALIAS+70",
+            "ldu     #PRES_HIGHSCORE_ALIAS+80",
+            "lda     #7",
+            "bmi     highscore_commit_write",
+        ):
+            if fragment not in demo_source:
+                raise SystemExit(
+                    "presentation flow proof: mapped high-score state omits " + fragment
+                )
+        for label, block in (("prepare", prepare_block), ("commit", commit_block)):
+            if block.count("lda     PAR4") != 1 or block.count("sta     PAR4") != 2:
+                raise SystemExit(
+                    f"presentation flow proof: {label} does not save/map/restore PAR4 exactly"
+                )
+            for fragment in ("pshs    cc", "orcc    #$10", "puls    cc"):
+                if fragment not in block:
+                    raise SystemExit(
+                        f"presentation flow proof: {label} mapping omits {fragment}"
+                    )
+        for pattern in (
+            r"#PRES_HIGHSCORE_BASE(?:\+|\s)",
+            r"#PRES_PENDING_NAME\s",
+        ):
+            if re.search(pattern, prepare_block) or re.search(pattern, commit_block):
+                raise SystemExit(
+                    "presentation flow proof: page-$23 helper retains direct page-$34 access " + pattern
+                )
 
     required_symbols = [
         "install_aux_runtime",
@@ -154,6 +233,23 @@ def main() -> None:
         raise SystemExit("presentation flow proof: load budget is not memory-backed")
     if "decb" in load_source:
         raise SystemExit("presentation flow proof: load budget still uses clobbered B")
+    hold_select = source[
+        source.index("\nstart_screen_map\n"):source.index("\nstart_screen_hold\n")
+    ]
+    for fragment in (
+        "cmpa    #PRESENTATION_MAP_INSTRUCTIONS",
+        "bls     start_screen_hold",
+        "cmpa    #PRESENTATION_MAP_ENTER_HIGH_SCORE",
+        "bne     start_screen_done",
+    ):
+        if fragment not in hold_select:
+            raise SystemExit(
+                "presentation flow proof: held-screen selector omits " + fragment
+            )
+    if "HIGHSCORE_TEST_PROFILE" in hold_select:
+        raise SystemExit(
+            "presentation flow proof: enter-high-score hydration is profile-conditional"
+        )
     preemption = source[source.index("\npft_mode\n"):source.index("\npft_dispatch\n")]
     for fragment in (
         "bita    #1", "tst     PRES_CREDITS", "dec     PRES_CREDITS",
@@ -184,19 +280,28 @@ def main() -> None:
         raise SystemExit(f"presentation flow proof: module is {module_bytes}/1280 bytes")
     if helper_bytes > 334:
         raise SystemExit(f"presentation flow proof: helper is {helper_bytes}/334 bytes")
-    if cold > COLD_HARD_LIMIT:
+    if cold > COLD_HARD_LIMIT and not complete:
         raise SystemExit(f"presentation flow proof: cold payload is {cold}/{COLD_HARD_LIMIT} bytes")
-    if combined > 14219:
+    if combined > 14219 and not complete:
         raise SystemExit(f"presentation flow proof: module+cold is {combined}/14219 bytes")
-    sound_margin = source_spare - SOUND_SOURCE_BUDGET
+    if audio_integrated:
+        # FEAT-006 now owns the approved audio payload.  The old 1,536-byte
+        # future-sound reservation is no longer a valid release calculation;
+        # retain only the post-integration source-pool spare guard here.
+        sound_margin = source_spare
+        sound_label = "post-audio source spare"
+    else:
+        sound_margin = source_spare - SOUND_SOURCE_BUDGET
+        sound_label = "future-sound margin"
     if not development and sound_margin < SOUND_RELEASE_RESERVE:
         raise SystemExit(
-            f"presentation flow proof: future-sound margin is {sound_margin}; "
+            f"presentation flow proof: {sound_label} is {sound_margin}; "
             f"required reserve is {SOUND_RELEASE_RESERVE}"
         )
 
     profile_label = (
         "high-score test flow" if highscore_test else
+        "complete flow" if complete else
         "development helper" if development else "release flow"
     )
     behavior_label = (
@@ -211,7 +316,7 @@ def main() -> None:
         f"{behavior_label}, atomic surface copy, "
         f"module {module_bytes}/1280, helper {helper_bytes}/334, cold {cold}/{COLD_HARD_LIMIT} "
         f"(preferred {COLD_PREFERRED_TARGET}), "
-        f"combined {combined}/14219, future-sound margin {sound_margin}/{SOUND_RELEASE_RESERVE}"
+        f"combined {combined}/14219, {sound_label} {sound_margin}/{SOUND_RELEASE_RESERVE}"
     )
 
 

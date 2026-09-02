@@ -13,7 +13,19 @@
     <a href="../index.html">Internal</a>
     <a href="./index.html">Implementation</a>
   </nav>
-<main class="wiki-main">
+  <main class="wiki-main">
+    <section>
+      <h2>Test a restored register before branching on its value</h2>
+      <p><strong>Filed 2026-09-02.</strong> FEAT-006 saved a helper return value, restored a bank mapping with <code>LDA</code>/<code>STA</code>, restored the value with <code>PULS A</code>, and immediately executed <code>BNE</code>. The branch observed condition codes from the mapping load instead of the restored helper result, making the early exit unconditional in practice.</p>
+      <p><strong>Rule:</strong> after restoring a value from the stack, execute an explicit compare or test before any conditional branch that is meant to inspect that value. Review bank-window wrappers for both register preservation and condition-code provenance.</p>
+      <p><strong>Citation:</strong> <code>src/demo_runtime.s</code> <code>highscore_name_tick</code> and <code>build/feat006-chunk68-early-name-diagnostic.json</code>.</p>
+    </section>
+    <section>
+      <h2>A banked helper cannot dereference state through its own execution window</h2>
+      <p><strong>Filed 2026-09-01.</strong> FEAT-006 installed the high-score helper in physical page <code>$23</code> through PAR5, then the helper used page-<code>$34</code> virtual addresses <code>$AF84</code> and <code>$AFDE</code> directly. Those writes remained in physical page <code>$23</code>, overwrote timer records and helper data, and eventually produced a tile-shaped overwrite in the low-RAM owner.</p>
+      <p><strong>Rule:</strong> code executing from a banked window must not address another physical owner through that same virtual window. Use an explicitly owned second window with interrupts excluded and exact mapping restoration, or return through an always-mapped service that owns the required mapping. Verify the active code bytes again after every phase that can mutate an aliased window.</p>
+      <p><strong>Citation:</strong> <code>src/demo_runtime.s</code> <code>highscore_prepare_name</code>/<code>highscore_commit_name</code> and <code>build/feat006-chunk66-identity-failure.json</code>.</p>
+    </section>
     <section>
       <h2>Close every dynamic overlay before arming framebuffer publication</h2>
       <p><strong>Filed 2026-08-28.</strong> FEAT-003 timer drawing updated one BACK owner and armed publication before synchronizing that owner&rsquo;s retained cursor and pending-name pixels. The Vbord IRQ could therefore publish a correct timer box with a one-step-old player destination and prior name field.</p>

@@ -15,6 +15,7 @@ from build_screen import (
     compile_player_sprites,
     compile_screen,
 )
+from gmc_lzss import compress as lzss_compress, decompress as lzss_decompress
 
 
 PAGE_BYTES = 0x2000
@@ -63,9 +64,14 @@ PERIMETER_RESET_PAGE = 0x20
 PERIMETER_RESET_ADDRESS = WINDOW_BASE
 PERIMETER_RESET_HELPER_ADDRESS = 0x06B2
 PERIMETER_RESET_HELPER_LIMIT = 0x0800
+AUDIO_RUNTIME_PAGE = 0x3D
+AUDIO_RUNTIME_ADDRESS = WINDOW_BASE
 INSTRUCTION_RUNTIME_PAGE = 0x23
 INSTRUCTION_RUNTIME_ADDRESS = 0xA422
 INSTRUCTION_RUNTIME_BYTES = 0x3AA
+HIGHSCORE_RUNTIME_ADDRESS = 0xA880
+HIGHSCORE_PHASE_HELPER_ADDRESS = 0xAC40
+PHASE_TILE_PATCH_ADDRESS = 0xB000
 
 
 @dataclass(frozen=True)
@@ -99,6 +105,29 @@ class CopySegment:
         return CART_CPU_BASE + self.source_offset
 
 
+@dataclass(frozen=True)
+class PackedStream:
+    name: str
+    raw: bytes
+    compressed: bytes
+    bank: int
+    source_offset: int
+    destination_page: int
+    destination_address: int
+
+    @property
+    def source_address(self) -> int:
+        return CART_CPU_BASE + self.source_offset
+
+    @property
+    def source_end(self) -> int:
+        return self.source_address + len(self.compressed)
+
+    @property
+    def destination_end(self) -> int:
+        return self.destination_address + len(self.raw)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sprites", type=Path, required=True)
@@ -118,6 +147,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--presentation-module", type=Path, required=True)
     parser.add_argument("--instruction-runtime", type=Path, required=True)
     parser.add_argument("--demo-runtime", type=Path, required=True)
+    parser.add_argument("--highscore-runtime", type=Path, required=True)
+    parser.add_argument("--highscore-helper", type=Path, required=True)
+    parser.add_argument("--audio-runtime", type=Path, required=True)
+    parser.add_argument("--tile-patches", type=Path, required=True)
     parser.add_argument(
         "--aux-runtime-role",
         choices=("highscore-test", "development", "release", "complete"),
@@ -357,8 +390,12 @@ def pack_candidate_banks(
         perimeter_helper: bytes = b"", instruction_runtime: bytes = b"",
         demo_runtime: bytes = b"", aux_runtime_role: str = "release",
         actor_records: bytes = b"",
-        actor_underlays: bytes = b""
-) -> tuple[bytes, bytes, bytes, list[CopySegment]]:
+        actor_underlays: bytes = b"", audio_runtime: bytes = b"",
+        tile_patches: bytes = b"",
+        highscore_runtime: bytes = b"",
+        highscore_helper: bytes = b"",
+        include_streams: bool = False,
+) -> tuple:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
     if len(enemy_runtime) > ENEMY_RUNTIME_RESERVED:
         raise ValueError(
@@ -386,10 +423,20 @@ def pack_candidate_banks(
         raise ValueError("instruction runtime exceeds freed $0300-$064C loader RAM")
     if len(demo_runtime) > INSTRUCTION_RUNTIME_BYTES:
         raise ValueError("demo runtime exceeds freed $0300-$064C loader RAM")
+    if len(highscore_runtime) > 0x398:
+        raise ValueError("high-score runtime exceeds phase-owned $0300-$0697 RAM")
     if aux_runtime_role == "development":
         aux_runtime_stage = instruction_runtime
     elif aux_runtime_role == "complete":
-        aux_runtime_stage = instruction_runtime + demo_runtime
+        highscore_offset = HIGHSCORE_RUNTIME_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+        helper_offset = HIGHSCORE_PHASE_HELPER_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+        prefix = instruction_runtime + demo_runtime
+        if len(prefix) > highscore_offset:
+            raise ValueError("complete demo overlaps the page-$23 high-score runtime")
+        prefix = prefix.ljust(highscore_offset, b"\x00") + highscore_runtime
+        if len(prefix) > helper_offset:
+            raise ValueError("complete high-score runtime overlaps its helper")
+        aux_runtime_stage = prefix.ljust(helper_offset, b"\x00") + highscore_helper
     else:
         aux_runtime_stage = demo_runtime
 
@@ -407,20 +454,30 @@ def pack_candidate_banks(
     ]
     targets = (
         target_chunks("enemy", enemy_payload, ENEMY_PAGE_BASE) +
-        target_chunks("player", player_payload, PLAYER_PAGE_BASE) +
-        target_chunks(
-            "gate", gate_payload, PLAYER_PAGE_BASE, GATE_PAYLOAD_ADDRESS
-        ) +
-        target_chunks("presentation", presentation_payload, PLAYER_PAGE_BASE,
-                      PRESENTATION_PAYLOAD_ADDRESS) +
-        target_chunks("presentation_cold", presentation_cold, 0x3A,
-                      WINDOW_BASE) +
         target_chunks("attract_actor_bundle", actor_underlays + actor_records +
                       aux_runtime_stage,
                       0x23, 0xA000) +
+        target_chunks("phase_tile_patches", tile_patches, 0x23,
+                      PHASE_TILE_PATCH_ADDRESS) +
         target_chunks("presentation_module", presentation_module, 0xFF,
                       0x1900)
     )
+
+    page39_raw = player_payload + gate_payload + presentation_payload
+    stream_targets = [
+        ("page39", page39_raw, PLAYER_PAGE_BASE, WINDOW_BASE),
+        ("presentation_page_3a", presentation_cold[:PAGE_BYTES], 0x3A,
+         WINDOW_BASE),
+    ]
+    if len(presentation_cold) > PAGE_BYTES:
+        stream_targets.append((
+            "presentation_page_3b", presentation_cold[PAGE_BYTES:], 0x3B,
+            WINDOW_BASE,
+        ))
+    stream_targets.append((
+        "audio_page_3d", audio_runtime, AUDIO_RUNTIME_PAGE,
+        AUDIO_RUNTIME_ADDRESS,
+    ))
 
     banks[0][BOOT_OVERFLOW_START:
              BOOT_OVERFLOW_START + len(BOOT_OVERFLOW_PROOF)] = BOOT_OVERFLOW_PROOF
@@ -444,6 +501,36 @@ def pack_candidate_banks(
     )]
     source_index = 0
     source_cursor = sources[0].start
+    packed_streams: list[PackedStream] = []
+    for name, raw, destination_page, destination_address in stream_targets:
+        if not raw:
+            continue
+        if destination_address + len(raw) > WINDOW_BASE + PAGE_BYTES:
+            raise ValueError(f"{name} crosses its 8 KiB destination page")
+        compressed = lzss_compress(raw)
+        if lzss_decompress(compressed, len(raw)) != raw:
+            raise ValueError(f"{name} host round trip differs")
+        while source_index < len(sources):
+            source = sources[source_index]
+            if source.end - source_cursor >= len(compressed):
+                break
+            source_index += 1
+            if source_index < len(sources):
+                source_cursor = sources[source_index].start
+        if source_index >= len(sources):
+            raise ValueError("compressed streams exceed CPU-readable GMC capacity")
+        source = sources[source_index]
+        banks[source.bank][source_cursor:source_cursor + len(compressed)] = compressed
+        packed_streams.append(PackedStream(
+            name=name,
+            raw=raw,
+            compressed=compressed,
+            bank=source.bank,
+            source_offset=source_cursor,
+            destination_page=destination_page,
+            destination_address=destination_address,
+        ))
+        source_cursor += len(compressed)
     for target in targets:
         target_cursor = 0
         while target_cursor < len(target.data):
@@ -506,10 +593,15 @@ def pack_candidate_banks(
         ):
             raise ValueError("loader segment overlaps a bank signature")
 
-    return bytes(banks[0]), bytes(banks[2]), bytes(banks[3]), segments
+    result = (
+        bytes(banks[0]), bytes(banks[2]), bytes(banks[3]), segments,
+    )
+    return result + (packed_streams,) if include_streams else result
 
 
-def write_loader_include(path: Path, segments: list[CopySegment]) -> None:
+def write_loader_include(
+        path: Path, segments: list[CopySegment], streams: list[PackedStream]
+) -> None:
     lines = [
         "; Generated by scripts/build_sparse_sprites.py; do not edit.",
         f"SPARSE_ENEMY_PAYLOAD_PAGE equ ${ENEMY_PAGE_BASE:02X}",
@@ -524,6 +616,8 @@ def write_loader_include(path: Path, segments: list[CopySegment]) -> None:
         f"SPARSE_COPY_TABLE_RAM equ ${SPARSE_COPY_TABLE_RAM:04X}",
         f"SPARSE_COPY_TABLE_BYTES equ {len(segments) * 8}",
         f"SPARSE_COPY_SEGMENT_COUNT equ {len(segments)}",
+        "GMC_LZSS_DESCRIPTOR_BYTES equ 14",
+        f"GMC_LZSS_STREAM_COUNT equ {len(streams)}",
         "",
         "; bank, destination page, source CPU address, destination window, count",
         "sparse_copy_table",
@@ -535,6 +629,16 @@ def write_loader_include(path: Path, segments: list[CopySegment]) -> None:
             f"        fdb     ${segment.source_address:04X},"
             f"${segment.destination_address:04X},${segment.count:04X}",
         ))
+    lines.extend(("", "; bank, destination page, source start/end, destination start/end, compressed/raw lengths", "gmc_lzss_stream_table"))
+    for stream in streams:
+        lines.extend((
+            f"        ; {stream.name}",
+            f"        fcb     ${stream.bank:02X},${stream.destination_page:02X}",
+            f"        fdb     ${stream.source_address:04X},${stream.source_end:04X},"
+            f"${stream.destination_address:04X},${stream.destination_end:04X},"
+            f"${len(stream.compressed):04X},${len(stream.raw):04X}",
+        ))
+    lines.extend(("gmc_lzss_stream_end", "        fcb     $FF"))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="ascii")
 
@@ -630,18 +734,34 @@ def main() -> None:
     presentation_module = args.presentation_module.read_bytes()
     instruction_runtime = args.instruction_runtime.read_bytes()
     demo_runtime = args.demo_runtime.read_bytes()
+    highscore_runtime = args.highscore_runtime.read_bytes()
+    highscore_helper = args.highscore_helper.read_bytes()
+    audio_runtime = args.audio_runtime.read_bytes()
+    tile_patches = args.tile_patches.read_bytes()
+    if len(tile_patches) not in (0, 128):
+        raise SystemExit("sparse: phase tile patches must be empty or exactly 128 bytes")
     if args.aux_runtime_role == "development":
         aux_runtime_stage = instruction_runtime
     elif args.aux_runtime_role == "complete":
-        aux_runtime_stage = instruction_runtime + demo_runtime
+        highscore_offset = HIGHSCORE_RUNTIME_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+        helper_offset = HIGHSCORE_PHASE_HELPER_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+        prefix = instruction_runtime + demo_runtime
+        if len(prefix) > highscore_offset:
+            raise SystemExit("sparse: complete demo overlaps high-score runtime")
+        prefix = prefix.ljust(highscore_offset, b"\x00") + highscore_runtime
+        if len(prefix) > helper_offset:
+            raise SystemExit("sparse: high-score runtime overlaps helper")
+        aux_runtime_stage = prefix.ljust(helper_offset, b"\x00") + highscore_helper
     else:
         aux_runtime_stage = demo_runtime
-    bank0, bank2, bank3, segments = pack_candidate_banks(
+    bank0, bank2, bank3, segments, packed_streams = pack_candidate_banks(
         enemy_payload, player_payload, gate_payload, presentation_payload,
         enemy_runtime, presentation_cold, presentation_module,
         perimeter_payload, perimeter_helper, instruction_runtime, demo_runtime,
         args.aux_runtime_role,
-        actor_records, actor_underlays
+        actor_records, actor_underlays, audio_runtime, tile_patches,
+        highscore_runtime, highscore_helper,
+        include_streams=True
     )
     outputs = (
         (args.enemy_output, enemy_payload),
@@ -654,15 +774,17 @@ def main() -> None:
     for path, data in outputs:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-    write_loader_include(args.loader_output, segments)
+    write_loader_include(args.loader_output, segments, packed_streams)
 
     proof_bytes = len(BOOT_OVERFLOW_PROOF)
     used_payload_source_bytes = sum(
         segment.count for segment in segments
         if segment.target != "boot_overflow_proof"
-    )
+    ) + sum(len(stream.compressed) for stream in packed_streams)
     bank0_used_bytes = sum(
         segment.count for segment in segments if segment.bank == 0
+    ) + sum(
+        len(stream.compressed) for stream in packed_streams if stream.bank == 0
     )
     usable_expansion_bytes = (
         (CART_READABLE_BYTES - BANK2_PAYLOAD_START) +
@@ -682,6 +804,32 @@ def main() -> None:
             "player_index_source": SPARSE_INDEX_ADDRESS,
             "window_base": WINDOW_BASE,
             "page_bytes": PAGE_BYTES,
+        },
+        "compression": {
+            "codec": "gmc-lzss-12-4-lsb",
+            "descriptor_bytes": 14,
+            "decoder_bytes": None,
+            "streams": [
+                {
+                    "name": stream.name,
+                    "bank": stream.bank,
+                    "source_offset": stream.source_offset,
+                    "source_address": stream.source_address,
+                    "source_end": stream.source_end,
+                    "destination_page": stream.destination_page,
+                    "destination_address": stream.destination_address,
+                    "destination_end": stream.destination_end,
+                    "compressed_bytes": len(stream.compressed),
+                    "raw_bytes": len(stream.raw),
+                    "compressed_sha256": digest(stream.compressed),
+                    "raw_sha256": digest(stream.raw),
+                    "expanded_sha256": digest(
+                        lzss_decompress(stream.compressed, len(stream.raw))
+                    ),
+                    "round_trip_exact": True,
+                }
+                for stream in packed_streams
+            ],
         },
         "enemy": {
             "frames": len(enemy_frames),
@@ -742,6 +890,12 @@ def main() -> None:
             "address": 0x1900,
             "sha256": digest(presentation_module),
         },
+        "audio_runtime": {
+            "bytes": len(audio_runtime),
+            "page": AUDIO_RUNTIME_PAGE,
+            "address": AUDIO_RUNTIME_ADDRESS,
+            "sha256": digest(audio_runtime),
+        },
         "aux_runtime": {
             "role": args.aux_runtime_role,
             "stage_page": INSTRUCTION_RUNTIME_PAGE,
@@ -750,6 +904,28 @@ def main() -> None:
             "destination_end": 0x06AA,
             "staged_bytes": len(aux_runtime_stage),
             "staged_sha256": digest(aux_runtime_stage),
+        },
+        "phase_tile_patches": {
+            "bytes": len(tile_patches),
+            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_address": PHASE_TILE_PATCH_ADDRESS,
+            "instruction_bytes": len(tile_patches) // 2,
+            "highscore_bytes": len(tile_patches) // 2,
+            "sha256": digest(tile_patches),
+        },
+        "highscore_helper": {
+            "bytes": len(highscore_helper),
+            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_address": HIGHSCORE_PHASE_HELPER_ADDRESS,
+            "sha256": digest(highscore_helper),
+        },
+        "highscore_runtime": {
+            "bytes": len(highscore_runtime),
+            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_address": HIGHSCORE_RUNTIME_ADDRESS,
+            "destination_address": 0x0300,
+            "destination_end": 0x0698,
+            "sha256": digest(highscore_runtime),
         },
         "gmc": {
             "readable_bytes_per_bank": CART_READABLE_BYTES,
@@ -786,6 +962,9 @@ def main() -> None:
                 }
                 for segment in segments
             ],
+            "compressed_stream_source_bytes": sum(
+                len(stream.compressed) for stream in packed_streams
+            ),
         },
     }
     if args.aux_runtime_role in ("development", "complete"):
@@ -821,7 +1000,7 @@ def main() -> None:
         f"gate {len(gate_payload)} bytes, "
         f"presentation {len(presentation_payload)} bytes, "
         f"perimeter reset {len(perimeter_payload)} bytes, "
-        f"{len(segments)} loader segments, "
+        f"{len(segments)} loader segments, {len(packed_streams)} LZSS streams, "
         f"{manifest['gmc']['spare_bytes']} CPU-readable GMC bytes spare"
     )
 

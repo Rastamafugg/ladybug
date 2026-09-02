@@ -51,6 +51,7 @@
         setdp   $00
         include "ladybug_presentation.inc"
         include "ladybug_presentation_symbols.inc"
+        include "ladybug_audio_symbols.inc"
 
 PAR1    equ $FFA1
 PAR2    equ $FFA2
@@ -67,6 +68,7 @@ PRESENTATION_HOLD_TICK equ $06C7
 PRESENTATION_ATTRACT_OVERLAY equ $06C9
 INSTRUCTION_RUNTIME_TICK equ $0300
 DEMO_RUNTIME_TICK equ $0300
+AUDIO_INIT_EXEC equ $0303
 BLIT_TILE equ PRES_MAIN_BLIT_TILE
 SPARSE_ENEMY_PAYLOAD_PAGE equ $35
 SPARSE_PLAYER_PAYLOAD_PAGE equ $39
@@ -219,7 +221,11 @@ pft_dispatch
         lbra    attract_tick
         else
         ifne    BUG011_DEVELOPMENT_PROFILE
+        ifne    COMPLETE_PROFILE
+        jmp     DEMO_RUNTIME_TICK
+        else
         lbra    attract_tick
+        endc
         else
         cmpa    #MODE_GAMEOVER
         lbeq    gameover_tick
@@ -228,26 +234,8 @@ pft_dispatch
         endc
 
 install_aux_runtime
-        ifne    HIGHSCORE_TEST_PROFILE
-        pshs    a
-        endc
         ifne    COMPLETE_PROFILE
-        lbsr    install_instruction_runtime
-        rts
-
-install_instruction_runtime
-        ldx     #PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS
-        ldu     #PRESENTATION_INSTRUCTION_RUNTIME_BYTES
-        bra     install_aux_runtime_copy
-
-install_demo_runtime
-        ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
-        ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
-install_aux_runtime_copy
-        lda     #$23
-        sta     PAR5
-        ldy     #$0300
-        bra     install_aux_runtime_byte
+        bra     install_instruction_runtime
         else
         ifne    BUG011_DEVELOPMENT_PROFILE
         ldx     #PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS
@@ -257,9 +245,30 @@ install_aux_runtime_copy
         ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
         endc
         lda     #$23
+        bra     install_aux_runtime_copy
+        endc
+
+        ifne    COMPLETE_PROFILE
+install_instruction_runtime
+        ldx     #PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS
+        ldu     #PRESENTATION_INSTRUCTION_RUNTIME_BYTES
+        lda     #$23
+        bra     install_aux_runtime_copy
+
+install_demo_runtime
+        ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
+        ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
+        lda     #$23
+        bra     install_aux_runtime_copy
+
+install_highscore_runtime
+        ldx     #PRESENTATION_HIGHSCORE_RUNTIME_ADDRESS
+        ldu     #PRESENTATION_HIGHSCORE_RUNTIME_BYTES
+        lda     #$23
+        endc
+install_aux_runtime_copy
         sta     PAR5
         ldy     #$0300
-        endc
 install_aux_runtime_byte
         lda     ,x+
         sta     ,y+
@@ -268,9 +277,6 @@ install_aux_runtime_byte
         bne     install_aux_runtime_byte
         lda     #$34
         sta     PAR5
-        ifne    HIGHSCORE_TEST_PROFILE
-        puls    a
-        endc
         rts
 
 normal_tick
@@ -281,10 +287,19 @@ normal_tick
         lda     #PRESENTATION_MAP_GAME_OVER
         else
         ifne    BUG011_DEVELOPMENT_PROFILE
+        ifne    COMPLETE_PROFILE
+        ; Complete installs phase owners before loading the screen selector.
+        else
         lda     #PRESENTATION_MAP_ATTRACT
+        endc
         else
         lda     #PRESENTATION_MAP_GAME_OVER
         endc
+        endc
+        ifne    COMPLETE_PROFILE
+        jsr     AUDIO_INIT_EXEC
+        bsr     install_highscore_runtime
+        lda     #PRESENTATION_MAP_GAME_OVER
         endc
         bsr     start_screen
         lda     #1
@@ -330,8 +345,12 @@ start_screen
 start_screen_context_ready
         endc
         ifne    COMPLETE_PROFILE
+        jsr     PRES_MAIN_INSTALL_PHASE_TILES
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+        beq     start_screen_instruction_install
+        tsta
         bne     start_screen_no_instruction_install
+start_screen_instruction_install
         lbsr    install_instruction_runtime
         lda     PRES_SCREEN
 start_screen_no_instruction_install
@@ -339,7 +358,7 @@ start_screen_no_instruction_install
         endc
         tfr     a,b
         aslb
-        ifne    HIGHSCORE_TEST_PROFILE
+        ifne    HIGHSCORE_TEST_PROFILE+COMPLETE_PROFILE
         ldx     #PRES_MAIN_MAP_STREAM_OFFSETS
         else
         leax    map_stream_offsets,pcr
@@ -358,17 +377,10 @@ start_screen_map
         std     PRES_DST
         lbsr    map_back
         lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_ATTRACT
-        beq     start_screen_hold
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
-        ifne    HIGHSCORE_TEST_PROFILE
-        beq     start_screen_hold
+        bls     start_screen_hold
         cmpa    #PRESENTATION_MAP_ENTER_HIGH_SCORE
-        beq     start_screen_hold
-        bra     start_screen_done
-        else
         bne     start_screen_done
-        endc
 start_screen_hold
         jsr     PRESENTATION_HOLD_BEGIN
 start_screen_done
@@ -441,6 +453,14 @@ load_done_dynamic_high
         endc
         jsr     DEMO_RUNTIME_TICK
 load_done_dynamic_ready
+        else
+        ifne    COMPLETE_PROFILE
+        ldb     PRES_SCREEN
+        cmpb    #PRESENTATION_MAP_HIGH_SCORE
+        blo     load_done_dynamic_ready
+        jsr     DEMO_RUNTIME_TICK
+load_done_dynamic_ready
+        endc
         endc
         lda     PRES_HOLD_STATE
         beq     load_done_publish
@@ -492,7 +512,7 @@ load_done_publish
         lda     #1
         sta     PENDING
         andcc   #$EF
-        ifne    HIGHSCORE_TEST_PROFILE
+        ifne    HIGHSCORE_TEST_PROFILE+COMPLETE_PROFILE
         ldx     #PRES_MAIN_SCREEN_MODES
         else
         ldx     #screen_modes
@@ -772,6 +792,7 @@ init_gameplay
         lda     #RF_STAGE       ; replace the presentation map on both A/B owners
         sta     $007F
         rts
+
 gameplay_reentry
         lda     #$34            ; shared initializers write game-state through PAR5
         sta     PAR5
@@ -794,7 +815,11 @@ gameplay_reentry_clear
         std     ,x++
         cmpx    #FB_META_END
         blo     gameplay_reentry_clear
+        lda     #AUDIO_RUNTIME_PAGE
+        sta     PAR5
+        jsr     AUDIO_INSTALL_EXEC
         rts
+
         ifne    HIGHSCORE_TEST_PROFILE
 demo_tick
         lbra    hold
@@ -1449,7 +1474,7 @@ module_commit_done
 scan_keys
         clr     PRES_EVENT
         ldy     #PRES_PREV
-        ifne    HIGHSCORE_TEST_PROFILE
+        ifne    HIGHSCORE_TEST_PROFILE+COMPLETE_PROFILE
         ldx     #PRES_MAIN_SCAN_DRIVES
         ldu     #PRES_MAIN_SCAN_BITS
         clrb
@@ -1482,7 +1507,13 @@ scan_next
         sta     PIA_DB
         lda     #$34
         sta     PIA_CRA
+        ifne    COMPLETE_PROFILE
+        nop                     ; gameplay input owns the joystick selector
+        nop
+        nop
+        else
         sta     PIA_CRB
+        endc
         rts
         ifne    HIGHSCORE_TEST_PROFILE
 draw_actor_overlay
@@ -1590,7 +1621,7 @@ instruction_phase_starts
         fdb     $3940,$4834,$5234,$7540,$7F34,$8434
         endc
 
-        ifeq    HIGHSCORE_TEST_PROFILE
+        ifeq    HIGHSCORE_TEST_PROFILE+COMPLETE_PROFILE
 map_stream_offsets
         fdb PRESENTATION_MAP_STREAM_0
         fdb PRESENTATION_MAP_STREAM_1

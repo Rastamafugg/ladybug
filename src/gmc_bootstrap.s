@@ -35,9 +35,15 @@ BOOT_DEST   equ $02FA
 BOOT_LZ_FLAGS equ $02FC
 BOOT_LZ_BITS equ $02FD
 BOOT_LZ_OFFSET equ $02FE
+BOOT_DESC_PTR equ $0280
+BOOT_SRC_END equ $0282
+BOOT_DEST_END equ $0284
+BOOT_STREAMS equ $0286
+GMC_LZSS_TABLE_RAM equ $0287
 LOADER_RAM  equ $0300
 RESIDENT_STAGE_PAGE equ $21
 ASSET_STAGE_PAGE equ $22
+AUDIO_STAGE_PAGE equ $24
 PRESENTATION_NAME_ENTRY_DATA equ 0
 
         ifne    HIGHSCORE_TEST_PROFILE
@@ -60,6 +66,17 @@ boot_entry
         sta     PAR_EXEC+7
         lda     #%01101100      ; MMU + force FExx + SCS for GMC $FF50
         sta     GIME_INIT0
+        ; Clear any SN76489 state left by a warm or cold reset before the
+        ; foreground runtime is installed.  These are attenuation writes,
+        ; not frequency changes, so no stale tone can remain audible.
+        lda     #$9F
+        sta     $FF51
+        lda     #$BF
+        sta     $FF51
+        lda     #$DF
+        sta     $FF51
+        lda     #$FF
+        sta     $FF51
         sta     SAM_FAST        ; run the boot copy at the normal 1.78 MHz rate
         sta     SAM_CART        ; BASIC autorun may leave TY=1; expose GMC ROM
         leax    loader_start,pcr
@@ -91,6 +108,20 @@ loader_start
         lda     #$5A
         sta     BOOT_PROOF
 
+        ; Preserve the generated LZSS table before the enemy runtime copy
+        ; reclaims its final relocated source bytes at $0800-$0801.
+        lda     #0
+        sta     GMC_BANK
+        leax    gmc_lzss_stream_table,pcr
+        ldy     #GMC_LZSS_TABLE_RAM
+        ldu     #GMC_LZSS_STREAM_TABLE_BYTES
+copy_gmc_lzss_table
+        lda     ,x+
+        sta     ,y+
+        leau    -1,u
+        cmpu    #0
+        bne     copy_gmc_lzss_table
+
         ; Bank 3 offset $0800 contains an absolute low-RAM enemy module.
         ; Copying it once avoids frame-time GMC switching and preserves the
         ; resident MMU mapping used by the framebuffer.
@@ -118,10 +149,34 @@ copy_enemy_runtime
         cmpx    #$D800
         blo     copy_enemy_runtime
 
+        ; Synthesize the exact native Green-to-White perimeter program before
+        ; the permanent $06B2 helper reclaims the tail of this relocated
+        ; loader.  Bank 1 exposes the authored screen map and tile atlas.
+        lda     #1
+        sta     GMC_BANK
+        lbsr    synthesize_perimeter_reset
+
+        ; Physical pages $3C-$3F remain ROM-shadowed until SAM_ALLRAM.
+        ; Preserve the fourth stream's packed bytes in ordinary page $24 so
+        ; audio can be expanded into page $3D after the all-RAM handoff.
+        ldx     #GMC_LZSS_TABLE_RAM+(GMC_LZSS_DESCRIPTOR_BYTES*3)
+        lda     ,x
+        sta     GMC_BANK
+        lda     #AUDIO_STAGE_PAGE
+        sta     PAR_EXEC+5
+        ldu     2,x
+        ldd     4,x
+        std     BOOT_SRC_END
+        ldy     #$A000
+copy_staged_audio_stream
+        lda     ,u+
+        sta     ,y+
+        cmpu    BOOT_SRC_END
+        blo     copy_staged_audio_stream
+
         ; Copy the indexed sparse enemy/player streams into physical pages
         ; $35-$37 and $39 using the generated fragmented-bank plan.
         leax    sparse_copy_table,pcr
-        ifne    HIGHSCORE_TEST_PROFILE
         ldy     #SPARSE_COPY_TABLE_RAM
         ldu     #SPARSE_COPY_TABLE_BYTES
 copy_sparse_table
@@ -131,7 +186,6 @@ copy_sparse_table
         cmpu    #0
         bne     copy_sparse_table
         ldx     #SPARSE_COPY_TABLE_RAM
-        endc
         lda     #SPARSE_COPY_SEGMENT_COUNT
         sta     BOOT_SEGMENTS
 copy_sparse_segment
@@ -198,6 +252,11 @@ copy_sparse_done
         dec     BOOT_SEGMENTS
         bne     copy_sparse_segment
 
+        ; Expand all page-bounded FEAT-006 streams while cartridge ROM is
+        ; still selected. Each descriptor names one source bank interval and
+        ; one physical destination page; no runtime decompression remains.
+        lbsr    decompress_gmc_streams
+
         ; Bank 1 contains the current 16 KiB runtime image. Stage its resident
         ; 8 KiB in ordinary RAM while the cartridge remains selected. Physical
         ; pages $3E/$3F are populated only after the all-RAM handoff below.
@@ -253,13 +312,6 @@ copy_assets
         cmpx    #$FE00
         blo     copy_assets
 
-        ; Synthesize the exact native Green-to-White perimeter program from
-        ; the authored screen map and tile atlas now visible through PAR7.
-        ; PAR5 is changed only for the generated destination page $20.
-        ; Keep GMC bank 1 selected so PAR7 still exposes the authored assets.
-        ; The loader itself executes from its relocated low-RAM copy.
-        lbsr    synthesize_perimeter_reset
-
         ; Disconnect cartridge ROM, then publish the staged bank-1 bytes to
         ; their runtime pages. The loader executes from always-mapped low RAM.
         lda     #$34
@@ -314,6 +366,8 @@ copy_staged_assets
         cmpx    #$BE00
         blo     copy_staged_assets
 
+        lbsr    decompress_staged_audio
+
         ; Page $23 stages the compressed bundle while cartridge ROM is selected.
         ; After all-RAM publication, expand it into presentation page $3C.
         lbsr    decompress_attract_surfaces
@@ -328,6 +382,113 @@ copy_staged_assets
         ; Skip the two-byte DK cartridge header when entering the
         ; relocated runtime.
         jmp     $C002
+
+decompress_gmc_streams
+        ldx     #GMC_LZSS_TABLE_RAM
+        lda     GMC_LZSS_TABLE_RAM+(GMC_LZSS_DESCRIPTOR_BYTES*3)
+        pshs    a
+        lda     #$FF
+        sta     GMC_LZSS_TABLE_RAM+(GMC_LZSS_DESCRIPTOR_BYTES*3)
+        lda     #GMC_LZSS_STREAM_COUNT-1
+        sta     BOOT_STREAMS
+        lbsr    dgs_descriptor
+        puls    a
+        sta     GMC_LZSS_TABLE_RAM+(GMC_LZSS_DESCRIPTOR_BYTES*3)
+        rts
+decompress_staged_audio
+        lda     #AUDIO_STAGE_PAGE
+        sta     PAR_EXEC+4
+        ldx     #GMC_LZSS_TABLE_RAM+(GMC_LZSS_DESCRIPTOR_BYTES*3)
+        ldd     #$8000
+        std     2,x
+        addd    10,x
+        std     4,x
+        lda     #1
+        sta     BOOT_STREAMS
+dgs_descriptor
+        tst     BOOT_STREAMS
+        lbeq    dgs_terminator
+        lda     ,x
+        cmpa    #$FF
+        lbeq    loader_fail
+        sta     GMC_BANK
+        lda     1,x
+        sta     PAR_EXEC+5
+        ldu     2,x
+        ldd     4,x
+        std     BOOT_SRC_END
+        ldy     6,x
+        ldd     8,x
+        std     BOOT_DEST_END
+        leax    GMC_LZSS_DESCRIPTOR_BYTES,x
+        stx     BOOT_DESC_PTR
+dgs_flags
+        cmpy    BOOT_DEST_END
+        beq     dgs_stream_done
+        cmpu    BOOT_SRC_END
+        lbhs    loader_fail
+        lda     ,u+
+        sta     BOOT_LZ_FLAGS
+        lda     #8
+        sta     BOOT_LZ_BITS
+dgs_token
+        lsr     BOOT_LZ_FLAGS
+        bcc     dgs_match
+        cmpu    BOOT_SRC_END
+        lbhs    loader_fail
+        lda     ,u+
+        sta     ,y+
+        bra     dgs_next
+dgs_match
+        cmpu    BOOT_SRC_END
+        lbhs    loader_fail
+        ldd     ,u++
+        pshs    b
+        lsra
+        rorb
+        lsra
+        rorb
+        lsra
+        rorb
+        lsra
+        rorb
+        cmpd    #0
+        lbeq    loader_fail
+        std     BOOT_LZ_OFFSET
+        tfr     y,d
+        subd    BOOT_LZ_OFFSET
+        tfr     d,x
+        puls    b
+        andb    #$0F
+        addb    #3
+dgs_match_byte
+        lda     ,x+
+        sta     ,y+
+        cmpy    BOOT_DEST_END
+        bne     dgs_match_more
+        cmpb    #1
+        lbne    loader_fail
+dgs_match_more
+        decb
+        bne     dgs_match_byte
+dgs_next
+        cmpy    BOOT_DEST_END
+        lbhi    loader_fail
+        beq     dgs_stream_done
+        dec     BOOT_LZ_BITS
+        bne     dgs_token
+        bra     dgs_flags
+dgs_stream_done
+        cmpu    BOOT_SRC_END
+        lbne    loader_fail
+        ldx     BOOT_DESC_PTR
+        dec     BOOT_STREAMS
+        lbra    dgs_descriptor
+dgs_terminator
+        lda     ,x
+        cmpa    #$FF
+        lbne    loader_fail
+        rts
 
 decompress_attract_surfaces
         lda     #$3C
@@ -611,6 +772,7 @@ spr_byte_changed_done
 sparse_copy_table_start
         endc
         include "ladybug-sparse-loader.inc"
+GMC_LZSS_STREAM_TABLE_BYTES equ gmc_lzss_stream_end-gmc_lzss_stream_table+1
         ifne    HIGHSCORE_TEST_PROFILE
 sparse_copy_table_end
         endc

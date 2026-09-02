@@ -16,6 +16,8 @@ import tempfile
 import time
 from pathlib import Path
 
+from gmc_lzss import decompress as lzss_decompress
+
 
 BOOT_PHASE_SECONDS = 10
 RESIDENT_STARTUP_PHASE_SECONDS = 10
@@ -49,6 +51,7 @@ def main() -> None:
     parser.add_argument("--rom", type=Path, required=True)
     parser.add_argument("--map", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--identity-output", type=Path)
     parser.add_argument(
         "--loader-timeout", "--boot-timeout", dest="loader_timeout",
         type=int, default=BOOT_PHASE_SECONDS,
@@ -100,6 +103,36 @@ def main() -> None:
     boot = rom[:0x4000]
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
     manifest_segments = manifest["gmc"]["segments"]
+
+    def retain_identity(runtime_verified: bool, live_audio_exact: bool = False) -> None:
+        if args.identity_output is None:
+            return
+        rows = []
+        for stream in manifest.get("compression", {}).get("streams", []):
+            bank_base = stream["bank"] * 0x4000
+            start = bank_base + stream["source_offset"]
+            packed = rom[start:start + stream["compressed_bytes"]]
+            expanded = lzss_decompress(packed, stream["raw_bytes"])
+            rows.append({
+                "name": stream["name"],
+                "destination_page": stream["destination_page"],
+                "destination_address": stream["destination_address"],
+                "destination_end": stream["destination_end"],
+                "authored_sha256": stream["raw_sha256"],
+                "staged_sha256": hashlib.sha256(packed).hexdigest(),
+                "expanded_sha256": hashlib.sha256(expanded).hexdigest(),
+                "byte_exact": hashlib.sha256(expanded).hexdigest() == stream["raw_sha256"],
+            })
+        if not runtime_verified or not rows or not all(row["byte_exact"] for row in rows):
+            raise SystemExit("gmc identity proof: loader runtime or stream identity failed")
+        evidence = {
+            "status": "pass",
+            "loader_runtime_verified": True,
+            "live_audio_page_3d_exact": live_audio_exact,
+            "streams": rows,
+        }
+        args.identity_output.parent.mkdir(parents=True, exist_ok=True)
+        args.identity_output.write_text(json.dumps(evidence, indent=2) + "\n", encoding="ascii")
     expected_source_banks = {
         f"{segment['bank']:02x}" for segment in manifest_segments
     }
@@ -273,12 +306,14 @@ def main() -> None:
             args.loader_timeout,
             args.resident_timeout,
             args.startup_snapshot,
+            complete,
         )
         try:
             print(startup_text)
             print(phase_summary("startup", startup_text))
             if not startup_ready:
                 raise SystemExit("gmc startup diagnosis: resident startup incomplete")
+            retain_identity(True, complete)
             print("gmc startup diagnosis: resident startup completed")
             return
         finally:
@@ -382,6 +417,7 @@ def main() -> None:
             phase_summary("forced", forced_text) + "; " +
             phase_summary("demo", demo_text)
         )
+    retain_identity(True)
     print(
         "gmc proof: natural boot/attract flow and forced gameplay phase verified "
         "segmented sparse payload load, bank-3 module, bank-1 load, sparse runtime "
@@ -517,6 +553,7 @@ def run_startup_phases(
     loader_timeout: int,
     resident_timeout: int,
     startup_snapshot: bool = False,
+    verify_audio_page: bool = False,
 ) -> tuple[subprocess.Popen[object], int, str, bool]:
     """Run separately bounded loader-trace and resident-runtime phases."""
     if shutil.which(gdb) is None:
@@ -540,6 +577,7 @@ def run_startup_phases(
     time.sleep(0.25)
     with tempfile.TemporaryDirectory(prefix="ladybug-gmc-") as temp_dir:
         bank1_dump = Path(temp_dir) / "bank1-runtime.bin"
+        audio_dump = Path(temp_dir) / "audio-runtime.bin"
         resident_commands = [
             "set pagination off",
             "set confirm off",
@@ -553,6 +591,14 @@ def run_startup_phases(
             resident_commands.append(
                 f'printf "{prefix}_RUNTIME_SNAPSHOT pc=%04x a=%02x b=%02x x=%04x y=%04x s=%04x dp=%02x cc=%02x\\n", $pc, $a, $b, $x, $y, $s, $dp, $cc'
             )
+        if verify_audio_page:
+            audio_bytes = (rom.parent / "ladybug-audio-runtime.bin").read_bytes()
+            resident_commands.extend([
+                "set $gmc_saved_par5 = *(unsigned char*)0xffa5",
+                "set {unsigned char}0xffa5 = 0x3d",
+                f"dump binary memory {audio_dump} 0xa000 0x{0xA000 + len(audio_bytes):04x}",
+                "set {unsigned char}0xffa5 = $gmc_saved_par5",
+            ])
         resident_commands.extend([
             (
                 f"dump binary memory {bank1_dump} "
@@ -573,6 +619,14 @@ def run_startup_phases(
                 f"\n{prefix}_BANK1_RAM_MISMATCH "
                 f"expected={len(expected_bank1)} actual={len(actual_bank1)}\n"
             )
+        audio_exact = True
+        if verify_audio_page:
+            actual_audio = audio_dump.read_bytes() if audio_dump.exists() else b""
+            audio_exact = actual_audio == audio_bytes
+            resident_text += (
+                f"\n{prefix}_AUDIO_PAGE_EXACT\n" if audio_exact else
+                f"\n{prefix}_AUDIO_PAGE_MISMATCH expected={len(audio_bytes)} actual={len(actual_audio)}\n"
+            )
     texts = [loader_text, resident_text]
     return (
         xroar_process,
@@ -580,7 +634,7 @@ def run_startup_phases(
         "\n".join(texts),
         f"{prefix}_LOADER_HANDOFF" in loader_text and
         f"{prefix}_RESIDENT_STARTUP_COMPLETE" in resident_text and
-        f"{prefix}_BANK1_RAM_EXACT" in resident_text,
+        f"{prefix}_BANK1_RAM_EXACT" in resident_text and audio_exact,
     )
 
 

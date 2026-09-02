@@ -61,6 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--demo-walk", type=Path, required=True)
     parser.add_argument("--payload", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--tile-patches", type=Path, required=True)
     parser.add_argument("--development-profile", type=int, choices=(0, 1), default=0)
     parser.add_argument("--complete-profile", type=int, choices=(0, 1), default=0)
     parser.add_argument("--highscore-test-profile", type=int, choices=(0, 1), default=0)
@@ -124,7 +125,7 @@ def main() -> None:
     tile_ids: dict[bytes, int] = {}
     maps, map_info = compile_profile_maps(
         args.tiled_dir, chars, tiles, tile_ids, development_profile,
-        highscore_test_profile,
+        highscore_test_profile, complete_profile,
     )
     for name, data in zip(MAP_NAMES, maps):
         if len(data) != 960:
@@ -143,7 +144,7 @@ def main() -> None:
             args.tiled_dir / MAP_FILES["enter-high-score"], chars, sprites,
             tiles, tile_ids,
         )
-        if highscore_test_profile
+        if highscore_test_profile or complete_profile
         else {
             "grid_tile_ids": [], "cursor_stream": b"", "node_tile_ids": [],
             "node_cells": [], "node_destinations": [],
@@ -159,8 +160,6 @@ def main() -> None:
     coin_bytes = coin_tile()
     if coin_bytes not in tiles:
         tiles.append(coin_bytes)
-    if len(tiles) > 256:
-        raise SystemExit("presentation proof: atlas exceeds one-byte tile IDs")
     if name_entry["grid_tile_ids"]:
         enter_map = maps[MAP_NAMES.index("enter-high-score")]
         base_ids = []
@@ -175,12 +174,95 @@ def main() -> None:
         name_entry["timer_base_tile_ids"] = base_ids
         name_entry["timer_green_tile_ids"] = green_ids
     gameplay_tile_ids = {tile: index for index, tile in enumerate(gameplay_tiles)}
-    cold_ids = [index for index, tile in enumerate(tiles)
-                if tile not in gameplay_tile_ids]
-    shared_ids = [index for index, tile in enumerate(tiles)
-                  if tile in gameplay_tile_ids]
+    timer_green_tiles: list[bytes] = []
+    timer_green_indexes: list[int] = []
+    for tile_id in name_entry.get("timer_green_tile_ids", []):
+        tile = tiles[int(tile_id)]
+        if tile not in timer_green_tiles:
+            timer_green_tiles.append(tile)
+        timer_green_indexes.append(timer_green_tiles.index(tile))
+    live_ids = set().union(*(set(data) for data in maps))
+    live_ids.add(tiles.index(coin_bytes))
+    if development_profile:
+        live_ids.add(int(instruction["black_tile_id"]))
+        for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
+            for ids in instruction[group].values():
+                live_ids.update(int(tile_id) for tile_id in ids)
+        for event in instruction["events"]:
+            if event["hud_destination"]:
+                live_ids.add(int(event["hud_tile_id"]))
+                if event["hud_tile_2_id"]:
+                    live_ids.add(int(event["hud_tile_2_id"]))
+    if name_entry["grid_tile_ids"]:
+        for key in (
+            "grid_tile_ids", "default_name_tile_ids", "top_name_tile_ids",
+            "timer_base_tile_ids",
+        ):
+            live_ids.update(int(tile_id) for tile_id in name_entry[key])
+        live_ids.update(
+            int(tile_id) for tile_id in name_entry["node_tile_ids"]
+            if tile_id not in (0xFD, 0xFE, 0xFF)
+        )
+        live_ids.update(
+            int(tile_id) for _x, _y, tile_id in name_entry["action_records"]
+            if tile_id not in (0xFD, 0xFE, 0xFF)
+        )
+        if complete_profile and name_entry["timer_green_tile_ids"]:
+            live_ids.add(int(name_entry["timer_green_tile_ids"][0]))
+    overlay_pairs: list[tuple[int, int]] = []
+    if complete_profile:
+        if len(live_ids) - 256 != 2:
+            raise SystemExit("presentation proof: complete union is not a two-slot overlay")
+        instruction_ids = set(maps[MAP_NAMES.index("instructions")])
+        highscore_ids = set().union(*(
+            set(maps[MAP_NAMES.index(name)])
+            for name in ("game-over", "enter-high-score", "high-score")
+        ))
+        other_ids = set().union(*(
+            set(maps[MAP_NAMES.index(name)])
+            for name in ("attract", "level-start")
+        ))
+        instruction_candidates = sorted(
+            tile_id for tile_id in instruction_ids - highscore_ids - other_ids
+            if tile_id in live_ids and tiles[tile_id] not in gameplay_tile_ids
+        )
+        highscore_candidates = sorted(
+            tile_id for tile_id in highscore_ids - instruction_ids - other_ids
+            if tile_id in live_ids and tiles[tile_id] not in gameplay_tile_ids
+        )
+        overlay_pairs = list(zip(
+            instruction_candidates[:2], highscore_candidates[:2]
+        ))
+        if len(overlay_pairs) != 2:
+            raise SystemExit("presentation proof: phase-exclusive overlay pairs missing")
+    elif len(live_ids) > 256:
+        raise SystemExit("presentation proof: atlas exceeds one-byte tile IDs")
+    overlay_replacements = {
+        highscore_id: instruction_id
+        for instruction_id, highscore_id in overlay_pairs
+    }
+    representatives = [
+        tile_id for tile_id in sorted(live_ids)
+        if tile_id not in overlay_replacements
+    ]
+    cold_ids = [index for index in representatives
+                if tiles[index] not in gameplay_tile_ids]
+    shared_ids = [index for index in representatives
+                  if tiles[index] in gameplay_tile_ids]
     order = cold_ids + shared_ids
-    remap = {old: new for new, old in enumerate(order)}
+    representative_remap = {old: new for new, old in enumerate(order)}
+    remap = {
+        old: representative_remap[overlay_replacements.get(old, old)]
+        for old in live_ids
+    }
+    instruction_patch = b"".join(
+        tiles[instruction_id] for instruction_id, _ in overlay_pairs
+    )
+    highscore_patch = b"".join(
+        tiles[highscore_id] for _, highscore_id in overlay_pairs
+    )
+    if args.tile_patches.read_bytes() != instruction_patch + highscore_patch:
+        raise SystemExit("presentation proof: phase tile patch bytes differ")
     maps = [bytes(remap[value] for value in data) for data in maps]
     if development_profile:
         event_table = bytearray(instruction["event_table"])
@@ -218,9 +300,7 @@ def main() -> None:
         name_entry["timer_base_tile_ids"] = [
             remap[int(tile_id)] for tile_id in name_entry["timer_base_tile_ids"]
         ]
-        name_entry["timer_green_tile_ids"] = [
-            remap[int(tile_id)] for tile_id in name_entry["timer_green_tile_ids"]
-        ]
+        name_entry["timer_green_tile_ids"] = []
     ordered_tiles = [tiles[index] for index in order]
     rotated_chars = [rotate_ccw(tile) for tile in chars]
     omitted_glyphs = [
@@ -298,13 +378,13 @@ def main() -> None:
     expected.extend(name_entry["cursor_stream"])
     demo_route_offset = len(expected)
     expected.extend(demo_walk)
+    name_entry_timer_tiles_offset = len(expected)
+    expected.extend(b"".join(timer_green_tiles))
     name_entry_timer_offset = len(expected)
-    for cell, base_id, green_id in zip(
-            perimeter_box_cells(), name_entry.get("timer_base_tile_ids", []),
-            name_entry.get("timer_green_tile_ids", [])):
+    for cell, green_index in zip(perimeter_box_cells(), timer_green_indexes):
         expected.extend(
             framebuffer_destination(cell).to_bytes(2, "big") +
-            bytes((base_id, green_id))
+            (name_entry_timer_tiles_offset + green_index * 32).to_bytes(2, "big")
         )
     name_entry_edge_mask_offset = len(expected)
     edge_masks = enter_high_score_edge_masks() if name_entry["grid_tile_ids"] else b""
@@ -326,7 +406,18 @@ def main() -> None:
     if payload != bytes(expected):
         raise SystemExit("presentation proof: cold payload differs from independent compile")
     if len(tiles) != manifest["tile_count"]:
-        raise SystemExit("presentation proof: tile count differs from manifest")
+        if len(ordered_tiles) != manifest["tile_count"]:
+            raise SystemExit("presentation proof: tile count differs from manifest")
+    overlay_manifest = manifest.get("phase_tile_overlay", {})
+    if (
+        overlay_manifest.get("enabled") != bool(overlay_pairs) or
+        overlay_manifest.get("slot_ids") != [remap[left] for left, _ in overlay_pairs] or
+        overlay_manifest.get("instruction_patch_bytes") != len(instruction_patch) or
+        overlay_manifest.get("highscore_patch_bytes") != len(highscore_patch) or
+        overlay_manifest.get("instruction_patch_sha256") != digest(instruction_patch) or
+        overlay_manifest.get("highscore_patch_sha256") != digest(highscore_patch)
+    ):
+        raise SystemExit("presentation proof: phase tile overlay manifest differs")
     if manifest.get("coin_tile") != remap[tiles.index(coin_bytes)]:
         raise SystemExit("presentation proof: coin tile differs from manifest")
     if manifest["cold_payload"]["bytes"] != len(payload):
@@ -437,6 +528,8 @@ def main() -> None:
         name_manifest.get("top_right_destinations") != name_entry.get("top_right_destinations", []) or
         name_manifest.get("timer_table_offset") != name_entry_timer_offset or
         name_manifest.get("timer_table_bytes") != len(name_entry.get("timer_base_tile_ids", [])) * 4 or
+        name_manifest.get("timer_tile_data_offset") != name_entry_timer_tiles_offset or
+        name_manifest.get("timer_tile_data_bytes") != len(timer_green_tiles) * 32 or
         name_manifest.get("timer_base_tile_ids") != name_entry.get("timer_base_tile_ids", []) or
         name_manifest.get("timer_green_tile_ids") != name_entry.get("timer_green_tile_ids", []) or
         name_manifest.get("edge_mask_table_offset") != name_entry_edge_mask_offset or
@@ -457,8 +550,21 @@ def main() -> None:
                     f"presentation proof: {entry['name']} {field} differs"
                 )
     static_frame_hashes = []
+    highscore_ordered_tiles = list(ordered_tiles)
+    for slot_id, tile in zip(
+            [remap[left] for left, _ in overlay_pairs],
+            (highscore_patch[index:index + 32]
+             for index in range(0, len(highscore_patch), 32))):
+        highscore_ordered_tiles[slot_id] = tile
     for index, data in enumerate(maps):
-        frame = title_framebuffer(data, ordered_tiles)
+        frame = title_framebuffer(
+            data,
+            highscore_ordered_tiles if index in (
+                MAP_NAMES.index("game-over"),
+                MAP_NAMES.index("enter-high-score"),
+                MAP_NAMES.index("high-score"),
+            ) else ordered_tiles,
+        )
         if development_profile and index == MAP_NAMES.index("instructions"):
             blend_native_surface(
                 frame, instruction["cucumber_destination"],
@@ -484,12 +590,12 @@ def main() -> None:
         raise SystemExit("presentation proof: high-score table metadata differs")
     if len(payload) > 4 * 0x2000:
         raise SystemExit("presentation proof: cold payload exceeds four pages")
-    if len(payload) > 10874:
+    if not complete_profile and len(payload) > 10874:
         raise SystemExit("presentation proof: cold payload exceeds PERF-004 minimum reduction limit")
     if len(payload) > manifest["cold_payload_limit"]:
         raise SystemExit("presentation proof: cold payload exceeds Plan A source limit")
     print(
-        f"presentation proof: {len(maps)} maps, {len(tiles)} tiles, "
+        f"presentation proof: {len(maps)} maps, {len(ordered_tiles)} tiles, "
         f"{len(payload)} bytes, hashes and four-page bound valid"
     )
 

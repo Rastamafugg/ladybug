@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "ticket": "FEAT-006",
+  "cue_manifest_sha256": "74E060D54F90697445902AAC942A21B74980ABF855334F3CBC891C4C6305FE0F",
+  "entries": [
+    {
+      "event": "gate_rotation",
+      "cue_id": 0,
+      "source_routine": "cm_rotate",
+      "state_transition": "GATE_ANIM_ID: 0 -> nonzero after a successful endpoint rotation",
+      "fire_once": "one enqueue on the successful state mutation; blocked attempts do not enqueue",
+      "parameter": 0,
+      "verification": "forced_gate_rotation"
+    },
+    {
+      "event": "vegetable_collection",
+      "cue_id": 1,
+      "source_routine": "enemy_collect_impl",
+      "state_transition": "VEG_STATE: 1 -> 2 after the vegetable is collected",
+      "fire_once": "one enqueue per available-vegetable to collected transition",
+      "parameter": 0,
+      "verification": "forced_vegetable_collection"
+    },
+    {
+      "event": "bonus_collectible",
+      "cue_id": 2,
+      "source_routine": "enemy_collect_impl",
+      "state_transition": "BONUS_LEFT decreases after a non-skull collectible is accepted",
+      "fire_once": "one enqueue per accepted non-skull collectible",
+      "parameter": 0,
+      "verification": "forced_bonus_collection"
+    },
+    {
+      "event": "dot_collection",
+      "cue_id": 3,
+      "source_routine": "eat_dot",
+      "state_transition": "DOTS_LEFT decreases after one maze flower/dot is successfully consumed",
+      "fire_once": "one enqueue per consumed maze flower/dot",
+      "parameter": 0,
+      "verification": "natural_and_forced_dot_collection"
+    },
+    {
+      "event": "timer_tick",
+      "cue_id": 4,
+      "source_routine": "perimeter_timer_tick",
+      "state_transition": "BOX_INDEX or BOX_PHASE advances for an actual timer-box transition",
+      "fire_once": "one enqueue per committed perimeter-box transition",
+      "parameter": 0,
+      "verification": "forced_timer_tick"
+    },
+    {
+      "event": "enemy_release",
+      "cue_id": 5,
+      "source_routine": "enemy_release_impl",
+      "state_transition": "ENEMY_RELEASED increments after an enemy record becomes active",
+      "fire_once": "one enqueue per newly active release; timer-box changes alone emit nothing",
+      "parameter": 0,
+      "verification": "forced_enemy_release"
+    },
+    {
+      "event": "level_start",
+      "cue_id": 6,
+      "source_routine": "init_gameplay",
+      "state_transition": "presentation level-start interval releases into initialized gameplay",
+      "fire_once": "one enqueue after the accepted start or next-level state mutation",
+      "parameter": 0,
+      "verification": "natural_level_start"
+    },
+    {
+      "event": "word_completion",
+      "cue_id": 7,
+      "source_routine": "collect_word_letter",
+      "state_transition": "validated final letter completes a word",
+      "fire_once": "one enqueue per completed word; intermediate letters emit nothing",
+      "parameter": 0,
+      "verification": "forced_word_completion",
+      "implementation_status": "anchor_pending"
+    },
+    {
+      "event": "word_completion_alias",
+      "cue_id": 8,
+      "source_routine": "collect_word_letter",
+      "state_transition": "exact alias of cue 7",
+      "fire_once": "not a separate production event; resolves exactly to cue 7",
+      "parameter": 0,
+      "verification": "descriptor_alias_8_7"
+    },
+    {
+      "event": "all_flowers_stage_completion",
+      "cue_id": 9,
+      "source_routine": "next_stage",
+      "state_transition": "DOTS_LEFT and BONUS_LEFT reach zero before the stage advances",
+      "fire_once": "one enqueue per completed stage; latch prevents repeated frame enqueues",
+      "parameter": 0,
+      "verification": "forced_all_flowers_completion"
+    },
+    {
+      "event": "extra_completion",
+      "cue_id": 10,
+      "source_routine": "collect_extra_letter",
+      "state_transition": "EXTRA_BITS reset after the final EXTRA letter is accepted",
+      "fire_once": "one enqueue on the completion reset, not on each intermediate letter",
+      "parameter": 0,
+      "verification": "forced_extra_completion",
+      "implementation_status": "anchor_pending"
+    },
+    {
+      "event": "special_completion",
+      "cue_id": 11,
+      "source_routine": "collect_special_letter",
+      "state_transition": "SPECIAL_BITS reset after the final SPECIAL letter is accepted",
+      "fire_once": "one enqueue on the completion reset, not on each intermediate letter",
+      "parameter": 0,
+      "verification": "forced_special_completion",
+      "implementation_status": "anchor_pending"
+    },
+    {
+      "event": "credit_accepted",
+      "cue_id": 12,
+      "source_routine": "add_credit",
+      "state_transition": "PRES_CREDITS increments on an accepted credit input",
+      "fire_once": "one enqueue per accepted credit; credit-limit rejection emits nothing",
+      "parameter": 0,
+      "verification": "forced_credit_acceptance",
+      "implementation_status": "anchor_pending"
+    },
+    {
+      "event": "player_death",
+      "cue_id": 13,
+      "source_routine": "death_tick",
+      "state_transition": "DEATH_STATE: 0 -> nonzero after the death state mutation",
+      "fire_once": "one enqueue per death transition; later death frames emit nothing",
+      "parameter": 0,
+      "verification": "forced_player_death"
+    },
+    {
+      "event": "extra_life",
+      "cue_id": 14,
+      "source_routine": "award_extra_life",
+      "state_transition": "LIVES increments after the extra-life award is committed",
+      "fire_once": "one enqueue per committed extra-life award",
+      "parameter": 0,
+      "verification": "forced_extra_life",
+      "implementation_status": "anchor_pending"
+    },
+    {
+      "event": "skull_enemy_kill",
+      "cue_id": 15,
+      "source_routine": "enemy_skull_kill",
+      "state_transition": "ENEMY_ACTIVE decreases after a skull kill, without DEATH_STATE transition",
+      "fire_once": "one enqueue per skull kill; death path must not double-fire",
+      "parameter": 0,
+      "verification": "forced_skull_kill",
+      "implementation_status": "anchor_pending"
+    },
+    {
+      "event": "death_channel_stop",
+      "cue_id": 16,
+      "source_routine": "audio_control",
+      "state_transition": "internal stop descriptor terminates the death-channel stream",
+      "fire_once": "runtime control only; no direct gameplay producer",
+      "parameter": 0,
+      "verification": "replacement_and_stop"
+    },
+    {
+      "event": "death_channel_stop_alias",
+      "cue_id": 17,
+      "source_routine": "audio_control",
+      "state_transition": "exact alias of cue 16",
+      "fire_once": "not a separate production event; resolves exactly to cue 16",
+      "parameter": 0,
+      "verification": "descriptor_alias_17_16"
+    }
+  ],
+  "unresolved": [
+    {
+      "event": "high_score_end",
+      "cue_id": null,
+      "reason": "No separately named approved descriptor or validated source call site has been identified",
+      "verification": "high_score_end_unresolved"
+    }
+  ]
+}

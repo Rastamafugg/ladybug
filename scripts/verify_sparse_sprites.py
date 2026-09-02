@@ -14,6 +14,7 @@ from build_screen import (
     compile_enemy_sprites,
     compile_player_sprites,
 )
+from gmc_lzss import decompress as lzss_decompress
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +32,8 @@ SPARSE_COPY_TABLE_RAM = 0x0200
 INSTRUCTION_RUNTIME_PAGE = 0x23
 INSTRUCTION_RUNTIME_ADDRESS = 0xA422
 INSTRUCTION_RUNTIME_BYTES = 0x3AA
+HIGHSCORE_RUNTIME_ADDRESS = 0xA880
+HIGHSCORE_PHASE_HELPER_ADDRESS = 0xAC40
 LEGACY_PEN_MAP = (0x0, 0xC, 0x5, 0x2)
 PART_ONE_PEN_MAP = (0x0, 0x9, 0x5, 0x6)
 GAMEPLAY_ENEMY_PEN_MAPS = (
@@ -61,6 +64,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--presentation-module", type=Path, default=BUILD / "ladybug-presentation-runtime.bin")
     parser.add_argument("--instruction-runtime", type=Path, default=BUILD / "ladybug-instruction-runtime.bin")
     parser.add_argument("--demo-runtime", type=Path, default=BUILD / "ladybug-demo-runtime.bin")
+    parser.add_argument("--highscore-runtime", type=Path, default=BUILD / "ladybug-highscore-runtime.bin")
+    parser.add_argument("--highscore-helper", type=Path, default=BUILD / "ladybug-highscore-helper.bin")
+    parser.add_argument("--audio-runtime", type=Path, default=BUILD / "ladybug-audio-runtime.bin")
+    parser.add_argument("--tile-patches", type=Path, default=BUILD / "ladybug-presentation-tile-patches.bin")
     parser.add_argument(
         "--aux-runtime-role",
         choices=("highscore-test", "development", "release", "complete"),
@@ -226,6 +233,8 @@ def parse_loader(path: Path) -> list[dict[str, int]]:
     records = []
     pending: tuple[int, int] | None = None
     for line in path.read_text(encoding="ascii").splitlines():
+        if line.strip() == "gmc_lzss_stream_table":
+            break
         match = re.match(r"\s*fcb\s+\$([0-9A-F]{2}),\$([0-9A-F]{2})$", line)
         if match:
             if pending is not None:
@@ -281,10 +290,24 @@ def main() -> None:
     presentation_module = args.presentation_module.read_bytes()
     instruction_runtime = args.instruction_runtime.read_bytes()
     demo_runtime = args.demo_runtime.read_bytes()
+    highscore_runtime = args.highscore_runtime.read_bytes()
+    highscore_helper = args.highscore_helper.read_bytes()
+    audio_runtime = args.audio_runtime.read_bytes()
+    tile_patches = args.tile_patches.read_bytes()
+    if len(highscore_runtime) > 0x398:
+        raise SystemExit("sparse proof: high-score runtime exceeds $0300-$0697")
     if args.aux_runtime_role == "development":
         aux_runtime_stage = instruction_runtime
     elif args.aux_runtime_role == "complete":
-        aux_runtime_stage = instruction_runtime + demo_runtime
+        highscore_offset = HIGHSCORE_RUNTIME_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+        helper_offset = HIGHSCORE_PHASE_HELPER_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+        prefix = instruction_runtime + demo_runtime
+        if len(prefix) > highscore_offset:
+            raise SystemExit("sparse proof: complete demo overlaps high-score runtime")
+        prefix = prefix.ljust(highscore_offset, b"\x00") + highscore_runtime
+        if len(prefix) > helper_offset:
+            raise SystemExit("sparse proof: high-score runtime overlaps helper")
+        aux_runtime_stage = prefix.ljust(helper_offset, b"\x00") + highscore_helper
     else:
         aux_runtime_stage = demo_runtime
     enemy_ranges = decode_payload(enemy_payload, enemy_frames, enemy_pen_maps, 0x35)
@@ -329,10 +352,21 @@ def main() -> None:
         raise SystemExit("sparse proof: presentation cold manifest hash mismatch")
     if manifest["presentation_module"]["sha256"] != sha256(presentation_module):
         raise SystemExit("sparse proof: presentation module manifest hash mismatch")
+    if manifest["audio_runtime"]["sha256"] != sha256(audio_runtime):
+        raise SystemExit("sparse proof: audio runtime manifest hash mismatch")
+    if (
+        manifest["audio_runtime"]["page"] != 0x3D or
+        manifest["audio_runtime"]["address"] != WINDOW_BASE
+    ):
+        raise SystemExit("sparse proof: audio runtime is not placed at page $3D")
     if manifest["aux_runtime"]["role"] != args.aux_runtime_role:
         raise SystemExit("sparse proof: auxiliary runtime profile mismatch")
     if manifest["aux_runtime"]["staged_sha256"] != sha256(aux_runtime_stage):
         raise SystemExit("sparse proof: auxiliary runtime staged hash mismatch")
+    if manifest["highscore_helper"]["sha256"] != sha256(highscore_helper):
+        raise SystemExit("sparse proof: high-score helper manifest hash mismatch")
+    if manifest["highscore_runtime"]["sha256"] != sha256(highscore_runtime):
+        raise SystemExit("sparse proof: high-score runtime manifest hash mismatch")
     if args.aux_runtime_role in ("development", "complete") and manifest.get("instruction_runtime", {}).get("sha256") != sha256(instruction_runtime):
         raise SystemExit("sparse proof: instruction runtime manifest hash mismatch")
     if args.aux_runtime_role in ("release", "complete") and manifest.get("demo_runtime", {}).get("sha256") != sha256(demo_runtime):
@@ -383,9 +417,11 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
+        "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
             len(actor_underlays) + len(actor_records) + len(aux_runtime_stage)
         ),
+        "phase_tile_patches": bytearray(len(tile_patches)),
     }
     coverage = {
         "enemy": bytearray(len(enemy_payload)),
@@ -394,9 +430,11 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
+        "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
             len(actor_underlays) + len(actor_records) + len(aux_runtime_stage)
         ),
+        "phase_tile_patches": bytearray(len(tile_patches)),
     }
     source_coverage = {
         0: bytearray(CART_READABLE_BYTES),
@@ -503,9 +541,15 @@ def main() -> None:
             reconstructed[target][target_offset:destination_end] = source
             coverage[target][target_offset:destination_end] = b"\x01" * count
             continue
+        elif target == "audio_runtime":
+            target_page_base = 0x3D
+            target_address = WINDOW_BASE
         elif target == "attract_actor_bundle":
             target_page_base = 0x23
             target_address = 0xA000
+        elif target == "phase_tile_patches":
+            target_page_base = 0x23
+            target_address = 0xB000
         else:
             raise SystemExit(f"sparse proof: unknown loader target {target}")
         absolute_offset = target_address - WINDOW_BASE + target_offset
@@ -524,14 +568,61 @@ def main() -> None:
             raise SystemExit("sparse proof: target segment coverage overlaps")
         reconstructed[target][target_offset:destination_end] = source
         coverage[target][target_offset:destination_end] = b"\x01" * count
+
+    expected_streams = {
+        "page39", "presentation_page_3a", "audio_page_3d"
+    }
+    if len(presentation_cold) > PAGE_BYTES:
+        expected_streams.add("presentation_page_3b")
+    streams = manifest.get("compression", {}).get("streams", [])
+    if {stream["name"] for stream in streams} != expected_streams:
+        raise SystemExit("sparse proof: compressed stream set differs")
+    for stream in streams:
+        bank = stream["bank"]
+        source_offset = stream["source_offset"]
+        compressed_bytes = stream["compressed_bytes"]
+        raw_bytes = stream["raw_bytes"]
+        if source_offset + compressed_bytes > CART_READABLE_BYTES:
+            raise SystemExit("sparse proof: compressed source exceeds readable cart")
+        if any(source_coverage[bank][source_offset:source_offset + compressed_bytes]):
+            raise SystemExit("sparse proof: compressed and copied sources overlap")
+        source_coverage[bank][source_offset:source_offset + compressed_bytes] = (
+            b"\x01" * compressed_bytes
+        )
+        compressed = banks[bank][source_offset:source_offset + compressed_bytes]
+        if sha256(compressed) != stream["compressed_sha256"]:
+            raise SystemExit("sparse proof: compressed stream hash differs")
+        raw = lzss_decompress(compressed, raw_bytes)
+        if sha256(raw) != stream["raw_sha256"]:
+            raise SystemExit("sparse proof: expanded stream hash differs")
+        name = stream["name"]
+        if name == "page39":
+            boundaries = (
+                ("player", 0, len(player_payload)),
+                ("gate", len(player_payload), len(player_payload) + len(gate_payload)),
+                ("presentation", len(player_payload) + len(gate_payload), len(raw)),
+            )
+            for target, start, end in boundaries:
+                reconstructed[target][:] = raw[start:end]
+                coverage[target][:] = b"\x01" * len(reconstructed[target])
+        elif name.startswith("presentation_page_"):
+            offset = (stream["destination_page"] - 0x3A) * PAGE_BYTES
+            end = offset + len(raw)
+            reconstructed["presentation_cold"][offset:end] = raw
+            coverage["presentation_cold"][offset:end] = b"\x01" * len(raw)
+        elif name == "audio_page_3d":
+            reconstructed["audio_runtime"][:] = raw
+            coverage["audio_runtime"][:] = b"\x01" * len(raw)
     if (
         not all(coverage["enemy"]) or
         not all(coverage["player"]) or
         not all(coverage["gate"]) or
         not all(coverage["presentation"]) or
-            not all(coverage["presentation_cold"]) or
+        not all(coverage["presentation_cold"]) or
         not all(coverage["presentation_module"]) or
-        not all(coverage["attract_actor_bundle"])
+        not all(coverage["audio_runtime"]) or
+        not all(coverage["attract_actor_bundle"]) or
+        not all(coverage["phase_tile_patches"])
     ):
         raise SystemExit("sparse proof: loader target coverage has gaps")
     if reconstructed["enemy"] != enemy_payload:
@@ -546,10 +637,14 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct presentation cold data")
     if reconstructed["presentation_module"] != presentation_module:
         raise SystemExit("sparse proof: loader does not reconstruct presentation module")
+    if reconstructed["audio_runtime"] != audio_runtime:
+        raise SystemExit("sparse proof: loader does not reconstruct audio runtime")
     if reconstructed["attract_actor_bundle"] != (
         actor_underlays + actor_records + aux_runtime_stage
     ):
         raise SystemExit("sparse proof: loader does not reconstruct actor bundle")
+    if reconstructed["phase_tile_patches"] != tile_patches:
+        raise SystemExit("sparse proof: loader does not reconstruct phase tile patches")
     expected_usable = (
         (CART_READABLE_BYTES - BANK2_PAYLOAD_START) +
         (CART_READABLE_BYTES - 0x1800) + 0x10 + (0x0800 - 0x12) +
@@ -566,7 +661,7 @@ def main() -> None:
     print(
         f"sparse proof: {len(enemy_ranges)} enemy and {len(player_ranges)} player "
         f"frames decode and blend pixel-exactly; {len(loader)} loader segments reconstruct "
-        f"actor, gate, presentation, cold, module, and auxiliary payloads with "
+        f"actor, gate, presentation, cold, module, audio, and auxiliary payloads with "
         f"{manifest['gmc']['spare_bytes']} bytes spare"
     )
 

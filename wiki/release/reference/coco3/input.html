@@ -94,6 +94,15 @@ PA0   G     F   E    D     C    B    A    @
         <li><strong>Master enable</strong> = PIA2 CB2.</li>
         <li><strong>Comparator</strong> output = PIA1 PA7 (high if DAC &lt; analog, low otherwise).</li>
       </ol>
+      <p>
+        The manual's dual-selector diagram is significant for cartridge
+        sound: the A audio selector and B joystick selector share the same
+        PIA1 CA2/CB2 position. Right X and right Y sampling consequently
+        select audio positions 0 and 1 instead of cartridge SND position 2.
+        PIA2 CB2 gates only selector A and cannot decouple the two positions.
+        Digital fire-button reads do not require this analog selection, but
+        they are not a replacement for directional axis input.
+      </p>
       <p>Algorithm (mirrors <code>JOYIN</code> ROM):</p>
 <pre><code>write CA2/CB2 to select desired axis (CRA/CRB of PIA1)
 clear B
