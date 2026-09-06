@@ -1,0 +1,16 @@
+{
+  "helper_matches": true,
+  "helper_sha256": "d1c0a6e62f40f76b5b40fcb5b5cf996068f6e1b5d67054c814447f3bb73d9a52",
+  "resident_pc_32_bytes_match": true,
+  "resident_sha256": "40599af673203322aa3cce07ec0503027b8e2bf1d212333712142632ead290a4",
+  "stack_at_stop": "0bd0000009e9d4dac149ffff",
+  "cause": "pht_cancel_final CLR PRES_HOLD_OWNER sets Z; ANDCC #$EF preserves Z; load_tick returns without restoring dispatcher flags; mainloop BNE falls into gameplay. actor_closure_restore calls restore_player with invalid presentation-era footprint, overwriting low RAM.",
+  "natural_result": "invalid mode; enemy 79 bytes and presentation 42 bytes differ",
+  "control_result": "watchpoint on $00A4 stopped at $D614 after STD at $D612; X=$00A6; enemy/presentation/highscore code intact at first state write",
+  "rejected_control": "physical polling then pause arrived after hold cleanup; watchpoint timed out; corrected with exact publication breakpoint",
+  "probes": 2,
+  "observation_timeouts": 1,
+  "clean_acceptance": false,
+  "production_changes": false,
+  "capacity_change_bytes": 0
+}
