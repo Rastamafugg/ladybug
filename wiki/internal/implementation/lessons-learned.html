@@ -2002,7 +2002,7 @@ git reset --hard HEAD
       <p><strong>Citation:</strong> BUG-012 physical Vbord evidence, <code>src/presentation_runtime.s</code> <code>gameplay_reentry</code>, and <code>src/enemy_runtime.s</code> entity initialization.</p>
     </section>
 
-  </main>
+  <section><h2>2026-09-06 — Hold cancellation must return Z clear</h2><p>BUG-033 fixes the BUG-032 credit-publication crash by clearing PRES_HOLD_OWNER before loading/storing HOLD_HYDRATE in src/perimeter_reset_helper.s. mainloop branches on condition codes after the presentation call, so leaving A nonzero is insufficient. The final nonzero store now leaves Z=0. Exact publication input proves cancellation returns CC=$C0, with zero gameplay entries during credit load and no code corruption. Natural credit/start and loading/settled regressions pass. Helper remains 331 bytes. See <a href="../tickets/bug-033-hold-return-flags.html">BUG-033</a>.</p></section></main>
 </div>
 </body>
 </html>

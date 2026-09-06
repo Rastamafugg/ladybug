@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--scenario', choices=['loading', 'settled', 'instructions', 'demo', 'clean'], required=True)
+    ap.add_argument('--scenario', choices=['loading', 'settled', 'instructions', 'demo', 'clean', 'publication'], required=True)
     args = ap.parse_args()
     sy = p.symbols(ROOT / 'build/ladybug-presentation-runtime.map')
     ms = p.symbols(ROOT / 'build/ladybug.map')
@@ -23,7 +23,16 @@ def main():
     instr = (ROOT / 'build/ladybug-instruction-runtime.bin').read_bytes()
     enemy = (ROOT / 'build/ladybug-enemy-runtime.rom').read_bytes()
     pres = (ROOT / 'build/ladybug-presentation-runtime.bin').read_bytes()
+    helper = (ROOT / 'build/ladybug-perimeter-reset-helper.bin').read_bytes()
+    hs = p.symbols(ROOT / 'build/ladybug-perimeter-reset-helper.map')
+    resident = (ROOT / 'build/ladybug-runtime.rom').read_bytes()
     rom = ROOT / 'build/ladybug.rom'
+    layout = json.loads((ROOT / 'build/ladybug-sparse-layout.json').read_text())
+    helper_segments = [s for s in layout['gmc']['segments'] if s['target'] == 'perimeter_reset_helper']
+    assert len(helper_segments) == 1
+    segment = helper_segments[0]
+    offset = segment['bank'] * 16384 + segment['source_offset']
+    assert rom.read_bytes()[offset:offset+segment['count']] == helper, 'helper delivery mismatch'
     out = ROOT / f'build/bug030-{args.scenario}.json'
     evidence = {'scenario': args.scenario, 'rom_sha256': p.digest(rom.read_bytes()),
                 'deadline_seconds': 30, 'phases': [], 'code_writes': 0, 'state_writes': 0}
@@ -38,13 +47,19 @@ def main():
     def check_code():
         assert p.read_bytes(c, 0x800, len(enemy)) == enemy, 'enemy code corrupted'
         assert p.read_bytes(c, 0x1900, len(pres)) == pres, 'presentation code corrupted'
+        assert p.read_bytes(c, 0x6b2, len(helper)) == helper, 'hold helper corrupted'
+
+    guard_gameplay = False
 
     def go(label, targets):
         targets = [sy[x] if isinstance(x, str) else x for x in targets]
         print(f'{label}: markers={targets}, deadline=30s', flush=True)
-        ids = monitor.setup(c, targets)
+        ids = monitor.setup(c, targets + ([ms['main_game_tick']] if guard_gameplay else []))
         try:
-            hit = c.run_to_breakpoint(30)
+            # Stop state is authoritative even if a bp notification was dropped.
+            c.call('run')
+            hit = c.call('wait_for_stop', {'timeout_ms': 30000}, timeout=32)
+            assert hit['reason'] == 'breakpoint', hit
             assert hit['pc'] in targets, hit
             evidence['phases'].append({'label': label, 'pc': hit['pc'], 'mode': p.read_byte(c, 0xa5),
                                       'screen': p.read_byte(c, 0xa6), 'credits': p.read_byte(c, 0xa8)})
@@ -106,6 +121,21 @@ def main():
         assert p.read_byte(c, 0xa9) & 6
         if release:
             key(k, False)
+        if args.scenario == 'publication':
+            go('required final hold cancellation', [hs['pht_cancel_final']])
+            check_code()
+            assert p.read_byte(c, 0xd4) == 0x81 and p.read_byte(c, 0xd9) == 0
+            # Locate the resident dispatcher branch from the current artifact.
+            pattern = bytes.fromhex('bd190026')
+            assert resident.count(pattern) == 1
+            ret = 0xc000 + resident.index(pattern) + 3
+            go('dispatcher return after cancellation', [ret])
+            assert p.read_bytes(c, ret, 8) == resident[ret-0xc000:ret-0xc000+8]
+            regs = c.call('read_registers')
+            assert regs['cc'] & 4 == 0, 'Z releases gameplay during credit loading'
+            assert p.read_byte(c, 0xa5) == 1 and p.read_byte(c, 0xd4) == 3
+            evidence['cancellation_return'] = {'pc': ret, 'cc': regs['cc'], 'z': 0,
+                                               'mode': 1, 'hold_state': 3}
         call = sy['load_done_dynamic_ready'] - 3
         calls = 0
         for _ in range(3):
@@ -144,6 +174,7 @@ def main():
             wait_state('unbroken credit', lambda s: s[0xa5-0x8f] == 5 and s[2] == 0)
             key(5, False)
             c.call('pause')
+            c.call('wait_for_stop', {'timeout_ms': 2000}, timeout=3)
             check_code()
             high_pixels()
             c.call('run')
@@ -154,6 +185,7 @@ def main():
             frame_start = int.from_bytes(phys(0x38*8192+2, 2), 'big')
             wait_state('unbroken gameplay publication', lambda s: s[0xa5-0x8f] == 0 and ((int.from_bytes(phys(0x38*8192+2, 2), 'big')-frame_start)&65535) >= 3)
             c.call('pause')
+            c.call('wait_for_stop', {'timeout_ms': 2000}, timeout=3)
             check_code()
             front = p.read_byte(c, 0x8f)
             v.write_frame_png(ROOT / 'build/bug030-clean-gameplay.png', phys((0x30 if front == 0 else 0x2c)*8192, 30720))
@@ -162,12 +194,19 @@ def main():
             check_code()
             assert phys(0x23*8192 + sy['PRESENTATION_HIGHSCORE_RUNTIME_ADDRESS']-0xa000, len(high)) == high
             target = {'loading': 'start_screen_done', 'settled': 'attract_tick_ready',
-                      'instructions': 'instructions_tick_ready', 'demo': 'demo_tick'}[args.scenario]
+                      'instructions': 'instructions_tick_ready', 'demo': 'demo_tick',
+                      'publication': 'load_done_normal'}[args.scenario]
             go('natural initial phase', [target])
+            if args.scenario == 'publication':
+                assert p.read_byte(c, 0xa5) == 2 and p.read_byte(c, 0xd4) == 0x81
+                guard_gameplay = True
             if args.scenario != 'demo':
                 assert p.read_bytes(c, 0x300, len(instr)) == instr
             credit(6 if args.scenario == 'instructions' else 5, 1,
-                   both=args.scenario=='loading', release=args.scenario!='settled')
+                   both=args.scenario in ['loading', 'publication'], release=args.scenario!='settled')
+            if args.scenario == 'publication':
+                evidence['gameplay_entries_during_credit_load'] = 0
+                guard_gameplay = False
             if args.scenario == 'settled':
                 go('held key unchanged', ['pft_ready'])
                 assert p.read_byte(c, 0xa9) & 6 == 0 and p.read_byte(c, 0xa8) == 1

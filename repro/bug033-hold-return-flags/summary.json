@@ -1,0 +1,55 @@
+{
+  "ticket": "BUG-033",
+  "accepted": true,
+  "rom_sha256": "77a53143e956d6f64eedbe52f8ffab761709fd85093d84dfca2ea4e52b5844de",
+  "source_sha256": "fe785d96bbe5e89bee4a3cd8509d1f5043c84133ef5ea85ae4db8efc4422a9ec",
+  "helper_before_sha256": "d1c0a6e62f40f76b5b40fcb5b5cf996068f6e1b5d67054c814447f3bb73d9a52",
+  "helper_after_sha256": "f84a659d012702bc76cb730d387e80d4e579d5877b18347e45b77a5b17d11ef5",
+  "helper_bytes": 331,
+  "helper_limit": 334,
+  "helper_growth_bytes": 0,
+  "changed_addresses": [
+    1858,
+    1859,
+    1860,
+    1861,
+    1862,
+    1863
+  ],
+  "build": "LADYBUG_PROFILE=complete scripts/build.sh build: PASS",
+  "capacity": {
+    "resident_used": 8191,
+    "resident_limit": 8192,
+    "presentation_used": 1280,
+    "presentation_limit": 1280,
+    "cartridge_source_spare": 4188,
+    "cartridge_source_spare_minimum": 2048
+  },
+  "scenarios": [
+    "publication",
+    "clean",
+    "loading",
+    "settled"
+  ],
+  "publication_result": {
+    "z": 0,
+    "gameplay_entries_during_load": 0,
+    "render_calls": 2,
+    "pixel_byte_differences": 0
+  },
+  "code_integrity": "enemy, presentation and helper bytes match authored artifacts; helper ROM delivery matches; highscore staged/live checks pass",
+  "natural_run": "No execution breakpoints or emulated state/code writes; physical-RAM polling and natural key injection; paused for credit and gameplay captures",
+  "visual_review": "Gameplay image shows complete maze, player, enemies, HUD and lives; high-score output matches independent pixel oracle",
+  "rejected_experiments": [
+    "First publication attempt timed out waiting for asynchronous bp notification. Replaced notification wait with authoritative wait_for_stop; unchanged artifact and boundary passed."
+  ],
+  "observation_timeouts": 1,
+  "other_hold_exits": "Source review: waiting paths return after non-equal comparisons (Z=0); request path stores $81; ordinary publish path stores $03 after owner clear. Cancel path now follows that ordering.",
+  "residual_risks": [
+    "Physical hardware not exercised.",
+    "BUG-031 release and highscore-test capacity failures remain outside scope; BUG-030 stays Verification."
+  ],
+  "weekly_usage_baseline_percent": 55,
+  "weekly_usage_last_observed_percent": 57,
+  "budget_note": "Rounded account-wide increase 2 percentage points before final recording; below additional 5% ceiling."
+}

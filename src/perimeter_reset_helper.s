@@ -152,9 +152,10 @@ pht_publish
 pht_cancel_final
         orcc    #$10
         clr     PENDING
+        clr     PRES_HOLD_OWNER
+        ; Dispatcher branches on Z: retain presentation ownership on return.
         lda     #PRES_HOLD_HYDRATE
         sta     PRES_HOLD_STATE
-        clr     PRES_HOLD_OWNER
         andcc   #$EF
         rts
 ; Copy one 1 KiB visible chunk. The source page is selected through PAR1 and the
