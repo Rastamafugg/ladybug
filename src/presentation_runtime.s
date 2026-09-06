@@ -167,6 +167,10 @@ pft_ready
         anda    #$06
         beq     pft_mode
         lbsr    add_credit
+        ifne    COMPLETE_PROFILE
+        ; Credit input can pre-empt any auxiliary owner, including cold load.
+        bsr     install_highscore_runtime
+        endc
         lda     #PRESENTATION_MAP_HIGH_SCORE
         clr     PENDING
         lbsr    start_screen
@@ -550,7 +554,11 @@ draw_tile_id
         subb    #PRESENTATION_GAMEPLAY_TILE_BASE
         clra
         addd    #PRESENTATION_GAMEPLAY_LOOKUP_OFFSET
+        ifne    COMPLETE_PROFILE
+        bsr     cold_ptr
+        else
         lbsr    cold_ptr
+        endc
         lda     ,x
         ldb     #32
         mul
@@ -565,7 +573,11 @@ draw_cold_tile
         ldb     #32
         mul
         addd    #PRESENTATION_TILE_ATLAS_OFFSET
+        ifne    COMPLETE_PROFILE
+        bsr     cold_ptr
+        else
         lbsr    cold_ptr
+        endc
         tfr     x,u
         tfr     y,x
         tfr     u,y

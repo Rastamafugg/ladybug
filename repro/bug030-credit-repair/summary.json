@@ -1,0 +1,173 @@
+{
+  "date": "2026-09-06",
+  "ticket": "BUG-030",
+  "status": "Verification",
+  "accepted": false,
+  "baseline_revision": "27124419a1c9aba75de37f7d6d9ec928651ac911",
+  "dirty_checkout": true,
+  "rom_sha256": "3f87c09f152865d841401f5f89918cb3df03dbfd18a043cfb1c5fe413be0a72c",
+  "capacity": {
+    "presentation_bytes": 1280,
+    "presentation_limit": 1280,
+    "cartridge_source_spare_bytes": 4188,
+    "minimum_spare_bytes": 2048
+  },
+  "source_sha256": {
+    "src/presentation_runtime.s": "928800f96b637dc64a0b96ca9a819ae5a2460a4cc7d557d6d89f290d83a60ad6",
+    "scripts/verify_bug030_credit.py": "5acf75c5af6693cd18750c8e55d315e4de302974d462eb92df503a62ff90e6d8"
+  },
+  "scenarios": {
+    "loading": {
+      "passed": true,
+      "render_calls": [
+        2
+      ],
+      "pixel_byte_differences": [
+        0,
+        0
+      ],
+      "code_integrity_checked": true,
+      "phases": [
+        "cold entry identity",
+        "natural initial phase",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "credit render/publication"
+      ],
+      "error": null
+    },
+    "settled": {
+      "passed": true,
+      "render_calls": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "pixel_byte_differences": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "code_integrity_checked": true,
+      "phases": [
+        "cold entry identity",
+        "natural initial phase",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "held key unchanged",
+        "key released",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "natural return to attract",
+        "natural restored instructions"
+      ],
+      "error": null
+    },
+    "instructions": {
+      "passed": true,
+      "render_calls": [
+        1
+      ],
+      "pixel_byte_differences": [
+        0
+      ],
+      "code_integrity_checked": true,
+      "phases": [
+        "cold entry identity",
+        "natural initial phase",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication"
+      ],
+      "error": null
+    },
+    "demo": {
+      "passed": true,
+      "render_calls": [
+        1
+      ],
+      "pixel_byte_differences": [
+        0
+      ],
+      "code_integrity_checked": true,
+      "phases": [
+        "cold entry identity",
+        "natural initial phase",
+        "natural credit edge",
+        "credit render/publication",
+        "credit render/publication",
+        "natural start edge",
+        "natural gameplay first frame",
+        "completed first gameplay render",
+        "next gameplay interval"
+      ],
+      "error": null
+    },
+    "clean": {
+      "passed": false,
+      "render_calls": null,
+      "pixel_byte_differences": [],
+      "code_integrity_checked": false,
+      "phases": [
+        "unbroken cold attract"
+      ],
+      "error": "AssertionError('unbroken credit: state not observed before deadline')"
+    }
+  },
+  "failures": [
+    "Clean execution did not reach credit state within 30 seconds; attribution unresolved.",
+    "Release presentation is 8 bytes over its existing bound.",
+    "Highscore-test demo runtime is 2 bytes over its existing bound."
+  ],
+  "failed_observation_phases": 3,
+  "budget": {
+    "approved_weekly_percent": 5,
+    "additional_diagnosis_estimate_percent": [
+      2,
+      3
+    ],
+    "additional_ceiling_proposed_percent": 3,
+    "exact_quota_conversion_available": false
+  }
+}
