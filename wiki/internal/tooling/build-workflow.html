@@ -14,6 +14,14 @@
     <a href="./index.html">Tooling</a>
   </nav>
   <main class="wiki-main">
+    <section>
+      <h2>Input selection — BUG-034</h2>
+      <p><code>LADYBUG_INPUT</code> accepts <code>keyboard</code> (default) or <code>joystick</code>. Invalid values fail before generation. This switch changes input acquisition, not the existing profile or CPU defaults.</p>
+      <pre><code>LADYBUG_PROFILE=complete bash scripts/build.sh build
+LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick bash scripts/build.sh build
+LADYBUG_PROFILE=complete bash scripts/build.sh run</code></pre>
+      <p>Keyboard runs release both emulated joystick mappings so host arrows reach the CoCo keyboard matrix. Joystick runs retain <code>kjoy0</code> on the right port; override it with <code>XROAR_EXTRA</code> for another configured controller. Both modes export the same <code>read_joystick</code> entry to gameplay and name entry. The keyboard build omits analog conversion entirely. Retain separate ROM/map/module snapshots when comparing modes because each build replaces <code>build/ladybug.rom</code>.</p>
+    </section>
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal · tooling</p>
       <h1>Build &amp; deploy runbook <span class="wiki-badge">internal</span></h1>

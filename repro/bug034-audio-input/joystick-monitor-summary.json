@@ -1,0 +1,80 @@
+{
+  "mode": "joystick",
+  "rom_sha256": "77a53143e956d6f64eedbe52f8ffab761709fd85093d84dfca2ea4e52b5844de",
+  "transport": "existing monitor emulator-input harness",
+  "deadline_seconds": 30,
+  "rate_limited": true,
+  "phases": [
+    {
+      "label": "cold mainloop",
+      "seconds": 3.806,
+      "pc": 49379
+    },
+    {
+      "label": "natural attract",
+      "seconds": 1.62,
+      "pc": 7178
+    },
+    {
+      "label": "natural credit",
+      "seconds": 0.558,
+      "pc": 7234
+    },
+    {
+      "label": "natural gameplay",
+      "seconds": 3.587,
+      "pc": 49401
+    },
+    {
+      "label": "first completed gameplay render",
+      "seconds": 0.639,
+      "pc": 49490
+    },
+    {
+      "label": "first gameplay publication",
+      "seconds": 0.02,
+      "pc": 49401
+    },
+    {
+      "label": "direction []",
+      "seconds": 0.02,
+      "pc": 51821
+    }
+  ],
+  "input": [
+    {
+      "keys": [],
+      "expected": 255,
+      "actual": 255,
+      "x": 32,
+      "y": 32,
+      "credits": 0,
+      "mode": 0,
+      "pia_cra": 60,
+      "pia_crb": 180,
+      "audio_gate": 180
+    }
+  ],
+  "resident_presentation_identity": true,
+  "attract_frame_sha256": "6c8098d585513f3ae1c4838945f6ddf9c0770c89cb0d7af432dcd6375025c6af",
+  "credit_frame_sha256": "8a752a2b40d6d23822adf29c373ad8411a3bda1b53919f760b4da327670c8858",
+  "gameplay_frame_sha256": "01765d92dc3cc8e503fa8821521159854fe3be3a499a64c70961c04ac51442d0",
+  "initial_game_state": "8520018520ff0000000c1689ec0000ff14150014131500510000010000000000",
+  "audio": {
+    "file": "joystick-gameplay.wav",
+    "seconds": 8,
+    "scenario": "first natural gameplay interval; neutral input; no execution breakpoints"
+  },
+  "quiet_slots": [
+    "ff05b300ab52e2003a023a020f0f0f000f",
+    "ff024a00a80a3a02010001000f0f0f000f",
+    "ff00000000000100010001000f0f0f000f",
+    "ff00000000000100010001000f0f0f000f"
+  ],
+  "quiet_output_shadow": "81009fa100bfc100dfe0ff",
+  "quiet_fixture": "2 seconds: inactive voice slots, neutral manual player, perimeter timer 255, empty event queue, refreshed poll snapshot; production service and polling unchanged",
+  "tone_slot": "00ff017a0000fa0001000100040f0f000f",
+  "tone_output_shadow": "8a0f94a100bfc100dfe0ff",
+  "tone_fixture": "2 seconds: slot3 exclusive priority255, one 500 Hz tone, attenuation4, wait255; blocks gameplay cue pre-emption, same production input and audio service",
+  "status": "pass"
+}

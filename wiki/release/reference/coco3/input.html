@@ -25,6 +25,13 @@
     </header>
 
     <section>
+      <h2>Ladybug control selection — BUG-034</h2>
+      <p>Ladybug defaults to direct CoCo arrow keys. <code>LADYBUG_INPUT=keyboard</code> selects this build explicitly; <code>LADYBUG_INPUT=joystick</code> retains the original right analog joystick implementation. The existing profile selection is independent: use <code>LADYBUG_PROFILE=complete</code> for the complete gameplay build.</p>
+      <p>Keyboard acquisition drives PB6/PB5 for Right/Left and PB4/PB3 for Down/Up, reading PA3. It releases the column drive to <code>$FF</code> afterward without writing the audio selector or DAC. Virtual axis values are 0, 32, and 64; the existing resolver cancels opposing keys and prefers horizontal movement on perpendicular ties. Startup automatic movement, manual stop/resume, buffered turns, and name-entry partial steps retain their existing contracts.</p>
+      <p>Credit/start scanning in the keyboard build reads only PA4, the number-key row. Left/Right share the same columns as 5/6; accepting all row bits would incorrectly turn arrow presses into credit events. Keyboard scans preserve PIA1 CA2/CB2 and the audio master gate. The run script unmaps keyboard-emulated joysticks so host arrows reach the CoCo keyboard. A gamepad mapped to analog joystick axes is supported only by the opt-in joystick build.</p>
+    </section>
+
+    <section>
       <h2>Keyboard</h2>
       <p>
         The keyboard is a passive 8-column × 8-row switch matrix. The MPU

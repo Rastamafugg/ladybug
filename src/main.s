@@ -165,6 +165,9 @@
 ;------------------------------------------------------------------------------
         setdp   $00
         include "ladybug_audio_symbols.inc"
+        ifndef  INPUT_JOYSTICK
+INPUT_JOYSTICK equ 0            ; direct CoCo arrows unless explicitly selected
+        endc
 
 AUDIO_ENGINE_EXEC   equ $0300
 AUDIO_INIT_EXEC     equ $0303
@@ -172,9 +175,9 @@ AUDIO_ENQUEUE_EXEC  equ $0306
 PRES_NAME_PTR       equ $00E4
 
 LAST_FRAME    equ $0000         ; last processed Vbord counter low byte
-JOY_X         equ $0001         ; right joystick X, 0..63
+JOY_X         equ $0001         ; analog X 0..63; keyboard virtual X 0,32,64
 FRAMES        equ $0002         ; u16 frame counter
-JOY_Y         equ $0004         ; right joystick Y, 0..63
+JOY_Y         equ $0004         ; analog Y 0..63; keyboard virtual Y 0,32,64
 JOY_DIR       equ $0005         ; requested direction or $FF
 PLAYER_DIR    equ $0006         ; active direction or $FF
 PLAYER_FACE   equ $0007         ; last active direction, 0..3
@@ -1999,7 +2002,9 @@ init_player
         rts
 
 ;==============================================================================
-; read_joystick — sample right X/Y and resolve a four-way requested direction.
+; read_joystick — acquire selected controls and resolve four-way direction.
+; The exported entry also serves name input. Keyboard builds never select
+; analog axes or gate cartridge audio; opposing keys cancel each axis.
 ;
 ; Inputs:
 ;   None
@@ -2011,6 +2016,7 @@ init_player
 ;   Updates JOY_X, JOY_Y, JOY_DX, JOY_DY, and JOY_DIR.
 ;==============================================================================
 read_joystick
+        ifne    INPUT_JOYSTICK
         lda     #$34            ; static CA2 low: right X
         sta     PIA2_CRB        ; break analog route before selecting joystick
         sta     PIA1_CRA
@@ -2023,6 +2029,16 @@ read_joystick
         stb     JOY_Y
         lda     #$80
         sta     PIA2_DA
+        else
+        lda     #$BF            ; PB6 right, then PB5 left; row PA3
+        bsr     keyboard_read_axis
+        stb     JOY_X
+        lda     #$EF            ; PB4 down, then PB3 up; row PA3
+        bsr     keyboard_read_axis
+        stb     JOY_Y
+        lda     #$FF            ; release keyboard columns, preserve CA2/CB2
+        sta     PIA1_DB
+        endc
 
         lda     JOY_X
         suba    #32
@@ -2085,6 +2101,7 @@ rj_done
 ; Side effects:
 ;   Sweeps the PIA2 DAC output.
 ;==============================================================================
+        ifne    INPUT_JOYSTICK
 joy_read_axis
         clrb
 jra_loop
@@ -2109,6 +2126,29 @@ jra_done
         lsrb
         lsrb
         rts
+        else
+; A = positive-key column mask. Next lower column is its opposing key.
+; B = 0,32,64 for negative, neutral (including both held), positive.
+; X/Y/U remain untouched; only keyboard data registers are accessed.
+keyboard_read_axis
+        ldb     #32
+        sta     PIA1_DB
+        pshs    a
+        lda     PIA1_DA
+        bita    #$08
+        bne     kra_negative
+        addb    #32
+kra_negative
+        puls    a
+        asra                    ; move active-low column right, filling with 1
+        sta     PIA1_DB
+        lda     PIA1_DA
+        bita    #$08
+        bne     kra_done
+        subb    #32
+kra_done
+        rts
+        endc
 
 ;==============================================================================
 ; player_tick — restore, move, collect a dot, and redraw the player.

@@ -156,6 +156,12 @@
     </section>
 
     <section>
+      <h2>Gameplay joystick interruption — 2026-09-07</h2>
+      <p>Source review at <code>eef32cf</code> confirms that <code>src/main.s:read_joystick</code> already disables the audio master before right-axis DAC conversion. <code>src/audio_runtime.s:audio_select_gmc</code> subsequently restores cartridge audio. Muting avoids routing the DAC sweep directly to the output, but still interrupts the cartridge signal. <a href="../tickets/bug-034-joystick-audio-buzz.html">BUG-034</a> implements direct keyboard arrows as the default and preserves the original analog implementation through <code>LADYBUG_INPUT=joystick</code>. Both directional and credit scans leave audio selection untouched in the keyboard build.</p>
+      <p>The retained emulator comparison includes matched natural gameplay, an explicitly muted voice fixture, and a steady 500 Hz tone fixture using the unchanged production audio service. Both muted fixtures produce digital silence. The tone fixture discriminates polling modulation from changing cues: sidebands at 440/560 Hz are substantially reduced by keyboard input. See the ticket and retained analysis for exact measurements, source identities, method, and limits. Emulator results do not establish physical-hardware silence.</p>
+    </section>
+
+    <section>
       <h2>Selector setup gotcha</h2>
       <p>
         From a cold reset, BASIC sets up usable defaults for the audio

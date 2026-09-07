@@ -97,6 +97,12 @@ case "$LADYBUG_PROFILE" in
     complete) BUG011_DEVELOPMENT_PROFILE=1; COMPLETE_PROFILE=1; HIGHSCORE_TEST_PROFILE=0 ;;
     *) echo "build: LADYBUG_PROFILE must be highscore-test, development, release, or complete" >&2; exit 2 ;;
 esac
+LADYBUG_INPUT="${LADYBUG_INPUT:-keyboard}"
+case "$LADYBUG_INPUT" in
+    keyboard) INPUT_JOYSTICK=0 ;;
+    joystick) INPUT_JOYSTICK=1 ;;
+    *) echo "build: LADYBUG_INPUT must be keyboard or joystick" >&2; exit 2 ;;
+esac
 
 guard_layout() {
     local map="$1"
@@ -365,7 +371,7 @@ cmd_build() {
     [[ -f "$SRC_MAIN" ]] || { echo "build: $SRC_MAIN not found" >&2; exit 1; }
     mkdir -p "$BUILD_DIR"
 
-    echo "build: profile $LADYBUG_PROFILE"
+    echo "build: profile $LADYBUG_PROFILE; input $LADYBUG_INPUT"
 
     mkdir -p "$(dirname "$AUDIO_CUE_MANIFEST")"
     cp "$AUDIO_CUE_MANIFEST_SOURCE" "$AUDIO_CUE_MANIFEST"
@@ -497,6 +503,7 @@ PY
           -DHIGHSCORE_TEST_PROFILE="$HIGHSCORE_TEST_PROFILE" \
           -DHIGHSCORE_PHASE_HELPER=0 \
           -DPRESENTATION_NAME_ENTRY_DATA=0 \
+          -DINPUT_JOYSTICK="$INPUT_JOYSTICK" \
           --output="$RUNTIME_ROM" \
           --list="$LST" \
           --symbols \
@@ -639,6 +646,7 @@ PY
           -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
           -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
           -DHIGHSCORE_TEST_PROFILE="$HIGHSCORE_TEST_PROFILE" \
+          -DINPUT_JOYSTICK="$INPUT_JOYSTICK" \
           -DPRESENTATION_INSTRUCTION_RUNTIME_ADDRESS="$INSTRUCTION_RUNTIME_STAGE_ADDRESS" \
           -DPRESENTATION_INSTRUCTION_RUNTIME_BYTES="$PRESENTATION_INSTRUCTION_RUNTIME_BYTES" \
           -DPRESENTATION_DEMO_RUNTIME_ADDRESS="$DEMO_RUNTIME_STAGE_ADDRESS" \
@@ -780,6 +788,7 @@ PY
           -DPRESENTATION_INSTRUCTION_RUNTIME_ADDRESS="$INSTRUCTION_RUNTIME_STAGE_ADDRESS" \
           -DPRESENTATION_INSTRUCTION_RUNTIME_BYTES="$PRESENTATION_INSTRUCTION_RUNTIME_BYTES" \
           -DPRESENTATION_DEMO_RUNTIME_ADDRESS="$DEMO_RUNTIME_STAGE_ADDRESS" \
+          -DINPUT_JOYSTICK="$INPUT_JOYSTICK" \
           -DPRESENTATION_DEMO_RUNTIME_BYTES="$(wc -c < "$DEMO_RUNTIME")" \
           -DPRESENTATION_HIGHSCORE_RUNTIME_ADDRESS="$HIGHSCORE_RUNTIME_STAGE_ADDRESS" \
           -DPRESENTATION_HIGHSCORE_RUNTIME_BYTES="$(wc -c < "$HIGHSCORE_RUNTIME")" \
@@ -992,6 +1001,9 @@ PY
 
 cmd_run() {
     cmd_build
+    echo "run: profile $LADYBUG_PROFILE; input $LADYBUG_INPUT; XRoar CPU ${LADYBUG_CPU:-6809}"
+    local joy_right=""
+    if [[ "$LADYBUG_INPUT" == joystick ]]; then joy_right=kjoy0; fi
     exec xroar \
         -machine coco3 \
         -ram 512 \
@@ -1000,7 +1012,8 @@ cmd_run() {
         -cart-rom "$ROM" \
         -cart-autorun \
         -tv-input rgb \
-        -joy-right kjoy0 \
+        -joy-right "$joy_right" \
+        -joy-left "" \
         ${XROAR_EXTRA:-}
 }
 

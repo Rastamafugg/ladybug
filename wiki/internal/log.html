@@ -14,6 +14,14 @@
   </nav>
 <main class="wiki-main">
     <section>
+      <h3>2026-09-07 · implementation and QA — BUG-034 direct arrow controls</h3>
+      <p><a href="./tickets/bug-034-joystick-audio-buzz.html">BUG-034</a> makes keyboard arrows the default while preserving a byte-identical opt-in joystick ROM. Restricted credit scanning to the number row and preserved audio selectors. Final complete builds, audio/compression guards, natural emulated credit/start, cardinal/release/opposing inputs, qualifying name entry, and accelerated demo input isolation pass. Steady-tone polling sidebands were present with joystick and unresolved above numerical leakage with keyboard in one isolated emulator comparison; physical listening remains pending, so the ticket stays Verification. Resident spare is 18 bytes, presentation spare 8, and GMC source spare 4196. Retained recordings and failed-probe explanations are linked from the ticket. Implementation commit: <code>BUG034_COMMIT_PENDING</code>. Pre-existing tool, wiki, generated, and user-session changes remain outside this commit.</p>
+    </section>
+    <section>
+      <h3>2026-09-07 · query — Gameplay joystick buzz</h3>
+      <p>Reviewed the existing input/sound references, FEAT-006 residual risk, and main/presentation/audio input paths at eef32cf with unrelated local changes. Confirmed existing mute-before-conversion and subsequent GMC restoration; documented the difference between mitigation and eliminating analog polling. Created Proposed <a href="./tickets/bug-034-joystick-audio-buzz.html">BUG-034</a> for a direct-arrow default diagnostic with opt-in joystick build. No production changes or new runtime/audio measurements.</p>
+    </section>
+    <section>
       <h3>2026-09-02 · verification — Integration-as-is build and packing gates pass</h3>
       <p>The final explicit complete build produced 65,536-byte ROM <code>8ddfd6f12d805ba73d62c889fb7f7f66db2ffd0936f892dc167c1dad3c064458</code>. Four LZSS streams reconstructed byte-exactly within page bounds, the decoder occupied 222 bytes, the audio payload occupied 4,877 bytes on page <code>$3D</code>, and the audio engine occupied <code>812/920</code> bytes. The generated layout retains 4,188 CPU-readable source bytes, exceeding the 2,048-byte floor by 2,140 bytes while missing the original 4,832-byte projection by 644 bytes. Syntax, presentation, sparse, overflow, allocation, audio, and diff-hygiene checks form the approved limited closure set; full behavioral QA remains deferred.</p>
     </section>

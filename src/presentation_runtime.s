@@ -1500,7 +1500,15 @@ scan_loop
         sta     PIA_DB
         lda     PIA_DA
         ifne    COMPLETE_PROFILE
-        anda    #$7F            ; PA7 is joystick comparator, not a key row
+        ifne    INPUT_JOYSTICK
+        anda    #$7F            ; retain the opt-in joystick control build
+        else
+        anda    #$10            ; number row only: arrows share columns 5/6
+        endc
+        else
+        ifeq    INPUT_JOYSTICK
+        anda    #$10            ; keyboard directions must not create credits
+        endc
         endc
         pshs    a
         coma
@@ -1517,6 +1525,7 @@ scan_next
         blo     scan_loop
         lda     #$FF
         sta     PIA_DB
+        ifne    INPUT_JOYSTICK
         lda     #$34
         sta     PIA_CRA
         ifne    COMPLETE_PROFILE
@@ -1526,6 +1535,7 @@ scan_next
         else
         sta     PIA_CRB
         endc
+        endc                    ; keyboard scanning leaves audio selectors alone
         rts
         ifne    HIGHSCORE_TEST_PROFILE
 draw_actor_overlay
