@@ -1,12 +1,3 @@
-        include "ladybug_shared_mode.inc"
-        ifne SHARED_TEXT_ENABLED*COMPLETE_PHASE_AUX
-        include "ladybug_text_colours.inc"
-        ifne HIGHSCORE_PHASE_HELPER
-        include "shared_text_stage.inc"
-        else
-        include "shared_text_ranking.inc"
-        endc
-        else
 ; BUG-012 release-profile demo route director, copied to low RAM $0300.
 ; DOC-002 source-contract mirror begins. Canonical definitions:
 ; wiki/internal/implementation/routine-catalog.html
@@ -382,6 +373,318 @@ highscore_default_name_data
         fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_4
         fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_5
         fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_6
+
+        ifne    PRESENTATION_STAGE_PANEL_ENABLED
+        include "ladybug_runtime_symbols.inc"
+        rmb     $B080-*
+; BUG-035: called during hidden level-start hydration, before publication.
+; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
+stage_panel_draw
+        jmp stage_panel_finish
+stage_panel_slice_entry
+        jmp stage_panel_slice
+stage_select
+        lda #1
+        ldb $A7
+        cmpb #2
+        bne stage_selected
+        lda $24
+stage_selected
+        sta PRES_TMP_H
+        rts
+stage_panel_slice
+        lda PRES_SCREEN
+        cmpa #PRESENTATION_MAP_HIGH_SCORE
+        lbeq ranking_schedule_tick
+        lda PRES_SCREEN
+        cmpa #PRESENTATION_MAP_LEVEL_START
+        bne stage_slice_return
+        ldd $AA
+        lsra
+        rorb
+        lsra
+        rorb
+        ; PRES_CELL is a multiple of 32: dividing by four yields tick*8.
+        leay stage_schedule,pcr
+        leay d,y
+        tst 2,y
+        beq stage_slice_return
+        bsr stage_select
+        ldx ,y
+        lda 5,y
+        sta $29
+        lda 2,y
+        cmpa #1
+        beq stage_slice_part
+        pshs x
+        ldb 3,y
+        stb PRES_TMP_M
+        ldb 4,y
+        stb PRES_TMP_L
+        cmpa #4
+        beq stage_slice_luck
+        pshs a
+        lda PRES_TMP_H
+        bne stage_slice_nonzero
+        inca
+stage_slice_nonzero
+        cmpa #18
+        bls stage_slice_index
+        lda #18
+stage_slice_index
+        deca
+        ldb #20
+        mul
+        leay stage_panel_records,pcr
+        leay d,y
+        puls a
+        cmpa #3
+        bne stage_slice_offset
+        leay 16,y
+        bra stage_slice_offset
+stage_slice_luck
+        leay stage_panel_good_luck,pcr
+stage_slice_offset
+        ldb PRES_TMP_M
+        leay b,y
+        ldb PRES_TMP_L
+        puls x
+        lbra stage_panel_text
+stage_slice_part
+        lbra stage_panel_number
+stage_slice_return
+        rts
+stage_panel_finish
+        lda PRES_SCREEN
+        cmpa #PRESENTATION_MAP_LEVEL_START
+        bne stage_slice_return
+        lbsr stage_select
+        lda PRES_TMP_H
+        bne stage_finish_nonzero
+        inca
+stage_finish_nonzero
+        cmpa #18
+        bls stage_finish_index
+        lda #18
+stage_finish_index
+        deca
+        ldb #64
+        mul
+        ldy #vegetable_sprites
+        leay d,y
+        pshs y
+        ldu #sprite_attr0_pairs
+        ldx #$3E40
+        jsr blit_packed_sprite
+        puls y
+        ldu #sprite_attr0_pairs
+        ldx #$5C80
+        jmp blit_packed_sprite
+stage_schedule
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $3458
+        fcb 1,0,3,TEXT_STAGE_PART,0,0
+        fdb $434C
+        fcb 3,0,4,TEXT_STAGE_BONUS,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $4D30
+        fcb 2,0,4,TEXT_STAGE_NAME,0,0
+        fdb $4D40
+        fcb 2,4,4,TEXT_STAGE_NAME,0,0
+        fdb $4D50
+        fcb 2,8,4,TEXT_STAGE_NAME,0,0
+        fdb $4D60
+        fcb 2,12,4,TEXT_STAGE_NAME,0,0
+        fdb $4D84
+        fcb 1,0,3,TEXT_STAGE_PART,0,0
+        fdb $618C
+        fcb 3,0,4,TEXT_STAGE_BONUS,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $0000
+        fcb 0,0,0,0,0,0
+        fdb $8440
+        fcb 4,0,3,TEXT_STAGE_GOOD_LUCK,0,0
+        fdb $844C
+        fcb 4,3,3,TEXT_STAGE_GOOD_LUCK,0,0
+        fdb $8458
+        fcb 4,6,3,TEXT_STAGE_GOOD_LUCK,0,0
+
+stage_panel_number
+        lda     PRES_TMP_H
+        bne     spn_nonzero
+        inca
+spn_nonzero
+        clrb
+spn_hundreds
+        cmpa    #100
+        blo     spn_hundreds_done
+        suba    #100
+        incb
+        bra     spn_hundreds
+spn_hundreds_done
+        sta     PRES_TMP_M
+        stb     PRES_NAME_REPEAT
+        tstb
+        beq     spn_tens_begin
+        tfr     b,a
+        lbsr    stage_panel_char
+spn_tens_begin
+        lda     PRES_TMP_M
+        clrb
+spn_tens
+        cmpa    #10
+        blo     spn_tens_done
+        suba    #10
+        incb
+        bra     spn_tens
+spn_tens_done
+        sta     PRES_TMP_M
+        tstb
+        bne     spn_write_tens
+        tst     PRES_NAME_REPEAT
+        beq     spn_units
+spn_write_tens
+        tfr     b,a
+        lbsr    stage_panel_char
+spn_units
+        lda     PRES_TMP_M
+        lbra    stage_panel_char
+
+stage_panel_text
+        lda     ,y+
+        lbsr    stage_panel_char
+        decb
+        bne     stage_panel_text
+        rts
+
+; A=0..36 glyph, X=destination, $29=colour. Preserve A/B/Y/U; advance X.
+stage_panel_char
+        pshs a,b,x,y,u
+        leay stage_source_glyphs,pcr
+        lda a,y
+        jsr PRES_MAIN_SHARED_MASK
+        puls a,b,x,y,u
+        leax 4,x
+        rts
+        include "ladybug_stage_glyphs.inc"
+
+stage_panel_good_luck
+        fcb     16,24,24,13,36,21,30,12,20
+        include "ladybug_stage_panel.inc"
+        endc
+ranking_schedule_tick
+        ldd $AA
+        lsra
+        rorb
+        lsra
+        rorb
+        leau ranking_schedule_data,pcr
+        leau d,u
+        ldx ,u
+        beq ranking_schedule_return
+        ldy 2,u
+        ldb 4,u
+        jmp PRES_RANKING_SLICE
+ranking_schedule_return
+        rts
+ranking_schedule_data
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $AF84,$2A40
+        fcb 1,0,0,0
+        fdb $AF84,$2A6C
+        fcb 0,0,0,0
+        fdb $AF8E,$3440
+        fcb 1,0,0,0
+        fdb $AF8E,$346C
+        fcb 0,0,0,0
+        fdb $AF98,$3940
+        fcb 1,0,0,0
+        fdb $AF98,$396C
+        fcb 0,0,0,0
+        fdb $AFA2,$3E40
+        fcb 1,0,0,0
+        fdb $AFA2,$3E6C
+        fcb 0,0,0,0
+        fdb $AFAC,$4340
+        fcb 1,0,0,0
+        fdb $AFAC,$436C
+        fcb 0,0,0,0
+        fdb $AFB6,$4840
+        fcb 1,0,0,0
+        fdb $AFB6,$486C
+        fcb 0,0,0,0
+        fdb $AFC0,$4D40
+        fcb 1,0,0,0
+        fdb $AFC0,$4D6C
+        fcb 0,0,0,0
+        fdb $AFCA,$5240
+        fcb 1,0,0,0
+        fdb $AFCA,$526C
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $AFD4,$5740
+        fcb 1,0,0,0
+        fdb $AFD4,$576C
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
+        fdb $0000,$0000
+        fcb 0,0,0,0
 
 highscore_phase_helper_end
 
@@ -1174,6 +1477,3 @@ map_back_set
         endc
 demo_runtime_end
         endc
-
-        endc
-        end

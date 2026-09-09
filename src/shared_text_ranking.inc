@@ -1,12 +1,3 @@
-        include "ladybug_shared_mode.inc"
-        ifne SHARED_TEXT_ENABLED*COMPLETE_PHASE_AUX
-        include "ladybug_text_colours.inc"
-        ifne HIGHSCORE_PHASE_HELPER
-        include "shared_text_stage.inc"
-        else
-        include "shared_text_ranking.inc"
-        endc
-        else
 ; BUG-012 release-profile demo route director, copied to low RAM $0300.
 ; DOC-002 source-contract mirror begins. Canonical definitions:
 ; wiki/internal/implementation/routine-catalog.html
@@ -383,6 +374,169 @@ highscore_default_name_data
         fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_5
         fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_6
 
+        ifne    PRESENTATION_STAGE_PANEL_ENABLED
+        include "ladybug_runtime_symbols.inc"
+        rmb     $B080-*
+; BUG-035: called during hidden level-start hydration, before publication.
+; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
+stage_panel_draw
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_LEVEL_START
+        lbne    stage_panel_return
+        lda     #1
+        ldb     $00A7          ; PRES_CONTEXT: next-stage retains current STAGE
+        cmpb    #2
+        bne     stage_panel_selected
+        lda     $24
+stage_panel_selected
+        sta     PRES_TMP_H
+        lda     #3
+        sta     $29
+        ldx     #$3458          ; PART number, column 22 row 4
+        lbsr    stage_panel_number
+        ldx     #$4D84          ; side HUD part number, column 33 row 9
+        lbsr    stage_panel_number
+        lda     PRES_TMP_H
+        bne     stage_panel_nonzero
+        inca
+stage_panel_nonzero
+        cmpa    #18
+        bls     stage_panel_index
+        lda     #18
+stage_panel_index
+        deca
+        sta     PRES_TMP_H
+        ldb     #20
+        mul
+        ldy     #stage_panel_records
+        leay    d,y
+        lda     #2
+        sta     $29
+        ldx     #$4D30          ; centred 16-cell vegetable name, row 9
+        ldb     #16
+        lbsr    stage_panel_text
+        lda     #5
+        sta     $29
+        ldx     #$434C          ; bonus digits, column 19 row 7
+        pshs    y
+        ldb     #4
+        lbsr    stage_panel_text
+        puls    y
+        ldx     #$618C          ; HUD bonus, column 35 row 13
+        ldb     #4
+        lbsr    stage_panel_text
+        lda     #1
+        sta     $29
+        ldx     #$8440
+        ldy     #stage_panel_good_luck
+        ldb     #9
+        lbsr    stage_panel_text
+        lda     PRES_TMP_H
+        ldb     #64
+        mul
+        ldy     #vegetable_sprites
+        leay    d,y
+        pshs    y
+        ldu     #sprite_attr0_pairs
+        ldx     #$3E40          ; cucumber/vegetable, column 16 row 6
+        jsr     blit_packed_sprite
+        puls    y
+        ldu     #sprite_attr0_pairs
+        ldx     #$5C80          ; same vegetable in the side HUD
+        jsr     blit_packed_sprite
+stage_panel_return
+        rts
+
+stage_panel_number
+        lda     PRES_TMP_H
+        bne     spn_nonzero
+        inca
+spn_nonzero
+        clrb
+spn_hundreds
+        cmpa    #100
+        blo     spn_hundreds_done
+        suba    #100
+        incb
+        bra     spn_hundreds
+spn_hundreds_done
+        sta     PRES_TMP_M
+        stb     PRES_NAME_REPEAT
+        tstb
+        beq     spn_tens_begin
+        tfr     b,a
+        lbsr    stage_panel_char
+spn_tens_begin
+        lda     PRES_TMP_M
+        clrb
+spn_tens
+        cmpa    #10
+        blo     spn_tens_done
+        suba    #10
+        incb
+        bra     spn_tens
+spn_tens_done
+        sta     PRES_TMP_M
+        tstb
+        bne     spn_write_tens
+        tst     PRES_NAME_REPEAT
+        beq     spn_units
+spn_write_tens
+        tfr     b,a
+        lbsr    stage_panel_char
+spn_units
+        lda     PRES_TMP_M
+        lbra    stage_panel_char
+
+stage_panel_text
+        lda     ,y+
+        lbsr    stage_panel_char
+        decb
+        bne     stage_panel_text
+        rts
+
+; A=0..36 glyph, X=destination, $29=colour. Preserve A/B/Y/U; advance X.
+stage_panel_char
+        pshs    a,b,x,y,u
+        ldb     #8
+        mul
+        ldy     #stage_panel_font
+        leay    d,y
+        lda     #8
+        sta     PRES_TMP_L
+spc_row
+        lda     ,y+
+        sta     PRES_NAME_TILE
+        ldu     #4
+spc_pair
+        clra
+        lsl     PRES_NAME_TILE
+        bcc     spc_low
+        lda     $29
+        lsla
+        lsla
+        lsla
+        lsla
+spc_low
+        lsl     PRES_NAME_TILE
+        bcc     spc_store
+        ora     $29
+spc_store
+        sta     ,x+
+        leau    -1,u
+        cmpu    #0
+        bne     spc_pair
+        leax    156,x
+        dec     PRES_TMP_L
+        bne     spc_row
+        puls    a,b,x,y,u
+        leax    4,x
+        rts
+
+stage_panel_good_luck
+        fcb     16,24,24,13,36,21,30,12,20
+        include "ladybug_stage_panel.inc"
+        endc
 highscore_phase_helper_end
 
         else
@@ -904,42 +1058,19 @@ entry_top_left
         rts
 
 render_high_score
-        jsr     PRES_MODULE_MAP_BACK
-        lbsr    init_scores
-        bsr     draw_high_score_screen
-        rts
-
-draw_high_score_screen
-        ldx     #PRES_HIGHSCORE_BASE
-        ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
-        bsr     draw_high_score_entry
-        leau    PRESENTATION_HIGHSCORE_ENTRY_NAME_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,u
-        ldb     #PRESENTATION_HIGHSCORE_COUNT-1
-draw_high_score_rows
-        pshs    b
-        bsr     draw_high_score_entry
-        puls    b
-        leau    1280,u
-        decb
-        bne     draw_high_score_rows
-        rts
-
-draw_high_score_entry
-        stx     PRES_NAME_PTR
-        pshs    u
-        tfr     u,y
-        ldx     PRES_NAME_PTR
-        leax    3,x
-        bsr     draw_record_name
-        puls    u
-        pshs    u
-        tfr     u,y
-        leay    PRESENTATION_HIGHSCORE_TOP_SCORE_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,y
-        ldx     PRES_NAME_PTR
-        bsr     draw_score
-        puls    u
-        leax    7,x
-        rts
+        rts                     ; fields were drawn during map preparation
+ranking_slice
+        pshs b,x,y
+        lda #$34
+        sta PAR5
+        lbsr init_scores
+        puls b,x,y
+        tstb
+        beq ranking_score
+        leax 3,x
+        lbra draw_record_name
+ranking_score
+        lbra draw_score
 
 draw_record_name
         ldb     #PRESENTATION_HIGHSCORE_NAME_BYTES
@@ -1174,6 +1305,3 @@ map_back_set
         endc
 demo_runtime_end
         endc
-
-        endc
-        end

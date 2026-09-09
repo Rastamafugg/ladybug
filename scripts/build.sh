@@ -6,7 +6,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_MAIN="$ROOT/src/main.s"
 SRC_TESTER="$ROOT/src/tester/tester.s"
-BUILD_DIR="$ROOT/build"
+BUILD_DIR="${LADYBUG_BUILD_DIR:-$ROOT/build}"
 SCREEN_INC="$BUILD_DIR/ladybug_screen.inc"
 RESIDENT_INC="$BUILD_DIR/ladybug_resident.inc"
 SPARSE_ENEMY="$BUILD_DIR/ladybug-enemy-sparse.bin"
@@ -89,7 +89,7 @@ INSTRUCTION_RUNTIME_START=0x0300
 INSTRUCTION_RUNTIME_LIMIT=0x06AA
 AUDIO_ENGINE_LIMIT=920
 AUDIO_RUNTIME_LIMIT=0x2000
-LADYBUG_PROFILE="${LADYBUG_PROFILE:-highscore-test}"
+LADYBUG_PROFILE="${LADYBUG_PROFILE:-complete}"
 case "$LADYBUG_PROFILE" in
     highscore-test) BUG011_DEVELOPMENT_PROFILE=0; COMPLETE_PROFILE=0; HIGHSCORE_TEST_PROFILE=1 ;;
     development) BUG011_DEVELOPMENT_PROFILE=1; COMPLETE_PROFILE=0; HIGHSCORE_TEST_PROFILE=0 ;;
@@ -371,6 +371,11 @@ cmd_build() {
     [[ -f "$SRC_MAIN" ]] || { echo "build: $SRC_MAIN not found" >&2; exit 1; }
     mkdir -p "$BUILD_DIR"
 
+    printf 'SHARED_TEXT_ENABLED equ %s\nPRES_STAGE_SLICE equ $B083\n' "$COMPLETE_PROFILE" > "$BUILD_DIR/ladybug_shared_mode.inc"
+    printf 'SHARED_COLD_PTR equ $1B96\n' > "$BUILD_DIR/ladybug_shared_link.inc"
+    local shared_text_args=()
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then shared_text_args=(--shared-text); fi
+
     echo "build: profile $LADYBUG_PROFILE; input $LADYBUG_INPUT"
 
     mkdir -p "$(dirname "$AUDIO_CUE_MANIFEST")"
@@ -393,6 +398,7 @@ cmd_build() {
         --presentation-output "$PRESENTATION_SPARSE"
 
     python3 "$ROOT/scripts/build_presentation.py" \
+        "${shared_text_args[@]}" \
         --tiled-dir "$ROOT/tiled" \
         --chars "$ROOT/assets/arcade/chars.json" \
         --gameplay-map "$ROOT/tiled/coco-screen.tmx" \
@@ -477,6 +483,9 @@ with open(output_path, "w", encoding="ascii") as handle:
     handle.write(f"AUDIO_INSTALL_EXEC equ ${symbols['audio_install_page']:04X}\n")
 PY
 
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then
+        python3 "$ROOT/scripts/verify_shared_text.py" --build-dir "$BUILD_DIR"
+    else
     python3 "$ROOT/scripts/verify_presentation.py" \
         --tiled-dir "$ROOT/tiled" \
         --chars "$ROOT/assets/arcade/chars.json" \
@@ -492,6 +501,7 @@ PY
         --development-profile "$BUG011_DEVELOPMENT_PROFILE" \
         --complete-profile "$COMPLETE_PROFILE" \
         --highscore-test-profile "$HIGHSCORE_TEST_PROFILE"
+    fi
 
     python3 "$ROOT/scripts/verify_bug016_presentation_layers.py" \
         --tiled-dir "$ROOT/tiled" \
@@ -508,7 +518,7 @@ PY
           --list="$LST" \
           --symbols \
           --map="$MAP" \
-          -I "$BUILD_DIR" \
+          -I "$BUILD_DIR" -I "$ROOT/src" \
           "$SRC_MAIN"
 
     guard_layout "$MAP" "$RUNTIME_ROM"
@@ -580,6 +590,9 @@ if int(highscore_test):
     })
 if int(complete):
     wanted.update({
+        'presentation_dispatch': 'PRES_MAIN_STATIC_TEXT',
+        'dynamic_dispatch': 'PRES_MAIN_DYNAMIC_TEXT',
+        'shared_mask': 'PRES_MAIN_SHARED_MASK',
         'install_phase_tiles_for_screen': 'PRES_MAIN_INSTALL_PHASE_TILES',
         'presentation_page23_resume': 'PRES_MAIN_PAGE23_RESUME',
         'presentation_map_stream_offsets': 'PRES_MAIN_MAP_STREAM_OFFSETS',
@@ -605,7 +618,7 @@ PY
           --list="$ENEMY_LST" \
           --symbols \
           --map="$ENEMY_MAP" \
-          -I "$BUILD_DIR" \
+          -I "$BUILD_DIR" -I "$ROOT/src" \
           "$ENEMY_SRC"
 
     python3 - "$ENEMY_MAP" "$PRESENTATION_SYMBOLS" <<'PY'
@@ -616,6 +629,7 @@ wanted = {
     'framebuffer_prepare_back': 'PRES_MAIN_FB_PREPARE',
     'framebuffer_finish_back': 'PRES_MAIN_FB_FINISH',
     'framebuffer_capture_back': 'PRES_MAIN_FB_CAPTURE',
+    'fbf_ready': 'PRES_MAIN_FB_PUBLISH',
 }
 symbols = {}
 for line in open(source, encoding='utf-8'):
@@ -659,7 +673,7 @@ PY
           --list="$PRESENTATION_MODULE_LST" \
           --symbols \
           --map="$PRESENTATION_MODULE_MAP" \
-          -I "$BUILD_DIR" \
+          -I "$BUILD_DIR" -I "$ROOT/src" \
           "$PRESENTATION_MODULE_SRC"
     guard_presentation_module "$PRESENTATION_MODULE"
 
@@ -691,8 +705,30 @@ if set(symbols) != required:
     raise SystemExit('build: presentation module symbols missing: ' + ', '.join(sorted(required - set(symbols))))
 with open(output, 'a', encoding='ascii') as handle:
     for name, value in symbols.items():
+        if name == 'PRES_MODULE_DRAW_TILE':
+            original = open(output, encoding='ascii').read()
+            match = re.search(r'^PRES_MAIN_DYNAMIC_TEXT equ \$([0-9A-Fa-f]+)$', original, re.M)
+            if match: value = match.group(1)
         handle.write(f'{name} equ ${value}\n')
+from pathlib import Path
+Path(output).with_name('ladybug_shared_link.inc').write_text(
+    f"SHARED_COLD_PTR equ ${symbols['PRES_MODULE_COLD_PTR']}\n")
 PY
+
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then
+        # Resolve the module's cold-pointer entry without pinning a historical PC.
+        # All imported resident entries retain the same layout in this link pass.
+        lwasm -9 --format=raw \
+            -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
+            -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
+            -DHIGHSCORE_TEST_PROFILE="$HIGHSCORE_TEST_PROFILE" \
+            -DHIGHSCORE_PHASE_HELPER=0 -DPRESENTATION_NAME_ENTRY_DATA=0 \
+            -DINPUT_JOYSTICK="$INPUT_JOYSTICK" \
+            --output="$RUNTIME_ROM" --list="$LST" --symbols --map="$MAP" \
+            -I "$BUILD_DIR" -I "$ROOT/src" "$SRC_MAIN"
+        guard_layout "$MAP" "$RUNTIME_ROM"
+        pad_cart "$RUNTIME_ROM"
+    fi
 
     lwasm -9 --format=raw \
           -DHIGHSCORE_TEST_PROFILE="$HIGHSCORE_TEST_PROFILE" \
@@ -705,7 +741,7 @@ PY
           --list="$DEMO_RUNTIME_LST" \
           --symbols \
           --map="$DEMO_RUNTIME_MAP" \
-          -I "$BUILD_DIR" \
+          -I "$BUILD_DIR" -I "$ROOT/src" \
           "$DEMO_RUNTIME_SRC"
     guard_instruction_runtime "$DEMO_RUNTIME" "demo runtime"
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then
@@ -719,8 +755,16 @@ PY
               --output="$HIGHSCORE_RUNTIME" \
               --list="$HIGHSCORE_RUNTIME_LST" \
               --symbols --map="$HIGHSCORE_RUNTIME_MAP" \
-              -I "$BUILD_DIR" "$DEMO_RUNTIME_SRC"
+              -I "$BUILD_DIR" -I "$ROOT/src" "$DEMO_RUNTIME_SRC"
         guard_instruction_runtime "$HIGHSCORE_RUNTIME" "high-score runtime"
+        python3 - "$HIGHSCORE_RUNTIME_MAP" "$PRESENTATION_SYMBOLS" <<'PY'
+import re, sys
+text = open(sys.argv[1]).read()
+match = re.search(r'^Symbol: ranking_slice .* = ([0-9A-Fa-f]+)$', text, re.M)
+if match is None: raise SystemExit('shared ranking slice export missing')
+with open(sys.argv[2], 'a') as handle:
+    handle.write(f'PRES_RANKING_SLICE equ ${match[1]}\n')
+PY
         python3 - "$HIGHSCORE_RUNTIME" <<'PY'
 import sys
 size = len(open(sys.argv[1], "rb").read())
@@ -737,7 +781,7 @@ PY
               --output="$HIGHSCORE_HELPER" \
               --list="$HIGHSCORE_HELPER_LST" \
               --symbols --map="$HIGHSCORE_HELPER_MAP" \
-              -I "$BUILD_DIR" "$DEMO_RUNTIME_SRC"
+              -I "$BUILD_DIR" -I "$ROOT/src" "$DEMO_RUNTIME_SRC"
         python3 - "$HIGHSCORE_HELPER" "$HIGHSCORE_HELPER_MAP" "$HIGHSCORE_PHASE_HELPER_ADDRESS" "$HIGHSCORE_PHASE_HELPER_RESUME" <<'PY'
 import re
 import sys
@@ -798,20 +842,22 @@ PY
           --list="$PRESENTATION_MODULE_LST" \
           --symbols \
           --map="$PRESENTATION_MODULE_MAP" \
-          -I "$BUILD_DIR" \
+          -I "$BUILD_DIR" -I "$ROOT/src" \
           "$PRESENTATION_MODULE_SRC"
     guard_presentation_module "$PRESENTATION_MODULE"
 
+    rm -f "$INSTRUCTION_RUNTIME.new"
     lwasm -9 --format=raw \
           -DHIGHSCORE_TEST_PROFILE=0 \
           -DPRESENTATION_NAME_ENTRY_DATA=0 \
-          --output="$INSTRUCTION_RUNTIME" \
+          --output="$INSTRUCTION_RUNTIME.new" \
           --list="$INSTRUCTION_RUNTIME_LST" \
           --symbols \
           --map="$INSTRUCTION_RUNTIME_MAP" \
-          -I "$BUILD_DIR" \
+          -I "$BUILD_DIR" -I "$ROOT/src" \
           "$INSTRUCTION_RUNTIME_SRC"
-    guard_instruction_runtime "$INSTRUCTION_RUNTIME"
+    guard_instruction_runtime "$INSTRUCTION_RUNTIME.new"
+    mv -f "$INSTRUCTION_RUNTIME.new" "$INSTRUCTION_RUNTIME"
     python3 - "$INSTRUCTION_RUNTIME" "$PRESENTATION_INSTRUCTION_RUNTIME_BYTES" <<'PY'
 import sys
 path, size = sys.argv[1], int(sys.argv[2])
@@ -824,7 +870,7 @@ PY
           --list="$PERIMETER_HELPER_LST" \
           --symbols \
           --map="$PERIMETER_HELPER_MAP" \
-          -I "$BUILD_DIR" \
+          -I "$BUILD_DIR" -I "$ROOT/src" \
           "$PERIMETER_HELPER_SRC"
     guard_presentation_helper "$PERIMETER_HELPER"
 
@@ -916,7 +962,7 @@ PY
           --list="$boot_lst_tmp" \
           --symbols \
           --map="$boot_map_tmp" \
-          -I "$BUILD_DIR" \
+          -I "$BUILD_DIR" -I "$ROOT/src" \
           "$BOOT_SRC"
     python3 - "$boot_rom_tmp" "$BOOT_ROM" "$boot_lst_tmp" "$BOOT_LST" "$boot_map_tmp" "$BOOT_MAP" <<'PY'
 import os
@@ -1020,6 +1066,12 @@ cmd_run() {
 cmd_verify_gmc() {
     cmd_build
     python3 "$ROOT/scripts/verify_audio_runtime.py"
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then
+        python3 "$ROOT/scripts/verify_feat007_text.py" --phase checkpoint
+        python3 "$ROOT/scripts/verify_feat007_text.py" --phase static
+        python3 "$ROOT/scripts/verify_feat007_text.py" --phase runtime --refresh
+        return
+    fi
     python3 "$ROOT/scripts/verify_presentation_flow.py"
     if [[ "$HIGHSCORE_TEST_PROFILE" == 1 ]]; then
         local xroar_bin="${XROAR_BIN:-$ROOT/docs/reference/xroar/src/xroar}"

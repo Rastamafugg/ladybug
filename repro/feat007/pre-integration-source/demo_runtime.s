@@ -1,0 +1,1331 @@
+; BUG-012 release-profile demo route director, copied to low RAM $0300.
+; DOC-002 source-contract mirror begins. Canonical definitions:
+; wiki/internal/implementation/routine-catalog.html
+; DOC-002 source-contract mirror profile presentation Inputs: Presentation state, interval timer, input edges, current map, and the selected auxiliary profile
+; DOC-002 source-contract mirror profile presentation Outputs: Updated presentation state and the dispatcher retain/release status when applicable
+; DOC-002 source-contract mirror profile presentation Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile presentation Reads: Presentation direct-page state, cold payloads, authored map streams, and input state
+; DOC-002 source-contract mirror profile presentation Writes: Presentation state, mapped BACK pixels, and presentation-owned persistent metadata
+; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
+; DOC-002 source-contract mirror profile presentation Invariants: Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned
+; DOC-002 source-contract mirror contract demo_runtime_tick profile=presentation: Advance the deterministic release-demo route at eligible semantic cells.
+; DOC-002 source-contract mirror ends.
+        pragma  nodollarlocal,6809
+        setdp   $00
+        include "ladybug_presentation.inc"
+        include "ladybug_presentation_symbols.inc"
+
+PAR5    equ $FFA5
+PLAYER_DIR equ $0006
+PLAYER_FACE equ $0007
+PLAYER_STEP equ $0008
+PLAYER_FB equ $000B
+PLAYER_CELL_X equ $0009
+PLAYER_CELL_Y equ $000A
+PLAYER_WANT equ $000F
+PLAYER_MANUAL equ $0018
+PRES_DEMO_ROUTE equ $00DA
+PRES_DEMO_LAST_X equ $00DB
+PRES_DEMO_LAST_Y equ $00DC
+PRES_DEMO_DIR equ $00DD
+PRES_NAME_ROW equ $00DF
+PRES_NAME_COL equ $00E0
+PRES_NAME_REPEAT equ $00E1
+PRES_NAME_LAST_DIR equ $00E2
+PRES_TICK_PHASE equ $00E1
+PRES_NAME_FLAGS equ $00E2
+PRES_NAME_TIMER_PHASE equ $00E8
+PRES_NAME_TIMER_BOX equ $00E9
+PRES_NAME_OWNER equ $00E3
+PRES_NAME_PTR equ $00E4
+PRES_NAME_TILE equ $00E6
+PRES_HS_READY equ $00E7
+; High-score test only: demo-route scratch bytes hold the two owner-local
+; cursor destinations; the name tile byte holds the latched move direction.
+PRES_NAME_PTR_A equ $00DA
+PRES_NAME_PTR_B equ $00DC
+PRES_NAME_STEPS equ $00DE
+PRES_NAME_DIR equ $00E6
+PRES_MODE equ $00A5
+PRES_SCREEN equ $00A6
+PRES_IN equ $00B5
+PRES_OUT equ $00B7
+PRES_TMP_H equ $00C2
+PRES_TMP_M equ $00C3
+PRES_TMP_L equ $00C4
+PRES_INSERT equ $00C9
+PRES_NAME_LEN equ $00CB
+PRES_SCORE_H equ $00BF
+PRES_SCORE_M equ $00C0
+PRES_SCORE_L equ $00C1
+PRES_TIMER equ $00B0
+PRES_HIGHSCORE_BASE equ $AF84
+PRES_PENDING_NAME equ $AFDE
+; The page-$23 helper executes through PAR5, so page-$34 score state uses a
+; temporary PAR4 alias instead of dereferencing the helper's own window.
+PRES_HIGHSCORE_ALIAS equ $8F84
+PRES_PENDING_NAME_ALIAS equ $8FDE
+PRES_CURSOR_SAVE_A equ $A590
+PRES_CURSOR_SAVE_B equ $A610
+PRES_NAME_CL equ $FE
+PRES_NAME_END equ $FD
+PRES_HS_BLACK equ PRESENTATION_NAME_ENTRY_BLACK_TILE
+PRESENTATION_GAMEPLAY_TILES equ $E3D0
+MODE_LOAD equ 1
+MODE_GAMEOVER equ 7
+MODE_NAME equ 8
+MAP_HIGH_SCORE equ PRESENTATION_MAP_HIGH_SCORE
+MAP_ENTER_HIGH_SCORE equ PRESENTATION_MAP_ENTER_HIGH_SCORE
+DIR_N equ 0
+DIR_E equ 1
+DIR_S equ 2
+DIR_W equ 3
+DIR_NONE equ $FF
+FB_BACK_ID equ $0090
+FB_PENDING equ $0091
+FB_RENDER_ACTIVE equ $0098
+PRES_HOLD_STATE equ $00D4
+PRES_HOLD_FINAL equ $81
+PAR1 equ $FFA1
+PAR2 equ $FFA2
+PAR3 equ $FFA3
+PAR4 equ $FFA4
+JOY_DIR equ $0005
+FRAMES equ $0002
+PRES_MODULE_DRAW equ $0821
+PRES_MAIN_PLAYER_DRAW equ $0812
+PLAYER_ANIM equ $004F
+PLAYER_ANIM_TIMER equ $0050
+
+        ifne    HIGHSCORE_PHASE_HELPER
+
+; Page-$23 high-score helper.  It remains mapped only while the low-RAM
+; high-score owner calls it.  All calls that may change PAR5 return through
+; presentation_page23_resume in resident code.
+SND_DATA equ $FF51
+
+        org     HIGHSCORE_PHASE_HELPER_ADDRESS
+
+highscore_phase_tick
+        lda     PRES_MODE
+        cmpa    #MODE_GAMEOVER
+        lbeq    highscore_gameover_tick
+        tst     PRES_NAME_FLAGS
+        lbne    highscore_commit_done
+        lda     PRES_TICK_PHASE
+        lbmi    highscore_timer_owner
+        tsta
+        beq     highscore_timer_frame
+        dec     PRES_TICK_PHASE
+        lda     PRES_TICK_PHASE
+        cmpa    #2
+        lbeq    highscore_tick_second
+        tsta
+        bne     highscore_timer_frame
+        lda     #$9F
+        sta     SND_DATA
+highscore_timer_frame
+        inc     PRES_NAME_TIMER_PHASE
+        lda     PRES_NAME_TIMER_PHASE
+        cmpa    #PRESENTATION_NAME_ENTRY_TIMER_FRAMES
+        lblo    highscore_phase_hold
+        clr     PRES_NAME_TIMER_PHASE
+        lda     PRES_NAME_TIMER_BOX
+        cmpa    #PRESENTATION_NAME_ENTRY_TIMER_COUNT
+        lbhs    highscore_commit_done
+        lda     #$80
+        sta     PRES_TICK_PHASE
+highscore_timer_prepare
+        lda     PRES_NAME_TIMER_BOX
+        sta     PRES_TMP_H
+        ldd     #highscore_after_prepare
+        std     PRES_NAME_PTR
+        ldd     #PRES_MAIN_PAGE23_RESUME
+        pshs    d
+        jmp     PRES_MAIN_FB_PREPARE
+
+highscore_after_prepare
+highscore_timer_draw
+        lda     PRES_TMP_H
+        ldb     #PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES
+        mul
+        ldx     #highscore_timer_records
+        leax    d,x
+        ldd     ,x
+        tfr     d,y
+        ldb     3,x
+        ldd     #highscore_after_tile
+        std     PRES_NAME_PTR
+        ldd     #PRES_MAIN_PAGE23_RESUME
+        pshs    d
+        jmp     PRES_MODULE_DRAW_TILE
+
+; Raw lwasm output concatenates discontinuous ORG regions instead of emitting
+; their address gap.  Materialize this reserved continuation window so every
+; absolute helper label retains the same file offset after loading at $AC40.
+highscore_phase_helper_gap
+        rmb     HIGHSCORE_PHASE_HELPER_RESUME-*
+highscore_after_tile
+        clra
+        rts
+
+; A timer tile is persistent state.  Apply it to the current BACK, allow the
+; low-RAM name renderer to close and publish every dynamic layer, wait for the
+; IRQ owner swap, then repeat the same one-tile transaction for the other
+; owner.  $80 is first-owner published; $81 is second-owner published.
+highscore_timer_owner
+        inc     PRES_NAME_TIMER_PHASE
+        tst     FB_PENDING
+        bne     highscore_phase_busy
+        cmpa    #$80
+        bne     highscore_timer_complete
+        inc     PRES_TICK_PHASE
+        lbra    highscore_timer_prepare
+highscore_timer_complete
+        inc     PRES_NAME_TIMER_BOX
+        lda     #4
+        sta     PRES_TICK_PHASE
+        lda     #$86
+        sta     SND_DATA
+        lda     #$35
+        sta     SND_DATA
+        lda     #$91
+        sta     SND_DATA
+        lda     PRES_NAME_TIMER_BOX
+        cmpa    #PRESENTATION_NAME_ENTRY_TIMER_COUNT
+        bhs     highscore_commit_done
+highscore_phase_hold
+        clra
+        rts
+highscore_phase_busy
+        lda     #1
+        rts
+
+highscore_tick_second
+        lda     #$8A
+        sta     SND_DATA
+        lda     #$23
+        sta     SND_DATA
+        lda     #$92
+        sta     SND_DATA
+        lbra    highscore_timer_frame
+
+highscore_commit_done
+        lbsr    highscore_commit_name
+        ldd     #highscore_after_highscore_start
+        std     PRES_NAME_PTR
+        ldd     #PRES_MAIN_PAGE23_RESUME
+        pshs    d
+        lda     #MAP_HIGH_SCORE
+        jmp     PRES_MODULE_START_SCREEN
+highscore_after_highscore_start
+        lda     #1
+        rts
+
+highscore_gameover_tick
+        ldd     PRES_TIMER
+        addd    #1
+        std     PRES_TIMER
+        cmpd    #180
+        blo     highscore_phase_hold
+        lbsr    highscore_prepare_name
+        ldd     #highscore_after_name_start
+        std     PRES_NAME_PTR
+        ldd     #PRES_MAIN_PAGE23_RESUME
+        pshs    d
+        lda     #MAP_ENTER_HIGH_SCORE
+        jmp     PRES_MODULE_START_SCREEN
+highscore_after_name_start
+        lda     #1
+        rts
+
+highscore_prepare_name
+        pshs    cc
+        orcc    #$10
+        lda     PAR4
+        pshs    a
+        lda     #$34
+        sta     PAR4
+        tst     PRES_HS_READY
+        bne     highscore_prepare_ready
+        ldu     #PRES_HIGHSCORE_ALIAS
+        lda     #9
+highscore_prepare_row
+        sta     ,u+
+        clr     ,u+
+        clr     ,u+
+        pshs    a
+        ldx     #highscore_default_name_data
+        ldy     #7
+highscore_prepare_default
+        lda     ,x+
+        sta     ,u+
+        leay    -1,y
+        bne     highscore_prepare_default
+        puls    a
+        deca
+        bne     highscore_prepare_row
+        inc     PRES_HS_READY
+highscore_prepare_ready
+        clr     PRES_NAME_FLAGS
+        clr     PRES_TICK_PHASE
+        clr     PRES_NAME_TIMER_PHASE
+        clr     PRES_NAME_TIMER_BOX
+        lda     #$09
+        sta     PRES_SCORE_H
+        lda     #$50
+        sta     PRES_SCORE_M
+        clr     PRES_SCORE_L
+        clr     PRES_INSERT
+        clr     PRES_NAME_LEN
+        lda     #19
+        sta     PRES_NAME_COL
+        sta     PLAYER_CELL_X
+        lda     #22
+        sta     PRES_NAME_ROW
+        sta     PLAYER_CELL_Y
+        lda     #DIR_NONE
+        sta     PLAYER_DIR
+        sta     PLAYER_WANT
+        lda     #DIR_N
+        sta     PLAYER_FACE
+        clr     PLAYER_ANIM
+        clr     PRES_NAME_STEPS
+        lda     #8
+        sta     PLAYER_ANIM_TIMER
+        ldx     #PRES_PENDING_NAME_ALIAS
+        lda     #PRES_HS_BLACK
+        ldb     #7
+highscore_prepare_blank
+        sta     ,x+
+        decb
+        bne     highscore_prepare_blank
+        puls    a
+        sta     PAR4
+        puls    cc
+        rts
+
+highscore_commit_name
+        lda     PRES_INSERT
+        cmpa    #$FF
+        beq     highscore_commit_return
+        pshs    cc
+        orcc    #$10
+        lda     PAR4
+        pshs    a
+        lda     #$34
+        sta     PAR4
+        lda     #7
+        sta     PRES_TMP_H
+        ldx     #PRES_HIGHSCORE_ALIAS+70
+        ldu     #PRES_HIGHSCORE_ALIAS+80
+highscore_commit_shift
+        lda     PRES_TMP_H
+        bmi     highscore_commit_write
+        cmpa    PRES_INSERT
+        blo     highscore_commit_write
+        ldb     #10
+highscore_commit_record
+        lda     ,x+
+        sta     ,u+
+        decb
+        bne     highscore_commit_record
+        leax    -20,x
+        leau    -20,u
+        dec     PRES_TMP_H
+        bra     highscore_commit_shift
+highscore_commit_write
+        ldx     #PRES_HIGHSCORE_ALIAS
+        ldb     PRES_INSERT
+highscore_commit_find
+        beq     highscore_commit_score
+        leax    10,x
+        decb
+        bra     highscore_commit_find
+highscore_commit_score
+        lda     PRES_SCORE_H
+        sta     ,x+
+        lda     PRES_SCORE_M
+        sta     ,x+
+        lda     PRES_SCORE_L
+        sta     ,x+
+        ldu     #PRES_PENDING_NAME_ALIAS
+        ldb     #7
+highscore_commit_name_loop
+        lda     ,u+
+        sta     ,x+
+        decb
+        bne     highscore_commit_name_loop
+        puls    a
+        sta     PAR4
+        puls    cc
+highscore_commit_return
+        rts
+
+highscore_timer_records
+        include "ladybug_presentation_timer_records.inc"
+
+highscore_default_name_data
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_0
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_1
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_2
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_3
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_4
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_5
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_6
+
+        ifne    PRESENTATION_STAGE_PANEL_ENABLED
+        include "ladybug_runtime_symbols.inc"
+        rmb     $B080-*
+; BUG-035: called during hidden level-start hydration, before publication.
+; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
+stage_panel_draw
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_LEVEL_START
+        lbne    stage_panel_return
+        lda     #1
+        ldb     $00A7          ; PRES_CONTEXT: next-stage retains current STAGE
+        cmpb    #2
+        bne     stage_panel_selected
+        lda     $24
+stage_panel_selected
+        sta     PRES_TMP_H
+        lda     #3
+        sta     $29
+        ldx     #$3458          ; PART number, column 22 row 4
+        lbsr    stage_panel_number
+        ldx     #$4D84          ; side HUD part number, column 33 row 9
+        lbsr    stage_panel_number
+        lda     PRES_TMP_H
+        bne     stage_panel_nonzero
+        inca
+stage_panel_nonzero
+        cmpa    #18
+        bls     stage_panel_index
+        lda     #18
+stage_panel_index
+        deca
+        sta     PRES_TMP_H
+        ldb     #20
+        mul
+        ldy     #stage_panel_records
+        leay    d,y
+        lda     #2
+        sta     $29
+        ldx     #$4D30          ; centred 16-cell vegetable name, row 9
+        ldb     #16
+        lbsr    stage_panel_text
+        lda     #5
+        sta     $29
+        ldx     #$434C          ; bonus digits, column 19 row 7
+        pshs    y
+        ldb     #4
+        lbsr    stage_panel_text
+        puls    y
+        ldx     #$618C          ; HUD bonus, column 35 row 13
+        ldb     #4
+        lbsr    stage_panel_text
+        lda     #1
+        sta     $29
+        ldx     #$8440
+        ldy     #stage_panel_good_luck
+        ldb     #9
+        lbsr    stage_panel_text
+        lda     PRES_TMP_H
+        ldb     #64
+        mul
+        ldy     #vegetable_sprites
+        leay    d,y
+        pshs    y
+        ldu     #sprite_attr0_pairs
+        ldx     #$3E40          ; cucumber/vegetable, column 16 row 6
+        jsr     blit_packed_sprite
+        puls    y
+        ldu     #sprite_attr0_pairs
+        ldx     #$5C80          ; same vegetable in the side HUD
+        jsr     blit_packed_sprite
+stage_panel_return
+        rts
+
+stage_panel_number
+        lda     PRES_TMP_H
+        bne     spn_nonzero
+        inca
+spn_nonzero
+        clrb
+spn_hundreds
+        cmpa    #100
+        blo     spn_hundreds_done
+        suba    #100
+        incb
+        bra     spn_hundreds
+spn_hundreds_done
+        sta     PRES_TMP_M
+        stb     PRES_NAME_REPEAT
+        tstb
+        beq     spn_tens_begin
+        tfr     b,a
+        lbsr    stage_panel_char
+spn_tens_begin
+        lda     PRES_TMP_M
+        clrb
+spn_tens
+        cmpa    #10
+        blo     spn_tens_done
+        suba    #10
+        incb
+        bra     spn_tens
+spn_tens_done
+        sta     PRES_TMP_M
+        tstb
+        bne     spn_write_tens
+        tst     PRES_NAME_REPEAT
+        beq     spn_units
+spn_write_tens
+        tfr     b,a
+        lbsr    stage_panel_char
+spn_units
+        lda     PRES_TMP_M
+        lbra    stage_panel_char
+
+stage_panel_text
+        lda     ,y+
+        lbsr    stage_panel_char
+        decb
+        bne     stage_panel_text
+        rts
+
+; A=0..36 glyph, X=destination, $29=colour. Preserve A/B/Y/U; advance X.
+stage_panel_char
+        pshs    a,b,x,y,u
+        ldb     #8
+        mul
+        ldy     #stage_panel_font
+        leay    d,y
+        lda     #8
+        sta     PRES_TMP_L
+spc_row
+        lda     ,y+
+        sta     PRES_NAME_TILE
+        ldu     #4
+spc_pair
+        clra
+        lsl     PRES_NAME_TILE
+        bcc     spc_low
+        lda     $29
+        lsla
+        lsla
+        lsla
+        lsla
+spc_low
+        lsl     PRES_NAME_TILE
+        bcc     spc_store
+        ora     $29
+spc_store
+        sta     ,x+
+        leau    -1,u
+        cmpu    #0
+        bne     spc_pair
+        leax    156,x
+        dec     PRES_TMP_L
+        bne     spc_row
+        puls    a,b,x,y,u
+        leax    4,x
+        rts
+
+stage_panel_good_luck
+        fcb     16,24,24,13,36,21,30,12,20
+        include "ladybug_stage_panel.inc"
+        endc
+highscore_phase_helper_end
+
+        else
+
+        org $0300
+
+demo_runtime_tick
+        ifne    HIGHSCORE_TEST_PROFILE
+        lda     PRES_MODE
+        cmpa    #MODE_NAME
+        lbeq    highscore_name_tick
+        cmpa    #MODE_GAMEOVER
+        ifne    COMPLETE_PHASE_AUX
+        lbeq    highscore_name_tick
+        else
+        lbeq    prepare_name
+        endc
+        lda     PRES_SCREEN
+        cmpa    #MAP_ENTER_HIGH_SCORE
+        lbeq    render_name_screen
+        cmpa    #MAP_HIGH_SCORE
+        lbeq    render_high_score
+        else
+        tst     PLAYER_MANUAL
+        beq     demo_route_wait_entrance
+        lda     PRES_DEMO_DIR
+        sta     JOY_DIR
+        sta     PLAYER_WANT
+demo_route_reasserted
+        cmpa    #$FF
+        beq     demo_route_aligned
+        sta     PLAYER_FACE
+        bra     demo_route_aligned
+demo_route_wait_entrance
+        tst     PLAYER_STEP
+        bne     demo_route_done
+        lda     PLAYER_CELL_X
+        cmpa    #12
+        bne     demo_route_done
+        lda     PLAYER_CELL_Y
+        cmpa    #18
+        bne     demo_route_done
+        lda     #1
+        sta     PLAYER_MANUAL
+demo_route_aligned
+        tst     PLAYER_STEP
+        bne     demo_route_done
+        lda     PLAYER_CELL_X
+        bita    #1
+        bne     demo_route_done
+        cmpa    PRES_DEMO_LAST_X
+        bne     demo_route_new_cell
+        lda     PLAYER_CELL_Y
+        bita    #1
+        bne     demo_route_done
+        cmpa    PRES_DEMO_LAST_Y
+        beq     demo_route_done
+demo_route_new_cell
+        lda     PLAYER_CELL_Y
+        bita    #1
+        bne     demo_route_done
+        ldb     PRES_DEMO_ROUTE
+        cmpb    #PRESENTATION_DEMO_ROUTE_ACTIONS
+        bhs     demo_route_hold
+        clra
+        addd    #PRESENTATION_DEMO_ROUTE_OFFSET
+        tfr     d,x
+        tfr     a,b
+        andb    #$E0
+        lsrb
+        lsrb
+        lsrb
+        lsrb
+        lsrb
+        addb    #PRESENTATION_COLD_PAGE
+        stb     PAR5
+        tfr     x,d
+        anda    #$1F
+        adda    #$A0
+        tfr     d,x
+        lda     ,x
+        pshs    a
+        lda     #$34
+        sta     PAR5
+        puls    a
+        sta     PRES_DEMO_DIR
+        lda     PLAYER_CELL_X
+        sta     PRES_DEMO_LAST_X
+        lda     PLAYER_CELL_Y
+        sta     PRES_DEMO_LAST_Y
+        lda     PRES_DEMO_DIR
+        sta     JOY_DIR
+        sta     PLAYER_WANT
+        sta     PLAYER_FACE
+demo_route_advance
+        inc     PRES_DEMO_ROUTE
+demo_route_advanced
+demo_route_done
+        rts
+demo_route_hold
+        lda     #$FF
+        sta     PRES_DEMO_DIR
+        sta     JOY_DIR
+        sta     PLAYER_WANT
+demo_route_held
+        rts
+        endc
+        ifne    HIGHSCORE_TEST_PROFILE
+demo_runtime_done
+        rts
+init_scores
+        lda     #$34
+        sta     PAR5
+        tst     PRES_HS_READY
+        bne     init_scores_done
+        ldu     #PRES_HIGHSCORE_BASE
+        lda     #9
+init_scores_row
+        sta     ,u+
+        clr     ,u+
+        clr     ,u+
+        pshs    a
+        ldx     #highscore_default_name_data
+        ldy     #7
+init_scores_name
+        lda     ,x+
+        sta     ,u+
+        leay    -1,y
+        bne     init_scores_name
+        puls    a
+        deca
+        bne     init_scores_row
+        inc     PRES_HS_READY
+init_scores_done
+        rts
+
+highscore_name_tick
+        lda     PRES_HOLD_STATE
+        cmpa    #PRES_HOLD_FINAL
+        bne     highscore_name_ready
+        tst     FB_PENDING
+        bne     highscore_name_hold
+        clr     PRES_HOLD_STATE
+highscore_name_ready
+        lda     #$23
+        sta     PAR5
+        jsr     HIGHSCORE_PHASE_HELPER_ADDRESS
+        pshs    a
+        lda     #$34
+        sta     PAR5
+        puls    a
+        tsta
+        bne     demo_runtime_done
+        lda     PRES_MODE
+        cmpa    #MODE_GAMEOVER
+        bne     name_tick
+        lda     #1
+        rts
+highscore_name_hold
+        lda     #1
+        rts
+
+        ifeq    COMPLETE_PHASE_AUX
+prepare_name
+        bsr     init_scores
+        clr     PRES_NAME_FLAGS
+        clr     PRES_TICK_PHASE
+        clr     PRES_NAME_TIMER_PHASE
+        clr     PRES_NAME_TIMER_BOX
+        lda     #$09
+        sta     PRES_SCORE_H
+        lda     #$50
+        sta     PRES_SCORE_M
+        clr     PRES_SCORE_L
+        clr     PRES_INSERT
+        clr     PRES_NAME_LEN
+        lda     #9
+        sta     PRES_NAME_ROW
+        lda     #2
+        sta     PRES_NAME_COL
+        lda     #DIR_NONE
+        sta     PLAYER_DIR
+        sta     PLAYER_WANT
+        lda     #DIR_N
+        sta     PLAYER_FACE
+        clr     PLAYER_ANIM
+        lda     #8
+        sta     PLAYER_ANIM_TIMER
+        lda     #19
+        sta     PLAYER_CELL_X
+        sta     PRES_NAME_COL
+        lda     #22
+        sta     PLAYER_CELL_Y
+        sta     PRES_NAME_ROW
+        ldx     #PRES_PENDING_NAME
+        lda     #PRES_HS_BLACK
+        ldb     #PRESENTATION_HIGHSCORE_NAME_BYTES
+prepare_name_blank
+        sta     ,x+
+        decb
+        bne     prepare_name_blank
+        rts
+        endc
+
+        ifne    0
+qualify_score
+        lbsr    init_scores
+        lda     #$FF
+        sta     PRES_INSERT
+        ldx     #PRES_HIGHSCORE_BASE
+        clrb
+qualify_loop
+        lda     PRES_SCORE_H
+        cmpa    ,x
+        bhi     qualify_found
+        blo     qualify_next
+        lda     PRES_SCORE_M
+        cmpa    1,x
+        bhi     qualify_found
+        blo     qualify_next
+        lda     PRES_SCORE_L
+        cmpa    2,x
+        bhi     qualify_found
+qualify_next
+        leax    10,x
+        incb
+        cmpb    #9
+        blo     qualify_loop
+        rts
+qualify_found
+        stb     PRES_INSERT
+        rts
+        endc
+name_tick
+        jsr     PRES_MAIN_READ_JOY
+name_joy_ready
+        lda     JOY_DIR
+        cmpa    #DIR_NONE
+        beq     name_idle
+        lda     FRAMES+1
+        lsra
+        bcs     name_idle
+        tst     PRES_NAME_STEPS
+        bne     name_move_active
+        lda     PLAYER_WANT
+        cmpa    #DIR_NONE
+        beq     name_idle
+        bsr     name_can_move
+        beq     name_idle
+        lda     PLAYER_WANT
+        sta     PLAYER_DIR
+        sta     PLAYER_FACE
+        lda     #4
+        sta     PRES_NAME_STEPS
+name_move_active
+        bsr     name_advance
+        rts
+name_idle
+        tst     FB_RENDER_ACTIVE
+        beq     name_idle_done
+        lbsr    update_name_frame
+name_idle_done
+        clra
+        rts
+
+name_advance
+        ldx     PLAYER_FB
+        lda     PLAYER_DIR
+        cmpa    #DIR_N
+        beq     name_step_n
+        cmpa    #DIR_E
+        beq     name_step_e
+        cmpa    #DIR_S
+        beq     name_step_s
+        leax    -1,x
+        bra     name_step_store
+name_step_n
+        leax    -320,x
+        bra     name_step_store
+name_step_e
+        leax    1,x
+        bra     name_step_store
+name_step_s
+        leax    320,x
+name_step_store
+        stx     PLAYER_FB
+        dec     PRES_NAME_STEPS
+        bne     name_cursor_redraw
+        lda     PLAYER_DIR
+        cmpa    #DIR_N
+        bne     move_s
+        dec     PRES_NAME_ROW
+        dec     PLAYER_CELL_Y
+        bra     move_node
+move_s
+        cmpa    #DIR_S
+        bne     move_w
+        inc     PRES_NAME_ROW
+        inc     PLAYER_CELL_Y
+        bra     move_node
+move_w
+        cmpa    #DIR_W
+        bne     move_e
+        dec     PRES_NAME_COL
+        dec     PLAYER_CELL_X
+        bra     move_node
+move_e
+        inc     PRES_NAME_COL
+        inc     PLAYER_CELL_X
+        bra     move_node
+name_cursor_redraw
+        lbsr    update_name_frame
+        clra
+        rts
+move_node
+        bsr     name_cell_arrival
+        tsta
+        bne     move_end
+        lbsr    update_name_frame
+        clra
+        rts
+move_end
+        lbsr    update_name_frame
+        lda     #1
+        rts
+
+name_can_move
+        sta     PRES_NAME_TILE
+        lda     PLAYER_CELL_Y
+        ldb     #24
+        mul
+        addb    PLAYER_CELL_X
+        adca    #0
+        subd    #8
+        addd    #PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE
+        jsr     PRES_MODULE_COLD_PTR
+        ldb     ,x
+        lda     #$34
+        sta     PAR5
+        lda     PRES_NAME_TILE
+        cmpa    #DIR_N
+        beq     name_can_n
+        cmpa    #DIR_E
+        beq     name_can_e
+        cmpa    #DIR_S
+        beq     name_can_s
+        bitb    #8
+        bra     name_can_result
+name_can_n
+        bitb    #1
+        bra     name_can_result
+name_can_e
+        bitb    #2
+        bra     name_can_result
+name_can_s
+        bitb    #4
+name_can_result
+        beq     name_can_blocked
+        lda     #1
+        rts
+name_can_blocked
+        clra
+        rts
+
+name_cell_arrival
+        ldd     #PRESENTATION_NAME_ENTRY_ACTION_TABLE
+        jsr     PRES_MODULE_COLD_PTR
+        ldb     #PRESENTATION_NAME_ENTRY_ACTION_BYTES/3
+name_action_loop
+        ; The generated action table is local to the 24-cell maze window;
+        ; player coordinates remain screen-space columns 8..31.
+        lda     PLAYER_CELL_X
+        suba    #8
+        cmpa    ,x
+        bne     name_action_next
+        lda     PLAYER_CELL_Y
+        cmpa    1,x
+        bne     name_action_next
+        lda     2,x
+        sta     PRES_NAME_TILE
+        cmpa    #PRES_NAME_END
+        beq     name_action_end
+        lda     #$34
+        sta     PAR5
+        lda     PRES_NAME_TILE
+        cmpa    #PRES_NAME_CL
+        beq     name_action_cl
+        lda     PRES_NAME_LEN
+        cmpa    #7
+        bhs     name_action_done
+        tfr     a,b
+        ldx     #PRES_PENDING_NAME
+        abx
+        lda     PRES_NAME_TILE
+        sta     ,x
+        inc     PRES_NAME_LEN
+        bra     name_action_done
+name_action_cl
+        tst     PRES_NAME_LEN
+        beq     name_action_done
+        dec     PRES_NAME_LEN
+        ldx     #PRES_PENDING_NAME
+        lda     PRES_NAME_LEN
+        tfr     a,b
+        abx
+        ldb     #PRES_HS_BLACK
+        stb     ,x
+name_action_done
+        clra
+        rts
+name_action_next
+        leax    3,x
+        decb
+        bne     name_action_loop
+        clra
+        rts
+name_action_end
+        inc     PRES_NAME_FLAGS
+        clra
+        rts
+
+        ifne    0
+commit_name
+        lda     PRES_INSERT
+        cmpa    #$FF
+        beq     commit_done
+        sta     PRES_TMP_H
+        ldx     #PRES_HIGHSCORE_BASE+70
+        ldu     #PRES_HIGHSCORE_BASE+80
+commit_shift
+        lda     PRES_TMP_H
+        cmpa    PRES_INSERT
+        blo     commit_write
+        ldb     #10
+commit_record
+        lda     ,x+
+        sta     ,u+
+        decb
+        bne     commit_record
+        leax    -20,x
+        leau    -20,u
+        dec     PRES_TMP_H
+        bra     commit_shift
+commit_write
+        ldx     #PRES_HIGHSCORE_BASE
+        ldb     PRES_INSERT
+commit_find
+        beq     commit_score
+        leax    10,x
+        decb
+        bra     commit_find
+commit_score
+        lda     PRES_SCORE_H
+        sta     ,x+
+        lda     PRES_SCORE_M
+        sta     ,x+
+        lda     PRES_SCORE_L
+        sta     ,x+
+        ldu     #PRES_PENDING_NAME
+        ldb     #7
+commit_name_loop
+        lda     ,u+
+        sta     ,x+
+        decb
+        bne     commit_name_loop
+commit_done
+        rts
+        endc
+render_name_screen
+        clr     PRES_NAME_STEPS
+        ifeq    COMPLETE_PHASE_AUX
+        lbsr    prepare_name
+        endc
+        jsr     PRES_MODULE_MAP_BACK
+        bsr     draw_name_fields
+        bsr     draw_entry_scores
+        lbsr    capture_initial
+        lbsr    draw_cursor
+        rts
+
+draw_name_fields
+        ldx     #PRES_PENDING_NAME
+        ldy     #PRESENTATION_NAME_ENTRY_NAME_DST
+        lbsr    draw_record_name
+        lda     PRES_INSERT
+        bne     entry_name_top_old
+        ldx     #PRES_PENDING_NAME
+        bra     entry_name_top_draw
+entry_name_top_old
+        ldx     #PRES_HIGHSCORE_BASE+3
+entry_name_top_draw
+        ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
+        lbsr    draw_record_name
+draw_name_done
+        rts
+
+draw_entry_scores
+        ldx     #PRES_SCORE_H
+        ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
+        lbsr    draw_score
+        lda     PRES_INSERT
+        bne     entry_top_old
+        ldx     #PRES_SCORE_H
+        bra     entry_top_right
+entry_top_old
+        ldx     #PRES_HIGHSCORE_BASE
+entry_top_right
+        ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
+        bsr     draw_score
+        lda     PRES_INSERT
+        bne     entry_top_left_old
+        ldx     #PRES_SCORE_H
+        bra     entry_top_left
+entry_top_left_old
+        ldx     #PRES_HIGHSCORE_BASE
+entry_top_left
+        ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
+        lbsr    draw_score
+        rts
+
+render_high_score
+        jsr     PRES_MODULE_MAP_BACK
+        lbsr    init_scores
+        bsr     draw_high_score_screen
+        rts
+
+draw_high_score_screen
+        ldx     #PRES_HIGHSCORE_BASE
+        ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
+        bsr     draw_high_score_entry
+        leau    PRESENTATION_HIGHSCORE_ENTRY_NAME_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,u
+        ldb     #PRESENTATION_HIGHSCORE_COUNT-1
+draw_high_score_rows
+        pshs    b
+        bsr     draw_high_score_entry
+        puls    b
+        leau    1280,u
+        decb
+        bne     draw_high_score_rows
+        rts
+
+draw_high_score_entry
+        stx     PRES_NAME_PTR
+        pshs    u
+        tfr     u,y
+        ldx     PRES_NAME_PTR
+        leax    3,x
+        bsr     draw_record_name
+        puls    u
+        pshs    u
+        tfr     u,y
+        leay    PRESENTATION_HIGHSCORE_TOP_SCORE_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,y
+        ldx     PRES_NAME_PTR
+        bsr     draw_score
+        puls    u
+        leax    7,x
+        rts
+
+draw_record_name
+        ldb     #PRESENTATION_HIGHSCORE_NAME_BYTES
+record_name_loop
+        lda     #$34
+        sta     PAR5
+        lda     ,x+
+        pshs    b,x,y
+        tsta
+        bne     record_name_tile
+        ldb     #PRES_HS_BLACK
+        bra     record_name_draw
+record_name_tile
+        tfr     a,b
+record_name_draw
+        jsr     PRES_MODULE_DRAW_TILE
+        puls    b,x,y
+        leay    4,y
+        decb
+        bne     record_name_loop
+        rts
+
+draw_score
+        lda     #3
+        sta     PRES_TMP_H
+score_byte
+        lda     #$34
+        sta     PAR5
+        lda     ,x+
+        sta     PRES_TMP_L
+        lsra
+        lsra
+        lsra
+        lsra
+        anda    #$0F
+        bsr     draw_digit
+        lda     PRES_TMP_L
+        anda    #$0F
+        bsr     draw_digit
+        dec     PRES_TMP_H
+        bne     score_byte
+        rts
+draw_digit
+        tfr     a,b
+        ldu     #score_glyphs
+        leau    b,u
+        ldb     ,u
+        pshs    x,y
+        jsr     PRES_MODULE_DRAW_TILE
+        puls    x,y
+        leay    4,y
+        rts
+
+capture_initial
+        lda     #$34
+        sta     PAR5
+        ldx     #PRESENTATION_NAME_ENTRY_CURSOR_DST
+        stx     PLAYER_FB
+        stx     PRES_NAME_PTR_A
+        stx     PRES_NAME_PTR_B
+        ldu     #PRES_CURSOR_SAVE_A
+        bsr     capture_cursor
+        ldx     #PRES_CURSOR_SAVE_A
+        ldu     #PRES_CURSOR_SAVE_B
+        ldy     #64
+capture_copy
+        ldd     ,x++
+        std     ,u++
+        leay    -1,y
+        bne     capture_copy
+        rts
+
+update_name_frame
+        lda     FB_BACK_ID
+        sta     PRES_NAME_OWNER
+        lda     #$34
+        sta     PAR5
+        jsr     PRES_MAIN_FB_PREPARE
+        jsr     PRES_MODULE_MAP_BACK
+        bsr     restore_cursor
+        lbsr    draw_name_fields
+        bsr     capture_owner
+        bsr     draw_cursor
+        lda     #$34
+        sta     PAR5
+        jmp     PRES_MAIN_FB_FINISH
+
+capture_cursor
+        ldy     #16
+capture_row
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        leax    152,x
+        leay    -1,y
+        bne     capture_row
+        rts
+
+restore_cursor
+        lda     #$34
+        sta     PAR5
+        lda     PRES_NAME_OWNER
+        beq     restore_a
+        ldu     #PRES_CURSOR_SAVE_B
+        ldx     PRES_NAME_PTR_B
+        bra     restore_ready
+restore_a
+        ldu     #PRES_CURSOR_SAVE_A
+        ldx     PRES_NAME_PTR_A
+restore_ready
+        ldy     #16
+restore_row
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        leax    152,x
+        leay    -1,y
+        bne     restore_row
+        rts
+
+capture_owner
+        lda     #$34
+        sta     PAR5
+        lda     PRES_NAME_OWNER
+        beq     capture_a
+        ldu     #PRES_CURSOR_SAVE_B
+        ldx     PLAYER_FB
+        stx     PRES_NAME_PTR_B
+        bsr     capture_cursor
+        rts
+capture_a
+        ldu     #PRES_CURSOR_SAVE_A
+        ldx     PLAYER_FB
+        stx     PRES_NAME_PTR_A
+        bsr     capture_cursor
+        rts
+
+draw_cursor
+        ldx     PLAYER_FB
+        jmp     PRES_MAIN_PLAYER_DRAW
+
+score_glyphs
+        fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
+        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_3
+        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
+        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
+        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
+
+highscore_default_name_data
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_0
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_1
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_2
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_3
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_4
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_5
+        fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_6
+
+        ifne    0
+draw_tile
+        cmpb    #PRESENTATION_GAMEPLAY_TILE_BASE
+        blo     draw_cold
+        subb    #PRESENTATION_GAMEPLAY_TILE_BASE
+        clra
+        addd    #PRESENTATION_GAMEPLAY_LOOKUP_OFFSET
+        lbsr    cold_ptr
+        lda     ,x
+        ldb     #32
+        mul
+        ldu     #PRESENTATION_GAMEPLAY_TILES
+        leau    d,u
+        tfr     y,x
+        tfr     u,y
+        jmp     PRES_MAIN_BLIT_TILE
+draw_cold
+        tfr     b,a
+        ldb     #32
+        mul
+        addd    #PRESENTATION_TILE_ATLAS_OFFSET
+        lbsr    cold_ptr
+        tfr     x,u
+        tfr     y,x
+        tfr     u,y
+        jmp     PRES_MAIN_BLIT_TILE
+
+cold_ptr
+        tfr     d,x
+        tfr     a,b
+        andb    #$E0
+        lsrb
+        lsrb
+        lsrb
+        lsrb
+        lsrb
+        addb    #PRESENTATION_COLD_PAGE
+        stb     PAR5
+        tfr     x,d
+        anda    #$1F
+        adda    #$A0
+        tfr     d,x
+        rts
+
+map_back
+        lda     FB_BACK_ID
+        bne     map_back_b
+        lda     #$30
+        bra     map_back_set
+map_back_b
+        lda     #$2C
+map_back_set
+        sta     PAR1
+        inca
+        sta     PAR2
+        inca
+        sta     PAR3
+        inca
+        sta     PAR4
+        lda     #$3A
+        sta     PAR5
+        rts
+        endc
+
+        endc
+demo_runtime_end
+        endc
+        end

@@ -165,6 +165,9 @@
 ;------------------------------------------------------------------------------
         setdp   $00
         include "ladybug_audio_symbols.inc"
+        ifne COMPLETE_PROFILE
+        include "ladybug_text_colours.inc"
+        endc
         ifndef  INPUT_JOYSTICK
 INPUT_JOYSTICK equ 0            ; direct CoCo arrows unless explicitly selected
         endc
@@ -837,7 +840,11 @@ alp_special_draw
         stb     HUD_X
         lda     #1
         sta     HUD_Y
+        ifne COMPLETE_PROFILE
+        lda     #TEXT_SPECIAL
+        else
         lda     #COLOR_RED
+        endc
         sta     HUD_COLOR
         lda     HUD_X
         sta     RENDER_LETTER_X
@@ -868,7 +875,11 @@ alp_extra_draw
         stb     HUD_X
         lda     #4
         sta     HUD_Y
+        ifne COMPLETE_PROFILE
+        lda     #TEXT_EXTRA
+        else
         lda     #COLOR_YELLOW
+        endc
         sta     HUD_COLOR
         lda     HUD_X
         sta     RENDER_LETTER_X
@@ -913,11 +924,23 @@ dmh_draw
         sta     HUD_X
         lda     #7
         sta     HUD_Y
+        ifne COMPLETE_PROFILE
+        lda     #TEXT_MULTIPLIER
+        else
         lda     #COLOR_BLUE
+        endc
         sta     HUD_COLOR
+        ifne COMPLETE_PROFILE
+        jsr    draw_recolored_map_tile
+        else
         lbsr    draw_recolored_map_tile
+        endc
         inc     HUD_X
+        ifne COMPLETE_PROFILE
+        jsr    draw_recolored_map_tile
+        else
         lbsr    draw_recolored_map_tile
+        endc
         rts
 
 ; Indexed by object-mask number 0..11.
@@ -958,9 +981,17 @@ dwph_special
         bcc     dwph_special_next
         lda     #1
         sta     HUD_Y
+        ifne COMPLETE_PROFILE
+        lda     #TEXT_SPECIAL
+        else
         lda     #COLOR_RED
+        endc
         sta     HUD_COLOR
+        ifne COMPLETE_PROFILE
+        jsr    draw_recolored_map_tile
+        else
         lbsr    draw_recolored_map_tile
+        endc
 dwph_special_next
         inc     HUD_X
         lda     HUD_X
@@ -976,9 +1007,17 @@ dwph_extra
         bcc     dwph_extra_next
         lda     #4
         sta     HUD_Y
+        ifne COMPLETE_PROFILE
+        lda     #TEXT_EXTRA
+        else
         lda     #COLOR_YELLOW
+        endc
         sta     HUD_COLOR
+        ifne COMPLETE_PROFILE
+        jsr    draw_recolored_map_tile
+        else
         lbsr    draw_recolored_map_tile
+        endc
 dwph_extra_next
         inc     HUD_X
         lda     HUD_X
@@ -989,13 +1028,21 @@ dwph_extra_next
 draw_hud
         lda     #2
         sta     HUD_Y
+        ifne COMPLETE_PROFILE
+        lda     #TEXT_SCORE
+        else
         lda     #COLOR_LIGHT_GREEN
+        endc
         sta     HUD_COLOR
         ldu     #SCORE_BCD
         lbsr    draw_bcd_line
         lda     #6
         sta     HUD_Y
+        ifne COMPLETE_PROFILE
+        lda     #TEXT_HIGH_SCORE
+        else
         lda     #COLOR_RED
+        endc
         sta     HUD_COLOR
         ldu     #HIGH_BCD
         lbsr    draw_bcd_line
@@ -1003,7 +1050,11 @@ draw_hud
         sta     HUD_X
         lda     #11
         sta     HUD_Y
+        ifne COMPLETE_PROFILE
+        lda     #TEXT_PART
+        else
         lda     #COLOR_BLUE
+        endc
         sta     HUD_COLOR
         lda     STAGE
 dhu_mod10
@@ -1012,7 +1063,11 @@ dhu_mod10
         suba    #10
         bra     dhu_mod10
 dhu_stage_digit
+        ifne COMPLETE_PROFILE
+        jsr    draw_hud_digit
+        else
         lbsr    draw_hud_digit
+        endc
         lbsr    draw_vegetable_hud
         rts
 
@@ -1042,7 +1097,11 @@ dvh_stage_ok
         sta     HUD_X
         lda     #13
         sta     HUD_Y
+        ifne COMPLETE_PROFILE
+        lda     #TEXT_BONUS
+        else
         lda     #COLOR_GREEN
+        endc
         sta     HUD_COLOR
         lda     ,u+
         sta     HUD_BCD_BYTE
@@ -1050,11 +1109,19 @@ dvh_stage_ok
         lsra
         lsra
         lsra
+        ifne COMPLETE_PROFILE
+        jsr     draw_hud_digit
+        else
         bsr     draw_hud_digit
+        endc
         inc     HUD_X
         lda     HUD_BCD_BYTE
         anda    #$0F
+        ifne COMPLETE_PROFILE
+        jsr     draw_hud_digit
+        else
         bsr     draw_hud_digit
+        endc
         inc     HUD_X
         lda     ,u
         sta     HUD_BCD_BYTE
@@ -1062,11 +1129,19 @@ dvh_stage_ok
         lsra
         lsra
         lsra
+        ifne COMPLETE_PROFILE
+        jsr     draw_hud_digit
+        else
         bsr     draw_hud_digit
+        endc
         inc     HUD_X
         lda     HUD_BCD_BYTE
         anda    #$0F
+        ifne COMPLETE_PROFILE
+        jsr     draw_hud_digit
+        else
         bsr     draw_hud_digit
+        endc
         rts
 
 vegetable_values
@@ -1086,17 +1161,31 @@ dbl_byte
         lsra
         lsra
         lsra
+        ifne COMPLETE_PROFILE
+        jsr     draw_hud_digit
+        else
         bsr     draw_hud_digit
+        endc
         inc     HUD_X
         lda     HUD_BCD_BYTE
         anda    #$0F
+        ifne COMPLETE_PROFILE
+        jsr     draw_hud_digit
+        else
         bsr     draw_hud_digit
+        endc
         inc     HUD_X
         dec     HUD_BCD_COUNT
         bne     dbl_byte
         rts
 
 ; A=digit 0..9. HUD_X/HUD_Y/HUD_COLOR select destination and colour.
+        ifne COMPLETE_PROFILE
+draw_hud_digit equ asset_draw_hud_digit
+draw_recolored_map_tile equ asset_draw_recolored_map_tile
+draw_text_at_y equ asset_draw_text_at_y
+        else
+
 draw_hud_digit
         ldb     #HUD_DIGIT_SIZE
         mul
@@ -1169,6 +1258,8 @@ dhd_store
         dec     HUD_COUNT
         bne     dhd_row
         rts
+
+        endc
 
 draw_lives
         clr     ENTITY_WORK
@@ -4009,6 +4100,9 @@ ds_row
 ds_column
         pshs    a,x
         ldb     ,u+
+        ifne COMPLETE_PROFILE
+        jsr gameplay_dispatch
+        else
         clra
         lslb
         rola
@@ -4023,6 +4117,7 @@ ds_column
         leay    screen_tiles,pcr
         leay    d,y
         lbsr    blit_tile
+        endc
         puls    a,x
         leax    4,x
         deca
@@ -4184,42 +4279,7 @@ par_table
         include "ladybug_presentation.inc"
         include "ladybug_presentation_resident.inc"
 install_phase_tiles_for_screen
-        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
-        beq     install_phase_tiles_select
-        cmpa    #PRESENTATION_MAP_GAME_OVER
-        beq     install_phase_tiles_select
-        cmpa    #PRESENTATION_MAP_ENTER_HIGH_SCORE
-        beq     install_phase_tiles_select
-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
-        beq     install_phase_tiles_select
         rts
-install_phase_tiles_select
-        pshs    a
-        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
-        bne     install_highscore_tiles
-        ldx     #$9000
-        bra     install_phase_tiles
-install_highscore_tiles
-        ldx     #$9040
-install_phase_tiles
-        lda     PAR_EXEC+4
-        pshs    a
-        lda     #$23
-        sta     PAR_EXEC+4
-        lda     #PRESENTATION_COLD_PAGE
-        sta     PAR_EXEC+5
-        ldy     #$A000+PRESENTATION_TILE_ATLAS_OFFSET+PRESENTATION_PHASE_TILE_SLOT_0*32
-        ldb     #64
-install_phase_tile
-        lda     ,x+
-        sta     ,y+
-        decb
-        bne     install_phase_tile
-        puls    a
-        sta     PAR_EXEC+4
-        lda     #$34
-        sta     PAR_EXEC+5
-        puls    a,pc
 
 ; Return bridge for code executing from page $23 through a routine that
 ; temporarily changes PAR5.  The caller stores its page-$23 continuation in
@@ -4255,6 +4315,11 @@ asset_start
         include "ladybug_screen.inc"
         include "ladybug_maze.inc"
 
+        ifne COMPLETE_PROFILE
+        include "ladybug_shared_link.inc"
+        include "ladybug_shared_text.inc"
+        include "shared_text_runtime.inc"
+        endc
 asset_end
 
         end

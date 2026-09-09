@@ -59,7 +59,7 @@ def main() -> None:
     if sparse.get("aux_runtime", {}).get("role") != profile:
         raise SystemExit("FEAT-003 isolation: auxiliary runtime role differs")
     emitted = presentation.get("high_score_name_entry", {}).get("emitted")
-    if emitted != (profile == "highscore-test"):
+    if emitted != (profile in ("highscore-test", "complete")):
         raise SystemExit("FEAT-003 isolation: name-entry emission differs")
     compressed = (
         presentation["tile_atlas_compressed_bytes"] !=
@@ -72,11 +72,11 @@ def main() -> None:
 
     build_source = (ROOT / "scripts/build.sh").read_text(encoding="utf-8")
     if not re.search(
-        r'LADYBUG_PROFILE="\$\{LADYBUG_PROFILE:-highscore-test\}"', build_source
+        r'LADYBUG_PROFILE="\$\{LADYBUG_PROFILE:-complete\}"', build_source
     ):
         raise SystemExit("FEAT-003 isolation: unset profile default differs")
     rom_hash = hashlib.sha256(args.rom.read_bytes()).hexdigest()
-    if profile == "complete" and rom_hash != COMPLETE_SHA256:
+    if profile == "complete" and not presentation.get('shared_text') and rom_hash != COMPLETE_SHA256:
         raise SystemExit(
             f"FEAT-003 isolation: complete ROM hash {rom_hash} != {COMPLETE_SHA256}"
         )

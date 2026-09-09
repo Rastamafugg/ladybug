@@ -400,7 +400,8 @@ shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coc
         — cart window placement.
       </p>
     </footer>
-  </main>
+  <section id="feat007-production"><h2>FEAT-007 normal production build</h2><p>The unset <code>LADYBUG_PROFILE</code> default is now <code>complete</code>. Run <code>scripts/build.sh build</code> from the project root; the generated <code>build/ladybug.rom</code> includes shared text. Explicit development, release and highscore-test selections remain available. <code>LADYBUG_BUILD_DIR</code> optionally isolates generated profile artifacts.</p><p>On Windows, <code>.\ladybug.ps1 Game</code> launches this production ROM. Append <code>-Check</code> for a prerequisite-only check. <code>.\ladybug.ps1 Checkpoint</code> runs production verification. The old description of Game as a pre-FEAT-007 image is superseded.</p><p>Acceptance interfaces are <code>python3 scripts/verify_feat007_text.py --phase checkpoint</code>, <code>--phase static</code> and <code>--phase runtime</code>. Runtime reads revision-identified evidence; add <code>--refresh</code> to execute the retained harnesses. Missing scenarios and stale artifact hashes fail. Explicit accepted stage-performance and BUG-036 exclusions are reported separately from measured passes.</p><p>Legacy complete-ROM fixed-hash comparison applies only to the old native format. Shared-text builds use generated-data, layout, identity and runtime checks so a legitimate colour-data rebuild is possible. No memory, module, staging, ROM-size or timing limit was enlarged.</p></section>
+</main>
 </div>
 </body>
 </html>

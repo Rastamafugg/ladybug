@@ -931,7 +931,8 @@ scripts/build.sh run
         fixed jump table, memory allocation, or frame transaction changes.
       </p>
     </footer>
-  </main>
+  <section id="shared-text-production"><h2>FEAT-007 production text path</h2><p><code>scripts/shared_text.py</code>, called by <code>build_presentation.py --shared-text</code> for the complete profile, extracts shared 8-byte monochrome masks from authored character/TMX data. It removes static text images before native atlas allocation, then emits typed dynamic descriptors, colour-bearing static streams, grouped instruction recolour addresses and gameplay cell references. Production generation does not read checkpoint binaries.</p><p><code>src/shared_text_runtime.inc</code> owns the shared mask renderer and direct static/dynamic dispatch. <code>shared_text_ranking.inc</code> and <code>shared_text_stage.inc</code> retain the existing low-RAM/page-$23 ownership and scheduled preparation slices. Alternate profiles use the preserved native implementation. The build resolves resident exports, module cold-pointer imports and a second resident link without forwarding trampolines.</p><p><code>assets/arcade/text-colours.json</code> is the colour authoring surface. See <a href="./data-layouts.html#shared-text-colours">the format</a> and <a href="../tickets/feat-007-shared-text-masks.html">FEAT-007</a>. Generated output includes <code>ladybug_shared_text.inc</code>, <code>ladybug_stage_glyphs.inc</code>, <code>ladybug_text_colours.inc</code> and the coverage manifest.</p></section>
+</main>
 </div>
 </body>
 </html>
