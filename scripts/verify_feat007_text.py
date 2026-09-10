@@ -26,6 +26,9 @@ def main():
         assert digest(build/'ladybug-presentation-cold.bin')==manifest['cold_payload']['sha256']
         report.update(capacity={k:dict(used=v,limit=l,spare=l-v) for k,(v,l) in sizes.items()},font_bytes=shared['font_bytes'],spare_graphic_ids=256-shared['graphics'],gmc_source_spare=read(build/'ladybug-sparse-layout.json')['gmc']['spare_bytes'])
     elif args.phase=='static':
+        sys.path.insert(0,str(ROOT/'repro/feat007'))
+        from production_runtime_fixture import prepare
+        prepare(ROOT)
         subprocess.run([sys.executable,str(ROOT/'scripts/verify_shared_text.py'),'--build-dir',str(build)],check=True)
         subprocess.run([sys.executable,str(ROOT/'repro/feat007/verify_colour_configuration.py')],check=True)
         subprocess.run([sys.executable,str(ROOT/'repro/feat007/compare_instruction_records.py')],check=True)

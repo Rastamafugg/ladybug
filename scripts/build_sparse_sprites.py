@@ -71,7 +71,7 @@ INSTRUCTION_RUNTIME_ADDRESS = 0xA422
 INSTRUCTION_RUNTIME_BYTES = 0x3AA
 HIGHSCORE_RUNTIME_ADDRESS = 0xA880
 HIGHSCORE_PHASE_HELPER_ADDRESS = 0xAC40
-PHASE_TILE_PATCH_ADDRESS = 0xB000
+PHASE_TILE_PATCH_ADDRESS = 0xBF80
 
 
 @dataclass(frozen=True)
@@ -452,11 +452,16 @@ def pack_candidate_banks(
         SourceInterval(0, helper_source_end,
                        CART_READABLE_BYTES),
     ]
+    if INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage) > 0xB600:
+        raise ValueError("presentation auxiliary overlaps compressed title at $B600")
+    if 0xB600 + len(actor_underlays) + len(actor_records) > PHASE_TILE_PATCH_ADDRESS:
+        raise ValueError("compressed title overlaps phase patches at $BF80")
     targets = (
         target_chunks("enemy", enemy_payload, ENEMY_PAGE_BASE) +
-        target_chunks("attract_actor_bundle", actor_underlays + actor_records +
-                      aux_runtime_stage,
-                      0x23, 0xA000) +
+        target_chunks("attract_actor_bundle", actor_underlays + actor_records,
+                      0x23, 0xB600) +
+        target_chunks("presentation_auxiliary", aux_runtime_stage,
+                      0x23, INSTRUCTION_RUNTIME_ADDRESS) +
         target_chunks("phase_tile_patches", tile_patches, 0x23,
                       PHASE_TILE_PATCH_ADDRESS) +
         target_chunks("presentation_module", presentation_module, 0xFF,

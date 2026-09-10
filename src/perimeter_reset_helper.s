@@ -207,10 +207,10 @@ pao_phase_change
         lda     #1
 pao_phase_ready
         lsla
-        ldx     #$AA8E
+        ldx     #$BCA6
         ldu     a,x
-        ldx     #$AA80
-        lda     #7
+        ldx     #$BC80
+        lda     #19
         sta     PRES_REMAIN
 pao_actor
         ldd     ,x

@@ -243,8 +243,8 @@ def main() -> None:
 
         saved_par5 = read_byte(client, PAR5)
         client.call("write_memory", {"addr": PAR5, "data": "3c"})
-        live_surfaces = read_bytes(client, 0xA000, 2688)
-        live_metadata = read_bytes(client, 0xAA80, 20)
+        live_surfaces = read_bytes(client, 0xA000, 7296)
+        live_metadata = read_bytes(client, 0xBC80, 44)
         client.call("write_memory", {"addr": PAR5, "data": f"{saved_par5:02x}"})
         if digest(live_surfaces) != expected_surfaces:
             raise SystemExit("BUG-010 visible runtime: live expanded surface hash differs")

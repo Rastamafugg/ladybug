@@ -419,8 +419,9 @@ def main() -> None:
         "presentation_module": bytearray(len(presentation_module)),
         "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
-            len(actor_underlays) + len(actor_records) + len(aux_runtime_stage)
+            len(actor_underlays) + len(actor_records)
         ),
+        "presentation_auxiliary": bytearray(len(aux_runtime_stage)),
         "phase_tile_patches": bytearray(len(tile_patches)),
     }
     coverage = {
@@ -432,8 +433,9 @@ def main() -> None:
         "presentation_module": bytearray(len(presentation_module)),
         "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
-            len(actor_underlays) + len(actor_records) + len(aux_runtime_stage)
+            len(actor_underlays) + len(actor_records)
         ),
+        "presentation_auxiliary": bytearray(len(aux_runtime_stage)),
         "phase_tile_patches": bytearray(len(tile_patches)),
     }
     source_coverage = {
@@ -546,10 +548,13 @@ def main() -> None:
             target_address = WINDOW_BASE
         elif target == "attract_actor_bundle":
             target_page_base = 0x23
-            target_address = 0xA000
+            target_address = 0xB600
+        elif target == "presentation_auxiliary":
+            target_page_base = 0x23
+            target_address = INSTRUCTION_RUNTIME_ADDRESS
         elif target == "phase_tile_patches":
             target_page_base = 0x23
-            target_address = 0xB000
+            target_address = 0xBF80
         else:
             raise SystemExit(f"sparse proof: unknown loader target {target}")
         absolute_offset = target_address - WINDOW_BASE + target_offset
@@ -640,9 +645,11 @@ def main() -> None:
     if reconstructed["audio_runtime"] != audio_runtime:
         raise SystemExit("sparse proof: loader does not reconstruct audio runtime")
     if reconstructed["attract_actor_bundle"] != (
-        actor_underlays + actor_records + aux_runtime_stage
+        actor_underlays + actor_records
     ):
         raise SystemExit("sparse proof: loader does not reconstruct actor bundle")
+    if reconstructed["presentation_auxiliary"] != aux_runtime_stage or not all(coverage["presentation_auxiliary"]):
+        raise SystemExit("sparse proof: auxiliary delivery or coverage differs")
     if reconstructed["phase_tile_patches"] != tile_patches:
         raise SystemExit("sparse proof: loader does not reconstruct phase tile patches")
     expected_usable = (

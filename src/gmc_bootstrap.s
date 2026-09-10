@@ -495,7 +495,7 @@ decompress_attract_surfaces
         sta     PAR_EXEC+4
         lda     #$23
         sta     PAR_EXEC+5
-        ldu     #$A000
+        ldu     #$B600          ; logo bundle is independent of fixed auxiliary slots
         ldy     #$8000
 das_flags
         lda     ,u+
@@ -532,13 +532,13 @@ das_match_byte
         decb
         bne     das_match_byte
 das_next
-        cmpy    #$8A80
+        cmpy    #$9C80          ; nineteen surfaces per phase, three phases
         beq     das_done
         dec     BOOT_LZ_BITS
         bne     das_token
         bra     das_flags
 das_done
-        ldb     #20
+        ldb     #44            ; nineteen destinations and three phase pointers
 das_metadata_byte
         lda     ,u+
         sta     ,y+

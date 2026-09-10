@@ -1,0 +1,53 @@
+{
+  "phase": "runtime",
+  "rom_sha256": "26c6d704d1d5f0b1d0bd9be056389f560db138b2c55bbee50b005cf766caf304",
+  "status": "pass with approved exceptions",
+  "scenarios": [
+    {
+      "file": "sequence-verification.json",
+      "max_cycles": 26803
+    },
+    {
+      "file": "sequence-0-maximum.json",
+      "max_cycles": 26803
+    },
+    {
+      "file": "sequence-1-mixed.json",
+      "max_cycles": 26803
+    },
+    {
+      "file": "instruction-choreography-verification.json",
+      "max_cycles": 26850
+    },
+    {
+      "file": "name-sequence-verification.json",
+      "max_cycles": 26276
+    },
+    {
+      "file": "retiming.json",
+      "max_cycles": 26210
+    }
+  ],
+  "matching_instruction_frames": 1792,
+  "exceptions": [
+    {
+      "scope": "Stage-transition setup and full gameplay rebuild",
+      "measured_max": 614750,
+      "target": 27000,
+      "decision": "User accepts current performance; target remains missed."
+    },
+    {
+      "scope": "BUG-036 name-entry interaction and score-dependent flow",
+      "decision": "Explicitly deferred and non-blocking; zero score still enters name entry."
+    }
+  ],
+  "source_sha256": {
+    "scripts/shared_text.py": "4f34cc38f4dbf8e8ed21873d9219fea492e9fd90e457ac396d0e8d341d05dd77",
+    "scripts/build_presentation.py": "cd4073ca574a395be03b4c0c44ee1c6cd3c54db31e6583f2d3d6f4c108a25d0e",
+    "scripts/build.sh": "72a5ea7d57e8f8f523dc25cce1ee1fb4ed2c611e264ae055daa2003105f30b8b",
+    "assets/arcade/text-colours.json": "31c85014af8d5a45f8140ff8592677963acfda7321bff91a1afdd9fa034f073e",
+    "src/shared_text_ranking.inc": "6ef46900d15ba1f9a3aef52d3cdf06762f7d30ada532b1e49a1364b8dd98f9e3",
+    "src/shared_text_runtime.inc": "1d768110185a7c51bac4a727b37e7d4135d6ba08a26dbaebc97ec6010afa04d7",
+    "src/shared_text_stage.inc": "b92bd6949b8d6115cb7ec011dc0e83d563fa5efe5d2612861d8b61c06179e46d"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "base_commit": "eb874e119c1b473b6fea7ba48bacf1751a3a22a8",
+  "index_tree": "d5bab2933ec3b2859df6d332349f2f1889284c02",
+  "source_files": 720,
+  "excluded": "All build/ entries; no working-tree overlays",
+  "external_tool": "/mnt/e/projects/ladybug/docs/reference/xroar",
+  "files": [
+    "scripts/build_presentation.py",
+    "scripts/build_sparse_sprites.py",
+    "src/gmc_bootstrap.s",
+    "src/perimeter_reset_helper.s",
+    "scripts/verify_sparse_sprites.py",
+    "scripts/verify_presentation.py",
+    "scripts/verify_presentation_flow.py",
+    "scripts/verify_bug010_attract_actors.py",
+    "scripts/verify_bug010_visible_runtime.py",
+    "scripts/benchmark_6309.py",
+    "src/bench/6309_benchmark.s",
+    "scripts/verify_feat007_text.py",
+    "scripts/build.sh"
+  ],
+  "result": "Isolated source export reproduces accepted production ROM; runtime passes with existing approved exceptions.",
+  "rom_sha256": "26c6d704d1d5f0b1d0bd9be056389f560db138b2c55bbee50b005cf766caf304",
+  "commands": [
+    "bash scripts/build.sh build",
+    "python3 scripts/verify_feat007_text.py --phase checkpoint",
+    "python3 scripts/verify_feat007_text.py --phase static",
+    "python3 scripts/verify_feat007_text.py --phase runtime --refresh"
+  ],
+  "build_log_sha256": "3359519f9198d50cca741b0d648833b117a4cfaeeab9f2cc655d4b899a73fd0a",
+  "source_boundary": "Index tree contains the 13 production dependency files. Only this evidence and wiki record are added afterwards. All build/ files were omitted before building. External XRoar executable reused; no dirty runtime source or generated data overlays.",
+  "retention": "Concise verdicts retained here; detailed refresh outputs can be regenerated with listed commands. Full local logs and export remain in repro/dependency-validation-20260910.",
+  "budget": "Existing FEAT-007 14% weekly ceiling; task-specific consumption unavailable, no measured compliance claim."
+}

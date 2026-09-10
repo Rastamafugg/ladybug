@@ -125,18 +125,18 @@ def main() -> None:
     )
     if actual != EXPECTED_ACTORS:
         fail(f"actor metadata differs: {actual!r}")
-    if records.get("bytes") != 2688 or records.get("unique_phases") != 3:
-        fail("actor surfaces are not the 7 x 3 x 128-byte format")
+    if records.get("bytes") != 7296 or records.get("unique_phases") != 3:
+        fail("actor surfaces are not the 19 x 3 x 128-byte format")
     bundle = presentation.get("attract_actor_bundle", {})
-    if (bundle.get("compressed_bytes") != 1038 or bundle.get("metadata_bytes") != 20 or
-            bundle.get("destination_table_address") != 0xAA80 or
-            bundle.get("phase_pointer_address") != 0xAA8E):
+    if (bundle.get("compressed_bytes") != len(COMPRESSED.read_bytes()) or bundle.get("metadata_bytes") != 44 or
+            bundle.get("destination_table_address") != 0xBC80 or
+            bundle.get("phase_pointer_address") != 0xBCA6):
         fail("compressed actor bundle differs")
-    expanded = lzss_expand(COMPRESSED.read_bytes(), 2688)
+    expanded = lzss_expand(COMPRESSED.read_bytes(), 7296)
     if hashlib.sha256(expanded).hexdigest() != records.get("sha256"):
         fail("compressed actor surfaces do not expand to the authored payload")
-    if len(METADATA.read_bytes()) != 20:
-        fail("actor destination and phase metadata is not 20 bytes")
+    if len(METADATA.read_bytes()) != 44:
+        fail("actor destination and phase metadata is not 44 bytes")
     sprites = json.loads(SPRITES.read_text(encoding="ascii"))
     actors = records["actors"]
     for phase in range(3):
@@ -147,8 +147,8 @@ def main() -> None:
             white, light_grey, dark_grey = actor["colours"]
             pen_colours = (0, dark_grey, light_grey, white)
             surface = expanded[
-                (phase * len(actors) + actor_index) * 128:
-                (phase * len(actors) + actor_index + 1) * 128
+                (phase * 19 + actor_index) * 128:
+                (phase * 19 + actor_index + 1) * 128
             ]
             for y, row in enumerate(sprite):
                 for x, pen in enumerate(row):
@@ -162,7 +162,7 @@ def main() -> None:
                             f"maps to {actual_colour}, expected {pen_colours[pen]}"
                         )
     for fragment in ("decompress_attract_surfaces", "lda     #$3C",
-                     "sta     PAR_EXEC+4", "lda     #$23", "cmpy    #$8A80",
+                     "sta     PAR_EXEC+4", "lda     #$23", "cmpy    #$9C80",
                      "das_metadata_byte"):
         if fragment not in boot_source:
             fail("boot actor-surface decompressor contract is incomplete")

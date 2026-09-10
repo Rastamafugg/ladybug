@@ -200,14 +200,14 @@ def main() -> None:
         )
 
     actor_surfaces = presentation_layout.get("attract_actor_surfaces", {})
-    if (actor_surfaces.get("bytes") != 2688 or
+    if (actor_surfaces.get("bytes") != 7296 or
             len(actor_surfaces.get("actors", [])) != 7):
         raise SystemExit("presentation flow proof: seven authored actor surfaces are not wired")
     attract_source = helper_source
     if "jsr     PRES_MAIN_FB_PREPARE" not in attract_source or "PRES_MAIN_FB_FINISH" not in attract_source:
         raise SystemExit("presentation flow proof: attract owner publication is incomplete")
-    for fragment in ("lda     #$3C", "ldx     #$AA8E", "ldx     #$AA80",
-                     "lda     #7", "lda     #16", "leay    152,y"):
+    for fragment in ("lda     #$3C", "ldx     #$BCA6", "ldx     #$BC80",
+                     "lda     #19", "lda     #16", "leay    152,y"):
         if fragment not in attract_source:
             raise SystemExit("presentation flow proof: attract surface-copy worklist is incomplete")
     if "inflate_maps" in source or "cold_write_byte" in source:

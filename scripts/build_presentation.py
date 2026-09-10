@@ -97,8 +97,9 @@ ATTRACT_ACTOR_SURFACE_PAGE = 0x3C
 ATTRACT_ACTOR_SURFACE_ADDRESS = 0xA000
 ATTRACT_ACTOR_BYTES = 128
 ATTRACT_ACTOR_PHASES = (0, 1, 2)
-ATTRACT_ACTOR_DESTINATION_ADDRESS = 0xAA80
-ATTRACT_ACTOR_PHASE_POINTER_ADDRESS = 0xAA8E
+ATTRACT_COPY_COUNT = 19  # seven actors and twelve authored logo rectangles
+ATTRACT_ACTOR_DESTINATION_ADDRESS = 0xA000 + 3 * ATTRACT_COPY_COUNT * 128
+ATTRACT_ACTOR_PHASE_POINTER_ADDRESS = ATTRACT_ACTOR_DESTINATION_ADDRESS + ATTRACT_COPY_COUNT * 2
 INSTRUCTION_REFERENCE = (
     Path(__file__).resolve().parents[1]
     / "assets" / "arcade" / "instruction_reference.json"
@@ -166,8 +167,8 @@ PRESENTATION_LAYER_CONTRACTS = {
     "attract": {
         "static": ("Attract Title and Prompts",),
         "metadata": (),
-        "runtime": ("Sprite Animations",),
-        "deferred": ("Logo Frame 1", "Logo Frame 2"),
+        "runtime": ("Sprite Animations", "Logo Frame 1", "Logo Frame 2"),
+        "deferred": (),
     },
     "instructions": {
         "static": INSTRUCTION_STATIC_LAYERS,
@@ -313,6 +314,7 @@ def compile_attract_surfaces(
         attract_map: bytes, tiles: list[bytes], sprites: list[list[list[int]]],
         actors: list[dict[str, object]]) -> bytes:
     framebuffer = title_framebuffer(attract_map, tiles)
+    logo_roots, logo_frames = compile_logo_frames(framebuffer)
     surfaces = bytearray()
     for phase in ATTRACT_ACTOR_PHASES:
         for actor in actors:
@@ -339,7 +341,35 @@ def compile_attract_surfaces(
                     low = colours[sprite[sprite_row][x + 1]] if sprite[sprite_row][x + 1] else underlay & 0x0F
                     composed.append((high << 4) | low)
             surfaces.extend(composed)
+        logo = logo_frames[phase & 1]
+        for x, y in logo_roots:
+            offset = y * 1280 + x * 4
+            for row in range(16):
+                surfaces.extend(logo[offset + row * 160:offset + row * 160 + 8])
     return bytes(surfaces)
+
+
+def compile_logo_frames(base: bytes) -> tuple[list[tuple[int, int]], list[bytes]]:
+    path = Path(__file__).resolve().parents[1] / "tiled" / MAP_FILES["attract"]
+    root = ET.parse(path).getroot()
+    chars = load_chars(path.parents[1] / "assets/arcade/chars.json")
+    layers = [next(l for l in root.findall("layer") if l.get("name") == name)
+              for name in ("Logo Frame 1", "Logo Frame 2")]
+    records = [layer_records(layer) for layer in layers]
+    roots = sorted({(x // 2 * 2, y // 2 * 2) for record in records for x, y in record})
+    if len(roots) + 7 != ATTRACT_COPY_COUNT:
+        raise ValueError("title copy allocation differs from authored logo rectangles")
+    frames = []
+    for record in records:
+        frame = bytearray(base)
+        for (x, y), gid in record.items():
+            tile = instruction_char_tile(root, path, gid, (x, y), chars,
+                                         (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE))
+            for row in range(8):
+                offset = y * 1280 + x * 4 + row * 160
+                frame[offset:offset + 4] = tile[row * 4:row * 4 + 4]
+        frames.append(bytes(frame))
+    return roots, frames
 
 
 def compose_attract_frames(
@@ -349,8 +379,10 @@ def compose_attract_frames(
     frames = []
     for phase in (0, 1, 2, 1):
         frame = bytearray(base)
-        for actor_index, actor in enumerate(actors):
-            source = (phase * len(actors) + actor_index) * ATTRACT_ACTOR_BYTES
+        roots, _ = compile_logo_frames(base)
+        destinations = actors + [{"destination": framebuffer_destination(root)} for root in roots]
+        for actor_index, actor in enumerate(destinations):
+            source = (phase * ATTRACT_COPY_COUNT + actor_index) * ATTRACT_ACTOR_BYTES
             destination = int(actor["destination"]) - 0x2000
             for row in range(16):
                 frame[destination + row * 160:destination + row * 160 + 8] = (
@@ -658,6 +690,8 @@ def presentation_pen_map(
 ) -> tuple[int, int, int, int]:
     """Apply the established CoCo palette adaptation to authored raw chars."""
     if role == "attract":
+        if 7 <= y <= 12 and 9 <= x <= 30 and 165 <= raw_code <= 197:
+            return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
         if y == 15 and 15 <= x <= 25:
             return (BLACK, PURPLE, PURPLE, PURPLE)
         if y == 18 and 13 <= x <= 26:
@@ -687,6 +721,8 @@ def presentation_pen_map(
             return (BLACK, YELLOW, YELLOW, YELLOW)
         if y == 20 and 16 <= x <= 24:
             return (BLACK, RED, RED, RED)
+        if 11 <= y <= 18 and 17 <= x <= 22:
+            return (BLACK, LIGHT_BLUE, LIGHT_BLUE if y <= 12 else WHITE, PINK)
         return (BLACK, PINK, WHITE, PINK)
     if role == "enter-high-score":
         if source_layer == "Arcade Maze Border":
@@ -1058,6 +1094,26 @@ def parse_instruction_contract(
             target_colour_streams.append(
                 bytes((operation_count,)) + bytes(operations)
             )
+
+    # Last-row X is a persistent demonstration target, not a consumable event.
+    operations = bytearray()
+    cursor = count = 0
+    for dy in range(2):
+        pair = [instruction_char_tile(root, path,
+                    overlay_cells[(19 + dy) * SCREEN_WIDTH + 13 + dx],
+                    (13 + dx, 19 + dy), chars, (0, 1, 1, 1)) for dx in range(2)]
+        for row in range(8):
+            packed = pair[0][row * 4:row * 4 + 4] + pair[1][row * 4:row * 4 + 4]
+            for column, value in enumerate(packed):
+                selector = (2 if value & 0xF0 else 0) | (1 if value & 15 else 0)
+                if selector:
+                    destination = (dy * 8 + row) * 160 + column
+                    delta = destination - cursor
+                    operations.extend((delta,) if delta < 255 else (255, delta >> 8, delta & 255))
+                    operations.append(selector)
+                    cursor = destination
+                    count += 1
+    target_colour_streams.append(bytes((count,)) + operations)
 
     death_frames = compile_death_sprites(path.parents[1] / "assets" / "arcade" / "sprites.json")
     death_streams = [encode_sparse_native(
@@ -1917,10 +1973,12 @@ def main() -> None:
         int(actor["destination"]).to_bytes(2, "big") for actor in actors
     )
     visual_maps, visual_tiles = (shared.visual_maps, shared.visual_tiles) if shared else (maps, tiles)
+    logo_roots, _ = compile_logo_frames(title_framebuffer(visual_maps[0], visual_tiles))
+    attract_destinations += b"".join(framebuffer_destination(root).to_bytes(2, "big") for root in logo_roots)
     attract_surfaces = compile_attract_surfaces(visual_maps[0], visual_tiles, sprites, actors)
     attract_frames = compose_attract_frames(visual_maps[0], visual_tiles, attract_surfaces, actors)
     attract_phase_pointers = b"".join(
-        (ATTRACT_ACTOR_SURFACE_ADDRESS + phase * 896).to_bytes(2, "big")
+        (ATTRACT_ACTOR_SURFACE_ADDRESS + phase * ATTRACT_COPY_COUNT * 128).to_bytes(2, "big")
         for phase in ATTRACT_ACTOR_PHASES
     )
     attract_compressed = lzss_compress(attract_surfaces)
@@ -2201,7 +2259,7 @@ def main() -> None:
         },
         "attract_actor_destinations": {
             "bytes": len(attract_destinations),
-            "count": len(actors),
+            "count": ATTRACT_COPY_COUNT,
             "storage": "helper-table",
             "sha256": hashlib.sha256(attract_destinations).hexdigest(),
         },
@@ -2214,12 +2272,13 @@ def main() -> None:
             "storage": "loader-copy-to-page-$3C-$A000",
             "sha256": hashlib.sha256(attract_surfaces).hexdigest(),
             "actors": actors,
+            "logo_roots": logo_roots,
             "phase_frame_sha256": [hashlib.sha256(frame).hexdigest()
                                    for frame in attract_frames],
             "phase_crop_sha256": [
                 [hashlib.sha256(attract_surfaces[
-                    (phase * len(actors) + actor_index) * ATTRACT_ACTOR_BYTES:
-                    (phase * len(actors) + actor_index + 1) * ATTRACT_ACTOR_BYTES
+                    (phase * ATTRACT_COPY_COUNT + actor_index) * ATTRACT_ACTOR_BYTES:
+                    (phase * ATTRACT_COPY_COUNT + actor_index + 1) * ATTRACT_ACTOR_BYTES
                 ]).hexdigest() for actor_index in range(len(actors))]
                 for phase in ATTRACT_ACTOR_PHASES
             ],
