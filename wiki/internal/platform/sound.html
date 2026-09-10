@@ -170,6 +170,37 @@
       </p>
     </section>
 
+    <section>
+      <h2>FEAT-006 production integration proposal</h2>
+      <p>
+        The approved FEAT-004 standalone cue descriptors are now proposed for
+        production integration through <a href="../tickets/feat-006-gmc-audio-event-integration.html">FEAT-006</a>.
+        The scope is the 18-ID descriptor map and its 16 unique streams only;
+        aliases 8/17 remain descriptor aliases, and the 25-candidate research
+        inventory is not production scope.
+      </p>
+      <p>
+        Capacity is currently a blocking design issue, not a reason to change
+        the validated audio. The packed descriptor and stream data occupies
+        3,478 bytes, which is 1,942 bytes over the earlier 1,536-byte source
+        target. A current uncommitted parent snapshot leaves 10 resident bytes,
+        536 asset bytes, and no bank-3 runtime space. The proposed resolution is
+        GMC source overflow plus a boot copy into reserved physical page
+        <code>$3D</code>, with a post-handoff runtime engine limited to 920 bytes
+        in the boot-only low-RAM block <code>$0300-$0697</code>. The source
+        snapshot leaves approximately 2,024 bytes after the pack and page 3D
+        leaves 4,714 bytes after the copy; both margins require a clean
+        post-integration map before acceptance.
+      </p>
+      <p>
+        The runtime remains foreground-only and runs after render publication.
+        Event producers enqueue semantic transitions, the service owns one music
+        bed and three transient slots, PAR5 is restored before return, and GMC
+        writes use odd SCS address <code>$FF51</code>. No resident, bank-3, direct
+        page, IRQ, or cue-content expansion is authorized by this proposal.
+      </p>
+    </section>
+
     <footer class="wiki-footer">
       <p>
         Sources:

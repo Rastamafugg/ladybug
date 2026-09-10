@@ -24,12 +24,12 @@
     <section>
       <h2>Disposition</h2>
       <ul>
-        <li><strong>Status:</strong> Approved</li>
-        <li><strong>Created / updated:</strong> 2026-08-07 / 2026-08-07</li>
+        <li><strong>Status:</strong> Ready</li>
+        <li><strong>Created / updated:</strong> 2026-08-07 / 2026-08-27</li>
         <li><strong>Priority / order:</strong> P2 / 14</li>
         <li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 8 &mdash; sound</a></li>
         <li><strong>Owner:</strong> unassigned</li>
-        <li><strong>Dependencies:</strong> capture work may begin independently; final capacity and module placement require FEAT-002 base integration, FEAT-003 capacity decisions, and refreshed PERF-002/PERF-003 timing evidence.</li>
+        <li><strong>Dependencies:</strong> capture, trace reconstruction, and reduction work may begin independently. The capacity projection must consume the latest combined FEAT-002/FEAT-003 revision and refreshed PERF-002/PERF-003 timing evidence before it is marked complete. A legally supplied Lady Bug ROM set and the pinned MAME build are required for capture.</li>
       </ul>
     </section>
 
@@ -106,20 +106,104 @@
 
     <section>
       <h2>Assignment contract</h2>
+      <h3>Activation and authority</h3>
       <ul>
-        <li><strong>Approved objective and non-goals:</strong> to be copied unchanged from the approval brief after explicit approval.</li>
-        <li><strong>Owned artifacts:</strong> new audio capture/analyser scripts, deterministic plans under <code>scripts/mame_plans/</code>, research assets under <code>assets/arcade/audio/</code>, this ticket, <code>platform/sound.html</code>, source-ingest pages, and the internal log. Runtime assembly is excluded.</li>
-        <li><strong>Order:</strong> cue inventory and plans; reproducible WAV/PSG capture; isolation and overlap coverage; trace reconstruction; one-chip reduction comparisons; capacity/cycle projection after FEAT-002; follow-up feature proposal.</li>
-        <li><strong>Required commands:</strong> exact commands are added before <code>Ready</code>; they must include clean MAME captures, corpus verification, host PSG reconstruction/reduction, build/map refresh, and wiki link lint.</li>
-        <li><strong>Evidence:</strong> manifests, compact command traces, cue segments or hashes according to repository policy, rendered one-chip comparisons, coverage report, and capacity/cycle report.</li>
-        <li><strong>Worktree / branch:</strong> dedicated <code>D:/retro/ladybug-worktrees/rsch-001</code> worktree on <code>codex/rsch-001-audio-capture</code>.</li>
-        <li><strong>Commit:</strong> one bounded research/tooling commit; no push, merge, feature approval, or runtime implementation authority.</li>
+        <li><strong>Activation:</strong> this ticket is Ready for the approved capture and design work. Create a clean checkout before execution; do not use the current dirty main worktree as evidence. Record the clean base revision in the completion report. The capacity phase must be rerun after the latest combined FEAT-002/FEAT-003 and PERF-002/PERF-003 baseline is available.</li>
+        <li><strong>Branch / worktree:</strong> <code>codex/rsch-001-audio-capture</code> in <code>D:\retro\ladybug-worktrees\rsch-001</code>, created from the recorded clean base revision.</li>
+        <li><strong>Authority:</strong> one bounded research/tooling commit plus synchronized ticket/wiki evidence. No runtime assembly, build-script, emulator-source, feature approval, merge, push, or ticket closure authority is granted.</li>
+        <li><strong>Parent integration:</strong> inspect the commit, regenerate all reports from the combined source tree, rerun the required commands, resolve generated/wiki conflicts, and decide whether RSCH-001 can move to Verification. Isolated success is not integrated acceptance.</li>
       </ul>
+
+      <h3>Owned artifacts and ownership boundaries</h3>
+      <ul>
+        <li><strong>Capture tool:</strong> new <code>scripts/capture_mame_audio.py</code>. It must run the MAME 0.220 Lady Bug driver, enable final-mixer WAV output, log every write to arcade PSG ranges <code>$B000-$BFFF</code> and <code>$C000-$CFFF</code>, preserve frame/subframe order, and emit provenance for every run.</li>
+        <li><strong>Analysis tool:</strong> new <code>scripts/analyze_arcade_audio.py</code>. It must segment cues, classify isolation/natural/overlap coverage, extract pitch/duration/volume/noise/voice/repetition data, and identify subframe writes that a 60 Hz design cannot represent.</li>
+        <li><strong>Reference renderer:</strong> new <code>scripts/render_sn76489.py</code>. It must reconstruct both arcade traces and render each declared one-chip reduction policy without using the captured WAV as the synthesis source.</li>
+        <li><strong>Verification and sizing:</strong> new <code>scripts/verify_arcade_audio.py</code> and <code>scripts/project_audio_capacity.py</code>. The first rejects missing, stale, incomplete, non-reproducible, or under-covered corpus evidence. The second reports projected engine/data/state/queue sizes, changed-register writes, and 60 Hz cycles against the approved proposal limits.</li>
+        <li><strong>Deterministic plans:</strong> <code>scripts/mame_plans/audio-index.json</code> and these plan files: <code>audio-title-attract.json</code>, <code>audio-credit-start.json</code>, <code>audio-level-start.json</code>, <code>audio-gameplay-isolated.json</code>, <code>audio-gameplay-natural.json</code>, <code>audio-overlap-interruption.json</code>, <code>audio-death-clear.json</code>, and <code>audio-game-over-ranking-name.json</code>. The index must declare the expected cues, forced events, silent cases, frame bounds, and required evidence for each plan.</li>
+        <li><strong>Tracked research outputs:</strong> <code>assets/arcade/audio/cue-inventory.json</code>, <code>corpus-manifest.json</code>, <code>analysis.json</code>, <code>reduction-policy.json</code>, <code>reduction-report.json</code>, <code>verification.json</code>, and <code>capacity-report.json</code>.</li>
+        <li><strong>Documentation:</strong> update <code>wiki/internal/platform/sound.html</code>, this ticket, <code>wiki/internal/tickets/index.html</code>, and <code>wiki/internal/log.html</code>. Update <code>wiki/internal/sources/ladybug-arcade.html</code> or <code>wiki/internal/sources/sound-cartridges.html</code> only when a new source fact is actually ingested.</li>
+        <li><strong>Follow-up proposal:</strong> create <code>wiki/internal/tickets/feat-006-gmc-audio-event-integration.html</code> in <code>Proposed</code> state and add its row to the ticket index. FEAT-005 is already the gameplay-options ticket. FEAT-006 must contain the selected cue scope, event ABI, command records, GMC register ownership, module placement, capacity gates, verification commands, and physical-hardware follow-up. It must not authorize implementation.</li>
+        <li><strong>Excluded artifacts:</strong> all <code>src/</code> runtime assembly, <code>scripts/build.sh</code>, emulator source, commercial ROMs, and release audio payloads. Raw WAV, raw PSG traces, temporary render files, and snapshots remain disposable under <code>build/audio-corpus/</code> and <code>build/audio-reductions/</code> unless a later acceptance requirement explicitly promotes one.</li>
+      </ul>
+
+      <h3>Execution order</h3>
+      <ol>
+        <li>Validate the clean base, tool versions, ROM provenance, and the audio plan index.</li>
+        <li>Implement the capture runner and plans; capture two clean repetitions of every indexed plan.</li>
+        <li>Verify corpus completeness and deterministic event/PSG equivalence before analysis.</li>
+        <li>Analyze isolated cues, then natural sequences, then required overlap/interruption cases. Record explicitly silent cases.</li>
+        <li>Render the dual-PSG traces and compare the declared one-chip reduction policies. Select one policy from rendered evidence.</li>
+        <li>Refresh the combined build/map after the dependency baseline is available, then run the capacity/cycle projection. Do not claim a final address or allocation before this step.</li>
+        <li>Create the separate Proposed FEAT-006 ticket and update the sound platform page with the measured decision and remaining physical-hardware risks.</li>
+      </ol>
+
+      <h3>Required commands</h3>
+      <p>Run these commands from the repository root in WSL. Each command is fail-fast; a later command must not run after a failed prerequisite.</p>
+      <pre><code>set -euo pipefail
+test -z "$(git status --porcelain)"
+git diff --check
+python3 -m py_compile \
+  scripts/capture_mame_audio.py \
+  scripts/analyze_arcade_audio.py \
+  scripts/render_sn76489.py \
+  scripts/verify_arcade_audio.py \
+  scripts/project_audio_capacity.py
+python3 scripts/capture_mame_audio.py \
+  --mame mame \
+  --driver ladybug \
+  --plan-index scripts/mame_plans/audio-index.json \
+  --output-root build/audio-corpus \
+  --repeats 2
+python3 scripts/verify_arcade_audio.py \
+  --index scripts/mame_plans/audio-index.json \
+  --corpus build/audio-corpus \
+  --output assets/arcade/audio/verification.json
+python3 scripts/analyze_arcade_audio.py \
+  --corpus build/audio-corpus \
+  --inventory assets/arcade/audio/cue-inventory.json \
+  --output assets/arcade/audio/analysis.json
+python3 scripts/render_sn76489.py \
+  --corpus build/audio-corpus \
+  --policy assets/arcade/audio/reduction-policy.json \
+  --output-root build/audio-reductions \
+  --report assets/arcade/audio/reduction-report.json
+LADYBUG_PROFILE=release scripts/build.sh build
+python3 scripts/project_audio_capacity.py \
+  --map build/ladybug.map \
+  --layout build/ladybug-sparse-layout.json \
+  --reduction assets/arcade/audio/reduction-report.json \
+  --output assets/arcade/audio/capacity-report.json
+LADYBUG_PROFILE=release scripts/build.sh verify-gmc
+python3 -m compileall -q scripts
+python3 -c "from pathlib import Path; import re,sys; root=Path('wiki'); pages=list(root.rglob('*.html')); bad=[(p,h) for p in pages for h in re.findall(r'href=\"([^\"]+)\"',p.read_text(encoding='utf-8')) if not h.startswith(('#','http:','https:','mailto:')) and not (p.parent/h.split('#',1)[0]).is_file()]; print(f'wiki links: {len(pages)} pages, {len(bad)} broken'); sys.exit(bool(bad))"
+git diff --check</code></pre>
+      <p>The capture runner must internally invoke the documented MAME 0.220 final-mixer WAV path and must fail if the WAV, dual-PSG trace, event manifest, or provenance record is absent. The exact MAME invocation and tool version must be written into <code>corpus-manifest.json</code>; the assignment does not permit silently substituting a different MAME version.</p>
+
+      <h3>Evidence requirements</h3>
+      <ul>
+        <li><strong>Provenance:</strong> clean source revision, MAME version, driver, ROM-set hash, input-plan hash, command line, host/toolchain identity, capture date, and output SHA-256 values.</li>
+        <li><strong>Coverage:</strong> one inventory row per flow/event, including explicit silent rows; each non-silent row links to isolated and natural segments; overlap, interruption, retrigger, music/effect, death-during-effect, transition-lingering, pause/freeze, and attract-pre-emption cases are separate required rows.</li>
+        <li><strong>Trace:</strong> every segment records PSG device, register/data byte, frame, subframe ordering, segment start/end, and whether the event was isolated or naturally sequenced. Missing or unforced rare paths fail verification.</li>
+        <li><strong>Reproducibility:</strong> two clean runs of every plan must have equivalent event and PSG sequences. WAV hashes may differ only for a documented header/mixer field; decoded samples must then be equivalent. Do not average unstable runs.</li>
+        <li><strong>Reduction:</strong> the report must identify retained, merged, delayed, coalesced, interrupted, and pre-empted voices for every cue, with rendered reference outputs and the selected policy hash.</li>
+        <li><strong>Capacity/timing:</strong> the report must distinguish measured values from projections and show engine, command data, direct-page state, queue, source, destination, changed-write, and worst-update values against 800 cycles, 12 writes, 1,536 source bytes, and 24 direct-page bytes. Combined render plus audio must remain below the approximately 29,666-cycle interval, with the existing 27,000-cycle render target measured independently.</li>
+        <li><strong>Retention:</strong> commit concise JSON summaries, hashes, selected rendered comparisons, the final policy, and failing evidence. Keep large passing WAVs, raw traces, and snapshots untracked unless required for independent reproduction.</li>
+        <li><strong>Runtime boundary:</strong> evidence must prove that the proposal requires semantic foreground events, post-render 60 Hz updates, changed-register writes only, no sample-rate IRQ, no busy wait, no gameplay-time banking, and no continuous DAC/PB1 stream. This ticket must contain no runtime implementation.</li>
+      </ul>
+
+      <h3>Checkpoints and completion report</h3>
+      <ul>
+        <li>Report after plan/index validation, after deterministic capture verification, after isolated and natural coverage, after reduction selection, and after the dependency-gated capacity projection.</li>
+        <li>Record every rejected or neutral capture, trace interpretation, reduction policy, and capacity alternative when it changes the recommended approach. Revert experiments that are not part of the selected result.</li>
+        <li>Completion report must include the clean base revision, commit, exact commands and exit results, cue/plan coverage counts, deterministic comparison results, selected policy, retained artifact hashes, measured versus projected capacity/timing, dependency revision, rejected experiments, residual physical-hardware risks, and recommended transition to <code>Verification</code>.</li>
+      </ul>
+      <p><strong>Acceptance gate:</strong> the parent may advance this ticket from <code>Ready</code> to <code>In Progress</code> only when the assigned clean checkout exists. The ticket may advance to <code>Verification</code> only after all required evidence, the dependency-gated capacity report, and the Proposed FEAT-005 ticket are present. Runtime sound implementation remains outside this ticket.</p>
     </section>
 
     <section>
       <h2>Verification and completion</h2>
-      <p>Pending approval and execution. Completion requires the full corpus, forced coverage, selected reduction policy, post-FEAT-002 capacity report, and separate feature proposal.</p>
+      <p>Ready for assignment. Completion requires the full indexed corpus, forced and natural coverage, selected reduction policy, dependency-gated capacity/cycle report, synchronized sound documentation, and the separate Proposed FEAT-005 runtime ticket. No required scenario may be inferred from missing evidence.</p>
     </section>
 
     <section>
@@ -127,6 +211,7 @@
       <ul>
         <li>2026-08-07 &mdash; Proposed from the request to capture arcade sound/music, design a CoCo implementation, and prove CPU and memory viability. Official MAME driver evidence confirms two 4 MHz arcade SN76489 chips; the selected target candidate is the GMC's single 4 MHz SN76489.</li>
         <li>2026-08-07 &mdash; User approved RSCH-001 for capture and design research in a dedicated worktree. Runtime sound implementation remains outside this approval. Queue order moved to 14 after FEAT-003 was added at order 13; final capacity placement depends on FEAT-002/FEAT-003 decisions.</li>
+        <li>2026-08-27 &mdash; Converted RSCH-001 from <code>Approved</code> to <code>Ready</code>. Added exact owned artifacts, deterministic plan names, CLI contracts, clean-checkout activation, dependency-gated capacity execution, retained-evidence rules, checkpoints, parent integration authority, and the separate Proposed FEAT-005 deliverable. No runtime source or build workflow changed.</li>
       </ul>
     </section>
 
