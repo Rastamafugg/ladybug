@@ -105,9 +105,8 @@ def recoloured_by_stream(source: bytes, colour: int, stream: bytes) -> bytes:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--xroar", type=Path, default=Path(
-        "/mnt/d/retro/ladybug/docs/reference/xroar/src/xroar"
-    ))
+    parser.add_argument("--xroar", type=Path,
+                        default=runtime.ROOT / "docs/reference/xroar/src/xroar")
     parser.add_argument("--rom", type=Path, default=runtime.ROOT / "build/ladybug.rom")
     parser.add_argument("--output", type=Path,
                         default=runtime.ROOT / "build/bug011-rendering.json")

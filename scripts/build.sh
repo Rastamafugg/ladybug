@@ -97,11 +97,16 @@ case "$LADYBUG_PROFILE" in
     complete) BUG011_DEVELOPMENT_PROFILE=1; COMPLETE_PROFILE=1; HIGHSCORE_TEST_PROFILE=0 ;;
     *) echo "build: LADYBUG_PROFILE must be highscore-test, development, release, or complete" >&2; exit 2 ;;
 esac
+LADYBUG_CPU="${LADYBUG_CPU:-6809}"
 LADYBUG_INPUT="${LADYBUG_INPUT:-keyboard}"
 case "$LADYBUG_INPUT" in
     keyboard) INPUT_JOYSTICK=0 ;;
     joystick) INPUT_JOYSTICK=1 ;;
     *) echo "build: LADYBUG_INPUT must be keyboard or joystick" >&2; exit 2 ;;
+esac
+case "$LADYBUG_CPU" in
+    6809|6309) ;;
+    *) echo "build: LADYBUG_CPU must be 6809 or 6309" >&2; exit 2 ;;
 esac
 
 guard_layout() {
@@ -1052,6 +1057,7 @@ cmd_run() {
     if [[ "$LADYBUG_INPUT" == joystick ]]; then joy_right=kjoy0; fi
     exec xroar \
         -machine coco3 \
+        -machine-cpu "$LADYBUG_CPU" \
         -ram 512 \
         -ram-init random \
         -cart-type gmc \
@@ -1110,8 +1116,10 @@ cmd_tester() {
 
 cmd_tester_run() {
     cmd_tester
+    echo "tester-run: XRoar CPU $LADYBUG_CPU"
     exec xroar \
         -machine coco3 \
+        -machine-cpu "$LADYBUG_CPU" \
         -ram 512 \
         -cart ladybug \
         -cart-type rom \

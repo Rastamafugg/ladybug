@@ -506,7 +506,7 @@ def main() -> None:
     parser.add_argument(
         "--xroar", type=Path,
         default=Path(os.environ.get(
-            "XROAR", "/mnt/d/retro/ladybug/docs/reference/xroar/src/xroar",
+            "XROAR", str(ROOT / "docs/reference/xroar/src/xroar"),
         )),
     )
     parser.add_argument("--rom", type=Path, default=ROOT / "build/ladybug.rom")

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set +e
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 for addr in C0C3; do
   rm -f /tmp/bp.sna
   timeout 15 xroar -ui null -ao null -machine coco3 -ram 512 -cart ladybug \
-    -cart-type rom -cart-rom /mnt/d/retro/ladybug/build/ladybug.rom -cart-autorun \
+    -cart-type rom -cart-rom "$ROOT/build/ladybug.rom" -cart-autorun \
     -trap pc=0x$addr -trap-snap /tmp/bp.sna -trap-timeout 1 -timeout 10 \
     >/dev/null 2>&1
   rc=$?
