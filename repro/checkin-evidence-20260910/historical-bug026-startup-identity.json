@@ -1,0 +1,369 @@
+{
+  "schema": "ladybug-bug026-startup-identity-v1",
+  "created": "2026-08-30",
+  "status": "pass",
+  "phase": "complete-profile cold startup",
+  "deadline_seconds": 60.0,
+  "timeout_meaning": "the named next startup marker was not observed",
+  "xroar_launched": true,
+  "profile": {
+    "required": "complete",
+    "presentation": {
+      "BUG011_DEVELOPMENT_PROFILE": 1,
+      "COMPLETE_PROFILE": 1,
+      "HIGHSCORE_TEST_PROFILE": 0
+    },
+    "bootstrap": {
+      "HIGHSCORE_TEST_PROFILE": 0
+    }
+  },
+  "source_staged_checks": {
+    "manifest_final_rom_hash": true,
+    "boot_bank_exact": true,
+    "resident_bank_exact": true,
+    "presentation_staged_exact": true,
+    "enemy_staged_exact": true
+  },
+  "artifact_sha256": {
+    "production_rom": "9affb91742503658b20fe63ebd2230b2333efb2e476c978b9531706377ce26b1",
+    "boot": "4fc8a994b03cd4171304353d3edf3dea7f25cc938b5febafa04c84f432274c46",
+    "resident": "b4f19e67b1631bdd648959fea3e953eb7d8e9ce81db3142a6fcd170bf6f69a8b",
+    "presentation": "a143b045d6f38a0de888546d2c7f9aa3934c9792e705aad5becfacb5b0601a73",
+    "enemy": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969",
+    "sparse_layout": "a2518d2b94a8a503ebde23aafc5b4b17b13e93bf25bf199744ce44eac4591b51",
+    "main_map": "3fbeba7b4d95e1d6439dbfb934699f8a3ed6903db7b9d8248e080eee2459acdd",
+    "presentation_map": "49958383b88b755835579919acef9745134d431cdcedd135b98fc3aa3a428ffa",
+    "presentation_listing": "06931df32831a6d0cd5bc18233d2ad8e3f221fe5fc2f35e71144579a0ff0d969",
+    "enemy_map": "7300dbe2c89ec232d81b2d1af51cd515b424be9e2f684c3050e70a1fdf62c101",
+    "boot_map": "3b5617e4dd75cb452bc9c2fdad5412c076ae1d3b3ef7411e7bed3c024ec56308",
+    "boot_listing": "e8f1826c63ddcd661204c6fbfecfb9fc25355a4729107428aec3a63fbb101522"
+  },
+  "staged_sha256": {
+    "presentation": "a143b045d6f38a0de888546d2c7f9aa3934c9792e705aad5becfacb5b0601a73",
+    "enemy": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969"
+  },
+  "markers": [
+    {
+      "phase": "startup",
+      "marker": "boot_entry",
+      "address": "C002",
+      "pc": "C002",
+      "halt": {
+        "pc": 49154,
+        "bp_id": 1
+      },
+      "registers": {
+        "a": 181,
+        "b": 255,
+        "d": 46591,
+        "cc": 84,
+        "dp": 0,
+        "x": 17483,
+        "y": 40974,
+        "u": 46154,
+        "s": 32566,
+        "pc": 49154
+      },
+      "presentation_state": {
+        "pres_magic": 166,
+        "pres_mode": 182,
+        "pres_screen": 30,
+        "pres_context": 0,
+        "pres_credits": 126,
+        "pres_event": 170
+      },
+      "entry_identity": "GMC bootstrap bank 0",
+      "rejected_entry_aliases": [
+        {
+          "reason": "pre-cartridge C002 alias",
+          "pc": "C002",
+          "live_window_sha256": "705faa1e9145db276f7482cbefe3e7b3c9f5be4821ad9371e7a3517d721526b4",
+          "live_window_prefix": "1a5010ce5eff8612c6108effb0a7805a"
+        }
+      ],
+      "live_window_address": "C000",
+      "live_window_bytes": 64,
+      "live_window_sha256": "81fd8b0174feee3b9817f4cbc0031fa0d6f4a3e219c3ecda11b5e92d46925ebc",
+      "expected_window_sha256": "81fd8b0174feee3b9817f4cbc0031fa0d6f4a3e219c3ecda11b5e92d46925ebc",
+      "live_window_matches": true
+    },
+    {
+      "phase": "startup",
+      "marker": "presentation_flow_tick",
+      "address": "1900",
+      "pc": "1900",
+      "halt": {
+        "pc": 6400,
+        "bp_id": 2
+      },
+      "registers": {
+        "a": 1,
+        "b": 191,
+        "d": 447,
+        "cc": 224,
+        "dp": 0,
+        "x": 43520,
+        "y": 0,
+        "u": 43776,
+        "s": 8188,
+        "pc": 6400
+      },
+      "presentation_state": {
+        "pres_magic": 0,
+        "pres_mode": 182,
+        "pres_screen": 30,
+        "pres_context": 0,
+        "pres_credits": 126,
+        "pres_event": 170
+      },
+      "live_window_address": "1900",
+      "live_window_bytes": 1271,
+      "live_window_sha256": "a143b045d6f38a0de888546d2c7f9aa3934c9792e705aad5becfacb5b0601a73",
+      "expected_window_sha256": "a143b045d6f38a0de888546d2c7f9aa3934c9792e705aad5becfacb5b0601a73",
+      "live_window_matches": true
+    },
+    {
+      "phase": "startup",
+      "marker": "start_screen_0",
+      "address": "1A04",
+      "pc": "1A04",
+      "halt": {
+        "pc": 6660,
+        "bp_id": 3
+      },
+      "registers": {
+        "a": 0,
+        "b": 3,
+        "d": 3,
+        "cc": 228,
+        "dp": 0,
+        "x": 7665,
+        "y": 178,
+        "u": 7668,
+        "s": 8186,
+        "pc": 6660
+      },
+      "presentation_state": {
+        "pres_magic": 165,
+        "pres_mode": 0,
+        "pres_screen": 30,
+        "pres_context": 0,
+        "pres_credits": 0,
+        "pres_event": 0
+      },
+      "request": 0,
+      "stack_return_bytes": "1930",
+      "caller": {
+        "call_address": "192D",
+        "return_address": "1930",
+        "source_line": 157,
+        "mnemonic": "lbsr",
+        "instruction_bytes": "1700d4"
+      }
+    },
+    {
+      "phase": "startup",
+      "marker": "attract_tick",
+      "address": "1BE0",
+      "pc": "1BE0",
+      "halt": {
+        "pc": 7136,
+        "bp_id": 4
+      },
+      "registers": {
+        "a": 2,
+        "b": 3,
+        "d": 515,
+        "cc": 196,
+        "dp": 0,
+        "x": 7665,
+        "y": 178,
+        "u": 7668,
+        "s": 8188,
+        "pc": 7136
+      },
+      "presentation_state": {
+        "pres_magic": 165,
+        "pres_mode": 2,
+        "pres_screen": 0,
+        "pres_context": 0,
+        "pres_credits": 0,
+        "pres_event": 0
+      }
+    },
+    {
+      "phase": "startup",
+      "marker": "start_screen_3",
+      "address": "1A04",
+      "pc": "1A04",
+      "halt": {
+        "pc": 6660,
+        "bp_id": 5
+      },
+      "registers": {
+        "a": 3,
+        "b": 3,
+        "d": 771,
+        "cc": 196,
+        "dp": 0,
+        "x": 7665,
+        "y": 178,
+        "u": 7668,
+        "s": 8186,
+        "pc": 6660
+      },
+      "presentation_state": {
+        "pres_magic": 165,
+        "pres_mode": 2,
+        "pres_screen": 0,
+        "pres_context": 0,
+        "pres_credits": 1,
+        "pres_event": 2
+      },
+      "request": 3,
+      "stack_return_bytes": "1944",
+      "caller": {
+        "call_address": "1941",
+        "return_address": "1944",
+        "source_line": 170,
+        "mnemonic": "lbsr",
+        "instruction_bytes": "1700c0"
+      }
+    },
+    {
+      "phase": "startup",
+      "marker": "credit_tick",
+      "address": "1C26",
+      "pc": "1C26",
+      "halt": {
+        "pc": 7206,
+        "bp_id": 6
+      },
+      "registers": {
+        "a": 5,
+        "b": 3,
+        "d": 1283,
+        "cc": 196,
+        "dp": 0,
+        "x": 7665,
+        "y": 178,
+        "u": 7668,
+        "s": 8188,
+        "pc": 7206
+      },
+      "presentation_state": {
+        "pres_magic": 165,
+        "pres_mode": 5,
+        "pres_screen": 3,
+        "pres_context": 0,
+        "pres_credits": 1,
+        "pres_event": 0
+      }
+    },
+    {
+      "phase": "startup",
+      "marker": "start_screen_2",
+      "address": "1A04",
+      "pc": "1A04",
+      "halt": {
+        "pc": 6660,
+        "bp_id": 7
+      },
+      "registers": {
+        "a": 2,
+        "b": 3,
+        "d": 515,
+        "cc": 193,
+        "dp": 0,
+        "x": 7665,
+        "y": 178,
+        "u": 7668,
+        "s": 8186,
+        "pc": 6660
+      },
+      "presentation_state": {
+        "pres_magic": 165,
+        "pres_mode": 5,
+        "pres_screen": 3,
+        "pres_context": 1,
+        "pres_credits": 0,
+        "pres_event": 1
+      },
+      "request": 2,
+      "stack_return_bytes": "1969",
+      "caller": {
+        "call_address": "1966",
+        "return_address": "1969",
+        "source_line": 187,
+        "mnemonic": "lbsr",
+        "instruction_bytes": "17009b"
+      }
+    },
+    {
+      "phase": "startup",
+      "marker": "frame_render_impl",
+      "address": "09D9",
+      "pc": "09D9",
+      "halt": {
+        "pc": 2521,
+        "bp_id": 8
+      },
+      "registers": {
+        "a": 1,
+        "b": 44,
+        "d": 300,
+        "cc": 224,
+        "dp": 0,
+        "x": 42128,
+        "y": 58512,
+        "u": 24892,
+        "s": 8186,
+        "pc": 2521
+      },
+      "presentation_state": {
+        "pres_magic": 165,
+        "pres_mode": 0,
+        "pres_screen": 2,
+        "pres_context": 1,
+        "pres_credits": 0,
+        "pres_event": 0
+      },
+      "live_window_address": "0800",
+      "live_window_bytes": 4095,
+      "live_window_sha256": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969",
+      "expected_window_sha256": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969",
+      "live_window_matches": true
+    }
+  ],
+  "screen_requests": [
+    0,
+    3,
+    2
+  ],
+  "screen_callers": [
+    {
+      "call_address": "192D",
+      "return_address": "1930",
+      "source_line": 157,
+      "mnemonic": "lbsr",
+      "instruction_bytes": "1700d4"
+    },
+    {
+      "call_address": "1941",
+      "return_address": "1944",
+      "source_line": 170,
+      "mnemonic": "lbsr",
+      "instruction_bytes": "1700c0"
+    },
+    {
+      "call_address": "1966",
+      "return_address": "1969",
+      "source_line": 187,
+      "mnemonic": "lbsr",
+      "instruction_bytes": "17009b"
+    }
+  ],
+  "last_proven_marker": "frame_render_impl",
+  "probe_count": 1,
+  "observation_timeouts": 0
+}

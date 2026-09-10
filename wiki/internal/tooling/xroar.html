@@ -36,6 +36,7 @@
       <h2>Canonical invocation (Ladybug cart)</h2>
 <pre><code>xroar \
   -machine coco3 \
+  -machine-cpu 6809 \
   -ram 512 \
   -cart-type gmc \
   -cart-rom build/ladybug.rom \
@@ -46,6 +47,7 @@
         <thead><tr><th>Flag</th><th>Why</th></tr></thead>
         <tbody>
           <tr><td><code>-machine coco3</code></td><td>NTSC CoCo 3, 1.78 MHz fast clock available, GIME present.</td></tr>
+          <tr><td><code>-machine-cpu 6809|6309</code></td><td>Select the emulated processor. Ladybug&rsquo;s <a href="./runtime-profiles.html">runtime profile</a> passes this from <code>LADYBUG_CPU</code>; the ROM remains assembled in 6809-only mode.</td></tr>
           <tr><td><code>-ram 512</code></td><td>512 KB — matches our target hardware spec.</td></tr>
           <tr><td><code>-cart-type gmc</code></td><td>Game Master Cartridge banking: writes to an even SCS address select a 16 KB bank. Ladybug uses <code>$FF50</code>.</td></tr>
           <tr><td><code>-cart-rom FILE</code></td><td>Path to the 64 KB four-bank ROM image.</td></tr>
@@ -157,7 +159,7 @@
       <p>Send <code>{"method":"inject_key","params":{"key":5,"action":"press"}}</code> and a matching <code>release</code> request over the line-delimited JSON-RPC socket. Valid keys are <code>0x00–0x3e</code>; key state persists until release. Run <code>python3 scripts/verify_bug009_monitor_input.py --xroar docs/reference/xroar/src/xroar --rom build/ladybug.rom</code> for the bounded BUG-009 edge, held-key, and framebuffer-owner scenarios. Do not enable <code>-gdb</code> simultaneously.</p>
 
       <h3>1. Build the cartridge</h3>
-<pre><code>cd /mnt/d/retro/ladybug
+<pre><code>cd /mnt/e/projects/ladybug
 ./scripts/build.sh build
 </code></pre>
 
@@ -169,7 +171,7 @@
         <li><strong>Windows desktop XRoar</strong> — useful for manual visual runs.</li>
       </ul>
       <p>Preferred Codex path: start XRoar from a GDB-MCP session using GDB's <code>shell</code> command:</p>
-<pre><code>shell cd /mnt/d/retro/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart-type gmc -cart-rom build/ladybug.rom -cart-autorun -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
+<pre><code>shell cd /mnt/e/projects/ladybug &amp;&amp; nohup /usr/local/bin/xroar -machine coco3 -ram 512 -cart-type gmc -cart-rom build/ladybug.rom -cart-autorun -gdb -gdb-ip 127.0.0.1 -gdb-port 65520 &gt; /tmp/ladybug-xroar.log 2&gt;&amp;1 &amp; echo $!
 </code></pre>
       <p>Then attach from a fresh GDB-MCP session with <code>target remote :65520</code>.</p>
       <p>If XRoar is launched on Windows and <code>gdb-mcp</code> runs under its Linux host, bind the stub to all interfaces (<code>-gdb-ip 0.0.0.0</code>).</p>

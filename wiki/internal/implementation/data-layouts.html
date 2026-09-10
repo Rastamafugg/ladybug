@@ -14,7 +14,7 @@
       <p class="wiki-eyebrow">Implementation &middot; data ownership</p>
       <h1>Data Layout Catalog <span class="wiki-badge">internal</span></h1>
       <p class="wiki-meta">Canonical record, array, table, and protocol layouts; addresses remain normalized in the memory atlas and generated browser.</p>
-    </header>
+    </header><section id="checkin-20260910"><h2>2026-09-10 — Check-in reconciliation</h2><p>Current complete-profile text ownership is defined by <a href="../tickets/feat-007-shared-text-masks.html">FEAT-007</a>: shared1-bit masks plus per-text colour, resident direct calls, scheduled preparation, and typed dynamic fields. The pre-FEAT-007 module/atlas descriptions in this guide are historical or nonshared-profile context where they differ. Production <code>a34ae9b</code> uses41 masks/328 bytes,168 graphics and13817 cold bytes. Do not use old coloured-glyph atlas counts or old dynamic helper call sites as current complete-profile contracts.</p></section>
 
     <section>
       <h2>Controlled vocabulary</h2>
@@ -45,6 +45,7 @@
     <section id="layout-persistent-records">
       <h2>Persistent records</h2>
       <p>The exhaustive persistent families are the render transaction, presentation flow, authoritative gameplay state, entity table, A/B player and enemy histories, A/B damage ledgers, and session score state. Each family has one phase-qualified owner, reset rule, producer set, consumer set, lifetime, and canonical detailed page. Lifecycle aliases are one allocation with mutually exclusive meanings, not free or duplicate storage.</p>
+      <p><strong>FEAT-003 session scores:</strong> page <code>$34</code>, range <code>$AF84-$AFDD</code>, contains nine ranked records of ten bytes each: three packed-BCD score bytes followed by seven name bytes. The adjacent <code>$AFDE-$AFE4</code> range is the pending seven-byte name. Records initialize once per cold presentation session; qualification is strict and END performs one descending shift with ninth-record truncation. Cursor save-under buffers use free <code>$A590-$A68F</code>, split into two 128-byte owner histories.</p>
     </section>
 
     <section id="layout-framebuffer-structures">

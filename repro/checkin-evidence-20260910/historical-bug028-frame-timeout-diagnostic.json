@@ -1,0 +1,3302 @@
+{
+  "schema": "ladybug-bug028-frame-timeout-diagnostic-v1",
+  "created": "2026-08-30",
+  "status": "pass",
+  "classification": "primary_event_delivery_or_correlation_failure",
+  "phase_deadline_seconds": 60.0,
+  "recovery_reserve_seconds": 2.0,
+  "timeout_meaning": "the primary did not report the next configured breakpoint before the reserved recovery boundary",
+  "command_mode": "--frame-timeout-diagnostic-only",
+  "runner_sha256": "9ac3662fa7aadc0fbe08641b6094412e9e9cf10b4e4f28c5c10c128b9461e941",
+  "production_rom_sha256": "9affb91742503658b20fe63ebd2230b2333efb2e476c978b9531706377ce26b1",
+  "static_exit_contract": {
+    "addresses": {
+      "frame_entry": "09D9",
+      "normal_exit": "0A07",
+      "abort_exit": "0A0A",
+      "project_damage": "0A0B"
+    },
+    "exit_bytes": {
+      "normal_exit": "39",
+      "abort_exit": "39"
+    },
+    "source_lines": {
+      "normal_exit": 616,
+      "abort_exit": 619
+    },
+    "listing_records": {
+      "normal_exit": "0A07 39               (c/enemy_runtime.s):00616                 rts",
+      "abort_exit": "0A0A 39               (c/enemy_runtime.s):00619                 rts"
+    },
+    "enemy_image_sha256": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969",
+    "enemy_map_sha256": "7300dbe2c89ec232d81b2d1af51cd515b424be9e2f684c3050e70a1fdf62c101",
+    "enemy_listing_sha256": "8c77a9e494c7cd33122042b2ebc6a32e553a7eeebbf61212b3d7a42ea437d270",
+    "ordering_pass": true
+  },
+  "profile_provenance": {
+    "required_profile": "complete",
+    "required_tuple": {
+      "BUG011_DEVELOPMENT_PROFILE": 1,
+      "COMPLETE_PROFILE": 1,
+      "HIGHSCORE_TEST_PROFILE": 0
+    },
+    "presentation_profile": {
+      "BUG011_DEVELOPMENT_PROFILE": 1,
+      "COMPLETE_PROFILE": 1,
+      "HIGHSCORE_TEST_PROFILE": 0
+    },
+    "bootstrap_profile": {
+      "HIGHSCORE_TEST_PROFILE": 0
+    },
+    "maps_agree_on_highscore_test": true,
+    "profile_pass": true,
+    "complete_build_command": "LADYBUG_PROFILE=complete scripts/build.sh build",
+    "xroar_launched": false,
+    "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+    "source_sha256": {
+      "main": "0cb9094f585303c543d9e145d7cd18d4099cc3475c172d70fb8329e0ab6e4d61",
+      "presentation": "a2b45d190103e92128a678e398ce8168ed7c5aa4e172d4af3b159872a50a72e1",
+      "enemy": "894aab87cb14d76bca76d7012f95de9768744f34e1b568ce6c2a142d60793b19",
+      "bootstrap": "6b9444738ac1e17e0404dcdad822c34877987a293a24e1f3a75871cbf33c3c70"
+    },
+    "artifact_sha256": {
+      "production_rom": "9affb91742503658b20fe63ebd2230b2333efb2e476c978b9531706377ce26b1",
+      "boot": "4fc8a994b03cd4171304353d3edf3dea7f25cc938b5febafa04c84f432274c46",
+      "resident": "b4f19e67b1631bdd648959fea3e953eb7d8e9ce81db3142a6fcd170bf6f69a8b",
+      "presentation": "a143b045d6f38a0de888546d2c7f9aa3934c9792e705aad5becfacb5b0601a73",
+      "enemy": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969",
+      "sparse_layout": "a2518d2b94a8a503ebde23aafc5b4b17b13e93bf25bf199744ce44eac4591b51",
+      "main_map": "3fbeba7b4d95e1d6439dbfb934699f8a3ed6903db7b9d8248e080eee2459acdd",
+      "presentation_map": "49958383b88b755835579919acef9745134d431cdcedd135b98fc3aa3a428ffa",
+      "presentation_listing": "06931df32831a6d0cd5bc18233d2ad8e3f221fe5fc2f35e71144579a0ff0d969",
+      "enemy_map": "7300dbe2c89ec232d81b2d1af51cd515b424be9e2f684c3050e70a1fdf62c101",
+      "boot_map": "3b5617e4dd75cb452bc9c2fdad5412c076ae1d3b3ef7411e7bed3c024ec56308",
+      "boot_listing": "e8f1826c63ddcd661204c6fbfecfb9fc25355a4729107428aec3a63fbb101522"
+    },
+    "staged_checks": {
+      "manifest_final_rom_hash": true,
+      "boot_bank_exact": true,
+      "resident_bank_exact": true,
+      "presentation_staged_exact": true,
+      "enemy_staged_exact": true
+    },
+    "staged_sha256": {
+      "presentation": "a143b045d6f38a0de888546d2c7f9aa3934c9792e705aad5becfacb5b0601a73",
+      "enemy": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969"
+    }
+  },
+  "journal": [
+    {
+      "sequence": 0,
+      "operation": "primary_connected",
+      "phase": "launch",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 63,
+      "remaining_ms": 59937,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "none",
+      "expected_breakpoints": {},
+      "monitor_port": 38889
+    },
+    {
+      "sequence": 1,
+      "operation": "observer_connected",
+      "phase": "launch",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 71,
+      "remaining_ms": 59929,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "none",
+      "expected_breakpoints": {},
+      "observer_hello": {
+        "jsonrpc": "2.0",
+        "method": "hello",
+        "params": {
+          "xroar_version": "1.11",
+          "monitor_protocol_version": "0.6.0",
+          "machine_name": "coco3",
+          "run_state": "halted"
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "operation": "before_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 152,
+      "remaining_ms": 59848,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "none",
+      "expected_breakpoints": {
+        "source-aligned boot_entry": {
+          "id": 1,
+          "addr": "C002"
+        }
+      },
+      "label": "source-aligned boot_entry"
+    },
+    {
+      "sequence": 3,
+      "operation": "after_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 159,
+      "remaining_ms": 59841,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "none",
+      "expected_breakpoints": {
+        "source-aligned boot_entry": {
+          "id": 1,
+          "addr": "C002"
+        }
+      },
+      "label": "source-aligned boot_entry",
+      "listed_breakpoints": [
+        {
+          "id": 1,
+          "addr": "C002",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 4,
+      "operation": "before_primary_run",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 167,
+      "remaining_ms": 59833,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "none",
+      "expected_breakpoints": {
+        "source-aligned boot_entry": {
+          "id": 1,
+          "addr": "C002"
+        }
+      },
+      "label": "source-aligned boot_entry",
+      "primary_wait_budget_ms": 57833
+    },
+    {
+      "sequence": 5,
+      "operation": "after_primary_breakpoint",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 175,
+      "remaining_ms": 59824,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "source-aligned boot_entry",
+      "expected_breakpoints": {
+        "source-aligned boot_entry": {
+          "id": 1,
+          "addr": "C002"
+        }
+      },
+      "label": "source-aligned boot_entry",
+      "halt": {
+        "pc": 49154,
+        "bp_id": 1
+      }
+    },
+    {
+      "sequence": 6,
+      "operation": "before_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 183,
+      "remaining_ms": 59817,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "source-aligned boot_entry",
+      "expected_breakpoints": {
+        "source-aligned boot_entry": {
+          "id": 1,
+          "addr": "C002"
+        }
+      },
+      "label": "source-aligned boot_entry"
+    },
+    {
+      "sequence": 7,
+      "operation": "after_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 191,
+      "remaining_ms": 59809,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "source-aligned boot_entry",
+      "expected_breakpoints": {
+        "source-aligned boot_entry": {
+          "id": 1,
+          "addr": "C002"
+        }
+      },
+      "label": "source-aligned boot_entry",
+      "listed_breakpoints": [
+        {
+          "id": 1,
+          "addr": "C002",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 8,
+      "operation": "before_primary_run",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 198,
+      "remaining_ms": 59802,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "source-aligned boot_entry",
+      "expected_breakpoints": {
+        "source-aligned boot_entry": {
+          "id": 1,
+          "addr": "C002"
+        }
+      },
+      "label": "source-aligned boot_entry",
+      "primary_wait_budget_ms": 57802
+    },
+    {
+      "sequence": 9,
+      "operation": "after_primary_breakpoint",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 578,
+      "remaining_ms": 59422,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "source-aligned boot_entry",
+      "expected_breakpoints": {
+        "source-aligned boot_entry": {
+          "id": 1,
+          "addr": "C002"
+        }
+      },
+      "label": "source-aligned boot_entry",
+      "halt": {
+        "pc": 49154,
+        "bp_id": 1
+      }
+    },
+    {
+      "sequence": 10,
+      "operation": "before_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 591,
+      "remaining_ms": 59409,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "source-aligned boot_entry",
+      "expected_breakpoints": {
+        "presentation_flow_tick": {
+          "id": 2,
+          "addr": "1900"
+        }
+      },
+      "label": "presentation_flow_tick"
+    },
+    {
+      "sequence": 11,
+      "operation": "after_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 601,
+      "remaining_ms": 59399,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "source-aligned boot_entry",
+      "expected_breakpoints": {
+        "presentation_flow_tick": {
+          "id": 2,
+          "addr": "1900"
+        }
+      },
+      "label": "presentation_flow_tick",
+      "listed_breakpoints": [
+        {
+          "id": 2,
+          "addr": "1900",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 12,
+      "operation": "before_primary_run",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 608,
+      "remaining_ms": 59392,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "source-aligned boot_entry",
+      "expected_breakpoints": {
+        "presentation_flow_tick": {
+          "id": 2,
+          "addr": "1900"
+        }
+      },
+      "label": "presentation_flow_tick",
+      "primary_wait_budget_ms": 57392
+    },
+    {
+      "sequence": 13,
+      "operation": "after_primary_breakpoint",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 1547,
+      "remaining_ms": 58453,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "presentation_flow_tick",
+      "expected_breakpoints": {
+        "presentation_flow_tick": {
+          "id": 2,
+          "addr": "1900"
+        }
+      },
+      "label": "presentation_flow_tick",
+      "halt": {
+        "pc": 6400,
+        "bp_id": 2
+      }
+    },
+    {
+      "sequence": 14,
+      "operation": "before_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 1559,
+      "remaining_ms": 58441,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "presentation_flow_tick",
+      "expected_breakpoints": {
+        "start_screen request 0": {
+          "id": 3,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 0"
+    },
+    {
+      "sequence": 15,
+      "operation": "after_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 1568,
+      "remaining_ms": 58432,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "presentation_flow_tick",
+      "expected_breakpoints": {
+        "start_screen request 0": {
+          "id": 3,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 0",
+      "listed_breakpoints": [
+        {
+          "id": 3,
+          "addr": "1A04",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 16,
+      "operation": "before_primary_run",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 1576,
+      "remaining_ms": 58424,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "presentation_flow_tick",
+      "expected_breakpoints": {
+        "start_screen request 0": {
+          "id": 3,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 0",
+      "primary_wait_budget_ms": 56424
+    },
+    {
+      "sequence": 17,
+      "operation": "after_primary_breakpoint",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 1587,
+      "remaining_ms": 58413,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 0",
+      "expected_breakpoints": {
+        "start_screen request 0": {
+          "id": 3,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 0",
+      "halt": {
+        "pc": 6660,
+        "bp_id": 3
+      }
+    },
+    {
+      "sequence": 18,
+      "operation": "before_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 1597,
+      "remaining_ms": 58403,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 0",
+      "expected_breakpoints": {
+        "attract_tick": {
+          "id": 4,
+          "addr": "1BE0"
+        }
+      },
+      "label": "attract_tick"
+    },
+    {
+      "sequence": 19,
+      "operation": "after_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 1605,
+      "remaining_ms": 58395,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 0",
+      "expected_breakpoints": {
+        "attract_tick": {
+          "id": 4,
+          "addr": "1BE0"
+        }
+      },
+      "label": "attract_tick",
+      "listed_breakpoints": [
+        {
+          "id": 4,
+          "addr": "1BE0",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 20,
+      "operation": "before_primary_run",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 1613,
+      "remaining_ms": 58387,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 0",
+      "expected_breakpoints": {
+        "attract_tick": {
+          "id": 4,
+          "addr": "1BE0"
+        }
+      },
+      "label": "attract_tick",
+      "primary_wait_budget_ms": 56387
+    },
+    {
+      "sequence": 21,
+      "operation": "after_primary_breakpoint",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3179,
+      "remaining_ms": 56821,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "attract_tick",
+      "expected_breakpoints": {
+        "attract_tick": {
+          "id": 4,
+          "addr": "1BE0"
+        }
+      },
+      "label": "attract_tick",
+      "halt": {
+        "pc": 7136,
+        "bp_id": 4
+      }
+    },
+    {
+      "sequence": 22,
+      "operation": "before_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3191,
+      "remaining_ms": 56809,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "attract_tick",
+      "expected_breakpoints": {
+        "start_screen request 3": {
+          "id": 5,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 3"
+    },
+    {
+      "sequence": 23,
+      "operation": "after_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3202,
+      "remaining_ms": 56798,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "attract_tick",
+      "expected_breakpoints": {
+        "start_screen request 3": {
+          "id": 5,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 3",
+      "listed_breakpoints": [
+        {
+          "id": 5,
+          "addr": "1A04",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 24,
+      "operation": "before_primary_run",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3212,
+      "remaining_ms": 56788,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "attract_tick",
+      "expected_breakpoints": {
+        "start_screen request 3": {
+          "id": 5,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 3",
+      "primary_wait_budget_ms": 54788
+    },
+    {
+      "sequence": 25,
+      "operation": "after_primary_breakpoint",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3226,
+      "remaining_ms": 56774,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 3",
+      "expected_breakpoints": {
+        "start_screen request 3": {
+          "id": 5,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 3",
+      "halt": {
+        "pc": 6660,
+        "bp_id": 5
+      }
+    },
+    {
+      "sequence": 26,
+      "operation": "before_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3238,
+      "remaining_ms": 56762,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 3",
+      "expected_breakpoints": {
+        "credit_tick": {
+          "id": 6,
+          "addr": "1C26"
+        }
+      },
+      "label": "credit_tick"
+    },
+    {
+      "sequence": 27,
+      "operation": "after_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3246,
+      "remaining_ms": 56754,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 3",
+      "expected_breakpoints": {
+        "credit_tick": {
+          "id": 6,
+          "addr": "1C26"
+        }
+      },
+      "label": "credit_tick",
+      "listed_breakpoints": [
+        {
+          "id": 6,
+          "addr": "1C26",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 28,
+      "operation": "before_primary_run",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3255,
+      "remaining_ms": 56745,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 3",
+      "expected_breakpoints": {
+        "credit_tick": {
+          "id": 6,
+          "addr": "1C26"
+        }
+      },
+      "label": "credit_tick",
+      "primary_wait_budget_ms": 54745
+    },
+    {
+      "sequence": 29,
+      "operation": "after_primary_breakpoint",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3776,
+      "remaining_ms": 56224,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "credit_tick",
+      "expected_breakpoints": {
+        "credit_tick": {
+          "id": 6,
+          "addr": "1C26"
+        }
+      },
+      "label": "credit_tick",
+      "halt": {
+        "pc": 7206,
+        "bp_id": 6
+      }
+    },
+    {
+      "sequence": 30,
+      "operation": "before_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3788,
+      "remaining_ms": 56212,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "credit_tick",
+      "expected_breakpoints": {
+        "start_screen request 2": {
+          "id": 7,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 2"
+    },
+    {
+      "sequence": 31,
+      "operation": "after_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3796,
+      "remaining_ms": 56204,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "credit_tick",
+      "expected_breakpoints": {
+        "start_screen request 2": {
+          "id": 7,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 2",
+      "listed_breakpoints": [
+        {
+          "id": 7,
+          "addr": "1A04",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 32,
+      "operation": "before_primary_run",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3805,
+      "remaining_ms": 56195,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "credit_tick",
+      "expected_breakpoints": {
+        "start_screen request 2": {
+          "id": 7,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 2",
+      "primary_wait_budget_ms": 54195
+    },
+    {
+      "sequence": 33,
+      "operation": "after_primary_breakpoint",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3815,
+      "remaining_ms": 56185,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 2",
+      "expected_breakpoints": {
+        "start_screen request 2": {
+          "id": 7,
+          "addr": "1A04"
+        }
+      },
+      "label": "start_screen request 2",
+      "halt": {
+        "pc": 6660,
+        "bp_id": 7
+      }
+    },
+    {
+      "sequence": 34,
+      "operation": "before_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3826,
+      "remaining_ms": 56174,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 2",
+      "expected_breakpoints": {
+        "frame_render_impl": {
+          "id": 8,
+          "addr": "09D9"
+        }
+      },
+      "label": "frame_render_impl"
+    },
+    {
+      "sequence": 35,
+      "operation": "after_list_breakpoints",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3835,
+      "remaining_ms": 56165,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 2",
+      "expected_breakpoints": {
+        "frame_render_impl": {
+          "id": 8,
+          "addr": "09D9"
+        }
+      },
+      "label": "frame_render_impl",
+      "listed_breakpoints": [
+        {
+          "id": 8,
+          "addr": "09D9",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 36,
+      "operation": "before_primary_run",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 3843,
+      "remaining_ms": 56157,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "start_screen request 2",
+      "expected_breakpoints": {
+        "frame_render_impl": {
+          "id": 8,
+          "addr": "09D9"
+        }
+      },
+      "label": "frame_render_impl",
+      "primary_wait_budget_ms": 54157
+    },
+    {
+      "sequence": 37,
+      "operation": "after_primary_breakpoint",
+      "phase": "startup",
+      "frame_ordinal": "startup",
+      "elapsed_ms": 7429,
+      "remaining_ms": 52571,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "frame_render_impl": {
+          "id": 8,
+          "addr": "09D9"
+        }
+      },
+      "label": "frame_render_impl",
+      "halt": {
+        "pc": 2521,
+        "bp_id": 8
+      }
+    },
+    {
+      "sequence": 38,
+      "operation": "before_list_breakpoints",
+      "phase": "natural_post_startup",
+      "frame_ordinal": 0,
+      "elapsed_ms": 7446,
+      "remaining_ms": 52554,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 9,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 10,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 11,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 12,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 13,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 14,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 15,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 0 marker"
+    },
+    {
+      "sequence": 39,
+      "operation": "after_list_breakpoints",
+      "phase": "natural_post_startup",
+      "frame_ordinal": 0,
+      "elapsed_ms": 7455,
+      "remaining_ms": 52545,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 9,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 10,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 11,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 12,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 13,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 14,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 15,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 0 marker",
+      "listed_breakpoints": [
+        {
+          "id": 9,
+          "addr": "D5ED",
+          "kind": "exec"
+        },
+        {
+          "id": 10,
+          "addr": "D612",
+          "kind": "exec"
+        },
+        {
+          "id": 11,
+          "addr": "121E",
+          "kind": "exec"
+        },
+        {
+          "id": 12,
+          "addr": "1368",
+          "kind": "exec"
+        },
+        {
+          "id": 13,
+          "addr": "11F7",
+          "kind": "exec"
+        },
+        {
+          "id": 14,
+          "addr": "0A07",
+          "kind": "exec"
+        },
+        {
+          "id": 15,
+          "addr": "0A0A",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 40,
+      "operation": "before_primary_run",
+      "phase": "natural_post_startup",
+      "frame_ordinal": 0,
+      "elapsed_ms": 7467,
+      "remaining_ms": 52533,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 9,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 10,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 11,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 12,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 13,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 14,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 15,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 0 marker",
+      "primary_wait_budget_ms": 50533
+    },
+    {
+      "sequence": 41,
+      "operation": "after_primary_breakpoint",
+      "phase": "natural_post_startup",
+      "frame_ordinal": 0,
+      "elapsed_ms": 8105,
+      "remaining_ms": 51895,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "save_player",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 9,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 10,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 11,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 12,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 13,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 14,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 15,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 0 marker",
+      "halt": {
+        "pc": 54765,
+        "bp_id": 9
+      }
+    },
+    {
+      "sequence": 42,
+      "operation": "before_list_breakpoints",
+      "phase": "natural_post_startup",
+      "frame_ordinal": 0,
+      "elapsed_ms": 8114,
+      "remaining_ms": 51886,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "save_player",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 9,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 10,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 11,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 12,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 13,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 14,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 15,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 0 marker"
+    },
+    {
+      "sequence": 43,
+      "operation": "after_list_breakpoints",
+      "phase": "natural_post_startup",
+      "frame_ordinal": 0,
+      "elapsed_ms": 8125,
+      "remaining_ms": 51875,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "save_player",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 9,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 10,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 11,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 12,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 13,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 14,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 15,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 0 marker",
+      "listed_breakpoints": [
+        {
+          "id": 9,
+          "addr": "D5ED",
+          "kind": "exec"
+        },
+        {
+          "id": 10,
+          "addr": "D612",
+          "kind": "exec"
+        },
+        {
+          "id": 11,
+          "addr": "121E",
+          "kind": "exec"
+        },
+        {
+          "id": 12,
+          "addr": "1368",
+          "kind": "exec"
+        },
+        {
+          "id": 13,
+          "addr": "11F7",
+          "kind": "exec"
+        },
+        {
+          "id": 14,
+          "addr": "0A07",
+          "kind": "exec"
+        },
+        {
+          "id": 15,
+          "addr": "0A0A",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 44,
+      "operation": "before_primary_run",
+      "phase": "natural_post_startup",
+      "frame_ordinal": 0,
+      "elapsed_ms": 8136,
+      "remaining_ms": 51864,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "save_player",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 9,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 10,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 11,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 12,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 13,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 14,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 15,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 0 marker",
+      "primary_wait_budget_ms": 49864
+    },
+    {
+      "sequence": 45,
+      "operation": "after_primary_breakpoint",
+      "phase": "natural_post_startup",
+      "frame_ordinal": 0,
+      "elapsed_ms": 8146,
+      "remaining_ms": 51854,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "normal_exit",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 9,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 10,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 11,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 12,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 13,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 14,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 15,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 0 marker",
+      "halt": {
+        "pc": 2567,
+        "bp_id": 14
+      }
+    },
+    {
+      "sequence": 46,
+      "operation": "frame_exit_retained",
+      "phase": "natural_post_startup",
+      "frame_ordinal": 0,
+      "elapsed_ms": 8159,
+      "remaining_ms": 51841,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "normal_exit",
+      "expected_breakpoints": {},
+      "frame": {
+        "ordinal": 0,
+        "sequence": "natural_post_startup",
+        "markers": [
+          {
+            "marker": "save_player",
+            "halt": {
+              "pc": 54765,
+              "bp_id": 9
+            }
+          },
+          {
+            "marker": "normal_exit",
+            "halt": {
+              "pc": 2567,
+              "bp_id": 14
+            }
+          }
+        ],
+        "exit_type": "normal_exit",
+        "elapsed_ms": 8159,
+        "remaining_ms": 51841
+      }
+    },
+    {
+      "sequence": 47,
+      "operation": "before_list_breakpoints",
+      "phase": "frame_sync",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8170,
+      "remaining_ms": 51830,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "normal_exit",
+      "expected_breakpoints": {
+        "frame_entry": {
+          "id": 16,
+          "addr": "09D9"
+        }
+      },
+      "label": "sync frame 1"
+    },
+    {
+      "sequence": 48,
+      "operation": "after_list_breakpoints",
+      "phase": "frame_sync",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8180,
+      "remaining_ms": 51820,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "normal_exit",
+      "expected_breakpoints": {
+        "frame_entry": {
+          "id": 16,
+          "addr": "09D9"
+        }
+      },
+      "label": "sync frame 1",
+      "listed_breakpoints": [
+        {
+          "id": 16,
+          "addr": "09D9",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 49,
+      "operation": "before_primary_run",
+      "phase": "frame_sync",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8191,
+      "remaining_ms": 51809,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "normal_exit",
+      "expected_breakpoints": {
+        "frame_entry": {
+          "id": 16,
+          "addr": "09D9"
+        }
+      },
+      "label": "sync frame 1",
+      "primary_wait_budget_ms": 49809
+    },
+    {
+      "sequence": 50,
+      "operation": "after_primary_breakpoint",
+      "phase": "frame_sync",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8202,
+      "remaining_ms": 51798,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_entry",
+      "expected_breakpoints": {
+        "frame_entry": {
+          "id": 16,
+          "addr": "09D9"
+        }
+      },
+      "label": "sync frame 1",
+      "halt": {
+        "pc": 2521,
+        "bp_id": 16
+      }
+    },
+    {
+      "sequence": 51,
+      "operation": "frame_entry_synchronized",
+      "phase": "frame_sync",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8212,
+      "remaining_ms": 51787,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {}
+    },
+    {
+      "sequence": 52,
+      "operation": "before_list_breakpoints",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8227,
+      "remaining_ms": 51773,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker"
+    },
+    {
+      "sequence": 53,
+      "operation": "after_list_breakpoints",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8237,
+      "remaining_ms": 51763,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker",
+      "listed_breakpoints": [
+        {
+          "id": 17,
+          "addr": "D5ED",
+          "kind": "exec"
+        },
+        {
+          "id": 18,
+          "addr": "D612",
+          "kind": "exec"
+        },
+        {
+          "id": 19,
+          "addr": "121E",
+          "kind": "exec"
+        },
+        {
+          "id": 20,
+          "addr": "1368",
+          "kind": "exec"
+        },
+        {
+          "id": 21,
+          "addr": "11F7",
+          "kind": "exec"
+        },
+        {
+          "id": 22,
+          "addr": "0A07",
+          "kind": "exec"
+        },
+        {
+          "id": 23,
+          "addr": "0A0A",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 54,
+      "operation": "before_primary_run",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8248,
+      "remaining_ms": 51752,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker",
+      "primary_wait_budget_ms": 49752
+    },
+    {
+      "sequence": 55,
+      "operation": "after_primary_breakpoint",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8886,
+      "remaining_ms": 51114,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "roam_copy_fb_to_bg",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker",
+      "halt": {
+        "pc": 4968,
+        "bp_id": 20
+      }
+    },
+    {
+      "sequence": 56,
+      "operation": "before_list_breakpoints",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8896,
+      "remaining_ms": 51104,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "roam_copy_fb_to_bg",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker"
+    },
+    {
+      "sequence": 57,
+      "operation": "after_list_breakpoints",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8908,
+      "remaining_ms": 51092,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "roam_copy_fb_to_bg",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker",
+      "listed_breakpoints": [
+        {
+          "id": 17,
+          "addr": "D5ED",
+          "kind": "exec"
+        },
+        {
+          "id": 18,
+          "addr": "D612",
+          "kind": "exec"
+        },
+        {
+          "id": 19,
+          "addr": "121E",
+          "kind": "exec"
+        },
+        {
+          "id": 20,
+          "addr": "1368",
+          "kind": "exec"
+        },
+        {
+          "id": 21,
+          "addr": "11F7",
+          "kind": "exec"
+        },
+        {
+          "id": 22,
+          "addr": "0A07",
+          "kind": "exec"
+        },
+        {
+          "id": 23,
+          "addr": "0A0A",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 58,
+      "operation": "before_primary_run",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8918,
+      "remaining_ms": 51082,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "roam_copy_fb_to_bg",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker",
+      "primary_wait_budget_ms": 49082
+    },
+    {
+      "sequence": 59,
+      "operation": "after_primary_breakpoint",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8929,
+      "remaining_ms": 51071,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "save_player",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker",
+      "halt": {
+        "pc": 54765,
+        "bp_id": 17
+      }
+    },
+    {
+      "sequence": 60,
+      "operation": "before_list_breakpoints",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8940,
+      "remaining_ms": 51060,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "save_player",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker"
+    },
+    {
+      "sequence": 61,
+      "operation": "after_list_breakpoints",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8951,
+      "remaining_ms": 51049,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "save_player",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker",
+      "listed_breakpoints": [
+        {
+          "id": 17,
+          "addr": "D5ED",
+          "kind": "exec"
+        },
+        {
+          "id": 18,
+          "addr": "D612",
+          "kind": "exec"
+        },
+        {
+          "id": 19,
+          "addr": "121E",
+          "kind": "exec"
+        },
+        {
+          "id": 20,
+          "addr": "1368",
+          "kind": "exec"
+        },
+        {
+          "id": 21,
+          "addr": "11F7",
+          "kind": "exec"
+        },
+        {
+          "id": 22,
+          "addr": "0A07",
+          "kind": "exec"
+        },
+        {
+          "id": 23,
+          "addr": "0A0A",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 62,
+      "operation": "before_primary_run",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8961,
+      "remaining_ms": 51039,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "save_player",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker",
+      "primary_wait_budget_ms": 49039
+    },
+    {
+      "sequence": 63,
+      "operation": "after_primary_breakpoint",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8973,
+      "remaining_ms": 51027,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "normal_exit",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 17,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 18,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 19,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 20,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 21,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 22,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 23,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 1 marker",
+      "halt": {
+        "pc": 2567,
+        "bp_id": 22
+      }
+    },
+    {
+      "sequence": 64,
+      "operation": "frame_exit_retained",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 1,
+      "elapsed_ms": 8985,
+      "remaining_ms": 51015,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "normal_exit",
+      "expected_breakpoints": {},
+      "frame": {
+        "ordinal": 1,
+        "sequence": "one_roamer_hydration",
+        "markers": [
+          {
+            "marker": "roam_copy_fb_to_bg",
+            "halt": {
+              "pc": 4968,
+              "bp_id": 20
+            }
+          },
+          {
+            "marker": "save_player",
+            "halt": {
+              "pc": 54765,
+              "bp_id": 17
+            }
+          },
+          {
+            "marker": "normal_exit",
+            "halt": {
+              "pc": 2567,
+              "bp_id": 22
+            }
+          }
+        ],
+        "exit_type": "normal_exit",
+        "elapsed_ms": 8985,
+        "remaining_ms": 51015
+      }
+    },
+    {
+      "sequence": 65,
+      "operation": "before_list_breakpoints",
+      "phase": "frame_sync",
+      "frame_ordinal": 2,
+      "elapsed_ms": 8997,
+      "remaining_ms": 51003,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "normal_exit",
+      "expected_breakpoints": {
+        "frame_entry": {
+          "id": 24,
+          "addr": "09D9"
+        }
+      },
+      "label": "sync frame 2"
+    },
+    {
+      "sequence": 66,
+      "operation": "after_list_breakpoints",
+      "phase": "frame_sync",
+      "frame_ordinal": 2,
+      "elapsed_ms": 9008,
+      "remaining_ms": 50992,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "normal_exit",
+      "expected_breakpoints": {
+        "frame_entry": {
+          "id": 24,
+          "addr": "09D9"
+        }
+      },
+      "label": "sync frame 2",
+      "listed_breakpoints": [
+        {
+          "id": 24,
+          "addr": "09D9",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 67,
+      "operation": "before_primary_run",
+      "phase": "frame_sync",
+      "frame_ordinal": 2,
+      "elapsed_ms": 9019,
+      "remaining_ms": 50981,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "normal_exit",
+      "expected_breakpoints": {
+        "frame_entry": {
+          "id": 24,
+          "addr": "09D9"
+        }
+      },
+      "label": "sync frame 2",
+      "primary_wait_budget_ms": 48981
+    },
+    {
+      "sequence": 68,
+      "operation": "after_primary_breakpoint",
+      "phase": "frame_sync",
+      "frame_ordinal": 2,
+      "elapsed_ms": 9030,
+      "remaining_ms": 50970,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_entry",
+      "expected_breakpoints": {
+        "frame_entry": {
+          "id": 24,
+          "addr": "09D9"
+        }
+      },
+      "label": "sync frame 2",
+      "halt": {
+        "pc": 2521,
+        "bp_id": 24
+      }
+    },
+    {
+      "sequence": 69,
+      "operation": "frame_entry_synchronized",
+      "phase": "frame_sync",
+      "frame_ordinal": 2,
+      "elapsed_ms": 9042,
+      "remaining_ms": 50958,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {}
+    },
+    {
+      "sequence": 70,
+      "operation": "before_list_breakpoints",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 2,
+      "elapsed_ms": 9058,
+      "remaining_ms": 50942,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 25,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 26,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 27,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 28,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 29,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 30,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 31,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 2 marker"
+    },
+    {
+      "sequence": 71,
+      "operation": "after_list_breakpoints",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 2,
+      "elapsed_ms": 9071,
+      "remaining_ms": 50929,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 25,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 26,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 27,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 28,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 29,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 30,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 31,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 2 marker",
+      "listed_breakpoints": [
+        {
+          "id": 25,
+          "addr": "D5ED",
+          "kind": "exec"
+        },
+        {
+          "id": 26,
+          "addr": "D612",
+          "kind": "exec"
+        },
+        {
+          "id": 27,
+          "addr": "121E",
+          "kind": "exec"
+        },
+        {
+          "id": 28,
+          "addr": "1368",
+          "kind": "exec"
+        },
+        {
+          "id": 29,
+          "addr": "11F7",
+          "kind": "exec"
+        },
+        {
+          "id": 30,
+          "addr": "0A07",
+          "kind": "exec"
+        },
+        {
+          "id": 31,
+          "addr": "0A0A",
+          "kind": "exec"
+        }
+      ],
+      "inventory_matches": true,
+      "duplicate_addresses": false
+    },
+    {
+      "sequence": 72,
+      "operation": "before_primary_run",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 2,
+      "elapsed_ms": 9083,
+      "remaining_ms": 50917,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 25,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 26,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 27,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 28,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 29,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 30,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 31,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 2 marker",
+      "primary_wait_budget_ms": 48917
+    },
+    {
+      "sequence": 73,
+      "operation": "primary_reserved_boundary",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 2,
+      "elapsed_ms": 58062,
+      "remaining_ms": 1938,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 25,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 26,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 27,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 28,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 29,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 30,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 31,
+          "addr": "0A0A"
+        }
+      },
+      "label": "frame 2 marker"
+    },
+    {
+      "sequence": 74,
+      "operation": "before_observer_state",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 2,
+      "elapsed_ms": 58079,
+      "remaining_ms": 1921,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 25,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 26,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 27,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 28,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 29,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 30,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 31,
+          "addr": "0A0A"
+        }
+      },
+      "primary_error": "timed out"
+    },
+    {
+      "sequence": 75,
+      "operation": "observer_state_before_pause",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 2,
+      "elapsed_ms": 58097,
+      "remaining_ms": 1903,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 25,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 26,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 27,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 28,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 29,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 30,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 31,
+          "addr": "0A0A"
+        }
+      },
+      "observer_state": {
+        "state": "halted",
+        "last_stop_reason": "breakpoint",
+        "last_stop_pc": 54802,
+        "last_stop_bp_id": 26
+      }
+    },
+    {
+      "sequence": 76,
+      "operation": "classification_complete",
+      "phase": "one_roamer_hydration",
+      "frame_ordinal": 2,
+      "elapsed_ms": 58121,
+      "remaining_ms": 1879,
+      "recovery_reserve_ms": 2000,
+      "last_mapped_marker": "frame_render_impl",
+      "expected_breakpoints": {
+        "save_player": {
+          "id": 25,
+          "addr": "D5ED"
+        },
+        "restore_player": {
+          "id": 26,
+          "addr": "D612"
+        },
+        "roam_copy_bg_to_fb": {
+          "id": 27,
+          "addr": "121E"
+        },
+        "roam_copy_fb_to_bg": {
+          "id": 28,
+          "addr": "1368"
+        },
+        "roam_capture_ring_row": {
+          "id": 29,
+          "addr": "11F7"
+        },
+        "normal_exit": {
+          "id": 30,
+          "addr": "0A07"
+        },
+        "abort_exit": {
+          "id": 31,
+          "addr": "0A0A"
+        }
+      },
+      "observer_snapshot": {
+        "pre_pause_state": {
+          "state": "halted",
+          "last_stop_reason": "breakpoint",
+          "last_stop_pc": 54802,
+          "last_stop_bp_id": 26
+        },
+        "halted_state": {
+          "state": "halted",
+          "last_stop_reason": "breakpoint",
+          "last_stop_pc": 54802,
+          "last_stop_bp_id": 26
+        },
+        "pause_issued": false,
+        "registers": {
+          "a": 137,
+          "b": 236,
+          "d": 35308,
+          "cc": 232,
+          "dp": 0,
+          "x": 4233,
+          "y": 43160,
+          "u": 43564,
+          "s": 8180,
+          "pc": 54802
+        },
+        "cycles": {
+          "event_ticks": 120646288,
+          "cpu_cycles": 7540393
+        },
+        "stack_bytes": "0bd088ac09e9d4e9",
+        "frame_flags_007f_0099": "01000000000000000a0000000000000000010000070007006c0100",
+        "front_write_fault": 0,
+        "breakpoints": [
+          {
+            "id": 25,
+            "addr": "D5ED",
+            "kind": "exec"
+          },
+          {
+            "id": 26,
+            "addr": "D612",
+            "kind": "exec"
+          },
+          {
+            "id": 27,
+            "addr": "121E",
+            "kind": "exec"
+          },
+          {
+            "id": 28,
+            "addr": "1368",
+            "kind": "exec"
+          },
+          {
+            "id": 29,
+            "addr": "11F7",
+            "kind": "exec"
+          },
+          {
+            "id": 30,
+            "addr": "0A07",
+            "kind": "exec"
+          },
+          {
+            "id": 31,
+            "addr": "0A0A",
+            "kind": "exec"
+          }
+        ],
+        "expected_breakpoints": [
+          {
+            "id": 25,
+            "addr": "D5ED",
+            "kind": "exec"
+          },
+          {
+            "id": 26,
+            "addr": "D612",
+            "kind": "exec"
+          },
+          {
+            "id": 27,
+            "addr": "121E",
+            "kind": "exec"
+          },
+          {
+            "id": 28,
+            "addr": "1368",
+            "kind": "exec"
+          },
+          {
+            "id": 29,
+            "addr": "11F7",
+            "kind": "exec"
+          },
+          {
+            "id": 30,
+            "addr": "0A07",
+            "kind": "exec"
+          },
+          {
+            "id": 31,
+            "addr": "0A0A",
+            "kind": "exec"
+          }
+        ],
+        "breakpoint_inventory_matches": true,
+        "pc": "D612",
+        "mapped_module": "resident_runtime",
+        "live_pc_bytes": "9e0bdea28610976e",
+        "expected_pc_bytes": "9e0bdea28610976e",
+        "live_pc_identity_matches": true
+      }
+    }
+  ],
+  "frames": [
+    {
+      "ordinal": 0,
+      "sequence": "natural_post_startup",
+      "markers": [
+        {
+          "marker": "save_player",
+          "halt": {
+            "pc": 54765,
+            "bp_id": 9
+          }
+        },
+        {
+          "marker": "normal_exit",
+          "halt": {
+            "pc": 2567,
+            "bp_id": 14
+          }
+        }
+      ],
+      "exit_type": "normal_exit",
+      "elapsed_ms": 8159,
+      "remaining_ms": 51841
+    },
+    {
+      "ordinal": 1,
+      "sequence": "one_roamer_hydration",
+      "markers": [
+        {
+          "marker": "roam_copy_fb_to_bg",
+          "halt": {
+            "pc": 4968,
+            "bp_id": 20
+          }
+        },
+        {
+          "marker": "save_player",
+          "halt": {
+            "pc": 54765,
+            "bp_id": 17
+          }
+        },
+        {
+          "marker": "normal_exit",
+          "halt": {
+            "pc": 2567,
+            "bp_id": 22
+          }
+        }
+      ],
+      "exit_type": "normal_exit",
+      "elapsed_ms": 8985,
+      "remaining_ms": 51015
+    }
+  ],
+  "primary_timeouts": 1,
+  "observer_timeouts": 0,
+  "observer_snapshot": {
+    "pre_pause_state": {
+      "state": "halted",
+      "last_stop_reason": "breakpoint",
+      "last_stop_pc": 54802,
+      "last_stop_bp_id": 26
+    },
+    "halted_state": {
+      "state": "halted",
+      "last_stop_reason": "breakpoint",
+      "last_stop_pc": 54802,
+      "last_stop_bp_id": 26
+    },
+    "pause_issued": false,
+    "registers": {
+      "a": 137,
+      "b": 236,
+      "d": 35308,
+      "cc": 232,
+      "dp": 0,
+      "x": 4233,
+      "y": 43160,
+      "u": 43564,
+      "s": 8180,
+      "pc": 54802
+    },
+    "cycles": {
+      "event_ticks": 120646288,
+      "cpu_cycles": 7540393
+    },
+    "stack_bytes": "0bd088ac09e9d4e9",
+    "frame_flags_007f_0099": "01000000000000000a0000000000000000010000070007006c0100",
+    "front_write_fault": 0,
+    "breakpoints": [
+      {
+        "id": 25,
+        "addr": "D5ED",
+        "kind": "exec"
+      },
+      {
+        "id": 26,
+        "addr": "D612",
+        "kind": "exec"
+      },
+      {
+        "id": 27,
+        "addr": "121E",
+        "kind": "exec"
+      },
+      {
+        "id": 28,
+        "addr": "1368",
+        "kind": "exec"
+      },
+      {
+        "id": 29,
+        "addr": "11F7",
+        "kind": "exec"
+      },
+      {
+        "id": 30,
+        "addr": "0A07",
+        "kind": "exec"
+      },
+      {
+        "id": 31,
+        "addr": "0A0A",
+        "kind": "exec"
+      }
+    ],
+    "expected_breakpoints": [
+      {
+        "id": 25,
+        "addr": "D5ED",
+        "kind": "exec"
+      },
+      {
+        "id": 26,
+        "addr": "D612",
+        "kind": "exec"
+      },
+      {
+        "id": 27,
+        "addr": "121E",
+        "kind": "exec"
+      },
+      {
+        "id": 28,
+        "addr": "1368",
+        "kind": "exec"
+      },
+      {
+        "id": 29,
+        "addr": "11F7",
+        "kind": "exec"
+      },
+      {
+        "id": 30,
+        "addr": "0A07",
+        "kind": "exec"
+      },
+      {
+        "id": 31,
+        "addr": "0A0A",
+        "kind": "exec"
+      }
+    ],
+    "breakpoint_inventory_matches": true,
+    "pc": "D612",
+    "mapped_module": "resident_runtime",
+    "live_pc_bytes": "9e0bdea28610976e",
+    "expected_pc_bytes": "9e0bdea28610976e",
+    "live_pc_identity_matches": true
+  },
+  "capacity_changed": false,
+  "full_rsch007_matrix_rerun": false,
+  "last_state": {
+    "sequence": 76,
+    "operation": "classification_complete",
+    "phase": "one_roamer_hydration",
+    "frame_ordinal": 2,
+    "elapsed_ms": 58121,
+    "remaining_ms": 1879,
+    "recovery_reserve_ms": 2000,
+    "last_mapped_marker": "frame_render_impl",
+    "expected_breakpoints": {
+      "save_player": {
+        "id": 25,
+        "addr": "D5ED"
+      },
+      "restore_player": {
+        "id": 26,
+        "addr": "D612"
+      },
+      "roam_copy_bg_to_fb": {
+        "id": 27,
+        "addr": "121E"
+      },
+      "roam_copy_fb_to_bg": {
+        "id": 28,
+        "addr": "1368"
+      },
+      "roam_capture_ring_row": {
+        "id": 29,
+        "addr": "11F7"
+      },
+      "normal_exit": {
+        "id": 30,
+        "addr": "0A07"
+      },
+      "abort_exit": {
+        "id": 31,
+        "addr": "0A0A"
+      }
+    },
+    "observer_snapshot": {
+      "pre_pause_state": {
+        "state": "halted",
+        "last_stop_reason": "breakpoint",
+        "last_stop_pc": 54802,
+        "last_stop_bp_id": 26
+      },
+      "halted_state": {
+        "state": "halted",
+        "last_stop_reason": "breakpoint",
+        "last_stop_pc": 54802,
+        "last_stop_bp_id": 26
+      },
+      "pause_issued": false,
+      "registers": {
+        "a": 137,
+        "b": 236,
+        "d": 35308,
+        "cc": 232,
+        "dp": 0,
+        "x": 4233,
+        "y": 43160,
+        "u": 43564,
+        "s": 8180,
+        "pc": 54802
+      },
+      "cycles": {
+        "event_ticks": 120646288,
+        "cpu_cycles": 7540393
+      },
+      "stack_bytes": "0bd088ac09e9d4e9",
+      "frame_flags_007f_0099": "01000000000000000a0000000000000000010000070007006c0100",
+      "front_write_fault": 0,
+      "breakpoints": [
+        {
+          "id": 25,
+          "addr": "D5ED",
+          "kind": "exec"
+        },
+        {
+          "id": 26,
+          "addr": "D612",
+          "kind": "exec"
+        },
+        {
+          "id": 27,
+          "addr": "121E",
+          "kind": "exec"
+        },
+        {
+          "id": 28,
+          "addr": "1368",
+          "kind": "exec"
+        },
+        {
+          "id": 29,
+          "addr": "11F7",
+          "kind": "exec"
+        },
+        {
+          "id": 30,
+          "addr": "0A07",
+          "kind": "exec"
+        },
+        {
+          "id": 31,
+          "addr": "0A0A",
+          "kind": "exec"
+        }
+      ],
+      "expected_breakpoints": [
+        {
+          "id": 25,
+          "addr": "D5ED",
+          "kind": "exec"
+        },
+        {
+          "id": 26,
+          "addr": "D612",
+          "kind": "exec"
+        },
+        {
+          "id": 27,
+          "addr": "121E",
+          "kind": "exec"
+        },
+        {
+          "id": 28,
+          "addr": "1368",
+          "kind": "exec"
+        },
+        {
+          "id": 29,
+          "addr": "11F7",
+          "kind": "exec"
+        },
+        {
+          "id": 30,
+          "addr": "0A07",
+          "kind": "exec"
+        },
+        {
+          "id": 31,
+          "addr": "0A0A",
+          "kind": "exec"
+        }
+      ],
+      "breakpoint_inventory_matches": true,
+      "pc": "D612",
+      "mapped_module": "resident_runtime",
+      "live_pc_bytes": "9e0bdea28610976e",
+      "expected_pc_bytes": "9e0bdea28610976e",
+      "live_pc_identity_matches": true
+    }
+  },
+  "startup": {
+    "status": "pass",
+    "phase": "complete-profile cold startup",
+    "deadline_seconds": 60.0,
+    "timeout_meaning": "the named next startup marker was not observed",
+    "xroar_launched": true,
+    "profile": {
+      "required": "complete",
+      "presentation": {
+        "BUG011_DEVELOPMENT_PROFILE": 1,
+        "COMPLETE_PROFILE": 1,
+        "HIGHSCORE_TEST_PROFILE": 0
+      },
+      "bootstrap": {
+        "HIGHSCORE_TEST_PROFILE": 0
+      }
+    },
+    "source_staged_checks": {
+      "manifest_final_rom_hash": true,
+      "boot_bank_exact": true,
+      "resident_bank_exact": true,
+      "presentation_staged_exact": true,
+      "enemy_staged_exact": true
+    },
+    "artifact_sha256": {
+      "production_rom": "9affb91742503658b20fe63ebd2230b2333efb2e476c978b9531706377ce26b1",
+      "boot": "4fc8a994b03cd4171304353d3edf3dea7f25cc938b5febafa04c84f432274c46",
+      "resident": "b4f19e67b1631bdd648959fea3e953eb7d8e9ce81db3142a6fcd170bf6f69a8b",
+      "presentation": "a143b045d6f38a0de888546d2c7f9aa3934c9792e705aad5becfacb5b0601a73",
+      "enemy": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969",
+      "sparse_layout": "a2518d2b94a8a503ebde23aafc5b4b17b13e93bf25bf199744ce44eac4591b51",
+      "main_map": "3fbeba7b4d95e1d6439dbfb934699f8a3ed6903db7b9d8248e080eee2459acdd",
+      "presentation_map": "49958383b88b755835579919acef9745134d431cdcedd135b98fc3aa3a428ffa",
+      "presentation_listing": "06931df32831a6d0cd5bc18233d2ad8e3f221fe5fc2f35e71144579a0ff0d969",
+      "enemy_map": "7300dbe2c89ec232d81b2d1af51cd515b424be9e2f684c3050e70a1fdf62c101",
+      "boot_map": "3b5617e4dd75cb452bc9c2fdad5412c076ae1d3b3ef7411e7bed3c024ec56308",
+      "boot_listing": "e8f1826c63ddcd661204c6fbfecfb9fc25355a4729107428aec3a63fbb101522"
+    },
+    "staged_sha256": {
+      "presentation": "a143b045d6f38a0de888546d2c7f9aa3934c9792e705aad5becfacb5b0601a73",
+      "enemy": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969"
+    },
+    "markers": [
+      {
+        "phase": "startup",
+        "marker": "boot_entry",
+        "address": "C002",
+        "pc": "C002",
+        "halt": {
+          "pc": 49154,
+          "bp_id": 1
+        },
+        "registers": {
+          "a": 181,
+          "b": 255,
+          "d": 46591,
+          "cc": 84,
+          "dp": 0,
+          "x": 17483,
+          "y": 40974,
+          "u": 46154,
+          "s": 32566,
+          "pc": 49154
+        },
+        "presentation_state": {
+          "pres_magic": 166,
+          "pres_mode": 182,
+          "pres_screen": 30,
+          "pres_context": 0,
+          "pres_credits": 126,
+          "pres_event": 170
+        },
+        "entry_identity": "GMC bootstrap bank 0",
+        "rejected_entry_aliases": [
+          {
+            "reason": "pre-cartridge C002 alias",
+            "pc": "C002",
+            "live_window_sha256": "705faa1e9145db276f7482cbefe3e7b3c9f5be4821ad9371e7a3517d721526b4",
+            "live_window_prefix": "1a5010ce5eff8612c6108effb0a7805a"
+          }
+        ],
+        "live_window_address": "C000",
+        "live_window_bytes": 64,
+        "live_window_sha256": "81fd8b0174feee3b9817f4cbc0031fa0d6f4a3e219c3ecda11b5e92d46925ebc",
+        "expected_window_sha256": "81fd8b0174feee3b9817f4cbc0031fa0d6f4a3e219c3ecda11b5e92d46925ebc",
+        "live_window_matches": true
+      },
+      {
+        "phase": "startup",
+        "marker": "presentation_flow_tick",
+        "address": "1900",
+        "pc": "1900",
+        "halt": {
+          "pc": 6400,
+          "bp_id": 2
+        },
+        "registers": {
+          "a": 1,
+          "b": 191,
+          "d": 447,
+          "cc": 224,
+          "dp": 0,
+          "x": 43520,
+          "y": 0,
+          "u": 43776,
+          "s": 8188,
+          "pc": 6400
+        },
+        "presentation_state": {
+          "pres_magic": 0,
+          "pres_mode": 182,
+          "pres_screen": 30,
+          "pres_context": 0,
+          "pres_credits": 126,
+          "pres_event": 170
+        },
+        "live_window_address": "1900",
+        "live_window_bytes": 1271,
+        "live_window_sha256": "a143b045d6f38a0de888546d2c7f9aa3934c9792e705aad5becfacb5b0601a73",
+        "expected_window_sha256": "a143b045d6f38a0de888546d2c7f9aa3934c9792e705aad5becfacb5b0601a73",
+        "live_window_matches": true
+      },
+      {
+        "phase": "startup",
+        "marker": "start_screen_0",
+        "address": "1A04",
+        "pc": "1A04",
+        "halt": {
+          "pc": 6660,
+          "bp_id": 3
+        },
+        "registers": {
+          "a": 0,
+          "b": 3,
+          "d": 3,
+          "cc": 228,
+          "dp": 0,
+          "x": 7665,
+          "y": 178,
+          "u": 7668,
+          "s": 8186,
+          "pc": 6660
+        },
+        "presentation_state": {
+          "pres_magic": 165,
+          "pres_mode": 0,
+          "pres_screen": 30,
+          "pres_context": 0,
+          "pres_credits": 0,
+          "pres_event": 0
+        },
+        "request": 0,
+        "stack_return_bytes": "1930",
+        "caller": {
+          "call_address": "192D",
+          "return_address": "1930",
+          "source_line": 157,
+          "mnemonic": "lbsr",
+          "instruction_bytes": "1700d4"
+        }
+      },
+      {
+        "phase": "startup",
+        "marker": "attract_tick",
+        "address": "1BE0",
+        "pc": "1BE0",
+        "halt": {
+          "pc": 7136,
+          "bp_id": 4
+        },
+        "registers": {
+          "a": 2,
+          "b": 3,
+          "d": 515,
+          "cc": 196,
+          "dp": 0,
+          "x": 7665,
+          "y": 178,
+          "u": 7668,
+          "s": 8188,
+          "pc": 7136
+        },
+        "presentation_state": {
+          "pres_magic": 165,
+          "pres_mode": 2,
+          "pres_screen": 0,
+          "pres_context": 0,
+          "pres_credits": 0,
+          "pres_event": 0
+        }
+      },
+      {
+        "phase": "startup",
+        "marker": "start_screen_3",
+        "address": "1A04",
+        "pc": "1A04",
+        "halt": {
+          "pc": 6660,
+          "bp_id": 5
+        },
+        "registers": {
+          "a": 3,
+          "b": 3,
+          "d": 771,
+          "cc": 196,
+          "dp": 0,
+          "x": 7665,
+          "y": 178,
+          "u": 7668,
+          "s": 8186,
+          "pc": 6660
+        },
+        "presentation_state": {
+          "pres_magic": 165,
+          "pres_mode": 2,
+          "pres_screen": 0,
+          "pres_context": 0,
+          "pres_credits": 1,
+          "pres_event": 2
+        },
+        "request": 3,
+        "stack_return_bytes": "1944",
+        "caller": {
+          "call_address": "1941",
+          "return_address": "1944",
+          "source_line": 170,
+          "mnemonic": "lbsr",
+          "instruction_bytes": "1700c0"
+        }
+      },
+      {
+        "phase": "startup",
+        "marker": "credit_tick",
+        "address": "1C26",
+        "pc": "1C26",
+        "halt": {
+          "pc": 7206,
+          "bp_id": 6
+        },
+        "registers": {
+          "a": 5,
+          "b": 3,
+          "d": 1283,
+          "cc": 196,
+          "dp": 0,
+          "x": 7665,
+          "y": 178,
+          "u": 7668,
+          "s": 8188,
+          "pc": 7206
+        },
+        "presentation_state": {
+          "pres_magic": 165,
+          "pres_mode": 5,
+          "pres_screen": 3,
+          "pres_context": 0,
+          "pres_credits": 1,
+          "pres_event": 0
+        }
+      },
+      {
+        "phase": "startup",
+        "marker": "start_screen_2",
+        "address": "1A04",
+        "pc": "1A04",
+        "halt": {
+          "pc": 6660,
+          "bp_id": 7
+        },
+        "registers": {
+          "a": 2,
+          "b": 3,
+          "d": 515,
+          "cc": 193,
+          "dp": 0,
+          "x": 7665,
+          "y": 178,
+          "u": 7668,
+          "s": 8186,
+          "pc": 6660
+        },
+        "presentation_state": {
+          "pres_magic": 165,
+          "pres_mode": 5,
+          "pres_screen": 3,
+          "pres_context": 1,
+          "pres_credits": 0,
+          "pres_event": 1
+        },
+        "request": 2,
+        "stack_return_bytes": "1969",
+        "caller": {
+          "call_address": "1966",
+          "return_address": "1969",
+          "source_line": 187,
+          "mnemonic": "lbsr",
+          "instruction_bytes": "17009b"
+        }
+      },
+      {
+        "phase": "startup",
+        "marker": "frame_render_impl",
+        "address": "09D9",
+        "pc": "09D9",
+        "halt": {
+          "pc": 2521,
+          "bp_id": 8
+        },
+        "registers": {
+          "a": 1,
+          "b": 44,
+          "d": 300,
+          "cc": 224,
+          "dp": 0,
+          "x": 42128,
+          "y": 58512,
+          "u": 24892,
+          "s": 8186,
+          "pc": 2521
+        },
+        "presentation_state": {
+          "pres_magic": 165,
+          "pres_mode": 0,
+          "pres_screen": 2,
+          "pres_context": 1,
+          "pres_credits": 0,
+          "pres_event": 0
+        },
+        "live_window_address": "0800",
+        "live_window_bytes": 4095,
+        "live_window_sha256": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969",
+        "expected_window_sha256": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969",
+        "live_window_matches": true
+      }
+    ],
+    "screen_requests": [
+      0,
+      3,
+      2
+    ],
+    "screen_callers": [
+      {
+        "call_address": "192D",
+        "return_address": "1930",
+        "source_line": 157,
+        "mnemonic": "lbsr",
+        "instruction_bytes": "1700d4"
+      },
+      {
+        "call_address": "1941",
+        "return_address": "1944",
+        "source_line": 170,
+        "mnemonic": "lbsr",
+        "instruction_bytes": "1700c0"
+      },
+      {
+        "call_address": "1966",
+        "return_address": "1969",
+        "source_line": 187,
+        "mnemonic": "lbsr",
+        "instruction_bytes": "17009b"
+      }
+    ],
+    "last_proven_marker": "frame_render_impl",
+    "probe_count": 1,
+    "observation_timeouts": 0
+  },
+  "diagnostic_result": "timed out"
+}

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Runtime Profiles — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tooling</a>
+    <a href="./build-workflow.html">Build workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>Runtime Profiles <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Game build profiles, XRoar CPU selection, and diagnostic runtime configuration.</p>
+    </header><section id="checkin-20260910"><h2>2026-09-10 — Check-in reconciliation</h2><p>Current production baseline is <code>a34ae9b</code>: complete is the default shared-text profile. Runtime CPU selection remains6809 by default. FEAT-007 verified complete and development; release presentation1282/1280 and highscore-test auxiliary940/938 are retained historical capacity failures, not passing current launch targets. The profile descriptions below do not waive these guards. See <a href="../tickets/feat-007-shared-text-masks.html#dependency-commit-20260910">FEAT-007</a> for current acceptance and exceptions.</p></section>
+
+    <section>
+      <h2>Two independent selectors</h2>
+      <p><code>LADYBUG_PROFILE</code> selects compile-time game behavior and generated auxiliary data. <code>LADYBUG_CPU</code> selects the processor XRoar emulates at runtime. CPU selection does not change the assembled bytes, ROM layout, loader, MMU mappings, or game profile.</p>
+      <p>The default command is equivalent to <code>LADYBUG_PROFILE=complete LADYBUG_CPU=6809 scripts/build.sh run</code>. The assembler remains locked to 6809 mode so the default ROM is portable to the project&rsquo;s MC68B09E target and does not accidentally acquire 6309-only instructions.</p>
+    </section>
+
+    <section>
+      <h2>Game profiles</h2>
+      <h3><code>highscore-test</code></h3>
+      <p>An explicit diagnostic profile for the FEAT-003 high-score and name-entry harness. It boots the deterministic high-score path, supports focused ranking/name-entry verification, and holds updated rankings until reset.</p>
+      <h3><code>development</code></h3>
+      <p>Development presentation profile with instruction choreography and development-only presentation data. Use it for instruction-flow iteration and targeted presentation checks.</p>
+      <h3><code>release</code></h3>
+      <p>Arcade-oriented profile with the release presentation flow and no development or high-score test harness. Use it for the normal release-shaped run.</p>
+      <h3><code>complete</code></h3>
+      <p>Combined profile that stages both instruction and demo auxiliaries and exercises the complete presentation route. It is the broadest profile and the most sensitive to copied-module and cartridge-capacity limits.</p>
+      <p><strong>Current status:</strong> the complete script path is unblocked as of 2026-08-29. The FEAT-003 profile-isolation guard now accepts the naturally verified current complete ROM <code>9affb91742503658b20fe63ebd2230b2333efb2e476c978b9531706377ce26b1</code>. The retained older bundle hash <code>b065057e74b448ea22acbafe5dcb4773f46d338fd9f66c99dd37b68e7fcb05fc</code> remains historical evidence; future complete artifact changes still fail closed. See <a href="../tickets/bug-023-complete-profile-build-gate.html">BUG-023</a>.</p>
+    </section>
+
+    <section>
+      <h2>CPU selection</h2>
+      <p><code>LADYBUG_CPU</code> accepts <code>6809</code> or <code>6309</code> and defaults to <code>6809</code>. The normal and tester launch paths pass the selected value to XRoar as <code>-machine-cpu</code>.</p>
+      <pre><code># Reference run: 6809 emulation
+LADYBUG_PROFILE=release LADYBUG_CPU=6809 scripts/build.sh run
+
+# 6309 emulator run using the same ROM-producing build
+LADYBUG_PROFILE=release LADYBUG_CPU=6309 scripts/build.sh run
+
+# Tester ROM on the 6309 emulator
+LADYBUG_CPU=6309 scripts/build.sh tester-run</code></pre>
+      <p>An invalid value fails before the build starts. The 6309 run is an emulator compatibility check for the existing 6809-compatible ROM, not proof that every physical CoCo 3 contains an HD6309.</p>
+    </section>
+
+    <section>
+      <h2>Runtime and diagnostic configuration</h2>
+      <p><code>scripts/build.sh run</code> uses the GMC cartridge, 512 KB RAM, random RAM initialization, RGB video input, and the right CoCo joystick mapping. Append additional XRoar flags through <code>XROAR_EXTRA</code>.</p>
+      <pre><code># Fast smoke run
+LADYBUG_PROFILE=release LADYBUG_CPU=6309 \
+  XROAR_EXTRA="-no-ratelimit -fskip 100" scripts/build.sh run
+
+# GDB launch
+LADYBUG_CPU=6309 XROAR_EXTRA="-gdb -gdb-ip 127.0.0.1 -gdb-port 65520" \
+  scripts/build.sh run
+
+# Instruction trace with timing
+LADYBUG_CPU=6309 XROAR_EXTRA="-trace -trace-timing" \
+  scripts/build.sh run</code></pre>
+      <p>Use the <a href="./xroar.html">XRoar runbook</a> for GDB-MCP attachment, monitor limitations, and platform-specific launch details. Use the <a href="./build-workflow.html">build workflow</a> for WSL and generated-artifact handling.</p>
+    </section>
+
+    <section>
+      <h2>6309 code policy</h2>
+      <p>The current universal source contains no 6309-only instructions and continues to assemble with <code>lwasm -9</code>. A 6809-compatible ROM is the reference artifact for real hardware and for all current profile comparisons.</p>
+      <p>Potential 6309 instructions require measured research. <code>TFM</code> is the first candidate for contiguous copy loops; <code>LDQ/STQ</code> may reduce selected 32-bit state movement; and <code>AIM/OIM/EIM/TIM</code> may help isolated masked updates. Current framebuffer and save-under paths are strided and mapping-sensitive, so these instructions are not drop-in replacements.</p>
+      <p>See <a href="../tickets/rsch-003-6309-optimization-research.html">RSCH-003</a> for the proposed benchmark and test-harness work. Separate 6309 ROMs remain deferred until a 6309-only change produces a measured benefit and a separate compatibility policy is approved.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Sources: <a href="./build-workflow.html">build workflow</a>, <a href="./xroar.html">XRoar</a>, <a href="./lwtools.html">lwtools</a>, <a href="../implementation/memory-map.html">runtime memory map</a>, and <a href="../implementation/lessons-learned.html">lessons learned</a>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

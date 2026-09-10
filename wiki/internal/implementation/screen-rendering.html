@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screen Rendering Pipeline — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Implementation</a>
+    <a href="../tickets/bug-020-death-animation-alignment.html">BUG-020</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Implementation · rendering</p>
+      <h1>Screen Rendering Pipeline <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">How authored pixels become a complete persistent framebuffer image.</p>
+    </header><section id="checkin-20260910"><h2>2026-09-10 — Check-in reconciliation</h2><p>Current complete-profile text ownership is defined by <a href="../tickets/feat-007-shared-text-masks.html">FEAT-007</a>: shared1-bit masks plus per-text colour, resident direct calls, scheduled preparation, and typed dynamic fields. The pre-FEAT-007 module/atlas descriptions in this guide are historical or nonshared-profile context where they differ. Production <code>a34ae9b</code> uses41 masks/328 bytes,168 graphics and13817 cold bytes. Do not use old coloured-glyph atlas counts or old dynamic helper call sites as current complete-profile contracts.</p></section>
+
+    <section>
+      <h2>Reading this page</h2>
+      <p>
+        Rendering has four separate concerns. <strong>Authoritative state</strong>
+        says what the game believes is true. <strong>Render intents</strong> say
+        which layers must be reconsidered. <strong>Composition</strong> turns that
+        state into pixels in the hidden BACK framebuffer. <strong>Publication</strong>
+        makes the completed BACK image visible at Vbord. A bug in one concern must
+        not be hidden by changing another. The related architecture pages are
+        <a href="./source-structure.html">source structure</a> for module ownership,
+        <a href="./video-mode.html">video mode</a> for the pixel format, and
+        <a href="./ping-pong-framebuffer.html">persistent ping-pong framebuffer</a>
+        for the A/B transaction.
+      </p>
+    </section>
+
+    <section>
+      <h2>Coordinate and storage model</h2>
+      <p>
+        The screen is 320×192 pixels in 16-colour mode. Two pixels occupy one
+        framebuffer byte, so each scanline is 160 bytes. The CPU sees the current
+        BACK image at virtual <code>$2000-$97FF</code>; <code>FB_VIRT</code> is
+        <code>$2000</code> and <code>FB_END</code> is <code>$9800</code>. A 16×16
+        actor therefore occupies eight framebuffer bytes per row and 128 bytes
+        total. The row-to-row advance inside that rectangle is 152 bytes after
+        the eight written bytes.
+      </p>
+      <pre><code>framebuffer byte = $2000 + (pixel_y * 160) + (pixel_x / 2)
+PLAYER_FB        = top-left byte of the current 16×16 player rectangle
+PLAYER_OLD_FB    = top-left byte of the rectangle whose background is saved
+PLAYER_BG_PTR    = A- or B-owned 128-byte clean background
+semantic cell    = maze coordinates used by collision and dot state</code></pre>
+      <p>
+        <code>PLAYER_FB</code> is a visual destination, not the collision origin.
+        Movement updates it by one byte horizontally or 320 bytes vertically for
+        each two-CoCo-pixel step, while <code>PLAYER_CELL_X/Y</code> advance only
+        when the player reaches a semantic cell centre. The authored sprite anchor
+        is seven pixels left and seven pixels above that semantic origin; the
+        byte-aligned save rectangle begins eight pixels left. The one-pixel source
+        adjustment described below keeps artwork aligned inside that rectangle.
+      </p>
+    </section>
+
+    <section>
+      <h2>One gameplay frame, end to end</h2>
+      <p>
+        The main loop samples one Vbord epoch, waits if a completed BACK image is
+        still pending, and then runs game logic. Gameplay routines do not publish
+        pixels directly. They mutate records such as player position, death state,
+        gate state, entities, and HUD values, then set compact flags such as
+        <code>RF_PLAYER</code>, <code>RF_DEATH</code>, or <code>RF_ENTITIES</code>.
+      </p>
+      <ol>
+        <li><strong>Dispatch and simulation:</strong> <code>mainloop</code> calls the presentation dispatcher, then runs gate, pickup, player-animation, enemy, input, timer, and death logic. If death is active, <code>death_tick</code> selects the phase and may update <code>PLAYER_FB</code> for the angel movement.</li>
+        <li><strong>Choose BACK:</strong> <code>frame_render_impl</code> calls <code>framebuffer_prepare_back</code>. It verifies BACK is not FRONT, maps PAR1–PAR4 to BACK, selects the owner-local player save-under, and hydrates old actor pointers and metadata.</li>
+        <li><strong>Remove old actors:</strong> <code>actor_closure_restore</code> restores the prior player rectangle and every old enemy footprint from that BACK owner&rsquo;s clean backgrounds.</li>
+        <li><strong>Project background state:</strong> queued maze, entity, gate, perimeter, HUD, nest, and other persistent damage is applied by <code>frame_render_background</code>. Damage replay is background-only; it does not draw the player or death presentation prematurely.</li>
+        <li><strong>Capture and draw:</strong> <code>actor_closure_draw</code> captures clean destinations, draws enemies, then draws popup, death, or the live player last. This order preserves player-over-enemy ownership and prevents later layers from covering the selected presentation.</li>
+        <li><strong>Publish readiness:</strong> <code>framebuffer_finish_back</code> records owner-local state and sets <code>FB_RENDER_PENDING</code> with interrupts briefly masked. Main code does not change the displayed owner.</li>
+        <li><strong>Commit:</strong> the Vbord IRQ acknowledges the interrupt, writes <code>GIME_VOFF1</code> for BACK, exchanges FRONT/BACK IDs, clears pending, and advances the commit and simulation sequences. Until this point the old FRONT image remains visible.</li>
+      </ol>
+      <p>
+        This is why a visible rendering correction should usually be made at the
+        layer that creates the wrong pixels. Moving a destination address changes
+        the whole composition contract; changing an authored/generated frame
+        preserves movement, collision, ownership, and publication behavior.
+      </p>
+    </section>
+
+    <section>
+      <h2>How the player and death layers are drawn</h2>
+      <p>
+        The live player path uses <code>player_compose_impl</code> during persistent
+        rendering. It starts from the owner-local clean background, accounts for
+        the old-to-new rectangle delta, builds the clean new rectangle, saves that
+        clean rectangle, overlays the selected sparse player stream, writes the
+        complete new rectangle to BACK, and restores old-only strips. A first or
+        discontinuous draw uses the direct <code>draw_player</code> path, which
+        saves the rectangle and calls <code>PLAYER_MODULE_DRAW</code>.
+      </p>
+      <p>
+        Death uses the same rectangle and the same save-under boundary. On entry,
+        <code>death_tick</code> records <code>PLAYER_OLD_FB</code>, exposes the old
+        player background when valid, and sets <code>RF_DEATH</code>. The renderer
+        later calls <code>draw_death_frame</code>, which saves the current
+        <code>PLAYER_FB</code> rectangle, selects the generated death stream, and
+        calls <code>PRESENTATION_MODULE_DRAW</code>. Popup presentation follows the
+        same final-layer rule. The renderer does not infer a separate death origin.
+      </p>
+      <p>
+        The death state machine is independent of composition: state 1 selects the
+        initial shrink frames, state 2 selects the stationary angel and moving
+        angel phase, state 3 holds the blank interval, and state 4 holds game over.
+        The current timing and movement are in <code>src/main.s</code>; the pixel
+        streams are generated data. A timeout or wrong phase is therefore a
+        different problem from a consistently shifted death sprite.
+      </p>
+    </section>
+
+    <section>
+      <h2>Generated sprite pipeline</h2>
+      <p>
+        <code>assets/arcade/sprites.json</code> stores 16×16 raw 2bpp source grids.
+        <code>scripts/build_screen.py</code> rotates the selected arcade sprite into
+        runtime orientation, packs four 2bpp pixels per byte, expands the selected
+        pen map to native 4bpp, and encodes non-transparent destination runs as
+        sparse streams. The generated resident include contains the death stream
+        pointer table and the individual <code>death_sparse_frame_N</code> streams;
+        <code>src/enemy_runtime.s</code> decodes those streams into BACK and restores
+        PAR5 to page <code>$34</code> when decoding ends.
+      </p>
+      <pre><code>raw 16×16 2bpp grid
+        ↓ rotate_ccw / rotate_cw
+oriented 16×16 source grid
+        ↓ pack_sprite_2bpp
+64-byte packed source frame
+        ↓ expand_sprite + encode_sparse_native
+native 4bpp sparse destination stream
+        ↓ sparse_blit_fb / PRESENTATION_MODULE_DRAW
+16×16 pixels in the current BACK framebuffer</code></pre>
+      <p>
+        Normal player frames are generated by <code>compile_player_sprites</code>.
+        After orientation and rotation derivation, each row becomes
+        <code>[0] + row[:15]</code>: one transparent source pixel is inserted at
+        the left and the old rightmost source column is dropped. This is the
+        established one-pixel right-alignment transform for the player rectangle.
+        Enemy and attract-extra frames use the same transform.
+      </p>
+      <p>
+        Death frames are generated by <code>compile_death_sprites</code>, which calls
+        <code>compile_sprite_codes</code> without that transform. They are rotated
+        and packed at their original 16-column source positions. Runtime then
+        draws live and death streams at the same <code>PLAYER_FB</code> address.
+        The result is a one-source-pixel left shift of every death frame relative
+        to the live player origin. This is the confirmed BUG-020 cause.
+      </p>
+    </section>
+
+    <section>
+      <h2>High-score name-entry presentation</h2>
+      <p>
+        FEAT-003 extends the existing presentation owner for the terminal
+        GAME OVER → qualification → name-entry → ranked-list → high-score →
+        attract sequence. Authored <code>Sprite Locations</code> metadata supplies
+        the cursor's starting cell and generated metadata supplies the cursor
+        stream, dynamic character cells, CL cells, END, and HUD patch destinations.
+        The map compiler keeps the shared one-byte atlas bounded; any authored
+        tile that cannot enter that atlas is emitted as a screen-local literal
+        patch rather than changing the existing map-cell protocol.
+      </p>
+      <p>
+        Session records remain authoritative in page <code>$34</code> at
+        <code>$AF84-$AFDD</code>: each record contains a three-byte packed-BCD
+        score followed by seven name bytes. The pending name occupies the
+        adjacent seven-byte buffer. Presentation initializes the records once
+        per cold session, compares scores most-significant byte first, and shifts
+        lower records exactly once when END commits the entry.
+      </p>
+      <p>
+        Name-entry rendering is persistent-owner safe. Both A and B presentation
+        surfaces are hydrated at the screen boundary. Each owner has a 128-byte
+        cursor save-under and validity state in free page-$34 RAM. A cursor move
+        restores the current owner's old footprint, captures the clean destination,
+        draws the generated 16×16 cursor stream, and publishes through the normal
+        PENDING/Vbord transaction. Presentation code never selects FRONT directly.
+      </p>
+    </section>
+
+    <section>
+      <h2>What BUG-020 does and does not change</h2>
+      <p>
+        The approved BUG-020 contract is to apply the established normal-player
+        alignment transform to death source rows, with an opaque-edge and width
+        oracle. It keeps the current <code>PLAYER_FB</code>, movement and collision
+        coordinates, death timing, artwork selection, A/B ownership, and sparse
+        decoder unchanged. The rightmost source column must be checked before it is
+        truncated; a runtime address offset is explicitly the wrong abstraction
+        because it would make the visual rectangle disagree with collision and
+        save-under reasoning.
+      </p>
+      <p>
+        The smallest useful proof is build-time: decode generated live and death
+        pixels into a common 16-column grid, verify the declared origin and width,
+        reject opaque-pixel loss, and mutate the death generator to omit the
+        leading transparent column. The mutation must fail before runtime capture.
+        Runtime evidence then covers every death phase, enemy and skull causes,
+        natural demo/live flow, both BACK owners, and the existing BUG-012 and
+        BUG-017 boundaries. The full acceptance contract remains in the
+        <a href="../tickets/bug-020-death-animation-alignment.html">BUG-020 ticket</a>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Debugging checklist</h2>
+      <ol>
+        <li>First decide whether the wrong pixels are in the authored source, the generated stream, the runtime destination, or the displayed owner.</li>
+        <li>For a fixed offset, compare source and generated grids before inspecting MMU or Vbord behavior. Confirm the live and death streams use the same 16-column origin.</li>
+        <li>For trails or restored scenery, inspect <code>PLAYER_OLD_FB</code>, <code>PLAYER_BG_PTR</code>, owner-local validity, and actor-closure order.</li>
+        <li>For a one-frame or mixed-image artifact, inspect <code>FB_RENDER_PENDING</code>, the commit sequence, and FRONT/BACK ownership. Do not attribute it to A or B without identical starting metadata and a reversed crossover.</li>
+        <li>For a missing death frame, inspect <code>DEATH_STATE</code>, <code>DEATH_FRAME</code>, the <code>RF_DEATH</code> intent, stream selection, and the blank/game-over guards separately.</li>
+      </ol>
+      <p>
+        The source ownership map and verification boundaries are maintained in
+        <a href="./source-structure.html">source-structure</a>. Hardware register
+        behavior is documented in the linked
+        <a href="../../release/reference/coco3/gime.html">GIME reference</a>;
+        this page records only the project-specific rendering contract.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        Basis: <code>src/main.s</code>, <code>src/enemy_runtime.s</code>,
+        <code>scripts/build_screen.py</code>, <code>scripts/build_sparse_sprites.py</code>,
+        <a href="../tickets/bug-020-death-animation-alignment.html">BUG-020</a>,
+        <a href="./video-mode.html">video-mode</a>, and
+        <a href="./ping-pong-framebuffer.html">ping-pong-framebuffer</a>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

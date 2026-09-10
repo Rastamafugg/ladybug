@@ -1,0 +1,334 @@
+{
+  "schema": "ladybug-rsch007-production-hotpaths-v1",
+  "created": "2026-08-30",
+  "source_sha256": "c03b470b8cb88eec96b9c04898a39b8de42361e5608d79462ce4dd79e4b35ef1",
+  "production_source_sha256": {
+    "main": "63e64e7f977f60e0bb91c27d9ff78c2f9eca48210a644b3fb119995c0b356ba5",
+    "enemy_runtime": "894aab87cb14d76bca76d7012f95de9768744f34e1b568ce6c2a142d60793b19"
+  },
+  "production_artifacts": {
+    "rom": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/build/ladybug.rom",
+    "rom_sha256": "26c6d704d1d5f0b1d0bd9be056389f560db138b2c55bbee50b005cf766caf304",
+    "main_map_sha256": "2bc7349f2f22ba94a514888441421b89cfc416499153d77c601da5865e13f080",
+    "enemy_map_sha256": "f6216a4477a70a1f206ca3c3f2d06c392981f3cf44cb53264f8fd506b7c087a8",
+    "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf"
+  },
+  "method": {
+    "primary_cpu": "6309 emulation mode",
+    "portable_control_cpu": "6809",
+    "repeats": 3,
+    "isolated_deadline_seconds": 5.0,
+    "runtime_deadline_seconds": 60.0,
+    "event_ticks_per_cpu_cycle": 16,
+    "materiality": "at least 1000 cycles and at least 5% of named worklist",
+    "probe_count": 0,
+    "observation_timeouts": 0,
+    "historical_rejected_runtime_paths": [
+      "full-GMC trap did not reach frame_render_impl within 60 seconds",
+      "live-window/request-gated monitor startup did not accept attract within 60 seconds"
+    ]
+  },
+  "candidate_6809_rejections": [
+    {
+      "case": "player_save",
+      "variant": "tfm",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-player_save-tfm.rom",
+        "-D",
+        "BENCH_PLAYER_SAVE=1",
+        "-D",
+        "BENCH_TFM=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(130) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldw)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00130         ldw     #ROW_BYTES\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(131) : ERROR : Illegal use of 6309 instruction in 6809 mode (tfm)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00131         tfm     u+,x+\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(353) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00353         stq     RESULT_Q"
+    },
+    {
+      "case": "player_save",
+      "variant": "q",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-player_save-q.rom",
+        "-D",
+        "BENCH_PLAYER_SAVE=1",
+        "-D",
+        "BENCH_Q=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(134) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00134         ldq     ,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(135) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00135         stq     ,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(136) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00136         ldq     4,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(137) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00137         stq     4,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(356) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00356         stq     RESULT_Q"
+    },
+    {
+      "case": "player_restore",
+      "variant": "tfm",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-player_restore-tfm.rom",
+        "-D",
+        "BENCH_PLAYER_RESTORE=1",
+        "-D",
+        "BENCH_TFM=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(164) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldw)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00164         ldw     #ROW_BYTES\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(165) : ERROR : Illegal use of 6309 instruction in 6809 mode (tfm)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00165         tfm     u+,x+\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(353) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00353         stq     RESULT_Q"
+    },
+    {
+      "case": "player_restore",
+      "variant": "q",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-player_restore-q.rom",
+        "-D",
+        "BENCH_PLAYER_RESTORE=1",
+        "-D",
+        "BENCH_Q=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(168) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00168         ldq     ,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(169) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00169         stq     ,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(170) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00170         ldq     4,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(171) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00171         stq     4,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(356) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00356         stq     RESULT_Q"
+    },
+    {
+      "case": "roam_capture_full",
+      "variant": "tfm",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-roam_capture_full-tfm.rom",
+        "-D",
+        "BENCH_ROAM_CAPTURE_FULL=1",
+        "-D",
+        "BENCH_TFM=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(194) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldw)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00194         ldw     #ROW_BYTES\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(195) : ERROR : Illegal use of 6309 instruction in 6809 mode (tfm)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00195         tfm     x+,u+\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(353) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00353         stq     RESULT_Q"
+    },
+    {
+      "case": "roam_capture_full",
+      "variant": "q",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-roam_capture_full-q.rom",
+        "-D",
+        "BENCH_ROAM_CAPTURE_FULL=1",
+        "-D",
+        "BENCH_Q=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(198) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00198         ldq     ,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(199) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00199         stq     ,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(200) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00200         ldq     4,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(201) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00201         stq     4,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(356) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00356         stq     RESULT_Q"
+    },
+    {
+      "case": "roam_restore_phase0",
+      "variant": "tfm",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-roam_restore_phase0-tfm.rom",
+        "-D",
+        "BENCH_ROAM_RESTORE_PHASE0=1",
+        "-D",
+        "BENCH_TFM=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(226) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldw)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00226         ldw     #ROW_BYTES\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(227) : ERROR : Illegal use of 6309 instruction in 6809 mode (tfm)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00227         tfm     u+,x+\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(353) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00353         stq     RESULT_Q"
+    },
+    {
+      "case": "roam_restore_phase0",
+      "variant": "q",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-roam_restore_phase0-q.rom",
+        "-D",
+        "BENCH_ROAM_RESTORE_PHASE0=1",
+        "-D",
+        "BENCH_Q=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(230) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00230         ldq     ,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(231) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00231         stq     ,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(232) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00232         ldq     4,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(233) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00233         stq     4,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(356) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00356         stq     RESULT_Q"
+    },
+    {
+      "case": "roam_restore_phase4",
+      "variant": "q",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-roam_restore_phase4-q.rom",
+        "-D",
+        "BENCH_ROAM_RESTORE_PHASE4=1",
+        "-D",
+        "BENCH_Q=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(256) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00256         ldq     4,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(257) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00257         stq     ,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(258) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00258         ldq     ,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(259) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00259         stq     4,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(356) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00356         stq     RESULT_Q"
+    },
+    {
+      "case": "roam_restore_split_phase0",
+      "variant": "tfm",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-roam_restore_split_phase0-tfm.rom",
+        "-D",
+        "BENCH_ROAM_RESTORE_SPLIT=1",
+        "-D",
+        "BENCH_TFM=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(353) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00353         stq     RESULT_Q\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(365) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldw)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00365         ldw     #ROW_BYTES\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(366) : ERROR : Illegal use of 6309 instruction in 6809 mode (tfm)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00366         tfm     u+,x+"
+    },
+    {
+      "case": "roam_restore_split_phase0",
+      "variant": "q",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-roam_restore_split_phase0-q.rom",
+        "-D",
+        "BENCH_ROAM_RESTORE_SPLIT=1",
+        "-D",
+        "BENCH_Q=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(356) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00356         stq     RESULT_Q\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(369) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00369         ldq     ,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(370) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00370         stq     ,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(371) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00371         ldq     4,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(372) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00372         stq     4,x"
+    },
+    {
+      "case": "ring_capture_two_rows_phase0",
+      "variant": "tfm",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-ring_capture_two_rows_phase0-tfm.rom",
+        "-D",
+        "BENCH_RING_CAPTURE_TWO=1",
+        "-D",
+        "BENCH_TFM=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(353) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00353         stq     RESULT_Q\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(396) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldw)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00396         ldw     #ROW_BYTES\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(397) : ERROR : Illegal use of 6309 instruction in 6809 mode (tfm)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00397         tfm     u+,x+"
+    },
+    {
+      "case": "ring_capture_two_rows_phase0",
+      "variant": "q",
+      "command": [
+        "lwasm",
+        "-9",
+        "--format=raw",
+        "--output=/tmp/rsch007-0t7p4i_o/reject-ring_capture_two_rows_phase0-q.rom",
+        "-D",
+        "BENCH_RING_CAPTURE_TWO=1",
+        "-D",
+        "BENCH_Q=1",
+        "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s"
+      ],
+      "returncode": 1,
+      "rejected": true,
+      "diagnostic": "/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(356) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00356         stq     RESULT_Q\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(400) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00400         ldq     ,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(401) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00401         stq     ,x\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(402) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00402         ldq     4,u\n\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s(403) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/e/projects/ladybug/repro/tooling-checkin-20260910/relocated/src/bench/6309_production_hotpaths.s:00403         stq     4,x"
+    }
+  ],
+  "recommendations": {
+    "player_save": {
+      "recommendation": "tfm",
+      "baseline_cycles": 1134,
+      "candidate_cycles": 846,
+      "cycles_saved": 288,
+      "reduction_percent": 25.396825396825395
+    },
+    "player_restore": {
+      "recommendation": "tfm",
+      "baseline_cycles": 1126,
+      "candidate_cycles": 838,
+      "cycles_saved": 288,
+      "reduction_percent": 25.57726465364121
+    },
+    "roam_capture_full": {
+      "recommendation": "tfm",
+      "baseline_cycles": 1284,
+      "candidate_cycles": 804,
+      "cycles_saved": 480,
+      "reduction_percent": 37.38317757009346
+    },
+    "roam_restore_phase0": {
+      "recommendation": "tfm",
+      "baseline_cycles": 1110,
+      "candidate_cycles": 822,
+      "cycles_saved": 288,
+      "reduction_percent": 25.945945945945947
+    },
+    "roam_restore_phase4": {
+      "recommendation": "q",
+      "baseline_cycles": 1238,
+      "candidate_cycles": 902,
+      "cycles_saved": 336,
+      "reduction_percent": 27.140549273021
+    },
+    "roam_restore_odd_phase1": {
+      "recommendation": "retain baseline; odd rotation is not directly applicable",
+      "baseline_cycles": 1302
+    },
+    "roam_restore_split_phase0": {
+      "recommendation": "tfm",
+      "baseline_cycles": 1210,
+      "candidate_cycles": 922,
+      "cycles_saved": 288,
+      "reduction_percent": 23.801652892561982
+    },
+    "ring_capture_two_rows_phase0": {
+      "recommendation": "tfm",
+      "baseline_cycles": 339,
+      "candidate_cycles": 303,
+      "cycles_saved": 36,
+      "reduction_percent": 10.619469026548673
+    }
+  },
+  "runtime_status": "not run (--isolated-only); historical runtime investigation remains blocked",
+  "scope": {
+    "production_source_changed": false,
+    "release_rom_changed": false,
+    "xroar_changed": false,
+    "native_mode_tested": false,
+    "hardware_tested": false,
+    "separate_rom_policy_changed": false
+  },
+  "original_sha256": "74566dc1757c31d39d72de554627110f0e246de9b8bfced669dd4075ba65eaa2",
+  "original_bytes": 131265,
+  "retention": "Compact summary; repeat samples and passing traces remain regenerable local evidence."
+}

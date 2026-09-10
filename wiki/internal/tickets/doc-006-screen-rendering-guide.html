@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOC-006 Screen Rendering Guide — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="../implementation/screen-rendering.html">Rendering guide</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Ticket · documentation</p>
+      <h1>DOC-006 — Document the screen-rendering pipeline <span class="wiki-badge">Done</span></h1>
+      <p class="wiki-meta">Explain the complete state-to-pixel path and connect it to BUG-020.</p>
+    </header>
+
+    <section>
+      <h2>Identity and scope</h2>
+      <ul>
+        <li><strong>Status:</strong> Done.</li>
+        <li><strong>Created / updated:</strong> 2026-08-22 / 2026-08-22.</li>
+        <li><strong>Priority / order:</strong> P1 / 12.741.</li>
+        <li><strong>Source request:</strong> user request to understand screen rendering and BUG-020 options.</li>
+        <li><strong>In scope:</strong> implementation guide, implementation-index entry, cross-links from source structure, video mode, ping-pong framebuffer, and the project log.</li>
+        <li><strong>Out of scope:</strong> runtime code, generated artifacts, BUG-020 implementation, ticket acceptance changes, and new rendering behavior.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Acceptance and completion</h2>
+      <ul>
+        <li>The guide explains coordinates, save-under state, render intents, BACK composition, Vbord publication, generated sprite streams, and death presentation.</li>
+        <li>The guide identifies the confirmed BUG-020 cause and separates it from movement, collision, ownership, timing, and MMU concerns.</li>
+        <li>The guide links to the existing implementation pages and BUG-020 ticket; the new page is linked from the implementation index.</li>
+        <li>HTML structure, local links, and changed-file whitespace pass; runtime and build artifacts remain unchanged.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Completion evidence</h2>
+      <p>
+        The current source revision was traced through <code>src/main.s</code>,
+        <code>src/enemy_runtime.s</code>, and <code>scripts/build_screen.py</code>.
+        The resulting guide is
+        <a href="../implementation/screen-rendering.html">Screen Rendering Pipeline</a>.
+        Existing unrelated changes in <code>build/ladybug-enemy-runtime.lst</code>
+        and <code>ladybug.tiled-session</code> were preserved. The affected-file
+        link audit found no new broken links; two pre-existing FEAT-001 links in
+        the ticket index and project log remain unchanged.
+      </p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-22 — User explicitly requested a rendering explanation and wiki integration. Documented the existing architecture and confirmed BUG-020 is caused by the generator applying the normal-player leading transparent column only to live frames.</li>
+        <li>2026-08-22 — Completed the guide and cross-links. No runtime, generated, or BUG-020 implementation change was made.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Evidence: <a href="../implementation/screen-rendering.html">screen-rendering</a>, current source tree, and <a href="./bug-020-death-animation-alignment.html">BUG-020</a>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

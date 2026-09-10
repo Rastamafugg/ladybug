@@ -1,0 +1,53 @@
+{
+  "schema": "ladybug-rsch005-ldq-stq-timing-v1",
+  "source_sha256": "baf230d9c4b64ca770ce3f79988562b5b54392327b522b53127adccff434cf49",
+  "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+  "diagnosis": {
+    "rsch004_observation": {
+      "one_row_cpu_cycles": 11119,
+      "sixteen_row_cpu_cycles": 11119,
+      "status": "invalidated as instruction-cost evidence"
+    },
+    "median_cpu_cycles": {
+      "boundary": 2,
+      "ldq_only": 8,
+      "stq_only": 8,
+      "ldq_stq_pair": 16,
+      "byte_equivalent_6309": 38
+    },
+    "original_loop": {
+      "uses_b_as_row_counter": false,
+      "loads_q_before_decb": false,
+      "second_ldq_before_decb": false,
+      "decrements_b": false,
+      "uses_direct_memory_counter": true,
+      "decrements_direct_memory": true,
+      "branches_on_direct_memory": true,
+      "no_decb_in_hot_window": true,
+      "first_row_source_bytes": "31425364758697a8",
+      "b_after_second_ldq": "86",
+      "b_after_decb": "85",
+      "explanation": "Q contains D:W, and D contains A:B. The second LDQ loads B from source byte 5, so DECB decrements copied data instead of Q_ROWS."
+    },
+    "source_proof": {
+      "historical_pre_repair": false,
+      "current_repaired_loop": true
+    },
+    "aligned_controls_pass": true,
+    "ldq_b_register_proof": true,
+    "single_pair_below_100_cycles": true,
+    "cause_confirmed": true,
+    "cause": "RSCH-004 stored Q_ROWS in B, then LDQ overwrote D/B before DECB; the loop decremented copied source data instead of the row counter. The 11,119-cycle value measured unintended extra iterations, not one or two LDQ/STQ pairs.",
+    "source_proof_revision": "current BUG-024 direct-memory counter",
+    "slope_probe_required": false
+  },
+  "scope": {
+    "production_changed": false,
+    "xroar_changed": false,
+    "native_mode_tested": false,
+    "odd_address_tested": false
+  },
+  "original_sha256": "00e5378d682903bcdd4a8ba1cb4d3bf4f06e533c5da692db60a9442eaa083fdc",
+  "original_bytes": 33572,
+  "retention": "Compact summary; repeat samples and passing traces remain regenerable local evidence."
+}

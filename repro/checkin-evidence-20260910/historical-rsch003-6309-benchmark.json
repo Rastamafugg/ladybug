@@ -1,0 +1,203 @@
+{
+  "schema": "ladybug-rsch003-6309-benchmark-v1",
+  "source": "src/bench/6309_benchmark.s",
+  "source_sha256": "d1d2adbc01ebcee72cc086cc4b163e2b32d005f1ab222d7efd92be9f19156601",
+  "xroar": "/mnt/d/retro/ladybug/docs/reference/xroar/src/xroar",
+  "lwasm": "lwasm",
+  "deadline_seconds_per_marker": 10.0,
+  "runs": [
+    {
+      "variant": "baseline",
+      "cpu": "6809",
+      "rom_sha256": "51b62e5065ed4a7652389115c97b9f488bf516c17fe7c465e0a39158f670da73",
+      "variant_marker": "b9",
+      "total_cycles": 365009,
+      "cases": {
+        "tfm_copy": {
+          "cycles": 364937,
+          "start_cycles": 235,
+          "end_cycles": 365172
+        },
+        "ldq_stq": {
+          "cycles": 40,
+          "start_cycles": 365174,
+          "end_cycles": 365214
+        },
+        "oim_mask": {
+          "cycles": 12,
+          "start_cycles": 365216,
+          "end_cycles": 365228
+        },
+        "ldw_stw": {
+          "cycles": 12,
+          "start_cycles": 365230,
+          "end_cycles": 365242
+        }
+      },
+      "fixtures": {
+        "copy_source_sha256": "67193f2bfb0dcff1242205c924d4a4735fdc8745c14b76a29170214374066026",
+        "copy_destination_sha256": "67193f2bfb0dcff1242205c924d4a4735fdc8745c14b76a29170214374066026",
+        "copy_expected_sha256": "67193f2bfb0dcff1242205c924d4a4735fdc8745c14b76a29170214374066026",
+        "copy_guards": "a55a",
+        "q_source": "12345678",
+        "q_destination": "12345678",
+        "q_guards": "cccc",
+        "mask_and_guard": "af5a",
+        "w_source": "1234",
+        "w_destination": "1234",
+        "w_guards": "cccc"
+      },
+      "correctness": {
+        "tfm_copy": true,
+        "ldq_stq": true,
+        "oim_mask": true,
+        "ldw_stw": true
+      }
+    },
+    {
+      "variant": "baseline",
+      "cpu": "6309",
+      "rom_sha256": "51b62e5065ed4a7652389115c97b9f488bf516c17fe7c465e0a39158f670da73",
+      "variant_marker": "b9",
+      "total_cycles": 365009,
+      "cases": {
+        "tfm_copy": {
+          "cycles": 364937,
+          "start_cycles": 235,
+          "end_cycles": 365172
+        },
+        "ldq_stq": {
+          "cycles": 40,
+          "start_cycles": 365174,
+          "end_cycles": 365214
+        },
+        "oim_mask": {
+          "cycles": 12,
+          "start_cycles": 365216,
+          "end_cycles": 365228
+        },
+        "ldw_stw": {
+          "cycles": 12,
+          "start_cycles": 365230,
+          "end_cycles": 365242
+        }
+      },
+      "fixtures": {
+        "copy_source_sha256": "67193f2bfb0dcff1242205c924d4a4735fdc8745c14b76a29170214374066026",
+        "copy_destination_sha256": "67193f2bfb0dcff1242205c924d4a4735fdc8745c14b76a29170214374066026",
+        "copy_expected_sha256": "67193f2bfb0dcff1242205c924d4a4735fdc8745c14b76a29170214374066026",
+        "copy_guards": "a55a",
+        "q_source": "12345678",
+        "q_destination": "12345678",
+        "q_guards": "cccc",
+        "mask_and_guard": "af5a",
+        "w_source": "1234",
+        "w_destination": "1234",
+        "w_guards": "cccc"
+      },
+      "correctness": {
+        "tfm_copy": true,
+        "ldq_stq": true,
+        "oim_mask": true,
+        "ldw_stw": true
+      }
+    },
+    {
+      "variant": "candidate",
+      "cpu": "6309",
+      "rom_sha256": "6493b473b415ccbb5eb4ffaf860e201729fc3b8ea3419b2ec8bcb6663aa6fcf8",
+      "variant_marker": "c3",
+      "total_cycles": 364096,
+      "cases": {
+        "tfm_copy": {
+          "cycles": 282,
+          "start_cycles": 235,
+          "end_cycles": 517
+        },
+        "ldq_stq": {
+          "cycles": 18,
+          "start_cycles": 364286,
+          "end_cycles": 364304
+        },
+        "oim_mask": {
+          "cycles": 7,
+          "start_cycles": 364306,
+          "end_cycles": 364313
+        },
+        "ldw_stw": {
+          "cycles": 14,
+          "start_cycles": 364315,
+          "end_cycles": 364329
+        }
+      },
+      "fixtures": {
+        "copy_source_sha256": "67193f2bfb0dcff1242205c924d4a4735fdc8745c14b76a29170214374066026",
+        "copy_destination_sha256": "67193f2bfb0dcff1242205c924d4a4735fdc8745c14b76a29170214374066026",
+        "copy_expected_sha256": "67193f2bfb0dcff1242205c924d4a4735fdc8745c14b76a29170214374066026",
+        "copy_guards": "a55a",
+        "q_source": "12345678",
+        "q_destination": "12345678",
+        "q_guards": "cccc",
+        "mask_and_guard": "af5a",
+        "w_source": "1234",
+        "w_destination": "1234",
+        "w_guards": "cccc"
+      },
+      "correctness": {
+        "tfm_copy": true,
+        "ldq_stq": true,
+        "oim_mask": true,
+        "ldw_stw": true
+      }
+    }
+  ],
+  "comparisons": {
+    "tfm_copy": {
+      "baseline_6309_cycles": 364937,
+      "candidate_6309_cycles": 282,
+      "delta_cycles": -364655,
+      "percent_delta": -99.92,
+      "correctness": true
+    },
+    "ldq_stq": {
+      "baseline_6309_cycles": 40,
+      "candidate_6309_cycles": 18,
+      "delta_cycles": -22,
+      "percent_delta": -55.0,
+      "correctness": true
+    },
+    "oim_mask": {
+      "baseline_6309_cycles": 12,
+      "candidate_6309_cycles": 7,
+      "delta_cycles": -5,
+      "percent_delta": -41.67,
+      "correctness": true
+    },
+    "ldw_stw": {
+      "baseline_6309_cycles": 12,
+      "candidate_6309_cycles": 14,
+      "delta_cycles": 2,
+      "percent_delta": 16.67,
+      "correctness": true
+    }
+  },
+  "compatibility": {
+    "baseline_6809_vs_baseline_6309_byte_identical": true,
+    "candidate_6809_rejection": {
+      "name": "candidate-6309-under-6809-assembler",
+      "assembled": false,
+      "reason": "expected assembler rejection for 6309-only opcodes",
+      "diagnostic": "benchmark.s:00064         tfm     x+,y+\n\n/mnt/d/retro/ladybug/src/bench/6309_benchmark.s(80) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldq)\n/mnt/d/retro/ladybug/src/bench/6309_benchmark.s:00080         ldq     Q_SRC\n\n/mnt/d/retro/ladybug/src/bench/6309_benchmark.s(81) : ERROR : Illegal use of 6309 instruction in 6809 mode (stq)\n/mnt/d/retro/ladybug/src/bench/6309_benchmark.s:00081         stq     Q_DST\n\n/mnt/d/retro/ladybug/src/bench/6309_benchmark.s(97) : ERROR : Illegal use of 6309 instruction in 6809 mode (oim)\n/mnt/d/retro/ladybug/src/bench/6309_benchmark.s:00097         oim     #$0F,MASK_BYTE\n\n/mnt/d/retro/ladybug/src/bench/6309_benchmark.s(108) : ERROR : Illegal use of 6309 instruction in 6809 mode (ldw)\n/mnt/d/retro/ladybug/src/bench/6309_benchmark.s:00108         ldw     W_SRC\n\n/mnt/d/retro/ladybug/src/bench/6309_benchmark.s(109) : ERROR : Illegal use of 6309 instruction in 6809 mode (stw)\n/mnt/d/retro/ladybug/src/bench/6309_benchmark.s:00109         stw     W_DST"
+    }
+  },
+  "rejected": [
+    {
+      "name": "tfm_strided_framebuffer_rows",
+      "reason": "TFM cannot express the 156-byte row stride without copying intervening bytes; use a row loop or a separate representation benchmark."
+    },
+    {
+      "name": "tfm_par5_remap_boundary",
+      "reason": "A single TFM cannot preserve Ladybug's PAR5 mapping contract across an 8 KiB physical-page transition; the loader/MMU path requires explicit remap and restore measurement."
+    }
+  ]
+}

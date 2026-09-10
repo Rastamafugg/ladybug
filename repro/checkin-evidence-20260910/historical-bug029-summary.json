@@ -1,0 +1,388 @@
+{
+  "schema": "ladybug-bug029-diagnosis-v1",
+  "date": "2026-09-05",
+  "revision": "27124419a1c9aba75de37f7d6d9ec928651ac911",
+  "dirty_checkout": true,
+  "rom_sha256": "8ddfd6f12d805ba73d62c889fb7f7f66db2ffd0936f892dc167c1dad3c064458",
+  "source_sha256": {
+    "src/presentation_runtime.s": "0bc7890690954238b7d737925fbc466d91d8a586827e732caee9b31960570ea4",
+    "src/instruction_runtime.s": "a0ef32a1c7f9add1b42d48cc3b5b0a5e88fb7091b261a0fce30a713899dd0623",
+    "src/demo_runtime.s": "3af20285945380cf057caacaa130c2bd52a7a052c05f31720e4168f9d2e622b3",
+    "src/enemy_runtime.s": "894aab87cb14d76bca76d7012f95de9768744f34e1b568ce6c2a142d60793b19",
+    "scripts/diagnose_bug029_credit.py": "a03fc8a032d8c1ba08af3e92ae58bb12d70585c689c2f5fc542ddb07adba3981",
+    "docs/reference/xroar/src/xroar": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf"
+  },
+  "identities": [
+    {
+      "name": "presentation",
+      "address": 6400,
+      "bytes": 1280,
+      "sha256": "ecaf330d5bed0227d299a31d9bd40d830c4f9bbee6009767d93a5204000d0104",
+      "matches": true
+    },
+    {
+      "name": "resident RAM enemy module",
+      "address": 2048,
+      "bytes": 4095,
+      "sha256": "98ae836602a4a7ef5ec55a8faf22e9daabb7bcbb1c182a23765ffad8a1e0dafc",
+      "matches": true
+    },
+    {
+      "name": "staged instruction",
+      "address": 42018,
+      "bytes": 938,
+      "sha256": "65ba7dc8ad2f3dcda052c0f5fd6c4268c306bef6e8fcf4300d7b4ce5b54c0f0b",
+      "matches": true
+    },
+    {
+      "name": "staged highscore",
+      "address": 43136,
+      "bytes": 864,
+      "sha256": "12f1f0d8a4b8a0df7e8657661df41b1467a787ffe19928f2889c6d25ca620dda",
+      "matches": true
+    },
+    {
+      "name": "installed instruction",
+      "address": 768,
+      "bytes": 938,
+      "sha256": "65ba7dc8ad2f3dcda052c0f5fd6c4268c306bef6e8fcf4300d7b4ce5b54c0f0b",
+      "matches": true
+    },
+    {
+      "name": "call instruction",
+      "address": 6868,
+      "bytes": 3,
+      "sha256": "0e8aef485a83676e82248bd73cda637633ecdcf92999ba12422f6973ba8cae11",
+      "matches": true
+    },
+    {
+      "name": "RAM code immediately before wrong-owner call",
+      "address": 2048,
+      "bytes": 4095,
+      "sha256": "98ae836602a4a7ef5ec55a8faf22e9daabb7bcbb1c182a23765ffad8a1e0dafc",
+      "matches": true
+    },
+    {
+      "name": "wrong installed instruction owner at highscore call",
+      "address": 768,
+      "bytes": 938,
+      "sha256": "65ba7dc8ad2f3dcda052c0f5fd6c4268c306bef6e8fcf4300d7b4ce5b54c0f0b",
+      "matches": true
+    }
+  ],
+  "precall_state_identical": true,
+  "baseline": {
+    "result": "dynamic return",
+    "steps": 1048,
+    "corrupted_executable_bytes": 59,
+    "changes": [
+      {
+        "addr": 3235,
+        "expected": 166,
+        "live": 22
+      },
+      {
+        "addr": 3236,
+        "expected": 228,
+        "live": 225
+      },
+      {
+        "addr": 3395,
+        "expected": 144,
+        "live": 145
+      },
+      {
+        "addr": 3396,
+        "expected": 15,
+        "live": 31
+      },
+      {
+        "addr": 3554,
+        "expected": 215,
+        "live": 209
+      },
+      {
+        "addr": 3555,
+        "expected": 143,
+        "live": 17
+      },
+      {
+        "addr": 3556,
+        "expected": 151,
+        "live": 17
+      },
+      {
+        "addr": 3557,
+        "expected": 144,
+        "live": 16
+      },
+      {
+        "addr": 3714,
+        "expected": 2,
+        "live": 17
+      },
+      {
+        "addr": 3715,
+        "expected": 151,
+        "live": 17
+      },
+      {
+        "addr": 3716,
+        "expected": 127,
+        "live": 17
+      },
+      {
+        "addr": 3717,
+        "expected": 57,
+        "live": 17
+      },
+      {
+        "addr": 3873,
+        "expected": 150,
+        "live": 145
+      },
+      {
+        "addr": 3874,
+        "expected": 54,
+        "live": 17
+      },
+      {
+        "addr": 3875,
+        "expected": 129,
+        "live": 17
+      },
+      {
+        "addr": 3876,
+        "expected": 24,
+        "live": 17
+      },
+      {
+        "addr": 3877,
+        "expected": 16,
+        "live": 17
+      },
+      {
+        "addr": 3878,
+        "expected": 36,
+        "live": 20
+      },
+      {
+        "addr": 4033,
+        "expected": 124,
+        "live": 17
+      },
+      {
+        "addr": 4034,
+        "expected": 39,
+        "live": 17
+      },
+      {
+        "addr": 4035,
+        "expected": 4,
+        "live": 17
+      },
+      {
+        "addr": 4036,
+        "expected": 129,
+        "live": 17
+      },
+      {
+        "addr": 4037,
+        "expected": 2,
+        "live": 17
+      },
+      {
+        "addr": 4038,
+        "expected": 38,
+        "live": 17
+      },
+      {
+        "addr": 4193,
+        "expected": 38,
+        "live": 17
+      },
+      {
+        "addr": 4194,
+        "expected": 6,
+        "live": 17
+      },
+      {
+        "addr": 4195,
+        "expected": 166,
+        "live": 17
+      },
+      {
+        "addr": 4196,
+        "expected": 5,
+        "live": 17
+      },
+      {
+        "addr": 4197,
+        "expected": 129,
+        "live": 17
+      },
+      {
+        "addr": 4198,
+        "expected": 11,
+        "live": 17
+      },
+      {
+        "addr": 4353,
+        "expected": 102,
+        "live": 17
+      },
+      {
+        "addr": 4354,
+        "expected": 53,
+        "live": 17
+      },
+      {
+        "addr": 4355,
+        "expected": 16,
+        "live": 17
+      },
+      {
+        "addr": 4356,
+        "expected": 57,
+        "live": 17
+      },
+      {
+        "addr": 4357,
+        "expected": 134,
+        "live": 17
+      },
+      {
+        "addr": 4358,
+        "expected": 7,
+        "live": 17
+      },
+      {
+        "addr": 4513,
+        "expected": 150,
+        "live": 17
+      },
+      {
+        "addr": 4514,
+        "expected": 157,
+        "live": 17
+      },
+      {
+        "addr": 4515,
+        "expected": 151,
+        "live": 17
+      },
+      {
+        "addr": 4516,
+        "expected": 121,
+        "live": 17
+      },
+      {
+        "addr": 4517,
+        "expected": 139,
+        "live": 17
+      },
+      {
+        "addr": 4518,
+        "expected": 2,
+        "live": 17
+      },
+      {
+        "addr": 4673,
+        "expected": 18,
+        "live": 17
+      },
+      {
+        "addr": 4674,
+        "expected": 81,
+        "live": 17
+      },
+      {
+        "addr": 4675,
+        "expected": 18,
+        "live": 17
+      },
+      {
+        "addr": 4676,
+        "expected": 104,
+        "live": 17
+      },
+      {
+        "addr": 4677,
+        "expected": 18,
+        "live": 17
+      },
+      {
+        "addr": 4678,
+        "expected": 133,
+        "live": 21
+      },
+      {
+        "addr": 4834,
+        "expected": 236,
+        "live": 17
+      },
+      {
+        "addr": 4835,
+        "expected": 65,
+        "live": 17
+      },
+      {
+        "addr": 4836,
+        "expected": 237,
+        "live": 17
+      },
+      {
+        "addr": 4837,
+        "expected": 129,
+        "live": 17
+      },
+      {
+        "addr": 4838,
+        "expected": 236,
+        "live": 28
+      },
+      {
+        "addr": 4994,
+        "expected": 38,
+        "live": 17
+      },
+      {
+        "addr": 4995,
+        "expected": 232,
+        "live": 17
+      },
+      {
+        "addr": 4996,
+        "expected": 57,
+        "live": 17
+      },
+      {
+        "addr": 4997,
+        "expected": 23,
+        "live": 17
+      },
+      {
+        "addr": 5155,
+        "expected": 31,
+        "live": 17
+      },
+      {
+        "addr": 5156,
+        "expected": 1,
+        "live": 17
+      }
+    ],
+    "cold_drawing_pointer": "0C00",
+    "cold_phase": "60"
+  },
+  "control": {
+    "result": "dynamic return",
+    "steps": 12597,
+    "corrupted_executable_bytes": 0,
+    "second_result": "dynamic return",
+    "second_code_unchanged": true
+  },
+  "observation_tool_timeouts": 2,
+  "production_fix_applied": false,
+  "remaining_scope": "Approve and implement correct owner installation; verify settled and loading-time credit paths."
+}

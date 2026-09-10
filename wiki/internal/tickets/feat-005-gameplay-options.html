@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-005 Gameplay options — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Ticket · feature</p>
+      <h1>FEAT-005 — Gameplay options <span class="wiki-badge">Proposed</span></h1>
+      <p class="wiki-meta">Add session-only custom-game settings through individually verified option increments, then integrate them behind one menu.</p>
+    </header>
+
+    <section>
+      <h2>Status and ordering</h2>
+      <ul>
+        <li><strong>Status:</strong> Proposed</li>
+        <li><strong>Created / updated:</strong> 2026-08-28 / 2026-08-28</li>
+        <li><strong>Priority / order:</strong> P2 / 19</li>
+        <li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 9 — finished game and polish</a></li>
+        <li><strong>Owner:</strong> unassigned</li>
+        <li><strong>Dependencies:</strong> stabilize the current Phase 9 presentation path; complete a capacity/design gate before menu integration or alternate-maze delivery.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Add an <code>OPTIONS</code> entry that configures custom-game rules without changing the arcade-compatible default. Each gameplay option is implemented and verified as one bounded increment before it is admitted to the combined menu build. Correctness and observable evidence take priority over cycle or byte optimization; optimization begins only after the option's natural behavior passes.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>This proposal was prepared from the working tree based on revision <code>608f4d0</code> on 2026-08-28. The working tree already contains unrelated Phase 9 changes, so no build outputs or capacity figures from that tree are acceptance evidence for this ticket. Confirmed source contracts are: new games initialize three reserve lives; the HUD draws at most three reserve markers; the perimeter reload is stage-dependent; stages use one immutable 24×24 maze; and the entity table contains twelve four-byte records. Six bonus records plus the stage-dependent two-to-six static skull records consume eight to twelve records. The deployed runtime does not yet publish a gameplay fire-button or spacebar action.</p>
+      <p>The arcade-compatible baseline is three reserves, continue disabled, the existing stage-dependent perimeter cadence, static randomized skulls, no letter replenishment, and the original fixed maze. The unattended demo always uses this baseline, independent of custom settings.</p>
+
+      <h3>User-visible golden path</h3>
+      <ol>
+        <li>Boot enters the normal attract/title flow with arcade defaults initialized.</li>
+        <li>The player opens <code>OPTIONS</code> from the title flow, moves between rows, changes values, restores all defaults, or returns without starting a game.</li>
+        <li>Starting a new live game snapshots the selected values. Options cannot change during an active game.</li>
+        <li>Each enabled rule affects only its defined gameplay owner. Death, next-part, game-over, high-score, and attract transitions retain a single owner and occur exactly once.</li>
+        <li>Returning to attract after game over retains the selected settings for the current powered session. Cold reset restores arcade defaults.</li>
+      </ol>
+
+      <h3>Core option contracts</h3>
+      <ol>
+        <li><strong>Reserve ladybugs:</strong> values <code>0</code>, <code>1</code>, <code>2</code>, or <code>3</code>; default <code>3</code>. The value is the visible reserve count in addition to the active player. The first increment does not exceed three because the current HUD has three marker positions. EXTRA may still add a reserve, but the visible count saturates at three unless a later numeric-HUD ticket is approved.</li>
+        <li><strong>Continue current part:</strong> <code>OFF</code> or <code>ON</code>; default <code>OFF</code>. After final death, <code>ON</code> offers one bounded continue prompt. Accepting retains the part number, score, and completed SPECIAL/EXTRA letters, but rebuilds the current part from its clean initial maze, entity, enemy, player, and perimeter state and restores the configured reserves. Declining or timing out follows normal game over. The number of continues remains an approval question.</li>
+        <li><strong>Perimeter speed:</strong> named presets <code>RELAXED</code>, <code>ARCADE</code>, and <code>FAST</code>; default <code>ARCADE</code>. Presets select explicit stage-band reload values rather than altering the 60 Hz simulation clock. Enemy releases and every other perimeter-owned event continue to derive from completed circuits. Exact relaxed/fast reload values require gameplay measurement before approval of the child ticket.</li>
+        <li><strong>Letter replenishment:</strong> <code>OFF</code> or a named interval; default <code>OFF</code>. A collected letter record becomes pending and, after its timer, is reused for a new letter at an unoccupied, already-blank placement candidate. Replenishment does not add a dot or increment <code>DOTS_LEFT</code>, never occupies a gate, nest, entrance, actor, or other entity footprint, and is cancelled by death reset or part transition. The recommended replacement remains in the collected letter's X/T/R, S/P/C/I/L, or E/A group so stage composition remains bounded at three letter records.</li>
+        <li><strong>Deployable skulls:</strong> <code>STATIC</code> or <code>DROP</code>; default <code>STATIC</code>. <code>DROP</code> removes randomized static skulls and grants charges equal to the normal skull count for the current part. A fresh edge from right joystick button 1 or Space places at most one active skull on the most recently vacated aligned corridor cell behind the player. Invalid placement does not consume a charge. The recommended Rally-X-like rule affects enemies but not the player, and removes the skull on enemy contact or timeout; player lethality and lifetime remain approval questions. Input scanning must preserve joystick-axis and presentation-key ownership.</li>
+        <li><strong>Maze set:</strong> <code>ORIGINAL</code> or <code>CYCLE</code>; default <code>ORIGINAL</code>. Alternate layouts are delivered last and must retain the 24×24 field, valid entrance and nest, connected reachable paths, bounded perimeter circuit, valid gates, and sufficient unique placement candidates. Each layout is generated and statically proven before runtime selection. Runtime integration must load one complete coherent set of visual, navigation, gate-owner, gate-state, dot, candidate, and demo-route data; it may not mix tables from two layouts.</li>
+      </ol>
+
+      <h3>Additional candidate options</h3>
+      <ul>
+        <li><strong>Placement seed:</strong> <code>RANDOM</code> or <code>FIXED</code>, allowing reproducible stages and verifier captures without changing placement rules.</li>
+        <li><strong>Starting part:</strong> choose part 1 or an unlocked/practice part; custom runs remain ineligible for the arcade high-score table.</li>
+        <li><strong>Bonus-colour speed:</strong> adjust the red/yellow/blue letter-and-heart cycle independently of the perimeter timer.</li>
+        <li><strong>Enemy pressure:</strong> a later preset can adjust active-enemy cap or release cadence, but it must not silently duplicate the perimeter-speed effect.</li>
+        <li><strong>Stage-clear target:</strong> require all dots or a lower percentage for shorter sessions; this needs explicit treatment of remaining entities and scoring.</li>
+      </ul>
+      <p><strong>Recommendation:</strong> keep these as follow-up candidates. Placement seed is the lowest-risk addition and provides direct verification value. Starting part is useful for practice and QA. The remaining candidates materially change balance and should be considered only after the six requested options are measured.</p>
+
+      <h3>Compatibility and score policy</h3>
+      <p><code>ARCADE DEFAULTS</code> restores every default in one action. Any non-default value marks the session <code>CUSTOM</code>. Recommended policy: custom sessions display score normally but do not qualify for the arcade high-score table; separate custom records are out of scope. Attract/demo behavior ignores custom settings. No battery-backed or disk persistence is introduced.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> session-only option state, title-flow menu, default restoration, new-game snapshot, the six core option contracts, per-option focused verification, final combination verification, capacity reporting, and synchronized wiki/ticket evidence. <strong>Out:</strong> two-player options, save files or NVRAM, network features, sound options, cheats, numeric life-HUD redesign, custom leaderboards, wholesale gameplay-loop refactoring, and optimization before correctness evidence.</p>
+
+      <h3>Delivery sequence</h3>
+      <ol>
+        <li><strong>Architecture and capacity gate:</strong> define option-state ownership, menu/cold-data placement, live-game snapshot, input-edge protocol, entity-record reuse, alternate-maze data selection, and hard size limits. This gate creates the exact child-ticket ordering and verification commands.</li>
+        <li><strong>Menu foundation:</strong> prove title → options → title/start flow, controls, default restoration, session retention, cold reset, and an arcade-default gameplay snapshot with no gameplay option enabled.</li>
+        <li><strong>One-option increments:</strong> reserves, perimeter speed, continue, letter replenishment, deployable skull, then alternate mazes. Each increment has one bounded ticket and commit, enables only that option over arcade defaults, and must pass its focused natural path before the next increment begins.</li>
+        <li><strong>Integration:</strong> combine only accepted increments. Verify arcade defaults first, then pairwise combinations chosen for shared owners: continue/reserves, perimeter/enemy release, replenishment/stage clear, dropped skull/enemy collision, and alternate maze/entity placement.</li>
+        <li><strong>Optimization:</strong> profile the accepted combined build, optimize only measured byte or frame pressure, and rerun the same behavioral evidence unchanged.</li>
+      </ol>
+
+      <h3>Smallest sufficient verification set</h3>
+      <ul>
+        <li><strong>Menu foundation:</strong> natural title round trip and cold-reset/default snapshot cover state ownership and initialization.</li>
+        <li><strong>Reserves:</strong> configured initial count, ordinary respawn, final death, and EXTRA saturation cover initialization and life-boundary risk.</li>
+        <li><strong>Continue:</strong> decline, timeout, and accept from a natural final death cover the new terminal handoff and exact retained/reset state.</li>
+        <li><strong>Perimeter speed:</strong> one completed circuit in each preset on one early and one late stage band covers reload selection and release coupling without a full mode matrix.</li>
+        <li><strong>Letter replenishment:</strong> collect, wait, blocked candidate retry, replacement pickup, death, and part clear cover record reuse, placement validity, and lifecycle cancellation.</li>
+        <li><strong>Deployable skull:</strong> input edge/hold, invalid cell, valid behind-player cell, enemy hit, timeout, zero charges, and keyboard/joystick equivalence cover input ownership, collision, and resource bounds.</li>
+        <li><strong>Alternate maze:</strong> static generator invariants plus one natural complete part and one gate/enemy/entity forced path per layout cover coherent table selection and reachability.</li>
+        <li><strong>Combined build:</strong> arcade-default natural game, the five pairwise shared-owner cases above, standard build/capacity guards, and real-hardware input confirmation cover integration without a redundant Cartesian matrix.</li>
+      </ul>
+
+      <h3>Risks and stop conditions</h3>
+      <ul>
+        <li>The resident and copied presentation modules are near hard limits in current Phase 9 work; menu code may require cold payload or a new bounded copied module rather than resident growth.</li>
+        <li>The twelve-record entity table is full on six-skull stages. Replenishment must reuse collected records, and drop mode must replace static skull records. Expanding the table changes gate replay/cache layouts and requires renewed architectural approval.</li>
+        <li>Fire-button/Space ownership crosses keyboard scanning, joystick sampling, attract pre-emption, demo input, and live gameplay. A new edge protocol is required before deployable-skull implementation.</li>
+        <li>Alternate mazes multiply semantic and visual tables and may change demo routes, gate counts, memory packing, and worst-frame worklists. Any loader/MMU or framebuffer-owner change returns the feature to Proposed.</li>
+        <li>Optimization that changes accepted behavior, option semantics, or evidence is separate work and requires a new or revised ticket.</li>
+      </ul>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>Arcade defaults reproduce the documented current rules and remain the cold-reset state.</li>
+        <li>Every included option passes its isolated natural path and named edge cases before combined integration.</li>
+        <li>Menu input is edge/repeat bounded; held or simultaneous inputs cannot skip rows, start twice, drop multiple skulls, or pre-empt the wrong owner.</li>
+        <li>Custom settings are immutable during a live game, retained across attract within the powered session, and excluded from arcade high-score qualification.</li>
+        <li>All required rare paths are forced; a missing required path is a failed verification, not a pass.</li>
+        <li>The combined build passes standard generated-data, ROM/GMC, memory-window, framebuffer, gameplay, presentation, and real-hardware input gates with current-revision evidence.</li>
+        <li>Performance and capacity are measured after correctness. A missed hard limit or steady-gameplay frame target remains a failed target and produces a follow-up rather than acceptance.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval decisions required</h2>
+      <ul>
+        <li>Approve or revise the six core option contracts and their delivery order.</li>
+        <li>Choose continue count: once per game, once per part, or unlimited.</li>
+        <li>Confirm that a dropped skull is enemy-only and temporary, or retain normal skull lethality.</li>
+        <li>Confirm that custom sessions cannot update the arcade high-score table.</li>
+        <li>Select any additional candidate option for the first feature scope; recommendation is placement seed only.</li>
+      </ul>
+      <p>Approval advances only this umbrella outcome and ordering. It does not authorize implementation. The architecture/capacity gate must complete exact artifacts, commands, ownership, and child-ticket contracts before any child becomes <code>Ready</code>.</p>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <p>Unassigned while Proposed. After approval, route first to <code>coding-architect</code>. Each child ticket owns one isolated option or the final integration, one bounded commit, exact production and verification artifacts, measured capacity, retained evidence, and a completion report. No child may absorb another option or optimize unmeasured code.</p>
+    </section>
+
+    <section>
+      <h2>Verification and completion</h2>
+      <p>No implementation or runtime verification has been performed. The evidence above is a requirements and source-contract audit only.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-08-28 — Proposed from the user's gameplay-options request. Selected isolated correctness-first increments followed by explicit integration and post-correctness optimization.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Sources: <a href="../game/overview.html">game overview</a>, <a href="../implementation/maze-format.html">maze format</a>, <a href="../implementation/source-structure.html">source structure</a>, <a href="../../release/reference/coco3/input.html">CoCo input</a>, and source audit of <code>src/main.s</code> plus <code>src/presentation_runtime.s</code>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

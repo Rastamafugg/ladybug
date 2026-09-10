@@ -166,6 +166,11 @@ Per framebuffer:
 
     <section>
       <h2>Frame transaction</h2>
+      <p>
+        The pixel-level player, popup, and death path is illustrated in the
+        <a href="./screen-rendering.html">screen rendering pipeline guide</a>.
+        This page supplies the owner and commit rules that surround that path.
+      </p>
       <ol>
         <li><strong>Wait for ownership.</strong> Main code does not begin another transaction while <code>FB_RENDER_PENDING</code> is set. After the IRQ commits, map the new back buffer into PAR1-PAR4 and assert that it is not FRONT.</li>
         <li><strong>Advance one logical epoch without drawing.</strong> Sample input and update movement, collision, timers, score, gate, entity, and death state exactly once. Freeze that state until this image commits. Use <code>FB_SIM_SEQ</code>, not the free-running Vbord counter, for even/odd player-enemy staggering and gameplay timers.</li>

@@ -165,6 +165,13 @@
 
     <section>
       <h2>Player and curated-sprite renderer — updated 2026-07-19</h2>
+      <p>
+        The complete state-to-pixel path is documented in the
+        <a href="./screen-rendering.html">screen rendering pipeline guide</a>.
+        The player, enemy, popup, and death streams share the 16×16 rectangle
+        contract described there; generated source alignment is part of that
+        contract, not a runtime movement adjustment.
+      </p>
       <ul>
         <li>The active player uses one north-facing authored sequence, <code>R2C0,R3C0,R4C0,R3C0</code>, at one frame per eight Vbords. The build derives east, south, and west by successive clockwise rotations, producing 16 packed runtime frames without selecting the separate <code>R5C0</code> through <code>R7C0</code> source set. <code>RrCc</code> means row then column on the 16-column by 8-row PNG; the build converts it to rotated ROM order with <code>c*8+(7-r)</code>.</li>
         <li>Curated player, death, vegetable, score, and enemy source shapes remain packed at the arcade-native four pixels per byte. Selected player and enemy frames expand once at their low-RAM cache boundaries; death, vegetable, and score paths retain direct runtime pair-table expansion.</li>

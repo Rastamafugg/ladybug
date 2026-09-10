@@ -1,0 +1,48 @@
+{
+  "schema": "ladybug-bug027-frame-boundary-v1",
+  "created": "2026-08-30",
+  "status": "blocked after the single authorized observation timeout",
+  "command": "wsl -d Ubuntu -- bash -lc 'cd /mnt/d/retro/ladybug && python3 scripts/benchmark_6309_production_hotpaths.py --frame-boundary-only --runtime-timeout 60 --output build/rsch007-6309'",
+  "phase": "complete-profile dual-exit frame control",
+  "deadline_seconds": 60,
+  "deadline_result": "socket timeout while waiting for a proven frame exit during one-roamer hydration",
+  "timeout_meaning": "neither proven exit was reported after the last externally retained mapped boundary",
+  "last_externally_retained_boundary": "frame_render_impl",
+  "static_exit_contract": {
+    "addresses": {
+      "frame_entry": "09D9",
+      "normal_exit": "0A07",
+      "abort_exit": "0A0A",
+      "project_damage": "0A0B"
+    },
+    "exit_bytes": {
+      "normal_exit": "39",
+      "abort_exit": "39"
+    },
+    "source_lines": {
+      "normal_exit": 616,
+      "abort_exit": 619
+    },
+    "enemy_image_sha256": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969",
+    "enemy_map_sha256": "7300dbe2c89ec232d81b2d1af51cd515b424be9e2f684c3050e70a1fdf62c101",
+    "enemy_listing_sha256": "8c77a9e494c7cd33122042b2ebc6a32e553a7eeebbf61212b3d7a42ea437d270",
+    "ordering_pass": true
+  },
+  "artifact_sha256": {
+    "production_rom": "9affb91742503658b20fe63ebd2230b2333efb2e476c978b9531706377ce26b1",
+    "enemy_module": "a1e1df05a6fe0eac903449ac4c1704c6aadad90cd33994999903fae72f729969",
+    "runner_after_cleanup_repair": "1cce007277b2e4c45835a3ac0d8c5a43592511098d092c867b2791a417e3fc08"
+  },
+  "diagnostic_exit_sequence": "not retained: timeout cleanup masked the in-memory marker sequence before JSON serialization",
+  "normal_exit_count": null,
+  "abort_exit_count": null,
+  "hydration_abort_count": null,
+  "cause_confirmed": false,
+  "conditional_capture_repair_applied": false,
+  "full_rsch007_matrix_rerun": false,
+  "probe_count": 1,
+  "observation_timeouts": 1,
+  "cleanup_failure": "OSError: cannot read from timed out object while clearing breakpoints",
+  "post_run_harness_change": "cleanup failures no longer mask an active observation exception; not rerun under the one-timeout stop rule",
+  "capacity_changed": false
+}
