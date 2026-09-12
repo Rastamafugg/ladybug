@@ -1,0 +1,302 @@
+diff --git a/scripts/verify_bug011_runtime.py b/scripts/verify_bug011_runtime.py
+index 44f9639..91f0c40 100644
+--- a/scripts/verify_bug011_runtime.py
++++ b/scripts/verify_bug011_runtime.py
+@@ -148,12 +148,47 @@ def frame_tile(frame: bytes, destination: int, width: int = 4,
+     )
+ 
+ 
++def lzss_expand(stream: bytes, expected_bytes: int) -> bytes:
++    output = bytearray()
++    cursor = 0
++    while len(output) < expected_bytes:
++        if cursor >= len(stream):
++            raise ValueError("compressed atlas ended before its output bound")
++        flags = stream[cursor]
++        cursor += 1
++        for bit in range(8):
++            if len(output) >= expected_bytes:
++                break
++            if flags & (1 << bit):
++                if cursor >= len(stream):
++                    raise ValueError("compressed atlas literal is truncated")
++                output.append(stream[cursor])
++                cursor += 1
++                continue
++            if cursor + 2 > len(stream):
++                raise ValueError("compressed atlas match is truncated")
++            token = int.from_bytes(stream[cursor:cursor + 2], "big")
++            cursor += 2
++            distance = token >> 4
++            length = (token & 0x0F) + 3
++            if distance == 0 or distance > len(output):
++                raise ValueError("compressed atlas match distance is invalid")
++            for index in range(length):
++                output.append(output[-distance])
++                if len(output) > expected_bytes:
++                    raise ValueError("compressed atlas exceeds its output bound")
++    return bytes(output)
++
++
+ def expected_tile(manifest: dict[str, object], tile_id: int) -> bytes:
+     cold = COLD.read_bytes()
+     base = int(manifest["gameplay_tile_base"])
+     if tile_id < base:
+-        offset = int(manifest["tile_atlas_offset"]) + tile_id * 32
+-        return cold[offset:offset + 32]
++        compressed_bytes = int(manifest["tile_atlas_compressed_bytes"])
++        expanded_bytes = int(manifest["tile_atlas_expanded_bytes"])
++        atlas = lzss_expand(cold[:compressed_bytes], expanded_bytes)
++        offset = tile_id * 32
++        return atlas[offset:offset + 32]
+     lookup_offset = int(manifest["gameplay_lookup_offset"]) + tile_id - base
+     gameplay_id = cold[lookup_offset]
+     runtime = RUNTIME_ROM.read_bytes()
+diff --git a/scripts/verify_bug015_complete_runtime.py b/scripts/verify_bug015_complete_runtime.py
+index 360b048..2a3b0e1 100644
+--- a/scripts/verify_bug015_complete_runtime.py
++++ b/scripts/verify_bug015_complete_runtime.py
+@@ -80,12 +80,16 @@ def check_source() -> None:
+         raise SystemExit("source: live stage transition ownership is missing")
+     if "PRES_CONTEXT_NEXT_STAGE equ 2" not in presentation:
+         raise SystemExit("source: next-stage context marker is missing")
+-    if "clr     PRES_CONTEXT\nstart_screen_context_ready" not in presentation:
++    if (
++        "attract_next\n        ifne    BUG011_DEVELOPMENT_PROFILE\n"
++        "        ifne    COMPLETE_PROFILE\n        clr     PRES_CONTEXT"
++        not in presentation
++    ):
+         raise SystemExit("source: complete attract context reset is missing")
+     if "ifne    ATTRACT_OVERLAY_ENABLED" not in presentation:
+         raise SystemExit("source: complete title overlay guard is missing")
+     ready = presentation[presentation.index("\npft_ready\n"):presentation.index("\npft_mode\n")]
+-    if "anda    #$06" not in ready or "lbsr    add_credit" not in ready:
++    if "anda    #$06" not in ready or "jsr     PRES_MAIN_ADD_CREDIT" not in ready:
+         raise SystemExit("source: credit-gated high-score entry is missing")
+ 
+ 
+diff --git a/src/demo_runtime.s b/src/demo_runtime.s
+index ccaddcb..4463e50 100644
+--- a/src/demo_runtime.s
++++ b/src/demo_runtime.s
+@@ -383,6 +383,169 @@ highscore_default_name_data
+         fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_5
+         fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_6
+ 
++        ifne    PRESENTATION_STAGE_PANEL_ENABLED
++        include "ladybug_runtime_symbols.inc"
++        rmb     $B080-*
++; BUG-035: called during hidden level-start hydration, before publication.
++; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
++stage_panel_draw
++        lda     PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_LEVEL_START
++        lbne    stage_panel_return
++        lda     #1
++        ldb     $00A7          ; PRES_CONTEXT: next-stage retains current STAGE
++        cmpb    #2
++        bne     stage_panel_selected
++        lda     $24
++stage_panel_selected
++        sta     PRES_TMP_H
++        lda     #3
++        sta     $29
++        ldx     #$3458          ; PART number, column 22 row 4
++        lbsr    stage_panel_number
++        ldx     #$4D84          ; side HUD part number, column 33 row 9
++        lbsr    stage_panel_number
++        lda     PRES_TMP_H
++        bne     stage_panel_nonzero
++        inca
++stage_panel_nonzero
++        cmpa    #18
++        bls     stage_panel_index
++        lda     #18
++stage_panel_index
++        deca
++        sta     PRES_TMP_H
++        ldb     #20
++        mul
++        ldy     #stage_panel_records
++        leay    d,y
++        lda     #2
++        sta     $29
++        ldx     #$4D30          ; centred 16-cell vegetable name, row 9
++        ldb     #16
++        lbsr    stage_panel_text
++        lda     #5
++        sta     $29
++        ldx     #$434C          ; bonus digits, column 19 row 7
++        pshs    y
++        ldb     #4
++        lbsr    stage_panel_text
++        puls    y
++        ldx     #$618C          ; HUD bonus, column 35 row 13
++        ldb     #4
++        lbsr    stage_panel_text
++        lda     #1
++        sta     $29
++        ldx     #$8440
++        ldy     #stage_panel_good_luck
++        ldb     #9
++        lbsr    stage_panel_text
++        lda     PRES_TMP_H
++        ldb     #64
++        mul
++        ldy     #vegetable_sprites
++        leay    d,y
++        pshs    y
++        ldu     #sprite_attr0_pairs
++        ldx     #$3E40          ; cucumber/vegetable, column 16 row 6
++        jsr     blit_packed_sprite
++        puls    y
++        ldu     #sprite_attr0_pairs
++        ldx     #$5C80          ; same vegetable in the side HUD
++        jsr     blit_packed_sprite
++stage_panel_return
++        rts
++
++stage_panel_number
++        lda     PRES_TMP_H
++        bne     spn_nonzero
++        inca
++spn_nonzero
++        clrb
++spn_hundreds
++        cmpa    #100
++        blo     spn_hundreds_done
++        suba    #100
++        incb
++        bra     spn_hundreds
++spn_hundreds_done
++        sta     PRES_TMP_M
++        stb     PRES_NAME_REPEAT
++        tstb
++        beq     spn_tens_begin
++        tfr     b,a
++        lbsr    stage_panel_char
++spn_tens_begin
++        lda     PRES_TMP_M
++        clrb
++spn_tens
++        cmpa    #10
++        blo     spn_tens_done
++        suba    #10
++        incb
++        bra     spn_tens
++spn_tens_done
++        sta     PRES_TMP_M
++        tstb
++        bne     spn_write_tens
++        tst     PRES_NAME_REPEAT
++        beq     spn_units
++spn_write_tens
++        tfr     b,a
++        lbsr    stage_panel_char
++spn_units
++        lda     PRES_TMP_M
++        lbra    stage_panel_char
++
++stage_panel_text
++        lda     ,y+
++        lbsr    stage_panel_char
++        decb
++        bne     stage_panel_text
++        rts
++
++; A=0..36 glyph, X=destination, $29=colour. Preserve A/B/Y/U; advance X.
++stage_panel_char
++        pshs    a,b,x,y,u
++        ldb     #8
++        mul
++        ldy     #stage_panel_font
++        leay    d,y
++        lda     #8
++        sta     PRES_TMP_L
++spc_row
++        lda     ,y+
++        sta     PRES_NAME_TILE
++        ldu     #4
++spc_pair
++        clra
++        lsl     PRES_NAME_TILE
++        bcc     spc_low
++        lda     $29
++        lsla
++        lsla
++        lsla
++        lsla
++spc_low
++        lsl     PRES_NAME_TILE
++        bcc     spc_store
++        ora     $29
++spc_store
++        sta     ,x+
++        leau    -1,u
++        cmpu    #0
++        bne     spc_pair
++        leax    156,x
++        dec     PRES_TMP_L
++        bne     spc_row
++        puls    a,b,x,y,u
++        leax    4,x
++        rts
++
++stage_panel_good_luck
++        fcb     16,24,24,13,36,21,30,12,20
++        include "ladybug_stage_panel.inc"
++        endc
+ highscore_phase_helper_end
+ 
+         else
+diff --git a/src/instruction_runtime.s b/src/instruction_runtime.s
+index 4ec44fb..5c980ac 100644
+--- a/src/instruction_runtime.s
++++ b/src/instruction_runtime.s
+@@ -847,7 +847,8 @@ rc_next
+         lda     PRES_WORK
+         cmpa    #15
+         blo     rc_next
+-        rts
++recolour_x
++        ldy     #$7F34          ; authored X root: column 13, row 19
+ 
+ ; Recolour the complete 2x2 authored surface through its generated sparse
+ ; nibble-selector stream. The stream excludes transparent and pink pixels.
+@@ -941,6 +942,7 @@ aps_next
+         lda     PRES_WORK
+         cmpa    #15
+         blo     aps_event
++        lbsr    recolour_x
+         lda     PRES_PHASE
+         cmpa    #5
+         blo     aps_done
+diff --git a/src/presentation_runtime.s b/src/presentation_runtime.s
+index 024860d..70934e4 100644
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -2164,6 +2164,11 @@ load_next
+         lda     #1
+         rts
+ load_done
++        ifne    COMPLETE_PROFILE
++        lda     #$23
++        sta     PAR5
++        jsr     $B080           ; existing page-$23 helper: stage panel
++        endc
+         ldb     PRES_SCREEN
+         cmpb    #PRESENTATION_MAP_INSTRUCTIONS
+         bne     load_done_no_cucumber
+diff --git a/tiled/config.toml b/tiled/config.toml
+index c11ce5f..6cedb19 100644
+--- a/tiled/config.toml
++++ b/tiled/config.toml
+@@ -37,7 +37,7 @@ trust_level = "trusted"
+ [projects.'D:\retro\nitros9']
+ trust_level = "trusted"
+ 
+-[projects.'d:\retro\ladybug']
++[projects.'E:\projects\ladybug']
+ trust_level = "trusted"
+ 
+ [projects.'d:\opendata\llm-tools']
