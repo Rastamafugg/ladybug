@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>RSCH-009 evidence review</title></head>
+<body>
+<h1>RSCH-009 evidence review</h1>
+<p><strong>Verdict:</strong> partial evidence is usable to stop the runtime diagnosis at the identity gate. It does not prove the claimed runtime identity, boot-loop cause, or either BUG-036 cause. The ticket remains incomplete and blocked pending a revised plan and budget.</p>
+
+<h2>Review boundary</h2>
+<p>This review covers frozen commit <code>d8270e2</code>, the retained files under <code>repro/rsch009/runtime/</code>, the current build map/layout artifacts referenced by that evidence, and the authored runtime source. No emulator session, build, source, production, tooling, or shared-wiki changes were made. Only this report is owned by the reviewer.</p>
+
+<h2>Identity and address findings</h2>
+<p>The report states <code>name_joy_ready=0379</code> and then assumes a low-RAM destination of <code>$0B79</code> by adding <code>$0800</code>. The current map identifies <code>name_joy_ready</code> as offset <code>$0379</code> in <code>ladybug-highscore-runtime.bin</code>. The authored source places this runtime in an <code>org $0300</code> region. The build script and retained sparse layout identify the high-score runtime stage as <code>$A880</code> and its delivered destination as <code>$0300</code>. Therefore <code>$0B79</code> is not established by the map or loader layout; the <code>+$0800</code> transformation is rejected. The corresponding source-relative destination, if the installed bytes are proven equal, would be <code>$0679</code>, subject to the actual runtime copy and profile.</p>
+<p>The attempted read at <code>$0B79</code> occurred before helper publication and is correctly excluded as identity evidence. However, authored/build/staged/live equality was not proven at the actual destination either. No live-byte comparison at the breakpoint address, no destination copy comparison, and no loader mapping proof are retained. The identity gate therefore correctly fails, but the report must call the address an unsupported assumption rather than a derived destination.</p>
+
+<h2>Final-PC interpretation</h2>
+<p>The retained final bytes and PC are an observation only: <code>PC=$C0E4</code> and bytes beginning <code>tst &lt;$91; bne $c0e3; lda &lt;$03; cmpa #$00; beq $c0e3</code>. The report labels this a “boot credit/start wait loop.” That semantic claim is unproven. The runtime diagnosis invariant requires current authored, staged, and live bytes to match before interpreting a live PC; the report explicitly records that this was not done, and the backtrace is unsymbolized. A symbolic current-source label or mnemonic pattern cannot identify the live routine without that byte identity.
+</p>
+<p>Source review also does not support the stronger statement that the main loop generally waits on <code>FB_PENDING</code>. The resident main loop gates on <code>FB_RENDER_PENDING</code>; <code>FB_PENDING</code> is read by name-entry/timer code for framebuffer publication sequencing. Even if <code>$C0E3</code> later matches a current <code>mainloop</code> address, the observed branch must not be called a credit wait without a proven live artifact and a source-level control-flow match. The safe finding is: execution did not reach the proposed breakpoint within the timed observation, and the last captured instruction sequence is compatible with an unclassified early boot/control boundary.</p>
+
+<h2>Timing and accounting corrections</h2>
+<p>The report says “experiment count: 0 completed” while an identity experiment was attempted and timed out. Retain both fields explicitly: <code>attempted=1</code>, <code>completed=0</code>, <code>observation-tool timeouts=1</code>. Zero completed experiments does not mean zero experiments were attempted.</p>
+<p>The ticket defines the 60-second deadline for the whole phase, including setup and tool waits. The retained report establishes a 60-second GDB wait, then separately acknowledges setup/inspection time, but supplies no total phase elapsed time or clean phase boundary. Compliance with the whole-phase 60-second limit is therefore unproven. Record the measured end-to-end phase duration on any rerun; do not describe the timed GDB interval alone as the phase duration.</p>
+
+<h2>Build evidence</h2>
+<p>The retained build log demonstrates substantial generated-artifact and capacity output, but the operator report does not retain a clean build exit status. “The wrapper returned after its 30-second command wait” and “no build process remained” are not an exit code. Treat the build as artifact-observed and exit-status-unverified. This is sufficient to retain the partial artifacts for review, not sufficient to claim the required clean build command passed.</p>
+
+<h2>Acceptance disposition</h2>
+<p>Identity/first publication: failed, because the live destination and bytes were not proven. Sprite movement, idle/timer publication: unverified. Collision boundary/open corridor/perimeter: unverified. No causal finding is confirmed, no parent replay was performed, and the absence of later probes is appropriate after the failed identity gate. The operator’s stop classification is valid after correcting the unsupported address and final-PC semantics above.</p>
+<p>Required correction for a future approved run: derive the runtime address from the current map and documented destination <code>$0300</code>; compare authored binary, staged payload, loader destination, and live bytes before symbol interpretation; report attempted versus completed experiments; capture total phase wall time including setup; and retain the actual build exit status. Further runtime diagnosis remains blocked pending the parent’s revised plan and budget.</p>
+</body>
+</html>
