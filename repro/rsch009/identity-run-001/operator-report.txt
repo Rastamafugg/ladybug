@@ -1,0 +1,14 @@
+RSCH-009 identity-run-001 operator report
+
+Invocation: wsl python3 /mnt/e/projects/ladybug/repro/rsch009/preflight-package/supervisor.py --approval /mnt/e/projects/ladybug/repro/rsch009/preflight-package/approval.json --output /mnt/e/projects/ladybug/repro/rsch009/identity-run-001
+Invocation count: 1 (single approved attempt)
+Launcher exit status: 1
+Launcher stdout/stderr: no textual stdout/stderr was emitted; terminal returned control-sequence setup output only.
+
+Result: FAIL. The supervisor created status.json, gdb.log, and xroar.log. GDB failed before capture at probe.gdb line 72: "Scripting in the \"Python\" language is not supported in this copy of GDB." capture_passed=false and gdb_capture_finished=false. No stopped PC, runtime bytes, or raw-byte/hash comparison was produced. Expected identity C0E3-C0F8 (22 bytes) is therefore unverified; sprite/collision are unverified.
+
+Counts: attempted=1, successful=0.
+Elapsed: 0.9861750959971687 seconds per status.json; launcher wall time 2.78 seconds.
+Owned processes and cleanup: xroar PID/PGID 14116 terminated exit -15, group_alive=false; m6809-gdb PID/PGID 14119 terminated exit 1, group_alive=false. gdb_exit=1.
+
+Evidence files: status.json, gdb.log, xroar.log. No retry, alternate invocation, probe, debugger, emulator command, or production change was made.
