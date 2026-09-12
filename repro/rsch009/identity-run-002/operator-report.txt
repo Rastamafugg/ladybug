@@ -1,0 +1,24 @@
+RSCH-009 native identity attempt operator report
+
+Invocation: wsl python3 /mnt/e/projects/ladybug/repro/rsch009/preflight-package/supervisor.py --approval /mnt/e/projects/ladybug/repro/rsch009/preflight-package/approval.json --output /mnt/e/projects/ladybug/repro/rsch009/identity-run-002
+Dispatch accounting: 2026-09-12 22:30:27 UTC
+Launcher exit: 0
+Launcher stdout: empty
+Launcher stderr: empty
+Invocation count: 1
+
+Result: PASS for the approved boot-code identity-only attempt.
+Stopped PC: decimal 49379, hexadecimal $C0E3.
+Breakpoint removal: passed; post-removal PC remained $C0E3.
+Captured bytes: 22, range $C0E3-$C0F8 inclusive.
+Raw bytes: 13 0D 91 26 FB 96 03 91 00 27 F5 97 00 BD 19 00 26 EE 86 01 97 98
+Expected bytes: 13 0D 91 26 FB 96 03 91 00 27 F5 97 00 BD 19 00 26 EE 86 01 97 98
+SHA-256: fb5931bc1ff3e3dd74a94f0b36812d83b273e4ddbb6358f069852508618d839c
+Mismatch: none
+
+Stage durations (seconds): setup 0.272; attach 0.502; breakpoint 0.255; continue 1.372; stop_pc 0.207; remove_breakpoint 0.137; removed_pc 0.152; capture 0.239; capture_pc 0.099.
+Supervisor elapsed: 4.691734 seconds.
+Process IDs: XRoar 14435/PGID 14435; GDB 14438/PGID 14438.
+Cleanup: XRoar exit -15, group_alive false; GDB exit 0, group_alive false.
+
+Scope result: identity target passed. Sprite movement and collision behavior remain unverified. No retry, build, source/package change, alternate probe, or tool change performed.
