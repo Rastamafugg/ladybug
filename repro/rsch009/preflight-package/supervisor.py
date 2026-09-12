@@ -5,6 +5,9 @@ import json
 import math
 import os
 from pathlib import Path
+import re
+import secrets
+import select
 import signal
 import socket
 import subprocess
@@ -82,6 +85,96 @@ def validate_events(rows, started, now):
         if now - pending['monotonic'] >= cap:
             raise TimeoutError('Command timeout: ' + pending['stage'])
 
+def journal(out, event, **fields):
+    with (out / 'events.jsonl').open('a') as f:
+        f.write(json.dumps(dict(event=event, monotonic=time.monotonic(), **fields)) + '\n')
+        f.flush()
+        os.fsync(f.fileno())
+    fd = os.open(out, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+def native_stages(dump):
+    if not re.fullmatch(r'/[A-Za-z0-9_./-]+', str(dump)):
+        raise ValueError('Output path must use ASCII letters, digits, _, ., / or -')
+    stages = []
+    for line in (HERE / 'probe.gdb').read_text().splitlines():
+        if line.startswith('# stage: '):
+            stages.append((line[9:], []))
+        elif line.strip() and not line.startswith('#'):
+            if not stages:
+                raise ValueError('Command before stage')
+            stages[-1][1].append(line.replace('@DUMP@', str(dump)))
+    if [name for name, _ in stages] != ['setup', 'attach', 'breakpoint', 'continue',
+            'stop_pc', 'remove_breakpoint', 'removed_pc', 'capture', 'capture_pc']:
+        raise ValueError('Unexpected native command stages')
+    if any(not lines for _, lines in stages):
+        raise ValueError('Empty command stage')
+    return stages
+
+def native_command(process, log, out, stage, lines, check_observation):
+    # Errors abort a GDB user-defined command before its END marker. An ordinary
+    # prompt or a separately queued echo is never accepted as command success.
+    nonce = secrets.token_hex(16)
+    begin, end = 'RSCH009_BEGIN_' + nonce, 'RSCH009_END_' + nonce
+    body = ['define rsch009_' + nonce, 'printf "\\n' + begin + '\\n"',
+            *lines, 'printf "\\n' + end + '\\n"', 'end', 'rsch009_' + nonce]
+    wire = ('\n'.join(body) + '\n').encode('ascii')
+    began = time.monotonic()
+    limit = 15 if stage == 'continue' else 10
+    journal(out, 'command_start', stage=stage, command='\n'.join(lines),
+            wire=wire.decode('ascii'), deadline=began + limit)
+    pending, received = memoryview(wire), bytearray()
+    start_marker, end_marker = ('\n' + begin + '\n').encode(), ('\n' + end + '\n').encode()
+    while True:
+        check_observation()
+        if time.monotonic() - began >= limit:
+            raise TimeoutError('Native command timeout: ' + stage)
+        if process.poll() is not None:
+            raise RuntimeError('GDB exited during ' + stage)
+        readable, writable, _ = select.select([process.stdout],
+                [process.stdin] if pending else [], [], 0.05)
+        if writable:
+            try:
+                pending = pending[os.write(process.stdin.fileno(), pending):]
+            except BlockingIOError:
+                pass
+        if readable:
+            try:
+                chunk = os.read(process.stdout.fileno(), 65536)
+            except BlockingIOError:
+                continue
+            if not chunk:
+                raise RuntimeError('GDB output closed during ' + stage)
+            log.write(chunk)
+            os.fsync(log.fileno())
+            received.extend(chunk)
+        check_observation()
+        if time.monotonic() - began >= limit:
+            raise TimeoutError('Late native command completion: ' + stage)
+        if len(received) > 1024 * 1024:
+            raise RuntimeError('Unexpectedly large GDB response')
+        if end_marker in received:
+            if pending or received.count(start_marker) != 1 or received.count(end_marker) != 1:
+                raise RuntimeError('Ambiguous GDB completion markers')
+            left, right = received.index(start_marker) + len(start_marker), received.index(end_marker)
+            if right < left:
+                raise RuntimeError('Reversed GDB completion markers')
+            response = received[left:right].decode('utf-8', errors='strict')
+            journal(out, 'command_end', stage=stage, output=response)
+            check_observation()
+            if time.monotonic() - began >= limit:
+                raise TimeoutError('Native command persistence deadline: ' + stage)
+            return response
+
+def captured_pc(response):
+    values = re.findall(r'^RSCH009_PC=([0-9]+)$', response, re.MULTILINE)
+    if len(values) != 1 or response.strip() != 'RSCH009_PC=' + values[0]:
+        raise ValueError('Missing or ambiguous PC response')
+    return int(values[0])
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--approval', type=Path, required=True)
@@ -130,11 +223,12 @@ def main():
         if not exe.is_file() or not os.access(exe, os.X_OK):
             raise SystemExit('Required executable unavailable: ' + str(exe))
     out = args.output.resolve()
+    stages = native_stages(out / 'mainloop.bin')
     out.mkdir(parents=True, exist_ok=False)
     commands = [[str(xroar), '-ui', 'null', '-ao', 'null', '-machine', 'coco3',
                  '-ram', '512', '-cart-type', 'gmc', '-cart-rom', str(ROOT / 'build/ladybug.rom'),
                  '-cart-autorun', '-gdb', '-gdb-ip', '127.0.0.1', '-gdb-port', '65520'],
-                [str(gdb), '--nx', '--quiet', '--batch', '-x', str(HERE / 'probe.gdb')]]
+                [str(gdb), '--nx', '--quiet']]
     state = dict(status='started', attempted=0, successful=0, commands=commands,
                  package=package, approval=approval, inputs=manifest,
                  tools={str(p): sha(p) for p in (gdb, xroar)}, processes=[])
@@ -161,8 +255,10 @@ def main():
             check_observation()
             handle = (out / ('xroar.log' if ix == 0 else 'gdb.log')).open('xb', buffering=0)
             handles.append(handle)
-            env = dict(os.environ, RSCH009_OUTPUT=str(out), RSCH009_MANIFEST=str(mf))
-            process = subprocess.Popen(cmd, stdout=handle, stderr=subprocess.STDOUT,
+            env = dict(os.environ, LC_ALL='C', LANG='C')
+            process = subprocess.Popen(cmd, stdout=handle if ix == 0 else subprocess.PIPE,
+                                       stdin=subprocess.DEVNULL if ix == 0 else subprocess.PIPE,
+                                       stderr=subprocess.STDOUT, bufsize=0,
                                        start_new_session=True, env=env)
             children.append(process)
             state['attempted'] = 1
@@ -186,13 +282,41 @@ def main():
                     time.sleep(0.05)
                 else:
                     raise TimeoutError('Owned listener not confirmed within four seconds')
-        while children[-1].poll() is None:
-            rows = events(out / 'events.jsonl')
-            check_observation()
-            validate_events(rows, started, time.monotonic())
-            if any(r['event'] == 'gdb_capture_finished' for r in rows):
-                break
-            time.sleep(0.05)
+        debugger = children[-1]
+        os.set_blocking(debugger.stdin.fileno(), False)
+        os.set_blocking(debugger.stdout.fileno(), False)
+        pc = pc_after = None
+        for stage, lines in stages:
+            response = native_command(debugger, handles[-1], out, stage, lines, check_observation)
+            if stage in ('stop_pc', 'removed_pc', 'capture_pc'):
+                value = captured_pc(response)
+                if value != 0xc0e3:
+                    raise ValueError('Unexpected PC in ' + stage)
+                if stage == 'stop_pc':
+                    pc = value
+                    journal(out, 'stop', pc=pc)
+                elif stage == 'removed_pc':
+                    journal(out, 'breakpoint_removed', pc=value)
+                else:
+                    pc_after = value
+            elif stage == 'remove_breakpoint':
+                if response.strip() != 'No breakpoints or watchpoints.':
+                    raise ValueError('Breakpoint removal response unconfirmed')
+            elif stage == 'capture':
+                with (out / 'mainloop.bin').open('rb') as f:
+                    raw = f.read(23)
+                    os.fsync(f.fileno())
+                if len(raw) != 22:
+                    raise ValueError('Expected exactly 22 captured bytes')
+                journal(out, 'raw_dump_retained', bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest())
+        expected = bytes.fromhex(c['expected_hex'])
+        differences = [dict(offset=i, address=0xc0e3+i, expected=a, actual=b)
+                       for i, (a, b) in enumerate(zip(expected, raw)) if a != b]
+        journal(out, 'comparison', passed=raw == expected and pc_after == pc,
+                sha256=hashlib.sha256(raw).hexdigest(), pc_after=pc_after,
+                differences=differences, bytes=len(raw))
+        # Keep stdin open and the target stopped until owned-group cleanup.
+        journal(out, 'gdb_capture_finished')
         rows = events(out / 'events.jsonl')
         check_observation()
         validate_events(rows, started, time.monotonic())
@@ -203,6 +327,10 @@ def main():
             state['error'] = 'GDB command/capture failure; see events.jsonl'
     except BaseException as exc:
         state['error'] = str(exc)
+        try:
+            journal(out, 'failure', error=str(exc))
+        except OSError as journal_error:
+            state['journal_error'] = str(journal_error)
     finally:
         signal.signal(signal.SIGTERM, signal.SIG_IGN)
         signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -223,6 +351,20 @@ def main():
                 pass
         state['cleanup'] = [dict(pid=p.pid, exit=p.poll(), group_alive=alive(p.pid)) for p in children]
         state['gdb_exit'] = children[-1].poll() if len(children) == 2 else None
+        for p in children:
+            if p.stdout is not None:
+                os.set_blocking(p.stdout.fileno(), False)
+                for _ in range(16):
+                    try:
+                        chunk = os.read(p.stdout.fileno(), 65536)
+                    except BlockingIOError:
+                        break
+                    if not chunk:
+                        break
+                    handles[-1].write(chunk)
+                p.stdout.close()
+            if p.stdin is not None:
+                p.stdin.close()
         for f in handles:
             os.fsync(f.fileno())
             f.close()

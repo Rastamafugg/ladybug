@@ -2,37 +2,174 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "RSCH-009 supervisor status",
   "type": "object",
-  "required": ["status", "attempted", "successful", "commands", "package", "approval", "inputs", "tools", "processes"],
+  "required": [
+    "status",
+    "attempted",
+    "successful",
+    "commands",
+    "package",
+    "approval",
+    "inputs",
+    "tools",
+    "processes"
+  ],
   "properties": {
-    "status": {"enum": ["started", "pass", "fail"]},
-    "attempted": {"type": "integer", "minimum": 0, "maximum": 1},
-    "successful": {"type": "integer", "minimum": 0, "maximum": 1},
-    "commands": {"type": "array"},
-    "package": {"type": "object"},
-    "approval": {"type": "object"},
-    "inputs": {"type": "object"},
-    "tools": {"type": "object"},
-    "processes": {"type": "array"},
-    "monotonic_start": {"type": "number"},
-    "hard_deadline": {"type": "number"},
-    "elapsed_seconds": {"type": "number", "minimum": 0},
-    "capture_passed": {"type": "boolean"},
-    "gdb_capture_finished": {"type": "boolean"},
-    "gdb_exit": {"type": ["integer", "null"]},
-    "cleanup": {"type": "array", "items": {
-      "type": "object", "required": ["pid", "exit", "group_alive"],
-      "properties": {"pid": {"type": "integer"}, "exit": {"type": ["integer", "null"]}, "group_alive": {"type": "boolean"}}
-    }},
-    "error": {"type": "string"}
+    "status": {
+      "enum": [
+        "started",
+        "pass",
+        "fail"
+      ]
+    },
+    "attempted": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "successful": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "commands": {
+      "type": "array"
+    },
+    "package": {
+      "type": "object"
+    },
+    "approval": {
+      "type": "object"
+    },
+    "inputs": {
+      "type": "object"
+    },
+    "tools": {
+      "type": "object"
+    },
+    "processes": {
+      "type": "array"
+    },
+    "monotonic_start": {
+      "type": "number"
+    },
+    "hard_deadline": {
+      "type": "number"
+    },
+    "elapsed_seconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "capture_passed": {
+      "type": "boolean"
+    },
+    "gdb_capture_finished": {
+      "type": "boolean"
+    },
+    "gdb_exit": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "cleanup": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "pid",
+          "exit",
+          "group_alive"
+        ],
+        "properties": {
+          "pid": {
+            "type": "integer"
+          },
+          "exit": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "group_alive": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "error": {
+      "type": "string"
+    }
   },
   "allOf": [
-    {"if": {"properties": {"status": {"enum": ["pass", "fail"]}}},
-     "then": {"required": ["monotonic_start", "hard_deadline", "elapsed_seconds", "cleanup"]}},
-    {"if": {"properties": {"status": {"const": "pass"}}},
-     "then": {"required": ["capture_passed", "gdb_exit", "gdb_capture_finished"], "properties": {
-       "attempted": {"const": 1}, "successful": {"const": 1}, "capture_passed": {"const": true},
-       "gdb_exit": {"type": "integer"}, "gdb_capture_finished": {"const": true}, "elapsed_seconds": {"maximum": 60},
-       "cleanup": {"minItems": 2, "items": {"properties": {"group_alive": {"const": false}, "exit": {"type": "integer"}}}}
-     }}}
-  ]
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "pass",
+              "fail"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "monotonic_start",
+          "hard_deadline",
+          "elapsed_seconds",
+          "cleanup"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "pass"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "capture_passed",
+          "gdb_exit",
+          "gdb_capture_finished"
+        ],
+        "properties": {
+          "attempted": {
+            "const": 1
+          },
+          "successful": {
+            "const": 1
+          },
+          "capture_passed": {
+            "const": true
+          },
+          "gdb_exit": {
+            "type": "integer"
+          },
+          "gdb_capture_finished": {
+            "const": true
+          },
+          "elapsed_seconds": {
+            "maximum": 60
+          },
+          "cleanup": {
+            "minItems": 2,
+            "items": {
+              "properties": {
+                "group_alive": {
+                  "const": false
+                },
+                "exit": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "description": "Native adapter: supervisor journals GDB command responses. gdb_capture_finished means all required framed native stages and comparison completed, not that GDB exited."
 }

@@ -1,52 +1,38 @@
 {
   "status": "pass-static-only",
   "python_ast": true,
-  "gdb_python_ast": true,
+  "native_template_structure": true,
+  "native_stage_order": [
+    "setup",
+    "attach",
+    "breakpoint",
+    "continue",
+    "stop_pc",
+    "remove_breakpoint",
+    "removed_pc",
+    "capture",
+    "capture_pc"
+  ],
+  "embedded_gdb_python_required": false,
   "json_parse": true,
   "address_and_expected_bytes": true,
   "pinned_inputs": 25,
   "approval_disabled": true,
-  "supervisor_nonblank_lines": 229,
+  "supervisor_nonblank_lines": 367,
   "signal_handler_no_raise_ast": true,
   "manual_review": [
-    "Deferred signal checks follow child registration and precede acceptance",
-    "Completed and pending command durations checked before completion acceptance",
-    "Approval boolean identity, numeric bounds and same-unit reserve validation",
-    "Every direct GDB/breakpoint operation in probe body is within paired stages; failures leave stages incomplete and fail closed. New stages use existing ten-second validator cap."
+    "Native command body encloses operation and completion marker; ordinary prompts never mean success",
+    "Nonblocking pipe loop persists received bytes before parsing; timeout and observation checks precede completion acceptance",
+    "PC and empty-breakpoint responses require exact unambiguous content",
+    "Exact 22-byte dump retained and compared externally; GDB stdin stays open until cleanup",
+    "Registered process-group cleanup and strict approval gate retained"
   ],
   "runtime_executed": false,
   "package_imported": false,
   "emulator_launched": false,
   "supervisor_functions_executed": false,
   "simulated_probe_executed": false,
-  "gdb_direct_api_timing_coverage_ast": [
-    {
-      "call": "gdb.Breakpoint('*0xc0e3')",
-      "stage": "breakpoint"
-    },
-    {
-      "call": "gdb.parse_and_eval('$pc')",
-      "stage": "stop_pc"
-    },
-    {
-      "call": "bp.delete()",
-      "stage": "remove_breakpoint"
-    },
-    {
-      "call": "bp.is_valid()",
-      "stage": "remove_breakpoint"
-    },
-    {
-      "call": "gdb.parse_and_eval('$pc')",
-      "stage": "removed_pc"
-    },
-    {
-      "call": "gdb.selected_inferior()",
-      "stage": "capture"
-    },
-    {
-      "call": "gdb.parse_and_eval('$pc')",
-      "stage": "capture_pc"
-    }
+  "limitations": [
+    "Native GDB syntax, marker framing and operational cleanup have not been exercised on installed tools"
   ]
 }
