@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -53,6 +54,34 @@ def terminate(pgid, sig):
     except ProcessLookupError:
         pass
 
+def validate_events(rows, started, now):
+    pending = None
+    previous = started
+    for row in rows:
+        stamp = row['monotonic']
+        if type(stamp) not in (int, float) or not math.isfinite(stamp):
+            raise ValueError('Invalid event timestamp')
+        if not previous <= stamp <= now or stamp >= started + 50:
+            raise TimeoutError('Event outside ordered observation window')
+        previous = stamp
+        if row['event'] == 'command_start':
+            if pending is not None:
+                raise ValueError('Overlapping commands')
+            pending = row
+        elif row['event'] == 'command_end':
+            if pending is None or row['stage'] != pending['stage']:
+                raise ValueError('Unpaired command end')
+            cap = 15 if pending['stage'] == 'continue' else 10
+            if stamp - pending['monotonic'] >= cap:
+                raise TimeoutError('Completed command timeout: ' + pending['stage'])
+            pending = None
+        elif row['event'] == 'gdb_capture_finished' and pending is not None:
+            raise ValueError('Capture finished with incomplete command')
+    if pending is not None:
+        cap = 15 if pending['stage'] == 'continue' else 10
+        if now - pending['monotonic'] >= cap:
+            raise TimeoutError('Command timeout: ' + pending['stage'])
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--approval', type=Path, required=True)
@@ -63,17 +92,25 @@ def main():
     approval = json.loads(args.approval.read_text())
     mf = HERE / 'inputs.json'
     manifest = json.loads(mf.read_text())
-    required = ('approved_by', 'approved_at', 'scope', 'budget', 'reviewed_package_sha256')
-    if not approval.get('execution_approved') or not all(approval.get(k) for k in required):
+    if not isinstance(approval, dict) or approval.get('execution_approved') is not True:
+        raise SystemExit('Explicit boolean execution approval required')
+    if not all(isinstance(approval.get(k), str) and approval[k].strip()
+               for k in ('approved_by', 'approved_at', 'scope')):
         raise SystemExit('Explicit scope, budget and reviewed package approval missing')
     if approval['scope'] != 'boot-code-identity-only':
         raise SystemExit('Wrong approved scope')
-    budget = approval['budget']
-    if not isinstance(budget, dict) or not all(budget.get(k) for k in
-            ('ceiling', 'unit', 'accounting_method', 'closure_reserve', 'approved_text')):
+    budget = approval.get('budget')
+    if not isinstance(budget, dict) or not all(
+            isinstance(budget.get(k), str) and budget[k].strip()
+            for k in ('unit', 'accounting_method', 'approved_text')):
         raise SystemExit('Explicit spending bound, accounting method and closure reserve required')
+    if not all(type(budget.get(k)) in (int, float) and math.isfinite(budget[k])
+               for k in ('ceiling', 'closure_reserve')):
+        raise SystemExit('Budget bounds must be finite numbers, excluding booleans')
+    if not 0 < budget['closure_reserve'] < budget['ceiling']:
+        raise SystemExit('Require 0 < closure_reserve < ceiling, both in budget.unit')
     package = {n: sha(HERE / n) for n in ('inputs.json', 'probe.gdb', 'supervisor.py')}
-    if approval['reviewed_package_sha256'] != package:
+    if approval.get('reviewed_package_sha256') != package:
         raise SystemExit('Package changed since review')
     for entry in manifest['inputs']:
         if sha(ROOT / entry['path']) != entry['sha256']:
@@ -107,14 +144,21 @@ def main():
     state['monotonic_start'] = started
     state['hard_deadline'] = started + 60
     persist(out / 'status.json', state)
+    interruption = None
     def interrupted(signum, frame):
-        raise InterruptedError('Supervisor signal ' + str(signum))
+        # Never raise between OS child creation and ownership registration.
+        nonlocal interruption
+        interruption = signum
+    def check_observation():
+        if interruption is not None:
+            raise InterruptedError('Supervisor signal ' + str(interruption))
+        if time.monotonic() >= started + 50:
+            raise TimeoutError('Observation deadline; ten seconds reserved for cleanup')
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGINT, interrupted)
     try:
         for ix, cmd in enumerate(commands):
-            if time.monotonic() >= started + 50:
-                raise TimeoutError('Observation allowance exhausted')
+            check_observation()
             handle = (out / ('xroar.log' if ix == 0 else 'gdb.log')).open('xb', buffering=0)
             handles.append(handle)
             env = dict(os.environ, RSCH009_OUTPUT=str(out), RSCH009_MANIFEST=str(mf))
@@ -124,34 +168,34 @@ def main():
             state['attempted'] = 1
             state['processes'].append(dict(pid=process.pid, pgid=process.pid, command=cmd))
             persist(out / 'status.json', state)
+            check_observation()
             if ix == 0:
                 # Check listening PID through ss, not a connection to the GDB stub.
                 ready_until = min(started + 4, started + 50)
                 while time.monotonic() < ready_until:
+                    check_observation()
                     if process.poll() is not None:
                         raise RuntimeError('XRoar exited before attach')
                     listing = subprocess.run(['ss', '-H', '-ltnp', 'sport', '=', ':65520'],
                                              capture_output=True, text=True, timeout=0.5)
+                    check_observation()
+                    if time.monotonic() >= ready_until:
+                        raise TimeoutError('Listener readiness deadline')
                     if f'pid={process.pid},' in listing.stdout:
                         break
                     time.sleep(0.05)
                 else:
                     raise TimeoutError('Owned listener not confirmed within four seconds')
         while children[-1].poll() is None:
-            now = time.monotonic()
             rows = events(out / 'events.jsonl')
+            check_observation()
+            validate_events(rows, started, time.monotonic())
             if any(r['event'] == 'gdb_capture_finished' for r in rows):
                 break
-            pending = next((r for r in reversed(rows) if r['event'] == 'command_start'), None)
-            last_end = max((r['monotonic'] for r in rows if r['event'] == 'command_end'), default=0)
-            if now >= started + 50:
-                raise TimeoutError('Whole observation deadline; ten seconds reserved for cleanup')
-            if pending and pending['monotonic'] > last_end:
-                cap = 15 if pending['stage'] == 'continue' else 10
-                if now - pending['monotonic'] >= cap:
-                    raise TimeoutError('Command timeout: ' + pending['stage'])
             time.sleep(0.05)
         rows = events(out / 'events.jsonl')
+        check_observation()
+        validate_events(rows, started, time.monotonic())
         comparison = next((r for r in rows if r['event'] == 'comparison'), None)
         state['capture_passed'] = bool(comparison and comparison['passed'])
         state['gdb_capture_finished'] = any(r['event'] == 'gdb_capture_finished' for r in rows)
@@ -162,6 +206,8 @@ def main():
     finally:
         signal.signal(signal.SIGTERM, signal.SIG_IGN)
         signal.signal(signal.SIGINT, signal.SIG_IGN)
+        if interruption is not None:
+            state['error'] = 'Supervisor signal ' + str(interruption)
         for p in children:
             if alive(p.pid):
                 terminate(p.pid, signal.SIGTERM)

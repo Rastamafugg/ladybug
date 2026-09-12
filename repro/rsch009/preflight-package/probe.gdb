@@ -28,15 +28,22 @@ try:
     bp = gdb.Breakpoint('*0xc0e3')
     record('command_end', stage='breakpoint', number=bp.number)
     command('continue', 'continue')
+    record('command_start', stage='stop_pc', command="parse_and_eval('$pc')")
     pc = int(gdb.parse_and_eval('$pc'))
+    record('command_end', stage='stop_pc', pc=pc)
     record('stop', pc=pc)
     if pc != 0xc0e3:
         raise RuntimeError('Unexpected stop; no code-identity inference permitted')
+    record('command_start', stage='remove_breakpoint', command='bp.delete(); bp.is_valid()')
     bp.delete()
     if bp.is_valid():
         raise RuntimeError('Breakpoint removal not confirmed')
-    record('breakpoint_removed', pc=int(gdb.parse_and_eval('$pc')))
-    if int(gdb.parse_and_eval('$pc')) != pc:
+    record('command_end', stage='remove_breakpoint', valid=False)
+    record('command_start', stage='removed_pc', command="parse_and_eval('$pc')")
+    pc_removed = int(gdb.parse_and_eval('$pc'))
+    record('command_end', stage='removed_pc', pc=pc_removed)
+    record('breakpoint_removed', pc=pc_removed)
+    if pc_removed != pc:
         raise RuntimeError('PC changed during breakpoint removal')
     # Read only code, never the forced-RAM or I/O tail of the ROM window.
     record('command_start', stage='capture', command='read_memory(0xc0e3,22)')
@@ -49,7 +56,9 @@ try:
     expected = bytes.fromhex(manifest['comparison']['expected_hex'])
     differences = [dict(offset=i, address=0xc0e3+i, expected=a, actual=b)
                    for i, (a, b) in enumerate(zip(expected, raw)) if a != b]
+    record('command_start', stage='capture_pc', command="parse_and_eval('$pc')")
     pc_after = int(gdb.parse_and_eval('$pc'))
+    record('command_end', stage='capture_pc', pc=pc_after)
     record('comparison', passed=(raw == expected and pc_after == pc),
            sha256=hashlib.sha256(raw).hexdigest(), pc_after=pc_after,
            differences=differences, bytes=len(raw))

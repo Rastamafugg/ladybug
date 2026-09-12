@@ -1,9 +1,19 @@
 {
-  "execution_approved": false,
-  "approved_by": null,
-  "approved_at": null,
+  "execution_approved": true,
+  "approved_by": "User, explicit approval in this task",
+  "approved_at": "2026-09-12T21:17:37.240325+00:00",
   "scope": "boot-code-identity-only",
-  "budget": null,
-  "reviewed_package_sha256": null,
-  "note": "Artifact preparation only is authorized. Do not populate approval without explicit user authorization and package review."
+  "budget": {
+    "ceiling": 10,
+    "unit": "elapsed minutes",
+    "closure_reserve": 3,
+    "accounting_method": "UTC elapsed wall time from Luna operator dispatch. Stop diagnostic work by minute 7; reserve final 3 minutes for cleanup, evidence review and reporting. No guaranteed token-percentage ceiling; user explicitly accepted unavailable reliable task-specific token accounting.",
+    "approved_text": "Approve this single attempt and the 10-minute allowance, including the 3-minute closure reserve. Accept elapsed-time accounting and the absence of a guaranteed token-percentage ceiling."
+  },
+  "reviewed_package_sha256": {
+    "inputs.json": "3399a78aa424cf62aa2ec00d91f9786d5b8bef4a26ce088bc06cca9eb90f7c3f",
+    "probe.gdb": "b9e626f906c15c20c561727813403dbb917b9343c23628a63b39dcc234940fdc",
+    "supervisor.py": "298c32feebfb76824e667fb82dc626a20f6ea1696ea188b2514d2f429801abd3"
+  },
+  "note": "One approved invocation only, output identity-run-001. Any failure ends this attempt; no retry. Parent revokes this execution flag after attempt closure."
 }
