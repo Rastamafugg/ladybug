@@ -1,9 +1,19 @@
 {
-  "execution_approved": false,
-  "approved_by": null,
-  "approved_at": null,
+  "execution_approved": true,
+  "approved_by": "User, explicit approval in this task",
+  "approved_at": "2026-09-12T22:30:21.354808+00:00",
   "scope": "boot-code-identity-only",
-  "budget": null,
-  "reviewed_package_sha256": null,
-  "note": "Native CLI adaptation preparation only. Prior runtime approval was consumed by identity-run-001; new execution approval is required. No package execution authorized."
+  "budget": {
+    "ceiling": 10,
+    "unit": "elapsed minutes",
+    "closure_reserve": 3,
+    "accounting_method": "UTC elapsed wall time from Luna dispatch; diagnostic cutoff minute 7; closure cutoff minute 10. User accepts absence of guaranteed token-percentage ceiling.",
+    "approved_text": "Approve one native GDB attempt under these terms, with the 10-minute allowance and 3-minute closure reserve. Accept elapsed-time accounting without a guaranteed token-percentage ceiling."
+  },
+  "reviewed_package_sha256": {
+    "inputs.json": "3399a78aa424cf62aa2ec00d91f9786d5b8bef4a26ce088bc06cca9eb90f7c3f",
+    "probe.gdb": "312def2e03180c190faddd173f07a4b97f03a63d8c470249abbb5846ae81e262",
+    "supervisor.py": "2ddc727222a03b6bb317b3b6ce75178cf42cfc8d62d795372d08336168e8e5ef"
+  },
+  "note": "One native CLI invocation for identity-run-002 only. No retry. Parent closes authorization after the attempt."
 }
