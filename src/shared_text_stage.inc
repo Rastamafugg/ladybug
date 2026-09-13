@@ -153,11 +153,11 @@ highscore_timer_draw
         leax    d,x
         ldd     ,x
         tfr     d,y
-        ldb     3,x
         ldd     #highscore_after_tile
         std     PRES_NAME_PTR
         ldd     #PRES_MAIN_PAGE23_RESUME
         pshs    d
+        ldb     3,x
         jmp     PRES_MODULE_DRAW_TILE
 
 ; Raw lwasm output concatenates discontinuous ORG regions instead of emitting
@@ -925,11 +925,22 @@ name_joy_ready
         lda     JOY_DIR
         cmpa    #DIR_NONE
         beq     name_idle
+        sta     PLAYER_WANT
         lda     FRAMES+1
         lsra
         bcs     name_idle
         tst     PRES_NAME_STEPS
-        bne     name_move_active
+        beq     name_move_start
+        lda     PLAYER_WANT
+        cmpa    PLAYER_DIR
+        beq     name_move_active
+        bsr     name_can_move
+        beq     name_move_active
+        lda     PRES_NAME_TILE
+        sta     PLAYER_DIR
+        sta     PLAYER_FACE
+        bra     name_move_active
+name_move_start
         lda     PLAYER_WANT
         cmpa    #DIR_NONE
         beq     name_idle
