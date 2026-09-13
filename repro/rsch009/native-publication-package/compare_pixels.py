@@ -195,3 +195,28 @@ def compare_publications(expected, frames, saves, budget):
     return {'passed': all(row['passed'] for row in comparisons), 'objects': comparisons,
             'classification': 'exact-stationary-pair' if all(row['passed'] for row in comparisons) else 'unexplained-residual',
             'classification_limit': 'No duplicate or alternate-location fit implemented; no such claim is made.'}
+
+def fit_locations(background, actual, player_stream, budget, origins=range(FRAME_BYTES)):
+    """Bounded complete overlay fits. Four origin scans, 245760 origins, 256 pixels each."""
+    require(len(background) == FRAME_BYTES and len(actual) == FRAME_BYTES, 'fit frame length')
+    matches=[]; scanned=0; candidates=0
+    for scan in range(4):
+        for origin in origins:
+            budget.tick(); scanned += 1
+            if scanned > 245760: raise TimeoutError('location scan limit')
+            try: ops=list(sprite_operations(player_stream, origin, budget))
+            except ValueError: continue
+            if len(ops)>256: continue
+            candidate=bytearray(background)
+            for offset,mask,value in ops: candidate[offset]=(candidate[offset]&mask)|value
+            candidates += 1
+            if candidate == actual: matches.append({'origin':origin,'scan':scan,'pixels':len(ops)})
+    unique=sorted({x['origin'] for x in matches})
+    return {'matches':matches,'origins':unique,'scanned_origins':scanned,'candidate_overlays':candidates,
+            'classification':'unique-location-fit' if len(unique)==1 else ('ambiguous-location-fit' if len(unique)>1 else 'unexplained-residual')}
+
+def classify_pair(expected, actual, player_stream, budget):
+    base=compare_bytes(expected['frame'],actual,budget)
+    if base['passed']: return {'comparison':base,'classification':'exact-stationary-pair'}
+    fit=fit_locations(expected['background'],actual,player_stream,budget)
+    return {'comparison':base,'fit':fit,'classification':fit['classification']}
