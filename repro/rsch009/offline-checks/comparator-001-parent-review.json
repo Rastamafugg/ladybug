@@ -1,0 +1,84 @@
+{
+  "status": "failed-acceptance",
+  "scope": "comparator-only",
+  "attempts": 1,
+  "dispatch_utc": "2026-09-13T22:01:00Z",
+  "launch_utc": "2026-09-13T22:01:38.3675389Z",
+  "wrapper_return_utc": "2026-09-13T22:01:38.6801416Z",
+  "process_id": 23920,
+  "exit_code": null,
+  "exact_process_duration_seconds": null,
+  "outer_limit_seconds": 120,
+  "runner_work_seconds": 90,
+  "controller_error": "Cannot overwrite variable PID because it is read-only or constant.",
+  "controller_defect": "After Start-Process -PassThru, operator assigned $pid=$p.Id. PowerShell variables are case-insensitive, so this collided with read-only $PID and invalidated the intended Wait-Process -Id $pid -Timeout 120 control. No reliable exit code was retained.",
+  "independent_process_absence_utc": "2026-09-13T22:02:39Z",
+  "process_absence_evidence": "Parent found no PID23920, no direct children, and no Python process whose command line selected checks.py.",
+  "process_absence_upper_bound_seconds": 61,
+  "output_report": "comparator-001/results.json",
+  "report_status": "pass",
+  "reported_groups": [
+    "unit",
+    "pinned_images",
+    "location_fits"
+  ],
+  "all_six_input_hashes_match": true,
+  "input_pins": [
+    {
+      "path": "repro/rsch009/native-publication-package/checks.py",
+      "bytes": 12370,
+      "sha256": "7e4eab904c294cde1df63977acf3f0c0802e8804dd02e1736061bc8a60b16476"
+    },
+    {
+      "path": "repro/rsch009/native-publication-package/compare_pixels.py",
+      "bytes": 12104,
+      "sha256": "e67171fa41bfc483b14a8c2a4631954e7105fd78197254507fa5ee61e37de7d9"
+    },
+    {
+      "path": "build/ladybug-presentation-cold.bin",
+      "bytes": 13817,
+      "sha256": "b33f17ba4e99b02d07ba7159113929cf49d1dc376c7d5a6129b4286aec7c0b9d"
+    },
+    {
+      "path": "build/ladybug-runtime.rom",
+      "bytes": 16384,
+      "sha256": "c5bbfdbc89f7986f540c8eea2d450930307840bac9d1c29f80067d302d997b8a"
+    },
+    {
+      "path": "build/ladybug-highscore-runtime.bin",
+      "bytes": 821,
+      "sha256": "8caebdda0bbaa7067df7e2a56df5d3747b411fbd7f027bea3156312de632ebb8"
+    },
+    {
+      "path": "build/ladybug-player-sparse.bin",
+      "bytes": 2294,
+      "sha256": "8c8c22fc7434a029d73874c69e7cb7c68794cc4f6b317cb08612ee298a2e12df"
+    }
+  ],
+  "python_launcher": "C:\\Users\\19029\\AppData\\Local\\Python\\bin\\python.exe",
+  "python_launcher_sha256": "dc429f283ed3b11145d76c723c2c544ce0fb67cfb877ae93d7e3635084eb479d",
+  "working_directory": "E:\\projects\\ladybug",
+  "arguments": [
+    "E:\\projects\\ladybug\\repro\\rsch009\\native-publication-package\\checks.py",
+    "--approval",
+    "E:\\projects\\ladybug\\repro\\rsch009\\name-entry-first-publication\\offline-comparator-approval.json",
+    "--output",
+    "E:\\projects\\ladybug\\repro\\rsch009\\offline-checks\\comparator-001"
+  ],
+  "runtime_executed": false,
+  "runtime_execution_approved": false,
+  "offline_approval_closed": true,
+  "retry_performed": false,
+  "code_changed": false,
+  "capacity_change": "none",
+  "budget_minutes": 10,
+  "review_reserve_minutes": 3,
+  "closure_utc": "2026-09-13T22:03:51.6698519Z",
+  "acceptance": "Not accepted: exit0 and intact independent controller evidence missing. Retain reported passing groups as partial offline evidence only; no runtime or four-second comparison claim.",
+  "next_step": "Records-only preparation of a corrected outer controller using a nonreserved process variable and retained process object; any rerun requires fresh approval and a new output path.",
+  "evidence_hashes": {
+    "repro/rsch009/offline-checks/comparator-001/results.json": "eb4adf7649bf0c925e47dda7b59ca2e486f8119ec66ab10142b16525e6619dc4",
+    "repro/rsch009/offline-checks/comparator-001.stdout.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "repro/rsch009/offline-checks/comparator-001.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}
