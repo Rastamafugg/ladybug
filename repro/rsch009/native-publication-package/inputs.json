@@ -1,0 +1,16 @@
+{
+  "status": "pinned-static-inputs",
+  "source_contracts": [
+    {"path": "repro/rsch009/name-entry-first-publication/native-entry-route.json", "sha256": "8fb55df95039c17c4a4e9f8ef49536329795b7d1a565d8eac8c1eeae1ee32a07"},
+    {"path": "repro/rsch009/name-entry-first-publication/mapping-capture.json", "sha256": "c460636ce414de0d1943f7b1d0a9fedf5245e08b48c173b531f9117df644f81f"},
+    {"path": "repro/rsch009/name-entry-first-publication/publication-acceptance.json", "sha256": "92de319a907553cb612b3649b1fa1d07ff7498b4dd66168c5165e69d57c29e84"}
+  ],
+  "output": {"required_absolute": true, "ascii_path": "^[A-Za-z0-9_./-]+$", "must_be_new": true},
+  "limits": {"observation_seconds": 50, "total_seconds": 60, "native_operations": 128, "input_stops": 64, "continue_cap": 15, "other_command_cap": 10},
+  "writes": [{"address": "0x00A9", "before": "00", "after": "02"}, {"address": "0x00A9", "before": "00", "after": "01"}, {"address": "0x004D", "before": "00", "after": "04"}],
+  "mapping": {"register": "0xffa5", "page_mask": "0x3f", "temporary_page": "0x34", "restore_before_resume": true},
+  "publication": {"arm_pc": "0x1b40", "marker_pc": "0x0dee", "name_marker_pc": "0x0379", "commit_sequence": "C0+1,C0+2", "static_frame_sha256": "d994c4575891f72441836057a7a737f1b72fcc5b3d385ed878527dc60ab47b17"},
+  "sprite_escape": "0xff consumes 16-bit framebuffer delta; nonzero advances destination, skips stage_delta, then reads run; zero terminates",
+  "deadline_rule": "stage_deadline=min(actual_start+allocation, supervisor_start+cutoff); closure=min(C+relative, supervisor_start+absolute)",
+  "comparison": {"absolute_start": 49379, "absolute_end_exclusive": 49399, "file_offset": 227, "length": 22, "expected_hex": ""}
+}

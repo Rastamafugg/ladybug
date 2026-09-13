@@ -1,0 +1,20 @@
+{
+  "status": "enumerated-static-command-plan",
+  "operation_limit": 128,
+  "input_stop_limit": 64,
+  "commands": [
+    {"id":"setup","kind":"gdb_setup","body":["set pagination off","set confirm off","set remotetimeout 10","set architecture m6809"],"cap_seconds":10},
+    {"id":"attach","kind":"gdb_attach","body":["target remote 127.0.0.1:65520"],"cap_seconds":10},
+    {"id":"identity","kind":"dump","body":["info registers","x/32bx 0xa880","x/32bx 0xa880"],"cap_seconds":10,"deferred":"loaded highscore identity is validated only at post-credit 0x1930 before start seed"},
+    {"id":"entry_breakpoints","kind":"breakpoint_install","body":["break *0x1930","break *0x1c8f","break *0x19ce","break *0x1b40","break *0x0dee","break *0x0379"],"cap_seconds":10},
+    {"id":"entry_continue","kind":"continue","body":["continue"],"cap_seconds":15},
+    {"id":"mapping","kind":"mapping_transaction","body":["journal mapping-dirty before write","x/1bx 0xffa5","set {unsigned char}0xffa5 = 0x34","x/8192bx 0xa000","set {unsigned char}0xffa5 = ORIGINAL_PAR5","x/1bx 0xffa5","validate masked PAR restoration before resume"],"cap_seconds":10,"target_resume":false},
+    {"id":"capture","kind":"bulk_snapshot","body":["dump binary memory FRONT 0xa000 0xb800","dump binary memory SAVE_A 0xa590 0xa610","dump binary memory SAVE_B 0xa610 0xa690","dump binary memory LEDGERS 0xa900 0xab00","dump binary memory DP 0x0000 0x0100","x/16bx 0xffb0"],"cap_seconds":10},
+    {"id":"input_event","kind":"input_stop_plus_state","body":["validate no-input predicate","capture typed input event","continue"],"cap_seconds":15,"count_each":true,"maximum":64},
+    {"id":"closure","kind":"cleanup","body":["delete breakpoints"],"cap_seconds":10,"target_resume":false,"out_of_band":"TERM then KILL/reap owned groups"}
+  ],
+  "deadline_rule":"command_deadline=min(command_start+operation_cap,effective_stage_deadline,supervisor_start+50)",
+  "stage_deadline_rule":"min(actual_start+allocation,supervisor_start+cutoff)",
+  "closure_cutoffs":{"restore":"min(C+3,T0+53)","term_grace":"min(C+5,T0+55)","kill_reap_verify":"min(C+8,T0+58)","persist":"min(C+10,T0+60)"},
+  "planned_native_operations": 28
+}
