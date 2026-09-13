@@ -170,60 +170,101 @@ def expected_images(cold, runtime, highscore, player, budget):
     budget.check()
     return {'background': bytes(background), 'frame': bytes(expected), 'saved': bytes(saved)}
 
-def compare_bytes(expected, actual, budget):
+def compare_bytes(expected, actual, budget, saved=False):
     budget.check()
     require(len(expected) == len(actual), 'comparison length mismatch')
-    count, samples = 0, []
+    count, pixels, samples = 0, 0, []
     for index, (left, right) in enumerate(zip(expected, actual)):
         budget.tick()
         if left != right:
             count += 1
+            changed = [half for half in (0, 1) if ((left >> (4 * (1-half))) & 15) != ((right >> (4 * (1-half))) & 15)]
+            pixels += len(changed)
             if len(samples) < 64:
-                samples.append({'offset': index, 'expected': left, 'actual': right})
+                y, column = divmod(index, 8 if saved else 160)
+                local_x = column * 2
+                samples.append({'offset': index, 'expected': left, 'actual': right,
+                    'local_xy': [local_x, y], 'frame_xy': [local_x + (152 if saved else 0), y + (168 if saved else 0)],
+                    'changed_halves': changed})
     budget.check()
-    return {'passed': count == 0, 'mismatches': count, 'samples': samples, 'sha256': digest(actual, budget)}
+    return {'passed': count == 0, 'mismatches': count, 'pixel_mismatches': pixels, 'samples': samples, 'sha256': digest(actual, budget)}
+
+def sprite_pixels(stream, budget):
+    # Decode once at origin zero. Retain nibble masks so odd-pixel origins work.
+    pixels = {}
+    for offset, mask, value in sprite_operations(stream, 0, budget):
+        y, col = divmod(offset, 160)
+        require(y < 16 and col < 8, 'sprite exceeds 16x16 footprint')
+        for half in (0, 1):
+            budget.tick()
+            shift = 4 * (1-half)
+            m, v = (mask >> shift) & 15, (value >> shift) & 15
+            key = (col * 2 + half, y)
+            old_m, old_v = pixels.get(key, (15, 0))
+            combined = (old_m & m, (old_v & m) | v)
+            if combined == (15, 0):
+                pixels.pop(key, None)
+            else:
+                pixels[key] = combined
+    require(len(pixels) <= 256, 'sprite pixel bound')
+    return pixels
+
+def nibble(frame, x, y):
+    return (frame[y * 160 + x // 2] >> (4 if x % 2 == 0 else 0)) & 15
+
+def fit_locations(background, actual, pattern, budget, exclude=None):
+    require(len(background) == FRAME_BYTES and len(actual) == FRAME_BYTES, 'fit frame length')
+    # One full-frame difference count allows complete-image fit without a candidate image.
+    difference_count = 0
+    for left, right in zip(background, actual):
+        budget.tick()
+        difference_count += (left >> 4 != right >> 4) + (left & 15 != right & 15)
+    found, examples = 0, []
+    for y in range(192):
+        for x in range(320):
+            budget.tick()
+            if x > 304 or y > 176 or (x, y) == exclude:
+                continue
+            covered = distinguishing = 0
+            valid = True
+            for (dx, dy), (mask, value) in pattern.items():
+                budget.tick()
+                old = nibble(background, x+dx, y+dy)
+                actual_pixel = nibble(actual, x+dx, y+dy)
+                predicted = (old & mask) | value
+                covered += old != actual_pixel
+                distinguishing += predicted != old
+                if predicted != actual_pixel:
+                    valid = False
+                    break
+            # All differences must be in the candidate support, not merely a matching patch.
+            if valid and distinguishing and covered == difference_count:
+                found += 1
+                if len(examples) < 2:
+                    examples.append([x, y])
+    budget.check()
+    return {'count': found, 'origins': examples, 'unique': found == 1, 'complete_scan': True}
 
 def compare_publications(expected, frames, saves, budget, player_stream=None):
     require(len(frames) == 2 and len(saves) == 4, 'capture cardinality')
     require(len(expected['frame']) == FRAME_BYTES and len(expected['saved']) == 128, 'expected image sizes')
-    comparisons = []
-    for actual in frames:
-        comparisons.append(compare_bytes(expected['frame'], actual, budget))
-    for actual in saves:
-        comparisons.append(compare_bytes(expected['saved'], actual, budget))
+    comparisons = [compare_bytes(expected['frame'], frame, budget) for frame in frames]
+    comparisons += [compare_bytes(expected['saved'], saved, budget, saved=True) for saved in saves]
+    passed = all(row['passed'] for row in comparisons)
+    result = {'passed': passed, 'objects': comparisons, 'classification': 'exact-stationary-pair' if passed else 'unexplained-residual'}
+    if passed or player_stream is None:
+        return result
+    pattern = sprite_pixels(player_stream, budget)
+    # Exactly four scans at most: single-sprite and additional-sprite fits for each frame.
+    fits = []
+    for frame in frames:
+        single = fit_locations(expected['background'], frame, pattern, budget)
+        duplicate = fit_locations(expected['frame'], frame, pattern, budget, exclude=(152,168))
+        fits.append({'single': single, 'additional': duplicate})
+    result['fits'] = fits
+    if any(f['additional']['unique'] for f in fits):
+        result['classification'] = 'duplicate-confirmed'
+    elif all(f['single']['unique'] for f in fits) and fits[0]['single']['origins'][0] != fits[1]['single']['origins'][0]:
+        result['classification'] = 'alternating-location'
     budget.check()
-    result={'passed': all(row['passed'] for row in comparisons), 'objects': comparisons,
-            'classification': 'exact-stationary-pair' if all(row['passed'] for row in comparisons) else 'unexplained-residual'}
-    if player_stream is not None and not result['passed']:
-        result['location_fits']=[classify_pair(expected,x,player_stream,budget) for x in frames]
-        fits=[x['classification'] for x in result['location_fits']]
-        result['classification']='duplicate-confirmed' if all(x=='unique-location-fit' for x in fits) else ('alternating-location' if len(set(fits))>1 else 'unexplained-residual')
     return result
-
-def fit_locations(background, actual, player_stream, budget, origins=range(FRAME_BYTES)):
-    """Bounded complete overlay fits. Four origin scans, 245760 origins, 256 pixels each."""
-    require(len(background) == FRAME_BYTES and len(actual) == FRAME_BYTES, 'fit frame length')
-    matches=[]; scanned=0; candidates=0
-    for scan in range(4):
-        for origin in origins:
-            budget.tick(); scanned += 1
-            if scanned > 245760: raise TimeoutError('location scan limit')
-            try: ops=list(sprite_operations(player_stream, origin, budget))
-            except ValueError: continue
-            if len(ops)>256: continue
-            mismatch=False; distinguishing=False
-            for offset,mask,value in ops:
-                predicted=(background[offset]&mask)|value
-                if predicted!=actual[offset]: mismatch=True; break
-                if predicted!=background[offset]: distinguishing=True
-            candidates += 1
-            if not mismatch and distinguishing: matches.append({'origin':origin,'scan':scan,'pixels':len(ops)})
-    unique=sorted({x['origin'] for x in matches})
-    return {'matches':matches,'origins':unique,'scanned_origins':scanned,'candidate_overlays':candidates,
-            'classification':'unique-location-fit' if len(unique)==1 else ('ambiguous-location-fit' if len(unique)>1 else 'unexplained-residual')}
-
-def classify_pair(expected, actual, player_stream, budget):
-    base=compare_bytes(expected['frame'],actual,budget)
-    if base['passed']: return {'comparison':base,'classification':'exact-stationary-pair'}
-    fit=fit_locations(expected['background'],actual,player_stream,budget)
-    return {'comparison':base,'fit':fit,'classification':fit['classification']}
