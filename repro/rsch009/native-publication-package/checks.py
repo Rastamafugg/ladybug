@@ -7,20 +7,35 @@ def _deny_import(name,*a,**k):
  if name.split('.')[0] in DENIED_MODULES|{'supervisor','name_sequence_probe','gmc_boot_probe'}:raise RuntimeError('denied offline import '+name)
  return _real_import(name,*a,**k)
 def install_denial_guards():builtins.__import__=_deny_import
+for _name in ('system','popen','spawnv','spawnve','spawnvp','spawnvpe','execv','execve','execvp','execvpe','kill','killpg'):
+ if hasattr(os,_name): setattr(os,_name,lambda *a,**k: (_ for _ in ()).throw(RuntimeError('denied offline OS API')))
 def assert_sprite_contract(m):
  assert list(m.sprite_operations(bytes((255,0,0)),0,m.Budget(100)))==[]
  assert list(m.sprite_operations(bytes((0,1,0,255,0,0)),0,m.Budget(100)))[0]==(1,0,1)
+ assert list(m.sprite_operations(bytes((0,1,0,255,0,0)),0,m.Budget(100)))[0][0]==1
  try:list(m.sprite_operations(bytes((255,0,1)),0,m.Budget(100)))
  except Exception:pass
  else:raise AssertionError('truncated escape accepted')
 def assert_compare_contract(m):
  assert m.compare_bytes(b'ab',b'ab',m.Budget(100))['passed'];r=m.compare_bytes(b'ab',b'ac',m.Budget(100));assert r['mismatches']==1 and r['samples'][0]['offset']==1
 def assert_checkpoint_contract(m):
- b=m.Budget(1.0,lambda:2.0)
+ b=m.Budget(100.0,lambda:0.0)
+ b.check()
+ b.clock=lambda:101.0
  try:b.check()
  except TimeoutError:pass
  else:raise AssertionError('deadline expiry accepted')
-CASES=(assert_sprite_contract,assert_compare_contract,assert_checkpoint_contract)
+def assert_golden_interfaces(m):
+ assert m.FRAME_BYTES==30720 and len(m.STATIC_SHA)==64
+def assert_saved_compare(m):
+ x={'frame':b'aa','saved':b'b'}
+ try:m.compare_publications(x,[b'aa',b'aa'],[b'b',b'b',b'b',b'b'],m.Budget(100))
+ except ValueError:pass
+ else:raise AssertionError('short expected frame accepted')
+def assert_fit_bounds(m):
+ try:m.fit_locations(bytes(30720),bytes(30720),bytes((255,0,0)),m.Budget(100))
+ except Exception:pass
+CASES=(assert_sprite_contract,assert_compare_contract,assert_checkpoint_contract,assert_golden_interfaces,assert_saved_compare,assert_fit_bounds)
 def run_cases(approval_path,output_path,comparator_path,expected_hash):
  a=json.loads(Path(approval_path).read_text())
  if a.get('offline_approved') is not True or a.get('execution_approved') is True:raise PermissionError('separate offline approval required; runtime approval forbidden')

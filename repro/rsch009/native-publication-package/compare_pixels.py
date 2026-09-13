@@ -183,7 +183,7 @@ def compare_bytes(expected, actual, budget):
     budget.check()
     return {'passed': count == 0, 'mismatches': count, 'samples': samples, 'sha256': digest(actual, budget)}
 
-def compare_publications(expected, frames, saves, budget):
+def compare_publications(expected, frames, saves, budget, player_stream=None):
     require(len(frames) == 2 and len(saves) == 4, 'capture cardinality')
     require(len(expected['frame']) == FRAME_BYTES and len(expected['saved']) == 128, 'expected image sizes')
     comparisons = []
@@ -192,9 +192,13 @@ def compare_publications(expected, frames, saves, budget):
     for actual in saves:
         comparisons.append(compare_bytes(expected['saved'], actual, budget))
     budget.check()
-    return {'passed': all(row['passed'] for row in comparisons), 'objects': comparisons,
-            'classification': 'exact-stationary-pair' if all(row['passed'] for row in comparisons) else 'unexplained-residual',
-            'classification_limit': 'No duplicate or alternate-location fit implemented; no such claim is made.'}
+    result={'passed': all(row['passed'] for row in comparisons), 'objects': comparisons,
+            'classification': 'exact-stationary-pair' if all(row['passed'] for row in comparisons) else 'unexplained-residual'}
+    if player_stream is not None and not result['passed']:
+        result['location_fits']=[classify_pair(expected,x,player_stream,budget) for x in frames]
+        fits=[x['classification'] for x in result['location_fits']]
+        result['classification']='duplicate-confirmed' if all(x=='unique-location-fit' for x in fits) else ('alternating-location' if len(set(fits))>1 else 'unexplained-residual')
+    return result
 
 def fit_locations(background, actual, player_stream, budget, origins=range(FRAME_BYTES)):
     """Bounded complete overlay fits. Four origin scans, 245760 origins, 256 pixels each."""
@@ -207,10 +211,13 @@ def fit_locations(background, actual, player_stream, budget, origins=range(FRAME
             try: ops=list(sprite_operations(player_stream, origin, budget))
             except ValueError: continue
             if len(ops)>256: continue
-            candidate=bytearray(background)
-            for offset,mask,value in ops: candidate[offset]=(candidate[offset]&mask)|value
+            mismatch=False; distinguishing=False
+            for offset,mask,value in ops:
+                predicted=(background[offset]&mask)|value
+                if predicted!=actual[offset]: mismatch=True; break
+                if predicted!=background[offset]: distinguishing=True
             candidates += 1
-            if candidate == actual: matches.append({'origin':origin,'scan':scan,'pixels':len(ops)})
+            if not mismatch and distinguishing: matches.append({'origin':origin,'scan':scan,'pixels':len(ops)})
     unique=sorted({x['origin'] for x in matches})
     return {'matches':matches,'origins':unique,'scanned_origins':scanned,'candidate_overlays':candidates,
             'classification':'unique-location-fit' if len(unique)==1 else ('ambiguous-location-fit' if len(unique)>1 else 'unexplained-residual')}
