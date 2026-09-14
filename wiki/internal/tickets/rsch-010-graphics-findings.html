@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-010 Graphics Findings — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./rsch-010-gameplay-source-diagnosis.html">RSCH-010</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Ticket · source diagnosis · graphics</p>
+      <h1>RSCH-010 — Graphics findings <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Settled gate replay and yellow object source review at current HEAD.</p>
+    </header>
+
+    <section>
+      <h2>Scope and evidence identity</h2>
+      <p>This is read-only source research for the graphics portion of <a href="./rsch-010-gameplay-source-diagnosis.html">RSCH-010</a>. No build, emulator, runtime probe, production edit, verifier, shared wiki index update, or log update was performed. The checkout was already dirty; unrelated changes and untracked reproduction artifacts were preserved.</p>
+      <p>Revision identity is HEAD <code>2dae73a79b721e80636acb182eda113b3bfc67a1</code>. SHA-256 hashes for the inspected current files are: <code>src/main.s</code> <code>B1CA913C2C30177F3FCCB6354B8C9CBCE58E15EDE686896F394503B00D10CDC0</code>; <code>src/enemy_runtime.s</code> <code>894AAB87CB14D76BCA76D7012F95DE9768744F34E1B568CE6C2A142D60793B19</code>; <code>scripts/derive_maze.py</code> <code>B1387C37227169245204AFE03ACA275F74B8A56DB3CDBEFE6ABBA2997D0F2FBE</code>; generated <code>build/ladybug_maze.inc</code> <code>1F1742E3813DF3B673F5E68ABB6FB7DC101935737AAB10B9C8771D58AEDFBB3E</code>.</p>
+      <p>Commands used were <code>git rev-parse HEAD</code>, <code>Get-FileHash ... -Algorithm SHA256</code>, <code>rg -n</code>, and read-only <code>Get-Content</code> selections. Historical context was read from <a href="./bug-001-gate-style-replay.html">BUG-001</a>, <a href="./bug-003-collectible-underlay.html">BUG-003</a>, <a href="./bug-005-gate-colour-replay.html">BUG-005</a>, <a href="../implementation/lessons-learned.html">lessons learned</a>, and <a href="../game/overview.html">game design</a>.</p>
+    </section>
+
+    <section>
+      <h2>Finding 1 — settled rotated gate redraw omission is source-confirmed</h2>
+      <p><strong>Observed report:</strong> after a gate rotates away from its load orientation, a collectible colour change can make one visual wall return to its authored position while collision continues to use the rotated state.</p>
+      <p><strong>Confirmed source boundary:</strong> <code>can_move</code> writes the new authoritative byte in <code>GATE_STATE</code>, records the animation ID and queues a render only when the player pushes the gate (<code>src/main.s:2698-2707</code>). The final transition is queued by <code>finish_gate_animation</code>, and <code>queue_gate_render</code> stores only the current one or two render IDs, modes, and styles (<code>src/main.s:3015-3043</code>). After the frame, <code>frame_render_impl</code> clears <code>RENDER_GATE_ID</code> and <code>RENDER_GATE2_ID</code> (<code>src/enemy_runtime.s:584-616</code>).</p>
+      <p>A later colour transition sets <code>RF_ENTITIES</code> in <code>bonus_color_tick</code> (<code>src/main.s:1804-1845</code>). The background renderer then restores every entity footprint and draws every live entity (<code>src/enemy_runtime.s:752-767</code>; <code>src/main.s:1543-1590</code>). Footprint restoration resolves the current cell through <code>MAZE_STATE</code> and the authored <code>screen_map</code> tile (<code>src/main.s:3709-3748</code>), so it can write over a rotated gate union. The gate phase that follows is conditional on a nonzero queued render ID (<code>src/enemy_runtime.s:801-836</code>); it does not enumerate settled gates or reapply <code>GATE_STATE</code>.</p>
+      <p>The visual/logical split is also explained: gate collision reads the authoritative <code>GATE_STATE</code> parity (<code>src/main.s:2563-2623</code>), while the dynamic overlay reads that same state only when <code>draw_gate_overlay</code> or the transition compositor is called (<code>src/main.s:2822-2860</code>; <code>src/enemy_runtime.s:2660-2694</code>). Therefore a settled gate can remain logically rotated after its pixels are overwritten by an entity redraw. The exact report detail that only one wall is reset requires a runtime pixel capture, but the missing settled-state reapplication is confirmed by current source.</p>
+      <p>This is independent of BUG-005's accepted pending-gate case. BUG-005 demonstrated that a queued gate projection could be overwritten by a later entity/underlay pass and repaired the pending-intent ordering. Its completion evidence does not cover a settled rotated gate with <code>RENDER_GATE_ID=0</code> and no current gate intent. The current source path above remains open for that case.</p>
+    </section>
+
+    <section>
+      <h2>Finding 2 — yellow object above the spawner is unresolved</h2>
+      <p><strong>Confirmed producers:</strong> stage initialization creates six bonus entities plus three skulls and six randomized heart/letter records. Each record is placed on any cell whose <code>MAZE_STATE</code> dot bit is set; <code>place_entity</code> has no exclusion for the cell above the den (<code>src/main.s:1392-1473</code>; <code>src/main.s:1482-1527</code>). The generated maze includes an initial dot at semantic cell <code>(12,10)</code>, the cell directly above the spawner (<code>build/ladybug_maze.inc:21-22</code>, row 10 entry has <code>$80</code> at column 12). A live heart or letter there is recoloured by <code>BONUS_COLOR</code>, including yellow (<code>src/main.s:1592-1627</code>), and its record is normally cleared only by coordinate-matched pickup (<code>src/main.s:3368-3432</code>).</p>
+      <p>The enemy nest is a second possible source of a persistent visual. On initial enemy rendering, <code>capture_zone_bg</code> copies the complete 16-by-32 nest framebuffer region into <code>ENEMY_ZONE_BG</code> (<code>src/enemy_runtime.s:540-555</code>; <code>src/enemy_runtime.s:3206-3223</code>). Every nest composition copies that retained background back into a compact stage surface, then draws active actors and the dormant actor or vegetable (<code>src/enemy_runtime.s:2365-2442</code>). The vegetable producer draws into the lower dormant half at <code>ENEMY_ZONE_STAGE+128</code> (<code>src/enemy_runtime.s:2408-2425</code>; <code>src/enemy_runtime.s:3147-3167</code>), so source inspection does not identify an above-spawner yellow vegetable path.</p>
+      <p>The source does not prove whether the reported object is a live entity, a retained nest-background pixel, a vegetable drawn at an unexpected destination, or a stale framebuffer replay. It also does not prove why a visible live entity would fail pickup. The report remains unresolved rather than assigning the colour-cycle timing as a cause. The existing special synchronization for the above-den dot only runs after pickup at exactly <code>(12,10)</code> and copies a clean tile into <code>ENEMY_ZONE_BG+60</code> (<code>src/main.s:3832-3875</code>); this is a relevant stale-background boundary, not proof of the reported failure.</p>
+    </section>
+
+    <section>
+      <h2>Common cause assessment</h2>
+      <p>The gate symptom has a confirmed shared class with BUG-005: a later background/entity or retained-layer pass can write pixels after a dynamic scenery state was established. The settled gate case is a separate missing replay path because no queued gate intent remains after transition. The yellow symptom may involve the same retained-background ownership class, especially <code>ENEMY_ZONE_BG</code>, but temporal correlation with collectible colour changes is insufficient to establish that link.</p>
+      <p>No platform, loader, MMU, or asset-generation defect was established by this source-only review. No source repair is authorized by RSCH-010.</p>
+    </section>
+
+    <section>
+      <h2>Smallest discriminating checks</h2>
+      <ol>
+        <li><strong>Settled gate check:</strong> force one gate from its generated initial state to the opposite parity, complete the transition, clear both queued render IDs, then force only <code>RF_ENTITIES</code> during a colour change with an entity footprint intersecting that gate union. Capture both framebuffer owners before and after the background pass. Compare the affected union to an independent composition from current <code>GATE_STATE</code>. A mismatch with zero queued IDs confirms the settled replay defect; a matching union rejects this source candidate for that gate.</li>
+        <li><strong>Yellow-object identity check:</strong> at first appearance capture <code>ENTITY_TABLE</code>, <code>ENTITY_COUNT</code>, <code>VEG_STATE</code>, <code>ENEMY_ZONE_BG</code>, <code>ENEMY_ZONE_FB</code>, and the two physical framebuffer owners before and after the next nest redraw. A live <code>ENTITY_TABLE</code> record at <code>(12,10)</code> identifies the normal entity path. No matching record with the pixel reintroduced from <code>ENEMY_ZONE_BG</code> identifies retained nest background. <code>VEG_STATE=1</code> with the vegetable bytes in the lower nest destination identifies the vegetable path. Any timeout must retain the last proven marker and must not be treated as a cause.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Minimum future repair acceptance</h2>
+      <ul>
+        <li>For every gate parity, a settled rotated gate survives a collectible colour redraw with no queued gate intent; both framebuffer owners and reversed owner order match an authoritative <code>GATE_STATE</code>-based composition.</li>
+        <li>Pending diagonal/final transitions and BUG-001 through BUG-005 regressions remain passing.</li>
+        <li>The yellow-object scenario is classified by source identity. A legitimate entity at <code>(12,10)</code> must remain in the entity table and be collectible; a stale nest pixel must be removed or prevented from entering <code>ENEMY_ZONE_BG</code>; a vegetable must be drawn and collected through its documented <code>VEG_STATE</code> path.</li>
+        <li>Required rare paths are forced. A missing natural occurrence is incomplete evidence.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Disposition</h2>
+      <p>Graphics source identification target: partially complete. Settled rotated-gate replay omission is confirmed. Yellow object producer and non-collectibility remain unresolved pending the two bounded runtime captures above. Cost class remains Standard under RSCH-010's estimated 2–4% weekly allocation and 10% ceiling. This report is ready for parent review and does not advance any repair ticket.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Prepared 2026-09-14 from current source and generated maze artifact. Parent agent owns integration, ticket lifecycle, wiki index/log updates, and any future repair approval.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
