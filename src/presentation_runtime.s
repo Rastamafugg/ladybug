@@ -600,6 +600,11 @@ draw_coins_done
         endc
 
 ; Return X as a CPU pointer into the cold physical page selected by D.
+draw_raw_tile
+        jsr     cold_ptr
+        exg     x,y
+        jmp     BLIT_TILE
+
 cold_ptr
         tfr     d,x
         tfr     a,b
@@ -2339,6 +2344,11 @@ draw_coins_done
         endc
 
 ; Return X as a CPU pointer into the cold physical page selected by D.
+draw_raw_tile
+        jsr     cold_ptr
+        exg     x,y
+        jmp     BLIT_TILE
+
 cold_ptr
         tfr     d,x
         tfr     a,b

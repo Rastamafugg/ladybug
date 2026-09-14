@@ -595,6 +595,7 @@ if int(highscore_test):
     })
 if int(complete):
     wanted.update({
+        'name_late_turn': 'PRES_MAIN_NAME_LATE_TURN',
         'presentation_dispatch': 'PRES_MAIN_STATIC_TEXT',
         'dynamic_dispatch': 'PRES_MAIN_DYNAMIC_TEXT',
         'shared_mask': 'PRES_MAIN_SHARED_MASK',
@@ -692,6 +693,7 @@ wanted = {
     'map_back': 'PRES_MODULE_MAP_BACK',
     'draw_tile_id': 'PRES_MODULE_DRAW_TILE',
     'cold_ptr': 'PRES_MODULE_COLD_PTR',
+    'draw_raw_tile': 'PRES_MODULE_DRAW_RAW_TILE',
     'colour_tile': 'PRES_MODULE_COLOUR_TILE',
     'colour_surface': 'PRES_MODULE_COLOUR_SURFACE',
     'start_screen': 'PRES_MODULE_START_SCREEN',
@@ -702,7 +704,7 @@ for line in open(source, encoding='utf-8'):
         symbols[wanted[match.group(1)]] = match.group(2)
 required = {
     'PRES_MODULE_DRAW_ACTOR', 'PRES_MODULE_MAP_BACK',
-    'PRES_MODULE_DRAW_TILE', 'PRES_MODULE_COLD_PTR',
+    'PRES_MODULE_DRAW_TILE', 'PRES_MODULE_COLD_PTR', 'PRES_MODULE_DRAW_RAW_TILE',
     'PRES_MODULE_COLOUR_TILE', 'PRES_MODULE_COLOUR_SURFACE',
     'PRES_MODULE_START_SCREEN',
 }

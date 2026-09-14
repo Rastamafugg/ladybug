@@ -4302,6 +4302,62 @@ presentation_add_credit_done
         include "ladybug_presentation_resident.inc"
         endc
 
+; Name-entry uses the same late-turn geometry as gameplay, with its own
+; remaining-step counter at $DE. X is its wall-only can_move routine.
+        ifne    COMPLETE_PROFILE
+name_late_turn
+        tst     TURN_SNAP
+        bne     nlt_snap
+        tst     $DE
+        beq     nlt_no
+        lda     PLAYER_WANT
+        cmpa    PLAYER_DIR
+        beq     nlt_no
+        eora    #2
+        cmpa    PLAYER_DIR
+        beq     nlt_no
+        lda     PLAYER_WANT
+        jsr     ,x
+        tsta
+        beq     nlt_no
+        lda     PLAYER_DIR
+        sta     TURN_OLD
+        lda     #4
+        suba    $DE
+        sta     TURN_SNAP
+        lda     #4
+        sta     $DE
+        lda     PLAYER_WANT
+        sta     PLAYER_DIR
+        sta     PLAYER_FACE
+        bra     nlt_yes
+nlt_snap
+        ldb     TURN_OLD
+        eorb    #2
+        bsr     nlt_delta
+        addd    PLAYER_FB
+        std     PLAYER_FB
+        ldb     PLAYER_DIR
+        bsr     nlt_delta
+        addd    PLAYER_FB
+        std     PLAYER_FB
+        dec     $DE
+        dec     TURN_SNAP
+nlt_yes
+        lda     #1
+        rts
+nlt_no
+        clra
+        rts
+nlt_delta
+        lslb
+        ldu     #nlt_deltas
+        ldd     b,u
+        rts
+nlt_deltas
+        fdb     -320,1,320,-1
+        endc
+
 resident_end
 
 ; Immutable cartridge data occupies the upper ROM region.  Keep executable

@@ -1830,9 +1830,6 @@ def main() -> None:
             int(tile_id) for _x, _y, tile_id in name_entry["action_records"]
             if tile_id not in (0xFD, 0xFE, 0xFF)
         )
-        live_tile_ids.update(
-            int(tile_id) for tile_id in name_entry["timer_green_tile_ids"]
-        )
         if complete_profile and name_entry["timer_green_tile_ids"]:
             # Retain one phase-native green perimeter tile in the atlas; the
             # seven additional timer variants live in bounded cold tile data.
@@ -1953,9 +1950,7 @@ def main() -> None:
         name_entry["timer_base_tile_ids"] = [
             remap[int(tile_id)] for tile_id in name_entry["timer_base_tile_ids"]
         ]
-        name_entry["timer_green_tile_ids"] = [
-            remap[int(tile_id)] for tile_id in name_entry["timer_green_tile_ids"]
-        ]
+        name_entry["timer_green_tile_ids"] = []
     cold_only_tiles = tiles[:len(cold_tile_ids)]
     gameplay_lookup = bytes(
         gameplay_tile_ids[tiles[tile_id]]
@@ -2328,12 +2323,9 @@ def main() -> None:
     args.tile_patch_output.write_bytes(instruction_patch_set + highscore_patch_set)
     timer_record_bytes = len(name_entry["timer_base_tile_ids"]) * 4
     args.timer_record_output.parent.mkdir(parents=True, exist_ok=True)
-    timer_records = b"".join(
-        framebuffer_destination(cell).to_bytes(2, "big") + bytes((0, tile_id))
-        for cell, tile_id in zip(
-            perimeter_box_cells(), name_entry["timer_green_tile_ids"]
-        )
-    )
+    timer_records = bytes(cold_payload[
+        name_entry_timer_offset:name_entry_timer_offset + timer_record_bytes
+    ])
     timer_lines = ["; Generated name-entry timer records for the page-$23 helper."]
     for offset in range(0, len(timer_records), 16):
         timer_lines.append(

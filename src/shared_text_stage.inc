@@ -157,8 +157,8 @@ highscore_timer_draw
         std     PRES_NAME_PTR
         ldd     #PRES_MAIN_PAGE23_RESUME
         pshs    d
-        ldb     3,x
-        jmp     PRES_MODULE_DRAW_TILE
+        ldd     2,x
+        jmp     PRES_MODULE_DRAW_RAW_TILE
 
 ; Raw lwasm output concatenates discontinuous ORG regions instead of emitting
 ; their address gap.  Materialize this reserved continuation window so every
@@ -229,6 +229,9 @@ highscore_gameover_tick
         cmpd    #180
         blo     highscore_phase_hold
         lbsr    highscore_prepare_name
+        lda     PRES_INSERT
+        cmpa    #$FF
+        lbeq    highscore_commit_done
         ldd     #highscore_after_name_start
         std     PRES_NAME_PTR
         ldd     #PRES_MAIN_PAGE23_RESUME
@@ -271,12 +274,35 @@ highscore_prepare_ready
         clr     PRES_TICK_PHASE
         clr     PRES_NAME_TIMER_PHASE
         clr     PRES_NAME_TIMER_BOX
-        lda     #$09
-        sta     PRES_SCORE_H
-        lda     #$50
-        sta     PRES_SCORE_M
-        clr     PRES_SCORE_L
-        clr     PRES_INSERT
+        ldd     $001D           ; actual packed-BCD gameplay score
+        std     PRES_SCORE_H
+        lda     $001F
+        sta     PRES_SCORE_L
+        lda     #$FF
+        sta     PRES_INSERT
+        ldx     #PRES_HIGHSCORE_ALIAS
+        clrb
+highscore_qualify_loop
+        lda     PRES_SCORE_H
+        cmpa    ,x
+        bhi     highscore_qualify_found
+        blo     highscore_qualify_next
+        lda     PRES_SCORE_M
+        cmpa    1,x
+        bhi     highscore_qualify_found
+        blo     highscore_qualify_next
+        lda     PRES_SCORE_L
+        cmpa    2,x
+        bhi     highscore_qualify_found
+highscore_qualify_next
+        leax    10,x
+        incb
+        cmpb    #9
+        blo     highscore_qualify_loop
+        bra     highscore_qualify_done
+highscore_qualify_found
+        stb     PRES_INSERT
+highscore_qualify_done
         clr     PRES_NAME_LEN
         lda     #19
         sta     PRES_NAME_COL
@@ -291,6 +317,7 @@ highscore_prepare_ready
         sta     PLAYER_FACE
         clr     PLAYER_ANIM
         clr     PRES_NAME_STEPS
+        clr     $56             ; gameplay-compatible late-turn state
         lda     #8
         sta     PLAYER_ANIM_TIMER
         ldx     #PRES_PENDING_NAME_ALIAS
@@ -841,7 +868,8 @@ highscore_name_ready
         bne     demo_runtime_done
         lda     PRES_MODE
         cmpa    #MODE_GAMEOVER
-        bne     name_tick
+        beq     highscore_name_hold
+        lbsr    name_tick
         lda     #1
         rts
 highscore_name_hold
@@ -855,12 +883,35 @@ prepare_name
         clr     PRES_TICK_PHASE
         clr     PRES_NAME_TIMER_PHASE
         clr     PRES_NAME_TIMER_BOX
-        lda     #$09
-        sta     PRES_SCORE_H
-        lda     #$50
-        sta     PRES_SCORE_M
-        clr     PRES_SCORE_L
-        clr     PRES_INSERT
+        ldd     $001D           ; actual packed-BCD gameplay score
+        std     PRES_SCORE_H
+        lda     $001F
+        sta     PRES_SCORE_L
+        lda     #$FF
+        sta     PRES_INSERT
+        ldx     #PRES_HIGHSCORE_ALIAS
+        clrb
+highscore_qualify_loop
+        lda     PRES_SCORE_H
+        cmpa    ,x
+        bhi     highscore_qualify_found
+        blo     highscore_qualify_next
+        lda     PRES_SCORE_M
+        cmpa    1,x
+        bhi     highscore_qualify_found
+        blo     highscore_qualify_next
+        lda     PRES_SCORE_L
+        cmpa    2,x
+        bhi     highscore_qualify_found
+highscore_qualify_next
+        leax    10,x
+        incb
+        cmpb    #9
+        blo     highscore_qualify_loop
+        bra     highscore_qualify_done
+highscore_qualify_found
+        stb     PRES_INSERT
+highscore_qualify_done
         clr     PRES_NAME_LEN
         lda     #9
         sta     PRES_NAME_ROW
@@ -920,6 +971,15 @@ qualify_found
         rts
         endc
 name_tick
+        dec     PLAYER_ANIM_TIMER
+        bne     name_animation_ready
+        lda     #8
+        sta     PLAYER_ANIM_TIMER
+        inc     PLAYER_ANIM
+        lda     PLAYER_ANIM
+        anda    #3
+        sta     PLAYER_ANIM
+name_animation_ready
         jsr     PRES_MAIN_READ_JOY
 name_joy_ready
         lda     JOY_DIR
@@ -929,14 +989,42 @@ name_joy_ready
         lda     FRAMES+1
         lsra
         bcs     name_idle
+        ldx     #name_can_move
+        jsr     PRES_MAIN_NAME_LATE_TURN
+        tsta
+        bne     name_idle
         tst     PRES_NAME_STEPS
         beq     name_move_start
         lda     PLAYER_WANT
+        eora    #2
         cmpa    PLAYER_DIR
-        beq     name_move_active
-        bsr     name_can_move
-        beq     name_move_active
-        lda     PRES_NAME_TILE
+        bne     name_move_active
+        ; Reverse relative to the old target, preserving the physical position.
+        lda     #4
+        suba    PRES_NAME_STEPS
+        sta     PRES_NAME_STEPS
+        lda     PLAYER_DIR
+        beq     name_reverse_n
+        cmpa    #DIR_E
+        beq     name_reverse_e
+        cmpa    #DIR_S
+        beq     name_reverse_s
+        dec     PLAYER_CELL_X
+        dec     PRES_NAME_COL
+        bra     name_reverse_done
+name_reverse_n
+        dec     PLAYER_CELL_Y
+        dec     PRES_NAME_ROW
+        bra     name_reverse_done
+name_reverse_e
+        inc     PLAYER_CELL_X
+        inc     PRES_NAME_COL
+        bra     name_reverse_done
+name_reverse_s
+        inc     PLAYER_CELL_Y
+        inc     PRES_NAME_ROW
+name_reverse_done
+        lda     PLAYER_WANT
         sta     PLAYER_DIR
         sta     PLAYER_FACE
         bra     name_move_active
@@ -955,8 +1043,6 @@ name_move_active
         bsr     name_advance
         rts
 name_idle
-        tst     FB_RENDER_ACTIVE
-        beq     name_idle_done
         lbsr    update_name_frame
 name_idle_done
         clra
