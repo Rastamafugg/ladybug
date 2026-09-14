@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-010 audio findings — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./rsch-010-gameplay-source-diagnosis.html">RSCH-010</a>
+    <a href="../platform/sound.html">Sound</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · research</p>
+      <h1>RSCH-010 audio findings <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Source-only diagnosis of cue arbitration and maze-completion handoff</p>
+    </header>
+
+    <section>
+      <h2>Scope and evidence status</h2>
+      <p>This report covers only the audio symptom in RSCH-010. It is a read-only source investigation; no source, build, emulator, or runtime state was changed. Confirmed findings below mean that the control flow is present in the inspected source. The user's played artifact and an exact runtime reproduction are unidentified, so no claim here is a current-ROM or physical-hardware measurement.</p>
+      <p>Inspection base: repository <code>HEAD 2dae73a79b721e80636acb182eda113b3bfc67a1</code>, with pre-existing dirty changes in presentation/demo and other files. Relevant current-file SHA-256 values are <code>src/audio_runtime.s 5aa25f8c08fe441aed16f2e752395db87ada6516877f2a8d0882cb02eb845705</code>, <code>src/main.s b1ca913c2c30177f3fccb6354b8c9cbce58e15ede686896f394503b00d10cdc0</code>, <code>src/presentation_runtime.s 234ca6f48d550bdea13d61f8c4281c917a322eb58158cc2160d1f80f7587e771</code>, <code>assets/arcade/audio/gmc-runtime-cues.json bc1513763b0ad9c2aa6227ffc8ccdacca025708301d523d958bd2447c1a97641</code>, <code>assets/arcade/audio/gmc-cue-policy.json f40fe08218f633f7b4be4264716b4ad17717982664d02739212451f6d5fcee77</code>, and <code>assets/arcade/audio/gmc_sound_data.inc e0cd9888c6b71534cf5b82c6b614853a57aebc4a2d4634cfea1d97a147d06b36</code>.</p>
+    </section>
+
+    <section>
+      <h2>Confirmed source-level mechanism for the maze-completion stuck note</h2>
+      <ol>
+        <li><strong>The completion event is emitted on the last gameplay service.</strong> <code>audio_poll_gameplay</code> aliases <code>AUDIO_GAME_STAGE</code> to direct-page <code>$0026</code>, which is <code>STAGE_PENDING</code> in <code>src/main.s:214</code>. When that field changes from zero to nonzero, and both dots and bonus objects are zero, <code>src/audio_runtime.s:629-640</code> enqueues cue 9, <code>all-flowers-complete</code>. The service then processes the queue, advances the new slot, mixes it, and writes PSG registers in <code>src/audio_runtime.s:44-62</code>.</li>
+        <li><strong>If cue 9 is admitted, its first note is live before the handoff.</strong> The generated cue manifest identifies cue 9 as an exclusive priority-5 jingle with a 32-tick translated duration and stream <code>gmc_cue_stream_09</code>. Its stream begins with tone writes followed by waits in <code>assets/arcade/audio/gmc_sound_data.inc:223-231</code>. The source facts establish that the first note is published during the last gameplay service when the event reaches slot admission; they do not require a waveform capture to explain a sustained register state.</li>
+        <li><strong>The next-level path skips the only sequencer tick.</strong> On the following main-loop pass, <code>mainloop</code> calls the presentation dispatcher at <code>src/main.s:612-621</code>. The complete-profile <code>normal_stage</code> branch tests <code>STAGE_PENDING</code>, calls <code>PRES_MAIN_NEXT_STAGE</code>, starts the level-start screen, returns 1, and therefore takes the <code>bne mainloop</code> at <code>src/presentation_runtime.s:315-328</code> and <code>src/main.s:620-621</code>. The sole <code>AUDIO_ENGINE_EXEC</code> call is later at <code>src/main.s:670-677</code>, so it is not reached for that retained presentation tick.</li>
+        <li><strong>The state transition has no audio completion barrier.</strong> <code>next_stage</code> clears <code>STAGE_PENDING</code> and reinitializes stage state at <code>src/main.s:724-745</code>. The presentation branch calls it before drawing the next level and never reads an audio slot-complete flag or waits on a cue boundary at <code>src/presentation_runtime.s:315-328</code>. The SN76489 is register-driven and sustains its last tone between writes; consequently, freezing the foreground service freezes the first note until a later service call. This is a confirmed source-level explanation for the reported “first note during next-level drawing” symptom.</li>
+      </ol>
+      <p><strong>Expected repair boundary:</strong> preserve the completion cue's register updates while the handoff is pending, or hold the stage transition until the required musical cue reports completion. The acceptance path must prove the natural last-dot → completion cue → level-start sequence and verify that no stale tone remains when the cue ends. The report does not choose an implementation because that would cross into the separately authorized repair work.</p>
+    </section>
+
+    <section>
+      <h2>Arbitration findings</h2>
+      <p><strong>Active channel mixing does prioritize exclusive music over effects.</strong> Cue descriptors encode musical/exclusive status in the generated policy fields. <code>audio_admit</code> sends every descriptor with the high bit of descriptor offset 2 set to slot 0 at <code>src/audio_runtime.s:165-180</code>. <code>audio_mix</code> first scans active exclusive slots and selects the highest stored priority, then returns after mixing only that slot at <code>src/audio_runtime.s:374-405</code>. Thus the observed completion handoff is not explained by an effect winning the PSG channels while a jingle is active.</p>
+      <p><strong>Admission is weaker than the channel mixer.</strong> Musical admission unconditionally resets slot 0 and copies the new cue at <code>src/audio_runtime.s:224-254</code>; it does not compare the incoming priority with the active musical cue and does not consult the policy's <code>preemptible</code> field. A later exclusive cue can therefore terminate an earlier music cue even when its priority is lower. This is a confirmed static arbitration defect, but it is a separate mechanism from the stage-handoff stuck note.</p>
+      <p><strong>The event queue has no priority reservation.</strong> <code>audio_enqueue_impl</code> accepts at most four queued events and drops the next event while incrementing <code>AUDIO_Q_OVERFLOW</code> at <code>src/audio_runtime.s:113-142</code>. The polling order admits dots, bonus, box, gate, vegetable, release, special, extra, then stage at <code>src/audio_runtime.s:548-643</code>; a full queue can therefore drop the later stage or other musical event before it reaches the mixer. This is a confirmed static loss path. It is not proof that the user's particular completion cue was dropped, because the report says a first note was heard and no queue state was captured.</p>
+      <p><strong>Existing audio verification does not cover these behaviors.</strong> <code>scripts/verify_audio_runtime.py:198-241</code> validates descriptors, aliases, streams, waits, and event-map coverage; <code>:349-380</code> validates bounded indexing, wait-pointer retention, loop bounds, write count, and placement. It contains no assertion for queue overflow priority, exclusive-cue replacement, presentation-retain service cadence, or a stage-cue completion barrier. The existing verifier can therefore pass while this source-level handoff defect remains.</p>
+    </section>
+
+    <section>
+      <h2>Hypotheses and missing runtime evidence</h2>
+      <ul>
+        <li><strong>Confirmed source cause:</strong> the stage-completion cue begins before <code>normal_stage</code>; the retained presentation return bypasses the only audio service call, and the handoff does not wait for cue completion.</li>
+        <li><strong>Confirmed independent risks:</strong> an exclusive cue can replace slot 0 without priority/preemption arbitration; a full four-entry FIFO can drop any later musical event. These need separate regression coverage if the repair changes admission policy.</li>
+        <li><strong>Unresolved runtime facts:</strong> the user artifact/profile, exact frame at which the first PSG write is heard, queue count/overflow at completion, actual slot-0 ID/wait/stream pointer, and whether any other cue is enqueued during the same completion frame. No runtime probe was authorized or run for this report.</li>
+      </ul>
+      <p><strong>Speculation:</strong> if an additional higher-priority cue is emitted on the same completion frame, slot-0 replacement could alter the audible result. Static source permits this, but no current evidence ties it to the reported maze-completion instance.</p>
+    </section>
+
+    <section>
+      <h2>Smallest future discriminating checks</h2>
+      <ol>
+        <li><strong>Natural completion handoff:</strong> from a revision-identified complete-profile artifact, play the natural last-dot path until <code>DOTS_LEFT=0</code> and <code>BONUS_LEFT=0</code>. Record a marker at cue-9 enqueue, a marker at the first PSG write, every subsequent audio-service entry, and the first level-start publication. Deadline: 60 seconds for the initial phase. A timeout means the marker was not proven, not that target code is slow. The discriminating result is whether audio-service ticks disappear while the first note remains selected.</li>
+        <li><strong>Forced reachability control:</strong> separately force the same terminal counters in a revision-identified artifact to test the handoff without depending on full gameplay. Record the same markers and label this as forced evidence; it cannot replace the natural completion sequence.</li>
+        <li><strong>Completion ownership:</strong> at the same handoff, capture <code>STAGE_PENDING</code>, slot-0 ID, slot wait, stream pointer, and PSG shadow values immediately before and after presentation release. This separates a frozen sequencer from a cue being repeatedly replaced. Prove authored/staged/live bytes before interpreting any stopped PC.</li>
+        <li><strong>Priority/queue isolation:</strong> exercise one active cue-9 plus one lower-priority and one higher-priority exclusive enqueue, then separately fill the four-entry FIFO before cue 9. The expected policy must be declared first. This distinguishes intentional replacement from the confirmed unconditional overwrite and queue-drop paths.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Read-only commands and generated artifact context</h2>
+      <p>Commands used were <code>Get-Content wiki/index.html</code>, <code>Get-Content wiki/internal/index.html</code>, <code>Get-Content wiki/internal/tickets/workflow.html</code>, <code>Get-Content wiki/internal/tickets/rsch-010-gameplay-source-diagnosis.html</code>, targeted <code>Get-Content</code> with line numbering for the listed source ranges, <code>rg -n</code> for audio/event call sites, <code>Get-FileHash -Algorithm SHA256</code> for the listed files, and read-only inspection of existing build maps/manifests. No build or runtime command was run.</p>
+      <p><code>scripts/build.sh:92-105</code> selects <code>complete</code> by default and maps it to <code>COMPLETE_PROFILE=1</code>; this is build-script context only. Existing generated artifacts were inspected without treating them as the user's tested image: <code>build/ladybug.rom</code> SHA-256 <code>bfb6934a72603e840c6af906f727ebb4d5145f60c81f4f68f5e4966a5b457e90</code>, audio runtime SHA-256 <code>85f439d1ef5ba999f81ef43a6a288b60f8db518b6cd8c011b5f9724f76ec527b</code>, audio map <code>audio_engine_start=$A000</code>, <code>audio_engine_end=$A32C</code> (812 bytes), <code>audio_mix_write=$A453</code>, and <code>gmc_cue_descriptors=$A4F2</code>. The absence of profile metadata and user artifact identity prevents runtime acceptance claims.</p>
+    </section>
+
+    <section>
+      <h2>Completion report</h2>
+      <p>Result: audio source diagnosis complete within the RSCH-010 Standard bounded research scope. The maze-completion stuck note has a confirmed source cause at the presentation/audio cadence boundary. Channel-level exclusive mixing already favors music, but unconditional musical slot replacement and FIFO overflow are independent confirmed risks. No production repair, build, runtime probe, shared index/log update, or ticket closure was performed.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Owned artifact for RSCH-010. Parent agent owns review, integration, ticket/log updates, and any separately approved repair.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
