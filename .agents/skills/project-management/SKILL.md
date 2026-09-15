@@ -16,7 +16,7 @@ Determine and state explicitly:
 3. **The affected code, docs, scripts, and workflow artifacts** — concrete files/paths.
 4. **The most appropriate next role** — using the routing criteria below.
 5. **The ticket disposition** — identify an existing ticket, create a `Draft`/`Proposed` ticket for substantive new work, or state why the request is a minor query that needs no ticket.
-6. **The cost class and ceiling** — classify bug work as Compact, Standard, or High-risk using `AGENTS.md`; record the projected weekly-token share and applicable approval ceiling.
+6. **The cost class** — classify bug work as Compact, Standard, or High-risk using `AGENTS.md`.
 7. **The smallest sufficient verification set** — map each proposed scenario to a distinct identified risk and reject redundant mode/owner/phase combinations.
 
 For behavior changes, record the natural user-visible sequence and state whether the request adds behavior or replaces an existing default owner. Name the displaced owner or path.
@@ -46,4 +46,4 @@ Pick exactly one next role:
 
 ## Output of this role
 
-A short classification block naming objective, scope, affected artifacts, ticket/status, cost class, budget ceiling, smallest sufficient verification set, ordering or dependencies, and the next role — then invoke that role's skill.
+A short classification block naming objective, scope, affected artifacts, ticket/status, cost class, smallest sufficient verification set, ordering or dependencies, and the next role — then invoke that role's skill.

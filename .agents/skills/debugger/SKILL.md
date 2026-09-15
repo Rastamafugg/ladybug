@@ -16,7 +16,7 @@ Used when the task begins from a reported error, unexpected runtime behavior, fa
   - [wiki/internal/platform/](../../../wiki/internal/platform/) and [wiki/release/reference/coco3/](../../../wiki/release/reference/coco3/) — subsystem-specific HTML pages
 - Form a **discriminating test** before committing to a fix.
 - Maintain the bug ticket with exact reproduction, observed versus expected behavior, environment/revision, competing hypotheses, the discriminating test, confirmed cause, regression scope, and retained evidence.
-- Preserve the assigned cost class and budget ceiling. Prefer source inspection, existing static checks, and existing verifier paths before creating new runtime probes or ticket-specific harnesses.
+- Preserve the assigned cost class. Prefer source inspection, existing static checks, and existing verifier paths before creating new runtime probes or ticket-specific harnesses.
 
 Before proposing a cause, execute this evidence ladder in order unless a step is demonstrably irrelevant:
 

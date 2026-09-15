@@ -50,7 +50,7 @@
         <li>Diagnosis uses existing source, static checks, and shared verifiers first; cumulative rejected probes, timeouts, root-cause expansion, or budget pressure trigger reassessment.</li>
         <li>A Ready Compact bug defaults to direct parent implementation without delegation or duplicate integration verification.</li>
         <li>QA runs the focused discriminating test, natural golden path, relevant adjacent regression, standard build, and relevant capacity checks; it expands coverage only for a named independent risk.</li>
-        <li>The completion record reports result versus behavior targets and budget ceiling, retains concise deterministic summaries, and records any approved exception.</li>
+        <li>The completion record reports result versus behavior targets, retains concise deterministic summaries, and records any approved exception.</li>
       </ol>
 
       <h3>Scope</h3>
@@ -106,7 +106,7 @@
 +- A probe is one distinct diagnostic experiment intended to separate competing causes. After two rejected probes, two observation-tool timeouts, or one discovery that materially expands the root cause or affected subsystem, stop and reassess the bug class, remaining verification, and budget before running another experiment. A deterministic rerun after correcting identified probe mechanics is not a new probe.
 @@ Ticket and Delegation Rules
 -- Every ticket must contain objective, motivation, in/out scope, scenarios and edge cases, evidence/baseline with revision, acceptance criteria, dependencies and ordering, constraints/risks, assignment contract, verification plan, decision log, and completion evidence. Bug tickets also require reproduction, observed versus expected behavior, and a discriminating test. Feature tickets also require user-visible behavior and compatibility implications.
-+- Every ticket must contain objective, motivation, in/out scope, scenarios and edge cases, evidence/baseline with revision, acceptance criteria, dependencies and ordering, constraints/risks, assignment contract, verification plan, decision log, and completion evidence. Compact bug tickets may combine these fields into a concise approval-and-assignment section, but may not omit reproduction, observed versus expected behavior, confirmed cause, discriminating test, cost class, budget ceiling, or measurable acceptance. Feature tickets also require user-visible behavior and compatibility implications.
++- Every ticket must contain objective, motivation, in/out scope, scenarios and edge cases, evidence/baseline with revision, acceptance criteria, dependencies and ordering, constraints/risks, assignment contract, verification plan, decision log, and completion evidence. Compact bug tickets may combine these fields into a concise approval-and-assignment section, but may not omit reproduction, observed versus expected behavior, confirmed cause, discriminating test, cost class, or measurable acceptance. Feature tickets also require user-visible behavior and compatibility implications.
 +- For Compact bugs, default to direct implementation by the parent agent after the ticket is Approved and Ready. Do not create a separate worktree, delegate the implementation, or duplicate the full verification suite unless the user requests delegation or an identified integration risk requires it.
 +- Each required verification scenario must name the distinct risk it covers. Prefer pairwise coverage over a Cartesian scenario matrix. Add the full matrix only when the interaction itself is a stated risk.
 +- Reuse an existing verifier or shared harness before creating a ticket-specific verifier. A Compact bug may not add more than 200 nonblank lines of ticket-specific verification code without reporting the reason, reclassifying the cost estimate, and obtaining user approval.
@@ -127,7 +127,7 @@ diff --git a/.agents/skills/project-management/SKILL.md b/.agents/skills/project
 +- Do not require a worktree, delegation, exhaustive scenario matrix, or new ticket-specific harness for a Compact bug unless a named risk requires it.
 @@ Output of this role
 -A short classification block naming objective, scope, affected artifacts, ticket/status, ordering or dependencies, and the next role — then invoke that role's skill.
-+A short classification block naming objective, scope, affected artifacts, ticket/status, cost class, budget ceiling, smallest sufficient verification set, ordering or dependencies, and the next role — then invoke that role's skill.
++A short classification block naming objective, scope, affected artifacts, ticket/status, cost class, smallest sufficient verification set, ordering or dependencies, and the next role — then invoke that role's skill.
 
 diff --git a/.agents/skills/business-analyst/SKILL.md b/.agents/skills/business-analyst/SKILL.md
 --- a/.agents/skills/business-analyst/SKILL.md
@@ -152,7 +152,7 @@ diff --git a/.agents/skills/debugger/SKILL.md b/.agents/skills/debugger/SKILL.md
 --- a/.agents/skills/debugger/SKILL.md
 +++ b/.agents/skills/debugger/SKILL.md
 @@ Responsibilities
-+- Preserve the assigned cost class and budget ceiling. Prefer source inspection, existing static checks, and existing verifier paths before creating new runtime probes or ticket-specific harnesses.
++- Preserve the assigned cost class. Prefer source inspection, existing static checks, and existing verifier paths before creating new runtime probes or ticket-specific harnesses.
 @@ Evidence ladder
 +Count and record rejected probes and observation-tool timeouts. Stop and return to project-management before another experiment when any of these conditions occurs:
 +
@@ -170,7 +170,7 @@ diff --git a/.agents/skills/qa-reviewer/SKILL.md b/.agents/skills/qa-reviewer/SK
 --- a/.agents/skills/qa-reviewer/SKILL.md
 +++ b/.agents/skills/qa-reviewer/SKILL.md
 @@ Responsibilities
-+- Confirm the ticket retained its approved cost class and budget ceiling. If implementation or verification exceeded either without approval, return the ticket to Ready or Proposed as appropriate.
++- Confirm the ticket retained its approved cost class. If implementation or verification exceeded the cost class without approval, return the ticket to Ready or Proposed as appropriate.
 +- Require every verification scenario to identify the distinct risk it covers. Remove duplicate coverage and prefer pairwise mode/owner/phase cases over a Cartesian matrix unless the interaction itself is under test.
 +- For a Compact bug, the default sufficient set is the focused discriminating test, one complete natural golden path, one adjacent regression when applicable, the standard build, and relevant capacity guards. Add rare paths, additional owners, or additional modes only for named independent risks.
 +- For directly implemented Compact bugs, do not duplicate an unchanged full verification suite solely to reproduce an earlier passing run. Run the focused current-revision checks and any integration checks whose inputs changed.
