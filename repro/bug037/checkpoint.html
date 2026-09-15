@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-037 audio checkpoint</title>
+  <link rel="stylesheet" href="../../wiki/shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell"><main class="wiki-main">
+  <header class="wiki-header">
+    <p class="wiki-eyebrow">BUG-037 · approved repair checkpoint</p>
+    <h1>Audio scheduling and maze-exit checkpoint</h1>
+    <p class="wiki-meta">Prepared 2026-09-15 · source diagnosis and bounded design review · no implementation or runtime probe</p>
+  </header>
+
+  <section>
+    <h2>Disposition</h2>
+    <p><strong>Checkpoint incomplete.</strong> The source cause is confirmed and the current map has measurable headroom, but a viable design is not yet proven. Two design obligations remain open: the current low-RAM code owner must be identified before audio is serviced on retained presentation frames, and cue 16's authored stop behavior conflicts with the approved rule against preempting active music. No current-ROM or hardware reproduction was run. This report does not advance BUG-037 to Ready.</p>
+    <p>This is the approved High-risk BUG-037 checkpoint, within its 2% sub-ceiling and 8% total ceiling. No production change is authorized by this preparation step.</p>
+  </section>
+
+  <section>
+    <h2>Identity and evidence</h2>
+    <p>Primary checkout HEAD: <code>67d22e6b189165d2c868519bdd5a06c65115b909</code>. SHA-256: <code>src/audio_runtime.s 5aa25f8c08fe441aed16f2e752395db87ada6516877f2a8d0882cb02eb845705</code>; <code>src/main.s b1ca913c2c30177f3fccb6354b8c9cbce58e15ede686896f394503b00d10cdc0</code>; <code>src/presentation_runtime.s 234ca6f48d550bdea13d61f8c4281c917a322eb58158cc2160d1f80f7587e771</code>; <code>gmc-runtime-cues.json bc1513763b0ad9c2aa6227ffc8ccdacca025708301d523d958bd2447c1a97641</code>; <code>gmc-cue-policy.json f40fe08218f633f7b4be4264716b4ad17717982664d02739212451f6d5fcee77</code>; <code>gmc_sound_data.inc e0cd9888c6b71534cf5b82c6b614853a57aebc4a2d4634cfea1d97a147d06b36</code>. These six source/data identities match RSCH-010.</p>
+    <p>The parent reports a fresh isolated build of the current relevant source snapshot completed with exit 0 and ROM SHA-256 <code>bfb6934a72603e840c6af906f727ebb4d5145f60c81f4f68f5e4966a5b457e90</code>, matching the primary ROM. The resulting maps provide the current capacity baseline below. This is build evidence, not runtime symptom reproduction.</p>
+  </section>
+
+  <section>
+    <h2>Confirmed source cause and caller bounds</h2>
+    <p><code>mainloop</code> has one <code>AUDIO_ENGINE_EXEC</code> callsite after the presentation dispatcher and normal gameplay work. When <code>STAGE_PENDING</code> is set, the presentation branch calls <code>PRES_MAIN_NEXT_STAGE</code>, starts the next-level screen, returns retain, and loops before the audio service. Thus the last service can publish cue 9, then the next presentation frame freezes its sequencer while replacing the maze. This confirms the source mechanism; the user artifact, live bytes, queue state, and audible manifestation remain unverified.</p>
+    <p><code>audio_poll_gameplay</code> currently requests music IDs 9, 10, 11, and 13 for stage completion, extra completion, special completion, and death. <code>audio_init_impl</code> queues cue 6. The current source therefore has five distinct reachable music IDs: <code>6, 9, 10, 11, 13</code>. Cue 7 and cue 14 are anchor-pending; cue 8 is an alias without a separate producer. The current producer inventory must be rechecked before implementation.</p>
+    <p>Music currently enters the same four-entry FIFO as effects. Poll order can fill that FIFO before late stage/death events reach admission. Cue class must come from the manifest: cue 16 is class <code>system</code> despite its exclusive bit and is specified to preempt cue 13 at strictly higher priority, then play two ticks of silence. Cue 17 is its system alias. <code>AUDIO_INIT_EXEC</code> clears queue/slot state and writes silence before reinitializing; it is an explicit reset path.</p>
+  </section>
+
+  <section>
+    <h2>Candidate direction and unresolved obligations</h2>
+    <ol>
+      <li><strong>Keep one clock, gated by the live owner.</strong> The early-return and gameplay paths can converge on one callsite, but only when the code at <code>$0300</code> is still the audio engine. <code>AUDIO_INSTALLED</code> is not sufficient evidence because instruction/high-score phase swaps can reuse low RAM while that flag remains set. Before any service call, the implementation assignment must name and prove the existing owner discriminator and prove that the current live bytes at the entry match the installed audio image. If no existing discriminator suffices, the design requires renewed architectural/approval review.</li>
+      <li><strong>Reserve capacity for every distinct current music request.</strong> A four-ID pending queue is insufficient: while no cue is active, all five distinct IDs can be transiently pending before the selector chooses one. A five-ID queue is the safe bounded storage candidate. While music is active, at most four different IDs can wait because the active ID is deduplicated. Music must bypass the effect FIFO, active music must not restart, duplicate active/pending requests coalesce, and dequeue chooses highest priority with FIFO ties. This bound is limited to the current five caller IDs and must fail closed if a new source is added.</li>
+      <li><strong>Resolve cue 16 without violating nonpreemption.</strong> Its current manifest semantics explicitly stop cue 13 before natural completion, while BUG-037's approved policy forbids another cue from truncating active music and requires preservation of the final-silence effect. A conservative candidate would defer cue 16 until cue 13 naturally ends, then honor its two-tick silence and hold the handoff through it. That changes the current immediate-stop timing; the parent must decide whether this satisfies the approved wording or returns the ticket for renewed approval. Do not implement an exception that truncates cue 13.</li>
+      <li><strong>Gate both exits.</strong> Once the owner and stop semantics are settled, the existing stage and terminal-death branches must retain the maze before state reset/screen publication while music is active or pending. Effects do not hold this barrier. Explicit audio reset may abort and silence immediately.</li>
+    </ol>
+    <p>The candidate stays inside <code>src/main.s</code>, <code>src/audio_runtime.s</code>, and <code>src/presentation_runtime.s</code> plus the existing verifier. It adds no module, loader, or separate scheduler. It is not yet a Ready design because owner identity and cue-16 semantics remain unresolved.</p>
+  </section>
+
+  <section>
+    <h2>Current placement and projected costs</h2>
+    <p>The following used/limit values are exact from the parent-reported fresh source-matched build; free bytes equal limit minus used. Proposed additions are static estimates, not assembled deltas. Owner-gating cost is not yet included, so these projections cannot establish fit.</p>
+    <table>
+      <thead><tr><th>Artifact</th><th>Current used / limit</th><th>Free bytes</th><th>Projected added bytes</th></tr></thead>
+      <tbody>
+        <tr><td>Copied audio engine at <code>$0300</code></td><td>812 / 920</td><td>108</td><td>40–80</td></tr>
+        <tr><td>Page <code>$3D</code> audio runtime and data</td><td>4,877 / 8,192</td><td>3,315</td><td>151–241, including a five-ID queue</td></tr>
+        <tr><td>Resident runtime</td><td>8,075 / 8,192</td><td>117</td><td>5–15 before owner gate</td></tr>
+        <tr><td>Presentation module</td><td>1,251 / 1,280</td><td>29</td><td>16–26 before owner gate</td></tr>
+        <tr><td>Presentation helper</td><td>331 / 334</td><td>3</td><td>0 expected</td></tr>
+      </tbody>
+    </table>
+    <p>Projected additional audio work is approximately 500–900 6809 cycles for four new distinct music requests plus one four-entry priority scan. This is an unmeasured estimate and excludes any owner-gating work. The implementation must report exact assembled deltas and measured worst-case cycles against the pre-fix fixture and the 60 Hz sequencer frame.</p>
+  </section>
+
+  <section>
+    <h2>Smallest verification set after design resolution</h2>
+    <ul>
+      <li>Natural final pickup to next-level publication: confirm cue 9 starts, the stage state and maze remain unchanged while required music plays, the audio owner remains valid for every retained service tick, and publication occurs exactly once afterward.</li>
+      <li>Bounded arbitration fixture: force five distinct current music IDs while inactive, then active cue plus four pending IDs, saturated effect FIFO, duplicates, and equal/higher/lower priorities. Prove no music loss, no active restart, and stable FIFO ties.</li>
+      <li>Terminal death, cue 16, and explicit reset: prove the chosen stop semantics, final silence, game-over barrier, and reset abort. Runtime owner identity must be checked before interpreting any low-RAM entry.</li>
+      <li>Complete 6809 keyboard build, existing audio verifier, relevant capacity guards, natural runtime evidence, and measured service-cycle maximum. Missing natural evidence is not a pass.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Outstanding evidence</h2>
+    <p>No emulator session, current-ROM replay, audible capture, or live/source/staged byte comparison was available. Source-level cause and caller set are confirmed. Current-map capacity is measured, but proposed deltas and cycles remain projections. BUG-037 is not Ready until the current low-RAM owner gate, cue-16 precedence, and exact implementation assignment are resolved and reviewed.</p>
+  </section>
+<section><h2>Parent review correction</h2><p>The approved BUG-037 contract already requires unfinished music to survive non-reset stop events, preserving final silence afterward. That policy needs no new approval. What remains unproven is current audio-owner gating, complete admission bounds and an assembled/timed fit. Proposed byte/cycle ranges are estimates, not acceptance evidence.</p></section></main></div>
+</body>
+</html>

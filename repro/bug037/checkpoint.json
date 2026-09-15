@@ -1,0 +1,138 @@
+{
+  "ticket": "BUG-037",
+  "checkpoint": "RSCH-012 audio preparation",
+  "prepared": "2026-09-15",
+  "status": "incomplete-owner-and-system-stop-obligations-open",
+  "approval": {
+    "cost_class": "High-risk",
+    "checkpoint_ceiling_percent": 2,
+    "total_ceiling_percent": 8,
+    "authorization": "Preparation only; no production edits or runtime probe by this checkpoint"
+  },
+  "identity": {
+    "primary_head": "67d22e6b189165d2c868519bdd5a06c65115b909",
+    "source_sha256": {
+      "src/audio_runtime.s": "5aa25f8c08fe441aed16f2e752395db87ada6516877f2a8d0882cb02eb845705",
+      "src/main.s": "b1ca913c2c30177f3fccb6354b8c9cbce58e15ede686896f394503b00d10cdc0",
+      "src/presentation_runtime.s": "234ca6f48d550bdea13d61f8c4281c917a322eb58158cc2160d1f80f7587e771",
+      "assets/arcade/audio/gmc-runtime-cues.json": "bc1513763b0ad9c2aa6227ffc8ccdacca025708301d523d958bd2447c1a97641",
+      "assets/arcade/audio/gmc-cue-policy.json": "f40fe08218f633f7b4be4264716b4ad17717982664d02739212451f6d5fcee77",
+      "assets/arcade/audio/gmc_sound_data.inc": "e0cd9888c6b71534cf5b82c6b614853a57aebc4a2d4634cfea1d97a147d06b36"
+    },
+    "parent_reported_current_snapshot_build": {
+      "exit_code": 0,
+      "rom_sha256": "bfb6934a72603e840c6af906f727ebb4d5145f60c81f4f68f5e4966a5b457e90",
+      "matches_primary_rom": true
+    }
+  },
+  "source_cause": {
+    "confirmed": true,
+    "mechanism": "mainloop has one AUDIO_ENGINE_EXEC callsite after presentation_dispatch. The pending-stage dispatcher branch calls next_stage and starts the next screen, returns retain, and loops before that call. The last service can therefore publish cue 9 and the sequencer then freezes while the maze is replaced.",
+    "runtime_reproduction": "not performed"
+  },
+  "callers_and_reachable_music": {
+    "foreground_service_callsites": 1,
+    "music_request_callers": [
+      "audio_init_impl queues cue 6",
+      "audio_poll_gameplay emits cues 9, 10, 11, and 13 through audio_poll_enqueue/$0306"
+    ],
+    "unique_reachable_music_ids": [
+      6,
+      9,
+      10,
+      11,
+      13
+    ],
+    "pending_bound_candidate": 5,
+    "bound_reason": "All five distinct current musical IDs can be transiently pending while no cue is active, before selection. With one active ID deduplicated, at most four other distinct IDs can be pending. Recheck source callers before implementation."
+  },
+  "design": {
+    "service_clock": "One AUDIO_ENGINE_EXEC callsite can serve normal gameplay and held maze frames only after an existing current-owner discriminator proves that $0300 still contains the audio engine. AUDIO_INSTALLED alone is insufficient across low-RAM phase swaps.",
+    "admission": "Candidate: five-ID bounded pending queue; use manifest class rather than exclusive; bypass effect FIFO for music; coalesce active/pending duplicates; never preempt active music; select highest priority with FIFO ties. No implementation until the full five-pending transient is handled.",
+    "handoff": "Stage and terminal-game-over transitions wait for active/pending music; effects do not block. Query and service calls both require current audio-owner proof. Explicit AUDIO_INIT reset may clear and silence immediately.",
+    "system_control_conflict": "Cue 16's manifest explicitly preempts cue 13 before natural completion. This conflicts with BUG-037's active-music nonpreemption rule. A safe candidate defers cue 16 until cue 13 ends, then plays its two-tick silence, but the behavior change requires parent review and may require renewed approval. Do not implement a cue-16 exception that truncates active music.",
+    "new_module_or_loader": false,
+    "ready": false
+  },
+  "capacity": {
+    "source_matched_current_map": true,
+    "artifacts": {
+      "copied_audio_engine": {
+        "used_bytes": 812,
+        "limit_bytes": 920,
+        "free_bytes": 108,
+        "projected_add_bytes": [
+          40,
+          80
+        ]
+      },
+      "page_3d_audio_payload": {
+        "used_bytes": 4877,
+        "limit_bytes": 8192,
+        "free_bytes": 3315,
+        "projected_add_bytes": [
+          151,
+          241
+        ]
+      },
+      "resident_runtime": {
+        "used_bytes": 8075,
+        "limit_bytes": 8192,
+        "free_bytes": 117,
+        "projected_add_bytes_before_owner_gate": [
+          5,
+          15
+        ]
+      },
+      "presentation_module": {
+        "used_bytes": 1251,
+        "limit_bytes": 1280,
+        "free_bytes": 29,
+        "projected_add_bytes_before_owner_gate": [
+          16,
+          26
+        ]
+      },
+      "presentation_helper": {
+        "used_bytes": 331,
+        "limit_bytes": 334,
+        "free_bytes": 3,
+        "projected_add_bytes": [
+          0,
+          0
+        ]
+      }
+    },
+    "fit_verdict": "baseline-measured-proposed-deltas-not-proven-owner-gate-cost-unknown"
+  },
+  "performance": {
+    "projected_added_cycles_per_service": [
+      500,
+      900
+    ],
+    "measured": false,
+    "owner_gate_included": false,
+    "acceptance": "Measure the maximum against the pre-fix fixture and 60 Hz sequencer frame; this estimate is not a pass."
+  },
+  "unresolved_design_obligations": [
+    "Identify a current owner discriminator for the $0300 audio engine across presentation, instruction, and high-score phase swaps; AUDIO_INSTALLED alone is not proof.",
+    "Resolve cue-16 system-stop precedence without truncating unfinished music; defer and retain final silence only if that behavior fits the approved contract, otherwise return for renewed approval.",
+    "Use capacity for a no-active transient of five distinct pending musical cues, not only four pending behind an active cue.",
+    "Include owner-gating bytes and cycles in the final assembled/timed design."
+  ],
+  "missing_evidence": [
+    "Natural current-ROM last-pickup to next-level runtime capture",
+    "Terminal-death drain and reset-abort capture",
+    "Live/source/staged owner and byte identity",
+    "Assembled byte deltas after implementation",
+    "Measured maximum audio-service cycles"
+  ],
+  "owned_files": [
+    "repro/bug037/checkpoint.html",
+    "repro/bug037/checkpoint.json"
+  ],
+  "no_production_changes": true,
+  "no_runtime_by_checkpoint": true,
+  "ready_decision": "Do not advance BUG-037 to Ready. Parent review must resolve owner gating and cue-16 policy, then complete the exact assignment and runtime prerequisites.",
+  "parent_review": "Deferring non-reset stop until music finishes is already covered by approved BUG037; no extra behavior approval is needed solely for that policy. Current-owner gating and assembled/cycle feasibility remain unproven. Pending capacity should be justified against all admitted callers and the inactive transient."
+}

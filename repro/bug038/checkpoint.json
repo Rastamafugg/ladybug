@@ -44,10 +44,26 @@
     }
   },
   "baseline_capacity_bytes": {
-    "resident": {"used": 8075, "limit": 8192, "free": 117},
-    "enemy_runtime": {"used": 4095, "limit": 4096, "free": 1},
-    "assets": {"used": 7552, "limit": 7680, "free": 128},
-    "presentation": {"used": 1251, "limit": 1280, "free": 29}
+    "resident": {
+      "used": 8075,
+      "limit": 8192,
+      "free": 117
+    },
+    "enemy_runtime": {
+      "used": 4095,
+      "limit": 4096,
+      "free": 1
+    },
+    "assets": {
+      "used": 7552,
+      "limit": 7680,
+      "free": 128
+    },
+    "presentation": {
+      "used": 1251,
+      "limit": 1280,
+      "free": 29
+    }
   },
   "confirmed_source_cause": {
     "confirmed": true,
@@ -60,8 +76,16 @@
       "settled gate with drained intent is not recomposed, while collision still reads GATE_STATE"
     ],
     "source_locations": {
-      "src/main.s": ["1543-1590", "2698-2707", "3113-3308", "3709-3748"],
-      "src/enemy_runtime.s": ["585-616", "752-836"]
+      "src/main.s": [
+        "1543-1590",
+        "2698-2707",
+        "3113-3308",
+        "3709-3748"
+      ],
+      "src/enemy_runtime.s": [
+        "585-616",
+        "752-836"
+      ]
     },
     "distinction_from_bug005": "BUG-005 covers pending gate-intent ordering; this path has no settled render ID or pending intent."
   },
@@ -72,8 +96,54 @@
     "entity_count_maximum": 12,
     "all_20_records_covered_by_12_unique_legal_dot_placements": true,
     "witness_entity_origins_xy": [
-      [6, 4], [14, 6], [8, 14], [18, 14], [18, 2], [2, 6],
-      [20, 6], [8, 8], [8, 18], [14, 18], [4, 20], [18, 20]
+      [
+        6,
+        4
+      ],
+      [
+        14,
+        6
+      ],
+      [
+        8,
+        14
+      ],
+      [
+        18,
+        14
+      ],
+      [
+        18,
+        2
+      ],
+      [
+        2,
+        6
+      ],
+      [
+        20,
+        6
+      ],
+      [
+        8,
+        8
+      ],
+      [
+        8,
+        18
+      ],
+      [
+        14,
+        18
+      ],
+      [
+        4,
+        20
+      ],
+      [
+        18,
+        20
+      ]
     ],
     "interpretation": "geometric placement envelope only; deterministic RNG reachability of this exact witness is unverified"
   },
@@ -81,7 +151,7 @@
     "association_list_replay": {
       "existing_metadata": "20 gate records, each with up to 12 entity associations",
       "problem": "the legal 12-entity geometric witness populates all 20 gate records, so this worklist does not prove a strict subset and can degenerate to all-gate replay",
-      "status": "rejected for violating approved no-wholesale-all-gates constraint"
+      "status": "not proven viable: worst-case work/cycle/placement bound missing; conditionally affecting all20 gates is not by itself a scope violation"
     },
     "cell_local_authoritative_reconstruction": {
       "concept": "restore each entity footprint cell from MAZE_STATE, then compose the current gate overlay for that cell before live entities draw",
@@ -96,8 +166,17 @@
     }
   },
   "verification": {
-    "run": ["isolated baseline build only", "static source review", "small generated-geometry calculation"],
-    "not_run": ["natural runtime reproduction", "controlled pixel oracle", "pending transition regression", "frame-cycle measurement"],
+    "run": [
+      "isolated baseline build only",
+      "static source review",
+      "small generated-geometry calculation"
+    ],
+    "not_run": [
+      "natural runtime reproduction",
+      "controlled pixel oracle",
+      "pending transition regression",
+      "frame-cycle measurement"
+    ],
     "future_minimum": [
       "natural settled rotation followed by natural colour change; independent GATE_STATE oracle on both framebuffer owners",
       "controlled settled fixture for both orientation parities, live entity overlap, and consumed footprint with empty current/pending gate queues",
@@ -107,5 +186,6 @@
     "deadline_seconds": 60,
     "acceptance_target": "zero union pixel mismatches and no missed visible-framebuffer publication; no increase for unchanged no-overlap worklist; within verified publication window"
   },
-  "decision": "Source cause is discriminated and baseline identity/capacity are verified. A viable bounded repair has not been shown to fit or preserve pending behavior. Keep BUG-038 out of Ready. Parent reassessment is required before further work."
+  "decision": "Source cause is discriminated and baseline identity/capacity are verified. A viable bounded repair has not been shown to fit or preserve pending behavior. Keep BUG-038 out of Ready. Parent reassessment is required before further work.",
+  "parent_review": "Geometric all20 coverage is an unverified source-envelope result, not proof of RNG reachability or measured runtime cost. The conclusion remains incomplete because fit/pending behavior were not established."
 }
