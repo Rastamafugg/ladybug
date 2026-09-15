@@ -1,0 +1,33 @@
+BUG-037 one-candidate assembly feasibility log
+Date: 2026-09-15
+Branch/head: codex/bug-037-assembly-prototype / 8c6d8b8577ca68793cae187b2bbfda9dfb9c098c
+Baseline copies: E:\projects\ladybug-worktrees\bug037-prototype-baseline-8c6d8b8
+Baseline audio source SHA-256: 5aa25f8c08fe441aed16f2e752395db87ada6516877f2a8d0882cb02eb845705
+Baseline build ROM SHA-256 (parent-reported fresh matching build): bfb6934a72603e840c6af906f727ebb4d5145f60c81f4f68f5e4966a5b457e90
+
+Assembler command (scripts/build.sh flags; separate prototype outputs):
+wsl -d Ubuntu -- lwasm -9 --format=raw --output=/mnt/e/projects/ladybug-worktrees/bug-037-prototype/build/ladybug-audio-runtime-prototype.bin --list=/mnt/e/projects/ladybug-worktrees/bug-037-prototype/build/ladybug-audio-runtime-prototype.lst --symbols --map=/mnt/e/projects/ladybug-worktrees/bug-037-prototype/build/ladybug-audio-runtime-prototype.map -I /mnt/e/projects/ladybug-worktrees/bug-037-prototype/assets/arcade/audio /mnt/e/projects/ladybug-worktrees/bug-037-prototype/src/audio_runtime.s
+Assembler exit: 0
+
+Map symbols:
+audio_engine_start=$A000
+audio_music_busy_entry=$A009
+audio_music_busy_impl=$A1F4
+audio_music_queue=$A619
+audio_engine_end=$A451
+audio_install_page=$A451
+
+Measured capacity against the fresh baseline build:
+copied audio engine: baseline 812/920 bytes; candidate 1,105/920 (+293), over by 185 bytes
+page-$3D audio payload: baseline 4,877/8,192 bytes; candidate 5,180/8,192 (+303), 3,012 bytes free
+resident: baseline 8,075/8,192 bytes, 117 free; presentation: baseline 1,251/1,280 bytes, 29 free; neither was assembled with prototype edits
+
+Guard command:
+python3 build/prototype_audio_guard.py build/ladybug-audio-runtime-prototype.bin build/ladybug-audio-runtime-prototype.map 920 8192
+Guard exit: 1
+Guard output: build: audio engine is 1105 bytes; limit is 920
+The checker is a literal copy of guard_audio_runtime from scripts/build.sh; the build is required to stop here.
+
+Candidate scope: audio_runtime.s only. It expresses manifest-jingle queue admission (eight slots), current five reachable music IDs, deduplication, priority with FIFO ties, deferred cue 16/17, and a busy query. No owner guard, presentation service site, maze/game-over barrier, complete build, verifier, runtime, natural-input, or cycle test was completed. The candidate is not behaviorally accepted.
+
+Disposition: hard capacity failure. Stopped at the first failed guard; no second candidate or optimization. Baseline source was restored before report-only commit. The patch is retained as a standalone baseline-relative artifact; production sources are not included in the commit.

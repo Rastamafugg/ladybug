@@ -1,0 +1,213 @@
+diff --git a/src/audio_runtime.s b/src/audio_runtime.s
+index 4addfa2..74619e1 100644
+--- a/src/audio_runtime.s
++++ b/src/audio_runtime.s
+@@ -40,6 +40,8 @@ audio_init_entry
+         lbra    audio_init_impl
+ audio_enqueue_entry
+         lbra    audio_enqueue_impl
++audio_music_busy_entry
++        lbra    audio_music_busy_impl
+ 
+ audio_service_impl
+         tst     AUDIO_INSTALLED
+@@ -71,6 +73,9 @@ audio_init_impl
+         clr     AUDIO_Q_TAIL
+         clr     AUDIO_Q_COUNT
+         clr     AUDIO_Q_OVERFLOW
++        clr     audio_music_count
++        lda     #$FF
++        sta     audio_system_pending
+         clr     audio_poll_valid
+         clr     AUDIO_WORK_SLOT
+ audio_init_slot_loop
+@@ -113,6 +118,17 @@ audio_init_slot_loop
+ audio_enqueue_impl
+         cmpa    #18
+         bhs     audio_enqueue_drop
++        cmpa    #16
++        bhs     audio_enqueue_system
++        cmpa    #6
++        blo     audio_enqueue_effect
++        cmpa    #12
++        blo     audio_enqueue_music
++        cmpa    #13
++        beq     audio_enqueue_music
++        cmpa    #14
++        beq     audio_enqueue_music
++audio_enqueue_effect
+ audio_enqueue_store
+         sta     AUDIO_SAVED_ID
+         stb     AUDIO_SAVED_PARAM
+@@ -140,6 +156,53 @@ audio_enqueue_drop
+         sta     AUDIO_Q_OVERFLOW
+ audio_enqueue_done
+         rts
++audio_enqueue_music
++        sta     AUDIO_SAVED_ID
++        bra     audio_music_enqueue
++audio_enqueue_system
++        sta     AUDIO_SAVED_ID
++        lda     audio_system_pending
++        cmpa    #$FF
++        bne     audio_enqueue_done
++        lda     AUDIO_SAVED_ID
++        sta     audio_system_pending
++        rts
++
++audio_music_enqueue
++        clr     AUDIO_WORK_SLOT
++        lbsr    audio_slot_base
++        lda     ,x
++        cmpa    AUDIO_SAVED_ID
++        beq     audio_music_enqueue_done
++        lda     audio_music_count
++        sta     AUDIO_WORK_VOICE
++        ldx     #audio_music_queue
++audio_music_enqueue_scan
++        tst     AUDIO_WORK_VOICE
++        beq     audio_music_enqueue_append
++        lda     ,x+
++        cmpa    AUDIO_SAVED_ID
++        beq     audio_music_enqueue_done
++        dec     AUDIO_WORK_VOICE
++        bra     audio_music_enqueue_scan
++audio_music_enqueue_append
++        lda     audio_music_count
++        cmpa    #8
++        bhs     audio_music_enqueue_drop
++        ldx     #audio_music_queue
++        ldb     audio_music_count
++        lda     AUDIO_SAVED_ID
++        sta     b,x
++        inc     audio_music_count
++audio_music_enqueue_done
++        rts
++audio_music_enqueue_drop
++        lda     AUDIO_Q_OVERFLOW
++        cmpa    #$FF
++        beq     audio_music_enqueue_done
++        inca
++        sta     AUDIO_Q_OVERFLOW
++        rts
+ 
+ audio_process_queue
+ audio_process_next
+@@ -160,6 +223,104 @@ audio_process_next
+         lbsr    audio_admit
+         bra     audio_process_next
+ audio_process_done
++        lbsr    audio_process_music
++        rts
++
++audio_process_music
++        lda     audio_music_count
++        beq     audio_process_system
++        clr     AUDIO_WORK_SLOT
++        lbsr    audio_slot_base
++        lda     ,x
++        cmpa    #$FF
++        bne     audio_process_music_done
++        clr     AUDIO_BEST_PRI
++        clr     AUDIO_BEST_SLOT
++        clr     AUDIO_WORK_SLOT
++        ldx     #audio_music_queue
++audio_process_music_scan
++        lda     ,x+
++        sta     AUDIO_SAVED_ID
++        ldb     #8
++        mul
++        ldu     #gmc_cue_descriptors
++        leau    d,u
++        lda     ,u
++        lsra
++        lsra
++        lsra
++        lsra
++        lsra
++        cmpa    AUDIO_BEST_PRI
++        bls     audio_process_music_scan_next
++        sta     AUDIO_BEST_PRI
++        lda     AUDIO_WORK_SLOT
++        sta     AUDIO_BEST_SLOT
++audio_process_music_scan_next
++        inc     AUDIO_WORK_SLOT
++        lda     AUDIO_WORK_SLOT
++        cmpa    audio_music_count
++        blo     audio_process_music_scan
++        lda     AUDIO_BEST_SLOT
++        tfr     a,b
++        ldx     #audio_music_queue
++        abx
++        lda     ,x
++        sta     AUDIO_SAVED_ID
++        lda     audio_music_count
++        suba    AUDIO_BEST_SLOT
++        deca
++        beq     audio_process_music_remove
++        sta     AUDIO_WORK_VOICE
++        ldx     #audio_music_queue
++        lda     AUDIO_BEST_SLOT
++        tfr     a,b
++        abx
++        leay    1,x
++audio_process_music_shift
++        lda     ,y+
++        sta     ,x+
++        dec     AUDIO_WORK_VOICE
++        bne     audio_process_music_shift
++audio_process_music_remove
++        dec     audio_music_count
++        clr     AUDIO_SAVED_PARAM
++        lbsr    audio_admit
++audio_process_music_done
++        rts
++audio_process_system
++        lda     audio_system_pending
++        cmpa    #$FF
++        beq     audio_process_music_done
++        clr     AUDIO_WORK_SLOT
++        lbsr    audio_slot_base
++        lda     ,x
++        cmpa    #$FF
++        bne     audio_process_music_done
++        lda     audio_system_pending
++        sta     AUDIO_SAVED_ID
++        lda     #$FF
++        sta     audio_system_pending
++        clr     AUDIO_SAVED_PARAM
++        lbsr    audio_admit
++        rts
++
++audio_music_busy_impl
++        lda     audio_music_count
++        bne     audio_music_busy
++        lda     audio_system_pending
++        cmpa    #$FF
++        bne     audio_music_busy
++        clr     AUDIO_WORK_SLOT
++        lbsr    audio_slot_base
++        lda     ,x
++        cmpa    #$FF
++        beq     audio_music_idle
++audio_music_busy
++        lda     #1
++        rts
++audio_music_idle
++        clra
+         rts
+ 
+ audio_admit
+@@ -785,6 +946,12 @@ audio_poll_stage
+         fcb     0
+ audio_poll_valid
+         fcb     0
++audio_music_count
++        fcb     0
++audio_system_pending
++        fcb     $FF
++audio_music_queue
++        rmb     8
+ 
+         include "gmc_sound_data.inc"
+ 

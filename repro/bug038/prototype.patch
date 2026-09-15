@@ -1,0 +1,54 @@
+diff --git a/src/main.s b/src/main.s
+index 74deb85..09b4982 100644
+--- a/src/main.s
++++ b/src/main.s
+@@ -1541,6 +1541,13 @@ rn_store
+ ; Dynamic object drawing and the MAME-measured global colour cycle.
+ ;==============================================================================
+ draw_entities
++        lda     RENDER_FLAGS
++        bita    #RF_ENTITIES
++        beq     de_init
++        bita    #RF_STAGE
++        bne     de_init
++        lbsr    repair_settled_entity_gates
++de_init
+         ldx     #ENTITY_TABLE
+         ldd     #ENTITY_GATE_CACHE
+         std     OBJ_CACHE_BASE
+@@ -1589,6 +1596,35 @@ eef_loop
+         bne     eef_loop
+         rts
+ 
++; Repaint only gate unions touched by entity footprints just restored above.
++; Pending/current gate intents retain ownership and compose later in the frame.
++repair_settled_entity_gates
++        clr     GATE_COPY_COUNT
++rseg_gate
++        lda     GATE_COPY_COUNT
++        ldb     #GATE_ENTITY_RECORD_SIZE
++        mul
++        addd    #GATE_ENTITY_LISTS
++        tfr     d,y
++        lda     4,y
++        beq     rseg_next
++        lda     GATE_COPY_COUNT
++        inca
++        cmpa    RENDER_GATE_ID
++        beq     rseg_next
++        cmpa    RENDER_GATE2_ID
++        beq     rseg_next
++        cmpa    GATE_ANIM_ID
++        beq     rseg_next
++        lda     GATE_COPY_COUNT
++        lbsr    draw_gate
++rseg_next
++        inc     GATE_COPY_COUNT
++        lda     GATE_COPY_COUNT
++        cmpa    #MAZE_GATE_COUNT
++        blo     rseg_gate
++        rts
++
+ draw_entity_object
+         lda     ENTITY_VARIANT
+         ldb     #OBJECT_MASK_SIZE

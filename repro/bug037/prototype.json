@@ -1,0 +1,74 @@
+{
+  "ticket": "BUG-037",
+  "checkpoint": "approved 3% prototype reallocation within 8% total",
+  "status": "infeasible-copied-engine-capacity",
+  "branch": "codex/bug-037-assembly-prototype",
+  "head_before_prototype": "8c6d8b8577ca68793cae187b2bbfda9dfb9c098c",
+  "baseline_source_sha256": {
+    "src/audio_runtime.s": "5aa25f8c08fe441aed16f2e752395db87ada6516877f2a8d0882cb02eb845705",
+    "src/main.s": "0ba848ac33e59137b555131d143cbd2e37fa94c6d74fe1276c350c11092ab243",
+    "src/presentation_runtime.s": "234ca6f48d550bdea13d61f8c4281c917a322eb58158cc2160d1f80f7587e771",
+    "src/demo_runtime.s": "bba16da37229a58bbfffce7aa81462463a590413e78b65781b68e8595e4a5be8",
+    "src/instruction_runtime.s": "cbff560bf1e5dfee223f97868dd9ab01b163d55763ae917907014292b16f136d",
+    "tiled/config.toml": "b4deab420e9995ea5a259099a9e0596634a7ee7087dbaffd2b06e5a49f791af4"
+  },
+  "fresh_baseline_build": {
+    "rom_sha256": "bfb6934a72603e840c6af906f727ebb4d5145f60c81f4f68f5e4966a5b457e90",
+    "copied_engine_bytes": 812,
+    "engine_limit_bytes": 920,
+    "audio_payload_bytes": 4877,
+    "audio_payload_limit_bytes": 8192,
+    "resident_bytes": 8075,
+    "resident_limit_bytes": 8192,
+    "presentation_bytes": 1251,
+    "presentation_limit_bytes": 1280
+  },
+  "candidate": {
+    "patch": "prototype.patch",
+    "scope": "audio_runtime.s only; stopped before owner, service-site, or drain-barrier edits",
+    "intended_behavior": [
+      "Manifest jingle admission bypasses the four-entry effect FIFO.",
+      "Eight bounded jingle IDs are deduplicated and selected by priority with FIFO ties.",
+      "System stop cues 16/17 defer until active and pending jingles finish; explicit audio init reset clears pending and active state."
+    ],
+    "reachable_music_ids": [6, 9, 10, 11, 13],
+    "music_queue_slots": 8,
+    "assembler_exit_code": 0,
+    "baseline_copied_engine_bytes": 812,
+    "candidate_copied_engine_bytes": 1105,
+    "engine_delta_bytes": 293,
+    "copied_engine_limit_bytes": 920,
+    "engine_overrun_bytes": 185,
+    "baseline_audio_payload_bytes": 4877,
+    "candidate_audio_payload_bytes": 5180,
+    "audio_payload_delta_bytes": 303,
+    "audio_payload_limit_bytes": 8192,
+    "audio_payload_free_bytes": 3012
+  },
+  "map_symbols": {
+    "audio_engine_start": "A000",
+    "audio_music_busy_entry": "A009",
+    "audio_music_busy_impl": "A1F4",
+    "audio_music_queue": "A619",
+    "audio_engine_end_and_audio_install_page": "A451"
+  },
+  "guard": {
+    "command": "python3 build/prototype_audio_guard.py build/ladybug-audio-runtime-prototype.bin build/ladybug-audio-runtime-prototype.map 920 8192",
+    "exit_code": 1,
+    "output": "build: audio engine is 1105 bytes; limit is 920"
+  },
+  "assembler_command": "lwasm -9 --format=raw --output=build/ladybug-audio-runtime-prototype.bin --list=build/ladybug-audio-runtime-prototype.lst --symbols --map=build/ladybug-audio-runtime-prototype.map -I assets/arcade/audio src/audio_runtime.s",
+  "verification": {
+    "assembly": "audio module assembled successfully with the exact build.sh lwasm flags",
+    "capacity": "failed copied-engine guard by 185 bytes",
+    "owner_identity": "not implemented or verified",
+    "presentation_service_placement": "not implemented or verified",
+    "maze_and_gameover_drain": "not implemented or verified",
+    "music_admission_and_nonpreemption": "assembly only; behavior not verified",
+    "cue_16_17": "deferred-stop candidate assembled, behavior not verified",
+    "runtime_or_natural_input": "not run",
+    "full_build_and_audio_verifier": "not run after the mandatory capacity stop",
+    "timing": "not measured"
+  },
+  "disposition": "Do not advance BUG-037 to implementation readiness from this candidate. Preserve the patch and exact fit failure; parent integration and ticket lifecycle remain with the parent agent."
+}

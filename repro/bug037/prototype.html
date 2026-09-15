@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-037 assembly prototype</title>
+  <link rel="stylesheet" href="../../wiki/shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell"><main class="wiki-main">
+  <header>
+    <p class="wiki-eyebrow">BUG-037 · approved feasibility prototype</p>
+    <h1>Audio admission and drain prototype</h1>
+    <p class="wiki-meta">2026-09-15 · one assembly candidate · no runtime proof</p>
+  </header>
+  <section>
+    <h2>Result</h2>
+    <p><strong>Infeasible at the copied-engine boundary.</strong> The audio candidate assembled to 1,105 bytes against the 920-byte limit, exceeding the guard by 185 bytes. The existing audio payload remains within its page limit at 5,180/8,192 bytes. Per assignment, source construction stopped at the first hard fit failure.</p>
+  </section>
+  <section>
+    <h2>Candidate</h2>
+    <p><a href="./prototype.patch">Baseline-relative assembly patch</a> adds a bounded manifest-jingle queue, active/pending deduplication, priority selection with FIFO ties, deferred system stop cues 16/17, and a busy-query entry. The current caller inventory contains music IDs 6, 9, 10, 11, and 13. The candidate reserves eight queue slots for manifest jingle IDs 6–11, 13, and 14; its compiled form was not behaviorally tested.</p>
+    <p>The required current-owner check, presentation service placement, and maze/game-over drain barrier were not implemented or assembled because the copied-engine guard failed first. No changes were made to <code>src/main.s</code> or <code>src/presentation_runtime.s</code>. No emulator or natural-input scenario ran.</p>
+  </section>
+  <section>
+    <h2>Capacity evidence</h2>
+    <p>Baseline, from the fresh copied build: engine 812/920 bytes; audio payload 4,877/8,192 bytes. Candidate assembly: engine 1,105/920 bytes (+293); audio payload 5,180/8,192 bytes (+303). Engine headroom changes from 108 bytes to a 185-byte overrun; payload headroom is 3,012 bytes.</p>
+    <p>Assembler exit status was 0. The copied-engine capacity guard exited 1 with: <code>build: audio engine is 1105 bytes; limit is 920</code>. The precise command, symbols, hashes, and guard result are recorded in <a href="./prototype.log">prototype.log</a> and <a href="./prototype.json">prototype.json</a>.</p>
+  </section>
+  <section>
+    <h2>Disposition</h2>
+    <p>This is a feasibility failure, not an accepted repair. Owner identity, natural stage/death drain, system-stop behavior, cycle cost, complete build integration, and runtime behavior remain unverified. The existing BUG-037 implementation/verification work cannot proceed from this candidate within the current copied-engine limit.</p>
+  </section>
+</main></div>
+</body>
+</html>

@@ -1,0 +1,105 @@
+diff --git a/src/main.s b/src/main.s
+index 74deb85..64b46fd 100644
+--- a/src/main.s
++++ b/src/main.s
+@@ -631,7 +631,15 @@ main_game_tick
+         ; when the two regions overlap at the vegetable/spawner cell.
+         lbsr    enemy_tick
+         lda     DEATH_STATE
++        beq     main_player_alive
++        cmpa    #5              ; initial marker transfer uses the player renderer only
+         bne     main_after_player
++        lda     FB_SIM_SEQ+1
++        bita    #$01            ; retain the scheduled 30 Hz movement cadence
++        bne     main_after_player
++        lbsr    player_tick
++        bra     main_after_player
++main_player_alive
+         tst     PLAYER_TICK_PENDING
+         beq     main_after_player
+         clr     PLAYER_TICK_PENDING
+@@ -674,7 +682,7 @@ main_render
+         lbsr    read_joystick
+ main_demo_input_owned
+         jsr     AUDIO_ENGINE_EXEC
+-        bra     mainloop
++        lbra    mainloop
+ 
+ ;==============================================================================
+ ; Phase 5 score, HUD, and no-enemy stage state.
+@@ -702,7 +710,8 @@ init_game_state
+         clr     SPECIAL_BITS
+         clr     EXTRA_BITS
+         clr     DEATH_TIMER
+-        clr     DEATH_STATE
++        lda     #5              ; initial HUD marker owns the player until maze entry
++        sta     DEATH_STATE
+         clr     PLAYER_ANIM
+         lda     #8
+         sta     PLAYER_ANIM_TIMER
+@@ -2090,6 +2099,16 @@ init_player
+         clr     GATE_ANIM_ID
+         ldd     #$89EC          ; final anchor $75EC plus 32 entrance pixels
+         std     PLAYER_FB
++        lda     DEATH_STATE
++        cmpa    #5
++        bne     ip_done
++        ldd     #$8994          ; rightmost 16x16 life marker at HUD row 21
++        std     PLAYER_FB
++        lda     #2              ; face and walk down from the marker
++        sta     PLAYER_DIR
++        sta     PLAYER_FACE
++        clr     DEATH_TIMER
++ip_done
+         rts
+ 
+ ;==============================================================================
+@@ -2261,6 +2280,9 @@ player_tick
+         clr     PLAYER_ERASED
+ pt_snapshot_ready
+ pt_alive
++        lda     DEATH_STATE
++        cmpa    #5
++        lbeq    pt_initial_entry ; never query maze passage from HUD coordinates
+         lda     PLAYER_MANUAL
+         beq     pt_input_active  ; preserve automatic entrance movement
+         lda     JOY_DIR
+@@ -2493,6 +2515,29 @@ pt_draw
+ pt_done
+         rts
+ 
++pt_initial_entry
++        lda     DEATH_TIMER
++        cmpa    #4              ; move eight pixels to the framebuffer's bottom edge
++        bhs     pt_initial_finish
++        ldd     PLAYER_FB
++        addd    #320            ; two framebuffer rows per scheduled player tick
++        std     PLAYER_FB
++        inc     DEATH_TIMER
++        lda     RENDER_FLAGS
++        ora     #RF_PLAYER
++        sta     RENDER_FLAGS
++        rts
++pt_initial_finish
++        lda     #2              ; active entrant remains; two reserve markers remain
++        sta     LIVES
++        clr     DEATH_STATE
++        clr     DEATH_TIMER
++        lbsr    init_player     ; restore the existing northbound maze entry
++        lda     RENDER_FLAGS
++        ora     #RF_LIVES|RF_PLAYER
++        sta     RENDER_FLAGS
++        rts
++
+ ; Restore the old player rectangle only when another renderer must mutate the
+ ; maze beneath it during this tick. Ordinary movement remains off-screen.
+ expose_player_background
+@@ -3908,6 +3953,8 @@ player_animation_tick
+         lda     DEATH_STATE
+         beq     pat_count
+         cmpa    #3
++        beq     pat_count
++        cmpa    #5              ; animate the initial entrant with the normal frame clock
+         bne     pat_done
+ pat_count
+         dec     PLAYER_ANIM_TIMER
