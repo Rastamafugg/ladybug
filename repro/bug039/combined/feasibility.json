@@ -1,0 +1,49 @@
+{
+  "ticket": "BUG-039 / RSCH-012 combined-memory feasibility",
+  "gate": 1,
+  "status": "failed",
+  "decision": "Stop before construction; no defensible local savings route established.",
+  "source_snapshot": {
+    "head": "f88473d",
+    "inherited_dirty_source": true,
+    "normalized_source_hash_check": "repro/bug039/combined/baseline.json",
+    "fresh_rom_sha256": "bfb6934a72603e840c6af906f727ebb4d5145f60c81f4f68f5e4966a5b457e90",
+    "map_reference": "E:/projects/ladybug-worktrees/bug-038/build-checkpoint"
+  },
+  "resident_ledger_bytes": {
+    "baseline": 8075,
+    "limit": 8192,
+    "gate_candidate_delta": 58,
+    "gate_candidate_projection": 8133,
+    "lives_incomplete_candidate_delta": 89,
+    "combined_projection": 8222,
+    "target": 8128,
+    "required_savings_before_clipping_growth": 94,
+    "proven_savings": 0,
+    "actual_combined_build": false
+  },
+  "other_capacity_bytes": {
+    "presentation": {"used": 1251, "limit": 1280},
+    "enemy": {"used": 4095, "limit": 4096},
+    "copied_audio_baseline": {"used": 812, "limit": 920},
+    "failed_audio_candidate": {"used": 1105, "limit": 920}
+  },
+  "decisive_findings": [
+    "Gate candidate alone projects 5 bytes above the combined target.",
+    "Lives prototype moves only 8 pixels from row 168 to row 176, short of the required 24-pixel travel to y=192.",
+    "main.s save_player/restore_player use fixed 16-row loops; enemy_runtime.s stages visibility but still commits 16 rows and restores 16-row strips.",
+    "DEATH_STATE=5 reaches death_tick: main_game_tick dispatches every nonzero state there; death_tick only early-outs for 4, may expose player background, and sets RF_DEATH before dispatching states 1/2/3.",
+    "enemy_tick remains before the player-state branch in the retained lives prototype."
+  ],
+  "unproven_obligations": [
+    "Safe capture, publication, and old-footprint restoration for visible rows 168 through 191 and no framebuffer access at y=192.",
+    "Clean one-time marker-to-player conversion and removal of stale marker pixels on both persistent owners.",
+    "Enemy/collision and input gating; reset, death, and stage semantics."
+  ],
+  "budget": {
+    "approved_cap_percentage_points": 0.5,
+    "shared_meter_observation": "35% to 36%; coarse one-point resolution; per-task attribution cannot be certified.",
+    "investigation_stopped": true
+  },
+  "changes": {"source": false, "build": false, "runtime": false}
+}
