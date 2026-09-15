@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>RSCH-011 preparation result</title></head>
+<body>
+<h1>RSCH-011 preparation result</h1>
+<p><strong>Status:</strong> Preparation failed before runtime. No emulator was launched, and no diagnostic cause was established.</p>
+<h2>Identity baseline</h2>
+<p>At HEAD <code>67d22e6b189165d2c868519bdd5a06c65115b909</code>, the current ROM SHA-256 is <code>bfb6934a72603e840c6af906f727ebb4d5145f60c81f4f68f5e4966a5b457e90</code>; the map hash is <code>78365688b299ecf3b1247799bbfb01c55d25fc589e5c8147fbb059328c54f41a</code>. The staged resident runtime hash is <code>af7cf602ec62f97026c5a0ad2dd0ddcaf8933cbeacf4008d0b08949716d67df1</code>; the enemy runtime payload hash is <code>1f20d1e6000ba620a382081557de2b626c3a94b45897ab59ae3aabd91118c0f6</code>. The current <code>src/main.s</code> and <code>src/enemy_runtime.s</code> hashes match the RSCH-010 graphics report, and neither file has a tracked working-tree diff. These identify the built baseline only; live bytes were not checked.</p>
+<h2>Preparation boundary</h2>
+<p>RSCH-010 leaves two candidates open: a randomized heart or letter at semantic cell <code>(12,10)</code>, and pixels replayed from <code>ENEMY_ZONE_BG</code>. Neither candidate is confirmed. The approved natural keyboard route is unavailable, so natural appearance remains missing and no synthetic input is classified as natural.</p>
+<p>The proposed one paired fixture needs a proven way to seed or observe a legitimate entity, run the source-identical entity renderer, exercise normal pickup movement/state, and capture both physical framebuffer owners while restoring actual PAR1–PAR5. The existing native command adapter supplies GDB framing and cleanup but does not supply a proven gameplay controller. Extending it into one would exceed the included 1% preparation checkpoint. In accordance with the parent instruction, work stops here rather than expanding the controller.</p>
+<h2>Unrun phases</h2>
+<p>The reviewed Phase A remains capped at 30 seconds: verify the owned listener with <code>ss</code>, attach to the pinned ROM, compare live <code>$C000-$FDFF</code> with the first <code>$3E00</code> resident bytes, then at <code>frame_render_impl=$09D9</code> verify PAR0 and compare exactly 4095 bytes from live <code>$0800</code> with <code>ladybug-enemy-runtime.rom</code>. Any timeout or mismatch stops downstream interpretation.</p>
+<p>The one controlled phase remains capped at 60 seconds. It must retain the initial player/direct-page state, <code>MAZE_STATE</code>, entity table/count, <code>ENEMY_ZONE_BG</code>, and both physical framebuffer owners. Acceptance requires pixels and state tied to a named source-identical writer or replay. This phase did not run.</p>
+<p>Ceiling: 5% of weekly allocation. Preparation estimate used: 1%. Runtime used: 0 seconds. No build, source edit, ticket edit, shared wiki edit, push, or ticket closure occurred.</p>
+</body>
+</html>

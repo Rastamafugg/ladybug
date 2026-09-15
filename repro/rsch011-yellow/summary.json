@@ -1,0 +1,32 @@
+{
+  "ticket": "RSCH-011",
+  "status": "preparation_failed",
+  "cost_class": "High-risk",
+  "approved_ceiling_weekly_percent": 5,
+  "preparation_checkpoint_weekly_percent_estimate": 1,
+  "runtime_launched": false,
+  "runtime_wall_seconds": 0,
+  "natural_reproduction": "missing; natural keyboard route unavailable per approved assignment",
+  "forced_experiment": "not run",
+  "baseline": {
+    "head": "67d22e6b189165d2c868519bdd5a06c65115b909",
+    "rom_sha256": "bfb6934a72603e840c6af906f727ebb4d5145f60c81f4f68f5e4966a5b457e90",
+    "map_sha256": "78365688b299ecf3b1247799bbfb01c55d25fc589e5c8147fbb059328c54f41a",
+    "main_runtime_sha256": "af7cf602ec62f97026c5a0ad2dd0ddcaf8933cbeacf4008d0b08949716d67df1",
+    "main_source_sha256": "b1ca913c2c30177f3fccb6354b8c9cbce58e15ede686896f394503b00d10cdc0",
+    "enemy_source_sha256": "894aab87cb14d76bca76d7012f95de9768744f34e1b568ce6c2a142d60793b19",
+    "enemy_runtime_sha256": "1f20d1e6000ba620a382081557de2b626c3a94b45897ab59ae3aabd91118c0f6",
+    "main_source_tracked_diff": false,
+    "enemy_source_tracked_diff": false
+  },
+  "confirmed_static_context": [
+    "Current ROM/map/enemy payload hashes match the approved ticket values; the staged resident runtime hash is retained as af7cf602ec62f97026c5a0ad2dd0ddcaf8933cbeacf4008d0b08949716d67df1.",
+    "Current main.s and enemy_runtime.s hashes match the RSCH-010 graphics report.",
+    "RSCH-010 identifies a possible randomized heart/letter entity at semantic cell (12,10) and a separate retained enemy-zone background candidate; neither explains the user report without runtime evidence."
+  ],
+  "preparation_limit": "A discriminating paired fixture requires a proven controlled path that seeds or observes a legitimate entity, reaches its source-identical renderer, exercises normal pickup movement/state, and captures both framebuffer owners. The available native_command helper provides GDB transport and cleanup but no established gameplay keyboard route. Implementing an additional controller would exceed the included 1% preparation checkpoint and the instruction against expanding tooling.",
+  "proposed_invocation": "wsl -d Ubuntu -- bash -lc \"cd /mnt/e/projects/ladybug && python3 repro/rsch011-yellow/observe.py repro/rsch011-yellow/run-001\"",
+  "proposed_phase_a": "30 seconds maximum; verify owned listener with ss, attach to the pinned ROM, prove live C000..FDFF against the first 0x3e00 resident bytes, then at frame_render_impl ($09D9) prove PAR0 mapping and compare live $0800..$17fe against all 4095 staged enemy-runtime bytes. Timeout or mismatch stops all interpretation.",
+  "proposed_controlled_phase": "60 seconds maximum; one paired (12,10) candidate fixture only, preserving actual PAR1-PAR5; capture direct-page/player, MAZE_STATE, ENTITY_TABLE/count, ENEMY_ZONE_BG, and both physical framebuffer owners. Success requires before/after pixels tied to a named source-identical writer/replay and state evidence; this package did not reach execution readiness.",
+  "next_action": "Parent review required before any further preparation or launch. No ticket/index/log update, production write, build, or runtime action was made."
+}
