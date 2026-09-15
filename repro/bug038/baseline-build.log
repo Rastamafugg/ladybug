@@ -1,0 +1,69 @@
+build: profile complete; input keyboard
+maze: 25 styles, 117 dots, 20 gates, 250 walkable cells -> /mnt/e/projects/ladybug-worktrees/bug-038/assets/arcade/maze.json, /mnt/e/projects/ladybug-worktrees/bug-038/build-checkpoint/ladybug_maze.inc
+screen: 97 unique tiles, 5152 data bytes, 832 gate-transition bytes (168 verified cases), 896 presentation-sparse bytes
+presentation: 6 maps, 219 native descriptors, 13817 cold bytes, b33f17ba4e99b02d07ba7159113929cf49d1dc376c7d5a6129b4286aec7c0b9d
+build: audio engine 812/920 bytes; page-$3D payload 4877/8192 bytes
+{
+  "status": "pass",
+  "cases": [
+    {
+      "screen": "attract",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "instructions",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "level-start",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "high-score",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "game-over",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "enter-high-score",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    }
+  ],
+  "font_bytes": 328,
+  "graphics": 168,
+  "cold_bytes": 13817,
+  "sha256": "b33f17ba4e99b02d07ba7159113929cf49d1dc376c7d5a6129b4286aec7c0b9d"
+}
+BUG-016 proof: 6 role contracts, 22 raw markers, 2 deferred logo layers, 5 negative diagnostics valid
+build: resident 8075/8192 bytes; assets 7552/7680 bytes
+build: padded 15744 → 16384 bytes (/mnt/e/projects/ladybug-worktrees/bug-038/build-checkpoint/ladybug-runtime.rom)
+build: presentation module 1251/1280 bytes
+build: resident 8075/8192 bytes; assets 7552/7680 bytes
+build: padded 15744 → 16384 bytes (/mnt/e/projects/ladybug-worktrees/bug-038/build-checkpoint/ladybug-runtime.rom)
+build: demo runtime 143/938 bytes
+build: high-score runtime 903/938 bytes
+build: presentation module 1251/1280 bytes
+build: instruction runtime 929/938 bytes
+build: presentation helper 331/334 bytes
+sparse: enemy 23005/24576, player 2294/8192, gate 832 bytes, presentation 896 bytes, perimeter reset 5751 bytes, 13 loader segments, 4 LZSS streams, 1247 CPU-readable GMC bytes spare
+sparse proof: 130 enemy and 16 player frames decode and blend pixel-exactly; 13 loader segments reconstruct actor, gate, presentation, cold, module, audio, and auxiliary payloads with 1247 bytes spare
+GMC overflow proof: exact boundary reconstructs across banks 2/3/0; one-byte excess fails
+presentation proof: 9 colour/score, 3 multiplier, and 14 death streams blend pixel-exactly with PAR5-restoring sparse decode
+build: boot loader ends at $C560; overflow starts at $C800
+allocation proof: page $20 is boot-synthesized perimeter ownership; $3A-$3D remain cold presentation
+build: padded 1376 → 16384 bytes (/mnt/e/projects/ladybug-worktrees/bug-038/build-checkpoint/ladybug-gmc-boot.rom)
+build: GMC banks 4 x 16384 -> 65536 bytes (/mnt/e/projects/ladybug-worktrees/bug-038/build-checkpoint/ladybug.rom)

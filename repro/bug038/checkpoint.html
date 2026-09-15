@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-038 checkpoint — settled gate redraw</title>
+  <link rel="stylesheet" href="../../wiki/shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">BUG-038 · approved 1.5% checkpoint</p>
+      <h1>Settled gate redraw checkpoint</h1>
+      <p class="wiki-meta">Incomplete — cause source-confirmed; bounded repair fit and runtime reproduction unproven.</p>
+    </header>
+
+    <section>
+      <h2>Classification and boundary</h2>
+      <p>Objective: discriminate the settled-gate omission and prove a bounded repair/capacity design before production assignment. This is High-risk because it crosses persistent framebuffer rendering and pending/settled gate ownership. Checkpoint ceiling is 1.5% of weekly allocation within BUG-038's approved 6% total. Work is limited to read-only source, copied build evidence, small geometry calculations, and these checkpoint artifacts. No production files were edited. No emulator or runtime probe was run because the shared emulator remains assigned to the yellow-object investigation.</p>
+      <p>Routing: project-management classified the checkpoint first; debugger evidence was used for the source cause, followed by coding-architect constraints. This checkpoint does not make BUG-038 Ready and does not authorize repair implementation.</p>
+    </section>
+
+    <section>
+      <h2>Evidence identity and baseline capacity</h2>
+      <p>Worktree revision: <code>6032e140a6d684d63fbaa61408e22b62d26e4262</code>, branch <code>codex/bug-038-settled-gates</code>. Source baseline is the RSCH-010 snapshot. The copied checkout has CRLF/LF differences only in <code>src/main.s</code> and <code>src/enemy_runtime.s</code>; normalized text matches the snapshot. The fresh isolated baseline build completed with exit code 0 and reproduced the primary ROM byte-for-byte: SHA-256 <code>BFB6934A72603E840C6AF906F727EBB4D5145F60C81F4F68F5E4966A5B457E90</code>. This identifies the inspected source/build baseline; it does not reproduce the visual symptom.</p>
+      <p>Copied artifacts and the fresh isolated build report resident use of 8075/8192 bytes (117 free), enemy runtime use of 4095/4096 bytes (1 free), asset use of 7552/7680 bytes (128 free), and presentation module use of 1251/1280 bytes (29 free). Any enemy-module growth beyond one byte fails the current limit. A resident addition over 117 bytes or asset growth over 128 bytes also fails. No candidate repair was assembled, so its net byte and cycle deltas are unknown.</p>
+      <p>Raw source SHA-256 values: snapshot/current <code>src/main.s</code> <code>B1CA913C2C30177F3FCCB6354B8C9CBCE58E15EDE686896F394503B00D10CDC0</code> / <code>0BA848AC33E59137B555131D143CBD2E37FA94C6D74FE1276C350C11092AB243</code>; snapshot/current <code>src/enemy_runtime.s</code> <code>894AAB87CB14D76BCA76D7012F95DE9768744F34E1B568CE6C2A142D60793B19</code> / <code>376B5614B8AD88F5B76BBE7FCEAE506A58FA123733811196F86361BCB87CA18C</code>. The current <code>tiled/config.toml</code> hash is <code>B4DEAB420E9995EA5A259099A9E0596634A7EE7087DBAFFD2B06E5A49F791AF4</code>, matching the preserved snapshot.</p>
+    </section>
+
+    <section>
+      <h2>Settled omission cause</h2>
+      <p>Source evidence distinguishes BUG-038 from BUG-005. A legal gate push updates authoritative <code>GATE_STATE</code> and queues a render. The frame renderer clears current <code>RENDER_GATE_ID</code>/<code>RENDER_GATE2_ID</code> after rendering. On a later <code>RF_ENTITIES</code> pass, <code>erase_entity_footprints</code> restores each entity's four maze cells from <code>MAZE_STATE</code> and, when no dot remains, the authored <code>screen_map</code> tile. <code>draw_entities</code> then paints the live objects. Gate composition occurs afterward only for nonzero current render IDs; it does not enumerate settled <code>GATE_STATE</code>. Collision continues to read <code>GATE_STATE</code>. Therefore a settled rotated gate's pixels can be overwritten while collision retains the rotated orientation. This is the confirmed source cause. The exact reported one-wall pixel result remains unobserved.</p>
+      <p>Evidence locations: <code>src/main.s</code> gate state update and render queue around 2698–2707, entity restore at 1543–1590 and 3709–3748, gate list construction/replay at 3113–3308; <code>src/enemy_runtime.s</code> background order at 752–836 and current gate ID clearing at 585–616. RSCH-010 independently recorded this same source chain. No hardware, loader, mapping, or emulator defect is indicated.</p>
+    </section>
+
+    <section>
+      <h2>Bounded-design assessment</h2>
+      <p>The existing <code>GATE_ENTITY_LISTS</code> table has 20 records of 77 bytes and associates entity footprints with each gate-plus-neighbor redraw rectangle. It can avoid scanning the whole maze, but it does not prove that replaying only associated gates is narrower than all gates. A read-only calculation over the copied generated maze found 117 legal initial dot cells, up to three associated gate rectangles for one 2×2 entity footprint, and a 12-cell witness covering all 20 gate records. The witness uses unique legal positions <code>(6,4),(14,6),(8,14),(18,14),(18,2),(2,6),(20,6),(8,8),(8,18),(14,18),(4,20),(18,20)</code>. At high stages the source permits 12 entities. This is a geometric placement envelope; the deterministic RNG's reachability of that exact witness was not established. Thus a repair that replays every nonempty gate association has a 20-gate worst case and cannot be accepted as satisfying the no-wholesale-all-gates-redraw constraint.</p>
+      <p>A cell-local direction could restore a cell from current <code>MAZE_STATE</code>, then reconstruct only the dynamic gate overlay for that cell from <code>GATE_STATE</code>, before live entities are drawn. This avoids replaying whole gate unions and handles a consumed entity's underlay in principle. It is not a viable design yet: current <code>maze_gate_owner</code> is documented as a five-cell collision cross, while the state-specific overlay data spans four orientations and does not provide a proven complete cell-to-all-overlay-owner map. Neighbor overlap ownership, the correct overlay tile selection, and interactions with pending diagonal/final intents have not been established. Reapplying settled orientation before the existing pending gate phase may change transient rendering. Existing gate/entity metadata also does not by itself resolve that ordering.</p>
+      <p>Capacity is consequently unproven. A cell-local implementation would need a complete owner lookup or equivalent scan and pending-intent guard. The unchanged-size option of repurposing existing generated metadata has not been shown to encode all simultaneous visual owners. No defensible exact byte estimate or frame-cycle estimate can be assigned without crossing the checkpoint into implementation or additional experiments. Current headroom is only 117 resident bytes, 1 enemy byte, and 128 asset bytes; the design must demonstrate fit against all three before Ready.</p>
+    </section>
+
+    <section>
+      <h2>Smallest future verification set</h2>
+      <ul>
+        <li>Natural gate rotation, drain both owner replay queues, then allow a natural collectible colour change. Compare the affected gate-plus-neighbor union against an independent <code>GATE_STATE</code>-based oracle on both framebuffer owners. This proves the reported settled-state boundary; missing natural rotation or colour change is incomplete evidence.</li>
+        <li>One controlled settled fixture must cover both final orientation parities, a live heart/letter overlap, and a consumed footprint. Prove current and pending gate worklists are empty without removing a required replay. This checks restored underlay and entity layering.</li>
+        <li>One pending diagonal-to-final plus colour sequence must retain BUG-005 ordering and normal A/B progression. This checks that the settled repair does not alter transient intent rendering.</li>
+        <li>Measure complete-frame cycles for the same no-overlap worklist before/after and for the design-proven maximum reachable overlap set. Acceptance requires no increase in the unchanged no-overlap worklist, zero visible-framebuffer writes, zero missed publications, and completion inside the existing verified publication window. No current cycle evidence was gathered in this checkpoint.</li>
+      </ul>
+      <p>Reuse <code>scripts/verify_bug005_gate_colour_replay.py</code> and its shared capture/image helpers, plus compatible underlay checks from <code>scripts/verify_bug003_collectible_underlay.py</code>. Before runtime, the exact fixture must prove authored/staged/live identity, both-owner state, and an independent expected image. The initial phase deadline remains at most 60 seconds. No runtime result is claimed here.</p>
+    </section>
+
+    <section>
+      <h2>Checkpoint result</h2>
+      <p><strong>Incomplete; do not advance BUG-038 to Ready.</strong> The settled replay omission is discriminated at source level, and current build/capacity identity is verified. The one available association-driven replay approach can reach all 20 gates. The lower-cost cell-local alternative lacks complete owner/neighbor mapping, pending-intent safety, and measured capacity proof. No exact minimal production repair has been shown to fit the current limits. The exact one-wall reproduction, natural-input evidence, controlled pixel oracle, and cycle evidence remain outstanding.</p>
+      <p>No rejected runtime probe or observation timeout occurred. The geometry calculation rejected the assumption that nonempty association lists guarantee a strict subset of gates. No production changes, shared wiki edits, build modifications, push, or parent ticket status changes were made by this checkpoint.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Prepared 2026-09-15 in the BUG-038 worktree. Parent review owns any reassessment, revised estimate, repair design, assignment, and subsequent verification.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

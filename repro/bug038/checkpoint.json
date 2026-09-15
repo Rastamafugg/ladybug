@@ -1,0 +1,111 @@
+{
+  "ticket": "BUG-038",
+  "checkpoint": "RSCH-012 approved gate repair checkpoint",
+  "date": "2026-09-15",
+  "result": "incomplete",
+  "ready_gate": false,
+  "classification": {
+    "cost_class": "High-risk",
+    "reason": "persistent framebuffer interaction and pending/settled gate ordering",
+    "checkpoint_ceiling_percent": 1.5,
+    "parent_ceiling_percent": 6,
+    "projected_share": "within checkpoint ceiling; source/static evidence only"
+  },
+  "scope": {
+    "production_edits": false,
+    "emulator_or_runtime": false,
+    "shared_wiki_edits": false,
+    "owned_artifacts": [
+      "repro/bug038/checkpoint.html",
+      "repro/bug038/checkpoint.json"
+    ],
+    "parent_generated_evidence_included": [
+      "repro/bug038/baseline-build.log",
+      "repro/bug038/fresh-build-summary.json"
+    ]
+  },
+  "identity": {
+    "revision": "6032e140a6d684d63fbaa61408e22b62d26e4262",
+    "branch": "codex/bug-038-settled-gates",
+    "rom_sha256": "BFB6934A72603E840C6AF906F727EBB4D5145F60C81F4F68F5E4966A5B457E90",
+    "rom_match_to_primary": true,
+    "build_exit_code": 0,
+    "source_line_ending_note": "main.s and enemy_runtime.s raw hashes differ from snapshot due CRLF/LF only; normalized source text matches",
+    "raw_sha256": {
+      "src/main.s": {
+        "snapshot": "B1CA913C2C30177F3FCCB6354B8C9CBCE58E15EDE686896F394503B00D10CDC0",
+        "worktree": "0BA848AC33E59137B555131D143CBD2E37FA94C6D74FE1276C350C11092AB243"
+      },
+      "src/enemy_runtime.s": {
+        "snapshot": "894AAB87CB14D76BCA76D7012F95DE9768744F34E1B568CE6C2A142D60793B19",
+        "worktree": "376B5614B8AD88F5B76BBE7FCEAE506A58FA123733811196F86361BCB87CA18C"
+      },
+      "tiled/config.toml": "B4DEAB420E9995EA5A259099A9E0596634A7EE7087DBAFFD2B06E5A49F791AF4"
+    }
+  },
+  "baseline_capacity_bytes": {
+    "resident": {"used": 8075, "limit": 8192, "free": 117},
+    "enemy_runtime": {"used": 4095, "limit": 4096, "free": 1},
+    "assets": {"used": 7552, "limit": 7680, "free": 128},
+    "presentation": {"used": 1251, "limit": 1280, "free": 29}
+  },
+  "confirmed_source_cause": {
+    "confirmed": true,
+    "visual_reproduction": false,
+    "chain": [
+      "gate push updates authoritative GATE_STATE and queues a render",
+      "frame renderer clears current render IDs after the queued gate work is drawn",
+      "later RF_ENTITIES restores entity footprints from MAZE_STATE/authored screen_map",
+      "gate composition after entity redraw is conditional on nonzero current gate IDs",
+      "settled gate with drained intent is not recomposed, while collision still reads GATE_STATE"
+    ],
+    "source_locations": {
+      "src/main.s": ["1543-1590", "2698-2707", "3113-3308", "3709-3748"],
+      "src/enemy_runtime.s": ["585-616", "752-836"]
+    },
+    "distinction_from_bug005": "BUG-005 covers pending gate-intent ordering; this path has no settled render ID or pending intent."
+  },
+  "overlap_calculation": {
+    "method": "read-only calculation from copied build/ladybug_maze.inc, gate_redraw_neighbors, and build_gate_entity_lists bounds/intersection rules",
+    "legal_initial_dot_cells": 117,
+    "maximum_gate_records_intersecting_one_entity_footprint": 3,
+    "entity_count_maximum": 12,
+    "all_20_records_covered_by_12_unique_legal_dot_placements": true,
+    "witness_entity_origins_xy": [
+      [6, 4], [14, 6], [8, 14], [18, 14], [18, 2], [2, 6],
+      [20, 6], [8, 8], [8, 18], [14, 18], [4, 20], [18, 20]
+    ],
+    "interpretation": "geometric placement envelope only; deterministic RNG reachability of this exact witness is unverified"
+  },
+  "repair_design": {
+    "association_list_replay": {
+      "existing_metadata": "20 gate records, each with up to 12 entity associations",
+      "problem": "the legal 12-entity geometric witness populates all 20 gate records, so this worklist does not prove a strict subset and can degenerate to all-gate replay",
+      "status": "rejected for violating approved no-wholesale-all-gates constraint"
+    },
+    "cell_local_authoritative_reconstruction": {
+      "concept": "restore each entity footprint cell from MAZE_STATE, then compose the current gate overlay for that cell before live entities draw",
+      "potential_benefit": "limits work to restored cells and avoids replaying full gate unions",
+      "unresolved": [
+        "current maze_gate_owner describes a five-cell collision cross and is not proven complete for all four state-specific overlay shapes",
+        "simultaneous/neighbor gate ownership in one cell is not encoded as a proven complete mapping",
+        "must preserve pending diagonal/final transition ordering and skip or defer pending gate cells safely",
+        "no exact code-size or frame-cycle estimate was established"
+      ],
+      "status": "not proven viable; do not assign implementation"
+    }
+  },
+  "verification": {
+    "run": ["isolated baseline build only", "static source review", "small generated-geometry calculation"],
+    "not_run": ["natural runtime reproduction", "controlled pixel oracle", "pending transition regression", "frame-cycle measurement"],
+    "future_minimum": [
+      "natural settled rotation followed by natural colour change; independent GATE_STATE oracle on both framebuffer owners",
+      "controlled settled fixture for both orientation parities, live entity overlap, and consumed footprint with empty current/pending gate queues",
+      "one pending diagonal-to-final plus colour sequence to guard BUG-005 ordering and A/B progression",
+      "complete-frame cycle comparison for identical no-overlap baseline and proven maximum reachable overlap worklist"
+    ],
+    "deadline_seconds": 60,
+    "acceptance_target": "zero union pixel mismatches and no missed visible-framebuffer publication; no increase for unchanged no-overlap worklist; within verified publication window"
+  },
+  "decision": "Source cause is discriminated and baseline identity/capacity are verified. A viable bounded repair has not been shown to fit or preserve pending behavior. Keep BUG-038 out of Ready. Parent reassessment is required before further work."
+}
