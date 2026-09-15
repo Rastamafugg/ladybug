@@ -1,0 +1,52 @@
+{
+  "ticket": "BUG-039",
+  "checkpoint": "approved lives preparation step, 2% of 9% approved ceiling",
+  "date": "2026-09-15",
+  "status": "incomplete",
+  "classification": {
+    "role": "project-management then coding-architect",
+    "cost_class": "High-risk",
+    "reason": "player/framebuffer ownership and hard memory headroom",
+    "ticket_status": "Approved; not Ready"
+  },
+  "scope": {
+    "owned_files": ["repro/bug039/checkpoint.html", "repro/bug039/checkpoint.json"],
+    "production_edits": false,
+    "build_or_runtime": false
+  },
+  "baseline": {
+    "head": "74c88ac9b6b34ec94fa41ef08c442472b630fea5",
+    "source_worktree": "primary checkout with preserved existing changes",
+    "rom_sha256": "bfb6934a72603e840c6af906f727ebb4d5145f60c81f4f68f5e4966a5b457e90",
+    "capacity_evidence": "E:/projects/ladybug-worktrees/bug-038/repro/bug038/fresh-build-summary.json",
+    "resident": {"used": 8075, "limit": 8192, "free": 117},
+    "presentation": {"used": 1251, "limit": 1280, "free": 29},
+    "enemy": {"used": 4095, "limit": 4096, "free": 1},
+    "source_sha256": {
+      "src/main.s": "b1ca913c2c30177f3fccb6354b8c9cbce58e15ede686896f394503b00d10cdc0",
+      "src/presentation_runtime.s": "234ca6f48d550bdea13d61f8c4281c917a322eb58158cc2160d1f80f7587e771",
+      "src/enemy_runtime.s": "894aab87cb14d76bca76d7012f95de9768744f34e1b568ce6c2a142d60793b19"
+    },
+    "source_identity": "main.s and enemy_runtime.s have line-ending-only raw differences from build worktree; normalized text matches; presentation_runtime.s raw hash matches. Rebuilt ROM matches retained baseline."
+  },
+  "confirmed_source_points": {
+    "new_game": "presentation_runtime.s: live_begin -> init_gameplay -> PRES_MAIN_INIT/MAZE/GATES/ENTITIES/PLAYER/ENEMY",
+    "default_count": "main.s:init_game_state writes LIVES=3, then init_player independently creates active actor",
+    "life_hud": "main.s:draw_lives draws three static 2x2 authored markers",
+    "actor": "main.s:init_player starts at cell (12,22), northbound, with PLAYER_MANUAL=0; player_tick stops at (12,18)",
+    "death": "main.s:dt_finish_blank decrements a reserve and calls init_player; with LIVES=2, two replacements precede game over",
+    "stage": "main.s:next_stage does not change LIVES; next-stage presentation bypasses live_begin"
+  },
+  "candidate_reuse": "A transient initial-transfer substate could reuse DEATH_STATE and existing player fields, walk the selected actor down/offscreen, set LIVES=2 exactly once, then call init_player for the existing upward entry.",
+  "viability": {
+    "proven": false,
+    "blockers": [
+      "No exact resident/presentation byte placement or delta is established against 117 and 29 free bytes.",
+      "No maximum frame-work bound is measured.",
+      "Existing HUD marker is a 2x2 tile shape while the player renderer draws a 16x16 actor; compatible animated appearance is unproven.",
+      "Initial walkoff save-under and actor-history behavior across persistent framebuffer owners are unproven."
+    ]
+  },
+  "next_step": "After BUG-037 integration, provide a bounded call-site/byte allocation and frame-work estimate within the measured headroom. If it cannot fit without broadening ownership or adding a module, keep BUG-039 out of Ready and return the material scope change for approval.",
+  "decision": "Checkpoint incomplete. Do not treat count-only fit or the existing northbound entry as proof of the requested marker conversion."
+}
