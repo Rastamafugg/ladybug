@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-038 readiness review</title>
+  <link rel="stylesheet" href="../../../wiki/shared/css/wiki.css">
+</head>
+<body><div class="wiki-shell"><main class="wiki-main">
+<header class="wiki-header"><p class="wiki-eyebrow">BUG-038 · bounded readiness</p><h1>Settled gate recolour readiness</h1><p class="wiki-meta">Partial source review · production repair remains Blocked</p></header>
+
+<section><h2>Disposition</h2>
+<p>The retained candidate is not Ready for production assignment. Its new no-overlap path adds an estimated 1,034 6809 cycles for each qualifying <code>draw_entities</code> call. That is a static path regression against the unchanged-no-overlap target; complete-frame timing remains unmeasured. Scratch preservation, pending-owner ordering, and maximum reachable overlap work remain open.</p>
+<p>The primary dirty source/config snapshot was copied to base <code>7069a8e</code>; activation attested normalized equality. This review hashed the worktree inputs listed in <a href="./manifest.json">manifest.json</a>. The inherited dirty files remain outside the write boundary.</p>
+</section>
+
+<section><h2>Call and data trace</h2>
+<p>The retained patch adds a guarded call at the entry to <a href="../../../src/main.s#L1543"><code>draw_entities</code></a>, before the existing entity-overlay loop. It runs only when <code>RF_ENTITIES</code> is set and <code>RF_STAGE</code> is clear. The new routine scans all 20 gate/entity records; when a record count is nonzero, it skips IDs matching <code>RENDER_GATE_ID</code>, <code>RENDER_GATE2_ID</code>, or <code>GATE_ANIM_ID</code>, then calls <code>draw_gate</code>.</p>
+<ul>
+  <li><a href="../../../src/enemy_runtime.s#L766">Entity refresh at enemy_runtime.s:766</a> restores entity footprints, then calls <code>draw_entities</code>. The patch hook therefore runs after underlay restoration and before the current entity overlays.</li>
+  <li><a href="../../../src/enemy_runtime.s#L909">Full stage setup at enemy_runtime.s:909</a> calls <code>draw_entities</code> after drawing all gates. The patch's <code>RF_STAGE</code> guard is intended to bypass its repair scan on this path.</li>
+  <li><a href="../../../src/main.s#L3063">Hidden gate rendering at main.s:3063</a> calls <code>draw_entities</code> after <code>draw_gate</code> and before <code>draw_player</code>. Whether the render flags suppress or enter the new hook here is unresolved.</li>
+</ul>
+<p><a href="../../../src/main.s#L2749"><code>draw_gate</code></a> restores the gate background and overlays the selected gate and its listed neighbour. Exact ordering through its overlay, entity-cache, tile-draw, and actor callees was not proven in this bounded pass. The patch's ID skips do not establish safety for framebuffer-local pending intents or a settled neighbour next to a pending gate.</p>
+<p><code>GATE_COPY_COUNT</code> is direct-page byte <code>$79</code> and is reused by the patch as the 0–19 loop counter. The candidate then calls <code>draw_gate</code> inside the loop for nonempty associations. Preservation across the complete compositor call chain and the framebuffer IRQ path is unproven. This review does not certify the counter as safe. The record count is stage-built and may include consumed entities; the live-entity filter and resulting final layer were not traced through every callee.</p>
+</section>
+
+<section><h2>No-overlap cycle estimate</h2>
+<p>The candidate listing at <code>C667</code> resolves the zero-association loop to these instructions: <code>LDA direct</code> 4, <code>LDB immediate</code> 2, <code>MUL</code> 11, <code>ADDD immediate</code> 4, <code>TFR D,Y</code> 6, <code>LDA 4,Y</code> 5 (indexed 8-bit offset form), taken <code>BEQ</code> 3, <code>INC direct</code> 6, <code>LDA direct</code> 4, <code>CMPA immediate</code> 2, and short <code>BLO</code> 3: 50 cycles per record. Twenty records cost 1,000 cycles; entry <code>CLR direct</code> adds 6 and final <code>RTS</code> adds 5, for 1,011 cycles in the repair routine.</p>
+<p>For the qualifying path, the hook adds <code>LDA RENDER_FLAGS</code> 4, <code>BITA</code> 2, not-taken <code>BEQ</code> 3, <code>BITA</code> 2, not-taken <code>BNE</code> 3, and <code>LBSR</code> 9: 23 cycles. Total estimated static increment is 1,034 cycles per no-overlap call. This is derived from the retained candidate listing and standard 6809 instruction timings. It is not a complete-frame observation and does not establish a numeric publication-window margin. No source-matched complete-frame threshold is available; historical BUG-005/PERF values do not satisfy that requirement.</p>
+<p><strong>One correction direction:</strong> gate the compositor call on a proven overlap indication produced by the already-required footprint restoration, so a no-overlap worklist bypasses the 20-record scan. The static no-overlap work potentially avoided is about 1,020 cycles (1,011 routine plus the 9-cycle subroutine call). The bytes and cycles needed to produce and preserve that indication are unknown; no cycle-neutral fast path is demonstrated. Treat this as a design direction for a later bounded assignment, not a validated correction.</p>
+</section>
+
+<section><h2>Bound and capacity</h2>
+<p>The candidate visits exactly 20 records on its repair path. Each generated record can hold up to 12 entity associations, but no reachable fixture establishing the maximum number of nonempty records or actual <code>draw_gate</code> calls is retained. The geometric bound is not maximum-runtime evidence. Candidate fit is retained evidence only: resident 8,133/8,192 bytes, enemy 4,095/4,096 bytes, presentation 1,251/1,280 bytes. The candidate adds 58 resident bytes. No build was run in this assignment.</p>
+</section>
+
+<section><h2>Minimum runtime contract for a later assignment</h2>
+<p><strong>Oracle.</strong> Build the expected full affected union from authored clean cells plus authoritative maze and gate state, the selected gate and neighbour art, and the live entity colour/art state. Account for actors at one consistent completed-frame boundary. Do not use the patched compositor to render its own expected image. Compare equal-length byte regions across the entire gate, neighbour, and entity-footprint union for both owners at their corresponding completed frames; require zero mismatches and an unchanged surrounding control region. Check collision state separately.</p>
+<ol>
+  <li><strong>Identity phase:</strong> prove authored, staged, and live bytes at every interpreted mapped address; prove PAR mapping and gameplay state. Success marker <code>identity_verified</code>; deadline 60 seconds including cleanup. Timeout means identity/observation failed, not a renderer diagnosis.</li>
+  <li><strong>Natural path:</strong> on matched pre-fix and candidate artifacts, cold-start through real gameplay input, rotate an overlapping gate away from its load orientation, drain current and both owner-pending worklists, then observe natural collectible colour cycling through normal A/B/A progression. Success marker <code>natural_settled_colour_verified</code> requires oracle equality on both owners, correct collision, and retained before/after pixels and state. Deadline 60 seconds per artifact. Timeout or absent sequence means natural coverage failed. Retained yellow preparation records natural input/capture as unproven; forced GDB state writes do not satisfy this path.</li>
+  <li><strong>One controlled fixture suite:</strong> pair opposite final-orientation parity with an overlapping heart/letter; a consumed footprint with a non-overlap control; and pending diagonal-to-final work beside a settled neighbour followed by colour redraw. Reverse the starting owner once from identical pixels, metadata, and intents, then allow normal replay. Assert every required case executed. Deadline 60 seconds per phase. Timeout means the fixture suite is incomplete.</li>
+  <li><strong>Timing on those same worklists:</strong> capture matched complete-frame maxima for no-overlap, pending transition, and the fixture-proven maximum affected set. Record phase, exact executed IDs, repetitions, and owner as secondary metadata. Require a numeric source-matched publication threshold declared before execution, zero visible-owner writes, zero missed publications, and no increase for the unchanged no-overlap worklist. Deadline 60 seconds per phase. Timeout means no valid timing bound was obtained.</li>
+</ol>
+<p><strong>Runnable boundary:</strong> no verified natural input route or bounded native-GDB invocation is available in this assignment. Do not substitute forced state writes, import process-launching helpers, or invent fixed addresses. A later assignment must define the exact invocation, process supervisor/cleanup, current source-to-ROM identities, symbols and mapped addresses, phase start, marker, timeout meaning, numeric frame threshold, and evidence paths before it can be Ready. Stop and reassess after two rejected probes, two observation timeouts, or one material expansion of the cause.</p>
+</section>
+
+<section><h2>Required before production readiness</h2>
+<ul>
+  <li>Complete source trace for overlay, consumed-entity, current/pending intent, and IRQ scratch ownership; prove final entity and actor layering.</li>
+  <li>Reachable maximum-overlap fixture and the executed gate IDs/repaint count.</li>
+  <li>Verified natural input and bounded observer route with owned-process cleanup.</li>
+  <li>Source-matched numeric complete-frame threshold and measurements; resolve the static no-overlap regression without relaxing the accepted target.</li>
+  <li>Reconcile the coarse 44% to 45% weekly meter inside the approved checkpoint allocation; it is not per-task attribution. No additional allocation is assumed.</li>
+</ul>
+<p>Sources: <a href="../../../src/main.s">main.s</a>, <a href="../../../src/enemy_runtime.s">enemy_runtime.s</a>, retained <code>repro/bug038/prototype.patch</code> and candidate listing/map/ROM identified by SHA-256 in <a href="./manifest.json">manifest.json</a>, plus the cited <code>repro/rsch011-yellow</code> preparation artifacts.</p>
+</section>
+<section><h2>Parent closure</h2><p>Agent reached usage limit after writing reports, before commit. Parent independently checked1034-cycle listing arithmetic, retaining its static-only qualification. Budget authorization is confirmed but per-task compliance remains unverified; see corrected verdict.json. Existing native-command/cleanup helpers are available; the missing item is a verified gate-specific input/capture contract. Ordering and scratch proof remain incomplete. No source/build/runtime work or further investigation.</p></section></main></div></body></html>

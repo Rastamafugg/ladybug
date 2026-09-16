@@ -1,0 +1,93 @@
+{
+  "ticket": "BUG-038",
+  "readiness_result": "PARTIAL; production assignment is not Ready",
+  "ticket_status_recommendation": "Blocked",
+  "gates": [
+    {
+      "id": "snapshot_and_retained_artifact_identity",
+      "status": "RESOLVED",
+      "evidence": "Base commit 7069a8e; activation attested normalized primary dirty-snapshot equality. Input, dirty-file, retained ROM, map, and listing hashes are in manifest.json.",
+      "limitation": "No new build or runtime identity phase was run."
+    },
+    {
+      "id": "isolated_candidate_capacity_fit",
+      "status": "RESOLVED",
+      "evidence": "Retained candidate report: resident 8133/8192, enemy 4095/4096, presentation 1251/1280 bytes; resident growth +58 bytes.",
+      "limitation": "Historical retained measurement only; no current build was run."
+    },
+    {
+      "id": "draw_entities_call_path_and_composition_order",
+      "status": "OPEN",
+      "resolved_facts": "Three direct call sites identified: enemy_runtime.s:766 entity refresh, enemy_runtime.s:909 full-stage setup, main.s:3063 hidden gate render. Candidate guard requires RF_ENTITIES and excludes RF_STAGE.",
+      "missing_result": "Full overlay/entity/actor callee ordering and actual gate_render_hidden flag state are not established."
+    },
+    {
+      "id": "GATE_COPY_COUNT_ownership",
+      "status": "OPEN",
+      "resolved_facts": "Candidate reuses direct-page $79 as a 20-record counter and calls draw_gate from inside the loop for nonempty associations.",
+      "missing_result": "No complete callee and framebuffer IRQ trace proving $79 is preserved through every called path."
+    },
+    {
+      "id": "association_coverage_and_reachable_maximum",
+      "status": "OPEN",
+      "resolved_facts": "Candidate scans 20 records; each record supports at most 12 associations; current, secondary, and animation IDs are skipped.",
+      "missing_result": "No reachable maximum fixture, actual repaired-ID list, consumed-footprint result, or proof that pending owner worklists remain correctly ordered."
+    },
+    {
+      "id": "no_overlap_cost_target",
+      "status": "OPEN",
+      "static_conflict": true,
+      "estimate": "Candidate no-overlap path adds about 1034 6809 instruction cycles per qualifying draw_entities call: 1011 in the scan routine plus 23 in the hook. This is listing-based static arithmetic, not a complete-frame measurement.",
+      "missing_result": "Matched complete-frame maximum on the unchanged no-overlap worklist and evidence of compensation are absent. Acceptance target remains no increase."
+    },
+    {
+      "id": "natural_input_and_bounded_observer",
+      "status": "OPEN",
+      "evidence": "Retained yellow preparation artifacts are identified and hashed in manifest.json; natural input/capture is already recorded as unproven.",
+      "missing_result": "No verified real gameplay-input route or gate-specific bounded native-GDB invocation. Existing native-command and cleanup helpers are available but not a verified gate capture contract. Forced state writes cannot pass natural coverage."
+    },
+    {
+      "id": "independent_full_union_oracle",
+      "status": "OPEN",
+      "evidence": "Minimum oracle and natural/controlled scenario contract are specified in review.html.",
+      "missing_result": "No executable full-union comparator, current-revision revision binding, or runtime captures."
+    },
+    {
+      "id": "numeric_publication_threshold_and_timing",
+      "status": "OPEN",
+      "missing_result": "No source-matched numeric complete-frame safe threshold. Historical BUG-005/PERF values are not accepted as current evidence."
+    },
+    {
+      "id": "budget",
+      "status": "OPEN",
+      "evidence": "Approved checkpoint ceiling 3.5% within the unchanged 6% whole-ticket ceiling, including parent review. Parent reports the coarse shared weekly meter moved 44% to 45%; this is not individual task attribution. No additional allocation is assumed.",
+      "limitation": "Authorization is confirmed; per-task cost compliance is unverified. Agent hit usage limit after writing reports; parent retained them without further investigation."
+    }
+  ],
+  "one_correction_direction": {
+    "recommendation": "Evaluate a no-overlap fast path driven by a proven overlap indication from the existing entity-underlay restoration, so the candidate can skip the 20-record scan when no gate is touched.",
+    "estimate": "Potentially avoids about 1020 static cycles per no-overlap call (1011-cycle routine plus 9-cycle LBSR). Added bytes and predicate-generation cycles are unknown and unproven; no cycle-neutral correction is established.",
+    "disposition": "Design direction only; requires evidence in a later bounded assignment before implementation."
+  },
+  "required_next_capability": [
+    "Verified natural gameplay input and bounded observer with process cleanup",
+    "Current-source call/callee/IRQ proof for scratch and pending-order safety",
+    "Reachable maximum-overlap fixture and actual worklist",
+    "Independent full-union runtime oracle",
+    "Numeric source-matched complete-frame publication threshold and no-overlap measurement"
+  ],
+  "verification_performed": [
+    "Read-only source, patch, retained listing/map, ticket, workflow, index, and required role guidance review",
+    "SHA-256 identity capture for named inputs and retained candidate/baseline outputs",
+    "Static cycle arithmetic from retained candidate listing"
+  ],
+  "verification_not_performed": [
+    "Build, verifier execution, emulator/GDB launch, gameplay input, runtime capture, and integration"
+  ],
+  "cost_class": "High-risk readiness assignment",
+  "approved_budget_ceiling_percent": {
+    "checkpoint": 3.5,
+    "whole_ticket": 6
+  },
+  "parent_review": "Independently checked retained listing arithmetic:1034 static cycles per qualifying empty-association call. No complete-frame measurement. Production remains Blocked; report incomplete on order/scratch proof. No added investigation after stop."
+}

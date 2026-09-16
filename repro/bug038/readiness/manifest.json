@@ -1,0 +1,66 @@
+{
+  "assignment": "BUG-038 bounded gate-readiness review",
+  "ticket_disposition": "production repair remains Blocked; this is partial readiness evidence",
+  "worktree": "E:/projects/ladybug-worktrees/bug-038-readiness",
+  "branch": "codex/bug-038-readiness",
+  "base_commit": "7069a8e8e2555aaeeaab35f6746290c12733e6cf",
+  "write_boundary": [
+    "repro/bug038/readiness/manifest.json",
+    "repro/bug038/readiness/review.html",
+    "repro/bug038/readiness/verdict.json"
+  ],
+  "source_or_runtime_changes": false,
+  "snapshot": {
+    "primary_dirty_snapshot_normalized_equality": "Attested during activation; not recomputed in this bounded review.",
+    "inherited_dirty_files": {
+      "src/demo_runtime.s": "BBA16DA37229A58BBFFFCE7AA81462463A590413E78B65781B68E8595E4A5BE8",
+      "src/instruction_runtime.s": "CBFF560BF1E5DFEE223F97868DD9AB01B163D55763AE917907014292B16F136D",
+      "src/presentation_runtime.s": "234CA6F48D550BDEA13D61F8C4281C917A322EB58158CC2160D1F80F7587E771",
+      "tiled/config.toml": "B4DEAB420E9995EA5A259099A9E0596634A7EE7087DBAFFD2B06E5A49F791AF4"
+    },
+    "reviewed_source": {
+      "src/main.s": "0BA848AC33E59137B555131D143CBD2E37FA94C6D74FE1276C350C11092AB243",
+      "src/enemy_runtime.s": "376B5614B8AD88F5B76BBE7FCEAE506A58FA123733811196F86361BCB87CA18C",
+      "repro/bug038/prototype.patch": "BBCE7ECF24037F55CF474E4F2AC353BCAAE963212B218E9D6079ABE0E4ACF8E7"
+    }
+  },
+  "retained_artifacts": {
+    "baseline_directory": "E:/projects/ladybug-worktrees/bug-038/build-checkpoint",
+    "baseline_rom_sha256": "BFB6934A72603E840C6AF906F727EBB4D5145F60C81F4F68F5E4966A5B457E90",
+    "baseline_map_sha256": "B9DD4547A08D4881124BFA1E2D51CBB97203868EFE335F7014B39111F87F0802",
+    "baseline_listing_sha256": "C06DAA2F8B4347C8FD4F20E0ECF252817C2051EB2901E1D5C94D446773178B16",
+    "candidate_directory": "E:/projects/ladybug-worktrees/bug-038/repro/bug038/prototype-out",
+    "candidate_rom_sha256": "AA8969BB1493978324EB69BD962BB89B7B9AA93823F7448610E0E51DB892F766",
+    "candidate_map_sha256": "F3B90D5123388CEE38B3B3A0CE542881B1C7F5E28B5BAC9F2F601C5C895272E6",
+    "candidate_listing_sha256": "140C089A10C3557E046342AB0B775314C782F4826FE0FA3361B995F5331375D5",
+    "yellow_preparation_summary": {
+      "path": "repro/rsch011-yellow/summary.json",
+      "sha256": "88C2727B78C2BC06B47D727A1AF1CD98E4B9289CF01AC9C79E50B6EAE6CE7BC8"
+    },
+    "yellow_preparation_report": {
+      "path": "repro/rsch011-yellow/diagnosis.html",
+      "sha256": "FBEF3DDE3D9001C150A67BFC77023F62CA97744A732FB173EE17F315C93A807B"
+    }
+  },
+  "retained_candidate_fit": {
+    "resident_bytes": 8133,
+    "resident_limit_bytes": 8192,
+    "enemy_bytes": 4095,
+    "enemy_limit_bytes": 4096,
+    "presentation_bytes": 1251,
+    "presentation_limit_bytes": 1280,
+    "measurement_status": "retained checkpoint report; not rebuilt or freshly measured by this assignment"
+  },
+  "static_cost_estimate": {
+    "qualifying_draw_entities_no_overlap_cycles": 1034,
+    "repair_loop_cycles": 1011,
+    "hook_guard_and_call_cycles": 23,
+    "measurement_status": "6809 listing-based instruction-cycle estimate, not complete-frame timing"
+  },
+  "budget": {
+    "approved_checkpoint_ceiling_percent": 3.5,
+    "approved_whole_ticket_ceiling_percent": 6,
+    "allocation_includes_parent_review": true,
+    "coarse_shared_weekly_meter_observed_by_parent": "44% to 45%; not individual task attribution"
+  }
+}
