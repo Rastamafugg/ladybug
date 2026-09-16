@@ -1,0 +1,43 @@
+{
+  "schema": "ladybug-bug038-runtime-verification-v1",
+  "ticket": "BUG-038",
+  "candidate_commit": "68036ee02f734be488a570f296e3a0b00243ed5a",
+  "rom_sha256": "7ce457b70a9d833bf541785a2e26cd1b55da00469c6dbdb7b3a4b1171659c770",
+  "verdict": "incomplete",
+  "ticket_state": "Verification",
+  "markers": {
+    "artifact_identity_verified": {
+      "status": "pass",
+      "duration_seconds": 2.41721898600008,
+      "checks": {
+        "resident_authored_staged_live": true,
+        "assets_authored_staged_live": true,
+        "enemy_authored_staged_live": true,
+        "repair_routine_live": true,
+        "enemy_call_live": true
+      }
+    },
+    "bug038_natural_settled_recolour_pass": {
+      "status": "not_claimed",
+      "note": "The retained user visual regression passed, but exact gate, owner, state, and full-union captures were not recorded."
+    },
+    "bug038_fixture_matrix_pass": {
+      "status": "not_established",
+      "error": "TimeoutError: Late native command completion: capture",
+      "note": "The fixture phase stopped before any declared case completed. Missing cases are not passes."
+    },
+    "bug038_publication_timing_pass": {
+      "status": "unexecuted",
+      "note": "Timing was not run after the fixture phase stopped. No candidate maximum or 29666-cycle bound was established."
+    }
+  },
+  "focused_static_checks": {
+    "verify_gate_entity_cache.py": "pass: 432 exact cases; runtime snapshot 8 cache and 20 association records exact",
+    "verify_enemy_runtime.py": "pass: 4096/4096 bytes and runtime ownership/order contracts"
+  },
+  "cleanup": {
+    "owned_process_groups_alive": false
+  },
+  "acceptance": false,
+  "closure_reason": "Required fixture and publication-timing markers are absent."
+}
