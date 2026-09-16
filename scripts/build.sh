@@ -541,7 +541,7 @@ wanted = {
     'erase_entity_footprints', 'perimeter_box_coordinates', 'save_player',
     'draw_gate', 'draw_gate_diagonal', 'draw_gate_entities',
     'draw_gate_transition', 'draw_all_gates', 'framebuffer_project_gate_only',
-    'mark_gate_enemy_overlap',
+    'mark_gate_enemy_overlap', 'repair_settled_entity_gates',
     'draw_word_progress_hud', 'gate_redraw_neighbors',
     'gate_render_hidden', 'maze_gate_owner',
     'maze_gates', 'maze_nav',

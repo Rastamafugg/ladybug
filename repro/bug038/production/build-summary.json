@@ -1,0 +1,33 @@
+{
+  "schema": "ladybug-bug038-production-build-v1",
+  "status": "pass",
+  "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard ./scripts/build.sh build",
+  "capacity": {
+    "resident": {"used": 8120, "limit": 8192, "free": 72},
+    "enemy": {"used": 4096, "limit": 4096, "free": 0},
+    "presentation": {"used": 1251, "limit": 1280, "free": 29},
+    "assets": {"used": 7552, "limit": 7680, "free": 128},
+    "gmc_cpu_readable_source_free": 1247
+  },
+  "placement": {
+    "repair_symbol": "repair_settled_entity_gates",
+    "repair_address": "CD66",
+    "enemy_call_address": "0B02",
+    "enemy_call_opcode": "BDCD66",
+    "short_calls": [
+      {"address": "1538", "opcode": "8D38", "target": "copy_two_fb_rows"},
+      {"address": "1545", "opcode": "8D2B", "target": "copy_two_fb_rows"}
+    ]
+  },
+  "checks": [
+    {"name": "verify_gate_entity_cache.py", "status": "pass", "result": "432 exact cases; largest record 99/128"},
+    {"name": "verify_enemy_runtime.py", "status": "pass", "result": "4096/4096 and ownership/order contracts verified"},
+    {"name": "git diff --check", "status": "pass"}
+  ],
+  "rejected_attempt": {
+    "design": "place the complete repair scan in src/enemy_runtime.s",
+    "result": "enemy runtime 4143/4096",
+    "excess": 47,
+    "reason": "hard copied-module limit"
+  }
+}

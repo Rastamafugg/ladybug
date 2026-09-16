@@ -763,6 +763,7 @@ frame_render_background
         bita    #RF_ENTITIES
         beq     fri_dot
         jsr     erase_entity_footprints
+        jsr     repair_settled_entity_gates
         jsr     draw_entities
 fri_dot
         lda     RENDER_FLAGS
@@ -2603,13 +2604,13 @@ pci_commit_row
         bmi     pci_restore_bottom
         ldx     PLAYER_OLD_FB
         ldu     #PLAYER_OLD_STAGE
-        lbsr    copy_two_fb_rows
+        bsr     copy_two_fb_rows
         bra     pci_horizontal_strip
 pci_restore_bottom
         ldx     PLAYER_OLD_FB
         leax    2240,x
         ldu     #PLAYER_OLD_STAGE+112
-        lbsr    copy_two_fb_rows
+        bsr     copy_two_fb_rows
 
 pci_horizontal_strip
         lda     PLAYER_DX

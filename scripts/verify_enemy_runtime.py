@@ -46,8 +46,8 @@ if "PACKED_SPRITE_SIZE equ    64" not in resident:
 if "player_sprites" in resident:
     raise SystemExit("enemy proof: packed player frames remain in the resident image")
 
-labels = ["cez_copy_bg", "cez_active_loop", "draw_enemy_stage", "cez_commit"]
-positions = [source.index(label) for label in labels]
+labels = ["cez_copy_bg", "cez_active_loop", "cez_commit", "draw_enemy_stage"]
+positions = [source.index(f"\n{label}\n") for label in labels]
 if positions != sorted(positions):
     raise SystemExit("enemy proof: off-screen compositor phase order changed")
 
@@ -451,8 +451,8 @@ player_order = [
     "lbsr    enemy_tick",
     "tst     PLAYER_TICK_PENDING",
     "lbsr    player_tick",
-    "lbsr    read_joystick",
     "lbsr    perimeter_timer_tick",
+    "lbsr    read_joystick",
 ]
 positions = [mainloop.index(fragment) for fragment in player_order]
 if positions != sorted(positions):
@@ -860,6 +860,8 @@ background = source[source.index("\nframe_render_background\n"):
                     source.index("\nrender_exposed_player\n")]
 background_order = [
     "jsr     erase_entity_footprints",
+    "jsr     repair_settled_entity_gates",
+    "jsr     draw_entities",
     "jsr     draw_maze_state_cell",
     "lbsr    enemy_render_impl",
     "lbsr    gate_compose_impl",
@@ -868,6 +870,25 @@ if [background.index(fragment) for fragment in background_order] != sorted(
     background.index(fragment) for fragment in background_order
 ):
     raise SystemExit("enemy proof: persistent background layer order changed")
+
+repair = main[main.index("\nrepair_settled_entity_gates\n"):
+              main.index("\nrestore_gate_background\n")]
+for fragment in (
+    "addd    #GATE_ENTITY_LISTS",
+    "cmpa    RENDER_GATE_ID",
+    "cmpa    RENDER_GATE2_ID",
+    "cmpa    GATE_ANIM_ID",
+    "lbsr    draw_gate",
+    "cmpa    #MAZE_GATE_COUNT",
+):
+    if fragment not in repair:
+        raise SystemExit("enemy proof: settled-gate repair is incomplete: " + fragment)
+hidden = main[main.index("\ngate_render_hidden\n"):
+              main.index("\nrestore_gate_diagonal_dots\n")]
+if "repair_settled_entity_gates" in hidden:
+    raise SystemExit("enemy proof: hidden gate renderer reaches settled-gate repair")
+if "'repair_settled_entity_gates'" not in build_script:
+    raise SystemExit("enemy proof: settled-gate repair lacks generated symbol export")
 
 gate_compositor = source[source.index("\ngate_compose_impl\n"):
                          source.index("\ngate_compute_region\n")]

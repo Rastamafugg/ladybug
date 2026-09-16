@@ -2779,6 +2779,41 @@ dag_loop
         blo     dag_loop
         rts
 
+;==============================================================================
+; repair_settled_entity_gates
+;
+; Inputs: GATE_ENTITY_LISTS, current pending gate IDs
+; Returns: registers and condition codes undefined
+; Side effects: redraws associated settled gate unions into current BACK;
+;               leaves pending/current gate intents for later composition
+;==============================================================================
+repair_settled_entity_gates
+        clr     GATE_COPY_COUNT
+rseg_gate
+        lda     GATE_COPY_COUNT
+        ldb     #GATE_ENTITY_RECORD_SIZE
+        mul
+        addd    #GATE_ENTITY_LISTS
+        tfr     d,y
+        lda     4,y
+        beq     rseg_next
+        lda     GATE_COPY_COUNT
+        inca
+        cmpa    RENDER_GATE_ID
+        beq     rseg_next
+        cmpa    RENDER_GATE2_ID
+        beq     rseg_next
+        cmpa    GATE_ANIM_ID
+        beq     rseg_next
+        lda     GATE_COPY_COUNT
+        lbsr    draw_gate
+rseg_next
+        inc     GATE_COPY_COUNT
+        lda     GATE_COPY_COUNT
+        cmpa    #MAZE_GATE_COUNT
+        blo     rseg_gate
+        rts
+
 ; Restore the seven contextual cells without drawing dynamic gate art.
 restore_gate_background
         sta     GATE_ID
