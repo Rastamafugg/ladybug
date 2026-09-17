@@ -198,6 +198,13 @@ ENEMY_CAPTURE_DIRTY equ $009B
 RING_PHASE     equ $009C
 RING_ROW       equ $009D
 RING_BASE      equ $009E
+INITIAL_ENTRY_STATE equ $00A0
+PLAYER_VISIBLE_ROWS equ $00A1
+ENTRY_INACTIVE equ 0
+ENTRY_WAIT_STAGE equ 1
+ENTRY_WALKOUT equ 2
+ENTRY_OFFSCREEN equ 3
+ENTRY_MAZE_ENTRY equ 4
 PLAYER_BG_PTR  equ $00A2        ; selected A/B player save-under buffer
 GATE_ID         equ $0013
 GATE_X          equ $0014
@@ -918,17 +925,49 @@ fri_stage_background
         rts
 
         ifne    PERSISTENT_FB
+; Restore only the visible rows recorded for this BACK owner.  The caller has
+; already hydrated PLAYER_VISIBLE_ROWS and PLAYER_BG_PTR from that ledger.
+restore_player_visible
+        lda     PLAYER_VISIBLE_ROWS
+        cmpa    #16
+        beq     rpv_full
+        tsta
+        beq     rpv_invalidate
+        sta     PLAYER_ROW
+        ldx     PLAYER_FB
+        ldu     PLAYER_BG_PTR
+rpv_row
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        ldd     ,u++
+        std     ,x++
+        leax    152,x
+        dec     PLAYER_ROW
+        bne     rpv_row
+rpv_invalidate
+        clr     PLAYER_BG_VALID
+        rts
+rpv_full
+        jmp     restore_player   ; preserve the existing full-size fast path
+
 ; Conservative transitive overlap closure for the five moving actors.
 ; Restoring every owned old footprint avoids geometry bookkeeping and ensures
 ; no destination background is captured until every prior actor is absent.
 actor_closure_restore
+        lda     INITIAL_ENTRY_STATE
+        cmpa    #ENTRY_WAIT_STAGE
+        beq     acr_done
         tst     PLAYER_BG_VALID
         beq     acr_enemies
         ldd     PLAYER_FB
         pshs    d
         ldd     PLAYER_OLD_FB
         std     PLAYER_FB
-        jsr     restore_player
+        lbsr    restore_player_visible
         puls    d
         std     PLAYER_FB
         lda     #1
@@ -955,11 +994,17 @@ acr_enemy_next
         leax    RECORD_SIZE,x
         dec     ENEMY_WORK
         bne     acr_enemy_loop
+acr_done
         rts
 
 ; Capture every current roaming destination from actor-free BACK, then draw
 ; enemies and the player presentation in stable painter order.
 actor_closure_draw
+        lda     INITIAL_ENTRY_STATE
+        cmpa    #ENTRY_WAIT_STAGE
+        lbeq    acd_done
+        cmpa    #ENTRY_OFFSCREEN
+        lbeq    acd_done
         ldx     #ENEMY_TABLE
         lda     #4
         sta     ENEMY_WORK
@@ -1030,6 +1075,15 @@ acd_player
         tst     PLAYER_BG_VALID
         bne     acd_done
 acd_draw_player
+        lda     INITIAL_ENTRY_STATE
+        cmpa    #ENTRY_WALKOUT
+        beq     acd_entry_player
+        cmpa    #ENTRY_MAZE_ENTRY
+        bne     acd_normal_player
+acd_entry_player
+        jsr     player_compose_impl
+        bra     acd_done
+acd_normal_player
         jsr     draw_player
 acd_done
         rts
@@ -1129,6 +1183,8 @@ fbp_owned
         bsr     framebuffer_back_meta
         lda     FBM_PLAYER_VALID,u
         sta     PLAYER_BG_VALID
+        lda     FBM_PLAYER_RESERVED,u
+        sta     PLAYER_VISIBLE_ROWS
         ldd     FBM_PLAYER_FB,u
         std     PLAYER_OLD_FB
         ldx     #PLAYER_BG
@@ -1196,7 +1252,13 @@ framebuffer_capture_back
         clr     FBM_DAMAGE,u
         lda     PLAYER_BG_VALID
         sta     FBM_PLAYER_VALID,u
+        beq     fcb_no_player_rows
+        lda     PLAYER_VISIBLE_ROWS
+        sta     FBM_PLAYER_RESERVED,u
+        bra     fcb_player_rows_done
+fcb_no_player_rows
         clr     FBM_PLAYER_RESERVED,u
+fcb_player_rows_done
         ldd     PLAYER_FB
         std     FBM_PLAYER_FB,u
         leau    FBM_ENEMIES,u
@@ -1265,7 +1327,13 @@ framebuffer_capture_a
         clr     FB_META_A+FBM_DAMAGE
         lda     PLAYER_BG_VALID
         sta     FB_META_A+FBM_PLAYER_VALID
+        beq     fca_no_player_rows
+        lda     PLAYER_VISIBLE_ROWS
+        sta     FB_META_A+FBM_PLAYER_RESERVED
+        bra     fca_player_rows_done
+fca_no_player_rows
         clr     FB_META_A+FBM_PLAYER_RESERVED
+fca_player_rows_done
         ldd     PLAYER_FB
         std     FB_META_A+FBM_PLAYER_FB
         ldx     #ENEMY_TABLE
@@ -2463,6 +2531,11 @@ cea_done
 ; exposed edge pixels. Publish the complete new sprite before erasing only the
 ; old strips it no longer covers, so scanout never sees a player-free frame.
 player_compose_impl
+        ifne    PERSISTENT_FB
+        ; Persistent closure already restores the owner's old rectangle.
+        ; The compatibility delta/strip compositor below is not its owner.
+        lbra    player_compose_entry
+        else
         ldx     PLAYER_BG_PTR
         ldu     #PLAYER_OLD_STAGE
         ldy     #64
@@ -2637,7 +2710,121 @@ pci_restore_right
         bne     pci_restore_right
 pci_done
         rts
+        endc
 
+; Entry-only compositor.  It never reads or writes beyond the visible rows at
+; the lower edge.  The complete decoded sprite remains bounded by PLAYER_STAGE
+; so the sparse decoder cannot touch framebuffer bytes outside that extent.
+player_compose_entry
+        lbsr    player_visible_rows
+        ; Clear the complete stage before decoding, including all nonvisible
+        ; rows.  This is stage RAM, not a framebuffer read.
+        ldx     #PLAYER_STAGE
+        ldy     #64
+        clra
+        clrb
+pce_clear_stage
+        std     ,x++
+        leay    -1,y
+        bne     pce_clear_stage
+
+        ; Capture only clean destination rows for this owner.  Zero rows do
+        ; not access the framebuffer and remain invalid in the ledger.
+        lda     PLAYER_VISIBLE_ROWS
+        beq     pce_no_visible
+        sta     PLAYER_ROW
+        ldx     PLAYER_FB
+        ldu     PLAYER_BG_PTR
+        ldy     #PLAYER_STAGE
+pce_capture_row
+        ldd     ,x++
+        std     ,u++
+        std     ,y++
+        ldd     ,x++
+        std     ,u++
+        std     ,y++
+        ldd     ,x++
+        std     ,u++
+        std     ,y++
+        ldd     ,x++
+        std     ,u++
+        std     ,y++
+        leax    152,x
+        dec     PLAYER_ROW
+        bne     pce_capture_row
+        lda     #1
+        sta     PLAYER_BG_VALID
+        bra     pce_decode
+pce_no_visible
+        clr     PLAYER_BG_VALID
+pce_decode
+        lda     PLAYER_FACE
+        lsla
+        lsla
+        adda    PLAYER_ANIM
+        lbsr    sparse_player_stream
+        ldx     #PLAYER_STAGE
+        lbsr    sparse_blit_stage
+
+        ; Commit only the bounded visible prefix.  At logical row 192 the
+        ; count is zero, so the new rectangle receives no framebuffer access.
+        lda     PLAYER_VISIBLE_ROWS
+        beq     pce_done
+        sta     PLAYER_ROW
+        ldx     #PLAYER_STAGE
+        ldu     PLAYER_FB
+pce_commit_row
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        leau    152,u
+        dec     PLAYER_ROW
+        bne     pce_commit_row
+pce_done
+        rts
+
+; visible_rows = max(0,min(16,192-y)), where PLAYER_FB is the row-major
+; framebuffer pointer.  Entry positions are at or below row 168, so reducing
+; from row 160 keeps the division bounded while retaining the exact pointer.
+player_visible_rows
+        ldd     PLAYER_FB
+        cmpd    #$8400
+        blo     pvr_full
+        subd    #$8400
+        ldu     #160
+pvr_row_loop
+        cmpd    #160
+        blo     pvr_row_done
+        subd    #160
+        leau    1,u
+        bra     pvr_row_loop
+pvr_row_done
+        tfr     u,d
+        cmpb    #192
+        bhs     pvr_zero
+        stb     PLAYER_VISIBLE_ROWS
+        lda     #192
+        suba    PLAYER_VISIBLE_ROWS
+        cmpa    #16
+        bls     pvr_store
+        lda     #16
+pvr_store
+        sta     PLAYER_VISIBLE_ROWS
+        rts
+pvr_full
+        lda     #16
+        sta     PLAYER_VISIBLE_ROWS
+        rts
+pvr_zero
+        clr     PLAYER_VISIBLE_ROWS
+        rts
+
+        ifeq    PERSISTENT_FB
 copy_two_fb_rows
         ldy     #2
 ctfr_row
@@ -2653,6 +2840,7 @@ ctfr_row
         leay    -1,y
         bne     ctfr_row
         rts
+        endc
 
 ; Render a gate transition against hidden physical framebuffer pages $2C-$2F.
 ; The GIME continues scanning live pages $30-$33. Only the exact gate union and

@@ -81,6 +81,8 @@ ATTRACT_PLAYER_DST equ $661C
 ATTRACT_ENEMY_DST equ $2CA4
 PLAYER_FB equ $000B
 PLAYER_BG_PTR equ $00A2
+INITIAL_ENTRY_STATE equ $00A0
+ENTRY_WAIT_STAGE equ 1
 PLAYER_BG_VALID equ $006A
 PLAYER_BG equ $A300
 BACK_ID equ $0090
@@ -327,6 +329,8 @@ normal_stage
         lda     #1
         rts
 normal_start
+        tst     INITIAL_ENTRY_STATE
+        bne     normal_game       ; held start cannot replace an active entrant
         lda     PRES_EVENT
         bita    #1
         beq     normal_game
@@ -788,6 +792,8 @@ level_tick_demo_check
         endc
 live_begin
         lbsr    init_gameplay
+        lda     #ENTRY_WAIT_STAGE
+        sta     INITIAL_ENTRY_STATE
         clr     PRES_MODE
         clra
         rts
@@ -1817,6 +1823,8 @@ ATTRACT_PLAYER_DST equ $661C
 ATTRACT_ENEMY_DST equ $2CA4
 PLAYER_FB equ $000B
 PLAYER_BG_PTR equ $00A2
+INITIAL_ENTRY_STATE equ $00A0
+ENTRY_WAIT_STAGE equ 1
 PLAYER_BG_VALID equ $006A
 PLAYER_BG equ $A300
 BACK_ID equ $0090
@@ -2061,6 +2069,8 @@ normal_stage
         lda     #1
         rts
 normal_start
+        tst     INITIAL_ENTRY_STATE
+        bne     normal_game       ; held start cannot replace an active entrant
         lda     PRES_EVENT
         bita    #1
         beq     normal_game
@@ -2532,6 +2542,8 @@ level_tick_demo_check
         endc
 live_begin
         lbsr    init_gameplay
+        lda     #ENTRY_WAIT_STAGE
+        sta     INITIAL_ENTRY_STATE
         clr     PRES_MODE
         clra
         rts

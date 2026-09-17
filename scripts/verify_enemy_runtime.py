@@ -600,8 +600,17 @@ assert_state_only(
     "bank-3",
 )
 mainloop = main[main.index("\nmainloop\n") : main.index("\ninit_game_state\n")]
-if mainloop.count("lbsr    render_frame") != 1:
-    raise SystemExit("enemy proof: mainloop must enter the framebuffer owner exactly once")
+if mainloop.count("lbsr    render_frame") != 2:
+    raise SystemExit("enemy proof: expected exclusive entry and normal render sites")
+entry_tick = mainloop[mainloop.index("\nmain_game_tick\n"):
+                      mainloop.index("\nmain_game_tick_normal\n")]
+if not (
+    entry_tick.index("beq     main_game_tick_normal")
+    < entry_tick.index("lbsr    initial_entry_tick")
+    < entry_tick.index("lbsr    render_frame")
+    < entry_tick.index("bra     main_entry_audio")
+):
+    raise SystemExit("enemy proof: entry rendering can fall through to normal mutation")
 presentation_call = mainloop.index("jsr     $1900")
 active_assertion = mainloop.index("sta     FB_RENDER_ACTIVE")
 first_gameplay_mutation = mainloop.index("lbsr    finish_gate_animation")
@@ -677,7 +686,7 @@ if "lbsr    frame_render_background" not in projection or "actor_closure_draw" i
 closure_restore = source[source.index("\nactor_closure_restore\n"):
                          source.index("\nactor_closure_draw\n")]
 restore_order = [
-    "jsr     restore_player",
+    "lbsr    restore_player_visible",
     "sta     PLAYER_ERASED",
     "acr_enemy_loop",
     "lbsr    roam_copy_bg_to_fb",
@@ -1057,9 +1066,51 @@ for fragment in (
 if "framebuffer_swap_player_bg" in source or "fbsp_loop" in source:
     raise SystemExit("enemy proof: physical player save-under swapping was restored")
 player_compose = source[source.index("\nplayer_compose_impl\n"):
-                        source.index("\ncopy_two_fb_rows\n")]
+                        source.index("\nplayer_compose_entry\n")]
 if player_compose.count("PLAYER_BG_PTR") != 2 or "#PLAYER_BG" in player_compose:
     raise SystemExit("enemy proof: player compositor bypasses the selected save-under")
+entry_compose = source[source.index("\nplayer_compose_entry\n"):
+                       source.index("\nplayer_visible_rows\n")]
+if entry_compose.count("PLAYER_BG_PTR") != 1 or "#PLAYER_BG" in entry_compose:
+    raise SystemExit("enemy proof: clipped entry bypasses owner-local save-under")
+for fragment in (
+    "lbsr    player_visible_rows", "beq     pce_no_visible",
+    "ldx     PLAYER_FB", "ldy     #PLAYER_STAGE", "std     ,y++",
+    "lbsr    sparse_player_stream", "lbsr    sparse_blit_stage",
+    "beq     pce_done", "leau    152,u", "dec     PLAYER_ROW",
+):
+    if fragment not in entry_compose:
+        raise SystemExit("enemy proof: clipped entry contract missing: " + fragment)
+capture = entry_compose[entry_compose.index("\npce_capture_row\n"):
+                        entry_compose.index("\npce_no_visible\n")]
+if capture.count("std     ,u++") != 4 or capture.count("std     ,y++") != 4:
+    raise SystemExit("enemy proof: visible underlay must seed both save-under and decode stage")
+visible_restore = source[source.index("\nrestore_player_visible\n"):
+                         source.index("\nactor_closure_restore\n")]
+for fragment in ("cmpa    #16", "beq     rpv_full", "jmp     restore_player",
+                 "beq     rpv_invalidate", "dec     PLAYER_ROW"):
+    if fragment not in visible_restore:
+        raise SystemExit("enemy proof: clipped/full restoration contract missing: " + fragment)
+for fragment in ("FBM_PLAYER_RESERVED,u", "sta     PLAYER_VISIBLE_ROWS"):
+    if fragment not in prepare:
+        raise SystemExit("enemy proof: owner extent hydration missing: " + fragment)
+irq = source[source.index("\nframebuffer_irq_impl\n"):
+             source.index("\nframebuffer_capture_a\n")]
+if "INITIAL_ENTRY_STATE" in irq or "PLAYER_VISIBLE_ROWS" in irq:
+    raise SystemExit("enemy proof: IRQ mutates entry/clipping scratch")
+for text in (source, main):
+    for symbol, address in (("INITIAL_ENTRY_STATE", "00A0"), ("PLAYER_VISIBLE_ROWS", "00A1")):
+        if not re.search(rf"^{symbol} +equ \${address}\b", text, re.M):
+            raise SystemExit("enemy proof: entry direct-page placement changed: " + symbol)
+# Offline geometry proof, not execution of the assembled renderer.
+walkout = [0x8994 + step * 320 for step in range(13)]
+extents = [max(0, min(16, 192 - ((pointer - 0x2000) // 160))) for pointer in walkout]
+if extents != [16, 16, 16, 16, 16, 14, 12, 10, 8, 6, 4, 2, 0]:
+    raise SystemExit("enemy proof: walkout row clipping geometry differs")
+for pointer, rows in zip(walkout, extents):
+    for row in range(rows):
+        if not 0x2000 <= pointer + row * 160 <= 0x9800 - 8:
+            raise SystemExit("enemy proof: visible walkout row exceeds framebuffer")
 save_player = main[main.index("\nsave_player\n"):main.index("\nrestore_player\n")]
 restore_player = main[main.index("\nrestore_player\n"):main.index("\n;==============================================================================\n; draw_screen")]
 if "ldu     PLAYER_BG_PTR" not in save_player or "#PLAYER_BG" in save_player:

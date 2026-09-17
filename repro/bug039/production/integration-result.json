@@ -1,0 +1,118 @@
+{
+  "status": "integrated_source_and_build_pass_runtime_acceptance_pending",
+  "parent_before_integration": "3cfb2d64d763a7706512d3d5d74165351b35bf9c",
+  "retained_failed_candidate": "fb3f8bd",
+  "isolated_fit_commit": "fbe157c38a450da4a0d9766d4dcaeee3c131f491",
+  "profile": "complete/6809/keyboard",
+  "source_review": "source-review.html",
+  "final_correction": "16-row history tails to original restore_player fast path; clipped loop handles only shorter extents",
+  "sizes": {
+    "resident": {
+      "used": 8184,
+      "limit": 8192,
+      "headroom": 8
+    },
+    "enemy": {
+      "used": 4031,
+      "limit": 4096,
+      "headroom": 65
+    },
+    "presentation": {
+      "used": 1259,
+      "limit": 1280,
+      "headroom": 21
+    },
+    "assets": {
+      "used": 7680,
+      "limit": 7680,
+      "headroom": 0
+    },
+    "gmc_source_headroom": 1239
+  },
+  "changes_from_bug038": {
+    "resident": 64,
+    "enemy": -65,
+    "presentation": 8,
+    "assets": 128
+  },
+  "tests": [
+    {
+      "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard ./scripts/build.sh build",
+      "exit": 0,
+      "scope": "combined checkout preserving unrelated dirty sources/configuration"
+    },
+    {
+      "command": "python3 scripts/verify_enemy_runtime.py",
+      "exit": 0,
+      "scope": "source, geometry, ABI and capacity; not runtime acceptance"
+    },
+    {
+      "command": "python3 scripts/verify_gate_entity_cache.py",
+      "exit": 0,
+      "cases": 432,
+      "note": "Existing cache snapshot also compares exactly offline; not a fresh runtime execution"
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit": 0
+    },
+    {
+      "check": "relocated_sprite_colour_tables_match_bug038_baseline",
+      "bytes": 128,
+      "result": "identical"
+    }
+  ],
+  "hashes": [
+    {
+      "Path": "E:\\projects\\ladybug\\build\\ladybug.rom",
+      "Hash": "496F9F63E0FD6C2570524617F44522A5FF127ED2B00082A71B2453112BC62693"
+    },
+    {
+      "Path": "E:\\projects\\ladybug\\build\\ladybug-runtime.rom",
+      "Hash": "E552B6D24264900A3FCC20A4C7E6EB6193B46BCCDA2AFF18954DF702DB5C5789"
+    },
+    {
+      "Path": "E:\\projects\\ladybug\\build\\ladybug-enemy-runtime.rom",
+      "Hash": "3CC7332390CCBBE1E3066DAA1C9082B06B962B2FBB9B878136191B30263207B3"
+    },
+    {
+      "Path": "E:\\projects\\ladybug\\src\\main.s",
+      "Hash": "0F7F11518176C67E580AD64A82F62C7949122E7F4BBDE67A8CE325515A725B7E"
+    },
+    {
+      "Path": "E:\\projects\\ladybug\\src\\enemy_runtime.s",
+      "Hash": "7D4BD2823A4A5E06EBD776A46FF33F11495210EE5B37DF9632D1D3664E818E11"
+    },
+    {
+      "Path": "E:\\projects\\ladybug\\src\\presentation_runtime.s",
+      "Hash": "48B60934972D474E329CB0664BD6724271C4EF2A3F9CF2A30EBDCCECE3CFD71E"
+    },
+    {
+      "Path": "E:\\projects\\ladybug\\src\\demo_runtime.s",
+      "Hash": "BBA16DA37229A58BBFFFCE7AA81462463A590413E78B65781B68E8595E4A5BE8"
+    },
+    {
+      "Path": "E:\\projects\\ladybug\\src\\instruction_runtime.s",
+      "Hash": "CBFF560BF1E5DFEE223F97868DD9AB01B163D55763AE917907014292B16F136D"
+    },
+    {
+      "Path": "E:\\projects\\ladybug\\tiled\\config.toml",
+      "Hash": "B4DEAB420E9995EA5A259099A9E0596634A7EE7087DBAFFD2B06E5A49F791AF4"
+    }
+  ],
+  "unrelated_changes": "Preserved and excluded from repair commit, including presentation load_done, demo/instruction source and tiled configuration",
+  "rejected": [
+    "8312-byte resident placement",
+    "Transparent stage without underlay",
+    "Undefined restore counter",
+    "Held-start preemption",
+    "Using clipped restore loop instead of normal full-size fast path"
+  ],
+  "natural_visual_acceptance": "not_run",
+  "runtime_timing_acceptance": "not_run",
+  "runtime_harness_expansion": false,
+  "audio_changes": false,
+  "hardware_limits_changed": false,
+  "required_behavior_reduced": false,
+  "can_move_to_done": false
+}

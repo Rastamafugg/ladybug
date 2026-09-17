@@ -1,0 +1,25 @@
+{
+  "status": "retained_failed_candidate_not_integrated",
+  "baseline": "3cfb2d64d763a7706512d3d5d74165351b35bf9c",
+  "delegation": "gpt-5.6-luna xhigh; stopped at usage limit before delivery",
+  "parent_corrections": [
+    "Copy clean visible destination pixels to both save-under and decode stage, preserving transparent sprite pixels",
+    "Use existing PLAYER_ROW counter instead of undefined PLAYER_COPY_ROWS in enemy module",
+    "Record full 16-row extent in save_player, including death and popup consumers",
+    "Use long branches for entry suppression across actor closure"
+  ],
+  "build": {
+    "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard ./scripts/build.sh build",
+    "exit": 1,
+    "resident_end": "E078",
+    "resident_bytes": 8312,
+    "resident_limit": 8192,
+    "overflow_bytes": 120,
+    "note": "Resident guard stops before enemy/presentation module assembly. Later enemy branch corrections do not change this resident result."
+  },
+  "passing_checks": ["git diff --check", "six shared-text presentation images pixel-exact", "BUG-016 presentation layer contracts"],
+  "gaps": ["full independent lifecycle and clipping review", "enemy module assembly and capacity", "presentation capacity", "integrated build", "natural visual sequence", "bounded runtime acceptance"],
+  "memory_fitting_started": false,
+  "runtime_harness_work_started": false,
+  "audio_changes": false
+}

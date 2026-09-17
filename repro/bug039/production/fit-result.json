@@ -1,0 +1,31 @@
+{
+  "status": "isolated_build_and_source_review_pass_runtime_pending",
+  "retained_candidate": "fb3f8bd",
+  "profile": "complete/6809/keyboard",
+  "rom_sha256": "d115e025d493e5c80418a299ae4c90492e02a35617adba7957ffa8972fb0332c",
+  "source_review": "source-review.html",
+  "new_correction": "Presentation normal_start ignores start events while INITIAL_ENTRY_STATE is active; credit semantics unchanged",
+  "fit": {
+    "resident": {"used": 8184, "limit": 8192, "headroom": 8},
+    "enemy": {"used": 4023, "limit": 4096, "headroom": 73},
+    "presentation": {"used": 1259, "limit": 1280, "headroom": 21},
+    "assets": {"used": 7680, "limit": 7680, "headroom": 0},
+    "gmc_source_headroom": 1239
+  },
+  "changes": [
+    "Relocate unchanged 128-byte sprite colour tables from resident to existing always-mapped asset region",
+    "Omit compatibility-only delta/strip player compositor and two-row helper from PERSISTENT_FB=1; preserve compatibility source and fixed ABI",
+    "Reuse existing enemy-runtime verifier for clipping/underlay/IRQ/dispatch assertions and offline row-address bounds"
+  ],
+  "tests": [
+    {"command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard ./scripts/build.sh build", "exit": 0},
+    {"command": "python3 scripts/verify_enemy_runtime.py", "exit": 0},
+    {"command": "python3 scripts/verify_gate_entity_cache.py", "exit": 0, "cases": 432, "runtime_snapshot": "absent"},
+    {"command": "git diff --check", "exit": 0}
+  ],
+  "rejected": ["Original resident placement: 8312/8192 bytes", "Transparent sprite decode over zero stage without captured underlay", "Held-start path outside main input gate"],
+  "runtime_acceptance": "not_run; no missing runtime scenario counted as passing",
+  "audio_changes": false,
+  "hardware_limits_changed": false,
+  "required_behavior_reduced": false
+}

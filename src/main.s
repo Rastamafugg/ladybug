@@ -300,6 +300,13 @@ ENEMY_RENDER_FLAGS equ $0087   ; bank-3 renderer intents
 RENDER_GATE_ID equ $0088       ; first queued gate ID+1
 RENDER_GATE_MODE equ $0089     ; first queued gate mode
 PLAYER_BG_PTR equ $00A2        ; selected A/B player save-under buffer
+INITIAL_ENTRY_STATE equ $00A0  ; live-only initial marker/maze-entry state
+PLAYER_VISIBLE_ROWS equ $00A1  ; selected owner's saved visible player rows
+ENTRY_INACTIVE equ 0
+ENTRY_WAIT_STAGE equ 1
+ENTRY_WALKOUT equ 2
+ENTRY_OFFSCREEN equ 3
+ENTRY_MAZE_ENTRY equ 4
 RENDER_GATE2_ID equ $008A      ; optional second gate ID+1
 RENDER_GATE2_MODE equ $008B
 RENDER_GATE_STYLE equ $008D
@@ -398,6 +405,7 @@ ENEMY_BG_RING equ $A898
 FB_META_A   equ $A900          ; A framebuffer ownership ledger
 FB_META_B   equ $AA00          ; B framebuffer ownership ledger
 FBM_PLAYER_VALID equ 2
+FBM_PLAYER_RESERVED equ 3
 
 ENEMY_MODULE_INIT    equ $0800
 ENEMY_MODULE_TICK    equ $0803
@@ -622,6 +630,22 @@ mainloop
         lda     #1
         sta     FB_RENDER_ACTIVE
 main_game_tick
+        lda     INITIAL_ENTRY_STATE
+        beq     main_game_tick_normal
+        lbsr    player_animation_tick
+        lbsr    initial_entry_tick
+        ; Keep the existing two-commit/30 Hz schedule while the entrant owns
+        ; the tick.  The state dispatcher above consumes a pending tick; an
+        ; even committed epoch arms the next one before this render.
+        lda     FB_SIM_SEQ+1
+        anda    #$01
+        bne     main_entry_render
+        lda     #1
+        sta     PLAYER_TICK_PENDING
+main_entry_render
+        lbsr    render_frame
+        bra     main_entry_audio
+main_game_tick_normal
         ; Keep every player restore/mutation/redraw at the front of Vbord.
         ; Logical movement remains 30 Hz, queued by the preceding even frame.
         lbsr    finish_gate_animation
@@ -673,8 +697,115 @@ main_render
         beq     main_demo_input_owned
         lbsr    read_joystick
 main_demo_input_owned
+main_entry_audio
         jsr     AUDIO_ENGINE_EXEC
-        bra     mainloop
+        lbra    mainloop
+
+;==============================================================================
+; initial_entry_tick — live-only marker transfer and automatic maze entry.
+;
+; WAIT_STAGE is deliberately held through the first RF_STAGE render.  The
+; mainloop's FB_RENDER_PENDING gate then makes the following dispatch the only
+; place that consumes the rightmost marker.  WALKOUT and MAZE_ENTRY use the
+; existing PLAYER_TICK_PENDING cadence but never call gameplay movement.
+;==============================================================================
+initial_entry_tick
+        lda     INITIAL_ENTRY_STATE
+        cmpa    #ENTRY_WAIT_STAGE
+        beq     iet_wait_stage
+        cmpa    #ENTRY_WALKOUT
+        beq     iet_walkout
+        cmpa    #ENTRY_OFFSCREEN
+        beq     iet_offscreen
+        cmpa    #ENTRY_MAZE_ENTRY
+        beq     iet_maze_entry
+        rts
+
+iet_wait_stage
+        ; The first dispatch must leave the marker count and actor untouched.
+        clr     PLAYER_TICK_PENDING
+        lda     RENDER_FLAGS
+        bita    #RF_STAGE
+        lbne    iet_done
+
+        ; The committed stage image is now the handoff boundary.  The
+        ; rightmost marker and the entrant are one life unit.
+        lda     #2
+        sta     LIVES
+        ldd     #$8994
+        std     PLAYER_FB
+        lda     #DIR_SOUTH
+        sta     PLAYER_DIR
+        sta     PLAYER_FACE
+        clr     PLAYER_STEP
+        clr     PLAYER_MANUAL
+        lda     #ENTRY_WALKOUT
+        sta     INITIAL_ENTRY_STATE
+        lda     RENDER_FLAGS
+        ora     #RF_LIVES|RF_PLAYER
+        sta     RENDER_FLAGS
+        rts
+
+iet_walkout
+        tst     PLAYER_TICK_PENDING
+        beq     iet_done
+        clr     PLAYER_TICK_PENDING
+        ldd     PLAYER_FB
+        addd    #$0140
+        std     PLAYER_FB
+        inc     PLAYER_STEP
+        lda     PLAYER_STEP
+        cmpa    #12
+        blo     iet_walkout_render
+        ; Step 12 is logical row 192.  Do not let the renderer access this
+        ; new rectangle; OFFSCREEN only closes owner-local old histories.
+        lda     #ENTRY_OFFSCREEN
+        sta     INITIAL_ENTRY_STATE
+iet_walkout_render
+        lda     RENDER_FLAGS
+        ora     #RF_PLAYER
+        sta     RENDER_FLAGS
+        rts
+
+iet_offscreen
+        ; The selected BACK owner is restored by the renderer after this
+        ; dispatch.  Transition only after both owner ledgers are invalid.
+        lda     FB_META_A+FBM_PLAYER_VALID
+        ora     FB_META_B+FBM_PLAYER_VALID
+        bne     iet_done
+        lbsr    init_player
+        clr     PLAYER_TICK_PENDING
+        lda     #ENTRY_MAZE_ENTRY
+        sta     INITIAL_ENTRY_STATE
+        lda     RENDER_FLAGS
+        ora     #RF_PLAYER
+        sta     RENDER_FLAGS
+        rts
+
+iet_maze_entry
+        tst     PLAYER_TICK_PENDING
+        beq     iet_done
+        clr     PLAYER_TICK_PENDING
+        ldx     PLAYER_FB
+        leax    -320,x
+        stx     PLAYER_FB
+        inc     PLAYER_STEP
+        lda     PLAYER_STEP
+        cmpa    #4
+        blo     iet_maze_render
+        clr     PLAYER_STEP
+        dec     PLAYER_CELL_Y
+        lda     PLAYER_CELL_Y
+        cmpa    #18
+        bne     iet_maze_render
+        lda     #ENTRY_INACTIVE
+        sta     INITIAL_ENTRY_STATE
+iet_maze_render
+        lda     RENDER_FLAGS
+        ora     #RF_PLAYER
+        sta     RENDER_FLAGS
+iet_done
+        rts
 
 ;==============================================================================
 ; Phase 5 score, HUD, and no-enemy stage state.
@@ -703,6 +834,8 @@ init_game_state
         clr     EXTRA_BITS
         clr     DEATH_TIMER
         clr     DEATH_STATE
+        clr     INITIAL_ENTRY_STATE
+        clr     PLAYER_VISIBLE_ROWS
         clr     PLAYER_ANIM
         lda     #8
         sta     PLAYER_ANIM_TIMER
@@ -4024,33 +4157,7 @@ msb_low
         stb     ,x+
         rts
 
-sprite_attr0_pairs
-        fcb     $00,$0C,$05,$02,$C0,$CC,$C5,$C2
-        fcb     $50,$5C,$55,$52,$20,$2C,$25,$22
-sprite_red_pairs
-        fcb     $00,$01,$01,$01,$10,$11,$11,$11
-        fcb     $10,$11,$11,$11,$10,$11,$11,$11
-sprite_yellow_pairs
-        fcb     $00,$02,$02,$02,$20,$22,$22,$22
-        fcb     $20,$22,$22,$22,$20,$22,$22,$22
-sprite_blue_pairs
-        fcb     $00,$03,$03,$03,$30,$33,$33,$33
-        fcb     $30,$33,$33,$33,$30,$33,$33,$33
-sprite_white_pairs
-        fcb     $00,$06,$06,$06,$60,$66,$66,$66
-        fcb     $60,$66,$66,$66,$60,$66,$66,$66
-; Set-B score palettes preserve the graphic's colored body, Green details,
-; and White digits instead of collapsing all nonzero pens into one shape.
-sprite_score_red_pairs
-        fcb     $00,$01,$05,$06,$10,$11,$15,$16
-        fcb     $50,$51,$55,$56,$60,$61,$65,$66
-sprite_score_yellow_pairs
-        fcb     $00,$02,$05,$06,$20,$22,$25,$26
-        fcb     $50,$52,$55,$56,$60,$62,$65,$66
-sprite_score_blue_pairs
-        fcb     $00,$03,$05,$06,$30,$33,$35,$36
-        fcb     $50,$53,$55,$56,$60,$63,$65,$66
-
+; Immutable sprite colour tables live in the existing asset region below.
 ;==============================================================================
 ; save_player — save the 16x16 framebuffer rectangle under the player.
 ;
@@ -4064,6 +4171,8 @@ sprite_score_blue_pairs
 ;   Writes 128 bytes at PLAYER_BG_PTR.
 ;==============================================================================
 save_player
+        lda     #16
+        sta     PLAYER_VISIBLE_ROWS
         ldx     PLAYER_FB
         ldu     PLAYER_BG_PTR
         exg     x,u             ; U = framebuffer source, X = linear save-under
@@ -4411,6 +4520,34 @@ asset_start
         include "ladybug_shared_text.inc"
         include "shared_text_runtime.inc"
         endc
+; Reuse the upper region's exact 128-byte margin without changing mappings.
+sprite_attr0_pairs
+        fcb     $00,$0C,$05,$02,$C0,$CC,$C5,$C2
+        fcb     $50,$5C,$55,$52,$20,$2C,$25,$22
+sprite_red_pairs
+        fcb     $00,$01,$01,$01,$10,$11,$11,$11
+        fcb     $10,$11,$11,$11,$10,$11,$11,$11
+sprite_yellow_pairs
+        fcb     $00,$02,$02,$02,$20,$22,$22,$22
+        fcb     $20,$22,$22,$22,$20,$22,$22,$22
+sprite_blue_pairs
+        fcb     $00,$03,$03,$03,$30,$33,$33,$33
+        fcb     $30,$33,$33,$33,$30,$33,$33,$33
+sprite_white_pairs
+        fcb     $00,$06,$06,$06,$60,$66,$66,$66
+        fcb     $60,$66,$66,$66,$60,$66,$66,$66
+; Set-B score palettes preserve the graphic's colored body, Green details,
+; and White digits instead of collapsing all nonzero pens into one shape.
+sprite_score_red_pairs
+        fcb     $00,$01,$05,$06,$10,$11,$15,$16
+        fcb     $50,$51,$55,$56,$60,$61,$65,$66
+sprite_score_yellow_pairs
+        fcb     $00,$02,$05,$06,$20,$22,$25,$26
+        fcb     $50,$52,$55,$56,$60,$62,$65,$66
+sprite_score_blue_pairs
+        fcb     $00,$03,$05,$06,$30,$33,$35,$36
+        fcb     $50,$53,$55,$56,$60,$63,$65,$66
+
 asset_end
 
         end
