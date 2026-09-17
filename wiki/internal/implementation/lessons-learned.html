@@ -190,6 +190,7 @@
         Append-only.
       </p>
     </header>
+    <section id="clipped-owner-history-20260916"><h2>Clipped actors require owner-local saved extents</h2><p>2026-09-16, BUG-039 source review: lower-edge clipping applies to restoration as well as new drawing. Store pointer, validity and row extent in the same framebuffer owner's history; hydrate all three before restoration. Full-size death/popup saves must record 16 rows rather than inherit a clipped extent. A hidden actor retires both old footprints through their owners before a new entry destination captures its underlay.</p><p>Sparse transparent sprite decoding must seed the bounded stage with the current clean visible destination, not zeros, while initializing nonvisible stage rows without framebuffer reads. Source/geometry and assembly checks prove this contract but do not replace natural visual or publication-timing acceptance. <a href="../tickets/bug-039-three-lives-initial-entry.html">BUG-039</a> retains the reviewed call paths and evidence.</p></section>
 
     <section>
       <h2>Metadata anchors and visible tile footprints require explicit conversion contracts</h2>
