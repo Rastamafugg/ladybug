@@ -1,0 +1,41 @@
+{
+  "ticket": "BUG-040",
+  "production_commit": "e3f046d",
+  "isolated_commit": "bbea884",
+  "status": "Verification",
+  "full_build": {"command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard ./scripts/build.sh build", "exit": 0, "log": "repro/bug040/integrated-build-after-commit.log"},
+  "rom_sha256": "29447cf2bd4b488f216f019d47bd3861ad8045f00b0c1aaa700b252b204ca0b0",
+  "matches_isolated_artifact": true,
+  "source_sha256": {
+    "src/main.s": "c1501871648b16a84241c484fe71febd94bc7ef5738c7aa7ea20ac8df5d19b21",
+    "src/enemy_runtime.s": "382ed0b20d46710238381325953eea9649c150fb9fd84b65abd988a19b8c12f7"
+  },
+  "map_sha256": {
+    "ladybug.map": "1e56590402e110d669e6d4e3d2bbd1d70c316d6828f25d839f4d998c73ad8e66",
+    "ladybug-enemy-runtime.map": "d37d0b624deebec333bb669ff118e434589149bb310d3421626a49c7fd520dce"
+  },
+  "capacity": {
+    "resident": {"used": 8184, "limit": 8192, "headroom": 8, "delta": 0},
+    "enemy": {"used": 4080, "limit": 4096, "headroom": 16, "delta": 49},
+    "presentation": {"used": 1259, "limit": 1280, "headroom": 21, "delta": 0},
+    "assets": {"used": 7680, "limit": 7680, "headroom": 0, "delta": 0},
+    "gmc_source_headroom": 1239
+  },
+  "guards": {"enemy": "pass", "gate_static_cases": 432, "largest_gate_cache_record": "99/128", "preexisting_gate_snapshot": "not counted as current runtime evidence", "diff_check": "pass"},
+  "runtime": {
+    "evidence": "repro/bug040/integrated-fixed-001/result.json",
+    "artifact_identity_verified": "pass4.329/30 seconds",
+    "bug040_pickup_replay_pass": "pass15.781/60 seconds",
+    "bug040_colour_clip_pass": "pass13.171/60 seconds",
+    "owners": "A and B",
+    "stale_bytes": 0,
+    "resurrected_yellow_pixels": 0,
+    "second_award": false,
+    "timeouts": 0,
+    "evidence_kind": "controlled fixtures and semantic positions; not natural keyboard input"
+  },
+  "remaining_required": ["cold natural keyboard gameplay", "complete-frame changed-worklist publication maximum<=29666 cycles and no front-write fault"],
+  "separate_unresolved": "Exact original natural yellow-object attribution",
+  "preserved": "Unrelated dirty source/scripts/configuration/wiki and all prototype worktrees; audio deferred",
+  "rejected": ["215-byte resident overflow candidate", "historical lower runtime pixels as clean underlay oracle", "PAR5 game-state ownership assumption at cold presentation mainloop", "first nominal integrated build started before successful cherry-pick"]
+}

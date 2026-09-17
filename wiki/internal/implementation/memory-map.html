@@ -14,6 +14,7 @@
     <a href="./index.html">Implementation</a>
   </nav>
   <main class="wiki-main">
+    <section id="bug040-fitting-20260917"><h2>BUG-040 fitting — 2026-09-17</h2><p>Reviewed complete/6809/keyboard candidate: resident8184/8192 (8 spare), enemy4080/4096 (16 spare), presentation1259/1280 (21 spare), assets7680/7680 (0 spare). The unchanged80-byte object LUT block occupies $17A0–$17EF inside the existing enemy module, below shared ACTOR_STAGE $1800–$18FF. Five resident aliases and exact payload bytes are verified. Existing 4-KiB cartridge reservation means GMC source headroom remains1239 bytes. No loader/MMU boundary, audio dependency or minimum reserve changed. See <a href="../tickets/bug-040-stale-spawner-background.html#implementation-review-20260917">BUG-040 implementation evidence</a>; build fit is not publication-timing acceptance.</p></section>
     <header class="wiki-header">
       <p class="wiki-eyebrow">Implementation · design</p>
       <h1>Memory Map <span class="wiki-badge">internal</span></h1>

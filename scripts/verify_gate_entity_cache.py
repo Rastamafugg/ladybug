@@ -196,9 +196,10 @@ def runtime_snapshot_proof(masks: bytes, luts: dict[str, bytes]) -> str:
 
 main = ROOT / "src" / "main.s"
 screen = ROOT / "build" / "ladybug_screen.inc"
-MASK_LUT = bytes_after(main, "object_mask_lut", 16)
+object_tables = ROOT / "src" / "enemy_runtime.s"
+MASK_LUT = bytes_after(object_tables, "object_mask_lut", 16)
 LUTS = {
-    name: bytes_after(main, f"object_{name}_lut", 16)
+    name: bytes_after(object_tables, f"object_{name}_lut", 16)
     for name in ("red", "yellow", "blue", "skull")
 }
 MASKS = bytes_after(screen, "object_masks", 12 * 64)

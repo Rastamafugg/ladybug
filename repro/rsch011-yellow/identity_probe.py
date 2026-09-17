@@ -224,3 +224,5 @@ finally:
     result.setdefault('controlled_writer','not_completed')
     (OUT/'result.json').write_text(json.dumps(result,indent=2)+'\n')
     print(json.dumps(result))
+if result.get('error') or not result.get('passed'):
+    sys.exit(1)
