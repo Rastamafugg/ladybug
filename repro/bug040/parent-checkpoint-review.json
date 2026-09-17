@@ -1,0 +1,24 @@
+{
+  "ticket": "BUG-040",
+  "date": "2026-09-17",
+  "source_baseline_commit": "be862aa",
+  "decision": "accept_source_checkpoint_release_implementation",
+  "legal_overlap_anchors": [
+    {"cell": [12, 10], "source_byte_offset": 4, "rows": 15, "compact_byte_offset": 0},
+    {"cell": [12, 14], "source_byte_offset": 0, "rows": 1, "compact_byte_offset": 248}
+  ],
+  "lower_overlap": "Heart variant1 first source row f0000000 is nonzero but maps to44 in all bonus LUTs, identical to the current bottom-row base4444444444444444",
+  "lower_invariant_proof": "All34 valid combinations (skullvariant0/skullLUT, variants1..11 across red/yellow/blue LUTs) leave compact row31 unchanged; guard this source-data invariant if omitting lower overlay/cache rebuild",
+  "gate_geometry": "No current generated gate contextual union intersects nest x152..167,y73..104",
+  "dot_writer": "refresh_enemy_zone_dot for (12,10) updates clean base at offset60; anchor(12,14) dot tile itself begins below nest",
+  "actor_restore": "actor_closure_restore removes player and valid roaming history, not retained nest actors",
+  "capture_hook": "fri_stage_background after current maze/entity-footprint/gate underlay, before draw_entities",
+  "dirty_recapture": "ERF_INIT ordinary/death renderer must not overwrite clean base with actors or collectibles",
+  "structural": "Copy clean base, overlay current live clipped entities, active nest actors, then dormant/vegetable; normal outer player layer last",
+  "replay": "RF_ENTITIES requires structural nest damage and lower-derived cache coherence, including consumed retained record",
+  "skull_cache_containment": "Confirm ERF_ZONE_REFRESH producer also sets RF_ENTITIES; remove redundant invalid forced-X12 cache input instead of adding lost-X protocol",
+  "irq": "irq_handler -> FB_MODULE_IRQ -> framebuffer_irq_impl; only FRAMES/FB protocol counters and GIME publication registers, not entity/object/stage scratch",
+  "staging": "Existing ACTOR_STAGE nest/player alias is foreground-sequential; ensure cache building cannot destroy uncommitted structural stage",
+  "capacity": "No new limit or reserve; implement contract then measure and fit within current modules",
+  "scope": "No production source edit in parent checkpoint review; existing gate/lives behavior, audio deferral and dirty dependencies preserved"
+}
