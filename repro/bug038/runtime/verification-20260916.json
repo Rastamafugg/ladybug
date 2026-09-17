@@ -23,12 +23,21 @@
     },
     "bug038_fixture_matrix_pass": {
       "status": "not_established",
-      "error": "TimeoutError: Late native command completion: capture",
-      "note": "The fixture phase stopped before any declared case completed. Missing cases are not passes."
+      "bounded_run_seconds": 42.84011153799656,
+      "declared_cases_executed": 6,
+      "error": "The harness sampled both owners after single frames instead of completing isolated A/B/A publication sequences.",
+      "observations": {
+        "front_write_fault_delta_all_cases": 0,
+        "missed_commit_delta_range": [11, 23],
+        "oracle_mismatches_present": true,
+        "actual_repaired_gate_ids_observed": [0, 2, 4, 8, 10, 12, 13]
+      },
+      "note": "All six cases reached normal frame exits, but stale-owner comparisons and debugger-induced missed publications invalidate the fixture marker. These results are harness failures, not production-regression evidence."
     },
     "bug038_publication_timing_pass": {
       "status": "unexecuted",
-      "note": "Timing was not run after the fixture phase stopped. No candidate maximum or 29666-cycle bound was established."
+      "error": "ValueError: invalid literal for int() with base 16: 'set {unsigned char}0x007f'",
+      "note": "The baseline/candidate trace phase did not start because the fixture-patch parser rejected its own GDB assignment syntax. No candidate maximum or 29666-cycle bound was established."
     }
   },
   "focused_static_checks": {
@@ -39,5 +48,11 @@
     "owned_process_groups_alive": false
   },
   "acceptance": false,
-  "closure_reason": "Required fixture and publication-timing markers are absent."
+  "harness_findings": [
+    "Nested auto-continue breakpoint commands resumed execution after their completion marker.",
+    "XRoar 1.10 cannot combine -load snapshot with -gdb because the listener is initialized twice.",
+    "Stopping on rseg_next observed all 20 scan slots rather than only real draw_gate calls.",
+    "The final bounded fixture run completed but did not implement the required both-owner publication sequence."
+  ],
+  "closure_reason": "Required fixture and publication-timing markers remain absent after bounded harness correction attempts."
 }
