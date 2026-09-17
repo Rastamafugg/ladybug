@@ -25,7 +25,10 @@ def main():
     approved=[]
     for r in shared['coverage']:
         name,x,y=r['screen'],r['x'],r['y'];colour=None
-        if name=='attract' and y==15:colour=9
+        if name=='gameplay' and (x,y)==(34,13):
+            assert (r['code'],r['glyph'],r['mask'])==(42,35,'00007f00007f0000')
+            colour=shared['colour_configuration']['fields']['bonus']
+        elif name=='attract' and y==15:colour=9
         elif name=='attract' and y==18:colour=2 if r['code']==1 else 6
         elif name=='instructions' and (y==5 and 15<=x<=25 or y==17 and 17<=x<=25 or y==20 and 16<=x<=25):colour=6
         elif name=='level-start' and 8<=x<32:colour={4:3,7:5,9:2,20:1}.get(y)
@@ -34,6 +37,8 @@ def main():
             if not overridden:assert r['colour']==colour,('approved text colour',r,colour)
             approved.append((name,x,y))
     assert len(approved)>50,'approved-colour coverage absent'
+    equals=[r for r in shared['coverage'] if r['screen']=='gameplay' and (r['x'],r['y'])==(34,13)]
+    assert len(equals)==1 and equals[0]['colour']==shared['colour_configuration']['fields']['bonus']
     chars=s.load_chars(root/'assets/arcade/chars.json');cases=[]
     for name,start in zip(p.MAP_NAMES,manifest['map_stream_offsets']):
         tiles=[];ids={};mapping,_=p.compile_map(root/'tiled'/p.MAP_FILES[name],chars,tiles,ids,False,True)

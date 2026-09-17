@@ -45,6 +45,7 @@ class SharedText:
                 if value not in self.font:self.font.append(value)
                 if name=='gameplay':
                     if x<8 and y<9:colour=(1,2,3)[y//3] if y%3!=1 or x==0 else 7
+                    elif x==34 and y==13 and code==42:colour=self.colours['fields']['bonus']
                     elif x>=32:colour={1:8,2:8,4:1,5:1,7:6,8:6,10:3,11:3,12:5}.get(y,0)
                     else:raise ValueError(('unexpected gameplay text',x,y))
                 else:
@@ -64,6 +65,9 @@ class SharedText:
                 if key not in self.cells:raise ValueError(('colour override is not a text cell',key))
                 self.cells[key]['colour']=run['colour']
                 self.overridden.add(key)
+        equals=self.cells.get(('gameplay',13*40+34))
+        if equals and equals['code']==42 and equals['colour']!=self.colours['fields']['bonus']:
+            raise ValueError(('gameplay equals colour override conflicts with fields.bonus',equals['colour'],self.colours['fields']['bonus']))
         contexts=int(any(self.colours['fields'][k]!=6 for k in ('instruction_points','ranking','name','game_over_score')))
         (args.output.parent/'ladybug_text_colours.inc').write_text(''.join(f'TEXT_{k.upper()} equ {v}\n' for k,v in self.colours['fields'].items())+f'TEXT_CONTEXT_COLOURS equ {contexts}\n')
 
