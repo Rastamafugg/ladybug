@@ -90,7 +90,6 @@
 ; DOC-002 source-contract mirror contract merge_stage_pixel profile=render: Merge stage pixel.
 ; DOC-002 source-contract mirror contract player_compose_impl profile=render: Compose the player and its owner-local save-under history into BACK.
 ; DOC-002 source-contract mirror contract player_draw_impl profile=state: Draw the selected player sparse stream into BACK.
-; DOC-002 source-contract mirror contract refresh_zone_bg_footprint profile=copy: Refresh zone bg footprint.
 ; DOC-002 source-contract mirror contract render_exposed_player profile=render: Render exposed player.
 ; DOC-002 source-contract mirror contract render_perimeter_reset profile=render: Render perimeter reset.
 ; DOC-002 source-contract mirror contract roam_bg_address profile=copy: Resolve the background-ring address for one roaming actor slot.
@@ -253,6 +252,7 @@ ERF_DIRTY      equ $02
 ERF_ZONE_REFRESH equ $04
 ERF_NEST       equ $08
 ERF_NEST_ANIM  equ $10
+ERF_ZONE_ENTITY equ $80        ; transient resident request: overlay entities in nest stage
 COLOR_WHITE    equ 6
 
 ENTITY_TABLE   equ $A380
@@ -549,17 +549,15 @@ enemy_render_impl
         lda     ENEMY_RENDER_FLAGS
         bita    #ERF_INIT
         beq     eri_refresh
-        lbsr    capture_zone_bg
+        ; ERF_INIT is consumed by the pre-entity stage hook. Never capture an
+        ; ordinary framebuffer here because draw_entities may already be live.
+        anda    #$FE
+        sta     ENEMY_RENDER_FLAGS
 eri_refresh
-        lda     ENEMY_RENDER_FLAGS
-        bita    #ERF_ZONE_REFRESH
-        beq     eri_dirty
-        lda     #12
-        sta     ENTITY_X
-        lda     RENDER_ZONE_Y
-        sta     ENTITY_Y
-        jsr     restore_entity_footprint
-        lbsr    refresh_zone_bg_footprint
+        ; RF_ENTITIES restores every recorded footprint, including a cleared
+        ; skull record whose coordinates remain in the table. The stage hook
+        ; captured ENEMY_ZONE_BG before entities were drawn, so a zone refresh
+        ; must not copy live framebuffer pixels back into that clean base.
 eri_dirty
         lda     ENEMY_RENDER_FLAGS
         bita    #ERF_DIRTY|ERF_NEST|ERF_NEST_ANIM
@@ -570,6 +568,8 @@ eri_dirty
         bita    #ERF_NEST_ANIM
         beq     eri_finish
 eri_nest_anim
+        lbsr    nest_active_in_zone
+        bcs     eri_nest
         lbsr    compose_enemy_animation
         bra     eri_finish
 eri_nest
@@ -772,6 +772,10 @@ frame_render_background
         jsr     erase_entity_footprints
         jsr     repair_settled_entity_gates
         jsr     draw_entities
+        ; Entity removal/recolour changes the structural nest layer as well.
+        lda     ENEMY_RENDER_FLAGS
+        ora     #ERF_NEST
+        sta     ENEMY_RENDER_FLAGS
 fri_dot
         lda     RENDER_FLAGS
         bita    #RF_DOT
@@ -914,6 +918,9 @@ fri_stage_background
         ; before gate art and entity sprites are published on stage load.
         jsr     erase_entity_footprints
         jsr     draw_all_gates
+        ; Capture the actor-free, gate-composed underlay before any collectible
+        ; is drawn. ERF_INIT is consumed by enemy_render_impl below.
+        lbsr    capture_zone_bg
         jsr     draw_entities
         jsr     draw_hud
         jsr     draw_word_progress_hud
@@ -2444,6 +2451,14 @@ cez_copy_bg
         leay    -1,y
         bne     cez_copy_bg
 
+        ; Static collectibles are a structural layer between the clean base
+        ; and all nest actors. The resident mask/LUT routine performs the two
+        ; stage-valid clipped intersections without touching the framebuffer.
+        lda     ENEMY_RENDER_FLAGS
+        ora     #ERF_ZONE_ENTITY
+        sta     ENEMY_RENDER_FLAGS
+        jsr     draw_entities
+
         ; Active actors first.
         ldu     #ENEMY_TABLE
         lda     #4
@@ -2516,6 +2531,9 @@ cez_commit_row
 compose_enemy_animation
         lda     VEG_STATE
         bne     cea_done
+        lda     ENEMY_ACTIVE
+        cmpa    #4
+        beq     cea_done
         lda     ENEMY_ANIM
         ldb     #128
         mul
@@ -2525,6 +2543,32 @@ compose_enemy_animation
         ldy     #16
         lbra    cez_commit_row
 cea_done
+        rts
+
+; Carry set when a non-roaming enemy occupies either active nest row. A
+; dormant-cache rectangle is unsafe for that state because the live actor
+; overlay is structural and must be replayed from the clean zone base.
+nest_active_in_zone
+        ldx     #ENEMY_TABLE
+        lda     #4
+        sta     ENEMY_WORK
+naz_loop
+        tst     ,x
+        beq     naz_next
+        tst     6,x
+        bne     naz_next
+        lda     5,x
+        suba    #11
+        cmpa    #1
+        bls     naz_hit
+naz_next
+        leax    RECORD_SIZE,x
+        dec     ENEMY_WORK
+        bne     naz_loop
+        andcc   #$FE
+        rts
+naz_hit
+        orcc    #$01
         rts
 
 ; Build the clean new player rectangle from the old save-under plus newly
@@ -3448,51 +3492,23 @@ bnc_copy
         bne     bnc_copy
         rts
 
-; A removed skull redraws one 16-by-16 clean footprint. Copy that footprint
-; into the authoritative compact nest background before recompositing actors.
-refresh_zone_bg_footprint
-        lda     ENTITY_X
-        cmpa    #12
-        bne     rzbf_done
-        lda     ENTITY_Y
-        cmpa    #10
-        blo     rzbf_done
-        cmpa    #13
-        bhs     rzbf_done
-        suba    #10
-        ldb     #8
-        mul
-        stb     ENEMY_ROW
-        lda     #160
-        ldb     ENEMY_ROW
-        mul
-        addd    #ENEMY_ZONE_FB
-        tfr     d,x
-        ldb     ENEMY_ROW
-        clra
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        addd    #ENEMY_ZONE_BG
-        tfr     d,u
-        ldy     #16
-rzbf_row
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        leax    152,x
-        leay    -1,y
-        bne     rzbf_row
-rzbf_done
-        rts
+; Resident main.s aliases these immutable bytes at the fixed tail address
+; $17A0. Keep this block below the shared ACTOR_STAGE at $1800.
+object_mask_lut
+        fcb     $FF,$F0,$F0,$F0,$0F,$00,$00,$00
+        fcb     $0F,$00,$00,$00,$0F,$00,$00,$00
+object_red_lut
+        fcb     $00,$00,$01,$04,$00,$00,$01,$04
+        fcb     $10,$10,$11,$14,$40,$40,$41,$44
+object_yellow_lut
+        fcb     $00,$00,$02,$04,$00,$00,$02,$04
+        fcb     $20,$20,$22,$24,$40,$40,$42,$44
+object_blue_lut
+        fcb     $00,$00,$03,$04,$00,$00,$03,$04
+        fcb     $30,$30,$33,$34,$40,$40,$43,$44
+object_skull_lut
+        fcb     $00,$00,$06,$06,$00,$00,$06,$06
+        fcb     $60,$60,$66,$66,$60,$60,$66,$66
 
 enemy_runtime_end
         end

@@ -20,6 +20,101 @@ perimeter_manifest = __import__("json").loads(
     (root / "build/ladybug-sparse-layout.json").read_text(encoding="ascii")
 )["perimeter_reset"]
 
+# The resident object decoder reads these immutable tables from the bank-3
+# tail. Keep every source alias tied to the assembled low-RAM symbol and to
+# the exact pre-existing 80-byte payload.
+lut_addresses = {
+    "object_mask_lut": 0x17A0,
+    "object_red_lut": 0x17B0,
+    "object_yellow_lut": 0x17C0,
+    "object_blue_lut": 0x17D0,
+    "object_skull_lut": 0x17E0,
+}
+for label, expected in lut_addresses.items():
+    match = re.search(
+        rf"^Symbol: {label} .* = ([0-9A-Fa-f]+)$", enemy_map, re.MULTILINE
+    )
+    if not match or int(match.group(1), 16) != expected:
+        raise SystemExit(f"enemy proof: {label} low-RAM alias moved")
+    if not re.search(rf"^{label} equ \${expected:04X}$", main, re.MULTILINE):
+        raise SystemExit(f"enemy proof: resident alias for {label} diverges")
+lut_payload = bytes((
+    0xFF, 0xF0, 0xF0, 0xF0, 0x0F, 0x00, 0x00, 0x00,
+    0x0F, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x01, 0x04, 0x00, 0x00, 0x01, 0x04,
+    0x10, 0x10, 0x11, 0x14, 0x40, 0x40, 0x41, 0x44,
+    0x00, 0x00, 0x02, 0x04, 0x00, 0x00, 0x02, 0x04,
+    0x20, 0x20, 0x22, 0x24, 0x40, 0x40, 0x42, 0x44,
+    0x00, 0x00, 0x03, 0x04, 0x00, 0x00, 0x03, 0x04,
+    0x30, 0x30, 0x33, 0x34, 0x40, 0x40, 0x43, 0x44,
+    0x00, 0x00, 0x06, 0x06, 0x00, 0x00, 0x06, 0x06,
+    0x60, 0x60, 0x66, 0x66, 0x60, 0x60, 0x66, 0x66,
+))
+lut_offset = lut_addresses["object_mask_lut"] - 0x0800
+if rom[lut_offset:lut_offset + len(lut_payload)] != lut_payload:
+    raise SystemExit("enemy proof: relocated object LUT payload differs")
+
+# BUG-040: fail when generated geometry or pixels invalidate the clipped
+# compositor and once-per-stage lower animation cache.
+def data_block(path: Path, label: str) -> bytes:
+    text = path.read_text(encoding="ascii")
+    part = text.split("\n" + label + "\n", 1)[1]
+    values = []
+    for line in part.splitlines():
+        line = line.split(";", 1)[0].strip()
+        if not line:
+            continue
+        if not line.startswith("fcb"):
+            break
+        values.extend(int(v.strip().replace("$", "0x"), 0)
+                      for v in line[3:].split(","))
+    return bytes(values)
+
+maze_path = root / "build/ladybug_maze.inc"
+screen_path = root / "build/ladybug_screen.inc"
+cells = data_block(maze_path, "maze_cells")
+overlaps = set()
+for index, cell in enumerate(cells):
+    x, y = index % 24, index // 24
+    bx, py = (x + 7) * 4, (y - 1) * 8
+    if cell & 128 and bx < 84 and bx + 8 > 76 and py < 105 and py + 16 > 73:
+        overlaps.add((x, y))
+if overlaps != {(12, 10), (12, 14)}:
+    raise SystemExit("enemy proof: BUG-040 legal overlap geometry changed")
+gates = data_block(maze_path, "maze_gates")
+for start in range(0, len(gates), 3):
+    gx, gy = gates[start:start + 2]
+    for dx, dy in ((0,-2),(0,-1),(-2,0),(-1,0),(0,0),(1,0),(0,1)):
+        bx, py = (gx + dx + 8) * 4, (gy + dy) * 8
+        if bx < 84 and bx + 4 > 76 and py < 105 and py + 8 > 73:
+            raise SystemExit("enemy proof: BUG-040 gate union now intersects nest")
+tiles = data_block(screen_path, "screen_tiles")
+screen_map = data_block(screen_path, "screen_map")
+bottom = b"".join(tiles[screen_map[13 * 40 + x] * 32:
+                             screen_map[13 * 40 + x] * 32 + 4]
+                  for x in (19, 20))
+if bottom != bytes([0x44] * 8):
+    raise SystemExit("enemy proof: BUG-040 lower clean row changed")
+masks = data_block(screen_path, "object_masks")
+preserve = lut_payload[:16]
+valid_pairs = [(0, lut_payload[64:80])] + [
+    (variant, lut_payload[offset:offset + 16])
+    for variant in range(1, 12) for offset in (16, 32, 48)]
+for variant, palette in valid_pairs:
+    emitted = bytes((bottom[i] & preserve[nibble]) | palette[nibble]
+                    for i, nibble in enumerate(n for value in masks[variant*64:variant*64+4]
+                                               for n in (value >> 4, value & 15)))
+    if emitted != bottom:
+        raise SystemExit("enemy proof: BUG-040 lower cache invariant changed")
+stage_hook = source[source.index("\nfri_stage_background\n"):
+                    source.index("\nrestore_player_visible\n")]
+if not stage_hook.index("lbsr    capture_zone_bg") < stage_hook.index("jsr     draw_entities"):
+    raise SystemExit("enemy proof: BUG-040 capture follows entities")
+render_hook = source[source.index("\nenemy_render_impl\n"):
+                     source.index("\nframe_render_impl\n")]
+if "lbsr    capture_zone_bg" in render_hook or "refresh_zone_bg_footprint" in source:
+    raise SystemExit("enemy proof: BUG-040 dirty background recapture returned")
+
 if len(rom) < 36 or any(rom[offset] != 0x7E for offset in range(0, 36, 3)):
     raise SystemExit("enemy proof: fixed $0800 jump table is invalid")
 if len(rom) > 0x1000:

@@ -400,6 +400,15 @@ GATE_ENTITY_RECORD_SIZE equ 77  ; bounds/count + twelve {entity, cache, framebuf
 ENEMY_FB    equ $57EC          ; top-left at lower nest cell (12,12)
 ENEMY_TABLE equ $A470          ; four 8-byte active enemy records
 ENEMY_ZONE_BG equ $A490        ; 256-byte clean 16-by-32 nest background
+ENEMY_ZONE_STAGE equ $1800     ; shared compact nest composition stage
+; Immutable object colour/mask LUTs are resident in the bank-3 runtime tail
+; at fixed low-RAM addresses, below ACTOR_STAGE. The enemy module has a
+; build-verified 4-KiB bound and exact-address guard for this 80-byte block.
+object_mask_lut equ $17A0
+object_red_lut equ $17B0
+object_yellow_lut equ $17C0
+object_blue_lut equ $17D0
+object_skull_lut equ $17E0
 ENEMY_OLD_FB equ $A890
 ENEMY_BG_RING equ $A898
 FB_META_A   equ $A900          ; A framebuffer ownership ledger
@@ -436,6 +445,7 @@ RF2_PERIM_RESET equ $08
 
 ERF_INIT       equ $01
 ERF_DIRTY      equ $02
+ERF_ZONE_ENTITY equ $80        ; transient resident request: overlay entities in nest stage
 
 ;==============================================================================
 ;  Cart ROM
@@ -1674,10 +1684,14 @@ rn_store
 ; Dynamic object drawing and the MAME-measured global colour cycle.
 ;==============================================================================
 draw_entities
+        ; Fall through to the common record loop. Transient stage mode skips
+        ; sparse-cache writes after the shared object draw.
+de_normal
         ldx     #ENTITY_TABLE
         ldd     #ENTITY_GATE_CACHE
         std     OBJ_CACHE_BASE
         lda     ENTITY_COUNT
+        beq     de_finish
         sta     ENTITY_WORK
 de_loop
         stx     ENTITY_PTR
@@ -1692,6 +1706,9 @@ de_loop
         lda     3,x
         sta     ENTITY_VARIANT
         lbsr    draw_entity_object
+        lda     ENEMY_RENDER_FLAGS
+        bita    #ERF_ZONE_ENTITY
+        bne     de_next
         lbsr    cache_entity_overlay
 de_next
         ldx     ENTITY_PTR
@@ -1701,6 +1718,10 @@ de_next
         std     OBJ_CACHE_BASE
         dec     ENTITY_WORK
         bne     de_loop
+de_finish
+        lda     ENEMY_RENDER_FLAGS
+        anda    #$7F
+        sta     ENEMY_RENDER_FLAGS
         rts
 
 ; Placement changes MAZE_STATE before the objects are drawn. Restore each
@@ -1759,6 +1780,36 @@ deo_red
 deo_yellow
         leau    object_yellow_lut,pcr
 deo_destination
+        lda     ENEMY_RENDER_FLAGS
+        bita    #ERF_ZONE_ENTITY
+        beq     deo_native
+        lda     ENTITY_X
+        cmpa    #12
+        lbne    deo_done
+        lda     ENTITY_Y
+        cmpa    #10
+        beq     deo_zone_upper
+        cmpa    #14
+        lbne    deo_done
+        ldx     #ENEMY_ZONE_STAGE+248
+        bra     deo_zone_source
+deo_zone_upper
+        ldx     #ENEMY_ZONE_STAGE
+deo_zone_source
+        lda     ENTITY_Y
+        cmpa    #10
+        bne     deo_zone_one_row
+        ldy     OBJ_SOURCE
+        leay    4,y
+        sty     OBJ_SOURCE
+        lda     #15
+        bra     deo_zone_rows
+deo_zone_one_row
+        lda     #1
+deo_zone_rows
+        sta     OBJ_ROWS
+        bra     deo_row
+deo_native
         lda     ENTITY_Y
         deca
         ldb     #5
@@ -1802,9 +1853,14 @@ deo_byte
         stb     ,x+
         dec     OBJ_BYTES
         bne     deo_byte
-        leax    152,x
         dec     OBJ_ROWS
+        beq     deo_done
+        lda     ENEMY_RENDER_FLAGS
+        bita    #ERF_ZONE_ENTITY
         bne     deo_row
+        leax    152,x
+        bra     deo_row
+deo_done
         rts
 
 ; Store the original nontransparent destination operations as bounded sparse
@@ -2127,22 +2183,6 @@ dpb_store
         dec     HUD_COUNT
         bne     dpb_row
         rts
-
-object_mask_lut
-        fcb     $FF,$F0,$F0,$F0,$0F,$00,$00,$00
-        fcb     $0F,$00,$00,$00,$0F,$00,$00,$00
-object_red_lut
-        fcb     $00,$00,$01,$04,$00,$00,$01,$04
-        fcb     $10,$10,$11,$14,$40,$40,$41,$44
-object_yellow_lut
-        fcb     $00,$00,$02,$04,$00,$00,$02,$04
-        fcb     $20,$20,$22,$24,$40,$40,$42,$44
-object_blue_lut
-        fcb     $00,$00,$03,$04,$00,$00,$03,$04
-        fcb     $30,$30,$33,$34,$40,$40,$43,$44
-object_skull_lut
-        fcb     $00,$00,$06,$06,$00,$00,$06,$06
-        fcb     $60,$60,$66,$66,$60,$60,$66,$66
 
 ;==============================================================================
 ; init_gate_state

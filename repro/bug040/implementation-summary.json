@@ -1,0 +1,18 @@
+{
+  "ticket": "BUG-040",
+  "baseline": "be862aa",
+  "implementation_owner": "Luna xhigh candidate; parent takeover, independent review and completion",
+  "rom_sha256": "29447cf2bd4b488f216f019d47bd3861ad8045f00b0c1aaa700b252b204ca0b0",
+  "build_command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard ./scripts/build.sh build",
+  "capacity": {
+    "resident": {"used": 8184, "limit": 8192, "headroom": 8},
+    "enemy": {"used": 4080, "limit": 4096, "headroom": 16},
+    "presentation": {"used": 1259, "limit": 1280, "headroom": 21},
+    "assets": {"used": 7680, "limit": 7680, "headroom": 0}
+  },
+  "source_checks": ["enemy ABI and renderer guards pass", "all34 valid lower-row palette/mask combinations invariant", "legal overlap anchors12,10 and12,14 guarded", "gate unions excluded", "relocated80bytes and five aliases exact", "gate432 cases pass after parent source-reader correction", "git diff --check passes"],
+  "runtime": "colour-fixed-002/result.json: identity4.478/30 seconds; pickup14.052/60 seconds; colour/clipping9.176/60 seconds; both owners pass; zero stale bytes or yellow resurrection; no second award",
+  "observer_corrections": ["pickup-fixed-001: lower historical clean oracle contains actors; derive actor-free base from immutable art", "colour-fixed-001: cold presentation may own PAR5; defer game-state assertion until prepared renderer boundary"],
+  "remaining": ["parent combined build and integrated runtime", "natural cold keyboard gameplay", "changed-worklist publication timing", "exact original natural yellow attribution"],
+  "status": "implementation_complete_pending_parent_integration_and_verification"
+}
