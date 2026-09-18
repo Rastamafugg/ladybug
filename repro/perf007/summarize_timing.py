@@ -5,7 +5,9 @@ ROOT=Path(__file__).resolve().parents[2]
 folder=Path(sys.argv[1]);report=json.loads((folder/'result.json').read_text())
 def symbols(path):return {k:int(v,16) for k,v in re.findall(r'^Symbol: (\S+) .* = ([0-9A-Fa-f]+)$',path.read_text(),re.M)}
 main=symbols(ROOT/'build/ladybug.map');enemy=symbols(ROOT/'build/ladybug-enemy-runtime.map')
-entries={k:main[k] for k in ['erase_entity_footprints','repair_settled_entity_gates','draw_entities','draw_entity_object','cache_entity_overlay']}
+entries={k:main[k] for k in ['erase_entity_footprints','repair_settled_entity_gates','draw_entities','draw_entity_object','cache_entity_overlay','bonus_color_tick','sync_entity_cache_colour','render_entity_colour']}
+entries['shared_sparse_record_parser']=main['replay_entity_overlay_common']
+entries['shared_colour_kernel']=main['cache_colour_kernel']
 entries.update({k:enemy[k] for k in ['compose_enemy_zone','roam_update_background','roam_copy_fb_to_bg','actor_closure_restore','actor_closure_draw']})
 regex=re.compile(r'^([0-9a-f]{4})\| ([0-9a-f]+)\s+(\S+).* dt=(\d+)$')
 for scenario in report['results']:
@@ -13,8 +15,9 @@ for scenario in report['results']:
  for line in (folder/(scenario['scenario']+'.trace')).read_text().splitlines():
   m=regex.match(line)
   if m:rows.append([int(m[1],16),len(m[2])//2,m[3],int(m[4])//8])
- if rows and rows[0][0]==0:rows[0][0]=enemy['frame_render_impl']
- starts=[i for i,x in enumerate(rows) if x[0]==enemy['frame_render_impl']]
+ entry=main['main_game_tick_normal']
+ if rows and rows[0][0]==0:rows[0][0]=entry
+ starts=[i for i,x in enumerate(rows) if x[0]==entry]
  for n,interval in enumerate(scenario['intervals']):
   lo=starts[n];hi=starts[n+1] if n+1<len(starts) else len(rows)
   part=rows[lo:hi];pc=[x[0] for x in part];cost=[x[3] for x in part]
@@ -28,11 +31,11 @@ for scenario in report['results']:
     try:end=pc.index(ret,i+1)
     except ValueError:unresolved+=1;continue
     spans.append(sum(cost[i-1:end]))
-   attribution[name]={'bounded_calls':len(spans),'inclusive_cycles':sum(spans),'call_cycles':spans,'unresolved_entries':unresolved}
+   attribution[name]={'bounded_calls':len(spans),'inclusive_cycles':sum(spans),'call_cycle_min_max':[min(spans),max(spans)] if spans else None,'unresolved_entries':unresolved}
   interval['routine_attribution']=attribution
   interval['missed_commit_entries']=pc.count(enemy['fbiq_missed'])
   interval['front_write_fault_entries']=pc.count(enemy['fbp_write_front_fault'])
-report['attribution_rule']='Inclusive call costs include call instruction and nested work; do not sum nested routines. Return address decoded from actual trace instruction byte length. Unresolved entries not assigned cycles.'
+report['attribution_rule']='Inclusive call costs include call instruction and nested work, including interrupt service within spans; do not sum nested routines. Return address decoded from actual trace instruction byte length. Unresolved entries/tail calls not assigned cycles. Full transaction starts at normal game tick and ends at next normal game tick; SYNC idle excluded.'
 report['fixture_roaming_capture_coverage']='No rub_full or roam_copy_fb_to_bg entries observed; four-enemy recapture cost not measured.'
 report['hardware_target_cycles']=29666
 report['observed_active_max_cycles']=max(i['active_cycles'] for s in report['results'] for i in s['intervals'])

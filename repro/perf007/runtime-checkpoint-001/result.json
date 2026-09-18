@@ -1,0 +1,45 @@
+{
+  "ticket": "PERF-007",
+  "source_commit": "6c548ea",
+  "documentation_head_at_execution": "9f77601",
+  "rom_sha256": "5cdb575191428e3af902b7f0cc9bb94c425de05be3e902af71ce2426eb97ad26",
+  "status": "failed timing/cadence acceptance; required correctness and matched worklists incomplete",
+  "identity": {"result": "../identity-current-001/result.json", "passed": true, "deadline_seconds": 30, "duration_seconds": 5.339071661000162},
+  "timing": {
+    "result": "../timing-current-002/result.json",
+    "attribution": "../timing-current-002/attribution.json",
+    "deadline_seconds": 60,
+    "duration_seconds": 9.832168008000735,
+    "active_transaction_boundary": "main_game_tick_normal through next main_game_tick_normal; normal logic/render/readiness/IRQ publication and audio stub included, SYNC idle excluded",
+    "fixture": "eight live records: six bonuses and two skulls; no upper nest bonus, no roaming enemies; real timer expiration forced with BONUS_TIMER=1",
+    "observed_current_cycles": 62710,
+    "observed_pending_replay_cycles": 37074,
+    "target_maximum_cycles": 29666,
+    "current_excess_cycles": 33044,
+    "replay_excess_cycles": 7408,
+    "missed_commit_entries": [2, 1],
+    "front_write_fault_entries": [0, 0],
+    "inclusive_sync_cycles": [26015, 28],
+    "inclusive_projection_cycles": [26572, 26668],
+    "nested_attribution_rule": "Do not sum shared parser/kernel costs with containing synchronization/projection calls; shared labels are not separate mode-specific routines.",
+    "zero_colour_only_calls": ["erase_entity_footprints", "repair_settled_entity_gates", "draw_entities", "cache_entity_overlay", "compose_enemy_zone", "roam_copy_fb_to_bg"],
+    "deterministic_rerun": "timing-current-001 retained; timing-current-002 removes historical literal/scratch patches and derives fixture assignments from maps; identical measured cycles and cadence faults",
+    "receipt_semantics": "Historical result.passed=true denotes observer completion only; acceptance_passed=false and meets_observed_target=false. Updated adapter exits nonzero for incomplete/failed acceptance and uses measurement_completed separately. Post-run source edits were syntax-checked, not claimed rerun."
+  },
+  "additional_offline_live_snapshot_identity": [
+    {"filename": "ladybug-enemy-sparse.bin", "physical_page": "35", "bytes": 23005, "exact": true},
+    {"filename": "ladybug-player-sparse.bin", "physical_page": "39", "bytes": 2294, "exact": true}
+  ],
+  "commands": [
+    "python3 repro/perf007/identity_probe.py repro/perf007/identity-current-001",
+    "python3 repro/perf007/timing_probe.py repro/perf007/timing-current-001 repro/perf007/identity-current-001/result.json",
+    "python3 repro/perf007/timing_probe.py repro/perf007/timing-current-002 repro/perf007/identity-current-001/result.json",
+    "python3 repro/perf007/summarize_timing.py repro/perf007/timing-current-002"
+  ],
+  "required_missing": ["projection required case set", "saveunder required case set", "matched-eight-live-current-replay baseline comparison", "matched-four-roam-current-replay", "conditional-upper-nest-current-replay", "natural cold visual gameplay acceptance"],
+  "baseline_comparison": "not performed; historical 361983 is not a matched current before/after result",
+  "probe_reassessment": "Decisive cheapest-fixture timing and cadence failure. No deadline extension, rare-case multiplication or production repair in this verification task. Return same approved ticket to Ready for behavior-preserving timing follow-up; preserve incomplete scenarios.",
+  "capacity_change": "none: verification-only edits; resident8191/8192, enemy4091/4096, assets7680/7680, presentation1259/1280 retained integrated build",
+  "natural_evidence": "none; forced timer is technical evidence only",
+  "qa_verdict": "not Done"
+}
