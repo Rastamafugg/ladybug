@@ -80,12 +80,16 @@ def check_source() -> None:
         raise SystemExit("source: live stage transition ownership is missing")
     if "PRES_CONTEXT_NEXT_STAGE equ 2" not in presentation:
         raise SystemExit("source: next-stage context marker is missing")
-    if "clr     PRES_CONTEXT\nstart_screen_context_ready" not in presentation:
+    if (
+        "attract_next\n        ifne    BUG011_DEVELOPMENT_PROFILE\n"
+        "        ifne    COMPLETE_PROFILE\n        clr     PRES_CONTEXT"
+        not in presentation
+    ):
         raise SystemExit("source: complete attract context reset is missing")
     if "ifne    ATTRACT_OVERLAY_ENABLED" not in presentation:
         raise SystemExit("source: complete title overlay guard is missing")
     ready = presentation[presentation.index("\npft_ready\n"):presentation.index("\npft_mode\n")]
-    if "anda    #$06" not in ready or "lbsr    add_credit" not in ready:
+    if "anda    #$06" not in ready or "jsr     PRES_MAIN_ADD_CREDIT" not in ready:
         raise SystemExit("source: credit-gated high-score entry is missing")
 
 

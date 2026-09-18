@@ -148,12 +148,47 @@ def frame_tile(frame: bytes, destination: int, width: int = 4,
     )
 
 
+def lzss_expand(stream: bytes, expected_bytes: int) -> bytes:
+    output = bytearray()
+    cursor = 0
+    while len(output) < expected_bytes:
+        if cursor >= len(stream):
+            raise ValueError("compressed atlas ended before its output bound")
+        flags = stream[cursor]
+        cursor += 1
+        for bit in range(8):
+            if len(output) >= expected_bytes:
+                break
+            if flags & (1 << bit):
+                if cursor >= len(stream):
+                    raise ValueError("compressed atlas literal is truncated")
+                output.append(stream[cursor])
+                cursor += 1
+                continue
+            if cursor + 2 > len(stream):
+                raise ValueError("compressed atlas match is truncated")
+            token = int.from_bytes(stream[cursor:cursor + 2], "big")
+            cursor += 2
+            distance = token >> 4
+            length = (token & 0x0F) + 3
+            if distance == 0 or distance > len(output):
+                raise ValueError("compressed atlas match distance is invalid")
+            for index in range(length):
+                output.append(output[-distance])
+                if len(output) > expected_bytes:
+                    raise ValueError("compressed atlas exceeds its output bound")
+    return bytes(output)
+
+
 def expected_tile(manifest: dict[str, object], tile_id: int) -> bytes:
     cold = COLD.read_bytes()
     base = int(manifest["gameplay_tile_base"])
     if tile_id < base:
-        offset = int(manifest["tile_atlas_offset"]) + tile_id * 32
-        return cold[offset:offset + 32]
+        compressed_bytes = int(manifest["tile_atlas_compressed_bytes"])
+        expanded_bytes = int(manifest["tile_atlas_expanded_bytes"])
+        atlas = lzss_expand(cold[:compressed_bytes], expanded_bytes)
+        offset = tile_id * 32
+        return atlas[offset:offset + 32]
     lookup_offset = int(manifest["gameplay_lookup_offset"]) + tile_id - base
     gameplay_id = cold[lookup_offset]
     runtime = RUNTIME_ROM.read_bytes()
