@@ -1,0 +1,31 @@
+{
+  "ticket": "BUG-035",
+  "head_at_review": "0be1fe1",
+  "scope": ["src/demo_runtime.s", "src/instruction_runtime.s", "src/presentation_runtime.s"],
+  "verdict": "not ready as one verified production repair; preserve assembly changes uncommitted",
+  "findings": [
+    {"file": "src/presentation_runtime.s", "line": 2182, "finding": "added COMPLETE_PROFILE hook is inside else of outer ifne COMPLETE_PROFILE; contradictory guards make it unreachable in all profiles"},
+    {"file": "src/demo_runtime.s", "line": 386, "finding": "legacy stage renderer is skipped in normal complete helper build, which selects shared_text_stage.inc; superseded monolithic implementation has no configured production use"},
+    {"file": "src/instruction_runtime.s", "line": 850, "finding": "legacy X recolour initialization and owner replay change is active in development, not complete shared-text; current runtime pixel/clock evidence missing"}
+  ],
+  "manual_source_review": "Stage context/1..18 clamp and font-record bounds agree with existing stage semantics; glyph helper preserves A/B/Y/U and advances X, CMPU closes LEAU loop correctly; resident sprite blitter scratch does not alias stage index. Full hydration supplies cleared pixels. Legacy X uses loop-final index15 and generated sparse selector. These source facts do not establish runtime/ownership/timing acceptance.",
+  "builds": {
+    "complete": {"command": "LADYBUG_PROFILE=complete LADYBUG_CPU=6809 LADYBUG_INPUT=keyboard bash scripts/build.sh build", "exit": 0, "rom_sha256": "5cdb575191428e3af902b7f0cc9bb94c425de05be3e902af71ce2426eb97ad26", "resident": [8191,8192], "assets": [7680,7680], "enemy": [4091,4096], "presentation": [1259,1280], "instruction_code": [929,938], "source": "combined dirty source; reviewed additions inactive in complete profile"},
+    "development": {"command": "LADYBUG_PROFILE=development LADYBUG_CPU=6809 LADYBUG_INPUT=keyboard LADYBUG_BUILD_DIR=/tmp/ladybug-bug035-development-review bash scripts/build.sh build", "exit": 0, "rom_sha256": "33ac1c5d81108ff48514b9e8be788ade522de7d998d951a2b8230608f54db830", "presentation": [1136,1280], "instruction_code": [937,938], "isolation": "FEAT-003 isolation gate passed; production build not replaced by development"}
+  },
+  "checks": [
+    {"name": "complete build-integrated generated presentation/shared text/sparse/loader/capacity checks", "result": "pass"},
+    {"name": "development build-integrated generated presentation/sparse/loader/capacity/isolation checks", "result": "pass"},
+    {"name": "scripts/verify_enemy_runtime.py", "result": "pass, current4091-byte fixed-ABI artifact"},
+    {"name": "git diff --check", "result": "pass"},
+    {"name": "scripts/verify_bug011_instructions.py", "result": "fails instruction runtime manifest differs in both complete and development; verifier requires obsolete staged_bytes/staged_sha256 schema absent from current layout; not an assembly regression"},
+    {"name": "scripts/verify_bug035_presentation.py", "result": "stopped during static preparation before emulator launch to avoid concurrent build-artifact use; no runtime evidence produced. Held legacy verifier also reads1280 identity bytes against current1259-byte presentation artifact, so cannot pass current identity as written"}
+  ],
+  "runtime_probes": "none completed; no live-PC interpretation or natural acceptance claimed",
+  "rejected_experiments": "Do not reuse the held legacy BUG-035 harness as a current shared-text oracle; no verifier repair/framework expansion in this review task.",
+  "remaining": "Remove superseded helper and contradictory dead hook only with user direction; handle development-only X change separately with a relevant current oracle. Existing shared-text production BUG-035 graphic/stage acceptance remains separate.",
+  "source_mutation": "none",
+  "source_sha256": {"src/demo_runtime.s": "bba16da37229a58bbfffce7aa81462463a590413e78b65781b68e8595e4a5be8", "src/instruction_runtime.s": "cbff560bf1e5dfee223f97868dd9ab01b163d55763ae917907014292b16f136d", "src/presentation_runtime.s": "48b60934972d474e329cb0664bd6724271c4ef2a3f9cf2a30ebdccece3cfd71e"},
+  "assembly_commit": null,
+  "qa_status": "BUG-035 remains Blocked for outstanding graphics acceptance/current verifier coverage; obsolete percentage ceilings are not blockers"
+}
