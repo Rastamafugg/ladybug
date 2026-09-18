@@ -547,6 +547,7 @@ wanted = {
     'maze_gates', 'maze_nav',
     'restore_entity_footprint', 'sprite_attr0_pairs',
     'reload_enemy_box_timer', 'reset_enemy_state',
+    'sync_entity_cache_colour', 'render_entity_colour',
     'restore_gate_diagonal_dots', 'vegetable_sprites',
 }
 symbols = {}
