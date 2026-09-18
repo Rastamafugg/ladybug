@@ -14,7 +14,7 @@
     <a href="./index.html">Implementation</a>
   </nav>
   <main class="wiki-main">
-<section id="perf007-cache-state-20260918"><h2>PERF-007 shared colour-cache state — 2026-09-18</h2><p>Corrected source reserves one page-$34 game-state byte at$A89C for ENTITY_CACHE_COLOR:0 invalid until completed normal construction;1/2/3 coherent current bonus colour. The existing four-byte ENEMY_BG_RING occupies$A898–$A89B; owner ledgers begin$A900. Remaining alignment is99 bytes at$A89D–$A8FF. This state is not direct-page scratch: persistent placement at$009F was rejected because RING_BASE$009E is a two-byte roaming pointer. Both module mirrors use$A89C; accesses require restored game PAR5 mapping. No new direct-page byte, ledger layout or loader/MMU interface is selected. Source/allocation review is not runtime or capacity acceptance. See <a href="../tickets/perf-007-collectible-colour-refresh.html#independent-source-review-20260917">independent review</a>.</p></section>
+    <section id="perf007-cache-state-20260918"><h2>PERF-007 shared colour-cache state — 2026-09-18</h2><p>Corrected source reserves one page-$34 game-state byte at$A89C for ENTITY_CACHE_COLOR:0 invalid until completed normal construction;1/2/3 coherent current bonus colour. The existing four-byte ENEMY_BG_RING occupies$A898–$A89B; owner ledgers begin$A900. Remaining alignment is99 bytes at$A89D–$A8FF. This state is not direct-page scratch: persistent placement at$009F was rejected because RING_BASE$009E is a two-byte roaming pointer. Both module mirrors use$A89C; accesses require restored game PAR5 mapping. No new direct-page byte, ledger layout or loader/MMU interface is selected. Source/allocation review is not runtime or capacity acceptance. See <a href="../tickets/perf-007-collectible-colour-refresh.html#independent-source-review-20260917">independent review</a>.</p></section>
     <section id="bug040-fitting-20260917"><h2>BUG-040 fitting — 2026-09-17</h2><p>Reviewed complete/6809/keyboard candidate: resident8184/8192 (8 spare), enemy4080/4096 (16 spare), presentation1259/1280 (21 spare), assets7680/7680 (0 spare). The unchanged80-byte object LUT block occupies $17A0–$17EF inside the existing enemy module, below shared ACTOR_STAGE $1800–$18FF. Five resident aliases and exact payload bytes are verified. Existing 4-KiB cartridge reservation means GMC source headroom remains1239 bytes. No loader/MMU boundary, audio dependency or minimum reserve changed. See <a href="../tickets/bug-040-stale-spawner-background.html#implementation-review-20260917">BUG-040 implementation evidence</a>; build fit is not publication-timing acceptance.</p></section>
     <header class="wiki-header">
       <p class="wiki-eyebrow">Implementation · design</p>
@@ -27,6 +27,9 @@
     </header>
 
     <section id="memory-physical-pages">
+      <h2>BUG-039 fitting — 2026-09-16</h2>
+      <p>The reviewed initial-entry repair uses always-mapped direct-page <code>$00A0</code> for its live-only lifecycle and <code>$00A1</code> for the selected owner's saved visible-row extent. Each framebuffer ledger's existing player reserved byte at offset 3 stores that extent with its validity and pointer. No loader/MMU interval or capacity is enlarged. Eight unchanged 16-byte sprite colour tables move from resident code to the existing asset region; compatibility-only player delta/strip composition is omitted from the active persistent build while its source and fixed jump-table ABI remain.</p>
+      <p>The isolated complete/6809/keyboard build at <code>fbe157c</code> measures resident 8184/8192, enemy 4023/4096, presentation 1259/1280 and assets 7680/7680 bytes. These are assembled sizes, not runtime timing acceptance. Asset headroom is exactly zero. Combined dirty-checkout capacity is reported separately in the <a href="../tickets/bug-039-three-lives-initial-entry.html">canonical ticket</a>; unrelated presentation edits are preserved.</p>
       <h2>Constraints recap</h2>
       <ul>
         <li><strong>8 MMU PARs</strong>, each maps an 8 K virtual page to a 6-bit physical-page number (see <a href="../../release/reference/coco3/memory-map.html">CoCo 3 memory map</a>, <a href="../../release/reference/coco3/gime.html">GIME</a>).</li>
@@ -91,7 +94,6 @@ $A590-$A68F      5    $34   256 B  Free game-state RAM
 $A690-$A88F      5    $34   512 B  Four clean roaming-enemy background buffers
 $A890-$A897      5    $34     8 B  Four prior roaming framebuffer pointers
 $A898-$A89B      5    $34     4 B  Current BACK enemy save-under row/column ring phases
-
 $A89C           5    $34     1 B  Shared sparse bonus-cache colour validity
 $A89D-$A8FF      5    $34    99 B  Reserved alignment before framebuffer metadata
 $A900-$A9FF      5    $34   256 B  Framebuffer A actor metadata and damage ledger
@@ -589,6 +591,11 @@ $FF00-$FFFF        256 B   I/O; never cart data
       <p><strong>FEAT-004 overlay profile 2026-08-26:</strong> <code>LADYBUG_PROFILE=complete</code> compiles the authored instructions map and both auxiliary sources. The padded instruction runtime and 143-byte demo runtime are staged consecutively in page <code>$23</code>; presentation copies only the phase-selected runtime to <code>$0300-$06A9</code>. The complete profile preserves the development map placeholders for game-over and name entry and does not alter the default release profile.</p>
       <p><strong>BUG-016 application 2026-08-13:</strong> all six authored maps are compiled, layer-validated, and frame-hashed, but the unreachable name-entry runtime slot emits a constant-black map and omits eight name-entry-only glyph constants. This retains the one-byte tile protocol at <code>255/256</code> entries and the cold source payload at <code>10,653/10,874</code> bytes. The full release set requires 268 entries before the synthetic coin tile and remains a PERF-005 restoration constraint; no runtime decoder or memory boundary changed.</p>
       <p>This policy does not relax runtime safety. The <code>$1E00-$1FFF</code> stack window, direct-page ownership, loader destinations, framebuffer/MMU ownership, PAR restoration, and authored/staged/live byte identity remain hard boundaries. Cartridge reserve, future-sound reserve, release-profile module fit, and engineering cycle headroom are recorded during development but become acceptance gates only in PERF-005.</p>
+    </section>
+    <section id="bug038-resident-gate-repair">
+      <h2>BUG-038 resident gate-repair placement</h2>
+      <p><strong>Integrated 2026-09-16.</strong> The ordinary persistent compositor needs a bounded association scan after entity-footprint restoration. Keeping the complete scan in the copied enemy runtime produced 4143/4096 bytes and was rejected. The routine now resides in the 8 KiB resident module and is exported through the generated <code>ladybug_runtime_symbols.inc</code>; the enemy module retains one absolute call. Two already-local <code>copy_two_fb_rows</code> calls use signed-range <code>BSR</code> encodings, yielding resident 8120/8192 and enemy 4096/4096 on integrated commit <code>a076508</code>.</p>
+      <p><strong>Rule:</strong> when a copied absolute module is at its hard boundary, place shared rendering policy in resident ownership and import its generated address. Recover local call bytes only where the assembled signed displacement is verified. Do not use a stale literal address, enlarge the copied window, or treat source-bank capacity as destination capacity.</p>
     </section>
   </main>
 </div>

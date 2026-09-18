@@ -1,0 +1,172 @@
+{
+  "date": "2026-09-16",
+  "source_basis": {
+    "branch": "codex/feat-007-shared-text",
+    "head": "b0050ebe1ff6ca9e89d347aca75d48a31682b33b",
+    "note": "Resolve every executable symbol and byte range from the candidate build maps. Fixed addresses below are stable data/MMU ABI addresses, not stale code PCs."
+  },
+  "global_rules": {
+    "identity_before_interpretation": true,
+    "initial_probe_deadline_seconds": 30,
+    "maximum_phase_deadline_seconds": 60,
+    "timeout_rule": "A timeout means the named boundary or observer result was not established; it is not evidence that target code is slow and is never a pass.",
+    "natural_input_rule": "Only keyboard or joystick events delivered through the emulated/native input path count as natural input. Direct writes to PRES_EVENT, direction, actor, entity, gate, timer, or lifecycle state are controlled fixtures.",
+    "observer_rule": "Use the existing GDB-MCP/native-GDB supervisor and existing capture helpers. Do not extend the deferred web or private-monitor stack.",
+    "timing_rule": {
+      "hardware_frame_limit_cycles": 29666,
+      "pass": "Maximum complete-frame work for the named executed worklist is at most 29666 cycles, FB_MISSED_COMMIT does not increase, FB_WRITE_FRONT_FAULT remains zero, and only BACK is written.",
+      "note": "The historical 27000-cycle engineering target and zero-delta no-overlap target are reported as comparisons, not current pass gates. Audio is deferred and no audio reserve is included."
+    },
+    "identity_phase": {
+      "marker": "artifact_identity_verified",
+      "deadline_seconds": 30,
+      "start": "fresh launch of the pinned candidate ROM",
+      "required": [
+        "Record SHA-256 for ladybug.rom, ladybug-runtime.rom, ladybug-enemy-runtime.rom, all consumed map/list files, and modified source.",
+        "At a map-resolved stable gameplay boundary, verify PAR0=$38, PAR5=$34, PAR6=$3E, PAR7=$3F, and PAR1-PAR4 name the non-scanned BACK owner.",
+        "Compare authored module bytes, loader-staged bytes, and live destination bytes over the exact map-derived resident and enemy-module used ranges.",
+        "Compare the candidate routine bytes at their map-resolved live addresses before interpreting any breakpoint or state observation."
+      ],
+      "timeout_means": "Artifact, mapping, or observer identity is unproved; stop the issue-specific probe."
+    }
+  },
+  "BUG-038": {
+    "status": "runtime contract prepared; not executed",
+    "phases": [
+      {
+        "name": "natural settled recolour",
+        "marker": "bug038_natural_settled_recolour_pass",
+        "deadline_seconds": 60,
+        "start": "natural gameplay is ready at a gate/entity route",
+        "method": "Using only gameplay input, rotate one gate to the orientation opposite its authored orientation. Wait until GATE_ANIM_ID, RENDER_GATE_ID, and RENDER_GATE2_ID are zero and both owners have published the settled state. Then allow an ordinary BONUS_COLOR transition to drive RF_ENTITIES and an A/B/A publication sequence.",
+        "pass": [
+          "Both physical owners have zero mismatching bytes over the complete gate-plus-neighbor/entity union against an independent oracle built from current MAZE_STATE, GATE_STATE, live nonzero entity records, and current BONUS_COLOR.",
+          "The gate remains opposite its authored orientation, the collectible has the new colour, collision agrees with GATE_STATE, FB_MISSED_COMMIT does not increase, and FB_WRITE_FRONT_FAULT remains zero.",
+          "Retain pre-rotation, settled-pre-colour, and both post-colour owner regions plus the exact state/worklist values."
+        ],
+        "timeout_means": "The natural route, settled drain, colour boundary, or both-owner publication was not observed."
+      },
+      {
+        "name": "paired composition fixtures",
+        "marker": "bug038_fixture_matrix_pass",
+        "deadline_seconds": 60,
+        "start": "source-identical post-identity snapshot at frame_render_impl",
+        "method": "Run one bounded fixture set: opposite final-orientation parities with an overlapping heart or letter; a type-zero consumed footprint paired with a non-overlap control; and one pending diagonal-to-final gate beside a settled neighbor. Repeat only the pending case with starting owner reversed from byte-identical pixels, metadata, and intents.",
+        "pass": [
+          "Every declared case executes and reports the actual repaired gate IDs.",
+          "Settled unions match the independent oracle byte-for-byte; live entities remain the final entity layer; type-zero records contribute no sprite pixels but retain underlay coverage.",
+          "The pending primary then secondary compositor remains final for its owned gate IDs, and the hidden final path records zero calls to the settled repair routine.",
+          "The non-overlap control repairs zero gates."
+        ],
+        "timeout_means": "The bounded fixture set is incomplete; missing cases are failures of coverage, not passes."
+      },
+      {
+        "name": "publication timing",
+        "marker": "bug038_publication_timing_pass",
+        "deadline_seconds": 60,
+        "start": "the same no-overlap, natural-overlap, and maximum-reachable affected worklists used by the pixel checks",
+        "method": "Capture complete frame_render_impl intervals for the source-matched baseline and candidate, recording scenario phase, executed worklist, repair count, cycle count, starting owner, commit sequence, missed-commit delta, and front-write fault.",
+        "pass": "Each candidate maximum satisfies the global 29666-cycle hardware/publication rule. Report the no-overlap and affected deltas, including the historical 1034-cycle static empty scan comparison, without treating a nonzero delta as an automatic failure.",
+        "timeout_means": "No valid timing bound exists for the candidate."
+      }
+    ]
+  },
+  "BUG-039": {
+    "status": "runtime contract prepared for the implementation design; not executed",
+    "phases": [
+      {
+        "name": "natural initial transfer",
+        "marker": "bug039_initial_transfer_pass",
+        "deadline_seconds": 60,
+        "start": "natural live gameplay stage publication after credit/start",
+        "method": "Capture every committed entry state and both owners. Hold a direction and start key from the first stage image through COMPLETE without writing lifecycle state.",
+        "pass": [
+          "WAIT_STAGE publishes exactly three HUD markers, LIVES=3, and no independent maze player.",
+          "WALKOUT changes LIVES once to 2 and publishes exactly one south-facing entrant at $8994+n*$0140 for n=0..11, top rows 168..190; each visible position reaches both owners before the next movement step.",
+          "OFFSCREEN reaches logical pointer $9894 at n=12, draws no player bytes, and leaves both owner player-valid fields zero before MAZE_ENTRY.",
+          "MAZE_ENTRY starts at $89EC/cell(12,22), moves north by 16 scheduled two-pixel steps, reaches cell(12,18), then and only then enters COMPLETE and permits manual input.",
+          "LIVES remains 2 with two markers; held input does not alter PLAYER_MANUAL, PLAYER_WANT, direction, step count, or lifecycle before COMPLETE."
+        ],
+        "timeout_means": "The natural start or complete transfer was not captured."
+      },
+      {
+        "name": "clipping and owner history",
+        "marker": "bug039_clipping_owner_pass",
+        "deadline_seconds": 60,
+        "start": "controlled WALKOUT snapshot with identical A/B pixels and metadata",
+        "method": "Fill each owner's unused framebuffer tail corresponding to virtual $9800-$9FFF with a retained canary, reverse the starting owner once, and capture player pointer, owner-local valid/pointer/visible-row metadata, old footprint, and final pixels at y=176,178,190,192 and fresh $89EC entry.",
+        "pass": [
+          "Visible-row extents are 16,14,2,0 for y=176,178,190,192.",
+          "Capture, restore, stage commit, and sprite commit touch only visible_rows; both owner tail canaries remain byte-identical and no framebuffer access is recorded when visible_rows=0.",
+          "Each owner removes its last visible rows before invalidation; no stationary third marker, stale lower-edge sprite, duplicate entrant, or stale $89EC underlay remains.",
+          "FB_WRITE_FRONT_FAULT stays zero and both owners converge after the reversed-owner run."
+        ],
+        "timeout_means": "Lower-edge clipping or owner convergence is unproved."
+      },
+      {
+        "name": "natural first death",
+        "marker": "bug039_first_death_pass",
+        "deadline_seconds": 60,
+        "start": "natural COMPLETE state with LIVES=2",
+        "method": "Reach one enemy through ordinary play and capture the complete existing death sequence and replacement entry without writing actor, enemy, death, or lives state.",
+        "pass": "LIVES changes once from 2 to 1 at dt_finish_blank, one replacement starts through the existing northbound path, the initial-entry state remains INACTIVE, and existing death frame/timer ordering is unchanged.",
+        "timeout_means": "A natural death and replacement boundary was not observed."
+      },
+      {
+        "name": "reserve stage and award controls",
+        "marker": "bug039_reserve_stage_pass",
+        "deadline_seconds": 60,
+        "start": "source-identical controlled COMPLETE snapshots",
+        "method": "Run three declared fixtures: LIVES=1 through one normal death/replacement, LIVES=0 through one normal death/game-over, and a one-dot-left stage completed by ordinary movement at a nondefault reserve count. Run the existing extra-life award boundary once after COMPLETE.",
+        "pass": "The fixtures produce 1->0 plus one replacement, game over at zero with no replacement, unchanged reserves and INACTIVE entry state across next_stage, and exactly one existing-rule award increment. All declared fixtures must execute.",
+        "timeout_means": "One or more reserve, stage, or award fixtures did not complete; missing fixtures fail coverage."
+      },
+      {
+        "name": "reset cancellation",
+        "marker": "bug039_reset_pass",
+        "deadline_seconds": 60,
+        "start": "natural WALKOUT with held direction/start",
+        "method": "Invoke the existing reset/new-session boundary once while the entrant is partially visible, then retain both owners through the next live stage publication.",
+        "pass": "The partial entry and both owner histories are cancelled without stale pixels or count consumption; the next live session publishes LIVES=3 with three markers and a newly armed WAIT_STAGE. No normal enemy, collision, pickup, dot, bonus/perimeter, or stage dispatch occurred before cancellation.",
+        "timeout_means": "Reset cleanup and the next initial scene were not both observed."
+      },
+      {
+        "name": "publication timing",
+        "marker": "bug039_publication_timing_pass",
+        "deadline_seconds": 60,
+        "start": "captured y=168, y=178, y=190, hidden, and $89EC entry worklists",
+        "method": "Measure complete-frame cycles and publication state for each named worklist on both starting-owner orders.",
+        "pass": "Every maximum satisfies the global 29666-cycle hardware/publication rule and movement advances only on the existing 30 Hz scheduled cadence.",
+        "timeout_means": "No valid timing/publication bound exists for the entry implementation."
+      }
+    ]
+  },
+  "RSCH-011": {
+    "status": "bounded diagnosis contract prepared; not executed",
+    "phases": [
+      {
+        "name": "controlled stale writer",
+        "marker": "rsch011_stale_nest_writer_verified",
+        "deadline_seconds": 60,
+        "start": "source-identical stage fixture before fri_stage_background",
+        "method": "Install one legal record [12,10,ENTITY_HEART,OBJECT_HEART], BONUS_COLOR=COLOR_YELLOW, and otherwise source-valid stage state. Let normal stage rendering perform ERF_INIT capture. Use the normal pickup path to clear that record, let RF_ENTITIES publish the clean footprint, then request one existing logical ERF_NEST intent and let its normal A/B damage replay complete through enemy_render_impl. Capture the entity record, ENEMY_ZONE_BG, ENEMY_ZONE_STAGE, render intents, and both physical nest regions at all three boundaries.",
+        "pass": [
+          "After stage capture, ENEMY_ZONE_BG contains the yellow heart pixels and the live entity type is 2.",
+          "After normal pickup, type is 0, the published footprint matches the independent current-state clean nest image, and ENEMY_ZONE_BG retains its prior hash.",
+          "After structural compose, exactly the witness set is reintroduced: 35 differing upper-zone bytes and 45 yellow pixels, all attributable to compose_enemy_zone copying ENEMY_ZONE_BG while the record remains type 0.",
+          "Both owners reproduce the same causal transition; pickup dispatch skips the type-zero record."
+        ],
+        "timeout_means": "The source-identical capture, pickup, or structural writer boundary was not observed; the mechanism remains runtime-unconfirmed."
+      },
+      {
+        "name": "natural attribution",
+        "marker": "rsch011_natural_attribution_pass",
+        "deadline_seconds": 60,
+        "start": "natural later-stage gameplay with BONUS_COLOR yellow",
+        "method": "Without changing entity placement, colour, timers, collision, actor position, or render intents, observe normal pickups and structural nest redraws. On first matching yellow object, capture the same record/cache/stage/both-owner state and attempt collection through ordinary movement.",
+        "pass": "The naturally observed pixels, location, type-zero non-collection, retained ENEMY_ZONE_BG bytes, and compose_enemy_zone writer match the controlled causal signature.",
+        "timeout_means": "Exact attribution of the user's reported occurrence remains unconfirmed; the controlled mechanism is retained separately."
+      }
+    ]
+  }
+}
