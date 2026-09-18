@@ -14,6 +14,7 @@
     <a href="./index.html">Implementation</a>
   </nav>
   <main class="wiki-main">
+<section id="perf007-cache-state-20260918"><h2>PERF-007 shared colour-cache state — 2026-09-18</h2><p>Corrected source reserves one page-$34 game-state byte at$A89C for ENTITY_CACHE_COLOR:0 invalid until completed normal construction;1/2/3 coherent current bonus colour. The existing four-byte ENEMY_BG_RING occupies$A898–$A89B; owner ledgers begin$A900. Remaining alignment is99 bytes at$A89D–$A8FF. This state is not direct-page scratch: persistent placement at$009F was rejected because RING_BASE$009E is a two-byte roaming pointer. Both module mirrors use$A89C; accesses require restored game PAR5 mapping. No new direct-page byte, ledger layout or loader/MMU interface is selected. Source/allocation review is not runtime or capacity acceptance. See <a href="../tickets/perf-007-collectible-colour-refresh.html#independent-source-review-20260917">independent review</a>.</p></section>
     <section id="bug040-fitting-20260917"><h2>BUG-040 fitting — 2026-09-17</h2><p>Reviewed complete/6809/keyboard candidate: resident8184/8192 (8 spare), enemy4080/4096 (16 spare), presentation1259/1280 (21 spare), assets7680/7680 (0 spare). The unchanged80-byte object LUT block occupies $17A0–$17EF inside the existing enemy module, below shared ACTOR_STAGE $1800–$18FF. Five resident aliases and exact payload bytes are verified. Existing 4-KiB cartridge reservation means GMC source headroom remains1239 bytes. No loader/MMU boundary, audio dependency or minimum reserve changed. See <a href="../tickets/bug-040-stale-spawner-background.html#implementation-review-20260917">BUG-040 implementation evidence</a>; build fit is not publication-timing acceptance.</p></section>
     <header class="wiki-header">
       <p class="wiki-eyebrow">Implementation · design</p>
@@ -90,7 +91,9 @@ $A590-$A68F      5    $34   256 B  Free game-state RAM
 $A690-$A88F      5    $34   512 B  Four clean roaming-enemy background buffers
 $A890-$A897      5    $34     8 B  Four prior roaming framebuffer pointers
 $A898-$A89B      5    $34     4 B  Current BACK enemy save-under row/column ring phases
-$A89C-$A8FF      5    $34   100 B  Reserved alignment before framebuffer metadata
+
+$A89C           5    $34     1 B  Shared sparse bonus-cache colour validity
+$A89D-$A8FF      5    $34    99 B  Reserved alignment before framebuffer metadata
 $A900-$A9FF      5    $34   256 B  Framebuffer A actor metadata and damage ledger
 $AA00-$AAFF      5    $34   256 B  Framebuffer B actor metadata and damage ledger
 $AB00-$AB7F      5    $34   128 B  Framebuffer B player restoration bytes
