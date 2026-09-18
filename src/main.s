@@ -159,6 +159,9 @@
 ;==============================================================================
 
         pragma  nodollarlocal,6809
+        ifndef  PERSISTENT_FB
+PERSISTENT_FB equ 1
+        endc
 
 ;------------------------------------------------------------------------------
 ; DP allocation (page $00)
@@ -321,6 +324,9 @@ FB_RENDER_ACTIVE equ $0098
 FB_WRITE_FRONT_FAULT equ $0099
 FB_INIT_STATE  equ $009A       ; nonzero after cold A/B convergence
 ENEMY_CAPTURE_DIRTY equ $009B  ; $FF all actors, otherwise per-slot bits
+; Reserved page-$34 game-state byte after ENEMY_BG_RING ($A898-$A89B) and
+; before the framebuffer ledgers.  This must not alias direct-page RING_BASE.
+ENTITY_CACHE_COLOR equ $A89C   ; 0 invalid; 1..3 means shared caches coherent
 PRES_MAGIC     equ $00A4       ; presentation state must be cold on cartridge boot
 BOOT_FLAG    equ $02F0         ; $A5 when GMC bootstrap relocated runtime to RAM
 
@@ -442,6 +448,7 @@ RF2_POPUP      equ $01
 RF2_MULTIPLIER equ $02
 RF2_LETTER     equ $04
 RF2_PERIM_RESET equ $08
+RF2_COLOUR     equ $10        ; replayable primary-only collectible recolour
 
 ERF_INIT       equ $01
 ERF_DIRTY      equ $02
@@ -643,7 +650,7 @@ main_game_tick
         lda     INITIAL_ENTRY_STATE
         beq     main_game_tick_normal
         lbsr    player_animation_tick
-        lbsr    initial_entry_tick
+        bsr    initial_entry_tick
         ; Keep the existing two-commit/30 Hz schedule while the entrant owns
         ; the tick.  The state dispatcher above consumes a pending tick; an
         ; even committed epoch arms the next one before this render.
@@ -674,7 +681,10 @@ main_game_tick_normal
 main_after_player
         lda     DEATH_STATE
         bne     main_after_timers
+        tst     BONUS_LEFT
+        beq     main_bonus_exhausted
         lbsr    bonus_color_tick
+main_bonus_exhausted
         lbsr    perimeter_timer_tick
 main_after_timers
         lbsr    rng_next         ; stage placement depends on elapsed play time
@@ -827,12 +837,11 @@ init_game_state
         clr     RENDER_GATE_ID
         clr     RENDER_GATE2_ID
         clr     ENEMY_RENDER_FLAGS
-        clr     SCORE_BCD
-        clr     SCORE_BCD+1
-        clr     SCORE_BCD+2
-        clr     HIGH_BCD
-        clr     HIGH_BCD+1
-        clr     HIGH_BCD+2
+        clra
+        clrb
+        std     SCORE_BCD
+        std     SCORE_BCD+2
+        std     HIGH_BCD+1
         lda     #3
         sta     LIVES
         lda     #1
@@ -857,6 +866,7 @@ init_game_state
         sta     MULTIPLIER
         lda     #COLOR_BLUE
         sta     BONUS_COLOR
+        clr     ENTITY_CACHE_COLOR
         ldd     #420
         std     BONUS_TIMER
         lbsr    reload_box_timer
@@ -974,7 +984,7 @@ alp_special
         cmpb    #$7F
         bne     alp_special_draw
         clr     SPECIAL_BITS
-        lbsr    add_special_score
+        bsr    add_special_score
         inc     STAGE_PENDING
 alp_special_draw
         lda     ENTITY_VARIANT
@@ -1211,8 +1221,7 @@ dhu_stage_digit
         else
         lbsr    draw_hud_digit
         endc
-        lbsr    draw_vegetable_hud
-        rts
+        ; Fall through: the vegetable renderer returns to draw_hud's caller.
 
 ; Display the stage vegetable at HUD columns 32-33, rows 12-13, followed by
 ; its four-digit 1000..9500 value at columns 35-38 on row 13.
@@ -1416,10 +1425,10 @@ dl_marker
         lda     ENTITY_WORK
         cmpa    LIVES
         bhs     dl_erase
-        lbsr    draw_life_marker
+        bsr    draw_life_marker
         bra     dl_next
 dl_erase
-        lbsr    clear_life_marker
+        bsr    clear_life_marker
 dl_next
         inc     ENTITY_WORK
         lda     ENTITY_WORK
@@ -1534,6 +1543,7 @@ ims_copy
 ;==============================================================================
 init_entities
         clr     ENTITY_TOTAL
+        clr     ENTITY_CACHE_COLOR
         lda     #6
         sta     BONUS_LEFT
         lda     STAGE
@@ -1603,7 +1613,7 @@ ie_spcil_pick
         bsr     place_entity
 
         ; One letter from E/A.
-        lbsr    rng_next
+        bsr     rng_next
         andb    #1
         leax    letter_ea,pcr
         ldb     b,x
@@ -1627,7 +1637,7 @@ place_entity
         sta     ENTITY_TYPE
         stb     ENTITY_VARIANT
 pe_retry
-        lbsr    rng_next
+        bsr     rng_next
 pe_reduce
         cmpd    #576
         blo     pe_candidate
@@ -1686,6 +1696,7 @@ rn_store
 draw_entities
         ; Fall through to the common record loop. Transient stage mode skips
         ; sparse-cache writes after the shared object draw.
+        clr     OBJ_ACCENT
 de_normal
         ldx     #ENTITY_TABLE
         ldd     #ENTITY_GATE_CACHE
@@ -1697,19 +1708,51 @@ de_loop
         stx     ENTITY_PTR
         lda     2,x
         beq     de_next
+        tst     OBJ_ACCENT
+        bne     de_colour
+        sta     ENTITY_TYPE
         lda     ,x
         sta     ENTITY_X
         lda     1,x
         sta     ENTITY_Y
-        lda     2,x
-        sta     ENTITY_TYPE
         lda     3,x
         sta     ENTITY_VARIANT
         lbsr    draw_entity_object
-        lda     ENEMY_RENDER_FLAGS
-        bita    #ERF_ZONE_ENTITY
-        bne     de_next
-        lbsr    cache_entity_overlay
+        bra     de_next
+de_colour
+        cmpa    #ENTITY_SKULL
+        beq     de_next
+        tst     OBJ_ACCENT
+        bmi     de_rebind
+        lda     ,x
+        sta     ENTITY_X
+        lda     1,x
+        sta     ENTITY_Y
+        cmpa    #10
+        bne     de_colour_destination
+        lda     ,x
+        cmpa    #12
+        beq     de_next
+de_colour_destination
+        lda     ENTITY_Y
+        deca
+        ldb     #5
+        mul
+        tfr     b,a
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
+        lda     ENTITY_X
+        adda    #7
+        lsla
+        lsla
+        leax    a,x
+        ldu     OBJ_CACHE_BASE
+        lbsr    replay_entity_overlay_common
+        bra     de_next
+de_rebind
+        ldu     OBJ_CACHE_BASE
+        lbsr    replay_entity_overlay_common
 de_next
         ldx     ENTITY_PTR
         leax    4,x
@@ -1719,10 +1762,169 @@ de_next
         dec     ENTITY_WORK
         bne     de_loop
 de_finish
+        tst     OBJ_ACCENT
+        bmi     secc_store
+        bne     de_colour_done
+        ; A normal draw has rebuilt every live cache record, including skulls. Nest
+        ; staging deliberately skips caches and therefore never establishes
+        ; shared colour validity.
+        lda     ENEMY_RENDER_FLAGS
+        bita    #ERF_ZONE_ENTITY
+        bne     de_no_cache_validity
+        lda     BONUS_COLOR
+        sta     ENTITY_CACHE_COLOR
+de_no_cache_validity
         lda     ENEMY_RENDER_FLAGS
         anda    #$7F
         sta     ENEMY_RENDER_FLAGS
+de_colour_done
         rts
+
+; Synchronize the shared sparse cache values once for the frozen logical
+; BONUS_COLOR.  This runs after BACK owner preparation and before any pending
+; or current cache/gate consumer.  Geometry, run headers, preserve masks and
+; unused tail bytes remain unchanged.
+; Inputs: shared game state and ENTITY_TABLE.
+; Returns: registers/CC undefined; PAR5 remains the caller's game-state map.
+sync_entity_cache_colour
+        lda     ENTITY_CACHE_COLOR
+        beq     secc_done              ; stage construction must build unknown geometry
+        cmpa    BONUS_COLOR
+        beq     secc_done
+        lda     #$80
+        sta     OBJ_ACCENT
+        lbra    de_normal
+secc_store
+        lda     BONUS_COLOR
+        sta     ENTITY_CACHE_COLOR
+secc_done
+        rts
+
+; Shared iteration selects negative mode for rebinding every live bonus slot.
+; Count/header/masks and unused tails are never rewritten.
+; Shared colour kernel.  Primary replay enters with OBJ_ACCENT positive and
+; returns a preserve mask in A while retaining the cached value in OBJ_VALUE.
+; Cache rebinding enters with OBJ_ACCENT negative and returns the rebound
+; value in A.  The compiled bonus/skull LUT guard justifies the bit tests.
+rebind_cache_value
+primary_cache_mask
+cache_colour_kernel
+        tst     OBJ_ACCENT
+        bpl     cck_primary
+        tfr     a,b
+        anda    #$CC
+        sta     OBJ_PRIMARY
+        tfr     b,a
+        anda    #$30
+        beq     rcv_high_ready
+        lda     BONUS_COLOR
+        lsla
+        lsla
+        lsla
+        lsla
+        ora     OBJ_PRIMARY
+        sta     OBJ_PRIMARY
+rcv_high_ready
+        tfr     b,a
+        anda    #$03
+        beq     rcv_value_done
+        lda     BONUS_COLOR
+        ora     OBJ_PRIMARY
+        rts
+rcv_value_done
+        lda     OBJ_PRIMARY
+        rts
+
+cck_primary
+        sta     OBJ_VALUE
+        anda    #$30
+        bne     pcm_low
+        orb     #$F0
+pcm_low
+        lda     OBJ_VALUE
+        anda    #$03
+        bne     pcm_done
+        orb     #$0F
+pcm_done
+        tfr     b,a
+        rts
+
+; Project one cache record to the current BACK.  U points to the sparse slot
+; and X to its eight-byte-wide native framebuffer destination. OBJ_ACCENT is
+; the private mode byte: zero replays the full cached value, nonzero projects
+; primary nibbles only.
+; Apply one selected static entity's exact sparse original operations.  U is
+; the precomputed cache pointer and X is the precomputed framebuffer base.
+replay_gate_entity_overlay
+        clr     OBJ_ACCENT
+
+replay_entity_primary_overlay
+replay_entity_overlay_common
+        lda     ,u+
+        beq     repco_done
+        sta     OBJ_ROWS
+repco_run
+        ldb     ,u+
+        cmpb    #$FF
+        beq     repco_long_delta
+        clra
+        bra     repco_delta_ready
+repco_long_delta
+        ldd     ,u++
+repco_delta_ready
+        leax    d,x
+        ldb     ,u+
+        lbeq    cache_entity_overflow
+        stb     OBJ_BYTES
+        lda     OBJ_ACCENT
+        beq     repco_full_pair
+        bmi     repco_rebind_pair
+repco_primary_pair
+        ldb     ,u+
+        lda     ,u+
+        bsr     primary_cache_mask
+        cmpa    #$FF
+        beq     repco_primary_skip
+        tfr     a,b
+        comb
+        andb    OBJ_VALUE
+        stb     OBJ_PRIMARY
+        anda    ,x
+        ora     OBJ_PRIMARY
+        sta     ,x
+repco_primary_skip
+        leax    1,x                  ; cursor advances for every cached pair
+        dec     OBJ_BYTES
+        bne     repco_primary_pair
+        bra     repco_row_done
+repco_rebind_pair
+        ldb     ,u+
+        lda     ,u+
+        lbsr    rebind_cache_value
+        sta     -1,u
+        dec     OBJ_BYTES
+        bne     repco_rebind_pair
+        bra     repco_row_done
+repco_full_pair
+        ldb     ,u+
+        andb    ,x
+        orb     ,u+
+        stb     ,x+
+        dec     OBJ_BYTES
+        bne     repco_full_pair
+repco_row_done
+        dec     OBJ_ROWS
+        bne     repco_run
+repco_done
+        rts
+
+; Draw sparse primary-only colour updates through the common entity loop.  An
+; affected upper nest record is omitted because enemy_render_impl owns its full
+; clean base/current-clipped composition; lower records retain their writes.
+render_entity_colour
+        lda     #1
+        sta     OBJ_ACCENT
+        lbra    de_normal
 
 ; Placement changes MAZE_STATE before the objects are drawn. Restore each
 ; 16x16 footprint once so the authored flowers do not show through sprites.
@@ -1756,18 +1958,10 @@ draw_entity_object
         bne     deo_bonus
         ; Skull collectibles are static white; BONUS_COLOR applies only to
         ; hearts and letters in the bonus-colour cycle.
-        lda     #COLOR_YELLOW
-        sta     OBJ_PRIMARY
-        lda     #COLOR_WHITE
-        sta     OBJ_ACCENT
         leau    object_skull_lut,pcr
         bra     deo_destination
 deo_bonus
         lda     BONUS_COLOR
-        sta     OBJ_PRIMARY
-        lda     #COLOR_PINK
-        sta     OBJ_ACCENT
-        lda     OBJ_PRIMARY
         cmpa    #COLOR_RED
         beq     deo_red
         cmpa    #COLOR_YELLOW
@@ -1785,12 +1979,12 @@ deo_destination
         beq     deo_native
         lda     ENTITY_X
         cmpa    #12
-        lbne    deo_done
+        bne    deo_done
         lda     ENTITY_Y
         cmpa    #10
         beq     deo_zone_upper
         cmpa    #14
-        lbne    deo_done
+        bne    deo_done
         ldx     #ENEMY_ZONE_STAGE+248
         bra     deo_zone_source
 deo_zone_upper
@@ -1808,7 +2002,8 @@ deo_zone_one_row
         lda     #1
 deo_zone_rows
         sta     OBJ_ROWS
-        bra     deo_row
+        stu     OBJ_CACHE_LUT
+        bra    ceo_row
 deo_native
         lda     ENTITY_Y
         deca
@@ -1824,42 +2019,7 @@ deo_native
         lsla
         leax    a,x
         stx     OBJ_CACHE_CURSOR ; cache builder reuses this exact base
-        lda     #16
-        sta     OBJ_ROWS
-deo_row
-        lda     #4
-        sta     OBJ_BYTES
-deo_byte
-        ldy     OBJ_SOURCE
-        lda     ,y+
-        sty     OBJ_SOURCE
-        sta     OBJ_VALUE
-        lsra
-        lsra
-        lsra
-        lsra
-        sta     OBJ_INDEX
-        leay    object_mask_lut,pcr
-        ldb     a,y
-        andb    ,x
-        orb     a,u
-        stb     ,x+
-        lda     OBJ_VALUE
-        anda    #$0F
-        sta     OBJ_INDEX
-        ldb     a,y
-        andb    ,x
-        orb     a,u
-        stb     ,x+
-        dec     OBJ_BYTES
-        bne     deo_byte
-        dec     OBJ_ROWS
-        beq     deo_done
-        lda     ENEMY_RENDER_FLAGS
-        bita    #ERF_ZONE_ENTITY
-        bne     deo_row
-        leax    152,x
-        bra     deo_row
+        bra     cache_entity_overlay
 deo_done
         rts
 
@@ -1873,7 +2033,7 @@ deo_done
 ; Inputs: U selected LUT; ENTITY_PTR and draw scratch. Returns: registers undefined.
 ; Side effects: writes one bounded sparse cache record for the current entity.
 cache_entity_overlay
-        ; draw_entity_object leaves U on its selected colour LUT.
+        ; Full drawing and bounded cache construction share one source pass.
         stu     OBJ_CACHE_LUT
         ldu     OBJ_CACHE_BASE
         clr     ,u
@@ -1883,10 +2043,6 @@ cache_entity_overlay
         clr     OBJ_CACHE_RUN_LENGTH ; current run-length byte pointer, or zero
         clr     OBJ_CACHE_RUN_LENGTH+1
 
-        ldx     OBJ_SOURCE
-        leax    -OBJECT_MASK_SIZE,x
-        stx     OBJ_SOURCE
-        ldx     OBJ_CACHE_CURSOR
         lda     #16
         sta     OBJ_ROWS
 ceo_row
@@ -1909,9 +2065,16 @@ ceo_byte
         bne     ceo_byte
         clr     OBJ_CACHE_RUN_LENGTH ; runs are always row-bounded
         clr     OBJ_CACHE_RUN_LENGTH+1
+        lda     ENEMY_RENDER_FLAGS
+        bita    #ERF_ZONE_ENTITY
+        bne     ceo_next_row
         leax    152,x
+ceo_next_row
         dec     OBJ_ROWS
         bne     ceo_row
+        lda     ENEMY_RENDER_FLAGS
+        bita    #ERF_ZONE_ENTITY
+        bne     deo_done
         tst     OBJ_CACHE_REMAIN ; secondary post-build capacity assertion
         bmi     cache_entity_overflow
         rts
@@ -1933,6 +2096,12 @@ cache_entity_operation
         ldy     OBJ_CACHE_LUT
         lda     a,y
         sta     OBJ_VALUE
+        andb    ,x
+        orb     OBJ_VALUE
+        stb     ,x
+        lda     ENEMY_RENDER_FLAGS
+        bita    #ERF_ZONE_ENTITY
+        bne     ceo_zone_written
         tst     OBJ_CACHE_RUN_LENGTH
         bne     ceo_pair
 
@@ -1984,6 +2153,10 @@ ceo_pair
         leax    1,x
         stx     OBJ_CACHE_CURSOR
         rts
+ceo_zone_written
+        puls    b
+        leax    1,x
+        rts
 ceo_preserve
         clr     OBJ_CACHE_RUN_LENGTH
         clr     OBJ_CACHE_RUN_LENGTH+1
@@ -2015,6 +2188,9 @@ bct_to_yellow
         ldd     #150
 bct_redraw
         std     BONUS_TIMER
+        lda     RENDER_FLAGS2
+        ora     #RF2_COLOUR
+        sta     RENDER_FLAGS2
         lda     PICKUP_TIMER
         bne     bct_entities
         tst     PLAYER_ERASED
@@ -2024,13 +2200,12 @@ bct_redraw
         lbsr    expose_player_background
 bct_player_marked
         lda     RENDER_FLAGS
-        ora     #RF_ENTITIES|RF_PLAYER
+        ora     #RF_PLAYER
         sta     RENDER_FLAGS
         bra     bct_done
 bct_entities
-        lda     RENDER_FLAGS
-        ora     #RF_ENTITIES
-        sta     RENDER_FLAGS
+        ; RF2_COLOUR carries the replayable sparse path; RF_ENTITIES remains
+        ; reserved for pickup/skull/full-stage cleanup owners.
 bct_done
         rts
 
@@ -2038,8 +2213,8 @@ bct_done
 perimeter_timer_tick
         dec     BOX_TIMER
         bne     ptt_done
-        lbsr    reload_box_timer
-        lbsr    perimeter_box_coordinates
+        bsr    reload_box_timer
+        bsr    perimeter_box_coordinates
         lda     BOX_PHASE
         beq     ptt_green
         lda     #COLOR_WHITE
@@ -2607,7 +2782,7 @@ pt_snap_store
         stx     PLAYER_FB
         inc     PLAYER_STEP
         dec     TURN_SNAP
-        lbra    pt_draw
+        bra     pt_draw
 
 pt_advance
         ldx     PLAYER_FB
@@ -2761,10 +2936,10 @@ cm_bounds
         lda     GATE_Y
         deca
         cmpa    TEST_Y
-        lbeq    cm_pass_horizontal
+        beq    cm_pass_horizontal
         adda    #2
         cmpa    TEST_Y
-        lbeq    cm_pass_horizontal
+        beq    cm_pass_horizontal
         bra     cm_try_rotate
 cm_check_vertical_passages
         lda     TEST_Y
@@ -2773,10 +2948,10 @@ cm_check_vertical_passages
         lda     GATE_X
         deca
         cmpa    TEST_X
-        lbeq    cm_pass_vertical
+        beq    cm_pass_vertical
         adda    #2
         cmpa    TEST_X
-        lbeq    cm_pass_vertical
+        beq    cm_pass_vertical
         bra     cm_try_rotate
 
 cm_pass_horizontal
@@ -2880,7 +3055,7 @@ cm_rotate
         bra     cm_allowed
 
 cm_regular
-        lbsr    test_cell_offset
+        bsr    test_cell_offset
         leax    maze_nav,pcr
         ldb     d,x
         leax    cm_entry_masks,pcr
@@ -2920,7 +3095,7 @@ test_cell_offset
 ;              re-overlays an intersecting neighbouring gate if present.
 ;==============================================================================
 draw_gate
-        lbsr    restore_gate_background
+        bsr    restore_gate_background
         lda     GATE_ID
         lbsr    draw_gate_overlay
         leax    gate_redraw_neighbors,pcr
@@ -2944,7 +3119,7 @@ draw_all_gates
 dag_loop
         lda     GATE_ID
         pshs    a
-        lbsr    draw_gate
+        bsr    draw_gate
         puls    a
         inca
         sta     GATE_ID
@@ -2979,7 +3154,7 @@ rseg_gate
         cmpa    GATE_ANIM_ID
         beq     rseg_next
         lda     GATE_COPY_COUNT
-        lbsr    draw_gate
+        bsr    draw_gate
 rseg_next
         inc     GATE_COPY_COUNT
         lda     GATE_COPY_COUNT
@@ -3068,6 +3243,7 @@ dg_tiles
 
 ; Draw one arcade diagonal intermediate over a gate-free background.
 draw_gate_diagonal
+        ifeq    PERSISTENT_FB
         lbsr    restore_gate_background
         ldd     GATE_X
         pshs    d
@@ -3105,6 +3281,9 @@ dgd_tile
         bne     dgd_tile
         lbsr    draw_gate_entities
         rts
+        else
+        rts                         ; exported compatibility-only entry
+        endc
 
 ;==============================================================================
 ; draw_gate_transition
@@ -3226,7 +3405,7 @@ finish_gate_animation
         beq     fga_done
         lda     #1
         sta     GATE_COMPOSE_MODE
-        lbsr    queue_gate_render
+        bsr    queue_gate_render
         clr     GATE_ANIM_ID
 fga_done
         rts
@@ -3253,6 +3432,7 @@ qgr_second
 ; Bank 3 maps a hidden framebuffer before calling this renderer. The visible
 ; GIME source remains untouched until bank 3 publishes completed rows.
 gate_render_hidden
+        ifeq    PERSISTENT_FB
         tst     PLAYER_BG_VALID
         beq     grh_gate
         lbsr    restore_player
@@ -3272,6 +3452,9 @@ grh_final
 grh_player
         lbsr    draw_player
         rts
+        else
+        rts                         ; persistent final uses draw_gate_transition
+        endc
 
 ; Restore the two dot cells overwritten by the selected diagonal style.
 restore_gate_diagonal_dots
@@ -3389,7 +3572,7 @@ bgel_scan
         ldx     #ENTITY_TABLE
         lda     ENTITY_COUNT
         sta     ENTITY_WORK
-        clr     GATE_ENTITY_SLOT
+        ldu     #ENTITY_GATE_CACHE
 bgel_entity
         lda     ,x
         cmpa    GATE_START_X
@@ -3406,25 +3589,9 @@ bgel_entity
         inc     GATE_COPY_COUNT
         ; Entity-table pointer is stable for the stage.
         stx     ,y++
-        ; ENTITY_GATE_CACHE + slot * 128.
-        clra
-        ldb     GATE_ENTITY_SLOT
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        addd    #ENTITY_GATE_CACHE
-        std     ,y++
+        ; U walks the fixed 128-byte cache slots in entity-table order.
+        stu     ,y++
+        pshs    u
         ; FB_VIRT + (entity_y - 1) * 160 + (entity_x + 7) * 4.
         lda     1,x
         deca
@@ -3440,8 +3607,9 @@ bgel_entity
         lsla
         leau    a,u
         stu     ,y++
+        puls    u
 bgel_next
-        inc     GATE_ENTITY_SLOT
+        leau    128,u
         leax    4,x
         dec     ENTITY_WORK
         bne     bgel_entity
@@ -3498,35 +3666,6 @@ dge_done
 ; Transparent nibbles are absent, matching draw_entity_object exactly.
 ; Inputs: U sparse cache record, X framebuffer base. Returns: registers undefined.
 ; Side effects: replays exact cached preserve-mask/value operations.
-replay_gate_entity_overlay
-        lda     ,u+
-        beq     rgeo_done
-        sta     OBJ_ROWS
-rgeo_run
-        ldb     ,u+
-        cmpb    #$FF
-        beq     rgeo_long_delta
-        clra
-        bra     rgeo_delta_ready
-rgeo_long_delta
-        ldd     ,u++
-rgeo_delta_ready
-        leax    d,x
-        ldb     ,u+
-        lbeq    cache_entity_overflow ; malformed zero-length run
-        stb     OBJ_BYTES
-rgeo_pair
-        ldb     ,u+
-        andb    ,x
-        orb     ,u+
-        stb     ,x+
-        dec     OBJ_BYTES
-        bne     rgeo_pair
-        dec     OBJ_ROWS
-        bne     rgeo_run
-rgeo_done
-        rts
-
 ; Mark only roaming actor destinations that intersect the gate mutation.
 ; ENEMY_CAPTURE_DIRTY=$FF remains the all-actor fallback for non-gate damage;
 ; positive values are per-slot full-capture bits consumed by bank 3.
@@ -3546,15 +3685,19 @@ mgeo_loop
         cmpa    GATE_START_X
         blo     mgeo_next
         suba    #3
+        bmi     mgeo_y
         cmpa    GATE_END_X
         bhi     mgeo_next
+mgeo_y
         lda     5,x
         inca
         cmpa    GATE_START_Y
         blo     mgeo_next
         suba    #3
+        bmi     mgeo_hit
         cmpa    GATE_END_Y
         bhi     mgeo_next
+mgeo_hit
         lda     ENEMY_CAPTURE_DIRTY
         ora     GATE_COPY_COUNT
         sta     ENEMY_CAPTURE_DIRTY
@@ -3635,7 +3778,7 @@ cep_multiplier_five
 cep_letter
         lbsr    apply_letter_pickup
 cep_check_clear
-        lbsr    begin_score_popup
+        bsr    begin_score_popup
         lbsr    check_stage_clear
         rts
 cep_skull
@@ -3726,7 +3869,7 @@ draw_score_popup
         lda     #PRESENTATION_PAYLOAD_PAGE
         sta     GIME_PAR5
         jsr     PRESENTATION_MODULE_DRAW
-        lbsr    draw_popup_multiplier
+        bsr    draw_popup_multiplier
         rts
 
 draw_popup_multiplier
@@ -3952,7 +4095,7 @@ draw_maze_state_cell
 dmsc_dot
         ldb     #MAZE_DOT_TILE
 dmsc_draw
-        lbsr    draw_cell_tile
+        bsr    draw_cell_tile
         rts
 
 ;==============================================================================
@@ -4007,7 +4150,7 @@ cell_row_addresses
 ; Side effects: writes one 8x8 tile to the framebuffer.
 ;==============================================================================
 draw_cell_tile
-        lbsr    prepare_cell_tile
+        bsr    prepare_cell_tile
         lbsr    blit_tile
         rts
 
@@ -4019,7 +4162,7 @@ draw_cell_tile
 ; Side effects: blends one gate-only 8x8 tile into the framebuffer.
 ;==============================================================================
 draw_cell_overlay
-        lbsr    prepare_cell_tile
+        bsr    prepare_cell_tile
         lda     #8
         ldb     #4
         lbsr    blit_transparent
@@ -4052,7 +4195,7 @@ eat_dot
         lda     RENDER_FLAGS
         ora     #RF_DOT
         sta     RENDER_FLAGS
-        lbsr    refresh_enemy_zone_dot
+        bsr    refresh_enemy_zone_dot
         lbsr    add_dot_score
         dec     DOTS_LEFT
         lbsr    check_stage_clear

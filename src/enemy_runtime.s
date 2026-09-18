@@ -114,7 +114,9 @@
         include "ladybug_runtime_symbols.inc"
         org     $0800
 
+        ifndef  PERSISTENT_FB
 PERSISTENT_FB  equ 1
+        endc
 
         jmp     enemy_init_impl
         jmp     enemy_tick_impl
@@ -194,6 +196,9 @@ FB_RENDER_ACTIVE equ $0098
 FB_WRITE_FRONT_FAULT equ $0099
 FB_INIT_STATE  equ $009A
 ENEMY_CAPTURE_DIRTY equ $009B
+; Mirrored page-$34 state.  $A89C is reserved between the ring bytes and
+; framebuffer ledgers; keep it separate from direct-page RING_BASE ($009E).
+ENTITY_CACHE_COLOR equ $A89C       ; shared sparse-cache colour validity
 RING_PHASE     equ $009C
 RING_ROW       equ $009D
 RING_BASE      equ $009E
@@ -229,6 +234,7 @@ SCORE_BCD      equ $001D
 HIGH_BCD       equ $0020
 STAGE          equ $0024
 ENTITY_COUNT   equ $0032
+ENTITY_PTR     equ $003E
 ENTITY_X       equ $0036
 ENTITY_Y       equ $0037
 RNG_STATE      equ $0034
@@ -247,6 +253,7 @@ RF2_POPUP      equ $01
 RF2_MULTIPLIER equ $02
 RF2_LETTER     equ $04
 RF2_PERIM_RESET equ $08
+RF2_COLOUR     equ $10
 ERF_INIT       equ $01
 ERF_DIRTY      equ $02
 ERF_ZONE_REFRESH equ $04
@@ -592,13 +599,14 @@ eri_done
 frame_render_impl
         ifne    PERSISTENT_FB
         lbsr    framebuffer_prepare_back
-        lbcs    fri_abort
+        bcs    fri_abort
         tst     FB_INIT_STATE
         beq     fri_render
         clr     ENEMY_CAPTURE_DIRTY
+        lbsr    colour_prepare_nest
         lbsr    actor_closure_restore
         lbsr    framebuffer_queue_damage
-        lbsr    framebuffer_project_damage
+        bsr    framebuffer_project_damage
         lbsr    roam_mark_underlay
         bcs     fri_actor_closure
         else
@@ -630,6 +638,16 @@ fri_abort
 ; routine reads the latest frozen logical state.
 framebuffer_project_damage
         lbsr    framebuffer_back_meta
+        ; A stage rebuild owns the whole BACK surface and invalidates cache
+        ; geometry.  Discard older pending work before any cache/gate consumer;
+        ; the current RF_STAGE is still queued to the other owner normally.
+        lda     RENDER_FLAGS
+        bita    #RF_STAGE
+        beq     fbpd_damage
+        clr     FBM_DAMAGE,u
+        andcc   #$FE
+        rts
+fbpd_damage
         tst     FBM_DAMAGE,u
         lbeq    fbpd_generic
         ; Coalesce an obsolete matching final before replaying any other
@@ -723,7 +741,7 @@ fbqd_copy
         anda    #RF_HUD|RF_LIVES|RF_ENTITIES|RF_BOX|RF_DOT|RF_STAGE
         sta     ,u
         lda     1,u
-        anda    #RF2_MULTIPLIER|RF2_LETTER|RF2_PERIM_RESET
+        anda    #RF2_MULTIPLIER|RF2_LETTER|RF2_PERIM_RESET|RF2_COLOUR
         sta     1,u
         lda     ENEMY_RENDER_FLAGS
         anda    #ERF_NEST|ERF_NEST_ANIM
@@ -756,6 +774,100 @@ rmu_done
         puls    cc
         rts
 
+; Prepare colour-only nest ownership and roaming save-under dirtiness before
+; actor closure captures any destination.  Current and pending colour intents
+; share the latest logical entity table; an upper live bonus requires the
+; conservative full nest compositor and all-slot capture fallback.
+colour_prepare_nest
+        ; Full stage construction and broad entity cleanup own all structural
+        ; pixels.  Their precedence excludes a stale colour-only decision.
+        lda     RENDER_FLAGS
+        bita    #RF_STAGE|RF_ENTITIES
+        bne     cpn_done
+        lda     RENDER_FLAGS2
+        bita    #RF2_COLOUR
+        bne     cpn_colour
+        lbsr    framebuffer_back_meta
+        tst     FBM_DAMAGE,u
+        beq     cpn_done
+        lda     FBM_PENDING_INTENTS+1,u
+        bita    #RF2_COLOUR
+        beq     cpn_done
+cpn_colour
+        bsr    colour_has_upper_bonus
+        bcc     colour_mark_roaming
+cpn_full_nest
+        lda     #$FF
+        sta     ENEMY_CAPTURE_DIRTY
+        ; Queued upper colour work already owns ERF_NEST. Do not promote it
+        ; into current intents unless current colour work also requires it.
+        lda     RENDER_FLAGS2
+        bita    #RF2_COLOUR
+        beq     cpn_done
+        lda     ENEMY_RENDER_FLAGS
+        ora     #ERF_NEST
+        sta     ENEMY_RENDER_FLAGS
+cpn_done
+        rts
+
+; Return carry set when a live, non-skull bonus occupies the clipped upper
+; nest cell (12,10).  This scan is logical-state only and does not inspect FB.
+colour_has_upper_bonus
+        ldx     #ENTITY_TABLE
+        lda     ENTITY_COUNT
+        beq     chub_no
+        sta     ENEMY_WORK
+chub_loop
+        lda     2,x
+        beq     chub_next
+        cmpa    #ENTITY_SKULL
+        beq     chub_next
+        ldd     ,x
+        cmpd    #$0C0A
+        beq     chub_yes
+chub_next
+        leax    4,x
+        dec     ENEMY_WORK
+        bne     chub_loop
+chub_no
+        andcc   #$FE
+        rts
+chub_yes
+        orcc    #$01
+        rts
+
+; Union per-slot full-capture bits for valid roaming actors in the bounded
+; cell neighbourhood of every live bonus.  A cell-neighbour test includes the
+; actor's sub-cell phase and is conservative without forcing all four slots.
+colour_mark_roaming
+        lda     ENTITY_COUNT
+        beq     cmr_done
+        sta     GATE_WORK_ID
+        ldx     #ENTITY_TABLE
+cmr_entity
+        stx     ENTITY_PTR
+        lda     2,x
+        beq     cmr_entity_next
+        cmpa    #ENTITY_SKULL
+        beq     cmr_entity_next
+        ; Existing rectangle predicate includes actor cells [a-2,a+1].
+        ; Bounds [e-1,e] therefore select exactly |a-e| <= 2 per axis.
+        ; Legal bonus coordinates are positive; preserve the outer slot
+        ; counter in GATE_WORK_ID, not the helper's GATE_COPY_COUNT scratch.
+        ldd     ,x
+        std     GATE_END_X
+        suba    #1
+        subb    #1
+        std     GATE_START_X
+        jsr     mark_gate_enemy_overlap
+cmr_entity_next
+        ldx     ENTITY_PTR
+        leax    4,x
+        dec     GATE_WORK_ID
+        bne     cmr_entity
+cmr_done
+        rts
+
 ; Draw only persistent background state. Damage replay uses this entry so an
 ; older ledger cannot save or publish actor pixels before closure completes.
 frame_render_background
@@ -763,12 +875,21 @@ frame_render_background
         bita    #RF_STAGE
         lbne    fri_stage_background
         ifeq    PERSISTENT_FB
+        ; The fallback has no owner-local cache synchronization or pending
+        ; ledger.  Preserve its original full entity refresh for colour work.
+        lda     RENDER_FLAGS2
+        bita    #RF2_COLOUR
+        beq     fri_fallback_colour_done
+        lda     RENDER_FLAGS
+        ora     #RF_ENTITIES
+        sta     RENDER_FLAGS
+fri_fallback_colour_done
         lbsr    render_exposed_player
         endc
 
         lda     RENDER_FLAGS
         bita    #RF_ENTITIES
-        beq     fri_dot
+        beq     fri_colour
         jsr     erase_entity_footprints
         jsr     repair_settled_entity_gates
         jsr     draw_entities
@@ -776,6 +897,12 @@ frame_render_background
         lda     ENEMY_RENDER_FLAGS
         ora     #ERF_NEST
         sta     ENEMY_RENDER_FLAGS
+        bra     fri_dot
+fri_colour
+        lda     RENDER_FLAGS2
+        bita    #RF2_COLOUR
+        beq     fri_dot
+        jsr     render_entity_colour
 fri_dot
         lda     RENDER_FLAGS
         bita    #RF_DOT
@@ -814,7 +941,11 @@ fri_secondary
         lda     RENDER_FLAGS2
         bita    #RF2_PERIM_RESET
         beq     fri_multiplier
+        ifeq    PERSISTENT_FB
+        lbsr    render_perimeter_reset
+        else
         bsr     render_perimeter_reset
+        endc
 fri_multiplier
         lda     RENDER_FLAGS2
         bita    #RF2_MULTIPLIER
@@ -974,7 +1105,7 @@ actor_closure_restore
         pshs    d
         ldd     PLAYER_OLD_FB
         std     PLAYER_FB
-        lbsr    restore_player_visible
+        bsr    restore_player_visible
         puls    d
         std     PLAYER_FB
         lda     #1
@@ -984,10 +1115,9 @@ acr_enemies
         lda     #4
         sta     ENEMY_WORK
 acr_enemy_loop
-        lda     #4
-        suba    ENEMY_WORK
-        ldy     #roam_slot_masks
-        ldb     a,y
+        ldb     ENEMY_WORK
+        ldy     #roam_reverse_masks
+        ldb     b,y
         andb    ENEMY_OLD_VALID
         beq     acr_enemy_next
         lbsr    roam_old_slot
@@ -1187,7 +1317,7 @@ fbp_owned
         lda     #1
         sta     FB_RENDER_ACTIVE
         lbsr    gate_map_live
-        bsr     framebuffer_back_meta
+        lbsr    framebuffer_back_meta
         lda     FBM_PLAYER_VALID,u
         sta     PLAYER_BG_VALID
         lda     FBM_PLAYER_RESERVED,u
@@ -1225,6 +1355,9 @@ fbp_enemy_next
         std     ENEMY_BG_RING
         ldd     2,u
         std     ENEMY_BG_RING+2
+        ; Shared cache values are rebound once after owner preparation and
+        ; before pending/current cache or gate consumers can traverse them.
+        jsr     sync_entity_cache_colour
 fbp_ok
         andcc   #$FE
         rts
@@ -1234,7 +1367,7 @@ fbp_ok
 framebuffer_finish_back
         tst     FB_INIT_STATE
         beq     fbf_done
-        lbsr    framebuffer_capture_back
+        bsr    framebuffer_capture_back
 fbf_ready
         orcc    #$10
         clr     FB_RENDER_ACTIVE
@@ -1244,16 +1377,9 @@ fbf_ready
 fbf_done
         rts
 
-framebuffer_back_meta
-        ldu     #FB_META_A
-        tst     FB_BACK_ID
-        beq     fbm_done
-        ldu     #FB_META_B
-fbm_done
-        rts
 
 framebuffer_capture_back
-        bsr     framebuffer_back_meta
+        lbsr    framebuffer_back_meta
         lda     #FBM_VALID
         sta     FBM_STATE,u
         clr     FBM_DAMAGE,u
@@ -1450,7 +1576,7 @@ ecd_next
         bne     ecd_scan
         lda     ENEMY_REVERSE
         sta     ENEMY_CANDIDATE
-        lbsr    enemy_direction_legal
+        bsr    enemy_direction_legal
         bcc     ecd_blocked
 ecd_choose
         ldx     ENEMY_PTR
@@ -1703,15 +1829,18 @@ rsn_loop
         cmpa    #11
         bhi     rsn_next
 rsn_actor
+        ifne    PERSISTENT_FB
+        bsr    roam_old_slot
+        else
         lbsr    roam_old_slot
+        endc
         ldd     1,x
         std     ,u
         tst     6,x
         beq     rsn_next
-        lda     #4
-        suba    ENEMY_WORK
-        ldy     #roam_slot_masks
-        ldb     a,y
+        ldb     ENEMY_WORK
+        ldy     #roam_reverse_masks
+        ldb     b,y
         orb     ENEMY_OLD_VALID
         stb     ENEMY_OLD_VALID
 rsn_next
@@ -1720,6 +1849,8 @@ rsn_next
         bne     rsn_loop
         rts
 
+roam_reverse_masks
+        fcb     0,8,4,2,1
 roam_slot_masks
         fcb     1,2,4,8
 
@@ -1764,10 +1895,9 @@ rps_copy_next
         lda     #4
         sta     ENEMY_WORK
 rps_restore_loop
-        lda     #4
-        suba    ENEMY_WORK
-        ldy     #roam_slot_masks
-        ldb     a,y
+        ldb     ENEMY_WORK
+        ldy     #roam_reverse_masks
+        ldb     b,y
         andb    ENEMY_OLD_VALID
         beq     rps_restore_next
         lbsr    roam_old_slot
@@ -1938,15 +2068,14 @@ roam_ring_slot
 ; strip, or normalize with a full capture for every conservative fallback.
 ; Input: X = current enemy record.
 roam_update_background
-        lda     #4
-        suba    ENEMY_WORK
-        ldy     #roam_slot_masks
-        ldb     a,y
+        ldb     ENEMY_WORK
+        ldy     #roam_reverse_masks
+        ldb     b,y
         bitb    ENEMY_CAPTURE_DIRTY
         bne     rub_full
         andb    ENEMY_OLD_VALID
         beq     rub_full
-        lbsr    roam_old_slot
+        bsr    roam_old_slot
         ldd     1,x
         subd    ,u
         beq     rub_done
@@ -1960,12 +2089,12 @@ roam_update_background
         lbeq    rub_up
 rub_full
         pshs    x
-        lbsr    roam_ring_slot
+        bsr    roam_ring_slot
         clr     ,u
         puls    x
         pshs    x
         ldx     1,x
-        lbsr    roam_bg_address
+        bsr    roam_bg_address
         lbsr    roam_copy_fb_to_bg
         puls    x
 rub_done
@@ -1978,7 +2107,7 @@ rub_left
 rub_horizontal
         sta     RING_ROW        ; exposed framebuffer column
         pshs    x
-        lbsr    roam_ring_slot
+        bsr    roam_ring_slot
         lda     ,u
         sta     RING_PHASE
         anda    #7
@@ -2104,7 +2233,7 @@ rub_row_loop
         mul
         addd    RING_BASE
         tfr     d,u
-        lbsr    roam_capture_ring_row
+        bsr    roam_capture_ring_row
         leax    152,x
         inc     RING_ROW
         lda     RING_ROW
@@ -2223,6 +2352,7 @@ roam_copy_bg_to_fb
         ldu     RING_BASE
         ldy     #rcbtf_fast_table
         ldy     a,y
+        sty     RING_BASE       ; row loop dispatch, also used by wrapped rows
         jmp     ,y
 
 rcbtf_fast_table
@@ -2240,10 +2370,7 @@ rcbtf_phase0_row
         pulu    d,y
         std     ,x++
         sty     ,x++
-        leax    152,x
-        dec     GATE_COPY_ROWS
-        bne     rcbtf_phase0_row
-        rts
+        lbra    rcbtf_row_advanced
 
 rcbtf_phase1
 rcbtf_phase1_rows
@@ -2257,11 +2384,7 @@ rcbtf_phase1_row
         lda     7,u
         ldb     ,u
         std     ,x++
-        leau    8,u
-        leax    152,x
-        dec     GATE_COPY_ROWS
-        bne     rcbtf_phase1_row
-        rts
+        bra     rcbtf_row_finish
 
 rcbtf_phase2
 rcbtf_phase2_rows
@@ -2274,11 +2397,7 @@ rcbtf_phase2_row
         std     ,x++
         ldd     ,u
         std     ,x++
-        leau    8,u
-        leax    152,x
-        dec     GATE_COPY_ROWS
-        bne     rcbtf_phase2_row
-        rts
+        bra     rcbtf_row_finish
 
 rcbtf_phase3
 rcbtf_phase3_rows
@@ -2292,11 +2411,7 @@ rcbtf_phase3_row
         std     ,x++
         ldd     1,u
         std     ,x++
-        leau    8,u
-        leax    152,x
-        dec     GATE_COPY_ROWS
-        bne     rcbtf_phase3_row
-        rts
+        bra     rcbtf_row_finish
 
 rcbtf_phase4
 rcbtf_phase4_rows
@@ -2309,11 +2424,7 @@ rcbtf_phase4_row
         std     ,x++
         ldd     2,u
         std     ,x++
-        leau    8,u
-        leax    152,x
-        dec     GATE_COPY_ROWS
-        bne     rcbtf_phase4_row
-        rts
+        bra     rcbtf_row_finish
 
 rcbtf_phase5
 rcbtf_phase5_rows
@@ -2327,11 +2438,7 @@ rcbtf_phase5_row
         std     ,x++
         ldd     3,u
         std     ,x++
-        leau    8,u
-        leax    152,x
-        dec     GATE_COPY_ROWS
-        bne     rcbtf_phase5_row
-        rts
+        bra     rcbtf_row_finish
 
 rcbtf_phase6
 rcbtf_phase6_rows
@@ -2344,11 +2451,7 @@ rcbtf_phase6_row
         std     ,x++
         ldd     4,u
         std     ,x++
-        leau    8,u
-        leax    152,x
-        dec     GATE_COPY_ROWS
-        bne     rcbtf_phase6_row
-        rts
+        bra     rcbtf_row_finish
 
 rcbtf_phase7
 rcbtf_phase7_rows
@@ -2362,10 +2465,14 @@ rcbtf_phase7_row
         std     ,x++
         ldd     5,u
         std     ,x++
+rcbtf_row_finish
         leau    8,u
+rcbtf_row_advanced
         leax    152,x
         dec     GATE_COPY_ROWS
-        bne     rcbtf_phase7_row
+        beq     rcbtf_rows_done
+        jmp     [RING_BASE]
+rcbtf_rows_done
         rts
 
 rcbtf_ring_setup
@@ -2418,15 +2525,9 @@ rcbtf_row
 
 roam_copy_fb_to_bg
         ldy     #16
+copy_fb_rows
 rcftb_row
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
+        lbsr    copy_native_row
         leax    152,x
         leay    -1,y
         bne     rcftb_row
@@ -2446,10 +2547,7 @@ compose_enemy_zone
         ldu     #ENEMY_ZONE_STAGE
         ldy     #128
 cez_copy_bg
-        ldd     ,x++
-        std     ,u++
-        leay    -1,y
-        bne     cez_copy_bg
+        lbsr    bnc_copy
 
         ; Static collectibles are a structural layer between the clean base
         ; and all nest actors. The resident mask/LUT routine performs the two
@@ -2512,14 +2610,7 @@ cez_commit
         ldu     #ENEMY_ZONE_FB
         ldy     #ENEMY_ZONE_ROWS
 cez_commit_row
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
+        lbsr    copy_native_row
         leau    152,u
         leay    -1,y
         bne     cez_commit_row
@@ -2541,7 +2632,7 @@ compose_enemy_animation
         tfr     d,x
         ldu     #ENEMY_FB
         ldy     #16
-        lbra    cez_commit_row
+        bra    cez_commit_row
 cea_done
         rts
 
@@ -2578,7 +2669,7 @@ player_compose_impl
         ifne    PERSISTENT_FB
         ; Persistent closure already restores the owner's old rectangle.
         ; The compatibility delta/strip compositor below is not its owner.
-        lbra    player_compose_entry
+        ; Fall through after conditional exclusion of the compatibility body.
         else
         ldx     PLAYER_BG_PTR
         ldu     #PLAYER_OLD_STAGE
@@ -2704,14 +2795,7 @@ pci_save_loop
         lda     #16
         sta     PLAYER_ROW
 pci_commit_row
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
+        lbsr    copy_native_row
         leau    152,u
         dec     PLAYER_ROW
         bne     pci_commit_row
@@ -2721,13 +2805,13 @@ pci_commit_row
         bmi     pci_restore_bottom
         ldx     PLAYER_OLD_FB
         ldu     #PLAYER_OLD_STAGE
-        bsr     copy_two_fb_rows
+        lbsr    copy_two_fb_rows
         bra     pci_horizontal_strip
 pci_restore_bottom
         ldx     PLAYER_OLD_FB
         leax    2240,x
         ldu     #PLAYER_OLD_STAGE+112
-        bsr     copy_two_fb_rows
+        lbsr    copy_two_fb_rows
 
 pci_horizontal_strip
         lda     PLAYER_DX
@@ -2818,14 +2902,7 @@ pce_decode
         ldx     #PLAYER_STAGE
         ldu     PLAYER_FB
 pce_commit_row
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
+        lbsr    copy_native_row
         leau    152,u
         dec     PLAYER_ROW
         bne     pce_commit_row
@@ -3163,8 +3240,8 @@ grfs_done
         endc
 
 draw_enemy_stage
-        lbsr    enemy_frame_number
-        lbsr    sparse_enemy_stream
+        bsr    enemy_frame_number
+        bsr    sparse_enemy_stream
         lbsr    sparse_blit_stage
         rts
 
@@ -3176,13 +3253,8 @@ enemy_frame_number
         clrb
 efn_direction_ready
         stb     STAGE_SOURCE
-        lda     #4
-        suba    ENEMY_WORK
-        cmpa    #4
-        bls     efn_slot_ready
-        lda     #4
 efn_slot_ready
-        sta     STAGE_COUNT
+        ; Sparse decoding does not consume packed-sprite STAGE_COUNT.
         lda     STAGE
         cmpa    #9
         blo     efn_type_ready
@@ -3228,8 +3300,8 @@ player_draw_impl
         lsla
         lsla
         adda    PLAYER_ANIM
-        lbsr    sparse_player_stream
-        lbsr    sparse_blit_fb
+        bsr    sparse_player_stream
+        bsr    sparse_blit_fb
         rts
 
 ; Resolve A's always-mapped enemy index entry and map its stream page.
@@ -3396,8 +3468,7 @@ dvs_first
 dvs_draw
         puls    x
         ldu     #sprite_attr0_pairs
-        lbsr    blit_stage_sprite
-        rts
+        ; Fall through to the compact vegetable painter.
 
 ; Expand one 64-byte 2bpp source into a compact 128-byte 4bpp surface.
 blit_stage_sprite
@@ -3411,11 +3482,11 @@ bss_source
         lsra
         lsra
         lda     a,u
-        lbsr    merge_stage_pixel
+        bsr    merge_stage_pixel
         lda     STAGE_SOURCE
         anda    #$0F
         lda     a,u
-        lbsr    merge_stage_pixel
+        bsr    merge_stage_pixel
         dec     STAGE_COUNT
         bne     bss_source
         rts
@@ -3440,20 +3511,8 @@ capture_zone_bg
         ldx     #ENEMY_ZONE_FB
         ldu     #ENEMY_ZONE_BG
         ldy     #ENEMY_ZONE_ROWS
-czb_row
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        ldd     ,x++
-        std     ,u++
-        leax    152,x
-        leay    -1,y
-        bne     czb_row
-        lbsr    build_enemy_nest_cache
-        rts
+        lbsr    copy_fb_rows
+        ; Fall through after capturing the complete clean nest underlay.
 
 ; Expand the four stage-selected dormant frames once when the authoritative
 ; nest background is captured. Animation frames then publish one native
@@ -3468,13 +3527,13 @@ benc_frame
         pshs    u
         ldx     #ENEMY_ZONE_BG+128
         ldu     #ENEMY_ZONE_STAGE
-        lbsr    copy_nest_128
+        bsr    copy_nest_128
         ldx     #ENEMY_ZONE_STAGE
         ldb     #0
         lbsr    draw_enemy_stage
         puls    u
         ldx     #ENEMY_ZONE_STAGE
-        lbsr    copy_nest_128
+        bsr    copy_nest_128
         inc     ENEMY_ANIM
         lda     ENEMY_ANIM
         cmpa    #4
@@ -3494,6 +3553,20 @@ bnc_copy
 
 ; Resident main.s aliases these immutable bytes at the fixed tail address
 ; $17A0. Keep this block below the shared ACTOR_STAGE at $1800.
+copy_native_row
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        ldd     ,x++
+        std     ,u++
+        rts
+
+        ifne    PERSISTENT_FB
+        zmb     $17A0-*
+        endc
 object_mask_lut
         fcb     $FF,$F0,$F0,$F0,$0F,$00,$00,$00
         fcb     $0F,$00,$00,$00,$0F,$00,$00,$00
@@ -3509,6 +3582,14 @@ object_blue_lut
 object_skull_lut
         fcb     $00,$00,$06,$06,$00,$00,$06,$06
         fcb     $60,$60,$66,$66,$60,$60,$66,$66
+
+framebuffer_back_meta
+        ldu     #FB_META_A
+        tst     FB_BACK_ID
+        beq     fbm_done
+        ldu     #FB_META_B
+fbm_done
+        rts
 
 enemy_runtime_end
         end

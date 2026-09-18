@@ -9,6 +9,10 @@ import re
 root = Path(__file__).resolve().parents[1]
 source = (root / "src/enemy_runtime.s").read_text(encoding="utf-8")
 main = (root / "src/main.s").read_text(encoding="utf-8")
+# Source-only subroutine-call assertions accept the assembled short encoding.
+# BSR and LBSR have the same stack/target contract; lwasm still checks range.
+source = re.sub(r"(?m)^(\s*)bsr\s+(\w+)", r"\1lbsr    \2", source)
+main = re.sub(r"(?m)^(\s*)bsr\s+(\w+)", r"\1lbsr    \2", main)
 bootstrap = (root / "src/gmc_bootstrap.s").read_text(encoding="utf-8")
 build_script = (root / "scripts/build.sh").read_text(encoding="utf-8")
 resident = (root / "build/ladybug_resident.inc").read_text(encoding="utf-8")
@@ -330,13 +334,38 @@ for fragment in (
     "ERF_NEST_ANIM  equ $10",
     "ENEMY_NEST_CACHE equ $AD80",
     "lbsr    compose_enemy_animation",
-    "lbsr    build_enemy_nest_cache",
-    "lbra    cez_commit_row",
+    "bra    cez_commit_row",
     "ldu     #ENEMY_ZONE_STAGE",
     "lbsr    sparse_blit_stage",
 ):
     if fragment not in source:
         raise SystemExit("enemy proof: bounded nest animation path missing: " + fragment)
+# Cold clean-base capture must end by falling into the cache constructor.
+capture_tail = source[source.index("\ncapture_zone_bg\n"):
+                      source.index("\nbuild_enemy_nest_cache\n")]
+capture_ops = [line.split(";", 1)[0].strip() for line in capture_tail.splitlines()
+               if line.split(";", 1)[0].strip()]
+if capture_ops != ["capture_zone_bg", "ldx     #ENEMY_ZONE_FB",
+                   "ldu     #ENEMY_ZONE_BG", "ldy     #ENEMY_ZONE_ROWS",
+                   "lbsr    copy_fb_rows"]:
+    raise SystemExit("enemy proof: clean capture does not fall through to cache construction")
+enemy_symbols = {name: int(address, 16) for name, address in re.findall(
+    r"^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$", enemy_map, re.MULTILINE)}
+row_address = enemy_symbols["copy_native_row"]
+row_payload = bytes.fromhex("EC81EDC1" * 4 + "39")
+if rom[row_address - 0x0800:row_address - 0x0800 + len(row_payload)] != row_payload:
+    raise SystemExit("enemy proof: native row helper must copy eight bytes and preserve Y")
+capture_address = enemy_symbols["capture_zone_bg"]
+constructor_address = enemy_symbols["build_enemy_nest_cache"]
+capture_payload = rom[capture_address - 0x0800:constructor_address - 0x0800]
+capture_prefix = (b"\x8e" + enemy_symbols["ENEMY_ZONE_FB"].to_bytes(2, "big") +
+                  b"\xce" + enemy_symbols["ENEMY_ZONE_BG"].to_bytes(2, "big") +
+                  b"\x10\x8e" + enemy_symbols["ENEMY_ZONE_ROWS"].to_bytes(2, "big"))
+if len(capture_payload) != 13 or capture_payload[:10] != capture_prefix or capture_payload[10] != 0x17:
+    raise SystemExit("enemy proof: compiled capture does not fall through after its row-copy call")
+displacement = int.from_bytes(capture_payload[11:13], "big", signed=True)
+if constructor_address + displacement != enemy_symbols["copy_fb_rows"]:
+    raise SystemExit("enemy proof: compiled clean capture calls the wrong row copier")
 if not source.index("tst     ENEMY_NEST_DIRTY", source.index("et_animation_timer")) < source.index("ora     #ERF_NEST_ANIM"):
     raise SystemExit("enemy proof: structural nest dirtiness does not dominate animation")
 render_nest = source[source.index("\neri_dirty\n"):source.index("\neri_finish\n")]
@@ -849,6 +878,26 @@ for fragment in (
 ):
     if fragment not in ring_restore:
         raise SystemExit("enemy proof: circular restore fast path is incomplete: " + fragment)
+# The compact footer keeps eight phase-specific copy kernels. Phase zero has
+# already advanced U; all other phases advance it exactly once in the footer.
+dispatch = ring_restore[:ring_restore.index("\nrcbtf_fast_table\n")]
+if not dispatch.index("ldy     a,y") < dispatch.index("sty     RING_BASE") < dispatch.index("jmp     ,y"):
+    raise SystemExit("enemy proof: ring row target is not retained before dispatch")
+for phase in range(7):
+    part = ring_restore[ring_restore.index(f"\nrcbtf_phase{phase}_row\n"):
+                        ring_restore.index(f"\nrcbtf_phase{phase + 1}\n")]
+    target = "rcbtf_row_advanced" if phase == 0 else "rcbtf_row_finish"
+    if not re.search(r"\b(?:l?bra)\s+" + target + r"\b", part):
+        raise SystemExit(f"enemy proof: ring phase {phase} bypasses the correct footer")
+footer = ring_restore[ring_restore.index("\nrcbtf_row_finish\n"):
+                      ring_restore.index("\nrcbtf_ring_setup\n")]
+footer_ops = [line.split(";", 1)[0].strip() for line in footer.splitlines()
+              if line.split(";", 1)[0].strip()]
+if footer_ops != ["rcbtf_row_finish", "leau    8,u", "rcbtf_row_advanced",
+                  "leax    152,x", "dec     GATE_COPY_ROWS",
+                  "beq     rcbtf_rows_done", "jmp     [RING_BASE]",
+                  "rcbtf_rows_done", "rts"]:
+    raise SystemExit("enemy proof: compact ring footer changes cursor/count/return ownership")
 
 # Prove the packed row/column phase equations across wraps and direction turns.
 world = [[row * 100 + col for col in range(80)] for row in range(80)]
@@ -1105,7 +1154,7 @@ if any(match is None or int(match.group(1), 16) != 0x00A2
     raise SystemExit("enemy proof: resident/bank-3 player save-under pointer ABI changed")
 if not (
     frame_renderer.index("lbsr    framebuffer_prepare_back")
-    < frame_renderer.index("lbcs    fri_abort")
+    < frame_renderer.index("bcs    fri_abort")
     < frame_renderer.index("lbsr    framebuffer_finish_back")
 ):
     raise SystemExit("enemy proof: back-buffer ownership does not bracket rendering")
@@ -1148,7 +1197,7 @@ enemies = prepare.index("leau    FBM_ENEMIES,u")
 if prepare.index("stx     PLAYER_BG_PTR") > enemies:
     raise SystemExit("enemy proof: player save-under selection follows enemy hydration")
 finish = source[source.index("\nframebuffer_finish_back\n"):
-                source.index("\nframebuffer_back_meta\n")]
+                source.index("\nframebuffer_capture_back\n")]
 for fragment in (
     "lbsr    framebuffer_capture_back",
     "orcc    #$10",

@@ -1,0 +1,27 @@
+{
+  "phase": "affected-verifier-and-integration-review",
+  "status": "source-build-capacity-integration-pass; runtime acceptance incomplete",
+  "source_commits_reviewed": ["8a26c52", "3bef1ab", "d4313a9", "777f718", "a5af07d"],
+  "initial_checkpoint_disposition": "8a26c52 rejected; integrate corrected and fitting net source only",
+  "verifier_commit": "190a346",
+  "combined_build": "pass: LADYBUG_PROFILE=complete LADYBUG_CPU=6809 LADYBUG_INPUT=keyboard bash scripts/build.sh build, exit 0",
+  "rom_sha256": "5cdb575191428e3af902b7f0cc9bb94c425de05be3e902af71ce2426eb97ad26",
+  "enemy_sha256": "145716d400923d35f6efca5e72816e46797a975dc740d6064c28cab2fb45a656",
+  "matches_isolated_artifacts": true,
+  "capacity": {"resident": [8191, 8192], "enemy": [4091, 4096], "assets": [7680, 7680], "presentation": [1259, 1280], "cold": [13817, 16384], "instruction_staging": [938, 938], "gmc_source_spare": 1239},
+  "fixed_lut": {"start": "17A0", "bytes": 80, "status": "pass"},
+  "integrated_checks": ["scripts/verify_enemy_runtime.py", "repro/perf007/verify_perf007.py --phase source-static --build-dir build --output repro/perf007/integrated-source-static-001", "repro/bug042/verify_equals.py --build-dir build --output repro/perf007/integrated-equals-regression-001", "scripts/verify_feat007_text.py --phase checkpoint --output repro/perf007/integrated-text-checkpoint-001"],
+  "isolated_enemy_verifier": "pass: 4091/4096, exact fixed LUT and compiled helper/fall-through guards",
+  "historical_verifier_failure": "bounded nest animation path missing: lbsr build_enemy_nest_cache",
+  "assertion_updates": ["BSR/LBSR equivalent source calls", "bounded short abort branch", "cold cache constructor fall-through", "ready transaction bounded at actual next routine"],
+  "new_guards": ["compiled eight-byte row copy preserves Y", "compiled clean-base capture call target and exact fall-through", "ring phase dispatch/cursor/count/return ownership"],
+  "mutation_checks": [
+    {"case": "native-row-byte-mutation", "rejected": true},
+    {"case": "capture-call-byte-mutation", "rejected": true},
+    {"case": "ring-footer-source-mutation", "rejected": true},
+    {"case": "capture-underlay-operand-mutation", "rejected": true}
+  ],
+  "runtime_checks": "not run; runtime adapter unavailable",
+  "natural_acceptance": "not run",
+  "inclusive_timing": "not measured; unchanged target maximum 29666 cycles"
+}
