@@ -847,7 +847,8 @@ rc_next
         lda     PRES_WORK
         cmpa    #15
         blo     rc_next
-        rts
+recolour_x
+        ldy     #$7F34          ; authored X root: column 13, row 19
 
 ; Recolour the complete 2x2 authored surface through its generated sparse
 ; nibble-selector stream. The stream excludes transparent and pink pixels.
@@ -941,6 +942,7 @@ aps_next
         lda     PRES_WORK
         cmpa    #15
         blo     aps_event
+        lbsr    recolour_x
         lda     PRES_PHASE
         cmpa    #5
         blo     aps_done

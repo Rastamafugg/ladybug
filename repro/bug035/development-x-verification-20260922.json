@@ -1,0 +1,57 @@
+{
+  "ticket": "BUG-035",
+  "scope": "development-only instruction-screen X recolour parity",
+  "head_at_verification": "bfda728",
+  "source": {
+    "file": "src/instruction_runtime.s",
+    "profile_guard": "SHARED_TEXT_ENABLED=0",
+    "destination": "0x7f34",
+    "change": "recolour the authored X after the 15 collectible targets and replay it for each persistent framebuffer owner"
+  },
+  "cleanup": {
+    "src/demo_runtime.s": "superseded legacy stage-panel helper removed from the working diff",
+    "src/presentation_runtime.s": "contradictory COMPLETE_PROFILE hook removed from the legacy branch working diff",
+    "post_cleanup_diff": "src/instruction_runtime.s only"
+  },
+  "builds": {
+    "complete": {
+      "result": "pass",
+      "rom_sha256": "5cdb575191428e3af902b7f0cc9bb94c425de05be3e902af71ce2426eb97ad26",
+      "resident": [8191, 8192],
+      "assets": [7680, 7680],
+      "presentation": [1259, 1280],
+      "instruction": [929, 938]
+    },
+    "development": {
+      "result": "pass",
+      "rom_sha256": "33ac1c5d81108ff48514b9e8be788ade522de7d998d951a2b8230608f54db830",
+      "resident": [8186, 8192],
+      "assets": [7272, 7680],
+      "presentation": [1136, 1280],
+      "instruction": [937, 938],
+      "profile_isolation": "pass"
+    }
+  },
+  "bounded_runtime": {
+    "deadline_seconds": 60,
+    "progression": "natural attract-to-instructions presentation flow; no forced state",
+    "identity": {
+      "presentation": "1136 live bytes matched the development artifact at 0x1900",
+      "instruction": "938 live bytes matched the development artifact at 0x0300"
+    },
+    "markers": [
+      "presentation_flow_tick=0x1900",
+      "attract_tick=0x1bbc",
+      "instructions_tick=0x1be0",
+      "instructions_runtime_return=0x1bf4"
+    ],
+    "result": "pass",
+    "observed": "X red, yellow, and blue crops were stable and byte-identical across framebuffer owners 0 and 1"
+  },
+  "checks": {
+    "complete_integrated_build": "pass",
+    "development_integrated_build": "pass",
+    "git_diff_check": "pass"
+  },
+  "verdict": "development-only X change is ready to commit independently; this does not close the broader BUG-035 ticket"
+}
