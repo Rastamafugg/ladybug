@@ -30,7 +30,7 @@
         <li>Measured, projected, historical, and required values must be labeled separately and tied to a source revision or artifact.</li>
         <li>Persistent-buffer measurements are labeled first by scenario phase and executed worklist; A/B owner is secondary metadata and is not a causal explanation without a controlled crossover.</li>
         <li>Bug effort is proportional to identified risk. Compact bugs use a focused path; Standard and High-risk bugs expand only for named independent risks.</li>
-        <li>Every bug records a projected weekly-token share and ceiling. Work stops for explicit approval before the ceiling is exceeded.</li>
+        <li>Bug cost classes describe technical risk and determine verification scope. Weekly-token projections and percentage stop gates were removed by user direction on 2026-09-23; historical percentages in older tickets do not constrain current work.</li>
         <li>Implementation completion is not acceptance. Failed targets remain failed and produce a linked follow-up or a return to <code>Ready</code>.</li>
       </ul>
     </section>
@@ -88,11 +88,11 @@
     <section>
       <h2>Bug cost and verification classes</h2>
       <ul>
-        <li><strong>Compact:</strong> confirmed cause, existing pattern, no runtime ownership or protocol, no loader/MMU/mapping change, no hard-boundary pressure, at most two projected production files, and no unresolved behavior question. Default ceiling: 5% of weekly allocation.</li>
-        <li><strong>Standard:</strong> bounded work that fails a Compact condition without introducing a new technical pattern or material architectural risk. Default ceiling: 10% of weekly allocation.</li>
-        <li><strong>High-risk:</strong> runtime ownership, protocol, loader/MMU/mapping, hard memory or timing boundaries, persistent-framebuffer interaction, cross-phase handoffs, or unresolved corruption. The user approves its ceiling explicitly.</li>
+        <li><strong>Compact:</strong> confirmed cause, existing pattern, no runtime ownership or protocol, no loader/MMU/mapping change, no hard-boundary pressure, at most two projected production files, and no unresolved behavior question.</li>
+        <li><strong>Standard:</strong> bounded work that fails a Compact condition without introducing a new technical pattern or material architectural risk.</li>
+        <li><strong>High-risk:</strong> runtime ownership, protocol, loader/MMU/mapping, hard memory or timing boundaries, persistent-framebuffer interaction, cross-phase handoffs, or unresolved corruption.</li>
       </ul>
-      <p>Every scenario names the distinct risk it covers. Use pairwise mode, owner, phase, and scenario coverage unless the interaction itself is under test. Before exceeding a ceiling, report completed evidence, remaining work, the reason, revised estimate, and lower-cost alternatives, then wait for approval.</p>
+      <p>Every scenario names the distinct risk it covers. Use pairwise mode, owner, phase, and scenario coverage unless the interaction itself is under test. Reassess when evidence changes the risk class or required verification. Renew user approval only for a material change to an approved contract.</p>
     </section>
 
     <section>
@@ -105,7 +105,7 @@
         report format. It must explicitly prohibit scope drift.
       </p>
       <p>A Ready Compact bug defaults to direct parent implementation without a separate worktree, delegation, or duplicated integration suite. An identified integration risk or explicit user request may override this default.</p>
-      <p>Reuse existing verifiers and shared harnesses. More than 200 nonblank lines of ticket-specific verification for a Compact bug requires a revised cost estimate and explicit user approval before creation.</p>
+      <p>Reuse existing verifiers and shared harnesses. More than 200 nonblank lines of ticket-specific verification for a Compact bug requires an explanation and reassessment of its class and verification scope.</p>
       <ul>
         <li>Give one subagent one bounded ticket or independently committable step.</li>
         <li>Do not parallelize unresolved dependencies or shared writable files without a named integration owner and conflict plan.</li>
@@ -135,7 +135,7 @@
     <section>
       <h2>Runtime-diagnosis evidence</h2>
       <p>Runtime-diagnosis evidence records artifact identity, phase markers, per-phase deadlines, authored/staged/live comparisons when delivery is involved, observation-tool validity, competing hypotheses, and the discriminating result. Timeout duration alone is not a performance measurement.</p>
-      <p>After two rejected probes, two observation-tool timeouts, or one material root-cause expansion, stop and reassess class, remaining verification, and budget before another experiment. A deterministic rerun after correcting identified probe mechanics is not a new probe.</p>
+      <p>After two rejected probes, two observation-tool timeouts, or one material root-cause expansion, stop and reassess class, remaining verification, and the next discriminating experiment before another experiment. A deterministic rerun after correcting identified probe mechanics is not a new probe.</p>
       <p>For replacement default flows, the approval brief names the displaced owner and provides the complete natural state/input sequence. Verification proves first visible output and full natural progression before forced rare paths can contribute acceptance evidence.</p>
     </section>
 
@@ -147,7 +147,7 @@
         <li>Define terminology, units, scenarios, baselines, targets, margins, and evidence before any table.</li>
         <li>Summarize current evidence and why work is needed.</li>
         <li>List each proposed item with work, intended improvement, success measurement, dependencies/order, risks, and exclusions.</li>
-        <li>For bug work, state the cost class, projected weekly-token share, ceiling, stop conditions, and risk-to-scenario mapping.</li>
+        <li>For bug work, state the cost class, reassessment conditions, and risk-to-scenario mapping; do not project weekly-token share or require a percentage ceiling.</li>
         <li>Explain alternatives and identify what approval authorizes.</li>
       </ol>
       <h3>Assignment message</h3>
@@ -160,7 +160,7 @@
       <h3>Progress and completion response</h3>
       <ol>
         <li>Report current measured result versus target, completed evidence, remaining work, and concrete blockers.</li>
-        <li>For bug work, report projected or observed cost versus the approved ceiling and any approved exception.</li>
+        <li>For bug work, report any change in risk class or verification scope and the evidence supporting it.</li>
         <li>At completion, distinguish implementation success from acceptance, state the justified lifecycle transition, and identify any follow-up ticket.</li>
       </ol>
     </section>

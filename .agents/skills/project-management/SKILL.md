@@ -36,7 +36,7 @@ Pick exactly one next role:
 ## Step 3 — Guardrails before handoff
 
 - Do not classify a bug as Compact when it changes runtime ownership, protocols, loader/MMU/mapping behavior, hard memory or timing boundaries, persistent-framebuffer interaction, cross-phase handoffs, or unresolved corruption.
-- If the projected work approaches its cost ceiling, stop before implementation or further investigation and obtain approval for a revised ceiling or reduced scope.
+- Use cost classes to select verification proportional to risk. Do not apply weekly-token projections or percentage stop gates; historical ticket ceilings are superseded by the current project policy.
 - Do not require a worktree, delegation, exhaustive scenario matrix, or new ticket-specific harness for a Compact bug unless a named risk requires it.
 - If the task would introduce a new abstraction, helper module, protocol, workflow change, or architectural refactor that the user did not explicitly request, **obtain approval before implementation**.
 - For a runtime symptom, route to debugger before architecture or platform-defect analysis. A user correction to expected behavior invalidates conflicting assumptions; update the ticket's observed/expected sequence before more implementation or verification.

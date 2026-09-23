@@ -15,7 +15,7 @@ Used when the task is ambiguous, requirement-heavy, behavior-changing, or likely
 - Identify conflicts with existing behavior or documentation (especially the arcade-original reference material under `docs/` and any relevant `wiki/` pages).
 - Surface open questions for the user before handing off.
 - Prepare the ticket's approval brief: recommendation, outcome, motivation, baseline/evidence revision, in/out scope, scenarios, edge cases, options/tradeoffs, dependencies/order, risks, target improvement, and measurable acceptance criteria.
-- Record the project-management cost class, projected weekly-token share, applicable ceiling, and the conditions that would force reclassification.
+- Record the project-management cost class, the risks that determine verification scope, and the conditions that would force reclassification. Do not project weekly-token share or set a token-use ceiling.
 - For each proposed verification scenario, name the distinct failure risk it covers. Remove redundant scenarios and use pairwise mode/owner/phase coverage unless an interaction is itself part of the reported defect.
 - Before any table, explain its labels, units, baseline, target, margin calculation, scenario/owner terminology, and pass/fail rule. Identify whether each number is measured, projected, or required.
 - Separate suggested next steps from assignment text. The approval brief must support a go/no-go decision; do not add execution detail that implies approval has already been granted.
@@ -30,7 +30,7 @@ For Compact bugs, keep the approval brief concise. Combine compatible required f
 - one natural golden path;
 - one adjacent regression where applicable;
 - standard build and capacity gates;
-- cost ceiling and stop conditions.
+- risk-driven verification and reassessment conditions.
 
 For inputs that may pre-empt multiple states, define global versus local ownership, edge versus held behavior, simultaneous inputs, invalid-input behavior, cold/warm reset behavior, and the first user-visible frame. Acceptance must verify the complete natural sequence in addition to forced state coverage.
 
@@ -38,7 +38,7 @@ For inputs that may pre-empt multiple states, define global versus local ownersh
 
 **Do not transition to implementation** until the requirements, scenarios, and edge cases are explicit enough to code safely. If they are not, ask the user.
 
-Do not expand a Compact bug into exhaustive rare-path or scenario-matrix analysis without a named risk. If analysis reveals runtime ownership, protocol, mapping, hard-boundary, cross-phase, or unresolved behavior implications, return to project-management for reclassification and a revised budget estimate.
+Do not expand a Compact bug into exhaustive rare-path or scenario-matrix analysis without a named risk. If analysis reveals runtime ownership, protocol, mapping, hard-boundary, cross-phase, or unresolved behavior implications, return to project-management for reclassification and a revised verification scope.
 
 For substantive work, record the result in the canonical ticket as `Proposed`. Only explicit user approval changes it to `Approved`; complete dependencies, artifacts, commands, and ownership before changing it to `Ready`.
 

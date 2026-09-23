@@ -119,7 +119,7 @@ Each `release/reference/6809/{mnemonic}.html` follows this body shape:
 3. Complete the approval brief and set status to `Proposed`. Only explicit user approval advances it to `Approved`.
 4. Add dependencies, ordering, exact artifacts, commands, ownership, evidence, and commit boundaries before setting it to `Ready`.
 5. Keep the ticket, ticket index, and decision log synchronized through `In Progress`, `Verification`, and `Done` or an explicit side state.
-6. Append substantive ticket creation, approval, scope change, integration result, and closure to `internal/log.html`.
+6. Append substantive ticket creation, approval, scope change, integration result, and closure to `internal/log.html`. Bug classes determine verification scope; do not require weekly-token projections or percentage ceilings. Earlier ticket percentages are historical only.
 
 Ticket IDs use `<TYPE>-NNN` with `FEAT`, `BUG`, `PERF`, `TOOL`, `DOC`, or `RSCH`. The full lifecycle and delegation rules are canonical in `internal/tickets/workflow.html`.
 

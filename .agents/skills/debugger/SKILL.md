@@ -34,10 +34,9 @@ Count and record rejected probes and observation-tool timeouts. Stop and return 
 - two distinct probes have been rejected;
 - two observation-tool timeouts have occurred;
 - the confirmed or leading cause expands into another subsystem;
-- the projected work reaches the assigned token ceiling;
-- the proposed verifier exceeds the Compact limit in `AGENTS.md`.
+- the proposed verifier exceeds the Compact threshold in `AGENTS.md`.
 
-The reassessment must report the last proven boundary, remaining competing causes, expected value of the next probe, revised cost class, revised budget estimate, and a lower-cost alternative. Do not continue until the user approves any required budget or scope expansion.
+The reassessment must report the last proven boundary, remaining competing causes, expected value of the next probe, revised cost class and verification scope, and a lower-cost alternative. Obtain user approval only for a material change to an approved outcome, scope, target, acceptance criterion, dependency order, or risk profile.
 
 ## Handoff rule
 
