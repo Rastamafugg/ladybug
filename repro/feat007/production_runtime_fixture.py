@@ -22,7 +22,11 @@ def prepare(root):
     for a,z in zip(labels,labels[1:]):
         section=raw.split('\n'+a+'\n')[1].split('\n'+z+'\n')[0]
         blob.extend(int(v) for line in section.splitlines() if 'fcb' in line for v in line.split('fcb')[1].strip().split(','))
-    assert bytes(blob)==(out.parent/'fit/asset-text-data.bin').read_bytes(),'independent font fixture drift'
+    fixture=(out.parent/'fit/asset-text-data.bin').read_bytes()
+    # BUG-042 changed only the final gameplay equals descriptor colour.
+    # Keep every other independent fixture byte fixed.
+    bonus=json.loads((root/'assets/arcade/text-colours.json').read_text())['fields']['bonus']
+    assert fixture[-1]==0 and bytes(blob)==fixture[:-1]+bytes([bonus]),'independent font fixture drift'
     section=raw.split('\ndynamic_descriptors\n')[1]
     descriptors=bytes(int(v) for line in section.splitlines() if 'fcb' in line for v in line.split('fcb')[1].strip().split(','))
     (out/'descriptors.bin').write_bytes(descriptors)

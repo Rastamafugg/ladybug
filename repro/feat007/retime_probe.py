@@ -6,9 +6,8 @@ for flag in ('--retime','--reuse-streams'):
     if flag not in sys.argv:sys.argv.append(flag)
 if '--production' in sys.argv:
     from types import SimpleNamespace
-    import shutil
     ROOT=BASE.parents[1];sys.path.insert(0,str(ROOT/'scripts'))
-    import benchmark_6309 as b,build_presentation as p
+    import benchmark_6309 as b,build_presentation as p,verify_bug035_presentation as bug035
     from production_runtime_fixture import prepare
     OUT=prepare(ROOT);rom=OUT/'publication.rom';raw=(OUT/'main.bin').read_bytes()
     raw=rom.read_bytes()[:len(raw)]
@@ -16,7 +15,8 @@ if '--production' in sys.argv:
     link=SimpleNamespace(DYNAMIC=True,modulemap=b.symbols(OUT/'presentation.map'))
     payload=(OUT/'cold.bin').read_bytes();manifest=json.loads((ROOT/'build/ladybug-presentation.json').read_text())
     ns=dict(p=p,offsets=dict(zip(p.MAP_NAMES,manifest['map_stream_offsets'])),frames={name:(OUT/(name+'.pixels')).read_bytes() for name in p.MAP_NAMES})
-    shutil.copyfile(BASE/'dynamic/baseline-highscore-helper.bin',OUT/'baseline-highscore-helper.bin')
+    chars=p.load_chars(ROOT/'assets/arcade/chars.json')
+    sprites=json.loads((ROOT/'assets/arcade/sprites.json').read_text())
     schedule={}
 else:exec((BASE/'linked_publication.py').read_text().split('process,client=')[0])
 process,client=b.launch(b.load_monitor(),b.DEFAULT_XROAR,rom,'6809')
@@ -47,11 +47,11 @@ try:
         enemy=b.symbols(OUT/'enemy.map');code=(OUT/'enemy.bin').read_bytes();write(0x800,code);assert b.read_bytes(client,0x800,len(code))==code
     for off in range(0,len(payload),8192):
         write(0xFFA5,[0x3A+off//8192]);part=payload[off:off+8192];write(0xA000,part);assert b.read_bytes(client,0xA000,len(part))==part
-    # Source-map worklists all run; stage-dependent slices additionally cover
-    # both surfaces, digit widths, first-stage context, clamp and maximum.
+    # Source-map worklists all run; valid stages 1..255 cover both surfaces,
+    # digit widths, first-stage context, clamp and maximum.
     scenarios=[(n,0,1,1) for n in ns['p'].MAP_NAMES if n!='level-start']
     if link.DYNAMIC:scenarios=[s for s in scenarios if s[0]!='high-score'] # Full ranking is covered by sequence_probe.
-    scenarios += [('level-start',owner,stage,context) for owner in (0,1) for stage,context in [(1,1),(18,2),(255,2),(0,2)]]
+    scenarios += [('level-start',owner,stage,context) for owner in (0,1) for stage,context in [(1,1),(18,2),(255,2)]]
     scenarios += [('level-start',0,stage,context) for stage,context in [(10,2),(99,2),(100,2),(255,1)]]
     for name,owner,stage,context in scenarios:
         first=0x2C+owner*4;write(0xFFA1,range(first,first+4));write(0,[0]*256)
@@ -61,8 +61,7 @@ try:
             write(0x8F,[1-owner,owner]);first=0x30-owner*4;write(0xFFA1,range(first,first+4))
         write(0xA4,[0xA5,1,ns['p'].MAP_NAMES.index(name),context]);write(0x24,[stage]);write(0xAE,[0x20,0]);write(0x90,[owner]);off=ns['offsets'][name];write(0xB5,[off>>8,off&255])
         if name=='level-start':
-            write(0x2000,ns['frames'][name]);install_helper('baseline-highscore-helper.bin')
-            call(0xB080);expected=b.read_bytes(client,0x2000,30720)
+            expected=bug035.stage_expected(ns['frames'][name],1 if context==1 else stage,chars,sprites)
         else:expected=ns['frames'][name]
         write(0x2000,[0xA5]*30720);install_helper('highscore-helper.bin');ticks=[]
         for tick in range(30):

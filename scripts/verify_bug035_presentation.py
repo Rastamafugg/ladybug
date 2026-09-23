@@ -136,7 +136,8 @@ def main():
 
     try:
         reach("presentation_flow_tick")
-        compare(runtime.read_bytes(client, 0x1900, 1280), (BUILD / "ladybug-presentation-runtime.bin").read_bytes(), "module-identity")
+        presentation = (BUILD / "ladybug-presentation-runtime.bin").read_bytes()
+        compare(runtime.read_bytes(client, 0x1900, len(presentation)), presentation, "module-identity")
         saved = runtime.read_byte(client, runtime.PAR5)
         runtime.write_byte(client, runtime.PAR5, 0x23)
         helper = (BUILD / "ladybug-highscore-helper.bin").read_bytes()
@@ -196,10 +197,30 @@ def main():
         compare(level_frame(), stage_expected(base_frames[2], 1, chars, sprites), "live-part1")
         client.call("inject_key", {"key": 1, "action": "release"})
         reach("normal_game")
-        # Seed only remaining counts; normal movement/eat_dot/check_stage_clear
-        # must produce the stage request and normal_stage must increment it.
+        # BUG-039's entrant owns gameplay until its complete walkout/re-entry
+        # sequence finishes. Seed the final pickup only after that handoff.
+        for _ in range(64):
+            if runtime.read_byte(client, 0x00A0) == 0:
+                break
+            reach("normal_game")
+        else:
+            raise AssertionError("initial entry did not complete within 64 gameplay dispatches")
+        # The authored dot two cells north of the maze entrance is the
+        # controlled final pickup; normal movement/eat_dot/check_stage_clear
+        # must produce the request before normal_stage increments the part.
+        assert (runtime.read_byte(client, 0x09), runtime.read_byte(client, 0x0A)) == (12, 18)
         runtime.write_byte(client, 0x25, 1)
         runtime.write_byte(client, 0x33, 0)
+        client.call("inject_key", {"key": 0x2B, "action": "press"})
+        for _ in range(64):
+            reach("normal_stage")
+            if runtime.read_byte(client, 0x26):
+                break
+        else:
+            raise AssertionError("final authored dot did not request Part 2 within 64 stage dispatches")
+        assert runtime.read_byte(client, 0x24) == 1
+        assert runtime.read_byte(client, 0xA18C) & 0x80 == 0
+        client.call("inject_key", {"key": 0x2B, "action": "release"})
         compare(level_frame(), stage_expected(base_frames[2], 2, chars, sprites), "live-part2")
         assert runtime.read_byte(client, 0x24) == 2
         evidence["phases"].append("natural credit/start; seeded final-dot pickup through normal Part 1-to-2 transition")

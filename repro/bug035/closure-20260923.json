@@ -1,0 +1,57 @@
+{
+  "ticket": "BUG-035",
+  "status": "Done",
+  "verified_head": "caa650d87113ef6176b68b95cf6bfa038258e7b6",
+  "complete_rom_sha256": "5cdb575191428e3af902b7f0cc9bb94c425de05be3e902af71ce2426eb97ad26",
+  "production_source_mutation": "none in this closure check",
+  "committed_development_x_fix": "caa650d",
+  "checks": [
+    {
+      "command": "LADYBUG_PROFILE=complete LADYBUG_CPU=6809 LADYBUG_INPUT=keyboard ./scripts/build.sh build",
+      "result": "pass",
+      "coverage": "generated presentation pixels, layer roles, sparse payload, loader reconstruction and hard capacity guards"
+    },
+    {
+      "command": "timeout 240s python3 scripts/verify_bug035_presentation.py",
+      "result": "pass",
+      "coverage": "identity-proven cold ROM; natural title phases and both logo frames; natural instruction X cycle and consumed targets; demo and live Part 1; controlled authored-dot pickup through Part 2; all 18 vegetables, formatting and clamp boundaries; both framebuffer owners",
+      "marker_deadline_seconds": 40
+    },
+    {
+      "command": "timeout 240s python3 repro/feat007/retime_probe.py --production",
+      "result": "pass",
+      "coverage": "14 current-artifact publication worklists including both level-start owners and valid stage/format boundaries; exact completed pixels, 30 map ticks and no early publication",
+      "marker_deadline_seconds": 10
+    },
+    {"command": "python -m py_compile scripts/verify_bug035_presentation.py", "result": "pass"},
+    {"command": "git diff --check", "result": "pass"}
+  ],
+  "capacity_bytes": {
+    "resident": [8191, 8192],
+    "assets": [7680, 7680],
+    "presentation": [1259, 1280],
+    "instruction": [929, 938],
+    "presentation_helper": [331, 334],
+    "gmc_source_spare": 1239
+  },
+  "timing_cycles": {
+    "foreground_maximum": 26210,
+    "level_start_map_maximum": 25790,
+    "level_start_completion_maximum": 18430,
+    "engineering_target": 27000
+  },
+  "observer_corrections": [
+    "Read presentation identity over its actual 1259-byte artifact length rather than a fixed 1280 bytes.",
+    "Wait for BUG-039 initial entry to complete before the controlled final-dot pickup.",
+    "Use an authored dot and observe STAGE_PENDING at normal_stage before the request is consumed.",
+    "Allow only BUG-042's final equals descriptor to inherit fields.bonus in the historical text fixture comparison.",
+    "Use the current independent BUG-035 stage-panel pixel oracle for retiming; the retained baseline helper left current vegetable pixels blank.",
+    "Exclude stage zero from retiming scenarios because the stage contract is 1..255."
+  ],
+  "rejected_probe_results": [
+    "A counts-only final-dot seed produced a later Part 1 capture because no pickup was guaranteed.",
+    "Sampling normal_game after an actual pickup skipped the transient stage request and reached Part 2 gameplay."
+  ],
+  "residual": "No physical-hardware capture in this closure. The separately accepted FEAT-007 full gameplay rebuild timing exception remains outside BUG-035 stage-panel publication timing. Broader arcade-wide colour fidelity is separate work.",
+  "verdict": "All approved BUG-035 criteria have current-revision evidence; move to Done."
+}
