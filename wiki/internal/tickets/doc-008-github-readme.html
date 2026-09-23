@@ -17,7 +17,7 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Ticket · documentation</p>
-      <h1>DOC-008 — Project README and tagged ROM archive <span class="wiki-badge">Verification</span></h1>
+      <h1>DOC-008 — Project README and tagged ROM archive <span class="wiki-badge">Done</span></h1>
       <p class="wiki-meta">2026-09-23 · P2 · order user-directed · owner parent agent · dependencies none; pre-build source identity gate</p>
     </header>
 
@@ -65,18 +65,18 @@
       <ul>
         <li><strong>Approved objective and non-goals:</strong> deliver the README, archive every existing tag as a built ROM, and retarget the local and published alpha tag; preserve all exclusions above. User approval received 2026-09-23.</li>
         <li><strong>Owned artifacts:</strong> <code>README.md</code>, <code>roms/1.0.0-alpha.rom</code>, this ticket, <code>wiki/internal/tickets/index.html</code>, and <code>wiki/internal/log.html</code>; local and remote <code>1.0.0-alpha</code> refs. No source, build-script, CI, or other wiki page changes.</li>
-        <li><strong>Worktree and branch:</strong> use the current <code>main</code> checkout at <code>028b1f76bd5c</code>; no separate worktree, because the approved artifact must include current main and the product inputs already match the alpha tag.</li>
+        <li><strong>Worktree and branch:</strong> initial assignment used <code>main</code> at <code>028b1f76bd5c</code>. Deliverable commit: <code>be61f75479e7b9038802ad19953061f0e3a70b36</code>. No separate worktree was used, because the approved artifact includes current main and its product inputs match the alpha tag.</li>
         <li><strong>Implementation constraints:</strong> use concise GitHub-flavored Markdown; recheck tag-to-HEAD equality for all ROM-producing inputs before building; keep the artifact name equal to the exact tag; do not imply physical CoCo 3 validation; preserve the current ignored build output outside Git except for its named copy under <code>roms/</code>.</li>
         <li><strong>Required verification:</strong> run <code>scripts/build.sh build</code>; compare archive and generated image byte-for-byte, length, and SHA-256; verify README links and facts; run <code>git diff --check</code>; confirm the final local tag target; confirm the remote still points to the approved old SHA <code>516bdd3b7858425cef5a71439fdfcacf1ff7f62d</code>; force-update the published tag only after the final deliverable commit; then verify the published tag target with <code>git ls-remote --tags --refs origin refs/tags/1.0.0-alpha</code>. No emulator session is required for this artifact-identity scope.</li>
         <li><strong>Evidence:</strong> retain build result, image size/hash, tag inventories before/after, final commit ID, and local/published tag target comparison in this ticket.</li>
-        <li><strong>Commit and publication:</strong> one bounded deliverable commit for README/ROM and one closure-evidence commit after QA; no branch push/merge. After the closure commit, retarget the local tag and force-update only <code>refs/tags/1.0.0-alpha</code> on <code>origin</code>.</li>
+        <li><strong>Commit and publication:</strong> one bounded deliverable commit for README/ROM and one closure-evidence commit after QA; no branch push/merge. After the closure-evidence commit, retarget the local tag to the deliverable commit <code>be61f75479e7b9038802ad19953061f0e3a70b36</code> and force-update only <code>refs/tags/1.0.0-alpha</code> on <code>origin</code>.</li>
         <li><strong>Completion report:</strong> report deliverable commit, image size/hash, build/diff/link results, old and new tag targets, remote tag verification, residual freshness risk, and QA disposition.</li>
       </ul>
     </section>
 
     <section>
       <h2>Verification and completion</h2>
-      <p><strong>Verification, 2026-09-23:</strong> <code>wsl -d Ubuntu -- bash -lc 'cd /mnt/e/projects/ladybug &amp;&amp; bash scripts/build.sh build'</code> passed with the complete profile. Build-integrated asset/pixel, layout, sparse-stream, GMC-boundary, and packaging guards passed. The fresh <code>build/ladybug.rom</code> built at <code>b270c1817f06</code> is 65,536 bytes with SHA-256 <code>9bd7daa97e8ad93f08b31e0258afb20d21593bf6189e34926ee7fcc0ddaea1a9</code>; <code>roms/1.0.0-alpha.rom</code> is byte-identical with the same size and hash. All repository-relative README links resolve. <code>git diff --check</code> passes for the DOC-008 changes. After <code>main</code> advanced to documentation-only revision <code>028b1f76bd5c</code>, ROM-producing inputs were rechecked and remain equal to the alpha tag. Local and published <code>1.0.0-alpha</code> remain at the approved original target <code>516bdd3b7858425cef5a71439fdfcacf1ff7f62d</code> pending final commits and QA. No emulator play or physical-hardware claim is included.</p>
+      <p><strong>Verification, 2026-09-23:</strong> <code>wsl -d Ubuntu -- bash -lc 'cd /mnt/e/projects/ladybug &amp;&amp; bash scripts/build.sh build'</code> passed with the complete profile. Build-integrated asset/pixel, layout, sparse-stream, GMC-boundary, and packaging guards passed. The fresh <code>build/ladybug.rom</code> built at <code>b270c1817f06</code> is 65,536 bytes with SHA-256 <code>9bd7daa97e8ad93f08b31e0258afb20d21593bf6189e34926ee7fcc0ddaea1a9</code>; <code>roms/1.0.0-alpha.rom</code> is byte-identical with the same size and hash. All repository-relative README links resolve. <code>git diff --check</code> passes for the DOC-008 changes. After <code>main</code> advanced to documentation-only revision <code>028b1f76bd5c</code>, ROM-producing inputs were rechecked and remain equal to the alpha tag. QA review passed. Deliverable commit <code>be61f75479e7b9038802ad19953061f0e3a70b36</code> contains the README and ROM. After closure-evidence preparation, local and published <code>1.0.0-alpha</code> now resolve to deliverable commit <code>be61f75479e7b9038802ad19953061f0e3a70b36</code>. The approved previous target was <code>516bdd3b7858425cef5a71439fdfcacf1ff7f62d</code>; <code>git push --force origin refs/tags/1.0.0-alpha</code> succeeded and <code>git ls-remote --tags --refs origin refs/tags/1.0.0-alpha</code> returned the new target. No branch was pushed. Residual risk: no emulator gameplay or physical CoCo 3 qualification was performed, and the open gameplay findings in RSCH-013 remain. No emulator play or physical-hardware claim is included.</p>
     </section>
 
     <section>
@@ -87,12 +87,12 @@
         <li>2026-09-23 — User explicitly approved DOC-008, including the ROM archive and published tag retarget.</li>
         <li>2026-09-23 — Advanced to Ready. Assignment specifies the current main checkout, source identity gate, fresh build/hash comparison, two bounded commits, and single-tag force update plus remote verification.</li>
         <li>2026-09-23 — Started implementation after the source identity gate passed and local/published tag targets were confirmed unchanged.</li>
-        <li>2026-09-23 — Fresh complete-profile build passed; the 64 KiB alpha archive matches the build output byte-for-byte and by SHA-256. README links resolve. Entered Verification; final tag movement awaits QA and commits.</li>
+        <li>2026-09-23 — Fresh complete-profile build and QA passed; the 64 KiB archive matches byte-for-byte and by SHA-256. Deliverable commit <code>be61f75479e7b9038802ad19953061f0e3a70b36</code> contains the README and ROM. After closure-evidence preparation, local and published <code>1.0.0-alpha</code> moved from <code>516bdd3b7858425cef5a71439fdfcacf1ff7f62d</code> to the deliverable commit; the forced tag push succeeded and remote verification returned the new SHA. Marked Done. No branch push or gameplay/hardware acceptance is claimed.</li>
       </ul>
     </section>
 
     <footer class="wiki-footer">
-      <p>Sources: current repository revision <code>028b1f76bd5c</code>, <a href="../../index.html">wiki catalog</a>, <a href="../implementation/roadmap.html">roadmap</a>, <a href="./rsch-013-20260923-visual-gameplay-intake.html#source-review-20260923">current issue intake and source review</a>, current tag <code>1.0.0-alpha</code>, and <code>scripts/build.sh</code>.</p>
+      <p>Sources: product source revision <code>028b1f76bd5c</code>, deliverable commit <code>be61f75479e7b9038802ad19953061f0e3a70b36</code>, <a href="../../index.html">wiki catalog</a>, <a href="../implementation/roadmap.html">roadmap</a>, <a href="./rsch-013-20260923-visual-gameplay-intake.html#source-review-20260923">current issue intake and source review</a>, current tag <code>1.0.0-alpha</code>, and <code>scripts/build.sh</code>.</p>
     </footer>
   </main>
 </div>
