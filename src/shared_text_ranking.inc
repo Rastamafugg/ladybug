@@ -727,6 +727,14 @@ highscore_name_hold
         lda     #1
         rts
 
+; Enter from the page-$23 timer helper.  The code which selects page $34
+; must execute in low RAM; the helper's stacked resident return bridge
+; restores page $23 before fetching its continuation.
+highscore_prepare_back
+        lda     #$34
+        sta     PAR5
+        jmp     PRES_MAIN_FB_PREPARE
+
         ifeq    COMPLETE_PHASE_AUX
 prepare_name
         bsr     init_scores

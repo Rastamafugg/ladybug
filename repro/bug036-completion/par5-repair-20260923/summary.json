@@ -1,0 +1,34 @@
+{
+  "ticket": "BUG-036",
+  "scope": "focused name-entry timer PAR5 ownership repair",
+  "baseline_revision": "3b4489a",
+  "baseline_rom_sha256": "5cdb575191428e3af902b7f0cc9bb94c425de05be3e902af71ce2426eb97ad26",
+  "repaired_rom_sha256": "9bd7daa97e8ad93f08b31e0258afb20d21593bf6189e34926ee7fcc0ddaea1a9",
+  "build": "pass: wsl bash /mnt/e/projects/ladybug/scripts/build.sh build",
+  "capacity_bytes_used_limit": {
+    "resident": "8191/8192",
+    "enemy": "4091/4096",
+    "presentation": "1259/1280",
+    "highscore_runtime": "911/920",
+    "assets": "7680/7680"
+  },
+  "addresses_hex": {
+    "lowram_trampoline": "0379",
+    "helper_continuation": "AD00",
+    "fixed_enemy_lut": "17A0"
+  },
+  "checks": [
+    "cold ROM: resident, enemy low RAM, presentation, staged and installed high-score owner/helper byte identities pass",
+    "unforced no-input first name timer: box 1, name mode, no pending publication; page-23 owner/helper remain byte-exact",
+    "resolved west movement after first timer: player framebuffer pointer 35148 to 35144, name mode retained",
+    "first timer on both framebuffer owners: owner-local background plus one player sprite matches with zero mismatches",
+    "forced final timer boundary: record commit/shift and ranking hydration pass",
+    "zero score: nonqualifying name-entry bypass passes",
+    "enemy runtime verifier passes; enemy module hash matches PERF-007 baseline"
+  ],
+  "enemy_module_sha256": "145716d400923d35f6efca5e72816e46797a975dc740d6064c28cab2fb45a656",
+  "pixel_oracle_limitation": "Full historical frame oracle has 16/24 byte mismatches; owner-local background plus player sprite has zero mismatches on each owner.",
+  "rejected_build": "First integration attempt placed the trampoline in a non-owner include; the missing-export build failed and produced no accepted ROM.",
+  "probe_boundary": "50-second named initial observation phase; individual GDB commands limited to 15 seconds; all retained repaired checks completed within 8 seconds.",
+  "residual": "Physical/natural user launch sequence and older BUG-036 controls, animation, worst-worklist timing and full-frame visual acceptance remain open; ticket is Verification, not Done."
+}

@@ -45,6 +45,7 @@ try:
     print('phase=name-entry-native marker=mainloop/name_tick limit50s; timeout=observation boundary failed',flush=True)
     reach(main['mainloop'])
     identity('resident',0xc000,'ladybug-runtime.rom',length=0x3e00)
+    identity('enemy-lowram',0x0800,'ladybug-enemy-runtime.rom')
     identity('presentation',0x1900,'ladybug-presentation-runtime.bin')
     identity('helper-staged',0xac40,'ladybug-highscore-helper.bin',['set {unsigned char}0xffa5=0x23'])
     identity('owner-staged',0xa880,'ladybug-highscore-runtime.bin')
@@ -101,6 +102,26 @@ try:
         result=dict(status='captured',checks=checks,rom_sha256=hashlib.sha256((BUILD/'ladybug.rom').read_bytes()).hexdigest())
         if not passed:raise AssertionError('timeout commit')
         raise StopIteration
+    if '--natural-timer' in sys.argv:
+        cmd('continue',[f'break *0x{hs["name_tick"]:x} if *(unsigned char*)0xe9==1','continue','delete breakpoints'])
+        dp=dump('natural-timer-dp.bin',0,256)
+        passed=dp[0xa5]==8 and dp[0xa6]==5 and dp[0xe9]==1 and dp[0x91]==0
+        checks.append(dict(name='natural-first-timer-no-input',passed=passed,mode=dp[0xa5],screen=dp[0xa6],box=dp[0xe9],pending=dp[0x91]))
+        assert passed,'natural first timer transition'
+        identity('owner-after-first-timer',0xa880,'ladybug-highscore-runtime.bin',['set {unsigned char}0xffa5=0x23'])
+        identity('helper-after-first-timer',0xac40,'ladybug-highscore-helper.bin')
+        cmd('restore',['set {unsigned char}0xffa5=0x34'])
+        if '--timer-move' in sys.argv:
+            start=int.from_bytes(dp[11:13],'big')
+            for _ in range(4):
+                reach(hs['name_joy_ready'])
+                cmd('resolved-west',['set {unsigned char}0x5=3','set {unsigned char}0xf=3','set {unsigned char}0x3=0'])
+                reach(main['mainloop'])
+            moved=dump('natural-timer-move-dp.bin',0,256)
+            finish=int.from_bytes(moved[11:13],'big')
+            passed=finish<start and moved[0xa5]==8 and moved[0xa6]==5
+            checks.append(dict(name='move-after-first-timer',passed=passed,start=start,finish=finish))
+            assert passed,'post-timer movement'
     if '--timer' in sys.argv:
         cmd('timer-seed',['set {unsigned char}0x00e8=59'])
         for i in range(5):reach(hs['name_tick'])

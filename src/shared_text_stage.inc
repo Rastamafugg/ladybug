@@ -142,7 +142,7 @@ highscore_timer_prepare
         std     PRES_NAME_PTR
         ldd     #PRES_MAIN_PAGE23_RESUME
         pshs    d
-        jmp     PRES_MAIN_FB_PREPARE
+        jmp     PRES_HIGHSCORE_FB_PREPARE
 
 highscore_after_prepare
 highscore_timer_draw

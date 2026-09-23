@@ -768,10 +768,15 @@ PY
         python3 - "$HIGHSCORE_RUNTIME_MAP" "$PRESENTATION_SYMBOLS" <<'PY'
 import re, sys
 text = open(sys.argv[1]).read()
-match = re.search(r'^Symbol: ranking_slice .* = ([0-9A-Fa-f]+)$', text, re.M)
-if match is None: raise SystemExit('shared ranking slice export missing')
+exports = {
+    'ranking_slice': 'PRES_RANKING_SLICE',
+    'highscore_prepare_back': 'PRES_HIGHSCORE_FB_PREPARE',
+}
 with open(sys.argv[2], 'a') as handle:
-    handle.write(f'PRES_RANKING_SLICE equ ${match[1]}\n')
+    for source, exported in exports.items():
+        match = re.search(rf'^Symbol: {source} .* = ([0-9A-Fa-f]+)$', text, re.M)
+        if match is None: raise SystemExit(f'{source} export missing')
+        handle.write(f'{exported} equ ${match[1]}\n')
 PY
         python3 - "$HIGHSCORE_RUNTIME" <<'PY'
 import sys
