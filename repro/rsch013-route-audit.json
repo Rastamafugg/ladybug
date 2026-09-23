@@ -1,0 +1,126 @@
+{
+  "schema": "ladybug-rsch013-route-audit-v1",
+  "baseline_rom_sha256": "9bd7daa97e8ad93f08b31e0258afb20d21593bf6189e34926ee7fcc0ddaea1a9",
+  "baseline_walk_sha256": "c880f79e1c7e4366cd7421f93875940690bf3fbf6d655ae8ed0a0a3fed44557b",
+  "method": "Offline action-level maze and gate simulation; no production file changed",
+  "baseline": {
+    "actions": 147,
+    "collectibles": 117,
+    "end_cell": [
+      6,
+      2
+    ],
+    "final_gate_states": [
+      3,
+      3,
+      1,
+      0,
+      0,
+      1,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      3,
+      1,
+      3,
+      2,
+      2,
+      0,
+      1,
+      1
+    ],
+    "repeated_action_edges": 22
+  },
+  "rejected_candidates": [
+    {
+      "replacement": "NWSSWWNNEEN",
+      "replaces_action_offsets": [
+        9,
+        17
+      ],
+      "actions": 149,
+      "collectibles": 117,
+      "end_cell": [
+        6,
+        2
+      ],
+      "final_gate_states": [
+        3,
+        3,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        3,
+        1,
+        3,
+        2,
+        2,
+        0,
+        1,
+        1
+      ],
+      "repeated_action_edges": 20,
+      "new_repeated_edges": [
+        "((10, 10), (12, 10))",
+        "((12, 14), (14, 14))"
+      ],
+      "reason": "Shifts repeated edges to the left of the spawner and violates the current return-detour provenance rule."
+    },
+    {
+      "replacement": "NWSSSENENW",
+      "replaces_action_offsets": [
+        9,
+        14
+      ],
+      "actions": 151,
+      "collectibles": 117,
+      "end_cell": [
+        6,
+        2
+      ],
+      "final_gate_states": [
+        3,
+        3,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        3,
+        1,
+        3,
+        2,
+        2,
+        0,
+        1,
+        1
+      ],
+      "repeated_action_edges": 25,
+      "new_repeated_edges": [
+        "((14, 14), (14, 16))",
+        "((14, 16), (16, 16))",
+        "((16, 12), (18, 12))",
+        "((16, 14), (16, 16))",
+        "((16, 14), (18, 14))",
+        "((18, 12), (18, 14))"
+      ],
+      "reason": "Returns to the anchor but repeats more of the earlier lower-right path."
+    }
+  ],
+  "ready_gap": "No accepted route avoids a new visible retrace; provenance and cold capacity need a revised design."
+}
