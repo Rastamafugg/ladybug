@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOC-008 — README and tagged ROM archive</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Ticket · documentation</p>
+      <h1>DOC-008 — Project README and tagged ROM archive <span class="wiki-badge">Verification</span></h1>
+      <p class="wiki-meta">2026-09-23 · P2 · order user-directed · owner parent agent · dependencies none; pre-build source identity gate</p>
+    </header>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Add a GitHub-facing root <code>README.md</code> that introduces Ladybug, describes its current development status, and gives a contributor a direct path to clone, build, and run the game in XRoar. Add a repository-managed <code>roms/</code> archive with one built ROM image for every currently tagged version, and move the existing <code>1.0.0-alpha</code> tag to the commit containing the README and archive image. The repository currently has no root README or ROM archive.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>Approval baseline was clean repository revision <code>b270c1817f06</code> on 2026-09-23. During implementation, <code>main</code> advanced to <code>028b1f76bd5c</code> in a documentation and evidence commit; the ROM-producing source paths remained identical to the tagged inputs on recheck. The root has no <code>README.md</code> or <code>roms/</code>. Local and published tag inventories contain one tag: lightweight <code>1.0.0-alpha</code>, currently at <code>516bdd3b7858</code> on both local and <code>origin</code>. Product build inputs under <code>src/</code>, <code>scripts/</code>, <code>assets/</code>, and <code>tiled/</code> are identical between that tag and current <code>main</code>. The existing <code>build/ladybug.rom</code> is 65,536 bytes with SHA-256 <code>9bd7daa97e8ad93f08b31e0258afb20d21593bf6189e34926ee7fcc0ddaea1a9</code>, matching the successful complete-profile build recorded in the latest source review. The project identity and native CoCo 3 (512K) target are stated in <code>wiki/index.html</code>. Phase 9 polish remains active; Phase 10 is real-hardware bring-up. The current <a href="./rsch-013-20260923-visual-gameplay-intake.html">RSCH-013 review</a> includes recent natural presentation captures and open credit/TOP, demo-route, and word-publication findings; full gameplay acceptance remains incomplete. In <code>scripts/build.sh</code>, the default profile is <code>complete</code>, <code>build</code> creates <code>build/ladybug.rom</code>, and <code>run</code> builds then launches XRoar.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> the root <code>README.md</code>; a <code>roms/&lt;tag&gt;.rom</code> naming convention with an image for every existing version tag; currently one image, <code>roms/1.0.0-alpha.rom</code>; a dated project status; clone/build/run prerequisites and instructions; a README link to the prebuilt alpha image; a fresh standard complete-profile build and exact artifact comparison; a local retarget of <code>1.0.0-alpha</code>; and a forced update of the matching published tag on <code>origin</code> so both point at the final commit containing the README and ROM.</p>
+      <p><strong>Out:</strong> changes to game source, build scripts, CI, or gameplay; building historical tags beyond those present when work starts; creating a GitHub Release object; automatic future tag builds; unverified runtime/gameplay claims; and physical hardware validation.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li><strong>Fresh clone path:</strong> a Linux or WSL reader follows repository-root clone, build, and XRoar launch steps. Risk covered: setup instructions omit a required step or use the wrong working directory.</li>
+        <li><strong>ROM-only build:</strong> a reader builds the image without XRoar installed. Risk covered: emulator-only prerequisites are incorrectly presented as build requirements.</li>
+        <li><strong>Tag archive coverage:</strong> each tag in the initial local and published tag inventories has one matching <code>roms/&lt;tag&gt;.rom</code>; currently the only tag is <code>1.0.0-alpha</code>. Risk covered: a tagged version is missing its binary or the image is mislabeled.</li>
+        <li><strong>Tag destination:</strong> local and published <code>1.0.0-alpha</code> resolve to the final commit containing both requested deliverables. Risk covered: the source tag remains stale or points to an incomplete commit.</li>
+        <li><strong>Status accuracy:</strong> the dated wording separates implemented scope from active polish and unfinished hardware qualification. Risk covered: the README implies release readiness or physical hardware acceptance.</li>
+        <li><strong>Link and command accuracy:</strong> repository links resolve and shell commands match the current default profile and script interface. Risk covered: dead project guidance or stale build instructions.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <p>Recommend storing one binary per tag as <code>roms/&lt;tag&gt;.rom</code> and listing the available prebuilt image in the root README. The current image is exactly 65,536 bytes (64 KiB); this adds repository storage only and does not change the four-bank GMC image layout or runtime memory use. A separate manifest/release system is unnecessary for the one existing tag, and leaving the image only in ignored <code>build/</code> would not preserve it with the version. Build from the current main tree only after confirming that all ROM-producing inputs remain identical to the source tagged <code>1.0.0-alpha</code>. The local and published tag will be moved to the final commit; updating the published tag requires a force push and changes the commit GitHub associates with that version. No other tags are present in the current local or published inventories.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li><code>README.md</code> describes Ladybug as a 6809 assembly port of the 1981 Universal arcade game targeting native CoCo 3 (512K) hardware without NitrOS-9.</li>
+        <li>The status is explicitly dated, states that Phase 9 polish remains active and real-hardware bring-up is not complete, and summarizes current open areas without presenting unverified natural behavior as confirmed.</li>
+        <li>The clone command uses the verified origin URL and the build/run commands match <code>scripts/build.sh</code>.</li>
+        <li>The README names the required tools, states that XRoar is needed for emulator play, and identifies <code>build/ladybug.rom</code> as the generated image.</li>
+        <li><code>roms/1.0.0-alpha.rom</code> exists, is exactly 65,536 bytes, and byte-matches a fresh successful <code>scripts/build.sh build</code> output. Its SHA-256 is <code>9bd7daa97e8ad93f08b31e0258afb20d21593bf6189e34926ee7fcc0ddaea1a9</code>, the current observed build result.</li>
+        <li>The initial tag inventory is complete in <code>roms/</code>; currently that inventory contains only <code>1.0.0-alpha</code>.</li>
+        <li>After the final content commit, local and published <code>1.0.0-alpha</code> resolve to that commit, which includes <code>README.md</code> and <code>roms/1.0.0-alpha.rom</code>.</li>
+        <li>All repository-relative links point to existing files; no unverified runtime, release, or hardware claim is added.</li>
+        <li>Only the README, current tagged ROM image, local/remote alpha tag references, and synchronized ticket/index/log artifacts change.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Approved objective and non-goals:</strong> deliver the README, archive every existing tag as a built ROM, and retarget the local and published alpha tag; preserve all exclusions above. User approval received 2026-09-23.</li>
+        <li><strong>Owned artifacts:</strong> <code>README.md</code>, <code>roms/1.0.0-alpha.rom</code>, this ticket, <code>wiki/internal/tickets/index.html</code>, and <code>wiki/internal/log.html</code>; local and remote <code>1.0.0-alpha</code> refs. No source, build-script, CI, or other wiki page changes.</li>
+        <li><strong>Worktree and branch:</strong> use the current <code>main</code> checkout at <code>028b1f76bd5c</code>; no separate worktree, because the approved artifact must include current main and the product inputs already match the alpha tag.</li>
+        <li><strong>Implementation constraints:</strong> use concise GitHub-flavored Markdown; recheck tag-to-HEAD equality for all ROM-producing inputs before building; keep the artifact name equal to the exact tag; do not imply physical CoCo 3 validation; preserve the current ignored build output outside Git except for its named copy under <code>roms/</code>.</li>
+        <li><strong>Required verification:</strong> run <code>scripts/build.sh build</code>; compare archive and generated image byte-for-byte, length, and SHA-256; verify README links and facts; run <code>git diff --check</code>; confirm the final local tag target; confirm the remote still points to the approved old SHA <code>516bdd3b7858425cef5a71439fdfcacf1ff7f62d</code>; force-update the published tag only after the final deliverable commit; then verify the published tag target with <code>git ls-remote --tags --refs origin refs/tags/1.0.0-alpha</code>. No emulator session is required for this artifact-identity scope.</li>
+        <li><strong>Evidence:</strong> retain build result, image size/hash, tag inventories before/after, final commit ID, and local/published tag target comparison in this ticket.</li>
+        <li><strong>Commit and publication:</strong> one bounded deliverable commit for README/ROM and one closure-evidence commit after QA; no branch push/merge. After the closure commit, retarget the local tag and force-update only <code>refs/tags/1.0.0-alpha</code> on <code>origin</code>.</li>
+        <li><strong>Completion report:</strong> report deliverable commit, image size/hash, build/diff/link results, old and new tag targets, remote tag verification, residual freshness risk, and QA disposition.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Verification and completion</h2>
+      <p><strong>Verification, 2026-09-23:</strong> <code>wsl -d Ubuntu -- bash -lc 'cd /mnt/e/projects/ladybug &amp;&amp; bash scripts/build.sh build'</code> passed with the complete profile. Build-integrated asset/pixel, layout, sparse-stream, GMC-boundary, and packaging guards passed. The fresh <code>build/ladybug.rom</code> built at <code>b270c1817f06</code> is 65,536 bytes with SHA-256 <code>9bd7daa97e8ad93f08b31e0258afb20d21593bf6189e34926ee7fcc0ddaea1a9</code>; <code>roms/1.0.0-alpha.rom</code> is byte-identical with the same size and hash. All repository-relative README links resolve. <code>git diff --check</code> passes for the DOC-008 changes. After <code>main</code> advanced to documentation-only revision <code>028b1f76bd5c</code>, ROM-producing inputs were rechecked and remain equal to the alpha tag. Local and published <code>1.0.0-alpha</code> remain at the approved original target <code>516bdd3b7858425cef5a71439fdfcacf1ff7f62d</code> pending final commits and QA. No emulator play or physical-hardware claim is included.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-09-23 — Proposed from the user request. No README implementation or game verification was authorized before explicit approval.</li>
+        <li>2026-09-23 — Expanded from the follow-up request to include one ROM per existing tag and local/published <code>1.0.0-alpha</code> retargeting. The public tag currently points to <code>516bdd3b7858</code>.</li>
+        <li>2026-09-23 — User explicitly approved DOC-008, including the ROM archive and published tag retarget.</li>
+        <li>2026-09-23 — Advanced to Ready. Assignment specifies the current main checkout, source identity gate, fresh build/hash comparison, two bounded commits, and single-tag force update plus remote verification.</li>
+        <li>2026-09-23 — Started implementation after the source identity gate passed and local/published tag targets were confirmed unchanged.</li>
+        <li>2026-09-23 — Fresh complete-profile build passed; the 64 KiB alpha archive matches the build output byte-for-byte and by SHA-256. README links resolve. Entered Verification; final tag movement awaits QA and commits.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Sources: current repository revision <code>028b1f76bd5c</code>, <a href="../../index.html">wiki catalog</a>, <a href="../implementation/roadmap.html">roadmap</a>, <a href="./rsch-013-20260923-visual-gameplay-intake.html#source-review-20260923">current issue intake and source review</a>, current tag <code>1.0.0-alpha</code>, and <code>scripts/build.sh</code>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
