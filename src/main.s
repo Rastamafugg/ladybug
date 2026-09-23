@@ -1126,11 +1126,11 @@ csc_done
 ;==============================================================================
 draw_word_progress_hud
         lda     SPECIAL_BITS
-        sta     HUD_BYTE
+        sta     HUD_BCD_BYTE
         lda     #1
         sta     HUD_X
 dwph_special
-        lsr     HUD_BYTE
+        lsr     HUD_BCD_BYTE
         bcc     dwph_special_next
         lda     #1
         sta     HUD_Y
@@ -1152,11 +1152,11 @@ dwph_special_next
         blo     dwph_special
 
         lda     EXTRA_BITS
-        sta     HUD_BYTE
+        sta     HUD_BCD_BYTE
         lda     #1
         sta     HUD_X
 dwph_extra
-        lsr     HUD_BYTE
+        lsr     HUD_BCD_BYTE
         bcc     dwph_extra_next
         lda     #4
         sta     HUD_Y
