@@ -1,0 +1,75 @@
+{
+  "schema": "bug050-arcade-enemy-cadence-v1",
+  "driver": "ladybug",
+  "mame_version": "0.220 (unknown)",
+  "rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+  "plan": "scripts/mame_plans/live-idle-death.json",
+  "capture_command": "python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 1560 --skip-player-recognition --video-from 1468 --plan scripts/mame_plans/live-idle-death.json --output /tmp/bug050-enemy-release-capture.json --raw-video /tmp/bug050-enemy-release-video.bin --raw-work-ram /tmp/bug050-enemy-release-work.bin",
+  "raw_video_sha256": "ab0377562dddca7ac1fb0a2c73c83e98997c2ef2cdcc24ab2a74dd4a8855db1e",
+  "raw_work_ram_sha256": "31e6406292cd6df8dcb3cfdf08466d1cfce9ebe2913abc990fd3d3f7921fe761",
+  "reference_frames": [
+    1504,
+    1528
+  ],
+  "enemy_record": "$602B, first active five-byte record",
+  "sprite_codes_tested": [
+    9,
+    10,
+    11
+  ],
+  "sprite_palette": "sprite_lookup_a attribute 1",
+  "screen_origin": "x=record[1]+1, y=240-record[2]",
+  "opaque_pixel_match": "exact for all 25 moving-enemy frames",
+  "first_record_hex": "82589e1801",
+  "last_record_hex": "8258b61801",
+  "code_sequence": [
+    11,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    9,
+    9,
+    9,
+    9,
+    9,
+    9,
+    9,
+    9,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10,
+    10
+  ],
+  "runs": [
+    {
+      "first_frame": 1504,
+      "frames": 1,
+      "code": 11
+    },
+    {
+      "first_frame": 1505,
+      "frames": 8,
+      "code": 10
+    },
+    {
+      "first_frame": 1513,
+      "frames": 8,
+      "code": 9
+    },
+    {
+      "first_frame": 1521,
+      "frames": 8,
+      "code": 10
+    }
+  ],
+  "interpretation": "The moving Part 1 enemy changes code at frames 1505, 1513, 1521, then holds each complete code for eight consecutive 60-Hz frames. It is isolated from the stationary den by following the moving active record."
+}
