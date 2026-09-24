@@ -71,8 +71,26 @@ for multiplier,x in ((2,1),(3,3),(5,5)):
     flags=b.read_bytes(client,main['RENDER_FLAGS2'],1)[0]
     put(main['RENDER_FLAGS2'],[flags|main['RF2_MULTIPLIER']])
     ticks=[foreground() for _ in range(4)]
-    cells,diff=field_pixels([(x,7,list(glyph_cells[56+x:58+x]),main['COLOR_BLUE'])])
+    # The lit x must use the already compiled instruction graphic. The digit
+    # remains a shared-font glyph. Compare both physical framebuffer owners.
+    cells,diff=field_pixels([(x+1,7,[glyph_cells[56+x+1]],main['COLOR_BLUE'])])
+    native=bytes.fromhex('0000000000000000000300030000303000000300000030300003000300000000')
+    assert (OUT/'cold.bin').read_bytes()[161*32:162*32]==native
+    saved=b.read_bytes(client,0xFFA1,5)
+    try:
+        for owner in (0,1):
+            first=0x30-owner*4;put(0xFFA1,range(first,first+4))
+            pixels=b.read_bytes(client,0x2000,30720)
+            base=7*1280+x*4
+            actual=b''.join(pixels[base+r*160:base+r*160+4] for r in range(8))
+            cells+=1
+            if actual!=native:diff.append([owner,x,7])
+    finally:put(0xFFA1,saved)
     checks.append(dict(label=f'multiplier {multiplier}',exact=not diff and max(ticks)<=27000,cells=cells,differences=diff,ticks=ticks))
+    put(0xFFA5,[0x34])
+    invoke(main['draw_multiplier_hud'])
+    page=b.read_bytes(client,0xFFA5,1)[0]
+    checks.append(dict(label=f'multiplier {multiplier} PAR5 restore',exact=(page&0x3F)==0x34,page=page))
 
 print('phase=stage-nine-to-ten marker=live return deadline=10s per tick; cap=300 ticks',flush=True)
 if '--stage-profile' in sys.argv:

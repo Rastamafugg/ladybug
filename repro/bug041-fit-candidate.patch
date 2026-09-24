@@ -1,0 +1,37 @@
+diff --git a/src/main.s b/src/main.s
+index 130cc9b..801adc0 100644
+--- a/src/main.s
++++ b/src/main.s
+@@ -1066,10 +1066,2 @@ draw_multiplier_hud
+-        beq     dmh_two
+-        cmpa    #3
+-        beq     dmh_three
+-        lda     #5
+-        bra     dmh_draw
+-dmh_two
+-        lda     #1
+-        bra     dmh_draw
+-dmh_three
+-        lda     #3
++        bne     dmh_draw
++        deca
+@@ -1077,0 +1070,6 @@ dmh_draw
++        ifne COMPLETE_PROFILE
++        lsla
++        lsla
++        ldy     #FB_VIRT+(7*1280)
++        leay    a,y
++        endc
+@@ -1087 +1085,4 @@ dmh_draw
+-        jsr    draw_recolored_map_tile
++        ldb     #161            ; compiled instruction x graphic
++        jsr     presentation_dispatch
++        lda     #$34            ; restore game-state PAR5 after cold graphic read
++        sta     GIME_PAR5
+@@ -1093 +1094 @@ dmh_draw
+-        jsr    draw_recolored_map_tile
++        jmp    draw_recolored_map_tile
+@@ -1096 +1096,0 @@ dmh_draw
+-        endc
+@@ -1097,0 +1098 @@ dmh_draw
++        endc

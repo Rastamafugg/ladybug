@@ -80,11 +80,14 @@ try:
     if '--events' in sys.argv:
         assert '--handoffs' in sys.argv
         exec((OUT.parent/'gmc_event_checks.py').read_text())
+    if '--bug041' in sys.argv:
+        assert '--handoffs' in sys.argv
+        exec((OUT.parent/'gmc_event_checks.py').read_text().split("print('phase=stage-nine-to-ten")[0])
     if '--focused' in sys.argv:
         assert '--handoffs' in sys.argv
         exec((OUT.parent/'gmc_event_checks.py').read_text().split("print('phase=live-HUD-boundaries")[0])
         exec((OUT.parent/'focused_final_checks.py').read_text())
     report=dict(status='pass' if all(c['exact'] for c in checks) else 'FAIL',checks=checks,dp=b.read_bytes(client,0,256).hex(),production_ready=False,rom_sha256=hashlib.sha256((OUT/'ladybug-checkpoint.rom').read_bytes()).hexdigest())
-    (OUT/('focused-final-verification.json' if '--focused' in sys.argv else 'gmc-event-verification.json' if '--events' in sys.argv else 'gmc-handoff-verification.json' if '--handoffs' in sys.argv else 'gmc-boot-verification.json')).write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
+    (OUT/('bug041-verification.json' if '--bug041' in sys.argv else 'focused-final-verification.json' if '--focused' in sys.argv else 'gmc-event-verification.json' if '--events' in sys.argv else 'gmc-handoff-verification.json' if '--handoffs' in sys.argv else 'gmc-boot-verification.json')).write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 finally:client.close();b.stop(process)
 sys.exit(0 if report['status']=='pass' else 2)

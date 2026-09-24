@@ -1,0 +1,18 @@
+{
+  "date": "2026-09-24",
+  "rom_sha256": "022567875bb120a916ddd6f6191d39e67dd2b9104eb4a3e662a8623de11f630c",
+  "visible_launch": "ladybug.ps1 Game launched the current production ROM in XRoar; process was left running for interaction.",
+  "natural_cold_rom_attempts": [
+    {"input": "no directional key after live start", "marker": "name_tick", "deadline_seconds": 25, "result": "not reached; terminal lives 0, score 000000, ranking screen 3"},
+    {"input": "held north keyboard key after live start", "marker": "name_tick", "deadline_seconds": 25, "result": "not reached; terminal lives 0, score 000000, ranking screen 3"}
+  ],
+  "bounded_control_probe": {
+    "command": "timeout 60s python3 repro/bug036-completion/observe.py repro/bug036-completion/current-rom-controls-20260924 --controls --late-turn",
+    "elapsed_seconds": 26.717,
+    "identity": "resident, enemy low RAM, presentation, staged and loaded high-score owner, and helper all byte-exact",
+    "late_turn_and_neutral_pause": "pass; cursor moved north from row 22 to 21 after early-turn snap and neutral pause",
+    "edit_route": "target cell (10,22) was not reached: actual (9,22), name length 0; this check recorded state but did not assert pass",
+    "scope_limit": "Score and terminal death were forced; resolved direction bytes were injected at the name input boundary. This is not natural keyboard-driven name-entry acceptance."
+  },
+  "disposition": "BUG-036 remains Verification. A natural qualifying-score path is still required before a natural name-control verdict."
+}
