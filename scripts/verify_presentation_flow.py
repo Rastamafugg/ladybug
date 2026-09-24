@@ -263,7 +263,7 @@ def main() -> None:
         raise SystemExit("presentation flow proof: actor frame is not initialized")
     if "sta     PRES_ACTOR_PHASE" not in attract_source:
         raise SystemExit("presentation flow proof: attract phase selection is absent")
-    cold_manifest = presentation_layout
+    cold_manifest = presentation_layout.get("native_intermediate", presentation_layout)
     if cold_manifest.get("gameplay_tile_base") != cold_manifest.get(
         "cold_only_tile_count"
     ):

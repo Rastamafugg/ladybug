@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 from build_presentation import (
     BLACK,
@@ -25,11 +26,14 @@ from build_presentation import (
     compile_attract_surfaces,
     compose_attract_frames,
     lzss_compress,
-    coin_tile,
     compile_profile_maps,
     compile_screen,
+    compose_coin_native,
     encode_map,
+    encode_sparse_native,
     framebuffer_destination,
+    high_score_coin_quadrant_tiles,
+    high_score_coin_slots,
     HIGH_SCORE_NAME_COLUMN,
     HIGH_SCORE_RECORD_ROWS,
     HIGH_SCORE_SCORE_COLUMN,
@@ -71,6 +75,58 @@ def parse_args() -> argparse.Namespace:
 
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def decode_sparse_native(stream: bytes, rows: int, width: int) -> tuple[bytes, int]:
+    """Decode the existing framebuffer sparse ABI into a bounded black surface."""
+    output = bytearray(rows * width)
+    cursor = 0
+    destination = 0
+    while True:
+        if cursor >= len(stream):
+            raise ValueError("sparse coin stream has no terminator")
+        delta = stream[cursor]
+        cursor += 1
+        if delta == 0xFF:
+            if cursor + 2 > len(stream):
+                raise ValueError("sparse coin extended delta is truncated")
+            delta = int.from_bytes(stream[cursor:cursor + 2], "big")
+            cursor += 2
+            if delta == 0:
+                return bytes(output), cursor
+            if cursor >= len(stream):
+                raise ValueError("sparse coin extended delta marker is truncated")
+            if stream[cursor] != 0:
+                raise ValueError("sparse coin extended delta marker is invalid")
+            cursor += 1
+        destination += delta
+        if cursor >= len(stream):
+            raise ValueError("sparse coin command is truncated")
+        control = stream[cursor]
+        cursor += 1
+        partial = bool(control & 0x80)
+        count = control & 0x7F
+        if count == 0:
+            raise ValueError("sparse coin command has zero length")
+        row, column = divmod(destination, 160)
+        if row >= rows or column + count > width:
+            raise ValueError("sparse coin command leaves the 16x16 glyph")
+        target = row * width + column
+        if partial:
+            end = cursor + count * 2
+            if end > len(stream):
+                raise ValueError("sparse coin partial command is truncated")
+            for index in range(count):
+                mask, pixel = stream[cursor:cursor + 2]
+                cursor += 2
+                output[target + index] = (output[target + index] & mask) | pixel
+        else:
+            end = cursor + count
+            if end > len(stream):
+                raise ValueError("sparse coin opaque command is truncated")
+            output[target:target + count] = stream[cursor:end]
+            cursor = end
+        destination += count
 
 
 def lzss_expand(stream: bytes, expected_bytes: int) -> bytes:
@@ -153,14 +209,29 @@ def main() -> None:
             "top_right_destinations": [],
         }
     )
+    coin_path = args.tiled_dir / MAP_FILES["high-score"]
+    coin_root = ET.parse(coin_path).getroot()
+    coin_contract = high_score_coin_slots(coin_root, coin_path)
+    coin_quadrant_bytes = high_score_coin_quadrant_tiles(
+        coin_root, coin_path, chars, highscore_test_profile,
+    )
+    coin_quadrant_ids = []
+    for tile in coin_quadrant_bytes:
+        if tile not in tiles:
+            tiles.append(tile)
+        coin_quadrant_ids.append(tiles.index(tile))
+    coin_native = compose_coin_native(coin_quadrant_bytes)
+    coin_sparse_stream = encode_sparse_native(coin_native, 16, 8)
+    decoded_coin, decoded_coin_bytes = decode_sparse_native(
+        coin_sparse_stream, 16, 8
+    )
+    if decoded_coin != coin_native or decoded_coin_bytes != len(coin_sparse_stream):
+        raise SystemExit("presentation proof: sparse coin differs from authored quadrants")
     _arcade_route, arcade_route_manifest = load_demo_route(args.demo_route)
     demo_walk, demo_walk_manifest = load_demo_walk(
         args.demo_walk, arcade_route_manifest
     )
     payload = args.payload.read_bytes()
-    coin_bytes = coin_tile()
-    if coin_bytes not in tiles:
-        tiles.append(coin_bytes)
     if name_entry["grid_tile_ids"]:
         enter_map = maps[MAP_NAMES.index("enter-high-score")]
         base_ids = []
@@ -183,7 +254,7 @@ def main() -> None:
             timer_green_tiles.append(tile)
         timer_green_indexes.append(timer_green_tiles.index(tile))
     live_ids = set().union(*(set(data) for data in maps))
-    live_ids.add(tiles.index(coin_bytes))
+    live_ids.update(coin_quadrant_ids)
     if development_profile:
         live_ids.add(int(instruction["black_tile_id"]))
         for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
@@ -256,6 +327,7 @@ def main() -> None:
         old: representative_remap[overlay_replacements.get(old, old)]
         for old in live_ids
     }
+    coin_quadrant_ids = [remap[tile_id] for tile_id in coin_quadrant_ids]
     instruction_patch = b"".join(
         tiles[instruction_id] for instruction_id, _ in overlay_pairs
     )
@@ -404,6 +476,21 @@ def main() -> None:
     )
     action_table_offset = len(expected)
     expected.extend(action_table)
+    coin_destinations = [
+        framebuffer_destination(tuple(anchor))
+        for anchor in coin_contract["anchors"]
+    ]
+    coin_destination_table_offset = len(expected)
+    coin_destination_table = b"".join(
+        destination.to_bytes(2, "big") for destination in coin_destinations
+    )
+    expected.extend(coin_destination_table)
+    coin_sparse_offset = len(expected)
+    if (coin_destination_table_offset // PAGE_BYTES !=
+            coin_sparse_offset // PAGE_BYTES or
+            coin_sparse_offset % PAGE_BYTES + len(coin_sparse_stream) > PAGE_BYTES):
+        raise SystemExit("presentation proof: coin table and stream must share one cold page")
+    expected.extend(coin_sparse_stream)
     if payload != bytes(expected):
         raise SystemExit("presentation proof: cold payload differs from independent compile")
     if len(tiles) != manifest["tile_count"]:
@@ -419,8 +506,25 @@ def main() -> None:
         overlay_manifest.get("highscore_patch_sha256") != digest(highscore_patch)
     ):
         raise SystemExit("presentation proof: phase tile overlay manifest differs")
-    if manifest.get("coin_tile") != remap[tiles.index(coin_bytes)]:
-        raise SystemExit("presentation proof: coin tile differs from manifest")
+    coin_overlay = manifest.get("coin_overlay", {})
+    expected_slots = [
+        {"anchor": anchor, "destination": destination}
+        for anchor, destination in zip(coin_contract["anchors"], coin_destinations)
+    ]
+    if (
+        manifest.get("coin_slots") != expected_slots or
+        manifest.get("coin_destinations") != coin_destinations or
+        coin_overlay.get("slot_count") != len(coin_contract["anchors"]) or
+        coin_overlay.get("quadrant_gids") != coin_contract["quadrant_gids"] or
+        coin_overlay.get("quadrant_tile_ids") != coin_quadrant_ids or
+        coin_overlay.get("sparse_offset") != coin_sparse_offset or
+        coin_overlay.get("sparse_bytes") != len(coin_sparse_stream) or
+        coin_overlay.get("sparse_sha256") != digest(coin_sparse_stream) or
+        coin_overlay.get("destination_table_offset") != coin_destination_table_offset or
+        coin_overlay.get("destination_table_bytes") != len(coin_destination_table) or
+        coin_overlay.get("destination_table_sha256") != digest(coin_destination_table)
+    ):
+        raise SystemExit("presentation proof: authored coin slot metadata differs")
     if manifest["cold_payload"]["bytes"] != len(payload):
         raise SystemExit("presentation proof: payload size differs from manifest")
     if manifest["cold_payload"]["sha256"] != digest(payload):
@@ -573,6 +677,17 @@ def main() -> None:
                 frame, instruction["cucumber_destination"],
                 instruction["cucumber_native"],
             )
+        if index == MAP_NAMES.index("high-score"):
+            for destination in coin_destinations:
+                offset = destination - 0x2000
+                underlay = b"".join(
+                    frame[offset + row * 160:offset + row * 160 + 8]
+                    for row in range(16)
+                )
+                if underlay != bytes(16 * 8):
+                    raise SystemExit(
+                        "presentation proof: coin slot underlay is not black"
+                    )
         static_frame_hashes.append(digest(frame))
     if manifest.get("static_frame_sha256") != static_frame_hashes:
         raise SystemExit("presentation proof: static framebuffer hashes differ")

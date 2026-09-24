@@ -468,9 +468,7 @@ load_done
         ldx     #PRESENTATION_INSTRUCTION_CUCUMBER_DST
         jsr     PRESENTATION_MODULE_DRAW
 load_done_no_cucumber
-        ifeq    BUG011_DEVELOPMENT_PROFILE
         lbsr    draw_coin_slots
-        endc
         ifne    HIGHSCORE_TEST_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
@@ -582,26 +580,27 @@ draw_cell
 
 draw_tile_id equ PRES_MAIN_STATIC_TEXT
 
-        ifeq    BUG011_DEVELOPMENT_PROFILE
 draw_coin_slots
-        ldb     PRES_SCREEN
-        cmpb    #PRESENTATION_MAP_HIGH_SCORE
+        lda     <PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
         bne     draw_coins_done
-        lda     PRES_CREDITS
+        lda     <PRES_CREDITS
         beq     draw_coins_done
-        sta     PRES_COIN_COUNT
-        ldy     #PRESENTATION_COIN_DST_0
+        sta     <PRES_COIN_COUNT
+        ldd     #PRESENTATION_COIN_DESTINATION_TABLE
+        std     <PRES_IN
 draw_coin_next
-        ldb     #PRESENTATION_COIN_TILE
-        pshs    y
-        jsr    draw_tile_id
-        puls    y
-        leay    PRESENTATION_COIN_DST_1-PRESENTATION_COIN_DST_0,y
-        dec     PRES_COIN_COUNT
+        bsr     cold_read_byte
+        sta     <PRES_DST
+        bsr     cold_read_byte
+        sta     <PRES_DST+1
+        ldu     #PRESENTATION_COIN_SPARSE_ADDRESS
+        ldx     <PRES_DST
+        jsr     PRESENTATION_MODULE_DRAW
+        dec     <PRES_COIN_COUNT
         bne     draw_coin_next
 draw_coins_done
         rts
-        endc
 
 ; Return X as a CPU pointer into the cold physical page selected by D.
 draw_raw_tile
@@ -627,11 +626,11 @@ cold_ptr
         rts
 
 cold_read_byte
-        ldd     PRES_IN
+        ldd     <PRES_IN
         addd    #1
-        std     PRES_IN
+        std     <PRES_IN
         subd    #1
-        lbsr    cold_ptr
+        bsr     cold_ptr
         lda     ,x
         rts
 
@@ -671,7 +670,7 @@ attract_tick
         clr     PRES_HOLD_STATE
 attract_tick_prepare
 attract_tick_ready
-        lbsr    timer
+        bsr     timer
         ldd     PRES_TIMER
         cmpd    #558
         bhs     attract_next
@@ -703,7 +702,7 @@ instructions_tick
         bne     hold
         clr     PRES_HOLD_STATE
 instructions_tick_ready
-        lbsr    timer
+        bsr     timer
         jsr     INSTRUCTION_RUNTIME_TICK
 instructions_runtime_return
         tsta
@@ -714,20 +713,9 @@ instructions_runtime_return
         rts
         endc
 credit_tick
-        ifne    HIGHSCORE_TEST_PROFILE
-        lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
-        lbeq    hold
-        endc
-        bsr     timer
-        cmpd    #600
-        blo     hold
-        lda     #PRESENTATION_MAP_ATTRACT
-        lbsr    start_screen
-        lda     #1
-        rts
+        bra     hold
 level_tick
-        lbsr    timer
+        bsr     timer
         cmpd    #180
         blo     hold
         ifne    COMPLETE_PROFILE
@@ -743,13 +731,13 @@ level_tick_demo_check
         endc
         tst     PENDING
         ifne    COMPLETE_PROFILE
-        lbne    hold
+        bne     hold
         else
         bne     hold
         endc
         tst     ACTIVE
         ifne    COMPLETE_PROFILE
-        lbne    hold
+        bne     hold
         else
         bne     hold
         endc
@@ -2188,9 +2176,7 @@ load_done
         ldx     #PRESENTATION_INSTRUCTION_CUCUMBER_DST
         jsr     PRESENTATION_MODULE_DRAW
 load_done_no_cucumber
-        ifeq    BUG011_DEVELOPMENT_PROFILE
         lbsr    draw_coin_slots
-        endc
         ifne    HIGHSCORE_TEST_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
@@ -2332,7 +2318,6 @@ draw_cold_tile
         jsr     BLIT_TILE
         rts
 
-        ifeq    BUG011_DEVELOPMENT_PROFILE
 draw_coin_slots
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
@@ -2340,18 +2325,20 @@ draw_coin_slots
         lda     PRES_CREDITS
         beq     draw_coins_done
         sta     PRES_COIN_COUNT
-        ldy     #PRESENTATION_COIN_DST_0
+        ldd     #PRESENTATION_COIN_DESTINATION_TABLE
+        std     PRES_IN
 draw_coin_next
-        ldb     #PRESENTATION_COIN_TILE
-        pshs    y
-        lbsr    draw_tile_id
-        puls    y
-        leay    PRESENTATION_COIN_DST_1-PRESENTATION_COIN_DST_0,y
+        bsr     cold_read_byte
+        sta     PRES_DST
+        bsr     cold_read_byte
+        sta     PRES_DST+1
+        ldu     #PRESENTATION_COIN_SPARSE_ADDRESS
+        ldx     PRES_DST
+        jsr     PRESENTATION_MODULE_DRAW
         dec     PRES_COIN_COUNT
         bne     draw_coin_next
 draw_coins_done
         rts
-        endc
 
 ; Return X as a CPU pointer into the cold physical page selected by D.
 draw_raw_tile
@@ -2464,18 +2451,7 @@ instructions_runtime_return
         rts
         endc
 credit_tick
-        ifne    HIGHSCORE_TEST_PROFILE
-        lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
-        lbeq    hold
-        endc
-        bsr     timer
-        cmpd    #600
-        blo     hold
-        lda     #PRESENTATION_MAP_ATTRACT
-        lbsr    start_screen
-        lda     #1
-        rts
+        bra     hold
 level_tick
         lbsr    timer
         cmpd    #180
@@ -2506,7 +2482,7 @@ level_tick_demo_check
         tst     PRES_CONTEXT
         bne     live_begin
         ifne    COMPLETE_PROFILE
-        lbsr    init_gameplay
+        bsr     init_gameplay
         clr     PRES_TIMER
         clr     PRES_TIMER+1
         clr     PRES_DEMO_ROUTE ; CoCo walk starts after automatic maze entry
@@ -2541,14 +2517,14 @@ level_tick_demo_check
         endc
         endc
 live_begin
-        lbsr    init_gameplay
+        bsr     init_gameplay
         lda     #ENTRY_WAIT_STAGE
         sta     INITIAL_ENTRY_STATE
         clr     PRES_MODE
         clra
         rts
 init_gameplay
-        lbsr    gameplay_reentry
+        bsr     gameplay_reentry
         jsr     PRES_MAIN_INIT
         jsr     PRES_MAIN_MAZE
         jsr     PRES_MAIN_GATES

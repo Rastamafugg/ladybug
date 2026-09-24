@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -203,6 +204,11 @@ PRESENTATION_LAYER_CONTRACTS = {
         "deferred": (),
     },
 }
+HIGH_SCORE_COIN_ANCHORS = (
+    (1, 21), (4, 21), (7, 21), (31, 21), (34, 21), (37, 21),
+    (1, 18), (4, 18), (7, 18), (31, 18), (34, 18), (37, 18),
+)
+HIGH_SCORE_COIN_QUADRANT_OFFSETS = ((0, 0), (1, 0), (0, 1), (1, 1))
 INSTRUCTION_CHARACTER_METADATA = {
     (28, 7): 456, (29, 7): 440, (28, 8): 488, (29, 8): 472,
     (28, 10): 376, (29, 10): 328, (28, 11): 296, (29, 11): 344,
@@ -433,6 +439,56 @@ def layer_records(layer: ET.Element) -> dict[tuple[int, int], int]:
     }
 
 
+def high_score_coin_slots(root: ET.Element, path: Path) -> dict[str, object]:
+    """Validate and return the authored, ordered 2x2 high-score coin slots."""
+    by_name = {item.get("name", ""): item for item in root.findall("layer")}
+    layer = by_name.get("Coin Positions")
+    if layer is None:
+        raise ValueError(f"{path}: high-score coin layer is missing")
+    records = layer_records(layer)
+    occupied: set[tuple[int, int]] = set()
+    expected_cells: set[tuple[int, int]] = set()
+    for x, y in HIGH_SCORE_COIN_ANCHORS:
+        footprint = {
+            (x + dx, y + dy) for dx, dy in HIGH_SCORE_COIN_QUADRANT_OFFSETS
+        }
+        if any(cx < 0 or cy < 0 or cx >= SCREEN_WIDTH or cy >= SCREEN_HEIGHT
+               for cx, cy in footprint):
+            raise ValueError(f"{path}: high-score coin slot {(x, y)} is clipped")
+        if occupied & footprint:
+            raise ValueError(f"{path}: high-score coin slots overlap at {(x, y)}")
+        occupied.update(footprint)
+        expected_cells.update(footprint)
+    actual_cells = set(records)
+    if actual_cells != expected_cells:
+        raise ValueError(
+            f"{path}: high-score coin layer footprint mismatch; "
+            f"missing={sorted(expected_cells - actual_cells)}, "
+            f"extra={sorted(actual_cells - expected_cells)}"
+        )
+    first_x, first_y = HIGH_SCORE_COIN_ANCHORS[0]
+    canonical = tuple(
+        records[(first_x + dx, first_y + dy)]
+        for dx, dy in HIGH_SCORE_COIN_QUADRANT_OFFSETS
+    )
+    for anchor in HIGH_SCORE_COIN_ANCHORS:
+        x, y = anchor
+        actual = tuple(
+            records[(x + dx, y + dy)]
+            for dx, dy in HIGH_SCORE_COIN_QUADRANT_OFFSETS
+        )
+        if actual != canonical:
+            raise ValueError(
+                f"{path}: high-score coin slot {anchor} differs from "
+                "the canonical four tile identities/transforms"
+            )
+    return {
+        "anchors": [list(anchor) for anchor in HIGH_SCORE_COIN_ANCHORS],
+        "quadrant_gids": list(canonical),
+        "records": records,
+    }
+
+
 def perimeter_box_cells() -> tuple[tuple[int, int], ...]:
     """Return screen cells for the documented 92-box clockwise circuit."""
     cells: list[tuple[int, int]] = []
@@ -617,6 +673,7 @@ def validate_presentation_layers(
         validate_layer_tilesets(
             path, root, by_name["Coin Positions"], ("chars_raw2bpp",)
         )
+        high_score_coin_slots(root, path)
     if role == "instructions":
         records = layer_records(by_name[INSTRUCTION_METADATA_LAYER])
         require_records(
@@ -821,6 +878,94 @@ def compile_map(
 def framebuffer_destination(cell: tuple[int, int]) -> int:
     x, y = cell
     return 0x2000 + y * 1280 + x * 4
+
+
+def high_score_coin_quadrant_tiles(
+    root: ET.Element, path: Path, chars: list[list[list[int]]],
+    highscore_test_profile: bool,
+) -> list[bytes]:
+    """Compile the four canonical authored coin cells using screen palette rules."""
+    contract = high_score_coin_slots(root, path)
+    x0, y0 = HIGH_SCORE_COIN_ANCHORS[0]
+    ranges = tileset_ranges(root, path)
+    rotated = [rotate_ccw(tile) for tile in chars]
+    result = []
+    for (dx, dy), gid_with_flags in zip(
+            HIGH_SCORE_COIN_QUADRANT_OFFSETS, contract["quadrant_gids"]):
+        if gid_with_flags & FLIP_D:
+            raise ValueError(f"{path}: coin quadrant uses an unsupported diagonal transform")
+        gid = gid_with_flags & GID_MASK
+        tileset = next(
+            (item for item in ranges
+             if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
+            None,
+        )
+        if tileset is None or tileset["name"] != "chars_raw2bpp":
+            raise ValueError(f"{path}: coin quadrant GID {gid} is not raw character art")
+        sheet_index = gid - int(tileset["firstgid"])
+        code = (sheet_index % 16) * 32 + (31 - sheet_index // 16)
+        tile = transform(
+            rotated[code], bool(gid_with_flags & FLIP_H),
+            bool(gid_with_flags & FLIP_V),
+        )
+        result.append(pack_tile(recolor(
+            tile,
+            presentation_pen_map(
+                "high-score", x0 + dx, y0 + dy, "Coin Positions",
+                raw_char_code(root, path, gid), highscore_test_profile,
+            ),
+        )))
+    return result
+
+
+def compose_coin_native(quadrants: list[bytes]) -> bytes:
+    """Join the four authored 8x8 packed tiles into one 16x16 sparse surface."""
+    if len(quadrants) != 4 or any(len(tile) != TILE_BYTES for tile in quadrants):
+        raise ValueError("coin glyph must contain four packed 8x8 quadrants")
+    return b"".join(
+        quadrants[row_group * 2][row * 4:row * 4 + 4] +
+        quadrants[row_group * 2 + 1][row * 4:row * 4 + 4]
+        for row_group in range(2)
+        for row in range(8)
+    )
+
+
+def rebase_shared_coin_records(
+    manifest: dict[str, object], cold_path: Path, include_path: Path,
+) -> None:
+    """Rebase BUG-013 offsets after shared text prepends cold graphics/maps."""
+    delta = int(manifest["shared_text"]["cold_delta"])
+    overlay = manifest["coin_overlay"]
+    overlay["destination_table_offset"] += delta
+    overlay["sparse_offset"] += delta
+    table_offset = overlay["destination_table_offset"]
+    sparse_offset = overlay["sparse_offset"]
+    table_bytes = int(overlay["destination_table_bytes"])
+    sparse_bytes = int(overlay["sparse_bytes"])
+    cold = cold_path.read_bytes()
+    table = cold[table_offset:table_offset + table_bytes]
+    stream = cold[sparse_offset:sparse_offset + sparse_bytes]
+    if (len(table) != table_bytes or len(stream) != sparse_bytes or
+            hashlib.sha256(table).hexdigest() != overlay["destination_table_sha256"] or
+            hashlib.sha256(stream).hexdigest() != overlay["sparse_sha256"]):
+        raise ValueError("shared-text coin record rebase differs from cold payload")
+    if (table_offset // PAGE_BYTES != sparse_offset // PAGE_BYTES or
+            sparse_offset % PAGE_BYTES + sparse_bytes > PAGE_BYTES):
+        raise ValueError("shared-text coin table and stream no longer share a cold page")
+    include = include_path.read_text(encoding="ascii")
+    values = {
+        "PRESENTATION_COIN_SPARSE_OFFSET": sparse_offset,
+        "PRESENTATION_COIN_SPARSE_ADDRESS": 0xA000 + sparse_offset % PAGE_BYTES,
+        "PRESENTATION_COIN_DESTINATION_TABLE": table_offset,
+    }
+    for symbol, value in values.items():
+        include, count = re.subn(
+            rf"(?m)^({symbol} equ \$)[0-9A-Fa-f]+$",
+            rf"\g<1>{value:04X}", include,
+        )
+        if count != 1:
+            raise ValueError(f"shared-text include has {count} definitions of {symbol}")
+    include_path.write_text(include, encoding="ascii")
 
 
 def instruction_char_tile(
@@ -1633,7 +1778,25 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         lines.append(
             f"PRESENTATION_HIGHSCORE_DEFAULT_NAME_{index} equ ${int(tile_id):02X}"
         )
-    lines.append(f"PRESENTATION_COIN_TILE equ {manifest['coin_tile']}")
+    coin_slots = manifest["coin_slots"]
+    coin_overlay = manifest["coin_overlay"]
+    lines.append(
+        f"PRESENTATION_COIN_SLOT_COUNT equ {coin_overlay['slot_count']}"
+    )
+    lines.append(
+        "PRESENTATION_COIN_SPARSE_OFFSET equ "
+        f"${coin_overlay['sparse_offset']:04X}"
+    )
+    lines.append(
+        "PRESENTATION_COIN_SPARSE_ADDRESS equ "
+        f"${0xA000 + coin_overlay['sparse_offset'] % PAGE_BYTES:04X}"
+    )
+    lines.append(
+        "PRESENTATION_COIN_DESTINATION_TABLE equ "
+        f"${coin_overlay['destination_table_offset']:04X}"
+    )
+    for index, tile_id in enumerate(coin_overlay["quadrant_tile_ids"]):
+        lines.append(f"PRESENTATION_COIN_QUADRANT_{index} equ {tile_id}")
     rotated = [rotate_ccw(tile) for tile in chars]
     for code in range(37):
         packed = pack_tile(recolor(rotated[code], (BLACK, WHITE, WHITE, WHITE)))
@@ -1642,19 +1805,12 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
                 raise ValueError(f"presentation glyph {code} is absent from atlas")
             continue
         lines.append(f"PRESENTATION_GLYPH_{code} equ {tiles.index(packed)}")
-    for index, destination in enumerate(manifest["coin_destinations"]):
-        lines.append(f"PRESENTATION_COIN_DST_{index} equ ${destination:04X}")
-    lines.extend((
-        "PRESENTATION_COIN_SLOT_COUNT equ 9",
-        "; Authored high-score coin overlay positions, row-major cell offsets.",
-        "; Compile-time constants avoid placing metadata before the copied entry point.",
-    ))
-    for index, (row, column) in enumerate(
-        ((2, 33), (4, 33), (6, 33), (8, 33),
-         (10, 33), (12, 33), (14, 33), (16, 33), (18, 33))
-    ):
+    lines.append("; Ordered authored 2x2 destinations live in the cold payload.")
+    for index, slot in enumerate(coin_slots):
+        x, y = slot["anchor"]
+        lines.append(f"PRESENTATION_COIN_ANCHOR_{index} equ ${y * SCREEN_WIDTH + x:04X}")
         lines.append(
-            f"PRESENTATION_COIN_SLOT_{index} equ ${row * SCREEN_WIDTH + column:04X}"
+            f"PRESENTATION_COIN_DST_{index} equ ${slot['destination']:04X}"
         )
     lines.extend((
         "",
@@ -1765,9 +1921,17 @@ def main() -> None:
         args.demo_walk, arcade_route_manifest
     )
 
-    coin_id = tile_ids.setdefault(coin_tile(), len(tiles))
-    if coin_id == len(tiles):
-        tiles.append(coin_tile())
+    coin_path = args.tiled_dir / MAP_FILES["high-score"]
+    coin_root = ET.parse(coin_path).getroot()
+    coin_contract = high_score_coin_slots(coin_root, coin_path)
+    coin_quadrant_bytes = high_score_coin_quadrant_tiles(
+        coin_root, coin_path, chars, highscore_test_profile,
+    )
+    coin_quadrant_ids = [
+        register_tile(tile, tiles, tile_ids) for tile in coin_quadrant_bytes
+    ]
+    coin_native = compose_coin_native(coin_quadrant_bytes)
+    coin_sparse_stream = encode_sparse_native(coin_native, 16, 8)
     if len(tiles) > 256 and not complete_profile:
         raise ValueError(
             f"presentation atlas contains {len(tiles)} tiles; one-byte limit is 256"
@@ -1805,7 +1969,7 @@ def main() -> None:
             timer_green_tiles.append(tile)
         timer_green_indexes.append(index)
     live_tile_ids = set().union(*(set(data) for data in maps))
-    live_tile_ids.add(coin_id)
+    live_tile_ids.update(coin_quadrant_ids)
     if development_profile:
         live_tile_ids.add(int(instruction["black_tile_id"]))
         for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
@@ -1904,7 +2068,7 @@ def main() -> None:
     for info, data in zip(map_info, maps):
         info["sha256"] = hashlib.sha256(data).hexdigest()
     tiles = [tiles[tile_id] for tile_id in ordered_ids]
-    coin_id = remap[coin_id]
+    coin_quadrant_ids = [remap[tile_id] for tile_id in coin_quadrant_ids]
     if development_profile:
         instruction["black_tile_id"] = remap[int(instruction["black_tile_id"])]
         for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
@@ -2070,6 +2234,21 @@ def main() -> None:
     )
     name_entry_action_offset = len(cold_payload)
     cold_payload.extend(action_table)
+    coin_destinations = [
+        framebuffer_destination(tuple(anchor))
+        for anchor in coin_contract["anchors"]
+    ]
+    coin_destination_table_offset = len(cold_payload)
+    coin_destination_table = b"".join(
+        destination.to_bytes(2, "big") for destination in coin_destinations
+    )
+    cold_payload.extend(coin_destination_table)
+    coin_sparse_offset = len(cold_payload)
+    if (coin_destination_table_offset // PAGE_BYTES !=
+            coin_sparse_offset // PAGE_BYTES or
+            coin_sparse_offset % PAGE_BYTES + len(coin_sparse_stream) > PAGE_BYTES):
+        raise ValueError("authored coin sparse stream crosses a cold-page boundary")
+    cold_payload.extend(coin_sparse_stream)
     name_entry["full_edge_mask_table_offset"] = name_entry_full_edge_mask_offset
     name_entry["full_edge_mask_table_bytes"] = len(full_edge_masks)
     name_entry["full_edge_masks"] = list(full_edge_masks)
@@ -2103,6 +2282,17 @@ def main() -> None:
                 frame, instruction["cucumber_destination"],
                 instruction["cucumber_native"],
             )
+        if index == MAP_NAMES.index("high-score"):
+            for destination in coin_destinations:
+                offset = destination - 0x2000
+                underlay = b"".join(
+                    frame[offset + row * 160:offset + row * 160 + 8]
+                    for row in range(16)
+                )
+                if underlay != bytes(16 * 8):
+                    raise ValueError(
+                        "authored coin sparse overlay requires a black high-score underlay"
+                    )
         static_frame_hashes.append(hashlib.sha256(frame).hexdigest())
     manifest = {
         "maps": map_info,
@@ -2293,12 +2483,25 @@ def main() -> None:
             "metadata_bytes": len(attract_metadata),
             "metadata_sha256": hashlib.sha256(attract_metadata).hexdigest(),
         },
-        "coin_tile": coin_id,
         "black_tile": tiles.index(bytes(TILE_BYTES)),
-        "coin_destinations": [
-            0x2000 + row * 1280 + 33 * 8
-            for row in (2, 4, 6, 8, 10, 12, 14, 16, 18)
+        "coin_destinations": coin_destinations,
+        "coin_slots": [
+            {"anchor": anchor, "destination": destination}
+            for anchor, destination in zip(coin_contract["anchors"], coin_destinations)
         ],
+        "coin_overlay": {
+            "slot_count": len(coin_contract["anchors"]),
+            "quadrant_gids": coin_contract["quadrant_gids"],
+            "quadrant_tile_ids": coin_quadrant_ids,
+            "sparse_offset": coin_sparse_offset,
+            "sparse_bytes": len(coin_sparse_stream),
+            "sparse_sha256": hashlib.sha256(coin_sparse_stream).hexdigest(),
+            "destination_table_offset": coin_destination_table_offset,
+            "destination_table_bytes": len(coin_destination_table),
+            "destination_table_sha256": hashlib.sha256(
+                coin_destination_table
+            ).hexdigest(),
+        },
         "cold_page": COLD_PAGE,
         "cold_page_count": COLD_PAGE_COUNT,
         "cold_payload_limit": effective_cold_limit,
@@ -2306,11 +2509,6 @@ def main() -> None:
             "bytes": len(cold_payload),
             "sha256": hashlib.sha256(cold_payload).hexdigest(),
         },
-        "coin_slots": [2 * SCREEN_WIDTH + 33, 4 * SCREEN_WIDTH + 33,
-                       6 * SCREEN_WIDTH + 33, 8 * SCREEN_WIDTH + 33,
-                       10 * SCREEN_WIDTH + 33, 12 * SCREEN_WIDTH + 33,
-                       14 * SCREEN_WIDTH + 33, 16 * SCREEN_WIDTH + 33,
-                       18 * SCREEN_WIDTH + 33],
         "static_frame_sha256": static_frame_hashes,
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -2340,6 +2538,9 @@ def main() -> None:
     emit_include(args.include_output, maps, tiles, encoded_maps, manifest, chars)
     if shared:
         shared.finish(manifest, tiles, cold_payload, instruction)
+        rebase_shared_coin_records(manifest, args.output, args.include_output)
+        args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",
+                                        encoding="ascii")
     print(
         f"presentation: {len(maps)} maps, {len(tiles)} native descriptors, "
         f"{manifest['cold_payload']['bytes']} cold bytes, "
