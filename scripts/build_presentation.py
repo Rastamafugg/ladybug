@@ -1577,6 +1577,21 @@ def load_demo_walk(path: Path, route: dict[str, object]) -> tuple[bytes, dict[st
     text = str(record["action_text"])
     if bytes("NESW".index(value) for value in text) != actions[:-1]:
         raise ValueError(f"{path}: demo walk action text differs")
+    removed = record.get("removed_loop")
+    expected_removed = {
+        "action_offset": 13, "actions": "ESNW", "anchor": [14, 10],
+        "original_walk_sha256":
+            "c880f79e1c7e4366cd7421f93875940690bf3fbf6d655ae8ed0a0a3fed44557b",
+    }
+    if removed != expected_removed:
+        raise ValueError(f"{path}: demo walk removed-loop provenance differs")
+    offset = removed["action_offset"]
+    original_text = text[:offset] + removed["actions"] + text[offset:]
+    original_actions = bytes("NESW".index(value) for value in original_text) + b"\xff"
+    if (len(original_text) != 147 or
+            hashlib.sha256(original_actions).hexdigest() !=
+            removed["original_walk_sha256"]):
+        raise ValueError(f"{path}: original demo walk cannot be reconstructed")
     if (record["source_route_sha256"] != route["source_sha256"] or
             record["source_program_sha256"] != route["program_sha256"] or
             record["source_action_count"] != route["action_count"]):
@@ -1584,19 +1599,21 @@ def load_demo_walk(path: Path, route: dict[str, object]) -> tuple[bytes, dict[st
     position = list(record["start_cell"])
     movement = ((0, -2), (2, 0), (0, 2), (-2, 0))
     positions = []
-    for direction in actions[:-1]:
+    for direction in original_actions[:-1]:
         positions.append(tuple(position))
         dx, dy = movement[direction]
         position[0] += dx
         position[1] += dy
     if position != record["end_cell"]:
         raise ValueError(f"{path}: demo walk endpoint differs")
+    if positions[offset] != tuple(removed["anchor"]):
+        raise ValueError(f"{path}: removed-loop anchor differs")
     for detour in record["detours"]:
         offset = int(detour["action_offset"])
         detour_text = str(detour["actions"])
         if positions[offset] != tuple(detour["anchor"]):
             raise ValueError(f"{path}: detour anchor differs at action {offset}")
-        if text[offset:offset + len(detour_text)] != detour_text:
+        if original_text[offset:offset + len(detour_text)] != detour_text:
             raise ValueError(f"{path}: detour actions differ at action {offset}")
         x, y = detour["anchor"]
         for value in detour_text:
@@ -1605,7 +1622,7 @@ def load_demo_walk(path: Path, route: dict[str, object]) -> tuple[bytes, dict[st
             y += dy
         if [x, y] != detour["anchor"]:
             raise ValueError(f"{path}: detour does not return to its anchor")
-    backbone = text
+    backbone = original_text
     for detour in reversed(record["detours"]):
         offset = int(detour["action_offset"])
         count = len(str(detour["actions"]))
@@ -1634,6 +1651,7 @@ def load_demo_walk(path: Path, route: dict[str, object]) -> tuple[bytes, dict[st
         "collectible_cells": record["collectible_cells"],
         "quadrant_order": record["quadrant_order"],
         "detours": record["detours"],
+        "removed_loop": removed,
     }
 
 

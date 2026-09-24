@@ -16,9 +16,11 @@ ROOT = Path(__file__).resolve().parents[1]
 MONITOR_INPUT = ROOT / "scripts/verify_bug009_monitor_input.py"
 MODULE_MAP = ROOT / "build/ladybug-presentation-runtime.map"
 AUXILIARY_MAP = ROOT / "build/ladybug-instruction-runtime.map"
+COMPLETE_AUXILIARY_MAP = ROOT / "build/ladybug-demo-runtime.map"
 MAIN_MAP = ROOT / "build/ladybug.map"
 MODULE = ROOT / "build/ladybug-presentation-runtime.bin"
 AUXILIARY = ROOT / "build/ladybug-instruction-runtime.bin"
+COMPLETE_AUXILIARY = ROOT / "build/ladybug-demo-runtime.bin"
 PRESENTATION = ROOT / "build/ladybug-presentation.json"
 COLD = ROOT / "build/ladybug-presentation-cold.bin"
 OFFLINE_PROOF = ROOT / "build/bug012-demo-walk.json"
@@ -111,12 +113,16 @@ def main() -> None:
     parser.add_argument("--timeout", type=float, default=60.0)
     args = parser.parse_args()
 
-    module_syms = symbols(MODULE_MAP)
-    auxiliary_syms = symbols(AUXILIARY_MAP)
-    main_syms = symbols(MAIN_MAP)
     manifest = json.loads(PRESENTATION.read_text(encoding="ascii"))
+    complete = bool(manifest.get("complete_profile"))
+    auxiliary_map = COMPLETE_AUXILIARY_MAP if complete else AUXILIARY_MAP
+    auxiliary_binary = COMPLETE_AUXILIARY if complete else AUXILIARY
+    module_syms = symbols(MODULE_MAP)
+    auxiliary_syms = symbols(auxiliary_map)
+    main_syms = symbols(MAIN_MAP)
     offline = json.loads(OFFLINE_PROOF.read_text(encoding="ascii"))
     route_manifest = manifest["demo_route"]
+    route_actions = int(route_manifest["action_count"])
     authored_cold = COLD.read_bytes()
     stored_walk = authored_cold[
         route_manifest["cold_offset"]:
@@ -146,7 +152,7 @@ def main() -> None:
         monitor.clear(client, [start_id, demo_id])
 
         authored_module = MODULE.read_bytes()
-        authored_auxiliary = AUXILIARY.read_bytes()
+        authored_auxiliary = auxiliary_binary.read_bytes()
         identities = {
             "module": read_bytes(client, 0x1900, len(authored_module)) == authored_module,
             "auxiliary": read_bytes(client, 0x0300, len(authored_auxiliary)) == authored_auxiliary,
@@ -181,7 +187,7 @@ def main() -> None:
         deadline = time.monotonic() + args.timeout
         route_id = monitor.setup(client, [auxiliary_syms["demo_route_advance"]])[0]
         nodes = []
-        for action in range(147):
+        for action in range(route_actions):
             try:
                 hit = client.run_to_breakpoint(remaining(deadline))
             except Exception as exc:
@@ -264,7 +270,7 @@ def main() -> None:
         if terminal is None:
             raise SystemExit("BUG-012 full coverage: terminal cell was not observed")
         if any((
-            terminal["route_index"] != 147,
+            terminal["route_index"] != route_actions,
             terminal["death"] != 0,
             terminal["dots_left"] != 0,
             terminal["bonus_left"] != 0,
@@ -287,7 +293,7 @@ def main() -> None:
             "player_manual": read_byte(client, PLAYER_MANUAL),
         }
         monitor.clear(client, [held_id])
-        if (hold["route_index"] != 147 or hold["demo_direction"] != 0xFF or
+        if (hold["route_index"] != route_actions or hold["demo_direction"] != 0xFF or
                 hold["player_want"] != 0xFF):
             raise SystemExit(f"BUG-012 full coverage: terminal hold differs {hold}")
 
@@ -319,7 +325,7 @@ def main() -> None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(evidence, indent=2) + "\n", encoding="ascii")
         print(
-            "BUG-012 full coverage pass: live 147/147 actions, 117/117 "
+            f"BUG-012 full coverage pass: live {route_actions}/{route_actions} actions, 117/117 "
             f"collectibles, zero remaining, DIR_NONE hold; evidence={args.output}"
         )
     finally:

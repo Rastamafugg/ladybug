@@ -10,7 +10,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW_ROUTE_SHA256 = "69d29e65ad0199f28e0e0d955fa4e5cf24077201d8cc189cfde6916047bcf7f4"
-WALK_SHA256 = "c880f79e1c7e4366cd7421f93875940690bf3fbf6d655ae8ed0a0a3fed44557b"
+WALK_SHA256 = "60285eb500a68bb04ff49a0666f00ab37c2916019ed2be6de7c96889ddbae608"
+ORIGINAL_WALK_SHA256 = "c880f79e1c7e4366cd7421f93875940690bf3fbf6d655ae8ed0a0a3fed44557b"
 BACKBONE_SHA256 = "bbe843387cf29a486aca0cb0a09555012570c224e679f2741eda12aed1cb264c"
 MOVEMENT = ((0, -1), (1, 0), (0, 1), (-1, 0))
 ENTRY_MASKS = (0x04, 0x08, 0x01, 0x02)
@@ -78,13 +79,21 @@ def main() -> None:
         raise SystemExit("BUG-012 walk proof: arcade provenance link differs")
 
     stored = bytes(walk["actions"])
-    if (len(stored) != 148 or stored[-1] != 0xFF or
+    if (len(stored) != 144 or stored[-1] != 0xFF or
             digest(stored) != WALK_SHA256 or walk["walk_sha256"] != WALK_SHA256):
         raise SystemExit("BUG-012 walk proof: stored walk identity differs")
     action_text = walk["action_text"]
-    if (len(action_text) != 147 or
+    if (len(action_text) != 143 or
             bytes("NESW".index(value) for value in action_text) != stored[:-1]):
         raise SystemExit("BUG-012 walk proof: action text differs from stored ordinals")
+    removed = walk.get("removed_loop")
+    if removed != {"action_offset": 13, "actions": "ESNW", "anchor": [14, 10],
+                   "original_walk_sha256": ORIGINAL_WALK_SHA256}:
+        raise SystemExit("BUG-045 walk proof: exact removed loop differs")
+    original_text = action_text[:13] + "ESNW" + action_text[13:]
+    original = bytes("NESW".index(value) for value in original_text) + b"\xff"
+    if len(original_text) != 147 or digest(original) != ORIGINAL_WALK_SHA256:
+        raise SystemExit("BUG-045 walk proof: original walk reconstruction differs")
 
     detours = tuple(
         (tuple(item["anchor"]), item["action_offset"], item["actions"])
@@ -92,7 +101,7 @@ def main() -> None:
     )
     if detours != EXPECTED_DETOURS:
         raise SystemExit("BUG-012 walk proof: exact detours differ")
-    backbone = action_text
+    backbone = original_text
     for _anchor, offset, actions in reversed(detours):
         if backbone[offset:offset + len(actions)] != actions:
             raise SystemExit(f"BUG-012 walk proof: detour differs at action {offset}")
@@ -109,7 +118,14 @@ def main() -> None:
         for gate in maze["gates"]
     ]
     x, y = walk["start_cell"]
+    collectible_cells = {
+        (cell_x, cell_y)
+        for cell_y, row in enumerate(maze["maze_cells"])
+        for cell_x, value in enumerate(row)
+        if value & 0x80
+    }
     visited = {(x, y)}
+    first_hits = [(x, y)] if (x, y) in collectible_cells else []
     boundaries = [{"cell": [x, y], "gate_states": gate_states.copy()}]
     records = []
     for action_index, direction in enumerate(stored[:-1]):
@@ -127,6 +143,8 @@ def main() -> None:
                 )
             dx, dy = MOVEMENT[direction]
             x, y = x + dx, y + dy
+            if (x, y) in collectible_cells and (x, y) not in visited:
+                first_hits.append((x, y))
             visited.add((x, y))
         records.append({
             "action": action_index,
@@ -141,12 +159,6 @@ def main() -> None:
 
     if [x, y] != walk["end_cell"] or [x, y] != [6, 2]:
         raise SystemExit("BUG-012 walk proof: final cell differs")
-    collectible_cells = {
-        (cell_x, cell_y)
-        for cell_y, row in enumerate(maze["maze_cells"])
-        for cell_x, value in enumerate(row)
-        if value & 0x80
-    }
     collected = visited & collectible_cells
     remaining = collectible_cells - visited
     if len(collectible_cells) != 117 or len(collected) != 117 or remaining:
@@ -155,10 +167,44 @@ def main() -> None:
             f"remaining {sorted(remaining)}"
         )
 
+    original_gate_states = [
+        0 if gate["initial_orientation"] == "horizontal" else 1
+        for gate in maze["gates"]
+    ]
+    original_x, original_y = walk["start_cell"]
+    original_visited = {(original_x, original_y)}
+    original_first_hits = ([(original_x, original_y)]
+                           if (original_x, original_y) in collectible_cells else [])
+    original_boundaries = [{"cell": [original_x, original_y],
+                            "gate_states": original_gate_states.copy()}]
+    for action_index, direction in enumerate(original[:-1]):
+        for unit_step in range(2):
+            first = can_move(maze, original_gate_states, original_x,
+                             original_y, direction)
+            second = can_move(maze, original_gate_states, original_x,
+                              original_y, direction)
+            if not first or not second:
+                raise SystemExit(
+                    f"BUG-045 original walk blocked at {action_index}:{unit_step}"
+                )
+            dx, dy = MOVEMENT[direction]
+            original_x, original_y = original_x + dx, original_y + dy
+            if ((original_x, original_y) in collectible_cells and
+                    (original_x, original_y) not in original_visited):
+                original_first_hits.append((original_x, original_y))
+            original_visited.add((original_x, original_y))
+        original_boundaries.append({"cell": [original_x, original_y],
+                                    "gate_states": original_gate_states.copy()})
+    if (first_hits != original_first_hits or len(first_hits) != 117 or
+            original_boundaries[13] != original_boundaries[17] or
+            original_boundaries[13] != boundaries[13] or
+            original_boundaries[-1] != boundaries[-1]):
+        raise SystemExit("BUG-045 removed loop changes gate, splice, or endpoint state")
+
     detour_evidence = []
     for anchor, offset, actions in detours:
         end = offset + len(actions)
-        before, after = boundaries[offset], boundaries[end]
+        before, after = original_boundaries[offset], original_boundaries[end]
         if tuple(before["cell"]) != anchor or before["cell"] != after["cell"]:
             raise SystemExit(f"BUG-012 walk proof: detour {offset} does not return")
         if before["gate_states"] != after["gate_states"]:
@@ -184,6 +230,8 @@ def main() -> None:
         "collected_cells": len(collected),
         "remaining_cells": [],
         "detours": detour_evidence,
+        "removed_loop": removed,
+        "original_walk_sha256": ORIGINAL_WALK_SHA256,
         "final_gate_states": gate_states,
         "action_records": records,
     }
@@ -191,7 +239,7 @@ def main() -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="ascii")
     print(
-        "BUG-012 walk proof: 147/147 legal node actions, 117/117 collectible "
+        "BUG-045 walk proof: 143/143 legal node actions, 117/117 collectible "
         f"cells, zero remaining, end (6,2), SHA-256 {WALK_SHA256}"
     )
 
