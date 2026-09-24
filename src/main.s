@@ -1063,18 +1063,16 @@ add_special_score
 draw_multiplier_hud
         lda     MULTIPLIER
         cmpa    #2
-        beq     dmh_two
-        cmpa    #3
-        beq     dmh_three
-        lda     #5
-        bra     dmh_draw
-dmh_two
-        lda     #1
-        bra     dmh_draw
-dmh_three
-        lda     #3
+        bne     dmh_draw
+        deca
 dmh_draw
         sta     HUD_X
+        ifne COMPLETE_PROFILE
+        lsla
+        lsla
+        ldy     #FB_VIRT+(7*1280)
+        leay    a,y
+        endc
         lda     #7
         sta     HUD_Y
         ifne COMPLETE_PROFILE
@@ -1084,17 +1082,20 @@ dmh_draw
         endc
         sta     HUD_COLOR
         ifne COMPLETE_PROFILE
-        jsr    draw_recolored_map_tile
+        ldb     #161            ; compiled instruction x graphic
+        jsr     presentation_dispatch
+        lda     #$34            ; restore game-state PAR5 after cold graphic read
+        sta     GIME_PAR5
         else
         lbsr    draw_recolored_map_tile
         endc
         inc     HUD_X
         ifne COMPLETE_PROFILE
-        jsr    draw_recolored_map_tile
+        jmp    draw_recolored_map_tile
         else
         lbsr    draw_recolored_map_tile
-        endc
         rts
+        endc
 
 ; Indexed by object-mask number 0..11.
 special_letter_bits
