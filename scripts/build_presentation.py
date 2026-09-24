@@ -747,7 +747,7 @@ def presentation_pen_map(
 ) -> tuple[int, int, int, int]:
     """Apply the established CoCo palette adaptation to authored raw chars."""
     if role == "attract":
-        if 7 <= y <= 12 and 9 <= x <= 30 and 165 <= raw_code <= 197:
+        if 7 <= y <= 12 and 9 <= x <= 30 and 164 <= raw_code <= 197:
             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
         if y == 15 and 15 <= x <= 25:
             return (BLACK, PURPLE, PURPLE, PURPLE)
@@ -798,6 +798,11 @@ def presentation_pen_map(
                 13 <= y <= 18 and x < 30):
             return (BLACK, PINK, PINK, PINK)
         return (BLACK, LIGHT_BLUE, LIGHT_BLUE, LIGHT_BLUE)
+    if role == "high-score" and source_layer == "High Score Table and Branding":
+        if 13 <= y <= 18 and 9 <= x <= 30:
+            return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
+        if x == 31 and y in (13, 14):
+            return (0, 1, 2, 3)  # authored red R, as on attract
     if role in ("game-over", "high-score"):
         return (BLACK, WHITE, WHITE, WHITE)
     if role == "instructions" and 28 <= x < 30 and 13 <= y < 15:
