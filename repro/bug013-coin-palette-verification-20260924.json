@@ -1,0 +1,44 @@
+{
+  "source_commit": "52cc051",
+  "baseline_rom_sha256": "db36b11e16fabae20cdfd325fb85c3c4fb352f55d604075320a6d416c90ee07f",
+  "rom_sha256": "0c44c16913f4b2dfbec793a59cf1787bdec4665876cbaa26521b114643a01be5",
+  "coin_quadrants_match_instruction": true,
+  "natural_presentation_identity": true,
+  "first": {
+    "credits": 1,
+    "owner": 0,
+    "grey_pixels": 82,
+    "pixels_changed_from_baseline": 82,
+    "outside_coin_changes": 0
+  },
+  "second": {
+    "credits": 2,
+    "owner": 1,
+    "grey_pixels": 164,
+    "pixels_changed_from_baseline": 164,
+    "outside_coin_changes": 0
+  },
+  "build": {
+    "resident_bytes": 8192,
+    "resident_max": 8192,
+    "assets_bytes": 7680,
+    "assets_max": 7680,
+    "presentation_bytes": 1276,
+    "presentation_max": 1280,
+    "cold_bytes": 13534,
+    "cold_hard_max": 16384,
+    "gmc_source_spare_bytes": 1458
+  },
+  "open_approved_targets": {
+    "cold_max": 10874,
+    "cold_over_by": 2660,
+    "combined_max": 14219,
+    "combined_over_by": 591
+  },
+  "commands": [
+    "bash scripts/build.sh build",
+    "python3 scripts/verify_bug013_coin_layers.py",
+    "python3 repro/rsch013_credit_screen_capture.py",
+    "git diff --check"
+  ]
+}
