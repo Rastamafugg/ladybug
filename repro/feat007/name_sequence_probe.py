@@ -28,7 +28,9 @@ try:
         write(0xFFA5,[0x3A+off//8192]);part=payload[off:off+8192];write(0xA000,part);assert b.read_bytes(client,0xA000,len(part))==part
     write(0xFFA5,[0x23]);install(0xAC40,OUT/'highscore-helper.bin');install(pres['PRESENTATION_HIGHSCORE_RUNTIME_ADDRESS'],OUT/'highscore.bin')
     call(pres['install_highscore_runtime']);assert b.read_bytes(client,0x300,(OUT/'highscore.bin').stat().st_size)==(OUT/'highscore.bin').read_bytes()
-    write(0xFFA5,[0x34]);write(0xA000,[0]*8192);write(0,[0]*256);write(0x8F,[0,1]);write(0xA4,[0xA5]);write(hs['PRES_SCORE_H'],[0x99,0x99,0x99])
+    write(0xFFA5,[0x34]);write(0xA000,[0]*8192);write(0,[0]*256);write(0x8F,[0,1]);write(0xA4,[0xA5])
+    # Qualification copies the gameplay score into PRES_SCORE_H before ranking.
+    write(main['SCORE_BCD'],[0x99,0x99,0x99])
     from runtime_fixture import initialize_framebuffers
     initialize_framebuffers(write,call,lambda a,n:b.read_bytes(client,a,n),enemy)
     call(pres['start_screen'],{'a':4})

@@ -1,0 +1,17 @@
+{
+  "date": "2026-09-24",
+  "source_revision": "f94d4e1",
+  "combined_rom_sha256": "022567875bb120a916ddd6f6191d39e67dd2b9104eb4a3e662a8623de11f630c",
+  "diagnosis": "The production sequence probe seeded PRES_SCORE_H, but highscore_prepare_name overwrites it from SCORE_BCD before qualification. With SCORE_BCD left zero, the game correctly bypassed screen 5 and rendered screen 3.",
+  "fixture_correction": "Seed main['SCORE_BCD'] with BCD 99 99 99 before game-over entry; do not seed PRES_SCORE_H directly.",
+  "command": "timeout 60s python3 repro/feat007/name_sequence_probe.py --production",
+  "result": "pass",
+  "completed_screens": [
+    {"screen": 4, "owner": 1, "differing_bytes": 0},
+    {"screen": 5, "owner": 0, "differing_bytes": 0},
+    {"screen": 5, "owner": 1, "differing_bytes": 0}
+  ],
+  "max_foreground_cycles": 26300,
+  "engineering_limit_cycles": 27000,
+  "scope_limit": "Forced qualifying-score fixture and screen publication only. No natural GMC cold boot or active name-control acceptance."
+}
