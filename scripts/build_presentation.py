@@ -803,6 +803,8 @@ def presentation_pen_map(
             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
         if x == 31 and y in (13, 14):
             return (0, 1, 2, 3)  # authored red R, as on attract
+    if role == "high-score" and source_layer == "Coin Positions":
+        return (BLACK, WHITE, WHITE, GREY)
     if role in ("game-over", "high-score"):
         return (BLACK, WHITE, WHITE, WHITE)
     if role == "instructions" and 28 <= x < 30 and 13 <= y < 15:

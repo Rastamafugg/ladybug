@@ -62,6 +62,19 @@ def main() -> None:
     quadrants = b.high_score_coin_quadrant_tiles(
         root, TMX, b.load_chars(ROOT / "assets/arcade/chars.json"), False
     )
+    chars = b.load_chars(ROOT / "assets/arcade/chars.json")
+    sprites = json.loads((ROOT / "assets/arcade/sprites.json").read_text(encoding="utf-8"))
+    if isinstance(sprites, dict):
+        sprites = sprites.get("sprites", sprites)
+    instruction_tiles: list[bytes] = []
+    instruction = b.parse_instruction_contract(
+        ROOT / "tiled" / b.MAP_FILES["instructions"], chars, sprites,
+        instruction_tiles, {},
+    )
+    assert quadrants == [
+        instruction_tiles[index]
+        for index in instruction["reward_tile_ids"]["coin"]
+    ], "high-score coin colours differ from the instruction coin"
     native = b.compose_coin_native(quadrants)
     expected_stream = b.encode_sparse_native(native, 16, 8)
     assert stream == expected_stream, "cold coin stream differs from authored quadrants"
