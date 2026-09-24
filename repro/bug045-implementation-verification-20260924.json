@@ -1,0 +1,159 @@
+{
+  "source_commit": "9e0d965",
+  "rom_sha256": "b9e7daa9f8131ff718fc6d47726f11273d459810f8f8aca2e2adec0e5ae621b5",
+  "baseline_rom_sha256": "0c44c16913f4b2dfbec793a59cf1787bdec4665876cbaa26521b114643a01be5",
+  "removed_loop": {
+    "action_offset": 13,
+    "actions": "ESNW",
+    "anchor": [
+      14,
+      10
+    ],
+    "original_walk_sha256": "c880f79e1c7e4366cd7421f93875940690bf3fbf6d655ae8ed0a0a3fed44557b"
+  },
+  "route_action_count": 143,
+  "route_sha256": "60285eb500a68bb04ff49a0666f00ab37c2916019ed2be6de7c96889ddbae608",
+  "static": {
+    "legal_actions": 143,
+    "collectibles": 117,
+    "first_hit_order_unchanged": true,
+    "splice_gate_state_unchanged": true,
+    "final_gate_state_unchanged": true,
+    "end_cell": [
+      6,
+      2
+    ],
+    "repeated_edges_before": 22,
+    "repeated_edges_after": 18
+  },
+  "live": {
+    "artifact_identity": {
+      "module": true,
+      "auxiliary": true,
+      "cold_walk": true
+    },
+    "observed_actions": 143,
+    "terminal": {
+      "cell": [
+        6,
+        2
+      ],
+      "route_index": 143,
+      "death": 0,
+      "dots_left": 0,
+      "bonus_left": 0,
+      "maze_dots_remaining": 0,
+      "entities_remaining": 0
+    },
+    "hold": {
+      "route_index": 143,
+      "demo_direction": 255,
+      "player_want": 255
+    },
+    "front_write_faults": 0,
+    "phase_deadline_seconds": 60.0,
+    "phase_elapsed_seconds": 47.738498308001,
+    "segment_nodes": [
+      {
+        "action": 9,
+        "cell": [
+          16,
+          12
+        ]
+      },
+      {
+        "action": 10,
+        "cell": [
+          16,
+          10
+        ]
+      },
+      {
+        "action": 11,
+        "cell": [
+          14,
+          10
+        ]
+      },
+      {
+        "action": 12,
+        "cell": [
+          14,
+          12
+        ]
+      },
+      {
+        "action": 13,
+        "cell": [
+          14,
+          10
+        ]
+      },
+      {
+        "action": 14,
+        "cell": [
+          14,
+          8
+        ]
+      },
+      {
+        "action": 15,
+        "cell": [
+          16,
+          8
+        ]
+      },
+      {
+        "action": 16,
+        "cell": [
+          16,
+          6
+        ]
+      },
+      {
+        "action": 17,
+        "cell": [
+          14,
+          6
+        ]
+      }
+    ],
+    "diagnostic_mutations": {
+      "enemy_activation_disabled": true,
+      "skull_records_removed_after_placement": [
+        [
+          14,
+          2
+        ],
+        [
+          22,
+          12
+        ]
+      ],
+      "stage_clear_bonus_sentinel": 1,
+      "stage_clear_sentinel_removed_at_zero_remaining": true
+    }
+  },
+  "capacity": {
+    "cold_before": 13534,
+    "cold_after": 13530,
+    "cold_max": 16384,
+    "gmc_source_spare_before": 1458,
+    "gmc_source_spare_after": 1460,
+    "resident_bytes": 8192,
+    "resident_max": 8192,
+    "assets_bytes": 7680,
+    "assets_max": 7680,
+    "presentation_bytes": 1276,
+    "presentation_max": 1280
+  },
+  "word_reward_sources_changed": false,
+  "commands": [
+    "python3 scripts/verify_bug012_demo_walk.py",
+    "bash scripts/build.sh build",
+    "python3 scripts/verify_bug012_demo_loop.py",
+    "python3 scripts/verify_bug012_full_coverage.py --xroar docs/reference/xroar/src/xroar --rom build/ladybug.rom --output build/bug045-full-coverage.json --timeout 60",
+    "git diff --check"
+  ],
+  "open": "User-visible segment replay acceptance on launched ROM"
+}
