@@ -1,0 +1,51 @@
+diff --git a/repro/feat007/gmc_event_checks.py b/repro/feat007/gmc_event_checks.py
+index 385672f..a6b8e16 100644
+--- a/repro/feat007/gmc_event_checks.py
++++ b/repro/feat007/gmc_event_checks.py
+@@ -75,7 +75,8 @@ for multiplier,x in ((2,1),(3,3),(5,5)):
+     # remains a shared-font glyph. Compare both physical framebuffer owners.
+     cells,diff=field_pixels([(x+1,7,[glyph_cells[56+x+1]],main['COLOR_BLUE'])])
+     native=bytes.fromhex('0000000000000000000300030000303000000300000030300003000300000000')
+-    assert (OUT/'cold.bin').read_bytes()[161*32:162*32]==native
++    graphic=main['PRESENTATION_MULTIPLIER_X_GRAPHIC']
++    assert (OUT/'cold.bin').read_bytes()[graphic*32:(graphic+1)*32]==native
+     saved=b.read_bytes(client,0xFFA1,5)
+     try:
+         for owner in (0,1):
+diff --git a/scripts/shared_text.py b/scripts/shared_text.py
+index d306019..76f1450 100644
+--- a/scripts/shared_text.py
++++ b/scripts/shared_text.py
+@@ -141,6 +141,11 @@ class SharedText:
+         for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values():
+             for ident in ids:
+                 if descriptors[ident][1]:descriptors[ident]=(descriptors[ident][0],self.colours['fields']['instruction_points'])
++        x_graphics={descriptors[ids[0]] for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values()}
++        if len(x_graphics)!=1 or next(iter(x_graphics))[1]!=0:
++            raise ValueError('instruction multiplier x must select one native graphic')
++        x_graphic=next(iter(x_graphics))[0]
++        if x_graphic>=174:raise ValueError('instruction multiplier x exceeds native dispatch range')
+         if len(graphics)>224 or len(descriptors)>256:raise ValueError('shared graphic/descriptor capacity exceeded')
+         streams=[]
+         for name,mapping in zip(self.p.MAP_NAMES,self.visual_maps):
+@@ -194,6 +199,7 @@ class SharedText:
+         self.args.timer_record_output.write_text(emit('',payload[timer_start:timer_start+names['timer_box_count']*4]))
+         asset_data,gameplay_count=self.gameplay()
+         asset_data+=emit('dynamic_descriptors',bytes(v for d in descriptors for v in d)+bytes([255,255])*(256-len(descriptors)))
++        asset_data+=f'PRESENTATION_MULTIPLIER_X_GRAPHIC equ {x_graphic}\n'
+         (self.args.output.parent/'ladybug_shared_text.inc').write_text(asset_data)
+         chars=s.load_chars(self.args.chars)
+         translation=[]
+diff --git a/src/main.s b/src/main.s
+index 801adc0..a893686 100644
+--- a/src/main.s
++++ b/src/main.s
+@@ -1082,7 +1082,7 @@ dmh_draw
+         endc
+         sta     HUD_COLOR
+         ifne COMPLETE_PROFILE
+-        ldb     #161            ; compiled instruction x graphic
++        ldb     #PRESENTATION_MULTIPLIER_X_GRAPHIC
+         jsr     presentation_dispatch
+         lda     #$34            ; restore game-state PAR5 after cold graphic read
+         sta     GIME_PAR5
