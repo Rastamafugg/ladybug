@@ -1,0 +1,48 @@
+{
+  "ticket": "BUG-043",
+  "date": "2026-09-25",
+  "kind": "isolated unapproved audio-ownership prototype; not an acceptance result",
+  "base_revision": "3628f92",
+  "patch": "repro/bug043-banked-audio-fit-20260925.patch",
+  "patch_sha256": "3e0d7220527c77b8a58c54e9542f42b010a1175bdbed8153d1923bdcd76dbd30",
+  "rom_sha256": "233ccae73b7bf2680ef834e2f3dc581c53841713d494842f82611b9bba0f949d",
+  "build_command": "wsl bash scripts/build.sh build",
+  "build_result": "pass",
+  "sizes_bytes": {
+    "audio_engine": [919, 920],
+    "page_3d_payload": [5000, 8192],
+    "presentation_module": [1279, 1280],
+    "resident": [8192, 8192],
+    "assets": [7680, 7680],
+    "cold": [13530, 16384],
+    "gmc_source_spare": 1339
+  },
+  "gateway": {
+    "presentation_entry": "02E0",
+    "gameplay_entry": "02E4",
+    "return_entry": "02EC",
+    "bytes": "0da5270b863db7ffa57ea000b7ffa539",
+    "source_address": "A397",
+    "live_low_ram_exact": true,
+    "live_page_3d_audio_exact": true,
+    "live_presentation_module_exact": true
+  },
+  "prototype_behavior": "separate pending-credit count admits cue 12 serially outside the four-event FIFO; level-start cue 6 is requested on transition from level mode to demo or gameplay",
+  "runtime_probe": {
+    "first_presentation_entry_reached": true,
+    "banked_installer_pc_reached_by_step": true,
+    "natural_attract_marker": "two observation-tool timeouts at 40 seconds; no natural cue acceptance established",
+    "corrected_physical_state": "control and candidate progress through load with physical page-$38 reads; earlier virtual direct-page values were not valid state evidence",
+    "credit_increment_and_cue": "unverified",
+    "queue_full_two_edge": "unverified",
+    "foreground_cycles": "unmeasured"
+  },
+  "rejected_experiment": "ungated presentation call overflowed the $1E00 module by four bytes; a 16-byte guarded boot-scratch gateway fits instead",
+  "remaining_gates": [
+    "explicit approval of banked page-$3D audio service and $02DE/$02E0-$02EF ownership",
+    "current-ROM natural credit cue and simultaneous-edge proof with artifact identity",
+    "full-queue serial cue and level-start cue timing",
+    "numeric credit HUD and high-score prompt design, fit and owner publication",
+    "foreground cycle measurements and integrated dependency order"
+  ]
+}
