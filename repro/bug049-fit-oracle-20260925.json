@@ -1,0 +1,29 @@
+{
+  "kind": "isolated design verification, not production implementation",
+  "base_commit": "db62c80",
+  "candidate_rom_sha256": "ae8b8266396b58f4c136d817943b1b7fd1d098bd84513099593362a6700d1553",
+  "design_patch": "repro/bug049-fit-oracle-20260925.patch.gz",
+  "full_build_exit": 0,
+  "replacement_oracle": {
+    "command": "python scripts/verify_shared_text.py --build-dir build",
+    "seed": "deterministic nonblank framebuffer bytes (i*37+11)&255",
+    "rule": "only game-over cells x<=8, x>=31, row 0 or row 23 retain seeded bytes; every other cell matches the authored static game-over map",
+    "game_over_pixel_differences": 0,
+    "other_screen_pixel_differences": 0,
+    "screen_cases": 6
+  },
+  "capacity_bytes": {
+    "presentation_module": {"used": 1280, "max": 1280},
+    "resident": {"used": 8192, "max": 8192},
+    "assets": {"used": 7680, "max": 7680},
+    "cold": {"used": 13530, "max": 16384},
+    "gmc_source_spare": 1476
+  },
+  "natural_handoff_evidence": "repro/bug049-fit-corrected-20260925.json",
+  "remaining_ready_gates": [
+    "controlled white and green timer-phase handoffs",
+    "changed BUG-043 credit and BUG-044 TOP values after those dependencies",
+    "foreground cycle measurement and alternate-profile regressions",
+    "exact assignment contract and commit boundary"
+  ]
+}
