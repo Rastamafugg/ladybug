@@ -1,0 +1,124 @@
+{
+  "ticket": "BUG-049",
+  "kind": "fitted design prototype, not production implementation",
+  "base_commit": "db62c80",
+  "date": "2026-09-25",
+  "rom_sha256": "207a92150c47c8928728cf33a055e6e6297050b17e736f63d8ca0d7674ac4106",
+  "baseline_rom_sha256": "d0dfdd42ddcf861236f54d8a8fab8d6b1fab495df66c57df4fe1823b9f38213d",
+  "natural_terminal": {
+    "setup": "natural credited Player 1 entry; no terminal state injection",
+    "phase_deadline_seconds": 40,
+    "presentation_identity": true,
+    "death_code_identity": true,
+    "requested_map": 4,
+    "last_game_owner": 0,
+    "last_game_sha256": "3bfe28973a39f77dc12fc33cae8798acee829b947fdc438f194746dc4fd10b67",
+    "first_gameover_owner": 0,
+    "first_gameover_sha256": "d0b457457d3c00f43dd54060a72ed51fb072d52fa30f18a0f45c989e41a3fd01",
+    "first_gameover_target_cells": {
+      "31,20": {
+        "4": 16,
+        "6": 28
+      },
+      "33,2": {
+        "8": 22
+      },
+      "33,6": {
+        "1": 22
+      },
+      "33,8": {
+        "6": 20
+      },
+      "33,10": {
+        "3": 22
+      },
+      "33,11": {
+        "3": 20
+      }
+    },
+    "published_owners": {
+      "0": {
+        "frame_sha256": "d0b457457d3c00f43dd54060a72ed51fb072d52fa30f18a0f45c989e41a3fd01",
+        "preserved_cell_differences": []
+      },
+      "1": {
+        "frame_sha256": "d0b457457d3c00f43dd54060a72ed51fb072d52fa30f18a0f45c989e41a3fd01",
+        "preserved_cell_differences": []
+      }
+    },
+    "center_cells": {
+      "0": {
+        "15,11": {
+          "6": 23
+        },
+        "16,11": {
+          "6": 22
+        },
+        "20,11": {
+          "6": 22
+        },
+        "21,11": {
+          "6": 17
+        },
+        "15,19": {},
+        "15,20": {}
+      },
+      "1": {
+        "15,11": {
+          "6": 23
+        },
+        "16,11": {
+          "6": 22
+        },
+        "20,11": {
+          "6": 22
+        },
+        "21,11": {
+          "6": 17
+        },
+        "15,19": {},
+        "15,20": {}
+      }
+    }
+  },
+  "map_rule": "game-over only: skip pixels at x<=8 or x>=31 or y==0 or y>=20; 255 with dummy colour 0; all other maps unchanged",
+  "build_fit": {
+    "status": "pass after static game-over oracle was excluded for this design-only prototype",
+    "resident_bytes": [
+      8192,
+      8192
+    ],
+    "assets_bytes": [
+      7680,
+      7680
+    ],
+    "presentation_bytes": [
+      1280,
+      1280
+    ],
+    "instruction_bytes": [
+      929,
+      938
+    ],
+    "highscore_bytes": [
+      911,
+      938
+    ],
+    "cold_bytes": [
+      13530,
+      16384
+    ],
+    "gmc_source_spare_bytes": 1476
+  },
+  "remaining_gates": [
+    "replace skipped static game-over oracle with natural last-frame composition and both-owner proof",
+    "white and green timer phases",
+    "nonzero credit and committed first-ranked TOP after BUG-043/044",
+    "foreground cycle measurement",
+    "approval of new map-stream no-write value before implementation"
+  ],
+  "rejected_probe_mechanics": [
+    "initial candidate failed preexisting static-map oracle on reserved 255; fit-only verifier excluded game-over static comparison, so this build is not final acceptance",
+    "first terminal candidate published only one game-over owner; same-size start_screen branch change activated existing two-owner hold"
+  ]
+}
