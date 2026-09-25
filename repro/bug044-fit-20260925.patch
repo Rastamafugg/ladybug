@@ -1,0 +1,134 @@
+diff --git a/src/enemy_runtime.s b/src/enemy_runtime.s
+index d153cef..64b3d0c 100644
+--- a/src/enemy_runtime.s
++++ b/src/enemy_runtime.s
+@@ -1537,10 +1537,6 @@ enemy_collect_impl
+         daa
+         sta     SCORE_BCD
+ ec_score_done
+-        ldd     SCORE_BCD
+-        std     HIGH_BCD
+-        lda     SCORE_BCD+2
+-        sta     HIGH_BCD+2
+         lda     RENDER_FLAGS
+         ora     #$02
+         sta     RENDER_FLAGS
+diff --git a/src/main.s b/src/main.s
+index a893686..e64f1b7 100644
+--- a/src/main.s
++++ b/src/main.s
+@@ -211,6 +211,8 @@ BLIT_ROWS     equ $001B         ; transparent-blit row counter
+ BLIT_WIDTH    equ $001C         ; transparent-blit bytes per row
+ SCORE_BCD     equ $001D         ; packed BCD score, six digits
+ HIGH_BCD      equ $0020         ; packed BCD session high score
++PRES_HS_READY equ $00E7
++PRES_HIGHSCORE_BASE equ $AF84
+ LIVES         equ $0023         ; lives remaining
+ STAGE         equ $0024         ; current stage, 1..255
+ DOTS_LEFT     equ $0025         ; remaining flowers in this stage
+@@ -591,6 +593,7 @@ startup_seed_ready
+         ; start screen expires. Boot must not render a gameplay frame before
+         ; the attract map has been published.
+         clr     PRES_MAGIC
++        clr     PRES_HS_READY
+         clr     PLAYER_BG_VALID
+         ldd     #$0000
+         std     PLAYER_FB
+@@ -841,7 +844,13 @@ init_game_state
+         clrb
+         std     SCORE_BCD
+         std     SCORE_BCD+2
+-        std     HIGH_BCD+1
++        tst     PRES_HS_READY
++        bne     igs_top_ready
++        lda     #9
++        sta     PRES_HIGHSCORE_BASE
++        clr     PRES_HIGHSCORE_BASE+1
++        clr     PRES_HIGHSCORE_BASE+2
++igs_top_ready
+         lda     #3
+         sta     LIVES
+         lda     #1
+@@ -919,10 +928,6 @@ ads_ten_next
+         dec     ENTITY_WORK
+         bne     ads_ten_loop
+ ads_copy_high
+-        ldd     SCORE_BCD
+-        std     HIGH_BCD
+-        lda     SCORE_BCD+2
+-        sta     HIGH_BCD+2
+         lda     RENDER_FLAGS
+         ora     #RF_HUD
+         sta     RENDER_FLAGS
+@@ -958,10 +963,6 @@ abs_hundred
+ abs_next
+         dec     ENTITY_WORK
+         bne     abs_hundred
+-        ldd     SCORE_BCD
+-        std     HIGH_BCD
+-        lda     SCORE_BCD+2
+-        sta     HIGH_BCD+2
+         lda     RENDER_FLAGS
+         ora     #RF_HUD
+         sta     RENDER_FLAGS
+@@ -1051,10 +1052,6 @@ add_special_score
+         adda    #$01            ; CoCo SPECIAL adaptation: 10,000 points
+         daa
+         sta     SCORE_BCD
+-        ldd     SCORE_BCD
+-        std     HIGH_BCD
+-        lda     SCORE_BCD+2
+-        sta     HIGH_BCD+2
+         lda     RENDER_FLAGS
+         ora     #RF_HUD
+         sta     RENDER_FLAGS
+@@ -1198,7 +1195,7 @@ draw_hud
+         lda     #COLOR_RED
+         endc
+         sta     HUD_COLOR
+-        ldu     #HIGH_BCD
++        ldu     #PRES_HIGHSCORE_BASE
+         lbsr    draw_bcd_line
+         lda     #38
+         sta     HUD_X
+diff --git a/src/shared_text_stage.inc b/src/shared_text_stage.inc
+index a1efa62..e9f0a4e 100644
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -1267,13 +1267,7 @@ draw_name_fields
+         ldx     #PRES_PENDING_NAME
+         ldy     #PRESENTATION_NAME_ENTRY_NAME_DST
+         lbsr    draw_record_name
+-        lda     PRES_INSERT
+-        bne     entry_name_top_old
+-        ldx     #PRES_PENDING_NAME
+-        bra     entry_name_top_draw
+-entry_name_top_old
+         ldx     #PRES_HIGHSCORE_BASE+3
+-entry_name_top_draw
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
+         lbsr    draw_record_name
+ draw_name_done
+@@ -1283,22 +1277,10 @@ draw_entry_scores
+         ldx     #PRES_SCORE_H
+         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
+         lbsr    draw_score
+-        lda     PRES_INSERT
+-        bne     entry_top_old
+-        ldx     #PRES_SCORE_H
+-        bra     entry_top_right
+-entry_top_old
+         ldx     #PRES_HIGHSCORE_BASE
+-entry_top_right
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
+         bsr     draw_score
+-        lda     PRES_INSERT
+-        bne     entry_top_left_old
+-        ldx     #PRES_SCORE_H
+-        bra     entry_top_left
+-entry_top_left_old
+         ldx     #PRES_HIGHSCORE_BASE
+-entry_top_left
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
+         lbsr    draw_score
+         rts

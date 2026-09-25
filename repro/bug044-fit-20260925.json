@@ -1,0 +1,36 @@
+{
+  "kind": "isolated design fit, not production implementation",
+  "candidate_rom_sha256": "7180f2cda4f338b6bca394f675db6658ae796196d5206680b0cab717f5dfe632",
+  "candidate_patch": "repro/bug044-fit-20260925.patch",
+  "full_complete_build_exit": 0,
+  "capacity_bytes": {
+    "resident": {"used": 8183, "max": 8192},
+    "assets": {"used": 7680, "max": 7680},
+    "presentation": {"used": 1276, "max": 1280},
+    "highscore_auxiliary": {"used": 911, "max": 938},
+    "cold": {"used": 13530, "max": 16384},
+    "gmc_cpu_readable_source_spare": 1460
+  },
+  "source_design": [
+    "Gameplay TOP HUD reads first ranked record at page-$34 AF84 directly.",
+    "Live dot, bonus, SPECIAL and demo pickup score awards no longer copy into HIGH_BCD.",
+    "Name-entry TOP name and both TOP scores read the first committed record until END commits.",
+    "Cold startup clears the high-score ready flag; uncredited demo seeds default first-record score 90000 before rendering."
+  ],
+  "bounded_probe": {
+    "phase_deadline_seconds": 40,
+    "success_marker": "precredit demo first ranked score",
+    "presentation_identity": true,
+    "precredit_demo_first_record_prefix": [9, 0, 0],
+    "precredit_ready_flag": 0,
+    "postcredit_marker": "not observed: monitor read timed out after credit edge",
+    "timeout_meaning": "the selected helper breakpoint was not observed within the probe boundary; it does not prove a game or helper failure"
+  },
+  "remaining_implementation_acceptance": [
+    "natural high-score initialization and default name",
+    "live score crossing committed TOP without TOP mutation",
+    "rank-one commit updates all TOP displays on next complete publication",
+    "rank-two insertion, cancellation and nonqualification leave record zero unchanged",
+    "both persistent framebuffer owners and complete capacity/timing gates"
+  ]
+}
