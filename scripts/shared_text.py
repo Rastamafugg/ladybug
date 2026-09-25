@@ -141,6 +141,12 @@ class SharedText:
         for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values():
             for ident in ids:
                 if descriptors[ident][1]:descriptors[ident]=(descriptors[ident][0],self.colours['fields']['instruction_points'])
+        x_descriptors={descriptors[ids[0]] for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values()}
+        if len(x_descriptors)!=1 or next(iter(x_descriptors))[1]!=0:
+            raise ValueError('instruction multiplier x must select one native graphic')
+        x_graphic=next(iter(x_descriptors))[0]
+        if not 0<=x_graphic<min(len(graphics),174):
+            raise ValueError('instruction multiplier x exceeds native dispatch range')
         if len(graphics)>224 or len(descriptors)>256:raise ValueError('shared graphic/descriptor capacity exceeded')
         streams=[]
         for name,mapping in zip(self.p.MAP_NAMES,self.visual_maps):
@@ -194,6 +200,7 @@ class SharedText:
         self.args.timer_record_output.write_text(emit('',payload[timer_start:timer_start+names['timer_box_count']*4]))
         asset_data,gameplay_count=self.gameplay()
         asset_data+=emit('dynamic_descriptors',bytes(v for d in descriptors for v in d)+bytes([255,255])*(256-len(descriptors)))
+        asset_data+=f'PRESENTATION_MULTIPLIER_X_GRAPHIC equ {x_graphic}\n'
         (self.args.output.parent/'ladybug_shared_text.inc').write_text(asset_data)
         chars=s.load_chars(self.args.chars)
         translation=[]

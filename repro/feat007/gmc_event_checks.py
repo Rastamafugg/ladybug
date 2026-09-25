@@ -65,6 +65,23 @@ for colour,row in ((main['COLOR_RED'],1),(main['COLOR_YELLOW'],4)):
     ticks=[foreground() for _ in range(4)]
     cells,diff=field_pixels([(1,row,[glyph_cells[row*8+1]],colour)])
     checks.append(dict(label=f'letter pickup row {row}',exact=not diff and max(ticks)<=27000,cells=cells,differences=diff,ticks=ticks))
+graphic=main['PRESENTATION_MULTIPLIER_X_GRAPHIC']
+presentation=json.loads((ROOT/'build/ladybug-presentation.json').read_text())
+x_descriptors=[ids[0] for ids in presentation['instruction_choreography']['multiplier_tile_ids'].values()]
+descriptors=(OUT/'descriptors.bin').read_bytes()
+x_pairs=[descriptors[ident*2:ident*2+2] for ident in x_descriptors]
+assert len(x_descriptors)==3 and len(set(x_pairs))==1
+assert all(pair==bytes((graphic,0)) for pair in x_pairs)
+assert 0<=graphic<min(174,presentation['shared_text']['graphics'])
+native=bytes.fromhex('0000000000000000000300030000303000000300000030300003000300000000')
+assert (OUT/'cold.bin').read_bytes()[graphic*32:(graphic+1)*32]==native
+main_bytes=(OUT/'main.bin').read_bytes()
+start=main['draw_multiplier_hud']-0xC000
+end=main['draw_popup_multiplier']-0xC000
+dispatch=main['presentation_dispatch']
+call=bytes((0xC6,graphic,0xBD,dispatch>>8,dispatch&0xFF))
+assert main_bytes[start:end].count(call)==1
+checks.append(dict(label='multiplier x generated descriptor and immediate',exact=True,graphic=graphic,descriptor_ids=x_descriptors,assembled_call=call.hex(),matches=1))
 for multiplier,x in ((2,1),(3,3),(5,5)):
     # Force the event result and its existing dirty flag; replay remains runtime-owned.
     put(main['MULTIPLIER'],[multiplier])
@@ -74,8 +91,7 @@ for multiplier,x in ((2,1),(3,3),(5,5)):
     # The lit x must use the already compiled instruction graphic. The digit
     # remains a shared-font glyph. Compare both physical framebuffer owners.
     cells,diff=field_pixels([(x+1,7,[glyph_cells[56+x+1]],main['COLOR_BLUE'])])
-    native=bytes.fromhex('0000000000000000000300030000303000000300000030300003000300000000')
-    assert (OUT/'cold.bin').read_bytes()[161*32:162*32]==native
+    assert (OUT/'cold.bin').read_bytes()[graphic*32:(graphic+1)*32]==native
     saved=b.read_bytes(client,0xFFA1,5)
     try:
         for owner in (0,1):

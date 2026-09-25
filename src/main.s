@@ -1082,7 +1082,7 @@ dmh_draw
         endc
         sta     HUD_COLOR
         ifne COMPLETE_PROFILE
-        ldb     #161            ; compiled instruction x graphic
+        ldb     #PRESENTATION_MULTIPLIER_X_GRAPHIC
         jsr     presentation_dispatch
         lda     #$34            ; restore game-state PAR5 after cold graphic read
         sta     GIME_PAR5
