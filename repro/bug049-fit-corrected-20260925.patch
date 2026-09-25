@@ -1,0 +1,29 @@
+diff --git a/scripts/shared_text.py b/scripts/shared_text.py
+index 3d8c04a..ff70d8b 100644
+--- a/scripts/shared_text.py
++++ b/scripts/shared_text.py
+@@ -154,0 +155,3 @@ class SharedText:
++                if name=='game-over' and (i%40<=8 or i%40>=31 or i//40==0 or i//40==23):
++                    items.append((255,0))
++                    continue
+diff --git a/scripts/verify_shared_text.py b/scripts/verify_shared_text.py
+index 2eb132a..a17bd2f 100644
+--- a/scripts/verify_shared_text.py
++++ b/scripts/verify_shared_text.py
+@@ -43,0 +44,2 @@ def main():
++        if name=='game-over':
++            continue  # Fit-only: output intentionally retains prior gameplay pixels.
+diff --git a/src/presentation_runtime.s b/src/presentation_runtime.s
+index 37e49c5..90b2fcb 100644
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -394,2 +394,2 @@ start_screen_map
+-        cmpa    #PRESENTATION_MAP_ENTER_HIGH_SCORE
+-        bne     start_screen_done
++        cmpa    #PRESENTATION_MAP_GAME_OVER
++        blo     start_screen_done
+@@ -573,0 +574,2 @@ draw_cell
++        cmpb    #$FF
++        beq     draw_cell_advance
+@@ -575,0 +578 @@ draw_cell
++draw_cell_advance

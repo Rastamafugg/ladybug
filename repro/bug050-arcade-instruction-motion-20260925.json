@@ -1,0 +1,34 @@
+{
+  "source": "MAME 0.220 ladybug, natural attract instruction screen, neutral controls",
+  "rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+  "capture_command": "timeout 60s python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 900 --video-from 830 --plan scripts/mame_plans/attract-idle.json --skip-player-recognition --output build/bug050-arcade-instruction-motion.json --raw-video build/bug050-arcade-instruction-motion.bgra --raw-background build/bug050-arcade-instruction-motion-background.bin --raw-work-ram build/bug050-arcade-instruction-motion-workram.bin",
+  "phase": "natural attract instruction screen; first EXTRA E travel",
+  "success_marker": "900 frame capture includes frames 852-883 of continuous horizontal travel",
+  "deadline_seconds": 60,
+  "timeout_meaning": "capture tool failed to reach frame 900 within its bounded phase; no game-speed inference",
+  "video": {
+    "width": 192,
+    "height": 240,
+    "frame_rate_hz": 60,
+    "first_retained_frame": 830,
+    "retained_frames": 71,
+    "raw_bgra_sha256": "dda26e81e4ba662db10fa9907b825963f309258a8e64d670b768d318f60ed18c"
+  },
+  "measurement": {
+    "method": "exact red RGB(255,0,0) ladybug body pixels in source video x=7..59,y=58..69; record minimum x per frame",
+    "stationary_frames_845_to_851_min_x": 10,
+    "travel_frames_852_to_883": 32,
+    "travel_min_x_rule": "min_x = frame - 841, every frame from 852 through 883 inclusive",
+    "first_travel_min_x": 11,
+    "last_travel_min_x": 42,
+    "stationary_frames_884_to_889_min_x": 42,
+    "travel_pixels_per_frame": 1,
+    "travel_pixels_per_second_at_60hz": 60
+  },
+  "comparison": {
+    "current_coco_instruction": "2 horizontal pixels each Vbord during current travel window",
+    "current_coco_gameplay": "2 pixels each second Vbord; average 1 pixel per Vbord",
+    "prior_approved_candidate": "2 horizontal pixels every 2 Vbords; same average speed as arcade but different per-frame positions",
+    "disposition": "exact arcade pixel-per-frame target materially differs from prior approved stepped cadence; return BUG-050 target to Proposed pending fitted rendering design and renewed approval"
+  }
+}
