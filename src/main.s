@@ -596,6 +596,7 @@ startup_seed_ready
         ; Gameplay state is initialized by presentation_runtime when the level
         ; start screen expires. Boot must not render a gameplay frame before
         ; the attract map has been published.
+        ifne    COMPLETE_PROFILE
         clr     PRES_MAGIC
         clr     PRES_HS_READY
         ldx     #PRES_HIGHSCORE_BASE
@@ -611,6 +612,7 @@ startup_top_name
         sta     ,x+
         decb
         bne     startup_top_name
+        endc
         clr     PLAYER_BG_VALID
         ldd     #$0000
         std     PLAYER_FB

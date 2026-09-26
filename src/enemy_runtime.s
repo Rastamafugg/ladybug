@@ -1537,6 +1537,12 @@ enemy_collect_impl
         daa
         sta     SCORE_BCD
 ec_score_done
+        ifeq    COMPLETE_PROFILE
+        ldd     SCORE_BCD
+        std     HIGH_BCD
+        lda     SCORE_BCD+2
+        sta     HIGH_BCD+2
+        endc
         lda     RENDER_FLAGS
         ora     #$02
         sta     RENDER_FLAGS
