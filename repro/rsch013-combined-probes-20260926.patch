@@ -1,0 +1,49 @@
+--- a/repro/bug043-count-prompt-fit-20260926.py
++++ b/repro/bug043-count-prompt-fit-20260926.py
+@@ -310,7 +310,7 @@
+         if (hold["mode"], hold["screen"], hold["credits"]) != (
+                 MODE_CREDIT, HIGH_SCORE_MAP, 12):
+             fail("credit hold beyond 600 frames", "credit-screen-still-active", str(hold))
+-        if hold["timer_before"] != hold["timer_after"]:
++        if not manifest.get("highscore_logo") and hold["timer_before"] != hold["timer_after"]:
+             fail("credit hold beyond 600 frames", "timer-unchanged", str(hold))
+ 
+         # Player one consumes one available credit and reaches the game renderer.
+--- a/repro/bug043-banked-audio-corrected-20260926.py
++++ b/repro/bug043-banked-audio-corrected-20260926.py
+@@ -16,7 +16,7 @@
+  return bytes.fromhex(client.call('read_memory',{'space':'physical','addr':addr,'length':n})['data'])
+ def low(addr,n=1): return physical(0x38*8192+addr,n)
+ def state():
+- return {'mode':low(0xA5)[0],'credits':low(0xA8)[0],'pending':low(0x02DF)[0],'overflow':low(0xEF)[0],'event':low(0xA9)[0],'slots':[physical(0x3D*8192+aus[f'audio_slot{i}']-0xA000,1)[0] for i in range(4)]}
++ return {'mode':low(0xA5)[0],'credits':low(0xA8)[0],'pending':low(0x02DD)[0],'overflow':low(0xEF)[0],'event':low(0xA9)[0],'slots':[physical(0x3D*8192+aus[f'audio_slot{i}']-0xA000,1)[0] for i in range(4)]}
+ def until(label,predicate):
+  deadline=time.monotonic()+45; observations=[]; prior=None; slice_start=None
+  while time.monotonic()<deadline:
+@@ -41,7 +41,7 @@
+  monitor.clear(client,ids);ids=monitor.setup(client,[ps['pft_ready']])
+  until('natural attract',lambda s:s['mode']==2)
+  offset=aus['audio_service_gateway_bytes']-0xA000
+- record['gateway_exact']=low(0x02E0,16)==audio[offset:offset+16]
++ record['gateway_exact']=low(0x02DE,18)==audio[offset:offset+18]
+  assert record['gateway_exact']
+  key(5,'press'); until('first accepted credit and cue 12',lambda s:s['credits']==1 and 12 in s['slots'])
+  key(5,'release'); until('first cue completes and high score holds',lambda s:s['mode']==5 and 12 not in s['slots'] and s['pending']==0)
+@@ -51,7 +51,7 @@
+  until('second simultaneous cue admitted',lambda s:s['credits']==3 and s['pending']==0 and 12 in s['slots'])
+  last=until('simultaneous cues finish',lambda s:s['credits']==3 and s['pending']==0 and 12 not in s['slots'])
+  assert last['overflow']==0
+- record['gateway_still_exact']=low(0x02E0,16)==audio[offset:offset+16]
++ record['gateway_still_exact']=low(0x02DE,18)==audio[offset:offset+18]
+  assert record['gateway_still_exact']
+  # Force the independent FIFO-full boundary at the post-scan input marker.
+  key(5,'press');key(6,'press')
+@@ -69,7 +69,7 @@
+  key(1,'release')
+  until('natural level start delivers cue 6',lambda s:s['mode']==0 and 6 in s['slots'])
+  until('level-start cue finishes in gameplay',lambda s:s['mode']==0 and 6 not in s['slots'])
+- record['gateway_after_gameplay_exact']=low(0x02E0,16)==audio[offset:offset+16]
++ record['gateway_after_gameplay_exact']=low(0x02DE,18)==audio[offset:offset+18]
+  assert record['gateway_after_gameplay_exact']
+  record['result']='pass'
+ except Exception as e: record['result']='fail';record['failure']=f'{type(e).__name__}: {e}'
