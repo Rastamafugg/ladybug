@@ -1,0 +1,155 @@
+{
+  "ticket": "BUG-043",
+  "status": "Verification",
+  "branch": "codex/bug-043-credit-audio",
+  "base_revision": "cec871a844c4406aec7fc969e7a2e85e345060cc",
+  "rom_sha256": "e51f7fcba67fae5fc31573e6d25d6891f0820e0f51e5daa2190c4333d372f8fb",
+  "build": {
+    "command": "wsl bash scripts/build.sh build",
+    "result": "pass",
+    "profile": "complete",
+    "capacity_bytes_used_and_limit": {
+      "resident": [8189, 8192],
+      "assets": [7678, 7680],
+      "presentation": [1273, 1280],
+      "audio_engine": [919, 920],
+      "highscore_runtime": [911, 920],
+      "instruction_runtime": [929, 938],
+      "presentation_helper": [331, 334],
+      "cold_payload": [13530, 16384]
+    },
+    "gmc_source_spare_bytes": 1361
+  },
+  "static_verifiers": [
+    {
+      "command": "wsl python3 scripts/verify_audio_runtime.py --rom build/ladybug.rom",
+      "result": "pass",
+      "summary": "18 cue descriptors; page-$3D payload 5002 bytes; engine 919/920; source margin 2885 bytes; 18 isolated cues, 400 waits, 1938 tester-equivalent PSG bytes"
+    },
+    {
+      "command": "wsl python3 scripts/verify_presentation_flow.py",
+      "result": "pass",
+      "summary": "complete flow and capacity guards; presentation module 1273/1280; helper 331/334; post-audio GMC source spare 1361/512"
+    }
+  ],
+  "runtime_verifiers": [
+    {
+      "command": "wsl python3 repro/bug043-count-prompt-fit-20260926.py --xroar /mnt/e/projects/ladybug/docs/reference/xroar/src/xroar --timeout 45 --output build/bug043-count-prompt-runtime-current.json",
+      "result": "focused-checks-pass-with-open-acceptance",
+      "rom_sha256": "e51f7fcba67fae5fc31573e6d25d6891f0820e0f51e5daa2190c4333d372f8fb",
+      "summary": "natural count progression 1-12; simultaneous 5+6 adds two from count 1; held input; thirteenth-edge cap; 602-frame hold; Player 1 consumes one; gameplay count and vegetable pixels observed on both framebuffer owners",
+      "initially_unverified_then_closed_by": [
+        "natural zero-to-two prompt threshold",
+        "one-player prompt pixels at exactly one credit",
+        "credit during loading, demo, and game-over",
+        "coin worklist cycle maximum"
+      ]
+    },
+    {
+      "command": "wsl python3 repro/bug043-current-audio-20260926.py",
+      "result": "incomplete after bounded monitor timeouts",
+      "rom_sha256": "e51f7fcba67fae5fc31573e6d25d6891f0820e0f51e5daa2190c4333d372f8fb",
+      "verified_before_timeout": [
+        "live presentation module matches the current build",
+        "physical page-$3D audio payload matches the current build",
+        "installed gateway at $02DE-$02EF matches all 18 source bytes"
+      ],
+      "partial_natural_observation": {
+        "mode_sequence": [2, 1, 3, 1, 6, 4],
+        "mode_4_audio_last_mode": 4,
+        "cue_6_active": true
+      },
+      "timeouts": [
+        {
+          "marker_pc": "$C0F3",
+          "deadline_seconds": 5,
+          "result": "timeout"
+        },
+        {
+          "marker_pc": "$C0F3",
+          "deadline_seconds": 10,
+          "result": "timeout"
+        },
+        {
+          "phase": "natural attract-to-demo wait using presentation markers",
+          "phase_deadline_seconds": 45,
+          "inner_marker_wait_seconds": 10,
+          "result": "timeout"
+        }
+      ],
+      "timeout_meaning": "observation boundary only; no software-stall or slow-execution inference",
+      "initially_unverified_then_closed_by": [
+        "natural credit cue completion and serialized simultaneous credit cues",
+        "full-FIFO cue retention on this current artifact",
+        "natural level cue completion",
+        "demo service cadence across multiple frames",
+        "load and game-over credit pre-emption"
+      ]
+    }
+  ],
+  "cycle_acceptance": {
+    "engineering_target_max_cycles": 27000,
+    "hardware_interval_cycles": 29666,
+    "current_revision_measured_maximum": 20893,
+    "result": "pass for sampled credit entry, count/prompt load, and stable hold; sampled maximum is below the 27000-cycle engineering target",
+    "current_revision_receipts": [
+      "repro/bug043-parent-publication-1-20260926.json",
+      "repro/bug043-parent-publication-2-20260926.json"
+    ],
+    "historical_reference_max_cycles": 25717,
+    "historical_reference_rom_sha256": "5431c2fb9181fafe3719364fd9ca72cf7fbaa8f56881749394a426b0a985ff43",
+    "historical_value_is_current_evidence": false
+  },
+  "capacity_headroom_bytes": {
+    "resident": 3,
+    "assets": 2,
+    "presentation": 7,
+    "audio_engine": 1,
+    "highscore_runtime": 9,
+    "instruction_runtime": 9,
+    "presentation_helper": 3,
+    "cold_payload": 2854,
+    "gmc_source": 1361
+  },
+  "rejected_or_incomplete_experiments": [
+    "A physical page-$3E whole-runtime comparison was rejected after it failed; the current accepted code identity check compares the exact caller-return bytes, and banked audio bytes are compared at physical page $3D.",
+    "Caller-return breakpoints at $C0F3 timed out at 5 and 10 seconds. A shared audio-state observation was attempted next; its natural demo wait also timed out. These outcomes do not establish a target execution stall.",
+    "The broad current-audio probe stopped at its 10-second natural demo presentation-marker wait. The focused resident-marker and single-presentation-marker probes below close separate gates; the failed probe remains recorded, not passing evidence.",
+    "The first resident-cadence attempt checked the gateway before boot installation and treated step_instruction's acknowledgement as a stop record. Both mechanics were corrected; the successful receipt checks destination bytes at the service call and reads the stepped PC via wait_for_stop."
+  ],
+  "completion": {
+    "can_move_to_done": false,
+    "reason": "All scoped isolated acceptance gates pass on the current revision. Parent integration remains pending. A 39-Vbord demo startup interval is distinct from steady cue service and remains a BUG-037 held-note/render-handoff residual; BUG-043 does not claim to resolve it."
+  },
+  "final_current_revision_evidence": {
+    "rom_sha256": "e51f7fcba67fae5fc31573e6d25d6891f0820e0f51e5daa2190c4333d372f8fb",
+    "natural_credit_cues_fifo_and_level_cue": {
+      "command": "wsl python3 repro/bug043-banked-audio-current-20260926.py",
+      "result": "pass",
+      "receipt": "repro/bug043-banked-audio-current-20260926.json",
+      "summary": "Natural cue 12 admission/completion; separate simultaneous cues; two requests retained across a forced full FIFO with zero overflow; Player 1 consumes one credit; level cue 6 admits and completes; source/staged/live page-$3D audio and installed 18-byte $02DE-$02EF gateway match. Pending count is $02DD."
+    },
+    "prompt_and_timing": {
+      "command": "wsl python3 repro/bug043-parent-publication-20260926.py 1 and 2",
+      "result": "pass",
+      "receipts": [
+        "repro/bug043-parent-publication-1-20260926.json",
+        "repro/bug043-parent-publication-2-20260926.json"
+      ],
+      "summary": "Natural one-credit prompt is exactly `1 PLAYER BUTTON ONLY`; natural cold 0-to-2 simultaneous credits publish the exact two-player prompt. Sampled maxima are 14047 and 20893 cycles, both below 27000."
+    },
+    "screen_preemption": {
+      "command": "wsl python3 repro/bug043-parent-preemption-20260926.py",
+      "result": "pass",
+      "receipt": "repro/bug043-parent-preemption-20260926.json",
+      "summary": "Natural demo credit, a distinct credit during incomplete high-score loading, and credit during forced terminal game-over all publish the correct count/prompt; pending cues drain and overflow remains zero. Natural Player 1 consumption is included."
+    },
+    "demo_service": {
+      "command": "wsl python3 repro/bug043-demo-service-cadence-20260926.py --xroar /mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+      "result": "steady cadence pass; startup interval unresolved",
+      "receipt": "repro/bug043-demo-service-cadence-20260926.json",
+      "summary": "Twelve exact mode-4 resident service entries at $C16E each step into $02E4. Across eleven cue-active samples there are ten consecutive one-Vbord intervals, and cue-6 wait decrements once per interval. Current cold-demo handoff has a separate 39-Vbord gap before cue 6 is active. Parent's read-only baseline ROM has a 38-Vbord no-cue gap, then one-Vbord intervals; audio semantics differ, so BUG-043 makes no claim that this startup note stretch is fixed. Track it with deferred BUG-037."
+    },
+    "parent_integration": "pending; isolated worktree is not Done evidence"
+  }
+}

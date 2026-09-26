@@ -1,0 +1,927 @@
+{
+  "ticket": "BUG-043",
+  "rom_sha256": "e51f7fcba67fae5fc31573e6d25d6891f0820e0f51e5daa2190c4333d372f8fb",
+  "deadline_per_phase_seconds": 45,
+  "timeout_meaning": "named state or cue admission/completion not observed within the bounded phase",
+  "pending_address": "02DD",
+  "gateway_range": "02DE-02EF (18 bytes)",
+  "phases": [
+    {
+      "name": "natural attract",
+      "observations": [
+        {
+          "mode": 1,
+          "credits": 0,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 2,
+          "credits": 0,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "first accepted credit and cue 12",
+      "observations": [
+        {
+          "mode": 2,
+          "credits": 0,
+          "pending": 0,
+          "overflow": 0,
+          "event": 2,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 1,
+          "credits": 1,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            12,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "first cue completes and high score holds",
+      "observations": [
+        {
+          "mode": 1,
+          "credits": 1,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            12,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 1,
+          "credits": 1,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 5,
+          "credits": 1,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "simultaneous pair counted separately",
+      "observations": [
+        {
+          "mode": 5,
+          "credits": 1,
+          "pending": 0,
+          "overflow": 0,
+          "event": 6,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 1,
+          "credits": 3,
+          "pending": 1,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            12,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "second simultaneous cue admitted",
+      "observations": [
+        {
+          "mode": 1,
+          "credits": 3,
+          "pending": 1,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            12,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 1,
+          "credits": 3,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            12,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "simultaneous cues finish",
+      "observations": [
+        {
+          "mode": 1,
+          "credits": 3,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            12,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 5,
+          "credits": 3,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            12,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 5,
+          "credits": 3,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "two new edges sampled before forced FIFO-full admission",
+      "observations": [
+        {
+          "mode": 5,
+          "credits": 3,
+          "pending": 0,
+          "overflow": 0,
+          "event": 6,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "full FIFO preserves both credit requests",
+      "observations": [
+        {
+          "mode": 1,
+          "credits": 5,
+          "pending": 1,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            12,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "full FIFO second credit cue admitted",
+      "observations": [
+        {
+          "mode": 1,
+          "credits": 5,
+          "pending": 1,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            12,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 1,
+          "credits": 5,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            12,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "full FIFO credit pair completes",
+      "observations": [
+        {
+          "mode": 1,
+          "credits": 5,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            12,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 5,
+          "credits": 5,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            12,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 5,
+          "credits": 5,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 5,
+          "credits": 5,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "natural player-one start consumes one credit",
+      "observations": [
+        {
+          "mode": 5,
+          "credits": 5,
+          "pending": 0,
+          "overflow": 0,
+          "event": 1,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 1,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 6,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "natural level start delivers cue 6",
+      "observations": [
+        {
+          "mode": 6,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    },
+    {
+      "name": "level-start cue finishes in gameplay",
+      "observations": [
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            255,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            6,
+            4,
+            255,
+            255
+          ]
+        },
+        {
+          "mode": 0,
+          "credits": 4,
+          "pending": 0,
+          "overflow": 0,
+          "event": 0,
+          "slots": [
+            255,
+            4,
+            255,
+            255
+          ]
+        }
+      ],
+      "result": "pass"
+    }
+  ],
+  "audio_and_key_scan_cycles": [],
+  "presentation_live_exact": true,
+  "staged_audio_exact": true,
+  "gateway_exact": true,
+  "gateway_still_exact": true,
+  "gateway_after_gameplay_exact": true,
+  "result": "pass"
+}

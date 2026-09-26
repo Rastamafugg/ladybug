@@ -175,7 +175,11 @@ PERSISTENT_FB equ 1
 INPUT_JOYSTICK equ 0            ; direct CoCo arrows unless explicitly selected
         endc
 
+        ifne COMPLETE_PROFILE
+AUDIO_ENGINE_EXEC   equ $02E4
+        else
 AUDIO_ENGINE_EXEC   equ $0300
+        endc
 AUDIO_INIT_EXEC     equ $0303
 AUDIO_ENQUEUE_EXEC  equ $0306
 PRES_NAME_PTR       equ $00E4
@@ -1180,6 +1184,9 @@ dwph_extra_next
         rts
 
 draw_hud
+        ifne COMPLETE_PROFILE
+        lbsr    draw_credit_hud
+        endc
         lda     #2
         sta     HUD_Y
         ifne COMPLETE_PROFILE
@@ -1256,46 +1263,29 @@ dvh_stage_ok
         lda     #COLOR_GREEN
         endc
         sta     HUD_COLOR
-        lda     ,u+
-        sta     HUD_BCD_BYTE
-        lsra
-        lsra
-        lsra
-        lsra
+        lda     #2
+        sta     HUD_BCD_COUNT
+        bra     dbl_byte
+
         ifne COMPLETE_PROFILE
+; Current count at (33,9). Count changes pre-empt to a freshly loaded screen.
+draw_credit_hud
+        ldd     #$2109
+        std     HUD_X
+        lda     #COLOR_WHITE
+        sta     HUD_COLOR
+        lda     <$A8
+        cmpa    #10
+        blo     dch_units
+        suba    #10
+        pshs    a
+        lda     #1
         jsr     draw_hud_digit
-        else
-        bsr     draw_hud_digit
-        endc
         inc     HUD_X
-        lda     HUD_BCD_BYTE
-        anda    #$0F
-        ifne COMPLETE_PROFILE
-        jsr     draw_hud_digit
-        else
-        bsr     draw_hud_digit
+        puls    a
+dch_units
+        jmp     draw_hud_digit
         endc
-        inc     HUD_X
-        lda     ,u
-        sta     HUD_BCD_BYTE
-        lsra
-        lsra
-        lsra
-        lsra
-        ifne COMPLETE_PROFILE
-        jsr     draw_hud_digit
-        else
-        bsr     draw_hud_digit
-        endc
-        inc     HUD_X
-        lda     HUD_BCD_BYTE
-        anda    #$0F
-        ifne COMPLETE_PROFILE
-        jsr     draw_hud_digit
-        else
-        bsr     draw_hud_digit
-        endc
-        rts
 
 vegetable_values
         fdb     $1000,$1500,$2000,$2500,$3000,$3500

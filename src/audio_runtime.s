@@ -27,6 +27,13 @@ AUDIO_WORK_VOICE   equ $00FC
 AUDIO_MIX_COUNT    equ $00FD
 AUDIO_BEST_SLOT    equ $00FE
 AUDIO_BEST_PRI     equ $00FF
+AUDIO_LAST_MODE equ $02DC
+AUDIO_CREDIT_PENDING equ $02DD
+AUDIO_SERVICE_GATEWAY equ $02DE
+AUDIO_SERVICE_RETURN equ $02EC
+PRES_MODE equ $00A5
+MODE_LEVEL equ 6
+MODE_DEMO equ 4
 
 ; Slot layout: id, priority, policy, wait, stream pointer, three periods,
 ; three attenuations, noise control, noise attenuation, padding.
@@ -49,22 +56,53 @@ audio_service_impl
         lda     #$6C
         sta     GIME_INIT0
         jsr     audio_select_gmc
+        lda     PRES_MODE
+        ldb     AUDIO_LAST_MODE
+        sta     AUDIO_LAST_MODE
+        cmpb    #MODE_LEVEL
+        bne     audio_mode_ready
+        cmpa    #MODE_DEMO
+        beq     audio_mode_level_start
+        tsta
+        bne     audio_mode_ready
+audio_mode_level_start
+        lda     #6
+        clrb
+        lbsr    audio_enqueue_impl
+audio_mode_ready
+        tst     PRES_MODE
+        bne     audio_presentation_owner
         jsr     audio_poll_gameplay
+        bra     audio_poll_done
+audio_presentation_owner
+        clr     audio_poll_valid
+audio_poll_done
         lbsr    audio_process_queue
         lbsr    audio_advance_all
+        lbsr    audio_credit_service
         lbsr    audio_mix
         jsr     audio_mix_write
         lda     #$68
         sta     GIME_INIT0
-        lda     #$34
-        sta     PAR5
 audio_service_done
-        rts
+        lda     #$34
+        jmp     AUDIO_SERVICE_RETURN
 
 audio_init_impl
         clr     AUDIO_INSTALLED
+        clr     AUDIO_CREDIT_PENDING
+        lda     #$FF
+        sta     AUDIO_LAST_MODE
         lda     #AUDIO_PAGE
         sta     PAR5
+        ldx     #audio_service_gateway_bytes
+        ldy     #AUDIO_SERVICE_GATEWAY
+        ldb     #18
+audio_gateway_copy
+        lda     ,x+
+        sta     ,y+
+        decb
+        bne     audio_gateway_copy
         lda     #$6C
         sta     GIME_INIT0
         clr     AUDIO_Q_HEAD
@@ -103,9 +141,6 @@ audio_init_slot_loop
         sta     GIME_INIT0
         lda     #$34
         sta     PAR5
-        lda     #6
-        clrb
-        lbsr    audio_enqueue_impl
         lda     #1
         sta     AUDIO_INSTALLED
         rts
@@ -139,6 +174,38 @@ audio_enqueue_drop
         inca
         sta     AUDIO_Q_OVERFLOW
 audio_enqueue_done
+        rts
+
+; Count-only credit admission is independent of the four-event FIFO. Wait
+; until no credit cue is active and one effect slot is free, then start one.
+audio_credit_service
+        tst     AUDIO_CREDIT_PENDING
+        beq     audio_credit_done
+        lda     #$FF
+        sta     AUDIO_BEST_SLOT
+        lda     #1
+        sta     AUDIO_WORK_SLOT
+audio_credit_scan
+        lbsr    audio_slot_base
+        lda     ,x
+        cmpa    #12
+        beq     audio_credit_done
+        cmpa    #$FF
+        bne     audio_credit_next
+        lda     AUDIO_WORK_SLOT
+        sta     AUDIO_BEST_SLOT
+audio_credit_next
+        inc     AUDIO_WORK_SLOT
+        lda     AUDIO_WORK_SLOT
+        cmpa    #4
+        blo     audio_credit_scan
+        tst     AUDIO_BEST_SLOT
+        bmi     audio_credit_done
+        lda     #12
+        sta     AUDIO_SAVED_ID
+        lbsr    audio_admit
+        dec     AUDIO_CREDIT_PENDING
+audio_credit_done
         rts
 
 audio_process_queue
@@ -491,6 +558,19 @@ audio_mix_slot_done
 
 audio_engine_end
 
+audio_service_gateway_bytes
+        lda     PRES_MODE
+        anda    #$FB
+        beq     audio_service_return_done
+audio_service_gameplay_bytes
+        lda     #AUDIO_PAGE
+        sta     PAR5
+        jmp     $A000
+audio_service_return_bytes
+        sta     PAR5
+audio_service_return_done
+        rts
+
 ; Page-$3D installer. The presentation handoff maps this page and jumps here;
 ; the routine copies only the bounded engine, restores PAR5, and initializes it.
 audio_install_page
@@ -760,7 +840,7 @@ audio_write
         rts
 audio_poll_enqueue
         clrb
-        jsr     $0306
+        jsr     audio_enqueue_impl
         rts
 
 audio_poll_dots

@@ -420,6 +420,7 @@ stage_selected
         sta PRES_TMP_H
         rts
 stage_panel_slice
+        lbsr credit_panel_slice
         lda PRES_SCREEN
         cmpa #PRESENTATION_MAP_HIGH_SCORE
         lbeq ranking_schedule_tick
@@ -427,15 +428,16 @@ stage_panel_slice
         cmpa #PRESENTATION_MAP_LEVEL_START
         bne stage_slice_return
         ldd $AA
-        lsra
-        rorb
-        lsra
-        rorb
-        ; PRES_CELL is a multiple of 32: dividing by four yields tick*8.
         leay stage_schedule,pcr
-        leay d,y
-        tst 2,y
-        beq stage_slice_return
+stage_schedule_find
+        cmpd ,y
+        beq stage_schedule_found
+        leay 8,y
+        cmpy #stage_schedule_end
+        blo stage_schedule_find
+        rts
+stage_schedule_found
+        leay 2,y
         bsr stage_select
         ldx ,y
         lda 5,y
@@ -508,68 +510,40 @@ stage_finish_index
         ldx #$5C80
         jmp blit_packed_sprite
 stage_schedule
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
+        fdb 288
         fdb $3458
-        fcb 1,0,3,TEXT_STAGE_PART,0,0
+        fcb 1,0,3,TEXT_STAGE_PART
+        fdb 320
         fdb $434C
-        fcb 3,0,4,TEXT_STAGE_BONUS,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
+        fcb 3,0,4,TEXT_STAGE_BONUS
+        fdb 448
         fdb $4D30
-        fcb 2,0,4,TEXT_STAGE_NAME,0,0
+        fcb 2,0,4,TEXT_STAGE_NAME
+        fdb 480
         fdb $4D40
-        fcb 2,4,4,TEXT_STAGE_NAME,0,0
+        fcb 2,4,4,TEXT_STAGE_NAME
+        fdb 512
         fdb $4D50
-        fcb 2,8,4,TEXT_STAGE_NAME,0,0
+        fcb 2,8,4,TEXT_STAGE_NAME
+        fdb 544
         fdb $4D60
-        fcb 2,12,4,TEXT_STAGE_NAME,0,0
+        fcb 2,12,4,TEXT_STAGE_NAME
+        fdb 576
         fdb $4D84
-        fcb 1,0,3,TEXT_STAGE_PART,0,0
+        fcb 1,0,3,TEXT_STAGE_PART
+        fdb 608
         fdb $618C
-        fcb 3,0,4,TEXT_STAGE_BONUS,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
-        fdb $0000
-        fcb 0,0,0,0,0,0
+        fcb 3,0,4,TEXT_STAGE_BONUS
+        fdb 896
         fdb $8440
-        fcb 4,0,3,TEXT_STAGE_GOOD_LUCK,0,0
+        fcb 4,0,3,TEXT_STAGE_GOOD_LUCK
+        fdb 928
         fdb $844C
-        fcb 4,3,3,TEXT_STAGE_GOOD_LUCK,0,0
+        fcb 4,3,3,TEXT_STAGE_GOOD_LUCK
+        fdb 960
         fdb $8458
-        fcb 4,6,3,TEXT_STAGE_GOOD_LUCK,0,0
+        fcb 4,6,3,TEXT_STAGE_GOOD_LUCK
+stage_schedule_end
 
 stage_panel_number
         lda     PRES_TMP_H
@@ -712,6 +686,64 @@ ranking_schedule_data
         fcb 0,0,0,0
         fdb $0000,$0000
         fcb 0,0,0,0
+
+; BUG-043: publish the authoritative count after its row has been loaded.
+credit_panel_slice
+        ldd     $AA
+        cmpd    #832
+        beq     credit_panel_count
+        cmpd    #960
+        bne     credit_panel_done
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        bne     credit_panel_done
+        lda     $A8
+        cmpa    #2
+        blo     credit_panel_done
+        ldx     #$9328
+        leay    credit_panel_two_prompt,pcr
+        ldb     #20
+credit_panel_prompt_loop
+        lda     #5
+        sta     $29
+        lda     ,y+
+        cmpa    #2
+        bhi     credit_panel_prompt_char
+        pshs    a
+        lda     #8
+        sta     $29
+        puls    a
+credit_panel_prompt_char
+        lbsr    stage_panel_char
+        decb
+        bne     credit_panel_prompt_loop
+credit_panel_done
+        rts
+credit_panel_count
+        lda     #6
+        sta     $29
+        ldx     #$4884
+        leay    credit_panel_label,pcr
+        ldb     #6
+        lbsr    stage_panel_text
+        ldx     #$4D88
+        lda     #36
+        lbsr    stage_panel_char
+        ldx     #$4D84
+        lda     $A8
+        cmpa    #10
+        blo     credit_panel_unit
+        suba    #10
+        pshs    a
+        lda     #1
+        lbsr    stage_panel_char
+        puls    a
+credit_panel_unit
+        lbra    stage_panel_char
+credit_panel_label
+        fcb 12,27,14,13,18,29
+credit_panel_two_prompt
+        fcb 1,36,24,27,36,2,36,25,21,10,34,14,27,36,11,30,29,29,24,23
 
 highscore_phase_helper_end
 

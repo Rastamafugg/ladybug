@@ -139,10 +139,18 @@ presentation_flow_tick
         lda     PRES_MAGIC
         cmpa    #$A5
         beq     pft_helper_ready
+        ifne COMPLETE_PROFILE
+        lda     #AUDIO_RUNTIME_PAGE
+        sta     PAR5
+        jsr     AUDIO_INSTALL_EXEC
+        endc
         ifeq COMPLETE_PROFILE
         lbsr    install_aux_runtime
         endc
 pft_helper_ready
+        ifne COMPLETE_PROFILE
+        jsr     $02DE
+        endc
         ifeq    HIGHSCORE_TEST_PROFILE
         lbsr    scan_keys
         endc
@@ -172,7 +180,11 @@ pft_ready
         lda     PRES_EVENT
         anda    #$06
         beq     pft_mode
-        lbsr    add_credit
+        cmpa    #$06
+        bne     pft_single_credit
+        bsr     add_credit
+pft_single_credit
+        bsr     add_credit
         ifne    COMPLETE_PROFILE
         ; Credit input can pre-empt any auxiliary owner, including cold load.
         bsr     install_highscore_runtime
@@ -181,6 +193,15 @@ pft_ready
         clr     PENDING
         lbsr    start_screen
         lda     #1
+        rts
+add_credit
+        lda     PRES_CREDITS
+        cmpa    #PRESENTATION_COIN_SLOT_COUNT
+        bhs     add_coin
+        inca
+        sta     PRES_CREDITS
+        inc     $02DD
+add_coin
         rts
 pft_mode
         lda     PRES_EVENT
@@ -243,10 +264,10 @@ pft_dispatch
         endc
         endc
 
-install_aux_runtime
         ifne    COMPLETE_PROFILE
-        bra     install_instruction_runtime
+install_aux_runtime equ install_instruction_runtime
         else
+install_aux_runtime
         ifne    BUG011_DEVELOPMENT_PROFILE
         ldx     #PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS
         ldu     #PRESENTATION_INSTRUCTION_RUNTIME_BYTES
@@ -307,13 +328,10 @@ normal_tick
         endc
         endc
         ifne    COMPLETE_PROFILE
-        jsr     AUDIO_INIT_EXEC
         bsr     install_highscore_runtime
         lda     #PRESENTATION_MAP_GAME_OVER
         endc
-        bsr     start_screen
-        lda     #1
-        rts
+        bra     normal_begin_screen
 normal_stage
         tst     STAGE_PENDING
         beq     normal_start
@@ -325,9 +343,7 @@ normal_stage
         endc
         sta     PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
-        bsr     start_screen
-        lda     #1
-        rts
+        bra     normal_begin_screen
 normal_start
         tst     INITIAL_ENTRY_STATE
         bne     normal_game       ; held start cannot replace an active entrant
@@ -340,6 +356,7 @@ normal_start
         lda     #1
         sta     PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
+normal_begin_screen
         bsr     start_screen
         lda     #1
         rts
@@ -744,7 +761,7 @@ level_tick_demo_check
         tst     PRES_CONTEXT
         bne     live_begin
         ifne    COMPLETE_PROFILE
-        lbsr    init_gameplay
+        bsr     init_gameplay
         clr     PRES_TIMER
         clr     PRES_TIMER+1
         clr     PRES_DEMO_ROUTE ; CoCo walk starts after automatic maze entry
@@ -764,7 +781,7 @@ level_tick_demo_check
         lda     #1
         rts
         else
-        lbsr    init_gameplay
+        bsr     init_gameplay
         clr     PRES_TIMER
         clr     PRES_TIMER+1
         clr     PRES_DEMO_ROUTE ; CoCo walk starts after automatic maze entry
@@ -779,14 +796,14 @@ level_tick_demo_check
         endc
         endc
 live_begin
-        lbsr    init_gameplay
+        bsr     init_gameplay
         lda     #ENTRY_WAIT_STAGE
         sta     INITIAL_ENTRY_STATE
         clr     PRES_MODE
         clra
         rts
 init_gameplay
-        lbsr    gameplay_reentry
+        bsr     gameplay_reentry
         jsr     PRES_MAIN_INIT
         jsr     PRES_MAIN_MAZE
         jsr     PRES_MAIN_GATES
@@ -820,9 +837,6 @@ gameplay_reentry_clear
         std     ,x++
         cmpx    #FB_META_END
         blo     gameplay_reentry_clear
-        lda     #AUDIO_RUNTIME_PAGE
-        sta     PAR5
-        jsr     AUDIO_INSTALL_EXEC
         rts
 
         ifne    HIGHSCORE_TEST_PROFILE
@@ -959,15 +973,6 @@ name_tick
         endc
         endc
         endc
-add_credit
-        lda     PRES_CREDITS
-        cmpa    #PRESENTATION_COIN_SLOT_COUNT
-        bhs     add_coin
-        inca
-        sta     PRES_CREDITS
-add_coin
-        rts
-
         ifne    0
 init_high_scores
         lda     #$34
