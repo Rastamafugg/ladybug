@@ -44,7 +44,8 @@ try:
  e['stage_maximum_cycles']=max(x['cycles'] for x in e['samples'] if x['stage_rebuild_calls'])
  e['steady_target_pass']=e['steady_maximum_cycles']<=27000
  e['all_worklists_target_pass']=e['maximum_cycles']<=27000
- e['result']='pass' if e['all_worklists_target_pass'] else 'target_missed'
+ e['acceptance_policy']='2026-09-26 user: static stage construction overrun is technical debt; active demo target remains27000'
+ e['result']='pass' if e['steady_target_pass'] else 'target_missed'
 except Exception as exc:e['result']='fail';e['failure']=f'{type(exc).__name__}: {exc}'
 finally:c.close();m.stop(p);(b/'bug044-foreground-cycles.json').write_text(json.dumps(e,indent=2)+'\n')
 print({k:v for k,v in e.items() if k!='samples'})
