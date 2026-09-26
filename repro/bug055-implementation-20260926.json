@@ -1,0 +1,195 @@
+{
+  "ticket": "BUG-055",
+  "status": "implementation verification; natural audible gate open",
+  "base_commit": "69b2e09427ceca7ca7f33333002e3c3b71440657",
+  "rom_sha256": "4a4c3bb1cbb1bf6f7cdae302cb9d4e09665bfd8794500077eea501fa308142eb",
+  "build": "pass",
+  "capacity_bytes": {
+    "resident": "8180/8192",
+    "assets": "7596/7680",
+    "presentation": "1276/1280",
+    "instruction": "935/938",
+    "presentation_helper": "331/334",
+    "demo_runtime": "143/938",
+    "high_score_runtime": "899/938",
+    "audio_runtime": "907/920",
+    "page_3d_payload": "4986/8192",
+    "cold": "14362/16384",
+    "gmc_source_spare": 1027
+  },
+  "psg_fixture": {
+    "result": "pass",
+    "phase": "controlled mixer-output frames in normal audio service",
+    "deadline_seconds": 45,
+    "success_marker": "four audio_mix_write returns with actual CPU PSG-write arguments",
+    "timeout_meaning": "mixer write/return boundary not reached",
+    "identity": "Each frame: live audio_mix_write prologue and relocated audio engine bytes equal staged audio-runtime binary.",
+    "writes_hex_by_frame": [
+      [
+        "81",
+        "11",
+        "90",
+        "a1",
+        "00",
+        "bf",
+        "c1",
+        "00",
+        "df",
+        "e0",
+        "ff"
+      ],
+      [
+        "81",
+        "21",
+        "a1",
+        "c1"
+      ],
+      [
+        "81",
+        "00",
+        "9f",
+        "a1",
+        "c1"
+      ],
+      [
+        "81",
+        "a1",
+        "c1"
+      ]
+    ],
+    "decoded_tone0_period_by_frame": [
+      273,
+      529,
+      1,
+      1
+    ],
+    "attenuation_channels_0_3_by_frame": [
+      [
+        0,
+        15,
+        15,
+        15
+      ],
+      [
+        0,
+        15,
+        15,
+        15
+      ],
+      [
+        15,
+        15,
+        15,
+        15
+      ],
+      [
+        15,
+        15,
+        15,
+        15
+      ]
+    ],
+    "selected_register_by_frame": [
+      7,
+      4,
+      4,
+      4
+    ],
+    "output_shadow_by_frame": [
+      "811190a100bfc100dfe0ff",
+      "812190a100bfc100dfe0ff",
+      "81009fa100bfc100dfe0ff",
+      "81009fa100bfc100dfe0ff"
+    ],
+    "stale_noise_reproduced": false,
+    "decoder_source": "docs/reference/xroar/src/sn76489.c: sn76489_write; data bytes use prior selected register"
+  },
+  "active_credit_regression": {
+    "result": "pass",
+    "deadline_seconds": 45,
+    "success_marker": "Credit edges preserve live game, update both HUDs, mix credit audio and preserve level transitions",
+    "timeout_meaning": "Named phase missing within bounded observation; not proof of slowdown",
+    "identity": "presentation live and staged audio exact",
+    "phase_results": [
+      "attract",
+      "idle credit opens scores",
+      "scores published",
+      "credited level",
+      "credit during level stays level",
+      "entered gameplay",
+      "moving game",
+      "5 in gameplay",
+      "simultaneous pair in gameplay",
+      "next-stage hold",
+      "next-stage credit preserves hold",
+      "next-stage gameplay",
+      "credit after next-stage context clear",
+      "terminal death retains game-over destination"
+    ],
+    "held_key_frames": 18,
+    "moving_positions": 10,
+    "credit_mix_samples": 18,
+    "both_counter_pixels": "2 white exact",
+    "second_counter_pixels": "5 white exact on both owners",
+    "maximum_sampled_cycles": 19639,
+    "cycle_target": 27000,
+    "worklist_samples": [
+      [
+        0,
+        19117,
+        0
+      ],
+      [
+        1,
+        19639,
+        1
+      ],
+      [
+        2,
+        5179,
+        0
+      ],
+      [
+        3,
+        5009,
+        1
+      ],
+      [
+        4,
+        6824,
+        0
+      ],
+      [
+        5,
+        6951,
+        1
+      ],
+      [
+        6,
+        6035,
+        0
+      ],
+      [
+        7,
+        6698,
+        1
+      ]
+    ],
+    "sample_columns": [
+      "index",
+      "cycles",
+      "secondary framebuffer owner"
+    ],
+    "all_samples_mode": 0,
+    "forced_boundary_coverage": "stage pending -> credited level -> cleared context gameplay; terminal death -> game over"
+  },
+  "acceptance_gaps": [
+    "Natural gameplay completion and pre-emption sequence",
+    "Audible absence of the reported sustained tone during natural gameplay"
+  ],
+  "commands": [
+    "bash scripts/build.sh build",
+    "python3 /mnt/e/projects/ladybug/repro/bug055-psg-latch-diagnosis-20260926.py WORKTREE OUTPUT_JSON --expect-fixed",
+    "python3 /mnt/e/projects/ladybug/repro/bug043-active-credit-fit-20260926.py WORKTREE OUTPUT_JSON"
+  ]
+}
