@@ -321,7 +321,7 @@
         <a href="../tooling/build-workflow.html">build-workflow</a>.
       </p>
     </footer>
-  </main>
+  <section id="timing-priority-user-20260926"><h2>2026-09-26 — User decision on the 27,000-cycle target</h2><p>The primary engineering target is at most 27,000 active CPU cycles per gameplay worklist. Apply this target also where the user controls the ladybug, including high-score name entry, and where gameplay is emulated in the demo. Instruction animation remains a target at lower priority. This priority applies to active movement, interaction, animation and publication; it is not limited to the main game mode.</p><p>Maze construction and comparable static screen creation may exceed the target without blocking implementation acceptance. Retain source-identified measurements and record the overrun as technical debt for later work. Do not label an overrun as meeting the target or extend this exception to active gameplay, name-entry control, demo motion or instruction animation. The physical 29,666-cycle interval at 1.78 MHz/60 Hz is unchanged; a static task can span multiple intervals. Record the executed phase/worklist so construction and active-control measurements cannot be confused.</p><p>This decision supersedes blanket per-screen timing blockers in earlier RSCH-013 briefs. It changes no score, colour, input, audio-completion, framebuffer correctness, memory-capacity or diagnostic-deadline requirement. BUG-044's initial full demo reconstruction overrun is retained with the existing BUG-037 startup/handoff evidence; BUG-037 remains Deferred.</p></section></main>
 </div>
 </body>
 </html>
