@@ -749,9 +749,12 @@ credit_panel_two_prompt
 ; Publish record zero at TOP on instruction and level-start surfaces.
 top_panel_draw
         lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_GAME_OVER
+        beq     top_panel_publish
         deca
         cmpa    #1
         bhi     top_panel_done
+top_panel_publish
         jmp     PRES_MAIN_TOP_HUD
 top_panel_done
         rts
