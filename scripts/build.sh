@@ -600,6 +600,7 @@ if int(complete):
         'presentation_dispatch': 'PRES_MAIN_STATIC_TEXT',
         'dynamic_dispatch': 'PRES_MAIN_DYNAMIC_TEXT',
         'shared_mask': 'PRES_MAIN_SHARED_MASK',
+        'asset_draw_top_hud': 'PRES_MAIN_TOP_HUD',
         'install_phase_tiles_for_screen': 'PRES_MAIN_INSTALL_PHASE_TILES',
         'presentation_page23_resume': 'PRES_MAIN_PAGE23_RESUME',
         'presentation_map_stream_offsets': 'PRES_MAIN_MAP_STREAM_OFFSETS',

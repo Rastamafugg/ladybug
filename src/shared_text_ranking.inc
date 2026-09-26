@@ -1126,13 +1126,7 @@ draw_name_fields
         ldx     #PRES_PENDING_NAME
         ldy     #PRESENTATION_NAME_ENTRY_NAME_DST
         lbsr    draw_record_name
-        lda     PRES_INSERT
-        bne     entry_name_top_old
-        ldx     #PRES_PENDING_NAME
-        bra     entry_name_top_draw
-entry_name_top_old
         ldx     #PRES_HIGHSCORE_BASE+3
-entry_name_top_draw
         ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
         lbsr    draw_record_name
 draw_name_done
@@ -1142,22 +1136,10 @@ draw_entry_scores
         ldx     #PRES_SCORE_H
         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
         lbsr    draw_score
-        lda     PRES_INSERT
-        bne     entry_top_old
-        ldx     #PRES_SCORE_H
-        bra     entry_top_right
-entry_top_old
         ldx     #PRES_HIGHSCORE_BASE
-entry_top_right
         ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
         bsr     draw_score
-        lda     PRES_INSERT
-        bne     entry_top_left_old
-        ldx     #PRES_SCORE_H
-        bra     entry_top_left
-entry_top_left_old
         ldx     #PRES_HIGHSCORE_BASE
-entry_top_left
         ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
         lbsr    draw_score
         rts

@@ -215,6 +215,8 @@ BLIT_ROWS     equ $001B         ; transparent-blit row counter
 BLIT_WIDTH    equ $001C         ; transparent-blit bytes per row
 SCORE_BCD     equ $001D         ; packed BCD score, six digits
 HIGH_BCD      equ $0020         ; packed BCD session high score
+PRES_HS_READY equ $00E7
+PRES_HIGHSCORE_BASE equ $AF84
 LIVES         equ $0023         ; lives remaining
 STAGE         equ $0024         ; current stage, 1..255
 DOTS_LEFT     equ $0025         ; remaining flowers in this stage
@@ -595,6 +597,20 @@ startup_seed_ready
         ; start screen expires. Boot must not render a gameplay frame before
         ; the attract map has been published.
         clr     PRES_MAGIC
+        clr     PRES_HS_READY
+        ldx     #PRES_HIGHSCORE_BASE
+        lda     #9
+        sta     ,x+
+        clr     ,x
+        clr     1,x
+        leax    2,x
+        leay    asset_top_default_name,pcr
+        ldb     #7
+startup_top_name
+        lda     ,y+
+        sta     ,x+
+        decb
+        bne     startup_top_name
         clr     PLAYER_BG_VALID
         ldd     #$0000
         std     PLAYER_FB
@@ -845,7 +861,9 @@ init_game_state
         clrb
         std     SCORE_BCD
         std     SCORE_BCD+2
+        ifeq    COMPLETE_PROFILE
         std     HIGH_BCD+1
+        endc
         lda     #3
         sta     LIVES
         lda     #1
@@ -923,10 +941,12 @@ ads_ten_next
         dec     ENTITY_WORK
         bne     ads_ten_loop
 ads_copy_high
+        ifeq    COMPLETE_PROFILE
         ldd     SCORE_BCD
         std     HIGH_BCD
         lda     SCORE_BCD+2
         sta     HIGH_BCD+2
+        endc
         lda     RENDER_FLAGS
         ora     #RF_HUD
         sta     RENDER_FLAGS
@@ -962,10 +982,12 @@ abs_hundred
 abs_next
         dec     ENTITY_WORK
         bne     abs_hundred
+        ifeq    COMPLETE_PROFILE
         ldd     SCORE_BCD
         std     HIGH_BCD
         lda     SCORE_BCD+2
         sta     HIGH_BCD+2
+        endc
         lda     RENDER_FLAGS
         ora     #RF_HUD
         sta     RENDER_FLAGS
@@ -1055,10 +1077,12 @@ add_special_score
         adda    #$01            ; CoCo SPECIAL adaptation: 10,000 points
         daa
         sta     SCORE_BCD
+        ifeq    COMPLETE_PROFILE
         ldd     SCORE_BCD
         std     HIGH_BCD
         lda     SCORE_BCD+2
         sta     HIGH_BCD+2
+        endc
         lda     RENDER_FLAGS
         ora     #RF_HUD
         sta     RENDER_FLAGS
@@ -1197,16 +1221,16 @@ draw_hud
         sta     HUD_COLOR
         ldu     #SCORE_BCD
         lbsr    draw_bcd_line
+        ifne COMPLETE_PROFILE
+        jsr     asset_draw_top_hud
+        else
         lda     #6
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_HIGH_SCORE
-        else
         lda     #COLOR_RED
-        endc
         sta     HUD_COLOR
         ldu     #HIGH_BCD
         lbsr    draw_bcd_line
+        endc
         lda     #38
         sta     HUD_X
         lda     #11

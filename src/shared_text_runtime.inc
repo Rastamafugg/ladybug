@@ -54,6 +54,9 @@ shared_mask
         mul
         leau colour_lut,pcr
         leau d,u
+        lda #8
+        pshs a
+shared_mask_row
         lda ,y+
         sta HUD_BYTE
         anda #$F0
@@ -67,105 +70,11 @@ shared_mask
         lsla
         ldd a,u
         std ,x++
-        leax 156,x
-        lda ,y+
-        sta HUD_BYTE
-        anda #$F0
-        lsra
-        lsra
-        lsra
-        ldd a,u
-        std ,x++
-        lda HUD_BYTE
-        anda #15
-        lsla
-        ldd a,u
-        std ,x++
-        leax 156,x
-        lda ,y+
-        sta HUD_BYTE
-        anda #$F0
-        lsra
-        lsra
-        lsra
-        ldd a,u
-        std ,x++
-        lda HUD_BYTE
-        anda #15
-        lsla
-        ldd a,u
-        std ,x++
-        leax 156,x
-        lda ,y+
-        sta HUD_BYTE
-        anda #$F0
-        lsra
-        lsra
-        lsra
-        ldd a,u
-        std ,x++
-        lda HUD_BYTE
-        anda #15
-        lsla
-        ldd a,u
-        std ,x++
-        leax 156,x
-        lda ,y+
-        sta HUD_BYTE
-        anda #$F0
-        lsra
-        lsra
-        lsra
-        ldd a,u
-        std ,x++
-        lda HUD_BYTE
-        anda #15
-        lsla
-        ldd a,u
-        std ,x++
-        leax 156,x
-        lda ,y+
-        sta HUD_BYTE
-        anda #$F0
-        lsra
-        lsra
-        lsra
-        ldd a,u
-        std ,x++
-        lda HUD_BYTE
-        anda #15
-        lsla
-        ldd a,u
-        std ,x++
-        leax 156,x
-        lda ,y+
-        sta HUD_BYTE
-        anda #$F0
-        lsra
-        lsra
-        lsra
-        ldd a,u
-        std ,x++
-        lda HUD_BYTE
-        anda #15
-        lsla
-        ldd a,u
-        std ,x++
-        leax 156,x
-        lda ,y+
-        sta HUD_BYTE
-        anda #$F0
-        lsra
-        lsra
-        lsra
-        ldd a,u
-        std ,x++
-        lda HUD_BYTE
-        anda #15
-        lsla
-        ldd a,u
-        std ,x++
-        leax 156,x
+        ldb #156
+        abx
+        dec ,s
+        bne shared_mask_row
+        leas 1,s
         puls u,pc
 gameplay_dispatch
         cmpb #SCREEN_TILE_COUNT
@@ -275,3 +184,55 @@ dynamic_graphic
         tfr y,x
         tfr u,y
         jmp presentation_fast_blit
+
+; Draw the committed first score and name on the gameplay/demo HUD.
+; PAR4 is borrowed for record reads; the framebuffer BACK remains in PAR1-PAR3.
+asset_draw_top_hud
+        lda $FFA4
+        pshs a
+        lda #$34
+        sta $FFA4
+        lda #6
+        sta HUD_Y
+        lda #TEXT_HIGH_SCORE
+        sta HUD_COLOR
+        ldu #PRES_HIGHSCORE_BASE-$2000
+        jsr draw_bcd_line
+        ldx #$3984
+        ldb #7
+asset_top_name
+        lda ,u+
+        pshs b,x,u
+        tsta
+        beq asset_top_blank
+        ldb #2
+        mul
+        leay dynamic_descriptors,pcr
+        leay d,y
+        tst 1,y
+        beq asset_top_blank
+        lda ,y
+        bra asset_top_glyph
+asset_top_blank
+        clr HUD_COLOR
+        clra
+asset_top_glyph
+        jsr shared_mask
+        lda #TEXT_HIGH_SCORE
+        sta HUD_COLOR
+        puls b,x,u
+        leax 4,x
+        decb
+        bne asset_top_name
+asset_top_done
+        puls a
+        sta $FFA4
+        rts
+asset_top_default_name
+        fcb PRESENTATION_HIGHSCORE_DEFAULT_NAME_0
+        fcb PRESENTATION_HIGHSCORE_DEFAULT_NAME_1
+        fcb PRESENTATION_HIGHSCORE_DEFAULT_NAME_2
+        fcb PRESENTATION_HIGHSCORE_DEFAULT_NAME_3
+        fcb PRESENTATION_HIGHSCORE_DEFAULT_NAME_4
+        fcb PRESENTATION_HIGHSCORE_DEFAULT_NAME_5
+        fcb PRESENTATION_HIGHSCORE_DEFAULT_NAME_6

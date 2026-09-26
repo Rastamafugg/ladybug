@@ -1537,10 +1537,6 @@ enemy_collect_impl
         daa
         sta     SCORE_BCD
 ec_score_done
-        ldd     SCORE_BCD
-        std     HIGH_BCD
-        lda     SCORE_BCD+2
-        sta     HIGH_BCD+2
         lda     RENDER_FLAGS
         ora     #$02
         sta     RENDER_FLAGS

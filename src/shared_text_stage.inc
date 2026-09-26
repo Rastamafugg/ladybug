@@ -739,11 +739,22 @@ credit_panel_count
         lbsr    stage_panel_char
         puls    a
 credit_panel_unit
-        lbra    stage_panel_char
+        lbsr    stage_panel_char
+        lbra    top_panel_draw
 credit_panel_label
         fcb 12,27,14,13,18,29
 credit_panel_two_prompt
         fcb 1,36,24,27,36,2,36,25,21,10,34,14,27,36,11,30,29,29,24,23
+
+; Publish record zero at TOP on instruction and level-start surfaces.
+top_panel_draw
+        lda     PRES_SCREEN
+        deca
+        cmpa    #1
+        bhi     top_panel_done
+        jmp     PRES_MAIN_TOP_HUD
+top_panel_done
+        rts
 
 highscore_phase_helper_end
 
