@@ -128,6 +128,9 @@ irt_event
         blo     irt_draw_player
         cmpd    2,x
         bhs     consume_event
+        ldb     PRES_TIMER+1
+        bitb    #1
+        beq     irt_draw_player
         ldd     PRES_OUT
         cmpd    4,x
         bhs     irt_draw_player
