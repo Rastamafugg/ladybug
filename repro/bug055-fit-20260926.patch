@@ -1,0 +1,14 @@
+diff --git a/src/audio_runtime.s b/src/audio_runtime.s
+index 115d02c..50c409a 100644
+--- a/src/audio_runtime.s
++++ b/src/audio_runtime.s
+@@ -763,8 +763,7 @@ audio_write_tone
+         lda     audio_scratch+1
+         anda    #$0F
+         ora     audio_scratch
+-        cmpa    ,u
+-        beq     audio_write_tone_latch_done
++        ; Always select this tone register before a possible data-only write.
+         sta     ,u
+         bsr     audio_write
+ audio_write_tone_latch_done

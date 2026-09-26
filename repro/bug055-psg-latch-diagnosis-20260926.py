@@ -36,6 +36,8 @@ try:
   e['frames'].append({'frame':frame,'writes':writes,'decoded_psg_registers':regs.copy(),'selected_register':selected,'intended_noise_attenuation':15,'output_shadow':phys(0x3d*8192+au['audio_mix_shadow']-0xa000,11).hex()})
  e['stale_noise_reproduced']=e['frames'][-1]['decoded_psg_registers'][7]!=15 and not e['frames'][-1]['writes']
  e['decoder_source']='docs/reference/xroar/src/sn76489.c: sn76489_write; data bytes use prior selected register'
+ if '--expect-fixed' in sys.argv:
+  assert not e['stale_noise_reproduced'];assert all(regs[i]==15 for i in (1,3,5,7));assert e['frames'][1]['decoded_psg_registers'][0]==0x211
  e['result']='pass';e['interpretation']='Actual CPU writes decoded with emulator register semantics; not a natural audio capture or proof of every reported sustained tone.'
 except Exception as exc:e['result']='fail';e['failure']=repr(exc)
 finally:c.close();m.stop(p);out.write_text(json.dumps(e,indent=2)+'\n')
