@@ -1,0 +1,73 @@
+{
+  "ticket": "BUG-044",
+  "status": "Verification",
+  "integrated_production_revision": "22e74a0",
+  "candidate_production_commits": [
+    "344f027",
+    "5ec44a3",
+    "c0fdac2"
+  ],
+  "integrated_commits": [
+    "06c69a9",
+    "423f3a8",
+    "22e74a0"
+  ],
+  "rom_sha256": "d319d637f94a492b847cc292544919bf70ec52bcfd91e2c931ca5bac8d909c9d",
+  "full_build": "pass",
+  "profile": "complete/keyboard",
+  "integrated_reruns": {
+    "bug044-top-authority-corrected": "pass",
+    "bug044-credited-crossing": "pass"
+  },
+  "capacity_used_limit_bytes": {
+    "resident": [
+      8180,
+      8192
+    ],
+    "assets": [
+      7588,
+      7680
+    ],
+    "presentation": [
+      1273,
+      1280
+    ],
+    "highscore": [
+      884,
+      920
+    ],
+    "audio_engine": [
+      907,
+      920
+    ],
+    "instruction": [
+      929,
+      938
+    ],
+    "presentation_helper": [
+      331,
+      334
+    ],
+    "cold_payload": [
+      13530,
+      16384
+    ]
+  },
+  "gmc_source_spare_bytes": 1349,
+  "delta_from_877dafa_bytes": {
+    "resident_used": -9,
+    "assets_used": -90,
+    "presentation_used": 0,
+    "highscore_used": -27,
+    "cold_payload_used": 0,
+    "gmc_source_spare": -14
+  },
+  "capacity_note": "The generic build line prints highscore /938, but complete-profile assembly guard enforces $0300-$0697, 920 bytes; usable spare is36.",
+  "rejected_build": "Initial profile guard referenced COMPLETE_PROFILE in enemy module where undefined; use existing generated SHARED_TEXT_ENABLED instead. Corrected complete ROM is byte-identical to verified d319 candidate.",
+  "remaining_gates": [
+    "rank1 END and post-commit publication",
+    "nonqualifying and rank2 insertion",
+    "pending edit/CL does not mutate table",
+    "user decision on pre-existing initial-stage frame overrun; no all-worklist pass"
+  ]
+}
