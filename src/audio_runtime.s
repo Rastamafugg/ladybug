@@ -61,9 +61,10 @@ audio_service_impl
         sta     AUDIO_LAST_MODE
         cmpb    #MODE_LEVEL
         bne     audio_mode_ready
-        cmpa    #MODE_DEMO
-        beq     audio_mode_level_start
         tsta
+        bne     audio_mode_ready
+        lda     <$A7            ; credited new-game context, not next-stage/demo
+        cmpa    #1
         bne     audio_mode_ready
 audio_mode_level_start
         lda     #6
