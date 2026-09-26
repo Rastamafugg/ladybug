@@ -1,0 +1,108 @@
+{
+  "rom_sha256": "4a4c3bb1cbb1bf6f7cdae302cb9d4e09665bfd8794500077eea501fa308142eb",
+  "phase": "controlled mixer-output frames in normal audio service",
+  "deadline_seconds": 45,
+  "success_marker": "four audio_mix_write returns with actual CPU PSG-write arguments",
+  "timeout_meaning": "mixer write/return boundary not reached",
+  "frames": [
+    {
+      "frame": 0,
+      "writes": [
+        129,
+        17,
+        144,
+        161,
+        0,
+        191,
+        193,
+        0,
+        223,
+        224,
+        255
+      ],
+      "decoded_psg_registers": [
+        273,
+        0,
+        1,
+        15,
+        1,
+        15,
+        0,
+        15
+      ],
+      "selected_register": 7,
+      "intended_noise_attenuation": 15,
+      "output_shadow": "811190a100bfc100dfe0ff"
+    },
+    {
+      "frame": 1,
+      "writes": [
+        129,
+        33,
+        161,
+        193
+      ],
+      "decoded_psg_registers": [
+        529,
+        0,
+        1,
+        15,
+        1,
+        15,
+        0,
+        15
+      ],
+      "selected_register": 4,
+      "intended_noise_attenuation": 15,
+      "output_shadow": "812190a100bfc100dfe0ff"
+    },
+    {
+      "frame": 2,
+      "writes": [
+        129,
+        0,
+        159,
+        161,
+        193
+      ],
+      "decoded_psg_registers": [
+        1,
+        15,
+        1,
+        15,
+        1,
+        15,
+        0,
+        15
+      ],
+      "selected_register": 4,
+      "intended_noise_attenuation": 15,
+      "output_shadow": "81009fa100bfc100dfe0ff"
+    },
+    {
+      "frame": 3,
+      "writes": [
+        129,
+        161,
+        193
+      ],
+      "decoded_psg_registers": [
+        1,
+        15,
+        1,
+        15,
+        1,
+        15,
+        0,
+        15
+      ],
+      "selected_register": 4,
+      "intended_noise_attenuation": 15,
+      "output_shadow": "81009fa100bfc100dfe0ff"
+    }
+  ],
+  "stale_noise_reproduced": false,
+  "decoder_source": "docs/reference/xroar/src/sn76489.c: sn76489_write; data bytes use prior selected register",
+  "result": "pass",
+  "interpretation": "Actual CPU writes decoded with emulator register semantics; not a natural audio capture or proof of every reported sustained tone."
+}

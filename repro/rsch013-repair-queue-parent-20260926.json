@@ -31,6 +31,103 @@
       "both_publications": "pink top/left, red text, zero preserved/interior differences",
       "gmc_source_spare": 1036,
       "remaining": null
+    },
+    "BUG-054": {
+      "implementation_commit": "7b4977d",
+      "integration_commit": "69b2e09",
+      "full_parent_build": "pass",
+      "rom_sha256": "dc0727402a659bae20641e28dbce9b059fae262434659510ce328f43602b480a",
+      "agent_rom_identical": true,
+      "parent_runtime": "bug054-queue-parent-20260926.json",
+      "natural_demo": "current label and count verified by agent on identical ROM",
+      "gmc_source_spare": 1028,
+      "remaining": null
+    },
+    "BUG-055": {
+      "implementation_commit": "f1eb835",
+      "integration_commit": "2e4c0d0",
+      "full_parent_build": "pass",
+      "rom_sha256": "4a4c3bb1cbb1bf6f7cdae302cb9d4e09665bfd8794500077eea501fa308142eb",
+      "agent_rom_identical": true,
+      "parent_runtime": "bug055-queue-parent-20260926.json",
+      "gmc_source_spare": 1027,
+      "remaining": "Natural completion/preemption and audible sustained-tone check"
+    },
+    "BUG-056": {
+      "implementation_commit": "2c4f974",
+      "integration_commit": "896f67d",
+      "full_parent_build": "pass",
+      "rom_sha256": "26a104c96d8b804c04bf27805c02c7696c4708729105d5f7e39f95b4503322bb",
+      "agent_rom_identical": true,
+      "parent_runtime": "bug056-queue-parent-20260926.json",
+      "gmc_source_spare": 1024,
+      "remaining": "Natural complete level and same-level life restart"
+    },
+    "BUG-037": {
+      "implementation_commit": "f91bb84",
+      "integration_commit": "0b99b11",
+      "full_parent_build": "pass",
+      "rom_sha256": "2b757972bd4e4cf92019e7dfbc3505767bfd7397b7936f91dd1c249064cb30e8",
+      "agent_rom_identical": true,
+      "parent_runtime": "bug037-queue-parent-20260926.json",
+      "gmc_source_spare": 610,
+      "maximum_sampled_cycles": 21852,
+      "remaining": "Natural maze completion, terminal death and audible cues",
+      "patch_partition_correction": "Name observer call belongs to BUG057; omitted from standalone037"
+    },
+    "BUG-057": {
+      "implementation_commit": "4efd4f5",
+      "integration_commit": "2c43868",
+      "full_parent_build": "pass",
+      "rom_sha256": "a8da8527c47f8e3082cfffa29205b0913edff683b31aa027a670c30f63b27351",
+      "agent_rom_identical": true,
+      "gmc_source_spare": 519,
+      "remaining": "Natural keyboard/joystick name route, corner control and audible cues"
     }
+  },
+  "final": {
+    "production_commit": "2c43868",
+    "rom_sha256": "a8da8527c47f8e3082cfffa29205b0913edff683b31aa027a670c30f63b27351",
+    "build": "pass; all placement, overflow, reconstruction and screen proofs",
+    "receipts": [
+      "bug057-final-events-20260926.json",
+      "bug057-final-end-20260926.json",
+      "bug057-final-expiry-20260926.json",
+      "bug049-final-natural-20260926.json",
+      "bug043-final-credit-20260926.json",
+      "bug055-final-psg-20260926.json",
+      "bug056-final-phases-20260926.json",
+      "bug054-final-hud-20260926.json",
+      "bug037-final-drain-20260926.json"
+    ],
+    "maximum_sampled_gameplay_cycles": 21850,
+    "maximum_sampled_name_cycles": 9855,
+    "cycle_target": 27000,
+    "gmc_source_spare": 519,
+    "no_limits_increased": true,
+    "status": {
+      "Done": [
+        "BUG-049",
+        "BUG-054"
+      ],
+      "Verification": [
+        "BUG-043",
+        "BUG-055",
+        "BUG-056",
+        "BUG-037",
+        "BUG-057"
+      ]
+    },
+    "acceptance_pending": [
+      "Natural credit insertion through life reentry and after a complete level",
+      "Natural full-maze completion with music finishing before next level",
+      "Natural same-level life restart without start music",
+      "Natural name control and audible add/clear/tick/END",
+      "Natural audible completion/preemption and absence of stale drone"
+    ],
+    "rejected_or_corrected": [
+      "BUG054 historical wide-region and untransformed glyph comparators; corrected current semantic comparison passes",
+      "BUG037 candidate prematurely called BUG057 observer; call moved into BUG057 implementation; final ROM matches approved fit"
+    ]
   }
 }
