@@ -1,0 +1,124 @@
+{
+  "ticket": "BUG-043",
+  "status": "Verification",
+  "base_commit": "9791fef418653add354e9e346cbeca294e6a2319",
+  "source_sha256": "40a484dcf811ce91afd6e4e1d45dea5768cfe8f8cab886ba4f67bae8e1b121b5",
+  "approved_patch_sha256": "6db2e3aff8e1c08185f740864dc95bd63d071b2881e379c68a396182519fb637",
+  "rom_sha256": "2f9324dd54a384d949dfe10bc9391bb7e65970bb21e7008cabc30ad32c0bcce9",
+  "build_capacity_bytes": {
+    "presentation": {
+      "used": 1276,
+      "limit": 1280
+    },
+    "resident": {
+      "used": 8180,
+      "limit": 8192
+    },
+    "assets": {
+      "used": 7596,
+      "limit": 7680
+    },
+    "audio": {
+      "used": 907,
+      "limit": 920
+    },
+    "page_3d_payload": {
+      "used": 4990,
+      "limit": 8192
+    },
+    "instruction": {
+      "used": 935,
+      "limit": 938
+    },
+    "high_score": {
+      "used": 899,
+      "limit": 938
+    },
+    "helper": {
+      "used": 331,
+      "limit": 334
+    },
+    "demo": {
+      "used": 143,
+      "limit": 938
+    },
+    "cold_payload": {
+      "used": 14312,
+      "limit": 16384
+    },
+    "gmc_cpu_readable_source_spare": 1043
+  },
+  "active_credit_probe": {
+    "result": "pass",
+    "deadline_seconds_per_phase": 45,
+    "timeouts": 0,
+    "live_presentation_and_staged_audio_identity": "presentation live and staged audio exact",
+    "observed_phases": [
+      "attract",
+      "idle credit opens scores",
+      "scores published",
+      "credited level",
+      "credit during level stays level",
+      "entered gameplay",
+      "moving game",
+      "5 in gameplay",
+      "simultaneous pair in gameplay",
+      "next-stage hold",
+      "next-stage credit preserves hold",
+      "next-stage gameplay",
+      "credit after next-stage context clear",
+      "terminal death retains game-over destination"
+    ],
+    "held_key_frames_without_repeat": 18,
+    "distinct_player_positions": 10,
+    "lives_unchanged": true,
+    "credit_mix_samples": 18,
+    "simultaneous_5_6_resulting_credits": 4,
+    "counter_pixels": {
+      "white_2_on_both_buffers": true,
+      "white_5_on_both_buffers": true
+    },
+    "sampled_credit_worklist_cycles": [
+      19084,
+      19620,
+      5160,
+      4976,
+      6806,
+      6918,
+      6002,
+      6694
+    ],
+    "sampled_back_owners": [
+      0,
+      1,
+      0,
+      1,
+      0,
+      1,
+      0,
+      1
+    ],
+    "maximum_sampled_cycles": 19620,
+    "target_cycles": 27000,
+    "forced_boundary_coverage": "stage pending -> credited level -> cleared context gameplay; terminal death -> game over"
+  },
+  "adjacent_bug049_natural_parent": {
+    "result": "pass",
+    "deadline_seconds_per_phase": 40,
+    "timeouts": 0,
+    "scenario": "Natural two-credit Player 1 entry, dot pickup, unseeded terminal death",
+    "both_gameover_publications": {
+      "preserved_cells_changed": 0,
+      "interior_cells_wrong": 0,
+      "credit1_white": true,
+      "owner_0_sha256": "3d622238df7d6ea6ef625d85c6a0d97ba22a80334ccff8d606732863d9321c81",
+      "owner_1_sha256": "3d622238df7d6ea6ef625d85c6a0d97ba22a80334ccff8d606732863d9321c81"
+    },
+    "next_screen": 3
+  },
+  "unperformed_acceptance": [
+    "Natural 5/6 insertion while moving during nonterminal death/re-entry",
+    "Natural 5/6 insertion after clearing the first level"
+  ],
+  "done_eligible": false
+}
