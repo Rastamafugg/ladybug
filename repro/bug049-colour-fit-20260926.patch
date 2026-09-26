@@ -1,0 +1,16 @@
+diff --git a/scripts/build_presentation.py b/scripts/build_presentation.py
+index 30856b8..fee3a6a 100644
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -814,6 +814,11 @@ def presentation_pen_map(
+             return (0, 1, 2, 3)  # authored red R, as on attract
+     if role == "high-score" and source_layer == "Coin Positions":
+         return (BLACK, WHITE, WHITE, GREY)
++    if role == "game-over":
++        if source_layer == "Arcade Maze Border":
++            return (BLACK, PINK, PINK, PINK)
++        if source_layer == "Game Over Overlay":
++            return (BLACK, RED, RED, RED)
+     if role in ("game-over", "high-score"):
+         return (BLACK, WHITE, WHITE, WHITE)
+     if role == "instructions" and 28 <= x < 30 and 13 <= y < 15:
