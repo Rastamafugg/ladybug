@@ -1,0 +1,55 @@
+{
+  "ticket": "BUG-049",
+  "source_base": "418ebe73f79795e00ce4049f97ff5619b4038ae0",
+  "approved_patch": "repro/bug049-colour-fit-20260926.patch",
+  "rom_sha256": "bf82c750b365584ad9d586559401496368fd79eeed250b19bfdfe23307ddfde1",
+  "build": {
+    "command": "scripts/build.sh build",
+    "result": "pass",
+    "complete_profile": true,
+    "cold_bytes": "14362/16384 (+50 versus BUG-043 fit)",
+    "resident_bytes": "8180/8192",
+    "asset_bytes": "7596/7680",
+    "presentation_bytes": "1276/1280 (unchanged)",
+    "gmc_source_bytes_spare": "1036 (-7 versus BUG-043 fit)",
+    "six_screen_pixel_exact_cases": 6
+  },
+  "natural_probe": {
+    "command": "python3 /mnt/e/projects/ladybug/repro/bug049-colour-boundary-20260926.py /mnt/c/Users/19029/.codex/worktrees/bug-013-credit-coins/ladybug /tmp/bug049-colour-subagent-20260926.json --expect-fixed",
+    "result": "pass",
+    "per_phase_deadline_seconds": 40,
+    "scenario": "two-credit Player1 entry, natural dot pickup, unseeded terminal death",
+    "last_game_frame_sha256_by_owner": {
+      "0": "31d17a31b0e526877684289585bf7b136401c57d9978248e7ee2111617a266f5",
+      "1": "31d17a31b0e526877684289585bf7b136401c57d9978248e7ee2111617a266f5"
+    },
+    "publications": [
+      {
+        "owner": 0,
+        "frame_sha256": "63a499a4916c7d97315e0a4076d5e94472ef2531367e3254671e61724e318f40",
+        "top_pen": 4,
+        "left_pen": 4,
+        "right_pens": [4, 6],
+        "bottom_pens": [4, 6],
+        "game_over_text_pen": 1,
+        "preserved_cell_differences": 0,
+        "authored_interior_differences": 0,
+        "credit1_white": true
+      },
+      {
+        "owner": 1,
+        "frame_sha256": "63a499a4916c7d97315e0a4076d5e94472ef2531367e3254671e61724e318f40",
+        "top_pen": 4,
+        "left_pen": 4,
+        "right_pens": [4, 6],
+        "bottom_pens": [4, 6],
+        "game_over_text_pen": 1,
+        "preserved_cell_differences": 0,
+        "authored_interior_differences": 0,
+        "credit1_white": true
+      }
+    ],
+    "next_screen": 3
+  },
+  "integration_status": "pending parent combined-source build and colour-probe rerun"
+}
