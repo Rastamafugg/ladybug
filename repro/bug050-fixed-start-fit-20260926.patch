@@ -1,0 +1,90 @@
+--- a/src/instruction_runtime.s
++++ b/src/instruction_runtime.s
+@@ -98,15 +98,7 @@
+ 
+         dec     PRES_COLOUR_TIMER
+         bne     irt_event
+-        lda     #PRESENTATION_INSTRUCTION_COLOUR_DWELL
+-        sta     PRES_COLOUR_TIMER
+-        inc     PRES_HIGHLIGHT
+-        lda     PRES_HIGHLIGHT
+-        cmpa    #4
+-        blo     irt_colour_ready
+-        lda     #1
+-        sta     PRES_HIGHLIGHT
+-irt_colour_ready
++        jsr     PRES_MAIN_INSTRUCTION_COLOUR_NEXT
+         inc     IRT_TRACE_COLOURS
+         ldx     #IRT_OWNER_A_PHASE
+         tst     FB_BACK
+@@ -128,6 +120,9 @@
+         blo     irt_draw_player
+         cmpd    2,x
+         bhs     consume_event
++        ldb     PRES_TIMER+1
++        bitb    #1
++        beq     irt_draw_player
+         ldd     PRES_OUT
+         cmpd    4,x
+         bhs     irt_draw_player
+--- a/src/shared_text_runtime.inc
++++ b/src/shared_text_runtime.inc
+@@ -235,3 +235,33 @@
+         rts
+ asset_top_default
+         fcb $09,$00,$00
++
++; Instruction-only colour timing: retain starts, extend x3/x5 blue through pickup.
++asset_instruction_colour_next
++        inc $CF
++        lda $CF
++        cmpa #4
++        blo aic_colour_ready
++        lda #1
++        sta $CF
++aic_colour_ready
++        ldb #30
++        cmpa #3
++        bne aic_red
++        lda $CA
++        suba #13
++        cmpa #1
++        bhi aic_done
++        ldb #32
++        bra aic_done
++aic_red
++        cmpa #1
++        bne aic_done
++        lda $CA
++        suba #14
++        cmpa #1
++        bhi aic_done
++        ldb #28
++aic_done
++        stb $D0
++        rts
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -1185,6 +1185,12 @@
+         # Sprite Locations records each actor baseline. Convert the authored
+         # stop to the 16x16 framebuffer root used by save/draw.
+         goal = framebuffer_destination(stop) - 1280
++        origin = (framebuffer_destination(INSTRUCTION_ANCHORS[row]) - 1280
++                  if index in (0, 5, 12)
++                  else event_manifest[-1]["goal_destination"])
++        distance = goal - origin
++        first_move = motion + (1 if motion % 2 == 0 else 0)
++        consume = max(consume, first_move + 2 * (distance - 1) + 1)
+         target_destination = framebuffer_destination(target)
+         hud_destination = 0 if hud == (0, 0) else framebuffer_destination(hud)
+         hud_tile_id = 0
+--- a/scripts/build.sh
++++ b/scripts/build.sh
+@@ -601,6 +601,7 @@
+         'dynamic_dispatch': 'PRES_MAIN_DYNAMIC_TEXT',
+         'shared_mask': 'PRES_MAIN_SHARED_MASK',
+         'asset_draw_top_hud': 'PRES_MAIN_TOP_HUD',
++        'asset_instruction_colour_next': 'PRES_MAIN_INSTRUCTION_COLOUR_NEXT',
+         'install_phase_tiles_for_screen': 'PRES_MAIN_INSTALL_PHASE_TILES',
+         'presentation_page23_resume': 'PRES_MAIN_PAGE23_RESUME',
+         'presentation_map_stream_offsets': 'PRES_MAIN_MAP_STREAM_OFFSETS',
