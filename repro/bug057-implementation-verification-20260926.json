@@ -1,0 +1,126 @@
+{
+  "ticket": "BUG-057",
+  "phase": "implementation Verification",
+  "base_commit": "0b99b11942b57944291ca421ae78e8dc3ffa3d1d",
+  "rom_sha256": "a8da8527c47f8e3082cfffa29205b0913edff683b31aa027a670c30f63b27351",
+  "build": {
+    "command": "bash scripts/build.sh build",
+    "result": "pass",
+    "capacity_bytes_used_over_limit": {
+      "resident": [
+        8180,
+        8192
+      ],
+      "assets": [
+        7596,
+        7680
+      ],
+      "presentation": [
+        1273,
+        1280
+      ],
+      "instruction": [
+        935,
+        938
+      ],
+      "perimeter_helper": [
+        331,
+        334
+      ],
+      "high_score_runtime": [
+        899,
+        920
+      ],
+      "copied_audio_engine": [
+        734,
+        920
+      ],
+      "audio_page_3d": [
+        5554,
+        8192
+      ],
+      "cold": [
+        14362,
+        16384
+      ]
+    },
+    "compressed_gmc_source_spare_bytes": 519
+  },
+  "scenarios": [
+    {
+      "script": "bug057-name-event-controls-20260926.py",
+      "deadline_seconds": 45,
+      "risk": "name-event edge detection, failed/unchanged actions, first timer publication and second-owner replay",
+      "result": "pass",
+      "evidence": [
+        "accepted add and clear each enqueue once",
+        "unchanged/full length emits no extra cue",
+        "END edge once",
+        "timer first publication once",
+        "later timer box emits a cue",
+        "guard query does not advance state"
+      ]
+    },
+    {
+      "script": "bug057-name-audio-fit-20260926.py (END)",
+      "deadline_seconds": 40,
+      "risk": "cue delivery, name input preemption, audio completion before single score commit",
+      "result": "pass",
+      "mixer_observed_cues": [
+        2,
+        4,
+        8,
+        9,
+        12
+      ],
+      "END_requests": 1,
+      "score_commit_count": 1,
+      "name_control_max_cycles": 9855,
+      "name_control_target_cycles": 27000,
+      "qualifier": "seeded qualifying score and controlled direction; death sequence natural; mixer/shadow evidence, no physical listening"
+    },
+    {
+      "script": "bug057-name-audio-fit-20260926.py expiry",
+      "deadline_seconds": 40,
+      "risk": "timer expiry waits for required audio without requesting END cue",
+      "result": "pass",
+      "mixer_observed_cues": [
+        2,
+        4,
+        9
+      ],
+      "END_requests": 0,
+      "expiry_flag": 2,
+      "score_commit_count": 1
+    },
+    {
+      "script": "bug037-audio-fit-20260926.py",
+      "deadline_seconds": 45,
+      "risk": "shared music admission/priority, completion guard, reset while music pending",
+      "result": "pass",
+      "music_queue_order": [
+        13,
+        10,
+        11,
+        14,
+        6,
+        9,
+        8,
+        7
+      ],
+      "guard_call_max_cycles": 1955,
+      "reset_silences_pending_music": true
+    },
+    {
+      "script": "bug043-active-credit-fit-20260926.py",
+      "deadline_seconds": 45,
+      "risk": "adjacent credit input while live/transition/name ownership is active",
+      "result": "pass",
+      "maximum_sampled_worklist_cycles": 21850,
+      "worklist_target_cycles": 27000,
+      "both_framebuffer_hud_owners": true,
+      "credit_mix_samples": 16
+    }
+  ],
+  "qa_verdict": "implementation and controlled regressions pass; ticket remains Verification pending parent natural keyboard/joystick name-entry route and physical listening"
+}

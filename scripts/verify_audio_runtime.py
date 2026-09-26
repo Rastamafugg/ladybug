@@ -248,8 +248,10 @@ def main() -> None:
     if cue_ids != list(range(args.require_cues)):
         raise SystemExit("audio proof: event-to-cue matrix cue IDs are not 0..17")
     unresolved = event_map.get("unresolved", [])
-    if not any(item.get("event") == "high_score_end" for item in unresolved):
-        raise SystemExit("audio proof: high-score END mapping is not explicitly unresolved")
+    if any(item.get("event") == "high_score_end" for item in unresolved):
+        raise SystemExit("audio proof: high-score END mapping remains unresolved")
+    if not any(item.get("event") == "high_score_end" and item.get("cue_id") == 8 for item in entries):
+        raise SystemExit("audio proof: high-score END must use approved cue 8")
 
     layout = json.loads(args.manifest.read_text(encoding="ascii"))
     audio_meta = layout.get("audio_runtime")

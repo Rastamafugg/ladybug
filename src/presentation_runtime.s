@@ -188,7 +188,9 @@ pft_ready
 pft_single_credit
         bsr     add_credit
         ; A credit must not replace live play or a credited level handoff.
-        tst     <PRES_MODE
+        lda     <PRES_MODE
+        beq     pft_dispatch
+        cmpa    #MODE_NAME
         beq     pft_dispatch
         lda     <PRES_SCREEN
         cmpa    #PRESENTATION_MAP_LEVEL_START
@@ -198,7 +200,7 @@ pft_single_credit
 pft_idle_credit
         ifne    COMPLETE_PROFILE
         ; Credit input can pre-empt any auxiliary owner, including cold load.
-        bsr     install_highscore_runtime
+        lbsr    install_highscore_runtime
         endc
         lda     #PRESENTATION_MAP_HIGH_SCORE
         clr     <PENDING
@@ -224,6 +226,8 @@ pft_mode
         tst     <PRES_CREDITS
         beq     pft_dispatch
         lda     <PRES_MODE
+        beq     pft_dispatch
+        cmpa    #MODE_NAME
         beq     pft_dispatch
         cmpa    #MODE_LEVEL
         beq     pft_dispatch
@@ -363,12 +367,12 @@ normal_stage
 normal_start
         tst     INITIAL_ENTRY_STATE
         bne     normal_game       ; held start cannot replace an active entrant
-        lda     PRES_EVENT
+        lda     <PRES_EVENT
         bita    #1
         beq     normal_game
-        tst     PRES_CREDITS
+        tst     <PRES_CREDITS
         beq     normal_game
-        dec     PRES_CREDITS
+        dec     <PRES_CREDITS
         lda     #1
         sta     <PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
@@ -382,12 +386,12 @@ normal_game
         rts
 
 start_screen
-        sta     PRES_SCREEN
+        sta     <PRES_SCREEN
         ifeq    HIGHSCORE_TEST_PROFILE
         ifne    COMPLETE_PROFILE
         cmpa    #PRESENTATION_MAP_ATTRACT
         bne     start_screen_context_ready
-        clr     PRES_CONTEXT
+        clr     <PRES_CONTEXT
 start_screen_context_ready
         endc
         ifne    COMPLETE_PROFILE
@@ -398,7 +402,7 @@ start_screen_context_ready
         bne     start_screen_no_instruction_install
 start_screen_instruction_install
         lbsr    install_instruction_runtime
-        lda     PRES_SCREEN
+        lda     <PRES_SCREEN
 start_screen_no_instruction_install
         endc
         endc
@@ -413,7 +417,7 @@ start_screen_no_instruction_install
         std     PRES_IN
         clr     PRES_RUN
         lda     #MODE_LOAD
-        sta     PRES_MODE
+        sta     <PRES_MODE
         clra
         clrb
         std     PRES_CELL
@@ -422,7 +426,7 @@ start_screen_map
         ldd     #$2000
         std     PRES_DST
         lbsr    map_back
-        lda     PRES_SCREEN
+        lda     <PRES_SCREEN
         cmpa    #PRESENTATION_MAP_LEVEL_START
         beq     start_screen_done
 start_screen_hold
@@ -585,7 +589,7 @@ load_done_publish
         endc
         ldb     PRES_SCREEN
         lda     b,x
-        sta     PRES_MODE
+        sta     <PRES_MODE
 load_done_normal
         lda     #$FF
         sta     PRES_PHASE
@@ -716,7 +720,7 @@ attract_tick_ready
 attract_next
         ifne    BUG011_DEVELOPMENT_PROFILE
         ifne    HIGHSCORE_TEST_PROFILE
-        clr     PRES_CONTEXT
+        clr     <PRES_CONTEXT
         endc
         lda     #PRESENTATION_MAP_INSTRUCTIONS
         ifne    HIGHSCORE_TEST_PROFILE
@@ -754,12 +758,12 @@ level_tick
         cmpd    #180
         blo     hold
         ifne    COMPLETE_PROFILE
-        lda     PRES_CONTEXT
+        lda     <PRES_CONTEXT
         beq     level_tick_demo_check
         cmpa    #PRES_CONTEXT_NEXT_STAGE
         bne     live_begin
         clr     PRES_CONTEXT
-        clr     PRES_MODE
+        clr     <PRES_MODE
         clra
         rts
 level_tick_demo_check
@@ -776,7 +780,7 @@ level_tick_demo_check
         else
         bne     hold
         endc
-        tst     PRES_CONTEXT
+        tst     <PRES_CONTEXT
         bne     live_begin
         ifne    COMPLETE_PROFILE
         bsr     init_gameplay
@@ -817,7 +821,7 @@ live_begin
         bsr     init_gameplay
         lda     #ENTRY_WAIT_STAGE
         sta     INITIAL_ENTRY_STATE
-        clr     PRES_MODE
+        clr     <PRES_MODE
         clra
         rts
 init_gameplay
@@ -981,7 +985,7 @@ gameover_tick
         rts
 
 name_tick
-        lda     PRES_EVENT
+        lda     <PRES_EVENT
         bita    #1
         lbeq    hold
         lda     #PRESENTATION_MAP_ATTRACT
@@ -1500,7 +1504,7 @@ module_commit_done
         endc
 
 scan_keys
-        clr     PRES_EVENT
+        clr     <PRES_EVENT
         ldy     #PRES_PREV
         ifne    HIGHSCORE_TEST_PROFILE+COMPLETE_PROFILE
         ldx     #PRES_MAIN_SCAN_DRIVES
@@ -1532,7 +1536,7 @@ scan_loop
         beq     scan_next
         lda     PRES_EVENT
         ora     b,u
-        sta     PRES_EVENT
+        sta     <PRES_EVENT
 scan_next
         puls    a
         sta     b,y
@@ -1903,7 +1907,7 @@ pft_helper_ready
         lda     #$A5
         sta     PRES_MAGIC
         clr     PRES_MODE
-        clr     PRES_CREDITS
+        clr     <PRES_CREDITS
         clr     PRES_CONTEXT
         clr     PRES_DEMO_CAUSE
         clr     PRES_DEMO_ROUTE
@@ -1937,21 +1941,21 @@ pft_mode
         lda     PRES_EVENT
         bita    #1
         beq     pft_dispatch
-        tst     PRES_CREDITS
+        tst     <PRES_CREDITS
         beq     pft_dispatch
-        lda     PRES_MODE
+        lda     <PRES_MODE
         beq     pft_dispatch
         cmpa    #MODE_LEVEL
         beq     pft_dispatch
-        dec     PRES_CREDITS
+        dec     <PRES_CREDITS
         lda     #1
-        sta     PRES_CONTEXT
+        sta     <PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
         lbsr    start_screen
         lda     #1
         rts
 pft_dispatch
-        lda     PRES_MODE
+        lda     <PRES_MODE
         beq     normal_tick
         cmpa    #MODE_LOAD
         lbeq    load_tick
@@ -2074,7 +2078,7 @@ normal_stage
         else
         lda     #1
         endc
-        sta     PRES_CONTEXT
+        sta     <PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
         bsr     start_screen
         lda     #1
@@ -2099,7 +2103,7 @@ normal_game
         rts
 
 start_screen
-        sta     PRES_SCREEN
+        sta     <PRES_SCREEN
         ifeq    HIGHSCORE_TEST_PROFILE
         ifne    COMPLETE_PROFILE
         cmpa    #PRESENTATION_MAP_ATTRACT
@@ -2345,7 +2349,7 @@ draw_coin_slots
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
         bne     draw_coins_done
-        lda     PRES_CREDITS
+        lda     <PRES_CREDITS
         beq     draw_coins_done
         sta     PRES_COIN_COUNT
         ldd     #PRESENTATION_COIN_DESTINATION_TABLE
@@ -2480,7 +2484,7 @@ level_tick
         cmpd    #180
         blo     hold
         ifne    COMPLETE_PROFILE
-        lda     PRES_CONTEXT
+        lda     <PRES_CONTEXT
         beq     level_tick_demo_check
         cmpa    #PRES_CONTEXT_NEXT_STAGE
         bne     live_begin
@@ -2502,7 +2506,7 @@ level_tick_demo_check
         else
         bne     hold
         endc
-        tst     PRES_CONTEXT
+        tst     <PRES_CONTEXT
         bne     live_begin
         ifne    COMPLETE_PROFILE
         bsr     init_gameplay
@@ -2721,11 +2725,11 @@ name_tick
         endc
         endc
 add_credit
-        lda     PRES_CREDITS
+        lda     <PRES_CREDITS
         cmpa    #PRESENTATION_COIN_SLOT_COUNT
         bhs     add_coin
         inca
-        sta     PRES_CREDITS
+        sta     <PRES_CREDITS
 add_coin
         rts
 
@@ -3238,7 +3242,7 @@ module_commit_done
         endc
 
 scan_keys
-        clr     PRES_EVENT
+        clr     <PRES_EVENT
         ldy     #PRES_PREV
         ifne    HIGHSCORE_TEST_PROFILE+COMPLETE_PROFILE
         ldx     #PRES_MAIN_SCAN_DRIVES
@@ -3270,7 +3274,7 @@ scan_loop
         beq     scan_next
         lda     PRES_EVENT
         ora     b,u
-        sta     PRES_EVENT
+        sta     <PRES_EVENT
 scan_next
         puls    a
         sta     b,y

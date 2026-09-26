@@ -120,12 +120,14 @@ highscore_phase_tick
         beq     highscore_timer_frame
         dec     PRES_TICK_PHASE
         lda     PRES_TICK_PHASE
+        ifeq COMPLETE_PHASE_AUX
         cmpa    #2
         lbeq    highscore_tick_second
         tsta
         bne     highscore_timer_frame
         lda     #$9F
         sta     SND_DATA
+        endc
 highscore_timer_frame
         inc     PRES_NAME_TIMER_PHASE
         lda     PRES_NAME_TIMER_PHASE
@@ -187,12 +189,14 @@ highscore_timer_complete
         inc     PRES_NAME_TIMER_BOX
         lda     #4
         sta     PRES_TICK_PHASE
+        ifeq COMPLETE_PHASE_AUX
         lda     #$86
         sta     SND_DATA
         lda     #$35
         sta     SND_DATA
         lda     #$91
         sta     SND_DATA
+        endc
         lda     PRES_NAME_TIMER_BOX
         cmpa    #PRESENTATION_NAME_ENTRY_TIMER_COUNT
         bhs     highscore_commit_done
@@ -203,6 +207,7 @@ highscore_phase_busy
         lda     #1
         rts
 
+        ifeq COMPLETE_PHASE_AUX
 highscore_tick_second
         lda     #$8A
         sta     SND_DATA
@@ -211,8 +216,22 @@ highscore_tick_second
         lda     #$92
         sta     SND_DATA
         lbra    highscore_timer_frame
+        endc
 
 highscore_commit_done
+        ifne COMPLETE_PHASE_AUX
+        lda     PRES_MODE
+        cmpa    #MODE_NAME
+        bne     highscore_audio_done
+        tst     PRES_NAME_FLAGS
+        bne     highscore_audio_query
+        lda     #2
+        sta     PRES_NAME_FLAGS
+highscore_audio_query
+        jsr     $02C0
+        bne     highscore_phase_busy
+highscore_audio_done
+        endc
         lbsr    highscore_commit_name
         ldd     #highscore_after_highscore_start
         std     PRES_NAME_PTR

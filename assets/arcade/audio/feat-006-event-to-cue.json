@@ -28,7 +28,10 @@
       "state_transition": "BONUS_LEFT decreases after a non-skull collectible is accepted",
       "fire_once": "one enqueue per accepted non-skull collectible",
       "parameter": 0,
-      "verification": "forced_bonus_collection"
+      "verification": "forced_bonus_collection",
+      "additional_events": [
+        "name_character_accepted"
+      ]
     },
     {
       "event": "dot_collection",
@@ -46,7 +49,10 @@
       "state_transition": "BOX_INDEX or BOX_PHASE advances for an actual timer-box transition",
       "fire_once": "one enqueue per committed perimeter-box transition",
       "parameter": 0,
-      "verification": "forced_timer_tick"
+      "verification": "forced_timer_tick",
+      "additional_events": [
+        "name_timer_box_published"
+      ]
     },
     {
       "event": "enemy_release",
@@ -77,13 +83,14 @@
       "implementation_status": "anchor_pending"
     },
     {
-      "event": "word_completion_alias",
+      "event": "high_score_end",
       "cue_id": 8,
-      "source_routine": "collect_word_letter",
-      "state_transition": "exact alias of cue 7",
-      "fire_once": "not a separate production event; resolves exactly to cue 7",
+      "source_routine": "audio_poll_name",
+      "state_transition": "name END flag rises to1",
+      "fire_once": "one request for accepted END; wait for completion before commit",
       "parameter": 0,
-      "verification": "descriptor_alias_8_7"
+      "verification": "name_END_completion",
+      "descriptor_alias": "cue7 stream unchanged"
     },
     {
       "event": "all_flowers_stage_completion",
@@ -92,7 +99,10 @@
       "state_transition": "DOTS_LEFT and BONUS_LEFT reach zero before the stage advances",
       "fire_once": "one enqueue per completed stage; latch prevents repeated frame enqueues",
       "parameter": 0,
-      "verification": "forced_all_flowers_completion"
+      "verification": "forced_all_flowers_completion",
+      "additional_events": [
+        "name_character_cleared"
+      ]
     },
     {
       "event": "extra_completion",
@@ -172,12 +182,5 @@
       "verification": "descriptor_alias_17_16"
     }
   ],
-  "unresolved": [
-    {
-      "event": "high_score_end",
-      "cue_id": null,
-      "reason": "No separately named approved descriptor or validated source call site has been identified",
-      "verification": "high_score_end_unresolved"
-    }
-  ]
+  "unresolved": []
 }

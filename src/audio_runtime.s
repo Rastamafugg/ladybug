@@ -80,6 +80,7 @@ audio_mode_ready
         bra     audio_poll_done
 audio_presentation_owner
         clr     audio_poll_valid
+        jsr     audio_poll_name
 
 audio_poll_done
         lbsr    audio_process_queue
@@ -98,6 +99,7 @@ audio_service_done
 audio_init_impl
         clr     AUDIO_INSTALLED
         clr     audio_music_count
+        clr     audio_name_valid
         clr     audio_stop_pending
         clr     AUDIO_CREDIT_PENDING
         lda     #$FF
@@ -1112,7 +1114,58 @@ audio_music_best_index fcb 0
 audio_mix_priority fcb 0
 
 
-; Screen-exit drain includes admitted effects and pending credits.
+; Name-entry events use the same banked foreground clock as gameplay.
+audio_poll_name
+        lda     PRES_MODE
+        cmpa    #8
+        beq     audio_name_mode
+        clr     audio_name_valid
+        rts
+audio_name_mode
+        tst     audio_name_valid
+        bne     audio_name_scan
+        lda     <$CB
+        sta     audio_name_length
+        clr     audio_name_end
+        clr     audio_name_timer
+        inc     audio_name_valid
+audio_name_scan
+        lda     <$CB
+        cmpa    audio_name_length
+        beq     audio_name_length_done
+        sta     audio_name_length
+        blo     audio_name_clear
+        lda     #2
+        bra     audio_name_emit_length
+audio_name_clear
+        lda     #9
+audio_name_emit_length
+        jsr     audio_poll_enqueue
+audio_name_length_done
+        lda     <$E2
+        cmpa    audio_name_end
+        beq     audio_name_end_done
+        sta     audio_name_end
+        cmpa    #1
+        bne     audio_name_end_done
+        lda     #8
+        jsr     audio_poll_enqueue
+audio_name_end_done
+        lda     <$E1
+        bpl     audio_name_timer_reset
+        tst     <$91
+        bne     audio_name_done
+        tst     audio_name_timer
+        bne     audio_name_done
+        inc     audio_name_timer
+        lda     #4
+        jmp     audio_poll_enqueue
+audio_name_timer_reset
+        clr     audio_name_timer
+audio_name_done
+        rts
+; Name exit drains admitted action/tick/credit effects as well as music.
+; Flags freeze controls during this drain; timer expiry uses flag2, END flag1.
 audio_drain_busy
         jsr     audio_music_busy
         tsta
@@ -1135,6 +1188,10 @@ audio_drain_busy_yes
         lda     #1
 audio_drain_busy_done
         rts
+audio_name_valid fcb 0
+audio_name_length fcb 0
+audio_name_end fcb 0
+audio_name_timer fcb 0
 
         include "gmc_sound_data.inc"
 
