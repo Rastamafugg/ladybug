@@ -1,0 +1,122 @@
+diff --git a/src/presentation_runtime.s b/src/presentation_runtime.s
+index a6a74cc..fcd17e7 100644
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -87,6 +87,8 @@ PLAYER_BG_VALID equ $006A
+ PLAYER_BG equ $A300
+ BACK_ID equ $0090
+ PENDING equ $0091
++CREDIT_RENDER_FLAGS equ $007F
++CREDIT_RF_HUD equ $02
+ ACTIVE  equ $0098
+ FB_INIT_STATE equ $009A
+ FB_META_A equ $A900
+@@ -136,7 +138,7 @@ ATTRACT_OVERLAY_ENABLED equ 0
+         org $1900
+
+ presentation_flow_tick
+-        lda     PRES_MAGIC
++        lda     <PRES_MAGIC
+         cmpa    #$A5
+         beq     pft_helper_ready
+         ifne COMPLETE_PROFILE
+@@ -154,17 +156,17 @@ pft_helper_ready
+         ifeq    HIGHSCORE_TEST_PROFILE
+         lbsr    scan_keys
+         endc
+-        lda     PRES_MAGIC
++        lda     <PRES_MAGIC
+         cmpa    #$A5
+         beq     pft_ready
+         lda     #$A5
+-        sta     PRES_MAGIC
+-        clr     PRES_MODE
+-        clr     PRES_CREDITS
+-        clr     PRES_CONTEXT
+-        clr     PRES_DEMO_CAUSE
+-        clr     PRES_DEMO_ROUTE
+-        clr     PRES_ACTOR_FRAME
++        sta     <PRES_MAGIC
++        clr     <PRES_MODE
++        clr     <PRES_CREDITS
++        clr     <PRES_CONTEXT
++        clr     <PRES_DEMO_CAUSE
++        clr     <PRES_DEMO_ROUTE
++        clr     <PRES_ACTOR_FRAME
+         ifne    HIGHSCORE_TEST_PROFILE
+         lda     #PRESENTATION_MAP_ENTER_HIGH_SCORE
+         else
+@@ -177,7 +179,7 @@ pft_ready
+         ifne    HIGHSCORE_TEST_PROFILE
+         lbra    pft_dispatch
+         endc
+-        lda     PRES_EVENT
++        lda     <PRES_EVENT
+         anda    #$06
+         beq     pft_mode
+         cmpa    #$06
+@@ -185,43 +187,55 @@ pft_ready
+         bsr     add_credit
+ pft_single_credit
+         bsr     add_credit
++        ; A credit must not replace live play or a credited level handoff.
++        tst     <PRES_MODE
++        beq     pft_dispatch
++        lda     <PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_LEVEL_START
++        bne     pft_idle_credit
++        tst     <PRES_CONTEXT
++        bne     pft_dispatch
++pft_idle_credit
+         ifne    COMPLETE_PROFILE
+         ; Credit input can pre-empt any auxiliary owner, including cold load.
+         bsr     install_highscore_runtime
+         endc
+         lda     #PRESENTATION_MAP_HIGH_SCORE
+-        clr     PENDING
++        clr     <PENDING
+         lbsr    start_screen
+         lda     #1
+         rts
+ add_credit
+-        lda     PRES_CREDITS
++        lda     <PRES_CREDITS
+         cmpa    #PRESENTATION_COIN_SLOT_COUNT
+         bhs     add_coin
+         inca
+-        sta     PRES_CREDITS
++        sta     <PRES_CREDITS
+         inc     $02DD
++        lda     <CREDIT_RENDER_FLAGS
++        ora     #CREDIT_RF_HUD
++        sta     <CREDIT_RENDER_FLAGS
+ add_coin
+         rts
+ pft_mode
+-        lda     PRES_EVENT
++        lda     <PRES_EVENT
+         bita    #1
+         beq     pft_dispatch
+-        tst     PRES_CREDITS
++        tst     <PRES_CREDITS
+         beq     pft_dispatch
+-        lda     PRES_MODE
++        lda     <PRES_MODE
+         beq     pft_dispatch
+         cmpa    #MODE_LEVEL
+         beq     pft_dispatch
+-        dec     PRES_CREDITS
++        dec     <PRES_CREDITS
+         lda     #1
+-        sta     PRES_CONTEXT
++        sta     <PRES_CONTEXT
+         lda     #PRESENTATION_MAP_LEVEL_START
+         lbsr    start_screen
+         lda     #1
+         rts
+ pft_dispatch
+-        lda     PRES_MODE
++        lda     <PRES_MODE
+         beq     normal_tick
+         cmpa    #MODE_LOAD
+         lbeq    load_tick

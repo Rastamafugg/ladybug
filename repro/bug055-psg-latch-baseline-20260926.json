@@ -1,0 +1,98 @@
+{
+  "rom_sha256": "3f610d4fb86766220b3aada4fb2d8c94dc3956f767455512db8dbd218f0eb3fb",
+  "phase": "controlled mixer-output frames in normal audio service",
+  "deadline_seconds": 45,
+  "success_marker": "four audio_mix_write returns with actual CPU PSG-write arguments",
+  "timeout_meaning": "mixer write/return boundary not reached",
+  "frames": [
+    {
+      "frame": 0,
+      "writes": [
+        129,
+        17,
+        144,
+        161,
+        0,
+        191,
+        193,
+        0,
+        223,
+        224,
+        255
+      ],
+      "decoded_psg_registers": [
+        273,
+        0,
+        1,
+        15,
+        1,
+        15,
+        0,
+        15
+      ],
+      "selected_register": 7,
+      "intended_noise_attenuation": 15,
+      "output_shadow": "811190a100bfc100dfe0ff"
+    },
+    {
+      "frame": 1,
+      "writes": [
+        33
+      ],
+      "decoded_psg_registers": [
+        273,
+        0,
+        1,
+        15,
+        1,
+        15,
+        0,
+        1
+      ],
+      "selected_register": 7,
+      "intended_noise_attenuation": 15,
+      "output_shadow": "812190a100bfc100dfe0ff"
+    },
+    {
+      "frame": 2,
+      "writes": [
+        0,
+        159
+      ],
+      "decoded_psg_registers": [
+        273,
+        15,
+        1,
+        15,
+        1,
+        15,
+        0,
+        0
+      ],
+      "selected_register": 1,
+      "intended_noise_attenuation": 15,
+      "output_shadow": "81009fa100bfc100dfe0ff"
+    },
+    {
+      "frame": 3,
+      "writes": [],
+      "decoded_psg_registers": [
+        273,
+        15,
+        1,
+        15,
+        1,
+        15,
+        0,
+        0
+      ],
+      "selected_register": 1,
+      "intended_noise_attenuation": 15,
+      "output_shadow": "81009fa100bfc100dfe0ff"
+    }
+  ],
+  "stale_noise_reproduced": true,
+  "decoder_source": "docs/reference/xroar/src/sn76489.c: sn76489_write; data bytes use prior selected register",
+  "result": "pass",
+  "interpretation": "Actual CPU writes decoded with emulator register semantics; not a natural audio capture or proof of every reported sustained tone."
+}
