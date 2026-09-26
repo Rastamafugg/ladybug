@@ -1,0 +1,62 @@
+{
+  "ticket": "BUG-043",
+  "status": "isolated correction verified; parent integration pending",
+  "branch": "codex/bug-043-credit-audibility",
+  "ready_base": "bc73328",
+  "candidate_rom_sha256": "88122021027412a5cc54cd4cc385f2aba0f79a879990d5dd4d20ef3bde1e6cdb",
+  "worktree_rom_identity": "build/ladybug.rom SHA-256 matches candidate",
+  "scope": [
+    "credit cue 12 admission and mixer contribution",
+    "credit cue stream and wait preservation while music owns slot zero",
+    "existing credit FIFO behavior and overflow",
+    "no general music-priority or stream changes"
+  ],
+  "full_build": {
+    "command": "wsl bash scripts/build.sh build",
+    "result": "pass on exact candidate before this verification turn",
+    "rerun_in_this_turn": false
+  },
+  "focused_mixer_probe": {
+    "command": "wsl python3 repro/bug043-credit-mix-fit-20260926.py",
+    "result": "pass; retained source/staged/live identity",
+    "credit_pending_during_music_samples": 222,
+    "mixed_credit_samples_after_music": 21,
+    "mixed_credit_samples_with_competing_effects": 21,
+    "active_credit_preserved_during_later_music_samples": 223,
+    "mixed_credit_samples_after_resume": 20,
+    "psg_output_shadow_matches_credit_voice": true,
+    "physical_hardware_listening_claim": false
+  },
+  "fifo_regression": {
+    "receipt": "repro/bug043-credit-mix-fifo-fit-20260926.json",
+    "result": "pass",
+    "simultaneous_credit_cues_delivered": true,
+    "two_credit_requests_retained_across_full_fifo": true,
+    "level_cue_admission_and_completion": true,
+    "overflow": 0
+  },
+  "publication_preemption_and_timing": {
+    "result": "pass on exact candidate per retained fit summary",
+    "preemption_coverage": "pass: natural demo credit; separate credit during incomplete high-score loading; natural Player 1 consumption; forced DEATH_STATE=4 from natural credited play, then normal game-over publication and natural credit input",
+    "two_credit_prompt": "pass",
+    "sampled_max_cycles": 20900,
+    "engineering_target_cycles": 27000
+  },
+  "static_audio_verifier": {
+    "result": "pass on exact candidate",
+    "cues": 18,
+    "wait_values": 400,
+    "psg_bytes": 1938
+  },
+  "capacity_used_limit": {
+    "audio_engine": [907, 920],
+    "page_3d_audio_payload_bytes": 4990,
+    "resident": [8189, 8192],
+    "assets": [7678, 7680],
+    "presentation": [1273, 1280],
+    "cold_payload": [13530, 16384],
+    "gmc_source_spare_bytes": 1363
+  },
+  "remaining_risk": "BUG-037 startup music handoff remains separate and unresolved; parent combined-source integration build and review are pending",
+  "correction_specific_rejected_probes": []
+}

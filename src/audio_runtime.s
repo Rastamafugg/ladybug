@@ -176,31 +176,17 @@ audio_enqueue_drop
 audio_enqueue_done
         rts
 
-; Count-only credit admission is independent of the four-event FIFO. Wait
-; until no credit cue is active and one effect slot is free, then start one.
+; Credit admission uses the first effect slot, which the existing mixer visits
+; before other effects. Preserve pending credits until music releases slot 0.
 audio_credit_service
         tst     AUDIO_CREDIT_PENDING
         beq     audio_credit_done
-        lda     #$FF
-        sta     AUDIO_BEST_SLOT
-        lda     #1
-        sta     AUDIO_WORK_SLOT
-audio_credit_scan
-        lbsr    audio_slot_base
-        lda     ,x
-        cmpa    #12
-        beq     audio_credit_done
+        lda     audio_slot0
         cmpa    #$FF
-        bne     audio_credit_next
-        lda     AUDIO_WORK_SLOT
-        sta     AUDIO_BEST_SLOT
-audio_credit_next
-        inc     AUDIO_WORK_SLOT
-        lda     AUDIO_WORK_SLOT
-        cmpa    #4
-        blo     audio_credit_scan
-        tst     AUDIO_BEST_SLOT
-        bmi     audio_credit_done
+        bne     audio_credit_done
+        lda     audio_slot1
+        cmpa    #$FF
+        bne     audio_credit_done
         lda     #12
         sta     AUDIO_SAVED_ID
         lbsr    audio_admit
@@ -343,6 +329,14 @@ audio_advance_next
         lda     ,x
         cmpa    #$FF
         beq     audio_advance_skip
+        cmpa    #12
+        bne     audio_advance_wait
+        ; A newly admitted musical cue owns the mixer. Preserve the credit
+        ; stream and wait count until its remaining notes can be heard.
+        lda     audio_slot0
+        cmpa    #$FF
+        bne     audio_advance_skip
+audio_advance_wait
         lda     3,x
         beq     audio_advance_stream
         dec     3,x
