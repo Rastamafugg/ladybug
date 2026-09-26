@@ -1,0 +1,468 @@
+diff --git a/src/audio_runtime.s b/src/audio_runtime.s
+index 4addfa2..afe8bfd 100644
+--- a/src/audio_runtime.s
++++ b/src/audio_runtime.s
+@@ -27,6 +27,13 @@ AUDIO_WORK_VOICE   equ $00FC
+ AUDIO_MIX_COUNT    equ $00FD
+ AUDIO_BEST_SLOT    equ $00FE
+ AUDIO_BEST_PRI     equ $00FF
++AUDIO_CREDIT_PENDING equ $02DF
++AUDIO_LAST_MODE equ $02DE
++AUDIO_SERVICE_GATEWAY equ $02E0
++AUDIO_SERVICE_RETURN equ $02EC
++PRES_MODE equ $00A5
++MODE_LEVEL equ 6
++MODE_DEMO equ 4
+ 
+ ; Slot layout: id, priority, policy, wait, stream pointer, three periods,
+ ; three attenuations, noise control, noise attenuation, padding.
+@@ -49,22 +56,53 @@ audio_service_impl
+         lda     #$6C
+         sta     GIME_INIT0
+         jsr     audio_select_gmc
++        lda     PRES_MODE
++        ldb     AUDIO_LAST_MODE
++        sta     AUDIO_LAST_MODE
++        cmpb    #MODE_LEVEL
++        bne     audio_mode_ready
++        cmpa    #MODE_DEMO
++        beq     audio_mode_level_start
++        tsta
++        bne     audio_mode_ready
++audio_mode_level_start
++        lda     #6
++        clrb
++        lbsr    audio_enqueue_impl
++audio_mode_ready
++        tst     PRES_MODE
++        bne     audio_presentation_owner
+         jsr     audio_poll_gameplay
++        bra     audio_poll_done
++audio_presentation_owner
++        clr     audio_poll_valid
++audio_poll_done
+         lbsr    audio_process_queue
+         lbsr    audio_advance_all
++        lbsr    audio_credit_service
+         lbsr    audio_mix
+         jsr     audio_mix_write
+         lda     #$68
+         sta     GIME_INIT0
+-        lda     #$34
+-        sta     PAR5
+ audio_service_done
+-        rts
++        lda     #$34
++        jmp     AUDIO_SERVICE_RETURN
+ 
+ audio_init_impl
+         clr     AUDIO_INSTALLED
++        clr     AUDIO_CREDIT_PENDING
++        lda     #$FF
++        sta     AUDIO_LAST_MODE
+         lda     #AUDIO_PAGE
+         sta     PAR5
++        ldx     #audio_service_gateway_bytes
++        ldy     #AUDIO_SERVICE_GATEWAY
++        ldb     #16
++audio_gateway_copy
++        lda     ,x+
++        sta     ,y+
++        decb
++        bne     audio_gateway_copy
+         lda     #$6C
+         sta     GIME_INIT0
+         clr     AUDIO_Q_HEAD
+@@ -103,9 +141,6 @@ audio_init_slot_loop
+         sta     GIME_INIT0
+         lda     #$34
+         sta     PAR5
+-        lda     #6
+-        clrb
+-        lbsr    audio_enqueue_impl
+         lda     #1
+         sta     AUDIO_INSTALLED
+         rts
+@@ -141,6 +176,38 @@ audio_enqueue_drop
+ audio_enqueue_done
+         rts
+ 
++; Count-only credit admission is independent of the four-event FIFO. Wait
++; until no credit cue is active and one effect slot is free, then start one.
++audio_credit_service
++        tst     AUDIO_CREDIT_PENDING
++        beq     audio_credit_done
++        lda     #$FF
++        sta     AUDIO_BEST_SLOT
++        lda     #1
++        sta     AUDIO_WORK_SLOT
++audio_credit_scan
++        lbsr    audio_slot_base
++        lda     ,x
++        cmpa    #12
++        beq     audio_credit_done
++        cmpa    #$FF
++        bne     audio_credit_next
++        lda     AUDIO_WORK_SLOT
++        sta     AUDIO_BEST_SLOT
++audio_credit_next
++        inc     AUDIO_WORK_SLOT
++        lda     AUDIO_WORK_SLOT
++        cmpa    #4
++        blo     audio_credit_scan
++        tst     AUDIO_BEST_SLOT
++        bmi     audio_credit_done
++        lda     #12
++        sta     AUDIO_SAVED_ID
++        lbsr    audio_admit
++        dec     AUDIO_CREDIT_PENDING
++audio_credit_done
++        rts
++
+ audio_process_queue
+ audio_process_next
+         tst     AUDIO_Q_COUNT
+@@ -491,6 +558,18 @@ audio_mix_slot_done
+ 
+ audio_engine_end
+ 
++audio_service_gateway_bytes
++        tst     PRES_MODE
++        beq     audio_service_return_done
++audio_service_gameplay_bytes
++        lda     #AUDIO_PAGE
++        sta     PAR5
++        jmp     $A000
++audio_service_return_bytes
++        sta     PAR5
++audio_service_return_done
++        rts
++
+ ; Page-$3D installer. The presentation handoff maps this page and jumps here;
+ ; the routine copies only the bounded engine, restores PAR5, and initializes it.
+ audio_install_page
+@@ -760,7 +839,7 @@ audio_write
+         rts
+ audio_poll_enqueue
+         clrb
+-        jsr     $0306
++        jsr     audio_enqueue_impl
+         rts
+ 
+ audio_poll_dots
+diff --git a/src/main.s b/src/main.s
+index a893686..c5bdcda 100644
+--- a/src/main.s
++++ b/src/main.s
+@@ -175,7 +175,11 @@ PERSISTENT_FB equ 1
+ INPUT_JOYSTICK equ 0            ; direct CoCo arrows unless explicitly selected
+         endc
+ 
++        ifne COMPLETE_PROFILE
++AUDIO_ENGINE_EXEC   equ $02E4
++        else
+ AUDIO_ENGINE_EXEC   equ $0300
++        endc
+ AUDIO_INIT_EXEC     equ $0303
+ AUDIO_ENQUEUE_EXEC  equ $0306
+ PRES_NAME_PTR       equ $00E4
+@@ -1180,6 +1184,9 @@ dwph_extra_next
+         rts
+ 
+ draw_hud
++        ifne COMPLETE_PROFILE
++        lbsr    draw_credit_hud
++        endc
+         lda     #2
+         sta     HUD_Y
+         ifne COMPLETE_PROFILE
+@@ -1256,46 +1263,29 @@ dvh_stage_ok
+         lda     #COLOR_GREEN
+         endc
+         sta     HUD_COLOR
+-        lda     ,u+
+-        sta     HUD_BCD_BYTE
+-        lsra
+-        lsra
+-        lsra
+-        lsra
+-        ifne COMPLETE_PROFILE
+-        jsr     draw_hud_digit
+-        else
+-        bsr     draw_hud_digit
+-        endc
+-        inc     HUD_X
+-        lda     HUD_BCD_BYTE
+-        anda    #$0F
+-        ifne COMPLETE_PROFILE
+-        jsr     draw_hud_digit
+-        else
+-        bsr     draw_hud_digit
+-        endc
+-        inc     HUD_X
+-        lda     ,u
+-        sta     HUD_BCD_BYTE
+-        lsra
+-        lsra
+-        lsra
+-        lsra
++        lda     #2
++        sta     HUD_BCD_COUNT
++        bra     dbl_byte
++
+         ifne COMPLETE_PROFILE
++; Current count at (33,9). Count changes pre-empt to a freshly loaded screen.
++draw_credit_hud
++        ldd     #$2109
++        std     HUD_X
++        lda     #COLOR_WHITE
++        sta     HUD_COLOR
++        lda     <$A8
++        cmpa    #10
++        blo     dch_units
++        suba    #10
++        pshs    a
++        lda     #1
+         jsr     draw_hud_digit
+-        else
+-        bsr     draw_hud_digit
+-        endc
+         inc     HUD_X
+-        lda     HUD_BCD_BYTE
+-        anda    #$0F
+-        ifne COMPLETE_PROFILE
+-        jsr     draw_hud_digit
+-        else
+-        bsr     draw_hud_digit
++        puls    a
++dch_units
++        jmp     draw_hud_digit
+         endc
+-        rts
+ 
+ vegetable_values
+         fdb     $1000,$1500,$2000,$2500,$3000,$3500
+diff --git a/src/presentation_runtime.s b/src/presentation_runtime.s
+index 37e49c5..182bbf4 100644
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -139,10 +139,18 @@ presentation_flow_tick
+         lda     PRES_MAGIC
+         cmpa    #$A5
+         beq     pft_helper_ready
++        ifne COMPLETE_PROFILE
++        lda     #AUDIO_RUNTIME_PAGE
++        sta     PAR5
++        jsr     AUDIO_INSTALL_EXEC
++        endc
+         ifeq COMPLETE_PROFILE
+         lbsr    install_aux_runtime
+         endc
+ pft_helper_ready
++        ifne COMPLETE_PROFILE
++        jsr     $02E0
++        endc
+         ifeq    HIGHSCORE_TEST_PROFILE
+         lbsr    scan_keys
+         endc
+@@ -172,7 +180,11 @@ pft_ready
+         lda     PRES_EVENT
+         anda    #$06
+         beq     pft_mode
+-        lbsr    add_credit
++        cmpa    #$06
++        bne     pft_single_credit
++        bsr     add_credit
++pft_single_credit
++        bsr     add_credit
+         ifne    COMPLETE_PROFILE
+         ; Credit input can pre-empt any auxiliary owner, including cold load.
+         bsr     install_highscore_runtime
+@@ -182,6 +194,15 @@ pft_ready
+         lbsr    start_screen
+         lda     #1
+         rts
++add_credit
++        lda     PRES_CREDITS
++        cmpa    #PRESENTATION_COIN_SLOT_COUNT
++        bhs     add_coin
++        inca
++        sta     PRES_CREDITS
++        inc     $02DF
++add_coin
++        rts
+ pft_mode
+         lda     PRES_EVENT
+         bita    #1
+@@ -243,10 +264,10 @@ pft_dispatch
+         endc
+         endc
+ 
+-install_aux_runtime
+         ifne    COMPLETE_PROFILE
+-        bra     install_instruction_runtime
++install_aux_runtime equ install_instruction_runtime
+         else
++install_aux_runtime
+         ifne    BUG011_DEVELOPMENT_PROFILE
+         ldx     #PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS
+         ldu     #PRESENTATION_INSTRUCTION_RUNTIME_BYTES
+@@ -307,7 +328,6 @@ normal_tick
+         endc
+         endc
+         ifne    COMPLETE_PROFILE
+-        jsr     AUDIO_INIT_EXEC
+         bsr     install_highscore_runtime
+         lda     #PRESENTATION_MAP_GAME_OVER
+         endc
+@@ -744,7 +764,7 @@ level_tick_demo_check
+         tst     PRES_CONTEXT
+         bne     live_begin
+         ifne    COMPLETE_PROFILE
+-        lbsr    init_gameplay
++        bsr     init_gameplay
+         clr     PRES_TIMER
+         clr     PRES_TIMER+1
+         clr     PRES_DEMO_ROUTE ; CoCo walk starts after automatic maze entry
+@@ -764,7 +784,7 @@ level_tick_demo_check
+         lda     #1
+         rts
+         else
+-        lbsr    init_gameplay
++        bsr     init_gameplay
+         clr     PRES_TIMER
+         clr     PRES_TIMER+1
+         clr     PRES_DEMO_ROUTE ; CoCo walk starts after automatic maze entry
+@@ -779,14 +799,14 @@ level_tick_demo_check
+         endc
+         endc
+ live_begin
+-        lbsr    init_gameplay
++        bsr     init_gameplay
+         lda     #ENTRY_WAIT_STAGE
+         sta     INITIAL_ENTRY_STATE
+         clr     PRES_MODE
+         clra
+         rts
+ init_gameplay
+-        lbsr    gameplay_reentry
++        bsr     gameplay_reentry
+         jsr     PRES_MAIN_INIT
+         jsr     PRES_MAIN_MAZE
+         jsr     PRES_MAIN_GATES
+@@ -820,9 +840,6 @@ gameplay_reentry_clear
+         std     ,x++
+         cmpx    #FB_META_END
+         blo     gameplay_reentry_clear
+-        lda     #AUDIO_RUNTIME_PAGE
+-        sta     PAR5
+-        jsr     AUDIO_INSTALL_EXEC
+         rts
+ 
+         ifne    HIGHSCORE_TEST_PROFILE
+@@ -959,15 +976,6 @@ name_tick
+         endc
+         endc
+         endc
+-add_credit
+-        lda     PRES_CREDITS
+-        cmpa    #PRESENTATION_COIN_SLOT_COUNT
+-        bhs     add_coin
+-        inca
+-        sta     PRES_CREDITS
+-add_coin
+-        rts
+-
+         ifne    0
+ init_high_scores
+         lda     #$34
+diff --git a/src/shared_text_stage.inc b/src/shared_text_stage.inc
+index a1efa62..f2177aa 100644
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -420,6 +420,7 @@ stage_selected
+         sta PRES_TMP_H
+         rts
+ stage_panel_slice
++        lbsr credit_panel_slice
+         lda PRES_SCREEN
+         cmpa #PRESENTATION_MAP_HIGH_SCORE
+         lbeq ranking_schedule_tick
+@@ -713,6 +714,64 @@ ranking_schedule_data
+         fdb $0000,$0000
+         fcb 0,0,0,0
+ 
++; BUG-043: publish the authoritative count after its row has been loaded.
++credit_panel_slice
++        ldd     $AA
++        cmpd    #832
++        beq     credit_panel_count
++        cmpd    #960
++        bne     credit_panel_done
++        lda     PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_HIGH_SCORE
++        bne     credit_panel_done
++        lda     $A8
++        cmpa    #2
++        blo     credit_panel_done
++        ldx     #$9328
++        leay    credit_panel_two_prompt,pcr
++        ldb     #20
++credit_panel_prompt_loop
++        lda     #5
++        sta     $29
++        lda     ,y+
++        cmpa    #2
++        bhi     credit_panel_prompt_char
++        pshs    a
++        lda     #8
++        sta     $29
++        puls    a
++credit_panel_prompt_char
++        lbsr    stage_panel_char
++        decb
++        bne     credit_panel_prompt_loop
++credit_panel_done
++        rts
++credit_panel_count
++        lda     #6
++        sta     $29
++        ldx     #$4884
++        leay    credit_panel_label,pcr
++        ldb     #6
++        lbsr    stage_panel_text
++        ldx     #$4D88
++        lda     #36
++        lbsr    stage_panel_char
++        ldx     #$4D84
++        lda     $A8
++        cmpa    #10
++        blo     credit_panel_unit
++        suba    #10
++        pshs    a
++        lda     #1
++        lbsr    stage_panel_char
++        puls    a
++credit_panel_unit
++        lbra    stage_panel_char
++credit_panel_label
++        fcb 12,27,14,13,18,29
++credit_panel_two_prompt
++        fcb 1,36,24,27,36,2,36,25,21,10,34,14,27,36,11,30,29,29,24,23
++
+ highscore_phase_helper_end
+ 
+         else
+diff --git a/tiled/coco-screen.tmx b/tiled/coco-screen.tmx
+index 409a04b..ba1c6eb 100644
+--- a/tiled/coco-screen.tmx
++++ b/tiled/coco-screen.tmx
+@@ -42,7 +42,7 @@
+ 291,147,465,147,449,147,417,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8,0,0,0,0,
+ 1073742147,1073742131,1073742131,1073742131,1073742131,1073742131,1073742131,1073742131,0,0,0,0,0,0,0,0,0,0,0,0,424,0,0,0,0,0,0,0,0,0,0,0,0,305,65,273,289,209,33,0,
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+-8,8,0,8,8,0,8,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,424,0,0,0,0,0,0,497,8,8,0,0,0,0,
++8,8,0,8,8,0,8,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,424,0,0,0,0,0,0,0,8,8,0,0,0,0,
+ 8,8,8,8,8,0,8,8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,97,337,65,33,0,481,0,
+ 0,0,0,0,0,0,0,0,0,0,424,0,0,0,0,0,0,0,424,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8,0,8,0,0,0,0,
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8,0,338,497,497,497,497,0,
