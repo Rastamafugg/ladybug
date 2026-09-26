@@ -1,0 +1,78 @@
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -1160,6 +1160,8 @@
+     event_manifest = []
+     target_colour_streams = []
+     row_time_offsets = (0, 90, 180)
++    reference_consumes = []
++    instruction_colour_dwell = 32
+     for index, (source, (target, hud), stop) in enumerate(
+             zip(source_targets, INSTRUCTION_TARGETS, INSTRUCTION_STOPS)):
+         row = 0 if index < 5 else 1 if index < 12 else 2
+@@ -1173,9 +1175,9 @@
+         if index in (0, 5, 12, 13, 14):
+             earliest = motion
+             if index == 5:
+-                earliest = event_manifest[4]["consume_tick"] + 90
++                earliest = reference_consumes[4] + 90
+             elif index == 12:
+-                earliest = event_manifest[11]["consume_tick"] + 90
++                earliest = reference_consumes[11] + 90
+             while not (
+                 motion >= earliest
+                 and ((motion - 1) % 90) // 30 + 1 == trigger_colour
+@@ -1185,6 +1187,19 @@
+         # Sprite Locations records each actor baseline. Convert the authored
+         # stop to the 16x16 framebuffer root used by save/draw.
+         goal = framebuffer_destination(stop) - 1280
++        reference_consumes.append(consume)
++        # Preserve the authored colour-cycle index and within-colour offset.
++        cycle, phase_tick = divmod(motion - 1, 90)
++        colour, offset = divmod(phase_tick, 30)
++        motion = 1 + (cycle * 3 + colour) * instruction_colour_dwell + offset
++        origin = (framebuffer_destination(INSTRUCTION_ANCHORS[row]) - 1280
++                  if index in (0, 5, 12)
++                  else event_manifest[-1]["goal_destination"])
++        distance = goal - origin
++        first_move = motion + (1 if motion % 2 == 0 else 0)
++        consume = first_move + 2 * (distance - 1) + 1
++        if index < 15 and ((consume - 1) // instruction_colour_dwell) % 3 + 1 != trigger_colour:
++            raise ValueError("instruction arrival outside required colour window")
+         target_destination = framebuffer_destination(target)
+         hud_destination = 0 if hud == (0, 0) else framebuffer_destination(hud)
+         hud_tile_id = 0
+@@ -1289,6 +1304,7 @@
+     angel_stream = encode_sparse_native(
+         expand_sprite(angel_frame, (0, WHITE, WHITE, WHITE)), 16, 8
+     )
++    ending_shift = event_manifest[-1]["consume_tick"] - reference_consumes[-1]
+     return {
+         "anchors": [framebuffer_destination(cell) - 1280
+                     for cell in INSTRUCTION_ANCHORS],
+@@ -1314,10 +1330,10 @@
+         "angel_stream": angel_stream,
+         "angel_destination": framebuffer_destination(INSTRUCTION_ANGEL_ROOT) - 1280,
+         "angel_source_code": angel_code,
+-        "death_collision_tick": int(reference["rows"][2]["skull"]["collision_frame"]) - first + 180,
+-        "angel_tick": int(reference["death_sequence"]["angel_hold"]["first_frame"]) - first + 180,
+-        "next_screen_tick": int(reference["instruction_interval"]["next_screen_first_partial_frame"]) - first + 180,
+-        "colour_dwell_frames": int(reference["colour_clock"]["dwell_frames"]),
++        "death_collision_tick": event_manifest[-1]["consume_tick"],
++        "angel_tick": int(reference["death_sequence"]["angel_hold"]["first_frame"]) - first + 180 + ending_shift,
++        "next_screen_tick": int(reference["instruction_interval"]["next_screen_first_partial_frame"]) - first + 180 + ending_shift,
++        "colour_dwell_frames": instruction_colour_dwell,
+     }
+ 
+ 
+--- a/src/instruction_runtime.s
++++ b/src/instruction_runtime.s
+@@ -128,6 +128,9 @@
+         blo     irt_draw_player
+         cmpd    2,x
+         bhs     consume_event
++        ldb     PRES_TIMER+1
++        bitb    #1
++        beq     irt_draw_player
+         ldd     PRES_OUT
+         cmpd    4,x
+         bhs     irt_draw_player
