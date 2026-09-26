@@ -152,6 +152,9 @@ class SharedText:
         for name,mapping in zip(self.p.MAP_NAMES,self.visual_maps):
             items=[]
             for i,t in enumerate(mapping):
+                if name=='game-over' and (i%40<=8 or i%40>=31 or i//40==0 or i//40==23):
+                    items.append((255,0))
+                    continue
                 r=self.cells.get((name,i))
                 visible_text=r and (any(self.visual_tiles[t]) or (name,i) in self.overridden and r['colour'] and any(self.font[r['glyph']]))
                 items.append((174+r['glyph'],r['colour']) if visible_text else (graphics.index(self.visual_tiles[t]),))

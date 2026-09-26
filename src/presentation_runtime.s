@@ -408,8 +408,8 @@ start_screen_map
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
         bls     start_screen_hold
-        cmpa    #PRESENTATION_MAP_ENTER_HIGH_SCORE
-        bne     start_screen_done
+        cmpa    #PRESENTATION_MAP_GAME_OVER
+        blo     start_screen_done
 start_screen_hold
         jsr     PRESENTATION_HOLD_BEGIN
 start_screen_done
@@ -588,8 +588,11 @@ load_timer_reset
         rts
 
 draw_cell
+        cmpb    #$FF
+        beq     draw_cell_advance
         ldy     PRES_DST
         jsr    draw_tile_id
+draw_cell_advance
         ldd     PRES_DST
         addd    #4
         std     PRES_DST

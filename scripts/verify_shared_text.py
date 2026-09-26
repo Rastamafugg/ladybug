@@ -42,7 +42,9 @@ def main():
     chars=s.load_chars(root/'assets/arcade/chars.json');cases=[]
     for name,start in zip(p.MAP_NAMES,manifest['map_stream_offsets']):
         tiles=[];ids={};mapping,_=p.compile_map(root/'tiled'/p.MAP_FILES[name],chars,tiles,ids,False,True)
-        expected=bytearray(p.title_framebuffer(mapping,tiles));actual=bytearray(30720)
+        expected=bytearray(p.title_framebuffer(mapping,tiles))
+        seed=bytearray((i*37+11)&255 for i in range(30720)) if name=='game-over' else bytearray(30720)
+        actual=seed.copy()
         for run in shared['colour_configuration']['runs']:
             if run['screen']!=name:continue
             for x in range(run['x'],run['x']+run['width']):
@@ -54,7 +56,11 @@ def main():
         ptr=start;cell=0
         while cell<960:
             count,ident=cold[ptr:ptr+2];ptr+=2
-            if ident>=174:
+            if ident==255:
+                colour=cold[ptr];ptr+=1
+                assert name=='game-over' and colour==0
+                tile=None
+            elif ident>=174:
                 colour=cold[ptr];ptr+=1;glyph=ident-174
                 assert glyph<len(masks) and colour<16
                 tile=bytes((colour if font[glyph*8+r]&(128>>(j*2)) else 0)*16+(colour if font[glyph*8+r]&(64>>(j*2)) else 0) for r in range(8) for j in range(4))
@@ -63,10 +69,15 @@ def main():
             assert count and cell+count<=960
             for _ in range(count):
                 at=(cell//40)*1280+(cell%40)*4
-                for row in range(8):actual[at+row*160:at+row*160+4]=tile[row*4:row*4+4]
+                preserved=name=='game-over' and (cell%40<=8 or cell%40>=31 or cell//40 in (0,23))
+                assert (tile is None)==preserved,('game-over no-write mask',cell,ident)
+                for row in range(8):
+                    if preserved:expected[at+row*160:at+row*160+4]=seed[at+row*160:at+row*160+4]
+                    else:actual[at+row*160:at+row*160+4]=tile[row*4:row*4+4]
                 cell+=1
         differences=[i for i,(a,v) in enumerate(zip(actual,expected)) if a!=v]
-        assert hashlib.sha256(actual).hexdigest()==manifest['shared_static_frame_sha256'][p.MAP_NAMES.index(name)]
+        if name!='game-over':
+            assert hashlib.sha256(actual).hexdigest()==manifest['shared_static_frame_sha256'][p.MAP_NAMES.index(name)]
         cases.append(dict(screen=name,pixel_exact=not differences,differences=len(differences),first=differences[:12]))
     report=dict(status='pass' if all(c['pixel_exact'] for c in cases) else 'FAIL',cases=cases,font_bytes=len(font),graphics=shared['graphics'],cold_bytes=len(cold),sha256=hashlib.sha256(cold).hexdigest())
     (folder/'shared-text-verification.json').write_text(json.dumps(report,indent=2)+'\n')
