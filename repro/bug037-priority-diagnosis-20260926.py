@@ -26,7 +26,10 @@ try:
   store(au['audio_slot1'],high if reverse else low);store(au['audio_slot2'],low if reverse else high)
   go(au['audio_mix_write']);periods=list(mem(au['audio_mix_periods'],6));atten=list(mem(au['audio_mix_atten'],3));decoded=[(periods[i]<<8)|periods[i+1] for i in (0,2,4)]
   e['samples'].append({'higher_priority_slot':1 if reverse else 2,'tone_periods':decoded,'attenuations':atten,'high_voice_present':0x222 in decoded})
- assert not e['samples'][0]['high_voice_present'] and e['samples'][1]['high_voice_present'];e['result']='priority inversion reproduced'
+ if '--expect-fixed' in sys.argv:
+  assert all(x['high_voice_present'] for x in e['samples']);e['result']='pass'
+ else:
+  assert not e['samples'][0]['high_voice_present'] and e['samples'][1]['high_voice_present'];e['result']='priority inversion reproduced'
 except Exception as exc:e['result']='fail';e['failure']=repr(exc)
 finally:c.close();m.stop(p);out.write_text(json.dumps(e,indent=2)+'\n')
 print(json.dumps(e,indent=2))

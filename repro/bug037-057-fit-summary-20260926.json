@@ -1,0 +1,82 @@
+{
+  "base": "265935f plus separate approved BUG-043/049/054/055/056 patches",
+  "rom_sha256": "a8da8527c47f8e3082cfffa29205b0913edff683b31aa027a670c30f63b27351",
+  "fit_only": true,
+  "build": "full scripts/build.sh build pass",
+  "checks": {
+    "bug037-audio-fit": "pass",
+    "bug037-effect-admission-fit": "pass",
+    "bug037-priority-fit": "pass",
+    "bug037-stream-waits-fit": "pass",
+    "bug037-057-credit-integration": "pass",
+    "bug057-name-event-controls": "pass",
+    "bug057-name-end-fit": "pass",
+    "bug057-name-expiry-fit": "pass"
+  },
+  "used_limit_bytes": {
+    "resident": [
+      8180,
+      8192
+    ],
+    "assets": [
+      7596,
+      7680
+    ],
+    "presentation": [
+      1273,
+      1280
+    ],
+    "instruction": [
+      935,
+      938
+    ],
+    "perimeter_helper": [
+      331,
+      334
+    ],
+    "highscore_runtime": [
+      899,
+      920
+    ],
+    "audio_engine": [
+      734,
+      920
+    ],
+    "audio_page": [
+      5554,
+      8192
+    ],
+    "cold": [
+      14362,
+      16384
+    ]
+  },
+  "gmc_source_spare_bytes": 519,
+  "delta_from_approved_054_055_056_fit": {
+    "presentation": -3,
+    "audio_engine": -175,
+    "audio_page": 566,
+    "gmc_spare": -505,
+    "cold": 0
+  },
+  "guard": {
+    "address": "$02C0-$02D3",
+    "bytes": 20,
+    "boot_table_exclusive_end": "$02C0",
+    "existing_audio_state_starts": "$02DC",
+    "remaining_gap_bytes": 8
+  },
+  "maximum_sampled_active_credit_cycles": 21850,
+  "maximum_sampled_name_control_cycles": 9855,
+  "maximum_controlled_guard_call_cycles": 1955,
+  "target_active_cycles": 27000,
+  "authored_wait_boundaries": 398,
+  "remaining_acceptance": [
+    "natural full-maze completion and next-level publication",
+    "natural keyboard/joystick name route and audible cue check",
+    "physical-hardware listening is separate from emulator output evidence"
+  ],
+  "no_limit_increase": true,
+  "bug037-fit-candidate_patch_sha256": "e80b28520d73ee0eda46cbba4a38a7871e4b23a9c29cc2944bd052632f9b78d0",
+  "bug057-fit-candidate_patch_sha256": "399315025c4269b03a660fc4a714a1880cd6ad2a13a7142361fd518ea5ca840a"
+}

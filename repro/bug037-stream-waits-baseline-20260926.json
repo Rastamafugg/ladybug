@@ -1,0 +1,82 @@
+{
+  "rom_sha256": "3f610d4fb86766220b3aada4fb2d8c94dc3956f767455512db8dbd218f0eb3fb",
+  "phase": "all sounded cue wait boundaries",
+  "phase_deadline_seconds": 45,
+  "success_marker": "runtime stream pointer changes at each encoded wait boundary and ends at authored duration",
+  "timeout_meaning": "named return/stream completion absent; not proof of slow runtime",
+  "cues": [
+    {
+      "cue": 0,
+      "wait_boundaries": 6,
+      "expected_end_tick": 24,
+      "actual_end_tick": 30,
+      "boundaries_match": false
+    }
+  ],
+  "expected_boundaries": [
+    [
+      0,
+      42489,
+      4
+    ],
+    [
+      4,
+      42495,
+      4
+    ],
+    [
+      8,
+      42501,
+      4
+    ],
+    [
+      12,
+      42507,
+      4
+    ],
+    [
+      16,
+      42513,
+      4
+    ],
+    [
+      20,
+      42519,
+      4
+    ]
+  ],
+  "observed_boundaries": [
+    [
+      0,
+      42489,
+      4
+    ],
+    [
+      5,
+      42495,
+      4
+    ],
+    [
+      10,
+      42501,
+      4
+    ],
+    [
+      15,
+      42507,
+      4
+    ],
+    [
+      20,
+      42513,
+      4
+    ],
+    [
+      25,
+      42519,
+      4
+    ]
+  ],
+  "result": "fail",
+  "failure": "AssertionError({'cue': 0, 'wait_boundaries': 6, 'expected_end_tick': 24, 'actual_end_tick': 30, 'boundaries_match': False})"
+}

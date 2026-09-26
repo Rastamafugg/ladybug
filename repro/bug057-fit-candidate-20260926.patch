@@ -1,0 +1,512 @@
+--- a/src/audio_runtime.s
++++ b/src/audio_runtime.s
+@@ -98,6 +98,7 @@
+ audio_init_impl
+         clr     AUDIO_INSTALLED
+         clr     audio_music_count
++        clr     audio_name_valid
+         clr     audio_stop_pending
+         clr     AUDIO_CREDIT_PENDING
+         lda     #$FF
+@@ -1112,7 +1113,58 @@
+ audio_mix_priority fcb 0
+ 
+ 
+-; Screen-exit drain includes admitted effects and pending credits.
++; Name-entry events use the same banked foreground clock as gameplay.
++audio_poll_name
++        lda     PRES_MODE
++        cmpa    #8
++        beq     audio_name_mode
++        clr     audio_name_valid
++        rts
++audio_name_mode
++        tst     audio_name_valid
++        bne     audio_name_scan
++        lda     <$CB
++        sta     audio_name_length
++        clr     audio_name_end
++        clr     audio_name_timer
++        inc     audio_name_valid
++audio_name_scan
++        lda     <$CB
++        cmpa    audio_name_length
++        beq     audio_name_length_done
++        sta     audio_name_length
++        blo     audio_name_clear
++        lda     #2
++        bra     audio_name_emit_length
++audio_name_clear
++        lda     #9
++audio_name_emit_length
++        jsr     audio_poll_enqueue
++audio_name_length_done
++        lda     <$E2
++        cmpa    audio_name_end
++        beq     audio_name_end_done
++        sta     audio_name_end
++        cmpa    #1
++        bne     audio_name_end_done
++        lda     #8
++        jsr     audio_poll_enqueue
++audio_name_end_done
++        lda     <$E1
++        bpl     audio_name_timer_reset
++        tst     <$91
++        bne     audio_name_done
++        tst     audio_name_timer
++        bne     audio_name_done
++        inc     audio_name_timer
++        lda     #4
++        jmp     audio_poll_enqueue
++audio_name_timer_reset
++        clr     audio_name_timer
++audio_name_done
++        rts
++; Name exit drains admitted action/tick/credit effects as well as music.
++; Flags freeze controls during this drain; timer expiry uses flag2, END flag1.
+ audio_drain_busy
+         jsr     audio_music_busy
+         tsta
+@@ -1135,6 +1187,10 @@
+         lda     #1
+ audio_drain_busy_done
+         rts
++audio_name_valid fcb 0
++audio_name_length fcb 0
++audio_name_end fcb 0
++audio_name_timer fcb 0
+ 
+         include "gmc_sound_data.inc"
+ 
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -188,7 +188,9 @@
+ pft_single_credit
+         bsr     add_credit
+         ; A credit must not replace live play or a credited level handoff.
+-        tst     <PRES_MODE
++        lda     <PRES_MODE
++        beq     pft_dispatch
++        cmpa    #MODE_NAME
+         beq     pft_dispatch
+         lda     <PRES_SCREEN
+         cmpa    #PRESENTATION_MAP_LEVEL_START
+@@ -198,7 +200,7 @@
+ pft_idle_credit
+         ifne    COMPLETE_PROFILE
+         ; Credit input can pre-empt any auxiliary owner, including cold load.
+-        bsr     install_highscore_runtime
++        lbsr    install_highscore_runtime
+         endc
+         lda     #PRESENTATION_MAP_HIGH_SCORE
+         clr     <PENDING
+@@ -225,6 +227,8 @@
+         beq     pft_dispatch
+         lda     <PRES_MODE
+         beq     pft_dispatch
++        cmpa    #MODE_NAME
++        beq     pft_dispatch
+         cmpa    #MODE_LEVEL
+         beq     pft_dispatch
+         dec     <PRES_CREDITS
+@@ -363,12 +367,12 @@
+ normal_start
+         tst     INITIAL_ENTRY_STATE
+         bne     normal_game       ; held start cannot replace an active entrant
+-        lda     PRES_EVENT
++        lda     <PRES_EVENT
+         bita    #1
+         beq     normal_game
+-        tst     PRES_CREDITS
++        tst     <PRES_CREDITS
+         beq     normal_game
+-        dec     PRES_CREDITS
++        dec     <PRES_CREDITS
+         lda     #1
+         sta     <PRES_CONTEXT
+         lda     #PRESENTATION_MAP_LEVEL_START
+@@ -382,12 +386,12 @@
+         rts
+ 
+ start_screen
+-        sta     PRES_SCREEN
++        sta     <PRES_SCREEN
+         ifeq    HIGHSCORE_TEST_PROFILE
+         ifne    COMPLETE_PROFILE
+         cmpa    #PRESENTATION_MAP_ATTRACT
+         bne     start_screen_context_ready
+-        clr     PRES_CONTEXT
++        clr     <PRES_CONTEXT
+ start_screen_context_ready
+         endc
+         ifne    COMPLETE_PROFILE
+@@ -398,7 +402,7 @@
+         bne     start_screen_no_instruction_install
+ start_screen_instruction_install
+         lbsr    install_instruction_runtime
+-        lda     PRES_SCREEN
++        lda     <PRES_SCREEN
+ start_screen_no_instruction_install
+         endc
+         endc
+@@ -413,7 +417,7 @@
+         std     PRES_IN
+         clr     PRES_RUN
+         lda     #MODE_LOAD
+-        sta     PRES_MODE
++        sta     <PRES_MODE
+         clra
+         clrb
+         std     PRES_CELL
+@@ -422,7 +426,7 @@
+         ldd     #$2000
+         std     PRES_DST
+         lbsr    map_back
+-        lda     PRES_SCREEN
++        lda     <PRES_SCREEN
+         cmpa    #PRESENTATION_MAP_LEVEL_START
+         beq     start_screen_done
+ start_screen_hold
+@@ -585,7 +589,7 @@
+         endc
+         ldb     PRES_SCREEN
+         lda     b,x
+-        sta     PRES_MODE
++        sta     <PRES_MODE
+ load_done_normal
+         lda     #$FF
+         sta     PRES_PHASE
+@@ -716,7 +720,7 @@
+ attract_next
+         ifne    BUG011_DEVELOPMENT_PROFILE
+         ifne    HIGHSCORE_TEST_PROFILE
+-        clr     PRES_CONTEXT
++        clr     <PRES_CONTEXT
+         endc
+         lda     #PRESENTATION_MAP_INSTRUCTIONS
+         ifne    HIGHSCORE_TEST_PROFILE
+@@ -754,12 +758,12 @@
+         cmpd    #180
+         blo     hold
+         ifne    COMPLETE_PROFILE
+-        lda     PRES_CONTEXT
++        lda     <PRES_CONTEXT
+         beq     level_tick_demo_check
+         cmpa    #PRES_CONTEXT_NEXT_STAGE
+         bne     live_begin
+         clr     PRES_CONTEXT
+-        clr     PRES_MODE
++        clr     <PRES_MODE
+         clra
+         rts
+ level_tick_demo_check
+@@ -776,7 +780,7 @@
+         else
+         bne     hold
+         endc
+-        tst     PRES_CONTEXT
++        tst     <PRES_CONTEXT
+         bne     live_begin
+         ifne    COMPLETE_PROFILE
+         bsr     init_gameplay
+@@ -817,7 +821,7 @@
+         bsr     init_gameplay
+         lda     #ENTRY_WAIT_STAGE
+         sta     INITIAL_ENTRY_STATE
+-        clr     PRES_MODE
++        clr     <PRES_MODE
+         clra
+         rts
+ init_gameplay
+@@ -981,7 +985,7 @@
+         rts
+ 
+ name_tick
+-        lda     PRES_EVENT
++        lda     <PRES_EVENT
+         bita    #1
+         lbeq    hold
+         lda     #PRESENTATION_MAP_ATTRACT
+@@ -1500,7 +1504,7 @@
+         endc
+ 
+ scan_keys
+-        clr     PRES_EVENT
++        clr     <PRES_EVENT
+         ldy     #PRES_PREV
+         ifne    HIGHSCORE_TEST_PROFILE+COMPLETE_PROFILE
+         ldx     #PRES_MAIN_SCAN_DRIVES
+@@ -1532,7 +1536,7 @@
+         beq     scan_next
+         lda     PRES_EVENT
+         ora     b,u
+-        sta     PRES_EVENT
++        sta     <PRES_EVENT
+ scan_next
+         puls    a
+         sta     b,y
+@@ -1903,7 +1907,7 @@
+         lda     #$A5
+         sta     PRES_MAGIC
+         clr     PRES_MODE
+-        clr     PRES_CREDITS
++        clr     <PRES_CREDITS
+         clr     PRES_CONTEXT
+         clr     PRES_DEMO_CAUSE
+         clr     PRES_DEMO_ROUTE
+@@ -1937,21 +1941,21 @@
+         lda     PRES_EVENT
+         bita    #1
+         beq     pft_dispatch
+-        tst     PRES_CREDITS
++        tst     <PRES_CREDITS
+         beq     pft_dispatch
+-        lda     PRES_MODE
++        lda     <PRES_MODE
+         beq     pft_dispatch
+         cmpa    #MODE_LEVEL
+         beq     pft_dispatch
+-        dec     PRES_CREDITS
+-        lda     #1
+-        sta     PRES_CONTEXT
++        dec     <PRES_CREDITS
++        lda     #1
++        sta     <PRES_CONTEXT
+         lda     #PRESENTATION_MAP_LEVEL_START
+         lbsr    start_screen
+         lda     #1
+         rts
+ pft_dispatch
+-        lda     PRES_MODE
++        lda     <PRES_MODE
+         beq     normal_tick
+         cmpa    #MODE_LOAD
+         lbeq    load_tick
+@@ -2074,7 +2078,7 @@
+         else
+         lda     #1
+         endc
+-        sta     PRES_CONTEXT
++        sta     <PRES_CONTEXT
+         lda     #PRESENTATION_MAP_LEVEL_START
+         bsr     start_screen
+         lda     #1
+@@ -2099,7 +2103,7 @@
+         rts
+ 
+ start_screen
+-        sta     PRES_SCREEN
++        sta     <PRES_SCREEN
+         ifeq    HIGHSCORE_TEST_PROFILE
+         ifne    COMPLETE_PROFILE
+         cmpa    #PRESENTATION_MAP_ATTRACT
+@@ -2345,7 +2349,7 @@
+         ldb     PRES_SCREEN
+         cmpb    #PRESENTATION_MAP_HIGH_SCORE
+         bne     draw_coins_done
+-        lda     PRES_CREDITS
++        lda     <PRES_CREDITS
+         beq     draw_coins_done
+         sta     PRES_COIN_COUNT
+         ldd     #PRESENTATION_COIN_DESTINATION_TABLE
+@@ -2480,7 +2484,7 @@
+         cmpd    #180
+         blo     hold
+         ifne    COMPLETE_PROFILE
+-        lda     PRES_CONTEXT
++        lda     <PRES_CONTEXT
+         beq     level_tick_demo_check
+         cmpa    #PRES_CONTEXT_NEXT_STAGE
+         bne     live_begin
+@@ -2502,7 +2506,7 @@
+         else
+         bne     hold
+         endc
+-        tst     PRES_CONTEXT
++        tst     <PRES_CONTEXT
+         bne     live_begin
+         ifne    COMPLETE_PROFILE
+         bsr     init_gameplay
+@@ -2721,11 +2725,11 @@
+         endc
+         endc
+ add_credit
+-        lda     PRES_CREDITS
++        lda     <PRES_CREDITS
+         cmpa    #PRESENTATION_COIN_SLOT_COUNT
+         bhs     add_coin
+         inca
+-        sta     PRES_CREDITS
++        sta     <PRES_CREDITS
+ add_coin
+         rts
+ 
+@@ -3238,7 +3242,7 @@
+         endc
+ 
+ scan_keys
+-        clr     PRES_EVENT
++        clr     <PRES_EVENT
+         ldy     #PRES_PREV
+         ifne    HIGHSCORE_TEST_PROFILE+COMPLETE_PROFILE
+         ldx     #PRES_MAIN_SCAN_DRIVES
+@@ -3270,7 +3274,7 @@
+         beq     scan_next
+         lda     PRES_EVENT
+         ora     b,u
+-        sta     PRES_EVENT
++        sta     <PRES_EVENT
+ scan_next
+         puls    a
+         sta     b,y
+--- a/scripts/verify_audio_runtime.py
++++ b/scripts/verify_audio_runtime.py
+@@ -248,8 +248,10 @@
+     if cue_ids != list(range(args.require_cues)):
+         raise SystemExit("audio proof: event-to-cue matrix cue IDs are not 0..17")
+     unresolved = event_map.get("unresolved", [])
+-    if not any(item.get("event") == "high_score_end" for item in unresolved):
+-        raise SystemExit("audio proof: high-score END mapping is not explicitly unresolved")
++    if any(item.get("event") == "high_score_end" for item in unresolved):
++        raise SystemExit("audio proof: high-score END mapping remains unresolved")
++    if not any(item.get("event") == "high_score_end" and item.get("cue_id") == 8 for item in entries):
++        raise SystemExit("audio proof: high-score END must use approved cue 8")
+ 
+     layout = json.loads(args.manifest.read_text(encoding="ascii"))
+     audio_meta = layout.get("audio_runtime")
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -120,12 +120,14 @@
+         beq     highscore_timer_frame
+         dec     PRES_TICK_PHASE
+         lda     PRES_TICK_PHASE
++        ifeq COMPLETE_PHASE_AUX
+         cmpa    #2
+         lbeq    highscore_tick_second
+         tsta
+         bne     highscore_timer_frame
+         lda     #$9F
+         sta     SND_DATA
++        endc
+ highscore_timer_frame
+         inc     PRES_NAME_TIMER_PHASE
+         lda     PRES_NAME_TIMER_PHASE
+@@ -187,12 +189,14 @@
+         inc     PRES_NAME_TIMER_BOX
+         lda     #4
+         sta     PRES_TICK_PHASE
++        ifeq COMPLETE_PHASE_AUX
+         lda     #$86
+         sta     SND_DATA
+         lda     #$35
+         sta     SND_DATA
+         lda     #$91
+         sta     SND_DATA
++        endc
+         lda     PRES_NAME_TIMER_BOX
+         cmpa    #PRESENTATION_NAME_ENTRY_TIMER_COUNT
+         bhs     highscore_commit_done
+@@ -203,6 +207,7 @@
+         lda     #1
+         rts
+ 
++        ifeq COMPLETE_PHASE_AUX
+ highscore_tick_second
+         lda     #$8A
+         sta     SND_DATA
+@@ -211,8 +216,22 @@
+         lda     #$92
+         sta     SND_DATA
+         lbra    highscore_timer_frame
++        endc
+ 
+ highscore_commit_done
++        ifne COMPLETE_PHASE_AUX
++        lda     PRES_MODE
++        cmpa    #MODE_NAME
++        bne     highscore_audio_done
++        tst     PRES_NAME_FLAGS
++        bne     highscore_audio_query
++        lda     #2
++        sta     PRES_NAME_FLAGS
++highscore_audio_query
++        jsr     $02C0
++        bne     highscore_phase_busy
++highscore_audio_done
++        endc
+         lbsr    highscore_commit_name
+         ldd     #highscore_after_highscore_start
+         std     PRES_NAME_PTR
+--- a/assets/arcade/audio/feat-006-event-to-cue.json
++++ b/assets/arcade/audio/feat-006-event-to-cue.json
+@@ -28,7 +28,10 @@
+       "state_transition": "BONUS_LEFT decreases after a non-skull collectible is accepted",
+       "fire_once": "one enqueue per accepted non-skull collectible",
+       "parameter": 0,
+-      "verification": "forced_bonus_collection"
++      "verification": "forced_bonus_collection",
++      "additional_events": [
++        "name_character_accepted"
++      ]
+     },
+     {
+       "event": "dot_collection",
+@@ -46,7 +49,10 @@
+       "state_transition": "BOX_INDEX or BOX_PHASE advances for an actual timer-box transition",
+       "fire_once": "one enqueue per committed perimeter-box transition",
+       "parameter": 0,
+-      "verification": "forced_timer_tick"
++      "verification": "forced_timer_tick",
++      "additional_events": [
++        "name_timer_box_published"
++      ]
+     },
+     {
+       "event": "enemy_release",
+@@ -77,13 +83,14 @@
+       "implementation_status": "anchor_pending"
+     },
+     {
+-      "event": "word_completion_alias",
++      "event": "high_score_end",
+       "cue_id": 8,
+-      "source_routine": "collect_word_letter",
+-      "state_transition": "exact alias of cue 7",
+-      "fire_once": "not a separate production event; resolves exactly to cue 7",
++      "source_routine": "audio_poll_name",
++      "state_transition": "name END flag rises to1",
++      "fire_once": "one request for accepted END; wait for completion before commit",
+       "parameter": 0,
+-      "verification": "descriptor_alias_8_7"
++      "verification": "name_END_completion",
++      "descriptor_alias": "cue7 stream unchanged"
+     },
+     {
+       "event": "all_flowers_stage_completion",
+@@ -92,7 +99,10 @@
+       "state_transition": "DOTS_LEFT and BONUS_LEFT reach zero before the stage advances",
+       "fire_once": "one enqueue per completed stage; latch prevents repeated frame enqueues",
+       "parameter": 0,
+-      "verification": "forced_all_flowers_completion"
++      "verification": "forced_all_flowers_completion",
++      "additional_events": [
++        "name_character_cleared"
++      ]
+     },
+     {
+       "event": "extra_completion",
+@@ -172,12 +182,5 @@
+       "verification": "descriptor_alias_17_16"
+     }
+   ],
+-  "unresolved": [
+-    {
+-      "event": "high_score_end",
+-      "cue_id": null,
+-      "reason": "No separately named approved descriptor or validated source call site has been identified",
+-      "verification": "high_score_end_unresolved"
+-    }
+-  ]
++  "unresolved": []
+ }
