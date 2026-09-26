@@ -529,7 +529,7 @@ stage_schedule
         fdb $4D60
         fcb 2,12,4,TEXT_STAGE_NAME
         fdb 576
-        fdb $4D84
+        fdb $5798
         fcb 1,0,3,TEXT_STAGE_PART
         fdb 608
         fdb $618C

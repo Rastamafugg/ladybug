@@ -761,6 +761,10 @@ def presentation_pen_map(
             colour = GREY
         return (BLACK, colour, colour, colour)
     if x >= 32:
+        if role == "instructions" and y == 2:
+            return (BLACK, LIGHT_GREEN, LIGHT_GREEN, LIGHT_GREEN)
+        if role == "instructions" and y == 13 and 35 <= x <= 39:
+            return (BLACK, GREEN, GREEN, GREEN)
         colour = {
             1: LIGHT_GREEN, 2: WHITE,
             4: RED, 5: RED,
@@ -779,7 +783,9 @@ def presentation_pen_map(
         if y == 20 and 16 <= x <= 24:
             return (BLACK, RED, RED, RED)
         if 11 <= y <= 18 and 17 <= x <= 22:
-            return (BLACK, LIGHT_BLUE, LIGHT_BLUE if y <= 12 else WHITE, PINK)
+            if y <= 12:
+                return (BLACK, WHITE, WHITE, PINK)
+            return (BLACK, BLUE, WHITE, PINK)
         return (BLACK, PINK, WHITE, PINK)
     if role == "enter-high-score":
         if source_layer == "Arcade Maze Border":
@@ -1068,7 +1074,7 @@ def parse_instruction_contract(
         root, path, cucumber_gid, sprites
     )
     cucumber_native = expand_sprite(
-        pack_sprite_2bpp(cucumber_pixels), (BLACK, DARK_RED, PURPLE, YELLOW)
+        pack_sprite_2bpp(cucumber_pixels), (BLACK, DARK_RED, GREEN, YELLOW)
     )
     cucumber_root = (
         INSTRUCTION_CUCUMBER_MARKER[0], INSTRUCTION_CUCUMBER_MARKER[1] - 1
