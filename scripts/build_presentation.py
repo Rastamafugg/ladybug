@@ -2573,6 +2573,51 @@ def main() -> None:
     if shared:
         shared.finish(manifest, tiles, cold_payload, instruction)
         rebase_shared_coin_records(manifest, args.output, args.include_output)
+        # BUG-052: reuse the existing authored phase-changing logo tiles.
+        _, logo_frames = compile_logo_frames(title_framebuffer(visual_maps[0], visual_tiles))
+        payload = bytearray(args.output.read_bytes())
+        logo_records = []
+        for y in range(24):
+            for x in range(40):
+                offset = y * 1280 + x * 4
+                pair = [b"".join(frame[offset + row * 160:offset + row * 160 + 4]
+                                 for row in range(8)) for frame in logo_frames]
+                if pair[0] == pair[1]:
+                    continue
+                pointers = []
+                for tile in pair:
+                    if len(payload) % PAGE_BYTES + len(tile) > PAGE_BYTES:
+                        payload.extend(bytes(PAGE_BYTES - len(payload) % PAGE_BYTES))
+                    pointers.append(len(payload))
+                    payload.extend(tile)
+                logo_records.append((framebuffer_destination((x, y + 6)), *pointers))
+        assert len(logo_records) == 12, len(logo_records)
+        assert all(record[2] == record[1] + 32 for record in logo_records)
+        assert len(payload) <= effective_cold_limit
+        args.output.write_bytes(payload)
+        manifest["highscore_logo"] = {
+            "records": logo_records,
+            "cells": 12,
+            "appended_bytes": len(payload) - manifest["cold_payload"]["bytes"],
+        }
+        manifest["cold_payload"] = {
+            "bytes": len(payload),
+            "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+        include = args.include_output.read_text(encoding="ascii")
+        include = re.sub(
+            r"PRESENTATION_COLD_SIZE equ \d+",
+            f"PRESENTATION_COLD_SIZE equ {len(payload)}",
+            include,
+        )
+        args.include_output.write_text(include, encoding="ascii")
+        args.include_output.with_name("ladybug_highscore_logo.inc").write_text(
+            "\n".join(
+                "        fdb " + ",".join(f"${n:04X}" for n in record[:2])
+                for record in logo_records
+            ) + "\n",
+            encoding="ascii",
+        )
         args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",
                                         encoding="ascii")
     print(

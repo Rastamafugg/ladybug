@@ -406,10 +406,8 @@ start_screen_map
         std     PRES_DST
         lbsr    map_back
         lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
-        bls     start_screen_hold
-        cmpa    #PRESENTATION_MAP_GAME_OVER
-        blo     start_screen_done
+        cmpa    #PRESENTATION_MAP_LEVEL_START
+        beq     start_screen_done
 start_screen_hold
         jsr     PRESENTATION_HOLD_BEGIN
 start_screen_done
@@ -733,7 +731,7 @@ instructions_runtime_return
         rts
         endc
 credit_tick
-        bra     hold
+        jmp     DEMO_RUNTIME_TICK
 level_tick
         bsr     timer
         cmpd    #180

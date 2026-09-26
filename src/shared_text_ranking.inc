@@ -573,6 +573,8 @@ highscore_phase_helper_end
 demo_runtime_tick
         ifne    HIGHSCORE_TEST_PROFILE
         lda     PRES_MODE
+        cmpa    #5
+        lbeq    highscore_name_tick
         cmpa    #MODE_NAME
         lbeq    highscore_name_tick
         cmpa    #MODE_GAMEOVER
@@ -1247,6 +1249,7 @@ update_name_frame
         lbsr    draw_name_fields
         bsr     capture_owner
         bsr     draw_cursor
+highscore_finish_back
         lda     #$34
         sta     PAR5
         jmp     PRES_MAIN_FB_FINISH

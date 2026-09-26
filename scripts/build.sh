@@ -772,6 +772,7 @@ text = open(sys.argv[1]).read()
 exports = {
     'ranking_slice': 'PRES_RANKING_SLICE',
     'highscore_prepare_back': 'PRES_HIGHSCORE_FB_PREPARE',
+    'highscore_finish_back': 'PRES_HIGHSCORE_FB_FINISH',
 }
 with open(sys.argv[2], 'a') as handle:
     for source, exported in exports.items():

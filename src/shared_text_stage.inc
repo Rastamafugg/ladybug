@@ -108,6 +108,8 @@ SND_DATA equ $FF51
 
 highscore_phase_tick
         lda     PRES_MODE
+        cmpa    #5
+        lbeq    highscore_logo_tick
         cmpa    #MODE_GAMEOVER
         lbeq    highscore_gameover_tick
         tst     PRES_NAME_FLAGS
@@ -421,6 +423,16 @@ stage_selected
         rts
 stage_panel_slice
         lbsr credit_panel_slice
+        ldd $AA
+        cmpd #960
+        bne stage_panel_regular_slice
+        lda PRES_SCREEN
+        cmpa #PRESENTATION_MAP_HIGH_SCORE
+        bne stage_panel_regular_slice
+        clr PRES_NAME_TIMER_PHASE
+        clr PRES_NAME_TIMER_BOX
+        lbra highscore_logo_tile
+stage_panel_regular_slice
         lda PRES_SCREEN
         cmpa #PRESENTATION_MAP_HIGH_SCORE
         lbeq ranking_schedule_tick
@@ -610,82 +622,130 @@ stage_panel_good_luck
         endc
 ranking_schedule_tick
         ldd $AA
-        lsra
-        rorb
-        lsra
-        rorb
         leau ranking_schedule_data,pcr
-        leau d,u
-        ldx ,u
-        beq ranking_schedule_return
-        ldy 2,u
-        ldb 4,u
-        jmp PRES_RANKING_SLICE
-ranking_schedule_return
+ranking_schedule_find
+        cmpd ,u
+        beq ranking_schedule_found
+        leau 7,u
+        cmpu #ranking_schedule_end
+        blo ranking_schedule_find
         rts
+ranking_schedule_found
+        ldx 2,u
+        ldy 4,u
+        ldb 6,u
+        jmp PRES_RANKING_SLICE
 ranking_schedule_data
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $AF84,$2A40
-        fcb 1,0,0,0
-        fdb $AF84,$2A6C
-        fcb 0,0,0,0
-        fdb $AF8E,$3440
-        fcb 1,0,0,0
-        fdb $AF8E,$346C
-        fcb 0,0,0,0
-        fdb $AF98,$3940
-        fcb 1,0,0,0
-        fdb $AF98,$396C
-        fcb 0,0,0,0
-        fdb $AFA2,$3E40
-        fcb 1,0,0,0
-        fdb $AFA2,$3E6C
-        fcb 0,0,0,0
-        fdb $AFAC,$4340
-        fcb 1,0,0,0
-        fdb $AFAC,$436C
-        fcb 0,0,0,0
-        fdb $AFB6,$4840
-        fcb 1,0,0,0
-        fdb $AFB6,$486C
-        fcb 0,0,0,0
-        fdb $AFC0,$4D40
-        fcb 1,0,0,0
-        fdb $AFC0,$4D6C
-        fcb 0,0,0,0
-        fdb $AFCA,$5240
-        fcb 1,0,0,0
-        fdb $AFCA,$526C
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $AFD4,$5740
-        fcb 1,0,0,0
-        fdb $AFD4,$576C
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
-        fdb $0000,$0000
-        fcb 0,0,0,0
+        fdb 128,$AF84,$2A40
+        fcb 1
+        fdb 160,$AF84,$2A6C
+        fcb 0
+        fdb 192,$AF8E,$3440
+        fcb 1
+        fdb 224,$AF8E,$346C
+        fcb 0
+        fdb 256,$AF98,$3940
+        fcb 1
+        fdb 288,$AF98,$396C
+        fcb 0
+        fdb 320,$AFA2,$3E40
+        fcb 1
+        fdb 352,$AFA2,$3E6C
+        fcb 0
+        fdb 384,$AFAC,$4340
+        fcb 1
+        fdb 416,$AFAC,$436C
+        fcb 0
+        fdb 448,$AFB6,$4840
+        fcb 1
+        fdb 480,$AFB6,$486C
+        fcb 0
+        fdb 512,$AFC0,$4D40
+        fcb 1
+        fdb 544,$AFC0,$4D6C
+        fcb 0
+        fdb 576,$AFCA,$5240
+        fcb 1
+        fdb 608,$AFCA,$526C
+        fcb 0
+        fdb 704,$AFD4,$5740
+        fcb 1
+        fdb 736,$AFD4,$576C
+        fcb 0
+ranking_schedule_end
+
+; BUG-052: redraw only the twelve authored phase-changing logo tiles.
+highscore_logo_tick
+        ldd     PRES_TIMER
+        bne     highscore_logo_clock
+        lda     #$FF
+        sta     $D2
+        sta     $D3
+highscore_logo_clock
+        ldd     PRES_TIMER
+        addd    #1
+        std     PRES_TIMER
+        tst     FB_PENDING
+        bne     highscore_logo_hold
+        subd    #6
+        bhs     highscore_logo_phase
+        clrb
+highscore_logo_phase
+        lsrb
+        lsrb
+        lsrb
+        andb    #1
+        stb     PRES_NAME_TIMER_PHASE
+        ldx     #$D2
+        lda     FB_BACK_ID
+        cmpb    a,x
+        beq     highscore_logo_hold
+        stb     a,x
+        ldd     #highscore_logo_prepared
+        std     PRES_NAME_PTR
+        ldd     #PRES_MAIN_PAGE23_RESUME
+        pshs    d
+        jmp     PRES_HIGHSCORE_FB_PREPARE
+highscore_logo_prepared
+        clr     PRES_NAME_TIMER_BOX
+highscore_logo_tile
+        lda     PRES_NAME_TIMER_BOX
+        ldb     #4
+        mul
+        leax    highscore_logo_records,pcr
+        leax    d,x
+        ldy     ,x
+        ldd     2,x
+        tst     PRES_NAME_TIMER_PHASE
+        beq     highscore_logo_source
+        addd    #32
+highscore_logo_source
+        tfr     d,u
+        ldd     #highscore_logo_drawn
+        std     PRES_NAME_PTR
+        ldd     #PRES_MAIN_PAGE23_RESUME
+        pshs    d
+        tfr     u,d
+        jmp     PRES_MODULE_DRAW_RAW_TILE
+highscore_logo_drawn
+        inc     PRES_NAME_TIMER_BOX
+        lda     PRES_NAME_TIMER_BOX
+        cmpa    #12
+        blo     highscore_logo_tile
+        lda     PRES_MODE
+        cmpa    #MODE_LOAD
+        beq     highscore_logo_loaded
+        ldd     #highscore_logo_hold
+        std     PRES_NAME_PTR
+        ldd     #PRES_MAIN_PAGE23_RESUME
+        pshs    d
+        jmp     PRES_HIGHSCORE_FB_FINISH
+highscore_logo_hold
+        lda     #1
+highscore_logo_loaded
+        rts
+highscore_logo_records
+        include "ladybug_highscore_logo.inc"
 
 ; BUG-043: publish the authoritative count after its row has been loaded.
 credit_panel_slice
