@@ -1,0 +1,154 @@
+{
+  "rom_sha256": "0a8fb4cdd1c7dc11e4aa199c520e447ee6d9abba9d46058aea64a7fe3b0fc1bb",
+  "phase_deadline_seconds": 45,
+  "timeout_meaning": "natural screen/phase publication not observed; not proof of slow execution",
+  "captures": [
+    {
+      "owner": 0,
+      "timer": 1,
+      "phase_matches": [
+        true,
+        false
+      ],
+      "nonlogo_sha256": "f286a632e4a43c5925a66b39a081c643294c72e0d0bbb822d5be183989bc53c9",
+      "frame_sha256": "df760bb64c7739c6ce570e8f0a4739de286bf67d33139dec679a3ca1f40ed319"
+    },
+    {
+      "owner": 1,
+      "timer": 2,
+      "phase_matches": [
+        true,
+        false
+      ],
+      "nonlogo_sha256": "f286a632e4a43c5925a66b39a081c643294c72e0d0bbb822d5be183989bc53c9",
+      "frame_sha256": "df760bb64c7739c6ce570e8f0a4739de286bf67d33139dec679a3ca1f40ed319"
+    },
+    {
+      "owner": 0,
+      "timer": 14,
+      "phase_matches": [
+        false,
+        true
+      ],
+      "nonlogo_sha256": "f286a632e4a43c5925a66b39a081c643294c72e0d0bbb822d5be183989bc53c9",
+      "frame_sha256": "d370bdd6be807d88b3f017d888af396a187394b63458aad67da79fbc85b79c55"
+    },
+    {
+      "owner": 1,
+      "timer": 15,
+      "phase_matches": [
+        false,
+        true
+      ],
+      "nonlogo_sha256": "f286a632e4a43c5925a66b39a081c643294c72e0d0bbb822d5be183989bc53c9",
+      "frame_sha256": "d370bdd6be807d88b3f017d888af396a187394b63458aad67da79fbc85b79c55"
+    }
+  ],
+  "presentation_live_exact": true,
+  "helper_live_exact": true,
+  "aux_live_exact": true,
+  "first": {
+    "owner": 1,
+    "timer": 0,
+    "phase_matches": [
+      true,
+      false
+    ],
+    "nonlogo_sha256": "f286a632e4a43c5925a66b39a081c643294c72e0d0bbb822d5be183989bc53c9",
+    "frame_sha256": "df760bb64c7739c6ce570e8f0a4739de286bf67d33139dec679a3ca1f40ed319"
+  },
+  "phase_changes": [
+    {
+      "timer": 1,
+      "phase": 0
+    },
+    {
+      "timer": 14,
+      "phase": 1
+    },
+    {
+      "timer": 22,
+      "phase": 0
+    },
+    {
+      "timer": 30,
+      "phase": 1
+    },
+    {
+      "timer": 38,
+      "phase": 0
+    },
+    {
+      "timer": 46,
+      "phase": 1
+    },
+    {
+      "timer": 54,
+      "phase": 0
+    },
+    {
+      "timer": 62,
+      "phase": 1
+    }
+  ],
+  "credit_preemption_first": {
+    "owner": 1,
+    "timer": 0,
+    "phase_matches": [
+      true,
+      false
+    ],
+    "nonlogo_sha256": "b5f87d370c9feb39c9fa02d033ad4753975838075f3405502be3a2f729656e34",
+    "frame_sha256": "1716ffda3abfb53965e3fca7aeed3847aaa4709cbf805ae094fc09e1c079ce00"
+  },
+  "credit_phase_preemption": "pass",
+  "owner_phase_coverage": "pass",
+  "nonlogo_unchanged": "pass",
+  "result": "pass",
+  "ticket": "BUG-052",
+  "kind": "isolated candidate, not implementation acceptance",
+  "base_revision": "96ccd4d",
+  "patch_sha256": "ee3e00e3d18e2e6345e288bb0c57f0e5032a829404534de7239e610e94832e5d",
+  "production_files": [
+    "scripts/build.sh",
+    "scripts/build_presentation.py",
+    "src/presentation_runtime.s",
+    "src/shared_text_stage.inc",
+    "src/shared_text_ranking.inc"
+  ],
+  "build": "complete build passes",
+  "size_pair_meaning": "used bytes, hard limit bytes",
+  "sizes_bytes": {
+    "presentation": [
+      1277,
+      1280
+    ],
+    "highscore_aux": [
+      917,
+      920
+    ],
+    "resident": [
+      8192,
+      8192
+    ],
+    "assets": [
+      7680,
+      7680
+    ],
+    "cold": [
+      14298,
+      16384
+    ],
+    "gmc_source_spare": 1088
+  },
+  "remaining_gates": [
+    "combined BUG-043/052 helper and presentation fit",
+    "bounded phase cycle measurement",
+    "final assignment review"
+  ],
+  "rejected_experiments": [
+    "Highscore-only single-buffer load exposed non-logo differences during phase publication; reuse held-screen hydration for both buffers.",
+    "Duplicated finish mapping overflowed auxiliary 927/920; reuse existing low-RAM finish entry.",
+    "Hydrated helper exceeded the fixed B600 compressed-title boundary by 12 bytes; compact records and stack use rather than move the boundary."
+  ]
+}

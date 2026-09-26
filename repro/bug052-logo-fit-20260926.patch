@@ -1,0 +1,214 @@
+diff --git a/scripts/build.sh b/scripts/build.sh
+index aef9aa5..4dc370c 100644
+--- a/scripts/build.sh
++++ b/scripts/build.sh
+@@ -771,6 +771,7 @@ text = open(sys.argv[1]).read()
+ exports = {
+     'ranking_slice': 'PRES_RANKING_SLICE',
+     'highscore_prepare_back': 'PRES_HIGHSCORE_FB_PREPARE',
++    'highscore_finish_back': 'PRES_HIGHSCORE_FB_FINISH',
+ }
+ with open(sys.argv[2], 'a') as handle:
+     for source, exported in exports.items():
+diff --git a/scripts/build_presentation.py b/scripts/build_presentation.py
+index 5507832..07758f5 100644
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -2566,6 +2566,38 @@ def main() -> None:
+         rebase_shared_coin_records(manifest, args.output, args.include_output)
+         args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",
+                                         encoding="ascii")
++    # BUG-052 isolated fit: existing authored logo differences, no new art.
++    _, logo_frames = compile_logo_frames(title_framebuffer(visual_maps[0], visual_tiles))
++    payload = bytearray(args.output.read_bytes())
++    logo_records = []
++    for y in range(24):
++        for x in range(40):
++            offset = y * 1280 + x * 4
++            pair = [b"".join(frame[offset + row * 160:offset + row * 160 + 4]
++                             for row in range(8)) for frame in logo_frames]
++            if pair[0] == pair[1]:
++                continue
++            pointers = []
++            for tile in pair:
++                if len(payload) % PAGE_BYTES + len(tile) > PAGE_BYTES:
++                    payload.extend(bytes(PAGE_BYTES - len(payload) % PAGE_BYTES))
++                pointers.append(len(payload))
++                payload.extend(tile)
++            logo_records.append((framebuffer_destination((x, y + 6)), *pointers))
++    assert len(logo_records) == 12, len(logo_records)
++    assert all(record[2] == record[1] + 32 for record in logo_records)
++    assert len(payload) <= effective_cold_limit
++    args.output.write_bytes(payload)
++    manifest["highscore_logo"] = {"records": logo_records, "cells": 12,
++                                  "appended_bytes": len(payload) - manifest["cold_payload"]["bytes"]}
++    manifest["cold_payload"] = {"bytes": len(payload), "sha256": hashlib.sha256(payload).hexdigest()}
++    include = args.include_output.read_text(encoding="ascii")
++    include = re.sub(r"PRESENTATION_COLD_SIZE equ \d+", f"PRESENTATION_COLD_SIZE equ {len(payload)}", include)
++    args.include_output.write_text(include, encoding="ascii")
++    args.include_output.with_name("ladybug_highscore_logo.inc").write_text(
++        "\n".join("        fdb " + ",".join(f"${n:04X}" for n in record[:2])
++                    for record in logo_records) + "\n", encoding="ascii")
++    args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="ascii")
+     print(
+         f"presentation: {len(maps)} maps, {len(tiles)} native descriptors, "
+         f"{manifest['cold_payload']['bytes']} cold bytes, "
+diff --git a/src/presentation_runtime.s b/src/presentation_runtime.s
+index 37e49c5..edadcfc 100644
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -389,10 +389,10 @@ start_screen_map
+         std     PRES_DST
+         lbsr    map_back
+         lda     PRES_SCREEN
+-        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+-        bls     start_screen_hold
+-        cmpa    #PRESENTATION_MAP_ENTER_HIGH_SCORE
+-        bne     start_screen_done
++        cmpa    #PRESENTATION_MAP_LEVEL_START
++        beq     start_screen_done
++        cmpa    #PRESENTATION_MAP_GAME_OVER
++        beq     start_screen_done
+ start_screen_hold
+         jsr     PRESENTATION_HOLD_BEGIN
+ start_screen_done
+@@ -713,7 +713,7 @@ instructions_runtime_return
+         rts
+         endc
+ credit_tick
+-        bra     hold
++        jmp     DEMO_RUNTIME_TICK
+ level_tick
+         bsr     timer
+         cmpd    #180
+diff --git a/src/shared_text_ranking.inc b/src/shared_text_ranking.inc
+index fcbaec9..35d4d02 100644
+--- a/src/shared_text_ranking.inc
++++ b/src/shared_text_ranking.inc
+@@ -573,6 +573,8 @@ highscore_phase_helper_end
+ demo_runtime_tick
+         ifne    HIGHSCORE_TEST_PROFILE
+         lda     PRES_MODE
++        cmpa    #5
++        lbeq    highscore_name_tick
+         cmpa    #MODE_NAME
+         lbeq    highscore_name_tick
+         cmpa    #MODE_GAMEOVER
+@@ -1259,6 +1261,7 @@ update_name_frame
+         lbsr    draw_name_fields
+         bsr     capture_owner
+         bsr     draw_cursor
++highscore_finish_back
+         lda     #$34
+         sta     PAR5
+         jmp     PRES_MAIN_FB_FINISH
+diff --git a/src/shared_text_stage.inc b/src/shared_text_stage.inc
+index a1efa62..482733b 100644
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -108,6 +108,8 @@ SND_DATA equ $FF51
+ 
+ highscore_phase_tick
+         lda     PRES_MODE
++        cmpa    #5
++        lbeq    highscore_logo_tick
+         cmpa    #MODE_GAMEOVER
+         lbeq    highscore_gameover_tick
+         tst     PRES_NAME_FLAGS
+@@ -420,6 +422,16 @@ stage_selected
+         sta PRES_TMP_H
+         rts
+ stage_panel_slice
++        ldd     $AA
++        cmpd    #960
++        bne     stage_panel_regular_slice
++        lda     PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_HIGH_SCORE
++        bne     stage_panel_regular_slice
++        clr     PRES_NAME_TIMER_PHASE
++        clr     PRES_NAME_TIMER_BOX
++        lbra    highscore_logo_tile
++stage_panel_regular_slice
+         lda PRES_SCREEN
+         cmpa #PRESENTATION_MAP_HIGH_SCORE
+         lbeq ranking_schedule_tick
+@@ -713,6 +725,79 @@ ranking_schedule_data
+         fdb $0000,$0000
+         fcb 0,0,0,0
+ 
++; BUG-052 isolated fit: redraw only authored phase-changing logo tiles.
++highscore_logo_tick
++        ldd     PRES_TIMER
++        bne     highscore_logo_clock
++        lda     #$FF
++        sta     $D2
++        sta     $D3
++highscore_logo_clock
++        ldd     PRES_TIMER
++        addd    #1
++        std     PRES_TIMER
++        tst     FB_PENDING
++        bne     highscore_logo_hold
++        subd    #6
++        bhs     highscore_logo_phase
++        clrb
++highscore_logo_phase
++        lsrb
++        lsrb
++        lsrb
++        andb    #1
++        stb     PRES_NAME_TIMER_PHASE
++        ldx     #$D2
++        lda     FB_BACK_ID
++        cmpb    a,x
++        beq     highscore_logo_hold
++        stb     a,x
++        ldd     #highscore_logo_prepared
++        std     PRES_NAME_PTR
++        ldd     #PRES_MAIN_PAGE23_RESUME
++        pshs    d
++        jmp     PRES_HIGHSCORE_FB_PREPARE
++highscore_logo_prepared
++        clr     PRES_NAME_TIMER_BOX
++highscore_logo_tile
++        lda     PRES_NAME_TIMER_BOX
++        ldb     #4
++        mul
++        leax    highscore_logo_records,pcr
++        leax    d,x
++        ldy     ,x
++        ldd     2,x
++        tst     PRES_NAME_TIMER_PHASE
++        beq     highscore_logo_source
++        addd    #32
++highscore_logo_source
++        tfr     d,u
++        ldd     #highscore_logo_drawn
++        std     PRES_NAME_PTR
++        ldd     #PRES_MAIN_PAGE23_RESUME
++        pshs    d
++        tfr     u,d
++        jmp     PRES_MODULE_DRAW_RAW_TILE
++highscore_logo_drawn
++        inc     PRES_NAME_TIMER_BOX
++        lda     PRES_NAME_TIMER_BOX
++        cmpa    #12
++        blo     highscore_logo_tile
++        lda     PRES_MODE
++        cmpa    #MODE_LOAD
++        beq     highscore_logo_loaded
++        ldd     #highscore_logo_hold
++        std     PRES_NAME_PTR
++        ldd     #PRES_MAIN_PAGE23_RESUME
++        pshs    d
++        jmp     PRES_HIGHSCORE_FB_FINISH
++highscore_logo_hold
++        lda     #1
++highscore_logo_loaded
++        rts
++highscore_logo_records
++        include "ladybug_highscore_logo.inc"
++
+ highscore_phase_helper_end
+ 
+         else
