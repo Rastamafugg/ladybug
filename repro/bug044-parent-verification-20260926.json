@@ -1,0 +1,134 @@
+{
+  "production_revision": "344f027",
+  "controlled_call_diagnosis": {
+    "byte_identity": "physical and logical resident bytes match built artifact",
+    "single_step_result": "add_special_score returns to $1800 after eight instructions",
+    "working_observer": "run then wait_for_stop",
+    "rejected_observer": "run_to_breakpoint notification wait after forced PC",
+    "context_repair": "save and restore CPU registers, stub and separate stack region before resuming natural execution",
+    "game_source_changes": false
+  },
+  "highscore_loading": {
+    "rom_sha256": "d319d637f94a492b847cc292544919bf70ec52bcfd91e2c931ca5bac8d909c9d",
+    "phase_deadline_seconds": 45,
+    "timeout_meaning": "presentation call/return marker not observed; no speed inference",
+    "credits": 2,
+    "credit_prompt_front_pixels": "pass",
+    "maximum_presentation_call_cycles": 22029,
+    "result": "pass",
+    "sample_count": 34,
+    "largest_samples": [
+      {
+        "mode_before": 1,
+        "cell_before": 928,
+        "cycles": 22029
+      },
+      {
+        "mode_before": 1,
+        "cell_before": 0,
+        "cycles": 13953
+      },
+      {
+        "mode_before": 1,
+        "cell_before": 288,
+        "cycles": 13550
+      }
+    ]
+  },
+  "instruction_loading": {
+    "rom_sha256": "d319d637f94a492b847cc292544919bf70ec52bcfd91e2c931ca5bac8d909c9d",
+    "phase_deadline_seconds": 45,
+    "timeout_meaning": "presentation call/return marker not observed; no speed inference",
+    "maximum_presentation_call_cycles": 20656,
+    "result": "pass",
+    "sample_count": 96,
+    "largest_samples": [
+      {
+        "mode_before": 1,
+        "cell_before": 800,
+        "cycles": 20656
+      },
+      {
+        "mode_before": 1,
+        "cell_before": 800,
+        "cycles": 20656
+      },
+      {
+        "mode_before": 1,
+        "cell_before": 192,
+        "cycles": 13663
+      }
+    ]
+  },
+  "demo_candidate": {
+    "rom_sha256": "d319d637f94a492b847cc292544919bf70ec52bcfd91e2c931ca5bac8d909c9d",
+    "phase": "natural demo normal gameplay foreground",
+    "deadline_seconds": 45,
+    "success_marker": "120 complete main_game_tick_normal to mainloop worklists",
+    "timeout_meaning": "sample window incomplete; no target-speed inference",
+    "target_cycles": 27000,
+    "maximum_cycles": 561881,
+    "steady_maximum_cycles": 21804,
+    "stage_maximum_cycles": 561881,
+    "steady_target_pass": true,
+    "all_worklists_target_pass": false,
+    "result": "target_missed",
+    "sample_count": 120,
+    "largest_samples": [
+      {
+        "index": 1,
+        "back_owner": 1,
+        "stage_rebuild_calls": 1,
+        "cycles": 561881
+      },
+      {
+        "index": 0,
+        "back_owner": 0,
+        "stage_rebuild_calls": 1,
+        "cycles": 561664
+      },
+      {
+        "index": 80,
+        "back_owner": 0,
+        "stage_rebuild_calls": 0,
+        "cycles": 21804
+      }
+    ]
+  },
+  "demo_baseline": {
+    "rom_sha256": "88122021027412a5cc54cd4cc385f2aba0f79a879990d5dd4d20ef3bde1e6cdb",
+    "phase": "natural demo normal gameplay foreground",
+    "deadline_seconds": 45,
+    "success_marker": "120 complete main_game_tick_normal to mainloop worklists",
+    "timeout_meaning": "sample window incomplete; no target-speed inference",
+    "target_cycles": 27000,
+    "maximum_cycles": 556960,
+    "steady_maximum_cycles": 18600,
+    "stage_maximum_cycles": 556960,
+    "steady_target_pass": true,
+    "all_worklists_target_pass": false,
+    "result": "target_missed",
+    "sample_count": 120,
+    "largest_samples": [
+      {
+        "index": 1,
+        "back_owner": 1,
+        "stage_rebuild_calls": 1,
+        "cycles": 556960
+      },
+      {
+        "index": 0,
+        "back_owner": 0,
+        "stage_rebuild_calls": 1,
+        "cycles": 556765
+      },
+      {
+        "index": 80,
+        "back_owner": 0,
+        "stage_rebuild_calls": 0,
+        "cycles": 18600
+      }
+    ]
+  },
+  "verdict": "Presentation and sampled steady gameplay meet 27000 cycles. Initial full stage reconstruction exceeds it on both revisions; no all-worklist timing acceptance."
+}

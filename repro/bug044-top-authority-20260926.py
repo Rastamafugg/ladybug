@@ -152,26 +152,25 @@ def assert_live_resident(symbol, length):
 
 def call_resident(symbol, deadline=10):
     address = main_symbols[symbol]
-    return_address = 0x1800
-    client.call("write_memory", {
-        "addr": return_address,
-        "data": "20fe",
-    })
-    client.call("write_memory", {
-        "addr": 0x1FFC,
-        "data": return_address.to_bytes(2, "big").hex(),
-    })
-    assert client.call("read_memory", {"addr": return_address, "length": 2})["data"].lower() == "20fe"
-    assert client.call("read_memory", {"addr": 0x1FFC, "length": 2})["data"].lower() == "1800"
-    ids = monitor.setup(client, [return_address])
+    assert_live_resident(symbol, 16)
+    saved_regs=client.call("read_registers")
+    saved_stub=runtime.read_bytes(client,0x1800,2)
+    saved_stack=runtime.read_bytes(client,0x1E00,512)
+    client.call("write_memory", {"addr":0x1800,"data":"20fe"})
+    client.call("write_memory", {"addr":0x1EFC,"data":"1800"})
+    ids=monitor.setup(client,[0x1800])
     try:
-        client.call("write_registers", {
-            "pc": address, "s": 0x1FFC, "dp": 0, "cc": 0x50,
-        })
-        hit = client.run_to_breakpoint(deadline)
-        assert hit.get("pc") == return_address, (symbol, hit, hex(return_address))
+        client.call("write_registers",{"pc":address,"s":0x1EFC,"dp":0,"cc":0x50})
+        regs=client.call("read_registers")
+        assert (regs['pc'],regs['s'],regs['dp'],regs['cc'])==(address,0x1EFC,0,0x50)
+        client.call("run")
+        hit=client.call("wait_for_stop",{"timeout_ms":int(deadline*1000)},timeout=deadline+2)
+        assert hit.get("pc")==0x1800 and hit.get("reason")=="breakpoint",(symbol,hit)
     finally:
-        monitor.clear(client, ids)
+        monitor.clear(client,ids)
+    client.call("write_memory",{"addr":0x1800,"data":saved_stub.hex()})
+    client.call("write_memory",{"addr":0x1E00,"data":saved_stack.hex()})
+    client.call("write_registers",{k:saved_regs[k] for k in ('a','b','cc','dp','x','y','u','s','pc')})
 
 
 try:
@@ -195,7 +194,7 @@ try:
     client.call("write_memory", {
         "space": "physical", "addr": 0x38 * 8192 + 0x20, "data": "aabbcc",
     })
-    evidence["live_score_crossing"] = {
+    evidence["controlled_score_crossing"] = {
         "deadline_seconds": 10,
         "success_marker": "add_special_score returns at $1800 with SCORE_BCD=099990 and TOP unchanged",
         "timeout_meaning": "controlled return marker was not reached within 10 seconds",
@@ -207,8 +206,8 @@ try:
     assert physical(0x34 * 8192 + 0xF84, 10) == initial_record
     call_resident("asset_draw_top_hud")
     back_owner = low(0x90)[0]
-    assert_record_pixels(initial_record, "live-score-crossing-top", [back_owner])
-    evidence["live_score_crossing"].update({
+    assert_record_pixels(initial_record, "controlled-score-crossing-top", [back_owner])
+    evidence["controlled_score_crossing"].update({
         "status": "pass",
         "score_before": "089990",
         "score_after": low(0x1D, 3).hex(),
@@ -237,15 +236,15 @@ try:
 except Exception as exc:
     evidence["result"] = "fail"
     evidence["failure"] = f"{type(exc).__name__}: {exc}"
-    if evidence.get("live_score_crossing", {}).get("status") == "running":
-        evidence["live_score_crossing"].update({
+    if evidence.get("controlled_score_crossing", {}).get("status") == "running":
+        evidence["controlled_score_crossing"].update({
             "status": "fail",
             "failure": evidence["failure"],
         })
 finally:
     client.close()
     monitor.stop(process)
-    (root / "repro/bug044-top-authority-20260926.json").write_text(
+    (build / "bug044-top-authority-corrected.json").write_text(
         json.dumps(evidence, indent=2) + "\n", encoding="ascii"
     )
 print(json.dumps(evidence, indent=2))
