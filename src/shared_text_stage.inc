@@ -780,6 +780,10 @@ credit_panel_prompt_char
 credit_panel_done
         rts
 credit_panel_count
+        lda     PRES_SCREEN
+        beq     credit_panel_done
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        beq     credit_panel_done
         lda     #6
         sta     $29
         ldx     #$4884
