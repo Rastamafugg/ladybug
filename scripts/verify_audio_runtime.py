@@ -146,7 +146,7 @@ def symbols(path: Path) -> dict[str, int]:
     found: dict[str, int] = {}
     pattern = re.compile(
         r"^Symbol: (audio_engine_start|audio_engine_end|audio_install_page|audio_mix_write|"
-        r"gmc_cue_descriptors|gmc_sound_data_end) .* = ([0-9A-Fa-f]+)$"
+        r"gmc_cue_descriptors|gmc_sound_data_end|audio_guard_bytes|audio_guard_end) .* = ([0-9A-Fa-f]+)$"
     )
     for line in path.read_text(encoding="utf-8").splitlines():
         match = pattern.match(line)
@@ -194,6 +194,17 @@ def main() -> None:
         raise SystemExit("audio proof: installer is outside the runtime payload")
     if runtime[:9:3] != bytes((0x16, 0x16, 0x16)):
         raise SystemExit("audio proof: copied entry table is not three long branches")
+
+    if not {"audio_guard_bytes", "audio_guard_end"}.issubset(located):
+        raise SystemExit("audio proof: completion guard symbols missing")
+    guard_bytes = located["audio_guard_end"] - located["audio_guard_bytes"]
+    boot_map = (args.runtime.parent / "ladybug-gmc-boot.map").read_text(encoding="ascii")
+    boot_symbols = {name: int(value, 16) for name, value in re.findall(
+        r"^Symbol: (GMC_LZSS_TABLE_RAM|GMC_LZSS_STREAM_TABLE_BYTES) .* = ([0-9A-Fa-f]+)$",
+        boot_map, re.MULTILINE)}
+    if (len(boot_symbols) != 2 or sum(boot_symbols.values()) > 0x02C0
+            or not 0 < guard_bytes <= 0x02DC - 0x02C0):
+        raise SystemExit("audio proof: completion guard overlaps boot table or audio state")
 
     cue_path = args.gmc_manifest or args.cues
     cue_manifest = json.loads(cue_path.read_text(encoding="ascii"))

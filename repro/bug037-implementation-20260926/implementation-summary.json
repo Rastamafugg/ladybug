@@ -1,0 +1,100 @@
+{
+  "ticket": "BUG-037",
+  "status": "implementation checks passed; parent integration and natural acceptance pending",
+  "base_commit": "896f67d2a4c407639fa2b60448747406b26a840e",
+  "rom_sha256": "2b757972bd4e4cf92019e7dfbc3505767bfd7397b7936f91dd1c249064cb30e8",
+  "split_dependency": "Removed the candidate patch\u2019s single audio_poll_name call; that observer belongs to BUG-057 and is absent from this isolated slice. BUG-057 must add its own observer call when integrated.",
+  "build": "scripts/build.sh build passed",
+  "capacity_bytes": {
+    "resident": {
+      "used": 8180,
+      "limit": 8192
+    },
+    "assets": {
+      "used": 7596,
+      "limit": 7680
+    },
+    "presentation": {
+      "used": 1279,
+      "limit": 1280
+    },
+    "instruction": {
+      "used": 935,
+      "limit": 938
+    },
+    "presentation_helper": {
+      "used": 331,
+      "limit": 334
+    },
+    "high_score": {
+      "used": 899,
+      "limit": 938
+    },
+    "audio_engine": {
+      "used": 728,
+      "limit": 920
+    },
+    "audio_page_3d": {
+      "used": 5450,
+      "limit": 8192
+    },
+    "cold_presentation": {
+      "used": 14362,
+      "limit": 16384
+    },
+    "gmc_compressed_source_spare": 610,
+    "audio_source_margin_reported_by_verifier": 2582
+  },
+  "active_worklist_cycles": {
+    "scenario": "active credit gameplay control",
+    "sampled_maximum": 21852,
+    "target_maximum": 27000,
+    "pass": true
+  },
+  "focused_checks": {
+    "music_queue_drain_reset": {
+      "result": "pass",
+      "receipt": "music-drain.json",
+      "music_order": [
+        13,
+        10,
+        11,
+        14,
+        6,
+        9,
+        8,
+        7
+      ],
+      "guard_service_calls": 33,
+      "maximum_guard_call_cycles": 1955
+    },
+    "effect_fifo_priority": {
+      "result": "pass",
+      "receipt": "effect-admission.json"
+    },
+    "mixer_priority_crossover": {
+      "result": "pass",
+      "receipt": "priority-crossover.json",
+      "both_slot_orders_keep_high_priority_voice": true
+    },
+    "exact_stream_waits": {
+      "result": "pass",
+      "receipt": "stream-waits.json",
+      "cue_count": 16,
+      "wait_boundary_count": 398,
+      "all_boundaries_match": true
+    },
+    "active_credit_adjacent_flow": {
+      "result": "pass",
+      "receipt": "active-credit.json",
+      "maximum_sampled_cycles": 21852,
+      "cycle_target": 27000
+    }
+  },
+  "acceptance_gaps": [
+    "natural final-pickup maze completion through next-level publication",
+    "natural terminal death handoff",
+    "audible listening confirmation",
+    "combined-source rebuild after parent integration"
+  ]
+}

@@ -325,7 +325,9 @@ install_aux_runtime_byte
         rts
 
 normal_tick
-        lda     DEATH
+        jsr     $02C0
+        bne     normal_hold
+        lda     <DEATH
         cmpa    #4
         bne     normal_stage
         ifne    HIGHSCORE_TEST_PROFILE
@@ -347,7 +349,7 @@ normal_tick
         endc
         bra     normal_begin_screen
 normal_stage
-        tst     STAGE_PENDING
+        tst     <STAGE_PENDING
         beq     normal_start
         jsr     PRES_MAIN_NEXT_STAGE
         ifne    COMPLETE_PROFILE
@@ -355,7 +357,7 @@ normal_stage
         else
         lda     #1
         endc
-        sta     PRES_CONTEXT
+        sta     <PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
         bra     normal_begin_screen
 normal_start
@@ -368,10 +370,11 @@ normal_start
         beq     normal_game
         dec     PRES_CREDITS
         lda     #1
-        sta     PRES_CONTEXT
+        sta     <PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
 normal_begin_screen
         bsr     start_screen
+normal_hold
         lda     #1
         rts
 normal_game
