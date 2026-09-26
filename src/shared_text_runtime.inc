@@ -154,17 +154,17 @@ dynamic_index
         lda $A6
         cmpa #3
         bne colour_skip_3
-        ldb #TEXT_RANKING
+        ldb $E8
 colour_skip_3
         endc
-        ifne TEXT_CONTEXT_COLOURS
+        ifne TEXT_GAME_OVER_SCORE-6
         lda $A6
         cmpa #4
         bne colour_skip_4
         ldb #TEXT_GAME_OVER_SCORE
 colour_skip_4
         endc
-        ifne TEXT_CONTEXT_COLOURS
+        ifne TEXT_NAME-6
         lda $A6
         cmpa #5
         bne colour_skip_5

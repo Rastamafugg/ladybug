@@ -746,6 +746,9 @@ def presentation_pen_map(
         raw_code: int = -1, highscore_test_profile: bool = False,
 ) -> tuple[int, int, int, int]:
     """Apply the established CoCo palette adaptation to authored raw chars."""
+    if role == "high-score" and (x, y) in ((17, 0), (22, 21)):
+        colour = YELLOW if y == 0 else RED
+        return (BLACK, colour, colour, colour)
     if role == "attract":
         if 7 <= y <= 12 and 9 <= x <= 30 and 164 <= raw_code <= 197:
             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)

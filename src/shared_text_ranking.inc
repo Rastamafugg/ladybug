@@ -1152,12 +1152,18 @@ ranking_slice
         sta PAR5
         lbsr init_scores
         puls b,x,y
+        lda #7
+        cmpx #PRES_HIGHSCORE_BASE
+        bne ranking_colour_ready
+        lda #1
+ranking_colour_ready
+        sta PRES_NAME_TIMER_PHASE
         tstb
         beq ranking_score
         leax 3,x
-        lbra draw_record_name
+        bra draw_record_name
 ranking_score
-        lbra draw_score
+        bra draw_score
 
 draw_record_name
         ldb     #PRESENTATION_HIGHSCORE_NAME_BYTES
