@@ -112,6 +112,7 @@
 
         pragma  nodollarlocal,6809
         include "ladybug_runtime_symbols.inc"
+        include "ladybug_shared_mode.inc"
         org     $0800
 
         ifndef  PERSISTENT_FB
@@ -1537,7 +1538,7 @@ enemy_collect_impl
         daa
         sta     SCORE_BCD
 ec_score_done
-        ifeq    COMPLETE_PROFILE
+        ifeq    SHARED_TEXT_ENABLED
         ldd     SCORE_BCD
         std     HIGH_BCD
         lda     SCORE_BCD+2
