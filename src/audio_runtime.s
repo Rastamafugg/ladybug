@@ -825,26 +825,77 @@ audio_mix_exclusive_next
         lbsr    audio_mix_slot
         rts
 audio_mix_all_slots
-        lda     #7
+        ; Stable descending priority keys; lower slot wins equal priority.
+        ldx     #audio_slot0
+        ldu     #audio_mix_order
+        lda     #3
         sta     audio_mix_priority
-audio_mix_priority_next
-        clr     AUDIO_WORK_SLOT
-audio_mix_all_next
-        lbsr    audio_slot_base
-        lda     ,x
-        cmpa    #$FF
-        beq     audio_mix_all_skip
+audio_mix_key_next
+        clra
+        ldb     ,x
+        cmpb    #$FF
+        beq     audio_mix_key_store
         lda     1,x
-        cmpa    audio_mix_priority
-        bne     audio_mix_all_skip
+        inca
+        lsla
+        lsla
+        adda    audio_mix_priority
+audio_mix_key_store
+        sta     ,u+
+        leax    AUDIO_SLOT_BYTES,x
+        dec     audio_mix_priority
+        bpl     audio_mix_key_next
+        lda     audio_mix_order+0
+        cmpa    audio_mix_order+1
+        bhs     audio_mix_sorted_0
+        ldb     audio_mix_order+1
+        stb     audio_mix_order+0
+        sta     audio_mix_order+1
+audio_mix_sorted_0
+        lda     audio_mix_order+2
+        cmpa    audio_mix_order+3
+        bhs     audio_mix_sorted_1
+        ldb     audio_mix_order+3
+        stb     audio_mix_order+2
+        sta     audio_mix_order+3
+audio_mix_sorted_1
+        lda     audio_mix_order+0
+        cmpa    audio_mix_order+2
+        bhs     audio_mix_sorted_2
+        ldb     audio_mix_order+2
+        stb     audio_mix_order+0
+        sta     audio_mix_order+2
+audio_mix_sorted_2
+        lda     audio_mix_order+1
+        cmpa    audio_mix_order+3
+        bhs     audio_mix_sorted_3
+        ldb     audio_mix_order+3
+        stb     audio_mix_order+1
+        sta     audio_mix_order+3
+audio_mix_sorted_3
+        lda     audio_mix_order+1
+        cmpa    audio_mix_order+2
+        bhs     audio_mix_sorted_4
+        ldb     audio_mix_order+2
+        stb     audio_mix_order+1
+        sta     audio_mix_order+2
+audio_mix_sorted_4
+        clr     audio_mix_priority
+audio_mix_all_next
+        ldx     #audio_mix_order
+        ldb     audio_mix_priority
+        lda     b,x
+        beq     audio_mix_all_done
+        anda    #3
+        eora    #3
+        sta     AUDIO_WORK_SLOT
+        lbsr    audio_slot_base
         lbsr    audio_mix_slot
-audio_mix_all_skip
-        inc     AUDIO_WORK_SLOT
-        lda     AUDIO_WORK_SLOT
+        inc     audio_mix_priority
+        lda     audio_mix_priority
         cmpa    #4
         blo     audio_mix_all_next
-        dec     audio_mix_priority
-        bpl     audio_mix_priority_next
+audio_mix_all_done
         rts
 
 audio_mix_clear
@@ -1142,6 +1193,8 @@ audio_music_queue rmb 8
 audio_music_best_priority fcb 0
 audio_music_best_index fcb 0
 audio_mix_priority fcb 0
+; @audit {"id":"audio-mix-order","kind":"scratch","symbol":"audio_mix_order","width":4,"mapping":"physical-page-3D","phases":["foreground"],"owner":"foreground audio mixer","lifetime":"Four keys live from key construction through final mixed slot; no alias with decoder scratch or retained PSG shadow.","initialization":"audio_mix_key_next writes all four keys before sorting","clobbers":"Mixer owns bytes until audio_mix_all_done; callees must preserve keys"}
+audio_mix_order rmb 4
 
 
 ; Name-entry events use the same banked foreground clock as gameplay.

@@ -1836,11 +1836,10 @@ secc_done
 ; returns a preserve mask in A while retaining the cached value in OBJ_VALUE.
 ; Cache rebinding enters with OBJ_ACCENT negative and returns the rebound
 ; value in A.  The compiled bonus/skull LUT guard justifies the bit tests.
+; Callers select the operation before entering their per-byte loop.
+; These distinct entries retain the existing arithmetic and scratch contract.
 rebind_cache_value
-primary_cache_mask
 cache_colour_kernel
-        tst     OBJ_ACCENT
-        bpl     cck_primary
         tfr     a,b
         anda    #$CC
         sta     OBJ_PRIMARY
@@ -1865,17 +1864,14 @@ rcv_value_done
         lda     OBJ_PRIMARY
         rts
 
+; Input A=cached value, B=preserve mask, Y=primary_preserve_table.
+; render_entity_colour owns Y through the complete primary replay.
+; Output A=B=combined mask; OBJ_VALUE retains input; caller CMPA replaces flags.
+primary_cache_mask
 cck_primary
         sta     OBJ_VALUE
-        anda    #$30
-        bne     pcm_low
-        orb     #$F0
-pcm_low
-        lda     OBJ_VALUE
-        anda    #$03
-        bne     pcm_done
-        orb     #$0F
-pcm_done
+        anda    #$33
+        orb     a,y
         tfr     b,a
         rts
 
@@ -1954,6 +1950,8 @@ repco_done
 render_entity_colour
         lda     #1
         sta     OBJ_ACCENT
+; @audit-use {"id":"primary-mask-table","symbol":"primary_preserve_table"}
+        ldy     #primary_preserve_table
         lbra    de_normal
 
 ; Placement changes MAZE_STATE before the objects are drawn. Restore each
@@ -2339,6 +2337,7 @@ pbc_top_left
 
 ; Redraw an authored perimeter tile, replacing White pixels only.  Pink inner
 ; borders and Black separators remain unchanged.
+; @audit {"id":"perimeter-colour","kind":"scratch","symbol":"OBJ_VALUE","width":1,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"perimeter tile renderer","lifetime":"After prepare_cell_tile returns until draw_perimeter_box returns; high-nibble replacement colour, including zero-match tiles. No caller retains it.","initialization":"HUD_COLOR shifted four times before the row loop","clobbers":"No nested calls in the loop; framebuffer IRQ does not use OBJ_VALUE or HUD_COLOR. Other render operations initialize their own scratch after return."}
 draw_perimeter_box
         lda     TEST_Y
         ldb     #40
@@ -2349,6 +2348,12 @@ draw_perimeter_box
         leay    screen_map,pcr
         ldb     d,y
         lbsr    prepare_cell_tile
+        lda     HUD_COLOR
+        lsla
+        lsla
+        lsla
+        lsla
+        sta     OBJ_VALUE
         lda     #8
         sta     HUD_COUNT
 dpb_row
@@ -2360,12 +2365,6 @@ dpb_byte
         anda    #$F0
         cmpa    #$60
         bne     dpb_low
-        lda     HUD_COLOR
-        lsla
-        lsla
-        lsla
-        lsla
-        sta     OBJ_VALUE
         lda     HUD_BYTE
         anda    #$0F
         ora     OBJ_VALUE
@@ -4762,6 +4761,11 @@ sprite_score_blue_pairs
         fcb     $00,$03,$05,$06,$30,$33,$35,$36
         fcb     $50,$53,$55,$56,$60,$63,$65,$66
 
+; Immutable primary-mask lookup; reachable indexes are value & $33.
+; @audit-producer {"id": "primary-mask-constants", "symbols": ["primary_preserve_table"], "description": "Authored immutable table: for index i, ($F0 if i&$30 is zero else 0) OR ($0F if i&3 is zero else 0)."}
+; @audit {"id": "primary-mask-table", "kind": "index", "symbol": "primary_preserve_table", "producer": "primary-mask-constants", "domain": "Cached value AND $33, sixteen reachable offsets in 52 bytes", "encoding": "One-byte extra preserve mask; high absent -> $F0, low absent -> $0F. render_entity_colour initializes Y once; positive-mode loop and primary replay preserve Y. IRQ restores Y. OBJ_VALUE retains source byte.", "bounds": [57344, 64972]}
+primary_preserve_table
+        fcb     $FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00
 asset_end
 
         end

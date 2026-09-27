@@ -152,6 +152,7 @@ ENEMY_PTR      equ $005E
 ENEMY_NEST_DIRTY equ $0060
 ENEMY_MOVE     equ $0061
 ENEMY_DEATH_LATCH equ $0062
+; @audit {"id":"enemy-copy-row","kind":"scratch","symbol":"ENEMY_ROW","width":1,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"enemy renderer","lifetime":"Owned by the current copy operation: full-copy row counter; horizontal width then extra-byte flag; vertical packed row advance. No caller retains it after that operation.","initialization":"Selected full/horizontal/vertical capture initializes before use","clobbers":"roam_ring_slot and roam_bg_address preserve this byte; rub_columns reads the flag without changing it. Other render operations may overwrite it after capture returns."}
 ENEMY_ROW      equ $0063
 BOX_TIMER      equ $004A
 BOX_INDEX      equ $004B
@@ -174,7 +175,9 @@ GATE_START_Y    equ $0075
 GATE_END_X      equ $0076
 GATE_END_Y      equ $0077
 GATE_SHADOW_PAGE equ $0078
+; @audit {"id":"capture-direction-count","kind":"scratch","symbol":"GATE_COPY_COUNT","width":1,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"enemy foreground renderer","lifetime":"Capture entry stores signed displacement high byte through roam_ring_slot; horizontal setup replaces it with physical column through roam_bg_address. Other copy operations later reuse it as a count.","initialization":"Each selected capture or restore path initializes before use","clobbers":"roam_ring_slot and roam_bg_address preserve this byte; no caller retains its value after the owning capture operation."}
 GATE_COPY_COUNT equ $0079
+; @audit {"id":"restore-row-count","kind":"scratch","symbol":"GATE_COPY_ROWS","width":1,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"enemy renderer","lifetime":"Row-run count during restore/copy; wrapped restore invokes two bounded runs.","initialization":"Consuming loop writes count before reading","clobbers":"Copy/render callers must not retain this counter across callee execution"}
 GATE_COPY_ROWS  equ $007A
 GATE_WORK_ID    equ $007B
 ENEMY_CANDIDATE equ $007C
@@ -211,6 +214,7 @@ ENEMY_CAPTURE_DIRTY equ $009B
 ; @audit {"id":"entity-cache-colour","kind":"scratch","symbol":"ENTITY_CACHE_COLOR","width":1,"mapping":"physical-page-34","phases":["foreground"],"owner":"entity colour cache","lifetime":"Persistent across render calls until recolour invalidation, separate from direct-page ring pointer.","initialization":"colour_prepare_nest compares and updates colour validity","clobbers":"Caller must not retain contents across the named owner operation."}
 ENTITY_CACHE_COLOR equ $A89C       ; shared sparse-cache colour validity
 RING_PHASE     equ $009C
+; @audit {"id":"capture-row-phase","kind":"scratch","symbol":"RING_ROW","width":1,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"enemy foreground renderer","lifetime":"Capture horizontal setup uses exposed column then row index; vertical capture uses packed row nibble advancing by $10. Restore uses unpacked row index. Each operation initializes its own representation.","initialization":"Each selected capture or restore path initializes before use","clobbers":"Capture callees roam_bg_address, rub_columns and roam_capture_ring_row preserve this byte; owning capture/restore loops update it. It is not retained between operations."}
 RING_ROW       equ $009D
 ; @audit {"id":"ring-base","kind":"scratch","symbol":"RING_BASE","width":2,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"enemy background renderer","lifetime":"Pointer lives across ring row capture/restore; dispatch also reuses both bytes. $009F is not free.","initialization":"roam_bg_address and row-copy setup assign the pointer before use","clobbers":"Caller must not retain contents across the named owner operation."}
 RING_BASE      equ $009E
@@ -2095,19 +2099,22 @@ roam_update_background
         ldd     1,x
         subd    ,u
         beq     rub_done
-        cmpd    #1
-        beq     rub_right
-        cmpd    #-1
-        beq     rub_left
+        sta     GATE_COPY_COUNT ; STA sets N from the signed high byte
+        bpl     rub_absolute
+        coma
+        comb
+        addd    #1
+rub_absolute
+        cmpd    #2
+        bls     rub_horizontal
         cmpd    #320
-        lbeq    rub_down
-        cmpd    #-320
-        lbeq    rub_up
+        lbeq    rub_vertical
+        cmpd    #640
+        lbeq    rub_vertical
+
 rub_full
-        pshs    x
         bsr    roam_ring_slot
         clr     ,u
-        puls    x
         pshs    x
         ldx     1,x
         bsr    roam_bg_address
@@ -2115,45 +2122,36 @@ rub_full
         puls    x
 rub_done
         rts
-rub_right
-        lda     #7
-        bra     rub_horizontal
-rub_left
-        clra
+; B = absolute horizontal byte count, 1 or 2; sign remains in GATE_COPY_COUNT.
 rub_horizontal
-        sta     RING_ROW        ; exposed framebuffer column
+        stb     ENEMY_ROW
         pshs    x
-        bsr    roam_ring_slot
+        lbsr    roam_ring_slot
         lda     ,u
         sta     RING_PHASE
         anda    #7
-        sta     GATE_COPY_COUNT ; old column phase
-        lda     RING_PHASE
-        anda    #$F0
-        sta     RING_PHASE
-        ldb     GATE_COPY_COUNT
-        tst     RING_ROW
-        beq     rub_shift_left
-        incb
+        tst     GATE_COPY_COUNT
+        bmi     rub_shift_left
+        sta     GATE_COPY_COUNT ; exposed physical column starts at old phase
+        adda    ENEMY_ROW
+        ldb     #8
+        subb    ENEMY_ROW
+        stb     RING_ROW        ; exposed framebuffer column: 7 or 6
         bra     rub_store_column
 rub_shift_left
-        decb
+        suba    ENEMY_ROW
+        anda    #7
+        sta     GATE_COPY_COUNT
+        clr     RING_ROW
 rub_store_column
-        andb    #7
-        orb     RING_PHASE
-        stb     ,u
-        tst     RING_ROW
-        bne     rub_right_slot
-        andb    #7
-        stb     GATE_COPY_COUNT ; new phase owns the exposed left column
-rub_right_slot
-        puls    x
-        pshs    x
+        ; Replace only the low three bits; retain the original row nibble.
+        eora    RING_PHASE
+        anda    #7
+        eora    RING_PHASE
+        sta     ,u
         ldx     1,x
-        tst     RING_ROW
-        beq     rub_horizontal_fb
-        leax    7,x
-rub_horizontal_fb
+        ldb     RING_ROW
+        leax    b,x
         lbsr    roam_bg_address
         ldb     GATE_COPY_COUNT
         leau    b,u
@@ -2167,93 +2165,95 @@ rub_horizontal_fb
         lsla
         lsla
         leau    a,u
+        tfr     u,y
+        leay    1,y
+        cmpb    #7
+        bne     rub_second_column
+        leay    -8,y           ; second byte wraps within its physical row
+rub_second_column
+        dec     ENEMY_ROW      ; extra-byte flag: zero or one
         ldb     #16
         subb    RING_ROW
-rub_column_first
-        lda     ,x
-        sta     ,u
-        leax    160,x
-        leau    8,u
-        decb
-        bne     rub_column_first
+        bsr     rub_columns
         ldb     RING_ROW
         beq     rub_column_done
         leau    -128,u
-rub_column_second
+        leay    -128,y
+        bsr     rub_columns
+rub_column_done
+        puls    x
+        rts
+; DOC-002 source-contract mirror contract rub_columns profile=copy: Copy a bounded row run of one or two exposed background columns.
+; X source, U first column, Y second column, B row count, ENEMY_ROW extra-byte flag.
+rub_columns
+        tst     ENEMY_ROW
+        beq     rub_column_single
+rub_column_pair
+        lda     ,x
+        sta     ,u
+        lda     1,x
+        sta     ,y
+        leax    160,x
+        leau    8,u
+        leay    8,y
+        decb
+        bne     rub_column_pair
+        rts
+rub_column_single
         lda     ,x
         sta     ,u
         leax    160,x
         leau    8,u
         decb
-        bne     rub_column_second
-rub_column_done
-        puls    x
+        bne     rub_column_single
         rts
 
-rub_down
-        lda     #14
-        bra     rub_vertical
-rub_up
-        clra
+; A = 1 or 2 from absolute delta 320 or 640; two or four framebuffer rows.
 rub_vertical
-        sta     GATE_COPY_ROWS  ; first exposed framebuffer row
+        lsla
+        sta     GATE_COPY_ROWS
         pshs    x
         lbsr    roam_ring_slot
         lda     ,u
-        sta     RING_PHASE
-        anda    #$F0
-        lsra
-        lsra
-        lsra
-        lsra
-        sta     RING_ROW
-        lda     RING_PHASE
-        anda    #7
-        sta     RING_PHASE
-        tst     GATE_COPY_ROWS
-        beq     rub_shift_up
-        lda     RING_ROW        ; down overwrites the old top rows
-        sta     GATE_COPY_COUNT
-        adda    #2              ; new logical row zero maps old logical row two
-        bra     rub_store_row
-rub_shift_up
-        lda     RING_ROW
-        suba    #2
-        anda    #15
-        sta     GATE_COPY_COUNT ; up overwrites the old bottom rows
-rub_store_row
-        anda    #15
-        sta     RING_ROW        ; new row phase and first physical target
-        lsla
-        lsla
-        lsla
-        lsla
-        ora     RING_PHASE
+        tfr     a,b
+        andb    #7
+        stb     RING_PHASE
+        ldb     GATE_COPY_ROWS
+        lslb
+        lslb
+        lslb
+        lslb
+        stb     ENEMY_ROW      ; row advance encoded in the phase's high nibble
+        tst     GATE_COPY_COUNT
+        bmi     rub_shift_up
+        sta     RING_ROW       ; down overwrites original leading physical rows
+        adda    ENEMY_ROW
         sta     ,u
-        lda     GATE_COPY_COUNT
-        sta     RING_ROW
-        puls    x
-        pshs    x
+        lda     #16
+        suba    GATE_COPY_ROWS
+        ldb     #160
+        mul
+        addd    1,x
+        tfr     d,x
+        bra     rub_vertical_fb
+rub_shift_up
+        suba    ENEMY_ROW
+        sta     RING_ROW       ; up overwrites new leading physical rows
+        sta     ,u
         ldx     1,x
-        tst     GATE_COPY_ROWS
-        beq     rub_vertical_fb
-        leax    2240,x
 rub_vertical_fb
         lbsr    roam_bg_address
         stu     RING_BASE
-        lda     #2
-        sta     GATE_COPY_ROWS
 rub_row_loop
+        ldu     RING_BASE
         lda     RING_ROW
-        ldb     #8
-        mul
-        addd    RING_BASE
-        tfr     d,u
-        bsr    roam_capture_ring_row
+        anda    #$F0
+        lsra
+        leau    a,u
+        bsr     roam_capture_ring_row
         leax    152,x
-        inc     RING_ROW
         lda     RING_ROW
-        anda    #15
+        adda    #$10
         sta     RING_ROW
         dec     GATE_COPY_ROWS
         bne     rub_row_loop
@@ -2276,15 +2276,23 @@ roam_capture_ring_row
         tfr     u,x
         rts
 rcrr_rotated
-        lda     #8
-        sta     GATE_COPY_COUNT
+        ; B is 1..7. Copy [phase,8), then [0,phase), without per-byte wrap.
+        ; Caller recomputes U for each physical row; only X progress is retained.
+        leau    b,u
+        negb
+        addb    #8
 rcrr_byte
         lda     ,x+
-        sta     b,u
-        incb
-        andb    #7
-        dec     GATE_COPY_COUNT
+        sta     ,u+
+        decb
         bne     rcrr_byte
+        leau    -8,u
+        ldb     RING_PHASE
+rcrr_wrap_byte
+        lda     ,x+
+        sta     ,u+
+        decb
+        bne     rcrr_wrap_byte
         rts
         endc
 
@@ -2360,9 +2368,8 @@ roam_copy_bg_to_fb
         sta     RING_PHASE
         bita    #$F0
         lbne    rcbtf_ring_setup
-        lda     #16
-        sta     GATE_COPY_ROWS
-        lda     RING_PHASE
+        ldb     #16
+        stb     GATE_COPY_ROWS
         anda    #7
         lsla
         ldu     RING_BASE
@@ -2381,92 +2388,82 @@ rcbtf_phase0
 rcbtf_phase0_rows
 rcbtf_phase0_row
         pulu    d,y
-        std     ,x++
-        sty     ,x++
+        std     ,x
+        sty     2,x
         pulu    d,y
-        std     ,x++
-        sty     ,x++
-        lbra    rcbtf_row_advanced
+        std     4,x
+        sty     6,x
+        leax    160,x
+        dec     GATE_COPY_ROWS
+        bne     rcbtf_phase0_row
+        rts
 
 rcbtf_phase1
 rcbtf_phase1_rows
 rcbtf_phase1_row
         ldd     1,u
-        std     ,x++
+        std     ,x
         ldd     3,u
-        std     ,x++
+        std     2,x
         ldd     5,u
-        std     ,x++
+        std     4,x
         lda     7,u
         ldb     ,u
-        std     ,x++
+        std     6,x
         bra     rcbtf_row_finish
 
 rcbtf_phase2
 rcbtf_phase2_rows
 rcbtf_phase2_row
         ldd     2,u
-        std     ,x++
+        std     ,x
         ldd     4,u
-        std     ,x++
+        std     2,x
         ldd     6,u
-        std     ,x++
+        std     4,x
         ldd     ,u
-        std     ,x++
+        std     6,x
         bra     rcbtf_row_finish
 
 rcbtf_phase3
 rcbtf_phase3_rows
 rcbtf_phase3_row
         ldd     3,u
-        std     ,x++
+        std     ,x
         ldd     5,u
-        std     ,x++
+        std     2,x
         lda     7,u
         ldb     ,u
-        std     ,x++
+        std     4,x
         ldd     1,u
-        std     ,x++
-        bra     rcbtf_row_finish
-
-rcbtf_phase4
-rcbtf_phase4_rows
-rcbtf_phase4_row
-        ldd     4,u
-        std     ,x++
-        ldd     6,u
-        std     ,x++
-        ldd     ,u
-        std     ,x++
-        ldd     2,u
-        std     ,x++
+        std     6,x
         bra     rcbtf_row_finish
 
 rcbtf_phase5
 rcbtf_phase5_rows
 rcbtf_phase5_row
         ldd     5,u
-        std     ,x++
+        std     ,x
         lda     7,u
         ldb     ,u
-        std     ,x++
+        std     2,x
         ldd     1,u
-        std     ,x++
+        std     4,x
         ldd     3,u
-        std     ,x++
+        std     6,x
         bra     rcbtf_row_finish
 
 rcbtf_phase6
 rcbtf_phase6_rows
 rcbtf_phase6_row
         ldd     6,u
-        std     ,x++
+        std     ,x
         ldd     ,u
-        std     ,x++
+        std     2,x
         ldd     2,u
-        std     ,x++
+        std     4,x
         ldd     4,u
-        std     ,x++
+        std     6,x
         bra     rcbtf_row_finish
 
 rcbtf_phase7
@@ -2474,20 +2471,37 @@ rcbtf_phase7_rows
 rcbtf_phase7_row
         lda     7,u
         ldb     ,u
-        std     ,x++
+        std     ,x
         ldd     1,u
-        std     ,x++
+        std     2,x
         ldd     3,u
-        std     ,x++
+        std     4,x
         ldd     5,u
-        std     ,x++
+        std     6,x
 rcbtf_row_finish
         leau    8,u
 rcbtf_row_advanced
-        leax    152,x
+        leax    160,x
         dec     GATE_COPY_ROWS
         beq     rcbtf_rows_done
         jmp     [RING_BASE]
+rcbtf_phase4
+rcbtf_phase4_rows
+rcbtf_phase4_row
+        ldd     4,u
+        std     ,x
+        ldd     6,u
+        std     2,x
+        ldd     ,u
+        std     4,x
+        ldd     2,u
+        std     6,x
+        leau    8,u
+        leax    160,x
+        dec     GATE_COPY_ROWS
+        bne     rcbtf_phase4_row
+        ; Fall through to the existing shared return.
+
 rcbtf_rows_done
         rts
 
@@ -2509,16 +2523,13 @@ rcbtf_ring_setup
         ldy     #rcbtf_fast_table
         ldy     a,y
         sty     RING_BASE       ; selected column-phase row copier
-        clra
         ldb     #16
         subb    RING_ROW
         stb     GATE_COPY_ROWS
         jsr     [RING_BASE]
         lda     RING_ROW
-        beq     rcbtf_ring_done
         leau    -128,u
-        tfr     a,b
-        stb     GATE_COPY_ROWS
+        sta     GATE_COPY_ROWS
         jsr     [RING_BASE]
 rcbtf_ring_done
         rts
@@ -2540,14 +2551,26 @@ rcbtf_row
         endc
 
 roam_copy_fb_to_bg
-        ldy     #16
+        ; Full fallback uses four-byte transfers, like save_player.
+        exg     x,u
+        lda     #16
+        sta     ENEMY_ROW
+; Inputs: U=strided framebuffer source; X=contiguous background destination;
+; ENEMY_ROW=nonzero row count. Clobbers D,Y,CC; advances U by 160 and X by 8
+; per row. Both roam_copy_fb_to_bg and capture_zone_bg initialize this contract.
 copy_fb_rows
 rcftb_row
-        lbsr    copy_native_row
-        leax    152,x
-        leay    -1,y
+        pulu    d,y
+        std     ,x++
+        sty     ,x++
+        pulu    d,y
+        std     ,x++
+        sty     ,x++
+        leau    152,u
+        dec     ENEMY_ROW
         bne     rcftb_row
         rts
+
 
 draw_enemy_fb
         lbsr    enemy_frame_number
@@ -3388,10 +3411,14 @@ sbf_opaque_byte
         bne     sbf_opaque_byte
         bra     sbf_delta
 sbf_opaque_small
+        ; Measured gameplay favors lengths 1/3 over 2; keep length 5 first.
         cmpb    #2
-        beq     sbf_opaque2
         blo     sbf_opaque1
-        bra     sbf_opaque3
+        beq     sbf_opaque2
+sbf_opaque3
+        ldd     ,u++
+        std     ,x++
+        bra     sbf_opaque1
 sbf_opaque5
         pulu    d,y
         std     ,x++
@@ -3400,14 +3427,11 @@ sbf_opaque1
         lda     ,u+
         sta     ,x+
         bra     sbf_delta
-sbf_opaque3
-        ldd     ,u++
-        std     ,x++
-        bra     sbf_opaque1
 sbf_opaque6
         pulu    d,y
         std     ,x++
         sty     ,x++
+sbf_opaque2
         ldd     ,u++
         std     ,x++
         bra     sbf_delta
@@ -3415,10 +3439,6 @@ sbf_opaque4
         pulu    d,y
         std     ,x++
         sty     ,x++
-        bra     sbf_delta
-sbf_opaque2
-        ldd     ,u++
-        std     ,x++
         bra     sbf_delta
 sbf_extended
         ldd     ,u++
@@ -3528,9 +3548,10 @@ msp_low
         rts
 
 capture_zone_bg
-        ldx     #ENEMY_ZONE_FB
-        ldu     #ENEMY_ZONE_BG
-        ldy     #ENEMY_ZONE_ROWS
+        ldu     #ENEMY_ZONE_FB
+        ldx     #ENEMY_ZONE_BG
+        lda     #ENEMY_ZONE_ROWS
+        sta     ENEMY_ROW
         lbsr    copy_fb_rows
         ; Fall through after capturing the complete clean nest underlay.
 

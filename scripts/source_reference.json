@@ -876,6 +876,11 @@
           "name": "nlt_deltas",
           "kind": "data",
           "reason": "Current source declaration fdb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "primary_preserve_table",
+          "kind": "data",
+          "reason": "52-byte immutable preserve-mask table; Y base plus cached value AND $33, reviewed primary-mask-table ownership contract"
         }
       ],
       "basic_blocks": [
@@ -1048,6 +1053,11 @@
           "name": "sync_entity_cache_colour",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "cck_primary",
+          "routine": "primary_cache_mask",
+          "purpose": "Alias of the direct primary-mask entry; no ambient mode dispatch."
         }
       ]
     },
@@ -1559,6 +1569,14 @@
           "purpose": "Restore player visible.",
           "reasons": [],
           "semantic_id": "routines.html#routine-enemy-runtime-restore-player-visible"
+        },
+        {
+          "name": "rub_columns",
+          "profile": "copy",
+          "purpose": "Copy a bounded row run of one or two exposed background columns.",
+          "reasons": [
+            "Called by both physical row runs of bounded horizontal capture."
+          ]
         }
       ],
       "relocations": [
@@ -1821,6 +1839,21 @@
           "name": "rcbtf_phase7_row",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "rcbtf_ring_done",
+          "routine": null,
+          "purpose": "Fall-through return after second wrapped restore run."
+        },
+        {
+          "name": "rcbtf_row_advanced",
+          "routine": null,
+          "purpose": "Fall-through common tail for nonzero column phases."
+        },
+        {
+          "name": "sbf_opaque3",
+          "routine": "sparse_blit_fb",
+          "purpose": "Length-three opaque run falls through from measured small-run dispatch."
         }
       ]
     },
@@ -3008,6 +3041,11 @@
           "name": "gmc_sound_data_end",
           "kind": "boundary",
           "reason": "Module/table boundary in current assembled source."
+        },
+        {
+          "name": "audio_mix_order",
+          "kind": "data",
+          "reason": "Four dedicated stable-priority keys; required ownership record audio-mix-order."
         }
       ]
     },
@@ -4306,7 +4344,14 @@
       "entity-cache-colour",
       "player-sprite-index",
       "audio-slot-zero",
-      "audio-shadow"
+      "audio-shadow",
+      "audio-mix-order",
+      "enemy-copy-row",
+      "restore-row-count",
+      "capture-direction-count",
+      "capture-row-phase",
+      "perimeter-colour",
+      "primary-mask-table"
     ]
   }
 }
