@@ -95,8 +95,10 @@ class ProvenanceTests(unittest.TestCase):
         self.root=Path(self.tmp.name); self.build=self.root/'build'; self.build.mkdir()
         (self.root/'src').mkdir(); (self.root/'src/a.s').write_text('        rts\n')
         (self.build/'a.bin').write_bytes(b'\x39')
+        (self.build/'a.lst').write_text('listing fixture')
+        (self.build/'a.map').write_text('map fixture')
         self.module=dict(source='src/a.s',output='a.bin',listing='a.lst',map='a.map')
-        self.receipt=dict(state='complete',profile='complete',inputs=inputs(self.root),artifacts={'a.bin':digest(self.build/'a.bin')},invocations=[self.module])
+        self.receipt=dict(state='complete',profile='complete',inputs=inputs(self.root),artifacts={name:digest(self.build/name) for name in ('a.bin','a.lst','a.map')},invocations=[self.module])
         self.config={'modules':[dict(source='src/a.s',binary='a.bin',listing='a.lst',map='a.map')]}
     def write(self):
         (self.build/'source-build-receipt.json').write_text(json.dumps(self.receipt))
@@ -116,6 +118,13 @@ class ProvenanceTests(unittest.TestCase):
     def test_wrong_profile_mapping(self):
         self.receipt['invocations'][0]['source']='src/b.s'; self.write()
         with self.assertRaisesRegex(ValueError,'identity mismatch'): validate(self.root,self.build,self.config)
+    def test_wrong_conditional_profile(self):
+        self.config['modules'][0]['defines']={'HELPER':1}
+        self.receipt['invocations'][0]['arguments']=['-DHELPER=0']; self.write()
+        with self.assertRaisesRegex(ValueError,'profile mismatch'): validate(self.root,self.build,self.config)
+    def test_missing_output_hash(self):
+        del self.receipt['artifacts']['a.map']; self.write()
+        with self.assertRaisesRegex(ValueError,'missing required artifact provenance'): validate(self.root,self.build,self.config)
     def test_interrupted(self):
         self.receipt['state']='building'; self.write()
         with self.assertRaisesRegex(ValueError,'incomplete'): validate(self.root,self.build,self.config)

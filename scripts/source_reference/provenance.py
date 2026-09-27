@@ -55,11 +55,19 @@ def validate(root, artifacts, config):
         if not (artifacts / name).is_file() or digest(artifacts / name) != sha:
             raise ValueError(f'stale build artifact: {name}')
     configured = {m.get('assembly_output', m['binary']): m for m in config['modules'] if m.get('binary')}
+    required_artifacts = {m[key] for m in configured.values() for key in ('binary', 'listing', 'map')}
+    if not required_artifacts <= receipt['artifacts'].keys():
+        raise ValueError('missing required artifact provenance: ' + ', '.join(sorted(required_artifacts - receipt['artifacts'].keys())))
     emitted = {m['output']: m for m in receipt['invocations']}
     if set(configured) != set(emitted):
         raise ValueError(f'module inventory mismatch: unregistered={set(emitted)-set(configured)}, absent={set(configured)-set(emitted)}')
     for output, invocation in emitted.items():
         module = configured[output]
+        definitions = dict(argument[2:].split('=', 1) for argument in invocation.get('arguments', [])
+                           if argument.startswith('-D') and '=' in argument)
+        for name, expected in module.get('defines', {}).items():
+            if definitions.get(name) != str(expected):
+                raise ValueError(f'module profile mismatch: {output}:{name}')
         for key in ('source', 'listing', 'map'):
             if module.get('assembly_' + key, module[key]) != invocation[key]:
                 raise ValueError(f'module identity mismatch: {output}:{key}')
