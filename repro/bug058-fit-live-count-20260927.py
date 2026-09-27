@@ -53,8 +53,8 @@ try:
  wait(lambda:read(0xa5)[0]==0 and read(ms['INITIAL_ENTRY_STATE'])[0]==0)
  for label in ['main_game_tick_normal','enemy_tick','main_after_player','main_render','main_entry_audio','mainloop']:
   a=ms[label];assert read(a,12)==resident[a-0xc000:a-0xc000+12],label
- assert read(0x800,96)==enemy[:96]
- e['identity']='live presentation/resident phase prologues, enemy entry table and release destination match artifacts'
+ assert read(0x800,len(enemy))==enemy
+ e['identity']='live presentation/resident phase prologues, complete enemy module and release destination match artifacts'
  markers={ms[n]:n for n in ['main_game_tick_normal','enemy_tick','main_after_player','main_render','main_entry_audio','mainloop']}
  for n in ['framebuffer_prepare_back','actor_closure_restore','framebuffer_queue_damage','framebuffer_project_damage','roam_mark_underlay','frame_render_background','actor_closure_draw','framebuffer_finish_back','acd_save_loop','acd_draw_loop','acd_death','acd_normal_player']:
   a=es[n];assert read(a,8)==enemy[a-0x800:a-0x800+8],n;markers[a]=n
@@ -64,6 +64,12 @@ try:
  if '--sparse-costs' in sys.argv[3:] or '--sparse-mix' in sys.argv[3:]:
   for n in ['sparse_blit_fb','sparse_blit_stage','sparse_decode_done']:
    a=es[n];assert read(a,8)==enemy[a-0x800:a-0x800+8],n;markers[a]=n
+ if '--renderer-costs' in sys.argv[3:]:
+  for n in ['acr_enemies','acr_enemy_next','roam_copy_bg_to_fb','fri_background_done','fri_secondary']:
+   a=es[n];assert read(a,8)==enemy[a-0x800:a-0x800+8],n;markers[a]=n
+ if '--renderer-costs' in sys.argv[3:]:
+  for n in ['draw_perimeter_box','dpb_row']:
+   a=ms[n];assert read(a,8)==resident[a-0xc000:a-0xc000+8],n;markers[a]=n
  audio_markers={}
  for n in ['audio_process_queue','audio_music_dispatch','audio_advance_all','audio_credit_service','audio_mix','audio_mix_write']:
   if n in au:markers[au[n]]=n;audio_markers[au[n]]=n
@@ -76,7 +82,7 @@ try:
    assert time.monotonic()<deadline,'count phase deadline'
    go(ps['presentation_flow_tick']);start=c.call('read_cycles')['event_ticks'];state=list(read(0x54,12));row={'requested_count':count,'index':i,'active':read(0x58)[0],'death':read(ms['DEATH_STATE'])[0],'front':read(0x8f)[0],'state':state,'event_start':start,'vbord':int.from_bytes(read(ms['FRAMES'],2),'big'),'missed_commit':int.from_bytes(read(ms['FB_MISSED_COMMIT'],2),'big'),'marks':[]};ids=m.setup(c,list(markers))
    try:
-    for k in range(96):
+    for k in range(128):
      c.call('run');h=c.call('wait_for_stop',{'timeout_ms':10000},timeout=12);a=h.get('pc');assert a in markers,h
      if a in audio_markers:assert read(a,8)==audio[a-0xa000:a-0xa000+8],audio_markers[a]
      t=(c.call('read_cycles')['event_ticks']-start)//8;row['marks'].append([markers[a],t])
@@ -89,6 +95,28 @@ try:
        call.update(frames=[x[0]+':'+str(x[1]) for x in matches],mix=matches[0][4],masks=matches[0][5])
      if markers[a]=='sparse_decode_done':
       call=row['decode_calls'][-1];assert 'cycles_to_epilogue' not in call;call['cycles_to_epilogue']=t-call['entry']
+     if '--renderer-costs' in sys.argv[3:]:
+      if markers[a]=='draw_perimeter_box':
+       row.setdefault('perimeter_calls',[]).append({'entry':t,'colour':read(ms['HUD_COLOR'])[0],'row_hits':0})
+      if markers[a]=='dpb_row':
+       call=row['perimeter_calls'][-1]
+       if not call['row_hits']:
+        addr=c.call('read_registers')['y'];tile=read(addr,32);assert 0xc000<=addr<=0xffe0 and tile==resident[addr-0xc000:addr-0xc000+32],'perimeter tile identity'
+        call.update(source=addr,high_white_bytes=sum(x>>4==6 for x in tile),tile_sha256=hashlib.sha256(tile).hexdigest())
+       call['row_hits']+=1
+      if markers[a]=='fri_secondary' and row.get('perimeter_calls') and 'cycles_to_caller_next' not in row['perimeter_calls'][-1]:
+       call=row['perimeter_calls'][-1];assert call['row_hits']==8;call['cycles_to_caller_next']=t-call['entry']
+      if markers[a]=='actor_closure_restore':
+       row['player_restore_state']={'valid':read(ms['PLAYER_BG_VALID'])[0],'current':int.from_bytes(read(ms['PLAYER_FB'],2),'big'),'old':int.from_bytes(read(ms['PLAYER_OLD_FB'],2),'big'),'render_flags':list(read(ms['RENDER_FLAGS'],2))}
+      if markers[a]=='roam_copy_bg_to_fb':
+       slot=4-read(es['ENEMY_WORK'])[0];assert 0<=slot<4;phase=read(es['ENEMY_BG_RING']+slot)[0];assert not phase&8
+       row.setdefault('restore_calls',[]).append({'slot':slot,'row_phase':phase>>4,'column_phase':phase&7,'entry':t})
+      if markers[a]=='acr_enemy_next' and row.get('restore_calls') and 'cycles_to_caller_next' not in row['restore_calls'][-1]:
+       call=row['restore_calls'][-1];call['cycles_to_caller_next']=t-call['entry']
+      if markers[a]=='frame_render_background':
+       row.setdefault('background_calls',[]).append({'entry':t,'render_flags':list(read(ms['RENDER_FLAGS'],2)),'enemy_flags':read(es['ENEMY_RENDER_FLAGS'])[0]})
+      if markers[a]=='fri_background_done':
+       call=row['background_calls'][-1];assert 'cycles_to_return' not in call;call['cycles_to_return']=t-call['entry']
      if markers[a]=='roam_update_background':
       regs=c.call('read_registers');work=read(es['ENEMY_WORK'])[0];slot=4-work;mask=1<<slot;dirty=read(es['ENEMY_CAPTURE_DIRTY'])[0];valid=read(es['ENEMY_OLD_VALID'])[0];old=int.from_bytes(read(es['ENEMY_OLD_FB']+2*slot,2),'big');new=int.from_bytes(read(regs['x']+1,2),'big');delta=((new-old+32768)&65535)-32768
       reason='dirty' if dirty&mask else 'invalid' if not valid&mask else 'unchanged' if delta==0 else 'horizontal' if delta in ([-2,-1,1,2] if '--two-step' in sys.argv[3:] else [-1,1]) else 'vertical' if delta in ([-640,-320,320,640] if '--two-step' in sys.argv[3:] else [-320,320]) else 'unsupported-displacement'
@@ -99,6 +127,9 @@ try:
      if a==ms['mainloop']:break
     else:raise AssertionError('no worklist end')
    finally:m.clear(c,ids)
+   if '--renderer-costs' in sys.argv[3:]:
+    assert len(row.get('restore_calls',[]))==count and all('cycles_to_caller_next' in call for call in row.get('restore_calls',[])),'missing restore path'
+    assert row.get('background_calls') and all('cycles_to_return' in call for call in row['background_calls']),'missing background return'
    row['cycles']=t;e['samples'].append(row);assert row['active']==count and row['death']==0,('required live count missing',count,row['active'],row['death'])
  e['result']='captured'
 except Exception as ex:e['result']='fail';e['failure']=repr(ex)

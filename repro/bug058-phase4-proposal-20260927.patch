@@ -1,0 +1,42 @@
+--- a/src/enemy_runtime.s
++++ b/src/enemy_runtime.s
+@@ -2440,17 +2440,4 @@
+         bra     rcbtf_row_finish
+
+-rcbtf_phase4
+-rcbtf_phase4_rows
+-rcbtf_phase4_row
+-        ldd     4,u
+-        std     ,x++
+-        ldd     6,u
+-        std     ,x++
+-        ldd     ,u
+-        std     ,x++
+-        ldd     2,u
+-        std     ,x++
+-        bra     rcbtf_row_finish
+-
+ rcbtf_phase5
+ rcbtf_phase5_rows
+@@ -2499,4 +2486,21 @@
+         beq     rcbtf_rows_done
+         jmp     [RING_BASE]
++rcbtf_phase4
++rcbtf_phase4_rows
++rcbtf_phase4_row
++        ldd     4,u
++        std     ,x++
++        ldd     6,u
++        std     ,x++
++        ldd     ,u
++        std     ,x++
++        ldd     2,u
++        std     ,x++
++        leau    8,u
++        leax    152,x
++        dec     GATE_COPY_ROWS
++        bne     rcbtf_phase4_row
++        ; Fall through to the existing shared return.
++
+ rcbtf_rows_done
+         rts

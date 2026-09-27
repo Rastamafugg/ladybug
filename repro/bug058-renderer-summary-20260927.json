@@ -1,0 +1,1298 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "status": "Proposed; profiling and assembly-only proposals, not Ready",
+  "evidence_revision": "24437f8",
+  "candidate_source_base": "e880b52 plus bug058-mix-fit-20260927.patch",
+  "rom_sha256": "ca170208dd420b531c3b9bd40c6604a82edfca5240074d76bd4aa49ae327b934",
+  "enemy_sha256": "920556465eee05144d48f144118074704f52d17f26e58b51ac84a1c1833a6cd6",
+  "units": "Elapsed event ticks / 8 including hardware waits. Ranges and averages are sampled observations, not worst-case bounds. Counts use actual executed worklists; owners are secondary metadata.",
+  "target_cycles": 27000,
+  "production_and_fitting_sources_changed": false,
+  "probe": {
+    "command": "python3 repro/bug058-fit-live-count-20260927.py FIT_WORKTREE OUTPUT_JSON --renderer-costs --sparse-costs",
+    "deadline_per_count_seconds": 45,
+    "success_marker": "16 worklists at each actual count 0..4; each required restore and background return captured",
+    "timeout_meaning": "Missing experiment boundary, not evidence of game slowdown",
+    "identity": "live presentation/resident phase prologues, complete enemy module and release destination match artifacts",
+    "observation_check": "All 80 worklist cycle totals and recorded state bytes reproduce the earlier capture exactly.",
+    "stop_cap": 128,
+    "stop_cap_reason": "Additional bounded row markers; phase deadline unchanged."
+  },
+  "boundaries": {
+    "prepare": "framebuffer_prepare_back to actor_closure_restore",
+    "restore": "actor_closure_restore to framebuffer_queue_damage, includes player and loop bookkeeping",
+    "player_restore": "actor_closure_restore to acr_enemies, includes setup",
+    "damage_background": "framebuffer_queue_damage to actor_closure_draw, includes pending replay and current work",
+    "enemy_capture": "actor_closure_draw to first acd_draw_loop",
+    "draw": "first acd_draw_loop to framebuffer_finish_back, includes decoder and player capture",
+    "publication": "framebuffer_finish_back to main_entry_audio",
+    "ring_call": "roam_copy_bg_to_fb to acr_enemy_next; includes caller PULS X",
+    "perimeter_call": "draw_perimeter_box to fri_secondary; includes caller box-index restoration"
+  },
+  "profiles": {
+    "0": {
+      "worklist": {
+        "min": 9911,
+        "max": 16227,
+        "mean": 11619.25,
+        "samples": 16
+      },
+      "over_target": 0,
+      "intervals": {
+        "prepare": {
+          "min": 517,
+          "max": 541,
+          "mean": 525.75,
+          "samples": 16
+        },
+        "restore": {
+          "min": 1368,
+          "max": 1368,
+          "mean": 1368.0,
+          "samples": 16
+        },
+        "player_restore": {
+          "min": 1209,
+          "max": 1209,
+          "mean": 1209.0,
+          "samples": 16
+        },
+        "damage_background": {
+          "min": 657,
+          "max": 6122,
+          "mean": 2026.4375,
+          "samples": 16
+        },
+        "enemy_capture": {
+          "min": 128,
+          "max": 128,
+          "mean": 128.0,
+          "samples": 16
+        },
+        "draw": {
+          "min": 3290,
+          "max": 3301,
+          "mean": 3295.5,
+          "samples": 16
+        },
+        "publication": {
+          "min": 799,
+          "max": 802,
+          "mean": 800.5,
+          "samples": 16
+        }
+      },
+      "restore_phases": {},
+      "perimeter": {
+        "min": 2441,
+        "max": 2441,
+        "mean": 2441.0,
+        "samples": 4,
+        "calls": 4,
+        "high_white_counts": [
+          12
+        ]
+      }
+    },
+    "1": {
+      "worklist": {
+        "min": 14876,
+        "max": 20775,
+        "mean": 16376.3125,
+        "samples": 16
+      },
+      "over_target": 0,
+      "intervals": {
+        "prepare": {
+          "min": 534,
+          "max": 558,
+          "mean": 541.9375,
+          "samples": 16
+        },
+        "restore": {
+          "min": 2676,
+          "max": 2770,
+          "mean": 2757.125,
+          "samples": 16
+        },
+        "player_restore": {
+          "min": 1209,
+          "max": 1209,
+          "mean": 1209.0,
+          "samples": 16
+        },
+        "damage_background": {
+          "min": 663,
+          "max": 6141,
+          "mean": 1645.5,
+          "samples": 16
+        },
+        "enemy_capture": {
+          "min": 701,
+          "max": 704,
+          "mean": 702.5,
+          "samples": 16
+        },
+        "draw": {
+          "min": 5895,
+          "max": 6112,
+          "mean": 6015.75,
+          "samples": 16
+        },
+        "publication": {
+          "min": 799,
+          "max": 802,
+          "mean": 800.5,
+          "samples": 16
+        }
+      },
+      "restore_phases": {
+        "0": {
+          "min": 1199,
+          "max": 1290,
+          "mean": 1278.625,
+          "samples": 16,
+          "split_row_calls": 14
+        }
+      },
+      "perimeter": {
+        "min": 2441,
+        "max": 2441,
+        "mean": 2441.0,
+        "samples": 2,
+        "calls": 2,
+        "high_white_counts": [
+          12
+        ]
+      }
+    },
+    "2": {
+      "worklist": {
+        "min": 19223,
+        "max": 24506,
+        "mean": 21553.5625,
+        "samples": 16
+      },
+      "over_target": 0,
+      "intervals": {
+        "prepare": {
+          "min": 551,
+          "max": 575,
+          "mean": 559.75,
+          "samples": 16
+        },
+        "restore": {
+          "min": 4280,
+          "max": 4876,
+          "mean": 4495.1875,
+          "samples": 16
+        },
+        "player_restore": {
+          "min": 1209,
+          "max": 1209,
+          "mean": 1209.0,
+          "samples": 16
+        },
+        "damage_background": {
+          "min": 657,
+          "max": 4469,
+          "mean": 2046.8125,
+          "samples": 16
+        },
+        "enemy_capture": {
+          "min": 1527,
+          "max": 1809,
+          "mean": 1605.8125,
+          "samples": 16
+        },
+        "draw": {
+          "min": 7366,
+          "max": 8227,
+          "mean": 7878.5,
+          "samples": 16
+        },
+        "publication": {
+          "min": 799,
+          "max": 802,
+          "mean": 800.5,
+          "samples": 16
+        }
+      },
+      "restore_phases": {
+        "0": {
+          "min": 1199,
+          "max": 1290,
+          "mean": 1270.5,
+          "samples": 14,
+          "split_row_calls": 11
+        },
+        "1": {
+          "min": 1559,
+          "max": 1642,
+          "mean": 1621.25,
+          "samples": 4,
+          "split_row_calls": 3
+        },
+        "2": {
+          "min": 1495,
+          "max": 1578,
+          "mean": 1557.25,
+          "samples": 4,
+          "split_row_calls": 3
+        },
+        "3": {
+          "min": 1559,
+          "max": 1642,
+          "mean": 1621.25,
+          "samples": 4,
+          "split_row_calls": 3
+        },
+        "4": {
+          "min": 1495,
+          "max": 1578,
+          "mean": 1557.25,
+          "samples": 4,
+          "split_row_calls": 3
+        },
+        "5": {
+          "min": 1642,
+          "max": 1642,
+          "mean": 1642.0,
+          "samples": 2,
+          "split_row_calls": 2
+        }
+      },
+      "perimeter": {
+        "min": 2473,
+        "max": 2473,
+        "mean": 2473.0,
+        "samples": 4,
+        "calls": 4,
+        "high_white_counts": [
+          14
+        ]
+      }
+    },
+    "3": {
+      "worklist": {
+        "min": 24653,
+        "max": 31253,
+        "mean": 27594.6875,
+        "samples": 16
+      },
+      "over_target": 10,
+      "intervals": {
+        "prepare": {
+          "min": 568,
+          "max": 592,
+          "mean": 576.75,
+          "samples": 16
+        },
+        "restore": {
+          "min": 5762,
+          "max": 6557,
+          "mean": 6054.875,
+          "samples": 16
+        },
+        "player_restore": {
+          "min": 1209,
+          "max": 1209,
+          "mean": 1209.0,
+          "samples": 16
+        },
+        "damage_background": {
+          "min": 657,
+          "max": 4469,
+          "mean": 2052.6875,
+          "samples": 16
+        },
+        "enemy_capture": {
+          "min": 2082,
+          "max": 3778,
+          "mean": 2467.8125,
+          "samples": 16
+        },
+        "draw": {
+          "min": 10492,
+          "max": 11344,
+          "mean": 10891.125,
+          "samples": 16
+        },
+        "publication": {
+          "min": 799,
+          "max": 802,
+          "mean": 800.5,
+          "samples": 16
+        }
+      },
+      "restore_phases": {
+        "0": {
+          "min": 1199,
+          "max": 1290,
+          "mean": 1271.8,
+          "samples": 20,
+          "split_row_calls": 16
+        },
+        "1": {
+          "min": 1559,
+          "max": 1642,
+          "mean": 1623.5555555555557,
+          "samples": 9,
+          "split_row_calls": 7
+        },
+        "2": {
+          "min": 1495,
+          "max": 1578,
+          "mean": 1557.25,
+          "samples": 4,
+          "split_row_calls": 3
+        },
+        "3": {
+          "min": 1559,
+          "max": 1642,
+          "mean": 1614.3333333333333,
+          "samples": 3,
+          "split_row_calls": 2
+        },
+        "4": {
+          "min": 1495,
+          "max": 1578,
+          "mean": 1550.3333333333333,
+          "samples": 3,
+          "split_row_calls": 2
+        },
+        "5": {
+          "min": 1559,
+          "max": 1559,
+          "mean": 1559.0,
+          "samples": 1,
+          "split_row_calls": 0
+        },
+        "6": {
+          "min": 1495,
+          "max": 1578,
+          "mean": 1536.5,
+          "samples": 4,
+          "split_row_calls": 2
+        },
+        "7": {
+          "min": 1511,
+          "max": 1594,
+          "mean": 1552.5,
+          "samples": 4,
+          "split_row_calls": 2
+        }
+      },
+      "perimeter": {
+        "min": 2473,
+        "max": 2473,
+        "mean": 2473.0,
+        "samples": 4,
+        "calls": 4,
+        "high_white_counts": [
+          14
+        ]
+      },
+      "peak": {
+        "requested_count": 3,
+        "index": 12,
+        "active": 3,
+        "death": 0,
+        "front": 0,
+        "state": [
+          1,
+          5,
+          0,
+          0,
+          3,
+          3,
+          0,
+          0,
+          0,
+          0,
+          164,
+          120
+        ],
+        "event_start": 186824768,
+        "vbord": 658,
+        "missed_commit": 103,
+        "marks": [
+          [
+            "main_game_tick_normal",
+            414
+          ],
+          [
+            "enemy_tick",
+            524
+          ],
+          [
+            "main_after_player",
+            2983
+          ],
+          [
+            "main_render",
+            3109
+          ],
+          [
+            "framebuffer_prepare_back",
+            3139
+          ],
+          [
+            "actor_closure_restore",
+            3731
+          ],
+          [
+            "acr_enemies",
+            4940
+          ],
+          [
+            "roam_copy_bg_to_fb",
+            5078
+          ],
+          [
+            "acr_enemy_next",
+            6589
+          ],
+          [
+            "roam_copy_bg_to_fb",
+            6732
+          ],
+          [
+            "acr_enemy_next",
+            8022
+          ],
+          [
+            "roam_copy_bg_to_fb",
+            8165
+          ],
+          [
+            "acr_enemy_next",
+            9807
+          ],
+          [
+            "acr_enemy_next",
+            9841
+          ],
+          [
+            "framebuffer_queue_damage",
+            9869
+          ],
+          [
+            "framebuffer_project_damage",
+            10266
+          ],
+          [
+            "roam_mark_underlay",
+            10986
+          ],
+          [
+            "frame_render_background",
+            11066
+          ],
+          [
+            "draw_perimeter_box",
+            11248
+          ],
+          [
+            "dpb_row",
+            11402
+          ],
+          [
+            "dpb_row",
+            11613
+          ],
+          [
+            "dpb_row",
+            11912
+          ],
+          [
+            "dpb_row",
+            12211
+          ],
+          [
+            "dpb_row",
+            12510
+          ],
+          [
+            "dpb_row",
+            12809
+          ],
+          [
+            "dpb_row",
+            13108
+          ],
+          [
+            "dpb_row",
+            13407
+          ],
+          [
+            "fri_secondary",
+            13721
+          ],
+          [
+            "fri_background_done",
+            13755
+          ],
+          [
+            "roam_mark_underlay",
+            14124
+          ],
+          [
+            "frame_render_background",
+            14171
+          ],
+          [
+            "fri_secondary",
+            14290
+          ],
+          [
+            "fri_background_done",
+            14324
+          ],
+          [
+            "actor_closure_draw",
+            14338
+          ],
+          [
+            "acd_save_loop",
+            14365
+          ],
+          [
+            "acd_save_loop",
+            15196
+          ],
+          [
+            "acd_save_loop",
+            15792
+          ],
+          [
+            "acd_save_loop",
+            16654
+          ],
+          [
+            "acd_draw_loop",
+            16686
+          ],
+          [
+            "sparse_blit_fb",
+            16865
+          ],
+          [
+            "sparse_decode_done",
+            18943
+          ],
+          [
+            "acd_draw_loop",
+            18981
+          ],
+          [
+            "sparse_blit_fb",
+            19160
+          ],
+          [
+            "sparse_decode_done",
+            21622
+          ],
+          [
+            "acd_draw_loop",
+            21660
+          ],
+          [
+            "sparse_blit_fb",
+            21839
+          ],
+          [
+            "sparse_decode_done",
+            24301
+          ],
+          [
+            "acd_draw_loop",
+            24339
+          ],
+          [
+            "acd_death",
+            24371
+          ],
+          [
+            "acd_normal_player",
+            24410
+          ],
+          [
+            "sparse_blit_fb",
+            25680
+          ],
+          [
+            "sparse_decode_done",
+            27524
+          ],
+          [
+            "framebuffer_finish_back",
+            27560
+          ],
+          [
+            "main_entry_audio",
+            28362
+          ],
+          [
+            "audio_process_queue",
+            28720
+          ],
+          [
+            "audio_music_dispatch",
+            28742
+          ],
+          [
+            "audio_advance_all",
+            28786
+          ],
+          [
+            "audio_credit_service",
+            29210
+          ],
+          [
+            "audio_mix",
+            29233
+          ],
+          [
+            "audio_mix_write",
+            30607
+          ],
+          [
+            "mainloop",
+            31253
+          ]
+        ],
+        "player_restore_state": {
+          "valid": 1,
+          "current": 9508,
+          "old": 9508,
+          "render_flags": [
+            1,
+            0
+          ]
+        },
+        "restore_calls": [
+          {
+            "slot": 0,
+            "row_phase": 0,
+            "column_phase": 7,
+            "entry": 5078,
+            "cycles_to_caller_next": 1511
+          },
+          {
+            "slot": 1,
+            "row_phase": 10,
+            "column_phase": 0,
+            "entry": 6732,
+            "cycles_to_caller_next": 1290
+          },
+          {
+            "slot": 2,
+            "row_phase": 2,
+            "column_phase": 1,
+            "entry": 8165,
+            "cycles_to_caller_next": 1642
+          }
+        ],
+        "background_calls": [
+          {
+            "entry": 11066,
+            "render_flags": [
+              16,
+              0
+            ],
+            "enemy_flags": 0,
+            "cycles_to_return": 2689
+          },
+          {
+            "entry": 14171,
+            "render_flags": [
+              1,
+              0
+            ],
+            "enemy_flags": 2,
+            "cycles_to_return": 153
+          }
+        ],
+        "perimeter_calls": [
+          {
+            "entry": 11248,
+            "colour": 5,
+            "row_hits": 8,
+            "source": 58640,
+            "high_white_bytes": 14,
+            "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+            "cycles_to_caller_next": 2473
+          }
+        ],
+        "decode_calls": [
+          {
+            "path": "sparse_blit_fb",
+            "entry": 16865,
+            "cycles_to_epilogue": 2078
+          },
+          {
+            "path": "sparse_blit_fb",
+            "entry": 19160,
+            "cycles_to_epilogue": 2462
+          },
+          {
+            "path": "sparse_blit_fb",
+            "entry": 21839,
+            "cycles_to_epilogue": 2462
+          },
+          {
+            "path": "sparse_blit_fb",
+            "entry": 25680,
+            "cycles_to_epilogue": 1844
+          }
+        ],
+        "cycles": 31253
+      }
+    },
+    "4": {
+      "worklist": {
+        "min": 30768,
+        "max": 38477,
+        "mean": 33263.75,
+        "samples": 16
+      },
+      "over_target": 16,
+      "intervals": {
+        "prepare": {
+          "min": 585,
+          "max": 609,
+          "mean": 592.9375,
+          "samples": 16
+        },
+        "restore": {
+          "min": 6987,
+          "max": 7821,
+          "mean": 7355.25,
+          "samples": 16
+        },
+        "player_restore": {
+          "min": 1209,
+          "max": 1209,
+          "mean": 1209.0,
+          "samples": 16
+        },
+        "damage_background": {
+          "min": 673,
+          "max": 4671,
+          "mean": 1595.875,
+          "samples": 16
+        },
+        "enemy_capture": {
+          "min": 3147,
+          "max": 4819,
+          "mean": 4081.125,
+          "samples": 16
+        },
+        "draw": {
+          "min": 12883,
+          "max": 13584,
+          "mean": 13170.5,
+          "samples": 16
+        },
+        "publication": {
+          "min": 799,
+          "max": 938,
+          "mean": 832.5625,
+          "samples": 16
+        }
+      },
+      "restore_phases": {
+        "0": {
+          "min": 1199,
+          "max": 1290,
+          "mean": 1262.1944444444443,
+          "samples": 36,
+          "split_row_calls": 25
+        },
+        "2": {
+          "min": 1495,
+          "max": 1578,
+          "mean": 1518.7142857142858,
+          "samples": 7,
+          "split_row_calls": 2
+        },
+        "3": {
+          "min": 1559,
+          "max": 1642,
+          "mean": 1618.2857142857142,
+          "samples": 7,
+          "split_row_calls": 5
+        },
+        "4": {
+          "min": 1495,
+          "max": 1578,
+          "mean": 1518.7142857142858,
+          "samples": 7,
+          "split_row_calls": 2
+        },
+        "5": {
+          "min": 1559,
+          "max": 1559,
+          "mean": 1559.0,
+          "samples": 1,
+          "split_row_calls": 0
+        },
+        "6": {
+          "min": 1495,
+          "max": 1578,
+          "mean": 1522.6666666666667,
+          "samples": 6,
+          "split_row_calls": 2
+        }
+      },
+      "perimeter": {
+        "min": 2473,
+        "max": 2473,
+        "mean": 2473.0,
+        "samples": 4,
+        "calls": 4,
+        "high_white_counts": [
+          14
+        ]
+      },
+      "peak": {
+        "requested_count": 4,
+        "index": 13,
+        "active": 4,
+        "death": 0,
+        "front": 1,
+        "state": [
+          0,
+          8,
+          0,
+          0,
+          4,
+          4,
+          1,
+          0,
+          0,
+          0,
+          164,
+          128
+        ],
+        "event_start": 211289664,
+        "vbord": 760,
+        "missed_commit": 131,
+        "marks": [
+          [
+            "main_game_tick_normal",
+            414
+          ],
+          [
+            "enemy_tick",
+            502
+          ],
+          [
+            "main_after_player",
+            2913
+          ],
+          [
+            "main_render",
+            3169
+          ],
+          [
+            "framebuffer_prepare_back",
+            3199
+          ],
+          [
+            "actor_closure_restore",
+            3797
+          ],
+          [
+            "acr_enemies",
+            5006
+          ],
+          [
+            "roam_copy_bg_to_fb",
+            5147
+          ],
+          [
+            "acr_enemy_next",
+            6789
+          ],
+          [
+            "roam_copy_bg_to_fb",
+            6935
+          ],
+          [
+            "acr_enemy_next",
+            8513
+          ],
+          [
+            "roam_copy_bg_to_fb",
+            8659
+          ],
+          [
+            "acr_enemy_next",
+            9949
+          ],
+          [
+            "roam_copy_bg_to_fb",
+            10095
+          ],
+          [
+            "acr_enemy_next",
+            11590
+          ],
+          [
+            "framebuffer_queue_damage",
+            11618
+          ],
+          [
+            "framebuffer_project_damage",
+            12022
+          ],
+          [
+            "roam_mark_underlay",
+            12739
+          ],
+          [
+            "frame_render_background",
+            12816
+          ],
+          [
+            "fri_secondary",
+            13120
+          ],
+          [
+            "fri_background_done",
+            13154
+          ],
+          [
+            "roam_mark_underlay",
+            13523
+          ],
+          [
+            "frame_render_background",
+            13570
+          ],
+          [
+            "draw_perimeter_box",
+            13768
+          ],
+          [
+            "dpb_row",
+            13922
+          ],
+          [
+            "dpb_row",
+            14133
+          ],
+          [
+            "dpb_row",
+            14432
+          ],
+          [
+            "dpb_row",
+            14731
+          ],
+          [
+            "dpb_row",
+            15030
+          ],
+          [
+            "dpb_row",
+            15329
+          ],
+          [
+            "dpb_row",
+            15628
+          ],
+          [
+            "dpb_row",
+            15927
+          ],
+          [
+            "fri_secondary",
+            16241
+          ],
+          [
+            "fri_background_done",
+            16275
+          ],
+          [
+            "actor_closure_draw",
+            16289
+          ],
+          [
+            "acd_save_loop",
+            16316
+          ],
+          [
+            "acd_save_loop",
+            17537
+          ],
+          [
+            "acd_save_loop",
+            18626
+          ],
+          [
+            "acd_save_loop",
+            20044
+          ],
+          [
+            "acd_draw_loop",
+            21108
+          ],
+          [
+            "sparse_blit_fb",
+            21287
+          ],
+          [
+            "sparse_decode_done",
+            23904
+          ],
+          [
+            "acd_draw_loop",
+            23942
+          ],
+          [
+            "sparse_blit_fb",
+            24121
+          ],
+          [
+            "sparse_decode_done",
+            26348
+          ],
+          [
+            "acd_draw_loop",
+            26386
+          ],
+          [
+            "sparse_blit_fb",
+            26565
+          ],
+          [
+            "sparse_decode_done",
+            28634
+          ],
+          [
+            "acd_draw_loop",
+            28672
+          ],
+          [
+            "sparse_blit_fb",
+            28851
+          ],
+          [
+            "sparse_decode_done",
+            31016
+          ],
+          [
+            "acd_death",
+            31063
+          ],
+          [
+            "acd_normal_player",
+            31111
+          ],
+          [
+            "sparse_blit_fb",
+            32381
+          ],
+          [
+            "sparse_decode_done",
+            34225
+          ],
+          [
+            "framebuffer_finish_back",
+            34261
+          ],
+          [
+            "main_entry_audio",
+            35060
+          ],
+          [
+            "audio_process_queue",
+            35542
+          ],
+          [
+            "audio_process_queue",
+            35872
+          ],
+          [
+            "audio_music_dispatch",
+            35894
+          ],
+          [
+            "audio_advance_all",
+            35938
+          ],
+          [
+            "audio_credit_service",
+            36498
+          ],
+          [
+            "audio_mix",
+            36521
+          ],
+          [
+            "audio_mix_write",
+            37771
+          ],
+          [
+            "mainloop",
+            38477
+          ]
+        ],
+        "player_restore_state": {
+          "valid": 1,
+          "current": 9508,
+          "old": 9508,
+          "render_flags": [
+            16,
+            0
+          ]
+        },
+        "restore_calls": [
+          {
+            "slot": 0,
+            "row_phase": 12,
+            "column_phase": 3,
+            "entry": 5147,
+            "cycles_to_caller_next": 1642
+          },
+          {
+            "slot": 1,
+            "row_phase": 14,
+            "column_phase": 4,
+            "entry": 6935,
+            "cycles_to_caller_next": 1578
+          },
+          {
+            "slot": 2,
+            "row_phase": 4,
+            "column_phase": 0,
+            "entry": 8659,
+            "cycles_to_caller_next": 1290
+          },
+          {
+            "slot": 3,
+            "row_phase": 0,
+            "column_phase": 4,
+            "entry": 10095,
+            "cycles_to_caller_next": 1495
+          }
+        ],
+        "background_calls": [
+          {
+            "entry": 12816,
+            "render_flags": [
+              0,
+              0
+            ],
+            "enemy_flags": 16,
+            "cycles_to_return": 338
+          },
+          {
+            "entry": 13570,
+            "render_flags": [
+              16,
+              0
+            ],
+            "enemy_flags": 2,
+            "cycles_to_return": 2705
+          }
+        ],
+        "perimeter_calls": [
+          {
+            "entry": 13768,
+            "colour": 5,
+            "row_hits": 8,
+            "source": 58640,
+            "high_white_bytes": 14,
+            "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+            "cycles_to_caller_next": 2473
+          }
+        ],
+        "decode_calls": [
+          {
+            "path": "sparse_blit_fb",
+            "entry": 21287,
+            "cycles_to_epilogue": 2617
+          },
+          {
+            "path": "sparse_blit_fb",
+            "entry": 24121,
+            "cycles_to_epilogue": 2227
+          },
+          {
+            "path": "sparse_blit_fb",
+            "entry": 26565,
+            "cycles_to_epilogue": 2069
+          },
+          {
+            "path": "sparse_blit_fb",
+            "entry": 28851,
+            "cycles_to_epilogue": 2165
+          },
+          {
+            "path": "sparse_blit_fb",
+            "entry": 32381,
+            "cycles_to_epilogue": 1844
+          }
+        ],
+        "cycles": 38477
+      }
+    }
+  },
+  "proposals": {
+    "first": {
+      "name": "Hoist perimeter high-nibble colour",
+      "source": "src/main.s: draw_perimeter_box / dpb_byte",
+      "change": "Move existing LDA HUD_COLOR, four LSLA and STA OBJ_VALUE immediately after prepare_cell_tile, before row loops.",
+      "reason": "Same invariant high colour is recalculated for every matching high nibble. No calls occur inside loop; IRQ only publishes framebuffer metadata and does not use these scratch bytes.",
+      "measured_baseline_cycles": 2473,
+      "observed_high_white_bytes": 14,
+      "projected_nominal_saving_per_call": 208,
+      "projection_formula": "16 * (high-white bytes - 1)",
+      "projected_sample_mean_saving_per_worklist": 52,
+      "target_next_fit": "At least 200 elapsed cycles saved for observed tile, unchanged pixels for all perimeter positions and supported colours, no module growth. Zero/one-white synthetic cases must retain expected semantics; zero-white adds 16 nominal cycles.",
+      "assembly_only_bytes": [
+        88,
+        88
+      ],
+      "assembly_reference_matches_current_rom": true,
+      "new_scratch_bytes": 0,
+      "risk": "OBJ_VALUE is set earlier, including zero-high-white case; confirm scratch contract and callers. Preserve pink/black and both framebuffer owners, pending/current replay, name-entry use.",
+      "required_order": "Fit first, before consuming enemy padding. Runtime, full-build, audit and pixel checks still required."
+    },
+    "second": {
+      "name": "Dedicated phase-four restore loop",
+      "source": "src/enemy_runtime.s: rcbtf_phase4_row",
+      "change": "Use local LEAU/LEAX/DEC/BNE like phase zero; relocate block before existing shared RTS so it falls through.",
+      "reason": "Phase four occurs twice in worst four-enemy sample; avoid per-row BRA and indirect JMP. Other phases retain existing code.",
+      "assembly_only_module_bytes": 4091,
+      "fixed_tail_identical": true,
+      "extra_pre_table_bytes": 8,
+      "remaining_pre_table_padding": 0,
+      "projected_saving_per_call": "Approximately 160 cycles, depends on one/two row segments; runtime measurement pending.",
+      "target_next_fit": "At least 150 elapsed cycles saved per phase-four restore; exact pixels across all row phases and both owners; all other phases and clean background state unchanged.",
+      "risk": "Uses all eight pre-table bytes; shared return relocation must preserve non-phase-four exits and wrapped two-segment calls.",
+      "initial_fit_failure": "Naive local RTS required nine bytes and overflowed by one; sharing existing RTS makes net eight.",
+      "required_order": "Optional second experiment after perimeter fit; do not merge on assembly evidence alone."
+    }
+  },
+  "limits": [
+    "No new optimized ROM was built or run; only isolated proposal assembly.",
+    "Resident remains 8180/8192; enemy 4091/4096; baseline GMC source spare 413. Proposed unchanged sizes and fixed 4096-byte enemy reservation imply unchanged packing capacity, subject to full build.",
+    "Stationary-player restore/capture elimination would need a new overlap/damage validity proof and has no fitted budget; not recommended as an immediate patch.",
+    "Parked player and early releases do not cover natural moving-player/demo/name-control acceptance.",
+    "Neither local candidate closes the 4253/11477-cycle observed three/four-enemy gaps."
+  ],
+  "raw_sha256": {
+    "bug058-renderer-detail-20260927.json": "3bcd2e658523f3c0cbc7723667183f0ed294b74c9074c4295b63c378c7b777c8",
+    "bug058-renderer-profile-20260927.json": "813668fc408bfffe6e5fccc0537628a5dcd831bbae29d24f7e058d7794b4bf4f"
+  },
+  "proposal_sha256": {
+    "bug058-perimeter-proposal-20260927.patch": "a624690b1fbbae2062cf1f8c80d0c5e297e2086cab8d48af22c1a47eb4b08647",
+    "bug058-phase4-proposal-20260927.patch": "19a355deba2914d5f024653366d4f8ee210f98b71fb6918bd8a0b3950e386a8d"
+  }
+}

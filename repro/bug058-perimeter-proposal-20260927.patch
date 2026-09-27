@@ -1,0 +1,28 @@
+--- a/src/main.s
++++ b/src/main.s
+@@ -2349,6 +2349,12 @@
+         leay    screen_map,pcr
+         ldb     d,y
+         lbsr    prepare_cell_tile
++        lda     HUD_COLOR
++        lsla
++        lsla
++        lsla
++        lsla
++        sta     OBJ_VALUE
+         lda     #8
+         sta     HUD_COUNT
+ dpb_row
+@@ -2360,12 +2366,6 @@
+         anda    #$F0
+         cmpa    #$60
+         bne     dpb_low
+-        lda     HUD_COLOR
+-        lsla
+-        lsla
+-        lsla
+-        lsla
+-        sta     OBJ_VALUE
+         lda     HUD_BYTE
+         anda    #$0F
+         ora     OBJ_VALUE
