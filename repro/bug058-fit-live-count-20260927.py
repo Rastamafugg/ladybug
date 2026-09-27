@@ -61,8 +61,11 @@ try:
      t=(c.call('read_cycles')['event_ticks']-start)//8;row['marks'].append([markers[a],t])
      if markers[a]=='roam_update_background':
       regs=c.call('read_registers');work=read(es['ENEMY_WORK'])[0];slot=4-work;mask=1<<slot;dirty=read(es['ENEMY_CAPTURE_DIRTY'])[0];valid=read(es['ENEMY_OLD_VALID'])[0];old=int.from_bytes(read(es['ENEMY_OLD_FB']+2*slot,2),'big');new=int.from_bytes(read(regs['x']+1,2),'big');delta=((new-old+32768)&65535)-32768
-      reason='dirty' if dirty&mask else 'invalid' if not valid&mask else 'unchanged' if delta==0 else 'horizontal' if delta in [-1,1] else 'vertical' if delta in [-320,320] else 'unsupported-displacement'
+      reason='dirty' if dirty&mask else 'invalid' if not valid&mask else 'unchanged' if delta==0 else 'horizontal' if delta in ([-2,-1,1,2] if '--two-step' in sys.argv[3:] else [-1,1]) else 'vertical' if delta in ([-640,-320,320,640] if '--two-step' in sys.argv[3:] else [-320,320]) else 'unsupported-displacement'
       row.setdefault('capture_calls',[]).append({'slot':slot,'dirty_mask':dirty,'valid_mask':valid,'delta':delta,'selected_reason':reason})
+     if markers[a] in ['rub_full','rub_horizontal','rub_vertical']:
+      observed={'rub_full':'full','rub_horizontal':'horizontal','rub_vertical':'vertical'}[markers[a]];row['capture_calls'][-1]['executed_path']=observed
+      why=row['capture_calls'][-1]['selected_reason'];expected=why if why in ['horizontal','vertical'] else 'full';assert observed==expected,(why,observed,'capture classifier disagreement')
      if a==ms['mainloop']:break
     else:raise AssertionError('no worklist end')
    finally:m.clear(c,ids)

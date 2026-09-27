@@ -27,7 +27,7 @@ try:
     buf=bytearray(128)
     for row in range(16):
      for col in range(8):buf[((row+rp)%16)*8+(col+cp)%8]=pattern[old-0x2000+row*160+col]
-    for delta in [0,1,-1,2,-2,320,-320,640,-640,319,-321]:
+    for delta in [0,1,-1,2,-2,320,-320,640,-640,319,-321,321,-319,3,-3,960,-960]:
      for policy in ['selected','forced-full']:
       assert time.monotonic()<deadline,'row phase deadline'
       write(base,buf);write(es['ENEMY_BG_RING'],[(rp<<4)|cp]);write(es['ENEMY_OLD_FB'],old.to_bytes(2,'big'));write(es['ENEMY_OLD_VALID'],[1]);write(es['ENEMY_CAPTURE_DIRTY'],[int(policy=='forced-full')]);write(es['ENEMY_WORK'],[4]);record=bytes([1])+(old+delta).to_bytes(2,'big')+bytes(5);write(es['ENEMY_TABLE'],record)
@@ -38,7 +38,7 @@ try:
  # Force stale and absent backgrounds for each actor-slot mask; no skip path may retain poison.
  for slot in range(4):
   for valid,dirty in [(0,0),(1<<slot,1<<slot)]:
-   base=es['ENEMY_BG_B']+128*slot;write(base,bytes([0xEE])*128);write(es['ENEMY_BG_RING']+slot,[0xF7]);write(es['ENEMY_OLD_FB']+2*slot,old.to_bytes(2,'big'));write(es['ENEMY_OLD_VALID'],[valid]);write(es['ENEMY_CAPTURE_DIRTY'],[dirty]);write(es['ENEMY_WORK'],[4-slot]);write(es['ENEMY_TABLE'],bytes([1])+old.to_bytes(2,'big')+bytes(5));invoke();assert read(base,128)==bytes(pattern[old-0x2000+row*160+col] for row in range(16) for col in range(8));assert read(es['ENEMY_BG_RING']+slot)[0]==0;e['cases']+=1
+   delta=[2,-2,640,-640][slot];base=es['ENEMY_BG_B']+128*slot;write(base,bytes([0xEE])*128);write(es['ENEMY_BG_RING']+slot,[0xF7]);write(es['ENEMY_OLD_FB']+2*slot,old.to_bytes(2,'big'));write(es['ENEMY_OLD_VALID'],[valid]);write(es['ENEMY_CAPTURE_DIRTY'],[dirty]);write(es['ENEMY_WORK'],[4-slot]);write(es['ENEMY_TABLE'],bytes([1])+(old+delta).to_bytes(2,'big')+bytes(5));invoke();assert read(base,128)==bytes(pattern[old+delta-0x2000+row*160+col] for row in range(16) for col in range(8));assert read(es['ENEMY_BG_RING']+slot)[0]==0;e['cases']+=1
  e['result']='pass'
 except Exception as ex:e['result']='fail';e['failure']=repr(ex)
 finally:c.close();m.stop(p);out.write_text(json.dumps(e,indent=2)+'\n')
