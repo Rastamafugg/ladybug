@@ -1,0 +1,14 @@
+--- a/src/enemy_runtime.s
++++ b/src/enemy_runtime.s
+@@ -3546,7 +3546,8 @@
+
+ capture_zone_bg
+-        ldx     #ENEMY_ZONE_FB
+-        ldu     #ENEMY_ZONE_BG
+-        ldy     #ENEMY_ZONE_ROWS
++        ldu     #ENEMY_ZONE_FB
++        ldx     #ENEMY_ZONE_BG
++        lda     #ENEMY_ZONE_ROWS
++        sta     ENEMY_ROW
+         lbsr    copy_fb_rows
+         ; Fall through after capturing the complete clean nest underlay.

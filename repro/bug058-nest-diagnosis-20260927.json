@@ -1,0 +1,129 @@
+{
+  "phase": "natural startup nest capture and controlled caller-contract discrimination",
+  "deadline_seconds": 45,
+  "success_marker": "natural copy entry captured; four variants returned and compared to independent 32-row oracle",
+  "timeout_meaning": "missing startup/copy return boundary, not gameplay slowdown",
+  "rom_sha256": "eb6d6f85f29c0876742dbf7a13db58176b2b0dcb82af16d613abd19b7206f1d4",
+  "variants": {
+    "original_stale_count": {
+      "background_exact": false,
+      "framebuffer_changed_bytes": 1289,
+      "framebuffer_changed_rows": [
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86
+      ],
+      "outside_background_page34_changes": 0,
+      "first_changed_virtual_addresses": [
+        "0x4dec",
+        "0x4ded",
+        "0x4dee",
+        "0x4def",
+        "0x4df4",
+        "0x4df5",
+        "0x4df6",
+        "0x4df7",
+        "0x4df8",
+        "0x4df9",
+        "0x4dfa",
+        "0x4dfb",
+        "0x4dfc",
+        "0x4dfd",
+        "0x4dfe",
+        "0x4dff"
+      ],
+      "background_sha256": "0bf053d51dc79a8b7aa7a191ab8ee37e9332f35e287d9f23da0ff14a86b6a225"
+    },
+    "swapped_stale_count": {
+      "background_exact": true,
+      "framebuffer_changed_bytes": 0,
+      "framebuffer_changed_rows": [],
+      "outside_background_page34_changes": 1166,
+      "first_changed_virtual_addresses": [],
+      "background_sha256": "421e604d3c287cbe35e33b68272f106d356515b9a2f4c3a2b2d03ee463216e38"
+    },
+    "original_count32": {
+      "background_exact": false,
+      "framebuffer_changed_bytes": 130,
+      "framebuffer_changed_rows": [
+        73,
+        74,
+        75
+      ],
+      "outside_background_page34_changes": 0,
+      "first_changed_virtual_addresses": [
+        "0x4dec",
+        "0x4ded",
+        "0x4dee",
+        "0x4def",
+        "0x4df4",
+        "0x4df5",
+        "0x4df6",
+        "0x4df7",
+        "0x4df8",
+        "0x4df9",
+        "0x4dfa",
+        "0x4dfb",
+        "0x4dfc",
+        "0x4dfd",
+        "0x4dfe",
+        "0x4dff"
+      ],
+      "background_sha256": "0bf053d51dc79a8b7aa7a191ab8ee37e9332f35e287d9f23da0ff14a86b6a225"
+    },
+    "swapped_count32": {
+      "background_exact": true,
+      "framebuffer_changed_bytes": 0,
+      "framebuffer_changed_rows": [],
+      "outside_background_page34_changes": 0,
+      "first_changed_virtual_addresses": [],
+      "background_sha256": "421e604d3c287cbe35e33b68272f106d356515b9a2f4c3a2b2d03ee463216e38"
+    }
+  },
+  "natural_entry": {
+    "pc": 5148,
+    "x": 19948,
+    "u": 42128,
+    "y": 32,
+    "s": 8180,
+    "ENEMY_ROW": 0
+  },
+  "result": "diagnosed",
+  "user_report": {
+    "three_enemies": "Slow mainly while enemy-release music plays; feels fine afterward",
+    "four_enemies": "Slow even after music ends",
+    "corruption": "Immediate on gameplay and demo start; garbage row above spawner and around dormant enemy; some disappears when sprite forces redraw"
+  },
+  "cause": "Earlier restore/full-copy fit changed copy_fb_rows to U=strided source, X=contiguous destination, ENEMY_ROW=count, Y clobbered. capture_zone_bg retained X=source, U=destination, Y=32 and entered with ENEMY_ROW=0 (256 iterations).",
+  "introduced_by": "bug058-restore-fit-20260927.patch, recorded in 7a5ae8a",
+  "candidate_status": "Fails natural rendering acceptance; do not promote",
+  "proposed_repair": {
+    "artifact": "bug058-nest-proposal-20260927.patch",
+    "class": "High-risk",
+    "scope": "Correct capture_zone_bg pointers/count; document shared helper contract and callers; preserve all optimization logic and budgets",
+    "before_after_bytes": [
+      13,
+      13
+    ],
+    "original_snippet_matches_rom": true,
+    "approval": "User approved 2026-09-27; ready for bounded isolated execution",
+    "remaining_gates": [
+      "full build and ownership/contract documentation",
+      "natural demo and credited startup underlay capture and both-buffer nest output",
+      "existing restore/render tests whose startup state was previously already corrupt",
+      "remeasure 3/4-enemy gameplay with release cue active versus finished; retain 27000 target"
+    ],
+    "risk": "Shared copy direction/count and persistent backgrounds. No new scratch/ownership or memory limits."
+  }
+}
