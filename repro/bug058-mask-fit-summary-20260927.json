@@ -1,0 +1,465 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "verdict": "Approved isolated primary-mask fit passes local target and all build/runtime gates; overall BUG-058 timing fails, not integrated",
+  "source": "e880b52 plus cumulative bug058-mask-fit-20260927.patch",
+  "rom_sha256": "9f96bdb524f5a1bc730a6b225dd2f62c4ac4d47339108f8f9b8b549472b78b53",
+  "baseline_rom_sha256": "98c5fe80ab1e27d161b491f24ddc3dfd97dc3035ffedff1ac14ce79b752b4a19",
+  "enemy_sha256": "a02affb0f8936e49160718828b99cfb199c6b97e12fe8d3ce0abb4f199900208",
+  "kernel": {
+    "cases": 1024,
+    "saving_counts": {
+      "11": 64,
+      "9": 384,
+      "7": 576
+    },
+    "oracle": "All 256 values and four masks, caller CMPA flags, registers, OBJ_VALUE and OBJ_PRIMARY exact; table bytes and index bound verified; rebind code byte-identical"
+  },
+  "renderer": {
+    "cases": 40,
+    "owners": {
+      "0": 20,
+      "1": 20
+    },
+    "forced_gate_cases": 15,
+    "empty_cases": 2,
+    "oracle": "Both full framebuffer images and bank-$34 cache/state exact, alternating comparison order; old/new resident plus matching IRQ vector and enemy imports"
+  },
+  "repaint_measurements": [
+    {
+      "pairs": 207,
+      "live_records": 6,
+      "primary_classes": {
+        "both": 92,
+        "high_only": 32,
+        "low_only": 62,
+        "neither": 21
+      },
+      "index": 0,
+      "owner_metadata": 0,
+      "no_live_collectibles": false,
+      "reference_cycles": 24673,
+      "candidate_cycles": 22956,
+      "saving": 1717
+    },
+    {
+      "pairs": 207,
+      "live_records": 6,
+      "primary_classes": {
+        "both": 92,
+        "high_only": 32,
+        "low_only": 62,
+        "neither": 21
+      },
+      "index": 1,
+      "owner_metadata": 1,
+      "no_live_collectibles": false,
+      "reference_cycles": 24673,
+      "candidate_cycles": 22956,
+      "saving": 1717
+    },
+    {
+      "pairs": 0,
+      "live_records": 0,
+      "primary_classes": {
+        "both": 0,
+        "high_only": 0,
+        "low_only": 0,
+        "neither": 0
+      },
+      "index": 6,
+      "owner_metadata": 0,
+      "no_live_collectibles": true,
+      "reference_cycles": 418,
+      "candidate_cycles": 422,
+      "saving": -4
+    },
+    {
+      "pairs": 0,
+      "live_records": 0,
+      "primary_classes": {
+        "both": 0,
+        "high_only": 0,
+        "low_only": 0,
+        "neither": 0
+      },
+      "index": 7,
+      "owner_metadata": 1,
+      "no_live_collectibles": true,
+      "reference_cycles": 418,
+      "candidate_cycles": 422,
+      "saving": -4
+    }
+  ],
+  "repaint_target": 1500,
+  "normal_worklists": {
+    "samples": 80,
+    "result": "All cycle totals, recorded state and framebuffer IDs exact",
+    "primary_repaints": 0
+  },
+  "startup": {
+    "phase": "natural demo and credited startup underlay and published nest",
+    "deadline_seconds_per_phase": 45,
+    "success_marker": "exact 32-row capture with no outside writes; cached dormant pixels and clean upper nest on A and B in demo and credited startup",
+    "timeout_meaning": "required startup or owner publication absent",
+    "rom_sha256": "9f96bdb524f5a1bc730a6b225dd2f62c4ac4d47339108f8f9b8b549472b78b53",
+    "checks": [
+      {
+        "phase": "demo",
+        "capture_exact": true,
+        "framebuffer_writes": 0,
+        "outside_background_writes": 0
+      },
+      {
+        "phase": "demo",
+        "owner": 1,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 4,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "demo",
+        "owner": 0,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 4,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "credited",
+        "capture_exact": true,
+        "framebuffer_writes": 0,
+        "outside_background_writes": 0
+      },
+      {
+        "phase": "credited",
+        "owner": 1,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 0,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "credited",
+        "owner": 0,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 0,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      }
+    ],
+    "result": "pass"
+  },
+  "release_fixture": {
+    "samples": 244,
+    "windows": {
+      "3_release": {
+        "samples": 82,
+        "mean": 28022,
+        "maximum": 53521,
+        "over_27000": 32
+      },
+      "3_post_release": {
+        "samples": 16,
+        "mean": 31054.5,
+        "maximum": 74628,
+        "over_27000": 7
+      },
+      "4_release": {
+        "samples": 82,
+        "mean": 35889.58536585366,
+        "maximum": 85726,
+        "over_27000": 78
+      },
+      "4_post_release": {
+        "samples": 16,
+        "mean": 32031.5,
+        "maximum": 36014,
+        "over_27000": 16
+      }
+    },
+    "interpretation": "Controlled early releases and parked player; natural colour cadence. Mean changes are not exact causal savings because event phase/worklist states diverge. Matched isolated repaint is the causal measurement."
+  },
+  "retained_peak": {
+    "requested_count": 4,
+    "index": 19,
+    "active": 4,
+    "death": 0,
+    "front": 0,
+    "state": [
+      0,
+      7,
+      0,
+      0,
+      4,
+      4,
+      1,
+      0,
+      0,
+      0,
+      164,
+      128
+    ],
+    "event_start": 256383008,
+    "vbord": 948,
+    "missed_commit": 116,
+    "marks": [
+      [
+        "main_game_tick_normal",
+        414
+      ],
+      [
+        "enemy_tick",
+        502
+      ],
+      [
+        "main_after_player",
+        2742
+      ],
+      [
+        "main_render",
+        3094
+      ],
+      [
+        "framebuffer_prepare_back",
+        3124
+      ],
+      [
+        "sync_entity_cache_colour",
+        3594
+      ],
+      [
+        "secc_done",
+        27705
+      ],
+      [
+        "actor_closure_restore",
+        30473
+      ],
+      [
+        "acr_enemies",
+        31682
+      ],
+      [
+        "framebuffer_queue_damage",
+        37082
+      ],
+      [
+        "framebuffer_project_damage",
+        37489
+      ],
+      [
+        "roam_mark_underlay",
+        37557
+      ],
+      [
+        "frame_render_background",
+        37604
+      ],
+      [
+        "render_entity_colour",
+        37641
+      ],
+      [
+        "de_colour_done",
+        60688
+      ],
+      [
+        "fri_background_done",
+        63166
+      ],
+      [
+        "actor_closure_draw",
+        63180
+      ],
+      [
+        "acd_save_loop",
+        63207
+      ],
+      [
+        "acd_save_loop",
+        64073
+      ],
+      [
+        "acd_save_loop",
+        64939
+      ],
+      [
+        "acd_save_loop",
+        66261
+      ],
+      [
+        "acd_draw_loop",
+        67325
+      ],
+      [
+        "acd_draw_loop",
+        70159
+      ],
+      [
+        "acd_draw_loop",
+        72993
+      ],
+      [
+        "acd_draw_loop",
+        75827
+      ],
+      [
+        "acd_death",
+        78280
+      ],
+      [
+        "acd_normal_player",
+        78319
+      ],
+      [
+        "framebuffer_finish_back",
+        81469
+      ],
+      [
+        "main_entry_audio",
+        82271
+      ],
+      [
+        "audio_process_queue",
+        82753
+      ],
+      [
+        "audio_process_queue",
+        83136
+      ],
+      [
+        "audio_music_dispatch",
+        83158
+      ],
+      [
+        "audio_advance_all",
+        83202
+      ],
+      [
+        "audio_credit_service",
+        83762
+      ],
+      [
+        "audio_mix",
+        83785
+      ],
+      [
+        "audio_mix_write",
+        85020
+      ],
+      [
+        "mainloop",
+        85726
+      ]
+    ],
+    "audio_before": {
+      "slots": [
+        255,
+        5,
+        255,
+        255
+      ],
+      "music_queue": 0
+    },
+    "colour_pair_calls": [
+      {
+        "mode": "rebind",
+        "entry": 3594,
+        "pairs": 207,
+        "live_records": 6,
+        "primary_classes": {
+          "both": 92,
+          "high_only": 32,
+          "low_only": 62,
+          "neither": 21
+        }
+      },
+      {
+        "mode": "primary",
+        "entry": 37641,
+        "pairs": 207,
+        "live_records": 6,
+        "primary_classes": {
+          "both": 92,
+          "high_only": 32,
+          "low_only": 62,
+          "neither": 21
+        }
+      }
+    ],
+    "audio_after": {
+      "slots": [
+        255,
+        5,
+        4,
+        255
+      ],
+      "music_queue": 0
+    },
+    "cycles": 85726
+  },
+  "capacity": {
+    "resident": [
+      8170,
+      8192
+    ],
+    "assets": [
+      7648,
+      7680
+    ],
+    "enemy": [
+      4091,
+      4096
+    ],
+    "presentation": [
+      1273,
+      1280
+    ],
+    "copied_audio": [
+      734,
+      920
+    ],
+    "banked_audio": [
+      5675,
+      8192
+    ],
+    "cold": [
+      14362,
+      16384
+    ],
+    "gmc_source_free": 413,
+    "runtime_delta": {
+      "resident": -6,
+      "assets": 52,
+      "mutable": 0
+    }
+  },
+  "residuals": [
+    "Four-enemy timing remains over 27000",
+    "Forced empty repaint costs four extra setup cycles; no pairs visited",
+    "Natural user play check and integration not performed"
+  ],
+  "rejected_experiments": [],
+  "build_attempts": [
+    "Initial source-changed provenance rejection while documentation was edited",
+    "Subsequent missing data-label classification corrected; no runtime change"
+  ],
+  "evidence": {
+    "bug058-mask-kernel-20260927.json": "e9b4bfcad5ea8eae1175faabfe5445249c67a43995d301b36182849259aa1a3d",
+    "bug058-mask-crossover-20260927.json": "c12c15b85a8b5c9e7caa491c3daa5949a47bf165510ff317a2f90a7de9fd5ce2",
+    "bug058-mask-normal-20260927.json": "05c76a06b6d1825f6f5fe97e331733d0eb2db1f405d7636f98d829647ccc9394",
+    "bug058-mask-release-20260927.json": "904a123ff6d40063f0d0fa7dc84718c37841d1fe8d75a0c6a1e86783c6121e16",
+    "bug058-mask-startup-20260927.json": "b4bebb51cdd8aff58f3002e5b3acaac3277d59f85bff28b1f2d91f85ba78d8ff"
+  },
+  "build": {
+    "result": "pass",
+    "routines": "256/256",
+    "labels": "4094/4094",
+    "ownership_errors": [],
+    "table_address": 64940,
+    "log_sha256": "bfab3ac1bb241535f93cd1cafbce2560055c5e6278aa4078fa888321fa32a555"
+  },
+  "patch_sha256": "57dd1ecfae8609f673250eef3af4db2b8b04c4f411242212eb78d920d0009d70"
+}

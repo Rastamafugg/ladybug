@@ -44,6 +44,21 @@ if perimeter_only:
  assert resident[:off]==oldresident[:off] and resident[off+88:]==oldresident[off+88:]
 candidate=(fit/'build'/(candidate_prefix+'.bin')).read_bytes();cs=r.symbols(fit/'build'/(candidate_prefix+'.map'))
 e.update(phase='controlled same-state render crossover',success_marker='identical framebuffer and equivalent bank-$34 state under the explicitly selected oracle',candidate_enemy_sha256=hashlib.sha256(candidate).hexdigest());e['perimeter_only']=perimeter_only;e['reference_resident_sha256']=hashlib.sha256(oldresident).hexdigest() if oldresident is not None else None;e['cases']=[];e['state_oracle']='decoded audited rings; all other state exact' if '--logical-rings' in sys.argv[6:] else 'all state exact'
+def colour_pair_count(rebind):
+ count=read(ms['ENTITY_COUNT'])[0];records=read(ms['ENTITY_TABLE'],count*4);pairs=0;live=0;classes={'both':0,'high_only':0,'low_only':0,'neither':0}
+ for slot in range(count):
+  record=records[slot*4:slot*4+4]
+  if record[2] in (0,es['ENTITY_SKULL']) or (not rebind and record[:2]==bytes([12,10])):continue
+  data=read(ms['ENTITY_GATE_CACHE']+slot*128,128);pos=1;live+=1
+  for run in range(data[0]):
+   delta=data[pos];pos+=1
+   if delta==255:pos+=2
+   n=data[pos];pos+=1;assert n and pos+2*n<=128,('bad colour cache',slot,pos,n)
+   for value in data[pos+1:pos+2*n:2]:
+    high=bool(value&0x30);low=bool(value&3);classes['both' if high and low else 'high_only' if high else 'low_only' if low else 'neither']+=1
+   pairs+=n;pos+=2*n
+ return {'pairs':pairs,'live_records':live,'primary_classes':classes}
+
 def physical(a,n):return bytes.fromhex(c.call('read_memory',{'space':'physical','addr':a,'length':n})['data'])
 def putphysical(a,v):c.call('write_memory',{'space':'physical','addr':a,'data':bytes(v).hex()})
 def snapshot():return [physical(pg*8192,8192) for pg in range(64)]
@@ -114,6 +129,12 @@ try:
   for i in range(8):
    assert time.monotonic()<deadline,'crossover phase'
    go(es['frame_render_impl'])
+   empty_collectibles='--no-live-collectibles' in sys.argv and count==4 and i>=6
+   if empty_collectibles:
+    for slot in range(read(es['ENTITY_COUNT'])[0]):
+     address=es['ENTITY_TABLE']+slot*4
+     if read(address+2)[0]!=es['ENTITY_SKULL']:write(address+2,[0])
+    assert all(read(es['ENTITY_TABLE']+slot*4+2)[0] in (0,es['ENTITY_SKULL']) for slot in range(read(es['ENTITY_COUNT'])[0]))
    if '--force-colour' in sys.argv:
     write(ms['BONUS_COLOR'],[1+i%3]);write(ms['RENDER_FLAGS2'],[read(ms['RENDER_FLAGS2'])[0]|es['RF2_COLOUR']])
     if i%3==1:
@@ -126,8 +147,24 @@ try:
    if '--logical-rings' in sys.argv[6:]:
     assert logical_rings(results['reference'][1],owner)==logical_rings(results['candidate'][1],owner),(count,i,'logical background or other state mismatch',raw_differences[:24])
    else:assert results['reference'][1]==results['candidate'][1],(count,i,'raw state mismatch',raw_differences[:24])
-   e['cases'].append({'count':count,'active_count':read(0x58)[0],'index':i,'owner_metadata':owner,'render_intents':flags,'pending_intents_before':pending,'forced_colour':(1+i%3) if '--force-colour' in sys.argv else None,'forced_final_gate':bool('--force-colour' in sys.argv and i%3==1),'raw_state_difference_bytes':len(raw_differences),'reference_cycles':results['reference'][2],'candidate_cycles':results['candidate'][2],'pixel_sha256':hashlib.sha256(results['candidate'][0]).hexdigest()})
+   e['cases'].append({'no_live_collectibles':empty_collectibles,'count':count,'active_count':read(0x58)[0],'index':i,'owner_metadata':owner,'render_intents':flags,'pending_intents_before':pending,'forced_colour':(1+i%3) if '--force-colour' in sys.argv else None,'forced_final_gate':bool('--force-colour' in sys.argv and i%3==1),'raw_state_difference_bytes':len(raw_differences),'reference_cycles':results['reference'][2],'candidate_cycles':results['candidate'][2],'pixel_sha256':hashlib.sha256(results['candidate'][0]).hexdigest()})
+   if '--measure-colour-pass' in sys.argv and count==4 and i in (0,1,6,7):
+    restore(pages,regs,pars);mix=colour_pair_count(False);pass_results={}
+    oldms=r.symbols(b/(reference_prefix+'-resident.map'))
+    for name in (['reference','candidate'] if i%2==0 else ['candidate','reference']):
+     restore(pages,regs,pars)
+     pass_results[name]=invoke(enemy if name=='reference' else candidate,(oldms if name=='reference' else ms)['render_entity_colour'],oldresident if name=='reference' else resident)
+    assert pass_results['reference'][:2]==pass_results['candidate'][:2],'isolated repaint pixels/state mismatch'
+    saving=pass_results['reference'][2]-pass_results['candidate'][2]
+    expected=sum(mix['primary_classes'][k]*v for k,v in [('both',7),('high_only',9),('low_only',9),('neither',11)])-4
+    assert saving==expected,('repaint timing',mix,saving,expected)
+    e.setdefault('colour_passes',[]).append(dict(mix,index=i,owner_metadata=owner,no_live_collectibles=empty_collectibles,reference_cycles=pass_results['reference'][2],candidate_cycles=pass_results['candidate'][2],saving=saving))
    restore(pages,regs,pars);go(ps['presentation_flow_tick'])
+ if '--no-live-collectibles' in sys.argv:
+  assert {x['owner_metadata'] for x in e['cases'] if x['no_live_collectibles']}=={0,1},'missing empty-collectible owner'
+ if '--measure-colour-pass' in sys.argv:
+  assert len(e.get('colour_passes',[]))==4,'missing isolated repaint measurement'
+  assert all(x['saving']>=1500 for x in e['colour_passes'] if x['pairs']==207) and sum(x['pairs']==207 for x in e['colour_passes'])==2,'missing or slow 207-pair repaint'
  e['result']='pass'
 except Exception as ex:
  import traceback
