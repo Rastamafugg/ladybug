@@ -1228,6 +1228,7 @@ audio_name_timer fcb 0
 audio_slot_base_table
         fdb     audio_slot0,audio_slot1,audio_slot2,audio_slot3
 
+; @audit {"id":"audio-slot-zero","kind":"scratch","symbol":"audio_slot0","width":28,"mapping":"physical-page-3D","phases":["foreground"],"owner":"audio foreground service","initialization":"audio_init_impl and audio_mix_shadow_init","lifetime":"Retained between audio ticks; fields 0..16 hold voice state, bytes 17..27 hold PSG shadows.","clobbers":"Slot reset must preserve the shadow padding contract.","alias_group":"slot-zero-padding","alias_reason":"PSG shadow bytes intentionally occupy only slot-zero padding at offsets 17..27; active cue fields occupy offsets 0..16."}
 audio_slot0
         rmb     AUDIO_SLOT_BYTES
 audio_slot1
@@ -1249,6 +1250,7 @@ audio_scratch
 
 ; Eleven output shadows reuse the padding in the first 28-byte slot record:
 ; three bytes per tone register triplet and two noise registers.
+; @audit {"id":"audio-shadow","kind":"scratch","symbol":"audio_mix_shadow","width":11,"mapping":"physical-page-3D","phases":["foreground"],"owner":"audio foreground service","initialization":"audio_init_impl and audio_mix_shadow_init","lifetime":"Retained between audio ticks; fields 0..16 hold voice state, bytes 17..27 hold PSG shadows.","clobbers":"Slot reset must preserve the shadow padding contract.","alias_group":"slot-zero-padding","alias_reason":"PSG shadow bytes intentionally occupy only slot-zero padding at offsets 17..27; active cue fields occupy offsets 0..16."}
 audio_mix_shadow equ audio_slot0+17
 
         end

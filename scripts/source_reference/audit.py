@@ -39,7 +39,7 @@ def access(text, symbol):
     if operand.startswith('#') or op.startswith('lea'):
         return {'access': 'address-or-value', 'width': 0, 'offset': None}
     width = 2 if op in WORD else 1 if op in BYTE else None
-    kind = 'write' if op.startswith('st') and op in WORD | BYTE else 'read-write' if op in MODIFY else 'read' if width else 'unresolved'
+    kind = 'write' if op == 'clr' or op.startswith('st') and op in WORD | BYTE else 'read-write' if op in MODIFY else 'read' if width else 'unresolved'
     match = re.fullmatch(r'[<>]?' + re.escape(symbol) + r'(?:\+([0-9]+)|\+\$([0-9A-Fa-f]+))?', operand.strip())
     offset = (int(match[1]) if match[1] else int(match[2], 16) if match[2] else 0) if match else None
     if '[' in operand or ',' in operand or offset is None:
@@ -127,9 +127,17 @@ def build_audit(project, root, policy, receipt):
             continue
         documented.add((module, name))
         record['address'] = location['address']
-        for line, ref in references.get((module, name), []):
-            record['references'].append(dict(ref, file=line.file, line=line.number,
-                evidence='extracted fact', href=module_page(module)+'#'+source_line_id(line.file, line.number)))
+        for reference_module in record.get('reference_modules', [module]):
+            if reference_module not in modules:
+                errors.append(f'unknown reference module: {reference_module}')
+                continue
+            mirror = symbols[reference_module].get(name)
+            if mirror and mirror.assembled_address != location['address']:
+                errors.append(f'reference-module address mismatch: {reference_module}:{name}')
+            documented.add((reference_module, name))
+            for line, ref in references.get((reference_module, name), []):
+                record['references'].append(dict(ref, module=reference_module, file=line.file, line=line.number,
+                    evidence='extracted fact', href=module_page(reference_module)+'#'+source_line_id(line.file, line.number)))
         kind = record['kind']
         required = {'scratch': ('width', 'mapping', 'phases', 'owner', 'initialization', 'lifetime', 'clobbers'),
                     'background': ('owner', 'extent', 'clean_source', 'capture', 'restore', 'draw', 'validity', 'invalidation', 'publication', 'order', 'overlap', 'verifier'),
@@ -167,6 +175,12 @@ def build_audit(project, root, policy, receipt):
                 if not (root / verifier).is_file():
                     errors.append(f'missing verifier: {verifier}')
         if kind == 'index':
+            record['resolved_mirrors'] = []
+            for left, right in record.get('mirrors', []):
+                a, b = resolve(module, left), resolve(module, right)
+                record['resolved_mirrors'].append([a, b])
+                if a and b and a['address'] != b['address']:
+                    errors.append(f"generated symbol mirror mismatch: {record['id']}:{left}")
             found = [p for p in producers if p['id'] == record.get('producer')]
             record['producers'] = found
             if not found:
@@ -216,6 +230,8 @@ def build_audit(project, root, policy, receipt):
                 continue
             state = 'documented' if (module.id, name) in documented else 'unresolved'
             reason = 'Semantic ownership needs review; discovery does not prove allocation or lifetime.'
+            if state == 'documented':
+                reason = 'Source-adjacent contract shown above; authored intent is not execution proof.'
             if category == 'generated-index' and not re.search(r'(INDEX|GRAPHIC|FRAME|ADDR|PAGE|ENTRY|COUNT|OFFSET|DESCRIPTOR)', name, re.I):
                 state, reason = 'excluded', 'Generated data/constant outside index-name discovery policy; retained in inventory.'
             candidates.append({'module': module.id, 'symbol': name, 'category': category, 'state': state,
@@ -252,6 +268,14 @@ def render_audit(audit, root, output):
                     links.append(f'<a href="{loc["href"]}">{html.escape(loc["symbol"])}</a>')
         for p in r.get('producers', []):
             links.append(f'<a href="{p["href"]}">{html.escape(p["file"])}:{p["line"]}</a>')
+        for pair in r.get('resolved_mirrors', []):
+            for loc in pair:
+                if loc:
+                    links.append(f'<a href="{loc["href"]}">{html.escape(loc["module"]+":"+loc["symbol"])}</a>')
+        for field in ('index_bytes','page'):
+            loc = r.get('extracted_bounds', {}).get(field)
+            if loc:
+                links.append(f'<a href="{loc["href"]}">{html.escape(loc["symbol"])}</a>')
         chunks.append(f'<section class="record" id="{html.escape(r["id"])}"><h2>{html.escape(r["id"])}</h2><p>{" | ".join(links)}</p><pre>{html.escape(json.dumps(r,indent=2))}</pre></section>')
     chunks.append('<h2>Discovery inventory</h2><p>Includes inactive/source-only candidates. Unresolved entries are coverage debt, not demonstrated defects.</p>')
     for c in audit['candidates']:

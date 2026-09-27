@@ -3321,7 +3321,7 @@ player_draw_impl
         rts
 
 ; Resolve A's always-mapped enemy index entry and map its stream page.
-; @audit {"id":"sprite-index","kind":"index","symbol":"SPARSE_ENEMY_INDEX_ADDR","producer":"sparse-index","domain":"Frame ordinal; three bytes per frame, physical page plus big-endian stream address","encoding":"Map index page, fetch page/address, map payload page; packed offset is relocatable","bounds":[0,65535],"index_bytes":"SPARSE_ENEMY_INDEX_BYTES","index_page":"SPARSE_ENEMY_PAYLOAD_PAGE","stride":3}
+; @audit {"id":"sprite-index","kind":"index","symbol":"SPARSE_ENEMY_INDEX_ADDR","producer":"sparse-index","domain":"Frame ordinal; three bytes per frame, physical page plus big-endian stream address","encoding":"Map index page, fetch page/address, map payload page; packed offset is relocatable","bounds":[0,65535],"index_bytes":"gmc-bootstrap:SPARSE_ENEMY_INDEX_BYTES","index_page":"SPARSE_ENEMY_PAYLOAD_PAGE","stride":3,"mirrors":[["SPARSE_ENEMY_INDEX_ADDR","gmc-bootstrap:SPARSE_ENEMY_INDEX_ADDR"],["SPARSE_ENEMY_PAYLOAD_PAGE","gmc-bootstrap:SPARSE_ENEMY_PAYLOAD_PAGE"]]}
 sparse_enemy_stream
         ldb     #3
         mul
@@ -3338,7 +3338,7 @@ sparse_enemy_stream
         rts
 
 ; Resolve A's always-mapped player index entry and map its stream page.
-; @audit {"id":"player-sprite-index","kind":"index","symbol":"SPARSE_PLAYER_INDEX_ADDR","producer":"sparse-index","domain":"Frame ordinal; three bytes per frame, physical page plus big-endian stream address","encoding":"Map index page, fetch page/address, map payload page; packed offset is relocatable","bounds":[0,65535],"index_bytes":"SPARSE_PLAYER_INDEX_BYTES","index_page":"SPARSE_PLAYER_PAYLOAD_PAGE","stride":3}
+; @audit {"id":"player-sprite-index","kind":"index","symbol":"SPARSE_PLAYER_INDEX_ADDR","producer":"sparse-index","domain":"Frame ordinal; three bytes per frame, physical page plus big-endian stream address","encoding":"Map index page, fetch page/address, map payload page; packed offset is relocatable","bounds":[0,65535],"index_bytes":"gmc-bootstrap:SPARSE_PLAYER_INDEX_BYTES","index_page":"SPARSE_PLAYER_PAYLOAD_PAGE","stride":3,"mirrors":[["SPARSE_PLAYER_INDEX_ADDR","gmc-bootstrap:SPARSE_PLAYER_INDEX_ADDR"],["SPARSE_PLAYER_PAYLOAD_PAGE","gmc-bootstrap:SPARSE_PLAYER_PAYLOAD_PAGE"]]}
 sparse_player_stream
         ldb     #3
         mul
@@ -3537,7 +3537,7 @@ capture_zone_bg
 ; Expand the four stage-selected dormant frames once when the authoritative
 ; nest background is captured. Animation frames then publish one native
 ; 16-by-16 rectangle without sparse decoding or a 16-by-32 rebuild.
-; @audit {"id":"nest-background","kind":"background","symbol":"build_enemy_nest_cache","owner":"Enemy nest compositor","extent":"Nest base/cache extent established by nest-copy loops","clean_source":"Actor-free nest base; replay mutable entities before actor overlay","capture":["build_enemy_nest_cache"],"restore":["compose_enemy_zone"],"draw":["compose_enemy_animation"],"validity":["ENTITY_CACHE_COLOR"],"invalidation":["colour_prepare_nest","roam_mark_underlay"],"publication":["framebuffer_capture_back"],"order":"Hydrate selected BACK metadata; restore affected actor closure; capture clean pixels; draw actors; publish metadata. Declaration, not control-flow proof.","overlap":"Closure restoration must remove overlapping actors before capture. A/B owner metadata follows the selected framebuffer, not the actor alone.","verifier":["scripts/verify_enemy_framebuffer.py"]}
+; @audit {"id":"nest-background","kind":"background","symbol":"ENEMY_ZONE_BG","owner":"Enemy nest compositor","extent":"Clean base: ENEMY_ZONE_ROWS (32) x 8 = 256 bytes at ENEMY_ZONE_BG. Composed dormant cache: four 128-byte frames = 512 bytes at ENEMY_NEST_CACHE.","clean_source":"capture_zone_bg captures the actor-free nest base. build_enemy_nest_cache copies its lower 128 bytes and composes each dormant frame; composed cache pixels are not an actor-free save-under.","capture":["capture_zone_bg","build_enemy_nest_cache"],"restore":["compose_enemy_zone"],"draw":["compose_enemy_animation"],"validity":["ENTITY_CACHE_COLOR"],"invalidation":["colour_prepare_nest","roam_mark_underlay"],"publication":["framebuffer_capture_back"],"order":"Hydrate selected BACK metadata; restore affected actor closure; capture clean pixels; draw actors; publish metadata. Declaration, not control-flow proof.","overlap":"Closure restoration must remove overlapping actors before capture. A/B owner metadata follows the selected framebuffer, not the actor alone.","verifier":["scripts/verify_enemy_framebuffer.py"]}
 build_enemy_nest_cache
         lda     ENEMY_ANIM
         pshs    a

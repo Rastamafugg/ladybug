@@ -61,7 +61,7 @@ def validate(root, artifacts, config):
     for output, invocation in emitted.items():
         module = configured[output]
         for key in ('source', 'listing', 'map'):
-            if module[key] != invocation[key]:
+            if module.get('assembly_' + key, module[key]) != invocation[key]:
                 raise ValueError(f'module identity mismatch: {output}:{key}')
     return receipt
 

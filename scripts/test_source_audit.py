@@ -17,6 +17,7 @@ class OperandTests(unittest.TestCase):
         self.assertEqual(access('        lda [RING_BASE]', 'RING_BASE')['access'], 'unresolved-indirect')
         self.assertEqual(access('        lda RING_BASE,x', 'RING_BASE')['offset'], None)
         self.assertEqual(access('        fdb RING_BASE', 'RING_BASE')['access'], 'expression')
+        self.assertEqual(access('        clr RING_BASE', 'RING_BASE')['access'], 'write')
     def test_collision_and_permitted_sharing(self):
         a=dict(id='pointer', address=0x9e,width=2,mapping='DP',phases=['render'])
         b=dict(id='colour', address=0x9f,width=1,mapping='DP',phases=['render'])
@@ -67,6 +68,9 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(any('does not declare symbol' in e for e in self.audit()['errors']))
     def test_duplicate_identity(self):
         self.assertTrue(any('duplicat' in e for e in self.audit([self.lines[0]]+self.lines)['errors']))
+    def test_generated_mirror_mismatch(self):
+        record=dict(self.record,mirrors=[['INDEX','entry']])
+        self.assertTrue(any('mirror mismatch' in e for e in self.audit(['; @audit '+json.dumps(record)]+self.lines[1:])['errors']))
     def test_scratch_allocation_and_access_extent(self):
         record=dict(id='scratch',kind='scratch',symbol='entry',width=2,mapping='DP',phases=['render'],owner='renderer',initialization='before use',lifetime='call',clobbers='D')
         lines=['; @audit '+json.dumps(record),'entry','        rmb 2','        std entry']
