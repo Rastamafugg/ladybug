@@ -376,6 +376,13 @@ def build_project_reference(
             artifact_hashes.append((str(item["map"]), _sha256(map_file)))
         if binary is not None:
             artifact_hashes.append((str(item["binary"]), _sha256(binary)))
+        relocation_items = []
+        for relocation in item.get('relocations', []):
+            if relocation.get('length_source') == 'binary':
+                if binary is None:
+                    raise ValueError(f'missing relocation-length artifact: {module_id}')
+                relocation = dict(relocation, length=binary.stat().st_size)
+            relocation_items.append(relocation)
         modules.append(
             ModuleReference(
                 id=module_id,
@@ -398,7 +405,7 @@ def build_project_reference(
                     module_id, source_lines, memory_structures
                 ),
                 calls=calls,
-                relocations=_relocations(module_id, item.get("relocations", [])),
+                relocations=_relocations(module_id, relocation_items),
                 artifact_hashes=tuple(artifact_hashes),
             )
         )

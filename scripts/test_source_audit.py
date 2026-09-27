@@ -4,9 +4,28 @@ import json
 from pathlib import Path
 from types import SimpleNamespace as NS
 import tempfile
+import shutil
 import unittest
 from source_reference.audit import access, overlap_errors, build_audit
 from source_reference.provenance import inputs, validate, digest
+from source_reference.normalize import build_project_reference
+
+class RelocationTests(unittest.TestCase):
+    def test_current_binary_size_replaces_old_copied_length(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary)
+            fixture=Path(__file__).parent/'fixtures/source-reference'
+            shutil.copytree(fixture,root,dirs_exist_ok=True)
+            config=json.loads((root/'project.json').read_text())
+            module=config['modules'][1]
+            module['binary']='module_b.bin'
+            module['relocations'][0]['length_source']='binary'
+            (root/'module_b.bin').write_bytes(b'\x39\x12')
+            project=build_project_reference(config,root,root)
+            self.assertEqual(project.modules[1].relocations[0].length,2)
+            (root/'module_b.bin').write_bytes(b'\x39')
+            project=build_project_reference(config,root,root)
+            self.assertEqual(project.modules[1].relocations[0].length,1)
 
 class OperandTests(unittest.TestCase):
     def test_width_and_address(self):
