@@ -1,0 +1,607 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "status": "Proposed, High-risk; profile and assembly-only proposal",
+  "source": "e880b52 plus bug058-nest-fit-20260927.patch; acceptance recorded at 6450f22",
+  "rom_sha256": "2bb8eadeff9bf096dcb080e3e14c76cc8d68bbea6a7a57a8660604e5f85df26e",
+  "probe": {
+    "rom_sha256": "2bb8eadeff9bf096dcb080e3e14c76cc8d68bbea6a7a57a8660604e5f85df26e",
+    "phase": "controlled release-count sweep with real movement/render/audio",
+    "deadline_seconds": 45,
+    "success_marker": "At counts three and four: release cue 5 observed, followed by 16 consecutive cue-5-free worklists; normal ticks remain enabled",
+    "timeout_meaning": "named sample boundary absent, not proof of target slowdown",
+    "controlled": "player parked at legal maze cell recorded in park_cell; existing enemy_release_impl called early; fixture leaves movement/render/collision/audio/clock execution intact; candidate code is identified by ROM hash; setup drains prior audio, then records the new release until cue 5 ends",
+    "clock_units": "event_ticks / 8 at verified fast clock; monitor cpu_cycles incorrectly divides by16",
+    "identity": "live presentation/resident phase prologues, complete enemy module and release destination match artifacts",
+    "controlled_cleared_skulls": [
+      [
+        14,
+        2,
+        1,
+        0
+      ],
+      [
+        22,
+        12,
+        1,
+        0
+      ]
+    ],
+    "park_cell": [
+      22,
+      22
+    ],
+    "result": "captured"
+  },
+  "command": "python3 repro/bug058-fit-live-count-20260927.py FIT_WORKTREE OUTPUT_JSON --release-window --park-far --cleared-skulls --four-render-profile",
+  "raw_sha256": "472c6add3abd2081225cd5c7a94b78fe6e9c5025d5974585b8ed79daceba3b1f",
+  "observation_check": "All 244 worklist totals, recorded state bytes and front IDs exactly match prior nest-music trace",
+  "four_release_active": {
+    "worklist": {
+      "mean": 35691.243902439026,
+      "minimum": 22352,
+      "maximum": 90619,
+      "samples": 82
+    },
+    "over_27000": 78,
+    "parts": {
+      "prepare": {
+        "mean": 969.0365853658536,
+        "minimum": 568,
+        "maximum": 29070,
+        "samples": 82
+      },
+      "player_restore": {
+        "mean": 1209,
+        "minimum": 1209,
+        "maximum": 1209,
+        "samples": 82
+      },
+      "enemy_restore": {
+        "mean": 5593.865853658536,
+        "minimum": 4083,
+        "maximum": 6293,
+        "samples": 82
+      },
+      "background": {
+        "mean": 4131.59756097561,
+        "minimum": 137,
+        "maximum": 41797,
+        "samples": 82
+      },
+      "capture": {
+        "mean": 3641.451219512195,
+        "minimum": 466,
+        "maximum": 5393,
+        "samples": 82
+      },
+      "enemy_draw": {
+        "mean": 9853.975609756097,
+        "minimum": 7480,
+        "maximum": 11345,
+        "samples": 82
+      },
+      "player_draw": {
+        "mean": 3154.1951219512193,
+        "minimum": 3099,
+        "maximum": 3248,
+        "samples": 82
+      },
+      "colour_sync": {
+        "mean": 331.5731707317073,
+        "minimum": 15,
+        "maximum": 25974,
+        "samples": 82
+      },
+      "colour_draw": {
+        "mean": 649.439024390244,
+        "minimum": 0,
+        "maximum": 26627,
+        "samples": 82
+      }
+    }
+  },
+  "four_release_finished": {
+    "worklist": {
+      "mean": 32205.125,
+      "minimum": 29646,
+      "maximum": 38535,
+      "samples": 16
+    },
+    "over_27000": 16,
+    "parts": {
+      "prepare": {
+        "mean": 593.75,
+        "minimum": 585,
+        "maximum": 609,
+        "samples": 16
+      },
+      "player_restore": {
+        "mean": 1209,
+        "minimum": 1209,
+        "maximum": 1209,
+        "samples": 16
+      },
+      "enemy_restore": {
+        "mean": 6205.6875,
+        "minimum": 5482,
+        "maximum": 6645,
+        "samples": 16
+      },
+      "background": {
+        "mean": 821.75,
+        "minimum": 153,
+        "maximum": 2840,
+        "samples": 16
+      },
+      "capture": {
+        "mean": 3941.6875,
+        "minimum": 3104,
+        "maximum": 4605,
+        "samples": 16
+      },
+      "enemy_draw": {
+        "mean": 9557.25,
+        "minimum": 8095,
+        "maximum": 10503,
+        "samples": 16
+      },
+      "player_draw": {
+        "mean": 3169,
+        "minimum": 3150,
+        "maximum": 3248,
+        "samples": 16
+      },
+      "colour_sync": {
+        "mean": 15,
+        "minimum": 15,
+        "maximum": 15,
+        "samples": 16
+      },
+      "colour_draw": {
+        "mean": 0,
+        "minimum": 0,
+        "maximum": 0,
+        "samples": 16
+      }
+    }
+  },
+  "boundaries": {
+    "prepare": "framebuffer_prepare_back -> actor_closure_restore",
+    "player_restore": "actor_closure_restore -> acr_enemies; includes setup",
+    "enemy_restore": "acr_enemies -> framebuffer_queue_damage; includes loop bookkeeping",
+    "capture": "first acd_save_loop -> first acd_draw_loop",
+    "enemy_draw": "first acd_draw_loop -> acd_death",
+    "player_draw": "acd_normal_player -> framebuffer_finish_back; includes capture",
+    "background": "sum frame_render_background -> fri_background_done",
+    "colour_sync": "sync_entity_cache_colour -> secc_done; subset of prepare",
+    "colour_draw": "render_entity_colour -> de_colour_done; subset of background"
+  },
+  "units": "Observed event_ticks/8 including waits; averages/maxima are fixture observations, not worst-case bounds. Do not add nested colour intervals twice.",
+  "peak": {
+    "requested_count": 4,
+    "index": 19,
+    "active": 4,
+    "death": 0,
+    "front": 0,
+    "state": [
+      0,
+      7,
+      0,
+      0,
+      4,
+      4,
+      1,
+      0,
+      0,
+      0,
+      164,
+      120
+    ],
+    "event_start": 257342432,
+    "vbord": 952,
+    "missed_commit": 116,
+    "marks": [
+      [
+        "main_game_tick_normal",
+        414
+      ],
+      [
+        "enemy_tick",
+        502
+      ],
+      [
+        "main_after_player",
+        2099
+      ],
+      [
+        "main_render",
+        2451
+      ],
+      [
+        "framebuffer_prepare_back",
+        2481
+      ],
+      [
+        "sync_entity_cache_colour",
+        2951
+      ],
+      [
+        "secc_done",
+        28925
+      ],
+      [
+        "actor_closure_restore",
+        31551
+      ],
+      [
+        "acr_enemies",
+        32760
+      ],
+      [
+        "framebuffer_queue_damage",
+        39053
+      ],
+      [
+        "framebuffer_project_damage",
+        39460
+      ],
+      [
+        "roam_mark_underlay",
+        39528
+      ],
+      [
+        "frame_render_background",
+        39575
+      ],
+      [
+        "render_entity_colour",
+        39612
+      ],
+      [
+        "de_colour_done",
+        66239
+      ],
+      [
+        "fri_background_done",
+        68717
+      ],
+      [
+        "actor_closure_draw",
+        68731
+      ],
+      [
+        "acd_save_loop",
+        68758
+      ],
+      [
+        "acd_save_loop",
+        69624
+      ],
+      [
+        "acd_save_loop",
+        70511
+      ],
+      [
+        "acd_save_loop",
+        71563
+      ],
+      [
+        "acd_draw_loop",
+        72627
+      ],
+      [
+        "acd_draw_loop",
+        75461
+      ],
+      [
+        "acd_draw_loop",
+        78295
+      ],
+      [
+        "acd_draw_loop",
+        80581
+      ],
+      [
+        "acd_death",
+        83034
+      ],
+      [
+        "acd_normal_player",
+        83073
+      ],
+      [
+        "framebuffer_finish_back",
+        86223
+      ],
+      [
+        "main_entry_audio",
+        87025
+      ],
+      [
+        "audio_process_queue",
+        87507
+      ],
+      [
+        "audio_process_queue",
+        87890
+      ],
+      [
+        "audio_music_dispatch",
+        87912
+      ],
+      [
+        "audio_advance_all",
+        87956
+      ],
+      [
+        "audio_credit_service",
+        88516
+      ],
+      [
+        "audio_mix",
+        88539
+      ],
+      [
+        "audio_mix_write",
+        89913
+      ],
+      [
+        "mainloop",
+        90619
+      ]
+    ],
+    "audio_before": {
+      "slots": [
+        255,
+        5,
+        255,
+        255
+      ],
+      "music_queue": 0
+    },
+    "audio_after": {
+      "slots": [
+        255,
+        5,
+        4,
+        255
+      ],
+      "music_queue": 0
+    },
+    "cycles": 90619,
+    "parts": {
+      "prepare": 29070,
+      "player_restore": 1209,
+      "enemy_restore": 6293,
+      "background": 29142,
+      "capture": 3869,
+      "enemy_draw": 10407,
+      "player_draw": 3150,
+      "colour_sync": 25974,
+      "colour_draw": 26627
+    }
+  },
+  "quiet_peak": {
+    "requested_count": 4,
+    "index": 82,
+    "active": 4,
+    "death": 0,
+    "front": 1,
+    "state": [
+      0,
+      8,
+      0,
+      0,
+      4,
+      4,
+      1,
+      0,
+      0,
+      0,
+      164,
+      120
+    ],
+    "event_start": 288043584,
+    "vbord": 1080,
+    "missed_commit": 141,
+    "marks": [
+      [
+        "main_game_tick_normal",
+        414
+      ],
+      [
+        "enemy_tick",
+        502
+      ],
+      [
+        "main_after_player",
+        4612
+      ],
+      [
+        "main_render",
+        4871
+      ],
+      [
+        "framebuffer_prepare_back",
+        4901
+      ],
+      [
+        "sync_entity_cache_colour",
+        5363
+      ],
+      [
+        "secc_done",
+        5378
+      ],
+      [
+        "actor_closure_restore",
+        5499
+      ],
+      [
+        "acr_enemies",
+        6708
+      ],
+      [
+        "framebuffer_queue_damage",
+        12794
+      ],
+      [
+        "framebuffer_project_damage",
+        13198
+      ],
+      [
+        "roam_mark_underlay",
+        13915
+      ],
+      [
+        "frame_render_background",
+        13992
+      ],
+      [
+        "fri_background_done",
+        14330
+      ],
+      [
+        "roam_mark_underlay",
+        14699
+      ],
+      [
+        "frame_render_background",
+        14746
+      ],
+      [
+        "fri_background_done",
+        17248
+      ],
+      [
+        "actor_closure_draw",
+        17262
+      ],
+      [
+        "acd_save_loop",
+        17289
+      ],
+      [
+        "acd_save_loop",
+        18347
+      ],
+      [
+        "acd_save_loop",
+        19237
+      ],
+      [
+        "acd_save_loop",
+        20292
+      ],
+      [
+        "acd_draw_loop",
+        21170
+      ],
+      [
+        "acd_draw_loop",
+        23614
+      ],
+      [
+        "acd_draw_loop",
+        26448
+      ],
+      [
+        "acd_draw_loop",
+        28734
+      ],
+      [
+        "acd_death",
+        31673
+      ],
+      [
+        "acd_normal_player",
+        31721
+      ],
+      [
+        "framebuffer_finish_back",
+        34871
+      ],
+      [
+        "main_entry_audio",
+        35670
+      ],
+      [
+        "audio_process_queue",
+        36152
+      ],
+      [
+        "audio_process_queue",
+        36482
+      ],
+      [
+        "audio_music_dispatch",
+        36504
+      ],
+      [
+        "audio_advance_all",
+        36548
+      ],
+      [
+        "audio_credit_service",
+        36939
+      ],
+      [
+        "audio_mix",
+        36962
+      ],
+      [
+        "audio_mix_write",
+        37859
+      ],
+      [
+        "mainloop",
+        38535
+      ]
+    ],
+    "audio_before": {
+      "slots": [
+        255,
+        255,
+        255,
+        255
+      ],
+      "music_queue": 0
+    },
+    "audio_after": {
+      "slots": [
+        255,
+        4,
+        255,
+        255
+      ],
+      "music_queue": 0
+    },
+    "cycles": 38535,
+    "parts": {
+      "prepare": 598,
+      "player_restore": 1209,
+      "enemy_restore": 6086,
+      "background": 2840,
+      "capture": 3881,
+      "enemy_draw": 10503,
+      "player_draw": 3150,
+      "colour_sync": 15,
+      "colour_draw": 0
+    }
+  },
+  "proposal": {
+    "name": "Fixed-displacement enemy restore stores",
+    "scope": "Only eight rcbtf phase row bodies and three existing destination advances; no helper contract change",
+    "assembled_bytes": 4091,
+    "changed_binary_bytes": 35,
+    "all_symbol_addresses_unchanged": true,
+    "fixed_tail_identical": true,
+    "proposal_enemy_sha256": "8d0d86edf79b487746ea6703d457b5ad757e72dd5acdff4c71a882bf51b7ff96",
+    "projected_cpu_saving": "9 nominal CPU cycles per row, 144 per complete enemy restore, 576 per four restores; unmeasured",
+    "fit_target": "At least 500 elapsed cycles saved per four complete enemy restores; no sampled worklist regression",
+    "limits": "Zero code/data growth, zero scratch additions; full build and cartridge packing remain fit gates",
+    "verification": "256 ring cases with independent pixel oracle, both real framebuffer owners; clean natural startup, 40 render crossovers, matched release-window workload, full build/audit; natural moving-player overlap checks before acceptance",
+    "exclusions": "No retained-actor skipping, sparse format/decoder change, colour-cache redesign, shared copy-helper change, MMU/loader change or raised limits"
+  }
+}

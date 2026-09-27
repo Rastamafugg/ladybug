@@ -5,7 +5,7 @@ import verify_bug011_runtime as r
 import verify_bug009_monitor_input as m
 b=root/'build';ms=r.symbols(b/'ladybug.map');ps=r.symbols(b/'ladybug-presentation-runtime.map');es=r.symbols(b/'ladybug-enemy-runtime.map');rom=b/'ladybug.rom';resident=(b/'ladybug-runtime.rom').read_bytes();enemy=(b/'ladybug-enemy-runtime.rom').read_bytes();presentation=(b/'ladybug-presentation-runtime.bin').read_bytes()
 au=r.symbols(b/'ladybug-audio-runtime.map');audio=(b/'ladybug-audio-runtime.bin').read_bytes()
-e={'rom_sha256':hashlib.sha256(rom.read_bytes()).hexdigest(),'phase':'controlled release-count sweep with real movement/render/audio','deadline_seconds':45,'success_marker':'16 worklists each at zero through four released enemies','timeout_meaning':'named sample boundary absent, not proof of target slowdown','controlled':'player parked at legal maze cell (2,2); existing enemy_release_impl called early; fixture leaves movement/render/collision/audio/clock execution intact; candidate code is identified by ROM hash','clock_units':'event_ticks / 8 at verified fast clock; monitor cpu_cycles incorrectly divides by16','samples':[]}
+e={'rom_sha256':hashlib.sha256(rom.read_bytes()).hexdigest(),'phase':'controlled release-count sweep with real movement/render/audio','deadline_seconds':45,'success_marker':'16 worklists each at zero through four released enemies','timeout_meaning':'named sample boundary absent, not proof of target slowdown','controlled':'player parked at legal maze cell recorded in park_cell; existing enemy_release_impl called early; fixture leaves movement/render/collision/audio/clock execution intact; candidate code is identified by ROM hash','clock_units':'event_ticks / 8 at verified fast clock; monitor cpu_cycles incorrectly divides by16','samples':[]}
 # Decode installed stream commands offline; runtime matches the entire mapped stream.
 stream_catalog=[]
 if '--sparse-mix' in sys.argv[3:]:
@@ -82,6 +82,12 @@ try:
  if '--renderer-costs' in sys.argv[3:]:
   for n in ['draw_perimeter_box','dpb_row']:
    a=ms[n];assert read(a,8)==resident[a-0xc000:a-0xc000+8],n;markers[a]=n
+ if '--four-render-profile' in sys.argv[3:]:
+  for symbols,artifact,base,names in [(ms,resident,0xc000,['sync_entity_cache_colour','secc_done','render_entity_colour','de_colour_done']),(es,enemy,0x800,['acr_enemies','fri_background_done'])]:
+   for n in names:
+    a=symbols[n];assert read(a,8)==artifact[a-base:a-base+8],n
+    assert a not in markers,('marker alias',n,markers.get(a))
+    markers[a]=n
  audio_markers={}
  for n in ['audio_process_queue','audio_music_dispatch','audio_advance_all','audio_credit_service','audio_mix','audio_mix_write']:
   if n in au:markers[au[n]]=n;audio_markers[au[n]]=n

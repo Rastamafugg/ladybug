@@ -1,0 +1,141 @@
+--- a/src/enemy_runtime.s
++++ b/src/enemy_runtime.s
+@@ -2389,10 +2389,10 @@
+ rcbtf_phase0_row
+         pulu    d,y
+-        std     ,x++
+-        sty     ,x++
++        std     ,x
++        sty     2,x
+         pulu    d,y
+-        std     ,x++
+-        sty     ,x++
+-        leax    152,x
++        std     4,x
++        sty     6,x
++        leax    160,x
+         dec     GATE_COPY_ROWS
+         bne     rcbtf_phase0_row
+@@ -2403,12 +2403,12 @@
+ rcbtf_phase1_row
+         ldd     1,u
+-        std     ,x++
++        std     ,x
+         ldd     3,u
+-        std     ,x++
++        std     2,x
+         ldd     5,u
+-        std     ,x++
++        std     4,x
+         lda     7,u
+         ldb     ,u
+-        std     ,x++
++        std     6,x
+         bra     rcbtf_row_finish
+
+@@ -2417,11 +2417,11 @@
+ rcbtf_phase2_row
+         ldd     2,u
+-        std     ,x++
++        std     ,x
+         ldd     4,u
+-        std     ,x++
++        std     2,x
+         ldd     6,u
+-        std     ,x++
++        std     4,x
+         ldd     ,u
+-        std     ,x++
++        std     6,x
+         bra     rcbtf_row_finish
+
+@@ -2430,12 +2430,12 @@
+ rcbtf_phase3_row
+         ldd     3,u
+-        std     ,x++
++        std     ,x
+         ldd     5,u
+-        std     ,x++
++        std     2,x
+         lda     7,u
+         ldb     ,u
+-        std     ,x++
++        std     4,x
+         ldd     1,u
+-        std     ,x++
++        std     6,x
+         bra     rcbtf_row_finish
+
+@@ -2444,12 +2444,12 @@
+ rcbtf_phase5_row
+         ldd     5,u
+-        std     ,x++
++        std     ,x
+         lda     7,u
+         ldb     ,u
+-        std     ,x++
++        std     2,x
+         ldd     1,u
+-        std     ,x++
++        std     4,x
+         ldd     3,u
+-        std     ,x++
++        std     6,x
+         bra     rcbtf_row_finish
+
+@@ -2458,11 +2458,11 @@
+ rcbtf_phase6_row
+         ldd     6,u
+-        std     ,x++
++        std     ,x
+         ldd     ,u
+-        std     ,x++
++        std     2,x
+         ldd     2,u
+-        std     ,x++
++        std     4,x
+         ldd     4,u
+-        std     ,x++
++        std     6,x
+         bra     rcbtf_row_finish
+
+@@ -2472,15 +2472,15 @@
+         lda     7,u
+         ldb     ,u
+-        std     ,x++
++        std     ,x
+         ldd     1,u
+-        std     ,x++
++        std     2,x
+         ldd     3,u
+-        std     ,x++
++        std     4,x
+         ldd     5,u
+-        std     ,x++
++        std     6,x
+ rcbtf_row_finish
+         leau    8,u
+ rcbtf_row_advanced
+-        leax    152,x
++        leax    160,x
+         dec     GATE_COPY_ROWS
+         beq     rcbtf_rows_done
+@@ -2490,13 +2490,13 @@
+ rcbtf_phase4_row
+         ldd     4,u
+-        std     ,x++
++        std     ,x
+         ldd     6,u
+-        std     ,x++
++        std     2,x
+         ldd     ,u
+-        std     ,x++
++        std     4,x
+         ldd     2,u
+-        std     ,x++
++        std     6,x
+         leau    8,u
+-        leax    152,x
++        leax    160,x
+         dec     GATE_COPY_ROWS
+         bne     rcbtf_phase4_row
