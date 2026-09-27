@@ -43,6 +43,9 @@ try:
  if '--capture-paths' in sys.argv[3:]:
   for n in ['roam_update_background','rub_full','rub_horizontal','rub_vertical','rub_done','rub_column_done','rcrr_rotated']:
    a=es[n];assert read(a,8)==enemy[a-0x800:a-0x800+8],n;markers[a]=n
+ if '--sparse-costs' in sys.argv[3:]:
+  for n in ['sparse_blit_fb','sparse_blit_stage','sparse_decode_done']:
+   a=es[n];assert read(a,8)==enemy[a-0x800:a-0x800+8],n;markers[a]=n
  audio_markers={}
  for n in ['audio_process_queue','audio_music_dispatch','audio_advance_all','audio_credit_service','audio_mix','audio_mix_write']:
   if n in au:markers[au[n]]=n;audio_markers[au[n]]=n
@@ -59,6 +62,10 @@ try:
      c.call('run');h=c.call('wait_for_stop',{'timeout_ms':10000},timeout=12);a=h.get('pc');assert a in markers,h
      if a in audio_markers:assert read(a,8)==audio[a-0xa000:a-0xa000+8],audio_markers[a]
      t=(c.call('read_cycles')['event_ticks']-start)//8;row['marks'].append([markers[a],t])
+     if markers[a] in ['sparse_blit_fb','sparse_blit_stage']:
+      row.setdefault('decode_calls',[]).append({'path':markers[a],'entry':t})
+     if markers[a]=='sparse_decode_done':
+      call=row['decode_calls'][-1];assert 'cycles_to_epilogue' not in call;call['cycles_to_epilogue']=t-call['entry']
      if markers[a]=='roam_update_background':
       regs=c.call('read_registers');work=read(es['ENEMY_WORK'])[0];slot=4-work;mask=1<<slot;dirty=read(es['ENEMY_CAPTURE_DIRTY'])[0];valid=read(es['ENEMY_OLD_VALID'])[0];old=int.from_bytes(read(es['ENEMY_OLD_FB']+2*slot,2),'big');new=int.from_bytes(read(regs['x']+1,2),'big');delta=((new-old+32768)&65535)-32768
       reason='dirty' if dirty&mask else 'invalid' if not valid&mask else 'unchanged' if delta==0 else 'horizontal' if delta in ([-2,-1,1,2] if '--two-step' in sys.argv[3:] else [-1,1]) else 'vertical' if delta in ([-640,-320,320,640] if '--two-step' in sys.argv[3:] else [-320,320]) else 'unsupported-displacement'

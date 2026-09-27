@@ -10,6 +10,12 @@
 <div class="wiki-shell">
   <nav class="wiki-nav"><a href="../../index.html">&larr; Wiki home</a><a href="../index.html">Internal</a><a href="./index.html">Implementation</a></nav>
   <main class="wiki-main">
+<section id="sparse-decoder-fit-20260927"><h2>Sparse decoder fitting: stream bounds and immutable dispatch</h2>
+<p>The isolated <a href="../tickets/bug-058-three-enemy-slowdown.html#sparse-fit-20260927">BUG-058 sparse fit</a> preserves the generated stream format: destination delta, command byte, then opaque bytes or mask/pixel pairs. A zero extended delta terminates the stream. The framebuffer decoder uses 160-byte rows; the stage decoder translates the same deltas into an eight-byte row. Both restore PAR5 to page $34.</p>
+<p>Actor frames, score popups and death frames are eight bytes wide; multiplier tiles are four. Generated runs are therefore bounded to 1–8 bytes. The proposed framebuffer dispatch is an immutable eight-byte table of signed offsets relative to <code>sbf_opaque_table-1</code>. It replaces an opaque-length comparison chain; partial-nibble decoding and stage decoding remain unchanged. The independent harness checks assembled table entries against all eight labels, signed offset range, all indexed streams, shared consumers and synthetic lengths absent from current assets.</p>
+<p>This table is authored assembly data, not a generated asset index. It is registered as data in the isolated source-reference configuration. No index producer, scratch lifetime, retained-background layout, loader protocol or MMU ownership changes. The existing 18 audit contracts remain required. Indexed dispatch trades a slower formerly favoured five-byte run for cheaper other runs; corpus means do not establish live-game performance. Complete worklists and exact renderer replay remain necessary.</p>
+<p>Production source and its generated audit remain unchanged. Do not treat the main checkout's ownership page as certification of the isolated candidate. The fit receipt records candidate artifact and audit hashes.</p></section>
+
     <header class="wiki-header">
       <p class="wiki-eyebrow">Implementation &middot; data ownership</p>
       <h1>Data Layout Catalog <span class="wiki-badge">internal</span></h1>

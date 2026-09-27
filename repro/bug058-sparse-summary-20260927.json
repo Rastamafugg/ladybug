@@ -1,0 +1,367 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "status": "Proposed; experiment fitted but rejected for promotion; not Ready",
+  "source_base_revision": "e880b52",
+  "preceding_evidence_commit": "f42a565",
+  "production_changed": false,
+  "units": "Elapsed event ticks / 8; observed sample costs including hardware waits, not worst-case bounds",
+  "target_cycles": 27000,
+  "rom_sha256": "de1da8e5b9e272c721fbe147ac2d7754163fcc130ff1084a3ee50ccfdb3b796d",
+  "enemy_sha256": "e8d2f94902a5a755995fc892572af67fe28737372bf80e8f16db0a83ca402548",
+  "reference_enemy_sha256": "39f1ec0aef59c96aa0c23cb03a1521d0ce8d52056fe91a50839133ba35cb3748",
+  "patch_sha256": "251e018324f9b7827f7cc54bd138359b3e5eacbc43a635d75c9e3817d427d62c",
+  "design": "Eight-byte signed-relative opaque dispatch; shared 6-to-2 and 8-to-4 copy tails; unchanged partial and stage loops. No new scratch, stream format or ownership. All table offsets independently checked against labels and signed range.",
+  "decode_costs": {
+    "enemy framebuffer": {
+      "reference": {
+        "min": 1393,
+        "max": 3003,
+        "mean": 2296.8230769230768,
+        "samples": 260
+      },
+      "candidate": {
+        "min": 1375,
+        "max": 2941,
+        "mean": 2249.1153846153848,
+        "samples": 260
+      },
+      "saved_cycles": {
+        "min": -46,
+        "max": 198,
+        "mean": 47.707692307692305,
+        "samples": 260
+      },
+      "slower_cases": 36
+    },
+    "enemy stage": {
+      "reference": {
+        "min": 1781,
+        "max": 3342,
+        "mean": 2648.5846153846155,
+        "samples": 260
+      },
+      "candidate": {
+        "min": 1781,
+        "max": 3342,
+        "mean": 2648.5846153846155,
+        "samples": 260
+      },
+      "saved_cycles": {
+        "min": 0,
+        "max": 0,
+        "mean": 0.0,
+        "samples": 260
+      },
+      "slower_cases": 0
+    },
+    "player framebuffer": {
+      "reference": {
+        "min": 1487,
+        "max": 1879,
+        "mean": 1707.25,
+        "samples": 32
+      },
+      "candidate": {
+        "min": 1355,
+        "max": 1901,
+        "mean": 1700.875,
+        "samples": 32
+      },
+      "saved_cycles": {
+        "min": -30,
+        "max": 132,
+        "mean": 6.375,
+        "samples": 32
+      },
+      "slower_cases": 16
+    },
+    "player stage": {
+      "reference": {
+        "min": 1875,
+        "max": 2412,
+        "mean": 2223.75,
+        "samples": 32
+      },
+      "candidate": {
+        "min": 1875,
+        "max": 2412,
+        "mean": 2223.75,
+        "samples": 32
+      },
+      "saved_cycles": {
+        "min": 0,
+        "max": 0,
+        "mean": 0.0,
+        "samples": 32
+      },
+      "slower_cases": 0
+    }
+  },
+  "histograms": {
+    "enemy": {
+      "opaque1": 774,
+      "partial1": 1990,
+      "partial2": 567,
+      "opaque3": 368,
+      "opaque5": 336,
+      "partial3": 152,
+      "extended": 69,
+      "opaque4": 106,
+      "opaque6": 120,
+      "opaque2": 202,
+      "partial4": 4,
+      "opaque7": 16,
+      "partial5": 4
+    },
+    "player": {
+      "opaque1": 22,
+      "opaque3": 24,
+      "partial1": 228,
+      "opaque5": 80,
+      "extended": 8,
+      "opaque2": 16,
+      "opaque4": 32,
+      "opaque6": 28,
+      "opaque7": 4
+    }
+  },
+  "verification": {
+    "candidate_indexed_cases": 584,
+    "candidate_shared_and_synthetic_cases": 116,
+    "reference_indexed_cases": 584,
+    "independent_oracle": "all output bytes, two nonzero backgrounds, destination guards, installed/mapped stream identity and return to page $34",
+    "shared_consumers": "9 score/colour, 3 multiplier, 14 death; plus opaque and partial lengths 1..8 in framebuffer and stage modes",
+    "renderer_cases": 40,
+    "renderer_result": "pass",
+    "renderer_oracle": "Exact pixels and every page-$34 byte; identical RAM/register/mapping restored between variants, alternating call order. Video-event phase is not restored: timing differences include wait phase, never owner attribution.",
+    "decoder_artifact_boundary": "Controlled decoder cases booted the preceding two-step ROM, proved installed module/payload identity, then overlaid the hash-identified candidate. Complete worklists and crossovers booted the new ROM. Final built enemy bytes must match the measured overlay.",
+    "decoder_boot_rom_sha256": "ecc6d999c2ee4a155492c566d5fc8d9a93f067dd7766f8338dbbb0888d9d1cd5"
+  },
+  "worklists": {
+    "0": {
+      "reference": {
+        "min": 9932,
+        "max": 16248,
+        "mean": 11637.25,
+        "samples": 16,
+        "over_target": 0
+      },
+      "candidate": {
+        "min": 9952,
+        "max": 16268,
+        "mean": 11662.25,
+        "samples": 16,
+        "over_target": 0
+      },
+      "decoder_calls": 16,
+      "decoder_paths": [
+        "sparse_blit_fb"
+      ],
+      "mean_decoder_body_cycles_per_worklist": 1888.0,
+      "decoder_body_share": 0.1618898583035006,
+      "decoder_boundary": "entry through sparse_decode_done arrival; excludes stream lookup and mapping-restoration/return epilogue",
+      "paired_render_saved_cycles": {
+        "min": -30,
+        "max": -20,
+        "mean": -21.25,
+        "samples": 8
+      }
+    },
+    "1": {
+      "reference": {
+        "min": 14909,
+        "max": 20811,
+        "mean": 16413.0625,
+        "samples": 16,
+        "over_target": 0
+      },
+      "candidate": {
+        "min": 14956,
+        "max": 20853,
+        "mean": 16453.8125,
+        "samples": 16,
+        "over_target": 0
+      },
+      "decoder_calls": 32,
+      "decoder_paths": [
+        "sparse_blit_fb"
+      ],
+      "mean_decoder_body_cycles_per_worklist": 4448.75,
+      "decoder_body_share": 0.27037806587379065,
+      "decoder_boundary": "entry through sparse_decode_done arrival; excludes stream lookup and mapping-restoration/return epilogue",
+      "paired_render_saved_cycles": {
+        "min": -181,
+        "max": 97,
+        "mean": -39.5,
+        "samples": 8
+      }
+    },
+    "2": {
+      "reference": {
+        "min": 19286,
+        "max": 24545,
+        "mean": 21605.3125,
+        "samples": 16,
+        "over_target": 0
+      },
+      "candidate": {
+        "min": 19256,
+        "max": 24584,
+        "mean": 21617.8125,
+        "samples": 16,
+        "over_target": 0
+      },
+      "decoder_calls": 48,
+      "decoder_paths": [
+        "sparse_blit_fb"
+      ],
+      "mean_decoder_body_cycles_per_worklist": 6104.25,
+      "decoder_body_share": 0.282371308382844,
+      "decoder_boundary": "entry through sparse_decode_done arrival; excludes stream lookup and mapping-restoration/return epilogue",
+      "paired_render_saved_cycles": {
+        "min": -153,
+        "max": 163,
+        "mean": 4.75,
+        "samples": 8
+      }
+    },
+    "3": {
+      "reference": {
+        "min": 25090,
+        "max": 30398,
+        "mean": 27549.25,
+        "samples": 16,
+        "over_target": 11
+      },
+      "candidate": {
+        "min": 24675,
+        "max": 31366,
+        "mean": 27664.0,
+        "samples": 16,
+        "over_target": 10
+      },
+      "decoder_calls": 64,
+      "decoder_paths": [
+        "sparse_blit_fb"
+      ],
+      "mean_decoder_body_cycles_per_worklist": 8927.9375,
+      "decoder_body_share": 0.3227276424233661,
+      "decoder_boundary": "entry through sparse_decode_done arrival; excludes stream lookup and mapping-restoration/return epilogue",
+      "paired_render_saved_cycles": {
+        "min": -195,
+        "max": 115,
+        "mean": -48.25,
+        "samples": 8
+      }
+    },
+    "4": {
+      "reference": {
+        "min": 30171,
+        "max": 37726,
+        "mean": 33358.8125,
+        "samples": 16,
+        "over_target": 16
+      },
+      "candidate": {
+        "min": 30879,
+        "max": 38477,
+        "mean": 33352.25,
+        "samples": 16,
+        "over_target": 16
+      },
+      "decoder_calls": 80,
+      "decoder_paths": [
+        "sparse_blit_fb"
+      ],
+      "mean_decoder_body_cycles_per_worklist": 11029.1875,
+      "decoder_body_share": 0.3306879595829367,
+      "decoder_boundary": "entry through sparse_decode_done arrival; excludes stream lookup and mapping-restoration/return epilogue",
+      "paired_render_saved_cycles": {
+        "min": -212,
+        "max": 108,
+        "mean": -40.125,
+        "samples": 8
+      }
+    }
+  },
+  "memory": {
+    "enemy_used_limit": [
+      4091,
+      4096
+    ],
+    "pre_table_padding_bytes": 7,
+    "previous_pre_table_padding_bytes": 0,
+    "gmc_source_free_bytes": 413,
+    "new_scratch_bytes": 0,
+    "dispatch_table_bytes": 8,
+    "fixed_table_tail_unchanged": true
+  },
+  "build": {
+    "first_full_command_exit": 1,
+    "initial_gate": "Five now-indirect opaque labels missing classification; corrected. Incremental regeneration correctly rejected changed input provenance; complete rebuild passes.",
+    "final_full_command_exit": 0,
+    "final_full_command": "scripts/build.sh build",
+    "final_documentation": "PASS: 10 modules, 256/256 routines, 4096/4096 labels",
+    "audit_counts": {
+      "documented": 15,
+      "excluded": 1650,
+      "unresolved": 986
+    },
+    "audit_errors": [],
+    "audit_sha256": "9662d17479c783f1fba8c54e5e19ba091848562cb38b9947a0ae9b0c5c74cad2",
+    "final_artifacts_match_measured": true,
+    "final_build_log_sha256": "973c1a31eafa94bdec0683cfe62f27d8ef6d099974edb78f5c7504b0c3e75132",
+    "required_contracts": 18
+  },
+  "rejected": [
+    {
+      "variant": "16-bit dispatch table",
+      "reason": "Pre-table boundary exceeded by 10 bytes."
+    },
+    {
+      "variant": "Branch dispatch with specialized 7/8 runs",
+      "reason": "Pre-table boundary exceeded by 5 bytes."
+    },
+    {
+      "variant": "Relative table plus direct length-5 branch",
+      "reason": "Enemy corpus average saving falls to 7.38 cycles; discarded."
+    },
+    {
+      "variant": "V-flag partial counter",
+      "reason": "Not retained; original partial loop restored after sharing copy tails recovered space."
+    },
+    {
+      "variant": "Final byte-relative table",
+      "reason": "Corpus mean improves but active renderer samples regress. Not recommended over previous two-step fit."
+    }
+  ],
+  "residual_risks": [
+    "Three/four-enemy 27,000-cycle target still fails.",
+    "Existing one-byte capture regression remains inherited.",
+    "Parked player with early releases is not sustained natural moving-player/demo/name-entry acceptance.",
+    "Earlier gate-cache verifier issue remains open.",
+    "No audible/audio acceptance claimed; this change leaves audio bytes unchanged."
+  ],
+  "decision": "Keep prior two-step fit as reference; retain this isolated decoder experiment for learning, not production or Ready assignment. Next scope should measure command mix in actual costly frames before another dispatch or partial-blend fit; no format expansion or broader memory reductions are approved.",
+  "worklist_limit": "Different sampled execution sequences; maxima are not identical-state worst-case comparisons. Both active count and no death are asserted.",
+  "commands": [
+    "scripts/build.sh build",
+    "python3 repro/bug058-sparse-cost-20260927.py FIT_WORKTREE bug058-sparse-reference OUTPUT_JSON",
+    "python3 repro/bug058-sparse-cost-20260927.py FIT_WORKTREE bug058-sparse-check OUTPUT_JSON",
+    "python3 repro/bug058-render-crossover-20260927.py FIT_WORKTREE OUTPUT_JSON FIT_WORKTREE bug058-sparse-reference bug058-sparse-check",
+    "python3 repro/bug058-fit-live-count-20260927.py FIT_WORKTREE OUTPUT_JSON --sparse-costs"
+  ],
+  "raw_sha256": {
+    "bug058-sparse-cost-fit-20260927.json": "9b3aae02edf280e4a90c684db5d1b04927ab7b68e80a5ad701a06009f1191508",
+    "bug058-sparse-cost-reference-20260927.json": "88781ef6cd3f914ea4caa4bee3f11c7782ef93ed1f2ad46df71c19b3713d4b3d",
+    "bug058-sparse-crossover-20260927.json": "3c1ba5f4d6f89350ce0a5e5ac6659f1fffef8f586211ea5c4532d529162cecc8",
+    "bug058-sparse-fast5-cost-20260927.json": "9e4c5e123cf37954822e75bc7ddb26994d29be8ebe718344f47810363704b5a0",
+    "bug058-sparse-initial-cost-20260927.json": "f53f79936f78649ef15a270bff0305be9d8f538fc3b55f366c1e7290a42997c4",
+    "bug058-sparse-live-count-20260927.json": "1bdb07d4ce9ed3fc778fcc088e30d3333eaa08ca93e35690222ed9ba20ca0eed"
+  },
+  "probe_corrections": [
+    "MMU register readback was not used as mapping proof; final harness compares mapped page-$34 bytes with physical page-$34 bytes.",
+    "A shell working-directory expansion pointed one harness launch at the main build folder; corrected to an explicit fitting path before any runtime case."
+  ]
+}
