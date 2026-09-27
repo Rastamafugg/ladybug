@@ -143,6 +143,9 @@ try:
      c.call('run');h=c.call('wait_for_stop',{'timeout_ms':10000},timeout=12);a=h.get('pc');assert a in markers,h
      if a in audio_markers:assert read(a,8)==audio[a-0xa000:a-0xa000+8],audio_markers[a]
      t=(c.call('read_cycles')['event_ticks']-start)//8;row['marks'].append([markers[a],t])
+     if '--cadence-state' in sys.argv and count==4 and markers[a]=='framebuffer_prepare_back':
+      owner=read(ms['FB_BACK_ID'])[0];meta=es['FB_META_A'] if owner==0 else es['FB_META_B']
+      row['cadence_state']={'back_owner':owner,'commit_seq':int.from_bytes(read(ms['FB_COMMIT_SEQ'],2),'big'),'enemies':list(read(es['ENEMY_TABLE'],32)),'owner_enemies':list(read(meta+es['FBM_ENEMIES'],32)),'player_cell':list(read(ms['PLAYER_CELL_X'],2)),'player_fb':int.from_bytes(read(ms['PLAYER_FB'],2),'big'),'owner_player_fb':int.from_bytes(read(meta+es['FBM_PLAYER_FB'],2),'big'),'intents':list(read(ms['RENDER_FLAGS'],16)),'pending':list(read(meta+es['FBM_PENDING_INTENTS'],18))}
      if '--colour-pairs' in sys.argv:
       if markers[a]=='sync_entity_cache_colour' and read(ms['ENTITY_CACHE_COLOR'])[0] not in (0,read(ms['BONUS_COLOR'])[0]):
        row.setdefault('colour_pair_calls',[]).append(dict(mode='rebind',entry=t,**colour_pair_count(True)))

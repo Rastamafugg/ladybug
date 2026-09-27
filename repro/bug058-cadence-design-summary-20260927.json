@@ -1,0 +1,884 @@
+{
+  "ticket": "BUG-058",
+  "status": "Design/capacity review, Proposed; no implementation approval or complete ROM fit",
+  "rom_sha256": "9f96bdb524f5a1bc730a6b225dd2f62c4ac4d47339108f8f9b8b549472b78b53",
+  "profile_hash": "d1896d561ef9fbe91b2d5c74932e9f85082a42e65cbf3822aeb3e57359d4701b",
+  "profile_identity": "244 timing and state samples reproduce current-ROM baseline exactly; extra reads only",
+  "models": {
+    "global_fallback": {
+      "description": "Conservative global fallback with exact host AABBs; positions only, animation omitted, therefore optimistic selection count",
+      "steady_selected_counts": {
+        "4": 16
+      },
+      "steady_rows": [
+        {
+          "index": 82,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "background"
+          ],
+          "overlaps": []
+        },
+        {
+          "index": 83,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 84,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 85,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 86,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 87,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 88,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 89,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap",
+            "background"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 90,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap",
+            "background"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 91,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 92,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 93,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 94,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 95,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 96,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 97,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "overlap",
+            "background"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        }
+      ],
+      "hash": "3a546da38363f4497898b74f7de58cb0dc7acfb73424ad560288956e91be6a87"
+    },
+    "selective_12_34": {
+      "description": "Selective transitive closure plus global background fallback; exact host AABBs; positions only, animation omitted, therefore optimistic selection count",
+      "steady_selected_counts": {
+        "4": 4,
+        "2": 1,
+        "3": 11
+      },
+      "steady_rows": [
+        {
+          "index": 82,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "background"
+          ],
+          "overlaps": []
+        },
+        {
+          "index": 83,
+          "owner": 1,
+          "selected": [
+            2,
+            3
+          ],
+          "fallback": [],
+          "overlaps": []
+        },
+        {
+          "index": 84,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 85,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 86,
+          "owner": 0,
+          "selected": [
+            1,
+            2,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 87,
+          "owner": 1,
+          "selected": [
+            1,
+            2,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 88,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 89,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "background"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 90,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "background"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 91,
+          "owner": 1,
+          "selected": [
+            1,
+            2,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 92,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 93,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 94,
+          "owner": 0,
+          "selected": [
+            1,
+            2,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 95,
+          "owner": 1,
+          "selected": [
+            1,
+            2,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 96,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 97,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "background"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        }
+      ],
+      "hash": "090ee09357d0e77d7e6161a2df678cd3734b8b88363169f6852f67401f689d7e"
+    },
+    "selective_13_24": {
+      "description": "Selective transitive closure plus global background fallback; exact host AABBs; positions only, animation omitted, therefore optimistic selection count",
+      "steady_selected_counts": {
+        "4": 4,
+        "2": 12
+      },
+      "steady_rows": [
+        {
+          "index": 82,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "background"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 83,
+          "owner": 1,
+          "selected": [
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 84,
+          "owner": 0,
+          "selected": [
+            0,
+            2
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 85,
+          "owner": 1,
+          "selected": [
+            0,
+            2
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 86,
+          "owner": 0,
+          "selected": [
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 87,
+          "owner": 1,
+          "selected": [
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 88,
+          "owner": 0,
+          "selected": [
+            0,
+            2
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 89,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "background"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 90,
+          "owner": 0,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "background"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 91,
+          "owner": 1,
+          "selected": [
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 92,
+          "owner": 0,
+          "selected": [
+            0,
+            2
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 93,
+          "owner": 1,
+          "selected": [
+            0,
+            2
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 94,
+          "owner": 0,
+          "selected": [
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 95,
+          "owner": 1,
+          "selected": [
+            1,
+            3
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 96,
+          "owner": 0,
+          "selected": [
+            0,
+            2
+          ],
+          "fallback": [],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        },
+        {
+          "index": 97,
+          "owner": 1,
+          "selected": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "fallback": [
+            "background"
+          ],
+          "overlaps": [
+            [
+              1,
+              3
+            ]
+          ]
+        }
+      ],
+      "hash": "d15fcbe17bb330342a25f3ea9e012a1d956652064d2e8626ea7e0a501ee13f2a"
+    }
+  },
+  "capacity": {
+    "status": "Call-site sizing spike only; planner and relocated publisher bodies not linked. Not a ROM and not a complete fit.",
+    "state_bytes": 76,
+    "state_range": [
+      "BC04",
+      "BC4F"
+    ],
+    "proposed_executable_range": [
+      "BC50",
+      "BFFD"
+    ],
+    "executable_bytes_available": 942,
+    "proposed_publisher_entry": "BC50",
+    "proposed_planner_entry": "BD00",
+    "resident_helper_bytes": 9,
+    "resident_used": 8179,
+    "resident_limit": 8192,
+    "enemy_artifact_bytes": 4091,
+    "cartridge_source_free": 413,
+    "relocated_publisher_old_bytes": 61,
+    "relocated_publisher_gateway_bytes": 3,
+    "new_low_module_net_bytes": -18,
+    "runtime_changed": false,
+    "enemy_pre_table_bytes_free": 18,
+    "resident_bytes_free": 13,
+    "layout_limit": "Planner, relocated publisher extension and loader integration remain unassembled/unlinked. These component fits are not a complete cartridge fit."
+  },
+  "decision": "Reject global-overlap fallback as ineffective in this fixture. Selective closure plus pairing is worth a bounded prototype, but cannot promise 27000 on mandatory full redraws. Complete planner/source fit is unresolved. Runtime unchanged.",
+  "natural_visual_policy": "Only rendering cadence changes; logic uses authoritative ENEMY_TABLE. Full cached frame ID is part of displayed pose. Two consecutive actual buffer publications use one latched pair pose. Four-publication cycle, no phase advance on missed commit.",
+  "limits": "Position-only host model does not prove animation, pixels, capture cost, lag acceptance, instruction cycles, full ROM compression or later-level behavior."
+}
