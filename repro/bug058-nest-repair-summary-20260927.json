@@ -1,7 +1,7 @@
 {
   "ticket": "BUG-058",
   "date": "2026-09-27",
-  "status": "Approved bounded repair applied to isolated candidate; automated checks pass, user recheck pending; whole BUG-058 remains Proposed",
+  "status": "Approved bounded spawner repair accepted after automated checks and user play recheck; whole BUG-058 remains Proposed, timing target unmet",
   "approval_commit": "2d447ff",
   "rom_sha256": "2bb8eadeff9bf096dcb080e3e14c76cc8d68bbea6a7a57a8660604e5f85df26e",
   "source": "e880b52 plus bug058-nest-fit-20260927.patch",
@@ -880,5 +880,13 @@
     "python3 repro/bug058-perimeter-fit-20260927.py FIT_WORKTREE OUTPUT_JSON",
     "python3 repro/bug058-render-crossover-20260927.py FIT_WORKTREE OUTPUT_JSON FIT_WORKTREE phase4-before nest-after --park-far --cleared-skulls",
     "python3 repro/bug058-fit-live-count-20260927.py FIT_WORKTREE OUTPUT_JSON --release-window --park-far --cleared-skulls"
-  ]
+  ],
+  "user_acceptance": {
+    "date": "2026-09-27",
+    "rom_sha256": "2bb8eadeff9bf096dcb080e3e14c76cc8d68bbea6a7a57a8660604e5f85df26e",
+    "spawner": "Garbage gone; bounded repair accepted",
+    "three_enemies": "No noticeable slowdown, including during release music",
+    "four_enemies": "Still slow after music ends, but feels more responsive",
+    "limits": "Subjective play observations, not new cycle measurements or waiver of the 27000-cycle target; no full BUG-058 closure or integration"
+  }
 }
