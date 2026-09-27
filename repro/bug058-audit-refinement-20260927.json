@@ -1,0 +1,274 @@
+{
+  "task": "BUG-058 audit-backed proposal refinement",
+  "date": "2026-09-27",
+  "review_revision": "fa6adb88dfabfb358c51a916d5ee511b25f9b9cc",
+  "audit_revision": "a125091f0d07d7408e4d0119c6fa095e35d155d6",
+  "audit_sha256": "14b3738d19281eb5677cf7658608e3b1d60b3b0ab633ad882c89aa816709efb4",
+  "audit_errors": [],
+  "audit_counts": {
+    "documented": 10,
+    "excluded": 1650,
+    "unresolved": 990
+  },
+  "candidate_patch_sha256": "c7d6cbb18c16d755cea5649965e5ec5e66d4df3b4d9b85ca7c48dda6a7b6406f",
+  "scope": "Read-only source/audit review; no new candidate build or runtime timing measurements",
+  "contracts": [
+    {
+      "id": "multiplier-x",
+      "symbol": "PRESENTATION_MULTIPLIER_X_GRAPHIC",
+      "definition": {
+        "address": 129,
+        "file": "build/ladybug_shared_text.inc",
+        "href": "module-resident-runtime.html#line-build-ladybug-shared-text-inc-59",
+        "line": 59,
+        "module": "resident-runtime",
+        "symbol": "PRESENTATION_MULTIPLIER_X_GRAPHIC"
+      }
+    },
+    {
+      "id": "player-background",
+      "symbol": "PLAYER_BG_PTR",
+      "definition": {
+        "address": 162,
+        "file": "src/main.s",
+        "href": "module-resident-runtime.html#line-src-main-s-322",
+        "line": 322,
+        "module": "resident-runtime",
+        "symbol": "PLAYER_BG_PTR"
+      },
+      "extent": "128 bytes per owner, 16 rows x 8 bytes"
+    },
+    {
+      "id": "entity-cache-colour",
+      "symbol": "ENTITY_CACHE_COLOR",
+      "definition": {
+        "address": 43164,
+        "file": "src/enemy_runtime.s",
+        "href": "module-enemy-runtime.html#line-src-enemy-runtime-s-212",
+        "line": 212,
+        "module": "enemy-runtime",
+        "symbol": "ENTITY_CACHE_COLOR"
+      },
+      "interval": [
+        43164,
+        43164
+      ],
+      "width": 1,
+      "mapping": "physical-page-34"
+    },
+    {
+      "id": "ring-base",
+      "symbol": "RING_BASE",
+      "definition": {
+        "address": 158,
+        "file": "src/enemy_runtime.s",
+        "href": "module-enemy-runtime.html#line-src-enemy-runtime-s-216",
+        "line": 216,
+        "module": "enemy-runtime",
+        "symbol": "RING_BASE"
+      },
+      "interval": [
+        158,
+        159
+      ],
+      "width": 2,
+      "mapping": "unbanked-direct-page"
+    },
+    {
+      "id": "framebuffer-ledger",
+      "symbol": "FB_META_A",
+      "definition": {
+        "address": 43264,
+        "file": "src/enemy_runtime.s",
+        "href": "module-enemy-runtime.html#line-src-enemy-runtime-s-291",
+        "line": 291,
+        "module": "enemy-runtime",
+        "symbol": "FB_META_A"
+      },
+      "extent": "256-byte ledger per owner at FB_META_A / FB_META_B"
+    },
+    {
+      "id": "enemy-background",
+      "symbol": "ENEMY_BG_BASE",
+      "definition": {
+        "address": 42640,
+        "file": "src/enemy_runtime.s",
+        "href": "module-enemy-runtime.html#line-src-enemy-runtime-s-288",
+        "line": 288,
+        "module": "enemy-runtime",
+        "symbol": "ENEMY_BG_BASE"
+      },
+      "extent": "Four 128-byte save-under buffers per owner; ring phases in ENEMY_BG_RING"
+    },
+    {
+      "id": "sprite-index",
+      "symbol": "SPARSE_ENEMY_INDEX_ADDR",
+      "definition": {
+        "address": 40960,
+        "file": "src/enemy_runtime.s",
+        "href": "module-enemy-runtime.html#line-src-enemy-runtime-s-333",
+        "line": 333,
+        "module": "enemy-runtime",
+        "symbol": "SPARSE_ENEMY_INDEX_ADDR"
+      },
+      "extracted_bounds": {
+        "evidence": "extracted fact",
+        "exclusive_maximum": 130,
+        "index_bytes": {
+          "address": 390,
+          "file": "build/ladybug-sparse-loader.inc",
+          "href": "module-gmc-bootstrap.html#line-build-ladybug-sparse-loader-inc-8",
+          "line": 8,
+          "module": "gmc-bootstrap",
+          "symbol": "SPARSE_ENEMY_INDEX_BYTES"
+        },
+        "minimum": 0,
+        "page": {
+          "address": 53,
+          "file": "src/enemy_runtime.s",
+          "href": "module-enemy-runtime.html#line-src-enemy-runtime-s-331",
+          "line": 331,
+          "module": "enemy-runtime",
+          "symbol": "SPARSE_ENEMY_PAYLOAD_PAGE"
+        },
+        "stride": 3
+      }
+    },
+    {
+      "id": "player-sprite-index",
+      "symbol": "SPARSE_PLAYER_INDEX_ADDR",
+      "definition": {
+        "address": 40960,
+        "file": "src/enemy_runtime.s",
+        "href": "module-enemy-runtime.html#line-src-enemy-runtime-s-334",
+        "line": 334,
+        "module": "enemy-runtime",
+        "symbol": "SPARSE_PLAYER_INDEX_ADDR"
+      },
+      "extracted_bounds": {
+        "evidence": "extracted fact",
+        "exclusive_maximum": 16,
+        "index_bytes": {
+          "address": 48,
+          "file": "build/ladybug-sparse-loader.inc",
+          "href": "module-gmc-bootstrap.html#line-build-ladybug-sparse-loader-inc-9",
+          "line": 9,
+          "module": "gmc-bootstrap",
+          "symbol": "SPARSE_PLAYER_INDEX_BYTES"
+        },
+        "minimum": 0,
+        "page": {
+          "address": 57,
+          "file": "src/enemy_runtime.s",
+          "href": "module-enemy-runtime.html#line-src-enemy-runtime-s-332",
+          "line": 332,
+          "module": "enemy-runtime",
+          "symbol": "SPARSE_PLAYER_PAYLOAD_PAGE"
+        },
+        "stride": 3
+      }
+    },
+    {
+      "id": "nest-background",
+      "symbol": "ENEMY_ZONE_BG",
+      "definition": {
+        "address": 42128,
+        "file": "src/enemy_runtime.s",
+        "href": "module-enemy-runtime.html#line-src-enemy-runtime-s-285",
+        "line": 285,
+        "module": "enemy-runtime",
+        "symbol": "ENEMY_ZONE_BG"
+      },
+      "extent": "Clean base: ENEMY_ZONE_ROWS (32) x 8 = 256 bytes at ENEMY_ZONE_BG. Composed dormant cache: four 128-byte frames = 512 bytes at ENEMY_NEST_CACHE."
+    },
+    {
+      "id": "audio-work",
+      "symbol": "AUDIO_WORK_SLOT",
+      "definition": {
+        "address": 251,
+        "file": "src/audio_runtime.s",
+        "href": "module-audio-runtime.html#line-src-audio-runtime-s-55",
+        "line": 55,
+        "module": "audio-runtime",
+        "symbol": "AUDIO_WORK_SLOT"
+      },
+      "interval": [
+        251,
+        251
+      ],
+      "width": 1,
+      "mapping": "unbanked-direct-page"
+    },
+    {
+      "id": "audio-slot-zero",
+      "symbol": "audio_slot0",
+      "definition": {
+        "address": 46389,
+        "file": "src/audio_runtime.s",
+        "href": "module-audio-runtime.html#line-src-audio-runtime-s-1232",
+        "line": 1232,
+        "module": "audio-runtime",
+        "symbol": "audio_slot0"
+      },
+      "interval": [
+        46389,
+        46416
+      ],
+      "width": 28,
+      "mapping": "physical-page-3D"
+    },
+    {
+      "id": "audio-scratch",
+      "symbol": "audio_scratch",
+      "definition": {
+        "address": 46512,
+        "file": "src/audio_runtime.s",
+        "href": "module-audio-runtime.html#line-src-audio-runtime-s-1248",
+        "line": 1248,
+        "module": "audio-runtime",
+        "symbol": "audio_scratch"
+      },
+      "interval": [
+        46512,
+        46513
+      ],
+      "width": 2,
+      "mapping": "physical-page-3D"
+    },
+    {
+      "id": "audio-shadow",
+      "symbol": "audio_mix_shadow",
+      "definition": {
+        "address": 46406,
+        "file": "src/audio_runtime.s",
+        "href": "module-audio-runtime.html#line-src-audio-runtime-s-1254",
+        "line": 1254,
+        "module": "audio-runtime",
+        "symbol": "audio_mix_shadow"
+      },
+      "interval": [
+        46406,
+        46416
+      ],
+      "width": 11,
+      "mapping": "physical-page-3D"
+    }
+  ],
+  "candidate_audio_order_map": {
+    "address_hex": "A787",
+    "bytes": 4,
+    "physical_page_hex": "3D",
+    "source": "isolated candidate build/ladybug-audio-runtime.map; existing retained fit, not regenerated audit",
+    "required": "Add candidate ownership annotation and require it in audit configuration; regenerate with fresh complete-build receipt before Ready"
+  },
+  "remaining_observed_maximum_excess_cycles": {
+    "three_enemies": 3569,
+    "four_enemies": 12071
+  },
+  "decision": "Prioritize local restore kernel, then capture selection and sparse decoder. Preserve background lifecycle and index identities. No storage borrowing or target change. Proposed, not Ready.",
+  "verification": {
+    "source_documentation": "PASS: 10 modules, 255/255 routines, 4091/4091 labels; clean reference source/artifacts and current wiki",
+    "documentation": "PASS: unique HTML IDs, new local paths/fragments, JSON parse, staged whitespace",
+    "runtime": "Not rerun; existing failing timing retained"
+  }
+}
