@@ -1,0 +1,393 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "status": "Proposed; partial fitting experiment, not Ready",
+  "source_base_revision": "e880b52",
+  "prior_evidence_commit": "b459d40",
+  "production_changed": false,
+  "target_cycles": 27000,
+  "units": "elapsed event ticks / 8, includes hardware waits; sample observations, not worst-case bounds",
+  "rom_sha256": "ca170208dd420b531c3b9bd40c6604a82edfca5240074d76bd4aa49ae327b934",
+  "enemy_sha256": "920556465eee05144d48f144118074704f52d17f26e58b51ac84a1c1833a6cd6",
+  "reference_enemy_sha256": "39f1ec0aef59c96aa0c23cb03a1521d0ce8d52056fe91a50839133ba35cb3748",
+  "patch_sha256": "0d730524bfcae775f7b20e7227937e56d144e40420971ffc7efff4a0cf4a8158",
+  "baseline_mix_rom_sha256": "de1da8e5b9e272c721fbe147ac2d7754163fcc130ff1084a3ee50ccfdb3b796d",
+  "baseline_note": "Command mix first captured on rejected table-dispatch ROM. Selection cost comparisons and renderer replay use retained two-step enemy module, not the rejected dispatch. Baseline mix observation reproduces all 80 previous worklist cycle/marker/state observations exactly.",
+  "design": "Keep original length-five branch and partial/stage loops. Test length one before two and fall through for three: saves three nominal cycles for opaque 1/3, costs three for opaque 2. Share unchanged length-six copy tail with length two. No new table, scratch, stream format or ownership.",
+  "costly_mix": {
+    "3": {
+      "over_target_worklists": 10,
+      "decoder_calls": 40,
+      "commands": {
+        "opaque1": 141,
+        "partial1": 617,
+        "partial2": 182,
+        "opaque3": 120,
+        "opaque5": 226,
+        "extended": 16,
+        "opaque4": 48,
+        "opaque6": 32,
+        "opaque2": 16,
+        "partial3": 16
+      },
+      "partial_masks": {
+        "240": 571,
+        "15": 458
+      },
+      "frames": {
+        "enemy:0": 7,
+        "enemy:12": 8,
+        "player:3": 4,
+        "player:0": 4,
+        "enemy:13": 8,
+        "enemy:1": 7,
+        "player:1": 2
+      },
+      "projected_worklist_saving_from_measured_kernel_costs": {
+        "min": 51,
+        "max": 96,
+        "mean": 73.5,
+        "samples": 10
+      },
+      "projection_limit": "Matched kernel costs weighted by captured frame identities; not complete-worklist timing."
+    },
+    "4": {
+      "over_target_worklists": 16,
+      "decoder_calls": 80,
+      "commands": {
+        "extended": 31,
+        "opaque1": 274,
+        "partial1": 1225,
+        "opaque3": 243,
+        "opaque4": 86,
+        "opaque5": 459,
+        "partial3": 37,
+        "opaque6": 62,
+        "partial2": 346,
+        "opaque2": 28
+      },
+      "partial_masks": {
+        "15": 988,
+        "240": 1040
+      },
+      "frames": {
+        "enemy:14": 5,
+        "enemy:2": 4,
+        "enemy:10": 7,
+        "player:2": 8,
+        "enemy:11": 7,
+        "enemy:15": 8,
+        "enemy:3": 11,
+        "enemy:7": 6,
+        "player:3": 8,
+        "enemy:0": 4,
+        "enemy:12": 4,
+        "enemy:4": 8
+      },
+      "projected_worklist_saving_from_measured_kernel_costs": {
+        "min": 63,
+        "max": 126,
+        "mean": 91.6875,
+        "samples": 16
+      },
+      "projection_limit": "Matched kernel costs weighted by captured frame identities; not complete-worklist timing."
+    }
+  },
+  "kernel_costs": {
+    "enemy framebuffer": {
+      "reference": {
+        "min": 1393,
+        "max": 3003,
+        "mean": 2296.8230769230768,
+        "samples": 260
+      },
+      "candidate": {
+        "min": 1393,
+        "max": 2952,
+        "mean": 2275.130769230769,
+        "samples": 260
+      },
+      "saved_cycles": {
+        "min": -12,
+        "max": 57,
+        "mean": 21.692307692307693,
+        "samples": 260
+      },
+      "slower_cases": 12
+    },
+    "enemy stage": {
+      "reference": {
+        "min": 1781,
+        "max": 3342,
+        "mean": 2648.5846153846155,
+        "samples": 260
+      },
+      "candidate": {
+        "min": 1781,
+        "max": 3342,
+        "mean": 2648.5846153846155,
+        "samples": 260
+      },
+      "saved_cycles": {
+        "min": 0,
+        "max": 0,
+        "mean": 0.0,
+        "samples": 260
+      },
+      "slower_cases": 0
+    },
+    "player framebuffer": {
+      "reference": {
+        "min": 1487,
+        "max": 1879,
+        "mean": 1707.25,
+        "samples": 32
+      },
+      "candidate": {
+        "min": 1493,
+        "max": 1858,
+        "mean": 1701.625,
+        "samples": 32
+      },
+      "saved_cycles": {
+        "min": -6,
+        "max": 21,
+        "mean": 5.625,
+        "samples": 32
+      },
+      "slower_cases": 16
+    },
+    "player stage": {
+      "reference": {
+        "min": 1875,
+        "max": 2412,
+        "mean": 2223.75,
+        "samples": 32
+      },
+      "candidate": {
+        "min": 1875,
+        "max": 2412,
+        "mean": 2223.75,
+        "samples": 32
+      },
+      "saved_cycles": {
+        "min": 0,
+        "max": 0,
+        "mean": 0.0,
+        "samples": 32
+      },
+      "slower_cases": 0
+    }
+  },
+  "worklists": {
+    "0": {
+      "two_step_reference": {
+        "min": 9932,
+        "max": 16248,
+        "mean": 11637.25,
+        "samples": 16,
+        "over_target": 0
+      },
+      "rejected_dispatch": {
+        "min": 9952,
+        "max": 16268,
+        "mean": 11662.25,
+        "samples": 16,
+        "over_target": 0
+      },
+      "candidate": {
+        "min": 9911,
+        "max": 16227,
+        "mean": 11619.25,
+        "samples": 16,
+        "over_target": 0
+      },
+      "matched_render_saved_cycles": {
+        "min": 15,
+        "max": 21,
+        "mean": 20.25,
+        "samples": 8
+      }
+    },
+    "1": {
+      "two_step_reference": {
+        "min": 14909,
+        "max": 20811,
+        "mean": 16413.0625,
+        "samples": 16,
+        "over_target": 0
+      },
+      "rejected_dispatch": {
+        "min": 14956,
+        "max": 20853,
+        "mean": 16453.8125,
+        "samples": 16,
+        "over_target": 0
+      },
+      "candidate": {
+        "min": 14876,
+        "max": 20775,
+        "mean": 16376.3125,
+        "samples": 16,
+        "over_target": 0
+      },
+      "matched_render_saved_cycles": {
+        "min": -103,
+        "max": 175,
+        "mean": 37.5,
+        "samples": 8
+      }
+    },
+    "2": {
+      "two_step_reference": {
+        "min": 19286,
+        "max": 24545,
+        "mean": 21605.3125,
+        "samples": 16,
+        "over_target": 0
+      },
+      "rejected_dispatch": {
+        "min": 19256,
+        "max": 24584,
+        "mean": 21617.8125,
+        "samples": 16,
+        "over_target": 0
+      },
+      "candidate": {
+        "min": 19223,
+        "max": 24506,
+        "mean": 21553.5625,
+        "samples": 16,
+        "over_target": 0
+      },
+      "matched_render_saved_cycles": {
+        "min": -112,
+        "max": 211,
+        "mean": 52.125,
+        "samples": 8
+      }
+    },
+    "3": {
+      "two_step_reference": {
+        "min": 25090,
+        "max": 30398,
+        "mean": 27549.25,
+        "samples": 16,
+        "over_target": 11
+      },
+      "rejected_dispatch": {
+        "min": 24675,
+        "max": 31366,
+        "mean": 27664.0,
+        "samples": 16,
+        "over_target": 10
+      },
+      "candidate": {
+        "min": 24653,
+        "max": 31253,
+        "mean": 27594.6875,
+        "samples": 16,
+        "over_target": 10
+      },
+      "matched_render_saved_cycles": {
+        "min": -82,
+        "max": 220,
+        "mean": 62.25,
+        "samples": 8
+      }
+    },
+    "4": {
+      "two_step_reference": {
+        "min": 30171,
+        "max": 37726,
+        "mean": 33358.8125,
+        "samples": 16,
+        "over_target": 16
+      },
+      "rejected_dispatch": {
+        "min": 30879,
+        "max": 38477,
+        "mean": 33352.25,
+        "samples": 16,
+        "over_target": 16
+      },
+      "candidate": {
+        "min": 30768,
+        "max": 38477,
+        "mean": 33263.75,
+        "samples": 16,
+        "over_target": 16
+      },
+      "matched_render_saved_cycles": {
+        "min": -64,
+        "max": 244,
+        "mean": 83.625,
+        "samples": 8
+      }
+    }
+  },
+  "verification": {
+    "candidate_cases": 700,
+    "indexed_cases": 584,
+    "shared_and_synthetic_cases": 116,
+    "kernel_boundary": "Prior rejected ROM boot verified, then candidate module overlay compared byte-for-byte; current full build has identical module bytes. Independent blend oracle checks all output bytes, guards, mapped stream identity and restored mapping.",
+    "command_mix_identity": "Every mapped runtime stream matches a generated artifact stream before its command histogram is attributed. Ambiguous matches require identical command/mask histograms.",
+    "observation_perturbation": "80/80 baseline cycles, phase markers and state bytes equal earlier --sparse-costs capture.",
+    "crossover": {
+      "result": "pass",
+      "cases": 40,
+      "oracle": "Exact framebuffer pixels and all page-$34 state. Identical RAM/register/mapping restoration and alternating order. Video-event phase is not restored; elapsed savings include hardware-wait phase and do not establish owner causation."
+    }
+  },
+  "memory": {
+    "enemy_used_limit": [
+      4091,
+      4096
+    ],
+    "pre_table_padding_bytes": 8,
+    "reference_pre_table_padding_bytes": 0,
+    "gmc_source_free_bytes": 413,
+    "new_scratch_bytes": 0,
+    "fixed_tail_identical": true
+  },
+  "build": {
+    "command": "scripts/build.sh build",
+    "exit": 0,
+    "coverage": {
+      "classified_labels": 4095,
+      "documented_routines": 256,
+      "duplicate_semantic_ids": [],
+      "global_labels": 4095,
+      "missing_evidence": [],
+      "missing_routines": [],
+      "passed": true,
+      "required_routines": 256,
+      "unclassified_labels": []
+    },
+    "required_contracts": 18,
+    "audit_errors": [],
+    "audit_sha256": "a63cba41471b3384dd9625426cf73dbade81f07108a8e5bd8dd195cda8743a58",
+    "log_sha256": "0a59844f41279b14de23edef317c77ca5d748653703059e56b3047f4a43bfd39"
+  },
+  "limits": [
+    "Three/four-enemy 27,000-cycle acceptance still fails.",
+    "Parked player and controlled early releases do not satisfy sustained natural moving-player, demo, name-entry or audio acceptance.",
+    "Rare opaque-length-two paths are slower; full shared-consumer testing required.",
+    "Earlier one-byte capture regression and gate-cache verifier issue remain open.",
+    "No new renderer architecture, format change or broad memory reduction is approved."
+  ],
+  "commands": [
+    "scripts/build.sh build",
+    "python3 repro/bug058-fit-live-count-20260927.py FIT_WORKTREE OUTPUT_JSON --sparse-mix",
+    "python3 repro/bug058-sparse-cost-20260927.py FIT_WORKTREE bug058-mix-check OUTPUT_JSON",
+    "python3 repro/bug058-render-crossover-20260927.py FIT_WORKTREE OUTPUT_JSON FIT_WORKTREE bug058-sparse-reference bug058-mix-check"
+  ],
+  "raw_sha256": {
+    "bug058-mix-baseline-20260927.json": "0669ce8ed34dc237a533c879a59269743e0cf84700335c3279da8384d313eb8e",
+    "bug058-mix-cost-20260927.json": "32985c115c12c11b8fcacfb4c123cae3924bcc06c0da96921e554114d527ea2b",
+    "bug058-mix-crossover-20260927.json": "308902f1e3aea9d631b469eaf858ebe805afc6db93bc17c8f715eb92037acb6d",
+    "bug058-mix-live-count-20260927.json": "e6d19b079912ff1f3a88584e0054164580c6807f5e22cf9b3fa780566683ea35"
+  },
+  "decision": "Retain workload-directed small-run branch fit as a partial candidate: matched render savings and exact output pass, memory unchanged. Not a complete slowdown repair; 27,000-cycle target still fails and BUG-058 is not Ready.",
+  "workload_evidence_sha256": "0388a735004aa3a7997eea17129dd7ea0c0351fe620585f54f4c556938aa5ee1"
+}
