@@ -1,0 +1,38 @@
+--- a/src/main.s
++++ b/src/main.s
+@@ -1867,15 +1867,8 @@
+ primary_cache_mask
+ cck_primary
+         sta     OBJ_VALUE
+-        anda    #$30
+-        bne     pcm_low
+-        orb     #$F0
+-pcm_low
+-        lda     OBJ_VALUE
+-        anda    #$03
+-        bne     pcm_done
+-        orb     #$0F
+-pcm_done
++        anda    #$33
++        orb     a,y
+         tfr     b,a
+         rts
+
+@@ -1954,6 +1947,7 @@
+ render_entity_colour
+         lda     #1
+         sta     OBJ_ACCENT
++        ldy     #primary_preserve_table
+         lbra    de_normal
+
+ ; Placement changes MAZE_STATE before the objects are drawn. Restore each
+@@ -4763,6 +4757,9 @@
+         fcb     $00,$03,$05,$06,$30,$33,$35,$36
+         fcb     $50,$53,$55,$56,$60,$63,$65,$66
+
++; Immutable primary-mask lookup; reachable indexes are value & $33.
++primary_preserve_table
++        fcb     $FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00
+ asset_end
+
+         end

@@ -1,0 +1,291 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "status": "Proposed; profiling and assembly-only feasibility, no runtime change",
+  "source": "e880b52 plus bug058-colour-fit-20260927.patch",
+  "rom_sha256": "98c5fe80ab1e27d161b491f24ddc3dfd97dc3035ffedff1ac14ce79b752b4a19",
+  "units": "Elapsed cycles = event_ticks/8; observed sample means/maxima, not worst-case bounds",
+  "probe": {
+    "phase": "controlled release-count sweep with real movement/render/audio",
+    "deadline_seconds": 45,
+    "success_marker": "At counts three and four: release cue 5 observed, followed by 16 consecutive cue-5-free worklists; normal ticks remain enabled",
+    "timeout_meaning": "named sample boundary absent, not proof of target slowdown",
+    "controlled": "player parked at legal maze cell recorded in park_cell; existing enemy_release_impl called early; fixture leaves movement/render/collision/audio/clock execution intact; candidate code is identified by ROM hash; setup drains prior audio, then records the new release until cue 5 ends"
+  },
+  "profile_sha256": "eb9e7d44c0786072aa6318133f11d3928ac03684beb669bd3241cfc8c07b2f5e",
+  "samples": 244,
+  "repeat_identity": "All 244 cycle totals, state bytes and framebuffer IDs equal prior current-ROM release profile",
+  "four_post_release": {
+    "samples": 16,
+    "mean": 32190.125,
+    "maximum": 35892,
+    "over_27000": 16,
+    "components": {
+      "renderer": {
+        "mean": 27088.9375,
+        "maximum": 30800
+      },
+      "enemy_restore": {
+        "mean": 5356.75,
+        "maximum": 5684
+      },
+      "enemy_capture": {
+        "mean": 3952.125,
+        "maximum": 4472
+      },
+      "enemy_draw": {
+        "mean": 10302.375,
+        "maximum": 10955
+      },
+      "audio_and_tail": {
+        "mean": 2264.6875,
+        "maximum": 2865
+      }
+    }
+  },
+  "retained_peak": {
+    "requested_count": 4,
+    "index": 19,
+    "active": 4,
+    "death": 0,
+    "front": 0,
+    "state": [
+      0,
+      7,
+      0,
+      0,
+      4,
+      4,
+      1,
+      0,
+      0,
+      0,
+      164,
+      128
+    ],
+    "event_start": 256383008,
+    "vbord": 948,
+    "missed_commit": 116,
+    "marks": [
+      [
+        "main_game_tick_normal",
+        414
+      ],
+      [
+        "enemy_tick",
+        502
+      ],
+      [
+        "main_after_player",
+        2742
+      ],
+      [
+        "main_render",
+        3094
+      ],
+      [
+        "framebuffer_prepare_back",
+        3124
+      ],
+      [
+        "sync_entity_cache_colour",
+        3594
+      ],
+      [
+        "secc_done",
+        27705
+      ],
+      [
+        "actor_closure_restore",
+        30473
+      ],
+      [
+        "acr_enemies",
+        31682
+      ],
+      [
+        "framebuffer_queue_damage",
+        37082
+      ],
+      [
+        "framebuffer_project_damage",
+        37489
+      ],
+      [
+        "roam_mark_underlay",
+        37557
+      ],
+      [
+        "frame_render_background",
+        37604
+      ],
+      [
+        "render_entity_colour",
+        37641
+      ],
+      [
+        "de_colour_done",
+        62405
+      ],
+      [
+        "fri_background_done",
+        64883
+      ],
+      [
+        "actor_closure_draw",
+        64897
+      ],
+      [
+        "acd_save_loop",
+        64924
+      ],
+      [
+        "acd_save_loop",
+        65790
+      ],
+      [
+        "acd_save_loop",
+        66656
+      ],
+      [
+        "acd_save_loop",
+        67978
+      ],
+      [
+        "acd_draw_loop",
+        69042
+      ],
+      [
+        "acd_draw_loop",
+        71876
+      ],
+      [
+        "acd_draw_loop",
+        74710
+      ],
+      [
+        "acd_draw_loop",
+        77544
+      ],
+      [
+        "acd_death",
+        79997
+      ],
+      [
+        "acd_normal_player",
+        80036
+      ],
+      [
+        "framebuffer_finish_back",
+        83186
+      ],
+      [
+        "main_entry_audio",
+        83988
+      ],
+      [
+        "audio_process_queue",
+        84470
+      ],
+      [
+        "audio_process_queue",
+        84853
+      ],
+      [
+        "audio_music_dispatch",
+        84875
+      ],
+      [
+        "audio_advance_all",
+        84919
+      ],
+      [
+        "audio_credit_service",
+        85479
+      ],
+      [
+        "audio_mix",
+        85502
+      ],
+      [
+        "audio_mix_write",
+        86737
+      ],
+      [
+        "mainloop",
+        87443
+      ]
+    ],
+    "audio_before": {
+      "slots": [
+        255,
+        5,
+        255,
+        255
+      ],
+      "music_queue": 0
+    },
+    "colour_pair_calls": [
+      {
+        "mode": "rebind",
+        "entry": 3594,
+        "pairs": 207,
+        "live_records": 6,
+        "primary_classes": {
+          "both": 92,
+          "high_only": 32,
+          "low_only": 62,
+          "neither": 21
+        }
+      },
+      {
+        "mode": "primary",
+        "entry": 37641,
+        "pairs": 207,
+        "live_records": 6,
+        "primary_classes": {
+          "both": 92,
+          "high_only": 32,
+          "low_only": 62,
+          "neither": 21
+        }
+      }
+    ],
+    "audio_after": {
+      "slots": [
+        255,
+        5,
+        4,
+        255
+      ],
+      "music_queue": 0
+    },
+    "cycles": 87443
+  },
+  "proposal": {
+    "primary_pairs": 207,
+    "classes": {
+      "both": 92,
+      "high_only": 32,
+      "low_only": 62,
+      "neither": 21
+    },
+    "nominal_saving_cycles": 1717,
+    "runtime_saving_measured": false,
+    "resident_before_after_limit": [
+      8176,
+      8170,
+      8192
+    ],
+    "assets_before_after_limit": [
+      7596,
+      7648,
+      7680
+    ],
+    "new_mutable_bytes": 0,
+    "baseline_assembly_exact": true,
+    "full_cartridge_fit": "pending; raw bank allocation unchanged in this assembly-only proof",
+    "scope": "Primary repaint mask only; no rebind or ordinary-frame acceleration"
+  },
+  "patch_sha256": "c0023ddf4e1a9985a59843c9ca946963835d46155bd10251a1ec9b5a69802d7d"
+}

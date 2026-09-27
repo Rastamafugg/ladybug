@@ -42,7 +42,7 @@ release_window='--release-window' in sys.argv[3:]
 if release_window:e['success_marker']='At counts three and four: release cue 5 observed, followed by 16 consecutive cue-5-free worklists; normal ticks remain enabled';e['controlled']+='; setup drains prior audio, then records the new release until cue 5 ends'
 
 def colour_pair_count(rebind):
- count=read(ms['ENTITY_COUNT'])[0];records=read(ms['ENTITY_TABLE'],count*4);pairs=0;live=0
+ count=read(ms['ENTITY_COUNT'])[0];records=read(ms['ENTITY_TABLE'],count*4);pairs=0;live=0;classes={'both':0,'high_only':0,'low_only':0,'neither':0}
  for slot in range(count):
   record=records[slot*4:slot*4+4]
   if record[2] in (0,es['ENTITY_SKULL']) or (not rebind and record[:2]==bytes([12,10])):continue
@@ -51,8 +51,10 @@ def colour_pair_count(rebind):
    delta=data[pos];pos+=1
    if delta==255:pos+=2
    n=data[pos];pos+=1;assert n and pos+2*n<=128,('bad colour cache',slot,pos,n)
+   for value in data[pos+1:pos+2*n:2]:
+    high=bool(value&0x30);low=bool(value&3);classes['both' if high and low else 'high_only' if high else 'low_only' if low else 'neither']+=1
    pairs+=n;pos+=2*n
- return {'pairs':pairs,'live_records':live}
+ return {'pairs':pairs,'live_records':live,'primary_classes':classes}
 
 def audio_state():
  data=bytes.fromhex(c.call('read_memory',{'space':'physical','addr':0x3d*8192,'length':8192})['data'])
