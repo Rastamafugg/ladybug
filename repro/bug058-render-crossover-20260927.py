@@ -17,7 +17,9 @@ def write(a,v):c.call('write_memory',{'addr':a,'data':bytes(v).hex()})
 def go(a):
  ids=m.setup(c,[a])
  try:
-  c.call('run');h=c.call('wait_for_stop',{'timeout_ms':10000},timeout=12);assert h.get('pc')==a,h
+  c.call('run');h=c.call('wait_for_stop',{'timeout_ms':10000},timeout=12)
+  if h.get('pc')!=a:
+   c.call('pause');regs=c.call('read_registers');pc=regs['pc'];e['stop_diagnostic']={'expected':a,'stop':h,'registers':regs,'live_bytes':read(pc,16).hex()};raise AssertionError(e['stop_diagnostic'])
  finally:m.clear(c,ids)
 def key(k,on):c.call('inject_key',{'key':k,'action':'press' if on else 'release'})
 def wait(pred):
@@ -35,12 +37,13 @@ def release():
  finally:
   m.clear(c,ids);write(0x1800,stub);write(0x1e00,stack);c.call('write_registers',{k:regs[k] for k in ('a','b','cc','dp','x','y','u','s','pc')})
 perimeter_only='--perimeter-only' in sys.argv[6:]
-oldresident=(b/'perimeter-before-ladybug-runtime.rom').read_bytes() if perimeter_only else None
+resident_pair='--resident-pair' in sys.argv[6:]
+oldresident=(b/(reference_prefix+'-resident.rom')).read_bytes() if resident_pair else (b/'perimeter-before-ladybug-runtime.rom').read_bytes() if perimeter_only else None
 if perimeter_only:
  off=ms['draw_perimeter_box']-0xc000
  assert resident[:off]==oldresident[:off] and resident[off+88:]==oldresident[off+88:]
 candidate=(fit/'build'/(candidate_prefix+'.bin')).read_bytes();cs=r.symbols(fit/'build'/(candidate_prefix+'.map'))
-e.update(phase='controlled same-state render crossover',success_marker='identical framebuffer and equivalent bank-$34 state under the explicitly selected oracle',candidate_enemy_sha256=hashlib.sha256(candidate).hexdigest());e['perimeter_only']=perimeter_only;e['reference_resident_sha256']=hashlib.sha256(oldresident).hexdigest() if perimeter_only else None;e['cases']=[];e['state_oracle']='decoded audited rings; all other state exact' if '--logical-rings' in sys.argv[6:] else 'all state exact'
+e.update(phase='controlled same-state render crossover',success_marker='identical framebuffer and equivalent bank-$34 state under the explicitly selected oracle',candidate_enemy_sha256=hashlib.sha256(candidate).hexdigest());e['perimeter_only']=perimeter_only;e['reference_resident_sha256']=hashlib.sha256(oldresident).hexdigest() if oldresident is not None else None;e['cases']=[];e['state_oracle']='decoded audited rings; all other state exact' if '--logical-rings' in sys.argv[6:] else 'all state exact'
 def physical(a,n):return bytes.fromhex(c.call('read_memory',{'space':'physical','addr':a,'length':n})['data'])
 def putphysical(a,v):c.call('write_memory',{'space':'physical','addr':a,'data':bytes(v).hex()})
 def snapshot():return [physical(pg*8192,8192) for pg in range(64)]
@@ -62,10 +65,33 @@ def logical_rings(data,owner):
  return bytes(result)
 def invoke(code,entry,resident_code=None):
  if resident_code is not None:
-  write(ms['draw_perimeter_box'],resident_code[off:off+88]);assert read(ms['draw_perimeter_box'],88)==resident_code[off:off+88]
+  if resident_pair:
+   write(0xc000,resident_code[:0x3e00]);assert read(0xc000,0x3e00)==resident_code[:0x3e00]
+   selected=r.symbols(b/(reference_prefix+'-resident.map')) if resident_code==oldresident else ms
+   irq=selected['irq_handler'];vector=bytes([0x7e,irq>>8,irq&255]);write(selected['JT_IRQ'],vector);assert read(selected['JT_IRQ'],3)==vector
+  else:
+   write(ms['draw_perimeter_box'],resident_code[off:off+88]);assert read(ms['draw_perimeter_box'],88)==resident_code[off:off+88]
  write(0x800,code);assert read(0x800,len(code))==code
  write(0x1800,[0x20,0xfe]);write(0x1efc,[0x18,0]);c.call('write_registers',{'pc':entry,'s':0x1efc,'dp':0,'cc':0x50})
- t=c.call('read_cycles')['event_ticks'];go(0x1800);cycles=(c.call('read_cycles')['event_ticks']-t)//8
+ t=c.call('read_cycles')['event_ticks']
+ if '--trace-invoke' in sys.argv:
+  rms=r.symbols(b/(reference_prefix+'-resident.map')) if resident_code==oldresident else ms
+  labels={rms[n]:n for n in ['sync_entity_cache_colour','render_entity_colour','restore_player','draw_player','save_player']}
+  labels.update({es[n]:n for n in ['framebuffer_prepare_back','actor_closure_restore','framebuffer_queue_damage','framebuffer_project_damage','frame_render_background','actor_closure_draw','framebuffer_finish_back']});labels[0x1800]='return'
+  ids=m.setup(c,list(labels));e['invoke_trace']=[]
+  try:
+   for tick in range(40):
+    c.call('run');h=c.call('wait_for_stop',{'timeout_ms':10000},timeout=12)
+    if h.get('pc') not in labels:
+     c.call('pause');raise AssertionError({'trace_stop':h,'regs':c.call('read_registers')})
+    pc=h['pc'];expected=resident_code[pc-0xc000:pc-0xc000+8] if pc>=0xc000 else code[pc-0x800:pc-0x800+8] if pc!=0x1800 else bytes([0x20,0xfe])
+    assert read(pc,len(expected))==expected,'trace identity'
+    e['invoke_trace'].append([labels[pc],c.call('read_registers')])
+    if pc==0x1800:break
+   else:raise AssertionError('trace step cap')
+  finally:m.clear(c,ids)
+ else:go(0x1800)
+ cycles=(c.call('read_cycles')['event_ticks']-t)//8
  pixels=b''.join(physical(pg*8192,8192) for pg in range(0x2c,0x34));data=physical(0x34*8192,8192)
  return pixels,data,cycles
 try:
@@ -87,15 +113,20 @@ try:
   for _ in range(36):go(ps['presentation_flow_tick'])
   for i in range(8):
    assert time.monotonic()<deadline,'crossover phase'
-   go(es['frame_render_impl']);assert read(0x58)[0]==count and read(ms['DEATH_STATE'])[0]==0,('missing live count',count);regs=c.call('read_registers');pars=read(0xffa0,8);pages=snapshot();owner=read(ms['FB_BACK_ID'])[0];flags=list(read(ms['RENDER_FLAGS'],16));results={}
+   go(es['frame_render_impl'])
+   if '--force-colour' in sys.argv:
+    write(ms['BONUS_COLOR'],[1+i%3]);write(ms['RENDER_FLAGS2'],[read(ms['RENDER_FLAGS2'])[0]|es['RF2_COLOUR']])
+    if i%3==1:
+     write(es['RENDER_GATE_ID'],[1]);write(es['RENDER_GATE_MODE'],[1]);write(es['RENDER_GATE_STYLE'],[0])
+   assert read(0x58)[0]==count and read(ms['DEATH_STATE'])[0]==0,('missing live count',count);regs=c.call('read_registers');pars=read(0xffa0,8);pages=snapshot();owner=read(ms['FB_BACK_ID'])[0];flags=list(read(ms['RENDER_FLAGS'],16));meta=es['FB_META_A'] if owner==0 else es['FB_META_B'];pending=list(read(meta+es['FBM_PENDING_INTENTS'],18));results={}
    for name in (['reference','candidate'] if i%2==0 else ['candidate','reference']):
-    restore(pages,regs,pars);results[name]=invoke(enemy if name=='reference' else candidate,es['frame_render_impl'] if name=='reference' else cs['frame_render_impl'],(oldresident if name=='reference' else resident) if perimeter_only else None)
+    e['current_case']={'count':count,'index':i,'side':name};restore(pages,regs,pars);results[name]=invoke(enemy if name=='reference' else candidate,es['frame_render_impl'] if name=='reference' else cs['frame_render_impl'],(oldresident if name=='reference' else resident) if (perimeter_only or resident_pair) else None)
    raw_differences=[j for j,(a,b) in enumerate(zip(results['reference'][1],results['candidate'][1])) if a!=b]
    assert results['reference'][0]==results['candidate'][0],(count,i,'framebuffer pixels mismatch')
    if '--logical-rings' in sys.argv[6:]:
     assert logical_rings(results['reference'][1],owner)==logical_rings(results['candidate'][1],owner),(count,i,'logical background or other state mismatch',raw_differences[:24])
    else:assert results['reference'][1]==results['candidate'][1],(count,i,'raw state mismatch',raw_differences[:24])
-   e['cases'].append({'count':count,'active_count':read(0x58)[0],'index':i,'owner_metadata':owner,'render_intents':flags,'raw_state_difference_bytes':len(raw_differences),'reference_cycles':results['reference'][2],'candidate_cycles':results['candidate'][2],'pixel_sha256':hashlib.sha256(results['candidate'][0]).hexdigest()})
+   e['cases'].append({'count':count,'active_count':read(0x58)[0],'index':i,'owner_metadata':owner,'render_intents':flags,'pending_intents_before':pending,'forced_colour':(1+i%3) if '--force-colour' in sys.argv else None,'forced_final_gate':bool('--force-colour' in sys.argv and i%3==1),'raw_state_difference_bytes':len(raw_differences),'reference_cycles':results['reference'][2],'candidate_cycles':results['candidate'][2],'pixel_sha256':hashlib.sha256(results['candidate'][0]).hexdigest()})
    restore(pages,regs,pars);go(ps['presentation_flow_tick'])
  e['result']='pass'
 except Exception as ex:

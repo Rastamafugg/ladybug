@@ -8,6 +8,8 @@ b=root/'build';ms=r.symbols(b/'ladybug.map');ps=r.symbols(b/'ladybug-presentatio
 reference_prefix=next((arg.split('=',1)[1] for arg in sys.argv[3:] if arg.startswith('--reference-prefix=')),None)
 if reference_prefix:
  es=r.symbols(b/(reference_prefix+'.map'));enemy=(b/(reference_prefix+'.bin')).read_bytes();rom=b/(reference_prefix+'.rom')
+ if '--reference-resident' in sys.argv:
+  ms=r.symbols(b/(reference_prefix+'-resident.map'));resident=(b/(reference_prefix+'-resident.rom')).read_bytes();ps=r.symbols(b/(reference_prefix+'-presentation.map'));presentation=(b/(reference_prefix+'-presentation.bin')).read_bytes()
 au=r.symbols(b/'ladybug-audio-runtime.map');audio=(b/'ladybug-audio-runtime.bin').read_bytes()
 e={'rom_sha256':hashlib.sha256(rom.read_bytes()).hexdigest(),'phase':'controlled release-count sweep with real movement/render/audio','deadline_seconds':45,'success_marker':'16 worklists each at zero through four released enemies','timeout_meaning':'named sample boundary absent, not proof of target slowdown','controlled':'player parked at legal maze cell recorded in park_cell; existing enemy_release_impl called early; fixture leaves movement/render/collision/audio/clock execution intact; candidate code is identified by ROM hash','clock_units':'event_ticks / 8 at verified fast clock; monitor cpu_cycles incorrectly divides by16','samples':[]}
 # Decode installed stream commands offline; runtime matches the entire mapped stream.
@@ -38,6 +40,19 @@ def go(a):
  finally:m.clear(c,ids)
 release_window='--release-window' in sys.argv[3:]
 if release_window:e['success_marker']='At counts three and four: release cue 5 observed, followed by 16 consecutive cue-5-free worklists; normal ticks remain enabled';e['controlled']+='; setup drains prior audio, then records the new release until cue 5 ends'
+
+def colour_pair_count(rebind):
+ count=read(ms['ENTITY_COUNT'])[0];records=read(ms['ENTITY_TABLE'],count*4);pairs=0;live=0
+ for slot in range(count):
+  record=records[slot*4:slot*4+4]
+  if record[2] in (0,es['ENTITY_SKULL']) or (not rebind and record[:2]==bytes([12,10])):continue
+  data=read(ms['ENTITY_GATE_CACHE']+slot*128,128);pos=1;live+=1
+  for run in range(data[0]):
+   delta=data[pos];pos+=1
+   if delta==255:pos+=2
+   n=data[pos];pos+=1;assert n and pos+2*n<=128,('bad colour cache',slot,pos,n)
+   pairs+=n;pos+=2*n
+ return {'pairs':pairs,'live_records':live}
 
 def audio_state():
  data=bytes.fromhex(c.call('read_memory',{'space':'physical','addr':0x3d*8192,'length':8192})['data'])
@@ -113,12 +128,20 @@ try:
   saw_release=False;quiet=0
   for i in range(192 if release_window and count>=3 else 16):
    assert time.monotonic()<deadline,'count phase deadline'
-   go(ps['presentation_flow_tick']);start=c.call('read_cycles')['event_ticks'];state=list(read(0x54,12));row={'requested_count':count,'index':i,'active':read(0x58)[0],'death':read(ms['DEATH_STATE'])[0],'front':read(0x8f)[0],'state':state,'event_start':start,'vbord':int.from_bytes(read(ms['FRAMES'],2),'big'),'missed_commit':int.from_bytes(read(ms['FB_MISSED_COMMIT'],2),'big'),'marks':[]};row['audio_before']=audio_state();ids=m.setup(c,list(markers))
+   go(ps['presentation_flow_tick'])
+   if '--force-colour' in sys.argv:
+    write(ms['BONUS_COLOR'],[1+i%3]);write(ms['RENDER_FLAGS2'],[read(ms['RENDER_FLAGS2'])[0]|es['RF2_COLOUR']])
+   start=c.call('read_cycles')['event_ticks'];state=list(read(0x54,12));row={'requested_count':count,'index':i,'active':read(0x58)[0],'death':read(ms['DEATH_STATE'])[0],'front':read(0x8f)[0],'state':state,'event_start':start,'vbord':int.from_bytes(read(ms['FRAMES'],2),'big'),'missed_commit':int.from_bytes(read(ms['FB_MISSED_COMMIT'],2),'big'),'marks':[]};row['audio_before']=audio_state();ids=m.setup(c,list(markers))
    try:
     for k in range(128):
      c.call('run');h=c.call('wait_for_stop',{'timeout_ms':10000},timeout=12);a=h.get('pc');assert a in markers,h
      if a in audio_markers:assert read(a,8)==audio[a-0xa000:a-0xa000+8],audio_markers[a]
      t=(c.call('read_cycles')['event_ticks']-start)//8;row['marks'].append([markers[a],t])
+     if '--colour-pairs' in sys.argv:
+      if markers[a]=='sync_entity_cache_colour' and read(ms['ENTITY_CACHE_COLOR'])[0] not in (0,read(ms['BONUS_COLOR'])[0]):
+       row.setdefault('colour_pair_calls',[]).append(dict(mode='rebind',entry=t,**colour_pair_count(True)))
+      if markers[a]=='render_entity_colour':
+       row.setdefault('colour_pair_calls',[]).append(dict(mode='primary',entry=t,**colour_pair_count(False)))
      if markers[a] in ['sparse_blit_fb','sparse_blit_stage']:
       call={'path':markers[a],'entry':t};row.setdefault('decode_calls',[]).append(call)
       if '--sparse-mix' in sys.argv[3:]:

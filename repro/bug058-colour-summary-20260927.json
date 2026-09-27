@@ -1,0 +1,1000 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "verdict": "Approved isolated colour-entry fit passes; overall BUG-058 remains Proposed, not integrated, timing fails",
+  "source": "e880b52 plus bug058-colour-fit-20260927.patch",
+  "rom_sha256": "98c5fe80ab1e27d161b491f24ddc3dfd97dc3035ffedff1ac14ce79b752b4a19",
+  "baseline_rom_sha256": "38bcd65f507c206608829c7b3ddc056e1e4246ba08cd9872a29f4bd57e4bb118",
+  "enemy_sha256": "807e190c7794ad5a60f15860ce364aa56dadf402f4d62aab6d2d82c2390fce08",
+  "change": "Remove TST OBJ_ACCENT/BPL and move primary_cache_mask entry to existing cck_primary body. Both arithmetic bodies byte-identical. Generated absolute references rebuild together. Basic-block alias classification added.",
+  "units": "Elapsed event_ticks/8 including waits. Sample means/maxima are observations, not worst-case bounds.",
+  "kernel": {
+    "cases": 1792,
+    "saving": {
+      "samples": 1792,
+      "minimum": 9,
+      "maximum": 9,
+      "mean": 9
+    },
+    "oracle": "All 256 byte inputs, three bonus colours, four valid preserve masks; values, registers including CC, scratch exact",
+    "sliced_code_proof": "Compare relocated helper bytes with built module before every invocation; branches internal and direct-page references unchanged"
+  },
+  "renderer": {
+    "cases": 40,
+    "owners": {
+      "0": 20,
+      "1": 20
+    },
+    "pending_colour_cases": 35,
+    "forced_final_gate_cases": 15,
+    "oracle": "Full actual A/B framebuffer images and raw page-$34 state exact. Case order alternates. Matching resident, enemy and IRQ vector restored together.",
+    "timing_limit": "Event phase not restored; crossover timing is not exact savings evidence"
+  },
+  "startup": {
+    "phase": "natural demo and credited startup underlay and published nest",
+    "deadline_seconds_per_phase": 45,
+    "success_marker": "exact 32-row capture with no outside writes; cached dormant pixels and clean upper nest on A and B in demo and credited startup",
+    "timeout_meaning": "required startup or owner publication absent",
+    "rom_sha256": "98c5fe80ab1e27d161b491f24ddc3dfd97dc3035ffedff1ac14ce79b752b4a19",
+    "checks": [
+      {
+        "phase": "demo",
+        "capture_exact": true,
+        "framebuffer_writes": 0,
+        "outside_background_writes": 0
+      },
+      {
+        "phase": "demo",
+        "owner": 1,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 4,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "demo",
+        "owner": 0,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 4,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "credited",
+        "capture_exact": true,
+        "framebuffer_writes": 0,
+        "outside_background_writes": 0
+      },
+      {
+        "phase": "credited",
+        "owner": 1,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 0,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "credited",
+        "owner": 0,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 0,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      }
+    ],
+    "result": "pass"
+  },
+  "normal_worklists": {
+    "samples": 80,
+    "recorded_states_and_cycle_totals": "all exactly unchanged",
+    "colour_helper_calls": 0
+  },
+  "forced_colour_worklists": {
+    "0": {
+      "baseline": {
+        "samples": 16,
+        "minimum": 64474,
+        "maximum": 96830,
+        "mean": 91633.875
+      },
+      "candidate": {
+        "samples": 16,
+        "minimum": 60791,
+        "maximum": 91284,
+        "mean": 86105
+      },
+      "pair_counts": [
+        414,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621
+      ],
+      "recorded_state_matches": 16
+    },
+    "1": {
+      "baseline": {
+        "samples": 16,
+        "minimum": 45500,
+        "maximum": 101648,
+        "mean": 95354.75
+      },
+      "candidate": {
+        "samples": 16,
+        "minimum": 43637,
+        "maximum": 96059,
+        "mean": 90017.4375
+      },
+      "pair_counts": [
+        207,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621
+      ],
+      "recorded_state_matches": 16
+    },
+    "2": {
+      "baseline": {
+        "samples": 16,
+        "minimum": 51654,
+        "maximum": 104744,
+        "mean": 99510.75
+      },
+      "candidate": {
+        "samples": 16,
+        "minimum": 49791,
+        "maximum": 99155,
+        "mean": 94154.625
+      },
+      "pair_counts": [
+        207,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621
+      ],
+      "recorded_state_matches": 16
+    },
+    "3": {
+      "baseline": {
+        "samples": 16,
+        "minimum": 56632,
+        "maximum": 110435,
+        "mean": 104877.25
+      },
+      "candidate": {
+        "samples": 16,
+        "minimum": 54769,
+        "maximum": 104846,
+        "mean": 99521.5
+      },
+      "pair_counts": [
+        207,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621
+      ],
+      "recorded_state_matches": 16
+    },
+    "4": {
+      "baseline": {
+        "samples": 16,
+        "minimum": 61278,
+        "maximum": 115097,
+        "mean": 108795.125
+      },
+      "candidate": {
+        "samples": 16,
+        "minimum": 59276,
+        "maximum": 113275,
+        "mean": 106816.0625
+      },
+      "pair_counts": [
+        207,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621,
+        621
+      ],
+      "recorded_state_matches": 5
+    }
+  },
+  "forced_colour_limits": "Colours are forced every sampled worklist to guarantee the expensive path, not normal gameplay cadence. All 80 executed byte-count sequences match; only 69 recorded state samples match. Do not subtract whole-frame averages to claim causal savings. Each full cache/repaint pass processes 207 pairs; measured kernel saving gives 1863 cycles/pass. Typical forced worklist executes three passes (621 pairs), 5589 cycles of removed helper work.",
+  "natural_cadence_fixture": {
+    "3": {
+      "release_active": {
+        "cycles": {
+          "samples": 82,
+          "minimum": 23850,
+          "maximum": 53521,
+          "mean": 28022
+        },
+        "over_27000": 32
+      },
+      "release_finished": {
+        "cycles": {
+          "samples": 16,
+          "minimum": 23700,
+          "maximum": 76345,
+          "mean": 31269.125
+        },
+        "over_27000": 7
+      },
+      "peak": {
+        "requested_count": 3,
+        "index": 93,
+        "active": 3,
+        "death": 0,
+        "front": 0,
+        "state": [
+          0,
+          5,
+          0,
+          0,
+          3,
+          3,
+          0,
+          0,
+          0,
+          0,
+          164,
+          120
+        ],
+        "event_start": 243670640,
+        "vbord": 895,
+        "missed_commit": 94,
+        "marks": [
+          [
+            "main_game_tick_normal",
+            414
+          ],
+          [
+            "enemy_tick",
+            524
+          ],
+          [
+            "main_after_player",
+            1439
+          ],
+          [
+            "main_render",
+            1667
+          ],
+          [
+            "framebuffer_prepare_back",
+            1697
+          ],
+          [
+            "sync_entity_cache_colour",
+            2150
+          ],
+          [
+            "secc_done",
+            26261
+          ],
+          [
+            "actor_closure_restore",
+            28691
+          ],
+          [
+            "acr_enemies",
+            29996
+          ],
+          [
+            "framebuffer_queue_damage",
+            33920
+          ],
+          [
+            "framebuffer_project_damage",
+            34327
+          ],
+          [
+            "roam_mark_underlay",
+            34395
+          ],
+          [
+            "frame_render_background",
+            34442
+          ],
+          [
+            "render_entity_colour",
+            34479
+          ],
+          [
+            "de_colour_done",
+            59147
+          ],
+          [
+            "fri_background_done",
+            59260
+          ],
+          [
+            "actor_closure_draw",
+            59274
+          ],
+          [
+            "acd_save_loop",
+            59301
+          ],
+          [
+            "acd_save_loop",
+            60014
+          ],
+          [
+            "acd_save_loop",
+            60610
+          ],
+          [
+            "acd_save_loop",
+            61932
+          ],
+          [
+            "acd_draw_loop",
+            61964
+          ],
+          [
+            "acd_draw_loop",
+            64798
+          ],
+          [
+            "acd_draw_loop",
+            67632
+          ],
+          [
+            "acd_draw_loop",
+            70466
+          ],
+          [
+            "acd_death",
+            70498
+          ],
+          [
+            "acd_normal_player",
+            70537
+          ],
+          [
+            "framebuffer_finish_back",
+            73689
+          ],
+          [
+            "main_entry_audio",
+            74491
+          ],
+          [
+            "audio_process_queue",
+            74849
+          ],
+          [
+            "audio_music_dispatch",
+            74871
+          ],
+          [
+            "audio_advance_all",
+            74915
+          ],
+          [
+            "audio_credit_service",
+            75147
+          ],
+          [
+            "audio_mix",
+            75170
+          ],
+          [
+            "audio_mix_write",
+            75729
+          ],
+          [
+            "mainloop",
+            76345
+          ]
+        ],
+        "audio_before": {
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "music_queue": 0
+        },
+        "colour_pair_calls": [
+          {
+            "mode": "rebind",
+            "entry": 2150,
+            "pairs": 207,
+            "live_records": 6
+          },
+          {
+            "mode": "primary",
+            "entry": 34479,
+            "pairs": 207,
+            "live_records": 6
+          }
+        ],
+        "audio_after": {
+          "slots": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "music_queue": 0
+        },
+        "cycles": 76345
+      }
+    },
+    "4": {
+      "release_active": {
+        "cycles": {
+          "samples": 82,
+          "minimum": 21508,
+          "maximum": 87443,
+          "mean": 35967.365853658535
+        },
+        "over_27000": 78
+      },
+      "release_finished": {
+        "cycles": {
+          "samples": 16,
+          "minimum": 30181,
+          "maximum": 35892,
+          "mean": 32190.125
+        },
+        "over_27000": 16
+      },
+      "peak": {
+        "requested_count": 4,
+        "index": 19,
+        "active": 4,
+        "death": 0,
+        "front": 0,
+        "state": [
+          0,
+          7,
+          0,
+          0,
+          4,
+          4,
+          1,
+          0,
+          0,
+          0,
+          164,
+          128
+        ],
+        "event_start": 256383008,
+        "vbord": 948,
+        "missed_commit": 116,
+        "marks": [
+          [
+            "main_game_tick_normal",
+            414
+          ],
+          [
+            "enemy_tick",
+            502
+          ],
+          [
+            "main_after_player",
+            2742
+          ],
+          [
+            "main_render",
+            3094
+          ],
+          [
+            "framebuffer_prepare_back",
+            3124
+          ],
+          [
+            "sync_entity_cache_colour",
+            3594
+          ],
+          [
+            "secc_done",
+            27705
+          ],
+          [
+            "actor_closure_restore",
+            30473
+          ],
+          [
+            "acr_enemies",
+            31682
+          ],
+          [
+            "framebuffer_queue_damage",
+            37082
+          ],
+          [
+            "framebuffer_project_damage",
+            37489
+          ],
+          [
+            "roam_mark_underlay",
+            37557
+          ],
+          [
+            "frame_render_background",
+            37604
+          ],
+          [
+            "render_entity_colour",
+            37641
+          ],
+          [
+            "de_colour_done",
+            62405
+          ],
+          [
+            "fri_background_done",
+            64883
+          ],
+          [
+            "actor_closure_draw",
+            64897
+          ],
+          [
+            "acd_save_loop",
+            64924
+          ],
+          [
+            "acd_save_loop",
+            65790
+          ],
+          [
+            "acd_save_loop",
+            66656
+          ],
+          [
+            "acd_save_loop",
+            67978
+          ],
+          [
+            "acd_draw_loop",
+            69042
+          ],
+          [
+            "acd_draw_loop",
+            71876
+          ],
+          [
+            "acd_draw_loop",
+            74710
+          ],
+          [
+            "acd_draw_loop",
+            77544
+          ],
+          [
+            "acd_death",
+            79997
+          ],
+          [
+            "acd_normal_player",
+            80036
+          ],
+          [
+            "framebuffer_finish_back",
+            83186
+          ],
+          [
+            "main_entry_audio",
+            83988
+          ],
+          [
+            "audio_process_queue",
+            84470
+          ],
+          [
+            "audio_process_queue",
+            84853
+          ],
+          [
+            "audio_music_dispatch",
+            84875
+          ],
+          [
+            "audio_advance_all",
+            84919
+          ],
+          [
+            "audio_credit_service",
+            85479
+          ],
+          [
+            "audio_mix",
+            85502
+          ],
+          [
+            "audio_mix_write",
+            86737
+          ],
+          [
+            "mainloop",
+            87443
+          ]
+        ],
+        "audio_before": {
+          "slots": [
+            255,
+            5,
+            255,
+            255
+          ],
+          "music_queue": 0
+        },
+        "colour_pair_calls": [
+          {
+            "mode": "rebind",
+            "entry": 3594,
+            "pairs": 207,
+            "live_records": 6
+          },
+          {
+            "mode": "primary",
+            "entry": 37641,
+            "pairs": 207,
+            "live_records": 6
+          }
+        ],
+        "audio_after": {
+          "slots": [
+            255,
+            5,
+            4,
+            255
+          ],
+          "music_queue": 0
+        },
+        "cycles": 87443
+      }
+    }
+  },
+  "natural_cadence_limits": "Still a controlled parked-player, early-release, cleared-skull fixture. Normal colour timer and audio run. Current peaks process two 207-pair passes: 3726 cycles of removed helper work. Long trajectories vary, so peak-to-peak changes are observations, not isolated savings.",
+  "capacity": {
+    "resident": "8176/8192",
+    "resident_free_change": "12 -> 16",
+    "enemy": "4091/4096",
+    "enemy_pre_table_free": 0,
+    "assets": "7596/7680",
+    "presentation": "1273/1280",
+    "copied_audio": "734/920",
+    "banked_audio": "5675/8192",
+    "cold": "14362/16384",
+    "gmc_source_free": 413,
+    "no_limit_increase": true
+  },
+  "build": "Final complete build passes 256/256 routines and 4095/4095 labels; ownership audit zero errors",
+  "rejected_probes": [
+    "First build assembled/packed but documentation rejected unclassified cck_primary after entry move. Added alias classification; documentation-only regeneration correctly refused stale provenance; full rebuild passed.",
+    "Two full-render timeouts retained. After mandatory reassessment, bounded call-boundary trace proved all renderer phases completed until framebuffer_finish_back enabled IRQ. Probe restored older resident code but retained newer boot IRQ vector. Matching JT_IRQ to selected irq_handler fixes the probe; runtime patch unchanged."
+  ],
+  "residual": [
+    "27000-cycle target still fails; sixteen four-enemy post-release worklists all exceed target",
+    "Production integration and natural moving-player/listening acceptance remain pending",
+    "Broader colour-cache and steady renderer costs unresolved",
+    "Earlier gate-cache static verifier issue remains open; forced gate crossover is a separate equivalence check"
+  ],
+  "commands": [
+    "scripts/build.sh build",
+    "python3 repro/bug058-colour-kernel-20260927.py FIT OUTPUT",
+    "python3 repro/bug058-nest-startup-20260927.py FIT OUTPUT",
+    "python3 repro/bug058-render-crossover-20260927.py FIT OUTPUT FIT colour-before colour-after --resident-pair --force-colour --park-far --cleared-skulls",
+    "python3 repro/bug058-fit-live-count-20260927.py FIT OUTPUT --park-far --park-other-corner --cleared-skulls --four-render-profile --force-colour --colour-pairs [--reference-prefix=colour-before --reference-resident]",
+    "python3 repro/bug058-fit-live-count-20260927.py FIT OUTPUT --park-far --park-other-corner --cleared-skulls --four-render-profile --colour-pairs [--reference-prefix=colour-before --reference-resident]",
+    "python3 repro/bug058-fit-live-count-20260927.py FIT OUTPUT --release-window --park-far --park-other-corner --cleared-skulls --four-render-profile --colour-pairs"
+  ],
+  "local_evidence_hashes": {
+    "bug058-colour-fit-20260927.patch": "e44f6115a82c500fa807668e50543d64ae96ba2b83c9bd4882b1595ccfd32f0d",
+    "bug058-colour-build-20260927.log": "9091037d47e0933ce28f31f6b96a76b5b3b3dbf2fa39d1f8d6d3845bcf01e893",
+    "bug058-colour-build-final-20260927.log": "a8e071a0d9c83dd80971cc2b0ead7c919592c8cb7c41ace64734b7c0c3a71565",
+    "bug058-colour-kernel-20260927.json": "92c61f4305961af885cd8732426d23967b53d449ea6f193a7ee61c4bdbb0e881",
+    "bug058-colour-startup-20260927.json": "f23e34ad50420bfa89487b074e239f8507bf4ecbede2cc565ac2f00eeab96249",
+    "bug058-colour-crossover-20260927.json": "cd003a9436683d578aa12f65258730e8315ed205ddb6e561bc035ca6f4af6fe2",
+    "bug058-colour-work-before-20260927.json": "5b6d784fc76bb4b090d26ec72b81a2b97c246ed7965bbe9b29e80a77f3f16691",
+    "bug058-colour-work-after-20260927.json": "c686a30f1711b6589a044799d389eced5afd2d285d922fe4e5119ec8a4b977e5",
+    "bug058-colour-normal-before-20260927.json": "9b5adbe5da71a031d9beada8694aaaee6d9d007d50356cb8de74b1e68527d8d7",
+    "bug058-colour-normal-after-20260927.json": "edf9b15f3fca437f1330375033cb9ca9bf5221021c94ca26b4e636db4c142828",
+    "bug058-colour-release-20260927.json": "99310a0b0f90eaefd5be4262c1d262f949d0e4b0d08aad669198c1304b717553",
+    "bug058-colour-crossover-timeout-20260927.json": "2f53303429cc2263f622f69d4544ba7ea74a67268f9ebe82eb56cbabe9dba1fa",
+    "bug058-colour-crossover-diagnostic-20260927.json": "d70e444ca9570b3f4adc2dde06e5fdb7334703c6561e9cc9c2334370c5099702",
+    "bug058-colour-crossover-trace-20260927.json": "ee0bef4bad33bb784088b8e6e7a29f6883fa9203963925c78212206361c2f7a2"
+  },
+  "probe_diagnostic": {
+    "rom_sha256": "98c5fe80ab1e27d161b491f24ddc3dfd97dc3035ffedff1ac14ce79b752b4a19",
+    "phase": "controlled same-state render crossover",
+    "deadline_seconds": 45,
+    "success_marker": "identical framebuffer and equivalent bank-$34 state under the explicitly selected oracle",
+    "timeout_meaning": "named sample boundary absent, not proof of target slowdown",
+    "controlled": "early enemy releases; current ROM boot with parked player and asserted live counts; reference/candidate enemy modules temporarily overlaid for controlled render comparisons; original state restored between calls",
+    "clock_units": "event_ticks / 8 at verified fast clock; monitor cpu_cycles incorrectly divides by16",
+    "samples": [],
+    "candidate_enemy_sha256": "807e190c7794ad5a60f15860ce364aa56dadf402f4d62aab6d2d82c2390fce08",
+    "perimeter_only": false,
+    "reference_resident_sha256": "2c22677daf6d51310ab7d8ce38ba012b9c2eeaaad7888553c3cb5fcaf016668e",
+    "cases": [],
+    "state_oracle": "all state exact",
+    "controlled_cleared_skulls": [
+      [
+        14,
+        2,
+        1,
+        0
+      ],
+      [
+        22,
+        12,
+        1,
+        0
+      ]
+    ],
+    "park_cell": [
+      22,
+      22
+    ],
+    "current_case": {
+      "count": 0,
+      "index": 0,
+      "side": "reference"
+    },
+    "invoke_trace": [
+      [
+        "framebuffer_prepare_back",
+        {
+          "a": 0,
+          "b": 16,
+          "d": 16,
+          "cc": 80,
+          "dp": 0,
+          "x": 42128,
+          "y": 178,
+          "u": 43152,
+          "s": 7930,
+          "pc": 3569
+        }
+      ],
+      [
+        "sync_entity_cache_colour",
+        {
+          "a": 0,
+          "b": 0,
+          "d": 0,
+          "cc": 84,
+          "dp": 0,
+          "x": 4463,
+          "y": 43160,
+          "u": 43308,
+          "s": 7928,
+          "pc": 51010
+        }
+      ],
+      [
+        "actor_closure_restore",
+        {
+          "a": 1,
+          "b": 4,
+          "d": 260,
+          "cc": 84,
+          "dp": 0,
+          "x": 41888,
+          "y": 43160,
+          "u": 46039,
+          "s": 7930,
+          "pc": 3200
+        }
+      ],
+      [
+        "restore_player",
+        {
+          "a": 16,
+          "b": 116,
+          "d": 4212,
+          "cc": 84,
+          "dp": 0,
+          "x": 41888,
+          "y": 43160,
+          "u": 46039,
+          "s": 7926,
+          "pc": 54770
+        }
+      ],
+      [
+        "framebuffer_queue_damage",
+        {
+          "a": 4,
+          "b": 0,
+          "d": 1024,
+          "cc": 84,
+          "dp": 0,
+          "x": 42128,
+          "y": 4458,
+          "u": 41856,
+          "s": 7930,
+          "pc": 2706
+        }
+      ],
+      [
+        "framebuffer_project_damage",
+        {
+          "a": 16,
+          "b": 22,
+          "d": 4118,
+          "cc": 80,
+          "dp": 0,
+          "x": 143,
+          "y": 4458,
+          "u": 43680,
+          "s": 7930,
+          "pc": 2557
+        }
+      ],
+      [
+        "frame_render_background",
+        {
+          "a": 0,
+          "b": 22,
+          "d": 22,
+          "cc": 84,
+          "dp": 0,
+          "x": 143,
+          "y": 4458,
+          "u": 43264,
+          "s": 7909,
+          "pc": 2924
+        }
+      ],
+      [
+        "frame_render_background",
+        {
+          "a": 0,
+          "b": 22,
+          "d": 22,
+          "cc": 112,
+          "dp": 0,
+          "x": 126,
+          "y": 58448,
+          "u": 43264,
+          "s": 7930,
+          "pc": 2924
+        }
+      ],
+      [
+        "render_entity_colour",
+        {
+          "a": 16,
+          "b": 22,
+          "d": 4118,
+          "cc": 112,
+          "dp": 0,
+          "x": 126,
+          "y": 58448,
+          "u": 43264,
+          "s": 7928,
+          "pc": 51189
+        }
+      ],
+      [
+        "actor_closure_draw",
+        {
+          "a": 0,
+          "b": 0,
+          "d": 0,
+          "cc": 84,
+          "dp": 0,
+          "x": 41888,
+          "y": 58448,
+          "u": 46039,
+          "s": 7930,
+          "pc": 3271
+        }
+      ],
+      [
+        "draw_player",
+        {
+          "a": 0,
+          "b": 0,
+          "d": 0,
+          "cc": 89,
+          "dp": 0,
+          "x": 42128,
+          "y": 58448,
+          "u": 46039,
+          "s": 7928,
+          "pc": 54600
+        }
+      ],
+      [
+        "save_player",
+        {
+          "a": 0,
+          "b": 0,
+          "d": 0,
+          "cc": 89,
+          "dp": 0,
+          "x": 42128,
+          "y": 58448,
+          "u": 46039,
+          "s": 7926,
+          "pc": 54729
+        }
+      ],
+      [
+        "framebuffer_finish_back",
+        {
+          "a": 52,
+          "b": 0,
+          "d": 13312,
+          "cc": 80,
+          "dp": 0,
+          "x": 37434,
+          "y": 52268,
+          "u": 41158,
+          "s": 7930,
+          "pc": 3675
+        }
+      ]
+    ],
+    "result": "fail",
+    "failure": "AssertionError({'trace_stop': {'reason': 'timeout'}, 'regs': {'a': 0, 'b': 0, 'd': 0, 'cc': 153, 'dp': 0, 'x': 54888, 'y': 8037, 'u': 43304, 's': 65500, 'pc': 40963}})",
+    "traceback": "Traceback (most recent call last):\n  File \"/mnt/e/projects/ladybug/repro/bug058-render-crossover-20260927.py\", line 121, in <module>\n    e['current_case']={'count':count,'index':i,'side':name};restore(pages,regs,pars);results[name]=invoke(enemy if name=='reference' else candidate,es['frame_render_impl'] if name=='reference' else cs['frame_render_impl'],(oldresident if name=='reference' else resident) if (perimeter_only or resident_pair) else None)\n  File \"/mnt/e/projects/ladybug/repro/bug058-render-crossover-20260927.py\", line 84, in invoke\n    c.call('pause');raise AssertionError({'trace_stop':h,'regs':c.call('read_registers')})\nAssertionError: {'trace_stop': {'reason': 'timeout'}, 'regs': {'a': 0, 'b': 0, 'd': 0, 'cc': 153, 'dp': 0, 'x': 54888, 'y': 8037, 'u': 43304, 's': 65500, 'pc': 40963}}\n"
+  }
+}
