@@ -14,7 +14,7 @@ au=r.symbols(b/'ladybug-audio-runtime.map');audio=(b/'ladybug-audio-runtime.bin'
 e={'rom_sha256':hashlib.sha256(rom.read_bytes()).hexdigest(),'phase':'controlled release-count sweep with real movement/render/audio','deadline_seconds':45,'success_marker':'16 worklists each at zero through four released enemies','timeout_meaning':'named sample boundary absent, not proof of target slowdown','controlled':'player parked at legal maze cell recorded in park_cell; existing enemy_release_impl called early; fixture leaves movement/render/collision/audio/clock execution intact; candidate code is identified by ROM hash','clock_units':'event_ticks / 8 at verified fast clock; monitor cpu_cycles incorrectly divides by16','samples':[]}
 # Decode installed stream commands offline; runtime matches the entire mapped stream.
 stream_catalog=[]
-if '--sparse-mix' in sys.argv[3:]:
+if '--sparse-mix' in sys.argv[3:] or '--steady-decode' in sys.argv[3:]:
  for family,count,page in [('enemy',130,0x35),('player',16,0x39)]:
   data=(b/('ladybug-'+family+'-sparse.bin')).read_bytes()
   for frame in range(count):
@@ -123,6 +123,10 @@ try:
  px=2 if '--park-other-corner' in sys.argv else park
  write(ms['PLAYER_CELL_X'],[px,park]);write(ms['PLAYER_FB'],(0x2000+(park*8-8)*160+(px+7)*4).to_bytes(2,'big'));write(ms['PLAYER_DIR'],[255]);e['park_cell']=[px,park]
  for count in range(5):
+  if count==4 and '--steady-decode' in sys.argv[3:]:
+   # FB entry is unique; the stage delta label is a per-command loop, not an entry.
+   for n in ['sparse_blit_fb','sparse_decode_done']:
+    address=es[n];assert read(address,8)==enemy[address-0x800:address-0x800+8],n;markers[address]=n
   if release_window:wait_audio()
   deadline=time.monotonic()+45
   if count:release()
@@ -146,13 +150,17 @@ try:
        row.setdefault('colour_pair_calls',[]).append(dict(mode='primary',entry=t,**colour_pair_count(False)))
      if markers[a] in ['sparse_blit_fb','sparse_blit_stage']:
       call={'path':markers[a],'entry':t};row.setdefault('decode_calls',[]).append(call)
-      if '--sparse-mix' in sys.argv[3:]:
+      if '--sparse-mix' in sys.argv[3:] or '--steady-decode' in sys.argv[3:]:
        pointer=c.call('read_registers')['u'];options=[x for x in stream_catalog if x[2]==pointer];assert options,('unindexed stream',pointer)
        mapped=read(pointer,max(len(x[3]) for x in options));matches=[x for x in options if mapped[:len(x[3])]==x[3]];assert matches,'mapped stream/artifact mismatch'
        assert all(x[4:]==matches[0][4:] for x in matches),'ambiguous command mix'
        call.update(frames=[x[0]+':'+str(x[1]) for x in matches],mix=matches[0][4],masks=matches[0][5])
      if markers[a]=='sparse_decode_done':
-      call=row['decode_calls'][-1];assert 'cycles_to_epilogue' not in call;call['cycles_to_epilogue']=t-call['entry']
+      calls=row.get('decode_calls',[])
+      if '--steady-decode' in sys.argv and (not calls or 'cycles_to_epilogue' in calls[-1]):
+       row['unprofiled_stage_returns']=row.get('unprofiled_stage_returns',0)+1
+      else:
+       call=calls[-1];assert 'cycles_to_epilogue' not in call;call['cycles_to_epilogue']=t-call['entry']
      if '--renderer-costs' in sys.argv[3:]:
       if markers[a]=='draw_perimeter_box':
        row.setdefault('perimeter_calls',[]).append({'entry':t,'colour':read(ms['HUD_COLOR'])[0],'row_hits':0})
@@ -194,6 +202,9 @@ try:
     quiet=quiet+1 if saw_release and 5 not in row['audio_before']['slots']+row['audio_after']['slots'] and row['audio_after']['music_queue']==0 else 0
     if quiet>=16:break
   if release_window and count>=3:assert saw_release and quiet>=16,('release and quiet windows missing',count,saw_release,quiet)
+ if '--steady-decode' in sys.argv:
+  steady=[s for s in e['samples'] if s['requested_count']==4][-16:]
+  assert len(steady)==16 and all(len(s.get('decode_calls',[]))==5 and not s.get('unprofiled_stage_returns') and all('cycles_to_epilogue' in call for call in s['decode_calls']) for s in steady),'required steady framebuffer decode coverage absent'
  e['result']='captured'
 except Exception as ex:e['result']='fail';e['failure']=repr(ex);e['failed_row']=row if 'row' in globals() else None
 finally:c.close();m.stop(p);out.write_text(json.dumps(e,indent=2)+'\n')

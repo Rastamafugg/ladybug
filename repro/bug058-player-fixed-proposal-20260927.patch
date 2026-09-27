@@ -1,0 +1,37 @@
+--- a/src/main.s
++++ b/src/main.s
+@@ -4393,11 +4393,12 @@
+         sta     PLAYER_COPY_ROWS
+ sp_row
+         pulu    d,y
+-        std     ,x++
+-        sty     ,x++
++        std     ,x
++        sty     2,x
+         pulu    d,y
+-        std     ,x++
+-        sty     ,x++
++        std     4,x
++        sty     6,x
++        leax    8,x
+         leau    152,u
+         dec     PLAYER_COPY_ROWS
+         bne     sp_row
+@@ -4424,12 +4425,12 @@
+         sta     PLAYER_COPY_ROWS
+ rp_row
+         pulu    d,y
+-        std     ,x++
+-        sty     ,x++
++        std     ,x
++        sty     2,x
+         pulu    d,y
+-        std     ,x++
+-        sty     ,x++
+-        leax    152,x
++        std     4,x
++        sty     6,x
++        leax    160,x
+         dec     PLAYER_COPY_ROWS
+         bne     rp_row
+         clr     PLAYER_BG_VALID

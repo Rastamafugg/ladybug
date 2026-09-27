@@ -1,0 +1,219 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "status": "Proposed; profiling only, runtime unchanged",
+  "rom_sha256": "9f96bdb524f5a1bc730a6b225dd2f62c4ac4d47339108f8f9b8b549472b78b53",
+  "clock": "event_ticks/8; means and maxima from sixteen controlled post-release worklists, not worst-case bounds",
+  "steady": {
+    "samples": 16,
+    "mean": 32031.5,
+    "maximum": 36014,
+    "over_27000": 16
+  },
+  "components": {
+    "enemy_restore": {
+      "samples": 16,
+      "mean": 5442.875,
+      "maximum": 5729,
+      "over_27000": 0
+    },
+    "enemy_capture": {
+      "samples": 16,
+      "mean": 4041.5625,
+      "maximum": 4620,
+      "over_27000": 0
+    },
+    "enemy_draw": {
+      "samples": 16,
+      "mean": 9937.25,
+      "maximum": 10565,
+      "over_27000": 0
+    },
+    "player_capture_draw": {
+      "samples": 16,
+      "mean": 3169,
+      "maximum": 3248,
+      "over_27000": 0
+    }
+  },
+  "enemy_decode": {
+    "samples": 16,
+    "mean": 9060.25,
+    "maximum": 9688,
+    "over_27000": 0
+  },
+  "fourth_decode": {
+    "samples": 16,
+    "mean": 2133.5,
+    "maximum": 2227,
+    "over_27000": 0
+  },
+  "command_mix_including_player": {
+    "extended": 42,
+    "opaque1": 275,
+    "partial1": 1157,
+    "opaque3": 232,
+    "partial2": 343,
+    "opaque4": 112,
+    "opaque5": 422,
+    "opaque6": 84,
+    "opaque2": 50,
+    "partial3": 53
+  },
+  "capture_reasons": {
+    "horizontal": 39,
+    "vertical": 23,
+    "unsupported-displacement": 2
+  },
+  "identity": "All 244 complete cycle totals, state bytes and owners equal previous same-ROM profile; mapped sparse stream bytes matched installed artifacts",
+  "models": {
+    "fourth_decode_half": {
+      "samples": 16,
+      "mean": 30964.75,
+      "maximum": 34900.5,
+      "over_27000": 16
+    },
+    "all_decode_half": {
+      "samples": 16,
+      "mean": 27501.375,
+      "maximum": 31170.0,
+      "over_27000": 8
+    },
+    "all_actor_work_half": {
+      "samples": 16,
+      "mean": 22320.65625,
+      "maximum": 26076.0,
+      "over_27000": 0
+    }
+  },
+  "model_limit": "Arithmetic subtraction only: perfectly balanced half-work, no scheduling/overlap/catch-up overhead. Not a simulation, fitted implementation, deadline pass or capacity proof. Draw-only removes decoder cost only, leaving caller/closure overhead.",
+  "largest_sample": {
+    "cycles": 85726,
+    "even_removing_all_enemy_restore_capture_draw": 65253
+  },
+  "probe": {
+    "phase": "controlled release-count sweep with real movement/render/audio",
+    "deadline_seconds": 45,
+    "success_marker": "At counts three and four: release cue 5 observed, followed by 16 consecutive cue-5-free worklists; normal ticks remain enabled",
+    "timeout_meaning": "named sample boundary absent, not proof of target slowdown"
+  },
+  "probe_correction": {
+    "failure": "KeyError('decode_calls')",
+    "failed_row": {
+      "requested_count": 4,
+      "index": 0,
+      "active": 4,
+      "death": 0,
+      "front": 1,
+      "state": [
+        1,
+        2,
+        0,
+        0,
+        4,
+        4,
+        1,
+        0,
+        0,
+        0,
+        164,
+        120
+      ],
+      "event_start": 247748192,
+      "vbord": 912,
+      "missed_commit": 99,
+      "marks": [
+        [
+          "main_game_tick_normal",
+          414
+        ],
+        [
+          "enemy_tick",
+          502
+        ],
+        [
+          "main_after_player",
+          1856
+        ],
+        [
+          "main_render",
+          1995
+        ],
+        [
+          "framebuffer_prepare_back",
+          2025
+        ],
+        [
+          "sync_entity_cache_colour",
+          2470
+        ],
+        [
+          "secc_done",
+          2485
+        ],
+        [
+          "actor_closure_restore",
+          2593
+        ],
+        [
+          "acr_enemies",
+          3802
+        ],
+        [
+          "framebuffer_queue_damage",
+          7462
+        ],
+        [
+          "framebuffer_project_damage",
+          7866
+        ],
+        [
+          "roam_mark_underlay",
+          7931
+        ],
+        [
+          "frame_render_background",
+          7984
+        ],
+        [
+          "de_colour_done",
+          12468
+        ],
+        [
+          "sparse_decode_done",
+          15818
+        ]
+      ],
+      "audio_before": {
+        "slots": [
+          255,
+          5,
+          255,
+          255
+        ],
+        "music_queue": 0
+      }
+    },
+    "cause": "Shared decoder epilogue also serves nest-stage decoding during release. Steady FB-only observation now records unmatched stage returns separately and requires five complete FB decodes with zero unmatched returns in each steady sample."
+  },
+  "player_loop_alternative": {
+    "assembly_only": true,
+    "baseline_matches_current": true,
+    "resident_before_after_limit": [
+      8170,
+      8172,
+      8192
+    ],
+    "assets": [
+      7648,
+      7680
+    ],
+    "projected_saving_per_full_save_restore": 208,
+    "target": 180,
+    "new_mutable_bytes": 0,
+    "full_build_and_runtime": "not run; approval required"
+  },
+  "cadence_memory": "Not fitted. Existing enemy executable has zero pre-table headroom; resident has 22 bytes free. Existing per-owner snapshots record logical ENEMY_TABLE wholesale, so deferred visual positions require explicit retained-render-state ownership and publication changes. Reserved bytes are not assumed free.",
+  "profile_sha256": "803bbe1a324c46c539db55ff3bd8aca03e7b99d664409f298419eddc3aa4ba39",
+  "patch_sha256": "d4a84da36bbd6baeb6bc74e66514b437f95018aa456c5191b7682b538a278bd1"
+}
