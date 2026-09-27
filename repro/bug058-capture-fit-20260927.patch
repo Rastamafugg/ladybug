@@ -1,0 +1,300 @@
+diff --git a/scripts/source_reference.json b/scripts/source_reference.json
+index ad00186..e55fdea 100644
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -1821,6 +1821,16 @@
+           "name": "rcbtf_phase7_row",
+           "routine": null,
+           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
++        },
++        {
++          "name": "rcbtf_ring_done",
++          "routine": null,
++          "purpose": "Fall-through return after second wrapped restore run."
++        },
++        {
++          "name": "rcbtf_row_advanced",
++          "routine": null,
++          "purpose": "Fall-through common tail for nonzero column phases."
+         }
+       ]
+     },
+@@ -3008,6 +3018,11 @@
+           "name": "gmc_sound_data_end",
+           "kind": "boundary",
+           "reason": "Module/table boundary in current assembled source."
++        },
++        {
++          "name": "audio_mix_order",
++          "kind": "data",
++          "reason": "Four dedicated stable-priority keys; required ownership record audio-mix-order."
+         }
+       ]
+     },
+@@ -4306,7 +4321,10 @@
+       "entity-cache-colour",
+       "player-sprite-index",
+       "audio-slot-zero",
+-      "audio-shadow"
++      "audio-shadow",
++      "audio-mix-order",
++      "enemy-copy-row",
++      "restore-row-count"
+     ]
+   }
+ }
+diff --git a/src/audio_runtime.s b/src/audio_runtime.s
+index 3931155..5070e37 100644
+--- a/src/audio_runtime.s
++++ b/src/audio_runtime.s
+@@ -825,26 +825,77 @@ audio_mix_exclusive_next
+         lbsr    audio_mix_slot
+         rts
+ audio_mix_all_slots
+-        lda     #7
++        ; Stable descending priority keys; lower slot wins equal priority.
++        ldx     #audio_slot0
++        ldu     #audio_mix_order
++        lda     #3
+         sta     audio_mix_priority
+-audio_mix_priority_next
+-        clr     AUDIO_WORK_SLOT
++audio_mix_key_next
++        clra
++        ldb     ,x
++        cmpb    #$FF
++        beq     audio_mix_key_store
++        lda     1,x
++        inca
++        lsla
++        lsla
++        adda    audio_mix_priority
++audio_mix_key_store
++        sta     ,u+
++        leax    AUDIO_SLOT_BYTES,x
++        dec     audio_mix_priority
++        bpl     audio_mix_key_next
++        lda     audio_mix_order+0
++        cmpa    audio_mix_order+1
++        bhs     audio_mix_sorted_0
++        ldb     audio_mix_order+1
++        stb     audio_mix_order+0
++        sta     audio_mix_order+1
++audio_mix_sorted_0
++        lda     audio_mix_order+2
++        cmpa    audio_mix_order+3
++        bhs     audio_mix_sorted_1
++        ldb     audio_mix_order+3
++        stb     audio_mix_order+2
++        sta     audio_mix_order+3
++audio_mix_sorted_1
++        lda     audio_mix_order+0
++        cmpa    audio_mix_order+2
++        bhs     audio_mix_sorted_2
++        ldb     audio_mix_order+2
++        stb     audio_mix_order+0
++        sta     audio_mix_order+2
++audio_mix_sorted_2
++        lda     audio_mix_order+1
++        cmpa    audio_mix_order+3
++        bhs     audio_mix_sorted_3
++        ldb     audio_mix_order+3
++        stb     audio_mix_order+1
++        sta     audio_mix_order+3
++audio_mix_sorted_3
++        lda     audio_mix_order+1
++        cmpa    audio_mix_order+2
++        bhs     audio_mix_sorted_4
++        ldb     audio_mix_order+2
++        stb     audio_mix_order+1
++        sta     audio_mix_order+2
++audio_mix_sorted_4
++        clr     audio_mix_priority
+ audio_mix_all_next
++        ldx     #audio_mix_order
++        ldb     audio_mix_priority
++        lda     b,x
++        beq     audio_mix_all_done
++        anda    #3
++        eora    #3
++        sta     AUDIO_WORK_SLOT
+         lbsr    audio_slot_base
+-        lda     ,x
+-        cmpa    #$FF
+-        beq     audio_mix_all_skip
+-        lda     1,x
+-        cmpa    audio_mix_priority
+-        bne     audio_mix_all_skip
+         lbsr    audio_mix_slot
+-audio_mix_all_skip
+-        inc     AUDIO_WORK_SLOT
+-        lda     AUDIO_WORK_SLOT
++        inc     audio_mix_priority
++        lda     audio_mix_priority
+         cmpa    #4
+         blo     audio_mix_all_next
+-        dec     audio_mix_priority
+-        bpl     audio_mix_priority_next
++audio_mix_all_done
+         rts
+
+ audio_mix_clear
+@@ -1142,6 +1193,8 @@ audio_music_queue rmb 8
+ audio_music_best_priority fcb 0
+ audio_music_best_index fcb 0
+ audio_mix_priority fcb 0
++; @audit {"id":"audio-mix-order","kind":"scratch","symbol":"audio_mix_order","width":4,"mapping":"physical-page-3D","phases":["foreground"],"owner":"foreground audio mixer","lifetime":"Four keys live from key construction through final mixed slot; no alias with decoder scratch or retained PSG shadow.","initialization":"audio_mix_key_next writes all four keys before sorting","clobbers":"Mixer owns bytes until audio_mix_all_done; callees must preserve keys"}
++audio_mix_order rmb 4
+
+
+ ; Name-entry events use the same banked foreground clock as gameplay.
+diff --git a/src/enemy_runtime.s b/src/enemy_runtime.s
+index f8d1324..8a3ff22 100644
+--- a/src/enemy_runtime.s
++++ b/src/enemy_runtime.s
+@@ -152,6 +152,7 @@ ENEMY_PTR      equ $005E
+ ENEMY_NEST_DIRTY equ $0060
+ ENEMY_MOVE     equ $0061
+ ENEMY_DEATH_LATCH equ $0062
++; @audit {"id":"enemy-copy-row","kind":"scratch","symbol":"ENEMY_ROW","width":1,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"enemy renderer","lifetime":"Foreground row-loop counter; callers do not retain it across copy helpers.","initialization":"Consuming loop writes count before reading","clobbers":"Copy/render callers must not retain this counter across callee execution"}
+ ENEMY_ROW      equ $0063
+ BOX_TIMER      equ $004A
+ BOX_INDEX      equ $004B
+@@ -175,6 +176,7 @@ GATE_END_X      equ $0076
+ GATE_END_Y      equ $0077
+ GATE_SHADOW_PAGE equ $0078
+ GATE_COPY_COUNT equ $0079
++; @audit {"id":"restore-row-count","kind":"scratch","symbol":"GATE_COPY_ROWS","width":1,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"enemy renderer","lifetime":"Row-run count during restore/copy; wrapped restore invokes two bounded runs.","initialization":"Consuming loop writes count before reading","clobbers":"Copy/render callers must not retain this counter across callee execution"}
+ GATE_COPY_ROWS  equ $007A
+ GATE_WORK_ID    equ $007B
+ ENEMY_CANDIDATE equ $007C
+@@ -2104,10 +2106,8 @@ roam_update_background
+         cmpd    #-320
+         lbeq    rub_up
+ rub_full
+-        pshs    x
+         bsr    roam_ring_slot
+         clr     ,u
+-        puls    x
+         pshs    x
+         ldx     1,x
+         bsr    roam_bg_address
+@@ -2147,8 +2147,6 @@ rub_store_column
+         andb    #7
+         stb     GATE_COPY_COUNT ; new phase owns the exposed left column
+ rub_right_slot
+-        puls    x
+-        pshs    x
+         ldx     1,x
+         tst     RING_ROW
+         beq     rub_horizontal_fb
+@@ -2232,8 +2230,6 @@ rub_store_row
+         sta     ,u
+         lda     GATE_COPY_COUNT
+         sta     RING_ROW
+-        puls    x
+-        pshs    x
+         ldx     1,x
+         tst     GATE_COPY_ROWS
+         beq     rub_vertical_fb
+@@ -2276,15 +2272,23 @@ roam_capture_ring_row
+         tfr     u,x
+         rts
+ rcrr_rotated
+-        lda     #8
+-        sta     GATE_COPY_COUNT
++        ; B is 1..7. Copy [phase,8), then [0,phase), without per-byte wrap.
++        ; Caller recomputes U for each physical row; only X progress is retained.
++        leau    b,u
++        negb
++        addb    #8
+ rcrr_byte
+         lda     ,x+
+-        sta     b,u
+-        incb
+-        andb    #7
+-        dec     GATE_COPY_COUNT
++        sta     ,u+
++        decb
+         bne     rcrr_byte
++        leau    -8,u
++        ldb     RING_PHASE
++rcrr_wrap_byte
++        lda     ,x+
++        sta     ,u+
++        decb
++        bne     rcrr_wrap_byte
+         rts
+         endc
+
+@@ -2360,9 +2364,8 @@ roam_copy_bg_to_fb
+         sta     RING_PHASE
+         bita    #$F0
+         lbne    rcbtf_ring_setup
+-        lda     #16
+-        sta     GATE_COPY_ROWS
+-        lda     RING_PHASE
++        ldb     #16
++        stb     GATE_COPY_ROWS
+         anda    #7
+         lsla
+         ldu     RING_BASE
+@@ -2386,7 +2389,10 @@ rcbtf_phase0_row
+         pulu    d,y
+         std     ,x++
+         sty     ,x++
+-        lbra    rcbtf_row_advanced
++        leax    152,x
++        dec     GATE_COPY_ROWS
++        bne     rcbtf_phase0_row
++        rts
+
+ rcbtf_phase1
+ rcbtf_phase1_rows
+@@ -2509,16 +2515,13 @@ rcbtf_ring_setup
+         ldy     #rcbtf_fast_table
+         ldy     a,y
+         sty     RING_BASE       ; selected column-phase row copier
+-        clra
+         ldb     #16
+         subb    RING_ROW
+         stb     GATE_COPY_ROWS
+         jsr     [RING_BASE]
+         lda     RING_ROW
+-        beq     rcbtf_ring_done
+         leau    -128,u
+-        tfr     a,b
+-        stb     GATE_COPY_ROWS
++        sta     GATE_COPY_ROWS
+         jsr     [RING_BASE]
+ rcbtf_ring_done
+         rts
+@@ -2540,15 +2543,24 @@ rcbtf_row
+         endc
+
+ roam_copy_fb_to_bg
+-        ldy     #16
++        ; Full fallback uses four-byte transfers, like save_player.
++        exg     x,u
++        lda     #16
++        sta     ENEMY_ROW
+ copy_fb_rows
+ rcftb_row
+-        lbsr    copy_native_row
+-        leax    152,x
+-        leay    -1,y
++        pulu    d,y
++        std     ,x++
++        sty     ,x++
++        pulu    d,y
++        std     ,x++
++        sty     ,x++
++        leau    152,u
++        dec     ENEMY_ROW
+         bne     rcftb_row
+         rts
+
++
+ draw_enemy_fb
+         lbsr    enemy_frame_number
+         lbsr    sparse_enemy_stream

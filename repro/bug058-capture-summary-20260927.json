@@ -1,0 +1,333 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "status": "Proposed, fitted partial optimization; not Ready",
+  "base_revision": "e880b52",
+  "parent_evidence_commit": "7a5ae8a",
+  "rom_sha256": "2055eef22dc7754f484c5d2565a418c0f479578ff25fe6a49768582452f6fd27",
+  "enemy_sha256": "5b7f0f74beccfff4105c4dcb0489cfa2472b3608c0cd759642ef50fa2926bfed",
+  "reference_enemy_sha256": "1042fe1bef68632d5f370044f2d0bd4b8c7cb0d17e9b3349aab186ee52cd6f72",
+  "patch_sha256": "36594a7343d059c00a7fb55b783d2f2f94db66ed8e220d1d521a7e289f3f0833",
+  "production_changed": false,
+  "cost_class": "High-risk",
+  "units": "elapsed event ticks / 8; includes hardware waits",
+  "target_cycles": 27000,
+  "capture_costs": {
+    "0:all": {
+      "reference": {
+        "min": 75,
+        "max": 75,
+        "mean": 75.0,
+        "cases": 256
+      },
+      "fit": {
+        "min": 75,
+        "max": 75,
+        "mean": 75.0,
+        "cases": 256
+      }
+    },
+    "1:all": {
+      "reference": {
+        "min": 744,
+        "max": 752,
+        "mean": 750.1875,
+        "cases": 256
+      },
+      "fit": {
+        "min": 730,
+        "max": 738,
+        "mean": 736.1875,
+        "cases": 256
+      }
+    },
+    "-1:all": {
+      "reference": {
+        "min": 747,
+        "max": 755,
+        "mean": 753.1875,
+        "cases": 256
+      },
+      "fit": {
+        "min": 733,
+        "max": 741,
+        "mean": 739.1875,
+        "cases": 256
+      }
+    },
+    "320:zero": {
+      "reference": {
+        "min": 631,
+        "max": 634,
+        "mean": 632.5,
+        "cases": 32
+      },
+      "fit": {
+        "min": 617,
+        "max": 620,
+        "mean": 618.5,
+        "cases": 32
+      }
+    },
+    "320:rotated": {
+      "reference": {
+        "min": 895,
+        "max": 898,
+        "mean": 896.5,
+        "cases": 224
+      },
+      "fit": {
+        "min": 793,
+        "max": 796,
+        "mean": 794.5,
+        "cases": 224
+      }
+    },
+    "-320:zero": {
+      "reference": {
+        "min": 629,
+        "max": 632,
+        "mean": 630.5,
+        "cases": 32
+      },
+      "fit": {
+        "min": 615,
+        "max": 618,
+        "mean": 616.5,
+        "cases": 32
+      }
+    },
+    "-320:rotated": {
+      "reference": {
+        "min": 893,
+        "max": 896,
+        "mean": 894.5,
+        "cases": 224
+      },
+      "fit": {
+        "min": 791,
+        "max": 794,
+        "mean": 792.5,
+        "cases": 224
+      }
+    },
+    "2:all": {
+      "reference": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      },
+      "fit": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      }
+    },
+    "-2:all": {
+      "reference": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      },
+      "fit": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      }
+    },
+    "640:all": {
+      "reference": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      },
+      "fit": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      }
+    },
+    "-640:all": {
+      "reference": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      },
+      "fit": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      }
+    },
+    "319:all": {
+      "reference": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      },
+      "fit": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      }
+    },
+    "-321:all": {
+      "reference": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      },
+      "fit": {
+        "min": 1345,
+        "max": 1348,
+        "mean": 1346.5,
+        "cases": 256
+      }
+    },
+    "forced-full": {
+      "reference": {
+        "min": 1259,
+        "max": 1262,
+        "mean": 1260.5,
+        "cases": 256
+      },
+      "fit": {
+        "min": 1259,
+        "max": 1262,
+        "mean": 1260.5,
+        "cases": 256
+      }
+    }
+  },
+  "capture_oracle": {
+    "reference_cases": 5640,
+    "fit_cases": 5640,
+    "result": "pass",
+    "scope": "2 owners x 16 row phases x 8 column phases x 11 displacements x selected/forced-full, plus 8 invalid/dirty slot cases. Exact decoded background and preserved actor record/X."
+  },
+  "render_crossover": {
+    "cases": 40,
+    "result": "pass",
+    "actual_counts": {
+      "0": 8,
+      "1": 8,
+      "2": 8,
+      "3": 8,
+      "4": 8
+    },
+    "scope": "Exact framebuffer and physical page-$34 equality; parked player, early releases, actual counts and no death asserted. RAM/registers/mapping restored and call order alternated. Video event phase not restored."
+  },
+  "full_worklists": {
+    "0": {
+      "samples": 16,
+      "min": 9932,
+      "max": 16248,
+      "mean": 11637.25,
+      "over_target": 0,
+      "capture_reasons": {},
+      "unsupported_displacements": {}
+    },
+    "1": {
+      "samples": 16,
+      "min": 14991,
+      "max": 20893,
+      "mean": 16495.0625,
+      "over_target": 0,
+      "capture_reasons": {
+        "vertical": 16
+      },
+      "unsupported_displacements": {}
+    },
+    "2": {
+      "samples": 16,
+      "min": 19164,
+      "max": 24478,
+      "mean": 21592.0625,
+      "over_target": 0,
+      "capture_reasons": {
+        "horizontal": 20,
+        "vertical": 12
+      },
+      "unsupported_displacements": {}
+    },
+    "3": {
+      "samples": 16,
+      "min": 24963,
+      "max": 31607,
+      "mean": 27864.875,
+      "over_target": 9,
+      "capture_reasons": {
+        "vertical": 19,
+        "horizontal": 23,
+        "unsupported-displacement": 6
+      },
+      "unsupported_displacements": {
+        "-640": 2,
+        "-321": 2,
+        "-2": 2
+      }
+    },
+    "4": {
+      "samples": 16,
+      "min": 31604,
+      "max": 38255,
+      "mean": 34095.5,
+      "over_target": 16,
+      "capture_reasons": {
+        "unsupported-displacement": 63,
+        "unchanged": 1
+      },
+      "unsupported_displacements": {
+        "-2": 18,
+        "-640": 18,
+        "640": 14,
+        "319": 1,
+        "321": 1,
+        "2": 10,
+        "-319": 1
+      }
+    }
+  },
+  "memory": {
+    "enemy_used_limit": [
+      4091,
+      4096
+    ],
+    "pre_table_padding_bytes": 1,
+    "gmc_source_free_bytes": 413,
+    "added_scratch_bytes": 0,
+    "fixed_table_tail_unchanged": true
+  },
+  "build": {
+    "exit_code": 0,
+    "source_documentation": "PASS: 10 modules, 255/255 routines, 4099/4099 labels",
+    "audit_errors": [],
+    "required_contracts": 16,
+    "audit_sha256": "2114d74e03b868d3492df579e15080d119224c86c57b9f23d737db6949c5403d"
+  },
+  "decision": "Keep measured strip optimization as proposal only. Current strip selection beats full recapture; do not reverse it. Next measure/fix unsupported two-step movement with one bounded capture, not repeated single-step calls or weakened dirty checks. Full four-enemy timing still fails.",
+  "limits": [
+    "Natural sustained moving-player, demo and name-control timing remain unverified.",
+    "Existing gate-cache static verifier failure remains open.",
+    "Fixture counts are samples, not exhaustive natural path frequencies.",
+    "No new passing whole-game timing claim."
+  ],
+  "rejected": "No runtime candidate rejected in this step. Forced-full for supported strips was measured slower and not selected; previous repeated-strip rejection remains applicable.",
+  "raw_sha256": {
+    "bug058-capture-cost-reference-20260927.json": "34eed276dddafea6f322dab42b4f93127310fcad87f08e06ef6dc3787129310d",
+    "bug058-capture-cost-fit-20260927.json": "e783a2560b4ea017c9c040778ff9a15aac500a313dafe25c4aa40d7ac3526413",
+    "bug058-capture-crossover-20260927.json": "1e27ecc6744bed1898e98aa345a1f4130fb9cc8f2745bdc55d6b9cfb9c83f886",
+    "bug058-capture-live-count-20260927.json": "50cc421dd90dc893df05d547abd5b94c58cb60342f306562906ce1136702a7d4"
+  }
+}
