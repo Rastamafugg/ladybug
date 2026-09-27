@@ -4,6 +4,10 @@ root=Path(sys.argv[1]);out=Path(sys.argv[2]);sys.path.insert(0,str(root/'scripts
 import verify_bug011_runtime as r
 import verify_bug009_monitor_input as m
 b=root/'build';ms=r.symbols(b/'ladybug.map');ps=r.symbols(b/'ladybug-presentation-runtime.map');es=r.symbols(b/'ladybug-enemy-runtime.map');rom=b/'ladybug.rom';resident=(b/'ladybug-runtime.rom').read_bytes();enemy=(b/'ladybug-enemy-runtime.rom').read_bytes();presentation=(b/'ladybug-presentation-runtime.bin').read_bytes()
+# Immutable enemy/ROM pair for a bounded before/after timing run.
+reference_prefix=next((arg.split('=',1)[1] for arg in sys.argv[3:] if arg.startswith('--reference-prefix=')),None)
+if reference_prefix:
+ es=r.symbols(b/(reference_prefix+'.map'));enemy=(b/(reference_prefix+'.bin')).read_bytes();rom=b/(reference_prefix+'.rom')
 au=r.symbols(b/'ladybug-audio-runtime.map');audio=(b/'ladybug-audio-runtime.bin').read_bytes()
 e={'rom_sha256':hashlib.sha256(rom.read_bytes()).hexdigest(),'phase':'controlled release-count sweep with real movement/render/audio','deadline_seconds':45,'success_marker':'16 worklists each at zero through four released enemies','timeout_meaning':'named sample boundary absent, not proof of target slowdown','controlled':'player parked at legal maze cell recorded in park_cell; existing enemy_release_impl called early; fixture leaves movement/render/collision/audio/clock execution intact; candidate code is identified by ROM hash','clock_units':'event_ticks / 8 at verified fast clock; monitor cpu_cycles incorrectly divides by16','samples':[]}
 # Decode installed stream commands offline; runtime matches the entire mapped stream.
@@ -99,7 +103,8 @@ try:
     removed.append(list(read(address,4)));write(address+2,[0])
   e['controlled_cleared_skulls']=removed
  park=22 if '--park-far' in sys.argv else 2
- write(ms['PLAYER_CELL_X'],[park,park]);write(ms['PLAYER_FB'],(0x2000+(park*8-8)*160+(park+7)*4).to_bytes(2,'big'));write(ms['PLAYER_DIR'],[255]);e['park_cell']=[park,park]
+ px=2 if '--park-other-corner' in sys.argv else park
+ write(ms['PLAYER_CELL_X'],[px,park]);write(ms['PLAYER_FB'],(0x2000+(park*8-8)*160+(px+7)*4).to_bytes(2,'big'));write(ms['PLAYER_DIR'],[255]);e['park_cell']=[px,park]
  for count in range(5):
   if release_window:wait_audio()
   deadline=time.monotonic()+45

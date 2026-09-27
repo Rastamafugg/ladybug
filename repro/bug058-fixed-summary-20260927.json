@@ -1,0 +1,920 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "verdict": "Approved isolated local fit passes; whole BUG-058 Proposed, 27000-cycle target fails, not integrated",
+  "source": "e880b52 plus bug058-fixed-fit-20260927.patch",
+  "baseline": "0316374 proposal; corrected nest ROM 2bb8eadeff9bf096dcb080e3e14c76cc8d68bbea6a7a57a8660604e5f85df26e",
+  "rom_sha256": "38bcd65f507c206608829c7b3ddc056e1e4246ba08cd9872a29f4bd57e4bb118",
+  "enemy_sha256": "8d0d86edf79b487746ea6703d457b5ad757e72dd5acdff4c71a882bf51b7ff96",
+  "binary_delta": {
+    "ROM_changed_bytes": 35,
+    "enemy_bytes": 4091,
+    "all_symbol_addresses_unchanged": true,
+    "fixed_tail_identical": true
+  },
+  "units": "event_ticks/8 including waits; measured samples, not worst-case bounds",
+  "kernel": {
+    "cases": 256,
+    "saving_per_restore": {
+      "samples": 256,
+      "mean": 144,
+      "minimum": 144,
+      "maximum": 144
+    },
+    "four_restore_saving": 576,
+    "target": 500,
+    "pixels_backgrounds_return_registers": "exact"
+  },
+  "crossover": {
+    "cases": 40,
+    "owners": {
+      "0": 20,
+      "1": 20
+    },
+    "all_state_and_framebuffer_pixels": "exact; actual A=$30-$33, B=$2C-$2F; crossover clocks not used as timing proof"
+  },
+  "startup": {
+    "phase": "natural demo and credited startup underlay and published nest",
+    "deadline_seconds_per_phase": 45,
+    "success_marker": "exact 32-row capture with no outside writes; cached dormant pixels and clean upper nest on A and B in demo and credited startup",
+    "timeout_meaning": "required startup or owner publication absent",
+    "rom_sha256": "38bcd65f507c206608829c7b3ddc056e1e4246ba08cd9872a29f4bd57e4bb118",
+    "checks": [
+      {
+        "phase": "demo",
+        "capture_exact": true,
+        "framebuffer_writes": 0,
+        "outside_background_writes": 0
+      },
+      {
+        "phase": "demo",
+        "owner": 1,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 4,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "demo",
+        "owner": 0,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 4,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "credited",
+        "capture_exact": true,
+        "framebuffer_writes": 0,
+        "outside_background_writes": 0
+      },
+      {
+        "phase": "credited",
+        "owner": 1,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 0,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "credited",
+        "owner": 0,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 0,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      }
+    ],
+    "result": "pass"
+  },
+  "bounded_worklists": {
+    "0": {
+      "before": {
+        "samples": 16,
+        "mean": 11575.25,
+        "minimum": 9917,
+        "maximum": 15950
+      },
+      "after": {
+        "samples": 16,
+        "mean": 11575.25,
+        "minimum": 9917,
+        "maximum": 15950
+      },
+      "saving": {
+        "samples": 16,
+        "mean": 0,
+        "minimum": 0,
+        "maximum": 0
+      },
+      "before_over_target": 0,
+      "after_over_target": 0
+    },
+    "1": {
+      "before": {
+        "samples": 16,
+        "mean": 16328.0625,
+        "minimum": 14934,
+        "maximum": 20875
+      },
+      "after": {
+        "samples": 16,
+        "mean": 16184.0625,
+        "minimum": 14790,
+        "maximum": 20731
+      },
+      "saving": {
+        "samples": 16,
+        "mean": 144,
+        "minimum": 144,
+        "maximum": 144
+      },
+      "before_over_target": 0,
+      "after_over_target": 0
+    },
+    "2": {
+      "before": {
+        "samples": 16,
+        "mean": 21998.0625,
+        "minimum": 19975,
+        "maximum": 25024
+      },
+      "after": {
+        "samples": 16,
+        "mean": 21710.0625,
+        "minimum": 19687,
+        "maximum": 24736
+      },
+      "saving": {
+        "samples": 16,
+        "mean": 288,
+        "minimum": 288,
+        "maximum": 288
+      },
+      "before_over_target": 0,
+      "after_over_target": 0
+    },
+    "3": {
+      "before": {
+        "samples": 16,
+        "mean": 27564.25,
+        "minimum": 24837,
+        "maximum": 30644
+      },
+      "after": {
+        "samples": 16,
+        "mean": 27132.25,
+        "minimum": 24405,
+        "maximum": 30212
+      },
+      "saving": {
+        "samples": 16,
+        "mean": 432,
+        "minimum": 432,
+        "maximum": 432
+      },
+      "before_over_target": 11,
+      "after_over_target": 9
+    },
+    "4": {
+      "before": {
+        "samples": 16,
+        "mean": 33466.375,
+        "minimum": 31527,
+        "maximum": 37670
+      },
+      "after": {
+        "samples": 16,
+        "mean": 32893.0625,
+        "minimum": 30951,
+        "maximum": 37094
+      },
+      "saving": {
+        "samples": 16,
+        "mean": 573.3125,
+        "minimum": 533,
+        "maximum": 576
+      },
+      "before_over_target": 16,
+      "after_over_target": 16
+    }
+  },
+  "bounded_comparison": "80 state samples and executed marker sequences match; no complete-worklist regressions; count-four savings 533..576 include event-phase overhead",
+  "long_windows": {
+    "before": {
+      "3": {
+        "release_active": {
+          "cycles": {
+            "samples": 82,
+            "mean": 28431.817073170732,
+            "minimum": 24282,
+            "maximum": 53809
+          },
+          "over_target": 40
+        },
+        "release_finished": {
+          "cycles": {
+            "samples": 16,
+            "mean": 31702.625,
+            "minimum": 23143,
+            "maximum": 81017
+          },
+          "over_target": 9
+        }
+      },
+      "4": {
+        "release_active": {
+          "cycles": {
+            "samples": 82,
+            "mean": 35685.96341463415,
+            "minimum": 22360,
+            "maximum": 90622
+          },
+          "over_target": 78
+        },
+        "release_finished": {
+          "cycles": {
+            "samples": 16,
+            "mean": 32210.625,
+            "minimum": 29649,
+            "maximum": 38543
+          },
+          "over_target": 16
+        }
+      }
+    },
+    "after": {
+      "3": {
+        "release_active": {
+          "cycles": {
+            "samples": 82,
+            "mean": 28022,
+            "minimum": 23850,
+            "maximum": 53521
+          },
+          "over_target": 32
+        },
+        "release_finished": {
+          "cycles": {
+            "samples": 16,
+            "mean": 31618.4375,
+            "minimum": 23700,
+            "maximum": 80071
+          },
+          "over_target": 7
+        }
+      },
+      "4": {
+        "release_active": {
+          "cycles": {
+            "samples": 82,
+            "mean": 35984.65853658537,
+            "minimum": 21508,
+            "maximum": 91308
+          },
+          "over_target": 78,
+          "peak": {
+            "requested_count": 4,
+            "index": 19,
+            "active": 4,
+            "death": 0,
+            "front": 0,
+            "state": [
+              0,
+              7,
+              0,
+              0,
+              4,
+              4,
+              1,
+              0,
+              0,
+              0,
+              164,
+              128
+            ],
+            "event_start": 256383008,
+            "vbord": 948,
+            "missed_commit": 116,
+            "marks": [
+              [
+                "main_game_tick_normal",
+                414
+              ],
+              [
+                "enemy_tick",
+                502
+              ],
+              [
+                "main_after_player",
+                2742
+              ],
+              [
+                "main_render",
+                3094
+              ],
+              [
+                "framebuffer_prepare_back",
+                3124
+              ],
+              [
+                "sync_entity_cache_colour",
+                3594
+              ],
+              [
+                "secc_done",
+                29568
+              ],
+              [
+                "actor_closure_restore",
+                32336
+              ],
+              [
+                "acr_enemies",
+                33545
+              ],
+              [
+                "framebuffer_queue_damage",
+                38945
+              ],
+              [
+                "framebuffer_project_damage",
+                39352
+              ],
+              [
+                "roam_mark_underlay",
+                39420
+              ],
+              [
+                "frame_render_background",
+                39467
+              ],
+              [
+                "render_entity_colour",
+                39504
+              ],
+              [
+                "de_colour_done",
+                66131
+              ],
+              [
+                "fri_background_done",
+                68609
+              ],
+              [
+                "actor_closure_draw",
+                68623
+              ],
+              [
+                "acd_save_loop",
+                68650
+              ],
+              [
+                "acd_save_loop",
+                69516
+              ],
+              [
+                "acd_save_loop",
+                70382
+              ],
+              [
+                "acd_save_loop",
+                71704
+              ],
+              [
+                "acd_draw_loop",
+                72768
+              ],
+              [
+                "acd_draw_loop",
+                75602
+              ],
+              [
+                "acd_draw_loop",
+                78436
+              ],
+              [
+                "acd_draw_loop",
+                81270
+              ],
+              [
+                "acd_death",
+                83723
+              ],
+              [
+                "acd_normal_player",
+                83762
+              ],
+              [
+                "framebuffer_finish_back",
+                86912
+              ],
+              [
+                "main_entry_audio",
+                87714
+              ],
+              [
+                "audio_process_queue",
+                88196
+              ],
+              [
+                "audio_process_queue",
+                88579
+              ],
+              [
+                "audio_music_dispatch",
+                88601
+              ],
+              [
+                "audio_advance_all",
+                88645
+              ],
+              [
+                "audio_credit_service",
+                89205
+              ],
+              [
+                "audio_mix",
+                89228
+              ],
+              [
+                "audio_mix_write",
+                90602
+              ],
+              [
+                "mainloop",
+                91308
+              ]
+            ],
+            "audio_before": {
+              "slots": [
+                255,
+                5,
+                255,
+                255
+              ],
+              "music_queue": 0
+            },
+            "audio_after": {
+              "slots": [
+                255,
+                5,
+                4,
+                255
+              ],
+              "music_queue": 0
+            },
+            "cycles": 91308
+          }
+        },
+        "release_finished": {
+          "cycles": {
+            "samples": 16,
+            "mean": 32020.125,
+            "minimum": 30129,
+            "maximum": 36014
+          },
+          "over_target": 16,
+          "peak": {
+            "requested_count": 4,
+            "index": 82,
+            "active": 4,
+            "death": 0,
+            "front": 1,
+            "state": [
+              0,
+              8,
+              0,
+              0,
+              4,
+              4,
+              1,
+              0,
+              0,
+              0,
+              164,
+              120
+            ],
+            "event_start": 287084160,
+            "vbord": 1076,
+            "missed_commit": 134,
+            "marks": [
+              [
+                "main_game_tick_normal",
+                414
+              ],
+              [
+                "enemy_tick",
+                502
+              ],
+              [
+                "main_after_player",
+                2589
+              ],
+              [
+                "main_render",
+                2848
+              ],
+              [
+                "framebuffer_prepare_back",
+                2878
+              ],
+              [
+                "sync_entity_cache_colour",
+                3340
+              ],
+              [
+                "secc_done",
+                3355
+              ],
+              [
+                "actor_closure_restore",
+                3476
+              ],
+              [
+                "acr_enemies",
+                4685
+              ],
+              [
+                "framebuffer_queue_damage",
+                10081
+              ],
+              [
+                "framebuffer_project_damage",
+                10485
+              ],
+              [
+                "roam_mark_underlay",
+                11202
+              ],
+              [
+                "frame_render_background",
+                11279
+              ],
+              [
+                "fri_background_done",
+                11617
+              ],
+              [
+                "roam_mark_underlay",
+                11986
+              ],
+              [
+                "frame_render_background",
+                12033
+              ],
+              [
+                "fri_background_done",
+                14535
+              ],
+              [
+                "actor_closure_draw",
+                14549
+              ],
+              [
+                "acd_save_loop",
+                14576
+              ],
+              [
+                "acd_save_loop",
+                15665
+              ],
+              [
+                "acd_save_loop",
+                16555
+              ],
+              [
+                "acd_save_loop",
+                17424
+              ],
+              [
+                "acd_draw_loop",
+                18491
+              ],
+              [
+                "acd_draw_loop",
+                20935
+              ],
+              [
+                "acd_draw_loop",
+                23769
+              ],
+              [
+                "acd_draw_loop",
+                26603
+              ],
+              [
+                "acd_death",
+                29056
+              ],
+              [
+                "acd_normal_player",
+                29104
+              ],
+              [
+                "framebuffer_finish_back",
+                32350
+              ],
+              [
+                "main_entry_audio",
+                33149
+              ],
+              [
+                "audio_process_queue",
+                33631
+              ],
+              [
+                "audio_process_queue",
+                33961
+              ],
+              [
+                "audio_music_dispatch",
+                33983
+              ],
+              [
+                "audio_advance_all",
+                34027
+              ],
+              [
+                "audio_credit_service",
+                34418
+              ],
+              [
+                "audio_mix",
+                34441
+              ],
+              [
+                "audio_mix_write",
+                35338
+              ],
+              [
+                "mainloop",
+                36014
+              ]
+            ],
+            "audio_before": {
+              "slots": [
+                255,
+                255,
+                255,
+                255
+              ],
+              "music_queue": 0
+            },
+            "audio_after": {
+              "slots": [
+                255,
+                4,
+                255,
+                255
+              ],
+              "music_queue": 0
+            },
+            "cycles": 36014
+          }
+        }
+      }
+    }
+  },
+  "long_window_comparison": "Only 180/244 corresponding state samples match; not paired causal timing evidence. Release-active four-enemy peak increases from 90622 to 91308 as worklist sequencing differs; retained, not labelled a passing timing result. All 16 candidate release-finished four-enemy frames still fail 27000.",
+  "failed_probe": {
+    "file": "bug058-fixed-music-20260927.json",
+    "failure": "AssertionError(('required live count missing', 4, 0, 1))",
+    "failed_row": {
+      "requested_count": 4,
+      "index": 70,
+      "active": 0,
+      "death": 1,
+      "front": 1,
+      "state": [
+        0,
+        8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        164,
+        128
+      ],
+      "event_start": 281328032,
+      "vbord": 1052,
+      "missed_commit": 133,
+      "marks": [
+        [
+          "main_game_tick_normal",
+          414
+        ],
+        [
+          "enemy_tick",
+          498
+        ],
+        [
+          "main_after_player",
+          757
+        ],
+        [
+          "main_render",
+          941
+        ],
+        [
+          "framebuffer_prepare_back",
+          971
+        ],
+        [
+          "sync_entity_cache_colour",
+          1433
+        ],
+        [
+          "secc_done",
+          1448
+        ],
+        [
+          "actor_closure_restore",
+          1569
+        ],
+        [
+          "acr_enemies",
+          2778
+        ],
+        [
+          "framebuffer_queue_damage",
+          8174
+        ],
+        [
+          "framebuffer_project_damage",
+          8568
+        ],
+        [
+          "roam_mark_underlay",
+          9285
+        ],
+        [
+          "frame_render_background",
+          9368
+        ],
+        [
+          "de_colour_done",
+          13864
+        ],
+        [
+          "fri_background_done",
+          28972
+        ],
+        [
+          "roam_mark_underlay",
+          29341
+        ],
+        [
+          "frame_render_background",
+          29388
+        ],
+        [
+          "fri_background_done",
+          29525
+        ],
+        [
+          "actor_closure_draw",
+          29539
+        ],
+        [
+          "acd_save_loop",
+          29566
+        ],
+        [
+          "acd_save_loop",
+          29589
+        ],
+        [
+          "acd_save_loop",
+          29612
+        ],
+        [
+          "acd_save_loop",
+          29635
+        ],
+        [
+          "acd_draw_loop",
+          29667
+        ],
+        [
+          "acd_draw_loop",
+          29690
+        ],
+        [
+          "acd_draw_loop",
+          29713
+        ],
+        [
+          "acd_draw_loop",
+          29736
+        ],
+        [
+          "acd_death",
+          29768
+        ],
+        [
+          "framebuffer_finish_back",
+          32517
+        ],
+        [
+          "main_entry_audio",
+          33316
+        ],
+        [
+          "audio_process_queue",
+          33681
+        ],
+        [
+          "audio_music_dispatch",
+          33703
+        ],
+        [
+          "audio_advance_all",
+          33727
+        ],
+        [
+          "audio_credit_service",
+          34151
+        ],
+        [
+          "audio_mix",
+          34174
+        ],
+        [
+          "audio_mix_write",
+          34897
+        ],
+        [
+          "mainloop",
+          35513
+        ]
+      ],
+      "audio_before": {
+        "slots": [
+          13,
+          5,
+          255,
+          255
+        ],
+        "music_queue": 0
+      },
+      "audio_after": {
+        "slots": [
+          13,
+          5,
+          255,
+          255
+        ],
+        "music_queue": 0
+      },
+      "cycles": 35513
+    },
+    "interpretation": "Original parked (22,22) player died before required four-enemy post-music window. Retained failed result; bounded matched sweep proves local timing. Repeated long windows at legal (2,22), nav bits=3, succeed; all remain controlled performance fixtures."
+  },
+  "capacity": {
+    "resident": "8180/8192",
+    "assets": "7596/7680",
+    "enemy": "4091/4096",
+    "pre_table_free": 0,
+    "presentation": "1273/1280",
+    "copied_audio": "734/920",
+    "banked_audio": "5675/8192",
+    "cold": "14362/16384",
+    "GMC_source_free": 413,
+    "change": "zero growth; full build pass"
+  },
+  "audit": {
+    "errors": [],
+    "documentation": "256/256 routines, 4095/4095 labels"
+  },
+  "residual": [
+    "27000 target still fails",
+    "Natural moving-player overlaps/listening acceptance before integration",
+    "Colour-cache spikes and remaining renderer costs remain open",
+    "Prior gate-cache verifier issue remains open"
+  ],
+  "commands": [
+    "scripts/build.sh build",
+    "python3 repro/bug058-nest-startup-20260927.py FIT OUTPUT",
+    "python3 repro/bug058-restore-kernel-20260927.py FIT FIT OUTPUT fixed-before fixed-after",
+    "python3 repro/bug058-render-crossover-20260927.py FIT OUTPUT FIT fixed-before fixed-after --park-far --cleared-skulls",
+    "python3 repro/bug058-fit-live-count-20260927.py FIT OUTPUT --park-far --cleared-skulls --four-render-profile [--reference-prefix=fixed-before]",
+    "python3 repro/bug058-fit-live-count-20260927.py FIT OUTPUT --release-window --park-far --park-other-corner --cleared-skulls --four-render-profile [--reference-prefix=fixed-before]"
+  ],
+  "local_evidence_hashes": {
+    "bug058-fixed-build-20260927.log": "88308aaacb10578882f69fab61cd23a29575afbcd89d3590a1e701fed1d90a5d",
+    "bug058-fixed-startup-20260927.json": "95b3ee68bb69fd50eb63447f6d3e4874ebca090fc0869e017747ded67a03a3b4",
+    "bug058-fixed-restore-20260927.json": "961b614bd4b87ec52fa88fa5c052d8d8d687e4a253fce5e4c6b205f038674447",
+    "bug058-fixed-crossover-20260927.json": "47b881dc4effb0f5fb4a54d997ddc09e0c973d33d3efcba58b54efbc33ac477c",
+    "bug058-fixed-bounded-before-20260927.json": "c1b787b86b182fc716ab99407747b8a3a17d3f9f91fbc7d2cd848195a6fbf358",
+    "bug058-fixed-bounded-after-20260927.json": "e327ca59ef643461f2412c873715a088d36433499a6c78e26ea58c917e38e4eb",
+    "bug058-fixed-release-left-before-20260927.json": "f550b515f8ddc802460fe01770a7c56354daf41cf27286faae6de245c2c6b9ef",
+    "bug058-fixed-release-left-after-20260927.json": "a9acfbe5db08de0fee2af5dc14f29b784f25e17d9b287a9790758962f6d8ab58",
+    "bug058-fixed-music-20260927.json": "33271ae3a39467e6965fc9350c64a4f878c8a17f9165446c7ef8ae7bc0a4face",
+    "bug058-fixed-fit-20260927.patch": "94bbdc4e726212fdb6ed7975de34d765442c91aea20dc763c45fa58eafbdb560"
+  }
+}
