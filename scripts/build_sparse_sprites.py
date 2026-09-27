@@ -604,6 +604,7 @@ def pack_candidate_banks(
     return result + (packed_streams,) if include_streams else result
 
 
+# @audit-producer {"id": "sparse-index", "symbols": ["SPARSE_ENEMY_INDEX_ADDR", "SPARSE_PLAYER_INDEX_ADDR"], "function": "write_loader_include"}
 def write_loader_include(
         path: Path, segments: list[CopySegment], streams: list[PackedStream]
 ) -> None:

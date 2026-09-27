@@ -1,3 +1,32 @@
+; DOC-002 source-contract mirror contract audio_admit profile=audio: Audio admit.
+; DOC-002 source-contract mirror contract audio_advance_all profile=audio: Audio advance all.
+; DOC-002 source-contract mirror contract audio_advance_slot profile=audio: Audio advance slot.
+; DOC-002 source-contract mirror contract audio_credit_service profile=audio: Audio credit service.
+; DOC-002 source-contract mirror contract audio_drain_busy profile=audio: Audio drain busy.
+; DOC-002 source-contract mirror contract audio_enqueue_impl profile=audio: Audio enqueue impl.
+; DOC-002 source-contract mirror contract audio_mix profile=audio: Audio mix.
+; DOC-002 source-contract mirror contract audio_mix_clear profile=audio: Audio mix clear.
+; DOC-002 source-contract mirror contract audio_mix_slot profile=audio: Audio mix slot.
+; DOC-002 source-contract mirror contract audio_mix_write profile=audio: Audio mix write.
+; DOC-002 source-contract mirror contract audio_music_busy profile=audio: Audio music busy.
+; DOC-002 source-contract mirror contract audio_music_dispatch profile=audio: Audio music dispatch.
+; DOC-002 source-contract mirror contract audio_poll_enqueue profile=audio: Audio poll enqueue.
+; DOC-002 source-contract mirror contract audio_poll_gameplay profile=audio: Audio poll gameplay.
+; DOC-002 source-contract mirror contract audio_poll_name profile=audio: Audio poll name.
+; DOC-002 source-contract mirror contract audio_priority_for_id profile=audio: Audio priority for id.
+; DOC-002 source-contract mirror contract audio_process_queue profile=audio: Audio process queue.
+; DOC-002 source-contract mirror contract audio_select_gmc profile=audio: Audio select gmc.
+; DOC-002 source-contract mirror contract audio_slot_base profile=audio: Audio slot base.
+; DOC-002 source-contract mirror contract audio_tick profile=audio: Audio tick.
+; DOC-002 source-contract mirror contract audio_transition_guard profile=audio: Audio transition guard.
+; DOC-002 source-contract mirror contract audio_write profile=audio: Audio write.
+; DOC-002 source-contract mirror profile audio Inputs: Cue IDs, slot state and foreground phase; detailed register arguments remain at the source call site
+; DOC-002 source-contract mirror profile audio Outputs: Updated audio queue, voice selection, status or PSG output as named by the routine
+; DOC-002 source-contract mirror profile audio Clobbers: A, B, D, X, Y, U and condition codes unless source saves a narrower set
+; DOC-002 source-contract mirror profile audio Reads: Audio direct-page bytes, page-$3D cue streams and slots, and polled gameplay/name state
+; DOC-002 source-contract mirror profile audio Writes: Audio-owned queue, scratch, slots, mix shadows and sound/interface registers as required by the operation
+; DOC-002 source-contract mirror profile audio Side effects: May select GMC sound output and write PSG registers; foreground callers own the bank-restoring gateway
+; DOC-002 source-contract mirror profile audio Invariants: Audio-owned scratch is not game scratch; non-audio caller returns through the guarded bank-restoring gateway
 ; FEAT-006 GMC SN76489 foreground runtime.
 ; The assembled image is copied to physical page $3D.  The first bounded
 ; engine section is copied to low RAM $0300 after presentation handoff.
@@ -22,6 +51,7 @@ AUDIO_INSTALLED    equ $00F0
 AUDIO_Q_DATA       equ $00F1
 AUDIO_SAVED_ID     equ $00F9
 AUDIO_SAVED_PARAM  equ $00FA
+; @audit {"id":"audio-work","kind":"scratch","symbol":"AUDIO_WORK_SLOT","width":1,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"audio foreground service","lifetime":"Selected slot index during audio service; not game scratch.","initialization":"audio service selects the working slot","clobbers":"Caller must not retain contents across the named owner operation."}
 AUDIO_WORK_SLOT    equ $00FB
 AUDIO_WORK_VOICE   equ $00FC
 AUDIO_MIX_COUNT    equ $00FD
@@ -1213,6 +1243,7 @@ audio_mix_atten
         rmb     3
 audio_mix_noise
         rmb     2
+; @audit {"id":"audio-scratch","kind":"scratch","symbol":"audio_scratch","width":2,"mapping":"physical-page-3D","phases":["foreground"],"owner":"audio foreground service","lifetime":"Temporary bytes reused by sequential decode/mix/PSG routines; no interleaved caller may retain them.","initialization":"Each consuming routine writes its required bytes before reading","clobbers":"Caller must not retain contents across the named owner operation."}
 audio_scratch
         rmb     2
 

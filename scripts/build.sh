@@ -169,9 +169,9 @@ path, target = sys.argv[1], int(sys.argv[2])
 data = open(path, 'rb').read()
 pad = target - len(data)
 if pad < 0:
-    sys.exit(f"build: ROM is {len(data)} bytes — exceeds {target} byte cart window")
+    sys.exit(f"build: ROM is {len(data)} bytes â€” exceeds {target} byte cart window")
 open(path, 'wb').write(data + b'\xff' * pad)
-print(f"build: padded {len(data)} → {target} bytes ({path})")
+print(f"build: padded {len(data)} â†’ {target} bytes ({path})")
 PY
 }
 
@@ -372,9 +372,18 @@ print(
 PY
 }
 
+lwasm() {
+    command lwasm "$@"
+    if [[ "${SOURCE_REFERENCE_RECORDING:-0}" == 1 ]]; then
+        python3 "$ROOT/scripts/source_reference/provenance.py" assemble "$ROOT" "$BUILD_DIR" "$@"
+    fi
+}
+
 cmd_build() {
     [[ -f "$SRC_MAIN" ]] || { echo "build: $SRC_MAIN not found" >&2; exit 1; }
     mkdir -p "$BUILD_DIR"
+    SOURCE_REFERENCE_RECORDING=1
+    python3 "$ROOT/scripts/source_reference/provenance.py" begin "$ROOT" "$BUILD_DIR" "$LADYBUG_PROFILE"
 
     printf 'SHARED_TEXT_ENABLED equ %s\nPRES_STAGE_SLICE equ $B083\n' "$COMPLETE_PROFILE" > "$BUILD_DIR/ladybug_shared_mode.inc"
     printf 'SHARED_COLD_PTR equ $1B96\n' > "$BUILD_DIR/ladybug_shared_link.inc"
@@ -1057,6 +1066,12 @@ PY
             --presentation-manifest "$PRESENTATION_MANIFEST" \
             --sparse-manifest "$SPARSE_MANIFEST" \
             --module "$PRESENTATION_MODULE"
+    fi
+    python3 "$ROOT/scripts/source_reference/provenance.py" finish "$ROOT" "$BUILD_DIR"
+    SOURCE_REFERENCE_RECORDING=0
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then
+        python3 "$ROOT/scripts/build_source_reference.py" --config "$ROOT/scripts/source_reference.json" --source-root "$ROOT" --artifact-root "$BUILD_DIR" --output "$BUILD_DIR/source-reference"
+        python3 "$ROOT/scripts/verify_source_documentation.py" --config "$ROOT/scripts/source_reference.json" --source-root "$ROOT" --artifact-root "$BUILD_DIR" --generated-root "$BUILD_DIR/source-reference" --wiki-root "$ROOT/wiki" --all
     fi
 }
 

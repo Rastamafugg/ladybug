@@ -396,6 +396,17 @@ def verify_generated(
     external_root: Path | None = None,
 ) -> VerificationResult:
     errors = _policy_errors(project, policy)
+    if project.ownership_audit is not None:
+        errors.extend(project.ownership_audit['errors'])
+        audit_path = generated_root / 'ownership.json'
+        if not audit_path.is_file():
+            errors.append('missing ownership audit')
+        else:
+            try:
+                if json.loads(audit_path.read_text(encoding='utf-8')) != project.ownership_audit:
+                    errors.append('stale ownership audit')
+            except ValueError:
+                errors.append('invalid ownership audit JSON')
     errors.extend(_controlled_term_errors(policy, external_root))
     manifest_path = generated_root / "manifest.json"
     if not manifest_path.is_file():

@@ -1,3 +1,12 @@
+; DOC-002 source-contract mirror contract refresh_zone_bg_footprint profile=copy: Refresh zone bg footprint.
+; DOC-002 source-contract mirror contract bnc_copy profile=copy: Copy the bounded nest-cache byte span.
+; DOC-002 source-contract mirror contract colour_has_upper_bonus profile=render: Colour has upper bonus.
+; DOC-002 source-contract mirror contract colour_prepare_nest profile=render: Colour prepare nest.
+; DOC-002 source-contract mirror contract copy_fb_rows profile=copy: Copy framebuffer rows with the framebuffer stride.
+; DOC-002 source-contract mirror contract copy_native_row profile=copy: Copy one eight-byte native row.
+; DOC-002 source-contract mirror contract nest_active_in_zone profile=movement: Nest active in zone.
+; DOC-002 source-contract mirror contract player_visible_rows profile=movement: Player visible rows.
+; DOC-002 source-contract mirror contract restore_player_visible profile=render: Restore player visible.
 ; GMC bank-3 enemy runtime, copied to low RAM $0800 during boot.
 ; Entry table offsets are part of the resident/runtime contract.
 ; DOC-002 source-contract mirror begins. Canonical definitions:
@@ -199,9 +208,11 @@ FB_INIT_STATE  equ $009A
 ENEMY_CAPTURE_DIRTY equ $009B
 ; Mirrored page-$34 state.  $A89C is reserved between the ring bytes and
 ; framebuffer ledgers; keep it separate from direct-page RING_BASE ($009E).
+; @audit {"id":"entity-cache-colour","kind":"scratch","symbol":"ENTITY_CACHE_COLOR","width":1,"mapping":"physical-page-34","phases":["foreground"],"owner":"entity colour cache","lifetime":"Persistent across render calls until recolour invalidation, separate from direct-page ring pointer.","initialization":"colour_prepare_nest compares and updates colour validity","clobbers":"Caller must not retain contents across the named owner operation."}
 ENTITY_CACHE_COLOR equ $A89C       ; shared sparse-cache colour validity
 RING_PHASE     equ $009C
 RING_ROW       equ $009D
+; @audit {"id":"ring-base","kind":"scratch","symbol":"RING_BASE","width":2,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"enemy background renderer","lifetime":"Pointer lives across ring row capture/restore; dispatch also reuses both bytes. $009F is not free.","initialization":"roam_bg_address and row-copy setup assign the pointer before use","clobbers":"Caller must not retain contents across the named owner operation."}
 RING_BASE      equ $009E
 INITIAL_ENTRY_STATE equ $00A0
 PLAYER_VISIBLE_ROWS equ $00A1
@@ -1379,6 +1390,7 @@ fbf_done
         rts
 
 
+; @audit {"id":"framebuffer-ledger","kind":"background","symbol":"FB_META_A","owner":"A/B framebuffer transaction","extent":"256-byte ledger per owner at FB_META_A / FB_META_B","clean_source":"Live BACK owner fields after drawing; metadata, not pixel capture","capture":["framebuffer_capture_back"],"restore":["framebuffer_prepare_back"],"draw":["actor_closure_draw"],"validity":["FB_RENDER_PENDING"],"invalidation":["framebuffer_init_impl"],"publication":["framebuffer_capture_back"],"order":"Hydrate selected BACK metadata; restore affected actor closure; capture clean pixels; draw actors; publish metadata. Declaration, not control-flow proof.","overlap":"Closure restoration must remove overlapping actors before capture. A/B owner metadata follows the selected framebuffer, not the actor alone.","verifier":["scripts/verify_enemy_framebuffer.py"]}
 framebuffer_capture_back
         lbsr    framebuffer_back_meta
         lda     #FBM_VALID
@@ -2070,6 +2082,7 @@ roam_ring_slot
 ; Retain an unchanged clean destination, rotate/capture a recognized exposed
 ; strip, or normalize with a full capture for every conservative fallback.
 ; Input: X = current enemy record.
+; @audit {"id":"enemy-background","kind":"background","symbol":"ENEMY_BG_BASE","owner":"Selected BACK roaming enemy slots","extent":"Four 128-byte save-under buffers per owner; ring phases in ENEMY_BG_RING","clean_source":"Actor-free framebuffer closure, refreshed strips or full recapture","capture":["roam_update_background","roam_copy_fb_to_bg"],"restore":["roam_copy_bg_to_fb","actor_closure_restore"],"draw":["actor_closure_draw"],"validity":["ENEMY_CAPTURE_DIRTY","ENEMY_BG_RING"],"invalidation":["roam_mark_underlay","framebuffer_init_impl"],"publication":["framebuffer_capture_back"],"order":"Hydrate selected BACK metadata; restore affected actor closure; capture clean pixels; draw actors; publish metadata. Declaration, not control-flow proof.","overlap":"Closure restoration must remove overlapping actors before capture. A/B owner metadata follows the selected framebuffer, not the actor alone.","verifier":["scripts/verify_enemy_framebuffer.py"]}
 roam_update_background
         ldb     ENEMY_WORK
         ldy     #roam_reverse_masks
@@ -3308,9 +3321,11 @@ player_draw_impl
         rts
 
 ; Resolve A's always-mapped enemy index entry and map its stream page.
+; @audit {"id":"sprite-index","kind":"index","symbol":"SPARSE_ENEMY_INDEX_ADDR","producer":"sparse-index","domain":"Frame ordinal; three bytes per frame, physical page plus big-endian stream address","encoding":"Map index page, fetch page/address, map payload page; packed offset is relocatable","bounds":[0,65535],"index_bytes":"SPARSE_ENEMY_INDEX_BYTES","index_page":"SPARSE_ENEMY_PAYLOAD_PAGE","stride":3}
 sparse_enemy_stream
         ldb     #3
         mul
+; @audit-use {"id": "sprite-index", "symbol": "SPARSE_ENEMY_INDEX_ADDR"}
         ldu     #SPARSE_ENEMY_INDEX_ADDR
         leau    d,u
         lda     #SPARSE_ENEMY_PAYLOAD_PAGE
@@ -3323,9 +3338,11 @@ sparse_enemy_stream
         rts
 
 ; Resolve A's always-mapped player index entry and map its stream page.
+; @audit {"id":"player-sprite-index","kind":"index","symbol":"SPARSE_PLAYER_INDEX_ADDR","producer":"sparse-index","domain":"Frame ordinal; three bytes per frame, physical page plus big-endian stream address","encoding":"Map index page, fetch page/address, map payload page; packed offset is relocatable","bounds":[0,65535],"index_bytes":"SPARSE_PLAYER_INDEX_BYTES","index_page":"SPARSE_PLAYER_PAYLOAD_PAGE","stride":3}
 sparse_player_stream
         ldb     #3
         mul
+; @audit-use {"id": "player-sprite-index", "symbol": "SPARSE_PLAYER_INDEX_ADDR"}
         ldu     #SPARSE_PLAYER_INDEX_ADDR
         leau    d,u
         lda     #SPARSE_PLAYER_PAYLOAD_PAGE
@@ -3520,6 +3537,7 @@ capture_zone_bg
 ; Expand the four stage-selected dormant frames once when the authoritative
 ; nest background is captured. Animation frames then publish one native
 ; 16-by-16 rectangle without sparse decoding or a 16-by-32 rebuild.
+; @audit {"id":"nest-background","kind":"background","symbol":"build_enemy_nest_cache","owner":"Enemy nest compositor","extent":"Nest base/cache extent established by nest-copy loops","clean_source":"Actor-free nest base; replay mutable entities before actor overlay","capture":["build_enemy_nest_cache"],"restore":["compose_enemy_zone"],"draw":["compose_enemy_animation"],"validity":["ENTITY_CACHE_COLOR"],"invalidation":["colour_prepare_nest","roam_mark_underlay"],"publication":["framebuffer_capture_back"],"order":"Hydrate selected BACK metadata; restore affected actor closure; capture clean pixels; draw actors; publish metadata. Declaration, not control-flow proof.","overlap":"Closure restoration must remove overlapping actors before capture. A/B owner metadata follows the selected framebuffer, not the actor alone.","verifier":["scripts/verify_enemy_framebuffer.py"]}
 build_enemy_nest_cache
         lda     ENEMY_ANIM
         pshs    a

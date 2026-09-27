@@ -1,3 +1,7 @@
+; DOC-002 source-contract mirror contract decompress_presentation_atlas profile=boot: Decompress the presentation atlas for its runtime destination.
+; DOC-002 source-contract mirror contract decompress_gmc_streams profile=boot: Decompress gmc streams.
+; DOC-002 source-contract mirror contract decompress_staged_audio profile=boot: Decompress staged audio.
+; DOC-002 source-contract mirror contract dgs_descriptor profile=boot: Decode one staged compressed-stream descriptor.
 ; Ladybug GMC bank loader. Bank 0 executes here, then this routine runs from
 ; low RAM while selecting bank 1 and copying the runtime into physical RAM.
 ; DOC-002 source-contract mirror begins. Canonical definitions:

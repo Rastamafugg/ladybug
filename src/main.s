@@ -1,3 +1,14 @@
+; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Asset draw top hud.
+; DOC-002 source-contract mirror contract draw_credit_hud profile=render: Draw credit hud.
+; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
+; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
+; DOC-002 source-contract mirror contract keyboard_read_axis profile=input: Keyboard read axis.
+; DOC-002 source-contract mirror contract nlt_delta profile=state: Resolve a late-turn direction displacement.
+; DOC-002 source-contract mirror contract presentation_dispatch profile=state: Presentation dispatch.
+; DOC-002 source-contract mirror contract primary_cache_mask profile=render: Rebind cached primary/accent palette bits.
+; DOC-002 source-contract mirror contract rebind_cache_value profile=render: Rebind cached primary/accent palette bits.
+; DOC-002 source-contract mirror contract replay_entity_overlay_common profile=render: Replay entity overlay common.
+; DOC-002 source-contract mirror contract shared_mask profile=render: Shared mask.
 ;==============================================================================
 ; Ladybug — main.s
 ;==============================================================================
@@ -1090,6 +1101,7 @@ add_special_score
         sta     RENDER_FLAGS
         rts
 
+; @audit {"id":"multiplier-x","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
 draw_multiplier_hud
         lda     MULTIPLIER
         cmpa    #2
@@ -1112,6 +1124,7 @@ dmh_draw
         endc
         sta     HUD_COLOR
         ifne COMPLETE_PROFILE
+; @audit-use {"id": "multiplier-x", "symbol": "PRESENTATION_MULTIPLIER_X_GRAPHIC"}
         ldb     #PRESENTATION_MULTIPLIER_X_GRAPHIC
         jsr     presentation_dispatch
         lda     #$34            ; restore game-state PAR5 after cold graphic read
@@ -4370,6 +4383,7 @@ msb_low
 ; Side effects:
 ;   Writes 128 bytes at PLAYER_BG_PTR.
 ;==============================================================================
+; @audit {"id":"player-background","kind":"background","symbol":"PLAYER_BG_PTR","owner":"Selected BACK player buffer","extent":"128 bytes per owner, 16 rows x 8 bytes","clean_source":"Actor-free selected BACK pixels after closure restore","capture":["save_player"],"restore":["restore_player","enemy-runtime:restore_player_visible"],"draw":["draw_player"],"validity":["PLAYER_BG_VALID"],"invalidation":["restore_player","enemy-runtime:framebuffer_init_impl"],"publication":["enemy-runtime:framebuffer_capture_back"],"order":"Hydrate selected BACK metadata; restore affected actor closure; capture clean pixels; draw actors; publish metadata. Declaration, not control-flow proof.","overlap":"Closure restoration must remove overlapping actors before capture. A/B owner metadata follows the selected framebuffer, not the actor alone.","verifier":["scripts/verify_enemy_framebuffer.py"]}
 save_player
         lda     #16
         sta     PLAYER_VISIBLE_ROWS

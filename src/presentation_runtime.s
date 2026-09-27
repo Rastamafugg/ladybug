@@ -1,3 +1,7 @@
+; DOC-002 source-contract mirror contract install_demo_runtime profile=presentation: Install demo runtime.
+; DOC-002 source-contract mirror contract install_highscore_runtime profile=presentation: Install highscore runtime.
+; DOC-002 source-contract mirror contract install_instruction_runtime profile=presentation: Install instruction runtime.
+; DOC-002 source-contract mirror contract start_screen_no_instruction_install profile=presentation: Start screen no instruction install.
         include "ladybug_shared_mode.inc"
         ifne COMPLETE_PROFILE
 ; FEAT-002 low-RAM presentation flow, copied to $1900 during GMC boot.

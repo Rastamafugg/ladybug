@@ -199,14 +199,9 @@ def _memory_references(
                 if re.match(rf"^\s*{re.escape(symbol)}\s+equ\b", code, re.IGNORECASE):
                     access = "definition"
                 else:
-                    opcode_match = OPCODE_RE.match(code)
-                    opcode = opcode_match.group(1).lower() if opcode_match else ""
-                    if opcode in WRITE_OPCODES:
-                        access = "write"
-                    elif opcode in READ_WRITE_OPCODES:
-                        access = "read-write"
-                    else:
-                        access = "read"
+                    from .audit import access as operand_access
+                    reference = operand_access(line.text, symbol)
+                    access = reference['access'] if reference else 'definition'
                 records.append(
                     MemoryReference(
                         module=module_id,
@@ -248,6 +243,10 @@ def build_project_reference(
 ) -> ProjectReference:
     """Build the immutable project model from explicit inputs."""
 
+    receipt = None
+    if config.get('ownership_audit'):
+        from .provenance import validate
+        receipt = validate(source_root, artifact_root, config)
     modules: list[ModuleReference] = []
     contract_profiles = config.get("contract_profiles", {})
     routine_catalog = config.get("routine_catalog")
@@ -280,6 +279,9 @@ def build_project_reference(
             for symbol in (parse_map(map_file, module_id) if map_file else ())
         )
         calls = _calls(module_id, source_lines, item.get("declared_calls", []))
+        if 'ownership_audit' in config:
+            active = {(s.file, s.line) for s in spans}
+            calls = tuple(c for c in calls if (c.source_file, c.source_line) in active or c.kind in (CallKind.FIXED_JUMP, CallKind.INDIRECT))
         routine_config = {str(record["name"]): record for record in item.get("routines", [])}
         external_symbols = {str(value) for value in item.get("external_symbols", [])}
         declared_external_symbols.extend((module_id, name) for name in external_symbols)
@@ -288,6 +290,8 @@ def build_project_reference(
             if edge.kind in (CallKind.DIRECT, CallKind.FIXED_JUMP, CallKind.INDIRECT) and edge.target not in external_symbols:
                 required.setdefault(edge.target, set()).add("called")
         for name, record in routine_config.items():
+            if 'ownership_audit' in config and name not in {s.name for s in symbols}:
+                continue
             required.setdefault(name, set()).update(str(value) for value in record.get("reasons", []))
         symbol_by_name = {symbol.name: symbol for symbol in symbols}
         routines: list[Routine] = []
@@ -408,9 +412,9 @@ def build_project_reference(
             "external call targets lack project-authored/imported labels: "
             + ", ".join(unknown_externals)
         )
-    return ProjectReference(
+    project = ProjectReference(
         title=str(config["title"]),
-        revision=str(config["revision"]),
+        revision=receipt['revision'] if receipt else str(config["revision"]),
         instruction_reference=config.get("instruction_reference"),
         modules=tuple(modules),
         evidence=_evidence(config.get("evidence", []), source_root),
@@ -419,3 +423,7 @@ def build_project_reference(
             for item in config.get("exclusions", [])
         ),
     )
+    if receipt:
+        from .audit import build_audit
+        project = replace(project, ownership_audit=build_audit(project, source_root, config['ownership_audit'], receipt))
+    return project

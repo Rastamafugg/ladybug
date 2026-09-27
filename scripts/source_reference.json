@@ -1,6 +1,6 @@
 {
   "title": "Ladybug assembly source reference",
-  "revision": "fac594fea1af6f33eb8bd60ed5d71c4f72eee16c",
+  "revision": "current-build",
   "instruction_reference": "../../wiki/release/reference/6809/{mnemonic}.html",
   "exclusions": [
     {
@@ -608,6 +608,83 @@
           "profile": "movement",
           "purpose": "Test cell offset.",
           "reasons": []
+        },
+        {
+          "name": "asset_draw_top_hud",
+          "profile": "render",
+          "purpose": "Asset draw top hud.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-asset-draw-top-hud"
+        },
+        {
+          "name": "draw_credit_hud",
+          "profile": "render",
+          "purpose": "Draw credit hud.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-draw-credit-hud"
+        },
+        {
+          "name": "gameplay_dispatch",
+          "profile": "state",
+          "purpose": "Gameplay dispatch.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-gameplay-dispatch"
+        },
+        {
+          "name": "initial_entry_tick",
+          "profile": "movement",
+          "purpose": "Initial entry tick.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-initial-entry-tick"
+        },
+        {
+          "name": "keyboard_read_axis",
+          "profile": "input",
+          "purpose": "Keyboard read axis.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-keyboard-read-axis"
+        },
+        {
+          "name": "nlt_delta",
+          "profile": "state",
+          "purpose": "Resolve a late-turn direction displacement.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-nlt-delta"
+        },
+        {
+          "name": "presentation_dispatch",
+          "profile": "state",
+          "purpose": "Presentation dispatch.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-presentation-dispatch"
+        },
+        {
+          "name": "primary_cache_mask",
+          "profile": "render",
+          "purpose": "Rebind cached primary/accent palette bits.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-primary-cache-mask"
+        },
+        {
+          "name": "rebind_cache_value",
+          "profile": "render",
+          "purpose": "Rebind cached primary/accent palette bits.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-rebind-cache-value"
+        },
+        {
+          "name": "replay_entity_overlay_common",
+          "profile": "render",
+          "purpose": "Replay entity overlay common.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-replay-entity-overlay-common"
+        },
+        {
+          "name": "shared_mask",
+          "profile": "render",
+          "purpose": "Shared mask.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-shared-mask"
         }
       ],
       "relocations": [
@@ -635,7 +712,9 @@
         "FB_MODULE_INIT",
         "FB_MODULE_IRQ",
         "PLAYER_MODULE_DRAW",
-        "PRESENTATION_MODULE_DRAW"
+        "PRESENTATION_MODULE_DRAW",
+        "AUDIO_ENGINE_EXEC",
+        "SHARED_COLD_PTR"
       ],
       "label_classifications": [
         {
@@ -782,6 +861,21 @@
           "name": "vegetable_values",
           "kind": "data",
           "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "asset_top_default_name",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "draw_text_at_y",
+          "kind": "constant",
+          "reason": "Current source declaration equ; inspect linked source for extent and owner."
+        },
+        {
+          "name": "nlt_deltas",
+          "kind": "data",
+          "reason": "Current source declaration fdb; inspect linked source for extent and owner."
         }
       ],
       "basic_blocks": [
@@ -889,6 +983,71 @@
           "name": "startup_video_setup_entry",
           "routine": null,
           "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "asset_draw_recolored_map_tile",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "asset_top_done",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "cache_colour_kernel",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "dynamic_dispatch",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "dynamic_index",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "install_phase_tiles_for_screen",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "name_late_turn",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "presentation_fast_blit",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "presentation_page23_resume",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "render_entity_colour",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "repair_settled_entity_gates",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "replay_entity_primary_overlay",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "sync_entity_cache_colour",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
         }
       ]
     },
@@ -931,7 +1090,10 @@
         "restore_gate_diagonal_dots",
         "perimeter_box_coordinates",
         "restore_player",
-        "save_player"
+        "save_player",
+        "render_entity_colour",
+        "repair_settled_entity_gates",
+        "sync_entity_cache_colour"
       ],
       "routines": [
         {
@@ -1341,6 +1503,62 @@
           "profile": "render",
           "purpose": "Resolve the sparse stream for the selected player frame.",
           "reasons": []
+        },
+        {
+          "name": "bnc_copy",
+          "profile": "copy",
+          "purpose": "Copy the bounded nest-cache byte span.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-enemy-runtime-bnc-copy"
+        },
+        {
+          "name": "colour_has_upper_bonus",
+          "profile": "render",
+          "purpose": "Colour has upper bonus.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-enemy-runtime-colour-has-upper-bonus"
+        },
+        {
+          "name": "colour_prepare_nest",
+          "profile": "render",
+          "purpose": "Colour prepare nest.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-enemy-runtime-colour-prepare-nest"
+        },
+        {
+          "name": "copy_fb_rows",
+          "profile": "copy",
+          "purpose": "Copy framebuffer rows with the framebuffer stride.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-enemy-runtime-copy-fb-rows"
+        },
+        {
+          "name": "copy_native_row",
+          "profile": "copy",
+          "purpose": "Copy one eight-byte native row.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-enemy-runtime-copy-native-row"
+        },
+        {
+          "name": "nest_active_in_zone",
+          "profile": "movement",
+          "purpose": "Nest active in zone.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-enemy-runtime-nest-active-in-zone"
+        },
+        {
+          "name": "player_visible_rows",
+          "profile": "movement",
+          "purpose": "Player visible rows.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-enemy-runtime-player-visible-rows"
+        },
+        {
+          "name": "restore_player_visible",
+          "profile": "render",
+          "purpose": "Restore player visible.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-enemy-runtime-restore-player-visible"
         }
       ],
       "relocations": [
@@ -1471,6 +1689,36 @@
           "name": "roam_slot_masks",
           "kind": "data",
           "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "object_blue_lut",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "object_mask_lut",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "object_red_lut",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "object_skull_lut",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "object_yellow_lut",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "roam_reverse_masks",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
         }
       ],
       "basic_blocks": [
@@ -1508,6 +1756,71 @@
           "name": "fbpd_done",
           "routine": null,
           "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "cez_copy_bg",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "cpn_full_nest",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "efn_slot_ready",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "eri_dirty",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "player_compose_entry",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "rcbtf_phase0_row",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "rcbtf_phase1_row",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "rcbtf_phase2_row",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "rcbtf_phase3_row",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "rcbtf_phase4_row",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "rcbtf_phase5_row",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "rcbtf_phase6_row",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "rcbtf_phase7_row",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
         }
       ]
     },
@@ -1630,6 +1943,34 @@
           "profile": "presentation",
           "purpose": "Advance and return the current presentation interval timer.",
           "reasons": []
+        },
+        {
+          "name": "install_demo_runtime",
+          "profile": "presentation",
+          "purpose": "Install demo runtime.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-presentation-runtime-install-demo-runtime"
+        },
+        {
+          "name": "install_highscore_runtime",
+          "profile": "presentation",
+          "purpose": "Install highscore runtime.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-presentation-runtime-install-highscore-runtime"
+        },
+        {
+          "name": "install_instruction_runtime",
+          "profile": "presentation",
+          "purpose": "Install instruction runtime.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-presentation-runtime-install-instruction-runtime"
+        },
+        {
+          "name": "start_screen_no_instruction_install",
+          "profile": "presentation",
+          "purpose": "Start screen no instruction install.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-presentation-runtime-start-screen-no-instruction-install"
         }
       ],
       "relocations": [
@@ -1663,7 +2004,11 @@
         "PRES_MAIN_MAZE",
         "PRES_MAIN_NEXT_STAGE",
         "PRES_MAIN_PLAYER",
-        "PRES_MAIN_RENDER"
+        "PRES_MAIN_RENDER",
+        "AUDIO_INSTALL_EXEC",
+        "PRES_MAIN_FB_PUBLISH",
+        "PRES_MAIN_INSTALL_PHASE_TILES",
+        "PRES_STAGE_SLICE"
       ],
       "label_classifications": [
         {
@@ -1732,6 +2077,16 @@
           "name": "load_timer_reset",
           "routine": null,
           "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "draw_raw_tile",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "instructions_runtime_return",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
         }
       ]
     },
@@ -1739,9 +2094,9 @@
       "id": "release-demo-runtime",
       "title": "Release demo director",
       "source": "src/demo_runtime.s",
-      "listing": "ladybug-instruction-runtime.lst",
-      "map": "ladybug-instruction-runtime.map",
-      "binary": "ladybug-instruction-runtime.bin",
+      "listing": "ladybug-demo-runtime.lst",
+      "map": "ladybug-demo-runtime.map",
+      "binary": "ladybug-demo-runtime.bin",
       "routines": [
         {
           "name": "demo_runtime_tick",
@@ -1800,8 +2155,8 @@
       "id": "development-instruction-runtime",
       "title": "Development instruction choreography",
       "source": "src/instruction_runtime.s",
-      "listing": null,
-      "map": null,
+      "listing": "ladybug-instruction-runtime.lst",
+      "map": "ladybug-instruction-runtime.map",
       "routines": [
         {
           "name": "apply_persistent_state",
@@ -1908,6 +2263,13 @@
           "profile": "presentation",
           "purpose": "Synchronize persistent state.",
           "reasons": []
+        },
+        {
+          "name": "recolour_x",
+          "profile": "presentation",
+          "purpose": "Recolour x.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-development-instruction-runtime-recolour-x"
         }
       ],
       "relocations": [
@@ -1931,6 +2293,52 @@
         "PRES_MAIN_SAVE_PLAYER",
         "PRES_MODULE_COLD_PTR",
         "PRES_MODULE_DRAW_TILE"
+      ],
+      "binary": "ladybug-instruction-runtime.bin",
+      "assembly_output": "ladybug-instruction-runtime.bin.new",
+      "label_classifications": [
+        {
+          "name": "coin_tiles",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "instruction_runtime_end",
+          "kind": "boundary",
+          "reason": "Module/table boundary in current assembled source."
+        },
+        {
+          "name": "life_tiles",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "multiplier_tiles",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        }
+      ],
+      "basic_blocks": [
+        {
+          "name": "death_drawn",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "death_frame_published",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "irt_colour_published",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "player_underlay_saved",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        }
       ]
     },
     {
@@ -2046,6 +2454,34 @@
           "profile": "boot",
           "purpose": "Synthesize perimeter reset.",
           "reasons": []
+        },
+        {
+          "name": "decompress_gmc_streams",
+          "profile": "boot",
+          "purpose": "Decompress gmc streams.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-gmc-bootstrap-decompress-gmc-streams"
+        },
+        {
+          "name": "decompress_staged_audio",
+          "profile": "boot",
+          "purpose": "Decompress staged audio.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-gmc-bootstrap-decompress-staged-audio"
+        },
+        {
+          "name": "dgs_descriptor",
+          "profile": "boot",
+          "purpose": "Decode one staged compressed-stream descriptor.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-gmc-bootstrap-dgs-descriptor"
+        },
+        {
+          "name": "decompress_presentation_atlas",
+          "profile": "boot",
+          "purpose": "Decompress the presentation atlas for its runtime destination.",
+          "semantic_id": "routines.html#routine-gmc-bootstrap-decompress-presentation-atlas",
+          "reasons": []
         }
       ],
       "label_classifications": [
@@ -2059,6 +2495,879 @@
           "kind": "boundary",
           "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
         }
+      ],
+      "assembly_output": "ladybug-gmc-boot.rom.tmp"
+    },
+    {
+      "id": "audio-runtime",
+      "title": "audio-runtime",
+      "source": "src/audio_runtime.s",
+      "listing": "ladybug-audio-runtime.lst",
+      "map": "ladybug-audio-runtime.map",
+      "binary": "ladybug-audio-runtime.bin",
+      "artifact_include_dirs": [
+        "",
+        "audio/gmc-runtime"
+      ],
+      "source_include_dirs": [
+        "src",
+        "assets/arcade/audio"
+      ],
+      "routines": [
+        {
+          "name": "audio_admit",
+          "profile": "audio",
+          "purpose": "Audio admit.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-admit"
+        },
+        {
+          "name": "audio_advance_all",
+          "profile": "audio",
+          "purpose": "Audio advance all.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-advance-all"
+        },
+        {
+          "name": "audio_advance_slot",
+          "profile": "audio",
+          "purpose": "Audio advance slot.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-advance-slot"
+        },
+        {
+          "name": "audio_credit_service",
+          "profile": "audio",
+          "purpose": "Audio credit service.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-credit-service"
+        },
+        {
+          "name": "audio_drain_busy",
+          "profile": "audio",
+          "purpose": "Audio drain busy.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-drain-busy"
+        },
+        {
+          "name": "audio_enqueue_impl",
+          "profile": "audio",
+          "purpose": "Audio enqueue impl.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-enqueue-impl"
+        },
+        {
+          "name": "audio_mix",
+          "profile": "audio",
+          "purpose": "Audio mix.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-mix"
+        },
+        {
+          "name": "audio_mix_clear",
+          "profile": "audio",
+          "purpose": "Audio mix clear.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-mix-clear"
+        },
+        {
+          "name": "audio_mix_slot",
+          "profile": "audio",
+          "purpose": "Audio mix slot.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-mix-slot"
+        },
+        {
+          "name": "audio_mix_write",
+          "profile": "audio",
+          "purpose": "Audio mix write.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-mix-write"
+        },
+        {
+          "name": "audio_music_busy",
+          "profile": "audio",
+          "purpose": "Audio music busy.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-music-busy"
+        },
+        {
+          "name": "audio_music_dispatch",
+          "profile": "audio",
+          "purpose": "Audio music dispatch.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-music-dispatch"
+        },
+        {
+          "name": "audio_poll_enqueue",
+          "profile": "audio",
+          "purpose": "Audio poll enqueue.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-poll-enqueue"
+        },
+        {
+          "name": "audio_poll_gameplay",
+          "profile": "audio",
+          "purpose": "Audio poll gameplay.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-poll-gameplay"
+        },
+        {
+          "name": "audio_poll_name",
+          "profile": "audio",
+          "purpose": "Audio poll name.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-poll-name"
+        },
+        {
+          "name": "audio_priority_for_id",
+          "profile": "audio",
+          "purpose": "Audio priority for id.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-priority-for-id"
+        },
+        {
+          "name": "audio_process_queue",
+          "profile": "audio",
+          "purpose": "Audio process queue.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-process-queue"
+        },
+        {
+          "name": "audio_select_gmc",
+          "profile": "audio",
+          "purpose": "Audio select gmc.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-select-gmc"
+        },
+        {
+          "name": "audio_slot_base",
+          "profile": "audio",
+          "purpose": "Audio slot base.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-slot-base"
+        },
+        {
+          "name": "audio_tick",
+          "profile": "audio",
+          "purpose": "Audio tick.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-tick"
+        },
+        {
+          "name": "audio_transition_guard",
+          "profile": "audio",
+          "purpose": "Audio transition guard.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-transition-guard"
+        },
+        {
+          "name": "audio_write",
+          "profile": "audio",
+          "purpose": "Audio write.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-write"
+        }
+      ],
+      "basic_blocks": [
+        {
+          "name": "audio_effect_enqueue",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_effect_priority",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_engine_start",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_enqueue_entry",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_enqueue_route",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_enqueue_store",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_guard_bytes",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_init_entry",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_install_page",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_mix_write_done",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_mode_level_start",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_service_gameplay_bytes",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_service_gateway_bytes",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_service_return_bytes",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "audio_write_tone_latch_done",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        }
+      ],
+      "label_classifications": [
+        {
+          "name": "audio_engine_end",
+          "kind": "boundary",
+          "reason": "Module/table boundary in current assembled source."
+        },
+        {
+          "name": "audio_guard_end",
+          "kind": "boundary",
+          "reason": "Module/table boundary in current assembled source."
+        },
+        {
+          "name": "audio_mix_atten",
+          "kind": "data",
+          "reason": "Current source declaration rmb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_mix_noise",
+          "kind": "data",
+          "reason": "Current source declaration rmb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_mix_periods",
+          "kind": "data",
+          "reason": "Current source declaration rmb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_mix_priority",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_mix_shadow",
+          "kind": "constant",
+          "reason": "Current source declaration equ; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_music_best_index",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_music_best_priority",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_music_count",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_music_queue",
+          "kind": "data",
+          "reason": "Current source declaration rmb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_name_end",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_name_length",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_name_timer",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_name_valid",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_poll_bonus",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_poll_box",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_poll_death",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_poll_dots",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_poll_extra",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_poll_gate",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_poll_release",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_poll_special",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_poll_stage",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_poll_valid",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_poll_veg",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_scratch",
+          "kind": "data",
+          "reason": "Current source declaration rmb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_slot0",
+          "kind": "data",
+          "reason": "Current source declaration rmb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_slot1",
+          "kind": "data",
+          "reason": "Current source declaration rmb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_slot2",
+          "kind": "data",
+          "reason": "Current source declaration rmb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_slot3",
+          "kind": "data",
+          "reason": "Current source declaration rmb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_slot_base_table",
+          "kind": "data",
+          "reason": "Current source declaration fdb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "audio_stop_pending",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_descriptors",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_00",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_01",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_02",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_03",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_04",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_05",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_06",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_07",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_09",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_10",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_11",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_12",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_13",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_14",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_15",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_cue_stream_16",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "gmc_sound_data_end",
+          "kind": "boundary",
+          "reason": "Module/table boundary in current assembled source."
+        }
+      ]
+    },
+    {
+      "id": "highscore-runtime",
+      "title": "highscore-runtime",
+      "source": "src/demo_runtime.s",
+      "listing": "ladybug-highscore-runtime.lst",
+      "map": "ladybug-highscore-runtime.map",
+      "binary": "ladybug-highscore-runtime.bin",
+      "routines": [
+        {
+          "name": "HIGHSCORE_PHASE_HELPER_ADDRESS",
+          "profile": "presentation",
+          "purpose": "Highscore phase helper address.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-highscore-phase-helper-address"
+        },
+        {
+          "name": "capture_cursor",
+          "profile": "presentation",
+          "purpose": "Capture cursor.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-capture-cursor"
+        },
+        {
+          "name": "capture_initial",
+          "profile": "presentation",
+          "purpose": "Capture initial.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-capture-initial"
+        },
+        {
+          "name": "capture_owner",
+          "profile": "presentation",
+          "purpose": "Capture owner.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-capture-owner"
+        },
+        {
+          "name": "draw_cursor",
+          "profile": "presentation",
+          "purpose": "Draw cursor.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-draw-cursor"
+        },
+        {
+          "name": "draw_digit",
+          "profile": "presentation",
+          "purpose": "Draw digit.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-draw-digit"
+        },
+        {
+          "name": "draw_entry_scores",
+          "profile": "presentation",
+          "purpose": "Draw entry scores.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-draw-entry-scores"
+        },
+        {
+          "name": "draw_name_fields",
+          "profile": "presentation",
+          "purpose": "Draw name fields.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-draw-name-fields"
+        },
+        {
+          "name": "draw_record_name",
+          "profile": "presentation",
+          "purpose": "Draw record name.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-draw-record-name"
+        },
+        {
+          "name": "draw_score",
+          "profile": "presentation",
+          "purpose": "Draw score.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-draw-score"
+        },
+        {
+          "name": "init_scores",
+          "profile": "presentation",
+          "purpose": "Init scores.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-init-scores"
+        },
+        {
+          "name": "name_advance",
+          "profile": "presentation",
+          "purpose": "Name advance.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-name-advance"
+        },
+        {
+          "name": "name_can_move",
+          "profile": "presentation",
+          "purpose": "Name can move.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-name-can-move"
+        },
+        {
+          "name": "name_cell_arrival",
+          "profile": "presentation",
+          "purpose": "Name cell arrival.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-name-cell-arrival"
+        },
+        {
+          "name": "name_tick",
+          "profile": "presentation",
+          "purpose": "Name tick.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-name-tick"
+        },
+        {
+          "name": "restore_cursor",
+          "profile": "presentation",
+          "purpose": "Restore cursor.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-restore-cursor"
+        },
+        {
+          "name": "update_name_frame",
+          "profile": "presentation",
+          "purpose": "Update name frame.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-runtime-update-name-frame"
+        }
+      ],
+      "external_symbols": [
+        "PRES_MAIN_FB_PREPARE",
+        "PRES_MAIN_NAME_LATE_TURN",
+        "PRES_MAIN_READ_JOY",
+        "PRES_MODULE_COLD_PTR",
+        "PRES_MODULE_DRAW_TILE",
+        "PRES_MODULE_MAP_BACK"
+      ],
+      "label_classifications": [
+        {
+          "name": "demo_runtime_end",
+          "kind": "boundary",
+          "reason": "Module/table boundary in current assembled source."
+        },
+        {
+          "name": "highscore_default_name_data",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "score_glyphs",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        }
+      ],
+      "basic_blocks": [
+        {
+          "name": "demo_runtime_tick",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "draw_name_done",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "highscore_finish_back",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "highscore_prepare_back",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "name_joy_ready",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "ranking_slice",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        }
+      ]
+    },
+    {
+      "id": "highscore-helper",
+      "title": "highscore-helper",
+      "source": "src/demo_runtime.s",
+      "listing": "ladybug-highscore-helper.lst",
+      "map": "ladybug-highscore-helper.map",
+      "binary": "ladybug-highscore-helper.bin",
+      "external_symbols": [
+        "PRES_MAIN_SHARED_MASK",
+        "blit_packed_sprite"
+      ],
+      "routines": [
+        {
+          "name": "credit_panel_slice",
+          "profile": "presentation",
+          "purpose": "Credit panel slice.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-credit-panel-slice"
+        },
+        {
+          "name": "highscore_commit_name",
+          "profile": "presentation",
+          "purpose": "Highscore commit name.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-highscore-commit-name"
+        },
+        {
+          "name": "highscore_prepare_name",
+          "profile": "presentation",
+          "purpose": "Highscore prepare name.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-highscore-prepare-name"
+        },
+        {
+          "name": "stage_panel_char",
+          "profile": "presentation",
+          "purpose": "Stage panel char.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-stage-panel-char"
+        },
+        {
+          "name": "stage_panel_text",
+          "profile": "presentation",
+          "purpose": "Stage panel text.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-stage-panel-text"
+        },
+        {
+          "name": "stage_select",
+          "profile": "presentation",
+          "purpose": "Stage select.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-stage-select"
+        }
+      ],
+      "label_classifications": [
+        {
+          "name": "credit_panel_label",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "credit_panel_two_prompt",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "highscore_default_name_data",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "highscore_phase_helper_end",
+          "kind": "boundary",
+          "reason": "Module/table boundary in current assembled source."
+        },
+        {
+          "name": "highscore_phase_helper_gap",
+          "kind": "data",
+          "reason": "Current source declaration rmb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "ranking_schedule_data",
+          "kind": "data",
+          "reason": "Current source declaration fdb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "ranking_schedule_end",
+          "kind": "boundary",
+          "reason": "Module/table boundary in current assembled source."
+        },
+        {
+          "name": "stage_panel_good_luck",
+          "kind": "data",
+          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "stage_schedule",
+          "kind": "data",
+          "reason": "Current source declaration fdb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "stage_schedule_end",
+          "kind": "boundary",
+          "reason": "Module/table boundary in current assembled source."
+        }
+      ],
+      "basic_blocks": [
+        {
+          "name": "highscore_after_highscore_start",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "highscore_after_name_start",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "highscore_after_prepare",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "highscore_after_tile",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "highscore_logo_drawn",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "highscore_logo_prepared",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "highscore_logo_records",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "highscore_phase_tick",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "highscore_timer_draw",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "highscore_timer_records",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "stage_panel_draw",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "stage_panel_finish",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "stage_panel_slice",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "stage_panel_slice_entry",
+          "routine": null,
+          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        }
       ]
     }
   ],
@@ -2071,20 +3380,62 @@
       "internal/implementation/assembly-project-template.html"
     ],
     "controlled_terms": [
-      {"term": "authored source", "definition_id": "term-authored-source"},
-      {"term": "canonical definition", "definition_id": "term-canonical-definition"},
-      {"term": "generated reference", "definition_id": "term-generated-reference"},
-      {"term": "routine contract", "definition_id": "term-routine-contract"},
-      {"term": "basic block", "definition_id": "term-basic-block"},
-      {"term": "assembled address", "definition_id": "term-assembled-address"},
-      {"term": "cartridge-staged address", "definition_id": "term-cartridge-staged-address"},
-      {"term": "runtime destination", "definition_id": "term-runtime-destination"},
-      {"term": "PAR5 scope", "definition_id": "term-par5-scope"},
-      {"term": "authoritative state", "definition_id": "term-authoritative-state"},
-      {"term": "render intent", "definition_id": "term-render-intent"},
-      {"term": "framebuffer owner", "definition_id": "term-framebuffer-owner"},
-      {"term": "publication", "definition_id": "term-publication"},
-      {"term": "evidence dimension", "definition_id": "term-evidence-dimension"}
+      {
+        "term": "authored source",
+        "definition_id": "term-authored-source"
+      },
+      {
+        "term": "canonical definition",
+        "definition_id": "term-canonical-definition"
+      },
+      {
+        "term": "generated reference",
+        "definition_id": "term-generated-reference"
+      },
+      {
+        "term": "routine contract",
+        "definition_id": "term-routine-contract"
+      },
+      {
+        "term": "basic block",
+        "definition_id": "term-basic-block"
+      },
+      {
+        "term": "assembled address",
+        "definition_id": "term-assembled-address"
+      },
+      {
+        "term": "cartridge-staged address",
+        "definition_id": "term-cartridge-staged-address"
+      },
+      {
+        "term": "runtime destination",
+        "definition_id": "term-runtime-destination"
+      },
+      {
+        "term": "PAR5 scope",
+        "definition_id": "term-par5-scope"
+      },
+      {
+        "term": "authoritative state",
+        "definition_id": "term-authoritative-state"
+      },
+      {
+        "term": "render intent",
+        "definition_id": "term-render-intent"
+      },
+      {
+        "term": "framebuffer owner",
+        "definition_id": "term-framebuffer-owner"
+      },
+      {
+        "term": "publication",
+        "definition_id": "term-publication"
+      },
+      {
+        "term": "evidence dimension",
+        "definition_id": "term-evidence-dimension"
+      }
     ],
     "required_symbols": [
       "entry",
@@ -2104,19 +3455,34 @@
         "id": "render-transaction",
         "owner": "resident runtime owns protocol state; presentation and gameplay produce complete BACK images; Vbord IRQ publishes",
         "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-render-transaction",
-        "symbols": ["FB_FRONT_ID", "FB_BACK_ID", "FB_RENDER_PENDING", "PENDING", "FB_RENDER_ACTIVE", "ACTIVE"]
+        "symbols": [
+          "FB_FRONT_ID",
+          "FB_BACK_ID",
+          "FB_RENDER_PENDING",
+          "PENDING",
+          "FB_RENDER_ACTIVE",
+          "ACTIVE"
+        ]
       },
       {
         "id": "presentation-flow-state",
         "owner": "presentation runtime",
         "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-presentation-flow-state",
-        "symbols": ["PRES_MODE", "PRES_TIMER", "PRES_PHASE", "PRES_SCREEN", "PRES_HOLD_STATE"]
+        "symbols": [
+          "PRES_MODE",
+          "PRES_TIMER",
+          "PRES_PHASE",
+          "PRES_SCREEN",
+          "PRES_HOLD_STATE"
+        ]
       },
       {
         "id": "bank1-resident-publication",
         "owner": "GMC bootstrap until handoff; resident runtime after publication",
         "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-bank1-publication",
-        "symbols": ["BOOT_FLAG"]
+        "symbols": [
+          "BOOT_FLAG"
+        ]
       }
     ],
     "required_ownership_categories": [
@@ -2219,16 +3585,30 @@
         "category": "direct-page",
         "owner": "The declaring runtime subsystem owns each field; lifecycle aliases share one absolute slot only in mutually exclusive phases",
         "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-direct-page",
-        "equ_ranges": [{"start": "0x0000", "end": "0x00ff"}],
-        "items": ["direct-page-$0000-$00ff"]
+        "equ_ranges": [
+          {
+            "start": "0x0000",
+            "end": "0x00ff"
+          }
+        ],
+        "items": [
+          "direct-page-$0000-$00ff"
+        ]
       },
       {
         "id": "all-fixed-address-aliases",
         "category": "fixed-address",
         "owner": "The declaring module owns software addresses; the named CoCo/GIME/PIA device owns hardware-register aliases",
         "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-fixed-addresses",
-        "equ_ranges": [{"start": "0x0100", "end": "0xffff"}],
-        "items": ["software-and-hardware-fixed-address-aliases"]
+        "equ_ranges": [
+          {
+            "start": "0x0100",
+            "end": "0xffff"
+          }
+        ],
+        "items": [
+          "software-and-hardware-fixed-address-aliases"
+        ]
       },
       {
         "id": "all-copied-modules",
@@ -2236,64 +3616,152 @@
         "owner": "The bootstrap owns bytes through copy and validation; the destination module owns them after handoff",
         "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-copied-modules",
         "model": "relocations",
-        "items": ["configured-relocation-records"]
+        "items": [
+          "configured-relocation-records"
+        ]
       },
       {
         "id": "all-persistent-records",
         "category": "persistent-record",
         "owner": "The named gameplay, presentation, or framebuffer subsystem owns the authoritative record for its documented lifetime",
         "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-persistent-records",
-        "items": ["render-transaction", "presentation-flow", "gameplay-state", "entity-table", "player-history-a", "player-history-b", "enemy-history-a", "enemy-history-b", "damage-ledger-a", "damage-ledger-b", "session-score-state"]
+        "items": [
+          "render-transaction",
+          "presentation-flow",
+          "gameplay-state",
+          "entity-table",
+          "player-history-a",
+          "player-history-b",
+          "enemy-history-a",
+          "enemy-history-b",
+          "damage-ledger-a",
+          "damage-ledger-b",
+          "session-score-state"
+        ]
       },
       {
         "id": "all-physical-pages",
         "category": "physical-page",
         "owner": "The runtime memory atlas assigns one phase-qualified owner to every allocated physical page interval",
         "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-physical-pages",
-        "items": ["page-$20", "pages-$21-$23", "pages-$28-$2b", "pages-$2c-$2f", "pages-$30-$33", "page-$34", "pages-$35-$37", "page-$38", "page-$39", "pages-$3a-$3d", "pages-$3e-$3f"]
+        "items": [
+          "page-$20",
+          "pages-$21-$23",
+          "pages-$28-$2b",
+          "pages-$2c-$2f",
+          "pages-$30-$33",
+          "page-$34",
+          "pages-$35-$37",
+          "page-$38",
+          "page-$39",
+          "pages-$3a-$3d",
+          "pages-$3e-$3f"
+        ]
       },
       {
         "id": "all-virtual-ranges",
         "category": "virtual-range",
         "owner": "The active executive PAR mapping and scoped PAR5 borrower own each virtual range",
         "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-virtual-ranges",
-        "items": ["$0000-$01ff", "$0200-$02ff", "$0300-$06b1", "$06b2-$07ff", "$0800-$17ff", "$1800-$18ff", "$1900-$1dff", "$1e00-$1fff", "$2000-$9fff", "$a000-$bfff", "$c000-$dfff", "$e000-$fdff", "$fe00-$feff", "$ff00-$ffff"]
+        "items": [
+          "$0000-$01ff",
+          "$0200-$02ff",
+          "$0300-$06b1",
+          "$06b2-$07ff",
+          "$0800-$17ff",
+          "$1800-$18ff",
+          "$1900-$1dff",
+          "$1e00-$1fff",
+          "$2000-$9fff",
+          "$a000-$bfff",
+          "$c000-$dfff",
+          "$e000-$fdff",
+          "$fe00-$feff",
+          "$ff00-$ffff"
+        ]
       },
       {
         "id": "all-cartridge-intervals",
         "category": "cartridge-interval",
         "owner": "The sparse-layout manifest and bootstrap own every CPU-readable GMC source interval",
         "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-cartridge-intervals",
-        "items": ["bank0-loader-$0000-$07ff", "bank0-overflow-$0800-$3dff", "bank1-resident-$0000-$1fff", "bank1-assets-$2000-$3dff", "bank2-primary-source", "bank3-enemy-reserve-$0800-$17ff", "bank3-primary-source", "all-banks-inaccessible-$3e00-$3fff"]
+        "items": [
+          "bank0-loader-$0000-$07ff",
+          "bank0-overflow-$0800-$3dff",
+          "bank1-resident-$0000-$1fff",
+          "bank1-assets-$2000-$3dff",
+          "bank2-primary-source",
+          "bank3-enemy-reserve-$0800-$17ff",
+          "bank3-primary-source",
+          "all-banks-inaccessible-$3e00-$3fff"
+        ]
       },
       {
         "id": "all-framebuffer-structures",
         "category": "framebuffer-structure",
         "owner": "Each physical framebuffer owns pixels and its A/B-local actor history; direct-page protocol state owns publication only",
         "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-framebuffer-structures",
-        "items": ["compatibility-hold-surface", "persistent-framebuffer-a", "persistent-framebuffer-b", "render-transaction-metadata", "player-save-under-a", "player-save-under-b", "enemy-ring-history-a", "enemy-ring-history-b", "pending-damage-a", "pending-damage-b"]
+        "items": [
+          "compatibility-hold-surface",
+          "persistent-framebuffer-a",
+          "persistent-framebuffer-b",
+          "render-transaction-metadata",
+          "player-save-under-a",
+          "player-save-under-b",
+          "enemy-ring-history-a",
+          "enemy-ring-history-b",
+          "pending-damage-a",
+          "pending-damage-b"
+        ]
       },
       {
         "id": "all-stack-boundaries",
         "category": "stack-boundary",
         "owner": "The 6809 system stack exclusively owns $1e00-$1fff after copied-module publication",
         "semantic_id": "../../wiki/internal/implementation/memory-map.html#memory-stack",
-        "items": ["stack-floor-$1e00", "stack-initial-$1ffe", "stack-window-$1e00-$1fff"]
+        "items": [
+          "stack-floor-$1e00",
+          "stack-initial-$1ffe",
+          "stack-window-$1e00-$1fff"
+        ]
       },
       {
         "id": "all-generated-abi-entries",
         "category": "generated-abi",
         "owner": "The exporting module owns each entry; build-generated includes bind consumers to current map addresses",
         "semantic_id": "../../wiki/internal/implementation/source-structure.html#generated-abi",
-        "items": ["resident-entry-$c002", "enemy-runtime-jump-table", "presentation-module-entry", "release-or-development-$0300-entry", "perimeter-helper-fixed-jumps", "resident-symbol-include", "presentation-symbol-include", "sparse-loader-include"]
+        "items": [
+          "resident-entry-$c002",
+          "enemy-runtime-jump-table",
+          "presentation-module-entry",
+          "release-or-development-$0300-entry",
+          "perimeter-helper-fixed-jumps",
+          "resident-symbol-include",
+          "presentation-symbol-include",
+          "sparse-loader-include"
+        ]
       },
       {
         "id": "all-structured-tables",
         "category": "structured-table",
         "owner": "Each authored data label belongs to its declaring module; generated table fields belong to their producing generator schema",
         "semantic_id": "../../wiki/internal/implementation/data-layouts.html#layout-structured-tables",
-        "label_kinds": ["data"],
-        "items": ["sparse-index-record", "sparse-command-stream", "loader-copy-record", "address-identity-record", "call-edge-record", "label-classification-record", "evidence-record", "presentation-screen-record", "demo-route-record", "entity-record", "render-intent-record"]
+        "label_kinds": [
+          "data"
+        ],
+        "items": [
+          "sparse-index-record",
+          "sparse-command-stream",
+          "loader-copy-record",
+          "address-identity-record",
+          "call-edge-record",
+          "label-classification-record",
+          "evidence-record",
+          "presentation-screen-record",
+          "demo-route-record",
+          "entity-record",
+          "render-intent-record"
+        ]
       }
     ],
     "required_scenarios": [
@@ -2316,14 +3784,33 @@
         "state": "natural boot and attract",
         "module": "presentation-runtime",
         "routine": "presentation_flow_tick",
-        "memory": ["presentation-flow-state", "render-transaction"],
+        "memory": [
+          "presentation-flow-state",
+          "render-transaction"
+        ],
         "source": [
-          {"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 121},
-          {"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 264},
-          {"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 508}
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 121
+          },
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 264
+          },
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 508
+          }
         ],
         "verifier": "python3 scripts/verify_gmc_boot.py with natural and forced phases",
-        "evidence": ["baseline-runtime", "baseline-visible", "baseline-timing"]
+        "evidence": [
+          "baseline-runtime",
+          "baseline-visible",
+          "baseline-timing"
+        ]
       },
       {
         "id": "feat-002-cold-and-warm-title",
@@ -2332,10 +3819,23 @@
         "state": "cold or stale warm boot",
         "module": "presentation-runtime",
         "routine": "presentation_flow_tick",
-        "memory": ["presentation-flow-state", "render-transaction"],
-        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 121}],
+        "memory": [
+          "presentation-flow-state",
+          "render-transaction"
+        ],
+        "source": [
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 121
+          }
+        ],
         "verifier": "startup and natural phases of scripts/verify_gmc_boot.py plus retained first-FRONT identity",
-        "evidence": ["baseline-delivery", "baseline-runtime", "baseline-visible"]
+        "evidence": [
+          "baseline-delivery",
+          "baseline-runtime",
+          "baseline-visible"
+        ]
       },
       {
         "id": "feat-002-title-to-level-start",
@@ -2344,10 +3844,22 @@
         "state": "attract expiry and level-start load",
         "module": "presentation-runtime",
         "routine": "start_screen",
-        "memory": ["presentation-flow-state", "render-transaction"],
-        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 250}],
+        "memory": [
+          "presentation-flow-state",
+          "render-transaction"
+        ],
+        "source": [
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 250
+          }
+        ],
         "verifier": "natural presentation phase of scripts/verify_gmc_boot.py",
-        "evidence": ["baseline-runtime", "baseline-visible"]
+        "evidence": [
+          "baseline-runtime",
+          "baseline-visible"
+        ]
       },
       {
         "id": "feat-002-level-start-to-demo",
@@ -2356,10 +3868,22 @@
         "state": "level-start expiry",
         "module": "presentation-runtime",
         "routine": "presentation_flow_tick",
-        "memory": ["presentation-flow-state", "render-transaction"],
-        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 561}],
+        "memory": [
+          "presentation-flow-state",
+          "render-transaction"
+        ],
+        "source": [
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 561
+          }
+        ],
         "verifier": "natural presentation plus forced gameplay phases of scripts/verify_gmc_boot.py",
-        "evidence": ["baseline-runtime", "baseline-timing"]
+        "evidence": [
+          "baseline-runtime",
+          "baseline-timing"
+        ]
       },
       {
         "id": "feat-002-both-demo-deaths",
@@ -2368,10 +3892,21 @@
         "state": "forced demo enemy or skull death",
         "module": "presentation-runtime",
         "routine": "presentation_flow_tick",
-        "memory": ["presentation-flow-state", "render-transaction"],
-        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 631}],
+        "memory": [
+          "presentation-flow-state",
+          "render-transaction"
+        ],
+        "source": [
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 631
+          }
+        ],
         "verifier": "forced demo-death phase of scripts/verify_gmc_boot.py",
-        "evidence": ["baseline-runtime"]
+        "evidence": [
+          "baseline-runtime"
+        ]
       },
       {
         "id": "feat-002-demo-return-to-title",
@@ -2380,10 +3915,22 @@
         "state": "demo death complete",
         "module": "presentation-runtime",
         "routine": "presentation_flow_tick",
-        "memory": ["presentation-flow-state", "render-transaction"],
-        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 642}],
+        "memory": [
+          "presentation-flow-state",
+          "render-transaction"
+        ],
+        "source": [
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 642
+          }
+        ],
         "verifier": "natural loop-return marker and retained title FRONT identity",
-        "evidence": ["baseline-runtime", "baseline-visible"]
+        "evidence": [
+          "baseline-runtime",
+          "baseline-visible"
+        ]
       },
       {
         "id": "feat-002-credit-input-boundary",
@@ -2392,10 +3939,21 @@
         "state": "credit edge in presentation flow",
         "module": "presentation-runtime",
         "routine": "scan_keys",
-        "memory": ["presentation-flow-state"],
-        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 687}],
+        "memory": [
+          "presentation-flow-state"
+        ],
+        "source": [
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 687
+          }
+        ],
         "verifier": "source-reference call/state trace; current BUG-013 remains deferred evidence about behavior",
-        "evidence": ["baseline-structural", "baseline-representation"]
+        "evidence": [
+          "baseline-structural",
+          "baseline-representation"
+        ]
       },
       {
         "id": "feat-002-start-input-boundary",
@@ -2404,10 +3962,21 @@
         "state": "start edge with current credit state",
         "module": "presentation-runtime",
         "routine": "presentation_flow_tick",
-        "memory": ["presentation-flow-state"],
-        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 121}],
+        "memory": [
+          "presentation-flow-state"
+        ],
+        "source": [
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 121
+          }
+        ],
         "verifier": "source-reference control trace plus current FEAT-002/BUG ticket evidence",
-        "evidence": ["baseline-structural", "baseline-representation"]
+        "evidence": [
+          "baseline-structural",
+          "baseline-representation"
+        ]
       },
       {
         "id": "feat-002-live-gameplay-handoff",
@@ -2416,10 +3985,22 @@
         "state": "authorized live gameplay re-entry",
         "module": "presentation-runtime",
         "routine": "gameplay_reentry",
-        "memory": ["presentation-flow-state", "render-transaction"],
-        "source": [{"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 607}],
+        "memory": [
+          "presentation-flow-state",
+          "render-transaction"
+        ],
+        "source": [
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 607
+          }
+        ],
         "verifier": "forced gameplay integration phase of scripts/verify_gmc_boot.py",
-        "evidence": ["baseline-runtime", "baseline-visible"]
+        "evidence": [
+          "baseline-runtime",
+          "baseline-visible"
+        ]
       },
       {
         "id": "feat-002-instruction-profile-exclusion",
@@ -2428,10 +4009,21 @@
         "state": "release profile selection",
         "module": "development-instruction-runtime",
         "routine": "instruction_runtime_tick",
-        "memory": ["presentation-flow-state"],
-        "source": [{"module": "development-instruction-runtime", "file": "src/instruction_runtime.s", "line": 1}],
+        "memory": [
+          "presentation-flow-state"
+        ],
+        "source": [
+          {
+            "module": "development-instruction-runtime",
+            "file": "src/instruction_runtime.s",
+            "line": 1
+          }
+        ],
         "verifier": "source-only module representation plus explicit profile/exclusion manifest",
-        "evidence": ["baseline-structural", "baseline-representation"]
+        "evidence": [
+          "baseline-structural",
+          "baseline-representation"
+        ]
       },
       {
         "id": "doc-002-bank1-delivery",
@@ -2440,14 +4032,30 @@
         "state": "loader and resident startup",
         "module": "gmc-bootstrap",
         "routine": "boot_entry",
-        "memory": ["bank1-resident-publication"],
+        "memory": [
+          "bank1-resident-publication"
+        ],
         "source": [
-          {"module": "gmc-bootstrap", "file": "src/gmc_bootstrap.s", "line": 186},
-          {"module": "gmc-bootstrap", "file": "src/gmc_bootstrap.s", "line": 258},
-          {"module": "gmc-bootstrap", "file": "src/gmc_bootstrap.s", "line": 307}
+          {
+            "module": "gmc-bootstrap",
+            "file": "src/gmc_bootstrap.s",
+            "line": 186
+          },
+          {
+            "module": "gmc-bootstrap",
+            "file": "src/gmc_bootstrap.s",
+            "line": 258
+          },
+          {
+            "module": "gmc-bootstrap",
+            "file": "src/gmc_bootstrap.s",
+            "line": 307
+          }
         ],
         "verifier": "python3 scripts/verify_gmc_boot.py --startup-only",
-        "evidence": ["baseline-delivery"]
+        "evidence": [
+          "baseline-delivery"
+        ]
       },
       {
         "id": "doc-002-pc-to-attract-owner",
@@ -2456,13 +4064,26 @@
         "state": "attract hold",
         "module": "presentation-runtime",
         "routine": "presentation_flow_tick",
-        "memory": ["presentation-flow-state"],
+        "memory": [
+          "presentation-flow-state"
+        ],
         "source": [
-          {"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 509},
-          {"module": "presentation-runtime", "file": "src/presentation_runtime.s", "line": 518}
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 509
+          },
+          {
+            "module": "presentation-runtime",
+            "file": "src/presentation_runtime.s",
+            "line": 518
+          }
         ],
         "verifier": "generated addresses.html and module-presentation-runtime.html anchor inspection",
-        "evidence": ["baseline-representation", "baseline-runtime"]
+        "evidence": [
+          "baseline-representation",
+          "baseline-runtime"
+        ]
       },
       {
         "id": "doc-002-direct-page-publication-owner",
@@ -2471,14 +4092,31 @@
         "state": "interrupt-time framebuffer publication",
         "module": "enemy-runtime",
         "routine": "framebuffer_irq_impl",
-        "memory": ["render-transaction"],
+        "memory": [
+          "render-transaction"
+        ],
         "source": [
-          {"module": "enemy-runtime", "file": "src/enemy_runtime.s", "line": 1237},
-          {"module": "enemy-runtime", "file": "src/enemy_runtime.s", "line": 1239},
-          {"module": "enemy-runtime", "file": "src/enemy_runtime.s", "line": 1241}
+          {
+            "module": "enemy-runtime",
+            "file": "src/enemy_runtime.s",
+            "line": 1237
+          },
+          {
+            "module": "enemy-runtime",
+            "file": "src/enemy_runtime.s",
+            "line": 1239
+          },
+          {
+            "module": "enemy-runtime",
+            "file": "src/enemy_runtime.s",
+            "line": 1241
+          }
         ],
         "verifier": "generated memory-reference list plus natural FRONT capture",
-        "evidence": ["baseline-representation", "baseline-visible"]
+        "evidence": [
+          "baseline-representation",
+          "baseline-visible"
+        ]
       }
     ],
     "label_rules": [
@@ -2500,48 +4138,48 @@
       "dimension": "structural",
       "state": "pass",
       "artifact": "src/main.s",
-      "sha256": "auto",
-      "note": "Authored source at the isolated baseline revision"
+      "sha256": "38c81e77112acea579c2365affd96e802f1f4d598cfcdc59348f7c8cdbb6da96",
+      "note": "Historical DOC-002 evidence only; not rerun or recertified by DOC-010. Authored source at the isolated baseline revision"
     },
     {
-    "id": "baseline-representation",
-    "dimension": "representation",
-    "state": "pass",
-    "artifact": "wiki/internal/implementation/source-guide.html",
-    "sha256": "auto",
-    "note": "Generated anchors, address lookup, routine ownership, memory references, and artifact hashes verified"
+      "id": "baseline-representation",
+      "dimension": "representation",
+      "state": "pass",
+      "artifact": "wiki/internal/implementation/source-guide.html",
+      "sha256": "8923791a61bcef686ff71aa4ce26e858c494105d0405d81adca316ebc447e97a",
+      "note": "Historical DOC-002 evidence only; not rerun or recertified by DOC-010. Generated anchors, address lookup, routine ownership, memory references, and artifact hashes verified"
     },
     {
       "id": "baseline-delivery",
       "dimension": "delivery",
-    "state": "pass",
-    "artifact": "wiki/internal/implementation/source-guide.html",
-    "sha256": "auto",
-    "note": "Bank-1 staged bytes and final all-RAM resident bytes matched the certified ROM interval"
+      "state": "pass",
+      "artifact": "wiki/internal/implementation/source-guide.html",
+      "sha256": "8923791a61bcef686ff71aa4ce26e858c494105d0405d81adca316ebc447e97a",
+      "note": "Historical DOC-002 evidence only; not rerun or recertified by DOC-010. Bank-1 staged bytes and final all-RAM resident bytes matched the certified ROM interval"
     },
     {
       "id": "baseline-runtime",
       "dimension": "runtime-reachability",
-    "state": "pass",
-    "artifact": "wiki/internal/implementation/source-guide.html",
-    "sha256": "auto",
-    "note": "Natural main loop and presentation plus forced gameplay/demo integration markers reached"
+      "state": "pass",
+      "artifact": "wiki/internal/implementation/source-guide.html",
+      "sha256": "8923791a61bcef686ff71aa4ce26e858c494105d0405d81adca316ebc447e97a",
+      "note": "Historical DOC-002 evidence only; not rerun or recertified by DOC-010. Natural main loop and presentation plus forced gameplay/demo integration markers reached"
     },
     {
       "id": "baseline-visible",
       "dimension": "visible-output",
-    "state": "pass",
-    "artifact": "wiki/internal/implementation/source-guide.html",
-    "sha256": "auto",
-    "note": "Live published FRONT bytes matched the independently generated attract phase-0 frame; existing visual bugs remain accepted baseline"
+      "state": "pass",
+      "artifact": "wiki/internal/implementation/source-guide.html",
+      "sha256": "8923791a61bcef686ff71aa4ce26e858c494105d0405d81adca316ebc447e97a",
+      "note": "Historical DOC-002 evidence only; not rerun or recertified by DOC-010. Live published FRONT bytes matched the independently generated attract phase-0 frame; existing visual bugs remain accepted baseline"
     },
     {
       "id": "baseline-timing",
       "dimension": "timing",
-    "state": "pass",
-    "artifact": "wiki/internal/implementation/source-guide.html",
-    "sha256": "auto",
-    "note": "One natural presentation interval retained as an XRoar timing trace; evidence pass does not resolve existing performance bugs"
+      "state": "pass",
+      "artifact": "wiki/internal/implementation/source-guide.html",
+      "sha256": "8923791a61bcef686ff71aa4ce26e858c494105d0405d81adca316ebc447e97a",
+      "note": "Historical DOC-002 evidence only; not rerun or recertified by DOC-010. One natural presentation interval retained as an XRoar timing trace; evidence pass does not resolve existing performance bugs"
     }
   ],
   "routine_catalog": "../../wiki/internal/implementation/routine-catalog.html",
@@ -2626,6 +4264,28 @@
       "writes": "Declared RAM destinations, PAR registers, boot scratch, and decompressed surfaces",
       "side_effects": "Changes MMU mappings and copies or synthesizes executable/data payloads",
       "invariants": "Authored, staged, and destination byte identities remain distinct and every transfer obeys its generated size bound"
+    },
+    "audio": {
+      "inputs": "Cue IDs, slot state and foreground phase; detailed register arguments remain at the source call site",
+      "outputs": "Updated audio queue, voice selection, status or PSG output as named by the routine",
+      "clobbers": "A, B, D, X, Y, U and condition codes unless source saves a narrower set",
+      "reads": "Audio direct-page bytes, page-$3D cue streams and slots, and polled gameplay/name state",
+      "writes": "Audio-owned queue, scratch, slots, mix shadows and sound/interface registers as required by the operation",
+      "side_effects": "May select GMC sound output and write PSG registers; foreground callers own the bank-restoring gateway",
+      "invariants": "Audio-owned scratch is not game scratch; non-audio caller returns through the guarded bank-restoring gateway"
     }
+  },
+  "ownership_audit": {
+    "required": [
+      "multiplier-x",
+      "sprite-index",
+      "ring-base",
+      "audio-work",
+      "audio-scratch",
+      "player-background",
+      "enemy-background",
+      "framebuffer-ledger",
+      "nest-background"
+    ]
   }
 }

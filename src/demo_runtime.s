@@ -1,3 +1,26 @@
+; DOC-002 source-contract mirror contract credit_panel_slice profile=presentation: Credit panel slice.
+; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Highscore commit name.
+; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.
+; DOC-002 source-contract mirror contract stage_panel_char profile=presentation: Stage panel char.
+; DOC-002 source-contract mirror contract stage_panel_text profile=presentation: Stage panel text.
+; DOC-002 source-contract mirror contract stage_select profile=presentation: Stage select.
+; DOC-002 source-contract mirror contract HIGHSCORE_PHASE_HELPER_ADDRESS profile=presentation: Highscore phase helper address.
+; DOC-002 source-contract mirror contract capture_cursor profile=presentation: Capture cursor.
+; DOC-002 source-contract mirror contract capture_initial profile=presentation: Capture initial.
+; DOC-002 source-contract mirror contract capture_owner profile=presentation: Capture owner.
+; DOC-002 source-contract mirror contract draw_cursor profile=presentation: Draw cursor.
+; DOC-002 source-contract mirror contract draw_digit profile=presentation: Draw digit.
+; DOC-002 source-contract mirror contract draw_entry_scores profile=presentation: Draw entry scores.
+; DOC-002 source-contract mirror contract draw_name_fields profile=presentation: Draw name fields.
+; DOC-002 source-contract mirror contract draw_record_name profile=presentation: Draw record name.
+; DOC-002 source-contract mirror contract draw_score profile=presentation: Draw score.
+; DOC-002 source-contract mirror contract init_scores profile=presentation: Init scores.
+; DOC-002 source-contract mirror contract name_advance profile=presentation: Name advance.
+; DOC-002 source-contract mirror contract name_can_move profile=presentation: Name can move.
+; DOC-002 source-contract mirror contract name_cell_arrival profile=presentation: Name cell arrival.
+; DOC-002 source-contract mirror contract name_tick profile=presentation: Name tick.
+; DOC-002 source-contract mirror contract restore_cursor profile=presentation: Restore cursor.
+; DOC-002 source-contract mirror contract update_name_frame profile=presentation: Update name frame.
         include "ladybug_shared_mode.inc"
         ifne SHARED_TEXT_ENABLED*COMPLETE_PHASE_AUX
         include "ladybug_text_colours.inc"

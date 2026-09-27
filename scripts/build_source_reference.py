@@ -31,6 +31,10 @@ def main() -> int:
         f"{sum(len(module.source_lines) for module in project.modules)} source lines, "
         f"coverage={'pass' if coverage.passed else 'incomplete'}"
     )
+    if project.ownership_audit and project.ownership_audit['errors']:
+        for error in project.ownership_audit['errors']:
+            print('ownership audit: FAIL: ' + error)
+        return 1
     return 0
 
 

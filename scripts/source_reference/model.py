@@ -206,3 +206,4 @@ class ProjectReference:
     modules: tuple[ModuleReference, ...]
     evidence: tuple[Evidence, ...]
     exclusions: tuple[Exclusion, ...]
+    ownership_audit: dict | None = None

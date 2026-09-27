@@ -1,3 +1,4 @@
+; DOC-002 source-contract mirror contract recolour_x profile=presentation: Recolour x.
         include "ladybug_shared_mode.inc"
         ifne SHARED_TEXT_ENABLED
 ; BUG-011 development instruction choreography.  The GMC loader stages this

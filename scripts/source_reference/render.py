@@ -292,6 +292,10 @@ def render_project(project: ProjectReference, coverage: CoverageResult, output: 
         f"{coverage.classified_labels}/{coverage.global_labels} global labels classified.</p>"
         f"<h2>Modules</h2><ul>{module_items}</ul>"
     )
+    if project.ownership_audit is not None:
+        from .audit import render_audit
+        render_audit(project.ownership_audit, None, output)
+        index_body += '<p><a href="ownership.html">Generated indexes, scratch storage and retained backgrounds</a> · <a href="ownership.json">Machine-readable audit</a></p>'
     _write(output / "index.html", _page(project.title, index_body))
 
     address_rows = []
@@ -313,9 +317,11 @@ def render_project(project: ProjectReference, coverage: CoverageResult, output: 
                 f"<td>{html.escape(module.id)}</td><td><code>${symbol.assembled_address:04X}</code></td></tr>"
             )
         for routine in module.routines:
+            contract = '<br>'.join(html.escape(field + ': ' + (getattr(routine, field) or 'unresolved'))
+                                   for field in ('purpose','inputs','outputs','clobbers','reads','writes','side_effects','invariants'))
             routine_rows.append(
                 f'<tr id="{routine_id(module.id, routine.name)}"><td><code>{html.escape(routine.name)}</code></td>'
-                f"<td>{html.escape(module.id)}</td><td>{html.escape(routine.semantic_id or 'missing')}</td></tr>"
+                f"<td>{html.escape(module.id)}</td><td>{html.escape(routine.semantic_id or 'missing')}</td><td>{contract}</td></tr>"
             )
         for source_file in module.source_files:
             first = next((line for line in module.source_lines if line.file == source_file.path), None)

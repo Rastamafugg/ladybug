@@ -203,6 +203,7 @@ class SharedText:
         self.args.timer_record_output.write_text(emit('',payload[timer_start:timer_start+names['timer_box_count']*4]))
         asset_data,gameplay_count=self.gameplay()
         asset_data+=emit('dynamic_descriptors',bytes(v for d in descriptors for v in d)+bytes([255,255])*(256-len(descriptors)))
+# @audit-producer {"id": "text-graphic", "function": "finish", "class": "SharedText", "symbols": ["PRESENTATION_MULTIPLIER_X_GRAPHIC"]}
         asset_data+=f'PRESENTATION_MULTIPLIER_X_GRAPHIC equ {x_graphic}\n'
         (self.args.output.parent/'ladybug_shared_text.inc').write_text(asset_data)
         chars=s.load_chars(self.args.chars)
