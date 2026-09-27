@@ -1,0 +1,111 @@
+{
+  "ticket": "DOC-010",
+  "date": "2026-09-27",
+  "source_revision": "a125091f0d07d7408e4d0119c6fa095e35d155d6",
+  "reference_rom_revision": "2c43868",
+  "approval_assignment_commit": "3420266",
+  "implementation_commits": [
+    "e2c008b",
+    "60f2d8c",
+    "205fa29",
+    "a125091"
+  ],
+  "commands": {
+    "full_build": "bash scripts/build.sh build",
+    "unit_tests": "python scripts/test_source_audit.py",
+    "legacy_mutations": "python scripts/verify_source_documentation.py --fixture scripts/fixtures/source-reference/project.json --generated-root build/source-reference-fixture --mutation-suite",
+    "standalone": "python scripts/build_source_reference.py --config scripts/source_reference.json --output build/source-reference"
+  },
+  "results": {
+    "full_build_exit": 0,
+    "audit_errors": [],
+    "required_contracts": 13,
+    "modules": 10,
+    "routines": 255,
+    "labels": 4091,
+    "focused_tests_passed": 24,
+    "legacy_mutations_rejected": 9,
+    "discovery_occurrences": {
+      "documented": 10,
+      "excluded": 1650,
+      "unresolved": 990
+    }
+  },
+  "build_receipt_sha256": "0444722305c55fccf41f74266da21ddde6912c4a04862f7659183b8c6c9769bc",
+  "generated_audit_sha256": "10667bb317a44689b4e96d59b5f420d27d3a9ee9360c02825a23bd262c428cbc",
+  "build_log_sha256": "6179c26c7ca89ac7ed058eb4d6c5a8ff0a9ec7cedf2f9a538e8d4f31b6ad60aa",
+  "identity": {
+    "artifacts": {
+      "ladybug-audio-runtime.bin": {
+        "sha256": "cea81988c0582aeea049932cf6bf61e738685032764424e8711d4bd3f8b87b11",
+        "bytes": 5554
+      },
+      "ladybug-demo-runtime.bin": {
+        "sha256": "127eae9d436d9c45582e35c154fdd6f2918f914e5169ffdf58d1bbe587f2b609",
+        "bytes": 143
+      },
+      "ladybug-enemy-runtime.rom": {
+        "sha256": "1bac72e676c389a77acc1e70add0024e37d80637ace24fcb658212a5e6364f40",
+        "bytes": 4091
+      },
+      "ladybug-gmc-boot.rom": {
+        "sha256": "f33210adceecf43c1ca111d0e781bf36e690ac1119f7b7ce21427b13b25ce893",
+        "bytes": 16384
+      },
+      "ladybug-highscore-helper.bin": {
+        "sha256": "77daee2c96dcccf7f84e15f1280a78bbf47cc9cc633208a5f8997747bf61c8f3",
+        "bytes": 2370
+      },
+      "ladybug-highscore-runtime.bin": {
+        "sha256": "d26cb8114800f3f5ac48bd4ba5dffd3ece8be25afa41da896bb01f13e61403ef",
+        "bytes": 899
+      },
+      "ladybug-instruction-runtime.bin": {
+        "sha256": "bb49ad75f99eb4cc3c0f2ca3e644d77cee9c06423ae1399d272671c3aab2fdfc",
+        "bytes": 938
+      },
+      "ladybug-perimeter-reset-helper.bin": {
+        "sha256": "272ef0b0f51a6d4913383ee2aef13d605d950ee5d510c698b97b1b7d4fe91833",
+        "bytes": 331
+      },
+      "ladybug-presentation-runtime.bin": {
+        "sha256": "a91fba97c864d9265e63603a16d8f085e0baca40a857c02ca33ac7ffd42eaf77",
+        "bytes": 1273
+      },
+      "ladybug-runtime.rom": {
+        "sha256": "aeaea6d49ca02eb8af06c97acb023489dabc589110895076655b3eca5dd9d661",
+        "bytes": 16384
+      },
+      "ladybug.rom": {
+        "sha256": "a8da8527c47f8e3082cfffa29205b0913edff683b31aa027a670c30f63b27351",
+        "bytes": 65536
+      }
+    },
+    "assembly_comment_only": true,
+    "generator_ast_unchanged": true
+  },
+  "capacity": {
+    "runtime_byte_delta": 0,
+    "runtime_ram_delta": 0,
+    "gmc_source_free_bytes": 519,
+    "resident_free_bytes": 12,
+    "asset_free_bytes": 84,
+    "presentation_module_free_bytes": 7
+  },
+  "negative_integration_evidence": "Build source/tool edits were rejected at finish: ValueError: source changed while build was running. No rejected receipt was relabelled complete.",
+  "corrected_findings": [
+    "demo/instruction listing mismatch",
+    "missing audio and high-score profile registrations",
+    "inactive-branch calls counted as emitted",
+    "bootstrap temporary listing/map identities",
+    "stale enemy/presentation copy lengths",
+    "required artifact-hash omissions and conditional-profile mismatch rejection"
+  ],
+  "residual_limits": [
+    "Discovery entries marked unresolved require semantic review; they are not proven runtime bugs.",
+    "Authored mapping/lifetime/alias and lifecycle ordering are declarations, not control-flow proof.",
+    "Indirect pointer dataflow and runtime safety are not certified.",
+    "The checked-in audio include names an absent historical producer; its provenance remains unresolved.",
+    "BUG-058 runtime fit and 27000-cycle target are unchanged."
+  ]
+}
