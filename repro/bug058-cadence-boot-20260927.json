@@ -1,0 +1,181 @@
+{
+  "rom_sha256": "e5de7f193466aa4a11cae834bc161cbde2b5afa644dcc9b3ff91a4bbcb42d2b5",
+  "result": "pass",
+  "deadline_seconds_per_phase": 45,
+  "success_marker": "Exact relocated loader, all five expanded streams, runtime modules, descriptor retirement then exact audio guard",
+  "timeout_meaning": "Required boot/guard boundary absent; not evidence of gameplay slowdown",
+  "checks": [
+    {
+      "check": "authored/relocated loader exact",
+      "bytes": 1304,
+      "sha256": "fb35955ed4fa75cbf774940ceaf5f8841a25c46ab624cc2a4bbc87e4be1e5241"
+    },
+    {
+      "check": "five live descriptors copied before source overwrite",
+      "bytes": 71,
+      "sha256": "04d11ff21d2ae0bbcb3f26d29ca59dc19a2fc204238f54ad50f57a2eaba1d6f3"
+    },
+    {
+      "check": "compressed audio staged before all-RAM",
+      "bytes": 3191,
+      "sha256": "5e9c0340a06a148f7f48db84e3c9d9722efb9979317d732c8fde85ff24c360b9"
+    },
+    {
+      "check": "destination mapping page39",
+      "cpu_register_read": 185,
+      "actual_page": 57,
+      "expected_page": 57
+    },
+    {
+      "check": "compressed source/expanded destination: page39",
+      "bytes": 4022,
+      "sha256": "deb032745f4c883c9ec0c2792703bb406378f4a64dfcdfa9d71ddc23c4741a0a"
+    },
+    {
+      "check": "destination mapping presentation_page_3a",
+      "cpu_register_read": 186,
+      "actual_page": 58,
+      "expected_page": 58
+    },
+    {
+      "check": "compressed source/expanded destination: presentation_page_3a",
+      "bytes": 8192,
+      "sha256": "19ca02bcc197acebad6a19571f43155aeba007b5230c4042323272ec8b0a8e1f"
+    },
+    {
+      "check": "destination mapping presentation_page_3b",
+      "cpu_register_read": 187,
+      "actual_page": 59,
+      "expected_page": 59
+    },
+    {
+      "check": "compressed source/expanded destination: presentation_page_3b",
+      "bytes": 6170,
+      "sha256": "abe841a62f068fb8b7f54d996bfad2f10769d4892dc26e9423b567e11f1fc28b"
+    },
+    {
+      "check": "destination mapping enemy_page_35",
+      "cpu_register_read": 181,
+      "actual_page": 53,
+      "expected_page": 53
+    },
+    {
+      "check": "compressed source/expanded destination: enemy_page_35",
+      "bytes": 8192,
+      "sha256": "6ba0b424152580641b4f8fe49b158e93804a9a6dabec24d1e05b5e1924fea00e"
+    },
+    {
+      "check": "destination mapping audio_page_3d",
+      "cpu_register_read": 189,
+      "actual_page": 61,
+      "expected_page": 61
+    },
+    {
+      "check": "compressed source/expanded destination: audio_page_3d",
+      "bytes": 5675,
+      "sha256": "180d5a2a63cac154338a0936e1c7622103629ea67f681e60b2db03739ae40d40"
+    },
+    {
+      "check": "descriptor overlap at retirement",
+      "bytes": 20,
+      "sha256": "b6db017d0f347f7678485c805029825aa654ca9455e02ac5c018a1ad30c1fda9"
+    },
+    {
+      "check": "cold handoff: ladybug-runtime.rom",
+      "bytes": 15872,
+      "sha256": "f13abeb9bb8e5679d5e4d37b6174ec21d1507434e8ed86bffc48e35cd26ffc2c"
+    },
+    {
+      "check": "cold handoff: ladybug-enemy-runtime.rom",
+      "bytes": 4091,
+      "sha256": "7fceee852b09204d6801dcb0ca59cff453412440cb8dbb637b742af18f69eaa7"
+    },
+    {
+      "check": "cold handoff: ladybug-presentation-runtime.bin",
+      "bytes": 1273,
+      "sha256": "1139aa71991d490f572d442eaa82ff329f1ce5a79ded9b04bcd0124e3a0e8ce3"
+    },
+    {
+      "check": "raw helper destination exact before runtime handoff",
+      "bytes": 697,
+      "sha256": "33a84d2be0b157ca5763d948c4ee1446a050d25213c8dd53f262fdd6ab181986"
+    },
+    {
+      "check": "all enemy pages/indexes intact at handoff",
+      "bytes": 23005,
+      "sha256": "688af5ca9c98802096aa50cf47ef65b78077205f7d77a4d70415bbfb4d51029d"
+    },
+    {
+      "check": "guard installed only after boot retirement",
+      "bytes": 20,
+      "sha256": "f30d8151ba2758d609fbf15c4e9c84f1e6d217b5b09a732fe748d1a9340d9e4e"
+    }
+  ],
+  "initial_boot_read": {
+    "first_differences": [
+      [
+        0,
+        26,
+        68
+      ],
+      [
+        1,
+        80,
+        75
+      ],
+      [
+        2,
+        16,
+        26
+      ],
+      [
+        3,
+        206,
+        80
+      ],
+      [
+        4,
+        94,
+        16
+      ],
+      [
+        5,
+        255,
+        206
+      ],
+      [
+        6,
+        134,
+        31
+      ],
+      [
+        7,
+        18,
+        254
+      ],
+      [
+        8,
+        198,
+        127
+      ],
+      [
+        9,
+        16,
+        255
+      ],
+      [
+        10,
+        142,
+        145
+      ],
+      [
+        11,
+        255,
+        134
+      ]
+    ],
+    "live_prefix": "1a5010ce5eff8612c6108effb0a7805a26fb8effa0318d022dc610a6a0a7805a",
+    "artifact_prefix": "444b1a5010ce1ffe7fff918638b7ffa0863eb7ffa5b7ffa6863fb7ffa7866cb7"
+  },
+  "presentation_mode": 1
+}

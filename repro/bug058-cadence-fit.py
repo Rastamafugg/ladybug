@@ -63,13 +63,13 @@ imports(ms, es)
 hs = asm(helper_source, 'helper')
 
 main = (w / 'src/main.s').read_text()
-main = replace_once(main, '\nresident_end\n', '''
+main = replace_once(main, '\nasset_end\n', '''
 cadence_slot_selected
         ldb     ENEMY_WORK
         ldy     #$BC30
         lda     b,y
         rts
-resident_end
+asset_end
 ''')
 (scratch / 'main.s').write_text(main)
 ms = asm(scratch / 'main.s', 'main', True)
