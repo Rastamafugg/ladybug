@@ -1,0 +1,141 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "status": "Proposed, partial fit; target still fails",
+  "base_revision": "e880b52",
+  "worktree": "C:/Users/19029/.codex/worktrees/bug-046-word-carryover/ladybug",
+  "rom_sha256": "2345f2a833b4dc2ad91773ff0b336747cf1e89740d0a78a36290cca739ce2aae",
+  "enemy_sha256": "1042fe1bef68632d5f370044f2d0bd4b8c7cb0d17e9b3349aab186ee52cd6f72",
+  "patch_sha256": "f0be1c5b63c67def93143b558d9e6addd4a317b56821c9f3f38c2650b87f614d",
+  "production_changed": false,
+  "target_cycles": 27000,
+  "units": "elapsed event ticks / 8, includes video waits",
+  "kernel": {
+    "result": "pass",
+    "cases": 256,
+    "zero_column_savings_range": [
+      203,
+      204
+    ],
+    "other_column_savings_range": [
+      4,
+      11
+    ],
+    "oracle": "Independent expected pixels, untouched save-under, resulting registers; relocated Y dispatch normalized by symbol"
+  },
+  "render_crossover": {
+    "result": "pass",
+    "cases": 40,
+    "oracle": "Framebuffer pages and page-$34 bytes equal",
+    "limitations": "RAM/registers/mapping restored, but video event phase not restored. Requested release count is not an assertion of actual active count in this older crossover harness; use live-count fixture for timing."
+  },
+  "timing": {
+    "retained_partial": {
+      "0": {
+        "samples": 16,
+        "min": 9932,
+        "max": 16248,
+        "mean": 11637.25,
+        "over_target": 0
+      },
+      "1": {
+        "samples": 16,
+        "min": 15208,
+        "max": 21110,
+        "mean": 16712.1875,
+        "over_target": 0
+      },
+      "2": {
+        "samples": 16,
+        "min": 19406,
+        "max": 24713,
+        "mean": 21808,
+        "over_target": 0
+      },
+      "3": {
+        "samples": 16,
+        "min": 25495,
+        "max": 30569,
+        "mean": 27849.0625,
+        "over_target": 11
+      },
+      "4": {
+        "samples": 16,
+        "min": 31928,
+        "max": 39071,
+        "mean": 35284.6875,
+        "over_target": 16
+      }
+    },
+    "restore_fit": {
+      "0": {
+        "samples": 16,
+        "min": 9932,
+        "max": 16248,
+        "mean": 11637.25,
+        "over_target": 0
+      },
+      "1": {
+        "samples": 16,
+        "min": 15005,
+        "max": 20907,
+        "mean": 16509.0625,
+        "over_target": 0
+      },
+      "2": {
+        "samples": 16,
+        "min": 19192,
+        "max": 24506,
+        "mean": 21620.0625,
+        "over_target": 0
+      },
+      "3": {
+        "samples": 16,
+        "min": 25005,
+        "max": 31737,
+        "mean": 27940.125,
+        "over_target": 9
+      },
+      "4": {
+        "samples": 16,
+        "min": 31604,
+        "max": 38255,
+        "mean": 34095.5,
+        "over_target": 16
+      }
+    },
+    "fixture": "player parked at legal maze cell (2,2); existing enemy_release_impl called early; no movement, renderer, collision, audio or clock code changed",
+    "limits": "Parked player, early releases, 16 worklists per count. Changed cadence changes sampled draw/audio work; maxima are not same-state comparisons. Natural moving-player/demo/name controls remain unverified."
+  },
+  "capacity": {
+    "enemy_used_limit": [
+      4091,
+      4096
+    ],
+    "fixed_table_tail_unchanged": true,
+    "pre_table_padding_bytes": 1,
+    "gmc_source_free": 413,
+    "audio_instructions_unchanged_from_partial_fit": true
+  },
+  "rejected": [
+    "Naive local tail exceeded fixed table boundary by 6 bytes.",
+    "Explicit direct-page operands saved zero bytes; assembler already chose direct addressing."
+  ],
+  "probe_correction": "First register comparison used raw relocated Y dispatch address; corrected to symbol identity and reran 256 cases.",
+  "build_initial": "Executable packing/reconstruction passed; documentation gate initially rejected three labels. Classifications repaired.",
+  "raw_sha256": {
+    "bug058-restore-kernel-20260927.json": "8b65b49b923e212d11ddf29bf454eabf56d68e2a2ff5e54cc247f3af557e5fb1",
+    "bug058-restore-crossover-20260927.json": "1f977fad7b59093b341c8312ca4efe809865d44a42b089214d221e2ea4190cbc",
+    "bug058-restore-live-count-20260927.json": "dc08694dcc3bf46bd183c6d9a0fda3c72dc29e55c312c5dc8a28edbc95eb1b2e"
+  },
+  "build_final": {
+    "exit_code": 0,
+    "command": "bash scripts/build.sh build",
+    "source_documentation": "PASS: 10 modules, 255/255 routines, 4098/4098 labels",
+    "audit_errors": [],
+    "audit_required_contracts": 16,
+    "audit_sha256": "6335e52ee9385e7f7ce5119cc9e4ec6a69cceb4b6a32d46a85f78c88beeed5a5",
+    "rom_and_enemy_match_measured_artifacts": true
+  },
+  "qa": "Partial-fit evidence passes selected local equivalence/capacity gates. Full timing fails; not Ready. Natural play and existing gate-cache verifier remain open."
+}
