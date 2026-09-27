@@ -158,7 +158,7 @@ index 3931155..5070e37 100644
 +; @audit {"id":"audio-mix-order","kind":"scratch","symbol":"audio_mix_order","width":4,"mapping":"physical-page-3D","phases":["foreground"],"owner":"foreground audio mixer","lifetime":"Four keys live from key construction through final mixed slot; no alias with decoder scratch or retained PSG shadow.","initialization":"audio_mix_key_next writes all four keys before sorting","clobbers":"Mixer owns bytes until audio_mix_all_done; callees must preserve keys"}
 +audio_mix_order rmb 4
 
- 
+
 diff --git a/src/enemy_runtime.s b/src/enemy_runtime.s
 index f8d1324..b86a9b0 100644
 --- a/src/enemy_runtime.s
