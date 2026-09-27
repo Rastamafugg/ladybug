@@ -34,8 +34,13 @@ def release():
   c.call('write_registers',{'pc':addr,'s':0x1efc,'dp':0,'cc':0x50});c.call('run');h=c.call('wait_for_stop',{'timeout_ms':10000},timeout=12);assert h.get('pc')==0x1800,h
  finally:
   m.clear(c,ids);write(0x1800,stub);write(0x1e00,stack);c.call('write_registers',{k:regs[k] for k in ('a','b','cc','dp','x','y','u','s','pc')})
+perimeter_only='--perimeter-only' in sys.argv[6:]
+oldresident=(b/'perimeter-before-ladybug-runtime.rom').read_bytes() if perimeter_only else None
+if perimeter_only:
+ off=ms['draw_perimeter_box']-0xc000
+ assert resident[:off]==oldresident[:off] and resident[off+88:]==oldresident[off+88:]
 candidate=(fit/'build'/(candidate_prefix+'.bin')).read_bytes();cs=r.symbols(fit/'build'/(candidate_prefix+'.map'))
-e.update(phase='controlled same-state render crossover',success_marker='identical framebuffer and equivalent bank-$34 state under the explicitly selected oracle',candidate_enemy_sha256=hashlib.sha256(candidate).hexdigest());e['cases']=[];e['state_oracle']='decoded audited rings; all other state exact' if '--logical-rings' in sys.argv[6:] else 'all state exact'
+e.update(phase='controlled same-state render crossover',success_marker='identical framebuffer and equivalent bank-$34 state under the explicitly selected oracle',candidate_enemy_sha256=hashlib.sha256(candidate).hexdigest());e['perimeter_only']=perimeter_only;e['reference_resident_sha256']=hashlib.sha256(oldresident).hexdigest() if perimeter_only else None;e['cases']=[];e['state_oracle']='decoded audited rings; all other state exact' if '--logical-rings' in sys.argv[6:] else 'all state exact'
 def physical(a,n):return bytes.fromhex(c.call('read_memory',{'space':'physical','addr':a,'length':n})['data'])
 def putphysical(a,v):c.call('write_memory',{'space':'physical','addr':a,'data':bytes(v).hex()})
 def snapshot():return [physical(pg*8192,8192) for pg in range(64)]
@@ -55,7 +60,9 @@ def logical_rings(data,owner):
  assert data[current:current+4]==data[meta:meta+4],'live/published phase mismatch'
  result[current:current+4]=bytes(4)
  return bytes(result)
-def invoke(code,entry):
+def invoke(code,entry,resident_code=None):
+ if resident_code is not None:
+  write(ms['draw_perimeter_box'],resident_code[off:off+88]);assert read(ms['draw_perimeter_box'],88)==resident_code[off:off+88]
  write(0x800,code);assert read(0x800,len(code))==code
  write(0x1800,[0x20,0xfe]);write(0x1efc,[0x18,0]);c.call('write_registers',{'pc':entry,'s':0x1efc,'dp':0,'cc':0x50})
  t=c.call('read_cycles')['event_ticks'];go(0x1800);cycles=(c.call('read_cycles')['event_ticks']-t)//8
@@ -74,7 +81,7 @@ try:
    assert time.monotonic()<deadline,'crossover phase'
    go(es['frame_render_impl']);assert read(0x58)[0]==count and read(ms['DEATH_STATE'])[0]==0,('missing live count',count);regs=c.call('read_registers');pars=read(0xffa0,8);pages=snapshot();owner=read(ms['FB_BACK_ID'])[0];flags=list(read(ms['RENDER_FLAGS'],16));results={}
    for name in (['reference','candidate'] if i%2==0 else ['candidate','reference']):
-    restore(pages,regs,pars);results[name]=invoke(enemy if name=='reference' else candidate,es['frame_render_impl'] if name=='reference' else cs['frame_render_impl'])
+    restore(pages,regs,pars);results[name]=invoke(enemy if name=='reference' else candidate,es['frame_render_impl'] if name=='reference' else cs['frame_render_impl'],(oldresident if name=='reference' else resident) if perimeter_only else None)
    raw_differences=[j for j,(a,b) in enumerate(zip(results['reference'][1],results['candidate'][1])) if a!=b]
    assert results['reference'][0]==results['candidate'][0],(count,i,'framebuffer pixels mismatch')
    if '--logical-rings' in sys.argv[6:]:

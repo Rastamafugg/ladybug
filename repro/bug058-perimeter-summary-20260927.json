@@ -1,0 +1,368 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "status": "Proposed; isolated fitted partial optimization, not Ready",
+  "baseline_revision": "8772ad7 documentation; e880b52 plus bug058-mix-fit-20260927.patch runtime",
+  "candidate_patch": "bug058-perimeter-fit-20260927.patch",
+  "rom_sha256": "8a18d513a4bf0ecd478dc08f8fbf9be1a2461d02874d9193517855884e7794be",
+  "reference_runtime_sha256": "aeaea6d49ca02eb8af06c97acb023489dabc589110895076655b3eca5dd9d661",
+  "candidate_runtime_sha256": "2c22677daf6d51310ab7d8ce38ba012b9c2eeaaad7888553c3cb5fcaf016668e",
+  "clock": "elapsed event_ticks / 8; observations, not worst-case bounds",
+  "kernel": {
+    "result": "pass",
+    "cases": 280,
+    "coverage": "92 perimeter positions in colours 5/6 with alternating selected buffers; all 16 colours at five perimeter landmarks with alternating buffers; zero/one high-white synthetic tiles on both buffers",
+    "oracle": "independent per-nibble replacement; exact full 32768-byte selected buffer including untouched bytes; HUD_COLOR preserved; OBJ_VALUE contract checked",
+    "observations": [
+      {
+        "high_white_bytes": 0,
+        "saved_cycles": -16,
+        "cases": 8
+      },
+      {
+        "high_white_bytes": 1,
+        "saved_cycles": 0,
+        "cases": 8
+      },
+      {
+        "high_white_bytes": 10,
+        "saved_cycles": 144,
+        "cases": 18
+      },
+      {
+        "high_white_bytes": 12,
+        "saved_cycles": 176,
+        "cases": 122
+      },
+      {
+        "high_white_bytes": 14,
+        "saved_cycles": 208,
+        "cases": 122
+      },
+      {
+        "high_white_bytes": 16,
+        "saved_cycles": 240,
+        "cases": 2
+      }
+    ],
+    "routine_bytes_before_after": [
+      88,
+      88
+    ]
+  },
+  "workloads": {
+    "0": {
+      "samples": 16,
+      "before_max": 16227,
+      "after_max": 16051,
+      "before_mean": 11619.25,
+      "after_mean": 11575.25,
+      "over_27000": 0,
+      "saving_histogram": {
+        "0": 12,
+        "176": 4
+      },
+      "state_bytes_identical": true,
+      "perimeter_calls": [
+        {
+          "entry": 6787,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58416,
+          "high_white_bytes": 12,
+          "tile_sha256": "b755dcc7b0d39ebeb692368bae78871abd2e2a1acd6e2c6b66648b4d7d3eda76",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 4485,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58416,
+          "high_white_bytes": 12,
+          "tile_sha256": "b755dcc7b0d39ebeb692368bae78871abd2e2a1acd6e2c6b66648b4d7d3eda76",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 3905,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58416,
+          "high_white_bytes": 12,
+          "tile_sha256": "b755dcc7b0d39ebeb692368bae78871abd2e2a1acd6e2c6b66648b4d7d3eda76",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 4409,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58416,
+          "high_white_bytes": 12,
+          "tile_sha256": "b755dcc7b0d39ebeb692368bae78871abd2e2a1acd6e2c6b66648b4d7d3eda76",
+          "cycles_to_caller_next": 2265
+        }
+      ]
+    },
+    "1": {
+      "samples": 16,
+      "before_max": 20775,
+      "after_max": 20599,
+      "before_mean": 16376.3125,
+      "after_mean": 16354.3125,
+      "over_27000": 0,
+      "saving_histogram": {
+        "0": 14,
+        "176": 2
+      },
+      "state_bytes_identical": true,
+      "perimeter_calls": [
+        {
+          "entry": 5494,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58416,
+          "high_white_bytes": 12,
+          "tile_sha256": "b755dcc7b0d39ebeb692368bae78871abd2e2a1acd6e2c6b66648b4d7d3eda76",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 6096,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58416,
+          "high_white_bytes": 12,
+          "tile_sha256": "b755dcc7b0d39ebeb692368bae78871abd2e2a1acd6e2c6b66648b4d7d3eda76",
+          "cycles_to_caller_next": 2265
+        }
+      ]
+    },
+    "2": {
+      "samples": 16,
+      "before_max": 24506,
+      "after_max": 24298,
+      "before_mean": 21553.5625,
+      "after_mean": 21501.5625,
+      "over_27000": 0,
+      "saving_histogram": {
+        "208": 4,
+        "0": 12
+      },
+      "state_bytes_identical": true,
+      "perimeter_calls": [
+        {
+          "entry": 8701,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58448,
+          "high_white_bytes": 14,
+          "tile_sha256": "02667b3510329f7f267dbb9e89088c75a8cade1d5264da6f496f8440dbc3b295",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 7738,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58448,
+          "high_white_bytes": 14,
+          "tile_sha256": "02667b3510329f7f267dbb9e89088c75a8cade1d5264da6f496f8440dbc3b295",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 7533,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58640,
+          "high_white_bytes": 14,
+          "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 8166,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58640,
+          "high_white_bytes": 14,
+          "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+          "cycles_to_caller_next": 2265
+        }
+      ]
+    },
+    "3": {
+      "samples": 16,
+      "before_max": 31253,
+      "after_max": 31045,
+      "before_mean": 27594.6875,
+      "after_mean": 27542.6875,
+      "over_27000": 10,
+      "saving_histogram": {
+        "0": 12,
+        "208": 4
+      },
+      "state_bytes_identical": true,
+      "perimeter_calls": [
+        {
+          "entry": 9482,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58640,
+          "high_white_bytes": 14,
+          "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 10348,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58640,
+          "high_white_bytes": 14,
+          "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 8878,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58640,
+          "high_white_bytes": 14,
+          "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 11248,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58640,
+          "high_white_bytes": 14,
+          "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+          "cycles_to_caller_next": 2265
+        }
+      ]
+    },
+    "4": {
+      "samples": 16,
+      "before_max": 38477,
+      "after_max": 38269,
+      "before_mean": 33263.75,
+      "after_mean": 33211.75,
+      "over_27000": 16,
+      "saving_histogram": {
+        "0": 12,
+        "208": 4
+      },
+      "state_bytes_identical": true,
+      "perimeter_calls": [
+        {
+          "entry": 11588,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58640,
+          "high_white_bytes": 14,
+          "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 12594,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58640,
+          "high_white_bytes": 14,
+          "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 13768,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58640,
+          "high_white_bytes": 14,
+          "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+          "cycles_to_caller_next": 2265
+        },
+        {
+          "entry": 12155,
+          "colour": 5,
+          "row_hits": 8,
+          "source": 58640,
+          "high_white_bytes": 14,
+          "tile_sha256": "a90c529f8d533215408044acae4a552cd282ae2cd73f8a571ade30eab424c7b9",
+          "cycles_to_caller_next": 2265
+        }
+      ]
+    }
+  },
+  "capacity": {
+    "resident": [
+      8180,
+      8192
+    ],
+    "assets": [
+      7596,
+      7680
+    ],
+    "enemy": [
+      4091,
+      4096
+    ],
+    "enemy_pre_table_free": 8,
+    "presentation": [
+      1273,
+      1280
+    ],
+    "audio_copied": [
+      734,
+      920
+    ],
+    "audio_banked": [
+      5675,
+      8192
+    ],
+    "cold": [
+      14362,
+      16384
+    ],
+    "gmc_source_free": 413,
+    "growth_bytes": 0
+  },
+  "audit": {
+    "required_contracts": 19,
+    "errors": [],
+    "new_contract": "perimeter-colour; OBJ_VALUE from post-prepare_cell_tile through return; foreground only"
+  },
+  "scope": "Only move the existing colour calculation within draw_perimeter_box; production unchanged; no phase-four loop fit in this candidate",
+  "probe_corrections": [
+    "Initial kernel identity included hardware registers near $FF00; corrected to exact loaded resident and asset extents. No timing or pixel interpretation preceded identity success.",
+    "Crossover launch initially named a .bin that did not exist; copied immutable enemy .rom/map to explicit fixture prefix before launch.",
+    "Exported patch initially had CRLF empty-context lines; normalized to LF and reverse-application check passes."
+  ],
+  "residual": [
+    "27,000-cycle target still fails at three/four enemies",
+    "Natural moving-player/demo/audio acceptance remains open",
+    "Name entry uses separate timer draw code; no timing improvement claimed"
+  ],
+  "commands": [
+    "python3 repro/bug058-perimeter-fit-20260927.py FIT_WORKTREE OUTPUT_JSON",
+    "python3 repro/bug058-fit-live-count-20260927.py FIT_WORKTREE OUTPUT_JSON --renderer-costs --sparse-costs",
+    "python3 repro/bug058-render-crossover-20260927.py FIT_WORKTREE OUTPUT_JSON FIT_WORKTREE bug058-perimeter-enemy bug058-perimeter-enemy --perimeter-only",
+    "scripts/build.sh build"
+  ],
+  "reproduction": "Save prior fitted runtime/map as build/perimeter-before-ladybug-runtime.rom and build/perimeter-before-ladybug.map; baseline is e880b52 plus mix-fit patch. Build candidate from same base plus perimeter-fit patch. Copy built enemy .rom/map as bug058-perimeter-enemy.bin/.map for unchanged enemy crossover.",
+  "hashes": {
+    "bug058-perimeter-fit-20260927.patch": "5bacec64d9899dc74f999628b28c3a35176bc80628dc97a5d2e21d45ca20fe6b",
+    "bug058-perimeter-build-20260927.log": "8873af3cc0bf987eea0abc9545eb0fc04152fca12b6805269e87719165178fa7",
+    "bug058-perimeter-kernel-20260927.json": "6fc79f95e2c5a794806637ff311e5248d18bf368b0e22e2ac124acfdd14373e1",
+    "bug058-perimeter-live-20260927.json": "a09d5bec0cdb7aae43e0913ba900f76ee0207749398e779049bf28282fad254c",
+    "bug058-perimeter-crossover-20260927.json": "e3ef355b2397d7a65f76b0ddf778f4765252b587bab3337b702a20e994e83f9b"
+  },
+  "crossover": {
+    "result": "pass",
+    "cases": 40,
+    "owner_metadata_counts": {
+      "0": 20,
+      "1": 20
+    },
+    "oracle": "exact both-framebuffer pixels and full page-$34 state after restoring identical 512K physical RAM, registers and PARs; reference/candidate order alternated",
+    "raw_state_difference_bytes": 0,
+    "coverage": "eight successive renders per live enemy count 0..4, including pending/current timer work",
+    "timing_limit": "Crossover emulator event-clock phase is not restored with RAM; cycle deltas include +/-139 variation on unchanged work. Crossover is pixel/state evidence only. Performance claims use independent kernel and matched sequential worklist captures."
+  },
+  "qa_verdict": "Local fit passes >=200-cycle observed-tile target, pixel/state oracles and zero growth. Overall BUG-058 timing fails; remain Proposed."
+}
