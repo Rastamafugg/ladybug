@@ -33,7 +33,7 @@ try:
    x,y=xy(i);tile=new[ms['screen_map']-0xc000+y*40+x+8];src=ms['screen_tiles']+tile*32;data=fixture if fixture is not None else new[src-0xc000:src-0xc000+32];assert len(data)==32
    expected=bytearray(pattern);dest=y*1280+(x+8)*4
    for j,v in enumerate(data):expected[dest+(j//4)*160+j%4]=((col if v>>4==6 else v>>4)<<4)|(col if v&15==6 else v&15)
-   results={};write(0xffa1,range(0x28+owner*4,0x2c+owner*4))
+   results={};write(0xffa1,range(0x30-owner*4,0x34-owner*4))
    for name,code,syms in [('reference',old,oldms),('candidate',new,ms)]:
     write(addr,code[off:off+88]);assert read(addr,88)==code[off:off+88]
     write(0x2000,pattern);write(ms['TEST_X'],[x,y]);write(ms['HUD_COLOR'],[col]);write(ms['OBJ_VALUE'],[0xab]);write(0x1efc,[0x18,0]);c.call('write_registers',{'pc':addr,'s':0x1efc,'dp':0,'cc':0x50})

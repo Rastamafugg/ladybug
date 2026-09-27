@@ -1,0 +1,884 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "status": "Approved bounded repair applied to isolated candidate; automated checks pass, user recheck pending; whole BUG-058 remains Proposed",
+  "approval_commit": "2d447ff",
+  "rom_sha256": "2bb8eadeff9bf096dcb080e3e14c76cc8d68bbea6a7a57a8660604e5f85df26e",
+  "source": "e880b52 plus bug058-nest-fit-20260927.patch",
+  "binary_delta": "Only 13 bytes at capture_zone_bg differ from the phase-four candidate; module length and fixed tail unchanged",
+  "verification": {
+    "natural_startup": [
+      {
+        "phase": "demo",
+        "capture_exact": true,
+        "framebuffer_writes": 0,
+        "outside_background_writes": 0
+      },
+      {
+        "phase": "demo",
+        "owner": 1,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 4,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "demo",
+        "owner": 0,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 4,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "credited",
+        "capture_exact": true,
+        "framebuffer_writes": 0,
+        "outside_background_writes": 0
+      },
+      {
+        "phase": "credited",
+        "owner": 1,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 0,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "credited",
+        "owner": 0,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 0,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      }
+    ],
+    "restore_cases": 256,
+    "perimeter_cases": 280,
+    "renderer_comparisons": 40,
+    "renderer_raw_state_difference_bytes": 0,
+    "actual_framebuffer_pages": {
+      "A": "$30-$33",
+      "B": "$2C-$2F"
+    },
+    "crossover_input": "Corrected-ROM clean startup, compare preceding restore module versus current module after startup; cleared skull collision records and parked player (22,22) stabilize active counts. This tests render equivalence, not old/new startup equality.",
+    "full_build": "PASS: 256/256 routines, 4095/4095 labels; 19 required audit contracts, no errors"
+  },
+  "capacity": {
+    "resident": [
+      8180,
+      8192
+    ],
+    "enemy": [
+      4091,
+      4096
+    ],
+    "enemy_pre_table_free": 0,
+    "assets": [
+      7596,
+      7680
+    ],
+    "presentation": [
+      1273,
+      1280
+    ],
+    "copied_audio": [
+      734,
+      920
+    ],
+    "banked_audio": [
+      5675,
+      8192
+    ],
+    "cold": [
+      14362,
+      16384
+    ],
+    "gmc_source_free": 413,
+    "growth_bytes": 0,
+    "limits_changed": false
+  },
+  "timing_method": {
+    "units": "elapsed fast cycles = event_ticks / 8, sampled means/maxima",
+    "target": 27000,
+    "setup": "Player parked at (22,22); early releases; skull collision records marked cleared for stable counts; prior audio drained before release. Forced performance fixture, not natural-play or visual acceptance. Normal timer ticks remain enabled.",
+    "groups": "cue 5 present before or after the worklist = release active; subsequent 16 consecutive cue-5-free worklists = release finished. Windows occur at different enemy positions/render intents; differences are associations, not matched-state causal savings.",
+    "audio_boundary": "main_entry_audio to mainloop, including foreground audio service and tail bookkeeping",
+    "renderer_boundary": "main_render to main_entry_audio",
+    "phase_deadline_seconds": 45,
+    "timeout_meaning": "missing required boundary, not evidence of game slowdown"
+  },
+  "timings": {
+    "3": {
+      "release_active": {
+        "samples": 82,
+        "worklist": {
+          "mean": 28439.5,
+          "max": 53820,
+          "min": 24293
+        },
+        "audio": {
+          "mean": 2673.560975609756,
+          "max": 3556,
+          "min": 2361
+        },
+        "render": {
+          "mean": 23724.829268292684,
+          "max": 47884,
+          "min": 20110
+        },
+        "over_target": 40,
+        "peak_worklist": {
+          "index": 0,
+          "cycles": 53820,
+          "state": [
+            0,
+            2,
+            0,
+            0,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            164,
+            120
+          ],
+          "audio_before": {
+            "slots": [
+              255,
+              4,
+              5,
+              255
+            ],
+            "music_queue": 0
+          },
+          "audio_after": {
+            "slots": [
+              255,
+              4,
+              5,
+              255
+            ],
+            "music_queue": 0
+          },
+          "marks": [
+            [
+              "main_game_tick_normal",
+              414
+            ],
+            [
+              "enemy_tick",
+              502
+            ],
+            [
+              "main_after_player",
+              3032
+            ],
+            [
+              "main_render",
+              3169
+            ],
+            [
+              "framebuffer_prepare_back",
+              3199
+            ],
+            [
+              "actor_closure_restore",
+              3763
+            ],
+            [
+              "framebuffer_queue_damage",
+              7753
+            ],
+            [
+              "framebuffer_project_damage",
+              8157
+            ],
+            [
+              "roam_mark_underlay",
+              8874
+            ],
+            [
+              "frame_render_background",
+              8957
+            ],
+            [
+              "roam_mark_underlay",
+              23866
+            ],
+            [
+              "frame_render_background",
+              23919
+            ],
+            [
+              "actor_closure_draw",
+              38569
+            ],
+            [
+              "acd_save_loop",
+              38596
+            ],
+            [
+              "acd_save_loop",
+              39921
+            ],
+            [
+              "acd_save_loop",
+              41246
+            ],
+            [
+              "acd_save_loop",
+              41289
+            ],
+            [
+              "acd_draw_loop",
+              41321
+            ],
+            [
+              "acd_draw_loop",
+              44155
+            ],
+            [
+              "acd_draw_loop",
+              46989
+            ],
+            [
+              "acd_draw_loop",
+              47022
+            ],
+            [
+              "acd_death",
+              47054
+            ],
+            [
+              "acd_normal_player",
+              47102
+            ],
+            [
+              "framebuffer_finish_back",
+              50254
+            ],
+            [
+              "main_entry_audio",
+              51053
+            ],
+            [
+              "audio_process_queue",
+              51411
+            ],
+            [
+              "audio_music_dispatch",
+              51433
+            ],
+            [
+              "audio_advance_all",
+              51477
+            ],
+            [
+              "audio_credit_service",
+              51901
+            ],
+            [
+              "audio_mix",
+              51924
+            ],
+            [
+              "audio_mix_write",
+              53174
+            ],
+            [
+              "mainloop",
+              53820
+            ]
+          ]
+        }
+      },
+      "release_finished": {
+        "samples": 16,
+        "worklist": {
+          "mean": 31696.625,
+          "max": 81011,
+          "min": 23137
+        },
+        "audio": {
+          "mean": 2119.8125,
+          "max": 2865,
+          "min": 1854
+        },
+        "render": {
+          "mean": 27720.4375,
+          "max": 77019,
+          "min": 19746
+        },
+        "over_target": 9,
+        "peak_worklist": {
+          "index": 93,
+          "cycles": 81011,
+          "state": [
+            0,
+            5,
+            0,
+            0,
+            3,
+            3,
+            0,
+            0,
+            0,
+            0,
+            164,
+            120
+          ],
+          "audio_before": {
+            "slots": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "music_queue": 0
+          },
+          "audio_after": {
+            "slots": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "music_queue": 0
+          },
+          "marks": [
+            [
+              "main_game_tick_normal",
+              414
+            ],
+            [
+              "enemy_tick",
+              524
+            ],
+            [
+              "main_after_player",
+              1910
+            ],
+            [
+              "main_render",
+              2138
+            ],
+            [
+              "framebuffer_prepare_back",
+              2168
+            ],
+            [
+              "actor_closure_restore",
+              31121
+            ],
+            [
+              "framebuffer_queue_damage",
+              36686
+            ],
+            [
+              "framebuffer_project_damage",
+              37093
+            ],
+            [
+              "roam_mark_underlay",
+              37161
+            ],
+            [
+              "frame_render_background",
+              37208
+            ],
+            [
+              "actor_closure_draw",
+              64015
+            ],
+            [
+              "acd_save_loop",
+              64042
+            ],
+            [
+              "acd_save_loop",
+              64659
+            ],
+            [
+              "acd_save_loop",
+              65276
+            ],
+            [
+              "acd_save_loop",
+              66598
+            ],
+            [
+              "acd_draw_loop",
+              66630
+            ],
+            [
+              "acd_draw_loop",
+              69464
+            ],
+            [
+              "acd_draw_loop",
+              72298
+            ],
+            [
+              "acd_draw_loop",
+              75132
+            ],
+            [
+              "acd_death",
+              75164
+            ],
+            [
+              "acd_normal_player",
+              75203
+            ],
+            [
+              "framebuffer_finish_back",
+              78355
+            ],
+            [
+              "main_entry_audio",
+              79157
+            ],
+            [
+              "audio_process_queue",
+              79515
+            ],
+            [
+              "audio_music_dispatch",
+              79537
+            ],
+            [
+              "audio_advance_all",
+              79581
+            ],
+            [
+              "audio_credit_service",
+              79813
+            ],
+            [
+              "audio_mix",
+              79836
+            ],
+            [
+              "audio_mix_write",
+              80395
+            ],
+            [
+              "mainloop",
+              81011
+            ]
+          ]
+        }
+      }
+    },
+    "4": {
+      "release_active": {
+        "samples": 82,
+        "worklist": {
+          "mean": 35691.243902439026,
+          "max": 90619,
+          "min": 22352
+        },
+        "audio": {
+          "mean": 2726.987804878049,
+          "max": 3594,
+          "min": 2214
+        },
+        "render": {
+          "mean": 30262.39024390244,
+          "max": 84574,
+          "min": 18475
+        },
+        "over_target": 78,
+        "peak_worklist": {
+          "index": 19,
+          "cycles": 90619,
+          "state": [
+            0,
+            7,
+            0,
+            0,
+            4,
+            4,
+            1,
+            0,
+            0,
+            0,
+            164,
+            120
+          ],
+          "audio_before": {
+            "slots": [
+              255,
+              5,
+              255,
+              255
+            ],
+            "music_queue": 0
+          },
+          "audio_after": {
+            "slots": [
+              255,
+              5,
+              4,
+              255
+            ],
+            "music_queue": 0
+          },
+          "marks": [
+            [
+              "main_game_tick_normal",
+              414
+            ],
+            [
+              "enemy_tick",
+              502
+            ],
+            [
+              "main_after_player",
+              2099
+            ],
+            [
+              "main_render",
+              2451
+            ],
+            [
+              "framebuffer_prepare_back",
+              2481
+            ],
+            [
+              "actor_closure_restore",
+              31551
+            ],
+            [
+              "framebuffer_queue_damage",
+              39053
+            ],
+            [
+              "framebuffer_project_damage",
+              39460
+            ],
+            [
+              "roam_mark_underlay",
+              39528
+            ],
+            [
+              "frame_render_background",
+              39575
+            ],
+            [
+              "actor_closure_draw",
+              68731
+            ],
+            [
+              "acd_save_loop",
+              68758
+            ],
+            [
+              "acd_save_loop",
+              69624
+            ],
+            [
+              "acd_save_loop",
+              70511
+            ],
+            [
+              "acd_save_loop",
+              71563
+            ],
+            [
+              "acd_draw_loop",
+              72627
+            ],
+            [
+              "acd_draw_loop",
+              75461
+            ],
+            [
+              "acd_draw_loop",
+              78295
+            ],
+            [
+              "acd_draw_loop",
+              80581
+            ],
+            [
+              "acd_death",
+              83034
+            ],
+            [
+              "acd_normal_player",
+              83073
+            ],
+            [
+              "framebuffer_finish_back",
+              86223
+            ],
+            [
+              "main_entry_audio",
+              87025
+            ],
+            [
+              "audio_process_queue",
+              87507
+            ],
+            [
+              "audio_process_queue",
+              87890
+            ],
+            [
+              "audio_music_dispatch",
+              87912
+            ],
+            [
+              "audio_advance_all",
+              87956
+            ],
+            [
+              "audio_credit_service",
+              88516
+            ],
+            [
+              "audio_mix",
+              88539
+            ],
+            [
+              "audio_mix_write",
+              89913
+            ],
+            [
+              "mainloop",
+              90619
+            ]
+          ]
+        }
+      },
+      "release_finished": {
+        "samples": 16,
+        "worklist": {
+          "mean": 32205.125,
+          "max": 38535,
+          "min": 29646
+        },
+        "audio": {
+          "mean": 2238.625,
+          "max": 2865,
+          "min": 1854
+        },
+        "render": {
+          "mean": 27205.3125,
+          "max": 30799,
+          "min": 25533
+        },
+        "over_target": 16,
+        "peak_worklist": {
+          "index": 82,
+          "cycles": 38535,
+          "state": [
+            0,
+            8,
+            0,
+            0,
+            4,
+            4,
+            1,
+            0,
+            0,
+            0,
+            164,
+            120
+          ],
+          "audio_before": {
+            "slots": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "music_queue": 0
+          },
+          "audio_after": {
+            "slots": [
+              255,
+              4,
+              255,
+              255
+            ],
+            "music_queue": 0
+          },
+          "marks": [
+            [
+              "main_game_tick_normal",
+              414
+            ],
+            [
+              "enemy_tick",
+              502
+            ],
+            [
+              "main_after_player",
+              4612
+            ],
+            [
+              "main_render",
+              4871
+            ],
+            [
+              "framebuffer_prepare_back",
+              4901
+            ],
+            [
+              "actor_closure_restore",
+              5499
+            ],
+            [
+              "framebuffer_queue_damage",
+              12794
+            ],
+            [
+              "framebuffer_project_damage",
+              13198
+            ],
+            [
+              "roam_mark_underlay",
+              13915
+            ],
+            [
+              "frame_render_background",
+              13992
+            ],
+            [
+              "roam_mark_underlay",
+              14699
+            ],
+            [
+              "frame_render_background",
+              14746
+            ],
+            [
+              "actor_closure_draw",
+              17262
+            ],
+            [
+              "acd_save_loop",
+              17289
+            ],
+            [
+              "acd_save_loop",
+              18347
+            ],
+            [
+              "acd_save_loop",
+              19237
+            ],
+            [
+              "acd_save_loop",
+              20292
+            ],
+            [
+              "acd_draw_loop",
+              21170
+            ],
+            [
+              "acd_draw_loop",
+              23614
+            ],
+            [
+              "acd_draw_loop",
+              26448
+            ],
+            [
+              "acd_draw_loop",
+              28734
+            ],
+            [
+              "acd_death",
+              31673
+            ],
+            [
+              "acd_normal_player",
+              31721
+            ],
+            [
+              "framebuffer_finish_back",
+              34871
+            ],
+            [
+              "main_entry_audio",
+              35670
+            ],
+            [
+              "audio_process_queue",
+              36152
+            ],
+            [
+              "audio_process_queue",
+              36482
+            ],
+            [
+              "audio_music_dispatch",
+              36504
+            ],
+            [
+              "audio_advance_all",
+              36548
+            ],
+            [
+              "audio_credit_service",
+              36939
+            ],
+            [
+              "audio_mix",
+              36962
+            ],
+            [
+              "audio_mix_write",
+              37859
+            ],
+            [
+              "mainloop",
+              38535
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "failed_probes_and_limits": [
+    "The early-release path still has actors inside the nest: exact roaming restore-count assumption was invalid; used top-level frame markers.",
+    "sparse_blit_stage label is revisited for individual decode commands; recording it as every-call entry exceeded the 128-stop cap. Removed optional sparse submarkers for the audio experiment; no increased deadline.",
+    "Active counts dropped despite moving player. Source removal path is enemy_skull_test; clearing only skull collision records stabilizes the count. Retained failing captures; do not describe this as established player collision.",
+    "Normal timer cue 4 prevents 16 fully silent frames. Correct end condition is 16 cue-5-free frames, with ticks enabled.",
+    "Previous crossover range $28-$2F missed actual buffer A; prior both-buffer acceptance claims are invalid. Corrected to $2C-$33 and reran. Restore/timer kernel owner-A mapping corrected from $28 to $30.",
+    "Previous renderer comparisons started after an already-corrupt startup. New natural capture oracle validates source unchanged, destination exact and adjacent state untouched."
+  ],
+  "residual": [
+    "27,000-cycle gameplay target fails",
+    "Natural audible and sustained moving-player acceptance still required",
+    "Large renderer preparation/background spikes require profiling; audio alone is not established as the cause",
+    "Prior gate-cache static verifier issue remains open"
+  ],
+  "launch": "Visible XRoar launched with current ROM; GDB presentation boundary reached, complete live enemy bytes matched and debugger detached",
+  "local_evidence_hashes": {
+    "bug058-nest-fit-20260927.patch": "78d9e2ec2344e88e912dff4e01c8e36bd3e544fbb2a945f85011249bdb70cd17",
+    "bug058-nest-build-20260927.log": "88308aaacb10578882f69fab61cd23a29575afbcd89d3590a1e701fed1d90a5d",
+    "bug058-nest-startup-20260927.json": "3cf302c627a9d621b4479a88a69ee08fc656542e5412deeffc49579e76817381",
+    "bug058-nest-restore-20260927.json": "3ec3490d99d767dc790932d73e839058e6bec60ff346631e19696312ce8d283a",
+    "bug058-nest-perimeter-20260927.json": "111909f24dde8dda39502f980b1c01bc8700e11812d82ad2e9c07a8371c2ad79",
+    "bug058-nest-crossover-20260927.json": "41c35f9d83e58a20bab4c093847b2b10c1c5ffe0dd9f071e8b280acd7dee59ff",
+    "bug058-nest-music-20260927.json": "64422e6d11ec06318fd810cec1d1eda21682a1e55fa46d7d9b4a6d69c1c4787d",
+    "bug058-nest-music-marker-failure-20260927.json": "6ab6104a99c17bcb0b2f32c54dc6b514af2737d76415a89f7f919bbcfec69e5e",
+    "bug058-nest-music-skull-20260927.json": "6ac5b59e48a50ece7fcf18da8d26e4fdd227e19b0cf001220772168ff33594dd",
+    "bug058-nest-music-tick-boundary-20260927.json": "6985152c388873b4afd679e25b5d770a83a354fe7c623f5e9215dc1863c24f82"
+  },
+  "commands": [
+    "scripts/build.sh build",
+    "python3 repro/bug058-nest-startup-20260927.py FIT_WORKTREE OUTPUT_JSON",
+    "python3 repro/bug058-restore-kernel-20260927.py FIT_WORKTREE FIT_WORKTREE OUTPUT_JSON phase4-before nest-after",
+    "python3 repro/bug058-perimeter-fit-20260927.py FIT_WORKTREE OUTPUT_JSON",
+    "python3 repro/bug058-render-crossover-20260927.py FIT_WORKTREE OUTPUT_JSON FIT_WORKTREE phase4-before nest-after --park-far --cleared-skulls",
+    "python3 repro/bug058-fit-live-count-20260927.py FIT_WORKTREE OUTPUT_JSON --release-window --park-far --cleared-skulls"
+  ]
+}

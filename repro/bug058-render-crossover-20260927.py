@@ -66,13 +66,21 @@ def invoke(code,entry,resident_code=None):
  write(0x800,code);assert read(0x800,len(code))==code
  write(0x1800,[0x20,0xfe]);write(0x1efc,[0x18,0]);c.call('write_registers',{'pc':entry,'s':0x1efc,'dp':0,'cc':0x50})
  t=c.call('read_cycles')['event_ticks'];go(0x1800);cycles=(c.call('read_cycles')['event_ticks']-t)//8
- pixels=b''.join(physical(pg*8192,8192) for pg in range(0x28,0x30));data=physical(0x34*8192,8192)
+ pixels=b''.join(physical(pg*8192,8192) for pg in range(0x2c,0x34));data=physical(0x34*8192,8192)
  return pixels,data,cycles
 try:
  go(ps['pft_ready']);assert read(0x1900,len(presentation))==presentation,'boot presentation/artifact identity';assert read(0x800,len(boot_enemy))==boot_enemy,'boot enemy/artifact identity'
  key(5,True);wait(lambda:read(0xa5)[0]==5);key(5,False);key(1,True);wait(lambda:read(0xa5)[0]==6);key(1,False)
  wait(lambda:read(0xa5)[0]==0 and read(ms['INITIAL_ENTRY_STATE'])[0]==0)
- write(ms['PLAYER_CELL_X'],[2,2]);write(ms['PLAYER_FB'],(0x2000+8*160+9*4).to_bytes(2,'big'));write(ms['PLAYER_DIR'],[255])
+ if '--cleared-skulls' in sys.argv:
+  removed=[]
+  for slot in range(read(es['ENTITY_COUNT'])[0]):
+   address=es['ENTITY_TABLE']+slot*4
+   if read(address+2)[0]==es['ENTITY_SKULL']:
+    removed.append(list(read(address,4)));write(address+2,[0])
+  e['controlled_cleared_skulls']=removed
+ park=22 if '--park-far' in sys.argv else 2
+ write(ms['PLAYER_CELL_X'],[park,park]);write(ms['PLAYER_FB'],(0x2000+(park*8-8)*160+(park+7)*4).to_bytes(2,'big'));write(ms['PLAYER_DIR'],[255]);e['park_cell']=[park,park]
  for count in range(3 if '--through-two' in sys.argv[6:] else 5):
   deadline=time.monotonic()+45
   if count:release()

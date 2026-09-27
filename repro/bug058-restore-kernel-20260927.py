@@ -21,7 +21,7 @@ try:
  background=bytes((i*37+i//8*11)&255 for i in range(128));screen=bytes([0xA5])*2560
  for owner in [0,1]:
   deadline=time.monotonic()+45
-  write(0xffa1,range(0x28+owner*4,0x2c+owner*4))
+  write(0xffa1,range(0x30-owner*4,0x34-owner*4))
   for rp in range(16):
    for cp in range(8):
     assert time.monotonic()<deadline,'owner deadline'

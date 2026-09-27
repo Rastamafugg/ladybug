@@ -32,6 +32,18 @@ def go(a):
  try:
   c.call('run');h=c.call('wait_for_stop',{'timeout_ms':10000},timeout=12);assert h.get('pc')==a,h
  finally:m.clear(c,ids)
+release_window='--release-window' in sys.argv[3:]
+if release_window:e['success_marker']='At counts three and four: release cue 5 observed, followed by 16 consecutive cue-5-free worklists; normal ticks remain enabled';e['controlled']+='; setup drains prior audio, then records the new release until cue 5 ends'
+
+def audio_state():
+ data=bytes.fromhex(c.call('read_memory',{'space':'physical','addr':0x3d*8192,'length':8192})['data'])
+ return {'slots':[data[au['audio_slot'+str(i)]-0xa000] for i in range(4)],'music_queue':data[au['audio_music_count']-0xa000]}
+def wait_audio():
+ end=time.monotonic()+45
+ while time.monotonic()<end:
+  go(ps['pft_ready']);a=audio_state()
+  if all(x==255 for x in a['slots']) and a['music_queue']==0 and read(au['AUDIO_Q_COUNT'])[0]==0:return
+ raise TimeoutError('audio drain setup')
 def key(k,on):c.call('inject_key',{'key':k,'action':'press' if on else 'release'})
 def wait(pred):
  end=time.monotonic()+45
@@ -73,14 +85,24 @@ try:
  audio_markers={}
  for n in ['audio_process_queue','audio_music_dispatch','audio_advance_all','audio_credit_service','audio_mix','audio_mix_write']:
   if n in au:markers[au[n]]=n;audio_markers[au[n]]=n
- write(ms['PLAYER_CELL_X'],[2,2]);write(ms['PLAYER_FB'],(0x2000+8*160+9*4).to_bytes(2,'big'));write(ms['PLAYER_DIR'],[255])
+ if '--cleared-skulls' in sys.argv:
+  removed=[]
+  for slot in range(read(es['ENTITY_COUNT'])[0]):
+   address=es['ENTITY_TABLE']+slot*4
+   if read(address+2)[0]==es['ENTITY_SKULL']:
+    removed.append(list(read(address,4)));write(address+2,[0])
+  e['controlled_cleared_skulls']=removed
+ park=22 if '--park-far' in sys.argv else 2
+ write(ms['PLAYER_CELL_X'],[park,park]);write(ms['PLAYER_FB'],(0x2000+(park*8-8)*160+(park+7)*4).to_bytes(2,'big'));write(ms['PLAYER_DIR'],[255]);e['park_cell']=[park,park]
  for count in range(5):
+  if release_window:wait_audio()
   deadline=time.monotonic()+45
   if count:release()
-  for settle in range(36 if count else 2):go(ps['presentation_flow_tick'])
-  for i in range(16):
+  for settle in range(2 if release_window else (36 if count else 2)):go(ps['presentation_flow_tick'])
+  saw_release=False;quiet=0
+  for i in range(192 if release_window and count>=3 else 16):
    assert time.monotonic()<deadline,'count phase deadline'
-   go(ps['presentation_flow_tick']);start=c.call('read_cycles')['event_ticks'];state=list(read(0x54,12));row={'requested_count':count,'index':i,'active':read(0x58)[0],'death':read(ms['DEATH_STATE'])[0],'front':read(0x8f)[0],'state':state,'event_start':start,'vbord':int.from_bytes(read(ms['FRAMES'],2),'big'),'missed_commit':int.from_bytes(read(ms['FB_MISSED_COMMIT'],2),'big'),'marks':[]};ids=m.setup(c,list(markers))
+   go(ps['presentation_flow_tick']);start=c.call('read_cycles')['event_ticks'];state=list(read(0x54,12));row={'requested_count':count,'index':i,'active':read(0x58)[0],'death':read(ms['DEATH_STATE'])[0],'front':read(0x8f)[0],'state':state,'event_start':start,'vbord':int.from_bytes(read(ms['FRAMES'],2),'big'),'missed_commit':int.from_bytes(read(ms['FB_MISSED_COMMIT'],2),'big'),'marks':[]};row['audio_before']=audio_state();ids=m.setup(c,list(markers))
    try:
     for k in range(128):
      c.call('run');h=c.call('wait_for_stop',{'timeout_ms':10000},timeout=12);a=h.get('pc');assert a in markers,h
@@ -130,9 +152,14 @@ try:
    if '--renderer-costs' in sys.argv[3:]:
     assert len(row.get('restore_calls',[]))==count and all('cycles_to_caller_next' in call for call in row.get('restore_calls',[])),'missing restore path'
     assert row.get('background_calls') and all('cycles_to_return' in call for call in row['background_calls']),'missing background return'
-   row['cycles']=t;e['samples'].append(row);assert row['active']==count and row['death']==0,('required live count missing',count,row['active'],row['death'])
+   row['audio_after']=audio_state();row['cycles']=t;e['samples'].append(row);assert row['active']==count and row['death']==0,('required live count missing',count,row['active'],row['death'])
+   if release_window and count>=3:
+    active=5 in row['audio_before']['slots'] or 5 in row['audio_after']['slots'];saw_release|=active
+    quiet=quiet+1 if saw_release and 5 not in row['audio_before']['slots']+row['audio_after']['slots'] and row['audio_after']['music_queue']==0 else 0
+    if quiet>=16:break
+  if release_window and count>=3:assert saw_release and quiet>=16,('release and quiet windows missing',count,saw_release,quiet)
  e['result']='captured'
-except Exception as ex:e['result']='fail';e['failure']=repr(ex)
+except Exception as ex:e['result']='fail';e['failure']=repr(ex);e['failed_row']=row if 'row' in globals() else None
 finally:c.close();m.stop(p);out.write_text(json.dumps(e,indent=2)+'\n')
 print(json.dumps({k:v for k,v in e.items() if k!='samples'}))
 for count in range(5):
