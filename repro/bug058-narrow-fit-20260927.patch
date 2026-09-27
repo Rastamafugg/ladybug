@@ -1,0 +1,119 @@
+diff --git a/src/audio_runtime.s b/src/audio_runtime.s
+index 0cc2bf9..971adb4 100644
+--- a/src/audio_runtime.s
++++ b/src/audio_runtime.s
+@@ -798 +798,4 @@ audio_mix_all_slots
+-        lda     #7
++        ; Stable descending priority keys; lower slot wins equal priority.
++        ldx     #audio_slot0
++        ldu     #audio_mix_order
++        lda     #3
+@@ -800,2 +803,51 @@ audio_mix_all_slots
+-audio_mix_priority_next
+-        clr     AUDIO_WORK_SLOT
++audio_mix_key_next
++        clra
++        ldb     ,x
++        cmpb    #$FF
++        beq     audio_mix_key_store
++        lda     1,x
++        inca
++        lsla
++        lsla
++        adda    audio_mix_priority
++audio_mix_key_store
++        sta     ,u+
++        leax    AUDIO_SLOT_BYTES,x
++        dec     audio_mix_priority
++        bpl     audio_mix_key_next
++        lda     audio_mix_order+0
++        cmpa    audio_mix_order+1
++        bhs     audio_mix_sorted_0
++        ldb     audio_mix_order+1
++        stb     audio_mix_order+0
++        sta     audio_mix_order+1
++audio_mix_sorted_0
++        lda     audio_mix_order+2
++        cmpa    audio_mix_order+3
++        bhs     audio_mix_sorted_1
++        ldb     audio_mix_order+3
++        stb     audio_mix_order+2
++        sta     audio_mix_order+3
++audio_mix_sorted_1
++        lda     audio_mix_order+0
++        cmpa    audio_mix_order+2
++        bhs     audio_mix_sorted_2
++        ldb     audio_mix_order+2
++        stb     audio_mix_order+0
++        sta     audio_mix_order+2
++audio_mix_sorted_2
++        lda     audio_mix_order+1
++        cmpa    audio_mix_order+3
++        bhs     audio_mix_sorted_3
++        ldb     audio_mix_order+3
++        stb     audio_mix_order+1
++        sta     audio_mix_order+3
++audio_mix_sorted_3
++        lda     audio_mix_order+1
++        cmpa    audio_mix_order+2
++        bhs     audio_mix_sorted_4
++        ldb     audio_mix_order+2
++        stb     audio_mix_order+1
++        sta     audio_mix_order+2
++audio_mix_sorted_4
++        clr     audio_mix_priority
+@@ -802,0 +855,7 @@ audio_mix_all_next
++        ldx     #audio_mix_order
++        ldb     audio_mix_priority
++        lda     b,x
++        beq     audio_mix_all_done
++        anda    #3
++        eora    #3
++        sta     AUDIO_WORK_SLOT
+@@ -804,6 +862,0 @@ audio_mix_all_next
+-        lda     ,x
+-        cmpa    #$FF
+-        beq     audio_mix_all_skip
+-        lda     1,x
+-        cmpa    audio_mix_priority
+-        bne     audio_mix_all_skip
+@@ -811,3 +864,2 @@ audio_mix_all_next
+-audio_mix_all_skip
+-        inc     AUDIO_WORK_SLOT
+-        lda     AUDIO_WORK_SLOT
++        inc     audio_mix_priority
++        lda     audio_mix_priority
+@@ -816,2 +868 @@ audio_mix_all_skip
+-        dec     audio_mix_priority
+-        bpl     audio_mix_priority_next
++audio_mix_all_done
+@@ -1114,0 +1166 @@ audio_mix_priority fcb 0
++audio_mix_order rmb 4
+diff --git a/src/enemy_runtime.s b/src/enemy_runtime.s
+index 1c19330..95f6449 100644
+--- a/src/enemy_runtime.s
++++ b/src/enemy_runtime.s
+@@ -2094 +2093,0 @@ rub_full
+-        pshs    x
+@@ -2097 +2095,0 @@ rub_full
+-        puls    x
+@@ -2530 +2528,4 @@ roam_copy_fb_to_bg
+-        ldy     #16
++        ; Full fallback uses four-byte transfers, like save_player.
++        exg     x,u
++        lda     #16
++        sta     ENEMY_ROW
+@@ -2533,3 +2534,8 @@ rcftb_row
+-        lbsr    copy_native_row
+-        leax    152,x
+-        leay    -1,y
++        pulu    d,y
++        std     ,x++
++        sty     ,x++
++        pulu    d,y
++        std     ,x++
++        sty     ,x++
++        leau    152,u
++        dec     ENEMY_ROW
+@@ -2538,0 +2545 @@ rcftb_row
++

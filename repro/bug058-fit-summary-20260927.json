@@ -1,0 +1,204 @@
+{
+  "ticket": "BUG-058",
+  "status": "Proposed \u2014 fitted partial candidate, not Ready",
+  "date": "2026-09-27",
+  "base_revision": "cb0c8b9",
+  "baseline_production_revision": "2c43868",
+  "patch_sha256": "c7d6cbb18c16d755cea5649965e5ec5e66d4df3b4d9b85ca7c48dda6a7b6406f",
+  "rom_sha256": "ad5db3ecb1db6bc6def3cf24dd1adac69eb48478fe800269c804331b473486f1",
+  "enemy_sha256": "65718b8d9e7fa299ccc0210159640a3a7a8bed5190f3bb8b245c60e26fcea289",
+  "production_changed": false,
+  "cost_class": "High-risk",
+  "target_cycles": 27000,
+  "unit": "event ticks / 8, fast-clock elapsed cycle equivalents; includes hardware waits",
+  "fixture": "player parked in legal maze cell (2,2), controlled early releases, 36 settle worklists, 16 samples per count; requested active count and no death required",
+  "timing": {
+    "baseline": {
+      "rom_sha256": "a8da8527c47f8e3082cfffa29205b0913edff683b31aa027a670c30f63b27351",
+      "raw_sha256": "a652b025bda5da97154f7c4d3281bb3bd61a6d44892ddcd691bdb047779bddb1",
+      "counts": {
+        "0": {
+          "min": 9932,
+          "max": 16147,
+          "mean": 11637.25,
+          "over_target": 0,
+          "display_intervals": {
+            "1": 15
+          }
+        },
+        "1": {
+          "min": 15278,
+          "max": 21388,
+          "mean": 16690.6875,
+          "over_target": 0,
+          "display_intervals": {
+            "1": 15
+          }
+        },
+        "2": {
+          "min": 20587,
+          "max": 25901,
+          "mean": 22535.875,
+          "over_target": 0,
+          "display_intervals": {
+            "1": 15
+          }
+        },
+        "3": {
+          "min": 30326,
+          "max": 35862,
+          "mean": 32895.375,
+          "over_target": 16,
+          "display_intervals": {
+            "2": 15
+          }
+        },
+        "4": {
+          "min": 35100,
+          "max": 42513,
+          "mean": 37996.4375,
+          "over_target": 16,
+          "display_intervals": {
+            "2": 15
+          }
+        }
+      }
+    },
+    "fit": {
+      "rom_sha256": "ad5db3ecb1db6bc6def3cf24dd1adac69eb48478fe800269c804331b473486f1",
+      "raw_sha256": "a34b2d606d8d6adc932179a0f07af77008fae20e98e511dfc06dfe4e6a14878d",
+      "counts": {
+        "0": {
+          "min": 9932,
+          "max": 16248,
+          "mean": 11637.25,
+          "over_target": 0,
+          "display_intervals": {
+            "1": 15
+          }
+        },
+        "1": {
+          "min": 15208,
+          "max": 21110,
+          "mean": 16712.1875,
+          "over_target": 0,
+          "display_intervals": {
+            "1": 15
+          }
+        },
+        "2": {
+          "min": 19406,
+          "max": 24713,
+          "mean": 21808,
+          "over_target": 0,
+          "display_intervals": {
+            "1": 15
+          }
+        },
+        "3": {
+          "min": 25495,
+          "max": 30569,
+          "mean": 27849.0625,
+          "over_target": 11,
+          "display_intervals": {
+            "1": 13,
+            "2": 2
+          }
+        },
+        "4": {
+          "min": 31928,
+          "max": 39071,
+          "mean": 35284.6875,
+          "over_target": 16,
+          "display_intervals": {
+            "2": 15
+          }
+        }
+      }
+    }
+  },
+  "capacity": {
+    "resident": [
+      8180,
+      8192
+    ],
+    "assets": [
+      7596,
+      7680
+    ],
+    "enemy": [
+      4091,
+      4096
+    ],
+    "presentation": [
+      1273,
+      1280
+    ],
+    "copied_audio": [
+      734,
+      920
+    ],
+    "banked_audio": [
+      5675,
+      8192
+    ],
+    "cold": [
+      14362,
+      16384
+    ],
+    "gmc_source_spare_before": 519,
+    "gmc_source_spare_after": 413,
+    "hard_limits_changed": false,
+    "new_audio_scratch_bytes": 4,
+    "enemy_fixed_padding_consumed_bytes": 9
+  },
+  "verification": {
+    "equivalence": {
+      "result": "pass",
+      "sha256": "394d0287399a56fff35af005edec2fc8a2c3fb5a0736baa6eb9177417722c441",
+      "mixer_cases": 6561,
+      "multi_voice_exclusive_cases": 48,
+      "ring_cases": 2816,
+      "mixer_max_cycles": 1893,
+      "ring_max_cycles": 1348
+    },
+    "audio_regression": {
+      "result": "pass",
+      "sha256": "40597973ed94aac8337cc38bb4363beaf306c0313ff4dc3fab62ae673fe740aa"
+    },
+    "render_crossover": {
+      "result": "pass",
+      "sha256": "6399ea4c1563a6327459229cb4d4e83b2589de1c1176c8b55c068b72f8ff8161",
+      "cases": 40,
+      "method": "identical RAM, register and mapping inputs; alternating execution order; exact framebuffer and bank-$34 output equality; video event phase not reset, so cost differences are elapsed observations"
+    },
+    "full_build": "pass",
+    "enemy_contract": "pass",
+    "gate_cache_static": "fails cache stride/association source-shape assertion on unchanged reference and candidate; not a candidate regression and not treated as passing"
+  },
+  "rejected": [
+    {
+      "candidate": "audio sorting alone",
+      "three_enemy_max": 34482,
+      "reason": "does not satisfy target"
+    },
+    {
+      "candidate": "double strip updates plus LUT relocation and full-copy optimization",
+      "rom_sha256": "47409298fa2d3c6fae59ec3715c82d98d50b0f94685a4b1439bb1f1ec0a80d08",
+      "three_enemy_max": 36167,
+      "four_enemy_max": 42292,
+      "reason": "repeated rotated strips cost too much; relocation unnecessary for retained narrow fit; all such source changes removed"
+    },
+    {
+      "probe": "original four-enemy reference fixture",
+      "reason": "player died before capture, active count zero; excluded and replaced by count-asserting legal-cell fixture"
+    }
+  ],
+  "remaining": [
+    "27,000-cycle target fails in 11/16 three-enemy and 16/16 four-enemy samples",
+    "No natural sustained moving-player, demo or name-control acceptance for candidate",
+    "Full renderer fit must reduce actor restoration and sprite draw costs before Ready",
+    "Broader saved-under selection or compiled sprite design requires separate fitted evidence; no runtime ownership/loader change authorized by this proposal"
+  ],
+  "patch_apply": "git apply --unidiff-zero PATCH"
+}
