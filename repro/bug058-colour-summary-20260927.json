@@ -996,5 +996,11 @@
     "result": "fail",
     "failure": "AssertionError({'trace_stop': {'reason': 'timeout'}, 'regs': {'a': 0, 'b': 0, 'd': 0, 'cc': 153, 'dp': 0, 'x': 54888, 'y': 8037, 'u': 43304, 's': 65500, 'pc': 40963}})",
     "traceback": "Traceback (most recent call last):\n  File \"/mnt/e/projects/ladybug/repro/bug058-render-crossover-20260927.py\", line 121, in <module>\n    e['current_case']={'count':count,'index':i,'side':name};restore(pages,regs,pars);results[name]=invoke(enemy if name=='reference' else candidate,es['frame_render_impl'] if name=='reference' else cs['frame_render_impl'],(oldresident if name=='reference' else resident) if (perimeter_only or resident_pair) else None)\n  File \"/mnt/e/projects/ladybug/repro/bug058-render-crossover-20260927.py\", line 84, in invoke\n    c.call('pause');raise AssertionError({'trace_stop':h,'regs':c.call('read_registers')})\nAssertionError: {'trace_stop': {'reason': 'timeout'}, 'regs': {'a': 0, 'b': 0, 'd': 0, 'cc': 153, 'dp': 0, 'x': 54888, 'y': 8037, 'u': 43304, 's': 65500, 'pc': 40963}}\n"
+  },
+  "user_feedback": {
+    "date": "2026-09-27",
+    "rom_sha256": "98c5fe80ab1e27d161b491f24ddc3dfd97dc3035ffedff1ac14ce79b752b4a19",
+    "report": "A slight improvement for 4-enemy. Everything else still feels good.",
+    "interpretation": "Subjective improvement; no new functional regression reported. No exhaustive scenario pass, timing waiver or production integration approval."
   }
 }
