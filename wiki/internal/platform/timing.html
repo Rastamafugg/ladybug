@@ -13,7 +13,7 @@
     <a href="../index.html">Internal</a>
     <a href="./index.html">Platform</a>
   </nav>
-  <main class="wiki-main">
+  <main class="wiki-main"><section id="fast-clock-monitor-correction-20260926"><h2>2026-09-26 — Monitor cycle-unit correction</h2><p>BUG-058 calibrates the current fast-clock game: a2-cycle NOP produces16 event ticks, while read_cycles.cpu_cycles reports1. The patched monitor hardcodes event_ticks/16. Use event_ticks/8 for fast-clock elapsed CPU cycles. Do not compare its cpu_cycles value directly with27000 or29666 fast-cycle limits. Earlier RSCH-013 absolute timing passes are invalid; raw results are retained. Final credited-play maximum previously reported21850 corresponds to43700 fast cycles, and name-control9855 corresponds to19710. These are sampled maxima, not whole-game maxima.</p><p>Three-enemy active work exceeds the display interval; the failure is tracked in <a href="../tickets/bug-058-three-enemy-slowdown.html">BUG-058</a>. Correct observation units before optimizing or reusing prior results. Slow-clock benchmark conclusions require their own calibration and are not automatically doubled. The monitor source is docs/reference/xroar/src/monitor.c, read_cycles branch; game clock selection is src/main.s SAM_FAST.</p></section>
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal · platform</p>
       <h1>Timing — frame budget <span class="wiki-badge">internal</span></h1>
