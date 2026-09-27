@@ -3,9 +3,10 @@ import sys,time,json,hashlib
 ref=Path(sys.argv[1]); fit=Path(sys.argv[2]); out=Path(sys.argv[3]);sys.path.insert(0,str(ref/'scripts'))
 import verify_bug011_runtime as r
 import verify_bug009_monitor_input as m
-es=r.symbols(ref/'build/ladybug-enemy-runtime.map');cs=r.symbols(fit/'build/bug058-enemy-check.map');ps=r.symbols(ref/'build/ladybug-presentation-runtime.map')
-original=(ref/'build/ladybug-enemy-runtime.rom').read_bytes();candidate=(fit/'build/bug058-enemy-check.bin').read_bytes();rom=ref/'build/ladybug.rom'
-e={'phase':'isolated full restore, every ring phase and owner','deadline_seconds_per_owner':45,'success_marker':'256 exact reference/candidate restores with independent pixel oracle','timeout_meaning':'probe boundary missing, not evidence of slow game','clock':'event_ticks / 8','reference_rom_sha256':hashlib.sha256(rom.read_bytes()).hexdigest(),'candidate_enemy_sha256':hashlib.sha256(candidate).hexdigest(),'cases':[]}
+rpfx=sys.argv[4] if len(sys.argv)>4 else None;cpfx=sys.argv[5] if len(sys.argv)>5 else 'bug058-enemy-check'
+es=r.symbols(ref/'build'/((rpfx+'.map') if rpfx else 'ladybug-enemy-runtime.map'));cs=r.symbols(fit/'build'/(cpfx+'.map'));ps=r.symbols(ref/'build/ladybug-presentation-runtime.map')
+original=(ref/'build'/((rpfx+'.bin') if rpfx else 'ladybug-enemy-runtime.rom')).read_bytes();candidate=(fit/'build'/(cpfx+'.bin')).read_bytes();boot=(ref/'build/ladybug-enemy-runtime.rom').read_bytes();rom=ref/'build/ladybug.rom'
+e={'phase':'isolated full restore, every ring phase and owner','deadline_seconds_per_owner':45,'success_marker':'256 exact reference/candidate restores with independent pixel oracle','timeout_meaning':'probe boundary missing, not evidence of slow game','clock':'event_ticks / 8','reference_rom_sha256':hashlib.sha256(rom.read_bytes()).hexdigest(),'reference_enemy_sha256':hashlib.sha256(original).hexdigest(),'candidate_enemy_sha256':hashlib.sha256(candidate).hexdigest(),'cases':[]}
 p,c=r.launch_fast(m,Path('/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar'),rom)
 def read(a,n=1):return r.read_bytes(c,a,n)
 def write(a,v):c.call('write_memory',{'addr':a,'data':bytes(v).hex()})
@@ -15,11 +16,12 @@ def go(a):
   c.call('run');assert c.call('wait_for_stop',{'timeout_ms':10000},timeout=12)['pc']==a
  finally:m.clear(c,ids)
 try:
- go(ps['pft_ready']);assert read(0x800,len(original))==original
+ go(ps['pft_ready']);assert read(0x800,len(boot))==boot
  write(0xffa5,[0x34]);write(0x1800,[0x20,0xfe]);dest=0x4000
  background=bytes((i*37+i//8*11)&255 for i in range(128));screen=bytes([0xA5])*2560
  for owner in [0,1]:
   deadline=time.monotonic()+45
+  write(0xffa1,range(0x28+owner*4,0x2c+owner*4))
   for rp in range(16):
    for cp in range(8):
     assert time.monotonic()<deadline,'owner deadline'

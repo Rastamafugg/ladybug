@@ -1,0 +1,780 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-09-27",
+  "status": "Proposed; isolated fit, not production implementation",
+  "baseline_revision": "de20047: e880b52 plus bug058-perimeter-fit-20260927.patch",
+  "candidate_source": "e880b52 plus bug058-phase4-fit-20260927.patch",
+  "rom_sha256": "eb6d6f85f29c0876742dbf7a13db58176b2b0dcb82af16d613abd19b7206f1d4",
+  "reference_enemy_sha256": "920556465eee05144d48f144118074704f52d17f26e58b51ac84a1c1833a6cd6",
+  "candidate_enemy_sha256": "73becbe146c50807bbbabdee04b2b48660895ed1668ded8249241c74c11a8721",
+  "scope": "Direct local phase-four row loop sharing the existing return; ring format, indexes, scratch allocation and background ownership unchanged",
+  "units": "elapsed fast cycles = event_ticks / 8; sample maxima/means are observations, not worst-case bounds",
+  "kernel": {
+    "result": "pass",
+    "cases": 256,
+    "oracle": "all 16 row offsets x 8 column offsets x 2 selected framebuffer/background owners; independent pixel oracle including untouched row bytes, saved background unchanged, return registers compared with dispatch-symbol relocation accounted for",
+    "savings": [
+      {
+        "column_phase": 0,
+        "cycles_saved": 0,
+        "cases": 32
+      },
+      {
+        "column_phase": 1,
+        "cycles_saved": 0,
+        "cases": 32
+      },
+      {
+        "column_phase": 2,
+        "cycles_saved": 0,
+        "cases": 32
+      },
+      {
+        "column_phase": 3,
+        "cycles_saved": 0,
+        "cases": 32
+      },
+      {
+        "column_phase": 4,
+        "cycles_saved": 160,
+        "cases": 30
+      },
+      {
+        "column_phase": 4,
+        "cycles_saved": 168,
+        "cases": 2
+      },
+      {
+        "column_phase": 5,
+        "cycles_saved": 0,
+        "cases": 32
+      },
+      {
+        "column_phase": 6,
+        "cycles_saved": 0,
+        "cases": 32
+      },
+      {
+        "column_phase": 7,
+        "cycles_saved": 0,
+        "cases": 32
+      }
+    ],
+    "target": 150,
+    "phase4_target_pass": true
+  },
+  "workloads": {
+    "0": {
+      "samples": 16,
+      "before_max": 16051,
+      "after_max": 16051,
+      "before_mean": 11575.25,
+      "after_mean": 11575.25,
+      "over_27000": 0,
+      "saving_histogram": {
+        "0": 16
+      },
+      "recorded_state_bytes_identical": true
+    },
+    "1": {
+      "samples": 16,
+      "before_max": 20599,
+      "after_max": 20599,
+      "before_mean": 16354.3125,
+      "after_mean": 16354.3125,
+      "over_27000": 0,
+      "saving_histogram": {
+        "0": 16
+      },
+      "recorded_state_bytes_identical": true
+    },
+    "2": {
+      "samples": 16,
+      "before_max": 24298,
+      "after_max": 24298,
+      "before_mean": 21501.5625,
+      "after_mean": 21461.0625,
+      "over_27000": 0,
+      "saving_histogram": {
+        "0": 12,
+        "160": 3,
+        "168": 1
+      },
+      "recorded_state_bytes_identical": true
+    },
+    "3": {
+      "samples": 16,
+      "before_max": 31045,
+      "after_max": 31045,
+      "before_mean": 27542.6875,
+      "after_mean": 27512.1875,
+      "over_27000": 10,
+      "saving_histogram": {
+        "0": 13,
+        "160": 2,
+        "168": 1
+      },
+      "recorded_state_bytes_identical": true
+    },
+    "4": {
+      "samples": 16,
+      "before_max": 38269,
+      "after_max": 37941,
+      "before_mean": 33211.75,
+      "after_mean": 33139.25,
+      "over_27000": 16,
+      "saving_histogram": {
+        "168": 4,
+        "0": 10,
+        "160": 1,
+        "328": 1
+      },
+      "recorded_state_bytes_identical": true
+    }
+  },
+  "capacity": {
+    "enemy_bytes": [
+      4091,
+      4096
+    ],
+    "pre_table_free_before_after": [
+      8,
+      0
+    ],
+    "fixed_tail_address": "$17A0",
+    "fixed_tail_identical": true,
+    "resident": [
+      8180,
+      8192
+    ],
+    "assets": [
+      7596,
+      7680
+    ],
+    "presentation": [
+      1273,
+      1280
+    ],
+    "copied_audio": [
+      734,
+      920
+    ],
+    "banked_audio": [
+      5675,
+      8192
+    ],
+    "cold": [
+      14362,
+      16384
+    ],
+    "gmc_source_free": 413,
+    "limits_raised": false
+  },
+  "build": {
+    "result": "pass",
+    "routines": [
+      256,
+      256
+    ],
+    "labels": [
+      4095,
+      4095
+    ],
+    "required_audit_contracts": 19,
+    "audit_errors": []
+  },
+  "probe_contract": {
+    "deadline_seconds_per_owner_or_enemy_count": 45,
+    "success_markers": [
+      "256 oracle-correct restore returns",
+      "16 recorded worklists at each actual enemy count 0..4",
+      "40 exact renderer comparisons"
+    ],
+    "timeout_meaning": "missing probe boundary, not proof of slow game"
+  },
+  "rejected_experiments": "None this fit; prior duplicate-RTS version overflowed by one byte and remains rejected",
+  "residual": [
+    "27,000-cycle target still fails at three/four enemies",
+    "Zero pre-table space remains; later code growth must fit without raising budgets",
+    "Natural moving-player/demo/name-control/audio acceptance and prior gate-cache verifier issue remain open"
+  ],
+  "reproduction": [
+    "Build baseline from e880b52 plus perimeter-fit patch; save build/ladybug.rom as phase4-before.rom and enemy .rom/.map as phase4-before.bin/.map.",
+    "Build candidate from e880b52 plus phase4-fit patch; copy enemy .rom/.map as phase4-after.bin/.map. Normalize exported patch to LF if checkout converts it to CRLF.",
+    "python3 repro/bug058-restore-kernel-20260927.py FIT_WORKTREE FIT_WORKTREE OUTPUT_JSON phase4-before phase4-after",
+    "python3 repro/bug058-fit-live-count-20260927.py FIT_WORKTREE OUTPUT_JSON --renderer-costs --sparse-costs",
+    "python3 repro/bug058-render-crossover-20260927.py FIT_WORKTREE OUTPUT_JSON FIT_WORKTREE phase4-before phase4-after",
+    "scripts/build.sh build"
+  ],
+  "hashes": {
+    "bug058-phase4-fit-20260927.patch": "3d79d171fe44d134816510ded39494377c9acb5e708bf763908e8e091171f1dc",
+    "bug058-phase4-build-20260927.log": "a2fb2ba3859a2546d423d8e0a2445f98d7e9bfeae8f1e1e0dc61aa876147fc40",
+    "bug058-phase4-kernel-20260927.json": "8684a425f99c4de2f594e162834cea7ceb8c7a168c1c2f66abec3f96beda3a5b",
+    "bug058-phase4-live-20260927.json": "9c712d89749c889e4deaf47bae90726121f80f8c44059230152b0f37283b6893",
+    "bug058-phase4-crossover-20260927.json": "f0cc9f7a6b9dac92c099ae1911ee6365889cd0485606e306fbd0e05052e7895a"
+  },
+  "failing_peak_worklists": {
+    "3": {
+      "index": 12,
+      "cycles": 31045,
+      "active": 3,
+      "death": 0,
+      "state": [
+        1,
+        5,
+        0,
+        0,
+        3,
+        3,
+        0,
+        0,
+        0,
+        0,
+        164,
+        120
+      ],
+      "marks": [
+        [
+          "main_game_tick_normal",
+          414
+        ],
+        [
+          "enemy_tick",
+          524
+        ],
+        [
+          "main_after_player",
+          2983
+        ],
+        [
+          "main_render",
+          3109
+        ],
+        [
+          "framebuffer_prepare_back",
+          3139
+        ],
+        [
+          "actor_closure_restore",
+          3731
+        ],
+        [
+          "acr_enemies",
+          4940
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          5078
+        ],
+        [
+          "acr_enemy_next",
+          6589
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          6732
+        ],
+        [
+          "acr_enemy_next",
+          8022
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          8165
+        ],
+        [
+          "acr_enemy_next",
+          9807
+        ],
+        [
+          "acr_enemy_next",
+          9841
+        ],
+        [
+          "framebuffer_queue_damage",
+          9869
+        ],
+        [
+          "framebuffer_project_damage",
+          10266
+        ],
+        [
+          "roam_mark_underlay",
+          10986
+        ],
+        [
+          "frame_render_background",
+          11066
+        ],
+        [
+          "draw_perimeter_box",
+          11248
+        ],
+        [
+          "dpb_row",
+          11418
+        ],
+        [
+          "dpb_row",
+          11629
+        ],
+        [
+          "dpb_row",
+          11896
+        ],
+        [
+          "dpb_row",
+          12163
+        ],
+        [
+          "dpb_row",
+          12430
+        ],
+        [
+          "dpb_row",
+          12697
+        ],
+        [
+          "dpb_row",
+          12964
+        ],
+        [
+          "dpb_row",
+          13231
+        ],
+        [
+          "fri_secondary",
+          13513
+        ],
+        [
+          "fri_background_done",
+          13547
+        ],
+        [
+          "roam_mark_underlay",
+          13916
+        ],
+        [
+          "frame_render_background",
+          13963
+        ],
+        [
+          "fri_secondary",
+          14082
+        ],
+        [
+          "fri_background_done",
+          14116
+        ],
+        [
+          "actor_closure_draw",
+          14130
+        ],
+        [
+          "acd_save_loop",
+          14157
+        ],
+        [
+          "acd_save_loop",
+          14988
+        ],
+        [
+          "acd_save_loop",
+          15584
+        ],
+        [
+          "acd_save_loop",
+          16446
+        ],
+        [
+          "acd_draw_loop",
+          16478
+        ],
+        [
+          "sparse_blit_fb",
+          16657
+        ],
+        [
+          "sparse_decode_done",
+          18735
+        ],
+        [
+          "acd_draw_loop",
+          18773
+        ],
+        [
+          "sparse_blit_fb",
+          18952
+        ],
+        [
+          "sparse_decode_done",
+          21414
+        ],
+        [
+          "acd_draw_loop",
+          21452
+        ],
+        [
+          "sparse_blit_fb",
+          21631
+        ],
+        [
+          "sparse_decode_done",
+          24093
+        ],
+        [
+          "acd_draw_loop",
+          24131
+        ],
+        [
+          "acd_death",
+          24163
+        ],
+        [
+          "acd_normal_player",
+          24202
+        ],
+        [
+          "sparse_blit_fb",
+          25472
+        ],
+        [
+          "sparse_decode_done",
+          27316
+        ],
+        [
+          "framebuffer_finish_back",
+          27352
+        ],
+        [
+          "main_entry_audio",
+          28154
+        ],
+        [
+          "audio_process_queue",
+          28512
+        ],
+        [
+          "audio_music_dispatch",
+          28534
+        ],
+        [
+          "audio_advance_all",
+          28578
+        ],
+        [
+          "audio_credit_service",
+          29002
+        ],
+        [
+          "audio_mix",
+          29025
+        ],
+        [
+          "audio_mix_write",
+          30399
+        ],
+        [
+          "mainloop",
+          31045
+        ]
+      ],
+      "front": 0
+    },
+    "4": {
+      "index": 13,
+      "cycles": 37941,
+      "active": 4,
+      "death": 0,
+      "state": [
+        0,
+        8,
+        0,
+        0,
+        4,
+        4,
+        1,
+        0,
+        0,
+        0,
+        164,
+        128
+      ],
+      "marks": [
+        [
+          "main_game_tick_normal",
+          414
+        ],
+        [
+          "enemy_tick",
+          502
+        ],
+        [
+          "main_after_player",
+          2913
+        ],
+        [
+          "main_render",
+          3169
+        ],
+        [
+          "framebuffer_prepare_back",
+          3199
+        ],
+        [
+          "actor_closure_restore",
+          3797
+        ],
+        [
+          "acr_enemies",
+          5006
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          5147
+        ],
+        [
+          "acr_enemy_next",
+          6789
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          6935
+        ],
+        [
+          "acr_enemy_next",
+          8353
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          8499
+        ],
+        [
+          "acr_enemy_next",
+          9789
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          9935
+        ],
+        [
+          "acr_enemy_next",
+          11262
+        ],
+        [
+          "framebuffer_queue_damage",
+          11290
+        ],
+        [
+          "framebuffer_project_damage",
+          11694
+        ],
+        [
+          "roam_mark_underlay",
+          12411
+        ],
+        [
+          "frame_render_background",
+          12488
+        ],
+        [
+          "fri_secondary",
+          12792
+        ],
+        [
+          "fri_background_done",
+          12826
+        ],
+        [
+          "roam_mark_underlay",
+          13195
+        ],
+        [
+          "frame_render_background",
+          13242
+        ],
+        [
+          "draw_perimeter_box",
+          13440
+        ],
+        [
+          "dpb_row",
+          13610
+        ],
+        [
+          "dpb_row",
+          13821
+        ],
+        [
+          "dpb_row",
+          14088
+        ],
+        [
+          "dpb_row",
+          14355
+        ],
+        [
+          "dpb_row",
+          14622
+        ],
+        [
+          "dpb_row",
+          14889
+        ],
+        [
+          "dpb_row",
+          15156
+        ],
+        [
+          "dpb_row",
+          15423
+        ],
+        [
+          "fri_secondary",
+          15705
+        ],
+        [
+          "fri_background_done",
+          15739
+        ],
+        [
+          "actor_closure_draw",
+          15753
+        ],
+        [
+          "acd_save_loop",
+          15780
+        ],
+        [
+          "acd_save_loop",
+          17001
+        ],
+        [
+          "acd_save_loop",
+          18090
+        ],
+        [
+          "acd_save_loop",
+          19508
+        ],
+        [
+          "acd_draw_loop",
+          20572
+        ],
+        [
+          "sparse_blit_fb",
+          20751
+        ],
+        [
+          "sparse_decode_done",
+          23368
+        ],
+        [
+          "acd_draw_loop",
+          23406
+        ],
+        [
+          "sparse_blit_fb",
+          23585
+        ],
+        [
+          "sparse_decode_done",
+          25812
+        ],
+        [
+          "acd_draw_loop",
+          25850
+        ],
+        [
+          "sparse_blit_fb",
+          26029
+        ],
+        [
+          "sparse_decode_done",
+          28098
+        ],
+        [
+          "acd_draw_loop",
+          28136
+        ],
+        [
+          "sparse_blit_fb",
+          28315
+        ],
+        [
+          "sparse_decode_done",
+          30480
+        ],
+        [
+          "acd_death",
+          30527
+        ],
+        [
+          "acd_normal_player",
+          30575
+        ],
+        [
+          "sparse_blit_fb",
+          31845
+        ],
+        [
+          "sparse_decode_done",
+          33689
+        ],
+        [
+          "framebuffer_finish_back",
+          33725
+        ],
+        [
+          "main_entry_audio",
+          34524
+        ],
+        [
+          "audio_process_queue",
+          35006
+        ],
+        [
+          "audio_process_queue",
+          35336
+        ],
+        [
+          "audio_music_dispatch",
+          35358
+        ],
+        [
+          "audio_advance_all",
+          35402
+        ],
+        [
+          "audio_credit_service",
+          35962
+        ],
+        [
+          "audio_mix",
+          35985
+        ],
+        [
+          "audio_mix_write",
+          37235
+        ],
+        [
+          "mainloop",
+          37941
+        ]
+      ],
+      "front": 1
+    }
+  },
+  "crossover": {
+    "result": "pass",
+    "cases": 40,
+    "owner_counts": {
+      "0": 20,
+      "1": 20
+    },
+    "raw_state_difference_bytes": 0,
+    "oracle": "Exact both-framebuffer pixels and full page-$34 state; restore identical physical RAM/registers/mappings and alternate reference/candidate order",
+    "timing_limit": "Emulator event-clock phase is not restored with memory; crossover is pixel/state evidence. Performance claims use isolated kernel and matched sequential worklists."
+  },
+  "qa_verdict": "Local >=150-cycle target, exact restoration, replay and capacity pass. Retain fitted partial optimization; BUG-058 stays Proposed because overall timing and natural acceptance remain open."
+}
