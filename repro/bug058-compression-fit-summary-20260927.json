@@ -1,0 +1,134 @@
+{
+  "status": "Approved isolated compression fit verified; not integrated; BUG-058 timing target still fails",
+  "baseline_revision": "e880b52 plus bug058-mask-fit-20260927.patch",
+  "baseline_rom_sha256": "9f96bdb524f5a1bc730a6b225dd2f62c4ac4d47339108f8f9b8b549472b78b53",
+  "rom_sha256": "e2cff30b27caa2a9f8ce9e1000208fdc7c468bfbb691824e82e2628d40ccce27",
+  "source_page_raw_bytes": 8192,
+  "source_page_compressed_bytes": 2500,
+  "recovered_source_bytes": 5692,
+  "source_limit": 41438,
+  "source_used": 35333,
+  "source_free": 6105,
+  "helper_raw_bytes": 697,
+  "host_packed_free_with_helper": 5408,
+  "runtime_unchanged": {
+    "ladybug-runtime.rom": "79a9e9c74a869dbbe94d52b35a98a513f93bc5c91f0652c9d100b951fd8e85c1",
+    "ladybug-enemy-runtime.rom": "a02affb0f8936e49160718828b99cfb199c6b97e12fe8d3ce0abb4f199900208",
+    "ladybug-enemy-sparse.bin": "688af5ca9c98802096aa50cf47ef65b78077205f7d77a4d70415bbfb4d51029d",
+    "ladybug-audio-runtime.bin": "180d5a2a63cac154338a0936e1c7622103629ea67f681e60b2db03739ae40d40",
+    "ladybug-presentation-runtime.bin": "ad448a23f27b5d9f339f8f981ab0afcfc47604f9390b2b9d9cc1343a6011633c"
+  },
+  "capacity": {
+    "resident": [
+      8170,
+      8192
+    ],
+    "assets": [
+      7648,
+      7680
+    ],
+    "enemy": [
+      4091,
+      4096
+    ],
+    "presentation": [
+      1273,
+      1280
+    ],
+    "audio_engine": [
+      734,
+      920
+    ],
+    "audio_banked": [
+      5675,
+      8192
+    ],
+    "cold": [
+      14362,
+      16384
+    ],
+    "boot": [
+      1382,
+      2048
+    ]
+  },
+  "probe_failures": [
+    {
+      "boundary": "initial C002 before explicit SAM_CART",
+      "failure": "CPU mapping still held BASIC autorun copy rather than cartridge source",
+      "correction": "verify cartridge at boot_copy after MMU/SAM setup; verify relocated body before interpreting it"
+    },
+    {
+      "boundary": "dgs_flags MMU destination",
+      "failure": "unmasked CPU read $B9 compared with page $39",
+      "correction": "GIME state confirms six-bit page; all five raw/actual mappings retained in boot receipt"
+    }
+  ],
+  "build_corrections": [
+    "First ownership audit rejected missing boot-audio-stream consumer annotation; all five uses declared",
+    "Full audio verifier retained pre-existing sorted-mixer counter mismatch; change only expected counter to audio_mix_priority, retaining four-slot and clobbered-B checks. Audio binary is byte-identical."
+  ],
+  "runtime_checks": {
+    "cold_boot": {
+      "result": "pass",
+      "checks": 19,
+      "sha256": "8ed76e1a53267f80cdec73437432afb71db269aeb541ec9189097a1e918644c5"
+    },
+    "gdb": {
+      "result": "pass",
+      "checks": 3,
+      "sha256": "c1c8561e16a08453e375c50676c8664b024be1baa69013d3a861f5cfe02b68f8"
+    },
+    "natural_startup": {
+      "result": "pass",
+      "checks": 6,
+      "sha256": "b4bea717dc7278fdd2513173af8a732a970730497d916d302dee70a4e762be29"
+    }
+  },
+  "count_sweep": {
+    "samples": 80,
+    "each_count": 16,
+    "four_enemy_cycles": [
+      32508,
+      32989,
+      31326,
+      31957,
+      35101,
+      36178,
+      31257,
+      32256,
+      31146,
+      31686,
+      30976,
+      31500,
+      31760,
+      37124,
+      35480,
+      33485
+    ],
+    "four_enemy_mean": 32920.5625,
+    "four_enemy_max": 37124,
+    "target": 27000,
+    "target_misses": 16,
+    "interpretation": "No rendering performance change: runtime executables unchanged. Controlled fixture, not a whole-game bound."
+  },
+  "evidence": {
+    "bug058-compression-fit-20260927.patch": "181d655297ff780bb2c398eaa5c3d3a846c2b47c1607b656d196b8734296fce9",
+    "bug058-compression-boot.py": "be1a0a665e25610d4a773780117bf1aba82c8c82d8996a839d7894f06447dfe4",
+    "bug058-compression-boot-20260927.json": "8ed76e1a53267f80cdec73437432afb71db269aeb541ec9189097a1e918644c5",
+    "bug058-compression-gdb-20260927.json": "c1c8561e16a08453e375c50676c8664b024be1baa69013d3a861f5cfe02b68f8",
+    "bug058-compression-startup-20260927.json": "b4bea717dc7278fdd2513173af8a732a970730497d916d302dee70a4e762be29",
+    "bug058-compression-counts-20260927.json": "522f6252868786da4bc8a0a0497039fa46c8cd2d9f232b9527d102b83b11f772",
+    "bug058-compression-audio-verified-20260927.log": "f93c6514b26393c7438d6a4f42c67193c41fd246b516610c80237a7cea0301a1",
+    "bug058-compression-build-final-20260927.log": "d25b5cb5dc569d1619a2adb195f9d69b472cd6b39e8fe9b70b5ee754425c5c05"
+  },
+  "final_build": {
+    "result": "pass",
+    "rom_matches_live_tested_snapshot": true,
+    "source_routines": "256/256",
+    "source_labels": "4098/4098",
+    "ownership_records": 23,
+    "ownership_errors": 0,
+    "cumulative_patch_reverse_check": "pass (Windows git)"
+  }
+}
