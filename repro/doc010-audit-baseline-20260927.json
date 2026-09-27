@@ -1,0 +1,145 @@
+{
+  "ticket": "DOC-010",
+  "revision": "42e7590352957fa9c0dac646d677cc2881c9c8da",
+  "date": "2026-09-27",
+  "audit_scope": "Initial source-backed seed inventory, not a complete ownership or safety audit",
+  "records": [
+    {
+      "id": "multiplier-x-index",
+      "kind": "generated-index",
+      "definition_file": "scripts/shared_text.py",
+      "symbol_or_producer": "PRESENTATION_MULTIPLIER_X_GRAPHIC",
+      "related_consumers": [
+        "src/main.s:draw_multiplier_hud"
+      ],
+      "review_note": "Shared-text descriptor supplies final atlas index; repacking must update generated symbol, not a literal.",
+      "related_ticket": "BUG-053"
+    },
+    {
+      "id": "enemy-player-stream-index",
+      "kind": "generated-index",
+      "definition_file": "scripts/build_sparse_sprites.py",
+      "symbol_or_producer": "pack_indexed_frames",
+      "related_consumers": [
+        "src/enemy_runtime.s:sparse_enemy_stream",
+        "src/enemy_runtime.s:sparse_player_stream"
+      ],
+      "review_note": "Three-byte page/address entries; distinguish logical frame identity from physical stream placement and map the index before dereferencing.",
+      "related_ticket": "BUG-058"
+    },
+    {
+      "id": "ring-base-pointer",
+      "kind": "scratch",
+      "definition_file": "src/enemy_runtime.s",
+      "symbol_or_producer": "RING_BASE",
+      "related_consumers": [
+        "roam_capture_ring_row",
+        "roam_copy_bg_to_fb"
+      ],
+      "review_note": "Two bytes at $009E-$009F, used as both background base and row-copier dispatch pointer; lifetime changes by routine. Persistent flags cannot occupy either byte.",
+      "related_ticket": "PERF-007"
+    },
+    {
+      "id": "entity-cache-colour",
+      "kind": "persistent-cache-state",
+      "definition_file": "src/enemy_runtime.s",
+      "symbol_or_producer": "ENTITY_CACHE_COLOR",
+      "related_consumers": [
+        "src/main.s:ENTITY_CACHE_COLOR",
+        "src/enemy_runtime.s:colour_prepare_nest"
+      ],
+      "review_note": "Page-$34 $A89C is separate from direct-page ring scratch. Cache-validity semantics must be declared and linked to publication/invalidation.",
+      "related_ticket": "PERF-007"
+    },
+    {
+      "id": "audio-work-slot",
+      "kind": "scratch",
+      "definition_file": "src/audio_runtime.s",
+      "symbol_or_producer": "AUDIO_WORK_SLOT",
+      "related_consumers": [
+        "audio_slot_base",
+        "audio_mix",
+        "audio_advance_all"
+      ],
+      "review_note": "Direct-page work index reused by audio routines; banked slot records and scratch must carry distinct mapping/lifetime identities.",
+      "related_ticket": "BUG-037"
+    },
+    {
+      "id": "player-save-under",
+      "kind": "retained-background",
+      "definition_file": "src/main.s",
+      "symbol_or_producer": "save_player",
+      "related_consumers": [
+        "src/main.s:restore_player",
+        "src/enemy_runtime.s:restore_player_visible",
+        "src/enemy_runtime.s:actor_closure_restore"
+      ],
+      "review_note": "Owner-specific saved pixels and validity; visible-row entry/death paths require separate invalidation and extent contracts.",
+      "related_ticket": "BUG-039"
+    },
+    {
+      "id": "enemy-save-under",
+      "kind": "retained-background",
+      "definition_file": "src/enemy_runtime.s",
+      "symbol_or_producer": "roam_update_background",
+      "related_consumers": [
+        "roam_copy_bg_to_fb",
+        "actor_closure_restore",
+        "actor_closure_draw",
+        "roam_mark_underlay"
+      ],
+      "review_note": "Owner-specific ring, old footprint, valid and dirty masks. Capture only after removal of prior actors and relevant scenery publication.",
+      "related_ticket": "BUG-058"
+    },
+    {
+      "id": "framebuffer-metadata",
+      "kind": "retained-background-metadata",
+      "definition_file": "src/enemy_runtime.s",
+      "symbol_or_producer": "framebuffer_prepare_back",
+      "related_consumers": [
+        "framebuffer_capture_back",
+        "framebuffer_queue_damage",
+        "framebuffer_project_damage"
+      ],
+      "review_note": "Hydrate and publish each framebuffer owner separately; queued background damage differs from transient actor state.",
+      "related_ticket": "BUG-058"
+    },
+    {
+      "id": "nest-underlay-and-animation-cache",
+      "kind": "retained-background",
+      "definition_file": "src/enemy_runtime.s",
+      "symbol_or_producer": "build_enemy_nest_cache",
+      "related_consumers": [
+        "compose_enemy_animation",
+        "compose_enemy_zone"
+      ],
+      "review_note": "Separate actor-free nest base from composed animation cache; mutable entities and clipped boundaries require explicit replay/validity rules.",
+      "related_ticket": "BUG-040"
+    }
+  ],
+  "existing_tooling": {
+    "generator": "scripts/build_source_reference.py",
+    "verifier": "scripts/verify_source_documentation.py",
+    "config": "scripts/source_reference.json",
+    "package": "scripts/source_reference/"
+  },
+  "findings": [
+    "Config revision still fac594fea1af6f33eb8bd60ed5d71c4f72eee16c",
+    "Seven registered modules; audio and separate high-score runtime/helper variants not registered",
+    "release-demo-runtime uses ladybug-instruction-runtime.lst/map rather than demo artifacts",
+    "Current complete-artifact generation and verification both stop at ListingParseError: ruction_runtime.s resolves to 0 source files",
+    "MemoryReference stores symbol occurrence/access category, not access width, byte offset, mapping identity or lifetime; address-taking currently falls into generic read classification",
+    "Source/artifact hashes and mutation tests already exist and should be extended; generating a page does not establish runtime correctness"
+  ],
+  "runtime_or_generator_code_changed": false,
+  "source_hashes": {
+    "scripts/source_reference.json": "7fdf78db38d69e6a0e5b14865f09c1bdfd0a0af570e8858c88ac5cc7eede00c0",
+    "scripts/source_reference/model.py": "84ef1571549f57175df5d1de3ad96c1681bc45f8b68bebfefd12b2aa01cb4bde",
+    "scripts/source_reference/normalize.py": "b481954dfaf2423ba54ff1a9f20c30195157d573512e3b1967cc6f260a82fec5",
+    "scripts/shared_text.py": "fdcfb8390facc6cd2dcdfb0630010f9a01868d9ad0f74c289c9a4789e639a47f",
+    "scripts/build_sparse_sprites.py": "0d189cf7e68b2d7e942edb1bcb4b2a3c61bfa8a8841d65744937b04c8c76dd9e",
+    "src/main.s": "b659aa2222e9e5089b4b96993060c41a6e6737bb1df619e9d2e62a3434aed1ae",
+    "src/enemy_runtime.s": "36b18664c62a46ecad9d5dce089ed925977ac6685cc2e7ae722259cbc407360d",
+    "src/audio_runtime.s": "23cb291b3b598953d2154107dee93401df9d9fdb45d5c175befebaa81f5d4fb0"
+  }
+}
