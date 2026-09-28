@@ -43,10 +43,11 @@ def reconstruct(banks: dict[int, bytes], segments, target: str, size: int) -> by
 
 
 def main() -> None:
+    # Exercise the unchanged raw allocator boundary, not compressible fixture size.
     capacity = source_capacity()
     payload = bytes((index * 37 + 11) & 0xFF for index in range(capacity))
     bank0, bank2, bank3, segments = pack_candidate_banks(
-        payload, b"", b"", b"", b""
+        payload, b"", b"", b"", b"", compress_enemy_pages=False
     )
     banks = {0: bank0, 2: bank2, 3: bank3}
     if reconstruct(banks, segments, "enemy", len(payload)) != payload:
@@ -58,7 +59,7 @@ def main() -> None:
     if final.bank != 0 or final.source_offset + final.count != CART_READABLE_BYTES:
         raise SystemExit("GMC overflow proof: exact-boundary case did not end at $3E00")
     try:
-        pack_candidate_banks(payload + b"\x00", b"", b"", b"", b"")
+        pack_candidate_banks(payload + b"\x00", b"", b"", b"", b"", compress_enemy_pages=False)
     except ValueError as error:
         if "exceed CPU-readable GMC capacity" not in str(error):
             raise

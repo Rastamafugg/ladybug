@@ -34,8 +34,12 @@ def main() -> None:
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
     streams = manifest.get("compression", {}).get("streams", [])
     required = {"page39", "presentation_page_3a", "presentation_page_3b", "audio_page_3d"}
-    if {stream["name"] for stream in streams} != required:
-        raise SystemExit("FEAT-006 compression proof: required four-stream set differs")
+    required.update(f"enemy_page_{0x35 + offset // 8192:02x}"
+                    for offset in range(0, manifest["enemy"]["bytes"], 8192))
+    if len(streams) != len(required) or {stream["name"] for stream in streams} != required:
+        raise SystemExit("FEAT-006 compression proof: required compressed stream set differs")
+    if streams[-1]["name"] != "audio_page_3d":
+        raise SystemExit("FEAT-006 compression proof: audio descriptor is not last")
     banks = {0: args.bank0.read_bytes(), 2: args.bank2.read_bytes(), 3: args.bank3.read_bytes()}
     rows = []
     destinations = []
@@ -78,7 +82,7 @@ def main() -> None:
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(evidence, indent=2) + "\n", encoding="ascii")
-    print(f"FEAT-006 compression proof: 4 byte-exact page-bounded streams; decoder {decoder_bytes} bytes; source margin {margin}/{args.require_source_margin}")
+    print(f"FEAT-006 compression proof: {len(streams)} byte-exact page-bounded streams; decoder {decoder_bytes} bytes; source margin {margin}/{args.require_source_margin}")
 
 
 if __name__ == "__main__":
