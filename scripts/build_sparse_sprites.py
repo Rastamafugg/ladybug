@@ -14,6 +14,8 @@ from build_screen import (
     compile_enemy_sprites,
     compile_player_sprites,
     compile_screen,
+    compile_sprite_codes,
+    VEGETABLE_CODES,
 )
 from gmc_lzss import compress as lzss_compress, decompress as lzss_decompress
 
@@ -398,6 +400,7 @@ def pack_candidate_banks(
         include_streams: bool = False,
         compress_enemy_pages: bool = True,
         adaptive_helper: bytes = b"",
+        vegetable_payload: bytes = b"",
 ) -> tuple:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
     if len(enemy_runtime) > ENEMY_RUNTIME_RESERVED:
@@ -475,7 +478,9 @@ def pack_candidate_banks(
         raise ValueError("adaptive helper exceeds $BD44-$BFFD")
     targets += target_chunks("adaptive_helper", adaptive_helper, 0x34, 0xBD44)
 
-    page39_raw = player_payload + gate_payload + presentation_payload
+    page39_raw = player_payload + gate_payload + presentation_payload + vegetable_payload
+    if len(page39_raw) > PAGE_BYTES:
+        raise ValueError("page39 sprite payload exceeds existing page")
     stream_targets = [
         ("page39", page39_raw, PLAYER_PAGE_BASE, WINDOW_BASE),
         ("presentation_page_3a", presentation_cold[:PAGE_BYTES], 0x3A,
@@ -711,6 +716,7 @@ def family_manifest(frames: list[bytes]) -> list[dict[str, object]]:
     return families
 
 
+# @audit-producer {"id":"vegetable-sparse","symbols":["VEGETABLE_SPARSE_INDEX"],"function":"main"}
 def main() -> None:
     args = parse_args()
     enemy_frames = compile_enemy_sprites(args.sprites)
@@ -730,6 +736,21 @@ def main() -> None:
     )
     gate_payload = args.gate_input.read_bytes()
     presentation_payload = args.presentation_input.read_bytes()
+    vegetable_payload = b""
+    vegetable_index = []
+    if args.adaptive_helper:
+        index_address = WINDOW_BASE + len(player_payload) + len(gate_payload) + len(presentation_payload)
+        if index_address != 0xAFB6:
+            raise SystemExit("vegetable sparse index moved; review runtime selector")
+        frames = compile_sprite_codes(args.sprites, VEGETABLE_CODES)
+        streams = [encode_sparse_frame(frame, LEGACY_ENEMY_PEN_MAP) for frame in frames]
+        address = index_address + 3 * len(frames)
+        index = bytearray()
+        for ordinal, stream in enumerate(streams):
+            index.extend((PLAYER_PAGE_BASE, address >> 8, address & 255))
+            vegetable_index.append({"frame": ordinal, "page": PLAYER_PAGE_BASE, "address": address, "bytes": len(stream)})
+            address += len(stream)
+        vegetable_payload = bytes(index) + b"".join(streams)
     screen_map, tiles, *_ = compile_screen(
         args.perimeter_map, args.perimeter_maze, args.perimeter_chars,
         args.sprites,
@@ -793,6 +814,7 @@ def main() -> None:
         highscore_runtime, highscore_helper,
         include_streams=True,
         adaptive_helper=args.adaptive_helper.read_bytes() if args.adaptive_helper else b"",
+        vegetable_payload=vegetable_payload,
     )
     outputs = (
         (args.enemy_output, enemy_payload),
@@ -805,6 +827,8 @@ def main() -> None:
     for path, data in outputs:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+    if vegetable_payload:
+        (args.manifest_output.parent / "ladybug-vegetable-sparse.bin").write_bytes(vegetable_payload)
     write_loader_include(args.loader_output, segments, packed_streams)
 
     proof_bytes = len(BOOT_OVERFLOW_PROOF)
@@ -1021,6 +1045,8 @@ def main() -> None:
             "destination_end": 0x06AA,
             "sha256": digest(demo_runtime),
         }
+    if vegetable_payload:
+        manifest["vegetable"] = {"frames": len(vegetable_index), "bytes": len(vegetable_payload), "index_bytes": 3 * len(vegetable_index), "page": PLAYER_PAGE_BASE, "address": 0xAFB6, "pen_map": list(LEGACY_ENEMY_PEN_MAP), "index": vegetable_index, "sha256": digest(vegetable_payload)}
     args.manifest_output.parent.mkdir(parents=True, exist_ok=True)
     args.manifest_output.write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="ascii"

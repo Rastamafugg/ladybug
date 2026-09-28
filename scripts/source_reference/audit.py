@@ -81,6 +81,10 @@ def build_audit(project, root, policy, receipt):
                 except ValueError as exc:
                     errors.append(f'invalid annotation {line.file}:{line.number}: {exc}')
                     continue
+                # A profile-specific declaration is active only when its
+                # assembler guard symbol exists in this module's current map.
+                if declaration.get('requires_symbol') and declaration['requires_symbol'] not in symbols[m.id]:
+                    continue
                 declaration = dict(declaration, module=m.id, file=line.file, line=line.number)
                 if declaration.get('modules') and m.id not in declaration['modules']:
                     continue

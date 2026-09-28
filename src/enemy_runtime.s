@@ -3503,6 +3503,33 @@ sbs_extended
         bra     sbs_command
 
 draw_vegetable_stage
+        ifne ADAPTIVE_RENDERING
+        ; The existing page-$39 prefix is 2294+832+896 bytes. The builder
+        ; checks this index placement before extending its boot stream.
+; @audit {"id":"vegetable-stage-index","kind":"index","symbol":"VEGETABLE_SPARSE_INDEX","requires_symbol":"VEGETABLE_SPARSE_INDEX","producer":"vegetable-sparse","domain":"Stage0/1 selects frame0; stage2..18 selects frame1..17; stages19..255 clamp to17","encoding":"Three-byte page/address entries in the existing boot-expanded page39 payload; decoder restores page34","bounds":[40960,49151],"index_bytes":"VEGETABLE_SPARSE_INDEX_BYTES","index_page":"VEGETABLE_SPARSE_PAGE","stride":3}
+VEGETABLE_SPARSE_INDEX equ $AFB6
+VEGETABLE_SPARSE_INDEX_BYTES equ 54
+VEGETABLE_SPARSE_PAGE equ $39
+        lda     STAGE
+        beq     dvs_sparse_first
+        deca
+        cmpa    #18
+        blo     dvs_sparse_index
+        lda     #17
+        bra     dvs_sparse_index
+dvs_sparse_first
+        clra
+dvs_sparse_index
+        ldb     #3
+        mul
+; @audit-use {"id":"vegetable-stage-index","symbol":"VEGETABLE_SPARSE_INDEX","requires_symbol":"VEGETABLE_SPARSE_INDEX"}
+        ldu     #VEGETABLE_SPARSE_INDEX
+        leau    d,u
+        lda     #$39
+        sta     GIME_PAR5
+        ldu     1,u
+        lbra    sparse_blit_stage
+        else
         pshs    x
         lda     STAGE
         beq     dvs_first
@@ -3522,6 +3549,7 @@ dvs_draw
         puls    x
         ldu     #sprite_attr0_pairs
         ; Fall through to the compact vegetable painter.
+        endc
 
 ; Expand one 64-byte 2bpp source into a compact 128-byte 4bpp surface.
 blit_stage_sprite
