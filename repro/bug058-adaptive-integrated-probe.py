@@ -54,17 +54,18 @@ def trace_output():
     expected.extend((noise[0]&7,noise[1]&15));shadow.extend((0xE0|(noise[0]&7),0xF0|(noise[1]&15)))
     assert decoded==expected and phys(0x3D,ads['audio_mix_shadow'],11)==bytes(shadow) and read(0xFFA5)[0]&63==0x34,'adaptive PSG/shadow output mismatch'
     return {'writes':writes,'decoded_registers':decoded,'shadow':bytes(shadow).hex(),'page34':True}
-def profiled_return():
+def profiled_return(stop_pc=None):
     # Entry/return inclusive spans, with child spans subtracted for exclusive
     # costs. Stack-qualified returns handle nested calls without double count.
     groups=[(act,['adaptive_tick_binding','adaptive_audio_binding','adaptive_render','adaptive_global_binding','adaptive_key_binding']),
             (es,['framebuffer_prepare_back','actor_closure_restore','roam_copy_bg_to_fb','roam_update_background','actor_closure_draw','sparse_blit_fb','frame_render_background','colour_prepare_nest','framebuffer_finish_back','compose_enemy_zone','compose_enemy_animation','bnc_copy','draw_enemy_stage','draw_vegetable_stage','copy_native_row']),
             (ms,['sync_entity_cache_colour','render_entity_colour','draw_perimeter_box','draw_entities','erase_entity_footprints','repair_settled_entity_gates'])]
+    if stop_pc is None:stop_pc=ms['mainloop']
     entries={sy[n]:n for sy,names in groups for n in names}
     ids={};frames=[];totals={};hits=0
     def bp(a):
         if a not in ids:ids[a]=m.setup(c,[a])[0]
-    for a in [ms['mainloop'],*entries]:bp(a)
+    for a in [stop_pc,*entries]:bp(a)
     try:
         while True:
             assert time.monotonic()<deadline,'45-second profiled phase deadline'
@@ -74,7 +75,7 @@ def profiled_return():
                 f=frames.pop();span=now-f['start'];row=totals.setdefault(f['name'],{'calls':0,'inclusive':0,'exclusive':0})
                 row['calls']+=1;row['inclusive']+=span;row['exclusive']+=span-f['children']
                 if frames:frames[-1]['children']+=span
-            if pc==ms['mainloop']:
+            if pc==stop_pc:
                 assert not frames,('unreturned profile frames',frames)
                 return totals,hits
             if pc in entries:
@@ -190,6 +191,40 @@ try:
         for page,raw in data.items():c.call('write_memory',{'space':'physical','addr':page*8192,'data':raw.hex()})
         write(0xFFA5,[0x34])
     frozen=snapshot_pages();natural_regs=c.call('read_registers')
+    if '--sustained-timing' in sys.argv[3:]:
+        # A longer real foreground sequence from the proved four-roaming
+        # fixture. Preserve its pixels, stack and histories for later gates.
+        deadline=time.monotonic()+45;rows=[];profile_enabled=False
+        for index in range(64):
+            row=measure();row.update(death=read(ms['DEATH_STATE'])[0],roaming=all(read(es['ENEMY_TABLE']+i+6)[0] for i in range(0,32,8)))
+            rows.append(row)
+            if row['enemies']!=4 or row['mode']!=0 or row['death'] or not row['roaming']:break
+        e['sustained_timing']={'scope':'real foreground continuation from controlled four-roaming quiet fixture; player parked at legal22,22 and prior audio explicitly silenced',
+            'required_worklists':64,'observed_worklists':len(rows),'sequence_complete':len(rows)==64 and all(row['enemies']==4 and row['mode']==0 and not row['death'] and row['roaming'] for row in rows),
+            'deadline_seconds':45,'target_cycles':27000,'cycle_range':[min(row['cycles'] for row in rows),max(row['cycles'] for row in rows)],
+            'timing_pass':all(row['cycles']<=27000 for row in rows),'worklists':rows,'both_owners':{row['owner'] for row in rows}=={0,1}}
+        restore_pages(frozen);c.call('write_registers',{k:natural_regs[k] for k in ('a','b','cc','dp','x','y','u','s','pc')})
+        # Force only clock debt/due state. The installed scheduler and actual
+        # logic must execute four steps; transient barriers remain effective.
+        deadline=time.monotonic()+45;word(0xBD28,4);word(0xBD30,int.from_bytes(read(2,2),'big'))
+        profile_enabled=True;row=measure();profile_enabled=False
+        steps=(row['logical_after']-row['logical'])&65535
+        e['four_step_timing']={'scope':'forced scheduler debt; real parser, simulation, audio and composition; a barrier may shorten this worklist',
+            'executed_steps':steps,'four_step_marker':steps==4,'target_cycles':27000,'timing_pass':row['cycles']<=27000,'worklist':row,'deadline_seconds':45}
+        restore_pages(frozen);c.call('write_registers',{k:natural_regs[k] for k in ('a','b','cc','dp','x','y','u','s','pc')})
+        deadline=time.monotonic()+45;colour_before=read(ms['BONUS_COLOR'])[0]
+        assert read(ms['BONUS_LEFT'])[0]>0,'colour boundary fixture has no remaining collectibles'
+        word(ms['BONUS_TIMER'],1);colour_rows=[]
+        for index in range(12):
+            profile_enabled=index<2;row=measure();row.update(colour=read(ms['BONUS_COLOR'])[0],death=read(ms['DEATH_STATE'])[0]);colour_rows.append(row)
+            assert row['enemies']==4 and row['mode']==0 and row['fault']==0 and not row['death'],'colour-boundary continuation lost active fixture'
+        profile_enabled=False
+        assert colour_rows[0]['colour']!=colour_before and {row['owner'] for row in colour_rows}=={0,1},'colour boundary or alternating history marker absent'
+        e['colour_boundary_timing']={'scope':'force only the existing bonus timer to1; actual colour tick, two retained histories and12 foreground worklists',
+            'deadline_seconds':45,'target_cycles':27000,'colour_before':colour_before,
+            'cycle_range':[min(row['cycles'] for row in colour_rows),max(row['cycles'] for row in colour_rows)],
+            'timing_pass':all(row['cycles']<=27000 for row in colour_rows),'worklists':colour_rows,'both_owners':True}
+        restore_pages(frozen);c.call('write_registers',{k:natural_regs[k] for k in ('a','b','cc','dp','x','y','u','s','pc')})
     e['journal_boundaries']=[]
     for kind in ('pending','barrier','full-append','coin-seven','coin-eight','four-step-reserve'):
         deadline=time.monotonic()+45;restore_pages(frozen);call(0x9FD)
@@ -240,7 +275,13 @@ try:
         for intent,cell in records:
             write(0x7F,intent);write(9,cell);_,regs=call(0xA03);assert regs['cc']&1==0,('append fault',scenario,owner)
         counts=list(read(0xBD38,2));assert counts==[len(records)]*2
-        write(0x7F,bytes(16));_,regs=call(0x39E);assert regs['cc']&1==0 and read(0xBD3A)==bytes([0])
+        write(0x7F,bytes(16));render_detail=None
+        if '--sustained-timing' in sys.argv[3:] and owner==0 and scenario in ('HUD/colour/nest/multiplier','legal cross-slot gate transitions','mixed keyed coverage'):
+            write(0x1EFC,[RET>>8,RET&255]);write(RET,[0x20,0xFE]);c.call('write_registers',{'pc':0x39E,'s':0x1EFC,'dp':0,'cc':0x50,'a':0})
+            start=c.call('read_cycles')['event_ticks'];render_detail,hits=profiled_return(RET)
+            render_cycles=(c.call('read_cycles')['event_ticks']-start)//8;regs=c.call('read_registers')
+        else:render_cycles,regs=call(0x39E)
+        assert regs['cc']&1==0 and read(0xBD3A)==bytes([0])
         actual=r.read_owner(c,owner);assert r.read_owner(c,1-owner)==front,('front changed',scenario,owner)
         restore_pages(frozen);write(0x91,[0]);write(0x8F,[1-owner]);write(0x90,[owner]);write(0x7F,bytes(16))
         call(es['framebuffer_prepare_back']);write(es['ENEMY_CAPTURE_DIRTY'],[0]);call(es['colour_prepare_nest']);call(es['actor_closure_restore'])
@@ -256,7 +297,7 @@ try:
             offsets=[i for i,(x,y) in enumerate(zip(actual,expected)) if x!=y]
             e['pixel_failure']={'scenario':scenario,'owner':owner,'difference_bytes':len(offsets),'rows':sorted(set(i//160 for i in offsets))[:32],'first':[{'offset':i,'candidate':actual[i],'sequential':expected[i]} for i in offsets[:20]],'candidate_sha256':r.digest(actual),'sequential_sha256':r.digest(expected)}
             raise AssertionError('multi-record pixels differ from sequential replay')
-        e['pixel_cases'].append({'scenario':scenario,'owner':owner,'history_counts':counts,'pixels_exact':True,'sha256':r.digest(actual)})
+        e['pixel_cases'].append({'scenario':scenario,'owner':owner,'history_counts':counts,'render_only_cycles':render_cycles,'render_profile':render_detail,'pixels_exact':True,'sha256':r.digest(actual)})
     restore_pages(frozen)
     e['installed_input_overlay_cases']=[]
     deadline=time.monotonic()+45;restore_pages(frozen);call(0x9FD)
@@ -451,7 +492,8 @@ try:
                 if death==0 and read(ms['LIVES'])==bytes([0]) and read(ms['PLAYER_FB'],2)==bytes.fromhex('75ec'):break
             assert death_states=={0,1,2,3} and owners=={0,1} and samples<699,'full shrink/wings/blank/replacement marker missing'
             e['full_death_continuation']={'scope':'forced valid death-start state, real foreground through full shrink/wings/blank and replacement entrance','samples':samples+1,'states':sorted(death_states),'both_owners':True,'first_phase_frame_sha256':frames,'pixel_fidelity_not_an_oracle':True}
-    e['status']='scoped-pass';e['limitations']=['Original27000-cycle timing still fails; sustained/exceptional timing and generated standalone adaptive-module audit registration remain open. Human play/listening and exact audio cadence fidelity are unverified.','Boundary-forced life/stage/name scenarios exercise the real dispatcher and owners; they are not naturally earned level completion or enemy collision.']
+    e['status']='functional-pass-timing-fail' if '--sustained-timing' in sys.argv[3:] else 'scoped-pass'
+    e['limitations']=['Original27000-cycle timing still fails; full timing acceptance and exact audio cadence fidelity remain open; audit registration must be checked separately. User overall natural behavior was accepted for3e732c4, without specified per-scenario coverage.','Boundary-forced life/stage/name scenarios exercise the real dispatcher and owners; they are not naturally earned level completion or enemy collision.']
     if '--natural-turn' not in sys.argv[3:]:e['limitations'].append('Natural directional turning not requested in this run.')
     if '--phase-handoffs' not in sys.argv[3:]:e['limitations'].append('Real stage/name/full-death handoffs not requested in this run.')
     if '--psg-trace' not in sys.argv[3:]:e['limitations'].append('Installed adaptive PSG trace not requested in this run.')

@@ -1,0 +1,124 @@
+{
+  "status": "pass",
+  "build_revision": "3e732c4c2287c317cc3c03d46c795669f25b3064",
+  "rom_sha256": "df5cff4f67f3a09781cd004585d7d78e7f70cce608206052bb97fb3c9aade7d0",
+  "module_count": 13,
+  "generated_inputs": {
+    "build/ladybug-adaptive-active.s": "8d411976a3cf870a531480a970e63883c67e1cfa15882d0ee2a49b51f89f9459",
+    "build/ladybug-adaptive-banked.s": "b67f6069aca792393ba9ecfa94bd703c8c165ba67b852cc0a6d5662a522c7d97",
+    "build/ladybug-adaptive-mapped.s": "0ae1c65ae1bd7bb30ca03a756dca0977d8acaed464241303a5be5d46fd260f25"
+  },
+  "negative_gates": [
+    {
+      "case": "stale generated source hash",
+      "rejection": "stale generated assembly input: build/ladybug-adaptive-active.s"
+    },
+    {
+      "case": "missing pre-assembly source receipt",
+      "rejection": "missing pre-assembly generated input: ladybug-adaptive-active.bin"
+    },
+    {
+      "case": "generated input and invocation differ",
+      "rejection": "generated input/invocation hash mismatch: ladybug-adaptive-active.bin"
+    },
+    {
+      "case": "default registry cannot certify adaptive outputs",
+      "rejection": "module inventory mismatch: unregistered={'ladybug-adaptive-active.bin', 'ladybug-adaptive-mapped.bin', 'ladybug-adaptive-banked.bin'}, absent=set()"
+    },
+    {
+      "case": "missing standalone module registration",
+      "rejection": "module inventory mismatch: unregistered={'ladybug-adaptive-mapped.bin'}, absent=set()"
+    }
+  ],
+  "alias_cases": 3,
+  "audit_errors": [],
+  "discovery_counts": {
+    "documented": 27,
+    "excluded": 1856,
+    "unresolved": 998
+  },
+  "records": [
+    {
+      "id": "adaptive-history-a",
+      "interval": [
+        48132,
+        48275
+      ],
+      "minimum_direct_access_extent": 0,
+      "module": "adaptive-banked",
+      "reference_modules": [
+        "adaptive-banked",
+        "adaptive-mapped",
+        "adaptive-active"
+      ]
+    },
+    {
+      "id": "adaptive-history-b",
+      "interval": [
+        48276,
+        48419
+      ],
+      "minimum_direct_access_extent": 0,
+      "module": "adaptive-banked",
+      "reference_modules": [
+        "adaptive-banked",
+        "adaptive-mapped",
+        "adaptive-active"
+      ]
+    },
+    {
+      "aliases": [
+        "AD_LAST",
+        "AD_SIM",
+        "AD_DEBT",
+        "AD_AUDIO",
+        "AD_BEGIN",
+        "AD_END",
+        "AD_DUE",
+        "AD_COMMIT",
+        "AD_RATE",
+        "AD_QUICK",
+        "AD_BATCH",
+        "AD_BARRIER",
+        "AD_COUNT_A",
+        "AD_COUNT_B",
+        "AD_FAULT",
+        "AD_INDEX",
+        "AD_PTR",
+        "AD_SCAN",
+        "AD_MODE",
+        "AD_TOTAL",
+        "AD_CLASS",
+        "AD_RESET",
+        "AD_LAST_TIME",
+        "AD_SIM_TIME",
+        "AD_BEGIN_TIME",
+        "AD_END_TIME",
+        "AD_DUE_TIME",
+        "AD_BARRIER_FLAG",
+        "AD_BARRIER_COMMIT",
+        "AD_FAULT_BYTE",
+        "AD_COUNT_A_ACTIVE",
+        "AD_COUNT_B_ACTIVE",
+        "AD_AUDIO_TIME",
+        "AD_MODE_BYTE"
+      ],
+      "id": "adaptive-state",
+      "interval": [
+        48420,
+        48451
+      ],
+      "minimum_direct_access_extent": 32,
+      "module": "adaptive-banked",
+      "reference_modules": [
+        "adaptive-banked",
+        "adaptive-mapped",
+        "adaptive-active"
+      ]
+    }
+  ],
+  "limitations": [
+    "Lexical alias/extent checks do not certify indirect dataflow or runtime lifetimes.",
+    "Default inventory isolation is proved by rejection, not a new nonadaptive ROM build."
+  ]
+}
