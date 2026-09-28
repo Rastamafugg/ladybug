@@ -1,0 +1,58 @@
+{
+  "phase": "isolated bookkeeping with synthetic no-draw callbacks",
+  "deadline_seconds": 45,
+  "success_marker": "all component calls return to $18FC with expected journals and intents",
+  "timeout_meaning": "component boundary absent, not proof of game slowdown",
+  "rom_sha256": "f67c3424b514be57b56b48916b6d87c94c2e7015685513dff5c9371d14a5b981",
+  "mapped_sha256": "321853b6082b52a064132e466fec3b10a38734d58d2b8ee98710f7373e791498",
+  "banked_sha256": "82079a6ef45281f0d9e3154518d23ddabc1523ed697808c2269bb830e60aadaa",
+  "cycles_unit": "verified fast CPU cycles = event_ticks / 8",
+  "cases": [
+    {
+      "name": "batch",
+      "steps": 1,
+      "cycles": 1286,
+      "history_records_each": 1,
+      "synthetic_tick_only": true
+    },
+    {
+      "name": "batch",
+      "steps": 2,
+      "cycles": 2406,
+      "history_records_each": 2,
+      "synthetic_tick_only": true
+    },
+    {
+      "name": "batch",
+      "steps": 4,
+      "cycles": 4646,
+      "history_records_each": 4,
+      "synthetic_tick_only": true
+    },
+    {
+      "name": "eight-record reduction",
+      "owner_secondary": 0,
+      "cycles": 16986,
+      "key_callbacks": 13,
+      "global_callbacks": 3,
+      "complete_cycles": 111,
+      "pixels_not_drawn": true
+    },
+    {
+      "name": "eight-record reduction",
+      "owner_secondary": 1,
+      "cycles": 16989,
+      "key_callbacks": 13,
+      "global_callbacks": 3,
+      "complete_cycles": 111,
+      "pixels_not_drawn": true
+    },
+    {
+      "name": "ninth record refused",
+      "cycles": 30
+    }
+  ],
+  "scope": "No gameplay, collision, pixel restoration, audio or complete worklist acceptance",
+  "result": "FAIL",
+  "error": "AssertionError()"
+}
