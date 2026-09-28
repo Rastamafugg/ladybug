@@ -1,0 +1,109 @@
+{
+  "phase": "isolated bookkeeping with synthetic no-draw callbacks",
+  "deadline_seconds": 45,
+  "success_marker": "all component calls return to $18FC with expected journals and intents",
+  "timeout_meaning": "component boundary absent, not proof of game slowdown",
+  "rom_sha256": "25198a23ecf2eb233d075c6feb9c97fb9d0495eb8356fd5cc8532dfad3fdca85",
+  "mapped_sha256": "321853b6082b52a064132e466fec3b10a38734d58d2b8ee98710f7373e791498",
+  "banked_sha256": "c6a88c1eadadea8e15eaf2f4d9f303acf76192a91074781d72bd133f2bb5fcfd",
+  "cycles_unit": "verified fast CPU cycles = event_ticks / 8",
+  "cases": [
+    {
+      "name": "batch",
+      "steps": 1,
+      "cycles": 1286,
+      "history_records_each": 1,
+      "synthetic_tick_only": true
+    },
+    {
+      "name": "batch",
+      "steps": 2,
+      "cycles": 2406,
+      "history_records_each": 2,
+      "synthetic_tick_only": true
+    },
+    {
+      "name": "batch",
+      "steps": 4,
+      "cycles": 4646,
+      "history_records_each": 4,
+      "synthetic_tick_only": true
+    },
+    {
+      "name": "bounded journal reduction",
+      "records": 0,
+      "cycles": 755,
+      "pixels_not_drawn": true
+    },
+    {
+      "name": "bounded journal reduction",
+      "records": 1,
+      "cycles": 2171,
+      "pixels_not_drawn": true
+    },
+    {
+      "name": "bounded journal reduction",
+      "records": 2,
+      "cycles": 3703,
+      "pixels_not_drawn": true
+    },
+    {
+      "name": "bounded journal reduction",
+      "records": 4,
+      "cycles": 5828,
+      "pixels_not_drawn": true
+    },
+    {
+      "name": "eight-record reduction",
+      "owner_secondary": 0,
+      "cycles": 13486,
+      "key_callbacks": 13,
+      "global_callbacks": 3,
+      "complete_cycles": 111,
+      "pixels_not_drawn": true
+    },
+    {
+      "name": "eight-record reduction",
+      "owner_secondary": 1,
+      "cycles": 13489,
+      "key_callbacks": 13,
+      "global_callbacks": 3,
+      "complete_cycles": 111,
+      "pixels_not_drawn": true
+    },
+    {
+      "name": "ninth record refused",
+      "cycles": 30
+    },
+    {
+      "name": "raw counter wrap two ticks",
+      "cycles": 2406
+    },
+    {
+      "name": "debt saturation stops later mutation",
+      "cycles": 138
+    },
+    {
+      "name": "publication barrier blocks until commit changes",
+      "first_cycles": 1296,
+      "held_cycles": 60,
+      "resumed_cycles": 1321,
+      "synthetic_barrier_callback_sha256": "d22e09b0660564fe7735090179507998d30c827b386294c08425eb60f1c3707e"
+    },
+    {
+      "name": "cadence lowers on miss and raises after eight quick transactions",
+      "controller_only": true
+    }
+  ],
+  "scope": "No gameplay, collision, pixel restoration, audio or complete worklist acceptance",
+  "identity_verified": {
+    "loaded_enemy_bytes": 4091,
+    "loaded_presentation_bytes": 1273,
+    "loaded_resident_assets_bytes": 15872,
+    "mapped_payload_bytes": 186,
+    "banked_payload_bytes": 689,
+    "callback_payload_bytes": 23
+  },
+  "result": "PASS: isolated bookkeeping assertions only; no complete adaptive ROM acceptance",
+  "receipt_correction": "Original fixed verdict incorrectly carried forward historical source-capacity failure. Compressed-baseline capacity is recorded separately; observed component results unchanged."
+}

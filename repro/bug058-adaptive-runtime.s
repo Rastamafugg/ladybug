@@ -218,17 +218,27 @@ aa_copy
         sta -8,u
         rts
 
-; A=target owner 0/1. Save original live transient intents while reducing.
+; A=target owner 0/1. Save complete transient intents as big-endian pairs.
+; Restore reverse pair order; stack size and saved owner offset stay identical.
 ; Production wrapper restores all buffer-old actors before entering here.
 adaptive_reduce
         pshs a
-        ldx #INTENTS
-        ldb #16
-adr_save
-        lda ,x+
-        pshs a
-        decb
-        bne adr_save
+        ldd INTENTS+0
+        pshs d
+        ldd INTENTS+2
+        pshs d
+        ldd INTENTS+4
+        pshs d
+        ldd INTENTS+6
+        pshs d
+        ldd INTENTS+8
+        pshs d
+        ldd INTENTS+10
+        pshs d
+        ldd INTENTS+12
+        pshs d
+        ldd INTENTS+14
+        pshs d
         ldd PLAYER_CELL
         pshs d
         lda 18,s
@@ -245,20 +255,20 @@ adr_owner
         clr AD_RESET
         clr AD_INDEX
         ldx #INTENTS
-        ldb #16
+        ldb #4
 adr_zero
+        clr ,x+
+        clr ,x+
+        clr ,x+
         clr ,x+
         decb
         bne adr_zero
         ; Merge only whole-layer classes; latest keyed coverage stays separate.
+        ldx AD_PTR
 adr_merge
         lda AD_INDEX
         cmpa AD_TOTAL
         bhs adr_globals
-        ldb #18
-        mul
-        ldx AD_PTR
-        leax d,x
         lda ,x
         anda #$4E
         ora INTENTS
@@ -278,6 +288,7 @@ adr_merge
         inca
         sta AD_RESET
 adr_merge_next
+        leax 18,x
         inc AD_INDEX
         bra adr_merge
 adr_globals
@@ -293,7 +304,15 @@ adr_globals
         jsr GLOBAL_CALLBACK
         clr AD_CLASS
 adr_class
-        clr AD_INDEX
+        lda AD_CLASS
+        cmpa #1
+        bne adr_class_zero
+        lda AD_RESET
+        bra adr_class_index
+adr_class_zero
+        clra
+adr_class_index
+        sta AD_INDEX
 adr_item
         lda AD_INDEX
         cmpa AD_TOTAL
@@ -302,13 +321,6 @@ adr_item
         mul
         ldu AD_PTR
         leau d,u
-        lda AD_CLASS
-        cmpa #1
-        bne adr_item_filter
-        lda AD_INDEX
-        cmpa AD_RESET
-        blo adr_item_next
-adr_item_filter
         lbsr adr_present
         bcc adr_item_next
         stu AD_SCAN
@@ -333,14 +345,22 @@ adr_stage
 adr_restore
         puls d
         std PLAYER_CELL
-        ldx #INTENTS+15
-        ldb #16
-adr_pop
-        puls a
-        sta ,x
-        leax -1,x
-        decb
-        bne adr_pop
+        puls d
+        std INTENTS+14
+        puls d
+        std INTENTS+12
+        puls d
+        std INTENTS+10
+        puls d
+        std INTENTS+8
+        puls d
+        std INTENTS+6
+        puls d
+        std INTENTS+4
+        puls d
+        std INTENTS+2
+        puls d
+        std INTENTS+0
         puls a
         rts
 
@@ -393,9 +413,8 @@ an_next
         lda AD_CLASS
         cmpa #3
         bhs an_gate
-        pshs u
+        ; adr_present changes A/CC only; U remains the newer record.
         lbsr adr_present
-        puls u
         bcc an_skip
         ldx AD_SCAN
         lda AD_CLASS
@@ -438,14 +457,23 @@ an_yes
         orcc #1
         rts
 adr_load
-        ldx #INTENTS
-        ldb #16
-al_copy
-        lda ,u+
-        sta ,x+
-        decb
-        bne al_copy
-        ldd ,u
+        ldd 0,u
+        std INTENTS+0
+        ldd 2,u
+        std INTENTS+2
+        ldd 4,u
+        std INTENTS+4
+        ldd 6,u
+        std INTENTS+6
+        ldd 8,u
+        std INTENTS+8
+        ldd 10,u
+        std INTENTS+10
+        ldd 12,u
+        std INTENTS+12
+        ldd 14,u
+        std INTENTS+14
+        ldd 16,u
         std PLAYER_CELL
         rts
 

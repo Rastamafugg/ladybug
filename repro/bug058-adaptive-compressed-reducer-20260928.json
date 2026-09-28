@@ -1,0 +1,42 @@
+{
+  "kind": "assembled bookkeeping fit with unbound production callbacks",
+  "date": "2026-09-28",
+  "base_commit": "6963da796b7b0df96c29112c8ca51f97f0962e0c",
+  "worktree": "/mnt/c/Users/19029/.codex/worktrees/bug058-adaptive-fit/ladybug",
+  "source_sha256": "82870fa98f8f895fe76c79d86689abd044bbf3a177b0769dc25e4fc2ebfe106b",
+  "reference_rom_sha256": "25198a23ecf2eb233d075c6feb9c97fb9d0495eb8356fd5cc8532dfad3fdca85",
+  "monolithic_bytes": 875,
+  "monolithic_limit": 698,
+  "monolithic_over": 177,
+  "banked_bytes": 689,
+  "banked_limit": 698,
+  "banked_free": 9,
+  "mapped_bytes": 186,
+  "reclaimed_project_queue_bytes": 220,
+  "mapped_free": 34,
+  "copy_table_after_one_raw_segment": 72,
+  "cartridge_source_free_before": 16802,
+  "raw_delivery_margin": 16113,
+  "page39_transport": {
+    "old_raw_bytes": 4022,
+    "old_compressed_bytes": 1164,
+    "new_raw_bytes": 4711,
+    "new_compressed_bytes": 1832,
+    "delta": 668,
+    "remaining_source_margin": 16134,
+    "roundtrip_exact": true
+  },
+  "verdict": "PASS: split bookkeeping arithmetic fits; callbacks remain unbound, no ROM installation",
+  "unresolved": [
+    "real logic/input/renderer/audio callback bridges",
+    "loader copy ordering and complete fragmented source packing",
+    "transient pixel restoration and natural two-owner playback",
+    "complete 27000/54000 worklist timing"
+  ],
+  "limits": [
+    "Mapped allocation replaces old projector/queue; those functions cannot coexist with the prototype.",
+    "Callback stubs implement synthetic counting only, not gameplay, pixels or audio.",
+    "No new compression stream/page, hard limit or delivered ROM is installed.",
+    "Measured source arithmetic excludes further integration code and loader bytes; complete packing is a separate gate."
+  ]
+}

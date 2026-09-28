@@ -80,6 +80,13 @@ try:
         observed=[(e["kind"],e["class"],e["record"] if e["kind"]=="key" else None) for e in events]
         assert observed==expected(records[:count])
         results["cases"].append({"name":"bounded journal reduction","records":count,"cycles":cycles,"pixels_not_drawn":True})
+    # Required rare coverage: a staged rebuild supersedes all earlier keys.
+    reset();stage_records=list(records[:4]);v=bytearray(stage_records[1]);v[0]|=0x40;stage_records[1]=bytes(v)
+    write(A,b"".join(stage_records));write(S+20,[4]);before=read(0x7F,16)+read(9,2)
+    cycles,events,_=call("adaptive_reduce",0,True)
+    assert [(e["kind"],e["class"]) for e in events]==[("global",3)]
+    assert read(0x7F,16)+read(9,2)==before and read(S+20)==b"\x04"
+    results["cases"].append({"name":"stage dominance preserves caller and pending journal","records":4,"cycles":cycles,"only_stage_callback":True,"pixels_not_drawn":True})
     for owner in (0,1):
         reset();target=A if owner==0 else B
         write(target,b"".join(records));write(S+20+owner,[8]);live=bytes(range(16));write(0x7F,live);write(9,[10,12]);before=read(0x7F,16)+read(9,2)
@@ -91,6 +98,28 @@ try:
         write(S+21-owner,[3]);word(S+8,999);cycles_complete,_,_=call("adaptive_complete",owner)
         assert read(S+20+owner)==bytes([0]) and read(S+21-owner)==bytes([3]),"completed owner only"
         results["cases"].append({"name":"eight-record reduction","owner_secondary":owner,"cycles":cycles,"key_callbacks":sum(e["kind"]=="key" for e in events),"global_callbacks":sum(e["kind"]=="global" for e in events),"complete_cycles":cycles_complete,"pixels_not_drawn":True})
+    # Alternating completed targets must retain the other target's accumulated
+    # history. This replays transaction ordering with synthetic callbacks only.
+    for first_owner in (0,1):
+        reset();raw=1000;transactions=[]
+        for transaction,steps in enumerate((2,2,4,4)):
+            raw+=steps;word(2,raw);call("adaptive_batch")
+            owner=(first_owner+transaction)%2;target=A if owner==0 else B
+            count=read(S+20+owner)[0];other_before=read(S+21-owner)[0]
+            data=read(target,count*18);items=[data[i:i+18] for i in range(0,len(data),18)]
+            live=read(0x7F,16)+read(9,2)
+            _,events,_=call("adaptive_reduce",owner,True)
+            observed=[(e["kind"],e["class"],e["record"] if e["kind"]=="key" else None) for e in events]
+            assert observed==expected(items) and read(0x7F,16)+read(9,2)==live
+            assert read(S+20+owner)[0]==count and count<=8
+            call("adaptive_complete",owner)
+            assert read(S+20+owner)==b"\0" and read(S+21-owner)[0]==other_before
+            transactions.append({"steps":steps,"records_consumed":count,"other_records_retained":other_before,"target_secondary":owner})
+        results["cases"].append({"name":"alternating transaction histories","first_target_secondary":first_owner,"transactions":transactions,"synthetic_callbacks_only":True})
+    reset();word(2,1002);write(0x91,[1]);before=read(A,320);cycles,_,regs=call("adaptive_batch")
+    assert read(A,320)==before and not regs["cc"]&1
+    write(0x91,[0]);call("adaptive_batch");assert read(S+20,2)==b"\x02\x02"
+    results["cases"].append({"name":"pending publication blocks mutation then resumes two ticks","blocked_cycles":cycles})
     reset();write(S+20,[8,8]);before=read(A,288);cycles,_,regs=call("adaptive_append")
     assert regs["cc"]&1 and read(A,288)==before and read(S+20,2)==b"\x08\x08"
     results["cases"].append({"name":"ninth record refused","cycles":cycles})
@@ -113,7 +142,7 @@ try:
         word(S+8,1001);call("adaptive_complete")
         assert read(S+16)==bytes([1 if i==7 else 2])
     results["cases"].append({"name":"cadence lowers on miss and raises after eight quick transactions","controller_only":True})
-    results["result"]="PASS: isolated bookkeeping assertions only; complete adaptive fit fails source capacity"
+    results["result"]="PASS: isolated bookkeeping assertions only; no complete adaptive ROM acceptance"
 except Exception as error:
     results["result"]="FAIL";results["error"]=repr(error);raise
 finally:
