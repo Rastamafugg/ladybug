@@ -27,6 +27,33 @@ def call(a,value=0):
     write(0x1EFC,[RET>>8,RET&255]);write(RET,[0x20,0xFE]);c.call('write_registers',{'pc':a,'s':0x1EFC,'dp':0,'cc':0x50,'a':value})
     start=c.call('read_cycles')['event_ticks'];go(RET);delta=c.call('read_cycles')['event_ticks']-start;assert delta%8==0
     return delta//8,c.call('read_registers')
+
+def trace_output():
+    # Force every shadow dirty, then decode actual writes from the installed
+    # API-2 path using SN76489 latch semantics. This is not a listening test.
+    apwrite(ads['audio_mix_shadow'],bytes([0x55])*11)
+    write(0x1EFC,[RET>>8,RET&255]);write(RET,[0x20,0xFE]);c.call('write_registers',{'pc':0x39B,'s':0x1EFC,'dp':0,'cc':0x50,'a':2})
+    ids=m.setup(c,[ads['audio_write'],RET]);writes=[]
+    try:
+        while True:
+            assert time.monotonic()<deadline,'45-second PSG trace deadline'
+            c.call('run');hit=c.call('wait_for_stop',{'timeout_ms':10000},timeout=12)
+            if hit.get('pc')==RET:break
+            assert hit.get('pc')==ads['audio_write'] and read(ads['audio_write'],8)==audio[ads['audio_write']-0xA000:ads['audio_write']-0xA000+8],'PSG writer code identity'
+            writes.append(c.call('read_registers')['a'])
+    finally:m.clear(c,ids)
+    selected=0;decoded=[0,15,0,15,0,15,0,15]
+    for value in writes:
+        if value&128:selected=(value>>4)&7;decoded[selected]=(decoded[selected]&0x3F0)|(value&15) if not selected&1 else value&15
+        elif selected&1:decoded[selected]=value&15
+        else:decoded[selected]=(decoded[selected]&15)|((value&63)<<4)
+    periods=phys(0x3D,ads['audio_mix_periods'],6);atten=phys(0x3D,ads['audio_mix_atten'],3);noise=phys(0x3D,ads['audio_mix_noise'],2)
+    expected=[];shadow=[]
+    for i in range(3):
+        tone=int.from_bytes(periods[i*2:i*2+2],'little')&1023;expected.extend((tone,atten[i]&15));shadow.extend((0x80+i*32+(tone&15),tone>>4,0x90+i*32+(atten[i]&15)))
+    expected.extend((noise[0]&7,noise[1]&15));shadow.extend((0xE0|(noise[0]&7),0xF0|(noise[1]&15)))
+    assert decoded==expected and phys(0x3D,ads['audio_mix_shadow'],11)==bytes(shadow) and read(0xFFA5)[0]&63==0x34,'adaptive PSG/shadow output mismatch'
+    return {'writes':writes,'decoded_registers':decoded,'shadow':bytes(shadow).hex(),'page34':True}
 def profiled_return():
     # Entry/return inclusive spans, with child spans subtracted for exclusive
     # costs. Stack-qualified returns handle nested calls without double count.
@@ -83,6 +110,12 @@ try:
     audio=(b/'ladybug-audio-runtime.bin').read_bytes();api=audio[ads['audio_adaptive_api']-0xA000:ads['audio_adaptive_last']-0xA000];assert phys(0x3D,ads['audio_adaptive_api'],len(api))==api,'banked adaptive API code source/live'
     stage=(b/'ladybug-adaptive-active.bin').read_bytes();assert phys(0x3D,ads['audio_adaptive_stage'],len(stage))==stage,'active stage source/live'
     e['identity']={'resident':0x3E00,'enemy':len(enemy),'helper':len(helper),'staged_active':len(stage),'banked_audio':len(audio)}
+    layout=json.loads((b/'ladybug-sparse-layout.json').read_text())
+    if 'vegetable' in layout:
+        prefix=b''.join((b/name).read_bytes() for name in ('ladybug-player-sparse.bin','ladybug-gate-transitions.bin','ladybug-presentation-sparse.bin'))
+        vegetable=(b/'ladybug-vegetable-sparse.bin').read_bytes()
+        assert len(prefix)==0xFB6 and phys(0x39,0xA000,len(prefix)+len(vegetable))==prefix+vegetable,'page39 prefix and appended vegetable cold delivery'
+        e['identity']['vegetable_streams']=len(vegetable)
     deadline=time.monotonic()+45
     demo=[]
     for _ in range(8):demo.append(measure())
@@ -268,6 +301,21 @@ try:
         word(2,1300);cycles,regs=call(ads['AUDIO_GUARD_RAM']);slots=phys(0x3D,ads['audio_slot0'],112)
         assert any(slots[i] in (0,5,1,2) and slots[i+3]>0 for i in range(28,112,28)) and read(ads['AUDIO_Q_COUNT'])==bytes([0]),'drain did not admit queued effects'
         e['audio_priority_drain']={'important_fifo':high,'lower_tick_fifo':low,'effects_admitted_with_positive_wait':True,'guard_cycles':cycles}
+        for i in range(4):apwrite(ads['audio_slot0']+i*28,[255])
+        apwrite(ads['audio_music_count'],[0]);write(ads['AUDIO_Q_HEAD'],bytes(4));write(ads['AUDIO_CREDIT_PENDING'],[0])
+        word(2,1500);call(0x39B,3);write(0xFFA5,[0x3D]);c.call('write_registers',{'b':0});call(ads['audio_enqueue_impl'],9);write(0xFFA5,[0x34]);write(ads['AUDIO_CREDIT_PENDING'],[1])
+        deadline=time.monotonic()+45;parked=0;delivered=0
+        for tick in range(1501,1800):
+            word(2,tick);call(ads['AUDIO_GUARD_RAM']);slots=phys(0x3D,ads['audio_slot0'],112)
+            if slots[0]!=255:
+                assert read(ads['AUDIO_CREDIT_PENDING'])==bytes([1]) and slots[28]!=12,'credit consumed behind active music';parked+=1
+            if slots[28]==12:
+                assert slots[0]==255 and slots[31]>0 and read(ads['AUDIO_CREDIT_PENDING'])==bytes([0]),'credit admission/wait failure';delivered+=1
+                period=phys(0x3D,ads['audio_mix_periods'],2);atten=phys(0x3D,ads['audio_mix_atten'],1)
+                assert period==slots[34:36] and atten==slots[40:41],'credit not selected into mixer'
+            if delivered and slots[28]!=12:break
+        assert parked and delivered and slots[28]!=12,'parked credit never delivered/completed'
+        e['audio_credit_parking']={'music_owned_calls':parked,'credit_mixed_calls':delivered,'completed':True,'mapping_restored':read(0xFFA5)[0]&63==0x34}
 
     restore_pages(frozen)
     # Isolated active-page service costs at the observed four-enemy state.
@@ -292,29 +340,35 @@ try:
         cycles,_=call(0x39B,0);after=phys(0x3D,ads['audio_slot0'],112)
         if elapsed<9:assert after[3]==9-elapsed and after[4:]==slots[4:],(elapsed,after.hex(),slots.hex())
         else:assert after[0]==6 and after[3]>0,'new important note expired before delivery'
-        call(0x39B,2);e['audio_cases'].append({'elapsed':elapsed,'cycles':cycles,'wait_after':after[3],'late':phys(0x3D,ads['audio_adaptive_late'],1)[0],'page34_return':read(0xFFA5)[0]&63==0x34})
+        trace=trace_output() if '--psg-trace' in sys.argv[3:] else None
+        if trace is None:call(0x39B,2)
+        e['audio_cases'].append({'elapsed':elapsed,'cycles':cycles,'wait_after':after[3],'late':phys(0x3D,ads['audio_adaptive_late'],1)[0],'page34_return':read(0xFFA5)[0]&63==0x34,'psg_trace':trace})
     # Unsigned raw-clock wrap; inactive voices stay inactive.
     apwrite(0xA000,saved_audio);write(0,saved_dp);word(2,65534);call(0x39B,3);word(2,2);call(0x39B,0);assert phys(0x3D,ads['audio_adaptive_delta'],2)==b'\0\4'
-    e['audio_cases'].append({'elapsed':'wrap FFFE->0002','delta':4})
+    wrap_trace=trace_output() if '--psg-trace' in sys.argv[3:] else None
+    e['audio_cases'].append({'elapsed':'wrap FFFE->0002','delta':4,'psg_trace':wrap_trace})
     if '--vegetable-cost' in sys.argv[3:]:
         import build_screen as screen
         import build_sparse_sprites as sparse
         deadline=time.monotonic()+45
         frames=screen.compile_sprite_codes(w/'assets/arcade/sprites.json',screen.VEGETABLE_CODES)
         pair=resident[ms['sprite_attr0_pairs']-0xC000:ms['sprite_attr0_pairs']-0xC000+16];pen=tuple(pair[i]&15 for i in range(4));e['vegetable_stage_costs']=[]
-        scratch=0xAFB6
         for frame,raw in enumerate(frames):
-            encoded=sparse.encode_sparse_frame(raw,pen)
-            c.call('write_memory',{'space':'physical','addr':0x39*8192+scratch-0xA000,'data':encoded.hex()})
-            assert phys(0x39,scratch,len(encoded))==encoded,'vegetable staged stream identity'
             costs=[]
             for background in (bytes(128),bytes([0x55])*128,bytes((i*19+7)&255 for i in range(128))):
-                write(0xFFA5,[0x34]);write(ms['STAGE'],[frame+1]);write(0x1800,background);c.call('write_registers',{'x':0x1800});old_cost,_=call(es['draw_vegetable_stage']);expected=read(0x1800,128)
-                write(0x1800,background);write(0xFFA5,[0x39]);c.call('write_registers',{'x':0x1800,'u':scratch});new_cost,_=call(es['sparse_blit_stage']);actual=read(0x1800,128)
+                write(0xFFA5,[0x34]);write(ms['STAGE'],[frame+1]);write(0x1800,background);c.call('write_registers',{'x':0x1800,'y':ms['vegetable_sprites']+frame*64,'u':ms['sprite_attr0_pairs']});old_cost,_=call(es['blit_stage_sprite']);expected=read(0x1800,128)
+                write(0x1800,background);c.call('write_registers',{'x':0x1800});new_cost,_=call(es['draw_vegetable_stage']);actual=read(0x1800,128)
                 assert actual==expected and read(0xFFA5)[0]&63==0x34,('vegetable stage pixels/mapping',frame)
+                assert new_cost<=3000,('vegetable selector cycle target',frame,new_cost)
                 costs.append({'legacy':old_cost,'decoder':new_cost,'saved':old_cost-new_cost})
-            e['vegetable_stage_costs'].append({'stage':frame+1,'stream_bytes':len(encoded),'backgrounds_exact':3,'costs':costs})
-        e['vegetable_cost_scope']='Existing decoder only, ephemeral stream in unused page39 interval, no ROM or loader changes. Final selector/index wrapper and integrated timing still require fitting.'
+            e['vegetable_stage_costs'].append({'stage':frame+1,'stream_bytes':layout['vegetable']['index'][frame]['bytes'],'backgrounds_exact':3,'costs':costs})
+        e['vegetable_selector_bounds']=[]
+        for number,frame in ((0,0),(19,17),(255,17)):
+            background=bytes([0x55])*128;write(0xFFA5,[0x34]);write(0x1800,background);c.call('write_registers',{'x':0x1800,'y':ms['vegetable_sprites']+frame*64,'u':ms['sprite_attr0_pairs']});call(es['blit_stage_sprite']);expected=read(0x1800,128)
+            write(ms['STAGE'],[number]);write(0x1800,background);c.call('write_registers',{'x':0x1800});cycles,_=call(es['draw_vegetable_stage']);assert read(0x1800,128)==expected and read(0xFFA5)[0]&63==0x34,('vegetable clamp',number)
+            assert cycles<=3000,('vegetable clamp cycle target',number,cycles)
+            e['vegetable_selector_bounds'].append({'stage':number,'frame':frame,'cycles':cycles,'pixels_exact':True,'page34':True})
+        e['vegetable_cost_scope']='Installed selector plus decoder, compared with existing raw painter without legacy selector overhead; cold index/stream delivery proved. All 18 images x3 backgrounds and bounds 0/19/255 exact.'
     if '--life-reentry' in sys.argv[3:]:
         # Force only the already-defined terminal blank boundary; resume the
         # actual foreground stack rather than invoking a simulated tick.
@@ -328,7 +382,79 @@ try:
         assert rows[-1]['player_fb']=='75ec' and rows[-1]['death']==0 and rows[-1]['lives']==0,'life replacement entrance marker missing within 80 worklists'
         assert read(0x38F,len(stage))==stage and {x['owner'] for x in rows}=={0,1},'life replacement code/owner sequence'
         e['life_reentry']={'scope':'forced terminal blank boundary, real foreground continuation through replacement entrance','worklists':rows,'both_owners':True,'active_code_exact':True,'deadline_seconds':45}
-    e['status']='scoped-pass';e['limitations']=['Four-enemy timing fails; natural keyed turning, death/stage/name overlay handoffs, exact PSG trace, generated adaptive-module audit registration and natural listening remain open.','Late delivery is recorded; passing bounded note survival does not prove audio cadence fidelity.']
+        if '--natural-turn' in sys.argv[3:]:
+            # Maze navigation at the actual entrance (12,18) has N/W exits.
+            # Hold north for one partial-cell step, then request west early.
+            nav=json.loads((w/'assets/arcade/maze.json').read_text())['maze_nav'];assert nav[18][12]&9==9
+            deadline=time.monotonic()+45;control=[]
+            def movement_sample():
+                row=measure();row.update(direction=read(ms['PLAYER_DIR'])[0],step=read(ms['PLAYER_STEP'])[0],snap=read(ms['TURN_SNAP'])[0],cell=read(ms['PLAYER_CELL_X'],2).hex(),fb=read(ms['PLAYER_FB'],2).hex());control.append(row);return row
+            c.call('inject_key',{'key':0x2B,'action':'press'})
+            for _ in range(12):
+                row=movement_sample()
+                if row['step']==1:break
+            assert row['direction']==0 and row['step']==1,'natural held north partial-step marker absent'
+            c.call('inject_key',{'key':0x2B,'action':'release'});c.call('inject_key',{'key':0x2D,'action':'press'})
+            for _ in range(8):
+                row=movement_sample()
+                if row['snap']:break
+            assert row['direction']==3 and row['snap']==1,'natural early-west snap marker absent'
+            for _ in range(4):row=movement_sample()
+            assert row['direction']==3 and row['snap']==0,'natural corner failed alignment completion'
+            c.call('inject_key',{'key':0x2D,'action':'release'});anchor=read(ms['PLAYER_FB'],2)
+            for _ in range(3):movement_sample()
+            assert read(ms['PLAYER_FB'],2)==anchor and read(5)==bytes([255]),'neutral input failed to stop player'
+            e['natural_directional_control']={'scope':'real input/parser/simulation/publication after forced life boundary; held north, early west and neutral stop','worklists':control,'both_owners':{x['owner'] for x in control}=={0,1},'pixels_sha256':[r.digest(r.read_owner(c,k)) for k in (0,1)]}
+        if '--phase-handoffs' in sys.argv[3:]:
+            # Both transitions use the authored dispatcher and loaders.
+            # Only end-of-level/death and static dwell boundaries are forced.
+            e['phase_handoffs']=[]
+            def phase_until(label,predicate,limit=700):
+                global deadline
+                deadline=time.monotonic()+45;changes=[];previous=None
+                for index in range(limit):
+                    go(parser_start);go(ms['mainloop'])
+                    state={'mode':read(0xA5)[0],'screen':read(0xA6)[0],'stage':read(ms['STAGE'])[0],'owner':read(0x8F)[0]}
+                    if state!=previous:changes.append(state);previous=state
+                    if predicate(state):
+                        e['phase_handoffs'].append({'name':label,'samples':index+1,'changes':changes,'deadline_seconds':45});return
+                raise AssertionError(label+' marker absent within bounded dispatcher samples')
+            write(ms['STAGE_PENDING'],[1])
+            phase_until('real next-stage dispatcher reaches level-start screen',lambda s:s['mode']==6 and s['stage']==2)
+            word(ps['PRES_TIMER'],179)
+            phase_until('level-start returns to installed adaptive gameplay',lambda s:s['mode']==0 and s['stage']==2)
+            assert read(0x38F,len(stage))==stage,'stage handoff active installation'
+            stage_rows=[measure() for _ in range(8)]
+            assert {x['owner'] for x in stage_rows}=={0,1} and all(x['fault']==0 for x in stage_rows),'stage history/publication sequence'
+            write(ms['SCORE_BCD'],bytes.fromhex('095000'));write(ms['DEATH_STATE'],[4]);write(ms['LIVES'],[0])
+            phase_until('real terminal dispatcher reaches game-over screen',lambda s:s['mode']==7)
+            highscore=(b/'ladybug-highscore-runtime.bin').read_bytes();assert read(0x300,len(highscore))==highscore,'game-over phase overlay identity'
+            word(ps['PRES_TIMER'],179)
+            phase_until('game-over dispatcher reaches name screen',lambda s:s['mode']==8)
+            assert read(0x300,len(highscore))==highscore,'name overlay identity'
+            hs=r.symbols(b/'ladybug-highscore-runtime.map')
+            write(hs['PRES_NAME_FLAGS'],[1])
+            phase_until('name completion drains and publishes high scores',lambda s:s['mode']==5)
+            c.call('inject_key',{'key':5,'action':'press'});go(parser_start);go(ms['mainloop']);c.call('inject_key',{'key':5,'action':'release'})
+            c.call('inject_key',{'key':1,'action':'press'});go(parser_start);go(ms['mainloop']);c.call('inject_key',{'key':1,'action':'release'})
+            phase_until('new credited game restores adaptive overlay after name screen',lambda s:s['mode']==6)
+            word(ps['PRES_TIMER'],179)
+            phase_until('credited reentry returns to adaptive gameplay',lambda s:s['mode']==0)
+            assert read(0x38F,len(stage))==stage,'name-to-game active installation'
+            phase_until('credited entrance completes before full death fixture',lambda s:s['mode']==0 and read(ms['INITIAL_ENTRY_STATE'])==bytes([0]))
+            write(ms['LIVES'],[1]);write(ms['DEATH_STATE'],[1]);write(ms['DEATH_TIMER'],[0]);write(ms['DEATH_FRAME'],[0]);write(ms['PLAYER_DIR'],[255]);write(ms['PLAYER_WANT'],[255])
+            deadline=time.monotonic()+45;death_states=set();owners=set();samples=0;frames={}
+            for samples in range(700):
+                go(parser_start);go(ms['mainloop']);death=read(ms['DEATH_STATE'])[0];death_states.add(death);owners.add(read(0x8F)[0])
+                if death not in frames:frames[death]=r.digest(r.read_owner(c,read(0x8F)[0]))
+                assert read(0xA5)==bytes([0]) and read(0xBD3A)==bytes([0]),'full death continuation left gameplay or faulted'
+                if death==0 and read(ms['LIVES'])==bytes([0]) and read(ms['PLAYER_FB'],2)==bytes.fromhex('75ec'):break
+            assert death_states=={0,1,2,3} and owners=={0,1} and samples<699,'full shrink/wings/blank/replacement marker missing'
+            e['full_death_continuation']={'scope':'forced valid death-start state, real foreground through full shrink/wings/blank and replacement entrance','samples':samples+1,'states':sorted(death_states),'both_owners':True,'first_phase_frame_sha256':frames,'pixel_fidelity_not_an_oracle':True}
+    e['status']='scoped-pass';e['limitations']=['Original27000-cycle timing still fails; sustained/exceptional timing and generated standalone adaptive-module audit registration remain open. Human play/listening and exact audio cadence fidelity are unverified.','Boundary-forced life/stage/name scenarios exercise the real dispatcher and owners; they are not naturally earned level completion or enemy collision.']
+    if '--natural-turn' not in sys.argv[3:]:e['limitations'].append('Natural directional turning not requested in this run.')
+    if '--phase-handoffs' not in sys.argv[3:]:e['limitations'].append('Real stage/name/full-death handoffs not requested in this run.')
+    if '--psg-trace' not in sys.argv[3:]:e['limitations'].append('Installed adaptive PSG trace not requested in this run.')
 except Exception as exc:e['failure']=repr(exc);raise
 finally:
     # Keep complete rare/failing cases and compact the long passing entry.
