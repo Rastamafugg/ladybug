@@ -1,0 +1,81 @@
+{
+  "classification": "Probe mechanics/identity corrections, not production defect evidence",
+  "failed_boundaries": [
+    {
+      "receipt": "bug058-adaptive-bindings-identity-failure-20260928.json",
+      "sha256": "723c1cead4ca1576b88df93eb753ceef17ea20e59aa50abc1e52fe4ecbb62357",
+      "failure": "AssertionError()",
+      "cause": "Mutable audio tables inside an assumed code range.",
+      "observed_detail": null
+    },
+    {
+      "receipt": "bug058-adaptive-bindings-cue-id-failure-20260928.json",
+      "sha256": "4cde87691b6950467fd7521c669473939d2c28661efe486cefc4f992bf09f36c",
+      "failure": "AssertionError()",
+      "cause": "Expected pellet cue1; production poll requests3.",
+      "observed_detail": null
+    },
+    {
+      "receipt": "bug058-adaptive-bindings-start-fixture-failure-20260928.json",
+      "sha256": "4b69b9beea67fe3ed5f81ecfc8e653b153121a07e4a3a6af34a4f116d1a20c54",
+      "failure": "AssertionError()",
+      "cause": "Incorrectly initialized audio state retained queued cue6.",
+      "observed_detail": null
+    },
+    {
+      "receipt": "bug058-adaptive-bindings-init-abi-failure-20260928.json",
+      "sha256": "af639c79c1b6b6691a26931b2fb46dfa0ce78d37d746d8d7464afa9fdcc4abb5",
+      "failure": "AssertionError({'context': 2, 'mode': '00', 'last_mode': '00', 'slots': '0605b302ad8c400180028002040404000f801494a028b4c028d4e0ffff05ba00b2715000010001000f0f0f000f0000000000000000000000ff00000000000100010001000f0f0f000f0000000000000000000000ff00000000000100010001000f0f0f000f0000000000000000000000', 'music_count': '00'})",
+      "cause": "Observed queued start cue with next-level context; copied-engine identity unproven.",
+      "observed_detail": {
+        "context": 2,
+        "mode": "00",
+        "last_mode": "00",
+        "slots": "0605b302ad8c400180028002040404000f801494a028b4c028d4e0ffff05ba00b2715000010001000f0f0f000f0000000000000000000000ff00000000000100010001000f0f0f000f0000000000000000000000ff00000000000100010001000f0f0f000f0000000000000000000000",
+        "music_count": "00"
+      }
+    },
+    {
+      "receipt": "bug058-adaptive-bindings-copied-identity-failure-20260928.json",
+      "sha256": "89ba93ce60f847171277e4abd6341115feba14b50f792b3e57dca79929423afd",
+      "failure": "AssertionError('copied engine identity')",
+      "cause": "Initializer address actually held phase overlay bytes; replaced by actual banked installer.",
+      "observed_detail": null
+    },
+    {
+      "receipt": "bug058-adaptive-bindings-boot-copy-failure-20260928.json",
+      "sha256": "3fea5b08925abb9a6e7bf10f0eca71b9eb77ac2d8043b6fd0ba14e0a38bb610a",
+      "failure": "AssertionError('post-retirement copied binding')",
+      "cause": "Copy matched but whole-byte PAR assertion failed.",
+      "observed_detail": null
+    },
+    {
+      "receipt": "bug058-adaptive-bindings-boot-par-read-failure-20260928.json",
+      "sha256": "9d6f8a16b2c07c68b5813279c6d6034ffbd6a3b14bd53d2a393754d44c0915b0",
+      "failure": "AssertionError('post-retirement copied binding')",
+      "cause": "Copied payload exact; PAR observed B4, six-bit page34, confirmed by CPU/physical identity.",
+      "observed_detail": {
+        "copied_sha256": "a305761ffc66e8f1ae4eb74efd7b5d7a0117cb4923d63116af17a26fc9ae2276",
+        "expected_sha256": "a305761ffc66e8f1ae4eb74efd7b5d7a0117cb4923d63116af17a26fc9ae2276",
+        "first_difference": null,
+        "copied_prefix": "b6bd2797008401976b0da52710dcb0c3",
+        "expected_prefix": "b6bd2797008401976b0da52710dcb0c3",
+        "par5": "b4",
+        "init0": "b4",
+        "registers": {
+          "a": 52,
+          "b": 0,
+          "d": 13312,
+          "cc": 80,
+          "dp": 0,
+          "x": 46909,
+          "y": 40108,
+          "u": 1636,
+          "s": 7934,
+          "pc": 6396
+        }
+      }
+    }
+  ],
+  "limits": "Historical failed receipts retained locally; current controlled receipts remain scoped to components. Elapsed audio2/4 intentionally refuses; no full adaptive success."
+}

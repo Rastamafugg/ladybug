@@ -215,7 +215,8 @@
         <a href="../sources/gmc-programming.html">GMC programming guide</a>.
       </p>
     </footer>
-  </main>
+  <section id="adaptive-audio-admission-fit-20260928"><h2>Isolated adaptive audio admission split</h2><p>BUG-058 commitc3d7f92 distinguishes aging existing voice state from polling/admitting new logical events and publishing PSG output. Controlled admission primes a new note once without reducing old wait counts; repeated state samples neither duplicate nor age a cue. Mode admission preserves first-level cue6 and next-level suppression. Demo remains silent except admitted credits. Pellet polling requests authored cue3, not cue1.</p><p>The fitted140-byte API supports elapsed0/1 only and explicitly rejects2/4 without changing state. Multi-refresh important-note delivery remains an unmet fitting gate; no audible or complete adaptive acceptance follows. Replaying the old combined service during catch-up cannot be assumed safe. Audio code embeds mutable poll/music/name tables between functions; loaded-byte identity must exclude exactly declared mutable spans while proving all immutable bytes. The copied engine at$0300 is a phase overlay, not a permanent initializer. <a href="../tickets/bug-058-three-enemy-slowdown.html#adaptive-real-bindings-20260928">Evidence and constraints</a>.</p></section>
+</main>
 </div>
 </body>
 </html>

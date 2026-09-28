@@ -1,0 +1,51 @@
+{
+  "phase": "host real-call assembly only",
+  "reference_rom_sha256": "25198a23ecf2eb233d075c6feb9c97fb9d0495eb8356fd5cc8532dfad3fdca85",
+  "source_sha256": "aa7867fb403e073c207cb9ed6864024dd95d285fdec0d8ca1befa68db5cdcfc9",
+  "placements": [
+    {
+      "name": "tick",
+      "address": 1502,
+      "bytes": 134,
+      "limit": 186,
+      "free": 52,
+      "sha256": "a305761ffc66e8f1ae4eb74efd7b5d7a0117cb4923d63116af17a26fc9ae2276",
+      "fits": true
+    },
+    {
+      "name": "resident",
+      "address": 49407,
+      "bytes": 143,
+      "limit": 145,
+      "free": 2,
+      "sha256": "01476b00963938819a263e89f8248dfe296a56c0416b36853185164d39d87ae0",
+      "fits": true
+    },
+    {
+      "name": "installer",
+      "address": 57320,
+      "bytes": 21,
+      "limit": 24,
+      "free": 3,
+      "sha256": "70651f22a1e87744cae4da3dfeb98f20568464939f50182d25fa8a1f364c1760",
+      "fits": true
+    },
+    {
+      "name": "audio safe-subset API",
+      "address": 46635,
+      "bytes": 140,
+      "limit": 2517,
+      "free": 2377,
+      "sha256": "b3acc13a4c3d731d83ceb0226ad14826322eb52e4423ce715e1ccd80b05ce342",
+      "fits": true
+    }
+  ],
+  "limitations": [
+    "Installer phase hooks, adaptive main driver, removal of duplicate demo calls and elapsed audio >1 remain unbound.",
+    "Resident placement displaces the old main loop; copied tail needs natural phase lifetime proof.",
+    "This assembly receipt alone proves no runtime, pixel, input, audio or complete ROM acceptance.",
+    "Audio elapsed >1 is explicitly rejected; no multi-refresh audio success claimed."
+  ],
+  "audio_source_sha256": "594dedf86dd00e90059bf29ba889d0d0fe90f23eefbd48f00bc75745fb4e636a",
+  "status": "pass"
+}

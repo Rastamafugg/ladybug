@@ -1,0 +1,235 @@
+{
+  "phase": "controlled real-call simulation and background bindings",
+  "deadline_seconds": 45,
+  "success_marker": "return to $18FC or original logic/render boundary with exact compared state/pixels",
+  "timeout_meaning": "component boundary absent; no complete adaptive timing inference",
+  "reference_rom_sha256": "25198a23ecf2eb233d075c6feb9c97fb9d0495eb8356fd5cc8532dfad3fdca85",
+  "cases": [
+    {
+      "name": "credited real logic comparison",
+      "first_logical_phase": 1,
+      "steps": 1,
+      "exact_dp_and_game_state": true,
+      "zero_framebuffer_changes": true,
+      "original_cycles": [
+        774
+      ],
+      "binding_cycles": [
+        813
+      ]
+    },
+    {
+      "name": "credited real logic comparison",
+      "first_logical_phase": 0,
+      "steps": 2,
+      "exact_dp_and_game_state": true,
+      "zero_framebuffer_changes": true,
+      "original_cycles": [
+        700,
+        774
+      ],
+      "binding_cycles": [
+        741,
+        813
+      ]
+    },
+    {
+      "name": "credited real logic comparison",
+      "first_logical_phase": 1,
+      "steps": 4,
+      "exact_dp_and_game_state": true,
+      "zero_framebuffer_changes": true,
+      "original_cycles": [
+        774,
+        700,
+        774,
+        702
+      ],
+      "binding_cycles": [
+        813,
+        741,
+        813,
+        743
+      ]
+    },
+    {
+      "name": "forced publication barrier",
+      "state": "INITIAL_ENTRY_STATE",
+      "barrier": true
+    },
+    {
+      "name": "forced publication barrier",
+      "state": "PICKUP_TIMER",
+      "barrier": true
+    },
+    {
+      "name": "forced publication barrier",
+      "state": "STAGE_PENDING",
+      "barrier": true
+    },
+    {
+      "name": "forced publication barrier",
+      "state": "DEATH_STATE",
+      "barrier": true
+    },
+    {
+      "name": "forced publication barrier",
+      "state": "RENDER_GATE_ID",
+      "barrier": true
+    },
+    {
+      "name": "one-record real background comparison",
+      "worklist": "HUD/lives",
+      "owner_secondary_metadata": 0,
+      "both_surfaces_exact": true,
+      "front_unchanged": true
+    },
+    {
+      "name": "one-record real background comparison",
+      "worklist": "dot and timer box",
+      "owner_secondary_metadata": 0,
+      "both_surfaces_exact": true,
+      "front_unchanged": true
+    },
+    {
+      "name": "one-record real background comparison",
+      "worklist": "letter and multiplier",
+      "owner_secondary_metadata": 0,
+      "both_surfaces_exact": true,
+      "front_unchanged": true
+    },
+    {
+      "name": "one-record real background comparison",
+      "worklist": "primary and secondary gates",
+      "owner_secondary_metadata": 0,
+      "both_surfaces_exact": true,
+      "front_unchanged": true
+    },
+    {
+      "name": "one-record real background comparison",
+      "worklist": "HUD/lives",
+      "owner_secondary_metadata": 1,
+      "both_surfaces_exact": true,
+      "front_unchanged": true
+    },
+    {
+      "name": "one-record real background comparison",
+      "worklist": "dot and timer box",
+      "owner_secondary_metadata": 1,
+      "both_surfaces_exact": true,
+      "front_unchanged": true
+    },
+    {
+      "name": "one-record real background comparison",
+      "worklist": "letter and multiplier",
+      "owner_secondary_metadata": 1,
+      "both_surfaces_exact": true,
+      "front_unchanged": true
+    },
+    {
+      "name": "one-record real background comparison",
+      "worklist": "primary and secondary gates",
+      "owner_secondary_metadata": 1,
+      "both_surfaces_exact": true,
+      "front_unchanged": true
+    },
+    {
+      "name": "held input sampled outside logic; demo excludes physical direction",
+      "credited_direction": 1,
+      "demo_direction_preserved": 0,
+      "credits_unchanged": true
+    },
+    {
+      "name": "real demo route and logical timer comparison",
+      "first_logical_phase": 1,
+      "steps": 2,
+      "exact_state_and_pixels": true,
+      "caller_migration_not_installed": true
+    },
+    {
+      "name": "real demo route and logical timer comparison",
+      "first_logical_phase": 0,
+      "steps": 4,
+      "exact_state_and_pixels": true,
+      "caller_migration_not_installed": true
+    },
+    {
+      "name": "demo logical timeout publication guard",
+      "barrier": true,
+      "player_position_unchanged": true
+    },
+    {
+      "name": "audio event admission without aging and explicit elapsed gap refusal",
+      "new_pellet_note_primed": true,
+      "repeated_sampling_exact": true,
+      "unsupported_elapsed": [
+        2,
+        4
+      ],
+      "unsupported_elapsed_mutation": false,
+      "full_adaptive_audio_pass": false
+    },
+    {
+      "name": "audio one-tick advance matches production slots",
+      "exact": true,
+      "page34_return": true
+    },
+    {
+      "name": "start music mode admission",
+      "context": 1,
+      "first_level_only": true,
+      "repeat_does_not_age": true
+    },
+    {
+      "name": "start music mode admission",
+      "context": 2,
+      "first_level_only": true,
+      "repeat_does_not_age": true
+    },
+    {
+      "name": "demo silence with one admitted credit cue",
+      "demo_game_audio_silent": true,
+      "credit_note_primed": true,
+      "remaining_pending_credit": 1,
+      "audible_check_not_performed": true
+    }
+  ],
+  "scope": "No driver installation, adaptive natural play, whole-image sequence, phase installer or elapsed audio acceptance.",
+  "authored_loaded_identity": {
+    "resident": 15872,
+    "enemy": 4091,
+    "presentation": 1273,
+    "tick_binding": 134
+  },
+  "resident_binding_identity": 143,
+  "audio_identity": {
+    "immutable_bytes": 5518,
+    "excluded_mutable_intervals": [
+      [
+        42151,
+        42162
+      ],
+      [
+        42874,
+        42891
+      ],
+      [
+        43020,
+        43024
+      ],
+      [
+        46510,
+        46635
+      ]
+    ],
+    "api_bytes": 140
+  },
+  "last_start_observation": {
+    "context": 2,
+    "mode": "00",
+    "last_mode": "00",
+    "slots": "ff000000ad8c0100010001000f0f0f000f81009fa100bfc100dfe0ffff000000b2710100010001000f0f0f000f0000000000000000000000ff00000000000100010001000f0f0f000f0000000000000000000000ff00000000000100010001000f0f0f000f0000000000000000000000",
+    "music_count": "00"
+  },
+  "result": "pass: controlled real-call comparisons and safe audio subset only; multi-refresh audio unresolved"
+}
