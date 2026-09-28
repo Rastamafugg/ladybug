@@ -1,0 +1,1037 @@
+{
+  "ticket": "BUG-058",
+  "scope": "Approved local existing-table cache rebinding and fixed-offset full player restoration; full enemy drawing cadence retained; not production integration or parent timing acceptance.",
+  "source_baseline": "codex/bug058-restore 9b3b326",
+  "baseline_rom_sha256": "9f96bdb524f5a1bc730a6b225dd2f62c4ac4d47339108f8f9b8b549472b78b53",
+  "candidate_rom_sha256": "f67c3424b514be57b56b48916b6d87c94c2e7015685513dff5c9371d14a5b981",
+  "units": "Calibrated fast CPU cycles = event_ticks/8; timing values are observed minima/means/maxima over bounded fixtures, not worst-case bounds.",
+  "phase_deadline_seconds": 45,
+  "targets": {
+    "rebind_207_pair_saving": 3000,
+    "full_player_restore_saving": 140,
+    "overall_worklist": 27000
+  },
+  "colour_oracle": {
+    "result": "pass",
+    "cases": 768,
+    "table_bytes": 52,
+    "index_domain": "cached value AND $33; existing table only",
+    "classes": {
+      "both": {
+        "cases": 432,
+        "saving": 27,
+        "reference_cycles": {
+          "samples": 432,
+          "minimum": 67,
+          "mean": 67,
+          "maximum": 67
+        },
+        "candidate_cycles": {
+          "samples": 432,
+          "minimum": 40,
+          "mean": 40,
+          "maximum": 40
+        }
+      },
+      "high_only": {
+        "cases": 144,
+        "saving": 23,
+        "reference_cycles": {
+          "samples": 144,
+          "minimum": 63,
+          "mean": 63,
+          "maximum": 63
+        },
+        "candidate_cycles": {
+          "samples": 144,
+          "minimum": 40,
+          "mean": 40,
+          "maximum": 40
+        }
+      },
+      "low_only": {
+        "cases": 144,
+        "saving": 7,
+        "reference_cycles": {
+          "samples": 144,
+          "minimum": 47,
+          "mean": 47,
+          "maximum": 47
+        },
+        "candidate_cycles": {
+          "samples": 144,
+          "minimum": 40,
+          "mean": 40,
+          "maximum": 40
+        }
+      },
+      "neither": {
+        "cases": 48,
+        "saving": 3,
+        "reference_cycles": {
+          "samples": 48,
+          "minimum": 43,
+          "mean": 43,
+          "maximum": 43
+        },
+        "candidate_cycles": {
+          "samples": 48,
+          "minimum": 40,
+          "mean": 40,
+          "maximum": 40
+        }
+      }
+    },
+    "caller_live": "A/B/X/Y/U/S/DP match reference; replicated OBJ_VALUE retained. CC and transient OBJ_PRIMARY are scratch at the caller.",
+    "no_rebind_cases": [
+      {
+        "cached": 0,
+        "colour": 1,
+        "cycles": 13,
+        "saving": 0
+      },
+      {
+        "cached": 2,
+        "colour": 2,
+        "cycles": 20,
+        "saving": 0
+      }
+    ]
+  },
+  "player_oracle": {
+    "result": "pass",
+    "full_cases": [
+      {
+        "owner_metadata": 0,
+        "reference": 1131,
+        "candidate": 987,
+        "saving": 144
+      },
+      {
+        "owner_metadata": 1,
+        "reference": 1131,
+        "candidate": 987,
+        "saving": 144
+      }
+    ],
+    "adjacent_visible_cases": [
+      {
+        "owner_metadata": 0,
+        "rows": 0,
+        "saving": 0
+      },
+      {
+        "owner_metadata": 1,
+        "rows": 1,
+        "saving": 0
+      },
+      {
+        "owner_metadata": 0,
+        "rows": 15,
+        "saving": 0
+      },
+      {
+        "owner_metadata": 1,
+        "rows": 16,
+        "saving": 144
+      }
+    ],
+    "exact": "128 output bytes, untouched surroundings/source, final registers including CC, zero counters/validity; zero/one/fifteen-row wrappers unchanged."
+  },
+  "render_crossover": {
+    "result": "pass",
+    "cases": [
+      {
+        "no_live_collectibles": false,
+        "count": 0,
+        "active_count": 0,
+        "index": 0,
+        "owner_metadata": 0,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 58903,
+        "candidate_cycles": 55070,
+        "pixel_sha256": "65f5183ccabc226047468baac162b8643296248f602d3a53933651b0cb0a7f7a",
+        "render_intents_hex": "00100305000000000000000000000000",
+        "pending_intents_before_hex": "100003050000000000000000000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 0,
+        "active_count": 0,
+        "index": 1,
+        "owner_metadata": 1,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 85964,
+        "candidate_cycles": 82131,
+        "pixel_sha256": "4865a7393a8993cf154c811c027fc7607a9e3fa4ee111d831eb8d2d52fd36c08",
+        "render_intents_hex": "01100305000000000001010000000000",
+        "pending_intents_before_hex": "001003050000000000000000000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 0,
+        "active_count": 0,
+        "index": 2,
+        "owner_metadata": 0,
+        "forced_colour": 3,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 85931,
+        "candidate_cycles": 82098,
+        "pixel_sha256": "6f4e3f7293d1ef944939a40bb547acf0f50300e625ae2b20d5fe3eacbb860f30",
+        "render_intents_hex": "00100305000000000000010000000000",
+        "pending_intents_before_hex": "001003050000000000010100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 0,
+        "active_count": 0,
+        "index": 3,
+        "owner_metadata": 1,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 81263,
+        "candidate_cycles": 77430,
+        "pixel_sha256": "c304c63efd8bff39b5b2683e8222113a0db1302f5e6fddae222b11dc6dfe5336",
+        "render_intents_hex": "01100305000000001000010000000000",
+        "pending_intents_before_hex": "001003050000000000000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 0,
+        "active_count": 0,
+        "index": 4,
+        "owner_metadata": 0,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 87664,
+        "candidate_cycles": 83831,
+        "pixel_sha256": "b6c7c061e2e4dc567889a0f40088940080c8b2343e319fa671b983a287694b5b",
+        "render_intents_hex": "00100305000000000001010000000000",
+        "pending_intents_before_hex": "001003050000000010000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 0,
+        "active_count": 0,
+        "index": 5,
+        "owner_metadata": 1,
+        "forced_colour": 3,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 85942,
+        "candidate_cycles": 82109,
+        "pixel_sha256": "613e4e390ba502f9354c9bd1ad2e96f0c2b878d6e9cfdf747042a4e85e266697",
+        "render_intents_hex": "01100305000000000000010000000000",
+        "pending_intents_before_hex": "001003050000000000010100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 0,
+        "active_count": 0,
+        "index": 6,
+        "owner_metadata": 0,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 79547,
+        "candidate_cycles": 75714,
+        "pixel_sha256": "d248e6244d819a0f5e5ae089b01ba675e171bd8bb6b03c63264db1e697d8cc4f",
+        "render_intents_hex": "00100305000000000000010000000000",
+        "pending_intents_before_hex": "001003050000000000000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 0,
+        "active_count": 0,
+        "index": 7,
+        "owner_metadata": 1,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 85962,
+        "candidate_cycles": 82129,
+        "pixel_sha256": "d4c5020433b7498faef6abed678ca6869264cee3fdfdbb6996bffdcfc75c98c2",
+        "render_intents_hex": "01100305000000000001010000000000",
+        "pending_intents_before_hex": "001003050000000000000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 1,
+        "active_count": 1,
+        "index": 0,
+        "owner_metadata": 0,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 66179,
+        "candidate_cycles": 62346,
+        "pixel_sha256": "6a62d9ada004724fce7448462a535f5a5e4605f3bb574fe0bfb1fb34b96a396e",
+        "render_intents_hex": "10100805000000010000010000000000",
+        "pending_intents_before_hex": "000007050000000110000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 1,
+        "active_count": 1,
+        "index": 1,
+        "owner_metadata": 1,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 93891,
+        "candidate_cycles": 90058,
+        "pixel_sha256": "4f536b10e624d5b6ebc291f6eafa6692fcf4ce55ed7a7117e69be197fa942bf2",
+        "render_intents_hex": "01100805000000010201010000000000",
+        "pending_intents_before_hex": "101008050000000100000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 1,
+        "active_count": 1,
+        "index": 2,
+        "owner_metadata": 0,
+        "forced_colour": 3,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 91424,
+        "candidate_cycles": 87591,
+        "pixel_sha256": "dfff00865b31237274261610a157958aa559b5a1ef649a713d5e3260780e2b4f",
+        "render_intents_hex": "00100805000000010000010000000000",
+        "pending_intents_before_hex": "001008050000000100010100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 1,
+        "active_count": 1,
+        "index": 3,
+        "owner_metadata": 1,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 84952,
+        "candidate_cycles": 81119,
+        "pixel_sha256": "6e1dd1461c13f751d061290913d9f99a4ebe3944e3e26f636c6e4ae73af04e08",
+        "render_intents_hex": "01100805000000010000010000000000",
+        "pending_intents_before_hex": "001008050000000100000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 1,
+        "active_count": 1,
+        "index": 4,
+        "owner_metadata": 0,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 91395,
+        "candidate_cycles": 87562,
+        "pixel_sha256": "aa4572e04dac5989d5452efe8ca2ea0a8c7ad81377417f1799048b82f5010457",
+        "render_intents_hex": "00100805000000010001010000000000",
+        "pending_intents_before_hex": "001008050000000100000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 1,
+        "active_count": 1,
+        "index": 5,
+        "owner_metadata": 1,
+        "forced_colour": 3,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 91378,
+        "candidate_cycles": 87545,
+        "pixel_sha256": "8426ec9949cb05895b00903c5c5ee4b23aa048978df4f329f463fa1025a20968",
+        "render_intents_hex": "01100805000000010000010000000000",
+        "pending_intents_before_hex": "001008050000000100010100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 1,
+        "active_count": 1,
+        "index": 6,
+        "owner_metadata": 0,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 84947,
+        "candidate_cycles": 81114,
+        "pixel_sha256": "4e1ca5a107337b6c2947dd70ab5747bbe3d03e3d3504f857b582c1f613ac9089",
+        "render_intents_hex": "00100805000000010000010000000000",
+        "pending_intents_before_hex": "001008050000000100000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 1,
+        "active_count": 1,
+        "index": 7,
+        "owner_metadata": 1,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 93072,
+        "candidate_cycles": 89239,
+        "pixel_sha256": "a55f6d2a5065f9b168ff9d404cb7d3e82906900403ff9b6dcb0cdec83574633d",
+        "render_intents_hex": "01100805000000011001010000000000",
+        "pending_intents_before_hex": "001008050000000100000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 2,
+        "active_count": 2,
+        "index": 0,
+        "owner_metadata": 0,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 65569,
+        "candidate_cycles": 61736,
+        "pixel_sha256": "d952a196b35b98c618a7e2ba11cd7512731bdd4f0b206cac43ae578b14e6cd8e",
+        "render_intents_hex": "00100c05000000030000010000000000",
+        "pending_intents_before_hex": "00000c050000000300000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 2,
+        "active_count": 2,
+        "index": 1,
+        "owner_metadata": 1,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 98144,
+        "candidate_cycles": 94311,
+        "pixel_sha256": "7aeffac11092dbd088e6d737853f74a846bff8e827670fc09227fa6d1a7de796",
+        "render_intents_hex": "11100d05000000030001010000000000",
+        "pending_intents_before_hex": "00100c050000000300000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 2,
+        "active_count": 2,
+        "index": 2,
+        "owner_metadata": 0,
+        "forced_colour": 3,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 98029,
+        "candidate_cycles": 94196,
+        "pixel_sha256": "5632e64a378a2e56db39ae5826a5d9a581843fd6436fed79965574487e4c6e9a",
+        "render_intents_hex": "00100d05000000030000010000000000",
+        "pending_intents_before_hex": "10100d050000000300010100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 2,
+        "active_count": 2,
+        "index": 3,
+        "owner_metadata": 1,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 91266,
+        "candidate_cycles": 87433,
+        "pixel_sha256": "931abe64caba4dcdde2b7ef4de4f30bc2f5aa2aea376ce89f007b68af0e2d086",
+        "render_intents_hex": "01100d05000000031000010000000000",
+        "pending_intents_before_hex": "00100d050000000300000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 2,
+        "active_count": 2,
+        "index": 4,
+        "owner_metadata": 0,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 97748,
+        "candidate_cycles": 93915,
+        "pixel_sha256": "3dea9e3a54976c9c7242465c8facf7c643b42e24dc6609a4d6a9cc08a69918c7",
+        "render_intents_hex": "00100d05000000030001010000000000",
+        "pending_intents_before_hex": "00100d050000000310000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 2,
+        "active_count": 2,
+        "index": 5,
+        "owner_metadata": 1,
+        "forced_colour": 3,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 95997,
+        "candidate_cycles": 92164,
+        "pixel_sha256": "40dfff8fa356b9f2a4af1da6e5fa6e875e71ad82bd82cc2b1f1c401aee4ad199",
+        "render_intents_hex": "01100d05000000030000010000000000",
+        "pending_intents_before_hex": "00100d050000000300010100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 2,
+        "active_count": 2,
+        "index": 6,
+        "owner_metadata": 0,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 89533,
+        "candidate_cycles": 85700,
+        "pixel_sha256": "ed5efb32a57aaa223e931d01af47d8bd81778e014759b9d32e815784eb10151f",
+        "render_intents_hex": "00100d05000000030000010000000000",
+        "pending_intents_before_hex": "00100d050000000300000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 2,
+        "active_count": 2,
+        "index": 7,
+        "owner_metadata": 1,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 96495,
+        "candidate_cycles": 92662,
+        "pixel_sha256": "738f6643f15d2d4d75db17a92be7aac1f80d816137e4608958b467e6ab103e1e",
+        "render_intents_hex": "01100d05000000030201010000000000",
+        "pending_intents_before_hex": "00100d050000000300000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 3,
+        "active_count": 3,
+        "index": 0,
+        "owner_metadata": 0,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 73001,
+        "candidate_cycles": 69168,
+        "pixel_sha256": "09ae41da795327b3d536ab89f02ba43bb01f78662949a17f767f2567751e137f",
+        "render_intents_hex": "00101105000000070000010000000000",
+        "pending_intents_before_hex": "000011050000000710000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 3,
+        "active_count": 3,
+        "index": 1,
+        "owner_metadata": 1,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 99909,
+        "candidate_cycles": 96076,
+        "pixel_sha256": "09ae41da795327b3d536ab89f02ba43bb01f78662949a17f767f2567751e137f",
+        "render_intents_hex": "01101105000000070001010000000000",
+        "pending_intents_before_hex": "001011050000000700000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 3,
+        "active_count": 3,
+        "index": 2,
+        "owner_metadata": 0,
+        "forced_colour": 3,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 102927,
+        "candidate_cycles": 99094,
+        "pixel_sha256": "931fa02525d3637ce1a93e75424f902233d7cb5fd1d1bff837bddc0f01f0ebd2",
+        "render_intents_hex": "10101205000000070200010000000000",
+        "pending_intents_before_hex": "001011050000000700010100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 3,
+        "active_count": 3,
+        "index": 3,
+        "owner_metadata": 1,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 96518,
+        "candidate_cycles": 92685,
+        "pixel_sha256": "0b58785415b58bc9a29d32512cc44e0fb8a08380e4fed9c5ce18bfa1a48aae4f",
+        "render_intents_hex": "01101205000000070000010000000000",
+        "pending_intents_before_hex": "101012050000000700000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 3,
+        "active_count": 3,
+        "index": 4,
+        "owner_metadata": 0,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 99494,
+        "candidate_cycles": 95661,
+        "pixel_sha256": "57d9f666ffc81e64c92b054f493a1200a7a592304b330c81e2e8d5660534928c",
+        "render_intents_hex": "00101205000000070001010000000000",
+        "pending_intents_before_hex": "001012050000000700000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 3,
+        "active_count": 3,
+        "index": 5,
+        "owner_metadata": 1,
+        "forced_colour": 3,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 99463,
+        "candidate_cycles": 95630,
+        "pixel_sha256": "cc48979b27bc0afcf5c7eaf254dbe94806402fe9d5fb2e9a1685b90f7d7ed40a",
+        "render_intents_hex": "01101205000000070000010000000000",
+        "pending_intents_before_hex": "001012050000000700010100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 3,
+        "active_count": 3,
+        "index": 6,
+        "owner_metadata": 0,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 92974,
+        "candidate_cycles": 89141,
+        "pixel_sha256": "b56f86e608818e0f846ca9e7892b601c0b74771bb201e26e0a4fff76ce21fa6a",
+        "render_intents_hex": "00101205000000070000010000000000",
+        "pending_intents_before_hex": "001012050000000700000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 3,
+        "active_count": 3,
+        "index": 7,
+        "owner_metadata": 1,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 102175,
+        "candidate_cycles": 98342,
+        "pixel_sha256": "98c34cf5cfef3278a2dfa01ddf3df687063098cec021d541b56b3607418866eb",
+        "render_intents_hex": "01101205000000071201010000000000",
+        "pending_intents_before_hex": "001012050000000700000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 4,
+        "active_count": 4,
+        "index": 0,
+        "owner_metadata": 0,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 76932,
+        "candidate_cycles": 73099,
+        "pixel_sha256": "0548deaa26e322688ef2d14d5a78b9ae6e02b1e8d1545984429646ab43f8893b",
+        "render_intents_hex": "001016050000000f0200010000000000",
+        "pending_intents_before_hex": "000016050000000f00000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 4,
+        "active_count": 4,
+        "index": 1,
+        "owner_metadata": 1,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 106013,
+        "candidate_cycles": 102180,
+        "pixel_sha256": "1dc11455454b61de134e3ec624d7a85d67c216331be72cdbf2940ccfebe771d5",
+        "render_intents_hex": "011016050000000f0001010000000000",
+        "pending_intents_before_hex": "001016050000000f00000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 4,
+        "active_count": 4,
+        "index": 2,
+        "owner_metadata": 0,
+        "forced_colour": 3,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 104712,
+        "candidate_cycles": 100879,
+        "pixel_sha256": "c1b67c921b28595e5937e3e357b37a6ed0dba436b58d0e1ce461d8e4be6cec6a",
+        "render_intents_hex": "001016050000000f0000010000000000",
+        "pending_intents_before_hex": "001016050000000f00010100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 4,
+        "active_count": 4,
+        "index": 3,
+        "owner_metadata": 1,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 102225,
+        "candidate_cycles": 98392,
+        "pixel_sha256": "a11875e7512a2f743d8951144af7a2c97e907cfbd12b91ee6a0eb30af2040b5e",
+        "render_intents_hex": "111017050000000f1200010000000000",
+        "pending_intents_before_hex": "001016050000000f00000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 4,
+        "active_count": 4,
+        "index": 4,
+        "owner_metadata": 0,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 108669,
+        "candidate_cycles": 104836,
+        "pixel_sha256": "eaaa19c87c3a8a074086c7661dfa97cc21573580b6caff9127e6fc547bcbf38c",
+        "render_intents_hex": "001017050000000f0001010000000000",
+        "pending_intents_before_hex": "101017050000000f10000100000000000216"
+      },
+      {
+        "no_live_collectibles": false,
+        "count": 4,
+        "active_count": 4,
+        "index": 5,
+        "owner_metadata": 1,
+        "forced_colour": 3,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 105139,
+        "candidate_cycles": 101306,
+        "pixel_sha256": "6b691db83a9b987fd1188173b5186951bae4501ad3fbb7c654832f9bd84d5988",
+        "render_intents_hex": "011017050000000f0000010000000000",
+        "pending_intents_before_hex": "001017050000000f00010100000000000216"
+      },
+      {
+        "no_live_collectibles": true,
+        "count": 4,
+        "active_count": 4,
+        "index": 6,
+        "owner_metadata": 0,
+        "forced_colour": 1,
+        "forced_final_gate": false,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 27443,
+        "candidate_cycles": 27188,
+        "pixel_sha256": "17f88a4c10b9722cca4c100148a06ea1fa5527570bb6d68bc5853560dbb86514",
+        "render_intents_hex": "001017050000000f0200010000000000",
+        "pending_intents_before_hex": "001017050000000f00000100000000000216"
+      },
+      {
+        "no_live_collectibles": true,
+        "count": 4,
+        "active_count": 4,
+        "index": 7,
+        "owner_metadata": 1,
+        "forced_colour": 2,
+        "forced_final_gate": true,
+        "raw_state_difference_bytes": 0,
+        "reference_cycles": 33727,
+        "candidate_cycles": 33611,
+        "pixel_sha256": "62686d1b8b49acc279507480bc969c2cecbb6d550ec451ba9c2203455dc78818",
+        "render_intents_hex": "011017050000000f0201010000000000",
+        "pending_intents_before_hex": "001017050000000f00000100000000000216"
+      }
+    ],
+    "counts": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "owners_secondary": [
+      0,
+      1
+    ],
+    "pixels_and_page34": "Every framebuffer byte and every bank-$34 state/cache/header/mask/tail byte equal from identical starting state; reference/candidate order reversed each case.",
+    "complete_rebind_return_boundary": "Complete call includes final five-cycle return; earlier 24111-cycle observation ended before it. Matched complete call is 24116 -> 20427.",
+    "rebind_groups": [
+      {
+        "comparisons": 18,
+        "pairs": 207,
+        "skipped": false,
+        "owners_secondary": [
+          0,
+          1
+        ],
+        "counts": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "primary_classes": {
+          "both": 92,
+          "high_only": 32,
+          "low_only": 62,
+          "neither": 21
+        },
+        "reference_cycles": 24116,
+        "candidate_cycles": 20427,
+        "saving": 3689
+      },
+      {
+        "comparisons": 2,
+        "pairs": 0,
+        "skipped": false,
+        "owners_secondary": [
+          0,
+          1
+        ],
+        "counts": [
+          4
+        ],
+        "primary_classes": {
+          "both": 0,
+          "high_only": 0,
+          "low_only": 0,
+          "neither": 0
+        },
+        "reference_cycles": 439,
+        "candidate_cycles": 467,
+        "saving": -28
+      }
+    ]
+  },
+  "natural_startup": {
+    "phase": "natural demo and credited startup underlay and published nest",
+    "deadline_seconds_per_phase": 45,
+    "success_marker": "exact 32-row capture with no outside writes; cached dormant pixels and clean upper nest on A and B in demo and credited startup",
+    "timeout_meaning": "required startup or owner publication absent",
+    "rom_sha256": "f67c3424b514be57b56b48916b6d87c94c2e7015685513dff5c9371d14a5b981",
+    "checks": [
+      {
+        "phase": "demo",
+        "capture_exact": true,
+        "framebuffer_writes": 0,
+        "outside_background_writes": 0
+      },
+      {
+        "phase": "demo",
+        "owner": 1,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 4,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "demo",
+        "owner": 0,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 4,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "credited",
+        "capture_exact": true,
+        "framebuffer_writes": 0,
+        "outside_background_writes": 0
+      },
+      {
+        "phase": "credited",
+        "owner": 1,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 0,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      },
+      {
+        "phase": "credited",
+        "owner": 0,
+        "upper_clean": true,
+        "dormant_cache_exact": true,
+        "mode": 0,
+        "pixels_sha256": "c54afbc52176c0deb5de7cbc743086359b20afa028ac1a13940742add8c601b6"
+      }
+    ],
+    "result": "pass"
+  },
+  "profile": {
+    "result": "captured",
+    "worklists": 244,
+    "fixture": "Parked player [2,2], two skull entity records cleared, early existing releases. Movement/render/audio/collision code unchanged; not natural moving-player or skull-death acceptance.",
+    "counts": {
+      "0": {
+        "samples": 16,
+        "minimum": 9476,
+        "mean": 10772.875,
+        "maximum": 15191
+      },
+      "1": {
+        "samples": 16,
+        "minimum": 24512,
+        "mean": 27118.4375,
+        "maximum": 40583
+      },
+      "2": {
+        "samples": 16,
+        "minimum": 20117,
+        "mean": 33680.6875,
+        "maximum": 49514
+      },
+      "3": {
+        "samples": 98,
+        "minimum": 22946,
+        "mean": 29284.132653061224,
+        "maximum": 70896
+      },
+      "4": {
+        "samples": 98,
+        "minimum": 21942,
+        "mean": 34941.9693877551,
+        "maximum": 81231
+      }
+    },
+    "four_enemy_phases": {
+      "release_music": {
+        "samples": 82,
+        "minimum": 21942,
+        "mean": 35361.84146341463,
+        "maximum": 81231,
+        "over_target": 78
+      },
+      "post_music": {
+        "samples": 16,
+        "minimum": 30057,
+        "mean": 32790.125,
+        "maximum": 37342,
+        "over_target": 16
+      }
+    },
+    "baseline_post_music_incomplete": {
+      "samples": 11,
+      "minimum": 30315,
+      "mean": 32639.545454545456,
+      "maximum": 36016
+    },
+    "baseline_comparison_gate": {
+      "result": "fail",
+      "missing_quiet_samples": 5,
+      "failure": "AssertionError(('unindexed stream', 55063))",
+      "validated_death_stream": {
+        "pointer": 55063,
+        "labels": [
+          "death_sparse_frame_0"
+        ],
+        "live_bytes": "a3820f10f0019e82f0010f109d81f001",
+        "death_state": 1,
+        "player_cell": [
+          2,
+          2
+        ]
+      },
+      "interpretation": "Eleven quiet samples, then confirmed pre-existing death path; no complete aggregate before/after improvement claim. Local causal savings established by same-state renderer crossovers. Raw enemy-table diagnostic read through unverified PAR5 is excluded from interpretation."
+    },
+    "park_cell": [
+      2,
+      2
+    ],
+    "matching_ordered_state_samples": 124,
+    "comparison_limit": "Aggregate profile differences describe bounded observations. Same-state render crossover establishes local causal savings; framebuffer owner does not establish causality.",
+    "quiet_player_restore_segment": {
+      "samples": 16,
+      "minimum": 1065,
+      "mean": 1065,
+      "maximum": 1065
+    }
+  },
+  "capacity": {
+    "resident_used": 8168,
+    "resident_limit": 8192,
+    "resident_free": 24,
+    "resident_delta": -2,
+    "assets_used": 7648,
+    "assets_limit": 7680,
+    "enemy_used": 4091,
+    "enemy_limit": 4096,
+    "presentation_used": 1273,
+    "presentation_limit": 1280,
+    "copied_audio_used": 734,
+    "copied_audio_limit": 920,
+    "banked_audio_used": 5675,
+    "banked_audio_limit": 8192,
+    "cold_used": 14362,
+    "cold_limit": 16384,
+    "cartridge_source_free": 413,
+    "limits_changed": false
+  },
+  "verification_mechanics": [
+    "First full build reached ROM generation then rejected non-adjacent table-use annotation and undeclared sequential scratch alias; corrected audit declarations.",
+    "Second full build rejected an audit input modified after build began; froze inputs and reran complete build. No rejected runtime result is discarded.",
+    "First crossover reached its unchanged 45-second count boundary after seven passing cases because it repeated isolated rebind measurement in every case. Removed duplicate measurements: twenty isolated passes remain alongside all forty renderer cases; deterministic rerun passes without changing the deadline.",
+    "First aggregate profile at parked [2,22] stopped at four-enemy index52 with pointer $D715 outside the sprite catalogue (built death-frame address). No live stream-byte identity was retained in that failed attempt, so its cause is not established. Reassessed the fixture; added live-byte diagnostics and used legal parked [2,2], completing candidate profile. Baseline upper-left profile fails at four-enemy index93: live death-frame bytes match artifact and DEATH_STATE=1. Eleven baseline quiet samples retained, five missing; aggregate before/after comparison fails. Stopped further fixture probing and reassessed: no production change or corruption established; existing isolated exact-state proof establishes local savings. Movement/collision code was not modified."
+  ],
+  "retained_trace_receipts": {
+    "bug058-rebind-player-oracle-20260927.json": {
+      "sha256": "d2b8f05be0d070035aafc36686cd43920dbb7158fd753e051fc6927929ff9b9d",
+      "bytes": 75392
+    },
+    "bug058-rebind-crossover-20260927.json": {
+      "sha256": "d6da933a3ad66573518d8dc2ad80f0f2c830dd02e88d5262d8e51a3d8e045b12",
+      "bytes": 43055
+    },
+    "bug058-rebind-crossover-timeout-20260927.json": {
+      "sha256": "c57e14e02ab00e9b37a32d87a3f395a75d3c0a90cf48c5cdfb7d3cd2ca1f93ad",
+      "bytes": 10269
+    },
+    "bug058-rebind-startup-20260927.json": {
+      "sha256": "6c52371ba0faac90bc816afc430b2c71835ff5474b4f98b689cfab8f7481bcba",
+      "bytes": 1627
+    },
+    "bug058-rebind-profile-20260927.json": {
+      "sha256": "ff98e8bccef4dcfe794a79416dad3d36ed777535045857a9bbbf716eba63527d",
+      "bytes": 1728564
+    },
+    "bug058-rebind-profile-before-20260927.json": {
+      "sha256": "e3b2b81c6434d8d02e2c180977aaf2e41ab233deda377430e7c27036a5d453df",
+      "bytes": 1656042
+    },
+    "bug058-rebind-profile-fixture-failure-20260927.json": {
+      "sha256": "33e803614e33b03183b69dca351ddaf66d27290c9990eb3115ba717a85dbef08",
+      "bytes": 1291292
+    },
+    "bug058-rebind-player-build-20260927.log": {
+      "sha256": "09eb92ee9700c6f606c75bb9d61a147a7fd2b2844a8a072c4b6422d3515ca021",
+      "bytes": 10433
+    }
+  },
+  "commands": {
+    "build": "scripts/build.sh build",
+    "oracle": "python3 repro/bug058-rebind-player-oracle.py WORKTREE OUTPUT_JSON",
+    "crossover": "python3 repro/bug058-rebind-crossover-20260927.py WORKTREE OUTPUT_JSON WORKTREE rebind-before rebind-candidate --resident-pair --force-colour --cleared-skulls --park-far --no-live-collectibles --measure-rebind",
+    "startup": "python3 repro/bug058-nest-startup-20260927.py WORKTREE OUTPUT_JSON",
+    "profile": "python3 repro/bug058-full-cadence-profiler.py WORKTREE OUTPUT_JSON --release-window --renderer-costs --capture-paths --two-step --steady-decode --cleared-skulls --park-upper-left --four-render-profile --colour-pairs"
+  },
+  "empty_collectible_transition": "439 -> 467 cycles, 28 setup cycles added when no live collectible pairs remain; unchanged-colour and unknown-cache early exits have zero delta.",
+  "local_fit_result": "pass",
+  "overall_27000_result": "fail",
+  "residual": "Natural moving-player four-enemy check remains; BUG-058 stays Proposed and is not Done.",
+  "fit_commit": "cba520588abf4a8ab32314ec61a16d58b40b7186",
+  "ownership_audit": {
+    "errors": [],
+    "counts": {
+      "documented": 16,
+      "excluded": 1650,
+      "unresolved": 985
+    },
+    "reviewed_records": [
+      "primary-mask-table",
+      "cache-rebind-colour",
+      "perimeter-colour",
+      "player-background"
+    ],
+    "source_reference_coverage": "10 modules, 256/256 routines, 4092/4092 labels"
+  }
+}

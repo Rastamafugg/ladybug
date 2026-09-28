@@ -1,0 +1,584 @@
+[
+  {
+    "rom_sha256": "f67c3424b514be57b56b48916b6d87c94c2e7015685513dff5c9371d14a5b981",
+    "phase": "controlled release-count sweep with real movement/render/audio",
+    "deadline_seconds": 45,
+    "success_marker": "At counts three and four: release cue 5 observed, followed by 16 consecutive cue-5-free worklists; normal ticks remain enabled",
+    "timeout_meaning": "named sample boundary absent, not proof of target slowdown",
+    "controlled": "player parked at legal maze cell recorded in park_cell; existing enemy_release_impl called early; fixture leaves movement/render/collision/audio/clock execution intact; candidate code is identified by ROM hash; setup drains prior audio, then records the new release until cue 5 ends",
+    "clock_units": "event_ticks / 8 at verified fast clock; monitor cpu_cycles incorrectly divides by16",
+    "identity": "live presentation/resident phase prologues, complete enemy module and release destination match artifacts",
+    "controlled_cleared_skulls": [
+      [
+        14,
+        2,
+        1,
+        0
+      ],
+      [
+        22,
+        12,
+        1,
+        0
+      ]
+    ],
+    "park_cell": [
+      2,
+      22
+    ],
+    "result": "fail",
+    "failure": "AssertionError(('unindexed stream', 55061))",
+    "failed_row": {
+      "requested_count": 4,
+      "index": 52,
+      "active": 4,
+      "death": 0,
+      "front": 1,
+      "state": [
+        0,
+        6,
+        0,
+        0,
+        4,
+        4,
+        1,
+        0,
+        0,
+        0,
+        164,
+        128
+      ],
+      "event_start": 273652640,
+      "vbord": 1020,
+      "missed_commit": 134,
+      "marks": [
+        [
+          "main_game_tick_normal",
+          414
+        ],
+        [
+          "enemy_tick",
+          502
+        ],
+        [
+          "main_after_player",
+          1789
+        ],
+        [
+          "main_render",
+          1973
+        ],
+        [
+          "framebuffer_prepare_back",
+          2003
+        ],
+        [
+          "sync_entity_cache_colour",
+          2465
+        ],
+        [
+          "secc_done",
+          2480
+        ],
+        [
+          "actor_closure_restore",
+          2588
+        ],
+        [
+          "acr_enemies",
+          3653
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          3794
+        ],
+        [
+          "acr_enemy_next",
+          5145
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          5291
+        ],
+        [
+          "acr_enemy_next",
+          6346
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          6492
+        ],
+        [
+          "acr_enemy_next",
+          7638
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          7784
+        ],
+        [
+          "acr_enemy_next",
+          8930
+        ],
+        [
+          "framebuffer_queue_damage",
+          8958
+        ],
+        [
+          "framebuffer_project_damage",
+          9362
+        ],
+        [
+          "roam_mark_underlay",
+          9427
+        ],
+        [
+          "frame_render_background",
+          9480
+        ],
+        [
+          "de_colour_done",
+          13976
+        ],
+        [
+          "sparse_decode_done",
+          17435
+        ],
+        [
+          "fri_secondary",
+          20522
+        ],
+        [
+          "fri_background_done",
+          29084
+        ],
+        [
+          "actor_closure_draw",
+          29098
+        ],
+        [
+          "acd_save_loop",
+          29125
+        ],
+        [
+          "acd_save_loop",
+          29148
+        ],
+        [
+          "acd_save_loop",
+          29171
+        ],
+        [
+          "acd_save_loop",
+          29194
+        ],
+        [
+          "acd_draw_loop",
+          29226
+        ],
+        [
+          "acd_draw_loop",
+          29249
+        ],
+        [
+          "acd_draw_loop",
+          29272
+        ],
+        [
+          "acd_draw_loop",
+          29295
+        ],
+        [
+          "acd_death",
+          29327
+        ],
+        [
+          "sparse_blit_fb",
+          30657
+        ]
+      ],
+      "audio_before": {
+        "slots": [
+          255,
+          5,
+          255,
+          255
+        ],
+        "music_queue": 0
+      },
+      "expected_restore_slots": 4,
+      "player_restore_state": {
+        "valid": 1,
+        "current": 35108,
+        "old": 35108,
+        "render_flags": [
+          128,
+          8
+        ]
+      },
+      "restore_calls": [
+        {
+          "slot": 0,
+          "row_phase": 0,
+          "column_phase": 6,
+          "entry": 3794,
+          "cycles_to_caller_next": 1351
+        },
+        {
+          "slot": 1,
+          "row_phase": 0,
+          "column_phase": 0,
+          "entry": 5291,
+          "cycles_to_caller_next": 1055
+        },
+        {
+          "slot": 2,
+          "row_phase": 4,
+          "column_phase": 0,
+          "entry": 6492,
+          "cycles_to_caller_next": 1146
+        },
+        {
+          "slot": 3,
+          "row_phase": 4,
+          "column_phase": 0,
+          "entry": 7784,
+          "cycles_to_caller_next": 1146
+        }
+      ],
+      "background_calls": [
+        {
+          "entry": 9480,
+          "render_flags": [
+            128,
+            8
+          ],
+          "enemy_flags": 10,
+          "cycles_to_return": 19604
+        }
+      ],
+      "unprofiled_stage_returns": 1,
+      "decode_calls": [
+        {
+          "path": "sparse_blit_fb",
+          "entry": 30657
+        }
+      ]
+    },
+    "completed_worklists": 198
+  },
+  {
+    "rom_sha256": "9f96bdb524f5a1bc730a6b225dd2f62c4ac4d47339108f8f9b8b549472b78b53",
+    "phase": "controlled release-count sweep with real movement/render/audio",
+    "deadline_seconds": 45,
+    "success_marker": "At counts three and four: release cue 5 observed, followed by 16 consecutive cue-5-free worklists; normal ticks remain enabled",
+    "timeout_meaning": "named sample boundary absent, not proof of target slowdown",
+    "controlled": "player parked at legal maze cell recorded in park_cell; existing enemy_release_impl called early; fixture leaves movement/render/collision/audio/clock execution intact; candidate code is identified by ROM hash; setup drains prior audio, then records the new release until cue 5 ends",
+    "clock_units": "event_ticks / 8 at verified fast clock; monitor cpu_cycles incorrectly divides by16",
+    "identity": "live presentation/resident phase prologues, complete enemy module and release destination match artifacts",
+    "controlled_cleared_skulls": [
+      [
+        14,
+        2,
+        1,
+        0
+      ],
+      [
+        22,
+        12,
+        1,
+        0
+      ]
+    ],
+    "park_cell": [
+      2,
+      2
+    ],
+    "unindexed_stream_identity": {
+      "pointer": 55063,
+      "labels": [
+        "death_sparse_frame_0"
+      ],
+      "live_bytes": "a3820f10f0019e82f0010f109d81f001",
+      "death_state": 1,
+      "player_cell": [
+        2,
+        2
+      ],
+      "enemy_table": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "result": "fail",
+    "failure": "AssertionError(('unindexed stream', 55063))",
+    "failed_row": {
+      "requested_count": 4,
+      "index": 93,
+      "active": 4,
+      "death": 0,
+      "front": 0,
+      "state": [
+        1,
+        5,
+        0,
+        0,
+        4,
+        4,
+        1,
+        0,
+        0,
+        0,
+        164,
+        128
+      ],
+      "event_start": 291881696,
+      "vbord": 1096,
+      "missed_commit": 137,
+      "marks": [
+        [
+          "main_game_tick_normal",
+          414
+        ],
+        [
+          "enemy_tick",
+          524
+        ],
+        [
+          "main_after_player",
+          1939
+        ],
+        [
+          "main_render",
+          2123
+        ],
+        [
+          "framebuffer_prepare_back",
+          2153
+        ],
+        [
+          "sync_entity_cache_colour",
+          2623
+        ],
+        [
+          "secc_done",
+          2638
+        ],
+        [
+          "actor_closure_restore",
+          2749
+        ],
+        [
+          "acr_enemies",
+          3958
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          4096
+        ],
+        [
+          "acr_enemy_next",
+          5447
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          5590
+        ],
+        [
+          "acr_enemy_next",
+          7024
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          7167
+        ],
+        [
+          "acr_enemy_next",
+          8313
+        ],
+        [
+          "roam_copy_bg_to_fb",
+          8456
+        ],
+        [
+          "acr_enemy_next",
+          9511
+        ],
+        [
+          "framebuffer_queue_damage",
+          9539
+        ],
+        [
+          "framebuffer_project_damage",
+          9946
+        ],
+        [
+          "roam_mark_underlay",
+          10014
+        ],
+        [
+          "frame_render_background",
+          10067
+        ],
+        [
+          "de_colour_done",
+          14563
+        ],
+        [
+          "sparse_decode_done",
+          18022
+        ],
+        [
+          "fri_secondary",
+          21109
+        ],
+        [
+          "fri_background_done",
+          29671
+        ],
+        [
+          "actor_closure_draw",
+          29685
+        ],
+        [
+          "acd_save_loop",
+          29712
+        ],
+        [
+          "acd_save_loop",
+          29735
+        ],
+        [
+          "acd_save_loop",
+          29758
+        ],
+        [
+          "acd_save_loop",
+          29781
+        ],
+        [
+          "acd_draw_loop",
+          29909
+        ],
+        [
+          "acd_draw_loop",
+          29932
+        ],
+        [
+          "acd_draw_loop",
+          29955
+        ],
+        [
+          "acd_draw_loop",
+          29978
+        ],
+        [
+          "acd_death",
+          30010
+        ],
+        [
+          "sparse_blit_fb",
+          31244
+        ]
+      ],
+      "audio_before": {
+        "slots": [
+          255,
+          4,
+          255,
+          255
+        ],
+        "music_queue": 0
+      },
+      "expected_restore_slots": 4,
+      "player_restore_state": {
+        "valid": 1,
+        "current": 9508,
+        "old": 9508,
+        "render_flags": [
+          128,
+          8
+        ]
+      },
+      "restore_calls": [
+        {
+          "slot": 0,
+          "row_phase": 0,
+          "column_phase": 6,
+          "entry": 4096,
+          "cycles_to_caller_next": 1351
+        },
+        {
+          "slot": 1,
+          "row_phase": 2,
+          "column_phase": 6,
+          "entry": 5590,
+          "cycles_to_caller_next": 1434
+        },
+        {
+          "slot": 2,
+          "row_phase": 12,
+          "column_phase": 0,
+          "entry": 7167,
+          "cycles_to_caller_next": 1146
+        },
+        {
+          "slot": 3,
+          "row_phase": 0,
+          "column_phase": 0,
+          "entry": 8456,
+          "cycles_to_caller_next": 1055
+        }
+      ],
+      "background_calls": [
+        {
+          "entry": 10067,
+          "render_flags": [
+            128,
+            8
+          ],
+          "enemy_flags": 10,
+          "cycles_to_return": 19604
+        }
+      ],
+      "unprofiled_stage_returns": 1,
+      "decode_calls": [
+        {
+          "path": "sparse_blit_fb",
+          "entry": 31244
+        }
+      ]
+    },
+    "completed_worklists": 239
+  }
+]

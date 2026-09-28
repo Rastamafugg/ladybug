@@ -121,6 +121,7 @@ try:
   e['controlled_cleared_skulls']=removed
  park=22 if '--park-far' in sys.argv else 2
  px=2 if '--park-other-corner' in sys.argv else park
+ if '--park-upper-left' in sys.argv:park=px=2
  write(ms['PLAYER_CELL_X'],[px,park]);write(ms['PLAYER_FB'],(0x2000+(park*8-8)*160+(px+7)*4).to_bytes(2,'big'));write(ms['PLAYER_DIR'],[255]);e['park_cell']=[px,park]
  for count in range(5):
   if count==4 and '--steady-decode' in sys.argv[3:]:
@@ -156,7 +157,13 @@ try:
      if markers[a] in ['sparse_blit_fb','sparse_blit_stage']:
       call={'path':markers[a],'entry':t};row.setdefault('decode_calls',[]).append(call)
       if '--sparse-mix' in sys.argv[3:] or '--steady-decode' in sys.argv[3:]:
-       pointer=c.call('read_registers')['u'];options=[x for x in stream_catalog if x[2]==pointer];assert options,('unindexed stream',pointer)
+       pointer=c.call('read_registers')['u'];options=[x for x in stream_catalog if x[2]==pointer]
+       if not options:
+        labels=[n for n,a in ms.items() if a==pointer and n.startswith('death_sparse_frame_')]
+        if labels:
+         expected=resident[pointer-0xc000:pointer-0xc000+16];assert read(pointer,16)==expected,'unindexed resident stream identity'
+         e['unindexed_stream_identity']={'pointer':pointer,'labels':labels,'live_bytes':expected.hex(),'death_state':read(ms['DEATH_STATE'])[0],'player_cell':list(read(ms['PLAYER_CELL_X'],2)),'enemy_table':list(read(es['ENEMY_TABLE'],4*es.get('ENEMY_STATE_SIZE',8)))}
+        raise AssertionError(('unindexed stream',pointer))
        mapped=read(pointer,max(len(x[3]) for x in options));matches=[x for x in options if mapped[:len(x[3])]==x[3]];assert matches,'mapped stream/artifact mismatch'
        assert all(x[4:]==matches[0][4:] for x in matches),'ambiguous command mix'
        call.update(frames=[x[0]+':'+str(x[1]) for x in matches],mix=matches[0][4],masks=matches[0][5])
