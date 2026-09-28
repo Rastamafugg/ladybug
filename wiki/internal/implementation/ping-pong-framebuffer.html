@@ -400,7 +400,8 @@ $FF, $0000                          end frame
         four-enemy trace.
       </p>
     </footer>
-  </main>
+  <section id="enemy-clock-discrepancy-20260927"><h2>Current enemy parity differs from the committed-epoch rule</h2><p>Read-only review of cba5205 identifies a discrepancy: player pending movement follows FB_SIM_SEQ, but enemy_runtime.s et_find_movement tests LAST_FRAME. Under the retained four-enemy workload, each image takes two VBlanks and dispatch stays on even hardware parity. The enemy gate can then admit every dispatch while player movement remains every second completed epoch. This is separate from the renderer exceeding its cycle budget; aligning enemy parity alone cannot restore full wall-clock player speed. Existing frozen-epoch policy remains authoritative. <a href="../tickets/bug-058-three-enemy-slowdown.html#player-relative-slowdown-20260927">Observed facts, limits and unapproved next scheduling investigation</a>.</p></section>
+</main>
 </div>
 </body>
 </html>

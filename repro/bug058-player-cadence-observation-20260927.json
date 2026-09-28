@@ -1,0 +1,47 @@
+{
+  "ticket": "BUG-058",
+  "fit_commit": "cba5205",
+  "rom_sha256": "f67c3424b514be57b56b48916b6d87c94c2e7015685513dff5c9371d14a5b981",
+  "natural_report": "Player slows with four enemies; enemies appear normal; three or fewer enemies play acceptably.",
+  "source_facts": {
+    "player": "main_game_tick_normal consumes PLAYER_TICK_PENDING; main_alive arms it after an even FB_SIM_SEQ completed epoch, unless PICKUP_TIMER holds it.",
+    "enemy": "enemy_tick_impl et_find_movement admits movement when LAST_FRAME hardware VBlank parity is even, subject to normal death/freeze/direction conditions.",
+    "publication": "framebuffer_irq_impl increments FRAMES at every VBlank and FB_SIM_SEQ only when a pending completed image publishes.",
+    "step": "Ordinary player and enemy motion both advance one packed byte horizontally or 320 framebuffer bytes vertically: two pixels."
+  },
+  "retained_phase_observations": {
+    "3": {
+      "worklists": 16,
+      "vbord_interval_counts": {
+        "1": 12,
+        "2": 2,
+        "3": 1
+      },
+      "vbord_parity_counts": {
+        "0": 8,
+        "1": 8
+      },
+      "clock_meaning": "VBlank counter at each dispatch; intervals are between consecutive sampled dispatches, not movement-call or distance measurements."
+    },
+    "4": {
+      "worklists": 16,
+      "vbord_interval_counts": {
+        "2": 15
+      },
+      "vbord_parity_counts": {
+        "0": 16
+      },
+      "clock_meaning": "VBlank counter at each dispatch; intervals are between consecutive sampled dispatches, not movement-call or distance measurements."
+    }
+  },
+  "interpretation": "Confirmed source clock inconsistency plus observed even-parity aliasing supports the reported relative slowdown. With two VBlanks per committed image, player cadence can halve while even-phase enemy movement remains admitted every dispatch. Not a direct moving-player displacement measurement. Opposite hardware parity could suppress enemy movement instead.",
+  "reassessment": "Leading explanation now includes movement scheduling as well as renderer cost. High-risk remains; no production change approved. Existing frozen-epoch policy and 27000 target remain. Synchronizing enemy parity alone would not restore player wall-clock pace or meet the frame target.",
+  "next_discriminating_probe": "Reuse existing monitor harness on identified cold artifact; count actual player_tick and enemy movement entries, completed epochs, hardware VBlanks and actor displacement over short three/four-enemy straight-motion windows without pickup/gate/death/freeze interruptions. Each phase <=45 seconds; success requires named calls plus valid motion and byte/mapping identity; absent or interrupted window fails. Include opposite VBlank parity if designing a scheduling fix.",
+  "trace_sha256": "ff98e8bccef4dcfe794a79416dad3d36ed777535045857a9bbbf716eba63527d",
+  "source_hashes": {
+    "src/main.s": "20b24a47fb4f6dab44e3e297479c569884d172647f610b236bbda146230b36a1",
+    "src/enemy_runtime.s": "2d0f434d78581d10e5e590beee1d205ac7273133008acd3b8fdfc54655145272"
+  },
+  "code_changes": false,
+  "manual_game_left_running": true
+}
