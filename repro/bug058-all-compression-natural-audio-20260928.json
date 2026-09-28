@@ -1,0 +1,42 @@
+{
+  "rom_sha256": "25198a23ecf2eb233d075c6feb9c97fb9d0495eb8356fd5cc8532dfad3fdca85",
+  "phase": "natural credit cue and first enemy release",
+  "deadline_seconds_per_phase": 45,
+  "success_marker": "credit cue 12 and release cue 5 reach live slots with non-silent mixer after natural coin/start input",
+  "timeout_meaning": "required natural cue or release not observed; no forced state fallback",
+  "listening": "automated admission/mixer evidence; human audible acceptance not claimed",
+  "checks": [
+    {
+      "natural_credit_cue": 12,
+      "slots": [
+        255,
+        12,
+        255,
+        255
+      ],
+      "attenuation": [
+        0,
+        15,
+        15
+      ],
+      "mode": 1
+    },
+    {
+      "natural_release_cue": 5,
+      "active_enemies": 1,
+      "slots": [
+        255,
+        4,
+        5,
+        255
+      ],
+      "attenuation": [
+        0,
+        1,
+        15
+      ],
+      "mode": 0
+    }
+  ],
+  "result": "pass"
+}

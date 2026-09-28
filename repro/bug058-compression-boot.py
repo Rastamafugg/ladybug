@@ -22,7 +22,7 @@ rom = (b/'ladybug.rom').read_bytes()
 delta = bs['LOADER_RAM'] - bs['loader_start']
 digest = lambda data: hashlib.sha256(data).hexdigest()
 e = dict(rom_sha256=digest(rom), result='fail', deadline_seconds_per_phase=45,
-         success_marker='Exact relocated loader, all five expanded streams, runtime modules, descriptor retirement then exact audio guard',
+         success_marker='Exact relocated loader, all seven expanded streams, runtime modules, descriptor retirement then exact audio guard',
          timeout_meaning='Required boot/guard boundary absent; not evidence of gameplay slowdown', checks=[])
 p, c = r.launch_fast(m, Path('/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar'), b/'ladybug.rom')
 deadline = time.monotonic()+45
@@ -58,6 +58,8 @@ def record(label, data):
 
 
 try:
+    boot_wall_start = time.monotonic()
+    boot_tick_start = c.call('read_cycles')['event_ticks']
     go(bs['boot_entry'])
     initial = read(0xC000, len(boot))
     if initial != boot:
@@ -69,14 +71,15 @@ try:
     go(bs['boot_copy'])
     assert read(0xC000, len(boot)) == boot, 'authored cartridge bootstrap identity after SAM_CART'
     go(bs['LOADER_RAM'])
+    loader_tick_start = c.call('read_cycles')['event_ticks']
     body = boot[bs['loader_start']-0xC000:bs['loader_end']-0xC000]
     assert read(bs['LOADER_RAM'], len(body)) == body, 'relocated loader identity'
     record('authored/relocated loader exact', body)
     loader('copy_enemy_runtime')
     table = boot[bs['gmc_lzss_stream_table']-0xC000:bs['gmc_lzss_stream_end']-0xC000+1]
-    assert len(table) == 71
+    assert len(table) == len(layout['compression']['streams'])*14+1 == 99
     assert read(bs['GMC_LZSS_TABLE_RAM'], len(table)) == table
-    record('five live descriptors copied before source overwrite', table)
+    record('seven live descriptors copied before source overwrite', table)
     loader('copy_sparse_table')
     audio_stream = layout['compression']['streams'][-1]
     assert audio_stream['name'] == 'audio_page_3d'
@@ -114,17 +117,29 @@ try:
     enemy = (b/'ladybug-enemy-sparse.bin').read_bytes()
     assert physical(0x35*8192,len(enemy)) == enemy
     record('all enemy pages/indexes intact at handoff',enemy)
+    e['boot_handoff_wall_seconds'] = time.monotonic()-boot_wall_start
+    e['cold_launch_to_handoff_event_ticks'] = c.call('read_cycles')['event_ticks']-boot_tick_start
+    e['relocated_loader_fast_cpu_cycles'] = (c.call('read_cycles')['event_ticks']-loader_tick_start)//8
+    e['relocated_loader_emulated_seconds'] = e['relocated_loader_fast_cpu_cycles']/1789772.5
+    e['wall_time_note'] = 'Includes debugger stops; emulated loader seconds exclude host observation overhead'
+    retired_state_gateway = read(0x02DC,14)
     deadline = time.monotonic()+45
-    init = 0x0300+au['audio_guard_copy']-0xA000
+    init = 0x0300+au['audio_init_impl']-0xA000
     go(init)
     engine = audio[:au['audio_engine_end']-0xA000]
     assert read(0x0300,len(engine)) == engine, 'copied engine identity before guard installation'
     assert c.call('read_gime_state')['pars']['task0'][5] & 63 == 0x3D
     assert read(0x02C0,20) == retired_overlap, 'overlap changed before guard installation'
+    assert read(0x02DC,14) == retired_state_gateway, 'state/gateway overlap changed before audio init'
     guard = audio[au['audio_guard_bytes']-0xA000:au['audio_guard_end']-0xA000]
     go(0x0300+au['audio_init_slot_loop']-0xA000)
     assert read(0x02C0,len(guard)) == guard
     record('guard installed only after boot retirement',guard)
+    assert read(au['AUDIO_LAST_MODE'],2) == bytes([255,0]), 'mode/pending init'
+    gateway = audio[au['audio_service_gateway_bytes']-0xA000:au['audio_service_gateway_bytes']-0xA000+18]
+    assert read(au['AUDIO_SERVICE_GATEWAY'],18) == gateway, 'gateway installed after retirement'
+    record('mode/pending initialized after retirement',read(au['AUDIO_LAST_MODE'],2))
+    record('gateway installed after retirement',gateway)
     go(ps['pft_ready'])
     assert read(0x1900,len((b/'ladybug-presentation-runtime.bin').read_bytes())) == (b/'ladybug-presentation-runtime.bin').read_bytes()
     assert read(0x02C0,len(guard)) == guard

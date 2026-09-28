@@ -1,0 +1,213 @@
+{
+  "rom_sha256": "25198a23ecf2eb233d075c6feb9c97fb9d0495eb8356fd5cc8532dfad3fdca85",
+  "result": "pass",
+  "deadline_seconds_per_phase": 45,
+  "success_marker": "Exact relocated loader, all seven expanded streams, runtime modules, descriptor retirement then exact audio guard",
+  "timeout_meaning": "Required boot/guard boundary absent; not evidence of gameplay slowdown",
+  "checks": [
+    {
+      "check": "authored/relocated loader exact",
+      "bytes": 1292,
+      "sha256": "73dcefd6e93e68dac5e453cae01864a41714e83a3a42d208651c62de23db698c"
+    },
+    {
+      "check": "seven live descriptors copied before source overwrite",
+      "bytes": 99,
+      "sha256": "aa75bddf862a1cb81b2c345806824deff2916819def2189b1ec0b9219a1266c2"
+    },
+    {
+      "check": "compressed audio staged before all-RAM",
+      "bytes": 3191,
+      "sha256": "5e9c0340a06a148f7f48db84e3c9d9722efb9979317d732c8fde85ff24c360b9"
+    },
+    {
+      "check": "destination mapping page39",
+      "cpu_register_read": 185,
+      "actual_page": 57,
+      "expected_page": 57
+    },
+    {
+      "check": "compressed source/expanded destination: page39",
+      "bytes": 4022,
+      "sha256": "deb032745f4c883c9ec0c2792703bb406378f4a64dfcdfa9d71ddc23c4741a0a"
+    },
+    {
+      "check": "destination mapping presentation_page_3a",
+      "cpu_register_read": 186,
+      "actual_page": 58,
+      "expected_page": 58
+    },
+    {
+      "check": "compressed source/expanded destination: presentation_page_3a",
+      "bytes": 8192,
+      "sha256": "19ca02bcc197acebad6a19571f43155aeba007b5230c4042323272ec8b0a8e1f"
+    },
+    {
+      "check": "destination mapping presentation_page_3b",
+      "cpu_register_read": 187,
+      "actual_page": 59,
+      "expected_page": 59
+    },
+    {
+      "check": "compressed source/expanded destination: presentation_page_3b",
+      "bytes": 6170,
+      "sha256": "abe841a62f068fb8b7f54d996bfad2f10769d4892dc26e9423b567e11f1fc28b"
+    },
+    {
+      "check": "destination mapping enemy_page_35",
+      "cpu_register_read": 181,
+      "actual_page": 53,
+      "expected_page": 53
+    },
+    {
+      "check": "compressed source/expanded destination: enemy_page_35",
+      "bytes": 8192,
+      "sha256": "6ba0b424152580641b4f8fe49b158e93804a9a6dabec24d1e05b5e1924fea00e"
+    },
+    {
+      "check": "destination mapping enemy_page_36",
+      "cpu_register_read": 182,
+      "actual_page": 54,
+      "expected_page": 54
+    },
+    {
+      "check": "compressed source/expanded destination: enemy_page_36",
+      "bytes": 8192,
+      "sha256": "8cf7d34fb827fa7ee56c46e5b8f436cb995a40a11d2e36b5a81282a8a6230a55"
+    },
+    {
+      "check": "destination mapping enemy_page_37",
+      "cpu_register_read": 183,
+      "actual_page": 55,
+      "expected_page": 55
+    },
+    {
+      "check": "compressed source/expanded destination: enemy_page_37",
+      "bytes": 6621,
+      "sha256": "ccc9c6ffef8f149c00b4223ba3a88437f191d27c2b544ea236d32c56413dfcef"
+    },
+    {
+      "check": "destination mapping audio_page_3d",
+      "cpu_register_read": 189,
+      "actual_page": 61,
+      "expected_page": 61
+    },
+    {
+      "check": "compressed source/expanded destination: audio_page_3d",
+      "bytes": 5675,
+      "sha256": "180d5a2a63cac154338a0936e1c7622103629ea67f681e60b2db03739ae40d40"
+    },
+    {
+      "check": "descriptor overlap at retirement",
+      "bytes": 20,
+      "sha256": "140baa00b652ee07bed886dbdc6d6b9267aeccd742a8ac55dbe20775a3920f04"
+    },
+    {
+      "check": "cold handoff: ladybug-runtime.rom",
+      "bytes": 15872,
+      "sha256": "77e2b3cc41995e47362c1bdadc519168e8f6f71b741b32d610f8b8931e9b3139"
+    },
+    {
+      "check": "cold handoff: ladybug-enemy-runtime.rom",
+      "bytes": 4091,
+      "sha256": "852f48b253698076a18672a4dc48184d798d17fb66c6fdd5cb045eadcdad0aa2"
+    },
+    {
+      "check": "cold handoff: ladybug-presentation-runtime.bin",
+      "bytes": 1273,
+      "sha256": "6ceaab887ea605f03765b1a3fb7a855b30f78f26cf1cbda777f1194d9326f740"
+    },
+    {
+      "check": "all enemy pages/indexes intact at handoff",
+      "bytes": 23005,
+      "sha256": "688af5ca9c98802096aa50cf47ef65b78077205f7d77a4d70415bbfb4d51029d"
+    },
+    {
+      "check": "guard installed only after boot retirement",
+      "bytes": 20,
+      "sha256": "f30d8151ba2758d609fbf15c4e9c84f1e6d217b5b09a732fe748d1a9340d9e4e"
+    },
+    {
+      "check": "mode/pending initialized after retirement",
+      "bytes": 2,
+      "sha256": "ea5dbf9596d187e9500f23e9a680109475341cf4e81f7e043f7d97152c10772f"
+    },
+    {
+      "check": "gateway installed after retirement",
+      "bytes": 18,
+      "sha256": "3aa38855bb5ce8523e2f71869c5625c0b6f2f40c7541ddc0324a009ce679729c"
+    }
+  ],
+  "initial_boot_read": {
+    "first_differences": [
+      [
+        0,
+        26,
+        68
+      ],
+      [
+        1,
+        80,
+        75
+      ],
+      [
+        2,
+        16,
+        26
+      ],
+      [
+        3,
+        206,
+        80
+      ],
+      [
+        4,
+        94,
+        16
+      ],
+      [
+        5,
+        255,
+        206
+      ],
+      [
+        6,
+        134,
+        31
+      ],
+      [
+        7,
+        18,
+        254
+      ],
+      [
+        8,
+        198,
+        127
+      ],
+      [
+        9,
+        16,
+        255
+      ],
+      [
+        10,
+        142,
+        145
+      ],
+      [
+        11,
+        255,
+        134
+      ]
+    ],
+    "live_prefix": "1a5010ce5eff8612c6108effb0a7805a26fb8effa0318d022dc610a6a0a7805a",
+    "artifact_prefix": "444b1a5010ce1ffe7fff918638b7ffa0863eb7ffa5b7ffa6863fb7ffa7866cb7"
+  },
+  "boot_handoff_wall_seconds": 0.15028680199975497,
+  "cold_launch_to_handoff_event_ticks": 29914296,
+  "relocated_loader_fast_cpu_cycles": 2983639,
+  "relocated_loader_emulated_seconds": 1.6670493037522924,
+  "wall_time_note": "Includes debugger stops; emulated loader seconds exclude host observation overhead",
+  "presentation_mode": 1
+}
