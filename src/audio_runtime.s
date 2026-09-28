@@ -1016,6 +1016,10 @@ audio_guard_boundary
         ifne ADAPTIVE_RENDERING
         clra
         jsr audio_adaptive_api
+        ; Drain owns already queued admissions as well as elapsed notes.
+        ; Admit only after aging old voices, before publishing new notes.
+        lda #1
+        jsr audio_adaptive_api
         lda #2
         jsr audio_adaptive_api
         else
