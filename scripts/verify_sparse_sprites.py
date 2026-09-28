@@ -67,6 +67,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--demo-runtime", type=Path, default=BUILD / "ladybug-demo-runtime.bin")
     parser.add_argument("--highscore-runtime", type=Path, default=BUILD / "ladybug-highscore-runtime.bin")
     parser.add_argument("--highscore-helper", type=Path, default=BUILD / "ladybug-highscore-helper.bin")
+    parser.add_argument("--adaptive-helper", type=Path)
     parser.add_argument("--audio-runtime", type=Path, default=BUILD / "ladybug-audio-runtime.bin")
     parser.add_argument("--tile-patches", type=Path, default=BUILD / "ladybug-presentation-tile-patches.bin")
     parser.add_argument(
@@ -411,6 +412,7 @@ def main() -> None:
                 )
     if len(loader) != len(manifest_segments):
         raise SystemExit("sparse proof: loader and manifest segment counts differ")
+    adaptive_helper = args.adaptive_helper.read_bytes() if args.adaptive_helper else b""
     reconstructed = {
         "enemy": bytearray(len(enemy_payload)),
         "player": bytearray(len(player_payload)),
@@ -418,6 +420,7 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
+        "adaptive_helper": bytearray(len(adaptive_helper)),
         "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
             len(actor_underlays) + len(actor_records)
@@ -432,6 +435,7 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
+        "adaptive_helper": bytearray(len(adaptive_helper)),
         "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
             len(actor_underlays) + len(actor_records)
@@ -544,6 +548,9 @@ def main() -> None:
             reconstructed[target][target_offset:destination_end] = source
             coverage[target][target_offset:destination_end] = b"\x01" * count
             continue
+        elif target == "adaptive_helper":
+            target_page_base = 0x34
+            target_address = 0xBD44
         elif target == "audio_runtime":
             target_page_base = 0x3D
             target_address = WINDOW_BASE
@@ -659,6 +666,8 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct presentation cold data")
     if reconstructed["presentation_module"] != presentation_module:
         raise SystemExit("sparse proof: loader does not reconstruct presentation module")
+    if reconstructed["adaptive_helper"] != adaptive_helper or not all(coverage["adaptive_helper"]):
+        raise SystemExit("sparse proof: adaptive helper coverage/bytes differ")
     if reconstructed["audio_runtime"] != audio_runtime:
         raise SystemExit("sparse proof: loader does not reconstruct audio runtime")
     if reconstructed["attract_actor_bundle"] != (

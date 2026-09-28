@@ -1,3 +1,7 @@
+        include "adaptive_interface.inc"
+        ifndef ADAPTIVE_RENDERING
+ADAPTIVE_RENDERING equ 0
+        endc
 ; DOC-002 source-contract mirror contract refresh_zone_bg_footprint profile=copy: Refresh zone bg footprint.
 ; DOC-002 source-contract mirror contract bnc_copy profile=copy: Copy the bounded nest-cache byte span.
 ; DOC-002 source-contract mirror contract colour_has_upper_bonus profile=render: Colour has upper bonus.
@@ -612,6 +616,13 @@ eri_done
         rts
 
 ; Single framebuffer owner for the completed Vbord state.
+        ifne ADAPTIVE_RENDERING
+frame_render_impl
+        jmp AD_RENDER_EXEC
+        fill $12,47
+        includebin "ladybug-adaptive-mapped.bin"
+        fill $12,22
+        else
 frame_render_impl
         ifne    PERSISTENT_FB
         lbsr    framebuffer_prepare_back
@@ -772,6 +783,8 @@ fbqd_copy
         inc     FBM_DAMAGE-FBM_PENDING_INTENTS,u
 fbqd_done
         rts
+
+        endc
 
 ; Any projected layer that can intersect a roaming footprint invalidates strip
 ; reuse for this BACK transaction. HUD, lives, and perimeter never intersect.

@@ -89,6 +89,7 @@ INSTRUCTION_RUNTIME_START=0x0300
 INSTRUCTION_RUNTIME_LIMIT=0x06AA
 AUDIO_ENGINE_LIMIT=920
 AUDIO_RUNTIME_LIMIT=0x2000
+ADAPTIVE_RENDERING="${LADYBUG_ADAPTIVE:-0}"
 LADYBUG_PROFILE="${LADYBUG_PROFILE:-complete}"
 case "$LADYBUG_PROFILE" in
     highscore-test) BUG011_DEVELOPMENT_PROFILE=0; COMPLETE_PROFILE=0; HIGHSCORE_TEST_PROFILE=1 ;;
@@ -373,15 +374,22 @@ PY
 }
 
 lwasm() {
-    command lwasm "$@"
+    command lwasm -DADAPTIVE_RENDERING="$ADAPTIVE_RENDERING" "$@"
     if [[ "${SOURCE_REFERENCE_RECORDING:-0}" == 1 ]]; then
-        python3 "$ROOT/scripts/source_reference/provenance.py" assemble "$ROOT" "$BUILD_DIR" "$@"
+        python3 "$ROOT/scripts/source_reference/provenance.py" assemble "$ROOT" "$BUILD_DIR" -DADAPTIVE_RENDERING="$ADAPTIVE_RENDERING" "$@"
     fi
 }
 
 cmd_build() {
     [[ -f "$SRC_MAIN" ]] || { echo "build: $SRC_MAIN not found" >&2; exit 1; }
     mkdir -p "$BUILD_DIR"
+    local adaptive_args=()
+    if [[ "$ADAPTIVE_RENDERING" == 1 ]]; then
+        [[ "$LADYBUG_PROFILE" == complete ]] || { echo "adaptive fit requires complete profile" >&2; exit 1; }
+        : > "$BUILD_DIR/ladybug-adaptive-active.bin"
+        python3 "$ROOT/scripts/build_adaptive_runtime.py" --phase core --root "$ROOT" --build-dir "$BUILD_DIR"
+        adaptive_args=(--adaptive-helper "$BUILD_DIR/ladybug-adaptive-banked.bin")
+    fi
     SOURCE_REFERENCE_RECORDING=1
     python3 "$ROOT/scripts/source_reference/provenance.py" begin "$ROOT" "$BUILD_DIR" "$LADYBUG_PROFILE"
 
@@ -467,6 +475,7 @@ PY
           --list="$AUDIO_RUNTIME_LST" \
           --symbols \
           --map="$AUDIO_RUNTIME_MAP" \
+          -I "$BUILD_DIR" -I "$ROOT/src" \
           -I "$ROOT/assets/arcade/audio" \
           "$AUDIO_RUNTIME_SRC"
     guard_audio_runtime "$AUDIO_RUNTIME" "$AUDIO_RUNTIME_MAP"
@@ -496,6 +505,10 @@ with open(output_path, "w", encoding="ascii") as handle:
     handle.write("AUDIO_RUNTIME_ADDRESS equ $A000\n")
     handle.write(f"AUDIO_INSTALL_EXEC equ ${symbols['audio_install_page']:04X}\n")
 PY
+
+    if [[ "$ADAPTIVE_RENDERING" == 1 ]]; then
+        python3 "$ROOT/scripts/build_adaptive_runtime.py" --phase audio --root "$ROOT" --build-dir "$BUILD_DIR"
+    fi
 
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then
         python3 "$ROOT/scripts/verify_shared_text.py" --build-dir "$BUILD_DIR"
@@ -898,7 +911,14 @@ PY
           "$PERIMETER_HELPER_SRC"
     guard_presentation_helper "$PERIMETER_HELPER"
 
-    python3 "$ROOT/scripts/build_sparse_sprites.py" \
+    if [[ "$ADAPTIVE_RENDERING" == 1 ]]; then
+        python3 "$ROOT/scripts/build_adaptive_runtime.py" --phase link --root "$ROOT" --build-dir "$BUILD_DIR"
+        guard_audio_runtime "$AUDIO_RUNTIME" "$AUDIO_RUNTIME_MAP"
+        guard_layout "$MAP" "$RUNTIME_ROM"
+        pad_cart "$RUNTIME_ROM"
+    fi
+
+    python3 "$ROOT/scripts/build_sparse_sprites.py" "${adaptive_args[@]}" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
         --enemy-output "$SPARSE_ENEMY" \
@@ -927,7 +947,7 @@ PY
         --loader-output "$SPARSE_LOADER" \
         --manifest-output "$SPARSE_MANIFEST"
 
-    python3 "$ROOT/scripts/verify_sparse_sprites.py" \
+    python3 "$ROOT/scripts/verify_sparse_sprites.py" "${adaptive_args[@]}" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
         --enemy-payload "$SPARSE_ENEMY" \

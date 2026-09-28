@@ -1,3 +1,10 @@
+; DOC-002 source-contract mirror contract audio_adaptive_api profile=audio: Separate elapsed-note service, semantic admission, audible publication and explicit phase rebase.
+; DOC-002 source-contract mirror contract aas_prime profile=audio: Decode only newly admitted zero-wait voices; never age an existing dwell.
+; DOC-002 source-contract mirror contract aas_dirty profile=audio: Detect semantic-state or queue changes before admitting audio; no note ages here.
+; DOC-002 source-contract mirror contract aas_clock profile=audio: Read an atomic raw VBlank snapshot without changing caller IRQ state.
+        ifndef ADAPTIVE_RENDERING
+ADAPTIVE_RENDERING equ 0
+        endc
 ; DOC-002 source-contract mirror contract audio_admit profile=audio: Audio admit.
 ; DOC-002 source-contract mirror contract audio_advance_all profile=audio: Audio advance all.
 ; DOC-002 source-contract mirror contract audio_advance_slot profile=audio: Audio advance slot.
@@ -1006,8 +1013,15 @@ audio_guard_boundary
         jsr     audio_drain_busy
         tsta
         beq     audio_guard_free
-        jsr     audio_tick
-        lda     #1
+        ifne ADAPTIVE_RENDERING
+        clra
+        jsr audio_adaptive_api
+        lda #2
+        jsr audio_adaptive_api
+        else
+        jsr audio_tick
+        endc
+        lda #1
         rts
 audio_guard_free
         clra
@@ -1309,5 +1323,9 @@ audio_scratch
 ; three bytes per tone register triplet and two noise registers.
 ; @audit {"id":"audio-shadow","kind":"scratch","symbol":"audio_mix_shadow","width":11,"mapping":"physical-page-3D","phases":["foreground"],"owner":"audio foreground service","initialization":"audio_init_impl and audio_mix_shadow_init","lifetime":"Retained between audio ticks; fields 0..16 hold voice state, bytes 17..27 hold PSG shadows.","clobbers":"Slot reset must preserve the shadow padding contract.","alias_group":"slot-zero-padding","alias_reason":"PSG shadow bytes intentionally occupy only slot-zero padding at offsets 17..27; active cue fields occupy offsets 0..16."}
 audio_mix_shadow equ audio_slot0+17
+
+        ifne ADAPTIVE_RENDERING
+        include "adaptive_audio_service.s"
+        endc
 
         end

@@ -1,3 +1,11 @@
+; DOC-002 source-contract mirror contract adaptive_install_active profile=copy: Restore the active low-RAM driver from staged page $3D after a presentation overlay retires.
+; DOC-002 source-contract mirror contract AD_WORK_EXEC profile=framebuffer: Execute the active logical batch, damage reduction, audio service and BACK publication transaction.
+; DOC-002 source-contract mirror contract AD_RESET_EXEC profile=state: Rebase adaptive phase time and clear both damage journals outside active publication.
+; DOC-002 source-contract mirror contract AD_CLOCK_EXEC profile=root: Read an atomic raw VBlank snapshot through the fitted mapped gateway.
+        include "adaptive_interface.inc"
+        ifndef ADAPTIVE_RENDERING
+ADAPTIVE_RENDERING equ 0
+        endc
 ; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Asset draw top hud.
 ; DOC-002 source-contract mirror contract draw_credit_hud profile=render: Draw credit hud.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
@@ -657,6 +665,12 @@ startup_complete
         clr     RENDER_GATE2_ID
         clr     ENEMY_RENDER_FLAGS
 
+        ifne ADAPTIVE_RENDERING
+        jsr AD_RESET_EXEC
+        lda #$FF
+        sta AD_MODE_BYTE
+        endc
+
         ; --- Enable Vbord ---
         lda     #%00001000
         sta     GIME_IRQEN
@@ -667,6 +681,49 @@ startup_complete
 ;==============================================================================
 ; mainloop — sample every Vbord; advance two pixels every second Vbord.
 ;==============================================================================
+        ifne ADAPTIVE_RENDERING
+mainloop
+        sync
+        tst FB_RENDER_PENDING
+        bne mainloop
+        jsr AD_CLOCK_EXEC
+        cmpd AD_LAST_TIME
+        beq mainloop
+        std AD_BEGIN_TIME
+        stb LAST_FRAME
+        jsr $1900
+        beq ad_dispatch_active
+        jsr AD_RESET_EXEC
+        lda PRES_MODE
+        sta AD_MODE_BYTE
+        bra mainloop
+ad_dispatch_active
+        lda PRES_MODE
+        cmpa AD_MODE_BYTE
+        beq ad_dispatch_work
+        jsr adaptive_install_active
+        jsr AD_RESET_EXEC
+        lda PRES_MODE
+        sta AD_MODE_BYTE
+ad_dispatch_work
+        jsr AD_WORK_EXEC
+        bra mainloop
+adaptive_install_active
+        lda #$3D
+        sta $FFA5
+        ldx #AUDIO_ADAPTIVE_STAGE
+        ldu #$038F
+        ldy #AUDIO_ADAPTIVE_CODE_BYTES
+ad_install_loop
+        lda ,x+
+        sta ,u+
+        leay -1,y
+        bne ad_install_loop
+        lda #$34
+        sta $FFA5
+        lda #3
+        jmp AD_AUDIO_EXEC
+        else
 mainloop
         sync
         tst     FB_RENDER_PENDING
@@ -753,6 +810,8 @@ main_demo_input_owned
 main_entry_audio
         jsr     AUDIO_ENGINE_EXEC
         lbra    mainloop
+
+        endc
 
 ;==============================================================================
 ; initial_entry_tick — live-only marker transfer and automatic maze entry.

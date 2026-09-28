@@ -685,6 +685,42 @@
           "purpose": "Shared mask.",
           "reasons": [],
           "semantic_id": "routines.html#routine-resident-runtime-shared-mask"
+        },
+        {
+          "name": "AD_CLOCK_EXEC",
+          "profile": "root",
+          "purpose": "Read an atomic raw VBlank snapshot through the fitted mapped gateway.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-ad-clock-exec"
+        },
+        {
+          "name": "AD_RESET_EXEC",
+          "profile": "state",
+          "purpose": "Rebase adaptive phase time and clear both damage journals outside active publication.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-ad-reset-exec"
+        },
+        {
+          "name": "AD_WORK_EXEC",
+          "profile": "framebuffer",
+          "purpose": "Execute the active logical batch, damage reduction, audio service and BACK publication transaction.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-ad-work-exec"
+        },
+        {
+          "name": "adaptive_install_active",
+          "profile": "copy",
+          "purpose": "Restore the active low-RAM driver from staged page $3D after a presentation overlay retires.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-adaptive-install-active"
         }
       ],
       "relocations": [
@@ -2712,6 +2748,42 @@
           "purpose": "Audio write.",
           "reasons": [],
           "semantic_id": "routines.html#routine-audio-runtime-audio-write"
+        },
+        {
+          "name": "aas_clock",
+          "profile": "audio",
+          "purpose": "Read an atomic raw VBlank snapshot without changing caller IRQ state.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-audio-runtime-aas-clock"
+        },
+        {
+          "name": "aas_dirty",
+          "profile": "audio",
+          "purpose": "Detect semantic-state or queue changes before admitting audio; no note ages here.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-audio-runtime-aas-dirty"
+        },
+        {
+          "name": "aas_prime",
+          "profile": "audio",
+          "purpose": "Decode only newly admitted zero-wait voices; never age an existing dwell.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-audio-runtime-aas-prime"
+        },
+        {
+          "name": "audio_adaptive_api",
+          "profile": "audio",
+          "purpose": "Separate elapsed-note service, semantic admission, audible publication and explicit phase rebase.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-adaptive-api"
         }
       ],
       "basic_blocks": [
@@ -3051,6 +3123,31 @@
           "name": "audio_mix_order",
           "kind": "data",
           "reason": "Four dedicated stable-priority keys; required ownership record audio-mix-order."
+        },
+        {
+          "name": "audio_adaptive_last",
+          "kind": "data",
+          "reason": "Adaptive phase scratch or staged executable blob; extent and lifetime are declared in adaptive_audio_service.s."
+        },
+        {
+          "name": "audio_adaptive_delta",
+          "kind": "data",
+          "reason": "Adaptive phase scratch or staged executable blob; extent and lifetime are declared in adaptive_audio_service.s."
+        },
+        {
+          "name": "audio_adaptive_late",
+          "kind": "data",
+          "reason": "Adaptive phase scratch or staged executable blob; extent and lifetime are declared in adaptive_audio_service.s."
+        },
+        {
+          "name": "audio_adaptive_stage",
+          "kind": "data",
+          "reason": "Adaptive phase scratch or staged executable blob; extent and lifetime are declared in adaptive_audio_service.s."
+        },
+        {
+          "name": "audio_adaptive_stage_end",
+          "kind": "boundary",
+          "reason": "Adaptive phase scratch or staged executable blob; extent and lifetime are declared in adaptive_audio_service.s."
         }
       ]
     },

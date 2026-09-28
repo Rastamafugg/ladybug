@@ -1,0 +1,66 @@
+"""Isolated adaptive assembly/link fit; enforce existing phase allocations."""
+import argparse,json,re,subprocess
+from pathlib import Path
+
+def symbols(path):
+    return {k:int(v,16) for k,v in re.findall(r"^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$",path.read_text(),re.M)}
+
+def main():
+    ap=argparse.ArgumentParser();ap.add_argument('--phase',choices=['core','bindings','audio','link'],required=True);ap.add_argument('--root',type=Path,required=True);ap.add_argument('--build-dir',type=Path,required=True)
+    a=ap.parse_args();r=a.root;b=a.build_dir;b.mkdir(parents=True,exist_ok=True)
+    def assemble(name,source,limit):
+        path=b/(name+'.s');path.write_text(source)
+        subprocess.run(['lwasm','-9','--format=raw','-I',str(b),'-I',str(r/'src'),'--output='+str(b/(name+'.bin')),'--map='+str(b/(name+'.map')),'--list='+str(b/(name+'.lst')),str(path)],check=True)
+        size=(b/(name+'.bin')).stat().st_size
+        if size>limit:raise SystemExit(f'{name}: {size}/{limit} bytes; fit rejected')
+        return {'bytes':size,'limit':limit,'free':limit-size}
+    def audio_symbols():
+        sy=symbols(b/'ladybug-audio-runtime.map')
+        with (b/'ladybug_audio_symbols.inc').open('a') as f:
+            for label,n in [('AUDIO_ADAPTIVE_EXEC','audio_adaptive_api'),('AUDIO_ADAPTIVE_STAGE','audio_adaptive_stage')]:f.write(f'{label} equ ${sy[n]:04X}\n')
+            f.write(f"AUDIO_ADAPTIVE_CODE_BYTES equ {sy['audio_adaptive_stage_end']-sy['audio_adaptive_stage']}\n")
+    if a.phase=='audio':audio_symbols();return
+    if a.phase=='link':
+        before=symbols(b/'ladybug.map')
+        subprocess.run(['python3',__file__,'--phase','bindings','--root',str(r),'--build-dir',str(b)],check=True)
+        audio_cmd=['lwasm','-9','--format=raw','-DADAPTIVE_RENDERING=1','-I',str(b),'-I',str(r/'src'),'-I',str(r/'assets/arcade/audio'),'--output='+str(b/'ladybug-audio-runtime.bin'),'--map='+str(b/'ladybug-audio-runtime.map'),'--list='+str(b/'ladybug-audio-runtime.lst'),str(r/'src/audio_runtime.s')]
+        subprocess.run(audio_cmd,check=True)
+        subprocess.run(['python3',str(r/'scripts/source_reference/provenance.py'),'assemble',str(r),str(b),*audio_cmd[1:]],check=True)
+        inc=b/'ladybug_audio_symbols.inc';inc.write_text('\n'.join(line for line in inc.read_text().splitlines() if not line.startswith(('AUDIO_ADAPTIVE_','AUDIO_RUNTIME_BYTES')))+'\n'+f'AUDIO_RUNTIME_BYTES equ {(b/"ladybug-audio-runtime.bin").stat().st_size}\n')
+        audio_symbols()
+        main_cmd=['lwasm','-9','--format=raw','-DADAPTIVE_RENDERING=1','-DBUG011_DEVELOPMENT_PROFILE=1','-DCOMPLETE_PROFILE=1','-DHIGHSCORE_TEST_PROFILE=0','-DHIGHSCORE_PHASE_HELPER=0','-DPRESENTATION_NAME_ENTRY_DATA=0','-DINPUT_JOYSTICK=0','-I',str(b),'-I',str(r/'src'),'--output='+str(b/'ladybug-runtime.rom'),'--map='+str(b/'ladybug.map'),'--list='+str(b/'ladybug.lst'),str(r/'src/main.s')]
+        subprocess.run(main_cmd,check=True)
+        subprocess.run(['python3',str(r/'scripts/source_reference/provenance.py'),'assemble',str(r),str(b),*main_cmd[1:]],check=True)
+        after=symbols(b/'ladybug.map')
+        if any(after.get(k)!=v for k,v in before.items() if 0xC000<=v<0xE000):raise SystemExit('adaptive link changed resident symbols after imports; rejected')
+        if (b/'ladybug-audio-runtime.bin').stat().st_size>8192:raise SystemExit('audio page overflow')
+        return
+    result={}
+    if a.phase=='core':
+        s=(r/'src/adaptive_runtime.s').read_text().replace('TICK_CALLBACK equ $1800','TICK_CALLBACK equ $0392').replace('GLOBAL_CALLBACK equ $1803','GLOBAL_CALLBACK equ $0395').replace('KEY_CALLBACK equ $1806','KEY_CALLBACK equ $0398')
+        s=s.replace('        std AD_BEGIN\n        pshs d','        pshs d',1)
+        def label(n):return re.search(r'^'+n+r'$',s,re.M).start()
+        prefix=s[:s.index('        org $BD44')]
+        clock=s[label('adaptive_clock'):s.index('; Already displayed barrier')]
+        append=s[label('adaptive_append'):s.index('; A=target owner')]
+        complete=s[label('adaptive_complete'):label('adaptive_end')]
+        vectors=''.join('        jmp '+n+'\n' for n in ['adaptive_reset','adaptive_clock','adaptive_append','adaptive_complete'])
+        mapped=prefix+'adaptive_start equ $BD44\n        org $09FD\n'+vectors+clock+append+complete+'mapped_end\n'
+        result['mapped']=assemble('ladybug-adaptive-mapped',mapped,220)
+        ms=symbols(b/'ladybug-adaptive-mapped.map');body=s[s.index('        org $BD44'):]
+        for n,end in [('adaptive_clock','; Already displayed barrier'),('adaptive_append','; A=target owner'),('adaptive_complete','adaptive_end\n')]:
+            begin=re.search(r'^'+n+r'$',body,re.M).start();last=body.index(end);body=body[:begin]+body[last:]
+        for n in ['adaptive_reset','adaptive_append','adaptive_complete']:body=body.replace('lbra '+n,'jmp '+n)
+        body=body.replace('lbsr adaptive_clock','jsr adaptive_clock').replace('lbsr adaptive_append','jsr adaptive_append')
+        extern=''.join(f'{n} equ ${ms[n]:04X}\n' for n in ['adaptive_clock','adaptive_reset','adaptive_append','adaptive_complete'])
+        result['banked']=assemble('ladybug-adaptive-banked',prefix+extern+body,698)
+    else:
+        syms=symbols(b/'ladybug.map');syms.update(symbols(b/'ladybug-enemy-runtime.map'))
+        source=(r/'src/adaptive_active.s').read_text()
+        local=set(re.findall(r'^(\w+)\b',source,re.M))|set(re.findall(r'^(\w+)\b',(r/'src/adaptive_interface.inc').read_text(),re.M))
+        local |= set(re.findall(r'^(\w+)\b',(b/'ladybug_audio_symbols.inc').read_text(),re.M))
+        names=(set(re.findall(r'\b[A-Za-z_]\w*\b',source))&syms.keys())-local
+        (b/'adaptive_reference.inc').write_text(''.join(f'{n} equ ${syms[n]:04X}\n' for n in sorted(names)))
+        result['active']=assemble('ladybug-adaptive-active',source,0x698-0x38F)
+    (b/('adaptive-'+a.phase+'-fit.json')).write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result))
+if __name__=='__main__':main()

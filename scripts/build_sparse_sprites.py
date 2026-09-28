@@ -149,6 +149,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--demo-runtime", type=Path, required=True)
     parser.add_argument("--highscore-runtime", type=Path, required=True)
     parser.add_argument("--highscore-helper", type=Path, required=True)
+    parser.add_argument("--adaptive-helper", type=Path)
     parser.add_argument("--audio-runtime", type=Path, required=True)
     parser.add_argument("--tile-patches", type=Path, required=True)
     parser.add_argument(
@@ -396,6 +397,7 @@ def pack_candidate_banks(
         highscore_helper: bytes = b"",
         include_streams: bool = False,
         compress_enemy_pages: bool = True,
+        adaptive_helper: bytes = b"",
 ) -> tuple:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
     if len(enemy_runtime) > ENEMY_RUNTIME_RESERVED:
@@ -468,6 +470,10 @@ def pack_candidate_banks(
         target_chunks("presentation_module", presentation_module, 0xFF,
                       0x1900)
     )
+
+    if len(adaptive_helper) > 698:
+        raise ValueError("adaptive helper exceeds $BD44-$BFFD")
+    targets += target_chunks("adaptive_helper", adaptive_helper, 0x34, 0xBD44)
 
     page39_raw = player_payload + gate_payload + presentation_payload
     stream_targets = [
@@ -785,7 +791,8 @@ def main() -> None:
         args.aux_runtime_role,
         actor_records, actor_underlays, audio_runtime, tile_patches,
         highscore_runtime, highscore_helper,
-        include_streams=True
+        include_streams=True,
+        adaptive_helper=args.adaptive_helper.read_bytes() if args.adaptive_helper else b"",
     )
     outputs = (
         (args.enemy_output, enemy_payload),

@@ -1,8 +1,8 @@
 ; BUG-058 isolated adaptive fitting prototype. Not in the delivered build.
 ; PAR5 must be physical $34 on entry and return of every callback.
-; Callback addresses below are always-mapped test bridges, not installed game
-; entries. Their implementation and loader integration remain separate gates.
-; No callback may commit a framebuffer or mutate history counts.
+; Default callback addresses support isolated component tests. The adaptive
+; builder replaces them with the installed always-mapped active vectors.
+; Simulation/render callbacks may not commit a framebuffer or mutate counts.
         pragma  6809
 FRAMES equ $0002
 FB_RENDER_PENDING equ $0091
@@ -14,7 +14,7 @@ PLAYER_CELL equ $0009
 HISTORY_A equ $BC04
 ; @audit {"id":"adaptive-history-b","kind":"scratch","symbol":"HISTORY_B","width":144,"mapping":"physical-page-34","phases":["foreground"],"owner":"isolated adaptive B damage history","lifetime":"Up to eight persistent 18-byte intent records until owner B composition completes; IRQ never reads this span.","initialization":"adaptive_reset clears the complete interval; adaptive_append writes a complete record before incrementing its count","clobbers":"Only the completed owner may consume its history; callback stubs do not draw or change counts."}
 HISTORY_B equ $BC94
-; @audit {"id":"adaptive-state","kind":"scratch","symbol":"STATE","width":32,"mapping":"physical-page-34","phases":["foreground"],"owner":"isolated adaptive scheduler and journal reducer","lifetime":"Persistent timestamps/debt/cadence/counts plus initialized foreground iteration scratch; no direct-page or IRQ alias.","initialization":"adaptive_reset clears 320 bytes and initializes raw clock, audio timestamp, publication due and cadence","clobbers":"AD_BATCH is the step budget before reduction and later the newer-record scan index; AD_CLASS/INDEX/PTR/SCAN/TOTAL/RESET are reducer scratch. No callback retains or changes these fields."}
+; @audit {"id":"adaptive-state","kind":"scratch","symbol":"STATE","width":32,"mapping":"physical-page-34","phases":["foreground"],"owner":"isolated adaptive scheduler and journal reducer","lifetime":"Persistent timestamps/debt/cadence/counts plus initialized foreground iteration scratch; no direct-page or IRQ alias.","initialization":"adaptive_reset clears 320 bytes and initializes raw clock, audio timestamp, publication due and cadence","clobbers":"AD_BATCH is the step budget before reduction and later the newer-record scan index; AD_CLASS/INDEX/PTR/SCAN/TOTAL/RESET are reducer scratch. AD_END high byte is initialized before composition as a static-rebuild flag and overwritten with a clock value at completion. No callback retains or changes these fields."}
 STATE equ $BD24
 AD_LAST equ STATE
 AD_SIM equ STATE+2
@@ -41,9 +41,9 @@ AD_RESET equ STATE+31
 ; ABI: tick returns A=barrier flag; global/key callbacks consume DP INTENTS.
 ; Global callback A=class (0 entities,1 HUD/lives,2 perimeter reset/multiplier).
 ; Key callback A=class (0 dot,1 box,2 letter,3 primary gate,4 secondary gate).
-; Audio callback is an unbound future ABI and is not called by this prototype.
-; Elapsed-service/admission ordering requires a separate real callback fit.
-; Test callbacks are synthetic and do not prove gameplay, pixels or sound.
+; This core does not call AUDIO_CALLBACK. The active driver services elapsed
+; audio before batching, semantic admission after each tick, and PSG output
+; before completion. Synthetic component callbacks are not integration proof.
 TICK_CALLBACK equ $1800
 GLOBAL_CALLBACK equ $1803
 KEY_CALLBACK equ $1806
