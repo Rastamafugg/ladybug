@@ -1,0 +1,545 @@
+{
+  "ticket": "BUG-058",
+  "source_revision": "codex/bug058-restore 9b3b326",
+  "rom_sha256": "9f96bdb524f5a1bc730a6b225dd2f62c4ac4d47339108f8f9b8b549472b78b53",
+  "scope": "Read-only profiling, all four enemies restored/captured/drawn each worklist. Parked player at [2,22]; two skull entity records cleared; release routine called early. Not natural moving-player or skull-death acceptance.",
+  "units": "Calibrated elapsed fast cycles: event_ticks / 8. Means/minima/maxima are bounded observations, not worst-case bounds. Owner recorded only as secondary metadata.",
+  "target": 27000,
+  "trace_sha256": "98028572b6e096e2f2e0cfe5c259f3e04255362760daac8fe99ebac8246d8bc8",
+  "trace_bytes": 1660961,
+  "worklists": 244,
+  "counts": {
+    "0": {
+      "samples": 16,
+      "minimum": 9620,
+      "mean": 10916.875,
+      "maximum": 15335
+    },
+    "1": {
+      "samples": 16,
+      "minimum": 24656,
+      "mean": 27271.125,
+      "maximum": 40727
+    },
+    "2": {
+      "samples": 16,
+      "minimum": 19333,
+      "mean": 29777.375,
+      "maximum": 48521
+    },
+    "3": {
+      "samples": 98,
+      "minimum": 23700,
+      "mean": 28517.102040816328,
+      "maximum": 74628
+    },
+    "4": {
+      "samples": 98,
+      "minimum": 21508,
+      "mean": 35259.69387755102,
+      "maximum": 85726
+    }
+  },
+  "four_enemy_phases": {
+    "release_music": {
+      "samples": 82,
+      "minimum": 21508,
+      "mean": 35889.58536585366,
+      "maximum": 85726,
+      "over_target": 78
+    },
+    "post_music": {
+      "samples": 16,
+      "minimum": 30190,
+      "mean": 32031.5,
+      "maximum": 36014,
+      "over_target": 16
+    }
+  },
+  "quiet_components": {
+    "preparation": {
+      "samples": 16,
+      "minimum": 585,
+      "mean": 593.75,
+      "maximum": 609
+    },
+    "actor_restore": {
+      "samples": 16,
+      "minimum": 6411,
+      "mean": 6651.875,
+      "maximum": 6938
+    },
+    "player_restore": {
+      "samples": 16,
+      "minimum": 1209,
+      "mean": 1209,
+      "maximum": 1209
+    },
+    "enemy_restore_calls": {
+      "samples": 16,
+      "minimum": 4607,
+      "mean": 4841.875,
+      "maximum": 5122
+    },
+    "capture": {
+      "samples": 16,
+      "minimum": 3872,
+      "mean": 4041.5625,
+      "maximum": 4620
+    },
+    "enemy_draw": {
+      "samples": 16,
+      "minimum": 8999,
+      "mean": 9937.25,
+      "maximum": 10565
+    },
+    "player_draw": {
+      "samples": 16,
+      "minimum": 3150,
+      "mean": 3169,
+      "maximum": 3248
+    },
+    "background": {
+      "samples": 16,
+      "minimum": 153,
+      "mean": 822.75,
+      "maximum": 2840
+    },
+    "audio_tail": {
+      "samples": 16,
+      "minimum": 1854,
+      "mean": 2247.3125,
+      "maximum": 2865
+    },
+    "sprite_decode": {
+      "samples": 16,
+      "minimum": 9966,
+      "mean": 10911.25,
+      "maximum": 11628
+    }
+  },
+  "restore_phases": {
+    "0": {
+      "samples": 35,
+      "minimum": 1055,
+      "mean": 1120,
+      "maximum": 1146
+    },
+    "2": {
+      "samples": 9,
+      "minimum": 1351,
+      "mean": 1378.6666666666667,
+      "maximum": 1434
+    },
+    "6": {
+      "samples": 10,
+      "minimum": 1351,
+      "mean": 1375.9,
+      "maximum": 1434
+    },
+    "4": {
+      "samples": 10,
+      "minimum": 1183,
+      "mean": 1210.3,
+      "maximum": 1274
+    }
+  },
+  "decoder_mix": {
+    "extended": 42,
+    "opaque1": 275,
+    "partial1": 1157,
+    "opaque3": 232,
+    "partial2": 343,
+    "opaque4": 112,
+    "opaque5": 422,
+    "opaque6": 84,
+    "opaque2": 50,
+    "partial3": 53
+  },
+  "captured_paths": {
+    "horizontal": 39,
+    "vertical": 23,
+    "full": 2
+  },
+  "historical_comparison": {
+    "same_sample_count": true,
+    "matching_count_index_state_totals": 244,
+    "pairs": 244,
+    "limit": "No speedup experiment; restored ROM is unchanged. Instrumentation may expose a different boundary; compare observations without owner attribution."
+  },
+  "mechanic_failures": [
+    "Old harness assumed active count equals saved-background restore count on newly released actors; fixed to count old-valid slots.",
+    "WSL Python lacks int.bit_count; replaced with bin(...).count.",
+    "First fixture allowed enemy skull death; corrected to established cleared-skull fixture.",
+    "First far-corner selection was [22,22], reached player contact and an unsupported death stream; corrected to established [2,22] fixture.",
+    "Stage decoder symbol aliases an internal delta loop; do not interpret each stop there as a new decoder call. Unique framebuffer entry is used for final mix."
+  ],
+  "quiet_failing_rows": [
+    {
+      "index": 82,
+      "owner_secondary": 1,
+      "cycles": 36014,
+      "background_cycles": 2840,
+      "restore_phases": [
+        0,
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "index": 83,
+      "owner_secondary": 0,
+      "cycles": 34328,
+      "background_cycles": 2639,
+      "restore_phases": [
+        0,
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "index": 84,
+      "owner_secondary": 1,
+      "cycles": 32376,
+      "background_cycles": 153,
+      "restore_phases": [
+        6,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "index": 85,
+      "owner_secondary": 0,
+      "cycles": 31337,
+      "background_cycles": 153,
+      "restore_phases": [
+        6,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "index": 86,
+      "owner_secondary": 1,
+      "cycles": 31744,
+      "background_cycles": 153,
+      "restore_phases": [
+        4,
+        0,
+        0,
+        6
+      ]
+    },
+    {
+      "index": 87,
+      "owner_secondary": 0,
+      "cycles": 30633,
+      "background_cycles": 153,
+      "restore_phases": [
+        4,
+        0,
+        0,
+        6
+      ]
+    },
+    {
+      "index": 88,
+      "owner_secondary": 1,
+      "cycles": 32273,
+      "background_cycles": 153,
+      "restore_phases": [
+        2,
+        0,
+        0,
+        4
+      ]
+    },
+    {
+      "index": 89,
+      "owner_secondary": 0,
+      "cycles": 30313,
+      "background_cycles": 338,
+      "restore_phases": [
+        2,
+        0,
+        0,
+        4
+      ]
+    },
+    {
+      "index": 90,
+      "owner_secondary": 1,
+      "cycles": 31974,
+      "background_cycles": 491,
+      "restore_phases": [
+        0,
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "index": 91,
+      "owner_secondary": 0,
+      "cycles": 33116,
+      "background_cycles": 2502,
+      "restore_phases": [
+        0,
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "index": 92,
+      "owner_secondary": 1,
+      "cycles": 34905,
+      "background_cycles": 2639,
+      "restore_phases": [
+        6,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "index": 93,
+      "owner_secondary": 0,
+      "cycles": 31513,
+      "background_cycles": 153,
+      "restore_phases": [
+        6,
+        6,
+        0,
+        0
+      ]
+    },
+    {
+      "index": 94,
+      "owner_secondary": 1,
+      "cycles": 30785,
+      "background_cycles": 153,
+      "restore_phases": [
+        4,
+        6,
+        0,
+        6
+      ]
+    },
+    {
+      "index": 95,
+      "owner_secondary": 0,
+      "cycles": 30190,
+      "background_cycles": 153,
+      "restore_phases": [
+        4,
+        4,
+        0,
+        6
+      ]
+    },
+    {
+      "index": 96,
+      "owner_secondary": 1,
+      "cycles": 30220,
+      "background_cycles": 153,
+      "restore_phases": [
+        2,
+        4,
+        0,
+        4
+      ]
+    },
+    {
+      "index": 97,
+      "owner_secondary": 0,
+      "cycles": 30783,
+      "background_cycles": 338,
+      "restore_phases": [
+        2,
+        2,
+        0,
+        4
+      ]
+    }
+  ],
+  "component_overlap_note": "Actor restore contains player restore and enemy restore calls. Sprite decode is contained in enemy/player drawing, not an additional independent component.",
+  "colour_trace": {
+    "sha256": "5abba3d70929a008b58298be4798706feafcc588441acbd3ef0adad6ad93bc61",
+    "bytes": 1699336,
+    "worklists": 244,
+    "matches_first_profile": true
+  },
+  "four_colour_events": [
+    {
+      "sample": 19,
+      "mode": "rebind",
+      "pairs": 207,
+      "classes": {
+        "both": 92,
+        "high_only": 32,
+        "low_only": 62,
+        "neither": 21
+      },
+      "elapsed_to_return": 24111,
+      "projected_kernel_saving": 3689
+    },
+    {
+      "sample": 19,
+      "mode": "primary",
+      "pairs": 207,
+      "classes": {
+        "both": 92,
+        "high_only": 32,
+        "low_only": 62,
+        "neither": 21
+      },
+      "elapsed_to_return": 23047
+    },
+    {
+      "sample": 20,
+      "mode": "primary",
+      "pairs": 207,
+      "classes": {
+        "both": 92,
+        "high_only": 32,
+        "low_only": 62,
+        "neither": 21
+      },
+      "elapsed_to_return": 23047
+    }
+  ],
+  "proposals": {
+    "rebind_lookup": {
+      "status": "Proposed architecture; no assembly fit/runtime implementation performed",
+      "class": "High-risk: shared sparse cache and scratch/register lifetimes, persistent A/B consumers, hard memory limits",
+      "files": [
+        "src/main.s",
+        "source-contract/ownership mirrors"
+      ],
+      "change": "Reuse primary_preserve_table to classify presence of high/low primary colour nibbles. Initialize replicated BONUS_COLOR in OBJ_VALUE and table base in Y once per actual cache rebind; keep OBJ_ACCENT negative and existing iteration. Preserve accent bits with value AND $CC, combine replicated colour through inverse presence mask.",
+      "logical_cases_passed": 768,
+      "expected_kernel_bytes": [
+        36,
+        18
+      ],
+      "expected_added_setup_bytes": 16,
+      "expected_net_resident_byte_delta": -2,
+      "estimated_kernel_cycles": {
+        "current_both": 67,
+        "current_high_only": 63,
+        "current_low_only": 47,
+        "current_neither": 43,
+        "proposed": 40,
+        "extra_setup_per_pass": 28
+      },
+      "projected_saving_current_rebind": 3689,
+      "baseline_current_rebind_cycles": 24111,
+      "target": "At least 3000 calibrated cycles saved on matched 207-pair rebinding; no ordinary no-rebind slowdown; exact full cache values, masks, headers, tail bytes and framebuffer pixels; unchanged limits. Not a whole BUG-058 timing pass.",
+      "risks": "OBJ_VALUE becomes replicated-colour scratch for the negative pass only; positive replay still owns and rewrites OBJ_VALUE per pair. Y must remain live through the negative loop and IRQ. No new storage, cache format or table/index domain. Flags are undefined at kernel interface but caller-live state must be checked. Assembler relaxation/packing and ownership annotations must verify the projected fit.",
+      "order": "Approval for isolated local fit; complete dependent build before any integrated runtime probe; exhaustive 256 values x3 colours and caller-live state checks; exact whole-cache and both-owner/framebuffer crossovers including delayed replay; natural demo/game startup and matched transition/no-transition timing. No raw module swaps or production integration.",
+      "exclusions": "No recolour scheduling change, new table, raw stream packing change, sprite cadence reduction, loader relocation, missing-gate waiver or production integration."
+    },
+    "player_restore": {
+      "status": "Separate Proposed local fit; no implementation",
+      "class": "High-risk: retained player background and address/pointer equivalence under persistent rendering",
+      "files": [
+        "src/main.s restore_player"
+      ],
+      "change": "Extend existing fixed-offset enemy-store pattern to the full sixteen-row player restore: stores at X+0,+2,+4,+6 and one row advance of160, instead of four X+2 stores and final152. U pull order and validity/counter remain unchanged.",
+      "baseline_observed_full_restore_segment_cycles": 1209,
+      "projected_saving_per_full_restore": 144,
+      "projected_byte_delta": 0,
+      "target": "At least140 calibrated cycles saved for full restore; exact128 output bytes and final registers/live flags/pointers; unchanged capacity, owner history, clipped path and gameplay. Full worklists still exceed27000.",
+      "order": "Independent fitting approval; complete build first, then exact full/clipped player and both-owner renderer oracle, natural startup and matched four-enemy worklists. No new drawing policy.",
+      "risks": "Intermediate X differs during a row; IRQ must preserve interrupted registers and avoid this scratch. Verify source/destination non-aliasing and wrapper side effects.",
+      "exclusions": "No player capture change, clipped-loop rewrite, sprite decoding change or skip policy."
+    }
+  },
+  "larger_steady_limits": "Partial decoder commands dominate the measured command count (1553 partial runs across 80 framebuffer sprite calls). A new partial1 fast path is not assumed beneficial: added dispatch can outweigh saved loop control. Phases2/6 retain indirect row dispatch, but no pre-table room remains; local specialization needs a separately proven capacity design. Neither is implemented or accepted.",
+  "existing_table_artifact": {
+    "address": 64940,
+    "bytes": 52,
+    "sha256": "43403a4fc8c5b840467eb740164d5200b3ed713e86569ea43a76fbb649b5e997",
+    "domain": "A AND $33, maximum51; compiled bytes match declared presence-mask rule. This is an authored/built check, not a live or new-kernel proof."
+  },
+  "rejected_probe_receipts": [
+    {
+      "file": "bug058-full-cadence-profile-20260927.json",
+      "sha256": "19d5596069a35428dac5d6b17800f386c6532c4a963c0ee2caab96e6d021ce68",
+      "result": "fail",
+      "failure": "AssertionError('missing restore path')",
+      "samples_before_rejection": 16,
+      "failed_count": 1,
+      "failed_sample": 0,
+      "active": 1,
+      "last_marker": [
+        "mainloop",
+        26431
+      ]
+    },
+    {
+      "file": "bug058-full-cadence-profile-corrected-20260927.json",
+      "sha256": "5f604f322698876de37d8697952b5fbee847a7928b4f6b188831a2e9fd43cc6b",
+      "result": "fail",
+      "failure": "AttributeError(\"'int' object has no attribute 'bit_count'\")",
+      "samples_before_rejection": 0,
+      "failed_count": 0,
+      "failed_sample": 0,
+      "active": 0,
+      "last_marker": [
+        "actor_closure_restore",
+        1579
+      ]
+    },
+    {
+      "file": "bug058-full-cadence-profile-final-20260927.json",
+      "sha256": "6d28e086fe5761cc037a0b9be82ab274ab6185dbfa24ac7105acff16e3b5f1d7",
+      "result": "fail",
+      "failure": "AssertionError(('required live count missing', 2, 1, 0))",
+      "samples_before_rejection": 37,
+      "failed_count": 2,
+      "failed_sample": 4,
+      "active": 1,
+      "last_marker": [
+        "mainloop",
+        305255
+      ]
+    },
+    {
+      "file": "bug058-full-cadence-profile-steady-20260927.json",
+      "sha256": "8b7a5a881af567f08755e23398ad80fe5ca5e48e8c637a6ee829a7f843222603",
+      "result": "fail",
+      "failure": "AssertionError(('unindexed stream', 55063))",
+      "samples_before_rejection": 215,
+      "failed_count": 4,
+      "failed_sample": 69,
+      "active": 4,
+      "last_marker": [
+        "sparse_blit_fb",
+        30907
+      ]
+    }
+  ],
+  "qa": {
+    "runtime_source_unchanged": true,
+    "rom_unchanged": true,
+    "two_instrumentation_passes_match_all_worklists": true,
+    "wiki_sections_and_links_passed": 5,
+    "proposals_implemented": false,
+    "approval_or_ready_status_changed": false,
+    "remaining_target_failure": "All sixteen post-release four-enemy worklists exceed27000",
+    "memory_headroom_unchanged": {
+      "resident": 22,
+      "assets": 32,
+      "enemy_module": 5,
+      "enemy_before_fixed_table": 0,
+      "cartridge_source": 413
+    }
+  }
+}
