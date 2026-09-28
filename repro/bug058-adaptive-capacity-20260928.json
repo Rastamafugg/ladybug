@@ -1,0 +1,133 @@
+{
+  "schema": 1,
+  "date": "2026-09-28",
+  "kind": "static-design-accounting",
+  "candidate_commit": "cba520588abf4a8ab32314ec61a16d58b40b7186",
+  "rom_sha256": "f67c3424b514be57b56b48916b6d87c94c2e7015685513dff5c9371d14a5b981",
+  "layout_sha256": "80c1b2ad747a568afb8f9c5fabf8873e7adfe547f1ac1b211cdab4591dd12be8",
+  "source_sha256": {
+    "src/main.s": "20b24a47fb4f6dab44e3e297479c569884d172647f610b236bbda146230b36a1",
+    "src/enemy_runtime.s": "2d0f434d78581d10e5e590beee1d205ac7273133008acd3b8fdfc54655145272",
+    "src/audio_runtime.s": "5371145e4691284435472563ce9240f0619694d693c5647c171c2b7fa1fc7ca8",
+    "scripts/build_sparse_sprites.py": "c523c68b0ea600bd33faec9db00050161254bfd208044ac58267cbcd773a4997"
+  },
+  "baseline": {
+    "resident_used": 8168,
+    "resident_limit": 8192,
+    "resident_free": 24,
+    "enemy_used": 4091,
+    "enemy_limit": 4096,
+    "enemy_free": 5,
+    "cartridge_source_free": 413,
+    "copy_table_used": 104,
+    "projection_bytes": 149,
+    "queue_bytes": 71
+  },
+  "proposed": {
+    "max_steps_per_image": 4,
+    "records_per_history": 8,
+    "record_bytes": 18,
+    "history_bytes": 288,
+    "scheduler_bytes": 32,
+    "additional_state_bytes": 320,
+    "fields": {
+      "last_vblank": 2,
+      "sim_sequence": 2,
+      "debt": 2,
+      "audio_sequence": 2,
+      "work_begin": 2,
+      "work_end": 2,
+      "presentation_due": 2,
+      "barrier_commit": 2,
+      "cadence": 1,
+      "quick_streak": 1,
+      "batch_left": 1,
+      "barrier": 1,
+      "history_counts": 2,
+      "fault_flags": 1,
+      "current_index": 1,
+      "journal_pointer": 2,
+      "saved_pointer": 2,
+      "saved_mode": 1,
+      "reserved": 3
+    },
+    "regions_exclusive_end": [
+      [
+        "history_a",
+        48132,
+        48276
+      ],
+      [
+        "history_b",
+        48276,
+        48420
+      ],
+      [
+        "scheduler_state",
+        48420,
+        48452
+      ],
+      [
+        "helper_envelope",
+        48452,
+        49150
+      ]
+    ],
+    "helper_destination_envelope": 698,
+    "copy_table_after_one_unsplit_segment": 112
+  },
+  "abstract_checks": {
+    "history_models": [
+      {
+        "starting_owner": 0,
+        "ticks": 168,
+        "maximum_records": 8,
+        "both_histories_retain_every_tick": true
+      },
+      {
+        "starting_owner": 1,
+        "ticks": 168,
+        "maximum_records": 8,
+        "both_histories_retain_every_tick": true
+      }
+    ],
+    "shared_movement_clock": [
+      {
+        "logic_ticks": 120,
+        "ticks_per_image": 1,
+        "images": 120,
+        "actor_pixels": [
+          120,
+          120
+        ]
+      },
+      {
+        "logic_ticks": 120,
+        "ticks_per_image": 2,
+        "images": 60,
+        "actor_pixels": [
+          120,
+          120
+        ]
+      }
+    ],
+    "ninth_record_guard_required": true
+  },
+  "capacity_verdict": {
+    "documented_ram_interval_arithmetic": "PASS",
+    "journal_bound_under_stated_scheduler": "PASS",
+    "copy_table_one_segment_arithmetic": "PASS",
+    "helper_assembled_fit": "UNPROVEN",
+    "complete_cartridge_packing": "UNPROVEN",
+    "gross_raw_helper_envelope_minus_source_margin": 285,
+    "net_delta_includes_removed_code_compression": "not measured",
+    "runtime_cycles_pixels_mapping_audio": "NOT TESTED"
+  },
+  "limits": [
+    "Free RAM comes from the documented allocation; indirect lifetime safety requires the updated ownership audit.",
+    "A region envelope is not an assembled helper size.",
+    "Projection and queue sizes describe existing routines; they are not automatically reusable bytes or cartridge savings.",
+    "Copy-table arithmetic does not prove loader ordering, fragmented source placement, or bootstrap size.",
+    "Models establish retention and clock arithmetic only; they do not execute 6809 code."
+  ]
+}
