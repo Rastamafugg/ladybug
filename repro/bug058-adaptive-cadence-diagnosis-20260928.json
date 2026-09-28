@@ -1,0 +1,236 @@
+{
+  "ticket": "BUG-058",
+  "class": "High-risk",
+  "candidate_commit": "e42e88e",
+  "rom_sha256": "df5cff4f67f3a09781cd004585d7d78e7f70cce608206052bb97fb3c9aade7d0",
+  "observed_user_report": "Four enemies feel smooth most of the time, with frequent brief and sometimes very fast speedups; user suspects cues, pickups or gates. Trigger not isolated by user.",
+  "phase": "controlled four-roaming gameplay and forced colour boundary",
+  "success_marker": "12 cue worklists and 12 colour worklists complete with active four-enemy mode and zero scheduler fault",
+  "deadline_seconds": 45,
+  "timeout_meaning": "marker absent, not proof of target-code slowdown",
+  "source_staged_live_identity": {
+    "resident": 15872,
+    "enemy": 4091,
+    "helper": 690,
+    "staged_active": 512,
+    "banked_audio": 6565,
+    "vegetable_streams": 1728
+  },
+  "method": "fast CPU cycles = monitor event ticks/8; executed worklist and phase primary, framebuffer owner secondary",
+  "steady_four_enemy": {
+    "worklists": 64,
+    "cycles_min": 37577,
+    "cycles_max": 43862,
+    "raw_steps": [
+      2
+    ],
+    "logical_steps": [
+      2
+    ],
+    "scheduler_rate": [
+      2
+    ]
+  },
+  "isolated_cues": [
+    {
+      "name": "release effect",
+      "cue": 5,
+      "cue_admitted": true,
+      "worklists": 12,
+      "cycles_min": 38384,
+      "cycles_max": 44384,
+      "raw_start": [
+        3609,
+        3611,
+        3613,
+        3615,
+        3617,
+        3619,
+        3621,
+        3623,
+        3625,
+        3627,
+        3629,
+        3631
+      ],
+      "logical_steps": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "active_slot_ids": [
+        [
+          255,
+          5,
+          255,
+          255
+        ],
+        [
+          255,
+          5,
+          255,
+          255
+        ],
+        [
+          255,
+          5,
+          255,
+          255
+        ]
+      ],
+      "full_rows_sha256": "60460ef23471d3f1ef2acae377c9eb532efa6a053f6086a7676a6a0f72feb47a"
+    },
+    {
+      "name": "music cue",
+      "cue": 9,
+      "cue_admitted": true,
+      "worklists": 12,
+      "cycles_min": 38008,
+      "cycles_max": 43547,
+      "raw_start": [
+        3609,
+        3611,
+        3613,
+        3615,
+        3617,
+        3619,
+        3621,
+        3623,
+        3625,
+        3627,
+        3629,
+        3631
+      ],
+      "logical_steps": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "active_slot_ids": [
+        [
+          9,
+          255,
+          255,
+          255
+        ],
+        [
+          9,
+          255,
+          255,
+          255
+        ],
+        [
+          9,
+          255,
+          255,
+          255
+        ]
+      ],
+      "full_rows_sha256": "f8a5c1502ec9ee973f1ba603c9c50208dec6e0935706e2b4f4114caef6d1beb7"
+    }
+  ],
+  "colour_boundary": {
+    "worklists": 12,
+    "cycles": [
+      83985,
+      68858,
+      47244,
+      42383,
+      37662,
+      39517,
+      43661,
+      42729,
+      39129,
+      41392,
+      39846,
+      44476
+    ],
+    "raw_at_start": [
+      3609,
+      3612,
+      3615,
+      3617,
+      3619,
+      3621,
+      3623,
+      3625,
+      3627,
+      3629,
+      3631,
+      3633
+    ],
+    "logical_steps": [
+      2,
+      3,
+      3,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "scheduler_rate": [
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2,
+      2
+    ],
+    "debt_after": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "colour_before": 3,
+    "colour_after": 1,
+    "peak_renderer_inclusive": 73885,
+    "peak_cache_sync_inclusive": 20258,
+    "peak_entity_colour_inclusive": 22861,
+    "full_rows_sha256": "9f51bd18679067d1dec174d78d3d016f29b2dd281ccc45edc064b913e5920a7e"
+  },
+  "cause": "Adaptive scheduler adds raw VBlank delta to debt and executes up to four due logical steps per completed publication. The 83,985-cycle colour-change publication crosses three raw VBlanks; the next two worklists execute three steps each, causing larger movement/timer updates between displayed frames.",
+  "limits": [
+    "Cue 5 or 9 alone did not produce an extra-step worklist in the headless controlled fixture; this does not rule out combined cues or visible PulseAudio backend effects.",
+    "Pickup and gate triggers were not isolated; no direct trigger attribution is claimed.",
+    "Prior user natural acceptance remains valid for other behavior but is qualified for cadence; 27000-cycle target still fails."
+  ],
+  "rejected_probe": "First cue fixture left PC at the synthetic return stub and timed out waiting for the foreground marker. Restoring saved PC/stack after direct cue insertion corrected the observation mechanics; timeout is not target-code speed evidence."
+}

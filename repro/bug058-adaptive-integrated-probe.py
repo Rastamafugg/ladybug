@@ -191,6 +191,24 @@ try:
         for page,raw in data.items():c.call('write_memory',{'space':'physical','addr':page*8192,'data':raw.hex()})
         write(0xFFA5,[0x34])
     frozen=snapshot_pages();natural_regs=c.call('read_registers')
+    if '--cadence-effects' in sys.argv[3:]:
+        # Separate the audio path from the already-measured colour event.
+        # Direct cue insertion changes no gameplay state or framebuffer intent.
+        e['cadence_effects']=[]
+        for name,cue in (('release effect',5),('music cue',9)):
+            restore_pages(frozen);c.call('write_registers',{k:natural_regs[k] for k in ('a','b','cc','dp','x','y','u','s','pc')})
+            deadline=time.monotonic()+45
+            write(0xFFA5,[0x3D]);call(ads['audio_enqueue_impl'],cue);write(0xFFA5,[0x34])
+            c.call('write_registers',{k:natural_regs[k] for k in ('a','b','cc','dp','x','y','u','s','pc')})
+            rows=[];heard=False
+            for _ in range(12):
+                row=measure();row['steps']=(row['logical_after']-row['logical'])&65535
+                row['slots']=list(phys(0x3D,ads['audio_slot0'],112)[::28]);rows.append(row)
+                heard |= cue in row['slots']
+                assert row['enemies']==4 and row['mode']==0 and row['fault']==0,'cue fixture left active four-enemy phase'
+            assert heard,('cue not admitted',name)
+            e['cadence_effects'].append({'name':name,'cue':cue,'cue_admitted':heard,'worklists':rows,'deadline_seconds':45})
+        restore_pages(frozen);c.call('write_registers',{k:natural_regs[k] for k in ('a','b','cc','dp','x','y','u','s','pc')})
     if '--sustained-timing' in sys.argv[3:]:
         # A longer real foreground sequence from the proved four-roaming
         # fixture. Preserve its pixels, stack and histories for later gates.
