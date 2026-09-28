@@ -1821,6 +1821,18 @@ sync_entity_cache_colour
         beq     secc_done              ; stage construction must build unknown geometry
         cmpa    BONUS_COLOR
         beq     secc_done
+; Negative replay owns replicated colour and Y for its complete cache pass.
+; @audit {"id": "cache-rebind-colour", "kind": "scratch", "symbol": "OBJ_VALUE", "width": 1, "mapping": "unbanked-direct-page", "phases": ["foreground"], "owner": "negative cache replay", "lifetime": "After colour replication through the complete negative replay pass; mode-exclusive with positive primary replay.", "initialization": "BONUS_COLOR replicated into both nibbles before de_normal", "clobbers": "Negative replay preserves OBJ_VALUE and Y; IRQ does not use this scratch and restores Y. Positive replay initializes OBJ_VALUE independently.", "alias_group": "foreground-obj-value", "alias_reason": "Sequential foreground render phases; each initializes OBJ_VALUE before use, no nesting or retained consumer, IRQ does not touch it."}
+        lda     BONUS_COLOR
+        sta     OBJ_VALUE
+        lsla
+        lsla
+        lsla
+        lsla
+        ora     OBJ_VALUE
+        sta     OBJ_VALUE
+; @audit-use {"id":"primary-mask-table","symbol":"primary_preserve_table"}
+        ldy     #primary_preserve_table
         lda     #$80
         sta     OBJ_ACCENT
         lbra    de_normal
@@ -1837,31 +1849,20 @@ secc_done
 ; Cache rebinding enters with OBJ_ACCENT negative and returns the rebound
 ; value in A.  The compiled bonus/skull LUT guard justifies the bit tests.
 ; Callers select the operation before entering their per-byte loop.
-; These distinct entries retain the existing arithmetic and scratch contract.
+; Distinct entries select existing-table rebinding or primary preserve masking.
 rebind_cache_value
 cache_colour_kernel
+; A=cached value; Y=immutable table; OBJ_VALUE=colour replicated into nibbles.
+; B/CC are scratch; retain X/Y/U and OBJ_VALUE. OBJ_PRIMARY is transient.
         tfr     a,b
         anda    #$CC
         sta     OBJ_PRIMARY
         tfr     b,a
-        anda    #$30
-        beq     rcv_high_ready
-        lda     BONUS_COLOR
-        lsla
-        lsla
-        lsla
-        lsla
+        anda    #$33
+        lda     a,y
+        coma
+        anda    OBJ_VALUE
         ora     OBJ_PRIMARY
-        sta     OBJ_PRIMARY
-rcv_high_ready
-        tfr     b,a
-        anda    #$03
-        beq     rcv_value_done
-        lda     BONUS_COLOR
-        ora     OBJ_PRIMARY
-        rts
-rcv_value_done
-        lda     OBJ_PRIMARY
         rts
 
 ; Input A=cached value, B=preserve mask, Y=primary_preserve_table.
@@ -2337,7 +2338,7 @@ pbc_top_left
 
 ; Redraw an authored perimeter tile, replacing White pixels only.  Pink inner
 ; borders and Black separators remain unchanged.
-; @audit {"id":"perimeter-colour","kind":"scratch","symbol":"OBJ_VALUE","width":1,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"perimeter tile renderer","lifetime":"After prepare_cell_tile returns until draw_perimeter_box returns; high-nibble replacement colour, including zero-match tiles. No caller retains it.","initialization":"HUD_COLOR shifted four times before the row loop","clobbers":"No nested calls in the loop; framebuffer IRQ does not use OBJ_VALUE or HUD_COLOR. Other render operations initialize their own scratch after return."}
+; @audit {"id": "perimeter-colour", "kind": "scratch", "symbol": "OBJ_VALUE", "width": 1, "mapping": "unbanked-direct-page", "phases": ["foreground"], "owner": "perimeter tile renderer", "lifetime": "After prepare_cell_tile returns until draw_perimeter_box returns; high-nibble replacement colour, including zero-match tiles. No caller retains it.", "initialization": "HUD_COLOR shifted four times before the row loop", "clobbers": "No nested calls in the loop; framebuffer IRQ does not use OBJ_VALUE or HUD_COLOR. Other render operations initialize their own scratch after return.", "alias_group": "foreground-obj-value", "alias_reason": "Sequential foreground render phases; each initializes OBJ_VALUE before use, no nesting or retained consumer, IRQ does not touch it."}
 draw_perimeter_box
         lda     TEST_Y
         ldb     #40
@@ -4424,12 +4425,12 @@ restore_player
         sta     PLAYER_COPY_ROWS
 rp_row
         pulu    d,y
-        std     ,x++
-        sty     ,x++
+        std     ,x
+        sty     2,x
         pulu    d,y
-        std     ,x++
-        sty     ,x++
-        leax    152,x
+        std     4,x
+        sty     6,x
+        leax    160,x
         dec     PLAYER_COPY_ROWS
         bne     rp_row
         clr     PLAYER_BG_VALID
@@ -4763,7 +4764,7 @@ sprite_score_blue_pairs
 
 ; Immutable primary-mask lookup; reachable indexes are value & $33.
 ; @audit-producer {"id": "primary-mask-constants", "symbols": ["primary_preserve_table"], "description": "Authored immutable table: for index i, ($F0 if i&$30 is zero else 0) OR ($0F if i&3 is zero else 0)."}
-; @audit {"id": "primary-mask-table", "kind": "index", "symbol": "primary_preserve_table", "producer": "primary-mask-constants", "domain": "Cached value AND $33, sixteen reachable offsets in 52 bytes", "encoding": "One-byte extra preserve mask; high absent -> $F0, low absent -> $0F. render_entity_colour initializes Y once; positive-mode loop and primary replay preserve Y. IRQ restores Y. OBJ_VALUE retains source byte.", "bounds": [57344, 64972]}
+; @audit {"id": "primary-mask-table", "kind": "index", "symbol": "primary_preserve_table", "producer": "primary-mask-constants", "domain": "Cached value AND $33, sixteen reachable offsets in 52 bytes", "encoding": "One-byte extra preserve mask; high absent -> $F0, low absent -> $0F. render_entity_colour and sync_entity_cache_colour initialize Y once for positive and negative replay respectively. Both loops preserve Y; IRQ restores Y. Positive OBJ_VALUE retains source byte; negative OBJ_VALUE retains replicated colour.", "bounds": [57344, 64972]}
 primary_preserve_table
         fcb     $FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00
 asset_end
