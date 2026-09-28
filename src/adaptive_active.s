@@ -3,9 +3,14 @@
         include "adaptive_interface.inc"
         include "adaptive_reference.inc"
         include "ladybug_audio_symbols.inc"
+HISTORY_A equ $BC04
+HISTORY_B equ $BC94
+STATE equ $BD24
 AD_END_TIME equ $BD2E
 AD_DUE_TIME equ $BD30
 AD_FAULT_BYTE equ $BD3A
+AD_COUNT_A_ACTIVE equ $BD38
+AD_COUNT_B_ACTIVE equ $BD39
 PRES_TIMER equ $00B0
         org $038F
         jmp adaptive_work
@@ -47,10 +52,10 @@ aw_external_done
 aw_batch
         ; Reserve a complete four-step batch in both histories. If a retained
         ; owner has more than four records, compose before advancing logic.
-        lda $BD38
+        lda AD_COUNT_A_ACTIVE
         cmpa #5
         bhs aw_compose
-        lda $BD39
+        lda AD_COUNT_B_ACTIVE
         cmpa #5
         bhs aw_compose
         jsr AD_BATCH_EXEC
@@ -92,8 +97,8 @@ aw_fault
 ; an empty owner receives one initialized HUD-only record. This is atomic
 ; foreground work and never needs a ninth record or changes keyed coverage.
 adaptive_credit_history
-        ldx #$BD38
-        ldu #$BC04
+        ldx #AD_COUNT_A_ACTIVE
+        ldu #HISTORY_A
 ach_owner
         tst ,x
         bne ach_merge
@@ -110,7 +115,7 @@ ach_merge
         sta ,u
         leau 144,u
         leax 1,x
-        cmpx #$BD3A
+        cmpx #AD_FAULT_BYTE
         blo ach_owner
         rts
 adaptive_render
