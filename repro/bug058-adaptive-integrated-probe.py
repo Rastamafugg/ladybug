@@ -191,6 +191,56 @@ try:
         for page,raw in data.items():c.call('write_memory',{'space':'physical','addr':page*8192,'data':raw.hex()})
         write(0xFFA5,[0x34])
     frozen=snapshot_pages();natural_regs=c.call('read_registers')
+    if '--pickup-gate-cadence' in sys.argv[3:]:
+        # Enter real player_tick with a bounded, legal event precondition.  The
+        # ensuing worklists include simulation, rendering, input and audio.
+        maze=json.loads((w/'assets/arcade/maze.json').read_text())
+        def reset_event():
+            restore_pages(frozen)
+            c.call('write_registers',{k:natural_regs[k] for k in ('a','b','cc','dp','x','y','u','s','pc')})
+            write(ms['PLAYER_MANUAL'],[0]);write(ms['TURN_SNAP'],[0])
+        def place(x,y,direction,steps):
+            stride=(-320,1,320,-1)[direction]
+            base=0x2000+(y*8-8)*160+(x+7)*4
+            write(ms['PLAYER_CELL_X'],[x,y]);write(ms['PLAYER_DIR'],[direction]);write(ms['PLAYER_WANT'],[direction]);write(ms['PLAYER_STEP'],[steps])
+            word(ms['PLAYER_FB'],base+steps*stride)
+        entities=read(ms['ENTITY_TABLE'],read(ms['ENTITY_COUNT'])[0]*4)
+        pickup=None
+        for i in range(0,len(entities),4):
+            x,y,kind=entities[i:i+3]
+            if kind not in (2,3):continue
+            for direction,dx,dy,reverse in ((0,0,1,4),(1,-1,0,8),(2,0,-1,1),(3,1,0,2)):
+                px,py=x+dx,y+dy
+                if 0<=px<24 and 0<=py<24 and maze['maze_nav'][y][x]&reverse and maze['maze_nav'][py][px]&(1<<direction):
+                    pickup=(i//4,x,y,kind,px,py,direction);break
+            if pickup:break
+        assert pickup,'legal pickup approach absent'
+        e['pickup_gate_cadence']=[]
+        for name in ('pickup','gate rotation'):
+            deadline=time.monotonic()+45;reset_event()
+            if name=='pickup':
+                idx,x,y,kind,px,py,direction=pickup
+                place(px,py,direction,3)
+                before=read(ms['BONUS_LEFT'])[0]
+                def marker():return {'bonus_left':read(ms['BONUS_LEFT'])[0],'pickup_timer':read(ms['PICKUP_TIMER'])[0],'entity_type':read(ms['ENTITY_TABLE']+idx*4+2)[0]}
+            else:
+                gate=maze['gates'][0];gx,gy=gate['pivot']
+                assert maze['gate_owner'][gy][gx-1]==1 and not read(ms['GATE_STATE'])[0]
+                place(gx-1,gy+1,0,0)
+                before=read(ms['GATE_STATE'])[0]
+                def marker():return {'gate_state':read(ms['GATE_STATE'])[0],'gate_animation':read(ms['GATE_ANIM_ID'])[0]}
+            rows=[];event_at=None
+            for index in range(58 if name=='pickup' else 12):
+                profile_enabled=index<2 or (name=='gate rotation' and index in (7,8))
+                row=measure();row['steps']=(row['logical_after']-row['logical'])&65535
+                row['marker']=marker();rows.append(row)
+                changed=(row['marker']['bonus_left']<before if name=='pickup' else row['marker']['gate_state']!=before)
+                if changed and event_at is None:event_at=index
+                assert row['mode']==0 and row['enemies']==4 and row['fault']==0,'event fixture left active four-enemy phase'
+            assert event_at is not None,(name,'real event marker absent')
+            profile_enabled=False
+            e['pickup_gate_cadence'].append({'name':name,'setup':pickup if name=='pickup' else {'gate_id':0,'pivot':gate['pivot'],'from':[gx-1,gy+1],'direction':0},'event_worklist':event_at,'worklists':rows,'deadline_seconds':45})
+        reset_event()
     if '--cadence-effects' in sys.argv[3:]:
         # Separate the audio path from the already-measured colour event.
         # Direct cue insertion changes no gameplay state or framebuffer intent.
