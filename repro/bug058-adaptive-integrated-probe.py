@@ -195,8 +195,15 @@ try:
         # Enter real player_tick with a bounded, legal event precondition.  The
         # ensuing worklists include simulation, rendering, input and audio.
         maze=json.loads((w/'assets/arcade/maze.json').read_text())
+        fitted=(Path(__file__).parent/'bug058-catchup-banked-fit.bin').read_bytes() if '--two-step-cap-fit' in sys.argv[3:] else None
+        if fitted:
+            assert len(fitted)<=698 and phys(0x34,0xBD44,len(helper))==helper,'fitted helper baseline identity'
+            e['two_step_cap_fit']={'banked_bytes':len(fitted),'limit':698,'helper_sha256':r.digest(fitted),'delivery':'controlled physical-page-34 overlay after original ROM identity; no built ROM alteration'}
         def reset_event():
             restore_pages(frozen)
+            if fitted:
+                c.call('write_memory',{'space':'physical','addr':0x34*8192+0xBD44-0xA000,'data':fitted.hex()})
+                assert phys(0x34,0xBD44,len(fitted))==fitted,'fitted helper live identity'
             c.call('write_registers',{k:natural_regs[k] for k in ('a','b','cc','dp','x','y','u','s','pc')})
             write(ms['PLAYER_MANUAL'],[0]);write(ms['TURN_SNAP'],[0])
         def place(x,y,direction,steps):
@@ -216,6 +223,12 @@ try:
             if pickup:break
         assert pickup,'legal pickup approach absent'
         e['pickup_gate_cadence']=[]
+        deadline=time.monotonic()+45;reset_event()
+        quiet_rows=[]
+        for _ in range(12):
+            row=measure();row['steps']=(row['logical_after']-row['logical'])&65535;quiet_rows.append(row)
+        assert all(row['steps']==2 and row['enemies']==4 and row['mode']==0 and row['fault']==0 for row in quiet_rows),'quiet two-step control failed'
+        e['pickup_gate_quiet_control']={'worklists':quiet_rows,'both_owners':{row['owner'] for row in quiet_rows}=={0,1},'pixels_sha256':[r.digest(r.read_owner(c,k)) for k in (0,1)]}
         for name in ('pickup','gate rotation'):
             deadline=time.monotonic()+45;reset_event()
             if name=='pickup':
