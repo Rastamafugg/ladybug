@@ -18,6 +18,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("candidate", type=Path)
     parser.add_argument("receipt", type=Path)
+    parser.add_argument("--retain-rom", type=Path)
     args = parser.parse_args()
     root = args.candidate.resolve()
     source = root / "src/adaptive_runtime.s"
@@ -48,6 +49,12 @@ def main() -> None:
                 "cartridge_bytes": (build / "ladybug.rom").stat().st_size,
                 "source_reference_generated": (build / "source-reference/ownership.json").is_file(),
             }
+            if args.retain_rom:
+                retained = args.retain_rom.resolve()
+                retained.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(build / "ladybug.rom", retained)
+                assert hashlib.sha256(retained.read_bytes()).hexdigest() == report["fitted_rom_sha256"]
+                report["retained_rom"] = str(retained)
             args.receipt.write_text(json.dumps(report, indent=2) + "\n")
         finally:
             source.write_bytes(original)
