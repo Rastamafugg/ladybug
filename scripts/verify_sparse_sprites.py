@@ -657,8 +657,17 @@ def main() -> None:
             reconstructed["enemy"][offset:end] = raw
             coverage["enemy"][offset:end] = b"\x01" * len(raw)
         elif name == "audio_page_3d":
-            reconstructed["audio_runtime"][:] = raw
-            coverage["audio_runtime"][:] = b"\x01" * len(raw)
+            keys = manifest.get("keybinding_runtime", {})
+            expected = audio_runtime
+            if keys.get("bytes"):
+                payload = (args.audio_runtime.parent / "ladybug-keybinding-runtime.bin").read_bytes()
+                if len(payload) != keys["bytes"] or sha256(payload) != keys["sha256"]:
+                    raise SystemExit("sparse proof: keybinding module identity differs")
+                expected = audio_runtime.ljust(0x1A00, b"\x00") + payload
+            if raw != expected or len(raw) > PAGE_BYTES:
+                raise SystemExit("sparse proof: combined audio/keybinding page differs")
+            reconstructed["audio_runtime"][:] = raw[:len(audio_runtime)]
+            coverage["audio_runtime"][:] = b"\x01" * len(audio_runtime)
     if (
         not all(coverage["enemy"]) or
         not all(coverage["player"]) or

@@ -862,80 +862,20 @@ MENU_EVENT equ $D0
 MENU_DIRTY equ $E1
 
 menu_scan
-        clr     $A9
-        ldy     #$B2
-        ldx     #PRES_MAIN_SCAN_DRIVES
-        ldu     #PRES_MAIN_SCAN_BITS
-        clrb
-menu_coin_scan
-        lda     b,x
-        sta     $FF02
-        lda     $FF00
-        ifne    INPUT_JOYSTICK
-        anda    #$7F
-        else
-        anda    #$10
-        endc
-        pshs    a
-        coma
-        anda    b,y
-        beq     menu_coin_next
-        lda     $A9
-        ora     b,u
-        sta     $A9
-menu_coin_next
-        puls    a
-        sta     b,y
-        incb
-        cmpb    #3
-        blo     menu_coin_scan
-        lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
-        beq     menu_key_scan
-        cmpa    #PRESENTATION_MAP_OPTIONS
-        blo     menu_scan_done
-menu_key_scan
-        clr     MENU_EVENT      ; D0 is the instruction timer outside menus
-        ldx     #menu_key_drives
-        ldu     #menu_key_rows
-        leay    menu_key_bits,pcr
-        clrb
-        clr     $D1
-menu_key_loop
-        lda     b,x
-        sta     $FF02
-        lda     $FF00
-        anda    b,u
-        bne     menu_key_next
-        lda     $D1
-        ora     b,y
-        sta     $D1
-menu_key_next
-        incb
-        cmpb    #6
-        blo     menu_key_loop
-        lda     MENU_PREV
-        coma
-        anda    $D1
-        sta     MENU_EVENT
-        lda     $D1
-        sta     MENU_PREV
-menu_scan_done
-        lda     #$FF
-        sta     $FF02
-        ifne    INPUT_JOYSTICK
-        lda     #$34
-        sta     $FF01
-        endc
-        rts
-menu_key_drives
-        fcb     $F7,$EF,$DF,$BF,$FE,$FB
-menu_key_rows
-        fcb     $08,$08,$08,$08,$40,$40
-menu_key_bits
-        fcb     1,2,4,8,16,32
+        ldb #0
+        jmp PRES_MAIN_KEY_SERVICE
 
 menu_tick
+        lda     PRES_SCREEN
+        cmpa    #8
+        bne     menu_original_tick
+        ldb     #2
+        jsr     PRES_MAIN_KEY_SERVICE
+        cmpb    #$FF
+        lbeq    menu_idle
+        tfr     b,a
+        lbra    menu_change
+menu_original_tick
         lda     MENU_EVENT
         lbeq    menu_idle
         bita    #32
@@ -1000,7 +940,7 @@ menu_down
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_HIGH_SCORE
         beq     menu_last
-        incb
+        ldb     #3
 menu_last
         cmpb    MENU_SELECT
         bls     menu_idle
@@ -1018,6 +958,11 @@ menu_enter
 menu_enter_option
         lda     MENU_SELECT
         cmpa    #2
+        bne     menu_enter_back
+        lda     #8
+        bra     menu_change
+menu_enter_back
+        cmpa    #3
         bne     menu_idle
 menu_back
         lda     #PRESENTATION_MAP_HIGH_SCORE
@@ -1071,6 +1016,12 @@ menu_hold
         rts
 
 menu_load_finish
+        lda     PRES_SCREEN
+        cmpa    #8
+        bne     menu_load_original
+        ldb     #1
+        jmp     PRES_MAIN_KEY_SERVICE
+menu_load_original
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_HIGH_SCORE
         beq     menu_paint_high
@@ -1139,7 +1090,7 @@ menu_label_colour
         puls    b,pc
 menu_paint_options
         leay    menu_option_rows,pcr
-        ldb     #3
+        ldb     #4
         lbsr    menu_paint_rows
         leay    menu_options_pairs,pcr
         clr     $D1

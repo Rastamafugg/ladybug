@@ -61,6 +61,7 @@ MAP_NAMES = (
     "enter-high-score",
     "options",
     "credits",
+    "keybind-options",
 )
 MAP_FILES = {
     name: f"coco-{name}-screen.tmx" for name in MAP_NAMES
@@ -771,7 +772,7 @@ def presentation_pen_map(
         if y % 3 == 1 and x != 0:
             colour = GREY
         return (BLACK, colour, colour, colour)
-    if role in ("options", "credits"):
+    if role in ("options", "credits", "keybind-options"):
         return (BLACK, GREY, GREY, GREY)
     if x >= 32:
         if role == "instructions" and y == 2:

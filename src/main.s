@@ -1,3 +1,4 @@
+; DOC-002 source-contract mirror contract presentation_key_service profile=input: Call the bounded physical key component while preserving the caller bank mapping.
 ; DOC-002 source-contract mirror contract asset_draw_hud_digit profile=render: Draw one shared-font HUD digit.
 ; DOC-002 source-contract mirror contract asset_draw_two_digits profile=render: Draw a two-digit HUD value with a leading zero.
 ; DOC-002 source-contract mirror contract asset_draw_life_count profile=render: Draw numeric reserves in the existing marker footprint.
@@ -604,6 +605,10 @@ startup_clear_complete
         ; gameplay state. The seed survives until the presentation director
         ; enters the first level or demo.
         lbsr    init_joystick
+        ifne COMPLETE_PROFILE
+        ldb     #3
+        lbsr    presentation_key_service
+        endc
         lbsr    read_joystick
         ldd     RNG_ENTROPY
         eora    JOY_X
@@ -2591,6 +2596,14 @@ read_joystick
         lda     #$80
         sta     PIA2_DA
         else
+        ifne COMPLETE_PROFILE
+        lda     #8              ; RIGHT action bit, then LEFT
+        bsr     keyboard_read_axis
+        stb     JOY_X
+        lda     #2              ; DOWN action bit, then UP
+        bsr     keyboard_read_axis
+        stb     JOY_Y
+        else
         lda     #$BF            ; PB6 right, then PB5 left; row PA3
         bsr     keyboard_read_axis
         stb     JOY_X
@@ -2599,6 +2612,7 @@ read_joystick
         stb     JOY_Y
         lda     #$FF            ; release keyboard columns, preserve CA2/CB2
         sta     PIA1_DB
+        endc
         endc
 
         lda     JOY_X
@@ -2692,6 +2706,19 @@ jra_done
 ; B = 0,32,64 for negative, neutral (including both held), positive.
 ; X/Y/U remain untouched; only keyboard data registers are accessed.
 keyboard_read_axis
+        ifne COMPLETE_PROFILE
+        ldb     #32
+        bita    $0296
+        beq     kra_negative
+        addb    #32
+kra_negative
+        lsra
+        bita    $0296
+        beq     kra_done
+        subb    #32
+kra_done
+        rts
+        else
         ldb     #32
         sta     PIA1_DB
         pshs    a
@@ -2709,6 +2736,7 @@ kra_negative
         subb    #32
 kra_done
         rts
+        endc
         endc
 
 ;==============================================================================
@@ -4737,6 +4765,18 @@ presentation_page23_resume
         lda     #$23
         sta     PAR_EXEC+5
         jmp     [PRES_NAME_PTR]
+
+; B=scan0/paint1/tick2/defaults3. Return B from the bounded key component.
+; Resident return path preserves the caller's PAR5, including audio/game owners.
+presentation_key_service
+        lda     PAR_EXEC+5
+        pshs    a
+        lda     #$3D
+        sta     PAR_EXEC+5
+        jsr     $BA00
+        puls    a
+        sta     PAR_EXEC+5
+        rts
         endc
 
         ifne    HIGHSCORE_TEST_PROFILE

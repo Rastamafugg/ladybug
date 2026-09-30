@@ -296,7 +296,17 @@ def main() -> None:
     if compressed is not None:
         start = compressed["source_offset"]
         packed = banks[compressed["bank"]][start:start + compressed["compressed_bytes"]]
-        rebuilt[:] = lzss_decompress(packed, compressed["raw_bytes"])
+        expanded = lzss_decompress(packed, compressed["raw_bytes"])
+        keys = layout.get("keybinding_runtime", {})
+        expected = runtime
+        if keys.get("bytes"):
+            payload = (args.runtime.parent / "ladybug-keybinding-runtime.bin").read_bytes()
+            if len(payload) != keys["bytes"] or digest(payload) != keys["sha256"]:
+                raise SystemExit("audio proof: adjacent keybinding module identity differs")
+            expected = runtime.ljust(0x1A00, b"\x00") + payload
+        if expanded != expected:
+            raise SystemExit("audio proof: combined page transport differs")
+        rebuilt[:] = expanded[:len(runtime)]
         coverage[:] = b"\x01" * len(runtime)
     if rebuilt != runtime or not all(coverage):
         raise SystemExit("audio proof: sparse loader does not reconstruct the complete runtime")

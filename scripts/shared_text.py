@@ -283,12 +283,12 @@ class SharedText:
         for row in range(24):
             codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40:(row+1)*40]]
             label=''.join(chr(c+55) if c is not None and 10<=c<=35 else ' ' for c in codes)
-            if 'LIVES' in label or 'STARTING LEVEL' in label or 'BACK' in label:
+            if 'LIVES' in label or 'STARTING LEVEL' in label or 'KEYBINDINGS' in label or 'BACK' in label:
                 xs=[x for x,c in enumerate(codes) if c is not None and 0<=c<=35]
                 lo,hi=min(xs),max(xs)
-                if 'BACK' not in label:lo=min(lo,26);hi=max(hi,29)
+                if 'LIVES' in label or 'STARTING LEVEL' in label:lo=min(lo,26);hi=max(hi,29)
                 rows.append((row,lo,hi,[c if c is not None and 0<=c<=35 else 36 for c in codes[lo:hi+1]]))
-        assert len(rows)==3,rows
+        assert len(rows)==4,rows
         menu_lines.append('menu_option_rows')
         for row,lo,hi,codes in rows:
             menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
@@ -304,5 +304,60 @@ class SharedText:
         row,col=back[0]
         menu_lines.extend(['menu_credit_back','        fdb $%04X'%self.p.framebuffer_destination((col,row)),'        fcb 4,11,10,12,20'])
         (self.args.output.parent/'ladybug_menu_records.inc').write_text('\n'.join(menu_lines)+'\n')
-        manifest['menus']={'option_rows':[[row,lo,hi] for row,lo,hi,_ in rows], 'credit_back':[row,col],'selected_colour':10,'unselected_colour':7}
+        keybindings = self.keybinding_records()
+        manifest['menus']={'option_rows':[[row,lo,hi] for row,lo,hi,_ in rows], 'credit_back':[row,col],'selected_colour':10,'unselected_colour':7, 'keybindings': keybindings}
         self.args.manifest_output.write_text(json.dumps(manifest,indent=2)+'\n')
+
+    def keybinding_records(self):
+        path = self.args.tiled_dir / self.p.MAP_FILES['keybind-options']
+        root, cells, _ = self.p.flatten_map(path)
+        guide = root.find("layer[@name='Selected Option']")
+        pairs = []
+        for row in range(24):
+            markers = [(col, self.p.raw_char_code(root, path, gid))
+                       for col, gid in enumerate(self.p.parse_csv(guide.find('data'), 'Selected Option')[row*40:(row+1)*40]) if gid]
+            if markers:
+                if len(markers) != 2 or [v for _, v in markers] != [43, 44] or markers[1][0] != 32:
+                    raise ValueError(('keybinding parentheses guide', row, markers))
+                pairs.append((row, markers[0][0], markers[1][0]))
+        if len(pairs) != 7:
+            raise ValueError(('expected seven keybinding guide pairs', pairs))
+        action_rows = [row for row, _, _ in pairs]
+        back_rows = []
+        for row in range(24):
+            codes = [self.p.raw_char_code(root, path, gid) for gid in cells[row*40:(row+1)*40]]
+            if any(codes[col:col+4] == [11, 10, 12, 20] for col in range(37)):
+                back_rows.append(row)
+        if len(back_rows) != 1:
+            raise ValueError(('keybinding BACK row', back_rows))
+        lines = ['key_label_records']
+        for row in action_rows + back_rows:
+            end = 23 if row in back_rows else 18
+            codes = [self.p.raw_char_code(root, path, gid) for gid in cells[row*40:row*40+end]]
+            cols = [i for i, v in enumerate(codes) if v is not None and v <= 35]
+            lo, hi = min(cols), max(cols)
+            glyphs = [v if v is not None and v <= 35 else 36 for v in codes[lo:hi+1]]
+            lines += ['        fdb $%04X' % self.p.framebuffer_destination((lo, row)),
+                      '        fcb ' + ','.join(str(v) for v in [len(glyphs), *glyphs])]
+        lines += ['key_value_destinations'] + ['        fdb $%04X' % self.p.framebuffer_destination((19, row)) for row in action_rows]
+        names = ['AT', 'UP ARROW', 'DOWN ARROW', 'LEFT ARROW', 'RIGHT ARROW', 'SPACE',
+                 'COLON', 'SEMICOLON', 'COMMA', 'MINUS', 'PERIOD', 'SLASH', 'ENTER',
+                 'CLEAR', 'BREAK', 'ALT', 'CONTROL', 'F1', 'F2', 'SHIFT']
+        lines += ['key_names'] + ['        fdb key_name_' + str(i) for i in range(len(names))]
+        for i, name in enumerate(names):
+            glyphs = [int(c) if c.isdigit() else ord(c)-55 if c != ' ' else 36 for c in name]
+            lines += ['key_name_' + str(i), '        fcb ' + ','.join(str(v) for v in [len(name), *glyphs])]
+        raw = []
+        for col in range(8):
+            for row in range(8):
+                if row < 3: code = 36 if col == 0 and row == 0 else row*8+col+9
+                elif row == 3: code = 33+col if col < 3 else 36+col-2
+                elif row == 4: code = col
+                elif row == 5: code = 8+col if col < 2 else 36+col+4
+                elif row == 6: code = 36+12+col
+                else: code = 255
+                raw.append(code)
+        lines += ['key_name_codes', '        fcb ' + ','.join(map(str, raw))]
+        (self.args.output.parent/'ladybug_keybinding_records.inc').write_text('\n'.join(lines)+'\n')
+        return {'action_rows': action_rows, 'back_row': back_rows[0], 'value_bounds': [19, 32],
+                'default_physical_keys': [27, 35, 43, 51, 6, 44, 12], 'maximum_name_width': 11}
