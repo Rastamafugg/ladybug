@@ -1,3 +1,4 @@
+; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
 ; DOC-002 source-contract mirror contract menu_tick profile=presentation: Dispatch selected menu input without gameplay mutation.
 ; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan menu and existing credit/start edges.
 ; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint the selected authored menu row and brackets.

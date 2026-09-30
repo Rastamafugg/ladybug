@@ -454,8 +454,11 @@ start_screen_done
 load_tick
         ifne COMPLETE_PROFILE
         lda     <PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        beq     menu_load_event
         cmpa    #PRESENTATION_MAP_OPTIONS
         blo     menu_load_continue
+menu_load_event
         tst     <$D0
         beq     menu_load_continue
         lda     #$23

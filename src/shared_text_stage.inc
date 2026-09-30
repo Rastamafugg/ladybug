@@ -1,3 +1,4 @@
+; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
 ; BUG-012 release-profile demo route director, copied to low RAM $0300.
 ; DOC-002 source-contract mirror begins. Canonical definitions:
 ; wiki/internal/implementation/routine-catalog.html
@@ -939,7 +940,11 @@ menu_tick
         lbne    menu_back
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_CREDITS
-        lbeq    menu_hold
+        bne     menu_interactive
+        bita    #16
+        lbne    menu_back
+        lbra    menu_hold
+menu_interactive
         bita    #16
         bne     menu_enter
         ; Opposing held inputs cancel, including a newly pressed opposite.
@@ -1036,9 +1041,14 @@ menu_load_finish
         cmpa    #PRESENTATION_MAP_HIGH_SCORE
         beq     menu_paint_high
         cmpa    #PRESENTATION_MAP_OPTIONS
-        beq     menu_paint_options
+        lbeq    menu_paint_options
+        cmpa    #PRESENTATION_MAP_CREDITS
+        beq     menu_paint_credits
         jmp     stage_panel_finish
 menu_paint_high
+        leay    menu_high_score_rows,pcr
+        ldb     #2
+        lbsr    menu_paint_rows
         leay    menu_high_score_pairs,pcr
         clrb
 menu_high_pair
@@ -1067,8 +1077,15 @@ menu_high_pair
         lda     #44
         ldx     ,y
         lbra    stage_panel_char
-menu_paint_options
-        leay    menu_option_rows,pcr
+menu_paint_credits
+        lda     #10
+        sta     $29
+        leay    menu_credit_back,pcr
+        ldx     ,y++
+        ldb     ,y+
+        lbra    stage_panel_text
+menu_paint_rows
+        pshs    b
         clr     $D1
 menu_label_row
         lda     #7
@@ -1083,8 +1100,13 @@ menu_label_colour
         lbsr    stage_panel_text
         inc     $D1
         lda     $D1
-        cmpa    #3
+        cmpa    ,s
         blo     menu_label_row
+        puls    b,pc
+menu_paint_options
+        leay    menu_option_rows,pcr
+        ldb     #3
+        lbsr    menu_paint_rows
         leay    menu_options_pairs,pcr
         clr     $D1
 menu_value_row

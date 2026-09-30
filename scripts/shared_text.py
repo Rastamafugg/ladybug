@@ -267,6 +267,16 @@ class SharedText:
             assert len(pairs)==2,(name,pairs)
             menu_lines.append('menu_'+name.replace('-','_')+'_pairs')
             menu_lines.extend('        fdb $%04X,$%04X'%pair for pair in pairs)
+            if name=='high-score':
+                _,flat,_=self.p.flatten_map(path)
+                menu_lines.append('menu_high_score_rows')
+                for left,right in pairs:
+                    row=(left-0x2000)//1280;lo=((left-0x2000)%1280)//4+1
+                    hi=((right-0x2000)%1280)//4
+                    codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40+lo:row*40+hi]]
+                    codes=[c if c is not None and 0<=c<=35 else 36 for c in codes]
+                    menu_lines.append('        fdb $%04X'%(left+4))
+                    menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
         path=self.args.tiled_dir/self.p.MAP_FILES['options']
         root,flat,_=self.p.flatten_map(path)
         rows=[]
@@ -283,6 +293,16 @@ class SharedText:
         for row,lo,hi,codes in rows:
             menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
             menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
+        path=self.args.tiled_dir/self.p.MAP_FILES['credits']
+        root,flat,_=self.p.flatten_map(path)
+        back=[]
+        for row in range(24):
+            codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40:(row+1)*40]]
+            for col in range(37):
+                if codes[col:col+4]==[11,10,12,20]:back.append((row,col))
+        assert len(back)==1,back
+        row,col=back[0]
+        menu_lines.extend(['menu_credit_back','        fdb $%04X'%self.p.framebuffer_destination((col,row)),'        fcb 4,11,10,12,20'])
         (self.args.output.parent/'ladybug_menu_records.inc').write_text('\n'.join(menu_lines)+'\n')
-        manifest['menus']={'option_rows':[[row,lo,hi] for row,lo,hi,_ in rows], 'selected_colour':10,'unselected_colour':7}
+        manifest['menus']={'option_rows':[[row,lo,hi] for row,lo,hi,_ in rows], 'credit_back':[row,col],'selected_colour':10,'unselected_colour':7}
         self.args.manifest_output.write_text(json.dumps(manifest,indent=2)+'\n')

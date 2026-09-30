@@ -1,0 +1,51 @@
+{
+  "status": "pass for approved menu repair",
+  "date": "2026-09-30",
+  "base_revision": "b85458a",
+  "ticket": "FEAT-005",
+  "cost_class": "Standard",
+  "rom_sha256": "ccbfab8e902596c76a89d976b7cf0c4c3e544b26f72d263ac4b3ef0716a044f3",
+  "build_command": "LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+  "build_exit_code": 0,
+  "source_audit": {
+    "modules": 13,
+    "routines": "288/288",
+    "labels": "4493/4493",
+    "passed": true
+  },
+  "cause": "Fresh high-score keys were scanned but discarded during loading; credits had no Enter action and no selected BACK draw. Desktop arrow delivery itself works in installed XRoar1.10.",
+  "changes": [
+    "Dispatch menu events during high-score loading through existing banked MENU_TICK.",
+    "Draw authored high-score labels using green for selection and grey for others.",
+    "Draw authored credits BACK green on load; Enter and Escape return.",
+    "Retain options green selected label/value/BACK with existing clamped edge behavior."
+  ],
+  "checks": {
+    "desktop_keys": "repro/feat005-host-keys-after-20260930.json",
+    "both_owner_pixels_and_natural_live_start": "repro/feat005-keys-pixels-20260930.json",
+    "boot_identity": "repro/feat005-keys-boot-20260930.json",
+    "running_rom": "repro/feat005-keys-natural-launch-20260930.json"
+  },
+  "capacity": {
+    "resident_free_bytes": 60,
+    "assets_free_bytes": 63,
+    "presentation_free_bytes": 18,
+    "helper_end_exclusive": "0xB80D",
+    "helper_bytes": 3021,
+    "helper_to_title_free_bytes": 115,
+    "cartridge_source_free_bytes": 13695
+  },
+  "capacity_delta_vs_base": {
+    "resident_free_bytes": 0,
+    "assets_free_bytes": 0,
+    "presentation_free_bytes": -4,
+    "helper_to_title_free_bytes": -73,
+    "cartridge_source_free_bytes": -77
+  },
+  "rejected_mechanics": [
+    "Synthetic XSendEvent did not reach GTK; corrected to XTest on the owned visible window without extending deadline.",
+    "Registered painter contract and mirrored it in src/demo_runtime.s after build-audit failures; final full build passes and executable hash remains identical to functional checks."
+  ],
+  "remaining": "Bounded input/highlight repair passes; FEAT-005 remains Verification because prior timing gates remain open. No new timing measurement or name-entry maze acceptance claim.",
+  "build_log_sha256": "cf8ed6188966391cbc85e74331f718ecf2428e802848e6a875c2ac9f125f9907"
+}
