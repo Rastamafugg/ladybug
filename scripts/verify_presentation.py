@@ -572,12 +572,12 @@ def main() -> None:
     logo_roots, _ = compile_logo_frames(title_framebuffer(maps[0], ordered_tiles))
     destinations += b"".join(framebuffer_destination(root).to_bytes(2, "big") for root in logo_roots)
     destination_manifest = manifest.get("attract_actor_destinations", {})
-    if (destination_manifest.get("bytes") != 38 or
+    if (destination_manifest.get("bytes") != 40 or
             destination_manifest.get("sha256") != digest(destinations)):
-        raise SystemExit("presentation proof: seven actor destinations differ")
+        raise SystemExit("presentation proof: eight actor destinations differ")
     surfaces = compile_attract_surfaces(maps[0], ordered_tiles, sprites, actors)
     surface_manifest = manifest.get("attract_actor_surfaces", {})
-    if (surface_manifest.get("bytes") != 7296 or
+    if (surface_manifest.get("bytes") != 7680 or
             surface_manifest.get("page") != ATTRACT_ACTOR_SURFACE_PAGE or
             surface_manifest.get("address") != ATTRACT_ACTOR_SURFACE_ADDRESS or
             surface_manifest.get("sha256") != digest(surfaces)):
@@ -585,17 +585,17 @@ def main() -> None:
     attract_frames = compose_attract_frames(maps[0], ordered_tiles, surfaces, actors)
     if surface_manifest.get("phase_frame_sha256") != [digest(frame) for frame in attract_frames]:
         raise SystemExit("presentation proof: attract composed-frame hashes differ")
-    phase_pointers = b"".join((ATTRACT_ACTOR_SURFACE_ADDRESS + phase * 2432).to_bytes(2, "big")
+    phase_pointers = b"".join((ATTRACT_ACTOR_SURFACE_ADDRESS + phase * 2560).to_bytes(2, "big")
                               for phase in range(3))
     compressed = lzss_compress(surfaces)
     metadata = destinations + phase_pointers
     bundle_manifest = manifest.get("attract_actor_bundle", {})
     if (bundle_manifest.get("compressed_bytes") != len(compressed) or
-            bundle_manifest.get("expanded_bytes") != 7296 or
+            bundle_manifest.get("expanded_bytes") != 7680 or
             bundle_manifest.get("destination_table_address") != ATTRACT_ACTOR_DESTINATION_ADDRESS or
             bundle_manifest.get("phase_pointer_address") != ATTRACT_ACTOR_PHASE_POINTER_ADDRESS or
             bundle_manifest.get("compressed_sha256") != digest(compressed) or
-            bundle_manifest.get("metadata_bytes") != 44 or
+            bundle_manifest.get("metadata_bytes") != 46 or
             bundle_manifest.get("metadata_sha256") != digest(metadata)):
         raise SystemExit("presentation proof: attract actor loader bundle differs")
     for index, encoded in enumerate(encoded_maps):

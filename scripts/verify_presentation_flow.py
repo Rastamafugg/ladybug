@@ -200,14 +200,14 @@ def main() -> None:
         )
 
     actor_surfaces = presentation_layout.get("attract_actor_surfaces", {})
-    if (actor_surfaces.get("bytes") != 7296 or
-            len(actor_surfaces.get("actors", [])) != 7):
-        raise SystemExit("presentation flow proof: seven authored actor surfaces are not wired")
+    if (actor_surfaces.get("bytes") != 7680 or
+            len(actor_surfaces.get("actors", [])) != 8):
+        raise SystemExit("presentation flow proof: eight authored actor surfaces are not wired")
     attract_source = helper_source
     if "jsr     PRES_MAIN_FB_PREPARE" not in attract_source or "PRES_MAIN_FB_FINISH" not in attract_source:
         raise SystemExit("presentation flow proof: attract owner publication is incomplete")
-    for fragment in ("lda     #$3C", "ldx     #$BCA6", "ldx     #$BC80",
-                     "lda     #19", "lda     #16", "leay    152,y"):
+    for fragment in ("lda     #$3C", "ldx     #$BE28", "ldx     #$BE00",
+                     "lda     #20", "lda     #16", "leay    152,y"):
         if fragment not in attract_source:
             raise SystemExit("presentation flow proof: attract surface-copy worklist is incomplete")
     if "inflate_maps" in source or "cold_write_byte" in source:
@@ -274,7 +274,7 @@ def main() -> None:
         raise SystemExit("presentation flow proof: gameplay tile partition is ambiguous")
     if cold_manifest.get("gameplay_lookup_bytes", 0) <= 0:
         raise SystemExit("presentation flow proof: gameplay tile lookup is absent")
-    expected_cells = [[11, 3], [35, 4], [27, 5], [3, 9],
+    expected_cells = [[11, 3], [20, 4], [35, 4], [27, 5], [3, 9],
                       [10, 15], [33, 19], [5, 20]]
     if [actor["cell"] for actor in actor_surfaces["actors"]] != expected_cells:
         raise SystemExit("presentation flow proof: authored TMX actor cells differ")
@@ -317,7 +317,7 @@ def main() -> None:
     )
     print(
         f"presentation flow proof: {profile_label}, "
-        "seven title actor surfaces, "
+        "eight title actor surfaces, "
         "authored TMX coordinates, direct selected-screen streaming, bounded loading, "
         f"{behavior_label}, atomic surface copy, "
         f"module {module_bytes}/1280, helper {helper_bytes}/334, cold {cold}/{cold_limit} "

@@ -569,8 +569,8 @@ def main() -> None:
             target_page_base = 0x3D
             target_address = WINDOW_BASE
         elif target == "attract_actor_bundle":
-            target_page_base = 0x23
-            target_address = 0xB880
+            target_page_base = 0x3B
+            target_address = WINDOW_BASE + max(0, len(presentation_cold) - PAGE_BYTES)
         elif target == "presentation_auxiliary":
             target_page_base = 0x23
             target_address = INSTRUCTION_RUNTIME_ADDRESS

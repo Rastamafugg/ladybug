@@ -460,12 +460,13 @@ def pack_candidate_banks(
     ]
     if INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage) > 0xB880:
         raise ValueError("presentation auxiliary overlaps compressed title at $B880")
-    if 0xB880 + len(actor_underlays) + len(actor_records) > PHASE_TILE_PATCH_ADDRESS:
-        raise ValueError("compressed title overlaps phase patches at $BF80")
+    actor_bundle_address = WINDOW_BASE + max(0, len(presentation_cold) - PAGE_BYTES)
+    if actor_bundle_address + len(actor_underlays) + len(actor_records) > 0xC000:
+        raise ValueError("compressed title exceeds remaining page-$3B cold allocation")
     targets = (
         target_chunks("enemy", enemy_payload, ENEMY_PAGE_BASE) +
         target_chunks("attract_actor_bundle", actor_underlays + actor_records,
-                      0x23, 0xB880) +
+                      0x3B, actor_bundle_address) +
         target_chunks("presentation_auxiliary", aux_runtime_stage,
                       0x23, INSTRUCTION_RUNTIME_ADDRESS) +
         target_chunks("phase_tile_patches", tile_patches, 0x23,
