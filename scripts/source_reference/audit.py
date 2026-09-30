@@ -81,6 +81,10 @@ def build_audit(project, root, policy, receipt):
                 except ValueError as exc:
                     errors.append(f'invalid annotation {line.file}:{line.number}: {exc}')
                     continue
+                # A profile-specific declaration is active only when its
+                # assembler guard symbol exists in this module's current map.
+                if declaration.get('requires_symbol') and declaration['requires_symbol'] not in symbols[m.id]:
+                    continue
                 declaration = dict(declaration, module=m.id, file=line.file, line=line.number)
                 if declaration.get('modules') and m.id not in declaration['modules']:
                     continue
@@ -134,10 +138,22 @@ def build_audit(project, root, policy, receipt):
             mirror = symbols[reference_module].get(name)
             if mirror and mirror.assembled_address != location['address']:
                 errors.append(f'reference-module address mismatch: {reference_module}:{name}')
-            documented.add((reference_module, name))
-            for line, ref in references.get((reference_module, name), []):
-                record['references'].append(dict(ref, module=reference_module, file=line.file, line=line.number,
-                    evidence='extracted fact', href=module_page(reference_module)+'#'+source_line_id(line.file, line.number)))
+            for alias in [name, *record.get('aliases', [])]:
+                alias_symbol = symbols[reference_module].get(alias)
+                if alias_symbol is None:
+                    continue
+                shift = alias_symbol.assembled_address - location['address']
+                if not 0 <= shift < record.get('width', 1):
+                    errors.append(f'alias outside declared interval: {reference_module}:{alias}')
+                    continue
+                documented.add((reference_module, alias))
+                for line, ref in references.get((reference_module, alias), []):
+                    resolved = dict(ref)
+                    if resolved.get('offset') is not None:
+                        resolved['offset'] += shift
+                    record['references'].append(dict(resolved, symbol=alias, alias_offset=shift,
+                        module=reference_module, file=line.file, line=line.number,
+                        evidence='extracted fact', href=module_page(reference_module)+'#'+source_line_id(line.file, line.number)))
         kind = record['kind']
         required = {'scratch': ('width', 'mapping', 'phases', 'owner', 'initialization', 'lifetime', 'clobbers'),
                     'background': ('owner', 'extent', 'clean_source', 'capture', 'restore', 'draw', 'validity', 'invalidation', 'publication', 'order', 'overlap', 'verifier'),

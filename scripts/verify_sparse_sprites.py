@@ -13,6 +13,8 @@ from build_screen import (
     compile_attract_extra_enemy_sprites,
     compile_enemy_sprites,
     compile_player_sprites,
+    compile_sprite_codes,
+    VEGETABLE_CODES,
 )
 from gmc_lzss import decompress as lzss_decompress
 
@@ -67,6 +69,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--demo-runtime", type=Path, default=BUILD / "ladybug-demo-runtime.bin")
     parser.add_argument("--highscore-runtime", type=Path, default=BUILD / "ladybug-highscore-runtime.bin")
     parser.add_argument("--highscore-helper", type=Path, default=BUILD / "ladybug-highscore-helper.bin")
+    parser.add_argument("--adaptive-helper", type=Path)
     parser.add_argument("--audio-runtime", type=Path, default=BUILD / "ladybug-audio-runtime.bin")
     parser.add_argument("--tile-patches", type=Path, default=BUILD / "ladybug-presentation-tile-patches.bin")
     parser.add_argument(
@@ -100,7 +103,7 @@ def expected_native(frame: bytes, pen_map: tuple[int, int, int, int]) -> bytes:
 
 def decode_payload(
         payload: bytes, frames: list[bytes], pen_maps: list[tuple[int, int, int, int]],
-        page_base: int
+        page_base: int, origin: int = WINDOW_BASE
 ) -> list[tuple[int, int]]:
     """Decode every indexed stream and return its [start,end) payload range."""
     if len(frames) != len(pen_maps):
@@ -114,7 +117,7 @@ def decode_payload(
         page, address = entry[0], (entry[1] << 8) | entry[2]
         if not WINDOW_BASE <= address < WINDOW_BASE + PAGE_BYTES:
             raise ValueError(f"frame {frame_number} has invalid window address")
-        offset = (page - page_base) * PAGE_BYTES + address - WINDOW_BASE
+        offset = (page - page_base) * PAGE_BYTES + address - origin
         if offset < index_bytes or offset >= len(payload):
             raise ValueError(f"frame {frame_number} points outside its payload")
         cursor = offset
@@ -331,6 +334,18 @@ def main() -> None:
         raise SystemExit("sparse proof: candidate bank-3 runtime changed")
 
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
+    vegetable_payload = b""
+    if args.adaptive_helper:
+        vegetable_payload = (args.manifest.parent / "ladybug-vegetable-sparse.bin").read_bytes()
+        veg = manifest["vegetable"]
+        if (veg["address"] != 0xAFB6 or veg["page"] != 0x39 or
+                veg["frames"] != 18 or veg["index_bytes"] != 54 or
+                veg["sha256"] != sha256(vegetable_payload) or
+                veg["bytes"] != len(vegetable_payload) or
+                veg["pen_map"] != list(LEGACY_PEN_MAP)):
+            raise SystemExit("sparse proof: vegetable placement/palette/hash changed")
+        decode_payload(vegetable_payload, compile_sprite_codes(args.sprites, VEGETABLE_CODES),
+                       [LEGACY_PEN_MAP] * 18, 0x39, 0xAFB6)
     palette_families = manifest["enemy"].get("palette_families", [])
     expected_family_maps = [list(value) for value in GAMEPLAY_ENEMY_PEN_MAPS]
     if (
@@ -411,6 +426,7 @@ def main() -> None:
                 )
     if len(loader) != len(manifest_segments):
         raise SystemExit("sparse proof: loader and manifest segment counts differ")
+    adaptive_helper = args.adaptive_helper.read_bytes() if args.adaptive_helper else b""
     reconstructed = {
         "enemy": bytearray(len(enemy_payload)),
         "player": bytearray(len(player_payload)),
@@ -418,6 +434,7 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
+        "adaptive_helper": bytearray(len(adaptive_helper)),
         "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
             len(actor_underlays) + len(actor_records)
@@ -432,6 +449,7 @@ def main() -> None:
         "presentation": bytearray(len(presentation_payload)),
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
+        "adaptive_helper": bytearray(len(adaptive_helper)),
         "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
             len(actor_underlays) + len(actor_records)
@@ -544,6 +562,9 @@ def main() -> None:
             reconstructed[target][target_offset:destination_end] = source
             coverage[target][target_offset:destination_end] = b"\x01" * count
             continue
+        elif target == "adaptive_helper":
+            target_page_base = 0x34
+            target_address = 0xBD44
         elif target == "audio_runtime":
             target_page_base = 0x3D
             target_address = WINDOW_BASE
@@ -608,10 +629,13 @@ def main() -> None:
             raise SystemExit("sparse proof: expanded stream hash differs")
         name = stream["name"]
         if name == "page39":
+            prefix = player_payload + gate_payload + presentation_payload
+            if raw != prefix + vegetable_payload or len(raw) > PAGE_BYTES:
+                raise SystemExit("sparse proof: page39 prefix/vegetable extension changed")
             boundaries = (
                 ("player", 0, len(player_payload)),
                 ("gate", len(player_payload), len(player_payload) + len(gate_payload)),
-                ("presentation", len(player_payload) + len(gate_payload), len(raw)),
+                ("presentation", len(player_payload) + len(gate_payload), len(prefix)),
             )
             for target, start, end in boundaries:
                 reconstructed[target][:] = raw[start:end]
@@ -659,6 +683,8 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct presentation cold data")
     if reconstructed["presentation_module"] != presentation_module:
         raise SystemExit("sparse proof: loader does not reconstruct presentation module")
+    if reconstructed["adaptive_helper"] != adaptive_helper or not all(coverage["adaptive_helper"]):
+        raise SystemExit("sparse proof: adaptive helper coverage/bytes differ")
     if reconstructed["audio_runtime"] != audio_runtime:
         raise SystemExit("sparse proof: loader does not reconstruct audio runtime")
     if reconstructed["attract_actor_bundle"] != (

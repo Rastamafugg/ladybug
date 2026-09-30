@@ -706,6 +706,42 @@
           "purpose": "Draw one shared-font HUD digit.",
           "reasons": [],
           "semantic_id": "routines.html#routine-resident-runtime-asset-draw-hud-digit"
+        },
+        {
+          "name": "AD_CLOCK_EXEC",
+          "profile": "root",
+          "purpose": "Read an atomic raw VBlank snapshot through the fitted mapped gateway.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-ad-clock-exec"
+        },
+        {
+          "name": "AD_RESET_EXEC",
+          "profile": "state",
+          "purpose": "Rebase adaptive phase time and clear both damage journals outside active publication.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-ad-reset-exec"
+        },
+        {
+          "name": "AD_WORK_EXEC",
+          "profile": "framebuffer",
+          "purpose": "Execute the active logical batch, damage reduction, audio service and BACK publication transaction.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-ad-work-exec"
+        },
+        {
+          "name": "adaptive_install_active",
+          "profile": "copy",
+          "purpose": "Restore the active low-RAM driver from staged page $3D after a presentation overlay retires.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-adaptive-install-active"
         }
       ],
       "relocations": [
@@ -897,6 +933,11 @@
           "name": "nlt_deltas",
           "kind": "data",
           "reason": "Current source declaration fdb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "primary_preserve_table",
+          "kind": "data",
+          "reason": "52-byte immutable preserve-mask table; Y base plus cached value AND $33, reviewed primary-mask-table ownership contract"
         }
       ],
       "basic_blocks": [
@@ -1085,6 +1126,11 @@
         {
           "name": "igs_defaults",
           "purpose": "FEAT-005 local branch boundary: igs defaults."
+        },
+        {
+          "name": "cck_primary",
+          "routine": "primary_cache_mask",
+          "purpose": "Alias of the direct primary-mask entry; no ambient mode dispatch."
         }
       ]
     },
@@ -1596,6 +1642,14 @@
           "purpose": "Restore player visible.",
           "reasons": [],
           "semantic_id": "routines.html#routine-enemy-runtime-restore-player-visible"
+        },
+        {
+          "name": "rub_columns",
+          "profile": "copy",
+          "purpose": "Copy a bounded row run of one or two exposed background columns.",
+          "reasons": [
+            "Called by both physical row runs of bounded horizontal capture."
+          ]
         }
       ],
       "relocations": [
@@ -1863,6 +1917,21 @@
           "name": "rcbtf_phase7_row",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "rcbtf_ring_done",
+          "routine": null,
+          "purpose": "Fall-through return after second wrapped restore run."
+        },
+        {
+          "name": "rcbtf_row_advanced",
+          "routine": null,
+          "purpose": "Fall-through common tail for nonzero column phases."
+        },
+        {
+          "name": "sbf_opaque3",
+          "routine": "sparse_blit_fb",
+          "purpose": "Length-three opaque run falls through from measured small-run dispatch."
         }
       ]
     },
@@ -2583,7 +2652,7 @@
         {
           "name": "boot_streams_retired",
           "kind": "boundary",
-          "reason": "Final boot descriptor consumer has returned; audio initialization may reuse these addresses."
+          "reason": "Final boot descriptor consumer has returned; later audio initialization may reuse descriptor addresses."
         }
       ],
       "assembly_output": "ladybug-gmc-boot.rom.tmp",
@@ -2759,6 +2828,42 @@
           "purpose": "Audio write.",
           "reasons": [],
           "semantic_id": "routines.html#routine-audio-runtime-audio-write"
+        },
+        {
+          "name": "aas_clock",
+          "profile": "audio",
+          "purpose": "Read an atomic raw VBlank snapshot without changing caller IRQ state.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-audio-runtime-aas-clock"
+        },
+        {
+          "name": "aas_dirty",
+          "profile": "audio",
+          "purpose": "Detect semantic-state or queue changes before admitting audio; no note ages here.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-audio-runtime-aas-dirty"
+        },
+        {
+          "name": "aas_prime",
+          "profile": "audio",
+          "purpose": "Decode only newly admitted zero-wait voices; never age an existing dwell.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-audio-runtime-aas-prime"
+        },
+        {
+          "name": "audio_adaptive_api",
+          "profile": "audio",
+          "purpose": "Separate elapsed-note service, semantic admission, audible publication and explicit phase rebase.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-audio-runtime-audio-adaptive-api"
         }
       ],
       "basic_blocks": [
@@ -3093,6 +3198,36 @@
           "name": "gmc_sound_data_end",
           "kind": "boundary",
           "reason": "Module/table boundary in current assembled source."
+        },
+        {
+          "name": "audio_mix_order",
+          "kind": "data",
+          "reason": "Four dedicated stable-priority keys; required ownership record audio-mix-order."
+        },
+        {
+          "name": "audio_adaptive_last",
+          "kind": "data",
+          "reason": "Adaptive phase scratch or staged executable blob; extent and lifetime are declared in adaptive_audio_service.s."
+        },
+        {
+          "name": "audio_adaptive_delta",
+          "kind": "data",
+          "reason": "Adaptive phase scratch or staged executable blob; extent and lifetime are declared in adaptive_audio_service.s."
+        },
+        {
+          "name": "audio_adaptive_late",
+          "kind": "data",
+          "reason": "Adaptive phase scratch or staged executable blob; extent and lifetime are declared in adaptive_audio_service.s."
+        },
+        {
+          "name": "audio_adaptive_stage",
+          "kind": "data",
+          "reason": "Adaptive phase scratch or staged executable blob; extent and lifetime are declared in adaptive_audio_service.s."
+        },
+        {
+          "name": "audio_adaptive_stage_end",
+          "kind": "boundary",
+          "reason": "Adaptive phase scratch or staged executable blob; extent and lifetime are declared in adaptive_audio_service.s."
         }
       ]
     },
@@ -4611,6 +4746,14 @@
       "player-sprite-index",
       "audio-slot-zero",
       "audio-shadow",
+      "audio-mix-order",
+      "enemy-copy-row",
+      "restore-row-count",
+      "capture-direction-count",
+      "capture-row-phase",
+      "perimeter-colour",
+      "primary-mask-table",
+      "cache-rebind-colour",
       "boot-stream-descriptors",
       "boot-audio-stream",
       "audio-mode-pending",

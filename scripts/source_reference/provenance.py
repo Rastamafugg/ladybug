@@ -54,6 +54,9 @@ def validate(root, artifacts, config):
     for name, sha in receipt['artifacts'].items():
         if not (artifacts / name).is_file() or digest(artifacts / name) != sha:
             raise ValueError(f'stale build artifact: {name}')
+    for name, sha in receipt.get('generated_inputs', {}).items():
+        if not (root / name).is_file() or digest(root / name) != sha:
+            raise ValueError(f'stale generated assembly input: {name}')
     configured = {m.get('assembly_output', m['binary']): m for m in config['modules'] if m.get('binary')}
     required_artifacts = {m[key] for m in configured.values() for key in ('binary', 'listing', 'map')}
     if not required_artifacts <= receipt['artifacts'].keys():
@@ -63,6 +66,10 @@ def validate(root, artifacts, config):
         raise ValueError(f'module inventory mismatch: unregistered={set(emitted)-set(configured)}, absent={set(configured)-set(emitted)}')
     for output, invocation in emitted.items():
         module = configured[output]
+        if module.get('generated_source') and invocation['source'] not in receipt.get('generated_inputs', {}):
+            raise ValueError(f'missing pre-assembly generated input: {output}')
+        if module.get('generated_source') and invocation.get('generated_source_sha256_before') != receipt['generated_inputs'][invocation['source']]:
+            raise ValueError(f'generated input/invocation hash mismatch: {output}')
         definitions = dict(argument[2:].split('=', 1) for argument in invocation.get('arguments', [])
                            if argument.startswith('-D') and '=' in argument)
         for name, expected in module.get('defines', {}).items():
@@ -87,10 +94,20 @@ def main():
                                  'version': subprocess.check_output([str(assembler), '--version'], text=True).strip()}}
     else:
         receipt = json.loads(path.read_text())
-        if action == 'assemble':
+        if receipt.get('state') != 'building':
+            raise ValueError('receipt is not building; begin before preparing or recording assembly')
+        if action == 'prepare':
+            source = Path(args[-1]).resolve()
+            receipt.setdefault('generated_inputs', {})[source.relative_to(root).as_posix()] = digest(source)
+        elif action == 'assemble':
             def option(name):
                 return next(a.split('=', 1)[1] for a in args if a.startswith(name + '='))
+            source_name = Path(args[-1]).resolve().relative_to(root).as_posix()
+            source_before = receipt.get('generated_inputs', {}).get(source_name)
+            if source_before is not None and source_before != digest(root / source_name):
+                raise ValueError(f'generated assembly changed before invocation recording: {source_name}')
             receipt['invocations'].append({
+                'generated_source_sha256_before': source_before,
                 'source': Path(args[-1]).resolve().relative_to(root).as_posix(),
                 'output': Path(option('--output')).resolve().relative_to(artifacts).as_posix(),
                 'listing': Path(option('--list')).resolve().relative_to(artifacts).as_posix(),
@@ -98,12 +115,18 @@ def main():
                 'assembled_sha256': digest(option('--output')),
                 'arguments': [a.replace(str(root), '${ROOT}').replace(str(artifacts), '${BUILD}') for a in args]})
         elif action == 'finish':
+            for name, sha in receipt.get('generated_inputs', {}).items():
+                if digest(root / name) != sha:
+                    raise ValueError(f'generated assembly changed after preparation: {name}')
             if receipt['inputs'] != inputs(root):
                 raise ValueError('source changed while build was running')
             receipt['artifacts'] = {p.relative_to(artifacts).as_posix(): digest(p)
                                     for p in sorted(artifacts.rglob('*'))
-                                    if p.is_file() and p.suffix in ('.inc', '.map', '.lst', '.bin', '.rom')
+                                    if p.is_file() and p.suffix in ('.inc', '.map', '.lst', '.bin', '.rom', '.s')
                                     and 'source-reference' not in p.parts}
+            registry = artifacts / 'source-reference-adaptive.json'
+            if registry.is_file() and receipt.get('generated_inputs'):
+                receipt['artifacts'][registry.name] = digest(registry)
             receipt['state'] = 'complete'
         else:
             raise ValueError(action)
