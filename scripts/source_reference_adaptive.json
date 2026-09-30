@@ -1,0 +1,294 @@
+{
+  "contract_profiles": {
+    "adaptive-core": {
+      "inputs": "Raw IRQ clock, presentation phase, pending publication, both bounded damage histories and current intent packet; routine-specific arguments are source-local.",
+      "outputs": "Updated scheduler debt/cadence, bounded journal records or reduced drawing callbacks; carry reports composition or refusal as documented locally.",
+      "clobbers": "A, B, D, X, Y, U and condition codes except source-preserved values; stack returns balanced.",
+      "reads": "IRQ frame/publication counters, page-$34 journals/state and the current sixteen-byte intent packet.",
+      "writes": "Only page-$34 journals/state and explicitly saved/restored foreground intent fields.",
+      "side_effects": "Calls the always-mapped simulation and drawing bindings; never publishes FRONT directly.",
+      "invariants": "PAR5 is physical $34; histories contain at most eight complete eighteen-byte records each; pending publication and transient barriers forbid catch-up."
+    },
+    "adaptive-active": {
+      "inputs": "Foreground phase/input/intent state, callback class or audio action in A, scheduler aliases and selected BACK owner.",
+      "outputs": "Real simulation, keyed/global composition and audio servicing; successful render prepares one complete BACK publication.",
+      "clobbers": "A, B, D, X, Y, U and condition codes except source-preserved values; stack returns balanced.",
+      "reads": "Presentation/game/enemy/input state, both damage journals, installed callbacks and audio imports.",
+      "writes": "Game and enemy simulation state, BACK pixels/metadata, current intents and declared scheduler aliases.",
+      "side_effects": "Scans input, maps audio page $3D through its installed API and returns PAR5 to $34; calls existing framebuffer completion.",
+      "invariants": "Code is installed only for active gameplay/demo; demo input is excluded; every actor is restored and redrawn; static handoffs do not accrue simulation debt."
+    }
+  },
+  "modules": [
+    {
+      "id": "adaptive-mapped",
+      "title": "Adaptive mapped runtime",
+      "source": "build/ladybug-adaptive-mapped.s",
+      "generated_source": true,
+      "listing": "ladybug-adaptive-mapped.lst",
+      "map": "ladybug-adaptive-mapped.map",
+      "binary": "ladybug-adaptive-mapped.bin",
+      "defines": {
+        "ADAPTIVE_RENDERING": 1
+      },
+      "routines": [
+        {
+          "name": "adaptive_clock",
+          "profile": "adaptive-core",
+          "purpose": "Atomically snapshot the IRQ clock while preserving caller IRQ state.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-mapped-adaptive-clock"
+        },
+        {
+          "name": "adaptive_reset",
+          "profile": "adaptive-core",
+          "purpose": "Clear both damage histories and scheduler state, then initialize clock and cadence.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-mapped-adaptive-reset"
+        },
+        {
+          "name": "adaptive_append",
+          "profile": "adaptive-core",
+          "purpose": "Append a complete intent record to both histories after checking both capacities.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-mapped-adaptive-append"
+        },
+        {
+          "name": "aa_record",
+          "profile": "adaptive-core",
+          "purpose": "Copy and filter one eighteen-byte intent record into the selected history.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-mapped-aa-record"
+        },
+        {
+          "name": "adaptive_complete",
+          "profile": "adaptive-core",
+          "purpose": "Consume only the composed owner and update publication cadence and barrier identity.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-mapped-adaptive-complete"
+        }
+      ],
+      "relocations": [
+        {
+          "id": "adaptive-mapped-installed",
+          "assembled": {
+            "address": "0x09FD"
+          },
+          "runtime_destination": {
+            "address": "0x09FD",
+            "physical_page": "0x38"
+          },
+          "length_source": "binary"
+        }
+      ]
+    },
+    {
+      "id": "adaptive-banked",
+      "title": "Adaptive banked runtime",
+      "source": "build/ladybug-adaptive-banked.s",
+      "generated_source": true,
+      "listing": "ladybug-adaptive-banked.lst",
+      "map": "ladybug-adaptive-banked.map",
+      "binary": "ladybug-adaptive-banked.bin",
+      "defines": {
+        "ADAPTIVE_RENDERING": 1
+      },
+      "routines": [
+        {
+          "name": "adaptive_batch",
+          "profile": "adaptive-core",
+          "purpose": "Advance at most four due logical steps while honoring histories, publication and transient barriers.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-banked-adaptive-batch"
+        },
+        {
+          "name": "adaptive_reduce",
+          "profile": "adaptive-core",
+          "purpose": "Reduce the selected owner history and replay final global and keyed damage before actor drawing.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-banked-adaptive-reduce"
+        },
+        {
+          "name": "adr_present",
+          "profile": "adaptive-core",
+          "purpose": "Test whether the current record contains the selected keyed damage class.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-banked-adr-present"
+        },
+        {
+          "name": "adr_newer",
+          "profile": "adaptive-core",
+          "purpose": "Find a newer matching keyed damage record in the selected owner history.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-banked-adr-newer"
+        },
+        {
+          "name": "adr_load",
+          "profile": "adaptive-core",
+          "purpose": "Restore the selected record intent fields for its drawing callback.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-banked-adr-load"
+        }
+      ],
+      "external_symbols": [
+        "adaptive_reset",
+        "adaptive_append",
+        "adaptive_complete",
+        "adaptive_clock",
+        "TICK_CALLBACK",
+        "GLOBAL_CALLBACK",
+        "KEY_CALLBACK"
+      ],
+      "relocations": [
+        {
+          "id": "adaptive-banked-installed",
+          "assembled": {
+            "address": "0xBD44"
+          },
+          "runtime_destination": {
+            "address": "0xBD44",
+            "physical_page": "0x34"
+          },
+          "length_source": "binary"
+        }
+      ]
+    },
+    {
+      "id": "adaptive-active",
+      "title": "Adaptive active runtime",
+      "source": "build/ladybug-adaptive-active.s",
+      "generated_source": true,
+      "listing": "ladybug-adaptive-active.lst",
+      "map": "ladybug-adaptive-active.map",
+      "binary": "ladybug-adaptive-active.bin",
+      "defines": {
+        "ADAPTIVE_RENDERING": 1
+      },
+      "routines": [
+        {
+          "name": "adaptive_work",
+          "profile": "adaptive-active",
+          "purpose": "Run elapsed audio/input, reserve journal capacity, batch simulation and publish complete composed work.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-active-adaptive-work"
+        },
+        {
+          "name": "adaptive_credit_history",
+          "profile": "adaptive-active",
+          "purpose": "Merge credit HUD damage into both retained histories without exceeding eight records.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-active-adaptive-credit-history"
+        },
+        {
+          "name": "adaptive_render",
+          "profile": "adaptive-active",
+          "purpose": "Restore actors, reduce the selected damage history and redraw every actor into BACK.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-active-adaptive-render"
+        },
+        {
+          "name": "adaptive_audio_binding",
+          "profile": "adaptive-active",
+          "purpose": "Call the banked adaptive audio API and restore physical page $34.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-active-adaptive-audio-binding"
+        },
+        {
+          "name": "adaptive_tick_binding",
+          "profile": "adaptive-active",
+          "purpose": "Run one real gameplay or demo logical step and report mandatory transient barriers.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-active-adaptive-tick-binding"
+        },
+        {
+          "name": "adaptive_global_binding",
+          "profile": "adaptive-active",
+          "purpose": "Draw one selected global damage class while preserving caller intents.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-active-adaptive-global-binding"
+        },
+        {
+          "name": "adaptive_key_binding",
+          "profile": "adaptive-active",
+          "purpose": "Draw one selected keyed damage class using the existing background compositor.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-active-adaptive-key-binding"
+        }
+      ],
+      "external_symbols": [
+        "AD_APPEND_EXEC",
+        "AD_BATCH_EXEC",
+        "AD_CLOCK_EXEC",
+        "AD_COMPLETE_EXEC",
+        "AD_REDUCE_EXEC",
+        "AUDIO_ADAPTIVE_EXEC",
+        "read_joystick",
+        "framebuffer_finish_back",
+        "framebuffer_prepare_back",
+        "colour_prepare_nest",
+        "actor_closure_restore",
+        "actor_closure_draw",
+        "player_animation_tick",
+        "initial_entry_tick",
+        "finish_gate_animation",
+        "pickup_tick",
+        "enemy_tick",
+        "player_tick",
+        "enemy_collect",
+        "bonus_color_tick",
+        "perimeter_timer_tick",
+        "rng_next",
+        "death_tick",
+        "roam_mark_underlay",
+        "frame_render_background"
+      ],
+      "relocations": [
+        {
+          "id": "adaptive-active-installed",
+          "assembled": {
+            "address": "0x038F"
+          },
+          "runtime_destination": {
+            "address": "0x038F",
+            "physical_page": "0x38"
+          },
+          "length_source": "binary"
+        }
+      ]
+    }
+  ]
+}

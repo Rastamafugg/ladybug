@@ -43,7 +43,9 @@ BOOT_DESC_PTR equ $0280
 BOOT_SRC_END equ $0282
 BOOT_DEST_END equ $0284
 BOOT_STREAMS equ $0286
+; @audit {"id":"boot-stream-descriptors","kind":"scratch","symbol":"GMC_LZSS_TABLE_RAM","width":99,"mapping":"unbanked-low-ram","phases":["boot"],"owner":"GMC bootstrap","lifetime":"All seven descriptors retire at boot_streams_retired after staged audio expansion, before audio initialization.","initialization":"copy_gmc_lzss_table","clobbers":"Later audio guard, mode, credit-pending and gateway replace overlap only after retirement; no retained runtime pointer."}
 GMC_LZSS_TABLE_RAM equ $0287
+; @audit {"id":"boot-audio-stream","kind":"index","symbol":"GMC_LZSS_AUDIO_OFFSET","producer":"boot-audio-stream","domain":"Offset of unique final audio descriptor","encoding":"Generated stream ordinal times fourteen","bounds":[0,84]}
 LOADER_RAM  equ $0300
 RESIDENT_STAGE_PAGE equ $21
 ASSET_STAGE_PAGE equ $22
@@ -161,9 +163,10 @@ copy_enemy_runtime
         lbsr    synthesize_perimeter_reset
 
         ; Physical pages $3C-$3F remain ROM-shadowed until SAM_ALLRAM.
-        ; Preserve the fourth stream's packed bytes in ordinary page $24 so
+        ; Preserve the generated audio stream's packed bytes in ordinary page $24 so
         ; audio can be expanded into page $3D after the all-RAM handoff.
-        ldx     #GMC_LZSS_TABLE_RAM+(GMC_LZSS_DESCRIPTOR_BYTES*3)
+ ; @audit-use {"id":"boot-audio-stream","symbol":"GMC_LZSS_AUDIO_OFFSET"}
+        ldx     #GMC_LZSS_TABLE_RAM+GMC_LZSS_AUDIO_OFFSET
         lda     ,x
         sta     GMC_BANK
         lda     #AUDIO_STAGE_PAGE
@@ -371,6 +374,8 @@ copy_staged_assets
         blo     copy_staged_assets
 
         lbsr    decompress_staged_audio
+boot_streams_retired
+        ; No descriptor consumer remains; audio_init_impl may reuse overlap.
 
         ; Page $23 stages the compressed bundle while cartridge ROM is selected.
         ; After all-RAM publication, expand it into presentation page $3C.
@@ -389,20 +394,24 @@ copy_staged_assets
 
 decompress_gmc_streams
         ldx     #GMC_LZSS_TABLE_RAM
-        lda     GMC_LZSS_TABLE_RAM+(GMC_LZSS_DESCRIPTOR_BYTES*3)
+ ; @audit-use {"id":"boot-audio-stream","symbol":"GMC_LZSS_AUDIO_OFFSET"}
+        lda     GMC_LZSS_TABLE_RAM+GMC_LZSS_AUDIO_OFFSET
         pshs    a
         lda     #$FF
-        sta     GMC_LZSS_TABLE_RAM+(GMC_LZSS_DESCRIPTOR_BYTES*3)
+ ; @audit-use {"id":"boot-audio-stream","symbol":"GMC_LZSS_AUDIO_OFFSET"}
+        sta     GMC_LZSS_TABLE_RAM+GMC_LZSS_AUDIO_OFFSET
         lda     #GMC_LZSS_STREAM_COUNT-1
         sta     BOOT_STREAMS
         lbsr    dgs_descriptor
         puls    a
-        sta     GMC_LZSS_TABLE_RAM+(GMC_LZSS_DESCRIPTOR_BYTES*3)
+ ; @audit-use {"id":"boot-audio-stream","symbol":"GMC_LZSS_AUDIO_OFFSET"}
+        sta     GMC_LZSS_TABLE_RAM+GMC_LZSS_AUDIO_OFFSET
         rts
 decompress_staged_audio
         lda     #AUDIO_STAGE_PAGE
         sta     PAR_EXEC+4
-        ldx     #GMC_LZSS_TABLE_RAM+(GMC_LZSS_DESCRIPTOR_BYTES*3)
+ ; @audit-use {"id":"boot-audio-stream","symbol":"GMC_LZSS_AUDIO_OFFSET"}
+        ldx     #GMC_LZSS_TABLE_RAM+GMC_LZSS_AUDIO_OFFSET
         ldd     #$8000
         std     2,x
         addd    10,x
@@ -782,5 +791,12 @@ sparse_copy_table_end
         endc
         include "ladybug-perimeter-boot.inc"
 loader_end
+
+        ifgt GMC_LZSS_STREAM_TABLE_BYTES-99
+        error "boot descriptor table exceeds $0287-$02E9"
+        endc
+        ifne GMC_LZSS_AUDIO_INDEX-(GMC_LZSS_STREAM_COUNT-1)
+        error "audio descriptor must terminate the stream list"
+        endc
 
         end

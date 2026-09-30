@@ -1,3 +1,10 @@
+; DOC-002 source-contract mirror contract audio_adaptive_api profile=audio: Separate elapsed-note service, semantic admission, audible publication and explicit phase rebase.
+; DOC-002 source-contract mirror contract aas_prime profile=audio: Decode only newly admitted zero-wait voices; never age an existing dwell.
+; DOC-002 source-contract mirror contract aas_dirty profile=audio: Detect semantic-state or queue changes before admitting audio; no note ages here.
+; DOC-002 source-contract mirror contract aas_clock profile=audio: Read an atomic raw VBlank snapshot without changing caller IRQ state.
+        ifndef ADAPTIVE_RENDERING
+ADAPTIVE_RENDERING equ 0
+        endc
 ; DOC-002 source-contract mirror contract audio_admit profile=audio: Audio admit.
 ; DOC-002 source-contract mirror contract audio_advance_all profile=audio: Audio advance all.
 ; DOC-002 source-contract mirror contract audio_advance_slot profile=audio: Audio advance slot.
@@ -57,8 +64,12 @@ AUDIO_WORK_VOICE   equ $00FC
 AUDIO_MIX_COUNT    equ $00FD
 AUDIO_BEST_SLOT    equ $00FE
 AUDIO_BEST_PRI     equ $00FF
+; @audit {"id":"audio-mode-pending","kind":"scratch","symbol":"AUDIO_LAST_MODE","width":2,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Installed only after boot_streams_retired; boot descriptors share these addresses in the boot phase.","initialization":"audio_init_impl","clobbers":"Audio owns this storage after initialization; no boot descriptor consumers remain."}
+; @audit {"id":"audio-bank-guard","kind":"scratch","symbol":"AUDIO_GUARD_RAM","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Installed after boot_streams_retired; shares addresses with boot descriptors only in separate phases.","initialization":"audio_guard_copy","clobbers":"Retained bank-restoring guard; no descriptor consumer after initialization."}
+AUDIO_GUARD_RAM equ $02C0
 AUDIO_LAST_MODE equ $02DC
 AUDIO_CREDIT_PENDING equ $02DD
+; @audit {"id":"audio-service-gateway","kind":"scratch","symbol":"AUDIO_SERVICE_GATEWAY","width":18,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Installed only after boot_streams_retired; boot descriptors share these addresses in the boot phase.","initialization":"audio_init_impl","clobbers":"Audio owns this storage after initialization; no boot descriptor consumers remain."}
 AUDIO_SERVICE_GATEWAY equ $02DE
 AUDIO_SERVICE_RETURN equ $02EC
 PRES_MODE equ $00A5
@@ -825,26 +836,77 @@ audio_mix_exclusive_next
         lbsr    audio_mix_slot
         rts
 audio_mix_all_slots
-        lda     #7
+        ; Stable descending priority keys; lower slot wins equal priority.
+        ldx     #audio_slot0
+        ldu     #audio_mix_order
+        lda     #3
         sta     audio_mix_priority
-audio_mix_priority_next
-        clr     AUDIO_WORK_SLOT
-audio_mix_all_next
-        lbsr    audio_slot_base
-        lda     ,x
-        cmpa    #$FF
-        beq     audio_mix_all_skip
+audio_mix_key_next
+        clra
+        ldb     ,x
+        cmpb    #$FF
+        beq     audio_mix_key_store
         lda     1,x
-        cmpa    audio_mix_priority
-        bne     audio_mix_all_skip
+        inca
+        lsla
+        lsla
+        adda    audio_mix_priority
+audio_mix_key_store
+        sta     ,u+
+        leax    AUDIO_SLOT_BYTES,x
+        dec     audio_mix_priority
+        bpl     audio_mix_key_next
+        lda     audio_mix_order+0
+        cmpa    audio_mix_order+1
+        bhs     audio_mix_sorted_0
+        ldb     audio_mix_order+1
+        stb     audio_mix_order+0
+        sta     audio_mix_order+1
+audio_mix_sorted_0
+        lda     audio_mix_order+2
+        cmpa    audio_mix_order+3
+        bhs     audio_mix_sorted_1
+        ldb     audio_mix_order+3
+        stb     audio_mix_order+2
+        sta     audio_mix_order+3
+audio_mix_sorted_1
+        lda     audio_mix_order+0
+        cmpa    audio_mix_order+2
+        bhs     audio_mix_sorted_2
+        ldb     audio_mix_order+2
+        stb     audio_mix_order+0
+        sta     audio_mix_order+2
+audio_mix_sorted_2
+        lda     audio_mix_order+1
+        cmpa    audio_mix_order+3
+        bhs     audio_mix_sorted_3
+        ldb     audio_mix_order+3
+        stb     audio_mix_order+1
+        sta     audio_mix_order+3
+audio_mix_sorted_3
+        lda     audio_mix_order+1
+        cmpa    audio_mix_order+2
+        bhs     audio_mix_sorted_4
+        ldb     audio_mix_order+2
+        stb     audio_mix_order+1
+        sta     audio_mix_order+2
+audio_mix_sorted_4
+        clr     audio_mix_priority
+audio_mix_all_next
+        ldx     #audio_mix_order
+        ldb     audio_mix_priority
+        lda     b,x
+        beq     audio_mix_all_done
+        anda    #3
+        eora    #3
+        sta     AUDIO_WORK_SLOT
+        lbsr    audio_slot_base
         lbsr    audio_mix_slot
-audio_mix_all_skip
-        inc     AUDIO_WORK_SLOT
-        lda     AUDIO_WORK_SLOT
+        inc     audio_mix_priority
+        lda     audio_mix_priority
         cmpa    #4
         blo     audio_mix_all_next
-        dec     audio_mix_priority
-        bpl     audio_mix_priority_next
+audio_mix_all_done
         rts
 
 audio_mix_clear
@@ -951,8 +1013,19 @@ audio_guard_boundary
         jsr     audio_drain_busy
         tsta
         beq     audio_guard_free
-        jsr     audio_tick
-        lda     #1
+        ifne ADAPTIVE_RENDERING
+        clra
+        jsr audio_adaptive_api
+        ; Drain owns already queued admissions as well as elapsed notes.
+        ; Admit only after aging old voices, before publishing new notes.
+        lda #1
+        jsr audio_adaptive_api
+        lda #2
+        jsr audio_adaptive_api
+        else
+        jsr audio_tick
+        endc
+        lda #1
         rts
 audio_guard_free
         clra
@@ -1142,6 +1215,8 @@ audio_music_queue rmb 8
 audio_music_best_priority fcb 0
 audio_music_best_index fcb 0
 audio_mix_priority fcb 0
+; @audit {"id":"audio-mix-order","kind":"scratch","symbol":"audio_mix_order","width":4,"mapping":"physical-page-3D","phases":["foreground"],"owner":"foreground audio mixer","lifetime":"Four keys live from key construction through final mixed slot; no alias with decoder scratch or retained PSG shadow.","initialization":"audio_mix_key_next writes all four keys before sorting","clobbers":"Mixer owns bytes until audio_mix_all_done; callees must preserve keys"}
+audio_mix_order rmb 4
 
 
 ; Name-entry events use the same banked foreground clock as gameplay.
@@ -1252,5 +1327,9 @@ audio_scratch
 ; three bytes per tone register triplet and two noise registers.
 ; @audit {"id":"audio-shadow","kind":"scratch","symbol":"audio_mix_shadow","width":11,"mapping":"physical-page-3D","phases":["foreground"],"owner":"audio foreground service","initialization":"audio_init_impl and audio_mix_shadow_init","lifetime":"Retained between audio ticks; fields 0..16 hold voice state, bytes 17..27 hold PSG shadows.","clobbers":"Slot reset must preserve the shadow padding contract.","alias_group":"slot-zero-padding","alias_reason":"PSG shadow bytes intentionally occupy only slot-zero padding at offsets 17..27; active cue fields occupy offsets 0..16."}
 audio_mix_shadow equ audio_slot0+17
+
+        ifne ADAPTIVE_RENDERING
+        include "adaptive_audio_service.s"
+        endc
 
         end

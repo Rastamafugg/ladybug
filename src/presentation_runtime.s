@@ -1,3 +1,6 @@
+        ifndef ADAPTIVE_RENDERING
+ADAPTIVE_RENDERING equ 0
+        endc
 ; DOC-002 source-contract mirror contract install_demo_runtime profile=presentation: Install demo runtime.
 ; DOC-002 source-contract mirror contract install_highscore_runtime profile=presentation: Install highscore runtime.
 ; DOC-002 source-contract mirror contract install_instruction_runtime profile=presentation: Install instruction runtime.
@@ -927,17 +930,24 @@ demo_tick
         tst     DEATH_T
         beq     demo_death_done
 demo_death_tick
-        jsr     PRES_MAIN_DEATH
-        jsr     PRES_MAIN_RENDER
-        lbra    hold
+        ifne ADAPTIVE_RENDERING
+        clra
+        rts
+        else
+        jsr PRES_MAIN_DEATH
+        jsr PRES_MAIN_RENDER
+        lbra hold
+        endc
 demo_death_done
         lda     #PRESENTATION_MAP_ATTRACT
         lbsr    start_screen
         lda     #1
         rts
 demo_run
-        lbsr    timer
-        jsr     DEMO_RUNTIME_TICK
+        ifeq ADAPTIVE_RENDERING
+        lbsr timer
+        jsr DEMO_RUNTIME_TICK
+        endc
         ldd     PRES_TIMER
         cmpd    #3600
         blo     demo_return
@@ -958,17 +968,24 @@ demo_tick
         tst     DEATH_T
         beq     demo_death_done ; first complete death ends the demo before respawn
 demo_death_tick
-        jsr     PRES_MAIN_DEATH
-        jsr     PRES_MAIN_RENDER
-        lbra    hold
+        ifne ADAPTIVE_RENDERING
+        clra
+        rts
+        else
+        jsr PRES_MAIN_DEATH
+        jsr PRES_MAIN_RENDER
+        lbra hold
+        endc
 demo_death_done
         lda     #PRESENTATION_MAP_ATTRACT
         lbsr    start_screen
         lda     #1
         rts
 demo_run
-        lbsr    timer
-        jsr     DEMO_RUNTIME_TICK
+        ifeq ADAPTIVE_RENDERING
+        lbsr timer
+        jsr DEMO_RUNTIME_TICK
+        endc
         ldd     PRES_TIMER
         cmpd    #3600
         blo     demo_return
@@ -2656,17 +2673,24 @@ demo_tick
         tst     DEATH_T
         beq     demo_death_done
 demo_death_tick
-        jsr     PRES_MAIN_DEATH
-        jsr     PRES_MAIN_RENDER
-        lbra    hold
+        ifne ADAPTIVE_RENDERING
+        clra
+        rts
+        else
+        jsr PRES_MAIN_DEATH
+        jsr PRES_MAIN_RENDER
+        lbra hold
+        endc
 demo_death_done
         lda     #PRESENTATION_MAP_ATTRACT
         lbsr    start_screen
         lda     #1
         rts
 demo_run
-        lbsr    timer
-        jsr     DEMO_RUNTIME_TICK
+        ifeq ADAPTIVE_RENDERING
+        lbsr timer
+        jsr DEMO_RUNTIME_TICK
+        endc
         ldd     PRES_TIMER
         cmpd    #3600
         blo     demo_return
@@ -2687,17 +2711,24 @@ demo_tick
         tst     DEATH_T
         beq     demo_death_done ; first complete death ends the demo before respawn
 demo_death_tick
-        jsr     PRES_MAIN_DEATH
-        jsr     PRES_MAIN_RENDER
-        lbra    hold
+        ifne ADAPTIVE_RENDERING
+        clra
+        rts
+        else
+        jsr PRES_MAIN_DEATH
+        jsr PRES_MAIN_RENDER
+        lbra hold
+        endc
 demo_death_done
         lda     #PRESENTATION_MAP_ATTRACT
         lbsr    start_screen
         lda     #1
         rts
 demo_run
-        lbsr    timer
-        jsr     DEMO_RUNTIME_TICK
+        ifeq ADAPTIVE_RENDERING
+        lbsr timer
+        jsr DEMO_RUNTIME_TICK
+        endc
         ldd     PRES_TIMER
         cmpd    #3600
         blo     demo_return

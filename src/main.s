@@ -1,3 +1,11 @@
+; DOC-002 source-contract mirror contract adaptive_install_active profile=copy: Restore the active low-RAM driver from staged page $3D after a presentation overlay retires.
+; DOC-002 source-contract mirror contract AD_WORK_EXEC profile=framebuffer: Execute the active logical batch, damage reduction, audio service and BACK publication transaction.
+; DOC-002 source-contract mirror contract AD_RESET_EXEC profile=state: Rebase adaptive phase time and clear both damage journals outside active publication.
+; DOC-002 source-contract mirror contract AD_CLOCK_EXEC profile=root: Read an atomic raw VBlank snapshot through the fitted mapped gateway.
+        include "adaptive_interface.inc"
+        ifndef ADAPTIVE_RENDERING
+ADAPTIVE_RENDERING equ 0
+        endc
 ; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Asset draw top hud.
 ; DOC-002 source-contract mirror contract draw_credit_hud profile=render: Draw credit hud.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
@@ -657,6 +665,12 @@ startup_complete
         clr     RENDER_GATE2_ID
         clr     ENEMY_RENDER_FLAGS
 
+        ifne ADAPTIVE_RENDERING
+        jsr AD_RESET_EXEC
+        lda #$FF
+        sta AD_MODE_BYTE
+        endc
+
         ; --- Enable Vbord ---
         lda     #%00001000
         sta     GIME_IRQEN
@@ -667,6 +681,49 @@ startup_complete
 ;==============================================================================
 ; mainloop — sample every Vbord; advance two pixels every second Vbord.
 ;==============================================================================
+        ifne ADAPTIVE_RENDERING
+mainloop
+        sync
+        tst FB_RENDER_PENDING
+        bne mainloop
+        jsr AD_CLOCK_EXEC
+        cmpd AD_LAST_TIME
+        beq mainloop
+        std AD_BEGIN_TIME
+        stb LAST_FRAME
+        jsr $1900
+        beq ad_dispatch_active
+        jsr AD_RESET_EXEC
+        lda PRES_MODE
+        sta AD_MODE_BYTE
+        bra mainloop
+ad_dispatch_active
+        lda PRES_MODE
+        cmpa AD_MODE_BYTE
+        beq ad_dispatch_work
+        jsr adaptive_install_active
+        jsr AD_RESET_EXEC
+        lda PRES_MODE
+        sta AD_MODE_BYTE
+ad_dispatch_work
+        jsr AD_WORK_EXEC
+        bra mainloop
+adaptive_install_active
+        lda #$3D
+        sta $FFA5
+        ldx #AUDIO_ADAPTIVE_STAGE
+        ldu #$038F
+        ldy #AUDIO_ADAPTIVE_CODE_BYTES
+ad_install_loop
+        lda ,x+
+        sta ,u+
+        leay -1,y
+        bne ad_install_loop
+        lda #$34
+        sta $FFA5
+        lda #3
+        jmp AD_AUDIO_EXEC
+        else
 mainloop
         sync
         tst     FB_RENDER_PENDING
@@ -753,6 +810,8 @@ main_demo_input_owned
 main_entry_audio
         jsr     AUDIO_ENGINE_EXEC
         lbra    mainloop
+
+        endc
 
 ;==============================================================================
 ; initial_entry_tick — live-only marker transfer and automatic maze entry.
@@ -1821,6 +1880,18 @@ sync_entity_cache_colour
         beq     secc_done              ; stage construction must build unknown geometry
         cmpa    BONUS_COLOR
         beq     secc_done
+; Negative replay owns replicated colour and Y for its complete cache pass.
+; @audit {"id": "cache-rebind-colour", "kind": "scratch", "symbol": "OBJ_VALUE", "width": 1, "mapping": "unbanked-direct-page", "phases": ["foreground"], "owner": "negative cache replay", "lifetime": "After colour replication through the complete negative replay pass; mode-exclusive with positive primary replay.", "initialization": "BONUS_COLOR replicated into both nibbles before de_normal", "clobbers": "Negative replay preserves OBJ_VALUE and Y; IRQ does not use this scratch and restores Y. Positive replay initializes OBJ_VALUE independently.", "alias_group": "foreground-obj-value", "alias_reason": "Sequential foreground render phases; each initializes OBJ_VALUE before use, no nesting or retained consumer, IRQ does not touch it."}
+        lda     BONUS_COLOR
+        sta     OBJ_VALUE
+        lsla
+        lsla
+        lsla
+        lsla
+        ora     OBJ_VALUE
+        sta     OBJ_VALUE
+; @audit-use {"id":"primary-mask-table","symbol":"primary_preserve_table"}
+        ldy     #primary_preserve_table
         lda     #$80
         sta     OBJ_ACCENT
         lbra    de_normal
@@ -1836,46 +1907,31 @@ secc_done
 ; returns a preserve mask in A while retaining the cached value in OBJ_VALUE.
 ; Cache rebinding enters with OBJ_ACCENT negative and returns the rebound
 ; value in A.  The compiled bonus/skull LUT guard justifies the bit tests.
+; Callers select the operation before entering their per-byte loop.
+; Distinct entries select existing-table rebinding or primary preserve masking.
 rebind_cache_value
-primary_cache_mask
 cache_colour_kernel
-        tst     OBJ_ACCENT
-        bpl     cck_primary
+; A=cached value; Y=immutable table; OBJ_VALUE=colour replicated into nibbles.
+; B/CC are scratch; retain X/Y/U and OBJ_VALUE. OBJ_PRIMARY is transient.
         tfr     a,b
         anda    #$CC
         sta     OBJ_PRIMARY
         tfr     b,a
-        anda    #$30
-        beq     rcv_high_ready
-        lda     BONUS_COLOR
-        lsla
-        lsla
-        lsla
-        lsla
+        anda    #$33
+        lda     a,y
+        coma
+        anda    OBJ_VALUE
         ora     OBJ_PRIMARY
-        sta     OBJ_PRIMARY
-rcv_high_ready
-        tfr     b,a
-        anda    #$03
-        beq     rcv_value_done
-        lda     BONUS_COLOR
-        ora     OBJ_PRIMARY
-        rts
-rcv_value_done
-        lda     OBJ_PRIMARY
         rts
 
+; Input A=cached value, B=preserve mask, Y=primary_preserve_table.
+; render_entity_colour owns Y through the complete primary replay.
+; Output A=B=combined mask; OBJ_VALUE retains input; caller CMPA replaces flags.
+primary_cache_mask
 cck_primary
         sta     OBJ_VALUE
-        anda    #$30
-        bne     pcm_low
-        orb     #$F0
-pcm_low
-        lda     OBJ_VALUE
-        anda    #$03
-        bne     pcm_done
-        orb     #$0F
-pcm_done
+        anda    #$33
+        orb     a,y
         tfr     b,a
         rts
 
@@ -1954,6 +2010,8 @@ repco_done
 render_entity_colour
         lda     #1
         sta     OBJ_ACCENT
+; @audit-use {"id":"primary-mask-table","symbol":"primary_preserve_table"}
+        ldy     #primary_preserve_table
         lbra    de_normal
 
 ; Placement changes MAZE_STATE before the objects are drawn. Restore each
@@ -2339,6 +2397,7 @@ pbc_top_left
 
 ; Redraw an authored perimeter tile, replacing White pixels only.  Pink inner
 ; borders and Black separators remain unchanged.
+; @audit {"id": "perimeter-colour", "kind": "scratch", "symbol": "OBJ_VALUE", "width": 1, "mapping": "unbanked-direct-page", "phases": ["foreground"], "owner": "perimeter tile renderer", "lifetime": "After prepare_cell_tile returns until draw_perimeter_box returns; high-nibble replacement colour, including zero-match tiles. No caller retains it.", "initialization": "HUD_COLOR shifted four times before the row loop", "clobbers": "No nested calls in the loop; framebuffer IRQ does not use OBJ_VALUE or HUD_COLOR. Other render operations initialize their own scratch after return.", "alias_group": "foreground-obj-value", "alias_reason": "Sequential foreground render phases; each initializes OBJ_VALUE before use, no nesting or retained consumer, IRQ does not touch it."}
 draw_perimeter_box
         lda     TEST_Y
         ldb     #40
@@ -2349,6 +2408,12 @@ draw_perimeter_box
         leay    screen_map,pcr
         ldb     d,y
         lbsr    prepare_cell_tile
+        lda     HUD_COLOR
+        lsla
+        lsla
+        lsla
+        lsla
+        sta     OBJ_VALUE
         lda     #8
         sta     HUD_COUNT
 dpb_row
@@ -2360,12 +2425,6 @@ dpb_byte
         anda    #$F0
         cmpa    #$60
         bne     dpb_low
-        lda     HUD_COLOR
-        lsla
-        lsla
-        lsla
-        lsla
-        sta     OBJ_VALUE
         lda     HUD_BYTE
         anda    #$0F
         ora     OBJ_VALUE
@@ -4425,12 +4484,12 @@ restore_player
         sta     PLAYER_COPY_ROWS
 rp_row
         pulu    d,y
-        std     ,x++
-        sty     ,x++
+        std     ,x
+        sty     2,x
         pulu    d,y
-        std     ,x++
-        sty     ,x++
-        leax    152,x
+        std     4,x
+        sty     6,x
+        leax    160,x
         dec     PLAYER_COPY_ROWS
         bne     rp_row
         clr     PLAYER_BG_VALID
@@ -4762,6 +4821,11 @@ sprite_score_blue_pairs
         fcb     $00,$03,$05,$06,$30,$33,$35,$36
         fcb     $50,$53,$55,$56,$60,$63,$65,$66
 
+; Immutable primary-mask lookup; reachable indexes are value & $33.
+; @audit-producer {"id": "primary-mask-constants", "symbols": ["primary_preserve_table"], "description": "Authored immutable table: for index i, ($F0 if i&$30 is zero else 0) OR ($0F if i&3 is zero else 0)."}
+; @audit {"id": "primary-mask-table", "kind": "index", "symbol": "primary_preserve_table", "producer": "primary-mask-constants", "domain": "Cached value AND $33, sixteen reachable offsets in 52 bytes", "encoding": "One-byte extra preserve mask; high absent -> $F0, low absent -> $0F. render_entity_colour and sync_entity_cache_colour initialize Y once for positive and negative replay respectively. Both loops preserve Y; IRQ restores Y. Positive OBJ_VALUE retains source byte; negative OBJ_VALUE retains replicated colour.", "bounds": [57344, 64972]}
+primary_preserve_table
+        fcb     $FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00
 asset_end
 
         end
