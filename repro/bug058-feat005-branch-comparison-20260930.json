@@ -1,0 +1,92 @@
+{
+  "status": "source/artifact integration gap confirmed; user runtime defects recorded",
+  "revisions": {
+    "main": "f5b7c344ee50d0e4c234db9d6da7fd3e8e7644da",
+    "menu": "2358371807a3974b82c89b5e6a363bb8799dd6fd",
+    "adaptive": "e42e88edd4067dbe00e1944e3d28aa11796f6ea3"
+  },
+  "menu_commits_after_main": "1",
+  "unchanged_runtime_vs_main": {
+    "src/enemy_runtime.s": {
+      "raw_identical": true,
+      "assembly_without_comments_identical": true,
+      "code_identical_excluding_nonemitting_guard_alias": true,
+      "main_blob": "f8d13242f37b9e6b38d478067fbecbc4927d7412",
+      "menu_blob": "f8d13242f37b9e6b38d478067fbecbc4927d7412"
+    },
+    "src/instruction_runtime.s": {
+      "raw_identical": true,
+      "assembly_without_comments_identical": true,
+      "code_identical_excluding_nonemitting_guard_alias": true,
+      "main_blob": "19a8a40c12ec8da642e8a7424ecf3e6aee4c3103",
+      "menu_blob": "19a8a40c12ec8da642e8a7424ecf3e6aee4c3103"
+    },
+    "src/audio_runtime.s": {
+      "raw_identical": false,
+      "assembly_without_comments_identical": false,
+      "code_identical_excluding_nonemitting_guard_alias": true,
+      "main_blob": "3931155352fda73689647056569a086e3f14cf28",
+      "menu_blob": "fd5ac9cf97dc20c00566eefd4dd352f7ce5e2297"
+    },
+    "src/demo_runtime.s": {
+      "raw_identical": false,
+      "assembly_without_comments_identical": true,
+      "code_identical_excluding_nonemitting_guard_alias": true,
+      "main_blob": "bd38e22b3de757d7f174545fde39ad7253c9a45a",
+      "menu_blob": "2e8520412b262d502cf0408f1a17696bfb16cbda"
+    }
+  },
+  "adaptive_files_absent_from_main_and_menu": [
+    "scripts/build_adaptive_runtime.py",
+    "scripts/source_reference_adaptive.json",
+    "src/adaptive_active.s",
+    "src/adaptive_audio_bindings.s",
+    "src/adaptive_audio_service.s",
+    "src/adaptive_bindings.s",
+    "src/adaptive_interface.inc",
+    "src/adaptive_runtime.s"
+  ],
+  "rom_sha256": {
+    "menu": "e4543873f0c5e4b2ebbb35f574d7909a7b17545cf8a42d0e0878c3be88c2272f",
+    "adaptive_candidate": "df5cff4f67f3a09781cd004585d7d78e7f70cce608206052bb97fb3c9aade7d0",
+    "retained_two_step_cap": "ace243d3d02fb1760ab9179b6612e8ece71f979337bdeefaf5122388f0cd346d"
+  },
+  "confirmed_finding": "Menu commit did not remove adaptive code from main. Main never contained the isolated adaptive implementation; menu retained its non-adaptive baseline. Main performance commits recorded isolated candidate evidence rather than promotion.",
+  "absent_implementation": [
+    "Adaptive VBlank clock and logical-step driver",
+    "Both framebuffer damage journals and adaptive publication/reduction",
+    "Adaptive background/cache rendering and player/enemy restore optimizations",
+    "Elapsed audio service and stable-priority mixer optimization",
+    "Adaptive stage-vegetable stream decoder and build delivery"
+  ],
+  "additional_menu_timing_evidence": {
+    "scenario": "instruction colour-boundary windows",
+    "main_maximum_cycles": 28091,
+    "menu_maximum_cycles": 28136,
+    "dispatch_overhead_cycles": 45,
+    "target": 27000,
+    "three_enemy_gameplay_measurement": false
+  },
+  "user_observations": [
+    "Three-enemy slowdown on menu build; absent when using adaptive rendering",
+    "Lower portion of name-entry maze failed to render on adaptive build"
+  ],
+  "lower_maze_status": "New report under BUG-058; not independently reproduced, root cause unknown. Prior FEAT-005 name coverage proved transitions/timeout, not full maze pixels.",
+  "scope": "Read-only comparison and wiki/evidence maintenance. No renderer merge, source fix, build or emulator restart.",
+  "risk_class": "High-risk for subsequent integration/repair: persistent framebuffers, cross-phase handoff, audio clock and loader/MMU/destination bounds.",
+  "minimum_next_verification": [
+    "Fit complete combined menu/adaptive build and prove cold source/staged/live bytes",
+    "Matched natural three-enemy worklists against the selected adaptive reference; retain failed timing gates",
+    "Qualifying game-over to name-entry, complete lower maze pixels on both isolated owners and natural publication sequence",
+    "Menu settings, defaults/reset/demo, credit/start priority and audio service after owner changes"
+  ],
+  "remaining_decision": "Select original adaptive e42e88e or separately proposed two-step-cap behavior before integration; both exact ROMs remain preserved.",
+  "qa": {
+    "source_identity_checks": "pass",
+    "artifact_hashes": "pass",
+    "html_unique_ids_and_new_links": "pass",
+    "production_changes": false,
+    "runtime_symptom_reproduced_this_review": false,
+    "lower_maze_cause_verified": false
+  }
+}
