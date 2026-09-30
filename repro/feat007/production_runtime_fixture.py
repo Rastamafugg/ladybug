@@ -26,7 +26,21 @@ def prepare(root):
     # BUG-042 changed only the final gameplay equals descriptor colour.
     # Keep every other independent fixture byte fixed.
     bonus=json.loads((root/'assets/arcade/text-colours.json').read_text())['fields']['bonus']
-    assert fixture[-1]==0 and bytes(blob)==fixture[:-1]+bytes([bonus]),'independent font fixture drift'
+    metadata=json.loads((source/'ladybug-presentation.json').read_text())
+    font_bytes=metadata['shared_text']['font_bytes']
+    old_masks=[fixture[i:i+8] for i in range(0,328,8)]
+    new_masks=[bytes(blob[i:i+8]) for i in range(0,font_bytes,8)]
+    assert all(mask in new_masks for mask in old_masks),'historical font mask drift'
+    # FEAT-005 inserts the two authored brackets; resolve existing fixture
+    # references by mask identity instead of assuming historical glyph indices.
+    translated=bytearray(blob[:font_bytes])+fixture[328:840]
+    translated.extend(new_masks.index(old_masks[g]) for g in fixture[840:904])
+    for glyph,colour in zip(fixture[904::2],fixture[905::2]):
+        if (glyph,colour)==(0,3):
+            continue  # unused historical PART-zero typed descriptor
+        translated.extend((new_masks.index(old_masks[glyph]),colour))
+    translated[-1]=bonus
+    assert bytes(blob)==bytes(translated),'independent font/descriptor fixture drift'
     section=raw.split('\ndynamic_descriptors\n')[1]
     descriptors=bytes(int(v) for line in section.splitlines() if 'fcb' in line for v in line.split('fcb')[1].strip().split(','))
     (out/'descriptors.bin').write_bytes(descriptors)

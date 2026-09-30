@@ -1,0 +1,50 @@
+{
+  "status": "pixel compatibility passes; instruction timing fails",
+  "rom_sha256": "e4543873f0c5e4b2ebbb35f574d7909a7b17545cf8a42d0e0878c3be88c2272f",
+  "baseline_rom_sha256": "e8fab046d7316c2a52a9fd414a2379e390ece5733302a020c77ad00bfe937cfc",
+  "instruction_frames": 1896,
+  "all_instruction_frames_baseline_exact": true,
+  "instruction_sequence_sha256": "c90b8b82f41d65f7dee52894cfe304e5ef2d0b1724323864d03f964685884eb7",
+  "attract_publications": [
+    {
+      "owner": 0,
+      "byte_count": 30720,
+      "sha256": "888cb46267f5b11fe7447f6dd30bd62ff66a08e93944bef7e4b8c17ffb6d679c",
+      "baseline_exact": true
+    },
+    {
+      "owner": 1,
+      "byte_count": 30720,
+      "sha256": "888cb46267f5b11fe7447f6dd30bd62ff66a08e93944bef7e4b8c17ffb6d679c",
+      "baseline_exact": true
+    }
+  ],
+  "natural_instruction_timing": {
+    "current_maximum": 28136,
+    "baseline_maximum": 28091,
+    "target": 27000,
+    "target_met": false,
+    "scanner_overhead_each_sample": 45,
+    "samples": 36,
+    "units": "fast-clock CPU cycles; event_ticks/8"
+  },
+  "legacy_checkpoint_oracle": {
+    "current_status": "FAIL",
+    "baseline_status": "FAIL",
+    "current_static_differing_bytes": [
+      108,
+      108,
+      357,
+      357
+    ],
+    "baseline_static_differing_bytes": [
+      108,
+      108,
+      357,
+      357
+    ],
+    "accepted_as_current_oracle": false,
+    "meaning": "Historical expected pixels also differ on the exact baseline. Current-vs-baseline byte/hash comparison is the adjacent pixel evidence; natural-ROM checks provide menu/live acceptance."
+  },
+  "corrected_regression": "New credit-panel screen guard had painted 94 extra yellow bytes on attract. Restored zero-screen skip; both complete 30,720-byte publications now match baseline."
+}

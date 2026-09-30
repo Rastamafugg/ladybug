@@ -19,6 +19,7 @@ from gmc_lzss import decompress as lzss_decompress
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
+ENEMY_PAGE_BASE = 0x35
 PAGE_BYTES = 0x2000
 WINDOW_BASE = 0xA000
 CART_BANK_BYTES = 0x4000
@@ -548,7 +549,7 @@ def main() -> None:
             target_address = WINDOW_BASE
         elif target == "attract_actor_bundle":
             target_page_base = 0x23
-            target_address = 0xB600
+            target_address = 0xB880
         elif target == "presentation_auxiliary":
             target_page_base = 0x23
             target_address = INSTRUCTION_RUNTIME_ADDRESS
@@ -579,9 +580,14 @@ def main() -> None:
     }
     if len(presentation_cold) > PAGE_BYTES:
         expected_streams.add("presentation_page_3b")
+    expected_streams.update(
+        f"enemy_page_{ENEMY_PAGE_BASE + offset // PAGE_BYTES:02x}"
+        for offset in range(0, len(enemy_payload), PAGE_BYTES))
     streams = manifest.get("compression", {}).get("streams", [])
     if {stream["name"] for stream in streams} != expected_streams:
         raise SystemExit("sparse proof: compressed stream set differs")
+    if len(streams) != len(expected_streams) or streams[-1]["name"] != "audio_page_3d":
+        raise SystemExit("sparse proof: duplicate streams or audio not last")
     for stream in streams:
         bank = stream["bank"]
         source_offset = stream["source_offset"]
@@ -615,6 +621,17 @@ def main() -> None:
             end = offset + len(raw)
             reconstructed["presentation_cold"][offset:end] = raw
             coverage["presentation_cold"][offset:end] = b"\x01" * len(raw)
+        elif name.startswith("enemy_page_"):
+            page = stream["destination_page"]
+            offset = (page - ENEMY_PAGE_BASE) * PAGE_BYTES
+            end = offset + len(raw)
+            if (name != f"enemy_page_{page:02x}" or offset < 0 or
+                stream["destination_address"] != WINDOW_BASE or
+                raw != enemy_payload[offset:offset + PAGE_BYTES] or
+                any(coverage["enemy"][offset:end])):
+                raise SystemExit("sparse proof: enemy compressed page identity/coverage differs")
+            reconstructed["enemy"][offset:end] = raw
+            coverage["enemy"][offset:end] = b"\x01" * len(raw)
         elif name == "audio_page_3d":
             reconstructed["audio_runtime"][:] = raw
             coverage["audio_runtime"][:] = b"\x01" * len(raw)

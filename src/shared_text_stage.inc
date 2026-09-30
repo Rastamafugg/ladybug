@@ -109,7 +109,7 @@ SND_DATA equ $FF51
 highscore_phase_tick
         lda     PRES_MODE
         cmpa    #5
-        lbeq    highscore_logo_tick
+        lbeq    menu_tick
         cmpa    #MODE_GAMEOVER
         lbeq    highscore_gameover_tick
         tst     PRES_NAME_FLAGS
@@ -428,12 +428,18 @@ highscore_default_name_data
 ; BUG-035: called during hidden level-start hydration, before publication.
 ; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
 stage_panel_draw
-        jmp stage_panel_finish
+        jmp menu_load_finish
 stage_panel_slice_entry
         jmp stage_panel_slice
+menu_scan_entry
+        jmp menu_scan
+menu_tick_entry
+        jmp menu_tick
 stage_select
         lda #1
         ldb $A7
+        beq stage_selected
+        lda $EB
         cmpb #2
         bne stage_selected
         lda $24
@@ -624,7 +630,7 @@ stage_panel_text
         bne     stage_panel_text
         rts
 
-; A=0..36 glyph, X=destination, $29=colour. Preserve A/B/Y/U; advance X.
+; A=0..44 authored glyph, X=destination, $29=colour; advance X.
 stage_panel_char
         pshs a,b,x,y,u
         leay stage_source_glyphs,pcr
@@ -801,6 +807,8 @@ credit_panel_done
 credit_panel_count
         lda     PRES_SCREEN
         beq     credit_panel_done
+        cmpa    #PRESENTATION_MAP_OPTIONS
+        bhs     credit_panel_done
         cmpa    #PRESENTATION_MAP_HIGH_SCORE
         beq     credit_panel_done
         lda     #6
@@ -842,6 +850,285 @@ top_panel_publish
 top_panel_done
         rts
 
+; FEAT-005: existing page-$23 owner handles menus. State is direct-page;
+; drawing uses the established resident font without remapping PAR5.
+MENU_LIVES equ $EA
+MENU_LEVEL equ $EB
+MENU_SELECT equ $E0
+MENU_PREV equ $DF
+MENU_EVENT equ $D0
+
+menu_scan
+        clr     $A9
+        ldy     #$B2
+        ldx     #PRES_MAIN_SCAN_DRIVES
+        ldu     #PRES_MAIN_SCAN_BITS
+        clrb
+menu_coin_scan
+        lda     b,x
+        sta     $FF02
+        lda     $FF00
+        ifne    INPUT_JOYSTICK
+        anda    #$7F
+        else
+        anda    #$10
+        endc
+        pshs    a
+        coma
+        anda    b,y
+        beq     menu_coin_next
+        lda     $A9
+        ora     b,u
+        sta     $A9
+menu_coin_next
+        puls    a
+        sta     b,y
+        incb
+        cmpb    #3
+        blo     menu_coin_scan
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        beq     menu_key_scan
+        cmpa    #PRESENTATION_MAP_OPTIONS
+        blo     menu_scan_done
+menu_key_scan
+        clr     MENU_EVENT      ; D0 is the instruction timer outside menus
+        ldx     #menu_key_drives
+        ldu     #menu_key_rows
+        leay    menu_key_bits,pcr
+        clrb
+        clr     $D1
+menu_key_loop
+        lda     b,x
+        sta     $FF02
+        lda     $FF00
+        anda    b,u
+        bne     menu_key_next
+        lda     $D1
+        ora     b,y
+        sta     $D1
+menu_key_next
+        incb
+        cmpb    #6
+        blo     menu_key_loop
+        lda     MENU_PREV
+        coma
+        anda    $D1
+        sta     MENU_EVENT
+        lda     $D1
+        sta     MENU_PREV
+menu_scan_done
+        lda     #$FF
+        sta     $FF02
+        ifne    INPUT_JOYSTICK
+        lda     #$34
+        sta     $FF01
+        endc
+        rts
+menu_key_drives
+        fcb     $F7,$EF,$DF,$BF,$FE,$FB
+menu_key_rows
+        fcb     $08,$08,$08,$08,$40,$40
+menu_key_bits
+        fcb     1,2,4,8,16,32
+
+menu_tick
+        lda     MENU_EVENT
+        lbeq    menu_idle
+        bita    #32
+        lbne    menu_back
+        ldb     PRES_SCREEN
+        cmpb    #PRESENTATION_MAP_CREDITS
+        lbeq    menu_hold
+        bita    #16
+        bne     menu_enter
+        ; Opposing held inputs cancel, including a newly pressed opposite.
+        ldb     MENU_PREV
+        andb    #3
+        cmpb    #3
+        beq     menu_horizontal
+        bita    #1
+        bne     menu_up
+        bita    #2
+        bne     menu_down
+menu_horizontal
+        ldb     PRES_SCREEN
+        cmpb    #PRESENTATION_MAP_OPTIONS
+        bne     menu_idle
+        ldb     MENU_SELECT
+        cmpb    #2
+        bhs     menu_idle
+        ldx     #MENU_LIVES
+        abx
+        ldb     MENU_PREV
+        andb    #12
+        cmpb    #12
+        beq     menu_idle
+        bita    #4
+        bne     menu_decrease
+        bita    #8
+        beq     menu_idle
+        lda     #12
+        tst     MENU_SELECT
+        beq     menu_maximum
+        lda     #99
+menu_maximum
+        cmpa    ,x
+        bls     menu_idle
+        inc     ,x
+        bra     menu_redraw
+menu_decrease
+        lda     ,x
+        cmpa    #1
+        bls     menu_idle
+        dec     ,x
+        bra     menu_redraw
+menu_up
+        tst     MENU_SELECT
+        beq     menu_idle
+        dec     MENU_SELECT
+        bra     menu_redraw
+menu_down
+        ldb     #1
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        beq     menu_last
+        incb
+menu_last
+        cmpb    MENU_SELECT
+        bls     menu_idle
+        inc     MENU_SELECT
+menu_redraw
+        lda     PRES_SCREEN
+        bra     menu_start
+menu_enter
+        cmpb    #PRESENTATION_MAP_HIGH_SCORE
+        bne     menu_enter_option
+        lda     #PRESENTATION_MAP_OPTIONS
+        adda    MENU_SELECT
+        bra     menu_change
+menu_enter_option
+        lda     MENU_SELECT
+        cmpa    #2
+        bne     menu_idle
+menu_back
+        lda     #PRESENTATION_MAP_HIGH_SCORE
+menu_change
+        clr     MENU_SELECT
+menu_start
+        pshs    a
+        ldd     #menu_hold
+        std     PRES_NAME_PTR
+        puls    a
+        ldx     #PRES_MAIN_PAGE23_RESUME
+        pshs    x
+        jmp     PRES_MODULE_START_SCREEN
+menu_idle
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        lbeq    highscore_logo_tick
+menu_hold
+        lda     #1
+        rts
+
+menu_load_finish
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        beq     menu_paint_high
+        cmpa    #PRESENTATION_MAP_OPTIONS
+        beq     menu_paint_options
+        jmp     stage_panel_finish
+menu_paint_high
+        leay    menu_high_score_pairs,pcr
+        clrb
+menu_high_pair
+        pshs    b
+        lda     #7
+        sta     $29
+        lda     #36
+        ldx     ,y++
+        lbsr    stage_panel_char
+        ldx     ,y++
+        lbsr    stage_panel_char
+        puls    b
+        incb
+        cmpb    #2
+        blo     menu_high_pair
+        lda     MENU_SELECT
+        lsla
+        lsla
+        leay    menu_high_score_pairs,pcr
+        leay    a,y
+        lda     #10
+        sta     $29
+        lda     #43
+        ldx     ,y++
+        lbsr    stage_panel_char
+        lda     #44
+        ldx     ,y
+        lbra    stage_panel_char
+menu_paint_options
+        leay    menu_option_rows,pcr
+        clr     $D1
+menu_label_row
+        lda     #7
+        ldb     $D1
+        cmpb    MENU_SELECT
+        bne     menu_label_colour
+        lda     #10
+menu_label_colour
+        sta     $29
+        ldx     ,y++
+        ldb     ,y+
+        lbsr    stage_panel_text
+        inc     $D1
+        lda     $D1
+        cmpa    #3
+        blo     menu_label_row
+        leay    menu_options_pairs,pcr
+        clr     $D1
+menu_value_row
+        ldb     $D1
+        lda     #7
+        cmpb    MENU_SELECT
+        bne     menu_value_colour
+        lda     #10
+menu_value_colour
+        sta     $29
+        ldx     ,y
+        leax    4,x
+        ldu     #MENU_LIVES
+        lda     b,u
+        clrb
+menu_tens
+        cmpa    #10
+        blo     menu_digits
+        suba    #10
+        incb
+        bra     menu_tens
+menu_digits
+        pshs    a
+        tfr     b,a
+        lbsr    stage_panel_char
+        puls    a
+        lbsr    stage_panel_char
+        lda     $D1
+        cmpa    MENU_SELECT
+        bne     menu_value_next
+        lda     #43
+        ldx     ,y
+        lbsr    stage_panel_char
+        lda     #44
+        ldx     2,y
+        lbsr    stage_panel_char
+menu_value_next
+        leay    4,y
+        inc     $D1
+        lda     $D1
+        cmpa    #2
+        blo     menu_value_row
+        rts
+        include "ladybug_menu_records.inc"
 highscore_phase_helper_end
 
         else

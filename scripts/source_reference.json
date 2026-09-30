@@ -685,6 +685,27 @@
           "purpose": "Shared mask.",
           "reasons": [],
           "semantic_id": "routines.html#routine-resident-runtime-shared-mask"
+        },
+        {
+          "name": "asset_draw_life_count",
+          "profile": "render",
+          "purpose": "Draw numeric reserves in the existing marker footprint.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-asset-draw-life-count"
+        },
+        {
+          "name": "asset_draw_two_digits",
+          "profile": "render",
+          "purpose": "Draw a two-digit HUD value with a leading zero.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-asset-draw-two-digits"
+        },
+        {
+          "name": "asset_draw_hud_digit",
+          "profile": "render",
+          "purpose": "Draw one shared-font HUD digit.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-asset-draw-hud-digit"
         }
       ],
       "relocations": [
@@ -1048,6 +1069,22 @@
           "name": "sync_entity_cache_colour",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "asset_clear_reserves",
+          "purpose": "FEAT-005 local branch boundary: asset clear reserves."
+        },
+        {
+          "name": "asset_number_digits",
+          "purpose": "FEAT-005 local branch boundary: asset number digits."
+        },
+        {
+          "name": "asset_number_tens",
+          "purpose": "FEAT-005 local branch boundary: asset number tens."
+        },
+        {
+          "name": "igs_defaults",
+          "purpose": "FEAT-005 local branch boundary: igs defaults."
         }
       ]
     },
@@ -1719,6 +1756,11 @@
           "name": "roam_reverse_masks",
           "kind": "data",
           "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         }
       ],
       "basic_blocks": [
@@ -1971,6 +2013,20 @@
           "purpose": "Start screen no instruction install.",
           "reasons": [],
           "semantic_id": "routines.html#routine-presentation-runtime-start-screen-no-instruction-install"
+        },
+        {
+          "name": "MENU_SCAN",
+          "profile": "input",
+          "purpose": "Call the banked menu and credit/start scanner.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-presentation-runtime-menu-scan"
+        },
+        {
+          "name": "MENU_TICK",
+          "profile": "presentation",
+          "purpose": "Dispatch fresh options input during selected-screen loading.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-presentation-runtime-menu-tick"
         }
       ],
       "relocations": [
@@ -2055,6 +2111,11 @@
           "name": "start_screen_map",
           "kind": "data",
           "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         }
       ],
       "basic_blocks": [
@@ -2087,6 +2148,15 @@
           "name": "instructions_runtime_return",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "menu_screen_retained",
+          "purpose": "FEAT-005 local branch boundary: menu screen retained."
+        },
+        {
+          "name": "menu_load_continue",
+          "routine": "load_tick",
+          "purpose": "Continue loading when there is no fresh local menu command."
         }
       ]
     },
@@ -2126,6 +2196,11 @@
           "name": "demo_runtime_end",
           "kind": "boundary",
           "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         }
       ],
       "basic_blocks": [
@@ -2321,6 +2396,11 @@
           "name": "multiplier_tiles",
           "kind": "data",
           "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         }
       ],
       "basic_blocks": [
@@ -2499,6 +2579,11 @@
           "name": "loader_start",
           "kind": "boundary",
           "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        },
+        {
+          "name": "boot_streams_retired",
+          "kind": "boundary",
+          "reason": "Final boot descriptor consumer has returned; audio initialization may reuse these addresses."
         }
       ],
       "assembly_output": "ladybug-gmc-boot.rom.tmp",
@@ -3162,6 +3247,11 @@
           "name": "score_glyphs",
           "kind": "data",
           "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         }
       ],
       "basic_blocks": [
@@ -3255,6 +3345,27 @@
           "purpose": "Stage select.",
           "reasons": [],
           "semantic_id": "routines.html#routine-highscore-helper-stage-select"
+        },
+        {
+          "name": "menu_load_finish",
+          "profile": "presentation",
+          "purpose": "Paint the selected authored menu row and brackets.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-menu-load-finish"
+        },
+        {
+          "name": "menu_scan",
+          "profile": "presentation",
+          "purpose": "Scan menu and existing credit/start edges.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-menu-scan"
+        },
+        {
+          "name": "menu_tick",
+          "profile": "presentation",
+          "purpose": "Dispatch selected menu input without gameplay mutation.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-menu-tick"
         }
       ],
       "label_classifications": [
@@ -3307,6 +3418,71 @@
           "name": "stage_schedule_end",
           "kind": "boundary",
           "reason": "Module/table boundary in current assembled source."
+        },
+        {
+          "name": "MENU_EVENT",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "MENU_LEVEL",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "MENU_LIVES",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "MENU_PREV",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "MENU_SELECT",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_high_score_pairs",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_key_bits",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_key_drives",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_key_rows",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_option_rows",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_options_pairs",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_tick_entry",
+          "kind": "boundary",
+          "reason": "Fixed $B089 gateway into the existing page-$23 menu owner."
         }
       ],
       "basic_blocks": [
@@ -3379,6 +3555,134 @@
           "name": "stage_panel_slice_entry",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "menu_back",
+          "purpose": "FEAT-005 local branch boundary: menu back."
+        },
+        {
+          "name": "menu_change",
+          "purpose": "FEAT-005 local branch boundary: menu change."
+        },
+        {
+          "name": "menu_coin_next",
+          "purpose": "FEAT-005 local branch boundary: menu coin next."
+        },
+        {
+          "name": "menu_coin_scan",
+          "purpose": "FEAT-005 local branch boundary: menu coin scan."
+        },
+        {
+          "name": "menu_decrease",
+          "purpose": "FEAT-005 local branch boundary: menu decrease."
+        },
+        {
+          "name": "menu_digits",
+          "purpose": "FEAT-005 local branch boundary: menu digits."
+        },
+        {
+          "name": "menu_down",
+          "purpose": "FEAT-005 local branch boundary: menu down."
+        },
+        {
+          "name": "menu_enter",
+          "purpose": "FEAT-005 local branch boundary: menu enter."
+        },
+        {
+          "name": "menu_enter_option",
+          "purpose": "FEAT-005 local branch boundary: menu enter option."
+        },
+        {
+          "name": "menu_high_pair",
+          "purpose": "FEAT-005 local branch boundary: menu high pair."
+        },
+        {
+          "name": "menu_hold",
+          "purpose": "FEAT-005 local branch boundary: menu hold."
+        },
+        {
+          "name": "menu_horizontal",
+          "purpose": "FEAT-005 local branch boundary: menu horizontal."
+        },
+        {
+          "name": "menu_idle",
+          "purpose": "FEAT-005 local branch boundary: menu idle."
+        },
+        {
+          "name": "menu_key_loop",
+          "purpose": "FEAT-005 local branch boundary: menu key loop."
+        },
+        {
+          "name": "menu_key_next",
+          "purpose": "FEAT-005 local branch boundary: menu key next."
+        },
+        {
+          "name": "menu_key_scan",
+          "purpose": "FEAT-005 local branch boundary: menu key scan."
+        },
+        {
+          "name": "menu_label_colour",
+          "purpose": "FEAT-005 local branch boundary: menu label colour."
+        },
+        {
+          "name": "menu_label_row",
+          "purpose": "FEAT-005 local branch boundary: menu label row."
+        },
+        {
+          "name": "menu_last",
+          "purpose": "FEAT-005 local branch boundary: menu last."
+        },
+        {
+          "name": "menu_maximum",
+          "purpose": "FEAT-005 local branch boundary: menu maximum."
+        },
+        {
+          "name": "menu_paint_high",
+          "purpose": "FEAT-005 local branch boundary: menu paint high."
+        },
+        {
+          "name": "menu_paint_options",
+          "purpose": "FEAT-005 local branch boundary: menu paint options."
+        },
+        {
+          "name": "menu_redraw",
+          "purpose": "FEAT-005 local branch boundary: menu redraw."
+        },
+        {
+          "name": "menu_scan_done",
+          "purpose": "FEAT-005 local branch boundary: menu scan done."
+        },
+        {
+          "name": "menu_scan_entry",
+          "purpose": "FEAT-005 local branch boundary: menu scan entry."
+        },
+        {
+          "name": "menu_start",
+          "purpose": "FEAT-005 local branch boundary: menu start."
+        },
+        {
+          "name": "menu_tens",
+          "purpose": "FEAT-005 local branch boundary: menu tens."
+        },
+        {
+          "name": "menu_up",
+          "purpose": "FEAT-005 local branch boundary: menu up."
+        },
+        {
+          "name": "menu_value_colour",
+          "purpose": "FEAT-005 local branch boundary: menu value colour."
+        },
+        {
+          "name": "menu_value_next",
+          "purpose": "FEAT-005 local branch boundary: menu value next."
+        },
+        {
+          "name": "menu_value_row",
+          "purpose": "FEAT-005 local branch boundary: menu value row."
+        },
+        {
+          "name": "stage_selected",
+          "purpose": "FEAT-005 local branch boundary: stage selected."
         }
       ],
       "defines": {
@@ -4306,7 +4610,12 @@
       "entity-cache-colour",
       "player-sprite-index",
       "audio-slot-zero",
-      "audio-shadow"
+      "audio-shadow",
+      "boot-stream-descriptors",
+      "boot-audio-stream",
+      "audio-mode-pending",
+      "audio-service-gateway",
+      "audio-bank-guard"
     ]
   }
 }

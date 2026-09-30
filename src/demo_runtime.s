@@ -1,3 +1,6 @@
+; DOC-002 source-contract mirror contract menu_tick profile=presentation: Dispatch selected menu input without gameplay mutation.
+; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan menu and existing credit/start edges.
+; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint the selected authored menu row and brackets.
 ; DOC-002 source-contract mirror contract credit_panel_slice profile=presentation: Credit panel slice.
 ; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Highscore commit name.
 ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.

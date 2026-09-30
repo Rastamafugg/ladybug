@@ -1,3 +1,6 @@
+; DOC-002 source-contract mirror contract asset_draw_hud_digit profile=render: Draw one shared-font HUD digit.
+; DOC-002 source-contract mirror contract asset_draw_two_digits profile=render: Draw a two-digit HUD value with a leading zero.
+; DOC-002 source-contract mirror contract asset_draw_life_count profile=render: Draw numeric reserves in the existing marker footprint.
 ; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Asset draw top hud.
 ; DOC-002 source-contract mirror contract draw_credit_hud profile=render: Draw credit hud.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
@@ -610,6 +613,11 @@ startup_seed_ready
         ifne    COMPLETE_PROFILE
         clr     PRES_MAGIC
         clr     PRES_HS_READY
+        lda     #3
+        sta     $EA
+        lda     #1
+        sta     $EB
+        clr     $DF
         ldx     #PRES_HIGHSCORE_BASE
         lda     #9
         sta     ,x+
@@ -783,8 +791,7 @@ iet_wait_stage
 
         ; The committed stage image is now the handoff boundary.  The
         ; rightmost marker and the entrant are one life unit.
-        lda     #2
-        sta     LIVES
+        dec     LIVES
         ldd     #$8994
         std     PLAYER_FB
         lda     #DIR_SOUTH
@@ -878,9 +885,16 @@ init_game_state
         std     HIGH_BCD+1
         endc
         lda     #3
+        ldb     #1
+        ifne COMPLETE_PROFILE
+        tst     $A7             ; presentation context: zero is unattended demo
+        beq     igs_defaults
+        lda     $EA
+        ldb     $EB
+igs_defaults
+        endc
         sta     LIVES
-        lda     #1
-        sta     STAGE
+        stb     STAGE
         lda     #MAZE_DOT_COUNT
         sta     DOTS_LEFT
         clr     STAGE_PENDING
@@ -1246,7 +1260,11 @@ draw_hud
         ldu     #HIGH_BCD
         lbsr    draw_bcd_line
         endc
+        ifne COMPLETE_PROFILE
+        lda     #37
+        else
         lda     #38
+        endc
         sta     HUD_X
         lda     #11
         sta     HUD_Y
@@ -1257,6 +1275,10 @@ draw_hud
         endc
         sta     HUD_COLOR
         lda     STAGE
+        ifne COMPLETE_PROFILE
+        jsr     asset_draw_two_digits
+        bra     dhu_stage_done
+        endc
 dhu_mod10
         cmpa    #10
         blo     dhu_stage_digit
@@ -1268,6 +1290,7 @@ dhu_stage_digit
         else
         lbsr    draw_hud_digit
         endc
+dhu_stage_done
         ; Fall through: the vegetable renderer returns to draw_hud's caller.
 
 ; Display the stage vegetable at HUD columns 32-33, rows 12-13, followed by
@@ -1444,6 +1467,13 @@ dhd_store
         endc
 
 draw_lives
+        ifne COMPLETE_PROFILE
+        lda     LIVES
+        cmpa    #4
+        blo     dl_markers
+        jmp     asset_draw_life_count
+dl_markers
+        endc
         clr     ENTITY_WORK
 dl_marker
         lda     ENTITY_WORK
@@ -4635,7 +4665,6 @@ par_table
 
         ifne    COMPLETE_PROFILE
         include "ladybug_presentation.inc"
-        include "ladybug_presentation_resident.inc"
 install_phase_tiles_for_screen
         rts
 
@@ -4731,6 +4760,7 @@ asset_start
 
         ifne COMPLETE_PROFILE
         include "ladybug_shared_link.inc"
+        include "ladybug_presentation_resident.inc"
         include "ladybug_shared_text.inc"
         include "shared_text_runtime.inc"
         endc

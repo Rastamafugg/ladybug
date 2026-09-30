@@ -16,6 +16,7 @@ from build_screen import (  # noqa: E402
     BLACK,
     BLUE,
     DARK_RED,
+    DARK_GREEN,
     FLIP_D,
     FLIP_H,
     FLIP_V,
@@ -58,6 +59,8 @@ MAP_NAMES = (
     "high-score",
     "game-over",
     "enter-high-score",
+    "options",
+    "credits",
 )
 MAP_FILES = {
     name: f"coco-{name}-screen.tmx" for name in MAP_NAMES
@@ -185,10 +188,12 @@ PRESENTATION_LAYER_CONTRACTS = {
     },
     "high-score": {
         "static": ("High Score Table and Branding",),
-        "metadata": ("Coin Positions",),
+        "metadata": ("Coin Positions", "Selected Option"),
         "runtime": (),
         "deferred": ("Logo Frame 1", "Logo Frame 2"),
     },
+    "options": {"static": ("Options Screen",), "metadata": ("Selected Option",), "runtime": (), "deferred": ()},
+    "credits": {"static": ("Credits Screen",), "metadata": (), "runtime": (), "deferred": ()},
     "game-over": {
         "static": ("Arcade Maze Border", "CoCo Side HUD", "Game Over Overlay"),
         "metadata": (),
@@ -763,6 +768,8 @@ def presentation_pen_map(
         if y % 3 == 1 and x != 0:
             colour = GREY
         return (BLACK, colour, colour, colour)
+    if role in ("options", "credits"):
+        return (BLACK, GREY, GREY, GREY)
     if x >= 32:
         if role == "instructions" and y == 2:
             return (BLACK, LIGHT_GREEN, LIGHT_GREEN, LIGHT_GREEN)

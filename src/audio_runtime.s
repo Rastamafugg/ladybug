@@ -57,8 +57,12 @@ AUDIO_WORK_VOICE   equ $00FC
 AUDIO_MIX_COUNT    equ $00FD
 AUDIO_BEST_SLOT    equ $00FE
 AUDIO_BEST_PRI     equ $00FF
+; @audit {"id":"audio-mode-pending","kind":"scratch","symbol":"AUDIO_LAST_MODE","width":2,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Installed only after boot_streams_retired; boot descriptors share these addresses in the boot phase.","initialization":"audio_init_impl","clobbers":"Audio owns this storage after initialization; no boot descriptor consumers remain."}
+; @audit {"id":"audio-bank-guard","kind":"scratch","symbol":"AUDIO_GUARD_RAM","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Installed after boot_streams_retired; shares addresses with boot descriptors only in separate phases.","initialization":"audio_guard_copy","clobbers":"Retained bank-restoring guard; no descriptor consumer after initialization."}
+AUDIO_GUARD_RAM equ $02C0
 AUDIO_LAST_MODE equ $02DC
 AUDIO_CREDIT_PENDING equ $02DD
+; @audit {"id":"audio-service-gateway","kind":"scratch","symbol":"AUDIO_SERVICE_GATEWAY","width":18,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Installed only after boot_streams_retired; boot descriptors share these addresses in the boot phase.","initialization":"audio_init_impl","clobbers":"Audio owns this storage after initialization; no boot descriptor consumers remain."}
 AUDIO_SERVICE_GATEWAY equ $02DE
 AUDIO_SERVICE_RETURN equ $02EC
 PRES_MODE equ $00A5

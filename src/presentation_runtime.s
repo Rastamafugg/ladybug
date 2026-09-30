@@ -1,3 +1,5 @@
+; DOC-002 source-contract mirror contract MENU_TICK profile=presentation: Dispatch fresh options input during selected-screen loading.
+; DOC-002 source-contract mirror contract MENU_SCAN profile=input: Call the banked menu and credit/start scanner.
 ; DOC-002 source-contract mirror contract install_demo_runtime profile=presentation: Install demo runtime.
 ; DOC-002 source-contract mirror contract install_highscore_runtime profile=presentation: Install highscore runtime.
 ; DOC-002 source-contract mirror contract install_instruction_runtime profile=presentation: Install instruction runtime.
@@ -390,6 +392,14 @@ normal_game
         rts
 
 start_screen
+        ifne COMPLETE_PROFILE
+        cmpa    <PRES_SCREEN
+        beq     menu_screen_retained
+        clr     $E0
+        ldb     #$3F
+        stb     $DF
+menu_screen_retained
+        endc
         sta     <PRES_SCREEN
         ifeq    HIGHSCORE_TEST_PROFILE
         ifne    COMPLETE_PROFILE
@@ -439,6 +449,21 @@ start_screen_done
         rts
 
 load_tick
+        ifne COMPLETE_PROFILE
+        lda     <PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_OPTIONS
+        blo     menu_load_continue
+        tst     <$D0
+        beq     menu_load_continue
+        lda     #$23
+        sta     PAR5
+        jsr     MENU_TICK
+        lda     #$34
+        sta     PAR5
+        lda     #1
+        rts
+menu_load_continue
+        endc
         lda     PRES_HOLD_STATE
         bpl     load_tick_normal
         jsr     PRESENTATION_HOLD_TICK
@@ -1508,6 +1533,14 @@ module_commit_done
         endc
 
 scan_keys
+        ifne COMPLETE_PROFILE
+        lda     #$23
+        sta     PAR5
+        jsr     MENU_SCAN
+        lda     #$34
+        sta     PAR5
+        rts
+        else
         clr     <PRES_EVENT
         ldy     #PRES_PREV
         ifne    HIGHSCORE_TEST_PROFILE+COMPLETE_PROFILE
@@ -1561,6 +1594,7 @@ scan_next
         endc
         endc                    ; keyboard scanning leaves audio selectors alone
         rts
+        endc
         ifne    HIGHSCORE_TEST_PROFILE
 draw_actor_overlay
         rts

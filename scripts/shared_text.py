@@ -26,6 +26,9 @@ class SharedText:
         for code in range(36):
             value=mask(s.rotate_ccw(chars[code]))
             if value not in self.font:self.font.append(value)
+        for code in (43,44):
+            value=mask(s.rotate_ccw(chars[code]))
+            if value not in self.font:self.font.append(value)
         text_codes=set(range(41))|set(range(42,46))
         paths=[(name,args.tiled_dir/p.MAP_FILES[name]) for name in p.MAP_NAMES]+[('gameplay',args.gameplay_map)]
         for name,path in paths:
@@ -202,14 +205,14 @@ class SharedText:
         timer_start=names['timer_table_offset']+delta
         self.args.timer_record_output.write_text(emit('',payload[timer_start:timer_start+names['timer_box_count']*4]))
         asset_data,gameplay_count=self.gameplay()
-        asset_data+=emit('dynamic_descriptors',bytes(v for d in descriptors for v in d)+bytes([255,255])*(256-len(descriptors)))
+        asset_data+=emit('dynamic_descriptors',bytes(v for d in descriptors for v in d))
 # @audit-producer {"id": "text-graphic", "function": "finish", "class": "SharedText", "symbols": ["PRESENTATION_MULTIPLIER_X_GRAPHIC"]}
         asset_data+=f'PRESENTATION_MULTIPLIER_X_GRAPHIC equ {x_graphic}\n'
         (self.args.output.parent/'ladybug_shared_text.inc').write_text(asset_data)
         chars=s.load_chars(self.args.chars)
         translation=[]
-        for code in range(37):
-            mask=bytes(8) if code==36 else bytes(sum(bool(v)<<(7-x) for x,v in enumerate(row)) for row in s.rotate_ccw(chars[code]))
+        for code in range(45):
+            mask=bytes(8) if 36<=code<=42 else bytes(sum(bool(v)<<(7-x) for x,v in enumerate(row)) for row in s.rotate_ccw(chars[code]))
             translation.append(self.font.index(mask))
         (self.args.output.parent/'ladybug_stage_glyphs.inc').write_text(emit('stage_source_glyphs',translation))
         stage=self.args.output.parent/'ladybug_stage_panel.inc'
@@ -246,4 +249,40 @@ class SharedText:
             manifest['shared_static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
             if name=='instructions':self.p.blend_native_surface(frame,instruction_source['cucumber_destination'],instruction_source['cucumber_native'])
             manifest['static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
+        # Generate menu label and bracket anchors directly from the authored TMX.
+        menu_lines=[]
+        for name in ('high-score','options'):
+            path=self.args.tiled_dir/self.p.MAP_FILES[name]
+            root=ET.parse(path).getroot()
+            layer=next(l for l in root.findall('layer') if l.get('name')=='Selected Option')
+            cells=s.parse_csv(layer.find('data'),'Selected Option')
+            pairs=[]
+            for row in range(24):
+                anchors=[(col,gid) for col,gid in enumerate(cells[row*40:(row+1)*40]) if gid]
+                for i in range(0,len(anchors),2):
+                    left,right=anchors[i:i+2]
+                    assert self.p.raw_char_code(root,path,left[1])==43
+                    assert self.p.raw_char_code(root,path,right[1])==44
+                    pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
+            assert len(pairs)==2,(name,pairs)
+            menu_lines.append('menu_'+name.replace('-','_')+'_pairs')
+            menu_lines.extend('        fdb $%04X,$%04X'%pair for pair in pairs)
+        path=self.args.tiled_dir/self.p.MAP_FILES['options']
+        root,flat,_=self.p.flatten_map(path)
+        rows=[]
+        for row in range(24):
+            codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40:(row+1)*40]]
+            label=''.join(chr(c+55) if c is not None and 10<=c<=35 else ' ' for c in codes)
+            if 'LIVES' in label or 'STARTING LEVEL' in label or 'BACK' in label:
+                xs=[x for x,c in enumerate(codes) if c is not None and 0<=c<=35]
+                lo,hi=min(xs),max(xs)
+                if 'BACK' not in label:lo=min(lo,26);hi=max(hi,29)
+                rows.append((row,lo,hi,[c if c is not None and 0<=c<=35 else 36 for c in codes[lo:hi+1]]))
+        assert len(rows)==3,rows
+        menu_lines.append('menu_option_rows')
+        for row,lo,hi,codes in rows:
+            menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
+            menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
+        (self.args.output.parent/'ladybug_menu_records.inc').write_text('\n'.join(menu_lines)+'\n')
+        manifest['menus']={'option_rows':[[row,lo,hi] for row,lo,hi,_ in rows], 'selected_colour':10,'unselected_colour':7}
         self.args.manifest_output.write_text(json.dumps(manifest,indent=2)+'\n')

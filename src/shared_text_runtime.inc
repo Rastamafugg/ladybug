@@ -1,5 +1,44 @@
 ; Shared masks and typed graphic/text dispatch. Data is generated from authored assets.
 
+; FEAT-005 numeric reserve display uses the existing three-marker footprint.
+asset_draw_life_count
+        lda     #33
+        sta     HUD_X
+        lda     #21
+        sta     HUD_Y
+        lda     #3
+        sta     ENTITY_WORK
+asset_clear_reserves
+        jsr     clear_life_marker
+        inc     HUD_X
+        inc     HUD_X
+        dec     ENTITY_WORK
+        bne     asset_clear_reserves
+        lda     #33
+        sta     HUD_X
+        lda     #8
+        sta     HUD_COLOR
+        lda     LIVES
+        bra     asset_draw_two_digits
+asset_draw_two_digits
+        clrb
+asset_number_tens
+        cmpa    #10
+        blo     asset_number_digits
+        suba    #10
+        incb
+        cmpb    #10
+        blo     asset_number_tens
+        clrb
+        bra     asset_number_tens
+asset_number_digits
+        pshs    a
+        tfr     b,a
+        jsr     asset_draw_hud_digit
+        inc     HUD_X
+        puls    a
+        bra     asset_draw_hud_digit
+
 asset_draw_hud_digit
         pshs a
         lda HUD_Y
