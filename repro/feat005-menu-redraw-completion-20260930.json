@@ -1,0 +1,86 @@
+{
+  "status": "approved menu redraw accepted; parent timing gates open",
+  "baseline_revision": "1c69e3d",
+  "implementation_commit": "commit containing this receipt: Fix menu selection latency with framebuffer field replay",
+  "rom_sha256": "1c59ea02ddc5a9abd22b13d6497a9d7f0e69c3bd100535726f69538a956d4e5e",
+  "response_maxima_vblanks": {
+    "recognized_vblanks": 2,
+    "first_visible_vblanks": 2,
+    "both_owners_ready_vblanks": 5
+  },
+  "targets_vblanks": {
+    "first_visible": 6,
+    "both_owners_ready": 12
+  },
+  "samples": 22,
+  "capacity": {
+    "resident_free": 60,
+    "assets_free": 63,
+    "presentation_free": 16,
+    "helper_before_title_free": 55,
+    "cartridge_source_free": 13633
+  },
+  "capacity_change_bytes": {
+    "presentation": 2,
+    "helper": 60,
+    "source_free": -62
+  },
+  "source_audit": {
+    "modules": 13,
+    "routines": "289/289",
+    "labels": "4496/4496"
+  },
+  "evidence": {
+    "baseline": {
+      "path": "repro/feat005-menu-latency-before-20260930.json",
+      "status": "pass",
+      "sha256": "a9f5fef1ce8ba37ecf8041cab59238f8ab55251e0279268ca6babc31aa205ba0",
+      "rom_sha256": "ccbfab8e902596c76a89d976b7cf0c4c3e544b26f72d263ac4b3ef0716a044f3"
+    },
+    "latency": {
+      "path": "repro/feat005-menu-latency-after-20260930.json",
+      "status": "pass",
+      "sha256": "554b0c167dcf44d35ebd8482bdd3cac7e88d6de735ea63f6db918afd8ac38a82",
+      "rom_sha256": "1c59ea02ddc5a9abd22b13d6497a9d7f0e69c3bd100535726f69538a956d4e5e"
+    },
+    "natural": {
+      "path": "repro/feat005-menu-redraw-natural-20260930.json",
+      "status": "pass",
+      "sha256": "98941d88099ddb5be7cb3334492f2704dc60fb4aa8fea93bbba7ccca91462fe8",
+      "rom_sha256": "1c59ea02ddc5a9abd22b13d6497a9d7f0e69c3bd100535726f69538a956d4e5e"
+    },
+    "desktop_keys": {
+      "path": "repro/feat005-menu-redraw-host-keys-20260930.json",
+      "status": "pass",
+      "sha256": "cc8ccc667602f76ede267a1bb53e496e91a49738abfdda836a98b0cb2704e7cf",
+      "rom_sha256": "1c59ea02ddc5a9abd22b13d6497a9d7f0e69c3bd100535726f69538a956d4e5e"
+    },
+    "phase_exit": {
+      "path": "repro/feat005-menu-redraw-phase-exit-20260930.json",
+      "status": "pass",
+      "sha256": "06990547b08599149c99d578c6428320be0b1d12d0dfde772c5b05fbaf19f37c",
+      "rom_sha256": "1c59ea02ddc5a9abd22b13d6497a9d7f0e69c3bd100535726f69538a956d4e5e"
+    },
+    "launch": {
+      "path": "repro/feat005-menu-redraw-user-launch-20260930.json",
+      "status": "launched for user test",
+      "sha256": "ef017ad6ef39fa6ce9707eff55801f04b2dae162afccc4a214f13c5db2fa06de",
+      "rom_sha256": "1c59ea02ddc5a9abd22b13d6497a9d7f0e69c3bd100535726f69538a956d4e5e"
+    },
+    "interrupted_probe": {
+      "path": "repro/feat005-menu-latency-interrupted-20260930.json",
+      "status": "FAIL / interrupted verifier metadata work",
+      "sha256": "3181b8d36f73222e1b026c76c19c878adfd7fe2edb0f3f5087a9736c76304ac0",
+      "rom_sha256": "1c59ea02ddc5a9abd22b13d6497a9d7f0e69c3bd100535726f69538a956d4e5e"
+    }
+  },
+  "rejected_mechanics": [
+    "unregistered source contract: complete rebuild/audit pass after registration",
+    "interrupted redundant Tiled parsing: immutable tileset caching and corrected current-ROM probe pass"
+  ],
+  "remaining": [
+    "physical hardware untested",
+    "tight helper/presentation margins",
+    "existing instruction and BUG-058 gameplay timing acceptance remain open"
+  ]
+}

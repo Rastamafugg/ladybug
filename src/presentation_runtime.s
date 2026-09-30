@@ -399,6 +399,7 @@ start_screen
         cmpa    <PRES_SCREEN
         beq     menu_screen_retained
         clr     $E0
+        clr     $E1             ; retire menu replay before another phase
         ldb     #$3F
         stb     $DF
 menu_screen_retained

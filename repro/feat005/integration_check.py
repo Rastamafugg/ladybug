@@ -20,6 +20,9 @@ if kind=='boot':
 elif kind=='natural-menu':
     path=ROOT/'scripts/verify_feat005_menus.py'
     source=path.read_text()
+    source=source.replace(
+        'and read(0xD4)==0 and read(0x91)==0)',
+        'and read(0xD4)==0 and read(0x91)==0 and (screen not in (3,6,7) or read(0xE1)==0))',1)
     old="        ids.extend(monitor.setup(client,[0x0700]))"
     assert old in source
     source=source.replace(old,"        report['status']='pass';return\n"+old,1)
@@ -48,13 +51,17 @@ elif kind=='natural-menu':
                 assert r.frame_tile(frame,dst)==r.frame_tile(expected,dst),(owner,'credits BACK green')
         check('credits BACK selected green on both publications')
         key(0x30,3);check('credits Enter returns to high scores')
-        key(0x2C,3);key(0x30,7);key(0x32,3)
-        # Press during natural high-score hydration after a selection redraw.
+        key(0x2C,3);key(0x30,7);key(0x32)
+        assert read(0xA5)==1, 'initial high-score load not reached'
+        key(0x2C,3);assert read(0xE0)==1;high_pixels(1)
+        key(0x2B,3);assert read(0xE0)==0
+        check('selection input during initial high-score loading reaches both owners')
+        # A selection edit stays in HOLD; reverse it while replay is outstanding.
         client.call('inject_key',{'key':0x2C,'action':'press'});tick()
         client.call('inject_key',{'key':0x2C,'action':'release'});tick()
-        assert read(0xA5)==1 and read(0xE0)==1, 'selection redraw not exercising hydration'
+        assert read(0xA5)==5 and read(0xE0)==1, 'selection edit restarted full hydration'
         key(0x2B,3);assert read(0xE0)==0
-        high_pixels(0);check('Up is dispatched during high-score hydration')""",1)
+        high_pixels(0);check('Up reverses a pending high-score field replay')""",1)
 
     old="        check('natural options/BACK/credits/Escape and retained settings')"
     assert old in source

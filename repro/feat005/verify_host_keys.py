@@ -1,6 +1,7 @@
-import ctypes as c,subprocess,time,json,os,hashlib,re
+import argparse,ctypes as c,subprocess,time,json,os,hashlib,re
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2];B=ROOT/'build';O=B/'menu-host-probe';O.mkdir(exist_ok=True)
+parser=argparse.ArgumentParser();parser.add_argument('--output',type=Path,default=ROOT/'repro/feat005-host-keys-after-20260930.json');args=parser.parse_args()
 xlib=c.CDLL('libX11.so.6');xlib.XOpenDisplay.restype=c.c_void_p;xlib.XDefaultRootWindow.argtypes=[c.c_void_p];xlib.XDefaultRootWindow.restype=c.c_ulong
 xlib.XQueryTree.argtypes=[c.c_void_p,c.c_ulong,c.POINTER(c.c_ulong),c.POINTER(c.c_ulong),c.POINTER(c.POINTER(c.c_ulong)),c.POINTER(c.c_uint)]
 xlib.XFetchName.argtypes=[c.c_void_p,c.c_ulong,c.POINTER(c.c_char_p)];xlib.XFree.argtypes=[c.c_void_p]
@@ -63,6 +64,9 @@ try:
  key('Return');ready(3)
  key('Down');ready(3);key('Return');ready(7)
  key('Return');ready(3)
- (ROOT/'repro/feat005-host-keys-after-20260930.json').write_text(json.dumps({'status':'pass','rom_sha256':hashlib.sha256((B/'ladybug.rom').read_bytes()).hexdigest(),'input':'desktop X11 XTest through installed XRoar1.10 GTK keyboard handler, 80ms key dwell; CoCo inject_key unused','snapshots':snapshots},indent=2)+'\n')
+ screens=[]
+ for state in snapshots:
+  if state['mode']==5 and state['key'].startswith('ready ') and (not screens or screens[-1]!=state['screen']):screens.append(state['screen'])
+ args.output.write_text(json.dumps({'status':'pass','rom_sha256':hashlib.sha256((B/'ladybug.rom').read_bytes()).hexdigest(),'input':'desktop X11 XTest through installed XRoar1.10 GTK keyboard handler, 80ms key dwell; CoCo inject_key unused','published_screen_sequence':screens,'snapshots':[state for state in snapshots if not state['key'].startswith('ready ')]},indent=2)+'\n')
 finally:
  p.terminate();p.wait(timeout=3)

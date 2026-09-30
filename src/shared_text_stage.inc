@@ -858,6 +858,8 @@ MENU_LEVEL equ $EB
 MENU_SELECT equ $E0
 MENU_PREV equ $DF
 MENU_EVENT equ $D0
+; Menu HOLD only: owner A/B dirty bits. Name entry owns this as repeat state.
+MENU_DIRTY equ $E1
 
 menu_scan
         clr     $A9
@@ -1004,8 +1006,9 @@ menu_last
         bls     menu_idle
         inc     MENU_SELECT
 menu_redraw
-        lda     PRES_SCREEN
-        bra     menu_start
+        lda     #3
+        sta     MENU_DIRTY
+        bra     menu_idle
 menu_enter
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
         bne     menu_enter_option
@@ -1029,6 +1032,37 @@ menu_start
         pshs    x
         jmp     PRES_MODULE_START_SCREEN
 menu_idle
+        ; Loading still accepts input, but cannot publish a field transaction.
+        lda     PRES_MODE
+        cmpa    #5
+        bne     menu_hold
+        tst     MENU_DIRTY
+        beq     menu_idle_logo
+        tst     FB_PENDING
+        bne     menu_hold
+        lda     FB_BACK_ID
+        inca                    ; owner 0 -> bit 1, owner 1 -> bit 2
+        anda    MENU_DIRTY
+        beq     menu_hold
+        ldd     #menu_updated
+        std     PRES_NAME_PTR
+        ldd     #PRES_MAIN_PAGE23_RESUME
+        pshs    d
+        jmp     PRES_HIGHSCORE_FB_PREPARE
+menu_updated
+        ; Existing callback restored page $23 after preparing game-page state.
+        lbsr    menu_load_finish
+        lda     FB_BACK_ID
+        inca
+        coma
+        anda    MENU_DIRTY
+        sta     MENU_DIRTY
+        ldd     #menu_hold
+        std     PRES_NAME_PTR
+        ldd     #PRES_MAIN_PAGE23_RESUME
+        pshs    d
+        jmp     PRES_HIGHSCORE_FB_FINISH
+menu_idle_logo
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_HIGH_SCORE
         lbeq    highscore_logo_tick
