@@ -104,7 +104,7 @@
         <li>A skull-killed enemy returns to the central den, waits briefly, and is released again.</li>
         <li>Frozen for several seconds when the player eats a vegetable; still lethal on contact during the freeze.</li>
         <li><strong>StrategyWiki claim to verify:</strong> enemies wander semi-randomly until the player is close, then pursue steadily; entering the den is safe while enemies remain inside it.</li>
-        <li>Speed increases per level; player speed does not.</li>
+        <li>Player speed remains constant. Exact enemy movement speed progression is under source/arcade research in BUG-087; do not infer an increase on every level from the older general description.</li>
       </ul>
 
       <h3>Skulls</h3>
@@ -272,7 +272,7 @@
       <h2>Deferred (not blocking initial implementation)</h2>
       <ol>
         <li><strong>Colour-cycle reset</strong> — stage-one durations are measured; determine whether stage-clear or death resets the cycle.</li>
-        <li><strong>Later-stage border/vegetable timing</strong> — stage one is 9 frames per box; measure stages 2 and 5, the vegetable appearance point, availability duration, and relationship to the next enemy release.</li>
+        <li><strong>Later-stage border/vegetable timing</strong> — border cadence is documented as 9/6/3 frames per box at parts 1/2/5; measure vegetable appearance/availability and its relationship to enemy releases separately.</li>
         <li><strong>Enemy and skull behavior</strong> — verify wander-to-pursuit switching, den safety, skull progression, skull removal after player death, enemy den return/re-release, vegetable recurrence, and post-freeze speed increase.</li>
         <li><strong>Stage completion</strong> — verify whether all six bonus circles are mandatory and whether either completed word immediately advances the stage.</li>
         <li><strong>Two-player scope</strong> — StrategyWiki documents separate one- and two-player start buttons; decide whether alternating two-player mode is required for CoCo v1.</li>
@@ -301,7 +301,7 @@
         SPECIAL reward, lives/bonus, maze invariance, and skull count.
       </p>
     </footer>
-  </main>
+  <section id="screen-input-policies-20261001"><h2>2026-10-01 — Confirmed screen/input policies</h2><p>PART displays keep the leading-zero tens/units cells fixed and add hundreds immediately left for 100–255; clear that cell below 100. Stage progression is unchanged. Physical 5/6 credits and physical arrows/Enter menu navigation/activation are hardcoded. The keybindings screen edits gameplay controls only; ACTION is reserved for future optional modes. These choices preserve menu access regardless of gameplay rebinding. High-score selection uses text colour without parentheses. Preserve the source-backed arcade later-part enemy group formula, rather than using types 1–4 at every later part. These are approved behavior decisions; code/fit/runtime acceptance is recorded separately in their tickets.</p><p>The border timer already has a source-backed 9/6/3 arcade-frame cadence for parts 1,2–4,5 onward. Enemy movement progression is being researched separately under <a href="../tickets/bug-087-level-speed-progression.html">BUG-087</a>; the older unqualified per-level enemy-speed statement is not a measured schedule.</p></section></main>
 </div>
 </body>
 </html>
