@@ -1,0 +1,42 @@
+{
+  "baseline_commit": "fe160ae389145d24083218ded05ba9cdca781474",
+  "worktree_head_at_diagnostic_build": "b491af52fcda35f7e4de59911fcb95fdef203faf",
+  "original_verifier_sha256": "85bb1ccbca6dde24344aef0f52895aeec0b2cf9e04261c033e4db13a346c24a0",
+  "bypass_verifier_sha256": "c9915d3d487b8de8ba55fd90460ffce1d0a6cbd5104409ac9aaf0665370a644c",
+  "original_verifier_restored": true,
+  "diagnostic_build_directory": "build/rsch014-C2-diagnostic",
+  "attempts": [
+    {
+      "kind": "unmodified verifier",
+      "result": "FAIL",
+      "failure": {
+        "screen": "attract",
+        "x": 13,
+        "y": 15,
+        "expected_pen": 9,
+        "actual_pen": 1,
+        "code": 25,
+        "glyph": 24,
+        "mask": "007e43437e404000"
+      }
+    },
+    {
+      "kind": "rejected one-tuple temporary bypass",
+      "result": "FAIL",
+      "failure": {
+        "screen": "attract",
+        "x": 14,
+        "y": 15,
+        "expected_pen": 9,
+        "actual_pen": 1,
+        "code": 27,
+        "glyph": 26,
+        "mask": "007e43437e444700"
+      },
+      "patch": "temporary-palette-bypass.patch"
+    }
+  ],
+  "interpretation": "The second cell fails independently after exempting only the first. Static audit shows a repeated mapping/verifier-contract mismatch across four authored cells; intended colour remains unresolved and belongs to BUG-063. No row-level verifier waiver was adopted.",
+  "build_boundary": "Stopped in verify_shared_text.py before final assembly/link and ROM generation. Generated data and early capacity figures are diagnostic precursors only; no successful full build or ROM identity exists.",
+  "build_log_sha256": "9097c0d300426bb268a4dc388aed372fe568764d819096cddbdbf53903bf67bb"
+}

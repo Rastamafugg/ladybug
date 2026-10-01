@@ -1,0 +1,264 @@
+{
+  "baseline_commit": "fe160ae389145d24083218ded05ba9cdca781474",
+  "worktree_head": "b491af52fcda35f7e4de59911fcb95fdef203faf",
+  "disposition": "Preparation prototype only; source changes remain uncommitted and unapproved. Parent owns canonical FEAT-005 update and integration.",
+  "user_contract": {
+    "gameplay_binding_rows": [
+      "UP",
+      "DOWN",
+      "LEFT",
+      "RIGHT",
+      "ACTION"
+    ],
+    "normal_game_effect": "First four rows drive movement. ACTION is reserved for future optional modes and must have no newly enabled normal-game effect.",
+    "fixed_controls": {
+      "menu_arrows": "physical arrows",
+      "menu_enter": 6,
+      "coin_5": 44,
+      "coin_6": 52
+    },
+    "high_score_menu": [
+      "START GAME",
+      "OPTIONS",
+      "CREDITS"
+    ],
+    "zero_credit_label": "ADD CREDITS",
+    "selection": "Text colour only on high-score menu; no parentheses. Options selector remains bracket-based.",
+    "start_gate": "Only high-score START GAME selection with credits >0 consumes one credit and enters credited level-start. No old 1/2 start route or rebinding-based start.",
+    "credit_capacity": {
+      "generated_constant": "PRESENTATION_COIN_SLOT_COUNT",
+      "value": 12,
+      "source": "build/rsch014-C2-diagnostic/ladybug_presentation.inc",
+      "coin_slot_count": 12
+    }
+  },
+  "prototype_static_data": {
+    "keybinding_rows": {
+      "action_rows": [
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "editable_action_count": 5,
+      "back_row": 20,
+      "value_bounds": [
+        19,
+        32
+      ],
+      "default_physical_keys": [
+        27,
+        35,
+        43,
+        51,
+        6
+      ],
+      "fixed_menu_enter_physical_key": 6,
+      "fixed_credit_physical_keys": [
+        44,
+        52
+      ],
+      "legacy_blank_guide_cells": [
+        [
+          29,
+          18
+        ],
+        [
+          30,
+          16
+        ],
+        [
+          30,
+          18
+        ],
+        [
+          31,
+          16
+        ],
+        [
+          31,
+          18
+        ],
+        [
+          32,
+          16
+        ],
+        [
+          32,
+          18
+        ],
+        [
+          33,
+          16
+        ],
+        [
+          33,
+          18
+        ],
+        [
+          34,
+          16
+        ],
+        [
+          34,
+          18
+        ]
+      ],
+      "maximum_name_width": 11
+    },
+    "menu_rows": "Generated menu_high_score_rows has 3 spans. menu_high_score_add_credits occupies the START GAME span width. menu_options_pairs remains generated; high-score pair data is absent.",
+    "keybinding_record_sha256": "99d2359b9fa475e545896dbce0921f95a98d3e716a66bd656d892da350d53287",
+    "menu_record_sha256": "ef45c81a43946d9b544067c200799d99c7011491ff2935b3ac697005e0733751",
+    "presentation_manifest_sha256": "0f070cd906c042620abac1f423b5e5c4079101b324516d2e7ba1e650ddcc8cee",
+    "presentation_include_sha256": "dc1c009c954cbc1fdd18d894c827bcb318a4ea9177443cbea98ad6c1104a103e"
+  },
+  "existing_runtime_contract_confirmed_from_fe160_source": {
+    "no_new_coin_consumer": "src/presentation_runtime.s is unchanged from fe160; no duplicate A9-to-A8 consumer was added.",
+    "foreground_reachability": "src/main.s mainloop calls address $1900 every Vbord; complete-profile presentation_flow_tick at $1900 calls scan_keys; complete-profile scan_keys maps PAR5=$23 and calls MENU_SCAN; pft_ready consumes PRES_EVENT mask $06 before mode/menu dispatch.",
+    "credit_update": "Active complete-profile add_credit saturates at generated PRESENTATION_COIN_SLOT_COUNT=12, updates the existing credit byte and CREDIT_RF_HUD. Both simultaneous coin bits invoke add_credit twice, subject to the cap.",
+    "menu_refresh": "A coin event from the idle/high-score menu path reloads the high-score screen; menu_load_finish repaints from the authoritative credit byte. Existing coin-slot graphics are drawn from the same credit count. No separate numeric credit display was found in this source path.",
+    "screen_entry_edge": "Global key previous-state advances every scan. Local menu previous-state $DF updates only in local menu scan; attract IDs 0..2 skip that update. A held Enter across attract-to-high-score coin pre-emption can therefore publish a local Enter edge on first high-score scan if $DF was clear. Required entry/release scenario remains an implementation/runtime gate.",
+    "capture_release": "While capture is active key_scan clears PRES_EVENT before capture processing; candidate fixed coin IDs are rejected; capture waits until all sampled rows are released. Runtime verification remains required.",
+    "source_identity": "src/presentation_runtime.s, src/main.s, and src/keybinding_runtime.s baselines were source-inspected; the active coin consumer is the pre-existing presentation-flow path, not menu_scan itself."
+  },
+  "source_prototype_files": [
+    "assets/arcade/text-colours.json",
+    "scripts/build_presentation.py",
+    "scripts/build_screen.py",
+    "scripts/shared_text.py",
+    "src/demo_runtime.s",
+    "src/keybinding_runtime.s",
+    "src/shared_text_stage.inc"
+  ],
+  "source_sha256": {
+    "assets/arcade/text-colours.json": "c38d8a2839f5d1a41436f0d2cd5c79c18ce22fd055469f1dd4d8655f4ad0b904",
+    "scripts/build_presentation.py": "99f3b2ed3a2df3b784f602053a0412ef4a6b239c689a6c39c15c2c6e4f647439",
+    "scripts/build_screen.py": "c1ed6a0d90da9dd402ea199478be7f9cd71d0787b60fa0ce38ded8acc5decf5e",
+    "scripts/shared_text.py": "b9b0002168e926e2821117fe98c3be940f64d8145e1e002d5529d7a7b80f378c",
+    "src/demo_runtime.s": "82081e08035c1046209999a275a01914f8454b76b6b4ec392b64873c53a1caa5",
+    "src/keybinding_runtime.s": "936aa47cbe9532ec4d74fb3108d8632e880dea57cc8e5bf6aede3f8d8724d82a",
+    "src/shared_text_stage.inc": "90d0ffb2178b8a33489b0e0c12c0a5620dc566b86c2385c3441de73ca3785e3f"
+  },
+  "source_patch": "source-prototype.patch",
+  "source_patch_sha256": "acac49342e7339222f079bd06052d7ee8f522590aebe32ec4b4b39012ff023a2",
+  "classification": "High-risk: input ownership and cross-phase foreground dispatch; hard credit/start gate; persistent menu/framebuffer publication; binding-state footprint; shared page-$3D fit constraint.",
+  "dependencies_and_order": [
+    "BUG-059 authored layer-contract prototype prerequisite before compiler/runtime integration.",
+    "FEAT-005 owns user-confirmed five-row/fixed-key and high-score menu design; this evidence does not edit its canonical page.",
+    "BUG-063 palette-remapping/verifier-contract decision blocks full combined build acceptance; no verifier waiver or palette repair is included."
+  ],
+  "verification": {
+    "passed": [
+      "python -m py_compile scripts/shared_text.py scripts/build_screen.py scripts/build_presentation.py",
+      "python scripts/verify_bug016_presentation_layers.py --tiled-dir tiled --manifest build/rsch014-C2-diagnostic/ladybug-presentation.json",
+      "Generated-record structural assertions: five rows, fixed Enter/coin IDs, 12 coin slots, three high-score labels, retained options pairs, no high-score pair records."
+    ],
+    "failed_or_incomplete": [
+      "Full build stopped at scripts/verify_shared_text.py on attract row15 x13; one-cell bypass then failed at x14. No assembler completion, final capacity audit, ROM, emulator, natural sequence, or runtime pixels were produced.",
+      "Entry/release behavior for held Enter across attract-to-high-score transition remains an exact source-level risk and must be forced in future runtime verification."
+    ],
+    "partial_capacity_observations": {
+      "mapped": {
+        "bytes": 198,
+        "limit": 220,
+        "free": 22
+      },
+      "banked": {
+        "bytes": 690,
+        "limit": 698,
+        "free": 8
+      },
+      "audio_engine": {
+        "bytes": 734,
+        "limit": 920
+      },
+      "page_3d_payload": {
+        "bytes": 6053,
+        "limit": 8192
+      },
+      "interpretation": "Earlier build-stage measurements before the verifier stop; not final integrated capacity acceptance."
+    }
+  },
+  "rejected_experiment": "Temporary one-cell attract palette verifier bypass retained as temporary-palette-bypass.patch. It moved the failure from x13 to x14. Static audit demonstrates a repeated mapping/verifier-contract mismatch, not justification for a row-wide exemption.",
+  "status": "Proposed design evidence only. Not Approved or Ready; same-edge/held-Enter behavior, BUG-063 verifier gate, final capacity, ROM identity and natural runtime acceptance remain unresolved.",
+  "production_file_targets": [
+    {
+      "path": "scripts/build_presentation.py",
+      "purpose": "Accept current authored layer ownership and fixed sprite-marker contracts after BUG-059 prerequisite."
+    },
+    {
+      "path": "scripts/build_screen.py",
+      "purpose": "Validate and omit the authored gameplay Sprite Locations marker without treating it as a maze tile."
+    },
+    {
+      "path": "scripts/shared_text.py",
+      "purpose": "Extract three high-score labels; strictly parse five gameplay-binding rows while preserving Options bracket pairs."
+    },
+    {
+      "path": "assets/arcade/text-colours.json",
+      "purpose": "Remove stale high-score overrides on the user-cleared row; no attract-row palette repair."
+    },
+    {
+      "path": "src/keybinding_runtime.s",
+      "purpose": "Use five gameplay binding bytes; keep fixed menu Enter and fixed coin inputs outside rebinding; retain scratch offsets and release-gated capture."
+    },
+    {
+      "path": "src/shared_text_stage.inc",
+      "purpose": "Gate high-score Start on credit, route Options/Credits, render ADD CREDITS at zero, and use text-colour selection without high-score parentheses."
+    },
+    {
+      "path": "src/demo_runtime.s",
+      "purpose": "Keep DOC-002 source-contract mirror accurate for fixed input edge publication and text-only high-score selection."
+    },
+    {
+      "path": "src/presentation_runtime.s",
+      "purpose": "Existing complete-profile coin consumer is baseline-owned and already globally reachable; no duplicate A9 consumer is planned. Any approved same-edge adjustment must be scoped here after the forced case is defined."
+    }
+  ],
+  "dependency_order": [
+    "BUG-059 authored layer-contract contract/prerequisite.",
+    "FEAT-005 user-confirmed menu/keybinding contract and compiler/parser integration.",
+    "BUG-063 palette remapping/verifier contract resolution is required before the standard full build can pass.",
+    "Only after approval and dependency fit, integrate runtime and run current-source build/capacity plus bounded natural and forced input scenarios."
+  ],
+  "risk_driven_verification": [
+    {
+      "scenario": "Current nine authored maps and layer markers through existing BUG-016 verifier.",
+      "risk": "Compiler layer contract and marker classification.",
+      "command": "python scripts/verify_bug016_presentation_layers.py --tiled-dir tiled --manifest build/rsch014-C2-diagnostic/ladybug-presentation.json"
+    },
+    {
+      "scenario": "Five authored action rows, fixed Enter/coin IDs, three high-score labels, no high-score pair records, Options pairs unchanged.",
+      "risk": "Parser/data ownership and the removed high-score selector layer.",
+      "command": "Generated-record structural assertions retained in static-contract-checks.json; rerun after compiler integration."
+    },
+    {
+      "scenario": "One natural cold path: boot \u2192 zero-credit high-score \u2192 5/6 coin \u2192 Start Game text \u2192 Enter \u2192 credited level-start/gameplay.",
+      "risk": "First-frame identity, credit ownership, menu label refresh and start gate across presentation/gameplay handoff.",
+      "command": "scripts/build.sh build followed by existing gdb-mcp round-trip tooling; runtime markers and pixel checks must be named before execution."
+    },
+    {
+      "scenario": "Same-scan coin plus Enter on high-score; coin plus held Enter from attract; release then press; fixed 5/6 during key capture through release.",
+      "risk": "Edge ordering, transition carry, duplicate/replayed events and capture suppression.",
+      "command": "Use existing runtime harness after a final ROM exists; missing case or timeout fails this gate. Keep each diagnostic phase \u226460 seconds."
+    },
+    {
+      "scenario": "Configured ACTION press during normal gameplay while movement controls still operate; hardcoded arrows/Enter on each menu.",
+      "risk": "Separation of editable gameplay bindings from fixed menu controls and accidental normal ACTION effect.",
+      "command": "Existing runtime input harness; no Cartesian menu/game mode matrix beyond these ownership boundaries."
+    }
+  ],
+  "assignment_and_commit_boundary": {
+    "current_owner": "C2 preparation agent owns only wiki/internal/tickets/evidence/rsch014-C2 in worktree menu-name-prep.",
+    "integration_owner": "Parent updates canonical FEAT-005/RSCH-014/index/log and inspects this evidence commit.",
+    "production_status": "All source/runtime prototypes remain uncommitted; no implementation approval is implied.",
+    "evidence_commit": "One documentation/evidence-only commit. Include the retained zero-context source-prototype.patch as review evidence (replay with git apply --unidiff-zero); exclude the seven modified production/source files and all nine user TMX files from staging.",
+    "push": "None."
+  },
+  "capacity_and_runtime_limits": {
+    "partial_build_observations": "Mapped prototype 198/220 bytes (22 free); banked component 690/698 bytes (8 free); audio engine 734/920 bytes; page-$3D payload 6053/8192 bytes.",
+    "status": "These values precede the verifier stop and are not final combined-source acceptance or headroom. Final build, capacity audit, ROM and live runtime are absent.",
+    "runtime_probes": "None executed; no current snapshot ROM was emitted."
+  }
+}

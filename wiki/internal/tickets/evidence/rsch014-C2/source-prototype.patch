@@ -1,0 +1,609 @@
+diff --git a/assets/arcade/text-colours.json b/assets/arcade/text-colours.json
+index 868fed4..b3d20ec 100644
+--- a/assets/arcade/text-colours.json
++++ b/assets/arcade/text-colours.json
+@@ -318,119 +317,0 @@
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 10,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 8
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 12,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 13,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 14,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 15,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 16,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 17,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 19,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 20,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 21,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 22,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 23,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 24,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 26,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 27,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 28,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 29,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+diff --git a/scripts/build_presentation.py b/scripts/build_presentation.py
+index 486decf..9249ac1 100644
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -122,0 +123 @@ ENTER_HIGH_SCORE_CURSOR_MARKER = {(19, 22): 545}
++ENTER_HIGH_SCORE_SPRITE_LOCATIONS = {**ENTER_HIGH_SCORE_CURSOR_MARKER, (32, 13): 633}
+@@ -195 +196 @@ PRESENTATION_LAYER_CONTRACTS = {
+-        "metadata": ("Coin Positions", "Selected Option"),
++        "metadata": ("Coin Positions",),
+@@ -203 +204 @@ PRESENTATION_LAYER_CONTRACTS = {
+-        "metadata": (),
++        "metadata": ("Sprite Locations",),
+@@ -237,9 +238,2 @@ INSTRUCTION_RAW_SPRITE_MARKERS = {
+-LEVEL_START_METADATA = {
+-    **{(x, 2): 497 for x in range(33, 39)},
+-    **{(x, 6): 497 for x in range(33, 39)},
+-    (16, 7): 633,
+-    (19, 7): 481, (20, 7): 497, (21, 7): 497, (22, 7): 497,
+-    (33, 9): 497,
+-    (32, 13): 633,
+-    (35, 13): 481, (36, 13): 497, (37, 13): 497, (38, 13): 497,
+-}
++LEVEL_START_METADATA = {(16, 7): 633, (32, 13): 633}
++GAME_OVER_SPRITE_LOCATIONS = {(32, 13): 633}
+@@ -695,0 +690,7 @@ def validate_presentation_layers(
++    if role == "game-over":
++        metadata = by_name["Sprite Locations"]
++        require_records(
++            path, "game-over sprite locations", layer_records(metadata),
++            GAME_OVER_SPRITE_LOCATIONS,
++        )
++        validate_layer_tilesets(path, root, metadata, ("sprites_raw2bpp",))
+@@ -698 +699 @@ def validate_presentation_layers(
+-        require_records(path, "level-start metadata", records, LEVEL_START_METADATA)
++        require_records(path, "level-start sprite locations", records, LEVEL_START_METADATA)
+@@ -701 +702 @@ def validate_presentation_layers(
+-            ("chars_raw2bpp", "sprites_raw2bpp"),
++            ("sprites_raw2bpp",),
+@@ -708 +709 @@ def validate_presentation_layers(
+-            ENTER_HIGH_SCORE_CURSOR_MARKER,
++            ENTER_HIGH_SCORE_SPRITE_LOCATIONS,
+@@ -1370 +1371 @@ def parse_enter_high_score_contract(
+-        ENTER_HIGH_SCORE_CURSOR_MARKER,
++        ENTER_HIGH_SCORE_SPRITE_LOCATIONS,
+diff --git a/scripts/build_screen.py b/scripts/build_screen.py
+index ab74b6f..81a434c 100644
+--- a/scripts/build_screen.py
++++ b/scripts/build_screen.py
+@@ -39,0 +40 @@ LIFE_PEN_MAP = (BLACK, GREEN, DARK_RED, YELLOW)
++GAMEPLAY_SPRITE_LOCATIONS = {(32, 13): 633}
+@@ -700,0 +702,42 @@ def tileset_ranges(root: ET.Element, map_path: Path) -> list[dict[str, object]]:
++def validate_gameplay_sprite_locations(
++        root: ET.Element, map_path: Path,
++) -> ET.Element:
++    """Validate the authored gameplay sprite marker before omitting it."""
++    layers = [layer for layer in root.findall("layer")
++              if layer.get("name") == "Sprite Locations"]
++    if len(layers) != 1:
++        raise ValueError(
++            f"{map_path}: expected one Sprite Locations layer; found {len(layers)}"
++        )
++    layer = layers[0]
++    cells = parse_csv(layer.find("data"), layer.get("name", ""))
++    actual = {
++        (index % SCREEN_WIDTH, index // SCREEN_WIDTH): gid
++        for index, gid in enumerate(cells) if gid & GID_MASK
++    }
++    if actual != GAMEPLAY_SPRITE_LOCATIONS:
++        missing = sorted(set(GAMEPLAY_SPRITE_LOCATIONS) - set(actual))
++        extra = sorted(set(actual) - set(GAMEPLAY_SPRITE_LOCATIONS))
++        wrong = sorted(cell for cell in set(actual) & set(GAMEPLAY_SPRITE_LOCATIONS)
++                       if actual[cell] != GAMEPLAY_SPRITE_LOCATIONS[cell])
++        raise ValueError(
++            f"{map_path}: Sprite Locations contract mismatch; "
++            f"missing={missing}, extra={extra}, wrong={wrong}"
++        )
++    ranges = tileset_ranges(root, map_path)
++    for cell, gid_with_flags in actual.items():
++        gid = gid_with_flags & GID_MASK
++        tileset = next((item for item in ranges
++                        if int(item["firstgid"]) <= gid <= int(item["lastgid"])), None)
++        if (tileset is None or tileset["name"] != "sprites_raw2bpp"
++                or tileset["tilewidth"] != 16 or tileset["tileheight"] != 16):
++            name = None if tileset is None else tileset["name"]
++            dimensions = None if tileset is None else (
++                tileset["tilewidth"], tileset["tileheight"])
++            raise ValueError(
++                f"{map_path}: Sprite Locations cell {cell} uses "
++                f"{name!r} {dimensions!r}; expected sprites_raw2bpp (16, 16)"
++            )
++    return layer
++
++
+@@ -715,0 +759 @@ def compile_screen(map_path: Path, maze_path: Path, chars_path: Path,
++    sprite_locations = validate_gameplay_sprite_locations(root, map_path)
+@@ -718,0 +763,2 @@ def compile_screen(map_path: Path, maze_path: Path, chars_path: Path,
++        if layer is sprite_locations:
++            continue
+diff --git a/scripts/shared_text.py b/scripts/shared_text.py
+index 817b987..fa47751 100644
+--- a/scripts/shared_text.py
++++ b/scripts/shared_text.py
+@@ -252 +252,2 @@ class SharedText:
+-        # Generate menu label and bracket anchors directly from the authored TMX.
++        # Extract authored high-score menu text spans for colour-only selection.
++        # No parenthesis or other cursor glyphs are emitted for this screen.
+@@ -254,26 +255,35 @@ class SharedText:
+-        for name in ('high-score','options'):
+-            path=self.args.tiled_dir/self.p.MAP_FILES[name]
+-            root=ET.parse(path).getroot()
+-            layer=next(l for l in root.findall('layer') if l.get('name')=='Selected Option')
+-            cells=s.parse_csv(layer.find('data'),'Selected Option')
+-            pairs=[]
+-            for row in range(24):
+-                anchors=[(col,gid) for col,gid in enumerate(cells[row*40:(row+1)*40]) if gid]
+-                for i in range(0,len(anchors),2):
+-                    left,right=anchors[i:i+2]
+-                    assert self.p.raw_char_code(root,path,left[1])==43
+-                    assert self.p.raw_char_code(root,path,right[1])==44
+-                    pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
+-            assert len(pairs)==2,(name,pairs)
+-            menu_lines.append('menu_'+name.replace('-','_')+'_pairs')
+-            menu_lines.extend('        fdb $%04X,$%04X'%pair for pair in pairs)
+-            if name=='high-score':
+-                _,flat,_=self.p.flatten_map(path)
+-                menu_lines.append('menu_high_score_rows')
+-                for left,right in pairs:
+-                    row=(left-0x2000)//1280;lo=((left-0x2000)%1280)//4+1
+-                    hi=((right-0x2000)%1280)//4
+-                    codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40+lo:row*40+hi]]
+-                    codes=[c if c is not None and 0<=c<=35 else 36 for c in codes]
+-                    menu_lines.append('        fdb $%04X'%(left+4))
+-                    menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
++        path=self.args.tiled_dir/self.p.MAP_FILES['high-score']
++        root=ET.parse(path).getroot()
++        layer=root.find("layer[@name='High Score Table and Branding']")
++        if layer is None:raise ValueError((path,'missing High Score Table and Branding'))
++        cells=self.p.parse_csv(layer.find('data'),layer.get('name'))
++        specs=((20,17,26,'START GAME'),(21,17,23,'OPTIONS'),(22,17,23,'CREDITS'))
++        high_rows=[]
++        for row,lo,hi,label in specs:
++            row_gids=cells[row*40:(row+1)*40]
++            raw=[self.p.raw_char_code(root,path,gid&self.p.GID_MASK) for gid in row_gids]
++            codes=[c if 0<=c<=35 else 36 for c in raw]
++            expected=[36 if char==' ' else ord(char)-55 for char in label]
++            matches=[col for col in range(41-len(expected)) if codes[col:col+len(expected)]==expected]
++            if (hi-lo+1!=len(expected) or codes[lo:hi+1]!=expected or matches!=[lo]):
++                raise ValueError((path,'authored high-score menu span mismatch',row,lo,hi,label,matches))
++            # ADD CREDITS has 11 characters. The unused blank at x16 lets it
++            # replace centered START GAME without synthesizing selector marks.
++            if row==20 and row_gids[16]!=8:
++                raise ValueError((path,'start row lacks blank cell for ADD CREDITS',(16,row)))
++            if row==20:
++                lo=16
++                row_codes=[36,*expected]
++            else:
++                row_codes=expected
++            high_rows.append((row,lo,row_codes))
++        menu_lines.append('menu_high_score_rows')
++        for row,lo,codes in high_rows:
++            menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
++            menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
++        add_credits=[36 if char==' ' else ord(char)-55 for char in 'ADD CREDITS']
++        menu_lines.append('menu_high_score_add_credits')
++        menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((16,20)))
++        menu_lines.append('        fcb '+','.join(str(code) for code in [len(add_credits),*add_credits]))
++        # Keep the Options screen's authored selector pairs. The no-parenthesis
++        # clarification applies only to the high-score screen.
+@@ -280,0 +291,14 @@ class SharedText:
++        root=ET.parse(path).getroot()
++        layer=next(l for l in root.findall('layer') if l.get('name')=='Selected Option')
++        cells=s.parse_csv(layer.find('data'),'Selected Option')
++        pairs=[]
++        for row in range(24):
++            anchors=[(col,gid) for col,gid in enumerate(cells[row*40:(row+1)*40]) if gid]
++            for i in range(0,len(anchors),2):
++                left,right=anchors[i:i+2]
++                assert self.p.raw_char_code(root,path,left[1])==43
++                assert self.p.raw_char_code(root,path,right[1])==44
++                pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
++        assert len(pairs)==2,('options',pairs)
++        menu_lines.append('menu_options_pairs')
++        menu_lines.extend('        fdb $%04X,$%04X'%pair for pair in pairs)
+@@ -314 +338,16 @@ class SharedText:
+-        guide = root.find("layer[@name='Selected Option']")
++        guides = [layer for layer in root.findall('layer')
++                  if layer.get('name') == 'Selected Option']
++        if len(guides) != 1:
++            raise ValueError(('keybinding guide layer count', len(guides)))
++        guide = guides[0]
++        guide_cells = self.p.parse_csv(guide.find('data'), 'Selected Option')
++        expected_pairs = {6: (23, 32), 8: (21, 32), 10: (21, 32),
++                          12: (20, 32), 14: (26, 32)}
++        legacy_blank_cells = ({(col, 16) for col in range(30, 35)} |
++                              {(col, 18) for col in range(29, 35)})
++        expected_nonzero = {
++            (left, row) for row, (left, _) in expected_pairs.items()
++        } | {
++            (right, row) for row, (_, right) in expected_pairs.items()
++        } | legacy_blank_cells
++        actual_nonzero = set()
+@@ -317,2 +356,15 @@ class SharedText:
+-            markers = [(col, self.p.raw_char_code(root, path, gid))
+-                       for col, gid in enumerate(self.p.parse_csv(guide.find('data'), 'Selected Option')[row*40:(row+1)*40]) if gid]
++            row_cells = guide_cells[row * 40:(row + 1) * 40]
++            markers = []
++            for col, gid in enumerate(row_cells):
++                if not gid:
++                    continue
++                cell = (col, row)
++                actual_nonzero.add(cell)
++                code = self.p.raw_char_code(root, path, gid & self.p.GID_MASK)
++                if cell in legacy_blank_cells:
++                    if (gid & self.p.GID_MASK) != 8 or code != 255:
++                        raise ValueError(('keybinding legacy guide blank changed', cell, gid, code))
++                    continue
++                if code not in (43, 44):
++                    raise ValueError(('unexpected keybinding guide glyph', cell, gid, code))
++                markers.append((col, code))
+@@ -320,5 +372,10 @@ class SharedText:
+-                if len(markers) != 2 or [v for _, v in markers] != [43, 44] or markers[1][0] != 32:
+-                    raise ValueError(('keybinding parentheses guide', row, markers))
+-                pairs.append((row, markers[0][0], markers[1][0]))
+-        if len(pairs) != 7:
+-            raise ValueError(('expected seven keybinding guide pairs', pairs))
++                expected = expected_pairs.get(row)
++                if expected is None or markers != [(expected[0], 43), (expected[1], 44)]:
++                    raise ValueError(('keybinding parentheses guide', row, markers, expected))
++                pairs.append((row, expected[0], expected[1]))
++        if actual_nonzero != expected_nonzero:
++            raise ValueError(('keybinding guide cell contract',
++                              sorted(expected_nonzero - actual_nonzero),
++                              sorted(actual_nonzero - expected_nonzero)))
++        if [row for row, _, _ in pairs] != list(expected_pairs):
++            raise ValueError(('expected five keybinding guide pairs', pairs))
+@@ -328,2 +385,3 @@ class SharedText:
+-            codes = [self.p.raw_char_code(root, path, gid) for gid in cells[row*40:(row+1)*40]]
+-            if any(codes[col:col+4] == [11, 10, 12, 20] for col in range(37)):
++            codes = [self.p.raw_char_code(root, path, gid & self.p.GID_MASK)
++                     for gid in cells[row * 40:(row + 1) * 40]]
++            if any(codes[col:col + 4] == [11, 10, 12, 20] for col in range(37)):
+@@ -331 +389 @@ class SharedText:
+-        if len(back_rows) != 1:
++        if back_rows != [20]:
+@@ -336,2 +394,4 @@ class SharedText:
+-            codes = [self.p.raw_char_code(root, path, gid) for gid in cells[row*40:row*40+end]]
+-            cols = [i for i, v in enumerate(codes) if v is not None and v <= 35]
++            codes = [self.p.raw_char_code(root, path, gid & self.p.GID_MASK)
++                     for gid in cells[row * 40:row * 40 + end]]
++            cols = [i for i, value in enumerate(codes)
++                    if value is not None and 0 <= value <= 35]
+@@ -339 +399,2 @@ class SharedText:
+-            glyphs = [v if v is not None and v <= 35 else 36 for v in codes[lo:hi+1]]
++            glyphs = [value if value is not None and 0 <= value <= 35 else 36
++                      for value in codes[lo:hi + 1]]
+@@ -341,2 +402,5 @@ class SharedText:
+-                      '        fcb ' + ','.join(str(v) for v in [len(glyphs), *glyphs])]
+-        lines += ['key_value_destinations'] + ['        fdb $%04X' % self.p.framebuffer_destination((19, row)) for row in action_rows]
++                      '        fcb ' + ','.join(str(value) for value in [len(glyphs), *glyphs])]
++        lines += ['key_value_destinations'] + [
++            '        fdb $%04X' % self.p.framebuffer_destination((19, row))
++            for row in action_rows
++        ]
+@@ -348,2 +412,4 @@ class SharedText:
+-            glyphs = [int(c) if c.isdigit() else ord(c)-55 if c != ' ' else 36 for c in name]
+-            lines += ['key_name_' + str(i), '        fcb ' + ','.join(str(v) for v in [len(name), *glyphs])]
++            glyphs = [int(char) if char.isdigit() else ord(char) - 55 if char != ' ' else 36
++                      for char in name]
++            lines += ['key_name_' + str(i),
++                      '        fcb ' + ','.join(str(value) for value in [len(name), *glyphs])]
+@@ -353,2 +419,2 @@ class SharedText:
+-                if row < 3: code = 36 if col == 0 and row == 0 else row*8+col+9
+-                elif row == 3: code = 33+col if col < 3 else 36+col-2
++                if row < 3: code = 36 if col == 0 and row == 0 else row * 8 + col + 9
++                elif row == 3: code = 33 + col if col < 3 else 36 + col - 2
+@@ -356,2 +422,2 @@ class SharedText:
+-                elif row == 5: code = 8+col if col < 2 else 36+col+4
+-                elif row == 6: code = 36+12+col
++                elif row == 5: code = 8 + col if col < 2 else 36 + col + 4
++                elif row == 6: code = 36 + 12 + col
+@@ -361,3 +427,8 @@ class SharedText:
+-        (self.args.output.parent/'ladybug_keybinding_records.inc').write_text('\n'.join(lines)+'\n')
+-        return {'action_rows': action_rows, 'back_row': back_rows[0], 'value_bounds': [19, 32],
+-                'default_physical_keys': [27, 35, 43, 51, 6, 44, 12], 'maximum_name_width': 11}
++        (self.args.output.parent / 'ladybug_keybinding_records.inc').write_text('\n'.join(lines) + '\n')
++        return {'action_rows': action_rows, 'editable_action_count': 5,
++                'back_row': back_rows[0], 'value_bounds': [19, 32],
++                'default_physical_keys': [27, 35, 43, 51, 6],
++                'fixed_menu_enter_physical_key': 6,
++                'fixed_credit_physical_keys': [44, 52],
++                'legacy_blank_guide_cells': sorted(legacy_blank_cells),
++                'maximum_name_width': 11}
+diff --git a/src/demo_runtime.s b/src/demo_runtime.s
+index 6f0b36c..326da6a 100644
+--- a/src/demo_runtime.s
++++ b/src/demo_runtime.s
+@@ -4,2 +4,2 @@
+-; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan menu and existing credit/start edges.
+-; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint the selected authored menu row and brackets.
++; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan fixed physical input and publish coin and menu edges; presentation_flow_tick consumes coin edges before menu dispatch.
++; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint authored menu rows; Options keeps selector brackets, while high-score selection changes text colour only.
+diff --git a/src/keybinding_runtime.s b/src/keybinding_runtime.s
+index 25a404a..65f2a7c 100644
+--- a/src/keybinding_runtime.s
++++ b/src/keybinding_runtime.s
+@@ -2 +2 @@
+-; DOC-002 source-contract mirror contract key_init profile=keybindings: Restore seven default physical bindings and clear capture and repaint history.
++; DOC-002 source-contract mirror contract key_init profile=keybindings: Restore five gameplay defaults; fixed coin/menu keys remain outside the binding table.
+@@ -6 +6 @@
+-; DOC-002 source-contract mirror contract key_tick profile=keybindings: Navigate the seven actions and BACK or begin waiting for a replacement switch.
++; DOC-002 source-contract mirror contract key_tick profile=keybindings: Navigate five gameplay actions and BACK or begin waiting for a replacement switch.
+@@ -13 +13 @@
+-; DOC-002 source-contract mirror profile keybindings Outputs: Held action mask, fresh credit/start/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.
++; DOC-002 source-contract mirror profile keybindings Outputs: Five held gameplay actions, fresh fixed coin/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.
+@@ -19,2 +19,3 @@
+-; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"key_init after boot_streams_retired and before startup input; key_scan initializes column samples before consumer use","lifetime":"Boot descriptors retire before initialization. Bindings retain for powered session; scan/capture scratch retires before subsequent scan","clobbers":"Only this component writes $0287-$029A after boot retirement; existing game/menu routines consume held movement and menu edges."}
+-; FEAT-005 physical key acquisition, session capture and authored menu painting.
++; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"five editable bytes at $0287-$028B; $028C-$028D stay reserved; key_init after boot_streams_retired and before startup input; key_scan initializes column samples before consumer use","lifetime":"Boot descriptors retire before initialization. Bindings retain for powered session; scan/capture scratch retires before subsequent scan","clobbers":"Only this component writes $0287-$029A after boot retirement; main.s consumes only the first four movement bits; ACTION is reserved with no normal effect; fixed coin/menu edges are independent."}
++; RSCH-014 C2 prototype: five gameplay bindings; menu/coin controls have fixed ownership.
++; Source edit is isolated research, not the approved repair implementation.
+@@ -30,0 +32,5 @@ KB_ROWS equ $028E
++KB_ACTION_COUNT equ 5
++KB_MENU_LAST equ 5
++KB_FIXED_ENTER equ 6
++KB_FIXED_COIN_5 equ 44
++KB_FIXED_COIN_6 equ 52
+@@ -47 +53 @@ key_init
+-        ldb #7
++        ldb #KB_ACTION_COUNT
+@@ -62 +68 @@ key_defaults
+-        fcb 27,35,43,51,6,44,12
++        fcb 27,35,43,51,KB_FIXED_ENTER
+@@ -97 +103 @@ ks_next
+-        cmpb #7
++        cmpb #KB_ACTION_COUNT
+@@ -99 +105,9 @@ ks_next
+-        lda #52
++        ; Physical 5 and 6 are fixed coin controls, not hidden bindings.
++        lda #KB_FIXED_COIN_5
++        lbsr key_down
++        beq ks_coin_6
++        lda KB_DOWN
++        ora #32
++        sta KB_DOWN
++ks_coin_6
++        lda #KB_FIXED_COIN_6
+@@ -103 +117 @@ ks_next
+-        ora #128
++        ora #64
+@@ -120,11 +134,8 @@ ks_global
+-        bita #64
+-        beq ks_credit
+-        inc $A9
+-ks_credit
+-        bita #32
+-        beq ks_secondary
+-        ldb $A9
+-        orb #2
+-        stb $A9
+-ks_secondary
+-        bita #128
++        tfr a,b                  ; preserve fresh key edges while publishing events
++        bitb #32
++        beq ks_credit_6
++        lda $A9
++        ora #2
++        sta $A9
++ks_credit_6
++        bitb #64
+@@ -132,3 +143,3 @@ ks_secondary
+-        ldb $A9
+-        orb #4
+-        stb $A9
++        lda $A9
++        ora #4
++        sta $A9
+@@ -169,3 +180,6 @@ ks_select
+-        lda KB_DOWN
+-        anda #16
+-        ora KB_WORK
++        ; Menu activation always uses physical Enter, independent of ACTION.
++        lda #KB_FIXED_ENTER
++        lbsr key_down
++        beq ks_select_back
++        lda KB_WORK
++        ora #16
+@@ -172,0 +187 @@ ks_select
++ks_select_back
+@@ -254 +269 @@ kc_find_next
+-        cmpa #52
++        cmpa #KB_FIXED_COIN_5
+@@ -256,9 +271 @@ kc_find_next
+-        ldb $E0
+-        cmpb #4
+-        blo kc_unique
+-        cmpa #27
+-        blo kc_unique
+-        cmpa #51
+-        bhi kc_unique
+-        anda #7
+-        cmpa #3
++        cmpa #KB_FIXED_COIN_6
+@@ -277 +284 @@ kc_unique_next
+-        cmpb #7
++        cmpb #KB_ACTION_COUNT
+@@ -302 +309 @@ key_tick
+-        cmpa #7
++        cmpa #KB_MENU_LAST
+@@ -324 +331 @@ kt_down
+-        cmpa #7
++        cmpa #KB_MENU_LAST
+@@ -373 +380 @@ kp_draw
+-        cmpa #7
++        cmpa #KB_MENU_LAST
+@@ -411 +418 @@ kp_next
+-        cmpa #8
++        cmpa #KB_MENU_LAST+1
+diff --git a/src/shared_text_stage.inc b/src/shared_text_stage.inc
+index 49cda02..a618709 100644
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -939 +939 @@ menu_down
+-        ldb     #1
++        ldb     #2
+@@ -954,0 +955,13 @@ menu_enter
++        lda     MENU_SELECT
++        bne     menu_high_nonstart
++        ; Start is available only from this row and consumes one real credit.
++        tst     $A8
++        beq     menu_idle
++        dec     $A8
++        lda     #1
++        sta     $A7
++        lda     #PRESENTATION_MAP_LEVEL_START
++        bra     menu_change
++menu_high_nonstart
++        cmpa    #1
++        bne     menu_high_credits
+@@ -956 +969,3 @@ menu_enter
+-        adda    MENU_SELECT
++        bra     menu_change
++menu_high_credits
++        lda     #PRESENTATION_MAP_CREDITS
+@@ -1035 +1050 @@ menu_paint_high
+-        ldb     #2
++        ldb     #3
+@@ -1037,4 +1052,2 @@ menu_paint_high
+-        leay    menu_high_score_pairs,pcr
+-        clrb
+-menu_high_pair
+-        pshs    b
++        tst     $A8
++        bne     menu_high_paint_done
+@@ -1042,15 +1055,2 @@ menu_high_pair
+-        sta     $29
+-        lda     #36
+-        ldx     ,y++
+-        lbsr    stage_panel_char
+-        ldx     ,y++
+-        lbsr    stage_panel_char
+-        puls    b
+-        incb
+-        cmpb    #2
+-        blo     menu_high_pair
+-        lda     MENU_SELECT
+-        lsla
+-        lsla
+-        leay    menu_high_score_pairs,pcr
+-        leay    a,y
++        tst     MENU_SELECT
++        bne     menu_high_add_colour
+@@ -1057,0 +1058 @@ menu_high_pair
++menu_high_add_colour
+@@ -1059 +1060 @@ menu_high_pair
+-        lda     #43
++        leay    menu_high_score_add_credits,pcr
+@@ -1061,4 +1062,4 @@ menu_high_pair
+-        lbsr    stage_panel_char
+-        lda     #44
+-        ldx     ,y
+-        lbra    stage_panel_char
++        ldb     ,y+
++        lbsr    stage_panel_text
++menu_high_paint_done
++        rts

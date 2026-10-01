@@ -1,0 +1,44 @@
+{
+  "baseline": "fe160ae389145d24083218ded05ba9cdca781474",
+  "generated_manifest_sha256": "0f070cd906c042620abac1f423b5e5c4079101b324516d2e7ba1e650ddcc8cee",
+  "generated_menu_records_sha256": "ef45c81a43946d9b544067c200799d99c7011491ff2935b3ac697005e0733751",
+  "generated_keybinding_records_sha256": "99d2359b9fa475e545896dbce0921f95a98d3e716a66bd656d892da350d53287",
+  "source_sha256": {
+    "src/main.s": "2cfd91b6e6f8dad417686e1bbc67173e998a00c27418d974ef05a0fcc9931661",
+    "src/presentation_runtime.s": "1482794a0414b223cdd7a0c673c3540e06b0f42e2228e99766cfa92093f65b78",
+    "src/keybinding_runtime.s": "936aa47cbe9532ec4d74fb3108d8632e880dea57cc8e5bf6aede3f8d8724d82a",
+    "src/shared_text_stage.inc": "90d0ffb2178b8a33489b0e0c12c0a5620dc566b86c2385c3441de73ca3785e3f"
+  },
+  "main_and_flow_text_equal_fe160": {
+    "src/main.s": true,
+    "src/presentation_runtime.s": true
+  },
+  "checks": {
+    "five_authored_action_rows": true,
+    "back_row_20": true,
+    "fixed_menu_enter": true,
+    "fixed_coin_inputs": true,
+    "generated_coin_slots_and_cap": true,
+    "three_highscore_menu_rows": true,
+    "add_credits_overlay_matches_row_span": true,
+    "options_selector_pairs_retained": true,
+    "highscore_parenthesis_data_removed": true,
+    "only_highscore_text_colour_selection": true,
+    "start_credit_gate": true,
+    "actions_default_and_fixed_inputs": true,
+    "coin_capture_suppression": true,
+    "mainloop_calls_presentation_flow": true,
+    "flow_scans_before_coin_dispatch": true,
+    "active_complete_scanner_calls_menu_scan": true,
+    "existing_active_credit_consumer_saturates": true,
+    "main_and_flow_text_equal_fe160": true
+  },
+  "active_flow_call_order": {
+    "mainloop": "jsr $1900 each frame",
+    "flow": "scan_keys -> pft_ready coin mask/add_credit -> pft_mode/pft_dispatch"
+  },
+  "coin_menu_refresh": "High-score screen is generated map index 3 with MODE_CREDIT. In active complete-profile pft_ready a coin during menu mode follows the existing high-score start_screen reload; load completion paints three labels and coin slots from updated $A8. This is baseline source logic, not new prototype code.",
+  "simultaneous_input_limit": "Coin update precedes later menu dispatch. On an already displayed high-score menu, a coin may reload that screen and return before same-scan D0 Enter reaches MENU_TICK; exact same-edge behavior is not proven accepted. From attract IDs 0..2, local $DF is not synchronized, so held Enter across coin pre-emption can appear fresh when high-score local scan starts. Force both current-menu and attract-entry cases, including release, before Ready.",
+  "capture": "A9 is cleared before capture branch; fixed coin IDs are rejected as candidates; capture waits for all matrix rows to release. Static source only.",
+  "result": "PASS source/generated-data assertions; no runtime or final build claim."
+}
