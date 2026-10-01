@@ -1,0 +1,72 @@
+diff --git a/scripts/shared_text.py b/scripts/shared_text.py
+index 817b987..c517425 100644
+--- a/scripts/shared_text.py
++++ b/scripts/shared_text.py
+@@ -249,33 +249,49 @@ class SharedText:
+             manifest['shared_static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
+             if name=='instructions':self.p.blend_native_surface(frame,instruction_source['cucumber_destination'],instruction_source['cucumber_native'])
+             manifest['static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
+-        # Generate menu label and bracket anchors directly from the authored TMX.
++        # Generate menu label and bracket anchors from authored map content.
+         menu_lines=[]
+         for name in ('high-score','options'):
+             path=self.args.tiled_dir/self.p.MAP_FILES[name]
+             root=ET.parse(path).getroot()
+-            layer=next(l for l in root.findall('layer') if l.get('name')=='Selected Option')
+-            cells=s.parse_csv(layer.find('data'),'Selected Option')
+             pairs=[]
+-            for row in range(24):
+-                anchors=[(col,gid) for col,gid in enumerate(cells[row*40:(row+1)*40]) if gid]
+-                for i in range(0,len(anchors),2):
+-                    left,right=anchors[i:i+2]
+-                    assert self.p.raw_char_code(root,path,left[1])==43
+-                    assert self.p.raw_char_code(root,path,right[1])==44
+-                    pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
+-            assert len(pairs)==2,(name,pairs)
++            if name=='high-score':
++                layer=root.find("layer[@name='High Score Table and Branding']")
++                if layer is None:raise ValueError((path,'missing High Score Table and Branding'))
++                cells=self.p.parse_csv(layer.find('data'),layer.get('name'))
++                specs=((20,17,26,'START GAME'),(21,17,23,'OPTIONS'),(22,17,23,'CREDITS'))
++                high_rows=[]
++                for row,lo,hi,label in specs:
++                    row_gids=cells[row*40:(row+1)*40]
++                    raw=[self.p.raw_char_code(root,path,gid&self.p.GID_MASK) for gid in row_gids]
++                    codes=[c if 0<=c<=35 else 36 for c in raw]
++                    expected=[36 if char==' ' else ord(char)-55 for char in label]
++                    matches=[col for col in range(41-len(expected)) if codes[col:col+len(expected)]==expected]
++                    if (hi-lo+1!=len(expected) or codes[lo:hi+1]!=expected or matches!=[lo]):
++                        raise ValueError((path,'authored high-score menu anchor mismatch',row,lo,hi,label,matches))
++                    left,right=lo-1,hi+1
++                    if row_gids[left]!=8 or row_gids[right]!=8:
++                        raise ValueError((path,'menu bracket anchor is not blank GID 8',(left,row),(right,row)))
++                    pairs.append((self.p.framebuffer_destination((left,row)),self.p.framebuffer_destination((right,row))))
++                    high_rows.append((row,lo,codes[lo:hi+1]))
++            else:
++                layer=next(l for l in root.findall('layer') if l.get('name')=='Selected Option')
++                cells=self.p.parse_csv(layer.find('data'),'Selected Option')
++                for row in range(24):
++                    anchors=[(col,gid) for col,gid in enumerate(cells[row*40:(row+1)*40]) if gid]
++                    for i in range(0,len(anchors),2):
++                        left,right=anchors[i:i+2]
++                        assert self.p.raw_char_code(root,path,left[1])==43
++                        assert self.p.raw_char_code(root,path,right[1])==44
++                        pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
++            expected_pairs=3 if name=='high-score' else 2
++            assert len(pairs)==expected_pairs,(name,pairs)
+             menu_lines.append('menu_'+name.replace('-','_')+'_pairs')
+             menu_lines.extend('        fdb $%04X,$%04X'%pair for pair in pairs)
+             if name=='high-score':
+-                _,flat,_=self.p.flatten_map(path)
+                 menu_lines.append('menu_high_score_rows')
+-                for left,right in pairs:
+-                    row=(left-0x2000)//1280;lo=((left-0x2000)%1280)//4+1
+-                    hi=((right-0x2000)%1280)//4
+-                    codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40+lo:row*40+hi]]
+-                    codes=[c if c is not None and 0<=c<=35 else 36 for c in codes]
+-                    menu_lines.append('        fdb $%04X'%(left+4))
++                for row,lo,codes in high_rows:
++                    menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
+                     menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
+         path=self.args.tiled_dir/self.p.MAP_FILES['options']
+         root,flat,_=self.p.flatten_map(path)

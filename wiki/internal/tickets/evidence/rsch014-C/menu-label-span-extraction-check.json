@@ -1,0 +1,86 @@
+{
+  "recordedAt": "2026-10-01",
+  "baselineCommit": "fe160ae389145d24083218ded05ba9cdca781474",
+  "mapSha256": "b014d151e4fd8228faceac8e7bdea4d792abf6b8e8cd8f8f458f736c55df0d61",
+  "spanChecks": [
+    {
+      "label": "START GAME",
+      "row": 20,
+      "authoredSpan": [
+        17,
+        26
+      ],
+      "uniqueMatches": [
+        17
+      ],
+      "pass": true
+    },
+    {
+      "label": "OPTIONS",
+      "row": 21,
+      "authoredSpan": [
+        17,
+        23
+      ],
+      "uniqueMatches": [
+        17
+      ],
+      "pass": true
+    },
+    {
+      "label": "CREDITS",
+      "row": 22,
+      "authoredSpan": [
+        17,
+        23
+      ],
+      "uniqueMatches": [
+        17
+      ],
+      "pass": true
+    }
+  ],
+  "dynamicStartLabel": {
+    "text": "ADD CREDITS",
+    "length": 11,
+    "startCell": 16,
+    "endCell": 26,
+    "precedingAuthoredCellGid": 8,
+    "fits": true
+  },
+  "v2PatchSha256": "7a522289840af4de414d07a7b6dab3d1afb2dee9810d7e9691bd0e90b327130b",
+  "supersededV1PatchSha256": "ce7a57fff168103aeddcfa80fb9a1ebb0c1e34e97a1abcf3b7320f45b7508203",
+  "v2ContainsHighScoreBracketSymbol": false,
+  "gitApplyCheck": "PASS",
+  "rejectedProbe": "Initial standalone tilecount decoder returned no spans; discarded because it did not follow tileset_ranges/raw_char_code. Corrected check uses canonical build_presentation.raw_char_code. First v2 omitted Options pair extraction; corrected v2 restores menu_options_pairs and leaves only the high-score pair consumer pending.",
+  "status": "static compiler/data prototype only; no runtime/fit claim",
+  "v2EmitsOptionsSelectorPairs": true,
+  "currentRuntimeConsumers": {
+    "highScorePairs": [
+      "src/shared_text_stage.inc:1037",
+      "src/shared_text_stage.inc:1055"
+    ],
+    "optionsPairs": [
+      "src/shared_text_stage.inc:1095"
+    ],
+    "disposition": "v2 retains Options pairs; high-score pair data is intentionally not emitted after user clarification, so the existing high-score pair consumer must be removed/rewritten in a later approved runtime integration before this data prototype can build."
+  },
+  "optionsSelectorPairCheck": {
+    "map": "tiled/coco-options-screen.tmx",
+    "pairs": [
+      {
+        "row": 8,
+        "leftX": 26,
+        "rightX": 29
+      },
+      {
+        "row": 11,
+        "leftX": 26,
+        "rightX": 29
+      }
+    ],
+    "pass": true,
+    "symbolRetainedByV2": true
+  },
+  "highScoreRuntimeConsumerPending": "src/shared_text_stage.inc consumes menu_high_score_pairs at lines 1037 and 1055; the v2 data patch intentionally does not emit it and is not integrated."
+}

@@ -1,0 +1,217 @@
+{
+  "recordedAt": "2026-10-01",
+  "baselineCommit": "fe160ae389145d24083218ded05ba9cdca781474",
+  "baselineHeadVerified": true,
+  "userTmxSnapshotHashes": {
+    "tiled/coco-high-score-screen.tmx": "b014d151e4fd8228faceac8e7bdea4d792abf6b8e8cd8f8f458f736c55df0d61",
+    "tiled/coco-enter-high-score-screen.tmx": "4f57c7ac5de742b528d5fa0bcebb03db46bd53c67ef0ea4e86e8c5e3d89c41c3",
+    "tiled/coco-keybind-options-screen.tmx": "1b8de791e7d1550e448a2adb1850d362faa262968c030e12a0530e93fa758ae1"
+  },
+  "staticLogoR": {
+    "location": "high-score base layer cell x31,y13 and x31,y14; 8x16-pixel glyph in two 8x8 character cells",
+    "currentGids": [
+      388,
+      484
+    ],
+    "rawCharacterCodes": [
+      103,
+      97
+    ],
+    "tmxDiffAgainstBaseline": "Both GIDs and Logo Frame 1/2 overlay cells at these positions are unchanged; both overlays are zero at x31,y13-14.",
+    "maskTransform": "scripts/build_screen.py rotate_ccw plus TMX flip flags, same compiler path as static tile creation",
+    "foregroundMaskCounts": {
+      "cell13": {
+        "pen1": 11,
+        "pen2": 0,
+        "pen3": 0,
+        "leftHalfPen1": 10,
+        "rightHalfPen1": 1
+      },
+      "cell14": {
+        "pen1": 14,
+        "pen2": 0,
+        "pen3": 0,
+        "leftHalfPen1": 12,
+        "rightHalfPen1": 2
+      },
+      "totalForegroundPixels": 25,
+      "leftHalfRedPixels": 22,
+      "rightHalfRedPixels": 3
+    },
+    "currentSourcePenMap": [
+      [
+        0,
+        1,
+        2,
+        3
+      ],
+      [
+        0,
+        1,
+        2,
+        3
+      ]
+    ],
+    "mappedStaticForeground": "SharedText pipeline candidate: both R cells are not classified in SharedText.cells; the exact shared_static_frame overlay loop leaves their compiled bytes unchanged. The 25 visible foreground pixels remain pen1 (22 left half, 3 right half). This is a static candidate, not a current ROM result.",
+    "runtime": "No current snapshot ROM or framebuffer capture inspected in this worktree; static SharedText pipeline candidate does not explain the user report.",
+    "sharedTextCheck": "See logo-sharedtext-static-check.json. Constructor/cell classification plus exact finish loop was evaluated with temporary config removing invalid y23 overrides and an in-memory static-layer validator bypass for the user-removed high-score Selected Option layer. Neither source nor TMX changed. Full build and runtime were not run."
+  },
+  "highScoreMenu": {
+    "authoredRows": [
+      {
+        "row": 20,
+        "columns": [
+          17,
+          26
+        ],
+        "text": "START GAME",
+        "codes": [
+          28,
+          29,
+          10,
+          27,
+          29,
+          36,
+          16,
+          10,
+          22,
+          14
+        ],
+        "brackets": [
+          [
+            16,
+            20
+          ],
+          [
+            27,
+            20
+          ]
+        ]
+      },
+      {
+        "row": 21,
+        "columns": [
+          17,
+          23
+        ],
+        "text": "OPTIONS",
+        "codes": [
+          24,
+          25,
+          29,
+          18,
+          24,
+          23,
+          28
+        ],
+        "brackets": [
+          [
+            16,
+            21
+          ],
+          [
+            24,
+            21
+          ]
+        ]
+      },
+      {
+        "row": 22,
+        "columns": [
+          17,
+          23
+        ],
+        "text": "CREDITS",
+        "codes": [
+          12,
+          27,
+          14,
+          13,
+          18,
+          29,
+          28
+        ],
+        "brackets": [
+          [
+            16,
+            22
+          ],
+          [
+            24,
+            22
+          ]
+        ]
+      }
+    ],
+    "blankBracketCells": "All six adjacent bracket cells are authored GID8.",
+    "menuLayerContract": "Current user TMX has no Selected Option layer; old shared_text.finish parser calls next(...) for that layer and fails.",
+    "prototype": "menu-label-span-extraction-v2.patch derives three authored high-score label spans, pads START GAME at x16 for the 11-character ADD CREDITS state, emits no high-score parentheses/pair data, and preserves the Options-screen menu_options_pairs extraction unchanged. Static checks are in menu-label-span-extraction-check.json. It is compiler/data evidence only; src/shared_text_stage.inc still consumes menu_high_score_pairs at two sites, intentionally pending the approved runtime integration.",
+    "textColourCollision": "Current Options N at x22,y21 hits presentation_pen_map high-score hard-coded red exception at (22,21); user menu style needs uniform selected/unselected label colors without this stale coordinate override.",
+    "textColourPrototype": "evidence/rsch014-C/menu-text-colours.patch removes 17 stale y23 high-score text-colour cell overrides; each current y23 cell is non-text. Static-only validation passes.",
+    "patchChecks": {
+      "anchorPatchGitApplyCheck": "PASS",
+      "anchorMapDiscriminator": "PASS: each exact label appears once at the authored coordinates; bracket GIDs are blank GID8",
+      "runtimeOrRom": "NOT RUN"
+    },
+    "selectionIndicator": "User clarified 2026-10-01: high-score menu selection must use text colour only; do not emit or draw parentheses on that screen. This does not change keybinding guide parentheses or the options-screen selector.",
+    "runtimeMenuConsumers": "Current src/shared_text_stage.inc:1037 and :1055 consume menu_high_score_pairs; :1095 consumes menu_options_pairs. V2 preserves the Options symbol and intentionally omits the high-score symbol per the user clarification. No runtime patch/build/fit claim."
+  },
+  "keybindingBuildGate": {
+    "currentAuthoredActionLabelsAndRows": [
+      [
+        "UP",
+        6
+      ],
+      [
+        "DOWN",
+        8
+      ],
+      [
+        "LEFT",
+        10
+      ],
+      [
+        "RIGHT",
+        12
+      ],
+      [
+        "ACTION",
+        14
+      ]
+    ],
+    "currentActualGuidePairs": [
+      6,
+      8,
+      10,
+      12,
+      14
+    ],
+    "removedFromUserTmxComparedWithBaseline": [
+      "SELECT",
+      "ADD CREDIT",
+      "START GAME"
+    ],
+    "blankGuideData": "Rows16 and18 contain GID8 fill placeholders, raw code255; they are not valid opening/closing parenthesis markers.",
+    "sourceExpectation": "scripts/shared_text.py:keybinding_records and src/keybinding_runtime.s still produce/consume seven configurable action rows plus BACK; key_init copies 7 defaults and key_paint walks 7 value slots.",
+    "integrationBoundary": "Parent reports combined prototype build stops at shared_text.py:337 after row16 cells x30..34 are interpreted as malformed marker glyphs. Strictly ignoring raw255 blanks resolves that malformed-row parse only; a separate unapproved contract decision is needed for the missing two action rows. No map edits or seven-slot UI inference authorized."
+  },
+  "nameEntrySourceFacts": {
+    "mapSha256": "4f57c7ac5de742b528d5fa0bcebb03db46bd53c67ef0ea4e86e8c5e3d89c41c3",
+    "dynamicDestinations": {
+      "pendingName": "x1..7,y19",
+      "topName": "x33..39,y5",
+      "playerScore": "x33..38,y2",
+      "topRightScore": "x33..38,y6",
+      "leftScore": "x1..6,y13"
+    },
+    "scoreRoutine": "src/shared_text_ranking.inc:render_name_screen calls draw_name_fields and draw_entry_scores; draw_entry_scores writes player score, top-right score, and a left score conditional on PRES_INSERT (player score only at insertion0; otherwise committed record zero).",
+    "nameRoutine": "draw_name_fields writes pending name and top-name field; for non-first insertion the top-name field reads committed record zero. It does not render the left rank/name requested by the user.",
+    "dynamicColourContext": "src/shared_text_runtime.inc dynamic_dispatch maps context4 to TEXT_GAME_OVER_SCORE and context5 to TEXT_NAME; current text-colours.json fields are game_over_score=6 and name=6 while score=8 and ranking=1. Runtime mapping/pixel provenance for the reported field is still required.",
+    "lastPartRenderer": "src/shared_text_stage.inc stage_panel_slice and stage_panel_finish only enter part/vegetable routines when PRES_SCREEN == PRESENTATION_MAP_LEVEL_START; render_name_screen has no stage-part/vegetable draw call. This proves no such name-screen publication in current source, not last-game-level runtime state semantics.",
+    "nameActions": "scripts/build_presentation.py:ENTER_HIGH_SCORE_GRID_ROWS and node_tile_ids mark middle bottom-row cells at (15,20),(19,20),(23,20) as 0xFF, then action_records filters those out; shared_text_stage.inc:name_cell_arrival only appends/cues matched action-table glyphs. BUG-057 Done handles the existing supported action/cue path, not these omitted symbol cells.",
+    "promptRank": "Current map authors static YOU GET / TOP HI / SCORE; name screen rendering source only updates pending/top name and score fields. No dynamic rank phrase writer was found in the active source paths.",
+    "leftHudAnd090000": "The reported wording lacks a source/pixel-identifiable cell target. The generated entry score destinations include x1..6,y13 (between overlay rows12 and14), while the user separately requests left HUD rank/name/score. Current source writes a score in the row13 destination. Exact rendered region overlap and intended separation remain unverified."
+  },
+  "runtimeStatus": "No emulator attached and no live probes run by this agent. Parent baseline build initially failed before ROM; subsequent isolated combined build reached the keybinding compiler gate above. No current runtime or pixel acceptance is claimed.",
+  "userTmxPreservation": "All nine user TMX files remain unmodified by this agent."
+}
