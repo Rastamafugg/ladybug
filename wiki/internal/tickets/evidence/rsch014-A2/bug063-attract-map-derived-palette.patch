@@ -1,0 +1,31 @@
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -760,9 +760,10 @@
+         return (BLACK, colour, colour, colour)
+     if role == "attract":
+         if 7 <= y <= 12 and 9 <= x <= 30 and 164 <= raw_code <= 197:
+             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
+-        if y == 15 and 15 <= x <= 25:
++        if (y == 15 and source_layer == "Attract Title and Prompts"
++                and 0 <= raw_code <= 35):
+             return (BLACK, PURPLE, PURPLE, PURPLE)
+         if y == 18 and 13 <= x <= 26:
+             colour = YELLOW if raw_code == 1 else WHITE
+             return (BLACK, colour, colour, colour)
+--- a/scripts/verify_bug035_presentation.py
++++ b/scripts/verify_bug035_presentation.py
+@@ -69,10 +69,12 @@
+         tiles, ids = [], {}
+         cells, _ = p.compile_map(ROOT / "tiled" / p.MAP_FILES[name], chars, tiles, ids, False, True)
+         base_frames.append(bytes(p.title_framebuffer(cells, tiles)))
+     expected_title = bytearray(base_frames[0])
+-    for col, row, value, colour in ((15, 15, "INSERT COIN", 9), (13, 18, "1", 2),
+-                                   (21, 18, "1", 2), (15, 18, "COIN", 6), (23, 18, "PLAY", 6)):
++    for col, row, value, colour in ((13, 15, "PRESS 5 OR 6 TO", 9),
++                                   (15, 17, "INSERT COIN", 1),
++                                   (13, 18, "1", 2), (21, 18, "1", 2),
++                                   (15, 18, "COIN", 6), (23, 18, "PLAY", 6)):
+         text(expected_title, col, row, value, colour, chars)
+     compare(base_frames[0], expected_title, "static-title-text")
+     expected_instruction = bytearray(base_frames[1])
+     for col, row, value in ((15, 5, "INSTRUCTION"), (17, 17, "10"),

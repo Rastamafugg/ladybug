@@ -1,0 +1,50 @@
+{
+  "source_revision": "436478586482afb0457357b4fddbbf05a7b9c52a",
+  "units": "generated instruction schedule ticks; not raw arcade/MAME frames",
+  "source_inputs": "assets/arcade/instruction_reference.json and scripts/build_presentation.py",
+  "current": {
+    "row_time_offsets": [
+      0,
+      90,
+      180
+    ],
+    "explicit_earliest_gates": "+90 after prior row consumes",
+    "row1_first_motion": 129,
+    "row2_first_motion": 673,
+    "row2_prior_final_consume": 530,
+    "row3_first_motion": 1409,
+    "row3_prior_final_consume": 1266,
+    "next_screen": 1896,
+    "row2_first_motion_gap": 143,
+    "row3_first_motion_gap": 143
+  },
+  "candidate": {
+    "row_time_offsets": [
+      0,
+      0,
+      0
+    ],
+    "explicit_earliest_gates": "removed",
+    "row1_first_motion": 129,
+    "row2_first_motion": 577,
+    "row2_prior_final_consume": 530,
+    "row2_first_consume": 600,
+    "row3_first_motion": 1217,
+    "row3_prior_final_consume": 1170,
+    "row3_first_consume": 1240,
+    "next_screen": 1884,
+    "relative_first_motion_gap_reduction": 96
+  },
+  "derived": {
+    "row2_first_motion_gap": 47,
+    "row3_first_motion_gap": 47,
+    "row2_consume_gap": 70,
+    "row3_consume_gap": 70,
+    "next_screen_delta": -12,
+    "all_scheduled_events": 16,
+    "first_motion_gap_reduction_each_later_row": 96
+  },
+  "interpretation": "Removing only the +90 gates produces no event changes. Combined row-offset and gate removal removes the later-row cycle while preserving the legal trigger-colour edge. Raw arcade cadence equality is not claimed.",
+  "production_source_modified": false,
+  "natural_playback_or_full_build_claimed": false
+}

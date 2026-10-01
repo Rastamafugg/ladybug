@@ -1,0 +1,38 @@
+{
+  "source_revision": "436478586482afb0457357b4fddbbf05a7b9c52a",
+  "confirmed_policy": {
+    "values_1_to_99": "fixed tens/units as 01..99",
+    "values_100_to_255": "hundreds in immediately preceding cell, tens/units remain fixed",
+    "wrap": "255->1 clears hundreds"
+  },
+  "current_targets": {
+    "gameplay_side_hud": {
+      "label": "x33-36,y11",
+      "blank_hundreds": "x37,y11",
+      "tens": "x38,y11",
+      "units": "x39,y11"
+    },
+    "level_start_side_hud": {
+      "tens": "x38,y11",
+      "units": "x39,y11"
+    },
+    "level_start_panel": {
+      "label": "x17-20,y4",
+      "gap": "x21,y4",
+      "value": "x22,y4"
+    }
+  },
+  "candidate_layout": {
+    "level_start_panel_label": "x15-18,y4",
+    "gap": "x19,y4",
+    "hundreds": "x20,y4",
+    "tens": "x21,y4",
+    "units": "x22,y4"
+  },
+  "source_cause": [
+    "src/main.s draw_hud sets HUD_X=37 then calls two-digit writer, shifting output left of authored fixed tens/units",
+    "src/shared_text_stage.inc stage_panel_number suppresses zero tens for panel and stage-side fields"
+  ],
+  "map_snapshot_unchanged": true,
+  "runtime_or_complete_fit_claimed": false
+}
