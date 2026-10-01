@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-014 Step B2 — Readiness evidence</title>
+  <link rel="stylesheet" href="../../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="../../index.html">Tickets</a><a href="../../workflow.html">Workflow</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · evidence · RSCH-014 Step B2</p>
+      <h1>Readiness evidence: gameplay timing and screen identity</h1>
+      <p class="wiki-meta">2026-10-01 · docs and captures only · baseline 436478586482afb0457357b4fddbbf05a7b9c52a · source fe160ae389145d24083218ded05ba9cdca781474</p>
+    </header>
+    <section>
+      <h2>Arcade identity and bounded neutral capture</h2>
+      <p>The installed MAME binary is 0.220 (unknown), SHA-256 <code>7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4</code>. Local <code>ladybug.zip</code> SHA-256 is <code>2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8</code>. Plan <code>scripts/mame_plans/attract-idle.json</code> has no inputs; its SHA-256 is <code>4964a2612fb49dfcbda7281bfce9340fa4d58305f5ac0737dd6f2f702bc28c1f</code>. The command recorded in <a href="./neutral-attract-summary.json">neutral-attract-summary.json</a> captured every BGRA32 frame and $D000-$D7FF/$6000-$6FFF bytes for frames 1–3600. It completed in 22.15 seconds wall time. Deadline was frame 3600 and 60 seconds wall; no timeout occurred. Raw streams remain in <code>/tmp</code>; only hashes, summary data and small crops are retained here.</p>
+      <p>The title/logo phase is visible at frame 300. The title-logo ROI has 17 complete alternating pixel-state holds of 31 MAME frames each from frames 184–710; the trailing 711–742 run is 32 frames and is excluded as a phase-edge interval. The instruction screen is visible at frame 1800, and its observed phase is frames 745–2356. Demo play begins at frame 2357. At frame 3310, <code>$605F=$10</code> with Part counter 1; its documented demo bit 4 remains set through frame 3600. The title ROI is <a href="./attract-title-logo-roi-frame-184.png">retained here</a>.</p>
+    </section>
+    <section>
+      <h2>High-score marker result</h2>
+      <p>The success marker was the visible <code>TODAY'S HI SCORE</code> heading, nine-row ranking table, and LadyBug logo. It was not observed in this completed 1–3600 invocation. Frame 3310 is gameplay; the direct screenshot is <a href="./demo-gameplay-frame-3310.png">retained here</a>. This is a completed no-marker result, not an observation-tool timeout, and it does not show that the screen is absent or unreachable. It reconciles the historical frame-3310 source pointer with this run by establishing only that the pointer did not locate the page under this invocation. Earlier attempts and the lower-cost reassessment are documented in <a href="../rsch014-B/arcade-dwell-probes.html">Step B evidence</a>.</p>
+      <p>No additional route is included in this evidence commit. A follow-on natural continuation plan requires a separate source-guided marker/deadline review.</p>
+    </section>
+    <section>
+      <h2>Current Part-1 player sample</h2>
+      <p>Offline exact-pixel matching using the existing <code>player_templates()</code> source and current sprite, palette, and lookup assets identifies one continuous direction-0 segment at frames 2546–2594. The player-origin pixel moves from (41,208) to (89,208): 48 pixels over 48 MAME frame intervals, exactly 1 pixel per frame for this single sample. Complete pose runs are eight frames for codes 1, 2, 1, 0, and 1; the five-frame opening and four-frame ending are partial edges, with a direction change after the latter. The three state crops and full frame are retained: <a href="./player-code1-frame-2551.png">code 1</a>, <a href="./player-code2-frame-2559.png">code 2</a>, <a href="./player-code0-frame-2575.png">code 0</a>, <a href="./player-segment-frame-2551.png">full frame</a>. This current Part-1 demo sample corroborates the eight-frame pose hold and approximately one-pixel-per-frame travel observation; it does not measure every player direction, enemy family, or later-part rate.</p>
+    </section>
+    <section>
+      <h2>CoCo identity and unresolved runtime gates</h2>
+      <p>The retained core build receipt identifies ROM SHA-256 <code>b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55</code> and matches the current <code>src/main.s</code>, <code>src/enemy_runtime.s</code>, and <code>src/adaptive_runtime.s</code> source hashes at <code>fe160ae</code>; it predates the dirty TMX cleanup. The runbook verifier stopped on a stale expected map symbol, <code>framebuffer_queue_damage</code>, absent from the root map; this is a verifier/profile prerequisite mismatch. One corrected isolated launcher trace proved the loader reached <code>$C002</code>, but exact bank-1 resident destination bytes were not captured. No current CoCo movement, adaptive velocity, natural stage-transition, or live-frame-rate result is claimed. Root and user-running emulator processes were not used.</p>
+      <p>Static source review is distinct from this runtime gate. Adaptive scheduling accumulates elapsed time and debt, executes at most four logical ticks in one batch, binds <code>LAST_FRAME</code> and player cadence to <code>AD_SIM_TIME</code>, and changes publication intervals based on measured work. These paths make cadence and debt useful trace fields; they do not confirm that a transient speedup is catch-up, and no numeric overall-velocity bound is supported yet. BUG-058's new B2 increment remains Draft.</p>
+      <p>For BUG-087, the current arcade run stays in Part 1 and the Part counter is still 1 at frame 3310. It does not show a natural level advance, a later stage-rate threshold, or a CoCo stage reset. The source schedule is retained in <a href="../rsch014-D/rate-policy-evidence.html">Step D evidence</a>; the existing historical enemy sample is limited to Part 1. Arcade enemy-rate progression and CoCo causality therefore remain open.</p>
+    </section>
+    <section>
+      <h2>Ticket readiness disposition</h2>
+      <ul>
+        <li><a href="../../bug-080-actor-animation-dwell.html">BUG-080</a> remains Draft: current Part-1 player dwell is now measured, but complete enemy and independent actor-family coverage is missing.</li>
+        <li><a href="../../bug-081-logo-animation-dwell.html">BUG-081</a> remains Draft: attract-logo dwell is measured; the high-score screen was not located.</li>
+        <li><a href="../../bug-083-collectible-cycle-start.html">BUG-083</a>, <a href="../../bug-084-marker-exit-direction.html">BUG-084</a>, and <a href="../../bug-085-marker-every-life.html">BUG-085</a> retain their source-confirmed Proposed briefs and Luna Extra High assignment contracts. Runtime, fit and persistent-owner validation are pre-Ready gates.</li>
+        <li><a href="../../bug-086-late-enemy-succession.html">BUG-086</a> remains Draft: group policy is confirmed and the logical latest-death override prototype exists; physical ownership, fit and current release/render evidence remain open.</li>
+        <li><a href="../../bug-087-level-speed-progression.html">BUG-087</a> remains Draft: arcade schedule source policy is confirmed, but raw frame-rate progression and CoCo attribution are not.</li>
+      </ul>
+    </section>
+    <footer class="wiki-footer"><p>Preparation evidence only. No gameplay implementation, approval, Ready claim, or production source edit.</p></footer>
+  </main>
+</div>
+</body>
+</html>
