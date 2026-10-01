@@ -2,15 +2,36 @@ diff --git a/scripts/build_presentation.py b/scripts/build_presentation.py
 index 486decf..9249ac1 100644
 --- a/scripts/build_presentation.py
 +++ b/scripts/build_presentation.py
-@@ -122,0 +123 @@ ENTER_HIGH_SCORE_CURSOR_MARKER = {(19, 22): 545}
+@@ -120,6 +120,7 @@ INSTRUCTION_STATIC_LAYERS = (
+ INSTRUCTION_METADATA_LAYER = "Sprite Locations"
+ ENTER_HIGH_SCORE_METADATA_LAYER = "Sprite Locations"
+ ENTER_HIGH_SCORE_CURSOR_MARKER = {(19, 22): 545}
 +ENTER_HIGH_SCORE_SPRITE_LOCATIONS = {**ENTER_HIGH_SCORE_CURSOR_MARKER, (32, 13): 633}
-@@ -195 +196 @@ PRESENTATION_LAYER_CONTRACTS = {
+ ENTER_HIGH_SCORE_GRID_ROWS = (
+     ((16, 4), (20, 4), (24, 4)),
+     ((12, 6), (16, 6), (20, 6), (24, 6), (28, 6)),
+@@ -192,7 +193,7 @@ PRESENTATION_LAYER_CONTRACTS = {
+     },
+     "high-score": {
+         "static": ("High Score Table and Branding",),
 -        "metadata": ("Coin Positions", "Selected Option"),
 +        "metadata": ("Coin Positions",),
-@@ -203 +204 @@ PRESENTATION_LAYER_CONTRACTS = {
+         "runtime": (),
+         "deferred": ("Logo Frame 1", "Logo Frame 2"),
+     },
+@@ -200,7 +201,7 @@ PRESENTATION_LAYER_CONTRACTS = {
+     "credits": {"static": ("Credits Screen",), "metadata": (), "runtime": (), "deferred": ()},
+     "game-over": {
+         "static": ("Arcade Maze Border", "CoCo Side HUD", "Game Over Overlay"),
 -        "metadata": (),
 +        "metadata": ("Sprite Locations",),
-@@ -237,9 +238,2 @@ INSTRUCTION_RAW_SPRITE_MARKERS = {
+         "runtime": (),
+         "deferred": (),
+     },
+@@ -234,15 +235,8 @@ INSTRUCTION_RAW_SPRITE_MARKERS = {
+     (13, 14): 593, (17, 14): 593, (21, 14): 593,
+     INSTRUCTION_ANGEL_ROOT: 636,
+ }
 -LEVEL_START_METADATA = {
 -    **{(x, 2): 497 for x in range(33, 39)},
 -    **{(x, 6): 497 for x in range(33, 39)},
@@ -22,7 +43,13 @@ index 486decf..9249ac1 100644
 -}
 +LEVEL_START_METADATA = {(16, 7): 633, (32, 13): 633}
 +GAME_OVER_SPRITE_LOCATIONS = {(32, 13): 633}
-@@ -695,0 +690,7 @@ def validate_presentation_layers(
+ 
+ 
+ def sprite_transform(tile: list[list[int]], flags: int) -> list[list[int]]:
+@@ -693,19 +687,26 @@ def validate_presentation_layers(
+             path, root, by_name[INSTRUCTION_METADATA_LAYER],
+             ("chars_raw2bpp", "sprites_raw2bpp"),
+         )
 +    if role == "game-over":
 +        metadata = by_name["Sprite Locations"]
 +        require_records(
@@ -30,25 +57,50 @@ index 486decf..9249ac1 100644
 +            GAME_OVER_SPRITE_LOCATIONS,
 +        )
 +        validate_layer_tilesets(path, root, metadata, ("sprites_raw2bpp",))
-@@ -698 +699 @@ def validate_presentation_layers(
+     if role == "level-start":
+         records = layer_records(by_name["Sprite Locations"])
 -        require_records(path, "level-start metadata", records, LEVEL_START_METADATA)
 +        require_records(path, "level-start sprite locations", records, LEVEL_START_METADATA)
-@@ -701 +702 @@ def validate_presentation_layers(
+         validate_layer_tilesets(
+             path, root, by_name["Sprite Locations"],
 -            ("chars_raw2bpp", "sprites_raw2bpp"),
 +            ("sprites_raw2bpp",),
-@@ -708 +709 @@ def validate_presentation_layers(
+         )
+     if role == "enter-high-score":
+         metadata_layer = by_name[ENTER_HIGH_SCORE_METADATA_LAYER]
+         records = layer_records(metadata_layer)
+         require_records(
+             path, "enter-high-score cursor metadata", records,
 -            ENTER_HIGH_SCORE_CURSOR_MARKER,
 +            ENTER_HIGH_SCORE_SPRITE_LOCATIONS,
-@@ -1370 +1371 @@ def parse_enter_high_score_contract(
+         )
+         if metadata_layer.get("offsety") != "1":
+             raise ValueError(
+@@ -1367,7 +1368,7 @@ def parse_enter_high_score_contract(
+     records = layer_records(metadata)
+     require_records(
+         path, "enter-high-score cursor metadata", records,
 -        ENTER_HIGH_SCORE_CURSOR_MARKER,
 +        ENTER_HIGH_SCORE_SPRITE_LOCATIONS,
+     )
+     cursor_pixels, cursor_code = instruction_sprite(
+         root, path, records[(19, 22)], sprites
 diff --git a/scripts/build_screen.py b/scripts/build_screen.py
 index ab74b6f..01d5bf8 100644
 --- a/scripts/build_screen.py
 +++ b/scripts/build_screen.py
-@@ -39,0 +40 @@ LIFE_PEN_MAP = (BLACK, GREEN, DARK_RED, YELLOW)
+@@ -37,6 +37,7 @@ PALETTE = (0x00, 0x26, 0x36, 0x19, 0x3D, 0x17, 0x3F, 0x38,
+            0x3A, 0x39, 0x12, 0x3B, 0x24, 0x34, 0x00, 0x00)
+ PLAYER_PEN_MAP = (BLACK, DARK_RED, GREEN, YELLOW)
+ LIFE_PEN_MAP = (BLACK, GREEN, DARK_RED, YELLOW)
 +GAMEPLAY_SPRITE_LOCATIONS = {(32, 13): 633}
-@@ -700,0 +702,42 @@ def tileset_ranges(root: ET.Element, map_path: Path) -> list[dict[str, object]]:
+ 
+ 
+ def sheet_code(row: int, column: int) -> int:
+@@ -698,6 +699,48 @@ def tileset_ranges(root: ET.Element, map_path: Path) -> list[dict[str, object]]:
+     return ranges
+ 
+ 
 +def validate_gameplay_sprite_locations(
 +        root: ET.Element, map_path: Path,
 +) -> ET.Element:
@@ -91,9 +143,20 @@ index ab74b6f..01d5bf8 100644
 +    return layer
 +
 +
-@@ -715,0 +759 @@ def compile_screen(map_path: Path, maze_path: Path, chars_path: Path,
+ def compile_screen(map_path: Path, maze_path: Path, chars_path: Path,
+                    sprites_path: Path) -> tuple[
+                        list[int], list[bytes], list[list[tuple[int, int, int]]],
+@@ -713,9 +756,13 @@ def compile_screen(map_path: Path, maze_path: Path, chars_path: Path,
+     layers = root.findall("layer")
+     if not layers:
+         raise ValueError(f"{map_path} contains no tile layers")
 +    sprite_locations = validate_gameplay_sprite_locations(root, map_path)
-@@ -718,0 +763,3 @@ def compile_screen(map_path: Path, maze_path: Path, chars_path: Path,
+     for layer in layers:
+         if layer.get("visible", "1") == "0":
+             continue
 +        # Sprite Locations stores editor metadata, not framebuffer tiles.
 +        if layer is sprite_locations:
 +            continue
+         cells = parse_csv(layer.find("data"), layer.get("name", ""))
+         for index, gid in enumerate(cells):
+             if gid & GID_MASK:

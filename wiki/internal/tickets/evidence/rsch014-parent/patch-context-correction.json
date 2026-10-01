@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-01",
+  "source_baseline": "fe160ae389145d24083218ded05ba9cdca781474",
+  "rejected_zero_context_sha256": "b4f50d80b76fbaa5b40da5f84103645d51a500a426224a3e1190b4a3dc15da72",
+  "context_patch_sha256": "eee7207737232ecb24a7f86cbfc617f5e56190a7015065dabc04205a317ef69c",
+  "bytes": 7155,
+  "reason": "C2 observed misplaced insertion hunks from low-context patch; context-bearing replacement must be functionally checked, not merely applied.",
+  "fresh_baseline_replay": {
+    "baseline": "fe160ae389145d24083218ded05ba9cdca781474",
+    "apply_check": "pass",
+    "apply": "pass",
+    "python_syntax": "pass",
+    "layer_verifier": {
+      "roles": 9,
+      "markers": 22,
+      "deferred": 2,
+      "negative_cases": 5
+    },
+    "gameplay_compiler": {
+      "result": "pass",
+      "screen_cells": 960,
+      "unique_static_tiles": 97,
+      "source_role": "coco-screen.tmx",
+      "sprite_locations_omitted_after_validation": true
+    },
+    "gameplay_contract": {
+      "valid": "pass",
+      "valid_layer_identity": true,
+      "missing": {
+        "rejected": true,
+        "diagnostic": "E:\\projects\\ladybug\\worktrees\\rsch014-combined-prototype\\tiled\\coco-screen.tmx: expected one Sprite Locations layer; found 0"
+      },
+      "duplicate": {
+        "rejected": true,
+        "diagnostic": "E:\\projects\\ladybug\\worktrees\\rsch014-combined-prototype\\tiled\\coco-screen.tmx: expected one Sprite Locations layer; found 2"
+      },
+      "extra_marker": {
+        "rejected": true,
+        "diagnostic": "E:\\projects\\ladybug\\worktrees\\rsch014-combined-prototype\\tiled\\coco-screen.tmx: Sprite Locations contract mismatch; missing=[], extra=[(33, 13)], wrong=[]"
+      },
+      "wrong_tileset_gid": {
+        "rejected": true,
+        "diagnostic": "E:\\projects\\ladybug\\worktrees\\rsch014-combined-prototype\\tiled\\coco-screen.tmx: Sprite Locations contract mismatch; missing=[], extra=[], wrong=[(32, 13)]"
+      }
+    },
+    "full_capture_exit_code": 0,
+    "full_rom_build": "not run; this check covers compiler patch placement only"
+  },
+  "hash_representation": "Context patch producer digest uses LF bytes; compare LF-normalized checkout content when Git uses CRLF. Fresh replay used the exact recorded LF patch."
+}
