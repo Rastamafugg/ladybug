@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-014 Step D — Arcade rate policy evidence — Ladybug</title>
+  <link rel="stylesheet" href="../../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="../../../index.html">Internal wiki</a><a href="../../index.html">Tickets</a><a href="../../bug-087-level-speed-progression.html">BUG-087</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">RSCH-014 · Step D · source evidence</p>
+      <h1>Arcade enemy rate policy <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Static decode of the local MAME 0.220 Lady Bug program ROM; source policy is distinct from measured cabinet or CoCo frame rate.</p>
+    </header>
+    <section>
+      <h2>Identity and method</h2>
+      <p>Input identity: MAME 0.220 executable SHA-256 <code>7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4</code>; <code>ladybug</code> program ROM ZIP SHA-256 <code>2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8</code>. The six main CPU members map consecutively at <code>$0000-$5FFF</code>. Selected bytes were disassembled with z80dasm 1.1.5 and checked against expected byte sequences by <a href="./rate_policy_model.py">rate_policy_model.py</a>. The generated <a href="./rate-policy-model.json">model JSON</a> retains member hashes, disassembler identity, selected code hashes, all part offsets, both full rate tables, and computed policy thresholds. Selected instructions are retained in <a href="./rate-policy-disassembly.txt">rate-policy-disassembly.txt</a>; the full ROM dump is not retained.</p>
+      <p>The official MAME 0.220 <a href="https://github.com/mamedev/mame/blob/mame0220/src/mame/drivers/ladybug.cpp#L2221">Lady Bug input definition</a> maps DSW0 to the difficulty switch. Its <a href="https://github.com/mamedev/mame/blob/mame0220/src/mame/drivers/ladybug.cpp#L2526">difficulty options</a> identify DSW0 mask <code>0x03</code>, default Easy, with bit 1 set for Easy/Medium and clear for Hard/Hardest. Local <code>mame -listxml ladybug</code> reports the same mapping; the local <code>ladybug.cfg</code> has no DIP override. This identifies the local test default, not an unknown physical cabinet setting.</p>
+    </section>
+    <section>
+      <h2>Part and elapsed-rate selection</h2>
+      <p>The active part counter is stored at <code>$606E/$606F</code>. Reset initializes it to zero; the initial start increments it at <code>$04D9</code> before play, and later part transitions increment it at <code>$0662</code>. <code>$1F26</code> returns the active player's counter unchanged; <code>$40F8</code> indexes the part-offset table at <code>$0EA6</code> with that value, without subtracting one. Active Part N therefore uses table index N. Counter zero is prestart, not Part 1. This rejects the earlier off-by-one interpretation that mapped Part 1 to index zero.</p>
+      <p>For Parts 1-50, the index is the direct part counter; the table contains entries 0-50. Counters 51-255 use the constant offset 16 through the fallback path. The arcade byte counter wraps from <code>0xFF</code> to <code>0x00</code>; that behavior is separate from the CoCo <code>STAGE</code> rollover from 255 to 1.</p>
+      <p>The rate index is <code>min(15, part_offset + ($61B7 &gt;&gt; 4))</code>. Each rate code is a mean whole-plus-fractional coordinate-step count per enemy dispatcher; it is not a frame count. Code <code>0x10</code> means 1.0 step, <code>0x12</code> means 1 + 51/256 = 1.19921875, <code>0x15</code> means 1.5, <code>0x18</code> means 1 + 204/256 = 1.796875, and <code>0x20</code> means 2.0. The dispatcher computes a shared integer step count using an 8-bit fractional accumulator and applies that count to each active enemy. In the historical Part 1 sample, each coordinate step maps to one visible pixel.</p>
+      <p>At stage start under the local default Easy/Medium profile, Parts 1-6 use <code>0x10</code>, Parts 7-8 <code>0x12</code>, Part 9 <code>0x10</code>, Parts 10-14 <code>0x12</code>, Parts 15-17 <code>0x15</code>, and Parts 18-50 <code>0x18</code>. Under Hard/Hardest, Parts 1-2 use <code>0x10</code>, Part 3 <code>0x12</code>, Part 4 <code>0x10</code>, Parts 5-6 <code>0x12</code>, Parts 7-8 <code>0x15</code>, Part 9 <code>0x12</code>, Parts 10-11 <code>0x15</code>, Parts 12-13 <code>0x18</code>, Part 14 <code>0x15</code>, Parts 15-17 <code>0x18</code>, and Parts 18-50 <code>0x20</code>. Part 51-255 retains the saturated offset 16, subject to the arcade counter's 8-bit wrap. These are ROM policy values, not measured velocities.</p>
+      <p>The stage setup at <code>$0730</code> initializes <code>$61B6=0x60</code> (96 logical gameplay-loop calls), <code>$61B7=0</code>, and the fractional accumulator <code>$61B5=0</code>. On each timer expiry, <code>$61B6</code> reloads to <code>0x3C</code> (60) and <code>$61B7</code> increments until it saturates at <code>0xF0</code>. The first elapsed bucket change occurs after 996 logical loop calls; subsequent buckets arrive every 960 calls; bucket 15 begins after 14,436 calls. These are loop-call counts derived from the timer code, not raw MAME frames. For example, Part 1 under Easy/Medium changes from 0x10 to 0x12 at bucket 6 (5,796 calls); under Hard/Hardest it changes to 0x12 at bucket 3 (2,916 calls). The model JSON contains threshold changes for all indexed parts under both profiles.</p>
+    </section>
+    <section>
+      <h2>Separate systems and unresolved attribution</h2>
+      <p>The arcade border timer is separate: <code>$35E3</code> selects 9 box ticks for Part 1, 6 for Parts 2-4, and 3 from Part 5 onward. CoCo <code>reload_box_timer</code> already matches these thresholds. The arcade rate selector has no post-vegetable rate branch. The rate-code bytes are not animation dwell targets; pose timing remains tracked separately by <a href="../../bug-080-actor-animation-dwell.html">BUG-080</a>.</p>
+      <p>Current CoCo source <code>et_find_movement</code> gates enemy updates using <code>LAST_FRAME &amp; 1</code> and applies fixed framebuffer deltas: one packed byte horizontally (two pixels) or 320 bytes vertically (two pixel rows), four movement steps per eight-pixel tile. No part or elapsed-rate lookup is present in this path. This confirms a source-policy mismatch with the arcade progression. It does not establish the cause of the user's CoCo speedup report: no current revision, frame-indexed CoCo trace across a natural level transition, or dispatcher-to-VBlank mapping was captured in this preparation. Player velocity and the separate adaptive-rendering transient in <a href="../../bug-058-three-enemy-slowdown.html">BUG-058</a> remain separate evidence questions. The timing wiki records four-enemy windows up to 28,800 horizontal and 27,920 vertical cycles against the 27,000-cycle target; reproducing arcade acceleration could increase this risk.</p>
+      <p>The retained historical sample <a href="./historical-bug050-part1-enemy-cadence.json">historical BUG-050 Part 1 MAME cadence</a> has endpoints at frames 1504 and 1528, a 24-pixel displacement over 24 MAME frame intervals, and an eight-frame pose hold. It is one Part 1 observation only. It does not measure later-part rate changes or prove whether pose selection follows elapsed frames or distance.</p>
+    </section>
+    <section>
+      <h2>Verification limits</h2>
+      <p>Reproduction command: <code>wsl python3 wiki/internal/tickets/evidence/rsch014-D/rate_policy_model.py</code>. It verifies the local MAME identity, ROM ZIP and code bytes, DIP tables, rate tables, part indexing, and the generated schedule. <code>wsl /usr/games/mame -listxml ladybug</code> reports the local DIP definitions. No game runtime probe, CoCo source modification, build, or emulated CoCo test was performed for Step D. A later natural level-transition probe must identify the staged artifact and live destination, use an explicit part/timer marker, have a deadline of at most 60 seconds, and state that timeout means the marker was not observed within that phase.</p>
+      <p>Source references: <a href="../../../sources/ladybug-arcade.html">arcade source notes</a> and <a href="../../../platform/timing.html">CoCo timing notes</a>. Canonical preparation ticket: <a href="../../bug-087-level-speed-progression.html">BUG-087</a>.</p>
+    </section>
+    <footer class="wiki-footer"><p>Prepared 2026-10-01 for RSCH-014 Step D. Static ROM policy is confirmed; CoCo runtime attribution and frame-rate equivalence remain open.</p></footer>
+  </main>
+</div>
+</body>
+</html>

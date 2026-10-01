@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-087 — Level speed progression — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="../index.html">Internal wiki</a><a href="./index.html">Tickets</a><a href="./evidence/rsch014-D/rate-policy-evidence.html">Step D evidence</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">BUG · gameplay movement</p>
+      <h1>Level speed progression <span class="wiki-badge">Draft</span></h1>
+      <p class="wiki-meta">Prepare an arcade-grounded enemy movement policy after identifying what drives the reported CoCo level-to-level speed change.</p>
+    </header>
+    <section>
+      <h2>Objective and report</h2>
+      <p>The user reports that gameplay appears to speed up at every level and requests arcade threshold research followed by preparation of a timer/enemy movement correction. This ticket separates border rotation timing, enemy movement cadence, player velocity, sprite animation dwell, and transient adaptive-rendering timing. The confirmed source mismatch below is a candidate defect, not yet a demonstrated cause of the CoCo report.</p>
+      <p>Expected behavior is the approved, selected Lady Bug arcade difficulty profile's enemy movement schedule across part start and elapsed time. The arcade tables do not produce a simple strictly increasing rate at every part boundary. Any CoCo repair must reproduce the selected source policy without changing the independent border timer, player movement, animation dwell, or adaptive-rendering cap behavior.</p>
+    </section>
+    <section>
+      <h2>Baseline and confirmed source facts</h2>
+      <p>Source baseline is <code>fe160ae</code>; the parent verified that the current core source files match the baseline build receipt. Arcade input identity and selected ROM bytes are recorded in the <a href="./evidence/rsch014-D/rate-policy-evidence.html">RSCH-014 Step D evidence</a>, generated <a href="./evidence/rsch014-D/rate-policy-model.json">rate-policy model</a>, and selected <a href="./evidence/rsch014-D/rate-policy-disassembly.txt">disassembly</a>.</p>
+      <p>On local MAME 0.220, DSW0 bit 1 selects the Easy/Medium or Hard/Hardest rate table; MAME reports Easy as the default, with no local DIP override. The active part counter is incremented from zero to one before first play and again at each later transition. The arcade selector indexes the offset table with the active counter directly, so active Part N uses index N. The earlier counter-zero-as-Part-1 interpretation is rejected. Counter 51-255 uses offset 16; the arcade counter itself wraps 0xFF to 0x00. This is distinct from the CoCo's STAGE 255-to-1 progression.</p>
+      <p>Under the default Easy/Medium profile, stage-start codes are Parts 1-6: 0x10; 7-8: 0x12; 9: 0x10; 10-14: 0x12; 15-17: 0x15; 18-50: 0x18. Under Hard/Hardest they are Parts 1-2: 0x10; 3: 0x12; 4: 0x10; 5-6: 0x12; 7-8: 0x15; 9: 0x12; 10-11: 0x15; 12-13: 0x18; 14: 0x15; 15-17: 0x18; 18-50: 0x20. Codes mean average coordinate steps per enemy dispatcher: 0x10=1.0, 0x12=1.19921875, 0x15=1.5, 0x18=1.796875, and 0x20=2.0. Within each part, the index is <code>min(15, part_offset + ($61B7 &gt;&gt; 4))</code>. The model contains per-part offsets and every code-change threshold for both profiles.</p>
+      <p>The elapsed counter starts at zero. Timer <code>$61B6</code> starts at 96 logical gameplay-loop calls, reloads at 60, and increments <code>$61B7</code> at expiry until it saturates at 0xF0. The first elapsed bucket is reached after 996 loop calls; later buckets are 960 calls apart; bucket 15 begins after 14,436 calls. These source-derived units are not raw arcade frames. The main loop polls VBlank, but static code does not prove one enemy dispatcher call per VBlank. No post-vegetable rate branch was found.</p>
+      <p>CoCo <code>src/main.s::reload_box_timer</code> already matches the arcade border thresholds: Part 1 uses 9 box ticks, Parts 2-4 use 6, and Part 5 onward uses 3. CoCo <code>src/enemy_runtime.s::et_find_movement</code> instead gates on <code>LAST_FRAME &amp; 1</code> and applies fixed framebuffer movement deltas, with no part or elapsed-rate selector. This is a confirmed source-policy mismatch. Current frame-indexed CoCo behavior across a natural level transition has not been measured, so causal attribution to the user's report remains open.</p>
+    </section>
+    <section>
+      <h2>Scope and competing explanations</h2>
+      <p>In scope: identify whether a current CoCo natural level transition changes enemy movement or game-loop cadence; distinguish movement updates from player speed and animation; choose the target arcade DIP profile; and prepare a bounded enemy-rate design with cycle-capacity evidence. The candidate enemy update path is <code>src/enemy_runtime.s</code>. Include <code>src/main.s</code> only if tracing proves its part/timer initialization owns the required state. Include <code>src/adaptive_runtime.s</code> only if a current trace attributes the transient to that subsystem.</p>
+      <p>Out of scope: changing the border timer already matched to the arcade, changing player movement, changing actor pose dwell tracked in <a href="./bug-080-actor-animation-dwell.html">BUG-080</a>, creating a generic speed cap, or duplicating the adaptive-rendering speedup report owned by <a href="./bug-058-three-enemy-slowdown.html">BUG-058</a>. A speedup that appears only during rendering recovery or a phase handoff belongs to that separate diagnosis until a trace proves an interaction here.</p>
+      <p>Current capacity evidence records four-enemy windows up to 28,800 horizontal cycles and 27,920 vertical cycles against the 27,000-cycle target. Raising enemy movement cadence may worsen the existing over-budget windows. The repair class is High-risk because it changes gameplay timing, shared enemy dispatch state, and work on a tight frame boundary; fit and preservation of accumulator/state ownership are material risks.</p>
+    </section>
+    <section>
+      <h2>Acceptance targets and verification</h2>
+      <p>After the target profile and CoCo cause are confirmed, the approved repair target is to match that profile's arcade part-offset and elapsed-bucket schedule, with frame-rate conversion demonstrated by a measured reference rather than inferred from loop counts. Retain the existing border thresholds exactly. Verify the chosen profile at stage start and across a later rate threshold, natural part initialization/reset, and a bounded multi-enemy movement window. Pair coverage is sufficient unless evidence identifies an interaction requiring a wider matrix. Report misses directly; do not claim arcade timing acceptance from static source equivalence alone.</p>
+      <p>Current Step D checks are <code>wsl python3 wiki/internal/tickets/evidence/rsch014-D/rate_policy_model.py</code> and <code>wsl /usr/games/mame -listxml ladybug</code>. The first verifies the local ROM identity, selected source bytes, difficulty tables, active-part indexing, and generated schedule. No gameplay capture, CoCo build, or runtime probe was performed here. The existing Part 1 MAME capture in <a href="./evidence/rsch014-D/historical-bug050-part1-enemy-cadence.json">BUG-050 evidence</a> measures one historical 24-frame/24-pixel sample only; it does not validate later-part thresholds or loop-to-frame conversion. The existing <code>scripts/mame_plans/baseline-speed.json</code> plan covers Part 1, so a runnable later-part capture plan and explicit frame markers remain Ready gates.</p>
+      <p>Any runtime probe must first prove authored, staged, and live artifact identity; specify the natural-transition phase, a stage/rate marker, and a deadline of at most 60 seconds. A timeout means that marker was not observed in the bounded phase. No emulator is to be disturbed for this Draft. Before Ready, provide a runnable matched MAME/CoCo capture, build command <code>wsl bash scripts/build.sh build</code> for the candidate, and per-risk verification commands. Capacity verification must show the movement change does not worsen the approved cycle target or state the retained miss and its measured margin.</p>
+    </section>
+    <section>
+      <h2>Dependencies, assignment, and decision log</h2>
+      <p>Dependency order: retain the Step D ROM policy evidence; identify the cause with a naturally initialized CoCo part transition and selected-artifact identity; select the arcade difficulty profile; then complete a fit and verification design. The ticket remains Draft until the CoCo transition cause, raw-frame mapping, profile, and bounded runnable assignment are supplied. Explicit user approval is required before implementation; Ready additionally requires exact owned files, dependency order, capacity plan, and commands.</p>
+      <p>After approval and Ready, one Luna Extra High implementation subagent owns the bounded production change and its separate commit. The parent owns integration, combined build, natural transition replay, and QA. No production implementation or integration is authorized by this preparation page.</p>
+      <p>2026-10-01: Static ROM decoding confirms the two difficulty tables, direct active-part indexing, elapsed-rate counter saturation, and independent border policy. Counter zero was rejected as the Part 1 index after locating the pre-play increment. Static source identifies a mismatch in CoCo enemy cadence, but no current CoCo transition trace proves it causes the reported speedup. Rate thresholds remain logical loop calls until a frame-indexed reference establishes conversion.</p>
+    </section>
+    <footer class="wiki-footer"><p>Preparation ticket only. No source changes, ROM build, live runtime claims, repair approval, or Ready status.</p></footer>
+  </main>
+</div>
+</body>
+</html>

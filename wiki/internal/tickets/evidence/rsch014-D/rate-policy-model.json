@@ -1,0 +1,1593 @@
+{
+  "schema": "rsch014-d-arcade-rate-policy-v1",
+  "identity": {
+    "driver": "ladybug",
+    "mame": "0.220 (unknown)",
+    "mame_executable_sha256": "7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4",
+    "maincpu_rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+    "maincpu_mapping": [
+      {
+        "member": "l1.c4",
+        "base": "0x0000",
+        "length_bytes": 4096,
+        "sha256": "af1fe5bc5831729d9eb1ae248d8b2a81fc5782c82ecd5fe575eefa2cbb7e9a0e"
+      },
+      {
+        "member": "l2.d4",
+        "base": "0x1000",
+        "length_bytes": 4096,
+        "sha256": "33cd595f36d2831525796a52114531f9a436774e369b6feeb428112f0a9ad82e"
+      },
+      {
+        "member": "l3.e4",
+        "base": "0x2000",
+        "length_bytes": 4096,
+        "sha256": "bd0ed3f3f6117415f310aa654a06afd8195dd509ab4de3673e9f559941cab2ce"
+      },
+      {
+        "member": "l4.h4",
+        "base": "0x3000",
+        "length_bytes": 4096,
+        "sha256": "e24be5fb6cca58350a3fe7abb3155990531c58283d565537162b84aabd17d12e"
+      },
+      {
+        "member": "l5.j4",
+        "base": "0x4000",
+        "length_bytes": 4096,
+        "sha256": "189d7052cd71a52d2f73fe1c173317ed9a053fa4fde5c7e63e8696a95398e735"
+      },
+      {
+        "member": "l6.k4",
+        "base": "0x5000",
+        "length_bytes": 4096,
+        "sha256": "3c481f827c4285a48ee2225b30c1fdf0d34173b262d19c196d99f6cc44c51956"
+      }
+    ],
+    "disassembler": {
+      "name": "z80dasm",
+      "version": "1.1.5",
+      "ubuntu_focal_deb_sha256": "f5fd556bd9b3b536a57a15736c2e6ab9e68032b015b0c99364976563edb6a643",
+      "extracted_executable_sha256": "891b7f80ca088270e414ad7a180bb11f70c78e7b38ff1f401beea265e36247dc"
+    }
+  },
+  "source_blocks_sha256": [
+    {
+      "address": "0x0162",
+      "length_bytes": 20,
+      "sha256": "54738bba185b233178ce51162debce85513ee6e1c0e60616f6d42cf8eac22925"
+    },
+    {
+      "address": "0x065f",
+      "length_bytes": 3,
+      "sha256": "d8aebefedb2c25b9ba0920a58965dd8c76500d932a6f18fab57628d20f279a5a"
+    },
+    {
+      "address": "0x0730",
+      "length_bytes": 53,
+      "sha256": "442b79a0f6384b357ee879f5419cd4ad2d6f0dbc709d6871258db62420b03549"
+    },
+    {
+      "address": "0x0784",
+      "length_bytes": 48,
+      "sha256": "35c3fdfcd185fa79fa5c115d8f16fdf88f00751763dc14a15aca59811e8f82d3"
+    },
+    {
+      "address": "0x1f26",
+      "length_bytes": 16,
+      "sha256": "95505b95e81d41f8b3807b1f4f4468348fce2266afe1cdbac9df9df6f7b3f9f3"
+    },
+    {
+      "address": "0x33cf",
+      "length_bytes": 20,
+      "sha256": "1380ba31c26204ac803baa1d5c86ef7bff8cdfd1df18764b3e975b19d8d24e68"
+    },
+    {
+      "address": "0x35e3",
+      "length_bytes": 28,
+      "sha256": "afac8b1a7c8cc7800b6c63708b082ff79e0ea45b8b5f7cf1455df4899852015c"
+    },
+    {
+      "address": "0x39b1",
+      "length_bytes": 200,
+      "sha256": "1eddae2d06b596c75fc72729eb5be483bcb9240bf1fbdd7932d2e0020231b3f6"
+    },
+    {
+      "address": "0x407e",
+      "length_bytes": 82,
+      "sha256": "10435e7ba6b6018a9a73ae2168392642887fa1576b00922e3cfda8c09c30d4d0"
+    },
+    {
+      "address": "0x40cc",
+      "length_bytes": 44,
+      "sha256": "56c027ff067d5d415b0f4dd0df556f2bf7f66538900dc86bd2489eb97b856d05"
+    },
+    {
+      "address": "0x40f8",
+      "length_bytes": 56,
+      "sha256": "58598a0929cddc716562f23cac86ae0091dd41330d08f85788d0488309b9ddc8"
+    },
+    {
+      "address": "0x4224",
+      "length_bytes": 29,
+      "sha256": "2f7d63134f5f5e1ddc781e1d6afc75c6f816b33846d44e1b3572ce9cfd9d878f"
+    },
+    {
+      "address": "0x42ba",
+      "length_bytes": 310,
+      "sha256": "cb382245c0de342bfe0e1ee750d7b4b6c13e1dd8a05cbbb0c24c531d51c43950"
+    }
+  ],
+  "source_policy": {
+    "part_counter": {
+      "storage": [
+        "$606E",
+        "$606F"
+      ],
+      "active_player_selector": "$6065",
+      "initial_value": 0,
+      "increment_routine": "$33CF",
+      "increment_call_sites": [
+        "$04D9",
+        "$0662"
+      ],
+      "byte_wrap": "increment has no cap; values 0x33..0xFF take the constant offset 0x10 path, then the byte wraps to 0x00",
+      "offset_table_address": "$0EA6",
+      "offsets_for_counters_0_to_50": [
+        0,
+        0,
+        2,
+        4,
+        1,
+        3,
+        5,
+        6,
+        8,
+        5,
+        7,
+        9,
+        10,
+        11,
+        8,
+        12,
+        13,
+        14,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        16
+      ],
+      "active_part_relation": "First start increments reset counter 0 to 1 at address 0x04D9; later transitions increment at 0x0662. Selector 0x1F26 returns the active-player counter unchanged; 0x40F8 indexes 0x0EA6 with that value. Thus active part N uses counter N before byte wrap.",
+      "counter_51_to_255_offset": 16,
+      "counter_wrap": "Arcade byte 0xFF increment wraps to 0x00; this ROM behavior is separate from CoCo STAGE rollover."
+    },
+    "difficulty": {
+      "read_port": "$9002 / DSW0",
+      "selector_bit": 1,
+      "mame_default": "0x03 Easy; current ladybug.cfg contains no DIP override",
+      "bit1_set": "Easy and Medium use $0ED8",
+      "bit1_clear": "Hard and Hardest use $0EE8"
+    },
+    "rate_tables": {
+      "address_0ed8": [
+        {
+          "code": "0x10",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 0,
+          "mean_steps_per_dispatch": 1.0
+        },
+        {
+          "code": "0x10",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 0,
+          "mean_steps_per_dispatch": 1.0
+        },
+        {
+          "code": "0x10",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 0,
+          "mean_steps_per_dispatch": 1.0
+        },
+        {
+          "code": "0x10",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 0,
+          "mean_steps_per_dispatch": 1.0
+        },
+        {
+          "code": "0x10",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 0,
+          "mean_steps_per_dispatch": 1.0
+        },
+        {
+          "code": "0x10",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 0,
+          "mean_steps_per_dispatch": 1.0
+        },
+        {
+          "code": "0x12",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 51,
+          "mean_steps_per_dispatch": 1.19921875
+        },
+        {
+          "code": "0x12",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 51,
+          "mean_steps_per_dispatch": 1.19921875
+        },
+        {
+          "code": "0x12",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 51,
+          "mean_steps_per_dispatch": 1.19921875
+        },
+        {
+          "code": "0x12",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 51,
+          "mean_steps_per_dispatch": 1.19921875
+        },
+        {
+          "code": "0x12",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 51,
+          "mean_steps_per_dispatch": 1.19921875
+        },
+        {
+          "code": "0x12",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 51,
+          "mean_steps_per_dispatch": 1.19921875
+        },
+        {
+          "code": "0x15",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 128,
+          "mean_steps_per_dispatch": 1.5
+        },
+        {
+          "code": "0x15",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 128,
+          "mean_steps_per_dispatch": 1.5
+        },
+        {
+          "code": "0x15",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 128,
+          "mean_steps_per_dispatch": 1.5
+        },
+        {
+          "code": "0x18",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 204,
+          "mean_steps_per_dispatch": 1.796875
+        }
+      ],
+      "address_0ee8": [
+        {
+          "code": "0x10",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 0,
+          "mean_steps_per_dispatch": 1.0
+        },
+        {
+          "code": "0x10",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 0,
+          "mean_steps_per_dispatch": 1.0
+        },
+        {
+          "code": "0x10",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 0,
+          "mean_steps_per_dispatch": 1.0
+        },
+        {
+          "code": "0x12",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 51,
+          "mean_steps_per_dispatch": 1.19921875
+        },
+        {
+          "code": "0x12",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 51,
+          "mean_steps_per_dispatch": 1.19921875
+        },
+        {
+          "code": "0x12",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 51,
+          "mean_steps_per_dispatch": 1.19921875
+        },
+        {
+          "code": "0x15",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 128,
+          "mean_steps_per_dispatch": 1.5
+        },
+        {
+          "code": "0x15",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 128,
+          "mean_steps_per_dispatch": 1.5
+        },
+        {
+          "code": "0x15",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 128,
+          "mean_steps_per_dispatch": 1.5
+        },
+        {
+          "code": "0x15",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 128,
+          "mean_steps_per_dispatch": 1.5
+        },
+        {
+          "code": "0x18",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 204,
+          "mean_steps_per_dispatch": 1.796875
+        },
+        {
+          "code": "0x18",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 204,
+          "mean_steps_per_dispatch": 1.796875
+        },
+        {
+          "code": "0x18",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 204,
+          "mean_steps_per_dispatch": 1.796875
+        },
+        {
+          "code": "0x18",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 204,
+          "mean_steps_per_dispatch": 1.796875
+        },
+        {
+          "code": "0x18",
+          "whole_steps_per_dispatch": 1,
+          "fraction_byte_per_dispatch": 204,
+          "mean_steps_per_dispatch": 1.796875
+        },
+        {
+          "code": "0x20",
+          "whole_steps_per_dispatch": 2,
+          "fraction_byte_per_dispatch": 0,
+          "mean_steps_per_dispatch": 2.0
+        }
+      ]
+    },
+    "rate_index": "min(15, part_offset + ($61B7 >> 4))",
+    "time_state": {
+      "$61B5": "8-bit fractional movement accumulator; reset to 0 during stage initialization",
+      "$61B6": "initialized to 0x60 (96 logical-loop calls); on zero reloaded to 0x3C (60)",
+      "$61B7": "initialized to 0; incremented whenever $61B6 wraps; high nibble is elapsed bucket; saturates at 0xF0 and does not increment further",
+      "first_elapsed_bucket_1": 996,
+      "later_bucket_spacing": 960,
+      "saturation": "0xF0 reached at 14436 logical-loop calls from stage initialization; then elapsed bucket remains 15",
+      "stage_entry": "stage-transition JP 0x065F targets setup 0x0730; setup calls 0x35E3 and initializes 0x61B6/0x61B7/0x61B8/0x61B5; main loop 0x0784 calls 0x407E at 0x07A9",
+      "unit": "logical gameplay-loop calls, not assumed raw VBlanks"
+    },
+    "movement": {
+      "dispatcher": "$407E, called at $07A9 after $61E1 gate",
+      "rate_code": "$40F8 writes $61C3 from part offset + elapsed bucket",
+      "fractional_step_count": "$40CC-$40F7 converts rate code into one shared integer step count per dispatcher using $61B5; each active enemy repeats $42BA movement until the same count is consumed",
+      "coordinate_step": "$4224 increments/decrements one coordinate unit; the MAME record-to-screen mapping in BUG-050 is one visible pixel per unit"
+    },
+    "independent_border_timer": {
+      "routine": "$35E3",
+      "parts_1": 9,
+      "parts_2_to_4": 6,
+      "part_5_and_later": 3,
+      "unit": "border-box ticks"
+    },
+    "post_vegetable": "No post-vegetable variable or branch is read by the rate selector; tracked rate-state writes are stage initialization, elapsed timer, and fractional accumulation only."
+  },
+  "schedule": {
+    "parts_1_to_50": [
+      {
+        "part": 1,
+        "part_counter": 1,
+        "offset": 0,
+        "start_rate_index": 0,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x10",
+          "changes": [
+            {
+              "elapsed_bucket": 6,
+              "logical_loop_calls_from_stage_init": 5796,
+              "rate_code": "0x12"
+            },
+            {
+              "elapsed_bucket": 12,
+              "logical_loop_calls_from_stage_init": 11556,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 15,
+              "logical_loop_calls_from_stage_init": 14436,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x10",
+          "changes": [
+            {
+              "elapsed_bucket": 3,
+              "logical_loop_calls_from_stage_init": 2916,
+              "rate_code": "0x12"
+            },
+            {
+              "elapsed_bucket": 6,
+              "logical_loop_calls_from_stage_init": 5796,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 10,
+              "logical_loop_calls_from_stage_init": 9636,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 15,
+              "logical_loop_calls_from_stage_init": 14436,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 2,
+        "part_counter": 2,
+        "offset": 2,
+        "start_rate_index": 2,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x10",
+          "changes": [
+            {
+              "elapsed_bucket": 4,
+              "logical_loop_calls_from_stage_init": 3876,
+              "rate_code": "0x12"
+            },
+            {
+              "elapsed_bucket": 10,
+              "logical_loop_calls_from_stage_init": 9636,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 13,
+              "logical_loop_calls_from_stage_init": 12516,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x10",
+          "changes": [
+            {
+              "elapsed_bucket": 1,
+              "logical_loop_calls_from_stage_init": 996,
+              "rate_code": "0x12"
+            },
+            {
+              "elapsed_bucket": 4,
+              "logical_loop_calls_from_stage_init": 3876,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 8,
+              "logical_loop_calls_from_stage_init": 7716,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 13,
+              "logical_loop_calls_from_stage_init": 12516,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 3,
+        "part_counter": 3,
+        "offset": 4,
+        "start_rate_index": 4,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x10",
+          "changes": [
+            {
+              "elapsed_bucket": 2,
+              "logical_loop_calls_from_stage_init": 1956,
+              "rate_code": "0x12"
+            },
+            {
+              "elapsed_bucket": 8,
+              "logical_loop_calls_from_stage_init": 7716,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 11,
+              "logical_loop_calls_from_stage_init": 10596,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x12",
+          "changes": [
+            {
+              "elapsed_bucket": 2,
+              "logical_loop_calls_from_stage_init": 1956,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 6,
+              "logical_loop_calls_from_stage_init": 5796,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 11,
+              "logical_loop_calls_from_stage_init": 10596,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 4,
+        "part_counter": 4,
+        "offset": 1,
+        "start_rate_index": 1,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x10",
+          "changes": [
+            {
+              "elapsed_bucket": 5,
+              "logical_loop_calls_from_stage_init": 4836,
+              "rate_code": "0x12"
+            },
+            {
+              "elapsed_bucket": 11,
+              "logical_loop_calls_from_stage_init": 10596,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 14,
+              "logical_loop_calls_from_stage_init": 13476,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x10",
+          "changes": [
+            {
+              "elapsed_bucket": 2,
+              "logical_loop_calls_from_stage_init": 1956,
+              "rate_code": "0x12"
+            },
+            {
+              "elapsed_bucket": 5,
+              "logical_loop_calls_from_stage_init": 4836,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 9,
+              "logical_loop_calls_from_stage_init": 8676,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 14,
+              "logical_loop_calls_from_stage_init": 13476,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 5,
+        "part_counter": 5,
+        "offset": 3,
+        "start_rate_index": 3,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x10",
+          "changes": [
+            {
+              "elapsed_bucket": 3,
+              "logical_loop_calls_from_stage_init": 2916,
+              "rate_code": "0x12"
+            },
+            {
+              "elapsed_bucket": 9,
+              "logical_loop_calls_from_stage_init": 8676,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 12,
+              "logical_loop_calls_from_stage_init": 11556,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x12",
+          "changes": [
+            {
+              "elapsed_bucket": 3,
+              "logical_loop_calls_from_stage_init": 2916,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 7,
+              "logical_loop_calls_from_stage_init": 6756,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 12,
+              "logical_loop_calls_from_stage_init": 11556,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 6,
+        "part_counter": 6,
+        "offset": 5,
+        "start_rate_index": 5,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x10",
+          "changes": [
+            {
+              "elapsed_bucket": 1,
+              "logical_loop_calls_from_stage_init": 996,
+              "rate_code": "0x12"
+            },
+            {
+              "elapsed_bucket": 7,
+              "logical_loop_calls_from_stage_init": 6756,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 10,
+              "logical_loop_calls_from_stage_init": 9636,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x12",
+          "changes": [
+            {
+              "elapsed_bucket": 1,
+              "logical_loop_calls_from_stage_init": 996,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 5,
+              "logical_loop_calls_from_stage_init": 4836,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 10,
+              "logical_loop_calls_from_stage_init": 9636,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 7,
+        "part_counter": 7,
+        "offset": 6,
+        "start_rate_index": 6,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x12",
+          "changes": [
+            {
+              "elapsed_bucket": 6,
+              "logical_loop_calls_from_stage_init": 5796,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 9,
+              "logical_loop_calls_from_stage_init": 8676,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x15",
+          "changes": [
+            {
+              "elapsed_bucket": 4,
+              "logical_loop_calls_from_stage_init": 3876,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 9,
+              "logical_loop_calls_from_stage_init": 8676,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 8,
+        "part_counter": 8,
+        "offset": 8,
+        "start_rate_index": 8,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x12",
+          "changes": [
+            {
+              "elapsed_bucket": 4,
+              "logical_loop_calls_from_stage_init": 3876,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 7,
+              "logical_loop_calls_from_stage_init": 6756,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x15",
+          "changes": [
+            {
+              "elapsed_bucket": 2,
+              "logical_loop_calls_from_stage_init": 1956,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 7,
+              "logical_loop_calls_from_stage_init": 6756,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 9,
+        "part_counter": 9,
+        "offset": 5,
+        "start_rate_index": 5,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x10",
+          "changes": [
+            {
+              "elapsed_bucket": 1,
+              "logical_loop_calls_from_stage_init": 996,
+              "rate_code": "0x12"
+            },
+            {
+              "elapsed_bucket": 7,
+              "logical_loop_calls_from_stage_init": 6756,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 10,
+              "logical_loop_calls_from_stage_init": 9636,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x12",
+          "changes": [
+            {
+              "elapsed_bucket": 1,
+              "logical_loop_calls_from_stage_init": 996,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 5,
+              "logical_loop_calls_from_stage_init": 4836,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 10,
+              "logical_loop_calls_from_stage_init": 9636,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 10,
+        "part_counter": 10,
+        "offset": 7,
+        "start_rate_index": 7,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x12",
+          "changes": [
+            {
+              "elapsed_bucket": 5,
+              "logical_loop_calls_from_stage_init": 4836,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 8,
+              "logical_loop_calls_from_stage_init": 7716,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x15",
+          "changes": [
+            {
+              "elapsed_bucket": 3,
+              "logical_loop_calls_from_stage_init": 2916,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 8,
+              "logical_loop_calls_from_stage_init": 7716,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 11,
+        "part_counter": 11,
+        "offset": 9,
+        "start_rate_index": 9,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x12",
+          "changes": [
+            {
+              "elapsed_bucket": 3,
+              "logical_loop_calls_from_stage_init": 2916,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 6,
+              "logical_loop_calls_from_stage_init": 5796,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x15",
+          "changes": [
+            {
+              "elapsed_bucket": 1,
+              "logical_loop_calls_from_stage_init": 996,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 6,
+              "logical_loop_calls_from_stage_init": 5796,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 12,
+        "part_counter": 12,
+        "offset": 10,
+        "start_rate_index": 10,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x12",
+          "changes": [
+            {
+              "elapsed_bucket": 2,
+              "logical_loop_calls_from_stage_init": 1956,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 5,
+              "logical_loop_calls_from_stage_init": 4836,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x18",
+          "changes": [
+            {
+              "elapsed_bucket": 5,
+              "logical_loop_calls_from_stage_init": 4836,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 13,
+        "part_counter": 13,
+        "offset": 11,
+        "start_rate_index": 11,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x12",
+          "changes": [
+            {
+              "elapsed_bucket": 1,
+              "logical_loop_calls_from_stage_init": 996,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 4,
+              "logical_loop_calls_from_stage_init": 3876,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x18",
+          "changes": [
+            {
+              "elapsed_bucket": 4,
+              "logical_loop_calls_from_stage_init": 3876,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 14,
+        "part_counter": 14,
+        "offset": 8,
+        "start_rate_index": 8,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x12",
+          "changes": [
+            {
+              "elapsed_bucket": 4,
+              "logical_loop_calls_from_stage_init": 3876,
+              "rate_code": "0x15"
+            },
+            {
+              "elapsed_bucket": 7,
+              "logical_loop_calls_from_stage_init": 6756,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x15",
+          "changes": [
+            {
+              "elapsed_bucket": 2,
+              "logical_loop_calls_from_stage_init": 1956,
+              "rate_code": "0x18"
+            },
+            {
+              "elapsed_bucket": 7,
+              "logical_loop_calls_from_stage_init": 6756,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 15,
+        "part_counter": 15,
+        "offset": 12,
+        "start_rate_index": 12,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x15",
+          "changes": [
+            {
+              "elapsed_bucket": 3,
+              "logical_loop_calls_from_stage_init": 2916,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x18",
+          "changes": [
+            {
+              "elapsed_bucket": 3,
+              "logical_loop_calls_from_stage_init": 2916,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 16,
+        "part_counter": 16,
+        "offset": 13,
+        "start_rate_index": 13,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x15",
+          "changes": [
+            {
+              "elapsed_bucket": 2,
+              "logical_loop_calls_from_stage_init": 1956,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x18",
+          "changes": [
+            {
+              "elapsed_bucket": 2,
+              "logical_loop_calls_from_stage_init": 1956,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 17,
+        "part_counter": 17,
+        "offset": 14,
+        "start_rate_index": 14,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x15",
+          "changes": [
+            {
+              "elapsed_bucket": 1,
+              "logical_loop_calls_from_stage_init": 996,
+              "rate_code": "0x18"
+            }
+          ]
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x18",
+          "changes": [
+            {
+              "elapsed_bucket": 1,
+              "logical_loop_calls_from_stage_init": 996,
+              "rate_code": "0x20"
+            }
+          ]
+        }
+      },
+      {
+        "part": 18,
+        "part_counter": 18,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 19,
+        "part_counter": 19,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 20,
+        "part_counter": 20,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 21,
+        "part_counter": 21,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 22,
+        "part_counter": 22,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 23,
+        "part_counter": 23,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 24,
+        "part_counter": 24,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 25,
+        "part_counter": 25,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 26,
+        "part_counter": 26,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 27,
+        "part_counter": 27,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 28,
+        "part_counter": 28,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 29,
+        "part_counter": 29,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 30,
+        "part_counter": 30,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 31,
+        "part_counter": 31,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 32,
+        "part_counter": 32,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 33,
+        "part_counter": 33,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 34,
+        "part_counter": 34,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 35,
+        "part_counter": 35,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 36,
+        "part_counter": 36,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 37,
+        "part_counter": 37,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 38,
+        "part_counter": 38,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 39,
+        "part_counter": 39,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 40,
+        "part_counter": 40,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 41,
+        "part_counter": 41,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 42,
+        "part_counter": 42,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 43,
+        "part_counter": 43,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 44,
+        "part_counter": 44,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 45,
+        "part_counter": 45,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 46,
+        "part_counter": 46,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 47,
+        "part_counter": 47,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 48,
+        "part_counter": 48,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 49,
+        "part_counter": 49,
+        "offset": 15,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      },
+      {
+        "part": 50,
+        "part_counter": 50,
+        "offset": 16,
+        "start_rate_index": 15,
+        "easy_medium_bit1_set": {
+          "start_rate_code": "0x18",
+          "changes": []
+        },
+        "hard_hardest_bit1_clear": {
+          "start_rate_code": "0x20",
+          "changes": []
+        }
+      }
+    ],
+    "parts_51_to_255": "counter >= 0x33 clamps lookup to table index 50, offset 0x10; incrementing 0xFF wraps to 0x00 and therefore uses table entry 0",
+    "part_1_default_profile": {
+      "stage_start": {
+        "code": "0x10",
+        "whole_steps_per_dispatch": 1,
+        "fraction_byte_per_dispatch": 0,
+        "mean_steps_per_dispatch": 1.0
+      },
+      "first_rate_change": "elapsed bucket 6; $61B7 reaches 0x60 after 5796 logical loop calls"
+    },
+    "part_1_hard_profile": {
+      "stage_start": {
+        "code": "0x10",
+        "whole_steps_per_dispatch": 1,
+        "fraction_byte_per_dispatch": 0,
+        "mean_steps_per_dispatch": 1.0
+      },
+      "first_rate_change": "elapsed bucket 3; $61B7 reaches 0x30 after 2916 logical loop calls"
+    }
+  },
+  "runtime_anchor": {
+    "evidence": "historical-bug050-part1-enemy-cadence.json",
+    "historical": true,
+    "evidence_sha256": "8675d9149a62c1404108660afe848a0c3374eb1b069d0d8e6d649dcd3c474134",
+    "MAME_endpoint_frames": [
+      1504,
+      1528
+    ],
+    "endpoint_frame_intervals": 24,
+    "part": 1,
+    "record_y": [
+      "0x9E",
+      "0xB6"
+    ],
+    "visible_pixel_delta": 24,
+    "pose_dwell_frames": 8,
+    "complete_pose_hold_start_frames": [
+      1505,
+      1513,
+      1521
+    ],
+    "limit": "Single historical Part-1 movement sample only; no later-stage raw-frame schedule and no proof whether pose selection is clock- or distance-driven."
+  },
+  "limits": [
+    "ROM static policy is confirmed for the hashed local ROM; actual live cabinet DIP is not known.",
+    "The logical loop polls active-high $9001 bit 7; only the cited Part-1 sample directly measures movement per MAME frame. Static evidence does not prove a strict one-loop-per-VBlank mapping.",
+    "This is a deterministic source decoder, not a CoCo runtime measurement or production prototype."
+  ]
+}
