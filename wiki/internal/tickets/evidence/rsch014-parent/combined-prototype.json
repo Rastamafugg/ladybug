@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-01",
+  "source_revision": "fe160ae389145d24083218ded05ba9cdca781474",
+  "worktree": "E:/projects/ladybug/worktrees/rsch014-combined-prototype",
+  "inputs": "Nine unchanged user TMX files identified in snapshot-and-baseline.json",
+  "prototype_only": true,
+  "production_source_changed": false,
+  "patches": [
+    {
+      "name": "BUG059-060-layer-compiler-prototype.patch",
+      "sha256": "2b2add484edbd5228775fefb4d9c54dd75b57a4b2306c79e2d7a56d81d85d7b8"
+    },
+    {
+      "name": "menu-text-colours.patch",
+      "sha256": "84223b0db6e0a662c7fd6b33fa84ca67b2593a545e427fd2f8de0ccabd4cb6e8"
+    },
+    {
+      "name": "applied-menu-anchor-diagnostic-v1.patch",
+      "sha256": "ce7a57fff168103aeddcfa80fb9a1ebb0c1e34e97a1abcf3b7320f45b7508203"
+    }
+  ],
+  "checks": [
+    {
+      "command": "python scripts/verify_bug016_presentation_layers.py --tiled-dir tiled",
+      "exit_code": 0,
+      "result": "9 role contracts, 22 raw markers, 2 deferred logo layers, 5 negative diagnostics valid"
+    },
+    {
+      "command": "bash scripts/build.sh build",
+      "exit_code": 1,
+      "last_completed_boundary": "Gameplay screen: 97 unique tiles, 5152 data bytes, 168 gate cases",
+      "failure": "scripts/shared_text.py:337 rejects keybinding row 16 metadata; authored map has five action labels but runtime requires seven",
+      "rom_emitted": false,
+      "capacity_pass": false
+    }
+  ],
+  "reassessment": "Layer and high-score menu compiler boundaries were crossed in isolation. Listed layer patch has subsequently gained strict gameplay metadata validation; that version passes the layer check, but a full build has not been rerun after the validation-only revision. The retained applied menu diagnostic predates the user clarification removing parentheses and is rejected as a production design. Keybinding contract changed from seven action rows to five; user clarification requested. Three generated high-score menu rows do not implement three-item runtime navigation. Current-ROM runtime/capacity gates remain open. Build failures are not runtime probes or timing measurements."
+}
