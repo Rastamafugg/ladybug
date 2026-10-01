@@ -1,0 +1,99 @@
+diff --git a/scripts/build_presentation.py b/scripts/build_presentation.py
+index 486decf..9249ac1 100644
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -122,0 +123 @@ ENTER_HIGH_SCORE_CURSOR_MARKER = {(19, 22): 545}
++ENTER_HIGH_SCORE_SPRITE_LOCATIONS = {**ENTER_HIGH_SCORE_CURSOR_MARKER, (32, 13): 633}
+@@ -195 +196 @@ PRESENTATION_LAYER_CONTRACTS = {
+-        "metadata": ("Coin Positions", "Selected Option"),
++        "metadata": ("Coin Positions",),
+@@ -203 +204 @@ PRESENTATION_LAYER_CONTRACTS = {
+-        "metadata": (),
++        "metadata": ("Sprite Locations",),
+@@ -237,9 +238,2 @@ INSTRUCTION_RAW_SPRITE_MARKERS = {
+-LEVEL_START_METADATA = {
+-    **{(x, 2): 497 for x in range(33, 39)},
+-    **{(x, 6): 497 for x in range(33, 39)},
+-    (16, 7): 633,
+-    (19, 7): 481, (20, 7): 497, (21, 7): 497, (22, 7): 497,
+-    (33, 9): 497,
+-    (32, 13): 633,
+-    (35, 13): 481, (36, 13): 497, (37, 13): 497, (38, 13): 497,
+-}
++LEVEL_START_METADATA = {(16, 7): 633, (32, 13): 633}
++GAME_OVER_SPRITE_LOCATIONS = {(32, 13): 633}
+@@ -695,0 +690,7 @@ def validate_presentation_layers(
++    if role == "game-over":
++        metadata = by_name["Sprite Locations"]
++        require_records(
++            path, "game-over sprite locations", layer_records(metadata),
++            GAME_OVER_SPRITE_LOCATIONS,
++        )
++        validate_layer_tilesets(path, root, metadata, ("sprites_raw2bpp",))
+@@ -698 +699 @@ def validate_presentation_layers(
+-        require_records(path, "level-start metadata", records, LEVEL_START_METADATA)
++        require_records(path, "level-start sprite locations", records, LEVEL_START_METADATA)
+@@ -701 +702 @@ def validate_presentation_layers(
+-            ("chars_raw2bpp", "sprites_raw2bpp"),
++            ("sprites_raw2bpp",),
+@@ -708 +709 @@ def validate_presentation_layers(
+-            ENTER_HIGH_SCORE_CURSOR_MARKER,
++            ENTER_HIGH_SCORE_SPRITE_LOCATIONS,
+@@ -1370 +1371 @@ def parse_enter_high_score_contract(
+-        ENTER_HIGH_SCORE_CURSOR_MARKER,
++        ENTER_HIGH_SCORE_SPRITE_LOCATIONS,
+diff --git a/scripts/build_screen.py b/scripts/build_screen.py
+index ab74b6f..01d5bf8 100644
+--- a/scripts/build_screen.py
++++ b/scripts/build_screen.py
+@@ -39,0 +40 @@ LIFE_PEN_MAP = (BLACK, GREEN, DARK_RED, YELLOW)
++GAMEPLAY_SPRITE_LOCATIONS = {(32, 13): 633}
+@@ -700,0 +702,42 @@ def tileset_ranges(root: ET.Element, map_path: Path) -> list[dict[str, object]]:
++def validate_gameplay_sprite_locations(
++        root: ET.Element, map_path: Path,
++) -> ET.Element:
++    """Validate the current gameplay-only 16x16 marker layer before omission."""
++    layers = [layer for layer in root.findall("layer")
++              if layer.get("name") == "Sprite Locations"]
++    if len(layers) != 1:
++        raise ValueError(
++            f"{map_path}: expected one Sprite Locations layer; found {len(layers)}"
++        )
++    layer = layers[0]
++    cells = parse_csv(layer.find("data"), layer.get("name", ""))
++    actual = {
++        (index % SCREEN_WIDTH, index // SCREEN_WIDTH): gid
++        for index, gid in enumerate(cells) if gid & GID_MASK
++    }
++    if actual != GAMEPLAY_SPRITE_LOCATIONS:
++        missing = sorted(set(GAMEPLAY_SPRITE_LOCATIONS) - set(actual))
++        extra = sorted(set(actual) - set(GAMEPLAY_SPRITE_LOCATIONS))
++        wrong = sorted(cell for cell in set(actual) & set(GAMEPLAY_SPRITE_LOCATIONS)
++                       if actual[cell] != GAMEPLAY_SPRITE_LOCATIONS[cell])
++        raise ValueError(
++            f"{map_path}: Sprite Locations contract mismatch; "
++            f"missing={missing}, extra={extra}, wrong={wrong}"
++        )
++    ranges = tileset_ranges(root, map_path)
++    for cell, gid_with_flags in actual.items():
++        gid = gid_with_flags & GID_MASK
++        tileset = next((item for item in ranges
++                        if int(item["firstgid"]) <= gid <= int(item["lastgid"])), None)
++        if (tileset is None or tileset["name"] != "sprites_raw2bpp"
++                or tileset["tilewidth"] != 16 or tileset["tileheight"] != 16):
++            name = None if tileset is None else tileset["name"]
++            dimensions = None if tileset is None else (
++                tileset["tilewidth"], tileset["tileheight"])
++            raise ValueError(
++                f"{map_path}: Sprite Locations cell {cell} uses "
++                f"{name!r} {dimensions!r}; expected sprites_raw2bpp (16, 16)"
++            )
++    return layer
++
++
+@@ -715,0 +759 @@ def compile_screen(map_path: Path, maze_path: Path, chars_path: Path,
++    sprite_locations = validate_gameplay_sprite_locations(root, map_path)
+@@ -718,0 +763,3 @@ def compile_screen(map_path: Path, maze_path: Path, chars_path: Path,
++        # Sprite Locations stores editor metadata, not framebuffer tiles.
++        if layer is sprite_locations:
++            continue
