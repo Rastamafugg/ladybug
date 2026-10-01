@@ -132,6 +132,7 @@ class PackedStream:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--keybinding-runtime", type=Path)
     parser.add_argument("--sprites", type=Path, required=True)
     parser.add_argument("--enemy-runtime", type=Path, required=True)
     parser.add_argument("--enemy-output", type=Path, required=True)
@@ -401,6 +402,7 @@ def pack_candidate_banks(
         compress_enemy_pages: bool = True,
         adaptive_helper: bytes = b"",
         vegetable_payload: bytes = b"",
+        keybinding_runtime: bytes = b"",
 ) -> tuple:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
     if len(enemy_runtime) > ENEMY_RUNTIME_RESERVED:
@@ -458,14 +460,15 @@ def pack_candidate_banks(
         SourceInterval(0, helper_source_end,
                        CART_READABLE_BYTES),
     ]
-    if INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage) > 0xB600:
-        raise ValueError("presentation auxiliary overlaps compressed title at $B600")
-    if 0xB600 + len(actor_underlays) + len(actor_records) > PHASE_TILE_PATCH_ADDRESS:
-        raise ValueError("compressed title overlaps phase patches at $BF80")
+    if INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage) > 0xB880:
+        raise ValueError("presentation auxiliary overlaps compressed title at $B880")
+    actor_bundle_address = WINDOW_BASE + max(0, len(presentation_cold) - PAGE_BYTES)
+    if actor_bundle_address + len(actor_underlays) + len(actor_records) > 0xC000:
+        raise ValueError("compressed title exceeds remaining page-$3B cold allocation")
     targets = (
         target_chunks("enemy", enemy_payload, ENEMY_PAGE_BASE) +
         target_chunks("attract_actor_bundle", actor_underlays + actor_records,
-                      0x23, 0xB600) +
+                      0x3B, actor_bundle_address) +
         target_chunks("presentation_auxiliary", aux_runtime_stage,
                       0x23, INSTRUCTION_RUNTIME_ADDRESS) +
         target_chunks("phase_tile_patches", tile_patches, 0x23,
@@ -499,8 +502,13 @@ def pack_candidate_banks(
             stream_targets.append((f"enemy_page_{page:02x}",
                                    enemy_payload[offset:offset + PAGE_BYTES],
                                    page, WINDOW_BASE))
+    audio_transport = audio_runtime
+    if keybinding_runtime:
+        if len(audio_runtime) > 0x1A00 or len(keybinding_runtime) > 0x600:
+            raise ValueError("keybinding runtime overlaps audio or exceeds $BA00-$BFFF")
+        audio_transport = audio_runtime.ljust(0x1A00, b"\x00") + keybinding_runtime
     stream_targets.append((
-        "audio_page_3d", audio_runtime, AUDIO_RUNTIME_PAGE,
+        "audio_page_3d", audio_transport, AUDIO_RUNTIME_PAGE,
         AUDIO_RUNTIME_ADDRESS,
     ))
 
@@ -815,6 +823,7 @@ def main() -> None:
         include_streams=True,
         adaptive_helper=args.adaptive_helper.read_bytes() if args.adaptive_helper else b"",
         vegetable_payload=vegetable_payload,
+        keybinding_runtime=args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b"",
     )
     outputs = (
         (args.enemy_output, enemy_payload),
@@ -950,6 +959,12 @@ def main() -> None:
             "page": AUDIO_RUNTIME_PAGE,
             "address": AUDIO_RUNTIME_ADDRESS,
             "sha256": digest(audio_runtime),
+        },
+        "keybinding_runtime": {
+            "bytes": args.keybinding_runtime.stat().st_size if args.keybinding_runtime else 0,
+            "page": 0x3D,
+            "address": 0xBA00,
+            "sha256": digest(args.keybinding_runtime.read_bytes()) if args.keybinding_runtime else None,
         },
         "aux_runtime": {
             "role": args.aux_runtime_role,

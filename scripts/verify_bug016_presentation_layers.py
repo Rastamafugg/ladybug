@@ -71,7 +71,8 @@ def main() -> None:
         path = args.tiled_dir / MAP_FILES[name]
         root = ET.parse(path).getroot()
         result = validate_presentation_layers(root, path)
-        if result["role"] != name:
+        expected_role = "options" if name == "keybind-options" else name
+        if result["role"] != expected_role:
             raise SystemExit(f"BUG-016 proof: {name} role differs from filename")
         roots[name] = (path, root)
         contracts[name] = result

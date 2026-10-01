@@ -1,3 +1,4 @@
+; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
 ; BUG-012 release-profile demo route director, copied to low RAM $0300.
 ; DOC-002 source-contract mirror begins. Canonical definitions:
 ; wiki/internal/implementation/routine-catalog.html
@@ -109,7 +110,7 @@ SND_DATA equ $FF51
 highscore_phase_tick
         lda     PRES_MODE
         cmpa    #5
-        lbeq    highscore_logo_tick
+        lbeq    menu_tick
         cmpa    #MODE_GAMEOVER
         lbeq    highscore_gameover_tick
         tst     PRES_NAME_FLAGS
@@ -428,12 +429,18 @@ highscore_default_name_data
 ; BUG-035: called during hidden level-start hydration, before publication.
 ; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
 stage_panel_draw
-        jmp stage_panel_finish
+        jmp menu_load_finish
 stage_panel_slice_entry
         jmp stage_panel_slice
+menu_scan_entry
+        jmp menu_scan
+menu_tick_entry
+        jmp menu_tick
 stage_select
         lda #1
         ldb $A7
+        beq stage_selected
+        lda $EB
         cmpb #2
         bne stage_selected
         lda $24
@@ -624,7 +631,7 @@ stage_panel_text
         bne     stage_panel_text
         rts
 
-; A=0..36 glyph, X=destination, $29=colour. Preserve A/B/Y/U; advance X.
+; A=0..44 authored glyph, X=destination, $29=colour; advance X.
 stage_panel_char
         pshs a,b,x,y,u
         leay stage_source_glyphs,pcr
@@ -801,6 +808,8 @@ credit_panel_done
 credit_panel_count
         lda     PRES_SCREEN
         beq     credit_panel_done
+        cmpa    #PRESENTATION_MAP_OPTIONS
+        bhs     credit_panel_done
         cmpa    #PRESENTATION_MAP_HIGH_SCORE
         beq     credit_panel_done
         lda     #6
@@ -842,6 +851,291 @@ top_panel_publish
 top_panel_done
         rts
 
+; FEAT-005: existing page-$23 owner handles menus. State is direct-page;
+; drawing uses the established resident font without remapping PAR5.
+MENU_LIVES equ $EA
+MENU_LEVEL equ $EB
+MENU_SELECT equ $E0
+MENU_PREV equ $DF
+MENU_EVENT equ $D0
+; Menu HOLD only: owner A/B dirty bits. Name entry owns this as repeat state.
+MENU_DIRTY equ $E1
+
+menu_scan
+        ldb #0
+        jmp PRES_MAIN_KEY_SERVICE
+
+menu_tick
+        lda     PRES_SCREEN
+        cmpa    #8
+        bne     menu_original_tick
+        ldb     #2
+        jsr     PRES_MAIN_KEY_SERVICE
+        cmpb    #$FF
+        lbeq    menu_idle
+        tfr     b,a
+        lbra    menu_change
+menu_original_tick
+        lda     MENU_EVENT
+        lbeq    menu_idle
+        bita    #32
+        lbne    menu_back
+        ldb     PRES_SCREEN
+        cmpb    #PRESENTATION_MAP_CREDITS
+        bne     menu_interactive
+        bita    #16
+        lbne    menu_back
+        lbra    menu_hold
+menu_interactive
+        bita    #16
+        bne     menu_enter
+        ; Opposing held inputs cancel, including a newly pressed opposite.
+        ldb     MENU_PREV
+        andb    #3
+        cmpb    #3
+        beq     menu_horizontal
+        bita    #1
+        bne     menu_up
+        bita    #2
+        bne     menu_down
+menu_horizontal
+        ldb     PRES_SCREEN
+        cmpb    #PRESENTATION_MAP_OPTIONS
+        bne     menu_idle
+        ldb     MENU_SELECT
+        cmpb    #2
+        bhs     menu_idle
+        ldx     #MENU_LIVES
+        abx
+        ldb     MENU_PREV
+        andb    #12
+        cmpb    #12
+        beq     menu_idle
+        bita    #4
+        bne     menu_decrease
+        bita    #8
+        beq     menu_idle
+        lda     #12
+        tst     MENU_SELECT
+        beq     menu_maximum
+        lda     #99
+menu_maximum
+        cmpa    ,x
+        bls     menu_idle
+        inc     ,x
+        bra     menu_redraw
+menu_decrease
+        lda     ,x
+        cmpa    #1
+        bls     menu_idle
+        dec     ,x
+        bra     menu_redraw
+menu_up
+        tst     MENU_SELECT
+        beq     menu_idle
+        dec     MENU_SELECT
+        bra     menu_redraw
+menu_down
+        ldb     #1
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        beq     menu_last
+        ldb     #3
+menu_last
+        cmpb    MENU_SELECT
+        bls     menu_idle
+        inc     MENU_SELECT
+menu_redraw
+        lda     #3
+        sta     MENU_DIRTY
+        bra     menu_idle
+menu_enter
+        cmpb    #PRESENTATION_MAP_HIGH_SCORE
+        bne     menu_enter_option
+        lda     #PRESENTATION_MAP_OPTIONS
+        adda    MENU_SELECT
+        bra     menu_change
+menu_enter_option
+        lda     MENU_SELECT
+        cmpa    #2
+        bne     menu_enter_back
+        lda     #8
+        bra     menu_change
+menu_enter_back
+        cmpa    #3
+        bne     menu_idle
+menu_back
+        lda     #PRESENTATION_MAP_HIGH_SCORE
+menu_change
+        clr     MENU_SELECT
+menu_start
+        pshs    a
+        ldd     #menu_hold
+        std     PRES_NAME_PTR
+        puls    a
+        ldx     #PRES_MAIN_PAGE23_RESUME
+        pshs    x
+        jmp     PRES_MODULE_START_SCREEN
+menu_idle
+        ; Loading still accepts input, but cannot publish a field transaction.
+        lda     PRES_MODE
+        cmpa    #5
+        bne     menu_hold
+        tst     MENU_DIRTY
+        beq     menu_idle_logo
+        tst     FB_PENDING
+        bne     menu_hold
+        lda     FB_BACK_ID
+        inca                    ; owner 0 -> bit 1, owner 1 -> bit 2
+        anda    MENU_DIRTY
+        beq     menu_hold
+        ldd     #menu_updated
+        std     PRES_NAME_PTR
+        ldd     #PRES_MAIN_PAGE23_RESUME
+        pshs    d
+        jmp     PRES_HIGHSCORE_FB_PREPARE
+menu_updated
+        ; Existing callback restored page $23 after preparing game-page state.
+        lbsr    menu_load_finish
+        lda     FB_BACK_ID
+        inca
+        coma
+        anda    MENU_DIRTY
+        sta     MENU_DIRTY
+        ldd     #menu_hold
+        std     PRES_NAME_PTR
+        ldd     #PRES_MAIN_PAGE23_RESUME
+        pshs    d
+        jmp     PRES_HIGHSCORE_FB_FINISH
+menu_idle_logo
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        lbeq    highscore_logo_tick
+menu_hold
+        lda     #1
+        rts
+
+menu_load_finish
+        lda     PRES_SCREEN
+        cmpa    #8
+        bne     menu_load_original
+        ldb     #1
+        jmp     PRES_MAIN_KEY_SERVICE
+menu_load_original
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        beq     menu_paint_high
+        cmpa    #PRESENTATION_MAP_OPTIONS
+        lbeq    menu_paint_options
+        cmpa    #PRESENTATION_MAP_CREDITS
+        beq     menu_paint_credits
+        jmp     stage_panel_finish
+menu_paint_high
+        leay    menu_high_score_rows,pcr
+        ldb     #2
+        lbsr    menu_paint_rows
+        leay    menu_high_score_pairs,pcr
+        clrb
+menu_high_pair
+        pshs    b
+        lda     #7
+        sta     $29
+        lda     #36
+        ldx     ,y++
+        lbsr    stage_panel_char
+        ldx     ,y++
+        lbsr    stage_panel_char
+        puls    b
+        incb
+        cmpb    #2
+        blo     menu_high_pair
+        lda     MENU_SELECT
+        lsla
+        lsla
+        leay    menu_high_score_pairs,pcr
+        leay    a,y
+        lda     #10
+        sta     $29
+        lda     #43
+        ldx     ,y++
+        lbsr    stage_panel_char
+        lda     #44
+        ldx     ,y
+        lbra    stage_panel_char
+menu_paint_credits
+        lda     #10
+        sta     $29
+        leay    menu_credit_back,pcr
+        ldx     ,y++
+        ldb     ,y+
+        lbra    stage_panel_text
+menu_paint_rows
+        pshs    b
+        clr     $D1
+menu_label_row
+        lda     #7
+        ldb     $D1
+        cmpb    MENU_SELECT
+        bne     menu_label_colour
+        lda     #10
+menu_label_colour
+        sta     $29
+        ldx     ,y++
+        ldb     ,y+
+        lbsr    stage_panel_text
+        inc     $D1
+        lda     $D1
+        cmpa    ,s
+        blo     menu_label_row
+        puls    b,pc
+menu_paint_options
+        leay    menu_option_rows,pcr
+        ldb     #4
+        lbsr    menu_paint_rows
+        leay    menu_options_pairs,pcr
+        clr     $D1
+menu_value_row
+        ldb     $D1
+        lda     #7
+        cmpb    MENU_SELECT
+        bne     menu_value_colour
+        lda     #10
+menu_value_colour
+        sta     $29
+        ldx     ,y
+        leax    4,x
+        ldu     #MENU_LIVES
+        lda     b,u
+        clrb
+menu_tens
+        cmpa    #10
+        blo     menu_digits
+        suba    #10
+        incb
+        bra     menu_tens
+menu_digits
+        pshs    a
+        tfr     b,a
+        lbsr    stage_panel_char
+        puls    a
+        lbsr    stage_panel_char
+        lda     $D1
+        cmpa    MENU_SELECT
+        bne     menu_value_next
+        lda     #43
+        ldx     ,y
+        lbsr    stage_panel_char
+        lda     #44
+        ldx     2,y
+        lbsr    stage_panel_char
+menu_value_next
+        leay    4,y
+        inc     $D1
+        lda     $D1
+        cmpa    #2
+        blo     menu_value_row
+        rts
+        include "ladybug_menu_records.inc"
 highscore_phase_helper_end
 
         else

@@ -40,6 +40,8 @@ try:
     for off in range(0,len(payload),8192):
         write(0xFFA5,[0x3A+off//8192]);part=payload[off:off+8192];write(0xA000,part);assert b.read_bytes(client,0xA000,len(part))==part
     write(0xFFA5,[0x23]);install(0xAC40,OUT/'highscore-helper.bin');install(0xA422,OUT/('instruction-reference.bin' if reference else 'instruction.bin'))
+    if '--production' in sys.argv:
+        write(0xFFA5,[0x3D]);install(0xA000,ROOT/'build/ladybug-audio-runtime.bin')
     surfaces=decompress((ROOT/'build/ladybug-attract-actor-underlays.bin').read_bytes(),7296)
     actors=(ROOT/'build/ladybug-attract-actor-records.bin').read_bytes()
     write(0xFFA5,[0x3C]);write(0xA000,surfaces);write(0xBC80,actors)
@@ -99,6 +101,7 @@ try:
             first=0x30-owner*4;write(0xFFA1,range(first,first+4));actual=b.read_bytes(client,0x2000,30720)
             target=expected if beforestate[0xA6]==0 else instruction_expected
             differences=[i for i,(a,v) in enumerate(zip(actual,target)) if a!=v]
+            (OUT/f'completion-{beforestate[0xA6]}-{owner}.pixels').write_bytes(actual)
             write(0xFFA5,[0x3A]);liveatlas=b.read_bytes(client,0xA000,5920)
             completed.append(dict(screen=beforestate[0xA6],owner=owner,pixel_exact=not differences,differing_bytes=len(differences),first_differences=[dict(offset=i,actual=actual[i],expected=target[i]) for i in differences[:16]],atlas_differences=[i for i,(a,v) in enumerate(zip(liveatlas,payload)) if a!=v][:24]))
             write(0xFFA1,saved_mapping)

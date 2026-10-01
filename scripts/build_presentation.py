@@ -16,6 +16,7 @@ from build_screen import (  # noqa: E402
     BLACK,
     BLUE,
     DARK_RED,
+    DARK_GREEN,
     FLIP_D,
     FLIP_H,
     FLIP_V,
@@ -58,6 +59,9 @@ MAP_NAMES = (
     "high-score",
     "game-over",
     "enter-high-score",
+    "options",
+    "credits",
+    "keybind-options",
 )
 MAP_FILES = {
     name: f"coco-{name}-screen.tmx" for name in MAP_NAMES
@@ -73,6 +77,7 @@ MAP_OUTPUT_OFFSET = 0x4000
 COLD_PAYLOAD_LIMIT = 10874
 ATTRACT_ACTOR_COLOURS = {
     (11, 3): (WHITE, GREEN, PINK),
+    (20, 4): (YELLOW, GREEN, DARK_RED),
     (35, 4): (WHITE, YELLOW, ORANGE),
     (27, 5): (WHITE, GREEN, PURPLE),
     (3, 9): (WHITE, YELLOW, ORANGE),
@@ -82,6 +87,7 @@ ATTRACT_ACTOR_COLOURS = {
 }
 ATTRACT_ACTOR_EXPECTED_TILES = {
     (11, 3): 98,
+    (20, 4): 101,
     (35, 4): 5,
     (27, 5): 65,
     (3, 9): 68,
@@ -93,12 +99,13 @@ ATTRACT_ACTOR_EXPECTED_TILES = {
 # wrap frame. Keys use actor cell and stored phase; values are sheet row/column.
 ATTRACT_ACTOR_PHASE_OVERRIDES = {
     ((11, 3), 0): (0, 1),
+    ((20, 4), 0): (0, 4),
 }
 ATTRACT_ACTOR_SURFACE_PAGE = 0x3C
 ATTRACT_ACTOR_SURFACE_ADDRESS = 0xA000
 ATTRACT_ACTOR_BYTES = 128
 ATTRACT_ACTOR_PHASES = (0, 1, 2)
-ATTRACT_COPY_COUNT = 19  # seven actors and twelve authored logo rectangles
+ATTRACT_COPY_COUNT = 20  # eight actors and twelve authored logo rectangles
 ATTRACT_ACTOR_DESTINATION_ADDRESS = 0xA000 + 3 * ATTRACT_COPY_COUNT * 128
 ATTRACT_ACTOR_PHASE_POINTER_ADDRESS = ATTRACT_ACTOR_DESTINATION_ADDRESS + ATTRACT_COPY_COUNT * 2
 INSTRUCTION_REFERENCE = (
@@ -185,10 +192,12 @@ PRESENTATION_LAYER_CONTRACTS = {
     },
     "high-score": {
         "static": ("High Score Table and Branding",),
-        "metadata": ("Coin Positions",),
+        "metadata": ("Coin Positions", "Selected Option"),
         "runtime": (),
         "deferred": ("Logo Frame 1", "Logo Frame 2"),
     },
+    "options": {"static": ("Options Screen",), "metadata": ("Selected Option",), "runtime": (), "deferred": ()},
+    "credits": {"static": ("Credits Screen",), "metadata": (), "runtime": (), "deferred": ()},
     "game-over": {
         "static": ("Arcade Maze Border", "CoCo Side HUD", "Game Over Overlay"),
         "metadata": (),
@@ -303,7 +312,7 @@ def parse_attract_actors(path: Path) -> list[dict[str, object]]:
             "colours": list(ATTRACT_ACTOR_COLOURS[(x, y)]),
         })
     if len(actors) != len(ATTRACT_ACTOR_COLOURS):
-        raise ValueError(f"{path}: expected seven Sprite Animations cells")
+        raise ValueError(f"{path}: expected eight Sprite Animations cells")
     rectangles = []
     for actor in actors:
         x, y = actor["cell"]
@@ -363,7 +372,7 @@ def compile_logo_frames(base: bytes) -> tuple[list[tuple[int, int]], list[bytes]
               for name in ("Logo Frame 1", "Logo Frame 2")]
     records = [layer_records(layer) for layer in layers]
     roots = sorted({(x // 2 * 2, y // 2 * 2) for record in records for x, y in record})
-    if len(roots) + 7 != ATTRACT_COPY_COUNT:
+    if len(roots) + len(ATTRACT_ACTOR_EXPECTED_TILES) != ATTRACT_COPY_COUNT:
         raise ValueError("title copy allocation differs from authored logo rectangles")
     frames = []
     for record in records:
@@ -763,6 +772,8 @@ def presentation_pen_map(
         if y % 3 == 1 and x != 0:
             colour = GREY
         return (BLACK, colour, colour, colour)
+    if role in ("options", "credits", "keybind-options"):
+        return (BLACK, GREY, GREY, GREY)
     if x >= 32:
         if role == "instructions" and y == 2:
             return (BLACK, LIGHT_GREEN, LIGHT_GREEN, LIGHT_GREEN)
@@ -2641,6 +2652,13 @@ def main() -> None:
         )
         args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",
                                         encoding="ascii")
+    # Place the boot-only bundle after the cold records in their second page.
+    bundle_address = 0xA000 + max(0, manifest["cold_payload"]["bytes"] - PAGE_BYTES)
+    if bundle_address + len(attract_compressed) + len(attract_metadata) > 0xC000:
+        raise ValueError("attract bundle exceeds remaining page-$3B cold allocation")
+    with args.include_output.open("a", encoding="ascii") as include:
+        include.write(f"\nPRESENTATION_ATTRACT_BUNDLE_PAGE equ $3B\n"
+                      f"PRESENTATION_ATTRACT_BUNDLE_ADDRESS equ ${bundle_address:04X}\n")
     print(
         f"presentation: {len(maps)} maps, {len(tiles)} native descriptors, "
         f"{manifest['cold_payload']['bytes']} cold bytes, "

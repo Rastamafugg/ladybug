@@ -687,6 +687,27 @@
           "semantic_id": "routines.html#routine-resident-runtime-shared-mask"
         },
         {
+          "name": "asset_draw_life_count",
+          "profile": "render",
+          "purpose": "Draw numeric reserves in the existing marker footprint.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-asset-draw-life-count"
+        },
+        {
+          "name": "asset_draw_two_digits",
+          "profile": "render",
+          "purpose": "Draw a two-digit HUD value with a leading zero.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-asset-draw-two-digits"
+        },
+        {
+          "name": "asset_draw_hud_digit",
+          "profile": "render",
+          "purpose": "Draw one shared-font HUD digit.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-resident-runtime-asset-draw-hud-digit"
+        },
+        {
           "name": "AD_CLOCK_EXEC",
           "profile": "root",
           "purpose": "Read an atomic raw VBlank snapshot through the fitted mapped gateway.",
@@ -721,6 +742,12 @@
             "called"
           ],
           "semantic_id": "routines.html#routine-resident-runtime-adaptive-install-active"
+        },
+        {
+          "name": "presentation_key_service",
+          "profile": "input",
+          "purpose": "Call the bounded physical key component while preserving the caller bank mapping.",
+          "reasons": []
         }
       ],
       "relocations": [
@@ -1089,6 +1116,22 @@
           "name": "sync_entity_cache_colour",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "asset_clear_reserves",
+          "purpose": "FEAT-005 local branch boundary: asset clear reserves."
+        },
+        {
+          "name": "asset_number_digits",
+          "purpose": "FEAT-005 local branch boundary: asset number digits."
+        },
+        {
+          "name": "asset_number_tens",
+          "purpose": "FEAT-005 local branch boundary: asset number tens."
+        },
+        {
+          "name": "igs_defaults",
+          "purpose": "FEAT-005 local branch boundary: igs defaults."
         },
         {
           "name": "cck_primary",
@@ -1773,6 +1816,11 @@
           "name": "roam_reverse_masks",
           "kind": "data",
           "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         }
       ],
       "basic_blocks": [
@@ -2040,6 +2088,20 @@
           "purpose": "Start screen no instruction install.",
           "reasons": [],
           "semantic_id": "routines.html#routine-presentation-runtime-start-screen-no-instruction-install"
+        },
+        {
+          "name": "MENU_SCAN",
+          "profile": "input",
+          "purpose": "Call the banked menu and credit/start scanner.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-presentation-runtime-menu-scan"
+        },
+        {
+          "name": "MENU_TICK",
+          "profile": "presentation",
+          "purpose": "Dispatch fresh options input during selected-screen loading.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-presentation-runtime-menu-tick"
         }
       ],
       "relocations": [
@@ -2124,6 +2186,11 @@
           "name": "start_screen_map",
           "kind": "data",
           "reason": "Authored immutable lookup table or packed data boundary owned by this module"
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         }
       ],
       "basic_blocks": [
@@ -2156,6 +2223,15 @@
           "name": "instructions_runtime_return",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "menu_screen_retained",
+          "purpose": "FEAT-005 local branch boundary: menu screen retained."
+        },
+        {
+          "name": "menu_load_continue",
+          "routine": "load_tick",
+          "purpose": "Continue loading when there is no fresh local menu command."
         }
       ]
     },
@@ -2195,6 +2271,11 @@
           "name": "demo_runtime_end",
           "kind": "boundary",
           "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         }
       ],
       "basic_blocks": [
@@ -2390,6 +2471,11 @@
           "name": "multiplier_tiles",
           "kind": "data",
           "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         }
       ],
       "basic_blocks": [
@@ -3302,6 +3388,11 @@
           "name": "score_glyphs",
           "kind": "data",
           "reason": "Current source declaration fcb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         }
       ],
       "basic_blocks": [
@@ -3351,7 +3442,8 @@
       "binary": "ladybug-highscore-helper.bin",
       "external_symbols": [
         "PRES_MAIN_SHARED_MASK",
-        "blit_packed_sprite"
+        "blit_packed_sprite",
+        "PRES_MAIN_KEY_SERVICE"
       ],
       "routines": [
         {
@@ -3395,6 +3487,43 @@
           "purpose": "Stage select.",
           "reasons": [],
           "semantic_id": "routines.html#routine-highscore-helper-stage-select"
+        },
+        {
+          "name": "menu_load_finish",
+          "profile": "presentation",
+          "purpose": "Paint the selected authored menu row and brackets.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-menu-load-finish"
+        },
+        {
+          "name": "menu_scan",
+          "profile": "presentation",
+          "purpose": "Scan menu and existing credit/start edges.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-menu-scan"
+        },
+        {
+          "name": "menu_tick",
+          "profile": "presentation",
+          "purpose": "Dispatch selected menu input and replay changed fields to dirty BACK owners without gameplay mutation.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-menu-tick"
+        },
+        {
+          "name": "menu_paint_rows",
+          "profile": "presentation",
+          "purpose": "Draw authored menu labels using green for the selected row and grey for remaining rows.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-highscore-helper-menu-paint-rows"
+        },
+        {
+          "name": "menu_updated",
+          "profile": "presentation",
+          "purpose": "Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-menu-updated"
         }
       ],
       "label_classifications": [
@@ -3447,6 +3576,71 @@
           "name": "stage_schedule_end",
           "kind": "boundary",
           "reason": "Module/table boundary in current assembled source."
+        },
+        {
+          "name": "MENU_EVENT",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "MENU_LEVEL",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "MENU_LIVES",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "MENU_PREV",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "MENU_SCAN",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "MENU_SELECT",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_high_score_pairs",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_key_bits",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_key_drives",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_key_rows",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_option_rows",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_options_pairs",
+          "kind": "data",
+          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "menu_tick_entry",
+          "kind": "boundary",
+          "reason": "Fixed $B089 gateway into the existing page-$23 menu owner."
         }
       ],
       "basic_blocks": [
@@ -3519,6 +3713,134 @@
           "name": "stage_panel_slice_entry",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+        },
+        {
+          "name": "menu_back",
+          "purpose": "FEAT-005 local branch boundary: menu back."
+        },
+        {
+          "name": "menu_change",
+          "purpose": "FEAT-005 local branch boundary: menu change."
+        },
+        {
+          "name": "menu_coin_next",
+          "purpose": "FEAT-005 local branch boundary: menu coin next."
+        },
+        {
+          "name": "menu_coin_scan",
+          "purpose": "FEAT-005 local branch boundary: menu coin scan."
+        },
+        {
+          "name": "menu_decrease",
+          "purpose": "FEAT-005 local branch boundary: menu decrease."
+        },
+        {
+          "name": "menu_digits",
+          "purpose": "FEAT-005 local branch boundary: menu digits."
+        },
+        {
+          "name": "menu_down",
+          "purpose": "FEAT-005 local branch boundary: menu down."
+        },
+        {
+          "name": "menu_enter",
+          "purpose": "FEAT-005 local branch boundary: menu enter."
+        },
+        {
+          "name": "menu_enter_option",
+          "purpose": "FEAT-005 local branch boundary: menu enter option."
+        },
+        {
+          "name": "menu_high_pair",
+          "purpose": "FEAT-005 local branch boundary: menu high pair."
+        },
+        {
+          "name": "menu_hold",
+          "purpose": "FEAT-005 local branch boundary: menu hold."
+        },
+        {
+          "name": "menu_horizontal",
+          "purpose": "FEAT-005 local branch boundary: menu horizontal."
+        },
+        {
+          "name": "menu_idle",
+          "purpose": "FEAT-005 local branch boundary: menu idle."
+        },
+        {
+          "name": "menu_key_loop",
+          "purpose": "FEAT-005 local branch boundary: menu key loop."
+        },
+        {
+          "name": "menu_key_next",
+          "purpose": "FEAT-005 local branch boundary: menu key next."
+        },
+        {
+          "name": "menu_key_scan",
+          "purpose": "FEAT-005 local branch boundary: menu key scan."
+        },
+        {
+          "name": "menu_label_colour",
+          "purpose": "FEAT-005 local branch boundary: menu label colour."
+        },
+        {
+          "name": "menu_label_row",
+          "purpose": "FEAT-005 local branch boundary: menu label row."
+        },
+        {
+          "name": "menu_last",
+          "purpose": "FEAT-005 local branch boundary: menu last."
+        },
+        {
+          "name": "menu_maximum",
+          "purpose": "FEAT-005 local branch boundary: menu maximum."
+        },
+        {
+          "name": "menu_paint_high",
+          "purpose": "FEAT-005 local branch boundary: menu paint high."
+        },
+        {
+          "name": "menu_paint_options",
+          "purpose": "FEAT-005 local branch boundary: menu paint options."
+        },
+        {
+          "name": "menu_redraw",
+          "purpose": "FEAT-005 local branch boundary: menu redraw."
+        },
+        {
+          "name": "menu_scan_done",
+          "purpose": "FEAT-005 local branch boundary: menu scan done."
+        },
+        {
+          "name": "menu_scan_entry",
+          "purpose": "FEAT-005 local branch boundary: menu scan entry."
+        },
+        {
+          "name": "menu_start",
+          "purpose": "FEAT-005 local branch boundary: menu start."
+        },
+        {
+          "name": "menu_tens",
+          "purpose": "FEAT-005 local branch boundary: menu tens."
+        },
+        {
+          "name": "menu_up",
+          "purpose": "FEAT-005 local branch boundary: menu up."
+        },
+        {
+          "name": "menu_value_colour",
+          "purpose": "FEAT-005 local branch boundary: menu value colour."
+        },
+        {
+          "name": "menu_value_next",
+          "purpose": "FEAT-005 local branch boundary: menu value next."
+        },
+        {
+          "name": "menu_value_row",
+          "purpose": "FEAT-005 local branch boundary: menu value row."
+        },
+        {
+          "name": "stage_selected",
+          "purpose": "FEAT-005 local branch boundary: stage selected."
         }
       ],
       "defines": {
@@ -3526,6 +3848,512 @@
         "HIGHSCORE_PHASE_HELPER": 1,
         "COMPLETE_PHASE_AUX": 1
       }
+    },
+    {
+      "id": "keybinding-runtime",
+      "title": "Session keybinding runtime",
+      "source": "src/keybinding_runtime.s",
+      "listing": "ladybug-keybinding-runtime.lst",
+      "map": "ladybug-keybinding-runtime.map",
+      "binary": "ladybug-keybinding-runtime.bin",
+      "artifact_include_dirs": [
+        ""
+      ],
+      "source_include_dirs": [
+        "src"
+      ],
+      "routines": [
+        {
+          "name": "key_service",
+          "profile": "keybindings",
+          "purpose": "Dispatch physical input, authored menu painting, capture navigation or default initialization.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "key_init",
+          "profile": "keybindings",
+          "purpose": "Restore seven default physical bindings and clear capture and repaint history.",
+          "reasons": []
+        },
+        {
+          "name": "key_scan",
+          "profile": "keybindings",
+          "purpose": "Sample eight physical columns and produce held actions and fresh consumer edges.",
+          "reasons": []
+        },
+        {
+          "name": "key_down",
+          "profile": "keybindings",
+          "purpose": "Test one column-times-eight-plus-row physical switch while preserving caller indexes.",
+          "reasons": []
+        },
+        {
+          "name": "key_capture",
+          "profile": "keybindings",
+          "purpose": "Reject conflicting or ambiguous keys and consume accepted or cancelled capture through release.",
+          "reasons": []
+        },
+        {
+          "name": "key_tick",
+          "profile": "keybindings",
+          "purpose": "Navigate the seven actions and BACK or begin waiting for a replacement switch.",
+          "reasons": []
+        },
+        {
+          "name": "key_paint",
+          "profile": "keybindings",
+          "purpose": "Repaint all hydrated rows or only the previous and current selected rows for the prepared owner.",
+          "reasons": []
+        },
+        {
+          "name": "key_waiting",
+          "profile": "keybindings",
+          "purpose": "Report whether the current row owns active capture parentheses.",
+          "reasons": []
+        },
+        {
+          "name": "key_name",
+          "profile": "keybindings",
+          "purpose": "Resolve a physical switch to its single glyph or descriptive key name.",
+          "reasons": []
+        },
+        {
+          "name": "key_text",
+          "profile": "keybindings",
+          "purpose": "Paint an authored length-delimited glyph run.",
+          "reasons": []
+        },
+        {
+          "name": "key_char",
+          "profile": "keybindings",
+          "purpose": "Paint one source glyph through the resident shared mask renderer.",
+          "reasons": []
+        }
+      ],
+      "entrypoints": [
+        {
+          "name": "kc_cancel",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kc_candidate",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kc_done",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kc_duplicate",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kc_find",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kc_find_next",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kc_held",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kc_state",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kc_unique",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kc_unique_next",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ki_copy",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kn_named",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kp_cached",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kp_clear",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kp_draw",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kp_label",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kp_name",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kp_next",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kp_unselected",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kp_value_done",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_action",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_column",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_credit",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_done",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_down",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_edges",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_global",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_left",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_local",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_local_edges",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_menu",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_next",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_right",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_secondary",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "ks_select",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kt_arrow",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kt_back",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kt_done",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kt_down",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kt_redraw",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kw_done",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kw_no",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kw_yes",
+          "routine": null,
+          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
+        },
+        {
+          "name": "kc_reject",
+          "routine": null,
+          "purpose": "Release gate for rejected physical chords or consumed capture."
+        },
+        {
+          "name": "kc_release",
+          "routine": null,
+          "purpose": "Release gate for rejected physical chords or consumed capture."
+        }
+      ],
+      "label_classifications": [
+        {
+          "name": "KB_BIND",
+          "kind": "constant",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "KB_CAND",
+          "kind": "constant",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "KB_DOWN",
+          "kind": "constant",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "KB_PREV",
+          "kind": "constant",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "KB_ROWS",
+          "kind": "constant",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "KB_STATE",
+          "kind": "constant",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "KB_WORK",
+          "kind": "constant",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_bits",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_defaults",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_label_records",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_0",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_1",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_10",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_11",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_12",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_13",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_14",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_15",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_16",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_17",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_18",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_19",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_2",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_3",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_4",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_5",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_6",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_7",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_8",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_9",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_name_codes",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_names",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_painted_select",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_runtime_end",
+          "kind": "boundary",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_single",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "key_value_destinations",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "stage_source_glyphs",
+          "kind": "data",
+          "reason": "Physical state address, bounded component end or generated key/font record."
+        },
+        {
+          "name": "INPUT_JOYSTICK",
+          "kind": "constant",
+          "reason": "Build-time input compatibility flag."
+        }
+      ],
+      "external_symbols": [
+        "PRES_MAIN_SHARED_MASK"
+      ]
     }
   ],
   "coverage": {
@@ -4430,6 +5258,15 @@
       "writes": "Audio-owned queue, scratch, slots, mix shadows and sound/interface registers as required by the operation",
       "side_effects": "May select GMC sound output and write PSG registers; foreground callers own the bank-restoring gateway",
       "invariants": "Audio-owned scratch is not game scratch; non-audio caller returns through the guarded bank-restoring gateway"
+    },
+    "keybindings": {
+      "inputs": "Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.",
+      "outputs": "Held action mask, fresh credit/start/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.",
+      "clobbers": "A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.",
+      "reads": "PIA keyboard rows, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.",
+      "writes": "Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.",
+      "side_effects": "Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.",
+      "invariants": "The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage."
     }
   },
   "ownership_audit": {

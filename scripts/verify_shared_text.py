@@ -20,13 +20,14 @@ def main():
     font=values(data,'font','colour_lut');descriptors=values(data,'dynamic_descriptors','no_end')
     masks=[font[i:i+8] for i in range(0,len(font),8)]
     assert len(masks)==shared['font_count'] and len(set(masks))==len(masks)
-    assert shared['graphics']<=224 and len(cold)<=16384 and len(descriptors)==512
+    assert shared['graphics']<=224 and len(cold)<=16384 and len(descriptors)==2*shared['descriptor_count']
     # Approved colours are checked independently of presentation_pen_map.
     approved=[]
     for r in shared['coverage']:
         name,x,y=r['screen'],r['x'],r['y'];colour=None
         if name=='gameplay' and (x,y)==(34,13):
-            assert (r['code'],r['glyph'],r['mask'])==(42,35,'00007f00007f0000')
+            assert (r['code'],r['mask'])==(42,'00007f00007f0000')
+            assert masks[r['glyph']]==bytes.fromhex(r['mask'])
             colour=shared['colour_configuration']['fields']['bonus']
         elif name=='attract' and y==15:colour=9
         elif name=='attract' and y==18:colour=2 if r['code']==1 else 6

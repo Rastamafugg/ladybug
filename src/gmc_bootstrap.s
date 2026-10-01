@@ -52,9 +52,7 @@ ASSET_STAGE_PAGE equ $22
 AUDIO_STAGE_PAGE equ $24
 PRESENTATION_NAME_ENTRY_DATA equ 0
 
-        ifne    HIGHSCORE_TEST_PROFILE
         include "ladybug_presentation.inc"
-        endc
 
         org $C000
         fcc "DK"
@@ -506,9 +504,9 @@ dgs_terminator
 decompress_attract_surfaces
         lda     #$3C
         sta     PAR_EXEC+4
-        lda     #$23
+        lda     #PRESENTATION_ATTRACT_BUNDLE_PAGE
         sta     PAR_EXEC+5
-        ldu     #$B600          ; logo bundle is independent of fixed auxiliary slots
+        ldu     #PRESENTATION_ATTRACT_BUNDLE_ADDRESS
         ldy     #$8000
 das_flags
         lda     ,u+
@@ -545,13 +543,13 @@ das_match_byte
         decb
         bne     das_match_byte
 das_next
-        cmpy    #$9C80          ; nineteen surfaces per phase, three phases
+        cmpy    #$9E00          ; twenty surfaces per phase, three phases
         beq     das_done
         dec     BOOT_LZ_BITS
         bne     das_token
         bra     das_flags
 das_done
-        ldb     #44            ; nineteen destinations and three phase pointers
+        ldb     #46            ; twenty destinations and three phase pointers
 das_metadata_byte
         lda     ,u+
         sta     ,y+

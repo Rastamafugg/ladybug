@@ -1,3 +1,7 @@
+; DOC-002 source-contract mirror contract presentation_key_service profile=input: Call the bounded physical key component while preserving the caller bank mapping.
+; DOC-002 source-contract mirror contract asset_draw_hud_digit profile=render: Draw one shared-font HUD digit.
+; DOC-002 source-contract mirror contract asset_draw_two_digits profile=render: Draw a two-digit HUD value with a leading zero.
+; DOC-002 source-contract mirror contract asset_draw_life_count profile=render: Draw numeric reserves in the existing marker footprint.
 ; DOC-002 source-contract mirror contract adaptive_install_active profile=copy: Restore the active low-RAM driver from staged page $3D after a presentation overlay retires.
 ; DOC-002 source-contract mirror contract AD_WORK_EXEC profile=framebuffer: Execute the active logical batch, damage reduction, audio service and BACK publication transaction.
 ; DOC-002 source-contract mirror contract AD_RESET_EXEC profile=state: Rebase adaptive phase time and clear both damage journals outside active publication.
@@ -601,6 +605,10 @@ startup_clear_complete
         ; gameplay state. The seed survives until the presentation director
         ; enters the first level or demo.
         lbsr    init_joystick
+        ifne COMPLETE_PROFILE
+        ldb     #3
+        lbsr    presentation_key_service
+        endc
         lbsr    read_joystick
         ldd     RNG_ENTROPY
         eora    JOY_X
@@ -618,6 +626,11 @@ startup_seed_ready
         ifne    COMPLETE_PROFILE
         clr     PRES_MAGIC
         clr     PRES_HS_READY
+        lda     #3
+        sta     $EA
+        lda     #1
+        sta     $EB
+        clr     $DF
         ldx     #PRES_HIGHSCORE_BASE
         lda     #9
         sta     ,x+
@@ -693,6 +706,9 @@ mainloop
         stb LAST_FRAME
         jsr $1900
         beq ad_dispatch_active
+        ; Cold presentation reads may leave PAR5 on $3A/$3B. Reset owns $34.
+        lda #$34
+        sta $FFA5
         jsr AD_RESET_EXEC
         lda PRES_MODE
         sta AD_MODE_BYTE
@@ -842,8 +858,7 @@ iet_wait_stage
 
         ; The committed stage image is now the handoff boundary.  The
         ; rightmost marker and the entrant are one life unit.
-        lda     #2
-        sta     LIVES
+        dec     LIVES
         ldd     #$8994
         std     PLAYER_FB
         lda     #DIR_SOUTH
@@ -937,9 +952,16 @@ init_game_state
         std     HIGH_BCD+1
         endc
         lda     #3
+        ldb     #1
+        ifne COMPLETE_PROFILE
+        tst     $A7             ; presentation context: zero is unattended demo
+        beq     igs_defaults
+        lda     $EA
+        ldb     $EB
+igs_defaults
+        endc
         sta     LIVES
-        lda     #1
-        sta     STAGE
+        stb     STAGE
         lda     #MAZE_DOT_COUNT
         sta     DOTS_LEFT
         clr     STAGE_PENDING
@@ -1305,7 +1327,11 @@ draw_hud
         ldu     #HIGH_BCD
         lbsr    draw_bcd_line
         endc
+        ifne COMPLETE_PROFILE
+        lda     #37
+        else
         lda     #38
+        endc
         sta     HUD_X
         lda     #11
         sta     HUD_Y
@@ -1316,6 +1342,10 @@ draw_hud
         endc
         sta     HUD_COLOR
         lda     STAGE
+        ifne COMPLETE_PROFILE
+        jsr     asset_draw_two_digits
+        bra     dhu_stage_done
+        endc
 dhu_mod10
         cmpa    #10
         blo     dhu_stage_digit
@@ -1327,6 +1357,7 @@ dhu_stage_digit
         else
         lbsr    draw_hud_digit
         endc
+dhu_stage_done
         ; Fall through: the vegetable renderer returns to draw_hud's caller.
 
 ; Display the stage vegetable at HUD columns 32-33, rows 12-13, followed by
@@ -1503,6 +1534,13 @@ dhd_store
         endc
 
 draw_lives
+        ifne COMPLETE_PROFILE
+        lda     LIVES
+        cmpa    #4
+        blo     dl_markers
+        jmp     asset_draw_life_count
+dl_markers
+        endc
         clr     ENTITY_WORK
 dl_marker
         lda     ENTITY_WORK
@@ -2558,6 +2596,14 @@ read_joystick
         lda     #$80
         sta     PIA2_DA
         else
+        ifne COMPLETE_PROFILE
+        lda     #8              ; RIGHT action bit, then LEFT
+        bsr     keyboard_read_axis
+        stb     JOY_X
+        lda     #2              ; DOWN action bit, then UP
+        bsr     keyboard_read_axis
+        stb     JOY_Y
+        else
         lda     #$BF            ; PB6 right, then PB5 left; row PA3
         bsr     keyboard_read_axis
         stb     JOY_X
@@ -2566,6 +2612,7 @@ read_joystick
         stb     JOY_Y
         lda     #$FF            ; release keyboard columns, preserve CA2/CB2
         sta     PIA1_DB
+        endc
         endc
 
         lda     JOY_X
@@ -2659,6 +2706,19 @@ jra_done
 ; B = 0,32,64 for negative, neutral (including both held), positive.
 ; X/Y/U remain untouched; only keyboard data registers are accessed.
 keyboard_read_axis
+        ifne COMPLETE_PROFILE
+        ldb     #32
+        bita    $0296
+        beq     kra_negative
+        addb    #32
+kra_negative
+        lsra
+        bita    $0296
+        beq     kra_done
+        subb    #32
+kra_done
+        rts
+        else
         ldb     #32
         sta     PIA1_DB
         pshs    a
@@ -2676,6 +2736,7 @@ kra_negative
         subb    #32
 kra_done
         rts
+        endc
         endc
 
 ;==============================================================================
@@ -4694,7 +4755,6 @@ par_table
 
         ifne    COMPLETE_PROFILE
         include "ladybug_presentation.inc"
-        include "ladybug_presentation_resident.inc"
 install_phase_tiles_for_screen
         rts
 
@@ -4705,6 +4765,18 @@ presentation_page23_resume
         lda     #$23
         sta     PAR_EXEC+5
         jmp     [PRES_NAME_PTR]
+
+; B=scan0/paint1/tick2/defaults3. Return B from the bounded key component.
+; Resident return path preserves the caller's PAR5, including audio/game owners.
+presentation_key_service
+        lda     PAR_EXEC+5
+        pshs    a
+        lda     #$3D
+        sta     PAR_EXEC+5
+        jsr     $BA00
+        puls    a
+        sta     PAR_EXEC+5
+        rts
         endc
 
         ifne    HIGHSCORE_TEST_PROFILE
@@ -4790,6 +4862,7 @@ asset_start
 
         ifne COMPLETE_PROFILE
         include "ladybug_shared_link.inc"
+        include "ladybug_presentation_resident.inc"
         include "ladybug_shared_text.inc"
         include "shared_text_runtime.inc"
         endc

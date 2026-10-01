@@ -200,14 +200,14 @@ def main() -> None:
         )
 
     actor_surfaces = presentation_layout.get("attract_actor_surfaces", {})
-    if (actor_surfaces.get("bytes") != 7296 or
-            len(actor_surfaces.get("actors", [])) != 7):
-        raise SystemExit("presentation flow proof: seven authored actor surfaces are not wired")
+    if (actor_surfaces.get("bytes") != 7680 or
+            len(actor_surfaces.get("actors", [])) != 8):
+        raise SystemExit("presentation flow proof: eight authored actor surfaces are not wired")
     attract_source = helper_source
     if "jsr     PRES_MAIN_FB_PREPARE" not in attract_source or "PRES_MAIN_FB_FINISH" not in attract_source:
         raise SystemExit("presentation flow proof: attract owner publication is incomplete")
-    for fragment in ("lda     #$3C", "ldx     #$BCA6", "ldx     #$BC80",
-                     "lda     #19", "lda     #16", "leay    152,y"):
+    for fragment in ("lda     #$3C", "ldx     #$BE28", "ldx     #$BE00",
+                     "lda     #20", "lda     #16", "leay    152,y"):
         if fragment not in attract_source:
             raise SystemExit("presentation flow proof: attract surface-copy worklist is incomplete")
     if "inflate_maps" in source or "cold_write_byte" in source:
@@ -236,12 +236,16 @@ def main() -> None:
     hold_select = source[
         source.index("\nstart_screen_map\n"):source.index("\nstart_screen_hold\n")
     ]
-    for fragment in (
+    hold_contract = (
+        "cmpa    #PRESENTATION_MAP_LEVEL_START",
+        "beq     start_screen_done",
+    ) if complete else (
         "cmpa    #PRESENTATION_MAP_INSTRUCTIONS",
         "bls     start_screen_hold",
         "cmpa    #PRESENTATION_MAP_ENTER_HIGH_SCORE",
         "bne     start_screen_done",
-    ):
+    )
+    for fragment in hold_contract:
         if fragment not in hold_select:
             raise SystemExit(
                 "presentation flow proof: held-screen selector omits " + fragment
@@ -252,14 +256,14 @@ def main() -> None:
         )
     preemption = source[source.index("\npft_mode\n"):source.index("\npft_dispatch\n")]
     for fragment in (
-        "bita    #1", "tst     PRES_CREDITS", "dec     PRES_CREDITS",
+        "bita    #1", "tst     <PRES_CREDITS", "dec     <PRES_CREDITS",
         "PRESENTATION_MAP_LEVEL_START",
     ):
         if fragment not in preemption:
             raise SystemExit(
                 "presentation flow proof: global start pre-emption is incomplete"
             )
-    if source.index("clr     PRES_ACTOR_FRAME") > source.index("\npft_ready\n"):
+    if source.index("clr     <PRES_ACTOR_FRAME") > source.index("\npft_ready\n"):
         raise SystemExit("presentation flow proof: actor frame is not initialized")
     if "sta     PRES_ACTOR_PHASE" not in attract_source:
         raise SystemExit("presentation flow proof: attract phase selection is absent")
@@ -270,7 +274,7 @@ def main() -> None:
         raise SystemExit("presentation flow proof: gameplay tile partition is ambiguous")
     if cold_manifest.get("gameplay_lookup_bytes", 0) <= 0:
         raise SystemExit("presentation flow proof: gameplay tile lookup is absent")
-    expected_cells = [[11, 3], [35, 4], [27, 5], [3, 9],
+    expected_cells = [[11, 3], [20, 4], [35, 4], [27, 5], [3, 9],
                       [10, 15], [33, 19], [5, 20]]
     if [actor["cell"] for actor in actor_surfaces["actors"]] != expected_cells:
         raise SystemExit("presentation flow proof: authored TMX actor cells differ")
@@ -280,10 +284,12 @@ def main() -> None:
         raise SystemExit(f"presentation flow proof: module is {module_bytes}/1280 bytes")
     if helper_bytes > 334:
         raise SystemExit(f"presentation flow proof: helper is {helper_bytes}/334 bytes")
-    if cold > COLD_HARD_LIMIT and not complete:
-        raise SystemExit(f"presentation flow proof: cold payload is {cold}/{COLD_HARD_LIMIT} bytes")
-    if combined > 14219 and not complete:
-        raise SystemExit(f"presentation flow proof: module+cold is {combined}/14219 bytes")
+    cold_limit = 16384 if complete else COLD_HARD_LIMIT
+    combined_limit = 17664 if complete else 14219
+    if cold > cold_limit:
+        raise SystemExit(f"presentation flow proof: cold payload is {cold}/{cold_limit} bytes")
+    if combined > combined_limit:
+        raise SystemExit(f"presentation flow proof: module+cold is {combined}/{combined_limit} bytes")
     if audio_integrated:
         # FEAT-006 now owns the approved audio payload.  The old 1,536-byte
         # future-sound reservation is no longer a valid release calculation;
@@ -311,12 +317,12 @@ def main() -> None:
     )
     print(
         f"presentation flow proof: {profile_label}, "
-        "seven title actor surfaces, "
+        "eight title actor surfaces, "
         "authored TMX coordinates, direct selected-screen streaming, bounded loading, "
         f"{behavior_label}, atomic surface copy, "
-        f"module {module_bytes}/1280, helper {helper_bytes}/334, cold {cold}/{COLD_HARD_LIMIT} "
+        f"module {module_bytes}/1280, helper {helper_bytes}/334, cold {cold}/{cold_limit} "
         f"(preferred {COLD_PREFERRED_TARGET}), "
-        f"combined {combined}/14219, {sound_label} {sound_margin}/{SOUND_RELEASE_RESERVE}"
+        f"combined {combined}/{combined_limit}, {sound_label} {sound_margin}/{SOUND_RELEASE_RESERVE}"
     )
 
 

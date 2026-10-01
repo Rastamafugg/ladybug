@@ -1,0 +1,59 @@
+{
+  "date": "2026-09-30",
+  "branch": "codex/feat005-menu",
+  "parents": {
+    "menu": "b983b66",
+    "main": "95ef83ef834742cf7068147b35587d00037502d3"
+  },
+  "cost_class": "High-risk integration",
+  "authorization": "User requested latest main merge and relaunch",
+  "rom_sha256": "7173dc3344bd5b641eb4880a644e2dd4c4e6e3f61ced3a39cdb3d088a2e2afcb",
+  "adaptive_enabled": true,
+  "build_command": "LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+  "build": "pass",
+  "source_audit": {
+    "modules": 13,
+    "routines": 287,
+    "routines_covered": 287,
+    "labels": 4487,
+    "labels_covered": 4487
+  },
+  "capacity": {
+    "resident": {
+      "bytes": 8132,
+      "limit": 8192,
+      "free": 60
+    },
+    "assets": {
+      "bytes": 7617,
+      "limit": 7680,
+      "free": 63
+    },
+    "presentation": {
+      "bytes": 1258,
+      "limit": 1280,
+      "free": 22
+    },
+    "cartridge_source_free_bytes": 13772
+  },
+  "integration_correction": {
+    "cause": "Cold presentation reads can retain PAR5=$3A. Adaptive reset assumes page $34 and otherwise clears cold bytes at $BC04-$BD43 (presentation offsets7168-7487), including options header records at7307+.",
+    "change": "Restore PAR5=$34 before adaptive reset after a presentation tick retains control.",
+    "resident_growth_bytes": 5,
+    "discriminating_result": "Before correction OPTIONS header differed by97 bytes on both owners; after correction both complete options frames and all14344 cold bytes match through natural menu navigation."
+  },
+  "checks": {
+    "boot": "repro/feat005-main-boot-check-20260930.json",
+    "natural_menu_and_live_entry": "repro/feat005-main-menu-natural-check-20260930.json",
+    "visible_launch": "repro/feat005-main-natural-launch-20260930.json"
+  },
+  "rejected_mechanics": [
+    "Original boot verifier unconditionally requires nonadaptive damage symbols; startup-only adapter skips unused forced-damage fixture symbol lookup.",
+    "Initial visible launch used pft_ready while mode1 was still loading; corrected marker attract_tick proves mode2/screen0. No deadline extension."
+  ],
+  "remaining": [
+    "BUG-058 timing targets not rerun or waived.",
+    "User-reported lower name-entry maze requires current-ROM confirmation; no visual repair acceptance claimed.",
+    "FEAT-005 remains Verification and BUG-058 remains open; no full-ticket closure."
+  ]
+}

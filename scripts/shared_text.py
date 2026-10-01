@@ -26,6 +26,9 @@ class SharedText:
         for code in range(36):
             value=mask(s.rotate_ccw(chars[code]))
             if value not in self.font:self.font.append(value)
+        for code in (43,44):
+            value=mask(s.rotate_ccw(chars[code]))
+            if value not in self.font:self.font.append(value)
         text_codes=set(range(41))|set(range(42,46))
         paths=[(name,args.tiled_dir/p.MAP_FILES[name]) for name in p.MAP_NAMES]+[('gameplay',args.gameplay_map)]
         for name,path in paths:
@@ -202,14 +205,14 @@ class SharedText:
         timer_start=names['timer_table_offset']+delta
         self.args.timer_record_output.write_text(emit('',payload[timer_start:timer_start+names['timer_box_count']*4]))
         asset_data,gameplay_count=self.gameplay()
-        asset_data+=emit('dynamic_descriptors',bytes(v for d in descriptors for v in d)+bytes([255,255])*(256-len(descriptors)))
+        asset_data+=emit('dynamic_descriptors',bytes(v for d in descriptors for v in d))
 # @audit-producer {"id": "text-graphic", "function": "finish", "class": "SharedText", "symbols": ["PRESENTATION_MULTIPLIER_X_GRAPHIC"]}
         asset_data+=f'PRESENTATION_MULTIPLIER_X_GRAPHIC equ {x_graphic}\n'
         (self.args.output.parent/'ladybug_shared_text.inc').write_text(asset_data)
         chars=s.load_chars(self.args.chars)
         translation=[]
-        for code in range(37):
-            mask=bytes(8) if code==36 else bytes(sum(bool(v)<<(7-x) for x,v in enumerate(row)) for row in s.rotate_ccw(chars[code]))
+        for code in range(45):
+            mask=bytes(8) if 36<=code<=42 else bytes(sum(bool(v)<<(7-x) for x,v in enumerate(row)) for row in s.rotate_ccw(chars[code]))
             translation.append(self.font.index(mask))
         (self.args.output.parent/'ladybug_stage_glyphs.inc').write_text(emit('stage_source_glyphs',translation))
         stage=self.args.output.parent/'ladybug_stage_panel.inc'
@@ -246,4 +249,115 @@ class SharedText:
             manifest['shared_static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
             if name=='instructions':self.p.blend_native_surface(frame,instruction_source['cucumber_destination'],instruction_source['cucumber_native'])
             manifest['static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
+        # Generate menu label and bracket anchors directly from the authored TMX.
+        menu_lines=[]
+        for name in ('high-score','options'):
+            path=self.args.tiled_dir/self.p.MAP_FILES[name]
+            root=ET.parse(path).getroot()
+            layer=next(l for l in root.findall('layer') if l.get('name')=='Selected Option')
+            cells=s.parse_csv(layer.find('data'),'Selected Option')
+            pairs=[]
+            for row in range(24):
+                anchors=[(col,gid) for col,gid in enumerate(cells[row*40:(row+1)*40]) if gid]
+                for i in range(0,len(anchors),2):
+                    left,right=anchors[i:i+2]
+                    assert self.p.raw_char_code(root,path,left[1])==43
+                    assert self.p.raw_char_code(root,path,right[1])==44
+                    pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
+            assert len(pairs)==2,(name,pairs)
+            menu_lines.append('menu_'+name.replace('-','_')+'_pairs')
+            menu_lines.extend('        fdb $%04X,$%04X'%pair for pair in pairs)
+            if name=='high-score':
+                _,flat,_=self.p.flatten_map(path)
+                menu_lines.append('menu_high_score_rows')
+                for left,right in pairs:
+                    row=(left-0x2000)//1280;lo=((left-0x2000)%1280)//4+1
+                    hi=((right-0x2000)%1280)//4
+                    codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40+lo:row*40+hi]]
+                    codes=[c if c is not None and 0<=c<=35 else 36 for c in codes]
+                    menu_lines.append('        fdb $%04X'%(left+4))
+                    menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
+        path=self.args.tiled_dir/self.p.MAP_FILES['options']
+        root,flat,_=self.p.flatten_map(path)
+        rows=[]
+        for row in range(24):
+            codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40:(row+1)*40]]
+            label=''.join(chr(c+55) if c is not None and 10<=c<=35 else ' ' for c in codes)
+            if 'LIVES' in label or 'STARTING LEVEL' in label or 'KEYBINDINGS' in label or 'BACK' in label:
+                xs=[x for x,c in enumerate(codes) if c is not None and 0<=c<=35]
+                lo,hi=min(xs),max(xs)
+                if 'LIVES' in label or 'STARTING LEVEL' in label:lo=min(lo,26);hi=max(hi,29)
+                rows.append((row,lo,hi,[c if c is not None and 0<=c<=35 else 36 for c in codes[lo:hi+1]]))
+        assert len(rows)==4,rows
+        menu_lines.append('menu_option_rows')
+        for row,lo,hi,codes in rows:
+            menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
+            menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
+        path=self.args.tiled_dir/self.p.MAP_FILES['credits']
+        root,flat,_=self.p.flatten_map(path)
+        back=[]
+        for row in range(24):
+            codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40:(row+1)*40]]
+            for col in range(37):
+                if codes[col:col+4]==[11,10,12,20]:back.append((row,col))
+        assert len(back)==1,back
+        row,col=back[0]
+        menu_lines.extend(['menu_credit_back','        fdb $%04X'%self.p.framebuffer_destination((col,row)),'        fcb 4,11,10,12,20'])
+        (self.args.output.parent/'ladybug_menu_records.inc').write_text('\n'.join(menu_lines)+'\n')
+        keybindings = self.keybinding_records()
+        manifest['menus']={'option_rows':[[row,lo,hi] for row,lo,hi,_ in rows], 'credit_back':[row,col],'selected_colour':10,'unselected_colour':7, 'keybindings': keybindings}
         self.args.manifest_output.write_text(json.dumps(manifest,indent=2)+'\n')
+
+    def keybinding_records(self):
+        path = self.args.tiled_dir / self.p.MAP_FILES['keybind-options']
+        root, cells, _ = self.p.flatten_map(path)
+        guide = root.find("layer[@name='Selected Option']")
+        pairs = []
+        for row in range(24):
+            markers = [(col, self.p.raw_char_code(root, path, gid))
+                       for col, gid in enumerate(self.p.parse_csv(guide.find('data'), 'Selected Option')[row*40:(row+1)*40]) if gid]
+            if markers:
+                if len(markers) != 2 or [v for _, v in markers] != [43, 44] or markers[1][0] != 32:
+                    raise ValueError(('keybinding parentheses guide', row, markers))
+                pairs.append((row, markers[0][0], markers[1][0]))
+        if len(pairs) != 7:
+            raise ValueError(('expected seven keybinding guide pairs', pairs))
+        action_rows = [row for row, _, _ in pairs]
+        back_rows = []
+        for row in range(24):
+            codes = [self.p.raw_char_code(root, path, gid) for gid in cells[row*40:(row+1)*40]]
+            if any(codes[col:col+4] == [11, 10, 12, 20] for col in range(37)):
+                back_rows.append(row)
+        if len(back_rows) != 1:
+            raise ValueError(('keybinding BACK row', back_rows))
+        lines = ['key_label_records']
+        for row in action_rows + back_rows:
+            end = 23 if row in back_rows else 18
+            codes = [self.p.raw_char_code(root, path, gid) for gid in cells[row*40:row*40+end]]
+            cols = [i for i, v in enumerate(codes) if v is not None and v <= 35]
+            lo, hi = min(cols), max(cols)
+            glyphs = [v if v is not None and v <= 35 else 36 for v in codes[lo:hi+1]]
+            lines += ['        fdb $%04X' % self.p.framebuffer_destination((lo, row)),
+                      '        fcb ' + ','.join(str(v) for v in [len(glyphs), *glyphs])]
+        lines += ['key_value_destinations'] + ['        fdb $%04X' % self.p.framebuffer_destination((19, row)) for row in action_rows]
+        names = ['AT', 'UP ARROW', 'DOWN ARROW', 'LEFT ARROW', 'RIGHT ARROW', 'SPACE',
+                 'COLON', 'SEMICOLON', 'COMMA', 'MINUS', 'PERIOD', 'SLASH', 'ENTER',
+                 'CLEAR', 'BREAK', 'ALT', 'CONTROL', 'F1', 'F2', 'SHIFT']
+        lines += ['key_names'] + ['        fdb key_name_' + str(i) for i in range(len(names))]
+        for i, name in enumerate(names):
+            glyphs = [int(c) if c.isdigit() else ord(c)-55 if c != ' ' else 36 for c in name]
+            lines += ['key_name_' + str(i), '        fcb ' + ','.join(str(v) for v in [len(name), *glyphs])]
+        raw = []
+        for col in range(8):
+            for row in range(8):
+                if row < 3: code = 36 if col == 0 and row == 0 else row*8+col+9
+                elif row == 3: code = 33+col if col < 3 else 36+col-2
+                elif row == 4: code = col
+                elif row == 5: code = 8+col if col < 2 else 36+col+4
+                elif row == 6: code = 36+12+col
+                else: code = 255
+                raw.append(code)
+        lines += ['key_name_codes', '        fcb ' + ','.join(map(str, raw))]
+        (self.args.output.parent/'ladybug_keybinding_records.inc').write_text('\n'.join(lines)+'\n')
+        return {'action_rows': action_rows, 'back_row': back_rows[0], 'value_bounds': [19, 32],
+                'default_physical_keys': [27, 35, 43, 51, 6, 44, 12], 'maximum_name_width': 11}

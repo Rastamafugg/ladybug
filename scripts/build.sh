@@ -386,6 +386,7 @@ cmd_build() {
     SOURCE_REFERENCE_RECORDING=1
     python3 "$ROOT/scripts/source_reference/provenance.py" begin "$ROOT" "$BUILD_DIR" "$LADYBUG_PROFILE"
     local adaptive_args=()
+    local keybinding_args=()
     if [[ "$ADAPTIVE_RENDERING" == 1 ]]; then
         [[ "$LADYBUG_PROFILE" == complete ]] || { echo "adaptive fit requires complete profile" >&2; exit 1; }
         : > "$BUILD_DIR/ladybug-adaptive-active.bin"
@@ -393,7 +394,7 @@ cmd_build() {
         adaptive_args=(--adaptive-helper "$BUILD_DIR/ladybug-adaptive-banked.bin")
     fi
 
-    printf 'SHARED_TEXT_ENABLED equ %s\nPRES_STAGE_SLICE equ $B083\n' "$COMPLETE_PROFILE" > "$BUILD_DIR/ladybug_shared_mode.inc"
+    printf 'SHARED_TEXT_ENABLED equ %s\nPRES_STAGE_SLICE equ $B083\nMENU_SCAN equ $B086\nMENU_TICK equ $B089\n' "$COMPLETE_PROFILE" > "$BUILD_DIR/ladybug_shared_mode.inc"
     printf 'SHARED_COLD_PTR equ $1B96\n' > "$BUILD_DIR/ladybug_shared_link.inc"
     local shared_text_args=()
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then shared_text_args=(--shared-text); fi
@@ -448,9 +449,9 @@ manifest_path, output_path, development = sys.argv[1:]
 manifest = json.loads(open(manifest_path, encoding="ascii").read())
 offsets = manifest["map_stream_offsets"]
 node_tiles = manifest["high_score_name_entry"]["node_tile_ids"]
-if len(offsets) != 6:
-    raise SystemExit("build: expected six presentation map offsets")
-screen_modes = (2, 3, 6, 5, 7, 8) if int(development) else (2, 6, 6, 5, 7, 8)
+if len(offsets) != 9:
+    raise SystemExit("build: expected nine presentation map offsets")
+screen_modes = (2, 3, 6, 5, 7, 8, 5, 5, 5) if int(development) else (2, 6, 6, 5, 7, 8, 5, 5, 5)
 lines = [
     "; Generated resident-owned presentation constants.",
     "presentation_map_stream_offsets",
@@ -624,6 +625,7 @@ if int(complete):
         'shared_mask': 'PRES_MAIN_SHARED_MASK',
         'asset_draw_top_hud': 'PRES_MAIN_TOP_HUD',
         'install_phase_tiles_for_screen': 'PRES_MAIN_INSTALL_PHASE_TILES',
+        'presentation_key_service': 'PRES_MAIN_KEY_SERVICE',
         'presentation_page23_resume': 'PRES_MAIN_PAGE23_RESUME',
         'presentation_map_stream_offsets': 'PRES_MAIN_MAP_STREAM_OFFSETS',
         'presentation_screen_modes': 'PRES_MAIN_SCREEN_MODES',
@@ -811,6 +813,7 @@ PY
         lwasm -9 --format=raw \
               -DHIGHSCORE_TEST_PROFILE=1 \
               -DHIGHSCORE_PHASE_HELPER=1 \
+              -DINPUT_JOYSTICK="$INPUT_JOYSTICK" \
               -DCOMPLETE_PHASE_AUX=1 \
               -DHIGHSCORE_PHASE_HELPER_ADDRESS="$HIGHSCORE_PHASE_HELPER_ADDRESS" \
               -DHIGHSCORE_PHASE_HELPER_RESUME="$HIGHSCORE_PHASE_HELPER_RESUME" \
@@ -918,7 +921,16 @@ PY
         pad_cart "$RUNTIME_ROM"
     fi
 
-    python3 "$ROOT/scripts/build_sparse_sprites.py" "${adaptive_args[@]}" \
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then
+        lwasm -9 --format=raw --symbols \
+            --output="$BUILD_DIR/ladybug-keybinding-runtime.bin" \
+            --list="$BUILD_DIR/ladybug-keybinding-runtime.lst" \
+            --map="$BUILD_DIR/ladybug-keybinding-runtime.map" \
+            -DINPUT_JOYSTICK="$INPUT_JOYSTICK" \
+            -I "$BUILD_DIR" -I "$ROOT/src" "$ROOT/src/keybinding_runtime.s"
+        keybinding_args=(--keybinding-runtime "$BUILD_DIR/ladybug-keybinding-runtime.bin")
+    fi
+    python3 "$ROOT/scripts/build_sparse_sprites.py" "${adaptive_args[@]}" "${keybinding_args[@]}" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
         --enemy-output "$SPARSE_ENEMY" \

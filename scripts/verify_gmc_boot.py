@@ -189,7 +189,7 @@ def main() -> None:
     presentation_module = (
         Path(__file__).resolve().parents[1] / "build/ladybug-presentation-runtime.bin"
     ).read_bytes()
-    expected_entry_opcode = 0xB6 if development or complete or highscore_test else 0x17
+    expected_entry_opcode = 0x96 if complete else (0xB6 if development or highscore_test else 0x17)
     if not presentation_module or presentation_module[0] != expected_entry_opcode:
         raise SystemExit(
             "gmc proof: presentation module at $1900 does not begin with "
@@ -622,7 +622,19 @@ def run_startup_phases(
         audio_exact = True
         if verify_audio_page:
             actual_audio = audio_dump.read_bytes() if audio_dump.exists() else b""
-            audio_exact = actual_audio == audio_bytes
+            # First presentation dispatch initializes foreground queue/slot
+            # state. Compare every immutable byte and exclude only the authored
+            # mutable spans, not the containing page or executable regions.
+            audio_map = (rom.parent / 'ladybug-audio-runtime.map').read_text()
+            mutable = [
+                (int(map_symbol(audio_map, 'audio_stop_pending'),16),14),
+                (int(map_symbol(audio_map, 'audio_name_valid'),16),4),
+                (int(map_symbol(audio_map, 'audio_slot0'),16),125),
+            ]
+            mutable_offsets={a-0xA000+i for a,n in mutable for i in range(n)}
+            audio_exact = len(actual_audio)==len(audio_bytes) and all(
+                a==b for i,(a,b) in enumerate(zip(actual_audio,audio_bytes))
+                if i not in mutable_offsets)
             resident_text += (
                 f"\n{prefix}_AUDIO_PAGE_EXACT\n" if audio_exact else
                 f"\n{prefix}_AUDIO_PAGE_MISMATCH expected={len(audio_bytes)} actual={len(actual_audio)}\n"
