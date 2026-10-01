@@ -1,8 +1,37 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>BUG-109 — Name-entry stray score removal — Ladybug</title><link rel="stylesheet" href="../../shared/css/wiki.css"></head><body><div class="wiki-shell"><nav><a href="../../index.html">Wiki</a> · <a href="../index.html">Internal</a> · <a href="./index.html">Tickets</a> · <a href="./workflow.html">Workflow</a></nav><main class="wiki-main"><header class="wiki-header"><p class="wiki-eyebrow">Ticket · bug</p><h1>BUG-109 — Name-entry stray score removal <span class="wiki-badge">Draft</span></h1><p class="wiki-meta">2026-10-01 · P2 · Standard · Draft</p></header><section><ul><li><strong>Status:</strong> Draft</li><li><strong>Baseline:</strong> <code>fe160ae389145d24083218ded05ba9cdca781474</code> plus preserved user-edited TMX snapshot</li><li><strong>Priority / order:</strong> P2 / unassigned</li><li><strong>Roadmap:</strong> <a href="../implementation/roadmap.html">Phase 9</a></li><li><strong>Owner:</strong> unassigned</li><li><strong>Dependencies:</strong> exact source/layout/fit evidence and explicit approval before execution</li><li><strong>Risk class:</strong> Standard — source identifies a dynamic left-score writer candidate and overlap with BUG-110; cause/target pixels are unconfirmed; Compact only if diagnosis proves a static-only change of at most two files.</li></ul></section>
-<h2>Objective and motivation</h2><p>Remove the stray <code>090000</code> appearing between “TOP HI” and “SCORE” on the enter-high-score screen.</p>
-<h2>Reproduction and source evidence</h2><p>User reports a six-digit stray value in that gap. Baseline commit <code>fe160ae389145d24083218ded05ba9cdca781474</code> plus map SHA-256 <code>4f57c7ac5de742b528d5fa0bcebb03db46bd53c67ef0ea4e86e8c5e3d89c41c3</code>. Current source writes a dynamic score to x1..6,y13, between authored overlay rows 12 and 14; current value/state and exact correspondence to the reported six digits are not runtime-proven. This same left region is the proposed BUG-110 HUD destination.</p>
-<h2>Cause and discriminator</h2><p>Likely the existing left-score writer is publishing an unrelated/default score in the prompt gap. Compare mapped cell origins, dynamic score bytes and captured full-screen pixels on an identified current ROM; distinguish the reported stray field from the requested replacement HUD before changing or removing its writer.</p>
-<h2>Scope, class and acceptance</h2><p><strong>In:</strong> eliminate only the unwanted number in the prompt gap and prevent stale digits. <strong>Out:</strong> removing the legitimate score needed by BUG-110 or altering scoring. Source identifies a dynamic left-score writer candidate and overlap with BUG-110; cause/target pixels are unconfirmed. Compact only if diagnosis proves a static-only change of at most two files. Acceptance: the prompt gap contains no unrequested digits across qualifying ranks and owner reuse; any replacement HUD occupies an explicitly mapped nonoverlapping region.</p>
-<h2>Scenarios and dependencies</h2><ul><li>Default/non-first insertion distinguishes current score-source behavior.</li><li>First insertion checks whether live player score is written there.</li><li>Replay after a prior longer number checks digit erasure.</li></ul><p>BUG-110 separately requests real rank/name/score in the left HUD. Their field map and ownership must be designed together; neither is Ready until nonoverlap is proven. BUG-108's prompt width also consumes the same layout budget. Status Draft.</p>
-<h2>Verification and completion evidence</h2><p>Future phase marker: exact name-screen publication, ≤60 seconds; timeout means no pixel conclusion. Verify live bytes against current ROM. Reuse the name-entry pixel harness, standard build and capacity checks. Retain cell masks for prompt, gap and left HUD, plus before/after pixel diffs. No current runtime evidence.</p>
-<h2>Decision log</h2><p>2026-10-01 — Created; potential source destination identified, but exact pixel ownership remains unconfirmed.</p><h2>Proposed design to assess</h2><p>Suppress or relocate only the confirmed unwanted score writer after mapping prompt and HUD fields. Clear its former six-cell span, but do not blank a destination that the jointly designed BUG-110 HUD needs. Candidate only; no implementation is approved and fit is unproven.</p><h2>Likely source targets and assignment contract</h2><p><strong>Candidate production files:</strong> <code>src/shared_text_ranking.inc</code> for the dynamic writer and <code>scripts/shared_text.py</code> for authored field masks; do not edit until BUG-110 overlap is resolved. These are investigation pointers, not a confirmed assignment.</p><p>Unassigned while Draft. Do not modify production files or the preserved nine-file user TMX snapshot before explicit approval and a Ready contract. After approval, one bounded owner must use <code>wsl bash scripts/build.sh build</code>, reuse the existing shared-text/name-entry checks, and record an exact supported GDB/XRoar command, marker, artifact-byte identity and ≤60-second runtime phase before Ready. Retain concise source/pixel evidence under <code>evidence/rsch014-C/</code>; make one scoped commit, no push. Parent owns generated-file reconciliation, combined build, integration, QA and lifecycle updates. A missing ROM or runtime path is a failed/unperformed verification, not a pass.</p><footer><p>Evidence: <a href="./evidence/rsch014-C/source-findings.json">RSCH-014 step-C source findings</a>. No production implementation, current-ROM proof, or acceptance claim.</p></footer></main></div></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-109 — Name-entry stray score removal — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Ticket · bug</p>
+      <h1>BUG-109 — Name-entry stray score removal <span class="wiki-badge">Proposed</span></h1>
+      <p class="wiki-meta">2026-10-01 · P2 · Compact · Proposed</p>
+    </header>
+    <section id="c3-approval-20261001">
+      <h2>Approval brief</h2>
+      <h3>Objective and confirmed cause</h3><p>Remove the stray six-digit score between <code>TOP HI</code> and <code>SCORE</code> on the name-entry screen. Baseline <code>fe160ae389145d24083218ded05ba9cdca781474</code>: <code>draw_entry_scores</code> sends the pending score or committed record-zero score to <code>PRESENTATION_NAME_ENTRY_TOP_DST</code>, x1–6,y13. The default record-zero value is 090000, which creates the reported text. The separate left HUD lives on row20 and remains in BUG-110 scope.</p>
+      <h3>Scope and design</h3><p><strong>In:</strong> suppress only the row13 dynamic score write for every insertion rank. <strong>Out:</strong> player score x33–38,y2, top-right score x33–38,y6, left-HUD score x1–6,y20, and static phrase rows10/12/14. Remove or gate the exact top-left <code>draw_score</code> call; do not clear an expanded region or alter the high-score record.</p>
+      <h3>Scenarios and acceptance</h3><ul><li>Insertion rank1 and a later rank both leave x1–6,y13 empty.</li><li>Existing dynamic player and top-right score fields remain exact.</li><li>Natural owner replay does not restore stale 090000 into the gap.</li></ul><p>Acceptance: all six stray cells have no foreground pixels after initial publication and replay; all named score destinations remain unchanged.</p>
+      <h3>Assignment, dependencies and verification</h3><p><strong>Class: Compact.</strong> The writer and destination are confirmed, the change removes one existing call from one production file, and no protocol or memory owner is added. Exact production file: <code>src/shared_text_stage.inc</code>. After approval, run the complete adaptive build and <code>python3 scripts/verify_shared_text.py --build-dir build</code>; extend the existing <code>scripts/verify_feat003_highscore_test.py</code> only if its current field oracle cannot assert the six empty cells. Force first and later insertion rank because the existing branch differs. Prove the current ROM bytes before pixel interpretation; retain the gap plus neighboring score-field checks.</p>
+      <h3>Decision log</h3><p>2026-10-01 — Proposed after locating the exact dynamic writer. BUG-036's broad name-screen scope is not reopened.</p>
+    </section>
+    <footer class="wiki-footer">
+      <p>Current C3 evidence: <a href="./evidence/rsch014-C3/readiness.json">RSCH-014 C3 source, build and assignment receipt</a>. Research preparation only; no repair code is committed or approved.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,242 @@
+{
+  "recordedAt": "2026-10-01",
+  "worktree": {
+    "path": "E:/projects/ladybug/worktrees/menu-name-prep",
+    "branch": "codex/rsch014-c-readiness",
+    "checkoutHead": "436478586482afb0457357b4fddbbf05a7b9c52a",
+    "researchCodeBaseline": "fe160ae389145d24083218ded05ba9cdca781474",
+    "disposition": "Preparation only; no production repair approved, no source implementation commit, no push."
+  },
+  "contract": {
+    "fixedMenuControls": {
+      "arrows": "physical fixed arrows",
+      "enter": "physical Enter / CoCo key 6",
+      "credits": [
+        "physical 5 / ID44",
+        "physical 6 / ID52"
+      ]
+    },
+    "editableBindings": [
+      "UP",
+      "DOWN",
+      "LEFT",
+      "RIGHT",
+      "ACTION"
+    ],
+    "normalGameplay": "Only first four drive normal movement; ACTION has no newly enabled normal-game effect.",
+    "menuChoices": [
+      "START GAME",
+      "OPTIONS",
+      "CREDITS"
+    ],
+    "zeroCredit": "First label is ADD CREDITS; Enter cannot start without credit.",
+    "creditPositive": "First label is START GAME regardless of whether there is one or multiple credits.",
+    "start": "Fresh Enter on high-score START GAME with credits>0 only; consume one credit and use existing credited handoff. No old 1/2 route.",
+    "highScoreSelection": "Text colour only; no parentheses. Options selector remains unchanged.",
+    "heldEntry": "If a coin adds credit while Enter is held or simultaneous, coin wins and that Enter is consumed through release; a fresh Enter press is required. No same-scan start.",
+    "pendingNameGridPolicy": "Current COMPLETE path reads remappable gameplay arrows through JOY_DIR. User clarification pending on whether name-grid movement stays mapped or becomes fixed physical arrows. No prototype change made.",
+    "pendingVegetableValuePolicy": "BUG-105 remains Draft pending whether =0000 is fixed display or points-backed."
+  },
+  "sourceProof": {
+    "safeFixedHistory": {
+      "source": "src/keybinding_runtime.s",
+      "slot": "KB_MENU_PREV=$028C, initialized in key_init and updated in every physical scan. The byte occupies a previously reserved keybinding byte; $028D remains reserved.",
+      "nameEntryProtection": "$DF is written only in local-menu input. In active name screen 5, $DF remains PRES_NAME_ROW. This corrects the rejected global-$DF prototype."
+    },
+    "heldEnterTrace": "Source-level trace: an Enter held on an attract/non-menu phase is included in KB_WORK and recorded to $028C while local $D0 edges are skipped. A coin edge is then consumed by presentation_runtime.s:pft_ready before pft_dispatch; idle/menu coin reloads the high-score screen and returns. While Enter remains held, complement(previous)&current yields no local Enter edge. Release clears the history bit; only the next physical press emits a fresh local edge. Coin+Enter in one scan takes the same pft_ready return path. This is code-order evidence, not runtime proof.",
+    "creditOwner": "Unchanged active src/presentation_runtime.s:pft_ready/add_credit consumes $A9/PRES_EVENT mask $06 before menu dispatch, saturates at generated PRESENTATION_COIN_SLOT_COUNT=12, updates $A8/PRES_CREDITS and existing CREDIT_RF_HUD. Existing idle/menu reload repaints the label/coin state. No duplicate consumer or fixed 9 cap was added.",
+    "nameGrid": "Active src/shared_text_stage.inc:name_tick calls PRES_MAIN_READ_JOY; src/main.s:read_joystick in COMPLETE_PROFILE reads mapped KB_DOWN ($0296) movement bits. It currently follows remapped controls. Fixed arrows in key_scan are independent menu controls.",
+    "logoR": "Existing evidence rsch014-C/logo-sharedtext-static-check.json follows SharedText cell classification and per-cell shared_static_frame overlay loop: x31,y13-14; 25 visible foreground pixels; all pen1, 22 left/3 right; neither cell enters SharedText.cells. Static base reconstruction is entirely red and does not explain a report of white pixels. Deferred frames/live pixels remain untested."
+  },
+  "tickets": {
+    "BUG-100": "Draft: SharedText static base and source-composited R are all pen1 red; current-frame/published-owner discrepancy has no live discriminator.",
+    "BUG-102": "Proposed: dynamic player score uses generic score glyphs without light-green role; destination x33-38,y2.",
+    "BUG-103": "Proposed: dynamic TOP name and score use generic glyph path without red role; destinations x33-39,y5 and x33-38,y6.",
+    "BUG-104": "Proposed: active high-score name renderer has no part-value writer; current stage identity candidate is $24 STAGE.",
+    "BUG-105": "Draft: dark-green appearance requested at x34-38,y13; fixed-zero versus points-backed value policy is pending user answer.",
+    "BUG-106": "Proposed: name-screen sprite marker x32,y13 is validated but unused; vegetable draw exists only on level-start.",
+    "BUG-107": "Proposed: dot/space/heart node IDs are FF and filtered from action_records; raw choices are code45,36,41.",
+    "BUG-108": "Proposed: phrase is static and no active writer uses PRES_INSERT to display placement.",
+    "BUG-109": "Proposed: draw_entry_scores writes row13 x1-6 from pending or record-zero score; default 090000 causes the stray string.",
+    "BUG-110": "Proposed: left rank/name/score placeholders at rows18-20 have no dynamic writer; row13 stray is separate BUG-109 scope."
+  },
+  "userTmxSnapshot": {
+    "count": 9,
+    "allUnchanged": true,
+    "files": [
+      {
+        "path": "tiled/coco-attract-screen.tmx",
+        "sha256": "ecc0071a3a3998967401250e977750a9b988444828a9b4e05fe6905de447bf40",
+        "matchesParentSnapshot": true
+      },
+      {
+        "path": "tiled/coco-credits-screen.tmx",
+        "sha256": "ba80c3d41e279160f3700e7a891ae7502e68c4f05cbd1c8385757b6e77d0a472",
+        "matchesParentSnapshot": true
+      },
+      {
+        "path": "tiled/coco-enter-high-score-screen.tmx",
+        "sha256": "4f57c7ac5de742b528d5fa0bcebb03db46bd53c67ef0ea4e86e8c5e3d89c41c3",
+        "matchesParentSnapshot": true
+      },
+      {
+        "path": "tiled/coco-game-over-screen.tmx",
+        "sha256": "8ef2103ced78ca35fd31fc0cbf618cf2552bc623b92b44a2c73642779b2242ab",
+        "matchesParentSnapshot": true
+      },
+      {
+        "path": "tiled/coco-high-score-screen.tmx",
+        "sha256": "b014d151e4fd8228faceac8e7bdea4d792abf6b8e8cd8f8f458f736c55df0d61",
+        "matchesParentSnapshot": true
+      },
+      {
+        "path": "tiled/coco-instructions-screen.tmx",
+        "sha256": "cee716b3e0c42b30bd25a145dd59191eeff0b90d8be7aa9c6978015be818cbc8",
+        "matchesParentSnapshot": true
+      },
+      {
+        "path": "tiled/coco-keybind-options-screen.tmx",
+        "sha256": "1b8de791e7d1550e448a2adb1850d362faa262968c030e12a0530e93fa758ae1",
+        "matchesParentSnapshot": true
+      },
+      {
+        "path": "tiled/coco-level-start-screen.tmx",
+        "sha256": "04fd27505700dcfc94453f416b640ba5543bead9e2068b5c906f0a669f7d9469",
+        "matchesParentSnapshot": true
+      },
+      {
+        "path": "tiled/coco-screen.tmx",
+        "sha256": "f84c547553df61f749b7efbd9604a877127af6bbf59511d846896c821dbf6ef9",
+        "matchesParentSnapshot": true
+      }
+    ]
+  },
+  "prototype": {
+    "ownedPatch": "wiki/internal/tickets/evidence/rsch014-C3/source-prototype.patch",
+    "ownedPatchSha256": "e4f3282f5961389d1a86fac9c0686c4ffa6fb091ca9c80c1f62a3d697ade292c",
+    "ownedPatchBytes": 35227,
+    "ownedPatchScope": [
+      "assets/arcade/text-colours.json",
+      "scripts/shared_text.py",
+      "scripts/source_reference.json",
+      "src/demo_runtime.s",
+      "src/keybinding_runtime.s",
+      "src/shared_text_stage.inc"
+    ],
+    "fullModifiedInputHashes": {
+      "assets/arcade/text-colours.json": "c38d8a2839f5d1a41436f0d2cd5c79c18ce22fd055469f1dd4d8655f4ad0b904",
+      "scripts/build_presentation.py": "de2742b96b8b9c9bad1841265b72a5701fab674de8a18e3be83715e08b004147",
+      "scripts/build_screen.py": "c1ed6a0d90da9dd402ea199478be7f9cd71d0787b60fa0ce38ded8acc5decf5e",
+      "scripts/shared_text.py": "b9b0002168e926e2821117fe98c3be940f64d8145e1e002d5529d7a7b80f378c",
+      "scripts/source_reference.json": "e1bb67de60de9ab412730af1e72afdf6f632eca01030d597785410fa2b91ea59",
+      "scripts/verify_bug035_presentation.py": "a90eb83cc9fb2f4cb992e37d1dff2445001d0e9344407bc1000cc125c97fbced",
+      "src/demo_runtime.s": "82081e08035c1046209999a275a01914f8454b76b6b4ec392b64873c53a1caa5",
+      "src/keybinding_runtime.s": "963518aa0bf9666480c40acf7cc6fa96add0900dbfabffdba0038e9445f60ea5",
+      "src/shared_text_stage.inc": "2d130ff89eb06a4b3fa54d5f6dbaf929fcdb59460d54cd911d4f728421131a56"
+    },
+    "borrowedRequiredPatches": [
+      {
+        "path": "wiki/internal/tickets/evidence/rsch014-A/BUG059-060-layer-compiler-prototype.patch",
+        "sha256": "f1402ecef9c2737df5eb167b75ff462cce791915178c3bd731e742adbf99ab60",
+        "owner": "compiler/layer contract prerequisite"
+      },
+      {
+        "path": "E:/projects/ladybug/worktrees/tmx-screen-prep/wiki/internal/tickets/evidence/rsch014-A2/bug063-attract-map-derived-palette.patch",
+        "sha256": "290f8da711ba070cf90da7d938e7e551cf41a5669b8476f097b9f8f8f2869230",
+        "owner": "A palette/remapping and strict verifier contract prerequisite"
+      },
+      {
+        "path": "wiki/internal/tickets/evidence/rsch014-C/menu-label-span-extraction-v2.patch",
+        "sha256": "7a522289840af4de414d07a7b6dab3d1afb2dee9810d7e9691bd0e90b327130b",
+        "owner": "C2 generated menu row prototype"
+      },
+      {
+        "path": "wiki/internal/tickets/evidence/rsch014-C/menu-text-colours.patch",
+        "sha256": "84223b0db6e0a662c7fd6b33fa84ca67b2593a545e427fd2f8de0ccabd4cb6e8",
+        "owner": "C2 stale high-score colour-run cleanup"
+      }
+    ],
+    "productionSourcesRemainUncommitted": true,
+    "noUserTmxChanges": true
+  },
+  "finalBuild": {
+    "invocation": "cd /mnt/e/projects/ladybug/worktrees/menu-name-prep && LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+    "profile": "complete",
+    "input": "keyboard",
+    "cpu": "6809",
+    "adaptiveRendering": 1,
+    "status": "PASS",
+    "romPath": "build/ladybug.rom",
+    "romBytes": 65536,
+    "romSha256": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+    "coldSha256": "f22e09e8263b03ddaa393c4adc0189c2a8007261d762ef6435ad39e1ddc29ff7",
+    "sourceBuildReceiptSha256": "161160f60444196556fa94b4e675b478cbaabdc314a629a8ec4baf508da6c4df",
+    "sourceAudit": "PASS: 14 modules, 301/301 routines, 4931/4931 labels",
+    "passedGates": [
+      "9-map SharedText pixel exactness",
+      "BUG-016 9 layer roles / 22 raw markers / 5 negative diagnostics",
+      "shared-text dynamic/static generated assets",
+      "sparse decode: 130 enemy and 16 player frames pixel exact",
+      "10 loader segments reconstruct seven streams with identity",
+      "GMC overflow exact boundary plus one-byte rejection",
+      "presentation proof: 9 colour/score, 3 multiplier, 14 death streams",
+      "allocation proof: page $20 perimeter; $3A-$3D cold ownership"
+    ],
+    "capacitiesUsedOverLimitBytes": {
+      "resident": "8137/8192 (55 free)",
+      "immutableAssets": "7622/7680 (58 free)",
+      "presentation": "1264/1280 (16 free)",
+      "demoHelper": "143/938 (795 free)",
+      "highScoreHelper": "899/938 (39 free)",
+      "instructionHelper": "935/938 (3 free)",
+      "perimeterHelper": "331/334 (3 free)",
+      "audioEngine": "734/920 (186 free)",
+      "page3D": "6565/8192 (1627 free)",
+      "cold": "14336 bytes",
+      "enemySparse": "23005/24576 (1571 free)",
+      "playerSparse": "2294/8192 (5898 free)",
+      "gateTransitions": "832 bytes",
+      "presentationSparse": "896 bytes",
+      "perimeterReset": "5751 bytes",
+      "cpuReadableGmcSource": "12302 bytes spare"
+    },
+    "interpretation": "Compilation and current hard-bound checks pass for this prototype and its compiler prerequisites only. Name-entry repair tickets and their new glyph/sprite data are not included; measured close margins do not imply their fit. No runtime or pixel acceptance."
+  },
+  "earlierAttempts": [
+    {
+      "artifact": "Pre-correction complete build",
+      "result": "Rejected. It wrote physical held history to $DF on every phase, aliasing name-entry PRES_NAME_ROW; source-documentation audit also found stale contracts/catalog classification. No behavior claim."
+    },
+    {
+      "artifact": "First RSCH014-C3-prototype custom build directory",
+      "result": "Assembled payload, then verify_presentation_sparse.py failed because it hardcodes build/ladybug.map instead of honoring LADYBUG_BUILD_DIR. Artifact-boundary/setup failure; no verifier bypass."
+    },
+    {
+      "artifact": "Focused source-reference generation before final build",
+      "result": "Stopped with stale build receipt (stale build inputs; a fresh hash cannot certify old artifacts). Corrected mirrors/classification and reran through the fresh standard build, which passed."
+    },
+    {
+      "artifact": "First assembler pass of the combined C2 prototype",
+      "result": "Three short branches to menu_idle exceeded range at src/shared_text_stage.inc lines 904, 907, 913. Widened them to LBNE, LBHS and LBEQ; final complete build passes."
+    }
+  ],
+  "runtime": {
+    "probesRun": 0,
+    "status": "NOT RUN",
+    "reason": "No emulator was attached or launched; the authorized C3 preparation ended at source/build evidence. No live symbols, pixels or gameplay behavior are claimed."
+  },
+  "approval": {
+    "repairApproved": false,
+    "ready": false,
+    "remainingExternalQuestions": [
+      "name-grid movement uses mapped or fixed arrows",
+      "BUG-105 vegetable value is fixed display or points-backed"
+    ],
+    "pendingRepairApproval": "Each Proposed repair still requires explicit user approval; this research preparation does not authorize implementation.",
+    "parentOwns": [
+      "RSCH-014 shared sections",
+      "internal index/log/coverage",
+      "integration and ticket lifecycle"
+    ]
+  }
+}

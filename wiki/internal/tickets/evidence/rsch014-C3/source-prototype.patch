@@ -1,0 +1,839 @@
+diff --git a/assets/arcade/text-colours.json b/assets/arcade/text-colours.json
+index 868fed4..b3d20ec 100644
+--- a/assets/arcade/text-colours.json
++++ b/assets/arcade/text-colours.json
+@@ -315,125 +315,6 @@
+       "y": 22,
+       "width": 1,
+       "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 10,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 8
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 12,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 13,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 14,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 15,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 16,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 17,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 19,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 20,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 21,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 22,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 23,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 24,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 26,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 27,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 28,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+-    },
+-    {
+-      "screen": "high-score",
+-      "x": 29,
+-      "y": 23,
+-      "width": 1,
+-      "colour": 5
+     }
+   ],
+   "fields": {
+diff --git a/scripts/shared_text.py b/scripts/shared_text.py
+index 817b987..fa47751 100644
+--- a/scripts/shared_text.py
++++ b/scripts/shared_text.py
+@@ -249,35 +249,59 @@ class SharedText:
+             manifest['shared_static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
+             if name=='instructions':self.p.blend_native_surface(frame,instruction_source['cucumber_destination'],instruction_source['cucumber_native'])
+             manifest['static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
+-        # Generate menu label and bracket anchors directly from the authored TMX.
++        # Extract authored high-score menu text spans for colour-only selection.
++        # No parenthesis or other cursor glyphs are emitted for this screen.
+         menu_lines=[]
+-        for name in ('high-score','options'):
+-            path=self.args.tiled_dir/self.p.MAP_FILES[name]
+-            root=ET.parse(path).getroot()
+-            layer=next(l for l in root.findall('layer') if l.get('name')=='Selected Option')
+-            cells=s.parse_csv(layer.find('data'),'Selected Option')
+-            pairs=[]
+-            for row in range(24):
+-                anchors=[(col,gid) for col,gid in enumerate(cells[row*40:(row+1)*40]) if gid]
+-                for i in range(0,len(anchors),2):
+-                    left,right=anchors[i:i+2]
+-                    assert self.p.raw_char_code(root,path,left[1])==43
+-                    assert self.p.raw_char_code(root,path,right[1])==44
+-                    pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
+-            assert len(pairs)==2,(name,pairs)
+-            menu_lines.append('menu_'+name.replace('-','_')+'_pairs')
+-            menu_lines.extend('        fdb $%04X,$%04X'%pair for pair in pairs)
+-            if name=='high-score':
+-                _,flat,_=self.p.flatten_map(path)
+-                menu_lines.append('menu_high_score_rows')
+-                for left,right in pairs:
+-                    row=(left-0x2000)//1280;lo=((left-0x2000)%1280)//4+1
+-                    hi=((right-0x2000)%1280)//4
+-                    codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40+lo:row*40+hi]]
+-                    codes=[c if c is not None and 0<=c<=35 else 36 for c in codes]
+-                    menu_lines.append('        fdb $%04X'%(left+4))
+-                    menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
++        path=self.args.tiled_dir/self.p.MAP_FILES['high-score']
++        root=ET.parse(path).getroot()
++        layer=root.find("layer[@name='High Score Table and Branding']")
++        if layer is None:raise ValueError((path,'missing High Score Table and Branding'))
++        cells=self.p.parse_csv(layer.find('data'),layer.get('name'))
++        specs=((20,17,26,'START GAME'),(21,17,23,'OPTIONS'),(22,17,23,'CREDITS'))
++        high_rows=[]
++        for row,lo,hi,label in specs:
++            row_gids=cells[row*40:(row+1)*40]
++            raw=[self.p.raw_char_code(root,path,gid&self.p.GID_MASK) for gid in row_gids]
++            codes=[c if 0<=c<=35 else 36 for c in raw]
++            expected=[36 if char==' ' else ord(char)-55 for char in label]
++            matches=[col for col in range(41-len(expected)) if codes[col:col+len(expected)]==expected]
++            if (hi-lo+1!=len(expected) or codes[lo:hi+1]!=expected or matches!=[lo]):
++                raise ValueError((path,'authored high-score menu span mismatch',row,lo,hi,label,matches))
++            # ADD CREDITS has 11 characters. The unused blank at x16 lets it
++            # replace centered START GAME without synthesizing selector marks.
++            if row==20 and row_gids[16]!=8:
++                raise ValueError((path,'start row lacks blank cell for ADD CREDITS',(16,row)))
++            if row==20:
++                lo=16
++                row_codes=[36,*expected]
++            else:
++                row_codes=expected
++            high_rows.append((row,lo,row_codes))
++        menu_lines.append('menu_high_score_rows')
++        for row,lo,codes in high_rows:
++            menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
++            menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
++        add_credits=[36 if char==' ' else ord(char)-55 for char in 'ADD CREDITS']
++        menu_lines.append('menu_high_score_add_credits')
++        menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((16,20)))
++        menu_lines.append('        fcb '+','.join(str(code) for code in [len(add_credits),*add_credits]))
++        # Keep the Options screen's authored selector pairs. The no-parenthesis
++        # clarification applies only to the high-score screen.
+         path=self.args.tiled_dir/self.p.MAP_FILES['options']
++        root=ET.parse(path).getroot()
++        layer=next(l for l in root.findall('layer') if l.get('name')=='Selected Option')
++        cells=s.parse_csv(layer.find('data'),'Selected Option')
++        pairs=[]
++        for row in range(24):
++            anchors=[(col,gid) for col,gid in enumerate(cells[row*40:(row+1)*40]) if gid]
++            for i in range(0,len(anchors),2):
++                left,right=anchors[i:i+2]
++                assert self.p.raw_char_code(root,path,left[1])==43
++                assert self.p.raw_char_code(root,path,right[1])==44
++                pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
++        assert len(pairs)==2,('options',pairs)
++        menu_lines.append('menu_options_pairs')
++        menu_lines.extend('        fdb $%04X,$%04X'%pair for pair in pairs)
+         root,flat,_=self.p.flatten_map(path)
+         rows=[]
+         for row in range(24):
+@@ -311,53 +335,100 @@ class SharedText:
+     def keybinding_records(self):
+         path = self.args.tiled_dir / self.p.MAP_FILES['keybind-options']
+         root, cells, _ = self.p.flatten_map(path)
+-        guide = root.find("layer[@name='Selected Option']")
++        guides = [layer for layer in root.findall('layer')
++                  if layer.get('name') == 'Selected Option']
++        if len(guides) != 1:
++            raise ValueError(('keybinding guide layer count', len(guides)))
++        guide = guides[0]
++        guide_cells = self.p.parse_csv(guide.find('data'), 'Selected Option')
++        expected_pairs = {6: (23, 32), 8: (21, 32), 10: (21, 32),
++                          12: (20, 32), 14: (26, 32)}
++        legacy_blank_cells = ({(col, 16) for col in range(30, 35)} |
++                              {(col, 18) for col in range(29, 35)})
++        expected_nonzero = {
++            (left, row) for row, (left, _) in expected_pairs.items()
++        } | {
++            (right, row) for row, (_, right) in expected_pairs.items()
++        } | legacy_blank_cells
++        actual_nonzero = set()
+         pairs = []
+         for row in range(24):
+-            markers = [(col, self.p.raw_char_code(root, path, gid))
+-                       for col, gid in enumerate(self.p.parse_csv(guide.find('data'), 'Selected Option')[row*40:(row+1)*40]) if gid]
++            row_cells = guide_cells[row * 40:(row + 1) * 40]
++            markers = []
++            for col, gid in enumerate(row_cells):
++                if not gid:
++                    continue
++                cell = (col, row)
++                actual_nonzero.add(cell)
++                code = self.p.raw_char_code(root, path, gid & self.p.GID_MASK)
++                if cell in legacy_blank_cells:
++                    if (gid & self.p.GID_MASK) != 8 or code != 255:
++                        raise ValueError(('keybinding legacy guide blank changed', cell, gid, code))
++                    continue
++                if code not in (43, 44):
++                    raise ValueError(('unexpected keybinding guide glyph', cell, gid, code))
++                markers.append((col, code))
+             if markers:
+-                if len(markers) != 2 or [v for _, v in markers] != [43, 44] or markers[1][0] != 32:
+-                    raise ValueError(('keybinding parentheses guide', row, markers))
+-                pairs.append((row, markers[0][0], markers[1][0]))
+-        if len(pairs) != 7:
+-            raise ValueError(('expected seven keybinding guide pairs', pairs))
++                expected = expected_pairs.get(row)
++                if expected is None or markers != [(expected[0], 43), (expected[1], 44)]:
++                    raise ValueError(('keybinding parentheses guide', row, markers, expected))
++                pairs.append((row, expected[0], expected[1]))
++        if actual_nonzero != expected_nonzero:
++            raise ValueError(('keybinding guide cell contract',
++                              sorted(expected_nonzero - actual_nonzero),
++                              sorted(actual_nonzero - expected_nonzero)))
++        if [row for row, _, _ in pairs] != list(expected_pairs):
++            raise ValueError(('expected five keybinding guide pairs', pairs))
+         action_rows = [row for row, _, _ in pairs]
+         back_rows = []
+         for row in range(24):
+-            codes = [self.p.raw_char_code(root, path, gid) for gid in cells[row*40:(row+1)*40]]
+-            if any(codes[col:col+4] == [11, 10, 12, 20] for col in range(37)):
++            codes = [self.p.raw_char_code(root, path, gid & self.p.GID_MASK)
++                     for gid in cells[row * 40:(row + 1) * 40]]
++            if any(codes[col:col + 4] == [11, 10, 12, 20] for col in range(37)):
+                 back_rows.append(row)
+-        if len(back_rows) != 1:
++        if back_rows != [20]:
+             raise ValueError(('keybinding BACK row', back_rows))
+         lines = ['key_label_records']
+         for row in action_rows + back_rows:
+             end = 23 if row in back_rows else 18
+-            codes = [self.p.raw_char_code(root, path, gid) for gid in cells[row*40:row*40+end]]
+-            cols = [i for i, v in enumerate(codes) if v is not None and v <= 35]
++            codes = [self.p.raw_char_code(root, path, gid & self.p.GID_MASK)
++                     for gid in cells[row * 40:row * 40 + end]]
++            cols = [i for i, value in enumerate(codes)
++                    if value is not None and 0 <= value <= 35]
+             lo, hi = min(cols), max(cols)
+-            glyphs = [v if v is not None and v <= 35 else 36 for v in codes[lo:hi+1]]
++            glyphs = [value if value is not None and 0 <= value <= 35 else 36
++                      for value in codes[lo:hi + 1]]
+             lines += ['        fdb $%04X' % self.p.framebuffer_destination((lo, row)),
+-                      '        fcb ' + ','.join(str(v) for v in [len(glyphs), *glyphs])]
+-        lines += ['key_value_destinations'] + ['        fdb $%04X' % self.p.framebuffer_destination((19, row)) for row in action_rows]
++                      '        fcb ' + ','.join(str(value) for value in [len(glyphs), *glyphs])]
++        lines += ['key_value_destinations'] + [
++            '        fdb $%04X' % self.p.framebuffer_destination((19, row))
++            for row in action_rows
++        ]
+         names = ['AT', 'UP ARROW', 'DOWN ARROW', 'LEFT ARROW', 'RIGHT ARROW', 'SPACE',
+                  'COLON', 'SEMICOLON', 'COMMA', 'MINUS', 'PERIOD', 'SLASH', 'ENTER',
+                  'CLEAR', 'BREAK', 'ALT', 'CONTROL', 'F1', 'F2', 'SHIFT']
+         lines += ['key_names'] + ['        fdb key_name_' + str(i) for i in range(len(names))]
+         for i, name in enumerate(names):
+-            glyphs = [int(c) if c.isdigit() else ord(c)-55 if c != ' ' else 36 for c in name]
+-            lines += ['key_name_' + str(i), '        fcb ' + ','.join(str(v) for v in [len(name), *glyphs])]
++            glyphs = [int(char) if char.isdigit() else ord(char) - 55 if char != ' ' else 36
++                      for char in name]
++            lines += ['key_name_' + str(i),
++                      '        fcb ' + ','.join(str(value) for value in [len(name), *glyphs])]
+         raw = []
+         for col in range(8):
+             for row in range(8):
+-                if row < 3: code = 36 if col == 0 and row == 0 else row*8+col+9
+-                elif row == 3: code = 33+col if col < 3 else 36+col-2
++                if row < 3: code = 36 if col == 0 and row == 0 else row * 8 + col + 9
++                elif row == 3: code = 33 + col if col < 3 else 36 + col - 2
+                 elif row == 4: code = col
+-                elif row == 5: code = 8+col if col < 2 else 36+col+4
+-                elif row == 6: code = 36+12+col
++                elif row == 5: code = 8 + col if col < 2 else 36 + col + 4
++                elif row == 6: code = 36 + 12 + col
+                 else: code = 255
+                 raw.append(code)
+         lines += ['key_name_codes', '        fcb ' + ','.join(map(str, raw))]
+-        (self.args.output.parent/'ladybug_keybinding_records.inc').write_text('\n'.join(lines)+'\n')
+-        return {'action_rows': action_rows, 'back_row': back_rows[0], 'value_bounds': [19, 32],
+-                'default_physical_keys': [27, 35, 43, 51, 6, 44, 12], 'maximum_name_width': 11}
++        (self.args.output.parent / 'ladybug_keybinding_records.inc').write_text('\n'.join(lines) + '\n')
++        return {'action_rows': action_rows, 'editable_action_count': 5,
++                'back_row': back_rows[0], 'value_bounds': [19, 32],
++                'default_physical_keys': [27, 35, 43, 51, 6],
++                'fixed_menu_enter_physical_key': 6,
++                'fixed_credit_physical_keys': [44, 52],
++                'legacy_blank_guide_cells': sorted(legacy_blank_cells),
++                'maximum_name_width': 11}
+diff --git a/scripts/source_reference.json b/scripts/source_reference.json
+index 52a8c77..cb9ddfc 100644
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -3491,14 +3491,14 @@
+         {
+           "name": "menu_load_finish",
+           "profile": "presentation",
+-          "purpose": "Paint the selected authored menu row and brackets.",
++          "purpose": "Paint authored menu rows; Options keeps selector brackets, while high-score selection changes text colour only.",
+           "reasons": [],
+           "semantic_id": "routines.html#routine-highscore-helper-menu-load-finish"
+         },
+         {
+           "name": "menu_scan",
+           "profile": "presentation",
+-          "purpose": "Scan menu and existing credit/start edges.",
++          "purpose": "Scan fixed physical input and publish coin and menu edges; presentation_flow_tick consumes coin edges before menu dispatch.",
+           "reasons": [],
+           "semantic_id": "routines.html#routine-highscore-helper-menu-scan"
+         },
+@@ -3874,7 +3874,7 @@
+         {
+           "name": "key_init",
+           "profile": "keybindings",
+-          "purpose": "Restore seven default physical bindings and clear capture and repaint history.",
++          "purpose": "Restore five gameplay defaults; fixed coin/menu keys remain outside the binding table.",
+           "reasons": []
+         },
+         {
+@@ -3898,7 +3898,7 @@
+         {
+           "name": "key_tick",
+           "profile": "keybindings",
+-          "purpose": "Navigate the seven actions and BACK or begin waiting for a replacement switch.",
++          "purpose": "Navigate five gameplay actions and BACK or begin waiting for a replacement switch.",
+           "reasons": []
+         },
+         {
+@@ -4351,6 +4351,13 @@
+           "reason": "Build-time input compatibility flag."
+         }
+       ],
++      "basic_blocks": [
++        {
++          "name": "kc_unique",
++          "routine": "key_capture",
++          "purpose": "Continue the candidate-key uniqueness scan after fixed coin-key rejection."
++        }
++      ],
+       "external_symbols": [
+         "PRES_MAIN_SHARED_MASK"
+       ]
+@@ -5261,7 +5268,7 @@
+     },
+     "keybindings": {
+       "inputs": "Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.",
+-      "outputs": "Held action mask, fresh credit/start/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.",
++      "outputs": "Five held gameplay actions, fresh fixed coin/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.",
+       "clobbers": "A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.",
+       "reads": "PIA keyboard rows, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.",
+       "writes": "Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.",
+diff --git a/src/demo_runtime.s b/src/demo_runtime.s
+index 6f0b36c..326da6a 100644
+--- a/src/demo_runtime.s
++++ b/src/demo_runtime.s
+@@ -1,8 +1,8 @@
+ ; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
+ ; DOC-002 source-contract mirror contract menu_tick profile=presentation: Dispatch selected menu input and replay changed fields to dirty BACK owners without gameplay mutation.
+ ; DOC-002 source-contract mirror contract menu_updated profile=presentation: Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.
+-; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan menu and existing credit/start edges.
+-; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint the selected authored menu row and brackets.
++; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan fixed physical input and publish coin and menu edges; presentation_flow_tick consumes coin edges before menu dispatch.
++; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint authored menu rows; Options keeps selector brackets, while high-score selection changes text colour only.
+ ; DOC-002 source-contract mirror contract credit_panel_slice profile=presentation: Credit panel slice.
+ ; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Highscore commit name.
+ ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.
+diff --git a/src/keybinding_runtime.s b/src/keybinding_runtime.s
+index 25a404a..6c4dc2d 100644
+--- a/src/keybinding_runtime.s
++++ b/src/keybinding_runtime.s
+@@ -1,23 +1,24 @@
+ ; DOC-002 source-contract mirror contract key_service profile=keybindings: Dispatch physical input, authored menu painting, capture navigation or default initialization.
+-; DOC-002 source-contract mirror contract key_init profile=keybindings: Restore seven default physical bindings and clear capture and repaint history.
++; DOC-002 source-contract mirror contract key_init profile=keybindings: Restore five gameplay defaults; fixed coin/menu keys remain outside the binding table.
+ ; DOC-002 source-contract mirror contract key_scan profile=keybindings: Sample eight physical columns and produce held actions and fresh consumer edges.
+ ; DOC-002 source-contract mirror contract key_down profile=keybindings: Test one column-times-eight-plus-row physical switch while preserving caller indexes.
+ ; DOC-002 source-contract mirror contract key_capture profile=keybindings: Reject conflicting or ambiguous keys and consume accepted or cancelled capture through release.
+-; DOC-002 source-contract mirror contract key_tick profile=keybindings: Navigate the seven actions and BACK or begin waiting for a replacement switch.
++; DOC-002 source-contract mirror contract key_tick profile=keybindings: Navigate five gameplay actions and BACK or begin waiting for a replacement switch.
+ ; DOC-002 source-contract mirror contract key_paint profile=keybindings: Repaint all hydrated rows or only the previous and current selected rows for the prepared owner.
+ ; DOC-002 source-contract mirror contract key_waiting profile=keybindings: Report whether the current row owns active capture parentheses.
+ ; DOC-002 source-contract mirror contract key_name profile=keybindings: Resolve a physical switch to its single glyph or descriptive key name.
+ ; DOC-002 source-contract mirror contract key_text profile=keybindings: Paint an authored length-delimited glyph run.
+ ; DOC-002 source-contract mirror contract key_char profile=keybindings: Paint one source glyph through the resident shared mask renderer.
+ ; DOC-002 source-contract mirror profile keybindings Inputs: Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.
+-; DOC-002 source-contract mirror profile keybindings Outputs: Held action mask, fresh credit/start/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.
++; DOC-002 source-contract mirror profile keybindings Outputs: Five held gameplay actions, fresh fixed coin/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.
+ ; DOC-002 source-contract mirror profile keybindings Clobbers: A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.
+ ; DOC-002 source-contract mirror profile keybindings Reads: PIA keyboard rows, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.
+ ; DOC-002 source-contract mirror profile keybindings Writes: Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.
+ ; DOC-002 source-contract mirror profile keybindings Side effects: Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.
+ ; DOC-002 source-contract mirror profile keybindings Invariants: The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage.
+-; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"key_init after boot_streams_retired and before startup input; key_scan initializes column samples before consumer use","lifetime":"Boot descriptors retire before initialization. Bindings retain for powered session; scan/capture scratch retires before subsequent scan","clobbers":"Only this component writes $0287-$029A after boot retirement; existing game/menu routines consume held movement and menu edges."}
+-; FEAT-005 physical key acquisition, session capture and authored menu painting.
++; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"five editable bytes at $0287-$028B; fixed-menu held state uses reserved $028C; $028D stays reserved; key_init after boot_streams_retired and before startup input; key_scan initializes column samples before consumer use","lifetime":"Boot descriptors retire before initialization. Bindings retain for powered session; scan/capture scratch retires before subsequent scan","clobbers":"Only this component writes $0287-$029A after boot retirement; main.s consumes only the first four movement bits; ACTION is reserved with no normal effect; $028C tracks fixed arrows, Enter and Back across phases; $DF is updated only during menu screens so name-entry row state remains owned by the name renderer; fixed coin events stay independent."}
++; RSCH-014 C3 prototype extension: fixed menu edges track physical state in all phases.
++; Source edit is isolated research, not the approved repair implementation.
+ ; Loaded after the unchanged audio prefix in the existing page-$3D stream.
+         pragma 6809
+         setdp $00
+@@ -28,6 +29,12 @@ INPUT_JOYSTICK equ 0
+         include "ladybug_presentation_symbols.inc"
+ KB_BIND equ $0287
+ KB_ROWS equ $028E
++KB_ACTION_COUNT equ 5
++KB_MENU_LAST equ 5
++KB_MENU_PREV equ $028C
++KB_FIXED_ENTER equ 6
++KB_FIXED_COIN_5 equ 44
++KB_FIXED_COIN_6 equ 52
+ KB_DOWN equ $0296
+ KB_PREV equ $0297
+ KB_STATE equ $0298
+@@ -44,7 +51,7 @@ key_service
+ key_init
+         ldx #KB_BIND
+         leay key_defaults,pcr
+-        ldb #7
++        ldb #KB_ACTION_COUNT
+ ki_copy
+         lda ,y+
+         sta ,x+
+@@ -52,6 +59,7 @@ ki_copy
+         bne ki_copy
+         clr KB_DOWN
+         clr KB_PREV
++        clr KB_MENU_PREV
+         clr KB_STATE
+         lda #$FF
+         sta key_painted_select
+@@ -59,8 +67,9 @@ ki_copy
+         sta key_painted_select+2
+         rts
+ key_defaults
+-        fcb 27,35,43,51,6,44,12
++        fcb 27,35,43,51,KB_FIXED_ENTER
+ key_scan
++        clr $D0                   ; discard any menu edge not consumed this scan
+         ldx #KB_ROWS
+         lda #$FE
+ ks_column
+@@ -81,6 +90,47 @@ ks_column
+         lda #$34
+         sta $FF01
+         endc
++        clr KB_WORK
++        lda KB_ROWS+3
++        bita #8
++        beq ks_menu_down
++        inc KB_WORK
++ks_menu_down
++        lda KB_ROWS+4
++        bita #8
++        beq ks_menu_left
++        lda KB_WORK
++        ora #2
++        sta KB_WORK
++ks_menu_left
++        lda KB_ROWS+5
++        bita #8
++        beq ks_menu_right
++        lda KB_WORK
++        ora #4
++        sta KB_WORK
++ks_menu_right
++        lda KB_ROWS+6
++        bita #8
++        beq ks_menu_enter
++        lda KB_WORK
++        ora #8
++        sta KB_WORK
++ks_menu_enter
++        lda #KB_FIXED_ENTER
++        lbsr key_down
++        beq ks_menu_back
++        lda KB_WORK
++        ora #16
++        sta KB_WORK
++ks_menu_back
++        lda #22
++        lbsr key_down
++        beq ks_menu_sampled
++        lda KB_WORK
++        ora #32
++        sta KB_WORK
++ks_menu_sampled
+         clr KB_DOWN
+         ldx #KB_BIND
+         leay key_bits,pcr
+@@ -94,13 +144,21 @@ ks_action
+         sta KB_DOWN
+ ks_next
+         incb
+-        cmpb #7
++        cmpb #KB_ACTION_COUNT
+         blo ks_action
+-        lda #52
++        ; Physical 5 and 6 are fixed coin controls, not hidden bindings.
++        lda #KB_FIXED_COIN_5
++        lbsr key_down
++        beq ks_coin_6
++        lda KB_DOWN
++        ora #32
++        sta KB_DOWN
++ks_coin_6
++        lda #KB_FIXED_COIN_6
+         lbsr key_down
+         beq ks_edges
+         lda KB_DOWN
+-        ora #128
++        ora #64
+         sta KB_DOWN
+ ks_edges
+         lda KB_PREV
+@@ -114,24 +172,23 @@ ks_edges
+         beq ks_global
+         puls a
+         clr $D0
++        lda KB_WORK
++        sta KB_MENU_PREV
+         lbra key_capture
+ ks_global
+         puls a
+-        bita #64
+-        beq ks_credit
+-        inc $A9
+-ks_credit
+-        bita #32
+-        beq ks_secondary
+-        ldb $A9
+-        orb #2
+-        stb $A9
+-ks_secondary
+-        bita #128
++        tfr a,b                  ; preserve fresh key edges while publishing events
++        bitb #32
++        beq ks_credit_6
++        lda $A9
++        ora #2
++        sta $A9
++ks_credit_6
++        bitb #64
+         beq ks_menu
+-        ldb $A9
+-        orb #4
+-        stb $A9
++        lda $A9
++        ora #4
++        sta $A9
+ ks_menu
+         lda $A6
+         cmpa #3
+@@ -139,51 +196,17 @@ ks_menu
+         cmpa #6
+         blo ks_done
+ ks_local
+-        clr KB_WORK
+-        lda KB_ROWS+3
+-        bita #8
+-        beq ks_down
+-        inc KB_WORK
+-ks_down
+-        lda KB_ROWS+4
+-        bita #8
+-        beq ks_left
+-        lda KB_WORK
+-        ora #2
+-        sta KB_WORK
+-ks_left
+-        lda KB_ROWS+5
+-        bita #8
+-        beq ks_right
+-        lda KB_WORK
+-        ora #4
+-        sta KB_WORK
+-ks_right
+-        lda KB_ROWS+6
+-        bita #8
+-        beq ks_select
+-        lda KB_WORK
+-        ora #8
+-        sta KB_WORK
+-ks_select
+-        lda KB_DOWN
+-        anda #16
+-        ora KB_WORK
+-        sta KB_WORK
+-        lda #22
+-        lbsr key_down
+-        beq ks_local_edges
+-        lda KB_WORK
+-        ora #32
+-        sta KB_WORK
+-ks_local_edges
+-        lda $DF
++        lda KB_MENU_PREV
+         coma
+         anda KB_WORK
+         sta $D0
+         lda KB_WORK
+-        sta $DF
++        sta KB_MENU_PREV
++        sta $DF                   ; local menu held state; screen 5 owns $DF otherwise
++        rts
+ ks_done
++        lda KB_WORK
++        sta KB_MENU_PREV          ; track inherited holds without clobbering name-entry row
+         rts
+ key_bits
+         fcb 1,2,4,8,16,32,64,128
+@@ -251,17 +274,9 @@ kc_find_next
+         lda KB_CAND
+         cmpa #$FF
+         beq kc_done
+-        cmpa #52
++        cmpa #KB_FIXED_COIN_5
+         beq kc_reject
+-        ldb $E0
+-        cmpb #4
+-        blo kc_unique
+-        cmpa #27
+-        blo kc_unique
+-        cmpa #51
+-        bhi kc_unique
+-        anda #7
+-        cmpa #3
++        cmpa #KB_FIXED_COIN_6
+         beq kc_reject
+ kc_unique
+         ldx #KB_BIND
+@@ -274,7 +289,7 @@ kc_duplicate
+         beq kc_reject
+ kc_unique_next
+         incb
+-        cmpb #7
++        cmpb #KB_ACTION_COUNT
+         blo kc_duplicate
+         ldb $E0
+         lda KB_CAND
+@@ -299,7 +314,7 @@ key_tick
+         bita #16
+         beq kt_arrow
+         lda $E0
+-        cmpa #7
++        cmpa #KB_MENU_LAST
+         beq kt_back
+         lda #1
+         sta KB_STATE
+@@ -321,7 +336,7 @@ kt_down
+         bita #2
+         beq kt_done
+         lda $E0
+-        cmpa #7
++        cmpa #KB_MENU_LAST
+         bhs kt_done
+         inc $E0
+ kt_redraw
+@@ -370,7 +385,7 @@ kp_unselected
+ kp_draw
+         lbsr key_text
+         lda $D1
+-        cmpa #7
++        cmpa #KB_MENU_LAST
+         beq kp_next
+         pshs y
+         lsla
+@@ -408,7 +423,7 @@ kp_value_done
+ kp_next
+         inc $D1
+         lda $D1
+-        cmpa #8
++        cmpa #KB_MENU_LAST+1
+         lblo kp_label
+         ldb $90
+         leax key_painted_select,pcr
+diff --git a/src/shared_text_stage.inc b/src/shared_text_stage.inc
+index 49cda02..d8a25c2 100644
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -901,16 +901,16 @@ menu_interactive
+ menu_horizontal
+         ldb     PRES_SCREEN
+         cmpb    #PRESENTATION_MAP_OPTIONS
+-        bne     menu_idle
++        lbne    menu_idle
+         ldb     MENU_SELECT
+         cmpb    #2
+-        bhs     menu_idle
++        lbhs    menu_idle
+         ldx     #MENU_LIVES
+         abx
+         ldb     MENU_PREV
+         andb    #12
+         cmpb    #12
+-        beq     menu_idle
++        lbeq    menu_idle
+         bita    #4
+         bne     menu_decrease
+         bita    #8
+@@ -936,7 +936,7 @@ menu_up
+         dec     MENU_SELECT
+         bra     menu_redraw
+ menu_down
+-        ldb     #1
++        ldb     #2
+         lda     PRES_SCREEN
+         cmpa    #PRESENTATION_MAP_HIGH_SCORE
+         beq     menu_last
+@@ -952,8 +952,23 @@ menu_redraw
+ menu_enter
+         cmpb    #PRESENTATION_MAP_HIGH_SCORE
+         bne     menu_enter_option
++        lda     MENU_SELECT
++        bne     menu_high_nonstart
++        ; Start is available only from this row and consumes one real credit.
++        tst     $A8
++        beq     menu_idle
++        dec     $A8
++        lda     #1
++        sta     $A7
++        lda     #PRESENTATION_MAP_LEVEL_START
++        bra     menu_change
++menu_high_nonstart
++        cmpa    #1
++        bne     menu_high_credits
+         lda     #PRESENTATION_MAP_OPTIONS
+-        adda    MENU_SELECT
++        bra     menu_change
++menu_high_credits
++        lda     #PRESENTATION_MAP_CREDITS
+         bra     menu_change
+ menu_enter_option
+         lda     MENU_SELECT
+@@ -1032,36 +1047,22 @@ menu_load_original
+         jmp     stage_panel_finish
+ menu_paint_high
+         leay    menu_high_score_rows,pcr
+-        ldb     #2
++        ldb     #3
+         lbsr    menu_paint_rows
+-        leay    menu_high_score_pairs,pcr
+-        clrb
+-menu_high_pair
+-        pshs    b
++        tst     $A8
++        bne     menu_high_paint_done
+         lda     #7
+-        sta     $29
+-        lda     #36
+-        ldx     ,y++
+-        lbsr    stage_panel_char
+-        ldx     ,y++
+-        lbsr    stage_panel_char
+-        puls    b
+-        incb
+-        cmpb    #2
+-        blo     menu_high_pair
+-        lda     MENU_SELECT
+-        lsla
+-        lsla
+-        leay    menu_high_score_pairs,pcr
+-        leay    a,y
++        tst     MENU_SELECT
++        bne     menu_high_add_colour
+         lda     #10
++menu_high_add_colour
+         sta     $29
+-        lda     #43
++        leay    menu_high_score_add_credits,pcr
+         ldx     ,y++
+-        lbsr    stage_panel_char
+-        lda     #44
+-        ldx     ,y
+-        lbra    stage_panel_char
++        ldb     ,y+
++        lbsr    stage_panel_text
++menu_high_paint_done
++        rts
+ menu_paint_credits
+         lda     #10
+         sta     $29
