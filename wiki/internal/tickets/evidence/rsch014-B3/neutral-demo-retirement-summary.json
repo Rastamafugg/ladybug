@@ -1,0 +1,51 @@
+{
+  "schema": "rsch014-b3-natural-demo-retirement-v1",
+  "date": "2026-10-01",
+  "worktree_head_before_b3": "6707f12d25cb2b40652284bb722d15b2f9246a23",
+  "source_baseline": "fe160ae389145d24083218ded05ba9cdca781474",
+  "capture_identity": {
+    "mame_version": "0.220 (unknown)",
+    "mame_binary": "/usr/games/mame",
+    "mame_binary_sha256": "7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4",
+    "rom_zip": "/home/rastamafugg/mame/roms/ladybug.zip",
+    "rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+    "plan": "scripts/mame_plans/attract-idle.json",
+    "plan_sha256": "4964a2612fb49dfcbda7281bfce9340fa4d58305f5ac0737dd6f2f702bc28c1f",
+    "capture_script_sha256": "3a90b4a420f8319e248ad8ec523c25d23e12fd7a0362a023775ac1cb91e93d72"
+  },
+  "probe": {
+    "command": "wsl timeout 60s python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 7200 --skip-player-recognition --plan scripts/mame_plans/attract-idle.json --video-from 3601 --raw-video /tmp/rsch014-B2-demo-retirement-video.bin --raw-background /tmp/rsch014-B2-demo-retirement-background.bin --raw-work-ram /tmp/rsch014-B2-demo-retirement-work.bin --output /tmp/rsch014-B2-demo-retirement.json",
+    "authored_input": "all controls neutral",
+    "mame_frame_callback_range": "1-7200 inclusive",
+    "video_frame_range": "3601-7200 inclusive",
+    "wall_limit_seconds": 60,
+    "observed_tool_wall_elapsed_seconds_approx": 31.2,
+    "result": "completed; exit code 0; timeout wrapper did not expire",
+    "output": {
+      "video": {"dimensions": "192x240", "pixel_format": "BGRA32", "bytes": 663552000, "sha256": "86e088c45294f40ed4aba112bc07c65805bab84354583556b3b8c798f723c265"},
+      "background_ram_d000_d7ff": {"bytes": 14745600, "sha256": "bf9e9018b8c6121db9394064a988ae4e7656ed6ab8f54d6c54947ccb7be5ad8a"},
+      "work_ram_6000_6fff": {"bytes": 29491200, "sha256": "b6e8590737a8524f8a57a2b04a04e893b1c8a0566faef45d8ad04a8aaa715db9"},
+      "capture_json": {"bytes": 5992574, "sha256": "6910ff6214a0a4318fe473c6f0567b1b4237385e073b8b679b5d8f8ca95bae79"}
+    },
+    "mame_reported_average_speed": "518.25% (120 emulated seconds)"
+  },
+  "success_marker": "Visible TODAY'S HI SCORE title, nine-row table, and LadyBug logo in captured pixels.",
+  "observations": {
+    "frame_3952": "Part-1 gameplay immediately before the first observed demo-bit retirement.",
+    "frame_3953": "The image is the Lady Bug title/coin-prompt screen; $605F bit 4 is clear. The required high-score marker is not present in this frame.",
+    "frame_6000": "Instruction screen.",
+    "frame_6126": "$605F bit 4 is set again during the following attract cycle.",
+    "frame_6200": "Part-1 introduction.",
+    "frame_7000": "Part-1 gameplay.",
+    "highscore_marker": "Not positively identified in this completed invocation. The first demo-bit retirement located a title-screen transition, not the requested high-score screen. This limits the result to the captured window and does not prove the screen absent or unreachable.",
+    "actor_dwell": "Player recognition was intentionally skipped; this capture does not add a dwell measurement."
+  },
+  "retained_images": {
+    "frame-3952.png": "ea46a850f0eef0efdbc174d436096224060b2c3c2a373a282c77c68b8beaf807",
+    "frame-3953.png": "95ae87ab7fc6f1aebbfeb327857550ace48cb8aba4aae2194acdfe7247617945",
+    "frame-6000.png": "7001ebe76f228d393d6abdcc3b45f0f53b3a9c17603378746ac1d45658bc1f0c",
+    "frame-6200.png": "b7233dce792e2f7502a4e144b84c207965a1bc4b631d8e3d9941a60b629890b3",
+    "frame-7000.png": "e05fd08f8316490a48f080d8b1fd4c60bb412b24bcc2ce7bf4bdfb5120dcc393"
+  },
+  "timeout_meaning": "A timeout would mean capture incomplete at the 60-second boundary. This run completed. A completed run without the visible marker only bounds this natural neutral invocation; no further route was run."
+}

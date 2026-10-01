@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-014 Step B3 — Natural demo-retirement evidence — Ladybug</title>
+  <link rel="stylesheet" href="../../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="../../index.html">Tickets</a><a href="../../rsch-014-tmx-cleanup-screen-preparation.html">RSCH-014</a></nav>
+  <main class="wiki-main">
+  <header class="wiki-header">
+    <p class="wiki-eyebrow">Internal · evidence · RSCH-014 Step B3</p>
+    <h1>Natural demo-retirement capture <span class="wiki-badge">internal</span></h1>
+    <p class="wiki-meta">2026-10-01 · capture and review only · source fe160ae389145d24083218ded05ba9cdca781474 · B2 docs commit 6707f12d25cb2b40652284bb722d15b2f9246a23</p>
+  </header>
+    <section>
+      <h2>Probe contract and result</h2>
+      <p><strong>Authored phase:</strong> cold neutral attract with no input, MAME callback frames 1–7200 inclusive. Video is retained for frames 3601–7200; background RAM and work RAM are recorded for all 7200 frames. <strong>Visible success marker:</strong> the actual <code>TODAY'S HI SCORE</code> title, nine-row table, and LadyBug logo. <code>$605F</code> bit 4 is only a transition locator. <strong>Deadline:</strong> 60 seconds wall. The wrapper completed with exit code 0 in approximately 31.2 seconds; it did not time out. A timeout would mean an incomplete capture, not a slow target. The completed run did not positively identify the required marker.</p>
+      <p>The first observed bit-4 retirement is at frame 3953. Frame 3952 is Part-1 gameplay; frame 3953 is the Lady Bug title screen with coin prompts. The high-score table/logo is not on that frame. Frame 6000 is the instruction screen, frame 6200 is the Part-1 introduction, and frame 7000 is gameplay. Bit 4 is active again at frame 6126. Therefore retirement locates a title transition in this invocation, not a confirmed high-score transition. The result bounds this completed neutral run and does not prove the high-score page absent or unreachable.</p>
+    </section>
+    <section>
+      <h2>Identity and capture</h2>
+      <p>MAME is <code>0.220 (unknown)</code>, executable SHA-256 <code>7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4</code>. The local <code>ladybug.zip</code> SHA-256 is <code>2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8</code>. Plan SHA-256 is <code>4964a2612fb49dfcbda7281bfce9340fa4d58305f5ac0737dd6f2f702bc28c1f</code>; capture-script SHA-256 is <code>3a90b4a420f8319e248ad8ec523c25d23e12fd7a0362a023775ac1cb91e93d72</code>.</p>
+      <pre><code>wsl timeout 60s python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 7200 --skip-player-recognition --plan scripts/mame_plans/attract-idle.json --video-from 3601 --raw-video /tmp/rsch014-B2-demo-retirement-video.bin --raw-background /tmp/rsch014-B2-demo-retirement-background.bin --raw-work-ram /tmp/rsch014-B2-demo-retirement-work.bin --output /tmp/rsch014-B2-demo-retirement.json</code></pre>
+      <p>The full raw video/background/work-RAM/JSON outputs remain in ignored temporary storage. Their hashes and lengths are retained in <a href="./neutral-demo-retirement-summary.json">the compact receipt</a>. Five representative images are retained below. Player recognition was skipped, so B3 adds no sprite-dwell measurement.</p>
+    </section>
+    <section>
+      <h2>Representative observed screens</h2>
+      <ul>
+        <li>Frame 3952, demo gameplay before bit-4 retirement: <a href="./frame-3952.png">PNG</a></li>
+        <li>Frame 3953, Lady Bug title/coin prompt after retirement: <a href="./frame-3953.png">PNG</a></li>
+        <li>Frame 6000, instructions: <a href="./frame-6000.png">PNG</a></li>
+        <li>Frame 6200, Part-1 introduction: <a href="./frame-6200.png">PNG</a></li>
+        <li>Frame 7000, Part-1 gameplay: <a href="./frame-7000.png">PNG</a></li>
+      </ul>
+    </section>
+    <footer class="wiki-footer"><p>Preparation evidence only. The parent reports that its combined A/C screen prototype now builds with 55 resident bytes free; that artifact excludes these timing repairs and was not run here. No CoCo runtime, source change, new route, high-score dwell target, or repair approval is claimed.</p></footer>
+  </main>
+</div>
+</body>
+</html>
