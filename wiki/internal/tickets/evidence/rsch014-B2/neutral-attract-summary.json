@@ -18,13 +18,40 @@
     "wall_time_seconds": 22.15,
     "wall_limit_seconds": 60,
     "command": "wsl python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 3600 --skip-player-recognition --plan scripts/mame_plans/attract-idle.json --video-from 1 --raw-video /tmp/rsch014-B2-attract-video.bin --raw-background /tmp/rsch014-B2-attract-background.bin --raw-work-ram /tmp/rsch014-B2-attract-work.bin --output /tmp/rsch014-B2-attract.json",
-    "video": {"width": 192, "height": 240, "pixel_format": "BGRA32", "bytes": 663552000, "sha256": "32cdc9ac0d77311013cdee36103e9c9ecbd433fa0ec1fc0a63e188bf24392444"},
-    "background_ram_d000_d7ff": {"bytes": 7372800, "sha256": "28f5a98d2c074e33dad4f843575b37169bbc70899feee5f21cf98ad6c6f210ce", "changed_frames": 288},
-    "work_ram_6000_6fff": {"bytes": 14745600, "sha256": "5a0cdba04d207989bd4c909acdceb37ca3e59981497309f5e982928bfb89cbae", "changed_frames": 3298},
-    "capture_json": {"bytes": 4562466, "sha256": "42f3a6492828fad832b16ef572418c048653f05a2163fa393099d845fb519f63"},
+    "video": {
+      "width": 192,
+      "height": 240,
+      "pixel_format": "BGRA32",
+      "bytes": 663552000,
+      "sha256": "32cdc9ac0d77311013cdee36103e9c9ecbd433fa0ec1fc0a63e188bf24392444"
+    },
+    "background_ram_d000_d7ff": {
+      "bytes": 7372800,
+      "sha256": "28f5a98d2c074e33dad4f843575b37169bbc70899feee5f21cf98ad6c6f210ce",
+      "changed_frames": 288
+    },
+    "work_ram_6000_6fff": {
+      "bytes": 14745600,
+      "sha256": "5a0cdba04d207989bd4c909acdceb37ca3e59981497309f5e982928bfb89cbae",
+      "changed_frames": 3298
+    },
+    "capture_json": {
+      "bytes": 4562466,
+      "sha256": "42f3a6492828fad832b16ef572418c048653f05a2163fa393099d845fb519f63"
+    },
     "screen_observation": {
       "title_frame": 300,
-      "title_logo_roi_runs": {"roi": "x=6..185,y=100..157", "complete_holds": 17, "hold_frames": 31, "complete_range": "184-710", "state_sha256_prefixes": ["f249a2afc430d206", "f6a990556bdca17a"], "terminal_partial_or_transition": "711-742 (32 frames; excluded)"},
+      "title_logo_roi_runs": {
+        "roi": "x=6..185,y=100..157",
+        "complete_holds": 17,
+        "hold_frames": 31,
+        "complete_range": "184-710",
+        "state_sha256_prefixes": [
+          "f249a2afc430d206",
+          "f6a990556bdca17a"
+        ],
+        "terminal_partial_or_transition": "711-742 (32 frames; excluded)"
+      },
       "instructions_frame": 1800,
       "instruction_phase": "745-2356",
       "demo_phase_start": 2357,
@@ -34,23 +61,67 @@
       "part_counter_at_3310": "0x0001",
       "highscore_marker": "TODAY'S HI SCORE title plus the nine-row table and LadyBug logo",
       "highscore_marker_result": "not observed in frames 1-3600; frame 3310 shows Part-1 gameplay",
-      "timeout_meaning": "The marker was not observed in this completed invocation; this does not establish that the high-score screen is absent or unreachable."
+      "timeout_meaning": "A timeout would mean the capture did not complete within the 60-second wall deadline. This run completed and did not time out.",
+      "completed_no_marker_meaning": "The marker was not observed in this completed invocation; this does not establish that the high-score screen is absent or unreachable."
     }
   },
   "player_pose_sample": {
     "frames": "2546-2594 inclusive",
     "method": "Exact opaque-pixel matches against scripts/capture_mame_gameplay.py player_templates(), using current sprites.json, palette.json, and sprite_lookup_a.json; player X matches work RAM $6027.",
     "direction": 0,
-    "sprite_origin": {"first": [41, 208], "last": [89, 208]},
-    "displacement": {"pixels": 48, "frame_intervals": 48, "pixels_per_mame_frame": 1.0},
+    "sprite_origin": {
+      "first": [
+        41,
+        208
+      ],
+      "last": [
+        89,
+        208
+      ]
+    },
+    "displacement": {
+      "pixels": 48,
+      "frame_intervals": 48,
+      "pixels_per_mame_frame": 1.0
+    },
     "pose_runs": [
-      {"frames": "2546-2550", "sprite_code": 0, "count": 5, "note": "partial edge"},
-      {"frames": "2551-2558", "sprite_code": 1, "count": 8},
-      {"frames": "2559-2566", "sprite_code": 2, "count": 8},
-      {"frames": "2567-2574", "sprite_code": 1, "count": 8},
-      {"frames": "2575-2582", "sprite_code": 0, "count": 8},
-      {"frames": "2583-2590", "sprite_code": 1, "count": 8},
-      {"frames": "2591-2594", "sprite_code": 2, "count": 4, "note": "partial before direction change"}
+      {
+        "frames": "2546-2550",
+        "sprite_code": 0,
+        "count": 5,
+        "note": "partial edge"
+      },
+      {
+        "frames": "2551-2558",
+        "sprite_code": 1,
+        "count": 8
+      },
+      {
+        "frames": "2559-2566",
+        "sprite_code": 2,
+        "count": 8
+      },
+      {
+        "frames": "2567-2574",
+        "sprite_code": 1,
+        "count": 8
+      },
+      {
+        "frames": "2575-2582",
+        "sprite_code": 0,
+        "count": 8
+      },
+      {
+        "frames": "2583-2590",
+        "sprite_code": 1,
+        "count": 8
+      },
+      {
+        "frames": "2591-2594",
+        "sprite_code": 2,
+        "count": 4,
+        "note": "partial before direction change"
+      }
     ],
     "limitations": "One Part-1 demo movement segment. It does not establish player dwell across directions or stages, enemy dwell, or later-part velocity progression."
   },
