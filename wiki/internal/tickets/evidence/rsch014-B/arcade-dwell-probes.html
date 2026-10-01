@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-014 Step B — Arcade dwell and high-score probes</title>
+  <link rel="stylesheet" href="../../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · evidence</p>
+      <h1>RSCH-014 Step B — Arcade dwell and high-score probes</h1>
+      <p class="wiki-meta">2026-10-01 · evidence only · no CoCo runtime or production implementation</p>
+    </header>
+    <section>
+      <h2>Artifact identity and measurement method</h2>
+      <p>Repository baseline: <code>fe160ae389145d24083218ded05ba9cdca781474</code>. Worktree: <code>timing-gameplay-prep</code>. Nine dirty user TMX inputs were copied byte-for-byte and left read-only; their SHA-256 identities are recorded at the end of this page. MAME is the already-installed <code>0.220 (unknown)</code>; the tested <code>ladybug.zip</code> SHA-256 is <code>2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8</code>.</p>
+      <p><code>scripts/capture_mame_gameplay.py</code> writes one 192×240 BGRA32 image per rendered frame from <code>--video-from</code>, plus the complete 0x6000–0x6fff work-RAM sample on every frame. Frame labels below use the harness Lua counter, where frame 1 is the first <code>register_frame_done</code> callback. MAME is run without an explicit <code>-cfg_directory</code>; <code>-showconfig</code> reports <code>homepath=.</code> and the default <code>cfg_directory=$HOME/.mame/cfg</code>. Configuration and initialization are therefore not controlled against the historical source capture. The raw image frames are native orientation; contact sheets are enlarged for inspection.</p>
+      <p>All live diagnostic phases were at or below 3,600 frames (60 simulated seconds) and completed in less than 60 seconds wall time. A marker timeout means only that the expected visible screen marker was not confirmed inside that phase. It does not establish that a page is absent, unreachable, or slow.</p>
+    </section>
+    <section>
+      <h2>Attract-logo dwell capture</h2>
+      <p><strong>Phase:</strong> no-input attract capture, frames 300–600. <strong>Success marker:</strong> two exact stable logo-ROI pixel states. <strong>Deadline:</strong> 600 total frames and 60 seconds wall. <strong>Timeout meaning:</strong> the stable logo ROI was not reached; no dwell conclusion. The ROI is x=6..185 and y=100..157 (x1/y1 exclusive in the crop code) and includes the LadyBug logo and red R. Four decorative actor ROIs are analyzed separately. Command:</p>
+      <pre><code>wsl python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 600 --skip-player-recognition --plan scripts/mame_plans/attract-idle.json --video-from 300 --raw-video /tmp/rsch014-B-attract-video.bin --raw-work-ram /tmp/rsch014-B-attract-work.bin --output /tmp/rsch014-B-attract.json</code></pre>
+      <p>Completed in about five seconds wall time. Video SHA-256 <code>055bb99e98a1af01caac2f44dc70e48098d69d56ed3df999cd7451c21b657815</code>; work-RAM SHA-256 <code>cc5cc817f2ba0d967fd26b33a1dedbe1e495bd1ed9de83506828443d968da546</code>; JSON SHA-256 <code>fdb9b32777ec6ee8ac45f3709449a0f12b4349db2c0fffc32121ab1afe38037b</code>. ROI analysis is reproducible with <code>wsl python3 /mnt/e/projects/ladybug/worktrees/timing-gameplay-prep/wiki/internal/tickets/evidence/rsch014-B/analyze_attract_roi.py</code>; decorative actor crops use <code>wsl python3 /mnt/e/projects/ladybug/worktrees/timing-gameplay-prep/wiki/internal/tickets/evidence/rsch014-B/analyze_actor_rois.py</code>.</p>
+    </section>
+    <section>
+      <h2>Attract-logo result</h2>
+      <p>The cropped logo has exactly two unique RGB states. It contains nine complete alternating holds, each 31 MAME frames: 308–338, 339–369, 370–400, 401–431, 432–462, 463–493, 494–524, 525–555, and 556–586. The partial edge runs are 300–307 and 587–600. There are ten observed transitions including entry and exit; each changes 36 pixels within x=16..173, y=106..146. The measured quantity is video-frame dwell, not milliseconds or CoCo VBlanks.</p>
+      <p>Four fixed 16×16 decorative ROIs at (24,64), (96,72), (64,16), and (152,32) repeat pose runs of eight MAME frames after partial entry. They are title decorations, not the gameplay player or complete enemy set. This measurement cannot close BUG-080 or set actor timers.</p>
+    </section>
+    <section>
+      <h2>High-score reachability probes</h2>
+      <p>The success marker in all three probes was a visible high-score table layout with the LadyBug logo, confirmed from frame pixels. Merely entering gameplay, reaching a frame number, or changing a RAM flag was not sufficient. Probe 1 and probe 2 each failed to confirm that marker. After two misses, the required reassessment was to inspect source, phase flags, configuration, and the existing frame evidence before another probe. A third route capture had already started when the stop instruction arrived; it is disclosed below and is not grounds to launch another route.</p>
+      <h3>Probe 1 — credited idle/death plan</h3>
+      <p><strong>Authored phase:</strong> coin/start at frames 300/360, then idle; <strong>deadline:</strong> frame 3600, at most 60 seconds; <strong>timeout:</strong> the high-score pixel marker was not confirmed. The command was:</p>
+      <pre><code>wsl python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 3600 --skip-player-recognition --plan scripts/mame_plans/live-idle-death.json --video-from 300 --raw-video /tmp/rsch014-B-highscore-video.bin --raw-work-ram /tmp/rsch014-B-highscore-work.bin --output /tmp/rsch014-B-highscore.json</code></pre>
+      <p>Completed in about ten seconds wall time. A contact sheet sampled every 90 frames showed gameplay at the final sample. This did not confirm an actual death or a high-score page. Video SHA-256 <code>f41d05c304c6f885b312e3eef3d8164fcc160b170b48769611d1aad8ae1fc073</code>; work-RAM SHA-256 <code>dd6b9dbfde33029f54174df9c33330afbb1d668094df263df4b72fc481e75ce2</code>; JSON SHA-256 <code>44a025b543424e133e4fffcf4550359d0e6cf6e07cab7fdd1b1d0b919437f9fe</code>.</p>
+      <h3>Probe 2 — idle frame-pointer check</h3>
+      <p><strong>Authored phase:</strong> no-input attract capture through total frame 3500; raw video covers every frame from 3000 through 3500; <strong>deadline:</strong> 59 simulated seconds and less than 60 seconds wall; <strong>timeout:</strong> no high-score marker in this bounded phase. The TMX property points to historical MAME frame 3310. Command:</p>
+      <pre><code>wsl python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 3500 --skip-player-recognition --plan scripts/mame_plans/attract-idle.json --video-from 3000 --raw-video /tmp/rsch014-B-highscore-idle-video.bin --raw-work-ram /tmp/rsch014-B-highscore-idle-work.bin --output /tmp/rsch014-B-highscore-idle.json</code></pre>
+      <p>Direct frame 3310 is retained as <a href="./highscore-idle-frame-3310.png">highscore-idle-frame-3310.png</a>; it shows gameplay, not the table. The contact sheet sampled every 30 frames also shows gameplay. Per-frame work RAM has documented attract/demo flag bit 4 set from frame 2357 through frame 3500: byte <code>$605F</code> is <code>$10</code> at 3310 and <code>$90</code> at 3370. The source page defines bit 4 as the ROM demo-route selector. This confirms the current capture is in demo gameplay at those candidate frames; it does not disprove the older 2026-07-22 observation. Video SHA-256 <code>244887ba4463b72bfedf4439a257457948b6b49587332c72e3eaa56e07afbbcd</code>; work-RAM SHA-256 <code>70eeb01fb2e3fd74e981658a0a979599d3d33fc42186cc32cd1e93e9af5d7023</code>; JSON SHA-256 <code>5d2e5adf9ff17e9175cc59696bf762826aa10c360f37d36dbd5f1154f0aa8645</code>.</p>
+      <h3>Probe 3 — already-launched skull-loop route</h3>
+      <p><strong>Authored phase:</strong> coin/start, hold left from frame 620 through 3300 according to <a href="./highscore-skull-loop-plan.json">highscore-skull-loop-plan.json</a>; raw video covers every frame from 2800 through 3600; <strong>deadline:</strong> 3600 frames (60 seconds) and at most 60 seconds wall; <strong>timeout:</strong> marker not confirmed. This run was already in flight when the stop/reassessment instruction arrived. Its retained contact sheet shows gameplay; the route's actual death/hazard result was not established. Do not infer what the skull or route did. Command:</p>
+      <pre><code>wsl python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 3600 --skip-player-recognition --plan wiki/internal/tickets/evidence/rsch014-B/highscore-skull-loop-plan.json --video-from 2800 --raw-video /tmp/rsch014-B-highscore-skull-loop-video.bin --raw-work-ram /tmp/rsch014-B-highscore-skull-loop-work.bin --output /tmp/rsch014-B-highscore-skull-loop.json</code></pre>
+      <p>The retained work-RAM flag at <code>$605F</code> is <code>$81</code> at frames 3000, 3310, 3370, and 3600, with demo bit 4 clear after the credited game begins. This is consistent with the authored live route, not evidence about its death outcome. Video SHA-256 <code>5c75a11972175cd1da35acb6956252ae3899348405e266bf8b9e74eb5841ff58</code>; work-RAM SHA-256 <code>603c9e05fb4ab9f8389eece54515bc19583eff2760fd40b1d7b931e8de80d50e</code>; JSON SHA-256 <code>f2a5eab77538a5006d38366b66b4eef4f5c76701fb70dffd939c3c7638197ffd</code>.</p>
+    </section>
+    <section>
+      <h2>Reassessment and next discrimination</h2>
+      <p><strong>Last proven screen boundary:</strong> gameplay pixels. The high-score screen is documented as an existing attract-sequence state, but has not been visibly identified in these current invocations. The TMX frame-3310 property remains a historical source pointer; reclassify it as “does not locate the page in this run,” not globally wrong.</p>
+      <p><strong>Current evidence changes the next step:</strong> source docs identify <code>$605F</code> bit 4 as demo-route mode. In the idle run, this bit is active at both historical candidate frames; in the credited run it is clear. The harness frame counter starts in the first MAME frame callback and JSON uses that counter. The harness does not explicitly select an INI/config directory. Before any new capture, inspect the original high-score asset provenance and ROM screen/state handler, compare their frame origin and mode transitions with the current captures, and design a per-frame pixel/state marker. This lower-cost source/state review should determine whether a bounded natural-attract continuation or a deliberate game-over route has greater expected benefit. The latter would distinguish a true post-death table flow only if the ROM handler supports it; route/hazard outcome remains unconfirmed.</p>
+      <p><strong>Class and verification:</strong> BUG-081 remains High-risk and Draft because two screen contexts and persistent framebuffer owners are involved. No subsystem expansion or class change is supported by these misses. Do not lengthen a phase or launch another route until that reassessment produces a discriminating plan with an authored/staged/ROM identity, visible marker, and deadline no longer than 60 seconds.</p>
+    </section>
+    <section>
+      <h2>Source references and limits</h2>
+      <p><a href="../../../sources/ladybug-arcade.html">Arcade source page</a> records a fresh MAME 0.220 capture sampled every ten frames: title at frame 300, stable <code>TODAY'S HI SCORE</code> at 3310, and part-one introduction at 3370. <a href="../../../../../assets/arcade/instruction_reference.json">instruction_reference.json</a> independently records its phase ending at 2356 and the next screen beginning at 2357/2359 in its own capture. The present capture has demo flag bit 4 active from frame 2357 onward and gameplay at 3310; these artifacts expose a frame/mode discrepancy that remains unexplained. The references do not establish that high-score is absent.</p>
+      <p>All four current MAME captures use the same archive SHA above. No buildable CoCo ROM was produced from this snapshot, so there is no staged/destination CoCo identity, live-game capture, or capacity result. Historical gameplay group coverage and current timing evidence must remain separated.</p>
+    </section>
+    <section>
+      <h2>Copied dirty TMX identity</h2>
+      <ul>
+        <li><code>coco-attract-screen.tmx</code> — <code>ecc0071a3a3998967401250e977750a9b988444828a9b4e05fe6905de447bf40</code></li>
+        <li><code>coco-credits-screen.tmx</code> — <code>ba80c3d41e279160f3700e7a891ae7502e68c4f05cbd1c8385757b6e77d0a472</code></li>
+        <li><code>coco-enter-high-score-screen.tmx</code> — <code>4f57c7ac5de742b528d5fa0bcebb03db46bd53c67ef0ea4e86e8c5e3d89c41c3</code></li>
+        <li><code>coco-game-over-screen.tmx</code> — <code>8ef2103ced78ca35fd31fc0cbf618cf2552bc623b92b44a2c73642779b2242ab</code></li>
+        <li><code>coco-high-score-screen.tmx</code> — <code>b014d151e4fd8228faceac8e7bdea4d792abf6b8e8cd8f8f458f736c55df0d61</code></li>
+        <li><code>coco-instructions-screen.tmx</code> — <code>cee716b3e0c42b30bd25a145dd59191eeff0b90d8be7aa9c6978015be818cbc8</code></li>
+        <li><code>coco-keybind-options-screen.tmx</code> — <code>1b8de791e7d1550e448a2adb1850d362faa262968c030e12a0530e93fa758ae1</code></li>
+        <li><code>coco-level-start-screen.tmx</code> — <code>04fd27505700dcfc94453f416b640ba5543bead9e2068b5c906f0a669f7d9469</code></li>
+        <li><code>coco-screen.tmx</code> — <code>f84c547553df61f749b7efbd9604a877127af6bbf59511d846896c821dbf6ef9</code></li>
+      </ul>
+    </section>
+  </main>
+</div>
+</body>
+</html>

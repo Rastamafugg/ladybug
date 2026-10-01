@@ -1,0 +1,62 @@
+{
+  "model": "one ordered four-type group with one latest-death override",
+  "trace": [
+    {
+      "tick": 0,
+      "event": "release",
+      "type": 1,
+      "next_preview": 2,
+      "normal_cursor": 2
+    },
+    {
+      "tick": 10,
+      "event": "release",
+      "type": 2,
+      "next_preview": 3,
+      "normal_cursor": 3
+    },
+    {
+      "tick": 20,
+      "event": "release",
+      "type": 3,
+      "next_preview": 4,
+      "normal_cursor": 4
+    },
+    {
+      "tick": 30,
+      "event": "release",
+      "type": 4,
+      "next_preview": 1,
+      "normal_cursor": 1
+    },
+    {
+      "tick": 40,
+      "event": "skull_death",
+      "type": 3,
+      "next_preview": 3,
+      "release_at": 53,
+      "normal_cursor": 1
+    },
+    {
+      "tick": 49,
+      "event": "skull_death",
+      "type": 4,
+      "next_preview": 4,
+      "release_at": 53,
+      "normal_cursor": 1
+    },
+    {
+      "tick": 53,
+      "event": "release",
+      "type": 4,
+      "next_preview": 1,
+      "normal_cursor": 1
+    }
+  ],
+  "assertions": "normal group order; preview; latest of two pending deaths wins; original deadline and normal cursor persist; cursor resumes after replacement",
+  "limitations": [
+    "tick values are illustrative, not arcade measurements",
+    "does not execute or prove Ladybug source, ROM behavior, or memory fit",
+    "later-part group policy awaits clarification"
+  ]
+}

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-085 — Repeat HUD marker departure for every life</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="./index.html">Tickets</a><a href="./workflow.html">Workflow</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · work management</p>
+      <h1>BUG-085 — Marker departure on every replacement life <span class="wiki-badge">Proposed</span></h1>
+      <p class="wiki-meta">High-risk · P2 · created 2026-10-01 · source fe160ae389145d24083218ded05ba9cdca781474</p>
+    </header>
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Run the HUD marker departure and maze-entry sequence for every replacement life, not only the initial live start.</p>
+      <h3>Reproduction and observed versus expected</h3>
+      <p>Start a live game, then force one death with a reserve available. Current initial live entry has a separate marker transfer; the death replacement appears through the ordinary <code>init_player</code> path and enters without repeating that marker departure. The expected result is one complete approved BUG-084 departure for every replacement life.</p>
+      <h3>Confirmed source cause and baseline</h3>
+      <p><code>live_begin</code> arms <code>INITIAL_ENTRY_STATE</code> for the initial entry. At <code>dt_finish_blank</code>, the death path decrements <code>LIVES</code>, clears old player validity, calls <code>init_player</code>, and clears death state; it does not arm the entry state. This source path confirms the lifecycle handoff is missing. BUG-039 provides historical evidence for the current replacement and owner-local player cleanup, not proof of this requested repeat behavior. Current-snapshot runtime remains unavailable because the RSCH-014 build prerequisite fails.</p>
+      <h3>Scope, scenarios, and acceptance</h3>
+      <p><strong>In:</strong> route each surviving post-death life through the approved BUG-084 marker-out, hidden cleanup, and maze-entry states exactly once. <strong>Out:</strong> death animation, total-life rules, player speed, collectible rules, enemy replacement policy, and unrelated stage choreography.</p>
+      <p>Acceptance covers initial entry, one forced death with a reserve, natural follow-on play, and the final-life boundary. Every lost life decrements the HUD once; each surviving replacement departs once, leaves no marker/player pixels on either owner, and cannot receive input until maze entry completes. With no reserve remaining, game-over occurs without another marker transfer. Stage advance preserves life count and does not arm a second entry sequence.</p>
+      <h3>Class, dependencies, and risks</h3>
+      <p><strong>High-risk:</strong> death-to-entry cross-phase handoff, life-counter authority, and persistent framebuffer history on both owners. Depends on BUG-084 so the departure trajectory and cleanup contract are fixed first. A missing forced death or final-life boundary is not passing evidence.</p>
+      <h3>Decision requested</h3>
+      <p>Approve repeating the approved marker departure for each surviving replacement life, dependent on BUG-084. Proposed; not Approved or Ready.</p>
+    </section>
+    <section>
+      <h2>Assignment contract</h2>
+      <p>Future executor: one Luna Extra High subagent receives this ticket only after explicit approval and Ready, owning <code>src/main.s</code> death completion/entry handoff and the approved BUG-084 implementation subset. The parent owns combined-source integration and QA. Current runnable commands are <code>wsl bash scripts/build.sh build</code> and adjacent respawn-owner regression <code>wsl python3 scripts/verify_bug006_respawn_player.py</code>; the latter requires generated baseline ROM/snapshot artifacts. The build currently stops at the RSCH-014 screen compiler prerequisite. No current verifier exercises repeat-marker entry or final-life suppression, so those exact forced and natural scenario commands must be defined before Ready. Retain lifecycle and owner-local history trace, input gate, stage count, natural first entry, forced death, final-life game-over, current ROM identity, and capacity output in one bounded commit. No production change is included.</p>
+    </section>
+    <section><h2>Decision log</h2><ul><li>2026-10-01 — Proposed. Source confirms the death path bypasses the only armed marker-entry state; BUG-084 is a dependency.</li></ul></section>
+  </main>
+</div>
+</body>
+</html>

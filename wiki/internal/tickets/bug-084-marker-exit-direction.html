@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-084 — Walk the new-life marker straight right off screen</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="./index.html">Tickets</a><a href="./workflow.html">Workflow</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · work management</p>
+      <h1>BUG-084 — Straight-right life marker departure <span class="wiki-badge">Proposed</span></h1>
+      <p class="wiki-meta">High-risk · P2 · created 2026-10-01 · source fe160ae389145d24083218ded05ba9cdca781474</p>
+    </header>
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Make the HUD Lady Bug walk straight right until fully beyond the playfield edge during life entry, without a downward turn, before the normal maze entry begins.</p>
+      <h3>Reproduction and observed versus expected</h3>
+      <p>Observe the initial life-entry marker path. Current source sets the marker south-facing and advances it down screen. The requested path is horizontal to the right edge and fully offscreen.</p>
+      <h3>Confirmed source cause and baseline</h3>
+      <p><code>initial_entry_tick</code> in <code>src/main.s</code> starts from <code>$8994</code>, sets <code>PLAYER_DIR</code> and <code>PLAYER_FACE</code> to <code>DIR_SOUTH</code>, then adds <code>$0140</code> for each of 12 scheduled steps. It hands off to the existing northward maze entrance afterward. This confirms the current trajectory differs from the requested direction. No current-snapshot runtime result exists because the RSCH-014 compiler prerequisite blocks the build.</p>
+      <h3>Scope, scenarios, and acceptance</h3>
+      <p><strong>In:</strong> marker orientation and trajectory, right-edge clipping/cleanup, and handoff to the existing maze-entry phase. <strong>Out:</strong> life count, death art, enemy progression, animation dwell, and general travel-speed changes.</p>
+      <p>Acceptance requires an uninterrupted right-facing horizontal walk from the HUD origin to fully outside the 192-pixel playfield; zero downward-turn frames; no input, collection, or collision during transfer; complete removal of the marker footprint; then the existing maze entry. Test the actual right-edge crossing on the selected owner and one reversed starting-owner run only if the compositor has independent owner history. Pixel reads/writes must be clipped to the visible framebuffer. A source path or rendered frame beyond row/column bounds fails.</p>
+      <h3>Class, risks, and pre-Ready gates</h3>
+      <p><strong>High-risk:</strong> the horizontal exit crosses persistent framebuffer edge/clipping boundaries and hands off into normal player state. Design target is Proposed, but implementation viability is not established: exact marker start position, offscreen boundary step, clipped save-under/restore ownership, code fit, and runtime artifact identity are unresolved. Keep existing player tick cadence; do not invent an arcade speed or fixed tick count.</p>
+      <h3>Dependencies and recommendation</h3>
+      <p>Depends on the RSCH-014 current-ROM build gate. BUG-085 reuses this departure and depends on its approved direction and edge-cleanup contract. First prove right-edge geometry and a bounded clipped compositor fit, then specify the natural and forced validation command.</p>
+      <h3>Decision requested</h3>
+      <p>Approve straight-right fully offscreen departure with the existing maze-entry handoff. Proposed; not Approved or Ready.</p>
+    </section>
+    <section>
+      <h2>Assignment contract</h2>
+      <p>Future executor: one Luna Extra High subagent receives this ticket only after explicit approval and Ready, owning <code>src/main.s</code> entry trajectory and, only if necessary, the existing clipped player path in <code>src/enemy_runtime.s</code>. The parent owns combined-source integration and QA. Commands currently available are <code>wsl bash scripts/build.sh build</code> and the adjacent owner-history regression <code>wsl python3 scripts/verify_bug006_respawn_player.py</code>; both require the current compiler gate and generated snapshot artifacts. The build currently fails at the RSCH-014 screen compiler prerequisite. No runnable right-edge acceptance harness exists in this snapshot, so one must be named before Ready. Retain position/facing per tick, edge pixels, both-owner history, natural first entry, artifact identity, and all capacity values in one bounded commit. No implementation is included.</p>
+    </section>
+    <section><h2>Decision log</h2><ul><li>2026-10-01 — Proposed from source-confirmed southbound trajectory and explicit rightward target. Edge fit and runtime viability remain open gates.</li></ul></section>
+  </main>
+</div>
+</body>
+</html>

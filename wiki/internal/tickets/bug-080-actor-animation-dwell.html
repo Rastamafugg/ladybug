@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-080 — Arcade player and enemy animation dwell</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="./index.html">Tickets</a><a href="./workflow.html">Workflow</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · work management</p>
+      <h1>BUG-080 — Arcade actor animation dwell <span class="wiki-badge">Draft</span></h1>
+      <p class="wiki-meta">High-risk · P2 · created 2026-10-01 · baseline fe160ae389145d24083218ded05ba9cdca781474 plus nine unchanged dirty TMX inputs</p>
+    </header>
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Match Lady Bug and all enemy sprite animation poses to measured arcade dwell. Keep pose dwell separate from travel speed and avoid a blanket scheduler slowdown.</p>
+      <h3>Observed behavior and evidence</h3>
+      <p>The user reports that loop ordering matches but actor poses appear to dwell too briefly. Historical <a href="./bug-050-animation-cadence.html">BUG-050</a> measured an eight-MAME-frame player pose hold and only a partial enemy sample; it is not full coverage. Current source reloads <code>PLAYER_ANIM_TIMER</code> and <code>ENEMY_TIMER</code> at eight scheduled ticks. That is a source fact, not proof that either timer mismatches the arcade. Current-attract measurements show four decorative sprites at eight MAME frames per pose, not gameplay actors. Raw current-run identity and counts are in <a href="./evidence/rsch014-B/arcade-dwell-probes.html">RSCH-014-B evidence</a>.</p>
+      <h3>Animation-family audit</h3>
+      <ul>
+        <li>Player walking: historical BUG-050 covers a limited run; current per-state, direction-reset, and gameplay cadence coverage is incomplete.</li>
+        <li>Roaming enemies: the source documents eight initial type groups and adjacent-group selection after part eight. Forced MAME captures match sprite groups 11, 17, 29, 23, 35, 41, 47, and 53, but do not establish the dwell for every pose or direction.</li>
+        <li>Dormant den and release: <a href="../../../assets/arcade/enemy_release_reference.json">enemy release reference</a> distinguishes the four-frame den actor from released actors; it does not measure every independent pose interval.</li>
+        <li>Death, wings, and angel: <a href="../../../assets/arcade/death_animation_reference.json">death animation reference</a> already records exact special-sequence intervals. Preserve those timings unless a new discrepancy is measured; do not convert them to the roaming timer.</li>
+        <li>Instruction and attract actors: <a href="../../../assets/arcade/instruction_reference.json">instruction reference</a> and <a href="../../../assets/arcade/attract_actor_reference.json">attract actor reference</a> contain phase-specific behavior. The current attract ROI is decorative evidence only.</li>
+        <li>Logo phases are separate in <a href="./bug-081-logo-animation-dwell.html">BUG-081</a>. Collectible score popups already have a separate measured hold contract and are not actor locomotion.</li>
+      </ul>
+      <h3>Cause confidence and discrimination</h3>
+      <p>Cause remains unconfirmed. A shared eight-tick CoCo timer may be too short, or the mismatch may be scheduled-tick cadence, sprite-state selection, or a different arcade frame-to-CoCo tick mapping. Measure contiguous pixel-state runs for each family before changing a timer. Use stationary, straight-moving, and one turn/reset sample for each distinct clock owner; do not use a type-by-direction Cartesian matrix unless source evidence shows independent direction clocks. Record displacement separately from pose transitions.</p>
+      <h3>Scope and acceptance</h3>
+      <p><strong>In:</strong> measured player and enemy pose dwell across the family inventory above, including any distinct roaming, den, release, or gameplay actor clock that source inspection confirms. <strong>Out:</strong> movement velocity, collision and AI rules, logo timing, popup display duration, broad scheduler slowdown, and already measured death art unless a conflicting measurement is obtained.</p>
+      <p>Acceptance requires a current arcade ROM/run identity, exact pose-state intervals, complete included-family coverage, preserved special-sequence references, and unchanged tile displacement at the accepted movement cadence. Missing required family or ambiguous state transitions fail evidence. CoCo cadence mapping must be measured, not inferred from MAME frame counts.</p>
+      <h3>Class, recommendation, and dependencies</h3>
+      <p><strong>High-risk:</strong> actor cadence shares scheduled gameplay work with movement and collision, timing is a hard behavior boundary, and renderer state is persistent. First obtain measured arcade family coverage; then compare a current-snapshot CoCo build and prove timing separation. The RSCH-014 compiler gate currently prevents that build. Reclassify if the cause crosses into adaptive scheduling, memory, or framebuffer ownership.</p>
+      <h3>Decision</h3>
+      <p>Draft. The target measurement and complete family coverage are missing. No approval is requested.</p>
+    </section>
+    <section>
+      <h2>Assignment contract</h2>
+      <p>Future executor: one Luna Extra High subagent receives this ticket only after explicit approval and Ready, with one bounded source subset and a separate commit. The parent owns combined-source integration and QA. Until then no implementation is assigned. Candidate source files are <code>src/main.s</code> and <code>src/enemy_runtime.s</code>; include <code>src/adaptive_runtime.s</code> only if a discriminating trace proves scheduled cadence is causal. Existing attract reference command: <code>wsl python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 600 --skip-player-recognition --plan scripts/mame_plans/attract-idle.json --video-from 300 --raw-video /tmp/rsch014-actor-reference.bin --raw-work-ram /tmp/rsch014-actor-reference-ram.bin --output /tmp/rsch014-actor-reference.json</code>. It is not a gameplay-family acceptance run. Current build command is <code>wsl bash scripts/build.sh build</code>; it fails at the RSCH-014 screen compiler prerequisite. Before Ready, name a runnable per-family capture/CoCo comparison command, current ROM identity, retained dwell summary, measured movement speed, capacity output, and one bounded commit. No source repair is included in this preparation.</p>
+    </section>
+    <section><h2>Decision log</h2><ul><li>2026-10-01 — Draft created. BUG-050 is partial historical coverage; current title decorations do not close gameplay actor measurement.</li></ul></section>
+  </main>
+</div>
+</body>
+</html>

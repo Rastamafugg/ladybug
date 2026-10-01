@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-081 — Arcade attract and high-score logo dwell</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="./index.html">Tickets</a><a href="./workflow.html">Workflow</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · work management</p>
+      <h1>BUG-081 — Arcade logo animation dwell <span class="wiki-badge">Draft</span></h1>
+      <p class="wiki-meta">High-risk · P2 · created 2026-10-01 · baseline fe160ae389145d24083218ded05ba9cdca781474 plus nine unchanged dirty TMX inputs</p>
+    </header>
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Match the two-frame LadyBug logo animation on both the attract and high-score screens to independently measured arcade dwell. Preserve phase order, static logo colour, and the red R.</p>
+      <h3>Observed behavior and arcade baseline</h3>
+      <p>The user reports that both CoCo logo animations dwell for less time than actors. BUG-047 owns attract colour and BUG-052 owns high-score composition and animation; neither authorizes changing their cadence from an unmeasured high-score target. On current MAME 0.220, the exact attract-logo ROI has two pixel states and nine complete 31-frame holds, followed by ten observed state transitions including partial entry/exit. This is one attract result, not a high-score target. Counts and raw identities are in <a href="./evidence/rsch014-B/arcade-dwell-probes.html">RSCH-014-B evidence</a>.</p>
+      <h3>Cause confidence</h3>
+      <p>The attract phase target is measured at 31 MAME frames per full hold. Separate CoCo baselines report three attract-logo pixel hashes over 24 presentation ticks in BUG-047 and high-score phase changes every eight dispatcher ticks after the initial six-tick alignment in BUG-052. These are context-specific observations, not an arcade-frame to CoCo-VBlank mapping. High-score mismatch and its arcade target dwell remain unconfirmed. Do not copy the attract count into high-score acceptance without reaching and measuring that screen.</p>
+      <h3>High-score reachability reassessment</h3>
+      <p>The wiki source page records a prior fresh MAME 0.220 attract sequence sampled every ten frames: title at frame 300, <code>TODAY'S HI SCORE</code> at 3310, and part-one introduction at 3370. In this preparation run, an idle capture covering frames 3000–3500 showed gameplay at direct frame 3310 and no high-score layout in the retained 30-frame contact sheet. A credited idle/death phase and a third, already-launched skull-loop phase also failed to show the high-score marker in their sampled frames. These runs do not establish that the screen is absent or unreachable; they establish that the source pointer does not locate it in these invocations. The harness passes no explicit <code>-cfg_directory</code>, so MAME's normal configuration and ROM-start state are not controlled against the historical capture. Probe commands, frame bounds, timeout meaning, hashes, and the third-run timing are recorded in the evidence page. Further runtime probes are paused pending the recorded reassessment and a discriminating plan. Source review remains in scope.</p>
+      <h3>Next discrimination and scope</h3>
+      <p>First use the lower-cost route: inspect the existing original-screen asset provenance and MAME state-handler/flag evidence against the current harness frame origin, then define a per-frame visible high-score marker. Any later capture must state its authored plan, actual staged ROM/ROM identity, expected title/table marker, and deadline at or below 60 seconds. A timeout means only that the marker was not reached in that bounded phase.</p>
+      <p><strong>In:</strong> independent arcade and CoCo dwell measurement for the attract and high-score logos; logo-only phase updates. <strong>Out:</strong> logo art, palette, red R, high-score table/prompt/coin content, actor cadence, movement speed, and a scheduler-wide slowdown. Acceptance requires repeated full phase holds on each screen, first and alternate owner pixel equality, unchanged non-logo cells and actors, and a complete build/capacity pass.</p>
+      <h3>Class, risks, and lifecycle</h3>
+      <p><strong>High-risk:</strong> two presentation contexts share phase assets but have distinct destinations, and animation is published through persistent framebuffer owners. Required acceptance includes each context and a controlled alternate-owner replay. Keep Draft because the arcade high-score page has not been visibly identified in a current run and its dwell is unknown. The current CoCo build is blocked by RSCH-014 compiler prerequisites.</p>
+      <h3>Decision</h3>
+      <p>No approval is requested. Retain the measured attract result; do not infer a high-score result from the failed reachability probes.</p>
+    </section>
+    <section>
+      <h2>Assignment contract</h2>
+      <p>Future executor: one Luna Extra High subagent receives this ticket only after explicit approval and Ready, with one bounded source subset and a separate commit. The parent owns combined-source integration and QA. Until then no implementation is assigned. Candidate source is <code>src/presentation_runtime.s</code> and only the mapped phase helper if a fit is proven. Attract reproduction command: <code>wsl python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 600 --skip-player-recognition --plan scripts/mame_plans/attract-idle.json --video-from 300 --raw-video /tmp/rsch014-B-attract-video.bin --raw-work-ram /tmp/rsch014-B-attract-work.bin --output /tmp/rsch014-B-attract.json</code>. Historical reachability invocations are preserved in the evidence page; do not rerun them as acceptance. The current build command is <code>wsl bash scripts/build.sh build</code> and is blocked by the known screen compiler prerequisite. Before Ready, provide an exact per-frame high-score capture command with a visible success marker, a separate measured target for each context, a CoCo identity/pixel check, capacity results, and one bounded implementation commit. No implementation is included.</p>
+    </section>
+    <section><h2>Decision log</h2><ul><li>2026-10-01 — Draft. Attract has a measured 31-frame hold; current bounded runs did not locate high score. Source-page frame pointers remain historical evidence, not an assertion for this run.</li></ul></section>
+  </main>
+</div>
+</body>
+</html>

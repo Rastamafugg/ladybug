@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-083 — Start each level with red collectibles</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="./index.html">Tickets</a><a href="./workflow.html">Workflow</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · work management</p>
+      <h1>BUG-083 — Red collectible colour at every level start <span class="wiki-badge">Proposed</span></h1>
+      <p class="wiki-meta">High-risk · P2 · created 2026-10-01 · source fe160ae389145d24083218ded05ba9cdca781474</p>
+    </header>
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Start the collectible colour cycle red on the initial live stage and every later stage, retaining the existing red, yellow, and blue dwell intervals.</p>
+      <h3>Reproduction and observed versus expected</h3>
+      <p>At a new live-game start, inspect the first committed gameplay image; repeat at one natural stage transition. Current source selects blue for the initial game, then preserves the colour state across <code>next_stage</code>. The requested result is red at both stage-entry boundaries.</p>
+      <h3>Confirmed source cause and baseline</h3>
+      <p>In <code>src/main.s:init_game_state</code>, <code>BONUS_COLOR</code> is set to <code>COLOR_BLUE</code> and <code>BONUS_TIMER</code> to 420. <code>next_stage</code> does not reset either value. <code>bonus_color_tick</code> transitions blue to red with timer 30, red to yellow with timer 150, and yellow to blue with timer 420. The start-state cause is source-confirmed; no current-snapshot ROM or runtime output is available because the RSCH-014 screen compiler prerequisite blocks the build.</p>
+      <h3>Scope, scenarios, and acceptance</h3>
+      <p><strong>In:</strong> new-game and next-stage colour/timer initialization and the established redraw request needed to publish that state. <strong>Out:</strong> changing dwell values, pickup rules, static skull colour, art, player/enemy/logo animation, and renderer architecture.</p>
+      <p>Scenarios cover initial live start (correct first image), one natural next-stage start (reset not omitted), and the 30th colour tick (existing transition timing). At each start, all visible hearts and letters must be red on both persistent owners before gameplay resumes. Yellow must follow after 30 scheduled ticks. White skulls and unrelated cells remain unchanged. A missing natural transition or a build failure fails integration acceptance.</p>
+      <h3>Class, risks, and recommendation</h3>
+      <p><strong>High-risk:</strong> state reset changes a persistent cached-colour handoff and crosses new-game and stage-transition owners. Recommendation: set red and its matching 30-tick timer at both lifecycle boundaries, use the existing recolour invalidation path, and preserve all later intervals. Runtime owner behavior and full-build capacity remain gates.</p>
+      <h3>Decision requested</h3>
+      <p>Approve only red at every level start and the unchanged cycle intervals. Lifecycle is Proposed; it is not Approved or Ready.</p>
+    </section>
+    <section>
+      <h2>Assignment contract</h2>
+      <p>Future executor: one Luna Extra High subagent receives this ticket only after explicit approval and Ready, with the bounded source subset <code>src/main.s</code> initialization/stage-reset paths and any proven recolour invalidation callsite. The parent owns combined-source integration and QA. Current exact commands are <code>wsl bash scripts/build.sh build</code>, <code>wsl python3 scripts/verify_bug004_skull_colour_cycle.py</code>, and <code>wsl python3 wiki/internal/tickets/evidence/rsch014-B/prototype_bonus_cycle.py</code>. The first currently stops at the RSCH-014 compiler prerequisite; the skull verifier covers the adjacent white-skull invariant, and the deterministic prototype covers the proposed timer sequence only. Both are runnable from the worktree. A natural initial-stage and next-stage pixel/state check remains a Ready gate because no current-ROM runtime harness command exists in this snapshot. Retain first-frame red pixels, timer state, both-owner result, unchanged skulls, build/capacity output, current ROM identity, and one bounded commit. No source edit is included.</p>
+    </section>
+    <section><h2>Decision log</h2><ul><li>2026-10-01 — Proposed from source-confirmed blue start state and the explicit red target. Runtime and current-build evidence remain open.</li></ul></section>
+  </main>
+</div>
+</body>
+</html>
