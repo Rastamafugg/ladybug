@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "source_revision": "d7bda8d251cd96172a612d066c67a73afe00dcc8",
+  "production_inputs_sha256": {
+    "scripts/build.sh": "4276363cacbdcf54473abb1d707efd3c28462888221064d2e23498c69d55bb95",
+    "scripts/build_adaptive_runtime.py": "da6412b42ad168c82fd89b38c548458374729fb6ab8311c14e50595f6633ca65",
+    "scripts/source_reference/render.py": "a0aa7945089a685f7ad6d48377a1d1ab0e4e894ba9d85afcbf6e2110b71cc87c",
+    "src/adaptive_audio_service.s": "2b49446cb50c234a932db32ce5c011e2ff7d89571d551c441511ab3568f521b5"
+  },
+  "full_builds": {
+    "nonadaptive": [
+      "build: resident 8179/8192 bytes; assets 7620/7680 bytes",
+      "build: presentation module 1277/1280 bytes",
+      "build: resident 8179/8192 bytes; assets 7620/7680 bytes",
+      "build: presentation module 1277/1280 bytes",
+      "source reference: 11 modules, 34422 source lines, coverage=pass",
+      "source documentation: PASS: 11 modules, 281/281 routines, 4674/4674 labels"
+    ],
+    "default": [
+      "build: resident 8137/8192 bytes; assets 7620/7680 bytes",
+      "build: presentation module 1264/1280 bytes",
+      "build: resident 8137/8192 bytes; assets 7620/7680 bytes",
+      "build: presentation module 1264/1280 bytes",
+      "build: resident 8137/8192 bytes; assets 7620/7680 bytes",
+      "source reference: 14 modules, 35391 source lines, coverage=pass",
+      "source documentation: PASS: 14 modules, 301/301 routines, 4921/4921 labels"
+    ]
+  },
+  "default_command": "env -u LADYBUG_ADAPTIVE bash scripts/build.sh build",
+  "default_adaptive_rom_sha256": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+  "same_profile_rom_change_bytes": 0,
+  "allocation_limit_changes": 0,
+  "nonadaptive_command": "LADYBUG_ADAPTIVE=0 bash scripts/build.sh build",
+  "rejected_experiments": [],
+  "probe_mechanics_correction": "Shell-prefix selection test was moved from bash -c to a temporary script to supply BASH_SOURCE; deterministic rerun passed.",
+  "residual_scope": "No new gameplay timing or analog/native-hardware acceptance; TOOL-006 remains separate."
+}

@@ -1,30 +1,18 @@
 --- a/src/adaptive_audio_service.s
 +++ b/src/adaptive_audio_service.s
-@@ -181,11 +181,11 @@
-         orcc #1
-         rts
- 
+@@ -184 +184 @@
 -; @audit {"id":"adaptive-audio-clock","kind":"scratch","symbol":"audio_adaptive_last","width":2,"mapping":"physical-page-3D","phases":["foreground"],"owner":"adaptive foreground audio service","lifetime":"Raw snapshot retained between services; delta initialized before each elapsed scan; late flag retained until explicit rebase.","initialization":"aas_rebase initializes last and late; aas_elapsed initializes delta before any consumer","clobbers":"API advances only pre-existing voices; new admissions are primed separately and never aged through older elapsed ticks."}
 +; @audit {"id":"adaptive-audio-clock","kind":"scratch","requires_symbol":"audio_adaptive_api","symbol":"audio_adaptive_last","width":2,"mapping":"physical-page-3D","phases":["foreground"],"owner":"adaptive foreground audio service","lifetime":"Raw snapshot retained between services; delta initialized before each elapsed scan; late flag retained until explicit rebase.","initialization":"aas_rebase initializes last and late; aas_elapsed initializes delta before any consumer","clobbers":"API advances only pre-existing voices; new admissions are primed separately and never aged through older elapsed ticks."}
- audio_adaptive_last rmb 2
+@@ -186 +186 @@
 -; @audit {"id":"adaptive-audio-delta","kind":"scratch","symbol":"audio_adaptive_delta","width":2,"mapping":"physical-page-3D","phases":["foreground"],"owner":"adaptive foreground audio service","lifetime":"Bounded elapsed VBlank count for one API call only.","initialization":"aas_elapsed writes delta before scanning slots","clobbers":"No decoder retains the value after the call."}
 +; @audit {"id":"adaptive-audio-delta","kind":"scratch","requires_symbol":"audio_adaptive_api","symbol":"audio_adaptive_delta","width":2,"mapping":"physical-page-3D","phases":["foreground"],"owner":"adaptive foreground audio service","lifetime":"Bounded elapsed VBlank count for one API call only.","initialization":"aas_elapsed writes delta before scanning slots","clobbers":"No decoder retains the value after the call."}
- audio_adaptive_delta rmb 2
+@@ -188 +188 @@
 -; @audit {"id":"adaptive-audio-late","kind":"scratch","symbol":"audio_adaptive_late","width":1,"mapping":"physical-page-3D","phases":["foreground"],"owner":"adaptive foreground audio service","lifetime":"Retained missed-deadline marker until explicit phase rebase.","initialization":"aas_rebase clears it","clobbers":"Overdue existing-note service sets it; no acceptance may treat a set flag as on-time delivery."}
 +; @audit {"id":"adaptive-audio-late","kind":"scratch","requires_symbol":"audio_adaptive_api","symbol":"audio_adaptive_late","width":1,"mapping":"physical-page-3D","phases":["foreground"],"owner":"adaptive foreground audio service","lifetime":"Retained missed-deadline marker until explicit phase rebase.","initialization":"aas_rebase clears it","clobbers":"Overdue existing-note service sets it; no acceptance may treat a set flag as on-time delivery."}
- audio_adaptive_late fcb 0
- audio_adaptive_stage
-         includebin "ladybug-adaptive-active.bin"
 --- a/scripts/source_reference/render.py
 +++ b/scripts/source_reference/render.py
-@@ -277,6 +277,10 @@
- 
- def render_project(project: ProjectReference, coverage: CoverageResult, output: Path) -> None:
-     output.mkdir(parents=True, exist_ok=True)
+@@ -279,0 +280,4 @@
 +    current_module_pages = {module_page(module.id) for module in project.modules}
 +    for stale in output.glob("module-*.html"):
 +        if stale.is_file() and stale.name not in current_module_pages:
 +            stale.unlink()
-     for module in project.modules:
-         _write(output / module_page(module.id), _page(module.title, _module_body(project, module)))
- 

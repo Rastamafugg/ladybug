@@ -89,7 +89,6 @@ INSTRUCTION_RUNTIME_START=0x0300
 INSTRUCTION_RUNTIME_LIMIT=0x06AA
 AUDIO_ENGINE_LIMIT=920
 AUDIO_RUNTIME_LIMIT=0x2000
-ADAPTIVE_RENDERING="${LADYBUG_ADAPTIVE:-0}"
 LADYBUG_PROFILE="${LADYBUG_PROFILE:-complete}"
 case "$LADYBUG_PROFILE" in
     highscore-test) BUG011_DEVELOPMENT_PROFILE=0; COMPLETE_PROFILE=0; HIGHSCORE_TEST_PROFILE=1 ;;
@@ -98,6 +97,9 @@ case "$LADYBUG_PROFILE" in
     complete) BUG011_DEVELOPMENT_PROFILE=1; COMPLETE_PROFILE=1; HIGHSCORE_TEST_PROFILE=0 ;;
     *) echo "build: LADYBUG_PROFILE must be highscore-test, development, release, or complete" >&2; exit 2 ;;
 esac
+# Adaptive rendering defaults on for complete; specialized profiles retain
+# their supported nonadaptive path. An explicit 0/1 overrides either default.
+ADAPTIVE_RENDERING="${LADYBUG_ADAPTIVE:-$COMPLETE_PROFILE}"
 LADYBUG_CPU="${LADYBUG_CPU:-6809}"
 LADYBUG_INPUT="${LADYBUG_INPUT:-keyboard}"
 case "$LADYBUG_INPUT" in
@@ -915,7 +917,7 @@ PY
     guard_presentation_helper "$PERIMETER_HELPER"
 
     if [[ "$ADAPTIVE_RENDERING" == 1 ]]; then
-        python3 "$ROOT/scripts/build_adaptive_runtime.py" --phase link --root "$ROOT" --build-dir "$BUILD_DIR"
+        python3 "$ROOT/scripts/build_adaptive_runtime.py" --phase link --root "$ROOT" --build-dir "$BUILD_DIR" --input-joystick "$INPUT_JOYSTICK"
         guard_audio_runtime "$AUDIO_RUNTIME" "$AUDIO_RUNTIME_MAP"
         guard_layout "$MAP" "$RUNTIME_ROM"
         pad_cart "$RUNTIME_ROM"

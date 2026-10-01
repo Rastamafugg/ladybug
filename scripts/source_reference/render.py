@@ -277,6 +277,10 @@ def _manifest(project: ProjectReference, coverage: CoverageResult) -> dict:
 
 def render_project(project: ProjectReference, coverage: CoverageResult, output: Path) -> None:
     output.mkdir(parents=True, exist_ok=True)
+    current_module_pages = {module_page(module.id) for module in project.modules}
+    for stale in output.glob("module-*.html"):
+        if stale.is_file() and stale.name not in current_module_pages:
+            stale.unlink()
     for module in project.modules:
         _write(output / module_page(module.id), _page(module.title, _module_body(project, module)))
 

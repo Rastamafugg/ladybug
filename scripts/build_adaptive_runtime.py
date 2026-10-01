@@ -7,6 +7,7 @@ def symbols(path):
 
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--phase',choices=['core','bindings','audio','link','registry'],required=True);ap.add_argument('--root',type=Path,required=True);ap.add_argument('--build-dir',type=Path,required=True)
+    ap.add_argument('--input-joystick',type=int,choices=(0,1),default=0)
     a=ap.parse_args();r=a.root;b=a.build_dir;b.mkdir(parents=True,exist_ok=True)
     extension=json.loads((r/'scripts/source_reference_adaptive.json').read_text())
     if a.phase=='registry':
@@ -44,7 +45,7 @@ def main():
         subprocess.run(['python3',str(r/'scripts/source_reference/provenance.py'),'assemble',str(r),str(b),*audio_cmd[1:]],check=True)
         inc=b/'ladybug_audio_symbols.inc';inc.write_text('\n'.join(line for line in inc.read_text().splitlines() if not line.startswith(('AUDIO_ADAPTIVE_','AUDIO_RUNTIME_BYTES')))+'\n'+f'AUDIO_RUNTIME_BYTES equ {(b/"ladybug-audio-runtime.bin").stat().st_size}\n')
         audio_symbols()
-        main_cmd=['lwasm','-9','--format=raw','-DADAPTIVE_RENDERING=1','-DBUG011_DEVELOPMENT_PROFILE=1','-DCOMPLETE_PROFILE=1','-DHIGHSCORE_TEST_PROFILE=0','-DHIGHSCORE_PHASE_HELPER=0','-DPRESENTATION_NAME_ENTRY_DATA=0','-DINPUT_JOYSTICK=0','-I',str(b),'-I',str(r/'src'),'--output='+str(b/'ladybug-runtime.rom'),'--map='+str(b/'ladybug.map'),'--list='+str(b/'ladybug.lst'),str(r/'src/main.s')]
+        main_cmd=['lwasm','-9','--format=raw','-DADAPTIVE_RENDERING=1','-DBUG011_DEVELOPMENT_PROFILE=1','-DCOMPLETE_PROFILE=1','-DHIGHSCORE_TEST_PROFILE=0','-DHIGHSCORE_PHASE_HELPER=0','-DPRESENTATION_NAME_ENTRY_DATA=0',f'-DINPUT_JOYSTICK={a.input_joystick}','-I',str(b),'-I',str(r/'src'),'--output='+str(b/'ladybug-runtime.rom'),'--map='+str(b/'ladybug.map'),'--list='+str(b/'ladybug.lst'),str(r/'src/main.s')]
         subprocess.run(main_cmd,check=True)
         subprocess.run(['python3',str(r/'scripts/source_reference/provenance.py'),'assemble',str(r),str(b),*main_cmd[1:]],check=True)
         after=symbols(b/'ladybug.map')
