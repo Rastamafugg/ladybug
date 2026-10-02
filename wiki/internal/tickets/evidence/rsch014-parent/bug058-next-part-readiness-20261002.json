@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-02",
+  "status": "scoped-pass",
+  "rom_sha256": "2114f0185b5a4bd13795e5ded2834053e22f50adf83610870e387c200d73b901",
+  "trace_sha256": "319778b1a9b91e4284abede85f5abb147644ccffbafef9a9226a817798ad8253",
+  "phase": "Cold demo/credited entry, controlled real last-bonus pickup, actual Part2 initialization, then current-population quiet clock window.",
+  "deadline_seconds_each_phase": 45,
+  "success_marker": "byte-identical phase modules and eight current-population quiet worklists with two steps,zero debt/fault",
+  "timeout_meaning": "Named boundary absent; failed scenario, not proof of execution slowness.",
+  "part2_initialization": {
+    "worklists": 211,
+    "part": 2,
+    "mode": 0,
+    "enemy_active_initial": 0,
+    "active_enemy_helper_identity": true,
+    "natural_code_after_controlled_last_bonus": true
+  },
+  "part2_settling": {
+    "worklists": 25,
+    "step_values": [
+      1,
+      2
+    ],
+    "transient_values": {
+      "INITIAL_ENTRY_STATE": [
+        0
+      ],
+      "DEATH_STATE": [
+        0
+      ],
+      "PICKUP_TIMER": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "STAGE_PENDING": [
+        0
+      ],
+      "RENDER_GATE_ID": [
+        0
+      ],
+      "RENDER_GATE2_ID": [
+        0
+      ]
+    },
+    "quiet_control": "player direction/want invalid255, step0, manual1; require8 consecutive current-population transient-free/debt-free two-tick worklists; no four-enemy rate acceptance"
+  },
+  "window_definition": "Eight consecutive worklists with main clock transient flags cleared, current alive actors roaming,steps2,debt0. NPC death/events may occur; this is not a no-event nominal-rate or four-enemy performance window.",
+  "quiet": {
+    "worklists": 8,
+    "step_values": [
+      2
+    ],
+    "debt_values": [
+      0
+    ],
+    "fault_values": [
+      0
+    ],
+    "population_values": [
+      3,
+      4
+    ],
+    "alive_slots": [
+      [
+        0,
+        1,
+        2,
+        3
+      ],
+      [
+        1,
+        2,
+        3
+      ]
+    ],
+    "cycles_observed_range": [
+      36890,
+      455951
+    ]
+  },
+  "adapter_mechanics_rejection": {
+    "trace_sha256": "bf654321fb8ce7f27069f2eef48db6b386ef18be281399b4a9f3a1a15fb69df2",
+    "cause": "First text replacement modified Part1 roaming predicate, leaving Part2 strictfour requirement. Fixed by anchoring inside Part2 initialization segment.",
+    "source_fault": false,
+    "rerun": "same experiment after deterministic mechanics correction"
+  },
+  "reassessment": {
+    "class": "High-risk unchanged",
+    "last_proven_boundary": "Part2 byte identity and sampledsteps2/debt0/fault0 before misplaced-predicate failure",
+    "discriminator": "Correct only the Part2 population predicate; retain strict Part1/four-enemy progression criteria.",
+    "lower_cost_check": "Generated-source occurrence/context assertions before rerun"
+  },
+  "limitations": [
+    "Null audio backend.",
+    "Legal forced last-bonus and release preconditions, not naturally earned fullmaze.",
+    "NPC population changes allowed forclock coverage; no separate four-enemy Part2 rate/pixel acceptance.",
+    "27000-cycle target remains unmet."
+  ],
+  "commands": [
+    "python3 bug058_prepare_observers.py --repository REPO --baseline-build BASELINE_BUILD --candidate-build ASSIGNED_BUILD --output-dir OBSERVERS",
+    "python3 OBSERVERS/next-part-candidate.py WORKTREE OUTPUT --pickup-gate-cadence"
+  ]
+}

@@ -1,0 +1,211 @@
+{
+  "date": "2026-10-02",
+  "status": "Scoped transition and quiet source-state conversion pass; BUG087 remains Draft",
+  "source_revision": "85b95a4 production equivalent; ROMf8c5583d",
+  "rom_sha256": "f8c5583d254579f70f0515882da04d4e374dffffc28a5ccffdef490ed70c415d",
+  "trace_sha256": "71b09fccf9c0fc5e72bff284d98b7eb6b4e5d4637fec6e2ae5e475d12fcc1252",
+  "phase": "Cold credited gameplay to controlled real final-bonus pickup, actual Part2 load/intro/helper installation, then controlled four-enemy quiet settling.",
+  "deadlines_seconds": 45,
+  "timeout_meaning": "Required phase/settled markers absent; never interpreted as execution slowness.",
+  "part2_initialization": {
+    "worklists": 211,
+    "part": 2,
+    "mode": 0,
+    "enemy_active_initial": 0,
+    "active_enemy_helper_identity": true,
+    "natural_code_after_controlled_last_bonus": true
+  },
+  "part2_settling": {
+    "worklists": 38,
+    "step_values": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "transient_values": {
+      "INITIAL_ENTRY_STATE": [
+        0
+      ],
+      "DEATH_STATE": [
+        0
+      ],
+      "PICKUP_TIMER": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "STAGE_PENDING": [
+        0
+      ],
+      "RENDER_GATE_ID": [
+        0
+      ],
+      "RENDER_GATE2_ID": [
+        0
+      ]
+    },
+    "quiet_control": "player direction/want invalid255, step0, manual1; require8 consecutive transient-free/debt-free two-tick worklists"
+  },
+  "quiet_parts": [
+    {
+      "part": 1,
+      "worklists": 8,
+      "steps_each": 2,
+      "render_rate_each": 2,
+      "debt_after_each": 0,
+      "cycle_range_observed": [
+        39957,
+        44036
+      ],
+      "actors": [
+        {
+          "slot": 0,
+          "source_origin_displacement_pixels": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "slot": 1,
+          "source_origin_displacement_pixels": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "slot": 2,
+          "source_origin_displacement_pixels": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "slot": 3,
+          "source_origin_displacement_pixels": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "part": 2,
+      "worklists": 8,
+      "steps_each": 2,
+      "render_rate_each": 2,
+      "debt_after_each": 0,
+      "cycle_range_observed": [
+        39276,
+        46516
+      ],
+      "actors": [
+        {
+          "slot": 0,
+          "source_origin_displacement_pixels": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "slot": 1,
+          "source_origin_displacement_pixels": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "slot": 2,
+          "source_origin_displacement_pixels": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        },
+        {
+          "slot": 3,
+          "source_origin_displacement_pixels": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ]
+        }
+      ]
+    }
+  ],
+  "source_policy": "et_find_movement checks LAST_FRAME parity without Part selector. Adaptive binding derives LAST_FRAME from AD_SIM_TIME. Existing fixed movement quantum gives2 source-origin pixels per2 simulation ticks at both parts.",
+  "limitations": [
+    "Controlled final-bonus precondition, not naturally earned complete maze.",
+    "Source-state net origins, not separate Part2 pixel movement acceptance.",
+    "Eight worklists perpart; not all later-part or difficulty rates.",
+    "Quiet four-enemy cycles remain above27000 target.",
+    "Early Part2 popup/recovery samples are not nominal part-rate evidence."
+  ],
+  "next_gates": [
+    "Trusted later-part arcade rate/pixel capture and live control/overlay calibration.",
+    "Viable rate-accumulator allocation, simulation-to-arcade dispatch design and retained cycle miss/dependencies.",
+    "Exact focused runtime commands before approval/Ready."
+  ],
+  "recipe": "Copy retained bug087_make_transition_probe.py and existing perf008-probe-support/last_bonus generator/shared harness to repro; adapt artifact roots perrecorded85b95a4 snapshot, then run --pickup-gate-cadence. Requires per-phase source/staged/live identity."
+}
