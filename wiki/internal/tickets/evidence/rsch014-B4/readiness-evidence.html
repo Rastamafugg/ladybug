@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-014 Step B4 — Presentation clock evidence — Ladybug</title>
+  <link rel="stylesheet" href="../../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav"><a href="../../index.html">Tickets</a><a href="../../rsch-014-tmx-cleanup-screen-preparation.html">RSCH-014</a><a href="../../bug-081-logo-animation-dwell.html">BUG-081</a></nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · evidence · RSCH-014 Step B4</p>
+      <h1>BUG-081 presentation-clock basis <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">2026-10-01 · source and retained-receipt review · no new runtime capture</p>
+    </header>
+    <section>
+      <h2>Decision boundary</h2>
+      <p>The proposed BUG-081 acceptance target is 31 CoCo Vbord ticks per logo phase in both attract and high-score contexts. The arcade attract logo has a measured 31-frame dwell in the current MAME 0.220 capture. The high-score arcade dwell is not measured: the user explicitly assumes it matches the attract logo. That assumption is the high-score target and removes high-score reachability and measurement as gates. It must remain labelled as an assumption in the ticket and any future report.</p>
+    </section>
+    <section>
+      <h2>Clock and conversion evidence</h2>
+      <ol>
+        <li><code>src/enemy_runtime.s::framebuffer_irq_impl</code> increments the 16-bit <code>FRAMES</code> counter in the Vbord IRQ. This establishes the hardware frame-count unit.</li>
+        <li><code>src/adaptive_runtime.s::adaptive_clock</code> atomically snapshots <code>FRAMES</code>. The adaptive <code>src/main.s::mainloop</code> calls the presentation entry <code>$1900</code> once when the sampled count differs from its prior sample. The presentation writer therefore advances per accepted changed-frame sample, not from elapsed loop-call buckets and not by catch-up iteration. If foreground work misses multiple Vbords, this path does not replay each missed count.</li>
+        <li>Attract <code>attract_tick</code> calls the common presentation <code>timer</code> once per presentation dispatch. <code>presentation_attract_phase</code> derives its existing phase from <code>(PRES_TIMER - 6) &gt;&gt; 3</code>. High-score <code>highscore_logo_tick</code> increments <code>PRES_TIMER</code> once per dispatch and derives its two-state phase from the same six-tick alignment and eight-call interval.</li>
+        <li><code>assets/arcade/attract_actor_reference.json</code> documents the established arcade-to-CoCo calibration: one captured 60-Hz MAME callback frame maps to one 60-Hz CoCo Vbord tick. This conversion is project reference evidence; the B4 source review did not collect a new CoCo runtime trace.</li>
+      </ol>
+      <p>The retained BUG-052 current-ROM receipt independently records high-score phase publications eight presentation-timer calls apart, the correct phases on both owners, and unchanged non-logo pixels. This supports the current writer-path description. It does not measure an arcade high-score dwell and does not establish that the proposed 31-Vbord target is already implemented.</p>
+    </section>
+    <section>
+      <h2>Attract baseline and identities</h2>
+      <p>The B2 capture observed 17 complete 31-frame attract-logo holds. MAME 0.220 binary SHA-256: <code>7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4</code>. <code>ladybug.zip</code> SHA-256: <code>2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8</code>. The compact capture details and raw-run boundaries remain in <a href="../rsch014-B2/readiness-evidence.html">RSCH-014 B2 evidence</a>. The completed B3 neutral run found no positive high-score screen marker; that result bounds only that invocation and is not a high-score absence or reachability claim. See <a href="../rsch014-B3/readiness-evidence.html">B3 evidence</a>.</p>
+    </section>
+    <section>
+      <h2>Acceptance still required after approval</h2>
+      <p>The source and retained receipts are sufficient to set a coherent proposed clock contract; they are not implementation acceptance. A future approved repair must measure 31 CoCo Vbord intervals between published logo phases on both contexts, prove current ROM/helper identity before interpreting live state, verify both persistent framebuffer owners, and show logo-only changes with attract actors and non-logo pixels unchanged. The high-score 31-frame comparison is an assumed target, not measured arcade evidence.</p>
+    </section>
+    <footer class="wiki-footer"><p>Evidence scope: source mapping, established frame conversion, retained MAME attract measurement, and retained BUG-052 receipt. No runtime probe, implementation, or approval was performed.</p></footer>
+  </main>
+</div>
+</body>
+</html>
