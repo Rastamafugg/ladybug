@@ -114,10 +114,10 @@ index 0f11345..c35f557 100644
          keybinding_runtime=args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b"",
      )
 diff --git a/scripts/source_reference.json b/scripts/source_reference.json
-index d998e41..e20be5d 100644
+index 52a8c77..86f6ded 100644
 --- a/scripts/source_reference.json
 +++ b/scripts/source_reference.json
-@@ -1185,6 +1185,10 @@
+@@ -1167,6 +1167,10 @@
          "draw_score_popup",
          "draw_screen",
          "draw_word_progress_hud",
@@ -128,7 +128,7 @@ index d998e41..e20be5d 100644
          "erase_entity_footprints",
          "framebuffer_project_gate_only",
          "gate_redraw_neighbors",
-@@ -1295,12 +1299,6 @@
+@@ -1277,12 +1281,6 @@
            "purpose": "Test whether a proposed enemy direction is legal at the current semantic cell.",
            "reasons": []
          },
@@ -141,7 +141,7 @@ index d998e41..e20be5d 100644
          {
            "name": "enemy_init_impl",
            "profile": "state",
-@@ -1690,6 +1688,26 @@
+@@ -1672,6 +1670,26 @@
          }
        ],
        "label_classifications": [
@@ -168,7 +168,7 @@ index d998e41..e20be5d 100644
          {
            "name": "enemy_entry_masks",
            "kind": "data",
-@@ -1842,6 +1860,11 @@
+@@ -1824,6 +1842,11 @@
          }
        ],
        "basic_blocks": [
@@ -180,7 +180,7 @@ index d998e41..e20be5d 100644
          {
            "name": "acd_popup",
            "routine": null,
-@@ -1959,6 +1982,61 @@
+@@ -1941,6 +1964,61 @@
          }
        ]
      },
@@ -362,95 +362,6 @@ index 6091bf1..c219b5e 100644
          f"{manifest['gmc']['spare_bytes']} bytes spare"
      )
  
-diff --git a/src/enemy_helpers_page34.s b/src/enemy_helpers_page34.s
-new file mode 100644
-index 0000000..8714dc7
---- /dev/null
-+++ b/src/enemy_helpers_page34.s
-@@ -0,0 +1,83 @@
-+; BUG-086 isolated fit candidate: helpers staged in physical page $34.
-+; Runtime callers enter only while PAR5 maps page $34.
-+; The cache guard, normal selector and preview packer share the gameplay page.
-+; The frame selector keeps the enemy module below its fixed pre-LUT bound.
-+
-+ENEMY_ANIM equ $0054
-+ENEMY_WORK equ $005D
-+STAGE equ $0024
-+STAGE_SOURCE equ $0066
-+ENEMY_TABLE equ $A470
-+ENEMY_NORMAL_CURSOR equ $A89D
-+ENEMY_PENDING_TYPE equ $A89E
-+ENEMY_CACHE_TYPE equ $A89F
-+ENEMY_MODULE_BUILD_CACHE equ $0824
-+
-+        org     $A8A0
-+
-+efn_cache_guard
-+        cmpa    ENEMY_CACHE_TYPE
-+        beq     efn_cache_done
-+        sta     ENEMY_CACHE_TYPE
-+        jsr     ENEMY_MODULE_BUILD_CACHE
-+efn_cache_done
-+        rts
-+
-+efn_normal
-+        lda     STAGE
-+        deca
-+        cmpa    #8
-+        blo     efn_normal_done
-+        anda    #7
-+        cmpa    #5
-+        blo     efn_normal_base
-+        suba    #5
-+efn_normal_base
-+        ldb     ENEMY_NORMAL_CURSOR
-+        andb    #3
-+        pshs    b
-+        adda    ,s+
-+efn_normal_done
-+        rts
-+
-+efn_preview
-+        lda     ENEMY_PENDING_TYPE
-+        bpl     efn_preview_pack
-+        lbsr    efn_normal
-+efn_preview_pack
-+        lsla
-+        lsla
-+        lsla
-+        lsla
-+        rts
-+
-+; Return the indexed sparse frame number in A. B is N/E/S/W. Parts 1-8 use
-+; one type each; later parts rotate four adjacent types across active records.
-+enemy_frame_number
-+        cmpb    #4
-+        blo     efn_direction_ready
-+        clrb
-+efn_direction_ready
-+        lslb
-+        lslb
-+        orb     ENEMY_ANIM
-+        stb     STAGE_SOURCE
-+        lda     #4
-+        suba    ENEMY_WORK
-+        cmpa    #4
-+        bhs     efn_dormant
-+        lsla
-+        lsla
-+        lsla
-+        ldu     #ENEMY_TABLE
-+        lda     a,u
-+        anda    #$F0
-+        bra     efn_finish
-+efn_dormant
-+        lbsr    efn_preview
-+efn_finish
-+        ora     STAGE_SOURCE
-+        rts
-+
-+enemy_page34_end
-+        end
 diff --git a/src/enemy_runtime.s b/src/enemy_runtime.s
 index 27e3b37..6b01ec0 100644
 --- a/src/enemy_runtime.s
@@ -616,7 +527,7 @@ index 27e3b37..6b01ec0 100644
  ;
  ; Inputs:
 diff --git a/src/main.s b/src/main.s
-index 6355094..49887ab 100644
+index c489336..8cb792d 100644
 --- a/src/main.s
 +++ b/src/main.s
 @@ -445,6 +445,9 @@ object_yellow_lut equ $17C0
@@ -637,7 +548,7 @@ index 6355094..49887ab 100644
  GIME_PAR5           equ $FFA5
  
  RF_PLAYER      equ $01
-@@ -4698,6 +4702,10 @@ irq_handler
+@@ -4694,6 +4698,10 @@ irq_handler
  ; Cold enemy lifecycle reset lives in resident space so the frame-critical
  ; bank-3 module retains room for bounded compositor paths.
  reset_enemy_state
@@ -648,3 +559,89 @@ index 6355094..49887ab 100644
          clr     ENEMY_ANIM
          lda     #8
          sta     ENEMY_TIMER
+--- /dev/null
++++ b/src/enemy_helpers_page34.s
+@@ -0,0 +1,83 @@
++; BUG-086 isolated fit candidate: helpers staged in physical page $34.
++; Runtime callers enter only while PAR5 maps page $34.
++; The cache guard, normal selector and preview packer share the gameplay page.
++; The frame selector keeps the enemy module below its fixed pre-LUT bound.
++
++ENEMY_ANIM equ $0054
++ENEMY_WORK equ $005D
++STAGE equ $0024
++STAGE_SOURCE equ $0066
++ENEMY_TABLE equ $A470
++ENEMY_NORMAL_CURSOR equ $A89D
++ENEMY_PENDING_TYPE equ $A89E
++ENEMY_CACHE_TYPE equ $A89F
++ENEMY_MODULE_BUILD_CACHE equ $0824
++
++        org     $A8A0
++
++efn_cache_guard
++        cmpa    ENEMY_CACHE_TYPE
++        beq     efn_cache_done
++        sta     ENEMY_CACHE_TYPE
++        jsr     ENEMY_MODULE_BUILD_CACHE
++efn_cache_done
++        rts
++
++efn_normal
++        lda     STAGE
++        deca
++        cmpa    #8
++        blo     efn_normal_done
++        anda    #7
++        cmpa    #5
++        blo     efn_normal_base
++        suba    #5
++efn_normal_base
++        ldb     ENEMY_NORMAL_CURSOR
++        andb    #3
++        pshs    b
++        adda    ,s+
++efn_normal_done
++        rts
++
++efn_preview
++        lda     ENEMY_PENDING_TYPE
++        bpl     efn_preview_pack
++        lbsr    efn_normal
++efn_preview_pack
++        lsla
++        lsla
++        lsla
++        lsla
++        rts
++
++; Return the indexed sparse frame number in A. B is N/E/S/W. Parts 1-8 use
++; one type each; later parts rotate four adjacent types across active records.
++enemy_frame_number
++        cmpb    #4
++        blo     efn_direction_ready
++        clrb
++efn_direction_ready
++        lslb
++        lslb
++        orb     ENEMY_ANIM
++        stb     STAGE_SOURCE
++        lda     #4
++        suba    ENEMY_WORK
++        cmpa    #4
++        bhs     efn_dormant
++        lsla
++        lsla
++        lsla
++        ldu     #ENEMY_TABLE
++        lda     a,u
++        anda    #$F0
++        bra     efn_finish
++efn_dormant
++        lbsr    efn_preview
++efn_finish
++        ora     STAGE_SOURCE
++        rts
++
++enemy_page34_end
++        end

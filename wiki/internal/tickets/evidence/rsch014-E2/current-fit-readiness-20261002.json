@@ -1,0 +1,239 @@
+{
+  "schema": "ladybug-rsch014-e2-bug086-current-perf-fit-v1",
+  "measured_on": "2026-10-02",
+  "source_base_commit": "cb84a603e74c67e18ed055f13e6dc0f518dd051d",
+  "source_commit_policy": "Prototype overlay remained uncommitted; no production integration.",
+  "profile_contract": {
+    "basis": "PERF-008 Ready assignment full-build matrix",
+    "required": [
+      "AD1 keyboard",
+      "AD0 keyboard",
+      "AD1 joystick"
+    ],
+    "reference": "wiki/internal/tickets/perf-008-selective-pickup-render.html#approved-ready-20261002",
+    "note": "The project build script accepts both controller values with either adaptive setting; the PERF-008 approved acceptance set exercised these three combinations. AD0 joystick is a known nonpassing baseline and is not claimed to pass."
+  },
+  "candidate_source_sha256": {
+    "src/main.s": "6cdc0873a12f6b46483d76316be9f5d886933d24f0bf2501d48daaebeb03f080",
+    "src/enemy_runtime.s": "434464bb1a1eb9698e659f53f53c39daf4ade289dcf558260f6b3322ad4e2f46",
+    "src/enemy_helpers_page34.s": "5b8865f85ee16c17bf5298d5267f4371e6fff6bce1bb2f878f5f13ba9da4551d",
+    "scripts/build.sh": "e9492b2fce4f0bda139ef1bb41ec304fe1144419b92821ad3dcf3ffa59866c14",
+    "scripts/build_sparse_sprites.py": "966110061bbf3bfbe102b50e5f0529348e59de8d224ff647711ffffe1f532f7d",
+    "scripts/verify_sparse_sprites.py": "f2c4150eb0c62b5be67796a9b726bf6f7445aeee364dc28d64bc55492c0b2ee2",
+    "scripts/verify_enemy_runtime.py": "db1bf25fb3fb04760177d7fb19c7328d466a340805d3634a025136d0120d7217",
+    "scripts/source_reference.json": "a565da5dda9f12b46bdb35a98caa1ff3f63eced6e8c6df63033be2297078e4ce"
+  },
+  "accepted_profile_builds": [
+    {
+      "profile": "AD1 keyboard",
+      "command": "LADYBUG_PROFILE=complete LADYBUG_ADAPTIVE=1 LADYBUG_INPUT=keyboard bash scripts/build.sh build",
+      "status": "pass",
+      "full_build_packer_source_reference_and_source_docs": "pass",
+      "capacity": {
+        "resident_bytes": 8148,
+        "resident_limit": 8192,
+        "resident_free": 44,
+        "assets_bytes": 7661,
+        "assets_limit": 7680,
+        "assets_free": 19,
+        "active_bytes": 603,
+        "active_limit": 777,
+        "active_free": 174,
+        "audio_page3d_bytes": 6656,
+        "audio_pre_keybinding_limit": 6656,
+        "audio_free": 0,
+        "presentation_module_bytes": 1266,
+        "enemy_module_end": "$17FB",
+        "fixed_lut": "$17A0",
+        "pre_lut_free": 55,
+        "active_stage_free": 5,
+        "sparse_loader_segments": 11,
+        "gmc_source_spare": 12094
+      },
+      "artifact_sha256": {
+        "full_rom": "5d96372e03e6b78670c531f754b36c40a6ea73388cbb822869b41eb149a15458",
+        "build_receipt": "efbf998968fa3d411feeed5898660a2b08e916a613cfe15ca2eb7eb953a21090",
+        "helper_binary": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+        "sparse_layout": "a3ab84ce76a72dcb9486d866aaf0e95c349564e5f1f44617921ae9acb1c77c24"
+      }
+    },
+    {
+      "profile": "AD0 keyboard",
+      "command": "LADYBUG_PROFILE=complete LADYBUG_ADAPTIVE=0 LADYBUG_INPUT=keyboard bash scripts/build.sh build",
+      "status": "pass",
+      "full_build_packer_source_reference_and_source_docs": "pass",
+      "capacity": {
+        "resident_bytes": 8190,
+        "resident_limit": 8192,
+        "resident_free": 2,
+        "assets_bytes": 7620,
+        "assets_limit": 7680,
+        "assets_free": 60,
+        "presentation_module_bytes": 1279,
+        "sparse_loader_segments": 10,
+        "gmc_source_spare": 14374
+      },
+      "artifact_sha256": null,
+      "artifact_hash_status": "Not retained. The full build passed, then later profile builds overwrote build outputs before this ROM hash was captured; no hash is inferred."
+    },
+    {
+      "profile": "AD1 joystick",
+      "command": "LADYBUG_PROFILE=complete LADYBUG_ADAPTIVE=1 LADYBUG_INPUT=joystick bash scripts/build.sh build",
+      "status": "pass",
+      "full_build_packer_source_reference_and_source_docs": "pass",
+      "capacity": {
+        "resident_bytes": 8184,
+        "resident_limit": 8192,
+        "resident_free": 8,
+        "assets_bytes": 7661,
+        "assets_limit": 7680,
+        "assets_free": 19,
+        "active_bytes": 603,
+        "active_limit": 777,
+        "active_free": 174,
+        "audio_page3d_bytes": 6656,
+        "audio_pre_keybinding_limit": 6656,
+        "audio_free": 0,
+        "presentation_module_bytes": 1266,
+        "sparse_loader_segments": 11,
+        "gmc_source_spare": 12092
+      },
+      "artifact_sha256": null,
+      "artifact_hash_status": "Not retained. The full build passed, then the later AD1 keyboard build overwrote build outputs before this ROM hash was captured; no hash is inferred."
+    }
+  ],
+  "helper_layout": {
+    "start": "$A8A0",
+    "end_exclusive": "$A8F7",
+    "bytes": 87,
+    "reserved_logo_start": "$A8FD",
+    "bytes_free_before_logo": 6,
+    "entries": {
+      "efn_cache_guard": "$A8A0",
+      "efn_normal": "$A8AC",
+      "efn_preview": "$A8C5",
+      "enemy_frame_number": "$A8D2",
+      "ENEMY_MODULE_BUILD_CACHE": "$0824"
+    },
+    "AD1_keyboard_emitted_LBSR": [
+      {
+        "at": "$0852",
+        "target": "$A8AC",
+        "bytes": "17A057"
+      },
+      {
+        "at": "$1425",
+        "target": "$A8D2",
+        "bytes": "1794AA"
+      },
+      {
+        "at": "$14B8",
+        "target": "$A8C5",
+        "bytes": "17940A"
+      },
+      {
+        "at": "$14BB",
+        "target": "$A8A0",
+        "bytes": "1793E2"
+      },
+      {
+        "at": "$15D2",
+        "target": "$A8D2",
+        "bytes": "1792FD"
+      },
+      {
+        "at": "$A8CA",
+        "target": "$A8AC",
+        "bytes": "17FFDF"
+      },
+      {
+        "at": "$A8F1",
+        "target": "$A8C5",
+        "bytes": "17FFD1"
+      }
+    ],
+    "cache_builder_JSR": {
+      "at": "$A8A8",
+      "bytes": "BD0824",
+      "target": "$0824"
+    },
+    "AD1_keyboard_sparse_target": {
+      "source_bank": 0,
+      "source_offset": 5107,
+      "destination_page": "$34",
+      "destination_address": "$A8A0",
+      "bytes": 87,
+      "segments_total": 11,
+      "copy_table_bytes": 88
+    },
+    "helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "emitted_target_proof": "Existing E2 evidence extractor passed on final AD1 keyboard build; it byte-compares LBSR encodings to the binary and decodes all seven targets, plus the cache-builder JSR."
+  },
+  "nonadaptive_joystick_baseline": {
+    "baseline_revision": "cb84a603e74c67e18ed055f13e6dc0f518dd051d",
+    "input_source": "Committed src/main.s, direct lwasm build, ADAPTIVE_RENDERING=0, COMPLETE_PROFILE=1, INPUT_JOYSTICK=1",
+    "resident_end": "$E017",
+    "resident_bytes": 8215,
+    "limit_bytes": 8192,
+    "baseline_overflow_bytes": 23,
+    "baseline_main_assembly_rom_sha256": "8a7a4ca367920fac9e3fedd17782e888cabc48ae6fca99de0ab6696e447f4a73",
+    "baseline_map_sha256": "22bcb3fa05402905674b5060f88827473e1ebb5b1a19f9d76119585efb0d5679",
+    "candidate_full_pack_result": {
+      "status": "fail",
+      "resident_end": "$E022",
+      "resident_bytes": 8226,
+      "limit_bytes": 8192,
+      "overflow_bytes": 34,
+      "candidate_delta_vs_baseline_bytes": 11,
+      "failure": "build guard: resident region ends at $E022; limit is $E000",
+      "candidate_full_rom_sha256": null
+    },
+    "classification": "Existing baseline capacity failure; not treated as a passing profile and not repaired in BUG-086. Link PERF-005 release-capacity follow-up."
+  },
+  "carried_forward_delivery": {
+    "evidence": "wiki/internal/tickets/evidence/rsch014-E2/parent-boot-delivery.json",
+    "status": "Pass for earlier AD0/AD1 BUG-086 prototype ROMs only; not rerun on current PERF-008 combined image.",
+    "limitation": "Boot/staged/physical/mapped bytes do not establish natural helper entry or preview/death/replacement behavior."
+  },
+  "runtime_readiness": {
+    "ran": false,
+    "remaining": "Natural helper invocation and focused preview/death/replacement behavior on the current PERF-008 combined image remain unverified.",
+    "next_phase_1": {
+      "name": "cold-to-natural-nest-preview",
+      "success_marker": "PC=$A8D2 (enemy_frame_number), entered through the real nest renderer after natural attract-to-credit gameplay; PAR5=$34; confirm current ROM bytes at the PC and physical page-$34 helper identity first",
+      "deadline_seconds": 45,
+      "timeout_meaning": "Natural helper marker or page mapping was not proved within this phase; not evidence of slow target code."
+    },
+    "next_phase_2": {
+      "name": "forced-latest-death-on-existing-release-deadline",
+      "setup": "At a byte-verified perimeter_timer_tick=$C9B1 after natural gameplay setup, arrange two distinct actor records to execute the real enemy_tick/skull path so est_skull=$10D9 runs twice before the already-due perimeter release; never call a helper directly.",
+      "success_markers": [
+        "second est_skull records the last processed packed type in $A89E",
+        "BOX_TIMER/BOX_INDEX/BOX_PHASE remain unchanged by skull override until the scheduled perimeter timer tick",
+        "efn_preview at $A8C5 selects the pending type before the release",
+        "enemy_release_impl at $0831 consumes that type on the existing release deadline",
+        "pending is invalidated, normal cursor $A89D is unchanged by override, and subsequent normal release resumes and advances the cursor"
+      ],
+      "deadline_seconds": 45,
+      "timeout_meaning": "Required death or release marker absent within phase; fail scenario, do not infer slowness or natural rarity."
+    },
+    "current_command": "No runnable BUG-086 succession command exists. Reuse the existing private XRoar monitor client and observer lifecycle from scripts/verify_bug019_enemy_nest_exit.py; add the focused succession scenario through TOOL-008 shared verifier work before launch.",
+    "status": "Not acceptance proof; BUG-086 remains Draft."
+  },
+  "rejected_designs": [
+    "Immutable-tail helper at $FDC8-$FDFA: nonadaptive pre-LUT guard failed by 25 bytes.",
+    "Resident helper/split: AD0 keyboard leaves two resident bytes before this candidate; cannot safely host the helper.",
+    "No LUT move, active-stage expansion, loader/MMU protocol change, bound increase, or profile-specific skip is included."
+  ],
+  "next_capacity_followup": "PERF-005 release-capacity review for the pre-existing AD0 joystick 23-byte overflow; the BUG-086 candidate increases that combination to 34 bytes over. This combination is outside the explicit PERF-008 three-profile full-build matrix and is not recorded as passing.",
+  "preapproval_judgment": "Keep BUG-086 Draft. Current PERF-008 accepted profile fits, page-$34 placement, byte-decoded helper calls, and earlier loader delivery are documented. A current combined-image natural helper entry and the focused real-path death/replacement proof remain unverified, so page-$34 runtime ownership still has a discriminating viability risk.",
+  "prototype_patch": {
+    "path": "wiki/internal/tickets/evidence/rsch014-E2/prototype.patch",
+    "sha256": "63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa",
+    "base_revision": "cb84a603e74c67e18ed055f13e6dc0f518dd051d",
+    "forward_apply_check": true,
+    "reverse_apply_check": true,
+    "scope": "Candidate source overlay only; no production integration.",
+    "candidate_source_hashes_match": true
+  }
+}
