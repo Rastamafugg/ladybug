@@ -1,0 +1,1945 @@
+{
+  "date": "2026-10-02",
+  "ticket": "BUG-058",
+  "classification": "High-risk",
+  "disposition": "Draft; reference cost attribution advanced, current natural gameplay blocked",
+  "units": "Fast CPU cycles = event_ticks/8, including IRQ execution. Inclusive routine spans include children; audio spans summed only across audio binding actions, never also added to parent tick spans. Values are sampled observations, not whole-game maxima.",
+  "engineering_target": 27000,
+  "commands": [
+    "python3 repro/rsch014_observer_delivery.py",
+    "python3 repro/rsch014_helper_write_local.py",
+    "python3 repro/rsch014_reference_cost_sync.py",
+    "python3 repro/rsch014_trigger_cost_sync.py /mnt/e/projects/ladybug/worktrees/menu-name-prep /mnt/e/projects/ladybug/repro/rsch014-trigger-cost-sync.json --profile --pickup-gate-cadence",
+    "python3 repro/rsch014_audio_crossover_sync.py /mnt/e/projects/ladybug/worktrees/menu-name-prep /mnt/e/projects/ladybug/repro/rsch014-audio-crossover-sync.json --cadence-effects"
+  ],
+  "raw_receipts": [
+    {
+      "path": "repro/rsch014-observer-delivery.json",
+      "sha256": "b49066903f0183290d79812f43c29105c205bc38d42478b437999b7b5068a5c2"
+    },
+    {
+      "path": "repro/rsch014-helper-first-write.json",
+      "sha256": "5de6ea411cd16b6972ae1ab858183ad7378c46bbbbf2e9eaa6c0d0a101f263a3"
+    },
+    {
+      "path": "repro/rsch014-helper-write-identity.json",
+      "sha256": "ede89522a57bbeb5052945a13b92c4d08154eff0cb7f74110a01d3b391857122"
+    },
+    {
+      "path": "repro/rsch014-helper-write-local.json",
+      "sha256": "76d4fbb037fc27a17cb484a27e55082a66fe4fb9423523722765815bac3fbfb0"
+    },
+    {
+      "path": "repro/rsch014-reference-cost-sync.json",
+      "sha256": "396a88e7af813e959bc7d11c290cefa178821b486dbd5bb2cad0a3179803658b"
+    },
+    {
+      "path": "repro/rsch014-trigger-cost-sync.json",
+      "sha256": "9e1f4efa164729593d1c62212ee2a2f2f32a3744054edecf929a06e55b447f2c"
+    },
+    {
+      "path": "repro/rsch014-audio-crossover-sync.json",
+      "sha256": "b30f3b5e4f76d149693b51ab0fc5a357dc04ff1dfe2a3315ddf06f3d84deb930"
+    }
+  ],
+  "observer": {
+    "method": "Existing run then wait_for_stop with validated reason/PC; no monitor/source changes. Reconnect after transport timeout.",
+    "current_expected_stops": 165,
+    "current_wall_seconds": 0.796,
+    "reference_release_wall_seconds": 1.904,
+    "reference_release_complete_passes": 8,
+    "limits": "Success validates these fixtures; it does not prove the earlier async race occurred."
+  },
+  "current_helper_delivery": {
+    "rom_sha256": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+    "receipt_revision": "fe160ae389145d24083218ded05ba9cdca781474",
+    "rom_packaged_helper_exact": true,
+    "cold_cpu_exact": true,
+    "cold_physical_exact": true,
+    "before_copy_cpu_exact": false,
+    "before_copy_physical_exact": false,
+    "cpu_physical_agree": true,
+    "first_write_registers": {
+      "a": 255,
+      "b": 255,
+      "d": 65535,
+      "cc": 200,
+      "dp": 0,
+      "x": 1760,
+      "y": 5,
+      "u": 42470,
+      "s": 8184,
+      "pc": 1595
+    },
+    "highscore_stage_exact": true,
+    "highscore_prestart_destination_exact": true,
+    "writer_local_12_exact": true,
+    "writer_local_hex": "108e0010ecc1ed81ecc1ed81",
+    "pointer_A_B_before_start": "00000000",
+    "finding": "Helper delivery is initially exact. Subsequent high-score cursor restore writes into low RAM; watched stop PC $063B and X $06E0, with zero saved cursor pointers before Start. This is a separate production entry blocker. Upstream cause of uninitialized cursor restore is not closed; do not infer hardware.",
+    "phase": "Cold credit/highscore/start, before active enemy release; watchpoint capture <1 second."
+  },
+  "reference": {
+    "rom_sha256": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+    "receipt_revision": "436478586482afb0457357b4fddbbf05a7b9c52a",
+    "identity": {
+      "resident_range": "C000-FDFF",
+      "resident_live_sha256": "bb1593d3a21a1142f7fa005ccb432df73540ab07c5db93ec042dbd32d0ce81f0",
+      "resident_artifact_sha256": "bb1593d3a21a1142f7fa005ccb432df73540ab07c5db93ec042dbd32d0ce81f0",
+      "resident_live_exact": true,
+      "enemy_destination": "0800-17FA",
+      "enemy_live_sha256": "0d4c7cbbb4048bd29795800c8917dc06559ebf8aad0bbb4902a8bb1449d05940",
+      "enemy_artifact_sha256": "0d4c7cbbb4048bd29795800c8917dc06559ebf8aad0bbb4902a8bb1449d05940",
+      "enemy_live_exact": true,
+      "presentation_destination": "1900-1DEF",
+      "presentation_live_sha256": "0eee8738b5dccf652272d318962d21bd6de8016abba04b36aca0f8c43fe10214",
+      "presentation_artifact_sha256": "0eee8738b5dccf652272d318962d21bd6de8016abba04b36aca0f8c43fe10214",
+      "presentation_live_exact": true,
+      "enemy_release_pc": 54620,
+      "enemy_release_live_bytes": "bd080639bd0809398610971b8604971c",
+      "enemy_release_artifact_bytes": "bd080639bd0809398610971b8604971c",
+      "enemy_release_bytes_exact": true,
+      "adaptive_source_stage_address": 47013,
+      "adaptive_stage_live_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "adaptive_stage_artifact_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "adaptive_stage_live_exact": true,
+      "adaptive_destination_check": "deferred until the natural mode-0 $D55C enemy_release marker after relocated-loader delivery",
+      "physical_loader_staging_snapshot": false,
+      "delivery_boundary": "Authored source is tied to current receipt input; compiled active module equals the embedded audio-runtime stage and live $B7A5 staged bytes. The relocated-loader staging buffer before delivery is not sampled here.",
+      "adaptive_destination_phase": "after natural mode-0 $D55C enemy_release marker; resident marker bytes were proven exact first",
+      "adaptive_destination_address": 911,
+      "adaptive_destination_live_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "adaptive_destination_artifact_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "adaptive_destination_live_exact": true,
+      "audio_api_exact": true,
+      "audio_api_sha256": "c95561a0090cb01ea443531795d672ce77094b97af947985de89f1479f030dab"
+    },
+    "limits": "Adaptive/audio binaries equal current ROM; enemy/render binary differs. Costs do not establish current-ROM maxima. Natural credited entry; pickup/gate legal preconditions and additional releases controlled. Null audio, not PulseAudio."
+  },
+  "quiet_four_roaming_cycle_range": [
+    40228,
+    45066
+  ],
+  "natural_release_partial_tail": {
+    "cycles": 31672,
+    "audio_inclusive_cycles": 4343,
+    "render_inclusive_cycles": 25498,
+    "steps": null,
+    "debt_before": null,
+    "debt_after": 0,
+    "marker": null,
+    "profile": {
+      "adaptive_audio_binding_action_1": {
+        "calls": 1,
+        "inclusive_cycles": 1983,
+        "exclusive_cycles": 1983
+      },
+      "adaptive_render": {
+        "calls": 1,
+        "inclusive_cycles": 25498,
+        "exclusive_cycles": 25498
+      },
+      "adaptive_audio_binding_action_2": {
+        "calls": 1,
+        "inclusive_cycles": 2360,
+        "exclusive_cycles": 2360
+      }
+    }
+  },
+  "natural_release_complete_passes": [
+    {
+      "cycles": 35239,
+      "audio_inclusive_cycles": 3668,
+      "render_inclusive_cycles": 26269,
+      "steps": null,
+      "debt_before": null,
+      "debt_after": 0,
+      "marker": null,
+      "profile": {
+        "adaptive_audio_binding_action_0": {
+          "calls": 1,
+          "inclusive_cycles": 748,
+          "exclusive_cycles": 748
+        },
+        "adaptive_audio_binding_action_1": {
+          "calls": 2,
+          "inclusive_cycles": 590,
+          "exclusive_cycles": 590
+        },
+        "adaptive_tick_binding": {
+          "calls": 2,
+          "inclusive_cycles": 2561,
+          "exclusive_cycles": 1971
+        },
+        "adaptive_render": {
+          "calls": 1,
+          "inclusive_cycles": 26269,
+          "exclusive_cycles": 26269
+        },
+        "adaptive_audio_binding_action_2": {
+          "calls": 1,
+          "inclusive_cycles": 2330,
+          "exclusive_cycles": 2330
+        }
+      }
+    },
+    {
+      "cycles": 32900,
+      "audio_inclusive_cycles": 3292,
+      "render_inclusive_cycles": 24263,
+      "steps": null,
+      "debt_before": null,
+      "debt_after": 0,
+      "marker": null,
+      "profile": {
+        "adaptive_audio_binding_action_0": {
+          "calls": 1,
+          "inclusive_cycles": 740,
+          "exclusive_cycles": 740
+        },
+        "adaptive_audio_binding_action_1": {
+          "calls": 2,
+          "inclusive_cycles": 590,
+          "exclusive_cycles": 590
+        },
+        "adaptive_tick_binding": {
+          "calls": 2,
+          "inclusive_cycles": 2601,
+          "exclusive_cycles": 2011
+        },
+        "adaptive_render": {
+          "calls": 1,
+          "inclusive_cycles": 24263,
+          "exclusive_cycles": 24263
+        },
+        "adaptive_audio_binding_action_2": {
+          "calls": 1,
+          "inclusive_cycles": 1962,
+          "exclusive_cycles": 1962
+        }
+      }
+    },
+    {
+      "cycles": 32565,
+      "audio_inclusive_cycles": 3045,
+      "render_inclusive_cycles": 24240,
+      "steps": null,
+      "debt_before": null,
+      "debt_after": 0,
+      "marker": null,
+      "profile": {
+        "adaptive_audio_binding_action_0": {
+          "calls": 1,
+          "inclusive_cycles": 553,
+          "exclusive_cycles": 553
+        },
+        "adaptive_audio_binding_action_1": {
+          "calls": 2,
+          "inclusive_cycles": 590,
+          "exclusive_cycles": 590
+        },
+        "adaptive_tick_binding": {
+          "calls": 2,
+          "inclusive_cycles": 2539,
+          "exclusive_cycles": 1949
+        },
+        "adaptive_render": {
+          "calls": 1,
+          "inclusive_cycles": 24240,
+          "exclusive_cycles": 24240
+        },
+        "adaptive_audio_binding_action_2": {
+          "calls": 1,
+          "inclusive_cycles": 1902,
+          "exclusive_cycles": 1902
+        }
+      }
+    },
+    {
+      "cycles": 33295,
+      "audio_inclusive_cycles": 3045,
+      "render_inclusive_cycles": 24263,
+      "steps": null,
+      "debt_before": null,
+      "debt_after": 0,
+      "marker": null,
+      "profile": {
+        "adaptive_audio_binding_action_0": {
+          "calls": 1,
+          "inclusive_cycles": 553,
+          "exclusive_cycles": 553
+        },
+        "adaptive_audio_binding_action_1": {
+          "calls": 2,
+          "inclusive_cycles": 590,
+          "exclusive_cycles": 590
+        },
+        "adaptive_tick_binding": {
+          "calls": 2,
+          "inclusive_cycles": 3243,
+          "exclusive_cycles": 2653
+        },
+        "adaptive_render": {
+          "calls": 1,
+          "inclusive_cycles": 24263,
+          "exclusive_cycles": 24263
+        },
+        "adaptive_audio_binding_action_2": {
+          "calls": 1,
+          "inclusive_cycles": 1902,
+          "exclusive_cycles": 1902
+        }
+      }
+    },
+    {
+      "cycles": 37117,
+      "audio_inclusive_cycles": 4516,
+      "render_inclusive_cycles": 27092,
+      "steps": null,
+      "debt_before": null,
+      "debt_after": 0,
+      "marker": null,
+      "profile": {
+        "adaptive_audio_binding_action_0": {
+          "calls": 1,
+          "inclusive_cycles": 553,
+          "exclusive_cycles": 553
+        },
+        "adaptive_audio_binding_action_1": {
+          "calls": 2,
+          "inclusive_cycles": 1633,
+          "exclusive_cycles": 1633
+        },
+        "adaptive_tick_binding": {
+          "calls": 2,
+          "inclusive_cycles": 3811,
+          "exclusive_cycles": 2178
+        },
+        "adaptive_render": {
+          "calls": 1,
+          "inclusive_cycles": 27092,
+          "exclusive_cycles": 27092
+        },
+        "adaptive_audio_binding_action_2": {
+          "calls": 1,
+          "inclusive_cycles": 2330,
+          "exclusive_cycles": 2330
+        }
+      }
+    },
+    {
+      "cycles": 36044,
+      "audio_inclusive_cycles": 3668,
+      "render_inclusive_cycles": 26933,
+      "steps": null,
+      "debt_before": null,
+      "debt_after": 0,
+      "marker": null,
+      "profile": {
+        "adaptive_audio_binding_action_0": {
+          "calls": 1,
+          "inclusive_cycles": 748,
+          "exclusive_cycles": 748
+        },
+        "adaptive_audio_binding_action_1": {
+          "calls": 2,
+          "inclusive_cycles": 590,
+          "exclusive_cycles": 590
+        },
+        "adaptive_tick_binding": {
+          "calls": 2,
+          "inclusive_cycles": 2699,
+          "exclusive_cycles": 2109
+        },
+        "adaptive_render": {
+          "calls": 1,
+          "inclusive_cycles": 26933,
+          "exclusive_cycles": 26933
+        },
+        "adaptive_audio_binding_action_2": {
+          "calls": 1,
+          "inclusive_cycles": 2330,
+          "exclusive_cycles": 2330
+        }
+      }
+    },
+    {
+      "cycles": 32566,
+      "audio_inclusive_cycles": 3292,
+      "render_inclusive_cycles": 23894,
+      "steps": null,
+      "debt_before": null,
+      "debt_after": 0,
+      "marker": null,
+      "profile": {
+        "adaptive_audio_binding_action_0": {
+          "calls": 1,
+          "inclusive_cycles": 740,
+          "exclusive_cycles": 740
+        },
+        "adaptive_audio_binding_action_1": {
+          "calls": 2,
+          "inclusive_cycles": 590,
+          "exclusive_cycles": 590
+        },
+        "adaptive_tick_binding": {
+          "calls": 2,
+          "inclusive_cycles": 2639,
+          "exclusive_cycles": 2049
+        },
+        "adaptive_render": {
+          "calls": 1,
+          "inclusive_cycles": 23894,
+          "exclusive_cycles": 23894
+        },
+        "adaptive_audio_binding_action_2": {
+          "calls": 1,
+          "inclusive_cycles": 1962,
+          "exclusive_cycles": 1962
+        }
+      }
+    },
+    {
+      "cycles": 33503,
+      "audio_inclusive_cycles": 3045,
+      "render_inclusive_cycles": 24622,
+      "steps": null,
+      "debt_before": null,
+      "debt_after": 0,
+      "marker": null,
+      "profile": {
+        "adaptive_audio_binding_action_0": {
+          "calls": 1,
+          "inclusive_cycles": 553,
+          "exclusive_cycles": 553
+        },
+        "adaptive_audio_binding_action_1": {
+          "calls": 2,
+          "inclusive_cycles": 590,
+          "exclusive_cycles": 590
+        },
+        "adaptive_tick_binding": {
+          "calls": 2,
+          "inclusive_cycles": 3092,
+          "exclusive_cycles": 2502
+        },
+        "adaptive_render": {
+          "calls": 1,
+          "inclusive_cycles": 24622,
+          "exclusive_cycles": 24622
+        },
+        "adaptive_audio_binding_action_2": {
+          "calls": 1,
+          "inclusive_cycles": 1902,
+          "exclusive_cycles": 1902
+        }
+      }
+    }
+  ],
+  "trigger_scenarios": [
+    {
+      "name": "pickup",
+      "samples": 58,
+      "event_worklist": 0,
+      "sampled_max_cycles": 332937,
+      "simulation_steps": [
+        1,
+        2,
+        4
+      ],
+      "profiled_rows": {
+        "0": {
+          "cycles": 332937,
+          "audio_inclusive_cycles": 3975,
+          "render_inclusive_cycles": 323183,
+          "steps": 1,
+          "debt_before": 0,
+          "debt_after": null,
+          "marker": {
+            "bonus_left": 5,
+            "pickup_timer": 30,
+            "entity_type": 0
+          },
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 538,
+              "exclusive": 538
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 1,
+              "inclusive": 1386,
+              "exclusive": 1386
+            },
+            "adaptive_tick_binding": {
+              "calls": 1,
+              "inclusive": 3326,
+              "exclusive": 1940
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 498,
+              "exclusive": 478
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 152,
+              "exclusive": 152
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4761,
+              "exclusive": 4761
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6440,
+              "exclusive": 1679
+            },
+            "background_requests": [
+              {
+                "flags": "08000000000000000000000000000000",
+                "cell": "140e"
+              },
+              {
+                "flags": "02000000000000000000000000000000",
+                "cell": "140e"
+              },
+              {
+                "flags": "00020000000000000000000000000000",
+                "cell": "140e"
+              }
+            ],
+            "erase_entity_footprints": {
+              "calls": 1,
+              "inclusive": 22320,
+              "exclusive": 22320
+            },
+            "repair_settled_entity_gates": {
+              "calls": 1,
+              "inclusive": 133060,
+              "exclusive": 133060
+            },
+            "draw_entities": {
+              "calls": 2,
+              "inclusive": 101051,
+              "exclusive": 101051
+            },
+            "bnc_copy": {
+              "calls": 1,
+              "inclusive": 3077,
+              "exclusive": 3077
+            },
+            "draw_vegetable_stage": {
+              "calls": 1,
+              "inclusive": 1291,
+              "exclusive": 1291
+            },
+            "copy_native_row": {
+              "calls": 32,
+              "inclusive": 2208,
+              "exclusive": 2208
+            },
+            "compose_enemy_zone": {
+              "calls": 1,
+              "inclusive": 9037,
+              "exclusive": 1014
+            },
+            "frame_render_background": {
+              "calls": 3,
+              "inclusive": 294202,
+              "exclusive": 30181
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 294946,
+              "exclusive": 606
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 5036,
+              "exclusive": 5036
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 11281,
+              "exclusive": 11281
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 18721,
+              "exclusive": 2404
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 323183,
+              "exclusive": 2564
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 2051,
+              "exclusive": 2051
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 556,
+              "exclusive": 556
+            }
+          }
+        },
+        "1": {
+          "cycles": 332029,
+          "audio_inclusive_cycles": 3049,
+          "render_inclusive_cycles": 322682,
+          "steps": 1,
+          "debt_before": 1,
+          "debt_after": null,
+          "marker": {
+            "bonus_left": 5,
+            "pickup_timer": 29,
+            "entity_type": 0
+          },
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 637,
+              "exclusive": 637
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 1,
+              "inclusive": 295,
+              "exclusive": 295
+            },
+            "adaptive_tick_binding": {
+              "calls": 1,
+              "inclusive": 2732,
+              "exclusive": 2437
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 490,
+              "exclusive": 470
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 191,
+              "exclusive": 191
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4881,
+              "exclusive": 4881
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6572,
+              "exclusive": 1691
+            },
+            "background_requests": [
+              {
+                "flags": "08000000000000000000000000000000",
+                "cell": "140e"
+              },
+              {
+                "flags": "02000000000000000000000000000000",
+                "cell": "140e"
+              },
+              {
+                "flags": "00020000000000000000000000000000",
+                "cell": "140e"
+              }
+            ],
+            "erase_entity_footprints": {
+              "calls": 1,
+              "inclusive": 22320,
+              "exclusive": 22320
+            },
+            "repair_settled_entity_gates": {
+              "calls": 1,
+              "inclusive": 133060,
+              "exclusive": 133060
+            },
+            "draw_entities": {
+              "calls": 2,
+              "inclusive": 100955,
+              "exclusive": 100955
+            },
+            "bnc_copy": {
+              "calls": 1,
+              "inclusive": 3173,
+              "exclusive": 3173
+            },
+            "draw_vegetable_stage": {
+              "calls": 1,
+              "inclusive": 1291,
+              "exclusive": 1291
+            },
+            "copy_native_row": {
+              "calls": 32,
+              "inclusive": 2208,
+              "exclusive": 2208
+            },
+            "compose_enemy_zone": {
+              "calls": 1,
+              "inclusive": 9133,
+              "exclusive": 1014
+            },
+            "frame_render_background": {
+              "calls": 3,
+              "inclusive": 294202,
+              "exclusive": 30181
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 294940,
+              "exclusive": 606
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 5048,
+              "exclusive": 5048
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 11185,
+              "exclusive": 11185
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 18637,
+              "exclusive": 2404
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 322682,
+              "exclusive": 1984
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 2117,
+              "exclusive": 2117
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 553,
+              "exclusive": 553
+            }
+          }
+        }
+      },
+      "final_marker": {
+        "bonus_left": 5,
+        "pickup_timer": 0,
+        "entity_type": 0
+      },
+      "max_recorded_debt_before": 52
+    },
+    {
+      "name": "gate rotation",
+      "samples": 12,
+      "event_worklist": 0,
+      "sampled_max_cycles": 80651,
+      "simulation_steps": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "profiled_rows": {
+        "0": {
+          "cycles": 39956,
+          "audio_inclusive_cycles": 3810,
+          "render_inclusive_cycles": 30311,
+          "steps": 1,
+          "debt_before": 0,
+          "debt_after": null,
+          "marker": {
+            "gate_state": 1,
+            "gate_animation": 1
+          },
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 538,
+              "exclusive": 538
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 1,
+              "inclusive": 1340,
+              "exclusive": 1340
+            },
+            "adaptive_tick_binding": {
+              "calls": 1,
+              "inclusive": 3336,
+              "exclusive": 1996
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 498,
+              "exclusive": 478
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 248,
+              "exclusive": 248
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4761,
+              "exclusive": 4761
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6440,
+              "exclusive": 1679
+            },
+            "background_requests": [
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "0404"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "0404"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "0404"
+              },
+              {
+                "flags": "000000000000000f0001000000000100",
+                "cell": "0404"
+              }
+            ],
+            "frame_render_background": {
+              "calls": 4,
+              "inclusive": 2810,
+              "exclusive": 2810
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 1221,
+              "exclusive": 609
+            },
+            "adaptive_key_binding": {
+              "calls": 1,
+              "inclusive": 2477,
+              "exclusive": 93
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 2371,
+              "exclusive": 2371
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 12044,
+              "exclusive": 12044
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 16856,
+              "exclusive": 2441
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 30311,
+              "exclusive": 2757
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 1932,
+              "exclusive": 1932
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 556,
+              "exclusive": 556
+            }
+          }
+        },
+        "1": {
+          "cycles": 41912,
+          "audio_inclusive_cycles": 3001,
+          "render_inclusive_cycles": 32551,
+          "steps": 1,
+          "debt_before": 1,
+          "debt_after": null,
+          "marker": {
+            "gate_state": 1,
+            "gate_animation": 0
+          },
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 391,
+              "exclusive": 391
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 1,
+              "inclusive": 738,
+              "exclusive": 738
+            },
+            "adaptive_tick_binding": {
+              "calls": 1,
+              "inclusive": 3237,
+              "exclusive": 2499
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 490,
+              "exclusive": 470
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 236,
+              "exclusive": 236
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4881,
+              "exclusive": 4881
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6572,
+              "exclusive": 1691
+            },
+            "background_requests": [
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "0404"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "0404"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "0404"
+              },
+              {
+                "flags": "000000000000000f0001010000000100",
+                "cell": "0404"
+              }
+            ],
+            "frame_render_background": {
+              "calls": 4,
+              "inclusive": 5268,
+              "exclusive": 5268
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 1212,
+              "exclusive": 609
+            },
+            "adaptive_key_binding": {
+              "calls": 1,
+              "inclusive": 4935,
+              "exclusive": 93
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 2559,
+              "exclusive": 2559
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 11993,
+              "exclusive": 11993
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 17002,
+              "exclusive": 2450
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 32551,
+              "exclusive": 2281
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 1872,
+              "exclusive": 1872
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 553,
+              "exclusive": 553
+            }
+          }
+        },
+        "7": {
+          "cycles": 79024,
+          "audio_inclusive_cycles": 5833,
+          "render_inclusive_cycles": 63734,
+          "steps": 2,
+          "debt_before": 0,
+          "debt_after": null,
+          "marker": {
+            "gate_state": 1,
+            "gate_animation": 0
+          },
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 391,
+              "exclusive": 391
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 2,
+              "inclusive": 2787,
+              "exclusive": 2787
+            },
+            "adaptive_tick_binding": {
+              "calls": 2,
+              "inclusive": 7316,
+              "exclusive": 4529
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 490,
+              "exclusive": 470
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 236,
+              "exclusive": 236
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4556,
+              "exclusive": 4556
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6247,
+              "exclusive": 1691
+            },
+            "background_requests": [
+              {
+                "flags": "00000000000000001000000000000000",
+                "cell": "0402"
+              },
+              {
+                "flags": "02000000000000000000000000000000",
+                "cell": "0402"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "0402"
+              },
+              {
+                "flags": "200000000000000f0000000000000000",
+                "cell": "0402"
+              },
+              {
+                "flags": "10000a050000000f0000000000000000",
+                "cell": "0402"
+              }
+            ],
+            "compose_enemy_animation": {
+              "calls": 1,
+              "inclusive": 12,
+              "exclusive": 12
+            },
+            "frame_render_background": {
+              "calls": 5,
+              "inclusive": 32389,
+              "exclusive": 30122
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 29868,
+              "exclusive": 609
+            },
+            "adaptive_key_binding": {
+              "calls": 2,
+              "inclusive": 3502,
+              "exclusive": 195
+            },
+            "draw_perimeter_box": {
+              "calls": 1,
+              "inclusive": 2255,
+              "exclusive": 2255
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 5144,
+              "exclusive": 5144
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 12372,
+              "exclusive": 12372
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 19966,
+              "exclusive": 2450
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 63734,
+              "exclusive": 3602
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 2655,
+              "exclusive": 2655
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 553,
+              "exclusive": 553
+            }
+          }
+        },
+        "8": {
+          "cycles": 80651,
+          "audio_inclusive_cycles": 4306,
+          "render_inclusive_cycles": 64585,
+          "steps": 3,
+          "debt_before": 0,
+          "debt_after": null,
+          "marker": {
+            "gate_state": 1,
+            "gate_animation": 0
+          },
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 795,
+              "exclusive": 795
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 3,
+              "inclusive": 885,
+              "exclusive": 885
+            },
+            "adaptive_tick_binding": {
+              "calls": 3,
+              "inclusive": 6612,
+              "exclusive": 5727
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 498,
+              "exclusive": 478
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 248,
+              "exclusive": 248
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4556,
+              "exclusive": 4556
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6235,
+              "exclusive": 1679
+            },
+            "background_requests": [
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "0402"
+              },
+              {
+                "flags": "02000000000000000000000000000000",
+                "cell": "0402"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "0402"
+              },
+              {
+                "flags": "200000000000000f0000000000000000",
+                "cell": "0402"
+              },
+              {
+                "flags": "10000a050000000f0000000000000000",
+                "cell": "0402"
+              }
+            ],
+            "frame_render_background": {
+              "calls": 5,
+              "inclusive": 32188,
+              "exclusive": 29933
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 29676,
+              "exclusive": 609
+            },
+            "adaptive_key_binding": {
+              "calls": 2,
+              "inclusive": 3502,
+              "exclusive": 195
+            },
+            "draw_perimeter_box": {
+              "calls": 1,
+              "inclusive": 2255,
+              "exclusive": 2255
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 5132,
+              "exclusive": 5132
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 12374,
+              "exclusive": 12374
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 19947,
+              "exclusive": 2441
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 64585,
+              "exclusive": 4665
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 2626,
+              "exclusive": 2626
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 556,
+              "exclusive": 556
+            }
+          }
+        }
+      },
+      "final_marker": {
+        "gate_state": 1,
+        "gate_animation": 0
+      },
+      "max_recorded_debt_before": 2
+    }
+  ],
+  "audio_only_controls": [
+    {
+      "name": "gate effect",
+      "cue": 0,
+      "admitted": true,
+      "samples": 12,
+      "sampled_cycle_range": [
+        40642,
+        46421
+      ],
+      "simulation_steps": [
+        2
+      ],
+      "profiled_rows": [
+        {
+          "cycles": 42019,
+          "audio_inclusive_cycles": 3901,
+          "render_inclusive_cycles": 29432,
+          "steps": 2,
+          "debt_before": 0,
+          "debt_after": null,
+          "marker": null,
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 538,
+              "exclusive": 538
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 2,
+              "inclusive": 1431,
+              "exclusive": 1431
+            },
+            "adaptive_tick_binding": {
+              "calls": 2,
+              "inclusive": 5186,
+              "exclusive": 3755
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 498,
+              "exclusive": 478
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 248,
+              "exclusive": 248
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4761,
+              "exclusive": 4761
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6440,
+              "exclusive": 1679
+            },
+            "background_requests": [
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              }
+            ],
+            "frame_render_background": {
+              "calls": 3,
+              "inclusive": 426,
+              "exclusive": 426
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 1221,
+              "exclusive": 609
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 3627,
+              "exclusive": 3627
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 11993,
+              "exclusive": 11993
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 18070,
+              "exclusive": 2450
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 29432,
+              "exclusive": 3141
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 1932,
+              "exclusive": 1932
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 556,
+              "exclusive": 556
+            }
+          }
+        },
+        {
+          "cycles": 41237,
+          "audio_inclusive_cycles": 2853,
+          "render_inclusive_cycles": 29905,
+          "steps": 2,
+          "debt_before": 0,
+          "debt_after": null,
+          "marker": null,
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 391,
+              "exclusive": 391
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 2,
+              "inclusive": 590,
+              "exclusive": 590
+            },
+            "adaptive_tick_binding": {
+              "calls": 2,
+              "inclusive": 4141,
+              "exclusive": 3551
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 490,
+              "exclusive": 470
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 236,
+              "exclusive": 236
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4881,
+              "exclusive": 4881
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6572,
+              "exclusive": 1691
+            },
+            "background_requests": [
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              }
+            ],
+            "frame_render_background": {
+              "calls": 3,
+              "inclusive": 426,
+              "exclusive": 426
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 1212,
+              "exclusive": 609
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 3991,
+              "exclusive": 3991
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 11993,
+              "exclusive": 11993
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 18434,
+              "exclusive": 2450
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 29905,
+              "exclusive": 3138
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 1872,
+              "exclusive": 1872
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 553,
+              "exclusive": 553
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "pickup effect",
+      "cue": 1,
+      "admitted": true,
+      "samples": 12,
+      "sampled_cycle_range": [
+        40731,
+        46510
+      ],
+      "simulation_steps": [
+        2
+      ],
+      "profiled_rows": [
+        {
+          "cycles": 42252,
+          "audio_inclusive_cycles": 4134,
+          "render_inclusive_cycles": 29432,
+          "steps": 2,
+          "debt_before": 0,
+          "debt_after": null,
+          "marker": null,
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 538,
+              "exclusive": 538
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 2,
+              "inclusive": 1515,
+              "exclusive": 1515
+            },
+            "adaptive_tick_binding": {
+              "calls": 2,
+              "inclusive": 5270,
+              "exclusive": 3755
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 498,
+              "exclusive": 478
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 248,
+              "exclusive": 248
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4761,
+              "exclusive": 4761
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6440,
+              "exclusive": 1679
+            },
+            "background_requests": [
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              }
+            ],
+            "frame_render_background": {
+              "calls": 3,
+              "inclusive": 426,
+              "exclusive": 426
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 1221,
+              "exclusive": 609
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 3627,
+              "exclusive": 3627
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 11993,
+              "exclusive": 11993
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 18070,
+              "exclusive": 2450
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 29432,
+              "exclusive": 3141
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 2081,
+              "exclusive": 2081
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 556,
+              "exclusive": 556
+            }
+          }
+        },
+        {
+          "cycles": 41326,
+          "audio_inclusive_cycles": 2942,
+          "render_inclusive_cycles": 29905,
+          "steps": 2,
+          "debt_before": 0,
+          "debt_after": null,
+          "marker": null,
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 391,
+              "exclusive": 391
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 2,
+              "inclusive": 590,
+              "exclusive": 590
+            },
+            "adaptive_tick_binding": {
+              "calls": 2,
+              "inclusive": 4141,
+              "exclusive": 3551
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 490,
+              "exclusive": 470
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 236,
+              "exclusive": 236
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4881,
+              "exclusive": 4881
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6572,
+              "exclusive": 1691
+            },
+            "background_requests": [
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              }
+            ],
+            "frame_render_background": {
+              "calls": 3,
+              "inclusive": 426,
+              "exclusive": 426
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 1212,
+              "exclusive": 609
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 3991,
+              "exclusive": 3991
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 11993,
+              "exclusive": 11993
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 18434,
+              "exclusive": 2450
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 29905,
+              "exclusive": 3138
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 1961,
+              "exclusive": 1961
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 553,
+              "exclusive": 553
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "release effect",
+      "cue": 5,
+      "admitted": true,
+      "samples": 12,
+      "sampled_cycle_range": [
+        40834,
+        46613
+      ],
+      "simulation_steps": [
+        2
+      ],
+      "profiled_rows": [
+        {
+          "cycles": 42019,
+          "audio_inclusive_cycles": 3901,
+          "render_inclusive_cycles": 29432,
+          "steps": 2,
+          "debt_before": 0,
+          "debt_after": null,
+          "marker": null,
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 538,
+              "exclusive": 538
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 2,
+              "inclusive": 1431,
+              "exclusive": 1431
+            },
+            "adaptive_tick_binding": {
+              "calls": 2,
+              "inclusive": 5186,
+              "exclusive": 3755
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 498,
+              "exclusive": 478
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 248,
+              "exclusive": 248
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4761,
+              "exclusive": 4761
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6440,
+              "exclusive": 1679
+            },
+            "background_requests": [
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              }
+            ],
+            "frame_render_background": {
+              "calls": 3,
+              "inclusive": 426,
+              "exclusive": 426
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 1221,
+              "exclusive": 609
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 3627,
+              "exclusive": 3627
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 11993,
+              "exclusive": 11993
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 18070,
+              "exclusive": 2450
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 29432,
+              "exclusive": 3141
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 1932,
+              "exclusive": 1932
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 556,
+              "exclusive": 556
+            }
+          }
+        },
+        {
+          "cycles": 41429,
+          "audio_inclusive_cycles": 3045,
+          "render_inclusive_cycles": 29905,
+          "steps": 2,
+          "debt_before": 0,
+          "debt_after": null,
+          "marker": null,
+          "profile": {
+            "adaptive_audio_binding_0": {
+              "calls": 1,
+              "inclusive": 553,
+              "exclusive": 553
+            },
+            "adaptive_audio_binding_1": {
+              "calls": 2,
+              "inclusive": 590,
+              "exclusive": 590
+            },
+            "adaptive_tick_binding": {
+              "calls": 2,
+              "inclusive": 4141,
+              "exclusive": 3551
+            },
+            "sync_entity_cache_colour": {
+              "calls": 1,
+              "inclusive": 20,
+              "exclusive": 20
+            },
+            "framebuffer_prepare_back": {
+              "calls": 1,
+              "inclusive": 490,
+              "exclusive": 470
+            },
+            "colour_prepare_nest": {
+              "calls": 4,
+              "inclusive": 236,
+              "exclusive": 236
+            },
+            "roam_copy_bg_to_fb": {
+              "calls": 4,
+              "inclusive": 4881,
+              "exclusive": 4881
+            },
+            "actor_closure_restore": {
+              "calls": 1,
+              "inclusive": 6572,
+              "exclusive": 1691
+            },
+            "background_requests": [
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              },
+              {
+                "flags": "00000000000000000000000000000000",
+                "cell": "1616"
+              }
+            ],
+            "frame_render_background": {
+              "calls": 3,
+              "inclusive": 426,
+              "exclusive": 426
+            },
+            "adaptive_global_binding": {
+              "calls": 3,
+              "inclusive": 1212,
+              "exclusive": 609
+            },
+            "roam_update_background": {
+              "calls": 4,
+              "inclusive": 3991,
+              "exclusive": 3991
+            },
+            "sparse_blit_fb": {
+              "calls": 5,
+              "inclusive": 11993,
+              "exclusive": 11993
+            },
+            "actor_closure_draw": {
+              "calls": 1,
+              "inclusive": 18434,
+              "exclusive": 2450
+            },
+            "adaptive_render": {
+              "calls": 1,
+              "inclusive": 29905,
+              "exclusive": 3138
+            },
+            "adaptive_audio_binding_2": {
+              "calls": 1,
+              "inclusive": 1902,
+              "exclusive": 1902
+            },
+            "framebuffer_finish_back": {
+              "calls": 1,
+              "inclusive": 553,
+              "exclusive": 553
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "conclusion": "Reference pickup slowdown is dominated by repeated entity/gate background work, not full-cue blocking. Gate recovery is also observed. Audio-only admitted cue controls retain two-step batches over twelve sampled passes; no whole-cue or real-backend conclusion. Current-ROM attribution remains gated by high-score cursor restore and missing natural trigger coverage.",
+  "rejected_mechanics": "One audio-control script indentation failure was corrected before launch; no emulator/probe began. Prior async failures retained separately. No production fix selected.",
+  "capacity": "No source/build changes; no capacity change.",
+  "remaining": [
+    "Current-ROM natural high-score/start entry blocker",
+    "Natural current-ROM pickup/release/gate cost coverage",
+    "Full cue duration maxima",
+    "Visible audio backend crossover",
+    "Maximum recovery velocity policy and implementation approval"
+  ]
+}
