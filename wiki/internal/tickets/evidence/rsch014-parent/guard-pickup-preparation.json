@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-02",
+  "source_baseline": "fe160ae389145d24083218ded05ba9cdca781474",
+  "rom_sha256": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+  "source_sha256": {
+    "src/presentation_runtime.s": "1482794a0414b223cdd7a0c673c3540e06b0f42e2228e99766cfa92093f65b78",
+    "src/main.s": "2cfd91b6e6f8dad417686e1bbc67173e998a00c27418d974ef05a0fcc9931661",
+    "src/enemy_runtime.s": "d8b04663d25b50add05e9d2b53dfb31e58f314fbbcad0005898de362258b7e80",
+    "src/adaptive_runtime.s": "01f05a499471c595444de9ef05358963f4be5fa8d535b83766e8ce3ce3384403",
+    "src/adaptive_active.s": "ea67e009201093b316f07e7d3a481a106c41d237e794631f28481c8b6a508dee"
+  },
+  "guard": {
+    "ticket": "BUG-111",
+    "status": "Proposed",
+    "risk": "High-risk: phase handoff/low-RAM ownership/persistent hydration",
+    "cause": "Unnormalized equality flag selects stale adaptive owner on early Start; current byte-identified route retained in parent evidence.",
+    "change": "Complete-profile load_done_hold_owner: insert lda #1 between start_screen_no_instruction_install return and rts.",
+    "bytes_before": 1264,
+    "limit": 1280,
+    "projected_bytes_after": 1266,
+    "projected_free_after": 14,
+    "projected_extra_cycles": 2,
+    "fit_status": "Arithmetic projection only; full combined build and rare-path verification follow approval.",
+    "alternatives_rejected": [
+      "Initialize cursor pointers in load mode: hides incorrect owner execution.",
+      "Force adaptive install for mode1: executes gameplay during presentation hydration.",
+      "Require user to wait: avoids the reproduction without fixing supported early input."
+    ]
+  },
+  "pickup": {
+    "ticket": "PERF-008",
+    "status": "Draft",
+    "class": "High-risk: persistent background/saved-under coherence, replay semantics, hard code limits",
+    "candidate": "Use existing RF_DOT cell key and recorded PLAYER_CELL to replay normal one-cell collectible removal; separate removal routine at keyed callback, not recursive draw_maze_state_cell. Leave full RF_ENTITIES fallback for skull batch/stage reconstruction.",
+    "journal_width": 18,
+    "added_record_or_direct_page_bytes": 0,
+    "source_feasibility": [
+      "Normal heart/letter pickup clears one ENTITY_TABLE type field and sets RF_ENTITIES.",
+      "RF_ENTITIES is merged globally, causing all footprints/settled gates/entities to redraw for each buffer history.",
+      "Existing dot records retain cell at bytes16/17 and deduplicate same-cell work; replay freezes logical entity table.",
+      "restore_entity_footprint covers four cells, calls draw_maze_state_cell internally: extending draw_maze_state_cell itself would recurse.",
+      "Gate association records carry entity pointers; draw_gate_entities skips cleared type records.",
+      "Nest overlay is separate structural layer; removal at12,10 must request nest reconstruction."
+    ],
+    "unresolved": [
+      "Prove existing dot-key semantics retain removal across deferred buffers, same-cell revisits, stage supersession and simultaneously pending gate/colour intents.",
+      "Bound selective gate repairs by overlap of restored four-cell footprint with gate/visual-neighbour unions, not entity membership alone.",
+      "Prove surviving collectible cache replay and roaming saved-under closures use final pixels.",
+      "Fit new resident callback within existing limits; no new page34 helper allocation until reconciled with BUG-086 pending page34 fit.",
+      "Measure complete pickup worklists before selecting numeric incremental target; 27000 remains engineering gate and already fails steady control.",
+      "Widen changed-cell/gate-union damage in framebuffer preparation before actor_closure_restore; later keyed-callback marking alone cannot prove saved-under correctness."
+    ],
+    "design_targets": [
+      "Exactly one removed footprint per ordinary pickup replay; only intersecting gate unions; surviving overlays restored; no whole ENTITY_TABLE cache rebuild.",
+      "Both published buffers and natural later revisits match full-render oracle with zero stale collectible/actor pixels.",
+      "Exact scoring, popup duration, collisions, audio queue and simulation clock unchanged.",
+      "Report complete cycle reduction and residual excess versus27000; do not mark performance accepted on code correctness alone."
+    ],
+    "excluded": [
+      "No maximum velocity/tick discard decision",
+      "No audio changes",
+      "No stage/skull rewrite",
+      "No allocation expansion",
+      "No loader/MMU/protocol layout changes"
+    ]
+  },
+  "retained_evidence": "current-cue-cost-diagnosis.json",
+  "capacity_change": "None; code/source/build/TMX untouched."
+}
