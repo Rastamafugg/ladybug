@@ -1,0 +1,158 @@
+{
+  "schema": "rsch014-b7-bug087-enemy-rate-design-fit-v1",
+  "date": "2026-10-02",
+  "task": "RSCH-014 B7: BUG-087 enemy-rate design and fit preparation",
+  "role_sequence": ["project-management", "coding-architect", "qa-reviewer"],
+  "classification": "High-risk",
+  "classification_reason": "Enemy-rate timer and fractional accumulator ownership, stage/death/spawn lifecycle, fixed enemy-module and page-34 boundaries, adaptive-clock interaction, and uncalibrated arcade-to-CoCo cadence.",
+  "scope": {
+    "owned_artifacts": "This evidence directory only.",
+    "production_implementation": false,
+    "canonical_ticket_or_shared_wiki_edits": false,
+    "runtime_or_emulator_probe": false,
+    "target_behavior": "Default Easy/Medium arcade roaming-enemy progression, with existing border timer, player speed, pose timer, and adaptive policy preserved."
+  },
+  "source_identity": {
+    "worktree_head": "1e2635c60b890748a89506c1f449f635192fcfb1",
+    "production_perf008_source": "85b95a4",
+    "BUG086_patch_receipt_sha256_lf": "63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa",
+    "BUG086_patch_worktree_sha256_crlf": "c1b10717d125765c6c47aba86ffd6d59485c2ff292932b81ceca3a54d3c4f043",
+    "patch_line_ending_check": "With core.autocrlf=true, normalizing the checked-out patch from CRLF to LF reproduces the E2 receipt SHA-256 exactly.",
+    "build_sh_blob_cb84a60": "a54a9d3a1182897ba9091b6022f5aa2a56954b8e",
+    "build_sh_blob_1e2635c": "a54a9d3a1182897ba9091b6022f5aa2a56954b8e",
+    "fixture_fidelity": "BUG086 non-build hunks were applied from the supplied patch; the build.sh hunk failed apply-check and helper build/loader wiring was manually reconstructed. No post-BUG086/pre-B7 source hashes were retained. Treat this as a reconstructed fit fixture, not the exact E2 fixture or ROM. No combined-fit pass is claimed."
+  },
+  "arcade_source_policy": {
+    "basis": "wiki/internal/tickets/evidence/rsch014-D/rate-policy-model.json and rate-policy-disassembly.txt; static model for the hashed local Lady Bug ROM.",
+    "difficulty": "Easy and Medium select table $0ED8; MAME default is Easy. Hard/Hardest and code $20 behavior are out of scope.",
+    "movement_dispatcher": "$407E after the $61E1 gate; it selects one shared integer step count and each active roaming enemy consumes that count.",
+    "source_coordinate_unit": "One visible arcade pixel per coordinate step, per Step D model.",
+    "easy_medium_codes_by_index_0_to_15": ["10", "10", "10", "10", "10", "10", "12", "12", "12", "12", "12", "12", "15", "15", "15", "18"],
+    "mean_coordinate_steps_per_dispatch": [1.0, 1.19921875, 1.5, 1.796875],
+    "rate_index": "min(15, part_offset + ($61B7 >> 4))",
+    "part_counter_offsets_1_to_17": [0, 2, 4, 1, 3, 5, 6, 8, 5, 7, 9, 10, 11, 8, 12, 13, 14],
+    "later_parts": "The source offset reaches 15 and the Easy/Medium rate index saturates at 15. No later-part arcade motion capture or CoCo conversion is present.",
+    "timer_and_fraction_owners": {
+      "$61B5": "Shared 8-bit fractional movement accumulator, reset on stage initialization.",
+      "$61B6": "Initialized to 96 logical-loop calls; reloaded to 60 on expiration.",
+      "$61B7": "Elapsed byte incremented by the timer and saturated at $F0; its high nibble feeds rate selection.",
+      "first_part_1_easy_medium_rate_change": "At $61B7=$60 after 5,796 source logical gameplay-loop calls, per Step D model. These are not verified MAME-frame or CoCo-tick units."
+    },
+    "independent_owners": {
+      "source_border_timer": "$35E3 initializes and owns border-box timing; do not reuse CoCo BOX_TIMER.",
+      "coco_enemy_pose": "ENEMY_TIMER/ENEMY_ANIM own enemy pose timing; do not reuse for movement rate.",
+      "adaptive_clock": "BUG-058 approved two-tick/debt-discard policy controls admitted simulation ticks; it does not own enemy rate selection or fractional movement phase."
+    }
+  },
+  "coco_evidence_and_gates": {
+    "current_parent_transition": "Parent-published controlled legal last-bonus/real-initialization quiet sample: all four enemies show 2 source-origin pixels per 2 logical ticks/2 raw Vbords in both parts. It is not arcade-rate acceptance and Part 2 is not separately pixel-verified.",
+    "parent_evidence_path": "wiki/internal/tickets/evidence/rsch014-parent/bug087-current-transition-preparation-20261002.json",
+    "route_and_later_part": "B5 route did not reach Part 2. No later-part arcade enemy-rate capture exists.",
+    "cadence_conversion": "Unknown. One enemy_tick per arcade dispatcher is only a model parameter; do not use it as an acceptance value. Calibrate movement dispatch cadence and elapsed-rate timer cadence against arcade captures.",
+    "fixed_quantum": "CoCo et_find_movement emits 2-pixel quanta (horizontal +/-1 byte or vertical +/-320 bytes). Exact frame/phase compatibility with one-pixel arcade coordinate steps is unproved.",
+    "cycle_target": {
+      "target_cycles": 27000,
+      "status": "Still fails in the parent current evidence; B7 did not measure candidate cycle cost.",
+      "acceptance": "No rate candidate is accepted by this result."
+    }
+  },
+  "bounded_design": {
+    "owner": "One new shared roaming-enemy movement-rate owner, distinct from BOX_TIMER, ENEMY_TIMER/ENEMY_ANIM, player cadence, and adaptive elapsed/debt state.",
+    "parameterized_credit": "For each admitted CoCo enemy simulation tick, add arcade mean coordinate pixels per dispatcher multiplied by a measured dispatcher-per-CoCo-tick conversion. Emit a 2-pixel movement quantum at each 2-pixel credit threshold. The conversion is unset until arcade_timing_research proves it.",
+    "progression": "Initialize source-style countdown/bucket/fraction state only at a true stage initialization. Apply one common due quantum to each active roaming enemy so their movement phase follows the source's shared count. Spawned enemies join the current shared phase. Death/reset/release must not reset stage rate. Preserve $61B7 saturation at $F0.",
+    "blocked_or_frozen_motion": "A due spatial event could be discarded while movement is blocked/frozen while elapsed rate phase continues, but no current evidence selects this policy; it is a behavior gate, not an approved rule.",
+    "hard_mode_and_nonroaming_actors": "Excluded. No rate/pose ownership is inferred for player, vegetables, dormant den actors, death actors, attract, or instruction actors.",
+    "stage_wrap": "The source arcade counter wraps 0xFF to 0; CoCo STAGE lifecycle mapping at rollover requires verification."
+  },
+  "allocation_and_fit": {
+    "BUG086_PAGE34_HELPER": {
+      "start": "$A8A0",
+      "end_exclusive": "$A8F7",
+      "bytes": 87,
+      "remaining_before_reserved_logo": 6,
+      "reserved_logo": "$A8FD-$A8FF"
+    },
+    "AD1_keyboard_E2_baseline": {
+      "resident_bytes": 8148,
+      "resident_limit": 8192,
+      "resident_free": 44,
+      "assets_bytes": 7661,
+      "assets_limit": 7680,
+      "assets_free": 19,
+      "active_bytes": 603,
+      "active_limit": 777,
+      "audio_bytes": 6656,
+      "audio_limit": 6656,
+      "enemy_fixed_lut": "$17A0",
+      "enemy_pre_lut_free": 55
+    },
+    "AD0_keyboard_E2_baseline": {
+      "resident_bytes": 8190,
+      "resident_limit": 8192,
+      "resident_free": 2,
+      "assets_bytes": 7620,
+      "assets_limit": 7680,
+      "assets_free": 60,
+      "enemy_pre_lut_free": "about 11 bytes per parent assignment; no B7 fit"
+    },
+    "AD1_joystick_E2_baseline": {
+      "resident_bytes": 8184,
+      "resident_limit": 8192,
+      "resident_free": 8,
+      "assets_bytes": 7661,
+      "assets_limit": 7680,
+      "assets_free": 19
+    },
+    "AD0_joystick": "Known baseline overflow is 23 bytes; E2 candidate overflow is 34 bytes. Excluded from this scope; retain PERF-005 follow-up and do not claim it passes.",
+    "compact_enemy_assembly": {
+      "command": "lwasm -9 --format=raw --output=build/bug087-enemy-compact.bin --list=build/bug087-enemy-compact.lst --symbols --map=build/bug087-enemy-compact.map -I build -I src src/enemy_runtime.s",
+      "result": "fail at the required fixed boundary: zmb $17A0-* calculates -143 bytes.",
+      "interpretation": "This compact 8-bit fractional/parity candidate already exceeds the fixed enemy pre-LUT boundary by 143 bytes. It omits required $61B7 saturation, so this is an optimistic size result, not a complete or viable build.",
+      "full_profile_guard": "No complete combined source build passed."
+    },
+    "initial_full_build_diagnostic": {
+      "command": "bash scripts/build.sh build (WSL, assigned worktree; profile environment not retained)",
+      "banked_clock_helper_bytes": 690,
+      "partial_capacity_report": "resident 8148/8192; assets 7661/7680",
+      "failure": "Initial 8.8 draft had unsupported 6809 opcode aba and zmb $17A0-* = -91. Partial resident/assets output is not a combined-fit result."
+    },
+    "approved_BUG058_clock_candidate": {
+      "source_transform": "Four exact transformations retained in bug058-catchup-full-build.py: batch cap 4->2; barrier routes to rebase; clear AD_DEBT and AD_DEBT+1 on batch exhaustion; transition routes to rebase.",
+      "direct_assembly_command": "lwasm -9 --format=raw -DADAPTIVE_RENDERING=1 -I build -I src --output=build/bug087-clock696.bin --map=build/bug087-clock696.map build/bug087-clock696.s",
+      "baseline_helper_bytes": 690,
+      "baseline_helper_sha256": "56e14db3f92532dda313661db59415e60fbd33a5da11d22f7c71f0b7fa6c6d8c",
+      "direct_assembly_bytes": 696,
+      "limit_bytes": 698,
+      "free_bytes": 2,
+      "direct_assembly_sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab",
+      "fixed_vector_entry_checks": "Five entries at $BD44/$BD47/$BD4A/$BD4D/$BD50 resolve to reset/batch/append/reducer/complete. Byte vectors at offsets $00/$03/$06/$0C remain unchanged; the reducer branch at offset $09 updates from 1600CF to 1600D5 because its target moves $BE1F->$BE25.",
+      "combined_full_build": "Not run. The B7 enemy module does not assemble at its fixed boundary; adding six bytes alone is only a projection, not a profile fit."
+    },
+    "direct_page_conflict": {
+      "candidate_range": "$DF-$E4 (six bytes)",
+      "committed_owners": "$DF PRES_NAME_ROW; $E0 PRES_NAME_COL; $E1 PRES_NAME_REPEAT/PRES_TICK_PHASE; $E2 PRES_NAME_LAST_DIR/PRES_NAME_FLAGS; $E3 PRES_NAME_OWNER; $E4-$E5 PRES_NAME_PTR.",
+      "source_locations": ["src/presentation_runtime.s", "src/demo_runtime.s", "src/shared_text_ranking.inc", "src/shared_text_stage.inc"],
+      "decision": "Do not treat $DF-$E4 as free RAM. Gameplay-versus-name-entry lifetime aliasing is possible only if explicitly proven; no such proof or allocation is included."
+    }
+  },
+  "rejected_designs": [
+    "Reuse BOX_TIMER: rejected because it owns border-box cadence and must retain matched behavior.",
+    "Reuse ENEMY_TIMER/ENEMY_ANIM: rejected because they own pose timing, not movement-rate progression.",
+    "Reuse adaptive AD_SIM/AD_DEBT or LAST_FRAME as the arcade rate owner: rejected because BUG-058 owns admitted tick/debt policy and CoCo-to-arcade timing conversion is unproved.",
+    "Per-enemy independent fractional accumulators: rejected because the arcade computes one shared step count for active roaming enemies; per-actor phases would introduce unsourced skew and spawn-phase behavior.",
+    "Put rate code in remaining page-$34 helper slack: rejected because only six bytes remain before reserved logo bytes; the approved banked clock helper independently uses 696/698 bytes and has two bytes free.",
+    "Add another bank/loader mapping: no physical ownership, delivery, or integration proof exists, and that protocol change is outside this step."
+  ],
+  "qa_and_disposition": {
+    "design_verdict": "No viable current source allocation. The compact measured candidate fails the fixed enemy boundary and its proposed six direct-page bytes overlap committed presentation state.",
+    "BUG087_lifecycle": "Keep Draft; not eligible for Ready or production execution.",
+    "eligibility_gates": [
+      "Arcade_timing_research proves dispatcher cadence and elapsed-time conversion, including later-part movement captures and a Part 2 CoCo pixel-verified control.",
+      "Choose a physically owned, nonoverlapping code allocation or a smaller source-derived design that fits fixed LUT $17A0 across the required complete profiles without a new unapproved loader protocol.",
+      "Prove lifecycle safety for any direct-page alias and specify reset, spawn, blocked/frozen, death, and stage-wrap behavior.",
+      "Rebuild combined source with the approved 696/698 BUG058 helper and run complete keyboard/joystick capacity guards; preserve the 27,000-cycle target as a separate current failure until measured passing."
+    ],
+    "residual_risk": "No runtime/visible-output verification. No numeric timing acceptance is inferred. No combined fit or target pass is claimed.",
+    "next_recommendation": "Close the owned arcade timing/conversion gates and perform a new allocation design review only if a bounded source-level implementation can meet the fixed boundary. Do not expand into hardware or emulator-defect hypotheses."
+  }
+}
