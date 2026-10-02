@@ -1,0 +1,226 @@
+{
+  "ticket": "PERF-008",
+  "branch": "codex/perf008-readiness",
+  "base_commit": "cb1eedf",
+  "implementation_commit": "85b95a4b163b3159d351c1a98d9f066c4b0a5943",
+  "source_git_blob_ids": {
+    "src/main.s": "635509480db62a8de71690c0ed4c5c9cea3d78c9",
+    "src/adaptive_active.s": "0ca0c846557266d08830b9541534f8b1499db16b",
+    "scripts/source_reference.json": "d998e41d0ae28ab1aa9ca3f69c69bbc514f60475",
+    "scripts/source_reference_adaptive.json": "4c553bfd3f3438df323f810bdcd1596211c6851c"
+  },
+  "full_builds": [
+    {
+      "profile": "adaptive1-keyboard",
+      "status": "pass",
+      "rom_sha256": "f8c5583d254579f70f0515882da04d4e374dffffc28a5ccffdef490ed70c415d",
+      "runtime_rom_sha256": "e7bde71d511167d7dea87a11059bcd5946890002c5a10508abf0e0be38e59b57",
+      "enemy_runtime_sha256": "4cc0e931fc8241d55e56ee6cf94538e48714d9565695acf32e69694993282d8d",
+      "resident_bytes": 8137,
+      "resident_limit": 8192,
+      "assets_bytes": 7661,
+      "assets_limit": 7680,
+      "active_bytes": 603,
+      "active_limit": 777,
+      "page3d_payload_bytes": 6656,
+      "pre_ba00_limit": 6656,
+      "sparse_transport_free_bytes": 12181,
+      "source_reference_modules": 14,
+      "source_reference_lines": 35496,
+      "documented_routines": "304/304",
+      "documented_labels": "4943/4943",
+      "enemy_matches_approved_keyboard_baseline": true
+    },
+    {
+      "profile": "adaptive0-keyboard",
+      "status": "pass",
+      "rom_sha256": "fb166878314d73e7ef9de76019be7ad65ccd1b20cd01a767204038a277968950",
+      "enemy_runtime_sha256": "295dde2cd0191d31adf8671c9335ecdd89fc625ecff74685a597cd70c133c012",
+      "resident_bytes": 8179,
+      "resident_limit": 8192,
+      "assets_bytes": 7620,
+      "assets_limit": 7680,
+      "active_bytes": null,
+      "active_limit": 777,
+      "page3d_payload_bytes": 5675,
+      "pre_ba00_limit": 6656,
+      "sparse_transport_free_bytes": 14461,
+      "source_reference_modules": 11,
+      "source_reference_lines": 34461,
+      "documented_routines": "281/281",
+      "documented_labels": "4674/4674",
+      "enemy_matches_same_profile_baseline": true,
+      "main_assembly_sha256": "d73a98a9feeff1b13a46b33efdcd73439eec5b2ec81c18cf5dfeb4b053ac3ed6",
+      "unchanged_source_main_assembly_sha256": "d73a98a9feeff1b13a46b33efdcd73439eec5b2ec81c18cf5dfeb4b053ac3ed6",
+      "adaptive0_main_bytes_identical": true
+    },
+    {
+      "profile": "adaptive1-joystick",
+      "status": "pass",
+      "rom_sha256": "ec292b015b6278254fb7ec1e1de8d9d50fc1ae409b5293a27fb5c6726d4bd0b7",
+      "runtime_rom_sha256": "318834c4b641f28cf6d7f0542da4d4c3ceceb32ba353ed644e86227696f17fe9",
+      "enemy_runtime_sha256": "0b5c3fa67cdda4dc7c8f728068e3893b74b32f7e1e031c6076ef14496e38bc42",
+      "resident_bytes": 8173,
+      "resident_limit": 8192,
+      "assets_bytes": 7661,
+      "assets_limit": 7680,
+      "active_bytes": 603,
+      "active_limit": 777,
+      "page3d_payload_bytes": 6656,
+      "pre_ba00_limit": 6656,
+      "sparse_transport_free_bytes": 12179,
+      "source_reference_modules": 14,
+      "source_reference_lines": 35496,
+      "documented_routines": "304/304",
+      "documented_labels": "4945/4945",
+      "enemy_matches_same_profile_baseline": true
+    }
+  ],
+  "restored_default": {
+    "profile": "adaptive1-keyboard",
+    "status": "pass",
+    "rom_sha256": "f8c5583d254579f70f0515882da04d4e374dffffc28a5ccffdef490ed70c415d",
+    "enemy_runtime_sha256": "4cc0e931fc8241d55e56ee6cf94538e48714d9565695acf32e69694993282d8d",
+    "matches_initial_build": true,
+    "matches_saved_snapshot": true,
+    "snapshot": "repro/perf008-execution/default-build",
+    "snapshot_files": 111,
+    "snapshot_bytes": 27222096
+  },
+  "standalone_shared_text": {
+    "status": "pass",
+    "exact_screens": 9,
+    "cold_bytes": 14336,
+    "sha256": "d5a4a75d27c5f502f250bd50f5152f15f46d358952f1e523583acbedf8a686a2"
+  },
+  "parent_runtime_acceptance": {
+    "status": "scoped-pass",
+    "source_revision": "03f5b69 source base with candidate bytes; full ROM SHA-256 matches restored build",
+    "output_paths": [
+      "E:/projects/ladybug/repro/perf008-execution/publication.json",
+      "E:/projects/ladybug/repro/perf008-execution/natural.json",
+      "E:/projects/ladybug/repro/perf008-execution/full-cost.json",
+      "E:/projects/ladybug/repro/perf008-execution/selective-cost.json",
+      "E:/projects/ladybug/repro/perf008-execution/last-bonus.json"
+    ],
+    "rom_sha256": "f8c5583d254579f70f0515882da04d4e374dffffc28a5ccffdef490ed70c415d",
+    "controlled_pixel_cases": {
+      "matched": 40,
+      "total": 40,
+      "framebuffer_bytes_each": 30720
+    },
+    "actual_gameplay_render_frames": {
+      "matched": 58,
+      "total": 58,
+      "framebuffer_bytes_each": 30720
+    },
+    "matched_costs": [
+      {
+        "full_cycles": 335825,
+        "selective_cycles": 92563,
+        "reduction_percent": 72.44,
+        "target_max_cycles": 100000,
+        "target_min_reduction_percent": 70,
+        "logical_after_full": 141,
+        "logical_after_selective": 141,
+        "popup_timer_full": 30,
+        "popup_timer_selective": 30
+      },
+      {
+        "full_cycles": 331110,
+        "selective_cycles": 87578,
+        "reduction_percent": 73.55,
+        "target_max_cycles": 100000,
+        "target_min_reduction_percent": 70,
+        "logical_after_full": 142,
+        "logical_after_selective": 142,
+        "popup_timer_full": 29,
+        "popup_timer_selective": 29
+      }
+    ],
+    "identical_fixture_sha256": "16d16ae60cc7eed0e6eba57ff7a5446336a3c55644bebc4d1be079049dfe73fc",
+    "initial_cpu_registers_match": true,
+    "all_probe_deadlines_seconds": 45,
+    "last_bonus_handoff": {
+      "part": 2,
+      "mode": 1,
+      "screen": 2,
+      "bonus_left_reinitialized": 6,
+      "stage_pending": 0
+    },
+    "exact_source_staged_live_identity_reported_by_parent": true
+  },
+  "build_logs": [
+    "build-ad1-keyboard.log",
+    "build-ad0-keyboard.log",
+    "build-ad1-joystick.log",
+    "build-ad1-keyboard-restored.log",
+    "shared-text-default.log",
+    "shared-text-restored.log",
+    "assemble-ad0-baseline.log",
+    "assemble-ad0-candidate.log",
+    "assemble-enemy-ad0-baseline.log",
+    "assemble-enemy-ad1-joystick-baseline.log"
+  ],
+  "evidence_scope": "Build logs and baseline comparison assemblies retained under ignored worktree repro/perf008-execution. Runtime probe outputs are parent-owned under root repro/perf008-execution.",
+  "rejected_candidates": [
+    "638-byte all-active candidate exceeded the 6656-byte pre-keybinding page-$3D limit by 35 bytes.",
+    "53-byte resident split projected a 9-byte combined-AD1 overflow; an earlier resident placement also exceeded the joystick resident bound by 22 bytes. These are prior preparation findings in the ticket receipt."
+  ],
+  "residual_risks": [
+    "Audio stage is exactly 6656 bytes at $BA00, with no pre-keybinding margin.",
+    "The parent 27000-cycle game-cadence target remains missed and is outside PERF-008 acceptance."
+  ],
+  "parent_integration": {
+    "commit": "85b95a4b163b3159d351c1a98d9f066c4b0a5943",
+    "method": "Inspected bounded commit, fast-forward integrated, independent full rebuild from exact combined committed source in clean-map project worktree.",
+    "build_command": "scripts/build.sh build",
+    "build_exit_code": 0,
+    "build_log_sha256": "b99ce297f7bfa5bc1773ac7383e3a5abaa75e5810ed8dffd5500aed6003e9566",
+    "rom_sha256": "f8c5583d254579f70f0515882da04d4e374dffffc28a5ccffdef490ed70c415d",
+    "runtime_rom_sha256": "e7bde71d511167d7dea87a11059bcd5946890002c5a10508abf0e0be38e59b57",
+    "enemy_sha256": "4cc0e931fc8241d55e56ee6cf94538e48714d9565695acf32e69694993282d8d",
+    "same_binary_as_pixel_oracle": true,
+    "pixel_reuse_reason": "Identical complete ROM to 40 controlled and58 actual frame oracle; no inputs changed, so repeated focused costs and last-bonus handoff rather than duplicate the entire pixel suite.",
+    "matched_fixture_sha256": "16d16ae60cc7eed0e6eba57ff7a5446336a3c55644bebc4d1be079049dfe73fc",
+    "initial_cpu_registers_equal": true,
+    "matched_costs": [
+      {
+        "full_cycles": 335825,
+        "selective_cycles": 92563,
+        "reduction_percent": 72.44,
+        "logical_after": 141,
+        "marker": {
+          "bonus_left": 5,
+          "pickup_timer": 30,
+          "entity_type": 0
+        }
+      },
+      {
+        "full_cycles": 331110,
+        "selective_cycles": 87578,
+        "reduction_percent": 73.55,
+        "logical_after": 142,
+        "marker": {
+          "bonus_left": 5,
+          "pickup_timer": 29,
+          "entity_type": 0
+        }
+      }
+    ],
+    "last_bonus_handoff": {
+      "mode": 1,
+      "screen": 2,
+      "part": 2,
+      "bonus_left_reinitialized": 6,
+      "stage_pending": 0
+    },
+    "probe_receipts": {
+      "integrated-selective-cost": "3abd9b48d87590c150ada3df71976a9dce3ae7888c133419fd1cb859e6bb1baf",
+      "integrated-full-cost": "c29e5962a3905cddbccf894bd4c3ded9065f3c7b181a5f7d25a970d1b53522f0",
+      "integrated-last-bonus": "c97c1a33b41ecb31335727db4800cbd88d623b48663667528f45722fc23392d8"
+    },
+    "maps": "Committed precleanup TMX. Nine root user-edited TMX preserved; production compiler cannot yet build their GID633 under unapproved cleanup tickets.",
+    "qa_verdict": "Approved PERF008 scope accepted; Done. Parent BUG058 timing/velocity gates remain failed or incomplete."
+  }
+}
