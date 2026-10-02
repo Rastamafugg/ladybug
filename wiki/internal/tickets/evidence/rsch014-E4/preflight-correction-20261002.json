@@ -1,0 +1,118 @@
+{
+  "schema": "ladybug-rsch014-e4-bug086-observer-preflight-v1",
+  "date": "2026-10-02",
+  "status": "static-preflight-complete-runtime-unrun",
+  "classification": "BUG-086 remains High-risk; this bounded step only corrects the observer. No runtime or production fix was performed.",
+  "scope": {
+    "worktree_head": "0a449d64d2a50a9da24d6fb34d3210438c738b2f",
+    "worktree": "E:/projects/ladybug/worktrees/bug086-page34-preparation",
+    "observer": "repro/bug086_e3_observer.py",
+    "observer_ignored_local_file": true,
+    "production_files_changed_by_this_step": false,
+    "canonical_ticket_or_shared_wiki_changed": false,
+    "build_or_emulator_started": false,
+    "runtime_probe_authorized_or_run": false,
+    "existing_dirty_prototype_files_preserved": true
+  },
+  "artifact_identity": {
+    "rom_sha256": "5d96372e03e6b78670c531f754b36c40a6ea73388cbb822869b41eb149a15458",
+    "helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "helper_length": 87,
+    "source_build_receipt_sha256": "efbf998968fa3d411feeed5898660a2b08e916a613cfe15ca2eb7eb953a21090",
+    "observer_sha256": "d69845054959bc6d4f5db74bd887852e6605db6d55c76362bc21ee22211be22a",
+    "contract_source_commit": "dff9160b331d41e77728914c1fc8dd4de904dc6b",
+    "contract_overlay_base": "cb84a603e74c67e18ed055f13e6dc0f518dd051d",
+    "prototype_patch_sha256": "63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa",
+    "static_source_hashes": {
+      "src/main.s": "6cdc0873a12f6b46483d76316be9f5d886933d24f0bf2501d48daaebeb03f080",
+      "src/enemy_runtime.s": "434464bb1a1eb9698e659f53f53c39daf4ade289dcf558260f6b3322ad4e2f46",
+      "src/enemy_helpers_page34.s": "5b8865f85ee16c17bf5298d5267f4371e6fff6bce1bb2f878f5f13ba9da4551d",
+      "scripts/verify_enemy_runtime.py": "db1bf25fb3fb04760177d7fb19c7328d466a340805d3634a025136d0120d7217"
+    }
+  },
+  "corrections": [
+    {
+      "name": "credited cold start",
+      "assertion": "Require one settled credit before Start and zero credits after Start and the 67-worklist initial-entry retirement.",
+      "source": "Existing E3 runtime-result phase1 receipt; source path uses presentation credit/start consumer.",
+      "status": "retained correction; no new runtime rerun"
+    },
+    {
+      "name": "post-bonus settling bound",
+      "assertion": "Allow at most 400 completed worklists while the existing single 45-second phase deadline remains unchanged; the check is before worklist 401.",
+      "source": "repro/bug086_e3_observer.py transition_samples loop; baseline/B2 actual transition length of 211 worklists came from parent handoff and was not remeasured in this static step.",
+      "status": "corrected cap; a deadline timeout remains probe-incomplete, not target-slow evidence"
+    },
+    {
+      "name": "normal Part 9 preview precondition",
+      "assertion": "At the normal preview pack require A=0, normal cursor=0, pending=$FF, stage=9, PAR5=$34, and stacked return address equal to helper symbol efn_finish.",
+      "source": "src/main.s:997-1015, 4704-4707; src/enemy_helpers_page34.s:26-48, 76-78.",
+      "status": "corrected invalid-pending predicate; $FF is the reset value and BPL distinguishes valid pending type"
+    },
+    {
+      "name": "normal release pending and cursor",
+      "assertion": "Group 0 enters with pending=$FF/cursor=0 and exits raw type=$01, pending=$FE, cursor=1. Group 1 enters pending=$FE/cursor=1 and exits raw type=$11, pending=$EE, cursor=2. Require the exact complement of each encoded raw actor type and its high bit set.",
+      "source": "src/enemy_runtime.s:382-396; src/enemy_helpers_page34.s:26-41; src/main.s:4704-4707.",
+      "status": "corrected; normal invalid pending values after first release are complements, not always $FF"
+    },
+    {
+      "name": "Part 9 real skull count",
+      "assertion": "The observer filters current ENTITY_TABLE after real next_stage and requires five records with ENTITY_SKULL kind and zero active enemy actors.",
+      "source": "src/main.s:997-1015, 1675-1710; stage 9 selects the five-skull branch and its loop calls place_entity five times.",
+      "status": "source-proven expected count; actual runtime remains unrun in E4"
+    },
+    {
+      "name": "actor geometry and live setup state",
+      "assertion": "Before repositioning, require active count=2 and inspect both release-created records' exact type, x/y cell in [0,23], progress<4, direction in {0,1,2,3,$FF}, pointer within the framebuffer window, and source-derived pointer/cell/progress equality. Then set progress=3 at the legal predecessor; assert four substeps reach the target center.",
+      "source": "src/main.s:435; src/enemy_runtime.s:335, 493-505, 523-568; scripts/verify_enemy_runtime.py contains no ENEMY_FB/320 actor-cell pointer formula.",
+      "geometry": "ENEMY_FB is cell (12,12); North pointer -320/cellY--, East +1/cellX++, South +320/cellY++, West -1/cellX--. Therefore center=$57EC+4*(x-12)+1280*(y-12). A $FF direction is interpreted as West only for geometry accounting; it is not used as a freeze control.",
+      "status": "sign corrected to +dy and exact observed-record assertions added"
+    },
+    {
+      "name": "player isolation",
+      "assertion": "Set PLAYER_MANUAL=1 and JOY_DIR=$FF, retain the selected safe player cell before enemy_tick, and require that cell unchanged after the tick.",
+      "source": "src/main.s:214, 232, 2758-2770.",
+      "status": "added; the source manual-neutral branch exits to drawing before movement"
+    },
+    {
+      "name": "global ENEMY_MOVE risk",
+      "assertion": "Do not set actor direction to $FF to claim a freeze. Inspect live actor rows when arriving at fixture setup and record their positions/types before repositioning.",
+      "source": "src/enemy_runtime.s:493-543; wiki/internal/tickets/bug-058-three-enemy-slowdown.html#velocity-source-clock-audit-20261002; wiki/internal/tickets/evidence/rsch014-parent/velocity-source-clock-audit.json SHA-256 07c5ab8b525585ecc76b9a150a56ced2620394d5d1bbb307f77291c1fe7e3559.",
+      "status": "existing separate source risk retained; observer has no actor DIR_NONE freeze writes"
+    },
+    {
+      "name": "pending death override and deadline resumption",
+      "assertion": "After distinct type-0 then type-1 real skull matches require active=0, pending=1, cursor=2, no player death, unchanged perimeter state and unchanged player cell. Before replacement require pending=1/cursor=2; group 1 exits pending=$EE/cursor=2; group 2 starts from $EE/cursor=2 and exits pending=$DE/cursor=3. Both release phases require timer/index/phase=[3,0,phase_before XOR 1].",
+      "source": "src/enemy_runtime.s:382-396, 1817-1853; src/main.s:2343-2386.",
+      "status": "exact complements and reload/index/phase rollover predicates added"
+    },
+    {
+      "name": "mapping, marker bytes, stack, and observer deadlines",
+      "assertion": "For each logical $A000-$BFFF read/write require PAR5=$34. Verify module marker bytes against the current built artifact; require enemy/presentation/active PAR0=$38, resident PAR6=$3E and PAR7=$3F, helper physical and mapped page-$34 bytes match, and controlled stack/return PAR0=$38. Controlled next_stage uses S=$1FFE, return stub=$18FC, $1E00 guard, balanced return S=$2000. Every phase and ordinary monitor call remains bounded by 45 seconds; cleanup calls are fixed 2-second restores.",
+      "source": "wiki/internal/implementation/memory-map.html:80-83, 133, 558-568; wiki/internal/implementation/xroar-monitor.html:126; observer functions read/write/assert_marker_code/assert_helper_mapping/call_from_current_boundary/go.",
+      "status": "added or statically audited"
+    }
+  ],
+  "preflight_checks": {
+    "observer_ast_parse": "pass; parsed without executing module",
+    "e2_e3_contract_and_result_json_parse": "pass",
+    "corrected_predicate_presence_checks": "14/14 pass",
+    "shared_actor_geometry_formula_search": "not present in shared verifier; formula derived from current source deltas and recorded above",
+    "build": "not run",
+    "emulator_or_monitor": "not launched",
+    "E3_attempts_and_result": "unchanged and retained",
+    "E3_receipt_sha256": {
+      "runtime-attempt-1-20261002.json": "1966152d1350b02c439009450b658f19a0f1d26f5d796bb4ba67a6d987fc6208",
+      "runtime-attempt-2-20261002.json": "5e6c8656e79e479ad1e98e98f6d86ee5d9194eab8eae508792b1b1bb972dbf98",
+      "runtime-result-20261002.json": "70587ee3c812788dab5fed218a084bf2b92b793f1226abea26d7765ca32b19d5"
+    },
+    "E3_contract_sha256": "7f4f3e5082e511e52f25a3b790b29d68e480b221a2705f0c8198a51775582fc4"
+  },
+  "unresolved": [
+    "No actual Part 9 helper preview, two-skull override, replacement release, or cursor resumption was tested during this static preflight. Two E3 observer rejections remain preserved; no actual succession was observed.",
+    "The 211-worklist settling value is a parent-supplied retained baseline/B2 fact, not independently revalidated here. The 400-worklist cap remains subject to the unchanged 45-second phase deadline.",
+    "The global ENEMY_MOVE/$FF west-fallthrough candidate remains a separate unconfirmed BUG-058 source risk. This observer avoids relying on a direction-$FF actor hold; no causal BUG-086 interpretation is made.",
+    "Part 9 is prepared by forcing STAGE=8 and calling real next_stage once after a legal last-bonus handoff; Parts 2-8 are explicitly skipped and this does not prove naturally earned full-maze progression.",
+    "Parent review and separate authorization are required before any bounded E4 runtime phase. This receipt authorizes no runtime action."
+  ]
+}
