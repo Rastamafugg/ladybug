@@ -3895,7 +3895,11 @@ cep_loop
         beq     cep_skull
         clr     2,x
         lda     RENDER_FLAGS
+        ifne    ADAPTIVE_RENDERING
+        ora     #RF_DOT
+        else
         ora     #RF_ENTITIES
+        endc
         sta     RENDER_FLAGS
         dec     BONUS_LEFT
         lda     MULTIPLIER
@@ -4847,6 +4851,11 @@ nlt_deltas
         fdb     -320,1,320,-1
         endc
 
+; PERF-008 helper contract mirrors for keyed pickup background repair.
+; DOC-002 source-contract mirror contract pickup_prepare_removed profile=state: Resolve removed keyed entity and restore its four-cell footprint.
+; DOC-002 source-contract mirror contract pickup_prepare_nest profile=state: Return the frozen keyed cell and its nest-column predicate.
+
+
 resident_end
 
 ; Immutable cartridge data occupies the upper ROM region.  Keep executable
@@ -4899,6 +4908,35 @@ sprite_score_blue_pairs
 ; @audit {"id": "primary-mask-table", "kind": "index", "symbol": "primary_preserve_table", "producer": "primary-mask-constants", "domain": "Cached value AND $33, sixteen reachable offsets in 52 bytes", "encoding": "One-byte extra preserve mask; high absent -> $F0, low absent -> $0F. render_entity_colour and sync_entity_cache_colour initialize Y once for positive and negative replay respectively. Both loops preserve Y; IRQ restores Y. Positive OBJ_VALUE retains source byte; negative OBJ_VALUE retains replicated colour.", "bounds": [57344, 64972]}
 primary_preserve_table
         fcb     $FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$FF,$F0,$F0,$F0,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00,$0F,$00,$00,$00
+; PERF-008 immutable helpers share the existing upper-ROM code region.
+        ifne ADAPTIVE_RENDERING
+pickup_prepare_removed
+        ldx #ENTITY_TABLE
+        lda ENTITY_COUNT
+        sta ENTITY_WORK
+ppr_scan
+        tst 2,x
+        bne ppr_next
+        ldd ,x
+        cmpd PLAYER_CELL_X
+        beq ppr_removed
+ppr_next
+        leax 4,x
+        dec ENTITY_WORK
+        bne ppr_scan
+        clra
+        rts
+ppr_removed
+        ldd ,x
+        std ENTITY_X
+        jsr restore_entity_footprint
+        lda #1
+        rts
+pickup_prepare_nest
+        ldd PLAYER_CELL_X
+        cmpa #12
+        rts
+        endc
 asset_end
 
         end

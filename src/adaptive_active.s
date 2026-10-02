@@ -278,7 +278,60 @@ akb_gate
         std RENDER_FLAGS
         clr ENEMY_RENDER_FLAGS
         jsr roam_mark_underlay
+        lda RENDER_FLAGS
+        cmpa #RF_DOT
+        bne akb_finish
+        bsr pickup_key_prepare
+akb_finish
         jmp frame_render_background
 akb_masks
         fcb $20,0,$10,0,0,$04,0,0
+
+; PERF-008 keyed pickup footprint, gate-intersection, and nest repair.
+pickup_key_prepare
+        jsr pickup_prepare_removed
+        beq pk_done
+        clr GATE_COPY_COUNT
+pk_gate
+        lda GATE_COPY_COUNT
+        ldb #GATE_ENTITY_RECORD_SIZE
+        mul
+        addd #GATE_ENTITY_LISTS
+        tfr d,y
+        lda PLAYER_CELL_X
+        cmpa ,y
+        blo pk_gate_next
+        deca
+        cmpa 2,y
+        bhi pk_gate_next
+        lda PLAYER_CELL_Y
+        cmpa 1,y
+        blo pk_gate_next
+        deca
+        cmpa 3,y
+        bhi pk_gate_next
+        lda GATE_COPY_COUNT
+        inca
+        cmpa GATE_ANIM_ID
+        beq pk_gate_next
+        sta RENDER_GATE_ID
+        deca
+        jsr draw_gate
+        jsr draw_gate_entities
+pk_gate_next
+        inc GATE_COPY_COUNT
+        lda GATE_COPY_COUNT
+        cmpa #MAZE_GATE_COUNT
+        blo pk_gate
+        clr RENDER_GATE_ID
+        clr RENDER_FLAGS
+        jsr pickup_prepare_nest
+        bne pk_done
+        andb #$FB
+        cmpb #10
+        bne pk_done
+        lda #8
+        sta ENEMY_RENDER_FLAGS
+pk_done
+        rts
 adaptive_active_end
