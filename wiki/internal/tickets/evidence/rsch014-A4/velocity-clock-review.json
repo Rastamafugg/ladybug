@@ -1,0 +1,469 @@
+{
+  "schema": "rsch014-a4-velocity-clock-review-v1",
+  "date": "2026-10-02",
+  "ticket": "BUG-058 / RSCH-014-A4",
+  "status": "offline source-and-trace review",
+  "scope": "A4 performs offline source/trace analysis only. It records one separately owned cap-only comparison as parent-reported; A4 launched no runtime and edited no source.",
+  "inputs": {
+    "canonical_ticket": {
+      "path": "wiki/internal/tickets/bug-058-three-enemy-slowdown.html",
+      "checkout": "E:/projects/ladybug (current main snapshot, read-only)"
+    },
+    "velocity_irq_summary": {
+      "path": "wiki/internal/tickets/evidence/rsch014-parent/velocity-irq-summary.json",
+      "sha256": "dd9a386c51421407ebbbb4ce04ef56f914461f599eae0bd38ab86d5ddd36a361"
+    },
+    "velocity_irq_trace": {
+      "path": "repro/rsch014-velocity-irq.json",
+      "sha256": "d4c078355c07481802e06f56c9764f00879ba38faea85ed83c4843ea363e5331",
+      "rom_sha256": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+      "receipt_revision": "436478586482afb0457357b4fddbbf05a7b9c52a",
+      "irq_samples": 128,
+      "raw_frame": [
+        1409,
+        1536
+      ],
+      "simulation_time": [
+        887,
+        1014
+      ]
+    },
+    "independent_player_pixel_trace": {
+      "ticket": "BUG-080",
+      "summary_path": "wiki/internal/tickets/evidence/rsch014-parent/animation-irq-summary.json",
+      "summary_sha256": "ae6dfe6457bcf83af74cd73b8275eda7923698ed605562d072de23ff9740e134",
+      "raw_path": "repro/rsch014-animation-irq.json",
+      "raw_sha256": "497a72e33ce83fbc1c362b270a416a3d547bcbe82ef42fbd4423d857e15e0a54",
+      "same_rom_sha256": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+      "same_receipt_revision": "436478586482afb0457357b4fddbbf05a7b9c52a",
+      "player_pixel_matches": "128/128 samples; all opaque source-template pixels match at the selected FRONT metadata pointer. Native player variants contain 120 or 122 opaque pixels; do not treat the trace helper opaque_pixels_per_candidate field as a per-sample count.",
+      "alignment_check": "All 128 velocity/BUG-080 samples match on raw_frame, last_frame, mode, player pointer/cell, part, RNG, FRONT/BACK/PENDING, commit_seq, both owner ledgers, FRONT/BACK metadata, full adaptive state, and enemy FRONT pointer/phase/cell/direction. This is matching sampled state across two runs, not identity of their unobserved full emulator state.",
+      "enemy_pixels": "Not template-matched in the BUG-080 trace.",
+      "opaque_counts_by_template_index": [
+        122,
+        120,
+        120,
+        120,
+        122,
+        120,
+        120,
+        120,
+        122,
+        120,
+        120,
+        120,
+        122,
+        120,
+        120,
+        120
+      ]
+    },
+    "reviewed_sources": [
+      {
+        "path": "src/adaptive_runtime.s",
+        "sha256": "01f05a499471c595444de9ef05358963f4be5fa8d535b83766e8ce3ce3384403",
+        "symbols": "adaptive_batch, AD_LAST, AD_SIM, AD_DEBT, AD_DUE, AD_BATCH, adaptive_reduce"
+      },
+      {
+        "path": "src/adaptive_active.s",
+        "sha256": "ea67e009201093b316f07e7d3a481a106c41d237e794631f28481c8b6a508dee",
+        "symbols": "adaptive_tick_binding, player_tick dispatch, adaptive mandatory barriers"
+      },
+      {
+        "path": "src/enemy_runtime.s",
+        "sha256": "d8b04663d25b50add05e9d2b53dfb31e58f314fbbcad0005898de362258b7e80",
+        "symbols": "enemy_tick_impl, framebuffer_capture_back, framebuffer_finish_back, framebuffer_irq_impl"
+      },
+      {
+        "path": "src/main.s",
+        "sha256": "2cfd91b6e6f8dad417686e1bbc67173e998a00c27418d974ef05a0fcc9931661",
+        "symbols": "PLAYER_STEP, player_tick, blit_packed_sprite"
+      },
+      {
+        "path": "wiki/internal/implementation/roadmap.html",
+        "fact": "The retained video mode is 320x192x16 with a 30,720-byte framebuffer."
+      }
+    ],
+    "source_hash_scope": "The four assembly-file hashes above match between the read-only main snapshot and the owned tmx-screen-prep worktree."
+  },
+  "confirmed_trace_facts": {
+    "clock_totals": {
+      "raw_intervals": 127,
+      "simulation_intervals": 127,
+      "raw_equals_simulation_over_full_trace": true,
+      "simulation_delta_per_raw_irq_interval_counts": {
+        "0": 55,
+        "1": 24,
+        "2": 41,
+        "3": 7
+      },
+      "stored_ad_debt_across_all_128_irq_samples": {
+        "max": 1,
+        "nonzero_samples": 21,
+        "sample_numbers": [
+          26,
+          28,
+          32,
+          40,
+          42,
+          44,
+          46,
+          55,
+          59,
+          61,
+          63,
+          77,
+          79,
+          81,
+          91,
+          93,
+          95,
+          97,
+          99,
+          101,
+          103
+        ]
+      },
+      "summary_scope_reconciliation": "velocity-irq-summary.json reports max_debt=0 over its 74 retained commit-changed publication states. The raw trace has 128 IRQ snapshots and reaches AD_DEBT=1 on 21 non-retained snapshots. The values describe different sample sets."
+    },
+    "source_clock_rule": "adaptive_batch computes elapsed=AD_BEGIN-AD_LAST, adds AD_DEBT, updates AD_LAST, and when AD_DUE is reached processes up to four one-tick callbacks. Each callback increments AD_SIM and subtracts one from AD_DEBT. Thus raw_frame-AD_LAST and AD_DEBT must be kept distinct; an IRQ snapshot can have stored debt zero while elapsed raw time has not yet been folded into that field.",
+    "effective_unfolded_plus_stored_clock_delta": {
+      "definition": "raw_frame - adaptive.last_time + adaptive.debt, using the sample's current FRAMES value and source AD_LAST/AD_DEBT fields",
+      "observed_counts": {
+        "1": 73,
+        "2": 48,
+        "3": 7
+      },
+      "maximum": 3,
+      "interpretation": "This is the elapsed input the next eligible adaptive_batch will fold into AD_DEBT, not the stored AD_DEBT field."
+    },
+    "movement_units": "The game uses 320x192 4bpp, so the row stride is 160 bytes. PLAYER_STEP is documented as a two-pixel step. Player/enemy horizontal pointer changes of one byte and vertical changes of 320 bytes both represent two screen pixels.",
+    "source_parity": {
+      "player": "adaptive_tick_binding copies the low byte of AD_SIM_TIME to LAST_FRAME and sets PLAYER_TICK_PENDING from its low parity bit. The normal callback calls player_tick only when pending is set. One player_tick moves one existing two-pixel step. Across the sampled Part-1 trace, player motion remains quantized in two-screen-pixel steps.",
+      "roaming_enemy": "enemy_tick_impl admits movement only when LAST_FRAME parity is even. Each admitted tick moves the active enemy one existing two-pixel step and advances its four-step pixel_phase."
+    }
+  },
+  "cumulative_windows": {
+    "player": {
+      "sample_endpoints_inclusive": [
+        22,
+        45
+      ],
+      "raw_frame_endpoints": [
+        1430,
+        1453
+      ],
+      "raw_intervals": 23,
+      "simulation_endpoints": [
+        906,
+        931
+      ],
+      "simulation_intervals": 25,
+      "stored_debt_endpoints": [
+        0,
+        0
+      ],
+      "commit_seq_endpoints": [
+        863,
+        875
+      ],
+      "front_player_pointer_bytes": [
+        30179,
+        30166
+      ],
+      "front_displacement": "13 bytes left = 13 existing steps = 26 pixels",
+      "logical_player_pointer_bytes": [
+        30179,
+        30166
+      ],
+      "logical_cells": [
+        [
+          10,
+          18
+        ],
+        [
+          7,
+          18
+        ]
+      ],
+      "same_phase_one_logical_tick_per_raw_baseline": "With 23 logical ticks from the same start parity, ticks 907..929 contain 12 player movement opportunities = 24 pixels. The measured 25 logical ticks add one opportunity, matching 26 pixels. The remaining 1-pixel difference from the scalar 23-pixel comparison is caused by comparing two-pixel quantized steps to an odd 23-pixel bound. The phase-aware candidate limit 2*ceil(23/2)=24 pixels is exceeded by 2 pixels.",
+      "actual_player_pixels": "BUG-080 sample signatures match this window at every endpoint/intermediate IRQ sample; its independently captured FRONT pixels match every opaque pixel of the selected native source template in all 128 samples. Opaque count varies by pose (120 or 122), so the raw helper count field is not a per-sample pixel count."
+    },
+    "enemy0": {
+      "sample_endpoints_inclusive": [
+        87,
+        128
+      ],
+      "raw_frame_endpoints": [
+        1495,
+        1536
+      ],
+      "raw_intervals": 41,
+      "simulation_endpoints": [
+        971,
+        1014
+      ],
+      "simulation_intervals": 43,
+      "stored_debt_endpoints": [
+        0,
+        0
+      ],
+      "commit_seq_endpoints": [
+        893,
+        926
+      ],
+      "front_enemy_pointer_bytes": [
+        9706,
+        12252
+      ],
+      "front_enemy_semantic_endpoints": {
+        "cell": [
+          [
+            12,
+            2
+          ],
+          [
+            8,
+            4
+          ]
+        ],
+        "pixel_phase": [
+          2,
+          0
+        ],
+        "direction": [
+          3,
+          2
+        ]
+      },
+      "front_displacement": "22 observed movement steps: 14 one-byte horizontal steps plus 8 320-byte vertical steps; each is two screen pixels, total 44 pixels.",
+      "same_phase_one_logical_tick_per_raw_baseline": "With 41 logical ticks from the same start parity, ticks 972..1012 contain 21 enemy movement opportunities = 42 pixels. The measured 43 logical ticks add one opportunity, matching 44 pixels. The remaining 1-pixel difference from the scalar 41-pixel comparison is the two-pixel movement quantum at an odd interval endpoint. The phase-aware candidate limit 2*ceil(41/2)=42 pixels is exceeded by 2 pixels.",
+      "physical_pixel_limit": "Enemy displacement is from the published FRONT ledger and is not independently pixel-template-matched."
+    },
+    "shared_window_result": "Each cumulative window has two more AD_SIM intervals than raw Vbord intervals. The extra parity-selected movement opportunity accounts arithmetically for the additional two pixels above the phase-aware one-step-per-two-Vbord candidate limit: player 26 versus 24 pixels in 23 intervals; enemy ledger 44 versus 42 pixels in 41 intervals. Player pixels are independently validated; enemy pixels are not. This explains the measured trace arithmetic, not the reported symptom in all builds or a generally safe repair."
+  },
+  "clock_and_publication_separation": {
+    "example_local_batch": {
+      "sample_22": {
+        "raw_frame": 1430,
+        "AD_LAST": 1427,
+        "AD_DUE": 1429,
+        "AD_DEBT": 0,
+        "AD_SIM": 906
+      },
+      "sample_23": {
+        "raw_frame": 1431,
+        "AD_LAST": 1430,
+        "AD_DUE": 1429,
+        "AD_DEBT": 0,
+        "AD_SIM": 909
+      },
+      "meaning": "Three elapsed raw ticks had not yet been folded at sample 22; the next one-Vbord observation interval contains three logical callbacks. The state is not explained by the stored AD_DEBT field alone."
+    },
+    "player_logical_to_front_example": {
+      "sample_23": {
+        "raw_frame": 1431,
+        "AD_SIM": 909,
+        "logical_player_pointer": 30177,
+        "front_player_pointer": 30179,
+        "difference": "FRONT is four screen pixels behind the latest logical pointer."
+      },
+      "sample_24": {
+        "raw_frame": 1432,
+        "AD_SIM": 909,
+        "logical_player_pointer": 30177,
+        "front_player_pointer": 30177,
+        "meaning": "The logical movement is published at the following owner commit."
+      },
+      "meaning": "Between samples 22 and 23, logical player position advances 4 pixels while FRONT still shows the earlier image. Sample 24 publishes the new position. This is logical-to-FRONT lag, not a missing logical move."
+    },
+    "enemy_logical_to_front_limit": "At samples 87-88 AD_SIM advances 971->974 while the FRONT enemy pointer stays 9706; sample 89 publishes pointer 9704. The trace has no current ENEMY_TABLE pointer, so exact logical enemy-to-FRONT pixel lag cannot be quantified."
+  },
+  "physical_pixel_evidence": {
+    "velocity_trace_anchor": "Sample 1 FRONT frame matches every opaque pixel of the selected native player source template at the valid owner-ledger pointer, with no active-enemy overlap; the per-template opaque count is 120 or 122.",
+    "cross_trace_player_validation": "The BUG-080 run has the same ROM/receipt and matches the velocity trace sampled signature across all 128 IRQ samples. Its captured FRONT frames match every opaque pixel of the selected native player source template (120 or 122 pixels by template) at each FRONT ledger pointer, with no mismatch in 128/128 samples. This independently validates player positions in both cumulative windows and the local bursts below.",
+    "short_phase_window": {
+      "samples": [
+        21,
+        25
+      ],
+      "raw_frames": [
+        1429,
+        1433
+      ],
+      "simulation_times": [
+        906,
+        911
+      ],
+      "logical_player_pointers": [
+        30179,
+        30176
+      ],
+      "front_player_pointers": [
+        30180,
+        30176
+      ],
+      "logical_displacement": "6 pixels from three parity-selected player ticks over five simulation ticks.",
+      "published_pixel_displacement": "8 pixels over four raw Vbords; all five sample frames template-match.",
+      "explanation": "The first FRONT image begins one byte/two pixels behind the logical player. The 8-pixel published displacement contains that initial phase offset plus 6 pixels of logical movement."
+    },
+    "animation_context": "The same BUG-080 summary derives player and enemy animation timer boundaries as AD_SIM_TIME - (8 - timer): 15 complete intervals are eight simulation ticks, while complete published player-pose runs hold five to ten raw Vbords. Pose dwell is a separate visual phase measure and does not prove a movement cause.",
+    "remaining_limit": "No enemy pixel-template match exists for the 44-pixel enemy window.",
+    "adjacent_front_burst_check": {
+      "trace_pair": "Velocity IRQ and BUG-080 animation IRQ traces have identical sampled state signatures across all 128 samples; the latter has actual captured-frame template matches at all 128 samples.",
+      "front_pointer_change_distribution": {
+        "2_pixels": 36,
+        "4_pixels": 2
+      },
+      "verified_4_pixel_changes": [
+        {
+          "samples": [
+            23,
+            24
+          ],
+          "raw_frames": [
+            1431,
+            1432
+          ],
+          "front_pointers": [
+            30179,
+            30177
+          ],
+          "commit_seq": [
+            863,
+            864
+          ],
+          "previous_commit_raw_frame": 1430,
+          "commit_to_commit_raw_intervals": 2
+        },
+        {
+          "samples": [
+            70,
+            71
+          ],
+          "raw_frames": [
+            1478,
+            1479
+          ],
+          "front_pointers": [
+            30156,
+            30154
+          ],
+          "commit_seq": [
+            885,
+            886
+          ],
+          "previous_commit_raw_frame": 1477,
+          "commit_to_commit_raw_intervals": 2
+        }
+      ],
+      "interpretation": "Each two-byte FRONT pointer change is 4 screen pixels. The displayed image is held for one IRQ sample, then changes by 4 pixels at the next sample. The corresponding successful commits are two raw Vbords apart, so each also exceeds the candidate 2*ceil(2/2)=2-pixel bound over its full commit interval. The earlier 74-state summary filtered out repeated held images; its commit-interval average is not an adjacent-display-frame bound. Full 128-sample captured-frame matching confirms the 4-pixel changes at raw1431->1432 and1478->1479. Sample 23 logical position was already four pixels ahead of FRONT; sample 24 publishes that position.",
+      "scope": "This is actual player-pixel evidence in the C3 credited Part-1 Left-held trace. The second enemy cumulative window remains owner-ledger evidence only."
+    },
+    "pixel_count_metadata_correction": "The raw probe helper reports opaque_pixels_per_candidate=122 from candidate index 0 for each sample, rather than the selected matched template index. Source recount gives opaque counts [122,120,120,120] repeated for each of four directions. The comparison loop checks every opaque pixel of each candidate; 128/128 match status remains valid. The initial matched index 2 has 120 opaque pixels."
+  },
+  "bounded_candidate_contract_review": {
+    "status": "candidate only; not approved, implemented, or fitted",
+    "candidate_interpretation": "For regular player and roaming-enemy movement, permit at most one existing two-pixel movement step per two raw publication Vbords. Over N raw Vbord intervals, require displacement no greater than 2*ceil(N/2) pixels per actor, with interval endpoints and pending image treatment defined.",
+    "provisional_fit_to_observation": "The candidate 2*ceil(N/2) bound is violated by both cumulative windows by one existing two-pixel step: 26>24 for the player over 23 raw intervals, and 44>42 for the enemy FRONT ledger over 41. The player trace also has two pixel-validated 4-pixel changes; each occurs over two raw intervals from prior commit to new commit, and as a 4-pixel adjacent displayed-image change after one held image. In the first, the logical player is already four pixels ahead while FRONT is held. Source parity and the two extra AD_SIM intervals explain the measured arithmetic, but do not prove the reported symptom across builds or select a remedy.",
+    "metric_gate": "Count raw FRAMES/Vbord intervals and compare actor pixels at every IRQ return, including held FRONT images; use FB_COMMIT_SEQ only as secondary publication metadata. Define pending-image ownership, special-frame exemptions, actor-specific pixel displacement, and whether phase allowance is measured over raw time or only commit changes. A commit-only average can hide the observed held-image-to-burst transition.",
+    "insufficient_alternatives": [
+      "A maximum of two AD_SIM ticks per adaptive_batch call alone is insufficient for the one-step-per-two-Vbord contract: at AD_RATE=1, one two-pixel actor step could still be published on each raw Vbord.",
+      "A minimum two-Vbord spacing between commits alone is insufficient: both observed four-pixel player changes already occur two raw intervals after the preceding commit, and the logical batch composed two movement steps into one image.",
+      "A per-publication one-step quota without raw-time accounting is insufficient if commits occur every raw Vbord; it would allow a two-pixel step each frame."
+    ],
+    "combined_candidate": "A bounded logical batch plus a raw-Vbord movement allowance is a candidate pair. A two-tick batch may admit at most one parity-selected step per actor; a minimum two-raw-Vbord publication spacing may prevent consecutive step-bearing images. The observed burst demonstrates why both dimensions matter. Neither the debt policy, guard location, global rendering effect, source fit, nor special-phase semantics is proven.",
+    "retained_debt_effect": "Reducing batch size spreads current catch-up over more foreground calls but does not remove elapsed debt. If movement opportunities are retained, they can accumulate and violate the later pixel bound; if dropped, actor travel/collision time diverges from simulation time. Any design must state whether excess movement is retained, discarded, or used to slow simulation, and prove that a missed deadline cannot create a later burst.",
+    "special_phase_effect": "The adaptive callback barriers include INITIAL_ENTRY_STATE, DEATH_STATE, PICKUP_TIMER, STAGE_PENDING, RENDER_GATE_ID, and RENDER_GATE2_ID. Any bypass list must preserve all six sources of transient/handoff work, including both gate IDs; the proposed A8FC list omitted the gates. Verify entry choreography, popup and gate frames, death timing, pickup/score order, stage transition, collision order, and movement parity.",
+    "missed_deadline_effect": "At an IRQ boundary the raw trace has up to three unfolded elapsed ticks (raw_frame - AD_LAST + stored AD_DEBT). The foreground can therefore compose multiple parity-selected movement steps before an image is published. A bound must constrain post-stall pixels while preserving contact/collision state. No repair fit or missed-deadline acceptance is established.",
+    "bug087_interaction": "BUG-087 Draft policy intentionally rises above one step per dispatch in later default Easy/Medium entries (approximately 1.2, 1.5, and 1.8; unselected hard table reaches 2.0). The candidate average of one two-pixel step per two Vbords is 1 pixel per frame: it aligns with the current Part-1 player baseline of 48 pixels/48 Vbords and historical/current enemy 1-pixel/frame baselines, but would flatten later BUG-087 speed progression if applied universally. Convert and validate the selected later-part rate policy first; preserve transient-overrun control as a separate dimension.",
+    "alternatives_and_tradeoffs": [
+      "Simulation-clock cap/rebase can prevent a batch from executing multiple movement opportunities, but discarding overdue ticks slows gameplay timers, movement, AI, pickups, and other logical events against raw wall/audio time. The historical isolated fit discarded 50 overdue ticks during pickup and three during a gate continuation; those are material timing changes.",
+      "Movement-only throttling can leave actor position and collision/contact state behind the logical simulation and requires an explicit queue, discard, or slow-simulation rule.",
+      "A publication-spacing guard limits when a composed image reaches FRONT, not how many steps it contains. It can reduce burst visibility without satisfying the observed four-pixel movement bound.",
+      "Combined clock, movement, and publication guards may address distinct dimensions but require proof for debt recovery, collision ordering, owner history, special phases, and later-part rate policy."
+    ],
+    "required_gate_before_contract": {
+      "satisfied_by_current_evidence": "The actual player display burst and the two cumulative window arithmetic are discriminated by raw clocks, source parity, FRONT publication metadata, and independent 128/128 player pixel-template matches. No further replay of the same burst is required to establish these observations.",
+      "next_conditional_comparison": "The parent-owned cap-only comparison has now run. Parent reports that it removes adjacent 4-pixel player jumps but still reaches 6 pixels over four raw Vbords in relative samples 21-25 versus the candidate four-pixel limit, and discards four simulation ticks. Full receipt/summary remain parent-owned; this result is not an A4-controlled same-state comparison.",
+      "decision_gate": "Simulation-overrun policy remains undecided by the user. No numeric ceiling, guard combination, or source change is selected or authorized here.",
+      "remaining_acceptance": "After the policy is chosen and a ticket is approved, validate the affected gameplay/contact semantics and the default BUG-087 later-part rate policy. Use only independent scenarios whose interaction risk is named; do not require a blanket owner/phase cross-product."
+    }
+  },
+  "conclusions": {
+    "confirmed": [
+      "Both retained scalar three-pixel windows contain two additional AD_SIM intervals relative to raw Vbord time; phase-aware 2*ceil(N/2) limits are exceeded by 2 pixels in each.",
+      "Source parity predicts the ledger movement-step counts: 13 player steps = 26 pixels, and 22 enemy steps = 44 pixels.",
+      "The player pixel trace independently validates every opaque selected template pixel in 128/128 samples, with actual pixel counts varying by pose between 120 and 122.",
+      "Two player FRONT changes are 4 pixels over two raw intervals from prior commit to new commit, with one held image between; logical position was already ahead before publication.",
+      "The full 127-interval trace has equal raw and logical totals; local bursts are balanced by zero-advance intervals, so it does not show sustained average acceleration.",
+      "The enemy 44-pixel result is FRONT-ledger evidence only.",
+      "Parent-reported cap-only comparison removes adjacent 4-pixel changes but still moves 6 pixels over 4 raw Vbords against a 4-pixel candidate limit while discarding four logical ticks; it is not a complete solution."
+    ],
+    "not_confirmed": [
+      "That the original intermittent report is caused by this adaptive burst mechanism across builds or routes.",
+      "A valid global maximum-velocity target or accepted numeric margin.",
+      "That the candidate one-step-per-two-Vbord envelope preserves BUG-087 later-part rates.",
+      "That A8FC pacing alone prevents excess movement or preserves timers, audio, input, transitions, and display responsiveness.",
+      "A safe overrun policy or source repair; user choice remains pending.",
+      "That adding A8FC publication pacing to the cap-only variant would remove the remaining cumulative excess or preserve logical-time semantics."
+    ],
+    "speculation": [
+      "The measured local burst is consistent with parity-selected steps being composed by a catch-up batch and then published together; the trace arithmetic and FRONT lag support this as the mechanism of these samples. It does not establish the cause of the original cross-build report."
+    ],
+    "next_step": "Parent owns the cap-only receipt and any follow-up fit. User overrun policy remains pending; do not promote the cap-only variant or adopt A8FC without accepted semantics, source fit, and a discriminating validation plan."
+  },
+  "publication_timestamp_candidate_review": {
+    "status": "offline candidate assessment only; no implementation, build fit, or runtime validation",
+    "candidate_sequence": [
+      "Before an ordinary adaptive framebuffer_finish_back, with IRQs enabled, wait until the unsigned modulo difference between current FRAMES low byte and the stored predicted prior-publication byte at page 34:$A8FC is nonzero.",
+      "Inside framebuffer_finish_back existing IRQ-masked PENDING arm, record FRAMES+1 low byte at page 34:$A8FC and arm PENDING in the same critical section; the next Vbord IRQ is then the predicted commit.",
+      "If the previous prediction is P and the wait sees current P, continue waiting until current is P+1, then stamp next publication P+2. This spaces ordinary commits by at least two raw intervals, subject to correct first-use initialization and the pending/commit invariant."
+    ],
+    "observed_fit": "The two pixel-validated four-pixel player bursts already have two raw intervals from preceding successful commit to burst commit. A8FC minimum spacing alone would not change either measured burst; the logical batch still composed two movement steps. The timestamp guard must be paired with a separately fitted step/batch policy if the candidate movement bound is retained.",
+    "critical_order_and_owner": "Use the timestamp only in the existing IRQ-masked PENDING arm after framebuffer_capture_back and before IRQ re-enable. Stamping before capture or after IRQ re-enable can become one Vbord early if an IRQ intervenes. Prove the writer and reader execute with PAR5=34, only in the intended adaptive ownership phase, and no pending publication can cause the stamp to be overwritten prematurely.",
+    "address_and_capacity": "Parent identifies page 34:$A8FC as a candidate one-byte state location, with the current E helper ending at $A8F7 and logo candidate bytes at $A8FD-$A8FF. The proposed sequence is six code bytes plus persistent state and is not included in a verified final linked fit here. Recheck page ownership, current fitted helper capacity, source map, generated artifacts, and all hard boundaries before any prototype.",
+    "rate1_effect": "The active adaptive driver can select AD_RATE=1 after quick work. A minimum two-Vbord commit interval would then throttle every ordinary completed framebuffer image, not just moving actors: sprite poses, HUD/background changes, and other visual updates can be delayed by an extra frame. Measure effect on response and eight-tick animation dwell; the guard is not a movement-only limit.",
+    "simulation_timers_and_audio": "The wait keeps IRQs enabled, so raw FRAMES advances, but it blocks the foreground active driver before the next audio service, input, and simulation dispatch. Do not assume enabled IRQs service foreground audio. A cap/rebase paired with this wait may discard overdue simulation ticks, slowing movement, pickup/score/death and other logical timers against wall/raw time; retaining debt can preserve later catch-up and burst risk. Trace audio service and timer outcomes under the candidate.",
+    "special_phases": "The bypass must include INITIAL_ENTRY_STATE, DEATH_STATE, PICKUP_TIMER, STAGE_PENDING, RENDER_GATE_ID, and RENDER_GATE2_ID. If special frames bypass the spacing wait, still stamp each adaptive PENDING arm so the next ordinary frame is timed against the latest actual commit; initialize/rebase on the first adaptive commit.",
+    "u8_wrap_and_initialization": "FRAMES+1 low-byte wrap FF-to-00 is valid if comparison is modular. For a pure minimum-one-frame wait, test current-minus-stamp as unsigned/nonzero: an exact 256-frame alias yields zero and conservatively waits another Vbord; a signed comparison or stale/uninitialized timestamp is unsafe. Initialize/rebase the byte on first adaptive publication or ownership entry and verify reset/mode-switch paths. The spin also needs a safe recovery if raw IRQ progress stops.",
+    "decision": "This is a pacing candidate, not a complete velocity bound or selected design. The separate cap-only comparison also misses the cumulative bound, so an A8FC guard alone or paired only with this cap cannot be claimed to meet the candidate contract. User overrun-policy choice remains pending."
+  },
+  "confirmed_vs_speculative": {
+    "confirmed": [
+      "The 128-sample current C3 raw trace has total raw and simulation intervals equal, but local sample intervals include zero through three simulation ticks.",
+      "The two retained windows are 26 player pixels over 23 raw intervals and 44 enemy-ledger pixels over 41; both exceed 2*ceil(N/2) by 2 pixels.",
+      "The player FRONT image contains two independently pixel-validated 4-pixel position changes. Both occur two raw Vbords after the prior successful commit; intervening displayed frame holds the previous image.",
+      "At player sample 23 the logical position is four pixels ahead of FRONT, then sample 24 publishes it. The local timing and parity arithmetic permits multiple logical movement steps to be composed before publication.",
+      "The corresponding enemy window is metadata/ledger only; no enemy pixel template match was captured."
+    ],
+    "not_established": [
+      "The reported sporadic speedup across builds or gameplay routes.",
+      "That a universal one-step-per-two-Vbord contract fits all accepted gameplay or later BUG-087 rate schedules.",
+      "That A8FC pacing alone prevents excess movement or preserves timers, audio, input, transitions, and display responsiveness.",
+      "A safe overrun policy or source repair; user choice remains pending."
+    ]
+  },
+  "parent_reported_cap_only_comparison": {
+    "ownership": "Separate parent-owned conditional build/probe; the full receipt and summary remain outside this A4 evidence file.",
+    "rom_sha256": "e520ea7742ab12ba799d3e5aefd5b83a87b34e3183a873acf50ab7c0bdb12d02",
+    "capacity": {
+      "adaptive_helper_bytes": "696/698",
+      "mapped_bytes": "198/220",
+      "active_bytes": "512/777",
+      "resident_free_bytes": 55
+    },
+    "player_pixel_result": "All 128 player poses match. Adjacent player displacement is capped at 2 pixels, eliminating the 4-pixel adjacent-frame changes. The relative sample window 21-25 still moves 6 pixels over 4 raw Vbords versus the candidate 2*ceil(4/2)=4-pixel limit.",
+    "clock_result": {
+      "AD_LAST_delta": 127,
+      "AD_SIM_delta": 123,
+      "starting_debt": 0,
+      "ending_debt": 0,
+      "discarded_ticks": 4,
+      "approximate_wall_time_at_60hz_ms": 67
+    },
+    "animation_result": "Complete published player poses hold 7-10 Vbords in this run.",
+    "comparison_limit": "Initial logical state, RNG, player position, and animation phase match the baseline. Raw frame/parity and framebuffer owner/commit sequence differ, so this is not an identical semantic and publication-state comparison.",
+    "interpretation": "The source-specific two-step-plus-rebase candidate removes the reproduced adjacent 4-pixel jump but does not meet the proposed cumulative motion envelope and changes simulation time by discarding four ticks. It is not a complete velocity bound or an approved policy. No A8FC pacing was present in this cap-only variant."
+  }
+}
