@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-02",
+  "ticket": "BUG-058",
+  "classification": "High-risk",
+  "scope": "Source-only audit and arithmetic on retained IRQ trace; no new runtime or source change",
+  "source_baseline": "fe160ae389145d24083218ded05ba9cdca781474",
+  "source_hashes": {
+    "src/adaptive_runtime.s": "01f05a499471c595444de9ef05358963f4be5fa8d535b83766e8ce3ce3384403",
+    "src/adaptive_active.s": "ea67e009201093b316f07e7d3a481a106c41d237e794631f28481c8b6a508dee",
+    "src/enemy_runtime.s": "d8b04663d25b50add05e9d2b53dfb31e58f314fbbcad0005898de362258b7e80",
+    "src/main.s": "2cfd91b6e6f8dad417686e1bbc67173e998a00c27418d974ef05a0fcc9931661",
+    "scripts/build_adaptive_runtime.py": "da6412b42ad168c82fd89b38c548458374729fb6ab8311c14e50595f6633ca65",
+    "docs/reference/xroar/src/monitor.c": "30c0d8f4ff69963eec0439c191e3993335d241fefc04da6950da5c4a7709de65",
+    "docs/reference/xroar/src/events.h": "1340520093ecfc4db27581b6a13bc97277a59d35a2f83ccaeb80eacfd53c384e"
+  },
+  "retained_trace_sha256": "d4c078355c07481802e06f56c9764f00879ba38faea85ed83c4843ea363e5331",
+  "trace_samples": 128,
+  "relative_conservation_residuals_mod65536": {
+    "0": 128
+  },
+  "invariant_scope": "Ordinary settled accounting within one reset segment: simulation increments plus debt change equal accounted raw-clock increments. Segment resets, static rebase discarded intervals, saturation/fault, and in-callback intermediate snapshots require separate interpretation.",
+  "independent_time_candidate": {
+    "method": "Existing read_cycles.event_ticks",
+    "source": "monitor.c returns event_current_tick; events.h EVENT_TICK_RATE=14318180",
+    "elapsed_seconds": "event tick delta / 14318180, with native counter wrap handled",
+    "fast_cpu_cycles": "event tick delta / 8 per existing wiki calibration; do not use reported cpu_cycles /16"
+  },
+  "findings": [
+    "No ordinary double ingestion found: AD_LAST advances once when delta enters debt, including due-refusal returns.",
+    "Each ordinary successful TICK_CALLBACK has one AD_SIM increment and one debt decrement; callback batches may expose intermediate states to IRQ snapshots.",
+    "Adaptive active callback contains at most one player_tick and one ordinary enemy_tick. Skull pickup calls enemy_tick again after DEATH_STATE, taking reset/freeze path, not extra roaming.",
+    "Historical keyed render loads PLAYER_CELL temporarily and restores it; exposed-player and closure restoration substitute PLAYER_OLD_FB and restore current PLAYER_FB. These are not movement admissions.",
+    "IRQ handler has one framebuffer IRQ call; startup enables Vbord only and disables PIA interrupt sources. Framebuffer IRQ acknowledges FF92 without filtering returned source bits and increments FRAMES unconditionally. No extra servicing is demonstrated.",
+    "Candidate separate stopped-enemy defect: global ENEMY_MOVE can enter update loop for an active DIR_NONE record; FF direction falls through West and subtracts one framebuffer byte, two horizontal pixels. Natural reachability and relation to reported overspeed are unverified."
+  ],
+  "verdict": "No confirmed shared invented-tick or duplicate-movement root cause. Ordinary trace conservation passes against software counter only. Independently timed credited gameplay is next discriminator."
+}
