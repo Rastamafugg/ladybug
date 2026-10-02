@@ -1,0 +1,1151 @@
+{
+  "date": "2026-10-02",
+  "ticket": "BUG-080",
+  "status": "PASS",
+  "phase": "C3 naturally credited Part1 Left-held 128 IRQ returns; pose/movement recorded separately",
+  "elapsed_seconds": 2.78,
+  "deadline_seconds": 40,
+  "raw_trace_sha256": "497a72e33ce83fbc1c362b270a416a3d547bcbe82ef42fbd4423d857e15e0a54",
+  "observer_script_sha256": "a9723e7ac55f038be103b2f27bb8a3bdd7d6d52b25ab86f96995fe93d9cbd256",
+  "identity_preflight": {
+    "receipt_revision": "436478586482afb0457357b4fddbbf05a7b9c52a",
+    "build_state": "complete",
+    "build_profile": "complete",
+    "input_count": 256,
+    "source_inputs_current": true,
+    "source_input_mismatch_count": 0,
+    "source_input_missing_count": 0,
+    "source_input_mismatch_sample": [],
+    "source_input_missing_sample": [],
+    "adaptive_source_path": "src/adaptive_active.s",
+    "adaptive_source_sha256": "ea67e009201093b316f07e7d3a481a106c41d237e794631f28481c8b6a508dee",
+    "artifact_sha256": {
+      "ladybug.rom": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+      "ladybug-runtime.rom": "d41213e9abb71706011c089ec981e3e8ae83cde885db0cd068a8efda6c0821c4",
+      "ladybug-enemy-runtime.rom": "0d4c7cbbb4048bd29795800c8917dc06559ebf8aad0bbb4902a8bb1449d05940",
+      "ladybug-presentation-runtime.bin": "0eee8738b5dccf652272d318962d21bd6de8016abba04b36aca0f8c43fe10214",
+      "ladybug-adaptive-active.bin": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "ladybug-audio-runtime.bin": "c6e4883217a81573b9cf45ad90a099b68c5fa7aa2638af48c322e03a3965fb43"
+    },
+    "artifact_hashes_match_receipt": true,
+    "resident_rom_bank1_payload_exact": true,
+    "enemy_rom_bank3_payload_exact": true,
+    "adaptive_audio_stage_offset": 6053,
+    "adaptive_stage_embedded_exact": true,
+    "adaptive_stage_length": 512
+  },
+  "identity_live": {
+    "resident_range": "C000-FDFF",
+    "resident_live_sha256": "bb1593d3a21a1142f7fa005ccb432df73540ab07c5db93ec042dbd32d0ce81f0",
+    "resident_artifact_sha256": "bb1593d3a21a1142f7fa005ccb432df73540ab07c5db93ec042dbd32d0ce81f0",
+    "resident_live_exact": true,
+    "enemy_destination": "0800-17FA",
+    "enemy_live_sha256": "0d4c7cbbb4048bd29795800c8917dc06559ebf8aad0bbb4902a8bb1449d05940",
+    "enemy_artifact_sha256": "0d4c7cbbb4048bd29795800c8917dc06559ebf8aad0bbb4902a8bb1449d05940",
+    "enemy_live_exact": true,
+    "presentation_destination": "1900-1DEF",
+    "presentation_live_sha256": "0eee8738b5dccf652272d318962d21bd6de8016abba04b36aca0f8c43fe10214",
+    "presentation_artifact_sha256": "0eee8738b5dccf652272d318962d21bd6de8016abba04b36aca0f8c43fe10214",
+    "presentation_live_exact": true,
+    "enemy_release_pc": 54620,
+    "enemy_release_live_bytes": "bd080639bd0809398610971b8604971c",
+    "enemy_release_artifact_bytes": "bd080639bd0809398610971b8604971c",
+    "enemy_release_bytes_exact": true,
+    "adaptive_source_stage_address": 47013,
+    "adaptive_stage_live_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+    "adaptive_stage_artifact_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+    "adaptive_stage_live_exact": true,
+    "adaptive_destination_check": "deferred until the natural mode-0 $D55C enemy_release marker after relocated-loader delivery",
+    "physical_loader_staging_snapshot": false,
+    "delivery_boundary": "Authored source is tied to current receipt input; compiled active module equals the embedded audio-runtime stage and live $B7A5 staged bytes. The relocated-loader staging buffer before delivery is not sampled here.",
+    "adaptive_destination_phase": "after natural mode-0 $D55C enemy_release marker; resident marker bytes were proven exact first",
+    "adaptive_destination_address": 911,
+    "adaptive_destination_live_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+    "adaptive_destination_artifact_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+    "adaptive_destination_live_exact": true
+  },
+  "irq_hook": {
+    "pc": 54891,
+    "artifact_bytes": "bd081e3b",
+    "meaning": "RTI after framebuffer IRQ publication returns; raw frame and FRONT commit read before foreground execution resumes"
+  },
+  "samples": 128,
+  "pixel_match_samples": 128,
+  "published_player_pose_runs": [
+    {
+      "value": [
+        2
+      ],
+      "first_raw": 1409,
+      "last_raw": 1411,
+      "first_sample": 1,
+      "last_sample": 3,
+      "first_sim": 887,
+      "last_sim": 889,
+      "raw_holds": 3,
+      "complete": false
+    },
+    {
+      "value": [
+        13,
+        15
+      ],
+      "first_raw": 1412,
+      "last_raw": 1419,
+      "first_sample": 4,
+      "last_sample": 11,
+      "first_sim": 889,
+      "last_sim": 897,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": [
+        12
+      ],
+      "first_raw": 1420,
+      "last_raw": 1429,
+      "first_sample": 12,
+      "last_sample": 21,
+      "first_sim": 897,
+      "last_sim": 906,
+      "raw_holds": 10,
+      "complete": true
+    },
+    {
+      "value": [
+        13,
+        15
+      ],
+      "first_raw": 1430,
+      "last_raw": 1434,
+      "first_sample": 22,
+      "last_sample": 26,
+      "first_sim": 906,
+      "last_sim": 911,
+      "raw_holds": 5,
+      "complete": true
+    },
+    {
+      "value": [
+        14
+      ],
+      "first_raw": 1435,
+      "last_raw": 1443,
+      "first_sample": 27,
+      "last_sample": 35,
+      "first_sim": 913,
+      "last_sim": 921,
+      "raw_holds": 9,
+      "complete": true
+    },
+    {
+      "value": [
+        13,
+        15
+      ],
+      "first_raw": 1444,
+      "last_raw": 1450,
+      "first_sample": 36,
+      "last_sample": 42,
+      "first_sim": 921,
+      "last_sim": 927,
+      "raw_holds": 7,
+      "complete": true
+    },
+    {
+      "value": [
+        12
+      ],
+      "first_raw": 1451,
+      "last_raw": 1460,
+      "first_sample": 43,
+      "last_sample": 52,
+      "first_sim": 929,
+      "last_sim": 938,
+      "raw_holds": 10,
+      "complete": true
+    },
+    {
+      "value": [
+        13,
+        15
+      ],
+      "first_raw": 1461,
+      "last_raw": 1465,
+      "first_sample": 53,
+      "last_sample": 57,
+      "first_sim": 938,
+      "last_sim": 942,
+      "raw_holds": 5,
+      "complete": true
+    },
+    {
+      "value": [
+        14
+      ],
+      "first_raw": 1466,
+      "last_raw": 1475,
+      "first_sample": 58,
+      "last_sample": 67,
+      "first_sim": 944,
+      "last_sim": 952,
+      "raw_holds": 10,
+      "complete": true
+    },
+    {
+      "value": [
+        13,
+        15
+      ],
+      "first_raw": 1476,
+      "last_raw": 1482,
+      "first_sample": 68,
+      "last_sample": 74,
+      "first_sim": 952,
+      "last_sim": 960,
+      "raw_holds": 7,
+      "complete": true
+    },
+    {
+      "value": [
+        12
+      ],
+      "first_raw": 1483,
+      "last_raw": 1491,
+      "first_sample": 75,
+      "last_sample": 83,
+      "first_sim": 960,
+      "last_sim": 968,
+      "raw_holds": 9,
+      "complete": true
+    },
+    {
+      "value": [
+        13,
+        15
+      ],
+      "first_raw": 1492,
+      "last_raw": 1497,
+      "first_sample": 84,
+      "last_sample": 89,
+      "first_sim": 968,
+      "last_sim": 974,
+      "raw_holds": 6,
+      "complete": true
+    },
+    {
+      "value": [
+        14
+      ],
+      "first_raw": 1498,
+      "last_raw": 1505,
+      "first_sample": 90,
+      "last_sample": 97,
+      "first_sim": 976,
+      "last_sim": 982,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": [
+        13,
+        15
+      ],
+      "first_raw": 1506,
+      "last_raw": 1513,
+      "first_sample": 98,
+      "last_sample": 105,
+      "first_sim": 984,
+      "last_sim": 991,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": [
+        12
+      ],
+      "first_raw": 1514,
+      "last_raw": 1521,
+      "first_sample": 106,
+      "last_sample": 113,
+      "first_sim": 992,
+      "last_sim": 999,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": [
+        13,
+        15
+      ],
+      "first_raw": 1522,
+      "last_raw": 1529,
+      "first_sample": 114,
+      "last_sample": 121,
+      "first_sim": 1000,
+      "last_sim": 1007,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": [
+        14
+      ],
+      "first_raw": 1530,
+      "last_raw": 1536,
+      "first_sample": 122,
+      "last_sample": 128,
+      "first_sim": 1008,
+      "last_sim": 1014,
+      "raw_holds": 7,
+      "complete": false
+    }
+  ],
+  "logical_player_phase_runs": [
+    {
+      "value": 2,
+      "first_raw": 1409,
+      "last_raw": 1410,
+      "first_sample": 1,
+      "last_sample": 2,
+      "first_sim": 887,
+      "last_sim": 887,
+      "raw_holds": 2,
+      "complete": false
+    },
+    {
+      "value": 3,
+      "first_raw": 1411,
+      "last_raw": 1418,
+      "first_sample": 3,
+      "last_sample": 10,
+      "first_sim": 889,
+      "last_sim": 895,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 0,
+      "first_raw": 1419,
+      "last_raw": 1427,
+      "first_sample": 11,
+      "last_sample": 19,
+      "first_sim": 897,
+      "last_sim": 903,
+      "raw_holds": 9,
+      "complete": true
+    },
+    {
+      "value": 1,
+      "first_raw": 1428,
+      "last_raw": 1434,
+      "first_sample": 20,
+      "last_sample": 26,
+      "first_sim": 906,
+      "last_sim": 911,
+      "raw_holds": 7,
+      "complete": true
+    },
+    {
+      "value": 2,
+      "first_raw": 1435,
+      "last_raw": 1442,
+      "first_sample": 27,
+      "last_sample": 34,
+      "first_sim": 913,
+      "last_sim": 919,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 3,
+      "first_raw": 1443,
+      "last_raw": 1450,
+      "first_sample": 35,
+      "last_sample": 42,
+      "first_sim": 921,
+      "last_sim": 927,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 0,
+      "first_raw": 1451,
+      "last_raw": 1459,
+      "first_sample": 43,
+      "last_sample": 51,
+      "first_sim": 929,
+      "last_sim": 935,
+      "raw_holds": 9,
+      "complete": true
+    },
+    {
+      "value": 1,
+      "first_raw": 1460,
+      "last_raw": 1465,
+      "first_sample": 52,
+      "last_sample": 57,
+      "first_sim": 938,
+      "last_sim": 942,
+      "raw_holds": 6,
+      "complete": true
+    },
+    {
+      "value": 2,
+      "first_raw": 1466,
+      "last_raw": 1473,
+      "first_sample": 58,
+      "last_sample": 65,
+      "first_sim": 944,
+      "last_sim": 950,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 3,
+      "first_raw": 1474,
+      "last_raw": 1481,
+      "first_sample": 66,
+      "last_sample": 73,
+      "first_sim": 952,
+      "last_sim": 958,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 0,
+      "first_raw": 1482,
+      "last_raw": 1489,
+      "first_sample": 74,
+      "last_sample": 81,
+      "first_sim": 960,
+      "last_sim": 966,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 1,
+      "first_raw": 1490,
+      "last_raw": 1497,
+      "first_sample": 82,
+      "last_sample": 89,
+      "first_sim": 968,
+      "last_sim": 974,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 2,
+      "first_raw": 1498,
+      "last_raw": 1505,
+      "first_sample": 90,
+      "last_sample": 97,
+      "first_sim": 976,
+      "last_sim": 982,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 3,
+      "first_raw": 1506,
+      "last_raw": 1513,
+      "first_sample": 98,
+      "last_sample": 105,
+      "first_sim": 984,
+      "last_sim": 991,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 0,
+      "first_raw": 1514,
+      "last_raw": 1521,
+      "first_sample": 106,
+      "last_sample": 113,
+      "first_sim": 992,
+      "last_sim": 999,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 1,
+      "first_raw": 1522,
+      "last_raw": 1529,
+      "first_sample": 114,
+      "last_sample": 121,
+      "first_sim": 1000,
+      "last_sim": 1007,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 2,
+      "first_raw": 1530,
+      "last_raw": 1536,
+      "first_sample": 122,
+      "last_sample": 128,
+      "first_sim": 1008,
+      "last_sim": 1014,
+      "raw_holds": 7,
+      "complete": false
+    }
+  ],
+  "logical_enemy_phase_runs": [
+    {
+      "value": 3,
+      "first_raw": 1409,
+      "last_raw": 1412,
+      "first_sample": 1,
+      "last_sample": 4,
+      "first_sim": 887,
+      "last_sim": 889,
+      "raw_holds": 4,
+      "complete": false
+    },
+    {
+      "value": 0,
+      "first_raw": 1413,
+      "last_raw": 1420,
+      "first_sample": 5,
+      "last_sample": 12,
+      "first_sim": 891,
+      "last_sim": 897,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 1,
+      "first_raw": 1421,
+      "last_raw": 1430,
+      "first_sample": 13,
+      "last_sample": 22,
+      "first_sim": 899,
+      "last_sim": 906,
+      "raw_holds": 10,
+      "complete": true
+    },
+    {
+      "value": 2,
+      "first_raw": 1431,
+      "last_raw": 1436,
+      "first_sample": 23,
+      "last_sample": 28,
+      "first_sim": 909,
+      "last_sim": 913,
+      "raw_holds": 6,
+      "complete": true
+    },
+    {
+      "value": 3,
+      "first_raw": 1437,
+      "last_raw": 1444,
+      "first_sample": 29,
+      "last_sample": 36,
+      "first_sim": 915,
+      "last_sim": 921,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 0,
+      "first_raw": 1445,
+      "last_raw": 1452,
+      "first_sample": 37,
+      "last_sample": 44,
+      "first_sim": 923,
+      "last_sim": 929,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 1,
+      "first_raw": 1453,
+      "last_raw": 1461,
+      "first_sample": 45,
+      "last_sample": 53,
+      "first_sim": 931,
+      "last_sim": 938,
+      "raw_holds": 9,
+      "complete": true
+    },
+    {
+      "value": 2,
+      "first_raw": 1462,
+      "last_raw": 1469,
+      "first_sample": 54,
+      "last_sample": 61,
+      "first_sim": 940,
+      "last_sim": 946,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 3,
+      "first_raw": 1470,
+      "last_raw": 1476,
+      "first_sample": 62,
+      "last_sample": 68,
+      "first_sim": 948,
+      "last_sim": 952,
+      "raw_holds": 7,
+      "complete": true
+    },
+    {
+      "value": 0,
+      "first_raw": 1477,
+      "last_raw": 1485,
+      "first_sample": 69,
+      "last_sample": 77,
+      "first_sim": 955,
+      "last_sim": 962,
+      "raw_holds": 9,
+      "complete": true
+    },
+    {
+      "value": 1,
+      "first_raw": 1486,
+      "last_raw": 1492,
+      "first_sample": 78,
+      "last_sample": 84,
+      "first_sim": 964,
+      "last_sim": 968,
+      "raw_holds": 7,
+      "complete": true
+    },
+    {
+      "value": 2,
+      "first_raw": 1493,
+      "last_raw": 1501,
+      "first_sample": 85,
+      "last_sample": 93,
+      "first_sim": 971,
+      "last_sim": 978,
+      "raw_holds": 9,
+      "complete": true
+    },
+    {
+      "value": 3,
+      "first_raw": 1502,
+      "last_raw": 1509,
+      "first_sample": 94,
+      "last_sample": 101,
+      "first_sim": 980,
+      "last_sim": 986,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 0,
+      "first_raw": 1510,
+      "last_raw": 1516,
+      "first_sample": 102,
+      "last_sample": 108,
+      "first_sim": 988,
+      "last_sim": 994,
+      "raw_holds": 7,
+      "complete": true
+    },
+    {
+      "value": 1,
+      "first_raw": 1517,
+      "last_raw": 1524,
+      "first_sample": 109,
+      "last_sample": 116,
+      "first_sim": 995,
+      "last_sim": 1002,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 2,
+      "first_raw": 1525,
+      "last_raw": 1532,
+      "first_sample": 117,
+      "last_sample": 124,
+      "first_sim": 1003,
+      "last_sim": 1010,
+      "raw_holds": 8,
+      "complete": true
+    },
+    {
+      "value": 3,
+      "first_raw": 1533,
+      "last_raw": 1536,
+      "first_sample": 125,
+      "last_sample": 128,
+      "first_sim": 1011,
+      "last_sim": 1014,
+      "raw_holds": 4,
+      "complete": false
+    }
+  ],
+  "logical_phase_transition_intervals": {
+    "player_anim": [
+      {
+        "first_sample": 3,
+        "last_sample": 11,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 11,
+        "last_sample": 20,
+        "raw_intervals": 9,
+        "simulation_intervals": 9
+      },
+      {
+        "first_sample": 20,
+        "last_sample": 27,
+        "raw_intervals": 7,
+        "simulation_intervals": 7
+      },
+      {
+        "first_sample": 27,
+        "last_sample": 35,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 35,
+        "last_sample": 43,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 43,
+        "last_sample": 52,
+        "raw_intervals": 9,
+        "simulation_intervals": 9
+      },
+      {
+        "first_sample": 52,
+        "last_sample": 58,
+        "raw_intervals": 6,
+        "simulation_intervals": 6
+      },
+      {
+        "first_sample": 58,
+        "last_sample": 66,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 66,
+        "last_sample": 74,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 74,
+        "last_sample": 82,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 82,
+        "last_sample": 90,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 90,
+        "last_sample": 98,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 98,
+        "last_sample": 106,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 106,
+        "last_sample": 114,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 114,
+        "last_sample": 122,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      }
+    ],
+    "enemy_anim": [
+      {
+        "first_sample": 5,
+        "last_sample": 13,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 13,
+        "last_sample": 23,
+        "raw_intervals": 10,
+        "simulation_intervals": 10
+      },
+      {
+        "first_sample": 23,
+        "last_sample": 29,
+        "raw_intervals": 6,
+        "simulation_intervals": 6
+      },
+      {
+        "first_sample": 29,
+        "last_sample": 37,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 37,
+        "last_sample": 45,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 45,
+        "last_sample": 54,
+        "raw_intervals": 9,
+        "simulation_intervals": 9
+      },
+      {
+        "first_sample": 54,
+        "last_sample": 62,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 62,
+        "last_sample": 69,
+        "raw_intervals": 7,
+        "simulation_intervals": 7
+      },
+      {
+        "first_sample": 69,
+        "last_sample": 78,
+        "raw_intervals": 9,
+        "simulation_intervals": 9
+      },
+      {
+        "first_sample": 78,
+        "last_sample": 85,
+        "raw_intervals": 7,
+        "simulation_intervals": 7
+      },
+      {
+        "first_sample": 85,
+        "last_sample": 94,
+        "raw_intervals": 9,
+        "simulation_intervals": 9
+      },
+      {
+        "first_sample": 94,
+        "last_sample": 102,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 102,
+        "last_sample": 109,
+        "raw_intervals": 7,
+        "simulation_intervals": 7
+      },
+      {
+        "first_sample": 109,
+        "last_sample": 117,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      },
+      {
+        "first_sample": 117,
+        "last_sample": 125,
+        "raw_intervals": 8,
+        "simulation_intervals": 8
+      }
+    ]
+  },
+  "pickup_values": [
+    0
+  ],
+  "death_values": [
+    0
+  ],
+  "limits": [
+    "Single Part1 gameplay owner/sequence; enemy actual pixels not matched in this probe.",
+    "Templates13 and15 have identical opaque art; phase identity follows separate timer evidence, not unique pixel recognition.",
+    "128 FRONT player template matches do not cover all independent gameplay/special/decorative mode owners.",
+    "Published pose runs differ from logical scheduled phase holds due to publication delay; no repair or broad arcade-fidelity acceptance."
+  ],
+  "observer_mechanics_correction": "First deterministic capture read optional pickup/death fields at wrong DP offsets; corrected to documented51/4D and reran the same probe. No change to authored timer counters, source, artifact or execution path.",
+  "derived_phase_origins": {
+    "player_anim": [
+      {
+        "sample": 3,
+        "phase": 3,
+        "simulation_phase_origin": 888,
+        "sampled_raw_frame": 1411,
+        "sampled_timer": 7
+      },
+      {
+        "sample": 11,
+        "phase": 0,
+        "simulation_phase_origin": 896,
+        "sampled_raw_frame": 1419,
+        "sampled_timer": 7
+      },
+      {
+        "sample": 20,
+        "phase": 1,
+        "simulation_phase_origin": 904,
+        "sampled_raw_frame": 1428,
+        "sampled_timer": 6
+      },
+      {
+        "sample": 27,
+        "phase": 2,
+        "simulation_phase_origin": 912,
+        "sampled_raw_frame": 1435,
+        "sampled_timer": 7
+      },
+      {
+        "sample": 35,
+        "phase": 3,
+        "simulation_phase_origin": 920,
+        "sampled_raw_frame": 1443,
+        "sampled_timer": 7
+      },
+      {
+        "sample": 43,
+        "phase": 0,
+        "simulation_phase_origin": 928,
+        "sampled_raw_frame": 1451,
+        "sampled_timer": 7
+      },
+      {
+        "sample": 52,
+        "phase": 1,
+        "simulation_phase_origin": 936,
+        "sampled_raw_frame": 1460,
+        "sampled_timer": 6
+      },
+      {
+        "sample": 58,
+        "phase": 2,
+        "simulation_phase_origin": 944,
+        "sampled_raw_frame": 1466,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 66,
+        "phase": 3,
+        "simulation_phase_origin": 952,
+        "sampled_raw_frame": 1474,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 74,
+        "phase": 0,
+        "simulation_phase_origin": 960,
+        "sampled_raw_frame": 1482,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 82,
+        "phase": 1,
+        "simulation_phase_origin": 968,
+        "sampled_raw_frame": 1490,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 90,
+        "phase": 2,
+        "simulation_phase_origin": 976,
+        "sampled_raw_frame": 1498,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 98,
+        "phase": 3,
+        "simulation_phase_origin": 984,
+        "sampled_raw_frame": 1506,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 106,
+        "phase": 0,
+        "simulation_phase_origin": 992,
+        "sampled_raw_frame": 1514,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 114,
+        "phase": 1,
+        "simulation_phase_origin": 1000,
+        "sampled_raw_frame": 1522,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 122,
+        "phase": 2,
+        "simulation_phase_origin": 1008,
+        "sampled_raw_frame": 1530,
+        "sampled_timer": 8
+      }
+    ],
+    "enemy_anim": [
+      {
+        "sample": 5,
+        "phase": 0,
+        "simulation_phase_origin": 891,
+        "sampled_raw_frame": 1413,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 13,
+        "phase": 1,
+        "simulation_phase_origin": 899,
+        "sampled_raw_frame": 1421,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 23,
+        "phase": 2,
+        "simulation_phase_origin": 907,
+        "sampled_raw_frame": 1431,
+        "sampled_timer": 6
+      },
+      {
+        "sample": 29,
+        "phase": 3,
+        "simulation_phase_origin": 915,
+        "sampled_raw_frame": 1437,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 37,
+        "phase": 0,
+        "simulation_phase_origin": 923,
+        "sampled_raw_frame": 1445,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 45,
+        "phase": 1,
+        "simulation_phase_origin": 931,
+        "sampled_raw_frame": 1453,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 54,
+        "phase": 2,
+        "simulation_phase_origin": 939,
+        "sampled_raw_frame": 1462,
+        "sampled_timer": 7
+      },
+      {
+        "sample": 62,
+        "phase": 3,
+        "simulation_phase_origin": 947,
+        "sampled_raw_frame": 1470,
+        "sampled_timer": 7
+      },
+      {
+        "sample": 69,
+        "phase": 0,
+        "simulation_phase_origin": 955,
+        "sampled_raw_frame": 1477,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 78,
+        "phase": 1,
+        "simulation_phase_origin": 963,
+        "sampled_raw_frame": 1486,
+        "sampled_timer": 7
+      },
+      {
+        "sample": 85,
+        "phase": 2,
+        "simulation_phase_origin": 971,
+        "sampled_raw_frame": 1493,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 94,
+        "phase": 3,
+        "simulation_phase_origin": 979,
+        "sampled_raw_frame": 1502,
+        "sampled_timer": 7
+      },
+      {
+        "sample": 102,
+        "phase": 0,
+        "simulation_phase_origin": 987,
+        "sampled_raw_frame": 1510,
+        "sampled_timer": 7
+      },
+      {
+        "sample": 109,
+        "phase": 1,
+        "simulation_phase_origin": 995,
+        "sampled_raw_frame": 1517,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 117,
+        "phase": 2,
+        "simulation_phase_origin": 1003,
+        "sampled_raw_frame": 1525,
+        "sampled_timer": 8
+      },
+      {
+        "sample": 125,
+        "phase": 3,
+        "simulation_phase_origin": 1011,
+        "sampled_raw_frame": 1533,
+        "sampled_timer": 8
+      }
+    ]
+  },
+  "derived_phase_intervals": {
+    "player_anim": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "enemy_anim": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ]
+  },
+  "derivation": "When the observed current timer is t, phase-origin simulation time is AD_SIM_TIME-(8-t), since the source reloads8 and decrements once per scheduled callback. Raw IRQ samples can skip callback boundaries; sampled transition gaps are not the exact timer dwell.",
+  "confirmed": "Both current gameplay phase timers hold8 simulation ticks for15 complete derived intervals each. Complete exact published player pixel runs hold5\u201310 raw Vbords in this one natural sequence; the source-template match succeeds128/128.",
+  "missing": "Independent arcade family coverage, special/decorative owners, enemy published pose matching, and a viable publication-cadence repair design remain open."
+}
