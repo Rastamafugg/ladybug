@@ -167,9 +167,29 @@
   "deadline_seconds": 40,
   "status": "PASS",
   "scope": "Current C3 credited Part-1 Left-held 128-Vbord publication trace. No general velocity ceiling or sporadic-failure exclusion.",
-  "conclusion": "No four-pixel publication jump in one Vbord in this trace; the foreground-sampled four-pixel/one-interval evidence is invalid as a publication timestamp. Both actors have cumulative windows with three pixels above one pixel per raw Vbord. This requires phase/quantization and simulation-clock discrimination; no general velocity ceiling or sporadic-failure exclusion is established.",
+  "conclusion": "Reproduced player display-speed burst with actual source-template pixels. Commit-to-commit intervals and adjacent displayed-frame changes are distinct metrics. The global raw/simulation totals still match; enemy actual pixels and a safe policy remain unverified.",
   "max_debt_at_retained_publication_states": 0,
   "max_debt_all_irq_snapshots": 1,
   "irq_snapshots_with_nonzero_debt": 21,
-  "scope_correction": "Earlier max_debt=0 was computed after filtering to the74 publication states; it must not be interpreted as all128 IRQ snapshots. Full raw trace has max1 and21 nonzero-debt snapshots."
+  "scope_correction": "Earlier max_debt=0 was computed after filtering to the74 publication states; it must not be interpreted as all128 IRQ snapshots. Full raw trace has max1 and21 nonzero-debt snapshots.",
+  "source_player_opaque_counts_by_template_index": [
+    122,
+    120,
+    120,
+    120,
+    122,
+    120,
+    120,
+    120,
+    122,
+    120,
+    120,
+    120,
+    122,
+    120,
+    120,
+    120
+  ],
+  "opaque_count_metadata_correction": "Original matcher correctly compares every opaque nibble for each candidate, but opaque_pixels_per_candidate reports candidate0 count122, not the actual matched index. Counts are120 or122 by pose; initial matched index2 has120. Match/position results remain valid; no raw trace hash changed.",
+  "adjacent_display_frame_correction": "The sample_count74 table filtered128 IRQ states to distinct publications. Averaging distance over two publication timestamps includes preceding held frames and is not an adjacent-display-frame bound. Matching full128-state player pixel trace confirms4px jumps at raw1431\u21921432 and1478\u21921479."
 }
