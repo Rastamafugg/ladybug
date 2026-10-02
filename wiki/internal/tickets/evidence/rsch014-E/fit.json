@@ -1,0 +1,125 @@
+{
+  "schema": "rsch014-e-bug086-fit-v1",
+  "date": "2026-10-01",
+  "ticket": "BUG-086",
+  "ticket_status": "Draft",
+  "purpose": "Isolated source/assembler fit evidence for the user-approved enemy succession behavior. This is not a repair approval or a runtime acceptance result.",
+  "baseline": {
+    "source_revision": "fe160ae389145d24083218ded05ba9cdca781474",
+    "rom_sha256": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+    "candidate_source_is_uncommitted": true,
+    "candidate_main_sha256": "15E73BECDBE65C5B18C585687636EE7220CD085BDC49E72BF021E97C6C9F9071",
+    "candidate_enemy_runtime_sha256": "5529649CCD9CCC9442A4CC5F09AACE059D07506FE628D989F0EEC189D430EAC5",
+    "generated_adaptive_include": "build/ladybug-adaptive-mapped.bin",
+    "generated_adaptive_include_sha256": "3DB2880D1A5CF636620852676FCC3319C8A37D4499BD80F54D5C1F830D81B6F6"
+  },
+  "assembler": {
+    "version": "lwtools 4.24",
+    "path": "/usr/local/bin/lwasm",
+    "binary_sha256": "8b1f92a1de6ea8b736085291391ae5a6d7e8c8fd19c98b6827da287a0b3d8cf4",
+    "isa": "6809",
+    "output_directory": "repro/rsch014-enemy-fit/final-fit"
+  },
+  "commands": {
+    "main_adaptive": "lwasm -9 --format=raw -DADAPTIVE_RENDERING=1 -DBUG011_DEVELOPMENT_PROFILE=1 -DCOMPLETE_PROFILE=1 -DHIGHSCORE_TEST_PROFILE=0 -DHIGHSCORE_PHASE_HELPER=0 -DPRESENTATION_NAME_ENTRY_DATA=0 -DINPUT_JOYSTICK=0 --output=main-1.rom --list=main-1.lst --symbols --map=main-1.map -I build -I src src/main.s",
+    "main_nonadaptive": "lwasm -9 --format=raw -DADAPTIVE_RENDERING=0 -DBUG011_DEVELOPMENT_PROFILE=1 -DCOMPLETE_PROFILE=1 -DHIGHSCORE_TEST_PROFILE=0 -DHIGHSCORE_PHASE_HELPER=0 -DPRESENTATION_NAME_ENTRY_DATA=0 -DINPUT_JOYSTICK=0 --output=main-0.rom --list=main-0.lst --symbols --map=main-0.map -I build -I src src/main.s",
+    "enemy_adaptive": "lwasm -9 --format=raw -DADAPTIVE_RENDERING=1 --output=enemy-1.bin --list=enemy-1.lst --symbols --map=enemy-1.map -I build -I src src/enemy_runtime.s",
+    "enemy_nonadaptive": "lwasm -9 --format=raw -DADAPTIVE_RENDERING=0 --output=enemy-0.bin --list=enemy-0.lst --symbols --map=enemy-0.map -I build -I src src/enemy_runtime.s"
+  },
+  "results": {
+    "adaptive": {
+      "main_assembly_exit": 0,
+      "main_resident_end_exclusive": "$DFD4",
+      "main_resident_used_bytes": 8148,
+      "resident_capacity_bytes": 8192,
+      "resident_free_bytes": 44,
+      "immutable_asset_end_exclusive": "$FDFA",
+      "immutable_limit_exclusive": "$FE00",
+      "immutable_free_bytes": 6,
+      "enemy_assembly_exit": 0,
+      "enemy_runtime_end_exclusive": "$17FB",
+      "active_stage_ram_limit_exclusive": "$1800",
+      "active_stage_ram_free_bytes": 5,
+      "fixed_object_mask_lut_address": "$17A0"
+    },
+    "nonadaptive": {
+      "main_assembly_exit": 0,
+      "main_resident_end_exclusive": "$DFFE",
+      "main_resident_used_bytes": 8190,
+      "resident_capacity_bytes": 8192,
+      "resident_free_bytes": 2,
+      "enemy_assembly_exit": 1,
+      "enemy_failure": "src/enemy_runtime.s:03672 zmb $17A0-*; Negative block sizes make no sense! (-25)",
+      "fixed_object_mask_lut_address": "$17A0",
+      "consequence": "No valid nonadaptive enemy module map or executable was emitted; the candidate exceeds the fixed pre-LUT placement guard by 25 bytes."
+    }
+  },
+  "allocation_trial": {
+    "persistent_page34_bytes": ["$A89D", "$A89E", "$A89F"],
+    "record_state_encoding": "Enemy record state0 bit0 active; bits4..6 retain type0..7.",
+    "cache_builder_vector_address": "$0824",
+    "cache_builder_vector_change": "Adds one 3-byte JMP vector to build_enemy_nest_cache after the existing module vectors.",
+    "immutable_callable_helpers": {
+      "start": "$FDC8",
+      "end_exclusive": "$FDFA",
+      "cache_guard": "$FDC8-$FDD4 (12 bytes)",
+      "normal_selector": "$FDD4-$FDED (25 bytes)",
+      "preview_packer": "$FDED-$FDFA (13 bytes)",
+      "remaining_before_FE00": 6
+    },
+    "guards": {
+      "immutable_preplacement": "zmb ENEMY_CACHE_GUARD_HELPER-*; keeps prior immutable data at or below $FDC8.",
+      "immutable_final": "asset_end <= $FE00.",
+      "enemy_pre_lut": "zmb $17A0-*; must remain nonnegative; fails by 25 bytes in nonadaptive profile.",
+      "active_stage_ram": "Executable/data end must remain below $1800.",
+      "resident_end": "$E000 exclusive; profile-specific current ends are $DFD4 adaptive and $DFFE nonadaptive."
+    },
+    "design_risk": "High-risk prototype architecture. It expands the fixed enemy-module ABI at $0824 and assigns executable helper ownership to the immutable ROM tail. Neither architectural choice is approved for production."
+  },
+  "encoded_call_check": {
+    "source_artifact": "repro/rsch014-enemy-fit/final-fit/enemy-1.lst",
+    "listing_sha256": "F40AD137553E921BE0E514607489AD9C229F5A3B973DCDE087B1BDC01DFC88ED",
+    "map_artifact": "repro/rsch014-enemy-fit/final-fit/enemy-1.map",
+    "map_sha256": "B9B54628AD93FB897611FF484536128E8F675909585288ADF32004F0FA451B1F",
+    "lbsr_instructions_checked": 47,
+    "missing_symbol_targets": 0,
+    "encoded_displacement_mismatches": 0,
+    "method": "For each emitted LBSR, decoded the two emitted displacement bytes from the instruction PC and compared the resulting 16-bit target with the assembled map symbol. This includes calls to $FDC8 and $FDED."
+  },
+  "retained_outputs": {
+    "main_adaptive_output_sha256": "BEBBDDEC2377A535EBC7E6C07E0A138898133161393CE6D93D701A432952F22F",
+    "main_adaptive_map_sha256": "5B8768A7F6751BEA4A5ECA349BAE33FC9776065BB44EC03EC97437DF4E18EBEB",
+    "main_nonadaptive_output_sha256": "44F8ED9AE5E29F5227F73C0A83275A0F6E7FAB144CB8F802BADB1BB54554F08C",
+    "main_nonadaptive_map_sha256": "62F83CAB4848A83F150068E8CC370C953880B255C9C8D2F00C2E477DC095EBAA",
+    "enemy_adaptive_output_sha256": "B13EC434E5D6386859B17E6D295EB77238DE57114213979926D90773D8E8785F",
+    "enemy_adaptive_map_sha256": "B9B54628AD93FB897611FF484536128E8F675909585288ADF32004F0FA451B1F"
+  },
+  "rejected_experiments": [
+    {
+      "candidate": "ABA byte addition",
+      "result": "Rejected: ABA is a 6800 opcode, not a legal 6809 instruction. The valid pshs b / adda ,s+ sequence costs four bytes, three more than the invalid one-byte idea."
+    },
+    {
+      "candidate": "Shift fixed LUT guard to $17C0 for diagnostics",
+      "result": "Diagnostic-only source emitted a map/listing but is not a valid ROM or fit result. It moved object_mask_lut from $17A0 to $17C0 and showed enemy_runtime_end $181B, beyond the $1800 active-stage boundary. Retained files are repro/rsch014-enemy-fit/diagnostic-not-for-rom-nonadapt.bin (SHA256 C3CF2A624785C48EE94C0435D61085B5B1590A6C3683A151486C80FE5F96E4D6), map (E539AEBC120B8F88BDAA102CFB92ED3AED11B17820C8797DEE423F794362F82A), and listing (2CB00973162C3DBC83BF94FAE5D907A868CCE4E1838909846ACCBBCB7C2CA4F1). Retained only to inspect symbols."
+    },
+    {
+      "candidate": "Place normal/cache helpers in adaptive-only module prefix",
+      "result": "Rejected because shared release/preview consumers require helper symbols in the nonadaptive profile. Helpers now assemble from the always-mapped main source, but that expands immutable executable ownership and does not solve the nonadaptive pre-LUT overflow."
+    },
+    {
+      "candidate": "Place helpers in resident tail at $DFD4",
+      "result": "Rejected for cross-profile allocation: the nonadaptive candidate resident ends at $DFFE with only two bytes before $E000, so resident helper placement cannot fit that profile."
+    },
+    {
+      "candidate": "Additional local code shrinking in this pass",
+      "result": "No safe 25-byte reduction was identified. Packed live-frame selection already replaces stage/slot reconstruction and recovers about nine bytes by the cache-builder region; helper reuse does not remove the normal selection, cursor, packing, or cache-preservation work. The prior two supported LBSR-to-BSR reductions remain; no renderer cadence, LUT location, profile, or active-stage boundary change was used."
+    }
+  ],
+  "runtime": {
+    "performed": false,
+    "valid_combined_rom_emitted": false,
+    "reason": "Nonadaptive enemy assembly fails the fixed $17A0 guard, so there is no all-profile fit artifact to probe."
+  },
+  "verdict": "FAIL: adaptive direct assembly fits its resident, immutable, LUT, and active-stage guards; nonadaptive main assembly leaves two resident bytes and the enemy module fails the fixed pre-LUT guard by 25 bytes. No complete ROM, runtime acceptance, or implementation approval is claimed."
+}
