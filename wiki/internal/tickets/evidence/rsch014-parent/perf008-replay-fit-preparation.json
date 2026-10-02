@@ -1,0 +1,1034 @@
+{
+  "date": "2026-10-02",
+  "status": "Draft preparation only",
+  "model": {
+    "scope": "host replay model only; no CPU callback/pixels/cycles or full-build fit acceptance",
+    "source_revision": "fe160ae389145d24083218ded05ba9cdca781474",
+    "model_reused": "repro/bug058-adaptive-bookkeeping-probe.py expected/rec via AST",
+    "source_hashes": {
+      "src/adaptive_runtime.s": "01f05a499471c595444de9ef05358963f4be5fa8d535b83766e8ce3ce3384403",
+      "src/adaptive_active.s": "ea67e009201093b316f07e7d3a481a106c41d237e794631f28481c8b6a508dee",
+      "src/enemy_runtime.s": "d8b04663d25b50add05e9d2b53dfb31e58f314fbbcad0005898de362258b7e80",
+      "src/main.s": "2cfd91b6e6f8dad417686e1bbc67173e998a00c27418d974ef05a0fcc9931661"
+    },
+    "cases": [
+      {
+        "name": "same-cell later dot",
+        "retained_keys": [
+          [
+            2,
+            4
+          ]
+        ],
+        "result": "PASS host reducer model"
+      },
+      {
+        "name": "distinct removals",
+        "retained_keys": [
+          [
+            6,
+            4
+          ],
+          [
+            2,
+            4
+          ]
+        ],
+        "result": "PASS host reducer model"
+      },
+      {
+        "name": "colour and moving gate",
+        "retained_keys": [
+          [
+            2,
+            4
+          ],
+          [
+            6,
+            4
+          ]
+        ],
+        "result": "PASS host reducer model"
+      },
+      {
+        "name": "empty delayed ticks",
+        "retained_keys": [
+          [
+            2,
+            4
+          ]
+        ],
+        "result": "PASS host reducer model"
+      },
+      {
+        "name": "stage supersedes old-generation removals",
+        "result": "PASS stage-only callback"
+      },
+      {
+        "name": "alternating completion histories",
+        "starting_owner_secondary": 0,
+        "transactions": [
+          {
+            "transaction": 0,
+            "keys": [
+              [
+                2,
+                4
+              ]
+            ],
+            "retained_other": 1,
+            "owner_secondary": 0
+          },
+          {
+            "transaction": 1,
+            "keys": [
+              [
+                2,
+                4
+              ]
+            ],
+            "retained_other": 1,
+            "owner_secondary": 1
+          },
+          {
+            "transaction": 2,
+            "keys": [
+              [
+                6,
+                4
+              ],
+              [
+                2,
+                4
+              ]
+            ],
+            "retained_other": 2,
+            "owner_secondary": 0
+          },
+          {
+            "transaction": 3,
+            "keys": [
+              [
+                6,
+                4
+              ],
+              [
+                2,
+                4
+              ]
+            ],
+            "retained_other": 1,
+            "owner_secondary": 1
+          }
+        ],
+        "result": "PASS host model"
+      },
+      {
+        "name": "alternating completion histories",
+        "starting_owner_secondary": 1,
+        "transactions": [
+          {
+            "transaction": 0,
+            "keys": [
+              [
+                2,
+                4
+              ]
+            ],
+            "retained_other": 1,
+            "owner_secondary": 1
+          },
+          {
+            "transaction": 1,
+            "keys": [
+              [
+                2,
+                4
+              ]
+            ],
+            "retained_other": 1,
+            "owner_secondary": 0
+          },
+          {
+            "transaction": 2,
+            "keys": [
+              [
+                6,
+                4
+              ],
+              [
+                2,
+                4
+              ]
+            ],
+            "retained_other": 2,
+            "owner_secondary": 1
+          },
+          {
+            "transaction": 3,
+            "keys": [
+              [
+                6,
+                4
+              ],
+              [
+                2,
+                4
+              ]
+            ],
+            "retained_other": 1,
+            "owner_secondary": 0
+          }
+        ],
+        "result": "PASS host model"
+      }
+    ],
+    "eligible_placement_cells": 117,
+    "overlapping_legal_footprints": [],
+    "actor_closure": "all saved actor footprints restored unconditionally; RF_DOT roam_mark_underlay sets dirty FF before final capture",
+    "active_capacity": {
+      "used": 512,
+      "limit": 777,
+      "free": 265,
+      "basis": "builder limit 0x698-0x38F; existing install copies generated AUDIO_ADAPTIVE_CODE_BYTES"
+    },
+    "result": "PASS bounded host semantics; candidate runtime still unverified"
+  },
+  "assembly_fit": {
+    "scope": "isolated active module assembly; not a ROM build or executable/pixel acceptance",
+    "source_revision": "fe160ae389145d24083218ded05ba9cdca781474",
+    "assembler": "lwasm -9 --format=raw -DADAPTIVE_RENDERING=1",
+    "baseline_active_bytes": 512,
+    "candidate_active_bytes": 638,
+    "active_limit_bytes": 777,
+    "active_free_bytes": 139,
+    "delta_bytes": 126,
+    "helper_start": "0x598",
+    "helper_bytes": 117,
+    "end_exclusive": "0x60d",
+    "baseline_banked_audio_bytes": 6565,
+    "projected_banked_audio_bytes": 6691,
+    "banked_audio_limit_bytes": 8192,
+    "enemy_growth_bytes": 0,
+    "resident_growth_bytes": 0,
+    "pickup_intent_immediate_replacement_same_size": true,
+    "new_DP_or_journal_bytes": 0,
+    "page34_helper_reservation": null,
+    "scope_candidate": [
+      "src/main.s ordinary pickup flag immediate RF_ENTITIES to RF_DOT",
+      "src/adaptive_active.s class0 removal helper"
+    ],
+    "scratch": [
+      "ENTITY_WORK scan initialized locally; gate cache replay reinitializes after entity scan",
+      "ENTITY_X/Y footprint scratch initialized from key record; PLAYER_CELL retained by reducer",
+      "GATE_COPY_COUNT gate loop retained across draw_gate and sparse replay; source callgraph review",
+      "RENDER_GATE_ID temporary after key binding clears lanes; next record reloaded by reducer",
+      "ENEMY_CAPTURE_DIRTY FF set by existing RF_DOT roam_mark_underlay before final capture"
+    ],
+    "pending": [
+      "full combined clean build with generated imports and capacity",
+      "replay callback CPU proof",
+      "selective versus full pixel oracle all required scenarios",
+      "GATE_ANIM_ID skip interaction and deferred gate keys",
+      "nest compositor and colour/removed-key painter order",
+      "both-history popup-complete matched cost bound"
+    ],
+    "candidate_sha256": "b9faa15d81bbce52da162eab48793e3bcf10002cbaf2f424d76fd8639088a1aa"
+  },
+  "isolated_candidate_diff": [
+    "--- src/adaptive_active.s baseline fe160ae",
+    "+++ ignored isolated candidate; not production",
+    "@@ -278,7 +278,81 @@",
+    "         std RENDER_FLAGS",
+    "         clr ENEMY_RENDER_FLAGS",
+    "         jsr roam_mark_underlay",
+    "+        lda RENDER_FLAGS",
+    "+        cmpa #$20",
+    "+        bne akb_finish",
+    "+        jsr pickup_key_prepare",
+    "+akb_finish",
+    "         jmp frame_render_background",
+    " akb_masks",
+    "         fcb $20,0,$10,0,0,$04,0,0",
+    "+",
+    "+; Isolated PERF-008 sizing candidate, never delivered.",
+    "+pickup_key_prepare",
+    "+        ldx #ENTITY_TABLE",
+    "+        lda ENTITY_COUNT",
+    "+        sta ENTITY_WORK",
+    "+pk_scan",
+    "+        tst 2,x",
+    "+        bne pk_next",
+    "+        ldd ,x",
+    "+        cmpd PLAYER_CELL_X",
+    "+        beq pk_removed",
+    "+pk_next",
+    "+        leax 4,x",
+    "+        dec ENTITY_WORK",
+    "+        bne pk_scan",
+    "+        rts",
+    "+pk_removed",
+    "+        ldd ,x",
+    "+        std ENTITY_X",
+    "+        jsr restore_entity_footprint",
+    "+        clr GATE_COPY_COUNT",
+    "+pk_gate",
+    "+        lda GATE_COPY_COUNT",
+    "+        ldb #GATE_ENTITY_RECORD_SIZE",
+    "+        mul",
+    "+        addd #GATE_ENTITY_LISTS",
+    "+        tfr d,y",
+    "+        lda PLAYER_CELL_X",
+    "+        cmpa ,y",
+    "+        blo pk_gate_next",
+    "+        deca",
+    "+        cmpa 2,y",
+    "+        bhi pk_gate_next",
+    "+        lda PLAYER_CELL_Y",
+    "+        cmpa 1,y",
+    "+        blo pk_gate_next",
+    "+        deca",
+    "+        cmpa 3,y",
+    "+        bhi pk_gate_next",
+    "+        lda GATE_COPY_COUNT",
+    "+        inca",
+    "+        cmpa GATE_ANIM_ID",
+    "+        beq pk_gate_next",
+    "+        sta RENDER_GATE_ID",
+    "+        deca",
+    "+        jsr draw_gate",
+    "+        jsr draw_gate_entities",
+    "+pk_gate_next",
+    "+        inc GATE_COPY_COUNT",
+    "+        lda GATE_COPY_COUNT",
+    "+        cmpa #MAZE_GATE_COUNT",
+    "+        blo pk_gate",
+    "+        clr RENDER_GATE_ID",
+    "+        clr RENDER_FLAGS",
+    "+        lda PLAYER_CELL_X",
+    "+        cmpa #12",
+    "+        bne pk_done",
+    "+        lda PLAYER_CELL_Y",
+    "+        cmpa #10",
+    "+        beq pk_nest",
+    "+        cmpa #14",
+    "+        bne pk_done",
+    "+pk_nest",
+    "+        lda ENEMY_RENDER_FLAGS",
+    "+        ora #ERF_NEST",
+    "+        sta ENEMY_RENDER_FLAGS",
+    "+pk_done",
+    "+        rts",
+    " adaptive_active_end"
+  ],
+  "commands": [
+    "python repro/perf008_replay_model.py",
+    "python repro/perf008_size_candidate.py",
+    "lwasm -9 --format=raw -DADAPTIVE_RENDERING=1 -I repro/perf008-prep -I build -I src --output=repro/perf008-prep/active-candidate.bin --map=repro/perf008-prep/active-candidate.map --list=repro/perf008-prep/active-candidate.lst repro/perf008-prep/active-candidate.s",
+    "python3 repro/perf008_reducer_cpu.py",
+    "python3 repro/perf008_background_pixels_corrected.py",
+    "python repro/perf008_relink_fit.py",
+    "python3 repro/perf008_background_pixels_joint.py"
+  ],
+  "limits": [
+    "Host expected/rec model reused from current journal verifier, not independent assembly execution.",
+    "Candidate imports current artifact addresses; full relink must regenerate imports.",
+    "No selective pixels, complete transactions or performance target acceptance.",
+    "No production source/build artifacts changed; dirty user TMX inputs preserved."
+  ],
+  "current_reducer_cpu": {
+    "phase": "isolated current reducer with no-draw callback stubs",
+    "deadline_seconds": 40,
+    "success_marker": "callbacks, caller restoration and independent history retirement match existing verifier for every forced case",
+    "timeout_meaning": "component return absent; no gameplay cost inference",
+    "rom_sha256": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+    "banked_sha256": "56e14db3f92532dda313661db59415e60fbd33a5da11d22f7c71f0b7fa6c6d8c",
+    "mapped_sha256": "3db2880d1a5cf636620852676fcc3319c8a37d4499bd80f54d5c1f830d81b6f6",
+    "cases": [
+      {
+        "name": "same-cell dot supersedes removal",
+        "owner_secondary": 0,
+        "keys": [
+          0
+        ],
+        "callbacks_exact": true,
+        "caller_restored": true,
+        "only_completed_history_retired": true
+      },
+      {
+        "name": "same-cell dot supersedes removal",
+        "owner_secondary": 1,
+        "keys": [
+          0
+        ],
+        "callbacks_exact": true,
+        "caller_restored": true,
+        "only_completed_history_retired": true
+      },
+      {
+        "name": "distinct removals",
+        "owner_secondary": 0,
+        "keys": [
+          0,
+          0
+        ],
+        "callbacks_exact": true,
+        "caller_restored": true,
+        "only_completed_history_retired": true
+      },
+      {
+        "name": "distinct removals",
+        "owner_secondary": 1,
+        "keys": [
+          0,
+          0
+        ],
+        "callbacks_exact": true,
+        "caller_restored": true,
+        "only_completed_history_retired": true
+      },
+      {
+        "name": "colour plus gate lane dedup",
+        "owner_secondary": 0,
+        "keys": [
+          0,
+          0,
+          4
+        ],
+        "callbacks_exact": true,
+        "caller_restored": true,
+        "only_completed_history_retired": true
+      },
+      {
+        "name": "colour plus gate lane dedup",
+        "owner_secondary": 1,
+        "keys": [
+          0,
+          0,
+          4
+        ],
+        "callbacks_exact": true,
+        "caller_restored": true,
+        "only_completed_history_retired": true
+      },
+      {
+        "name": "delayed empty ticks",
+        "owner_secondary": 0,
+        "keys": [
+          0
+        ],
+        "callbacks_exact": true,
+        "caller_restored": true,
+        "only_completed_history_retired": true
+      },
+      {
+        "name": "delayed empty ticks",
+        "owner_secondary": 1,
+        "keys": [
+          0
+        ],
+        "callbacks_exact": true,
+        "caller_restored": true,
+        "only_completed_history_retired": true
+      },
+      {
+        "name": "stage dominance",
+        "owner_secondary": 0,
+        "keys": [],
+        "callbacks_exact": true,
+        "caller_restored": true,
+        "only_completed_history_retired": true
+      },
+      {
+        "name": "stage dominance",
+        "owner_secondary": 1,
+        "keys": [],
+        "callbacks_exact": true,
+        "caller_restored": true,
+        "only_completed_history_retired": true
+      },
+      {
+        "name": "alternating completed-owner sequence",
+        "first_owner_secondary": 0,
+        "transactions": [
+          {
+            "owner_secondary": 0,
+            "callbacks_exact": true,
+            "other_bytes_retained": 18
+          },
+          {
+            "owner_secondary": 1,
+            "callbacks_exact": true,
+            "other_bytes_retained": 18
+          },
+          {
+            "owner_secondary": 0,
+            "callbacks_exact": true,
+            "other_bytes_retained": 36
+          },
+          {
+            "owner_secondary": 1,
+            "callbacks_exact": true,
+            "other_bytes_retained": 18
+          }
+        ]
+      },
+      {
+        "name": "alternating completed-owner sequence",
+        "first_owner_secondary": 1,
+        "transactions": [
+          {
+            "owner_secondary": 1,
+            "callbacks_exact": true,
+            "other_bytes_retained": 18
+          },
+          {
+            "owner_secondary": 0,
+            "callbacks_exact": true,
+            "other_bytes_retained": 18
+          },
+          {
+            "owner_secondary": 1,
+            "callbacks_exact": true,
+            "other_bytes_retained": 36
+          },
+          {
+            "owner_secondary": 0,
+            "callbacks_exact": true,
+            "other_bytes_retained": 18
+          }
+        ]
+      }
+    ],
+    "scope": "actual reducer assembly only, synthetic journals/callbacks; no pixels or full gameplay acceptance",
+    "identity_gate": "resident/enemy/presentation delivered exact; banked boot stage exact; mapped payload and synthetic RTS destinations exact",
+    "status": "PASS scoped current reducer assembly",
+    "elapsed_seconds": 0.33
+  },
+  "isolated_background_pixels": {
+    "status": "PASS",
+    "rom_sha256": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+    "prototype_identity": {
+      "sha256": "b9faa15d81bbce52da162eab48793e3bcf10002cbaf2f424d76fd8639088a1aa",
+      "bytes": 638,
+      "scope": "isolated low-RAM candidate injection, not a built ROM"
+    },
+    "pixel_cases": [
+      {
+        "name": "existing heart/letter",
+        "table_index": 2,
+        "type": 2,
+        "cell": [
+          8,
+          8
+        ],
+        "background_full_cycles": 287690,
+        "background_selective_cycles": 73811,
+        "colour_global_cost_excluded_from_selective": false,
+        "matching_bytes": 30720,
+        "total_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891",
+        "selective_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891"
+      },
+      {
+        "name": "existing heart/letter",
+        "table_index": 3,
+        "type": 2,
+        "cell": [
+          4,
+          4
+        ],
+        "background_full_cycles": 287690,
+        "background_selective_cycles": 20053,
+        "colour_global_cost_excluded_from_selective": false,
+        "matching_bytes": 30720,
+        "total_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "d9045b4b745391e392841497ca9130e685414875c8898fb55206a8ed9a90471d",
+        "selective_sha256": "d9045b4b745391e392841497ca9130e685414875c8898fb55206a8ed9a90471d"
+      },
+      {
+        "name": "existing heart/letter",
+        "table_index": 4,
+        "type": 2,
+        "cell": [
+          2,
+          2
+        ],
+        "background_full_cycles": 287690,
+        "background_selective_cycles": 4245,
+        "colour_global_cost_excluded_from_selective": false,
+        "matching_bytes": 30720,
+        "total_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "ba59f1c1efc5f77b4903312aa9bfe8bae0e070e46ccfd22abffed8200b2a5cbd",
+        "selective_sha256": "ba59f1c1efc5f77b4903312aa9bfe8bae0e070e46ccfd22abffed8200b2a5cbd"
+      },
+      {
+        "name": "existing heart/letter",
+        "table_index": 5,
+        "type": 3,
+        "cell": [
+          6,
+          10
+        ],
+        "background_full_cycles": 288047,
+        "background_selective_cycles": 4419,
+        "colour_global_cost_excluded_from_selective": false,
+        "matching_bytes": 30720,
+        "total_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "ea6e35d531f0c7ccb4283d833129c89388e6003bbc9275969cc0a33d76d12045",
+        "selective_sha256": "ea6e35d531f0c7ccb4283d833129c89388e6003bbc9275969cc0a33d76d12045"
+      },
+      {
+        "name": "existing heart/letter",
+        "table_index": 6,
+        "type": 3,
+        "cell": [
+          6,
+          16
+        ],
+        "background_full_cycles": 288050,
+        "background_selective_cycles": 61443,
+        "colour_global_cost_excluded_from_selective": false,
+        "matching_bytes": 30720,
+        "total_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "49f3bbdb6be75a6144e620623f6301397302d5099dd94f99f4250eb0de4abfda",
+        "selective_sha256": "49f3bbdb6be75a6144e620623f6301397302d5099dd94f99f4250eb0de4abfda"
+      },
+      {
+        "name": "existing heart/letter",
+        "table_index": 7,
+        "type": 3,
+        "cell": [
+          8,
+          14
+        ],
+        "background_full_cycles": 288230,
+        "background_selective_cycles": 77377,
+        "colour_global_cost_excluded_from_selective": false,
+        "matching_bytes": 30720,
+        "total_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "0de1e19549445d63fb610c7c483f6e90836a1ae61fb63c0c487cdbb8fd0ff740",
+        "selective_sha256": "0de1e19549445d63fb610c7c483f6e90836a1ae61fb63c0c487cdbb8fd0ff740"
+      },
+      {
+        "name": "upper nest",
+        "table_index": 2,
+        "type": 2,
+        "cell": [
+          12,
+          10
+        ],
+        "background_full_cycles": 218513,
+        "background_selective_cycles": 15146,
+        "colour_global_cost_excluded_from_selective": false,
+        "matching_bytes": 30720,
+        "total_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891",
+        "selective_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891"
+      },
+      {
+        "name": "lower nest",
+        "table_index": 2,
+        "type": 2,
+        "cell": [
+          12,
+          14
+        ],
+        "background_full_cycles": 218513,
+        "background_selective_cycles": 15151,
+        "colour_global_cost_excluded_from_selective": false,
+        "matching_bytes": 30720,
+        "total_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891",
+        "selective_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891"
+      },
+      {
+        "name": "colour plus keyed removal",
+        "table_index": 2,
+        "type": 2,
+        "cell": [
+          8,
+          8
+        ],
+        "background_full_cycles": 287640,
+        "background_selective_cycles": 73811,
+        "colour_global_cost_excluded_from_selective": true,
+        "matching_bytes": 30720,
+        "total_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "8125978a2b32228413b831f7d6e55fdd9b0c7dc750a1ca0a4ae3d35e919c987a",
+        "selective_sha256": "8125978a2b32228413b831f7d6e55fdd9b0c7dc750a1ca0a4ae3d35e919c987a"
+      }
+    ],
+    "elapsed_seconds": 3.449,
+    "limits": [
+      "Controlled background callback only after natural credited entry; not complete pickup/popup worklist.",
+      "One prepared BACK scene; second-history/natural alternating oracle still required.",
+      "Upper/lower nest and colour/removal pair covered; skull/stage or deferred-gate pixel cases still absent."
+    ],
+    "scope": "controlled actor-free BACK callbacks after natural credited entry; no whole transaction or published pixel acceptance"
+  },
+  "rejected_fixture": {
+    "result": "156 differing bytes in colour/removal case",
+    "cause": "fixture changed frozen colour after BACK preparation but omitted normal sync_entity_cache_colour prerequisite",
+    "correction": "invoke existing preparation cache synchronizer before global colour replay, then deterministic rerun",
+    "corrected_result": "all9 cases exact30720/30720",
+    "algorithm_rejection": false
+  },
+  "rejected_all_active_fit": {
+    "active_bytes": 638,
+    "banked_audio_bytes": 6691,
+    "actual_audio_before_keybinding_limit": 6656,
+    "overlap_bytes": 35,
+    "result": "REJECTED existing sparse packer prevents BA00 overlap"
+  },
+  "rejected_split_resident_fit": {
+    "active_bytes": 592,
+    "resident_growth_bytes": 53,
+    "baseline_resident_free": 55,
+    "combined_pending_AD1_free": 44,
+    "projected_combined_overflow": 9,
+    "result": "REJECTED for combined candidate; isolated fit is insufficient"
+  },
+  "selected_joint_sizing": {
+    "scope": "isolated clean and combined dirty research relinks; not full production build or approval",
+    "audio_bytes": 6656,
+    "audio_limit": 6656,
+    "active_stage_bytes": 603,
+    "resident_bytes": 8178,
+    "resident_limit": 8192,
+    "resident_symbols_unchanged": true,
+    "transport_used_bytes_including_proof": 29255,
+    "transport_limit_bytes": 41438,
+    "transport_free_bytes": 12183,
+    "source_sha256": "8376fd0d4c24d1eb3ab5c7efdda4de47a190db142362f83fac05465a7855a7df",
+    "remaining": [
+      "assemble regenerated bootstrap",
+      "full build/source audit and generated verifier suite",
+      "guard integration before natural candidate acceptance"
+    ],
+    "resident_growth_bytes": 41,
+    "baseline_resident_free_bytes": 14,
+    "active_bytes": 603,
+    "low_RAM_limit": 777,
+    "low_RAM_free_bytes": 174,
+    "banked_audio_bytes": 6656,
+    "audio_before_keybinding_limit": 6656,
+    "banked_audio_before_keybinding_free": 0,
+    "no_journal_DP_or_page34_allocation": true,
+    "combined_candidate": {
+      "scope": "combined uncommitted research snapshot; no production implementation",
+      "base_worktree": "worktrees/rsch014-combined-prototype",
+      "main_source_sha256": "a69b6238ec566b50656e965a27804cee637d800525f5af73b9a55ba40cff1c90",
+      "candidate_source_sha256": "cf5a6ea084e9751f505890b47285d1f10cbefba4fb8c085f2bcffd517a3ef16f"
+    },
+    "combined_AD1_resident_bytes": 8189,
+    "combined_AD1_free_bytes": 3,
+    "combined_AD0_unchanged_bytes": true,
+    "combined_active_assembly_bytes": 603,
+    "candidate_source_diffs": {
+      "main": [
+        "--- ",
+        "+++ ",
+        "@@ -3895,7 +3895,11 @@",
+        "         beq     cep_skull",
+        "         clr     2,x",
+        "         lda     RENDER_FLAGS",
+        "+        ifne    ADAPTIVE_RENDERING",
+        "+        ora     #RF_DOT",
+        "+        else",
+        "         ora     #RF_ENTITIES",
+        "+        endc",
+        "         sta     RENDER_FLAGS",
+        "         dec     BONUS_LEFT",
+        "         lda     MULTIPLIER",
+        "@@ -4847,6 +4851,36 @@",
+        "         fdb     -320,1,320,-1",
+        "         endc",
+        " ",
+        "+; Isolated PERF-008 split sizing candidate.",
+        "+        ifne ADAPTIVE_RENDERING",
+        "+pickup_prepare_removed",
+        "+        ldx #ENTITY_TABLE",
+        "+        lda ENTITY_COUNT",
+        "+        sta ENTITY_WORK",
+        "+ppr_scan",
+        "+        tst 2,x",
+        "+        bne ppr_next",
+        "+        ldd ,x",
+        "+        cmpd PLAYER_CELL_X",
+        "+        beq ppr_removed",
+        "+ppr_next",
+        "+        leax 4,x",
+        "+        dec ENTITY_WORK",
+        "+        bne ppr_scan",
+        "+        clra",
+        "+        rts",
+        "+ppr_removed",
+        "+        ldd ,x",
+        "+        std ENTITY_X",
+        "+        jsr restore_entity_footprint",
+        "+        lda #1",
+        "+        rts",
+        "+pickup_prepare_nest",
+        "+        ldd PLAYER_CELL_X",
+        "+        cmpa #12",
+        "+        rts",
+        "+        endc",
+        "+",
+        " resident_end",
+        " ",
+        " ; Immutable cartridge data occupies the upper ROM region.  Keep executable"
+      ],
+      "active": [
+        "--- ",
+        "+++ ",
+        "@@ -278,7 +278,60 @@",
+        "         std RENDER_FLAGS",
+        "         clr ENEMY_RENDER_FLAGS",
+        "         jsr roam_mark_underlay",
+        "+        lda RENDER_FLAGS",
+        "+        cmpa #$20",
+        "+        bne akb_finish",
+        "+        bsr pickup_key_prepare",
+        "+akb_finish",
+        "         jmp frame_render_background",
+        " akb_masks",
+        "         fcb $20,0,$10,0,0,$04,0,0",
+        "+",
+        "+; Isolated PERF-008 sizing candidate, never delivered.",
+        "+pickup_key_prepare",
+        "+        jsr pickup_prepare_removed",
+        "+        beq pk_done",
+        "+        clr GATE_COPY_COUNT",
+        "+pk_gate",
+        "+        lda GATE_COPY_COUNT",
+        "+        ldb #GATE_ENTITY_RECORD_SIZE",
+        "+        mul",
+        "+        addd #GATE_ENTITY_LISTS",
+        "+        tfr d,y",
+        "+        lda PLAYER_CELL_X",
+        "+        cmpa ,y",
+        "+        blo pk_gate_next",
+        "+        deca",
+        "+        cmpa 2,y",
+        "+        bhi pk_gate_next",
+        "+        lda PLAYER_CELL_Y",
+        "+        cmpa 1,y",
+        "+        blo pk_gate_next",
+        "+        deca",
+        "+        cmpa 3,y",
+        "+        bhi pk_gate_next",
+        "+        lda GATE_COPY_COUNT",
+        "+        inca",
+        "+        cmpa GATE_ANIM_ID",
+        "+        beq pk_gate_next",
+        "+        sta RENDER_GATE_ID",
+        "+        deca",
+        "+        jsr draw_gate",
+        "+        jsr draw_gate_entities",
+        "+pk_gate_next",
+        "+        inc GATE_COPY_COUNT",
+        "+        lda GATE_COPY_COUNT",
+        "+        cmpa #MAZE_GATE_COUNT",
+        "+        blo pk_gate",
+        "+        clr RENDER_GATE_ID",
+        "+        clr RENDER_FLAGS",
+        "+        jsr pickup_prepare_nest",
+        "+        bne pk_done",
+        "+        andb #$FB",
+        "+        cmpb #10",
+        "+        bne pk_done",
+        "+        lda #8",
+        "+        sta ENEMY_RENDER_FLAGS",
+        "+pk_done",
+        "+        rts",
+        " adaptive_active_end"
+      ]
+    },
+    "pixel_cases": {
+      "status": "PASS",
+      "prototype_identity": {
+        "sha256": "e1ad14242017a60597a1fdf98e8d2575e134d2815c911ab0203cdd7aeab3e0a5",
+        "bytes": 603,
+        "scope": "isolated low-RAM candidate injection, not a built ROM"
+      },
+      "pixel_cases": [
+        {
+          "name": "existing heart/letter",
+          "table_index": 2,
+          "type": 2,
+          "cell": [
+            8,
+            8
+          ],
+          "background_full_cycles": 287690,
+          "background_selective_cycles": 73842,
+          "colour_global_cost_excluded_from_selective": false,
+          "matching_bytes": 30720,
+          "total_bytes": 30720,
+          "first_differences": [],
+          "full_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891",
+          "selective_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891"
+        },
+        {
+          "name": "existing heart/letter",
+          "table_index": 3,
+          "type": 2,
+          "cell": [
+            4,
+            4
+          ],
+          "background_full_cycles": 287690,
+          "background_selective_cycles": 20084,
+          "colour_global_cost_excluded_from_selective": false,
+          "matching_bytes": 30720,
+          "total_bytes": 30720,
+          "first_differences": [],
+          "full_sha256": "d9045b4b745391e392841497ca9130e685414875c8898fb55206a8ed9a90471d",
+          "selective_sha256": "d9045b4b745391e392841497ca9130e685414875c8898fb55206a8ed9a90471d"
+        },
+        {
+          "name": "existing heart/letter",
+          "table_index": 4,
+          "type": 2,
+          "cell": [
+            2,
+            2
+          ],
+          "background_full_cycles": 287690,
+          "background_selective_cycles": 4276,
+          "colour_global_cost_excluded_from_selective": false,
+          "matching_bytes": 30720,
+          "total_bytes": 30720,
+          "first_differences": [],
+          "full_sha256": "ba59f1c1efc5f77b4903312aa9bfe8bae0e070e46ccfd22abffed8200b2a5cbd",
+          "selective_sha256": "ba59f1c1efc5f77b4903312aa9bfe8bae0e070e46ccfd22abffed8200b2a5cbd"
+        },
+        {
+          "name": "existing heart/letter",
+          "table_index": 5,
+          "type": 3,
+          "cell": [
+            6,
+            10
+          ],
+          "background_full_cycles": 288047,
+          "background_selective_cycles": 4450,
+          "colour_global_cost_excluded_from_selective": false,
+          "matching_bytes": 30720,
+          "total_bytes": 30720,
+          "first_differences": [],
+          "full_sha256": "ea6e35d531f0c7ccb4283d833129c89388e6003bbc9275969cc0a33d76d12045",
+          "selective_sha256": "ea6e35d531f0c7ccb4283d833129c89388e6003bbc9275969cc0a33d76d12045"
+        },
+        {
+          "name": "existing heart/letter",
+          "table_index": 6,
+          "type": 3,
+          "cell": [
+            6,
+            16
+          ],
+          "background_full_cycles": 288050,
+          "background_selective_cycles": 61474,
+          "colour_global_cost_excluded_from_selective": false,
+          "matching_bytes": 30720,
+          "total_bytes": 30720,
+          "first_differences": [],
+          "full_sha256": "49f3bbdb6be75a6144e620623f6301397302d5099dd94f99f4250eb0de4abfda",
+          "selective_sha256": "49f3bbdb6be75a6144e620623f6301397302d5099dd94f99f4250eb0de4abfda"
+        },
+        {
+          "name": "existing heart/letter",
+          "table_index": 7,
+          "type": 3,
+          "cell": [
+            8,
+            14
+          ],
+          "background_full_cycles": 288230,
+          "background_selective_cycles": 77408,
+          "colour_global_cost_excluded_from_selective": false,
+          "matching_bytes": 30720,
+          "total_bytes": 30720,
+          "first_differences": [],
+          "full_sha256": "0de1e19549445d63fb610c7c483f6e90836a1ae61fb63c0c487cdbb8fd0ff740",
+          "selective_sha256": "0de1e19549445d63fb610c7c483f6e90836a1ae61fb63c0c487cdbb8fd0ff740"
+        },
+        {
+          "name": "upper nest",
+          "table_index": 2,
+          "type": 2,
+          "cell": [
+            12,
+            10
+          ],
+          "background_full_cycles": 218513,
+          "background_selective_cycles": 15171,
+          "colour_global_cost_excluded_from_selective": false,
+          "matching_bytes": 30720,
+          "total_bytes": 30720,
+          "first_differences": [],
+          "full_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891",
+          "selective_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891"
+        },
+        {
+          "name": "lower nest",
+          "table_index": 2,
+          "type": 2,
+          "cell": [
+            12,
+            14
+          ],
+          "background_full_cycles": 218513,
+          "background_selective_cycles": 15171,
+          "colour_global_cost_excluded_from_selective": false,
+          "matching_bytes": 30720,
+          "total_bytes": 30720,
+          "first_differences": [],
+          "full_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891",
+          "selective_sha256": "aabefec34adb0b0aca6f5cd76452c71e061ba6064a536573416e62aed0d6b891"
+        },
+        {
+          "name": "colour plus keyed removal",
+          "table_index": 2,
+          "type": 2,
+          "cell": [
+            8,
+            8
+          ],
+          "background_full_cycles": 287640,
+          "background_selective_cycles": 73842,
+          "colour_global_cost_excluded_from_selective": true,
+          "matching_bytes": 30720,
+          "total_bytes": 30720,
+          "first_differences": [],
+          "full_sha256": "8125978a2b32228413b831f7d6e55fdd9b0c7dc750a1ca0a4ae3d35e919c987a",
+          "selective_sha256": "8125978a2b32228413b831f7d6e55fdd9b0c7dc750a1ca0a4ae3d35e919c987a"
+        }
+      ],
+      "limits": [
+        "Controlled background callback only after natural credited entry; not complete pickup/popup worklist.",
+        "One prepared BACK scene; second-history/natural alternating oracle still required.",
+        "Upper/lower nest and colour/removal pair covered; skull/stage or deferred-gate pixel cases still absent."
+      ]
+    },
+    "pixel_limit": "controlled callbacks only, not complete transactions",
+    "combined_artifact_hashes": {
+      "main-ad1.rom": "163399a2891efadc3080b120c05e666e860009382c8e00aecfef9b59bdd4a1f8",
+      "main-ad0.rom": "71269a8a682c204f2eb7424f784e6b3ba19fd39a46426dbb44e151c64215d0b2",
+      "main-ad0-baseline.rom": "71269a8a682c204f2eb7424f784e6b3ba19fd39a46426dbb44e151c64215d0b2",
+      "active.bin": "e1ad14242017a60597a1fdf98e8d2575e134d2815c911ab0203cdd7aeab3e0a5"
+    },
+    "pending_combined_ownership": "All combined research snapshot files are uncommitted, identified by source receipt and source hash; no integration acceptance implied."
+  }
+}

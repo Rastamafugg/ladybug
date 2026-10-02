@@ -1,0 +1,723 @@
+{
+  "ticket": "BUG-111",
+  "date": "2026-10-02",
+  "class": "High-risk",
+  "worker": "gpt-6-luna xhigh; usage limit interrupted; parent completed verification and source commit",
+  "source_commit": "fa7464e",
+  "integration_commit": "d4db611",
+  "approved_change": "complete-profile load_done_hold_owner lda#1 after no-instruction restart",
+  "projection_and_observed": {
+    "growth_bytes": 2,
+    "instruction_fast_cycles": 2,
+    "presentation_used": 1266,
+    "limit": 1280,
+    "remaining": 14
+  },
+  "cases": {
+    "bug111-candidate-early-corrected2.json": {
+      "status": "PASS",
+      "rom_sha256": "f18bb3e8d9f735cb6b88aedc05d2b57c5ecf2233751832c86b71bdcea0a2149d",
+      "expected_rom_sha256": "f18bb3e8d9f735cb6b88aedc05d2b57c5ecf2233751832c86b71bdcea0a2149d",
+      "receipt_revision": "016ebcb6d3de4a40ceb51d8cb1624a1283f8246e",
+      "elapsed_seconds": 2.742,
+      "error": null,
+      "route": [
+        {
+          "name": "load_done_hold_owner",
+          "pc": 7018,
+          "mode": 1,
+          "a": 0,
+          "z": true,
+          "active_exact": false,
+          "hold": "030600011e00"
+        },
+        {
+          "name": "presentation_return",
+          "pc": 49452,
+          "mode": 1,
+          "a": 1,
+          "z": false,
+          "active_exact": false,
+          "hold": "030600011e01"
+        },
+        {
+          "name": "load_done_hold_owner",
+          "pc": 7018,
+          "mode": 1,
+          "a": 0,
+          "z": true,
+          "active_exact": false,
+          "hold": "030600011e01"
+        },
+        {
+          "name": "presentation_return",
+          "pc": 49452,
+          "mode": 6,
+          "a": 1,
+          "z": false,
+          "active_exact": false,
+          "hold": "810600011e01"
+        },
+        {
+          "name": "enemy_release",
+          "pc": 54620,
+          "mode": 0,
+          "a": 1,
+          "z": false,
+          "active_exact": true,
+          "hold": "810600011e01"
+        }
+      ],
+      "natural_map3_hold_returns": [
+        {
+          "pc": 49452,
+          "screen": 3,
+          "mode": 1,
+          "a": 1,
+          "z": false,
+          "credits": 1,
+          "front_owner": 0,
+          "back_owner": 1,
+          "pending": 0,
+          "commit_sequence": 2,
+          "hold": "030600011e01"
+        },
+        {
+          "pc": 49452,
+          "screen": 3,
+          "mode": 5,
+          "a": 1,
+          "z": false,
+          "credits": 1,
+          "front_owner": 1,
+          "back_owner": 0,
+          "pending": 1,
+          "commit_sequence": 2,
+          "hold": "810600011e01"
+        }
+      ],
+      "verified_hold_returns": 2,
+      "helper_intact": true,
+      "live_active_exact": true,
+      "first_release_mode": 0,
+      "frame_identity": null,
+      "credits": null,
+      "player_score_hex": null,
+      "first_enemy_release": null,
+      "raw_sha256": "8c496a63d2f686f193704a3c580885c781bccb1d1a4ee3e5f9eac4bb6c8861b2"
+    },
+    "bug111-candidate-adjacent.json": {
+      "status": "PASS",
+      "rom_sha256": "f18bb3e8d9f735cb6b88aedc05d2b57c5ecf2233751832c86b71bdcea0a2149d",
+      "expected_rom_sha256": "f18bb3e8d9f735cb6b88aedc05d2b57c5ecf2233751832c86b71bdcea0a2149d",
+      "receipt_revision": "016ebcb6d3de4a40ceb51d8cb1624a1283f8246e",
+      "elapsed_seconds": 2.801,
+      "error": null,
+      "route": [
+        {
+          "name": "load_done_hold_owner",
+          "pc": 7018,
+          "mode": 1,
+          "a": 0,
+          "z": true,
+          "active_exact": false,
+          "hold": "030600011e00"
+        },
+        {
+          "name": "presentation_return",
+          "pc": 49452,
+          "mode": 1,
+          "a": 1,
+          "z": false,
+          "active_exact": false,
+          "hold": "030600011e01"
+        },
+        {
+          "name": "load_done_hold_owner",
+          "pc": 7018,
+          "mode": 1,
+          "a": 0,
+          "z": true,
+          "active_exact": false,
+          "hold": "030600011e01"
+        },
+        {
+          "name": "presentation_return",
+          "pc": 49452,
+          "mode": 6,
+          "a": 1,
+          "z": false,
+          "active_exact": false,
+          "hold": "810600011e01"
+        },
+        {
+          "name": "enemy_release",
+          "pc": 54620,
+          "mode": 0,
+          "a": 1,
+          "z": false,
+          "active_exact": true,
+          "hold": "810600011e01"
+        }
+      ],
+      "natural_map3_hold_returns": [
+        {
+          "pc": 49452,
+          "screen": 0,
+          "mode": 1,
+          "a": 1,
+          "z": false,
+          "credits": 0,
+          "front_owner": 1,
+          "back_owner": 0,
+          "pending": 0,
+          "commit_sequence": 1,
+          "hold": "030600011e01"
+        },
+        {
+          "pc": 49452,
+          "screen": 0,
+          "mode": 2,
+          "a": 1,
+          "z": false,
+          "credits": 0,
+          "front_owner": 0,
+          "back_owner": 1,
+          "pending": 1,
+          "commit_sequence": 1,
+          "hold": "810600011e01"
+        },
+        {
+          "pc": 49452,
+          "screen": 3,
+          "mode": 1,
+          "a": 1,
+          "z": false,
+          "credits": 1,
+          "front_owner": 0,
+          "back_owner": 1,
+          "pending": 0,
+          "commit_sequence": 2,
+          "hold": "030600011e01"
+        },
+        {
+          "pc": 49452,
+          "screen": 3,
+          "mode": 5,
+          "a": 1,
+          "z": false,
+          "credits": 1,
+          "front_owner": 1,
+          "back_owner": 0,
+          "pending": 1,
+          "commit_sequence": 2,
+          "hold": "810600011e01"
+        }
+      ],
+      "verified_hold_returns": 2,
+      "helper_intact": true,
+      "live_active_exact": true,
+      "first_release_mode": 0,
+      "frame_identity": {
+        "phase": "first natural enemy_release, before its routine body",
+        "front_owner": 0,
+        "back_owner": 1,
+        "pending": 0,
+        "commit_sequence": 853,
+        "frames": {
+          "front": {
+            "owner": 0,
+            "pixel_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "visible_bytes": 30720,
+            "ledger_sha256": "f4619fcce3f342beb8fdd9e54e2903d1a691e08cd4230400107bf50a23f43661",
+            "player_valid": true,
+            "player_fb": 30188,
+            "player_template_match": {
+              "matched": true,
+              "template_indices": [
+                2
+              ],
+              "opaque_pixels_per_candidate": 122,
+              "matching_rule": "all nontransparent native player pixels equal source template at owner metadata pointer"
+            },
+            "active_enemy_overlap_slots": []
+          },
+          "back": {
+            "owner": 1,
+            "pixel_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "visible_bytes": 30720,
+            "ledger_sha256": "f4619fcce3f342beb8fdd9e54e2903d1a691e08cd4230400107bf50a23f43661",
+            "player_valid": true,
+            "player_fb": 30188,
+            "player_template_match": {
+              "matched": true,
+              "template_indices": [
+                2
+              ],
+              "opaque_pixels_per_candidate": 122,
+              "matching_rule": "all nontransparent native player pixels equal source template at owner metadata pointer"
+            },
+            "active_enemy_overlap_slots": []
+          }
+        }
+      },
+      "credits": null,
+      "player_score_hex": null,
+      "first_enemy_release": null,
+      "raw_sha256": "9a698670ce16975978a8fa644aace51ba38747b49472aaf10e96b0939cc74236"
+    },
+    "bug111-baseline-normal.json": {
+      "status": "PASS",
+      "rom_sha256": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+      "expected_rom_sha256": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+      "receipt_revision": "fe160ae389145d24083218ded05ba9cdca781474",
+      "elapsed_seconds": 1.675,
+      "error": null,
+      "route": null,
+      "natural_map3_hold_returns": null,
+      "verified_hold_returns": null,
+      "helper_intact": null,
+      "live_active_exact": null,
+      "first_release_mode": null,
+      "frame_identity": {
+        "phase": "first natural enemy_release, before its routine body",
+        "front_owner": 1,
+        "back_owner": 0,
+        "pending": 0,
+        "commit_sequence": 854,
+        "frames": {
+          "front": {
+            "owner": 1,
+            "pixel_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "visible_bytes": 30720,
+            "ledger_sha256": "f4619fcce3f342beb8fdd9e54e2903d1a691e08cd4230400107bf50a23f43661",
+            "player_valid": true,
+            "player_fb": 30188,
+            "player_template_match": {
+              "matched": true,
+              "template_indices": [
+                2
+              ],
+              "opaque_pixels_per_candidate": 122,
+              "matching_rule": "all nontransparent native player pixels equal source template at owner metadata pointer"
+            },
+            "active_enemy_overlap_slots": [],
+            "capture_path": "/mnt/e/projects/ladybug/repro/bug111-baseline-front.bin"
+          },
+          "back": {
+            "owner": 0,
+            "pixel_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "visible_bytes": 30720,
+            "ledger_sha256": "f4619fcce3f342beb8fdd9e54e2903d1a691e08cd4230400107bf50a23f43661",
+            "player_valid": true,
+            "player_fb": 30188,
+            "player_template_match": {
+              "matched": true,
+              "template_indices": [
+                2
+              ],
+              "opaque_pixels_per_candidate": 122,
+              "matching_rule": "all nontransparent native player pixels equal source template at owner metadata pointer"
+            },
+            "active_enemy_overlap_slots": [],
+            "capture_path": "/mnt/e/projects/ladybug/repro/bug111-baseline-back.bin"
+          }
+        }
+      },
+      "credits": 0,
+      "player_score_hex": "050000",
+      "first_enemy_release": {
+        "pc_raw": 54620,
+        "mode": 0,
+        "live_bytes": "bd080639bd0809398610971b8604971c",
+        "artifact_bytes": "bd080639bd0809398610971b8604971c",
+        "bytes_exact": true,
+        "registers": {
+          "a": 1,
+          "b": 9,
+          "d": 265,
+          "cc": 192,
+          "dp": 0,
+          "x": 42128,
+          "y": 47921,
+          "u": 43152,
+          "s": 8180,
+          "pc": 54620
+        },
+        "elapsed_seconds": 1.643,
+        "adaptive_destination_live_exact": true,
+        "adaptive_destination_live_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+        "adaptive_destination_artifact_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12"
+      },
+      "raw_sha256": "9aabac0dd291b325a76aaa3639735e61cd32adb6933da6404bb6e891ed2163e0"
+    },
+    "bug111-candidate-normal.json": {
+      "status": "PASS",
+      "rom_sha256": "f18bb3e8d9f735cb6b88aedc05d2b57c5ecf2233751832c86b71bdcea0a2149d",
+      "expected_rom_sha256": "f18bb3e8d9f735cb6b88aedc05d2b57c5ecf2233751832c86b71bdcea0a2149d",
+      "receipt_revision": "016ebcb6d3de4a40ceb51d8cb1624a1283f8246e",
+      "elapsed_seconds": 1.653,
+      "error": null,
+      "route": null,
+      "natural_map3_hold_returns": null,
+      "verified_hold_returns": null,
+      "helper_intact": null,
+      "live_active_exact": null,
+      "first_release_mode": null,
+      "frame_identity": {
+        "phase": "first natural enemy_release, before its routine body",
+        "front_owner": 1,
+        "back_owner": 0,
+        "pending": 0,
+        "commit_sequence": 854,
+        "frames": {
+          "front": {
+            "owner": 1,
+            "pixel_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "visible_bytes": 30720,
+            "ledger_sha256": "f4619fcce3f342beb8fdd9e54e2903d1a691e08cd4230400107bf50a23f43661",
+            "player_valid": true,
+            "player_fb": 30188,
+            "player_template_match": {
+              "matched": true,
+              "template_indices": [
+                2
+              ],
+              "opaque_pixels_per_candidate": 122,
+              "matching_rule": "all nontransparent native player pixels equal source template at owner metadata pointer"
+            },
+            "active_enemy_overlap_slots": [],
+            "reference_path": "/mnt/e/projects/ladybug/repro/bug111-baseline-front.bin",
+            "reference_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "reference_byte_equal": true,
+            "reference_differing_bytes": 0,
+            "reference_first_difference": null
+          },
+          "back": {
+            "owner": 0,
+            "pixel_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "visible_bytes": 30720,
+            "ledger_sha256": "f4619fcce3f342beb8fdd9e54e2903d1a691e08cd4230400107bf50a23f43661",
+            "player_valid": true,
+            "player_fb": 30188,
+            "player_template_match": {
+              "matched": true,
+              "template_indices": [
+                2
+              ],
+              "opaque_pixels_per_candidate": 122,
+              "matching_rule": "all nontransparent native player pixels equal source template at owner metadata pointer"
+            },
+            "active_enemy_overlap_slots": [],
+            "reference_path": "/mnt/e/projects/ladybug/repro/bug111-baseline-back.bin",
+            "reference_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "reference_byte_equal": true,
+            "reference_differing_bytes": 0,
+            "reference_first_difference": null
+          }
+        }
+      },
+      "credits": 0,
+      "player_score_hex": "050000",
+      "first_enemy_release": {
+        "pc_raw": 54620,
+        "mode": 0,
+        "live_bytes": "bd080639bd0809398610971b8604971c",
+        "artifact_bytes": "bd080639bd0809398610971b8604971c",
+        "bytes_exact": true,
+        "registers": {
+          "a": 1,
+          "b": 9,
+          "d": 265,
+          "cc": 192,
+          "dp": 0,
+          "x": 42128,
+          "y": 47921,
+          "u": 43152,
+          "s": 8180,
+          "pc": 54620
+        },
+        "elapsed_seconds": 1.634,
+        "adaptive_destination_live_exact": true,
+        "adaptive_destination_live_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+        "adaptive_destination_artifact_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12"
+      },
+      "raw_sha256": "ec08c1592bac6143ef0b259d7693c94540acf2ad15ff4d05c573431b912b5552"
+    },
+    "bug111-parent-early.json": {
+      "status": "PASS",
+      "rom_sha256": "f18bb3e8d9f735cb6b88aedc05d2b57c5ecf2233751832c86b71bdcea0a2149d",
+      "receipt_revision": "fa7464ee79eae58c21f0585349ccbbbd250fa137",
+      "elapsed_seconds": 2.923,
+      "route": [
+        {
+          "name": "load_done_hold_owner",
+          "pc": 7018,
+          "mode": 1,
+          "a": 0,
+          "z": true,
+          "active_exact": false,
+          "hold": "030600011e00"
+        },
+        {
+          "name": "presentation_return",
+          "pc": 49452,
+          "mode": 1,
+          "a": 1,
+          "z": false,
+          "active_exact": false,
+          "hold": "030600011e01"
+        },
+        {
+          "name": "load_done_hold_owner",
+          "pc": 7018,
+          "mode": 1,
+          "a": 0,
+          "z": true,
+          "active_exact": false,
+          "hold": "030600011e01"
+        },
+        {
+          "name": "presentation_return",
+          "pc": 49452,
+          "mode": 6,
+          "a": 1,
+          "z": false,
+          "active_exact": false,
+          "hold": "810600011e01"
+        },
+        {
+          "name": "enemy_release",
+          "pc": 54620,
+          "mode": 0,
+          "a": 1,
+          "z": false,
+          "active_exact": true,
+          "hold": "810600011e01"
+        }
+      ],
+      "natural_map3_hold_returns": [
+        {
+          "pc": 49452,
+          "screen": 0,
+          "mode": 1,
+          "a": 1,
+          "z": false,
+          "credits": 0,
+          "front_owner": 1,
+          "back_owner": 0,
+          "pending": 0,
+          "commit_sequence": 1,
+          "hold": "030600011e01"
+        },
+        {
+          "pc": 49452,
+          "screen": 0,
+          "mode": 2,
+          "a": 1,
+          "z": false,
+          "credits": 0,
+          "front_owner": 0,
+          "back_owner": 1,
+          "pending": 1,
+          "commit_sequence": 1,
+          "hold": "810600011e01"
+        },
+        {
+          "pc": 49452,
+          "screen": 3,
+          "mode": 1,
+          "a": 1,
+          "z": false,
+          "credits": 1,
+          "front_owner": 0,
+          "back_owner": 1,
+          "pending": 0,
+          "commit_sequence": 2,
+          "hold": "030600011e01"
+        },
+        {
+          "pc": 49452,
+          "screen": 3,
+          "mode": 5,
+          "a": 1,
+          "z": false,
+          "credits": 1,
+          "front_owner": 1,
+          "back_owner": 0,
+          "pending": 1,
+          "commit_sequence": 2,
+          "hold": "810600011e01"
+        }
+      ],
+      "verified_hold_returns": 2,
+      "helper_intact": true,
+      "live_active_exact": true,
+      "frame_identity": {
+        "phase": "first natural enemy_release, before its routine body",
+        "front_owner": 0,
+        "back_owner": 1,
+        "pending": 0,
+        "commit_sequence": 853,
+        "frames": {
+          "front": {
+            "owner": 0,
+            "pixel_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "visible_bytes": 30720,
+            "ledger_sha256": "f4619fcce3f342beb8fdd9e54e2903d1a691e08cd4230400107bf50a23f43661",
+            "player_valid": true,
+            "player_fb": 30188,
+            "player_template_match": {
+              "matched": true,
+              "template_indices": [
+                2
+              ],
+              "opaque_pixels_per_candidate": 122,
+              "matching_rule": "all nontransparent native player pixels equal source template at owner metadata pointer"
+            },
+            "active_enemy_overlap_slots": []
+          },
+          "back": {
+            "owner": 1,
+            "pixel_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "visible_bytes": 30720,
+            "ledger_sha256": "f4619fcce3f342beb8fdd9e54e2903d1a691e08cd4230400107bf50a23f43661",
+            "player_valid": true,
+            "player_fb": 30188,
+            "player_template_match": {
+              "matched": true,
+              "template_indices": [
+                2
+              ],
+              "opaque_pixels_per_candidate": 122,
+              "matching_rule": "all nontransparent native player pixels equal source template at owner metadata pointer"
+            },
+            "active_enemy_overlap_slots": []
+          }
+        }
+      },
+      "credits": null,
+      "player_score_hex": null
+    },
+    "bug111-parent-normal.json": {
+      "status": "PASS",
+      "rom_sha256": "f18bb3e8d9f735cb6b88aedc05d2b57c5ecf2233751832c86b71bdcea0a2149d",
+      "receipt_revision": "fa7464ee79eae58c21f0585349ccbbbd250fa137",
+      "elapsed_seconds": 1.747,
+      "route": null,
+      "natural_map3_hold_returns": null,
+      "verified_hold_returns": null,
+      "helper_intact": null,
+      "live_active_exact": null,
+      "frame_identity": {
+        "phase": "first natural enemy_release, before its routine body",
+        "front_owner": 1,
+        "back_owner": 0,
+        "pending": 0,
+        "commit_sequence": 854,
+        "frames": {
+          "front": {
+            "owner": 1,
+            "pixel_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "visible_bytes": 30720,
+            "ledger_sha256": "f4619fcce3f342beb8fdd9e54e2903d1a691e08cd4230400107bf50a23f43661",
+            "player_valid": true,
+            "player_fb": 30188,
+            "player_template_match": {
+              "matched": true,
+              "template_indices": [
+                2
+              ],
+              "opaque_pixels_per_candidate": 122,
+              "matching_rule": "all nontransparent native player pixels equal source template at owner metadata pointer"
+            },
+            "active_enemy_overlap_slots": [],
+            "reference_path": "/mnt/e/projects/ladybug/repro/bug111-baseline-front.bin",
+            "reference_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "reference_byte_equal": true,
+            "reference_differing_bytes": 0,
+            "reference_first_difference": null
+          },
+          "back": {
+            "owner": 0,
+            "pixel_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "visible_bytes": 30720,
+            "ledger_sha256": "f4619fcce3f342beb8fdd9e54e2903d1a691e08cd4230400107bf50a23f43661",
+            "player_valid": true,
+            "player_fb": 30188,
+            "player_template_match": {
+              "matched": true,
+              "template_indices": [
+                2
+              ],
+              "opaque_pixels_per_candidate": 122,
+              "matching_rule": "all nontransparent native player pixels equal source template at owner metadata pointer"
+            },
+            "active_enemy_overlap_slots": [],
+            "reference_path": "/mnt/e/projects/ladybug/repro/bug111-baseline-back.bin",
+            "reference_sha256": "78c162a32133955ba08e114d9bb32fbdb472c6a11c9d5d19fab526614750fc62",
+            "reference_byte_equal": true,
+            "reference_differing_bytes": 0,
+            "reference_first_difference": null
+          }
+        }
+      },
+      "credits": 0,
+      "player_score_hex": "050000"
+    }
+  },
+  "rejected_observer_attempts": [
+    {
+      "file": "bug111-candidate-early.json",
+      "cause": "1800 presentation/adaptive stop quota did not represent sufficient progression",
+      "meaning": "no evidence of runtime deadlock; scope unchanged"
+    },
+    {
+      "file": "bug111-candidate-early-corrected.json",
+      "cause": "new map3 trace left unrelated return breakpoint validation as unexpected stop",
+      "meaning": "observer validation corrected; deterministic rerun passed"
+    }
+  ],
+  "pending": [],
+  "limits": [
+    "BUG05827000-cycle and velocity remain open",
+    "precleanup TMX clean build; user-edited TMX assets not part of approved guard"
+  ],
+  "observer_sources": {
+    "bug111_verify_integrated.py": "53ae2346dc9ea956df7b8f305d418825b7852df2ce8950f572c016ad53b67fde",
+    "bug111_verify_normal.py": "56a77767e61d985da2a323b23bd1246891f842696fe93321140bfeda7b1602b2"
+  },
+  "parent_integration_inputs_exact": {
+    "src/presentation_runtime.s": true,
+    "src/main.s": true,
+    "src/enemy_runtime.s": true,
+    "src/adaptive_active.s": true,
+    "src/adaptive_runtime.s": true,
+    "scripts/build.sh": true
+  },
+  "preserved_user_tmx_sha256": {
+    "tiled\\coco-attract-screen.tmx": "ecc0071a3a3998967401250e977750a9b988444828a9b4e05fe6905de447bf40",
+    "tiled\\coco-credits-screen.tmx": "ba80c3d41e279160f3700e7a891ae7502e68c4f05cbd1c8385757b6e77d0a472",
+    "tiled\\coco-enter-high-score-screen.tmx": "4f57c7ac5de742b528d5fa0bcebb03db46bd53c67ef0ea4e86e8c5e3d89c41c3",
+    "tiled\\coco-game-over-screen.tmx": "8ef2103ced78ca35fd31fc0cbf618cf2552bc623b92b44a2c73642779b2242ab",
+    "tiled\\coco-high-score-screen.tmx": "b014d151e4fd8228faceac8e7bdea4d792abf6b8e8cd8f8f458f736c55df0d61",
+    "tiled\\coco-instructions-screen.tmx": "cee716b3e0c42b30bd25a145dd59191eeff0b90d8be7aa9c6978015be818cbc8",
+    "tiled\\coco-keybind-options-screen.tmx": "1b8de791e7d1550e448a2adb1850d362faa262968c030e12a0530e93fa758ae1",
+    "tiled\\coco-level-start-screen.tmx": "04fd27505700dcfc94453f416b640ba5543bead9e2068b5c906f0a669f7d9469",
+    "tiled\\coco-options-screen.tmx": "5b4e5f1da0d2c8eec216e069325ec4afc8960c22b8be7f5cf1af53af0018c749",
+    "tiled\\coco-screen.tmx": "f84c547553df61f749b7efbd9604a877127af6bbf59511d846896c821dbf6ef9"
+  },
+  "parent_build": {
+    "result": "PASS full build exit0",
+    "revision": "fa7464ee79eae58c21f0585349ccbbbd250fa137",
+    "rom_sha256": "f18bb3e8d9f735cb6b88aedc05d2b57c5ecf2233751832c86b71bdcea0a2149d",
+    "receipt_sha256": "d6363f1ada6585f6bde5782f66ea78d99f74d2085cda7005cda1e801992076f7",
+    "log_sha256": "1a090d7d97a823fc31e046868b79382e27d08360ffd2748a5fcd9422643dedbd",
+    "production_source_matches_root": true,
+    "worktree": "worktrees/bug111-transition-guard",
+    "reason": "Clean authored precleanup map inputs preserve nine user-owned edits in root",
+    "source_reference": "14 modules coverage pass",
+    "source_documentation": "301/301 routines,4921/4921 labels pass"
+  },
+  "qa_verdict": "Done: approved guard meets early, natural, adjacent, capacity and parent integrated build/runtime criteria"
+}
