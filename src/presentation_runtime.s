@@ -597,6 +597,7 @@ load_done_hold_owner
         lda     PRES_SCREEN
         ifne    COMPLETE_PROFILE
         lbsr    start_screen_no_instruction_install
+        lda     #1
         else
         lbsr    start_screen
         endc
