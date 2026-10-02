@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-02",
+  "increment": "BUG058 B2 bounded clock policy",
+  "status": "Done: approved increment only; parent BUG058 remains open",
+  "classification": "High-risk",
+  "source_commit": "b1ce21119583de061fe817497f85d7c60b8341d2",
+  "integrated_commit": "f0fd002",
+  "owned_production_files": [
+    "src/adaptive_runtime.s"
+  ],
+  "profiles": {
+    "keyboard": {
+      "rom_sha256": "2114f0185b5a4bd13795e5ded2834053e22f50adf83610870e387c200d73b901",
+      "build_log_sha256": "570e4ce39f54b7bd7dea835e51f07eba77fdd44dd98ca8873f14b7cdb03317df",
+      "resident_bytes": 8137,
+      "resident_limit": 8192,
+      "resident_free": 55,
+      "assets_bytes": 7661,
+      "assets_limit": 7680,
+      "assets_free": 19,
+      "active_bytes": 603,
+      "active_builder_limit": 777,
+      "audio_prefix_bytes": 6656,
+      "effective_pre_keybindings_limit": 6656,
+      "pre_keybindings_margin": 0,
+      "banked_helper_bytes": 696,
+      "banked_limit": 698,
+      "banked_free": 2,
+      "mapped_bytes": 198,
+      "mapped_limit": 220,
+      "gmc_source_free": 12175
+    },
+    "joystick": {
+      "rom_sha256": "75cd8ebb98911f5c6b3531d3571a08ddea6546f92354d1545be00f87b3e664b4",
+      "build_log_sha256": "21a2a6d1001b3f80f13d13a4b474a72855055f3d67106a05d5ef0868d346f9c7",
+      "resident_bytes": 8173,
+      "resident_limit": 8192,
+      "resident_free": 19,
+      "assets_bytes": 7661,
+      "assets_limit": 7680,
+      "assets_free": 19,
+      "active_bytes": 603,
+      "active_builder_limit": 777,
+      "audio_prefix_bytes": 6656,
+      "effective_pre_keybindings_limit": 6656,
+      "pre_keybindings_margin": 0,
+      "banked_helper_bytes": 696,
+      "banked_limit": 698,
+      "banked_free": 2,
+      "mapped_bytes": 198,
+      "mapped_limit": 220,
+      "gmc_source_free": 12173
+    }
+  },
+  "parent_build_receipt": "bug058-b2-parent-integration-20261002.json",
+  "runtime_receipt": "bug058-b2-execution-runtime-20261002.json",
+  "ordinary_quiet_source_clock": {
+    "worklists": 8,
+    "enemy_population": 4,
+    "logical_steps": 2,
+    "debt": 0,
+    "fault": 0,
+    "cycles_range": [
+      39086,
+      44074
+    ],
+    "scope": "Source state/cadence control; not separate four-enemy published pixel/rate acceptance"
+  },
+  "nonadaptive_isolation": "scripts/build.sh core/audio/link paths are conditional on ADAPTIVE_RENDERING=1; the only changed production file is excluded from AD0. Retained PERF008 AD0 baseline used; unchanged full suite not repeated.",
+  "user_tmx_unchanged": 10,
+  "capacity_change": "Banked helper690\u2192696, spare8\u21922; other allocation sizes unchanged, source spare reduced6. No bounds increased.",
+  "rejected_execution_probes": [],
+  "rejected_preparation": "Earlier four-enemy Part2 requirement and misanchored adapter are retained in readiness receipt; neither counted as passing. B2 clock test legitimately permits changing population.",
+  "residual_risks": [
+    "Movement/gameplay timers intentionally lose overdue simulation time during stalls/transients; audio retains elapsed clock.",
+    "Null audio backend; no physical hardware/audible proof.",
+    "Original27000-cycle performance target remains unmet/open.",
+    "BUG080 pose andBUG087 rate fidelity remain separate Draft gates."
+  ],
+  "qa_verdict": "Approved scope/build/accounting/published motion/phase criteria pass. Byte-identical parent rebuild permits reuse of executed assigned-artifact runtime suite."
+}
