@@ -1,0 +1,113 @@
+{
+  "schema": "rsch014-b5-free-junction-control-plan-v1",
+  "status": "prepared-not-run",
+  "prerequisites": [
+    "Complete offline ROM byte-dispatch trace at $0871-$0888 and follow destinations before launching this control test.",
+    "Re-read live Part marker and spawn/player start pixels; fixed frame inputs are valid only if the current MAME identity and deterministic startup sequence match the retained calibration.",
+    "Use existing scripts/capture_mame_gameplay.py JSON planner. Do not write arcade memory or add runtime-control machinery.",
+    "The Left-held segment is only a candidate approach to the free node; do not treat it as an accepted control mapping. Continue only after live pixels/RAM and maze_nav prove the node, then require the neutral baseline before testing Up."
+  ],
+  "phase": {
+    "name": "Part-1 free-junction input-versus-neutral and perpendicular-axis calibration",
+    "deadline_seconds": 60,
+    "capture_frames": [
+      1,
+      900
+    ],
+    "success_marker": "Part counter $606E=1; exact player pixel template and RAM coordinates at source-proven free node (12,14); no displacement during the neutral baseline; then an Up-held eastward legal maze_nav edge from that same node.",
+    "timeout_meaning": "Required live junction/axis marker was not observed in the bounded phase; not evidence that the game is slow.",
+    "fail_if": [
+      "Part counter changes or player dies before the measured segment.",
+      "RAM and pixel origin disagree beyond the calibrated sprite-origin transform.",
+      "The player moves during the implicit no-directional-input baseline at frames 684-689.",
+      "Up-held segment does not traverse the expected legal maze_nav edge.",
+      "Input segment begins in the forced spawn corridor or at an unverified node."
+    ],
+    "neutral_baseline_frames": [
+      684,
+      689
+    ]
+  },
+  "planned_inputs": [
+    {
+      "frame": 300,
+      "control": "coin1",
+      "pressed": true
+    },
+    {
+      "frame": 303,
+      "control": "coin1",
+      "pressed": false
+    },
+    {
+      "frame": 360,
+      "control": "start1",
+      "pressed": true
+    },
+    {
+      "frame": 365,
+      "control": "start1",
+      "pressed": false
+    },
+    {
+      "frame": 550,
+      "control": "down",
+      "pressed": true
+    },
+    {
+      "frame": 574,
+      "control": "down",
+      "pressed": false
+    },
+    {
+      "frame": 574,
+      "control": "left",
+      "pressed": true,
+      "note": "Candidate route approach only; do not infer accepted Left mapping from resulting motion."
+    },
+    {
+      "frame": 683,
+      "control": "left",
+      "pressed": false
+    },
+    {
+      "frame": 690,
+      "control": "up",
+      "pressed": true
+    },
+    {
+      "frame": 706,
+      "control": "up",
+      "pressed": false
+    }
+  ],
+  "planned_measurements": [
+    {
+      "frame": 683,
+      "expected": "pixel origin near (89,124), with RAM-coordinate agreement; verify against the live maze crop before treating this as node (12,14)."
+    },
+    {
+      "frame": 689,
+      "expected": "neutral baseline: unchanged exact pixel origin and RAM coordinates across frames 684-689. Any drift invalidates the input discriminator."
+    },
+    {
+      "frame": 706,
+      "expected": "after Up is pressed at frame 690, pixel and RAM demonstrate eastward movement from the same source-proven node along maze_nav edge (12,14)->(14,14), crossing (13,14)."
+    }
+  ],
+  "route_model": {
+    "node": [
+      12,
+      14
+    ],
+    "approach": "from south via (12,15)",
+    "expected_legal_edges": [
+      "east",
+      "south",
+      "west"
+    ],
+    "test_input": "cabinet Up should traverse east across (13,14)",
+    "source": "assets/arcade/maze.json"
+  },
+  "retention": "Compact pass/fail summary, hashes, exact RAM/pixel coordinates, and a few representative crops. Discard large passing frame and RAM dumps unless an acceptance criterion later requires them. This neutral-to-Up comparison distinguishes accepted input from route-forced motion; a matching motion during the neutral window fails the input claim."
+}

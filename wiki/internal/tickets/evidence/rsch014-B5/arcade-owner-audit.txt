@@ -1,0 +1,26 @@
+RSCH-014 B5 arcade ROM owner and map-dispatch audit
+Date: 2026-10-02
+
+Identity
+- MAME 0.220 (unknown), executable SHA-256 7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4.
+- ladybug.zip SHA-256 2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8.
+- Main CPU ROM members l1.c4, l2.d4, l3.e4, l4.h4, l5.j4, l6.k4 concatenate to $0000-$5FFF; SHA-256 3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12.
+- Linear z80dasm 1.1.5 output SHA-256 34bf89b284f394e2eb9331e3cf4630afa4cf59200b2e952cb6b0a35e231ac3b3.
+
+Clock-owner finding
+- $3A48-$3A78 is the shared elapsed updater. It decrements $61B6; on wrap it reloads 0x3C, increments $61B7, and decrements four selector counters at $61CE-$61D1.
+- $4717-$4787 runs on the $61B6==$3B schedule, round-robins a selector using $61D2&3, selects a delay from $47AE or $47CD using DIP and $61B7, and derives $61C4-$61C7 values from four active enemy records at $602C with stride 5.
+- $42F4-$4306 consumes those values in enemy route selection. This proves a shared scheduler for enemy route-selection state only. It does not prove that the values are pose IDs or that one pose clock controls the player, roaming, dormant-den/release, death, attract, or instruction actors.
+
+Map and collision dispatch finding
+- $0871-$0888 dispatches loaded map/background bytes. $E5 (flower) branches to $094A; $63 branches to $0AEA; values in $59-$61 branch to $09FE; $62 branches to $09CC; remaining codes take the fallback path.
+- Current frame-550 overlays therefore route as follows: $5A/$5B/$60 to $09FE; $62 to $09CC; $63 to $0AEA. $3E5E-$3E95 classifies codes within the $09FE path. $4005-$4032 loops six records at $61A8 and rewrites their recorded cells to $E5.
+- Frame-550 pixels under x=8*column, y=16+8*row classify both $63 cells at (10,2) and (2,18) as white skull icons, and the six other overlay cells as red bonus circles. This is visual class evidence only. It does not establish collision outcomes, per-code heart-versus-letter roles, or stage-clear counter semantics.
+- Exact next source discriminator: trace reads, comparisons, and branch destinations from $0871-$0888 through $09FE/$09CC/$0AEA, including the $3E5E-$3E95 classifier, and follow writes/consumers of $61A8 records through $4005-$4032. Record outcomes by map byte before using them to label bonus subtypes or define route goals.
+
+Coverage and limits
+- Current arcade player evidence is B2 Part 1, direction 0, codes 1/2/1/0/1 in eight-frame complete holds, with 48 pixels over 48 MAME frames.
+- Current roaming-enemy evidence is B4 Part 1, one group/direction and two eight-frame code-9/code-10 holds across the $61B7 boundary. Historical BUG-050 adds a limited Part-1 code-10/9/10 direction-1 sample.
+- Current references separately retain den/release, death/angel, instruction, attract, and score-popup scenarios. They are not evidence of a common gameplay pose owner.
+- No arcade shared animation owner is proven. Do not collapse the eight roaming groups into a common acceptance family. Keep missing current family coverage explicit until source proves a common pose writer or each required family is sampled.
+- The current B5 MAME phase records movement through the forced spawn corridor and upward motion while Left is held. No neutral comparator or ROM input-decision proof establishes that the command caused the turn, so no compass input is accepted as calibrated. It does not validate a perpendicular axis at a free roaming junction and does not reach Part 2. No later-part rate measurement exists in this evidence increment.

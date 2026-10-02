@@ -1,0 +1,270 @@
+{
+  "schema": "rsch014-b5-clock-owner-audit-v1",
+  "date": "2026-10-02",
+  "arcade_identity": {
+    "mame": "0.220 (unknown)",
+    "ladybug_rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+    "main_cpu_rom_members": [
+      "l1.c4",
+      "l2.d4",
+      "l3.e4",
+      "l4.h4",
+      "l5.j4",
+      "l6.k4"
+    ],
+    "main_cpu_rom_address_range": "$0000-$5FFF",
+    "main_cpu_concat_sha256": "3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12",
+    "linear_disassembly_tool": "z80dasm 1.1.5",
+    "linear_disassembly_sha256": "34bf89b284f394e2eb9331e3cf4630afa4cf59200b2e952cb6b0a35e231ac3b3",
+    "rom_animation_clock_owner_proof": "not established",
+    "basis": "The current-ROM audit found a shared 60-callback elapsed updater and four per-record selector counters, but the traced $4717-$4787 consumer updates $61C4-$61C7 values subsequently consumed by enemy route-choice logic at $42F4-$4306. This is not proof that those bytes are pose IDs or that one shared pose clock controls the player, roaming, den/release, death, attract, or instruction actors. Exact audited ranges, byte identity, and limits are in arcade-owner-audit.txt."
+  },
+  "arcade_clock_owner_findings": [
+    {
+      "family": "enemy route-selection candidate",
+      "owner": "unresolved as an animation owner",
+      "rom_ranges": [
+        "$3A48-$3A78",
+        "$4717-$4787",
+        "$42F4-$4306"
+      ],
+      "exact_behavior": "The main loop decrements $61B6; on wrap it reloads $3C, increments $61B7, and decrements four bytes at $61CE-$61D1. The $4717 routine is gated by $61B6==$3B, round-robins a counter via $61D2&3, and reloads it from a DIP/elapsed-indexed table at $47AE or $47CD. It derives per-record $61C4-$61C7 values from four active records at $602C with stride 5. $42F4-$4306 reads those values in route selection.",
+      "finding": "Shared elapsed scheduling is proven for this enemy route-selection state only; pose-clock sharing and actor-family sharing are not proven."
+    }
+  ],
+  "coco_source_owners": [
+    {
+      "family": "gameplay player",
+      "owner": "PLAYER_ANIM_TIMER / PLAYER_ANIM",
+      "source": "src/main.s::player_animation_tick",
+      "clock": "8 scheduled gameplay ticks per phase advance; pickup/death may pause the phase",
+      "independent": true
+    },
+    {
+      "family": "roaming and dormant den enemy",
+      "owner": "ENEMY_TIMER / ENEMY_ANIM",
+      "source": "src/enemy_runtime.s::enemy_tick_impl",
+      "clock": "one shared 8-enemy-tick pose phase; den updates publish a nest dirty flag",
+      "independent": true,
+      "sharing": "roaming and dormant den share this owner"
+    },
+    {
+      "family": "enemy movement",
+      "owner": "LAST_FRAME & 1 gate in et_find_movement",
+      "source": "src/enemy_runtime.s::et_find_movement",
+      "clock": "movement gate separate from ENEMY_TIMER pose dwell",
+      "independent": true
+    },
+    {
+      "family": "instruction actors/events",
+      "owner": "PRES_PHASE",
+      "source": "src/instruction_runtime.s",
+      "clock": "authored instruction event progression",
+      "independent": true
+    },
+    {
+      "family": "decorative attract actors",
+      "owner": "PRES_ACTOR_PHASE",
+      "source": "presentation_attract_phase",
+      "clock": "attract-specific phase",
+      "independent": true
+    },
+    {
+      "family": "death/angel and release presentation",
+      "owner": "not classified by the retained B4 audit",
+      "source": "existing MAME references only",
+      "clock": "special-sequence timing must stay separate unless source/runtime evidence joins it to another owner",
+      "independent": "unproven"
+    }
+  ],
+  "arcade_capture_coverage": [
+    {
+      "family": "gameplay player",
+      "period": "current",
+      "source": "B2 neutral demo capture; BUG-080#b2-current-player-sample-20261001",
+      "exact": "Part 1, direction 0, codes 1/2/1/0/1 each held 8 MAME frames; 48 pixels over 48 frame intervals",
+      "gap": "does not cover the other directions, state-reset boundaries, or per-part player behavior"
+    },
+    {
+      "family": "roaming enemy",
+      "period": "current",
+      "source": "B4 natural Part-1 gate traverse; BUG-080#b4-part-one-enemy-and-clock-owner-evidence-20261001",
+      "exact": "one group, direction 1; code 9 and code 10 exact holds of 8 frames at callbacks 1641-1648 and 1649-1656",
+      "gap": "no arcade ROM clock-owner proof across groups; one group and two poses do not cover the required roaming family"
+    },
+    {
+      "family": "roaming enemy",
+      "period": "historical",
+      "source": "RSCH-014-D historical-bug050-part1-enemy-cadence.json",
+      "exact": "Part-1 moving sample, direction 1, code 10/9/10 eight-frame holds",
+      "gap": "limited historical sample; not a current complete family result"
+    },
+    {
+      "family": "dormant den and release",
+      "period": "current reference capture, 2026-07-19",
+      "source": "assets/arcade/enemy_release_reference.json, MAME 0.220",
+      "exact": "four-frame den animation visible before the second record activates; released actor occupies frames 1481-1488 while the den remains separately visible",
+      "gap": "does not provide complete pose-run coverage or prove a separate/shared arcade clock"
+    },
+    {
+      "family": "death, wings, and angel",
+      "period": "current reference capture, MAME 0.220",
+      "source": "assets/arcade/death_animation_reference.json",
+      "exact": "complete special sequence includes 30 stationary angel frames and 114 moving frames; all listed shrink/wing intervals retained in the reference",
+      "gap": "preserve its separate sequence; no need to repeat unless a conflicting dwell is measured"
+    },
+    {
+      "family": "instruction actors/events",
+      "period": "current reference capture, MAME 0.220, 4200 callbacks",
+      "source": "assets/arcade/instruction_reference.json",
+      "exact": "instruction interval and authored event/color transition frames are recorded, including EXTRA/SPECIAL/HEARTS targets",
+      "gap": "event timing does not constitute full actor pose-dwell or clock-owner coverage"
+    },
+    {
+      "family": "decorative attract actors",
+      "period": "current reference capture, MAME 0.220, 1800 callbacks",
+      "source": "assets/arcade/attract_actor_reference.json",
+      "exact": "four decorative actor ROIs have eight-frame repeated pose holds",
+      "gap": "title decoration is not gameplay player/enemy acceptance"
+    },
+    {
+      "family": "score popup",
+      "period": "current reference capture, MAME 0.220",
+      "source": "assets/arcade/bonus_popup_reference.json",
+      "exact": "score and multiplier overlays appear together for 30 frames",
+      "gap": "presentation popup, out of locomotion dwell scope"
+    }
+  ],
+  "measurement_rule": "Preserve current exact family references and measure independently owned pose clocks. The arcade enemy route-selection scheduler is not a pose-owner proof. If authoritative actor-pose writers later prove one clock shared across groups/directions, avoid redundant type-by-direction captures; until then keep all eight roaming groups as explicit acceptance gaps and do not infer a shared clock from similar-looking poses.",
+  "arcade_actor_pose_owner_audit": [
+    {
+      "family": "gameplay player",
+      "pose_owner": "unresolved",
+      "current_capture": "B2 Part-1 direction-0 codes 1/2/1/0/1, eight-frame complete holds; no current B5 pose sample",
+      "historical_capture": "BUG-050 limited Part-1 sample",
+      "independence": "not proven by current ROM source"
+    },
+    {
+      "family": "roaming enemies",
+      "pose_owner": "unresolved",
+      "current_capture": "B4 Part-1 one-group direction-1 codes 9 and 10, eight-frame holds across $61B7 boundary",
+      "historical_capture": "BUG-050 limited Part-1 direction-1 code 10/9/10 sample",
+      "independence": "route-selection scheduler shares elapsed source; no pose writer/group sharing proof"
+    },
+    {
+      "family": "dormant den and release",
+      "pose_owner": "unresolved",
+      "current_capture": "MAME reference shows four-frame den phase and released actor during frames 1481-1488 while den remains visible",
+      "historical_capture": "none relied on here",
+      "independence": "separate visible actors; shared or independent arcade clock not proven"
+    },
+    {
+      "family": "death, wings, and angel",
+      "pose_owner": "special-sequence reference",
+      "current_capture": "complete retained death reference includes 30 stationary and 114 moving angel frames",
+      "historical_capture": "none relied on here",
+      "independence": "preserve as special sequence; no linkage to gameplay pose scheduler established"
+    },
+    {
+      "family": "instruction actors/events",
+      "pose_owner": "event timing only; pose owner unresolved",
+      "current_capture": "current instruction reference records event/color transitions but not full actor pose runs",
+      "historical_capture": "none relied on here",
+      "independence": "event progression does not prove a shared arcade actor clock"
+    },
+    {
+      "family": "decorative attract actors",
+      "pose_owner": "unresolved",
+      "current_capture": "four actor ROIs show repeated eight-frame pose holds",
+      "historical_capture": "none relied on here",
+      "independence": "attract-only evidence; shared gameplay owner not proven"
+    }
+  ],
+  "overlay_visual_review": {
+    "capture_frame": 550,
+    "image": "calibration-frame-550.png",
+    "tile_to_pixel": "screen x = 8 * column; screen y = 16 + 8 * row",
+    "cells": [
+      {
+        "xy": [
+          10,
+          2
+        ],
+        "byte": "0x63",
+        "visible_class": "white skull icon",
+        "semantics": "visual only; collision and counter outcome unproven"
+      },
+      {
+        "xy": [
+          12,
+          2
+        ],
+        "byte": "0x5B",
+        "visible_class": "red bonus circle",
+        "semantics": "heart-versus-letter and collision outcome unproven"
+      },
+      {
+        "xy": [
+          12,
+          8
+        ],
+        "byte": "0x62",
+        "visible_class": "red bonus circle",
+        "semantics": "heart-versus-letter and collision outcome unproven"
+      },
+      {
+        "xy": [
+          2,
+          10
+        ],
+        "byte": "0x62",
+        "visible_class": "red bonus circle",
+        "semantics": "heart-versus-letter and collision outcome unproven"
+      },
+      {
+        "xy": [
+          2,
+          18
+        ],
+        "byte": "0x63",
+        "visible_class": "white skull icon",
+        "semantics": "visual only; collision and counter outcome unproven"
+      },
+      {
+        "xy": [
+          22,
+          20
+        ],
+        "byte": "0x5A",
+        "visible_class": "red bonus circle",
+        "semantics": "heart-versus-letter and collision outcome unproven"
+      },
+      {
+        "xy": [
+          10,
+          22
+        ],
+        "byte": "0x60",
+        "visible_class": "red bonus circle",
+        "semantics": "heart-versus-letter and collision outcome unproven"
+      },
+      {
+        "xy": [
+          16,
+          22
+        ],
+        "byte": "0x62",
+        "visible_class": "red bonus circle",
+        "semantics": "heart-versus-letter and collision outcome unproven"
+      }
+    ],
+    "reconciliation": "117 static dot candidates = 109 live $E5 flowers + eight occupied overlays (two visible skulls and six visible bonus circles); stage-clear counter acceptance remains untested."
+  },
+  "next_source_discriminator": {
+    "identity": "main CPU ROM concatenation SHA-256 3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12; ROM and disassembler identities above",
+    "dispatch": "$0871-$0888: trace byte comparisons and destinations for 0x5A, 0x5B, 0x60, 0x62, and 0x63 through $09FE/$09CC/$0AEA",
+    "follow_up": "Trace classifier $3E5E-$3E95 and six-record loop $4005-$4032, including reads/writes of $61A8 records and each branch destination. Record per-byte collision and counter effects; do not infer heart/letter semantics from pixels.",
+    "after_offline_trace": "Use existing JSON planner for a bounded free-junction perpendicular-axis test; only after that passes prepare a natural clear route.",
+    "capture_boundary": "No capture in this B5 increment. Any next runtime phase names a success marker and stays at or below 60 seconds."
+  }
+}
