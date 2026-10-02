@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RSCH-014 Step B4 — Presentation clock evidence — Ladybug</title>
+  <title>RSCH-014 Step B4 — Presentation and gameplay clock evidence — Ladybug</title>
   <link rel="stylesheet" href="../../../../shared/css/wiki.css">
 </head>
 <body>
@@ -12,8 +12,8 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal · evidence · RSCH-014 Step B4</p>
-      <h1>BUG-081 presentation-clock basis <span class="wiki-badge">internal</span></h1>
-      <p class="wiki-meta">2026-10-01 · source and retained-receipt review · no new runtime capture</p>
+      <h1>RSCH-014 B4 timing evidence <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">2026-10-01 · presentation source review and one credited Part-1 natural gameplay capture</p>
     </header>
     <section>
       <h2>Decision boundary</h2>
@@ -37,7 +37,29 @@
       <h2>Acceptance still required after approval</h2>
       <p>The source and retained receipts are sufficient to set a coherent proposed clock contract; they are not implementation acceptance. Before Ready, the design must count elapsed Vbord samples across dispatch gaps, leave the decorative-actor writer unchanged, compare its cadence with a same-Vbord-condition baseline, and leave the shared presentation timer intact. Actor dwell changes remain BUG-080. A future approved repair must then measure 31 elapsed CoCo Vbord intervals between published logo phases on both contexts, prove current ROM/helper identity before interpreting live state, verify both persistent framebuffer owners, and show logo-only changes with actors and non-logo pixels unchanged. The high-score 31-frame comparison is an assumed target, not measured arcade evidence.</p>
     </section>
-    <footer class="wiki-footer"><p>Evidence scope: source mapping, established frame conversion, retained MAME attract measurement, and retained BUG-052 receipt. No runtime probe, implementation, or approval was performed.</p></footer>
+    <section id="gameplay-bucket-capture-20261001">
+      <h2>Credited Part-1 elapsed-bucket and enemy-pixel capture</h2>
+      <p><strong>Phase:</strong> fresh MAME start, one-player credit, and the existing natural-input Part-1 gate-traverse plan at callbacks 1–1800 inclusive. <strong>Success marker:</strong> Part counter <code>$606E/$606F=1</code>, active enemy record <code>$602B</code>, and exact enemy opaque-pixel matches across the first elapsed selector boundary. <strong>Deadline:</strong> <code>timeout 60s</code>; exit 0 in 9.606 seconds wall time. A timeout would mean the bounded capture did not complete and would not establish that the game failed to reach the marker. The plan used only the existing JSON button planner; no memory writes or new control path were used.</p>
+      <pre><code>wsl timeout 60s python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 1800 --skip-player-recognition --plan scripts/mame_plans/gate-traverse-17.json --video-from 1200 --raw-video /tmp/rsch014-B4-P1-clock-video.bin --raw-work-ram /tmp/rsch014-B4-P1-clock-ram.bin --output /tmp/rsch014-B4-P1-clock.json</code></pre>
+      <p>Identity: MAME 0.220 (unknown), binary SHA-256 <code>7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4</code>; <code>ladybug.zip</code> SHA-256 <code>2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8</code>; plan SHA-256 <code>f22655bc8d702513a45dfeaa9a99b87143b83186dacdfacea7e68d2f1a06f894</code>; capture script SHA-256 <code>3a90b4a420f8319e248ad8ec523c25d23e12fd7a0362a023775ac1cb91e93d72</code>.</p>
+      <p>The report contains 1800 work-RAM samples. Video is 192×240 BGRA32, callbacks 1200–1800 inclusive (601 frames). Raw video is 110,776,320 bytes, SHA-256 <code>45ea0d31970235bbbd1a83f2e24d4f8a10c8395be36804ac70c33ec9308f1013</code>; work RAM is 7,372,800 bytes, SHA-256 <code>630cb90f9f098167b8e733b790708c59bb7c5ab9bd3d1d81c46fa94f7f66cf77</code>; compact capture JSON is 4,131,014 bytes, SHA-256 <code>d83e70c97338b9ddb43ba2fb11053d1add1d6e87a55cda6c519008d207280bc6</code>. The raw streams remain in temporary storage; only these identities and the threshold summary are retained.</p>
+      <p>On Part 1, elapsed byte <code>$61B7=0x0F</code> spans callbacks 1589–1648, then <code>0x10</code> spans 1649–1708; each interval is 60 MAME callbacks. It reaches <code>0x11</code> at callback 1709. This is one natural Part-1 calibration of the source elapsed-bucket boundary to MAME frames, not later-part progression or CoCo dispatcher conversion.</p>
+      <p>The offline opaque-pixel matcher uses enemy codes 11, 10, 9, and 10 from the first Part-1 group in <code>scripts/verify_bug018_part_one_enemy_palette.py</code>, rotations 0–3, and palette mapping <code>sprite_lookup_a[1]</code>. It requires every opaque template pixel to equal the raw BGRA video pixel at the work-RAM-derived sprite origin. Asset identities are <code>sprites.json</code> SHA-256 <code>af2adb1a494b6a641deb38931ee93220b9638ffca4d42e8e37d7d8683945e42d</code>, <code>palette.json</code> SHA-256 <code>3123ef22d219d0282382d2da896777cbe40253a4b858f4a30444b02c9c26f427</code>, and <code>sprite_lookup_a.json</code> SHA-256 <code>42a71f398b34d0b75bb3c9e96605c631c8ace054d3da7087262720be1a7d76f3</code>. The exact matcher identifies enemy code 9, direction 1 at frames 1641–1648 and code 10, direction 1 at 1649–1656, with each pose held for eight complete MAME frames. At the bucket boundary, active record <code>$602B</code> changes from <code>42 70 96 18 01</code> to <code>42 71 96 18 01</code>; the exact screen origin moves from (112,89) to (113,89), and the visible sprite changes from code 9 to code 10. This correlates one Part-1 actor-pixel interval and pose transition with a source elapsed-bucket boundary. It does not establish a complete enemy animation cycle, an average movement-rate policy, later-part behavior, or a CoCo cause.</p>
+    </section>
+    <section id="bug080-clock-owner-audit-20261001">
+      <h2>BUG-080 source clock-owner inventory</h2>
+      <ul>
+        <li>Gameplay player pose uses <code>PLAYER_ANIM_TIMER</code> at <code>$0050</code> and <code>PLAYER_ANIM</code>. <code>src/main.s::player_animation_tick</code> reloads eight scheduled gameplay ticks, advances the four-state phase, and conditionally pauses during pickup/death. Initial-entry and other mode paths can call or initialize the same state under different scheduling conditions.</li>
+        <li>Gameplay roaming and dormant enemy pose share <code>ENEMY_TIMER</code> at <code>$0055</code> and <code>ENEMY_ANIM</code>. <code>src/enemy_runtime.s::enemy_tick_impl</code> reloads eight enemy ticks and publishes a nest-animation dirty flag. Its movement gate at <code>et_find_movement</code> uses <code>LAST_FRAME &amp; 1</code> independently; that movement policy is not a pose-dwell measurement.</li>
+        <li>Instruction actor presentation advances authored event state through <code>PRES_PHASE</code> in <code>src/instruction_runtime.s</code>; decorative attract actors use <code>PRES_ACTOR_PHASE</code> through <code>presentation_attract_phase</code>. These are distinct owners. Preserve separately measured death/angel sequencing and BUG-081 logo timing rather than folding them into a gameplay timer change.</li>
+      </ul>
+      <p>The 8-tick source reloads identify current clock ownership only. Current arcade gameplay now has a complete Part-1 enemy pose interval for codes 9 and 10, but full player/enemy family, direction, den/release, and independent mode-owner coverage remains incomplete. No timer repair is justified by this partial inventory.</p>
+    </section>
+    <section id="bug087-route-design-20261001">
+      <h2>BUG-087 later-part route review</h2>
+      <p>The existing JSON plans cover bounded Part-1 controls such as baseline travel, corner turns, one gate crossing, pickup, and death. None clears a stage. The 24×24 <code>assets/arcade/maze.json</code> describes static cells, navigation links, gates, nests, and initial dots; <code>assets/arcade/demo_route.json</code> is a 187-command direction script extracted from the arcade ROM, not a user-input plan. B3's neutral run reaches a title transition before Part 2. These sources do not yet provide a validated deterministic stage-clear route in the current input planner. Later-part measurement remains open and requires route design plus a separately bounded capture; it cannot be replaced by this Part-1 boundary sample.</p>
+    </section>
+    <footer class="wiki-footer"><p>Evidence scope: source mapping, established frame conversion, retained MAME attract and BUG-052 receipt evidence, one bounded natural Part-1 gate-traverse capture, and static source-owner/route review. No implementation or approval was performed.</p></footer>
   </main>
 </div>
 </body>
