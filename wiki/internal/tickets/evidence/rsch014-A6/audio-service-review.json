@@ -1,0 +1,90 @@
+{
+  "schema": "rsch014-a6-adaptive-audio-cost-review-v1",
+  "date": "2026-10-02",
+  "ticket": "BUG-058 / RSCH-014-A6",
+  "status": "read-only source and historical-evidence audit",
+  "classification": "High-risk Draft",
+  "reported_retest": {
+    "source": "Parent-forwarded user retest; not independently sampled in this step.",
+    "observation": "Catch-up is strongest around collectible pickups and enemy releases, weaker during gate rotation; user suspects longer music cues and reports uncontrollable bursts.",
+    "active_environment": {
+      "emulator": "Visible XRoar PID 7522; left untouched.",
+      "rom_sha256": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+      "audio_backend": "Parent identifies PulseAudio at 44.1 kHz with a 100 ms buffer.",
+      "inspection": "No attach, pause, input, debugger action, runtime probe, or audio capture performed."
+    }
+  },
+  "scope": {
+    "objective": "Separate authored cue duration from per-tick decode/admission/mix work, adaptive callback frequency, render work, and host audio pacing.",
+    "included": "Read-only assembly, build wiring, sound wiki, cue manifest, existing verifier/probe evidence, source/build identity comparison.",
+    "excluded": "Source edits, runtime launch, touching the visible emulator, changing audio/tick policy, shared ticket/log edits, or cause/acceptance claims.",
+    "owned_artifact": "This evidence file only; parent owns canonical BUG-058 and shared wiki artifacts."
+  },
+  "identity": {
+    "inspected_head": "cf139bf6cf28b78cf868905fc1e3bc32b1e0783a",
+    "root_rom_receipt": {
+      "path": "repro/tool007/build-results-20261001.json",
+      "sha256": "ea556ba6d99939604b7a4963dbfd132cad3feca78f0683e097d1895d4e91677d",
+      "source_revision": "d7bda8d251cd96172a612d066c67a73afe00dcc8",
+      "adaptive_rom_sha256": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55"
+    },
+    "source_comparison": "Compared the audited source paths at d7bda8d and this worktree HEAD. Only adaptive_audio_service.s differs, by three requires_symbol audit-comment annotations; assembly instructions and the other checked files match. This supports source-code correspondence for the audited audio flow, not live destination-byte proof in this step.",
+    "inputs": [
+      {"path":"src/audio_runtime.s","sha256":"b1e6a9ace4ed6f946dbf05df2d5aafb692d7eef4b7b9b66520761fada48b58bf","anchors":{"audio_tick":99,"audio_advance_all":387,"audio_advance_slot":415,"audio_poll_gameplay":541,"audio_mix_write":691,"audio_mix":806,"audio_mix_slot":938,"audio_enqueue_route":1045,"audio_music_dispatch":1106,"audio_drain_busy":1274,"adaptive_service_include":1331}},
+      {"path":"src/adaptive_audio_service.s","sha256":"035bcad9409096f4250dbd0bbc83775075245c91423ba0dfed0ba43da5ffc1bc","build_revision_sha256":"2b49446cb50c234a932db32ce5c011e2ff7d89571d551c441511ab3568f521b5","anchors":{"api":5,"elapsed":27,"slot_scan":37,"due_boundary":57,"admit":76,"output":102,"dirty_guard":139}},
+      {"path":"src/adaptive_active.s","sha256":"ea67e009201093b316f07e7d3a481a106c41d237e794631f28481c8b6a508dee","anchors":{"work":22,"initial_audio_elapsed":24,"batch":52,"output_without_compose":89,"audio_binding":140,"tick_binding":150,"barrier_audio_admit":196}},
+      {"path":"src/adaptive_audio_bindings.s","sha256":"f6b8c8c5f40e4314de36ce0c628892a92100ae92b28211d916fb29f8a8a17335","scope":"Older isolated prototype; not included by the current adaptive audio build path."},
+      {"path":"scripts/build_adaptive_runtime.py","sha256":"28d739e5ecafabdc4d8d93c2b0c7527dc0a68846e6797103d15c4e4ac6d09f78","fact":"Adaptive link assembles audio_runtime.s with ADAPTIVE_RENDERING=1 and resolves AUDIO_ADAPTIVE_EXEC to audio_adaptive_api; audio_runtime.s includes adaptive_audio_service.s."},
+      {"path":"wiki/internal/platform/sound.html","sha256":"577bf21310415c1adf85d99074d417ae3cc73f8784422f6f4bcec415f8dd3c9c","fact":"Historical fit documents the wait-zero off-by-one correction: cue 0 changed from 30 service ticks to its 24 authored ticks; 398 tested boundaries across 16 sounded cues pass."},
+      {"path":"assets/arcade/audio/gmc-runtime-cues.json","sha256":"bc1513763b0ad9c2aa6227ffc8ccdacca025708301d523d958bd2447c1a97641","fact":"Authored cue descriptor/stream metadata used below; this manifest is not by itself proof of which cue the user heard."}
+    ]
+  },
+  "cue_facts": {
+    "source_rule": "audio_poll_gameplay maps gate transition to cue 0, vegetable collection to cue 1, bonus collectible to cue 2, pellet count to cue 3, timer box to cue 4, and enemy release to cue 5. audio_enqueue_route sends IDs below 6 to the effect FIFO; music/jingle IDs are routed separately.",
+    "authored_manifest_rows": [
+      {"id":0,"name":"gate-rotation","class":"effect","ticks":24,"command_bytes":39},
+      {"id":1,"name":"vegetable-collection","class":"effect","ticks":284,"command_bytes":425},
+      {"id":2,"name":"bonus-collectible","class":"effect","ticks":15,"command_bytes":155},
+      {"id":5,"name":"enemy-release","class":"effect","ticks":84,"command_bytes":507},
+      {"id":6,"name":"level-start","class":"jingle","ticks":192,"command_bytes":337},
+      {"id":10,"name":"extra-celebration","class":"jingle","ticks":320,"command_bytes":409},
+      {"id":11,"name":"special-celebration","class":"jingle","ticks":256,"command_bytes":419}
+    ],
+    "limit": "Ticks and command bytes are authored manifest facts, not measured running-ROM cue durations or CPU costs. The user's pickup type and actual emitted cue IDs are not known from this retest."
+  },
+  "execution_path": {
+    "active_owner": "The adaptive path uses audio_runtime.s's included audio_adaptive_api via adaptive_active.s: adaptive_audio_binding selects page $3D, calls the mapped API, and restores page $34. The separate adaptive_audio_bindings.s file is not this owner.",
+    "action_0_elapsed": "adaptive_work calls action 0 once at pass entry. aas_elapsed reads an atomic FRAMES snapshot, computes elapsed raw frames, and scans four voice slots. It subtracts dwell or decodes at most one due note boundary per active voice on this service call; if elapsed exceeds that wait it sets audio_adaptive_late and starts the next note at delivery. It does not parse the full cue or catch up every missed note in a loop.",
+    "action_1_admission": "adaptive_tick_binding calls action 1 after each logical gameplay callback, including batched callbacks. aas_dirty returns quickly when the ten polled gameplay fields are unchanged and all queues/music/stop state are idle. A changed field or nonempty AUDIO_Q_COUNT, audio_music_count, or audio_stop_pending takes the full poll, queue processing, music dispatch and four-slot prime path.",
+    "action_2_output": "The active driver calls action 2 once after composition or through the no-compose output path. It services credit, primes new zero-wait slots, selects the GMC, mixes active slots and calls audio_mix_write. Work is bounded by four slots, three tone lanes per mixed slot, and fixed PSG output sites; active voices and changed registers affect the actual path.",
+    "cue_duration_effect": "A long cue is represented by wait counts and a stream pointer. It does not block on completion. Longer dwell extends how long a voice can be active and therefore can extend per-output mixing work. A pending music queue behind an occupied music slot keeps audio_music_count nonzero; aas_dirty then selects the full admission/poll path for every logical callback until dispatch can proceed. This is a candidate incremental cost, not a measured catch-up cause.",
+    "transition_guard": "audio_drain_busy checks whether music/effect state remains and returns a busy flag; it contains no wait loop. Name/phase callers may use that flag to delay a transition, but the active movement callback does not synchronously wait for an entire cue.",
+    "legacy_owner": "audio_tick contains the nonadaptive combined poll/process/music/advance/mix service. It is not the adaptive action-0/1/2 path; do not use legacy single-call cost as the active adaptive cost without confirming build/profile ownership."
+  },
+  "causal_assessment": {
+    "confirmed": [
+      "The exact event classes reported most strongly by the user map to longer authored effects: vegetable collection cue 1 is 284 ticks and release cue 5 is 84 ticks, versus gate cue 0 at 24 ticks. Bonus collectible cue 2 is only 15 ticks. These are effects, not background music IDs.",
+      "Adaptive work performs one elapsed-audio scan per work pass, admission checks once per logical simulation callback, and one mix/output pass per work pass. Cue length does not create a full-cue parser loop, but can prolong an active voice and the associated per-output mixing path.",
+      "Music queue backlog can keep the admission dirty guard on its full path for each logical tick while the current music slot is occupied. No source measurement establishes that this cost is large enough to explain the movement bursts."
+    ],
+    "historical_discriminator": {
+      "path":"repro/bug058-adaptive-cadence-diagnosis-20260928.json",
+      "sha256":"8d7e30dd6a09153b3232012fd6fe26d490e6ef3e9d631b90432056d822c44b7a",
+      "rom_sha256":"df5cff4f67f3a09781cd004585d7d78e7f70cce608206052bb97fb3c9aade7d0",
+      "result":"On an older e42e88 adaptive ROM in a headless controlled fixture, isolated release cue 5 and music cue 9 produced 12 worklists each without an extra-step worklist. A color boundary measured 83,985 cycles over three raw VBlanks, followed by three-step batches on the next two worklists.",
+      "limits":"This does not cover the current b452 ROM, combined collectible/release cues, user natural route, or visible PulseAudio pacing. Historical cause/measurements are not current acceptance."
+    },
+    "competing_candidates": [
+      "Audio work contributes incremental foreground cycles at cue admission, note boundaries, queued music admission, or active-slot mixing; overrun may feed scheduler debt. Magnitude and correlation are unmeasured.",
+      "Gameplay/render work triggered by pickups, releases, and gate animation independently raises worklist cost; historical color-boundary evidence shows a non-audio overrun path.",
+      "Visible XRoar/PulseAudio host pacing may alter perceived cue length or movement cadence; no current-run audio capture or event-time correlation was performed."
+    ],
+    "not_established": "No audio, rendering, scheduler, or emulator cause is selected. The reported overall travel-speed excess remains unverified against an independent elapsed-time clock in this step; no hardware hypothesis is advanced."
+  },
+  "reuse_and_next_gate": {
+    "static_verifier": "scripts/verify_audio_runtime.py decodes cue streams, checks wait resumes, event-to-cue mapping, placement, output spacing and fixed bounds. It is reusable for audio-content integrity, not adaptive per-worklist performance; its require-cycles option requires an explicit measured-cycle source marker absent from current source.",
+    "historical_probe": "Reuse the retained adaptive cadence diagnosis as a prior, limited cue-only control. repro/bug058-full-cadence-profiler.py has legacy full-cadence markers including queue, music dispatch, advance, mix and PSG write; its main_game_tick_normal path is not the active adaptive callback, so its old samples must not be presented as current adaptive timing.",
+    "discriminator": "In an owned current-ROM process only after parent reassessment, reuse existing monitor/event-tick timing and callback markers to record one matched quiet worklist versus natural collectible/release/gate worklists. Attribute cycles separately to adaptive action 0, per-callback action 1, renderer/publication and action 2; retain FRAMES, AD_LAST, AD_SIM, AD_DEBT, active slot IDs, wait bytes, music/effect queue counts, emitted cue IDs, and event_ticks. Compare cue-active and cue-idle worklists within the same route and source identity.",
+    "current_step_disposition": "No runtime probe, build, source edit, policy selection, or user emulator interaction. Parent owns any next runtime plan and canonical BUG-058 update."
+  }
+}
