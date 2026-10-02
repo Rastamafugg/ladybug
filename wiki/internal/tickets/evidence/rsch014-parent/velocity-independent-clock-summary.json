@@ -1,0 +1,189 @@
+{
+  "date": "2026-10-02",
+  "ticket": "BUG-058",
+  "status": "Diagnostic capture PASS; reported overall excess velocity not reproduced or closed",
+  "rom_sha256": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+  "receipt_revision": "436478586482afb0457357b4fddbbf05a7b9c52a",
+  "probe": {
+    "phase": "natural credit-entry, Enter, first enemy release, then up to128 IRQ samples with Left held",
+    "success_marker": "mode-0 enemy_release with byte identity, 128 IRQ samples with Left held, and a source-template match in a published FRONT buffer at its valid ledger player pointer with no active-enemy overlap",
+    "deadline_seconds": 40,
+    "wall_seconds": 2.927,
+    "samples": 128,
+    "player_pixel_matches": 128,
+    "identity_preflight": {
+      "receipt_revision": "436478586482afb0457357b4fddbbf05a7b9c52a",
+      "build_state": "complete",
+      "build_profile": "complete",
+      "input_count": 256,
+      "source_inputs_current": true,
+      "source_input_mismatch_count": 0,
+      "source_input_missing_count": 0,
+      "source_input_mismatch_sample": [],
+      "source_input_missing_sample": [],
+      "adaptive_source_path": "src/adaptive_active.s",
+      "adaptive_source_sha256": "ea67e009201093b316f07e7d3a481a106c41d237e794631f28481c8b6a508dee",
+      "artifact_sha256": {
+        "ladybug.rom": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+        "ladybug-runtime.rom": "d41213e9abb71706011c089ec981e3e8ae83cde885db0cd068a8efda6c0821c4",
+        "ladybug-enemy-runtime.rom": "0d4c7cbbb4048bd29795800c8917dc06559ebf8aad0bbb4902a8bb1449d05940",
+        "ladybug-presentation-runtime.bin": "0eee8738b5dccf652272d318962d21bd6de8016abba04b36aca0f8c43fe10214",
+        "ladybug-adaptive-active.bin": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+        "ladybug-audio-runtime.bin": "c6e4883217a81573b9cf45ad90a099b68c5fa7aa2638af48c322e03a3965fb43"
+      },
+      "artifact_hashes_match_receipt": true,
+      "resident_rom_bank1_payload_exact": true,
+      "enemy_rom_bank3_payload_exact": true,
+      "adaptive_audio_stage_offset": 6053,
+      "adaptive_stage_embedded_exact": true,
+      "adaptive_stage_length": 512
+    },
+    "identity_live": {
+      "resident_range": "C000-FDFF",
+      "resident_live_sha256": "bb1593d3a21a1142f7fa005ccb432df73540ab07c5db93ec042dbd32d0ce81f0",
+      "resident_artifact_sha256": "bb1593d3a21a1142f7fa005ccb432df73540ab07c5db93ec042dbd32d0ce81f0",
+      "resident_live_exact": true,
+      "enemy_destination": "0800-17FA",
+      "enemy_live_sha256": "0d4c7cbbb4048bd29795800c8917dc06559ebf8aad0bbb4902a8bb1449d05940",
+      "enemy_artifact_sha256": "0d4c7cbbb4048bd29795800c8917dc06559ebf8aad0bbb4902a8bb1449d05940",
+      "enemy_live_exact": true,
+      "presentation_destination": "1900-1DEF",
+      "presentation_live_sha256": "0eee8738b5dccf652272d318962d21bd6de8016abba04b36aca0f8c43fe10214",
+      "presentation_artifact_sha256": "0eee8738b5dccf652272d318962d21bd6de8016abba04b36aca0f8c43fe10214",
+      "presentation_live_exact": true,
+      "enemy_release_pc": 54620,
+      "enemy_release_live_bytes": "bd080639bd0809398610971b8604971c",
+      "enemy_release_artifact_bytes": "bd080639bd0809398610971b8604971c",
+      "enemy_release_bytes_exact": true,
+      "adaptive_source_stage_address": 47013,
+      "adaptive_stage_live_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "adaptive_stage_artifact_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "adaptive_stage_live_exact": true,
+      "adaptive_destination_check": "deferred until the natural mode-0 $D55C enemy_release marker after relocated-loader delivery",
+      "physical_loader_staging_snapshot": false,
+      "delivery_boundary": "Authored source is tied to current receipt input; compiled active module equals the embedded audio-runtime stage and live $B7A5 staged bytes. The relocated-loader staging buffer before delivery is not sampled here.",
+      "adaptive_destination_phase": "after natural mode-0 $D55C enemy_release marker; resident marker bytes were proven exact first",
+      "adaptive_destination_address": 911,
+      "adaptive_destination_live_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "adaptive_destination_artifact_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "adaptive_destination_live_exact": true
+    },
+    "raw_trace_sha256": "ac71279dc8e011aca631d5529ed6129687b9f0a2076750f98417dedd6fb920d3",
+    "observer_sha256": "a515a0e1427d6bd0fe97c9cd38f46ac79abf58c4ea7670a0376fe7f2d6cd5b89"
+  },
+  "independent_clock": {
+    "rate_ticks_per_second": 14318180,
+    "counter_bits": 32,
+    "elapsed_event_ticks": 30462104,
+    "elapsed_emulated_seconds": 2.127512295557117,
+    "raw_frame_delta": 127,
+    "simulation_delta": 127,
+    "raw_frame_counts_every_adjacent_interval": [
+      1
+    ],
+    "ntsc_gime_reference_ticks_per_frame": 239856,
+    "expected_event_ticks_for_frame_delta": 30461712,
+    "irq_return_endpoint_latency_difference_ticks": 392,
+    "interval_event_ticks_min": 239440,
+    "interval_event_ticks_max": 240272,
+    "expected_mean_frame_hz": 59.69490027349743,
+    "observed_mean_frame_hz": 59.69413209277993,
+    "interpretation": "Every IRQ interval is close to one authored GIME frame; total differs by392 event ticks (49 fast CPU cycles) consistent with differing IRQ hook latency. No extra counter increments are observed in this span."
+  },
+  "clock_conservation": {
+    "residual_counts_mod65536": {
+      "0": 128
+    },
+    "debt_start": 0,
+    "debt_end": 0,
+    "max_debt": 1,
+    "max_fault": 0
+  },
+  "travel": {
+    "logical_player_path_pixels": 80,
+    "logical_enemy_slot0_path_pixels": 128,
+    "published_player_path_pixels": 80,
+    "player_stops_at_wall": true,
+    "full_span_quantized_enemy_bound_pixels": 128,
+    "logical_player_adjacent_change_counts": {
+      "0": 89,
+      "2": 36,
+      "4": 2
+    },
+    "logical_enemy_adjacent_change_counts": {
+      "0": 67,
+      "2": 56,
+      "4": 4
+    },
+    "published_player_adjacent_change_counts": {
+      "0": 89,
+      "2": 36,
+      "4": 2
+    },
+    "logical_player_short_window": {
+      "max_excess_pixels": 2,
+      "window": {
+        "first_sample": 19,
+        "last_sample": 23,
+        "raw_intervals": 4,
+        "event_ticks": 959088,
+        "path_pixels": 6,
+        "provisional_phase_aware_bound_pixels": 4,
+        "simulation_delta": 6,
+        "debt_start": 0,
+        "debt_end": 0,
+        "accounted_raw_delta": 6,
+        "initial_unaccounted_raw_ticks": 3,
+        "final_unaccounted_raw_ticks": 1
+      }
+    },
+    "logical_enemy_short_window": {
+      "max_excess_pixels": 2,
+      "window": {
+        "first_sample": 2,
+        "last_sample": 20,
+        "raw_intervals": 18,
+        "event_ticks": 4317056,
+        "path_pixels": 20,
+        "provisional_phase_aware_bound_pixels": 18,
+        "simulation_delta": 19,
+        "debt_start": 0,
+        "debt_end": 0,
+        "accounted_raw_delta": 19,
+        "initial_unaccounted_raw_ticks": 2,
+        "final_unaccounted_raw_ticks": 1
+      }
+    },
+    "published_player_short_window": {
+      "max_excess_pixels": 4,
+      "window": {
+        "first_sample": 21,
+        "last_sample": 25,
+        "raw_intervals": 4,
+        "event_ticks": 959752,
+        "path_pixels": 8,
+        "provisional_phase_aware_bound_pixels": 4,
+        "simulation_delta": 5,
+        "debt_start": 0,
+        "debt_end": 0,
+        "accounted_raw_delta": 5,
+        "initial_unaccounted_raw_ticks": 2,
+        "final_unaccounted_raw_ticks": 1
+      }
+    },
+    "active_dir_none_observations": 0
+  },
+  "limits": [
+    "One natural Part1 route, held Left, one active enemy,128 IRQ samples; no full game or four-enemy coverage.",
+    "Enemy travel uses byte-proven logical records, not matched enemy pixels.",
+    "Player wall caps full-span travel; absence of sustained player overspeed on this route is not broad exclusion.",
+    "Provisional short-window envelope is a diagnostic reference, not final approved velocity acceptance; variable publication latency and nonzero starting debt must be separated.",
+    "No forced DIR_NONE path or rare reset/wrap run; source candidate not exercised.",
+    "No repair or overrun policy selected; no production changes."
+  ],
+  "reference_source_hashes": {
+    "docs/reference/xroar/src/events.h": "1340520093ecfc4db27581b6a13bc97277a59d35a2f83ccaeb80eacfd53c384e",
+    "docs/reference/xroar/src/tcc1014/tcc1014.h": "1d6a38ec32770e5f52784fd811f8519f050fe2ded018301ffcebf0e0cdb42169",
+    "docs/reference/xroar/src/tcc1014/tcc1014.c": "c8433d3ffb186e6dc3cb2d5df306dcdca5b0b7af3a492172d0e17f8a6c1961b4"
+  }
+}
