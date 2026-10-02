@@ -1,0 +1,147 @@
+{
+  "schema": "rsch014-e-bug086-page34-staging-v1",
+  "date": "2026-10-01",
+  "ticket": "BUG-086",
+  "ticket_status": "Draft",
+  "purpose": "Static architecture viability review for staging the BUG-086 callable helper pack in physical page $34. No source changes or runtime probe were made for this review.",
+  "candidate_source": {
+    "baseline_revision": "fe160ae389145d24083218ded05ba9cdca781474",
+    "baseline_rom_sha256": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+    "candidate_patch_path": "repro/rsch014-enemy-fit/bug086-current-candidate.patch",
+    "candidate_patch_sha256": "D232978F6F17885F5E052E21082C168AC760C18DCE912CCEFE3AF329C7477CC8",
+    "candidate_patch_files": [
+      "src/enemy_runtime.s",
+      "src/main.s"
+    ],
+    "candidate_patch_committed": false,
+    "candidate_main_sha256": "15E73BECDBE65C5B18C585687636EE7220CD085BDC49E72BF021E97C6C9F9071",
+    "candidate_enemy_runtime_sha256": "5529649CCD9CCC9442A4CC5F09AACE059D07506FE628D989F0EEC189D430EAC5"
+  },
+  "boot_asset_snapshot": {
+    "workspace": "E:/projects/ladybug/build",
+    "profile": "complete",
+    "source_revision": "fe160ae389145d24083218ded05ba9cdca781474",
+    "source_build_receipt_sha256": "513A0BD681FC1F3C9D46BD16E4DBA6A391CF415B3E5E977CC07DE00C45441C14",
+    "sparse_loader_path": "build/ladybug-sparse-loader.inc",
+    "sparse_loader_sha256": "FB42240A31B71AA48CB9172908D18C62E9621A83085C9EA0CC89D197AA390511",
+    "sparse_layout_path": "build/ladybug-sparse-layout.json",
+    "sparse_layout_sha256": "7CFACED6EED70EEDD2856D740DC095210AC5597D539462F79AC350A4BC1A3378",
+    "copy_table": {
+      "record_format_bytes": 8,
+      "table_start": "$0200",
+      "next_table_start": "$0287",
+      "record_count": 10,
+      "used_bytes": 80,
+      "maximum_whole_records": 16,
+      "free_records": 6,
+      "free_bytes_before_next_table": 55,
+      "interpretation": "The existing copy record already selects a physical destination page and address. One contiguous helper target needs one additional record; fragmented source assignment may need more, up to six records under this snapshot."
+    },
+    "source_payload_spare_bytes": 12271,
+    "projected_after_one_87_byte_target": {
+      "source_payload_spare_bytes": 12184,
+      "copy_table_record_count": 11,
+      "copy_table_used_bytes": 88,
+      "free_records": 5,
+      "free_bytes_before_next_table": 47,
+      "assumption": "The 87-byte helper image maps from one contiguous source interval and therefore adds one descriptor. The final generator manifest must prove the actual segmentation."
+    },
+    "existing_page34_executable_target": {
+      "target": "adaptive_helper",
+      "physical_page": "$34",
+      "destination": "$BD44",
+      "bytes": 690,
+      "records": 1,
+      "profile_scope": "Adaptive complete build only",
+      "interpretation": "Confirms that the current generic boot copy protocol already stages executable bytes to physical page $34. The new all-profile helper payload would be a separate generated target."
+    }
+  },
+  "physical_page34_ranges": {
+    "candidate_state_bytes": ["$A89D", "$A89E", "$A89F"],
+    "candidate_logo_state_bytes": ["$A8FD", "$A8FE", "$A8FF"],
+    "available_helper_interval": {
+      "start_inclusive": "$A8A0",
+      "end_exclusive": "$A8FD",
+      "bytes": 93
+    },
+    "candidate_code_budget": {
+      "existing_helper_pack_bytes": 50,
+      "enemy_frame_number_bytes": 37,
+      "total_conservative_bytes": 87,
+      "proposed_interval": "$A8A0-$A8F6",
+      "bytes_left_before_logo_state": 6,
+      "local_call_shortening_counted": false
+    },
+    "gate_transition_alias": {
+      "logical_address": "$A8F6",
+      "physical_page": "$39",
+      "source": "src/main.s draw_gate_transition maps PAR5 to GATE_TRANSITION_PAGE=$39 before reading GATE_TRANSITION_PAYLOAD and restores $34 before calling draw_gate_entities.",
+      "physical_page34_conflict": false
+    },
+    "writer_clear_audit": "Current source has no physical-page-$34 writer or bulk clear over $A8A0-$A8FC. Existing initialization writes the maze only through $A23F, gates through $A253, entity/enemy records in their declared extents, the ring at $A898-$A89B, and the three candidate state bytes. Framebuffer initialization maps PAR5 to pages $2C-$2F for framebuffer copies, then initializes ledgers at $A900 and $AA00."
+  },
+  "projected_enemy_fit": {
+    "helper_pack_components_bytes": {
+      "cache_guard": 12,
+      "normal_selector": 25,
+      "preview_packer": 13
+    },
+    "moved_enemy_frame_number_bytes": 37,
+    "current_nonadaptive_overrun_before_fixed_lut_bytes": 25,
+    "call_site_change": "draw_enemy_stage BSR (2 bytes) becomes LBSR (3 bytes) to page-$34 helper.",
+    "net_enemy_module_bytes_recovered": 36,
+    "projected_nonadaptive_free_bytes_before_fixed_lut": 11,
+    "result_kind": "Projection from current candidate assembly and retained adaptive listing, not an emitted all-profile result.",
+    "hard_bounds_retained": [
+      "fixed object-mask LUT remains at $17A0",
+      "enemy executable/module end remains at or below $17A0 before the LUT",
+      "all executable/data remains below active-stage RAM at $1800",
+      "resident guard remains below $E000 in both profiles",
+      "helper bytes remain below logo state at $A8FD",
+      "immutable asset end remains at or below $FE00"
+    ]
+  },
+  "par5_lifetime_audit": {
+    "boot_delivery": "The existing sparse-copy loop reads each descriptor's destination page, maps it in PAR5, and copies to the descriptor's $A000-$BFFF destination address. It already uses page $34 for adaptive_helper at $BD44. The proposed helper uses the same record format and copy loop; src/gmc_bootstrap.s does not need a protocol or resident-code change.",
+    "normal_selector": "enemy_release_impl calls the normal selector through the enemy module while gameplay PAR5 is $34. Stage/gameplay re-entry explicitly sets $34 before shared initialization and foreground game state access.",
+    "preview": "draw_enemy_stage calls enemy_frame_number before sparse_enemy_stream changes PAR5. compose_enemy_animation's preview/cache checks also occur before any stream remap.",
+    "cache_guard_return": "The page-$34 cache guard calls the fixed low-RAM build_enemy_nest_cache vector at $0824. The builder calls draw_enemy_stage; each preview runs before the stream remap, and sparse_blit_stage restores PAR5=$34 at sparse_decode_done before returning. The low-RAM builder therefore returns to the page-$34 helper with its code page mapped.",
+    "interrupt": "framebuffer_irq_impl calls only the always-mapped framebuffer IRQ entry; it updates direct-page counters and display ownership but does not change PAR5. An interrupt during page-$34 helper execution returns to the same mapping.",
+    "demo_and_presentation": "Demo cold-route reads temporarily map a presentation cold page and restore $34 before returning. Auxiliary presentation module installation maps page $23 only for the copy and restores $34. Sparse page-$39 drawing restores $34 in its decoder completion path; gate transition explicitly restores $34 before follow-on entity work.",
+    "remaining_lifetime_gate": "The implementation build must prove every new LBSR target from emitted instruction bytes in both profiles and retain the page-$34 entry invariant at every helper call site. This static audit does not replace the runtime scenarios in BUG-086."
+  },
+  "candidate_source_generator_whitelist": {
+    "required": [
+      "src/enemy_runtime.s: move enemy_frame_number out of the pre-LUT module; call the page-$34 entry with LBSR; retain state consumption and renderer ordering.",
+      "src/main.s: retain reset initialization of $A89D-$A89F; remove the 50-byte immutable helper bodies and obsolete helper placement guard/aliases.",
+      "src/enemy_helpers_page34.s: new all-profile 6809 helper source assembled at $A8A0, containing the 50-byte selector/cache helpers and 37-byte enemy_frame_number body.",
+      "scripts/build.sh: assemble the helper source for adaptive and nonadaptive profiles and pass its binary to the existing sparse asset builder.",
+      "scripts/build_sparse_sprites.py: add an 8-bit-safe bounded raw target for physical page $34 at $A8A0, with end guard $A8FD.",
+      "scripts/verify_sparse_sprites.py: whitelist and reconstruct the new target at page $34:$A8A0 with exact byte coverage and bounds.",
+      "scripts/source_reference.json: register the new authored assembly source for source provenance."
+    ],
+    "verification_touchpoints": [
+      "scripts/verify_enemy_runtime.py must be updated for the moved frame selector and helper symbols.",
+      "scripts/build.sh existing sparse-table overlap guard must pass with the added generated record(s).",
+      "scripts/verify_gmc_boot.py must continue to prove descriptor bytes match the manifest; no protocol change is proposed."
+    ],
+    "loader_files_not_required_for_protocol": [
+      "src/gmc_bootstrap.s",
+      "src/gmc_bootstrap.s copy_sparse_segment loop",
+      "resident code placement or resident capacity"
+    ]
+  },
+  "status_and_gates": {
+    "architecture_verdict": "VIABLE EXISTING-LOADER PATH FOUND: page-$34 staging uses the current generic sparse-copy descriptor, and the current asset snapshot has one-record capacity plus source-byte margin. The 87-byte package fits the proposed $A8A0-$A8FC code interval by 6 bytes and recovers 36 net enemy-module bytes by projection.",
+    "not_approved": true,
+    "no_source_changes_in_this_review": true,
+    "runtime_probe_performed": false,
+    "required_before_prototype_claim": [
+      "assemble the new helper source in both adaptive and nonadaptive profiles",
+      "prove final descriptor count, source packing, physical page/address, and image hashes against the generated manifest",
+      "verify the nonadaptive pre-LUT guard passes with all fixed bounds preserved",
+      "decode each emitted LBSR byte displacement and compare it with the assembled target symbol",
+      "run the existing BUG-086 accepted behavior scenarios only after the combined candidate passes both-profile fit"
+    ]
+  }
+}
