@@ -2,7 +2,11 @@
   "schema": "rsch014-b7-bug087-enemy-rate-design-fit-v1",
   "date": "2026-10-02",
   "task": "RSCH-014 B7: BUG-087 enemy-rate design and fit preparation",
-  "role_sequence": ["project-management", "coding-architect", "qa-reviewer"],
+  "role_sequence": [
+    "project-management",
+    "coding-architect",
+    "qa-reviewer"
+  ],
   "classification": "High-risk",
   "classification_reason": "Enemy-rate timer and fractional accumulator ownership, stage/death/spawn lifecycle, fixed enemy-module and page-34 boundaries, adaptive-clock interaction, and uncalibrated arcade-to-CoCo cadence.",
   "scope": {
@@ -27,10 +31,50 @@
     "difficulty": "Easy and Medium select table $0ED8; MAME default is Easy. Hard/Hardest and code $20 behavior are out of scope.",
     "movement_dispatcher": "$407E after the $61E1 gate; it selects one shared integer step count and each active roaming enemy consumes that count.",
     "source_coordinate_unit": "One visible arcade pixel per coordinate step, per Step D model.",
-    "easy_medium_codes_by_index_0_to_15": ["10", "10", "10", "10", "10", "10", "12", "12", "12", "12", "12", "12", "15", "15", "15", "18"],
-    "mean_coordinate_steps_per_dispatch": [1.0, 1.19921875, 1.5, 1.796875],
+    "easy_medium_codes_by_index_0_to_15": [
+      "10",
+      "10",
+      "10",
+      "10",
+      "10",
+      "10",
+      "12",
+      "12",
+      "12",
+      "12",
+      "12",
+      "12",
+      "15",
+      "15",
+      "15",
+      "18"
+    ],
+    "mean_coordinate_steps_per_dispatch": [
+      1.0,
+      1.19921875,
+      1.5,
+      1.796875
+    ],
     "rate_index": "min(15, part_offset + ($61B7 >> 4))",
-    "part_counter_offsets_1_to_17": [0, 2, 4, 1, 3, 5, 6, 8, 5, 7, 9, 10, 11, 8, 12, 13, 14],
+    "part_counter_offsets_1_to_17": [
+      0,
+      2,
+      4,
+      1,
+      3,
+      5,
+      6,
+      8,
+      5,
+      7,
+      9,
+      10,
+      11,
+      8,
+      12,
+      13,
+      14
+    ],
     "later_parts": "The source offset reaches 15 and the Easy/Medium rate index saturates at 15. No later-part arcade motion capture or CoCo conversion is present.",
     "timer_and_fraction_owners": {
       "$61B5": "Shared 8-bit fractional movement accumulator, reset on stage initialization.",
@@ -108,7 +152,17 @@
       "command": "lwasm -9 --format=raw --output=build/bug087-enemy-compact.bin --list=build/bug087-enemy-compact.lst --symbols --map=build/bug087-enemy-compact.map -I build -I src src/enemy_runtime.s",
       "result": "fail at the required fixed boundary: zmb $17A0-* calculates -143 bytes.",
       "interpretation": "This compact 8-bit fractional/parity candidate already exceeds the fixed enemy pre-LUT boundary by 143 bytes. It omits required $61B7 saturation, so this is an optimistic size result, not a complete or viable build.",
-      "full_profile_guard": "No complete combined source build passed."
+      "full_profile_guard": "No complete combined source build passed.",
+      "retention_limit": {
+        "candidate_source_retained": false,
+        "listing_map_binary_retained": false,
+        "failure_log_retained": false,
+        "source_restored_to_commit": true,
+        "retained_failed_candidate_generator": "failed-candidate-generator.py",
+        "generator_sha256": "91cb0bb4a84e6b4e063d80b7b550322047c6984a61b3b25c6bf7a044825f2448",
+        "generator_disposition": "Reconstructed compact-candidate generator, not a verification tool or exact delivered artifact; copied unchanged from ignored build output and not run during integration review.",
+        "reproducibility_limit": "The -143 assembler result has no retained candidate source/listing/map/binary or failure log. The generator can recreate its candidate source from its assumed base but does not preserve the original assembler output; no rerun was performed."
+      }
     },
     "initial_full_build_diagnostic": {
       "command": "bash scripts/build.sh build (WSL, assigned worktree; profile environment not retained)",
@@ -131,7 +185,12 @@
     "direct_page_conflict": {
       "candidate_range": "$DF-$E4 (six bytes)",
       "committed_owners": "$DF PRES_NAME_ROW; $E0 PRES_NAME_COL; $E1 PRES_NAME_REPEAT/PRES_TICK_PHASE; $E2 PRES_NAME_LAST_DIR/PRES_NAME_FLAGS; $E3 PRES_NAME_OWNER; $E4-$E5 PRES_NAME_PTR.",
-      "source_locations": ["src/presentation_runtime.s", "src/demo_runtime.s", "src/shared_text_ranking.inc", "src/shared_text_stage.inc"],
+      "source_locations": [
+        "src/presentation_runtime.s",
+        "src/demo_runtime.s",
+        "src/shared_text_ranking.inc",
+        "src/shared_text_stage.inc"
+      ],
       "decision": "Do not treat $DF-$E4 as free RAM. Gameplay-versus-name-entry lifetime aliasing is possible only if explicitly proven; no such proof or allocation is included."
     }
   },
