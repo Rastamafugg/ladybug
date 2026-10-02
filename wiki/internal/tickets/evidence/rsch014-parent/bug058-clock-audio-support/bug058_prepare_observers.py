@@ -67,5 +67,5 @@ s=s.replace("root/'docs/reference/xroar/src/xroar'",'Path('+repr(str(repo/'docs/
 compile(s,'assigned bookkeeping observer','exec')
 (out/'repro').mkdir(exist_ok=True)
 (out/'bookkeeping-candidate.py').write_text(s)
-(out/'adapter-receipt.json').write_text(json.dumps({'baseline_build':str(a.baseline_build.resolve()),'candidate_build':str(a.candidate_build.resolve()),'generated':['published-baseline.py','published-candidate.py','next-part-candidate.py'],'overlay_flags':'forbidden','phase_criterion':'clock bound/current live population; separate four-enemy rate test remains strict'},indent=2)+'\n')
+(out/'adapter-receipt.json').write_text(json.dumps({'baseline_build':str(a.baseline_build.resolve()),'candidate_build':str(a.candidate_build.resolve()),'generated':['published-baseline.py','published-candidate.py','next-part-candidate.py','bookkeeping-candidate.py'],'overlay_flags':'forbidden','phase_criterion':'clock bound/current live population; separate four-enemy rate test remains strict'},indent=2)+'\n')
 print('Explicit artifact adapters generated; syntax passed; no emulator launched.')
