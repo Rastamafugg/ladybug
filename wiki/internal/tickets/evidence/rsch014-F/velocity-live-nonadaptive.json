@@ -1,0 +1,981 @@
+{
+  "ticket": "BUG-058 / RSCH-014-F",
+  "variant": "nonadaptive reference",
+  "rom_sha256": "dc4449bd3285ffb5a78c890101b88560eaf5f21faa7ad81fa934abbc565fa3a6",
+  "expected_rom_sha256": "dc4449bd3285ffb5a78c890101b88560eaf5f21faa7ad81fa934abbc565fa3a6",
+  "phase": "natural credit, Enter start, first enemy release, then 20 mainloop samples with Left held",
+  "success_marker": "enemy_release reached in mode 0, byte identity gates pass, and 20 mainloop samples captured before deadline",
+  "deadline_seconds": 40,
+  "timeout_meaning": "The named natural setup, first enemy-release, or sample-count boundary was not reached before deadline; this is not a speed result.",
+  "identity_preflight": {
+    "receipt_revision": "c0f36a38e383ffcdebcac570830cabf9f844c2e2",
+    "build_state": "complete",
+    "build_profile": "complete",
+    "input_count": 256,
+    "source_inputs_current": true,
+    "source_input_mismatch_count": 0,
+    "source_input_missing_count": 0,
+    "source_input_mismatch_sample": [],
+    "source_input_missing_sample": [],
+    "enemy_source_path": "src/enemy_runtime.s",
+    "enemy_source_sha256_from_receipt": "d8b04663d25b50add05e9d2b53dfb31e58f314fbbcad0005898de362258b7e80",
+    "artifact_sha256": {
+      "ladybug.rom": "dc4449bd3285ffb5a78c890101b88560eaf5f21faa7ad81fa934abbc565fa3a6",
+      "ladybug-runtime.rom": "1102eb88585e19e164f3f983c60b8c886cf7f73fc31009b3847226fbd32216b3",
+      "ladybug-enemy-runtime.rom": "caa5f4a5cf00846c545467ce7dd4a3badc8ab21d8d00e108beeadc2bf96fd443",
+      "ladybug-presentation-runtime.bin": "69a96a6654eed95e91ba0e671c188503267b38832a660116fe1cd405f0fb6a87"
+    },
+    "artifact_hashes_match_receipt": true,
+    "enemy_rom_bank3_payload_exact": true,
+    "enemy_module_bytes": 4091,
+    "enemy_payload_rom_offset": 51200,
+    "resident_rom_bank1_payload_exact": true,
+    "intermediate_loader_staging_snapshot": false
+  },
+  "identity_live": {
+    "resident_address": "C000-FDFF",
+    "resident_bytes_exact": true,
+    "resident_live_sha256": "95ab30b0283b25fabefd3c4a87be3a3674ee214a434ac814ba9ffc1b0994ba25",
+    "resident_expected_sha256": "95ab30b0283b25fabefd3c4a87be3a3674ee214a434ac814ba9ffc1b0994ba25",
+    "enemy_destination": "0800-17FA",
+    "enemy_live_copy_exact": true,
+    "enemy_live_sha256": "caa5f4a5cf00846c545467ce7dd4a3badc8ab21d8d00e108beeadc2bf96fd443",
+    "enemy_artifact_sha256": "caa5f4a5cf00846c545467ce7dd4a3badc8ab21d8d00e108beeadc2bf96fd443",
+    "presentation_at_1900_exact": true,
+    "presentation_sha256": "69a96a6654eed95e91ba0e671c188503267b38832a660116fe1cd405f0fb6a87",
+    "presentation_artifact_sha256": "69a96a6654eed95e91ba0e671c188503267b38832a660116fe1cd405f0fb6a87",
+    "delivery_boundary": "The copied live destination at $0800 is compared to the compiled module and its bank-3 payload. No snapshot of a transient loader staging buffer before delivery was taken."
+  },
+  "samples": [
+    {
+      "sample": 1,
+      "elapsed_seconds": 1.722,
+      "raw_frame": 1348,
+      "last_frame": 67,
+      "mode": 0,
+      "player_fb": 30188,
+      "player_cell": [
+        12,
+        18
+      ],
+      "part": 1,
+      "rng": 40665,
+      "front": 1,
+      "back": 0,
+      "pending": 0,
+      "enemy_records_hex": "0157ec000c0c0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 22508,
+          "pixel_phase": 0,
+          "cell": [
+            12,
+            12
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 2,
+      "elapsed_seconds": 1.725,
+      "raw_frame": 1349,
+      "last_frame": 69,
+      "mode": 0,
+      "player_fb": 30188,
+      "player_cell": [
+        12,
+        18
+      ],
+      "part": 1,
+      "rng": 64364,
+      "front": 1,
+      "back": 0,
+      "pending": 1,
+      "enemy_records_hex": "0157ec000c0c0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 22508,
+          "pixel_phase": 0,
+          "cell": [
+            12,
+            12
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 3,
+      "elapsed_seconds": 1.727,
+      "raw_frame": 1350,
+      "last_frame": 70,
+      "mode": 0,
+      "player_fb": 30187,
+      "player_cell": [
+        12,
+        18
+      ],
+      "part": 1,
+      "rng": 32182,
+      "front": 0,
+      "back": 1,
+      "pending": 1,
+      "enemy_records_hex": "0156ac010c0c0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 22188,
+          "pixel_phase": 1,
+          "cell": [
+            12,
+            12
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 4,
+      "elapsed_seconds": 1.729,
+      "raw_frame": 1351,
+      "last_frame": 71,
+      "mode": 0,
+      "player_fb": 30187,
+      "player_cell": [
+        12,
+        18
+      ],
+      "part": 1,
+      "rng": 16091,
+      "front": 1,
+      "back": 0,
+      "pending": 1,
+      "enemy_records_hex": "0156ac010c0c0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 22188,
+          "pixel_phase": 1,
+          "cell": [
+            12,
+            12
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 5,
+      "elapsed_seconds": 1.731,
+      "raw_frame": 1352,
+      "last_frame": 72,
+      "mode": 0,
+      "player_fb": 30186,
+      "player_cell": [
+        12,
+        18
+      ],
+      "part": 1,
+      "rng": 43885,
+      "front": 0,
+      "back": 1,
+      "pending": 1,
+      "enemy_records_hex": "01556c020c0c0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 21868,
+          "pixel_phase": 2,
+          "cell": [
+            12,
+            12
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 6,
+      "elapsed_seconds": 1.733,
+      "raw_frame": 1353,
+      "last_frame": 73,
+      "mode": 0,
+      "player_fb": 30186,
+      "player_cell": [
+        12,
+        18
+      ],
+      "part": 1,
+      "rng": 57782,
+      "front": 1,
+      "back": 0,
+      "pending": 1,
+      "enemy_records_hex": "01556c020c0c0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 21868,
+          "pixel_phase": 2,
+          "cell": [
+            12,
+            12
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 7,
+      "elapsed_seconds": 1.735,
+      "raw_frame": 1354,
+      "last_frame": 74,
+      "mode": 0,
+      "player_fb": 30185,
+      "player_cell": [
+        12,
+        18
+      ],
+      "part": 1,
+      "rng": 28891,
+      "front": 0,
+      "back": 1,
+      "pending": 1,
+      "enemy_records_hex": "01542c030c0c0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 21548,
+          "pixel_phase": 3,
+          "cell": [
+            12,
+            12
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 8,
+      "elapsed_seconds": 1.736,
+      "raw_frame": 1355,
+      "last_frame": 75,
+      "mode": 0,
+      "player_fb": 30185,
+      "player_cell": [
+        12,
+        18
+      ],
+      "part": 1,
+      "rng": 35949,
+      "front": 1,
+      "back": 0,
+      "pending": 1,
+      "enemy_records_hex": "01542c030c0c0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 21548,
+          "pixel_phase": 3,
+          "cell": [
+            12,
+            12
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 9,
+      "elapsed_seconds": 1.739,
+      "raw_frame": 1356,
+      "last_frame": 76,
+      "mode": 0,
+      "player_fb": 30184,
+      "player_cell": [
+        11,
+        18
+      ],
+      "part": 1,
+      "rng": 62006,
+      "front": 0,
+      "back": 1,
+      "pending": 1,
+      "enemy_records_hex": "0152ec000c0b0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 21228,
+          "pixel_phase": 0,
+          "cell": [
+            12,
+            11
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 10,
+      "elapsed_seconds": 1.74,
+      "raw_frame": 1358,
+      "last_frame": 77,
+      "mode": 0,
+      "player_fb": 30184,
+      "player_cell": [
+        11,
+        18
+      ],
+      "part": 1,
+      "rng": 31003,
+      "front": 0,
+      "back": 1,
+      "pending": 0,
+      "enemy_records_hex": "0152ec000c0b0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 21228,
+          "pixel_phase": 0,
+          "cell": [
+            12,
+            11
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 11,
+      "elapsed_seconds": 1.743,
+      "raw_frame": 1359,
+      "last_frame": 79,
+      "mode": 0,
+      "player_fb": 30183,
+      "player_cell": [
+        11,
+        18
+      ],
+      "part": 1,
+      "rng": 34957,
+      "front": 0,
+      "back": 1,
+      "pending": 1,
+      "enemy_records_hex": "0152ec000c0b0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 21228,
+          "pixel_phase": 0,
+          "cell": [
+            12,
+            11
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 12,
+      "elapsed_seconds": 1.745,
+      "raw_frame": 1360,
+      "last_frame": 80,
+      "mode": 0,
+      "player_fb": 30183,
+      "player_cell": [
+        11,
+        18
+      ],
+      "part": 1,
+      "rng": 61510,
+      "front": 1,
+      "back": 0,
+      "pending": 1,
+      "enemy_records_hex": "0151ac010c0b0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 20908,
+          "pixel_phase": 1,
+          "cell": [
+            12,
+            11
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 13,
+      "elapsed_seconds": 1.748,
+      "raw_frame": 1362,
+      "last_frame": 81,
+      "mode": 0,
+      "player_fb": 30182,
+      "player_cell": [
+        11,
+        18
+      ],
+      "part": 1,
+      "rng": 30755,
+      "front": 0,
+      "back": 1,
+      "pending": 1,
+      "enemy_records_hex": "0151ac010c0b0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 20908,
+          "pixel_phase": 1,
+          "cell": [
+            12,
+            11
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 14,
+      "elapsed_seconds": 1.751,
+      "raw_frame": 1363,
+      "last_frame": 83,
+      "mode": 0,
+      "player_fb": 30182,
+      "player_cell": [
+        11,
+        18
+      ],
+      "part": 1,
+      "rng": 34833,
+      "front": 1,
+      "back": 0,
+      "pending": 1,
+      "enemy_records_hex": "0151ac010c0b0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 20908,
+          "pixel_phase": 1,
+          "cell": [
+            12,
+            11
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 15,
+      "elapsed_seconds": 1.753,
+      "raw_frame": 1364,
+      "last_frame": 84,
+      "mode": 0,
+      "player_fb": 30181,
+      "player_cell": [
+        11,
+        18
+      ],
+      "part": 1,
+      "rng": 61448,
+      "front": 0,
+      "back": 1,
+      "pending": 1,
+      "enemy_records_hex": "01506c020c0b0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 20588,
+          "pixel_phase": 2,
+          "cell": [
+            12,
+            11
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 16,
+      "elapsed_seconds": 1.754,
+      "raw_frame": 1365,
+      "last_frame": 85,
+      "mode": 0,
+      "player_fb": 30181,
+      "player_cell": [
+        11,
+        18
+      ],
+      "part": 1,
+      "rng": 30724,
+      "front": 1,
+      "back": 0,
+      "pending": 1,
+      "enemy_records_hex": "01506c020c0b0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 20588,
+          "pixel_phase": 2,
+          "cell": [
+            12,
+            11
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 17,
+      "elapsed_seconds": 1.757,
+      "raw_frame": 1367,
+      "last_frame": 86,
+      "mode": 0,
+      "player_fb": 30180,
+      "player_cell": [
+        10,
+        18
+      ],
+      "part": 1,
+      "rng": 15362,
+      "front": 0,
+      "back": 1,
+      "pending": 1,
+      "enemy_records_hex": "014f2c030c0b0000000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 20268,
+          "pixel_phase": 3,
+          "cell": [
+            12,
+            11
+          ],
+          "saved_background_valid": 0,
+          "direction": 0
+        }
+      ]
+    },
+    {
+      "sample": 18,
+      "elapsed_seconds": 1.761,
+      "raw_frame": 1370,
+      "last_frame": 88,
+      "mode": 0,
+      "player_fb": 30180,
+      "player_cell": [
+        10,
+        18
+      ],
+      "part": 1,
+      "rng": 7681,
+      "front": 1,
+      "back": 0,
+      "pending": 1,
+      "enemy_records_hex": "014dec000c0a0103000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 19948,
+          "pixel_phase": 0,
+          "cell": [
+            12,
+            10
+          ],
+          "saved_background_valid": 1,
+          "direction": 3
+        }
+      ]
+    },
+    {
+      "sample": 19,
+      "elapsed_seconds": 1.764,
+      "raw_frame": 1372,
+      "last_frame": 91,
+      "mode": 0,
+      "player_fb": 30179,
+      "player_cell": [
+        10,
+        18
+      ],
+      "part": 1,
+      "rng": 47872,
+      "front": 1,
+      "back": 0,
+      "pending": 0,
+      "enemy_records_hex": "014dec000c0a0103000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 19948,
+          "pixel_phase": 0,
+          "cell": [
+            12,
+            10
+          ],
+          "saved_background_valid": 1,
+          "direction": 3
+        }
+      ]
+    },
+    {
+      "sample": 20,
+      "elapsed_seconds": 1.766,
+      "raw_frame": 1373,
+      "last_frame": 93,
+      "mode": 0,
+      "player_fb": 30179,
+      "player_cell": [
+        10,
+        18
+      ],
+      "part": 1,
+      "rng": 23936,
+      "front": 1,
+      "back": 0,
+      "pending": 1,
+      "enemy_records_hex": "014dec000c0a0103000000000000000000000000000000000000000000000000",
+      "active_enemies": [
+        {
+          "slot": 0,
+          "fb_pointer": 19948,
+          "pixel_phase": 0,
+          "cell": [
+            12,
+            10
+          ],
+          "saved_background_valid": 1,
+          "direction": 3
+        }
+      ]
+    }
+  ],
+  "status": "CAPTURED",
+  "credit_marker_elapsed_seconds": 0.506,
+  "highscore_marker": [
+    5,
+    3
+  ],
+  "highscore_owner_front": 0,
+  "highscore_front_sha256": "daa9804e02352b7342fe16b019268b3c3503b3d74b6b7becf67941d940bf7cb7",
+  "first_enemy_release": {
+    "pc": 54662,
+    "mode": 0,
+    "registers": {
+      "a": 1,
+      "b": 9,
+      "d": 265,
+      "cc": 192,
+      "dp": 0,
+      "x": 42128,
+      "y": 47956,
+      "u": 43152,
+      "s": 8186,
+      "pc": 54662
+    },
+    "release_bytes_live": "bd080639bd0809398610971b8604971c",
+    "release_bytes_artifact": "bd080639bd0809398610971b8604971c",
+    "release_bytes_exact": true,
+    "elapsed_seconds": 1.72
+  },
+  "completed_sample_count": 20,
+  "elapsed_seconds": 1.767,
+  "port": 47971,
+  "comparison": {
+    "adaptive_reference": {
+      "rom_sha256": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+      "status": "FAIL",
+      "samples_retained": 22,
+      "requested_samples": 32,
+      "elapsed_seconds": 40.0128557249991,
+      "failure": "timeout('timed out')"
+    },
+    "matched_sample_count_used": 20,
+    "initial_gameplay_signature_fields": [
+      "mode",
+      "part",
+      "player_fb",
+      "player_cell",
+      "rng",
+      "active enemy slot/pointer/pixel phase/cell x/y/direction"
+    ],
+    "adaptive_first_gameplay_signature": {
+      "mode": 0,
+      "part": 1,
+      "player_fb": 30188,
+      "player_cell": [
+        12,
+        18
+      ],
+      "rng": 40665,
+      "enemy_slots": [
+        {
+          "active": true,
+          "fb_pointer": 22508,
+          "pixel_phase": 0,
+          "cell_x": 12,
+          "cell_y": 12,
+          "direction": 0
+        },
+        {
+          "active": false,
+          "fb_pointer": null,
+          "pixel_phase": null,
+          "cell_x": null,
+          "cell_y": null,
+          "direction": null
+        },
+        {
+          "active": false,
+          "fb_pointer": null,
+          "pixel_phase": null,
+          "cell_x": null,
+          "cell_y": null,
+          "direction": null
+        },
+        {
+          "active": false,
+          "fb_pointer": null,
+          "pixel_phase": null,
+          "cell_x": null,
+          "cell_y": null,
+          "direction": null
+        }
+      ]
+    },
+    "nonadaptive_first_gameplay_signature": {
+      "mode": 0,
+      "part": 1,
+      "player_fb": 30188,
+      "player_cell": [
+        12,
+        18
+      ],
+      "rng": 40665,
+      "enemy_slots": [
+        {
+          "active": true,
+          "fb_pointer": 22508,
+          "pixel_phase": 0,
+          "cell_x": 12,
+          "cell_y": 12,
+          "direction": 0
+        },
+        {
+          "active": false,
+          "fb_pointer": null,
+          "pixel_phase": null,
+          "cell_x": null,
+          "cell_y": null,
+          "direction": null
+        },
+        {
+          "active": false,
+          "fb_pointer": null,
+          "pixel_phase": null,
+          "cell_x": null,
+          "cell_y": null,
+          "direction": null
+        },
+        {
+          "active": false,
+          "fb_pointer": null,
+          "pixel_phase": null,
+          "cell_x": null,
+          "cell_y": null,
+          "direction": null
+        }
+      ]
+    },
+    "gameplay_signature_matches": true,
+    "clock_observation": {
+      "adaptive_first": {
+        "raw_frame": 1409,
+        "raw_frame_parity": 1,
+        "last_frame": 119,
+        "last_frame_parity": 1
+      },
+      "nonadaptive_first": {
+        "raw_frame": 1348,
+        "raw_frame_parity": 0,
+        "last_frame": 67,
+        "last_frame_parity": 1
+      },
+      "last_frame_parity_matches": true,
+      "raw_frame_parity_matches": false,
+      "raw_absolute_offset_adaptive_minus_control": 61,
+      "last_frame_absolute_offset_adaptive_minus_control": 52
+    },
+    "adaptive_initial_owner_state": {
+      "front": 0,
+      "back": 1,
+      "pending": 1
+    },
+    "nonadaptive_initial_owner_state": {
+      "front": 1,
+      "back": 0,
+      "pending": 0
+    },
+    "motion_first_20_samples": {
+      "adaptive": {
+        "sample_count": 20,
+        "raw_vbord_start_end": [
+          1409,
+          1443
+        ],
+        "raw_vbord_span": 34,
+        "logical_last_frame_start_end": [
+          119,
+          153
+        ],
+        "logical_last_frame_span": 34,
+        "player_fb_start_end": [
+          30188,
+          30171
+        ],
+        "player_pointer_delta_bytes": -17,
+        "player_pointer_delta_counts": {
+          "-2": 1,
+          "-1": 15,
+          "0": 3
+        },
+        "player_horizontal_pixels_estimate": 34,
+        "player_pixels_per_raw_vbord": 1.0,
+        "player_pixels_per_last_frame": 1.0,
+        "enemy_slot0_fb_start_end": [
+          22508,
+          17068
+        ],
+        "enemy_slot0_fb_delta_bytes": -5440,
+        "enemy_slot0_vertical_scanlines_estimate": 34.0,
+        "enemy_slot0_vertical_pixels_per_raw_vbord": 1.0,
+        "enemy_slot0_cell_start_end": [
+          [
+            12,
+            12
+          ],
+          [
+            12,
+            8
+          ]
+        ],
+        "enemy_pointer_step_delta_counts_bytes": {
+          "-640": 1,
+          "-320": 15,
+          "0": 3
+        },
+        "max_observed_enemy_pointer_delta_bytes": 640,
+        "max_enemy_delta_interval_raw_vbords": 3,
+        "owner_first_last": [
+          {
+            "front": 0,
+            "back": 1,
+            "pending": 1
+          },
+          {
+            "front": 0,
+            "back": 1,
+            "pending": 1
+          }
+        ]
+      },
+      "nonadaptive": {
+        "sample_count": 20,
+        "raw_vbord_start_end": [
+          1348,
+          1373
+        ],
+        "raw_vbord_span": 25,
+        "logical_last_frame_start_end": [
+          67,
+          93
+        ],
+        "logical_last_frame_span": 26,
+        "player_fb_start_end": [
+          30188,
+          30179
+        ],
+        "player_pointer_delta_bytes": -9,
+        "player_pointer_delta_counts": {
+          "-1": 9,
+          "0": 10
+        },
+        "player_horizontal_pixels_estimate": 18,
+        "player_pixels_per_raw_vbord": 0.72,
+        "player_pixels_per_last_frame": 0.6923076923076923,
+        "enemy_slot0_fb_start_end": [
+          22508,
+          19948
+        ],
+        "enemy_slot0_fb_delta_bytes": -2560,
+        "enemy_slot0_vertical_scanlines_estimate": 16.0,
+        "enemy_slot0_vertical_pixels_per_raw_vbord": 0.64,
+        "enemy_slot0_cell_start_end": [
+          [
+            12,
+            12
+          ],
+          [
+            12,
+            10
+          ]
+        ],
+        "enemy_pointer_step_delta_counts_bytes": {
+          "-320": 8,
+          "0": 11
+        },
+        "max_observed_enemy_pointer_delta_bytes": 320,
+        "max_enemy_delta_interval_raw_vbords": 3,
+        "owner_first_last": [
+          {
+            "front": 1,
+            "back": 0,
+            "pending": 0
+          },
+          {
+            "front": 1,
+            "back": 0,
+            "pending": 1
+          }
+        ]
+      }
+    },
+    "observer_mechanics": {
+      "monitor_client": "Existing verify_bug011_runtime/verify_bug009_monitor_input MonitorClient path; no private protocol change.",
+      "tcp_nodelay_set": false,
+      "nonadaptive_additional_reads": "Compared 4091 live bytes at $0800 against the enemy module, and read mode once per sample; this differs from the parent adaptive run.",
+      "wall_time_comparison_valid": false,
+      "wall_time_reason": "1.767 s for this control and 40.0129 s for the incomplete adaptive observer capture are host/debugger timings, not game performance measurements."
+    },
+    "pipeline_distinction": {
+      "adaptive": "ADAPTIVE_RENDERING=1; mainloop schedules AD_CLOCK_EXEC/AD_WORK_EXEC work and frame_render_impl delegates to AD_RENDER_EXEC. Samples record actor state before any paired published FRONT pixel proof.",
+      "nonadaptive": "ADAPTIVE_RENDERING=0; mainloop uses FRAMES+1/LAST_FRAME and the immediate main_game_tick/render_frame path. The control does not record PLAYER_TICK_PENDING or a gameplay FRONT pixel sample.",
+      "owner_state_caveat": "Initial FRONT/BACK/PENDING differs between variants; no complete renderer-state equivalence or owner-crossover claim."
+    },
+    "quantization_interpretation": "Framebuffer pointers are byte addresses: one horizontal byte is two pixels at 320 pixels/160 bytes per row; one vertical row is 160 bytes. A -320 enemy pointer delta is a two-scanline (2-pixel) observed step. The adaptive trace has a -640 observation gap across three raw Vbords; that can combine two quantized steps between samples and is not proof of a single 4-pixel logical step. Compare aggregate displacement per raw Vbord, not wall time or one sample delta.",
+    "conclusion": "The 20-sample nonadaptive control completed; the adaptive reference remains incomplete at 22/32 after 40.013 s. The first gameplay signatures match on mode, part, player position, RNG, active enemy state/pointer/cell/pixel phase/direction, and LAST_FRAME parity. Initial FRONT/BACK/PENDING and raw-frame parity differ. Across the first 20 samples, sampled logical actor pointers moved 18 horizontal pixels and 16 enemy scanlines over 25 raw Vbords in control, versus 34 pixels for each actor over 34 raw Vbords in adaptive. These are descriptive sampled-record rates, not a causal adaptive/nonadaptive velocity delta: published gameplay pixels and adaptive queue/debt were not captured, and renderer owner state differs. Pointer quantization remains two pixels; the adaptive -640 enemy-pointer observation spans three Vbords and can combine two quantized steps. No cause or accepted velocity result is established.",
+    "next_discriminator": "If a further probe is approved after reassessment: align first sample on the matching gameplay signature and LAST_FRAME phase, retain equal raw/logical interval boundaries, record AD_SIM_TIME and adaptive queue/debt versus nonadaptive PLAYER_TICK_PENDING, and hash/compare the actual published FRONT pixels alongside actor records. Keep a new phase at or below 40 seconds."
+  },
+  "record_layout": {
+    "bytes": "active, framebuffer pointer high, framebuffer pointer low, pixel phase, cell X, cell Y, saved-background valid, selected direction",
+    "source": "src/enemy_runtime.s enemy release initialization at lines 371-379 and movement pointer/phase update at lines 521-526; memory map gives four eight-byte records at $A470-$A48F."
+  }
+}
