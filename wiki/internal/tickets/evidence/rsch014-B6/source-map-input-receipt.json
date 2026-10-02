@@ -1,0 +1,268 @@
+{
+  "schema": "rsch014-b6-arcade-source-map-input-receipt-v1",
+  "date": "2026-10-02",
+  "scope": "Bounded research preparation for BUG-080 and BUG-087; no production/source repair, no forced game-memory writes, no full route.",
+  "identity": {
+    "mame_version": "0.220 (unknown)",
+    "mame_executable_sha256": "7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4",
+    "ladybug_rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+    "verifyroms": "mame -verifyroms ladybug: romset good; 1 romset found, 1 OK",
+    "maincpu_member_address_range": "$0000-$5FFF (six 4 KiB ROM members concatenated in declared load order)",
+    "maincpu_concat_sha256": "3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12",
+    "disassembler": "z80dasm 1.1.5; disassembly hash carried from B5 clock-owner receipt",
+    "disassembly_sha256": "34bf89b284f394e2eb9331e3cf4630afa4cf59200b2e952cb6b0a35e231ac3b3",
+    "mame_driver_source": "https://raw.githubusercontent.com/mamedev/mame/mame0220/src/mame/drivers/ladybug.cpp",
+    "mame_driver_source_sha256": "3994f46be88beb81c822b071c5a63c51908f47bc8b45ba6aa2adfefdff6afd69",
+    "maze_asset_sha256": "7473330d9480f3bc107583122793f9e659b528e32d2e8a6875b940e17fb08963",
+    "rotation_source": "https://raw.githubusercontent.com/mamedev/mame/mame0220/src/emu/gamedrv.h (machine_flags: ROT270 = FLIP_Y | SWAP_XY)",
+    "capture_harness": "scripts/capture_mame_gameplay.py; field actions call MAME ioport_field:set_value; B6 capture identity is same MAME executable and ROM set as B5",
+    "maincpu_members": [
+      "l1.c4",
+      "l2.d4",
+      "l3.e4",
+      "l4.h4",
+      "l5.j4",
+      "l6.k4"
+    ]
+  },
+  "rom_owner_source_audit": {
+    "dispatch": {
+      "range": "$0871-$088A",
+      "bytes": "7e fe e5 ca 4a 09 fe 63 ca ea 0a fe 59 38 08 fe 62 da fe 09 ca cc 09 c3 84 07",
+      "branches": [
+        {
+          "cell_byte": "0xE5",
+          "destination": "$094A",
+          "effect": "normal flower/target path; $0957 decrements $60A9; zero enters the $095E completion branch"
+        },
+        {
+          "cell_byte": "0x63",
+          "destination": "$0AEA",
+          "effect": "special/skull path; calls the six-slot $4005 record consumer"
+        },
+        {
+          "cell_byte": "0x59-0x61",
+          "destination": "$09FE",
+          "effect": "classification and category-state path, then normal $0957 counter path"
+        },
+        {
+          "cell_byte": "0x62",
+          "destination": "$09CC",
+          "effect": "conditional mode-dependent bonus counter effect, then normal $0957 counter path"
+        },
+        {
+          "cell_byte": "other",
+          "destination": "$0784",
+          "effect": "return to the main actor loop"
+        }
+      ]
+    },
+    "flower_counter": {
+      "range": "$094A-$096E",
+      "bytes": "3e ff 77 1e 00 cd 2c 3c 21 00 60 cb de 21 a9 60 35 c2 84 07 cd 2f 3f 21 01 60 cb ce cd 2f 3f 21 9b 61 35 20 1e",
+      "fact": "At $0957, decrement $60A9 for a consumed $E5 cell. Nonzero returns to $0784; zero reaches completion handling at $095E and sets bit 1 of $6001."
+    },
+    "code_62_counter": {
+      "range": "$09CC-$09FD",
+      "bytes": "cd e5 3f cd 2b 3d cd 9f 3d cd 2c 3c cd bd 3d 7b fe 01 20 1b 3a 65 60 fe 00 20 06 21 9f 60 34 18 04 21 a2 60 34 7e fe 04 38 02 36 03 cd 54 31 c3 57 09",
+      "fact": "When returned E=1, $6065=0 increments $609F; otherwise $60A2 increments and is capped at 3. The handler returns through $0957, so $60A9 decrements on this path too. This audit does not assign heart/letter names."
+    },
+    "classifier_59_to_61": {
+      "range": "$3E5E-$3E95",
+      "bytes": "e5 16 00 fe 5e 28 2f 14 fe 5b 28 2a 14 fe 59 28 25 14 fe 5a 28 20 14 fe 5c 20 0a 23 7e fe 66 38 15 14 14 18 11 14 fe 5d 28 0c 14 14 fe 5f 28 06 14 fe 60 28 01 14 e1 c9",
+      "buckets": {
+        "0x5E": 0,
+        "0x5B": 1,
+        "0x59": 2,
+        "0x5A": 3,
+        "0x5C_following_byte_lt_0x66": 4,
+        "0x5D": 5,
+        "0x5C_following_byte_ge_0x66": 6,
+        "0x5F": 7,
+        "0x60": 8,
+        "other_including_0x61": 9
+      },
+      "fact": "$09FE calls this classifier only when the preceding helper returns E=2 or E=3. $3E96 applies mode-dependent bit clears in $609D-$60A1; the classifier buckets are not semantic labels."
+    },
+    "skull_consumer": {
+      "range": "$4005-$4034",
+      "bytes": "06 06 dd 21 a8 61 dd 7e 01 fe 00 28 1c dd 6e 00 dd 66 01 dd e5 c5 cd 2b 3d 36 e5 21 a9 60 34 c1 dd e1 af dd 77 00 dd 77 01 dd 23 dd 23 10 d7 c9",
+      "fact": "Loops over six two-byte slots at $61A8-$61B3. For each nonzero pointer, $3D2B resolves the cell, the handler writes $E5, increments $60A9, and clears the record."
+    },
+    "map_loader_and_records": {
+      "loader_range": "$34CF-$350F",
+      "loader_bytes": "c5 e5 fd 7e 00 fe 0c 38 1b fe ff 28 06 fe e5 28 02 3e ff 77 fe ff 28 26 11 00 04 19 36 02 21 a9 60 34 18 1a fe 0b 28 06 e5 21 a9 60 34 e1 41 08 79 cd 44 34 08 47 cd d8 32 e1 e5 cd 7b 3f e1 c1 c9",
+      "record_selector_range": "$3F7B-$3F99 (class-to-table selection bytes)",
+      "record_selector_bytes": "dd e5 f5 d5 78 fe 0a 38 12 28 0a fe 0b 20 2d dd 21 a8 61 18 0a dd 21 a2 61 18 04 dd 21 9c 61",
+      "fact": "$34CF skips the $60A9 increment for class byte $0B, while other counted classes flow to the counter increment. $3F7B selects $61A8 for class $0B, $61A2 for class $0A, and $619C for classes below $0A. Current B5 work RAM has six active red-circle records across $619C/$61A2 and two active $0B skull records in $61A8."
+    }
+  },
+  "b5_live_overlay_to_source_record_mapping": {
+    "capture_sha256": {
+      "capture_json": "ea869fca772228bfe934b9db84418371ae422cd5ce42188a2e1f841e3786cd23",
+      "raw_video": "e632fff2b4287fd5d97ad761c5047eda50bd51926ec03c1f3fa72dce4499f36d",
+      "work_ram": "4f9e5d7b3513b4bc801f1a8b965722e4d1174a19fc095a37a209efa0f67081fa",
+      "background": "9e0ff20ab7e6e19a4e219e26f860cd811f0f40da7be7fd1e749e8fcf6af8e767"
+    },
+    "address_to_map_cell": "Little-endian - tile pointers: raw_x=offset mod 32, raw_y=floor(offset/32); ROT270 visible mapping output_x=raw_y-4, output_y=30-raw_x; maze row=output_y-2.",
+    "records": [
+      {
+        "table": "$619C",
+        "active_records": 3,
+        "pointers": [
+          "$D21A",
+          "$D1C6",
+          "$D348"
+        ],
+        "cells_and_current_codes": [
+          [
+            12,
+            2,
+            "0x5B",
+            "red bonus circle"
+          ],
+          [
+            10,
+            22,
+            "0x60",
+            "red bonus circle"
+          ],
+          [
+            22,
+            20,
+            "0x5A",
+            "red bonus circle"
+          ]
+        ]
+      },
+      {
+        "table": "$61A2",
+        "active_records": 3,
+        "pointers": [
+          "$D214",
+          "$D0D2",
+          "$D286"
+        ],
+        "cells_and_current_codes": [
+          [
+            12,
+            8,
+            "0x62",
+            "red bonus circle"
+          ],
+          [
+            2,
+            10,
+            "0x62",
+            "red bonus circle"
+          ],
+          [
+            16,
+            22,
+            "0x62",
+            "red bonus circle"
+          ]
+        ]
+      },
+      {
+        "table": "$61A8",
+        "active_records": 2,
+        "capacity_slots": 6,
+        "pointers": [
+          "$D1DA",
+          "$D0CA"
+        ],
+        "remaining_slots_zero": true,
+        "cells_and_current_codes": [
+          [
+            10,
+            2,
+            "0x63",
+            "white skull"
+          ],
+          [
+            2,
+            18,
+            "0x63",
+            "white skull"
+          ]
+        ]
+      }
+    ],
+    "counter_reconciliation": {
+      "visible_maze_cells": 576,
+      "live_e5_flower_cells": 109,
+      "live_red_bonus_circle_cells": 6,
+      "live_skull_cells": 2,
+      "static_dot_candidates": 117,
+      "stage_load_counter": "$60A9=$73 (115), first observed at frame 546 and stable through the neutral/input test",
+      "source_reconciliation": "115 = 109 $E5 cells + six non-$0B tracked red-circle records. The two active $0B skull records are initially excluded; $4005 converts each active skull cell to $E5 and increments $60A9 once. A skull event can therefore add two current targets. This is source/state reconciliation, not proof that $60A9 alone is the complete stage-clear acceptance contract.",
+      "remaining_semantics": "Codes 0x5A/0x5B/0x60/0x62 route through distinct handlers or classifier buckets, and current source records separate internal classes. Visible red-circle heart-versus-letter roles, required bonus subset, and independent special completion conditions remain unproven."
+    }
+  },
+  "player_input_owner": {
+    "mame_port_source": {
+      "driver_lines": "ladybug.cpp INPUT_PORTS_START(ladybug), CONTP1 fields: 0x01 Left, 0x02 Down, 0x04 Right, 0x08 Up; all IP_ACTIVE_LOW and PORT_4WAY; MAME source hash and URL in identity.",
+      "driver_rotation": "GAME(ladybug,...,ROT270); exact ROT270 flag expansion is FLIP_Y|SWAP_XY in tagged MAME gamedrv.h."
+    },
+    "rom_owner_range": "$05FF-$0653; called from the active main loop at $07AF.",
+    "human_demo_boundary": "$605F bit 4 set selects demo pointer $61D8; bit 4 clear selects live controls. With $6065=0 the handler reads $9000; nonzero $6065 selects $9000/$9001 using $9002 bit 5.",
+    "normalization": "CPL; AND 0x0F; return for zero; accept only exact one-hot values 1, 2, 4, 8.",
+    "axis_math": "$3690-$36C0: D=1 updates $6027 left; D=2 updates $6028 down; D=4 updates $6027 right; D=8 updates $6028 up. Retained B5 RAM/pixel samples map $6027 to pixel x and $6028 to pixel y, within one pixel of animation-origin variation.",
+    "ownership_limit": "There is no isolated entry-release input gate in the traced owner. Input is read in the active main loop. A direction observed in the forced spawn corridor is not accepted-input evidence."
+  },
+  "b6_control_discriminator": {
+    "phase": {
+      "name": "Part-1 stable free-junction P1 Down versus neutral comparison",
+      "deadline_seconds": 60,
+      "executed_frames": [
+        1,
+        676
+      ],
+      "video_frames": [
+        620,
+        676
+      ],
+      "wall_seconds": 4.25,
+      "predeclared_success_marker": "At verified neutral cell (12,18), P1 Down at frames 660-667 traverses the expected east edge to (13,18), with $6028 decreasing by 8 and the player pixel center moving right by 8.",
+      "timeout_meaning": "The predeclared movement marker was absent within the 60-second phase; this fails the proposed axis mapping and says nothing about game slowness.",
+      "outcome": "FAILED_AS_DECLARED; input and motion were observed, but in the opposite screen axis and with a 7-count RAM delta."
+    },
+    "identities": {
+      "executable_sha256": "7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4",
+      "rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+      "capture_json_sha256": "f4ba0e43b88c87fa4d88e33fd857fdc85c63d0b23f0a9495ada757dac6b699e0",
+      "capture_plan_sha256": "28c804481f13dd63c9d59f44e622f032bccf91e899cbe939caa7e17bfce5c96b",
+      "raw_video_sha256": "14230cc7ea3cccb94dadb4ed136cd705651526c72c7e1bda8b5d9336329f7eef",
+      "raw_background_sha256": "8e739b3d7b585d8911710500b27bd2e2f5d38b43881d6cc5c75bd6aa0c8a31ef",
+      "raw_work_ram_sha256": "1c4568addb5a3868317475c2a16259585731dd0c64e20baba1f35c2b7c74b63e"
+    },
+    "input_schedule": "coin1 300-302; start1 360-364; P1 Down 550-573; P1 Left 574-633; no direction input 634-659; P1 Down 660-667; release at 668.",
+    "precondition_observations": {
+      "b5_neutral_tail": "After Left release at634, RAM moves through (88,86) at653 and remains there through1000. B6 recapture reproduces RAM (88,86) and matched sprite origin (89,153) throughout frames654-660.",
+      "player_center_to_nav_cell": "At frame654, sprite origin (89,153) plus 8px center gives (97,161), maze cell x=floor(97/8)=12, y=floor((161-16)/8)=18. At frame669, origin (89,160) gives center (97,168), cell (12,19).",
+      "maze_nav": "maze_nav[y=18,x=12]=0x0F; south neighbor maze_nav[y=19,x=12]=0x05 reciprocates north; east neighbor maze_nav[y=18,x=13]=0x0A reciprocates west. All three cells are non-gate and have live base code 0xFF.",
+      "active_path_state": "At frames 654-660: $605F=0x81 with bit 4 clear, $6065=0 (live $9000 path), $606E=1, $61C3=0x10, $60A9=0x73; no player RAM motion in neutral frames 654-660."
+    },
+    "pressed_observations": {
+      "frame660": "Input action begins; RAM (88,86), player origin (89,153).",
+      "frame661": "$6026 changes 0x82 to 0x22; player RAM remains (88,86).",
+      "frame662": "RAM becomes (88,85); sprite origin remains (89,153).",
+      "frame664": "RAM (88,83); sprite origin (89,155).",
+      "frame666": "RAM (88,81); sprite origin (89,157).",
+      "frame668": "P1 Down is released; RAM (88,79), sprite origin (89,159). $6028 delta from frame660 is -7; x is unchanged.",
+      "frame669": "RAM remains (88,79); matched origin (89,160), placing its center in cell (12,19). Position stays static through frame676; y=159/160 template variation is at most 1px.",
+      "counters": "$606E remains 1; $60A9 remains 0x73; $609F=0 and $60A2=0; $61C3 remains 0x10; target map cells do not change. No death, stage transition, or object pickup was observed."
+    },
+    "decision": "The neutral free-node prerequisite passes and the P1 Down press is admitted: $6026 changes, then player RAM/pixel motion starts. The predeclared east/+8-pixel marker fails: motion is south into a legal reciprocal edge with $6028=-7. Reject the ROT270-derived Down-to-east expectation. Retain only the measured P1 Down-to-south result; the second axis and all-family route acceptance remain open."
+  },
+  "next_discriminator": {
+    "scope": "One separate ≤60-second perpendicular-axis input test after PM reassessment; no full route in B6.",
+    "phase": "Repeat the deterministic entry actions; require $606E=1 and neutral player at (12,18), unchanged RAM for frames 654-659; then press P1 Right on frames 660-667.",
+    "success_marker": "From the same node, P1 Right must increase $6027 and carry the exact player-pixel center east across the legal edge into cell (13,18) by frame 668. Record the exact RAM and pixel displacement; no fixed +8 displacement is assumed. Part, $60A9, and bonus counters must remain unchanged. Missing node/baseline/axis marker fails; timeout is not a speed diagnosis.",
+    "route_file": "perpendicular-axis-plan.json",
+    "after": "Only after both axes and all overlay/counter collection requirements are evidenced may a later-part natural route be prepared. It must retain actual Part counter, rate byte, four enemy pixel origins/displacements, all required target-family counters, and death/route progress; maximum capture phase remains 60 seconds."
+  },
+  "bug080_boundary": "B6 adds no actor-pose dwell sample or arcade actor-pose clock owner proof. The B5 source audit proves a shared elapsed updater and enemy route-selection scheduler only, not shared pose ownership. Keep the eight roaming groups and independent actor-family coverage gaps explicit; BUG-080 remains High-risk Draft.",
+  "bug087_boundary": "B6 proves one current Part-1 free-node input comparison but fails its predeclared eastward marker. No natural stage clear, Part-2 arcade capture, later-part rate byte, or later-part enemy-pixel sample was produced. Parent CoCo Part1/2 source-state evidence is separate and does not close arcade progression. BUG-087 remains High-risk Draft."
+}

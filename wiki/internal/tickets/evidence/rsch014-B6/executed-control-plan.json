@@ -1,0 +1,64 @@
+{
+  "schema": "rsch014-b6-controlled-input-plan-v1",
+  "phase": {
+    "name": "Part-1 stable free-junction P1 Down versus neutral comparison",
+    "deadline_seconds": 60,
+    "success_marker": "From neutral cell (12,18), P1 Down traverses the predeclared east edge to (13,18), $6028 decreases by 8 and pixel center moves right by 8.",
+    "timeout_meaning": "The predeclared east-axis marker is absent within 60 seconds; fail this direction prediction, not game speed.",
+    "expected_marker_result": "FAILED: input was admitted but motion was south into legal reciprocal cell (12,19); $6028 decreased by 7 and pixel center moved down, so the east/+8-pixel marker was not met."
+  },
+  "actions": [
+    {
+      "frame": 300,
+      "control": "coin1",
+      "pressed": true
+    },
+    {
+      "frame": 303,
+      "control": "coin1",
+      "pressed": false
+    },
+    {
+      "frame": 360,
+      "control": "start1",
+      "pressed": true
+    },
+    {
+      "frame": 365,
+      "control": "start1",
+      "pressed": false
+    },
+    {
+      "frame": 550,
+      "control": "down",
+      "pressed": true
+    },
+    {
+      "frame": 574,
+      "control": "down",
+      "pressed": false
+    },
+    {
+      "frame": 574,
+      "control": "left",
+      "pressed": true
+    },
+    {
+      "frame": 634,
+      "control": "left",
+      "pressed": false
+    },
+    {
+      "frame": 660,
+      "control": "down",
+      "pressed": true
+    },
+    {
+      "frame": 668,
+      "control": "down",
+      "pressed": false
+    }
+  ],
+  "capture_command": "python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 676 --recognize-from 654 --video-from 620 --skip-player-recognition --plan /tmp/rsch014-B6-control-plan.json --output /tmp/rsch014-B6-control-capture.json --raw-video /tmp/rsch014-B6-control.bgra --raw-background /tmp/rsch014-B6-control-background.bin --raw-work-ram /tmp/rsch014-B6-control-ram.bin",
+  "retained_summary": "source-map-input-receipt.json contains hashes and the compact selected-frame measurements; raw streams remain temporary."
+}

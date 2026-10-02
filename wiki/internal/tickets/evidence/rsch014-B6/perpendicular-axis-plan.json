@@ -1,0 +1,70 @@
+{
+  "schema": "rsch014-b6-next-perpendicular-axis-plan-v1",
+  "status": "prepared-not-run; requires a separate reassessed phase",
+  "phase": {
+    "name": "Part-1 free-junction perpendicular P1 Right versus neutral comparison",
+    "deadline_seconds": 60,
+    "success_marker": "At neutral cell (12,18) for frames 654-659, press P1 Right at 660-667; require $6027 to increase and the exact player-pixel center to cross the legal east edge into cell (13,18) by frame 668. Record exact displacement; do not assume +8.",
+    "timeout_meaning": "Missing free-node, stable-neutral, or expected east-edge marker fails this perpendicular-axis test; timeout does not prove slow movement.",
+    "fail_if": [
+      "Part marker is not $606E=1.",
+      "$6027/$6028 and exact player pixels disagree in axis or polarity; record the actual displacement without requiring a fixed count.",
+      "Player moves during neutral baseline.",
+      "Input causes death, item collection, or stage transition before the marker."
+    ]
+  },
+  "actions": [
+    {
+      "frame": 300,
+      "control": "coin1",
+      "pressed": true
+    },
+    {
+      "frame": 303,
+      "control": "coin1",
+      "pressed": false
+    },
+    {
+      "frame": 360,
+      "control": "start1",
+      "pressed": true
+    },
+    {
+      "frame": 365,
+      "control": "start1",
+      "pressed": false
+    },
+    {
+      "frame": 550,
+      "control": "down",
+      "pressed": true
+    },
+    {
+      "frame": 574,
+      "control": "down",
+      "pressed": false
+    },
+    {
+      "frame": 574,
+      "control": "left",
+      "pressed": true
+    },
+    {
+      "frame": 634,
+      "control": "left",
+      "pressed": false
+    },
+    {
+      "frame": 660,
+      "control": "right",
+      "pressed": true
+    },
+    {
+      "frame": 668,
+      "control": "right",
+      "pressed": false
+    }
+  ],
+  "capture_command": "python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 676 --recognize-from 654 --video-from 620 --skip-player-recognition --plan /tmp/rsch014-B6-axis2-plan.json --output /tmp/rsch014-B6-axis2-capture.json --raw-video /tmp/rsch014-B6-axis2.bgra --raw-background /tmp/rsch014-B6-axis2-background.bin --raw-work-ram /tmp/rsch014-B6-axis2-ram.bin",
+  "source_basis": "MAME CONTP1 defines P1 Right as active-low mask 0x04; ROM $05FF complements and accepts one-hot 0x04, and $36A2-$36C0 increments $6027. The current B6 controlled result validates a free Part-1 node, stable neutral baseline, and P1 Down-to-south motion only. This is the next distinct discriminator; do not run a full stage route until the perpendicular axis and overlay/counter gates are resolved."
+}
