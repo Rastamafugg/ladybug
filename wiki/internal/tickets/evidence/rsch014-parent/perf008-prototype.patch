@@ -1,0 +1,149 @@
+diff --git a/scripts/source_reference.json b/scripts/source_reference.json
+index 52a8c77..d998e41 100644
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -750,0 +751,18 @@
++        },
++        {
++          "name": "pickup_prepare_removed",
++          "profile": "state",
++          "purpose": "Resolve removed keyed entity and restore its four-cell footprint.",
++          "reasons": [
++            "called"
++          ],
++          "semantic_id": "routines.html#routine-resident-runtime-pickup-prepare-removed"
++        },
++        {
++          "name": "pickup_prepare_nest",
++          "profile": "state",
++          "purpose": "Return the frozen keyed cell and its nest-column predicate.",
++          "reasons": [
++            "called"
++          ],
++          "semantic_id": "routines.html#routine-resident-runtime-pickup-prepare-nest"
+diff --git a/scripts/source_reference_adaptive.json b/scripts/source_reference_adaptive.json
+index b9ff938..4c553bf 100644
+--- a/scripts/source_reference_adaptive.json
++++ b/scripts/source_reference_adaptive.json
+@@ -249,0 +250,9 @@
++        },
++        {
++          "name": "pickup_key_prepare",
++          "profile": "adaptive-active",
++          "purpose": "Repair removed keyed entity footprint, intersecting settled gate unions and structural nest intent.",
++          "reasons": [
++            "called"
++          ],
++          "semantic_id": "routines.html#routine-adaptive-active-pickup-key-prepare"
+@@ -277 +286,5 @@
+-        "frame_render_background"
++        "frame_render_background",
++        "draw_gate",
++        "draw_gate_entities",
++        "pickup_prepare_removed",
++        "pickup_prepare_nest"
+diff --git a/src/adaptive_active.s b/src/adaptive_active.s
+index 7a50549..e7f7f96 100644
+--- a/src/adaptive_active.s
++++ b/src/adaptive_active.s
+@@ -280,0 +281,5 @@ akb_gate
++        lda RENDER_FLAGS
++        cmpa #$20
++        bne akb_finish
++        bsr pickup_key_prepare
++akb_finish
+@@ -283,0 +289,48 @@ akb_masks
++
++; Isolated PERF-008 sizing candidate, never delivered.
++pickup_key_prepare
++        jsr pickup_prepare_removed
++        beq pk_done
++        clr GATE_COPY_COUNT
++pk_gate
++        lda GATE_COPY_COUNT
++        ldb #GATE_ENTITY_RECORD_SIZE
++        mul
++        addd #GATE_ENTITY_LISTS
++        tfr d,y
++        lda PLAYER_CELL_X
++        cmpa ,y
++        blo pk_gate_next
++        deca
++        cmpa 2,y
++        bhi pk_gate_next
++        lda PLAYER_CELL_Y
++        cmpa 1,y
++        blo pk_gate_next
++        deca
++        cmpa 3,y
++        bhi pk_gate_next
++        lda GATE_COPY_COUNT
++        inca
++        cmpa GATE_ANIM_ID
++        beq pk_gate_next
++        sta RENDER_GATE_ID
++        deca
++        jsr draw_gate
++        jsr draw_gate_entities
++pk_gate_next
++        inc GATE_COPY_COUNT
++        lda GATE_COPY_COUNT
++        cmpa #MAZE_GATE_COUNT
++        blo pk_gate
++        clr RENDER_GATE_ID
++        clr RENDER_FLAGS
++        jsr pickup_prepare_nest
++        bne pk_done
++        andb #$FB
++        cmpb #10
++        bne pk_done
++        lda #8
++        sta ENEMY_RENDER_FLAGS
++pk_done
++        rts
+diff --git a/src/main.s b/src/main.s
+index c489336..559e2c4 100644
+--- a/src/main.s
++++ b/src/main.s
+@@ -3897,0 +3898,3 @@ cep_loop
++        ifne    ADAPTIVE_RENDERING
++        ora     #RF_DOT
++        else
+@@ -3898,0 +3902 @@ cep_loop
++        endc
+@@ -4849,0 +4854,5 @@ nlt_deltas
++; Research-only PERF-008 helpers, not approved implementation.
++; DOC-002 source-contract mirror contract pickup_prepare_removed profile=state: Resolve removed keyed entity and restore its four-cell footprint.
++; DOC-002 source-contract mirror contract pickup_prepare_nest profile=state: Return the frozen keyed cell and its nest-column predicate.
++
++
+@@ -4901,0 +4911,29 @@ primary_preserve_table
++; PERF-008 research: immutable helpers share the existing upper-ROM code region.
++        ifne ADAPTIVE_RENDERING
++pickup_prepare_removed
++        ldx #ENTITY_TABLE
++        lda ENTITY_COUNT
++        sta ENTITY_WORK
++ppr_scan
++        tst 2,x
++        bne ppr_next
++        ldd ,x
++        cmpd PLAYER_CELL_X
++        beq ppr_removed
++ppr_next
++        leax 4,x
++        dec ENTITY_WORK
++        bne ppr_scan
++        clra
++        rts
++ppr_removed
++        ldd ,x
++        std ENTITY_X
++        jsr restore_entity_footprint
++        lda #1
++        rts
++pickup_prepare_nest
++        ldd PLAYER_CELL_X
++        cmpa #12
++        rts
++        endc

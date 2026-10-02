@@ -1,0 +1,1313 @@
+{
+  "date": "2026-10-02",
+  "status": "Proposed, research preparation only; no production implementation approval",
+  "risk_class": "High-risk",
+  "builds": {
+    "perf008-readiness": {
+      "revision": "03f5b6926a90b4584a34854fe8ac17efa807ba12",
+      "rom_sha256": "f8c5583d254579f70f0515882da04d4e374dffffc28a5ccffdef490ed70c415d",
+      "receipt_sha256": "c39559fccc4bc38485cfdf698884b4a3c90f06fced9f36ceb0d2a4a2455e593e",
+      "resident": 8137,
+      "resident_free": 55,
+      "assets": 7661,
+      "assets_free": 19,
+      "helper_addresses": {
+        "pickup_prepare_removed": 64964,
+        "pickup_prepare_nest": 65000
+      },
+      "active_bytes": 603,
+      "audio_bytes": 6656,
+      "build_exit": 0,
+      "audit_tail": [
+        "source reference: 14 modules, 35495 source lines, coverage=pass",
+        "source documentation: PASS: 14 modules, 304/304 routines, 4942/4942 labels"
+      ]
+    },
+    "perf008-combined-readiness": {
+      "revision": "03f5b6926a90b4584a34854fe8ac17efa807ba12",
+      "rom_sha256": "532f927ce58ed9754f080785940becd8f02756022e0ac2b62e4534cfabf66b19",
+      "receipt_sha256": "ff2a03a78b82eb314cfa15537e70cdafe030b2ffed120667b7257646cae8f245",
+      "resident": 8148,
+      "resident_free": 44,
+      "assets": 7663,
+      "assets_free": 17,
+      "helper_addresses": {
+        "pickup_prepare_removed": 64966,
+        "pickup_prepare_nest": 65002
+      },
+      "active_bytes": 603,
+      "audio_bytes": 6656,
+      "build_exit": 0,
+      "audit_tail": [
+        "source reference: 15 modules, 35600 source lines, coverage=pass",
+        "source documentation: PASS: 15 modules, 303/303 routines, 4983/4983 labels"
+      ]
+    }
+  },
+  "default_enemy_binary_unchanged_sha256": "4cc0e931fc8241d55e56ee6cf94538e48714d9565695acf32e69694993282d8d",
+  "performance": {
+    "scope": "Matched actual credited-gameplay pickup fixture, first two complete publication worklists, single paired observations. IRQ active. Costs labeled by trigger/replay phase; owner secondary only. Both runs begin with identical physical RAM and CPU registers.",
+    "fixture_sha256": "16d16ae60cc7eed0e6eba57ff7a5446336a3c55644bebc4d1be079049dfe73fc",
+    "full": [
+      {
+        "raw": 3652,
+        "logical": 140,
+        "debt": 0,
+        "mode": 0,
+        "owner": 1,
+        "enemies": 4,
+        "rate": 2,
+        "cycles_scope": "input-parser-through-return",
+        "cycles": 335825,
+        "logical_after": 141,
+        "debt_after": 1,
+        "counts": [
+          1,
+          0
+        ],
+        "fault": 0,
+        "pending": 1,
+        "late": 0,
+        "profile": {
+          "adaptive_audio_binding_0": {
+            "calls": 1,
+            "inclusive": 546,
+            "exclusive": 546
+          },
+          "adaptive_audio_binding_1": {
+            "calls": 1,
+            "inclusive": 1454,
+            "exclusive": 1454
+          },
+          "adaptive_tick_binding": {
+            "calls": 1,
+            "inclusive": 3392,
+            "exclusive": 1938
+          },
+          "sync_entity_cache_colour": {
+            "calls": 1,
+            "inclusive": 20,
+            "exclusive": 20
+          },
+          "framebuffer_prepare_back": {
+            "calls": 1,
+            "inclusive": 498,
+            "exclusive": 478
+          },
+          "colour_prepare_nest": {
+            "calls": 4,
+            "inclusive": 152,
+            "exclusive": 152
+          },
+          "roam_copy_bg_to_fb": {
+            "calls": 4,
+            "inclusive": 4966,
+            "exclusive": 4966
+          },
+          "actor_closure_restore": {
+            "calls": 1,
+            "inclusive": 6645,
+            "exclusive": 1679
+          },
+          "background_requests": [
+            {
+              "flags": "08000000000000001000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "02000000000000000000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "00020000000000000000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "100008050000000f0000000000000000",
+              "cell": "1616"
+            }
+          ],
+          "erase_entity_footprints": {
+            "calls": 1,
+            "inclusive": 22320,
+            "exclusive": 22320
+          },
+          "repair_settled_entity_gates": {
+            "calls": 1,
+            "inclusive": 133060,
+            "exclusive": 133060
+          },
+          "draw_entities": {
+            "calls": 2,
+            "inclusive": 101051,
+            "exclusive": 101051
+          },
+          "bnc_copy": {
+            "calls": 1,
+            "inclusive": 3077,
+            "exclusive": 3077
+          },
+          "draw_vegetable_stage": {
+            "calls": 1,
+            "inclusive": 1291,
+            "exclusive": 1291
+          },
+          "copy_native_row": {
+            "calls": 32,
+            "inclusive": 2208,
+            "exclusive": 2208
+          },
+          "compose_enemy_zone": {
+            "calls": 1,
+            "inclusive": 9037,
+            "exclusive": 1014
+          },
+          "frame_render_background": {
+            "calls": 4,
+            "inclusive": 296677,
+            "exclusive": 30401
+          },
+          "adaptive_global_binding": {
+            "calls": 3,
+            "inclusive": 294946,
+            "exclusive": 606
+          },
+          "draw_perimeter_box": {
+            "calls": 1,
+            "inclusive": 2255,
+            "exclusive": 2255
+          },
+          "adaptive_key_binding": {
+            "calls": 1,
+            "inclusive": 2583,
+            "exclusive": 108
+          },
+          "roam_update_background": {
+            "calls": 4,
+            "inclusive": 5036,
+            "exclusive": 5036
+          },
+          "sparse_blit_fb": {
+            "calls": 5,
+            "inclusive": 10693,
+            "exclusive": 10693
+          },
+          "actor_closure_draw": {
+            "calls": 1,
+            "inclusive": 18133,
+            "exclusive": 2404
+          },
+          "adaptive_render": {
+            "calls": 1,
+            "inclusive": 325659,
+            "exclusive": 2840
+          },
+          "adaptive_audio_binding_2": {
+            "calls": 1,
+            "inclusive": 2509,
+            "exclusive": 2509
+          },
+          "framebuffer_finish_back": {
+            "calls": 1,
+            "inclusive": 556,
+            "exclusive": 556
+          }
+        },
+        "enemy_records": "015ce4000a0d0102015924010a0c0102013c6c020c070100014de1030a0a0103",
+        "breakpoint_hits": 287,
+        "intents_after": "000000000000000f0000000000000000",
+        "colour": 3,
+        "steps": 1,
+        "marker": {
+          "bonus_left": 5,
+          "pickup_timer": 30,
+          "entity_type": 0
+        }
+      },
+      {
+        "raw": 3664,
+        "logical": 141,
+        "debt": 1,
+        "mode": 0,
+        "owner": 0,
+        "enemies": 4,
+        "rate": 2,
+        "cycles_scope": "input-parser-through-return",
+        "cycles": 331110,
+        "logical_after": 142,
+        "debt_after": 12,
+        "counts": [
+          0,
+          1
+        ],
+        "fault": 0,
+        "pending": 1,
+        "late": 1,
+        "profile": {
+          "adaptive_audio_binding_0": {
+            "calls": 1,
+            "inclusive": 831,
+            "exclusive": 831
+          },
+          "adaptive_audio_binding_1": {
+            "calls": 1,
+            "inclusive": 295,
+            "exclusive": 295
+          },
+          "adaptive_tick_binding": {
+            "calls": 1,
+            "inclusive": 2478,
+            "exclusive": 2183
+          },
+          "sync_entity_cache_colour": {
+            "calls": 1,
+            "inclusive": 20,
+            "exclusive": 20
+          },
+          "framebuffer_prepare_back": {
+            "calls": 1,
+            "inclusive": 490,
+            "exclusive": 470
+          },
+          "colour_prepare_nest": {
+            "calls": 4,
+            "inclusive": 191,
+            "exclusive": 191
+          },
+          "roam_copy_bg_to_fb": {
+            "calls": 4,
+            "inclusive": 4670,
+            "exclusive": 4670
+          },
+          "actor_closure_restore": {
+            "calls": 1,
+            "inclusive": 6361,
+            "exclusive": 1691
+          },
+          "background_requests": [
+            {
+              "flags": "08000000000000000000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "02000000000000000000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "00020000000000000000000000000000",
+              "cell": "140e"
+            }
+          ],
+          "erase_entity_footprints": {
+            "calls": 1,
+            "inclusive": 22320,
+            "exclusive": 22320
+          },
+          "repair_settled_entity_gates": {
+            "calls": 1,
+            "inclusive": 133060,
+            "exclusive": 133060
+          },
+          "draw_entities": {
+            "calls": 2,
+            "inclusive": 100955,
+            "exclusive": 100955
+          },
+          "bnc_copy": {
+            "calls": 1,
+            "inclusive": 3173,
+            "exclusive": 3173
+          },
+          "draw_vegetable_stage": {
+            "calls": 1,
+            "inclusive": 1291,
+            "exclusive": 1291
+          },
+          "copy_native_row": {
+            "calls": 32,
+            "inclusive": 2208,
+            "exclusive": 2208
+          },
+          "compose_enemy_zone": {
+            "calls": 1,
+            "inclusive": 9133,
+            "exclusive": 1014
+          },
+          "frame_render_background": {
+            "calls": 3,
+            "inclusive": 294202,
+            "exclusive": 30181
+          },
+          "adaptive_global_binding": {
+            "calls": 3,
+            "inclusive": 294940,
+            "exclusive": 606
+          },
+          "roam_update_background": {
+            "calls": 4,
+            "inclusive": 5048,
+            "exclusive": 5048
+          },
+          "sparse_blit_fb": {
+            "calls": 5,
+            "inclusive": 10597,
+            "exclusive": 10597
+          },
+          "actor_closure_draw": {
+            "calls": 1,
+            "inclusive": 18049,
+            "exclusive": 2404
+          },
+          "adaptive_render": {
+            "calls": 1,
+            "inclusive": 321883,
+            "exclusive": 1984
+          },
+          "adaptive_audio_binding_2": {
+            "calls": 1,
+            "inclusive": 2177,
+            "exclusive": 2177
+          },
+          "framebuffer_finish_back": {
+            "calls": 1,
+            "inclusive": 553,
+            "exclusive": 553
+          }
+        },
+        "enemy_records": "015e24010a0d0102015a64020a0c0102013b2c030c070100014de000090a0103",
+        "breakpoint_hits": 272,
+        "intents_after": "000000000000000f0200000000000000",
+        "colour": 3,
+        "steps": 1,
+        "marker": {
+          "bonus_left": 5,
+          "pickup_timer": 29,
+          "entity_type": 0
+        }
+      }
+    ],
+    "selective": [
+      {
+        "raw": 3652,
+        "logical": 140,
+        "debt": 0,
+        "mode": 0,
+        "owner": 1,
+        "enemies": 4,
+        "rate": 2,
+        "cycles_scope": "input-parser-through-return",
+        "cycles": 92563,
+        "logical_after": 141,
+        "debt_after": 1,
+        "counts": [
+          1,
+          0
+        ],
+        "fault": 0,
+        "pending": 1,
+        "late": 0,
+        "profile": {
+          "adaptive_audio_binding_0": {
+            "calls": 1,
+            "inclusive": 546,
+            "exclusive": 546
+          },
+          "adaptive_audio_binding_1": {
+            "calls": 1,
+            "inclusive": 1454,
+            "exclusive": 1454
+          },
+          "adaptive_tick_binding": {
+            "calls": 1,
+            "inclusive": 3392,
+            "exclusive": 1938
+          },
+          "sync_entity_cache_colour": {
+            "calls": 1,
+            "inclusive": 20,
+            "exclusive": 20
+          },
+          "framebuffer_prepare_back": {
+            "calls": 1,
+            "inclusive": 498,
+            "exclusive": 478
+          },
+          "colour_prepare_nest": {
+            "calls": 4,
+            "inclusive": 248,
+            "exclusive": 248
+          },
+          "roam_copy_bg_to_fb": {
+            "calls": 4,
+            "inclusive": 4966,
+            "exclusive": 4966
+          },
+          "actor_closure_restore": {
+            "calls": 1,
+            "inclusive": 6645,
+            "exclusive": 1679
+          },
+          "background_requests": [
+            {
+              "flags": "00000000000000001000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "02000000000000000000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "00020000000000000000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "000000000000000f0000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "100008050000000f0000000000000000",
+              "cell": "1616"
+            }
+          ],
+          "compose_enemy_animation": {
+            "calls": 1,
+            "inclusive": 12,
+            "exclusive": 12
+          },
+          "frame_render_background": {
+            "calls": 5,
+            "inclusive": 32951,
+            "exclusive": 30684
+          },
+          "adaptive_global_binding": {
+            "calls": 3,
+            "inclusive": 31129,
+            "exclusive": 609
+          },
+          "adaptive_key_binding": {
+            "calls": 2,
+            "inclusive": 22897,
+            "exclusive": 20280
+          },
+          "draw_perimeter_box": {
+            "calls": 1,
+            "inclusive": 2255,
+            "exclusive": 2255
+          },
+          "roam_update_background": {
+            "calls": 4,
+            "inclusive": 5036,
+            "exclusive": 5036
+          },
+          "sparse_blit_fb": {
+            "calls": 5,
+            "inclusive": 10597,
+            "exclusive": 10597
+          },
+          "actor_closure_draw": {
+            "calls": 1,
+            "inclusive": 18037,
+            "exclusive": 2404
+          },
+          "adaptive_render": {
+            "calls": 1,
+            "inclusive": 82301,
+            "exclusive": 3033
+          },
+          "adaptive_audio_binding_2": {
+            "calls": 1,
+            "inclusive": 2605,
+            "exclusive": 2605
+          },
+          "framebuffer_finish_back": {
+            "calls": 1,
+            "inclusive": 556,
+            "exclusive": 556
+          }
+        },
+        "enemy_records": "015ce4000a0d0102015924010a0c0102013c6c020c070100014de1030a0a0103",
+        "breakpoint_hits": 88,
+        "intents_after": "000000000000000f0000000000000000",
+        "colour": 3,
+        "steps": 1,
+        "marker": {
+          "bonus_left": 5,
+          "pickup_timer": 30,
+          "entity_type": 0
+        }
+      },
+      {
+        "raw": 3656,
+        "logical": 141,
+        "debt": 1,
+        "mode": 0,
+        "owner": 0,
+        "enemies": 4,
+        "rate": 2,
+        "cycles_scope": "input-parser-through-return",
+        "cycles": 87578,
+        "logical_after": 142,
+        "debt_after": 4,
+        "counts": [
+          0,
+          1
+        ],
+        "fault": 0,
+        "pending": 1,
+        "late": 1,
+        "profile": {
+          "adaptive_audio_binding_0": {
+            "calls": 1,
+            "inclusive": 831,
+            "exclusive": 831
+          },
+          "adaptive_audio_binding_1": {
+            "calls": 1,
+            "inclusive": 295,
+            "exclusive": 295
+          },
+          "adaptive_tick_binding": {
+            "calls": 1,
+            "inclusive": 2478,
+            "exclusive": 2183
+          },
+          "sync_entity_cache_colour": {
+            "calls": 1,
+            "inclusive": 20,
+            "exclusive": 20
+          },
+          "framebuffer_prepare_back": {
+            "calls": 1,
+            "inclusive": 490,
+            "exclusive": 470
+          },
+          "colour_prepare_nest": {
+            "calls": 4,
+            "inclusive": 236,
+            "exclusive": 236
+          },
+          "roam_copy_bg_to_fb": {
+            "calls": 4,
+            "inclusive": 4670,
+            "exclusive": 4670
+          },
+          "actor_closure_restore": {
+            "calls": 1,
+            "inclusive": 6361,
+            "exclusive": 1691
+          },
+          "background_requests": [
+            {
+              "flags": "00000000000000000000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "02000000000000000000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "00020000000000000000000000000000",
+              "cell": "140e"
+            },
+            {
+              "flags": "000000000000000f0000000000000000",
+              "cell": "140e"
+            }
+          ],
+          "frame_render_background": {
+            "calls": 4,
+            "inclusive": 30275,
+            "exclusive": 30275
+          },
+          "adaptive_global_binding": {
+            "calls": 3,
+            "inclusive": 30919,
+            "exclusive": 609
+          },
+          "adaptive_key_binding": {
+            "calls": 1,
+            "inclusive": 20314,
+            "exclusive": 20172
+          },
+          "roam_update_background": {
+            "calls": 4,
+            "inclusive": 5048,
+            "exclusive": 5048
+          },
+          "sparse_blit_fb": {
+            "calls": 5,
+            "inclusive": 10597,
+            "exclusive": 10597
+          },
+          "actor_closure_draw": {
+            "calls": 1,
+            "inclusive": 18049,
+            "exclusive": 2404
+          },
+          "adaptive_render": {
+            "calls": 1,
+            "inclusive": 78447,
+            "exclusive": 2255
+          },
+          "adaptive_audio_binding_2": {
+            "calls": 1,
+            "inclusive": 2081,
+            "exclusive": 2081
+          },
+          "framebuffer_finish_back": {
+            "calls": 1,
+            "inclusive": 553,
+            "exclusive": 553
+          }
+        },
+        "enemy_records": "015e24010a0d0102015a64020a0c0102013b2c030c070100014de000090a0103",
+        "breakpoint_hits": 79,
+        "intents_after": "000000000000000f0200000000000000",
+        "colour": 3,
+        "steps": 1,
+        "marker": {
+          "bonus_left": 5,
+          "pickup_timer": 29,
+          "entity_type": 0
+        }
+      }
+    ],
+    "sum_full": 666935,
+    "sum_selective": 180141,
+    "proposed_target": {
+      "maximum_each_initial_pickup_history_worklist": 100000,
+      "minimum_reduction_each": 0.7,
+      "pixels_matching_each": 30720
+    },
+    "popup_completion_full": {
+      "index": 30,
+      "logical_before": 170,
+      "logical_after": 174
+    },
+    "popup_completion_selective": {
+      "index": 30,
+      "logical_before": 170,
+      "logical_after": 174
+    },
+    "parent_target": 27000,
+    "parent_target_met": false,
+    "whole_58_worklist_sums_not_a_logical_equivalent_comparison": true
+  },
+  "isolated_and_alternating_pixels": [
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "a6af22511325e54655e392c978d9d390ce985b9335d7a0130d690d6331e2d291",
+      "selective_sha256": "a6af22511325e54655e392c978d9d390ce985b9335d7a0130d690d6331e2d291",
+      "first_differences": [],
+      "component_cycles_full": 292050,
+      "component_cycles_selective": 48798
+    },
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "3fec2d8dc3b11408b3c96b852f01ba87b2669a7a46287a91bc60756745b658f5",
+      "selective_sha256": "3fec2d8dc3b11408b3c96b852f01ba87b2669a7a46287a91bc60756745b658f5",
+      "first_differences": [],
+      "component_cycles_full": 292050,
+      "component_cycles_selective": 86648
+    },
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "2bfbb6ab8c25ad64def4effae7c672d597400b30a3f67aca8cd744436dc69e81",
+      "selective_sha256": "2bfbb6ab8c25ad64def4effae7c672d597400b30a3f67aca8cd744436dc69e81",
+      "first_differences": [],
+      "component_cycles_full": 292050,
+      "component_cycles_selective": 48600
+    },
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "daeef64f6660951f9cd1dae1217451b923c72846ed39caaf8ac54c2d3e5de766",
+      "selective_sha256": "daeef64f6660951f9cd1dae1217451b923c72846ed39caaf8ac54c2d3e5de766",
+      "first_differences": [],
+      "component_cycles_full": 292503,
+      "component_cycles_selective": 48884
+    },
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "77f103ae44b46a906c726e8479162fd66eb1dda09d48611931ca6c805e16437b",
+      "selective_sha256": "77f103ae44b46a906c726e8479162fd66eb1dda09d48611931ca6c805e16437b",
+      "first_differences": [],
+      "component_cycles_full": 292503,
+      "component_cycles_selective": 33174
+    },
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "24ba52155c3c03ef8988ad73f79bf9670f084044a38cc2fa03df6cd163f4e4c0",
+      "selective_sha256": "24ba52155c3c03ef8988ad73f79bf9670f084044a38cc2fa03df6cd163f4e4c0",
+      "first_differences": [],
+      "component_cycles_full": 292677,
+      "component_cycles_selective": 48898
+    },
+    {
+      "scenario": "same-cell later dot supersedes removal",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "a6af22511325e54655e392c978d9d390ce985b9335d7a0130d690d6331e2d291",
+      "selective_sha256": "a6af22511325e54655e392c978d9d390ce985b9335d7a0130d690d6331e2d291",
+      "first_differences": [],
+      "component_cycles_full": 292773,
+      "component_cycles_selective": 49521
+    },
+    {
+      "scenario": "distinct retained removals",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "22a4aafed0c53b61853544a7f59c9b87c2a69530fd500269e7f12337ec07d9eb",
+      "selective_sha256": "22a4aafed0c53b61853544a7f59c9b87c2a69530fd500269e7f12337ec07d9eb",
+      "first_differences": [],
+      "component_cycles_full": 527384,
+      "component_cycles_selective": 107763
+    },
+    {
+      "scenario": "global colour then keyed removal",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "df3bf5a2607e89cf5f4451b360f8daa391c5d8be5336342c3f947ac2f5341509",
+      "selective_sha256": "df3bf5a2607e89cf5f4451b360f8daa391c5d8be5336342c3f947ac2f5341509",
+      "first_differences": [],
+      "component_cycles_full": 329609,
+      "component_cycles_selective": 86407
+    },
+    {
+      "scenario": "structural nest removal (12, 10)",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "a6af22511325e54655e392c978d9d390ce985b9335d7a0130d690d6331e2d291",
+      "selective_sha256": "a6af22511325e54655e392c978d9d390ce985b9335d7a0130d690d6331e2d291",
+      "first_differences": [],
+      "component_cycles_full": 276363,
+      "component_cycles_selective": 41904
+    },
+    {
+      "scenario": "structural nest removal (12, 14)",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "a6af22511325e54655e392c978d9d390ce985b9335d7a0130d690d6331e2d291",
+      "selective_sha256": "a6af22511325e54655e392c978d9d390ce985b9335d7a0130d690d6331e2d291",
+      "first_differences": [],
+      "component_cycles_full": 276363,
+      "component_cycles_selective": 41904
+    },
+    {
+      "scenario": "gate visual-neighbour union with surviving collectible",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "71e3f4dfdb5a1b6986687ee0ce5f7b8fc34099a61e775fe5de9fd17ea6c1fa05",
+      "selective_sha256": "71e3f4dfdb5a1b6986687ee0ce5f7b8fc34099a61e775fe5de9fd17ea6c1fa05",
+      "first_differences": [],
+      "component_cycles_full": 238456,
+      "component_cycles_selective": 50420
+    },
+    {
+      "scenario": "pending diagonal gate callback after removal",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "aa256ea056a570364fc40950dcca7f0022f3a89a6b631fe96efffc06768a6c6d",
+      "selective_sha256": "aa256ea056a570364fc40950dcca7f0022f3a89a6b631fe96efffc06768a6c6d",
+      "first_differences": [],
+      "component_cycles_full": 227806,
+      "component_cycles_selective": 37825
+    },
+    {
+      "scenario": "retained removal plus deferred final gate transition",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "71e3f4dfdb5a1b6986687ee0ce5f7b8fc34099a61e775fe5de9fd17ea6c1fa05",
+      "selective_sha256": "71e3f4dfdb5a1b6986687ee0ce5f7b8fc34099a61e775fe5de9fd17ea6c1fa05",
+      "first_differences": [],
+      "component_cycles_full": 245809,
+      "component_cycles_selective": 57773
+    },
+    {
+      "scenario": "skull batch full fallback",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "c225898e632558eb0d01061d969b9f259e5e17439f6050f5f68d447be913ee65",
+      "selective_sha256": "c225898e632558eb0d01061d969b9f259e5e17439f6050f5f68d447be913ee65",
+      "first_differences": [],
+      "component_cycles_full": 277271,
+      "component_cycles_selective": 277271
+    },
+    {
+      "scenario": "stage supersedes retained removal",
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "full_sha256": "0d5d66d9a410e0b5074f6f17f61c98add46578bc19eeca2900307a68dc1b0651",
+      "selective_sha256": "0d5d66d9a410e0b5074f6f17f61c98add46578bc19eeca2900307a68dc1b0651",
+      "first_differences": [],
+      "component_cycles_full": 1130728,
+      "component_cycles_selective": 1130728
+    },
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "0dafb3e9e72a285540a7efb09f13c8313b263e0f26c0c136bf3d4bf2b34917fc",
+      "selective_sha256": "0dafb3e9e72a285540a7efb09f13c8313b263e0f26c0c136bf3d4bf2b34917fc",
+      "first_differences": [],
+      "component_cycles_full": 292345,
+      "component_cycles_selective": 49093
+    },
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "ee29492e5b0ec7420eb32dbd26852d7cfdac5f3077c57e151ee935bd7358b371",
+      "selective_sha256": "ee29492e5b0ec7420eb32dbd26852d7cfdac5f3077c57e151ee935bd7358b371",
+      "first_differences": [],
+      "component_cycles_full": 292345,
+      "component_cycles_selective": 86943
+    },
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "cecbcc6696bc76423b74c1a692221d2762b37f0e95775fe4d2fd55d81a5dc8c7",
+      "selective_sha256": "cecbcc6696bc76423b74c1a692221d2762b37f0e95775fe4d2fd55d81a5dc8c7",
+      "first_differences": [],
+      "component_cycles_full": 292345,
+      "component_cycles_selective": 48895
+    },
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "987707aae887e56845e6e4b0a0e34ac61f774f3591c84396bbf9ba1a29e24eed",
+      "selective_sha256": "987707aae887e56845e6e4b0a0e34ac61f774f3591c84396bbf9ba1a29e24eed",
+      "first_differences": [],
+      "component_cycles_full": 292798,
+      "component_cycles_selective": 49179
+    },
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "8f8df7e1c7155606a2fe74aa3533fd70bec11a1fb8e6ec7acde15d0e9910e2a3",
+      "selective_sha256": "8f8df7e1c7155606a2fe74aa3533fd70bec11a1fb8e6ec7acde15d0e9910e2a3",
+      "first_differences": [],
+      "component_cycles_full": 292798,
+      "component_cycles_selective": 33469
+    },
+    {
+      "scenario": "ordinary removal with four roaming sprites",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "940efaeba8da56eb2e2ffccaa90217a2f4715bc404a6fbc97d2ab8fdb37eeca2",
+      "selective_sha256": "940efaeba8da56eb2e2ffccaa90217a2f4715bc404a6fbc97d2ab8fdb37eeca2",
+      "first_differences": [],
+      "component_cycles_full": 292972,
+      "component_cycles_selective": 49193
+    },
+    {
+      "scenario": "same-cell later dot supersedes removal",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "0dafb3e9e72a285540a7efb09f13c8313b263e0f26c0c136bf3d4bf2b34917fc",
+      "selective_sha256": "0dafb3e9e72a285540a7efb09f13c8313b263e0f26c0c136bf3d4bf2b34917fc",
+      "first_differences": [],
+      "component_cycles_full": 293068,
+      "component_cycles_selective": 49816
+    },
+    {
+      "scenario": "distinct retained removals",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "c831b5f931f76a6a4b0eb0812304eddcd4603ca54500ece623950e263f8e1439",
+      "selective_sha256": "c831b5f931f76a6a4b0eb0812304eddcd4603ca54500ece623950e263f8e1439",
+      "first_differences": [],
+      "component_cycles_full": 527679,
+      "component_cycles_selective": 108058
+    },
+    {
+      "scenario": "global colour then keyed removal",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "99545f0305f4d4b9f95a7a6a2f8db68d36412a2263633df15db77c35ce6fb971",
+      "selective_sha256": "99545f0305f4d4b9f95a7a6a2f8db68d36412a2263633df15db77c35ce6fb971",
+      "first_differences": [],
+      "component_cycles_full": 329901,
+      "component_cycles_selective": 86699
+    },
+    {
+      "scenario": "structural nest removal (12, 10)",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "0dafb3e9e72a285540a7efb09f13c8313b263e0f26c0c136bf3d4bf2b34917fc",
+      "selective_sha256": "0dafb3e9e72a285540a7efb09f13c8313b263e0f26c0c136bf3d4bf2b34917fc",
+      "first_differences": [],
+      "component_cycles_full": 276805,
+      "component_cycles_selective": 42346
+    },
+    {
+      "scenario": "structural nest removal (12, 14)",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "0dafb3e9e72a285540a7efb09f13c8313b263e0f26c0c136bf3d4bf2b34917fc",
+      "selective_sha256": "0dafb3e9e72a285540a7efb09f13c8313b263e0f26c0c136bf3d4bf2b34917fc",
+      "first_differences": [],
+      "component_cycles_full": 276805,
+      "component_cycles_selective": 42346
+    },
+    {
+      "scenario": "gate visual-neighbour union with surviving collectible",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "b08e4f6f0b7551dc1472b6446679f12d5c29924fdcd1ace7ef676662a71f6206",
+      "selective_sha256": "b08e4f6f0b7551dc1472b6446679f12d5c29924fdcd1ace7ef676662a71f6206",
+      "first_differences": [],
+      "component_cycles_full": 238898,
+      "component_cycles_selective": 50862
+    },
+    {
+      "scenario": "pending diagonal gate callback after removal",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "a61deafb18036b03fac39b8ad75a6b8e74e800c4b220a487c85f3e190712c284",
+      "selective_sha256": "a61deafb18036b03fac39b8ad75a6b8e74e800c4b220a487c85f3e190712c284",
+      "first_differences": [],
+      "component_cycles_full": 228248,
+      "component_cycles_selective": 38267
+    },
+    {
+      "scenario": "retained removal plus deferred final gate transition",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "b08e4f6f0b7551dc1472b6446679f12d5c29924fdcd1ace7ef676662a71f6206",
+      "selective_sha256": "b08e4f6f0b7551dc1472b6446679f12d5c29924fdcd1ace7ef676662a71f6206",
+      "first_differences": [],
+      "component_cycles_full": 245808,
+      "component_cycles_selective": 57772
+    },
+    {
+      "scenario": "skull batch full fallback",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "27a9442431cfca6ab42be61b9aea250c2e2d038d49ebb09db1f546c1f01fb972",
+      "selective_sha256": "27a9442431cfca6ab42be61b9aea250c2e2d038d49ebb09db1f546c1f01fb972",
+      "first_differences": [],
+      "component_cycles_full": 277563,
+      "component_cycles_selective": 277563
+    },
+    {
+      "scenario": "stage supersedes retained removal",
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "full_sha256": "0d5d66d9a410e0b5074f6f17f61c98add46578bc19eeca2900307a68dc1b0651",
+      "selective_sha256": "0d5d66d9a410e0b5074f6f17f61c98add46578bc19eeca2900307a68dc1b0651",
+      "first_differences": [],
+      "component_cycles_full": 1131014,
+      "component_cycles_selective": 1131014
+    },
+    {
+      "scenario": "alternating retained history and later actor recapture",
+      "first_owner_secondary": 0,
+      "step": 0,
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "sha256": "a6af22511325e54655e392c978d9d390ce985b9335d7a0130d690d6331e2d291"
+    },
+    {
+      "scenario": "alternating retained history and later actor recapture",
+      "first_owner_secondary": 0,
+      "step": 1,
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "sha256": "0dafb3e9e72a285540a7efb09f13c8313b263e0f26c0c136bf3d4bf2b34917fc"
+    },
+    {
+      "scenario": "alternating retained history and later actor recapture",
+      "first_owner_secondary": 0,
+      "step": 2,
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "sha256": "22a4aafed0c53b61853544a7f59c9b87c2a69530fd500269e7f12337ec07d9eb"
+    },
+    {
+      "scenario": "alternating retained history and later actor recapture",
+      "first_owner_secondary": 0,
+      "step": 3,
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "sha256": "c831b5f931f76a6a4b0eb0812304eddcd4603ca54500ece623950e263f8e1439"
+    },
+    {
+      "scenario": "alternating retained history and later actor recapture",
+      "first_owner_secondary": 1,
+      "step": 0,
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "sha256": "0dafb3e9e72a285540a7efb09f13c8313b263e0f26c0c136bf3d4bf2b34917fc"
+    },
+    {
+      "scenario": "alternating retained history and later actor recapture",
+      "first_owner_secondary": 1,
+      "step": 1,
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "sha256": "a6af22511325e54655e392c978d9d390ce985b9335d7a0130d690d6331e2d291"
+    },
+    {
+      "scenario": "alternating retained history and later actor recapture",
+      "first_owner_secondary": 1,
+      "step": 2,
+      "owner_secondary": 1,
+      "matching_bytes": 30720,
+      "sha256": "c831b5f931f76a6a4b0eb0812304eddcd4603ca54500ece623950e263f8e1439"
+    },
+    {
+      "scenario": "alternating retained history and later actor recapture",
+      "first_owner_secondary": 1,
+      "step": 3,
+      "owner_secondary": 0,
+      "matching_bytes": 30720,
+      "sha256": "22a4aafed0c53b61853544a7f59c9b87c2a69530fd500269e7f12337ec07d9eb"
+    }
+  ],
+  "real_gameplay_oracle": {
+    "count": 58,
+    "both_owners": [
+      0,
+      1
+    ],
+    "all_30720_bytes_match": true,
+    "full_case_sha256": "95f3e0cfcc3f7566f1134d197f178ae5e1ad9e537403097fac3485f7c2b0abaa",
+    "retained_samples": [
+      {
+        "phase": "actual gameplay simulation followed by render",
+        "logical": 140,
+        "owner_secondary": 1,
+        "matching_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "9e0bcefd5095e0199cf004aa8e628a59576d3b0d24c16889ac5496b40475b052",
+        "selective_sha256": "9e0bcefd5095e0199cf004aa8e628a59576d3b0d24c16889ac5496b40475b052"
+      },
+      {
+        "phase": "actual gameplay simulation followed by render",
+        "logical": 141,
+        "owner_secondary": 0,
+        "matching_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "02d5036985838e6dac7cbb799f813e20582bd4a6e2532f2f38a1396b61baca96",
+        "selective_sha256": "02d5036985838e6dac7cbb799f813e20582bd4a6e2532f2f38a1396b61baca96"
+      },
+      {
+        "phase": "actual gameplay simulation followed by render",
+        "logical": 170,
+        "owner_secondary": 1,
+        "matching_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "6ec57d6381e4ee71f80554e81f66e520951dce4b01ed0433134a3558ad3a59df",
+        "selective_sha256": "6ec57d6381e4ee71f80554e81f66e520951dce4b01ed0433134a3558ad3a59df"
+      },
+      {
+        "phase": "actual gameplay simulation followed by render",
+        "logical": 278,
+        "owner_secondary": 0,
+        "matching_bytes": 30720,
+        "first_differences": [],
+        "full_sha256": "1b2ab4874ab829d97bd17baa227d31318dde317058dca21411df614b0f42a43e",
+        "selective_sha256": "1b2ab4874ab829d97bd17baa227d31318dde317058dca21411df614b0f42a43e"
+      }
+    ],
+    "scope": "Actual player ticks after a legal controlled pickup precondition following natural credited entry. IRQ-masked paired render oracle advances emulator time; these rows are pixel evidence, not cost evidence."
+  },
+  "last_bonus": {
+    "initial_part": 1,
+    "handoff": {
+      "mode": 1,
+      "screen": 2,
+      "part": 2,
+      "bonus_left_reinitialized": 6,
+      "stage_pending": 0
+    },
+    "scope": "Forced last dot/bonus counters, actual collision and popup, natural next-part initialization and level-screen LOAD entry; separate stage-supersession pixel cases cover the reconstruction."
+  },
+  "joystick_fit": {
+    "cases": [
+      {
+        "name": "upper-clean-joystick",
+        "adaptive": 1,
+        "input_joystick": 1,
+        "resident": 8173,
+        "resident_free": 19,
+        "assets": 7661,
+        "assets_free": 19,
+        "rom_sha256": "241774cd25f0517786f3262f9c18aad6245eaf61028dabb693411ece9e5778b8",
+        "command": [
+          "lwasm",
+          "-9",
+          "--format=raw",
+          "-DADAPTIVE_RENDERING=1",
+          "-DBUG011_DEVELOPMENT_PROFILE=1",
+          "-DCOMPLETE_PROFILE=1",
+          "-DHIGHSCORE_TEST_PROFILE=0",
+          "-DHIGHSCORE_PHASE_HELPER=0",
+          "-DPRESENTATION_NAME_ENTRY_DATA=0",
+          "-DINPUT_JOYSTICK=1",
+          "--output=/mnt/e/projects/ladybug/repro/perf008-prep/upper-clean-joystick.rom",
+          "--map=/mnt/e/projects/ladybug/repro/perf008-prep/upper-clean-joystick.map",
+          "--symbols",
+          "-I",
+          "/mnt/e/projects/ladybug/worktrees/perf008-readiness/build",
+          "-I",
+          "/mnt/e/projects/ladybug/worktrees/perf008-readiness/src",
+          "/mnt/e/projects/ladybug/worktrees/perf008-readiness/src/main.s"
+        ],
+        "scope": "Isolated current-source main assembly with full-build generated includes; not a full joystick/AD0 build or native hardware execution."
+      },
+      {
+        "name": "upper-combined-joystick",
+        "adaptive": 1,
+        "input_joystick": 1,
+        "resident": 8184,
+        "resident_free": 8,
+        "assets": 7663,
+        "assets_free": 17,
+        "rom_sha256": "fe868b8a5d31a090668905c3ce5aaa23f10b1a8c4783e8bd4ba249b11b8c4832",
+        "command": [
+          "lwasm",
+          "-9",
+          "--format=raw",
+          "-DADAPTIVE_RENDERING=1",
+          "-DBUG011_DEVELOPMENT_PROFILE=1",
+          "-DCOMPLETE_PROFILE=1",
+          "-DHIGHSCORE_TEST_PROFILE=0",
+          "-DHIGHSCORE_PHASE_HELPER=0",
+          "-DPRESENTATION_NAME_ENTRY_DATA=0",
+          "-DINPUT_JOYSTICK=1",
+          "--output=/mnt/e/projects/ladybug/repro/perf008-prep/upper-combined-joystick.rom",
+          "--map=/mnt/e/projects/ladybug/repro/perf008-prep/upper-combined-joystick.map",
+          "--symbols",
+          "-I",
+          "/mnt/e/projects/ladybug/worktrees/perf008-combined-readiness/build",
+          "-I",
+          "/mnt/e/projects/ladybug/worktrees/perf008-combined-readiness/src",
+          "/mnt/e/projects/ladybug/worktrees/perf008-combined-readiness/src/main.s"
+        ],
+        "scope": "Isolated current-source main assembly with full-build generated includes; not a full joystick/AD0 build or native hardware execution."
+      },
+      {
+        "name": "upper-ad0-candidate",
+        "adaptive": 0,
+        "input_joystick": 0,
+        "resident": 8179,
+        "resident_free": 13,
+        "assets": 7620,
+        "assets_free": 60,
+        "rom_sha256": "d73a98a9feeff1b13a46b33efdcd73439eec5b2ec81c18cf5dfeb4b053ac3ed6",
+        "command": [
+          "lwasm",
+          "-9",
+          "--format=raw",
+          "-DADAPTIVE_RENDERING=0",
+          "-DBUG011_DEVELOPMENT_PROFILE=1",
+          "-DCOMPLETE_PROFILE=1",
+          "-DHIGHSCORE_TEST_PROFILE=0",
+          "-DHIGHSCORE_PHASE_HELPER=0",
+          "-DPRESENTATION_NAME_ENTRY_DATA=0",
+          "-DINPUT_JOYSTICK=0",
+          "--output=/mnt/e/projects/ladybug/repro/perf008-prep/upper-ad0-candidate.rom",
+          "--map=/mnt/e/projects/ladybug/repro/perf008-prep/upper-ad0-candidate.map",
+          "--symbols",
+          "-I",
+          "/mnt/e/projects/ladybug/worktrees/perf008-readiness/build",
+          "-I",
+          "/mnt/e/projects/ladybug/worktrees/perf008-readiness/src",
+          "/mnt/e/projects/ladybug/worktrees/perf008-readiness/src/main.s"
+        ],
+        "scope": "Isolated current-source main assembly with full-build generated includes; not a full joystick/AD0 build or native hardware execution."
+      },
+      {
+        "name": "upper-ad0-baseline",
+        "adaptive": 0,
+        "input_joystick": 0,
+        "resident": 8179,
+        "resident_free": 13,
+        "assets": 7620,
+        "assets_free": 60,
+        "rom_sha256": "d73a98a9feeff1b13a46b33efdcd73439eec5b2ec81c18cf5dfeb4b053ac3ed6",
+        "command": [
+          "lwasm",
+          "-9",
+          "--format=raw",
+          "-DADAPTIVE_RENDERING=0",
+          "-DBUG011_DEVELOPMENT_PROFILE=1",
+          "-DCOMPLETE_PROFILE=1",
+          "-DHIGHSCORE_TEST_PROFILE=0",
+          "-DHIGHSCORE_PHASE_HELPER=0",
+          "-DPRESENTATION_NAME_ENTRY_DATA=0",
+          "-DINPUT_JOYSTICK=0",
+          "--output=/mnt/e/projects/ladybug/repro/perf008-prep/upper-ad0-baseline.rom",
+          "--map=/mnt/e/projects/ladybug/repro/perf008-prep/upper-ad0-baseline.map",
+          "--symbols",
+          "-I",
+          "/mnt/e/projects/ladybug/worktrees/perf008-readiness/build",
+          "-I",
+          "/mnt/e/projects/ladybug/worktrees/perf008-readiness/src",
+          "/mnt/e/projects/ladybug/src/main.s"
+        ],
+        "scope": "Isolated current-source main assembly with full-build generated includes; not a full joystick/AD0 build or native hardware execution."
+      }
+    ],
+    "ad0_byte_identical": true,
+    "limits_increased": false,
+    "status": "PASS capacity/AD0 isolation"
+  },
+  "rejected_evidence": [
+    "Original 603-active/41-resident split exceeds clean joystick resident capacity by22 bytes; replaced by existing upper-ROM placement.",
+    "Immediate pending-publication assertion rejected a valid Vbord already-published frame; corrected observer accepts armed or committed identity.",
+    "Gate survivor absent in natural stage; forced two legal nonoverlapping placement cells and verified association before comparison.",
+    "Deferred-gate recipe returned a list instead of packet bytes; corrected fixture.",
+    "Last-bonus final assertion followed reset_event cleanup, falsely reading restored part1; CPU watch trace shows only natural increment to2. Corrected assertion runs before cleanup.",
+    "Broad enemy verifier fails unchanged guard baseline on stale comment, row-copy calling convention and decoder/save-under expectations. No passing legacy-verifier claim."
+  ],
+  "verification_disposition": "Use full build ownership/packing guards, unchanged enemy binary equality, exact installed helper/code delivery, existing reducer CPU proofs, 40 controlled and alternating actor-pixel comparisons, 58 real gameplay pixel frames and matched complete trigger cost. Repair the unrelated legacy enemy source verifier under TOOL-008; its failures do not distinguish PERF-008.",
+  "preserved_user_tmx_sha256": {
+    "tiled\\coco-attract-screen.tmx": "ecc0071a3a3998967401250e977750a9b988444828a9b4e05fe6905de447bf40",
+    "tiled\\coco-credits-screen.tmx": "ba80c3d41e279160f3700e7a891ae7502e68c4f05cbd1c8385757b6e77d0a472",
+    "tiled\\coco-enter-high-score-screen.tmx": "4f57c7ac5de742b528d5fa0bcebb03db46bd53c67ef0ea4e86e8c5e3d89c41c3",
+    "tiled\\coco-game-over-screen.tmx": "8ef2103ced78ca35fd31fc0cbf618cf2552bc623b92b44a2c73642779b2242ab",
+    "tiled\\coco-high-score-screen.tmx": "b014d151e4fd8228faceac8e7bdea4d792abf6b8e8cd8f8f458f736c55df0d61",
+    "tiled\\coco-instructions-screen.tmx": "cee716b3e0c42b30bd25a145dd59191eeff0b90d8be7aa9c6978015be818cbc8",
+    "tiled\\coco-keybind-options-screen.tmx": "1b8de791e7d1550e448a2adb1850d362faa262968c030e12a0530e93fa758ae1",
+    "tiled\\coco-level-start-screen.tmx": "04fd27505700dcfc94453f416b640ba5543bead9e2068b5c906f0a669f7d9469",
+    "tiled\\coco-options-screen.tmx": "5b4e5f1da0d2c8eec216e069325ec4afc8960c22b8be7f5cf1af53af0018c749",
+    "tiled\\coco-screen.tmx": "f84c547553df61f749b7efbd9604a877127af6bbf59511d846896c821dbf6ef9"
+  },
+  "commands": [
+    "LADYBUG_ADAPTIVE=1 bash scripts/build.sh build (clean and combined research worktrees)",
+    "python3 repro/perf008_publication_probe.py WORKTREE OUTPUT",
+    "python3 repro/perf008_natural_oracle.py WORKTREE OUTPUT --pickup-gate-cadence",
+    "python3 repro/perf008_matched_cost.py WORKTREE OUTPUT --pickup-gate-cadence [--full-pickup-oracle]",
+    "python3 repro/perf008_last_bonus.py WORKTREE OUTPUT --pickup-gate-cadence"
+  ],
+  "qa": {
+    "role": "qa-reviewer",
+    "verdict": "Preparation viable; Proposed only. Production integration/acceptance pending approval and Ready execution.",
+    "documentation_review": {
+      "pages": 7,
+      "local_links": 760,
+      "errors": [],
+      "status": "PASS"
+    },
+    "root_runtime_code_changed": false,
+    "prototype_patch_sha256": "b669fee63af1144e93036cc1912f2aae297b946854959a0f203a09ebc6bbe8b1",
+    "completion_commit": "Commit containing this receipt; identify with git log -- wiki/internal/tickets/perf-008-selective-pickup-render.html"
+  }
+}
