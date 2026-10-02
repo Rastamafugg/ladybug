@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-01",
+  "ticket_increment": "BUG-058 current velocity report",
+  "cost_class": "High-risk",
+  "rom_sha256": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+  "artifact": "worktrees/menu-name-prep/build/ladybug.rom",
+  "phase": "source/staged/live identity before velocity diagnosis",
+  "execution_deadline_seconds": 40,
+  "timeout_meaning": "Named capture boundary not observed; no inference about game speed",
+  "accepted_boundaries": {
+    "cold_stage_capture": {
+      "elapsed_seconds": 0.445245848,
+      "loader_live_prefix_address": "0300-06AF",
+      "loader_prefix_bytes": 944,
+      "loader_prefix_exact": true,
+      "pc_04ae_bytes_exact": true,
+      "resident_page21_bytes": 8192,
+      "resident_stage_exact": true,
+      "asset_page22_bytes": 7680,
+      "asset_stage_exact": true,
+      "retired_loader_tail": "Generated sparse table overwrites 06B0 onward; excluded explicitly"
+    },
+    "separate_live_gdb_capture": {
+      "resident_destination_address": "C000-FDFF",
+      "bytes": 15872,
+      "exact": true,
+      "sha256": "bb1593d3a21a1142f7fa005ccb432df73540ab07c5db93ec042dbd32d0ce81f0",
+      "same_boot_as_stage_capture": false
+    }
+  },
+  "rejected_mechanics": [
+    {
+      "result": "GDB attached after loader retired; 04AE hit runtime code",
+      "loader_identity_claim": false
+    },
+    {
+      "result": "Legacy bare-address trap syntax did not fire",
+      "elapsed_seconds": 40,
+      "exit": 124,
+      "timeout": true,
+      "correction": "Installed XRoar requires pc=0x04ae; corrected capture completed in 0.445 seconds"
+    },
+    {
+      "result": "C002 occurrence 2 snapshot retained bootstrap prefix and zero boot flags; not resident handoff",
+      "destination_identity_claim": false
+    }
+  ],
+  "reassessment": {
+    "reason": "Two rejected capture boundaries and one observation timeout",
+    "last_proven_boundary": "Cold resident/assets stages exact; separate current live resident exact",
+    "remaining_candidates": [
+      "logical batching",
+      "movement remainder ownership",
+      "input/timer replay",
+      "publication handoffs",
+      "emulator pacing"
+    ],
+    "next_discriminator": "Use verified recurring resident call boundary and current active/banked module identities before controlled coordinate/time/batch trace; do not infer boot phase from PC occurrence count",
+    "lower_cost_alternative": "Retain validated stage/live identity; stop repeating one-shot handoff capture"
+  },
+  "velocity_samples_retained": 0,
+  "cause_confirmed": false,
+  "numeric_ceiling_selected": false,
+  "user_emulator_touched": false,
+  "source_changes": false
+}

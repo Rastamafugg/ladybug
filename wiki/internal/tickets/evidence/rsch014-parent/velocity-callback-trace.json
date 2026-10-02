@@ -1,0 +1,76 @@
+{
+  "phase": "current-module identity then natural demo callback trace",
+  "deadline_seconds": 40,
+  "timeout_meaning": "Required module/demo callback marker absent within bounded phase",
+  "rom_sha256": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+  "identity": {
+    "resident_exact": true,
+    "banked_exact": true,
+    "banked_live_sha256": "56e14db3f92532dda313661db59415e60fbd33a5da11d22f7c71f0b7fa6c6d8c",
+    "active_exact": true,
+    "active_live_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12"
+  },
+  "status": "FAIL",
+  "error": "timeout('timed out')",
+  "elapsed_seconds": 40.010293437000655,
+  "sample_count": 90,
+  "first_sample": {
+    "raw_frame": 3009,
+    "last_frame": 193,
+    "mode": 4,
+    "screen": 2,
+    "player_fb": 35308,
+    "player_cell": [
+      12,
+      22
+    ],
+    "sim": 1,
+    "debt": 1,
+    "budget": 4,
+    "rate": 1,
+    "enemy_records": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "last_sample": {
+    "raw_frame": 3136,
+    "last_frame": 64,
+    "mode": 4,
+    "screen": 2,
+    "player_fb": 26676,
+    "player_cell": [
+      14,
+      15
+    ],
+    "sim": 90,
+    "debt": 2,
+    "budget": 4,
+    "rate": 2,
+    "enemy_records": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "raw_interval_distribution": {
+    "38": 1,
+    "1": 45,
+    "2": 22,
+    "0": 21
+  },
+  "logical_interval_distribution": {
+    "1": 89
+  },
+  "same_raw_frame_pairs": 21,
+  "same_raw_frame_pairs_with_player_movement": 0,
+  "max_observed_debt": 2,
+  "active_enemy_records": false,
+  "velocity_spike_reproduced": false,
+  "gameplay_acceptance": false,
+  "probe_mechanics_corrections": [
+    "First 1900 is presentation: active interval is deliberately overlaid; verify active bytes only after installed 038F entry",
+    "FRAMES is big-endian word at0002, not the high byte alone; retained capture uses the full word"
+  ],
+  "reassessment": {
+    "observation_timeouts_total": 2,
+    "last_proven_boundary": "Resident and banked identity at1900; active identity at038F; 90 natural demo callbacks",
+    "next_discriminator": "One bounded credited-gameplay capture using an existing input helper and fewer compound reads per stop, paired with same-state nonadaptive reference",
+    "cause_remains_open": true,
+    "numeric_ceiling_remains_open": true,
+    "deadline_extension_approved": false
+  }
+}
