@@ -1,0 +1,173 @@
+{
+  "raw_trace_sha256": "f750b22e4212ac8e850d8fb3cc4602a82ba35a57347a06bd5508c7c9bad64068",
+  "sample_count": 128,
+  "raw_first": 1409,
+  "raw_last": 1569,
+  "raw_intervals": 160,
+  "simulation_intervals": 161,
+  "max_debt": 1,
+  "fault_values": [
+    0
+  ],
+  "rate_counts": {
+    "2": 69,
+    "1": 59
+  },
+  "rate_changes": [
+    {
+      "sample": 70,
+      "raw": 1511,
+      "from": 2,
+      "to": 1
+    }
+  ],
+  "commit_changes": 106,
+  "actors": {
+    "player": {
+      "travel": 80,
+      "raw_intervals_with_actor_active": 160,
+      "zero_raw_motion": [],
+      "interval_counts": {
+        "0px/2Vbord": 7,
+        "2px/2Vbord": 11,
+        "2px/3Vbord": 6,
+        "4px/1Vbord": 1,
+        "2px/1Vbord": 19,
+        "0px/1Vbord": 81,
+        "4px/2Vbord": 1,
+        "0px/3Vbord": 1
+      },
+      "motion_greater_than_raw_plus_one_2px_step": [
+        {
+          "from_sample": 11,
+          "to_sample": 12,
+          "raw_delta": 1,
+          "pixels": 4,
+          "sim_delta": 2,
+          "commit_delta": 1,
+          "debt_before": 0,
+          "debt_after": 0,
+          "rate_before": 2,
+          "rate_after": 2
+        }
+      ]
+    },
+    "enemy0": {
+      "travel": 160,
+      "raw_intervals_with_actor_active": 158,
+      "zero_raw_motion": [],
+      "interval_counts": {
+        "2px/2Vbord": 11,
+        "2px/3Vbord": 6,
+        "4px/2Vbord": 2,
+        "2px/1Vbord": 55,
+        "0px/1Vbord": 44,
+        "0px/2Vbord": 5,
+        "4px/1Vbord": 2,
+        "0px/3Vbord": 1
+      },
+      "motion_greater_than_raw_plus_one_2px_step": [
+        {
+          "from_sample": 32,
+          "to_sample": 33,
+          "raw_delta": 1,
+          "pixels": 4,
+          "sim_delta": 2,
+          "commit_delta": 1,
+          "debt_before": 0,
+          "debt_after": 0,
+          "rate_before": 2,
+          "rate_after": 2
+        },
+        {
+          "from_sample": 55,
+          "to_sample": 56,
+          "raw_delta": 1,
+          "pixels": 4,
+          "sim_delta": 2,
+          "commit_delta": 1,
+          "debt_before": 0,
+          "debt_after": 0,
+          "rate_before": 2,
+          "rate_after": 2
+        }
+      ]
+    }
+  },
+  "date": "2026-10-02",
+  "scope": "Preparation only: FRONT ledger positions sampled at mainloop boundaries, not timestamped at publication IRQ.",
+  "conclusion": "No confirmed velocity violation. A 4-pixel ledger change across one sampled raw interval can be timestamp aliasing: preceding publication may predate its foreground sample.",
+  "next_discriminator": "Timestamp commit-sequence changes immediately after framebuffer IRQ publication; verify resident IRQ bytes, selected FRONT ledger and one pixel anchor. Target bounded 40-second observation, no source fix.",
+  "identity_preflight": {
+    "receipt_revision": "436478586482afb0457357b4fddbbf05a7b9c52a",
+    "build_state": "complete",
+    "build_profile": "complete",
+    "input_count": 256,
+    "source_inputs_current": true,
+    "source_input_mismatch_count": 0,
+    "source_input_missing_count": 0,
+    "source_input_mismatch_sample": [],
+    "source_input_missing_sample": [],
+    "adaptive_source_path": "src/adaptive_active.s",
+    "adaptive_source_sha256": "ea67e009201093b316f07e7d3a481a106c41d237e794631f28481c8b6a508dee",
+    "artifact_sha256": {
+      "ladybug.rom": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+      "ladybug-runtime.rom": "d41213e9abb71706011c089ec981e3e8ae83cde885db0cd068a8efda6c0821c4",
+      "ladybug-enemy-runtime.rom": "0d4c7cbbb4048bd29795800c8917dc06559ebf8aad0bbb4902a8bb1449d05940",
+      "ladybug-presentation-runtime.bin": "0eee8738b5dccf652272d318962d21bd6de8016abba04b36aca0f8c43fe10214",
+      "ladybug-adaptive-active.bin": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "ladybug-audio-runtime.bin": "c6e4883217a81573b9cf45ad90a099b68c5fa7aa2638af48c322e03a3965fb43"
+    },
+    "artifact_hashes_match_receipt": true,
+    "resident_rom_bank1_payload_exact": true,
+    "enemy_rom_bank3_payload_exact": true,
+    "adaptive_audio_stage_offset": 6053,
+    "adaptive_stage_embedded_exact": true,
+    "adaptive_stage_length": 512
+  },
+  "observer_mechanics_failures": [
+    {
+      "attempt": "prelaunch static guard",
+      "elapsed_seconds": 0.0,
+      "xroar_launched": false,
+      "failure": "Compared ROM bank-1 resident-address slice $4000-$7DFF against the full 16 KiB runtime artifact.",
+      "correction": "Compare the complete ROM bank-1 payload $4000-$7FFF against the full runtime artifact; live resident proof remains $C000-$FDFF.",
+      "other_static_gates": {
+        "all_256_receipt_inputs_current": true,
+        "six_selected_artifact_hashes_match": true,
+        "enemy_bank3_payload_exact": true,
+        "embedded_adaptive_stage_exact": true
+      }
+    },
+    {
+      "attempt": "early destination identity guard",
+      "elapsed_seconds": 0.815,
+      "last_proven_marker": "presentation entry $1900",
+      "failure": "Read $038F before natural gameplay relocation; live hash 6e3859c19ffdda8c03a3bea6a2fa6eddf41ab43bc23d30626a83c8b62f7c965d differed from adaptive artifact 3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12.",
+      "correction": "Defer the full $038F identity comparison until after the first natural mode-0 $D55C enemy_release marker, after verifying the resident marker bytes.",
+      "identity_observations": {
+        "resident_C000_FDFF_exact_sha256": "bb1593d3a21a1142f7fa005ccb432df73540ab07c5db93ec042dbd32d0ce81f0",
+        "enemy_0800_exact_sha256": "0d4c7cbbb4048bd29795800c8917dc06559ebf8aad0bbb4902a8bb1449d05940",
+        "presentation_1900_exact_sha256": "0eee8738b5dccf652272d318962d21bd6de8016abba04b36aca0f8c43fe10214",
+        "enemy_release_D55C_bytes_exact": true,
+        "adaptive_stage_B7A5_exact_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+        "mainloop_samples": 0,
+        "credit_or_enter_injected": false
+      }
+    },
+    {
+      "attempt": "direct-page sample bound",
+      "elapsed_seconds": 1.669,
+      "last_proven_marker": "first mode-0 enemy_release $D55C with live bytes exact and relocated $038F block exact",
+      "failure": "The adapter read $00-$93 then indexed PRES_ACTOR_FRAME at $CE; IndexError occurred before sample 1 was appended.",
+      "correction": "Read the full 256-byte direct page; statically assert all accessed byte and word offsets fit.",
+      "mainloop_samples": 0,
+      "pixel_anchor_attempted": false
+    }
+  ],
+  "retained_trace": "worktrees/rsch014-nonadaptive-reference/wiki/internal/tickets/evidence/rsch014-F/velocity-live-adaptive-published.json",
+  "sample_target": 128,
+  "sample_target_met": true,
+  "elapsed_seconds": 2.101,
+  "deadline_seconds": 40
+}
