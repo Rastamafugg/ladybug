@@ -1,0 +1,1358 @@
+{
+  "date": "2026-10-02",
+  "ticket": "BUG-058",
+  "classification": "High-risk",
+  "status": "Diagnostic scope passed; engineering timing failed; velocity increment remains Draft",
+  "rom_sha256": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+  "source_receipt_revision": "fe160ae389145d24083218ded05ba9cdca781474",
+  "input_identity": {
+    "receipt_revision": "fe160ae389145d24083218ded05ba9cdca781474",
+    "build_state": "complete",
+    "build_profile": "complete",
+    "input_count": 256,
+    "source_inputs_current": false,
+    "source_input_mismatch_count": 9,
+    "source_input_missing_count": 0,
+    "source_input_mismatch_sample": [
+      "tiled/coco-attract-screen.tmx",
+      "tiled/coco-credits-screen.tmx",
+      "tiled/coco-enter-high-score-screen.tmx",
+      "tiled/coco-game-over-screen.tmx",
+      "tiled/coco-high-score-screen.tmx",
+      "tiled/coco-instructions-screen.tmx",
+      "tiled/coco-keybind-options-screen.tmx",
+      "tiled/coco-level-start-screen.tmx"
+    ],
+    "source_input_mismatches_all": [
+      "tiled/coco-attract-screen.tmx",
+      "tiled/coco-credits-screen.tmx",
+      "tiled/coco-enter-high-score-screen.tmx",
+      "tiled/coco-game-over-screen.tmx",
+      "tiled/coco-high-score-screen.tmx",
+      "tiled/coco-instructions-screen.tmx",
+      "tiled/coco-keybind-options-screen.tmx",
+      "tiled/coco-level-start-screen.tmx",
+      "tiled/coco-screen.tmx"
+    ],
+    "source_input_missing_sample": [],
+    "adaptive_source_path": "src/adaptive_active.s",
+    "adaptive_source_sha256": "ea67e009201093b316f07e7d3a481a106c41d237e794631f28481c8b6a508dee",
+    "artifact_sha256": {
+      "ladybug.rom": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+      "ladybug-runtime.rom": "0a2e4601a9dc4b1ac800a02100c4d11d8438e594c52368d08c0c15c072edfce2",
+      "ladybug-enemy-runtime.rom": "4cc0e931fc8241d55e56ee6cf94538e48714d9565695acf32e69694993282d8d",
+      "ladybug-presentation-runtime.bin": "3edb8d3e7cc7446d27edce9efbdb7815d414c2a3c2118b40615e15b75f7c51cd",
+      "ladybug-adaptive-active.bin": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "ladybug-audio-runtime.bin": "c6e4883217a81573b9cf45ad90a099b68c5fa7aa2638af48c322e03a3965fb43"
+    },
+    "artifact_hashes_match_receipt": true,
+    "resident_rom_bank1_payload_exact": true,
+    "enemy_rom_bank3_payload_exact": true,
+    "adaptive_audio_stage_offset": 6053,
+    "adaptive_stage_embedded_exact": true,
+    "adaptive_stage_length": 512
+  },
+  "runtime_identity": {
+    "resident_range": "C000-FDFF",
+    "resident_live_sha256": "3e8a1c0c21af58c6f4b840190d0b731118ad62bfa839bf65f1d26f0eb7fb8821",
+    "resident_artifact_sha256": "3e8a1c0c21af58c6f4b840190d0b731118ad62bfa839bf65f1d26f0eb7fb8821",
+    "resident_live_exact": true,
+    "enemy_destination": "0800-17FA",
+    "enemy_live_sha256": "4cc0e931fc8241d55e56ee6cf94538e48714d9565695acf32e69694993282d8d",
+    "enemy_artifact_sha256": "4cc0e931fc8241d55e56ee6cf94538e48714d9565695acf32e69694993282d8d",
+    "enemy_live_exact": true,
+    "presentation_destination": "1900-1DEF",
+    "presentation_live_sha256": "3edb8d3e7cc7446d27edce9efbdb7815d414c2a3c2118b40615e15b75f7c51cd",
+    "presentation_artifact_sha256": "3edb8d3e7cc7446d27edce9efbdb7815d414c2a3c2118b40615e15b75f7c51cd",
+    "presentation_live_exact": true,
+    "enemy_release_pc": 54620,
+    "enemy_release_live_bytes": "bd080639bd0809398610971b8604971c",
+    "enemy_release_artifact_bytes": "bd080639bd0809398610971b8604971c",
+    "enemy_release_bytes_exact": true,
+    "adaptive_source_stage_address": 47013,
+    "adaptive_stage_live_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+    "adaptive_stage_artifact_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+    "adaptive_stage_live_exact": true,
+    "adaptive_destination_check": "deferred until the natural mode-0 $D55C enemy_release marker after relocated-loader delivery",
+    "physical_loader_staging_snapshot": false,
+    "delivery_boundary": "Authored source is tied to current receipt input; compiled active module equals the embedded audio-runtime stage and live $B7A5 staged bytes. The relocated-loader staging buffer before delivery is not sampled here.",
+    "adaptive_destination_phase": "after natural mode-0 $D55C enemy_release marker; resident marker bytes were proven exact first",
+    "adaptive_destination_address": 911,
+    "adaptive_destination_live_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+    "adaptive_destination_artifact_sha256": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+    "adaptive_destination_live_exact": true,
+    "audio_api_exact": true,
+    "audio_api_sha256": "c95561a0090cb01ea443531795d672ce77094b97af947985de89f1479f030dab"
+  },
+  "observer": "Existing synchronous run plus wait_for_stop, reason/PC verified; no endpoint or production source change; no runtime code overlay.",
+  "units": "Fast CPU cycles = event_ticks/8, inclusive of IRQ execution. Routine inclusive values must not be added to nested children. All extrema are sampled, not whole-game bounds.",
+  "raw_receipts": [
+    {
+      "path": "repro/rsch014-cursor-route.json",
+      "sha256": "ff0811c61c58f362f0d5240f10f278a6c7ddadbba77ba65372161dfc15d931bd"
+    },
+    {
+      "path": "repro/rsch014-cursor-start-route.json",
+      "sha256": "46b6dd257adc03abf4e4f0f3c756977ad544dfd5e119be735df397219199980a"
+    },
+    {
+      "path": "repro/rsch014-cursor-callstack.json",
+      "sha256": "9c527a4035784011bec3a621f907ef49b7e3f58247498d1f8559b5db33a459d2"
+    },
+    {
+      "path": "repro/rsch014-adaptive-handoff.json",
+      "sha256": "12cad580b626be19816e62f9f12824cc9af4e24c66767a198653df5a24306db1"
+    },
+    {
+      "path": "repro/rsch014-adaptive-handoff-return.json",
+      "sha256": "85fa4acb5c67a8cc08d1fa0b08c5ac9f547671e191265596567f50eca2df7e7b"
+    },
+    {
+      "path": "repro/rsch014-hold-return-cause.json",
+      "sha256": "32cd8203feb5c32ac83a1bd9ada318af1a0fb4a9b61c0bb2b1d0373b3bf79c8e"
+    },
+    {
+      "path": "repro/rsch014-current-cost-settled.json",
+      "sha256": "8a6f6a6baf517f57cf6f5767b9e15d08675b1e3575c37530f3101bc66cad79c6"
+    },
+    {
+      "path": "repro/rsch014-current-triggers-settled.json",
+      "sha256": "66f58f53e0759e79b5118554ec8a07b93f486abf4cf891d7f38d3a9e3878171d"
+    },
+    {
+      "path": "repro/rsch014-current-audio-controls.json",
+      "sha256": "436162d43bac5d535055f63ec5acb498e4212f64cff69c8f55f231af8340df96"
+    }
+  ],
+  "cause": {
+    "route": [
+      {
+        "name": "presentation_return",
+        "pc": 49452,
+        "bytes_exact": true,
+        "live_hex": "270f8634b7ffa5bd09fd96a5",
+        "artifact_hex": "270f8634b7ffa5bd09fd96a5",
+        "hold_state_owner": "030600011e00",
+        "mode": 1,
+        "screen": 2,
+        "saved_cursor_pointers": "00000000",
+        "registers": {
+          "a": 1,
+          "b": 0,
+          "d": 256,
+          "cc": 192,
+          "dp": 0,
+          "x": 33868,
+          "y": 45625,
+          "u": 40960,
+          "s": 8190,
+          "pc": 49452
+        },
+        "ad_mode_physical": 1,
+        "gime": {
+          "registers": {
+            "FF90": 104,
+            "FF91": 0,
+            "FF92": 8,
+            "FF93": 0,
+            "FF94": 255,
+            "FF95": 255,
+            "FF96": 0,
+            "FF97": 0,
+            "FF98": 128,
+            "FF99": 30,
+            "FF9A": 0,
+            "FF9B": 0,
+            "FF9C": 15,
+            "FF9D": 192,
+            "FF9E": 0,
+            "FF9F": 0
+          },
+          "pars": {
+            "task0": [
+              56,
+              44,
+              45,
+              46,
+              47,
+              52,
+              62,
+              63
+            ],
+            "task1": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              61,
+              53,
+              63
+            ]
+          },
+          "palette": [
+            0,
+            38,
+            54,
+            25,
+            61,
+            23,
+            63,
+            56,
+            58,
+            57,
+            18,
+            59,
+            36,
+            52,
+            0,
+            0
+          ],
+          "mmu_task": 0,
+          "coco": false,
+          "mmuen": true,
+          "mc3": true,
+          "ty": true
+        },
+        "active_exact": false
+      },
+      {
+        "name": "presentation_return",
+        "pc": 49452,
+        "bytes_exact": true,
+        "live_hex": "270f8634b7ffa5bd09fd96a5",
+        "artifact_hex": "270f8634b7ffa5bd09fd96a5",
+        "hold_state_owner": "030600011e00",
+        "mode": 1,
+        "screen": 2,
+        "saved_cursor_pointers": "00000000",
+        "registers": {
+          "a": 1,
+          "b": 0,
+          "d": 256,
+          "cc": 192,
+          "dp": 0,
+          "x": 33880,
+          "y": 45628,
+          "u": 40960,
+          "s": 8190,
+          "pc": 49452
+        },
+        "ad_mode_physical": 1,
+        "gime": {
+          "registers": {
+            "FF90": 104,
+            "FF91": 0,
+            "FF92": 8,
+            "FF93": 0,
+            "FF94": 255,
+            "FF95": 255,
+            "FF96": 0,
+            "FF97": 0,
+            "FF98": 128,
+            "FF99": 30,
+            "FF9A": 0,
+            "FF9B": 0,
+            "FF9C": 15,
+            "FF9D": 192,
+            "FF9E": 0,
+            "FF9F": 0
+          },
+          "pars": {
+            "task0": [
+              56,
+              44,
+              45,
+              46,
+              47,
+              52,
+              62,
+              63
+            ],
+            "task1": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              61,
+              53,
+              63
+            ]
+          },
+          "palette": [
+            0,
+            38,
+            54,
+            25,
+            61,
+            23,
+            63,
+            56,
+            58,
+            57,
+            18,
+            59,
+            36,
+            52,
+            0,
+            0
+          ],
+          "mmu_task": 0,
+          "coco": false,
+          "mmuen": true,
+          "mc3": true,
+          "ty": true
+        },
+        "active_exact": false
+      },
+      {
+        "name": "presentation_return",
+        "pc": 49452,
+        "bytes_exact": true,
+        "live_hex": "270f8634b7ffa5bd09fd96a5",
+        "artifact_hex": "270f8634b7ffa5bd09fd96a5",
+        "hold_state_owner": "030600011e00",
+        "mode": 1,
+        "screen": 2,
+        "saved_cursor_pointers": "00000000",
+        "registers": {
+          "a": 1,
+          "b": 0,
+          "d": 256,
+          "cc": 192,
+          "dp": 0,
+          "x": 33892,
+          "y": 45631,
+          "u": 40960,
+          "s": 8190,
+          "pc": 49452
+        },
+        "ad_mode_physical": 1,
+        "gime": {
+          "registers": {
+            "FF90": 104,
+            "FF91": 0,
+            "FF92": 8,
+            "FF93": 0,
+            "FF94": 255,
+            "FF95": 255,
+            "FF96": 0,
+            "FF97": 0,
+            "FF98": 128,
+            "FF99": 30,
+            "FF9A": 0,
+            "FF9B": 0,
+            "FF9C": 15,
+            "FF9D": 192,
+            "FF9E": 0,
+            "FF9F": 0
+          },
+          "pars": {
+            "task0": [
+              56,
+              44,
+              45,
+              46,
+              47,
+              52,
+              62,
+              63
+            ],
+            "task1": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              61,
+              53,
+              63
+            ]
+          },
+          "palette": [
+            0,
+            38,
+            54,
+            25,
+            61,
+            23,
+            63,
+            56,
+            58,
+            57,
+            18,
+            59,
+            36,
+            52,
+            0,
+            0
+          ],
+          "mmu_task": 0,
+          "coco": false,
+          "mmuen": true,
+          "mc3": true,
+          "ty": true
+        },
+        "active_exact": false
+      },
+      {
+        "name": "load_done_hold_owner",
+        "pc": 7018,
+        "bytes_exact": true,
+        "live_hex": "7d00d926188601b700d9b600",
+        "artifact_hex": "7d00d926188601b700d9b600",
+        "hold_state_owner": "030600011e00",
+        "mode": 1,
+        "screen": 2,
+        "saved_cursor_pointers": "00000000",
+        "registers": {
+          "a": 0,
+          "b": 0,
+          "d": 0,
+          "cc": 196,
+          "dp": 0,
+          "x": 42128,
+          "y": 0,
+          "u": 43560,
+          "s": 8188,
+          "pc": 7018
+        },
+        "ad_mode_physical": 1,
+        "gime": {
+          "registers": {
+            "FF90": 104,
+            "FF91": 0,
+            "FF92": 8,
+            "FF93": 0,
+            "FF94": 255,
+            "FF95": 255,
+            "FF96": 0,
+            "FF97": 0,
+            "FF98": 128,
+            "FF99": 30,
+            "FF9A": 0,
+            "FF9B": 0,
+            "FF9C": 15,
+            "FF9D": 192,
+            "FF9E": 0,
+            "FF9F": 0
+          },
+          "pars": {
+            "task0": [
+              56,
+              44,
+              45,
+              46,
+              47,
+              52,
+              62,
+              63
+            ],
+            "task1": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              61,
+              53,
+              63
+            ]
+          },
+          "palette": [
+            0,
+            38,
+            54,
+            25,
+            61,
+            23,
+            63,
+            56,
+            58,
+            57,
+            18,
+            59,
+            36,
+            52,
+            0,
+            0
+          ],
+          "mmu_task": 0,
+          "coco": false,
+          "mmuen": true,
+          "mc3": true,
+          "ty": true
+        },
+        "active_exact": false
+      },
+      {
+        "name": "start_screen_done",
+        "pc": 6786,
+        "bytes_exact": true,
+        "live_hex": "3996a681032704810625140d",
+        "artifact_hex": "3996a681032704810625140d",
+        "hold_state_owner": "030600011e01",
+        "mode": 1,
+        "screen": 2,
+        "saved_cursor_pointers": "00000000",
+        "registers": {
+          "a": 2,
+          "b": 0,
+          "d": 512,
+          "cc": 196,
+          "dp": 0,
+          "x": 62920,
+          "y": 0,
+          "u": 43560,
+          "s": 8186,
+          "pc": 6786
+        },
+        "ad_mode_physical": 1,
+        "gime": {
+          "registers": {
+            "FF90": 104,
+            "FF91": 0,
+            "FF92": 8,
+            "FF93": 0,
+            "FF94": 255,
+            "FF95": 255,
+            "FF96": 0,
+            "FF97": 0,
+            "FF98": 128,
+            "FF99": 30,
+            "FF9A": 0,
+            "FF9B": 0,
+            "FF9C": 15,
+            "FF9D": 192,
+            "FF9E": 0,
+            "FF9F": 0
+          },
+          "pars": {
+            "task0": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              58,
+              62,
+              63
+            ],
+            "task1": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              61,
+              53,
+              63
+            ]
+          },
+          "palette": [
+            0,
+            38,
+            54,
+            25,
+            61,
+            23,
+            63,
+            56,
+            58,
+            57,
+            18,
+            59,
+            36,
+            52,
+            0,
+            0
+          ],
+          "mmu_task": 0,
+          "coco": false,
+          "mmuen": true,
+          "mc3": true,
+          "ty": true
+        },
+        "active_exact": false
+      },
+      {
+        "name": "presentation_return",
+        "pc": 49452,
+        "bytes_exact": true,
+        "live_hex": "270f8634b7ffa5bd09fd96a5",
+        "artifact_hex": "270f8634b7ffa5bd09fd96a5",
+        "hold_state_owner": "030600011e01",
+        "mode": 1,
+        "screen": 2,
+        "saved_cursor_pointers": "00000000",
+        "registers": {
+          "a": 2,
+          "b": 0,
+          "d": 512,
+          "cc": 196,
+          "dp": 0,
+          "x": 62920,
+          "y": 0,
+          "u": 43560,
+          "s": 8190,
+          "pc": 49452
+        },
+        "ad_mode_physical": 1,
+        "gime": {
+          "registers": {
+            "FF90": 104,
+            "FF91": 0,
+            "FF92": 8,
+            "FF93": 0,
+            "FF94": 255,
+            "FF95": 255,
+            "FF96": 0,
+            "FF97": 0,
+            "FF98": 128,
+            "FF99": 30,
+            "FF9A": 0,
+            "FF9B": 0,
+            "FF9C": 15,
+            "FF9D": 192,
+            "FF9E": 0,
+            "FF9F": 0
+          },
+          "pars": {
+            "task0": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              58,
+              62,
+              63
+            ],
+            "task1": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              61,
+              53,
+              63
+            ]
+          },
+          "palette": [
+            0,
+            38,
+            54,
+            25,
+            61,
+            23,
+            63,
+            56,
+            58,
+            57,
+            18,
+            59,
+            36,
+            52,
+            0,
+            0
+          ],
+          "mmu_task": 0,
+          "coco": false,
+          "mmuen": true,
+          "mc3": true,
+          "ty": true
+        },
+        "active_exact": false
+      },
+      {
+        "name": "ad_dispatch_active",
+        "pc": 49469,
+        "bytes_exact": true,
+        "live_hex": "96a5b1bd40270bbdc154bd09",
+        "artifact_hex": "96a5b1bd40270bbdc154bd09",
+        "hold_state_owner": "030600011e01",
+        "mode": 1,
+        "screen": 2,
+        "saved_cursor_pointers": "00000000",
+        "registers": {
+          "a": 2,
+          "b": 0,
+          "d": 512,
+          "cc": 196,
+          "dp": 0,
+          "x": 62920,
+          "y": 0,
+          "u": 43560,
+          "s": 8190,
+          "pc": 49469
+        },
+        "ad_mode_physical": 1,
+        "gime": {
+          "registers": {
+            "FF90": 104,
+            "FF91": 0,
+            "FF92": 8,
+            "FF93": 0,
+            "FF94": 255,
+            "FF95": 255,
+            "FF96": 0,
+            "FF97": 0,
+            "FF98": 128,
+            "FF99": 30,
+            "FF9A": 0,
+            "FF9B": 0,
+            "FF9C": 15,
+            "FF9D": 192,
+            "FF9E": 0,
+            "FF9F": 0
+          },
+          "pars": {
+            "task0": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              58,
+              62,
+              63
+            ],
+            "task1": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              61,
+              53,
+              63
+            ]
+          },
+          "palette": [
+            0,
+            38,
+            54,
+            25,
+            61,
+            23,
+            63,
+            56,
+            58,
+            57,
+            18,
+            59,
+            36,
+            52,
+            0,
+            0
+          ],
+          "mmu_task": 0,
+          "coco": false,
+          "mmuen": true,
+          "mc3": true,
+          "ty": true
+        },
+        "active_exact": false
+      },
+      {
+        "name": "ad_dispatch_work",
+        "pc": 49487,
+        "bytes_exact": true,
+        "live_hex": "bd038f20c2863db7ffa58eb7",
+        "artifact_hex": "bd038f20c2863db7ffa58eb7",
+        "hold_state_owner": "030600011e01",
+        "mode": 1,
+        "screen": 2,
+        "saved_cursor_pointers": "00000000",
+        "registers": {
+          "a": 1,
+          "b": 0,
+          "d": 256,
+          "cc": 196,
+          "dp": 0,
+          "x": 62920,
+          "y": 0,
+          "u": 43560,
+          "s": 8190,
+          "pc": 49487
+        },
+        "ad_mode_physical": 1,
+        "gime": {
+          "registers": {
+            "FF90": 104,
+            "FF91": 0,
+            "FF92": 8,
+            "FF93": 0,
+            "FF94": 255,
+            "FF95": 255,
+            "FF96": 0,
+            "FF97": 0,
+            "FF98": 128,
+            "FF99": 30,
+            "FF9A": 0,
+            "FF9B": 0,
+            "FF9C": 15,
+            "FF9D": 192,
+            "FF9E": 0,
+            "FF9F": 0
+          },
+          "pars": {
+            "task0": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              58,
+              62,
+              63
+            ],
+            "task1": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              61,
+              53,
+              63
+            ]
+          },
+          "palette": [
+            0,
+            38,
+            54,
+            25,
+            61,
+            23,
+            63,
+            56,
+            58,
+            57,
+            18,
+            59,
+            36,
+            52,
+            0,
+            0
+          ],
+          "mmu_task": 0,
+          "coco": false,
+          "mmuen": true,
+          "mc3": true,
+          "ty": true
+        },
+        "active_exact": false
+      },
+      {
+        "name": "restore_cursor",
+        "pc": 1566,
+        "bytes_exact": true,
+        "live_hex": "8634b7ffa596e32707cea610",
+        "artifact_hex": "8634b7ffa596e32707cea610",
+        "hold_state_owner": "030600011e01",
+        "mode": 1,
+        "screen": 2,
+        "saved_cursor_pointers": "00000000",
+        "registers": {
+          "a": 58,
+          "b": 0,
+          "d": 14848,
+          "cc": 192,
+          "dp": 0,
+          "x": 4463,
+          "y": 43160,
+          "u": 43308,
+          "s": 8184,
+          "pc": 1566
+        },
+        "ad_mode_physical": 1,
+        "gime": {
+          "registers": {
+            "FF90": 104,
+            "FF91": 0,
+            "FF92": 8,
+            "FF93": 0,
+            "FF94": 255,
+            "FF95": 255,
+            "FF96": 0,
+            "FF97": 0,
+            "FF98": 128,
+            "FF99": 30,
+            "FF9A": 0,
+            "FF9B": 0,
+            "FF9C": 15,
+            "FF9D": 192,
+            "FF9E": 0,
+            "FF9F": 0
+          },
+          "pars": {
+            "task0": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              58,
+              62,
+              63
+            ],
+            "task1": [
+              56,
+              48,
+              49,
+              50,
+              51,
+              61,
+              53,
+              63
+            ]
+          },
+          "palette": [
+            0,
+            38,
+            54,
+            25,
+            61,
+            23,
+            63,
+            56,
+            58,
+            57,
+            18,
+            59,
+            36,
+            52,
+            0,
+            0
+          ],
+          "mmu_task": 0,
+          "coco": false,
+          "mmuen": true,
+          "mc3": true,
+          "ty": true
+        },
+        "active_exact": false
+      }
+    ],
+    "callstack": "05f20406c152ffff000000000000000000000000000000000000000000000000",
+    "finding": "Early Start during first highscore hydration carries HOLD_HYDRATE into level map. load_done_hold_owner restarts map2; start_screen comparison equals map2 and bare return retains Z=1. Caller returns that flag to C12C, selecting ad_dispatch_active despite PRES_MODE=1. Cached AD_MODE=1 skips adaptive install while highscore owner still occupies $038F. Scheduler call executes name code; zero cursor pointers damage low RAM. Cursor initialization is downstream, not the selected root repair.",
+    "no_input_control": "Mode5 menu repeatedly enters shared highscore helper and holds; initial four-marker assertion was rejected because it incorrectly expected immediate restore. Retained as rejected expectation, not passing absence of defect.",
+    "mechanical_correction": "Initial presentation-return marker C12B was inside JSR; corrected to instruction boundary C12C. Deterministic rerun of the same trace, not a new target hypothesis.",
+    "discriminator": "Untouched early-key1 trace reaches start_screen_done A=2,Z=1, then C12C and adaptive work without install; settled Start keeps helper exact and reaches natural enemy release with full active identity.",
+    "scope": "Cold credited highscore, first-to-second framebuffer hydration transition before completed menu; not steady menu waiting or normal name entry."
+  },
+  "settled_start": {
+    "extra_presentation_ticks": 1,
+    "hold_state": 0,
+    "pending": 0,
+    "helper_exact": true,
+    "release_profile_wall_seconds": 2.417,
+    "trigger_harness_settle_ticks": 1
+  },
+  "engineering_target_cycles": 27000,
+  "quiet_four_roaming_sample_range": [
+    40110,
+    44948
+  ],
+  "natural_first_release_partial_tail": {
+    "cycles": 31646,
+    "steps": null,
+    "debt_before": null,
+    "marker": null,
+    "audio_inclusive_cycles": 4343,
+    "render_inclusive_cycles": 25475,
+    "entity_repair_profile": {}
+  },
+  "natural_first_release_next_eight_complete_passes": [
+    {
+      "cycles": 35265,
+      "steps": null,
+      "debt_before": null,
+      "marker": null,
+      "audio_inclusive_cycles": 3668,
+      "render_inclusive_cycles": 26292,
+      "entity_repair_profile": {}
+    },
+    {
+      "cycles": 32874,
+      "steps": null,
+      "debt_before": null,
+      "marker": null,
+      "audio_inclusive_cycles": 3292,
+      "render_inclusive_cycles": 24240,
+      "entity_repair_profile": {}
+    },
+    {
+      "cycles": 32591,
+      "steps": null,
+      "debt_before": null,
+      "marker": null,
+      "audio_inclusive_cycles": 3045,
+      "render_inclusive_cycles": 24263,
+      "entity_repair_profile": {}
+    },
+    {
+      "cycles": 33269,
+      "steps": null,
+      "debt_before": null,
+      "marker": null,
+      "audio_inclusive_cycles": 3045,
+      "render_inclusive_cycles": 24240,
+      "entity_repair_profile": {}
+    },
+    {
+      "cycles": 37143,
+      "steps": null,
+      "debt_before": null,
+      "marker": null,
+      "audio_inclusive_cycles": 4516,
+      "render_inclusive_cycles": 27115,
+      "entity_repair_profile": {}
+    },
+    {
+      "cycles": 36018,
+      "steps": null,
+      "debt_before": null,
+      "marker": null,
+      "audio_inclusive_cycles": 3668,
+      "render_inclusive_cycles": 26910,
+      "entity_repair_profile": {}
+    },
+    {
+      "cycles": 32592,
+      "steps": null,
+      "debt_before": null,
+      "marker": null,
+      "audio_inclusive_cycles": 3292,
+      "render_inclusive_cycles": 23917,
+      "entity_repair_profile": {}
+    },
+    {
+      "cycles": 33480,
+      "steps": null,
+      "debt_before": null,
+      "marker": null,
+      "audio_inclusive_cycles": 3045,
+      "render_inclusive_cycles": 24602,
+      "entity_repair_profile": {}
+    }
+  ],
+  "controlled_release_population_ranges": [
+    {
+      "enemies": 1,
+      "samples": 3,
+      "cycle_range": [
+        33831,
+        37735
+      ]
+    },
+    {
+      "enemies": 2,
+      "samples": 3,
+      "cycle_range": [
+        39416,
+        42519
+      ]
+    },
+    {
+      "enemies": 3,
+      "samples": 3,
+      "cycle_range": [
+        41868,
+        45570
+      ]
+    },
+    {
+      "enemies": 4,
+      "samples": 3,
+      "cycle_range": [
+        44735,
+        49277
+      ]
+    }
+  ],
+  "trigger_events": [
+    {
+      "name": "pickup",
+      "samples": 58,
+      "event_worklist": 0,
+      "profiled_rows": {
+        "0": {
+          "cycles": 332821,
+          "steps": 1,
+          "debt_before": 0,
+          "marker": {
+            "bonus_left": 5,
+            "pickup_timer": 30,
+            "entity_type": 0
+          },
+          "audio_inclusive_cycles": 3975,
+          "render_inclusive_cycles": 323190,
+          "entity_repair_profile": {
+            "erase_entity_footprints": {
+              "calls": 1,
+              "inclusive": 22320,
+              "exclusive": 22320
+            },
+            "repair_settled_entity_gates": {
+              "calls": 1,
+              "inclusive": 133060,
+              "exclusive": 133060
+            },
+            "draw_entities": {
+              "calls": 2,
+              "inclusive": 100955,
+              "exclusive": 100955
+            }
+          }
+        },
+        "1": {
+          "cycles": 331908,
+          "steps": 1,
+          "debt_before": 1,
+          "marker": {
+            "bonus_left": 5,
+            "pickup_timer": 29,
+            "entity_type": 0
+          },
+          "audio_inclusive_cycles": 3049,
+          "render_inclusive_cycles": 322678,
+          "entity_repair_profile": {
+            "erase_entity_footprints": {
+              "calls": 1,
+              "inclusive": 22320,
+              "exclusive": 22320
+            },
+            "repair_settled_entity_gates": {
+              "calls": 1,
+              "inclusive": 133060,
+              "exclusive": 133060
+            },
+            "draw_entities": {
+              "calls": 2,
+              "inclusive": 100955,
+              "exclusive": 100955
+            }
+          }
+        }
+      },
+      "sampled_max_cycles": 332821,
+      "max_recorded_debt_before": 52,
+      "simulation_steps": [
+        1,
+        2,
+        4
+      ],
+      "final_marker": {
+        "bonus_left": 5,
+        "pickup_timer": 0,
+        "entity_type": 0
+      }
+    },
+    {
+      "name": "gate rotation",
+      "samples": 12,
+      "event_worklist": 0,
+      "profiled_rows": {
+        "0": {
+          "cycles": 39834,
+          "steps": 1,
+          "debt_before": 0,
+          "marker": {
+            "gate_state": 1,
+            "gate_animation": 1
+          },
+          "audio_inclusive_cycles": 3810,
+          "render_inclusive_cycles": 30312,
+          "entity_repair_profile": {}
+        },
+        "1": {
+          "cycles": 41794,
+          "steps": 1,
+          "debt_before": 1,
+          "marker": {
+            "gate_state": 1,
+            "gate_animation": 0
+          },
+          "audio_inclusive_cycles": 3001,
+          "render_inclusive_cycles": 32550,
+          "entity_repair_profile": {}
+        },
+        "7": {
+          "cycles": 78906,
+          "steps": 2,
+          "debt_before": 0,
+          "marker": {
+            "gate_state": 1,
+            "gate_animation": 0
+          },
+          "audio_inclusive_cycles": 5833,
+          "render_inclusive_cycles": 63733,
+          "entity_repair_profile": {}
+        },
+        "8": {
+          "cycles": 80529,
+          "steps": 3,
+          "debt_before": 0,
+          "marker": {
+            "gate_state": 1,
+            "gate_animation": 0
+          },
+          "audio_inclusive_cycles": 4306,
+          "render_inclusive_cycles": 64586,
+          "entity_repair_profile": {}
+        }
+      },
+      "sampled_max_cycles": 80529,
+      "max_recorded_debt_before": 2,
+      "simulation_steps": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "final_marker": {
+        "gate_state": 1,
+        "gate_animation": 0
+      }
+    }
+  ],
+  "audio_only_controls": [
+    {
+      "name": "gate effect",
+      "cue_admitted": true,
+      "samples": 12,
+      "cycle_range": [
+        40524,
+        46303
+      ],
+      "simulation_steps": [
+        2
+      ],
+      "first_two_profiled_rows": [
+        {
+          "cycles": 41897,
+          "steps": 2,
+          "debt_before": 0,
+          "marker": null,
+          "audio_inclusive_cycles": 3901,
+          "render_inclusive_cycles": 29433,
+          "entity_repair_profile": {}
+        },
+        {
+          "cycles": 41119,
+          "steps": 2,
+          "debt_before": 0,
+          "marker": null,
+          "audio_inclusive_cycles": 2853,
+          "render_inclusive_cycles": 29904,
+          "entity_repair_profile": {}
+        }
+      ]
+    },
+    {
+      "name": "pickup effect",
+      "cue_admitted": true,
+      "samples": 12,
+      "cycle_range": [
+        40613,
+        46392
+      ],
+      "simulation_steps": [
+        2
+      ],
+      "first_two_profiled_rows": [
+        {
+          "cycles": 42130,
+          "steps": 2,
+          "debt_before": 0,
+          "marker": null,
+          "audio_inclusive_cycles": 4134,
+          "render_inclusive_cycles": 29433,
+          "entity_repair_profile": {}
+        },
+        {
+          "cycles": 41208,
+          "steps": 2,
+          "debt_before": 0,
+          "marker": null,
+          "audio_inclusive_cycles": 2942,
+          "render_inclusive_cycles": 29904,
+          "entity_repair_profile": {}
+        }
+      ]
+    },
+    {
+      "name": "release effect",
+      "cue_admitted": true,
+      "samples": 12,
+      "cycle_range": [
+        40716,
+        46495
+      ],
+      "simulation_steps": [
+        2
+      ],
+      "first_two_profiled_rows": [
+        {
+          "cycles": 41897,
+          "steps": 2,
+          "debt_before": 0,
+          "marker": null,
+          "audio_inclusive_cycles": 3901,
+          "render_inclusive_cycles": 29433,
+          "entity_repair_profile": {}
+        },
+        {
+          "cycles": 41311,
+          "steps": 2,
+          "debt_before": 0,
+          "marker": null,
+          "audio_inclusive_cycles": 3045,
+          "render_inclusive_cycles": 29904,
+          "entity_repair_profile": {}
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Natural cold credited entry and first release are observed; pickup/gate and additional releases use controlled legal preconditions, not naturally earned whole-game coverage.",
+    "Null audio backend; visible audio/backend crossover absent.",
+    "Audio-only controls cover twelve passes per cue, not every command over full duration.",
+    "No pixel oracle or maximum recovery-velocity acceptance in this cost diagnostic.",
+    "Inherited C3 wording in trigger harness limitations was stale; actual ROM/current runtime byte identity above controls attribution."
+  ],
+  "proposed_transition_repair": {
+    "status": "Design candidate; no production implementation/approval",
+    "owned_file": "src/presentation_runtime.s complete-profile load_done_hold_owner return",
+    "change": "Normalize presentation retain return with lda #1 after start_screen_no_instruction_install and before rts.",
+    "reason": "Never pass equality flags from screen selector back as gameplay-release status.",
+    "projected_bytes": 2,
+    "projected_extra_fast_cycles": 2,
+    "capacity_projection": "Existing presentation margin16 bytes would become14; not a fresh fit/build proof.",
+    "verification": "Force early credited Start at HOLD_HYDRATE then prove retain return, intact helper and proper adaptive install at real active entry; settled golden Start plus adjacent attract/highscore hold restart, full build and capacity guards.",
+    "exclusions": "No dummy name cursor initialization, adaptive clock/debt change, renderer optimization or audio protocol change."
+  },
+  "remaining": [
+    "Transition guard proposal approval and isolated fit/verification",
+    "Reduce pickup entity/gate rendering work to engineering target",
+    "Full-cue and visible-backend coverage",
+    "Recovery-velocity behavior decision/approved repair"
+  ],
+  "capacity": "No production/source/build changes; current ROM hash preserved.",
+  "commands": [
+    "python3 repro/rsch014_hold_return_cause.py",
+    "python3 repro/rsch014_current_cost_settled.py",
+    "python3 repro/rsch014_current_triggers_settled.py /mnt/e/projects/ladybug /mnt/e/projects/ladybug/repro/rsch014-current-triggers-settled.json --profile --pickup-gate-cadence",
+    "python3 repro/rsch014_current_audio_controls.py /mnt/e/projects/ladybug /mnt/e/projects/ladybug/repro/rsch014-current-audio-controls.json --cadence-effects"
+  ],
+  "presentation_capacity_observation": {
+    "bytes": 1264,
+    "limit": 1280,
+    "free": 16,
+    "kind": "Current built artifact; two-byte guard growth remains projected"
+  }
+}
