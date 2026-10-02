@@ -1,0 +1,191 @@
+{
+  "date": "2026-10-02",
+  "ticket": "BUG-058",
+  "status": "Cost attribution incomplete; diagnostic boundary reassessment required",
+  "classification": "High-risk",
+  "current_source_receipt_revision": "fe160ae389145d24083218ded05ba9cdca781474",
+  "new_cost_measurements": 0,
+  "attempts": [
+    {
+      "path": "repro/rsch014-cue-cost-menu-boundary-failure.json",
+      "sha256": "6b071df2a72d3fe3c2ebb9a980b4c71f7ef33f7700685d4d94e89136e9a8906a",
+      "rom": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+      "status": "FAIL",
+      "phase": "first enemy_release success marker",
+      "wall_seconds": 5.678,
+      "phase_deadline": 40.0,
+      "error": "timeout('timed out')",
+      "last_proven": "natural high-score state A5/A6=05/03",
+      "diagnostics": null,
+      "diagnostics_error": "OSError('cannot read from timed out object')"
+    },
+    {
+      "path": "repro/rsch014-cue-cost-start-boundary-failure.json",
+      "sha256": "cb89d7ea482f145a9c0e3112de11c38feacceddee4214fdd8ff2a0b8c6180c6e",
+      "rom": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+      "status": "FAIL",
+      "phase": "first enemy_release success marker",
+      "wall_seconds": 5.675,
+      "phase_deadline": 40.0,
+      "error": "timeout('timed out')",
+      "last_proven": "natural high-score state A5/A6=05/03",
+      "diagnostics": null,
+      "diagnostics_error": "OSError('cannot read from timed out object')"
+    },
+    {
+      "path": "repro/rsch014-cue-cost-active-boundary-failure.json",
+      "sha256": "c750355b1078bd47ebef2a7dc76fb01af92d7a16d270fac575342d956e4a0bb2",
+      "rom": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+      "status": "FAIL",
+      "phase": "first enemy_release after proven active entry",
+      "wall_seconds": 5.673,
+      "phase_deadline": 40.0,
+      "error": "timeout('timed out')",
+      "last_proven": "natural high-score state A5/A6=05/03",
+      "diagnostics": null,
+      "diagnostics_error": "OSError('cannot read from timed out object')"
+    },
+    {
+      "path": "repro/rsch014-cue-cost-current-rom-failure.json",
+      "sha256": "7e964e1ef1e043fc3961417180abca78b8e8b09151486e32fd77d302780a31e0",
+      "rom": "b452413b9e2d0e4d6e57e87a63d22b44ffed2a4cbb87c3c9c9e07a5d81992b55",
+      "status": "FAIL",
+      "phase": "natural release chase with progress boundaries",
+      "wall_seconds": 5.787,
+      "phase_deadline": 40.0,
+      "error": "timeout('timed out')",
+      "last_proven": "natural high-score state A5/A6=05/03",
+      "diagnostics": {
+        "pause_result": {
+          "ok": true
+        },
+        "run_state": {
+          "state": "halted",
+          "last_stop_reason": "pause",
+          "last_stop_pc": 1914
+        },
+        "registers": {
+          "a": 10,
+          "b": 0,
+          "d": 2560,
+          "cc": 25,
+          "dp": 0,
+          "x": 64091,
+          "y": 512,
+          "u": 40960,
+          "s": 8148,
+          "pc": 1914
+        },
+        "cycles": {
+          "event_ticks": 1269013208,
+          "cpu_cycles": 79313325
+        },
+        "raw_clock_and_pending": {
+          "raw_frame": 32766,
+          "last_frame": 211,
+          "front": 1,
+          "back": 0,
+          "pending": 0,
+          "commit_seq": 32896,
+          "mode": 1
+        },
+        "mapping": {
+          "space": "cpu",
+          "addr": 65440,
+          "length": 8,
+          "data": "382c313233343e3f"
+        },
+        "raw_pc": 1914,
+        "raw_pc_bytes": "ec810000000026f8bd1c363917005b91",
+        "raw_pc_artifact_byte_matches": []
+      },
+      "diagnostics_error": null
+    },
+    {
+      "path": "repro/rsch014-cue-cost-reference-profile-failure.json",
+      "sha256": "478075a8ee7f6006dd4348cd16c90761b289038e94eede4f15de18e509765ec3",
+      "rom": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+      "status": "FAIL",
+      "phase": "partial natural first-release worklist tail",
+      "wall_seconds": 7.003,
+      "phase_deadline": 40.0,
+      "error": "OSError('cannot read from timed out object')",
+      "last_proven": "first mode-0 enemy_release $D55C with live bytes exact",
+      "diagnostics": null,
+      "diagnostics_error": null
+    },
+    {
+      "path": "repro/rsch014-audio-cost-isolated.json",
+      "sha256": "730f39529f82250fb48f0b8c28fc608d090b3084a008aeff7a198a5a20b7d256",
+      "rom": "e3a6cb1c9b9c3d959bc911433aea2b681b22a06608eeee40c8b9c14fae2f7982",
+      "status": "FAIL",
+      "phase": "audio cost call return",
+      "wall_seconds": 7.073,
+      "phase_deadline": 40.0,
+      "error": "MonitorError(\"{'code': -32001, 'message': 'target_running'}\")",
+      "last_proven": "first mode-0 enemy_release $D55C with live bytes exact",
+      "diagnostics": null,
+      "diagnostics_error": null
+    }
+  ],
+  "artifact_crossover": {
+    "ladybug-adaptive-active.bin": {
+      "equal": true,
+      "sha256_current": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12",
+      "sha256_reference": "3dc180e3912e5f2318aec2dcb96190ece3078b8c89c0ad52cf4645f835a9de12"
+    },
+    "ladybug-adaptive-banked.bin": {
+      "equal": true,
+      "sha256_current": "56e14db3f92532dda313661db59415e60fbd33a5da11d22f7c71f0b7fa6c6d8c",
+      "sha256_reference": "56e14db3f92532dda313661db59415e60fbd33a5da11d22f7c71f0b7fa6c6d8c"
+    },
+    "ladybug-adaptive-mapped.bin": {
+      "equal": true,
+      "sha256_current": "3db2880d1a5cf636620852676fcc3319c8a37d4499bd80f54d5c1f830d81b6f6",
+      "sha256_reference": "3db2880d1a5cf636620852676fcc3319c8a37d4499bd80f54d5c1f830d81b6f6"
+    },
+    "ladybug-audio-runtime.bin": {
+      "equal": true,
+      "sha256_current": "c6e4883217a81573b9cf45ad90a099b68c5fa7aa2638af48c322e03a3965fb43",
+      "sha256_reference": "c6e4883217a81573b9cf45ad90a099b68c5fa7aa2638af48c322e03a3965fb43"
+    },
+    "ladybug-perimeter-reset-helper.bin": {
+      "equal": true,
+      "sha256_current": "09d3d021b7222e2e7933d98541e03af94e055c31433ed99c740baa0b5e29cf43",
+      "sha256_reference": "09d3d021b7222e2e7933d98541e03af94e055c31433ed99c740baa0b5e29cf43"
+    },
+    "ladybug-enemy-runtime.rom": {
+      "equal": false,
+      "sha256_current": "4cc0e931fc8241d55e56ee6cf94538e48714d9565695acf32e69694993282d8d",
+      "sha256_reference": "0d4c7cbbb4048bd29795800c8917dc06559ebf8aad0bbb4902a8bb1449d05940"
+    }
+  },
+  "current_rom_byte_boundary": {
+    "live_pc": 1914,
+    "cpu_snapshot_hex": "ec810000000026f8bd1c363917005b91",
+    "artifact_hex": "ec81edc1313f26f8bd1c363917005b91",
+    "exact": false,
+    "authored_helper_origin": 1714,
+    "helper_sha256": "09d3d021b7222e2e7933d98541e03af94e055c31433ed99c740baa0b5e29cf43",
+    "source_stage_live_proof": "Full live helper and loader staging were not captured; do not attribute mismatch to target corruption or hardware. CPU-view observation/tool/mapping and delivery candidates remain open."
+  },
+  "historical_evidence": {
+    "path": "repro/bug058-adaptive-cadence-diagnosis-20260928.json",
+    "sha256": "8d7e30dd6a09153b3232012fd6fe26d490e6ef3e9d631b90432056d822c44b7a",
+    "revision": "e42e88e",
+    "limits": "Older headless cue5/music9 fixtures did not add steps; colour boundary83985 fastcycles produced three-step recovery. Not current-ROM trigger attribution."
+  },
+  "reassessment": {
+    "last_proven_current": "Natural credit/start enters mode1 screen2 context1; source/packaged/resident/enemy/presentation/staged active identity initially exact. Next foreground boundary absent.",
+    "last_proven_reference": "Natural credited mode0 enemy_release and installed adaptive/audio API bytes exact. Profile/synthetic returns unobserved.",
+    "stop": "No more runtime cost probes this turn after repeated observation timeouts and expansion into loading/observer boundaries. No deadline extension or source repair.",
+    "next_discriminator": "Read-only review of monitor read/write/register/control mechanics, then prove full helper source/staged/destination via an independently validated observation path before current-ROM timing. Existing GDB round trip is available without simultaneous monitor attachment.",
+    "missing_acceptance": "No current natural release/pickup/gate worklist timing, no audio/render split, no full-cue cost maxima or visible PulseAudio crossover."
+  },
+  "observer_audit": {
+    "confirmed_mechanics": "Buffered socket makefile reader is unusable after timeout; failed fixture errors include that condition.",
+    "candidate": "Asynchronous run helper rejects breakpoint notifications received before run acknowledgement; actual failure message ordering was not retained.",
+    "unresolved": "Synthetic audio call disconnect/target_running and current helper delivery mismatch. No routine cost inferred.",
+    "audit_scope": "Read-only existing client and monitor implementation; no endpoint or source changes."
+  }
+}
