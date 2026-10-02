@@ -109,7 +109,7 @@ ab_clock
         lda AD_COUNT_B
         cmpa #8
         bhs ab_fault
-        lda #4
+        lda #2
         sta AD_BATCH
         lda PRES_MODE
         sta AD_MODE
@@ -141,12 +141,15 @@ ab_clear
         std AD_DEBT
         beq ab_ready
         tst AD_BARRIER
-        bne ab_ready
+        bne ab_rebase
         lda PRES_MODE
         cmpa AD_MODE
         bne ab_transition
         dec AD_BATCH
         bne ab_step
+ab_rebase
+        clr AD_DEBT
+        clr AD_DEBT+1
 ab_ready
         ldd FB_COMMIT_SEQ
         std AD_COMMIT
@@ -155,7 +158,7 @@ ab_ready
 ab_transition
         lda #1
         sta AD_BARRIER
-        bra ab_ready
+        bra ab_rebase
 ab_saturate
         puls d
         std AD_LAST
