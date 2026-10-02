@@ -1,0 +1,191 @@
+{
+  "schema": "rsch014-a5-clock-conservation-review-v1",
+  "date": "2026-10-02",
+  "ticket": "BUG-058 / RSCH-014-A5",
+  "status": "read-only source audit",
+  "user_corrected_contract": "The reported defect is overall player and enemy travel faster than possible, described as catching up frames that did not exist. It is not a request to recover missed frames. Treat invented ticks as a hypothesis, not a confirmed cause. Tick-discard policy is not a required decision for this audit.",
+  "scope": {
+    "objective": "Audit AD_LAST, AD_SIM, AD_DEBT reset/rebase, active callback ownership of LAST_FRAME, clock read atomicity/wrap, phase transitions, and source paths capable of tick or movement duplication.",
+    "included": "Current authored source and generated callback wiring; parent-retained cap-only trace/evidence; GIME IRQ/vector configuration and callers.",
+    "excluded": "Runtime launch, source/build edits, selecting a velocity contract or overrun policy, and any hardware-defect conclusion.",
+    "classification": {
+      "ticket_status": "BUG-058 High-risk Draft",
+      "next_role": "debugger",
+      "verification": "source/hash/ownership audit only; no runtime probe"
+    },
+    "disposition": "This is an A5 evidence file only. Parent owns canonical BUG-058, shared wiki index/log, and integration."
+  },
+  "inputs": {
+    "canonical_ticket": {
+      "path": "wiki/internal/tickets/bug-058-three-enemy-slowdown.html",
+      "sha256": "4844e9be37c6364ace75f5a40d28e27fc37887e7b619f475611826364f30ec9e",
+      "section": "velocity-overall-user-correction-20261002"
+    },
+    "cap_only_comparison": {
+      "path": "wiki/internal/tickets/evidence/rsch014-parent/velocity-cap-only-comparison.json",
+      "sha256": "f5a1202e66c89795033b355ed502affea7f5ad7412716a55786e6105d97054cb",
+      "rom_sha256": "e520ea7742ab12ba799d3e5aefd5b83a87b34e3183a873acf50ab7c0bdb12d02",
+      "raw_trace_path": "repro/rsch014-cap-irq.json",
+      "raw_trace_sha256": "3550d37ab743bd797d516a158f44318315140592ab4c0159a4b5358565ae1bd8",
+      "conditional_source_patch_sha256": "c15abf165a83c3cf126c2761fd24011a84bcd84d5e32b1733c8ce96aab21f622",
+      "scope": "Parent-owned cap-plus-rebase information comparison; not an approved policy or source fix."
+    },
+    "reviewed_sources": [
+      {
+        "path": "src/adaptive_runtime.s",
+        "sha256": "01f05a499471c595444de9ef05358963f4be5fa8d535b83766e8ce3ce3384403",
+        "anchors": {
+          "adaptive_clock": 60,
+          "adaptive_reset": 65,
+          "adaptive_batch": 80,
+          "debt_ingest": 91,
+          "sim_increment": 129,
+          "debt_decrement": 139,
+          "mode_barrier": 145,
+          "overflow_fault": 159
+        }
+      },
+      {
+        "path": "src/adaptive_active.s",
+        "sha256": "ea67e009201093b316f07e7d3a481a106c41d237e794631f28481c8b6a508dee",
+        "anchors": {
+          "active_vectors": 13,
+          "work_entry": 22,
+          "static_rebase": 67,
+          "tick_binding": 150,
+          "mandatory_barrier": 196
+        }
+      },
+      {
+        "path": "src/main.s",
+        "sha256": "2cfd91b6e6f8dad417686e1bbc67173e998a00c27418d974ef05a0fcc9931661",
+        "anchors": {
+          "reset_and_vbord_enable": 672,
+          "adaptive_dispatch": 695,
+          "irq_handler": 4690,
+          "nonadaptive_loop_under_else": 726
+        }
+      },
+      {
+        "path": "src/enemy_runtime.s",
+        "sha256": "d8b04663d25b50add05e9d2b53dfb31e58f314fbbcad0005898de362258b7e80",
+        "anchors": {
+          "module_irq_vector": 145,
+          "enemy_parity_gate": 462,
+          "enemy_step_loop": 499,
+          "framebuffer_irq_impl": 1448
+        }
+      },
+      {
+        "path": "scripts/build_adaptive_runtime.py",
+        "sha256": "da6412b42ad168c82fd89b38c548458374729fb6ab8311c14e50595f6633ca65",
+        "anchors": {
+          "current_callback_vector_rewrite": 57
+        }
+      },
+      {
+        "path": "src/adaptive_interface.inc",
+        "sha256": "751444d11c75ddc015765e203e073af91bc346bd2d72a326c3400d243372eec2",
+        "anchors": {
+          "active_tick_vector": "AD_TICK_EXEC=$0392",
+          "state_aliases": "AD_LAST_TIME=$BD24; AD_SIM_TIME=$BD26"
+        }
+      },
+      {
+        "path": "src/adaptive_bindings.s",
+        "sha256": "fed144b26975a4e561410d8bf89f63bf3a67fccf717207ab9661018e3bd92369",
+        "scope": "Separate isolated binding prototype; comment says it is not registered in the game build. Not the current active runtime owner."
+      },
+      {
+        "path": "wiki/release/reference/coco3/gime.html",
+        "sha256": "83562fdbf4046d944fa823d1c1296422edb8ac36202d2430ffe63411ffa3f105",
+        "fact": "Reading $FF92 acknowledges pending GIME IRQ and returns source bits; Vbord is IRQEN bit 3."
+      },
+      {
+        "path": "wiki/release/reference/coco3/timing.html",
+        "sha256": "6a2b6af2f64e1e930aa9a0bfa8dfd5b8259b7cc5658949eb40e527d5b42f989b",
+        "fact": "Project reference assigns ACVC Vbord a nominal 60 Hz rate."
+      },
+      {
+        "path": "wiki/internal/platform/timing.html",
+        "sha256": "e1c4478d1eb440695061cb9816092a5fc9f8e02773718c53e4dc3fde84642058",
+        "fact": "Internal timing policy uses GIME ACVC Vbord as the frame boundary."
+      },
+      {
+        "path": "wiki/internal/tooling/xroar.html",
+        "sha256": "6cad5dcacbfe252a6e5d8f79fba0504822ae8e719bffdc0ec8b371a763a010e0",
+        "fact": "Monitor read_cycles exposes event_ticks; the project calibration says a 2-cycle NOP advances 16 event ticks and uses event_ticks/8 for fast-CPU cycles. The cpu_cycles field is scaled by 16 and is not the elapsed fast-CPU cycle value."
+      }
+    ],
+    "source_hash_note": "Hashes are current main source inputs. The parent cap-only build verified 256 authored inputs and exact resident/enemy/presentation/active destination identity; its only source patch is the separately hashed adaptive_runtime.s cap/rebase patch."
+  },
+  "clock_ownership": {
+    "FRAMES": "16-bit direct-page raw IRQ-handler counter at $0002. Startup clears it. The sole current writer increments low byte and carries into high byte in framebuffer_irq_impl. It counts handler service, not an independently measured physical Vbord interval.",
+    "AD_LAST": "16-bit physical-page-$34 cursor for raw FRAMES already ingested into scheduler debt. AD_LAST_TIME is an alias to $BD24. adaptive_batch snapshots current FRAMES, adds current-minus-AD_LAST to debt, then advances AD_LAST to the snapshot before checking due.",
+    "AD_SIM": "16-bit logical callback count at $BD26. It is cleared by adaptive_reset and incremented once before each TICK_CALLBACK. No other current production writer was found. The active callback uses only its low byte for LAST_FRAME parity.",
+    "AD_DEBT": "16-bit outstanding raw-frame units at $BD28. It starts at zero; each batch adds elapsed FRAMES delta; each successfully appended logical tick subtracts exactly one. Due gating and barriers can defer payment. Normal source retains the debt.",
+    "AD_DUE": "16-bit next-eligible time at $BD30. adaptive_complete sets it to AD_BEGIN+AD_RATE (rate 1 or2). It gates debt payment; it does not add debt or increment AD_SIM.",
+    "framebuffer_sequences": "FB_COMMIT_SEQ and FB_SIM_SEQ advance only on a successful pending framebuffer publication in the IRQ path. They are publication counters, not raw IRQ clocks or AD_SIM.",
+    "LAST_FRAME": "Direct-page byte with phase-dependent owners: adaptive mainloop stores raw FRAMES low byte before dispatch, then adaptive_tick_binding overwrites it with AD_SIM low byte before active tick logic. The nonadaptive mainloop stores FRAMES low byte in the separately compiled ELSE branch. Current adaptive build selects one loop, not both."
+  },
+  "conservation_invariant": {
+    "reset_epoch": "Let F0 be atomic FRAMES sampled by adaptive_reset; reset clears AD_SIM=0 and AD_DEBT=0 and sets AD_LAST=F0.",
+    "ordinary_batch": "Let F be the atomic FRAMES snapshot, L the prior AD_LAST, D the prior AD_DEBT, and K the number of successfully appended callbacks. If no overflow/fault or explicit static-rebuild rebase occurs, delta=(F-L) mod 65536; Dnew=D+delta-K; Lnew=F; SIMnew=SIMold+K.",
+    "invariant_at_cursor": "Within a reset epoch, with no saturation or callback-append fault, let EXCLUDED be the cumulative modulo-65536 FRAMES intervals intentionally skipped by static rebuild rebases. Then SIM + DEBT + EXCLUDED ≡ AD_LAST - F0 (mod 65536). EXCLUDED is an analysis term, not a stored runtime byte.",
+    "invariant_at_observation": "Within the same valid epoch, SIM + DEBT + EXCLUDED + (FRAMES - AD_LAST) ≡ FRAMES - F0 (mod 65536). AD_SIM alone may exceed a short raw interval only by paying previously outstanding debt. Reset starts a new epoch; saturation and post-callback append fault break the ordinary invariant and must be treated as fault boundaries.",
+    "why_no_ordinary_double_count": "The same elapsed interval is ingested once because AD_LAST advances before due return. Each successful callback increments AD_SIM once and decrements AD_DEBT once. If due is not reached, elapsed remains in debt; a later batch cannot add that elapsed a second time.",
+    "static_rebuild_exception": "After adaptive_render, the AD_END_TIME branch atomically reads current FRAMES and advances AD_LAST, AD_BEGIN, and AD_DUE to that value while preserving AD_SIM, AD_DEBT, and both histories. The skipped delta must be added to conceptual EXCLUDED time when checking conservation; it is intentionally outside simulation and debt and does not itself create ticks.",
+    "phase_reset_exception": "adaptive_reset clears all 320 bytes from HISTORY_A through the scheduler state, samples current FRAMES, and starts a new logical epoch. Main calls it at boot before Vbord enable, on inactive presentation dispatch, and after active-mode installation/change. Debt does not cross those resets.",
+    "overflow_and_wrap": "adaptive_clock pushes/restores CC and masks IRQ around the 16-bit FRAMES read. The IRQ writer increments the low byte, then high on wrap. 16-bit FRAMES subtraction is modular; adding elapsed to AD_DEBT detects carry and takes ab_saturate, sets AD_DEBT=$FFFF and AD_FAULT, and executes no callback. Saturation is a fault boundary, not a conserved interval. Ordinary wrap is not tick creation. A complete unobserved 65536-frame interval is ambiguous; AD_DUE signed compare also assumes less than half-range lag. The normal dispatcher polls each IRQ, so these limits are not implicated by the retained short trace."
+  },
+  "callback_and_phase_audit": {
+    "production_wiring": "Build generator replaces the standalone TICK_CALLBACK=$1800 placeholder with $0392. The active overlay begins at $038F and its second vector jumps to adaptive_tick_binding at $0392. Parent cap receipt confirms source, stage, and current active destination bytes; adaptive_bindings.s is a separate unregistered fit file.",
+    "per_tick_order": "adaptive_batch increments AD_SIM; TICK_CALLBACK sets LAST_FRAME=low(AD_SIM), sets PLAYER_TICK_PENDING from the low parity bit, invokes enemy_tick, then invokes player_tick at most once on odd ticks when alive and pending. adaptive_append must succeed before AD_DEBT is decremented.",
+    "movement_quantum": "player_tick advances at most one existing movement step per callback. enemy_tick_impl admits roaming movement only when LAST_FRAME is even and its loop advances each active enemy at most one existing step in that callback. One enemy step is one framebuffer byte horizontally (two horizontal pixels) or 320 bytes vertically (two scanlines) in the current layout.",
+    "batch_bound": "Current adaptive_batch starts with AD_BATCH=4 and may call the tick callback up to four times before one render/publication. Therefore two player movement opportunities and two enemy opportunities can be composed into one image if the debt truly contains four eligible ticks. That is a plausible local-burst mechanism, not proof that the user-reported overall excess is caused by batching.",
+    "special_barriers": "adaptive_tick_binding returns a barrier for INITIAL_ENTRY_STATE, DEATH_STATE, PICKUP_TIMER, STAGE_PENDING, RENDER_GATE_ID, or RENDER_GATE2_ID. adaptive_batch stops after the just-completed callback. Entry movement therefore cannot catch up through multiple callbacks in one batch; death/pickup/stage/gate phases likewise do not batch through their active barrier. The entry script mutates PLAYER_FB by one scripted step from initial_entry_tick, still at most once before the barrier.",
+    "mode_transition": "adaptive_batch captures PRES_MODE before callbacks; if a callback changes it, it completes that one tick, sets AD_BARRIER, and returns. main dispatch compares PRES_MODE with AD_MODE_BYTE, installs the active overlay if needed, then resets scheduler before the new phase dispatch. No cross-mode debt is added as a second logical epoch.",
+    "input": "adaptive_work samples joystick/input once before batching. A held direction may be read by each admitted player callback in one batch; this is repeated logical work, not an edge-trigger replay by itself. Multiple steps still require multiple AD_SIM callbacks.",
+    "failure_path": "If adaptive_append unexpectedly fails after the callback, AD_SIM and game state have already advanced but debt is not decremented; AD_FAULT latches and subsequent adaptive_batch returns without ticking. The integrated active driver preflights both history counts below5 and reserves at most four slots, so this should be unreachable in the current valid path. There is no fault-only clear path; adaptive_reset clears state. This is a fail-closed invariant break to retain as a source guard, not an observed route.",
+    "extra_skull_tick": "player_tick can call check_entity_pickup on cell arrival; the skull path sets DEATH_STATE=1, clears the player's direction, then calls enemy_tick again. In the current callback the normal enemy_tick already ran before player_tick, but the skull path's second call reaches enemy_tick_impl's DEATH_STATE branch, clears ENEMY_MOVE, resets enemy lifecycle state, latches death, and returns before et_find_movement/et_update. This is not a second roaming step. The same DEATH_STATE-first ordering applies to the nonadaptive call path.",
+    "movement_vs_render_ownership": "Current enemy coordinate/step/direction writes observed in the direct enemy-record scan occur in enemy_release_impl, enemy_tick_impl, enemy_choose_direction, and skull retirement. enemy_render_impl and actor_closure_draw read active record positions/direction to save background and draw sprites; they update background-valid/owner metadata and pixels. Parent's source review also found renderer/reducer helpers temporarily save and restore PLAYER_CELL and PLAYER_FB for damage/closure calculations. This is evidence that those helpers intend to preserve authoritative actor position, but the transitive indirect-write audit is not exhaustive. Initial-entry script updates PLAYER_FB before render; render consumes that position.",
+    "dir_none_cross_actor_candidate": "During an alive, unfrozen even-LAST_FRAME enemy_tick, its movement scan ignores active records whose direction byte is DIR_NONE when deciding whether to set ENEMY_MOVE. Once any other active directed enemy sets ENEMY_MOVE, et_update_loop iterates every active record but does not re-check DIR_NONE. Direction dispatch maps 0/1/2 to N/E/S and all other values to west (`subd #1`), so an active DIR_NONE record receives one west step (one framebuffer byte = two horizontal pixels) on that movement pass. enemy_choose_direction writes DIR_NONE when no legal direction exists. This is a concrete source-level unintended-motion candidate, but its runtime reachability and relationship to the reported aggregate excess are unverified; it affects enemy state only and does not explain player acceleration."
+  },
+  "irq_source_audit": {
+    "startup": "main entry masks IRQ/FIRQ, clears PIA1/PIA2 control registers and reads their data registers, installs the primary IRQ vector at $FEF7, clears FRAMES, initializes scheduler, writes GIME_IRQEN=$08 (Vbord only), reads $FF92 to acknowledge pending GIME IRQ, then unmasks IRQ. Init0 selects ACVC IRQ and disables ACVC FIRQ; FIRQ remains masked.",
+    "vector": "irq_handler consists of one call to FB_MODULE_IRQ=$081E followed by RTI. The module jump table maps $081E to framebuffer_irq_impl. Source search found no other caller of FB_MODULE_IRQ/$081E/framebuffer_irq_impl and no later write to GIME_IRQEN or FIRQEN.",
+    "ack_and_count": "framebuffer_irq_impl reads $FF92 first, acknowledging and receiving the GIME source mask, but does not test the returned bitmask. It unconditionally increments FRAMES on every entry, then optionally publishes a pending framebuffer. With current startup configuration, the only enabled GIME IRQ source is Vbord and PIA IRQs are disabled.",
+    "software_limit": "No deliberate second caller or second enabled source was found. Because the handler does not validate the acknowledged source and FRAMES is internal, source inspection alone cannot prove each count corresponds to one physical Vbord or establish actual Vbord rate. The cap-only and prior 128-sample traces read this same software counter.",
+    "independent_time_gate": "Before any claim that overall travel exceeds physical elapsed frames, correlate FRAMES increments with independent XRoar event ticks over the same interval. The project tooling page documents that monitor read_cycles returns event_ticks; the monitor source maps this to event_current_tick. Project calibration says event_ticks/8 gives fast-CPU cycles, whereas cpu_cycles is scaled by 16; the event tick frequency is recorded as 14,318,180 Hz. Compute elapsed emulator time as delta_event_ticks / 14,318,180, then compare with FRAMES delta; do not infer exact 60 Hz from monitor wall time or use cpu_cycles directly. This is a tool/timebase gate, not evidence of a hardware defect."
+  },
+  "paths_that_could_invent_or_duplicate": {
+    "not_found_in_current_normal_path": [
+      "Re-ingesting one FRAMES interval: AD_LAST advances to the current sample on each eligible batch before due checking.",
+      "Creating AD_SIM without consuming a debt unit: current normal order is one AD_SIM increment, one tick callback, one successful append, then one debt decrement.",
+      "Two production tick callbacks from both adaptive and nonadaptive main loops: they are selected by mutually exclusive assembly conditionals; current cap build uses ADAPTIVE_RENDERING=1.",
+      "A movement loop advancing the same actor repeatedly inside one callback: player_tick is called at most once and each active enemy has one step in the even-tick update pass for directed actors; the separate DIR_NONE cross-actor path below is a source-level exception candidate.",
+      "Carry-over across a normal presentation/mode reset: reset clears scheduler state and starts at current FRAMES."
+    ],
+    "concrete_candidates_if_observed_clock_or_state_diverges": [
+      "FRAMES increments more often than real Vbords: an extra/spurious IRQ entry reaches the shared handler, which increments without checking the source mask. Current software configuration narrows this, but only independent emulator timing correlation can rule it out for a run.",
+      "AD_LAST moves backward or a caller adds the same F-L interval twice before updating AD_LAST: that directly violates SIM+DEBT conservation and can mint callbacks. No such ordinary source path was found.",
+      "AD_SIM increments and callback movement occur but debt is not decremented: current source can do this only on the post-callback append fault path. Active count reservation makes it unreachable in valid work; AD_FAULT latches. Verify the guard in any future build.",
+      "An unexpected reset/rebase changes the phase epoch: resets clear debt and simulation; static rebuild advances AD_LAST and intentionally excludes that delta. Neither adds simulation ticks, but an omitted EXCLUDED-time term or mistaken epoch attribution can make a cross-phase comparison look like extra travel.",
+      "A blocked active enemy retains DIR_NONE while another enemy moves: et_update_loop applies the default west branch to all active records despite the earlier scan's DIR_NONE filter. This can move a stopped enemy even though the scheduler clock is conserved.",
+      "Duplicate module/loop ownership: a build that includes both loop branches, or calls the active callback outside the $0392 scheduler slot, could move actors without the matching scheduler accounting. Current complete build condition and generated callback wiring select the single active path."
+    ],
+    "interpretation": "Current ordinary adaptive source conserves FRAMES-counted time across AD_SIM and AD_DEBT, subject to explicit static-time exclusion and fault boundaries. The `DIR_NONE` path is a separate enemy-motion anomaly candidate. Neither finding establishes the user's overall player-and-enemy excess: FRAMES is not yet correlated to independent elapsed emulator time, and the candidate only applies to enemies."
+  },
+  "cap_only_comparison_context": {
+    "result": "Parent-owned conditional cap/rebase variant reports raw_elapsed=127, AD_LAST_delta=127, AD_SIM_delta=123, debt start/end=0, four deliberately discarded ticks (~67 ms at nominal60Hz); it removes adjacent 4-pixel player changes but retains 6 pixels over4 raw IRQ intervals against a provisional4-pixel diagnostic envelope.",
+    "source_change": "Only adaptive_runtime.s patch: maximum batch4->2 and clear residual debt after cap/barrier/transition. The patch deliberately breaks conservation by four ticks; it is a design-information variant, not current source behavior or approved policy.",
+    "comparison_limit": "Its initial logical state/RNG/player/animation signature matches baseline, but raw phase and framebuffer owner/commit sequence differ. It is not identical physical elapsed-time or publication-state comparison. Full cap receipt and trace hashes are retained in inputs.",
+    "interpretation": "The candidate is not sufficient for the provisional envelope. This result does not require the user to choose a tick-discard policy and does not confirm batching as the original root cause."
+  },
+  "conclusions": {
+    "confirmed": "No source-level path was found that double-adds an ordinary FRAMES interval or executes a normal callback without an AD_DEBT unit. The source does permit up to four properly accounted callbacks per adaptive work pass; that can bundle multiple movements if corresponding elapsed debt exists.",
+    "unresolved": "FRAMES-to-independent-event-tick correlation; whether the active DIR_NONE candidate is reachable in the reported path; the original overall excess-travel route/build; whether any unobserved IRQ, stale cursor, callback wiring, or callback fault path occurs in the reported run.",
+    "next_discriminator": "Use existing monitor read_cycles event_ticks to correlate FRAMES against delta_event_ticks / 14,318,180 over the same actor-travel interval, retaining AD_LAST, AD_SIM, AD_DEBT, phase markers, and both actors' positions. If the clock agrees, inspect the exact reported build's cursor/debt/callback path and record whether any active DIR_NONE enemy is present when another enemy moves. Do not infer debt repayment or adopt tick discarding from the current trace alone.",
+    "stop_scope": "No runtime launched, source edited, policy chosen, or hardware-defect hypothesis advanced."
+  }
+}
