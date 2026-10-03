@@ -1,0 +1,91 @@
+{
+  "schema": "ladybug-rsch014-e5-bug086-boundary-assessment-v1",
+  "date": "2026-10-02",
+  "status": "helper-marker-bytes-proven-after-PAR-observer-correction",
+  "classification": "BUG-086 remains High-risk Draft; no repair cause or approval contract was established.",
+  "receipts": {
+    "E5_four_phase_runtime": {
+      "path": "runtime-result-20261002.json",
+      "sha256": "ba75ededded103c01d255c327117d6f560f9387ea4cf7fcaa82fbcdeee980b3b91",
+      "result": "cold credit and Start dispatch passed; first active-worklist wait timed out at 45.013 seconds; later E5 phases not run"
+    },
+    "boundary_preflight": {
+      "path": "boundary-preflight-20261002.json",
+      "sha256": "32696ab4fbcb2b29640c18ee769c3378120eb3b305f540c28da38c7b1dbf50fd",
+      "observer_sha256": "da362a9e3f624022d148399bf23fdab20eb730a3d338bbcbab0ba87a6637314e",
+      "ast": "pass; ast.parse only, no import or execution"
+    },
+    "boundary_prelaunch_rejection": {
+      "path": "boundary-preflight-rejection-20261002.json",
+      "sha256": "3a61c2c8659932c5a28ad03cd2a2535970dd0c210b281f51d8cb7d54bd442ac6",
+      "result": "observer looked up enemy_frame_number in the wrong map; rejected before XRoar launch; no runtime evidence; corrected to the helper map before the one runtime phase"
+    },
+    "boundary_runtime": {
+      "path": "boundary-result-20261002.json",
+      "sha256": "533b052ea5feed9ea1bd625d589e1cba87b99de9e31937511fe8c6001af99a91"
+    }
+  },
+  "runtime_result": {
+    "candidate_rom_sha256": "5d96372e03e6b78670c531f754b36c40a6ea73388cbb822869b41eb149a15458",
+    "helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "active_stage_sha256": "8add5b4086f00509e654d3bb47e82ab6a692178b390a73b16f06d46f715971d9",
+    "cold_credit_start": "passed; one settled credit before Start, then credits 0, mode 0, stage 1, initial-entry state 1, FB_PENDING 0 at $C14F",
+    "C14F_image_identity": {
+      "resident": "live bytes matched resident build image",
+      "enemy_module": "live bytes matched enemy build image",
+      "presentation_module": "live bytes matched presentation build image",
+      "active_stage": "physical page $3D at $B7A5, destination $038F with PAR0=$38, and source active binary all matched SHA 8add5b40…5971d9",
+      "page34_helper": "physical and mapped bytes at $A8A0-$A8F6 matched helper SHA 057e2803…26526 with PAR5=$34"
+    },
+    "secondary_client": "pre-opened before the active-worklist wait; hello reported XRoar 1.11/protocol 0.6.0; initial run state halted; no breakpoint subscription was made",
+    "first_active_wait": {
+      "run_request_id": 56,
+      "run_acknowledged": true,
+      "breakpoint_id": 9,
+      "pc": "$A8D2",
+      "symbol_candidate": "enemy_frame_number",
+      "elapsed_from_wait_start_seconds": 0.036975,
+      "phase_elapsed_including_cleanup_seconds": 0.680872,
+      "timeout": false
+    },
+    "captured_marker_context": {
+      "PC": "$A8D2",
+      "S": "$1FD4",
+      "PAR0_7_after_masking": ["38", "2C", "2D", "2E", "2F", "34", "3E", "3F"],
+      "PAR5": "$34",
+      "runtime_call_caller": "not determined; caller/stack bytes were not captured",
+      "whole_helper_hash_at_marker": "not captured; only the 12-byte entry prefix was retained",
+      "mainloop_C116": "not observed; the observer aborted before continuation"
+    },
+    "identity_observation": "The observer rejected the $A8D2 marker before appending its registers/PARs and before recording the marker helper hash. The separate secondary capture halted at the same PC and returned 12 live bytes equal to the authored enemy_frame_number helper slice: c10425015f5858da54d76686, SHA acb1e6a345bb40f02187164b411503f9eac6f2d36afd453fc9129aa11b02d7c0. This proves the captured PC entry bytes, but the full physical/mapped helper hash at the marker was not serialized.",
+    "secondary_capture": {
+      "pause_acknowledged": true,
+      "run_state": "halted at $A8D2; last-stop reason pause",
+      "raw_direct_read_memory_FFA0_FFA7": ["B8", "AC", "AD", "AE", "AF", "B4", "BE", "BF"],
+      "normalized_direct_PAR0_7_mask_3F": ["38", "2C", "2D", "2E", "2F", "34", "3E", "3F"],
+      "gime_state_task0_PAR0_7": ["38", "2C", "2D", "2E", "2F", "34", "3E", "3F"],
+      "meaning": "The raw CPU data-bus values retain their upper two bits on MMU reads. Masking each with $3F matches read_gime_state; the direct and structured register observations agree after the documented read normalization."
+    },
+    "observer_cause": {
+      "cause": "The observer compared 8-bit CPU bus values for $FFA0-$FFA7 against 6-bit MMU page numbers without masking bits 6-7.",
+      "source": "docs/reference/xroar/src/tcc1014/tcc1014.c at the MMU read path preserves CPUD upper bits and inserts the MMU bank: (*CPUD & ~0x3f) | mmu_bank[A & 15].",
+      "source_sha256": "c8433d3ffb186e6dc3cb2d5df306dcdca5b0b7af3a492172d0e17f8a6c1961b4",
+      "interpretation": "Confirmed observer comparison error. It does not establish a hardware defect, wrong physical page, helper overwrite, or cause for the original E5 timeout."
+    },
+    "first_worklist_completion": "Not observed: the observer aborted at the helper breakpoint before continuing toward mainloop $C116.",
+    "rare_path_correctness": "not established; no last-bonus handoff, Part 9 initialization, forced legal skull predecessor, real enemy_tick, deadline replacement, or normal cursor-resume phase ran",
+    "natural_maze_progression": false,
+    "parts_2_through_8_skipped": true,
+    "gameplay_acceptance": false
+  },
+  "disposition": {
+    "additional_runtime": "stop after this second diagnostic; no third probe",
+    "production_source_or_profile_changes": false,
+    "B2_combined_fit_gate": "pending; the four authorized isolated B2 transformations and three-profile combined build matrix were not run",
+    "repair_cause": "unconfirmed; the original E5 first-worklist timeout remains unexplained",
+    "new_proposed_repair_or_assignment": "not justified by these observations",
+    "Proposed_status_justified": false,
+    "ticket_status_change": false,
+    "user_tmx_and_dirty_prototype": "preserved"
+  }
+}

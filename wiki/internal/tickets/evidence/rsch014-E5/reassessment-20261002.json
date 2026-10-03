@@ -1,0 +1,89 @@
+{
+  "schema": "ladybug-rsch014-e5-bug086-reassessment-v1",
+  "date": "2026-10-02",
+  "status": "phase1-timeout-reassessment",
+  "classification": "BUG-086 remains High-risk Draft; E5 did not establish the succession discriminator.",
+  "preflight_receipt": "preflight-20261002.json",
+  "runtime_receipt": "runtime-result-20261002.json",
+  "runtime_receipt_sha256": "ba75ededded103c01d255c327117d6f560f9387ea4cf7fcaa82fbcdeee980b3b91",
+  "identity": {
+    "observer_sha256": "d69845054959bc6d4f5db74bd887852e6605db6d55c76362bc21ee22211be22a",
+    "rom_sha256": "5d96372e03e6b78670c531f754b36c40a6ea73388cbb822869b41eb149a15458",
+    "helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "build_receipt_sha256": "efbf998968fa3d411feeed5898660a2b08e916a613cfe15ca2eb7eb953a21090",
+    "prelaunch_ast": "pass; parsed with ast.parse without module import or execution",
+    "prototype_patch_sha256": "63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa"
+  },
+  "phase1": {
+    "name": "cold-credited-start",
+    "deadline_seconds": 45,
+    "elapsed_seconds": 45.013,
+    "last_proven": {
+      "live_resident_enemy_presentation_and_physical_helper_identity": "pass; all match current build/staged helper hashes",
+      "credit_settle": "pass; one settled credit, PRES_CREDITS=1, PC=$1CA8",
+      "start_dispatch": "pass; PC=$C14F, mode=0, stage=1, credits=0, INITIAL_ENTRY_STATE=1, FB_PENDING=0"
+    },
+    "exact_next_call": {
+      "observer_path": "repro/bug086_e3_observer.py:384 worklist(parser_start) -> :301 go(mainloop) -> :208 client.run_to_breakpoint(remaining)",
+      "state_at_entry": "PC was ad_dispatch_work=$C14F, so worklist selected go(mainloop)",
+      "mechanics": "go set the mainloop breakpoint and sent JSON-RPC run on the existing monitor client; MonitorClient.run_to_breakpoint waited for the run response and/or breakpoint event",
+      "run_ack_recorded": false,
+      "breakpoint_hit_recorded": false,
+      "pc_and_mapping_at_timeout_recorded": false
+    },
+    "failure": {
+      "primary_observation": "socket.timeout from MonitorClient._read at the 45-second phase boundary; the mainloop breakpoint event was not observed",
+      "reported_exception": "OSError('cannot read from timed out object')",
+      "masking_detail": "go cleanup attempted clear_breakpoint through the same buffered socket after timeout; that secondary OSError replaced the original socket.timeout in the observer result",
+      "meaning": "The required first active-worklist marker was absent at the observer boundary. This does not establish whether the run acknowledgement was received, whether the target reached another PC, or a game performance/correctness cause."
+    }
+  },
+  "comparison_with_e3_attempt2": {
+    "rom_sha256": "5d96372e03e6b78670c531f754b36c40a6ea73388cbb822869b41eb149a15458",
+    "same_proven_start_dispatch_state": "PC=$C14F, mode=0, stage=1, credits=0, INITIAL_ENTRY_STATE=1, FB_PENDING=0",
+    "e3_observation": "Reached PC=$C116 and INITIAL_ENTRY_STATE=0 after 67 worklists in 0.925s, then falsely failed because the old observer expected PRES_CREDITS=1 after Start.",
+    "difference": "E5 did not observe completion of the first worklist within 45.013s. No intervening PC or MMU state was captured, so the difference is unresolved."
+  },
+  "launch_and_deadline": {
+    "launcher": "Existing verify_bug011_runtime.launch_fast, using an isolated XRoar process and a free 127.0.0.1 monitor port; null UI/audio, CoCo3 GMC 512K, -no-ratelimit, -monitor-halt-on-start.",
+    "private_process_pid": 16683,
+    "monitor_peer": "127.0.0.1:52607",
+    "connect": "Monitor hello and events.subscribe completed before phase 1 began.",
+    "wrapper_wall_seconds": 46.721,
+    "phase_wall_seconds": 45.013,
+    "outside_phase_seconds": 1.708,
+    "deadline_interpretation": "Combined WSL/Python/XRoar launch and connect overhead was outside the phase. No 45-second deadline was extended."
+  },
+  "static_page34_writer_review": {
+    "reset_enemy_state": "Writes ENEMY_NORMAL_CURSOR/PENDING/CACHE at $A89D-$A89F, eight saved-background bytes at $A890-$A897, four ring bytes at $A898-$A89B, and 32 actor-table bytes at $A470-$A48F. No reset clear spans helper bytes $A8A0-$A8F6.",
+    "enemy_init_impl": "Calls reset_enemy_state and sets enemy render flags; no broad page-$34 clear is present in this path.",
+    "framebuffer_init_impl": "Copies framebuffer data through $A000 while PAR5 selects framebuffer pages $2C-$2F, then restores PAR5=$34. The source path does not target physical page $34 helper storage.",
+    "result": "No direct overlap was identified in these inspected constructor/reset paths. This limited static review does not prove that no other writer can alter the helper. A helper-overwrite cause remains unconfirmed."
+  },
+  "not_run": [
+    "last-bonus handoff and forced Part 9 initialization/helper preview",
+    "two legal skull predecessor interactions through real enemy_tick",
+    "existing deadline replacement and normal cursor resumption"
+  ],
+  "scope_and_disposition": {
+    "natural_full_maze_progression": false,
+    "parts_2_through_8_skipped": true,
+    "production_source_or_profile_changes": false,
+    "build_or_fit_matrix_run": false,
+    "root_emulator_or_root_rom_touched": false,
+    "existing_dirty_bug086_prototype_preserved": true,
+    "continue_runtime": "Stop after this failed E5 discriminator; do not run a blind full-probe retry. Reassess the observation boundary first."
+  },
+  "proposed_next_discriminator_not_authorized_or_run": {
+    "objective": "Separate a helper overwrite after cold delivery from a lost/missed monitor breakpoint or a target that does not reach the first active marker.",
+    "scope": "One focused first-worklist diagnostic on the same exact candidate ROM; not the four-phase succession run.",
+    "steps": [
+      "At the already-proven Start dispatcher boundary PC=$C14F, compare physical page-$34 and mapped helper bytes $A8A0-$A8F6 with the retained staged/current helper and record PAR5 before advancing.",
+      "Trap and log the first active worklist boundary, then the earliest relevant active-tick/helper-cache call and return; compare live code at each stopped PC with its current built artifact before symbol interpretation.",
+      "Instrument whether the run JSON-RPC acknowledgement and requested breakpoint event arrive, preserving breakpoint ID and last observer event.",
+      "Bound the run wait to 40 seconds. If no marker arrives, use a pre-opened second monitor client in the remaining 5 seconds to pause and record PC, PAR0-PAR7, process/run state and live bytes at PC; do not infer target slowness from timeout."
+    ],
+    "current_evidence_limit": "The current E5 observer does not persist run-ack state or PC/MMU state at timeout; its cleanup can mask socket.timeout. No cause has been confirmed.",
+    "requires_parent_reassessment_before_any_runtime": true
+  }
+}
