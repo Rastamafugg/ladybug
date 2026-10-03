@@ -1,0 +1,128 @@
+{
+  "schema": "rsch014-a10-six-call-rate-window-plan-v1",
+  "status": "prepared for parent review only; no runtime launched",
+  "source_evidence": {
+    "main_cpu_rom_sha256": "3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12",
+    "main_cpu_disassembly_sha256": "34bf89b284f394e2eb9331e3cf4630afa4cf59200b2e952cb6b0a35e231ac3b3",
+    "mame_binary_sha256": "7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4",
+    "ladybug_rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+    "base_capture_script_sha256": "3a90b4a420f8319e248ad8ec523c25d23e12fd7a0362a023775ac1cb91e93d72",
+    "natural_input_plan": "scripts/mame_plans/gate-traverse-17.json",
+    "natural_input_plan_sha256": "f22655bc8d702513a45dfeaa9a99b87143b83186dacdfacea7e68d2f1a06f894",
+    "retained_b4_raw_ram_sha256": "630cb90f9f098167b8e733b790708c59bb7c5ab9bd3d1d81c46fa94f7f66cf77",
+    "retained_b4_raw_video_sha256": "45ea0d31970235bbbd1a83f2e24d4f8a10c8395be36804ac70c33ec9308f1013"
+  },
+  "variant": {
+    "file": "repro/rsch014-A11/a10-rate-window.lua",
+    "sha256": "eab749e1e7b19f89df5eeb3dcf0885a2c9f62c59ef49dba3b27684cc5931dbfd",
+    "generated_from": "scripts/capture_mame_gameplay.py::lua_script",
+    "generation_helper": "repro/rsch014-A11/build_a10_rate_window.py",
+    "write_api": "space:write_u8(0x606E, 0x07)",
+    "memory_write_occurrences": 1,
+    "rom_guard": {
+      "fixture": "/tmp/ladybug-maincpu.bin",
+      "fixture_sha256_preflight": "3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12",
+      "live_compare": "At initialize, require exactly 0x6000 fixture bytes and compare each against maincpu program space $0000-$5FFF before any input action or counter write.",
+      "tsv_markers": [
+        "ROM_GUARD PASS bytes=24576 sha256=<fixture SHA-256>",
+        "ROM_GUARD FAIL fixture_missing|fixture_length|byte_mismatch"
+      ],
+      "failure_behavior": "Close capture streams, set finished, and return before gameplay inputs and before the sole write."
+    }
+  },
+  "phase": {
+    "route": "existing natural gate-traverse-17 Part-1 route; no forced position, stage, actor status, or direction",
+    "pre_write_capture_callback": 1513,
+    "write_boundary": "after callback-1513 video/background/RAM dump and before the next emulated gameplay frame",
+    "post_write_capture_callbacks": [
+      1514,
+      1519
+    ],
+    "deadline_seconds": 60,
+    "failure_meaning": "Missing natural callback marker or precondition ends capture without injection; a missed expected state fails this window and is not a reason to rerun blindly."
+  },
+  "callback_1513_preconditions": {
+    "actor_records_601c_to_604d_hex": "81080f00100040ae001082685600001267961801815886180100000000000000000000000000000000000000000000000000",
+    "part_selector_6065": "00",
+    "part_counter_606e": "01",
+    "alternate_counter_606f": "00",
+    "freeze_61e1": "00",
+    "fraction_61b5": "00",
+    "elapsed_counter_61b6": "10",
+    "elapsed_bucket_61b7": "0d (rate band high nibble is zero)",
+    "selected_rate_61c3": "10",
+    "arcade_pose_phase_605a": "38",
+    "dsw0_9002_bit1": "1 (Easy/Medium); sampled and recorded in P marker before write."
+  },
+  "intervention": {
+    "one_write_only": "space:write_u8(0x606E, 0x07)",
+    "timing": "after the callback-1513 natural sample; immediate readback must be 07",
+    "all_other_state": "observed only; no scripted edits",
+    "pre_write_guards": [
+      "Exact live 24 KiB main-CPU ROM byte comparison to the SHA-256-verified fixture before inputs.",
+      "At natural callback 1513, require DSW0 $9002 bit 1 set before the sole $606E write."
+    ]
+  },
+  "six_call_prediction": {
+    "selector_source": "$40F8 reads $606E with selector $6065=0 and rate band $61B7>>4=0; selected rate becomes $61C3=12.",
+    "fractional_add_per_eligible_40CC_call": "33",
+    "fractional_sequence_on_callbacks_1514_to_1519": [
+      "33",
+      "66",
+      "99",
+      "cc",
+      "ff",
+      "32"
+    ],
+    "fractional_carries": 1,
+    "total_steps": 7,
+    "actor_602b_status_y_art_attribute": [
+      "12",
+      "96",
+      "18",
+      "01"
+    ],
+    "actor_602b_x_path": [
+      "67",
+      "66",
+      "65",
+      "64",
+      "63",
+      "62",
+      "60"
+    ],
+    "renderer_control": "$6030 remains 81 58 86 18 01; exact Part-1 source-template pixels at origin (88,105).",
+    "call_count_rule": "Establish six qualifying $40CC admissions from the six exact $61B5 advancements and source writer; do not infer six calls merely from six video callbacks."
+  },
+  "capture_contract": {
+    "raw_ram": "7 consecutive 0x1000-byte samples for callbacks 1513-1519; callback labels are explicit in the TSV markers.",
+    "raw_video": "7 BGRA32 samples for callbacks 1513-1519.",
+    "raw_background": "7 samples of $D000-$D7FF to reject map/background writes.",
+    "aborts": [
+      "selector/counter mutation",
+      "freeze nonzero",
+      "actor group/status/art change",
+      "rate not 12",
+      "fraction sequence mismatch",
+      "unexpected coordinate path",
+      "background/map change",
+      "stationary $6030 exact-pixel failure"
+    ],
+    "no_strict_frame_predicate": "Raw callbacks timestamp state only; fractional writes and coordinate changes are compared independently."
+  },
+  "command": "cd /mnt/e/projects/ladybug/worktrees/arcade-timing-preparation && timeout 60s /usr/games/mame ladybug -skip_gameinfo -nothrottle -sound none -video none -seconds_to_run 27 -autoboot_delay 0 -autoboot_script /mnt/e/projects/ladybug/worktrees/arcade-timing-preparation/repro/rsch014-A11/a10-rate-window.lua",
+  "outputs": [
+    "/tmp/rsch014-A10-rate-window.tsv",
+    "/tmp/rsch014-A10-rate-window-video.bin",
+    "/tmp/rsch014-A10-rate-window-background.bin",
+    "/tmp/rsch014-A10-rate-window-work-ram.bin"
+  ],
+  "superseded_reviewed_variant_sha256": "c86f9813eb0a93ebb263b7c5bf92700cd53d098e2474c350fd254fc8e2bfa9ef",
+  "superseded_reviewed_plan_sha256": "7c89f3626412550df32113bd82f0a66e0fdf5e1b42dde42e6123e77f3faa9934",
+  "preflight": {
+    "fixture_command": "sha256sum /tmp/ladybug-maincpu.bin",
+    "required_sha256": "3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12",
+    "required_size_bytes": 24576,
+    "lua_runtime_guard": "byte-for-byte live CPU program comparison; mismatch aborts without injection."
+  }
+}

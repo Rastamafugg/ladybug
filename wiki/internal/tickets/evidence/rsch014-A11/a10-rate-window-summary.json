@@ -1,0 +1,116 @@
+{
+  "schema": "rsch014-a10-six-call-rate-window-result-v1",
+  "research_ticket": "RSCH-014",
+  "step": "A10",
+  "date": "2026-10-03",
+  "status": "Evidence-only numerical result; no Draft repair execution, production edit, approval, or ticket status change.",
+  "overall": "Qualified measurement, not an all-gates pass. The ROM/input/selector/counter/fraction/movement and stationary-den checks passed. The literal no-background-change condition did not pass because one known border-color update occurred; the same update is present in the retained natural-route B4 baseline and is owned by the normal border writer.",
+  "runtime": {
+    "command": "cd /mnt/e/projects/ladybug/worktrees/arcade-timing-preparation && timeout 60s /usr/games/mame ladybug -skip_gameinfo -nothrottle -sound none -video none -seconds_to_run 27 -autoboot_delay 0 -autoboot_script /mnt/e/projects/ladybug/worktrees/arcade-timing-preparation/repro/rsch014-A11/a10-rate-window.lua",
+    "deadline_seconds": 60,
+    "exit_code": 0,
+    "wall_seconds": 3.57,
+    "runs": 1,
+    "timeout_interpretation": "A timeout or missing callback-1513 marker means the bounded window was not observed. No retry was run.",
+    "mame_report": "Average speed: 2872.96% (26 seconds)."
+  },
+  "identity_and_plan": {
+    "main_cpu_fixture_path": "/tmp/ladybug-maincpu.bin",
+    "main_cpu_fixture_bytes": 24576,
+    "main_cpu_fixture_sha256": "3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12",
+    "live_rom_guard": "PASS: initialization compared every live maincpu program byte $0000-$5FFF to the SHA-256-verified fixture before actions; TSV has ROM_GUARD PASS bytes=24576.",
+    "natural_route_plan": "scripts/mame_plans/gate-traverse-17.json",
+    "natural_route_plan_sha256": "f22655bc8d702513a45dfeaa9a99b87143b83186dacdfacea7e68d2f1a06f894",
+    "base_capture_script_sha256": "3a90b4a420f8319e248ad8ec523c25d23e12fd7a0362a023775ac1cb91e93d72",
+    "reviewed_variant_sha256": "eab749e1e7b19f89df5eeb3dcf0885a2c9f62c59ef49dba3b27684cc5931dbfd",
+    "reviewed_plan_sha256": "5474f14fd0ed113d9674c4744539279239575f010a314b23576a0f33d8fdd094",
+    "mame_binary_sha256": "7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4",
+    "ladybug_rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+    "retained_baseline_b4_json_sha256": "d83e70c97338b9ddb43ba2fb11053d1add1d6e87a55cda6c519008d207280bc6",
+    "superseded_reviewed_unrun_variant_sha256": "c86f9813eb0a93ebb263b7c5bf92700cd53d098e2474c350fd254fc8e2bfa9ef",
+    "superseded_reviewed_unrun_plan_sha256": "7c89f3626412550df32113bd82f0a66e0fdf5e1b42dde42e6123e77f3faa9934"
+  },
+  "callback_1513": {
+    "sample_convention": "The harness increments the callback number before dumping. The TSV marker and each raw video/background/RAM sample use the displayed callback label.",
+    "dsw0_9002": "df; bit 1 is set (Easy/Medium).",
+    "part_selector_6065": "00",
+    "part_counter_606e": "01 before the disclosed write",
+    "alternate_counter_606f": "00",
+    "freeze_61e1": "00",
+    "fraction_61b5": "00",
+    "elapsed_61b6": "10",
+    "elapsed_bucket_61b7": "0d; selected band is $61B7>>4 = 0.",
+    "selected_rate_61c3": "10 before the write",
+    "arcade_pose_phase_605a": "38",
+    "moving_actor_602b": "12 67 96 18 01",
+    "stationary_den_6030": "81 58 86 18 01",
+    "precondition": "PASS"
+  },
+  "intervention": {
+    "write": "Exactly one space:write_u8($606E,$07), after callback-1513 video/background/RAM dump and before the next gameplay frame.",
+    "readback": "07; PASS",
+    "post_write_selector_and_counters": "6065=00, 606E=07, 606F=00 across callbacks 1514-1519."
+  },
+  "measurement": {
+    "source_call_unit": "The six $61B5 updates are six qualifying $40CC fractional admissions, identified by the source-linked counter writes rather than inferred from six displayed frames. ROM $40CC reads selected rate $61C3; the $40ED-$40F7 fractional path adds $33 to $61B5 for rate $12 and carries into the step count. Disassembly has a startup/reset store at $0748 and the runtime $61B5 store at $40F3. Each labeled sample 1514-1519 shows exactly one $33 advance, no extra admission, and the source countdown advances once per sampled callback. Callback labels locate samples; they are not the movement unit.",
+    "source_binary_sha256": "3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12",
+    "source_disassembly_sha256": "34bf89b284f394e2eb9331e3cf4630afa4cf59200b2e952cb6b0a35e231ac3b3",
+    "callbacks_1514_to_1519": [
+      {"callback": 1514, "selected_rate_61c3": "12", "fraction_61b5": "33", "elapsed_61b6": "0f", "moving_actor_602b": "12 66 96 18 01"},
+      {"callback": 1515, "selected_rate_61c3": "12", "fraction_61b5": "66", "elapsed_61b6": "0e", "moving_actor_602b": "12 65 96 18 01"},
+      {"callback": 1516, "selected_rate_61c3": "12", "fraction_61b5": "99", "elapsed_61b6": "0d", "moving_actor_602b": "12 64 96 18 01"},
+      {"callback": 1517, "selected_rate_61c3": "12", "fraction_61b5": "cc", "elapsed_61b6": "0c", "moving_actor_602b": "12 63 96 18 01"},
+      {"callback": 1518, "selected_rate_61c3": "12", "fraction_61b5": "ff", "elapsed_61b6": "0b", "moving_actor_602b": "12 62 96 18 01"},
+      {"callback": 1519, "selected_rate_61c3": "12", "fraction_61b5": "32", "elapsed_61b6": "0a", "moving_actor_602b": "12 60 96 18 01"}
+    ],
+    "fractional_carries": 1,
+    "movement_result": "Six source-linked admissions add six base X steps plus one carry step, from X=$67 to $60: seven total pixels. Status $12, Y=$96, base/art=$18, attribute=$01 remain fixed.",
+    "same_route_b4_comparison": "Retained natural-route B4 X values are $67,$66,$65,$64,$63,$62,$61 over callbacks1513-1519. The forced run matches through callback1518 and differs by the single expected carry pixel at callback1519 ($60 versus $61).",
+    "coarse_units_limit": "This is six arcade $40CC admissions. It is not six CoCo logical ticks or six raw CoCo Vbords. Parent A11 evidence separately establishes an ordinary CoCo enemy pose phase over eight admitted simulation ticks with variable raw IRQ holds; movement-per-logical-tick remains a separate conversion question."
+  },
+  "stationary_den_pixels": {
+    "result": "PASS",
+    "callbacks": "1513-1519 inclusive",
+    "record": "$6030 = 81 58 86 18 01; $605A = 38.",
+    "screen_origin": [88, 105],
+    "source_template": "Part-1 family-0 North template index 2 (pose code 9), matched using verify_bug018_part_one_enemy_palette.py::source_frames, palette.json and sprite_lookup_a[1].",
+    "opaque_pixel_count": 129,
+    "matcher_rule": "Every opaque source pixel matched its exact BGRA frame RGB channels at the calibrated origin in all seven captured callbacks; alpha is ignored, as in the retained BGRA matcher convention.",
+    "source_asset_sha256": {
+      "sprites.json": "af2adb1a494b6a641deb38931ee93220b9638ffca4d42e8e37d7d8683945e42d",
+      "palette.json": "3123ef22d219d0282382d2da896777cbe40253a4b858f4a30444b02c9c26f427",
+      "sprite_lookup_a.json": "42a71f398b34d0b75bb3c9e96605c631c8ace054d3da7087262720be1a7d76f3",
+      "matcher_source.py": "7686e473ffd3e2c78b50be87ffed53da3ca7fe0daf5d1eb1159d96f1ce7abc50"
+    }
+  },
+  "background_crosscheck": {
+    "literal_unchanged_background_guard": "Not met: raw D000-D7FF samples contain one color-RAM byte change at callback1517, $D67C $05->$06.",
+    "retained_b4_baseline": "The B4 capture JSON reports the identical natural-route callback1517 change [[54908,6]] (54908 decimal = $D67C); callbacks1513-1516 and1518-1519 have no reported changes. Its raw D000-D7FF binary was not retained.",
+    "owner_evidence": "At callbacks1513-1516 both B4 and A10 RAM snapshots have $6063/$6064 = $D67C, $6062=$FF, and $6061=$0F. At callback1517 both snapshots have $6063/$6064 = $D69C and $6061=$10. Current-ROM disassembly $39B8-$39C6 loads the border pointer at $6063, selects value $06 when $6062 is nonzero, and writes it through (HL); $39CC-$39CF computes/stores the next border pointer. The same exact state progression in the natural-route baseline proves this is the normal Part-1 border-color writer, not a rate-specific write.",
+    "official_device_map": {
+      "source": "MAME 0.220 Lady Bug driver",
+      "sha256": "3994f46be88beb81c822b071c5a63c51908f47bc8b45ba6aa2adfefdff6afd69",
+      "url": "https://github.com/mamedev/mame/blob/mame0220/src/mame/drivers/ladybug.cpp#L2214-L2220",
+      "mapping": "$D400-$D7FF is 4-bit color RAM; $D000-$D7FF is handled by Lady Bug background read/write device."
+    },
+    "differential_result": "The sole changed byte and border-pointer progression exactly match B4 baseline; no intervention-attributable background difference was found. The color update occurs at callback1517 before the forced and baseline enemy X paths diverge at callback1519, so attributing it to the rate intervention is unsupported. This does not turn the original literal no-change predicate into a pass. The earlier A10 statement that B4 had no changes in this interval was incorrect and is corrected by this retained comparison."
+  },
+  "retained_artifacts": {
+    "plan_used": {"path": "wiki/internal/tickets/evidence/rsch014-A11/a10-rate-window-plan.json", "sha256": "5474f14fd0ed113d9674c4744539279239575f010a314b23576a0f33d8fdd094"},
+    "exact_lua_variant": {"path": "wiki/internal/tickets/evidence/rsch014-A11/a10-rate-window.lua", "sha256": "eab749e1e7b19f89df5eeb3dcf0885a2c9f62c59ef49dba3b27684cc5931dbfd"},
+    "tsv": {"path": "wiki/internal/tickets/evidence/rsch014-A11/a10-rate-window.tsv", "bytes": 1039, "sha256": "bb732ae3ab9888518098d88089ca3fc481c2d7a60f767dfad97a017a19e389f1"},
+    "work_ram": {"path": "wiki/internal/tickets/evidence/rsch014-A11/a10-rate-window-work-ram.bin", "bytes": 28672, "sha256": "0809c4c720a892a06e1ddc74d7ca7aa2d3f448c5248a439776cf68f652de1474"},
+    "background_ram": {"path": "wiki/internal/tickets/evidence/rsch014-A11/a10-rate-window-background.bin", "bytes": 14336, "sha256": "d47617f059592dad6017feeac4c66b418262dddcc8f944a291d7d4fbf4825f8e"},
+    "den_pose_crops": {"path": "wiki/internal/tickets/evidence/rsch014-A11/a10-den-pose-crops.bgra", "format": "7 callback samples, each 16x16 BGRA32 pixels cropped from origin (88,105)", "bytes": 7168, "sha256": "6f990f0e89e25828c48a9900b5795049fe774387a7319d04bc9be380d2b4ebe4"},
+    "full_video_not_committed": {"bytes": 1290240, "sha256": "d47436936a11fb7609e17dbc8ec815e222f8b487cf64d785a73fe74f2ac2feff", "note": "Only the 7x16x16 den crop required to repeat the pixel matcher is retained in the evidence commit."}
+  },
+  "rejected_or_failed_conditions": [
+    "The full-capture, literal no-background-mutation guard did not pass because callback1517 changes $D67C. Baseline comparison proves this is an existing timer-driven border-color update, not a new rate-path mutation."
+  ],
+  "verification_limit": "No standalone Lua interpreter/compiler was installed for offline syntax validation. The generated script preserves the existing MAME capture harness structure; MAME execution completed normally and the live guards/markers parsed and ran.",
+  "scope_limits": [
+    "One exact, bounded run only; no retry or additional capture.",
+    "No production code, TMX, canonical ticket, ticket lifecycle, wiki index, or log was modified.",
+    "The measurement validates the selected arcade $40CC numerical window only. It does not prove a CoCo movement conversion or a global 8-family/direction matrix."
+  ]
+}
