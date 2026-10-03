@@ -1,0 +1,284 @@
+{
+  "schema": "rsch014-ready-queue-audit-v1",
+  "date": "2026-10-03",
+  "baseline_commit": "4d9ce9b521eaeae0b71a17c6a1f6516bd4503b32",
+  "scope": {
+    "coverage_manifest": "wiki/internal/tickets/evidence/rsch014-parent/coverage.json",
+    "coverage_sha256": "594D78C09969A4837D959545A62394E0ED03CDDD14B9C611796893E8953BB9E1",
+    "tickets": ["BUG-059", "BUG-060", "BUG-061", "BUG-062", "BUG-063", "BUG-064", "BUG-065", "BUG-066", "BUG-067", "BUG-068", "BUG-069", "BUG-081", "BUG-083", "BUG-084", "BUG-085", "BUG-100", "FEAT-005", "BUG-102", "BUG-103", "BUG-104", "BUG-105", "BUG-106", "BUG-107", "BUG-108", "BUG-109", "BUG-110"],
+    "excluded": ["BUG-058 Done increment", "BUG-080", "BUG-086", "BUG-087"],
+    "approval_manifest": "wiki/internal/tickets/evidence/rsch014-parent/cleanup-approvals-20261003.json",
+    "approval_sha256": "9B740C05FA8CB442A6B7F177BA16C2B785C6848EBB6C9E26738FAC07908D6847",
+    "BUG-059_pinned_input_manifest": "wiki/internal/tickets/evidence/rsch014-parent/first-ready-inputs-20261003.json",
+    "BUG-059_pinned_input_sha256": "1C88841CAD486A717869A410718AFE1559B0533AB74263FC61B00AB5DFEDDDD0"
+  },
+  "decision": {
+    "ready_now": ["BUG-059"],
+    "approved_or_increment_approved_queued": ["BUG-060", "BUG-061", "BUG-062", "BUG-063", "BUG-064", "BUG-065", "BUG-066", "BUG-067", "BUG-068", "BUG-069", "BUG-081", "BUG-083", "BUG-084", "BUG-085", "BUG-100", "FEAT-005", "BUG-102", "BUG-103", "BUG-104", "BUG-105", "BUG-106", "BUG-107", "BUG-108", "BUG-109", "BUG-110"],
+    "first_executable": "BUG-059",
+    "no_ticket_lifecycle_changes": true,
+    "no_build_or_runtime_executed": true
+  },
+  "tickets": [
+    {
+      "id": "BUG-059",
+      "class": "Standard",
+      "readiness": "Ready",
+      "owned_files": ["scripts/build_screen.py", "scripts/build_presentation.py", "scripts/verify_bug016_presentation_layers.py", "wiki/internal/tickets/evidence/rsch014-ready-059/*"],
+      "prototype_or_verifier": "Context-bearing BUG059/060 compiler patch passes git apply --check. Existing verifier covers nine presentation roles, 22 markers, two deferred logo layers, five negative diagnostics; assignment adds separate gameplay marker negatives.",
+      "commands": ["git apply --check wiki/internal/tickets/evidence/rsch014-A/BUG059-060-layer-compiler-prototype.patch", "wsl python3 scripts/verify_bug016_presentation_layers.py --tiled-dir tiled", "wsl python3 wiki/internal/tickets/evidence/rsch014-A/capture_evidence.py", "after FEAT-005 parser integration: wsl bash scripts/build.sh build"],
+      "gate": "Isolated compiler prerequisite is executable now. BUG-060 and FEAT-005 combined build/fit are later gates, not prerequisites. Eleven current TMX inputs are hash-pinned in the parent input receipt and remain read-only."
+    },
+    {
+      "id": "BUG-060",
+      "class": "Standard",
+      "readiness": "Approved; queued after BUG-059 role schema",
+      "owned_files": ["tiled/coco-attract-screen.tmx", "tiled/coco-credits-screen.tmx", "tiled/coco-enter-high-score-screen.tmx", "tiled/coco-game-over-screen.tmx", "tiled/coco-high-score-screen.tmx", "tiled/coco-instructions-screen.tmx", "tiled/coco-keybind-options-screen.tmx", "tiled/coco-level-start-screen.tmx", "tiled/coco-screen.tmx", "scripts/verify_bug016_presentation_layers.py"],
+      "prototype_or_verifier": "Rejected 92-cell gameplay outer-ring experiment proves geometry only. Extend the current role verifier with a per-map authored cell-role table and GID/pixel recomposition.",
+      "commands": ["wsl python3 scripts/verify_bug016_presentation_layers.py --tiled-dir tiled", "wsl python3 wiki/internal/tickets/evidence/rsch014-A/capture_evidence.py", "after BUG-059/FEAT-005 integration: wsl bash scripts/build.sh build"],
+      "gate": "BUG-059 defines role names and strict content checks. BUG-063/064 define static baselines; BUG-065/066/068/069 own palette cells. Do not infer border from nonblank GIDs."
+    },
+    {
+      "id": "BUG-061",
+      "class": "High-risk",
+      "readiness": "Approved; queued on current compiler/integration baseline",
+      "owned_files": ["src/main.s", "src/shared_text_runtime.inc", "src/shared_text_stage.inc", "tiled/coco-level-start-screen.tmx", "scripts/build_presentation.py", "scripts/verify_bug035_presentation.py"],
+      "prototype_or_verifier": "Gameplay asset_draw_two_digits already leads with zero; shared panel formatters suppress zero tens. Layout design is explicit. Partial C3 margins (resident 8137/8192, assets 7622/7680, presentation 1264/1280) are not a fit pass; build stopped at short-branch errors.",
+      "commands": ["wsl bash scripts/build.sh build", "wsl python3 scripts/verify_bug035_presentation.py", "verify 01, 99, 100, 255 and 255-to-1 stale-hundreds clearing on the current artifact"],
+      "gate": "Needs BUG-059 current role/compiler integration and full current build/capacity. BUG-104 consumes the formatter later but is not a reciprocal implementation prerequisite."
+    },
+    {
+      "id": "BUG-062",
+      "class": "High-risk",
+      "readiness": "Approved; sequence after current compiler and shared FEAT-005 runtime integration",
+      "owned_files": ["src/main.s", "scripts/verify_feat005_menus.py"],
+      "prototype_or_verifier": "Map has twelve authored 2x2 slots; draw_lives currently renders three roots and substitutes a number when LIVES>=4. Extend the existing runtime oracle for totals 1,3,4,6,7,9,10,12, row edges, one committed handoff and reverse removal.",
+      "commands": ["wsl bash scripts/build.sh build", "wsl python3 scripts/verify_feat005_menus.py --output build/bug062-lives.json"],
+      "gate": "BUG-039 transfer/accounting and FEAT-005 selected total are natural integration gates, not draw_lives implementation prerequisites. Serialize the shared verifier with FEAT-005; use existing GDB adapters."
+    },
+    {
+      "id": "BUG-063",
+      "class": "Compact",
+      "readiness": "Approved; queued for current layer/compiler integration",
+      "owned_files": ["scripts/build_presentation.py", "scripts/verify_bug035_presentation.py"],
+      "prototype_or_verifier": "Attract static snapshot and palette probe exist. Keep the independent SharedText pen-9 assertion strict; prior edge-cell exemption was rejected.",
+      "commands": ["wsl python3 wiki/internal/tickets/evidence/rsch014-A2/palette_contract_probe.py", "wsl python3 scripts/verify_bug035_presentation.py", "current complete-profile build and strict SharedText verifier"],
+      "gate": "Needs BUG-059 current compiler integration for the combined map build. Resolve the measured palette mismatch within the approved row-15 glyph contract; do not weaken the oracle."
+    },
+    {
+      "id": "BUG-064",
+      "class": "Standard",
+      "readiness": "Approved; queued on BUG-059/060 and listed instruction deltas",
+      "owned_files": ["scripts/verify_bug035_presentation.py"],
+      "prototype_or_verifier": "Current cleaned instruction map and static packed-pen snapshot exist. Add exact authored-copy/placement assertions, excluding only approved palette targets and moving overlays.",
+      "commands": ["wsl python3 scripts/verify_bug035_presentation.py", "wsl python3 scripts/verify_bug021_complete_instructions.py"],
+      "gate": "BUG-059/060 own normalization; BUG-065/066/067 own their separate instruction changes. Existing live path uses deferred private-monitor helpers; route current-phase verification through GDB."
+    },
+    {
+      "id": "BUG-065",
+      "class": "Standard",
+      "readiness": "Approved; queued on current compiler and live-verifier route",
+      "owned_files": ["scripts/build_presentation.py", "scripts/verify_bug035_presentation.py", "scripts/verify_bug021_complete_instructions.py"],
+      "prototype_or_verifier": "In-memory candidate recolors X2/X3/X5 templates and generated multiplier digits; generated schedule and complete-instructions verifier exist.",
+      "commands": ["wsl bash scripts/build.sh build", "wsl python3 scripts/verify_bug035_presentation.py", "wsl python3 scripts/verify_bug021_complete_instructions.py --timeout 40"],
+      "gate": "Current map/compiler integration is gated by BUG-059/060. verify_bug021_complete_instructions.py calls the deferred private-monitor helper; use the current GDB adapter."
+    },
+    {
+      "id": "BUG-066",
+      "class": "Compact",
+      "readiness": "Approved; queued on current compiler integration",
+      "owned_files": ["scripts/build_presentation.py", "scripts/verify_bug035_presentation.py"],
+      "prototype_or_verifier": "Target instruction side-HUD equals (34,13) must be GREEN pen 5; panel/gameplay equals remain under separate contracts.",
+      "commands": ["wsl python3 scripts/verify_bug035_presentation.py", "after BUG-059/FEAT-005 integration: wsl bash scripts/build.sh build"],
+      "gate": "Verify the first current level publication. Existing BUG-035 live path uses deferred private-monitor code; reuse the GDB adapter."
+    },
+    {
+      "id": "BUG-067",
+      "class": "Standard",
+      "readiness": "Approved; queued on current compiler and GDB live path",
+      "owned_files": ["scripts/build_presentation.py", "scripts/verify_bug011_instructions.py"],
+      "prototype_or_verifier": "All 16 events are quantified. Candidate first-motion ticks 129/577/1217, later-row gaps 47/47, first-consume gaps 70/70, next-screen at 1884. Gates-only deletion is rejected.",
+      "commands": ["wsl python3 scripts/verify_bug011_instructions.py", "wsl python3 scripts/verify_bug021_complete_instructions.py"],
+      "gate": "Preserve generated schedule ticks as distinct from raw arcade frames. Current natural playback helper uses deferred private monitor; use GDB. Full current build follows layer/compiler integration."
+    },
+    {
+      "id": "BUG-068",
+      "class": "Compact",
+      "readiness": "Approved; queued on BUG-059/current FEAT-005 build",
+      "owned_files": ["scripts/build_presentation.py", "scripts/verify_bug035_presentation.py"],
+      "prototype_or_verifier": "Level-start side-HUD equals (34,13) must be GREEN 5; central panel equals (18,7) remains unchanged. Current static frame is retained.",
+      "commands": ["wsl python3 scripts/verify_bug035_presentation.py", "after BUG-059/FEAT-005 integration: wsl bash scripts/build.sh build"],
+      "gate": "Current compiler and generated SharedText are needed for the first-published-frame check; do not recolor other equals cells."
+    },
+    {
+      "id": "BUG-069",
+      "class": "Compact",
+      "readiness": "Approved; queued for current-profile verifier adaptation",
+      "owned_files": ["assets/arcade/text-colours.json", "scripts/verify_shared_text.py"],
+      "prototype_or_verifier": "Existing static run supports level-start score cells x33-38,y2 as LIGHT_GREEN 8; no dynamic painter owns those cells.",
+      "commands": ["wsl bash scripts/build.sh build", "wsl python3 scripts/verify_shared_text.py --build-dir build", "wsl python3 scripts/verify_bug035_presentation.py"],
+      "gate": "BUG-035 verifier still waits for removed normal_game/normal_stage markers. Replace with current-profile/GDB dispatch; current combined build also needs BUG-059/FEAT-005 integration."
+    },
+    {
+      "id": "BUG-081",
+      "class": "High-risk",
+      "readiness": "Approved; not Ready: fitted dwell design and assignment remain unresolved",
+      "owned_files": [],
+      "candidate_files": ["src/perimeter_reset_helper.s", "src/shared_text_stage.inc", "possibly src/presentation_runtime.s", "possibly scripts/build_presentation.py", "possibly scripts/build.sh"],
+      "prototype_or_verifier": "Source-only dwell evidence; no approved production whitelist or fitted logo-only design. Design must count elapsed Vbords across missed foreground frames without changing decorative actor writes or resetting shared presentation timer.",
+      "commands": [],
+      "gate": "Specify exact file whitelist, worktree, capacity boundary, runnable commands, dependencies and evidence. Acceptance: natural attract/high-score paths, 31 elapsed-Vbord intervals, independent A/B logo crops, unchanged non-logo/actors and baseline actor cadence."
+    },
+    {
+      "id": "BUG-083",
+      "class": "High-risk",
+      "readiness": "Approved; not Ready: current-ROM stage-reset observation is missing",
+      "owned_files": ["src/main.s initialization and stage-reset paths", "proven recolour invalidation callsite only if required"],
+      "prototype_or_verifier": "Source confirms BONUS_COLOR starts BLUE and BONUS_TIMER=420; next_stage does not reset; transitions are 420/30/150. Existing prototype covers deterministic timer sequence; skull verifier checks only adjacent invariant.",
+      "commands": ["wsl bash scripts/build.sh build", "wsl python3 scripts/verify_bug004_skull_colour_cycle.py", "wsl python3 wiki/internal/tickets/evidence/rsch014-B/prototype_bonus_cycle.py"],
+      "gate": "Build currently stops at compiler prerequisite. Name a current-ROM initial-stage and next-stage first-pixel/state harness, and retain first-frame red, timer, both owners, unchanged skulls and capacity."
+    },
+    {
+      "id": "BUG-084",
+      "class": "High-risk",
+      "readiness": "Approved; not Ready: right-edge/clipped acceptance harness missing",
+      "owned_files": ["src/main.s entry trajectory", "src/enemy_runtime.s only if owner-local clipping is required"],
+      "prototype_or_verifier": "Parent's 2026-10-03 source/map receipt resolves geometry: 320x192 screen, 160 bytes/row; roots x264/280/296 map to columns 28/20/12 in two-pixel steps; y168/152/136/120 are 256-aligned. HUD-only low-byte pointer is a byte column; minimum8; 160-lowbyte width is clipped to 18 pixels then zero. Existing lower-edge visible_rows copies only 8 bytes. Receipt: wiki/internal/tickets/evidence/rsch014-parent/bug084-grid-edge-geometry-20261003.json, ticket anchor #grid-edge-geometry-20261003. No runnable edge/clipped-pixel harness is present; verify_bug006_respawn_player.py is adjacent owner-history coverage only.",
+      "commands": ["wsl bash scripts/build.sh build", "wsl python3 scripts/verify_bug006_respawn_player.py (adjacent regression only)"],
+      "gate": "Grid geometry is closed by the parent receipt; remaining gate is clipped-actor fit and exact natural/forced right-edge runtime command. Retain per-tick position/facing, clipped pixels, both-owner history, artifact identity and capacity. Current build awaits BUG-059."
+    },
+    {
+      "id": "BUG-085",
+      "class": "High-risk",
+      "readiness": "Approved; not Ready: repeated-life/final-life runner missing",
+      "owned_files": ["src/main.s death-completion/entry handoff", "BUG-084 implementation subset only if clipped rendering proves necessary"],
+      "prototype_or_verifier": "Existing verify_bug006_respawn_player.py and verify_bug012_forced_collisions.py do not exercise repeated marker entry or final-life suppression.",
+      "commands": ["wsl bash scripts/build.sh build", "wsl python3 scripts/verify_bug006_respawn_player.py", "wsl python3 scripts/verify_bug012_forced_collisions.py"],
+      "gate": "Sequential dependencies BUG-062 then BUG-084. Define forced death, repeat marker, final-life game-over and natural first-entry commands plus lifecycle/owner/input/stage/ROM/capacity evidence."
+    },
+    {
+      "id": "BUG-100",
+      "class": "Standard",
+      "readiness": "Approved; not Ready: after-gameplay return-route command and evidence paths missing",
+      "owned_files": ["scripts/build_presentation.py"],
+      "prototype_or_verifier": "Four-tile prototype yields 44 red pixels, zero white, 19 changed, zero outside mark; complete isolated build and cold/deferred phases exist. Historical direct-credit monitor sample is route-limited and not full live identity.",
+      "commands": ["LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build", "wsl -d Ubuntu -- python3 wiki/internal/tickets/evidence/rsch014-parent/bug100_full_mark_build_review.py", "current-GDB direct-credit and after-gameplay/name-entry route commands: not yet specified"],
+      "gate": "Before Ready name the current-GDB return-route marker, byte identity, deadline and evidence outputs. Historical monitor output is not a substitute."
+    },
+    {
+      "id": "FEAT-005",
+      "class": "High-risk",
+      "readiness": "RSCH-014 increment approved; queued on BUG-059/060 and BUG-063 integration",
+      "owned_files": ["src/keybinding_runtime.s", "scripts/shared_text.py", "src/shared_text_stage.inc", "assets/arcade/text-colours.json", "src/demo_runtime.s", "scripts/source_reference.json", "scripts/verify_feat005_menus.py"],
+      "prototype_or_verifier": "C3 prototype defines fixed 5/6 credit, arrow/Enter menu, five gameplay rows and held-entry release interlock. Recorded prototype build/capacity is historical to that input snapshot. Current changed maps show five guide rows against legacy seven-plus-BACK parser; strict BUG-063 palette gate remains. Menu verifier uses private monitor.",
+      "commands": ["LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build", "wsl python3 scripts/verify_shared_text.py --build-dir build", "wsl python3 scripts/verify_feat005_menus.py (current GDB route required; no monitor-stack work)"],
+      "gate": "Exact order is BUG-059/060 layer contract and strict BUG-063 palette, then parser/menu runtime and combined adaptive build/capacity. Approval covers the current increment only; parent owns integration and QA."
+    },
+    {
+      "id": "BUG-102",
+      "class": "High-risk",
+      "readiness": "Approved; queued for FEAT-005 current name path and coordinated glyph owner",
+      "owned_files": ["scripts/shared_text.py", "scripts/build_presentation.py", "src/shared_text_stage.inc", "scripts/verify_feat005_menus.py"],
+      "prototype_or_verifier": "Current source cause is recorded. Planned focused selector --name-case bug102 is verifier execution work; current verifier uses private monitor and high-score legacy verifier is test-profile-only.",
+      "commands": ["wsl bash -lc \"LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build\"", "wsl python3 scripts/verify_shared_text.py --build-dir build", "wsl python3 scripts/verify_feat005_menus.py --name-case bug102 --output build/bug102-name.json (planned; route via GDB adapter)"],
+      "gate": "Coordinate/serialize glyph roles with BUG-103/108/110; current FEAT-005 name path, exact ROM identity and measured narrow-capacity result."
+    },
+    {
+      "id": "BUG-103",
+      "class": "High-risk",
+      "readiness": "Approved; queued for FEAT-005 current name path and coordinated glyph owner",
+      "owned_files": ["scripts/shared_text.py", "scripts/build_presentation.py", "src/shared_text_stage.inc", "scripts/verify_feat005_menus.py"],
+      "prototype_or_verifier": "Source cause and rank-one/later-rank fields are defined. Planned --name-case bug103 selector is absent; existing verifier uses private monitor.",
+      "commands": ["wsl bash -lc \"LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build\"", "wsl python3 scripts/verify_shared_text.py --build-dir build", "wsl python3 scripts/verify_feat005_menus.py --name-case bug103 --output build/bug103-name.json (planned; route via GDB adapter)"],
+      "gate": "One coordinated glyph-role implementation with BUG-102/108/110, no concurrent shared-file writes. Retain both field masks, exact ROM identity and capacity."
+    },
+    {
+      "id": "BUG-104",
+      "class": "High-risk",
+      "readiness": "Approved; queued for FEAT-005 current name path; BUG-106 follows",
+      "owned_files": ["scripts/build_presentation.py", "src/shared_text_stage.inc", "scripts/verify_feat005_menus.py"],
+      "prototype_or_verifier": "Current-stage identity must survive game-over/name-entry handoff. Planned --name-case bug104 selector is absent.",
+      "commands": ["wsl bash -lc \"LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build\"", "wsl python3 scripts/verify_shared_text.py --build-dir build", "wsl python3 scripts/verify_feat005_menus.py --name-case bug104 --output build/bug104-name.json (planned; route via GDB adapter)"],
+      "gate": "Force first/later-stage transitions, retain source/ROM identity and capacity; sequence before BUG-106."
+    },
+    {
+      "id": "BUG-105",
+      "class": "High-risk",
+      "readiness": "Approved; queued for FEAT-005 and BUG-104 stage identity",
+      "owned_files": ["src/shared_text_stage.inc", "assets/arcade/text-colours.json", "scripts/verify_shared_text.py", "scripts/verify_feat005_menus.py"],
+      "prototype_or_verifier": "Final value policy is points of the vegetable selected by the last part. Planned --name-case bug105 selector is absent; do not reduce it to a static colour fix.",
+      "commands": ["wsl bash -lc \"LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build\"", "wsl python3 scripts/verify_shared_text.py --build-dir build", "wsl python3 scripts/verify_feat005_menus.py --name-case bug105 --output build/bug105-name.json (planned; route via GDB adapter)"],
+      "gate": "BUG-104 owns the last-part identity; BUG-106 sprite and BUG-105 point value must consume that same identity. The current 18-entry stage-panel record supplies value digits at offsets 16-19. Retain all 18 mapping results, both-owner pixels and capacity."
+    },
+    {
+      "id": "BUG-106",
+      "class": "High-risk",
+      "readiness": "Approved; queued on BUG-104 plus BUG-059/060 marker integration",
+      "owned_files": ["scripts/build_presentation.py", "src/shared_text_stage.inc", "scripts/verify_feat005_menus.py"],
+      "prototype_or_verifier": "Authored marker destination and stage-sprite selection are defined. Planned --name-case bug106 selector is absent.",
+      "commands": ["wsl bash -lc \"LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build\"", "wsl python3 scripts/verify_shared_text.py --build-dir build", "wsl python3 scripts/verify_feat005_menus.py --name-case bug106 --output build/bug106-name.json (planned; route via GDB adapter)"],
+      "gate": "Requires BUG-104 stage identity and BUG-059/060 metadata/layer integration before reading the marker; preserve hard module limits."
+    },
+    {
+      "id": "BUG-107",
+      "class": "High-risk",
+      "readiness": "Approved; queued for FEAT-005 current name path and exact audio command",
+      "owned_files": ["scripts/build_presentation.py", "scripts/shared_text.py", "src/shared_text_stage.inc", "scripts/verify_feat005_menus.py"],
+      "prototype_or_verifier": "Filtered action-table omission and native heart symbol are source-confirmed. Planned --name-case bug107 selector is absent.",
+      "commands": ["wsl bash -lc \"LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build\"", "wsl python3 scripts/verify_shared_text.py --build-dir build", "existing audio verifier (exact command absent from assignment)", "wsl python3 scripts/verify_feat005_menus.py --name-case bug107 --output build/bug107-name.json (planned; route via GDB adapter)"],
+      "gate": "Name exact audio verifier command and prove dot/space/heart append plus traversal cue; observe each required symbol under current GDB route."
+    },
+    {
+      "id": "BUG-108",
+      "class": "Standard",
+      "readiness": "Approved; queued behind coordinated BUG-102/103/110 glyph work and FEAT-005",
+      "owned_files": ["scripts/build_presentation.py", "src/shared_text_stage.inc", "scripts/verify_feat005_menus.py"],
+      "prototype_or_verifier": "PRES_INSERT is authoritative rank; no current writer fills TOP/ordinal phrase. Planned --name-case bug108 selector is absent.",
+      "commands": ["wsl bash -lc \"LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build\"", "wsl python3 scripts/verify_shared_text.py --build-dir build", "wsl python3 scripts/verify_feat005_menus.py --name-case bug108 --output build/bug108-name.json (planned; route via GDB adapter)"],
+      "gate": "Serialize with shared glyph-role owners; verify first through fourth and final rank plus stale-cell cleanup on owner replay."
+    },
+    {
+      "id": "BUG-109",
+      "class": "Compact",
+      "readiness": "Approved; queued for FEAT-005 current name path and GDB selector",
+      "owned_files": ["src/shared_text_stage.inc", "scripts/verify_feat005_menus.py"],
+      "prototype_or_verifier": "One row-13 top-left score writer is confirmed. Planned --name-case bug109 selector is absent; old high-score verifier is test-profile-only.",
+      "commands": ["wsl bash -lc \"LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build\"", "wsl python3 scripts/verify_shared_text.py --build-dir build", "wsl python3 scripts/verify_feat005_menus.py --name-case bug109 --output build/bug109-name.json (planned; route via GDB adapter)"],
+      "gate": "Assert six empty cells, adjacent scores, first/later ranks and owner replay. Keep any ticket-specific oracle under 200 nonblank lines."
+    },
+    {
+      "id": "BUG-110",
+      "class": "High-risk",
+      "readiness": "Approved; queued behind coordinated BUG-103/108 glyph work and FEAT-005",
+      "owned_files": ["scripts/shared_text.py", "scripts/build_presentation.py", "src/shared_text_stage.inc", "scripts/verify_feat005_menus.py"],
+      "prototype_or_verifier": "Missing left rank/name/score writer is source-confirmed; authoritative values are PRES_INSERT/PRES_PENDING_NAME/PRES_SCORE_H. Planned --name-case bug110 selector is absent.",
+      "commands": ["wsl bash -lc \"LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build\"", "wsl python3 scripts/verify_shared_text.py --build-dir build", "wsl python3 scripts/verify_feat005_menus.py --name-case bug110 --output build/bug110-name.json (planned; route via GDB adapter)"],
+      "gate": "Coordinate glyph roles with BUG-103/108 and keep BUG-109 separate. Verify first/later rank, pending data, both owners and exact capacity."
+    }
+  ],
+  "dependency_order": [
+    {"sequence": 1, "tickets": ["BUG-059"], "gate": "Current strict layer/compiler Ready prerequisite on pinned 11-map snapshot."},
+    {"sequence": 2, "tickets": ["BUG-060", "BUG-063", "BUG-064", "BUG-065", "BUG-066", "BUG-067", "BUG-068", "BUG-069"], "gate": "Respect each explicit 059/060 current-map gate; serialize generator/verifier overlaps; preserve BUG-063 strict pen-9 oracle."},
+    {"sequence": 3, "tickets": ["FEAT-005"], "gate": "After BUG-059/060 and BUG-063 strict palette path; then complete parser/menu build and capacity."},
+    {"sequence": 4, "tickets": ["BUG-061", "BUG-062", "BUG-083"], "gate": "Use current artifact and exact numeric/life/stage-reset discriminators; BUG-062's FEAT-005/BUG-039 dependencies are natural integration gates, not source prerequisites."},
+    {"sequence": 5, "tickets": ["BUG-084", "BUG-085"], "gate": "Resolve BUG-084 right-edge/clipping contract first; BUG-085 follows BUG-062 and BUG-084."},
+    {"sequence": 6, "tickets": ["BUG-081", "BUG-100"], "gate": "Complete BUG-081 fitted dwell design/whitelist and BUG-100 after-gameplay route command before Ready."},
+    {"sequence": 7, "tickets": ["BUG-102", "BUG-103", "BUG-104", "BUG-105", "BUG-106", "BUG-107", "BUG-108", "BUG-109", "BUG-110"], "gate": "After FEAT-005 current name path; BUG-104 precedes BUG-106; coordinate 102/103/108/110; serialize shared production and verifier owners; use GDB adapters."}
+  ],
+  "shared_verification_findings": [
+    "scripts/verify_feat005_menus.py and repro/feat005/integration_check.py use the private XRoar monitor; this stack is deferred. Existing GDB synchronous adapters are the allowed current observation route. No monitor stack change or run was made.",
+    "Name-entry --name-case selectors are planned changes in assigned verifier ownership, not existing passes. Keep planned test additions distinct from a readiness defect.",
+    "scripts/verify_bug021_complete_instructions.py calls verify_bug011_runtime.load_monitor. scripts/verify_bug035_presentation.py uses monitor and stale normal_game/normal_stage markers. Update affected live commands to current GDB phase markers.",
+    "A pre-fix test failure is not a Ready blocker when the assignment contains the exact discriminator. Do not require future repaired tests to pass before Ready."
+  ],
+  "audit_commands": [
+    "Read wiki/index.html, workflow, RSCH-014, coverage, approval and BUG-059 input receipts.",
+    "Read current contract/assignment sections, owned-file scopes, prototypes/verifiers, dependency statements and commands for all 26 coverage-backed tickets.",
+    "rg -n \"monitor|65527|--name-case|gdb|GDB|normal_game|normal_stage\" scripts/verify_feat005_menus.py repro/feat005/integration_check.py scripts/verify_feat003_highscore_test.py scripts/verify_bug035_presentation.py scripts/verify_bug011_instructions.py scripts/verify_bug021_complete_instructions.py"
+  ],
+  "audit_limits": [
+    "Read-only ticket/source inspection only; no emulator, build, static verifier, or TMX write.",
+    "No ticket, index, log, status, approval, production source, verifier, or prototype was changed.",
+    "Parent owns canonical ticket edits, status, index/log, integration and QA."
+  ]
+}
