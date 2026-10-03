@@ -1,0 +1,152 @@
+{
+  "date": "2026-10-03",
+  "design": {
+    "event_handling": "Retain all asynchronous bp messages drained by MonitorClient.call during run/wait. They are secondary diagnostics, not a success gate.",
+    "no_succession_until_boundary_passes": true,
+    "phase": {
+      "deadline_seconds": 45,
+      "independent_capture_reserve_seconds": 5,
+      "per_marker_wait_max_seconds": 12,
+      "primary_wait_max_seconds": 40
+    },
+    "primary_stop_marker": "After a successful run RPC acknowledgement, issue wait_for_stop with a bounded server timeout shorter than the client read deadline by 750ms. Accept only reason=breakpoint with a bp_id from the current set_breakpoint acknowledgements and exact matching PC.",
+    "request_epoch_safety": "MonitorClient request IDs must show wait_for_stop immediately follows run (wait ID equals run ID + 1). The observer records a local run epoch; monitor.c resets last_stop to NONE before the run acknowledgement, so the synchronous stop result belongs to the next run, not the previous stop.",
+    "scope": "Observer and E6 evidence only. No production monitor/client, ROM/source/build, protocol, loader, mapping, profile, phase, or deadline changes.",
+    "success_marker": "All 87 helper bytes match authored/staged/physical/mapped image; wait_for_stop reports an acknowledged expected helper breakpoint and source-proven caller/return with PC and stack checks; resident $C116 is reached and live bytes match the current artifact.",
+    "transport_timeout": "If run/wait call errors at transport level, do not issue another call on the primary socket/makefile; use the already-open secondary capture. A returned reason=timeout is a healthy RPC response and permits the bounded read-only primary state/list/drop-counter snapshot before secondary pause."
+  },
+  "monitor_source": {
+    "monitor_c_preexisting_read_cycles_diff_sha256": "f77d721eaa68eac9dd4dc222abfc7cab73d86573ccb6eb970e4e65a45d71f7df",
+    "monitor_c_sha256": "30c0d8f4ff69963eec0439c191e3993335d241fefc04da6950da5c4a7709de65",
+    "monitor_c_worktree_diff_sha256": "f77d721eaa68eac9dd4dc222abfc7cab73d86573ccb6eb970e4e65a45d71f7df",
+    "monitor_h_sha256": "edbe592a0f5533721e0a50b4a6f9825ead18064fdd1e13af728dc5739979eec9",
+    "relevant_ranges": {
+      "run_handler": "monitor.c:827-834",
+      "stop_state_and_event_order": "monitor.c:563-595",
+      "stop_state_reset_on_run": "monitor.c:599-613",
+      "wait_for_stop": "monitor.c:1338-1378"
+    },
+    "repository": "E:\\projects\\ladybug\\docs\\reference\\xroar",
+    "repository_revision": "66f010efb6b8521b000f00e75afd6a06f7d1599b",
+    "revision": "66f010efb6b8521b000f00e75afd6a06f7d1599b",
+    "source_facts": {
+      "breakpoint_event_emitted_after_condition_broadcast": true,
+      "run_clears_last_stop_before_ack": true,
+      "wait_for_stop_waits_on_run_state_condition_and_returns_reason_pc_bp_id": true
+    }
+  },
+  "observer": {
+    "ast": "pass; ast.parse only, no import or execution",
+    "derived_from_path": "wiki/internal/tickets/evidence/rsch014-E6/boundary_observer_eventledger_v2.py",
+    "derived_from_sha256": "7ee4deac90d45314c61a4ee1375c97f6591506f30879961940189416bcc03907",
+    "original_v1_sha256": "0bee8d5e5aa91e8130a0dfbf950a1d1d33c9360370415fc33bcae90d72a50a34",
+    "path": "wiki/internal/tickets/evidence/rsch014-E6/boundary_observer_wait_for_stop_v3.py",
+    "prior_v2_failure_sha256": "37a9958809f9a1159cd375bc75896743b16c0e6865f245318589a0e3dcf0ec3a",
+    "sha256": "4750f4044c19a7d740e683d3a6f6da3307eee5dce3c07bd77a06fa632c6d22e7"
+  },
+  "parent_review_status": "pending",
+  "preflight": {
+    "expected_pinned_artifacts": 23,
+    "final_offline_guard": {
+      "candidate_and_staging_guards": "pass",
+      "head": "477d18a2765f783641207cb5ce9ece7a0905a05a",
+      "monitor_source_revision_and_hashes": "pass",
+      "path": "wiki/internal/tickets/evidence/rsch014-E6/offline-launch-guard-wait-stop-v3-schema-pass-20261003.json",
+      "pinned_artifacts_verified": 23,
+      "private_control_contract": "pass",
+      "runtime_launched": false,
+      "sha256": "7a53e45cf7915a0d8546beff59e33163ec62ed985a54ce3ae7c014333e32622e",
+      "status": "offline-launch-guard-pass-no-runtime-launched"
+    },
+    "historical_receipt": "wiki/internal/tickets/evidence/rsch014-E6/preflight-20261003.json",
+    "output_path_absent_required": true,
+    "rejected_attempt": {
+      "path": "wiki/internal/tickets/evidence/rsch014-E6/offline-launch-guard-wait-stop-v3-20261003.json",
+      "reason": "The first offline guard stopped before pinned-artifact checks because the observer reads worktree.current_head; the candidate receipt initially had review_base_head only. No emulator or monitor was launched.",
+      "sha256": "e36c98e3e4bea1207d0632193d98db1dec5ddcec36cb4b0be3b69b3ece4e832e"
+    },
+    "rejected_attempts": [
+      {
+        "path": "wiki/internal/tickets/evidence/rsch014-E6/offline-launch-guard-wait-stop-v3-20261003.json",
+        "reason": "The first offline guard stopped before pinned-artifact checks because the observer reads worktree.current_head; the candidate receipt initially had review_base_head only. No emulator or monitor was launched.",
+        "sha256": "e36c98e3e4bea1207d0632193d98db1dec5ddcec36cb4b0be3b69b3ece4e832e"
+      },
+      {
+        "path": "wiki/internal/tickets/evidence/rsch014-E6/offline-launch-guard-wait-stop-v3-corrected-20261003.json",
+        "reason": "The offline guard passed ancestry and pinned checks, then compared monitor source identity. The receipt used monitor_c_preexisting_read_cycles_diff_sha256 while the guard requires monitor_c_worktree_diff_sha256. No emulator or monitor was launched.",
+        "sha256": "e70133ba4351bf9ce61a5e0ae5d9a64e6b73ec658fa087a05f83c1eeae77cde4"
+      },
+      {
+        "path": "wiki/internal/tickets/evidence/rsch014-E6/offline-launch-guard-wait-stop-v3-final-20261003.json",
+        "reason": "After current_head and monitor_c_worktree_diff_sha256 were corrected, the guard reached source identity and required monitor_source.repository_revision. No emulator or monitor was launched.",
+        "sha256": "e70133ba4351bf9ce61a5e0ae5d9a64e6b73ec658fa087a05f83c1eeae77cde4"
+      }
+    ],
+    "required_command": "wsl.exe python3 /mnt/e/projects/ladybug/worktrees/bug086-page34-preparation/wiki/internal/tickets/evidence/rsch014-E6/boundary_observer_wait_for_stop_v3.py --preflight-only /mnt/e/projects/ladybug/worktrees/bug086-page34-preparation /mnt/e/projects/ladybug/worktrees/bug086-page34-preparation/wiki/internal/tickets/evidence/rsch014-E6/offline-launch-guard-wait-stop-v3-schema-pass-20261003.json",
+    "runtime_output_path": "wiki/internal/tickets/evidence/rsch014-E6/runtime-result-wait-for-stop-v3-20261003.json"
+  },
+  "reassessment": {
+    "no_additional_runtime_until_review": true,
+    "parent_decision": "Offline v3 may use the existing synchronous run acknowledgement plus wait_for_stop; no runtime is authorized pending review of exact implementation, fake-response checks, and epoch/ID safety.",
+    "v2_finding": "The primary event wait did not retain a return bp event. Independent pre-pause state/list plus live code and stack prove the dynamically executed return breakpoint ID 11 stopped at $15D5; event delivery versus unread data after the timed-out stream is not resolved."
+  },
+  "runtime_authorized_by_this_receipt": false,
+  "schema": "ladybug-rsch014-e6-wait-for-stop-v3-review-v1",
+  "static_fake_response_tests": {
+    "case_count": 14,
+    "cases": [
+      "run ack ok",
+      "run ack rejects false",
+      "fresh adjacent request IDs",
+      "reject nonadjacent wait request",
+      "run raw envelope correlated to ack",
+      "reject stale run response ID",
+      "wait reply raw envelope correlated to same run epoch",
+      "reject wait response from prior request",
+      "matching installed breakpoint ID and PC",
+      "server timeout is a missing marker",
+      "reject prior helper ID after return is expected",
+      "reject known ID at wrong PC",
+      "reject pause as success",
+      "reject breakpoint without ID"
+    ],
+    "monitor_imported": false,
+    "path": "wiki/internal/tickets/evidence/rsch014-E6/wait-for-stop-v3-selftest-20261003.json",
+    "runtime_launched": false,
+    "sha256": "c3dfd2bf64e3836687a45de7ff1297a0b620e8bde33ab986202822ca7b705471",
+    "status": "pass"
+  },
+  "static_schema_audit": {
+    "check_count": 45,
+    "failed_check_count": 0,
+    "path": "wiki/internal/tickets/evidence/rsch014-E6/wait-for-stop-v3-receipt-schema-audit-20261003.json",
+    "receipt_keys_enumerated": [
+      "observer.ast",
+      "observer.sha256",
+      "worktree.current_head",
+      "monitor_source.repository_revision",
+      "monitor_source.monitor_c_sha256",
+      "monitor_source.monitor_h_sha256",
+      "monitor_source.monitor_c_worktree_diff_sha256",
+      "parent_review_status",
+      "worktree_head",
+      "observer.path",
+      "observer.sha256",
+      "pinned_files",
+      "candidate.xroar_sha256",
+      "private_control.launcher_sha256",
+      "private_control.monitor_client_sha256"
+    ],
+    "sha256": "b75bd597c78548037b30600f7869bb8bc4464f39843ee8348955b91381ac1a6f",
+    "status": "pass"
+  },
+  "status": "offline-candidate-awaiting-parent-review",
+  "ticket": "RSCH-014 / BUG-086 E6",
+  "worktree": {
+    "current_head": "477d18a2765f783641207cb5ce9ece7a0905a05a",
+    "evidence_owned_paths_only": true,
+    "path": "E:\\projects\\ladybug\\worktrees\\bug086-page34-preparation",
+    "preserve_existing_dirty_prototypes_and_untracked_build": true,
+    "review_base_head": "477d18a2765f783641207cb5ce9ece7a0905a05a"
+  }
+}

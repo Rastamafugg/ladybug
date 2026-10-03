@@ -1,0 +1,117 @@
+{
+  "cases": [
+    {
+      "actual": {
+        "ok": true
+      },
+      "expected": "accept",
+      "name": "run ack ok",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: run acknowledgement must contain ok=true",
+      "expected": "reject",
+      "name": "run ack rejects false",
+      "passed": true
+    },
+    {
+      "actual": null,
+      "expected": "accept",
+      "name": "fresh adjacent request IDs",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: wait_for_stop must immediately follow the acknowledged run call",
+      "expected": "reject",
+      "name": "reject nonadjacent wait request",
+      "passed": true
+    },
+    {
+      "actual": {
+        "id": 69,
+        "result": {
+          "ok": true
+        }
+      },
+      "expected": "accept",
+      "name": "run raw envelope correlated to ack",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: run call receipt does not match its request ID/outcome",
+      "expected": "reject",
+      "name": "reject stale run response ID",
+      "passed": true
+    },
+    {
+      "actual": [
+        null,
+        {
+          "id": 70,
+          "result": {
+            "bp_id": 11,
+            "pc": 5589,
+            "reason": "breakpoint"
+          }
+        }
+      ],
+      "expected": "accept",
+      "name": "wait reply raw envelope correlated to same run epoch",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: wait_for_stop call receipt does not match its request ID/outcome",
+      "expected": "reject",
+      "name": "reject wait response from prior request",
+      "passed": true
+    },
+    {
+      "actual": {
+        "bp_id": 11,
+        "marker": true,
+        "pc": 5589,
+        "status": "breakpoint"
+      },
+      "expected": "accept",
+      "name": "matching installed breakpoint ID and PC",
+      "passed": true
+    },
+    {
+      "actual": {
+        "marker": false,
+        "status": "timeout"
+      },
+      "expected": "accept",
+      "name": "server timeout is a missing marker",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: wait_for_stop breakpoint ID is not currently acknowledged/installed: 9",
+      "expected": "reject",
+      "name": "reject prior helper ID after return is expected",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: wait_for_stop PC $A8D2 does not match installed breakpoint 11 at $15D5",
+      "expected": "reject",
+      "name": "reject known ID at wrong PC",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: wait_for_stop reason is not breakpoint: 'pause'",
+      "expected": "reject",
+      "name": "reject pause as success",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: wait_for_stop breakpoint ID is not currently acknowledged/installed: None",
+      "expected": "reject",
+      "name": "reject breakpoint without ID",
+      "passed": true
+    }
+  ],
+  "monitor_imported": false,
+  "runtime_launched": false,
+  "schema": "ladybug-rsch014-e6-wait-for-stop-v3-selftest-v1",
+  "status": "pass"
+}
