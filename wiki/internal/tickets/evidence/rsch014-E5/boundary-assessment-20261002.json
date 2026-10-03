@@ -6,7 +6,7 @@
   "receipts": {
     "E5_four_phase_runtime": {
       "path": "runtime-result-20261002.json",
-      "sha256": "ba75ededded103c01d255c327117d6f560f9387ea4cf7fcaa82fbcdeee980b3b91",
+      "sha256": "ba75edded103c01d255c327117d6f560f9387ea4cf7fcaa82fbcdeee980b3b91",
       "result": "cold credit and Start dispatch passed; first active-worklist wait timed out at 45.013 seconds; later E5 phases not run"
     },
     "boundary_preflight": {
@@ -34,8 +34,8 @@
       "resident": "live bytes matched resident build image",
       "enemy_module": "live bytes matched enemy build image",
       "presentation_module": "live bytes matched presentation build image",
-      "active_stage": "physical page $3D at $B7A5, destination $038F with PAR0=$38, and source active binary all matched SHA 8add5b40…5971d9",
-      "page34_helper": "physical and mapped bytes at $A8A0-$A8F6 matched helper SHA 057e2803…26526 with PAR5=$34"
+      "active_stage": "physical page $3D at $B7A5, destination $038F with PAR0=$38, and source active binary all matched SHA 8add5b40\u00e2\u20ac\u00a65971d9",
+      "page34_helper": "physical and mapped bytes at $A8A0-$A8F6 matched helper SHA 057e2803\u00e2\u20ac\u00a626526 with PAR5=$34"
     },
     "secondary_client": "pre-opened before the active-worklist wait; hello reported XRoar 1.11/protocol 0.6.0; initial run state halted; no breakpoint subscription was made",
     "first_active_wait": {
@@ -51,7 +51,16 @@
     "captured_marker_context": {
       "PC": "$A8D2",
       "S": "$1FD4",
-      "PAR0_7_after_masking": ["38", "2C", "2D", "2E", "2F", "34", "3E", "3F"],
+      "PAR0_7_after_masking": [
+        "38",
+        "2C",
+        "2D",
+        "2E",
+        "2F",
+        "34",
+        "3E",
+        "3F"
+      ],
       "PAR5": "$34",
       "runtime_call_caller": "not determined; caller/stack bytes were not captured",
       "whole_helper_hash_at_marker": "not captured; only the 12-byte entry prefix was retained",
@@ -61,9 +70,36 @@
     "secondary_capture": {
       "pause_acknowledged": true,
       "run_state": "halted at $A8D2; last-stop reason pause",
-      "raw_direct_read_memory_FFA0_FFA7": ["B8", "AC", "AD", "AE", "AF", "B4", "BE", "BF"],
-      "normalized_direct_PAR0_7_mask_3F": ["38", "2C", "2D", "2E", "2F", "34", "3E", "3F"],
-      "gime_state_task0_PAR0_7": ["38", "2C", "2D", "2E", "2F", "34", "3E", "3F"],
+      "raw_direct_read_memory_FFA0_FFA7": [
+        "B8",
+        "AC",
+        "AD",
+        "AE",
+        "AF",
+        "B4",
+        "BE",
+        "BF"
+      ],
+      "normalized_direct_PAR0_7_mask_3F": [
+        "38",
+        "2C",
+        "2D",
+        "2E",
+        "2F",
+        "34",
+        "3E",
+        "3F"
+      ],
+      "gime_state_task0_PAR0_7": [
+        "38",
+        "2C",
+        "2D",
+        "2E",
+        "2F",
+        "34",
+        "3E",
+        "3F"
+      ],
       "meaning": "The raw CPU data-bus values retain their upper two bits on MMU reads. Masking each with $3F matches read_gime_state; the direct and structured register observations agree after the documented read normalization."
     },
     "observer_cause": {
@@ -87,5 +123,12 @@
     "Proposed_status_justified": false,
     "ticket_status_change": false,
     "user_tmx_and_dirty_prototype": "preserved"
+  },
+  "parent_metadata_correction": {
+    "date": "2026-10-02",
+    "field": "receipts.E5_four_phase_runtime.sha256",
+    "old_transcription": "ba75ededded103c01d255c327117d6f560f9387ea4cf7fcaa82fbcdeee980b3b91",
+    "correct_retained_git_blob_sha256": "ba75edded103c01d255c327117d6f560f9387ea4cf7fcaa82fbcdeee980b3b91",
+    "meaning": "Reference typo corrected; retained runtime-result bytes and measurements unchanged. Receipt/source hashes refer LF Git-object bytes; Windows CRLF checkout can change raw filesystem hash."
   }
 }

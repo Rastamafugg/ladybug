@@ -341,7 +341,8 @@
         XRoar source under <code>docs/reference/xroar/src/</code>.
       </p>
     </footer>
-  </main>
+  <section id="mmu-readback-normalization-20261002"><h2>2026-10-02 — MMU page readback normalization</h2><p>For CPU-space reads of $FFA0–$FFAF, compare page identifiers using raw &amp; $3F. XRoar preserves the upper two bus bits when returning the six-bit MMU register. The read_gime_state PAR arrays supply normalized page identifiers. Keep both raw bytes and active task/MMU state; compare authored, staged and physical/mapped code bytes independently. Do not report a PAR mismatch solely because $B4 differs from page$34 before normalization. <a href="../sources/xroar-tcc1014.html#mmu-readback">Primary source and observed E5 arrays</a>.</p></section>
+</main>
 </div>
 </body>
 </html>
