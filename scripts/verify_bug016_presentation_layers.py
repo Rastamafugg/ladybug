@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify BUG-016 presentation layer ownership and marker diagnostics."""
+"""Verify shared presentation contracts and optional BUG-060 partition evidence."""
 
 from __future__ import annotations
 
@@ -28,9 +28,6 @@ from build_presentation import (
 
 
 WORKSPACE = Path(__file__).resolve().parents[1]
-PARTITION_RECEIPT = (
-    WORKSPACE / "wiki/internal/tickets/evidence/rsch014-ready-060/partition-receipt.json"
-)
 EXECUTION_EVIDENCE = (
     WORKSPACE / "wiki/internal/tickets/evidence/rsch014-ready-060/bug060-execution.json"
 )
@@ -40,7 +37,18 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tiled-dir", type=Path, required=True)
     parser.add_argument("--manifest", type=Path)
-    return parser.parse_args()
+    parser.add_argument(
+        "--partition-receipt", type=Path,
+        help="run frozen BUG-060 authored owner, GID-map, and framebuffer checks",
+    )
+    parser.add_argument(
+        "--execution-evidence", type=Path,
+        help=f"BUG-060 execution hashes (default: {EXECUTION_EVIDENCE})",
+    )
+    args = parser.parse_args()
+    if args.execution_evidence and not args.partition_receipt:
+        parser.error("--execution-evidence requires --partition-receipt")
+    return args
 
 
 def layer(root: ET.Element, name: str) -> ET.Element:
@@ -101,11 +109,10 @@ def verify_partition_map(
     template: dict[int, int], static_hashes: dict[str, str],
     check_file_hash: bool = True,
 ) -> None:
-    filename = path.name
     if check_file_hash:
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if digest != expected["candidate_sha256"]:
-            raise ValueError(f"{path}: candidate TMX hash differs from partition receipt")
+            raise ValueError(f"{path}: candidate TMX hash differs from partition evidence")
 
     static_names = expected["candidate_static_layers"]
     layers = root.findall("layer")
@@ -171,11 +178,16 @@ def require_partition_failure(
 
 def main() -> None:
     args = parse_args()
-    receipt = json.loads(PARTITION_RECEIPT.read_text(encoding="ascii"))
-    execution = json.loads(EXECUTION_EVIDENCE.read_text(encoding="ascii"))
-    template = {
-        y * 40 + x: gid for x, y, gid in receipt["border_template"]
-    }
+    receipt = None
+    execution = None
+    template: dict[int, int] = {}
+    if args.partition_receipt:
+        evidence_path = args.execution_evidence or EXECUTION_EVIDENCE
+        receipt = json.loads(args.partition_receipt.read_text(encoding="ascii"))
+        execution = json.loads(evidence_path.read_text(encoding="ascii"))
+        template = {
+            y * 40 + x: gid for x, y, gid in receipt["border_template"]
+        }
     roots: dict[str, tuple[Path, ET.Element]] = {}
     contracts: dict[str, dict[str, object]] = {}
     for name in MAP_NAMES:
@@ -188,37 +200,38 @@ def main() -> None:
         roots[name] = (path, root)
         contracts[name] = result
 
-    for filename, expected in receipt["maps"].items():
-        path = args.tiled_dir / filename
-        root = ET.parse(path).getroot()
-        execution_map = execution["maps"][filename]
-        expected = {**expected, "candidate_sha256": execution_map["candidate_sha256"]}
-        static_hashes = execution_map["static_layer_gid_sha256"]
-        if filename != "coco-screen.tmx":
-            role = next(name for name, mapping in MAP_FILES.items()
-                        if mapping == filename)
-            if contracts[role]["static_layers"] != expected["candidate_static_layers"]:
-                raise SystemExit(f"BUG-060 proof: {filename} static tuple differs from oracle")
-        verify_partition_map(root, path, expected, template, static_hashes)
+    if receipt is not None and execution is not None:
+        for filename, expected in receipt["maps"].items():
+            path = args.tiled_dir / filename
+            root = ET.parse(path).getroot()
+            execution_map = execution["maps"][filename]
+            expected = {**expected, "candidate_sha256": execution_map["candidate_sha256"]}
+            static_hashes = execution_map["static_layer_gid_sha256"]
+            if filename != "coco-screen.tmx":
+                role = next(name for name, mapping in MAP_FILES.items()
+                            if mapping == filename)
+                if contracts[role]["static_layers"] != expected["candidate_static_layers"]:
+                    raise SystemExit(f"BUG-060 proof: {filename} static tuple differs from oracle")
+            verify_partition_map(root, path, expected, template, static_hashes)
 
-        assets = args.tiled_dir.parent / "assets" / "arcade"
-        if filename == "coco-screen.tmx":
-            compiled, tiles, *_ = screen.compile_screen(
-                path, assets / "maze.json", assets / "chars.json",
-                assets / "sprites.json",
-            )
-            map_bytes = bytes(compiled)
-        else:
-            tiles = []
-            map_bytes, _ = compile_map(
-                path, screen.load_chars(assets / "chars.json"), tiles, {},
-            )
-            map_bytes = bytes(map_bytes)
-        frame = title_framebuffer(map_bytes, tiles)
-        if hashlib.sha256(map_bytes).hexdigest() != expected["compiled_map_sha256"]:
-            raise SystemExit(f"BUG-060 proof: {filename} compiled GID map differs")
-        if hashlib.sha256(frame).hexdigest() != expected["packed_pen_sha256"]:
-            raise SystemExit(f"BUG-060 proof: {filename} packed-pen frame differs")
+            assets = args.tiled_dir.parent / "assets" / "arcade"
+            if filename == "coco-screen.tmx":
+                compiled, tiles, *_ = screen.compile_screen(
+                    path, assets / "maze.json", assets / "chars.json",
+                    assets / "sprites.json",
+                )
+                map_bytes = bytes(compiled)
+            else:
+                tiles = []
+                map_bytes, _ = compile_map(
+                    path, screen.load_chars(assets / "chars.json"), tiles, {},
+                )
+                map_bytes = bytes(map_bytes)
+            frame = title_framebuffer(map_bytes, tiles)
+            if hashlib.sha256(map_bytes).hexdigest() != expected["compiled_map_sha256"]:
+                raise SystemExit(f"BUG-060 proof: {filename} compiled GID map differs")
+            if hashlib.sha256(frame).hexdigest() != expected["packed_pen_sha256"]:
+                raise SystemExit(f"BUG-060 proof: {filename} packed-pen frame differs")
 
     instruction_path, instruction_root = roots["instructions"]
     instruction_records = layer_records(layer(instruction_root, "Sprite Locations"))
@@ -262,30 +275,32 @@ def main() -> None:
     require_failure(wrong_background, roots["instructions"][0], "Background must contain",
                     "nonblank Background cell")
 
-    instruction_expected = receipt["maps"][roots["instructions"][0].name]
-    instruction_hashes = execution["maps"][roots["instructions"][0].name][
-        "static_layer_gid_sha256"
-    ]
-    changed_border = copy.deepcopy(roots["instructions"][1])
-    border_cell = receipt["border_template"][0]
-    replace_cell(layer(changed_border, "Arcade Maze Border"),
-                 (border_cell[0], border_cell[1]), 0)
-    require_partition_failure(
-        changed_border, roots["instructions"][0], instruction_expected,
-        template, instruction_hashes, "Arcade Maze Border differs from the exact template",
-        "border ownership drift",
-    )
+    if receipt is not None and execution is not None:
+        instruction_expected = receipt["maps"][roots["instructions"][0].name]
+        instruction_hashes = execution["maps"][roots["instructions"][0].name][
+            "static_layer_gid_sha256"
+        ]
+        changed_border = copy.deepcopy(roots["instructions"][1])
+        border_cell = receipt["border_template"][0]
+        replace_cell(layer(changed_border, "Arcade Maze Border"),
+                     (border_cell[0], border_cell[1]), 0)
+        require_partition_failure(
+            changed_border, roots["instructions"][0], instruction_expected,
+            template, instruction_hashes,
+            "Arcade Maze Border differs from the exact template",
+            "border ownership drift",
+        )
 
-    changed_art = copy.deepcopy(roots["instructions"][1])
-    art_layer = layer(changed_art, "Instructions Overlay")
-    art_cells = parse_csv(art_layer.find("data"), "Instructions Overlay")
-    art_index = next(index for index, gid in enumerate(art_cells) if gid & GID_MASK)
-    replace_cell(art_layer, (art_index % 40, art_index // 40), 0)
-    require_partition_failure(
-        changed_art, roots["instructions"][0], instruction_expected,
-        template, instruction_hashes, "static layer contents differ",
-        "nonborder art ownership drift",
-    )
+        changed_art = copy.deepcopy(roots["instructions"][1])
+        art_layer = layer(changed_art, "Instructions Overlay")
+        art_cells = parse_csv(art_layer.find("data"), "Instructions Overlay")
+        art_index = next(index for index, gid in enumerate(art_cells) if gid & GID_MASK)
+        replace_cell(art_layer, (art_index % 40, art_index // 40), 0)
+        require_partition_failure(
+            changed_art, roots["instructions"][0], instruction_expected,
+            template, instruction_hashes, "static layer contents differ",
+            "nonborder art ownership drift",
+        )
 
     unchanged_options = ET.parse(args.tiled_dir / "coco-options-screen.tmx").getroot()
     options_background = ET.Element(
@@ -456,12 +471,18 @@ def main() -> None:
 
     deferred = sum(len(contract["deferred"]) for contract in
                    PRESENTATION_LAYER_CONTRACTS.values())
+    negative_count = 9 + (2 if receipt is not None else 0)
+    partition_result = (
+        "BUG-060 explicit partition snapshot validated: exact 9-map owner grids, "
+        "135-cell border template, and compiled-map/frame hashes valid; "
+        if receipt is not None else
+        "BUG-060 shared Background/schema guards valid; frozen snapshot not requested; "
+    )
     print(
         f"BUG-016 proof: {len(contracts)} role contracts, "
         f"{len(raw_instruction) + len(raw_level)} raw markers, "
-        f"{deferred} deferred logo layers, 11 presentation negative diagnostics; "
-        "BUG-060 exact 9-map owner grids, 135-cell border template, and "
-        "compiled-map/frame hashes valid; "
+        f"{deferred} deferred logo layers, {negative_count} presentation negative diagnostics; "
+        f"{partition_result}"
         "BUG-059 gameplay marker valid, metadata excluded, "
         "7 negative diagnostics"
     )

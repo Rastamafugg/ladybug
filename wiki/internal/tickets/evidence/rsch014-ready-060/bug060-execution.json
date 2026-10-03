@@ -146,19 +146,24 @@
     "commands": [
       "python3 -m py_compile scripts/build_presentation.py scripts/verify_bug016_presentation_layers.py",
       "python3 scripts/verify_bug016_presentation_layers.py --tiled-dir tiled",
-      "git diff --check"
+      "python3 scripts/verify_bug016_presentation_layers.py --tiled-dir tiled --partition-receipt wiki/internal/tickets/evidence/rsch014-ready-060/partition-receipt.json",
+      "git diff --check",
+      "python3 scripts/verify_bug016_presentation_layers.py --tiled-dir tiled --partition-receipt wiki/internal/tickets/evidence/rsch014-ready-060/partition-receipt.json --execution-evidence wiki/internal/tickets/evidence/rsch014-ready-060/bug060-execution.json"
     ],
-    "result": "pass",
-    "negative_cases": [
+    "default_shared_mode": "pass: current layer contracts, metadata checks, exact Background content, and strict negatives; frozen candidate/GID/frame hashes are not required",
+    "explicit_partition_mode": "pass: exact owner grids, border template, static/nonstatic layer hashes, candidate hashes, and all nine compiled-map/frame hashes",
+    "shared_negative_cases": [
       "missing Background",
       "duplicate Background",
       "nonblank Background cell",
-      "border template drift",
-      "nonborder static art drift",
       "Background on unchanged options map",
       "existing BUG-016/059 layer and marker negatives"
     ],
-    "compiled_map_and_frame": "all 9 hashes match the retained partition oracle",
-    "full_rom_build": "pending FEAT-005 integration; no ROM capacity result"
+    "explicit_partition_negative_cases": [
+      "border template drift",
+      "nonborder static art drift"
+    ],
+    "full_rom_build": "pending FEAT-005 integration; no ROM capacity result",
+    "execution_evidence_override": "pass: explicit evidence path accepted and produced the same partition result"
   }
 }
