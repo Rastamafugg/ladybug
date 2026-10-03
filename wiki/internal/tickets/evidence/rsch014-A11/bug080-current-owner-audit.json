@@ -1,0 +1,84 @@
+{
+  "schema": "rsch014-a11-bug080-current-owner-audit-v1",
+  "research_ticket": "RSCH-014",
+  "target": "BUG-080",
+  "step": "A11",
+  "date": "2026-10-03",
+  "status": "Ready preparation evidence only; no runtime, repair, approval, or lifecycle change",
+  "scope": "Static audit of a29a2b7 CoCo animation ownership and generated pose indexing against the retained current-arcade shared phase proof. No production source, canonical ticket, TMX, index, or wiki log was edited.",
+  "identity": {
+    "coco_source_revision": "a29a2b7af59c08d6f5e927db818a5642a5a24e02",
+    "coco_source_tree": "1175ad7dcb5e588ea4d927f59b956906d0efbcd2",
+    "arcade_main_cpu_sha256": "3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12",
+    "arcade_disassembly_sha256": "34bf89b284f394e2eb9331e3cf4630afa4cf59200b2e952cb6b0a35e231ac3b3",
+    "arcade_phase_source": "wiki/internal/tickets/evidence/rsch014-B9/renderer-phase-audit.json",
+    "arcade_capture_support": "wiki/internal/tickets/evidence/rsch014-A10/retained-results-continuation.json"
+  },
+  "source_hashes_sha256": {
+    "src/main.s": "87230d9e6393643181a30bbbd92db05698d0036ceb38e2aed6f2a62a50d32191",
+    "src/enemy_runtime.s": "56a36484db93fd675cbcd34819a674a59fe1e70076bd16e2b50f7e934a6cb8d7",
+    "src/adaptive_active.s": "bedb1011777edc11a338ff4e20187b5901e996dfc5cb64b3a9f83c906af43cea",
+    "src/instruction_runtime.s": "421f0632bdcd2d3bdb9217a3e75a19cfb44d47aee251b1dd65f2e06478c280fc",
+    "src/presentation_runtime.s": "a870e6d0f5c43e865d959741349083519de88e2ace5a933733e6d17d0734efc5",
+    "src/perimeter_reset_helper.s": "800eb83ae879509de8eb95c935767fc6399c0ca4ffdbf952aef54c9eb44cda45",
+    "scripts/build_screen.py": "edb4b39682acd122abc5ad6ab508f7894c54326c0cf3f5e4a1c412db8591d17d",
+    "scripts/build_sparse_sprites.py": "8bf1ab91de65a4c4c11365d930fca862f62a00d0bb9d41eebcddfe153b5e6426",
+    "assets/arcade/sprites.json": "af2adb1a494b6a641deb38931ee93220b9638ffca4d42e8e37d7d8683945e42d",
+    "assets/arcade/palette.json": "273b6349f3bcaee21c75636b0d031612183106799a201bfddaf61aca8868e3f3",
+    "assets/arcade/sprite_lookup_a.json": "888fb59b56eb482d03364e30dc8a7b468d990edd5e4e81015b977e6626ee609e"
+  },
+  "arcade_owner": {
+    "phase_source": "The ordinary ROM renderer waits for VBlank at $1FC7, increments $6059, then increments shared $605A whenever the new $6059 low three bits are zero. Eligible player and ordinary roaming records use [$605A & 3]; the base families in $0C8B remain below $D8 and have attribute bit 4 clear. This is one shared ordinary pose clock, separate from movement dispatch.",
+    "den_release_correction": "A10's corrected callback-indexed raw RAM and exact pixels show the visible waiting actor handed from $602B to $6030; status $81 is renderer-visible but movement-ineligible. It uses ordinary Part-1 art and $605A. No independent den pose-clock family is established.",
+    "scope_exclusions": "The $596D startup script bypasses the ordinary actor phase; A10 identifies its only direct caller as a $9002 bit-6-gated Free Play startup path and excludes it from normal gameplay acceptance. Death art remains a separately measured special sequence."
+  },
+  "coco_owner": {
+    "player": "PLAYER_ANIM_TIMER ($50) and PLAYER_ANIM ($4F) form a 4-state phase. player_animation_tick decrements the timer and reloads 8 on expiry, then advances phase modulo 4. In the normal adaptive gameplay binding it runs once per scheduled gameplay tick before player movement dispatch. It is suppressed during pickup and most death states; initial entry and death handling are separate states.",
+    "enemy": "ENEMY_TIMER ($55) and ENEMY_ANIM ($54) reset to 8 and phase 0. enemy_tick_impl decrements once per normal tick and advances ENEMY_ANIM modulo 4 at expiry. Freeze gates movement but not this pose timer. enemy_release_impl does not reset the shared phase.",
+    "roaming_and_dormant": "Both roaming drawing and dormant nest cache drawing select through enemy_frame_number/draw_enemy_stage and ENEMY_ANIM. The cache builder temporarily iterates phases 0-3, then restores the live phase. Static source shows one CoCo enemy pose owner across roaming and den; no separate den clock is present.",
+    "logical_cadence_result": "The ordinary CoCo source period is 8 scheduled ticks for both sampled player and enemy clocks, matching the arcade renderer's one phase increment per 8 VBlank waits. The existing B10 player trace maps all 16 logical phase-origin transitions to 8 ticks and does not justify lengthening a timer. No enemy pixel cadence or defect is inferred from the player-only B10 result.",
+    "phase_origin_limit": "The CoCo stores PLAYER_ANIM and ENEMY_ANIM independently, while arcade ordinary actors share $605A. Timer periods match, but exact current enemy publication and relative pose origin are not established by this source audit; this is the remaining ordinary comparison gate, not a confirmed defect."
+  },
+  "generated_pose_tables": {
+    "generator": "scripts/build_screen.py compile_player_sprites/compile_enemy_sprites plus scripts/build_sparse_sprites.py indexed-frame builder",
+    "player": {
+      "source_codes_north": [5, 4, 3, 4],
+      "generated_frames": 16,
+      "frame_index": "PLAYER_FACE * 4 + PLAYER_ANIM",
+      "packed_frames_sha256": "8a81a818248b5977c22f2b3045e343a924ab6e93a35cd853f718a0198eb3bb11"
+    },
+    "enemy": {
+      "source_codes_by_family_north": [[11, 10, 9, 10], [17, 16, 15, 16], [29, 28, 27, 28], [23, 22, 21, 22], [35, 34, 33, 34], [41, 40, 39, 40], [47, 46, 45, 46], [53, 52, 51, 52]],
+      "generated_frames": 128,
+      "frame_index": "family * 16 + direction * 4 + ENEMY_ANIM",
+      "packed_frames_sha256": "9d320a03359ea629976510594859fea1ba0751e72058b8baa4bc416ffce05ca9",
+      "coverage_implication": "Eight art families share the same frame-index phase and generated rotation rule; no 8-family by 4-direction timing matrix is justified without evidence of an independent clock or family-specific mismatch. Part-1's first family has existing exact arcade source poses 11,10,9,10."
+    }
+  },
+  "separate_presentation_modes": {
+    "instruction": "instruction_runtime_tick owns PRES_PHASE and PRES_COLOUR_TIMER and derives actor frame from PRES_TIMER. BUG-011's original scope is Done; later BUG-050 owns the current uniform 32-Vbord instruction colour cycle and is Done, while BUG-048 owns current complete-ROM presentation palette/HUD work and is Done. These profile-specific presentation clocks are outside BUG-080 ordinary gameplay acceptance; Done status is not evidence that every current ROM profile has identical timing.",
+    "attract": "presentation_attract_phase derives PRES_ACTOR_PHASE from PRES_TIMER in eight-frame units; attract overlay publication is presentation-owned. BUG-010's attract actor fidelity scope is Done. This mode is outside BUG-080 ordinary gameplay acceptance; any new current-profile attract timing discrepancy needs its own discriminating evidence.",
+    "death_and_pickup": "Dedicated sequence/suppression paths remain excluded by the Draft's ordinary dwell scope unless an independently measured conflicting gameplay result appears."
+  },
+  "b10_current_coco_sample_limit": {
+    "artifact_rom_sha256": "2114f0185b5a4bd13795e5ded2834053e22f50adf83610870e387c200d73b901",
+    "build_receipt_revision": "b1ce21119583de061fe817497f85d7c60b8341d2",
+    "observer_sha256": "b4e0e265a93d46c8b973272abe5158a8d91485f582846df09b08bd1bd7e03143",
+    "runtime_result_sha256": "2223efca2519dc1dda2491ea0ef79d1cf0a8b2622dd9c957a55da5b1164df2ee",
+    "measurement": "128 contiguous IRQ samples, 128 exact published player-template matches, 15 complete player pose runs of 7-10 IRQ samples, and 16 logical phase-origin intervals of exactly 8 ticks.",
+    "limit": "B10 did not exact-match enemy pixels or dormant-den pixels. Its ROM/build identity is separately recorded; these player results are not promoted to a current a29 enemy runtime result."
+  },
+  "remaining_gate_and_disposition": {
+    "minimal_runtime": "On a byte-identified current a29/B2 build, reuse the B10 natural-entry route, IRQ RTI sampling, FRONT ownership snapshot, and source-template matcher. Add exact published-pixel matching for one unobscured ordinary Part-1 enemy and the dormant den image in the same natural run where each is visible; log enemy pose timer/phase, status, group, direction, FRONT pointer, and movement separately. Require consecutive raw Vbords and exact template identity. Skip obstructed regions with an explicit reason; absence of a required visible sample fails.",
+    "acceptance": "Current ordinary enemy and den pixel classes must match the generated current-source templates, and completed pose holds must be compared against the current arcade 8-frame target using the published B9/A10 shared phase source. Keep player movement displacement separate. Reuse source-wide shared-owner proof instead of a family-direction Cartesian matrix.",
+    "approval_boundary": "No timer or scheduler repair is supported by the present static audit or player-only B10 result. Keep BUG-080 Draft until the one ordinary enemy plus dormant-den exact-pixel comparison on the target source identity is retained. If it passes, close the current reported cadence path as no source mismatch or narrow the ticket to a separately proven publication issue; if it fails, prepare a targeted approval brief with the observed owner, source identity, baseline, and acceptance measurement. No implementation is authorized by this evidence.",
+    "current_task_runtime": "Not run. The exact observer extension remains offline preparation pending parent plan/hash review."
+  },
+  "commands": [
+    "git rev-parse a29a2b7^{tree}",
+    "python -c: SHA256(subprocess.check_output(['git','show',f'a29a2b7:{path}'])) for each listed source/input",
+    "python -c: import a29a2b7 scripts/build_screen.py from exact git bytes; call compile_player_sprites and compile_enemy_sprites on exact a29a2b7 assets/arcade/sprites.json; hash concatenated packed frames",
+    "Read-only inspection: E:/projects/ladybug/wiki/internal/tickets/evidence/rsch014-B10-coco/{summary.json,independent-review.json}",
+    "Read-only inspection: E:/projects/ladybug/worktrees/bug086-page34-preparation/wiki/internal/tickets/evidence/rsch014-B10-coco/{runtime-result.json,observer_b10.py}"
+  ]
+}
