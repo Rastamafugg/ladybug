@@ -306,6 +306,26 @@ def _classify_stop(result: object, installed: dict[int, int]) -> dict:
     return {"status": "breakpoint", "marker": True, "bp_id": bp_id, "pc": pc}
 
 
+def _normal_group_start(part: int) -> int:
+    if part < 1 or part > 255:
+        raise ValueError(f"stage outside byte range: {part}")
+    offset = (part - 1) & 7
+    if offset >= 5:
+        offset -= 5
+    return offset
+
+
+def _require_identity_bytes(expected: bytes, live: bytes, label: str) -> None:
+    if not expected or live != expected:
+        raise ValueError(f"{label} live bytes do not match the pinned artifact")
+
+
+def _require_markers(required: set[str], observed: set[str]) -> None:
+    missing = sorted(required - observed)
+    if missing:
+        raise RuntimeError("required marker missing: " + ", ".join(missing))
+
+
 def _self_test(output: Path) -> int:
     cases: list[dict[str, object]] = []
     installed = {11: 0x15D5}
@@ -334,7 +354,14 @@ def _self_test(output: Path) -> int:
     expect("known breakpoint ID at wrong PC rejected", lambda: _classify_stop({"reason": "breakpoint", "bp_id": 11, "pc": 0xA8D2}, installed), False)
     expect("pause is not a marker", lambda: _classify_stop({"reason": "pause", "pc": 0x15D5}, installed), False)
     expect("missing breakpoint ID rejected", lambda: _classify_stop({"reason": "breakpoint", "pc": 0x15D5}, installed), False)
-    receipt = {"schema": "ladybug-rsch014-ready-086-adapter-selftest-v1",
+    expect("real timeout remains a failed marker", lambda: (_classify_stop({"reason": "timeout"}, installed), _require_markers({"helper", "front-pixel"}, {"helper"})), False)
+    expect("wrong live marker bytes rejected", lambda: (_require_identity_bytes(b"\\x17\\x92\\xfd", b"\\x17\\x92\\xfe", "init callsite") or {"status": "identity-mismatch"}), False)
+    expect("stage 9 group starts at type zero", lambda: {"start": _normal_group_start(9)}, True)
+    expect("stage 10 group starts at type one", lambda: {"start": _normal_group_start(10)}, True)
+    expect("stage 13 group starts at type four", lambda: {"start": _normal_group_start(13)}, True)
+    expect("stage 14 wraps group to type zero", lambda: {"start": _normal_group_start(14)}, True)
+    expect("missing front replay marker rejected", lambda: _require_markers({"stage-9", "front-pixel", "front-replay"}, {"stage-9", "front-pixel"}), False)
+    receipt = {"schema": "ladybug-rsch014-ready-086-adapter-selftest-v2",
                "status": "pass" if all(row["passed"] for row in cases) else "fail",
                "runtime_launched": False, "monitor_imported": False, "cases": cases}
     _write_new_json(output, receipt)
@@ -352,7 +379,7 @@ def _parser() -> argparse.ArgumentParser:
     preflight.add_argument("--worktree", type=Path, required=True)
     preflight.add_argument("--candidate-manifest", type=Path, required=True)
     preflight.add_argument("--output", type=Path, required=True)
-    live = sub.add_parser("live", help="run four separately bounded phases; requires parent dispatch receipt")
+    live = sub.add_parser("live", help="run five separately bounded phases; requires parent dispatch receipt")
     live.add_argument("--worktree", type=Path, required=True)
     live.add_argument("--candidate-manifest", type=Path, required=True)
     live.add_argument("--authorization", type=Path, required=True)
@@ -385,8 +412,8 @@ else:
         raise SystemExit("runtime not launched: candidate manifest SHA-256 differs from parent dispatch receipt")
     if authorization.get("adapter_sha256") != adapter_hash:
         raise SystemExit("runtime not launched: adapter SHA-256 differs from parent dispatch receipt")
-    if authorization.get("phase_deadline_seconds") != 45 or authorization.get("phase_count") != 4:
-        raise SystemExit("runtime not launched: dispatch receipt does not authorize four 45-second phases")
+    if authorization.get("phase_deadline_seconds") != 45 or authorization.get("phase_count") != 5:
+        raise SystemExit("runtime not launched: dispatch receipt does not authorize five 45-second phases")
     if output.exists():
         raise SystemExit(f"runtime not launched: refusing to overwrite existing output {output}")
     gate = _preflight(worktree, candidate_manifest_path)
@@ -839,6 +866,38 @@ def main() -> None:
         go(main_symbols["ad_dispatch_work"], "active gameplay work entry")
         return go(main_symbols["mainloop"], "completed active gameplay worklist")
 
+    def front_preview_snapshot(label: str) -> dict[str, object]:
+        front = read_byte(main_symbols["FB_FRONT_ID"])
+        back = read_byte(main_symbols["FB_BACK_ID"])
+        pending = read_byte(main_symbols["FB_RENDER_PENDING"])
+        gime_offset = read_byte(0xFF9D)
+        if front not in (0, 1) or front == back or pending != 0:
+            raise RuntimeError(f"{label}: FRONT/BACK publication is incomplete: {front}/{back}, pending={pending}")
+        expected_offset = 0xC0 if front == 0 else 0xB0
+        if gime_offset != expected_offset or read_byte(0xFF9E) != 0:
+            raise RuntimeError(f"{label}: GIME scanout does not identify FRONT owner {front}")
+        saved_pars = read(0xFFA1, 4)
+        base_page = 0x30 if front == 0 else 0x2C
+        try:
+            for index in range(4):
+                write_byte(0xFFA1 + index, base_page + index)
+            surface = read(0x2000, 30720)
+        finally:
+            write(0xFFA1, saved_pars)
+        offset = enemy_symbols["ENEMY_FB"] - 0x2000
+        if not 0 <= offset <= len(surface) - 8 - 15 * 160:
+            raise RuntimeError(f"{label}: preview pixel anchor is outside the visible FRONT surface")
+        pixels = b"".join(surface[offset + row * 160:offset + row * 160 + 8] for row in range(16))
+        if not any(pixels):
+            raise RuntimeError(f"{label}: preview FRONT pixel marker is empty")
+        return {
+            "label": label, "FRONT": front, "BACK": back, "FB_PENDING": pending,
+            "GIME_VOFF1": gime_offset, "FRAMES": read_word(main_symbols["FRAMES"]),
+            "FB_COMMIT_SEQ": read_word(main_symbols["FB_COMMIT_SEQ"]),
+            "surface_sha256": sha(surface), "preview_anchor": enemy_symbols["ENEMY_FB"],
+            "preview_pixels_sha256": sha(pixels), "preview_pixels_bytes": len(pixels),
+        }
+
     try:
         candidate_rom_sha256 = sha(rom)
         if (receipt.get("profile") != "complete" or
@@ -1197,6 +1256,7 @@ def main() -> None:
 
         # At a stable mainloop boundary, set only explicit actor/player fixture state.
         go(main_symbols["mainloop"], "stable boundary for legal skull-arrival fixture")
+        pre_death_front = front_preview_snapshot("Part 9 normal preview after ordered releases")
         actor_state_before_fixture = []
         if read_byte(main_symbols["ENEMY_ACTIVE"]) != 4:
             raise RuntimeError("all four ordered release-created actors must still be live at the fixture boundary")
@@ -1324,6 +1384,19 @@ def main() -> None:
             if before_type != 1 or after_type != 0:
                 raise RuntimeError(f"target skull entity was not cleared: {target}")
             cleared_targets.append({**target, "before_type": before_type, "after_type": after_type})
+        # Complete the real post-death render path, then compare the den preview
+        # on FRONT and after one natural owner replay. The pixel anchor is the
+        # authored lower-nest framebuffer origin, not a RAM selector marker.
+        go(main_symbols["mainloop"], "publish latest-death preview to FRONT")
+        death_front = front_preview_snapshot("Part 9 latest type-4 death preview")
+        if death_front["preview_pixels_sha256"] == pre_death_front["preview_pixels_sha256"]:
+            raise RuntimeError("latest-death preview did not change the actual FRONT den pixels")
+        worklist(parser_start)
+        replay_front = front_preview_snapshot("Part 9 natural alternate-owner preview replay")
+        if (replay_front["preview_pixels_sha256"] != death_front["preview_pixels_sha256"] or
+                replay_front["FRONT"] == death_front["FRONT"] or
+                replay_front["FB_COMMIT_SEQ"] == death_front["FB_COMMIT_SEQ"]):
+            raise RuntimeError("latest-death FRONT pixels did not replay coherently on the alternate owner")
         current_phase.update({"status": "pass", "markers": {
             "normal_releases": release_hits, "legal_skull_targets": cleared_targets,
             "actor_state_at_fixture_boundary": actor_state_before_fixture,
@@ -1338,6 +1411,9 @@ def main() -> None:
             "normal_cursor": read_byte(main_symbols["ENEMY_NORMAL_CURSOR"]),
             "normal_release_order": [item["logical_type"] for item in release_hits],
             "death_state": read_byte(main_symbols["DEATH_STATE"]),
+            "front_preview_pixels": {"before_override": pre_death_front,
+                                     "after_latest_type4_death": death_front,
+                                     "after_alternate_owner_replay": replay_front},
         }})
 
         # Phase 4: the real due timer consumes the latest type-4 override, then resumes type 1.
@@ -1409,8 +1485,77 @@ def main() -> None:
             "normal_successor_pending_invalidated": deadline_releases[1]["pending_after"] == 0xFE,
             "cursor_after_successor": deadline_releases[1]["cursor_after"],
         }})
+        # Cover every approved rare group boundary through a disclosed legal
+        # stage precondition and the real next_stage routine. Part 9 is repeated
+        # after the intervening starts to prove stable FRONT pixel replay.
+        begin_phase("group-init-9-10-13-14-front-pixel-replay", "45 seconds maximum: set only the approved predecessor stage byte, call current next_stage once for each of Parts 9, 10, 13 and 14, then repeat Part 9. Require true enemy init reset, real den preview selection, published FRONT pixels and a stable Part 9 preview replay.")
+        group_init_rows = []
+        previous_commit = read_word(main_symbols["FB_COMMIT_SEQ"])
+        for part in (9, 10, 13, 14, 9):
+            check_deadline(f"Part {part} real next_stage and FRONT preview")
+            go(main_symbols["mainloop"], f"stable boundary before Part {part} initialization")
+            next_stage_bytes = assert_resident(main_symbols["next_stage"], 24)
+            init_enemy_bytes = assert_resident(main_symbols["init_enemy"], 12)
+            enemy_init_bytes = assert_enemy_cpu(enemy_symbols["enemy_init_impl"], 12)
+            write_byte(main_symbols["STAGE"], part - 1)
+            call_from_current_boundary(main_symbols["next_stage"], f"real Part {part} next_stage initialization")
+            if (read_byte(main_symbols["STAGE"]) != part or
+                    read_byte(main_symbols["STAGE_PENDING"]) != 0 or
+                    read_byte(main_symbols["ENEMY_NORMAL_CURSOR"]) != 0 or
+                    read_byte(main_symbols["ENEMY_PENDING_TYPE"]) < 0x80 or
+                    read_byte(main_symbols["ENEMY_ACTIVE"]) != 0 or
+                    read(main_symbols["ENEMY_TABLE"], 32) != bytes(32)):
+                raise RuntimeError(f"Part {part} true enemy initialization did not reset group/cursor/records")
+            init_helper_proof = assert_helper_mapping()
+            # The next draw_enemy_stage call executes efn_preview_pack through
+            # the real renderer. Its A result is the zero-based selected type.
+            preview_regs = go(helper_symbols["efn_preview_pack"], f"real Part {part} renderer preview")
+            expected_type = _normal_group_start(part)
+            if (preview_regs["a"] != expected_type or
+                    read_byte(main_symbols["STAGE"]) != part or
+                    read_byte(main_symbols["ENEMY_NORMAL_CURSOR"]) != 0 or
+                    read_byte(main_symbols["ENEMY_PENDING_TYPE"]) >= 0x80):
+                raise RuntimeError(f"Part {part} real preview differs from approved group formula")
+            # Complete natural composition through active dispatch and wait for
+            # the Vbord-owned FRONT commit before reading its physical owner.
+            worklist(parser_start)
+            pixels = front_preview_snapshot(f"Part {part} FRONT den preview")
+            commit_delta = (int(pixels["FB_COMMIT_SEQ"]) - previous_commit) & 0xFFFF
+            if commit_delta == 0 or int(pixels["FRAMES"]) == 0:
+                raise RuntimeError(f"Part {part} FRONT publication marker missing")
+            previous_commit = int(pixels["FB_COMMIT_SEQ"])
+            group_init_rows.append({
+                "part": part, "precondition_stage": part - 1,
+                "next_stage_entry": main_symbols["next_stage"],
+                "next_stage_live_bytes_sha256": sha(next_stage_bytes),
+                "init_enemy_entry": main_symbols["init_enemy"],
+                "init_enemy_live_bytes_sha256": sha(init_enemy_bytes),
+                "enemy_init_impl": enemy_symbols["enemy_init_impl"],
+                "enemy_init_live_bytes_sha256": sha(enemy_init_bytes),
+                "expected_zero_based_preview_type": expected_type,
+                "actual_preview_type": preview_regs["a"],
+                "normal_cursor": read_byte(main_symbols["ENEMY_NORMAL_CURSOR"]),
+                "pending_type": read_byte(main_symbols["ENEMY_PENDING_TYPE"]),
+                "helper_mapping": init_helper_proof,
+                "front_pixel_receipt": pixels,
+                "front_commit_delta": commit_delta,
+                "stage_precondition_disclosure": "STAGE set to part-1; real next_stage called once; preceding maze work skipped",
+            })
+        if ([row["expected_zero_based_preview_type"] for row in group_init_rows] != [0, 1, 4, 0, 0] or
+                group_init_rows[0]["front_pixel_receipt"]["preview_pixels_sha256"] !=
+                group_init_rows[-1]["front_pixel_receipt"]["preview_pixels_sha256"] or
+                len({row["front_pixel_receipt"]["preview_pixels_sha256"] for row in group_init_rows[:4]}) < 3 or
+                len({row["front_pixel_receipt"]["FRONT"] for row in group_init_rows}) < 2):
+            raise RuntimeError("Part 9/10/13/14 type pixels or alternating FRONT replay markers differ")
+        current_phase.update({"status": "pass", "markers": {
+            "group_initializations": group_init_rows,
+            "part9_replay_pixel_match": group_init_rows[0]["front_pixel_receipt"]["preview_pixels_sha256"] == group_init_rows[-1]["front_pixel_receipt"]["preview_pixels_sha256"],
+            "distinct_group_preview_pixel_count": len({row["front_pixel_receipt"]["preview_pixels_sha256"] for row in group_init_rows[:4]}),
+            "front_owners_observed": sorted({row["front_pixel_receipt"]["FRONT"] for row in group_init_rows}),
+            "forced_precondition": "Part-1 user route is not claimed; each rare part start uses the approved STAGE=part-1 precondition and actual next_stage/init_enemy path",
+        }})
         e["status"] = "bounded-discriminator-pass"
-        e["result"] = "The explicitly pinned corrected R10 AD1 keyboard candidate proved the page-$34 helper is reached by the real dormant enemy renderer, Part 9 previews/releases logical types 1 through 4 in order, two actual logical type-3/type-4 actors clear distinct real skulls in the gameplay enemy tick with latest-death pending override, and the existing due timer consumes the pending type before the normal cursor resumes at type 1. This is preparation evidence, not BUG-086 acceptance or a full-maze earning claim."
+        e["result"] = "The explicitly pinned corrected R10 AD1 keyboard candidate proved the page-$34 helper is reached by the real dormant enemy renderer, Parts 9/10/13/14 initialize the approved group starts through actual next_stage calls, Part 9 den FRONT pixels replay on an alternate owner, ordered Part 9 releases and two actual skull deaths select the latest replacement, and the due timer consumes that override before the normal cursor resumes. This is preparation evidence, not BUG-086 acceptance or a full-maze earning claim."
     except Exception as exc:
         e["failure"] = repr(exc)
         e["failed_phase"] = current_phase.get("name") if current_phase else "prelaunch"

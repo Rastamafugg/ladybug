@@ -3,7 +3,7 @@
   "assignment": {
     "ticket": "BUG-087",
     "approval_state": "Approved",
-    "readiness_state": "Approved; Ready is withheld until BUG-086 actualDone and action handlers exist",
+    "readiness_state": "Approved; runtime dispatch still requires BUG-086 actualDone and fresh paired integrated build identities",
     "risk_class": "High-risk",
     "scope": "Preparation-only current-artifact identity and bounded scenario assignment",
     "execution_authority": "Already approved acceptance; current launch receipt is reviewed at dispatch. This plan adds no second user-approval gate.",
@@ -35,11 +35,16 @@
     }
   },
   "commands": [
-    "python repro/rsch014-ready-087/bug087_ready_adapter.py --help",
-    "python repro/rsch014-ready-087/bug087_ready_adapter.py self-test",
-    "python repro/rsch014-ready-087/bug087_ready_adapter.py capture --side baseline --profile complete-ad1-keyboard --build-dir <current-baseline-build> --source-revision <baseline-build-source-revision> --bug086-receipt <actual-BUG-086-completion-receipt.json> --output <evidence>/baseline-identity.json",
-    "python repro/rsch014-ready-087/bug087_ready_adapter.py capture --side candidate --profile complete-ad1-keyboard --build-dir <current-candidate-build> --source-revision <candidate-build-source-revision> --bug086-receipt <actual-BUG-086-completion-receipt.json> --output <evidence>/candidate-identity.json",
-    "python repro/rsch014-ready-087/bug087_ready_adapter.py plan --baseline-identity <evidence>/baseline-identity.json --candidate-identity <evidence>/candidate-identity.json --bug086-receipt <actual-BUG-086-completion-receipt.json> --output <evidence>/resolved-runtime-plan.json"
+    "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py --help",
+    "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py self-test",
+    "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py capture --side baseline --profile complete-ad1-keyboard --build-dir <current-baseline-build> --source-revision <integrated-source-revision> --bug086-receipt <actual-BUG-086-completion-receipt.json> --output <evidence>/baseline-identity.json",
+    "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py capture --side candidate --profile complete-ad1-keyboard --build-dir <current-candidate-build> --source-revision <integrated-source-revision> --bug086-receipt <actual-BUG-086-completion-receipt.json> --output <evidence>/candidate-identity.json",
+    "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py plan --baseline-identity <evidence>/baseline-identity.json --candidate-identity <evidence>/candidate-identity.json --bug086-receipt <actual-BUG-086-completion-receipt.json> --output <evidence>/resolved-runtime-plan.json",
+    "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py live --phase matched-displacement --axis horizontal --baseline-identity <evidence>/baseline-identity.json --candidate-identity <evidence>/candidate-identity.json --baseline-port <port> --candidate-port <port> --bug086-receipt <actual-BUG-086-completion-receipt.json> --authorization <phase-dispatch-receipt.json> --output <evidence>/matched-horizontal.json",
+    "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py live --phase matched-displacement --axis vertical --baseline-identity <evidence>/baseline-identity.json --candidate-identity <evidence>/candidate-identity.json --baseline-port <port> --candidate-port <port> --bug086-receipt <actual-BUG-086-completion-receipt.json> --authorization <phase-dispatch-receipt.json> --output <evidence>/matched-vertical.json",
+    "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py live --phase freeze-saturated-thaw --identity <evidence>/candidate-identity.json --port <port> --bug086-receipt <actual-BUG-086-completion-receipt.json> --authorization <phase-dispatch-receipt.json> --output <evidence>/freeze-saturated-thaw.json",
+    "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py live --phase legal-reversal-concurrent-mover --identity <evidence>/candidate-identity.json --port <port> --bug086-receipt <actual-BUG-086-completion-receipt.json> --authorization <phase-dispatch-receipt.json> --output <evidence>/legal-reversal.json",
+    "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py live --phase natural-init --identity <evidence>/candidate-identity.json --port <port> --bug086-receipt <actual-BUG-086-completion-receipt.json> --authorization <phase-dispatch-receipt.json> --output <evidence>/natural-init.json"
   ],
   "R10_AD1_keyboard_reference_map_symbols": {
     "qualification": "Exact symbols parsed from the frozen corrected R10 AD1 keyboard maps. Addresses are reference anchors only; dispatch must recapture baseline and candidate maps after BUG-086 integration.",
@@ -53,9 +58,9 @@
     {
       "id": "matched-displacement",
       "deadline_seconds": 45,
-      "success_marker": "Both exact builds complete natural initialization and produce two matched logical enemy callbacks for the same active actor on a legal straight segment; record stage, rate state, actor origin before/after, AD_SIM and raw Vbord counts. Candidate displacement is within 1 pixel of the approved rate-policy oracle for the same callback count, apart from the defined phase endpoint.",
+      "success_marker": "Both exact builds complete natural initialization and produce matched real enemy callbacks for the same active actor on the requested horizontal or vertical legal straight segment. Record candidate zero-displacement callbacks and nonzero movement at a nonzero addend, all four records, FRONT actor pixels, FB_SIM_SEQ, and raw FRAMES. Candidate displacement equals 2*(C+floor((N-C)/2)) pixels within 1 pixel, where N is the matched callback count and C is measured fractional carries.",
       "timeout_meaning": "A required natural-init, actor, legal-segment, or callback marker was not reached within 45 seconds. Timeout is not a cadence or speed measurement.",
-      "required_reads": ["current full-ROM and source-build receipt hashes", "resident bytes at the mapped init/tick callsites", "physical page $34 rate helper bytes", "enemy module bytes at $0800", "STAGE, RATE_TIMER, RATE_BUCKET, RATE_FRAC, RATE_ADDEND, RATE_PHASE", "all four 8-byte ENEMY_TABLE records before/after each matched logical callback", "AD_SIM logical ticks and raw Vbord callback count", "front-buffer actor origin pixels"],
+      "required_reads": ["current full-ROM and source-build receipt hashes", "resident and enemy-module bytes at mapped live callbacks", "physical page $34 rate and E2 helper bytes", "STAGE, RATE_TIMER, RATE_BUCKET, RATE_FRAC, RATE_ADDEND, RATE_PHASE", "all four 8-byte ENEMY_TABLE records at matched callbacks", "FB_SIM_SEQ logical publications and raw FRAMES Vbord count", "FRONT owner/GIME scanout and 4-by-16 actor-origin pixels"],
       "required_writes": ["none; natural input and approved route only"],
       "source_predecessors": ["current map symbols and bytes match each assigned build before labels are interpreted", "natural BUG-086 initialization completes", "one real legal straight movement segment with same actor identity in baseline and candidate", "rate-table model uses active one-based part N and exact source offset slice"],
       "symbols": {
@@ -63,39 +68,42 @@
         "candidate": {"map": "main", "names": ["mainloop", "ad_dispatch_work", "init_enemy", "enemy_tick", "next_stage", "STAGE", "ENEMY_TABLE", "ENEMY_ACTIVE"]},
         "rate": {"map": "rate", "names": ["rate_reset", "rate_tick", "RATE_TIMER", "RATE_BUCKET", "RATE_FRAC", "RATE_ADDEND", "RATE_PHASE"]}
       },
-      "missing_handler": "No current action handler collects a matched natural straight-path actor displacement against both builds, distinguishes logical callbacks from raw Vbords, and computes the policy oracle. Owner: BUG-087 execution owner after BUG-086 actualDone."
+      "action_handler": "live --phase matched-displacement attaches to two already-running XRoar monitors; --axis selects horizontal or vertical; no emulator is launched and no game state is written.",
+      "phase_parameters": {"axis": ["horizontal", "vertical"], "monitors": 2, "writes": "none"}
     },
     {
       "id": "freeze-saturated-thaw",
       "deadline_seconds": 45,
-      "success_marker": "For saturated-bucket expiry and non-expiry, frozen elapsed policy advances while RATE_FRAC/RATE_PHASE and every enemy origin hold; bucket rollovers 0F->10 and EF->F0 do not bypass freeze. FREEZE_TIMER 1->0 callback still does not move; next eligible callback may move. Death bypass and existing 300-tick CoCo freeze duration remain unchanged.",
+      "success_marker": "Real enemy callbacks execute the 0F->10 and EF->F0 rollovers, saturated-bucket expiry and non-expiry, and a complete 300-callback FREEZE_TIMER countdown. Elapsed bucket/timer advances while RATE_FRAC, RATE_PHASE, all four enemy records, and FRONT actor-origin pixels hold. The 1->0 callback still does not move; a later real eligible callback moves. A real death-path callback leaves rate state unchanged.",
       "timeout_meaning": "Any required saturated bucket, expiry/non-expiry, rollover, thaw, movement-hold, or death-bypass marker was absent within 45 seconds. Missing rare path fails and is not inferred from a model.",
       "required_reads": ["PC at mapped enemy tick and rate tick/gate boundaries", "FREEZE_TIMER", "RATE_TIMER, RATE_BUCKET, RATE_FRAC, RATE_PHASE", "four ENEMY_TABLE records and front-buffer actor origins", "DEATH_STATE", "logical callback counter"],
-      "required_writes": ["none for natural freeze/death triggers; any accepted deterministic trigger fixture must be present in the reviewed dispatch receipt and preserve the real rate/enemy code bytes"],
+      "required_writes": ["Parent-reviewed deterministic direct-page state fixtures only: FREEZE_TIMER $005B, RATE_TIMER..RATE_PHASE $029B-$029F, and DEATH_STATE $004D. No enemy table, code, framebuffer, owner, or mapping writes."],
       "source_predecessors": ["corrected source ordering is elapsed-before-freeze and movement/fraction-after-freeze", "the rate tick saturated path branches through the freeze gate", "death bypass remains on the existing enemy path", "no per-actor debt is introduced"],
       "symbols": {
         "candidate": {"map": "rate", "names": ["rate_tick", "rt_freeze_gate", "rt_accumulate", "RATE_TIMER", "RATE_BUCKET", "RATE_FRAC", "RATE_PHASE", "FREEZE_TIMER"]},
         "enemy": {"map": "enemy", "names": ["enemy_tick_impl", "ENEMY_TABLE", "DEATH_STATE", "FREEZE_TIMER"]}
       },
-      "missing_handler": "No current live action handler forces/observes both bucket-$F0 expiry branches, both frozen rollovers, thaw 1->0, and death bypass while comparing real RAM and pixels. The frozen R10 host model is static evidence only. Owner: BUG-087 execution owner after BUG-086 actualDone."
+      "action_handler": "live --phase freeze-saturated-thaw attaches to one existing monitor, writes only the dispatch-pinned direct-page fixtures, and observes 300 actual enemy callbacks plus thaw and death-bypass markers.",
+      "phase_parameters": {"callbacks": 300, "deadline_seconds": 45, "writes": ["$004D", "$005B", "$029B-$029F"]}
     },
     {
-      "id": "blocked-reversal",
+      "id": "legal-reversal-concurrent-mover",
       "deadline_seconds": 45,
-      "success_marker": "A real ecd_blocked event occurs while another enemy is moving; record the affected active record direction/substep/cell/FB pointer and pixels across callbacks, plus the second actor's motion. Establish whether active+DIR_NONE is reachable before making any stationary-actor claim; fail if the block marker or the required comparison is absent.",
-      "timeout_meaning": "A legal blocked/reversal event and another moving actor were not both observed within 45 seconds. Missing path is failure, not evidence of a stationary invariant.",
-      "required_reads": ["PC at ecd_blocked", "ENEMY_ACTIVE", "ENEMY_MOVE", "ENEMY_TABLE record bytes 0..7 for all four actors", "front-buffer origins for blocked and moving actors", "direction decision and maze/gate bytes establishing legal obstruction"],
-      "required_writes": ["none; natural input/route only. Do not force DIR_NONE or alter actor direction to manufacture the marker."],
-      "source_predecessors": ["ecd_blocked is the actual decision source writing DIR_NONE", "et_move_scan and et_update_loop call bytes/source identity are verified", "capture whether another record causes global ENEMY_MOVE to become nonzero", "report existing active+DIR_NONE reachability separately from candidate rate behavior"],
+      "success_marker": "The actual callback advances slot 0 west through (6,4)->(5,4)->(4,4) with gate 0 fixed at its existing value 0. At (4,4), the real chooser selects the sole legal east exit, which is the reverse direction. Another active actor's framebuffer pointer also changes during the actual callback sequence. Record all four records, chooser PC/candidate, gate bytes, and both FRONT pixel windows. Do not force DIR_NONE or change the gate.",
+      "timeout_meaning": "The exact legal reverse choice or a concurrent second-actor movement was not observed within 45 seconds. Missing paths fail; source models are not evidence.",
+      "required_reads": ["PC at actual enemy_tick_impl, ecd_choose, and ecd_blocked", "ENEMY_ACTIVE and ENEMY_MOVE", "all four 8-byte ENEMY_TABLE records", "FRONT pixels for slot 0 and the other mover", "gate-state bytes proving gate 0 remains 0", "chooser candidate and direction before/after the legal reverse"],
+      "required_writes": ["none. Use only a live, already-prepared legal fixture; do not write actor direction, DIR_NONE, gate state, framebuffer, owner, or mapping."],
+      "source_predecessors": ["actor 0 begins westbound at cell (6,4); actual movement yields (5,4) then (4,4)", "gate 0 remains 0; flipping it to 1 is forbidden because it changes the exit to north", "another actor is already active and must move under the same real callbacks", "ecd_choose candidate 1 and the post-callback direction byte prove the east reverse"],
       "symbols": {
         "enemy": {"map": "enemy", "names": ["ecd_blocked", "enemy_tick_impl", "ENEMY_TABLE", "ENEMY_ACTIVE", "ENEMY_MOVE"]}
       },
-      "missing_handler": "No current live handler follows a legal obstruction/reversal, associates the event with an actor record, and discriminates active+DIR_NONE reachability while another actor moves. Source inspection alone does not resolve this. Owner: BUG-087 execution owner after BUG-086 actualDone."
+      "action_handler": "live --phase legal-reversal-concurrent-mover attaches to one existing monitor, checks the parent-confirmed pre-positioned fixture, and follows real chooser/callback markers without writes.",
+      "phase_parameters": {"actor_slot": 0, "entry_cell": [6, 4], "incoming_direction": "west", "gate0": 0, "concurrent_mover_required": true, "writes": "none"}
     },
     {
       "id": "natural-init",
       "deadline_seconds": 45,
-      "success_marker": "Natural credited entry and the approved actual next_stage precondition reach init_enemy; the resident mapped JSR enters the current page-$34 shim, rate_reset clears state, and the shim returns through the true enemy init path. Verify BUG-086 helper/current enemy code identity and the first real enemy_tick marker. Disclose any forced final-bonus precondition and skipped maze work.",
+      "success_marker": "A natural next_stage -> init_enemy -> page-$34 rate_enemy_init_shim -> true enemy_init_impl -> first enemy_tick sequence occurs. Compare resident, enemy-module, rate, and E2 bytes before interpreting symbols; verify the resident JSR bytes, PAR5 at the shim, rate_reset values at true-init entry, and the first actual callback. No stage/init writes are issued.",
       "timeout_meaning": "Natural credit, approved transition precondition, mapped init callsite/shim, reset state, true-init return, or first enemy tick did not occur within 45 seconds. Timeout is not proof of slow game code.",
       "required_reads": ["resident init callsite bytes", "physical page $34 bytes covering rate helper and E2 helper", "PAR5 value at each banked boundary", "RATE_TIMER/Bucket/Frac/Addend/Phase", "ENEMY_ACTIVE and ENEMY_TABLE before/after true init", "BUG-086 integrated source/helper identity", "STAGE and INITIAL_ENTRY_STATE"],
       "required_writes": ["natural input only; do not call init/reset directly or manually patch stage/state"],
@@ -106,14 +114,22 @@
         "enemy": {"map": "enemy", "names": ["enemy_init_impl", "enemy_tick_impl", "ENEMY_TABLE", "ENEMY_ACTIVE"]},
         "e2": {"map": "e2", "names": ["efn_cache_guard", "enemy_page34_end", "ENEMY_MODULE_BUILD_CACHE"]}
       },
-      "missing_handler": "The existing transition probe is monolithic and hard-codes its build directory and XRoar path. It has not been adapted to take the paired current build/map/artifact identity or emit the required reset/shim markers. Owner: BUG-087 execution owner after BUG-086 actualDone."
+      "action_handler": "live --phase natural-init attaches to one existing monitor and waits for the ordered transition markers; it never calls the init routines directly or writes stage/state.",
+      "phase_parameters": {"writes": "none", "markers_in_order": ["next_stage", "init_enemy", "rate_enemy_init_shim", "enemy_init_impl", "first_enemy_tick"]}
     }
   ],
+  "runtime_handlers": {
+    "attached": true,
+    "source": "existing MonitorClient from scripts/verify_bug009_monitor_input.py; synchronous run acknowledgement plus wait_for_stop; no emulator launch",
+    "phase_deadline_seconds_max": 45,
+    "per_phase_dispatch": "parent-reviewed receipt pins phase, adapter SHA-256, BUG-086 receipt SHA-256, identity-file hashes and fixture-contract SHA-256",
+    "current_runtime_status": "not run in preparation"
+  },
   "unresolved_execution_mechanics": [
-    "No phase action handlers are currently attached; the adapter captures current build identity and resolves map symbols but does not launch an emulator.",
+    "BUG-086 must be actualDone and both current builds must be recaptured against its integrated completion receipt before any runtime phase can be authorized.",
     "The BUG-086 actualDone receipt schema and assigned integrated build directories must be supplied at dispatch.",
     "Baseline and candidate must be rebuilt/identified after BUG-086 integration; frozen R10 profile hashes are historical capacity references only.",
-    "Blocked-actor reachability remains unproven; a missing natural event fails the phase and must not be replaced with a forced DIR_NONE write."
+    "Runtime phases were not run in this preparation step. Each future live command needs a parent-reviewed dispatch receipt, the exact current adapter and identity hashes, and an already-running XRoar monitor; a missing marker fails its phase."
   ],
   "runtime_status": "Not run. No cadence, 6809, arcade behavior, or production acceptance claim."
 }

@@ -1,0 +1,165 @@
+{
+  "schema": "rsch014-runtime-actions-preparation-v1",
+  "assignment": "#technical-preparation-resumed-20261003",
+  "worktree": "E:\\projects\\ladybug\\worktrees\\rsch014-runtime-actions",
+  "worktree_base_commit": "8906ebb605ccf00395683de88746763ed96835a6",
+  "root_canonical_commit": "dfbbb0350b700bbe9bb3808be67f45f549073832",
+  "scope": "Evidence-only RSCH-014 executable-action preparation for BUG-086 and BUG-087; no production repair.",
+  "runtime": {
+    "emulator_launched": false,
+    "monitor_connected": false,
+    "runtime_scenarios_executed": false,
+    "runtime_acceptance": false
+  },
+  "current_artifact_qualification": {
+    "profile": "complete AD1 keyboard frozen corrected R10 fit artifact",
+    "fit_only": true,
+    "source_fixture_commit": "cb84a603e74c67e18ed055f13e6dc0f518dd051d",
+    "source_build_receipt_revision": "cb84a603e74c67e18ed055f13e6dc0f518dd051d",
+    "source_build_receipt_profile": "complete",
+    "source_build_receipt_state": "complete",
+    "build_directory": "E:\\projects\\ladybug\\worktrees\\bug087-rate-fit-preparation\\build\\.rsch014-r10-overlay-base\\build\\wiki\\internal\\tickets\\evidence\\rsch014-R10\\frozen-rate-clock\\ad1-keyboard-saturated-gate-corrected",
+    "full_rom_sha256": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721",
+    "source_build_receipt_sha256": "26d62cb69c0e129afe7f03515d9dae8dd10c51cfe84d0d5ae34da81c7c52b059",
+    "resident_rom_sha256": "058a2c868d4557cb1ba5950f7a974d4de906e20a931b6d0c6311f464360aa309",
+    "enemy_runtime_sha256": "72aefa23ed4ea2276a0bfbb828ea4b8a2a16e1e1d86a6eda660f0460eb516425",
+    "rate_helper": {
+      "bytes": 185,
+      "capacity": 192,
+      "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+      "range": "$A3B0-$A468"
+    },
+    "E2_helper": {
+      "bytes": 87,
+      "capacity": 93,
+      "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+      "range": "$A8A0-$A8F6"
+    },
+    "B2_banked_helper": {
+      "bytes": 696,
+      "capacity": 698,
+      "sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab"
+    },
+    "actual_rate_callsite": {
+      "logical_address": "$08EE",
+      "artifact": "ladybug-enemy-runtime.rom",
+      "listing": "ladybug-enemy-runtime.lst",
+      "artifact_offset": 238,
+      "bytes_hex": "bda3c5",
+      "target": "$A3C5",
+      "status": "exact-artifact-and-listing-match"
+    },
+    "identity_file": "wiki/internal/tickets/evidence/rsch014-ready-087/r10-ad1-keyboard-candidate-identity-20261003.json",
+    "identity_file_sha256": "3884796a59f613fa7de26f7104525edc5a06d9ce54a285c1a62886da3e255433",
+    "BUG086_dependency": {
+      "actual_done": false,
+      "status": "completion receipt not supplied"
+    },
+    "qualification_limit": "Frozen R10 capacity/source evidence only; it is not a post-BUG-086 integrated build or live runtime acceptance.",
+    "capacity_headroom_bytes": {
+      "rate_helper": 7,
+      "E2_helper": 6,
+      "B2_banked_helper": 2
+    }
+  },
+  "executable_actions_prepared": {
+    "BUG086": {
+      "adapter": "wiki/internal/tickets/evidence/rsch014-ready-086/bug086_ready_successor_adapter.py",
+      "adapter_sha256": "1102b8ddd2aa089247a3482efe1c1705c1691535edbd1bb88ee51ae592968a14",
+      "added_phase": "group-init-9-10-13-14-front-pixel-replay",
+      "coverage": "Actual next_stage/init_enemy path for parts 9, 10, 13, 14 and repeat 9; verifies group start, selected real preview type, FRONT surface pixels, Vbord commit, repeated Part 9 pixel replay, and both naturally alternating FRONT owners.",
+      "status": "prepared; runtime not run",
+      "phase_count": 5,
+      "phase_deadline_seconds_max": 45,
+      "dispatch_guards": "Parent-reviewed receipt pins exact candidate manifest hash, adapter SHA-256, five phases, and 45-second deadline; adapter runs static preflight before starting its XRoar process."
+    },
+    "BUG087": {
+      "adapter": "wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py",
+      "adapter_sha256": "a3176e1cc14dda62625ee88cef3ed5f59a7905b975b9508ac0f23ec04aef3aeb",
+      "scenario_plan": "wiki/internal/tickets/evidence/rsch014-ready-087/scenario-plan.json",
+      "scenario_plan_sha256": "a714151295ea28d1f0e1806ede6f51bd9d3820f47980956e3ce6f49a75ba5a22",
+      "actions": [
+        "matched baseline/candidate real enemy callbacks; explicit horizontal or vertical axis; candidate rate_tick breakpoint; raw FRAMES and FB_SIM_SEQ; all actor records; FRONT origin pixels; fractional carry oracle",
+        "real rate/enemy callbacks for 0F->10 and EF->F0 rollover, saturated expiry/non-expiry, full 300-callback freeze, 1->0 no-move thaw, actual post-thaw movement, and death bypass",
+        "parent-confirmed gate0=0 legal reverse fixture: slot0 west from (6,4) through (5,4) to (4,4), real east reverse chooser, plus another actor actually moving; no actor/gate/framebuffer/owner/mapping writes",
+        "natural next_stage/init_enemy/rate shim/true enemy init/first enemy tick markers in order"
+      ],
+      "dispatch_guards": "For every phase, parent-reviewed receipt pins BUG-086 actualDone receipt, exact current identity files, adapter and scenario-plan hashes, fixture contract, phase, and <=45-second deadline. Adapter attaches to already-running private XRoar monitor endpoints and does not launch XRoar.",
+      "status": "prepared; runtime not run"
+    }
+  },
+  "offline_verification": [
+    {
+      "command": "python -m py_compile wiki/internal/tickets/evidence/rsch014-ready-086/bug086_ready_successor_adapter.py wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py",
+      "result": "pass"
+    },
+    {
+      "command": "python wiki/internal/tickets/evidence/rsch014-ready-086/bug086_ready_successor_adapter.py self-test --output wiki/internal/tickets/evidence/rsch014-ready-086/selftest-receipt-20261003.json",
+      "result": "pass",
+      "guard_cases": 21,
+      "runtime_launched": false,
+      "receipt_sha256": "17b9979bb6fa50f78af37db8bb364df89122d2a3eb6f0f563b34d67a2c34fee3",
+      "note": "Receipt already existed and pins the unchanged current BUG-086 adapter; duplicate receipt was not retained."
+    },
+    {
+      "command": "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py self-test",
+      "result": "pass",
+      "guard_cases": 14,
+      "arithmetic_cases": 560,
+      "runtime": "not-run"
+    },
+    {
+      "command": "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py capture --side candidate --profile complete-ad1-keyboard --build-dir E:\\projects\\ladybug\\worktrees\\bug087-rate-fit-preparation\\build\\.rsch014-r10-overlay-base\\build\\wiki\\internal\\tickets\\evidence\\rsch014-R10\\frozen-rate-clock\\ad1-keyboard-saturated-gate-corrected --source-revision cb84a603e74c67e18ed055f13e6dc0f518dd051d --output wiki/internal/tickets/evidence/rsch014-ready-087/r10-ad1-keyboard-candidate-identity-20261003.json",
+      "result": "pass",
+      "maps": 5,
+      "artifacts": 10,
+      "full_rom_sha256": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721",
+      "build_receipt_revision": "cb84a603e74c67e18ed055f13e6dc0f518dd051d",
+      "qualification": "fit-only; no BUG-086 receipt supplied"
+    },
+    {
+      "command": "@'\nimport importlib.util, json\nfrom pathlib import Path\np = Path('wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py')\nspec = importlib.util.spec_from_file_location('bug087_ready_adapter', p)\nmod = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(mod)\nmod.verify_identity(json.loads(Path('wiki/internal/tickets/evidence/rsch014-ready-087/r10-ad1-keyboard-candidate-identity-20261003.json').read_text()))\nmod.validate_plan(json.loads(Path('wiki/internal/tickets/evidence/rsch014-ready-087/scenario-plan.json').read_text()))\nprint('IDENTITY AND PLAN PASS')\n'@ | python -",
+      "result": "pass",
+      "identity": "all 10 artifact and 5 map hashes/symbols plus the listed/staged rate_tick callsite verified",
+      "plan": "exact four assigned phases and deadlines <=45 seconds verified"
+    },
+    {
+      "command": "git diff --check",
+      "result": "pass"
+    },
+    {
+      "command": "python wiki/internal/tickets/evidence/rsch014-ready-086/bug086_ready_successor_adapter.py live --help",
+      "result": "pass",
+      "phase_count": "five separately bounded phases; live authorization now requires phase_count=5 and phase_deadline_seconds=45",
+      "runtime_launched": false
+    }
+  ],
+  "exact_remaining_gates": [
+    "BUG-086 live dispatch requires the exact assigned candidate manifest and source worktree to pass its existing static preflight. Parent-reviewed authorization must pin that manifest SHA-256, current adapter SHA-256, phase_count=5, and 45-second per-phase deadline; the 086 adapter starts its XRoar process only after these checks. No such dispatch occurred in this preparation step.",
+    "Execute all five BUG-086 phases under separate 45-second deadlines: cold credited start; last-bonus/real Part 9 helper preview; ordered Part 9 releases and two-skull latest override; real deadline type-4 replacement followed by type-1 resumption; and real next_stage initialization for Parts 9/10/13/14 with FRONT pixel replay. Any missing marker or timeout fails; bounded discriminator output is not by itself BUG-086 acceptance.",
+    "BUG-087 runtime actions remain gated on BUG-086 being integrated and recorded actualDone with a completion receipt.",
+    "After BUG-086 actualDone, build and capture fresh baseline and candidate artifacts from the same integrated source revision, both tied to the exact completion receipt; the frozen R10 candidate identity is fit-only and cannot replace these paired identities.",
+    "Parent must review and approve each BUG-087 dispatch receipt, pinning both current identities, BUG-086 receipt, adapter and scenario-plan hashes, fixture-contract hash, phase, and <=45-second deadline. 087 live attaches only to already-running monitors.",
+    "Run BUG-087 matched-displacement separately for horizontal and vertical legal movement, with actual baseline/candidate callbacks, candidate rate_tick, raw FRAMES and FB_SIM_SEQ, all actor records, FRONT pixels, and measured fractional carry.",
+    "Run BUG-087 actual rate/enemy callback freeze coverage through the complete 300-callback expiry, including saturation edges, no-move thaw callback, subsequent real movement, and death bypass.",
+    "Enter the 087 reversal phase with the parent-confirmed real fixture: gate0 remains 0; slot0 arrives west at (6,4), then moves to (5,4) and (4,4); the real chooser takes the sole legal east reverse while another actor moves in the same callback. Do not force DIR_NONE, flip the gate, or change framebuffer ownership/metadata.",
+    "Run BUG-087 natural next_stage/init_enemy/rate shim/actual enemy init/first callback markers on the fresh candidate identity. A missing marker or timeout is failed evidence, never a pass."
+  ],
+  "scope_boundary": {
+    "production_source_changed": false,
+    "canonical_wiki_changed": false,
+    "push_performed": false,
+    "emulator_launch_performed": false
+  },
+  "qa_review": {
+    "status": "offline-preparation-ready-for-parent-integration-review",
+    "scope": "Only RSCH-014 evidence/adapters/receipt in the assigned worktree; no BUG-086/087 production repair, canonical ticket edit, emulator launch, or monitor connection.",
+    "finding_fixed": "The matched-displacement handler used its sample-count variable before assignment in the final required-marker check. The assignment now precedes the check.",
+    "verification": "py_compile, BUG-087 self-test, candidate artifact/map/callsite identity verification, four-phase <=45-second plan validation, and git diff --check passed after the fix.",
+    "runtime_limit": "No runtime action was executed; runtime acceptance remains false and parent must inspect monitor mechanics and dispatch pins.",
+    "runtime_policy": {
+      "BUG086": "Authorized live adapter starts XRoar after its exact manifest and five-phase dispatch receipt pass; no start occurred here.",
+      "BUG087": "Live adapter connects to existing monitor endpoints and refuses stale identities/receipt/hash pins; no connection occurred here."
+    }
+  }
+}
