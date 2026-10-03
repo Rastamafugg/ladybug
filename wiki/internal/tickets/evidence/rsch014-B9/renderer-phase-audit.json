@@ -145,7 +145,7 @@
     "graphic_identity": {
       "device_code_expression": "sprite_code = ((attribute_byte_4 & 0x10) << 4 | base_byte_3) >> 2",
       "decoded_sprite_codes": [57, 58, 59, 60, 61, 62, 63, 63, 82, 83, 84, 85, 86, 87, 88],
-      "identity_reference": "assets/arcade/death_animation_reference.json: shrink_and_wing_frames codes 57-63, codes 82-87, then angel code 88; its reference gives 30 frames per first sprite, 5 per subsequent shrink/wing sprite, and a 30-frame stationary angel before motion.",
+      "identity_reference": "assets/arcade/death_animation_reference.json: shrink_and_wing_frames codes57-63, codes82-87, then angel code88. Its inclusive recorded first interval2880-2908 is29 displayed frames; subsequent shrink/wing intervals are5, and stationary angel hold is30. This raw reference's interval counts are distinct from the source script's30 initial service iterations and65 final iterations.",
       "comparison_limit": "Authored code identity and wait-loop counts are static facts. The scripted final code 88 receives 65 service iterations, while the existing death reference records a 30-frame stationary code-88 hold before motion. The reference is not tied here to the exact current main-CPU ROM hash, and service iterations are not independently proven to equal displayed frames in this transition. Current retained B8 RAM/pixels cover frames 654-676 and contain no frames of this transition. This audit therefore proves neither current-ROM displayed-frame holds nor the precise callsite's gameplay trigger; the code-88 hold difference remains an explicit discriminator."
     }
   },

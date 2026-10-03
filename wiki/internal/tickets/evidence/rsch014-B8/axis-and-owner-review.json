@@ -17,12 +17,13 @@
     "command": "timeout 60s /usr/bin/time -f wall_seconds=%e python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 676 --recognize-from 654 --video-from 620 --skip-player-recognition --plan /tmp/rsch014-B8-axis2-plan.json --output /tmp/rsch014-B8-axis2-capture.json --raw-video /tmp/rsch014-B8-axis2.bgra --raw-background /tmp/rsch014-B8-axis2-background.bin --raw-work-ram /tmp/rsch014-B8-axis2-ram.bin",
     "tool_result": "exit 0; wall time 4.70 seconds; 29 background-change frames and 372 work-RAM-change frames. Tool completion is not marker success.",
     "declared_marker": "From stable neutral cell (12,18), P1 Right at frames 660-667 must move $6027 east and place the exact player-pixel center in cell (13,18) by frame 668.",
-    "marker_result": "FAILED: at frame 668, $6027=95 (+7 from 88), $6028=86, player center=(103,161), still in cell (12,18). At frame 669, $6027=96 (+8), $6028=86, player center=(104,161), entering cell (13,18). Preserve the declared frame-668 failure; do not retroactively pass it.",
-    "positive_axis_fact": "Right moves east with positive X polarity. The pixel-cell crossing occurs one frame after the declared cutoff.",
+    "marker_result": "FAILED: raw frame668 $6027=95 (+7 from88), $6028=86, pixel center=(103,161). At669 and through676 RAM remains95; center=(104,161) at669 is +7 from initial97. Screen-to-world-cell conversion is not verified, so no cell13 arrival is established. Preserve the declared marker failure.",
+    "positive_axis_fact": "Right moves the rendered player east with positive $6027 polarity. Hardware-record coordinate naming is separate from the rotated screen transform; no world-cell crossing is claimed.",
+    "parent_correction_20261003": "The earlier narrative incorrectly transcribed frame669 RAM as96 and interpreted a full world-cell arrival. The retained raw bytes are425f560000 at669 and676, as independently checked against raw RAM SHA acc1a858068d3e041b4e3efef45aaf129bc4720f21555f9784d02c77438412f1. B9 b8-raw-sample-support.json retains exact sampled rows and pixel-template evidence; capture artifacts are unchanged.",
     "neutral_baseline": "Frames 654-660: $6027=88, $6028=86, pixel origin=(89,153), center=(97,161), cell (12,18).",
     "unchanged_markers_through_frame_676": {
       "$606E_part": "1",
-      "$60A9_bonus_counter": "115",
+      "$60A9_target_counter": "115",
       "$609F": "0",
       "$60A2": "0",
       "$61C3": "0x10"
@@ -54,7 +55,7 @@
   },
   "next_minimal_plan": {
     "runtime_now": "None. Stop after the two rejected declared markers and reassess before another experiment.",
-    "if_reopened": "Revise the predeclared calibration contract to distinguish RAM +7 by frame 668 from exact pixel-cell entry at frame 669, then capture at most one minimal player/enemy pair through a single observed $605A increment while recording actor bytes +3/+4, $6059/$605A, $61B6/$61B7, $61B5/$61C3, exact pixels, $606E, and $60A9. No full maze route or 8-group-by-direction matrix until pose/object ownership is proven.",
+    "if_reopened": "Reassess input-admission and RAM/publication offsets using B9 raw support before declaring a new marker; do not assume pixel-cell entry at669. Source-based den/dispatcher ownership and exact frame-count conversion precede any new bounded capture. No full maze route or group-by-direction matrix without an independent risk.",
     "object_gate": "Keep Part marker $606E=1 and bonus/object counters unchanged. Resolve overlay/counter object identity before any progression route or dispatcher conversion claim.",
     "dispatcher_gate": "For BUG-087, later rate-byte and actor-pixel evidence is still needed to map selected rate code through fractional dispatch to visible displacement. The source chain alone is not behavior coverage."
   },
