@@ -9,7 +9,8 @@
     "command": "LADYBUG_PROFILE=complete LADYBUG_ADAPTIVE=1 LADYBUG_INPUT=keyboard LADYBUG_BUILD_DIR=/mnt/e/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base/build ./scripts/build.sh build",
     "source_reference": "PASS: 15 modules, 35,585 source lines.",
     "source_documentation": "PASS: 15 modules, 303/303 routines, 4,975/4,975 labels.",
-    "other_guards": "PASS: allocation; 130 enemy and 16 player frames; 12 loader segments / 7 LZSS streams; exact GMC overflow boundary; presentation pixel proof; 11,903 CPU-readable GMC bytes spare."
+    "other_guards": "PASS: allocation; 130 enemy and 16 player frames; 12 loader segments / 7 LZSS streams; exact GMC overflow boundary; presentation pixel proof; 11,903 CPU-readable GMC bytes spare.",
+    "B2_active_helper_note": "603-byte active helper assembled from the exact B2-generated source. Candidate binary is a re-linked variant because the R10 resident changed API addresses; its binary hash is not the original B2 baseline."
   },
   "capacity": {
     "resident": {
@@ -37,15 +38,15 @@
       "basis": "exact assembled binary byte length"
     },
     "rate_helper": {
-      "start": "",
-      "end_exclusive": "",
+      "start": "$A3B0",
+      "end_exclusive": "$A469",
       "used": 185,
       "extent": 192,
       "free": 7,
       "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c"
     },
     "E2_enemy_helper": {
-      "start": "",
+      "start": "$A8A0",
       "used": 87,
       "limit": 93,
       "free": 6,
@@ -57,23 +58,32 @@
       "free": 2,
       "sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab"
     },
-    "B2_adaptive_active": {
-      "used": 603,
+    "active_helper_b2_relink": {
+      "candidate_bytes": 603,
       "limit": 777,
       "free": 174,
-      "sha256": "8add5b4086f00509e654d3bb47e82ab6a692178b390a73b16f06d46f715971d9"
+      "B2_integrated_generated_source_sha256": "5b662e01cb75841eb03790327c2ad12ecb6cbfdcfa5cb871d1f67efd95b78241",
+      "B2_integrated_reference_binary_sha256": "4200575dfb3dacd664cfdcb6ed5e5acea087c7262e9689a4b7d3e928b45841c8",
+      "R10_candidate_relinked_binary_sha256": "8add5b4086f00509e654d3bb47e82ab6a692178b390a73b16f06d46f715971d9",
+      "candidate_is_the_B2_binary": false,
+      "qualification": "The active assembly source is byte-identical to B2. The candidate binary has ten changed low bytes across ten absolute call operands to seven shared resident API labels; every target shifted by -0x16 after the R10 resident layout change. The B2 helper source is preserved and the candidate link binds its calls to the new resident addresses.",
+      "B2_adaptive_reference_sha256": "2ee906b0d567e5e11cfc8fc9d2e8d4a188678c30b8b24b8a01e25c1311792968",
+      "candidate_adaptive_reference_sha256": "c4acd7f45e59943b0070280ada0b46e5a6573408ca8cef0819254b661d25dc15",
+      "different_operand_bytes": 10,
+      "changed_call_operands": 10,
+      "changed_shared_api_labels": 7
     }
   },
   "call_sites": {
     "enemy_tick": {
-      "module_address": "/bin/bash8EE",
+      "module_address": "$08EE",
       "bytes": "BDA3C5",
-      "target": "physical page 4, rate_tick "
+      "target": "physical page $34, rate_tick $A3C5"
     },
     "enemy_init": {
-      "resident_address": "",
+      "resident_address": "$D548",
       "bytes": "BDA463",
-      "target": "physical page 4, rate_enemy_init_shim "
+      "target": "physical page $34, rate_enemy_init_shim $A463"
     },
     "note": "AD1 keyboard callsite is D548; AD0 keyboard was D572. The helper target bytes and symbols match."
   },
@@ -95,7 +105,20 @@
     },
     "model_sha256": "ffd11f1f05f112cd2942cb2709f345cbc78c97ecef1eee8b90cedebdfba6e325",
     "static_result_sha256": "4f7e0fe4c7816b598d3ed489b54f45573a212357e5a94185335756accb0648ed",
-    "checks": "Rate table matches active part N to source counter N (one-based STAGE-1): 800 part/bucket cells, 50 threshold sets, and 3,280 late-part cells. Freeze cases cover saturated expiry/nonexpiry, frozen bucket rollovers 0F\u219210 and EF\u2192F0 at source-offset stages 1/17, thaw 1\u21920, and carry/no-carry."
+    "checks": "Rate table matches active part N to source counter N (one-based STAGE-1): 800 part/bucket cells, 50 threshold sets, and 3,280 late-part cells. Freeze cases cover saturated expiry/nonexpiry, frozen bucket rollovers 0F\u219210 and EF\u2192F0 at source-offset stages 1/17, thaw 1\u21920, and carry/no-carry.",
+    "active_helper_comparison": {
+      "reference": "B2 integrated build at f0fd002; source commit b1ce21119583de061fe817497f85d7c60b8341d2",
+      "B2_binary_bytes": 603,
+      "candidate_binary_bytes": 603,
+      "B2_binary_sha256": "4200575dfb3dacd664cfdcb6ed5e5acea087c7262e9689a4b7d3e928b45841c8",
+      "candidate_binary_sha256": "8add5b4086f00509e654d3bb47e82ab6a692178b390a73b16f06d46f715971d9",
+      "generated_source_sha256_both": "5b662e01cb75841eb03790327c2ad12ecb6cbfdcfa5cb871d1f67efd95b78241",
+      "diff": "Exactly 10 low operand bytes change across 10 absolute call operands to seven shared resident API labels. Each referenced API address shifts by -0x16 after the R10 main-source layout change; the 603-byte generated active source remains byte-identical to B2.",
+      "changed_call_operands": 10,
+      "changed_shared_api_labels": 7,
+      "B2_adaptive_reference_sha256": "2ee906b0d567e5e11cfc8fc9d2e8d4a188678c30b8b24b8a01e25c1311792968",
+      "candidate_adaptive_reference_sha256": "c4acd7f45e59943b0070280ada0b46e5a6573408ca8cef0819254b661d25dc15"
+    }
   },
   "movement_unit_audit": {
     "horizontal": "\u00b11 framebuffer byte per admitted move; two packed pixels per byte in this renderer.",
