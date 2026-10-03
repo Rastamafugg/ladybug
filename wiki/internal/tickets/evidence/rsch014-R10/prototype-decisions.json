@@ -1,0 +1,44 @@
+{
+  "schema": "rsch014-r10-prototype-decisions-v1",
+  "approval_state": "fit prototype only; no production implementation or runtime behavior acceptance",
+  "decisions": [
+    {
+      "id": "combined-ad0-e001",
+      "result": "rejected before shim",
+      "evidence": "combined-ad0-keyboard-e001/summary.json",
+      "finding": "Exact E2+B2+B9 composition reached resident_end E001, one byte over the exclusive E000 guard. The retained map located the original ENEMY_MODULE_INIT JSR at D572 and added reset JSR at D575."
+    },
+    {
+      "id": "first-tail-jump-shim",
+      "result": "rejected; capacity-only snapshots retained in isolated overlay",
+      "finding": "Replacing rate_reset RTS at A3C4 with JMP $0800 shifted rate_tick from A3C5 to A3C7 while enemy_runtime still called A3C5. A3C5 would execute the JMP operand byte $08 as ASL direct and touch DP address $00. No runtime was launched."
+    },
+    {
+      "id": "separate-page34-init-shim",
+      "result": "selected for fit prototype",
+      "finding": "rate_reset retains RTS and rate_tick remains A3C5. A separate 6-byte shim at A458 does LBSR rate_reset then JMP $0800. The existing init wrapper calls A458 and returns normally. Helper is 174/192 bytes, leaving 18; init caller stack remains balanced."
+    },
+    {
+      "id": "temporary-routine-equate",
+      "result": "rejected; no canonical catalog edit",
+      "finding": "A temporary ENEMY_RATE_INIT_SHIM equate caused source documentation to demand a routine contract/mirror. The equate was removed; the bounded prototype keeps a literal $A458 call with a source comment, and source documentation then passed."
+    },
+    {
+      "id": "profile-specific-adaptive-output-directory",
+      "result": "rejected build invocation only",
+      "finding": "The AD1 joystick source-reference check rejected build/.rsch014-r10-ad1-joystick/ladybug-adaptive-mapped.s because the configured identity is build/ladybug-adaptive-mapped.s. Rebuilding at the default overlay build path passed source identity. The failed isolated output and exact hashes are retained locally."
+    },
+    {
+      "id": "freeze-semantics",
+      "result": "open; not accepted by table fit",
+      "finding": "rate_tick is still called below the CoCo FREEZE_TIMER gate. Therefore elapsed bucket time pauses during freeze. Arcade source advances elapsed time before the freeze gate but skips fractional/parity dispatch during freeze. Arcade-to-CoCo tick conversion is not calibrated."
+    }
+  ],
+  "excluded_changes": [
+    "No hard allocation limit relaxed.",
+    "No canonical ticket, source catalog, wiki index, wiki log, TMX, or production source committed.",
+    "No emulator or native hardware run.",
+    "No change to existing CoCo freeze duration.",
+    "No claim that rate behavior is accepted from allocation or table-fit evidence."
+  ]
+}

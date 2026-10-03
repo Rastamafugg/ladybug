@@ -1,0 +1,21 @@
+RSCH-014 R10 isolated integration log
+
+Base and ownership
+- Composition base: cb84a603e74c67e18ed055f13e6dc0f518dd051d in ignored nested overlay build/.rsch014-r10-overlay-base.
+- Exact E2 patch normalized SHA-256: 63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa. Applied to clean cb84 base after CRLF-to-LF normalization; E2 enemy code and helper callsites were kept.
+- B2 production adaptive delta applied cleanly. Banked helper output remained the required 696-byte SHA-256 3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab; active helper output is 603 bytes.
+- B9 tracked source delta replayed over E2+B2. A dirty-tree apply check reported overlaps in exactly five files: scripts/build.sh, scripts/build_sparse_sprites.py, scripts/verify_sparse_sprites.py, src/enemy_runtime.s, src/main.s. The B9 rate integration was manually reconciled in the three build/proof scripts; E2 enemy logic and helper source/call API were preserved.
+- The actual E2 helper source assembles to 87 bytes at A8A0 with required SHA-256 057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526.
+- Rate helper is a separate reconstructed target at physical page 34, A3B0. Presentation auxiliary staged source is physical page 23 at A422. Sparse reconstruction compares each independently; physical page identity, not only equal $Axxx window addresses, distinguishes them.
+
+Capacity sequence and corrective init shim
+- The exact combined AD0 keyboard build before init shim failed at resident_end $E001 versus exclusive limit $E000. Evidence commit 6bfa887f7a82c3394573188b6049f13181807f26 records the failure summary and retained-map excerpt; exact map/listing/partial ROM/receipt remain local.
+- An initial shim replaced rate_reset RTS with JMP $0800. That shifted rate_tick from $A3C5 to $A3C7, conflicting with the existing enemy_runtime JSR $A3C5. This candidate was rejected before runtime execution.
+- Final fit-only shim keeps rate_reset RTS, appends `LBSR rate_reset; JMP $0800` at A458, and changes the existing init-wrapper target to JSR $A458. This preserves rate_tick=$A3C5 and true ENEMY_MODULE_INIT return stack. No other caller logic, loader, or freeze duration changed.
+- Final corrected complete-profile AD1 keyboard, AD0 keyboard, and AD1 joystick builds each exited 0 and passed capacity, sparse reconstruction, exact GMC boundary, allocation, presentation-pixel, source-reference, and source-documentation checks. Exact frozen full artifacts and hashes are retained in the nested overlay; concise tracked summaries are in profiles/.
+- AD0 joystick was not run in R10. The pre-existing baseline at cb84a603e74c67e18ed055f13e6dc0f518dd051d overflowed by 23 bytes and is recorded in RSCH-014 E2 current-fit readiness; it is explicitly excluded, not passing.
+
+Scope limit
+- Step-D table/source-byte check passes over 800 part/bucket cells, 50 threshold sets, and 3,280 late-part cells. This proves table equivalence only.
+- Current rate_tick placement pauses elapsed bucket time during CoCo freeze. Arcade semantics require elapsed-before-freeze with fractional/parity dispatch paused. This unresolved behavior and the uncalibrated arcade-to-CoCo tick conversion remain outside fit acceptance.
+- No emulator or native hardware run was performed; no production source or canonical wiki page was committed.

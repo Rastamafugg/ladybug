@@ -1,0 +1,28 @@
+{
+  "schema": "rsch014-b9-rate-policy-fit-v1",
+  "result": "PASS: rate-selection table equivalence only; cadence/freeze behavior remain unaccepted",
+  "model_sha256": "ffd11f1f05f112cd2942cb2709f345cbc78c97ecef1eee8b90cedebdfba6e325",
+  "arcade_rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+  "prototype_source_sha256": "781d70a223274ff9ee041bffc562b306a012654fa781ffb8e967057e143b8395",
+  "helper_binary_sha256": "c040e0179505ef9ace8caf39bdaf07ec884b30b91213bee18e53aa69f0c09b4e",
+  "part_slice": {
+    "source_counters": "1..17",
+    "prototype_array_index": "STAGE-1",
+    "stage_1_offset": 0,
+    "stage_17_offset": 14,
+    "stage_18_and_later_effective_offset": 15
+  },
+  "tested_cells": 800,
+  "tested_part_threshold_sets": 50,
+  "tested_late_part_cells": 3280,
+  "late_offset_equivalence": {
+    "candidate_offset": 15,
+    "source_offset": 16,
+    "effective_rate_index_after_source_clamp": 15
+  },
+  "candidate_elapsed_periods": "unmapped: helper invokes its timer after CoCo freeze gate and no arcade-loop-to-CoCo-tick conversion is calibrated",
+  "source_time_basis": "logical gameplay-loop calls, not assumed raw VBlanks",
+  "source_bucket_1_calls": 996,
+  "source_later_bucket_spacing": 960,
+  "source_freeze_rule": "elapsed timer always advances before freeze gate; dispatcher/fractional accumulator is skipped while frozen"
+}

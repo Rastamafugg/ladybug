@@ -1,0 +1,53 @@
+diff --git a/scripts/source_reference.json b/scripts/source_reference.json
+index d998e41..0fec514 100644
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -4372,6 +4372,48 @@
+       "external_symbols": [
+         "PRES_MAIN_SHARED_MASK"
+       ]
++    },
++    {
++      "id": "rate-helper",
++      "title": "RSCH-014 stage-rate fit prototype",
++      "source": "wiki/internal/tickets/evidence/rsch014-B9-rate/prototype_rate_page34.s",
++      "listing": "ladybug-rate-helper.lst",
++      "map": "ladybug-rate-helper.map",
++      "binary": "ladybug-rate-helper.bin",
++      "external_symbols": [],
++      "routines": [
++        {
++          "name": "rate_reset",
++          "profile": "state",
++          "purpose": "Reset isolated candidate rate state for gameplay stage initialization.",
++          "reasons": []
++        },
++        {
++          "name": "rate_tick",
++          "profile": "movement",
++          "purpose": "Advance the isolated candidate rate accumulator and return its due flag in Z.",
++          "reasons": []
++        },
++        {
++          "name": "rate_select",
++          "profile": "state",
++          "purpose": "Select a candidate rate addend from stage and timer bucket.",
++          "reasons": []
++        }
++      ],
++      "label_classifications": [
++        {
++          "name": "rate_stage_offsets",
++          "kind": "data",
++          "reason": "Candidate stage-rate offset table."
++        },
++        {
++          "name": "rate_module_end",
++          "kind": "boundary",
++          "reason": "End of isolated candidate module."
++        }
++      ],
++      "basic_blocks": []
+     }
+   ],
+   "coverage": {

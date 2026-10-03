@@ -1,0 +1,87 @@
+{
+  "schema": "rsch014-r10-supported-profile-fit-v1",
+  "candidate": "isolated E2+B2+B9 composition with true-init shim; no production source commit",
+  "supported_matrix": [
+    "AD1 keyboard",
+    "AD0 keyboard",
+    "AD1 joystick"
+  ],
+  "profiles": {
+    "AD1 keyboard": {
+      "status": "build exit 0",
+      "resident_end_hex": "DFD4",
+      "resident_free_bytes": 44,
+      "assets_free_bytes": 19,
+      "enemy_module_free_bytes": 5,
+      "presentation_module_free_bytes": 14,
+      "rate_helper_free_bytes": 18,
+      "full_rom_sha256": "f3172ad42228c59f8331f445200795ed116c2fadae28f245acea85d8958ec77c",
+      "sparse_manifest_sha256": "e83e8e9ab8c41652d688ca66bfae6c8866c15efff00ea45e4ab84648c8673f89",
+      "source_receipt_sha256": "f9c3434d104fac3ac0e15f8a5e9c56de1396f40b064ad83ef0c866fc6cc5a745",
+      "summary": "profiles/ad1-keyboard.json"
+    },
+    "AD0 keyboard": {
+      "status": "build exit 0",
+      "resident_end_hex": "DFFE",
+      "resident_free_bytes": 2,
+      "assets_free_bytes": 60,
+      "enemy_module_free_bytes": 5,
+      "presentation_module_free_bytes": 1,
+      "rate_helper_free_bytes": 18,
+      "full_rom_sha256": "ed0bd3061da69ad92fe9b299786389c18370b50c56e5995d886620fe779ff46b",
+      "sparse_manifest_sha256": "bbf4d4a8ce24eaf624e9867e26773cd9740d3b26262dcf216b6bb1405f6be1c2",
+      "source_receipt_sha256": "e86a2a5d965d8e9746ad0e2f7a82572b37ffdea0ec4c9a427e5a4e75f67563b2",
+      "summary": "profiles/ad0-keyboard.json"
+    },
+    "AD1 joystick": {
+      "status": "build exit 0",
+      "resident_end_hex": "DFF8",
+      "resident_free_bytes": 8,
+      "assets_free_bytes": 19,
+      "enemy_module_free_bytes": 5,
+      "presentation_module_free_bytes": 14,
+      "adaptive_mapped_free_bytes": 22,
+      "rate_helper_free_bytes": 18,
+      "full_rom_sha256": "b36ffe29c88f069219e590582d09b48f060446169c637c54925a09879af70433",
+      "sparse_manifest_sha256": "493538f51e0865af407d1e782054e1aba65cde9c1bb45a138f36cd9ee0accb00",
+      "source_receipt_sha256": "86f08f6896100c7d0c2b9cb8d09c1cfcd9f95e990df6ad18f193c5f0ac5a473a",
+      "summary": "profiles/ad1-joystick.json"
+    }
+  },
+  "excluded_profile": {
+    "name": "AD0 joystick",
+    "status": "not run in R10; not passing evidence",
+    "recorded_baseline_revision": "cb84a603e74c67e18ed055f13e6dc0f518dd051d",
+    "resident_end_hex": "$E017",
+    "resident_bytes": 8215,
+    "limit_bytes": 8192,
+    "overflow_bytes": 23,
+    "source": "../rsch014-E2/current-fit-readiness-20261002.json#nonadaptive_joystick_baseline",
+    "reason": "pre-existing PERF-005 nonadaptive joystick capacity failure; outside the authorized R10 matrix"
+  },
+  "shared_fit_identity": {
+    "E2_patch_normalized_sha256": "63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa",
+    "E2_enemy_helper_bytes": 87,
+    "E2_enemy_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "B2_banked_adaptive_bytes": 696,
+    "B2_banked_adaptive_limit": 698,
+    "B2_banked_adaptive_sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab",
+    "B2_active_adaptive_bytes": 603,
+    "B9_rate_helper_bytes": 174,
+    "B9_rate_helper_extent_bytes": 192,
+    "B9_rate_helper_sha256": "6b661f29f60e6e9f296da68ae7d50cdc0ed3f9ecd22c2dc9ee80f790e562c83c",
+    "rate_tick_entry_hex": "A3C5",
+    "true_init_shim_hex": "A458",
+    "rate_module_end_exclusive_hex": "A45E"
+  },
+  "verification_scope": {
+    "full_build_exit_zero": true,
+    "source_reference_and_documentation_pass": true,
+    "sparse_packing_reconstruction_pass": true,
+    "allocation_guards_pass": true,
+    "gmc_exact_boundary_proof_pass": true,
+    "arcade_rate_table_equivalence": "PASS, separately recorded in rate-policy-fit-integrated.json",
+    "runtime_emulator_or_hardware": "not run"
+  },
+  "behavior_limit": "Table equivalence is not rate behavior acceptance. rate_tick remains after the CoCo freeze gate, so candidate elapsed time pauses during freeze; arcade source requires elapsed advance before the freeze gate while suppressing fractional/parity dispatch during freeze. CoCo tick conversion is uncalibrated."
+}

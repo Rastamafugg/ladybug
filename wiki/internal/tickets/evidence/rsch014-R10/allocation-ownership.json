@@ -1,0 +1,56 @@
+{
+  "schema": "rsch014-r10-allocation-ownership-v1",
+  "candidate": "combined E2+B2+B9 fit with corrected separate init shim",
+  "final_profile_artifact": "profiles/ad0-keyboard.json",
+  "physical_page_assertions": [
+    {
+      "object": "presentation auxiliary staged source",
+      "physical_page_hex": "23",
+      "window_address_hex": "A422",
+      "manifest_fields": {"stage_page_decimal": 35, "stage_address_decimal": 42018},
+      "role": "loader source segment; not a page-$34 destination"
+    },
+    {
+      "object": "rate helper",
+      "physical_page_hex": "34",
+      "start_hex": "A3B0",
+      "bytes": 174,
+      "end_inclusive_hex": "A45D",
+      "end_exclusive_hex": "A45E",
+      "reserved_end_inclusive_hex": "A46F",
+      "free_bytes_before_next_owner": 18,
+      "sha256": "6b661f29f60e6e9f296da68ae7d50cdc0ed3f9ecd22c2dc9ee80f790e562c83c",
+      "verified_symbols": {"rate_tick": "A3C5", "rate_enemy_init_shim": "A458", "rate_module_end": "A45E"}
+    },
+    {
+      "object": "E2 enemy page-$34 helper",
+      "physical_page_hex": "34",
+      "start_hex": "A8A0",
+      "bytes": 87,
+      "end_inclusive_hex": "A8F6",
+      "reserved_extent_bytes": 93,
+      "free_bytes": 6,
+      "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526"
+    }
+  ],
+  "unbanked_gameplay_region": [
+    {"owner": "ENTITY_TABLE", "range_hex_inclusive": "A380-A3AF", "bytes": 48, "basis": "12 records x 4 bytes"},
+    {"owner": "rate helper", "range_hex_inclusive": "A3B0-A45D", "bytes": 174},
+    {"owner": "reserved helper tail", "range_hex_inclusive": "A45E-A46F", "bytes": 18},
+    {"owner": "ENEMY_TABLE", "start_hex": "A470"}
+  ],
+  "low_ram_state": {
+    "range_hex_inclusive": "029B-029F",
+    "bytes": 5,
+    "direct_page": false,
+    "phase_rule": "This range overlaps the boot descriptor table at 0287-02E9. It is valid for rate state only after boot_streams_retired, when all seven descriptor consumers have completed, and before runtime rate initialization. Keybindings own 0287-029A only after descriptor retirement. This is phase ownership, not free DP scratch.",
+    "source": "src/gmc_bootstrap.s:GMC_LZSS_TABLE_RAM and boot_streams_retired; src/keybinding_runtime.s:KB_BIND; isolated prototype helper symbols RATE_TIMER through RATE_PHASE.",
+    "writer_reader_audit": "Search of final composed source found RATE_TIMER/RATE_BUCKET/RATE_FRAC/RATE_ADDEND/RATE_PHASE references only in prototype_rate_page34.s; reset writes the five bytes and the rate tick/selector read or update them. No enemy lifecycle reset writes this range."
+  },
+  "runtime_entry_contract": {
+    "init_path": "gameplay_reentry sets PAR5 to physical page 34 before PRES_MAIN_ENEMY/init_enemy; next_stage calls init_enemy in gameplay with page 34 resident.",
+    "init_shim": "main init wrapper JSR A458; page-$34 shim LBSR rate_reset then JMP $0800 true ENEMY_MODULE_INIT. Nested calls balance: rate_reset RTS returns to shim; true init RTS returns after the wrapper JSR; wrapper RTS returns to caller.",
+    "tick_path": "enemy_tick_impl JSR A3C5 agrees with rate_tick map entry. The call is below the existing death/freeze gate; rate tick remains skipped while CoCo freeze is active.",
+    "source_proof": "Final AD1 keyboard listing/map: main init wrapper and ENEMY_MODULE_INIT symbols; rate-helper.map confirms A3C5/A458/A45E; enemy-runtime.lst decodes the JSR A3C5; sparse verifier reconstructs page-23 source and page-34 destinations independently."
+  }
+}
