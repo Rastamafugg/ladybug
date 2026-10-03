@@ -1,0 +1,135 @@
+{
+  "schema": "rsch014-r10-freeze-order-checkpoint-v1",
+  "candidate": "isolated RSCH-014 prototype; AD0 keyboard only",
+  "build_result": "PASS: build exited 0; capacity, sparse reconstruction, GMC boundary, allocation, presentation pixel, source reference, and source-documentation guards passed",
+  "configuration": {
+    "profile": "complete",
+    "adaptive_rendering": false,
+    "input": "keyboard",
+    "build_output": "build/.rsch014-r10-overlay-base/build/r10-freeze-order-ad0-keyboard-corrected"
+  },
+  "capacity": {
+    "resident": {
+      "end": "DFFE",
+      "used": 8190,
+      "limit": 8192,
+      "free": 2
+    },
+    "assets": {
+      "used": 7620,
+      "limit": 7680,
+      "free": 60
+    },
+    "enemy_runtime": {
+      "used": 4091,
+      "limit": 4096,
+      "free": 5
+    },
+    "presentation_module": {
+      "used": 1279,
+      "limit": 1280,
+      "free": 1
+    },
+    "rate_helper": {
+      "start": "A3B0",
+      "end_exclusive": "A469",
+      "used": 185,
+      "extent": 192,
+      "free": 7
+    },
+    "E2_enemy_helper": {
+      "start": "A8A0",
+      "used": 87,
+      "limit": 93,
+      "free": 6,
+      "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526"
+    },
+    "sparse": {
+      "segments": 11,
+      "compressed_streams": 7,
+      "CPU_readable_GMC_spare_bytes": 14189
+    }
+  },
+  "frozen_identity": {
+    "ROM_sha256": "3e1d206c05e95a9dc545f744ecc1953b2cbdcbce7854aede2232ae14475b7300",
+    "sparse_manifest_sha256": "d76a98ba30149abf7b2cb7066988d940ed458738f39e9ea09d7fcd3c4758d93e",
+    "source_receipt_sha256": "8302656b257eed7e6c71637bce6954a363427596262588f1a573d40d2c0a961c",
+    "rate_source_sha256": "ed972b6d29df79559f8f1d76c5f9405eaf42b541ee1e1d687f0b63737a4c6880",
+    "rate_helper_sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+    "main_source_sha256": "7824c831eff41f263f2f44549875bc09b96cba8babcad1f3193fb4ae4a3ab5bb",
+    "enemy_source_sha256": "ef04cfa9963cff3d1ef3a6b350112dcf6935bc51c21f577f5253c9252662d333",
+    "artifact_directory": "build/.rsch014-r10-overlay-base/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad0-keyboard-saturated-gate-corrected"
+  },
+  "verified_call_sites": {
+    "enemy_tick": {
+      "resident_module_address": "08EE",
+      "bytes": "BDA3C5",
+      "target": "page-$34 rate_tick at A3C5"
+    },
+    "true_init": {
+      "resident_address": "D572",
+      "bytes": "BDA463",
+      "target": "rate_enemy_init_shim at A463"
+    },
+    "map_symbols": {
+      "rate_reset": "A3B0",
+      "rate_tick": "A3C5",
+      "rate_enemy_init_shim": "A463",
+      "rate_module_end_exclusive": "A469"
+    }
+  },
+  "static_state_checks": {
+    "status": "PASS: source/listing checks plus deterministic rate_tick state model; not emulator or hardware execution",
+    "cases": [
+      "RATE_BUCKET=$F0 with RATE_TIMER expiry while frozen",
+      "RATE_BUCKET=$F0 without RATE_TIMER expiry while frozen",
+      "RATE_BUCKET=$0F->$10 and $EF->$F0 rollover while frozen at explicit source stages 1 and 17",
+      "bucket selector updates addend before the freeze gate while RATE_FRAC/RATE_PHASE remain held",
+      "FREEZE_TIMER 1-to-0 callback holds movement then next call thaws",
+      "thaw fraction carry and no-carry",
+      "DEATH_STATE branch bypasses rate_tick"
+    ],
+    "table_proof": "800 active part/bucket cells, 50 threshold sets, 3280 late-part cells; source offsets are counters 1..17 selected with STAGE-1; table equivalence only",
+    "death_state": "Existing bypass remains before the rate call; static source/control-flow check only",
+    "freeze_duration": "Existing CoCo FREEZE_TIMER=300 adaptation retained unchanged",
+    "no_actor_debt": "No per-actor elapsed debt added; frozen calls retain the shared fractional/parity state",
+    "stage_coverage": "Selector transition state model uses the exact source offset table for stage 1 and 17 only; no claim of exhaustive stage state modeling."
+  },
+  "page_identity": {
+    "rate_helper": "physical page $34 -> $A3B0",
+    "E2_helper": "physical page $34 -> $A8A0",
+    "presentation_auxiliary": "physical page $23 -> $A422"
+  },
+  "integration_contracts": {
+    "E2_patch_sha256": "63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa",
+    "E2_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "B2_adaptive_helper_for_AD1": "696/698 bytes; SHA-256 3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab",
+    "B2_status_for_AD0_keyboard": "not present; AD1 B2 contract not exercised by this profile",
+    "B2_active_helper_on_AD1_profiles_bytes": 603
+  },
+  "rejected_predecessors": [
+    {
+      "candidate": "185-byte pre-saturation-gate correction",
+      "source_sha256": "b7665e4b19eb23857889dd656e805a54b7898531ca59d9b4e023286c04877ef2",
+      "helper_sha256": "72c16e5be71bb46bd9f126d8842af203b605d19565abeeaecb9caf84482c9c50",
+      "ROM_sha256": "5a412b1545cc98738272a54bf34a66ab2651a36c472bc0c701532eb601c6de82",
+      "finding": "At RATE_BUCKET=$F0, BHS targeted rt_accumulate and bypassed rt_freeze_gate. A frozen timer-expiry callback neither decremented FREEZE_TIMER nor held RATE_FRAC/RATE_PHASE. Corrected same-size branch targets rt_freeze_gate; listing byte at A3D4 changes 2418 to 240D."
+    },
+    {
+      "candidate": "wrong init call target",
+      "callsite_target": "A464",
+      "map_shim_target": "A463",
+      "ROM_sha256": "f0ae68772c6706612b3fc8c47f7a9720c3447ec2edf03a17605434b6efc0ca95",
+      "finding": "Rejected before runtime; the wrapper target did not match the true-init shim map symbol."
+    }
+  ],
+  "not_verified_or_accepted": [
+    "Arcade logical-loop to CoCo rate_tick cadence conversion remains uncalibrated.",
+    "No emulator or native-hardware runtime was used.",
+    "No fit result from the prior 174-byte helper or three-profile matrix is carried to this 185-byte freeze-order candidate.",
+    "AD1 keyboard, AD1 joystick, and AD0 joystick have not been built with this candidate.",
+    "AD0 joystick remains excluded because its prior baseline exceeded the resident limit by 23 bytes.",
+    "Death-state rate-pause semantics remain unreviewed against arcade behavior."
+  ],
+  "linked_static_check": "freeze-order-ad0-keyboard-static-check.json"
+}

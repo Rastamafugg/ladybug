@@ -1,0 +1,102 @@
+{
+  "schema": "rsch014-r10-freeze-order-static-v1",
+  "profile": "complete AD0 keyboard only",
+  "result": "PASS: frozen source/map/listing/model checks; not runtime or cadence acceptance",
+  "model_sha256": "ffd11f1f05f112cd2942cb2709f345cbc78c97ecef1eee8b90cedebdfba6e325",
+  "frozen_hashes": {
+    "ladybug.rom": "3e1d206c05e95a9dc545f744ecc1953b2cbdcbce7854aede2232ae14475b7300",
+    "ladybug-sparse-layout.json": "d76a98ba30149abf7b2cb7066988d940ed458738f39e9ea09d7fcd3c4758d93e",
+    "source-build-receipt.json": "8302656b257eed7e6c71637bce6954a363427596262588f1a573d40d2c0a961c",
+    "ladybug-rate-helper.bin": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+    "ladybug-enemy-helper-page34.bin": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "main.s": "7824c831eff41f263f2f44549875bc09b96cba8babcad1f3193fb4ae4a3ab5bb",
+    "enemy_runtime.s": "ef04cfa9963cff3d1ef3a6b350112dcf6935bc51c21f577f5253c9252662d333",
+    "prototype_rate_page34.s": "ed972b6d29df79559f8f1d76c5f9405eaf42b541ee1e1d687f0b63737a4c6880"
+  },
+  "rate_helper": {
+    "start": "$A3B0",
+    "tick": "$A3C5",
+    "init_shim": "$A463",
+    "end_exclusive": "$A469",
+    "bytes": 185,
+    "extent": 192,
+    "free": 7
+  },
+  "call_sites": {
+    "enemy": "enemy module $08EE bytes BDA3C5 -> page-$34 rate_tick $A3C5",
+    "init": "resident $D572 bytes BDA463 -> rate_enemy_init_shim $A463"
+  },
+  "source_policy_table_only": {
+    "part_bucket_cells": 800,
+    "part_threshold_sets": 50,
+    "late_part_cells": 3280,
+    "part_slice": "source counters 1..17, array index STAGE-1; stage 18+ clamps to offset 15"
+  },
+  "state_machine_cases": [
+    {
+      "case": "bucket_f0_expiry",
+      "result": "PASS: elapsed timer advances; frozen fraction/phase hold; freeze decrements once"
+    },
+    {
+      "case": "bucket_f0_nonexpiry",
+      "result": "PASS: elapsed timer advances; frozen fraction/phase hold; freeze decrements once"
+    },
+    {
+      "case": "bucket_0f_to_10_stage1_frozen",
+      "stage_offset": 0,
+      "selected_addend": "$00",
+      "result": "PASS: bucket selector updates before gate; freeze still decrements and fraction/phase hold"
+    },
+    {
+      "case": "bucket_0f_to_10_stage17_frozen",
+      "stage_offset": 14,
+      "selected_addend": "$CC",
+      "result": "PASS: bucket selector updates before gate; freeze still decrements and fraction/phase hold"
+    },
+    {
+      "case": "bucket_ef_to_f0_stage1_frozen",
+      "stage_offset": 0,
+      "selected_addend": "$CC",
+      "result": "PASS: bucket selector updates before gate; freeze still decrements and fraction/phase hold"
+    },
+    {
+      "case": "bucket_ef_to_f0_stage17_frozen",
+      "stage_offset": 14,
+      "selected_addend": "$CC",
+      "result": "PASS: bucket selector updates before gate; freeze still decrements and fraction/phase hold"
+    },
+    {
+      "case": "thaw_1_to_0",
+      "result": "PASS: thawing callback returns without movement; next callback applies one addend"
+    },
+    {
+      "case": "thaw_fraction_carry",
+      "result": "PASS: one addend carries; phase stays unchanged; due=1"
+    },
+    {
+      "case": "thaw_fraction_no_carry",
+      "result": "PASS: one addend does not carry; phase advances once; due=0"
+    },
+    {
+      "case": "death_state_bypass",
+      "result": "PASS: source branch precedes rate_tick; static control-flow check only"
+    }
+  ],
+  "state_model_stage_coverage": "Stage offsets are applied from the exact source table for the explicit stage 1 and stage 17 rollover cases; this is not an exhaustive stage runtime model.",
+  "page_identity": {
+    "rate_helper": "physical page $34 -> $A3B0",
+    "E2_helper": "physical page $34 -> $A8A0, exact 87-byte hash retained",
+    "presentation_auxiliary": "physical page $23 -> $A422"
+  },
+  "freeze_duration": "Existing CoCo LDD #300 / STD FREEZE_TIMER adaptation retained unchanged; no duration-policy change is included.",
+  "adaptive_helper_contract": {
+    "required_for_AD1_profiles": "696/698 bytes, SHA-256 3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab",
+    "AD0_keyboard_profile": "adaptive helper not present; contract not reverified by this profile"
+  },
+  "behavior_limits": [
+    "No per-actor elapsed debt is modeled or added.",
+    "DEATH_STATE bypass is source/control-flow only.",
+    "Arcade logical-loop cadence to CoCo rate_tick calls is uncalibrated.",
+    "No emulator or native-hardware execution was performed."
+  ]
+}
