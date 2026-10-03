@@ -1,0 +1,11 @@
+Observed map lines from the failed combined build (map SHA-256: 1d631ffed6a088cdc565fb030b7998b99190f1c4bb062895aad9131ffdf1db61)
+Symbol: ENEMY_MODULE_INIT = 0800
+Symbol: init_enemy = D572
+Symbol: resident_end = E001
+
+Failed assembly listing sequence:
+D572  JSR ENEMY_MODULE_INIT
+D575  JSR $A3B0
+
+The build guard requires resident_end <= E000. The measured end is E001.
+The exact map, listing, partial runtime ROM and source-build receipt are retained locally beside this summary.
