@@ -1,0 +1,80 @@
+{
+  "schema": "rsch014-a11-bug080-enemy-pose-summary-v1",
+  "date": "2026-10-03",
+  "scope": "One current B2 natural Part-1 start, first enemy release, and bounded 128-IRQ observation. Evidence preparation only; no production or ticket-status change.",
+  "identity": {
+    "rom_sha256": "2114f0185b5a4bd13795e5ded2834053e22f50adf83610870e387c200d73b901",
+    "build_receipt_revision": "b1ce21119583de061fe817497f85d7c60b8341d2",
+    "observer_variant_sha256": "223e1cd80802732817fbc8b9c80cc1a9fe7fe6fc770a187716c30f8d330327aa",
+    "offline_preflight_sha256": "a6b33a8d8843b29fd38ef1a82cad24e733d19c5729ef23a93fcc90862c4a807a",
+    "enemy_runtime_source_sha256": "d8b04663d25b50add05e9d2b53dfb31e58f314fbbcad0005898de362258b7e80",
+    "adaptive_active_source_sha256": "9a7f9d23dcf1f4d0a9586d816d516d5dea784dfdfec55ac05d3e5592e736e9b8",
+    "adaptive_runtime_source_sha256": "ffa30b03a31da2f2154d76c8aab2bfac1d46b67ffc35b4d4fba6f3dfe24d661c",
+    "native_enemy_templates_sha256": "39ac9bd83a83c5757ff2ae715143070e06bde6e76215158e1ba1fce3a0ec7a88"
+  },
+  "probe": {
+    "command": "wsl.exe -d Ubuntu -- python3 /mnt/e/projects/ladybug/worktrees/arcade-timing-preparation/repro/rsch014-A11/observer_a11_enemy_pose.py",
+    "deadline_seconds": 40,
+    "elapsed_seconds": 5.668,
+    "status": "PASS",
+    "completed_contiguous_irq_samples": 128,
+    "player_exact_template_matches": 128,
+    "mode_part_guard": "all samples mode 0, Part 1",
+    "first_enemy_release_live_bytes_equal_artifact": true,
+    "adaptive_destination_live_bytes_equal_artifact": true
+  },
+  "published_pixels": {
+    "slot0_part1_enemy": {
+      "raw_observer_broad_eligibility": 128,
+      "raw_exact_matches": 116,
+      "nest_owned_background_valid_zero": {
+        "frames": [4411, 4425],
+        "samples": 15,
+        "exact_matches": 3,
+        "no_exact_template_match": 12,
+        "mismatches": "4412-4423; all records have direction North, cell row 11 or 12, pointer within the 16x32 nest, and background_valid=0. Preserve the raw results; do not count these as roaming-actor pose samples. compose_enemy_zone draws active nest records before the dormant sprite, so this is a structural release/overlap state."
+      },
+      "source_qualified_roaming": {
+        "lifecycle_condition": "slot 0 active and saved_background_valid=1, the source-published roaming-underlay state",
+        "frames": [4426, 4538],
+        "eligible_samples": 113,
+        "exact_source_template_matches": 113,
+        "unmatched_samples": 0,
+        "direction_metadata": "Read from the published record; North through cell-arrival transition, then West. Part-1 family 0 template selection uses the record direction and shared ENEMY_ANIM."
+      },
+      "complete_interior_pose_run_range_vbords": [3, 10],
+      "run_range_note": "The initial transition run and final capture-end run are clipped. This is a measured range, not a fixed 8-IRQ acceptance rule."
+    },
+    "dormant_den": {
+      "eligible_samples": 113,
+      "exact_source_template_matches": 113,
+      "overlap_excluded_samples": 15,
+      "overlap_frames": [4411, 4425],
+      "blocker": "published roaming slot 0",
+      "complete_interior_pose_run_range_vbords": [7, 10],
+      "run_range_note": "The initial eligibility boundary and final capture-end run are clipped; no strict raw-IRQ dwell threshold is applied."
+    }
+  },
+  "logical_clock": {
+    "source_period_logical_ticks_per_phase": 8,
+    "stable_snapshot_raw_frames": [4410, 4538],
+    "sim_tick_delta": 124,
+    "phase_origin_delta": 128,
+    "phase_delta_mod4": 0,
+    "timer_equation_remainder": 0,
+    "phase_link_pass": true,
+    "interpretation": "Stable dispatcher endpoints link exact published Part-1 roaming and dormant-den templates to the shared enemy animation phase. Raw Vbord holds vary with publication timing and are not equivalent to logical dwell."
+  },
+  "source_qualification": {
+    "enemy_release": "enemy_release_impl initializes slot 0 at ENEMY_FB=$57EC, cell (12,12), direction North, with saved-background-valid clear.",
+    "nest_and_roaming_ownership": "compose_enemy_zone draws active nest actors in rows 11/12, then draws the dormant sprite. actor_closure_draw/roam_finish_shadow establishes saved-background ownership as an actor is staged into roaming. The retained trace has all 12 no-match frames in the nest-owned state and all 113 background-valid roaming frames exact-matching.",
+    "sprite_selection": "Part-1 enemy_frame_number indexes family 0 by published record direction and ENEMY_ANIM; record byte 3 is movement substep and is not used as animation phase.",
+    "limits": "The trace preserves hashes and per-sample metadata but not raw FRONT framebuffer bytes. The 12 nest-owned no-match observations are retained and classified by source lifecycle/occlusion; no separate pixel-layer reconstruction is claimed. No movement-equivalence result is claimed."
+  },
+  "disposition": "No ordinary enemy/den timer mismatch is established by this bounded sample. Current roaming samples are exact and link to the source-defined 8-logical-tick phase. The sampled logical period does not justify a timer repair. BUG-080 movement equivalence and separate presentation owners remain outside this sample.",
+  "retained_artifact": {
+    "file": "runtime-enemy-observer.json",
+    "sha256": "998bedd981c2134a90ea60a20dc28be39b8d25aaba895f2951ec9bc17beaeff6",
+    "note": "Hash field should be checked against the exact retained bytes before commit."
+  }
+}
