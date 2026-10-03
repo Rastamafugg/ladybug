@@ -1,0 +1,67 @@
+{
+  "schema": "rsch014-b8-axis-and-owner-review-v1",
+  "research_ticket": "RSCH-014",
+  "targets": ["BUG-080", "BUG-087"],
+  "date": "2026-10-02",
+  "scope": "One bounded arcade Right-axis calibration phase plus limited static source tracing. No production changes and no canonical ticket edits.",
+  "source_identity": {
+    "mame_version": "0.220 (unknown identity)",
+    "mame_executable_sha256": "7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4",
+    "ladybug_rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+    "main_cpu_0000_5fff_sha256": "3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12",
+    "main_cpu_disassembly_sha256": "34bf89b284f394e2eb9331e3cf4630afa4cf59200b2e952cb6b0a35e231ac3b3"
+  },
+  "calibration": {
+    "plan": "B6 perpendicular-axis plan, copied to /tmp/rsch014-B8-axis2-plan.json without changing its declared marker",
+    "plan_sha256": "46e0f1378b9ab12d3e115145379031f7f68b943564ccf44af9d093f42c0a8dc1",
+    "command": "timeout 60s /usr/bin/time -f wall_seconds=%e python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 676 --recognize-from 654 --video-from 620 --skip-player-recognition --plan /tmp/rsch014-B8-axis2-plan.json --output /tmp/rsch014-B8-axis2-capture.json --raw-video /tmp/rsch014-B8-axis2.bgra --raw-background /tmp/rsch014-B8-axis2-background.bin --raw-work-ram /tmp/rsch014-B8-axis2-ram.bin",
+    "tool_result": "exit 0; wall time 4.70 seconds; 29 background-change frames and 372 work-RAM-change frames. Tool completion is not marker success.",
+    "declared_marker": "From stable neutral cell (12,18), P1 Right at frames 660-667 must move $6027 east and place the exact player-pixel center in cell (13,18) by frame 668.",
+    "marker_result": "FAILED: at frame 668, $6027=95 (+7 from 88), $6028=86, player center=(103,161), still in cell (12,18). At frame 669, $6027=96 (+8), $6028=86, player center=(104,161), entering cell (13,18). Preserve the declared frame-668 failure; do not retroactively pass it.",
+    "positive_axis_fact": "Right moves east with positive X polarity. The pixel-cell crossing occurs one frame after the declared cutoff.",
+    "neutral_baseline": "Frames 654-660: $6027=88, $6028=86, pixel origin=(89,153), center=(97,161), cell (12,18).",
+    "unchanged_markers_through_frame_676": {
+      "$606E_part": "1",
+      "$60A9_bonus_counter": "115",
+      "$609F": "0",
+      "$60A2": "0",
+      "$61C3": "0x10"
+    },
+    "artifacts_sha256": {
+      "capture_json": "592fe52bed7efb04fab1f5f1e89c936e4a77917b6833b20f770f8e5c14661bd4",
+      "raw_video": "5a24b4b375a3e7dc98b337461da9404fae7dc402ae7d06c2930f1edb1151ddb2",
+      "raw_background": "8e739b3d7b585d8911710500b27bd2e2f5d38b43881d6cc5c75bd6aa0c8a31ef",
+      "raw_work_ram": "acc1a858068d3e041b4e3efef45aaf129bc4720f21555f9784d02c77438412f1"
+    },
+    "stop_rule": "B6 and B8 each failed their declared marker. This is the combined two-rejection threshold. No further runtime capture was run."
+  },
+  "b6_control_fact": "B6 declared Down-to-east by frame 668; actual Down changed $6026 state at 661, RAM movement began at 662, $6028 moved -7 by 668, and exact pixels entered south cell (12,19) by 669. This establishes Down-to-south only and rejects B6's declared axis marker.",
+  "bounded_static_trace": {
+    "shared_presentation_path": "Gameplay loop at $0784 calls renderer $1FC7. It waits on VBlank bit 7 at $9001, increments $6059 per wait, and increments $605A on every eighth wait. The renderer iterates ten 5-byte records from $601C, including player $6026 and enemy records $602B/$6030/$6035/$603A. At $20FA-$20FD it copies record byte +4 to sprite-device byte +2. The $20C3-$20F7 path also reads $605A when deriving a presentation value from record byte +3, subject to the record-byte and flag branches.",
+    "limit": "This proves a common sprite-publication path and a $605A-dependent presentation path. It does not prove that the semantic pose selector for player and enemy families has one shared gameplay writer, nor that $605A alone owns every pose change. Dynamic writes to player/enemy record bytes +3/+4 were not resolved in this bounded trace.",
+    "player_path": "Main gameplay calls $35FF after the enemy dispatcher. The inspected $36xx movement path reads controls and updates player status $6026 and coordinates $6027/$6028; this path did not establish a dynamic writer for $6029/$602A.",
+    "enemy_dispatch_and_movement": "Main gameplay calls $407E. It selects rate code $61C3 in $40F8 using part/difficulty and elapsed bucket $61B7>>4. $40CC combines $61C3 with fractional accumulator $61B5 to choose movement steps; $42BA processes each active enemy record. The inspected movement tail writes actor bytes +0..+2, not the graphic fields +3/+4.",
+    "elapsed_vs_route_selection": "$3A48-$3A78 decrements $61B6, reloads it to 0x3C on wrap, increments elapsed byte $61B7, and services per-enemy counters $61CE-$61D1. Route selector $4717 uses $61B7 plus DIP selection to update $61C4-$61C7; $42F4 consumes those route-choice fields. These elapsed/rate/route owners are distinct from renderer counter $605A.",
+    "unresolved": [
+      "Actual dynamic player and enemy pose-selector writers for record bytes +3/+4 and their clock ownership.",
+      "Whether all non-special active families use the same semantic pose update, beyond sharing sprite publication.",
+      "Rare den, release, death, instruction, and attract behavior remain separate evidence gates."
+    ]
+  },
+  "current_vs_historical": {
+    "current_arcade_evidence": "B8 is from the exact MAME/ROM identities above. It proves the observed Right east polarity and records a failed frame-668 pixel marker.",
+    "historical_coco_evidence": "Retained C3 trace has 15 player and 15 enemy logical intervals of exactly 8 simulation ticks. Published-player 5-10 Vbords are pre-B2 historical evidence and are not a current target. Preserve the approved B2 intentional timer slowdown; do not compensate discarded time with raw-Vbord pose ownership or longer timers."
+  },
+  "next_minimal_plan": {
+    "runtime_now": "None. Stop after the two rejected declared markers and reassess before another experiment.",
+    "if_reopened": "Revise the predeclared calibration contract to distinguish RAM +7 by frame 668 from exact pixel-cell entry at frame 669, then capture at most one minimal player/enemy pair through a single observed $605A increment while recording actor bytes +3/+4, $6059/$605A, $61B6/$61B7, $61B5/$61C3, exact pixels, $606E, and $60A9. No full maze route or 8-group-by-direction matrix until pose/object ownership is proven.",
+    "object_gate": "Keep Part marker $606E=1 and bonus/object counters unchanged. Resolve overlay/counter object identity before any progression route or dispatcher conversion claim.",
+    "dispatcher_gate": "For BUG-087, later rate-byte and actor-pixel evidence is still needed to map selected rate code through fractional dispatch to visible displacement. The source chain alone is not behavior coverage."
+  },
+  "readiness": {
+    "BUG-080": "Remains Draft; do not move to Proposed. Shared sprite publication is proven, but semantic pose writer/clock ownership and required family evidence remain unresolved.",
+    "BUG-087": "Remains Draft; do not move to Proposed. B8 marker failed, object/counter contract and later-part rate/pixel evidence remain open.",
+    "production_changes": 0,
+    "canonical_ticket_changes_by_this_step": 0
+  }
+}
