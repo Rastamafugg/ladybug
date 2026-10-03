@@ -1,0 +1,161 @@
+--- a/src/enemy_runtime.s
++++ b/src/enemy_runtime.s
+@@ -1095,31 +1095,34 @@
+ ; Restore only the visible rows recorded for this BACK owner.  The caller has
+ ; already hydrated PLAYER_VISIBLE_ROWS and PLAYER_BG_PTR from that ledger.
+ restore_player_visible
+-        lda     PLAYER_VISIBLE_ROWS
+-        cmpa    #16
++        lbsr    player_entry_width
++        cmpb    #8
+         beq     rpv_full
+-        tsta
++        tstb
+         beq     rpv_invalidate
++        lda     #16
+         sta     PLAYER_ROW
+         ldx     PLAYER_FB
+         ldu     PLAYER_BG_PTR
+ rpv_row
+-        ldd     ,u++
+-        std     ,x++
+-        ldd     ,u++
+-        std     ,x++
+-        ldd     ,u++
+-        std     ,x++
+-        ldd     ,u++
+-        std     ,x++
++        ldb     PLAYER_DX
++rpv_byte
++        lda     ,u+
++        sta     ,x+
++        decb
++        bne     rpv_byte
++        ldb     #8
++        subb    PLAYER_DX
++        leau    b,u
+         leax    152,x
++        leax    b,x
+         dec     PLAYER_ROW
+         bne     rpv_row
+ rpv_invalidate
+         clr     PLAYER_BG_VALID
+         rts
+ rpv_full
+-        jmp     restore_player   ; preserve the existing full-size fast path
++        jmp     restore_player
+ 
+ ; Conservative transitive overlap closure for the five moving actors.
+ ; Restoring every owned old footprint avoids geometry bookkeeping and ensures
+@@ -2895,6 +2898,102 @@
+ ; Entry-only compositor.  It never reads or writes beyond the visible rows at
+ ; the lower edge.  The complete decoded sprite remains bounded by PLAYER_STAGE
+ ; so the sparse decoder cannot touch framebuffer bytes outside that extent.
++        ifne    PERSISTENT_FB
++player_compose_entry
++        lbsr    player_entry_width
++        lda     #16
++        sta     PLAYER_VISIBLE_ROWS
++        ldx     #PLAYER_STAGE
++        ldy     #64
++        clra
++        clrb
++pce_clear_stage
++        std     ,x++
++        leay    -1,y
++        bne     pce_clear_stage
++        ldb     PLAYER_DX
++        beq     pce_no_visible
++        lda     #16
++        sta     PLAYER_ROW
++        ldx     PLAYER_FB
++        ldu     PLAYER_BG_PTR
++        ldy     #PLAYER_STAGE
++pce_capture_row
++        ldb     PLAYER_DX
++pce_capture_byte
++        lda     ,x+
++        sta     ,u+
++        sta     ,y+
++        decb
++        bne     pce_capture_byte
++        ldb     #8
++        subb    PLAYER_DX
++        leau    b,u
++        leay    b,y
++        leax    152,x
++        leax    b,x
++        dec     PLAYER_ROW
++        bne     pce_capture_row
++        lda     #1
++        sta     PLAYER_BG_VALID
++        bra     pce_decode
++pce_no_visible
++        clr     PLAYER_BG_VALID
++pce_decode
++        lda     PLAYER_FACE
++        lsla
++        lsla
++        adda    PLAYER_ANIM
++        lbsr    sparse_player_stream
++        ldx     #PLAYER_STAGE
++        lbsr    sparse_blit_stage
++        ldb     PLAYER_DX
++        beq     pce_done
++        lda     #16
++        sta     PLAYER_ROW
++        ldx     #PLAYER_STAGE
++        ldu     PLAYER_FB
++pce_commit_row
++        ldb     PLAYER_DX
++pce_commit_byte
++        lda     ,x+
++        sta     ,u+
++        decb
++        bne     pce_commit_byte
++        ldb     #8
++        subb    PLAYER_DX
++        leax    b,x
++        leau    152,u
++        leau    b,u
++        dec     PLAYER_ROW
++        bne     pce_commit_row
++pce_done
++        rts
++
++; HUD row starts are page aligned. Only WALKOUT/OFFSCREEN may use low byte
++; as horizontal byte-column. Maze entry and normal actors remain full width.
++; PLAYER_DX is compatibility-only scratch, unused by persistent sparse decode.
++player_entry_width
++        ldb     #8
++        lda     INITIAL_ENTRY_STATE
++        cmpa    #ENTRY_WALKOUT
++        blo     pew_store
++        cmpa    #ENTRY_OFFSCREEN
++        bhi     pew_store
++        ldb     #160
++        subb    PLAYER_FB+1
++        bcs     pew_zero
++        cmpb    #8
++        bls     pew_store
++        ldb     #8
++pew_store
++        stb     PLAYER_DX
++        rts
++pew_zero
++        clrb
++        bra     pew_store
++
++        else
+ player_compose_entry
+         lbsr    player_visible_rows
+         ; Clear the complete stage before decoding, including all nonvisible
+@@ -2996,6 +3095,8 @@
+ pvr_zero
+         clr     PLAYER_VISIBLE_ROWS
+         rts
++
++        endc
+ 
+         ifeq    PERSISTENT_FB
+ copy_two_fb_rows

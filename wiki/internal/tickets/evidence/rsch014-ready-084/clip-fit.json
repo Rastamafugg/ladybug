@@ -1,0 +1,81 @@
+{
+  "ticket": "BUG-084",
+  "date": "2026-10-03",
+  "scope": "isolated persistent enemy-module fit prototype; not production, combined ROM, 6809 execution or Ready",
+  "source_baseline": "f4e63d7",
+  "worktree": "E:/projects/ladybug/worktrees/bug084-readiness",
+  "branch": "codex/bug084-readiness",
+  "source_hashes": {
+    "baseline": "56a36484db93fd675cbcd34819a674a59fe1e70076bd16e2b50f7e934a6cb8d7",
+    "candidate": "aec8e18e9a980e01625ccf80710d1c9a4d1cbb3c941ae1bf3d1ca8d55a9fef18",
+    "patch": "7a2811b5165b02234dc4dfe56e83be36b54e224018276d1748fc2a728695d06a"
+  },
+  "generated_input_hashes": {
+    "adaptive_reference.inc": "8b82bca5e4f6b456a67422b698d2d4768656f60d7de8f663f954a5bc50208a49",
+    "ladybug-perimeter-boot.inc": "3d34e27195c985fa8575a1a6e87249311c4929dd08f7492ae3406db2fdd026dd",
+    "ladybug-sparse-loader.inc": "fb42240a31b71aa48cb9172908d18c62e9621a83085c9ea0cc89d197aa390511",
+    "ladybug_audio_symbols.inc": "746f0f86922713a7585f9047f886d45e4cbe680d91e64c5b8f36044cab868cda",
+    "ladybug_highscore_logo.inc": "afb7cacf9bc1fea76783e3dab0005990c1ccad17acc784396b3c6c202f2aca07",
+    "ladybug_keybinding_records.inc": "274e8a9c315eb27e1da05138147b37d80eee9b7d7169ac7ad3413ba7543951cb",
+    "ladybug_maze.inc": "1f1742e3813df3b673f5e68abb6fb7dc101935737aab10b9c8771d58aedfbb3e",
+    "ladybug_menu_records.inc": "edf8888724bddb671c339e9cd21d4f0346614e0434e666cfedab6cd235876df9",
+    "ladybug_presentation.inc": "423b4ba7fb7d8d981773f813e600be9fd455c444497b3c88c38f24a9232a2b27",
+    "ladybug_presentation_resident.inc": "31f5323076f9785dbcefe5d617fe0c3e3ed9a09b2a5a351c40ec55f5b4745f8c",
+    "ladybug_presentation_symbols.inc": "b12e315e55723cf53f14f51d946dce37d50a2cf03f11b06fd59d4876ce2ae192",
+    "ladybug_presentation_timer_records.inc": "71d10c7e74fdbad681bda803a89a71580c9a3297d2c6fbfb41f8e0a6c9834a08",
+    "ladybug_resident.inc": "44aecce9104674a498680dfb0fc110e4010b8c6dfc1cd07d9f27c01aac87b1a2",
+    "ladybug_runtime_symbols.inc": "24ae7d0b3dd3d8f693441c96742751893e1738b99db8685356006cc086bbcea1",
+    "ladybug_screen.inc": "bb20f4f5db67917505815c859694f1291620ce6a83ab148e6bf086df1577c94a",
+    "ladybug_shared_link.inc": "ac7b2edd3c8566d4d51a677823b19a42867761686caf9f31302494bfd23e2ea1",
+    "ladybug_shared_mode.inc": "ae0d865a47447809faa2028f88b7f05b6366da9ce9ad6e2226aca7e8b36551fb",
+    "ladybug_shared_text.inc": "b394e36ac6bea18c5dad4a8952576de43ffe147f96928e6d1b0daf79d17f4c73",
+    "ladybug_stage_glyphs.inc": "c818a16f15a7ca63b7fdf18ba2442f71e8dc405017a40b92b0ca9e44202bd832",
+    "ladybug_stage_panel.inc": "894ef3ffbde0035b36a12287e4e4f0231c5042ec65a2c55ea7293311eeae5d66",
+    "ladybug_text_colours.inc": "18026d19dfc10f405bf6a599bc998aa989beb1e5e86aaaae908afe981ba11513",
+    "presentation-profile.inc": "eb095dee03a536db0514a1fd2f311554d780c51dda3a33ce2bf5380a8105d0fd",
+    "presentation-timing.inc": "eb095dee03a536db0514a1fd2f311554d780c51dda3a33ce2bf5380a8105d0fd"
+  },
+  "adaptive_mapped_hash": "3db2880d1a5cf636620852676fcc3319c8a37d4499bd80f54d5c1f830d81b6f6",
+  "assembler_commands": [
+    "lwasm -9 --format=raw -DADAPTIVE_RENDERING=1 -I /mnt/e/projects/ladybug/build -I /mnt/e/projects/ladybug/worktrees/bug084-readiness/src --output=<baseline/candidate>.rom --map=<baseline/candidate>.map <baseline.s/src/enemy_runtime.s>"
+  ],
+  "module_bytes": {
+    "baseline": 4091,
+    "candidate": 4091,
+    "limit": 4096,
+    "free": 5,
+    "fixed_table": "17A0",
+    "fixed_table_changed": false,
+    "pre_table_code_delta_bytes": -3
+  },
+  "module_binary_hashes": {
+    "baseline": "4cc0e931fc8241d55e56ee6cf94538e48714d9565695acf32e69694993282d8d",
+    "candidate": "cd9dd26a98bce24c5d10c83b1f85088d8af105a0d0692393ccf8ac88d516a113"
+  },
+  "design": [
+    "HUD width is calculated separately for hydrated old pointer and current pointer; ordinary maze and maze-entry paths use full eight-byte width.",
+    "Only WALKOUT/OFFSCREEN can interpret pointer low byte as HUD byte-column.",
+    "Rows remain sixteen and existing ledger valid/row fields retain their meaning. Zero width invalidates history and does not access framebuffer.",
+    "Clipped restore/capture/commit use byte-prefix loops and fixed eight-byte staging strides; sparse decoder remains bounded to existing128-byte PLAYER_STAGE.",
+    "PLAYER_DX is persistent-path foreground scratch; current source references it only in excluded compatibility compositor. Decoder does not touch it.",
+    "Compatibility PERSISTENT_FB=0 body retains original vertical clipping; candidate module assembly covers default persistent configuration only."
+  ],
+  "host_address_model": {
+    "states": 252,
+    "slots": 12,
+    "result": "pass: every modeled capture/restore/commit address lies in the correct16 framebuffer rows; zero accesses at x320",
+    "meaning": "address arithmetic/source-design check only, not instruction execution or owner replay"
+  },
+  "remaining_readiness_gates": [
+    "BUG-062 consumed-root interface and main trajectory fit; paired source must change vertical walk before this compositor is executable.",
+    "Full supported combined profile reassembly with current E2/rate/menu sources and generated symbols.",
+    "Exact natural first-entry and rare left/middle/right roots plus alternating-owner ledger command; no runtime acceptance yet."
+  ],
+  "not_claimed": [
+    "full ROM capacity",
+    "6809 clip execution",
+    "A/B pixel cleanup",
+    "Ready",
+    "Done"
+  ]
+}
