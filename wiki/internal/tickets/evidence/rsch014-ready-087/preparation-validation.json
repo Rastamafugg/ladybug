@@ -1,0 +1,48 @@
+{
+  "schema": "rsch014-ready-087-preparation-validation-v1",
+  "result": "PREPARATION COMPLETE; BUG-087 remains Approved and is not Ready",
+  "scope": "Current-artifact capture, map-symbol resolution, scenario plan validation. No runtime handler or emulator acceptance.",
+  "pins": {
+    "assignment_source_commit": "4d9ce9b521eaeae0b71a17c6a1f6516bd4503b32",
+    "adapter_sha256": "4ffce8758f203b8b1f29b59658a0ba4291c27ac6cf82f01d3306a17993537cfe",
+    "scenario_plan_sha256": "ed3ee52899700ce69d06f7ac7e7131fb7c719730fa585474e5db63b73ffb0097",
+    "historical_smoke_artifact": {
+      "source": "Frozen corrected R10 AD1 keyboard fit directory; identity-parser smoke test only",
+      "full_ROM_sha256": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721",
+      "manifest_sha256": "6b19e54935fd87966e0732994c1c46b1366f1a7b46a6a8423a0a413499661c7f",
+      "build_receipt_sha256": "26d62cb69c0e129afe7f03515d9dae8dd10c51cfe84d0d5ae34da81c7c52b059",
+      "qualification": "The same frozen artifact was supplied to the parser as both sides only to exercise capture and map resolution. This is not a baseline/candidate comparison and transfers no runtime acceptance."
+    }
+  },
+  "checks": [
+    {"command": "python -m py_compile repro/rsch014-ready-087/bug087_ready_adapter.py", "result": "PASS"},
+    {"command": "python -m json.tool wiki/internal/tickets/evidence/rsch014-ready-087/scenario-plan.json", "result": "PASS"},
+    {"command": "python repro/rsch014-ready-087/bug087_ready_adapter.py --help", "result": "PASS; capture/plan/self-test commands listed"},
+    {"command": "python repro/rsch014-ready-087/bug087_ready_adapter.py self-test", "result": "PASS; four phase schemas, 560 fractional arithmetic cases, runtime=not-run"},
+    {"command": "capture frozen R10 AD1 keyboard artifact into ignored smoke receipts", "result": "PASS; five maps and nine artifacts hashed; helper contracts match"},
+    {"command": "plan smoke receipts with synthetic BUG-086 status Draft", "result": "PASS; four phase symbols resolved, plan correctly reports dispatchable=false"},
+    {"command": "git diff --check -- wiki/internal/tickets/evidence/rsch014-ready-087", "result": "PASS"}
+  ],
+  "resolved_reference_symbols": {
+    "R10_AD1_keyboard_init_callsite": "$D548", "R10_AD1_keyboard_init_bytes": "BDA463",
+    "R10_AD1_keyboard_enemy_tick_wrapper": "$D54C", "R10_AD1_keyboard_rate_callsite": "$08EE",
+    "R10_AD1_keyboard_rate_call_bytes": "BDA3C5", "R10_page34_rate_reset": "$A3B0",
+    "R10_page34_rate_tick": "$A3C5", "R10_page34_freeze_gate": "$A3E3",
+    "R10_page34_init_shim": "$A463", "R10_page34_rate_end_exclusive": "$A469",
+    "R10_enemy_table": "$A470", "R10_ecd_blocked": "$0F8E",
+    "qualification": "Values resolve from frozen R10 AD1 keyboard maps and are historical map anchors; the adapter rehashes and resolves current assigned maps after BUG-086."
+  },
+  "runtime_action_handlers": {
+    "matched-displacement": "MISSING: same-actor legal straight path, paired baseline/candidate logical callback and pixel displacement oracle.",
+    "freeze-saturated-thaw": "MISSING: live saturated bucket expiry/non-expiry, frozen rollovers, thaw 1-to-0, held fraction/phase, death bypass.",
+    "blocked-reversal": "MISSING: natural ecd_blocked event with a second moving actor and active+DIR_NONE reachability discriminator.",
+    "natural-init": "MISSING: adapt existing monolithic transition probe to current paired build/map/artifact paths and produce init shim/reset/true-init markers."
+  },
+  "dependency": {
+    "ticket": "BUG-086",
+    "status": "actualDone receipt absent for this preparation pass",
+    "runtime_dispatch": "Not available until BUG-086 is actualDone, both current builds are captured against the same completion receipt, and action handlers are attached.",
+    "approval": "No second user-approval gate is added; parent reviews the current launch receipt at dispatch under the already approved acceptance."
+  },
+  "runtime": {"emulator_launched": false, "acceptance_claim": false, "timeout_policy": "Each future scenario has its own <=45-second phase; timeout means a required marker was absent within the bound."}
+}

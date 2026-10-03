@@ -1,0 +1,119 @@
+{
+  "schema": "rsch014-ready-087-phase-plan-v1",
+  "assignment": {
+    "ticket": "BUG-087",
+    "approval_state": "Approved",
+    "readiness_state": "Approved; Ready is withheld until BUG-086 actualDone and action handlers exist",
+    "risk_class": "High-risk",
+    "scope": "Preparation-only current-artifact identity and bounded scenario assignment",
+    "execution_authority": "Already approved acceptance; current launch receipt is reviewed at dispatch. This plan adds no second user-approval gate.",
+    "dependency": "BUG-086 must be integrated and actualDone before runtime dispatch.",
+    "source_baseline_commit": "4d9ce9b521eaeae0b71a17c6a1f6516bd4503b32",
+    "rate_prototype_patch_sha256": "63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa",
+    "rate_source_delta_patch_sha256": "cb0833d4495f6bb9c29b5552587eac25a43ead0948c3466140311963061d076c",
+    "prototype_page34_source_sha256": "781d70a223274ff9ee041bffc562b306a012654fa781ffb8e967057e143b8395",
+    "fixed_candidate_contracts": {
+      "rate_helper": {"bytes": 185, "capacity": 192, "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c", "range": "$A3B0-$A468", "end_exclusive": "$A469"},
+      "E2_helper": {"bytes": 87, "capacity": 93, "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526", "range": "$A8A0-$A8F6"},
+      "B2_banked_helper": {"bytes": 696, "capacity": 698, "sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab"},
+      "B2_active_source_sha256": "5b662e01cb75841eb03790327c2ad12ecb6cbfdcfa5cb871d1f67efd95b78241"
+    },
+    "approved_rate_policy": {
+      "stage_index": "Active part N is one-based; counter zero is not Part 1.",
+      "offsets_for_parts_1_to_17": [0, 2, 4, 1, 3, 5, 6, 8, 5, 7, 9, 10, 11, 8, 12, 13, 14],
+      "later_parts": "Offset clamps to 15 for Part 18 and later.",
+      "selection": "min(15, source_offset_for_active_part + (elapsed_bucket >> 4)); bucket saturates at $F0.",
+      "addends": {"1.0": "$00", "1.2": "$33", "1.5": "$80", "1.8": "$CC"},
+      "movement_unit": "One admitted enemy move advances horizontal FB by +/-1 byte (2 packed pixels) or vertical FB by +/-320 bytes (2 scanlines at 160 bytes/line); four substeps advance one 8-pixel cell.",
+      "oracle": "For N logical callbacks from phase zero with C fractional carries, admissions = C + floor((N-C)/2); displacement = N+C pixels within one pixel at the phase endpoint.",
+      "preserved_policy": "Keep Part 9's 1.0 reset, B2 maximum two logical ticks with excess debt discarded, existing CoCo 300-logical-tick freeze duration, death bypass, and all player/pose/AI/route/type-group behavior. No per-actor debt or generic cap."
+    },
+    "frozen_R10_reference_profiles": {
+      "AD0_keyboard": {"ROM_sha256": "3e1d206c05e95a9dc545f744ecc1953b2cbdcbce7854aede2232ae14475b7300", "manifest_sha256": "d76a98ba30149abf7b2cb7066988d940ed458738f39e9ea09d7fcd3c4758d93e", "receipt_sha256": "8302656b257eed7e6c71637bce6954a363427596262588f1a573d40d2c0a961c", "fit_only": true},
+      "AD1_keyboard": {"ROM_sha256": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721", "manifest_sha256": "6b19e54935fd87966e0732994c1c46b1366f1a7b46a6a8423a0a413499661c7f", "receipt_sha256": "26d62cb69c0e129afe7f03515d9dae8dd10c51cfe84d0d5ae34da81c7c52b059", "fit_only": true},
+      "AD1_joystick": {"ROM_sha256": "24329ec7c8bbacf6884679a6afe0ded14ee19d36665f3c40b48dd9df6512f13c", "manifest_sha256": "4d9e102674b202b003ac03aa20bc029754e272a78148205b76f58bec716fb750", "receipt_sha256": "e7e143f7a6298f740ee1982c1fc306dd5926c0c5ba3681a40ba481e33d58417a", "fit_only": true}
+    }
+  },
+  "commands": [
+    "python repro/rsch014-ready-087/bug087_ready_adapter.py --help",
+    "python repro/rsch014-ready-087/bug087_ready_adapter.py self-test",
+    "python repro/rsch014-ready-087/bug087_ready_adapter.py capture --side baseline --profile complete-ad1-keyboard --build-dir <current-baseline-build> --source-revision <baseline-build-source-revision> --bug086-receipt <actual-BUG-086-completion-receipt.json> --output <evidence>/baseline-identity.json",
+    "python repro/rsch014-ready-087/bug087_ready_adapter.py capture --side candidate --profile complete-ad1-keyboard --build-dir <current-candidate-build> --source-revision <candidate-build-source-revision> --bug086-receipt <actual-BUG-086-completion-receipt.json> --output <evidence>/candidate-identity.json",
+    "python repro/rsch014-ready-087/bug087_ready_adapter.py plan --baseline-identity <evidence>/baseline-identity.json --candidate-identity <evidence>/candidate-identity.json --bug086-receipt <actual-BUG-086-completion-receipt.json> --output <evidence>/resolved-runtime-plan.json"
+  ],
+  "R10_AD1_keyboard_reference_map_symbols": {
+    "qualification": "Exact symbols parsed from the frozen corrected R10 AD1 keyboard maps. Addresses are reference anchors only; dispatch must recapture baseline and candidate maps after BUG-086 integration.",
+    "main": {"mainloop": "$C116", "ad_dispatch_work": "$C14F", "init_enemy": "$D548", "enemy_tick": "$D54C", "next_stage": "$C26B", "ENEMY_MODULE_INIT": "$0800", "INITIAL_ENTRY_STATE": "$00A0", "STAGE": "$0024", "ENEMY_TABLE": "$A470", "ENEMY_ACTIVE": "$0058", "DEATH_STATE": "$004D", "FREEZE_TIMER": "$005B", "ENEMY_MOVE": "$0061"},
+    "enemy": {"enemy_init_impl": "$0827", "enemy_tick_impl": "$088B", "rate_tick_callsite": "$08EE", "ecd_blocked": "$0F8E", "ENEMY_TABLE": "$A470", "ENEMY_ACTIVE": "$0058", "DEATH_STATE": "$004D", "FREEZE_TIMER": "$005B", "ENEMY_MOVE": "$0061"},
+    "rate": {"rate_reset": "$A3B0", "rate_tick": "$A3C5", "rt_freeze_gate": "$A3E3", "rt_accumulate": "$A3EE", "rate_select": "$A40C", "rate_enemy_init_shim": "$A463", "end_exclusive": "$A469", "RATE_TIMER": "$029B", "RATE_BUCKET": "$029C", "RATE_FRAC": "$029D", "RATE_ADDEND": "$029E", "RATE_PHASE": "$029F"},
+    "page34_rate_calls": {"main_init_callsite": "$D548", "main_init_bytes": "BDA463", "enemy_tick_callsite": "$08EE", "enemy_tick_bytes": "BDA3C5", "page": "$34"},
+    "e2": {"helper_start": "$A8A0", "helper_end_exclusive": "$A8F7", "ENEMY_MODULE_BUILD_CACHE": "$0824", "ENEMY_TABLE": "$A470", "STAGE": "$0024"}
+  },
+  "phases": [
+    {
+      "id": "matched-displacement",
+      "deadline_seconds": 45,
+      "success_marker": "Both exact builds complete natural initialization and produce two matched logical enemy callbacks for the same active actor on a legal straight segment; record stage, rate state, actor origin before/after, AD_SIM and raw Vbord counts. Candidate displacement is within 1 pixel of the approved rate-policy oracle for the same callback count, apart from the defined phase endpoint.",
+      "timeout_meaning": "A required natural-init, actor, legal-segment, or callback marker was not reached within 45 seconds. Timeout is not a cadence or speed measurement.",
+      "required_reads": ["current full-ROM and source-build receipt hashes", "resident bytes at the mapped init/tick callsites", "physical page $34 rate helper bytes", "enemy module bytes at $0800", "STAGE, RATE_TIMER, RATE_BUCKET, RATE_FRAC, RATE_ADDEND, RATE_PHASE", "all four 8-byte ENEMY_TABLE records before/after each matched logical callback", "AD_SIM logical ticks and raw Vbord callback count", "front-buffer actor origin pixels"],
+      "required_writes": ["none; natural input and approved route only"],
+      "source_predecessors": ["current map symbols and bytes match each assigned build before labels are interpreted", "natural BUG-086 initialization completes", "one real legal straight movement segment with same actor identity in baseline and candidate", "rate-table model uses active one-based part N and exact source offset slice"],
+      "symbols": {
+        "baseline": {"map": "main", "names": ["mainloop", "ad_dispatch_work", "init_enemy", "enemy_tick", "next_stage", "STAGE", "ENEMY_TABLE", "ENEMY_ACTIVE"]},
+        "candidate": {"map": "main", "names": ["mainloop", "ad_dispatch_work", "init_enemy", "enemy_tick", "next_stage", "STAGE", "ENEMY_TABLE", "ENEMY_ACTIVE"]},
+        "rate": {"map": "rate", "names": ["rate_reset", "rate_tick", "RATE_TIMER", "RATE_BUCKET", "RATE_FRAC", "RATE_ADDEND", "RATE_PHASE"]}
+      },
+      "missing_handler": "No current action handler collects a matched natural straight-path actor displacement against both builds, distinguishes logical callbacks from raw Vbords, and computes the policy oracle. Owner: BUG-087 execution owner after BUG-086 actualDone."
+    },
+    {
+      "id": "freeze-saturated-thaw",
+      "deadline_seconds": 45,
+      "success_marker": "For saturated-bucket expiry and non-expiry, frozen elapsed policy advances while RATE_FRAC/RATE_PHASE and every enemy origin hold; bucket rollovers 0F->10 and EF->F0 do not bypass freeze. FREEZE_TIMER 1->0 callback still does not move; next eligible callback may move. Death bypass and existing 300-tick CoCo freeze duration remain unchanged.",
+      "timeout_meaning": "Any required saturated bucket, expiry/non-expiry, rollover, thaw, movement-hold, or death-bypass marker was absent within 45 seconds. Missing rare path fails and is not inferred from a model.",
+      "required_reads": ["PC at mapped enemy tick and rate tick/gate boundaries", "FREEZE_TIMER", "RATE_TIMER, RATE_BUCKET, RATE_FRAC, RATE_PHASE", "four ENEMY_TABLE records and front-buffer actor origins", "DEATH_STATE", "logical callback counter"],
+      "required_writes": ["none for natural freeze/death triggers; any accepted deterministic trigger fixture must be present in the reviewed dispatch receipt and preserve the real rate/enemy code bytes"],
+      "source_predecessors": ["corrected source ordering is elapsed-before-freeze and movement/fraction-after-freeze", "the rate tick saturated path branches through the freeze gate", "death bypass remains on the existing enemy path", "no per-actor debt is introduced"],
+      "symbols": {
+        "candidate": {"map": "rate", "names": ["rate_tick", "rt_freeze_gate", "rt_accumulate", "RATE_TIMER", "RATE_BUCKET", "RATE_FRAC", "RATE_PHASE", "FREEZE_TIMER"]},
+        "enemy": {"map": "enemy", "names": ["enemy_tick_impl", "ENEMY_TABLE", "DEATH_STATE", "FREEZE_TIMER"]}
+      },
+      "missing_handler": "No current live action handler forces/observes both bucket-$F0 expiry branches, both frozen rollovers, thaw 1->0, and death bypass while comparing real RAM and pixels. The frozen R10 host model is static evidence only. Owner: BUG-087 execution owner after BUG-086 actualDone."
+    },
+    {
+      "id": "blocked-reversal",
+      "deadline_seconds": 45,
+      "success_marker": "A real ecd_blocked event occurs while another enemy is moving; record the affected active record direction/substep/cell/FB pointer and pixels across callbacks, plus the second actor's motion. Establish whether active+DIR_NONE is reachable before making any stationary-actor claim; fail if the block marker or the required comparison is absent.",
+      "timeout_meaning": "A legal blocked/reversal event and another moving actor were not both observed within 45 seconds. Missing path is failure, not evidence of a stationary invariant.",
+      "required_reads": ["PC at ecd_blocked", "ENEMY_ACTIVE", "ENEMY_MOVE", "ENEMY_TABLE record bytes 0..7 for all four actors", "front-buffer origins for blocked and moving actors", "direction decision and maze/gate bytes establishing legal obstruction"],
+      "required_writes": ["none; natural input/route only. Do not force DIR_NONE or alter actor direction to manufacture the marker."],
+      "source_predecessors": ["ecd_blocked is the actual decision source writing DIR_NONE", "et_move_scan and et_update_loop call bytes/source identity are verified", "capture whether another record causes global ENEMY_MOVE to become nonzero", "report existing active+DIR_NONE reachability separately from candidate rate behavior"],
+      "symbols": {
+        "enemy": {"map": "enemy", "names": ["ecd_blocked", "enemy_tick_impl", "ENEMY_TABLE", "ENEMY_ACTIVE", "ENEMY_MOVE"]}
+      },
+      "missing_handler": "No current live handler follows a legal obstruction/reversal, associates the event with an actor record, and discriminates active+DIR_NONE reachability while another actor moves. Source inspection alone does not resolve this. Owner: BUG-087 execution owner after BUG-086 actualDone."
+    },
+    {
+      "id": "natural-init",
+      "deadline_seconds": 45,
+      "success_marker": "Natural credited entry and the approved actual next_stage precondition reach init_enemy; the resident mapped JSR enters the current page-$34 shim, rate_reset clears state, and the shim returns through the true enemy init path. Verify BUG-086 helper/current enemy code identity and the first real enemy_tick marker. Disclose any forced final-bonus precondition and skipped maze work.",
+      "timeout_meaning": "Natural credit, approved transition precondition, mapped init callsite/shim, reset state, true-init return, or first enemy tick did not occur within 45 seconds. Timeout is not proof of slow game code.",
+      "required_reads": ["resident init callsite bytes", "physical page $34 bytes covering rate helper and E2 helper", "PAR5 value at each banked boundary", "RATE_TIMER/Bucket/Frac/Addend/Phase", "ENEMY_ACTIVE and ENEMY_TABLE before/after true init", "BUG-086 integrated source/helper identity", "STAGE and INITIAL_ENTRY_STATE"],
+      "required_writes": ["natural input only; do not call init/reset directly or manually patch stage/state"],
+      "source_predecessors": ["BUG-086 completion receipt names integrated commit", "actual current maps resolve init_enemy, rate_enemy_init_shim, rate_reset, enemy init and tick symbols", "source/list/map/live bytes agree before interpreting the callsite", "physical page $34 ownership is verified at call and return"],
+      "symbols": {
+        "candidate": {"map": "main", "names": ["init_enemy", "enemy_tick", "ENEMY_MODULE_INIT", "STAGE", "INITIAL_ENTRY_STATE"]},
+        "rate": {"map": "rate", "names": ["rate_enemy_init_shim", "rate_reset", "RATE_TIMER", "RATE_BUCKET", "RATE_FRAC", "RATE_ADDEND", "RATE_PHASE"]},
+        "enemy": {"map": "enemy", "names": ["enemy_init_impl", "enemy_tick_impl", "ENEMY_TABLE", "ENEMY_ACTIVE"]},
+        "e2": {"map": "e2", "names": ["efn_cache_guard", "enemy_page34_end", "ENEMY_MODULE_BUILD_CACHE"]}
+      },
+      "missing_handler": "The existing transition probe is monolithic and hard-codes its build directory and XRoar path. It has not been adapted to take the paired current build/map/artifact identity or emit the required reset/shim markers. Owner: BUG-087 execution owner after BUG-086 actualDone."
+    }
+  ],
+  "unresolved_execution_mechanics": [
+    "No phase action handlers are currently attached; the adapter captures current build identity and resolves map symbols but does not launch an emulator.",
+    "The BUG-086 actualDone receipt schema and assigned integrated build directories must be supplied at dispatch.",
+    "Baseline and candidate must be rebuilt/identified after BUG-086 integration; frozen R10 profile hashes are historical capacity references only.",
+    "Blocked-actor reachability remains unproven; a missing natural event fails the phase and must not be replaced with a forced DIR_NONE write."
+  ],
+  "runtime_status": "Not run. No cadence, 6809, arcade behavior, or production acceptance claim."
+}
