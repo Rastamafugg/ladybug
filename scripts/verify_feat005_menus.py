@@ -6,6 +6,8 @@ it does not diagnose execution speed. Reuses the existing private monitor.
 """
 import argparse
 import json
+import subprocess
+import sys
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -17,10 +19,92 @@ ROOT = r.ROOT
 BUILD = ROOT / 'build'
 
 
+def run_current_menu(output: Path) -> int:
+    output = output.resolve()
+    adapter = ROOT / 'wiki/internal/tickets/evidence/rsch014-ready-menu/gdb_menu_probe.py'
+    rom_path = BUILD / 'ladybug.rom'
+    if not adapter.is_file():
+        raise FileNotFoundError(f'parent shared menu GDB adapter is missing: {adapter}')
+    if not rom_path.is_file():
+        raise FileNotFoundError(f'current complete build ROM is missing: {rom_path}')
+
+    rom_sha256 = r.digest(rom_path.read_bytes())
+    invocations = (
+        ('--bindings', 'bindings'),
+        ('--entry-edges-only', 'entry-edges'),
+        ('--name-only', 'name-only'),
+    )
+    outputs = [output.with_name(f'{output.stem}-{suffix}{output.suffix}')
+               for _, suffix in invocations]
+    collisions = [path for path in [output, *outputs] if path.exists()]
+    if collisions:
+        raise FileExistsError('refusing to overwrite current-menu evidence: ' +
+                              ', '.join(str(path) for path in collisions))
+
+    report = {
+        'schema': 'feat005-current-menu-dispatch-v1',
+        'status': 'FAIL',
+        'root': str(ROOT),
+        'build_dir': str(BUILD),
+        'rom_path': str(rom_path),
+        'rom_sha256': rom_sha256,
+        'shared_adapter': str(adapter.relative_to(ROOT)),
+        'scope': 'Three separate bounded GDB invocations against this complete current ROM; no monitor protocol extension.',
+        'invocations': [],
+    }
+    failed = False
+    for (mode, _), result_path in zip(invocations, outputs):
+        command = [sys.executable, str(adapter), '--worktree', str(ROOT),
+                   '--rom-sha256', rom_sha256, '--output', str(result_path), mode]
+        try:
+            completed = subprocess.run(command, cwd=ROOT, text=True,
+                                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            result = json.loads(result_path.read_text(encoding='utf-8')) if result_path.is_file() else {}
+            passed = completed.returncode == 0 and result.get('status') == 'PASS'
+            failed = failed or not passed
+            phases = [{
+                'name': phase.get('name'),
+                'deadline_seconds': phase.get('deadline_seconds'),
+                'elapsed_seconds': phase.get('elapsed_seconds'),
+                'check_count': len(phase.get('checks', [])),
+            } for phase in result.get('phases', [])]
+            report['invocations'].append({
+                'mode': mode,
+                'command': command,
+                'output': str(result_path),
+                'returncode': completed.returncode,
+                'status': result.get('status', 'NO_RECEIPT'),
+                'phases': phases,
+                'adapter_stdout': completed.stdout,
+            })
+        except OSError as exc:
+            failed = True
+            report['invocations'].append({
+                'mode': mode, 'command': command, 'output': str(result_path),
+                'status': 'LAUNCH_FAILURE', 'failure': repr(exc),
+            })
+
+    report['status'] = 'FAIL' if failed else 'PASS'
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps({'status': report['status'], 'rom_sha256': rom_sha256,
+                      'invocations': len(report['invocations']), 'output': str(output)}, indent=2))
+    return 2 if failed else 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path, default=ROOT/'repro/feat005-runtime-20260930.json')
+    parser.add_argument('--current-menu', action='store_true',
+                        help='dispatch current bindings, entry-edge, and name-control GDB phases')
+    parser.add_argument('--output', type=Path,
+                        help='report path; required by --current-menu, otherwise defaults to the historical report')
     args = parser.parse_args()
+    if args.current_menu:
+        if args.output is None:
+            parser.error('--current-menu requires --output')
+        raise SystemExit(run_current_menu(args.output))
+    if args.output is None:
+        args.output = ROOT/'repro/feat005-runtime-20260930.json'
     report = {'status': 'FAIL', 'rom_sha256': r.digest((BUILD/'ladybug.rom').read_bytes()), 'checks': []}
     monitor = r.load_monitor()
     process, client = r.launch_fast(monitor, ROOT/'docs/reference/xroar/src/xroar', BUILD/'ladybug.rom')

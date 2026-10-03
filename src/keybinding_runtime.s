@@ -1,23 +1,24 @@
 ; DOC-002 source-contract mirror contract key_service profile=keybindings: Dispatch physical input, authored menu painting, capture navigation or default initialization.
-; DOC-002 source-contract mirror contract key_init profile=keybindings: Restore seven default physical bindings and clear capture and repaint history.
+; DOC-002 source-contract mirror contract key_init profile=keybindings: Restore five gameplay defaults; fixed coin/menu keys remain outside the binding table.
 ; DOC-002 source-contract mirror contract key_scan profile=keybindings: Sample eight physical columns and produce held actions and fresh consumer edges.
 ; DOC-002 source-contract mirror contract key_down profile=keybindings: Test one column-times-eight-plus-row physical switch while preserving caller indexes.
 ; DOC-002 source-contract mirror contract key_capture profile=keybindings: Reject conflicting or ambiguous keys and consume accepted or cancelled capture through release.
-; DOC-002 source-contract mirror contract key_tick profile=keybindings: Navigate the seven actions and BACK or begin waiting for a replacement switch.
+; DOC-002 source-contract mirror contract key_tick profile=keybindings: Navigate five gameplay actions and BACK or begin waiting for a replacement switch.
 ; DOC-002 source-contract mirror contract key_paint profile=keybindings: Repaint all hydrated rows or only the previous and current selected rows for the prepared owner.
 ; DOC-002 source-contract mirror contract key_waiting profile=keybindings: Report whether the current row owns active capture parentheses.
 ; DOC-002 source-contract mirror contract key_name profile=keybindings: Resolve a physical switch to its single glyph or descriptive key name.
 ; DOC-002 source-contract mirror contract key_text profile=keybindings: Paint an authored length-delimited glyph run.
 ; DOC-002 source-contract mirror contract key_char profile=keybindings: Paint one source glyph through the resident shared mask renderer.
 ; DOC-002 source-contract mirror profile keybindings Inputs: Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.
-; DOC-002 source-contract mirror profile keybindings Outputs: Held action mask, fresh credit/start/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.
+; DOC-002 source-contract mirror profile keybindings Outputs: Five held gameplay actions, fresh fixed coin/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.
 ; DOC-002 source-contract mirror profile keybindings Clobbers: A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.
 ; DOC-002 source-contract mirror profile keybindings Reads: PIA keyboard rows, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.
 ; DOC-002 source-contract mirror profile keybindings Writes: Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.
 ; DOC-002 source-contract mirror profile keybindings Side effects: Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.
 ; DOC-002 source-contract mirror profile keybindings Invariants: The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage.
-; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"key_init after boot_streams_retired and before startup input; key_scan initializes column samples before consumer use","lifetime":"Boot descriptors retire before initialization. Bindings retain for powered session; scan/capture scratch retires before subsequent scan","clobbers":"Only this component writes $0287-$029A after boot retirement; existing game/menu routines consume held movement and menu edges."}
-; FEAT-005 physical key acquisition, session capture and authored menu painting.
+; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"five editable bytes at $0287-$028B; fixed-menu held state uses reserved $028C; $028D stays reserved; key_init after boot_streams_retired and before startup input; key_scan initializes column samples before consumer use","lifetime":"Boot descriptors retire before initialization. Bindings retain for powered session; scan/capture scratch retires before subsequent scan","clobbers":"Only this component writes $0287-$029A after boot retirement; main.s consumes only the first four movement bits; ACTION is reserved with no normal effect; $028C tracks fixed arrows, Enter and Back across phases; $DF is updated only during menu screens so name-entry row state remains owned by the name renderer; fixed coin events stay independent."}
+; RSCH-014 C3 prototype extension: fixed menu edges track physical state in all phases.
+; Source edit is isolated research, not the approved repair implementation.
 ; Loaded after the unchanged audio prefix in the existing page-$3D stream.
         pragma 6809
         setdp $00
@@ -28,6 +29,12 @@ INPUT_JOYSTICK equ 0
         include "ladybug_presentation_symbols.inc"
 KB_BIND equ $0287
 KB_ROWS equ $028E
+KB_ACTION_COUNT equ 5
+KB_MENU_LAST equ 5
+KB_MENU_PREV equ $028C
+KB_FIXED_ENTER equ 6
+KB_FIXED_COIN_5 equ 44
+KB_FIXED_COIN_6 equ 52
 KB_DOWN equ $0296
 KB_PREV equ $0297
 KB_STATE equ $0298
@@ -44,7 +51,7 @@ key_service
 key_init
         ldx #KB_BIND
         leay key_defaults,pcr
-        ldb #7
+        ldb #KB_ACTION_COUNT
 ki_copy
         lda ,y+
         sta ,x+
@@ -52,6 +59,7 @@ ki_copy
         bne ki_copy
         clr KB_DOWN
         clr KB_PREV
+        clr KB_MENU_PREV
         clr KB_STATE
         lda #$FF
         sta key_painted_select
@@ -59,8 +67,9 @@ ki_copy
         sta key_painted_select+2
         rts
 key_defaults
-        fcb 27,35,43,51,6,44,12
+        fcb 27,35,43,51,KB_FIXED_ENTER
 key_scan
+        clr $D0                   ; discard any menu edge not consumed this scan
         ldx #KB_ROWS
         lda #$FE
 ks_column
@@ -81,6 +90,47 @@ ks_column
         lda #$34
         sta $FF01
         endc
+        clr KB_WORK
+        lda KB_ROWS+3
+        bita #8
+        beq ks_menu_down
+        inc KB_WORK
+ks_menu_down
+        lda KB_ROWS+4
+        bita #8
+        beq ks_menu_left
+        lda KB_WORK
+        ora #2
+        sta KB_WORK
+ks_menu_left
+        lda KB_ROWS+5
+        bita #8
+        beq ks_menu_right
+        lda KB_WORK
+        ora #4
+        sta KB_WORK
+ks_menu_right
+        lda KB_ROWS+6
+        bita #8
+        beq ks_menu_enter
+        lda KB_WORK
+        ora #8
+        sta KB_WORK
+ks_menu_enter
+        lda #KB_FIXED_ENTER
+        lbsr key_down
+        beq ks_menu_back
+        lda KB_WORK
+        ora #16
+        sta KB_WORK
+ks_menu_back
+        lda #22
+        lbsr key_down
+        beq ks_menu_sampled
+        lda KB_WORK
+        ora #32
+        sta KB_WORK
+ks_menu_sampled
         clr KB_DOWN
         ldx #KB_BIND
         leay key_bits,pcr
@@ -94,13 +144,21 @@ ks_action
         sta KB_DOWN
 ks_next
         incb
-        cmpb #7
+        cmpb #KB_ACTION_COUNT
         blo ks_action
-        lda #52
+        ; Physical 5 and 6 are fixed coin controls, not hidden bindings.
+        lda #KB_FIXED_COIN_5
+        lbsr key_down
+        beq ks_coin_6
+        lda KB_DOWN
+        ora #32
+        sta KB_DOWN
+ks_coin_6
+        lda #KB_FIXED_COIN_6
         lbsr key_down
         beq ks_edges
         lda KB_DOWN
-        ora #128
+        ora #64
         sta KB_DOWN
 ks_edges
         lda KB_PREV
@@ -114,24 +172,23 @@ ks_edges
         beq ks_global
         puls a
         clr $D0
+        lda KB_WORK
+        sta KB_MENU_PREV
         lbra key_capture
 ks_global
         puls a
-        bita #64
-        beq ks_credit
-        inc $A9
-ks_credit
-        bita #32
-        beq ks_secondary
-        ldb $A9
-        orb #2
-        stb $A9
-ks_secondary
-        bita #128
+        tfr a,b                  ; preserve fresh key edges while publishing events
+        bitb #32
+        beq ks_credit_6
+        lda $A9
+        ora #2
+        sta $A9
+ks_credit_6
+        bitb #64
         beq ks_menu
-        ldb $A9
-        orb #4
-        stb $A9
+        lda $A9
+        ora #4
+        sta $A9
 ks_menu
         lda $A6
         cmpa #3
@@ -139,51 +196,17 @@ ks_menu
         cmpa #6
         blo ks_done
 ks_local
-        clr KB_WORK
-        lda KB_ROWS+3
-        bita #8
-        beq ks_down
-        inc KB_WORK
-ks_down
-        lda KB_ROWS+4
-        bita #8
-        beq ks_left
-        lda KB_WORK
-        ora #2
-        sta KB_WORK
-ks_left
-        lda KB_ROWS+5
-        bita #8
-        beq ks_right
-        lda KB_WORK
-        ora #4
-        sta KB_WORK
-ks_right
-        lda KB_ROWS+6
-        bita #8
-        beq ks_select
-        lda KB_WORK
-        ora #8
-        sta KB_WORK
-ks_select
-        lda KB_DOWN
-        anda #16
-        ora KB_WORK
-        sta KB_WORK
-        lda #22
-        lbsr key_down
-        beq ks_local_edges
-        lda KB_WORK
-        ora #32
-        sta KB_WORK
-ks_local_edges
-        lda $DF
+        lda KB_MENU_PREV
         coma
         anda KB_WORK
         sta $D0
         lda KB_WORK
-        sta $DF
+        sta KB_MENU_PREV
+        sta $DF                   ; local menu held state; screen 5 owns $DF otherwise
+        rts
 ks_done
+        lda KB_WORK
+        sta KB_MENU_PREV          ; track inherited holds without clobbering name-entry row
         rts
 key_bits
         fcb 1,2,4,8,16,32,64,128
@@ -251,17 +274,9 @@ kc_find_next
         lda KB_CAND
         cmpa #$FF
         beq kc_done
-        cmpa #52
+        cmpa #KB_FIXED_COIN_5
         beq kc_reject
-        ldb $E0
-        cmpb #4
-        blo kc_unique
-        cmpa #27
-        blo kc_unique
-        cmpa #51
-        bhi kc_unique
-        anda #7
-        cmpa #3
+        cmpa #KB_FIXED_COIN_6
         beq kc_reject
 kc_unique
         ldx #KB_BIND
@@ -274,7 +289,7 @@ kc_duplicate
         beq kc_reject
 kc_unique_next
         incb
-        cmpb #7
+        cmpb #KB_ACTION_COUNT
         blo kc_duplicate
         ldb $E0
         lda KB_CAND
@@ -299,7 +314,7 @@ key_tick
         bita #16
         beq kt_arrow
         lda $E0
-        cmpa #7
+        cmpa #KB_MENU_LAST
         beq kt_back
         lda #1
         sta KB_STATE
@@ -321,7 +336,7 @@ kt_down
         bita #2
         beq kt_done
         lda $E0
-        cmpa #7
+        cmpa #KB_MENU_LAST
         bhs kt_done
         inc $E0
 kt_redraw
@@ -370,7 +385,7 @@ kp_unselected
 kp_draw
         lbsr key_text
         lda $D1
-        cmpa #7
+        cmpa #KB_MENU_LAST
         beq kp_next
         pshs y
         lsla
@@ -408,7 +423,7 @@ kp_value_done
 kp_next
         inc $D1
         lda $D1
-        cmpa #8
+        cmpa #KB_MENU_LAST+1
         lblo kp_label
         ldb $90
         leax key_painted_select,pcr

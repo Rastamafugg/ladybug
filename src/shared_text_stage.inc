@@ -901,16 +901,16 @@ menu_interactive
 menu_horizontal
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_OPTIONS
-        bne     menu_idle
+        lbne    menu_idle
         ldb     MENU_SELECT
         cmpb    #2
-        bhs     menu_idle
+        lbhs    menu_idle
         ldx     #MENU_LIVES
         abx
         ldb     MENU_PREV
         andb    #12
         cmpb    #12
-        beq     menu_idle
+        lbeq    menu_idle
         bita    #4
         bne     menu_decrease
         bita    #8
@@ -936,7 +936,7 @@ menu_up
         dec     MENU_SELECT
         bra     menu_redraw
 menu_down
-        ldb     #1
+        ldb     #2
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_HIGH_SCORE
         beq     menu_last
@@ -952,8 +952,23 @@ menu_redraw
 menu_enter
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
         bne     menu_enter_option
+        lda     MENU_SELECT
+        bne     menu_high_nonstart
+        ; Start is available only from this row and consumes one real credit.
+        tst     $A8
+        beq     menu_idle
+        dec     $A8
+        lda     #1
+        sta     $A7
+        lda     #PRESENTATION_MAP_LEVEL_START
+        bra     menu_change
+menu_high_nonstart
+        cmpa    #1
+        bne     menu_high_credits
         lda     #PRESENTATION_MAP_OPTIONS
-        adda    MENU_SELECT
+        bra     menu_change
+menu_high_credits
+        lda     #PRESENTATION_MAP_CREDITS
         bra     menu_change
 menu_enter_option
         lda     MENU_SELECT
@@ -1032,36 +1047,22 @@ menu_load_original
         jmp     stage_panel_finish
 menu_paint_high
         leay    menu_high_score_rows,pcr
-        ldb     #2
+        ldb     #3
         lbsr    menu_paint_rows
-        leay    menu_high_score_pairs,pcr
-        clrb
-menu_high_pair
-        pshs    b
+        tst     $A8
+        bne     menu_high_paint_done
         lda     #7
-        sta     $29
-        lda     #36
-        ldx     ,y++
-        lbsr    stage_panel_char
-        ldx     ,y++
-        lbsr    stage_panel_char
-        puls    b
-        incb
-        cmpb    #2
-        blo     menu_high_pair
-        lda     MENU_SELECT
-        lsla
-        lsla
-        leay    menu_high_score_pairs,pcr
-        leay    a,y
+        tst     MENU_SELECT
+        bne     menu_high_add_colour
         lda     #10
+menu_high_add_colour
         sta     $29
-        lda     #43
+        leay    menu_high_score_add_credits,pcr
         ldx     ,y++
-        lbsr    stage_panel_char
-        lda     #44
-        ldx     ,y
-        lbra    stage_panel_char
+        ldb     ,y+
+        lbsr    stage_panel_text
+menu_high_paint_done
+        rts
 menu_paint_credits
         lda     #10
         sta     $29

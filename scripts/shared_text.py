@@ -249,35 +249,60 @@ class SharedText:
             manifest['shared_static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
             if name=='instructions':self.p.blend_native_surface(frame,instruction_source['cucumber_destination'],instruction_source['cucumber_native'])
             manifest['static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
-        # Generate menu label and bracket anchors directly from the authored TMX.
+        # Extract authored high-score menu text spans for colour-only selection.
+        # No parenthesis or other cursor glyphs are emitted for this screen.
         menu_lines=[]
-        for name in ('high-score','options'):
-            path=self.args.tiled_dir/self.p.MAP_FILES[name]
-            root=ET.parse(path).getroot()
-            layer=next(l for l in root.findall('layer') if l.get('name')=='Selected Option')
-            cells=s.parse_csv(layer.find('data'),'Selected Option')
-            pairs=[]
-            for row in range(24):
-                anchors=[(col,gid) for col,gid in enumerate(cells[row*40:(row+1)*40]) if gid]
-                for i in range(0,len(anchors),2):
-                    left,right=anchors[i:i+2]
-                    assert self.p.raw_char_code(root,path,left[1])==43
-                    assert self.p.raw_char_code(root,path,right[1])==44
-                    pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
-            assert len(pairs)==2,(name,pairs)
-            menu_lines.append('menu_'+name.replace('-','_')+'_pairs')
-            menu_lines.extend('        fdb $%04X,$%04X'%pair for pair in pairs)
-            if name=='high-score':
-                _,flat,_=self.p.flatten_map(path)
-                menu_lines.append('menu_high_score_rows')
-                for left,right in pairs:
-                    row=(left-0x2000)//1280;lo=((left-0x2000)%1280)//4+1
-                    hi=((right-0x2000)%1280)//4
-                    codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40+lo:row*40+hi]]
-                    codes=[c if c is not None and 0<=c<=35 else 36 for c in codes]
-                    menu_lines.append('        fdb $%04X'%(left+4))
-                    menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
+        path=self.args.tiled_dir/self.p.MAP_FILES['high-score']
+        root=ET.parse(path).getroot()
+        layer=root.find("layer[@name='High Score Table and Branding']")
+        if layer is None:raise ValueError((path,'missing High Score Table and Branding'))
+        cells=self.p.parse_csv(layer.find('data'),layer.get('name'))
+        specs=((20,17,26,'START GAME'),(21,17,23,'OPTIONS'),(22,17,23,'CREDITS'))
+        high_rows=[]
+        for row,lo,hi,label in specs:
+            row_gids=cells[row*40:(row+1)*40]
+            raw=[self.p.raw_char_code(root,path,gid&self.p.GID_MASK) for gid in row_gids]
+            codes=[c if 0<=c<=35 else 36 for c in raw]
+            expected=[36 if char==' ' else ord(char)-55 for char in label]
+            matches=[col for col in range(41-len(expected)) if codes[col:col+len(expected)]==expected]
+            if (hi-lo+1!=len(expected) or codes[lo:hi+1]!=expected or matches!=[lo]):
+                raise ValueError((path,'authored high-score menu span mismatch',row,lo,hi,label,matches))
+            # ADD CREDITS has 11 characters. The unused blank at x16 lets it
+            # replace centered START GAME without synthesizing selector marks.
+            if row==20 and (row_gids[16] not in (0,8) or any(
+                    self.visual_tiles[self.visual_maps[self.p.MAP_NAMES.index('high-score')][row*40+16]])):
+                raise ValueError((path,'start row lacks blank cell for ADD CREDITS',(16,row)))
+            if row==20:
+                lo=16
+                row_codes=[36,*expected]
+            else:
+                row_codes=expected
+            high_rows.append((row,lo,row_codes))
+        menu_lines.append('menu_high_score_rows')
+        for row,lo,codes in high_rows:
+            menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
+            menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
+        add_credits=[36 if char==' ' else ord(char)-55 for char in 'ADD CREDITS']
+        menu_lines.append('menu_high_score_add_credits')
+        menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((16,20)))
+        menu_lines.append('        fcb '+','.join(str(code) for code in [len(add_credits),*add_credits]))
+        # Keep the Options screen's authored selector pairs. The no-parenthesis
+        # clarification applies only to the high-score screen.
         path=self.args.tiled_dir/self.p.MAP_FILES['options']
+        root=ET.parse(path).getroot()
+        layer=next(l for l in root.findall('layer') if l.get('name')=='Selected Option')
+        cells=s.parse_csv(layer.find('data'),'Selected Option')
+        pairs=[]
+        for row in range(24):
+            anchors=[(col,gid) for col,gid in enumerate(cells[row*40:(row+1)*40]) if gid]
+            for i in range(0,len(anchors),2):
+                left,right=anchors[i:i+2]
+                assert self.p.raw_char_code(root,path,left[1])==43
+                assert self.p.raw_char_code(root,path,right[1])==44
+                pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
+        assert len(pairs)==2,('options',pairs)
+        menu_lines.append('menu_options_pairs')
+        menu_lines.extend('        fdb $%04X,$%04X'%pair for pair in pairs)
         root,flat,_=self.p.flatten_map(path)
         rows=[]
         for row in range(24):
@@ -311,53 +336,100 @@ class SharedText:
     def keybinding_records(self):
         path = self.args.tiled_dir / self.p.MAP_FILES['keybind-options']
         root, cells, _ = self.p.flatten_map(path)
-        guide = root.find("layer[@name='Selected Option']")
+        guides = [layer for layer in root.findall('layer')
+                  if layer.get('name') == 'Selected Option']
+        if len(guides) != 1:
+            raise ValueError(('keybinding guide layer count', len(guides)))
+        guide = guides[0]
+        guide_cells = self.p.parse_csv(guide.find('data'), 'Selected Option')
+        expected_pairs = {6: (23, 32), 8: (21, 32), 10: (21, 32),
+                          12: (20, 32), 14: (26, 32)}
+        legacy_blank_cells = ({(col, 16) for col in range(30, 35)} |
+                              {(col, 18) for col in range(29, 35)})
+        expected_nonzero = {
+            (left, row) for row, (left, _) in expected_pairs.items()
+        } | {
+            (right, row) for row, (_, right) in expected_pairs.items()
+        } | legacy_blank_cells
+        actual_nonzero = set()
         pairs = []
         for row in range(24):
-            markers = [(col, self.p.raw_char_code(root, path, gid))
-                       for col, gid in enumerate(self.p.parse_csv(guide.find('data'), 'Selected Option')[row*40:(row+1)*40]) if gid]
+            row_cells = guide_cells[row * 40:(row + 1) * 40]
+            markers = []
+            for col, gid in enumerate(row_cells):
+                if not gid:
+                    continue
+                cell = (col, row)
+                actual_nonzero.add(cell)
+                code = self.p.raw_char_code(root, path, gid & self.p.GID_MASK)
+                if cell in legacy_blank_cells:
+                    if (gid & self.p.GID_MASK) != 8 or code != 255:
+                        raise ValueError(('keybinding legacy guide blank changed', cell, gid, code))
+                    continue
+                if code not in (43, 44):
+                    raise ValueError(('unexpected keybinding guide glyph', cell, gid, code))
+                markers.append((col, code))
             if markers:
-                if len(markers) != 2 or [v for _, v in markers] != [43, 44] or markers[1][0] != 32:
-                    raise ValueError(('keybinding parentheses guide', row, markers))
-                pairs.append((row, markers[0][0], markers[1][0]))
-        if len(pairs) != 7:
-            raise ValueError(('expected seven keybinding guide pairs', pairs))
+                expected = expected_pairs.get(row)
+                if expected is None or markers != [(expected[0], 43), (expected[1], 44)]:
+                    raise ValueError(('keybinding parentheses guide', row, markers, expected))
+                pairs.append((row, expected[0], expected[1]))
+        if actual_nonzero != expected_nonzero:
+            raise ValueError(('keybinding guide cell contract',
+                              sorted(expected_nonzero - actual_nonzero),
+                              sorted(actual_nonzero - expected_nonzero)))
+        if [row for row, _, _ in pairs] != list(expected_pairs):
+            raise ValueError(('expected five keybinding guide pairs', pairs))
         action_rows = [row for row, _, _ in pairs]
         back_rows = []
         for row in range(24):
-            codes = [self.p.raw_char_code(root, path, gid) for gid in cells[row*40:(row+1)*40]]
-            if any(codes[col:col+4] == [11, 10, 12, 20] for col in range(37)):
+            codes = [self.p.raw_char_code(root, path, gid & self.p.GID_MASK)
+                     for gid in cells[row * 40:(row + 1) * 40]]
+            if any(codes[col:col + 4] == [11, 10, 12, 20] for col in range(37)):
                 back_rows.append(row)
-        if len(back_rows) != 1:
+        if back_rows != [20]:
             raise ValueError(('keybinding BACK row', back_rows))
         lines = ['key_label_records']
         for row in action_rows + back_rows:
             end = 23 if row in back_rows else 18
-            codes = [self.p.raw_char_code(root, path, gid) for gid in cells[row*40:row*40+end]]
-            cols = [i for i, v in enumerate(codes) if v is not None and v <= 35]
+            codes = [self.p.raw_char_code(root, path, gid & self.p.GID_MASK)
+                     for gid in cells[row * 40:row * 40 + end]]
+            cols = [i for i, value in enumerate(codes)
+                    if value is not None and 0 <= value <= 35]
             lo, hi = min(cols), max(cols)
-            glyphs = [v if v is not None and v <= 35 else 36 for v in codes[lo:hi+1]]
+            glyphs = [value if value is not None and 0 <= value <= 35 else 36
+                      for value in codes[lo:hi + 1]]
             lines += ['        fdb $%04X' % self.p.framebuffer_destination((lo, row)),
-                      '        fcb ' + ','.join(str(v) for v in [len(glyphs), *glyphs])]
-        lines += ['key_value_destinations'] + ['        fdb $%04X' % self.p.framebuffer_destination((19, row)) for row in action_rows]
+                      '        fcb ' + ','.join(str(value) for value in [len(glyphs), *glyphs])]
+        lines += ['key_value_destinations'] + [
+            '        fdb $%04X' % self.p.framebuffer_destination((19, row))
+            for row in action_rows
+        ]
         names = ['AT', 'UP ARROW', 'DOWN ARROW', 'LEFT ARROW', 'RIGHT ARROW', 'SPACE',
                  'COLON', 'SEMICOLON', 'COMMA', 'MINUS', 'PERIOD', 'SLASH', 'ENTER',
                  'CLEAR', 'BREAK', 'ALT', 'CONTROL', 'F1', 'F2', 'SHIFT']
         lines += ['key_names'] + ['        fdb key_name_' + str(i) for i in range(len(names))]
         for i, name in enumerate(names):
-            glyphs = [int(c) if c.isdigit() else ord(c)-55 if c != ' ' else 36 for c in name]
-            lines += ['key_name_' + str(i), '        fcb ' + ','.join(str(v) for v in [len(name), *glyphs])]
+            glyphs = [int(char) if char.isdigit() else ord(char) - 55 if char != ' ' else 36
+                      for char in name]
+            lines += ['key_name_' + str(i),
+                      '        fcb ' + ','.join(str(value) for value in [len(name), *glyphs])]
         raw = []
         for col in range(8):
             for row in range(8):
-                if row < 3: code = 36 if col == 0 and row == 0 else row*8+col+9
-                elif row == 3: code = 33+col if col < 3 else 36+col-2
+                if row < 3: code = 36 if col == 0 and row == 0 else row * 8 + col + 9
+                elif row == 3: code = 33 + col if col < 3 else 36 + col - 2
                 elif row == 4: code = col
-                elif row == 5: code = 8+col if col < 2 else 36+col+4
-                elif row == 6: code = 36+12+col
+                elif row == 5: code = 8 + col if col < 2 else 36 + col + 4
+                elif row == 6: code = 36 + 12 + col
                 else: code = 255
                 raw.append(code)
         lines += ['key_name_codes', '        fcb ' + ','.join(map(str, raw))]
-        (self.args.output.parent/'ladybug_keybinding_records.inc').write_text('\n'.join(lines)+'\n')
-        return {'action_rows': action_rows, 'back_row': back_rows[0], 'value_bounds': [19, 32],
-                'default_physical_keys': [27, 35, 43, 51, 6, 44, 12], 'maximum_name_width': 11}
+        (self.args.output.parent / 'ladybug_keybinding_records.inc').write_text('\n'.join(lines) + '\n')
+        return {'action_rows': action_rows, 'editable_action_count': 5,
+                'back_row': back_rows[0], 'value_bounds': [19, 32],
+                'default_physical_keys': [27, 35, 43, 51, 6],
+                'fixed_menu_enter_physical_key': 6,
+                'fixed_credit_physical_keys': [44, 52],
+                'legacy_blank_guide_cells': sorted(legacy_blank_cells),
+                'maximum_name_width': 11}

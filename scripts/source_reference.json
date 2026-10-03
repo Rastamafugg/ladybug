@@ -3509,14 +3509,14 @@
         {
           "name": "menu_load_finish",
           "profile": "presentation",
-          "purpose": "Paint the selected authored menu row and brackets.",
+          "purpose": "Paint authored menu rows; Options keeps selector brackets, while high-score selection changes text colour only.",
           "reasons": [],
           "semantic_id": "routines.html#routine-highscore-helper-menu-load-finish"
         },
         {
           "name": "menu_scan",
           "profile": "presentation",
-          "purpose": "Scan menu and existing credit/start edges.",
+          "purpose": "Scan fixed physical input and publish coin and menu edges; presentation_flow_tick consumes coin edges before menu dispatch.",
           "reasons": [],
           "semantic_id": "routines.html#routine-highscore-helper-menu-scan"
         },
@@ -3892,7 +3892,7 @@
         {
           "name": "key_init",
           "profile": "keybindings",
-          "purpose": "Restore seven default physical bindings and clear capture and repaint history.",
+          "purpose": "Restore five gameplay defaults; fixed coin/menu keys remain outside the binding table.",
           "reasons": []
         },
         {
@@ -3916,7 +3916,7 @@
         {
           "name": "key_tick",
           "profile": "keybindings",
-          "purpose": "Navigate the seven actions and BACK or begin waiting for a replacement switch.",
+          "purpose": "Navigate five gameplay actions and BACK or begin waiting for a replacement switch.",
           "reasons": []
         },
         {
@@ -4367,6 +4367,13 @@
           "name": "INPUT_JOYSTICK",
           "kind": "constant",
           "reason": "Build-time input compatibility flag."
+        }
+      ],
+      "basic_blocks": [
+        {
+          "name": "kc_unique",
+          "routine": "key_capture",
+          "purpose": "Continue the candidate-key uniqueness scan after fixed coin-key rejection."
         }
       ],
       "external_symbols": [
@@ -5279,7 +5286,7 @@
     },
     "keybindings": {
       "inputs": "Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.",
-      "outputs": "Held action mask, fresh credit/start/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.",
+      "outputs": "Five held gameplay actions, fresh fixed coin/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.",
       "clobbers": "A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.",
       "reads": "PIA keyboard rows, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.",
       "writes": "Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.",

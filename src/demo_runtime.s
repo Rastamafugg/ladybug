@@ -1,8 +1,8 @@
 ; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
 ; DOC-002 source-contract mirror contract menu_tick profile=presentation: Dispatch selected menu input and replay changed fields to dirty BACK owners without gameplay mutation.
 ; DOC-002 source-contract mirror contract menu_updated profile=presentation: Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.
-; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan menu and existing credit/start edges.
-; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint the selected authored menu row and brackets.
+; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan fixed physical input and publish coin and menu edges; presentation_flow_tick consumes coin edges before menu dispatch.
+; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint authored menu rows; Options keeps selector brackets, while high-score selection changes text colour only.
 ; DOC-002 source-contract mirror contract credit_panel_slice profile=presentation: Credit panel slice.
 ; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Highscore commit name.
 ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.
