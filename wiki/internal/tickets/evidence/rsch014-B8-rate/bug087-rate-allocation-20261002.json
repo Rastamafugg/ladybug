@@ -1,0 +1,146 @@
+{
+  "schema": "rsch014-b8-bug087-rate-allocation-audit-v1",
+  "date": "2026-10-02",
+  "task": "RSCH-014 B8: bounded BUG-087 enemy-rate ownership and allocation audit",
+  "classification": "High-risk",
+  "scope": {
+    "owned_artifact": "This evidence directory only",
+    "production_source_changes": false,
+    "canonical_ticket_or_shared_wiki_changes": false,
+    "runtime_or_emulator_probe": false,
+    "full_build": false,
+    "purpose": "Determine whether B7 rate design has a demonstrated code and state owner on the integrated baseline without changing fixed module limits, loader/MMU protocol, renderer, audio, or adaptive-clock ownership."
+  },
+  "source_identity": {
+    "worktree_head": "e6b67aac983862aee6ef1ba88ae21dd2ebc4f027",
+    "production_baseline": "a29a2b7af59c08d6f5e927db818a5642a5a24e02",
+    "integrated_bug058_b2": "f0fd0029a47d08dca13b261bbcd1a9155df4b1fa",
+    "production_diff_from_a29": "No changes in src, scripts, or tiled between a29a2b7 and e6b67aa.",
+    "source_sha256": {
+      "src/main.s": "0b8c701e00a8ea319144b160a5263819ce96e6fb2abee6ce31c69372fb7aa272",
+      "src/enemy_runtime.s": "d8b04663d25b50add05e9d2b53dfb31e58f314fbbcAD0005898de362258b7e80",
+      "src/gmc_bootstrap.s": "32d766b9a7edde2ac4890324253d9cab4a2e6d355f0a79dd6a0d1db89af2694a",
+      "src/keybinding_runtime.s": "9120d61e48b94e480c0da79c1c5a458a1eb561c436177e1407fab2104e5c91ab",
+      "src/audio_runtime.s": "b1e6a9ace4ed6f946dbf05df2d5aaFB692d7eef4b7b9b66520761fada48b58bf",
+      "src/adaptive_runtime.s": "ffa30b03a31da2f2154d76c8aab2bfac1d46b67ffc35b4d4fba6f3dfE24d661c"
+    },
+    "source_revision_evidence": "The current enemy fixed boundary is authored at $17A0 in src/main.s and src/enemy_runtime.s. B7 fit evidence used a reconstructed E2 fixture; it did not retain exact candidate source, listing, map, binary, or failure log."
+  },
+  "inputs": {
+    "b7_evidence": {
+      "path": "wiki/internal/tickets/evidence/rsch014-B7/bug087-rate-fit-20261002.json",
+      "sha256": "ea1ad1e7c8c238b391be27080fbc43eb21e01475b6bb68527eb31a9e566ebf56",
+      "fit_fixture": "Reconstructed BUG086/E2 overlay; not an exact retained complete build."
+    },
+    "b7_generator": {
+      "path": "wiki/internal/tickets/evidence/rsch014-B7/failed-candidate-generator.py",
+      "sha256": "91cb0bb4a84e6b4e063d80b7b550322047c6984a61b3b25c6bf7a044825f2448",
+      "disposition": "Not run. It is a reconstructed candidate generator, not an exact reproducibility artifact."
+    },
+    "bug058_b2_completion": {
+      "path": "wiki/internal/tickets/evidence/rsch014-parent/bug058-b2-completion-20261002.json",
+      "sha256": "c35a37861a8a3e2e55f509801a169f363410daacd72dbd97a50f177a6ac2000a"
+    },
+    "e2_current_fit": {
+      "path": "wiki/internal/tickets/evidence/rsch014-E2/current-fit-readiness-20261002.json",
+      "sha256": "d2cfad7ed6392f92f26fb586e13d62623353142789342b4412ec5fe505697e1c"
+    },
+    "memory_map": "wiki/internal/implementation/memory-map.html"
+  },
+  "confirmed_findings": {
+    "fixed_enemy_code": {
+      "owner": "Fixed low-RAM enemy module, ending before the fixed object-mask LUT at $17A0.",
+      "historical_b7_capacity": "The B7 E2 fit recorded 55 bytes free before $17A0; its compact candidate failed that boundary by 143 bytes.",
+      "qualification": "The -143 assembler output has no retained source/listing/map/binary/log, and the reconstructed generator was not rerun. The candidate also omitted the required $61B7 saturation behavior. Treat -143 as a historical optimistic lower-bound blocker, not an exact current integrated fit.",
+      "minimum_capacity_prerequisite": "At least 143 additional bytes must be recovered before $17A0 merely to fit the historical unsaturated compact candidate. Required saturation and any interface/call bytes add an unmeasured amount. The exact viable total cannot be derived from retained artifacts.",
+      "decision": "No demonstrated fixed-owner fit. Do not raise or move the $17A0 LUT boundary."
+    },
+    "known_small_extents": {
+      "bug086_page34_helper": {
+        "range": "$A8A0-$A8F6",
+        "bytes": 87,
+        "remaining": "$A8F7-$A8FC, 6 bytes",
+        "reserved": "$A8FD-$A8FF",
+        "decision": "Cannot hold the 143-byte historical overflow; do not treat reserved logo bytes as capacity."
+      },
+      "bug058_b2_banked_helper": {
+        "range": "$BD44-$BFFB",
+        "used_bytes": 696,
+        "limit_bytes": 698,
+        "free_bytes": 2,
+        "state": "$BC04-$BD43, adaptive renderer state",
+        "decision": "No rate code or state allocation here; preserve adaptive ownership and its fixed vector layout."
+      }
+    },
+    "state_ownership_candidates": {
+      "post_boot_low_ram": {
+        "candidate_six_byte_range": "$029B-$02A0",
+        "larger_unbanked_gap": "$029B-$02BF",
+        "known_neighbor_owners": {
+          "$0287-$029A": "keybinding state after boot_streams_retired",
+          "$02C0-$02D3": "audio bank guard",
+          "$02DC-$02F3": "audio state and service gateway"
+        },
+        "boot_lifetime": "The 99-byte GMC descriptor table starts at $0287 and retires at boot_streams_retired before audio initialization.",
+        "mapping": "Ordinary unbanked low RAM, outside direct page. Absolute extended accesses and their extra code/cycle cost must be included.",
+        "audit_limit": "A source operand scan found no executable/data references to $029B-$02BF; src/audio_runtime.s:987 mentions $02BF only in a comment about the boot-table end. This does not prove absence of indirect accesses, retained pointers, or generated references; no ownership allocation is approved.",
+        "assessment": "Plausible phase-independent state candidate, not a proven owner."
+      },
+      "name_entry_direct_page_alias": {
+        "candidate": "$DF-$E4",
+        "current_owners": "$DF name row, $E0 column, $E1 repeat/phase, $E2 direction/flags, $E3 owner, $E4-$E5 pointer.",
+        "evidence": "Existing $E1 alias is explicitly phase-guarded for menu redraw/name repeat. Main skips enemy_tick during initial entry and enters the normal enemy path only after presentation returns zero.",
+        "audit_limit": "Complete name-entry, demo, all-profile and transition retirement/reinitialization proof is absent. The range remains occupied and cannot be called free."
+      },
+      "rejected_state_candidate": {
+        "range": "$EC-$FF",
+        "reason": "audio_runtime.s owns this direct-page region."
+      }
+    },
+    "possible_separate_code_extent": {
+      "range": "$A3B0-$A46F",
+      "bytes": 192,
+      "map_status": "memory-map.html marks $A3B0-$A3EF and $A3F0-$A46F as free game-state ranges. ENEMY_TABLE begins at $A470.",
+      "source_relationship": "This lies after ENTITY_TABLE at $A380-$A3AF and before ENEMY_TABLE. No B8 proof of every clear/writer, profile overlay or maximum-entity bound was performed.",
+      "transport_relationship": "GMC bootstrap already supports generic sparse segments and assigns PAR5 page destinations. BUG086 has an existing page-$34 delivery pattern, but no BUG087 code segment or call mapping is retained.",
+      "assessment": "A candidate for the next bounded ownership audit only. Splitting executable code here would create a new runtime owner and needs exact source split, caller mapping, loader-copy fit, lifecycle proof, and approval before repair execution."
+    },
+    "other_extent_rejected": {
+      "range": "$A590-$A68F",
+      "reason": "Although listed as free game-state growth in the map, presentation_runtime.s uses $A590 as PRES_CURSOR_SAVE_A. Do not assign persistent rate state or code without a distinct lifecycle alias proof."
+    }
+  },
+  "lifecycle_contract": {
+    "intended_rate_state_reset": "Only true game/stage initialization (init_game_state and next_stage); next_stage calls init_enemy and increments STAGE, skipping zero by incrementing again.",
+    "spawn": "Newly released roaming enemies join the current shared stage-rate phase; spawn/release must not reset it.",
+    "death": "enemy_tick_impl calls reset_enemy_state on death start; that per-enemy reset must not reset shared stage-rate state.",
+    "blocked_or_frozen": "enemy movement is gated by FREEZE_TIMER and LAST_FRAME parity. Whether rate credit is discarded or retained while movement is blocked/frozen is unresolved and cannot be inferred from current code.",
+    "initial_entry": "main_game_tick runs initial_entry_tick without enemy_tick while INITIAL_ENTRY_STATE is active.",
+    "stage_wrap": "CoCo next_stage skips stage zero; arcade source elapsed counter wraps to zero. Mapping and saturation behavior at this boundary remain unresolved.",
+    "clock_separation": "Do not reuse BOX_TIMER, ENEMY_TIMER/ENEMY_ANIM, player cadence, LAST_FRAME, or adaptive debt as the rate owner.",
+    "fidelity_gate": "Arcade-to-CoCo movement-dispatch and elapsed-timer conversion remains unmeasured; blocked/frozen due-credit behavior and later-part conversion also remain open."
+  },
+  "decision": {
+    "result": "No current fit claim. Existing fixed, BUG086 helper, and B2 helper capacity is insufficient or already owned. A3B0-A46F is a plausible but unproven separate-code extent.",
+    "why_no_build": "The compact candidate is not retained/reproducible, required saturation is absent, and a separate code owner/lifecycle/call mapping is not yet proven. A full build would not discriminate a concrete selected design.",
+    "why_not_perf005": "PERF-005 covers the AD0 joystick resident overflow; that resident budget does not create bytes before the fixed $17A0 enemy LUT or prove a page-$34 owner.",
+    "ticket_status": "BUG-087 remains Draft; this evidence does not approve implementation or change acceptance criteria.",
+    "next_discriminator": "Bounded proof of every writer/clear/overlay and maximum table extent for $A3B0-$A46F, followed only if clean by an isolated exact code-split fit that includes saturation and extended-state/call overhead. Otherwise report the exact blocked ownership boundary.",
+    "excluded": [
+      "No production or canonical wiki edit",
+      "No source prototype or patch",
+      "No renderer, audio, adaptive clock, MMU, loader protocol, fixed-boundary or user TMX change",
+      "No runtime probe",
+      "No full build"
+    ]
+  },
+  "validation": {
+    "commands": [
+      "git status --short",
+      "git diff --quiet a29a2b7 e6b67aa -- src scripts tiled",
+      "rg source-reference audit for enemy_tick, stage initialization, descriptor retirement, low-RAM and direct-page owners",
+      "SHA-256 of all cited source and evidence inputs"
+    ],
+    "result": "Worktree was clean before this evidence file was created; production diff since a29a2b7 was empty. No build or runtime was performed."
+  }
+}
