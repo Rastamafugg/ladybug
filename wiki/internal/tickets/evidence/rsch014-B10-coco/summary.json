@@ -1,0 +1,421 @@
+{
+  "date": "2026-10-02",
+  "ticket": "BUG-080 / RSCH-014-B10-COCO",
+  "measurement_status": "PASS for the bounded B2 sample only",
+  "ticket_lifecycle": "BUG-080 remains Draft; no family-wide acceptance or repair approval implied",
+  "tested_artifact": {
+    "rom_sha256": "2114f0185b5a4bd13795e5ded2834053e22f50adf83610870e387c200d73b901",
+    "build_receipt_revision": "b1ce21119583de061fe817497f85d7c60b8341d2",
+    "source_input_count": 256,
+    "source_inputs_current": true,
+    "artifact_hashes_match_receipt": true,
+    "observer_sha256": "b4e0e265a93d46c8b973272abe5158a8d91485f582846df09b08bd1bd7e03143",
+    "tested_route_observer_sha256": "38b023849408cd6d27cfe7fd0159fa22f5609adf238937c30081a38300731795"
+  },
+  "phase": {
+    "route": "natural cold attract, 8 demo worklists, key-5 coin at credit_tick, wait hold and render pending clear, key-1 at ad_dispatch_work, natural INITIAL_ENTRY_STATE clear, first natural mode-0 enemy_release, hold Left during sampling",
+    "enemy_release_elapsed_seconds": 4.763,
+    "total_elapsed_seconds": 5.677,
+    "deadline_seconds": 40.0,
+    "timeout_meaning": "The named cold-entry, credit/start, relocation, IRQ, or pixel marker was not observed by this 40-second probe boundary; timeout is not evidence that game code is slow."
+  },
+  "identity_before_interpretation": {
+    "resident_live_equals_artifact": true,
+    "enemy_destination_equals_artifact": true,
+    "presentation_destination_equals_artifact": true,
+    "staged_active_module_bytes": 603,
+    "stage_payload_exact": true,
+    "active_destination_address": 911,
+    "active_destination_equals_artifact": true,
+    "irq_hook_address": 54888,
+    "irq_return_breakpoint": 54891,
+    "irq_live_bytes": "bd081e3b",
+    "irq_live_exact": true,
+    "destination_live_exact_at_first_irq": true,
+    "stage_live_exact_at_first_irq": true,
+    "first_sample_raw_pars": [
+      56,
+      48,
+      49,
+      50,
+      51,
+      52,
+      62,
+      63
+    ],
+    "first_sample_pars_masked_to_6_bits": [
+      56,
+      48,
+      49,
+      50,
+      51,
+      52,
+      62,
+      63
+    ]
+  },
+  "acceptance_measurement": {
+    "irq_returns": 128,
+    "raw_frame_first_last": [
+      4409,
+      4536
+    ],
+    "every_raw_frame_consecutive": true,
+    "published_pixel_matches": 128,
+    "published_player_template_run_lengths": [
+      {
+        "value": [
+          2
+        ],
+        "irq_samples": 3
+      },
+      {
+        "value": [
+          13,
+          15
+        ],
+        "irq_samples": 8
+      },
+      {
+        "value": [
+          12
+        ],
+        "irq_samples": 10
+      },
+      {
+        "value": [
+          13,
+          15
+        ],
+        "irq_samples": 7
+      },
+      {
+        "value": [
+          14
+        ],
+        "irq_samples": 9
+      },
+      {
+        "value": [
+          13,
+          15
+        ],
+        "irq_samples": 7
+      },
+      {
+        "value": [
+          12
+        ],
+        "irq_samples": 10
+      },
+      {
+        "value": [
+          13,
+          15
+        ],
+        "irq_samples": 7
+      },
+      {
+        "value": [
+          14
+        ],
+        "irq_samples": 10
+      },
+      {
+        "value": [
+          13,
+          15
+        ],
+        "irq_samples": 7
+      },
+      {
+        "value": [
+          12
+        ],
+        "irq_samples": 9
+      },
+      {
+        "value": [
+          13,
+          15
+        ],
+        "irq_samples": 7
+      },
+      {
+        "value": [
+          14
+        ],
+        "irq_samples": 8
+      },
+      {
+        "value": [
+          13,
+          15
+        ],
+        "irq_samples": 7
+      },
+      {
+        "value": [
+          12
+        ],
+        "irq_samples": 8
+      },
+      {
+        "value": [
+          13,
+          15
+        ],
+        "irq_samples": 8
+      },
+      {
+        "value": [
+          14
+        ],
+        "irq_samples": 3
+      }
+    ],
+    "owner_sample_counts": {
+      "1": 65,
+      "0": 63
+    },
+    "mode_part_counts": {
+      "(0, 1)": 128
+    },
+    "enemy_overlap_skips": 0
+  },
+  "clock_and_worklist": {
+    "logical_sim_time_first_last": [
+      887,
+      1010
+    ],
+    "logical_sim_ticks_across_127_irq_intervals": 123,
+    "sim_tick_delta_per_irq_window": {
+      "0": 53,
+      "2": 49,
+      "1": 25
+    },
+    "debt_sample_distribution": {
+      "0": 102,
+      "1": 26
+    },
+    "source_step_limit": "at most two logical steps per adaptive worklist; AD_BATCH is reducer scratch after render",
+    "worklists_observed_outside_sample_window": {
+      "natural_demo_worklists": 8,
+      "natural_initial_entry_worklists": 66,
+      "initial_entry_steps_per_worklist": {
+        "1": 59,
+        "0": 7
+      },
+      "initial_entry_faults": {
+        "0": 66
+      }
+    },
+    "worklist_counter_limit": "MAINLOOP return count was not instrumented during the 128-IRQ sampling window; sim-time deltas are per IRQ window and may span zero, one, or two logical ticks."
+  },
+  "timer_vs_published_art": {
+    "timer_origin_formula": "AD_SIM_TIME - (8 - PLAYER_ANIM_TIMER), modulo 65536, from exact source timer reload/decrement behavior.",
+    "logical_phase_origin_runs": [
+      {
+        "value": 880,
+        "irq_samples": 2
+      },
+      {
+        "value": 888,
+        "irq_samples": 8
+      },
+      {
+        "value": 896,
+        "irq_samples": 9
+      },
+      {
+        "value": 904,
+        "irq_samples": 9
+      },
+      {
+        "value": 912,
+        "irq_samples": 8
+      },
+      {
+        "value": 920,
+        "irq_samples": 8
+      },
+      {
+        "value": 928,
+        "irq_samples": 9
+      },
+      {
+        "value": 936,
+        "irq_samples": 8
+      },
+      {
+        "value": 944,
+        "irq_samples": 9
+      },
+      {
+        "value": 952,
+        "irq_samples": 8
+      },
+      {
+        "value": 960,
+        "irq_samples": 8
+      },
+      {
+        "value": 968,
+        "irq_samples": 8
+      },
+      {
+        "value": 976,
+        "irq_samples": 8
+      },
+      {
+        "value": 984,
+        "irq_samples": 7
+      },
+      {
+        "value": 992,
+        "irq_samples": 8
+      },
+      {
+        "value": 1000,
+        "irq_samples": 8
+      },
+      {
+        "value": 1008,
+        "irq_samples": 3
+      }
+    ],
+    "origin_change_tick_deltas": [
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8,
+      8
+    ],
+    "logical_actor_frame_distribution": {
+      "14": 128
+    },
+    "player_anim_distribution": {
+      "2": 30,
+      "3": 31,
+      "0": 34,
+      "1": 33
+    },
+    "published_pose_note": "templates 13 and 15 match the same art and form one ambiguous combined pixel class; no unique logical phase is claimed from them",
+    "movement_separate": {
+      "player_cell_runs": [
+        {
+          "value": [
+            12,
+            18
+          ],
+          "irq_samples": 8
+        },
+        {
+          "value": [
+            11,
+            18
+          ],
+          "irq_samples": 8
+        },
+        {
+          "value": [
+            10,
+            18
+          ],
+          "irq_samples": 10
+        },
+        {
+          "value": [
+            9,
+            18
+          ],
+          "irq_samples": 8
+        },
+        {
+          "value": [
+            8,
+            18
+          ],
+          "irq_samples": 8
+        },
+        {
+          "value": [
+            7,
+            18
+          ],
+          "irq_samples": 8
+        },
+        {
+          "value": [
+            6,
+            18
+          ],
+          "irq_samples": 9
+        },
+        {
+          "value": [
+            5,
+            18
+          ],
+          "irq_samples": 8
+        },
+        {
+          "value": [
+            4,
+            18
+          ],
+          "irq_samples": 9
+        },
+        {
+          "value": [
+            3,
+            18
+          ],
+          "irq_samples": 8
+        },
+        {
+          "value": [
+            2,
+            18
+          ],
+          "irq_samples": 44
+        }
+      ],
+      "distinct_player_cells": 11,
+      "player_fb_pointer_distinct_count": 41,
+      "player_fb_first_last": [
+        30188,
+        30148
+      ],
+      "interpretation": "Left-held player advanced from cell (12,18) to (2,18), then remained at (2,18) in this short sample; this is displacement evidence only, not a cadence or velocity claim."
+    }
+  },
+  "historical_comparison": {
+    "source": "canonical BUG-080 section parent-coco-clock-and-pose-20261002 and RSCH-014-parent animation-irq-summary.json",
+    "historical_artifact": "C3 ROM e3a6cb1c\u2026f7982; 128 samples in 2.780 s",
+    "historical_published_pose_holds": "5\u201310 raw Vbords, later settling to 8",
+    "current_b2_published_pose_holds": "initial matched pose 3 IRQ samples; recurring complete runs 7\u201310 IRQ samples",
+    "limitation": "C3 history and this B2 integrated keyboard-ROM measurement are distinct artifacts and environments; neither alone establishes arcade equivalence, other actor-family dwell, or CoCo-versus-MAME clock equivalence."
+  },
+  "residual_scope": {
+    "enemy_pose_templates_not_measured": true,
+    "all arcade actor families_not_covered": true,
+    "later_parts_not_covered": true,
+    "worklist_return_count_during_irq_window_not_measured": true,
+    "combined_B2_four_transformation_fit_gate_for_BUG086": "still conditional and separate from this B10 sample",
+    "source_repair_or_ticket_status_change": "none"
+  },
+  "runtime_result_sha256": "2223efca2519dc1dda2491ea0ef79d1cf0a8b2622dd9c957a55da5b1164df2ee",
+  "observer_copy_sha256": "b4e0e265a93d46c8b973272abe5158a8d91485f582846df09b08bd1bd7e03143"
+}

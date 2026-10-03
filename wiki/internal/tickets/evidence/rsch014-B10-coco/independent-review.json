@@ -1,0 +1,64 @@
+{
+  "schema": "ladybug-rsch014-b10-coco-independent-review-v1",
+  "date": "2026-10-03",
+  "artifact": {
+    "rom_sha256": "2114f0185b5a4bd13795e5ded2834053e22f50adf83610870e387c200d73b901",
+    "build_receipt_revision": "b1ce21119583de061fe817497f85d7c60b8341d2",
+    "source_input_count": 256,
+    "source_inputs_current": true,
+    "runtime_result_sha256": "2223efca2519dc1dda2491ea0ef79d1cf0a8b2622dd9c957a55da5b1164df2ee",
+    "observer_sha256": "b4e0e265a93d46c8b973272abe5158a8d91485f582846df09b08bd1bd7e03143",
+    "summary_sha256": "8900ce55f15846e58ba65d1d0e32d8c1ae2d8efd613d6839401e1a6b0d8af26",
+    "prelaunch_sha256": "cd815a8a39e5d1b769e82ccc044cb2dad5cdc0df12f48c8c977ef086a983c77a"
+  },
+  "phase": {
+    "name": "natural credited Part-1 start, first enemy release, Left-held player",
+    "deadline_seconds": 40,
+    "elapsed_seconds": 5.677,
+    "result": "PASS for this bounded current-B2 player sample only"
+  },
+  "checks": {
+    "consecutive_irq_samples": 128,
+    "raw_frames": [
+      4409,
+      4536
+    ],
+    "consecutive_frame_deltas": 127,
+    "all_frame_deltas_are_one": true,
+    "published_player_template_matches": 128,
+    "all_128_template_matches": true,
+    "pose_runs": {
+      "total_runs": 17,
+      "first_clipped_samples": 3,
+      "last_clipped_samples": 3,
+      "complete_runs": 15,
+      "complete_samples": 122,
+      "mean_irq_samples": 8.133333333333333,
+      "minimum_irq_samples": 7,
+      "maximum_irq_samples": 10,
+      "grouped_samples": "template 2: 3; template 12: 37; templates 13/15 combined art: 58; template 14: 30"
+    },
+    "logical_phase_origins": {
+      "count": 17,
+      "first": 880,
+      "last": 1008,
+      "transitions": 16,
+      "transition_deltas": "all 8 logical ticks"
+    },
+    "movement": {
+      "distinct_player_cells": 11,
+      "note": "displacement only; no cadence or velocity conclusion"
+    }
+  },
+  "reproduction": {
+    "command": "wsl python3 wiki/internal/tickets/evidence/rsch014-B10-coco/observer_b10.py",
+    "mechanics": "existing private-monitor launch, natural coin/Start route, byte-identified relocation, 128 IRQ RTIs and source-template checks",
+    "raw_trace_path": "wiki/internal/tickets/evidence/rsch014-B10-coco/runtime-result.json",
+    "raw_trace_policy": "retained locally as ignored/uncommitted raw evidence; SHA256 above"
+  },
+  "limits": [
+    "Current B2 integrated keyboard ROM, Part 1 and player only.",
+    "Does not establish enemy-family dwell, later parts, arcade equivalence, BUG-086 helper behavior, or BUG-086 combined capacity.",
+    "No ticket status or repair approval follows from this sample."
+  ]
+}
