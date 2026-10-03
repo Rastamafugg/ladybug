@@ -1,0 +1,162 @@
+{
+  "schema": "rsch014-b9-b8-raw-sample-support-v1",
+  "research_ticket": "RSCH-014",
+  "date": "2026-10-02",
+  "purpose": "Retain compact raw-derived RAM and pixel evidence for the rejected B8 frame-668 Right-axis marker, and correlate 0x6059/0x605A with MAME frames. This is offline processing of saved artifacts; no emulator was run.",
+  "identity": {
+    "mame_executable_sha256": "7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4",
+    "ladybug_rom_zip_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+    "main_cpu_0000_5fff_sha256": "3ca5f2a3fe65c982d55da6f873036119cdfd4da81bc1304a02393622a4cd7c12",
+    "disassembly_sha256": "34bf89b284f394e2eb9331e3cf4630afa4cf59200b2e952cb6b0a35e231ac3b3",
+    "plan_sha256": "46e0f1378b9ab12d3e115145379031f7f68b943564ccf44af9d093f42c0a8dc1",
+    "capture_json_sha256": "592fe52bed7efb04fab1f5f1e89c936e4a77917b6833b20f770f8e5c14661bd4",
+    "raw_work_ram_sha256": "acc1a858068d3e041b4e3efef45aaf129bc4720f21555f9784d02c77438412f1",
+    "raw_video_sha256": "5a24b4b375a3e7dc98b337461da9404fae7dc402ae7d06c2930f1edb1151ddb2"
+  },
+  "capture": {
+    "command": "timeout 60s /usr/bin/time -f wall_seconds=%e python3 scripts/capture_mame_gameplay.py --mame /usr/games/mame --frames 676 --recognize-from 654 --video-from 620 --skip-player-recognition --plan /tmp/rsch014-B8-axis2-plan.json --output /tmp/rsch014-B8-axis2-capture.json --raw-video /tmp/rsch014-B8-axis2.bgra --raw-background /tmp/rsch014-B8-axis2-background.bin --raw-work-ram /tmp/rsch014-B8-axis2-ram.bin",
+    "capture_json_player_field": "Empty because capture ran with --skip-player-recognition; the existing raw BGRA stream was separately passed to the same repository matcher.",
+    "raw_ram_format": "676 one-based MAME frame records, each 0x1000 bytes for addresses 0x6000-0x6FFF; frame f starts at offset (f-1)*0x1000.",
+    "raw_video_format": "57 consecutive BGRA32 frames, 192x240, starting at MAME frame 620."
+  },
+  "pixel_matcher": {
+    "implementation": "scripts/capture_mame_gameplay.py::player_templates and locate_player_frames",
+    "implementation_sha256": "3a90b4a420f8319e248ad8ec523c25d23e12fd7a0362a023775ac1cb91e93d72",
+    "template_dependencies_sha256": {
+      "assets/arcade/sprites.json": "af2adb1a494b6a641deb38931ee93220b9638ffca4d42e8e37d7d8683945e42d",
+      "assets/arcade/palette.json": "3123ef22d219d0282382d2da896777cbe40253a4b858f4a30444b02c9c26f427",
+      "assets/arcade/sprite_lookup_a.json": "42a71f398b34d0b75bb3c9e96605c631c8ace054d3da7087262720be1a7d76f3"
+    },
+    "matcher": "Builds all orientations of sprite templates 0-2; searches a red opaque anchor then requires every nonzero template pixel to match the BGRA frame's BGR channels. Match x/y are the 16x16 template's top-left. The recorded center pixel uses (x+8,y+8).",
+    "offline_invocation": {
+      "module": "scripts/capture_mame_gameplay.py",
+      "function": "locate_player_frames",
+      "input": "/tmp/rsch014-B8-axis2.bgra",
+      "arguments": {"width": 192, "height": 240, "frames": 57, "recognize_from_relative_frame": 35},
+      "frame_index_rebase": "relative frame key + 619 = MAME frame"
+    }
+  },
+  "ram_samples": [
+    {
+      "frame": 654,
+      "player_0x6026": "82 58 56 00 00",
+      "enemy_slot0_0x602B": "81 58 86 18 01",
+      "enemy_slot1_0x6030": "40 10 50 00 00",
+      "counters": {"0x6059": "65", "0x605A": "CC", "0x61B5": "00", "0x61B6": "5F", "0x61B7": "00", "0x61C3": "10"}
+    },
+    {
+      "frame": 657,
+      "player_0x6026": "82 58 56 00 00",
+      "enemy_slot0_0x602B": "81 58 86 18 01",
+      "enemy_slot1_0x6030": "40 10 50 00 00",
+      "counters": {"0x6059": "68", "0x605A": "CD", "0x61B5": "00", "0x61B6": "5C", "0x61B7": "00", "0x61C3": "10"}
+    },
+    {
+      "frame": 660,
+      "player_0x6026": "82 58 56 00 00",
+      "enemy_slot0_0x602B": "81 58 86 18 01",
+      "enemy_slot1_0x6030": "40 10 50 00 00",
+      "counters": {"0x6059": "6B", "0x605A": "CD", "0x61B5": "00", "0x61B6": "59", "0x61B7": "00", "0x61C3": "10"}
+    },
+    {
+      "frame": 661,
+      "player_0x6026": "42 58 56 00 00",
+      "enemy_slot0_0x602B": "81 58 86 18 01",
+      "enemy_slot1_0x6030": "40 10 50 00 00",
+      "counters": {"0x6059": "6C", "0x605A": "CD", "0x61B5": "00", "0x61B6": "58", "0x61B7": "00", "0x61C3": "10"}
+    },
+    {
+      "frame": 662,
+      "player_0x6026": "42 59 56 00 00",
+      "enemy_slot0_0x602B": "81 58 86 18 01",
+      "enemy_slot1_0x6030": "40 10 50 00 00",
+      "counters": {"0x6059": "6D", "0x605A": "CD", "0x61B5": "00", "0x61B6": "57", "0x61B7": "00", "0x61C3": "10"}
+    },
+    {
+      "frame": 663,
+      "player_0x6026": "42 5A 56 00 00",
+      "enemy_slot0_0x602B": "81 58 86 18 01",
+      "enemy_slot1_0x6030": "40 10 50 00 00",
+      "counters": {"0x6059": "6E", "0x605A": "CD", "0x61B5": "00", "0x61B6": "56", "0x61B7": "00", "0x61C3": "10"}
+    },
+    {
+      "frame": 665,
+      "player_0x6026": "42 5C 56 00 00",
+      "enemy_slot0_0x602B": "81 58 86 18 01",
+      "enemy_slot1_0x6030": "40 10 50 00 00",
+      "counters": {"0x6059": "70", "0x605A": "CE", "0x61B5": "00", "0x61B6": "54", "0x61B7": "00", "0x61C3": "10"}
+    },
+    {
+      "frame": 668,
+      "player_0x6026": "42 5F 56 00 00",
+      "enemy_slot0_0x602B": "81 58 86 18 01",
+      "enemy_slot1_0x6030": "40 10 50 00 00",
+      "counters": {"0x6059": "73", "0x605A": "CE", "0x61B5": "00", "0x61B6": "51", "0x61B7": "00", "0x61C3": "10"}
+    },
+    {
+      "frame": 669,
+      "player_0x6026": "42 5F 56 00 00",
+      "enemy_slot0_0x602B": "81 58 86 18 01",
+      "enemy_slot1_0x6030": "40 10 50 00 00",
+      "counters": {"0x6059": "74", "0x605A": "CE", "0x61B5": "00", "0x61B6": "50", "0x61B7": "00", "0x61C3": "10"}
+    },
+    {
+      "frame": 673,
+      "player_0x6026": "42 5F 56 00 00",
+      "enemy_slot0_0x602B": "81 58 86 18 01",
+      "enemy_slot1_0x6030": "40 10 50 00 00",
+      "counters": {"0x6059": "78", "0x605A": "CF", "0x61B5": "00", "0x61B6": "4C", "0x61B7": "00", "0x61C3": "10"}
+    },
+    {
+      "frame": 676,
+      "player_0x6026": "42 5F 56 00 00",
+      "enemy_slot0_0x602B": "81 58 86 18 01",
+      "enemy_slot1_0x6030": "40 10 50 00 00",
+      "counters": {"0x6059": "7B", "0x605A": "CF", "0x61B5": "00", "0x61B6": "49", "0x61B7": "00", "0x61C3": "10"}
+    }
+  ],
+  "pixel_matches": [
+    {"frame": 654, "template_origin": [89, 153], "center_pixel": [97, 161], "sprite_code": 0, "direction_index": 3},
+    {"frame": 660, "template_origin": [89, 153], "center_pixel": [97, 161], "sprite_code": 1, "direction_index": 3},
+    {"frame": 661, "template_origin": [89, 153], "center_pixel": [97, 161], "sprite_code": 1, "direction_index": 3},
+    {"frame": 662, "template_origin": [89, 153], "center_pixel": [97, 161], "sprite_code": 1, "direction_index": 0},
+    {"frame": 663, "template_origin": [90, 153], "center_pixel": [98, 161], "sprite_code": 1, "direction_index": 0},
+    {"frame": 668, "template_origin": [95, 153], "center_pixel": [103, 161], "sprite_code": 2, "direction_index": 0},
+    {"frame": 669, "template_origin": [96, 153], "center_pixel": [104, 161], "sprite_code": 2, "direction_index": 0},
+    {"frame": 676, "template_origin": [96, 153], "center_pixel": [104, 161], "sprite_code": 1, "direction_index": 0}
+  ],
+  "clock_change_points": [
+    {"frame": 654, "0x6059": "65", "0x605A": "CC", "phase": 0},
+    {"frame": 657, "0x6059": "68", "0x605A": "CD", "phase": 1},
+    {"frame": 665, "0x6059": "70", "0x605A": "CE", "phase": 2},
+    {"frame": 673, "0x6059": "78", "0x605A": "CF", "phase": 3},
+    {"frame": 676, "0x6059": "7B", "0x605A": "CF", "phase": 3}
+  ],
+  "clock_observation": "Across this natural gameplay sample, 0x6059 advanced exactly one count per MAME frame. 0x605A changed at frames 657, 665, and 673, exactly eight MAME frames apart. This directly measures the count-to-frame relation for this interval; the source code owns the counter at completed 0x9001-bit-7 waits. This is distinct from 0x61B6/0x61B7 elapsed state and 0x61B5/0x61C3 dispatcher state.",
+  "declared_marker": {
+    "requirement": "From stable neutral at frames 654-659, P1 Right is applied frames 660-667; increase player X and place the exact pixel center in cell (13,18) by frame 668.",
+    "result": "Retain the declared frame-668 failure. Raw RAM is 0x6027=0x5F (decimal 95) versus neutral 0x58 (88), a +7 change by frame 668. The saved pixel matcher places its center at [103,161] on frame 668 and [104,161] on frame 669. Raw RAM stays 0x5F through frame 676.",
+    "coordinate_limit": "This support retains hardware-RAM and screen-pixel coordinates only. It does not validate the screen-to-world-cell origin transform, so frame 669 is not claimed as a world-cell arrival or a retroactive pass.",
+    "receipt_correction": "The B8 narrative receipt says frame 669 RAM X is 96. The retained raw RAM byte is 0x5F (95) at frame 669 and remains 0x5F at frame 676. Preserve the historical receipt and use this explicit correction; do not alter the capture."
+  },
+  "input_and_status": {
+    "plan_actions": "P1 Right pressed at frame 660 and released at frame 668.",
+    "observed": "Player status/facing byte 0x6026 changes 0x82->0x42 at frame 661; the first RAM X increment appears at frame 662. This is one frame of input-admission latency before the first position increment in this retained sample.",
+    "coexisting_records": "Slot 0 is 81 58 86 18 01 throughout the sample: renderer-visible via bit 0, not movement-dispatched because bit 1 is clear. Slot 1 is 40 10 50 00 00 and remains skipped by the low-two-bit render gate. Player bytes +3/+4 remain 00/00; slot-0 enemy +3/+4 remain 18/01."
+  },
+  "visual_artifacts": [
+    {
+      "file": "b8-frame-668-player-template-match.png",
+      "source_frame": 668,
+      "crop": "Native 16x16 BGRA-derived pixels at template origin [95,153].",
+      "sha256": "1c7e9c4a20ba63d9a537ac137b560be2fd9d55e9fd38ed9cc5f1e73874b371d7"
+    },
+    {
+      "file": "b8-frame-669-player-template-match.png",
+      "source_frame": 669,
+      "crop": "Native 16x16 BGRA-derived pixels at template origin [96,153].",
+      "sha256": "a1ef05ad2848a1f9cc34d7057bd74e0578ba47e73a2444b0bed0b59fc9ec0498"
+    }
+  ],
+  "BUG-087_limit": "The bounded B8 sample has 0x61B6 0x5F->0x49 over frames 654-676, while 0x61B7 stays 0, 0x61B5 stays 0, and 0x61C3 stays 0x10. It observes no elapsed-bucket rollover or rate-to-pixel conversion. It cannot close BUG-087 dispatcher conversion coverage."
+}
