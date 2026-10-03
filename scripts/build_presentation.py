@@ -114,6 +114,7 @@ INSTRUCTION_REFERENCE = (
     / "assets" / "arcade" / "instruction_reference.json"
 )
 INSTRUCTION_STATIC_LAYERS = (
+    "Background",
     "Arcade Maze Border",
     "CoCo Side HUD",
     "Instructions Overlay",
@@ -175,7 +176,7 @@ INSTRUCTION_STOPS = (
 )
 PRESENTATION_LAYER_CONTRACTS = {
     "attract": {
-        "static": ("Attract Title and Prompts",),
+        "static": ("Background", "Attract Title and Prompts"),
         "metadata": (),
         "runtime": ("Sprite Animations", "Logo Frame 1", "Logo Frame 2"),
         "deferred": (),
@@ -187,28 +188,40 @@ PRESENTATION_LAYER_CONTRACTS = {
         "deferred": (),
     },
     "level-start": {
-        "static": ("Level Start Panel", "CoCo Side HUD"),
+        "static": (
+            "Background", "Arcade Maze Border", "Level Start Panel",
+            "CoCo Side HUD",
+        ),
         "metadata": ("Sprite Locations",),
         "runtime": (),
         "deferred": (),
     },
     "high-score": {
-        "static": ("High Score Table and Branding",),
+        "static": ("Background", "High Score Table and Branding"),
         "metadata": ("Coin Positions",),
         "runtime": (),
         "deferred": ("Logo Frame 1", "Logo Frame 2"),
     },
     "options": {"static": ("Options Screen",), "metadata": ("Selected Option",), "runtime": (), "deferred": ()},
-    "credits": {"static": ("Credits Screen",), "metadata": (), "runtime": (), "deferred": ()},
+    "credits": {
+        "static": ("Background", "Credits Screen"),
+        "metadata": (),
+        "runtime": (),
+        "deferred": (),
+    },
     "game-over": {
-        "static": ("Arcade Maze Border", "CoCo Side HUD", "Game Over Overlay"),
+        "static": (
+            "Background", "Arcade Maze Border", "CoCo Side HUD",
+            "Game Over Overlay",
+        ),
         "metadata": ("Sprite Locations",),
         "runtime": (),
         "deferred": (),
     },
     "enter-high-score": {
         "static": (
-            "Arcade Maze Border", "CoCo Side HUD", "Enter High Score Overlay",
+            "Background", "Arcade Maze Border", "CoCo Side HUD",
+            "Enter High Score Overlay",
         ),
         "metadata": (ENTER_HIGH_SCORE_METADATA_LAYER,),
         "runtime": (),
@@ -654,6 +667,11 @@ def validate_presentation_layers(
     contract = PRESENTATION_LAYER_CONTRACTS.get(role)
     if contract is None:
         raise ValueError(f"{path}: unsupported presentation screen role {role!r}")
+    if role == "options" and path.name == "coco-keybind-options-screen.tmx":
+        contract = {
+            **contract,
+            "static": ("Background", *contract["static"]),
+        }
     layers = root.findall("layer")
     names = [layer.get("name", "") for layer in layers]
     required = tuple(name for owner in contract.values() for name in owner)
@@ -667,6 +685,12 @@ def validate_presentation_layers(
     by_name = {layer.get("name", ""): layer for layer in layers}
     for name in contract["static"]:
         validate_layer_tilesets(path, root, by_name[name], ("chars_raw2bpp",))
+    if "Background" in contract["static"]:
+        background = parse_csv(by_name["Background"].find("data"), "Background")
+        if len(background) != MAP_BYTES or any(gid != 8 for gid in background):
+            raise ValueError(
+                f"{path}: Background must contain exactly {MAP_BYTES} GID8 blank cells"
+            )
     for name in contract["deferred"]:
         validate_layer_tilesets(path, root, by_name[name], ("chars_raw2bpp",))
     if role == "attract":

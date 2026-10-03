@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -18,9 +19,20 @@ from build_presentation import (
     MAP_FILES,
     MAP_NAMES,
     PRESENTATION_LAYER_CONTRACTS,
+    compile_map,
     layer_records,
     parse_csv,
+    title_framebuffer,
     validate_presentation_layers,
+)
+
+
+WORKSPACE = Path(__file__).resolve().parents[1]
+PARTITION_RECEIPT = (
+    WORKSPACE / "wiki/internal/tickets/evidence/rsch014-ready-060/partition-receipt.json"
+)
+EXECUTION_EVIDENCE = (
+    WORKSPACE / "wiki/internal/tickets/evidence/rsch014-ready-060/bug060-execution.json"
 )
 
 
@@ -79,8 +91,91 @@ def marker_manifest(records: dict[tuple[int, int], int]) -> list[dict[str, objec
     ]
 
 
+def gid_list_hash(values: list[int]) -> str:
+    encoded = json.dumps(values, separators=(",", ":")).encode("ascii")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def verify_partition_map(
+    root: ET.Element, path: Path, expected: dict[str, object],
+    template: dict[int, int], static_hashes: dict[str, str],
+    check_file_hash: bool = True,
+) -> None:
+    filename = path.name
+    if check_file_hash:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        if digest != expected["candidate_sha256"]:
+            raise ValueError(f"{path}: candidate TMX hash differs from partition receipt")
+
+    static_names = expected["candidate_static_layers"]
+    layers = root.findall("layer")
+    names = [item.get("name", "") for item in layers]
+    if any(names.count(name) != 1 for name in static_names):
+        raise ValueError(f"{path}: partition has a missing or duplicate static layer")
+    by_name = {item.get("name", ""): item for item in layers}
+    values = {name: parse_csv(by_name[name].find("data"), name)
+              for name in static_names}
+
+    if values["Background"] != [8] * 960:
+        raise ValueError(f"{path}: Background must contain exactly 960 GID8 blank cells")
+    border_values = values.get("Arcade Maze Border", [0] * 960)
+    actual_border = {index: gid for index, gid in enumerate(border_values)
+                     if gid & GID_MASK}
+    wanted = template if expected["border_cells"] else {}
+    if actual_border != wanted:
+        raise ValueError(f"{path}: Arcade Maze Border differs from the exact template")
+
+    for name in static_names:
+        if gid_list_hash(values[name]) != static_hashes.get(name):
+            raise ValueError(f"{path}: static layer contents differ for {name!r}")
+
+    owners: list[int] = []
+    for index in range(960):
+        active = [name for name in static_names if values[name][index] & GID_MASK]
+        if not active or active[0] != "Background":
+            raise ValueError(f"{path}: cell {index} has missing or non-base visual ownership")
+        if any((values[name][index] & GID_MASK) == 8 for name in active[1:]):
+            raise ValueError(f"{path}: cell {index} has a duplicate blank visual owner")
+        owners.append(static_names.index(active[-1]))
+    if owners != expected["final_static_owner_grid"]:
+        mismatch = next(index for index, pair in enumerate(zip(
+            owners, expected["final_static_owner_grid"],
+        )) if pair[0] != pair[1])
+        raise ValueError(f"{path}: static owner differs from retained grid at cell {mismatch}")
+
+    nonstatic = {
+        item.get("name", ""): gid_list_hash(parse_csv(item.find("data"), item.get("name", "")))
+        for item in layers if item.get("name", "") not in static_names
+    }
+    if nonstatic != expected["preserved_nonstatic_layers"]:
+        raise ValueError(f"{path}: nonstatic layer contents changed")
+
+
+def require_partition_failure(
+    root: ET.Element, path: Path, expected: dict[str, object],
+    template: dict[int, int], static_hashes: dict[str, str],
+    diagnostic: str, label: str,
+) -> None:
+    try:
+        verify_partition_map(
+            root, path, expected, template, static_hashes, check_file_hash=False,
+        )
+    except (ValueError, StopIteration) as error:
+        if diagnostic not in str(error):
+            raise SystemExit(
+                f"BUG-060 proof: {label} produced wrong diagnostic: {error}"
+            ) from error
+        return
+    raise SystemExit(f"BUG-060 proof: {label} was accepted")
+
+
 def main() -> None:
     args = parse_args()
+    receipt = json.loads(PARTITION_RECEIPT.read_text(encoding="ascii"))
+    execution = json.loads(EXECUTION_EVIDENCE.read_text(encoding="ascii"))
+    template = {
+        y * 40 + x: gid for x, y, gid in receipt["border_template"]
+    }
     roots: dict[str, tuple[Path, ET.Element]] = {}
     contracts: dict[str, dict[str, object]] = {}
     for name in MAP_NAMES:
@@ -92,6 +187,38 @@ def main() -> None:
             raise SystemExit(f"BUG-016 proof: {name} role differs from filename")
         roots[name] = (path, root)
         contracts[name] = result
+
+    for filename, expected in receipt["maps"].items():
+        path = args.tiled_dir / filename
+        root = ET.parse(path).getroot()
+        execution_map = execution["maps"][filename]
+        expected = {**expected, "candidate_sha256": execution_map["candidate_sha256"]}
+        static_hashes = execution_map["static_layer_gid_sha256"]
+        if filename != "coco-screen.tmx":
+            role = next(name for name, mapping in MAP_FILES.items()
+                        if mapping == filename)
+            if contracts[role]["static_layers"] != expected["candidate_static_layers"]:
+                raise SystemExit(f"BUG-060 proof: {filename} static tuple differs from oracle")
+        verify_partition_map(root, path, expected, template, static_hashes)
+
+        assets = args.tiled_dir.parent / "assets" / "arcade"
+        if filename == "coco-screen.tmx":
+            compiled, tiles, *_ = screen.compile_screen(
+                path, assets / "maze.json", assets / "chars.json",
+                assets / "sprites.json",
+            )
+            map_bytes = bytes(compiled)
+        else:
+            tiles = []
+            map_bytes, _ = compile_map(
+                path, screen.load_chars(assets / "chars.json"), tiles, {},
+            )
+            map_bytes = bytes(map_bytes)
+        frame = title_framebuffer(map_bytes, tiles)
+        if hashlib.sha256(map_bytes).hexdigest() != expected["compiled_map_sha256"]:
+            raise SystemExit(f"BUG-060 proof: {filename} compiled GID map differs")
+        if hashlib.sha256(frame).hexdigest() != expected["packed_pen_sha256"]:
+            raise SystemExit(f"BUG-060 proof: {filename} packed-pen frame differs")
 
     instruction_path, instruction_root = roots["instructions"]
     instruction_records = layer_records(layer(instruction_root, "Sprite Locations"))
@@ -119,6 +246,61 @@ def main() -> None:
     duplicate.append(copy.deepcopy(layer(duplicate, "Attract Title and Prompts")))
     require_failure(duplicate, roots["attract"][0], "missing/duplicate",
                     "duplicate static layer")
+
+    missing_background = copy.deepcopy(roots["instructions"][1])
+    missing_background.remove(layer(missing_background, "Background"))
+    require_failure(missing_background, roots["instructions"][0], "missing/duplicate",
+                    "missing Background layer")
+
+    duplicate_background = copy.deepcopy(roots["instructions"][1])
+    duplicate_background.append(copy.deepcopy(layer(duplicate_background, "Background")))
+    require_failure(duplicate_background, roots["instructions"][0], "missing/duplicate",
+                    "duplicate Background layer")
+
+    wrong_background = copy.deepcopy(roots["instructions"][1])
+    replace_cell(layer(wrong_background, "Background"), (0, 0), 9)
+    require_failure(wrong_background, roots["instructions"][0], "Background must contain",
+                    "nonblank Background cell")
+
+    instruction_expected = receipt["maps"][roots["instructions"][0].name]
+    instruction_hashes = execution["maps"][roots["instructions"][0].name][
+        "static_layer_gid_sha256"
+    ]
+    changed_border = copy.deepcopy(roots["instructions"][1])
+    border_cell = receipt["border_template"][0]
+    replace_cell(layer(changed_border, "Arcade Maze Border"),
+                 (border_cell[0], border_cell[1]), 0)
+    require_partition_failure(
+        changed_border, roots["instructions"][0], instruction_expected,
+        template, instruction_hashes, "Arcade Maze Border differs from the exact template",
+        "border ownership drift",
+    )
+
+    changed_art = copy.deepcopy(roots["instructions"][1])
+    art_layer = layer(changed_art, "Instructions Overlay")
+    art_cells = parse_csv(art_layer.find("data"), "Instructions Overlay")
+    art_index = next(index for index, gid in enumerate(art_cells) if gid & GID_MASK)
+    replace_cell(art_layer, (art_index % 40, art_index // 40), 0)
+    require_partition_failure(
+        changed_art, roots["instructions"][0], instruction_expected,
+        template, instruction_hashes, "static layer contents differ",
+        "nonborder art ownership drift",
+    )
+
+    unchanged_options = ET.parse(args.tiled_dir / "coco-options-screen.tmx").getroot()
+    options_background = ET.Element(
+        "layer", {"id": str(max(int(item.get("id", "0"))
+                                for item in unchanged_options.findall("layer")) + 1),
+                   "name": "Background", "width": "40", "height": "24"},
+    )
+    ET.SubElement(options_background, "data", {"encoding": "csv"}).text = ",".join(
+        "8" for _ in range(960)
+    )
+    unchanged_options.append(options_background)
+    require_failure(
+        unchanged_options, args.tiled_dir / "coco-options-screen.tmx",
+        "unexpected=['Background']", "Background on unchanged options map",
+    )
 
     unknown = copy.deepcopy(roots["game-over"][1])
     extra = copy.deepcopy(layer(unknown, "Game Over Overlay"))
@@ -277,7 +459,9 @@ def main() -> None:
     print(
         f"BUG-016 proof: {len(contracts)} role contracts, "
         f"{len(raw_instruction) + len(raw_level)} raw markers, "
-        f"{deferred} deferred logo layers, 5 presentation negative diagnostics; "
+        f"{deferred} deferred logo layers, 11 presentation negative diagnostics; "
+        "BUG-060 exact 9-map owner grids, 135-cell border template, and "
+        "compiled-map/frame hashes valid; "
         "BUG-059 gameplay marker valid, metadata excluded, "
         "7 negative diagnostics"
     )
