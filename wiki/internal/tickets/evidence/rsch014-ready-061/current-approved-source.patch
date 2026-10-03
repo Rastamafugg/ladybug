@@ -1,0 +1,200 @@
+--- a/src/main.s
++++ b/src/main.s
+@@ -1343,7 +1343,7 @@
+         sta     HUD_COLOR
+         lda     STAGE
+         ifne COMPLETE_PROFILE
+-        jsr     asset_draw_two_digits
++        jsr     asset_draw_part_value
+         bra     dhu_stage_done
+         endc
+ dhu_mod10
+@@ -1531,6 +1531,20 @@
+         bne     dhd_row
+         rts
+ 
++        endc
++
++        ifne COMPLETE_PROFILE
++; DOC-002 source-contract mirror contract asset_draw_part_value profile=render: Draw blank-or-hundreds followed by fixed two-digit part digits using existing immutable font tail.
++asset_draw_part_value
++        clrb
++asset_part_hundreds
++        cmpa    #100
++        blo     asset_part_finish
++        suba    #100
++        incb
++        bra     asset_part_hundreds
++asset_part_finish
++        jmp     asset_part_digits
+         endc
+ 
+ draw_lives
+--- a/src/shared_text_runtime.inc
++++ b/src/shared_text_runtime.inc
+@@ -20,6 +20,19 @@
+         sta     HUD_COLOR
+         lda     LIVES
+         bra     asset_draw_two_digits
++; Font producer guards the last compact glyph as the blank mask.
++asset_part_digits
++        pshs    a
++        tfr     b,a
++        tsta
++        bne     asset_part_write
++        lda     #((colour_lut-font)/8)-1
++asset_part_write
++        bsr     asset_draw_hud_digit
++        inc     HUD_X
++        puls    a
++        bra     asset_draw_two_digits
++
+ asset_draw_two_digits
+         clrb
+ asset_number_tens
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -549,7 +549,7 @@
+         jmp blit_packed_sprite
+ stage_schedule
+         fdb 288
+-        fdb $3458
++        fdb $3450
+         fcb 1,0,3,TEXT_STAGE_PART
+         fdb 320
+         fdb $434C
+@@ -567,7 +567,7 @@
+         fdb $4D60
+         fcb 2,12,4,TEXT_STAGE_NAME
+         fdb 576
+-        fdb $5798
++        fdb $5794
+         fcb 1,0,3,TEXT_STAGE_PART
+         fdb 608
+         fdb $618C
+@@ -598,9 +598,11 @@
+ spn_hundreds_done
+         sta     PRES_TMP_M
+         stb     PRES_NAME_REPEAT
+-        tstb
+-        beq     spn_tens_begin
+         tfr     b,a
++        tsta
++        bne     spn_hundreds_write
++        lda     #36
++spn_hundreds_write
+         lbsr    stage_panel_char
+ spn_tens_begin
+         lda     PRES_TMP_M
+@@ -613,10 +615,6 @@
+         bra     spn_tens
+ spn_tens_done
+         sta     PRES_TMP_M
+-        tstb
+-        bne     spn_write_tens
+-        tst     PRES_NAME_REPEAT
+-        beq     spn_units
+ spn_write_tens
+         tfr     b,a
+         lbsr    stage_panel_char
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -815,7 +815,7 @@
+         }.get(y, BLACK)
+         return (BLACK, colour, colour, colour)
+     if role == "level-start" and 8 <= x < 32:
+-        if y == 4 and 16 <= x <= 25:
++        if y == 4 and 15 <= x <= 25:
+             return (BLACK, BLUE, BLUE, BLUE)
+         if y == 7 and 16 <= x <= 26:
+             return (BLACK, GREEN, GREEN, GREEN)
+@@ -1934,6 +1934,8 @@
+         import sys
+         from shared_text import SharedText
+         shared = SharedText(args, sys.modules[__name__])
++        if shared.font[-1] != bytes(8):
++            raise ValueError("PART HUD requires the final compact glyph to be blank")
+     chars = load_chars(args.chars)
+     names = ("CUCUMBER", "EGGPLANT", "CARROT", "RADISH", "PARSLEY", "TOMATO",
+              "PUMPKIN", "BAMBOO SHOOT", "JAPANESE RADISH", "MUSHROOM", "POTATO",
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -766,6 +766,12 @@
+             "called"
+           ],
+           "semantic_id": "routines.html#routine-resident-runtime-pickup-prepare-nest"
++        },
++        {
++          "name": "asset_draw_part_value",
++          "profile": "render",
++          "purpose": "Draw blank-or-hundreds followed by fixed two-digit part digits using existing immutable font tail.",
++          "reasons": []
+         }
+       ],
+       "relocations": [
+@@ -1155,6 +1161,11 @@
+           "name": "cck_primary",
+           "routine": "primary_cache_mask",
+           "purpose": "Alias of the direct primary-mask entry; no ambient mode dispatch."
++        },
++        {
++          "name": "asset_part_digits",
++          "routine": "asset_draw_part_value",
++          "purpose": "Immutable-font tail of the fixed part writer; blank mask for zero hundreds, then the existing two-digit writer."
+         }
+       ]
+     },
+--- a/scripts/verify_bug035_presentation.py
++++ b/scripts/verify_bug035_presentation.py
+@@ -423,8 +423,51 @@
+     print("BUG-035 pixel/runtime checks passed")
+ 
+ 
++def run_current_parts(output, adapter):
++    output = output.resolve()
++    if output.exists():
++        raise SystemExit("output exists; retain each run under a fresh path")
++    adapter = adapter.resolve()
++    if not adapter.is_file():
++        raise SystemExit("shared GDB adapter missing")
++    output.mkdir(parents=True)
++    rom_hash = digest((BUILD / "ladybug.rom").read_bytes())
++    scenarios = [("hud", "--hud-parts", None)]
++    scenarios += [("level-" + str(n), "--level-part", n) for n in (1,9,10,99,100,199,200,255)]
++    scenarios += [("next-" + str(n), "--next-part", n) for n in (99,199,255)]
++    receipt = {"status":"RUNNING", "rom_sha256":rom_hash,
++               "adapter_sha256":digest(adapter.read_bytes()), "scenarios":[],
++               "qualification":"Prototype preparation. HUD covers both persistent owners; level-start covers published FRONT. Each phase40seconds; timeout means missing boundary, not slow target."}
++    try:
++        for name, flag, value in scenarios:
++            target = output / (name + ".json")
++            command = [sys.executable,str(adapter),"--worktree",str(ROOT),
++                       "--rom-sha256",rom_hash,"--output",str(target),flag]
++            if value is not None:
++                command.append(str(value))
++            print("BUG-061 " + name, flush=True)
++            subprocess.run(command,cwd=ROOT,check=True,timeout=150)
++            proof = json.loads(target.read_text())
++            if proof.get("status") != "PASS":
++                raise AssertionError("scenario did not pass: " + name)
++            receipt["scenarios"].append({"name":name,"status":"PASS",
++                "receipt_sha256":digest(target.read_bytes()),
++                "phases":len(proof["phases"])})
++        receipt["status"] = "PASS"
++    finally:
++        (output / "summary.json").write_text(json.dumps(receipt,indent=2)+"\n")
++
++
+ def main():
+     arguments = sys.argv[1:]
++    if "--current-parts" in arguments:
++        parser = argparse.ArgumentParser(description="Current BUG-061 credited GDB checks")
++        parser.add_argument("--current-parts",action="store_true")
++        parser.add_argument("--adapter",type=Path,required=True)
++        parser.add_argument("--output",type=Path,required=True)
++        args = parser.parse_args(arguments)
++        run_current_parts(args.output,args.adapter)
++        return
+     if "--attract-only" not in arguments:
+         if "--output" in arguments:
+             raise SystemExit("--output requires --attract-only")

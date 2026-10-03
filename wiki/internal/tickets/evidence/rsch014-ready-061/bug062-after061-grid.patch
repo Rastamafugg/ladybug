@@ -1,0 +1,52 @@
+--- a/src/main.s
++++ b/src/main.s
+@@ -1549,6 +1549,41 @@
+ 
+ draw_lives
+         ifne COMPLETE_PROFILE
++        clr     ENTITY_WORK
++dl_marker
++        lda     ENTITY_WORK
++        bsr     life_marker_position
++        lda     ENTITY_WORK
++        cmpa    LIVES
++        bhs     dl_erase
++        bsr     draw_life_marker
++        bra     dl_next
++dl_erase
++        bsr     clear_life_marker
++dl_next
++        inc     ENTITY_WORK
++        lda     ENTITY_WORK
++        cmpa    #12
++        blo     dl_marker
++        rts
++; A = slot0..11; HUD_X/HUD_Y are tile roots; no live-state mutation.
++life_marker_position
++        ldb     #21
++        stb     HUD_Y
++dl_position_row
++        cmpa    #3
++        blo     dl_position_column
++        suba    #3
++        dec     HUD_Y
++        dec     HUD_Y
++        bra     dl_position_row
++dl_position_column
++        lsla
++        adda    #33
++        sta     HUD_X
++        rts
++        else
++        ifne COMPLETE_PROFILE
+         lda     LIVES
+         cmpa    #4
+         blo     dl_markers
+@@ -1576,6 +1611,7 @@
+         cmpa    #3
+         blo     dl_marker
+         rts
++        endc
+ 
+ clear_life_marker
+         lda     HUD_Y

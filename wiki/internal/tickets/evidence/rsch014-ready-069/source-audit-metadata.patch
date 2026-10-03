@@ -1,0 +1,37 @@
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -3553,6 +3553,12 @@
+           "purpose": "Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.",
+           "reasons": [],
+           "semantic_id": "routines.html#routine-highscore-helper-menu-updated"
++        },
++        {
++          "name": "stage_player_score",
++          "profile": "presentation",
++          "purpose": "Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.",
++          "reasons": []
+         }
+       ],
+       "label_classifications": [
+@@ -3870,6 +3876,21 @@
+         {
+           "name": "stage_selected",
+           "purpose": "FEAT-005 local branch boundary: stage selected."
++        },
++        {
++          "name": "stage_score_row_done",
++          "routine": "stage_player_score",
++          "purpose": "Level-start hidden score-hydration control boundary."
++        },
++        {
++          "name": "stage_player_score_pair",
++          "routine": "stage_player_score",
++          "purpose": "Level-start hidden score-hydration control boundary."
++        },
++        {
++          "name": "stage_player_score_actual",
++          "routine": "stage_player_score",
++          "purpose": "Level-start hidden score-hydration control boundary."
+         }
+       ],
+       "defines": {

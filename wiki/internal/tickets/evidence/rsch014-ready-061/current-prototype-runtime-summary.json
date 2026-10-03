@@ -1,0 +1,99 @@
+{
+  "status": "PASS",
+  "rom_sha256": "62157bf3dfacc207a439fa41078d8ee6d8f0ef86474a2c19cd4a34744df3373d",
+  "adapter_sha256": "8dce6b7a9f068eced5e7a20bbdfbbe2d53d87d68da27227090531bfa7daf84c5",
+  "scenarios": [
+    {
+      "name": "hud",
+      "status": "PASS",
+      "receipt_sha256": "a1fbcd4b9042f513969318a8e93f26a3a731f933bcf2f31c14a56cd890b436d8",
+      "phases": 11
+    },
+    {
+      "name": "level-1",
+      "status": "PASS",
+      "receipt_sha256": "3a85b1b2185590e2055b43d5a378baa893f6d6d46695a3321a30fa9fcd848aee",
+      "phases": 2
+    },
+    {
+      "name": "level-9",
+      "status": "PASS",
+      "receipt_sha256": "441f33f2eff773ea84a45d29acfb6564a8745f655c50c1b31f2320b7c95e8717",
+      "phases": 2
+    },
+    {
+      "name": "level-10",
+      "status": "PASS",
+      "receipt_sha256": "70b2b51ae9288d34338ad8542a163d81f4c1ec4f4370745f6ba00b12abfed235",
+      "phases": 2
+    },
+    {
+      "name": "level-99",
+      "status": "PASS",
+      "receipt_sha256": "b9800be1ebcc9c3edb2eeea631da00ae5d84e0c0aaec29c6d83f5e028bb5ac5f",
+      "phases": 2
+    },
+    {
+      "name": "level-100",
+      "status": "PASS",
+      "receipt_sha256": "d74fa3ca102a78d32ab541db8356a3b806dc3f50fe3ab7a0eb839dcf71d587d5",
+      "phases": 2
+    },
+    {
+      "name": "level-199",
+      "status": "PASS",
+      "receipt_sha256": "89570d6143264567de0a912ab8e158ea21cf60ebcada7358b98ea7924358b556",
+      "phases": 2
+    },
+    {
+      "name": "level-200",
+      "status": "PASS",
+      "receipt_sha256": "6ffdd988d4b80a241a55f6ceaac3ee1e992c9e8e835d519c8322fea54b041ed4",
+      "phases": 2
+    },
+    {
+      "name": "level-255",
+      "status": "PASS",
+      "receipt_sha256": "8b2d6d26bf1614108367502d940b17c463aacf32aa0f193187e291119e4b678b",
+      "phases": 2
+    },
+    {
+      "name": "next-99",
+      "status": "PASS",
+      "receipt_sha256": "2d1347b22f6ed175b2b4783d71bb51f673eb83bef90cb4a0af7f01d1fd3ab16d",
+      "phases": 3
+    },
+    {
+      "name": "next-199",
+      "status": "PASS",
+      "receipt_sha256": "e419a2dfd5b4def1acba0448f656b78f85ddd6a2dd73b6f5a33311b8869915d8",
+      "phases": 3
+    },
+    {
+      "name": "next-255",
+      "status": "PASS",
+      "receipt_sha256": "e63bc0d9660ab2aa6ff698552d52a3a1750312d003dc121a99ed1c94fac660f7",
+      "phases": 3
+    }
+  ],
+  "qualification": "Prototype preparation only. Complete keyboard build/source audit passes; production and user TMX not integrated.",
+  "source_base_revision": "9e307382b993539eddb7390caf7d56f8edfacb37",
+  "source_patch_sha256": "8c6cc14d24c8b6a7f54484844012b40b6451e187e49acd6864c8bf96db346cb5",
+  "source_hashes": {
+    "src/main.s": "867b769bf2719dfdeed78275f44e8dfcda33bb5118a4adafd52520d65541218c",
+    "src/shared_text_runtime.inc": "2f68f8e38fe984ba7ba81303b44e45b53de3bb79d7fec8d12c53c1854237a408",
+    "src/shared_text_stage.inc": "e432e37bc63268d3eb74b0e7f24dab9ab65e213924411a232989f50be6540ee2",
+    "scripts/build_presentation.py": "4d545838e503bca3859e124ade6e679374cc18cf51229207db22b7deed3d0e05",
+    "scripts/source_reference.json": "0cfa3d95fa842cdb27bca3c7c659cd06895f827cf8cd5b69ceff48adb35ff681",
+    "scripts/verify_bug035_presentation.py": "2f6eb3496b77f22c3f46be0def10ca1768b37cf52e0c73ab7a127c1847481214"
+  },
+  "rejected_experiments": [
+    "TFR does not set flags; explicit TSTA added.",
+    "Per-owner journal injection raced callbacks; corrected to one atomic boundary write.",
+    "Hidden previous-screen level-start pixels excluded after source-confirmed one-owner publication; paired HUD coverage retained."
+  ],
+  "helper_bytes": 3027,
+  "resident_keyboard_bytes": 8150,
+  "resident_joystick_isolated_bytes": 8186,
+  "asset_bytes": 7680
+}

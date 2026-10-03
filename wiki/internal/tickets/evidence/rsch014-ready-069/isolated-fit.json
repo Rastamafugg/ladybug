@@ -1,0 +1,76 @@
+{
+  "status": "PASS-ISOLATED-FIT",
+  "qualification": "Design prototype only; no full build/source audit/live or natural hydration acceptance. Original menu prototype source/generation, not integrated postpartition acceptance.",
+  "source_revision": "8906ebb plus menu/strict palette/5795145 prototype",
+  "source_sha256": "2db8ce9a64ac049770da9a3656aa9baf663f6ba94534d3ee10aadb02838231a4",
+  "candidate_sha256": "d0d1ff4aff093a966602f99744e035c7dac7192d90d49d253c835a30bac8a586",
+  "command": [
+    "/usr/local/bin/lwasm",
+    "-9",
+    "--format=raw",
+    "-DADAPTIVE_RENDERING=1",
+    "-DHIGHSCORE_TEST_PROFILE=1",
+    "-DHIGHSCORE_PHASE_HELPER=1",
+    "-DINPUT_JOYSTICK=0",
+    "-DCOMPLETE_PHASE_AUX=1",
+    "-DHIGHSCORE_PHASE_HELPER_ADDRESS=44096",
+    "-DHIGHSCORE_PHASE_HELPER_RESUME=44288",
+    "-DPRESENTATION_NAME_ENTRY_DATA=0",
+    "-I",
+    "/mnt/e/projects/ladybug/repro/bug069-owner-fit",
+    "-I",
+    "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/build",
+    "-I",
+    "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/src",
+    "--output=/mnt/e/projects/ladybug/repro/bug069-owner-fit/stage.bin",
+    "--map=/mnt/e/projects/ladybug/repro/bug069-owner-fit/stage.map",
+    "/mnt/e/projects/ladybug/repro/bug069-owner-fit/demo_runtime.s"
+  ],
+  "mapped_helper_bytes": 3089,
+  "end_exclusive": "0xb851",
+  "free_before_title": 47,
+  "baseline_bytes": 3032,
+  "growth": 57,
+  "natural_owner": "stage_panel_slice on level-start after static cursor128 (row2 loaded), before any owner publication",
+  "score_authority": "PRES_LIVE=$A7 context2 copies current SCORE_BCD[$1D..$1F]; contexts0/1 write zero, preventing previous-game score leakage before init_game_state",
+  "target_cells": [
+    [
+      33,
+      2
+    ],
+    [
+      34,
+      2
+    ],
+    [
+      35,
+      2
+    ],
+    [
+      36,
+      2
+    ],
+    [
+      37,
+      2
+    ],
+    [
+      38,
+      2
+    ]
+  ],
+  "colour": 8,
+  "outside_scope": "No gameplay score, TOP fields, loader, MMU gateway, font or score-value/accounting changes",
+  "required_verification": [
+    "Natural fresh credited start with forced prior nonzero SCORE_BCD produces000000 before publication",
+    "Natural next-stage hydration renders095000,120045,999999 in lightgreen without flash and preserves other cells",
+    "Both owner hydration sequences; current live mapped helper and staged ROM identity",
+    "Full keyboard/joystick AD1 build and capacity, existing shared text + targeted current presentation commands"
+  ],
+  "proposed_files": [
+    "src/shared_text_stage.inc",
+    "src/demo_runtime.s source-contract mirror if audit requires",
+    "scripts/source_reference.json",
+    "scripts/verify_bug035_presentation.py existing current-mode route"
+  ]
+}

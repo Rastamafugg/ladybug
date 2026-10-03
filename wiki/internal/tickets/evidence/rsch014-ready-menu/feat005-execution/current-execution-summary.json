@@ -1,0 +1,515 @@
+{
+  "scope": "Approved C3 cleanup increment; current postpartition user maps copied unstaged/read-only. Parent resumed after Luna account-limit stop.",
+  "source_commit": "5cdb94e",
+  "parent_integration_commit": "69550b6",
+  "status": "PASS-ISOLATED-EXECUTION",
+  "parent_acceptance": "Pending parent full build and changed-case replay; no Done claim",
+  "rom_sha256": "6e23eb81a10372943dc74c24cda5be800be6775823e39e74c8e84e63939ede8d",
+  "commands": [
+    "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+    "python3 scripts/verify_shared_text.py --build-dir build",
+    "python3 scripts/verify_feat005_menus.py --current-menu --output repro/feat005-cleanup-current.json"
+  ],
+  "capacities": {
+    "resident": {
+      "used": 8137,
+      "limit": 8192,
+      "free": 55
+    },
+    "assets": {
+      "used": 7663,
+      "limit": 7680,
+      "free": 17
+    },
+    "presentation": {
+      "used": 1266,
+      "limit": 1280,
+      "free": 14
+    },
+    "highscore_runtime": {
+      "used": 899,
+      "limit": 938,
+      "free": 39
+    },
+    "mapped_highscore_helper": {
+      "used": 3032,
+      "free_before_title": 104
+    },
+    "perimeter_helper": {
+      "used": 331,
+      "limit": 334,
+      "free": 3
+    },
+    "b2_banked_helper": {
+      "used": 696,
+      "limit": 698,
+      "free": 2
+    }
+  },
+  "source_audit": {
+    "modules": 14,
+    "routines": "304/304",
+    "labels": "4954/4954"
+  },
+  "static_screens": {
+    "passed": 9,
+    "pixel_differences": 0
+  },
+  "failed_experiments": [
+    {
+      "log": "repro/feat005-current-execution-build.log",
+      "failure": "C3 producer required foreground GID8 at x16,y20, but BUG060 partition makes that cell transparent over Background.",
+      "correction": "Require foreground0/8 plus actually blank composited tile; nonblank composed content remains rejected."
+    }
+  ],
+  "residual_risks": [
+    "Parent combined-source build/replay remains unaccepted",
+    "Historical27000-cycle target remains unmet outside C3"
+  ],
+  "input_tmx_sha256": {
+    "black-and-whitte-screen.tmx": "1698179b66ce15c0804f5855604211a619a3b9e86d1d272857c1e0018d4b22fa",
+    "coco-attract-screen.tmx": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07",
+    "coco-credits-screen.tmx": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825",
+    "coco-enter-high-score-screen.tmx": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca",
+    "coco-game-over-screen.tmx": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05",
+    "coco-high-score-screen.tmx": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d",
+    "coco-instructions-screen.tmx": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4",
+    "coco-keybind-options-screen.tmx": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046",
+    "coco-level-start-screen.tmx": "c1826b9ef1004488ae77331cb80370cb5a3fe2b3dad015c0acd280f8d56e984c",
+    "coco-options-screen.tmx": "5b4e5f1da0d2c8eec216e069325ec4afc8960c22b8be7f5cf1af53af0018c749",
+    "coco-screen.tmx": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f"
+  },
+  "invocations": [
+    {
+      "name": "bindings",
+      "raw_sha256": "3f6b6e7f2c10b9bfc5a0bf4e96fdf93c4ad5078ce86257f0005bf1c8e720d68a",
+      "status": "PASS",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 6.601,
+          "checks": [
+            "live resident equals current runtime artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "credit-and-fixed-menu",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 12.955,
+          "checks": [
+            "one credit",
+            "visible START GAME cell 16",
+            "visible START GAME cell 17",
+            "visible START GAME cell 18",
+            "visible START GAME cell 19",
+            "visible START GAME cell 20",
+            "visible START GAME cell 21",
+            "visible START GAME cell 22",
+            "visible START GAME cell 23",
+            "visible START GAME cell 24",
+            "visible START GAME cell 25",
+            "visible START GAME cell 26",
+            "old 1 cannot start",
+            "old 2 cannot start",
+            "second credit",
+            "visible START GAME cell 16",
+            "visible START GAME cell 17",
+            "visible START GAME cell 18",
+            "visible START GAME cell 19",
+            "visible START GAME cell 20",
+            "visible START GAME cell 21",
+            "visible START GAME cell 22",
+            "visible START GAME cell 23",
+            "visible START GAME cell 24",
+            "visible START GAME cell 25",
+            "visible START GAME cell 26",
+            "fixed Down selects Options"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "five-remapped-gameplay-bindings",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 4.874,
+          "checks": [],
+          "forced_state": null
+        },
+        {
+          "name": "remapped-gameplay-binding-0",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 7.504,
+          "checks": [
+            "binding 0 captured uniquely",
+            "mapped signal 0"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "remapped-gameplay-binding-1",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 7.983,
+          "checks": [
+            "binding 1 captured uniquely",
+            "mapped signal 1"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "remapped-gameplay-binding-2",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 8.149,
+          "checks": [
+            "binding 2 captured uniquely",
+            "mapped signal 2"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "remapped-gameplay-binding-3",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 6.979,
+          "checks": [
+            "binding 3 captured uniquely",
+            "mapped signal 3"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "remapped-gameplay-binding-4",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 7.062,
+          "checks": [
+            "binding 4 captured uniquely",
+            "mapped signal 4"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "keybinding-Back-return",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 2.216,
+          "checks": [],
+          "forced_state": null
+        },
+        {
+          "name": "fixed-menu-controls-after-remapping",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 9.351,
+          "checks": [
+            "ACTION cannot start menu"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "credits-destination",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 8.398,
+          "checks": [
+            "Credits selection"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "zero-credit-and-held-enter",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 9.654,
+          "checks": [
+            "visible ADD CREDITS cell 16",
+            "visible ADD CREDITS cell 17",
+            "visible ADD CREDITS cell 18",
+            "visible ADD CREDITS cell 19",
+            "visible ADD CREDITS cell 20",
+            "visible ADD CREDITS cell 21",
+            "visible ADD CREDITS cell 22",
+            "visible ADD CREDITS cell 23",
+            "visible ADD CREDITS cell 24",
+            "visible ADD CREDITS cell 25",
+            "visible ADD CREDITS cell 26",
+            "zero credit cannot start",
+            "held Enter plus coin remains menu",
+            "visible START GAME cell 16",
+            "visible START GAME cell 17",
+            "visible START GAME cell 18",
+            "visible START GAME cell 19",
+            "visible START GAME cell 20",
+            "visible START GAME cell 21",
+            "visible START GAME cell 22",
+            "visible START GAME cell 23",
+            "visible START GAME cell 24",
+            "visible START GAME cell 25",
+            "visible START GAME cell 26",
+            "release does not start"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "fresh-enter-credited-handoff",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 1.536,
+          "checks": [
+            "fresh Enter consumes one credit"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "ACTION-inert-in-ordinary-gameplay",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 7.822,
+          "checks": [
+            "ACTION has only reserved bit",
+            "ACTION does not move player"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "ordinary-remapped-movement-0",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 2.727,
+          "checks": [
+            "ordinary movement consumes mapped direction"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "ordinary-remapped-movement-1",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 2.832,
+          "checks": [
+            "ordinary movement consumes mapped direction"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "ordinary-remapped-movement-2",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 2.516,
+          "checks": [
+            "ordinary movement consumes mapped direction"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "ordinary-remapped-movement-3",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 3.369,
+          "checks": [
+            "ordinary movement consumes mapped direction"
+          ],
+          "forced_state": null
+        }
+      ]
+    },
+    {
+      "name": "entry-edges",
+      "raw_sha256": "b1015c39669aa77b9f0b90d8057dde261d0d2415c74649058c1c17b812a47ffe",
+      "status": "PASS",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 5.846,
+          "checks": [
+            "live resident equals current runtime artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "held-arrow-through-credit-entry",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 7.139,
+          "checks": [
+            "inherited Down has no fresh menu edge",
+            "fresh Down works after release"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "simultaneous-credit-and-Enter",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 8.395,
+          "checks": [
+            "fresh coin and Enter cannot start in same scan",
+            "release still does not start",
+            "fresh Enter consumes chord credit"
+          ],
+          "forced_state": null
+        }
+      ]
+    },
+    {
+      "name": "name-only",
+      "raw_sha256": "23b182828e74052605273fb46795056f06f083ed7f80ff338bc28957690f7c2b",
+      "status": "PASS",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 5.587,
+          "checks": [
+            "live resident equals current runtime artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "credited-entry-for-name-controls",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 9.467,
+          "checks": [],
+          "forced_state": null
+        },
+        {
+          "name": "forced-final-death-natural-name-handoff",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 15.405,
+          "checks": [
+            "name low-RAM runtime equals artifact",
+            "name mapped helper equals artifact"
+          ],
+          "forced_state": "Replace five bindings with previously UI-tested W/S/A/D/Space; set packed-BCD SCORE=095000 and DEATH_STATE=4 at ordinary credited gameplay. Natural qualification/phase owner installs and publishes game-over then name entry."
+        },
+        {
+          "name": "remapped-name-movement-0",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 2.683,
+          "checks": [
+            "name mapped direction bit 0"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "remapped-name-movement-1",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 2.658,
+          "checks": [
+            "name mapped direction bit 1"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "remapped-name-movement-2",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 2.738,
+          "checks": [
+            "name mapped direction bit 2"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "remapped-name-movement-3",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 2.661,
+          "checks": [
+            "name mapped direction bit 3",
+            "at least one remapped key moves the actual name cursor"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "fixed-arrow-name-exclusion",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 2.636,
+          "checks": [
+            "fixed menu Up is not a rebound name movement"
+          ],
+          "forced_state": null
+        },
+        {
+          "name": "forced-END-natural-name-return",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 4.548,
+          "checks": [
+            "visible ADD CREDITS cell 16",
+            "visible ADD CREDITS cell 17",
+            "visible ADD CREDITS cell 18",
+            "visible ADD CREDITS cell 19",
+            "visible ADD CREDITS cell 20",
+            "visible ADD CREDITS cell 21",
+            "visible ADD CREDITS cell 22",
+            "visible ADD CREDITS cell 23",
+            "visible ADD CREDITS cell 24",
+            "visible ADD CREDITS cell 25",
+            "visible ADD CREDITS cell 26"
+          ],
+          "forced_state": "Set existing END completion flag E2=1; natural mapped helper commits and returns. This does not test reaching the END glyph."
+        }
+      ]
+    }
+  ]
+}

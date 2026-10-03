@@ -1,7 +1,7 @@
 import ctypes as c,subprocess,time,json,os,hashlib,re,sys
 from pathlib import Path
 import argparse
-p=argparse.ArgumentParser();p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));p.add_argument("--next-part",type=int,choices=range(1,256));a=p.parse_args()
 ROOT=a.worktree.resolve();B=ROOT/'build';O=ROOT/'repro/ready-menu-gdb';O.mkdir(parents=True,exist_ok=True)
 assert not a.output.exists(),'output exists'
 assert hashlib.sha256((B/'ladybug.rom').read_bytes()).hexdigest()==a.rom_sha256,'ROM identity mismatch'
@@ -67,7 +67,7 @@ def phase(name):
  report['phases'].append({'name':name,'deadline_seconds':40,'timeout_meaning':'named publication/input boundary not observed; not target speed evidence'})
 def snapshot():
  gdb(['dump binary memory '+str(O/'dp.bin')+' 0 0x300'])
- dp=(O/'dp.bin').read_bytes();row={'mode':dp[0xa5],'screen':dp[0xa6],'credits':dp[0xa8],'pending':dp[0x91],'transaction':dp[0xd4],'selection':dp[0xe0],'live':dp[0xa7],'bindings':list(dp[0x287:0x28c]),'binding_state':dp[0x298],'mapped_down':dp[0x296],'player_cell':list(dp[9:11]),'player_want':dp[5],'entry':dp[0xa0]}
+ dp=(O/'dp.bin').read_bytes();row={'mode':dp[0xa5],'screen':dp[0xa6],'credits':dp[0xa8],'pending':dp[0x91],'transaction':dp[0xd4],'selection':dp[0xe0],'live':dp[0xa7],'bindings':list(dp[0x287:0x28c]),'binding_state':dp[0x298],'mapped_down':dp[0x296],'player_cell':list(dp[9:11]),'player_want':dp[5],'entry':dp[0xa0],'front':dp[0x8f]}
  report['phases'][-1].setdefault('snapshots',[]).append(row);return row
 def settled(screen):
  while True:
@@ -126,12 +126,12 @@ def hud_probe(lives=False):
  manifest=json.loads((B/'ladybug-presentation.json').read_text());part_colour=manifest['shared_text']['colour_configuration']['fields']['part']
  def crop(frame,x,y):return b''.join(frame[(y*8+r)*160+x*4:(y*8+r)*160+x*4+4] for r in range(8))
  def publish_intent(value):
-  commands=['set {unsigned char}0x'+('23' if lives else '24')+'='+str(value),'set $saved5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x34']
+  commands=[f'break *0x{main["mainloop"]:x}','continue','delete breakpoints','set {unsigned char}0x'+('23' if lives else '24')+'='+str(value),'set $saved5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x34']
   for address,count in ((0xbc04,0xbd38),(0xbc94,0xbd39)):
-   commands += [f'if *(unsigned char*)0x{count:x}==0']+[f'set {{unsigned char}}0x{address+i:x}=0' for i in range(18)]+[f'set {{unsigned char}}0x{count:x}=1','end',f'set {{unsigned char}}0x{address:x}=*(unsigned char*)0x{address:x}|2']
+   commands += [f'if *(unsigned char*)0x{count:x}==0']+[f'set {{unsigned char}}0x{address+i:x}=0' for i in range(18)]+[f'set {{unsigned char}}0x{count:x}=1','end',f'set {{unsigned char}}0x{address:x}=*(unsigned char*)0x{address:x}|{4 if lives else 2}']
   commands += ['set {unsigned char}0xffa5=$saved5'];gdb(commands)
  for value in ((12,11,10,9,7,6,4,3,1,0) if lives else (1,9,10,99,100,199,200,255,1)):
-  phase(('reserve-grid-' if lives else 'part-field-')+str(value));report['phases'][-1]['forced_state']='Set '+('reserve LIVES' if lives else 'STAGE')+' and merge HUD-only intent into both existing owner histories using the delivered adaptive_credit_history layout; normal callback renders/publishes, no forced PC.'
+  phase(('reserve-grid-' if lives else 'part-field-')+str(value));report['phases'][-1]['forced_state']='Stop at exact verified resident mainloop boundary; set '+('reserve LIVES' if lives else 'STAGE')+' and merge HUD-only intent into both existing owner histories using the delivered adaptive_credit_history layout; normal callback renders/publishes, no forced PC.'
   publish_intent(value);expected={}
   if lives:
    for slot in range(12):
@@ -147,19 +147,40 @@ def hud_probe(lives=False):
   while True:
    assert time.monotonic()<deadline,'both-owner HUD pixel deadline'
    actual={owner:front_frame(owner) for owner in (0,1)}
+   if 'first_observation' not in report['phases'][-1]:
+    report['phases'][-1]['first_observation']={'state':snapshot(),'wrong_cells':{str(owner):[[x,y] for (x,y),tile in expected.items() if crop(frame,x,y)!=tile] for owner,frame in actual.items()}}
    if all(crop(frame,x,y)==tile for frame in actual.values() for (x,y),tile in expected.items()):break
    time.sleep(.05)
   check('both natural owner replays equal exact authored cells',True)
   report['phases'][-1]['owner_frame_sha256']={str(owner):hashlib.sha256(frame).hexdigest() for owner,frame in actual.items()}
  report['qualification']='Controlled reserve/part HUD callback test, not initial-life/death accounting or natural level-start acceptance; journal mutation disclosed per phase.'
-def level_part_probe(value):
+def stage_helper_identity():
+ helper=(B/'ladybug-highscore-helper.bin').read_bytes()
+ gdb(['set $saved5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x23',f'dump binary memory {O}/stage-helper.bin 0xac40 0x{0xac40+len(helper):x}','set {unsigned char}0xffa5=$saved5'])
+ check('live stage mapped helper equals current authored artifact',(O/'stage-helper.bin').read_bytes()==helper)
+
+def active_gameplay_identity():
+ active=(B/'ladybug-adaptive-active.bin').read_bytes()
+ gdb([f'dump binary memory {O}/active.bin 0x38f 0x{0x38f+len(active):x}'])
+ check('ordinary gameplay adaptive vectors and copied active image equal current artifact',(O/'active.bin').read_bytes()==active)
+
+def level_part_probe(value,next_stage=False):
  sys.path.insert(0,str(ROOT/'scripts'));import verify_shared_text as shared
  phase('selected-part-natural-level-start-'+str(value));key('5');settled(3)
  report['phases'][-1]['forced_state']='Seed next-game part setting EB directly, including 100..255 outside menu-selectable1..99; real Enter and natural level-start hydration. Menu setting range unchanged.'
- gdb(['set {unsigned char}0xeb='+str(value)]);key('Return');await_state('natural level-start publication',lambda q:q['mode']==6 and q['screen']==2 and q['pending']==0)
+ gdb(['set {unsigned char}0xeb='+str(value)]);key('Return')
+ if next_stage:
+  await_state('ordinary credited entry before stage-clear fixture',lambda q:q['mode']==0 and q['entry']==0 and q['live']==1)
+  active_gameplay_identity()
+  phase('natural-stage-transition-from-'+str(value));report['phases'][-1]['forced_state']='Set STAGE to requested predecessor and STAGE_PENDING=1 at ordinary credited gameplay; actual presentation normal_stage calls next_stage and hydrates level-start. Preceding maze completion is not claimed.'
+  gdb([f'set {{unsigned char}}0x24={value}','set {unsigned char}0x26=1']);value=1 if value==255 else value+1
+ await_state('natural level-start publication',lambda q:q['mode']==6 and q['screen']==2 and q['pending']==0)
+ stage_helper_identity()
  font=shared.values((B/'ladybug_shared_text.inc').read_text(),'font','colour_lut');translation=shared.values((B/'ladybug_stage_glyphs.inc').read_text(),'stage_source_glyphs','no_end')
  colour=json.loads((B/'ladybug-presentation.json').read_text())['shared_text']['colour_configuration']['fields']['stage_part']
- for owner in (0,1):
+ owner=snapshot()['front'];report['phases'][-1]['published_front_owner']=owner
+ report['phases'][-1]['owner_qualification']='Level-start bypasses start_screen_hold and publishes one hydrated BACK as FRONT; previous hidden screen is excluded. Ordinary HUD probe separately verifies both persistent owners.'
+ for owner in (owner,):
   frame=front_frame(owner)
   for x,row in ((20,4),(37,11)):
    for col,char in enumerate((' ' if value<100 else str(value//100))+f'{value%100:02d}',x):
@@ -199,6 +220,9 @@ try:
  phase('cold-attract-delivery');time.sleep(.7)
  gdb([f'break *0x{pres["attract_tick"]:x}','continue','delete breakpoints',f'dump binary memory {O}/resident.bin 0xc000 0xfe00'])
  check('live resident equals current runtime artifact',(O/'resident.bin').read_bytes()==resident)
+ presentation=(B/'ladybug-presentation-runtime.bin').read_bytes()
+ gdb([f'dump binary memory {O}/presentation.bin 0x1900 0x{0x1900+len(presentation):x}'])
+ check('live presentation marker owner equals current module artifact',(O/'presentation.bin').read_bytes()==presentation)
  prompt_pixels()
  if a.prompt_only:
   report['status']='PASS'
@@ -207,14 +231,18 @@ try:
  report['window_inventory']=inventory;report['launched_pid']=process.pid
  ws=[(w,n) for w,n,pid in inventory if pid==process.pid and visible_window(w)];assert len(ws)==1,('launched visible XRoar host window identity absent or ambiguous',inventory,process.pid);window=ws[0][0]
  if a.entry_edges_only:
-  entry_edges();report['status']='PASS';raise SystemExit(0)
+  entry_edges();phase('ordinary-entry-active-identity');await_state('ordinary credited entry after fixed menu edge',lambda q:q['mode']==0 and q['entry']==0 and q['live']==1);active_gameplay_identity();report['status']='PASS';raise SystemExit(0)
  if a.level_part:
   level_part_probe(a.level_part);report['status']='PASS';raise SystemExit(0)
+ if a.next_part:
+  level_part_probe(a.next_part,True);report['status']='PASS';raise SystemExit(0)
  if a.name_only:
   phase('credited-entry-for-name-controls');key('5');settled(3);key('Return');await_state('ordinary entry',lambda q:q['mode']==0 and q['entry']==0 and q['live']==1)
+  active_gameplay_identity()
   name_controls();report['status']='PASS';raise SystemExit(0)
  if a.hud_parts or a.hud_lives:
   phase('credited-entry-for-HUD');key('5');settled(3);key('Return');await_state('ordinary entry',lambda q:q['mode']==0 and q['entry']==0 and q['live']==1)
+  active_gameplay_identity()
   hud_probe(a.hud_lives);report['status']='PASS';raise SystemExit(0)
  phase('credit-and-fixed-menu');key('5');q=settled(3);check('one credit',q['credits']==1);label_pixels('START GAME')
  for name in ('1','2'):
@@ -257,6 +285,7 @@ try:
    if q['mode']==0 and q['entry']==0:break
    time.sleep(.05)
   before=q['player_cell'];key('space',states=(1,));q=snapshot();check('ACTION has only reserved bit',q['mapped_down']==16);check('ACTION does not move player',q['player_cell']==before);key('space',states=(0,))
+  active_gameplay_identity()
   for index,(name,direction) in enumerate((('w',0),('s',2),('a',3),('d',1))):
    phase('ordinary-remapped-movement-'+str(index));key(name,states=(1,));q=snapshot();check('ordinary movement consumes mapped direction',q['mode']==0 and q['mapped_down']==1<<index and q['player_want']==direction);key(name,states=(0,))
  report['status']='PASS'

@@ -1,0 +1,119 @@
+--- a/src/main.s
++++ b/src/main.s
+@@ -1343,7 +1343,7 @@
+         sta     HUD_COLOR
+         lda     STAGE
+         ifne COMPLETE_PROFILE
+-        jsr     asset_draw_two_digits
++        jsr     asset_draw_part_value
+         bra     dhu_stage_done
+         endc
+ dhu_mod10
+@@ -1531,6 +1531,20 @@
+         bne     dhd_row
+         rts
+ 
++        endc
++
++        ifne COMPLETE_PROFILE
++; DOC-002 source-contract mirror contract asset_draw_part_value profile=render: Draw blank-or-hundreds followed by fixed two-digit part digits using existing immutable font tail.
++asset_draw_part_value
++        clrb
++asset_part_hundreds
++        cmpa    #100
++        blo     asset_part_finish
++        suba    #100
++        incb
++        bra     asset_part_hundreds
++asset_part_finish
++        jmp     asset_part_digits
+         endc
+ 
+ draw_lives
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -549,7 +549,7 @@
+         jmp blit_packed_sprite
+ stage_schedule
+         fdb 288
+-        fdb $3458
++        fdb $3450
+         fcb 1,0,3,TEXT_STAGE_PART
+         fdb 320
+         fdb $434C
+@@ -567,7 +567,7 @@
+         fdb $4D60
+         fcb 2,12,4,TEXT_STAGE_NAME
+         fdb 576
+-        fdb $5798
++        fdb $5794
+         fcb 1,0,3,TEXT_STAGE_PART
+         fdb 608
+         fdb $618C
+@@ -598,9 +598,11 @@
+ spn_hundreds_done
+         sta     PRES_TMP_M
+         stb     PRES_NAME_REPEAT
+-        tstb
+-        beq     spn_tens_begin
+         tfr     b,a
++        tsta
++        bne     spn_hundreds_write
++        lda     #36
++spn_hundreds_write
+         lbsr    stage_panel_char
+ spn_tens_begin
+         lda     PRES_TMP_M
+@@ -613,10 +615,6 @@
+         bra     spn_tens
+ spn_tens_done
+         sta     PRES_TMP_M
+-        tstb
+-        bne     spn_write_tens
+-        tst     PRES_NAME_REPEAT
+-        beq     spn_units
+ spn_write_tens
+         tfr     b,a
+         lbsr    stage_panel_char
+--- a/src/shared_text_runtime.inc
++++ b/src/shared_text_runtime.inc
+@@ -20,6 +20,19 @@
+         sta     HUD_COLOR
+         lda     LIVES
+         bra     asset_draw_two_digits
++; Font producer guards the last compact glyph as the blank mask.
++asset_part_digits
++        pshs    a
++        tfr     b,a
++        tsta
++        bne     asset_part_write
++        lda     #((colour_lut-font)/8)-1
++asset_part_write
++        bsr     asset_draw_hud_digit
++        inc     HUD_X
++        puls    a
++        bra     asset_draw_two_digits
++
+ asset_draw_two_digits
+         clrb
+ asset_number_tens
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -815,7 +815,7 @@
+         }.get(y, BLACK)
+         return (BLACK, colour, colour, colour)
+     if role == "level-start" and 8 <= x < 32:
+-        if y == 4 and 16 <= x <= 25:
++        if y == 4 and 15 <= x <= 25:
+             return (BLACK, BLUE, BLUE, BLUE)
+         if y == 7 and 16 <= x <= 26:
+             return (BLACK, GREEN, GREEN, GREEN)
+@@ -1934,6 +1934,8 @@
+         import sys
+         from shared_text import SharedText
+         shared = SharedText(args, sys.modules[__name__])
++        if shared.font[-1] != bytes(8):
++            raise ValueError("PART HUD requires the final compact glyph to be blank")
+     chars = load_chars(args.chars)
+     names = ("CUCUMBER", "EGGPLANT", "CARROT", "RADISH", "PARSLEY", "TOMATO",
+              "PUMPKIN", "BAMBOO SHOOT", "JAPANESE RADISH", "MUSHROOM", "POTATO",

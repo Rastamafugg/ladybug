@@ -1,0 +1,50 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -466,6 +466,11 @@
+         cmpa #PRESENTATION_MAP_LEVEL_START
+         bne stage_slice_return
+         ldd $AA
++        cmpd #128
++        bne stage_score_row_done
++        lbsr stage_player_score
++stage_score_row_done
++        ldd $AA
+         leay stage_schedule,pcr
+ stage_schedule_find
+         cmpd ,y
+@@ -629,6 +634,35 @@
+         lbsr    stage_panel_char
+         decb
+         bne     stage_panel_text
++        rts
++
++; Hidden level-start hydration: fresh game displays zero; next stage uses SCORE_BCD.
++stage_player_score
++        lda #8
++        sta $29
++        ldx #$2A84
++        ldy #$001D
++        ldb #3
++stage_player_score_pair
++        lda ,y+
++        pshs a
++        lda $A7
++        cmpa #2
++        puls a
++        beq stage_player_score_actual
++        clra
++stage_player_score_actual
++        pshs a
++        lsra
++        lsra
++        lsra
++        lsra
++        lbsr stage_panel_char
++        puls a
++        anda #15
++        lbsr stage_panel_char
++        decb
++        bne stage_player_score_pair
+         rts
+ 
+ ; A=0..44 authored glyph, X=destination, $29=colour; advance X.

@@ -1,0 +1,406 @@
+{
+  "scope": "Isolated assembled design fit only; no root/source edits, no runtime acceptance, no integrated ROM; stage label TMX move remains separate delta",
+  "baseline_source": "Current B2/menu prototype8906ebb +5795145/strict063 palette",
+  "results": {
+    "baseline": {
+      "resident_used": 8137,
+      "resident_free": 55,
+      "asset_used": 7663,
+      "asset_free": 17,
+      "source_hashes": {
+        "main.s": "87230d9e6393643181a30bbbd92db05698d0036ceb38e2aed6f2a62a50d32191",
+        "shared_text_runtime.inc": "45dcea3d78a6f1e8d99005ffdccafb5b93aad4aaac4fb408fe46cc4d909f1e29",
+        "shared_text_stage.inc": "2db8ce9a64ac049770da9a3656aa9baf663f6ba94534d3ee10aadb02838231a4",
+        "demo_runtime.s": "241a100bbc8ccc93c1c3bb66f8d0f088f5d1363a340bc460372f9ad87f8d8ed8"
+      },
+      "resident_sha256": "9551e5de3a845a2b008dc2a6a194abb8a36610a7b4f8071a803c83685967988c",
+      "command": [
+        "/usr/local/bin/lwasm",
+        "-9",
+        "--format=raw",
+        "-DADAPTIVE_RENDERING=1",
+        "-DBUG011_DEVELOPMENT_PROFILE=1",
+        "-DCOMPLETE_PROFILE=1",
+        "-DHIGHSCORE_TEST_PROFILE=0",
+        "-DHIGHSCORE_PHASE_HELPER=0",
+        "-DPRESENTATION_NAME_ENTRY_DATA=0",
+        "-DINPUT_JOYSTICK=0",
+        "-I",
+        "/mnt/e/projects/ladybug/repro/part-lives-fit/baseline",
+        "-I",
+        "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/build",
+        "-I",
+        "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/src",
+        "--output=/mnt/e/projects/ladybug/repro/part-lives-fit/baseline/resident.rom",
+        "--map=/mnt/e/projects/ladybug/repro/part-lives-fit/baseline/resident.map",
+        "/mnt/e/projects/ladybug/repro/part-lives-fit/baseline/main.s"
+      ],
+      "stage_module_used": 3032,
+      "assembled_prefix_equals_current_runtime": true,
+      "input_profile_fit": {
+        "0": {
+          "resident_used": 8137,
+          "resident_free": 55,
+          "assets_used": 7663,
+          "asset_free": 17,
+          "command": [
+            "/usr/local/bin/lwasm",
+            "-9",
+            "--format=raw",
+            "-DADAPTIVE_RENDERING=1",
+            "-DBUG011_DEVELOPMENT_PROFILE=1",
+            "-DCOMPLETE_PROFILE=1",
+            "-DHIGHSCORE_TEST_PROFILE=0",
+            "-DHIGHSCORE_PHASE_HELPER=0",
+            "-DPRESENTATION_NAME_ENTRY_DATA=0",
+            "-DINPUT_JOYSTICK=0",
+            "-I",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/baseline",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/build",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/src",
+            "--output=/mnt/e/projects/ladybug/repro/part-lives-fit/baseline/input0.rom",
+            "--map=/mnt/e/projects/ladybug/repro/part-lives-fit/baseline/input0.map",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/baseline/main.s"
+          ]
+        },
+        "1": {
+          "resident_used": 8173,
+          "resident_free": 19,
+          "assets_used": 7663,
+          "asset_free": 17,
+          "command": [
+            "/usr/local/bin/lwasm",
+            "-9",
+            "--format=raw",
+            "-DADAPTIVE_RENDERING=1",
+            "-DBUG011_DEVELOPMENT_PROFILE=1",
+            "-DCOMPLETE_PROFILE=1",
+            "-DHIGHSCORE_TEST_PROFILE=0",
+            "-DHIGHSCORE_PHASE_HELPER=0",
+            "-DPRESENTATION_NAME_ENTRY_DATA=0",
+            "-DINPUT_JOYSTICK=1",
+            "-I",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/baseline",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/build",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/src",
+            "--output=/mnt/e/projects/ladybug/repro/part-lives-fit/baseline/input1.rom",
+            "--map=/mnt/e/projects/ladybug/repro/part-lives-fit/baseline/input1.map",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/baseline/main.s"
+          ]
+        }
+      }
+    },
+    "part_only": {
+      "resident_used": 8150,
+      "resident_free": 42,
+      "asset_used": 7680,
+      "asset_free": 0,
+      "source_hashes": {
+        "main.s": "867b769bf2719dfdeed78275f44e8dfcda33bb5118a4adafd52520d65541218c",
+        "shared_text_runtime.inc": "cc6a2a80e8bcb6f463feefaf349de9e71a694a619ec96ed31d9f389f1d38bb39",
+        "shared_text_stage.inc": "34a058d6c7d01f342eb6d87b849bb7a67a579d3dcc671ea10895052c36052069",
+        "demo_runtime.s": "241a100bbc8ccc93c1c3bb66f8d0f088f5d1363a340bc460372f9ad87f8d8ed8"
+      },
+      "resident_sha256": "c8087c52593f73b9ff1e22e4014801e72388582b99c7b85f12299c9279ef9113",
+      "command": [
+        "/usr/local/bin/lwasm",
+        "-9",
+        "--format=raw",
+        "-DADAPTIVE_RENDERING=1",
+        "-DBUG011_DEVELOPMENT_PROFILE=1",
+        "-DCOMPLETE_PROFILE=1",
+        "-DHIGHSCORE_TEST_PROFILE=0",
+        "-DHIGHSCORE_PHASE_HELPER=0",
+        "-DPRESENTATION_NAME_ENTRY_DATA=0",
+        "-DINPUT_JOYSTICK=0",
+        "-I",
+        "/mnt/e/projects/ladybug/repro/part-lives-fit/part_only",
+        "-I",
+        "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/build",
+        "-I",
+        "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/src",
+        "--output=/mnt/e/projects/ladybug/repro/part-lives-fit/part_only/resident.rom",
+        "--map=/mnt/e/projects/ladybug/repro/part-lives-fit/part_only/resident.map",
+        "/mnt/e/projects/ladybug/repro/part-lives-fit/part_only/main.s"
+      ],
+      "stage_module_used": 3027,
+      "input_profile_fit": {
+        "0": {
+          "resident_used": 8150,
+          "resident_free": 42,
+          "assets_used": 7680,
+          "asset_free": 0,
+          "command": [
+            "/usr/local/bin/lwasm",
+            "-9",
+            "--format=raw",
+            "-DADAPTIVE_RENDERING=1",
+            "-DBUG011_DEVELOPMENT_PROFILE=1",
+            "-DCOMPLETE_PROFILE=1",
+            "-DHIGHSCORE_TEST_PROFILE=0",
+            "-DHIGHSCORE_PHASE_HELPER=0",
+            "-DPRESENTATION_NAME_ENTRY_DATA=0",
+            "-DINPUT_JOYSTICK=0",
+            "-I",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/part_only",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/build",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/src",
+            "--output=/mnt/e/projects/ladybug/repro/part-lives-fit/part_only/input0.rom",
+            "--map=/mnt/e/projects/ladybug/repro/part-lives-fit/part_only/input0.map",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/part_only/main.s"
+          ]
+        },
+        "1": {
+          "resident_used": 8186,
+          "resident_free": 6,
+          "assets_used": 7680,
+          "asset_free": 0,
+          "command": [
+            "/usr/local/bin/lwasm",
+            "-9",
+            "--format=raw",
+            "-DADAPTIVE_RENDERING=1",
+            "-DBUG011_DEVELOPMENT_PROFILE=1",
+            "-DCOMPLETE_PROFILE=1",
+            "-DHIGHSCORE_TEST_PROFILE=0",
+            "-DHIGHSCORE_PHASE_HELPER=0",
+            "-DPRESENTATION_NAME_ENTRY_DATA=0",
+            "-DINPUT_JOYSTICK=1",
+            "-I",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/part_only",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/build",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/src",
+            "--output=/mnt/e/projects/ladybug/repro/part-lives-fit/part_only/input1.rom",
+            "--map=/mnt/e/projects/ladybug/repro/part-lives-fit/part_only/input1.map",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/part_only/main.s"
+          ]
+        }
+      }
+    },
+    "candidate": {
+      "resident_used": 8156,
+      "resident_free": 36,
+      "asset_used": 7680,
+      "asset_free": 0,
+      "source_hashes": {
+        "main.s": "889028f9337a02d3a2a5bff3c21e2316152a55b3c1d926c364d986c17f2e3afb",
+        "shared_text_runtime.inc": "cc6a2a80e8bcb6f463feefaf349de9e71a694a619ec96ed31d9f389f1d38bb39",
+        "shared_text_stage.inc": "34a058d6c7d01f342eb6d87b849bb7a67a579d3dcc671ea10895052c36052069",
+        "demo_runtime.s": "241a100bbc8ccc93c1c3bb66f8d0f088f5d1363a340bc460372f9ad87f8d8ed8"
+      },
+      "resident_sha256": "69a8457de48b75334dce336eff234bddb519d8667f699d2144c339805184aed4",
+      "command": [
+        "/usr/local/bin/lwasm",
+        "-9",
+        "--format=raw",
+        "-DADAPTIVE_RENDERING=1",
+        "-DBUG011_DEVELOPMENT_PROFILE=1",
+        "-DCOMPLETE_PROFILE=1",
+        "-DHIGHSCORE_TEST_PROFILE=0",
+        "-DHIGHSCORE_PHASE_HELPER=0",
+        "-DPRESENTATION_NAME_ENTRY_DATA=0",
+        "-DINPUT_JOYSTICK=0",
+        "-I",
+        "/mnt/e/projects/ladybug/repro/part-lives-fit/candidate",
+        "-I",
+        "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/build",
+        "-I",
+        "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/src",
+        "--output=/mnt/e/projects/ladybug/repro/part-lives-fit/candidate/resident.rom",
+        "--map=/mnt/e/projects/ladybug/repro/part-lives-fit/candidate/resident.map",
+        "/mnt/e/projects/ladybug/repro/part-lives-fit/candidate/main.s"
+      ],
+      "stage_module_used": 3027,
+      "input_profile_fit": {
+        "0": {
+          "resident_used": 8156,
+          "resident_free": 36,
+          "assets_used": 7680,
+          "asset_free": 0,
+          "command": [
+            "/usr/local/bin/lwasm",
+            "-9",
+            "--format=raw",
+            "-DADAPTIVE_RENDERING=1",
+            "-DBUG011_DEVELOPMENT_PROFILE=1",
+            "-DCOMPLETE_PROFILE=1",
+            "-DHIGHSCORE_TEST_PROFILE=0",
+            "-DHIGHSCORE_PHASE_HELPER=0",
+            "-DPRESENTATION_NAME_ENTRY_DATA=0",
+            "-DINPUT_JOYSTICK=0",
+            "-I",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/candidate",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/build",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/src",
+            "--output=/mnt/e/projects/ladybug/repro/part-lives-fit/candidate/input0.rom",
+            "--map=/mnt/e/projects/ladybug/repro/part-lives-fit/candidate/input0.map",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/candidate/main.s"
+          ]
+        },
+        "1": {
+          "resident_used": 8192,
+          "resident_free": 0,
+          "assets_used": 7680,
+          "asset_free": 0,
+          "command": [
+            "/usr/local/bin/lwasm",
+            "-9",
+            "--format=raw",
+            "-DADAPTIVE_RENDERING=1",
+            "-DBUG011_DEVELOPMENT_PROFILE=1",
+            "-DCOMPLETE_PROFILE=1",
+            "-DHIGHSCORE_TEST_PROFILE=0",
+            "-DHIGHSCORE_PHASE_HELPER=0",
+            "-DPRESENTATION_NAME_ENTRY_DATA=0",
+            "-DINPUT_JOYSTICK=1",
+            "-I",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/candidate",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/build",
+            "-I",
+            "/mnt/e/projects/ladybug/worktrees/rsch014-current-menu-preparation/src",
+            "--output=/mnt/e/projects/ladybug/repro/part-lives-fit/candidate/input1.rom",
+            "--map=/mnt/e/projects/ladybug/repro/part-lives-fit/candidate/input1.map",
+            "/mnt/e/projects/ladybug/repro/part-lives-fit/candidate/main.s"
+          ]
+        }
+      }
+    }
+  },
+  "part_cases": {
+    "1": " 01",
+    "9": " 09",
+    "10": " 10",
+    "99": " 99",
+    "100": "100",
+    "199": "199",
+    "200": "200",
+    "255": "255"
+  },
+  "life_roots": [
+    [
+      33,
+      21
+    ],
+    [
+      35,
+      21
+    ],
+    [
+      37,
+      21
+    ],
+    [
+      33,
+      19
+    ],
+    [
+      35,
+      19
+    ],
+    [
+      37,
+      19
+    ],
+    [
+      33,
+      17
+    ],
+    [
+      35,
+      17
+    ],
+    [
+      37,
+      17
+    ],
+    [
+      33,
+      15
+    ],
+    [
+      35,
+      15
+    ],
+    [
+      37,
+      15
+    ]
+  ],
+  "consumed_slot_interface": "A=LIVES after decrement, range0..11; life_marker_position outputs HUD_X/Y only. Caller sets ENTITY_WORK explicitly if using draw loop; routine does not change lives/state or count.",
+  "source_placement": "Part division head13bytes in existing resident main; shared-font tail17bytes in existing immutable shared_text_runtime.inc, including explicit TSTA because TFR does not set condition flags. No mapping/loader/owner change.",
+  "rejected_experiments": [
+    "All-resident32-byte formatter plus life-grid6 bytes fits keyboard but exceeds joystick capacity.",
+    "Unsplit upper-ROM formatter initially exceeds17-byte asset spare.",
+    "Raw character36 is not compact-font blank; use computed final compact glyph plus producer last-mask guard instead."
+  ],
+  "font_blank_guard": {
+    "font_count": 43,
+    "blank_index": 42,
+    "last_glyph_mask": "0000000000000000",
+    "producer_patch_sha256": "235c9076ee87b432bdcd7ff0901d6b118b2d7d3fb7c0117527e450c17dfc44ca"
+  },
+  "central_label_delta": {
+    "base_tmx_sha256": "c1826b9ef1004488ae77331cb80370cb5a3fe2b3dad015c0acd280f8d56e984c",
+    "layer": "Level Start Panel",
+    "only_cells": [
+      [
+        15,
+        4
+      ],
+      [
+        16,
+        4
+      ],
+      [
+        17,
+        4
+      ],
+      [
+        18,
+        4
+      ],
+      [
+        19,
+        4
+      ],
+      [
+        20,
+        4
+      ]
+    ],
+    "same_four_label_gids": [
+      97,
+      337,
+      65,
+      33
+    ],
+    "hundreds_tens_units": [
+      20,
+      21,
+      22
+    ],
+    "gap": 19,
+    "candidate_raw_sha256": "e5bc3cf1dca22f9057ef43944b28f517d96ccbfb33566010d61e93d10dfb97ed",
+    "applied_to_root": false
+  },
+  "runtime_handlers": {
+    "shared_adapter": "wiki/internal/tickets/evidence/rsch014-ready-menu/gdb_menu_probe.py",
+    "parts": "--hud-parts (natural paired HUD callbacks after disclosed stage/journal fixture)",
+    "level_start": "--level-part N for1/9/10/99/100/199/200/255; visible published FRONT only; hidden previous screen is excluded by start_screen_hold bypass",
+    "grid": "--hud-lives (controlled reserve sequence12\u21920, exact48 quadrant cells, both owner histories)",
+    "actual_handler_run_claimed": true
+  },
+  "qualification": "Isolated assembly/design feasibility only, all menu prototype generated inputs; no combined relocation/source audit, ROM runtime or root source/TMX change. Lifecycle/source execution has not been authorized by this evidence itself.",
+  "runtime_qualification": "Current full keyboard prototype and 12-scenario credited GDB suite pass at ROM62157bf3. Still prototype preparation, not integrated production acceptance."
+}

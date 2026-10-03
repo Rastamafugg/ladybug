@@ -1,0 +1,54 @@
+--- a/scripts/verify_bug035_presentation.py
++++ b/scripts/verify_bug035_presentation.py
+@@ -423,8 +423,51 @@
+     print("BUG-035 pixel/runtime checks passed")
+ 
+ 
++def run_current_parts(output, adapter):
++    output = output.resolve()
++    if output.exists():
++        raise SystemExit("output exists; retain each run under a fresh path")
++    adapter = adapter.resolve()
++    if not adapter.is_file():
++        raise SystemExit("shared GDB adapter missing")
++    output.mkdir(parents=True)
++    rom_hash = digest((BUILD / "ladybug.rom").read_bytes())
++    scenarios = [("hud", "--hud-parts", None)]
++    scenarios += [("level-" + str(n), "--level-part", n) for n in (1,9,10,99,100,199,200,255)]
++    scenarios += [("next-" + str(n), "--next-part", n) for n in (99,199,255)]
++    receipt = {"status":"RUNNING", "rom_sha256":rom_hash,
++               "adapter_sha256":digest(adapter.read_bytes()), "scenarios":[],
++               "qualification":"Prototype preparation. HUD covers both persistent owners; level-start covers published FRONT. Each phase40seconds; timeout means missing boundary, not slow target."}
++    try:
++        for name, flag, value in scenarios:
++            target = output / (name + ".json")
++            command = [sys.executable,str(adapter),"--worktree",str(ROOT),
++                       "--rom-sha256",rom_hash,"--output",str(target),flag]
++            if value is not None:
++                command.append(str(value))
++            print("BUG-061 " + name, flush=True)
++            subprocess.run(command,cwd=ROOT,check=True,timeout=150)
++            proof = json.loads(target.read_text())
++            if proof.get("status") != "PASS":
++                raise AssertionError("scenario did not pass: " + name)
++            receipt["scenarios"].append({"name":name,"status":"PASS",
++                "receipt_sha256":digest(target.read_bytes()),
++                "phases":len(proof["phases"])})
++        receipt["status"] = "PASS"
++    finally:
++        (output / "summary.json").write_text(json.dumps(receipt,indent=2)+"\n")
++
++
+ def main():
+     arguments = sys.argv[1:]
++    if "--current-parts" in arguments:
++        parser = argparse.ArgumentParser(description="Current BUG-061 credited GDB checks")
++        parser.add_argument("--current-parts",action="store_true")
++        parser.add_argument("--adapter",type=Path,required=True)
++        parser.add_argument("--output",type=Path,required=True)
++        args = parser.parse_args(arguments)
++        run_current_parts(args.output,args.adapter)
++        return
+     if "--attract-only" not in arguments:
+         if "--output" in arguments:
+             raise SystemExit("--output requires --attract-only")
