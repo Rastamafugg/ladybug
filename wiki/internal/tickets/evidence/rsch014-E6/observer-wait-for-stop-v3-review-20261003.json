@@ -44,8 +44,23 @@
     "prior_v2_failure_sha256": "37a9958809f9a1159cd375bc75896743b16c0e6865f245318589a0e3dcf0ec3a",
     "sha256": "4750f4044c19a7d740e683d3a6f6da3307eee5dce3c07bd77a06fa632c6d22e7"
   },
-  "parent_review_status": "pending",
+  "parent_review": {
+    "integration_commit": "4b79c1893027926473e47ce496d83ddc003d28ba",
+    "qualification": "Cumulative drop-counter semantics and snapshot side effects were reviewed; notification loss is not the success gate.",
+    "reviewed_mechanics": "Synchronous run acknowledgement followed by adjacent-ID wait_for_stop reply; stop reason, acknowledged breakpoint ID, exact PC and live-register PC are checked. Server run epoch reset and condition wait source reviewed; breakpoint notifications remain secondary.",
+    "reviewed_observer_sha256": "4750f4044c19a7d740e683d3a6f6da3307eee5dce3c07bd77a06fa632c6d22e7",
+    "reviewed_selftest_case_count": 14,
+    "reviewed_selftest_status": "pass"
+  },
+  "parent_review_status": "parent-reviewed-and-approved",
   "preflight": {
+    "authorized_one_phase_guard": {
+      "path": "wiki/internal/tickets/evidence/rsch014-E6/offline-launch-guard-wait-stop-v3-authorized-20261003.json",
+      "pinned_artifacts_verified": 23,
+      "runtime_launched": false,
+      "sha256": "2aef64c165f5bb7beda2393099c934ed04a4d35918aa17ee9a8e365f5e013f4d",
+      "status": "offline-launch-guard-pass-no-runtime-launched"
+    },
     "expected_pinned_artifacts": 23,
     "final_offline_guard": {
       "candidate_and_staging_guards": "pass",
@@ -82,15 +97,34 @@
         "sha256": "e70133ba4351bf9ce61a5e0ae5d9a64e6b73ec658fa087a05f83c1eeae77cde4"
       }
     ],
-    "required_command": "wsl.exe python3 /mnt/e/projects/ladybug/worktrees/bug086-page34-preparation/wiki/internal/tickets/evidence/rsch014-E6/boundary_observer_wait_for_stop_v3.py --preflight-only /mnt/e/projects/ladybug/worktrees/bug086-page34-preparation /mnt/e/projects/ladybug/worktrees/bug086-page34-preparation/wiki/internal/tickets/evidence/rsch014-E6/offline-launch-guard-wait-stop-v3-schema-pass-20261003.json",
+    "required_command": "wsl.exe python3 /mnt/e/projects/ladybug/worktrees/bug086-page34-preparation/wiki/internal/tickets/evidence/rsch014-E6/boundary_observer_wait_for_stop_v3.py --preflight-only /mnt/e/projects/ladybug/worktrees/bug086-page34-preparation /mnt/e/projects/ladybug/worktrees/bug086-page34-preparation/wiki/internal/tickets/evidence/rsch014-E6/offline-launch-guard-wait-stop-v3-authorized-20261003.json",
     "runtime_output_path": "wiki/internal/tickets/evidence/rsch014-E6/runtime-result-wait-for-stop-v3-20261003.json"
   },
   "reassessment": {
-    "no_additional_runtime_until_review": true,
-    "parent_decision": "Offline v3 may use the existing synchronous run acknowledgement plus wait_for_stop; no runtime is authorized pending review of exact implementation, fake-response checks, and epoch/ID safety.",
+    "no_additional_runtime_until_review": false,
+    "no_follow_on_runtime_without_new_review": true,
+    "parent_decision": "Parent reviewed and approved the exact v3 observer hash for one deterministic 45-second boundary experiment after a full offline guard; all other scope and stop rules remain unchanged.",
     "v2_finding": "The primary event wait did not retain a return bp event. Independent pre-pause state/list plus live code and stack prove the dynamically executed return breakpoint ID 11 stopped at $15D5; event delivery versus unread data after the timed-out stream is not resolved."
   },
-  "runtime_authorized_by_this_receipt": false,
+  "runtime_authorization": {
+    "authorization_commit": "4b79c1893027926473e47ce496d83ddc003d28ba",
+    "authorized": true,
+    "experiment": "One deterministic v3 helper-caller-return and resident C116 boundary experiment.",
+    "experiment_count": 1,
+    "failure_rule": "Stop on any missing marker or timeout. Retain independent capture and raw receipts. No retry, no succession runtime, and no source/build/protocol/boundary/profile/deadline changes without new parent reassessment.",
+    "independent_failure_capture_seconds": 5,
+    "phase_deadline_seconds": 45,
+    "primary_wait_max_seconds": 40,
+    "success_marker": "All 87 helper bytes match authored/staged/physical/mapped image; acknowledged expected helper breakpoint plus source-proven caller/return and PC/stack identity; resident C116 reached and live bytes match current artifact."
+  },
+  "runtime_authorized_by_this_receipt": true,
+  "runtime_result": {
+    "follow_on_succession_run": false,
+    "path": "wiki/internal/tickets/evidence/rsch014-E6/runtime-result-wait-for-stop-v3-20261003.json",
+    "phase_elapsed_seconds": 0.658654,
+    "sha256": "ae322e4a8cab9817da1c874ca3ec20975ce2b50757b0529721a8b5e5df6ee6b5",
+    "status": "pass-helper-caller-return-and-first-worklist-marker"
+  },
   "schema": "ladybug-rsch014-e6-wait-for-stop-v3-review-v1",
   "static_fake_response_tests": {
     "case_count": 14,
@@ -140,7 +174,7 @@
     "sha256": "b75bd597c78548037b30600f7869bb8bc4464f39843ee8348955b91381ac1a6f",
     "status": "pass"
   },
-  "status": "offline-candidate-awaiting-parent-review",
+  "status": "parent-reviewed-one-phase-runtime-completed",
   "ticket": "RSCH-014 / BUG-086 E6",
   "worktree": {
     "current_head": "477d18a2765f783641207cb5ce9ece7a0905a05a",
