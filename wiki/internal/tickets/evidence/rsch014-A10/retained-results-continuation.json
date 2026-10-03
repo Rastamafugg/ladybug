@@ -67,19 +67,27 @@
         "$601C": "81 08 0F 00 10",
         "$6021": "00 40 AE 00 10",
         "$6026": "82 68 56 00 00",
-        "$602B": "82 58 87 18 01",
-        "$6030": "81 58 86 18 01",
+        "$602B": "81 58 86 18 01",
+        "$6030": "40 10 50 00 00",
         "$6035-$6049": "all five-byte records are zero"
       },
       "frame_1481": {
         "$601C": "81 08 0F 00 10",
         "$6021": "00 40 AE 00 10",
         "$6026": "82 68 56 00 00",
-        "$602B": "82 58 88 18 01",
+        "$602B": "82 58 87 18 01",
         "$6030": "81 58 86 18 01",
         "$6035-$6049": "all five-byte records are zero"
       },
       "frame_1496": {
+        "$601C": "81 08 0F 00 10",
+        "$6021": "00 40 AE 00 10",
+        "$6026": "82 68 56 00 00",
+        "$602B": "82 58 96 18 01",
+        "$6030": "81 58 86 18 01",
+        "$6035-$6049": "all five-byte records are zero"
+      },
+      "frame_1497": {
         "$601C": "81 08 0F 00 10",
         "$6021": "00 40 AE 00 10",
         "$6026": "82 68 56 00 00",
@@ -89,19 +97,19 @@
       }
     },
     "position_and_pixel_discriminator": {
-      "capture_indexing": "RAM index equals callback number. Video frame index is callback-1200 because video capture starts at callback 1200 inclusive. One full frame is 192*240*4 bytes.",
+      "capture_indexing": "The Lua callback increments its frame counter before dumping. RAM callback n is at byte offset (n-1)*4096; video callback n is at byte offset (n-1200)*192*240*4 because video capture starts at callback 1200 inclusive.",
       "origin_calibration": "The B4 receipt's independent exact-pixel match at callback 1641 maps record $602B=42 70 96 18 01 to origin (112,89). Applying x=record[1], y=239-record[2] maps the release location 58 86 to (88,105).",
-      "handoff": "At callback 1478-1479, $602B is a visible nonmoving $81 record at (88,105). At 1480, $602B changes to $82 and advances its second coordinate from $86 to $87 while $6030 appears as $81 at the old $58,$86 origin. At 1481 the original slot is $82 at $58,$88 and the new $6030 record remains $81 at the den origin. At 1496, the released $602B record is $42 at $59,$96, while $6030 remains $81 at $58,$86.",
+      "handoff": "At callbacks 1478-1480, $602B is the visible nonmoving $81 record at (88,105), while $6030 is dormant. At 1481, $602B changes to $82 and advances its second coordinate from $86 to $87 while $6030 appears as $81 at the old $58,$86 origin. At 1496, $602B is still $82 at $58,$96 (screen origin y=89, clear of the stationary $6030 sprite at y=105); at 1497 it becomes $42 at $59,$96 as it turns onto horizontal travel.",
       "exact_art_matches": [
         {"callbacks": "1470-1471", "605A": "32", "template_index": 0, "source_pose": 11, "origin": [88,105]},
-        {"callbacks": "1473-1479", "605A": "33", "template_indices": [1,3], "source_pose": 10, "origin": [88,105]},
+        {"callbacks": "1473-1480", "605A": "33", "template_indices": [1,3], "source_pose": 10, "origin": [88,105]},
         {"callback": 1481, "605A": "34", "template_index": 2, "source_pose": 9, "origin": [88,105]},
-        {"callback": 1495, "605A": "35", "template_indices": [1,3], "source_pose": 10, "origin": [88,105]},
-        {"callbacks": "1497-1503", "605A": "36", "template_index": 0, "source_pose": 11, "origin": [88,105]},
-        {"callbacks": "1505-1511", "605A": "37", "template_indices": [1,3], "source_pose": 10, "origin": [88,105]},
+        {"callbacks": "1495-1496", "605A": "35", "template_indices": [1,3], "source_pose": 10, "origin": [88,105]},
+        {"callbacks": "1497-1504", "605A": "36", "template_index": 0, "source_pose": 11, "origin": [88,105]},
+        {"callbacks": "1505-1512", "605A": "37", "template_indices": [1,3], "source_pose": 10, "origin": [88,105]},
         {"callbacks": "1513-1520", "605A": "38", "template_index": 2, "source_pose": 9, "origin": [88,105]}
       ],
-      "publication_lag": "Video is rendered before the per-frame RAM sample. At phase boundaries the old image can appear for the callback whose RAM already holds the next $605A value; observed pixel change follows by one callback. During callbacks 1482-1494 the departing $602B sprite overlaps/occludes the waiting $6030 sprite, so absence of a full exact match in those frames is not evidence that $6030 stopped animating.",
+      "publication_alignment": "No one-callback pixel-publication lag is evidenced. The capture callback obtains video and work RAM in the same labeled callback; wherever unobscured, exact sprite poses align with that callback's $605A value. During callbacks 1482-1494 the departing $602B sprite overlaps/occludes the waiting $6030 sprite, so absence of a full exact match in those frames is not evidence that $6030 stopped animating.",
       "conclusion": "In this current-ROM release window, the den-visible sprite is the waiting roaming-enemy record handed from $602B to $6030. The new $6030 actor is renderer-visible, movement-ineligible, uses ordinary Part-1 base/attribute $18/$01, and its exact changing pixels track the shared $605A phase. These bytes and pixels reject the earlier inference that the retained separate-zero-record observation proves an independent den-preview actor or clock. Do not rewrite the historical raw reference; append this current-ROM correction if that reference is later reused.",
       "limits": "The B4 harness retained $6000-$6fff and $d000-$d7ff, not device sprite memory $7000-$73ff. This closes the sampled visible den-clock owner to the normal actor renderer; it does not prove every stage, route, or any independent background-art behavior."
     }
@@ -128,13 +136,26 @@
     "requirements_before_execution": [
       "Find a natural Part-1 interval with $61E1=0, $61B7=0, $61B5=0, an eligible $602B actor whose byte 3/4 remain $18/$01, and stable actor group/map state.",
       "Use a disclosed one-time $606E=$07 write only at a verified $407E call boundary, after source audit confirms no intervening stage initializer or unrelated selector side effect.",
-      "Reconcile the exact marker against retained B4: $602B is still status $82 through callback 1495 but becomes status $42 at 1496. Therefore 'after 1500' and '$602B status $82' are not simultaneously supported by this retained run; select a compatible natural marker before proposing execution.",
+      "Reconcile the exact marker against retained B4: callback 1496 has $602B status $82 with its 16x16 bounds clear of $6030; callback 1497 changes it to status $42. The retained run does not support the combined 'after 1500' and '$602B status $82' marker; select a compatible natural marker before proposing execution.",
       "Once source computes the selected $61C3 value, record six qualifying fractional admissions and predicted carry/step count; compare per-callback coordinate path length plus exact enemy pixels, while keeping map, status, group, and art identity stable."
     ],
     "phase_contract": "Initial phase maximum 60 seconds. Success marker must name selected $61C3, six accepted fractional updates, the expected $61B5 carry and actor pixel path. Timeout means the marker was not reached within the bounded phase, not that the game is slow. No run before parent review."
   },
+  "correction_2026_10_03_callback_indexing": {
+    "date": "2026-10-03",
+    "corrects_commit": "46bf53a4d97af9e3494465b5be3c1eda7f573056",
+    "reason": "The first committed receipt indexed the 1800-sample RAM stream as callback*4096. scripts/capture_mame_gameplay.py increments its frame counter before dumping, so callback n is sample index n-1. The video stream starts at callback 1200, so its offset remains (callback-1200)*184320.",
+    "supersedes": ["record_inventory frame labels", "handoff callback labels", "exact_art_matches callback/605A pairs", "publication_lag claim", "next-rate marker boundary"],
+    "corrected_boundaries": {
+      "callback_1480": {"602B": "81 58 86 18 01", "6030": "40 10 50 00 00", "605A": "33", "pixel_template_indices": [1,3]},
+      "callback_1481": {"602B": "82 58 87 18 01", "6030": "81 58 86 18 01", "605A": "34", "pixel_template_index": 2},
+      "callback_1496": {"602B": "82 58 96 18 01", "6030": "81 58 86 18 01", "605A": "35", "pixel_template_indices": [1,3]},
+      "callback_1497": {"602B": "42 59 96 18 01", "6030": "81 58 86 18 01", "605A": "36", "pixel_template_index": 0}
+    },
+    "interpretation": "The current JSON fields have been recomputed using the corrected RAM alignment. Pixel art and $605A agree in the same labeled callback where the waiting actor is unobscured. The previous one-callback output lag and the prior frame 1480/1496 status labels are withdrawn. Commit history preserves the initial receipt and this dated correction."
+  },
   "verification": {
-    "offline_method": "Read B4 raw RAM as 1800 consecutive 0x1000-byte samples; read BGRA frame f at byte offset (f-1200)*192*240*4; exact-match each opaque pixel of the first 16 Part-1 templates at x=record[1], y=239-record[2] against palette.json through sprite_lookup_a[1]. No files outside the A10 evidence directory were created or modified.",
+    "offline_method": "Read B4 raw RAM as 1800 consecutive 0x1000-byte samples, with callback n at offset (n-1)*4096; read BGRA frame f at byte offset (f-1200)*192*240*4; exact-match each opaque pixel of the first 16 Part-1 templates at x=record[1], y=239-record[2] against palette.json through sprite_lookup_a[1]. No files outside the A10 evidence directory were created or modified.",
     "commands": [
       "sha256sum /tmp/ladybug-maincpu.bin /tmp/rsch014-B5/ladybug-maincpu.asm /tmp/rsch014-B4-P1-clock-video.bin /tmp/rsch014-B4-P1-clock-ram.bin",
       "python3 -m json.tool wiki/internal/tickets/evidence/rsch014-A10/retained-results-continuation.json",
