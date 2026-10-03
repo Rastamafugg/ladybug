@@ -21,6 +21,7 @@ from build_screen import (  # noqa: E402
     FLIP_H,
     FLIP_V,
     GID_MASK,
+    GAMEPLAY_SPRITE_LOCATIONS,
     GREEN,
     GREY,
     LIGHT_BLUE,
@@ -2378,6 +2379,11 @@ def main() -> None:
             info["name"]: info["layer_contract"] for info in map_info
         },
         "raw_sprite_markers": {
+            "gameplay": [
+                {"cell": list(cell), "gid": value & GID_MASK,
+                 "flags": value & ~GID_MASK}
+                for cell, value in sorted(GAMEPLAY_SPRITE_LOCATIONS.items())
+            ],
             "instructions": [
                 {"cell": list(cell), "gid": value & GID_MASK,
                  "flags": value & ~GID_MASK}
