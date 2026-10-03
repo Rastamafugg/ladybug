@@ -1,0 +1,52 @@
+{
+  "breakpoint_acknowledgements": [],
+  "breakpoints_still_registered_at_shutdown": {},
+  "claims": {
+    "gameplay_acceptance": false,
+    "natural_full_maze_progression": false,
+    "parts_2_through_8_skipped": false,
+    "source_or_profile_changes": false
+  },
+  "date": "2026-10-03",
+  "failure": "RuntimeError: worktree HEAD differs from this observer's mechanics-review receipt",
+  "mechanics_review_receipt": "wiki/internal/tickets/evidence/rsch014-E6/observer-mechanics-review-20261003.json",
+  "monitor_audit": {
+    "active_breakpoints": {},
+    "breakpoint_acknowledgements": [],
+    "client_instances": 0,
+    "monitor_client_call_count": 0,
+    "preexisting_event_buffers": [],
+    "retained_call_receipts": []
+  },
+  "monitor_source_mechanics": {
+    "case_specific_missing_event_cause": "unproven; source establishes best-effort delivery only",
+    "monitor_c_sha256": "30c0d8f4ff69963eec0439c191e3993335d241fefc04da6950da5c4a7709de65",
+    "monitor_c_worktree_diff_note": "existing dirty read_cycles handler; observer does not call it",
+    "monitor_c_worktree_diff_sha256": "f77d721eaa68eac9dd4dc222abfc7cab73d86573ccb6eb970e4e65a45d71f7df",
+    "monitor_h_sha256": "edbe592a0f5533721e0a50b4a6f9825ead18064fdd1e13af728dc5739979eec9",
+    "observed_ordering": {
+      "breakpoint_clear_and_ack": "monitor.c:1245-1287",
+      "breakpoint_event_after_condvar": "monitor.c:584-595",
+      "breakpoint_id_creation_and_ack": "monitor.c:1197-1242",
+      "breakpoint_stop_state_and_condvar": "monitor.c:563-582",
+      "independent_state_and_breakpoint_queries": "monitor.c:805-824,1290-1306",
+      "per_client_subscription_and_drop_counter": "monitor.c:99-107,335-367,1435-1478",
+      "run_reply_after_state_gate": "monitor.c:827-834"
+    },
+    "repository_revision": "66f010efb6b8521b000f00e75afd6a06f7d1599b"
+  },
+  "observations": [],
+  "phase": {
+    "capture_cleanup_reserve_seconds": 5.0,
+    "deadline_seconds": 45,
+    "name": "cold-credited-start-to-first-active-worklist",
+    "primary_wait_max_seconds": 40.0,
+    "success_marker": "all 87 helper bytes match authored, staged, physical, and PAR5-mapped images at helper entry; the source-proven caller and return match the built enemy image; resident $C116 is then reached with live bytes matching the built artifact",
+    "timeout_meaning": "The observer did not establish the helper entry, its source-proven return, or resident $C116 inside this 45-second phase. Timeout is not evidence of target slowness or a game defect."
+  },
+  "preflight_receipt": "wiki/internal/tickets/evidence/rsch014-E6/preflight-20261003.json",
+  "run_requests": [],
+  "runtime_instance": {},
+  "schema": "ladybug-rsch014-e6-bug086-helper-caller-boundary-v2-offline-review",
+  "status": "incomplete"
+}
