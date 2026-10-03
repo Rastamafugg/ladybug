@@ -1,0 +1,21 @@
+{
+  "schema": "rsch014-r10-excluded-path-identity-check-v1",
+  "profile": "complete AD1 joystick",
+  "status": "Rejected as fit evidence; the custom-output-path source-reference guard failed.",
+  "failure": {
+    "stage": "scripts/build_source_reference.py after ROM assembly and sparse packing",
+    "error": "ValueError: module identity mismatch: ladybug-adaptive-mapped.bin:source",
+    "configured_generated_source": "build/ladybug-adaptive-mapped.s",
+    "receipt_generated_source": "build/r10-freeze-order-ad1-joystick-corrected/ladybug-adaptive-mapped.s"
+  },
+  "retained_hashes": {
+    "ROM_sha256": "f342c867337261b9d32b9f1c7139100a4c9eeff0fe8c867654de4865d8cfea4b",
+    "receipt_sha256": "758038d860eebe914a1a2856bb621ee1c6962125aa4e9230ae7aa09493ccfb57",
+    "source_reference_config_sha256": "364970b76537d28354bbd346a25b3767ccdbf2514219c60ff368037083bb9625",
+    "rate_helper_sha256": "a5e8e31afe61c76a5aab96b85ea3d4a0482326ca03b03a82b98e0a636e4f8028",
+    "E2_enemy_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "B2_adaptive_banked_sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab",
+    "adaptive_active_sha256": "8b1ef1cac74c0026c99aeadbcad4c53478e864ab6ae3c61a2f422394d473f5a2"
+  },
+  "qualification": "ROM, packing, and allocation checks passed before the source-reference identity failure; this is not a full build pass and was not run. The corrected supported-profile fit uses the exact default overlay build path and matching receipt/config identities."
+}

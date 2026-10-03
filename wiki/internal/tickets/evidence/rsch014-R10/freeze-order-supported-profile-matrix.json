@@ -1,0 +1,83 @@
+{
+  "schema": "rsch014-r10-freeze-order-supported-profile-matrix-v1",
+  "candidate": "Corrected 185-byte freeze-order helper, isolated E2+B2 composition; fit evidence only, no production approval.",
+  "measurement_basis": "Each capacity value is a single observed build occupancy in bytes (used / hard limit, with free = limit - used). Frozen artifacts and static checks are referenced per profile. Static verification is not 6809 runtime or cadence acceptance.",
+  "supported_profiles": {
+    "AD0 keyboard": {
+      "status": "Build and static guard pass; fit only.",
+      "summary": "freeze-order-ad0-keyboard-checkpoint.json",
+      "static_check": "freeze-order-ad0-keyboard-static-check.json",
+      "frozen_artifacts": "build/.rsch014-r10-overlay-base/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad0-keyboard-saturated-gate-corrected",
+      "ROM_sha256": "3e1d206c05e95a9dc545f744ecc1953b2cbdcbce7854aede2232ae14475b7300",
+      "sparse_manifest_sha256": "d76a98ba30149abf7b2cb7066988d940ed458738f39e9ea09d7fcd3c4758d93e",
+      "receipt_sha256": "8302656b257eed7e6c71637bce6954a363427596262588f1a573d40d2c0a961c",
+      "capacity_bytes": {
+        "resident": "8190/8192 used; 2 free",
+        "assets": "7620/7680 used; 60 free",
+        "enemy_runtime": "4091/4096 used; 5 free",
+        "presentation_module": "1279/1280 used; 1 free",
+        "rate_helper": "185/192 used; 7 free",
+        "E2_enemy_helper": "87/93 used; 6 free"
+      },
+      "B2_adaptive": "Not present in this nonadaptive profile."
+    },
+    "AD1 keyboard": {
+      "status": "Build and static guard pass; fit only.",
+      "summary": "profiles/ad1-keyboard-freeze-order-corrected.json",
+      "frozen_artifacts": "build/.rsch014-r10-overlay-base/build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-keyboard-saturated-gate-corrected",
+      "ROM_sha256": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721",
+      "sparse_manifest_sha256": "6b19e54935fd87966e0732994c1c46b1366f1a7b46a6a8423a0a413499661c7f",
+      "receipt_sha256": "26d62cb69c0e129afe7f03515d9dae8dd10c51cfe84d0d5ae34da81c7c52b059",
+      "capacity_bytes": {
+        "resident": "8148/8192 used; 44 free",
+        "assets": "7661/7680 used; 19 free",
+        "enemy_runtime": "4091/4096 used; 5 free",
+        "presentation_module": "1266/1280 used; 14 free",
+        "rate_helper": "185/192 used; 7 free",
+        "E2_enemy_helper": "87/93 used; 6 free",
+        "B2_adaptive_banked": "696/698 used; 2 free",
+        "adaptive_active_relinked": "603/777 used; 174 free"
+      },
+      "init_callsite": "resident $D548 -> physical page $34, shim $A463"
+    },
+    "AD1 joystick": {
+      "status": "Build and static guard pass; fit only.",
+      "summary": "profiles/ad1-joystick-freeze-order-corrected.json",
+      "frozen_artifacts": "build/.rsch014-r10-overlay-base/build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-joystick-saturated-gate-corrected",
+      "ROM_sha256": "24329ec7c8bbacf6884679a6afe0ded14ee19d36665f3c40b48dd9df6512f13c",
+      "sparse_manifest_sha256": "4d9e102674b202b003ac03aa20bc029754e272a78148205b76f58bec716fb750",
+      "receipt_sha256": "e7e143f7a6298f740ee1982c1fc306dd5926c0c5ba3681a40ba481e33d58417a",
+      "capacity_bytes": {
+        "resident": "8184/8192 used; 8 free",
+        "assets": "7661/7680 used; 19 free",
+        "enemy_runtime": "4091/4096 used; 5 free",
+        "presentation_module": "1266/1280 used; 14 free",
+        "rate_helper": "185/192 used; 7 free",
+        "E2_enemy_helper": "87/93 used; 6 free",
+        "B2_adaptive_banked": "696/698 used; 2 free",
+        "adaptive_active_relinked": "603/777 used; 174 free"
+      },
+      "init_callsite": "resident $D56C -> physical page $34, shim $A463"
+    }
+  },
+  "shared_exact_artifact_contracts": {
+    "rate_helper": "185/192 bytes; SHA-256 609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c; start $A3B0, tick $A3C5, end-exclusive $A469",
+    "E2_patch_sha256": "63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa",
+    "E2_helper": "87/93 bytes; SHA-256 057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526 at $A8A0",
+    "B2_banked_adaptive": "696/698 bytes; SHA-256 3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab; AD1 profiles only",
+    "B2_active_adaptive": "603/777 bytes. Candidate generated source SHA-256 5b662e01cb75841eb03790327c2ad12ecb6cbfdcfa5cb871d1f67efd95b78241 matches B2. Active binaries are profile-specific relinks; the joystick comparison is against the AD1 keyboard B2 baseline and must not be attributed solely to the R10 delta."
+  },
+  "static_behavior_qualification": {
+    "freeze_policy": "The corrected candidate advances elapsed time before the existing freeze gate, holds fractional/parity movement during freeze, and retains the existing CoCo FREEZE_TIMER=300 duration adaptation. Table/model and source/list/map checks are static only.",
+    "policy_indexing": "Rate table verification uses the active one-based part counter N and the exact source array offset slice; counter zero as part 1 is rejected.",
+    "movement_units": "Source movement is +/-1 framebuffer byte horizontally (2 packed pixels) and +/-320 bytes vertically (2 scanlines of 160 bytes). Substep 3,x wraps at 4, making four admitted moves one 8-pixel cell. From phase zero, C fractional carries across N callbacks give C + floor((N-C)/2) admissions, or N+C pixels with at most a one-pixel phase endpoint. This is per enemy callback; AD_SIM-to-Vbord/stall conversion is uncalibrated.",
+    "blocked_actor_limit": "No blocked-actor stationary invariant is claimed. et_move_scan omits DIR_NONE, but et_update_loop has a west fallback for active records when another record sets ENEMY_MOVE; ecd_blocked writes DIR_NONE without deactivation. Reachability of active+DIR_NONE remains unproven.",
+    "runtime_status": "No emulator or physical-hardware execution. No arcade cadence acceptance or production approval."
+  },
+  "excluded_profile": {
+    "name": "AD0 joystick",
+    "status": "Not built with the corrected candidate and not passing evidence.",
+    "historical_baseline": "The prior baseline exceeded the 8192-byte resident limit by 23 bytes; it is outside this supported matrix."
+  },
+  "runtime_followup_gate": "Any later live comparison remains gated on the exact Ready adapter contract. Limit each phase to 45 seconds; compare current baseline and candidate; require natural initialization, rate callback, straight-movement, and freeze markers; use a 1-pixel endpoint tolerance. Timeout means a required marker was not reached within the bound, not a cadence measurement. No runtime was run for this fit task."
+}

@@ -1,0 +1,130 @@
+{
+  "schema": "rsch014-r10-corrected-profile-fit-v1",
+  "profile": "complete, AD1 joystick",
+  "claim": "Allocation and static clock-contract fit only. This is not arcade cadence acceptance, 6809 runtime acceptance, or production approval.",
+  "build": {
+    "result": "PASS; build exited 0 on the exact overlay default build directory.",
+    "working_directory": "E:/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base",
+    "build_directory": "E:/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base/build",
+    "command": "LADYBUG_PROFILE=complete LADYBUG_ADAPTIVE=1 LADYBUG_INPUT=joystick LADYBUG_BUILD_DIR=/mnt/e/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base/build ./scripts/build.sh build",
+    "source_reference": "PASS: 15 modules, 35,585 source lines.",
+    "source_documentation": "PASS: 15 modules, 303/303 routines, 4,977/4,977 labels.",
+    "other_guards": "PASS: allocation; 130 enemy and 16 player frames; 12 loader segments / 7 LZSS streams; exact GMC overflow boundary; presentation pixel proof; 11,901 CPU-readable GMC bytes spare."
+  },
+  "capacity": {
+    "resident": {
+      "used": 8184,
+      "limit": 8192,
+      "free": 8,
+      "basis": "build output; resident end DFF8"
+    },
+    "assets": {
+      "used": 7661,
+      "limit": 7680,
+      "free": 19,
+      "basis": "build output"
+    },
+    "enemy_runtime": {
+      "used": 4091,
+      "limit": 4096,
+      "free": 5,
+      "basis": "exact ROM module byte length"
+    },
+    "presentation_module": {
+      "used": 1266,
+      "limit": 1280,
+      "free": 14,
+      "basis": "exact assembled binary byte length"
+    },
+    "rate_helper": {
+      "start": "$A3B0",
+      "end_exclusive": "$A469",
+      "used": 185,
+      "extent": 192,
+      "free": 7,
+      "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c"
+    },
+    "E2_enemy_helper": {
+      "start": "$A8A0",
+      "used": 87,
+      "limit": 93,
+      "free": 6,
+      "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526"
+    },
+    "B2_adaptive_banked": {
+      "used": 696,
+      "limit": 698,
+      "free": 2,
+      "sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab"
+    },
+    "adaptive_active_relinked": {
+      "used": 603,
+      "limit": 777,
+      "free": 174,
+      "sha256": "8b1ef1cac74c0026c99aeadbcad4c53478e864ab6ae3c61a2f422394d473f5a2",
+      "generated_source_sha256": "5b662e01cb75841eb03790327c2ad12ecb6cbfdcfa5cb871d1f67efd95b78241",
+      "identity_note": "Generated active source matches B2. This candidate binary is relinked for the joystick profile and current resident API addresses; it is not the B2 keyboard baseline binary."
+    }
+  },
+  "call_sites": {
+    "enemy_tick": {
+      "module_address": "$08EE",
+      "bytes": "BDA3C5",
+      "target": "physical page $34, rate_tick $A3C5",
+      "routine": "rate_tick $A3C5"
+    },
+    "enemy_init": {
+      "resident_address": "$D56C",
+      "bytes": "BDA463",
+      "target": "physical page $34, rate_enemy_init_shim $A463"
+    },
+    "note": "Joystick main callsite is D56C; enemy module callsite remains 08EE."
+  },
+  "source_reference_receipt_identity": {
+    "result": "PASS: adaptive-mapped, adaptive-banked, and adaptive-active source/listing/map/binary paths match their generated source-reference config.",
+    "config_sha256": "364970b76537d28354bbd346a25b3767ccdbf2514219c60ff368037083bb9625",
+    "receipt_sha256": "e7e143f7a6298f740ee1982c1fc306dd5926c0c5ba3681a40ba481e33d58417a",
+    "adaptive_mapped_source": "build/ladybug-adaptive-mapped.s",
+    "build_directory": "default overlay build/ path; no custom per-profile output subdirectory"
+  },
+  "static_guard": {
+    "result": "PASS: frozen source/map/listing and Step-D table/model checks; not 6809 runtime proof.",
+    "command": "python3 build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-joystick-saturated-gate-corrected/verify_r10_freeze_order_candidate_ad1_joystick.py --artifacts build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-joystick-saturated-gate-corrected --model ../../wiki/internal/tickets/evidence/rsch014-D/rate-policy-model.json --output build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-joystick-saturated-gate-corrected/static-check.json",
+    "adapted_existing_verifier": {
+      "source": "wiki/internal/tickets/evidence/rsch014-R10/verify_r10_freeze_order_candidate.py",
+      "source_sha256": "460b469003934e7d37b36f6846c1d77fda3ce894b9b240fdd782e2d7ccae832f",
+      "local_AD1_copy_sha256": "3f2d57184cce0d9b4ccb4a1562553789fb90839bd9be3777cfa0d69cd6dd369e",
+      "changes": "Joystick ROM, manifest, receipt, and D56C callsite; explicit B2 banked helper, active generated source, and receipt/config identity checks."
+    },
+    "model_sha256": "ffd11f1f05f112cd2942cb2709f345cbc78c97ecef1eee8b90cedebdfba6e325",
+    "result_sha256": "f686c43b40868e10ea06779ac80159b2acb99697d43e4f2301755bc6af658a40",
+    "policy_checks": "800 active part/bucket cells, 50 threshold sets, and 3,280 late-part cells against the exact one-based counter slice. Freeze cases cover saturated expiry/nonexpiry, bucket rollover 0F\u219210 and EF\u2192F0 at source-offset stages 1/17, thaw 1\u21920, and carry/no-carry.",
+    "active_B2_reference": "B2 reference build was AD1 keyboard; the byte comparison to this AD1 joystick candidate is cross-profile. Generated active source hashes match; banked helper is exact B2 SHA. Candidate active binary remains labeled as profile-specific relinked output."
+  },
+  "movement_unit_audit": {
+    "horizontal": "\u00b11 framebuffer byte per admitted move; two packed pixels per byte in this renderer.",
+    "vertical": "\u00b1320 framebuffer bytes; two 160-byte scanlines per admitted move.",
+    "cell": "substep 3,x increments and wraps at 4, so four admitted moves advance one 8-pixel cell.",
+    "formula": "For a moving actor with phase initially zero, C fractional carries across N callbacks yield C + floor((N-C)/2) admissions. Each admission is two pixels, or N+C pixels apart from the one-pixel phase endpoint.",
+    "cadence_limit": "This is per enemy callback. AD_SIM-to-Vbord/stall conversion remains uncalibrated.",
+    "blocked_actor_qualification": "No claim that blocked actors hold position. et_move_scan skips DIR_NONE, but et_update_loop applies west as its fallback to every active record when another record sets ENEMY_MOVE. ecd_blocked writes DIR_NONE without deactivating the record; reachability of active+DIR_NONE remains unproven."
+  },
+  "runtime_followup_gate": "No runtime executed. Any later live comparison requires the exact Ready adapter contract; limit each phase to 45 seconds, compare current baseline and candidate, use natural init/rate/straight-movement/freeze markers, and apply 1-pixel endpoint tolerance. Timeout is a missing marker within the phase bound, not a cadence measurement.",
+  "known_path_identity_failure": "The prior custom-output-path generated-source identity mismatch remains a duplicate mechanics note in profiles/ad1-joystick-path-mismatch-retained.json. Current default-path receipt/config identity passes.",
+  "frozen_artifacts": {
+    "local_directory": "E:/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base/build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-joystick-saturated-gate-corrected",
+    "build_files_and_source_count": 103,
+    "hash_manifest_sha256": "9499f311c18c338274bcb20082443c16d37d4728b4a35515c9c0d05fefb7114d",
+    "full_rom_sha256": "24329ec7c8bbacf6884679a6afe0ded14ee19d36665f3c40b48dd9df6512f13c",
+    "runtime_rom_sha256": "6a6683e7a07672072274fd81d44305846f0e36a6b5b6d839dd5980a482b59e86",
+    "sparse_manifest_sha256": "4d9e102674b202b003ac03aa20bc029754e272a78148205b76f58bec716fb750"
+  },
+  "not_accepted": [
+    "No emulator or physical-hardware run.",
+    "Static table equivalence and host state model do not establish arcade cadence or 6809 behavior.",
+    "No blocked-actor movement invariant is claimed.",
+    "The prior 174-byte helper matrix does not transfer to this 185-byte candidate.",
+    "AD0 joystick remains excluded.",
+    "No production source fix or runtime approval is implied by this fit evidence."
+  ]
+}
