@@ -37,6 +37,7 @@ PALETTE = (0x00, 0x26, 0x36, 0x19, 0x3D, 0x17, 0x3F, 0x38,
            0x3A, 0x39, 0x12, 0x3B, 0x24, 0x34, 0x00, 0x00)
 PLAYER_PEN_MAP = (BLACK, DARK_RED, GREEN, YELLOW)
 LIFE_PEN_MAP = (BLACK, GREEN, DARK_RED, YELLOW)
+GAMEPLAY_SPRITE_LOCATIONS = {(32, 13): 633}
 
 
 def sheet_code(row: int, column: int) -> int:
@@ -698,6 +699,48 @@ def tileset_ranges(root: ET.Element, map_path: Path) -> list[dict[str, object]]:
     return ranges
 
 
+def validate_gameplay_sprite_locations(
+        root: ET.Element, map_path: Path,
+) -> ET.Element:
+    """Validate the current gameplay-only 16x16 marker layer before omission."""
+    layers = [layer for layer in root.findall("layer")
+              if layer.get("name") == "Sprite Locations"]
+    if len(layers) != 1:
+        raise ValueError(
+            f"{map_path}: expected one Sprite Locations layer; found {len(layers)}"
+        )
+    layer = layers[0]
+    cells = parse_csv(layer.find("data"), layer.get("name", ""))
+    actual = {
+        (index % SCREEN_WIDTH, index // SCREEN_WIDTH): gid
+        for index, gid in enumerate(cells) if gid & GID_MASK
+    }
+    if actual != GAMEPLAY_SPRITE_LOCATIONS:
+        missing = sorted(set(GAMEPLAY_SPRITE_LOCATIONS) - set(actual))
+        extra = sorted(set(actual) - set(GAMEPLAY_SPRITE_LOCATIONS))
+        wrong = sorted(cell for cell in set(actual) & set(GAMEPLAY_SPRITE_LOCATIONS)
+                       if actual[cell] != GAMEPLAY_SPRITE_LOCATIONS[cell])
+        raise ValueError(
+            f"{map_path}: Sprite Locations contract mismatch; "
+            f"missing={missing}, extra={extra}, wrong={wrong}"
+        )
+    ranges = tileset_ranges(root, map_path)
+    for cell, gid_with_flags in actual.items():
+        gid = gid_with_flags & GID_MASK
+        tileset = next((item for item in ranges
+                        if int(item["firstgid"]) <= gid <= int(item["lastgid"])), None)
+        if (tileset is None or tileset["name"] != "sprites_raw2bpp"
+                or tileset["tilewidth"] != 16 or tileset["tileheight"] != 16):
+            name = None if tileset is None else tileset["name"]
+            dimensions = None if tileset is None else (
+                tileset["tilewidth"], tileset["tileheight"])
+            raise ValueError(
+                f"{map_path}: Sprite Locations cell {cell} uses "
+                f"{name!r} {dimensions!r}; expected sprites_raw2bpp (16, 16)"
+            )
+    return layer
+
+
 def compile_screen(map_path: Path, maze_path: Path, chars_path: Path,
                    sprites_path: Path) -> tuple[
                        list[int], list[bytes], list[list[tuple[int, int, int]]],
@@ -713,8 +756,12 @@ def compile_screen(map_path: Path, maze_path: Path, chars_path: Path,
     layers = root.findall("layer")
     if not layers:
         raise ValueError(f"{map_path} contains no tile layers")
+    sprite_locations = validate_gameplay_sprite_locations(root, map_path)
     for layer in layers:
         if layer.get("visible", "1") == "0":
+            continue
+        # Sprite Locations stores editor metadata, not framebuffer tiles.
+        if layer is sprite_locations:
             continue
         cells = parse_csv(layer.find("data"), layer.get("name", ""))
         for index, gid in enumerate(cells):

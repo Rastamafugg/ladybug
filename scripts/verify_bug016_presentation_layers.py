@@ -8,7 +8,9 @@ import copy
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from unittest.mock import patch
 
+import build_screen as screen
 from build_presentation import (
     GID_MASK,
     INSTRUCTION_RAW_SPRITE_MARKERS,
@@ -54,6 +56,20 @@ def require_failure(
             ) from error
         return
     raise SystemExit(f"BUG-016 proof: {label} was accepted")
+
+
+def require_gameplay_failure(
+    root: ET.Element, path: Path, expected: str, label: str,
+) -> None:
+    try:
+        screen.validate_gameplay_sprite_locations(root, path)
+    except ValueError as error:
+        if expected not in str(error):
+            raise SystemExit(
+                f"BUG-059 proof: {label} produced wrong diagnostic: {error}"
+            ) from error
+        return
+    raise SystemExit(f"BUG-059 proof: {label} was accepted")
 
 
 def marker_manifest(records: dict[tuple[int, int], int]) -> list[dict[str, object]]:
@@ -126,6 +142,120 @@ def main() -> None:
     require_failure(wrong_character, instruction_path, "wrong=[(28, 7)]",
                     "misplaced instruction character metadata")
 
+    gameplay_path = args.tiled_dir / "coco-screen.tmx"
+    gameplay_root = ET.parse(gameplay_path).getroot()
+    gameplay_layer = screen.validate_gameplay_sprite_locations(
+        gameplay_root, gameplay_path,
+    )
+    gameplay_records = layer_records(gameplay_layer)
+    if gameplay_records != screen.GAMEPLAY_SPRITE_LOCATIONS:
+        raise SystemExit("BUG-059 proof: gameplay sprite marker differs")
+
+    assets = args.tiled_dir.parent / "assets" / "arcade"
+    baseline_compilation = screen.compile_screen(
+        gameplay_path, assets / "maze.json", assets / "chars.json",
+        assets / "sprites.json",
+    )
+    original_parse = screen.ET.parse
+
+    def changed_metadata_parse(path: Path):
+        tree = original_parse(path)
+        if Path(path).resolve() == gameplay_path.resolve():
+            replace_cell(
+                layer(tree.getroot(), "Sprite Locations"), (32, 13), 634,
+            )
+        return tree
+
+    # Bypass only the exact-value check on this in-memory alternate marker so
+    # the compiler's layer-identity skip can be compared independently.
+    def accept_metadata_for_exclusion_check(
+        root: ET.Element, path: Path,
+    ) -> ET.Element:
+        return layer(root, "Sprite Locations")
+
+    with patch.object(screen.ET, "parse", side_effect=changed_metadata_parse):
+        with patch.object(
+            screen, "validate_gameplay_sprite_locations",
+            side_effect=accept_metadata_for_exclusion_check,
+        ):
+            changed_marker_compilation = screen.compile_screen(
+                gameplay_path, assets / "maze.json", assets / "chars.json",
+                assets / "sprites.json",
+            )
+    if changed_marker_compilation != baseline_compilation:
+        raise SystemExit(
+            "BUG-059 proof: gameplay Sprite Locations affected static output"
+        )
+
+    missing_game_layer = copy.deepcopy(gameplay_root)
+    missing_game_layer.remove(
+        layer(missing_game_layer, "Sprite Locations"),
+    )
+    require_gameplay_failure(
+        missing_game_layer, gameplay_path,
+        "expected one Sprite Locations layer; found 0", "missing gameplay layer",
+    )
+
+    duplicate_game_layer = copy.deepcopy(gameplay_root)
+    duplicate_game_layer.append(copy.deepcopy(
+        layer(duplicate_game_layer, "Sprite Locations"),
+    ))
+    require_gameplay_failure(
+        duplicate_game_layer, gameplay_path,
+        "expected one Sprite Locations layer; found 2",
+        "duplicate gameplay layer",
+    )
+
+    missing_marker = copy.deepcopy(gameplay_root)
+    replace_cell(layer(missing_marker, "Sprite Locations"), (32, 13), 0)
+    require_gameplay_failure(
+        missing_marker, gameplay_path, "missing=[(32, 13)]",
+        "missing gameplay marker",
+    )
+
+    extra_marker = copy.deepcopy(gameplay_root)
+    replace_cell(layer(extra_marker, "Sprite Locations"), (33, 13), 633)
+    require_gameplay_failure(
+        extra_marker, gameplay_path, "extra=[(33, 13)]",
+        "extra gameplay marker",
+    )
+
+    wrong_coordinate = copy.deepcopy(gameplay_root)
+    wrong_location_layer = layer(wrong_coordinate, "Sprite Locations")
+    replace_cell(wrong_location_layer, (32, 13), 0)
+    replace_cell(wrong_location_layer, (31, 13), 633)
+    require_gameplay_failure(
+        wrong_coordinate, gameplay_path,
+        "missing=[(32, 13)], extra=[(31, 13)]",
+        "misplaced gameplay marker",
+    )
+
+    wrong_gid = copy.deepcopy(gameplay_root)
+    replace_cell(layer(wrong_gid, "Sprite Locations"), (32, 13), 8)
+    require_gameplay_failure(
+        wrong_gid, gameplay_path, "wrong=[(32, 13)]",
+        "non-sprite gameplay marker GID",
+    )
+
+    original_tileset_ranges = screen.tileset_ranges
+
+    def wrong_sprite_dimensions(root: ET.Element, path: Path):
+        ranges = original_tileset_ranges(root, path)
+        sprites = next(item for item in ranges
+                       if item["name"] == "sprites_raw2bpp")
+        sprites["tilewidth"] = 8
+        return ranges
+
+    wrong_dimensions = copy.deepcopy(gameplay_root)
+    with patch.object(
+        screen, "tileset_ranges", side_effect=wrong_sprite_dimensions,
+    ):
+        require_gameplay_failure(
+            wrong_dimensions, gameplay_path,
+            "expected sprites_raw2bpp (16, 16)",
+            "wrong gameplay sprite dimensions",
+        )
+
     if args.manifest:
         manifest = json.loads(args.manifest.read_text(encoding="ascii"))
         if manifest.get("map_count") != len(MAP_NAMES):
@@ -137,13 +267,19 @@ def main() -> None:
             raise SystemExit("BUG-016 proof: manifest instruction markers differ")
         if markers.get("level-start") != marker_manifest(expected_level):
             raise SystemExit("BUG-016 proof: manifest level-start markers differ")
+        if markers.get("gameplay") != marker_manifest(
+            screen.GAMEPLAY_SPRITE_LOCATIONS,
+        ):
+            raise SystemExit("BUG-059 proof: manifest gameplay marker differs")
 
     deferred = sum(len(contract["deferred"]) for contract in
                    PRESENTATION_LAYER_CONTRACTS.values())
     print(
         f"BUG-016 proof: {len(contracts)} role contracts, "
         f"{len(raw_instruction) + len(raw_level)} raw markers, "
-        f"{deferred} deferred logo layers, 5 negative diagnostics valid"
+        f"{deferred} deferred logo layers, 5 presentation negative diagnostics; "
+        "BUG-059 gameplay marker valid, metadata excluded, "
+        "7 negative diagnostics"
     )
 
 

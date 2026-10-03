@@ -1,0 +1,116 @@
+{
+  "ticket": "BUG-059",
+  "status": "isolated Ready prerequisite implemented; combined integration pending",
+  "classification": "Standard",
+  "baseline_commit": "4d9ce9b521eaeae0b71a17c6a1f6516bd4503b32",
+  "target": "Validate exactly one 16x16 sprites_raw2bpp marker at (32,13)=633 on gameplay; omit metadata from static pixels; preserve strict current presentation roles and marker ownership.",
+  "TMX_inputs": {
+    "tiled/black-and-whitte-screen.tmx": {
+      "sha256": "1698179b66ce15c0804f5855604211a619a3b9e86d1d272857c1e0018d4b22fa",
+      "matches_pinned": true
+    },
+    "tiled/coco-attract-screen.tmx": {
+      "sha256": "ecc0071a3a3998967401250e977750a9b988444828a9b4e05fe6905de447bf40",
+      "matches_pinned": true
+    },
+    "tiled/coco-credits-screen.tmx": {
+      "sha256": "ba80c3d41e279160f3700e7a891ae7502e68c4f05cbd1c8385757b6e77d0a472",
+      "matches_pinned": true
+    },
+    "tiled/coco-enter-high-score-screen.tmx": {
+      "sha256": "4f57c7ac5de742b528d5fa0bcebb03db46bd53c67ef0ea4e86e8c5e3d89c41c3",
+      "matches_pinned": true
+    },
+    "tiled/coco-game-over-screen.tmx": {
+      "sha256": "8ef2103ced78ca35fd31fc0cbf618cf2552bc623b92b44a2c73642779b2242ab",
+      "matches_pinned": true
+    },
+    "tiled/coco-high-score-screen.tmx": {
+      "sha256": "b014d151e4fd8228faceac8e7bdea4d792abf6b8e8cd8f8f458f736c55df0d61",
+      "matches_pinned": true
+    },
+    "tiled/coco-instructions-screen.tmx": {
+      "sha256": "cee716b3e0c42b30bd25a145dd59191eeff0b90d8be7aa9c6978015be818cbc8",
+      "matches_pinned": true
+    },
+    "tiled/coco-keybind-options-screen.tmx": {
+      "sha256": "1b8de791e7d1550e448a2adb1850d362faa262968c030e12a0530e93fa758ae1",
+      "matches_pinned": true
+    },
+    "tiled/coco-level-start-screen.tmx": {
+      "sha256": "04fd27505700dcfc94453f416b640ba5543bead9e2068b5c906f0a669f7d9469",
+      "matches_pinned": true
+    },
+    "tiled/coco-options-screen.tmx": {
+      "sha256": "5b4e5f1da0d2c8eec216e069325ec4afc8960c22b8be7f5cf1af53af0018c749",
+      "matches_pinned": true
+    },
+    "tiled/coco-screen.tmx": {
+      "sha256": "f84c547553df61f749b7efbd9604a877127af6bbf59511d846896c821dbf6ef9",
+      "matches_pinned": true
+    }
+  },
+  "all_11_TMX_hashes_match": true,
+  "source_files": {
+    "scripts/build_screen.py": {
+      "sha256": "6d7b045523c772d16e4b856d961fdb25f73c73299b0830dd77aedfac0afe13a0",
+      "baseline_sha256": "8a977cf36ea8d9c83a8420054a1c1f21775d9467d50f4618b515901dd0675058"
+    },
+    "scripts/build_presentation.py": {
+      "sha256": "99f3b2ed3a2df3b784f602053a0412ef4a6b239c689a6c39c15c2c6e4f647439",
+      "baseline_sha256": "3a0e9ba42d4a6cde1fc9ef771315c92cf9dc4eaac49161db17fefa5c766eda5c"
+    },
+    "scripts/verify_bug016_presentation_layers.py": {
+      "sha256": "dee4ef6f2e55b0775a51fbbe3a132ecd7e31a106b830a261d23ae8ac371d5ac7",
+      "baseline_sha256": "801984e83a46c9682bf3a646ac12491117fbcea856264ec86f0beff4dc36d5a1"
+    }
+  },
+  "prototype_patch": {
+    "path": "wiki/internal/tickets/evidence/rsch014-A/BUG059-060-layer-compiler-prototype.patch",
+    "worktree_raw_sha256": "f1402ecef9c2737df5eb167b75ff462cce791915178c3bd731e742adbf99ab60",
+    "lf_normalized_sha256": "eee7207737232ecb24a7f86cbfc617f5e56190a7015065dabc04205a317ef69c",
+    "pinned_sha256": "eee7207737232ecb24a7f86cbfc617f5e56190a7015065dabc04205a317ef69c",
+    "normalized_hash_matches_pin": true
+  },
+  "manifest": {
+    "path": "wiki/internal/tickets/evidence/rsch014-ready-059/layer-contracts.json",
+    "sha256": "7078dcc731d806f94d5698f9f4d354722ecab3200196512d07b9a737da8d0e0e",
+    "origin": "Generated ignored repro fixture from pinned current-map set and strict current role contracts; retained here for reproducible verification."
+  },
+  "verification": {
+    "commands": [
+      "git apply --check wiki/internal/tickets/evidence/rsch014-A/BUG059-060-layer-compiler-prototype.patch",
+      "wsl python3 scripts/verify_bug016_presentation_layers.py --tiled-dir tiled --manifest repro/bug059-layer-contracts.json",
+      "wsl python3 -m py_compile scripts/build_screen.py scripts/build_presentation.py scripts/verify_bug016_presentation_layers.py",
+      "wsl python3 wiki/internal/tickets/evidence/rsch014-A/capture_evidence.py"
+    ],
+    "presentation": "PASS: 9 current role contracts, 22 raw markers, 2 deferred logo layers, 5 negative diagnostics.",
+    "gameplay_marker": "PASS: valid identity at (32,13)=633; seven malformed cases rejected: missing/duplicate layer, missing/extra marker, wrong coordinate, wrong GID, wrong dimensions.",
+    "metadata_output": "PASS: static compile tuple is invariant when only the Sprite Locations marker GID is changed in-memory; compile_screen excludes metadata from its output.",
+    "compiler_prototype": {
+      "result": "pass",
+      "screen_cells": 960,
+      "unique_static_tiles": 97,
+      "source_role": "coco-screen.tmx",
+      "sprite_locations_omitted_after_validation": true
+    },
+    "packed_static_frames": {
+      "attract": "6774a38fb204013c265dd015c878e315a05dc87eae6ee6e5166f57074bef0b59",
+      "instructions": "93514112a0e12e632a891a1cc04495764c229863bd22769041ee97aea4d4aaf9",
+      "level-start": "72615e2b072d96e4db0a9f43189eef82f4c0a188d1e6d05ec4c7b91d7f4c605f"
+    },
+    "capture_snapshot_sha256": "bfd72cc2c0a89b02f40c20e2ad8da1458292e424d0d365851ac3e7cba1ada250",
+    "original_historical_outputs_restored": {
+      "snapshot.json": "BFD72CC2C0A89B02F40C20E2AD8DA1458292E424D0D365851AC3E7CBA1ADA250",
+      "attract-static.png": "634E92C0EADF42CD87392B30799C687FBFE443CFFBDB149085289621428FFCE8",
+      "instructions-static.png": "D44E616F2F5C57DCEC8DB761D3A70822A69A9CB6ACCAF2D05EDB5FB19BDDA3EA",
+      "level-start-static.png": "0E71A83AA6316FA9AA0C5B8AD14A8B7BC39E33D237DF004F7777EA34E4F81433"
+    }
+  },
+  "not_run": [
+    "full ROM build and capacity: explicitly waits for FEAT-005 integration",
+    "runtime/emulator: outside this compiler contract"
+  ],
+  "acceptance_boundary": "Isolated compiler prerequisite only. No full-ROM acceptance, capacity pass, or Done status claimed.",
+  "TMX_mutations": 0
+}

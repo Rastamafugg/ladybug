@@ -120,6 +120,7 @@ INSTRUCTION_STATIC_LAYERS = (
 INSTRUCTION_METADATA_LAYER = "Sprite Locations"
 ENTER_HIGH_SCORE_METADATA_LAYER = "Sprite Locations"
 ENTER_HIGH_SCORE_CURSOR_MARKER = {(19, 22): 545}
+ENTER_HIGH_SCORE_SPRITE_LOCATIONS = {**ENTER_HIGH_SCORE_CURSOR_MARKER, (32, 13): 633}
 ENTER_HIGH_SCORE_GRID_ROWS = (
     ((16, 4), (20, 4), (24, 4)),
     ((12, 6), (16, 6), (20, 6), (24, 6), (28, 6)),
@@ -192,7 +193,7 @@ PRESENTATION_LAYER_CONTRACTS = {
     },
     "high-score": {
         "static": ("High Score Table and Branding",),
-        "metadata": ("Coin Positions", "Selected Option"),
+        "metadata": ("Coin Positions",),
         "runtime": (),
         "deferred": ("Logo Frame 1", "Logo Frame 2"),
     },
@@ -200,7 +201,7 @@ PRESENTATION_LAYER_CONTRACTS = {
     "credits": {"static": ("Credits Screen",), "metadata": (), "runtime": (), "deferred": ()},
     "game-over": {
         "static": ("Arcade Maze Border", "CoCo Side HUD", "Game Over Overlay"),
-        "metadata": (),
+        "metadata": ("Sprite Locations",),
         "runtime": (),
         "deferred": (),
     },
@@ -234,15 +235,8 @@ INSTRUCTION_RAW_SPRITE_MARKERS = {
     (13, 14): 593, (17, 14): 593, (21, 14): 593,
     INSTRUCTION_ANGEL_ROOT: 636,
 }
-LEVEL_START_METADATA = {
-    **{(x, 2): 497 for x in range(33, 39)},
-    **{(x, 6): 497 for x in range(33, 39)},
-    (16, 7): 633,
-    (19, 7): 481, (20, 7): 497, (21, 7): 497, (22, 7): 497,
-    (33, 9): 497,
-    (32, 13): 633,
-    (35, 13): 481, (36, 13): 497, (37, 13): 497, (38, 13): 497,
-}
+LEVEL_START_METADATA = {(16, 7): 633, (32, 13): 633}
+GAME_OVER_SPRITE_LOCATIONS = {(32, 13): 633}
 
 
 def sprite_transform(tile: list[list[int]], flags: int) -> list[list[int]]:
@@ -693,19 +687,26 @@ def validate_presentation_layers(
             path, root, by_name[INSTRUCTION_METADATA_LAYER],
             ("chars_raw2bpp", "sprites_raw2bpp"),
         )
+    if role == "game-over":
+        metadata = by_name["Sprite Locations"]
+        require_records(
+            path, "game-over sprite locations", layer_records(metadata),
+            GAME_OVER_SPRITE_LOCATIONS,
+        )
+        validate_layer_tilesets(path, root, metadata, ("sprites_raw2bpp",))
     if role == "level-start":
         records = layer_records(by_name["Sprite Locations"])
-        require_records(path, "level-start metadata", records, LEVEL_START_METADATA)
+        require_records(path, "level-start sprite locations", records, LEVEL_START_METADATA)
         validate_layer_tilesets(
             path, root, by_name["Sprite Locations"],
-            ("chars_raw2bpp", "sprites_raw2bpp"),
+            ("sprites_raw2bpp",),
         )
     if role == "enter-high-score":
         metadata_layer = by_name[ENTER_HIGH_SCORE_METADATA_LAYER]
         records = layer_records(metadata_layer)
         require_records(
             path, "enter-high-score cursor metadata", records,
-            ENTER_HIGH_SCORE_CURSOR_MARKER,
+            ENTER_HIGH_SCORE_SPRITE_LOCATIONS,
         )
         if metadata_layer.get("offsety") != "1":
             raise ValueError(
@@ -1367,7 +1368,7 @@ def parse_enter_high_score_contract(
     records = layer_records(metadata)
     require_records(
         path, "enter-high-score cursor metadata", records,
-        ENTER_HIGH_SCORE_CURSOR_MARKER,
+        ENTER_HIGH_SCORE_SPRITE_LOCATIONS,
     )
     cursor_pixels, cursor_code = instruction_sprite(
         root, path, records[(19, 22)], sprites
