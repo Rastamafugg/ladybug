@@ -1,0 +1,175 @@
+{
+  "cases": [
+    {
+      "actual": {
+        "ok": true
+      },
+      "expected": "accept",
+      "name": "run acknowledgement accepted",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: run acknowledgement must contain ok=true",
+      "expected": "reject",
+      "name": "false run acknowledgement rejected",
+      "passed": true
+    },
+    {
+      "actual": {
+        "status": "adjacent"
+      },
+      "expected": "accept",
+      "name": "adjacent wait request ID accepted",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: wait_for_stop must immediately follow the acknowledged run call",
+      "expected": "reject",
+      "name": "nonadjacent wait request rejected",
+      "passed": true
+    },
+    {
+      "actual": {
+        "id": 69,
+        "result": {
+          "ok": true
+        }
+      },
+      "expected": "accept",
+      "name": "run raw response correlated",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: run call receipt does not match its request ID/outcome",
+      "expected": "reject",
+      "name": "stale run response ID rejected",
+      "passed": true
+    },
+    {
+      "actual": {
+        "status": "correlated"
+      },
+      "expected": "accept",
+      "name": "wait raw response correlated",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: wait_for_stop call receipt does not match its request ID/outcome",
+      "expected": "reject",
+      "name": "stale wait response ID rejected",
+      "passed": true
+    },
+    {
+      "actual": {
+        "bp_id": 11,
+        "marker": true,
+        "pc": 5589,
+        "status": "breakpoint"
+      },
+      "expected": "accept",
+      "name": "installed ID and exact PC accepted",
+      "passed": true
+    },
+    {
+      "actual": {
+        "marker": false,
+        "status": "timeout"
+      },
+      "expected": "accept",
+      "name": "timeout is not a marker",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: breakpoint ID is not acknowledged and installed: 9",
+      "expected": "reject",
+      "name": "stale breakpoint ID rejected",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: PC 0xA8D2 differs from breakpoint 11 address 0x15D5",
+      "expected": "reject",
+      "name": "known breakpoint ID at wrong PC rejected",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: wait_for_stop reason is not breakpoint: 'pause'",
+      "expected": "reject",
+      "name": "pause is not a marker",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: breakpoint ID is not acknowledged and installed: None",
+      "expected": "reject",
+      "name": "missing breakpoint ID rejected",
+      "passed": true
+    },
+    {
+      "actual": "RuntimeError: required marker missing: front-pixel",
+      "expected": "reject",
+      "name": "real timeout remains a failed marker",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: init callsite live bytes do not match the pinned artifact",
+      "expected": "reject",
+      "name": "wrong live marker bytes rejected",
+      "passed": true
+    },
+    {
+      "actual": {
+        "start": 0
+      },
+      "expected": "accept",
+      "name": "stage 9 group starts at type zero",
+      "passed": true
+    },
+    {
+      "actual": {
+        "start": 1
+      },
+      "expected": "accept",
+      "name": "stage 10 group starts at type one",
+      "passed": true
+    },
+    {
+      "actual": {
+        "start": 4
+      },
+      "expected": "accept",
+      "name": "stage 13 group starts at type four",
+      "passed": true
+    },
+    {
+      "actual": {
+        "start": 0
+      },
+      "expected": "accept",
+      "name": "stage 14 wraps group to type zero",
+      "passed": true
+    },
+    {
+      "actual": "RuntimeError: required marker missing: front-replay",
+      "expected": "reject",
+      "name": "missing front replay marker rejected",
+      "passed": true
+    },
+    {
+      "actual": {
+        "status": "valid"
+      },
+      "expected": "accept",
+      "name": "all five live phase contracts accepted",
+      "passed": true
+    },
+    {
+      "actual": "ValueError: candidate phase_contract count differs: 4 != 5",
+      "expected": "reject",
+      "name": "missing fifth live phase contract rejected",
+      "passed": true
+    }
+  ],
+  "monitor_imported": false,
+  "runtime_launched": false,
+  "schema": "ladybug-rsch014-ready-086-adapter-selftest-v2",
+  "status": "pass"
+}

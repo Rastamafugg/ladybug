@@ -31,6 +31,17 @@ RUN_LEDGER: list[dict[str, object]] = []
 INSTALLED_BREAKPOINTS: dict[int, int] = {}
 PRIMARY_STREAM_FAILED = False
 RUN_EPOCH = 0
+PHASE_NAMES = (
+    "cold-credited-start",
+    "last-bonus-to-part9-helper-preview",
+    "ordered-part9-types-and-latest-two-skull-override",
+    "existing-deadline-type4-replacement-and-type1-resumption",
+    "group-init-9-10-13-14-front-pixel-replay",
+)
+PHASE_TIMEOUT_MEANING = (
+    "A required marker or verifier operation was absent at its named phase boundary. "
+    "Timeout is not evidence of target slowness."
+)
 
 
 def sha(data: bytes) -> str:
@@ -46,7 +57,13 @@ def load_json(path: Path):
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[5]
+    source = Path(__file__).resolve()
+    for candidate in source.parents:
+        if ((candidate / "wiki/index.html").is_file() and
+                (candidate / "scripts/verify_bug009_monitor_input.py").is_file() and
+                (candidate / "worktrees/bug086-page34-preparation/repro/bug086_e3_observer.py").is_file()):
+            return candidate
+    return source.parents[5]
 
 
 def _platform_path(spec: dict[str, str]) -> Path:
@@ -83,6 +100,36 @@ def _check_hash(path: Path, expected: str, label: str, failures: list[str]) -> N
         failures.append(f"{label} SHA-256 mismatch: {actual} != {expected}")
 
 
+def _phase_contract_errors(contract: object) -> list[str]:
+    if not isinstance(contract, list):
+        return ["candidate phase_contract must be an ordered five-phase list"]
+    errors: list[str] = []
+    if len(contract) != len(PHASE_NAMES):
+        errors.append(f"candidate phase_contract count differs: {len(contract)} != {len(PHASE_NAMES)}")
+    for index, row in enumerate(contract):
+        if not isinstance(row, dict):
+            errors.append(f"candidate phase_contract row {index + 1} must be an object")
+            continue
+        expected_name = PHASE_NAMES[index] if index < len(PHASE_NAMES) else None
+        if row.get("name") != expected_name:
+            errors.append(f"candidate phase_contract row {index + 1} name differs: {row.get('name')!r} != {expected_name!r}")
+        if row.get("deadline_seconds") != 45:
+            errors.append(f"candidate phase_contract row {index + 1} deadline must be 45 seconds")
+        if row.get("primary_call_budget_seconds") != 40:
+            errors.append(f"candidate phase_contract row {index + 1} primary-call budget must be 40 seconds")
+        if not isinstance(row.get("success_marker"), str) or not row["success_marker"].strip():
+            errors.append(f"candidate phase_contract row {index + 1} must name its success marker")
+        if row.get("timeout_meaning") != PHASE_TIMEOUT_MEANING:
+            errors.append(f"candidate phase_contract row {index + 1} timeout meaning differs")
+    return errors
+
+
+def _require_phase_contract(contract: object) -> None:
+    errors = _phase_contract_errors(contract)
+    if errors:
+        raise ValueError("; ".join(errors))
+
+
 def _preflight(worktree: Path, manifest_path: Path) -> dict[str, object]:
     manifest = load_json(manifest_path)
     root = _repo_root()
@@ -90,6 +137,14 @@ def _preflight(worktree: Path, manifest_path: Path) -> dict[str, object]:
     checks: dict[str, object] = {}
     if manifest.get("schema") != "ladybug-rsch014-ready-086-candidate-manifest-v1":
         failures.append("candidate manifest schema differs")
+    phase_errors = _phase_contract_errors(manifest.get("phase_contract"))
+    failures.extend(phase_errors)
+    checks["phase_contract"] = {
+        "phase_count": len(manifest.get("phase_contract", [])) if isinstance(manifest.get("phase_contract"), list) else None,
+        "expected_phase_names": list(PHASE_NAMES),
+        "matches_live_adapter_contract": not phase_errors,
+        "errors": phase_errors,
+    }
     checkout = manifest["candidate_source_checkout"]
     try:
         actual_head = _run_git_head(worktree)
@@ -361,6 +416,15 @@ def _self_test(output: Path) -> int:
     expect("stage 13 group starts at type four", lambda: {"start": _normal_group_start(13)}, True)
     expect("stage 14 wraps group to type zero", lambda: {"start": _normal_group_start(14)}, True)
     expect("missing front replay marker rejected", lambda: _require_markers({"stage-9", "front-pixel", "front-replay"}, {"stage-9", "front-pixel"}), False)
+    valid_phases = [
+        {"name": name, "deadline_seconds": 45, "primary_call_budget_seconds": 40,
+         "success_marker": "required phase marker", "timeout_meaning": PHASE_TIMEOUT_MEANING}
+        for name in PHASE_NAMES
+    ]
+    expect("all five live phase contracts accepted",
+           lambda: (_require_phase_contract(valid_phases) or {"status": "valid"}), True, "valid")
+    expect("missing fifth live phase contract rejected",
+           lambda: _require_phase_contract(valid_phases[:4]), False)
     receipt = {"schema": "ladybug-rsch014-ready-086-adapter-selftest-v2",
                "status": "pass" if all(row["passed"] for row in cases) else "fail",
                "runtime_launched": False, "monitor_imported": False, "cases": cases}

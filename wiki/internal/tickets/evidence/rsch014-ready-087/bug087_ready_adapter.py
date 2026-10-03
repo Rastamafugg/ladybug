@@ -296,11 +296,13 @@ def cmd_plan(args: argparse.Namespace) -> int:
         and item.get("bug086_dependency", {}).get("receipt_sha256") == dep_hash
         for item in (baseline, candidate)
     )
+    paired_source_revisions_match = _paired_source_revision_matches(baseline, candidate)
     handlers_attached = True
-    plan["dispatchable"] = bool(done and paired_receipts_match and handlers_attached)
+    plan["dispatchable"] = bool(done and paired_receipts_match and paired_source_revisions_match and handlers_attached)
     plan["dispatch_gates"] = {
         "BUG086_actualDone": done,
         "both_builds_captured_against_same_receipt": paired_receipts_match,
+        "both_builds_share_source_revision": paired_source_revisions_match,
         "runtime_action_handlers_attached": handlers_attached,
     }
     plan["dependency"] = {"ticket": "BUG-086", "status": dep_note,
@@ -665,11 +667,25 @@ def _rate_expected(stage: int, bucket: int) -> int:
     return 0x00 if rate_index < 6 else 0x33 if rate_index < 12 else 0x80 if rate_index < 15 else 0xCC
 
 
+def _paired_source_revision_matches(baseline: dict[str, Any], candidate: dict[str, Any]) -> bool:
+    baseline_revision = baseline.get("source_revision")
+    candidate_revision = candidate.get("source_revision")
+    return (isinstance(baseline_revision, str) and bool(baseline_revision.strip()) and
+            isinstance(candidate_revision, str) and bool(candidate_revision.strip()) and
+            baseline_revision == candidate_revision)
+
+
+def _assert_pair_source_revision(baseline: dict[str, Any], candidate: dict[str, Any]) -> None:
+    if not _paired_source_revision_matches(baseline, candidate):
+        raise ValueError("baseline and candidate source revisions must be the same nonempty integrated revision")
+
+
 def _assert_identity_pair(baseline: dict[str, Any], candidate: dict[str, Any]) -> None:
     if baseline.get("profile") != candidate.get("profile"):
         raise ValueError("baseline and candidate profiles differ")
     if baseline.get("side") != "baseline" or candidate.get("side") != "candidate":
         raise ValueError("paired identities must be baseline then candidate")
+    _assert_pair_source_revision(baseline, candidate)
     for side in (baseline, candidate):
         verify_identity(side)
         dep = side.get("bug086_dependency", {})
@@ -1261,6 +1277,19 @@ def self_test() -> None:
     expect("wrong live bytes rejected", lambda: _require_identity_bytes(b"\xBD\xA3\xC5", b"\xBD\xA3\xC4", "rate callsite"), False)
     expect("matching live bytes accepted", lambda: _require_identity_bytes(b"\xBD\xA3\xC5", b"\xBD\xA3\xC5", "rate callsite"), True)
     expect("45-second deadline accepted", lambda: validate_plan(plan), True)
+    paired_base = {"source_revision": "integrated-commit-abc", "side": "baseline", "profile": "complete-ad1-keyboard"}
+    paired_candidate = {"source_revision": "integrated-commit-abc", "side": "candidate", "profile": "complete-ad1-keyboard"}
+    mismatched_candidate = {**paired_candidate, "source_revision": "different-commit-def"}
+    missing_revision_candidate = {**paired_candidate, "source_revision": ""}
+    whitespace_revision_candidate = {**paired_candidate, "source_revision": "   "}
+    expect("paired identities with same source revision accepted",
+           lambda: _assert_pair_source_revision(paired_base, paired_candidate), True)
+    expect("paired identities with different source revisions rejected",
+           lambda: _assert_pair_source_revision(paired_base, mismatched_candidate), False)
+    expect("paired identity missing source revision rejected",
+           lambda: _assert_pair_source_revision(paired_base, missing_revision_candidate), False)
+    expect("paired identity blank source revision rejected",
+           lambda: _assert_pair_source_revision(paired_base, whitespace_revision_candidate), False)
     if not all(case["passed"] for case in cases):
         raise AssertionError(json.dumps(cases, indent=2))
     # Fractional carry arithmetic: two-pixel source step; one-pixel endpoint tolerance.

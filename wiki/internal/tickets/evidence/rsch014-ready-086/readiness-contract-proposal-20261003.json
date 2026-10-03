@@ -1,0 +1,146 @@
+{
+  "schema": "ladybug-rsch014-runtime-readiness-review-v1",
+  "status": "offline-ready-contract-review-complete; runtime-not-authorized",
+  "reviewed_source_revision": "69550b6978231398cbdf7083378aaeca8282586c",
+  "preparation_worktree_base": "364b8e997f7673820281342815b8689a645b2f49",
+  "bug086": {
+    "adapter": {
+      "path": "wiki/internal/tickets/evidence/rsch014-ready-086/bug086_ready_successor_adapter.py",
+      "sha256": "f9d85f69f726c4912dc8bef4c2deeb9d58d1b0f9e07f6e54849a19450ef96b2b",
+      "phase_count": 5,
+      "per_phase_deadline_seconds": 45,
+      "primary_call_budget_seconds": 40,
+      "timeout_meaning": "A required marker or verifier operation was absent at its named phase boundary. Timeout is not evidence of target slowness."
+    },
+    "candidate_manifest": {
+      "path": "wiki/internal/tickets/evidence/rsch014-ready-086/candidate-r10-ad1-keyboard.json",
+      "sha256": "a1f0d40ba1f40fbf8662e7eaea1ea638c15224643863fb0cf456d7628063df4c",
+      "candidate_source_revision": "cb84a603e74c67e18ed055f13e6dc0f518dd051d",
+      "source_build_receipt_sha256": "26d62cb69c0e129afe7f03515d9dae8dd10c51cfe84d0d5ae34da81c7c52b059",
+      "full_rom_sha256": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721",
+      "runtime_rom_sha256": "058a2c868d4557cb1ba5950f7a974d4de906e20a931b6d0c6311f464360aa309",
+      "enemy_module_sha256": "72aefa23ed4ea2276a0bfbb828ea4b8a2a16e1e1d86a6eda660f0460eb516425",
+      "e2_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+      "rate_helper_sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+      "b2_banked_helper_sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab",
+      "artifact_hash_manifest_sha256": "63190220ce5a8aaee0505ac8f09f740a729478baed853c9c65cefe2be4913576",
+      "artifact_manifest_entry_count": 103,
+      "qualification": "Frozen corrected R10 AD1 keyboard fit/source evidence. The artifact role explicitly excludes BUG-086 runtime acceptance and integrated production acceptance."
+    },
+    "phase_contract": [
+      {
+        "name": "cold-credited-start",
+        "success_marker": "Natural coin and Start path settles one credit, enters active gameplay at exact resident C116, and live resident/enemy/presentation/page-34 bytes match the pinned candidate.",
+        "fixture_writes": "Natural coin and Start inputs only; no forced gameplay state."
+      },
+      {
+        "name": "last-bonus-to-part9-helper-preview",
+        "success_marker": "Real last-bonus pickup/popup/handoff completes; disclosed STAGE=8 precondition calls actual next_stage for Part 9; natural helper entry and type-1 preview are observed.",
+        "fixture_writes": "DOTS_LEFT=0, BONUS_LEFT=1, legal player predecessor/direction/step/framebuffer position; after real handoff, STAGE=8 then actual next_stage. Parts 2-8 are skipped and disclosed."
+      },
+      {
+        "name": "ordered-part9-types-and-latest-two-skull-override",
+        "success_marker": "Actual Part-9 timer releases and previews show logical types 1, 2, 3, 4; one real gameplay enemy_tick clears type-3 and type-4 actors at separate skulls, leaving latest type 4 pending with deadline/cursor unchanged; FRONT pixel change and alternate-owner replay are verified.",
+        "fixture_writes": "BOX_TIMER/BOX_INDEX at the real timer entry; legal actor records at skull predecessors; player coordinates/manual-neutral direction/framebuffer fixture; LAST_FRAME, ENEMY_TIMER, PLAYER_TICK_PENDING at the verified real enemy_tick route. No DEATH_STATE, framebuffer pixels, FRONT/BACK owner, or gate writes."
+      },
+      {
+        "name": "existing-deadline-type4-replacement-and-type1-resumption",
+        "success_marker": "The actual due perimeter timer consumes pending type 4 into a reused slot without advancing the cursor, then releases normal type 1 into another reused slot and advances to type 2.",
+        "fixture_writes": "BOX_TIMER/BOX_INDEX at the verified real perimeter_timer_tick entry only."
+      },
+      {
+        "name": "group-init-9-10-13-14-front-pixel-replay",
+        "success_marker": "Using only disclosed predecessor-stage writes and actual next_stage calls, Parts 9, 10, 13, 14 and repeated Part 9 initialize/reset correctly; real preview work publishes distinct FRONT pixels, then Part 9 pixels replay identically on the alternate owner.",
+        "fixture_writes": "STAGE=part-1 immediately before each actual next_stage call. The controlled call shim temporarily writes/restores low-RAM stack bytes, a return stub and registers. Pixel inspection temporarily remaps PAR1-PAR4 and restores them; it does not write framebuffer bytes or owner metadata."
+      }
+    ],
+    "action_review": {
+      "identity": "Static preflight verifies the candidate source checkout HEAD, complete build receipt, exact ROM/resident/helper/hash-manifest pins, all 103 artifact entries, authored/staged helper identity, E2 context patch/audit, observer sources, XRoar binary, B2 baseline and R10 profile evidence. Live startup reruns preflight; runtime breakpoint labels are accepted only after exact current-image byte and mapping checks.",
+      "live_mechanics": "The live command launches a fresh headless XRoar instance, uses synchronous run acknowledgement plus adjacent wait_for_stop correlation, checks acknowledged breakpoint IDs and exact PCs, and executes the five phases sequentially with independent 45-second deadlines. FRONT reads verify publication state, GIME scanout owner and physical pixels on both owners.",
+      "current_scope_limit": "A passing run against this frozen candidate remains preparation evidence only. It does not prove naturally earned Parts 9-14, integrated production acceptance, or the full maze progression."
+    },
+    "offline_verification": {
+      "preflight_command": "python wiki/internal/tickets/evidence/rsch014-ready-086/bug086_ready_successor_adapter.py preflight --worktree E:/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base --candidate-manifest wiki/internal/tickets/evidence/rsch014-ready-086/candidate-r10-ad1-keyboard.json --output wiki/internal/tickets/evidence/rsch014-ready-086/readiness-preflight-final-20261003.json",
+      "preflight_status": "pass-static-only",
+      "preflight_receipt_sha256": "15267defc298767ac2da409570fb2db7788eba0355e173f95ab93e6b500b4e3a",
+      "preflight_limits": {"failure_count": 0, "artifact_entries": 103, "phase_contract_count": 5, "runtime_launched": false, "runtime_authorized": false, "runtime_acceptance": false},
+      "self_test_command": "python wiki/internal/tickets/evidence/rsch014-ready-086/bug086_ready_successor_adapter.py self-test --output wiki/internal/tickets/evidence/rsch014-ready-086/readiness-selftest-final-20261003.json",
+      "self_test_status": "pass",
+      "self_test_cases": 23,
+      "self_test_receipt_sha256": "eb5e7d212f4431a82c0cd5214d03cd69975d7c0110c5c7e04a3b3cfe05193554",
+      "rejected_mechanics_trial": {
+        "receipt": "wiki/internal/tickets/evidence/rsch014-ready-086/readiness-preflight-phases5-20261003.json",
+        "result": "Initial worktree-local preflight found the retained E3 source under the outer project root instead of the nested worktree root. Root discovery was corrected to select the ancestor containing the retained E3 source; the rerun passed all static checks. This was a preparation path-resolution failure, not a candidate-artifact failure."
+      }
+    },
+    "parent_dispatch_receipt_proposal": {
+      "proposal_only": true,
+      "runtime_authorized": false,
+      "parent_review_status": "pending-parent-review",
+      "candidate_manifest_sha256": "a1f0d40ba1f40fbf8662e7eaea1ea638c15224643863fb0cf456d7628063df4c",
+      "adapter_sha256": "f9d85f69f726c4912dc8bef4c2deeb9d58d1b0f9e07f6e54849a19450ef96b2b",
+      "phase_deadline_seconds": 45,
+      "phase_count": 5,
+      "phase_order": [
+        "cold-credited-start",
+        "last-bonus-to-part9-helper-preview",
+        "ordered-part9-types-and-latest-two-skull-override",
+        "existing-deadline-type4-replacement-and-type1-resumption",
+        "group-init-9-10-13-14-front-pixel-replay"
+      ],
+      "candidate_artifact_directory": "E:/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base/build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-keyboard-saturated-gate-corrected",
+      "candidate_source_worktree": "E:/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base",
+      "runtime_output_policy": "Parent supplies a fresh, previously nonexistent result path after review. This proposed receipt is not consumable authorization."
+    },
+    "ready_assignment_proposal": {
+      "risk_class": "High-risk",
+      "owned_production_paths": [
+        "src/enemy_runtime.s",
+        "src/enemy_helpers_page34.s",
+        "src/main.s",
+        "scripts/build.sh",
+        "scripts/build_sparse_sprites.py",
+        "scripts/verify_sparse_sprites.py",
+        "scripts/verify_enemy_runtime.py",
+        "scripts/source_reference.json"
+      ],
+      "excluded_paths": ["user TMX files", "BUG-087 production paths", "shared canonical wiki integration"],
+      "parent_owns": ["combined integration build", "canonical ticket lifecycle", "runtime dispatch authorization", "integrated QA and acceptance"],
+      "verification_commands": [
+        "python wiki/internal/tickets/evidence/rsch014-ready-086/bug086_ready_successor_adapter.py self-test --output <new-selftest-receipt.json>",
+        "python wiki/internal/tickets/evidence/rsch014-ready-086/bug086_ready_successor_adapter.py preflight --worktree <assigned-source-worktree> --candidate-manifest <current-candidate-manifest.json> --output <new-preflight-receipt.json>",
+        "python wiki/internal/tickets/evidence/rsch014-ready-086/bug086_ready_successor_adapter.py live --worktree <assigned-source-worktree> --candidate-manifest <current-candidate-manifest.json> --authorization <parent-reviewed-dispatch.json> --output <new-live-receipt.json>"
+      ],
+      "completion_evidence": "One separate commit; current source/build/artifact hashes; five phase receipts with marker/deadline results; relevant FRONT pixel and replay hashes; offline/source/build verification; capacity and residual gates.",
+      "ready_boundary": "Before dispatch, parent must decide whether to replace this historical fit-only R10 manifest with an exact current integrated build manifest. A fit-only artifact cannot be reported as integrated production acceptance."
+    }
+  },
+  "bug087": {
+    "adapter": {
+      "path": "wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py",
+      "sha256": "977073e691c3e256c01c4502b50f879dd5256102f4ff8f4d03391c88b072cd03",
+      "scenario_plan_sha256": "a714151295ea28d1f0e1806ede6f51bd9d3820f47980956e3ce6f49a75ba5a22"
+    },
+    "guard": "Plan dispatchability and live paired-identity validation require baseline and candidate to have the same nonempty source_revision. Both identities must also verify their artifact/source receipts and name the same BUG-086 actualDone receipt.",
+    "self_test": {
+      "command": "python wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py self-test",
+      "status": "pass",
+      "guard_cases": 18,
+      "arithmetic_cases": 560,
+      "paired_revision_cases": ["matching pair accepted", "mismatched pair rejected", "empty revision rejected", "whitespace-only revision rejected"],
+      "runtime": "not run"
+    },
+    "dispatch_order": "BUG-086 must be integrated and actualDone first. Then capture fresh baseline and candidate identities against the same completion receipt and same integrated source_revision; plan must report both dependency and source-revision gates true before any parent dispatch review.",
+    "no_execution": "No paired builds were captured and no emulator was attached or launched in this preparation."
+  },
+  "remaining_gates": [
+    "Parent review and integration of this preparation commit.",
+    "BUG-086 production implementation and combined supported-profile QA remain execution work; this readiness evidence does not mark BUG-086 Done.",
+    "Parent must bind any future BUG-086 runtime dispatch to the chosen current candidate manifest/adapter hashes; the included receipt fields remain unauthorized.",
+    "BUG-087 remains blocked from runtime dispatch until BUG-086 is integrated and actualDone and fresh paired identities share one source_revision and dependency receipt."
+  ],
+  "runtime_launched": false,
+  "runtime_authorized": false,
+  "production_sources_modified": false,
+  "canonical_ticket_pages_modified": false
+}
