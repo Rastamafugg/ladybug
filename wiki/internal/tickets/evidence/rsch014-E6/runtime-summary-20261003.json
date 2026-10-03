@@ -1,0 +1,185 @@
+{
+  "schema": "ladybug-rsch014-e6-boundary-result-summary-v1",
+  "date": "2026-10-03",
+  "ticket": "RSCH-014 / BUG-086 E6",
+  "result": "incomplete-boundary-rejection",
+  "acceptance": "not met; return breakpoint event and resident $C116 marker were not observed",
+  "phase": {
+    "name": "cold-credited-start-to-first-active-worklist",
+    "limit_seconds": 45,
+    "elapsed_including_cleanup_seconds": 12.687409,
+    "deadline_respected": true,
+    "return_wait_seconds": 12.012349,
+    "return_wait_limit_seconds": 12.0,
+    "timeout": "timeout: no acknowledged breakpoint event before this wait bound"
+  },
+  "runtime_identity": {
+    "rom_sha256": "5d96372e03e6b78670c531f754b36c40a6ea73388cbb822869b41eb149a15458",
+    "helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "active_sha256": "8add5b4086f00509e654d3bb47e82ab6a692178b390a73b16f06d46f715971d9",
+    "observer_sha256": "0bee8d5e5aa91e8130a0dfbf950a1d1d33c9360370415fc33bcae90d72a50a34",
+    "runtime_instance": {
+      "launch": "private isolated XRoar, null UI/audio, CoCo3 GMC 512K, -no-ratelimit",
+      "monitor_peer": [
+        "127.0.0.1",
+        56927
+      ],
+      "pid": 1522,
+      "secondary_has_breakpoint_subscription": false,
+      "secondary_hello": {
+        "jsonrpc": "2.0",
+        "method": "hello",
+        "params": {
+          "machine_name": "coco3",
+          "monitor_protocol_version": "0.6.0",
+          "run_state": "halted",
+          "xroar_version": "1.11"
+        }
+      },
+      "secondary_initial_state": {
+        "state": "halted"
+      },
+      "secondary_preopened_before_phase_wait": true
+    }
+  },
+  "helper_entry": {
+    "event_acknowledged": true,
+    "breakpoint_id": 9,
+    "pc": "0xA8D2",
+    "register_S": "0x1FD4",
+    "helper_length": 87,
+    "helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "authored_staged_physical_PAR5_mapped_all_match": true,
+    "entry_raw_PAR0_7": [
+      184,
+      172,
+      173,
+      174,
+      175,
+      180,
+      190,
+      191
+    ],
+    "entry_low6_PAR0_7": [
+      56,
+      44,
+      45,
+      46,
+      47,
+      52,
+      62,
+      63
+    ],
+    "entry_structured_task0_PAR0_7": [
+      56,
+      44,
+      45,
+      46,
+      47,
+      52,
+      62,
+      63
+    ]
+  },
+  "dynamic_caller": {
+    "name": "draw_enemy_stage",
+    "source_file": "src/enemy_runtime.s",
+    "source_line": 3327,
+    "pc": "0x15D2",
+    "live_bytes": "1792fd",
+    "return_stack_word": "0x15D5",
+    "return_pc": "0x15D5",
+    "target_pc": "0xA8D2"
+  },
+  "return_wait": {
+    "request_id": 69,
+    "run_acknowledged": true,
+    "breakpoint_event_observed": false,
+    "events_before_ack": [],
+    "other_events": [],
+    "recorded_error": "TimeoutError: source-proven helper caller return: breakpoint not observed before bounded wait ended",
+    "remaining_recorded_breakpoint_ids": {
+      "adaptive_tick_binding": 7,
+      "efn_cache_guard": 8,
+      "first_active_worklist": 10
+    },
+    "return_breakpoint_id_retained": false
+  },
+  "independent_failure_capture": {
+    "secondary_preopened_before_wait": true,
+    "pause_ack": {
+      "ok": true
+    },
+    "run_state": {
+      "last_stop_pc": 5589,
+      "last_stop_reason": "pause",
+      "state": "halted"
+    },
+    "PC": "0x15D5",
+    "last_stop_PC": "0x15D5",
+    "last_stop_reason": "pause",
+    "S": "0x1FD6",
+    "entry_S_plus_2": true,
+    "stack_at_S": "1737ad80",
+    "live_PC_bytes": "8d0f1700ae39960748489b4f",
+    "expected_enemy_artifact_bytes": "8d0f1700ae39960748489b4f",
+    "live_bytes_match": true,
+    "live_PC_bytes_sha256": "64f118822fa6efd3d51b2bf169329969a29e4382a43d486f2bafbac20c4ac916",
+    "PAR0_7_raw": [
+      56,
+      44,
+      45,
+      46,
+      47,
+      52,
+      62,
+      63
+    ],
+    "PAR0_7_low6": [
+      56,
+      44,
+      45,
+      46,
+      47,
+      52,
+      62,
+      63
+    ],
+    "structured_task0_PAR0_7": [
+      56,
+      44,
+      45,
+      46,
+      47,
+      52,
+      62,
+      63
+    ],
+    "full_helper_proof_87_bytes_valid": true
+  },
+  "C116_observed": false,
+  "no_gameplay_acceptance_claim": true,
+  "raw_result": {
+    "path": "runtime-result-20261003.json",
+    "sha256": "68800935fa670047a35f4a7949b3538cf11974ad052dff7bc1e01117f673297f"
+  },
+  "offline_preflight": {
+    "path": "offline-launch-guard-pass-20261003.json",
+    "sha256": "71fc6d6a17c783f1808911372feec97142e4dcbe51384346c5baafa887e0b721",
+    "result": "pass; no runtime launched"
+  },
+  "hash_materialization": {
+    "hashes_are": "SHA-256 over exact raw working-tree bytes used or generated during this run, not Git object IDs",
+    "observer": "LF; 748 line feeds",
+    "offline_guard_result": "LF; 132 line feeds",
+    "runtime_result": "LF; 775 line feeds",
+    "preflight_receipt": "CRLF; 118 line endings",
+    "core_autocrlf": true,
+    "note": "A later Windows checkout can materialize LF-authored text as CRLF. Historical hashes identify the exact captured bytes; recompute a working-tree hash before reproduction."
+  },
+  "follow_up_observer_plan": {
+    "path": "follow-up-observer-mechanics-plan-20261003.json",
+    "sha256": "a9e67570cc3ff525095e984166dfd7a5d11a206cad435c504e412698a7465e42",
+    "status": "offline-plan-only; awaiting parent review before any further runtime"
+  }
+}

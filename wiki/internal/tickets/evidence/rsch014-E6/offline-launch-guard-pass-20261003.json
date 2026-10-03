@@ -1,0 +1,132 @@
+{
+  "artifact_identity": {
+    "active_expected_sha256": "8add5b4086f00509e654d3bb47e82ab6a692178b390a73b16f06d46f715971d9",
+    "active_staging_contract": {
+      "destination_PAR0_required": 56,
+      "destination_address": 911,
+      "length": 603,
+      "mainloop_installer": "src/main.s::adaptive_install_active reads PAR5=$3D, copies AUDIO_ADAPTIVE_STAGE to $038F, restores PAR5=$34",
+      "source_binary": "build/ladybug-adaptive-active.bin",
+      "sourcebuild_length_symbol": "AUDIO_ADAPTIVE_CODE_BYTES=$025B",
+      "sourcebuild_stage_symbol": "AUDIO_ADAPTIVE_STAGE=$B7A5",
+      "stage_address": 47013,
+      "stage_physical_offset": 6053,
+      "stage_physical_page": 61
+    },
+    "files": {
+      "active_map_sha256": "74a029d90f35fffd47b2d1e584fdbf6593f18375d7dd103307640bc3bb7b7d87",
+      "active_sha256": "8add5b4086f00509e654d3bb47e82ab6a692178b390a73b16f06d46f715971d9",
+      "build_receipt_sha256": "efbf998968fa3d411feeed5898660a2b08e916a613cfe15ca2eb7eb953a21090",
+      "enemy_sha256": "b0a9c3883dc19a8c5f4d3859cea3bc62343936ed880ef515a80c965d58cc16e1",
+      "helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+      "layout_sha256": "a3ab84ce76a72dcb9486d866aaf0e95c349564e5f1f44617921ae9acb1c77c24",
+      "main_map_sha256": "47b465161bf217c698398a0038dbba0713554bf5ec35816d1f2011a646c14e9f",
+      "presentation_sha256": "59114a083b009570df56f6d6047f17a395cd4bc7534f1a064a7f53d1fb953ba9",
+      "resident_sha256": "e8c338628d229a64538a9866e2550e336e7ef07a2873f794f3d5055c1a807686",
+      "rom_sha256": "5d96372e03e6b78670c531f754b36c40a6ea73388cbb822869b41eb149a15458",
+      "staged_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+      "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf"
+    },
+    "head": "bafb31537480a23b30aa4e1a67abb5a2ab87c01c",
+    "helper_expected_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "helper_staging": {
+      "bank": 0,
+      "count": 87,
+      "destination_address": 43168,
+      "destination_page": 52,
+      "source_offset": 5107,
+      "staged_equals_authored": true
+    },
+    "rom_expected_sha256": "5d96372e03e6b78670c531f754b36c40a6ea73388cbb822869b41eb149a15458",
+    "worktree": "/mnt/e/projects/ladybug/worktrees/bug086-page34-preparation"
+  },
+  "caller_contracts": [
+    {
+      "caller": "draw_enemy_fb",
+      "caller_bytes": "1794aa",
+      "caller_pc": 5157,
+      "return_pc": 5160,
+      "source_line": 2618,
+      "target_pc": 43218
+    },
+    {
+      "caller": "draw_enemy_stage",
+      "caller_bytes": "1792fd",
+      "caller_pc": 5586,
+      "return_pc": 5589,
+      "source_line": 3327,
+      "target_pc": 43218
+    }
+  ],
+  "claims": {
+    "gameplay_acceptance": false,
+    "natural_full_maze_progression": false,
+    "parts_2_through_8_skipped": false,
+    "source_or_profile_changes": false
+  },
+  "date": "2026-10-03",
+  "marker_contract": {
+    "adaptive_tick_binding": {
+      "active_offset": 258,
+      "mapping": "PAR0=$38; staged and destination active image byte match required",
+      "pc": 1169
+    },
+    "efn_cache_guard": {
+      "absence_is_not_failure": true,
+      "pc": 43168,
+      "source_callsite": "src/enemy_runtime.s::compose_enemy_animation calls efn_cache_guard after efn_preview"
+    },
+    "enemy_frame_number": {
+      "mapping": "PAR5=$34; physical and mapped helper image byte match required",
+      "pc": 43218
+    },
+    "first_worklist": {
+      "expected": "$C116",
+      "pc": 49430
+    },
+    "other_known_frontiers": {
+      "absence_during_initial_entry_is_not_failure": true,
+      "atb_after_player": 1238,
+      "enemy_tick": 54604
+    },
+    "start_dispatch": {
+      "expected": "$C14F",
+      "pc": 49487
+    }
+  },
+  "observations": [],
+  "offline_launch_guard": {
+    "candidate_and_staging_guards": "pass",
+    "emulator_or_monitor_launched": false,
+    "observer_ast_hash": "pass",
+    "offline_output_path_absent": true,
+    "pinned_files_verified": 23,
+    "private_control_contract": "pass",
+    "runtime_result_output_path_absent": true,
+    "source_proven_callers": 2,
+    "windows_git_head": "bafb31537480a23b30aa4e1a67abb5a2ab87c01c"
+  },
+  "phase": {
+    "capture_cleanup_reserve_seconds": 5.0,
+    "deadline_seconds": 45,
+    "name": "cold-credited-start-to-first-active-worklist",
+    "primary_wait_max_seconds": 40.0,
+    "status": "offline-launch-guard-pass-no-runtime-launched",
+    "success_marker": "all 87 helper bytes match authored, staged, physical, and PAR5-mapped images at helper entry; the source-proven caller and return match the built enemy image; resident $C116 is then reached with live bytes matching the built artifact",
+    "timeout_meaning": "The observer did not establish the helper entry, its source-proven return, or resident $C116 inside this 45-second phase. Timeout is not evidence of target slowness or a game defect."
+  },
+  "preflight_receipt": "wiki/internal/tickets/evidence/rsch014-E6/preflight-20261003.json",
+  "private_control_identity": {
+    "contract_static_check": "pass",
+    "ephemeral_port_source": "monitor.free_port()",
+    "launcher": "scripts/verify_bug011_runtime.py",
+    "launcher_sha256": "a12b6569112f4393c304b0fb976d9f88d92eea8c923ff5679e155b01773a9b92",
+    "monitor_client": "scripts/verify_bug009_monitor_input.py",
+    "monitor_client_sha256": "e2ae8d2c3afa458756dea478f73a2626ed0cb0da18e8fa37c6dcc23dbe6412b2",
+    "monitor_endpoint": "127.0.0.1"
+  },
+  "run_requests": [],
+  "runtime_instance": {},
+  "schema": "ladybug-rsch014-e6-bug086-helper-caller-boundary-v1",
+  "status": "incomplete"
+}

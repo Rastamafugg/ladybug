@@ -1,0 +1,21 @@
+{
+  "schema": "ladybug-rsch014-e6-followup-observer-mechanics-plan-v1",
+  "date": "2026-10-03",
+  "status": "offline-plan-only; awaiting parent review before any further runtime",
+  "trigger": "One authorized E6 run reached the dynamically source-proven helper return PC in independent capture, but the primary return breakpoint produced no event.",
+  "observed_gap": "The run record omits the return set_break response ID. clear_break responses are discarded. Failure capture pauses before reading run state, registers, and event state, so the captured last_stop_reason is pause and cannot establish whether a breakpoint stop preceded capture.",
+  "proposed_observer_changes": [
+    "Record every set_break request address and complete response, including the returned breakpoint ID, in a registry retained in evidence.",
+    "Record every clear_break request and acknowledgement result, including IDs cleared when moving from helper entry to return.",
+    "For each run request, retain acknowledgement result, every event with method and parameters before and after acknowledgement, and the final wait condition; do not discard stop or non-breakpoint events.",
+    "Before issuing pause in a failure capture, read secondary get_run_state, registers, PAR, current PC bytes, and the primary event buffer; then pause, record its acknowledgement, and read a second frozen snapshot.",
+    "Use a supported breakpoint-state query only if its exact monitor method is verified offline; otherwise rely on recorded set/clear acknowledgements and event evidence without claiming current breakpoint state."
+  ],
+  "acceptance_unchanged": "Require an acknowledged event at the source-proven return PC, expected stack advance by two, live return bytes equal the built enemy artifact, and resident $C116 identity. An independent snapshot at the return PC alone remains partial evidence and does not pass the marker.",
+  "constraints": [
+    "No production source, build, protocol, loader, profile, or boundary changes",
+    "No timing increase",
+    "No runtime until parent reviews the exact observer mechanics change and authorizes a next experiment",
+    "No succession scenarios until this boundary is resolved"
+  ]
+}

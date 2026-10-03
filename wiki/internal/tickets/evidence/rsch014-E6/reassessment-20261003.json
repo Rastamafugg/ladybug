@@ -1,0 +1,63 @@
+{
+  "schema": "ladybug-rsch014-e6-prelaunch-reassessment-v1",
+  "date": "2026-10-03",
+  "ticket": "RSCH-014 / BUG-086 E6",
+  "assessment": "High-risk unchanged; scope and 45-second boundary remain unchanged",
+  "runtime_experiment_started": false,
+  "runtime_attempts_used": 0,
+  "runtime_attempts_authorized_remaining": 1,
+  "prior_prelaunch_rejections": [
+    {
+      "receipt": "prelaunch-rejection-20261003.json",
+      "sha256": "b5c0b48c9454da40a866daebbdea81aa95026812a3010a4c137e0ae65695c280",
+      "failure": "RuntimeError: preflight AST-only parse receipt is absent",
+      "runtime_requests": 0,
+      "phase_started": false,
+      "phase_seconds": null
+    },
+    {
+      "receipt": "prelaunch-gitdir-rejection-20261003.json",
+      "sha256": "62ed2ae9e53333259dd74e967aaf5ddb5d45f9daa33a6322713a84b01cfb4362",
+      "failure": "CalledProcessError: Command '['git', 'rev-parse', 'HEAD']' returned non-zero exit status 128.",
+      "runtime_requests": 0,
+      "phase_started": false,
+      "phase_seconds": null
+    }
+  ],
+  "reassessment": "Both attempts stopped before emulator launch. First found nested receipt-key mismatch; second found WSL git cannot follow the Windows absolute linked-worktree gitdir. Neither produced run requests or boundary evidence.",
+  "last_proven_boundary": "Parent-reviewed preflight: 21 pinned paths, authored/staged 87-byte helper equality at bank 0 offset 5107, reviewed ROM/helper/active identities.",
+  "approved_next_step": "Exercise the complete observer launch guard offline using nested AST/hash receipt fields and Windows git.exe HEAD lookup; verify all artifact, source caller, private loopback-control, and output-path guards. Only after offline pass, run the still-unused single 45-second boundary experiment.",
+  "constraints": [
+    "No production/source/build/protocol/loader/profile/boundary changes",
+    "No deadline increase",
+    "No third blind retry",
+    "Parent owns canonical reassessment log"
+  ],
+  "offline_guard_rejection": {
+    "receipt": "offline-launch-guard-rejection-20261003.json",
+    "sha256": "f5fee7c97cf1e68583b4dbce5262e1315e9c69ab7efde87e218695b888f60027",
+    "failure": "RuntimeError: draw_enemy_fb LBSR does not target mapped enemy_frame_number",
+    "runtime_requests": 0,
+    "phase_seconds": null,
+    "mechanics": "signed LBSR target comparison omitted 16-bit wrap; source/artifact bytes show both callers reach $A8D2 when wrapped"
+  },
+  "offline_caller_wrap_analysis": {
+    "receipt": "offline-caller-wrap-reassessment-20261003.json",
+    "sha256": "08088c57310caca806b82c98b5e23df12362c353148e49e5f5bf23acee04c394",
+    "both_callers_wrap_to_helper": true
+  },
+  "runtime_boundary_result": {
+    "summary": "runtime-summary-20261003.json",
+    "summary_sha256": "037072fdf99bb1c6b1bad11bc7f27e05431f576714d2b65a449abe3707f635ca",
+    "raw_result": "runtime-result-20261003.json",
+    "raw_result_sha256": "68800935fa670047a35f4a7949b3538cf11974ad052dff7bc1e01117f673297f",
+    "classification": "stop and reassess; return breakpoint event missing despite independent pause snapshot at expected return PC with S advanced by two; no C116 event",
+    "runtime_attempts_used": 1,
+    "runtime_attempts_remaining": 0
+  },
+  "follow_up_observer_plan": {
+    "path": "follow-up-observer-mechanics-plan-20261003.json",
+    "sha256": "a9e67570cc3ff525095e984166dfd7a5d11a206cad435c504e412698a7465e42",
+    "status": "offline-plan-only; awaiting parent review before any further runtime"
+  }
+}

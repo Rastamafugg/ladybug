@@ -1,0 +1,42 @@
+{
+  "schema": "ladybug-rsch014-e6-offline-lbsr-wrap-reassessment-v1",
+  "date": "2026-10-03",
+  "trigger": "offline launch guard rejected draw_enemy_fb before any runtime launch",
+  "interpretation": "The offline verifier added a source-call guard but omitted the 6809 16-bit address wrap. This is observer arithmetic, not a target runtime observation or game ABI change.",
+  "source_artifact_sha256": "b0a9c3883dc19a8c5f4d3859cea3bc62343936ed880ef515a80c965d58cc16e1",
+  "helper_symbol": "0xA8D2",
+  "caller_calculations": [
+    {
+      "caller": "draw_enemy_fb",
+      "source_file": "src/enemy_runtime.s",
+      "source_line": 2618,
+      "source_line_text": "lbsr    enemy_frame_number",
+      "caller_pc": "0x1425",
+      "bytes": "1794aa",
+      "opcode": "0x17",
+      "signed_displacement": -27478,
+      "return_pc": "0x1428",
+      "unwrapped_integer_sum": -22318,
+      "wrapped_16bit_target": "0xA8D2",
+      "mapped_helper_symbol": "0xA8D2",
+      "wrapped_target_matches_helper": true
+    },
+    {
+      "caller": "draw_enemy_stage",
+      "source_file": "src/enemy_runtime.s",
+      "source_line": 3327,
+      "source_line_text": "lbsr   enemy_frame_number",
+      "caller_pc": "0x15D2",
+      "bytes": "1792fd",
+      "opcode": "0x17",
+      "signed_displacement": -27907,
+      "return_pc": "0x15D5",
+      "unwrapped_integer_sum": -22318,
+      "wrapped_16bit_target": "0xA8D2",
+      "mapped_helper_symbol": "0xA8D2",
+      "wrapped_target_matches_helper": true
+    }
+  ],
+  "runtime_started": false,
+  "runtime_requests": 0
+}
