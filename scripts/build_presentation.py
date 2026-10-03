@@ -787,7 +787,8 @@ def presentation_pen_map(
     if role == "attract":
         if 7 <= y <= 12 and 9 <= x <= 30 and 164 <= raw_code <= 197:
             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
-        if y == 15 and 15 <= x <= 25:
+        if (y == 15 and source_layer == "Attract Title and Prompts"
+                and 0 <= raw_code <= 35):
             return (BLACK, PURPLE, PURPLE, PURPLE)
         if y == 18 and 13 <= x <= 26:
             colour = YELLOW if raw_code == 1 else WHITE

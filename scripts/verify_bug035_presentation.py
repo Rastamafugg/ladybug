@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """BUG-035 pixel oracle and bounded runtime checks using the existing harness."""
 from pathlib import Path
+import argparse
 import hashlib
 import json
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
@@ -14,6 +16,12 @@ from gmc_lzss import decompress
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
 OUT = BUILD / "bug035"
+BUG060_EVIDENCE = (
+    ROOT / "wiki/internal/tickets/evidence/rsch014-ready-060/parent-integration.json"
+)
+MENU_PROBE = (
+    ROOT / "wiki/internal/tickets/evidence/rsch014-ready-menu/gdb_menu_probe.py"
+)
 NAMES = ("CUCUMBER", "EGGPLANT", "CARROT", "RADISH", "PARSLEY", "TOMATO",
          "PUMPKIN", "BAMBOO SHOOT", "JAPANESE RADISH", "MUSHROOM", "POTATO",
          "ONION", "CHINESE CABBAGE", "TURNIP", "RED PEPPER", "CELERY",
@@ -59,7 +67,174 @@ def compare(actual, expected, label):
         raise AssertionError(f"{label}: {len(differences)} byte differences; first {differences[:12]}")
 
 
-def main():
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def verify_attract_fixture_hashes():
+    partition = json.loads(BUG060_EVIDENCE.read_text(encoding="ascii"))
+    expected = dict(partition["saved_user_tmx_input_sha256"])
+    expected.update({
+        filename: item["candidate_sha256"]
+        for filename, item in partition["maps"].items()
+    })
+    actual = {}
+    for filename, expected_hash in expected.items():
+        value = digest((ROOT / "tiled" / filename).read_bytes())
+        if value != expected_hash:
+            raise AssertionError(f"read-only TMX fixture changed: {filename}: {value}")
+        actual[filename] = value
+    if len(actual) != 11:
+        raise AssertionError(f"expected 11 read-only TMX fixtures, found {len(actual)}")
+    return actual
+
+
+def verify_attract_palette_contract(check_fixture_hashes=False):
+    """Compare the retained palette with the current exact attract candidate."""
+    map_path = ROOT / "tiled" / p.MAP_FILES["attract"]
+    fixture_hashes = verify_attract_fixture_hashes() if check_fixture_hashes else None
+    chars_path = ROOT / "assets/arcade/chars.json"
+    chars = p.load_chars(chars_path)
+    root, flattened, sources = p.flatten_map(map_path)
+    row = []
+    for x in range(13, 28):
+        index = 15 * p.SCREEN_WIDTH + x
+        gid = flattened[index] & p.GID_MASK
+        code = p.raw_char_code(root, map_path, gid) if gid else -1
+        if 0 <= code <= 35:
+            row.append({
+                "x": x, "code": code,
+                "char": str(code) if code < 10 else chr(code + 55),
+                "source_layer": sources[index],
+                "current_pens": list(p.presentation_pen_map(
+                    "attract", x, 15, sources[index], code,
+                )),
+            })
+    by_x = {item["x"]: item for item in row}
+    visible_text = "".join(by_x[x]["char"] if x in by_x else " " for x in range(13, 28))
+    expected_cells = [13, 14, 15, 16, 17, 19, 21, 22, 24, 26, 27]
+    if visible_text != "PRESS 5 OR 6 TO":
+        raise AssertionError(f"attract row 15 text changed: {visible_text!r}")
+    if [item["x"] for item in row] != expected_cells:
+        raise AssertionError(f"attract row 15 glyph cells changed: {[item['x'] for item in row]}")
+    if any(item["source_layer"] != "Attract Title and Prompts" for item in row):
+        raise AssertionError("attract prompt glyph escaped its authored source layer")
+
+    production_map = p.presentation_pen_map
+    for label, arguments, expected in (
+        ("wrong source layer", ("attract", 13, 15, "Background", 25), (0, 1, 2, 3)),
+        ("space/non-alphanumeric", ("attract", 13, 15, "Attract Title and Prompts", 36), (0, 1, 2, 3)),
+        ("other row", ("attract", 13, 14, "Attract Title and Prompts", 25), (0, 1, 2, 3)),
+    ):
+        if production_map(*arguments) != expected:
+            raise AssertionError(f"BUG-063 palette ownership leaked to {label}")
+
+    def prior_palette(role, x, y, source_layer="", raw_code=-1,
+                      highscore_test_profile=False):
+        if role == "attract" and y == 15:
+            if 15 <= x <= 25:
+                return (p.BLACK, p.PURPLE, p.PURPLE, p.PURPLE)
+            return (0, 1, 2, 3)
+        return production_map(
+            role, x, y, source_layer, raw_code, highscore_test_profile,
+        )
+
+    def compile_static(palette):
+        tiles = []
+        previous = p.presentation_pen_map
+        p.presentation_pen_map = palette
+        try:
+            mapping, _ = p.compile_map(map_path, chars, tiles, {})
+        finally:
+            p.presentation_pen_map = previous
+        return bytes(p.title_framebuffer(mapping, tiles))
+
+    before = compile_static(prior_palette)
+    after = compile_static(production_map)
+    if len(before) != 30720 or len(after) != 30720:
+        raise AssertionError("attract static frame must be exactly 30,720 bytes")
+    changed = [index for index, (old, new) in enumerate(zip(before, after)) if old != new]
+    edge_cells = [13, 14, 26, 27]
+    allowed = {
+        y * 160 + x * 4 + byte
+        for y in range(15 * 8, 16 * 8)
+        for x in edge_cells
+        for byte in range(4)
+    }
+    changed_cells = sorted({(index % 160) // 4 for index in changed})
+    if len(changed) != 56 or not set(changed) <= allowed or changed_cells != edge_cells:
+        raise AssertionError(
+            f"palette delta must be 56 bytes in edge cells {edge_cells}; "
+            f"got {len(changed)} bytes in cells {changed_cells}"
+        )
+    for item in row:
+        glyph = p.rotate_ccw(chars[item["code"]])
+        mapped_pens = {
+            production_map(
+                "attract", item["x"], 15, item["source_layer"], item["code"],
+            )[int(pixel)]
+            for line in glyph for pixel in line if pixel
+        }
+        if mapped_pens != {p.PURPLE}:
+            raise AssertionError(
+                f"attract glyph at x={item['x']} does not use only pen 9: {mapped_pens}"
+            )
+    proof = {
+        "ticket": "BUG-063",
+        "current_worktree": str(ROOT),
+        "map_sha256": digest(map_path.read_bytes()),
+        "character_asset_sha256": digest(chars_path.read_bytes()),
+        "producer_sha256": digest((ROOT / "scripts/build_presentation.py").read_bytes()),
+        "row15_visible_text": visible_text,
+        "row15_text_cells": row,
+        "candidate_rule": (
+            "Attract Title and Prompts layer, row 15, actual alphanumeric glyphs; "
+            "map all glyph pens to pen 9 (PURPLE)."
+        ),
+        "changed_cell_x": edge_cells,
+        "changed_packed_frame_bytes": len(changed),
+        "changed_bytes_confined_to_four_edge_glyph_cells": True,
+        "baseline_frame_sha256": digest(before),
+        "candidate_static_frame_sha256": digest(after),
+        "runtime_or_full_build_claimed": False,
+    }
+    if fixture_hashes is not None:
+        proof["readonly_tmx_fixture_sha256"] = fixture_hashes
+        proof["verifier_sha256"] = digest(Path(__file__).read_bytes())
+        proof["checked_commands"] = [
+            "python -m py_compile scripts/build_presentation.py scripts/verify_bug035_presentation.py",
+            "python scripts/verify_bug016_presentation_layers.py --tiled-dir tiled",
+        ]
+    return proof
+
+
+def run_attract_only(output: Path):
+    proof = verify_attract_palette_contract()
+    rom_path = BUILD / "ladybug.rom"
+    if not rom_path.is_file():
+        raise SystemExit(
+            f"current worktree ROM is missing: {rom_path}; run the assigned complete build first"
+        )
+    output_path = output if output.is_absolute() else ROOT / output
+    rom_sha256 = digest(rom_path.read_bytes())
+    command = [
+        sys.executable, str(MENU_PROBE),
+        "--worktree", str(ROOT),
+        "--rom-sha256", rom_sha256,
+        "--output", str(output_path),
+        "--prompt-only",
+    ]
+    print(
+        f"BUG-063 static: 56 bytes in cells 13,14,26,27; "
+        f"current ROM sha256={rom_sha256}; GDB deadline=40s, "
+        "timeout=prompt publication not observed",
+        flush=True,
+    )
+    subprocess.run(command, cwd=ROOT, check=True, timeout=45)
+    return proof
+
+
+def legacy_main():
     OUT.mkdir(exist_ok=True)
     manifest = json.loads((BUILD / "ladybug-presentation.json").read_text())
     chars = p.load_chars(ROOT / "assets/arcade/chars.json")
@@ -246,6 +421,25 @@ def main():
         runtime.stop(process)
         (OUT / "summary.json").write_text(json.dumps(evidence, indent=2) + "\n")
     print("BUG-035 pixel/runtime checks passed")
+
+
+def main():
+    arguments = sys.argv[1:]
+    if "--attract-only" not in arguments:
+        if "--output" in arguments:
+            raise SystemExit("--output requires --attract-only")
+        legacy_main()
+        return
+    parser = argparse.ArgumentParser(description="Run the current BUG-063 attract prompt probe.")
+    parser.add_argument("--attract-only", action="store_true")
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args(arguments)
+    proof = run_attract_only(args.output)
+    print(json.dumps({
+        "status": "static-pass; natural-gdb-pass",
+        "changed_packed_frame_bytes": proof["changed_packed_frame_bytes"],
+        "candidate_static_frame_sha256": proof["candidate_static_frame_sha256"],
+    }, indent=2))
 
 
 if __name__ == "__main__":
