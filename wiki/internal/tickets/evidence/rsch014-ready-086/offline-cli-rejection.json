@@ -1,0 +1,10 @@
+{
+  "schema": "ladybug-rsch014-ready-086-cli-rejection-v1",
+  "date": "2026-10-03",
+  "command": "python repro\\bug086_ready_successor_adapter.py preflight --worktree E:\\projects\\ladybug\\worktrees\\bug087-rate-fit-preparation\\build\\.rsch014-r10-overlay-base --candidate-manifest wiki\\internal\\tickets\\evidence\\rsch014-ready-086\\candidate-r10-ad1-keyboard.json --output wiki\\internal\\tickets\\evidence\\rsch014-ready-086\\offline-preflight.json",
+  "offline_receipt_status": "pass-static-only",
+  "process_status": "failed",
+  "failure": "After writing the static pass receipt, the module unconditionally called live main(), causing NameError: runtime is not defined.",
+  "emulator_launched": false,
+  "resolution": "Guard main() invocation with ARGS.command == live; rerun final offline preflight as a subprocess and require zero exit code."
+}

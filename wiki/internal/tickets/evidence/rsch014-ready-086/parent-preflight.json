@@ -1,0 +1,65 @@
+{
+  "adapter_sha256": "2f282ee1e46b8fa934468a29f4258fe34abad8392df67b9ba88056567f4c2c59",
+  "candidate_manifest_sha256": "2eafa178467e6d4079cebb37cc07fdc57b9b8e9ed1eb7ae30ea87a4e6ed6a86c",
+  "candidate_profile": "complete AD1 keyboard",
+  "candidate_rom_sha256": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721",
+  "checks": {
+    "artifact_directory": "/mnt/e/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base/build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-keyboard-saturated-gate-corrected",
+    "b2_and_r10_qualification": {
+      "active_relinked_binary_sha256": "8add5b4086f00509e654d3bb47e82ab6a692178b390a73b16f06d46f715971d9",
+      "active_source_sha256": "5b662e01cb75841eb03790327c2ad12ecb6cbfdcfa5cb871d1f67efd95b78241",
+      "b10_baseline_rom_sha256": "2114f0185b5a4bd13795e5ded2834053e22f50adf83610870e387c200d73b901",
+      "b2_banked_helper_sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab",
+      "candidate_is_not_baseline_rom": true,
+      "candidate_rom_sha256": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721",
+      "e2_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+      "r10_capacity_receipt_is_static_only": true
+    },
+    "build_receipt": {
+      "profile": "complete",
+      "revision": "cb84a603e74c67e18ed055f13e6dc0f518dd051d",
+      "state": "complete"
+    },
+    "candidate_rom": {
+      "expected": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721",
+      "is_historical_e2_rom": false,
+      "matches_candidate": true,
+      "sha256": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721"
+    },
+    "e2_context_audit": {
+      "apply_check": "pass: synthesized from exact git show 4d9ce9b selected source blobs and reapplied in a second disposable temp repo",
+      "base_commit": "4d9ce9b521eaeae0b71a17c6a1f6516bd4503b32",
+      "includes_adaptive_runtime": false,
+      "patch_sha256": "63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa",
+      "target_path_count": 8
+    },
+    "frozen_artifact_entry_count": 103,
+    "helper_stage": {
+      "authored_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+      "bank": 0,
+      "count": 87,
+      "destination_address": 43168,
+      "destination_page": 52,
+      "matches": true,
+      "source_offset": 5298,
+      "staged_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526"
+    }
+  },
+  "failure_count": 3,
+  "failures": [
+    "candidate source checkout HEAD check failed: RuntimeError: git rev-parse HEAD failed: fatal: cannot change to '/mnt/e/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base': No such file or directory\n",
+    "missing retained E3 scenario source: /mnt/e/projects/ladybug/repro/bug086_e3_observer.py",
+    "reviewed E6 observer source SHA-256 mismatch: 8f8947143de4481ee18213a133ba820e4b11345bf8c88b6840f3f0099ae2bc05 != 4750f4044c19a7d740e683d3a6f6da3307eee5dce3c07bd77a06fa632c6d22e7"
+  ],
+  "limits": [
+    "R10 frozen artifacts are corrected fit/source evidence, not 6809 runtime acceptance.",
+    "The B10 $2114 ROM is a distinct frozen baseline; the candidate ROM is identified separately.",
+    "The 4d9ce9b E2 context patch was audited but not applied to production source or built here.",
+    "No emulator, monitor socket, production source, build output, TMX, or acceptance state is modified by preflight."
+  ],
+  "runtime_acceptance": false,
+  "runtime_authorized": false,
+  "runtime_launched": false,
+  "schema": "ladybug-rsch014-ready-086-static-preflight-v1",
+  "status": "fail"
+}

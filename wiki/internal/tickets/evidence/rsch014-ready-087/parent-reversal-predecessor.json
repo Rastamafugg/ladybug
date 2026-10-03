@@ -1,0 +1,58 @@
+{
+  "ticket": "BUG-087",
+  "kind": "offline source/predecessor preparation only",
+  "source_sha256": "d8b04663d25b50add05e9d2b53dfb31e58f314fbbcad0005898de362258b7e80",
+  "maze_sha256": "76361237a90a555f2b78731c3975a209f569a53cb04705eb90d0aad427856048",
+  "oracle_sha256": "15c4bd1b4e302f8e53414139fab14f3aa33d6975ddbc13e3d8194e4a199a16c3",
+  "floor_definition": "maze_nav low nibble nonzero; empty/border/pivot records excluded as non-enterable actor cells",
+  "local_orientation_cases": 458,
+  "source_model_all_exits_closed": 0,
+  "existing_oracle_all_exits_closed": 0,
+  "reversal_predecessor": {
+    "gate_states": [
+      0,
+      0,
+      1,
+      1,
+      0,
+      0,
+      1,
+      1,
+      0,
+      0,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      0,
+      0
+    ],
+    "legal_arrival_cells": [
+      [
+        6,
+        4
+      ],
+      [
+        5,
+        4
+      ],
+      [
+        4,
+        4
+      ]
+    ],
+    "incoming_direction": 3,
+    "incoming_name": "west",
+    "only_exit_at_boundary": 1,
+    "exit_name": "east",
+    "runtime_branch": "ecd_choose after scanning all nonreverse directions; ENEMY_CANDIDATE equals ENEMY_REVERSE"
+  },
+  "rejected_agent_description": "Gate0 pivot(5,3) flip0->1 at actor(4,4) leaves north, not east. Reversal fixture uses unchanged initial gate0=0; no rotation is required.",
+  "remaining": "Bind a real enemy callback with this legal predecessor and another moving actor; observe FRONT displacement and selector. No direct-helper shortcut, forced DIR_NONE, position-hold assertion or CPU acceptance follows from this source model.",
+  "runtime_launched": false,
+  "status": "pass-offline-only"
+}

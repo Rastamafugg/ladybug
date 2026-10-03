@@ -1,0 +1,650 @@
+diff --git a/scripts/build.sh b/scripts/build.sh
+index a54a9d3..82ba947 100644
+--- a/scripts/build.sh
++++ b/scripts/build.sh
+@@ -69,6 +69,10 @@ ENEMY_SRC="$ROOT/src/enemy_runtime.s"
+ ENEMY_ROM="$BUILD_DIR/ladybug-enemy-runtime.rom"
+ ENEMY_LST="$BUILD_DIR/ladybug-enemy-runtime.lst"
+ ENEMY_MAP="$BUILD_DIR/ladybug-enemy-runtime.map"
++ENEMY_HELPER_SRC="$ROOT/src/enemy_helpers_page34.s"
++ENEMY_HELPER="$BUILD_DIR/ladybug-enemy-helper-page34.bin"
++ENEMY_HELPER_LST="$BUILD_DIR/ladybug-enemy-helper-page34.lst"
++ENEMY_HELPER_MAP="$BUILD_DIR/ladybug-enemy-helper-page34.map"
+ PERIMETER_HELPER_SRC="$ROOT/src/perimeter_reset_helper.s"
+ RUNTIME_SYMBOLS="$BUILD_DIR/ladybug_runtime_symbols.inc"
+ LST="$BUILD_DIR/ladybug.lst"
+@@ -655,6 +659,44 @@ PY
+           -I "$BUILD_DIR" -I "$ROOT/src" \
+           "$ENEMY_SRC"
+ 
++    lwasm -9 --format=raw \
++          --output="$ENEMY_HELPER" \
++          --list="$ENEMY_HELPER_LST" \
++          --symbols \
++          --map="$ENEMY_HELPER_MAP" \
++          -I "$BUILD_DIR" -I "$ROOT/src" \
++          "$ENEMY_HELPER_SRC"
++
++    python3 - "$ENEMY_HELPER" "$ENEMY_HELPER_MAP" <<'PY'
++import re
++import sys
++binary, map_path = sys.argv[1:]
++data = open(binary, "rb").read()
++symbols = {}
++for line in open(map_path, encoding="utf-8"):
++    match = re.match(
++        r"^Symbol: (enemy_page34_end|enemy_frame_number|efn_cache_guard|efn_normal|efn_preview) .* = ([0-9A-Fa-f]+)$",
++        line.rstrip(),
++    )
++    if match:
++        symbols[match.group(1)] = int(match.group(2), 16)
++expected = {
++    "efn_cache_guard": 0xA8A0,
++    "efn_normal": 0xA8AC,
++    "efn_preview": 0xA8C5,
++    "enemy_frame_number": 0xA8D2,
++    "enemy_page34_end": 0xA8F7,
++}
++if len(data) != 87 or symbols != expected:
++    raise SystemExit(
++        f"build: page-$34 enemy helper must be 87 bytes at {expected}, "
++        f"got {len(data)} bytes and {symbols}"
++    )
++if 0xA8A0 + len(data) > 0xA8FD:
++    raise SystemExit("build: page-$34 enemy helper overlaps reserved logo state")
++print("build: page-$34 enemy helper 87/93 bytes at $A8A0-$A8F6; six bytes remain")
++PY
++
+     python3 - "$ENEMY_MAP" "$PRESENTATION_SYMBOLS" <<'PY'
+ import re
+ import sys
+@@ -933,6 +975,7 @@ PY
+         keybinding_args=(--keybinding-runtime "$BUILD_DIR/ladybug-keybinding-runtime.bin")
+     fi
+     python3 "$ROOT/scripts/build_sparse_sprites.py" "${adaptive_args[@]}" "${keybinding_args[@]}" \
++        --enemy-helper "$ENEMY_HELPER" \
+         --sprites "$ROOT/assets/arcade/sprites.json" \
+         --enemy-runtime "$ENEMY_ROM" \
+         --enemy-output "$SPARSE_ENEMY" \
+@@ -962,6 +1005,7 @@ PY
+         --manifest-output "$SPARSE_MANIFEST"
+ 
+     python3 "$ROOT/scripts/verify_sparse_sprites.py" "${adaptive_args[@]}" \
++        --enemy-helper "$ENEMY_HELPER" \
+         --sprites "$ROOT/assets/arcade/sprites.json" \
+         --enemy-runtime "$ENEMY_ROM" \
+         --enemy-payload "$SPARSE_ENEMY" \
+diff --git a/scripts/build_sparse_sprites.py b/scripts/build_sparse_sprites.py
+index 0f11345..c35f557 100644
+--- a/scripts/build_sparse_sprites.py
++++ b/scripts/build_sparse_sprites.py
+@@ -153,6 +153,7 @@ def parse_args() -> argparse.Namespace:
+     parser.add_argument("--highscore-runtime", type=Path, required=True)
+     parser.add_argument("--highscore-helper", type=Path, required=True)
+     parser.add_argument("--adaptive-helper", type=Path)
++    parser.add_argument("--enemy-helper", type=Path)
+     parser.add_argument("--audio-runtime", type=Path, required=True)
+     parser.add_argument("--tile-patches", type=Path, required=True)
+     parser.add_argument(
+@@ -401,6 +402,7 @@ def pack_candidate_banks(
+         include_streams: bool = False,
+         compress_enemy_pages: bool = True,
+         adaptive_helper: bytes = b"",
++        enemy_helper: bytes = b"",
+         vegetable_payload: bytes = b"",
+         keybinding_runtime: bytes = b"",
+ ) -> tuple:
+@@ -480,6 +482,10 @@ def pack_candidate_banks(
+     if len(adaptive_helper) > 698:
+         raise ValueError("adaptive helper exceeds $BD44-$BFFD")
+     targets += target_chunks("adaptive_helper", adaptive_helper, 0x34, 0xBD44)
++    if enemy_helper:
++        if len(enemy_helper) != 87 or 0xA8A0 + len(enemy_helper) > 0xA8FD:
++            raise ValueError("page-$34 enemy helper must be 87 bytes within $A8A0-$A8FC")
++        targets += target_chunks("enemy_helper_page34", enemy_helper, 0x34, 0xA8A0)
+ 
+     page39_raw = player_payload + gate_payload + presentation_payload + vegetable_payload
+     if len(page39_raw) > PAGE_BYTES:
+@@ -822,6 +828,7 @@ def main() -> None:
+         highscore_runtime, highscore_helper,
+         include_streams=True,
+         adaptive_helper=args.adaptive_helper.read_bytes() if args.adaptive_helper else b"",
++        enemy_helper=args.enemy_helper.read_bytes() if args.enemy_helper else b"",
+         vegetable_payload=vegetable_payload,
+         keybinding_runtime=args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b"",
+     )
+diff --git a/scripts/source_reference.json b/scripts/source_reference.json
+index d998e41..e20be5d 100644
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -1185,6 +1185,10 @@
+         "draw_score_popup",
+         "draw_screen",
+         "draw_word_progress_hud",
++        "efn_cache_guard",
++        "efn_normal",
++        "efn_preview",
++        "enemy_frame_number",
+         "erase_entity_footprints",
+         "framebuffer_project_gate_only",
+         "gate_redraw_neighbors",
+@@ -1295,12 +1299,6 @@
+           "purpose": "Test whether a proposed enemy direction is legal at the current semantic cell.",
+           "reasons": []
+         },
+-        {
+-          "name": "enemy_frame_number",
+-          "profile": "copy",
+-          "purpose": "Resolve the animation frame number for the current enemy state and direction.",
+-          "reasons": []
+-        },
+         {
+           "name": "enemy_init_impl",
+           "profile": "state",
+@@ -1690,6 +1688,26 @@
+         }
+       ],
+       "label_classifications": [
++        {
++          "name": "efn_cache_guard",
++          "kind": "constant",
++          "reason": "Alias for the page-$34 staged helper entry owned by enemy-helpers-page34."
++        },
++        {
++          "name": "efn_normal",
++          "kind": "constant",
++          "reason": "Alias for the page-$34 staged helper entry owned by enemy-helpers-page34."
++        },
++        {
++          "name": "efn_preview",
++          "kind": "constant",
++          "reason": "Alias for the page-$34 staged helper entry owned by enemy-helpers-page34."
++        },
++        {
++          "name": "enemy_frame_number",
++          "kind": "constant",
++          "reason": "Alias for the page-$34 staged helper entry owned by enemy-helpers-page34."
++        },
+         {
+           "name": "enemy_entry_masks",
+           "kind": "data",
+@@ -1842,6 +1860,11 @@
+         }
+       ],
+       "basic_blocks": [
++        {
++          "name": "cea_cache_ready",
++          "routine": "compose_enemy_animation",
++          "purpose": "Continue nest animation composition after the dormant cache matches the current preview."
++        },
+         {
+           "name": "acd_popup",
+           "routine": null,
+@@ -1959,6 +1982,61 @@
+         }
+       ]
+     },
++    {
++      "id": "enemy-helpers-page34",
++      "title": "Page-$34 enemy helpers",
++      "source": "src/enemy_helpers_page34.s",
++      "listing": "ladybug-enemy-helper-page34.lst",
++      "map": "ladybug-enemy-helper-page34.map",
++      "binary": "ladybug-enemy-helper-page34.bin",
++      "external_symbols": [
++        "ENEMY_MODULE_BUILD_CACHE",
++        "efn_cache_guard",
++        "efn_normal",
++        "efn_preview",
++        "enemy_frame_number"
++      ],
++      "label_classifications": [
++        {
++          "name": "efn_cache_guard",
++          "kind": "boundary",
++          "reason": "Fixed callable entry in the page-$34 staged helper interval."
++        },
++        {
++          "name": "efn_normal",
++          "kind": "boundary",
++          "reason": "Fixed callable entry in the page-$34 staged helper interval."
++        },
++        {
++          "name": "efn_preview",
++          "kind": "boundary",
++          "reason": "Fixed callable entry in the page-$34 staged helper interval."
++        },
++        {
++          "name": "enemy_frame_number",
++          "kind": "boundary",
++          "reason": "Fixed callable entry in the page-$34 staged helper interval."
++        },
++        {
++          "name": "enemy_page34_end",
++          "kind": "boundary",
++          "reason": "Exclusive end marker for the fixed page-$34 helper interval."
++        }
++      ],
++      "relocations": [
++        {
++          "id": "enemy-page34-helper-staged",
++          "assembled": {
++            "address": "0xA8A0"
++          },
++          "runtime_destination": {
++            "address": "0xA8A0",
++            "physical_page": "0x34"
++          },
++          "length_source": "binary"
++        }
++      ]
++    },
+     {
+       "id": "presentation-runtime",
+       "title": "Presentation flow runtime",
+diff --git a/scripts/verify_enemy_runtime.py b/scripts/verify_enemy_runtime.py
+index 8644f35..8f628de 100644
+--- a/scripts/verify_enemy_runtime.py
++++ b/scripts/verify_enemy_runtime.py
+@@ -8,10 +8,12 @@ import re
+ 
+ root = Path(__file__).resolve().parents[1]
+ source = (root / "src/enemy_runtime.s").read_text(encoding="utf-8")
++helper_source = (root / "src/enemy_helpers_page34.s").read_text(encoding="utf-8")
+ main = (root / "src/main.s").read_text(encoding="utf-8")
+ # Source-only subroutine-call assertions accept the assembled short encoding.
+ # BSR and LBSR have the same stack/target contract; lwasm still checks range.
+ source = re.sub(r"(?m)^(\s*)bsr\s+(\w+)", r"\1lbsr    \2", source)
++helper_source = re.sub(r"(?m)^(\s*)bsr\s+(\w+)", r"\1lbsr    \2", helper_source)
+ main = re.sub(r"(?m)^(\s*)bsr\s+(\w+)", r"\1lbsr    \2", main)
+ bootstrap = (root / "src/gmc_bootstrap.s").read_text(encoding="utf-8")
+ build_script = (root / "scripts/build.sh").read_text(encoding="utf-8")
+@@ -374,10 +376,10 @@ if render_nest.index("bita    #ERF_NEST") > render_nest.index("bita    #ERF_NEST
+ for fragment in ("reset_enemy_state", "reload_enemy_box_timer"):
+     if fragment not in main:
+         raise SystemExit("enemy proof: cold reset helper was not moved to resident code: " + fragment)
+-sprite_select = source[source.index("\nenemy_frame_number\n"):
+-                       source.index("\nplayer_draw_impl\n")]
+-for fragment in ("cmpa    #9", "anda    #7", "cmpa    #5",
+-                 "suba    ENEMY_WORK", "ora     ENEMY_ANIM"):
++sprite_select = helper_source[helper_source.index("\nenemy_frame_number\n"):]
++for fragment in ("cmpb    #4", "lda     #4", "suba    ENEMY_WORK",
++                 "lda     a,u", "anda    #$F0", "lbsr    efn_preview",
++                 "ora     STAGE_SOURCE"):
+     if fragment not in sprite_select:
+         raise SystemExit("enemy proof: directional sparse-frame selection changed")
+ enemy_draw = source[source.index("\ndraw_enemy_fb\n"):
+@@ -387,8 +389,8 @@ for fragment in ("lbsr    enemy_frame_number", "lbsr    sparse_enemy_stream",
+     if fragment not in enemy_draw:
+         raise SystemExit("enemy proof: framebuffer enemy sparse path is incomplete")
+ stage_draw = source[source.index("\ndraw_enemy_stage\n"):
+-                    source.index("\nenemy_frame_number\n")]
+-if "lbsr    sparse_blit_stage" not in stage_draw:
++                    source.index("\nplayer_draw_impl\n")]
++if "lbsr    enemy_frame_number" not in stage_draw or "lbsr    sparse_blit_stage" not in stage_draw:
+     raise SystemExit("enemy proof: nest enemy does not use the sparse stage decoder")
+ player_compose = source[source.index("\nplayer_compose_impl\n"):
+                         source.index("\npci_done\n")]
+diff --git a/scripts/verify_sparse_sprites.py b/scripts/verify_sparse_sprites.py
+index 6091bf1..c219b5e 100644
+--- a/scripts/verify_sparse_sprites.py
++++ b/scripts/verify_sparse_sprites.py
+@@ -70,6 +70,7 @@ def parse_args() -> argparse.Namespace:
+     parser.add_argument("--highscore-runtime", type=Path, default=BUILD / "ladybug-highscore-runtime.bin")
+     parser.add_argument("--highscore-helper", type=Path, default=BUILD / "ladybug-highscore-helper.bin")
+     parser.add_argument("--adaptive-helper", type=Path)
++    parser.add_argument("--enemy-helper", type=Path)
+     parser.add_argument("--audio-runtime", type=Path, default=BUILD / "ladybug-audio-runtime.bin")
+     parser.add_argument("--tile-patches", type=Path, default=BUILD / "ladybug-presentation-tile-patches.bin")
+     parser.add_argument(
+@@ -296,8 +297,11 @@ def main() -> None:
+     demo_runtime = args.demo_runtime.read_bytes()
+     highscore_runtime = args.highscore_runtime.read_bytes()
+     highscore_helper = args.highscore_helper.read_bytes()
++    enemy_helper = args.enemy_helper.read_bytes() if args.enemy_helper else b""
+     audio_runtime = args.audio_runtime.read_bytes()
+     tile_patches = args.tile_patches.read_bytes()
++    if enemy_helper and (len(enemy_helper) != 87 or 0xA8A0 + len(enemy_helper) > 0xA8FD):
++        raise SystemExit("sparse proof: page-$34 enemy helper must be 87 bytes within $A8A0-$A8FC")
+     if len(highscore_runtime) > 0x398:
+         raise SystemExit("sparse proof: high-score runtime exceeds $0300-$0697")
+     if args.aux_runtime_role == "development":
+@@ -435,6 +439,7 @@ def main() -> None:
+         "presentation_cold": bytearray(len(presentation_cold)),
+         "presentation_module": bytearray(len(presentation_module)),
+         "adaptive_helper": bytearray(len(adaptive_helper)),
++        "enemy_helper_page34": bytearray(len(enemy_helper)),
+         "audio_runtime": bytearray(len(audio_runtime)),
+         "attract_actor_bundle": bytearray(
+             len(actor_underlays) + len(actor_records)
+@@ -450,6 +455,7 @@ def main() -> None:
+         "presentation_cold": bytearray(len(presentation_cold)),
+         "presentation_module": bytearray(len(presentation_module)),
+         "adaptive_helper": bytearray(len(adaptive_helper)),
++        "enemy_helper_page34": bytearray(len(enemy_helper)),
+         "audio_runtime": bytearray(len(audio_runtime)),
+         "attract_actor_bundle": bytearray(
+             len(actor_underlays) + len(actor_records)
+@@ -565,6 +571,9 @@ def main() -> None:
+         elif target == "adaptive_helper":
+             target_page_base = 0x34
+             target_address = 0xBD44
++        elif target == "enemy_helper_page34":
++            target_page_base = 0x34
++            target_address = 0xA8A0
+         elif target == "audio_runtime":
+             target_page_base = 0x3D
+             target_address = WINDOW_BASE
+@@ -675,6 +684,7 @@ def main() -> None:
+         not all(coverage["presentation"]) or
+         not all(coverage["presentation_cold"]) or
+         not all(coverage["presentation_module"]) or
++        not all(coverage["enemy_helper_page34"]) or
+         not all(coverage["audio_runtime"]) or
+         not all(coverage["attract_actor_bundle"]) or
+         not all(coverage["phase_tile_patches"])
+@@ -694,6 +704,8 @@ def main() -> None:
+         raise SystemExit("sparse proof: loader does not reconstruct presentation module")
+     if reconstructed["adaptive_helper"] != adaptive_helper or not all(coverage["adaptive_helper"]):
+         raise SystemExit("sparse proof: adaptive helper coverage/bytes differ")
++    if reconstructed["enemy_helper_page34"] != enemy_helper:
++        raise SystemExit("sparse proof: page-$34 enemy helper coverage/bytes differ")
+     if reconstructed["audio_runtime"] != audio_runtime:
+         raise SystemExit("sparse proof: loader does not reconstruct audio runtime")
+     if reconstructed["attract_actor_bundle"] != (
+@@ -720,7 +732,8 @@ def main() -> None:
+     print(
+         f"sparse proof: {len(enemy_ranges)} enemy and {len(player_ranges)} player "
+         f"frames decode and blend pixel-exactly; {len(loader)} loader segments reconstruct "
+-        f"actor, gate, presentation, cold, module, audio, and auxiliary payloads with "
++        f"actor, gate, presentation, cold, module, page-$34 enemy helper, audio, "
++        f"and auxiliary payloads with "
+         f"{manifest['gmc']['spare_bytes']} bytes spare"
+     )
+ 
+diff --git a/src/enemy_helpers_page34.s b/src/enemy_helpers_page34.s
+new file mode 100644
+index 0000000..8714dc7
+--- /dev/null
++++ b/src/enemy_helpers_page34.s
+@@ -0,0 +1,83 @@
++; BUG-086 isolated fit candidate: helpers staged in physical page $34.
++; Runtime callers enter only while PAR5 maps page $34.
++; The cache guard, normal selector and preview packer share the gameplay page.
++; The frame selector keeps the enemy module below its fixed pre-LUT bound.
++
++ENEMY_ANIM equ $0054
++ENEMY_WORK equ $005D
++STAGE equ $0024
++STAGE_SOURCE equ $0066
++ENEMY_TABLE equ $A470
++ENEMY_NORMAL_CURSOR equ $A89D
++ENEMY_PENDING_TYPE equ $A89E
++ENEMY_CACHE_TYPE equ $A89F
++ENEMY_MODULE_BUILD_CACHE equ $0824
++
++        org     $A8A0
++
++efn_cache_guard
++        cmpa    ENEMY_CACHE_TYPE
++        beq     efn_cache_done
++        sta     ENEMY_CACHE_TYPE
++        jsr     ENEMY_MODULE_BUILD_CACHE
++efn_cache_done
++        rts
++
++efn_normal
++        lda     STAGE
++        deca
++        cmpa    #8
++        blo     efn_normal_done
++        anda    #7
++        cmpa    #5
++        blo     efn_normal_base
++        suba    #5
++efn_normal_base
++        ldb     ENEMY_NORMAL_CURSOR
++        andb    #3
++        pshs    b
++        adda    ,s+
++efn_normal_done
++        rts
++
++efn_preview
++        lda     ENEMY_PENDING_TYPE
++        bpl     efn_preview_pack
++        lbsr    efn_normal
++efn_preview_pack
++        lsla
++        lsla
++        lsla
++        lsla
++        rts
++
++; Return the indexed sparse frame number in A. B is N/E/S/W. Parts 1-8 use
++; one type each; later parts rotate four adjacent types across active records.
++enemy_frame_number
++        cmpb    #4
++        blo     efn_direction_ready
++        clrb
++efn_direction_ready
++        lslb
++        lslb
++        orb     ENEMY_ANIM
++        stb     STAGE_SOURCE
++        lda     #4
++        suba    ENEMY_WORK
++        cmpa    #4
++        bhs     efn_dormant
++        lsla
++        lsla
++        lsla
++        ldu     #ENEMY_TABLE
++        lda     a,u
++        anda    #$F0
++        bra     efn_finish
++efn_dormant
++        lbsr    efn_preview
++efn_finish
++        ora     STAGE_SOURCE
++        rts
++
++enemy_page34_end
++        end
+diff --git a/src/enemy_runtime.s b/src/enemy_runtime.s
+index 27e3b37..6b01ec0 100644
+--- a/src/enemy_runtime.s
++++ b/src/enemy_runtime.s
+@@ -72,7 +72,6 @@ ADAPTIVE_RENDERING equ 0
+ ; DOC-002 source-contract mirror contract enemy_choose_direction profile=movement: Select a legal enemy direction from maze, gate, and target state.
+ ; DOC-002 source-contract mirror contract enemy_collect_impl profile=state: Resolve the vegetable collection transition and its enemy-state consequences.
+ ; DOC-002 source-contract mirror contract enemy_direction_legal profile=movement: Test whether a proposed enemy direction is legal at the current semantic cell.
+-; DOC-002 source-contract mirror contract enemy_frame_number profile=copy: Resolve the animation frame number for the current enemy state and direction.
+ ; DOC-002 source-contract mirror contract enemy_init_impl profile=state: Reset enemy lifecycle state and mark enemy composition dirty.
+ ; DOC-002 source-contract mirror contract enemy_player_contact profile=movement: Test and resolve contact between an active enemy and the player.
+ ; DOC-002 source-contract mirror contract enemy_release_impl profile=movement: Release an eligible enemy from the nest into authoritative gameplay state.
+@@ -144,6 +143,7 @@ PERSISTENT_FB  equ 1
+         jmp     framebuffer_init_impl
+         jmp     framebuffer_irq_impl
+         jmp     sparse_blit_fb
++        jmp     build_enemy_nest_cache
+ 
+ ENEMY_ANIM     equ $0054
+ ENEMY_TIMER    equ $0055
+@@ -217,6 +217,19 @@ ENEMY_CAPTURE_DIRTY equ $009B
+ ; framebuffer ledgers; keep it separate from direct-page RING_BASE ($009E).
+ ; @audit {"id":"entity-cache-colour","kind":"scratch","symbol":"ENTITY_CACHE_COLOR","width":1,"mapping":"physical-page-34","phases":["foreground"],"owner":"entity colour cache","lifetime":"Persistent across render calls until recolour invalidation, separate from direct-page ring pointer.","initialization":"colour_prepare_nest compares and updates colour validity","clobbers":"Caller must not retain contents across the named owner operation."}
+ ENTITY_CACHE_COLOR equ $A89C       ; shared sparse-cache colour validity
++; Isolated BUG086 fit candidate: enemy state0 bit0 active, bits4..6 type0..7.
++ENEMY_NORMAL_CURSOR equ $A89D
++ENEMY_PENDING_TYPE equ $A89E
++ENEMY_CACHE_TYPE equ $A89F
++ENEMY_CACHE_GUARD_HELPER equ $A8A0
++ENEMY_NORMAL_HELPER equ $A8AC
++ENEMY_PREVIEW_HELPER equ $A8C5
++ENEMY_FRAME_NUMBER equ $A8D2
++efn_normal equ ENEMY_NORMAL_HELPER
++efn_preview equ ENEMY_PREVIEW_HELPER
++efn_cache_guard equ ENEMY_CACHE_GUARD_HELPER
++enemy_frame_number equ ENEMY_FRAME_NUMBER
++
+ RING_PHASE     equ $009C
+ ; @audit {"id":"capture-row-phase","kind":"scratch","symbol":"RING_ROW","width":1,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"enemy foreground renderer","lifetime":"Capture horizontal setup uses exposed column then row index; vertical capture uses packed row nibble advancing by $10. Restore uses unpacked row index. Each operation initializes its own representation.","initialization":"Each selected capture or restore path initializes before use","clobbers":"Capture callees roam_bg_address, rub_columns and roam_capture_ring_row preserve this byte; owning capture/restore loops update it. It is not retained between operations."}
+ RING_ROW       equ $009D
+@@ -367,8 +380,19 @@ er_find
+         bne     er_find
+         rts
+ er_use
+-        lda     #1
++        lda     ENEMY_PENDING_TYPE
++        bpl     er_kind_ready
++        lbsr    efn_normal
++        inc     ENEMY_NORMAL_CURSOR
++er_kind_ready
++        lsla
++        lsla
++        lsla
++        lsla
++        inca
+         sta     ,x
++        coma
++        sta     ENEMY_PENDING_TYPE
+         ldd     #ENEMY_FB
+         std     1,x
+         clr     3,x
+@@ -619,9 +643,8 @@ eri_done
+         ifne ADAPTIVE_RENDERING
+ frame_render_impl
+         jmp AD_RENDER_EXEC
+-        fill $12,47
++        fill $12,$09FD-*
+         includebin "ladybug-adaptive-mapped.bin"
+-        fill $12,22
+         else
+ frame_render_impl
+         ifne    PERSISTENT_FB
+@@ -1819,6 +1842,12 @@ est_skull
+         sta     ENTITY_Y
+         sta     RENDER_ZONE_Y
+         ldx     ENEMY_PTR
++        lda     ,x
++        lsra
++        lsra
++        lsra
++        lsra
++        sta     ENEMY_PENDING_TYPE
+         clr     ,x
+         clr     6,x
+         dec     ENEMY_ACTIVE
+@@ -2139,7 +2168,7 @@ rub_done
+ rub_horizontal
+         stb     ENEMY_ROW
+         pshs    x
+-        lbsr    roam_ring_slot
++        bsr     roam_ring_slot
+         lda     ,u
+         sta     RING_PHASE
+         anda    #7
+@@ -2677,6 +2706,9 @@ compose_enemy_animation
+         lda     ENEMY_ACTIVE
+         cmpa    #4
+         beq     cea_done
++        lbsr    efn_preview
++        lbsr    efn_cache_guard
++cea_cache_ready
+         lda     ENEMY_ANIM
+         ldb     #128
+         mul
+@@ -2896,7 +2928,7 @@ pci_done
+ ; the lower edge.  The complete decoded sprite remains bounded by PLAYER_STAGE
+ ; so the sparse decoder cannot touch framebuffer bytes outside that extent.
+ player_compose_entry
+-        lbsr    player_visible_rows
++        bsr     player_visible_rows
+         ; Clear the complete stage before decoding, including all nonvisible
+         ; rows.  This is stage RAM, not a framebuffer read.
+         ldx     #PLAYER_STAGE
+@@ -3292,49 +3324,11 @@ grfs_done
+         endc
+ 
+ draw_enemy_stage
+-        bsr    enemy_frame_number
++        lbsr   enemy_frame_number
+         bsr    sparse_enemy_stream
+         lbsr    sparse_blit_stage
+         rts
+ 
+-; Return the indexed sparse frame number in A. B is N/E/S/W. Parts 1-8 use
+-; one type each; later parts rotate four adjacent types across active records.
+-enemy_frame_number
+-        cmpb    #4
+-        blo     efn_direction_ready
+-        clrb
+-efn_direction_ready
+-        stb     STAGE_SOURCE
+-efn_slot_ready
+-        ; Sparse decoding does not consume packed-sprite STAGE_COUNT.
+-        lda     STAGE
+-        cmpa    #9
+-        blo     efn_type_ready
+-        deca
+-        anda    #7
+-        cmpa    #5
+-        blo     efn_offset_ready
+-        suba    #5
+-efn_offset_ready
+-        sta     STAGE_PIXEL
+-        lda     #4
+-        suba    ENEMY_WORK
+-        cmpa    #4
+-        blo     efn_record_ready
+-        clra
+-efn_record_ready
+-        adda    STAGE_PIXEL
+-        inca
+-efn_type_ready
+-        deca
+-        lsla
+-        lsla
+-        adda    STAGE_SOURCE
+-        lsla
+-        lsla
+-        ora     ENEMY_ANIM
+-        rts
+-
+ ; player_draw_impl: draw the selected player stream into BACK.
+ ;
+ ; Inputs:
+diff --git a/src/main.s b/src/main.s
+index 6355094..49887ab 100644
+--- a/src/main.s
++++ b/src/main.s
+@@ -445,6 +445,9 @@ object_yellow_lut equ $17C0
+ object_blue_lut equ $17D0
+ object_skull_lut equ $17E0
+ ENEMY_OLD_FB equ $A890
++ENEMY_NORMAL_CURSOR equ $A89D
++ENEMY_PENDING_TYPE equ $A89E
++ENEMY_CACHE_TYPE equ $A89F
+ ENEMY_BG_RING equ $A898
+ FB_META_A   equ $A900          ; A framebuffer ownership ledger
+ FB_META_B   equ $AA00          ; B framebuffer ownership ledger
+@@ -462,6 +465,7 @@ ENEMY_MODULE_RENDER equ $0815
+ FB_MODULE_INIT      equ $081B
+ FB_MODULE_IRQ       equ $081E
+ PRESENTATION_MODULE_DRAW equ $0821
++ENEMY_MODULE_BUILD_CACHE equ $0824
+ GIME_PAR5           equ $FFA5
+ 
+ RF_PLAYER      equ $01
+@@ -4698,6 +4702,10 @@ irq_handler
+ ; Cold enemy lifecycle reset lives in resident space so the frame-critical
+ ; bank-3 module retains room for bounded compositor paths.
+ reset_enemy_state
++        clr     ENEMY_NORMAL_CURSOR
++        lda     #$FF
++        sta     ENEMY_PENDING_TYPE
++        sta     ENEMY_CACHE_TYPE
+         clr     ENEMY_ANIM
+         lda     #8
+         sta     ENEMY_TIMER
