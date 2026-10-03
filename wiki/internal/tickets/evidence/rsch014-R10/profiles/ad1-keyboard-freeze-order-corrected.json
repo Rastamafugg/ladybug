@@ -1,0 +1,130 @@
+{
+  "schema": "rsch014-r10-corrected-profile-fit-v1",
+  "profile": "complete, AD1 keyboard",
+  "claim": "Allocation and static clock-contract fit only. This is not arcade cadence acceptance, runtime acceptance, or production approval.",
+  "build": {
+    "result": "PASS; build exited 0 on the exact overlay default build directory.",
+    "working_directory": "E:/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base",
+    "build_directory": "E:/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base/build",
+    "command": "LADYBUG_PROFILE=complete LADYBUG_ADAPTIVE=1 LADYBUG_INPUT=keyboard LADYBUG_BUILD_DIR=/mnt/e/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base/build ./scripts/build.sh build",
+    "source_reference": "PASS: 15 modules, 35,585 source lines.",
+    "source_documentation": "PASS: 15 modules, 303/303 routines, 4,975/4,975 labels.",
+    "other_guards": "PASS: allocation; 130 enemy and 16 player frames; 12 loader segments / 7 LZSS streams; exact GMC overflow boundary; presentation pixel proof; 11,903 CPU-readable GMC bytes spare."
+  },
+  "capacity": {
+    "resident": {
+      "used": 8148,
+      "limit": 8192,
+      "free": 44,
+      "basis": "build output"
+    },
+    "assets": {
+      "used": 7661,
+      "limit": 7680,
+      "free": 19,
+      "basis": "build output"
+    },
+    "enemy_runtime": {
+      "used": 4091,
+      "limit": 4096,
+      "free": 5,
+      "basis": "exact ROM module byte length"
+    },
+    "presentation_module": {
+      "used": 1266,
+      "limit": 1280,
+      "free": 14,
+      "basis": "exact assembled binary byte length"
+    },
+    "rate_helper": {
+      "start": "",
+      "end_exclusive": "",
+      "used": 185,
+      "extent": 192,
+      "free": 7,
+      "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c"
+    },
+    "E2_enemy_helper": {
+      "start": "",
+      "used": 87,
+      "limit": 93,
+      "free": 6,
+      "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526"
+    },
+    "B2_adaptive_banked": {
+      "used": 696,
+      "limit": 698,
+      "free": 2,
+      "sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab"
+    },
+    "B2_adaptive_active": {
+      "used": 603,
+      "limit": 777,
+      "free": 174,
+      "sha256": "8add5b4086f00509e654d3bb47e82ab6a692178b390a73b16f06d46f715971d9"
+    }
+  },
+  "call_sites": {
+    "enemy_tick": {
+      "module_address": "/bin/bash8EE",
+      "bytes": "BDA3C5",
+      "target": "physical page 4, rate_tick "
+    },
+    "enemy_init": {
+      "resident_address": "",
+      "bytes": "BDA463",
+      "target": "physical page 4, rate_enemy_init_shim "
+    },
+    "note": "AD1 keyboard callsite is D548; AD0 keyboard was D572. The helper target bytes and symbols match."
+  },
+  "source_reference_receipt_identity": {
+    "result": "PASS: adaptive-mapped, adaptive-banked, and adaptive-active source/listing/map/binary paths match their generated source-reference config.",
+    "config_sha256": "364970b76537d28354bbd346a25b3767ccdbf2514219c60ff368037083bb9625",
+    "receipt_sha256": "26d62cb69c0e129afe7f03515d9dae8dd10c51cfe84d0d5ae34da81c7c52b059",
+    "adaptive_mapped_source": "build/ladybug-adaptive-mapped.s",
+    "build_directory": "default overlay build/ path; no custom per-profile output subdirectory"
+  },
+  "static_guard": {
+    "result": "PASS: frozen source/map/listing and Step-D table/model checks; not 6809 runtime proof.",
+    "command": "python3 build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-keyboard-saturated-gate-corrected/verify_r10_freeze_order_candidate_ad1.py --artifacts build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-keyboard-saturated-gate-corrected --model ../../wiki/internal/tickets/evidence/rsch014-D/rate-policy-model.json --output build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-keyboard-saturated-gate-corrected/static-check.json",
+    "adapted_existing_verifier": {
+      "source": "wiki/internal/tickets/evidence/rsch014-R10/verify_r10_freeze_order_candidate.py",
+      "source_sha256": "8d8a196b1566d4f3fbdc4bbb47e0ca93700e5ac554406fe683e10cc86f011d61",
+      "local_AD1_copy_sha256": "cf1bd728e97f05318d46e7b97cd87d4878f0c241fa20fa0cbda014dd1ad31b27",
+      "changes": "AD1 full ROM, sparse manifest, and receipt hashes; D548 callsite; explicit B2 helper and receipt/config identity checks."
+    },
+    "model_sha256": "ffd11f1f05f112cd2942cb2709f345cbc78c97ecef1eee8b90cedebdfba6e325",
+    "static_result_sha256": "4f7e0fe4c7816b598d3ed489b54f45573a212357e5a94185335756accb0648ed",
+    "checks": "Rate table matches active part N to source counter N (one-based STAGE-1): 800 part/bucket cells, 50 threshold sets, and 3,280 late-part cells. Freeze cases cover saturated expiry/nonexpiry, frozen bucket rollovers 0F\u219210 and EF\u2192F0 at source-offset stages 1/17, thaw 1\u21920, and carry/no-carry."
+  },
+  "movement_unit_audit": {
+    "horizontal": "\u00b11 framebuffer byte per admitted move; two packed pixels per byte in this renderer.",
+    "vertical": "\u00b1320 framebuffer bytes; two 160-byte scanlines per admitted move.",
+    "cell": "substep 3,x increments and wraps at 4, so four admitted moves advance one 8-pixel cell.",
+    "formula": "For a moving actor with phase initially zero, C fractional carries across N callbacks yield C + floor((N-C)/2) admissions. Each admission is two pixels, or N+C pixels apart from the one-pixel phase endpoint.",
+    "cadence_limit": "This is per enemy callback. AD_SIM-to-Vbord/stall conversion remains uncalibrated.",
+    "blocked_actor_qualification": "No claim that blocked actors hold position. et_move_scan skips DIR_NONE, but et_update_loop applies west as its fallback to every active record when another record sets ENEMY_MOVE. ecd_blocked writes DIR_NONE without deactivating the record; reachability of active+DIR_NONE is unproven and remains a separate source qualification."
+  },
+  "rejected_custom_output_path_attempt": {
+    "result": "Excluded source-documentation identity failure; same generated-source path mechanism is already retained in profiles/ad1-joystick-path-mismatch-retained.json.",
+    "receipt_sha256": "ac4cb718df8a9c966c3f752fbaa768c0054f28cef6302b4f249f00f3aba2ddd6",
+    "expected_adaptive_mapped_source": "build/ladybug-adaptive-mapped.s",
+    "custom_path_receipt_source": "build/r10-freeze-order-ad1-keyboard-corrected/ladybug-adaptive-mapped.s",
+    "resolution": "Reran on exact default overlay build/ path; current source/config/receipt identities pass."
+  },
+  "frozen_artifacts": {
+    "local_directory": "E:/projects/ladybug/worktrees/bug087-rate-fit-preparation/build/.rsch014-r10-overlay-base/build/wiki/internal/tickets/evidence/rsch014-R10/frozen-rate-clock/ad1-keyboard-saturated-gate-corrected",
+    "build_files_and_source_count": 103,
+    "hash_manifest_sha256": "63190220ce5a8aaee0505ac8f09f740a729478baed853c9c65cefe2be4913576",
+    "full_rom_sha256": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721",
+    "runtime_rom_sha256": "058a2c868d4557cb1ba5950f7a974d4de906e20a931b6d0c6311f464360aa309",
+    "sparse_manifest_sha256": "6b19e54935fd87966e0732994c1c46b1366f1a7b46a6a8423a0a413499661c7f"
+  },
+  "not_accepted": [
+    "No emulator or physical-hardware run.",
+    "Table equivalence and host state model do not establish arcade cadence or 6809 behavior.",
+    "No blocked-actor movement invariant is claimed.",
+    "The previous 174-byte helper profile matrix does not transfer to this 185-byte candidate.",
+    "No production source change or runtime repair is authorized by this fit evidence."
+  ]
+}
