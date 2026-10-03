@@ -17,9 +17,10 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Ticket · bug</p>
-      <h1>BUG-109 — Name-entry stray score removal <span class="wiki-badge">Proposed</span></h1>
+      <h1>BUG-109 — Name-entry stray score removal <span class="wiki-badge">Approved</span></h1>
       <p class="wiki-meta">2026-10-01 · P2 · Compact · Proposed</p>
     </header>
+<section id="cleanup-approval-20261003"><h2>2026-10-03 — Approved contract</h2><p>User explicitly approved this contract as currently written. Approval preserves outcome, scope, targets, risk class and acceptance. Assignment details and dependency gates are being completed; no implementation acceptance or Ready status is inferred from approval.</p></section>
     <section id="c3-approval-20261001">
       <h2>Approval brief</h2>
       <h3>Objective and confirmed cause</h3><p>Remove the stray six-digit score between <code>TOP HI</code> and <code>SCORE</code> on the name-entry screen. Baseline <code>fe160ae389145d24083218ded05ba9cdca781474</code>: <code>draw_entry_scores</code> sends the pending score or committed record-zero score to <code>PRESENTATION_NAME_ENTRY_TOP_DST</code>, x1–6,y13. The default record-zero value is 090000, which creates the reported text. The separate left HUD lives on row20 and remains in BUG-110 scope.</p>

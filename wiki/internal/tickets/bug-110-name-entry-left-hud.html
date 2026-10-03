@@ -17,9 +17,10 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Ticket · bug</p>
-      <h1>BUG-110 — Name-entry left HUD identity <span class="wiki-badge">Proposed</span></h1>
+      <h1>BUG-110 — Name-entry left HUD identity <span class="wiki-badge">Approved</span></h1>
       <p class="wiki-meta">2026-10-01 · P2 · High-risk · Proposed</p>
     </header>
+<section id="cleanup-approval-20261003"><h2>2026-10-03 — Approved contract</h2><p>User explicitly approved this contract as currently written. Approval preserves outcome, scope, targets, risk class and acceptance. Assignment details and dependency gates are being completed; no implementation acceptance or Ready status is inferred from approval.</p></section>
     <section id="c3-approval-20261001">
       <h2>Approval brief</h2>
       <h3>Objective and confirmed source cause</h3><p>Replace the enter-high-score left panel placeholders with the pending player's actual rank, name and score in red. The authored cells are rank x1–3,y18, name x1–7,y19, score x1–6,y20. At baseline <code>fe160ae389145d24083218ded05ba9cdca781474</code>, <code>render_name_screen</code>/<code>update_name_frame</code> draw the pending and top-right fields only; no writer fills the left rank or name, and no writer puts the player's live score at row20. The row13 writer is separate BUG-109 scope.</p>

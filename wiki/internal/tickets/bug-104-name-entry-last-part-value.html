@@ -17,9 +17,10 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Ticket · bug</p>
-      <h1>BUG-104 — Name-entry last-part value <span class="wiki-badge">Proposed</span></h1>
+      <h1>BUG-104 — Name-entry last-part value <span class="wiki-badge">Approved</span></h1>
       <p class="wiki-meta">2026-10-01 · P2 · High-risk · Proposed</p>
     </header>
+<section id="cleanup-approval-20261003"><h2>2026-10-03 — Approved contract</h2><p>User explicitly approved this contract as currently written. Approval preserves outcome, scope, targets, risk class and acceptance. Assignment details and dependency gates are being completed; no implementation acceptance or Ready status is inferred from approval.</p></section>
     <section id="c3-approval-20261001">
       <h2>Approval brief</h2>
       <h3>Objective and source cause</h3><p>Show the part number for the level just completed on the enter-high-score screen after game over. At baseline <code>fe160ae389145d24083218ded05ba9cdca781474</code>, the user TMX contains the <code>PART 01</code> field, but <code>render_name_screen</code> does not draw a part value. The stage-panel writer is guarded to the level-start map. The active stage byte at <code>$24 STAGE</code> advances in <code>next_stage</code>; the last completed part must be read from that state before another stage is initialized, not from the starting-level option or reused temporary state. Runtime handoff identity remains an acceptance gate.</p>

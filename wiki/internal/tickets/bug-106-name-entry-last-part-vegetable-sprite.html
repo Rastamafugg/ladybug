@@ -17,9 +17,10 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Ticket · bug</p>
-      <h1>BUG-106 — Name-entry last-part vegetable sprite <span class="wiki-badge">Proposed</span></h1>
+      <h1>BUG-106 — Name-entry last-part vegetable sprite <span class="wiki-badge">Approved</span></h1>
       <p class="wiki-meta">2026-10-01 · P2 · High-risk · Proposed</p>
     </header>
+<section id="cleanup-approval-20261003"><h2>2026-10-03 — Approved contract</h2><p>User explicitly approved this contract as currently written. Approval preserves outcome, scope, targets, risk class and acceptance. Assignment details and dependency gates are being completed; no implementation acceptance or Ready status is inferred from approval.</p></section>
     <section id="c3-approval-20261001">
       <h2>Approval brief</h2>
       <h3>Objective and confirmed source cause</h3><p>Display the vegetable sprite associated with the last completed part on the enter-high-score screen. At baseline <code>fe160ae389145d24083218ded05ba9cdca781474</code>, the user map has a <code>Sprite Locations</code> marker at x32,y13 (GID633). The parser validates the marker but does not publish it as a name-screen draw destination. <code>stage_panel_finish</code> selects and draws vegetable sprites only on the level-start map; <code>render_name_screen</code> has no vegetable draw call. This is source absence, not current-ROM proof.</p>
