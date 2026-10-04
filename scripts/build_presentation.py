@@ -846,6 +846,8 @@ def presentation_pen_map(
             return (BLACK, PINK, PINK, PINK)
         return (BLACK, LIGHT_BLUE, LIGHT_BLUE, LIGHT_BLUE)
     if role == "high-score" and source_layer == "High Score Table and Branding":
+        if x in (30, 31) and y in (13, 14):
+            return (BLACK, RED, RED, RED)
         if 13 <= y <= 18 and 9 <= x <= 30:
             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
         if x == 31 and y in (13, 14):

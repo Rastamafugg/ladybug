@@ -509,8 +509,28 @@ def run_current_scores(output, adapter):
         (output/"summary.json").write_text(json.dumps(receipt,indent=2)+"\n")
 
 
+def run_current_trademark(output, adapter):
+    output=output.resolve()
+    if output.exists():
+        raise SystemExit("fresh output path required")
+    rom_hash=digest((BUILD/"ladybug.rom").read_bytes())
+    command=[sys.executable,str(adapter.resolve()),"--worktree",str(ROOT),
+        "--rom-sha256",rom_hash,"--output",str(output),"--trademark","red"]
+    subprocess.run(command,cwd=ROOT,check=True,timeout=150)
+    if json.loads(output.read_text()).get("status")!="PASS":
+        raise AssertionError("trademark routes did not pass")
+
+
 def main():
     arguments = sys.argv[1:]
+    if "--current-trademark" in arguments:
+        parser=argparse.ArgumentParser(description="Current complete trademark two-route GDB probe")
+        parser.add_argument("--current-trademark",action="store_true")
+        parser.add_argument("--adapter",type=Path,required=True)
+        parser.add_argument("--output",type=Path,required=True)
+        args=parser.parse_args(arguments)
+        run_current_trademark(args.output,args.adapter)
+        return
     if "--current-scores" in arguments:
         parser=argparse.ArgumentParser(description="Current BUG069 visible hydration checks")
         parser.add_argument("--current-scores",action="store_true")
