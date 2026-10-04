@@ -69,7 +69,8 @@ ki_copy
 key_defaults
         fcb 27,35,43,51,KB_FIXED_ENTER
 key_scan
-        clr $D0                   ; discard any menu edge not consumed this scan
+        ; $D0 belongs to the instruction colour clock off menu screens.
+        ; ks_local publishes every menu edge, including zero; capture clears locally.
         ldx #KB_ROWS
         lda #$FE
 ks_column
