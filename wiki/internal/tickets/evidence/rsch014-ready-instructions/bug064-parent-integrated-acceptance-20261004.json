@@ -1,0 +1,166 @@
+{
+  "status": "PASS; BUG064 Done",
+  "execution_commit": "e90f01b791fb271d150a0444f11464349ab49a93",
+  "integration_commit": "56f5be4",
+  "only_changed_production_or_verifier_file": "scripts/verify_bug035_presentation.py",
+  "rom_sha256": "62157bf3dfacc207a439fa41078d8ee6d8f0ef86474a2c19cd4a34744df3373d",
+  "application_artifact_unchanged": true,
+  "executor_receipt": {
+    "schema": "bug064-execution-v1",
+    "ticket": "BUG-064",
+    "status": "PASS-LOCAL-VERIFICATION-PARENT-INTEGRATION-PENDING",
+    "branch": "codex/bug-064",
+    "base_commit": "669b15791d34c09c3d7c9c91dc4c98659824a89d",
+    "commit": "e90f01b",
+    "owned_changes": [
+      "scripts/verify_bug035_presentation.py"
+    ],
+    "source_script_sha256": "0c7d6f91b88936bbc9c620107c1a5ed14cf79180d83525c134bdc5c0cac97967",
+    "source_revision": "669b15791d34c09c3d7c9c91dc4c98659824a89d",
+    "source_files_sha256": {
+      "coco-attract-screen.tmx": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07",
+      "coco-credits-screen.tmx": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825",
+      "coco-enter-high-score-screen.tmx": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca",
+      "coco-game-over-screen.tmx": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05",
+      "coco-high-score-screen.tmx": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d",
+      "coco-instructions-screen.tmx": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4",
+      "coco-keybind-options-screen.tmx": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046",
+      "coco-level-start-screen.tmx": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b",
+      "coco-screen.tmx": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f"
+    },
+    "build": {
+      "command": "wsl bash scripts/build.sh build",
+      "status": "PASS",
+      "source_build_receipt_sha256": "9699f3b10106b0c160bf5f1ae27329cd35638e7c960571c6073804260fb9fb18",
+      "complete_rom_sha256": "62157bf3dfacc207a439fa41078d8ee6d8f0ef86474a2c19cd4a34744df3373d",
+      "runtime_bank_sha256": "0bd98f13a5fa99966d27c5a5670cbb7a967463cdd4367deb32d65ee824833b34",
+      "presentation_manifest_sha256": "8d81654209acf7eb1844c0479c9f5c332f9a75b4d4bfac08d903550f37dadc4e",
+      "shared_text_receipt_sha256": "57ed7f74dee8ee6ef6abcf54d622fe4295a265ed9e1f993e8b0eef7757341da8",
+      "shared_static_instruction_frame_sha256": "93514112a0e12e632a891a1cc04495764c229863bd22769041ee97aea4d4aaf9",
+      "capacity_bytes": {
+        "resident": "8150/8192; free 42",
+        "assets": "7680/7680; free 0",
+        "presentation_module": "1266/1280; free 14",
+        "presentation_helper": "331/334; free 3",
+        "instruction_runtime": "935/938; free 3",
+        "adaptive_active": "603/777; free 174",
+        "adaptive_banked": "696/698; free 2",
+        "audio": "734/920; free 186",
+        "page_3d": "6656/8192; free 1536"
+      },
+      "audit": "14 modules; 305/305 routines; 4960/4960 labels",
+      "shared_text": "9 screens pixel-exact; 0 differing bytes"
+    },
+    "runtime": {
+      "command": "wsl python3 scripts/verify_bug035_presentation.py --current-instructions-static --adapter /mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-menu/gdb_menu_probe.py --output /mnt/e/projects/ladybug/repro/bug064-execution-static.json",
+      "status": "PASS",
+      "receipt_sha256": "6bbb612450bc98651cce785d33441ce90e8213ca751ef52effe607c22be5409d",
+      "adapter_sha256": "caaabe5bad73f3d1e1be6aee5f2bbbf640dc7d5c43301093f2a43e654838266e",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 6.989,
+          "primary_sha256": "b1f2beb820e3ad609cd82b8339ca92e91b7e3394140188537a66007336f5fd46",
+          "owner_frames_sha256": null,
+          "passed_checks": 27
+        },
+        {
+          "name": "natural-instructions-hidden-hydration",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 12.018,
+          "primary_sha256": null,
+          "owner_frames_sha256": {
+            "0": "80479ecd00eb519e47111218c23a8fdf17b0cf1b7ee0079a3b25de95fdd3b531",
+            "1": "80479ecd00eb519e47111218c23a8fdf17b0cf1b7ee0079a3b25de95fdd3b531"
+          },
+          "passed_checks": 7
+        }
+      ],
+      "hidden_load_outputs": [
+        "TOP090000 at columns 33..38 row 6, red pen 1",
+        "authored cucumber at generated instruction destination"
+      ],
+      "qualification": "Natural attract-to-instructions, first static publication before any instruction actor tick. This does not claim choreography, multiplier replay or next-stage acceptance."
+    },
+    "rejected_attempts": [
+      {
+        "attempt": "git apply --check of retained verifier patch",
+        "result": "failed at stale line 423 context because the delivered BUG-061 verifier had moved",
+        "resolution": "merged the exact 24-line selector/function into current file, preserving --current-parts; runtime passed",
+        "patch_sha256": "19745a9585672ab1bb44ac659d5832d1b19b05d5061b7d5e56b53b73c47338eb"
+      },
+      {
+        "attempt": "legacy BUG-035 default oracle",
+        "result": "excluded by Ready assignment after retained review found obsolete attract composition and unconditional level-start hash",
+        "resolution": "current static selector uses shared instruction observer; no target failure"
+      }
+    ],
+    "residual_risk": "Parent must inspect commit and repeat combined-source verification if integration inputs change. Dynamic choreography, multiplier replay, and next-stage equality are out of scope."
+  },
+  "parent_phases": [
+    {
+      "name": "cold-attract-delivery",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "checks": [
+        "live resident equals current runtime artifact",
+        "live presentation marker owner equals current module artifact",
+        "natural prompt row 15 col 13",
+        "natural prompt row 15 col 14",
+        "natural prompt row 15 col 15",
+        "natural prompt row 15 col 16",
+        "natural prompt row 15 col 17",
+        "natural prompt row 15 col 18",
+        "natural prompt row 15 col 19",
+        "natural prompt row 15 col 20",
+        "natural prompt row 15 col 21",
+        "natural prompt row 15 col 22",
+        "natural prompt row 15 col 23",
+        "natural prompt row 15 col 24",
+        "natural prompt row 15 col 25",
+        "natural prompt row 15 col 26",
+        "natural prompt row 15 col 27",
+        "natural prompt row 19 col 13",
+        "natural prompt row 19 col 15",
+        "natural prompt row 19 col 16",
+        "natural prompt row 19 col 17",
+        "natural prompt row 19 col 18",
+        "natural prompt row 19 col 21",
+        "natural prompt row 19 col 23",
+        "natural prompt row 19 col 24",
+        "natural prompt row 19 col 25",
+        "natural prompt row 19 col 26"
+      ],
+      "front_frame_sha256": "da375782a7a46fb052f36227d7eded59aa49481863ad9d7b7eed169a19782278",
+      "elapsed_seconds": 5.567
+    },
+    {
+      "name": "natural-instructions-hidden-hydration",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "checks": [
+        "instruction authored/staged/destination bytes identical",
+        "first instruction boundary is published screen1 with no pending frame",
+        "current cold payload identity",
+        "expected static frame equals manifest",
+        "cucumber authored code equals current generated source",
+        "complete instructions static pixels owner 0",
+        "complete instructions static pixels owner 1"
+      ],
+      "expected_hidden_load_overlays": [
+        "boot committed TOP090000 at33..38,row6, red1",
+        "authored cucumber at generated instruction destination"
+      ],
+      "owner_frame_sha256": {
+        "0": "80479ecd00eb519e47111218c23a8fdf17b0cf1b7ee0079a3b25de95fdd3b531",
+        "1": "80479ecd00eb519e47111218c23a8fdf17b0cf1b7ee0079a3b25de95fdd3b531"
+      },
+      "elapsed_seconds": 13.115
+    }
+  ],
+  "qualification": "Natural attract-to-instructions, first static publication before any instruction actor tick. This does not claim choreography, multiplier replay or next-stage acceptance.",
+  "root_verifier_sha256": "7d41c811e844b52e62176b059c35f255c68025e2b2f2cf010c264df1687f1bbe",
+  "verification_reuse": "Parent061 full combined build and current064 executor full build both have the same exact application ROM. Verifier-only integration changes no application build input; parent reran the delivered wrapper, without duplicating a third unchanged full build.",
+  "residual": "BUG065/066 palette, BUG067 choreography and BUG068 level-start acceptance remain separately required."
+}
