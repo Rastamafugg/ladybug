@@ -1,0 +1,93 @@
+{
+  "ticket": "BUG-068",
+  "status": "DONE-PARENT-INTEGRATED",
+  "executor_commit": "9ee0d80f0c10e7590b90a8a6a117f76d319d76b2",
+  "parent_source_commit": "e89e558",
+  "rom_sha256": "3f6152996b682e4f3b54a2339762cb72739fbfe0450963dd291c5e687bdfd532",
+  "source_receipt_sha256": "c6482bff3d3605c21cfbab040b0d8b6ce05dc22dbe274e8e031872e1385b7108",
+  "source_receipt_revision": "e89e5586700414bfe935ba7d44a18bd0d09f7e70",
+  "build_exit": 0,
+  "static": {
+    "status": "PASS",
+    "checks": [
+      {
+        "screen": "attract",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "instructions",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "level-start",
+        "changed_pixels": 14,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "high-score",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "game-over",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "enter-high-score",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "options",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "credits",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "keybind-options",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      }
+    ]
+  },
+  "runtime_receipt_sha256": "c9c21cc79fe7052bae45a7f01e83a87a60da6e2ed2b7e9012f806f6aece5eaca",
+  "runtime_phases": [
+    {
+      "name": "cold-attract-delivery",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "front_frame_sha256": "da375782a7a46fb052f36227d7eded59aa49481863ad9d7b7eed169a19782278",
+      "elapsed_seconds": 5.815
+    },
+    {
+      "name": "selected-part-natural-level-start-1",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "forced_state": "Seed next-game part setting EB directly, including 100..255 outside menu-selectable1..99; real Enter and natural level-start hydration. Menu setting range unchanged.",
+      "published_front_owner": 1,
+      "owner_qualification": "Level-start bypasses start_screen_hold and publishes one hydrated BACK as FRONT; previous hidden screen is excluded. Ordinary HUD probe separately verifies both persistent owners.",
+      "equals_oracle": "Independent rotated raw character42; baseline white6 or target green5; four adjacent nonblank digit cells green5.",
+      "elapsed_seconds": 5.211
+    }
+  ],
+  "static_receipt_sha256": "33e5c505d9d77b56ad8595ea9892ccd36ffb4b91ec45c6bbbfbb8b78e7c28f42",
+  "headroom": {
+    "resident_free": 42,
+    "assets_free": 4,
+    "presentation_free": 14,
+    "instruction_free": 3,
+    "low_helper_free": 3,
+    "mapped_free": 22,
+    "banked_free": 2,
+    "gmc_spare": 12155
+  },
+  "rejected_experiments": [],
+  "residual": "Existing tight margins unchanged; unrelated instruction clock/progression/life contracts remain open."
+}
