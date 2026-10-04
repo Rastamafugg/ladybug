@@ -1,0 +1,148 @@
+--- a/src/main.s
++++ b/src/main.s
+@@ -1,7 +1,7 @@
+ ; DOC-002 source-contract mirror contract presentation_key_service profile=input: Call the bounded physical key component while preserving the caller bank mapping.
+ ; DOC-002 source-contract mirror contract asset_draw_hud_digit profile=render: Draw one shared-font HUD digit.
+ ; DOC-002 source-contract mirror contract asset_draw_two_digits profile=render: Draw a two-digit HUD value with a leading zero.
+-; DOC-002 source-contract mirror contract asset_draw_life_count profile=render: Draw numeric reserves in the existing marker footprint.
++; DOC-002 source-contract mirror contract life_marker_position profile=render: Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.
+ ; DOC-002 source-contract mirror contract adaptive_install_active profile=copy: Restore the active low-RAM driver from staged page $3D after a presentation overlay retires.
+ ; DOC-002 source-contract mirror contract AD_WORK_EXEC profile=framebuffer: Execute the active logical batch, damage reduction, audio service and BACK publication transaction.
+ ; DOC-002 source-contract mirror contract AD_RESET_EXEC profile=state: Rebase adaptive phase time and clear both damage journals outside active publication.
+@@ -1549,12 +1549,24 @@
+ 
+ draw_lives
+         ifne COMPLETE_PROFILE
+-        lda     LIVES
+-        cmpa    #4
+-        blo     dl_markers
+-        jmp     asset_draw_life_count
+-dl_markers
+-        endc
++        clr     ENTITY_WORK
++dl_marker
++        lda     ENTITY_WORK
++        jsr     life_marker_position
++        lda     ENTITY_WORK
++        cmpa    LIVES
++        bhs     dl_erase
++        bsr     draw_life_marker
++        bra     dl_next
++dl_erase
++        bsr     clear_life_marker
++dl_next
++        inc     ENTITY_WORK
++        lda     ENTITY_WORK
++        cmpa    #12
++        blo     dl_marker
++        rts
++        else
+         clr     ENTITY_WORK
+ dl_marker
+         lda     ENTITY_WORK
+@@ -1576,6 +1588,7 @@
+         cmpa    #3
+         blo     dl_marker
+         rts
++        endc
+ 
+ clear_life_marker
+         lda     HUD_Y
+--- a/src/shared_text_runtime.inc
++++ b/src/shared_text_runtime.inc
+@@ -1,25 +1,5 @@
+ ; Shared masks and typed graphic/text dispatch. Data is generated from authored assets.
+ 
+-; FEAT-005 numeric reserve display uses the existing three-marker footprint.
+-asset_draw_life_count
+-        lda     #33
+-        sta     HUD_X
+-        lda     #21
+-        sta     HUD_Y
+-        lda     #3
+-        sta     ENTITY_WORK
+-asset_clear_reserves
+-        jsr     clear_life_marker
+-        inc     HUD_X
+-        inc     HUD_X
+-        dec     ENTITY_WORK
+-        bne     asset_clear_reserves
+-        lda     #33
+-        sta     HUD_X
+-        lda     #8
+-        sta     HUD_COLOR
+-        lda     LIVES
+-        bra     asset_draw_two_digits
+ ; Font producer guards the last compact glyph as the blank mask.
+ asset_part_digits
+         pshs    a
+@@ -33,6 +13,22 @@
+         puls    a
+         bra     asset_draw_two_digits
+ 
++; DOC-002 source-contract mirror contract life_marker_position profile=render: Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.
++; A = slot0..11; writes only HUD_X/HUD_Y; no live-state mutation.
++life_marker_position
++        ldb     #21
++dl_position_row
++        cmpa    #3
++        blo     dl_position_column
++        suba    #3
++        subb    #2
++        bra     dl_position_row
++dl_position_column
++        lsla
++        adda    #33
++        sta     HUD_X
++        stb     HUD_Y
++        rts
+ asset_draw_two_digits
+         clrb
+ asset_number_tens
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -687,11 +687,11 @@
+           "semantic_id": "routines.html#routine-resident-runtime-shared-mask"
+         },
+         {
+-          "name": "asset_draw_life_count",
+-          "profile": "render",
+-          "purpose": "Draw numeric reserves in the existing marker footprint.",
+-          "reasons": [],
+-          "semantic_id": "routines.html#routine-resident-runtime-asset-draw-life-count"
++          "name": "life_marker_position",
++          "profile": "render",
++          "purpose": "Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.",
++          "reasons": [],
++          "semantic_id": "routines.html#routine-resident-runtime-life-marker-position"
+         },
+         {
+           "name": "asset_draw_two_digits",
+@@ -1166,6 +1166,16 @@
+           "name": "asset_part_digits",
+           "routine": "asset_draw_part_value",
+           "purpose": "Immutable-font tail of the fixed part writer; blank mask for zero hundreds, then the existing two-digit writer."
++        },
++        {
++          "name": "dl_position_row",
++          "routine": "life_marker_position",
++          "purpose": "Subtract one three-slot row and lower the HUD row register by two."
++        },
++        {
++          "name": "dl_position_column",
++          "routine": "life_marker_position",
++          "purpose": "Convert the remaining zero-to-two slot index into the HUD column."
+         }
+       ]
+     },
+--- a/wiki/internal/implementation/routine-catalog.html
++++ b/wiki/internal/implementation/routine-catalog.html
+@@ -390,7 +390,7 @@
+   <section id="doc010-current-routines"><h2>Current emitted-module extension</h2><p>DOC-010 registers the complete-profile modules missing from the original DOC-002 catalog. Their current routine purposes and interface profiles are available in the <a href="../../../build/source-reference/routines.html">generated routine catalog</a>, with source mirrors beside the assembly. Imported fixed entry constants are cross-module call references, not local routine bodies. Calls inside inactive conditional branches remain source-only and are excluded from the emitted-call requirement.</p><p>Profiles are broad calling/ownership conventions. Exact register use remains in each linked routine and caller; profile coverage is not a runtime safety certificate. Historical evidence below retains its original context. The ownership audit reports declarations and unresolved indirect relationships separately.</p></section>
+ <section id="profile-audio"><h3>Foreground audio service</h3><p><strong>Inputs:</strong> Cue IDs, slot state and foreground phase; detailed register arguments remain at the source call site.</p><p><strong>Outputs:</strong> Updated queue, voices, status or PSG output as named by the routine.</p><p><strong>Clobbers:</strong> A, B, D, X, Y, U and condition codes unless source saves a narrower set.</p><p><strong>Reads:</strong> Audio direct-page bytes, page-$3D cue streams and slots, and polled gameplay/name state.</p><p><strong>Writes:</strong> Audio-owned queue, scratch, slots, mix shadows and sound/interface registers required by the operation.</p><p><strong>Side effects:</strong> May select GMC sound output and write PSG registers. Foreground callers own the bank-restoring gateway.</p><p><strong>Invariants:</strong> Audio scratch is not game scratch; non-audio callers return through the guarded bank-restoring gateway.</p></section>
+ <section id="adaptive-driver-contracts-20260928"><h2>Isolated adaptive driver contracts</h2><p>BUG-058 experimental complete build only. Existing interface profiles below supply conservative registers and memory rules; entry-specific ownership is described in the canonical ticket.</p><ul><li id="routine-resident-runtime-ad-clock-exec"><code>AD_CLOCK_EXEC</code>: Read an atomic raw VBlank snapshot through the fitted mapped gateway. Profile: <a href="#profile-root">root</a>.</li><li id="routine-resident-runtime-ad-reset-exec"><code>AD_RESET_EXEC</code>: Rebase adaptive phase time and clear both damage journals outside active publication. Profile: <a href="#profile-state">state</a>.</li><li id="routine-resident-runtime-ad-work-exec"><code>AD_WORK_EXEC</code>: Execute the active logical batch, damage reduction, audio service and BACK publication transaction. Profile: <a href="#profile-framebuffer">framebuffer</a>.</li><li id="routine-resident-runtime-adaptive-install-active"><code>adaptive_install_active</code>: Restore the active low-RAM driver from staged page $3D after a presentation overlay retires. Profile: <a href="#profile-copy">copy</a>.</li><li id="routine-audio-runtime-aas-clock"><code>aas_clock</code>: Read an atomic raw VBlank snapshot without changing caller IRQ state. Profile: <a href="#profile-audio">audio</a>.</li><li id="routine-audio-runtime-aas-dirty"><code>aas_dirty</code>: Detect semantic-state or queue changes before admitting audio; no note ages here. Profile: <a href="#profile-audio">audio</a>.</li><li id="routine-audio-runtime-aas-prime"><code>aas_prime</code>: Decode only newly admitted zero-wait voices; never age an existing dwell. Profile: <a href="#profile-audio">audio</a>.</li><li id="routine-audio-runtime-audio-adaptive-api"><code>audio_adaptive_api</code>: Separate elapsed-note service, semantic admission, audible publication and explicit phase rebase. Profile: <a href="#profile-audio">audio</a>.</li></ul></section>
+-<section id="profile-keybindings"><h2>Session keybinding interface</h2><p><strong>inputs:</strong> Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.</p><p><strong>outputs:</strong> Held action mask, fresh credit/start/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.</p><p><strong>clobbers:</strong> A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.</p><p><strong>reads:</strong> PIA keyboard rows, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.</p><p><strong>writes:</strong> Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.</p><p><strong>side effects:</strong> Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.</p><p><strong>invariants:</strong> The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage.</p></section><section id="routine-resident-runtime-presentation-key-service"><h3><code>presentation_key_service</code></h3><p>Call the bounded physical key component while preserving the caller bank mapping. Interface: <a href="#profile-input">input</a>. Source: <code>src/main.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-service"><h3><code>key_service</code></h3><p>Dispatch physical input, authored menu painting, capture navigation or default initialization. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-init"><h3><code>key_init</code></h3><p>Restore seven default physical bindings and clear capture and repaint history. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-scan"><h3><code>key_scan</code></h3><p>Sample eight physical columns and produce held actions and fresh consumer edges. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-down"><h3><code>key_down</code></h3><p>Test one column-times-eight-plus-row physical switch while preserving caller indexes. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-capture"><h3><code>key_capture</code></h3><p>Reject conflicting or ambiguous keys and consume accepted or cancelled capture through release. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-tick"><h3><code>key_tick</code></h3><p>Navigate the seven actions and BACK or begin waiting for a replacement switch. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-paint"><h3><code>key_paint</code></h3><p>Repaint all hydrated rows or only the previous and current selected rows for the prepared owner. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-waiting"><h3><code>key_waiting</code></h3><p>Report whether the current row owns active capture parentheses. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-name"><h3><code>key_name</code></h3><p>Resolve a physical switch to its single glyph or descriptive key name. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-text"><h3><code>key_text</code></h3><p>Paint an authored length-delimited glyph run. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-char"><h3><code>key_char</code></h3><p>Paint one source glyph through the resident shared mask renderer. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-resident-runtime-asset-draw-part-value"><h3><code>asset_draw_part_value</code></h3><p>BUG061 approved formatter prototype; not yet integrated into parent production. Input A=part1–255 and HUD_X=hundreds column. Compute hundreds in B and remainder in A, then jump to immutable asset_part_digits; write blank for zero hundreds followed by fixed tens/units through the existing two-digit writer. Uses the last compact font glyph only under the producer blank-mask guard. Writes HUD_X and target framebuffer glyph cells; preserves stage/lives and existing MMU ownership. Clobbers A/B and follows the existing render interface. Source: src/main.s and src/shared_text_runtime.inc. Current capacity and integration qualification are recorded in <a href="../tickets/bug-061-global-two-digit-part-format.html#split-formatter-fit-20261003">BUG061</a>.</p></section><section id="routine-highscore-helper-stage-player-score"><h3><code>stage_player_score</code></h3><p>BUG-069 approved prototype; not integrated production. Existing mapped stage helper paints six score digits at x33–38,row2 in light green during hidden hydration. Context2 reads current SCORE_BCD; contexts0/1 paint zero. Existing stage_panel_char preserves loop registers; score accounting and MMU ownership remain unchanged.</p></section></main>
++<section id="profile-keybindings"><h2>Session keybinding interface</h2><p><strong>inputs:</strong> Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.</p><p><strong>outputs:</strong> Held action mask, fresh credit/start/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.</p><p><strong>clobbers:</strong> A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.</p><p><strong>reads:</strong> PIA keyboard rows, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.</p><p><strong>writes:</strong> Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.</p><p><strong>side effects:</strong> Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.</p><p><strong>invariants:</strong> The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage.</p></section><section id="routine-resident-runtime-presentation-key-service"><h3><code>presentation_key_service</code></h3><p>Call the bounded physical key component while preserving the caller bank mapping. Interface: <a href="#profile-input">input</a>. Source: <code>src/main.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-service"><h3><code>key_service</code></h3><p>Dispatch physical input, authored menu painting, capture navigation or default initialization. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-init"><h3><code>key_init</code></h3><p>Restore seven default physical bindings and clear capture and repaint history. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-scan"><h3><code>key_scan</code></h3><p>Sample eight physical columns and produce held actions and fresh consumer edges. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-down"><h3><code>key_down</code></h3><p>Test one column-times-eight-plus-row physical switch while preserving caller indexes. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-capture"><h3><code>key_capture</code></h3><p>Reject conflicting or ambiguous keys and consume accepted or cancelled capture through release. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-tick"><h3><code>key_tick</code></h3><p>Navigate the seven actions and BACK or begin waiting for a replacement switch. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-paint"><h3><code>key_paint</code></h3><p>Repaint all hydrated rows or only the previous and current selected rows for the prepared owner. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-waiting"><h3><code>key_waiting</code></h3><p>Report whether the current row owns active capture parentheses. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-name"><h3><code>key_name</code></h3><p>Resolve a physical switch to its single glyph or descriptive key name. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-text"><h3><code>key_text</code></h3><p>Paint an authored length-delimited glyph run. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-char"><h3><code>key_char</code></h3><p>Paint one source glyph through the resident shared mask renderer. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-resident-runtime-asset-draw-part-value"><h3><code>asset_draw_part_value</code></h3><p>BUG061 approved formatter prototype; not yet integrated into parent production. Input A=part1–255 and HUD_X=hundreds column. Compute hundreds in B and remainder in A, then jump to immutable asset_part_digits; write blank for zero hundreds followed by fixed tens/units through the existing two-digit writer. Uses the last compact font glyph only under the producer blank-mask guard. Writes HUD_X and target framebuffer glyph cells; preserves stage/lives and existing MMU ownership. Clobbers A/B and follows the existing render interface. Source: src/main.s and src/shared_text_runtime.inc. Current capacity and integration qualification are recorded in <a href="../tickets/bug-061-global-two-digit-part-format.html#split-formatter-fit-20261003">BUG061</a>.</p></section><section id="routine-highscore-helper-stage-player-score"><h3><code>stage_player_score</code></h3><p>BUG-069 approved prototype; not integrated production. Existing mapped stage helper paints six score digits at x33–38,row2 in light green during hidden hydration. Context2 reads current SCORE_BCD; contexts0/1 paint zero. Existing stage_panel_char preserves loop registers; score accounting and MMU ownership remain unchanged.</p></section><section id="routine-resident-runtime-life-marker-position"><h3><code>life_marker_position</code></h3><p>BUG-062 capacity prototype for the approved 12-slot reserve grid. Input A is the slot index 0–11; the routine returns the authored tile root through HUD_X/HUD_Y and does not access lives, player state or reserve count. It is called from draw_lives with JSR after relocation to the immutable shared text region. All twelve coordinate pairs were compared with the approved grid formula. This is assembly/layout evidence only; it is not runtime acceptance.</p><p>Source: src/main.s and src/shared_text_runtime.inc. The helper’s source contract and capacity qualification remain preparation evidence.</p></section></main>
+ </div>
+ </body>
+ </html>
