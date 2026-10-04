@@ -815,7 +815,7 @@ def presentation_pen_map(
         }.get(y, BLACK)
         return (BLACK, colour, colour, colour)
     if role == "level-start" and 8 <= x < 32:
-        if y == 4 and 16 <= x <= 25:
+        if y == 4 and 15 <= x <= 25:
             return (BLACK, BLUE, BLUE, BLUE)
         if y == 7 and 16 <= x <= 26:
             return (BLACK, GREEN, GREEN, GREEN)
@@ -1934,6 +1934,8 @@ def main() -> None:
         import sys
         from shared_text import SharedText
         shared = SharedText(args, sys.modules[__name__])
+        if shared.font[-1] != bytes(8):
+            raise ValueError("PART HUD requires the final compact glyph to be blank")
     chars = load_chars(args.chars)
     names = ("CUCUMBER", "EGGPLANT", "CARROT", "RADISH", "PARSLEY", "TOMATO",
              "PUMPKIN", "BAMBOO SHOOT", "JAPANESE RADISH", "MUSHROOM", "POTATO",

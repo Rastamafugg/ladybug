@@ -1343,7 +1343,7 @@ draw_hud
         sta     HUD_COLOR
         lda     STAGE
         ifne COMPLETE_PROFILE
-        jsr     asset_draw_two_digits
+        jsr     asset_draw_part_value
         bra     dhu_stage_done
         endc
 dhu_mod10
@@ -1531,6 +1531,20 @@ dhd_store
         bne     dhd_row
         rts
 
+        endc
+
+        ifne COMPLETE_PROFILE
+; DOC-002 source-contract mirror contract asset_draw_part_value profile=render: Draw blank-or-hundreds followed by fixed two-digit part digits using existing immutable font tail.
+asset_draw_part_value
+        clrb
+asset_part_hundreds
+        cmpa    #100
+        blo     asset_part_finish
+        suba    #100
+        incb
+        bra     asset_part_hundreds
+asset_part_finish
+        jmp     asset_part_digits
         endc
 
 draw_lives

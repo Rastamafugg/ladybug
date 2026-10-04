@@ -549,7 +549,7 @@ stage_finish_index
         jmp blit_packed_sprite
 stage_schedule
         fdb 288
-        fdb $3458
+        fdb $3450
         fcb 1,0,3,TEXT_STAGE_PART
         fdb 320
         fdb $434C
@@ -567,7 +567,7 @@ stage_schedule
         fdb $4D60
         fcb 2,12,4,TEXT_STAGE_NAME
         fdb 576
-        fdb $5798
+        fdb $5794
         fcb 1,0,3,TEXT_STAGE_PART
         fdb 608
         fdb $618C
@@ -598,9 +598,11 @@ spn_hundreds
 spn_hundreds_done
         sta     PRES_TMP_M
         stb     PRES_NAME_REPEAT
-        tstb
-        beq     spn_tens_begin
         tfr     b,a
+        tsta
+        bne     spn_hundreds_write
+        lda     #36
+spn_hundreds_write
         lbsr    stage_panel_char
 spn_tens_begin
         lda     PRES_TMP_M
@@ -613,10 +615,6 @@ spn_tens
         bra     spn_tens
 spn_tens_done
         sta     PRES_TMP_M
-        tstb
-        bne     spn_write_tens
-        tst     PRES_NAME_REPEAT
-        beq     spn_units
 spn_write_tens
         tfr     b,a
         lbsr    stage_panel_char

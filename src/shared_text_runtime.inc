@@ -20,6 +20,19 @@ asset_clear_reserves
         sta     HUD_COLOR
         lda     LIVES
         bra     asset_draw_two_digits
+; Font producer guards the last compact glyph as the blank mask.
+asset_part_digits
+        pshs    a
+        tfr     b,a
+        tsta
+        bne     asset_part_write
+        lda     #((colour_lut-font)/8)-1
+asset_part_write
+        bsr     asset_draw_hud_digit
+        inc     HUD_X
+        puls    a
+        bra     asset_draw_two_digits
+
 asset_draw_two_digits
         clrb
 asset_number_tens
