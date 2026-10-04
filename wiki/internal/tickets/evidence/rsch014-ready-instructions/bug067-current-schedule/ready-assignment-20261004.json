@@ -1,0 +1,98 @@
+{
+  "ticket": "BUG-067",
+  "status": "READY-NOT-EXECUTED-NOT-ACCEPTED",
+  "base_commit": "7051bd306eb0d0c69a7199662c45a49f7ccb2d9e",
+  "worktree": "/mnt/e/projects/ladybug/worktrees/bug-067",
+  "branch": "codex/bug067-instruction-row-entry",
+  "owned_files": [
+    "scripts/build_presentation.py",
+    "scripts/verify_bug011_instructions.py"
+  ],
+  "prerequisite_acceptance": "28b23b6e4d3259446352d74f4db5c441e73fb1ad912861d12762302aa4ab6b98",
+  "baseline_manifest_sha256": "6d5b07bb8e9155804302f9a1a28b77602d02b80d4893bc3853a845072ac76257",
+  "observer_sha256": "35cd81508e225aeea635576c31a51c12b576959dce34611a8e7d817bdd2a2e58",
+  "tmx_read_only": {
+    "coco-attract-screen.tmx": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07",
+    "coco-credits-screen.tmx": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825",
+    "coco-enter-high-score-screen.tmx": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca",
+    "coco-game-over-screen.tmx": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05",
+    "coco-high-score-screen.tmx": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d",
+    "coco-instructions-screen.tmx": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4",
+    "coco-keybind-options-screen.tmx": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046",
+    "coco-level-start-screen.tmx": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b",
+    "coco-screen.tmx": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f"
+  },
+  "source_candidates": {
+    "scripts/build_presentation.py": "519f0ccc95c7ab6e52601a425a41ac21201142dfee6919053d66e6f56329b2a3",
+    "scripts/verify_bug011_instructions.py": "f0be21792225bd47f85daca18de81e006af0050a67f56f8e0c162433115eb433"
+  },
+  "phase_deadline_seconds": 40,
+  "missing_scenario_fails": true,
+  "no_push": true,
+  "fit": {
+    "profile": "complete-keyboard",
+    "rom_sha256": "05ccc4f3ac60fbed56d1215116f723c4e916ca4e932c4e119b66aa3935a12d80",
+    "source_receipt_sha256": "b22efb17f5a9672ecf44432f34a7f9e4090e9b39d083efec51f4dbd9c2b6068f",
+    "build_exit": 0,
+    "resident_used": 8150,
+    "resident_free": 42,
+    "assets_used": 7676,
+    "assets_free": 4,
+    "gmc_spare": 12158,
+    "nine_template_pixels": "PASS",
+    "source_audit": "PASS",
+    "sparse_reconstruction": "PASS"
+  },
+  "static_contract": {
+    "status": "PASS-STATIC",
+    "mode": "no-row-wait",
+    "units": "generated schedule ticks, not arcade display frames",
+    "first_motion_ticks": [
+      129,
+      577,
+      1217
+    ],
+    "later_row_motion_gaps": [
+      47,
+      47
+    ],
+    "next_screen_tick": 1884,
+    "events_checked": 16,
+    "unchanged_other_event_fields": true,
+    "manifest_sha256": "c83d4b6a6c3f8b9c1d9819d7e6266fed5bc463a3edc90a34165eeaffa193cf67",
+    "baseline_manifest_sha256": "6d5b07bb8e9155804302f9a1a28b77602d02b80d4893bc3853a845072ac76257"
+  },
+  "canonical_baseline_sha256": "8d465c9016f9090b9666f59b08f8cf920244cc47949f0dd5cffe50d4a07c33a6",
+  "runtime_pending": true,
+  "prerequisites": {
+    "BUG-059": "Done",
+    "BUG-060": "Done",
+    "BUG-064": "Done",
+    "BUG-112": "Done; current combined acceptance7051bd3"
+  },
+  "rejected_preparation": [
+    {
+      "cause": "Broad coco TMX glob included the unchanged options map; explicit nine-input guard stopped copying. A mistakenly launched follow-on build used tracked pre-cleanup maps and failed missing Sprite Locations. No runtime probe ran. Corrected input list is frozen from approved112 assignment.",
+      "failing_log_sha256": "2553e32d48d4c76ec45617f3c97eb316f0df50f2d13321ff0a8dfabbe5e6db49"
+    },
+    {
+      "cause": "Retained LF patch failed strict matching against native CRLF checkout; --ignore-space-change check and apply passed without semantic changes."
+    }
+  ],
+  "commands": [
+    "bash scripts/build.sh build",
+    "python3 scripts/verify_bug011_instructions.py --current-row-entry --baseline-manifest repro/bug067-verification/baseline-manifest.json --static-only --output repro/bug067-execution-static.json",
+    "python3 scripts/verify_bug011_instructions.py --current-row-entry --baseline-manifest repro/bug067-verification/baseline-manifest.json --adapter repro/bug067-verification/row-entry-observer.py --output repro/bug067-execution-natural.json"
+  ],
+  "report_requirements": [
+    "one separate two-file source commit; no push",
+    "tests and target-versus-result for all16 events and three row starts",
+    "ROM/source/receipt/observer hashes and capacity changes",
+    "failures, rejected experiments, missing scenarios and residual risks",
+    "parent combined acceptance before Done"
+  ],
+  "retained_baseline_reproduction": {
+    "status": "PASS-STATIC",
+    "receipt_sha256": "4dd0eb52afbfcb55d716329f84605bef5c52555a233bb3f4790600ea46d51cf4"
+  }
+}
