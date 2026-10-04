@@ -1,0 +1,93 @@
+{
+  "ticket": "BUG-112",
+  "status": "DONE-PARENT-INTEGRATED",
+  "cost_class": "High-risk",
+  "executor_commit": "52655e247a96fe30bbb17f8dd018852205de2fc0",
+  "parent_source_commit": "6127903",
+  "built_revision": "2a9800ce994832d290255eb62414cdcaee5602b1",
+  "rom_sha256": "28b23b6e4d3259446352d74f4db5c441e73fb1ad912861d12762302aa4ab6b98",
+  "complete_keyboard_build_exit": 0,
+  "source_receipt_sha256": "253bb606efe334fe7ea023c02e938f423afaed03c44bd31254fb62a9e9cd7932",
+  "current_runtime": {
+    "scanner": {
+      "receipt_sha256": "62917884a77aa4267e85bd08e0410732cea8fbcf144f497966808772e8f2ec28",
+      "phases": 3,
+      "maximum_phase_seconds": 14.057
+    },
+    "instructions": {
+      "receipt_sha256": "78f1c4fac20a284d7521a29f50bd0357e19953876059e6099ced102e71f806ee",
+      "phases": 23,
+      "maximum_phase_seconds": 13.341
+    },
+    "name": {
+      "receipt_sha256": "ded1ad4cf520267c4df239afd4b9cffeff33772d0fee8ebc19d6fe6e03a7cf70",
+      "phases": 9,
+      "maximum_phase_seconds": 14.889
+    }
+  },
+  "original_schedule": {
+    "status": "PASS-STATIC",
+    "mode": "baseline",
+    "units": "generated schedule ticks, not arcade display frames",
+    "first_motion_ticks": [
+      129,
+      673,
+      1409
+    ],
+    "later_row_motion_gaps": [
+      143,
+      143
+    ],
+    "next_screen_tick": 1896,
+    "events_checked": 16,
+    "unchanged_other_event_fields": true,
+    "manifest_sha256": "6d5b07bb8e9155804302f9a1a28b77602d02b80d4893bc3853a845072ac76257",
+    "baseline_manifest_sha256": "6d5b07bb8e9155804302f9a1a28b77602d02b80d4893bc3853a845072ac76257"
+  },
+  "module_identity": {
+    "ladybug-keybinding-runtime.bin": {
+      "sha256": "dc1d33ab62f9c44fe16a3746716bd1571fd265aa6a2d969da17bedc78ce2ee41",
+      "bytes": 1168,
+      "matches_executor": true
+    },
+    "ladybug-presentation-runtime.bin": {
+      "sha256": "7ac0df2d16702f7a7295d758def0d340c4e411cbe4e9c199eb0eacf50b72f56c",
+      "bytes": 1266,
+      "matches_executor": true
+    },
+    "ladybug-instruction-runtime.bin": {
+      "sha256": "9064f77170edcbe0042bae0fd907287b52e44829812dea75998de6f8fb664d50",
+      "bytes": 938,
+      "matches_executor": true
+    },
+    "ladybug-highscore-runtime.bin": {
+      "sha256": "c4351c4ba4ce7eb10a131f1412b0abc82054ca21f09865a088f063af4ab35e24",
+      "bytes": 899,
+      "matches_executor": true
+    },
+    "ladybug-highscore-helper.bin": {
+      "sha256": "5c756d0d5a52cccafc8d419207fa7e942675f85725f6c9f56772174f715029ac",
+      "bytes": 3084,
+      "matches_executor": true
+    }
+  },
+  "unchanged_menu_regression_reuse": {
+    "receipt_sha256": "99f5ef80643f8ec6771fd17f421e82021c37b2731f87a89eb3781cad6034bb5d",
+    "phases": 18,
+    "reason": "All eight unrelated static frames, menu metadata and five executed modules are byte-identical to executor; only BUG-068 level-start equals pixels differ. Current combined name controls and natural instruction handoff separately rerun."
+  },
+  "profile_evidence": "executor-completion-20261004.json",
+  "headroom": {
+    "resident": 42,
+    "assets": 4,
+    "presentation": 14,
+    "instruction": 3,
+    "low_helper": 3,
+    "mapped": 22,
+    "banked": 2,
+    "gmc_spare": 12158
+  },
+  "new_rejected_probes": [],
+  "historical_rejected_probes": "Two executor observer failures retained in completion summary; corrected stable sampler passed on combined ROM.",
+  "residual": "Existing tight margins; BUG-067 shorter schedule remains unimplemented and unaccepted. BUG-062 source not integrated in this prefix."
+}

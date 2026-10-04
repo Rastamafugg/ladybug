@@ -1,0 +1,65 @@
+--- a/menu.py
++++ b/menu.py
+@@ -6,7 +6,7 @@
+  assert len(a.stage_score)==6 and a.stage_score.isdigit(),'six BCD decimal score digits required'
+  assert a.level_part or a.next_part,'stage-score requires a level-part or next-part scenario'
+ if a.hud_equals:assert a.instructions_static or a.level_part or a.next_part,'equals requires instructions or level-start scenario'
+-ROOT=a.worktree.resolve();B=ROOT/'build';O=ROOT/'repro/ready-menu-gdb';O.mkdir(parents=True,exist_ok=True)
++ROOT=a.worktree.resolve();B=ROOT/'build';O=ROOT/'repro/bug112-verification/private-name-gdb';O.mkdir(parents=True,exist_ok=True)
+ assert not a.output.exists(),'output exists'
+ assert hashlib.sha256((B/'ladybug.rom').read_bytes()).hexdigest()==a.rom_sha256,'ROM identity mismatch'
+ xlib=c.CDLL('libX11.so.6');xlib.XOpenDisplay.restype=c.c_void_p;xlib.XDefaultRootWindow.argtypes=[c.c_void_p];xlib.XDefaultRootWindow.restype=c.c_ulong
+@@ -343,6 +343,38 @@
+  report['phases'][-1]['trademark_crop_sha256']=hashlib.sha256(crop).hexdigest()
+  report['phases'][-1]['trademark_foreground']={'red':sum((v>>4==1)+(v&15==1) for v in crop),'white':sum((v>>4==6)+(v&15==6) for v in crop)}
+ 
++def stable_name_scan(index, bit):
++ key_map=symbols(B/'ladybug-keybinding-runtime.map')
++ address=key_map['ks_done']
++ module=(B/'ladybug-keybinding-runtime.bin').read_bytes()
++ expected_bindings=(58,26,8,32)
++ binding_check='' if index is None else f' && *(unsigned char*)0x{0x287+index:x}=={expected_bindings[index]}'
++ condition=(
++  '*(unsigned char*)0xffa5==0x3d && '
++  '*(unsigned char*)0xa5==8 && *(unsigned char*)0xa6==5 && '
++  '*(unsigned char*)0x298==0'+binding_check+
++  f' && *(unsigned char*)0x0296=={bit}'
++ )
++ output=gdb([f'break *0x{address:x}',f'condition 1 {condition}','continue','delete breakpoints',
++  f'dump binary memory {O}/name-live-key-module.bin 0xba00 0xbe90',
++  f'dump binary memory {O}/name-stable-dp.bin 0x0000 0x029b',
++  'printf "BUG112_STABLE_KS_DONE pc=%04x\\n", $pc'])
++ live=(O/'name-live-key-module.bin').read_bytes()
++ check('live page-$3D input module matches full current artifact before state decode',live==module)
++ marker=re.search(r'BUG112_STABLE_KS_DONE pc=([0-9a-fA-F]{4})',output)
++ check('stable ks_done program counter matches emitted marker',marker is not None and int(marker.group(1),16)==address)
++ dp=(O/'name-stable-dp.bin').read_bytes()
++ state={'mode':dp[0xa5],'screen':dp[0xa6],'bindings':list(dp[0x287:0x28c]),
++        'mapped_down':dp[0x296],'binding_state':dp[0x298],
++        'player_cell':[dp[9],dp[10]],'player_want':dp[5]}
++ check('stable ks_done is name mode/screen with capture inactive',state['mode']==8 and state['screen']==5 and state['binding_state']==0)
++ if index is not None:
++  check('name binding '+str(index)+' contains assigned physical key',state['bindings'][index]==expected_bindings[index])
++ check('stable ks_done observes mapped bit '+str(bit),state['mapped_down']==bit)
++ report['phases'][-1]['stable_ks_done_sample']=state
++ report['phases'][-1]['stable_ks_done_address']=address
++ report['phases'][-1]['live_key_module_sha256']=hashlib.sha256(live).hexdigest()
++
+ def name_controls():
+  phase('forced-final-death-natural-name-handoff')
+  report['phases'][-1]['forced_state']='Replace five bindings with previously UI-tested W/S/A/D/Space; set packed-BCD SCORE=095000 and DEATH_STATE=4 at ordinary credited gameplay. Natural qualification/phase owner installs and publishes game-over then name entry.'
+@@ -354,11 +386,11 @@
+  check('name mapped helper equals artifact',(O/'name-helper.bin').read_bytes()==helper)
+  moved=False
+  for index,keyname in enumerate(('w','s','a','d')):
+-  phase('remapped-name-movement-'+str(index));before=snapshot()['player_cell'];key(keyname,states=(1,));q=snapshot()
+-  check('name mapped direction bit '+str(index),q['mapped_down']==1<<index and q['mode']==8)
++  phase('remapped-name-movement-'+str(index));before=snapshot()['player_cell'];key(keyname,states=(1,))
++  stable_name_scan(index,1<<index);q=snapshot()
+   moved=moved or q['player_cell']!=before;key(keyname,states=(0,))
+  check('at least one remapped key moves the actual name cursor',moved)
+- phase('fixed-arrow-name-exclusion');before=snapshot()['player_cell'];key('Up',states=(1,));q=snapshot();check('fixed menu Up is not a rebound name movement',q['mapped_down']==0 and q['player_cell']==before);key('Up',states=(0,))
++ phase('fixed-arrow-name-exclusion');before=snapshot()['player_cell'];key('Up',states=(1,));stable_name_scan(None,0);q=snapshot();check('fixed menu Up does not move the name cursor',q['player_cell']==before);key('Up',states=(0,))
+  phase('forced-END-natural-name-return');report['phases'][-1]['forced_state']='Set existing END completion flag E2=1; natural mapped helper commits and returns. This does not test reaching the END glyph.'
+  gdb(['set {unsigned char}0xe2=1']);settled(3);label_pixels('ADD CREDITS')
+ def entry_edges():
