@@ -781,6 +781,8 @@ def presentation_pen_map(
         raw_code: int = -1, highscore_test_profile: bool = False,
 ) -> tuple[int, int, int, int]:
     """Apply the established CoCo palette adaptation to authored raw chars."""
+    if role == "instructions" and y == 7 and 1 <= x <= 6:
+        return (BLACK, BLUE, BLUE, BLUE)
     if role == "high-score" and (x, y) in ((17, 0), (22, 21)):
         colour = YELLOW if y == 0 else RED
         return (BLACK, colour, colour, colour)
@@ -1188,7 +1190,7 @@ def parse_instruction_contract(
             hud_cells[7 * SCREEN_WIDTH + 1], (1, 7), chars,
             (BLACK, BLUE, BLUE, BLUE),
         ), tiles, tile_ids), register_tile(
-            pack_tile(recolor(rotated[value], (BLACK, WHITE, WHITE, WHITE))),
+            pack_tile(recolor(rotated[value], (BLACK, BLUE, BLUE, BLUE))),
             tiles, tile_ids,
         )]
         for value in (2, 3, 5)

@@ -143,7 +143,7 @@ class SharedText:
                     descriptors[ident]=(descriptors[ident][0],self.colours['fields'][field])
         for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values():
             for ident in ids:
-                if descriptors[ident][1]:descriptors[ident]=(descriptors[ident][0],self.colours['fields']['instruction_points'])
+                if descriptors[ident][1]:descriptors[ident]=(descriptors[ident][0],self.colours['fields']['instruction_multiplier'])
         x_descriptors={descriptors[ids[0]] for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values()}
         if len(x_descriptors)!=1 or next(iter(x_descriptors))[1]!=0:
             raise ValueError('instruction multiplier x must select one native graphic')
