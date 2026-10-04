@@ -6,6 +6,7 @@
 ; DOC-002 source-contract mirror contract credit_panel_slice profile=presentation: Credit panel slice.
 ; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Highscore commit name.
 ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.
+; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.
 ; DOC-002 source-contract mirror contract stage_panel_char profile=presentation: Stage panel char.
 ; DOC-002 source-contract mirror contract stage_panel_text profile=presentation: Stage panel text.
 ; DOC-002 source-contract mirror contract stage_select profile=presentation: Stage select.

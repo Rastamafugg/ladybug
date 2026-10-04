@@ -466,6 +466,11 @@ stage_panel_regular_slice
         cmpa #PRESENTATION_MAP_LEVEL_START
         bne stage_slice_return
         ldd $AA
+        cmpd #128
+        bne stage_score_row_done
+        lbsr stage_player_score
+stage_score_row_done
+        ldd $AA
         leay stage_schedule,pcr
 stage_schedule_find
         cmpd ,y
@@ -627,6 +632,35 @@ stage_panel_text
         lbsr    stage_panel_char
         decb
         bne     stage_panel_text
+        rts
+
+; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.
+stage_player_score
+        lda #8
+        sta $29
+        ldx #$2A84
+        ldy #$001D
+        ldb #3
+stage_player_score_pair
+        lda ,y+
+        pshs a
+        lda $A7
+        cmpa #2
+        puls a
+        beq stage_player_score_actual
+        clra
+stage_player_score_actual
+        pshs a
+        lsra
+        lsra
+        lsra
+        lsra
+        lbsr stage_panel_char
+        puls a
+        anda #15
+        lbsr stage_panel_char
+        decb
+        bne stage_player_score_pair
         rts
 
 ; A=0..44 authored glyph, X=destination, $29=colour; advance X.

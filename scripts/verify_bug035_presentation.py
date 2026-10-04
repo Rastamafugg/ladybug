@@ -474,8 +474,51 @@ def run_current_parts(output, adapter):
         (output / "summary.json").write_text(json.dumps(receipt,indent=2)+"\n")
 
 
+def run_current_scores(output, adapter):
+    output = output.resolve()
+    adapter = adapter.resolve()
+    if output.exists() or not adapter.is_file():
+        raise SystemExit("fresh output path and existing shared adapter required")
+    output.mkdir(parents=True)
+    rom_hash = digest((BUILD / "ladybug.rom").read_bytes())
+    receipt = {"status":"RUNNING","rom_sha256":rom_hash,
+        "adapter_sha256":digest(adapter.read_bytes()),"scenarios":[]}
+    try:
+        for name, flag, part, score in (
+            ("fresh-zero","--level-part",1,"095000"),
+            ("next-095000","--next-part",1,"095000"),
+            ("next-120045","--next-part",99,"120045"),
+            ("next-999999","--next-part",199,"999999")):
+            target=output/(name+".json")
+            command=[sys.executable,str(adapter),"--worktree",str(ROOT),
+                "--rom-sha256",rom_hash,"--output",str(target),flag,str(part),
+                "--stage-score",score]
+            print("BUG-069 "+name,flush=True)
+            subprocess.run(command,cwd=ROOT,check=True,timeout=150)
+            proof=json.loads(target.read_text())
+            if proof.get("status")!="PASS":
+                raise AssertionError("score scenario failed: "+name)
+            receipt["scenarios"].append({"name":name,"status":"PASS",
+                "receipt_sha256":digest(target.read_bytes())})
+        receipt["status"]="PASS"
+    except Exception as error:
+        receipt["status"]="FAIL"
+        receipt["failure"]=str(error)
+        raise
+    finally:
+        (output/"summary.json").write_text(json.dumps(receipt,indent=2)+"\n")
+
+
 def main():
     arguments = sys.argv[1:]
+    if "--current-scores" in arguments:
+        parser=argparse.ArgumentParser(description="Current BUG069 visible hydration checks")
+        parser.add_argument("--current-scores",action="store_true")
+        parser.add_argument("--adapter",type=Path,required=True)
+        parser.add_argument("--output",type=Path,required=True)
+        args=parser.parse_args(arguments)
+        run_current_scores(args.output,args.adapter)
+        return
     if "--current-instructions-static" in arguments:
         parser = argparse.ArgumentParser(description="BUG064 current natural static instructions publication")
         parser.add_argument("--current-instructions-static", action="store_true")
