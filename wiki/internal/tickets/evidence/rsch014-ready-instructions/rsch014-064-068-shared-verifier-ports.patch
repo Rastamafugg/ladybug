@@ -1,0 +1,277 @@
+diff --git a/scripts/verify_bug011_instructions.py b/scripts/verify_bug011_instructions.py
+--- a/scripts/verify_bug011_instructions.py
++++ b/scripts/verify_bug011_instructions.py
+@@ -51,2 +51,2 @@
+-    if choreography["colour_dwell_frames"] != 30:
+-        raise SystemExit("BUG-011 proof: colour dwell is not 30 frames")
++    if choreography["colour_dwell_frames"] != 32:
++        raise SystemExit("BUG-067 proof: colour dwell is not 32 generated ticks")
+@@ -54,5 +54,5 @@
+-        choreography["death_collision_tick"] != 1632 or
+-        choreography["angel_tick"] != 1727 or
+-        choreography["next_screen_tick"] != 1792
+-    ):
+-        raise SystemExit("BUG-011 proof: death/angel/handoff timing differs")
++        choreography["death_collision_tick"] != 1544 or
++        choreography["angel_tick"] != 1639 or
++        choreography["next_screen_tick"] != 1884
++    ):
++        raise SystemExit("BUG-067 proof: candidate death/angel/handoff timing differs")
+@@ -71 +71 @@
+-        121, 631, 1321, 1411, 1501,
++        129, 577, 1217, 1313, 1409,
+@@ -73 +73,2 @@
+-        raise SystemExit("BUG-011 proof: row trigger-colour motion edges differ")
++        raise SystemExit("BUG-067 proof: earliest candidate motion edges differ")
++    dwell = choreography["colour_dwell_frames"]
+@@ -76,6 +77,9 @@
+-        colour = ((tick - 1) % 90) // 30 + 1
+-        if colour != trigger or (tick - 1) % 30:
+-            raise SystemExit("BUG-011 proof: first row movement is off its colour edge")
+-    if (events[5]["motion_tick"] - events[4]["consume_tick"] < 90 or
+-            events[12]["motion_tick"] - events[11]["consume_tick"] < 90):
+-        raise SystemExit("BUG-011 proof: row 2/3 full-cycle waits are too short")
++        colour = ((tick - 1) % (3 * dwell)) // dwell + 1
++        if colour != trigger or (tick - 1) % dwell:
++            raise SystemExit("BUG-067 proof: first row movement is off its dwell-32 colour edge")
++    if (events[5]["motion_tick"] - events[4]["consume_tick"] != 47 or
++            events[12]["motion_tick"] - events[11]["consume_tick"] != 47):
++        raise SystemExit("BUG-067 proof: candidate later-row motion gap differs from 47")
++    if (events[5]["consume_tick"] - events[4]["consume_tick"] != 70 or
++            events[12]["consume_tick"] - events[11]["consume_tick"] != 70):
++        raise SystemExit("BUG-067 proof: candidate later-row consume gap differs from 70")
+@@ -210,0 +215,8 @@
++    expected_transitions = (
++        choreography["death_collision_tick"] // choreography["colour_dwell_frames"]
++    )
++    if len(transitions) != expected_transitions:
++        raise SystemExit(
++            f"BUG-067 proof: dwell-derived colour transition count differs: "
++            f"{len(transitions)} != {expected_transitions}"
++        )
+@@ -219 +231 @@
+-        "BUG-011 proof: 16 generated events, 30-frame colour clock, "
++        f"BUG-067 proof: 16 generated events, {dwell}-tick colour clock, "
+diff --git a/scripts/verify_bug011_runtime.py b/scripts/verify_bug011_runtime.py
+--- a/scripts/verify_bug011_runtime.py
++++ b/scripts/verify_bug011_runtime.py
+@@ -148,0 +149,4 @@
++
++
++def nonzero_pens(tile: bytes) -> list[int]:
++    return sorted({pen for value in tile for pen in (value >> 4, value & 15) if pen})
+@@ -292,0 +297,53 @@
++        multiplier_symbol = symbols(HELPER_MAP).get("consume_advance")
++        if multiplier_symbol is None:
++            raise SystemExit("BUG-065 runtime: helper map lacks consume_advance")
++        publication_ids = monitor.setup(client, [multiplier_symbol])
++        multiplier_publications = []
++        try:
++            for phase, value in ((12, "2"), (13, "3"), (14, "5")):
++                while True:
++                    publication_hit = client.run_to_breakpoint(timeout)
++                    if publication_hit.get("pc") != multiplier_symbol:
++                        raise SystemExit(
++                            f"BUG-065 runtime: X{value} publication timeout {publication_hit}"
++                        )
++                    current_phase = read_byte(client, PRES_PHASE)
++                    if current_phase < phase:
++                        continue
++                    if current_phase > phase:
++                        raise SystemExit(
++                            f"BUG-065 runtime: X{value} publication skipped; "
++                            f"phase={current_phase}, expected={phase}"
++                        )
++                    owner = read_byte(client, FB_BACK)
++                    publication_frame = read_owner(client, owner)
++                    expected_pair = [
++                        expected_tile(manifest, tile_id)
++                        for tile_id in choreography["multiplier_tile_ids"][value]
++                    ]
++                    if any(nonzero_pens(tile) != [3] for tile in expected_pair):
++                        raise SystemExit(
++                            f"BUG-065 runtime: manifest X{value} pair is not BLUE pen 3"
++                        )
++                    actual_pairs = []
++                    for destination in choreography["multiplier_destinations"]:
++                        pair = [
++                            frame_tile(publication_frame, destination),
++                            frame_tile(publication_frame, destination + 4),
++                        ]
++                        if pair != expected_pair:
++                            raise SystemExit(
++                                f"BUG-065 runtime: X{value} pair differs at publication "
++                                f"phase {phase}, owner {owner}"
++                            )
++                        actual_pairs.append([digest(tile) for tile in pair])
++                    multiplier_publications.append({
++                        "phase": phase,
++                        "value": int(value),
++                        "back_owner": owner,
++                        "destination_pairs_sha256": actual_pairs,
++                        "all_tiles_blue_pen_3": True,
++                    })
++                    break
++        finally:
++            monitor.clear(client, publication_ids)
+@@ -331,3 +388,7 @@
+-        if trace["colour_transitions"] != 54:
+-            raise SystemExit(
+-                "BUG-011 runtime: colour trace differs: "
++        expected_transitions = (
++            choreography["death_collision_tick"] //
++            choreography["colour_dwell_frames"]
++        )
++        if trace["colour_transitions"] != expected_transitions:
++            raise SystemExit(
++                "BUG-011 runtime: dwell-derived colour trace differs: "
+@@ -335 +396,2 @@
+-                f"timer={read_word(client, PRES_TIMER)}"
++                f"timer={read_word(client, PRES_TIMER)} "
++                f"expected={expected_transitions}"
+@@ -520,0 +583 @@
++            "multiplier_publications": multiplier_publications,
+@@ -550 +613 @@
+-    parser.add_argument("--timeout", type=float, default=60.0)
++    parser.add_argument("--timeout", type=float, default=40.0)
+@@ -551,0 +615,2 @@
++    if not 0 < args.timeout <= 40:
++        raise SystemExit("--timeout must be greater than 0 and no more than 40 seconds")
+@@ -556,0 +622 @@
++    args.output.parent.mkdir(parents=True, exist_ok=True)
+@@ -562,0 +629,2 @@
++        "phase_deadline_seconds": args.timeout,
++        "timeout_meaning": "named breakpoint/publication boundary not reached; not speed evidence",
+@@ -566,2 +634,2 @@
+-        "BUG-011 runtime: both starting-owner orders passed 54 colour transitions, "
+-        "16 consumes, 15 death/angel surfaces, exact helper identity, "
++        "BUG-011 runtime: both starting-owner orders passed dwell-derived colour transitions, "
++        "X2/X3/X5 publication pairs, 16 consumes, 15 death/angel surfaces, exact helper identity, "
+diff --git a/scripts/verify_bug021_complete_instructions.py b/scripts/verify_bug021_complete_instructions.py
+--- a/scripts/verify_bug021_complete_instructions.py
++++ b/scripts/verify_bug021_complete_instructions.py
+@@ -55,0 +56,2 @@
++    if not 0 < args.timeout <= 40:
++        raise SystemExit("--timeout must be greater than 0 and no more than 40 seconds")
+diff --git a/scripts/verify_bug035_presentation.py b/scripts/verify_bug035_presentation.py
+--- a/scripts/verify_bug035_presentation.py
++++ b/scripts/verify_bug035_presentation.py
+@@ -18,0 +19 @@
++RESULT_PATH = OUT / "summary.json"
+@@ -71,0 +73,13 @@
++
++
++def nonzero_pens(tile):
++    return sorted({pen for value in tile for pen in (value >> 4, value & 15) if pen})
++
++
++def masked_frame_sha256(frame, cells):
++    masked = bytearray(frame)
++    for x, y in cells:
++        for row in range(y * 8, y * 8 + 8):
++            start = row * 160 + x * 4
++            masked[start:start + 4] = bytes(4)
++    return digest(masked)
+@@ -237,2 +251,3 @@
+-def legacy_main():
+-    OUT.mkdir(exist_ok=True)
++def legacy_main(instructions_stage_only=False, timeout=40.0,
++                tickets=("064", "065", "066", "067", "068")):
++    OUT.mkdir(parents=True, exist_ok=True)
+@@ -246,0 +262,25 @@
++    selected = set(tickets)
++    instruction_path = ROOT / "tiled" / p.MAP_FILES["instructions"]
++    instruction_root, instruction_cells, instruction_sources = p.flatten_map(instruction_path)
++    for x in (1, 2, 3, 4, 5, 6, 34):
++        index = 13 * p.SCREEN_WIDTH + x if x == 34 else 7 * p.SCREEN_WIDTH + x
++        gid = instruction_cells[index] & p.GID_MASK
++        if instruction_sources[index] != "CoCo Side HUD":
++            raise AssertionError(f"instruction target ({x},{7 if x != 34 else 13}) has wrong layer owner")
++        if x == 34 and p.raw_char_code(instruction_root, instruction_path, gid) != 42:
++            raise AssertionError("instruction equals target no longer resolves to raw code 42")
++    instruction_mask = [(x, 7) for x in range(1, 7)] + [(34, 13)]
++    if masked_frame_sha256(base_frames[1], instruction_mask) != "806331bf3d6f8b129bc6adfb919d3d0f20410e7c08f2d553ff4e273de508e62e":
++        raise AssertionError("BUG-064 instruction layout changed outside approved palette cells")
++    if "064" in selected and not selected.intersection(("065", "066")) and digest(base_frames[1]) != "93514112a0e12e632a891a1cc04495764c229863bd22769041ee97aea4d4aaf9":
++        raise AssertionError("BUG-064 exact current instruction frame differs")
++    if "065" in selected:
++        for x in range(1, 7):
++            if nonzero_pens(runtime.frame_tile(base_frames[1], p.framebuffer_destination((x, 7)))) != [3]:
++                raise AssertionError(f"BUG-065 template multiplier cell ({x},7) is not BLUE pen 3")
++    if "066" in selected and nonzero_pens(runtime.frame_tile(base_frames[1], p.framebuffer_destination((34, 13)))) != [5]:
++        raise AssertionError("BUG-066 instruction equals (34,13) is not GREEN pen 5")
++    if masked_frame_sha256(base_frames[2], [(34, 13)]) != "dab5082f43956385e46a3f59740e032ed5bf0ada47a68d2f4ac06d6d718ee97b":
++        raise AssertionError("BUG-068 level-start layout changed outside the side-HUD equals")
++    if "068" in selected and nonzero_pens(runtime.frame_tile(base_frames[2], p.framebuffer_destination((34, 13)))) != [5]:
++        raise AssertionError("BUG-068 level-start equals (34,13) is not GREEN pen 5")
+@@ -287 +327,9 @@
+-    evidence = {"rom_sha256": runtime.digest((BUILD / "ladybug.rom").read_bytes()), "phases": []}
++    evidence = {
++        "schema": "rsch014-current-instructions-stage-v1",
++        "status": "INCOMPLETE",
++        "rom_sha256": runtime.digest((BUILD / "ladybug.rom").read_bytes()),
++        "phase_deadline_seconds": timeout,
++        "timeout_meaning": "named callback/publication boundary not observed; not speed evidence",
++        "selected_tickets": sorted(selected),
++        "phases": [],
++    }
+@@ -298 +346 @@
+-            hit = client.run_to_breakpoint(40)
++            hit = client.run_to_breakpoint(timeout)
+@@ -363,2 +411,32 @@
+-        compare(level_frame(), stage_expected(base_frames[2], 1, chars, sprites), "natural-demo-part1")
+-        (OUT / "part-1.bin").write_bytes(owner_frame())
++        stage_frame = level_frame()
++        compare(stage_frame, stage_expected(base_frames[2], 1, chars, sprites), "natural-demo-part1")
++        if instructions_stage_only:
++            if "068" in selected:
++                equals = runtime.frame_tile(stage_frame, p.framebuffer_destination((34, 13)))
++                if nonzero_pens(equals) != [5]:
++                    raise AssertionError("BUG-068 first level-start equals is not GREEN pen 5")
++                digits = []
++                for column, glyph in enumerate("1000", start=35):
++                    tile = runtime.frame_tile(stage_frame, p.framebuffer_destination((column, 13)))
++                    if nonzero_pens(tile) != [5]:
++                        raise AssertionError(f"BUG-068 first stage digit {glyph} at ({column},13) is not GREEN pen 5")
++                    digits.append({"cell": [column, 13], "glyph": glyph, "sha256": digest(tile)})
++                if nonzero_pens(runtime.frame_tile(stage_frame, p.framebuffer_destination((39, 13)))):
++                    raise AssertionError("BUG-068 first stage x=39 must be blank after 1000")
++                panel = p.framebuffer_destination((18, 7))
++                if runtime.frame_tile(stage_frame, panel) != runtime.frame_tile(base_frames[2], panel):
++                    raise AssertionError("BUG-068 central panel equals (18,7) changed")
++                evidence["BUG-068-first-level-start"] = {
++                    "equals_cell": [34, 13], "equals_nonzero_pens": [5],
++                    "digits": digits, "x39_blank": True,
++                    "panel_equals_18_7_unchanged": True,
++                }
++            evidence["status"] = "PASS-NATURAL-INSTRUCTIONS-FIRST-STAGE"
++            evidence["phases"].append({
++                "name": "natural first level-start",
++                "success_marker": "level_tick with stage 1 frame",
++                "deadline_seconds": timeout,
++                "frame_sha256": digest(stage_frame),
++            })
++            return
++        (OUT / "part-1.bin").write_bytes(stage_frame)
+@@ -422 +500,2 @@
+-        (OUT / "summary.json").write_text(json.dumps(evidence, indent=2) + "\n")
++        RESULT_PATH.parent.mkdir(parents=True, exist_ok=True)
++        RESULT_PATH.write_text(json.dumps(evidence, indent=2) + "\n")
+@@ -426,0 +506 @@
++    global OUT, RESULT_PATH
+@@ -427,0 +508,15 @@
++    if "--current-profile" in arguments:
++        parser = argparse.ArgumentParser(description="Current-profile instructions and first level-start acceptance.")
++        parser.add_argument("--current-profile", action="store_true")
++        parser.add_argument("--tickets", nargs="+", choices=("064", "065", "066", "067", "068"),
++                            default=("064", "065", "066", "067", "068"))
++        parser.add_argument("--timeout", type=float, default=40.0,
++                            help="per named callback phase, maximum 40 seconds")
++        parser.add_argument("--output", type=Path, default=OUT / "current-instructions-stage.json")
++        args = parser.parse_args(arguments)
++        if not 0 < args.timeout <= 40:
++            raise SystemExit("--timeout must be greater than 0 and no more than 40 seconds")
++        RESULT_PATH = args.output.resolve()
++        OUT = RESULT_PATH.parent
++        legacy_main(instructions_stage_only=True, timeout=args.timeout, tickets=args.tickets)
++        return

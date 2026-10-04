@@ -1,0 +1,307 @@
+{
+  "schema": "rsch014-ready-instructions-assignments-v1",
+  "status": "PREPARATION-INCOMPLETE: parent current-profile review rejects legacy runtime oracle",
+  "tickets": [
+    "BUG-064",
+    "BUG-065",
+    "BUG-066",
+    "BUG-067",
+    "BUG-068"
+  ],
+  "source_checkout": {
+    "path": "E:/projects/ladybug",
+    "head": "9e307382b993539eddb7390caf7d56f8edfacb37",
+    "built_artifact_revision": "69550b6978231398cbdf7083378aaeca8282586c",
+    "profile": "complete / keyboard / 6809 / ADAPTIVE=1",
+    "rom": "E:/projects/ladybug/build/ladybug.rom",
+    "rom_sha256": "6e23eb81a10372943dc74c24cda5be800be6775823e39e74c8e84e63939ede8d",
+    "source_receipt_sha256": "5951d401050bb2be81c63bad309d93f884383f3f3aa625881d3c6438653663dd",
+    "artifact_qualification": "Exact post-FEAT-005 and C3-integration prototype build, before the approved BUG-064..068 candidate edits. It supports current-profile command targeting and readiness preparation; it is not the final combined candidate build."
+  },
+  "retained_static_evidence": {
+    "ad1_preflight": "current-root-ad1-preflight.json",
+    "ad1_preflight_status": "PASS offline artifact freshness; no live-byte claim",
+    "ad1_active_image_bytes": 603,
+    "ad1_active_vector_targets": {
+      "AD_WORK_EXEC": "0x038F",
+      "AD_TICK_EXEC": "0x0392"
+    },
+    "instruction_static_baseline": "current-root-static-baseline.json",
+    "instruction_static_frame_sha256": "93514112a0e12e632a891a1cc04495764c229863bd22769041ee97aea4d4aaf9",
+    "static_selector_selftest": "static-selector-selftest.json",
+    "static_selector_selftest_status": "PASS; 064 command passes on the unchanged baseline; 065/066/067/068 reject with their expected candidate-not-yet-applied diagnostics",
+    "candidate_schedule_ticks": [
+      129,
+      227,
+      323,
+      419,
+      515,
+      577,
+      675,
+      771,
+      867,
+      963,
+      1059,
+      1155,
+      1217,
+      1313,
+      1409,
+      1489
+    ],
+    "candidate_schedule_next_screen_tick": 1884,
+    "runtime_claim": "none; no emulator was launched in this preparation"
+  },
+  "preparation_checks": {
+    "shared_verifier_patch": "PASS; four bounded diffs against existing shared scripts; git apply --check passes; base file hashes retained",
+    "patch_syntax": "PASS; all four ported scripts compile with py_compile; current-profile and runtime deadline CLI guards checked in an isolated scratch tree",
+    "deadline_guard_negative": "PASS; runtime CLIs reject --timeout 41 before launching XRoar",
+    "shared_layer_guard": "PASS; 9 role contracts, 22 raw markers, 2 deferred logo layers, and negative diagnostics including BUG-059/060 guards",
+    "current_profile_scope": "BUG-064..068 only; BUG-069 has a separately approved expanded scope and is excluded from these checks",
+    "runtime_claim": "none; no emulator was launched in this preparation"
+  },
+  "current_profile_harnesses": {
+    "static": {
+      "path": "scripts/verify_bug035_presentation.py --current-profile plus scripts/verify_bug011_instructions.py",
+      "modes": [
+        "current candidate selectors: --tickets 064 065 066 068",
+        "BUG-067 exact schedule: scripts/verify_bug011_instructions.py"
+      ],
+      "candidate_selector": "--tickets 064 <one-or-more-approved-dependent-ticket-ids>",
+      "checks": [
+        "BUG-064 exact current authored instruction frame plus masked-layout guard",
+        "BUG-065 six template cells and generated X2/X3/X5 pairs in BLUE pen 3; ordinary 10/100 tiles remain byte-identical",
+        "BUG-066 instruction side-HUD equals raw code 42 in GREEN pen 5",
+        "BUG-067 existing schedule oracle checks all 16 event order/tick records, row gaps, consume gaps, and next-screen boundary",
+        "BUG-068 level-start side-HUD equals in GREEN pen 5; central panel equals pixels and glyph shape unchanged"
+      ],
+      "exclusions": "No BUG-069 static/source/runtime checks are included."
+    },
+    "natural_instructions": {
+      "path": "scripts/verify_bug021_complete_instructions.py and scripts/verify_bug035_presentation.py --current-profile",
+      "phases": [
+        "presentation_flow_tick: compare staged instruction image through PAR5 page 0x23",
+        "attract_next then start_screen with A=1: follow current natural presentation dispatch",
+        "instructions_tick: compare installed low-RAM instruction helper and both static framebuffer owners"
+      ],
+      "ownership": "Do not compare instruction-helper bytes at $0300-$068F during attract/menu; the high-score helper owns that range there. Compare the resident instruction image only after natural instructions_tick. This instructions-only path does not assert ADAPTIVE bytes at $038F."
+    },
+    "instruction_sequence": {
+      "path": "scripts/verify_bug011_runtime.py",
+      "scenarios": "Both framebuffer owner orders, (0,1) and (1,0)",
+      "publication_assertions": "At each actual X2/X3/X5 consume_advance publication, compare both generated tiles at both destinations and require BLUE pen 3; retain 10/100 award colour guards.",
+      "transition_assertion": "Expected transition count is derived from manifest death_collision_tick // colour_dwell_frames: current baseline 1736/32=54; BUG-067 candidate 1544/32=48. No fixed 54 literal is used for candidate acceptance.",
+      "ownership": "Compare staged helper on page 0x23 before install and resident $0300 helper only after instructions_tick. ADAPTIVE live-vector identity at $038F is reserved for the parent's ordinary-gameplay restoration phase."
+    },
+    "natural_stage_one": {
+      "path": "scripts/verify_bug035_presentation.py --current-profile --tickets 064 065 066 068",
+      "dispatch": "--current-profile --tickets 064 065 066 068 --timeout 40 --output <evidence-path>",
+      "phase": "Natural instructions through first level-start publication; named callback phases each have a 40-second maximum.",
+      "acceptance": "Compare the complete first level-start frame, assert equals (34,13) and visible 1000 digits (35..38,13) are GREEN pen 5, and assert the fifth cell is blank. The existing panel equals at (18,7) is unchanged."
+    }
+  },
+  "assignment_order": [
+    "BUG-059/060 current layer and compiler integration, C3 menu integration, and FEAT-005 SharedText parser/runtime integration are already present in the preparation baseline.",
+    "BUG-064 establishes the exact current authored instruction baseline and owns only scripts/verify_bug035_presentation.py.",
+    "BUG-065 follows BUG-064; owns scripts/build_presentation.py, scripts/verify_bug035_presentation.py, scripts/verify_bug021_complete_instructions.py; TMX remains read-only.",
+    "BUG-066 is a peer after BUG-064; owns scripts/build_presentation.py and scripts/verify_bug035_presentation.py; TMX remains read-only.",
+    "BUG-067 is a peer after BUG-064; owns scripts/build_presentation.py and scripts/verify_bug011_instructions.py; keep schedule ticks distinct from MAME frames.",
+    "BUG-068 uses the already-integrated FEAT-005 parser/runtime and BUG-059/060 layer baseline; owns scripts/build_presentation.py and scripts/verify_bug035_presentation.py; level-start TMX remains read-only.",
+    "Parent integrates the disjoint commits, runs the combined complete-profile build on current source, verifies the exact current ROM, then runs the natural-runtime commands below."
+  ],
+  "ticket_assignments": [
+    {
+      "ticket": "BUG-064",
+      "exact_writable_files": [
+        "scripts/verify_bug035_presentation.py"
+      ],
+      "read_only_inputs": [
+        "tiled/coco-instructions-screen.tmx"
+      ],
+      "static_selector": [
+        "064"
+      ],
+      "runtime_command": "natural_instruction_dispatch",
+      "targets": [
+        "exact user-authored 40x24 instruction composition and placements",
+        "static marker metadata remains excluded from drawn pixels",
+        "natural instructions publication matches the same frame on both framebuffer owners"
+      ],
+      "distinct_risk": "compiler/layout ownership could change an authored pixel or treat sprite metadata as static screen art",
+      "exclusions": [
+        "BUG-065/066 palette target cells",
+        "BUG-067 row timing",
+        "moving actor or reward cadence"
+      ]
+    },
+    {
+      "ticket": "BUG-065",
+      "exact_writable_files": [
+        "scripts/build_presentation.py",
+        "scripts/verify_bug035_presentation.py",
+        "scripts/verify_bug021_complete_instructions.py"
+      ],
+      "read_only_inputs": [
+        "tiled/coco-instructions-screen.tmx"
+      ],
+      "static_selector": [
+        "064",
+        "065"
+      ],
+      "runtime_command": "instruction_sequence_and_multipliers",
+      "targets": [
+        "template X2/X3/X5 cells (1-6,7) BLUE pen 3",
+        "generated X2/X3/X5 pairs at (27,17) and (27,20) BLUE pen 3 at each actual publication",
+        "ordinary 10/100 award tiles retain exact current pixels and color"
+      ],
+      "distinct_risk": "the generated pair could be correct in the final frame but wrong at a publication, or palette mapping could leak to ordinary awards",
+      "exclusions": [
+        "Tiled editor tint",
+        "multiplier score/timing changes",
+        "ordinary 10/100 recoloring"
+      ]
+    },
+    {
+      "ticket": "BUG-066",
+      "exact_writable_files": [
+        "scripts/build_presentation.py",
+        "scripts/verify_bug035_presentation.py"
+      ],
+      "read_only_inputs": [
+        "tiled/coco-instructions-screen.tmx"
+      ],
+      "static_selector": [
+        "064",
+        "066"
+      ],
+      "runtime_command": "instruction_sequence_and_multipliers",
+      "targets": [
+        "only instruction side-HUD equals at (34,13), raw code 42, GREEN pen 5",
+        "other equals glyphs keep their own palette owners",
+        "natural instruction publication retains the pairing"
+      ],
+      "distinct_risk": "role/cell palette selection could recolor another equals glyph or the visible instruction state could diverge from static output",
+      "exclusions": [
+        "gameplay equals",
+        "level-start panel equals (18,7)",
+        "level-start side-HUD equals (BUG-068)"
+      ]
+    },
+    {
+      "ticket": "BUG-067",
+      "exact_writable_files": [
+        "scripts/build_presentation.py",
+        "scripts/verify_bug011_instructions.py"
+      ],
+      "read_only_inputs": [
+        "assets/arcade/instructions.json"
+      ],
+      "static_selector": [
+        "064",
+        "067"
+      ],
+      "runtime_command": "instruction_sequence_and_multipliers",
+      "targets": [
+        "all 16 event order/tick records",
+        "first motions 129/577/1217",
+        "later-row motion gaps 47/47 and first-consume gaps 70/70",
+        "next-screen tick 1884",
+        "dwell 32 gives 48 transitions at candidate death tick 1544"
+      ],
+      "distinct_risk": "removing only the explicit gates leaves the redundant row offsets; a partial edit fails the exact event oracle",
+      "units": "generated instruction schedule ticks, not MAME frames",
+      "exclusions": [
+        "actor cadence",
+        "consume order",
+        "trigger-colour rule",
+        "instruction runtime assembly"
+      ]
+    },
+    {
+      "ticket": "BUG-068",
+      "exact_writable_files": [
+        "scripts/build_presentation.py",
+        "scripts/verify_bug035_presentation.py"
+      ],
+      "read_only_inputs": [
+        "tiled/coco-level-start-screen.tmx"
+      ],
+      "static_selector": [
+        "064",
+        "068"
+      ],
+      "runtime_command": "first_natural_stage",
+      "additional_command": "shared_text_after_feat005",
+      "targets": [
+        "level-start side-HUD equals (34,13) GREEN pen 5",
+        "central panel equals (18,7) unchanged",
+        "first level-start visible 1000 digits at (35..38,13) GREEN pen 5 and x=39 blank"
+      ],
+      "distinct_risk": "static equals color may be overwritten or misaligned by first dynamic SharedText publication",
+      "dependency": "Current post-FEAT-005 SharedText parser/runtime publication plus BUG-059/060 layer integration; all are already in the preparation baseline.",
+      "exclusions": [
+        "level-start panel equals",
+        "point value",
+        "vegetable",
+        "broad row recoloring"
+      ]
+    }
+  ],
+  "commands": {
+    "install_shared_verifier_ports_from_windows_powershell": "wsl bash -lc 'cd /mnt/e/projects/ladybug && sha256sum -c wiki/internal/tickets/evidence/rsch014-ready-instructions/shared-verifier-base.sha256 && git apply --check wiki/internal/tickets/evidence/rsch014-ready-instructions/rsch014-064-068-shared-verifier-ports.patch && git apply wiki/internal/tickets/evidence/rsch014-ready-instructions/rsch014-064-068-shared-verifier-ports.patch && python3 -m py_compile scripts/verify_bug011_instructions.py scripts/verify_bug011_runtime.py scripts/verify_bug021_complete_instructions.py scripts/verify_bug035_presentation.py'",
+    "strict_layer_guard": "wsl python3 /mnt/e/projects/ladybug/scripts/verify_bug016_presentation_layers.py --tiled-dir /mnt/e/projects/ladybug/tiled",
+    "combined_build_after_ticket_changes": "wsl bash -lc 'cd /mnt/e/projects/ladybug && bash scripts/build.sh build'",
+    "BUG-067_schedule_static_oracle": "wsl python3 /mnt/e/projects/ladybug/scripts/verify_bug011_instructions.py",
+    "BUG-064_natural_instruction_and_first_stage_runtime": "wsl python3 /mnt/e/projects/ladybug/scripts/verify_bug035_presentation.py --current-profile --tickets 064 065 066 068 --timeout 40 --output /mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-instructions/first-stage.json",
+    "BUG-065_066_instruction_sequence_and_publication_runtime": "wsl python3 /mnt/e/projects/ladybug/scripts/verify_bug011_runtime.py --xroar /mnt/e/projects/ladybug/docs/reference/xroar/src/xroar --rom /mnt/e/projects/ladybug/build/ladybug.rom --timeout 40 --output /mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-instructions/instruction-sequence.json",
+    "natural_instruction_install_runtime": "wsl python3 /mnt/e/projects/ladybug/scripts/verify_bug021_complete_instructions.py --xroar /mnt/e/projects/ladybug/docs/reference/xroar/src/xroar --rom /mnt/e/projects/ladybug/build/ladybug.rom --timeout 40 --output /mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-instructions/natural-instructions.json",
+    "FEAT005_shared_text_regression_guard": "wsl python3 /mnt/e/projects/ladybug/scripts/verify_shared_text.py --build-dir /mnt/e/projects/ladybug/build",
+    "runtime_deadline_and_timeout_rule": "Each named callback/publication phase receives --timeout 40. Timeout is a failed scenario, not speed evidence. Do not extend a phase or rerun after a second observation timeout/rejected probe without reassessing the probe boundary. Corrected deterministic reruns are permitted after identified probe-mechanics fixes.",
+    "current_rom_identity_rule": "All runtime commands read the exact current build artifact at /mnt/e/projects/ladybug/build/ladybug.rom; retain its SHA-256 in each JSON receipt. Rebuild from the integrated candidate source immediately before these commands. Any active-vector interpretation remains gated by the parent-owned current-source GDB identity adapter.",
+    "current_rom_sha256_capture": "wsl sha256sum /mnt/e/projects/ladybug/build/ladybug.rom",
+    "current_rom_sha256_capture_meaning": "Run after the combined build and retain the digest alongside the runtime receipts; each runtime handler is passed the same exact /mnt/e ROM path."
+  },
+  "runtime_contract": {
+    "deadline_seconds_max_per_named_phase": 40,
+    "success_markers": [
+      "presentation_flow_tick",
+      "attract_next",
+      "start_screen with A=1",
+      "instructions_tick",
+      "instructions_runtime_return/consume_advance",
+      "level_tick"
+    ],
+    "timeout_meaning": "The named dispatch/publication boundary was not observed within the 40-second phase deadline. It is not evidence that target execution is slow and does not pass the scenario. After two rejected probes or observation-tool timeouts, stop and reassess.",
+    "identity_gate": "Run the combined current-source build before runtime commands and record the exact ROM SHA-256. The instruction tests compare authored/staged/installed bytes and visible frames. Any active-vector interpretation remains gated by the parent-owned phase-aware GDB identity adapter; $038F is interpreted only after ordinary gameplay restoration.",
+    "missing_scenario": "Failure; absence is never passing evidence."
+  },
+  "capacity_baseline": {
+    "qualification": "Measured on the post-FEAT-005, post-C3 prototype artifact revision 69550b6978231398cbdf7083378aaeca8282586c; not a projection or final 064-068 candidate build result.",
+    "presentation_module": "1266/1280 bytes; 14 bytes free",
+    "instruction_runtime": "938 bytes; destination $0300-$06A9, end-exclusive $06AA",
+    "complete_auxiliary_staged_bytes": 5110,
+    "gmc_source_spare_bytes": 12205,
+    "adaptive_image_bytes": 603,
+    "post-integration_remeasurement": "Required after the combined current-source candidate build; a missing or over-limit result blocks acceptance."
+  },
+  "smallest_remaining_gate": "Apply the approved BUG-064..068 changes in their assigned worktrees, integrate their disjoint commits, pass the combined current-source build and capacity checks, verify the exact resulting ROM, then run the retained natural-runtime commands. FEAT-005 and BUG-059/060/C3 integration are already in the preparation baseline. This preparation contains no production repair and makes no Ready/Done or runtime acceptance claim.",
+  "shared_verifier_port": {
+    "patch": "/mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-instructions/rsch014-064-068-shared-verifier-ports.patch",
+    "patch_sha256": "55c97f7b6dc1dd24373b792270a15a4b7a7349835c35ece79f5eb4416e70544f",
+    "base_hash_manifest": "/mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-instructions/shared-verifier-base.sha256",
+    "base_hash_manifest_sha256": "ce32349831c17d80754c9872882a62a9d69ce309232939527e4399d8d7714c4e",
+    "patch_check_receipt": "shared-verifier-port-check.json",
+    "target_files": [
+      "scripts/verify_bug011_instructions.py",
+      "scripts/verify_bug011_runtime.py",
+      "scripts/verify_bug021_complete_instructions.py",
+      "scripts/verify_bug035_presentation.py"
+    ],
+    "install_instructions": [
+      "From Windows PowerShell, run the WSL command recorded below from /mnt/e/projects/ladybug.",
+      "The command validates all four exact base-file hashes before checking or applying the patch. If a hash differs, stop and port the hunks against the current shared scripts; do not force-apply.",
+      "After applying, run py_compile and the strict layer guard before any ticket implementation. The patch edits existing shared verifiers only; it does not add files to scripts/.",
+      "Keep the patch file and hash receipt with the assignment evidence. Do not depend on ignored repro prototypes."
+    ]
+  },
+  "parent_review": "parent-current-verifier-review.json"
+}

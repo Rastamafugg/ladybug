@@ -1,0 +1,54 @@
+{
+  "status": "PASS",
+  "qualification": "offline artifact freshness only; not live-byte or behavioral acceptance",
+  "source_root": "E:\\projects\\ladybug",
+  "build_dir": "E:\\projects\\ladybug\\build",
+  "profile": "complete",
+  "receipt_revision": "69550b6978231398cbdf7083378aaeca8282586c",
+  "rom_sha256": "6e23eb81a10372943dc74c24cda5be800be6775823e39e74c8e84e63939ede8d",
+  "source_receipt_sha256": "5951d401050bb2be81c63bad309d93f884383f3f3aa625881d3c6438653663dd",
+  "source_receipt_counts": {
+    "source_inputs": 256,
+    "generated_inputs": 3,
+    "artifacts": 556
+  },
+  "maps": {
+    "ladybug.map": "881f1137ef7e48c5d834f8a5494367a6b68f7153e1403b981a201caa7132b501",
+    "ladybug-adaptive-active.map": "2800cbfb053462299882470488d28360239129d29544fed53d42d875aa206c81",
+    "ladybug-presentation-runtime.map": "e3cd6a16c9774bf62e4406df47db99e31340630be697a45fdd645355949d3f83"
+  },
+  "adaptive_copy_bytes": 603,
+  "module_local_audio_adaptive_code_bytes": 0,
+  "copy_length_source": "ladybug.map AUDIO_ADAPTIVE_CODE_BYTES; the adaptive-active map's same-named local symbol is not the packaged copy length",
+  "active_image_bytes": 603,
+  "active_vector_stub_hex": "7e03a17e0491",
+  "active_vector_targets": {
+    "AD_WORK_EXEC": 929,
+    "AD_TICK_EXEC": 1169
+  },
+  "presentation_callbacks": {
+    "presentation_flow_tick": 6400,
+    "instructions_tick": 7306,
+    "instructions_runtime_return": 7325,
+    "start_screen": 6707,
+    "level_tick": 7339,
+    "attract_tick": 7268,
+    "PRES_MODE": 165,
+    "PRES_SCREEN": 166,
+    "FB_FRONT_ID": 143
+  },
+  "main_callbacks": {
+    "initial_entry_tick": 49525,
+    "next_stage": 49771
+  },
+  "runtime_gate": {
+    "deadline_seconds": 40,
+    "must_compare_live": [
+      "resident runtime bytes versus exact build artifact",
+      "staged active image versus ladybug-adaptive-active.bin",
+      "live $038F..$0394 vector bytes versus active image prefix",
+      "main-ROM callback bytes versus current selected bank image"
+    ],
+    "timeout_meaning": "named publication/input boundary not reached; not speed evidence"
+  }
+}

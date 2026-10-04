@@ -1,0 +1,44 @@
+{
+  "schema": "rsch014-static-selector-selftest-v1",
+  "qualification": "offline verifier command self-test; no target runtime or live-byte claim",
+  "source_root": "E:\\projects\\ladybug",
+  "build_dir": "E:\\projects\\ladybug\\build",
+  "cases": [
+    {
+      "ticket_selector": "064",
+      "expected_result_on_current_snapshot": "pass",
+      "actual_exit_code": 0,
+      "self_test_pass": true,
+      "diagnostic": "static candidate command returned success"
+    },
+    {
+      "ticket_selector": "065",
+      "expected_result_on_current_snapshot": "reject-unimplemented-candidate",
+      "actual_exit_code": 2,
+      "self_test_pass": true,
+      "diagnostic": "static contract probe refused: BUG-065 candidate: static X2/X3/X5 template cells are not BLUE pen 3"
+    },
+    {
+      "ticket_selector": "066",
+      "expected_result_on_current_snapshot": "reject-unimplemented-candidate",
+      "actual_exit_code": 2,
+      "self_test_pass": true,
+      "diagnostic": "static contract probe refused: BUG-066 candidate: instruction equals is not GREEN pen 5"
+    },
+    {
+      "ticket_selector": "067",
+      "expected_result_on_current_snapshot": "reject-unimplemented-candidate",
+      "actual_exit_code": 2,
+      "self_test_pass": true,
+      "diagnostic": "static contract probe refused: candidate manifest schedule differs from independent source oracle"
+    },
+    {
+      "ticket_selector": "068",
+      "expected_result_on_current_snapshot": "reject-unimplemented-candidate",
+      "actual_exit_code": 2,
+      "self_test_pass": true,
+      "diagnostic": "static contract probe refused: BUG-068 candidate: level-start side-HUD equals is not GREEN pen 5"
+    }
+  ],
+  "status": "PASS"
+}
