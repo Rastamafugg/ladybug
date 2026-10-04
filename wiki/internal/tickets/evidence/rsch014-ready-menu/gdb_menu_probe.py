@@ -1,7 +1,10 @@
 import ctypes as c,subprocess,time,json,os,hashlib,re,sys
 from pathlib import Path
 import argparse
-p=argparse.ArgumentParser();p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));p.add_argument("--next-part",type=int,choices=range(1,256));a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));p.add_argument("--next-part",type=int,choices=range(1,256));p.add_argument('--stage-score',type=str);a=p.parse_args()
+if a.stage_score is not None:
+ assert len(a.stage_score)==6 and a.stage_score.isdigit(),'six BCD decimal score digits required'
+ assert a.level_part or a.next_part,'stage-score requires a level-part or next-part scenario'
 ROOT=a.worktree.resolve();B=ROOT/'build';O=ROOT/'repro/ready-menu-gdb';O.mkdir(parents=True,exist_ok=True)
 assert not a.output.exists(),'output exists'
 assert hashlib.sha256((B/'ladybug.rom').read_bytes()).hexdigest()==a.rom_sha256,'ROM identity mismatch'
@@ -168,12 +171,20 @@ def level_part_probe(value,next_stage=False):
  sys.path.insert(0,str(ROOT/'scripts'));import verify_shared_text as shared
  phase('selected-part-natural-level-start-'+str(value));key('5');settled(3)
  report['phases'][-1]['forced_state']='Seed next-game part setting EB directly, including 100..255 outside menu-selectable1..99; real Enter and natural level-start hydration. Menu setting range unchanged.'
- gdb(['set {unsigned char}0xeb='+str(value)]);key('Return')
+ commands=['set {unsigned char}0xeb='+str(value)]
+ if a.stage_score:
+  commands += [f'set {{unsigned char}}0x{0x1d+i:x}=0x{a.stage_score[2*i:2*i+2]}' for i in range(3)]
+  report['phases'][-1]['forced_prior_score']=a.stage_score
+ gdb(commands);key('Return')
  if next_stage:
   await_state('ordinary credited entry before stage-clear fixture',lambda q:q['mode']==0 and q['entry']==0 and q['live']==1)
   active_gameplay_identity()
   phase('natural-stage-transition-from-'+str(value));report['phases'][-1]['forced_state']='Set STAGE to requested predecessor and STAGE_PENDING=1 at ordinary credited gameplay; actual presentation normal_stage calls next_stage and hydrates level-start. Preceding maze completion is not claimed.'
-  gdb([f'set {{unsigned char}}0x24={value}','set {unsigned char}0x26=1']);value=1 if value==255 else value+1
+  commands=[f'set {{unsigned char}}0x24={value}']
+  if a.stage_score:
+   commands += [f'set {{unsigned char}}0x{0x1d+i:x}=0x{a.stage_score[2*i:2*i+2]}' for i in range(3)]
+   report['phases'][-1]['forced_current_score']=a.stage_score
+  commands += ['set {unsigned char}0x26=1'];gdb(commands);value=1 if value==255 else value+1
  await_state('natural level-start publication',lambda q:q['mode']==6 and q['screen']==2 and q['pending']==0)
  stage_helper_identity()
  font=shared.values((B/'ladybug_shared_text.inc').read_text(),'font','colour_lut');translation=shared.values((B/'ladybug_stage_glyphs.inc').read_text(),'stage_source_glyphs','no_end')
@@ -188,6 +199,15 @@ def level_part_probe(value,next_stage=False):
     expected=bytes((colour if mask[y]&(128>>(j*2)) else 0)*16+(colour if mask[y]&(64>>(j*2)) else 0) for y in range(8) for j in range(4))
     actual=b''.join(frame[(row*8+y)*160+col*4:(row*8+y)*160+col*4+4] for y in range(8))
     check('level-start owner '+str(owner)+' row '+str(row)+' cell '+str(col),actual==expected)
+ if a.stage_score:
+  expected_score=a.stage_score if next_stage else '000000'
+  for col,char in enumerate(expected_score,33):
+   mask=font[translation[int(char)]*8:translation[int(char)]*8+8]
+   expected=bytes((8 if mask[y]&(128>>(j*2)) else 0)*16+(8 if mask[y]&(64>>(j*2)) else 0) for y in range(8) for j in range(4))
+   actual=b''.join(frame[(16+y)*160+col*4:(16+y)*160+col*4+4] for y in range(8))
+   check('level-start light-green score cell '+str(col),actual==expected)
+  report['phases'][-1]['expected_display_score']=expected_score
+
 def name_controls():
  phase('forced-final-death-natural-name-handoff')
  report['phases'][-1]['forced_state']='Replace five bindings with previously UI-tested W/S/A/D/Space; set packed-BCD SCORE=095000 and DEATH_STATE=4 at ordinary credited gameplay. Natural qualification/phase owner installs and publishes game-over then name entry.'
