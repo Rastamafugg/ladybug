@@ -1,0 +1,183 @@
+{
+  "ticket": "BUG-061",
+  "status": "Local execution pass; parent integration QA pending",
+  "base_commit": "14e3043f8df97fe96bd0ea35f95bea482b400966",
+  "execution_commit": "5c574f3d59b2ae6d75264ac40c884ddcd6798eb4",
+  "parent_integration_commit": "669b157",
+  "branch": "codex/bug-061",
+  "commands": [
+    "wsl bash scripts/build.sh build",
+    "wsl python3 scripts/verify_shared_text.py --build-dir build",
+    "wsl python3 scripts/verify_bug035_presentation.py --current-parts --adapter /mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-menu/gdb_menu_probe.py --output /mnt/e/projects/ladybug/repro/bug061-executor-current-parts",
+    "wsl env LADYBUG_INPUT=joystick bash scripts/build.sh build"
+  ],
+  "source_sha256": {
+    "src/main.s": "512f67c8e69064519e850acd3aabbcd6599037da1fe6a21103a81a25f6c77d80",
+    "src/shared_text_runtime.inc": "2f68f8e38fe984ba7ba81303b44e45b53de3bb79d7fec8d12c53c1854237a408",
+    "src/shared_text_stage.inc": "e432e37bc63268d3eb74b0e7f24dab9ab65e213924411a232989f50be6540ee2",
+    "scripts/build_presentation.py": "4d545838e503bca3859e124ade6e679374cc18cf51229207db22b7deed3d0e05",
+    "scripts/source_reference.json": "0018559478c921bc2e4801ab3afdf23208440c0481a44317cc98c974fc109599",
+    "scripts/verify_bug035_presentation.py": "ba9e06dcde7cf30d653452abb7563f67f89ae1695a303c79e54083f02109714c"
+  },
+  "working_map_sha256": {
+    "coco-attract-screen.tmx": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07",
+    "coco-credits-screen.tmx": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825",
+    "coco-enter-high-score-screen.tmx": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca",
+    "coco-game-over-screen.tmx": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05",
+    "coco-high-score-screen.tmx": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d",
+    "coco-instructions-screen.tmx": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4",
+    "coco-keybind-options-screen.tmx": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046",
+    "coco-level-start-screen.tmx": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b",
+    "coco-screen.tmx": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f"
+  },
+  "index_label_delta": {
+    "patch_sha256": "f3f84b1e384d7ab11bdc13decd5058b78c47986c884a18338d6156dd037fe9aa",
+    "changed_cells": 6,
+    "layer": "Level Start Panel",
+    "row": 4,
+    "columns": "15-20",
+    "before": [
+      8,
+      8,
+      97,
+      337,
+      65,
+      33
+    ],
+    "after": [
+      97,
+      337,
+      65,
+      33,
+      8,
+      8
+    ],
+    "preserved_x22": 481,
+    "copied_working_maps_remain_unstaged": true
+  },
+  "roms": {
+    "keyboard": {
+      "sha256": "62157bf3dfacc207a439fa41078d8ee6d8f0ef86474a2c19cd4a34744df3373d",
+      "resident": "8150/8192",
+      "free_resident": 42,
+      "assets": "7680/7680",
+      "free_assets": 0,
+      "presentation": "1266/1280",
+      "free_presentation": 14,
+      "helper": "331/334",
+      "free_helper": 3,
+      "source_audit": "14 modules; 305/305 routines; 4960/4960 labels"
+    },
+    "joystick": {
+      "sha256": "d4389956883b3b51273327f2677b94727f04dba1528c9d17db1fbc39601b3341",
+      "resident": "8186/8192",
+      "free_resident": 6,
+      "assets": "7680/7680",
+      "free_assets": 0,
+      "presentation": "1266/1280",
+      "free_presentation": 14,
+      "helper": "331/334",
+      "free_helper": 3,
+      "source_audit": "14 modules; 305/305 routines; 4962/4962 labels"
+    }
+  },
+  "shared_text": {
+    "status": "PASS",
+    "pixel_exact_screens": 9,
+    "differing_bytes": 0,
+    "output_sha256": "f43b18f6881eb52de96725e9aaa9e6dc004bdd3c37b69f24f5e32626fab8c4ad"
+  },
+  "current_parts": {
+    "status": "PASS",
+    "rom_sha256": "62157bf3dfacc207a439fa41078d8ee6d8f0ef86474a2c19cd4a34744df3373d",
+    "adapter_sha256": "75fd9562b46da62a29198f3fe9230dcaa87359a630658bb653a80b5d6d1d190b",
+    "scenarios": [
+      {
+        "name": "hud",
+        "status": "PASS",
+        "receipt_sha256": "28fabdacd7dc5a24cbba7dfb124ec33981048b2f7e87c8ea9faabb32c73c3283",
+        "phases": 11
+      },
+      {
+        "name": "level-1",
+        "status": "PASS",
+        "receipt_sha256": "80f03d95b8684b5b3bf54e3bba4edf18b80b5fe40d1a71f8ae67621ac9587ea4",
+        "phases": 2
+      },
+      {
+        "name": "level-9",
+        "status": "PASS",
+        "receipt_sha256": "0b47728323d6a36865aec0c8ccc3d3910fb38615d3ac06e08d92e8b7c2c649bb",
+        "phases": 2
+      },
+      {
+        "name": "level-10",
+        "status": "PASS",
+        "receipt_sha256": "599cc2d9e5d837286391e56535fd89fa7f3f79d7c5d73ba7ee0323e39ca6ec30",
+        "phases": 2
+      },
+      {
+        "name": "level-99",
+        "status": "PASS",
+        "receipt_sha256": "c981fdc785ee9aba0bdbe06086eb67d16ab00e81dbca01cda83aa87b92dac919",
+        "phases": 2
+      },
+      {
+        "name": "level-100",
+        "status": "PASS",
+        "receipt_sha256": "c820a7df00ddc2e974611218cd139f3c78539b0e5c5b60e14ba5a4ae5cb433d2",
+        "phases": 2
+      },
+      {
+        "name": "level-199",
+        "status": "PASS",
+        "receipt_sha256": "27c079c61d9a6da887e02641ab06ffecc6114b69dbfede9e37977612d192d4ff",
+        "phases": 2
+      },
+      {
+        "name": "level-200",
+        "status": "PASS",
+        "receipt_sha256": "697ad7776b79e746f018154d1f07f92cb5e3e33cab36b13fc5d7bc59cf92687d",
+        "phases": 2
+      },
+      {
+        "name": "level-255",
+        "status": "PASS",
+        "receipt_sha256": "8a1ee4b30fcffdced8e5f6750ca160173521edba89f33fd89130dc70a085f93c",
+        "phases": 2
+      },
+      {
+        "name": "next-99",
+        "status": "PASS",
+        "receipt_sha256": "7ecf5ed35bd8db2a3c4c8adf508443e13e9d645c4fc8bc9aaa9763f56a24d69f",
+        "phases": 3
+      },
+      {
+        "name": "next-199",
+        "status": "PASS",
+        "receipt_sha256": "440373a6b50da540175121d6feb96451c6e845bbe93c31c61c8ff6fbe7fbd681",
+        "phases": 3
+      },
+      {
+        "name": "next-255",
+        "status": "PASS",
+        "receipt_sha256": "872389d1fd5ebb547b74dcb967f7464efcef4a998499004a2f1b3d297414de86",
+        "phases": 3
+      }
+    ],
+    "qualification": "Prototype preparation. HUD covers both persistent owners; level-start covers published FRONT. Each phase40seconds; timeout means missing boundary, not slow target."
+  },
+  "evidence": {
+    "runtime_summary": "E:/projects/ladybug/repro/bug061-executor-current-parts/summary.json",
+    "runtime_scenario_receipts": "E:/projects/ladybug/repro/bug061-executor-current-parts/{hud,level-1,level-9,level-10,level-99,level-100,level-199,level-200,level-255,next-99,next-199,next-255}.json",
+    "execution_receipt": "E:/projects/ladybug/repro/bug061-executor-current-parts/execution-receipt.json",
+    "canonical_ticket_log": "Parent-owned; not modified by execution agent"
+  },
+  "rejected_experiments": [
+    "The provided CRLF index patch did not match the tracked LF/GID-8 map; synthesized and verified LF index-only patch f3f84b1e384d7ab11bdc13decd5058b78c47986c884a18338d6156dd037fe9aa. Failed artifact SHA-256 bdd5478e5f0776d615026e60be045e471c62143f3e39ec7ff4ff53ace0e9319e.",
+    "First WSL patch generator could not resolve the Windows-style worktree .git pointer; rerun with explicit WSL GIT_DIR/GIT_WORK_TREE succeeded without index mutation from the failed attempt.",
+    "An unsupported verifier --help invocation entered the legacy BUG-035 route and failed the stale static-title-text assertion; no GDB phase ran. The current-parts route passed.",
+    "Prototype TFR condition-code assumption rejected; explicit TSTA used. Asynchronous per-owner journal injection rejected in favor of a single mainloop-boundary seed. Hidden previous-screen pixels excluded from the level-start oracle after source proved one-owner publication."
+  ],
+  "residual_risk": "Joystick resident headroom is 6 bytes and immutable assets have 0 bytes free; parent combined integration build and QA are required before Done."
+}
