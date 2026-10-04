@@ -1,7 +1,7 @@
 ; DOC-002 source-contract mirror contract presentation_key_service profile=input: Call the bounded physical key component while preserving the caller bank mapping.
 ; DOC-002 source-contract mirror contract asset_draw_hud_digit profile=render: Draw one shared-font HUD digit.
 ; DOC-002 source-contract mirror contract asset_draw_two_digits profile=render: Draw a two-digit HUD value with a leading zero.
-; DOC-002 source-contract mirror contract asset_draw_life_count profile=render: Draw numeric reserves in the existing marker footprint.
+; DOC-002 source-contract mirror contract life_marker_position profile=render: Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.
 ; DOC-002 source-contract mirror contract adaptive_install_active profile=copy: Restore the active low-RAM driver from staged page $3D after a presentation overlay retires.
 ; DOC-002 source-contract mirror contract AD_WORK_EXEC profile=framebuffer: Execute the active logical batch, damage reduction, audio service and BACK publication transaction.
 ; DOC-002 source-contract mirror contract AD_RESET_EXEC profile=state: Rebase adaptive phase time and clear both damage journals outside active publication.
@@ -1549,12 +1549,24 @@ asset_part_finish
 
 draw_lives
         ifne COMPLETE_PROFILE
-        lda     LIVES
-        cmpa    #4
-        blo     dl_markers
-        jmp     asset_draw_life_count
-dl_markers
-        endc
+        clr     ENTITY_WORK
+dl_marker
+        lda     ENTITY_WORK
+        jsr     life_marker_position
+        lda     ENTITY_WORK
+        cmpa    LIVES
+        bhs     dl_erase
+        bsr     draw_life_marker
+        bra     dl_next
+dl_erase
+        bsr     clear_life_marker
+dl_next
+        inc     ENTITY_WORK
+        lda     ENTITY_WORK
+        cmpa    #12
+        blo     dl_marker
+        rts
+        else
         clr     ENTITY_WORK
 dl_marker
         lda     ENTITY_WORK
@@ -1576,6 +1588,7 @@ dl_next
         cmpa    #3
         blo     dl_marker
         rts
+        endc
 
 clear_life_marker
         lda     HUD_Y
@@ -1606,6 +1619,22 @@ clm_row
         rts
 
 draw_life_marker
+        ifne COMPLETE_PROFILE
+; The authored marker quarters exist only at the bottom-left HUD root.
+; Read those fixed source cells while keeping each requested destination.
+        ldb     screen_map+873
+        bsr     draw_hud_tile
+        inc     HUD_X
+        ldb     screen_map+874
+        bsr     draw_hud_tile
+        dec     HUD_X
+        inc     HUD_Y
+        ldb     screen_map+913
+        bsr     draw_hud_tile
+        inc     HUD_X
+        ldb     screen_map+914
+        bsr     draw_hud_tile
+        else
         bsr     draw_authored_hud_tile
         inc     HUD_X
         bsr     draw_authored_hud_tile
@@ -1614,6 +1643,7 @@ draw_life_marker
         bsr     draw_authored_hud_tile
         inc     HUD_X
         bsr     draw_authored_hud_tile
+        endc
         rts
 
 draw_authored_hud_tile

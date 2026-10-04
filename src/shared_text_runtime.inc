@@ -1,25 +1,5 @@
 ; Shared masks and typed graphic/text dispatch. Data is generated from authored assets.
 
-; FEAT-005 numeric reserve display uses the existing three-marker footprint.
-asset_draw_life_count
-        lda     #33
-        sta     HUD_X
-        lda     #21
-        sta     HUD_Y
-        lda     #3
-        sta     ENTITY_WORK
-asset_clear_reserves
-        jsr     clear_life_marker
-        inc     HUD_X
-        inc     HUD_X
-        dec     ENTITY_WORK
-        bne     asset_clear_reserves
-        lda     #33
-        sta     HUD_X
-        lda     #8
-        sta     HUD_COLOR
-        lda     LIVES
-        bra     asset_draw_two_digits
 ; Font producer guards the last compact glyph as the blank mask.
 asset_part_digits
         pshs    a
@@ -33,6 +13,22 @@ asset_part_write
         puls    a
         bra     asset_draw_two_digits
 
+; DOC-002 source-contract mirror contract life_marker_position profile=render: Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.
+; A = slot0..11; writes only HUD_X/HUD_Y; no live-state mutation.
+life_marker_position
+        ldb     #21
+dl_position_row
+        cmpa    #3
+        blo     dl_position_column
+        suba    #3
+        subb    #2
+        bra     dl_position_row
+dl_position_column
+        lsla
+        adda    #33
+        sta     HUD_X
+        stb     HUD_Y
+        rts
 asset_draw_two_digits
         clrb
 asset_number_tens
