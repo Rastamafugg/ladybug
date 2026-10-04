@@ -1,0 +1,57 @@
+--- a/scripts/verify_bug035_presentation.py
++++ b/scripts/verify_bug035_presentation.py
+@@ -521,8 +521,54 @@
+         raise AssertionError("trademark routes did not pass")
+ 
+ 
++def current_equals_static(baseline, screen_name):
++    import importlib.util
++    path=ROOT/"wiki/internal/tickets/evidence/rsch014-A3/bug100_logo_r_composition_probe.py"
++    spec=importlib.util.spec_from_file_location("equals_static_decoder",path)
++    decoder=importlib.util.module_from_spec(spec);spec.loader.exec_module(decoder)
++    def inputs(directory):
++        manifest=json.loads((directory/"ladybug-presentation.json").read_text())
++        cold=(directory/"ladybug-presentation-cold.bin").read_bytes()
++        assert digest(cold)==manifest["cold_payload"]["sha256"]
++        font=decoder.include_bytes((directory/"ladybug_shared_text.inc").read_text(),"font","colour_lut")
++        return manifest,cold,font
++    old,new=inputs(baseline),inputs(BUILD);result=[]
++    for index,item in enumerate(old[0]["maps"]):
++        assert item["name"]==new[0]["maps"][index]["name"]
++        frames=[decoder.decode_static_frame(data[1],data[0],data[2],index) for data in (old,new)]
++        pixels=[[z for byte in frame for z in (byte>>4,byte&15)] for frame in frames]
++        changes=[(i%320,i//320,a,b) for i,(a,b) in enumerate(zip(*pixels)) if a!=b]
++        if item["name"]==screen_name:
++            assert len(changes)==14 and all(272<=x<280 and 104<=y<112 and a==6 and b==5 for x,y,a,b in changes)
++        else:assert not changes,item["name"]
++        result.append({"screen":item["name"],"changed_pixels":len(changes),"outside_target_changes":0})
++    return result
++
++
+ def main():
+     arguments = sys.argv[1:]
++    if "--current-hud-equals" in arguments:
++        parser=argparse.ArgumentParser(description="Current BUG066/068 independent equals publication")
++        parser.add_argument("--current-hud-equals",action="store_true")
++        parser.add_argument("--screen",choices=("instructions","level-start"),required=True)
++        parser.add_argument("--mode",choices=("baseline","green"),default="green")
++        parser.add_argument("--baseline-build",type=Path)
++        parser.add_argument("--static-only",action="store_true")
++        parser.add_argument("--adapter",type=Path,required=True)
++        parser.add_argument("--output",type=Path,required=True)
++        args=parser.parse_args(arguments)
++        if args.output.exists():raise SystemExit("fresh output path required")
++        if args.baseline_build:
++            checks=current_equals_static(args.baseline_build.resolve(),args.screen)
++            if args.static_only:
++                args.output.write_text(json.dumps({"status":"PASS","checks":checks},indent=2)+"\n")
++                return
++        elif args.static_only:raise SystemExit("--static-only requires --baseline-build")
++        command=[sys.executable,str(args.adapter.resolve()),"--worktree",str(ROOT),"--rom-sha256",digest((BUILD/"ladybug.rom").read_bytes()),"--output",str(args.output.resolve()),"--hud-equals",args.mode]
++        command += ["--instructions-static"] if args.screen=="instructions" else ["--level-part","1"]
++        subprocess.run(command,cwd=ROOT,check=True,timeout=150)
++        if json.loads(args.output.read_text()).get("status")!="PASS":raise AssertionError("equals publication failed")
++        return
+     if "--current-trademark" in arguments:
+         parser=argparse.ArgumentParser(description="Current complete trademark two-route GDB probe")
+         parser.add_argument("--current-trademark",action="store_true")

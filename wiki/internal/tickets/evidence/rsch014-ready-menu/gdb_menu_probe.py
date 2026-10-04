@@ -1,10 +1,11 @@
 import ctypes as c,subprocess,time,json,os,hashlib,re,sys
 from pathlib import Path
 import argparse
-p=argparse.ArgumentParser();p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));p.add_argument("--next-part",type=int,choices=range(1,256));p.add_argument('--stage-score',type=str);p.add_argument('--trademark',choices=('baseline','red'));p.add_argument('--instructions-static',action='store_true');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));p.add_argument("--next-part",type=int,choices=range(1,256));p.add_argument('--stage-score',type=str);p.add_argument('--trademark',choices=('baseline','red'));p.add_argument('--instructions-static',action='store_true');p.add_argument('--hud-equals',choices=('baseline','green'));p.add_argument('--instructions-multipliers',choices=('baseline','blue'));a=p.parse_args()
 if a.stage_score is not None:
  assert len(a.stage_score)==6 and a.stage_score.isdigit(),'six BCD decimal score digits required'
  assert a.level_part or a.next_part,'stage-score requires a level-part or next-part scenario'
+if a.hud_equals:assert a.instructions_static or a.level_part or a.next_part,'equals requires instructions or level-start scenario'
 ROOT=a.worktree.resolve();B=ROOT/'build';O=ROOT/'repro/ready-menu-gdb';O.mkdir(parents=True,exist_ok=True)
 assert not a.output.exists(),'output exists'
 assert hashlib.sha256((B/'ladybug.rom').read_bytes()).hexdigest()==a.rom_sha256,'ROM identity mismatch'
@@ -157,6 +158,20 @@ def hud_probe(lives=False):
   check('both natural owner replays equal exact authored cells',True)
   report['phases'][-1]['owner_frame_sha256']={str(owner):hashlib.sha256(frame).hexdigest() for owner,frame in actual.items()}
  report['qualification']='Controlled reserve/part HUD callback test, not initial-life/death accounting or natural level-start acceptance; journal mutation disclosed per phase.'
+def hud_equals_pixels(frame):
+ sys.path.insert(0,str(ROOT/'scripts'));import build_presentation as palette
+ rows=palette.rotate_ccw(palette.load_chars(ROOT/'assets/arcade/chars.json')[42])
+ pen=6 if a.hud_equals=='baseline' else 5
+ expected=bytes((pen if rows[y][j*2] else 0)*16+(pen if rows[y][j*2+1] else 0) for y in range(8) for j in range(4))
+ actual=b''.join(frame[(104+y)*160+136:(104+y)*160+140] for y in range(8))
+ check('side-HUD equals independent raw42 mask pen '+str(pen),actual==expected)
+ check('equals mask has foreground',any(expected))
+ for col in range(35,39):
+  cell=b''.join(frame[(104+y)*160+col*4:(104+y)*160+col*4+4] for y in range(8))
+  foreground=[pixel for byte in cell for pixel in (byte>>4,byte&15) if pixel]
+  check('adjacent vegetable value digit '+str(col)+' green5',bool(foreground) and set(foreground)=={5})
+ report['phases'][-1]['equals_oracle']='Independent rotated raw character42; baseline white6 or target green5; four adjacent nonblank digit cells green5.'
+
 def instruction_static_probe():
  phase('natural-instructions-hidden-hydration')
  # Stop before the first instruction timer/actor tick, after both owner hydrations.
@@ -210,9 +225,62 @@ def instruction_static_probe():
  for owner in (0,1):
   actual=(O/f'instruction-owner-{owner}.bin').read_bytes()
   check('complete instructions static pixels owner '+str(owner),actual==expected)
+  if a.hud_equals:hud_equals_pixels(actual)
   hashes[str(owner)]=hashlib.sha256(actual).hexdigest()
  report['phases'][-1]['owner_frame_sha256']=hashes
  report['qualification']='Natural attract-to-instructions, first static publication before any instruction actor tick. This does not claim choreography, multiplier replay or next-stage acceptance.'
+
+def instruction_multiplier_probe():
+ instruction_static_probe()
+ sys.path.insert(0,str(ROOT/'scripts'));import build_presentation as palette
+ import xml.etree.ElementTree as ET
+ manifest=json.loads((B/'ladybug-presentation.json').read_text())
+ contract=manifest['instruction_choreography']
+ chars=palette.load_chars(ROOT/'assets/arcade/chars.json')
+ map_path=ROOT/'tiled'/palette.MAP_FILES['instructions'];map_root=ET.parse(map_path).getroot()
+ layer=next(item for item in map_root.findall('layer') if item.get('name')=='CoCo Side HUD')
+ cells=palette.layer_records(layer)
+ def cell(frame,destination):
+  offset=destination-0x2000
+  return b''.join(frame[offset+y*160:offset+y*160+4] for y in range(8))
+ static_pen=7 if a.instructions_multipliers=='baseline' else 3
+ for owner in (0,1):
+  frame=(O/f'instruction-owner-{owner}.bin').read_bytes()
+  for col in range(1,7):
+   expected=palette.instruction_char_tile(map_root,map_path,cells[(col,7)],(col,7),chars,(0,static_pen,static_pen,static_pen))
+   check(f'independent template multiplier col{col} owner{owner}',cell(frame,palette.framebuffer_destination((col,7)))==expected)
+ for event in (5,8,12):
+  phase(f'natural-instruction-row-completion-{event}')
+  gdb([f'break *0x{pres["instructions_tick_ready"]:x}',
+   f'condition 1 *(unsigned char*)0xca=={event} && *(unsigned char*)0x91==0',
+   'continue','delete breakpoints',f'dump binary memory {O}/multiplier-row-boundary.bin 0x8f 0xda'])
+  boundary=(O/'multiplier-row-boundary.bin').read_bytes()
+  check(f'natural published row-completion {event}',boundary[0x91-0x8f]==0 and boundary[0xa6-0x8f]==1 and boundary[0xca-0x8f]==event)
+ digit_pen=6 if a.instructions_multipliers=='baseline' else 3
+ for event,value in ((13,2),(14,3),(15,5)):
+  phase(f'natural-instruction-X{value}-both-publications')
+  # The ready boundary precedes a new instruction tick, after the previous
+  # framebuffer publication. Conditions never mutate clocks or actor state.
+  for owner in (0,1):
+   commands=[f'break *0x{pres["instructions_tick_ready"]:x}',
+    f'condition 1 *(unsigned char*)0xca=={event} && *(unsigned char*)0x8f=={owner} && *(unsigned char*)0x91==0',
+    'continue','delete breakpoints',f'dump binary memory {O}/multiplier-boundary.bin 0x8f 0xda']
+   for i in range(4):
+    commands += [f'set $p{i}=*(unsigned char*)0x{0xffa1+i:x}',f'set {{unsigned char}}0x{0xffa1+i:x}={0x30+i if owner==0 else 0x2c+i}']
+   commands += [f'dump binary memory {O}/multiplier-front.bin 0x2000 0x9800']
+   commands += [f'set {{unsigned char}}0x{0xffa1+i:x}=$p{i}' for i in range(4)]
+   gdb(commands)
+   boundary=(O/'multiplier-boundary.bin').read_bytes()
+   check(f'published X{value} owner{owner} boundary',boundary[0]==owner and boundary[0x91-0x8f]==0 and boundary[0xa6-0x8f]==1 and boundary[0xca-0x8f]==event)
+   frame=(O/'multiplier-front.bin').read_bytes()
+   x_tile=palette.instruction_char_tile(map_root,map_path,cells[(1,7)],(1,7),chars,(0,3,3,3))
+   rows=palette.rotate_ccw(chars[value])
+   digit_tile=palette.pack_tile(palette.recolor(rows,(0,digit_pen,digit_pen,digit_pen)))
+   for row,destination in enumerate(contract['multiplier_destinations']):
+    check(f'natural X{value} row{row} owner{owner} X blue',cell(frame,destination)==x_tile)
+    check(f'natural X{value} row{row} owner{owner} numeral pen{digit_pen}',cell(frame,destination+4)==digit_tile)
+   report['phases'][-1].setdefault('published_frame_sha256',{})[str(owner)]=hashlib.sha256(frame).hexdigest()
+ report['qualification']='Natural instruction X2/X3/X5 publications on both owners, independent authored-glyph masks and pens. No timer, phase, PC or framebuffer fixture. Ordinary point/scoring/choreography acceptance remains separate.'
 
 def stage_helper_identity():
  helper=(B/'ladybug-highscore-helper.bin').read_bytes()
@@ -250,6 +318,7 @@ def level_part_probe(value,next_stage=False):
  report['phases'][-1]['owner_qualification']='Level-start bypasses start_screen_hold and publishes one hydrated BACK as FRONT; previous hidden screen is excluded. Ordinary HUD probe separately verifies both persistent owners.'
  for owner in (owner,):
   frame=front_frame(owner)
+  if a.hud_equals:hud_equals_pixels(frame)
   for x,row in ((20,4),(37,11)):
    for col,char in enumerate((' ' if value<100 else str(value//100))+f'{value%100:02d}',x):
     code=36 if char==' ' else int(char);mask=font[translation[code]*8:translation[code]*8+8]
@@ -310,6 +379,8 @@ try:
  gdb([f'dump binary memory {O}/presentation.bin 0x1900 0x{0x1900+len(presentation):x}'])
  check('live presentation marker owner equals current module artifact',(O/'presentation.bin').read_bytes()==presentation)
  prompt_pixels()
+ if a.instructions_multipliers:
+  instruction_multiplier_probe();report['status']='PASS';raise SystemExit(0)
  if a.instructions_static:
   instruction_static_probe();report['status']='PASS';raise SystemExit(0)
  if a.prompt_only:
