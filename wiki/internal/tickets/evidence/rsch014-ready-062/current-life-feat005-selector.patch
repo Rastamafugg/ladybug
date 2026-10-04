@@ -1,0 +1,99 @@
+diff --git a/scripts/verify_feat005_menus.py b/scripts/verify_feat005_menus.py
+index e8c0a1a..c75ce4d 100644
+--- a/scripts/verify_feat005_menus.py
++++ b/scripts/verify_feat005_menus.py
+@@ -92,13 +92,94 @@ def run_current_menu(output: Path) -> int:
+     return 2 if failed else 0
+ 
+ 
++def run_current_lives(output: Path, adapter: Path) -> int:
++    output = output.resolve()
++    adapter = adapter.resolve()
++    rom_path = BUILD / 'ladybug.rom'
++    if output.exists() or not adapter.is_file() or not rom_path.is_file():
++        raise FileNotFoundError('fresh output, current shared adapter, and complete ROM are required')
++    rom_sha256 = r.digest(rom_path.read_bytes())
++    scenarios = [(f'natural-prefill-{total}', '--initial-lives', total)
++                 for total in (1, 3, 4, 6, 7, 9, 10, 12)]
++    scenarios.append(('controlled-both-owner-depletion-12-to-0', '--hud-lives', None))
++    output.parent.mkdir(parents=True, exist_ok=True)
++    receipt = {
++        'schema': 'bug062-current-life-grid-observer-v1',
++        'status': 'RUNNING',
++        'root': str(ROOT),
++        'rom_path': str(rom_path),
++        'rom_sha256': rom_sha256,
++        'adapter_path': str(adapter),
++        'adapter_sha256': r.digest(adapter.read_bytes()),
++        'input_joystick_flag': r.symbols(BUILD / 'ladybug.map').get('INPUT_JOYSTICK'),
++        'gameplay_map_sha256': r.digest((ROOT / 'tiled/coco-screen.tmx').read_bytes()),
++        'phase_contract': 'Each adapter phase has a 40-second deadline. Timeout means the named publication or handoff boundary was not observed; it is not target-speed evidence.',
++        'runtime_profile': 'The measured current complete joystick-input ROM uses fixed menu coin 5 and Enter. No remapped gameplay-key behavior is inferred.',
++        'scenarios': [],
++    }
++    failed = False
++    for name, selector, value in scenarios:
++        target = output.with_name(output.stem + '-' + name + '.json')
++        scratch = output.parent / (output.stem + '-' + name + '-scratch')
++        if target.exists() or scratch.exists():
++            raise FileExistsError(f'refusing to overwrite retained life evidence: {target} or {scratch}')
++        command = [sys.executable, str(adapter), '--worktree', str(ROOT),
++                   '--rom-sha256', rom_sha256, '--output', str(target),
++                   '--scratch-dir', str(scratch), selector]
++        if value is not None:
++            command.append(str(value))
++        print('BUG-062 ' + name, flush=True)
++        try:
++            completed = subprocess.run(command, cwd=ROOT, text=True,
++                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
++                                        timeout=600)
++            proof = json.loads(target.read_text(encoding='utf-8')) if target.is_file() else {}
++            status = proof.get('status', 'NO_RECEIPT')
++            passed = completed.returncode == 0 and status == 'PASS'
++            failed = failed or not passed
++            receipt['scenarios'].append({
++                'name': name,
++                'status': status,
++                'accepted': passed,
++                'returncode': completed.returncode,
++                'command': command,
++                'receipt_sha256': r.digest(target.read_bytes()) if target.is_file() else None,
++                'phases': [{'name': phase.get('name'),
++                            'deadline_seconds': phase.get('deadline_seconds'),
++                            'elapsed_seconds': phase.get('elapsed_seconds'),
++                            'checks': len(phase.get('checks', []))}
++                           for phase in proof.get('phases', [])],
++                'adapter_output': completed.stdout,
++            })
++        except (OSError, subprocess.TimeoutExpired) as error:
++            failed = True
++            receipt['scenarios'].append({'name': name, 'status': 'LAUNCH_OR_TIMEOUT_FAILURE',
++                                         'accepted': False, 'failure': repr(error),
++                                         'command': command})
++    receipt['status'] = 'FAIL' if failed else 'PASS'
++    if not output.parent.exists():
++        output.parent.mkdir(parents=True)
++    output.write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
++    print(json.dumps({'status': receipt['status'], 'rom_sha256': rom_sha256,
++                      'scenarios': len(receipt['scenarios']), 'output': str(output)}, indent=2))
++    return 2 if failed else 0
++
++
+ def main():
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument('--current-menu', action='store_true',
+                         help='dispatch current bindings, entry-edge, and name-control GDB phases')
++    parser.add_argument('--current-lives', action='store_true',
++                        help='run natural credited prefill rows and controlled reverse 12-to-0 grid audit')
++    parser.add_argument('--adapter', type=Path,
++                        help='current parent shared GDB adapter or bounded candidate copy')
+     parser.add_argument('--output', type=Path,
+                         help='report path; required by --current-menu, otherwise defaults to the historical report')
+     args = parser.parse_args()
++    if args.current_lives:
++        if args.output is None or args.adapter is None:
++            parser.error('--current-lives requires --output and --adapter')
++        raise SystemExit(run_current_lives(args.output, args.adapter))
+     if args.current_menu:
+         if args.output is None:
+             parser.error('--current-menu requires --output')

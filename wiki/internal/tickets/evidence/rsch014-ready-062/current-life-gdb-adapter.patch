@@ -1,0 +1,186 @@
+--- a/wiki/internal/tickets/evidence/rsch014-ready-menu/gdb_menu_probe.py
++++ b/wiki/internal/tickets/evidence/rsch014-ready-menu/gdb_menu_probe.py
+@@ -1,12 +1,12 @@
+-import ctypes as c,subprocess,time,json,os,hashlib,re,sys
++import ctypes as c,subprocess,time,json,os,hashlib,re,sys,threading
+ from pathlib import Path
+ import argparse
+-p=argparse.ArgumentParser();p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));p.add_argument("--next-part",type=int,choices=range(1,256));p.add_argument('--stage-score',type=str);p.add_argument('--trademark',choices=('baseline','red'));p.add_argument('--instructions-static',action='store_true');p.add_argument('--hud-equals',choices=('baseline','green'));p.add_argument('--instructions-multipliers',choices=('baseline','blue'));a=p.parse_args()
++p=argparse.ArgumentParser();p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--scratch-dir',type=Path);p.add_argument('--initial-lives',type=int,choices=range(1,13));p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));p.add_argument("--next-part",type=int,choices=range(1,256));p.add_argument('--stage-score',type=str);p.add_argument('--trademark',choices=('baseline','red'));p.add_argument('--instructions-static',action='store_true');p.add_argument('--hud-equals',choices=('baseline','green'));p.add_argument('--instructions-multipliers',choices=('baseline','blue'));a=p.parse_args()
+ if a.stage_score is not None:
+  assert len(a.stage_score)==6 and a.stage_score.isdigit(),'six BCD decimal score digits required'
+  assert a.level_part or a.next_part,'stage-score requires a level-part or next-part scenario'
+ if a.hud_equals:assert a.instructions_static or a.level_part or a.next_part,'equals requires instructions or level-start scenario'
+-ROOT=a.worktree.resolve();B=ROOT/'build';O=ROOT/'repro/ready-menu-gdb';O.mkdir(parents=True,exist_ok=True)
++ROOT=a.worktree.resolve();B=ROOT/'build';O=(a.scratch_dir.resolve() if a.scratch_dir else ROOT/'repro/ready-menu-gdb');O.mkdir(parents=True,exist_ok=True)
+ assert not a.output.exists(),'output exists'
+ assert hashlib.sha256((B/'ladybug.rom').read_bytes()).hexdigest()==a.rom_sha256,'ROM identity mismatch'
+ xlib=c.CDLL('libX11.so.6');xlib.XOpenDisplay.restype=c.c_void_p;xlib.XDefaultRootWindow.argtypes=[c.c_void_p];xlib.XDefaultRootWindow.restype=c.c_ulong
+@@ -54,7 +54,13 @@
+  time.sleep(1)
+ def gdb(lines):
+  p=O/'probe.gdb';p.write_text('\n'.join(['set pagination off','set confirm off','set remotetimeout 3','set architecture m6809','target remote 127.0.0.1:65522',*lines,'detach','quit'])+'\n')
+- r=subprocess.run(['m6809-gdb','-q','-nx','-batch','-x',str(p)],capture_output=True,text=True,timeout=min(40,max(.1,deadline-time.monotonic())));assert r.returncode==0,r.stdout+r.stderr
++ try:r=subprocess.run(['m6809-gdb','-q','-nx','-batch','-x',str(p)],capture_output=True,text=True,timeout=min(40,max(.1,deadline-time.monotonic())))
++ except subprocess.TimeoutExpired as exc:
++  report.setdefault('gdb_failures',[]).append({'script':p.read_text(),'failure':'deadline timeout','stdout':str(exc.stdout),'stderr':str(exc.stderr)})
++  raise
++ if r.returncode!=0:
++  report.setdefault('gdb_failures',[]).append({'script':p.read_text(),'returncode':r.returncode,'stdout':r.stdout,'stderr':r.stderr})
++  raise AssertionError(r.stdout+r.stderr)
+  return r.stdout+r.stderr
+ 
+ def symbols(path):
+@@ -71,7 +77,7 @@
+  report['phases'].append({'name':name,'deadline_seconds':40,'timeout_meaning':'named publication/input boundary not observed; not target speed evidence'})
+ def snapshot():
+  gdb(['dump binary memory '+str(O/'dp.bin')+' 0 0x300'])
+- dp=(O/'dp.bin').read_bytes();row={'mode':dp[0xa5],'screen':dp[0xa6],'credits':dp[0xa8],'pending':dp[0x91],'transaction':dp[0xd4],'selection':dp[0xe0],'live':dp[0xa7],'bindings':list(dp[0x287:0x28c]),'binding_state':dp[0x298],'mapped_down':dp[0x296],'player_cell':list(dp[9:11]),'player_want':dp[5],'entry':dp[0xa0],'front':dp[0x8f]}
++ dp=(O/'dp.bin').read_bytes();row={'mode':dp[0xa5],'screen':dp[0xa6],'credits':dp[0xa8],'pending':dp[0x91],'transaction':dp[0xd4],'selection':dp[0xe0],'live':dp[0xa7],'bindings':list(dp[0x287:0x28c]),'binding_state':dp[0x298],'mapped_down':dp[0x296],'player_cell':list(dp[9:11]),'player_want':dp[5],'entry':dp[0xa0],'front':dp[0x8f],'lives':dp[0x23],'render_flags':dp[0x7f],'menu_lives':dp[0xea]}
+  report['phases'][-1].setdefault('snapshots',[]).append(row);return row
+ def settled(screen):
+  while True:
+@@ -89,6 +95,14 @@
+  commands += [f'dump binary memory {O}/front.bin 0x2000 0x9800']
+  commands += [f'set {{unsigned char}}0x{0xffa1+i:x}=$p{i}' for i in range(4)]
+  gdb(commands);return (O/'front.bin').read_bytes()
++def owner_capture_commands(prefix):
++ commands=[]
++ for owner in (0,1):
++  for i in range(4):
++   commands += [f'set $p{i}=*(unsigned char*)0x{0xffa1+i:x}',f'set {{unsigned char}}0x{0xffa1+i:x}={0x30+i if owner==0 else 0x2c+i}']
++  commands += [f'dump binary memory {O}/{prefix}-owner-{owner}.bin 0x2000 0x9800']
++  commands += [f'set {{unsigned char}}0x{0xffa1+i:x}=$p{i}' for i in range(4)]
++ return commands
+ def prompt_pixels():
+  sys.path.insert(0,str(ROOT/'scripts'));import build_presentation as palette
+  frame=front_frame();chars=palette.load_chars(ROOT/'assets/arcade/chars.json')
+@@ -134,16 +148,17 @@
+   for address,count in ((0xbc04,0xbd38),(0xbc94,0xbd39)):
+    commands += [f'if *(unsigned char*)0x{count:x}==0']+[f'set {{unsigned char}}0x{address+i:x}=0' for i in range(18)]+[f'set {{unsigned char}}0x{count:x}=1','end',f'set {{unsigned char}}0x{address:x}=*(unsigned char*)0x{address:x}|{4 if lives else 2}']
+   commands += ['set {unsigned char}0xffa5=$saved5'];gdb(commands)
+- for value in ((12,11,10,9,7,6,4,3,1,0) if lives else (1,9,10,99,100,199,200,255,1)):
++ for value in (range(12,-1,-1) if lives else (1,9,10,99,100,199,200,255,1)):
+   phase(('reserve-grid-' if lives else 'part-field-')+str(value));report['phases'][-1]['forced_state']='Stop at exact verified resident mainloop boundary; set '+('reserve LIVES' if lives else 'STAGE')+' and merge HUD-only intent into both existing owner histories using the delivered adaptive_credit_history layout; normal callback renders/publishes, no forced PC.'
+   publish_intent(value);expected={}
+   if lives:
++   template_indices=(21*40+33,21*40+34,22*40+33,22*40+34)
++   template=[tiles[mapping[address]*32:(mapping[address]+1)*32] for address in template_indices]
++   check('independent four-quadrant template is nonblank and distinct',len(set(template))==4 and all(any(tile) for tile in template))
+    for slot in range(12):
+     x,y=33+2*(slot%3),21-2*(slot//3)
+-    for dy in range(2):
+-     for dx in range(2):
+-      index=mapping[(y+dy)*40+x+dx];tile=tiles[index*32:(index+1)*32]
+-      expected[x+dx,y+dy]=tile if slot<value else bytes(32)
++    for quarter,(dy,dx) in enumerate(((0,0),(0,1),(1,0),(1,1))):
++     expected[x+dx,y+dy]=template[quarter] if slot<value else bytes(32)
+   else:
+    for offset,char in enumerate((' ' if value<100 else str(value//100))+f'{value%100:02d}'):
+     mask=bytes(8) if char==' ' else font[int(char)*8:int(char)*8+8]
+@@ -292,6 +307,96 @@
+  gdb([f'dump binary memory {O}/active.bin 0x38f 0x{0x38f+len(active):x}'])
+  check('ordinary gameplay adaptive vectors and copied active image equal current artifact',(O/'active.bin').read_bytes()==active)
+ 
++def life_grid_expected(count, mapping, tiles):
++ template_indices=(21*40+33,21*40+34,22*40+33,22*40+34)
++ template=[tiles[mapping[address]*32:(mapping[address]+1)*32] for address in template_indices]
++ assert len(set(template))==4 and all(any(tile) for tile in template),'independent authored quartet must be distinct and nonblank'
++ expected={}
++ for slot in range(12):
++  x,y=33+2*(slot%3),21-2*(slot//3)
++  for quarter,(dy,dx) in enumerate(((0,0),(0,1),(1,0),(1,1))):
++   expected[x+dx,y+dy]=template[quarter] if slot<count else bytes(32)
++ return expected
++
++def audit_life_grid(count, mapping, tiles, captured_prefix=None):
++ def crop(frame,x,y):return b''.join(frame[(y*8+r)*160+x*4:(y*8+r)*160+x*4+4] for r in range(8))
++ expected=life_grid_expected(count,mapping,tiles);result={'expected_markers':count,'owners':{}}
++ for owner in (0,1):
++  frame=(O/f'{captured_prefix}-owner-{owner}.bin').read_bytes() if captured_prefix else front_frame(owner)
++  wrong=[{'x':x,'y':y,'expected_sha256':hashlib.sha256(tile).hexdigest(),'actual_sha256':hashlib.sha256(crop(frame,x,y)).hexdigest()} for (x,y),tile in expected.items() if crop(frame,x,y)!=tile]
++  result['owners'][str(owner)]={'frame_sha256':hashlib.sha256(frame).hexdigest(),'wrong_cells':wrong,'pass':not wrong}
++ return result
++
++def initial_lives_probe(total):
++ sys.path.insert(0,str(ROOT/'scripts'));import verify_shared_text as shared
++ inc=(B/'ladybug_screen.inc').read_text();mapping=shared.values(inc,'screen_map','screen_tiles');tiles=shared.values(inc,'screen_tiles','gate_state_tiles')
++ check('independent nonblank authored life quartet',len(set(tiles[mapping[index]*32:(mapping[index]+1)*32] for index in (873,874,913,914)))==4 and all(any(tiles[mapping[index]*32:(mapping[index]+1)*32]) for index in (873,874,913,914)))
++ phase('natural-credit-and-prefill-'+str(total))
++ report['phases'][-1]['risk']='Natural credited new-game initialization selects total lives without altering FEAT005 controls; verifies the $EA-prefill is consumed by init_game_state.'
++ key('5');q=settled(3);check('one natural credit before selected start',q['credits']==1 and q['live']==0)
++ gdb(['set {unsigned char}0xea='+str(total),'dump binary memory '+str(O/'menu-prefill.bin')+' 0xea 0xec'])
++ prefill=(O/'menu-prefill.bin').read_bytes();check('FEAT005 selected total seeded before Enter',prefill[0]==total)
++ q=snapshot();check('credit menu remains active after prefill',q['credits']==1 and q['live']==0 and q['menu_lives']==total)
++
++ phase('natural-first-RF_STAGE-commit-'+str(total))
++ report['phases'][-1]['risk']='Natural initial level hydration; breakpoint is iet_wait_stage only after the first RF_STAGE intent has cleared. A timeout means that published boundary was not observed within 40 seconds.'
++ wait_address=main['iet_wait_stage']
++ key_error=[]
++ def press_enter_after_breakpoint():
++  time.sleep(.5)
++  try:key('Return')
++  except Exception as error:key_error.append(repr(error))
++ starter=threading.Thread(target=press_enter_after_breakpoint,daemon=True);starter.start()
++ result=gdb([f'break *0x{wait_address:x}','condition 1 (*(unsigned char*)0x7f & 0x40)==0','continue','delete breakpoints','print/x $pc','dump binary memory '+str(O/'wait-stage-state.bin')+' 0 0x300','dump binary memory '+str(O/'wait-stage-resident.bin')+' 0xc000 0xfe00',*owner_capture_commands('wait-stage')])
++ starter.join(timeout=3);check('real Enter delivered while wait-stage breakpoint is armed',not starter.is_alive() and not key_error)
++ live=(O/'wait-stage-resident.bin').read_bytes();state=(O/'wait-stage-state.bin').read_bytes()
++ pc_matches=re.search(r'\$\d+\s*=\s*0x([0-9a-f]+)',result,re.I)
++ check('iet_wait_stage live PC matches current symbol',bool(pc_matches) and int(pc_matches.group(1),16)==wait_address)
++ check('full live resident matches current built runtime before PC interpretation',live==resident)
++ wait_state={'lives':state[0x23],'entry':state[0xa0],'render_flags':state[0x7f],'pending':state[0x91],'mode':state[0xa5],'screen':state[0xa6]}
++ report['phases'][-1]['wait_stage_state']=wait_state
++ check('first committed stage boundary retains exactly the configured count',wait_state['lives']==total and wait_state['entry']==1 and not (wait_state['render_flags']&0x40) and wait_state['pending']==0 and wait_state['mode']==0)
++ pre_grid=audit_life_grid(total,mapping,tiles,'wait-stage')
++ report['phases'][-1]['natural_pretransfer_grid']=pre_grid
++ pre_ok=all(row['pass'] for row in pre_grid['owners'].values())
++ report['phases'][-1]['checks'].append('both owner histories show exactly the independent nonblank pretransfer grid: '+str(pre_ok))
++
++ phase('natural-single-initial-transfer-'+str(total))
++ report['phases'][-1]['risk']='BUG-039 initial marker transfer must decrement LIVES exactly once before ordinary walkout; the observed live PC is re-qualified against the emitted resident before interpretation.'
++ walk_address=main['iet_walkout']
++ result=gdb([f'break *0x{walk_address:x}','continue','delete breakpoints','print/x $pc','dump binary memory '+str(O/'walkout-state.bin')+' 0 0x300','dump binary memory '+str(O/'walkout-resident.bin')+' 0xc000 0xfe00'])
++ live=(O/'walkout-resident.bin').read_bytes();state=(O/'walkout-state.bin').read_bytes()
++ pc_matches=re.search(r'\$\d+\s*=\s*0x([0-9a-f]+)',result,re.I)
++ check('iet_walkout live PC matches current symbol',bool(pc_matches) and int(pc_matches.group(1),16)==walk_address)
++ check('full live resident matches current built runtime before PC interpretation',live==resident)
++ transfer={'lives':state[0x23],'entry':state[0xa0],'render_flags':state[0x7f],'pending':state[0x91]}
++ report['phases'][-1]['walkout_state']=transfer
++ transfer_ok=(transfer['lives']==total-1 and transfer['entry']==2)
++ check('initial transfer decrements selected count exactly once and enters WALKOUT',transfer_ok)
++
++ phase('stable-posttransfer-grid-'+str(total))
++ report['phases'][-1]['risk']='Persistent A/B owner histories must settle after the RF_LIVES renderer retires. A remaining marker-cell mismatch is retained for BUG-084 integration review; no owner is assumed current.'
++ stable_address=main['mainloop']
++ stable_condition=f'*(unsigned char*)0xa0==2 && *(unsigned char*)0x23=={total-1} && (*(unsigned char*)0x7f & 4)==0 && *(unsigned char*)0x91==0'
++ result=gdb([f'break *0x{stable_address:x}',f'condition 1 {stable_condition}','continue','delete breakpoints','print/x $pc','dump binary memory '+str(O/'post-transfer-state.bin')+' 0 0x300','dump binary memory '+str(O/'post-transfer-resident.bin')+' 0xc000 0xfe00',*owner_capture_commands('post-transfer')])
++ live=(O/'post-transfer-resident.bin').read_bytes();state=(O/'post-transfer-state.bin').read_bytes()
++ pc_matches=re.search(r'\$\d+\s*=\s*0x([0-9a-f]+)',result,re.I)
++ check('stable mainloop live PC matches current symbol',bool(pc_matches) and int(pc_matches.group(1),16)==stable_address)
++ check('stable mainloop full resident matches current built runtime',live==resident)
++ q={'lives':state[0x23],'entry':state[0xa0],'render_flags':state[0x7f],'pending':state[0x91],'mode':state[0xa5]}
++ report['phases'][-1]['stable_state']=q
++ check('post-transfer RF_LIVES-clear stable boundary',q['lives']==total-1 and q['entry']==2 and not(q['render_flags']&4) and q['pending']==0 and q['mode']==0)
++ post_grid=audit_life_grid(total-1,mapping,tiles,'post-transfer')
++ report['phases'][-1]['natural_posttransfer_grid']=post_grid
++ post_ok=all(row['pass'] for row in post_grid['owners'].values())
++ report['phases'][-1]['checks'].append('both stable owner histories show the independent post-transfer grid: '+str(post_ok))
++ report['phases'][-1]['combined_transfer_status']='PASS' if pre_ok and transfer_ok and post_ok else 'INCOMPLETE_BUG084_OR_GRID'
++ report['qualification']='Natural credited prefill and first-stage transfer. No life/death was forced. The actor-origin overlap risk is independently owned by BUG-084; any observed post-transfer mismatch remains a failure of complete combined acceptance.'
++ if not pre_ok or not transfer_ok or not post_ok:
++  report['status']='INCOMPLETE'
++ else:
++  report['status']='PASS'
++
+ def level_part_probe(value,next_stage=False):
+  sys.path.insert(0,str(ROOT/'scripts'));import verify_shared_text as shared
+  phase('selected-part-natural-level-start-'+str(value));key('5');settled(3)
+@@ -389,6 +494,8 @@
+  inventory=[(w,n,window_pid(w)) for w,n in windows(root) if 'XRoar' in n]
+  report['window_inventory']=inventory;report['launched_pid']=process.pid
+  ws=[(w,n) for w,n,pid in inventory if pid==process.pid and visible_window(w)];assert len(ws)==1,('launched visible XRoar host window identity absent or ambiguous',inventory,process.pid);window=ws[0][0]
++ if a.initial_lives is not None:
++  initial_lives_probe(a.initial_lives);raise SystemExit(0 if report['status'] in ('PASS','INCOMPLETE') else 1)
+  if a.trademark:
+   phase('credit-entry-complete-trademark');key('5');settled(3);stage_helper_identity();trademark_pixels()
+   key('Return');await_state('ordinary credited entry before name-return fixture',lambda q:q['mode']==0 and q['entry']==0 and q['live']==1);active_gameplay_identity()

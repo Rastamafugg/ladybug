@@ -1,0 +1,161 @@
+{
+  "schema": "bug062-current-observer-preparation-v1",
+  "ticket": "BUG-062",
+  "classification": "High-risk",
+  "status": "Approved; preparation incomplete; not Ready and not Done",
+  "recorded_date": "2026-10-04",
+  "worktree": {
+    "path": "worktrees/bug062-current-preparation",
+    "branch": "codex/bug062-current-preparation",
+    "base_commit": "a18ec76072d16ff2221b58b7e5dacc7385e1a1c8",
+    "integration_owner": "parent"
+  },
+  "scope": {
+    "purpose": "Prepare current-prefix life-grid source, fit, and runtime-observer evidence without integrating production or canonical ticket changes.",
+    "production_candidate_files": [
+      "src/main.s",
+      "src/shared_text_runtime.inc",
+      "scripts/source_reference.json",
+      "wiki/internal/implementation/routine-catalog.html"
+    ],
+    "observer_candidate": "scripts/verify_feat005_menus.py --current-lives with a copy of the current shared GDB adapter",
+    "integration": "No production integration or canonical ticket edit was made in this worktree. Parent owns shared adapter and canonical wiki integration.",
+    "map_handling": "The nine current presentation TMX inputs were copied byte-for-byte from the root worktree and marked read-only. They were never staged. Other baseline TMX differences in this older worktree were not changed."
+  },
+  "builds": [
+    {
+      "profile": "complete",
+      "input": "keyboard",
+      "input_joystick_flag": 0,
+      "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard bash scripts/build.sh build",
+      "result": "PASS",
+      "rom_sha256": "1ba9be4b40d201870a70c053fa87f41bc219c9717a5e1959d8c73afde6434bbd",
+      "runtime_sha256": "50aab0484531acbd7d5eedf6e29536922ce9a9a2ac50a6e0f32255be2392415b",
+      "resident": { "used": 8147, "limit": 8192, "free": 45 },
+      "assets": { "used": 7661, "limit": 7680, "free": 19 },
+      "retained_artifacts": "repro/bug062-current-preparation/keyboard-build"
+    },
+    {
+      "profile": "complete",
+      "input": "joystick",
+      "input_joystick_flag": 1,
+      "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick bash scripts/build.sh build",
+      "result": "PASS",
+      "rom_sha256": "f70fc950a97788802715fe423eb39095bcb68a1ed04d1e96af7c572d448877af",
+      "runtime_sha256": "c88558bdc16f867cb1a8859583e47caed219c8c3f430cb18f3cb68f4f0f72b44",
+      "resident": { "used": 8183, "limit": 8192, "free": 9 },
+      "assets": { "used": 7661, "limit": 7680, "free": 19 },
+      "retained_artifacts": "repro/bug062-current-preparation/joystick-build"
+    }
+  ],
+  "build_and_static_verification": {
+    "complete_build_source_audit": "PASS for both profiles: 306/306 routines, source-reference 14 modules and 35,669 source lines; all standard complete-profile capacity guards passed.",
+    "shared_text": "PASS for both retained complete builds: scripts/verify_shared_text.py --build-dir <profile-build>; all nine screens pixel-exact.",
+    "life_layout": {
+      "script": "wiki/internal/tickets/evidence/rsch014-ready-062/verify-life-layout.py",
+      "result": "PASS: twelve roots are x=33+2*(slot%3), y=21-2*(slot//3); COMPLETE_PROFILE owns twelve draws; excluded branch retains its three-slot behavior; no life counter, timing, stage, score, life accounting, or option range change."
+    },
+    "independent_art_oracle": {
+      "script": "wiki/internal/tickets/evidence/rsch014-ready-062/verify-life-grid-artwork.py",
+      "result": "PASS for keyboard and joystick emitted artifacts. It verifies the four nonblank fixed source cells 873,874,913,914 (tile IDs 39,40,41,42), distinct quadrant byte hashes, and modeled counts 0..12 repeated at all twelve roots. Upper destination source cells are blank in the authored map, so destination-derived art is not used as the oracle.",
+      "keyboard_receipt": "repro/bug062-current-preparation/keyboard-life-grid-artwork.json",
+      "joystick_receipt": "repro/bug062-current-preparation/joystick-life-grid-artwork.json",
+      "screen_include_sha256": "3356781dae2f080b7572893d8be109c3bcaba00d574fb37c9c4e3bb927881f2b",
+      "renderer": {
+        "address": "0xC555..0xC572",
+        "bytes": 29,
+        "sha256": "8e6006dfa2d9f6a6924d9179a893043369ea33a3df586137a5965b902ee0ca64",
+        "resident_free_keyboard": 45,
+        "resident_free_joystick": 9
+      }
+    },
+    "python_syntax_and_selectors": "PASS: py_compile for the candidate shared-adapter copy and FEAT-005 verifier; help output retains existing selectors including --hud-equals and --instructions-multipliers."
+  },
+  "runtime": {
+    "profile_used": "complete joystick-input ROM, INPUT_JOYSTICK=1. Fixed menu coin 5 and Enter were used; no remapped gameplay-key behavior is claimed.",
+    "phase_contract": "Every recorded phase has a 40-second deadline. Timeout means the named publication or handoff boundary was not observed; it is not target-speed evidence. No deadline was increased.",
+    "current_candidate_command": "python3 scripts/verify_feat005_menus.py --current-lives --adapter repro/bug062-current-preparation/gdb_menu_probe_candidate.py --output repro/bug062-current-preparation/current-lives-summary.json",
+    "single_corrected_case": {
+      "prefill": 1,
+      "receipt": "repro/bug062-current-preparation/n1-wsl.json",
+      "receipt_sha256": "b53be90e548d0bb6b660e4a49802ef01138de0a310ef597eca42deeed6db5fc9",
+      "cold_artifact": "PASS: live resident and presentation module matched current artifacts before prompt checks.",
+      "natural_credit_and_prefill": "PASS: one real credit was accepted; $EA was set to 1 before the real Enter; menu remained active until Enter.",
+      "first_RF_STAGE_boundary": {
+        "result": "PASS at iet_wait_stage, emitted address 0xC188; full live C000-FDFF resident matched the current runtime artifact before interpreting the PC.",
+        "state": { "lives": 1, "entry": 1, "render_flags": 0, "render_pending": 0, "mode": 0, "screen": 2 },
+        "published_owner0": "PASS: the one life marker matched the independent four-quadrant authored template.",
+        "owner1": "Captured as the prior buffer at this first published-owner boundary. It was blank and is not treated as an equivalent or failed natural publication; this single boundary does not qualify owner1's later worklist/history."
+      },
+      "initial_transfer": {
+        "result": "One decrement observed at iet_walkout, emitted address 0xC1AE; full live C000-FDFF resident matched the current runtime artifact before interpreting the PC.",
+        "state": { "lives": 0, "entry": 2, "render_flags": 0, "render_pending": 0, "player_tick_pending": 0, "fb_sim_seq": "0x0015" },
+        "meaning": "The count decrement and WALKOUT state are observed. This does not prove completed transfer or stable post-transfer publication."
+      },
+      "stable_posttransfer_boundary": {
+        "result": "NOT OBSERVED",
+        "symbol": "mainloop at emitted address 0xC116",
+        "condition": "ENTRY==2 && LIVES==0 && (RENDER_FLAGS & RF_LIVES)==0 && FB_RENDER_PENDING==0",
+        "elapsed_seconds": 40.049,
+        "timeout_meaning": "No conditional mainloop hit was observed within 40 seconds. The captured pre-wait state does not distinguish condition mechanics from execution progress; no stable post-transfer frame is claimed."
+      },
+      "gdb_capture": "repro/bug062-current-preparation/n1-wsl-scratch",
+      "result": "INCOMPLETE; no full acceptance claim"
+    },
+    "unrun_required_scenarios": [
+      "Natural prefills 3,4,6,7,9,10,12",
+      "Controlled persistent-owner reserve grid descent 12..0",
+      "Natural death accounting and full reverse depletion",
+      "Stable natural post-transfer both-owner grid"
+    ],
+    "dependency": "BUG-084 owns consumed-root actor origin. BUG-062 grid evidence does not satisfy complete initial-transfer acceptance; combined acceptance remains pending BUG-084 integration. No BUG-084 implementation was added here."
+  },
+  "retained_failures_and_rejected_runs": [
+    {
+      "path": "repro/bug062-current-preparation/current-lives-summary.json",
+      "sha256": "783a9969c312149b49bba02c6e3c3b35adb4e06330b7e887d5a566c9c71a38c3",
+      "classification": "Host-runner mechanics; all nine invocations failed before XRoar launched because Windows Python could not load Linux libX11.so.6. No target result."
+    },
+    {
+      "path": "repro/bug062-current-preparation/current-lives-wsl-summary-natural-prefill-1.json",
+      "sha256": "1f589b79b0aa827d221e2d841d7920acde3520a8e5714dbfec22a33be0b6fc8c",
+      "classification": "Verifier mechanics; Enter was omitted after EA prefill. The first-stage condition timed out at 40.045 seconds without starting the game. Retained; not ROM evidence."
+    },
+    {
+      "path": "repro/bug062-current-preparation/n1-wsl.json",
+      "sha256": "b53be90e548d0bb6b660e4a49802ef01138de0a310ef597eca42deeed6db5fc9",
+      "classification": "Corrected single N=1 path: C188 and C1AE boundaries and one decrement passed; prior owner captured separately; stable C116 condition timed out at 40.049 seconds."
+    }
+  ],
+  "candidate_patches": {
+    "shared_adapter_base_sha256": "0c813db5cc780f46de8d9b154b32768d8dd320bbd410b8739bea9447e3ecff47",
+    "shared_adapter_candidate_sha256": "13c58876404613b1212f2031dce46a2c7219c537bb30474d2984d146962629cc",
+    "shared_adapter_patch": "wiki/internal/tickets/evidence/rsch014-ready-062/current-life-gdb-adapter.patch",
+    "shared_adapter_patch_sha256": "e5cf98d57cb9412ba8843b2e44d4648d09ded465700c5f73c6fbaf150d71faa3",
+    "feat005_verifier_patch": "wiki/internal/tickets/evidence/rsch014-ready-062/current-life-feat005-selector.patch",
+    "feat005_verifier_patch_sha256": "f093727ee03e04337b81bd255ee189e20111a043ee86073705836e0d4ea6ae3f",
+    "merge_constraint": "The current shared adapter copy was based on the parent file above and preserves every delivered selector, including --hud-equals and --instructions-multipliers. Both patches remain candidates for parent review; neither was integrated."
+  },
+  "current_presentation_tmx_hashes": [
+    { "path": "tiled/coco-attract-screen.tmx", "sha256": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07" },
+    { "path": "tiled/coco-credits-screen.tmx", "sha256": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825" },
+    { "path": "tiled/coco-enter-high-score-screen.tmx", "sha256": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca" },
+    { "path": "tiled/coco-game-over-screen.tmx", "sha256": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05" },
+    { "path": "tiled/coco-high-score-screen.tmx", "sha256": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d" },
+    { "path": "tiled/coco-instructions-screen.tmx", "sha256": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4" },
+    { "path": "tiled/coco-keybind-options-screen.tmx", "sha256": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046" },
+    { "path": "tiled/coco-level-start-screen.tmx", "sha256": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b" },
+    { "path": "tiled/coco-screen.tmx", "sha256": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f" }
+  ],
+  "capacity_and_risk": {
+    "headroom": "Keyboard complete profile: resident 45 bytes, assets 19 bytes. Joystick complete profile: resident 9 bytes, assets 19 bytes. Joystick resident is the tightest measured bound.",
+    "residual_risks": [
+      "Natural published-owner worklist/history beyond the first FRONT boundary is unqualified.",
+      "Stable post-transfer grid did not reach its bounded conditional marker.",
+      "Natural death/depletion and the required prefills were not tested.",
+      "Full initial-transfer acceptance remains pending BUG-084's actor-origin integration."
+    ],
+    "rejected_source_experiments": [],
+    "lifecycle_recommendation": "Remain Approved and not Ready. Parent should review the observer boundary and current owner-publication history before any further runtime. Do not mark Done."
+  }
+}
