@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Event and Output Processing — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · audio runtime</p>
+      <h1>Audio Event and Output Processing <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">An event is only audible after admission, voice selection, mixing, and register output.</p>
+    </header>
+
+    <section>
+      <h2>Follow the event to the hardware write</h2>
+      <p>Keep audio service stages visible in the routine structure. Ladybug polls the current gameplay or presentation owner, places semantic events in a bounded queue, admits cues into music or effect slots, advances command streams, mixes the active voices, and writes changed register state to the GMC SN76489 interface. A slot's priority does not by itself prove that the mixer selected it.</p>
+      <pre><code>; Ordered stages from the non-adaptive audio_tick path
+        lbsr    audio_process_queue
+        jsr     audio_music_dispatch
+        lbsr    audio_advance_all
+        lbsr    audio_credit_service
+        jsr     audio_mix
+        jsr     audio_mix_write</code></pre>
+      <p>This sequence separates event policy from device output. The queue can reject an event, admission can replace a lower-priority voice, and the mixer can choose another source. Verify the stage that owns the behavior being changed.</p>
+    </section>
+
+    <section>
+      <h2>Service time and event time are different</h2>
+      <p>A cue stream contains commands and waits. Advancing a wait is logical audio time; it is not the same operation as emitting the next PSG register values. In adaptive builds, the audio API separates elapsed-note service, semantic admission, audible publication, and rebasing after static work or a phase change. The ordinary tick path handles its stages in one foreground service call.</p>
+      <p>Follow the build's <code>ADAPTIVE_RENDERING</code> selection before describing which path a user will run. The complete profile defaults to the adaptive build setting, and <code>scripts/build.sh</code> supports an explicit override. Do not describe one compiled path as unconditional behavior.</p>
+    </section>
+
+    <section>
+      <h2>Use shadows to avoid needless output</h2>
+      <p>The mixer keeps logical channel periods, attenuation, and noise state before encoding SN76489 latch/data bytes. It retains 11 bytes of output shadow so unchanged continuation, attenuation, and noise values can be skipped. Tone latches are deliberately selected before a possible continuation write. This combines stateful device programming with fewer redundant data writes while preserving register selection.</p>
+      <p>Keep register encoding at the output boundary. Storing already-latched device bytes throughout every event queue makes priorities and mixed voices harder to reason about and couples producers to the physical chip's write format.</p>
+    </section>
+
+    <section>
+      <h2>Verify the right evidence</h2>
+      <ul>
+        <li>Queue acceptance proves an event was recorded, not that a voice was selected.</li>
+        <li>Stream completion proves the decoder reached its end, not that a sound reached the device.</li>
+        <li>Mixer state and matching PSG shadows prove software output state, not physical-hardware listening.</li>
+        <li>Profile, service phase, and the measured audio worklist belong with any timing or cadence claim.</li>
+      </ul>
+      <p>Audio cue storage and module placement are covered by <a href="./audio-storage.html">audio data storage</a>. The CoCo 3's DAC, cartridge SND selector, and PB1 paths are documented separately in the <a href="../coco3/sound.html">sound hardware reference</a>; Ladybug's GMC chip output should not be confused with the internal DAC.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Ladybug examples checked at source revision <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code>: <code>src/audio_runtime.s</code>, <code>src/adaptive_audio_service.s</code>, and <code>scripts/build.sh</code>. No listening or new timing measurement is claimed here.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

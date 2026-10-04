@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asset Packing and Sparse Streams — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · data layout</p>
+      <h1>Asset Packing and Sparse Streams <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">Move immutable graphics from authored data to compact, indexed runtime streams.</p>
+    </header>
+
+    <section>
+      <h2>Keep build encoding separate from runtime encoding</h2>
+      <p>A graphics asset can pass through three different representations. Authored pixels and maps are the editor-friendly input. A sparse frame stream is the runtime representation: it identifies destination deltas and carries opaque or partial pixel runs while omitting transparent bytes. A transport-compressed payload is the storage representation used to fit immutable data in the cartridge banks. Boot expands that payload before the runtime decoder reads the sparse stream.</p>
+      <p>The encodings solve different problems. LZSS reduces the bytes stored in the boot image and costs startup expansion work. Sparse commands reduce work and bytes associated with transparent regions during a frame, while retaining a small decoder. Do not pass LZSS bytes to the sprite decoder or assume every dense image benefits from sparse encoding.</p>
+    </section>
+
+    <section>
+      <h2>Generate the index after packing</h2>
+      <p>Ladybug's sparse-sprite builder emits a three-byte index entry for each frame: a physical page and a 16-bit CPU-visible stream address. It can pad a stream so one indexed frame does not cross an 8 KiB page boundary. The page and address are resolved from the final layout, so a source offset or a previously observed address is not a stable runtime pointer.</p>
+      <p>The packer checks that compressed data expands to the original stream and that page allocations fit their assigned destinations. Keep those checks close to the packing step. A hand-maintained index can silently point at another frame after a palette change, deduplication, or payload reordering.</p>
+    </section>
+
+    <section>
+      <h2>Resolve once, then decode to the selected destination</h2>
+      <p>The player path combines the facing and animation into a frame ordinal, resolves its generated index, and passes the selected BACK destination to the sparse blitter. The resolver owns page selection; the blitter consumes the frame while that mapping is valid. See <a href="./mmu-pointer-lifetimes.html">MMU-aware pointer lifetimes</a> for the mapping contract and <a href="./sprite-blitting.html">sprite blitting</a> for the pixel operations.</p>
+      <pre><code>; Source pattern from player_draw_impl in src/enemy_runtime.s
+        lda     PLAYER_FACE
+        lsla
+        lsla
+        adda    PLAYER_ANIM
+        bsr     sparse_player_stream
+        bsr     sparse_blit_fb</code></pre>
+      <p>The input X remains the framebuffer destination while the resolver returns the stream in U. This separation lets one decoder target the framebuffer or another defined destination without storing absolute per-frame addresses in each actor record.</p>
+    </section>
+
+    <section>
+      <h2>Choose formats for the whole path</h2>
+      <ul>
+        <li>Use a shared sparse command format when the same decoded frame can serve multiple runtime destinations.</li>
+        <li>Use generated indexes for page relocation and frame selection; do not embed packed payload offsets in actor state.</li>
+        <li>Count index tables, page padding, relocation records, and boot scratch along with the compressed payload.</li>
+        <li>Keep dense fixed-size data when sparse command overhead or per-frame decode cost outweighs the skipped pixels.</li>
+        <li>Measure a complete render worklist before describing a format as faster. Smaller source files do not prove lower frame cost.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Ladybug examples checked at source revision <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code>: <code>scripts/build_sparse_sprites.py</code>, <code>scripts/gmc_lzss.py</code>, <code>src/gmc_bootstrap.s</code>, and <code>src/enemy_runtime.s</code>. See the <a href="../coco3/memory-map.html">CoCo 3 memory map</a> and <a href="../coco3/gime.html">GIME MMU reference</a>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

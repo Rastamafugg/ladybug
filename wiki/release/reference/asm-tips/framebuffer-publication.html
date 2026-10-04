@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Persistent Framebuffer Publication — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · video ownership</p>
+      <h1>Persistent Framebuffer Publication <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">Pair each persistent image with its own history and publish only a completed hidden buffer.</p>
+    </header>
+
+    <section>
+      <h2>Keep display ownership separate from drawing</h2>
+      <p>Ladybug keeps two persistent framebuffer surfaces. The display scans FRONT while foreground rendering prepares the other surface, BACK. Before drawing, the renderer maps BACK and hydrates its owner-local metadata, including actor save-under validity and prior positions. This lets the game update only the affected regions instead of copying an entire shadow image every frame.</p>
+      <p>Pixels and the metadata that explains those pixels form one owner. A save-under captured for buffer A is not valid for buffer B, even when both buffers represent the same logical actors. Keep each history with its physical framebuffer and restore it when that framebuffer becomes BACK again.</p>
+    </section>
+
+    <section>
+      <h2>Publish as one completed transaction</h2>
+      <ol>
+        <li>Verify that the selected BACK owner differs from FRONT.</li>
+        <li>Restore the affected actors and structural layers to a clean underlay.</li>
+        <li>Draw current work into BACK and capture its matching owner metadata.</li>
+        <li>Set the pending-ready flag only after the complete image and history are coherent.</li>
+        <li>At Vbord, let the IRQ change the display offset and exchange FRONT/BACK ownership.</li>
+      </ol>
+      <p>If no complete BACK image is ready, the IRQ keeps the current FRONT. A partial renderer must not arm publication just because its own layer is finished; all cooperating dynamic layers for that transaction must be closed first.</p>
+    </section>
+
+    <section>
+      <h2>Use the interrupt as the sole display commit point</h2>
+      <p>The foreground owns pixel updates and may prepare the pending flag. The Vbord IRQ owns the display-offset write and successful owner swap. Keeping one publication point prevents a display from switching midway through a draw and makes commit counters meaningful. Do not let a helper write the display offset as a shortcut around the transaction.</p>
+      <p>Persistent A/B buffers trade full-image copies for owner-specific history and closure work. This is efficient when the damage bookkeeping is correct; an unbounded restore or an incomplete owner history can cost more than a copy or can publish stale pixels.</p>
+    </section>
+
+    <section>
+      <h2>Measure the rendered work, not just the buffer name</h2>
+      <p>Record the phase and executed worklist first when comparing render cost. FRONT/BACK owner is supporting metadata because each owner has different retained pixels and history. An owner-specific timing claim needs a controlled crossover with identical starting pixels, metadata, and render intents.</p>
+      <p>For the hardware display offset and Vbord registers, see the <a href="../coco3/gime.html">GIME reference</a>. For mapped windows, see the <a href="../coco3/memory-map.html">CoCo 3 memory map</a>. For pixel writes and save-under rules, see <a href="./sprite-blitting.html">packed-pixel and sprite blitting</a>.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Ladybug examples checked at source revision <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code>: <code>src/main.s</code> and <code>src/enemy_runtime.s</code>. The foreground prepares BACK; <code>framebuffer_irq_impl</code> is the Vbord publication path.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

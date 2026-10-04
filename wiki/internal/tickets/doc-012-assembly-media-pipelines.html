@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOC-012 — Assembly memory, audio, and video pipelines — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="../../release/reference/asm-tips/index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · work management</p>
+      <h1>DOC-012 — Assembly memory, audio, and video pipelines <span class="wiki-badge">Done</span></h1>
+      <p class="wiki-meta">2026-10-04 · Public reference · Documentation work · P2 / after DOC-011</p>
+    </header>
+
+    <section>
+      <h2>Tracking</h2>
+      <ul>
+        <li><strong>Status:</strong> Done</li>
+        <li><strong>Created / updated:</strong> 2026-10-04 / 2026-10-04</li>
+        <li><strong>Priority / order:</strong> P2 / after DOC-011</li>
+        <li><strong>Source baseline:</strong> <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code></li>
+        <li><strong>Owner:</strong> unassigned; parent-owned after approval</li>
+        <li><strong>Dependencies:</strong> DOC-011 Done; no code dependency</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and recommendation</h3>
+      <p>Extend the release assembly tips with seven concise entries that explain how Ladybug moves packed assets through mapped memory, audio service, and the video pipeline. Keep the articles self-contained, use current source as project examples, and link to existing hardware references for canonical GIME, MMU, sound, and 6809 details.</p>
+      <h3>Motivation and baseline</h3>
+      <p>DOC-011 completed the first source-backed assembly-tip expansion. The current folder has six HTML pages: its index, DP conventions, register allocation, indexed addressing, shared routines, and hot loops. The release wiki already covers CoCo 3 sound, GIME, and the bare-metal memory map; internal <a href="../implementation/screen-rendering.html">screen-rendering</a>, <a href="../platform/sound.html">sound</a>, and <a href="../implementation/memory-map.html">memory-map</a> pages contain project-specific detail. The proposed practical topics are not yet available in the release tips. Source review baseline: <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code>. Findings in this ticket are source-backed examples, not new cycle or capacity measurements.</p>
+      <h3>Source anchors</h3>
+      <ul>
+        <li><strong>Asset packing and boot transport:</strong> <code>scripts/build_sparse_sprites.py</code>, <code>scripts/build_presentation.py</code>, <code>scripts/gmc_lzss.py</code>, <code>scripts/build.sh</code>, and <code>src/gmc_bootstrap.s</code>.</li>
+        <li><strong>Mapped runtime and video ownership:</strong> <code>src/main.s</code> and <code>src/enemy_runtime.s</code>; the <a href="../../release/reference/coco3/memory-map.html">CoCo 3 memory map</a> and <a href="../../release/reference/coco3/gime.html">GIME reference</a>.</li>
+        <li><strong>Audio data and service:</strong> <code>src/audio_runtime.s</code>, its included <code>src/adaptive_audio_service.s</code>, <code>src/gmc_bootstrap.s</code>, and the generated <code>gmc_sound_data.inc</code>; compare the internal <a href="../platform/sound.html">sound notes</a> with the public <a href="../../release/reference/coco3/sound.html">CoCo 3 sound reference</a>.</li>
+        <li><strong>Screen generation:</strong> <code>scripts/build_screen.py</code>, <code>scripts/build_presentation.py</code>, and <code>scripts/shared_text.py</code>; compare the internal <a href="../implementation/screen-rendering.html">screen-rendering guide</a> and <a href="../implementation/video-mode.html">video-mode decision</a>.</li>
+      </ul>
+      <h3>Scope</h3>
+      <p><strong>In:</strong> seven new self-contained release pages under <code>wiki/release/reference/asm-tips/</code>, updates to that folder's index, links to the existing public hardware and instruction references, source citations, and a dated internal log entry.</p>
+      <p><strong>Out:</strong> assembly, build-generator, asset, audio, or verifier changes; new runtime protocols; new benchmarks or performance claims; changes to hardware-reference pages; internal mirrors of public articles; and reproducing the full internal rendering or audio design documents.</p>
+
+      <h3>Proposed release entries</h3>
+      <ol>
+        <li><code>asset-packing-sparse-streams.html</code> — Explain host-side packing and boot-transport compression separately from the sparse representation consumed at runtime. Use the sparse-sprite and presentation builders, generated manifests, and boot loader as examples.</li>
+        <li><code>mmu-pointer-lifetimes.html</code> — Explain that a 6809 pointer names a virtual address whose physical backing depends on the current PAR mapping. Show bounded map, consume, restore, and call-return contracts; identify when a pointer cannot remain live across a remap.</li>
+        <li><code>audio-storage.html</code> — Trace authored/generated sound data through packed transport, boot installation, and runtime stream storage. Explain phase and mapping ownership for code, stream data, and scratch without treating one profile's generated layout as universal.</li>
+        <li><code>audio-processing.html</code> — Trace gameplay or presentation events through polling, queues, voice slots, command waits, mixing, and SN76489 output/shadow writes. Distinguish event admission and stream completion from verified output.</li>
+        <li><code>screen-data-generation.html</code> — Trace authored screen and graphic sources through the screen and presentation builders into packed tiles, sparse streams, descriptors, and final generated indices. Explain why consumers must use identities from the final packed output.</li>
+        <li><code>sprite-blitting.html</code> — Explain native packed-pixel addressing, sparse decode, transparency masks, clipping/bounds, save-under capture, and restoration. Use the existing player/enemy paths to show how overlapping actors constrain restore order.</li>
+        <li><code>framebuffer-publication.html</code> — Explain persistent A/B surfaces, owner-local metadata, rendering only into hidden BACK, and Vbord-owned FRONT publication. Show how this pipeline avoids full-frame shadow copies and why pixels and per-buffer history must stay paired.</li>
+      </ol>
+
+      <h3>Reader scenarios and edge cases</h3>
+      <ol>
+        <li>A reader follows authored or generated data through packing, boot transfer, mapping, and its runtime consumer without confusing compressed transport bytes with runtime command encoding.</li>
+        <li>A reader holds a mapped pointer only while its PAR contract is valid; a remap changes which physical page the same virtual address accesses.</li>
+        <li>A reader distinguishes audio event admission, queued playback, mixer selection, register/shadow output, and physical listening evidence. Profile-specific code and generated layouts are labeled by the source path that emits them.</li>
+        <li>A reader distinguishes authored screen coordinates, generated tile or descriptor identities, and final framebuffer addresses; repacking can change generated indices.</li>
+        <li>A reader understands that packed-pixel writes need valid row and extent bounds, transparent pixels preserve destination nibbles, and restore order matters where actor footprints overlap.</li>
+        <li>A reader updates the non-scanned framebuffer with matching owner metadata and recognizes Vbord as the publication boundary; a missing or incomplete BACK image is not a successful commit.</li>
+        <li>Every article can be opened directly and understood without access to internal-only pages; links to those pages may add project context but cannot carry required public explanation.</li>
+      </ol>
+
+      <h3>Options and recommendation</h3>
+      <p>A single broad media-pipeline article would mix host packing, MMU lifetimes, audio service ownership, pixel decoding, and interrupt publication. Separate pages make each contract findable and let the index connect the full path. Splitting memory/audio and video into separate tickets would reduce per-ticket breadth but duplicate source review and index integration. Recommend one bounded series ticket with seven named pages, source-specific examples, and one shared navigation and accuracy check.</p>
+
+      <h3>Dependencies and order</h3>
+      <p>DOC-011 is Done and is the preceding release-tip work. There are no code or runtime dependencies. Recommended reading/authoring order: packing and sparse streams; MMU pointer lifetimes; audio storage; audio processing; screen-data generation; sprite blitting; framebuffer publication. Review generator output and its runtime consumer together wherever an article describes a data handoff.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>All seven proposed pages exist under the assembly-tips folder, stand alone, contain at least one source-verified Ladybug example, state relevant limits or tradeoffs, and cite the source revision used.</li>
+        <li>The packing article distinguishes host compression, boot transport, and runtime sparse decoding. The MMU article distinguishes CPU virtual addresses from PAR-selected physical pages and states the pointer lifetime at remap/call boundaries.</li>
+        <li>The audio articles identify the current source/profile path and the storage-to-output stages. They do not claim audible delivery from queue admission or stream completion alone.</li>
+        <li>The video articles distinguish authored data, generated identities, runtime blit/restore work, framebuffer-local metadata, and Vbord publication. They do not present project-specific ownership as a universal 6809 ABI.</li>
+        <li>The assembly-tips index links all seven pages with accurate summaries. Public hardware facts link to the existing GIME, memory-map, and sound references rather than duplicating their catalogs.</li>
+        <li>Source and generated-layout claims are checked against the current repository when implementation begins. Numeric cycle claims are used only when supported by the 6809 reference or identified measurements; projections and qualitative tradeoffs are labeled.</li>
+        <li>HTML parsing, unique IDs, local file/fragment links, and direct-page review pass. No source, generated runtime artifact, ROM, capacity limit, or timing target changes.</li>
+      </ol>
+
+      <h3>Verification plan and risks</h3>
+      <ul>
+        <li><strong>Source/profile accuracy:</strong> check each generator, emitted identity, selected build profile, loader handoff, and runtime consumer at the implementation baseline. This covers stale or profile-inaccurate examples.</li>
+        <li><strong>Ownership-boundary accuracy:</strong> review MMU map/restore, audio service/mixer/output, and framebuffer/Vbord paths at their callers and callees. This covers pointers or work attributed to the wrong owner.</li>
+        <li><strong>Data-format accuracy:</strong> compare raw/generated, compressed transport, and runtime sparse formats where each transition occurs. This covers the risk of documenting unlike encodings as interchangeable.</li>
+        <li><strong>Reference usability:</strong> parse changed pages, check unique IDs and local links, and open each article directly. This covers broken navigation and missing context.</li>
+      </ul>
+      <p>No ROM build is required for documentation-only work. If source review identifies a code defect, new runtime pattern, unsupported hardware claim, or performance measurement requirement, stop and return that work for separate scoping rather than expanding DOC-012.</p>
+    </section>
+
+    <section id="assignment">
+      <h2>Approved Ready assignment</h2>
+      <p>The user approved DOC-012 as proposed on 2026-10-04. The approved outcome, seven-page scope, and acceptance criteria are fixed. The parent owns <code>asset-packing-sparse-streams.html</code>, <code>mmu-pointer-lifetimes.html</code>, <code>audio-storage.html</code>, <code>audio-processing.html</code>, <code>screen-data-generation.html</code>, <code>sprite-blitting.html</code>, <code>framebuffer-publication.html</code>, the assembly-tips index, this ticket, the ticket index, and the internal log. The work is documentation-only in the current checkout; no subagent or new worktree is required.</p>
+      <p><strong>Implementation constraints:</strong> use source revision <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code> for the initial examples and recheck any cited claim against the source when editing. Distinguish transport compression from runtime sparse formats; describe PAR-dependent pointers with their execution-window and restore contracts; qualify generated IDs and data by profile; do not claim audible output from admission or stream completion; describe FRONT/BACK and Vbord ownership as Ladybug's pattern, not a generic 6809 ABI. Do not change source, build scripts, generated assets, ROMs, capacity limits, hardware references, or unrelated edits. No measured performance claims are in scope.</p>
+      <p><strong>Required commands:</strong> from the repository root, run <code>git diff --check -- wiki/release/reference/asm-tips wiki/internal/tickets/doc-012-assembly-media-pipelines.html wiki/internal/tickets/index.html wiki/internal/log.html</code>. Then run the temporary Python standard-library HTML/link checker below. It checks all assembly-tip pages and DOC-012 for unique IDs and local file/fragment links, then checks only DOC-012 references in the ticket index and log. Finally run <code>git diff --quiet -- src scripts</code>; no ROM build is required.</p>
+      <pre><code>$checkPath = Join-Path $env:TEMP ('ladybug-doc012-' + [guid]::NewGuid().ToString() + '.py')
+$checkScript = @'
+from collections import Counter
+from html.parser import HTMLParser
+from pathlib import Path
+from urllib.parse import unquote, urlsplit
+root = Path.cwd()
+tips = root / 'wiki/release/reference/asm-tips'
+ticket = root / 'wiki/internal/tickets/doc-012-assembly-media-pipelines.html'
+index = root / 'wiki/internal/tickets/index.html'
+log = root / 'wiki/internal/log.html'
+class Page(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.ids, self.links = [], []
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if 'id' in attrs: self.ids.append(attrs['id'])
+        if tag in ('a', 'link') and 'href' in attrs: self.links.append(attrs['href'])
+cache = {}
+def load(path):
+    path = path.resolve()
+    if path not in cache:
+        page = Page()
+        page.feed(path.read_text(encoding='utf-8'))
+        page.close()
+        duplicates = [key for key, count in Counter(page.ids).items() if count &gt; 1]
+        assert not duplicates, f'{path}: duplicate IDs {duplicates}'
+        cache[path] = page
+    return cache[path]
+sources = sorted(tips.glob('*.html')) + [ticket]
+for source in sources:
+    for href in load(source).links:
+        parts = urlsplit(href)
+        if parts.scheme or parts.netloc: continue
+        target = source if not parts.path else (source.parent / unquote(parts.path)).resolve()
+        assert target.is_file(), f'{source}: missing target {href}'
+        if parts.fragment and target.suffix.lower() == '.html':
+            assert unquote(parts.fragment) in load(target).ids, f'{source}: missing fragment {href}'
+for page, target_name in ((index, 'doc-012-assembly-media-pipelines.html'),
+                          (log, 'doc-012-assembly-media-pipelines.html')):
+    refs = [href for href in load(page).links if target_name in href]
+    assert refs, f'{page}: missing DOC-012 link'
+    for href in refs:
+        parts = urlsplit(href)
+        target = (page.parent / unquote(parts.path)).resolve()
+        assert target.is_file(), f'{page}: missing target {href}'
+print(f'Parsed {len(sources)} pages; unique IDs, assembly-tip links, and DOC-012 index/log links pass.')
+'@
+try {
+    [System.IO.File]::WriteAllText($checkPath, $checkScript, [System.Text.UTF8Encoding]::new($false))
+    python -X utf8 $checkPath
+    if ($LASTEXITCODE -ne 0) { throw 'DOC-012 HTML/link check failed' }
+} finally {
+    if (Test-Path -LiteralPath $checkPath) { Remove-Item -LiteralPath $checkPath }
+}</code></pre>
+      <p><strong>Evidence:</strong> retain a concise verifier result, source baseline, current generated audio/profile identity cited, and the final diff summary. <strong>Commit:</strong> one bounded DOC-012 documentation commit; use an isolated index or equivalent so the pre-existing edits in the ticket index/log and other paths are not included. Do not push. <strong>Completion report:</strong> list changed pages, commands/results, commit, residual risks, and Done eligibility.</p>
+    </section>
+
+    <section id="proposal-qa-20261004">
+      <h2>Proposal QA — 2026-10-04</h2>
+      <p>QA of the original proposal parsed the ticket with unique IDs and resolved its 14 local links; ticket-index/log references were present; <code>git diff --check</code> reported no whitespace errors. Source and script paths were unchanged and the seven article files were still planned only. The user subsequently approved the proposed scope. This earlier check is retained as proposal-stage evidence; final article acceptance is pending.</p>
+      <p><strong>Residual risk:</strong> recheck source/profile details and generated identities against the implementation baseline before publishing the articles. No runtime, capacity, or timing headroom changed during ticket drafting.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-10-04 — Drafted as Proposed after review of DOC-011, current release references, implementation notes, and source at <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code>. Seven article entries are recommendations pending explicit approval.</li>
+        <li>2026-10-04 — User approved DOC-012 as proposed; outcome, scope, targets, and acceptance criteria are fixed.</li>
+        <li>2026-10-04 — Advanced Approved to Ready after exact files, source constraints, verification commands, retained evidence, and commit isolation were recorded.</li>
+        <li>2026-10-04 — Advanced Ready to In Progress; parent began the seven-page documentation assignment.</li>
+        <li>2026-10-04 — Advanced In Progress to Verification after source review, index integration, and HTML/link checks.</li>
+        <li>2026-10-04 — QA accepted the seven articles and navigation; documentation-only acceptance passed and DOC-012 moved to Done.</li>
+      </ul>
+    </section>
+
+    <section id="completion-20261004">
+      <h2>Completion and verification — 2026-10-04</h2>
+      <p>Added the seven approved release entries and linked them from the assembly-tips index under memory/assets, audio, and video topics. Rechecked the documented layouts and runtime handoffs against source baseline <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code>, including packed actor conversion, generated sparse indexes, PAR5 mapping, audio boot staging and page-$3D installation, cue service and mixer output, and Vbord framebuffer publication.</p>
+      <p>The standard-library HTML/link verifier parsed 14 pages (13 assembly-tip pages and this ticket), found unique IDs, and resolved all local file and fragment links. DOC-012 references in the ticket index and log resolve. <code>git diff --check</code> passed for the approved scope, and <code>git diff --quiet -- src scripts</code> confirmed no source or build-script changes. No ROM build was needed; runtime behavior, capacity, timing, and hardware output were not changed or newly measured.</p>
+      <p><strong>Acceptance:</strong> all seven pages stand alone, contain source-qualified examples and relevant constraints, distinguish generated or profile-specific formats from runtime contracts, and link to public hardware references. The index is updated. DOC-012 is Done. Residual risk is limited to future source/profile changes requiring the cited implementation details to be rechecked.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Release audience: practical 6809/CoCo 3 assembly use. Project-specific examples must remain source-revision-qualified and must not replace the internal architecture records.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

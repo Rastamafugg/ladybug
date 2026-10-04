@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screen and Graphic Data Generation — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · generated video data</p>
+      <h1>Screen and Graphic Data Generation <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">Move parsing, transforms, deduplication, and address calculation to the host build.</p>
+    </header>
+
+    <section>
+      <h2>Compile authored screens into runtime-ready data</h2>
+      <p>Ladybug's screen builder reads authored Tiled maps, validates the map and layer contracts, applies supported transforms and palette mappings, packs native tiles, and emits compact tables for 6809 consumers. Presentation generation builds on that compiler to produce shared cold assets, map streams, descriptors, and overlays. Runtime code uses those prepared bytes instead of parsing XML, resolving editor tile IDs, or repeating host-side image transforms during play.</p>
+      <p>This shifts deterministic work to the development machine. It also makes the generated output an explicit interface: assembly consumes stable labels and records, while the builder owns the conversion rules and validation.</p>
+    </section>
+
+    <section>
+      <h2>Use final generated identities</h2>
+      <p>Tile deduplication, palette corrections, profile options, and overlay packing can change a tile's final atlas index or a stream's offset. A hand-copied index from an earlier build can cross a dispatch boundary and point into unrelated data. Generate the consumer constant from the final descriptor or manifest and have the build reject values outside the intended range.</p>
+      <p>Keep editor coordinates, logical map IDs, packed atlas IDs, and framebuffer addresses as distinct types in comments and routine contracts. Convert at the boundary where the next representation is selected. Do not let a Tiled global ID leak into a native descriptor lookup unless that is the defined table key.</p>
+    </section>
+
+    <section>
+      <h2>Validate before omitting or compressing data</h2>
+      <ul>
+        <li>Check map dimensions, tile dimensions, required layers, and complete screen coverage before flattening the map.</li>
+        <li>Recognize metadata layers by their validated contract; visibility alone does not make a layer disposable.</li>
+        <li>Deduplicate packed tile bytes only after color and transform conversion, so equality means identical runtime pixels.</li>
+        <li>Emit offsets, lengths, hashes, and page-boundary checks beside the generated payload they describe.</li>
+        <li>Retain authored assets and source manifests as the reviewable authority; generated output is reproducible build data.</li>
+      </ul>
+      <p>The gameplay screen compiler validates a 40 by 24 map of 8 by 8 cells. The presentation builder also emits profile-specific content. Record the profile when describing an output layout or byte count.</p>
+    </section>
+
+    <section>
+      <h2>Keep generation distinct from rendering</h2>
+      <p>A successful compiler run establishes that the builder accepted the authoring inputs and produced bytes. It does not prove the runtime selected the correct descriptor, mapped the correct page, wrote the intended framebuffer, or published those pixels. Use <a href="./sprite-blitting.html">sprite blitting</a> and <a href="./framebuffer-publication.html">framebuffer publication</a> for those consumer-side contracts.</p>
+      <p>For native display modes and palette registers, use the <a href="../coco3/gime.html">GIME reference</a>. Keep hardware register facts there and keep project compiler conventions here.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Ladybug examples checked at source revision <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code>: <code>scripts/build_screen.py</code>, <code>scripts/build_presentation.py</code>, and <code>scripts/shared_text.py</code>. The current compiler validates authored inputs before producing final native identities.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

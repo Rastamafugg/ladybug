@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Packed Pixel and Sprite Blitting — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · native pixels</p>
+      <h1>Packed Pixel and Sprite Blitting <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">Make pixel format, transparency, row stride, and restoration explicit.</p>
+    </header>
+
+    <section>
+      <h2>Address the destination in bytes</h2>
+      <p>In Ladybug's 320 by 192, 16-color mode, each pixel uses four bits and each byte holds two neighboring pixels. A framebuffer row is 160 bytes. The high and low nibble therefore name different pixels; a partial write must preserve the nibble that the sprite leaves transparent.</p>
+      <p>Indexed actor sources begin as packed two-bit pixels. The host builder applies each frame's palette map, expands the pixels to native four-bit bytes, and then emits sparse commands. At runtime, the indexed player path resolves that sparse stream and the framebuffer blitter consumes its native pixels; the raw two-bit source and runtime command stream are separate formats. Name both ends of every conversion in the data contract.</p>
+    </section>
+
+    <section>
+      <h2>Use direct copies for opaque runs</h2>
+      <p>When both destination nibbles are covered, the decoder can store a byte directly and advance X. Transparent gaps can be skipped by a destination delta. These commands reduce work for sparse frames, but the command parser and index lookup also cost cycles; compare complete actor worklists before specializing a decoder.</p>
+    </section>
+
+    <section>
+      <h2>Mask only the pixels that must survive</h2>
+      <p>A partial command carries a mask and replacement byte. The mask preserves destination nibbles for transparent source pixels; the replacement supplies the visible pixel. This fragment is the runtime path used by the sparse framebuffer decoder.</p>
+      <pre><code>; Source pattern from sparse_blit_fb in src/enemy_runtime.s
+        lda     ,u+       ; destination-preserve mask
+        anda    ,x
+        ora     ,u+       ; replacement pixel byte
+        sta     ,x+</code></pre>
+      <p>Opaque and partial runs have different costs and inputs. Do not use an opaque copy when one nibble is transparent, and do not read-modify-write fully opaque bytes without a reason.</p>
+    </section>
+
+    <section>
+      <h2>Restore the right underlay</h2>
+      <p>Moving actors need a clean background before their new pixels are drawn. Ladybug saves each player's 16 by 16 footprint as 128 bytes and retains enemy save-under records per framebuffer owner. When actor footprints overlap, restore the affected closure before capturing new clean pixels; restoring only one actor can preserve another actor's old pixels as background.</p>
+      <p>Keep all reads and writes inside the declared clipped extent. A sprite that is partly off-screen needs a matching source offset, destination offset, and visible-row count. Do not assume that advancing a pointer by one row is the same as advancing one contiguous sprite row when the source and framebuffer strides differ.</p>
+      <p>See <a href="./asset-packing-sparse-streams.html">asset packing and sparse streams</a> for frame indexes and <a href="./framebuffer-publication.html">framebuffer publication</a> for owner-local save-under state.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Ladybug examples checked at source revision <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code>: <code>src/main.s</code>, <code>src/enemy_runtime.s</code>, and <code>scripts/build_sparse_sprites.py</code>. The row width follows the 320-pixel four-bit display format.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MMU-Aware Pointer Lifetimes — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · CoCo 3 memory</p>
+      <h1>MMU-Aware Pointer Lifetimes <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">A 16-bit pointer names a CPU window; the current PAR mapping selects the physical page behind it.</p>
+    </header>
+
+    <section>
+      <h2>A pointer does not carry a physical page</h2>
+      <p>The 6809 addresses a 16-bit virtual space. With the CoCo 3 MMU enabled, each 8 KiB virtual page is translated by its Page Address Register (PAR). For example, an address in <code>$A000-$BFFF</code> accesses whichever physical page PAR5 currently selects. If PAR5 changes, the same address can refer to different bytes.</p>
+      <p>Treat a pointer into a remappable window as a value with an owner and a lifetime. Its lifetime ends when the mapping changes, when a callee changes that mapping without restoring it, or when control returns to a caller whose contract requires another page.</p>
+    </section>
+
+    <section>
+      <h2>Save, map, consume, restore</h2>
+      <p>This schematic pattern assumes the routine and stack execute in windows that the PAR5 change does not remap. The consumer must finish using its pointer and return with PAR5 still selecting the source page.</p>
+      <pre><code>; GIME_PAR5 is the executive PAR5 register at $FFA5.
+; SOURCE_PAGE is selected only for this bounded call.
+        lda     GIME_PAR5
+        pshs    a
+        lda     #SOURCE_PAGE
+        sta     GIME_PAR5
+        ldu     #$A000
+        jsr     consume_stream
+        puls    a
+        sta     GIME_PAR5</code></pre>
+      <p>If code itself executes from <code>$A000-$BFFF</code>, changing PAR5 can replace the instructions that must run next. Put the mapping operation in a stable window or arrange a deliberate handoff. Also define what nested helpers and interrupts may do to the same PAR.</p>
+    </section>
+
+    <section>
+      <h2>Resolve relocatable data instead of retaining raw addresses</h2>
+      <p>Ladybug's sparse actor index stores a physical page plus a CPU address for each frame. The resolver maps the indexed payload page and returns a pointer into the mapped window; the decoder consumes the stream before the caller restores the game-state page. The frame record keeps an ordinal, not a pointer that would become stale when PAR5 is reused.</p>
+      <p>Apply the same rule to cold assets, banked routines, and temporary aliases. Keep the source page, CPU window, mapping owner, and restoration point together in the routine contract. A pointer into the current mapping is not a persistent handle.</p>
+    </section>
+
+    <section>
+      <h2>Review the full call boundary</h2>
+      <ul>
+        <li>Identify which PAR makes the pointer valid and which routine owns writes to that PAR.</li>
+        <li>Check that instruction fetch, stack access, and direct-page scratch remain mapped across the switch.</li>
+        <li>Require callees either to preserve the mapping or to return a documented page and pointer pair.</li>
+        <li>Restore the caller's mapping before reusing its saved pointers or updating state through that window.</li>
+        <li>Validate page reads as six-bit physical page values when observing GIME state; upper readback bits are not part of the page number.</li>
+      </ul>
+      <p>For register definitions and the virtual/physical address model, see the <a href="../coco3/gime.html">GIME MMU reference</a> and the <a href="../coco3/memory-map.html">CoCo 3 memory map</a>. For indexed stream selection, see <a href="./asset-packing-sparse-streams.html">asset packing and sparse streams</a>.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Ladybug examples checked at source revision <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code>: <code>src/main.s</code>, <code>src/enemy_runtime.s</code>, <code>src/gmc_bootstrap.s</code>, and <code>src/presentation_runtime.s</code>. Generic advice assumes execution and stack storage remain accessible during each remap.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

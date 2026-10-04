@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Data Storage — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · audio data</p>
+      <h1>Audio Data Storage <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">Keep cue data, executable service code, boot transport, and live audio state in their correct phases.</p>
+    </header>
+
+    <section>
+      <h2>Separate source cues from the runtime module</h2>
+      <p>Ladybug's GMC cues are compact command streams for the SN76489 sound generator, not recorded waveform samples. The audio runtime assembly includes its cue descriptors and data from <code>assets/arcade/audio/gmc_sound_data.inc</code>. The resulting audio-runtime module contains both executable service code and the cue data it addresses.</p>
+      <p>The build then treats the compiled module as a boot-transport stream. It compresses the module for cartridge storage, stages the packed bytes in physical page <code>$24</code>, and expands the module into its runtime allocation in page <code>$3D</code>. At runtime the service maps its page through PAR5 and restores the caller's game-state mapping before returning.</p>
+    </section>
+
+    <section>
+      <h2>Use generated descriptors for relocated payloads</h2>
+      <p>The sparse-sprite packer emits a descriptor table for boot streams and derives the audio stream's index and byte offset from the final stream list. The bootstrap verifies that audio is the unique final descriptor before using that generated identity. Keep the descriptor producer and the boot consumer in sync; do not copy an ordinal or address from an older manifest into assembly.</p>
+      <pre><code>; Source path, not a literal runtime address:
+assets/arcade/audio/gmc_sound_data.inc
+        ↓ assembled with src/audio_runtime.s
+ladybug-audio-runtime.bin
+        ↓ compressed as boot transport
+page $24 staging
+        ↓ boot expansion
+audio runtime and cue data in page $3D</code></pre>
+      <p>The stage page is temporary storage for a lifecycle phase. It is not the address the steady-state mixer should retain. Check the current profile and generated layout when documenting an address or module size.</p>
+    </section>
+
+    <section>
+      <h2>Match storage to lifetime</h2>
+      <p>Executable audio code, cue bytes, active voice records, and output shadows have different lifetimes even when they share one mapped page. Ladybug's first 28-byte voice slot keeps the active cue fields in its first 17 bytes and reuses the remaining 11 bytes for retained SN76489 output shadows. Resetting the slot must preserve those shadows or explicitly reinitialize them.</p>
+      <p>Direct-page event-queue fields are accessed without changing the current banked audio mapping. Code and cue pointers into page <code>$3D</code> are only valid while PAR5 selects that page. Record which values are persistent between ticks and which scratch values may be reused by the sequential decoder and mixer.</p>
+    </section>
+
+    <section>
+      <h2>Profile is part of the layout</h2>
+      <p>The complete build selects adaptive rendering by default, while the build can explicitly override that setting. <code>ADAPTIVE_RENDERING</code> conditionally includes audio-service code and changes the assembled runtime. A size, symbol, or offset claim therefore needs its profile and generated module identity. Source lengths alone do not establish the final packed allocation.</p>
+      <p>For the boot transport versus runtime sparse graphics formats, see <a href="./asset-packing-sparse-streams.html">asset packing and sparse streams</a>. For how cues move from event admission to output, see <a href="./audio-processing.html">audio processing</a>. CoCo 3 analog audio routing is described in the <a href="../coco3/sound.html">sound hardware reference</a>.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Ladybug examples checked at source revision <code>7b91d64c4cb7027d072d2a8f47a369abc526ded2</code>: <code>src/audio_runtime.s</code>, <code>src/adaptive_audio_service.s</code>, <code>src/gmc_bootstrap.s</code>, <code>scripts/build_sparse_sprites.py</code>, and <code>scripts/build.sh</code>. Profile-specific layout facts must be rechecked against the selected build.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
