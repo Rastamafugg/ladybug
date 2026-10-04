@@ -1,0 +1,216 @@
+{
+  "status": "PASS; BUG-100 Done",
+  "source_commit": "fe27e96",
+  "integration_commit": "a18ec76",
+  "rom_sha256": "6f50292d83fb7f8055eda0de6d139174f5769b20b7e89358908cec62eee43fe2",
+  "build": "Complete keyboard; 14 modules;306/306 routines;4964/4964 labels;9 shared-text screens,zero differences",
+  "build_receipt_sha256": "3fa9f9c2648bb29e939c215b07907d4cc853c48a774dc4c6595db30c5276a868",
+  "static": {
+    "status": "PASS",
+    "checks": [
+      {
+        "screen": "attract",
+        "phase": "static",
+        "changed_pixels": 0,
+        "outside_mark_changes": 0
+      },
+      {
+        "screen": "instructions",
+        "phase": "static",
+        "changed_pixels": 0,
+        "outside_mark_changes": 0
+      },
+      {
+        "screen": "level-start",
+        "phase": "static",
+        "changed_pixels": 0,
+        "outside_mark_changes": 0
+      },
+      {
+        "screen": "high-score",
+        "phase": "static",
+        "changed_pixels": 19,
+        "outside_mark_changes": 0
+      },
+      {
+        "screen": "high-score",
+        "phase": 0,
+        "changed_pixels": 19,
+        "outside_mark_changes": 0
+      },
+      {
+        "screen": "high-score",
+        "phase": 1,
+        "changed_pixels": 19,
+        "outside_mark_changes": 0
+      },
+      {
+        "screen": "game-over",
+        "phase": "static",
+        "changed_pixels": 0,
+        "outside_mark_changes": 0
+      },
+      {
+        "screen": "enter-high-score",
+        "phase": "static",
+        "changed_pixels": 0,
+        "outside_mark_changes": 0
+      },
+      {
+        "screen": "options",
+        "phase": "static",
+        "changed_pixels": 0,
+        "outside_mark_changes": 0
+      },
+      {
+        "screen": "credits",
+        "phase": "static",
+        "changed_pixels": 0,
+        "outside_mark_changes": 0
+      },
+      {
+        "screen": "keybind-options",
+        "phase": "static",
+        "changed_pixels": 0,
+        "outside_mark_changes": 0
+      }
+    ],
+    "excluded_profile_unchanged": true
+  },
+  "static_command": "python3 repro/bug100-parent-integrated-static-review.py",
+  "baseline_rom_sha256": "5827521570a5d72901c184bb8afa2aa4e7c719eb616fb71ff3913dacd2b81f24",
+  "baseline_qualification": "Retained compiled artifact matches previously accepted integrated BUG-069 ROM exactly. Its current level-start TMX file differs; no current baseline source-file identity is claimed. Comparison uses the frozen compiled map/font/cold artifacts.",
+  "live_receipt_sha256": "cec9251d5d7880e5ae29136fc400bd61859c7c2680450a1f82e11cdd2dd5cd5f",
+  "phases": [
+    {
+      "name": "cold-attract-delivery",
+      "deadline_seconds": 40,
+      "elapsed_seconds": 5.604,
+      "checks": [
+        "live resident equals current runtime artifact",
+        "live presentation marker owner equals current module artifact",
+        "natural prompt row 15 col 13",
+        "natural prompt row 15 col 14",
+        "natural prompt row 15 col 15",
+        "natural prompt row 15 col 16",
+        "natural prompt row 15 col 17",
+        "natural prompt row 15 col 18",
+        "natural prompt row 15 col 19",
+        "natural prompt row 15 col 20",
+        "natural prompt row 15 col 21",
+        "natural prompt row 15 col 22",
+        "natural prompt row 15 col 23",
+        "natural prompt row 15 col 24",
+        "natural prompt row 15 col 25",
+        "natural prompt row 15 col 26",
+        "natural prompt row 15 col 27",
+        "natural prompt row 19 col 13",
+        "natural prompt row 19 col 15",
+        "natural prompt row 19 col 16",
+        "natural prompt row 19 col 17",
+        "natural prompt row 19 col 18",
+        "natural prompt row 19 col 21",
+        "natural prompt row 19 col 23",
+        "natural prompt row 19 col 24",
+        "natural prompt row 19 col 25",
+        "natural prompt row 19 col 26"
+      ]
+    },
+    {
+      "name": "credit-entry-complete-trademark",
+      "deadline_seconds": 40,
+      "elapsed_seconds": 10.3,
+      "checks": [
+        "live stage mapped helper equals current authored artifact",
+        "complete16x16 trademark equals frozen red glyph/palette",
+        "ordinary gameplay adaptive vectors and copied active image equal current artifact"
+      ]
+    },
+    {
+      "name": "forced-final-death-natural-name-handoff",
+      "deadline_seconds": 40,
+      "elapsed_seconds": 15.03,
+      "checks": [
+        "name low-RAM runtime equals artifact",
+        "name mapped helper equals artifact"
+      ]
+    },
+    {
+      "name": "remapped-name-movement-0",
+      "deadline_seconds": 40,
+      "elapsed_seconds": 2.571,
+      "checks": [
+        "name mapped direction bit 0"
+      ]
+    },
+    {
+      "name": "remapped-name-movement-1",
+      "deadline_seconds": 40,
+      "elapsed_seconds": 2.579,
+      "checks": [
+        "name mapped direction bit 1"
+      ]
+    },
+    {
+      "name": "remapped-name-movement-2",
+      "deadline_seconds": 40,
+      "elapsed_seconds": 2.605,
+      "checks": [
+        "name mapped direction bit 2"
+      ]
+    },
+    {
+      "name": "remapped-name-movement-3",
+      "deadline_seconds": 40,
+      "elapsed_seconds": 2.566,
+      "checks": [
+        "name mapped direction bit 3",
+        "at least one remapped key moves the actual name cursor"
+      ]
+    },
+    {
+      "name": "fixed-arrow-name-exclusion",
+      "deadline_seconds": 40,
+      "elapsed_seconds": 2.586,
+      "checks": [
+        "fixed menu Up is not a rebound name movement"
+      ]
+    },
+    {
+      "name": "forced-END-natural-name-return",
+      "deadline_seconds": 40,
+      "elapsed_seconds": 4.773,
+      "checks": [
+        "visible ADD CREDITS cell 16",
+        "visible ADD CREDITS cell 17",
+        "visible ADD CREDITS cell 18",
+        "visible ADD CREDITS cell 19",
+        "visible ADD CREDITS cell 20",
+        "visible ADD CREDITS cell 21",
+        "visible ADD CREDITS cell 22",
+        "visible ADD CREDITS cell 23",
+        "visible ADD CREDITS cell 24",
+        "visible ADD CREDITS cell 25",
+        "visible ADD CREDITS cell 26",
+        "complete16x16 trademark equals frozen red glyph/palette"
+      ]
+    }
+  ],
+  "runtime_scope": "Natural key-5 credit entry. Second route uses disclosed final-death qualifying-score fixture and forced END, then natural return; full maze/name traversal is excluded.",
+  "acceptance": "44 red foreground pixels;zero white;identical 16x16 shape/background;both logo phases and reported routes;excluded development palette unchanged",
+  "capacity_bytes": {
+    "resident": "8150/8192;42 free",
+    "assets": "7676/7680;4 free",
+    "presentation": "1266/1280;14 free",
+    "low_helper": "331/334;3 free",
+    "instruction": "935/938;3 free",
+    "mapped_helper": "3084;endB84C;52 free beforeB880"
+  },
+  "headroom_change": "Assets gain4 bytes from integrated BUG-069 baseline; historical isolated21-byte margin is not the current result. Cold payload14286 bytes.",
+  "rejected_experiments": [
+    "Copied static script initially resolved the wrong root; corrected explicit root and reran.",
+    "A separate retained baseline level-start TMX is stale; frozen compiled ROM identity qualifies artifact-only reuse."
+  ],
+  "residual_risks": "Tight capacity requires combined fits for later tickets. No logo cadence/menu/MMU/profile behavior changes. Original BUG-058 27000-cycle target remains unmet.",
+  "delivery": "Luna authored the bounded two-file change. Parent completed interrupted verification, committed, inspected, integrated, rebuilt and repeated both routes."
+}

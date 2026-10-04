@@ -1,0 +1,89 @@
+{
+  "schema": "bug069-joystick-relocation-audit-v1",
+  "ticket": "BUG-069",
+  "source_revision": "56f5be4b93f0020777186503172d7dca269fd079",
+  "qualification": "The prior isolated joystick-fit record used INPUT_JOYSTICK=0 in the helper listing/map. Full joystick build used INPUT_JOYSTICK=1. Comparing the actual full joystick helper to the frozen keyboard helper yields 17 changed bytes, all classified as +$24 absolute address operands to the corresponding current joystick resident symbols.",
+  "keyboard": {
+    "input": "keyboard",
+    "complete_rom_sha256": "5827521570a5d72901c184bb8afa2aa4e7c719eb616fb71ff3913dacd2b81f24",
+    "helper_bytes": 3084,
+    "helper_sha256": "0433e699004c85e91686faa191f14484773b92f1e6a0c09d1a1475026c8a2dce",
+    "helper_source_map": "E:/projects/ladybug/worktrees/bug-069-preparation/build/ladybug-highscore-helper.map",
+    "helper_input_symbol": "INPUT_JOYSTICK=0000",
+    "resident_symbols_map_sha256": "3a20db3ef4a62c057ea7b0811309644956a6e085bd1722e0d900710e8aaac210"
+  },
+  "joystick": {
+    "input": "joystick",
+    "complete_rom_sha256": "c54259d7dd090dd2b5ec9f3f1bc1d2d750a2a478f4c9c14aa648fde2813d41b8",
+    "runtime_bank_sha256": "76154fec5a637d4890910669e1d5a4e295137f98d3860c5a430d63eaa38693da",
+    "source_build_receipt_sha256": "0eb5bb7d244e8386afcaff7e0dfb037c95c86ec6168cfd55529cb4bcedded30c",
+    "helper_bytes": 3084,
+    "helper_sha256": "24b32cd89f8034c960413c2bba7afa794282d776c78bdff9484e05c45544a9e7",
+    "helper_listing_sha256": "8977358bd2aa9416d4eea2e272fa1e0d8e88ac7fb00f3c135b081a9e5fbd95b8",
+    "helper_map_sha256": "b6640e5444c14ebe6296521a2a067cbd31627c7c045456028e3df3c0764ffab9",
+    "helper_input_symbol": "INPUT_JOYSTICK=0001",
+    "resident_symbols_map_sha256": "6b4c0fd67628d5bfb3f3bb5bdafb4ab3690b2e0dbc72e5a02a3029781fc2ab74",
+    "helper_load": "$AC40",
+    "helper_end": "$B84C",
+    "helper_limit": "$B880",
+    "helper_headroom_bytes": 52
+  },
+  "comparison": {
+    "keyboard_helper_sha256": "0433e699004c85e91686faa191f14484773b92f1e6a0c09d1a1475026c8a2dce",
+    "joystick_helper_sha256": "24b32cd89f8034c960413c2bba7afa794282d776c78bdff9484e05c45544a9e7",
+    "differing_bytes": 17,
+    "relocation_delta": "+$24",
+    "groups": [
+      {
+        "symbol": "PRES_MAIN_PAGE23_RESUME",
+        "keyboard": "DF5F",
+        "joystick": "DF83",
+        "occurrences": 10,
+        "source_lines": [
+          148,
+          163,
+          239,
+          259,
+          764,
+          784,
+          798,
+          1023,
+          1041,
+          1054
+        ]
+      },
+      {
+        "symbol": "PRES_MAIN_KEY_SERVICE",
+        "keyboard": "DF68",
+        "joystick": "DF8C",
+        "occurrences": 3,
+        "source_lines": [
+          898,
+          905,
+          1070
+        ]
+      },
+      {
+        "symbol": "vegetable_sprites",
+        "keyboard": "DADE",
+        "joystick": "DB02",
+        "occurrences": 1,
+        "changed_operand_bytes": 2,
+        "source_lines": [
+          545
+        ]
+      },
+      {
+        "symbol": "blit_packed_sprite",
+        "keyboard": "D571",
+        "joystick": "D595",
+        "occurrences": 2,
+        "source_lines": [
+          550,
+          554
+        ]
+      }
+    ],
+    "interpretation": "All 17 differing bytes are fully decoded helper references to the listed emitted symbols. No unclassified byte differences remain; semantic helper code and size are unchanged across profiles."
+  }
+}
