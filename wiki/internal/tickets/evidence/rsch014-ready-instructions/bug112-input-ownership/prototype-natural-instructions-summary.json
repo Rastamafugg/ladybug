@@ -1,0 +1,565 @@
+{
+  "experiment": "prototype-natural-instructions",
+  "receipt_sha256": "eb99cda234cdaa0842a3390b1c76f4cae63f2e890a6b3598583cbf9a332f7693",
+  "rom_sha256": "9361b389a80905b0b78e6f04bc45733e2ae6d2bc74ba2e2f4dbb8a99948deb64",
+  "status": "PASS",
+  "qualification": "Generated schedule ticks; natural before/after first motion with independent visible east sprite masks, all sixteen consume boundaries, both-owner trace and next-screen handoff. No clock/phase/PC/framebuffer fixture.",
+  "static_contract": {
+    "status": "PASS-STATIC-AND-NATURAL",
+    "mode": "baseline",
+    "units": "generated schedule ticks, not arcade display frames",
+    "first_motion_ticks": [
+      129,
+      673,
+      1409
+    ],
+    "later_row_motion_gaps": [
+      143,
+      143
+    ],
+    "next_screen_tick": 1896,
+    "events_checked": 16,
+    "unchanged_other_event_fields": true,
+    "manifest_sha256": "d1d1297313ed073cf302b5238dac0d76e075df6e5facf0c183060cfe7ecf6a8d",
+    "baseline_manifest_sha256": "79791575f97d58ecb9e1050e2165add8b44ffbc870f18eca01387486c58ae1de",
+    "runtime_receipt_sha256": "533a809e7eb2479a29ad13e4faefac5449e8ae9122873b2f9a6e75e701825c26"
+  },
+  "phases": [
+    {
+      "name": "cold-attract-delivery",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "front_frame_sha256": "da375782a7a46fb052f36227d7eded59aa49481863ad9d7b7eed169a19782278",
+      "elapsed_seconds": 5.58,
+      "checks_passed": 27,
+      "checks_sha256": "c788c29415058912cd45018251c754460e85d6f328bba75d2a22dfa46c8e0445"
+    },
+    {
+      "name": "natural-instructions-hidden-hydration",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "expected_hidden_load_overlays": [
+        "boot committed TOP090000 at33..38,row6, red1",
+        "authored cucumber at generated instruction destination"
+      ],
+      "owner_frame_sha256": {
+        "0": "4f767a19da16e790fc3f3415b364bf1c57a622bfbb292cc60fe16bfc5a79ca41",
+        "1": "4f767a19da16e790fc3f3415b364bf1c57a622bfbb292cc60fe16bfc5a79ca41"
+      },
+      "elapsed_seconds": 13.037,
+      "checks_passed": 7,
+      "checks_sha256": "63c9a99583a8d8b514e44e21f60f348b50dd2042b5e0733e286928075125e40b"
+    },
+    {
+      "name": "natural-row-first-motion-0",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "first_motion_pixels": [
+        {
+          "tag": "row0-before",
+          "foreground_pixels": 122,
+          "front_owner": 1,
+          "front_sha256": "f83c1d442f85ca2431738c518695902a25669ee9d34ad89a62506378bf098b6d",
+          "timer": 128,
+          "origin": 17192
+        },
+        {
+          "tag": "row0-after",
+          "foreground_pixels": 122,
+          "front_owner": 0,
+          "front_sha256": "2ee03fab478fbe8c275a9cd6b4c6c7ab788b68a236d9571b33e300b22abcf506",
+          "timer": 129,
+          "origin": 17193
+        }
+      ],
+      "elapsed_seconds": 4.481,
+      "checks_passed": 255,
+      "checks_sha256": "9ea26bbe20410659f24602925c92c02f26bd3f136a848d74b4d1b9f2345fc18e"
+    },
+    {
+      "name": "natural-consume-0-E",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 0,
+        "name": "E",
+        "motion_tick": 129,
+        "consume_tick": 152,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 0.64,
+      "checks_passed": 3,
+      "checks_sha256": "a106329221fd36fe448013f7c84cd611507583efed123fc4b4f1e6fa10bad398"
+    },
+    {
+      "name": "natural-consume-1-X",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 1,
+        "name": "X",
+        "motion_tick": 227,
+        "consume_tick": 242,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 3.45,
+      "checks_passed": 3,
+      "checks_sha256": "19be3ff176ad73f09de20dfa8b48c5bd805e7a06316c9acce06d2afbec8e57d7"
+    },
+    {
+      "name": "natural-consume-2-T",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 2,
+        "name": "T",
+        "motion_tick": 323,
+        "consume_tick": 338,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.838,
+      "checks_passed": 3,
+      "checks_sha256": "5b70ea0b9114f0721718c582b59d2695efbdaf462f85e259f5cf4cf59c7ae162"
+    },
+    {
+      "name": "natural-consume-3-R",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 3,
+        "name": "R",
+        "motion_tick": 419,
+        "consume_tick": 434,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 3.363,
+      "checks_passed": 3,
+      "checks_sha256": "8a5fc078ab5eba834ecf01814db8e1b31aaccc9aeb2ff714d04350ac9ca3f474"
+    },
+    {
+      "name": "natural-consume-4-A",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 4,
+        "name": "A",
+        "motion_tick": 515,
+        "consume_tick": 530,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 3.586,
+      "checks_passed": 3,
+      "checks_sha256": "7a5c9b9063b04c49e4bd94a844db7a04c7683266b463f49891f405385a08909b"
+    },
+    {
+      "name": "natural-row-first-motion-1",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "first_motion_pixels": [
+        {
+          "tag": "row1-before",
+          "foreground_pixels": 122,
+          "front_owner": 1,
+          "front_sha256": "0380f5aea0e3568ccfcac908069fe990aa24f22a37c473f769350630524a8d19",
+          "timer": 672,
+          "origin": 21032
+        },
+        {
+          "tag": "row1-after",
+          "foreground_pixels": 122,
+          "front_owner": 0,
+          "front_sha256": "cffbd6a835e6068f7cade74147a40d86ff84c92fed514f00cc2f8f13943ce264",
+          "timer": 673,
+          "origin": 21033
+        }
+      ],
+      "elapsed_seconds": 4.679,
+      "checks_passed": 255,
+      "checks_sha256": "2c652dd252fee7fa42db137ae389262454365d9c3af2ba75146f88108b75c307"
+    },
+    {
+      "name": "natural-consume-5-S",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 5,
+        "name": "S",
+        "motion_tick": 673,
+        "consume_tick": 696,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 0.671,
+      "checks_passed": 3,
+      "checks_sha256": "579e4cc5cea236cfa4eec8d1423eecd9de2ed56c1f21a03f0e9755123eb27e10"
+    },
+    {
+      "name": "natural-consume-6-P",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 6,
+        "name": "P",
+        "motion_tick": 771,
+        "consume_tick": 786,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.526,
+      "checks_passed": 3,
+      "checks_sha256": "bf920f9deb9bd75ac8533883e8c54628421ed2ef1eba869c09bb081d7bd589a4"
+    },
+    {
+      "name": "natural-consume-7-E",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 7,
+        "name": "E",
+        "motion_tick": 867,
+        "consume_tick": 882,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 3.207,
+      "checks_passed": 3,
+      "checks_sha256": "1080b69f22ae3123535aba0647e9f255cc28390f9de8e558c3615baa42e41060"
+    },
+    {
+      "name": "natural-consume-8-C",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 8,
+        "name": "C",
+        "motion_tick": 963,
+        "consume_tick": 978,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.701,
+      "checks_passed": 3,
+      "checks_sha256": "3fc020c723575d0b8ca72406790ae499fc26b3f1869a85659dbc2320d3356053"
+    },
+    {
+      "name": "natural-consume-9-I",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 9,
+        "name": "I",
+        "motion_tick": 1059,
+        "consume_tick": 1074,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.845,
+      "checks_passed": 3,
+      "checks_sha256": "c699f307fed8237f198cb29ef9d27fa43a9af4ce0b4b0346db546ca250c04beb"
+    },
+    {
+      "name": "natural-consume-10-A",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 10,
+        "name": "A",
+        "motion_tick": 1155,
+        "consume_tick": 1170,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 3.209,
+      "checks_passed": 3,
+      "checks_sha256": "92584134d11499b710adb88b73e0d43ffddeb6422588c3906b4d0bce01e036d6"
+    },
+    {
+      "name": "natural-consume-11-L",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 11,
+        "name": "L",
+        "motion_tick": 1251,
+        "consume_tick": 1266,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.683,
+      "checks_passed": 3,
+      "checks_sha256": "4e074347680a3dfb65b7ca05d151885bd64c95c231962fba890f5b057c545cfe"
+    },
+    {
+      "name": "natural-row-first-motion-2",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "first_motion_pixels": [
+        {
+          "tag": "row2-before",
+          "foreground_pixels": 122,
+          "front_owner": 1,
+          "front_sha256": "3fad838ed104dfe9bae6d5aa24991811fea13d656ca5d998c456bdd651603d0d",
+          "timer": 1408,
+          "origin": 24872
+        },
+        {
+          "tag": "row2-after",
+          "foreground_pixels": 122,
+          "front_owner": 0,
+          "front_sha256": "d7afb30a98d816a3e5c01a3f5c9b4dbdc0262c0af52102555b018159e8c94108",
+          "timer": 1409,
+          "origin": 24873
+        }
+      ],
+      "elapsed_seconds": 5.484,
+      "checks_passed": 255,
+      "checks_sha256": "dc477446ed45bbf066934a70be1ada0d22f249d1efb166d9cdf7810b59ec6e6c"
+    },
+    {
+      "name": "natural-consume-12-heart_x2",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 12,
+        "name": "heart_x2",
+        "motion_tick": 1409,
+        "consume_tick": 1432,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 0.632,
+      "checks_passed": 3,
+      "checks_sha256": "6a56148fa92711fa14d89b2a5bdfa2a1708102d6d15891d107dd2e667ba9cb03"
+    },
+    {
+      "name": "natural-consume-13-heart_x3",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 13,
+        "name": "heart_x3",
+        "motion_tick": 1505,
+        "consume_tick": 1536,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 4.07,
+      "checks_passed": 3,
+      "checks_sha256": "e08e1c128628aad744022aae5b2615f614a33ec6ec086be1698376c85f006cd8"
+    },
+    {
+      "name": "natural-consume-14-heart_x5",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 14,
+        "name": "heart_x5",
+        "motion_tick": 1601,
+        "consume_tick": 1632,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.785,
+      "checks_passed": 3,
+      "checks_sha256": "af340958ad1e3e63ee6a9b7b5b53cfb2da4d8f0a7f1f7b58e21a6a33de70ccdb"
+    },
+    {
+      "name": "natural-consume-15-skull",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 15,
+        "name": "skull",
+        "motion_tick": 1681,
+        "consume_tick": 1736,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.887,
+      "checks_passed": 2,
+      "checks_sha256": "3f56759b3db5c00e07aef1c80e6e1250ba33c3335e16134caf95eeb0e61419c1"
+    },
+    {
+      "name": "natural-instructions-completion-tick",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "elapsed_seconds": 4.447,
+      "checks_passed": 4,
+      "checks_sha256": "f42963e9ed7067b596824d1c64e344349ed08618b1f203605c90980e63de270a"
+    },
+    {
+      "name": "natural-instructions-next-screen",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "snapshots": [
+        {
+          "mode": 1,
+          "screen": 2,
+          "credits": 0,
+          "pending": 0,
+          "transaction": 0,
+          "selection": 0,
+          "live": 0,
+          "bindings": [
+            27,
+            35,
+            43,
+            51,
+            6
+          ],
+          "binding_state": 0,
+          "mapped_down": 0,
+          "player_cell": [
+            0,
+            0
+          ],
+          "player_want": 255,
+          "entry": 167,
+          "front": 0
+        },
+        {
+          "mode": 1,
+          "screen": 2,
+          "credits": 0,
+          "pending": 0,
+          "transaction": 0,
+          "selection": 0,
+          "live": 0,
+          "bindings": [
+            27,
+            35,
+            43,
+            51,
+            6
+          ],
+          "binding_state": 0,
+          "mapped_down": 0,
+          "player_cell": [
+            0,
+            0
+          ],
+          "player_want": 255,
+          "entry": 167,
+          "front": 0
+        },
+        {
+          "mode": 1,
+          "screen": 2,
+          "credits": 0,
+          "pending": 0,
+          "transaction": 0,
+          "selection": 0,
+          "live": 0,
+          "bindings": [
+            27,
+            35,
+            43,
+            51,
+            6
+          ],
+          "binding_state": 0,
+          "mapped_down": 0,
+          "player_cell": [
+            0,
+            0
+          ],
+          "player_want": 255,
+          "entry": 167,
+          "front": 0
+        },
+        {
+          "mode": 1,
+          "screen": 2,
+          "credits": 0,
+          "pending": 0,
+          "transaction": 0,
+          "selection": 0,
+          "live": 0,
+          "bindings": [
+            27,
+            35,
+            43,
+            51,
+            6
+          ],
+          "binding_state": 0,
+          "mapped_down": 0,
+          "player_cell": [
+            0,
+            0
+          ],
+          "player_want": 255,
+          "entry": 167,
+          "front": 0
+        },
+        {
+          "mode": 1,
+          "screen": 2,
+          "credits": 0,
+          "pending": 0,
+          "transaction": 0,
+          "selection": 0,
+          "live": 0,
+          "bindings": [
+            27,
+            35,
+            43,
+            51,
+            6
+          ],
+          "binding_state": 0,
+          "mapped_down": 0,
+          "player_cell": [
+            0,
+            0
+          ],
+          "player_want": 255,
+          "entry": 167,
+          "front": 0
+        },
+        {
+          "mode": 1,
+          "screen": 2,
+          "credits": 0,
+          "pending": 0,
+          "transaction": 0,
+          "selection": 0,
+          "live": 0,
+          "bindings": [
+            27,
+            35,
+            43,
+            51,
+            6
+          ],
+          "binding_state": 0,
+          "mapped_down": 0,
+          "player_cell": [
+            0,
+            0
+          ],
+          "player_want": 255,
+          "entry": 167,
+          "front": 0
+        },
+        {
+          "mode": 6,
+          "screen": 2,
+          "credits": 0,
+          "pending": 0,
+          "transaction": 0,
+          "selection": 0,
+          "live": 0,
+          "bindings": [
+            27,
+            35,
+            43,
+            51,
+            6
+          ],
+          "binding_state": 0,
+          "mapped_down": 0,
+          "player_cell": [
+            0,
+            0
+          ],
+          "player_want": 255,
+          "entry": 167,
+          "front": 1
+        }
+      ],
+      "elapsed_seconds": 0.92,
+      "checks_passed": 0,
+      "checks_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ]
+}
