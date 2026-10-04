@@ -1,0 +1,137 @@
+{
+  "ticket": "BUG-062",
+  "classification": "High-risk",
+  "state": "Approved; preparation only; not Ready and not runtime accepted",
+  "recorded_utc": "2026-10-04",
+  "purpose": "Qualify the retained keyboard and joystick capacity receipts against the current root working-tree Level Start map without repeating unchanged full-profile suites.",
+  "prior_receipt": {
+    "path": "wiki/internal/tickets/evidence/rsch014-ready-062/bug062-fit-receipt-20261004.json",
+    "sha256": "E131E05C3EB47E312F6DCABC2A335868A34815C0A153382537E89818E6BE7160",
+    "prior_keyboard_rom_sha256": "889BE468A2B2AC21733173E310C7B6FA78246B01D9A650A6116015958259C7C9",
+    "prior_joystick_rom_sha256": "D117F6DA2D8FC6654384BA984837186BD524F4140C982F9AFA7E1FFF4E854850",
+    "prior_fit_map_sha256": "C1826B9EF1004488AE77331CB80370CB5A3FE2B3DAD015C0ACD280F8D56E984C",
+    "prior_full_builds": "Both complete-profile builds passed on the retained C1826B9 map. Keyboard resident 8135/8192 (57 free), assets 7665/7680 (15 free); joystick resident 8171/8192 (21 free), assets 7665/7680 (15 free). These ROM hashes remain historical receipts and are not attributed to the current D468 map."
+  },
+  "current_map": {
+    "current_root_head": "5369ad4dae8d21bdb3dc666c9d0d197a74f41a19",
+    "integrated_bug061_commit": "669b15791d34c09c3d7c9c91dc4c98659824a89d",
+    "source_baseline_commit": "69550b6978231398cbdf7083378aaeca8282586c",
+    "path": "tiled/coco-level-start-screen.tmx",
+    "previous_fit_sha256": "C1826B9EF1004488AE77331CB80370CB5A3FE2B3DAD015C0ACD280F8D56E984C",
+    "current_root_worktree_sha256": "D468223AB5706BF4E045E0FCC9DACFB2B59A21339A18436F3D1F4DB1506B8B1B",
+    "prototype_matches_current_root_worktree_bytes": true,
+    "map_status": "The current root map is a modified working-tree input. The prototype was synchronized from those exact bytes; all nine authored presentation maps used by the generator match the root working tree.",
+    "only_gid_changes_from_previous_fit": [
+      { "layer": "Level Start Panel", "x": 15, "y": 4, "old_gid": 0, "current_gid": 97 },
+      { "layer": "Level Start Panel", "x": 16, "y": 4, "old_gid": 0, "current_gid": 337 },
+      { "layer": "Level Start Panel", "x": 17, "y": 4, "old_gid": 97, "current_gid": 65 },
+      { "layer": "Level Start Panel", "x": 18, "y": 4, "old_gid": 337, "current_gid": 33 },
+      { "layer": "Level Start Panel", "x": 19, "y": 4, "old_gid": 65, "current_gid": 0 },
+      { "layer": "Level Start Panel", "x": 20, "y": 4, "old_gid": 33, "current_gid": 0 }
+    ],
+    "runtime_acceptance_map_requirement": "Any future runtime acceptance must use the current shifted D468223A map and geometry, not the prior C1826B9 title layout."
+  },
+  "current_map_generation": {
+    "generator_command": "python3 scripts/build_presentation.py --shared-text (with the complete-profile inputs recorded in the prior receipt)",
+    "generator_result": "PASS: 9 maps, 186 native descriptors, 14,336 cold bytes; current cold SHA-256 F43B18F6881EB52DE96725E9AAA9E6DC004BDD3C37B69F24F5E32626FAB8C4AD.",
+    "shared_text_verification": "PASS: all 9 screens pixel-exact; 344 font bytes, 135 graphics; 14,336 cold bytes with matching current stream hash.",
+    "presentation_layer_verification": "PASS: 9 role contracts, 22 raw markers, 2 deferred logo layers, and 9 negative diagnostics; BUG-060 shared Background/schema guards and BUG-059 gameplay marker valid.",
+    "changed_generator_outputs": [
+      {
+        "path": "ladybug-presentation-cold.bin",
+        "bytes_previous": 14336,
+        "sha256_previous": "F22E09E8263B03DDAA393C4ADC0189C2A8007261D762EF6435AD39E1DDC29FF7",
+        "bytes_current": 14336,
+        "sha256_current": "F43B18F6881EB52DE96725E9AAA9E6DC004BDD3C37B69F24F5E32626FAB8C4AD",
+        "byte_changes": [
+          { "offset": 5394, "old": "07", "current": "05" },
+          { "offset": 5408, "old": "0A", "current": "0C" }
+        ]
+      },
+      {
+        "path": "ladybug-presentation.json",
+        "bytes_previous": 195961,
+        "sha256_previous": "7C383C1FD31D0B3CC7646C40700B36725392535B43948C94F396F2DC692E3D3D",
+        "bytes_current": 195961,
+        "sha256_current": "17880A5DD9CBFE695F4BC17C5D0DF972974E34DB88324331F338B6592067593B"
+      }
+    ],
+    "identical_generated_outputs_count": 16,
+    "identical_generated_outputs": [
+      { "path": "ladybug-attract-actor-records.bin", "bytes": 46, "sha256": "D1EA13FB0440EF8E80BE663D49BAB9E55585382B3FDB25978F342E4182FD6FD8" },
+      { "path": "ladybug-attract-actor-underlays.bin", "bytes": 1934, "sha256": "4906B7ED2594C739AACCD5E5B81D756CA3CEA1E6740914DCC0250A206D924F8F" },
+      { "path": "ladybug-gate-transitions.bin", "bytes": 832, "sha256": "63E7C3597DB1D90C177F1AFB9278C587744614C1AC79B6A7CEC26C78D06021FF" },
+      { "path": "ladybug-presentation-sparse.bin", "bytes": 896, "sha256": "CC4B6E94FDE821AE76E7167563A73B9EE40E0A0848B1F310C1348E7E5C1E7002" },
+      { "path": "ladybug-presentation-tile-patches.bin", "bytes": 128, "sha256": "5488414F3D85BB8877F683860148625E800380343DE2B0556D1AEB9BED048B02" },
+      { "path": "ladybug_highscore_logo.inc", "bytes": 288, "sha256": "AFB7CACF9BC1FEA76783E3DAB0005990C1CCAD17ACC784396B3C6C202F2ACA07" },
+      { "path": "ladybug_keybinding_records.inc", "bytes": 1951, "sha256": "99D2359B9FA475E545896DBCE0921F95A98D3E716A66BD656D892DA350D53287" },
+      { "path": "ladybug_menu_records.inc", "bytes": 730, "sha256": "EF45C81A43946D9B544067C200799D99C7011491FF2935B3AC697005E0733751" },
+      { "path": "ladybug_presentation.inc", "bytes": 9240, "sha256": "DC1C009C954CBC1FDD18D894C827BCB318A4EA9177443CBEA98AD6C1104A103E" },
+      { "path": "ladybug_presentation_timer_records.inc", "bytes": 1375, "sha256": "71D10C7E74FDBAD681BDA803A89A71580C9A3297D2C6FBFB41F8E0A6C9834A08" },
+      { "path": "ladybug_resident.inc", "bytes": 14731, "sha256": "44AECCE9104674A498680DFB0FC110E4010B8C6DFC1CD07D9F27C01AAC87B1A2" },
+      { "path": "ladybug_screen.inc", "bytes": 15529, "sha256": "3356781DAE2F080B7572893D8BE109C3BCABA00D574FB37C9C4E3BB927881F2B" },
+      { "path": "ladybug_shared_text.inc", "bytes": 4324, "sha256": "2EA7BDDEE8CF94E4FF8A5075F7DF4093381337AF11D7F76A7EAE573B7A92BAC7" },
+      { "path": "ladybug_stage_glyphs.inc", "bytes": 169, "sha256": "C818A16F15A7CA63B7FDF18BA2442F71E8DC405017A40B92B0CA9E44202BD832" },
+      { "path": "ladybug_stage_panel.inc", "bytes": 1397, "sha256": "894EF3FFBDE0035B36A12287E4E4F0231C5042EC65A2C55EA7293311EEAE5D66" },
+      { "path": "ladybug_text_colours.inc", "bytes": 437, "sha256": "18026D19DFC10F405BF6A599BC998AA989BEB1E5E86AAAAE908AFE981BA11513" }
+    ],
+    "incremental_fit_decision": "No corrected full profile rebuild was run: all 16 other generated outputs, including the native asset/descriptor includes, are byte-identical; cold-stream and manifest lengths are unchanged; direct current-map profile assemblies retain the prior allocation lengths."
+  },
+  "current_map_assembly": {
+    "scope": "Direct lwasm assembly only from the isolated current BUG-062 candidate source and regenerated D468 includes; not a full build, ROM, or runtime test.",
+    "common_flags": ["-9", "--format=raw", "-DADAPTIVE_RENDERING=1", "-DBUG011_DEVELOPMENT_PROFILE=1", "-DCOMPLETE_PROFILE=1", "-DHIGHSCORE_TEST_PROFILE=0"],
+    "main_source_sha256": "7F3A3992723358439E816BA767DE6D8EBD0B8C7C0671E33DD92B3D215858F4DE",
+    "shared_text_runtime_source_sha256": "B00FFF2D72E60411B09293F856300C3D1E299512E1152408EE2849B5B01838FD",
+    "shared_text_stage_source_sha256": "E432E37BC63268D3EB74B0E7F24DAB9AB65E213924411A232989F50BE6540EE2",
+    "generated_includes": {
+      "ladybug_presentation.inc": "DC1C009C954CBC1FDD18D894C827BCB318A4EA9177443CBEA98AD6C1104A103E",
+      "ladybug_resident.inc": "44AECCE9104674A498680DFB0FC110E4010B8C6DFC1CD07D9F27C01AAC87B1A2",
+      "ladybug_screen.inc": "3356781DAE2F080B7572893D8BE109C3BCABA00D574FB37C9C4E3BB927881F2B",
+      "ladybug_shared_text.inc": "2EA7BDDEE8CF94E4FF8A5075F7DF4093381337AF11D7F76A7EAE573B7A92BAC7"
+    },
+    "keyboard": {
+      "input_joystick_define": 0,
+      "resident_raw_bytes": 15857,
+      "resident_raw_sha256": "ACCAF31A10B4E37008112B8FF822F2EA2BAF58460F6319312D514AC58857029A",
+      "resident_end": "DFC7",
+      "resident_capacity": { "used": 8135, "limit": 8192, "free": 57 },
+      "asset_capacity": { "used": 7665, "limit": 7680, "free": 15 },
+      "presentation_runtime_bytes": 1266,
+      "presentation_runtime_capacity": { "used": 1266, "limit": 1280, "free": 14 },
+      "presentation_runtime_sha256": "DAEF51CCCF53F3AD21BEF116D234A5E38B07045DD8410288F87EFF559527FAE5"
+    },
+    "joystick": {
+      "input_joystick_define": 1,
+      "resident_raw_bytes": 15857,
+      "resident_raw_sha256": "865BC717D878E0026AF6EDD5CEE61B028FB731F09076EF6C1FA60BFA3B7F3E35",
+      "resident_end": "DFEB",
+      "resident_capacity": { "used": 8171, "limit": 8192, "free": 21 },
+      "asset_capacity": { "used": 7665, "limit": 7680, "free": 15 },
+      "presentation_runtime_bytes": 1266,
+      "presentation_runtime_capacity": { "used": 1266, "limit": 1280, "free": 14 },
+      "presentation_runtime_sha256": "DAEF51CCCF53F3AD21BEF116D234A5E38B07045DD8410288F87EFF559527FAE5"
+    },
+    "full_rom_hash_for_current_map": null,
+    "interpretation": "The current-map direct assemblies preserve the prior keyboard/joystick resident and presentation allocation counts. No new full-ROM hash is claimed."
+  },
+  "source_hashes_reconfirmed_from_prior_receipt": [
+    { "path": "src/main.s", "sha256": "7F3A3992723358439E816BA767DE6D8EBD0B8C7C0671E33DD92B3D215858F4DE" },
+    { "path": "src/shared_text_runtime.inc", "sha256": "B00FFF2D72E60411B09293F856300C3D1E299512E1152408EE2849B5B01838FD" },
+    { "path": "src/shared_text_stage.inc", "sha256": "E432E37BC63268D3EB74B0E7F24DAB9AB65E213924411A232989F50BE6540EE2" },
+    { "path": "scripts/build_presentation.py", "sha256": "4D545838E503BCA3859E124ADE6E679374CC18CF51229207DB22B7DEED3D0E05" },
+    { "path": "scripts/shared_text.py", "sha256": "46380F496A23E992069BC1F752DFE9BC9B9F996CECFC853941A3620212514D38" },
+    { "path": "scripts/source_reference.json", "sha256": "E9B52901D87E65A26F5DCAFC84F0762D262EE4DD438D76768EA3CEF347E790D7" },
+    { "path": "wiki/internal/implementation/routine-catalog.html", "sha256": "5E2D2F1F79D46210D1E97595A9FD4EB0D281A2BFB3D7418E78C5C1CB2DA9AA41" }
+  ],
+  "target_scope_review": "The historical approved A2 whitelist is src/main.s and scripts/verify_feat005_menus.py. Relocating life_marker_position to existing src/shared_text_runtime.inc remains outside that whitelist and requires parent review/revised-target approval before Ready or production execution.",
+  "constraints": [
+    "No root, canonical ticket, or production source writes were made.",
+    "No emulator or runtime was launched.",
+    "No release-profile assembler build was run; excluded-profile preservation remains source-guard verified only.",
+    "No BUG-086/087 scope or fit estimate was added.",
+    "The candidate remains Approved; no Ready or runtime-acceptance declaration is made."
+  ],
+  "evidence_only_commit_contents": [
+    "This current-map qualification JSON only."
+  ]
+}
