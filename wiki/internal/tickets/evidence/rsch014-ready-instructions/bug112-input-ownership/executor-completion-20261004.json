@@ -1,0 +1,110 @@
+{
+  "ticket": "BUG-112",
+  "class": "High-risk",
+  "branch": "codex/bug112-instruction-input-ownership",
+  "base": "7b68b8db9e62ded176ffb0790bb515f3de824e02",
+  "commit": "52655e247a96fe30bbb17f8dd018852205de2fc0",
+  "productionFiles": [
+    "src/keybinding_runtime.s"
+  ],
+  "sourceSha256": "0a20ed070f3ca33f101ac3c9d9f31a76ff5ed81a329e094f784dbfbec928555e",
+  "builds": {
+    "joystick": {
+      "romSha256": "634a672d77bcc613905cb3c742707cbc2e94b6fc92522cebc3b55d4e3d886eb2",
+      "inputJoystick": 1,
+      "capacity": {
+        "instruction": "935/938",
+        "presentationHelper": "331/334",
+        "activeHelper": "603/777",
+        "cpuReadableGmcSpare": 12156,
+        "presentation": "1266/1280",
+        "audio": "734/920",
+        "page3DPayload": "6656/8192",
+        "assets": "7676/7680",
+        "resident": "8186/8192"
+      },
+      "receiptSha256": "98b3c0edb9df6be48c2fd972b34187e988e02cf14e249301d056af9e0a7b960d",
+      "keyModuleSha256": "f032703f61d367eec935516ba1f44251fe86c84a89c786b4b33600e06e1cb781"
+    },
+    "keyboard": {
+      "romSha256": "9361b389a80905b0b78e6f04bc45733e2ae6d2bc74ba2e2f4dbb8a99948deb64",
+      "inputJoystick": 0,
+      "capacity": {
+        "instruction": "935/938",
+        "presentationHelper": "331/334",
+        "activeHelper": "603/777",
+        "cpuReadableGmcSpare": 12158,
+        "presentation": "1266/1280",
+        "audio": "734/920",
+        "page3DPayload": "6656/8192",
+        "assets": "7676/7680",
+        "resident": "8150/8192"
+      },
+      "receiptSha256": "264bb442000ed33ee6c69798f2f0da1e60f0ff00899937444e2de0a150777c31",
+      "keyModuleSha256": "dc1d33ab62f9c44fe16a3746716bd1571fd265aa6a2d969da17bedc78ce2ee41"
+    }
+  },
+  "runtimeChecks": [
+    {
+      "name": "scanner instruction timer",
+      "phases": 3,
+      "receiptSha256": "006327ae081acf5e032066dd448e22f17b356881a63156a7308451dfb964bcaf",
+      "result": "PASS"
+    },
+    {
+      "name": "instructions row entry",
+      "phases": 23,
+      "receiptSha256": "58f3e380c0716035b669b1a26c39abb36e51569b7d08b5e3078a0f27296a717b",
+      "result": "PASS"
+    },
+    {
+      "name": "menu bindings",
+      "phases": 18,
+      "receiptSha256": "99f5ef80643f8ec6771fd17f421e82021c37b2731f87a89eb3781cad6034bb5d",
+      "result": "PASS"
+    },
+    {
+      "result": "PASS",
+      "cursorMovement": true,
+      "receiptSha256": "8c836ebf3aa7588e81f6e274a866c3612631a7eaf40df70b4eef5890326bd8c6",
+      "phases": 9,
+      "liveModuleMatchedArtifact": true,
+      "mappedBits": {
+        "Up": 0,
+        "S": 2,
+        "W": 1,
+        "A": 4,
+        "D": 8
+      },
+      "observerSha256": "d667919f0ad65f2e52baaf7b209a8be15f28afc4774bc8a45bbd796638f85c3",
+      "name": "stable name controls",
+      "stablePc": "0xBB4B"
+    }
+  ],
+  "rejectedProbes": [
+    {
+      "receiptSha256": "dfcdd64ae33f428fde93c5570c45b8c825de7b9fdb00241727780ccb142c83d9",
+      "cause": "unqualified DP snapshot sampled after hold; did not establish missing remap"
+    },
+    {
+      "receiptSha256": "7d58c1f19aa62a7736d1f6625172b24a2007b19eba815cbca61cf00d512bdc7a",
+      "cause": "stable boundary and module/DP dumps were reached; unsupported GDB info registers failed after dumps; observer decoder offset also corrected before authorized rerun"
+    }
+  ],
+  "frozenTmx": "Nine pre-existing modified TMX inputs were not staged",
+  "residual": "Parent combined-source build, shared runtime integration, canonical ticket update and acceptance remain pending; do not mark Done",
+  "evidenceFiles": [
+    "keyboard-source-build-receipt.json",
+    "joystick-source-build-receipt.json",
+    "final-keyboard-source-build-receipt.json",
+    "bug112-scanner.json",
+    "bug112-instructions.json",
+    "bug112-menu-bindings.json",
+    "bug112-menu-name-only.json",
+    "bug112-menu-name-stable.json",
+    "bug112-menu-name-stable-rerun.json",
+    "verification/menu_name_stable.py"
+  ],
+  "parent_source_commit": "6127903",
+  "status": "VERIFICATION-INTEGRATED-SOURCE-NOT-ACCEPTED"
+}
