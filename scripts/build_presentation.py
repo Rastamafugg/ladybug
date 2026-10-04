@@ -803,6 +803,8 @@ def presentation_pen_map(
         return (BLACK, colour, colour, colour)
     if role in ("options", "credits", "keybind-options"):
         return (BLACK, GREY, GREY, GREY)
+    if role == "level-start" and (x,y)==(34,13):
+        return (BLACK,GREEN,GREEN,GREEN)
     if x >= 32:
         if role == "instructions" and y == 2:
             return (BLACK, LIGHT_GREEN, LIGHT_GREEN, LIGHT_GREEN)
