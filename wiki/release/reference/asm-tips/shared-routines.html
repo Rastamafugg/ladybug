@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shared routines and lookup data — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · reuse</p>
+      <h1>Shared routines and lookup data <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">Store repeated facts once and share code where its dispatch cost is worthwhile.</p>
+    </header>
+
+    <section>
+      <h2>Separate a reusable shape from its parameters</h2>
+      <p>
+        When many objects follow the same operation with different data,
+        store the variation in descriptors and call one routine. This can
+        reduce duplicated code and make shared rules easier to correct.
+        A descriptor should contain only what the common routine needs, with
+        a clear type or length when records can have different shapes.
+      </p>
+      <p>
+        Ladybug's <code>gameplay_dispatch</code> distinguishes native tiles
+        from text descriptors, and its presentation dispatcher distinguishes
+        graphics from text. Both route common cases to existing drawing
+        routines rather than carrying a separate copy of the drawing loop
+        for each screen item. See <code>src/shared_text_runtime.inc</code>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Reuse masks; vary colour through a table</h2>
+      <p>
+        A compact one-bit glyph mask says which pixels are present. A colour
+        lookup table expands mask bits into native pixel values, so the same
+        mask can be drawn with different colours. This avoids keeping one
+        fully coloured copy of every glyph for each palette choice.
+      </p>
+<pre><code>; Select a colour row, then use its entries to expand mask bits.
+        lda     HUD_COLOR
+        ldb     #32
+        mul
+        leau    colour_lut,pcr
+        leau    d,u
+        lda     ,y+
+        anda    #$F0
+        lsra
+        lsra
+        lsra
+        ldd     a,u
+</code></pre>
+      <p>
+        This pattern is used by <code>shared_mask</code> in Ladybug. The
+        direct benefit is shared data and one renderer. Each draw still pays
+        for colour selection, lookup, and dispatch; measure the complete
+        workload before deciding whether a specialized path is warranted.
+      </p>
+    </section>
+
+    <section>
+      <h2>Use compact typed descriptors</h2>
+      <p>
+        A type field can select a common interpretation for the remaining
+        descriptor fields. Keep the type test and the data layout together,
+        and document index bounds. This gives a small interface between
+        authored content and assembly code, but adds a lookup and branch
+        before the operation.
+      </p>
+      <ul>
+        <li>Use shared code when many callers perform the same work.</li>
+        <li>Use separate code when the operations have different invariants or a measured hot path needs specialization.</li>
+        <li>Do not turn values with different units or ownership into one descriptor merely to reduce the number of labels.</li>
+      </ul>
+      <p>
+        The related <a href="./indexed-addressing.html">indexed-addressing guide</a>
+        covers fixed-stride records. For the instruction-level operations,
+        see <a href="../6809/mul.html">MUL</a>,
+        <a href="../6809/lda.html">LDA</a>, and
+        <a href="../6809/leau.html">LEAU</a>.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Project examples checked at revision <code>6c26a7e651256e4fe206b73ecfaf88ecec38c4a3</code>: <code>src/shared_text_runtime.inc</code>, <code>gameplay_dispatch</code>, <code>presentation_dispatch</code>, and <code>shared_mask</code>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hot loops and code size — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · timing</p>
+      <h1>Hot loops and code size <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">Reduce repeated work, then compare loop overhead with the bytes used to remove it.</p>
+    </header>
+
+    <section>
+      <h2>Move invariant setup outside the loop</h2>
+      <p>
+        If a base pointer, table row, or constant does not change during an
+        iteration, prepare it once before the loop. Keep the changing index
+        or pixel value in a register and use indexed loads and stores for the
+        repeated part. Do not hoist a value if a call or interrupt can change
+        its source while the loop is active.
+      </p>
+      <p>
+        Ladybug's <code>shared_mask</code> prepares the font and colour-table
+        pointers, then processes a fixed number of rows. This keeps table
+        selection outside the per-row path while retaining one compact row
+        loop. The full routine is in <code>src/shared_text_runtime.inc</code>.
+      </p>
+    </section>
+
+    <section>
+      <h2>Count the loop work</h2>
+      <p>
+        A small counted loop usually saves code bytes because one body handles
+        each element. Its repeated work includes the counter update and the
+        branch. For a very small fixed count, those instructions may cost
+        more than spelling out each iteration. Compare the whole path,
+        including setup and exit, and account for whether the branch is taken.
+      </p>
+<pre><code>; X/Y and ROWS_LEFT are initialized before this loop.
+row_loop
+        ldd     ,y++
+        std     ,x++
+        ldd     ,y++
+        std     ,x++
+        leax    156,x           ; four output bytes plus 156 = next 160-byte row
+        dec     ROWS_LEFT
+        bne     row_loop
+</code></pre>
+      <p>
+        Use the instruction pages for <a href="../6809/dec.html">DEC</a>,
+        <a href="../6809/bne.html">BNE</a>, and
+        <a href="../6809/leax.html">LEAX</a> to account for the chosen
+        instructions. Exact time also depends on the target memory and the
+        complete executed worklist.
+      </p>
+    </section>
+
+    <section>
+      <h2>Unroll only a fixed, worthwhile path</h2>
+      <p>
+        Loop unrolling writes multiple copies of the body and removes some
+        per-iteration counter and branch work. It also increases code size
+        and can make later changes harder to keep consistent. Unroll when the
+        count is fixed, the path is hot enough to matter, and the added bytes
+        fit the target's code region.
+      </p>
+      <p>
+        Ladybug's <code>presentation_fast_blit</code> writes the eight rows
+        of an 8×8 graphic with straight-line loads and stores. The sibling
+        <code>shared_mask</code> uses a row loop because it also expands each
+        mask through a colour lookup. These are two different work shapes,
+        not proof that one structure is always faster. Their assembled code
+        size and complete workload should decide whether a change is useful.
+      </p>
+<pre><code>; One row of the straight-line graphic path:
+        ldd     ,y++
+        std     ,x++
+        ldd     ,y++
+        std     ,x++
+        leax    156,x
+</code></pre>
+    </section>
+
+    <section>
+      <h2>Measure the right boundary</h2>
+      <p>
+        Instruction-cycle totals answer how much CPU time an instruction
+        sequence uses; they do not alone establish that a game frame meets
+        its budget. Measure the complete routine or worklist that matters,
+        compare the same inputs and state, and record the assembled code-size
+        change separately. Keep projected savings separate from observed
+        results.
+      </p>
+      <p>
+        A game's cycle budget is a program requirement, not a universal 6809
+        limit. See the
+        <a href="../coco3/timing.html">CoCo 3 timing reference</a> and the
+        individual 6809 instruction pages for the instruction-level basis.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Project examples checked at revision <code>6c26a7e651256e4fe206b73ecfaf88ecec38c4a3</code>: <code>src/shared_text_runtime.inc</code>, <code>shared_mask</code>, and <code>presentation_fast_blit</code>. No performance result is claimed by the source examples alone.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

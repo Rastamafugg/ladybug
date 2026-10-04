@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register allocation — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · routines</p>
+      <h1>Register allocation <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">Give registers useful roles, then make each routine's contract explicit.</p>
+    </header>
+
+    <section>
+      <h2>Start with the interface</h2>
+      <p>
+        The 6809 has no universal register-preservation convention. A routine
+        can use <code>A</code>, <code>B</code>, <code>D</code>, <code>X</code>,
+        <code>Y</code>, or <code>U</code> according to its interface and
+        callers. State which registers carry inputs and results, which are
+        clobbered, and whether condition codes are meaningful on return.
+      </p>
+      <p>
+        <code>D</code> is the 16-bit accumulator formed by <code>A</code> as
+        its high byte and <code>B</code> as its low byte. The 16-bit index
+        registers <code>X</code>, <code>Y</code>, and <code>U</code> are useful
+        for independent bases, cursors, and temporary pointers. <code>S</code>
+        is the hardware stack pointer used by subroutine calls and saved
+        registers; do not use it as an ordinary cursor unless the stack
+        discipline explicitly permits it.
+      </p>
+    </section>
+
+    <section>
+      <h2>Preserve only what the caller needs</h2>
+      <p>
+        <code>PSHS</code> and <code>PULS</code> save and restore selected
+        registers on the system stack. Saving fewer registers reduces stack
+        traffic, but only when the interface permits the routine to overwrite
+        the others. A save list is part of the contract, not a substitute for
+        documenting it.
+      </p>
+<pre><code>; Preserve U while using it as a temporary table pointer.
+        ; D is a table-relative offset on entry.
+        pshs    u
+        leau    colour_lut,pcr
+        leau    d,u
+        ; use the selected lookup entries
+        puls    u,pc
+</code></pre>
+      <p>
+        This pattern appears in Ladybug's <code>shared_mask</code> renderer:
+        it saves <code>U</code> because that register holds the caller's value
+        across lookup setup. Other registers are scratch for this routine's
+        contract. See <code>src/shared_text_runtime.inc</code> for the complete
+        routine.
+      </p>
+    </section>
+
+    <section>
+      <h2>Keep hot values in registers</h2>
+      <p>
+        If a value is used several times in one short routine, keeping it in a
+        register can avoid repeated loads and stores. Reserve direct-page
+        variables for values that must survive a call or be shared across
+        routines. When a call can overwrite a live register, save the value,
+        move it to another available register, or reload it after the call.
+      </p>
+      <p>
+        The best register role is local to the call chain. A useful contract
+        says what remains live across each call instead of assuming that
+        <code>X</code> is always a destination or that <code>Y</code> is always
+        preserved. The 6809 pages for <a href="../6809/tfr.html">TFR</a>,
+        <a href="../6809/pshs.html">PSHS</a>, and
+        <a href="../6809/puls.html">PULS</a> describe the transfer and stack
+        instructions.
+      </p>
+    </section>
+
+    <section>
+      <h2>Tradeoffs</h2>
+      <ul>
+        <li>A save/restore pair costs two instructions; each saved register adds stack traffic and cycles, but protects the caller's live value.</li>
+        <li>Keeping more values in registers can reduce memory traffic, but leaves fewer registers for nested calls and addressing.</li>
+        <li>Register allocation must account for flags: a load, arithmetic operation, or loop branch may replace condition codes needed by the caller.</li>
+      </ul>
+      <p>
+        Confirm the instruction's flag behavior in the
+        <a href="../6809/index.html">6809 instruction reference</a> before
+        relying on a condition-code result.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Project example checked at revision <code>6c26a7e651256e4fe206b73ecfaf88ecec38c4a3</code>: <code>src/shared_text_runtime.inc</code>, <code>shared_mask</code>. General guidance follows Motorola <em>MC6809E HMOS 8-Bit Microprocessor</em>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

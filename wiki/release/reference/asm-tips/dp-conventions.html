@@ -16,10 +16,10 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Assembly tips</p>
-      <h1>Direct-page conventions</h1>
+      <h1>Direct-page conventions <span class="wiki-badge">release</span></h1>
       <p class="wiki-meta">
         Using the 6809's DP register and direct-mode addressing to save
-        bytes and cycles on hot variables.
+        bytes and cycles on frequently used variables.
       </p>
     </header>
 
@@ -28,92 +28,97 @@
       <p>
         The 6809's <code>DP</code> register holds the upper byte of every
         direct-mode effective address. When the assembler emits direct mode
-        (an 8-bit operand byte), the CPU concatenates <code>DP</code> with
-        that byte to form the 16-bit address. The result:
+        (an 8-bit operand byte), the CPU combines <code>DP</code> with that
+        byte to form the 16-bit address. For common 8-bit loads and stores,
+        direct mode uses two instruction bytes instead of three and typically
+        saves one cycle. Check the chosen instruction's page for its exact
+        encoding and timing. Compare the <a href="../6809/lda.html">LDA</a>
+        and <a href="../6809/sta.html">STA</a> pages for the selected form.
       </p>
-      <ul>
-        <li><strong>Two bytes</strong> per access (opcode + low byte) instead of three (opcode + 16-bit address) for extended mode.</li>
-        <li><strong>Four clock cycles</strong> for a direct-mode load instead of five for extended.</li>
-      </ul>
       <p>
-        For a 256-byte region you access often, the savings compound across
-        every load and store. On the 1.78 MHz CoCo 3 with a tight
-        per-frame budget, this is the cheapest performance lever the
-        architecture offers.
-      </p>
-    </section>
-
-    <section>
-      <h2>Setting DP at boot</h2>
-      <p>
-        Set <code>DP</code> once early in your boot sequence and leave it
-        alone for the life of the program:
-      </p>
-<pre><code>        lda   #$02         * upper byte of $0200
-        tfr   a,dp         * DP = $02; direct page covers $0200-$02FF
-</code></pre>
-      <p>
-        Some assemblers (including lwasm) require a directive so they know
-        to emit direct-mode encodings for matching addresses:
-      </p>
-<pre><code>        setdp $02          * lwasm: tell the assembler DP = $02
-</code></pre>
-    </section>
-
-    <section>
-      <h2>Forcing direct mode</h2>
-      <p>
-        The <code>&lt;</code> prefix forces direct-mode encoding even when
-        the assembler would otherwise pick another form:
-      </p>
-<pre><code>        lda   &lt;score      * direct: 2 bytes, 4 cycles
-        lda   score        * may emit extended (3 bytes, 5 cycles)
-        sta   &lt;$05        * direct: store A at DP:$05
-</code></pre>
-      <p>
-        Conversely, <code>&gt;</code> forces extended mode if you need it
-        for a label that <em>could</em> live in the direct page.
+        The savings compound when a frequently executed routine accesses
+        direct-page state many times. The total frame-time benefit still
+        depends on how often that routine runs and what else it does.
       </p>
     </section>
 
     <section>
-      <h2>What to put in the direct page</h2>
+      <h2>Choose and set the page</h2>
       <p>
-        DP space is precious (256 bytes total). Reserve it for:
+        Choose a page that contains the variables addressed directly. Set
+        <code>DP</code> before executing code that uses them, then keep it
+        stable while that code and its interrupt handlers run. This example
+        uses <code>$02</code> to show the mechanism; it is not the Ladybug
+        gameplay runtime's value.
       </p>
-      <ul>
-        <li>Per-frame counters and flags read by the main loop.</li>
-        <li>IRQ handler scratch — the interrupt path should never pay extended-mode prices.</li>
-        <li>Hot pointers to game state that get dereferenced every frame.</li>
-        <li>Sprite-blit temporaries on the fast path.</li>
-      </ul>
+<pre><code>        setdp $02          ; lwasm: assemble matching labels in direct mode
+        lda   #$02
+        tfr   a,dp          ; runtime: DP = $02
+</code></pre>
       <p>
-        Keep cold data (one-time init, debug counters, anything touched at
-        boot-time only) in extended-mode memory and save DP for the things
-        that run 60 times a second.
+        The assembler directive describes which addresses may use direct-mode
+        encodings. It does not change the CPU register. The program must set
+        <code>DP</code> at runtime, and the runtime value must match the
+        assembled operands.
+      </p>
+    </section>
+
+    <section>
+      <h2>Force an addressing mode when needed</h2>
+      <p>
+        The <code>&lt;</code> prefix asks lwasm for direct-mode encoding when
+        the label is in the selected direct page. The <code>&gt;</code> prefix
+        asks for extended mode when the assembler could otherwise select a
+        shorter form.
+      </p>
+<pre><code>        lda   &lt;score       * direct form, if score is in the selected page
+        lda   &gt;score       * extended form
+        sta   &lt;$05         * store at address DP:$05
+</code></pre>
+      <p>
+        Direct-mode operands contain only the low address byte. Changing
+        <code>DP</code> changes which page that instruction accesses; it
+        does not change the encoded operand. Restore the expected page before
+        code using those operands runs again.
+      </p>
+    </section>
+
+    <section>
+      <h2>What belongs in direct page</h2>
+      <p>
+        Direct-page space is 256 bytes. Give it to frequently used state,
+        counters, flags, and pointers whose lifetime and ownership are clear.
+        Cold data and one-time setup state can remain in extended-addressed
+        memory. Direct-page placement is a shared resource: document each
+        variable and avoid overlapping live values.
+      </p>
+    </section>
+
+    <section>
+      <h2>Ladybug runtime example</h2>
+      <p>
+        Ladybug uses separate startup phases. <code>src/gmc_bootstrap.s</code>
+        sets <code>DP=$02</code> for bootstrap scratch. The game entry in
+        <code>src/main.s</code> then sets <code>DP=$00</code> before entering
+        normal runtime work; runtime variables such as <code>LAST_FRAME</code>
+        occupy that page. Normal runtime code and its IRQ handler share
+        <code>DP=$00</code>. Do not treat the loader's value as the game's
+        runtime convention.
+      </p>
+      <p>
+        The CPU value and each module's assembler directive must agree at the
+        point of use. See the <a href="../coco3/memory-map.html">CoCo 3
+        memory map</a> for the low-RAM mapping context.
       </p>
     </section>
 
     <section>
       <h2>Pitfalls</h2>
       <ul>
-        <li>
-          <strong>Changing DP mid-program</strong> invalidates every prior
-          direct-mode encoding. Don't. Set DP once and treat it as constant.
-        </li>
-        <li>
-          <strong>The assembler doesn't enforce DP.</strong> If you
-          <code>setdp $02</code> but never <code>tfr a,dp</code> at runtime,
-          your direct-mode operands will resolve against whatever DP the
-          BASIC ROM or cartridge handshake left behind.
-        </li>
-        <li>
-          <strong>Interrupts inherit DP.</strong> If your main code runs
-          with one DP and an IRQ handler assumes another, the handler's
-          direct-mode operands will resolve to the wrong page. On a
-          single-DP project this is a non-issue; if you ever need
-          per-context DP, save/restore in the IRQ prologue.
-        </li>
+        <li><strong>Assembler state is not CPU state.</strong> <code>SETDP</code> guides encoding; <code>TFR A,DP</code> changes the live register.</li>
+        <li><strong>Direct mode uses the active page.</strong> A mismatched <code>DP</code> can direct reads and writes to the wrong variables.</li>
+        <li><strong>Interrupts inherit the runtime context.</strong> An IRQ routine using direct operands must see the page expected by those operands.</li>
+        <li><strong>Changing DP needs a boundary.</strong> Save, change, and restore it if code contexts genuinely require different pages.</li>
       </ul>
     </section>
 
@@ -121,7 +126,10 @@
       <p>
         Reference: Tepolt, <em>Assembly Language Programming for the Color
         Computer</em> ch. 4 (Addressing Modes); Motorola
-        <em>MC6809E HMOS 8-Bit Microprocessor</em> data sheet §3.
+        <em>MC6809E HMOS 8-Bit Microprocessor</em> data sheet §3. Project
+        example checked against <code>src/main.s</code> and
+        <code>src/gmc_bootstrap.s</code> at revision
+        <code>6c26a7e651256e4fe206b73ecfaf88ecec38c4a3</code>.
       </p>
     </footer>
   </main>

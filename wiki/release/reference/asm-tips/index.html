@@ -15,10 +15,10 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Reference · assembly tips</p>
-      <h1>Assembly Programming Tips</h1>
+      <h1>Assembly Programming Tips <span class="wiki-badge">release</span></h1>
       <p class="wiki-meta">
-        Practical 6809 / CoCo 3 assembly idioms — direct-page conventions,
-        register allocation, addressing patterns, timing-critical code.
+        Practical 6809 and CoCo 3 assembly idioms, grounded in direct-page
+        setup, register contracts, indexed data, code reuse, and measured loops.
       </p>
     </header>
 
@@ -27,21 +27,33 @@
       <ul class="wiki-cards">
         <li>
           <a href="./dp-conventions.html">DP conventions</a>
-          <p class="card-meta">When and how to use direct-page addressing for hot variables.</p>
+          <p class="card-meta">Direct-page addressing, assembler assumptions, and the Ladybug runtime page.</p>
+        </li>
+        <li>
+          <a href="./register-allocation.html">Register allocation</a>
+          <p class="card-meta">Choose register roles and define routine inputs, outputs, and clobbers.</p>
+        </li>
+        <li>
+          <a href="./indexed-addressing.html">Indexed addressing and tables</a>
+          <p class="card-meta">Walk records and immutable data with offsets, auto-increment, and PC-relative bases.</p>
+        </li>
+        <li>
+          <a href="./shared-routines.html">Shared routines and lookup data</a>
+          <p class="card-meta">Reuse common drawing code and compact data while accounting for dispatch cost.</p>
+        </li>
+        <li>
+          <a href="./hot-loops.html">Hot loops and code size</a>
+          <p class="card-meta">Compare counted loops, invariant setup, and fixed-size unrolling.</p>
         </li>
       </ul>
-      <p class="wiki-meta">
-        Additional pages (register allocation, addressing patterns,
-        timing-critical code) scheduled for a future expansion.
-      </p>
     </section>
 
     <footer class="wiki-footer">
       <p>
-        Source material:
-        Tepolt, <em>Assembly Language Programming for the Color Computer</em>
-        and <em>… for the CoCo3</em> (Spectral Associates); Motorola
-        <em>MC6809E HMOS 8-Bit Microprocessor</em> data sheet.
+        Source material: Tepolt's Color Computer and CoCo 3 assembly books
+        (Spectral Associates);
+        Motorola <em>MC6809E HMOS 8-Bit Microprocessor</em> data sheet.
+        Ladybug examples identify the source revision used for review.
       </p>
     </footer>
   </main>

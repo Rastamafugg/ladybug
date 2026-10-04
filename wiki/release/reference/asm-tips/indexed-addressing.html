@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Indexed addressing and tables — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · addressing</p>
+      <h1>Indexed addressing and tables <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">Use base registers and explicit strides to traverse data without rebuilding each address.</p>
+    </header>
+
+    <section>
+      <h2>Choose an addressing form for the data shape</h2>
+      <p>
+        Indexed addressing combines a base register with an offset or an
+        update. Use a fixed displacement when a field is at a known offset,
+        auto-increment when consuming a stream, and a scaled index when
+        selecting a fixed-size table record. <code>LEA</code> instructions
+        update a pointer without loading a value from the destination.
+      </p>
+      <ul>
+        <li><code>,X+</code> advances an 8-bit cursor by one after the access.</li>
+        <li><code>,X++</code> advances a 16-bit cursor by two.</li>
+        <li><code>offset,X</code> addresses a field relative to a record base without losing that base.</li>
+        <li><code>LEAY table,PCR</code> forms a position-relative pointer to nearby code or immutable data.</li>
+      </ul>
+      <p>
+        The <a href="../6809/leax.html">LEAX</a>,
+        <a href="../6809/leay.html">LEAY</a>, and
+        <a href="../6809/lda.html">LDA</a> pages list indexed forms and their
+        encoding costs.
+      </p>
+    </section>
+
+    <section>
+      <h2>Walk sequential data with auto-increment</h2>
+<pre><code>; Y points at a mask row; X points at its framebuffer output.
+        lda     ,y+
+        sta     HUD_BYTE
+        ; expand the mask byte through the selected colour table
+        ldd     ,y++
+        std     ,x++
+</code></pre>
+      <p>
+        A post-increment load or store combines a memory access with pointer
+        movement. It is useful for packed streams and fixed-width data. Keep
+        track of the element width: byte operations advance one byte and word
+        operations advance two. If a value must be reread, retain a second
+        base or use a fixed offset rather than undoing the cursor by guesswork.
+      </p>
+      <p>
+        Ladybug's shared mask and fast-blit routines use <code>,Y+</code> and
+        <code>,Y++</code> while consuming generated mask or graphic data. The
+        same code uses <code>LEAY D,Y</code> to reach a glyph whose offset is
+        computed from its compact mask index.
+      </p>
+    </section>
+
+    <section>
+      <h2>Select fixed-size records</h2>
+      <p>
+        For records with a constant stride, multiply the logical index by the
+        record size, then add the result to the table base. Keep the record
+        length and field offsets beside the table definition so producers and
+        consumers use the same layout. Check the index before forming the
+        address; pointer arithmetic does not enforce table bounds.
+      </p>
+<pre><code>; Ladybug dynamic descriptors use two bytes per entry.
+dynamic_dispatch
+        clra
+        lslb                    ; B becomes the low byte of index * 2
+        rola                    ; carry supplies the high byte of D
+        leax    dynamic_descriptors,pcr
+        leax    d,x
+        ldb     1,x             ; read the descriptor type
+</code></pre>
+      <p>
+        This is the descriptor-address calculation in
+        <code>src/shared_text_runtime.inc</code>. The caller supplies a valid
+        descriptor index; table extent and index limits are part of that
+        interface.
+      </p>
+    </section>
+
+    <section>
+      <h2>PC-relative pointers and CoCo 3 mapping</h2>
+      <p>
+        PC-relative addressing is useful for data assembled near its code,
+        such as local tables. It does not make a banked target permanently
+        visible. On the CoCo 3, a pointer into a mapped page is valid only
+        while the relevant PAR exposes that page at the pointer's CPU
+        address. A routine that changes mappings must define which pointers
+        remain valid and restore or hand off the mapping before returning.
+        See the <a href="../coco3/memory-map.html">CoCo 3 memory map</a>.
+      </p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Project examples checked at revision <code>6c26a7e651256e4fe206b73ecfaf88ecec38c4a3</code>: <code>src/shared_text_runtime.inc</code>, <code>dynamic_dispatch</code> and <code>shared_mask</code>; <code>src/enemy_runtime.s</code>, indexed sprite streams. General instruction details follow the Motorola 6809 reference.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
