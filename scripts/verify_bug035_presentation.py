@@ -423,6 +423,22 @@ def legacy_main():
     print("BUG-035 pixel/runtime checks passed")
 
 
+def run_current_instructions_static(output, adapter):
+    manifest = json.loads((BUILD / "ladybug-presentation.json").read_text())
+    index = next(i for i, row in enumerate(manifest["maps"]) if row["name"] == "instructions")
+    expected = "93514112a0e12e632a891a1cc04495764c229863bd22769041ee97aea4d4aaf9"
+    if manifest["shared_static_frame_sha256"][index] != expected:
+        raise AssertionError("BUG064 authored static layout differs; dependent palette repairs use their own selectors")
+    if output.exists():
+        raise SystemExit("fresh output path required")
+    command = [sys.executable, str(adapter.resolve()), "--worktree", str(ROOT),
+        "--rom-sha256", digest((BUILD / "ladybug.rom").read_bytes()),
+        "--instructions-static", "--output", str(output.resolve())]
+    subprocess.run(command, cwd=ROOT, check=True, timeout=100)
+    if json.loads(output.read_text()).get("status") != "PASS":
+        raise AssertionError("current instructions publication did not pass")
+
+
 def run_current_parts(output, adapter):
     output = output.resolve()
     if output.exists():
@@ -460,6 +476,14 @@ def run_current_parts(output, adapter):
 
 def main():
     arguments = sys.argv[1:]
+    if "--current-instructions-static" in arguments:
+        parser = argparse.ArgumentParser(description="BUG064 current natural static instructions publication")
+        parser.add_argument("--current-instructions-static", action="store_true")
+        parser.add_argument("--adapter", type=Path, required=True)
+        parser.add_argument("--output", type=Path, required=True)
+        args = parser.parse_args(arguments)
+        run_current_instructions_static(args.output, args.adapter)
+        return
     if "--current-parts" in arguments:
         parser = argparse.ArgumentParser(description="Current BUG-061 credited GDB checks")
         parser.add_argument("--current-parts",action="store_true")
