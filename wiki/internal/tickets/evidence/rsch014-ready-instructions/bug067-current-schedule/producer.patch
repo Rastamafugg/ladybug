@@ -1,0 +1,22 @@
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -1204,7 +1204,7 @@
+     event_table = bytearray()
+     event_manifest = []
+     target_colour_streams = []
+-    row_time_offsets = (0, 90, 180)
++    row_time_offsets = (0, 0, 0)
+     reference_consumes = []
+     instruction_colour_dwell = 32
+     for index, (source, (target, hud), stop) in enumerate(
+@@ -1219,10 +1219,6 @@
+         trigger_colour = 2 if index < 5 else 1 if index < 12 else 3
+         if index in (0, 5, 12, 13, 14):
+             earliest = motion
+-            if index == 5:
+-                earliest = reference_consumes[4] + 90
+-            elif index == 12:
+-                earliest = reference_consumes[11] + 90
+             while not (
+                 motion >= earliest
+                 and ((motion - 1) % 90) // 30 + 1 == trigger_colour
