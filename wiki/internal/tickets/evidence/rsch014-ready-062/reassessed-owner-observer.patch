@@ -181,7 +181,7 @@
 +  except Exception as error:key_error.append(repr(error))
 + starter=threading.Thread(target=press_enter_after_breakpoint,daemon=True);starter.start()
 + wait_condition='(*(unsigned char*)0x7f & 0x40)==0'
-+ result=gdb([f'break *0x{wait_address:x}',f'condition 1 {wait_condition}','continue','printf "WAIT_STAGE_PC=0x%04x\n", $pc','delete breakpoints','dump binary memory '+str(O/'wait-stage-state.bin')+' 0 0x300','dump binary memory '+str(O/'wait-stage-resident.bin')+' 0xc000 0xfe00',*owner_capture_commands('wait-stage')])
++ result=gdb([f'break *0x{wait_address:x}',f'condition 1 {wait_condition}','continue','printf "WAIT_STAGE_PC=0x%04x\\n", $pc','delete breakpoints','dump binary memory '+str(O/'wait-stage-state.bin')+' 0 0x300','dump binary memory '+str(O/'wait-stage-resident.bin')+' 0xc000 0xfe00',*owner_capture_commands('wait-stage')])
 + starter.join(timeout=3);check('real Enter delivered while first-stage breakpoint is armed',not starter.is_alive() and not key_error)
 + wait_live=(O/'wait-stage-resident.bin').read_bytes();wait_state_bytes=(O/'wait-stage-state.bin').read_bytes()
 + wait_pc=re.search(r'WAIT_STAGE_PC=0x([0-9a-f]+)',result,re.I)
