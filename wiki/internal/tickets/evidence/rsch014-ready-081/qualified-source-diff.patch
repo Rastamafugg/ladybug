@@ -1,0 +1,365 @@
+diff --git a/scripts/source_reference.json b/scripts/source_reference.json
+index a80868d..e14a19c 100644
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -2154,6 +2154,7 @@
+         "PRESENTATION_HOLD_BEGIN",
+         "PRESENTATION_HOLD_TICK",
+         "PRESENTATION_MODULE_DRAW",
++        "PRES_MAIN_PAGE23_RESUME",
+         "PRES_MAIN_DEATH",
+         "PRES_MAIN_ENEMY",
+         "PRES_MAIN_ENTITIES",
+@@ -3553,6 +3554,27 @@
+           "purpose": "Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.",
+           "reasons": [],
+           "semantic_id": "routines.html#routine-highscore-helper-menu-updated"
++        },
++        {
++          "name": "stage_player_score",
++          "profile": "presentation",
++          "purpose": "Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.",
++          "reasons": []
++        },
++        {
++          "name": "logo_vbord_clock",
++          "profile": "presentation",
++          "purpose": "Advance the shared attract and high-score logo phase from an IRQ-atomic VBLANK sample.",
++          "inputs": "FRAMES, PRES_SCREEN, the reserved three-byte clock at $A8FD-$A8FF, and the caller's PAR4 mapping.",
++          "outputs": "A 0/1 logo phase; the clock advances once per complete 31-frame interval and is reinitialized when the screen token changes.",
++          "clobbers": "A, B, D, U, X; condition codes and PAR4 are restored.",
++          "reads": "IRQ-owned u16 FRAMES at $0002, PRES_SCREEN, the caller's PAR4, and clock state through PAR4 page $34.",
++          "writes": "The reserved clock state through PAR4 page $34 and $D2-$D3 owner-cache invalidation on a screen change.",
++          "side_effects": "Masks IRQ while sampling FRAMES; temporarily maps PAR4 to page $34 and restores it before return.",
++          "invariants": "Never writes PRES_TIMER; restores caller PAR4 and CC; uses only the reserved $A8FD-$A8FF state and existing helper owner.",
++          "reasons": [
++            "called"
++          ]
+         }
+       ],
+       "label_classifications": [
+@@ -3870,6 +3892,21 @@
+         {
+           "name": "stage_selected",
+           "purpose": "FEAT-005 local branch boundary: stage selected."
++        },
++        {
++          "name": "stage_score_row_done",
++          "routine": "stage_player_score",
++          "purpose": "Level-start hidden score-hydration control boundary."
++        },
++        {
++          "name": "stage_player_score_pair",
++          "routine": "stage_player_score",
++          "purpose": "Level-start hidden score-hydration control boundary."
++        },
++        {
++          "name": "stage_player_score_actual",
++          "routine": "stage_player_score",
++          "purpose": "Level-start hidden score-hydration control boundary."
+         }
+       ],
+       "defines": {
+diff --git a/scripts/verify_bug035_presentation.py b/scripts/verify_bug035_presentation.py
+index 32fe569..932daab 100644
+--- a/scripts/verify_bug035_presentation.py
++++ b/scripts/verify_bug035_presentation.py
+@@ -458,8 +458,51 @@ def run_current_parts(output, adapter):
+         (output / "summary.json").write_text(json.dumps(receipt,indent=2)+"\n")
+ 
+ 
++def run_current_scores(output, adapter):
++    output = output.resolve()
++    adapter = adapter.resolve()
++    if output.exists() or not adapter.is_file():
++        raise SystemExit("fresh output path and existing shared adapter required")
++    output.mkdir(parents=True)
++    rom_hash = digest((BUILD / "ladybug.rom").read_bytes())
++    receipt = {"status":"RUNNING","rom_sha256":rom_hash,
++        "adapter_sha256":digest(adapter.read_bytes()),"scenarios":[]}
++    try:
++        for name, flag, part, score in (
++            ("fresh-zero","--level-part",1,"095000"),
++            ("next-095000","--next-part",1,"095000"),
++            ("next-120045","--next-part",99,"120045"),
++            ("next-999999","--next-part",199,"999999")):
++            target=output/(name+".json")
++            command=[sys.executable,str(adapter),"--worktree",str(ROOT),
++                "--rom-sha256",rom_hash,"--output",str(target),flag,str(part),
++                "--stage-score",score]
++            print("BUG-069 "+name,flush=True)
++            subprocess.run(command,cwd=ROOT,check=True,timeout=150)
++            proof=json.loads(target.read_text())
++            if proof.get("status")!="PASS":
++                raise AssertionError("score scenario failed: "+name)
++            receipt["scenarios"].append({"name":name,"status":"PASS",
++                "receipt_sha256":digest(target.read_bytes())})
++        receipt["status"]="PASS"
++    except Exception as error:
++        receipt["status"]="FAIL"
++        receipt["failure"]=str(error)
++        raise
++    finally:
++        (output/"summary.json").write_text(json.dumps(receipt,indent=2)+"\n")
++
++
+ def main():
+     arguments = sys.argv[1:]
++    if "--current-scores" in arguments:
++        parser=argparse.ArgumentParser(description="Current BUG069 visible hydration checks")
++        parser.add_argument("--current-scores",action="store_true")
++        parser.add_argument("--adapter",type=Path,required=True)
++        parser.add_argument("--output",type=Path,required=True)
++        args=parser.parse_args(arguments)
++        run_current_scores(args.output,args.adapter)
++        return
+     if "--current-parts" in arguments:
+         parser = argparse.ArgumentParser(description="Current BUG-061 credited GDB checks")
+         parser.add_argument("--current-parts",action="store_true")
+diff --git a/src/demo_runtime.s b/src/demo_runtime.s
+index 326da6a..e1a00aa 100644
+--- a/src/demo_runtime.s
++++ b/src/demo_runtime.s
+@@ -6,6 +6,7 @@
+ ; DOC-002 source-contract mirror contract credit_panel_slice profile=presentation: Credit panel slice.
+ ; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Highscore commit name.
+ ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.
++; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.
+ ; DOC-002 source-contract mirror contract stage_panel_char profile=presentation: Stage panel char.
+ ; DOC-002 source-contract mirror contract stage_panel_text profile=presentation: Stage panel text.
+ ; DOC-002 source-contract mirror contract stage_select profile=presentation: Stage select.
+diff --git a/src/perimeter_reset_helper.s b/src/perimeter_reset_helper.s
+index ab76a17..67eb8b0 100644
+--- a/src/perimeter_reset_helper.s
++++ b/src/perimeter_reset_helper.s
+@@ -210,7 +210,7 @@ pao_phase_ready
+         ldx     #$BE28
+         ldu     a,x
+         ldx     #$BE00
+-        lda     #20
++        lda     #8              ; four logical decorative actors, two records each
+         sta     PRES_REMAIN
+ pao_actor
+         ldd     ,x
+diff --git a/src/presentation_runtime.s b/src/presentation_runtime.s
+index 9490137..cf0f2c2 100644
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -77,6 +77,7 @@ PRESENTATION_MODULE_DRAW equ $0821
+ PRESENTATION_HOLD_BEGIN equ $06C5
+ PRESENTATION_HOLD_TICK equ $06C7
+ PRESENTATION_ATTRACT_OVERLAY equ $06C9
++PRES_MAIN_HIGHSCORE_PHASE_ENTRY equ $AC40
+ INSTRUCTION_RUNTIME_TICK equ $0300
+ DEMO_RUNTIME_TICK equ $0300
+ AUDIO_INIT_EXEC equ $0303
+@@ -636,6 +637,11 @@ load_done_normal
+ load_timer_reset
+         clr     PRES_TIMER
+         clr     PRES_TIMER+1
++        ifne    ATTRACT_OVERLAY_ENABLED
++        ; Startup leaves page-$34 scratch untouched. Invalidate the BUG-081
++        ; clock tag after PAR5 was restored to $34, before the logo can tick.
++        clr     $A8FF
++        endc
+         ifne    HIGHSCORE_TEST_PROFILE
+         clr     PRES_NAME_TIMER_PHASE
+         clr     PRES_NAME_TIMER_BOX
+@@ -747,10 +753,14 @@ attract_tick
+ attract_tick_prepare
+ attract_tick_ready
+         bsr     timer
+-        ldd     PRES_TIMER
+         cmpd    #558
+         bhs     attract_next
+         ifne    ATTRACT_OVERLAY_ENABLED
++        ldd     #PRES_MAIN_HIGHSCORE_PHASE_ENTRY
++        std     PRES_NAME_PTR
++        jsr     PRES_MAIN_PAGE23_RESUME
++        lda     #$34
++        sta     PAR5
+         jsr     PRESENTATION_ATTRACT_OVERLAY
+         endc
+         bra     hold
+diff --git a/src/shared_text_stage.inc b/src/shared_text_stage.inc
+index e67a162..00289a8 100644
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -10,6 +10,7 @@
+ ; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
+ ; DOC-002 source-contract mirror profile presentation Invariants: Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned
+ ; DOC-002 source-contract mirror contract demo_runtime_tick profile=presentation: Advance the deterministic release-demo route at eligible semantic cells.
++; DOC-002 source-contract mirror contract logo_vbord_clock profile=presentation: Advance the attract and high-score logo phase by elapsed Vbord samples without changing the shared presentation timer.
+ ; DOC-002 source-contract mirror ends.
+         pragma  nodollarlocal,6809
+         setdp   $00
+@@ -108,6 +109,11 @@ SND_DATA equ $FF51
+         org     HIGHSCORE_PHASE_HELPER_ADDRESS
+ 
+ highscore_phase_tick
++        ; Attract uses the same page-$23 logo strips; decorative actors remain
++        ; owned by the low-RAM overlay after this resident-gateway call returns.
++        lda     PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_ATTRACT
++        lbeq    highscore_logo_tick
+         lda     PRES_MODE
+         cmpa    #5
+         lbeq    menu_tick
+@@ -165,9 +171,58 @@ highscore_timer_draw
+         ldd     2,x
+         jmp     PRES_MODULE_DRAW_RAW_TILE
+ 
+-; Raw lwasm output concatenates discontinuous ORG regions instead of emitting
+-; their address gap.  Materialize this reserved continuation window so every
+-; absolute helper label retains the same file offset after loading at $AC40.
++; The reserved continuation interval ends at $AD00. This logo clock occupies
++; its existing 89-byte prefix without changing the mapped owner or return path.
++; Raw lwasm concatenates ORG regions, so retain zero padding before the fixed
++; continuation label after the clock.
++; Retain elapsed VBLANK time independently of PRES_TIMER, which also drives
++; high-score text. $A8FD-$A8FF is the reserved three-byte logo-clock slot.
++logo_vbord_clock
++        pshs    cc
++        orcc    #$10
++        lda     PAR4
++        pshs    a
++        lda     #$34
++        sta     PAR4
++        ldd     FRAMES
++        tfr     d,u
++        lda     PRES_SCREEN
++        lsla
++        ora     #$80
++        sta     PRES_NAME_TILE
++        ldx     #$88FD
++        lda     PRES_NAME_TILE
++        eora    2,x
++        anda    #$FE
++        bne     logo_vbord_init
++logo_vbord_advance
++        tfr     u,d
++        subd    ,x
++        cmpd    #31
++        blo     logo_vbord_return
++        ldd     ,x
++        addd    #31
++        std     ,x
++        lda     2,x
++        eora    #1
++        sta     2,x
++        bra     logo_vbord_advance
++logo_vbord_init
++        stu     ,x
++        lda     #$FF
++        sta     $D2
++        sta     $D3
++        lda     PRES_NAME_TILE
++        sta     2,x
++logo_vbord_return
++        ldb     2,x
++        andb    #1
++        puls    a
++        sta     PAR4
++        puls    cc
++        tfr     b,a
++        rts
++
+ highscore_phase_helper_gap
+         rmb     HIGHSCORE_PHASE_HELPER_RESUME-*
+ highscore_after_tile
+@@ -465,6 +520,11 @@ stage_panel_regular_slice
+         lda PRES_SCREEN
+         cmpa #PRESENTATION_MAP_LEVEL_START
+         bne stage_slice_return
++        ldd $AA
++        cmpd #128
++        bne stage_score_row_done
++        lbsr stage_player_score
++stage_score_row_done
+         ldd $AA
+         leay stage_schedule,pcr
+ stage_schedule_find
+@@ -629,6 +689,35 @@ stage_panel_text
+         bne     stage_panel_text
+         rts
+ 
++; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.
++stage_player_score
++        lda #8
++        sta $29
++        ldx #$2A84
++        ldy #$001D
++        ldb #3
++stage_player_score_pair
++        lda ,y+
++        pshs a
++        lda $A7
++        cmpa #2
++        puls a
++        beq stage_player_score_actual
++        clra
++stage_player_score_actual
++        pshs a
++        lsra
++        lsra
++        lsra
++        lsra
++        lbsr stage_panel_char
++        puls a
++        anda #15
++        lbsr stage_panel_char
++        decb
++        bne stage_player_score_pair
++        rts
++
+ ; A=0..44 authored glyph, X=destination, $29=colour; advance X.
+ stage_panel_char
+         pshs a,b,x,y,u
+@@ -700,26 +789,18 @@ ranking_schedule_end
+ 
+ ; BUG-052: redraw only the twelve authored phase-changing logo tiles.
+ highscore_logo_tick
+-        ldd     PRES_TIMER
+-        bne     highscore_logo_clock
+-        lda     #$FF
+-        sta     $D2
+-        sta     $D3
+-highscore_logo_clock
++        lda     PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_ATTRACT
++        beq     highscore_logo_vbord
+         ldd     PRES_TIMER
+         addd    #1
+         std     PRES_TIMER
++highscore_logo_vbord
++        lbsr    logo_vbord_clock
++        sta     PRES_NAME_TIMER_PHASE
+         tst     FB_PENDING
+         bne     highscore_logo_hold
+-        subd    #6
+-        bhs     highscore_logo_phase
+-        clrb
+-highscore_logo_phase
+-        lsrb
+-        lsrb
+-        lsrb
+-        andb    #1
+-        stb     PRES_NAME_TIMER_PHASE
++        ldb     PRES_NAME_TIMER_PHASE
+         ldx     #$D2
+         lda     FB_BACK_ID
+         cmpb    a,x
+@@ -739,6 +820,13 @@ highscore_logo_tile
+         leax    highscore_logo_records,pcr
+         leax    d,x
+         ldy     ,x
++        lda     PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_ATTRACT
++        bne     highscore_logo_record_source
++        tfr     y,d
++        subd    #$1E00
++        tfr     d,y
++highscore_logo_record_source
+         ldd     2,x
+         tst     PRES_NAME_TIMER_PHASE
+         beq     highscore_logo_source

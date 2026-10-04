@@ -1,0 +1,187 @@
+{
+  "status": "REJECTED_FIXED_HELPER_BOUNDARY",
+  "scope": "isolated BUG-081 readiness preparation; no production integration",
+  "qualified_inputs": {
+    "base_commit": "669b15791d34c09c3d7c9c91dc4c98659824a89d",
+    "official_069_patch_sha256": "31CC8796208CEF48F29E172DE6B7C970F24F077E2B6D28077F96D93E336B990A",
+    "final_source_freeze_sha256": "6EFEB410AF9883CCDE3376BB66FC2B186301CF3E0F39673CB0619772FD603FF8",
+    "qualified_source_diff_sha256": "00CEDBF42C9D7698C56B1102F100494E2E26E9134FB07B9F93E65E81F596A2ED",
+    "input_hashes_unchanged_after_attempt": true,
+    "current_root_tmx_matches": 9
+  },
+  "command": "bash scripts/build.sh build",
+  "assembler": {
+    "path": "/usr/local/bin/lwasm",
+    "sha256": "8b1f92a1de6ea8b736085291391ae5a6d7e8c8fd19c98b6827da287a0b3d8cf4",
+    "version": "lwasm from lwtools 4.24"
+  },
+  "build_receipt_state": "building",
+  "build_receipt_revision": "669b15791d34c09c3d7c9c91dc4c98659824a89d",
+  "failure": {
+    "file": "src/shared_text_stage.inc",
+    "line": 227,
+    "diagnostic": "ERROR: Negative reservation sizes make no sense! (-6)",
+    "expression": "rmb HIGHSCORE_PHASE_HELPER_RESUME-*",
+    "fixed_resume": "$AD00",
+    "entry_address": "$AC40",
+    "implied_active_end": "$AD06",
+    "active_bytes_from_entry": 198,
+    "reserved_bytes_from_entry": 192,
+    "overrun_bytes": 6
+  },
+  "early_helper_layout": {
+    "current_entry_source": "highscore_phase_tick at $AC40; compiled runtime map exports PRES_MAIN_HIGHSCORE_PHASE_ENTRY=$AC40",
+    "new_attract_branch_bytes": 8,
+    "encoding": "LDA direct (2) + CMPA immediate (2) + LBEQ (4)",
+    "historical_unqualified_8906_map": {
+      "map_sha256": "6EF7890966B0779030B70E3984DB0BA2B9625192E5D114DDB046E7C5FD48B34C",
+      "highscore_phase_tick": "$AC40",
+      "logo_vbord_clock": "$ACA7",
+      "highscore_phase_helper_gap": "$ACFE",
+      "highscore_after_tile": "$AD00",
+      "continuation": "$AD00",
+      "padding_bytes": 2,
+      "qualification": "historical old-8906 build only; source omitted 061 and exact 069 prefixes, not a current fit measurement"
+    },
+    "arithmetic": "Historical no-branch gap began at ACFE with two padding bytes. The new 8-byte dispatch moves that boundary to AD06, matching the assembler -6 diagnostic."
+  },
+  "qualified_partial_results": {
+    "presentation_module": {
+      "range": "$1900-$1DFF inclusive; end-exclusive $1E00",
+      "used_bytes": 1280,
+      "limit_bytes": 1280,
+      "free_bytes": 0,
+      "result": "pass at hard boundary"
+    },
+    "static_screen_pixels": "9 of 9 generated maps exact; zero pixel differences per build output",
+    "generated_map_ids": {
+      "PRESENTATION_MAP_ATTRACT": 0,
+      "PRESENTATION_MAP_HIGH_SCORE": 3
+    },
+    "reported_before_failure": {
+      "resident": "8150/8192 (42 free)",
+      "assets": "7680/7680 (0 free)",
+      "demo_runtime": "143/938",
+      "high_score_runtime": "899/938",
+      "banked_payload": "696/698 (2 free)",
+      "mapped_payload": "198/220 (22 free)",
+      "audio_engine": "734/920",
+      "page_3D_payload": "6053/8192"
+    },
+    "page23_highscore_helper": "not assembled; no current helper bin/map/listing; combined helper fit unavailable",
+    "low_ram_actor_helper": "current qualified size not reached; do not reuse old 331/334 result",
+    "whole_profile_source_audit": "not completed",
+    "complete_ROM_capacity": "not passed; only intermediate 16KiB runtime ROM produced",
+    "emulator": "not run"
+  },
+  "current_partial_artifacts": [
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-qualified-build\\build\\source-build-receipt.json",
+      "present": true,
+      "bytes": 36758,
+      "sha256": "9F435DD8554B2EB68A2ADECC418BFD4D21B19F1C3D1B3A9CA0510966E4616A33"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-qualified-build\\build\\ladybug.map",
+      "present": true,
+      "bytes": 133369,
+      "sha256": "2CB133E42CE2FE2586EF57BC291BDD41E4D792CE14D37EE736B10799327A836B"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-qualified-build\\build\\ladybug.lst",
+      "present": true,
+      "bytes": 636317,
+      "sha256": "0AB70891B16FD83F722EFB750821361FED427E0DF5C5F44E801695B8228BEEEE"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-qualified-build\\build\\ladybug-presentation-runtime.bin",
+      "present": true,
+      "bytes": 1280,
+      "sha256": "4A6B9FE0719E346985DFC93C5AE21B700928292A1B3FDEA6917FA89C8578B95A"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-qualified-build\\build\\ladybug-presentation-runtime.map",
+      "present": true,
+      "bytes": 72419,
+      "sha256": "2E6B0FD9664A3998BB1BFEA35EFE7F483295E5D56A75EA7C511AFC65EE876632"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-qualified-build\\build\\ladybug-presentation-runtime.lst",
+      "present": true,
+      "bytes": 350261,
+      "sha256": "07D2010109E18044739C4C81CBCB23962D94849838C948876AFA5CDE932D50B7"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-qualified-build\\build\\ladybug_presentation.inc",
+      "present": true,
+      "bytes": 9240,
+      "sha256": "DC1C009C954CBC1FDD18D894C827BCB318A4EA9177443CBEA98AD6C1104A103E"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-qualified-build\\build\\ladybug_highscore_logo.inc",
+      "present": true,
+      "bytes": 288,
+      "sha256": "AFB7CACF9BC1FEA76783E3DAB0005990C1CCAD17ACC784396B3C6C202F2ACA07"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-qualified-build\\build\\ladybug-presentation.json",
+      "present": true,
+      "bytes": 195988,
+      "sha256": "1BCA6F840E2DB11F715C5ECCF8252C9EB6C9153BD9175895EBA471B290361E62"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-qualified-build\\build\\shared-text-verification.json",
+      "present": true,
+      "bytes": 1195,
+      "sha256": "57ED7F74DEE8EE6EF6ABCF54D622FE4295A265ED9E1F993E8B0EEF7757341DA8"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-qualified-build\\build\\ladybug-runtime.rom",
+      "present": true,
+      "bytes": 16384,
+      "sha256": "834FB874C6E4BB470657879B0E7B9E0558A5A1A2BC0BBECE05D83B1ABAD1E2B2"
+    }
+  ],
+  "historical_unqualified_artifacts": [
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-preparation\\build\\source-build-receipt.json",
+      "present": true,
+      "bytes": 53267,
+      "sha256": "57BA024E5AEBDDABABFCCC73670D524F3B85A89EA57FC938AF7E69B338C39D25"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-preparation\\build\\ladybug-highscore-helper.bin",
+      "present": true,
+      "bytes": 3035,
+      "sha256": "1418B8AB9D3BE7DF3A56D5F93B848E4B064646751BE3842C6C84C5BBB0C1FC1C"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-preparation\\build\\ladybug-highscore-helper.map",
+      "present": true,
+      "bytes": 74974,
+      "sha256": "6EF7890966B0779030B70E3984DB0BA2B9625192E5D114DDB046E7C5FD48B34C"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-preparation\\build\\ladybug-highscore-helper.lst",
+      "present": true,
+      "bytes": 336144,
+      "sha256": "776F3840D82BF86FC58B9C8F6E0D99ECDE30CA5A413DB465BDB3F24D302B8F25"
+    },
+    {
+      "path": "E:\\projects\\ladybug\\worktrees\\rsch014-logo-preparation\\build\\ladybug.rom",
+      "present": true,
+      "bytes": 65536,
+      "sha256": "00E2EAE3301029021B0CD6DCA579C1182F73DA46B1D381F524EBDE3CE47FDD70"
+    }
+  ],
+  "missing_runtime_acceptance": [
+    "Natural attract route must enter highscore_logo_tick independently of the high-score menu caller.",
+    "Natural attract and high-score 31-elapsed-Vbord phase holds, including missed foreground samples.",
+    "Both-owner pixel equality and first FRONT acceptance for logo updates.",
+    "Unchanged non-logo cells, decorative actors, and same-Vbord baseline actor cadence.",
+    "Runtime cold initialization for required tags $80/$81/$86/$87, adjacent controls $84/$85/$8A/$8B, and attract/high-score transitions.",
+    "Runtime PAR4/PAR5 restoration and hold/PENDING behavior."
+  ],
+  "next_candidate_not_yet_applied": "Parent-proposed 6-byte register/epilogue rewrite in logo_vbord_clock; save six bytes to reach AD00. No source edit or second build was made after this failed attempt.",
+  "ticket_disposition": "No Ready claim; combined build/fit/source audit failed at fixed AD00 boundary."
+}

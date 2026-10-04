@@ -1,0 +1,189 @@
+{
+  "status": "PASS_STATIC_SOURCE_AND_LOGIC_ONLY",
+  "call_path": [
+    "attract_tick_ready",
+    "PRES_MAIN_HIGHSCORE_PHASE_ENTRY at $AC40 via PRES_MAIN_PAGE23_RESUME",
+    "highscore_phase_tick dispatches attract to highscore_logo_tick",
+    "renderer loops across 12 roots",
+    "return restores PAR5=$34",
+    "PRESENTATION_ATTRACT_OVERLAY retains actor ownership and uses PRES_TIMER; source actor record count is 8"
+  ],
+  "high_score_path": "menu_idle_logo dispatches the same renderer when PRES_SCREEN is the generated high-score map",
+  "screen_tags": {
+    "generated_map_ids_pending_build_confirmation": {
+      "attract": 0,
+      "high_score": 3
+    },
+    "formula": "(PRES_SCREEN << 1) | $80",
+    "comparison": "(expected XOR stored) AND $FE",
+    "vectors": [
+      {
+        "screen_id": 0,
+        "stored_before_clear": "$80",
+        "expected_tag": "$80",
+        "would_false_accept_without_clear": true,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$80"
+      },
+      {
+        "screen_id": 0,
+        "stored_before_clear": "$81",
+        "expected_tag": "$80",
+        "would_false_accept_without_clear": true,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$80"
+      },
+      {
+        "screen_id": 0,
+        "stored_before_clear": "$84",
+        "expected_tag": "$80",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$80"
+      },
+      {
+        "screen_id": 0,
+        "stored_before_clear": "$85",
+        "expected_tag": "$80",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$80"
+      },
+      {
+        "screen_id": 0,
+        "stored_before_clear": "$86",
+        "expected_tag": "$80",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$80"
+      },
+      {
+        "screen_id": 0,
+        "stored_before_clear": "$87",
+        "expected_tag": "$80",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$80"
+      },
+      {
+        "screen_id": 0,
+        "stored_before_clear": "$8A",
+        "expected_tag": "$80",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$80"
+      },
+      {
+        "screen_id": 0,
+        "stored_before_clear": "$8B",
+        "expected_tag": "$80",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$80"
+      },
+      {
+        "screen_id": 3,
+        "stored_before_clear": "$80",
+        "expected_tag": "$86",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$86"
+      },
+      {
+        "screen_id": 3,
+        "stored_before_clear": "$81",
+        "expected_tag": "$86",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$86"
+      },
+      {
+        "screen_id": 3,
+        "stored_before_clear": "$84",
+        "expected_tag": "$86",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$86"
+      },
+      {
+        "screen_id": 3,
+        "stored_before_clear": "$85",
+        "expected_tag": "$86",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$86"
+      },
+      {
+        "screen_id": 3,
+        "stored_before_clear": "$86",
+        "expected_tag": "$86",
+        "would_false_accept_without_clear": true,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$86"
+      },
+      {
+        "screen_id": 3,
+        "stored_before_clear": "$87",
+        "expected_tag": "$86",
+        "would_false_accept_without_clear": true,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$86"
+      },
+      {
+        "screen_id": 3,
+        "stored_before_clear": "$8A",
+        "expected_tag": "$86",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$86"
+      },
+      {
+        "screen_id": 3,
+        "stored_before_clear": "$8B",
+        "expected_tag": "$86",
+        "would_false_accept_without_clear": false,
+        "after_load_clear_forces_init": true,
+        "first_phase_after_init": 0,
+        "stored_tag_after_init": "$86"
+      }
+    ],
+    "screen_transitions": [
+      {
+        "from_screen": 0,
+        "to_screen": 3,
+        "old_tag": "$80",
+        "new_tag": "$86",
+        "reinitialized": true,
+        "first_phase": 0
+      },
+      {
+        "from_screen": 3,
+        "to_screen": 0,
+        "old_tag": "$86",
+        "new_tag": "$80",
+        "reinitialized": true,
+        "first_phase": 0
+      }
+    ]
+  },
+  "limitations": [
+    "Static source/control-flow and logic-vector evidence only; no emulator/runtime acceptance is claimed.",
+    "Required raw collision cases $80/$81/$86/$87 and adjacent invalid controls $84/$85/$8A/$8B were evaluated for both screen IDs.",
+    "Generated map IDs remain to be confirmed from the qualified build output."
+  ]
+}
