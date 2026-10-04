@@ -1,0 +1,328 @@
+diff --git a/scripts/build_presentation.py b/scripts/build_presentation.py
+index db6871f..6e175d2 100644
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -781,6 +781,8 @@ def presentation_pen_map(
+         raw_code: int = -1, highscore_test_profile: bool = False,
+ ) -> tuple[int, int, int, int]:
+     """Apply the established CoCo palette adaptation to authored raw chars."""
++    if role == "instructions" and y == 7 and 1 <= x <= 6:
++        return (BLACK, BLUE, BLUE, BLUE)
+     if role == "high-score" and (x, y) in ((17, 0), (22, 21)):
+         colour = YELLOW if y == 0 else RED
+         return (BLACK, colour, colour, colour)
+@@ -1188,7 +1190,7 @@ def parse_instruction_contract(
+             hud_cells[7 * SCREEN_WIDTH + 1], (1, 7), chars,
+             (BLACK, BLUE, BLUE, BLUE),
+         ), tiles, tile_ids), register_tile(
+-            pack_tile(recolor(rotated[value], (BLACK, WHITE, WHITE, WHITE))),
++            pack_tile(recolor(rotated[value], (BLACK, BLUE, BLUE, BLUE))),
+             tiles, tile_ids,
+         )]
+         for value in (2, 3, 5)
+diff --git a/scripts/shared_text.py b/scripts/shared_text.py
+index 740ed7c..faf2be5 100644
+--- a/scripts/shared_text.py
++++ b/scripts/shared_text.py
+@@ -143,7 +143,7 @@ class SharedText:
+                     descriptors[ident]=(descriptors[ident][0],self.colours['fields'][field])
+         for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values():
+             for ident in ids:
+-                if descriptors[ident][1]:descriptors[ident]=(descriptors[ident][0],self.colours['fields']['instruction_points'])
++                if descriptors[ident][1]:descriptors[ident]=(descriptors[ident][0],self.colours['fields']['instruction_multiplier'])
+         x_descriptors={descriptors[ids[0]] for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values()}
+         if len(x_descriptors)!=1 or next(iter(x_descriptors))[1]!=0:
+             raise ValueError('instruction multiplier x must select one native graphic')
+diff --git a/scripts/verify_bug035_presentation.py b/scripts/verify_bug035_presentation.py
+index 3f96868..f2a1dce 100644
+--- a/scripts/verify_bug035_presentation.py
++++ b/scripts/verify_bug035_presentation.py
+@@ -423,12 +423,19 @@ def legacy_main():
+     print("BUG-035 pixel/runtime checks passed")
+ 
+ 
+-def run_current_instructions_static(output, adapter):
++def run_current_instructions_static(output, adapter, tickets=("064",)):
+     manifest = json.loads((BUILD / "ladybug-presentation.json").read_text())
+     index = next(i for i, row in enumerate(manifest["maps"]) if row["name"] == "instructions")
+-    expected = "93514112a0e12e632a891a1cc04495764c229863bd22769041ee97aea4d4aaf9"
+-    if manifest["shared_static_frame_sha256"][index] != expected:
+-        raise AssertionError("BUG064 authored static layout differs; dependent palette repairs use their own selectors")
++    selected = set(tickets)
++    if "065" in selected:
++        if "064" not in selected:
++            raise SystemExit("BUG065 static selection also requires BUG064 layout")
++        proof = verify_instruction_multiplier_palette_contract()
++        if manifest["shared_static_frame_sha256"][index] != proof["candidate_static_frame_sha256"]:
++            raise AssertionError("BUG065 built instructions frame differs from the exact static candidate")
++    elif "064" in selected:
++        if manifest["shared_static_frame_sha256"][index] != INSTRUCTION_BASELINE_SHA256:
++            raise AssertionError("BUG064 authored static layout differs; dependent palette repairs use their own selectors")
+     if output.exists():
+         raise SystemExit("fresh output path required")
+     command = [sys.executable, str(adapter.resolve()), "--worktree", str(ROOT),
+@@ -439,6 +446,231 @@ def run_current_instructions_static(output, adapter):
+         raise AssertionError("current instructions publication did not pass")
+ 
+ 
++INSTRUCTION_LAYOUT_MASK = [(x, 7) for x in range(1, 7)] + [(34, 13)]
++INSTRUCTION_LAYOUT_MASK_SHA256 = (
++    "806331bf3d6f8b129bc6adfb919d3d0f20410e7c08f2d553ff4e273de508e62e"
++)
++INSTRUCTION_BASELINE_SHA256 = (
++    "93514112a0e12e632a891a1cc04495764c229863bd22769041ee97aea4d4aaf9"
++)
++
++
++def masked_frame_sha256(frame, cells):
++    masked = bytearray(frame)
++    for x, y in cells:
++        for row in range(y * 8, y * 8 + 8):
++            start = row * 160 + x * 4
++            masked[start:start + 4] = bytes(4)
++    return digest(masked)
++
++
++def nonzero_pens(tile):
++    return sorted({pen for value in tile
++                   for pen in (value >> 4, value & 0x0F) if pen})
++
++
++def compile_instruction_probe(palette):
++    path = ROOT / "tiled" / p.MAP_FILES["instructions"]
++    chars = p.load_chars(ROOT / "assets/arcade/chars.json")
++    sprites = json.loads(
++        (ROOT / "assets/arcade/sprites.json").read_text(encoding="ascii")
++    )
++    if isinstance(sprites, dict):
++        sprites = sprites["sprites"]
++    tiles = []
++    tile_ids = {}
++    previous = p.presentation_pen_map
++    try:
++        p.presentation_pen_map = palette
++        mapping, _ = p.compile_map(path, chars, tiles, tile_ids)
++        frame = bytes(p.title_framebuffer(mapping, tiles))
++        contract = p.parse_instruction_contract(
++            path, chars, sprites, tiles, tile_ids
++        )
++    finally:
++        p.presentation_pen_map = previous
++    return path, chars, frame, tiles, contract
++
++
++def verify_instruction_multiplier_palette_contract():
++    candidate_palette = p.presentation_pen_map
++
++    def baseline_palette(role, x, y, source_layer="", raw_code=-1,
++                         highscore_test_profile=False):
++        if role == "instructions" and y == 7 and 1 <= x <= 6:
++            return (p.BLACK, p.GREY, p.GREY, p.GREY)
++        return candidate_palette(
++            role, x, y, source_layer, raw_code, highscore_test_profile
++        )
++
++    path, chars, baseline_frame, baseline_tiles, baseline = (
++        compile_instruction_probe(baseline_palette)
++    )
++    _, _, candidate_frame, candidate_tiles, candidate = (
++        compile_instruction_probe(candidate_palette)
++    )
++    if digest(baseline_frame) != INSTRUCTION_BASELINE_SHA256:
++        raise AssertionError("BUG064 baseline frame changed before BUG065 masking")
++    if masked_frame_sha256(candidate_frame, INSTRUCTION_LAYOUT_MASK) != INSTRUCTION_LAYOUT_MASK_SHA256:
++        raise AssertionError("BUG064 instruction layout changed outside approved palette cells")
++
++    root, cells, sources = p.flatten_map(path)
++    target_cells = [(x, 7) for x in range(1, 7)]
++    for cell in target_cells:
++        index = cell[1] * p.SCREEN_WIDTH + cell[0]
++        gid = cells[index] & p.GID_MASK
++        if sources[index] != "CoCo Side HUD" or not gid:
++            raise AssertionError(f"BUG065 template target {cell} lost its authored HUD cell")
++        if nonzero_pens(runtime.frame_tile(candidate_frame, p.framebuffer_destination(cell))) != [p.BLUE]:
++            raise AssertionError(f"BUG065 template multiplier cell {cell} is not BLUE pen 3")
++        if nonzero_pens(runtime.frame_tile(baseline_frame, p.framebuffer_destination(cell))) != [p.GREY]:
++            raise AssertionError(f"BUG065 baseline multiplier cell {cell} is not GREY pen 7")
++
++    allowed = {
++        row * 160 + x * 4 + byte
++        for x, y in target_cells
++        for row in range(y * 8, y * 8 + 8)
++        for byte in range(4)
++    }
++    changed = [index for index, (before, after) in enumerate(
++        zip(baseline_frame, candidate_frame)
++    ) if before != after]
++    changed_cells = sorted({(index % 160) // 4 for index in changed})
++    if not set(changed) <= allowed or changed_cells != list(range(1, 7)):
++        raise AssertionError(
++            f"BUG065 static delta escaped six legend cells: {len(changed)} bytes, "
++            f"cells={changed_cells}"
++        )
++
++    destinations = [p.framebuffer_destination(cell)
++                    for cell in p.INSTRUCTION_MULTIPLIER_ROOTS]
++    if candidate["multiplier_destinations"] != destinations:
++        raise AssertionError("BUG065 changed authored multiplier destinations")
++    multiplier_pairs = {}
++    for value in (2, 3, 5):
++        before_ids = baseline["multiplier_tile_ids"][str(value)]
++        after_ids = candidate["multiplier_tile_ids"][str(value)]
++        before_pair = [baseline_tiles[tile_id] for tile_id in before_ids]
++        after_pair = [candidate_tiles[tile_id] for tile_id in after_ids]
++        expected_x = p.instruction_char_tile(
++            root, path, cells[7 * p.SCREEN_WIDTH + 1], (1, 7), chars,
++            (p.BLACK, p.BLUE, p.BLUE, p.BLUE),
++        )
++        expected_digit = p.pack_tile(p.recolor(
++            p.rotate_ccw(chars[value]),
++            (p.BLACK, p.BLUE, p.BLUE, p.BLUE),
++        ))
++        baseline_digit = p.pack_tile(p.recolor(
++            p.rotate_ccw(chars[value]),
++            (p.BLACK, p.WHITE, p.WHITE, p.WHITE),
++        ))
++        if before_pair[0] != after_pair[0] or after_pair != [expected_x, expected_digit]:
++            raise AssertionError(f"BUG065 generated X{value} pair is not blue pen 3")
++        if nonzero_pens(baseline_digit) != [p.WHITE] or after_pair[1] == baseline_digit:
++            raise AssertionError(f"BUG065 X{value} numeral did not change from white pen 6")
++        multiplier_pairs[str(value)] = {
++            "baseline_digit_sha256": digest(baseline_digit),
++            "candidate_digit_sha256": digest(after_pair[1]),
++        }
++
++    def tile_payloads(contract, tiles, key):
++        return {
++            name: [tiles[tile_id] for tile_id in ids]
++            for name, ids in contract[key].items()
++        }
++
++    ordinary_value_codes = {
++        "red": (8, 0, 0), "yellow": (3, 0, 0), "blue": (1, 0, 0),
++    }
++    for name, codes in ordinary_value_codes.items():
++        expected_tiles = [p.pack_tile(p.recolor(
++            p.rotate_ccw(chars[code]), (p.BLACK, p.WHITE, p.WHITE, p.WHITE)
++        )) for code in codes]
++        actual_tiles = [candidate_tiles[tile_id]
++                        for tile_id in candidate["value_tile_ids"][name]]
++        if actual_tiles != expected_tiles:
++            raise AssertionError(
++                f"BUG065 changed ordinary {name} 10/100 award value tiles"
++            )
++    if tile_payloads(baseline, baseline_tiles, "value_tile_ids") != tile_payloads(
++        candidate, candidate_tiles, "value_tile_ids"
++    ):
++        raise AssertionError("BUG065 static palette leaked into ordinary award tiles")
++    if tile_payloads(baseline, baseline_tiles, "reward_tile_ids") != tile_payloads(
++        candidate, candidate_tiles, "reward_tile_ids"
++    ):
++        raise AssertionError("BUG065 changed instruction reward tiles")
++    for key in ("event_table", "target_colour_streams",
++                "multiplier_destinations", "value_destination"):
++        if baseline[key] != candidate[key]:
++            raise AssertionError(f"BUG065 changed unrelated instruction data: {key}")
++    event_id_fields = ("hud_tile_id", "hud_tile_2_id")
++    baseline_events = [
++        {key: value for key, value in event.items() if key not in event_id_fields}
++        for event in baseline["events"]
++    ]
++    candidate_events = [
++        {key: value for key, value in event.items() if key not in event_id_fields}
++        for event in candidate["events"]
++    ]
++    if baseline_events != candidate_events:
++        raise AssertionError("BUG065 changed instruction event timing or destinations")
++    for before_event, after_event in zip(baseline["events"], candidate["events"]):
++        for field in event_id_fields:
++            before_id = before_event[field]
++            after_id = after_event[field]
++            if baseline_tiles[before_id] != candidate_tiles[after_id]:
++                raise AssertionError("BUG065 changed an instruction event glyph")
++
++    return {
++        "status": "PASS-STATIC-CANDIDATE",
++        "ticket": "BUG-065",
++        "baseline_static_frame_sha256": digest(baseline_frame),
++        "candidate_static_frame_sha256": digest(candidate_frame),
++        "masked_layout_sha256": masked_frame_sha256(
++            candidate_frame, INSTRUCTION_LAYOUT_MASK
++        ),
++        "changed_packed_frame_bytes": len(changed),
++        "changed_template_cells": changed_cells,
++        "template_pen": p.BLUE,
++        "multiplier_pairs": multiplier_pairs,
++        "ordinary_value_tiles_byte_identical": True,
++        "instruction_reward_tiles_byte_identical": True,
++        "destinations_and_event_schedule_unchanged": True,
++        "runtime_claimed": False,
++    }
++
++
++def run_current_instruction_multipliers_static(output):
++    output = output.resolve()
++    if output.exists():
++        raise SystemExit("fresh output path required")
++    proof = verify_instruction_multiplier_palette_contract()
++    output.parent.mkdir(parents=True, exist_ok=True)
++    output.write_text(json.dumps(proof, indent=2) + "\n", encoding="ascii")
++    print(json.dumps(proof, indent=2))
++
++
++def run_current_instruction_multipliers(output, adapter):
++    output = output.resolve()
++    adapter = adapter.resolve()
++    if output.exists() or not adapter.is_file():
++        raise SystemExit("fresh output path and existing shared adapter required")
++    proof = verify_instruction_multiplier_palette_contract()
++    manifest = json.loads((BUILD / "ladybug-presentation.json").read_text())
++    index = next(i for i, row in enumerate(manifest["maps"])
++                 if row["name"] == "instructions")
++    if manifest["shared_static_frame_sha256"][index] != proof["candidate_static_frame_sha256"]:
++        raise AssertionError("BUG065 built instructions frame differs from the exact static candidate")
++    rom_hash = digest((BUILD / "ladybug.rom").read_bytes())
++    command = [sys.executable, str(adapter), "--worktree", str(ROOT),
++        "--rom-sha256", rom_hash, "--output", str(output),
++        "--instructions-multipliers", "blue"]
++    subprocess.run(command, cwd=ROOT, check=True, timeout=260)
++    if json.loads(output.read_text()).get("status") != "PASS":
++        raise AssertionError("natural instruction multiplier publications did not pass")
++
++
+ def run_current_parts(output, adapter):
+     output = output.resolve()
+     if output.exists():
+@@ -523,6 +755,21 @@ def run_current_trademark(output, adapter):
+ 
+ def main():
+     arguments = sys.argv[1:]
++    if "--current-instruction-multipliers-static" in arguments:
++        parser = argparse.ArgumentParser(description="BUG064/065 current instruction static palette contract")
++        parser.add_argument("--current-instruction-multipliers-static", action="store_true")
++        parser.add_argument("--output", type=Path, required=True)
++        args = parser.parse_args(arguments)
++        run_current_instruction_multipliers_static(args.output)
++        return
++    if "--current-instruction-multipliers" in arguments:
++        parser = argparse.ArgumentParser(description="BUG065 natural multiplier publications")
++        parser.add_argument("--current-instruction-multipliers", action="store_true")
++        parser.add_argument("--adapter", type=Path, required=True)
++        parser.add_argument("--output", type=Path, required=True)
++        args = parser.parse_args(arguments)
++        run_current_instruction_multipliers(args.output, args.adapter)
++        return
+     if "--current-trademark" in arguments:
+         parser=argparse.ArgumentParser(description="Current complete trademark two-route GDB probe")
+         parser.add_argument("--current-trademark",action="store_true")
+@@ -544,8 +791,9 @@ def main():
+         parser.add_argument("--current-instructions-static", action="store_true")
+         parser.add_argument("--adapter", type=Path, required=True)
+         parser.add_argument("--output", type=Path, required=True)
++        parser.add_argument("--tickets", nargs="+", choices=("064", "065"), default=("064",))
+         args = parser.parse_args(arguments)
+-        run_current_instructions_static(args.output, args.adapter)
++        run_current_instructions_static(args.output, args.adapter, args.tickets)
+         return
+     if "--current-parts" in arguments:
+         parser = argparse.ArgumentParser(description="Current BUG-061 credited GDB checks")

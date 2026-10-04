@@ -1,0 +1,20 @@
+{
+  "base_revision": "a18ec76072d16ff2221b58b7e5dacc7385e1a1c8",
+  "build_profile": {"LADYBUG_PROFILE": "complete (default)", "LADYBUG_INPUT": "keyboard (default)", "INPUT_JOYSTICK_emitted": 0, "adaptive_rendering": 1},
+  "executed": [
+    {"command": "scripts/build.sh build", "result": "PASS; complete current-prefix source, fit, shared-text, source-reference and source-documentation audit"},
+    {"command": "python3 scripts/verify_bug035_presentation.py --current-instruction-multipliers-static --output repro/bug065-sharedtext-currentprefix/static-candidate.json", "result": "PASS-STATIC-CANDIDATE; 74 packed bytes in six legend cells, ordinary value/reward bytes and event destinations unchanged"},
+    {"command": "python3 repro/bug065-sharedtext-currentprefix/verify_descriptors.py", "result": "PASS-CURRENT-PREFIX-SHAREDTEXT-DESCRIPTORS; frozen input, build artifact, dispatch and descriptor tuple/mask checks"},
+    {"command": "python3 scripts/verify_shared_text.py --build-dir build", "result": "PASS as invoked by scripts/build.sh; 9/9 static screen streams pixel exact"}
+  ],
+  "prepared_not_executed": {
+    "reason": "Corrected candidate has no runtime result. Parent must complete the Ready execution contract and issue a new exclusive emulator lease.",
+    "wrapper_command": "python3 scripts/verify_bug035_presentation.py --current-instruction-multipliers --adapter wiki/internal/tickets/evidence/rsch014-ready-menu/gdb_menu_probe.py --output repro/bug065-sharedtext-currentprefix/runtime-candidate.json",
+    "exact_wrapper_flag": "--current-instruction-multipliers",
+    "adapter_internal_multiplier_flag": "--instructions-multipliers blue",
+    "adapter_path": "wiki/internal/tickets/evidence/rsch014-ready-menu/gdb_menu_probe.py",
+    "adapter_sha256": "caaabe5bad73f3d1e1be6aee5f2bbbf640dc7d5c43301093f2a43e654838266e",
+    "candidate_rom_sha256": "b784236a33c28930781a21ab8fcf204ff490af4b9a9ab3b135c84ee159027570"
+  },
+  "scope": "Preparation evidence only; no runtime retry, no production commit, no canonical ticket edit, no shared-adapter edit."
+}

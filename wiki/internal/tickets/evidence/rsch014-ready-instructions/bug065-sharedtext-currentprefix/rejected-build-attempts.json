@@ -1,0 +1,19 @@
+{
+  "classification": "historical rejected build attempts; not current-prefix capacity failures",
+  "attempts": [
+    {
+      "attempt": "custom build-output location",
+      "result": "Verifier resolved an artifact from the default build path and failed against the custom output location.",
+      "classification": "harness/path provenance issue; no source-fit result",
+      "current_status": "superseded by one successful default build"
+    },
+    {
+      "attempt": "source edit while a build was active",
+      "result": "The provenance finish check rejected the run because its frozen input hashes no longer matched current source.",
+      "classification": "source/provenance race; no source-fit result",
+      "current_status": "superseded by a 256-input prebuild freeze and successful stable default build"
+    }
+  ],
+  "corrected_current_command": "scripts/build.sh build",
+  "corrected_result": "PASS from frozen revision a18ec76072d16ff2221b58b7e5dacc7385e1a1c8; source inputs and generated assembly hashes match the completed receipt."
+}
