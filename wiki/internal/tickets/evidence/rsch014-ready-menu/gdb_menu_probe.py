@@ -1,7 +1,7 @@
 import ctypes as c,subprocess,time,json,os,hashlib,re,sys
 from pathlib import Path
 import argparse
-p=argparse.ArgumentParser();p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));p.add_argument("--next-part",type=int,choices=range(1,256));p.add_argument('--stage-score',type=str);a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));p.add_argument("--next-part",type=int,choices=range(1,256));p.add_argument('--stage-score',type=str);p.add_argument('--trademark',choices=('baseline','red'));a=p.parse_args()
 if a.stage_score is not None:
  assert len(a.stage_score)==6 and a.stage_score.isdigit(),'six BCD decimal score digits required'
  assert a.level_part or a.next_part,'stage-score requires a level-part or next-part scenario'
@@ -208,6 +208,15 @@ def level_part_probe(value,next_stage=False):
    check('level-start light-green score cell '+str(col),actual==expected)
   report['phases'][-1]['expected_display_score']=expected_score
 
+def trademark_pixels():
+ oracle=json.loads((Path(__file__).resolve().parents[1]/'rsch014-ready-100/current-mark-oracle.json').read_text())
+ frame=front_frame()
+ crop=b''.join(frame[(104+y)*160+120:(104+y)*160+128] for y in range(16))
+ expected=bytes.fromhex(oracle['baseline_crop_hex'] if a.trademark=='baseline' else oracle['target_crop_hex'])
+ check('complete16x16 trademark equals frozen '+a.trademark+' glyph/palette',crop==expected)
+ report['phases'][-1]['trademark_crop_sha256']=hashlib.sha256(crop).hexdigest()
+ report['phases'][-1]['trademark_foreground']={'red':sum((v>>4==1)+(v&15==1) for v in crop),'white':sum((v>>4==6)+(v&15==6) for v in crop)}
+
 def name_controls():
  phase('forced-final-death-natural-name-handoff')
  report['phases'][-1]['forced_state']='Replace five bindings with previously UI-tested W/S/A/D/Space; set packed-BCD SCORE=095000 and DEATH_STATE=4 at ordinary credited gameplay. Natural qualification/phase owner installs and publishes game-over then name entry.'
@@ -250,6 +259,10 @@ try:
  inventory=[(w,n,window_pid(w)) for w,n in windows(root) if 'XRoar' in n]
  report['window_inventory']=inventory;report['launched_pid']=process.pid
  ws=[(w,n) for w,n,pid in inventory if pid==process.pid and visible_window(w)];assert len(ws)==1,('launched visible XRoar host window identity absent or ambiguous',inventory,process.pid);window=ws[0][0]
+ if a.trademark:
+  phase('credit-entry-complete-trademark');key('5');settled(3);stage_helper_identity();trademark_pixels()
+  key('Return');await_state('ordinary credited entry before name-return fixture',lambda q:q['mode']==0 and q['entry']==0 and q['live']==1);active_gameplay_identity()
+  name_controls();trademark_pixels();report['status']='PASS';raise SystemExit(0)
  if a.entry_edges_only:
   entry_edges();phase('ordinary-entry-active-identity');await_state('ordinary credited entry after fixed menu edge',lambda q:q['mode']==0 and q['entry']==0 and q['live']==1);active_gameplay_identity();report['status']='PASS';raise SystemExit(0)
  if a.level_part:
