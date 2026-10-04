@@ -1,8 +1,6 @@
-diff --git a/scripts/verify_feat005_menus.py b/scripts/verify_feat005_menus.py
-index e8c0a1a..c75ce4d 100644
 --- a/scripts/verify_feat005_menus.py
 +++ b/scripts/verify_feat005_menus.py
-@@ -92,13 +92,94 @@ def run_current_menu(output: Path) -> int:
+@@ -92,13 +92,100 @@
      return 2 if failed else 0
  
  
@@ -70,6 +68,12 @@ index e8c0a1a..c75ce4d 100644
 +            receipt['scenarios'].append({'name': name, 'status': 'LAUNCH_OR_TIMEOUT_FAILURE',
 +                                         'accepted': False, 'failure': repr(error),
 +                                         'command': command})
++        if sum(not row.get('accepted', False) for row in receipt['scenarios']) >= 2:
++            receipt['aborted_after_two_rejected_cases'] = True
++            break
++    receipt['planned_scenarios'] = [row[0] for row in scenarios]
++    receipt['missing_scenarios'] = receipt['planned_scenarios'][len(receipt['scenarios']):]
++    failed = failed or bool(receipt['missing_scenarios'])
 +    receipt['status'] = 'FAIL' if failed else 'PASS'
 +    if not output.parent.exists():
 +        output.parent.mkdir(parents=True)

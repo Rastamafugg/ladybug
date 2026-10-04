@@ -1,0 +1,132 @@
+--- a/src/main.s
++++ b/src/main.s
+@@ -1,7 +1,7 @@
+ ; DOC-002 source-contract mirror contract presentation_key_service profile=input: Call the bounded physical key component while preserving the caller bank mapping.
+ ; DOC-002 source-contract mirror contract asset_draw_hud_digit profile=render: Draw one shared-font HUD digit.
+ ; DOC-002 source-contract mirror contract asset_draw_two_digits profile=render: Draw a two-digit HUD value with a leading zero.
+-; DOC-002 source-contract mirror contract asset_draw_life_count profile=render: Draw numeric reserves in the existing marker footprint.
++; DOC-002 source-contract mirror contract life_marker_position profile=render: Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.
+ ; DOC-002 source-contract mirror contract adaptive_install_active profile=copy: Restore the active low-RAM driver from staged page $3D after a presentation overlay retires.
+ ; DOC-002 source-contract mirror contract AD_WORK_EXEC profile=framebuffer: Execute the active logical batch, damage reduction, audio service and BACK publication transaction.
+ ; DOC-002 source-contract mirror contract AD_RESET_EXEC profile=state: Rebase adaptive phase time and clear both damage journals outside active publication.
+@@ -1549,12 +1549,24 @@
+ 
+ draw_lives
+         ifne COMPLETE_PROFILE
+-        lda     LIVES
+-        cmpa    #4
+-        blo     dl_markers
+-        jmp     asset_draw_life_count
+-dl_markers
+-        endc
++        clr     ENTITY_WORK
++dl_marker
++        lda     ENTITY_WORK
++        jsr     life_marker_position
++        lda     ENTITY_WORK
++        cmpa    LIVES
++        bhs     dl_erase
++        bsr     draw_life_marker
++        bra     dl_next
++dl_erase
++        bsr     clear_life_marker
++dl_next
++        inc     ENTITY_WORK
++        lda     ENTITY_WORK
++        cmpa    #12
++        blo     dl_marker
++        rts
++        else
+         clr     ENTITY_WORK
+ dl_marker
+         lda     ENTITY_WORK
+@@ -1576,6 +1588,7 @@
+         cmpa    #3
+         blo     dl_marker
+         rts
++        endc
+ 
+ clear_life_marker
+         lda     HUD_Y
+@@ -1606,6 +1619,22 @@
+         rts
+ 
+ draw_life_marker
++        ifne COMPLETE_PROFILE
++; The authored marker quarters exist only at the bottom-left HUD root.
++; Read those fixed source cells while keeping each requested destination.
++        ldb     screen_map+873
++        bsr     draw_hud_tile
++        inc     HUD_X
++        ldb     screen_map+874
++        bsr     draw_hud_tile
++        dec     HUD_X
++        inc     HUD_Y
++        ldb     screen_map+913
++        bsr     draw_hud_tile
++        inc     HUD_X
++        ldb     screen_map+914
++        bsr     draw_hud_tile
++        else
+         bsr     draw_authored_hud_tile
+         inc     HUD_X
+         bsr     draw_authored_hud_tile
+@@ -1614,6 +1643,7 @@
+         bsr     draw_authored_hud_tile
+         inc     HUD_X
+         bsr     draw_authored_hud_tile
++        endc
+         rts
+ 
+ draw_authored_hud_tile
+--- a/src/shared_text_runtime.inc
++++ b/src/shared_text_runtime.inc
+@@ -1,25 +1,5 @@
+ ; Shared masks and typed graphic/text dispatch. Data is generated from authored assets.
+ 
+-; FEAT-005 numeric reserve display uses the existing three-marker footprint.
+-asset_draw_life_count
+-        lda     #33
+-        sta     HUD_X
+-        lda     #21
+-        sta     HUD_Y
+-        lda     #3
+-        sta     ENTITY_WORK
+-asset_clear_reserves
+-        jsr     clear_life_marker
+-        inc     HUD_X
+-        inc     HUD_X
+-        dec     ENTITY_WORK
+-        bne     asset_clear_reserves
+-        lda     #33
+-        sta     HUD_X
+-        lda     #8
+-        sta     HUD_COLOR
+-        lda     LIVES
+-        bra     asset_draw_two_digits
+ ; Font producer guards the last compact glyph as the blank mask.
+ asset_part_digits
+         pshs    a
+@@ -33,6 +13,22 @@
+         puls    a
+         bra     asset_draw_two_digits
+ 
++; DOC-002 source-contract mirror contract life_marker_position profile=render: Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.
++; A = slot0..11; writes only HUD_X/HUD_Y; no live-state mutation.
++life_marker_position
++        ldb     #21
++dl_position_row
++        cmpa    #3
++        blo     dl_position_column
++        suba    #3
++        subb    #2
++        bra     dl_position_row
++dl_position_column
++        lsla
++        adda    #33
++        sta     HUD_X
++        stb     HUD_Y
++        rts
+ asset_draw_two_digits
+         clrb
+ asset_number_tens
