@@ -1,0 +1,53 @@
+{
+  "status": "WIP_NOT_RUNTIME_READY",
+  "disposition": "Evidence-only handoff. No emulator launch, runtime claim, current-BUG100 build, or Ready claim.",
+  "worktree": "E:/projects/ladybug/worktrees/rsch014-logo-qualified-build",
+  "evidence_commit_parent": "6fefdf9c21180b82fb3e7a7be8dfb90e9eae71ff",
+  "fit_and_audit": {
+    "qualification": "Frozen 061 base 669b15791d34c09c3d7c9c91dc4c98659824a89d + exact approved 069 incremental patch + bounded 081 prototype, pre-current-BUG100 producer prefix; nine current-at-freeze TMX inputs.",
+    "source_freeze": "source-freeze-post-docfix-prebuild.json",
+    "source_freeze_sha256": "6B6C137AA77285628DEA4E0991086E23908B1DFFD509758872611D06F984DD7C",
+    "approved_069_patch_sha256": "31CC8796208CEF48F29E172DE6B7C970F24F077E2B6D28077F96D93E336B990A",
+    "bounded_081_source_patch_sha256": "FD258882C74DD261497CD0E5718A9A44AA86D90CBB0D1C8E171A61449E7E868C",
+    "full_build_audit": "corrected-fit-build-audit-pass.json; build/audit passed before a subsequent semicolon-only source-comment correction.",
+    "post_build_comment_receipt": "post-build-comment-correction.json; comment 89-byte prefix -> 79-byte range; no instruction/operand change; no rebuild per parent instruction.",
+    "artifact_identity": "28 .bin/.rom outputs byte-identical across the pre-metadata and post-metadata full builds; qualified pre-BUG100 ROM SHA256 ECF66EEE91762DFE583225E83778D1FB71E7A2CD0E7106C1611C0B33205448E8 (65,536 bytes).",
+    "capacities": {
+      "page23_helper": "3087 bytes; end B84F, limit B880, 49 free.",
+      "clock": "logo_vbord_clock at ACAF; ACFE..ACFF remain 00 00; fixed continuation AD00.",
+      "presentation_module": "1280/1280 bytes.",
+      "attract_actor_helper": "331/334 bytes; existing eight-actor/PRES_TIMER behavior retained.",
+      "other_tight_regions": "mapped 198/220, banked 696/698, instruction runtime 935/938, resident 8150/8192, assets 7680/7680."
+    },
+    "source_documentation": "pass after metadata-only fix: 14 modules; 307/307 routines and 4,969/4,969 labels. First metadata-audit failure preserved in corrected-fit-first-audit-failure.json.",
+    "current_producer_limit": "The qualified build_presentation.py input is the frozen prior prefix (SHA from source-freeze-post-docfix-prebuild.json), not current root scripts/build_presentation.py SHA E8DB5CF126899EB6FD09601A72C192221C652BF0CE2D3848C3CA2413B6E010DD. Root HEAD is 1802cacd50b32cb1bec55f8ce43b0407b969ef98. Do not attribute this ROM or fit/audit output to current BUG100 producer inputs; parent requires a new freeze/build before current-prefix runtime qualification. Parent-reported current BUG100 producer output is cold payload 14,286 bytes and assets 7,676 bytes; the retained prototype artifacts are cold 14,336 and assets 7,680, confirming they are not current-prefix artifacts."
+  },
+  "observer": {
+    "candidate": "gdb_menu_probe_logo_clock.py",
+    "candidate_sha256": "F9D66BE6A98329C35CF91E704D41478D37C4E96F60A8AECEC7BFED5289FAD1BA",
+    "candidate_ast_parse": "pass; 690 lines; static syntax check only.",
+    "local_adapter_base_sha256": "CAAABE5BAD73F3D1E1BE6AEE5F2BBBF640DC7D5C43301093F2A43E654838266E",
+    "latest_shared_adapter_sha256": "0C813DB5CC780F46DE8D9B154B32768D8DD320BBD410B8739BEA9447E3ECFF47",
+    "wip_patch": "gdb_menu_probe_logo_clock-wip.patch",
+    "wip_patch_sha256": "D1817FFF73F5988179FE7525AFD1599DD8CED79033D859BC6BAE92E6C2947209",
+    "patch_basis": "Generated against the latest shared adapter in the root worktree. Candidate was copied from an earlier worktree adapter; manual integration/review is required. Existing --hud-equals and --instructions-multipliers selectors are present in the candidate.",
+    "known_incomplete": "The candidate reads logo-first-dp.bin, logo-first-clock.bin, and logo-first-helper-live.bin, but its initial cold-reset GDB command does not create those files or capture the first highscore_logo_tick breakpoint. Candidate has not been executed or runtime-validated.",
+    "not_yet_verified": [
+      "natural attract reaches logo renderer independently of menu caller",
+      "first FRONT acceptance and both-owner frame pairs",
+      "actual elapsed 31-VBL dwell and phase cadence, including missed foreground samples",
+      "live page-$23 helper bytes and PAR5 banking at helper breakpoint",
+      "cold-tag cases $80/$81/$86/$87",
+      "key5 natural high-score dispatch, transition, and adjacent menu/name preservation",
+      "runtime PAR4/PAR5 restoration and hold/PENDING behavior"
+    ],
+    "acceptance_boundaries": "Use 40 seconds per named probe phase; timeout means the named state/publication boundary was not observed, not that target code is slow. Do not write FRAMES, clock samples, or phase state to substitute for waiting.",
+    "planned_invocations_not_executed": [
+      "python3 wiki/internal/tickets/evidence/rsch014-ready-081/gdb_menu_probe_logo_clock.py --worktree <current-BUG100-qualified-worktree> --rom-sha256 <frozen-current-ROM-SHA256> --output <unique-output-for-80.json> --logo-clock --logo-clock-cold-tag 80",
+      "python3 wiki/internal/tickets/evidence/rsch014-ready-081/gdb_menu_probe_logo_clock.py --worktree <current-BUG100-qualified-worktree> --rom-sha256 <frozen-current-ROM-SHA256> --output <unique-output-for-81.json> --logo-clock --logo-clock-cold-tag 81",
+      "python3 wiki/internal/tickets/evidence/rsch014-ready-081/gdb_menu_probe_logo_clock.py --worktree <current-BUG100-qualified-worktree> --rom-sha256 <frozen-current-ROM-SHA256> --output <unique-output-for-86.json> --logo-clock --logo-clock-cold-tag 86",
+      "python3 wiki/internal/tickets/evidence/rsch014-ready-081/gdb_menu_probe_logo_clock.py --worktree <current-BUG100-qualified-worktree> --rom-sha256 <frozen-current-ROM-SHA256> --output <unique-output-for-87.json> --logo-clock --logo-clock-cold-tag 87"
+    ],
+    "execution_gate": "Do not execute this WIP as-is. First complete startup captures and review/rebase the selector against latest shared adapter; then freeze current producer inputs. Parent owns port 65522 lease."
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "purpose": "Post-build correction of stale measured code-size comment; no assembler instruction or build input other than comment text changed",
+  "corrected_utc": "2026-10-04T15:11:20Z",
+  "prior_qualifying_freeze": "source-freeze-post-docfix-prebuild.json",
+  "prior_freeze_sha256": "6B6C137AA77285628DEA4E0991086E23908B1DFFD509758872611D06F984DD7C",
+  "prior_full_build_audit": "corrected-fit-build-audit-pass.json",
+  "prior_full_build_audit_sha256": "BAE1751EBB3B548CBEE79DCC0EB323EAD4AE26DF19C26EBEA7E1B0EE1F506F29",
+  "normalized_source_diff": {
+    "path": "wiki/internal/tickets/evidence/rsch014-ready-081/comment-only-clock-span.patch",
+    "sha256": "A0E78142AB63FBAEC4DA8D15C93E9691A67ADDB1C9142A8FCE7B0C9A2D632213",
+    "before_source_sha256": "A2A83A75C7EBE181AC0A71B9FAFF263E580B65230CD3C9E76C9BC9C108202D4E",
+    "after_source_sha256": "1F4177AE87FFEEB172613325177BCD0EB3F9977F28D94F14F479976B6E957A1B",
+    "edit": "89-byte prefix -> 79-byte range",
+    "instruction_or_operand_lines_changed": 0
+  },
+  "unchanged_build_inputs_excluding_comment": true,
+  "changed_files": [
+    "src/shared_text_stage.inc"
+  ],
+  "rebuild": "not run, per parent instruction; change is a semicolon-only source comment",
+  "assembled_code_evidence": {
+    "helper_listing": "build/ladybug-highscore-helper.lst",
+    "clock_range": "ACAF..ACFD inclusive = 79 bytes",
+    "gap": "ACFE..ACFF = 00 00",
+    "continuation": "AD00",
+    "all_28_bin_rom_artifacts_identical_across_prior_full_builds": true,
+    "prior_full_build_assembly_audit_passed": true
+  },
+  "affected_doc_audit": "not rerun; contract mirror and routine anchor are unchanged from the passing full documentation audit"
+}
