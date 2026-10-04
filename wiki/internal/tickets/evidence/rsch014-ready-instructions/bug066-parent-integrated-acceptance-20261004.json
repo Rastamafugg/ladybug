@@ -1,0 +1,154 @@
+{
+  "status": "PASS; Done",
+  "class": "Compact",
+  "source_commit": "240b79d84cddfcf63a4fa197b4544f8209b17e7a",
+  "integration_commit": "7b91d64",
+  "rom_sha256": "95414eceda02c837400516664c7d70f0d27a518856a2a7fe70c2269159c01e7c",
+  "build_receipt_sha256": "a8cbd8ea0a0b67a534edeb1d785de6b01c52f8016d3784e081eef20028524632",
+  "build": "Complete keyboard; 9 shared-text screens pixel exact; 14 modules,306/306 routines,4964/4964 labels; full capacity guards pass",
+  "static": {
+    "status": "PASS",
+    "checks": [
+      {
+        "screen": "attract",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "instructions",
+        "changed_pixels": 14,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "level-start",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "high-score",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "game-over",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "enter-high-score",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "options",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "credits",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      },
+      {
+        "screen": "keybind-options",
+        "changed_pixels": 0,
+        "outside_target_changes": 0
+      }
+    ]
+  },
+  "runtime_receipt_sha256": "750536b4b9abcbcb25db5f784ff2d5f7e5c57d9b977a6c73ac6eae3b69c26252",
+  "runtime_phases": [
+    {
+      "name": "cold-attract-delivery",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "checks": [
+        "live resident equals current runtime artifact",
+        "live presentation marker owner equals current module artifact",
+        "natural prompt row 15 col 13",
+        "natural prompt row 15 col 14",
+        "natural prompt row 15 col 15",
+        "natural prompt row 15 col 16",
+        "natural prompt row 15 col 17",
+        "natural prompt row 15 col 18",
+        "natural prompt row 15 col 19",
+        "natural prompt row 15 col 20",
+        "natural prompt row 15 col 21",
+        "natural prompt row 15 col 22",
+        "natural prompt row 15 col 23",
+        "natural prompt row 15 col 24",
+        "natural prompt row 15 col 25",
+        "natural prompt row 15 col 26",
+        "natural prompt row 15 col 27",
+        "natural prompt row 19 col 13",
+        "natural prompt row 19 col 15",
+        "natural prompt row 19 col 16",
+        "natural prompt row 19 col 17",
+        "natural prompt row 19 col 18",
+        "natural prompt row 19 col 21",
+        "natural prompt row 19 col 23",
+        "natural prompt row 19 col 24",
+        "natural prompt row 19 col 25",
+        "natural prompt row 19 col 26"
+      ],
+      "front_frame_sha256": "b1f2beb820e3ad609cd82b8339ca92e91b7e3394140188537a66007336f5fd46",
+      "elapsed_seconds": 6.635
+    },
+    {
+      "name": "natural-instructions-hidden-hydration",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "checks": [
+        "instruction authored/staged/destination bytes identical",
+        "first instruction boundary is published screen1 with no pending frame",
+        "current cold payload identity",
+        "expected static frame equals manifest",
+        "cucumber authored code equals current generated source",
+        "complete instructions static pixels owner 0",
+        "side-HUD equals independent raw42 mask pen 5",
+        "equals mask has foreground",
+        "adjacent vegetable value digit 35 green5",
+        "adjacent vegetable value digit 36 green5",
+        "adjacent vegetable value digit 37 green5",
+        "adjacent vegetable value digit 38 green5",
+        "complete instructions static pixels owner 1",
+        "side-HUD equals independent raw42 mask pen 5",
+        "equals mask has foreground",
+        "adjacent vegetable value digit 35 green5",
+        "adjacent vegetable value digit 36 green5",
+        "adjacent vegetable value digit 37 green5",
+        "adjacent vegetable value digit 38 green5"
+      ],
+      "expected_hidden_load_overlays": [
+        "boot committed TOP090000 at33..38,row6, red1",
+        "authored cucumber at generated instruction destination"
+      ],
+      "equals_oracle": "Independent rotated raw character42; baseline white6 or target green5; four adjacent nonblank digit cells green5.",
+      "owner_frame_sha256": {
+        "0": "e24fe53204a10cf9c920f369a0b34d14401fab52653a9b4e7014db5b106d7266",
+        "1": "e24fe53204a10cf9c920f369a0b34d14401fab52653a9b4e7014db5b106d7266"
+      },
+      "elapsed_seconds": 13.383
+    }
+  ],
+  "capacity_bytes": {
+    "resident_used": 8150,
+    "resident_limit": 8192,
+    "assets_used": 7676,
+    "assets_limit": 7680,
+    "presentation_used": 1266,
+    "presentation_limit": 1280,
+    "instruction_used": 935,
+    "instruction_limit": 938,
+    "low_helper_used": 331,
+    "low_helper_limit": 334
+  },
+  "headroom_change": "No length or capacity change from integrated BUG100 baseline.",
+  "rejected_experiments": [],
+  "residual_risks": "Unchanged tight capacity. Choreography, multiplier colours, level-start and logo clocks are separate tickets.",
+  "commands": [
+    "bash scripts/build.sh build",
+    "python3 scripts/verify_bug035_presentation.py --current-hud-equals --screen instructions --static-only --baseline-build worktrees/bug-066/repro/equals-baseline --adapter wiki/internal/tickets/evidence/rsch014-ready-menu/gdb_menu_probe.py --output repro/bug066-parent-integrated-static.json",
+    "python3 scripts/verify_bug035_presentation.py --current-hud-equals --screen instructions --mode green --adapter wiki/internal/tickets/evidence/rsch014-ready-menu/gdb_menu_probe.py --output repro/bug066-parent-integrated-equals.json"
+  ]
+}
