@@ -1,0 +1,47 @@
+{
+  "status": "DESIGN-ONLY-EXACT-STATE-EQUIVALENCE",
+  "source_sha256": "da0ab7ce81cc5ad8cd2bfa224408f8aaf93b9092a492147b249f8a2c4034ac07",
+  "pairs": [
+    [
+      "BOX_INDEX",
+      "BOX_PHASE",
+      75,
+      76
+    ],
+    [
+      "ENEMY_ACTIVE",
+      "ENEMY_RELEASED",
+      88,
+      89
+    ],
+    [
+      "FREEZE_TIMER",
+      "FREEZE_TIMER+1",
+      91,
+      92
+    ],
+    [
+      "ENEMY_NEST_DIRTY",
+      "ENEMY_MOVE",
+      96,
+      97
+    ]
+  ],
+  "pattern": "Move paired zero writes to immediately after existing CLRA/CLRB and use existing STD zero-fill pattern. Same eight fields, no new state/module/allocation/target.",
+  "irq_noninterference": "framebuffer_irq_impl only reads framebuffer ownership/pending and updates FRAMES/commit/sim counters; it does not consume these reset fields. Source inspected at root d47c43c.",
+  "opcode_size_projection": "Eight direct CLR (16 bytes) become four direct STD (8 bytes); existing zero-D setup retained. Eight-byte saving pending actual assembler/full build.",
+  "projected_resident_free": {
+    "keyboard": 37,
+    "joystick": 1
+  },
+  "retained_helpers": "E2 helper87-byte and bankedB2 unchanged by this patch.",
+  "guards": [
+    "All paired addresses are contiguous and direct-page.",
+    "Five initial fill patterns produce identical eight-field final memory.",
+    "Same final record-clear loop preserves existing register/flag return convention."
+  ],
+  "limits": [
+    "No candidate source change applied while baseline full builds are running.",
+    "Actual fit/source audit and natural reset/succession evidence remain required."
+  ]
+}

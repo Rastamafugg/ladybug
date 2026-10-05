@@ -1,0 +1,25 @@
+--- a/src/main.s
++++ b/src/main.s
+@@ -4765,13 +4765,5 @@
+         sta     ENEMY_TIMER
+         bsr     reload_enemy_box_timer
+-        clr     BOX_INDEX
+-        clr     BOX_PHASE
+-        clr     ENEMY_ACTIVE
+-        clr     ENEMY_RELEASED
+         clr     VEG_STATE
+-        clr     FREEZE_TIMER
+-        clr     FREEZE_TIMER+1
+-        clr     ENEMY_NEST_DIRTY
+-        clr     ENEMY_MOVE
+         clr     ENEMY_DEATH_LATCH
+         clr     PLAYER_TICK_PENDING
+@@ -4781,4 +4773,8 @@
+         clra
+         clrb
++        std     BOX_INDEX
++        std     ENEMY_ACTIVE
++        std     FREEZE_TIMER
++        std     ENEMY_NEST_DIRTY
+         std     ,x
+         std     2,x
