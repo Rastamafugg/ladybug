@@ -99,10 +99,15 @@ branch=r""" if a.credit_admission_only:
     f'dump binary memory {O}/death-before-entities.bin 0xa380 0xa400',f'dump binary memory {O}/death-before-actors.bin 0xa470 0xa490',f'dump binary memory {O}/death-before-state.bin 0xa89d 0xa8a0','set {unsigned char}0xffa5=$save5']
    gdb(commands);dp0=(O/'death-before-dp.bin').read_bytes();actors=(O/'death-before-actors.bin').read_bytes();state0=(O/'death-before-state.bin').read_bytes()
    check('four release-created actors still active before rare path',dp0[0x58]==4 and state0[0]==4)
-   sys.path.insert(0,str(ROOT/'wiki/internal/tickets/evidence/rsch014-ready-086'));from bug086_skull_fixture import plan
+   sys.path.insert(0,str(base.parent.parent/'rsch014-ready-086'));from bug086_skull_fixture import plan
    maze=json.loads((ROOT/'assets/arcade/maze.json').read_text());entities=(O/'death-before-entities.bin').read_bytes()[:dp0[0x32]*4]
    fixture=plan(maze,entities,actors);report['phases'][-1]['fixture_plan']=fixture
-   commands=['set $save5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x34']
+   commands=[f'break *0x{tick:x}','condition 1 (*(unsigned char*)0 & 1)==0 && *(unsigned short*)0x5b==0 && *(unsigned char*)0x4d==0','continue']+live_pc_guard(tick,resident,0xc000)+[
+    'delete breakpoints',f'dump binary memory {O}/death-atomic-before-dp.bin 0 0x300','set $save5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x34',f'dump binary memory {O}/death-atomic-before-state.bin 0xa89d 0xa8a0']
+   for target in fixture['actors']:
+    slot=target['slot']; entity=target['entity_index']; expected=int(target['record'][:2],16)
+    commands += [f'if *(unsigned char*)0x{0xa470+slot*8:x} != {expected} || *(unsigned char*)0x{0xa380+entity*4+2:x} != 1','echo STALE-FIXTURE-FAIL\\n','quit 1','end']
+   commands += ['if *(unsigned char*)0x58 != 4','echo ACTIVE-PRECONDITION-FAIL\\n','quit 1','end']
    for target in fixture['actors']:
     for off,value in enumerate(bytes.fromhex(target['record'])):commands.append(f'set {{unsigned char}}0x{0xa470+target["slot"]*8+off:x}={value}')
    commands+=['set {unsigned char}0xffa5=$save5']
@@ -111,11 +116,24 @@ branch=r""" if a.credit_admission_only:
    commands += [f'set {{unsigned short}}0xb={fixture["player_pointer"]}',f'break *0x{after:x}','continue']+live_pc_guard(after,active,0x38f)+[
     'delete breakpoints',f'dump binary memory {O}/death-after-dp.bin 0 0x300','set $save5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x34',
     f'dump binary memory {O}/death-after-entities.bin 0xa380 0xa400',f'dump binary memory {O}/death-after-actors.bin 0xa470 0xa490',f'dump binary memory {O}/death-after-state.bin 0xa89d 0xa8a0','set {unsigned char}0xffa5=$save5']
-   gdb(commands);dp1=(O/'death-after-dp.bin').read_bytes();records=(O/'death-after-actors.bin').read_bytes();state1=(O/'death-after-state.bin').read_bytes();ent1=(O/'death-after-entities.bin').read_bytes()
+   gdb(commands);dp0=(O/'death-atomic-before-dp.bin').read_bytes();state0=(O/'death-atomic-before-state.bin').read_bytes();dp1=(O/'death-after-dp.bin').read_bytes();records=(O/'death-after-actors.bin').read_bytes();state1=(O/'death-after-state.bin').read_bytes();ent1=(O/'death-after-entities.bin').read_bytes()
    check('both selected skulls consumed by actual enemy tick',all(ent1[t['entity_index']*4+2]==0 for t in fixture['actors']))
    check('both actors die and latest type4 becomes pending',records[16]==records[24]==0 and dp1[0x58]==2 and state1[1]==3)
    check('normal cursor and all deadline fields unchanged by death',state1[0]==state0[0] and dp1[0x4a:0x4d]==dp0[0x4a:0x4d])
    report['phases'][-1]['before_after']={'state_before':state0.hex(),'state_after':state1.hex(),'deadline_before':list(dp0[0x4a:0x4d]),'deadline_after':list(dp1[0x4a:0x4d])}
+   phase('latest-replacement-then-normal-succession-on-due-timers')
+   report['phases'][-1]['fixture']='At guarded perimeter_timer_tick set only due BOX_TIMER1/BOX_INDEX91. No actor type, pending, cursor, phase, PC or frame-clock writes.'
+   results=[]
+   for seq,(kind,slot,cursor,active_count) in enumerate(((3,2,4,3),(0,3,5,4))):
+    timer=main['perimeter_timer_tick'];release=em['enemy_release_impl']
+    commands=[f'break *0x{timer:x}','continue']+live_pc_guard(timer,resident,0xc000)+['delete breakpoints',f'dump binary memory {O}/replacement-{seq}-before-dp.bin 0 0x300','set {unsigned char}0x4a=1','set {unsigned char}0x4b=91',f'break *0x{release:x}','continue']+live_pc_guard(release,enemy,0x800)+['delete breakpoints',f'break *0x{am["atb_after_timers"]:x}','continue']+live_pc_guard(am['atb_after_timers'],active,0x38f)+['delete breakpoints',f'dump binary memory {O}/replacement-{seq}-after-dp.bin 0 0x300','set $save5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x34',f'dump binary memory {O}/replacement-{seq}-records.bin 0xa470 0xa490',f'dump binary memory {O}/replacement-{seq}-state.bin 0xa89d 0xa8a0','set {unsigned char}0xffa5=$save5']
+    gdb(commands);before=(O/f'replacement-{seq}-before-dp.bin').read_bytes();dp=(O/f'replacement-{seq}-after-dp.bin').read_bytes();records=(O/f'replacement-{seq}-records.bin').read_bytes();state=(O/f'replacement-{seq}-state.bin').read_bytes();raw=(kind<<4)|1
+    check('due replacement/normal type in expected reused slot',records[slot*8]==raw)
+    check('replacement preserves cursor then normal successor advances',state[0]==cursor and state[1]==((~raw)&255) and dp[0x58]==active_count)
+    check('replacement timer follows existing rollover',dp[0x4a:0x4d]==bytes((3,0,before[0x4c]^1)))
+    results.append({'type':kind+1,'slot':slot,'state':state.hex(),'deadline':list(dp[0x4a:0x4d])})
+   report['phases'][-1]['results']=results
+
   report['status']='PASS-CURRENT-GROUP-RESET-SELECTOR';report['limits']=['Initial den FRONT pixels and natural owner replay pass; roaming pixels and death/deadline cases remain separate.','Stage/deadline predecessors are disclosed, not earned multi-level play.'];raise SystemExit(0)
 """
 source=source[:start]+branch+source[end:]
