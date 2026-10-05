@@ -1,0 +1,152 @@
+{
+  "ticket": "BUG-067",
+  "report_date": "2026-10-04",
+  "worktree": "E:/projects/ladybug/worktrees/bug-067",
+  "branch": "codex/bug067-instruction-row-entry",
+  "base_commit": "7051bd306eb0d0c69a7199662c45a49f7ccb2d9e",
+  "source_commit": null,
+  "commit_status": "Not committed per parent direction after runtime risk expansion",
+  "push": false,
+  "acceptance": "NOT_ACCEPTED",
+  "qa_verdict": {
+    "status": "NOT_ACCEPTED",
+    "reason": "The full build and static schedule contract pass, and natural row-entry plus all 16 consume boundaries were observed. The 1884 completion marker and natural level-start handoff were not observed; the completion phase timed out at 40 seconds. Static source/listing review also found the candidate reaches death graphic index 15 with only 15 table entries before the angel transition. This expands scope and risk beyond the approved schedule-only contract.",
+    "ticket_done": false,
+    "canonical_ticket_changed": false,
+    "parent_combined_integration": "Not performed; parent owns integration and renewed approval review"
+  },
+  "commands": [
+    "bash scripts/build.sh build",
+    "python3 scripts/verify_bug011_instructions.py --current-row-entry --baseline-manifest repro/bug067-verification/baseline-manifest.json --static-only --output repro/bug067-execution-static.json",
+    "python3 scripts/verify_bug011_instructions.py --current-row-entry --baseline-manifest repro/bug067-verification/baseline-manifest.json --adapter repro/bug067-verification/row-entry-observer.py --output repro/bug067-execution-natural.json"
+  ],
+  "build": {
+    "exit_code": 0,
+    "profile": "complete-keyboard",
+    "source_receipt_state": "complete",
+    "source_receipt_revision": "7051bd306eb0d0c69a7199662c45a49f7ccb2d9e",
+    "source_audit": "PASS: 14 modules, 306/306 routines, 4964/4964 labels",
+    "template_pixels": "PASS: all 9 maps pixel-exact, 0 differences",
+    "sparse_reconstruction": "PASS: 130 enemy and 16 player frames; 10 loader segments; GMC overflow boundary proof passed",
+    "cold_extent_bytes": 14286
+  },
+  "static_contract": {
+    "status": "PASS-STATIC",
+    "units": "generated schedule ticks, not arcade display frames",
+    "events_checked": 16,
+    "first_motion_target_and_result": [129, 577, 1217],
+    "later_row_motion_gap_target_and_result": [47, 47],
+    "first_consume_gap_target_and_result": [70, 70],
+    "next_screen_target_and_result": 1884,
+    "row1_preserved": true,
+    "legal_32_tick_colour_edges": "PASS",
+    "event_order_and_all_non_timing_fields_unchanged": "PASS",
+    "baseline_manifest_sha256": "6d5b07bb8e9155804302f9a1a28b77602d02b80d4893bc3853a845072ac76257",
+    "candidate_manifest_sha256": "c83d4b6a6c3f8b9c1d9819d7e6266fed5bc463a3edc90a34165eeaffa193cf67"
+  },
+  "natural_runtime": {
+    "status": "FAIL-INCOMPLETE",
+    "phases_recorded": 22,
+    "passed": [
+      "Cold attract to instruction publication and current resident/module identity checks",
+      "Both instruction static framebuffers matched authored output before actor ticks",
+      "Three row first-motion boundaries: before/after timer, actor origin, east graphic, independent visible sprite pixels",
+      "All 16 consume boundaries observed in order; legal consume-colour checks passed for the first 15 events"
+    ],
+    "timed_out_phase": "natural-instructions-completion-tick",
+    "phase_deadline_seconds": 40,
+    "phase_elapsed_seconds": 40.02,
+    "last_proven_boundary": {
+      "event": 16,
+      "timer_tick": 1544,
+      "mode": 3,
+      "screen": 1,
+      "pending": 0,
+      "transaction": 0,
+      "front_owner": 1
+    },
+    "completion_tick_1884": "NOT_OBSERVED",
+    "trace_16_consumes_15_death_angel_surfaces": "NOT_OBSERVED",
+    "both_runtime_worklists_trace": "NOT_OBSERVED",
+    "natural_level_start_handoff": "NOT_OBSERVED",
+    "timeout_meaning": "The named completion boundary was not observed within its deadline; this is not evidence of target-code slowdown.",
+    "probe_count": 1,
+    "observation_tool_timeouts": 1,
+    "further_runtime_probe": "Stopped for parent reassessment; no second probe run"
+  },
+  "new_static_risk": {
+    "status": "SOURCE_AND_EMITTED_LISTING_CONFIRMED; LIVE_EFFECT_UNCONFIRMED",
+    "baseline_ticks": {
+      "death_collision": 1736,
+      "angel": 1831,
+      "next_screen": 1896,
+      "death_to_angel": 95,
+      "angel_to_next_screen": 65
+    },
+    "candidate_ticks": {
+      "death_collision": 1544,
+      "angel": 1819,
+      "next_screen": 1884,
+      "death_to_angel": 275,
+      "angel_to_next_screen": 65
+    },
+    "death_table_entries": 15,
+    "valid_indices": "0..14",
+    "runtime_index_rule": "irt_death starts index 1 at death_collision+30 and increments index once per 5 ticks without a pre-angel clamp",
+    "first_out_of_range_index": 15,
+    "first_out_of_range_tick": 1644,
+    "index_at_tick_1818": 49,
+    "pointer_table_offset": 9535,
+    "computed_offset_for_index_15": 9565,
+    "first_death_stream_offset": 9565,
+    "meaning": "Index 15 reads beyond the 15-entry pointer table; the next bytes are the first compressed death stream. Any downstream pointer interpretation or draw effect was not observed or confirmed.",
+    "scope_implication": "Material runtime/table-boundary risk expansion; approved 1884 target cannot be changed without renewed user approval."
+  },
+  "capacity": {
+    "resident": {"used": 8150, "limit": 8192, "free": 42},
+    "assets": {"used": 7676, "limit": 7680, "free": 4},
+    "mapped": {"used": 198, "limit": 220, "free": 22},
+    "banked": {"used": 696, "limit": 698, "free": 2},
+    "active": {"used": 603, "limit": 777, "free": 174},
+    "gmc_spare_bytes": 12158,
+    "delta_vs_prepared_candidate_fit": "0; current full-build capacity matches the prepared candidate fit"
+  },
+  "hashes": {
+    "scripts/build_presentation.py": "519f0ccc95c7ab6e52601a425a41ac21201142dfee6919053d66e6f56329b2a3",
+    "scripts/verify_bug011_instructions.py": "f0be21792225bd47f85daca18de81e006af0050a67f56f8e0c162433115eb433",
+    "src/instruction_runtime.s": "062a80dd6707ee36ded094b75569aa5ab3729e4258bf2188138c5d3860c9bd01",
+    "rom": "05ccc4f3ac60fbed56d1215116f723c4e916ca4e932c4e119b66aa3935a12d80",
+    "source_build_receipt": "b22efb17f5a9672ecf44432f34a7f9e4090e9b39d083efec51f4dbd9c2b6068f",
+    "presentation_manifest": "c83d4b6a6c3f8b9c1d9819d7e6266fed5bc463a3edc90a34165eeaffa193cf67",
+    "presentation_runtime_module": "7ac0df2d16702f7a7295d758def0d340c4e411cbe4e9c199eb0eacf50b72f56c",
+    "instruction_runtime_module": "a3e3a62e9e8fcd427b347509a74e66132794d258c8f1d825068d76832362e6e8",
+    "presentation_cold_payload": "673260c412388a1609b4186fcd7bf947f68b7657b5e1ab46ddeaba2ca65b42e3",
+    "static_receipt": "b806dbf085512dfc27be4c449f8b0f3a8fc55c5b9805f798c99e4bcc701b87ce",
+    "natural_failure_receipt": "6210590274585790ddc4550a093601133b1c7e340ab3dbf79a93985971311486",
+    "natural_observer": "35cd81508e225aeea635576c31a51c12b576959dce34611a8e7d817bdd2a2e58",
+    "baseline_manifest": "6d5b07bb8e9155804302f9a1a28b77602d02b80d4893bc3853a845072ac76257",
+    "last_gdb_script": "8b12218832f0175e51f1b4eed868f0d2f7fd4c2dc95ee1d2c2b8f9b9251f8d3a",
+    "last_proven_dp_snapshot": "f575fe557319e31762ed6ee8b7139f2352217aab207500a1c90620e16615786d"
+  },
+  "rejected_preparation_experiments": [
+    {
+      "cause": "Broad coco TMX glob included the unchanged options map; explicit nine-input guard stopped copying. A mistakenly launched follow-on build used tracked pre-cleanup maps and failed missing Sprite Locations. No runtime probe ran.",
+      "evidence_sha256": "2553e32d48d4c76ec45617f3c97eb316f0df50f2d13321ff0a8dfabbe5e6db49"
+    },
+    {
+      "cause": "Retained LF patch failed strict matching against native CRLF; ignore-space-at-EOL matching and application passed without semantic changes."
+    }
+  ],
+  "retained_evidence": [
+    "repro/bug067-verification/execution-completion.json",
+    "repro/bug067-execution-static.json",
+    "repro/bug067-execution-natural.json",
+    "repro/ready-menu-gdb/probe.gdb",
+    "repro/ready-menu-gdb/consume15-dp.bin",
+    "build/source-build-receipt.json",
+    "build/ladybug.rom",
+    "build/ladybug-presentation.json"
+  ],
+  "emulator_lease": "Port 65522 released after confirming no XRoar, m6809-gdb, observer, or verifier process remained.",
+  "next_state": "Parent-owned PM/debugger reassessment and renewed approval brief before any correction or further runtime probe"
+}

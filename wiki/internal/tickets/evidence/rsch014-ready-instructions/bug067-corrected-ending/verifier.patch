@@ -1,0 +1,78 @@
+--- a/scripts/verify_bug011_instructions.py
++++ b/scripts/verify_bug011_instructions.py
+@@ -224,5 +224,74 @@
+     )
+ 
+ 
++
++def current_row_entry():
++    import argparse, subprocess, sys
++    parser=argparse.ArgumentParser(description="Current-profile approved BUG-067 row-entry contract")
++    parser.add_argument('--current-row-entry',action='store_true')
++    parser.add_argument('--build-dir',type=Path,default=ROOT/'build')
++    parser.add_argument('--mode',choices=('baseline','no-row-wait'),default='no-row-wait')
++    parser.add_argument('--baseline-manifest',type=Path,required=True)
++    parser.add_argument('--static-only',action='store_true')
++    parser.add_argument('--adapter',type=Path)
++    parser.add_argument('--output',type=Path,required=True)
++    args=parser.parse_args()
++    manifest=json.loads((args.build_dir/'ladybug-presentation.json').read_text())
++    baseline=json.loads(args.baseline_manifest.read_text())
++    current=manifest['instruction_choreography'];prior=baseline['instruction_choreography']
++    target_motion=(129,227,323,419,515,577,675,771,867,963,1059,1155,1217,1313,1409,1489)
++    target_consume=(152,242,338,434,530,600,690,786,882,978,1074,1170,1240,1344,1440,1544)
++    old_motion=(129,227,323,419,515,673,771,867,963,1059,1155,1251,1409,1505,1601,1681)
++    old_consume=(152,242,338,434,530,696,786,882,978,1074,1170,1266,1432,1536,1632,1736)
++    expected_names=list('EXTRA')+list('SPECIAL')+['heart_x2','heart_x3','heart_x5','skull']
++    assert len(current['events'])==len(prior['events'])==16
++    assert [event['name'] for event in current['events']]==expected_names
++    assert [event['motion_tick'] for event in prior['events']]==list(old_motion)
++    assert [event['consume_tick'] for event in prior['events']]==list(old_consume)
++    motion,consume=(old_motion,old_consume) if args.mode=='baseline' else (target_motion,target_consume)
++    assert current['colour_dwell_frames']==prior['colour_dwell_frames']==32
++    for i,(event,previous) in enumerate(zip(current['events'],prior['events'])):
++        assert event['motion_tick']==motion[i] and event['consume_tick']==consume[i]
++        assert all(event[k]==previous[k] for k in previous if k not in ('motion_tick','consume_tick'))
++        assert consume[i]>motion[i]
++        if i<15: assert ((consume[i]-1)//32)%3+1==(2 if i<5 else 1 if i<12 else 3)
++    for i,colour in ((0,2),(5,1),(12,3),(13,3),(14,3)):
++        assert (motion[i]-1)%32==0 and ((motion[i]-1)//32)%3+1==colour
++    gaps=[motion[i]-consume[i-1] for i in (5,12)]
++    assert gaps==([143,143] if args.mode=='baseline' else [47,47])
++    assert [consume[i]-consume[i-1] for i in (5,12)]==([166,166] if args.mode=='baseline' else [70,70])
++    assert current['next_screen_tick']==(1896 if args.mode=='baseline' else 1704)
++    # Ending phases must follow the moved skull without indexing beyond death art.
++    assert current['death_collision_tick']==consume[-1]
++    assert current['angel_tick']-current['death_collision_tick']==95
++    assert current['next_screen_tick']-current['angel_tick']==65
++    count=len(current['death_stream_offsets'])
++    assert count==15
++    death=current['death_collision_tick'];angel=current['angel_tick']
++    indices=[0 if tick<death+30 else 1+(tick-death-30)//5 for tick in range(death,angel)]
++    assert min(indices)==0 and max(indices)==count-2
++    assert all(0<=index<count for index in indices)
++    for name in ('anchors','colour_stream_bytes','colour_stream_offsets','multiplier_destinations'):
++        assert current[name]==prior[name]
++    proof={'status':'PASS-STATIC','mode':args.mode,'units':'generated schedule ticks, not arcade display frames','first_motion_ticks':[motion[i] for i in (0,5,12)],'later_row_motion_gaps':gaps,'next_screen_tick':current['next_screen_tick'],'events_checked':16,'unchanged_other_event_fields':True,'ending_intervals':[95,65],'death_indices_before_angel':[min(indices),max(indices)],'death_table_count':count,'manifest_sha256':digest((args.build_dir/'ladybug-presentation.json').read_bytes()),'baseline_manifest_sha256':digest(args.baseline_manifest.read_bytes())}
++    if not args.static_only:
++        assert args.adapter and args.adapter.is_file(),'current GDB adapter required'
++        assert args.build_dir.resolve()==(ROOT/'build').resolve(),'runtime requires this worktree complete build'
++        assert not args.output.exists(),'fresh runtime output required'
++        sha=digest((ROOT/'build/ladybug.rom').read_bytes())
++        subprocess.run([sys.executable,str(args.adapter),'--worktree',str(ROOT),'--rom-sha256',sha,'--instructions-row-entry','--output',str(args.output)],check=True)
++        live=json.loads(args.output.read_text());assert live['status']=='PASS' and live['rom_sha256']==sha
++        proof['status']='PASS-STATIC-AND-NATURAL';proof['runtime_receipt_sha256']=digest(args.output.read_bytes())
++        live['static_contract']=proof;args.output.write_text(json.dumps(live,indent=2)+'\n')
++    else:
++        args.output.parent.mkdir(parents=True,exist_ok=True)
++        assert not args.output.exists(),'fresh static output required'
++        args.output.write_text(json.dumps(proof,indent=2)+'\n')
++    print(json.dumps(proof))
++
+ if __name__ == "__main__":
+-    main()
++    import sys
++    if '--current-row-entry' in sys.argv:
++        current_row_entry()
++    else:
++        main()

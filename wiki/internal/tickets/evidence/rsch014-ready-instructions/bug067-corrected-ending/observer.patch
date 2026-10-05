@@ -1,0 +1,18 @@
+--- a/repro/bug067-verification/row-entry-observer.py
++++ b/repro/bug067-verification/row-entry-observer.py
+@@ -334,6 +334,15 @@
+   state=boundary(tag,tick,i+1)
+   if i<15:check(tag+' legal consume colour',state[0xcf-0x8f]==(2 if i<5 else 1 if i<12 else 3))
+   report['phases'][-1]['event']={'index':i,'name':event['name'],'motion_tick':event['motion_tick'],'consume_tick':tick,'published_front_owner':state[0]}
++ # Read-only natural ending boundaries distinguish a valid ending from a late handoff.
++ for label,tick,index in (('last-death-pose',contract['angel_tick']-5,13),('angel-entry',contract['angel_tick'],14)):
++  phase('natural-'+label)
++  tag='ending-'+label
++  gdb([f'break *0x{pres["instructions_tick_ready"]:x}',f'condition 1 *(unsigned short*)0xb0=={tick} && *(unsigned char*)0xca==16 && *(unsigned char*)0x91==0','continue','delete breakpoints']+capture(tag))
++  state=boundary(tag,tick,16)
++  check(label+' valid expected pose',state[0xce-0x8f]==index)
++  frame=(O/f'{tag}-front.bin').read_bytes()
++  report['phases'][-1]['ending_boundary']={'timer':tick,'selected_index':index,'front_owner':state[0],'published_frame_sha256':hashlib.sha256(frame).hexdigest()}
+  phase('natural-instructions-completion-tick')
+  next_tick=contract['next_screen_tick']
+  gdb([f'break *0x{pres["instructions_runtime_return"]:x}',f'condition 1 *(unsigned short*)0xb0=={next_tick}','continue','delete breakpoints',f'dump binary memory {O}/row-entry-trace.bin 0x6aa 0x6b0',f'dump binary memory {O}/row-entry-finish.bin 0xb0 0xb2'])
