@@ -1,0 +1,73 @@
+--- a/src/shared_text_ranking.inc
++++ b/src/shared_text_ranking.inc
+@@ -1127,2 +1127,6 @@
+ draw_name_fields
++        lda PRES_NAME_TIMER_PHASE
++        pshs a
++        lda #6
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_PENDING_NAME
+@@ -1130,3 +1134,9 @@
+         lbsr    draw_record_name
++        lda #1
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_HIGHSCORE_BASE+3
++        tst PRES_INSERT
++        bne name_top_authority_ready
++        ldx #PRES_PENDING_NAME
++name_top_authority_ready
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
+@@ -1134,2 +1144,4 @@
+ draw_name_done
++        puls a
++        sta PRES_NAME_TIMER_PHASE
+         rts
+@@ -1137,2 +1149,6 @@
+ draw_entry_scores
++        lda PRES_NAME_TIMER_PHASE
++        pshs a
++        lda #8
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_SCORE_H
+@@ -1140,3 +1156,9 @@
+         lbsr    draw_score
++        lda #1
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_HIGHSCORE_BASE
++        tst PRES_INSERT
++        bne score_top_authority_ready
++        ldx #PRES_SCORE_H
++score_top_authority_ready
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
+@@ -1144,5 +1166,3 @@
+         ldx     #PRES_HIGHSCORE_BASE
+-        ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
+-        lbsr    draw_score
+-        rts
++        bra draw_name_done
+ 
+--- a/src/shared_text_runtime.inc
++++ b/src/shared_text_runtime.inc
+@@ -88,5 +88,4 @@
+         jsr SHARED_COLD_PTR
+-        tfr x,u
+-        tfr y,x
+-        tfr u,y
++        exg x,y
++        tfr y,u
+         jmp presentation_fast_blit
+@@ -203,3 +202,6 @@
+         cmpa #3
++        beq field_colour_ready
++        cmpa #5
+         bne colour_skip_3
++field_colour_ready
+         ldb $E8
+@@ -230,5 +232,4 @@
+         jsr SHARED_COLD_PTR
+-        tfr x,u
+-        tfr y,x
+-        tfr u,y
++        exg x,y
++        tfr y,u
+         jmp presentation_fast_blit
