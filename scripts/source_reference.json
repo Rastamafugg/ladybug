@@ -687,11 +687,11 @@
           "semantic_id": "routines.html#routine-resident-runtime-shared-mask"
         },
         {
-          "name": "asset_draw_life_count",
+          "name": "life_marker_position",
           "profile": "render",
-          "purpose": "Draw numeric reserves in the existing marker footprint.",
+          "purpose": "Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.",
           "reasons": [],
-          "semantic_id": "routines.html#routine-resident-runtime-asset-draw-life-count"
+          "semantic_id": "routines.html#routine-resident-runtime-life-marker-position"
         },
         {
           "name": "asset_draw_two_digits",
@@ -1166,6 +1166,16 @@
           "name": "asset_part_digits",
           "routine": "asset_draw_part_value",
           "purpose": "Immutable-font tail of the fixed part writer; blank mask for zero hundreds, then the existing two-digit writer."
+        },
+        {
+          "name": "dl_position_row",
+          "routine": "life_marker_position",
+          "purpose": "Subtract one three-slot row and lower the HUD row register by two."
+        },
+        {
+          "name": "dl_position_column",
+          "routine": "life_marker_position",
+          "purpose": "Convert the remaining zero-to-two slot index into the HUD column."
         }
       ]
     },
