@@ -1,0 +1,18 @@
+--- a/src/shared_text_ranking.inc
++++ b/src/shared_text_ranking.inc
+@@ -1135 +1135 @@
+-        lda #6
++        lda #1
+@@ -1137,0 +1138,4 @@
++        tst PRES_INSERT
++        bne name_top_authority_ready
++        ldx #PRES_PENDING_NAME
++name_top_authority_ready
+@@ -1153 +1157 @@
+-        lda #6
++        lda #1
+@@ -1155,0 +1160,4 @@
++        tst PRES_INSERT
++        bne score_top_authority_ready
++        ldx #PRES_SCORE_H
++score_top_authority_ready

@@ -1,0 +1,43 @@
+--- a/src/shared_text_ranking.inc
++++ b/src/shared_text_ranking.inc
+@@ -1127,0 +1128,4 @@
++        lda PRES_NAME_TIMER_PHASE
++        pshs a
++        lda #6
++        sta PRES_NAME_TIMER_PHASE
+@@ -1130,0 +1135,2 @@
++        lda #6
++        sta PRES_NAME_TIMER_PHASE
+@@ -1134,0 +1141,2 @@
++        puls a
++        sta PRES_NAME_TIMER_PHASE
+@@ -1137,0 +1146,4 @@
++        lda PRES_NAME_TIMER_PHASE
++        pshs a
++        lda #8
++        sta PRES_NAME_TIMER_PHASE
+@@ -1140,0 +1153,2 @@
++        lda #6
++        sta PRES_NAME_TIMER_PHASE
+@@ -1145 +1159 @@
+-        rts
++        bra draw_name_done
+--- a/src/shared_text_runtime.inc
++++ b/src/shared_text_runtime.inc
+@@ -89,3 +89,2 @@
+-        tfr x,u
+-        tfr y,x
+-        tfr u,y
++        exg x,y
++        tfr y,u
+@@ -203,0 +203,2 @@
++        beq field_colour_ready
++        cmpa #5
+@@ -204,0 +206 @@
++field_colour_ready
+@@ -231,3 +233,2 @@
+-        tfr x,u
+-        tfr y,x
+-        tfr u,y
++        exg x,y
++        tfr y,u
