@@ -210,7 +210,7 @@ pao_phase_ready
         ldx     #$BE28
         ldu     a,x
         ldx     #$BE00
-        lda     #20
+        lda     #8              ; four logical decorative actors, two records each
         sta     PRES_REMAIN
 pao_actor
         ldd     ,x

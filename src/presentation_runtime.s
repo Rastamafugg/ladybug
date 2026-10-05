@@ -77,6 +77,7 @@ PRESENTATION_MODULE_DRAW equ $0821
 PRESENTATION_HOLD_BEGIN equ $06C5
 PRESENTATION_HOLD_TICK equ $06C7
 PRESENTATION_ATTRACT_OVERLAY equ $06C9
+PRES_MAIN_HIGHSCORE_PHASE_ENTRY equ $AC40
 INSTRUCTION_RUNTIME_TICK equ $0300
 DEMO_RUNTIME_TICK equ $0300
 AUDIO_INIT_EXEC equ $0303
@@ -636,6 +637,11 @@ load_done_normal
 load_timer_reset
         clr     PRES_TIMER
         clr     PRES_TIMER+1
+        ifne    ATTRACT_OVERLAY_ENABLED
+        ; Startup leaves page-$34 scratch untouched. Invalidate the BUG-081
+        ; clock tag after PAR5 was restored to $34, before the logo can tick.
+        clr     $A8FF
+        endc
         ifne    HIGHSCORE_TEST_PROFILE
         clr     PRES_NAME_TIMER_PHASE
         clr     PRES_NAME_TIMER_BOX
@@ -747,10 +753,14 @@ attract_tick
 attract_tick_prepare
 attract_tick_ready
         bsr     timer
-        ldd     PRES_TIMER
         cmpd    #558
         bhs     attract_next
         ifne    ATTRACT_OVERLAY_ENABLED
+        ldd     #PRES_MAIN_HIGHSCORE_PHASE_ENTRY
+        std     PRES_NAME_PTR
+        jsr     PRES_MAIN_PAGE23_RESUME
+        lda     #$34
+        sta     PAR5
         jsr     PRESENTATION_ATTRACT_OVERLAY
         endc
         bra     hold

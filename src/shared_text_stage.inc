@@ -10,12 +10,15 @@
 ; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
 ; DOC-002 source-contract mirror profile presentation Invariants: Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned
 ; DOC-002 source-contract mirror contract demo_runtime_tick profile=presentation: Advance the deterministic release-demo route at eligible semantic cells.
+; DOC-002 source-contract mirror contract logo_vbord_clock profile=presentation: Advance the shared attract and high-score logo phase from an IRQ-atomic VBLANK sample.
 ; DOC-002 source-contract mirror ends.
         pragma  nodollarlocal,6809
         setdp   $00
         include "ladybug_presentation.inc"
         include "ladybug_presentation_symbols.inc"
 
+; Existing always-mapped perimeter return tail: restore game PAR5, then CC/PC.
+PRES_GAME_PAGE_RETURN equ $06BE
 PAR5    equ $FFA5
 PLAYER_DIR equ $0006
 PLAYER_FACE equ $0007
@@ -108,6 +111,11 @@ SND_DATA equ $FF51
         org     HIGHSCORE_PHASE_HELPER_ADDRESS
 
 highscore_phase_tick
+        ; Attract uses the same page-$23 logo strips; decorative actors remain
+        ; owned by the low-RAM overlay after this resident-gateway call returns.
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_ATTRACT
+        lbeq    highscore_logo_tick
         lda     PRES_MODE
         cmpa    #5
         lbeq    menu_tick
@@ -165,9 +173,54 @@ highscore_timer_draw
         ldd     2,x
         jmp     PRES_MODULE_DRAW_RAW_TILE
 
-; Raw lwasm output concatenates discontinuous ORG regions instead of emitting
-; their address gap.  Materialize this reserved continuation window so every
-; absolute helper label retains the same file offset after loading at $AC40.
+; The reserved continuation interval ends at $AD00. This logo clock occupies
+; its fitted 80-byte range without changing the mapped owner or return path.
+; Raw lwasm concatenates ORG regions, so retain zero padding before the fixed
+; continuation label after the clock.
+; Retain elapsed VBLANK time independently of PRES_TIMER, which also drives
+; high-score text. $A8FD-$A8FF is the reserved three-byte logo-clock slot.
+logo_vbord_clock
+        pshs    cc
+        orcc    #$10
+        lda     PAR4
+        pshs    a
+        lda     #$34
+        sta     PAR4
+        ldu     FRAMES
+        lda     PRES_SCREEN
+        lsla
+        ora     #$80
+        tfr     a,b
+        ldx     #$88FD
+        eora    2,x
+        anda    #$FE
+        bne     logo_vbord_init
+logo_vbord_advance
+        tfr     u,d
+        subd    ,x
+        cmpd    #31
+        blo     logo_vbord_return
+        ldd     ,x
+        addd    #31
+        std     ,x
+        lda     2,x
+        eora    #1
+        sta     2,x
+        bra     logo_vbord_advance
+logo_vbord_init
+        stu     ,x
+        stb     2,x
+        lda     #$FF
+        sta     $D2
+        sta     PRES_NAME_OWNER
+logo_vbord_return
+        ldb     2,x
+        andb    #1
+        puls    a
+        sta     PAR4
+        tfr     b,a
+        puls    cc,pc
+
 highscore_phase_helper_gap
         rmb     HIGHSCORE_PHASE_HELPER_RESUME-*
 highscore_after_tile
@@ -734,36 +787,40 @@ ranking_schedule_end
 
 ; BUG-052: redraw only the twelve authored phase-changing logo tiles.
 highscore_logo_tick
-        ldd     PRES_TIMER
-        bne     highscore_logo_clock
-        lda     #$FF
-        sta     $D2
-        sta     $D3
-highscore_logo_clock
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_ATTRACT
+        beq     highscore_logo_vbord
         ldd     PRES_TIMER
         addd    #1
         std     PRES_TIMER
+highscore_logo_vbord
+        lbsr    logo_vbord_clock
+        sta     PRES_NAME_TIMER_PHASE
         tst     FB_PENDING
         bne     highscore_logo_hold
-        subd    #6
-        bhs     highscore_logo_phase
-        clrb
-highscore_logo_phase
-        lsrb
-        lsrb
-        lsrb
-        andb    #1
-        stb     PRES_NAME_TIMER_PHASE
+        ldb     PRES_NAME_TIMER_PHASE
+        ; D3 remains exclusively the decorative actor phase. D2 is logo A;
+        ; E3 is logo B only on attract/menu, and is initialized as cursor owner
+        ; by update_name_frame before name-phase use. No new DP allocation.
         ldx     #$D2
         lda     FB_BACK_ID
-        cmpb    a,x
+        beq     highscore_logo_cache_ready
+        ldx     #PRES_NAME_OWNER
+highscore_logo_cache_ready
+        cmpb    ,x
         beq     highscore_logo_hold
-        stb     a,x
+        stb     ,x
         ldd     #highscore_logo_prepared
         std     PRES_NAME_PTR
         ldd     #PRES_MAIN_PAGE23_RESUME
         pshs    d
-        jmp     PRES_HIGHSCORE_FB_PREPARE
+        ; Attract owns the instruction overlay, so its high-score low-RAM
+        ; callback addresses are invalid. Reuse the existing bank-return tail
+        ; and stacked resident continuation; no low-RAM code allocation.
+        ldd     #PRES_MAIN_FB_PREPARE
+        pshs    cc,d
+        orcc    #$50
+        jmp     PRES_GAME_PAGE_RETURN
 highscore_logo_prepared
         clr     PRES_NAME_TIMER_BOX
 highscore_logo_tile
@@ -773,6 +830,13 @@ highscore_logo_tile
         leax    highscore_logo_records,pcr
         leax    d,x
         ldy     ,x
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_ATTRACT
+        bne     highscore_logo_record_source
+        tfr     y,d
+        subd    #$1E00
+        tfr     d,y
+highscore_logo_record_source
         ldd     2,x
         tst     PRES_NAME_TIMER_PHASE
         beq     highscore_logo_source
@@ -797,7 +861,13 @@ highscore_logo_drawn
         std     PRES_NAME_PTR
         ldd     #PRES_MAIN_PAGE23_RESUME
         pshs    d
-        jmp     PRES_HIGHSCORE_FB_FINISH
+        ; Attract owns the instruction overlay, so its high-score low-RAM
+        ; callback addresses are invalid. Reuse the existing bank-return tail
+        ; and stacked resident continuation; no low-RAM code allocation.
+        ldd     #PRES_MAIN_FB_FINISH
+        pshs    cc,d
+        orcc    #$50
+        jmp     PRES_GAME_PAGE_RETURN
 highscore_logo_hold
         lda     #1
 highscore_logo_loaded
@@ -2030,3 +2100,4 @@ map_back_set
         endc
 demo_runtime_end
         endc
+
