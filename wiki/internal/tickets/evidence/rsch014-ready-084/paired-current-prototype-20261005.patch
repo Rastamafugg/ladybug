@@ -1,0 +1,172 @@
+diff --git a/src/enemy_runtime.s b/src/enemy_runtime.s
+index 27e3b37..744aaf1 100644
+--- a/src/enemy_runtime.s
++++ b/src/enemy_runtime.s
+@@ -1098,2 +1098,2 @@ restore_player_visible
+-        lda     PLAYER_VISIBLE_ROWS
+-        cmpa    #16
++        lbsr    player_entry_width
++        cmpb    #8
+@@ -1101 +1101 @@ restore_player_visible
+-        tsta
++        tstb
+@@ -1102,0 +1103 @@ restore_player_visible
++        lda     #16
+@@ -1107,8 +1108,9 @@ rpv_row
+-        ldd     ,u++
+-        std     ,x++
+-        ldd     ,u++
+-        std     ,x++
+-        ldd     ,u++
+-        std     ,x++
+-        ldd     ,u++
+-        std     ,x++
++        ldb     PLAYER_DX
++rpv_byte
++        lda     ,u+
++        sta     ,x+
++        decb
++        bne     rpv_byte
++        ldb     #8
++        subb    PLAYER_DX
++        leau    b,u
+@@ -1115,0 +1118 @@ rpv_row
++        leax    b,x
+@@ -1122 +1125 @@ rpv_full
+-        jmp     restore_player   ; preserve the existing full-size fast path
++        jmp     restore_player
+@@ -2897,0 +2901,97 @@ pci_done
++        ifne    PERSISTENT_FB
++player_compose_entry
++        lbsr    player_entry_width
++        lda     #16
++        sta     PLAYER_VISIBLE_ROWS
++        ldx     #PLAYER_STAGE
++        ldy     #64
++        clra
++        clrb
++pce_clear_stage
++        std     ,x++
++        leay    -1,y
++        bne     pce_clear_stage
++        ldb     PLAYER_DX
++        beq     pce_no_visible
++        lda     #16
++        sta     PLAYER_ROW
++        ldx     PLAYER_FB
++        ldu     PLAYER_BG_PTR
++        ldy     #PLAYER_STAGE
++pce_capture_row
++        ldb     PLAYER_DX
++pce_capture_byte
++        lda     ,x+
++        sta     ,u+
++        sta     ,y+
++        decb
++        bne     pce_capture_byte
++        ldb     #8
++        subb    PLAYER_DX
++        leau    b,u
++        leay    b,y
++        leax    152,x
++        leax    b,x
++        dec     PLAYER_ROW
++        bne     pce_capture_row
++        lda     #1
++        sta     PLAYER_BG_VALID
++        bra     pce_decode
++pce_no_visible
++        clr     PLAYER_BG_VALID
++pce_decode
++        lda     PLAYER_FACE
++        lsla
++        lsla
++        adda    PLAYER_ANIM
++        lbsr    sparse_player_stream
++        ldx     #PLAYER_STAGE
++        lbsr    sparse_blit_stage
++        ldb     PLAYER_DX
++        beq     pce_done
++        lda     #16
++        sta     PLAYER_ROW
++        ldx     #PLAYER_STAGE
++        ldu     PLAYER_FB
++pce_commit_row
++        ldb     PLAYER_DX
++pce_commit_byte
++        lda     ,x+
++        sta     ,u+
++        decb
++        bne     pce_commit_byte
++        ldb     #8
++        subb    PLAYER_DX
++        leax    b,x
++        leau    152,u
++        leau    b,u
++        dec     PLAYER_ROW
++        bne     pce_commit_row
++pce_done
++        rts
++
++; HUD row starts are page aligned. Only WALKOUT/OFFSCREEN may use low byte
++; as horizontal byte-column. Maze entry and normal actors remain full width.
++; PLAYER_DX is compatibility-only scratch, unused by persistent sparse decode.
++; DOC-002 source-contract mirror contract player_entry_width profile=render: Bound HUD entry width using the hydrated old or current framebuffer pointer; preserve full width for ordinary actors.
++player_entry_width
++        ldb     #8
++        lda     INITIAL_ENTRY_STATE
++        cmpa    #ENTRY_WALKOUT
++        blo     pew_store
++        cmpa    #ENTRY_OFFSCREEN
++        bhi     pew_store
++        ldb     #160
++        subb    PLAYER_FB+1
++        bcs     pew_zero
++        cmpb    #8
++        bls     pew_store
++        ldb     #8
++pew_store
++        stb     PLAYER_DX
++        rts
++pew_zero
++        clrb
++        bra     pew_store
++
++        else
+@@ -2999,0 +3100,2 @@ pvr_zero
++        endc
++
+diff --git a/src/main.s b/src/main.s
+index 0a0f881..c082e1f 100644
+--- a/src/main.s
++++ b/src/main.s
+@@ -862 +862,10 @@ iet_wait_stage
+-        ldd     #$8994
++        lda     LIVES
++        jsr     life_marker_position
++        lda     HUD_Y
++        ldb     #5
++        mul
++        tfr     b,a
++        ldb     HUD_X
++        lslb
++        lslb
++        addd    #FB_VIRT
+@@ -864 +873 @@ iet_wait_stage
+-        lda     #DIR_SOUTH
++        lda     #DIR_EAST
+@@ -880,6 +889,3 @@ iet_walkout
+-        ldd     PLAYER_FB
+-        addd    #$0140
+-        std     PLAYER_FB
+-        inc     PLAYER_STEP
+-        lda     PLAYER_STEP
+-        cmpa    #12
++        inc     PLAYER_FB+1    ; one packed byte = two pixels; HUD row is page aligned
++        lda     PLAYER_FB+1
++        cmpa    #160
+@@ -887,2 +893,2 @@ iet_walkout
+-        ; Step 12 is logical row 192.  Do not let the renderer access this
+-        ; new rectangle; OFFSCREEN only closes owner-local old histories.
++        ; Column 160 is x320. OFFSCREEN restores owner-local old histories
++        ; without capturing or committing any new rectangle.
