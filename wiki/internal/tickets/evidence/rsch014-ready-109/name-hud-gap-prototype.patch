@@ -1,0 +1,55 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -480,0 +481,16 @@
++
++stage_select
++        lda $24
++        ldb PRES_SCREEN
++        cmpb #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        beq stage_selected
++        lda #1
++        ldb $A7
++        beq stage_selected
++        lda $EB
++        cmpb #2
++        bne stage_selected
++        lda $24
++stage_selected
++        sta PRES_TMP_H
++        rts
+@@ -492,11 +507,0 @@
+-stage_select
+-        lda #1
+-        ldb $A7
+-        beq stage_selected
+-        lda $EB
+-        cmpb #2
+-        bne stage_selected
+-        lda $24
+-stage_selected
+-        sta PRES_TMP_H
+-        rts
+@@ -519,0 +525,7 @@
++        beq stage_name_schedule_ready
++        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        lbne stage_slice_return
++        ldd $AA
++        cmpd #576
++        beq stage_name_schedule_ready
++        cmpd #608
+@@ -520,0 +533 @@
++stage_name_schedule_ready
+@@ -537 +550 @@
+-        bsr stage_select
++        lbsr stage_select
+@@ -583,0 +597,2 @@
++        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        beq stage_name_sprite_selected
+@@ -586,0 +602 @@
++stage_name_sprite_selected
+@@ -600,0 +617,3 @@
++        lda PRES_SCREEN
++        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        beq stage_name_sprite_hud
+@@ -603,0 +623 @@
++stage_name_sprite_hud
