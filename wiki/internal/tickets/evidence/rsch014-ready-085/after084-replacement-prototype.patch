@@ -1,0 +1,12 @@
+--- a/src/main.s
++++ b/src/main.s
+@@ -861,0 +862,2 @@
++; DOC-002 source-contract mirror contract marker_entry_begin profile=movement: Arm the consumed HUD marker departure without decrementing the life count.
++marker_entry_begin
+@@ -4230 +4232 @@
+-        lbsr    init_player
++        lbsr    marker_entry_begin ; death path already consumed the reserve
+@@ -4232,3 +4233,0 @@
+-        lda     RENDER_FLAGS
+-        ora     #RF_LIVES|RF_PLAYER
+-        sta     RENDER_FLAGS
