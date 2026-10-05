@@ -1,3 +1,4 @@
+; DOC-002 source-contract mirror contract reset_bonus_colour profile=state: Initialize the existing collectible cycle red with thirty scheduled ticks and invalidate the existing entity colour cache at initial and next-stage boundaries.
 ; DOC-002 source-contract mirror contract presentation_key_service profile=input: Call the bounded physical key component while preserving the caller bank mapping.
 ; DOC-002 source-contract mirror contract asset_draw_hud_digit profile=render: Draw one shared-font HUD digit.
 ; DOC-002 source-contract mirror contract asset_draw_two_digits profile=render: Draw a two-digit HUD value with a leading zero.
@@ -986,14 +987,16 @@ igs_defaults
         clr     TURN_SNAP
         lda     #1
         sta     MULTIPLIER
-        lda     #COLOR_BLUE
-        sta     BONUS_COLOR
-        clr     ENTITY_CACHE_COLOR
-        ldd     #420
-        std     BONUS_TIMER
         lbsr    reload_box_timer
         clr     BOX_INDEX
         clr     BOX_PHASE
+; DOC-002 source-contract mirror contract reset_bonus_colour profile=state: Initialize the level collectible cycle red for thirty scheduled ticks and invalidate its existing cache.
+reset_bonus_colour
+        lda     #COLOR_RED
+        sta     BONUS_COLOR
+        clr     ENTITY_CACHE_COLOR
+        ldd     #30
+        std     BONUS_TIMER
         rts
 
 next_stage
@@ -1011,6 +1014,7 @@ ns_stage_valid
         clr     BOX_PHASE
         lbsr    init_maze_state
         lbsr    init_gate_state
+        bsr     reset_bonus_colour
         lbsr    init_entities
         lbsr    init_player
         lbsr    init_enemy
