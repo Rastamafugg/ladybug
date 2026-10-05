@@ -1,0 +1,32 @@
+{
+  "status": "SOURCE-DESIGN; no full fit/runtime qualification",
+  "scope": "Existing approved logo runtime targets; actual change confined to shared_text_stage.inc plus parent source metadata. Existing perimeter binary unchanged.",
+  "confirmed_source_issue": "Attract installs instruction low-RAM runtime yet logo calls highscore-specific prepare/finish addresses037F/05F9. Instruction037F lies inside ORA06AE; not a valid entry. This calls the wrong phase owner.",
+  "runtime_evidence": "Credit-delivered runtime differs89 bytes before hold; staged-source identity still unmeasured. LedgerA staging offsetA900 aligns first mismatch380; do not claim this alone proves writer/copy cause.",
+  "solution": "Reuse existing always-mapped06BE tail, identical8634B7FFA53581 bytes. Push existing page23 resident bridge, push CC/native resident PC, mask IRQ/FIRQ, enter tail. Tail maps34 and restores CC/native PC; native return reaches existing page23 bridge. No new module/state/loader or low-RAM code.",
+  "stack_contract": "Extra3 pushed bytes consumed by existing PULSCC,PC; native RTS consumes existing2-byte resident bridge; original caller return preserved. Masking ends only after game mapping restored.",
+  "capacity_projection": "Logo helper+14 bytes, B854->B862; fixed80-byte clock/prefix/AD00 unaffected; no resident/perimeter increase. Full assembly/build and live phase/byte/cadence gates remain.",
+  "source_sha256": "95a68261cc2de3e40cfb01269f9837590fe12fa507faf83cb5d323d6bf852961",
+  "requirements": [
+    "Prove authored/staged/destination high-score identity after attract",
+    "Natural credited steady menu and name-return",
+    "Same-Vbord decorative actor/non-logo equality",
+    "Cold tag/owner clock cases",
+    "Both complete profiles/source audit"
+  ],
+  "assembled": {
+    "status": "PASS-HELPER-ASM-ONLY",
+    "gap_start": "0xacff",
+    "resume": "0xad00",
+    "zero_padding_bytes": 1,
+    "clock_bytes": 80,
+    "helper_bytes": 3106,
+    "helper_end": "0xb862",
+    "scope": "Only current helper source/list/map/binary qualified; complete build and runtime remain missing."
+  },
+  "full_build": {
+    "state": "running when recorded",
+    "exec_session_id": 90689,
+    "command": "wsl -d Ubuntu --cd /mnt/e/projects/ladybug --exec python3 repro/build081_current.py keyboard"
+  }
+}
