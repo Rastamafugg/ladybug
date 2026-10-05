@@ -1,0 +1,39 @@
+--- a/src/shared_text_ranking.inc
++++ b/src/shared_text_ranking.inc
+@@ -1127,2 +1127,6 @@
+ draw_name_fields
++        lda PRES_NAME_TIMER_PHASE
++        pshs a
++        lda #6
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_PENDING_NAME
+@@ -1130,2 +1134,4 @@
+         lbsr    draw_record_name
++        lda #1
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_HIGHSCORE_BASE+3
+@@ -1133,2 +1139,5 @@
+         lbsr    draw_record_name
++        puls a
++        sta PRES_NAME_TIMER_PHASE
++
+ draw_name_done
+@@ -1137,2 +1146,6 @@
+ draw_entry_scores
++        lda PRES_NAME_TIMER_PHASE
++        pshs a
++        lda #8
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_SCORE_H
+@@ -1140,2 +1153,4 @@
+         lbsr    draw_score
++        lda #1
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_HIGHSCORE_BASE
+@@ -1144,4 +1159,4 @@
+         ldx     #PRES_HIGHSCORE_BASE
+-        ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
+-        lbsr    draw_score
++        puls a
++        sta PRES_NAME_TIMER_PHASE
+         rts
