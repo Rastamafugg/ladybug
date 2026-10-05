@@ -1,0 +1,129 @@
+diff --git a/src/demo_runtime.s b/src/demo_runtime.s
+index e1a00aa..60bd7dd 100644
+--- a/src/demo_runtime.s
++++ b/src/demo_runtime.s
+@@ -0,0 +1 @@
++; DOC-002 source-contract mirror contract logo_vbord_clock profile=presentation: Advance the shared attract and high-score logo phase from an IRQ-atomic VBLANK sample.
+diff --git a/src/perimeter_reset_helper.s b/src/perimeter_reset_helper.s
+index ab76a17..67eb8b0 100644
+--- a/src/perimeter_reset_helper.s
++++ b/src/perimeter_reset_helper.s
+@@ -213 +213 @@ pao_phase_ready
+-        lda     #20
++        lda     #8              ; four logical decorative actors, two records each
+diff --git a/src/presentation_runtime.s b/src/presentation_runtime.s
+index 9490137..cf0f2c2 100644
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -79,0 +80 @@ PRESENTATION_ATTRACT_OVERLAY equ $06C9
++PRES_MAIN_HIGHSCORE_PHASE_ENTRY equ $AC40
+@@ -638,0 +640,5 @@ load_timer_reset
++        ifne    ATTRACT_OVERLAY_ENABLED
++        ; Startup leaves page-$34 scratch untouched. Invalidate the BUG-081
++        ; clock tag after PAR5 was restored to $34, before the logo can tick.
++        clr     $A8FF
++        endc
+@@ -750 +755,0 @@ attract_tick_ready
+-        ldd     PRES_TIMER
+@@ -753,0 +759,5 @@ attract_tick_ready
++        ldd     #PRES_MAIN_HIGHSCORE_PHASE_ENTRY
++        std     PRES_NAME_PTR
++        jsr     PRES_MAIN_PAGE23_RESUME
++        lda     #$34
++        sta     PAR5
+diff --git a/src/shared_text_stage.inc b/src/shared_text_stage.inc
+index 8d33c4c..7afb928 100644
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -12,0 +13 @@
++; DOC-002 source-contract mirror contract logo_vbord_clock profile=presentation: Advance the shared attract and high-score logo phase from an IRQ-atomic VBLANK sample.
+@@ -110,0 +112,5 @@ highscore_phase_tick
++        ; Attract uses the same page-$23 logo strips; decorative actors remain
++        ; owned by the low-RAM overlay after this resident-gateway call returns.
++        lda     PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_ATTRACT
++        lbeq    highscore_logo_tick
+@@ -168,3 +174,47 @@ highscore_timer_draw
+-; Raw lwasm output concatenates discontinuous ORG regions instead of emitting
+-; their address gap.  Materialize this reserved continuation window so every
+-; absolute helper label retains the same file offset after loading at $AC40.
++; The reserved continuation interval ends at $AD00. This logo clock occupies
++; its existing 79-byte range without changing the mapped owner or return path.
++; Raw lwasm concatenates ORG regions, so retain zero padding before the fixed
++; continuation label after the clock.
++; Retain elapsed VBLANK time independently of PRES_TIMER, which also drives
++; high-score text. $A8FD-$A8FF is the reserved three-byte logo-clock slot.
++logo_vbord_clock
++        pshs    cc
++        orcc    #$10
++        lda     PAR4
++        pshs    a
++        lda     #$34
++        sta     PAR4
++        ldu     FRAMES
++        lda     PRES_SCREEN
++        lsla
++        ora     #$80
++        tfr     a,b
++        ldx     #$88FD
++        eora    2,x
++        anda    #$FE
++        bne     logo_vbord_init
++logo_vbord_advance
++        tfr     u,d
++        subd    ,x
++        cmpd    #31
++        blo     logo_vbord_return
++        ldd     ,x
++        addd    #31
++        std     ,x
++        lda     2,x
++        eora    #1
++        sta     2,x
++        bra     logo_vbord_advance
++logo_vbord_init
++        stu     ,x
++        stb     2,x
++        ldd     #$FFFF
++        std     $D2
++logo_vbord_return
++        ldb     2,x
++        andb    #1
++        puls    a
++        sta     PAR4
++        tfr     b,a
++        puls    cc,pc
++
+@@ -737,6 +787,3 @@ highscore_logo_tick
+-        ldd     PRES_TIMER
+-        bne     highscore_logo_clock
+-        lda     #$FF
+-        sta     $D2
+-        sta     $D3
+-highscore_logo_clock
++        lda     PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_ATTRACT
++        beq     highscore_logo_vbord
+@@ -745,0 +793,3 @@ highscore_logo_clock
++highscore_logo_vbord
++        lbsr    logo_vbord_clock
++        sta     PRES_NAME_TIMER_PHASE
+@@ -748,9 +798 @@ highscore_logo_clock
+-        subd    #6
+-        bhs     highscore_logo_phase
+-        clrb
+-highscore_logo_phase
+-        lsrb
+-        lsrb
+-        lsrb
+-        andb    #1
+-        stb     PRES_NAME_TIMER_PHASE
++        ldb     PRES_NAME_TIMER_PHASE
+@@ -775,0 +818,7 @@ highscore_logo_tile
++        lda     PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_ATTRACT
++        bne     highscore_logo_record_source
++        tfr     y,d
++        subd    #$1E00
++        tfr     d,y
++highscore_logo_record_source

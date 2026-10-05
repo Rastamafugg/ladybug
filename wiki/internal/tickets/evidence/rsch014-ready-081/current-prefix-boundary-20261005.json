@@ -1,0 +1,230 @@
+{
+  "date": "2026-10-05",
+  "status": "FIXED-BOUNDARY-PASS-SOURCE-AUDIT-RETRY-PENDING",
+  "base_revision": "321736ce7075d18eebb3316efcdec8a1575ec14c",
+  "worktree": "E:/projects/ladybug/worktrees/bug081-current-readiness",
+  "branch": "codex/bug081-current-readiness",
+  "scope": "Approved BUG081 isolated readiness preparation; no production integration or Ready claim",
+  "current_runtime_source_targets": [
+    "src/perimeter_reset_helper.s",
+    "src/presentation_runtime.s",
+    "src/shared_text_stage.inc"
+  ],
+  "parent_metadata": [
+    "scripts/source_reference.json",
+    "wiki/internal/implementation/routine-catalog.html",
+    "src/demo_runtime.s comment-only primary mirror"
+  ],
+  "source_freeze": {
+    "base_commit": "321736ce7075d18eebb3316efcdec8a1575ec14c",
+    "scope": "isolated current-source readiness, no production integration",
+    "production_targets": [
+      "src/perimeter_reset_helper.s",
+      "src/presentation_runtime.s",
+      "src/shared_text_stage.inc"
+    ],
+    "normalized_source_hashes": {
+      "src/perimeter_reset_helper.s": "c365c77b1add8815e9542bdf3307a4717d7b033d64440f19b072cc1c11e17cd3",
+      "src/presentation_runtime.s": "57058496cd9ea0f5eb112fe4bccbf37474ffb31098ca8bab963178b67302a627",
+      "src/shared_text_stage.inc": "8f013b644a078510b15b05498e4f3b121e436b5b43636ffda860d247c5c05b62",
+      "src/demo_runtime.s": "0d5f71756609a4e8849a11dc32703dd84e16ed2719041b67e61f901b039bf658"
+    },
+    "read_only_map_hashes": {
+      "coco-attract-screen.tmx": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07",
+      "coco-credits-screen.tmx": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825",
+      "coco-enter-high-score-screen.tmx": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca",
+      "coco-game-over-screen.tmx": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05",
+      "coco-high-score-screen.tmx": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d",
+      "coco-instructions-screen.tmx": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4",
+      "coco-keybind-options-screen.tmx": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046",
+      "coco-level-start-screen.tmx": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b",
+      "coco-options-screen.tmx": "5b4e5f1da0d2c8eec216e069325ec4afc8960c22b8be7f5cf1af53af0018c749",
+      "coco-screen.tmx": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f"
+    },
+    "corrected_rewrite": "Keep expected screen tag in B; compare stored tag via EORA/ANDA so STB initialization stores expected tag instead of XOR difference. Size unchanged.",
+    "actor_scope": "Count8 excludes twelve logo strips from the legacy twenty-record worklist. Existing eight actor records, actor phase writer and copy body unchanged; independent logo path owns twelve strips.",
+    "metadata_repair": {
+      "semantic_link": "Generated routines.html rather than nonexistent routine-catalog.html",
+      "external_gateway": "Presentation-runtime imports PRES_MAIN_PAGE23_RESUME; it is resident-owned, not a new local routine",
+      "primary_mirror": "Primary highscore-helper source src/demo_runtime.s needs the comment mirror; included shared_text_stage.inc alone does not satisfy policy",
+      "runtime_bytes_change": "None from these metadata/comment corrections; full build rerun verifies source provenance."
+    }
+  },
+  "compiled_static_result": {
+    "status": "PASS-STATIC-MODEL",
+    "scope": "Current-source compiled boundary/clock opcode, generated actor identity and wrap/missed-sample model. No runtime or physical visible-dwell acceptance.",
+    "helper": {
+      "clock_start": "0xacaf",
+      "clock_bytes": 79,
+      "gap_start": "$ACFE",
+      "continuation": "$AD00",
+      "zero_padding_bytes": 2,
+      "sha256": "0c9bac4511194c45347c9f1b5f758d64f29006d2cd5d039ff5cbb50e8785cab9"
+    },
+    "source": {
+      "actor_clock_writer_unchanged": true,
+      "actor_copy_body_unchanged": true,
+      "legacy_record_limit_change": "20 total ->8 actors; twelve logo records move to independent writer",
+      "shared_timer_writer_unchanged": true,
+      "generated_actor_records_sha256": "d1ea13fb0440ef8e80be663d49bab9e55585382b3fdb25978f342e4182fd6fd8"
+    },
+    "cold_tag_model": [
+      {
+        "screen": 0,
+        "raw_fixture": 0,
+        "post_reset_initialized_tag": 128
+      },
+      {
+        "screen": 0,
+        "raw_fixture": 128,
+        "post_reset_initialized_tag": 128
+      },
+      {
+        "screen": 0,
+        "raw_fixture": 129,
+        "post_reset_initialized_tag": 128
+      },
+      {
+        "screen": 0,
+        "raw_fixture": 132,
+        "post_reset_initialized_tag": 128
+      },
+      {
+        "screen": 0,
+        "raw_fixture": 133,
+        "post_reset_initialized_tag": 128
+      },
+      {
+        "screen": 0,
+        "raw_fixture": 134,
+        "post_reset_initialized_tag": 128
+      },
+      {
+        "screen": 0,
+        "raw_fixture": 135,
+        "post_reset_initialized_tag": 128
+      },
+      {
+        "screen": 0,
+        "raw_fixture": 138,
+        "post_reset_initialized_tag": 128
+      },
+      {
+        "screen": 0,
+        "raw_fixture": 139,
+        "post_reset_initialized_tag": 128
+      },
+      {
+        "screen": 0,
+        "raw_fixture": 255,
+        "post_reset_initialized_tag": 128
+      },
+      {
+        "screen": 3,
+        "raw_fixture": 0,
+        "post_reset_initialized_tag": 134
+      },
+      {
+        "screen": 3,
+        "raw_fixture": 128,
+        "post_reset_initialized_tag": 134
+      },
+      {
+        "screen": 3,
+        "raw_fixture": 129,
+        "post_reset_initialized_tag": 134
+      },
+      {
+        "screen": 3,
+        "raw_fixture": 132,
+        "post_reset_initialized_tag": 134
+      },
+      {
+        "screen": 3,
+        "raw_fixture": 133,
+        "post_reset_initialized_tag": 134
+      },
+      {
+        "screen": 3,
+        "raw_fixture": 134,
+        "post_reset_initialized_tag": 134
+      },
+      {
+        "screen": 3,
+        "raw_fixture": 135,
+        "post_reset_initialized_tag": 134
+      },
+      {
+        "screen": 3,
+        "raw_fixture": 138,
+        "post_reset_initialized_tag": 134
+      },
+      {
+        "screen": 3,
+        "raw_fixture": 139,
+        "post_reset_initialized_tag": 134
+      },
+      {
+        "screen": 3,
+        "raw_fixture": 255,
+        "post_reset_initialized_tag": 134
+      }
+    ],
+    "wrap_and_elapsed_sample_cases": 440,
+    "runtime_gates": [
+      "Natural first/alternate owner logo pixels and31-Vbord phase holds",
+      "Same-Vbord actor cadence/non-logo comparison",
+      "Actual mapping/CC restore and pending/hold behavior",
+      "Current remapped name/menu adjacency"
+    ]
+  },
+  "first_build": {
+    "exit_code": 1,
+    "assembly_and_ROM_pack": "PASS; complete image produced, not full build acceptance",
+    "resident_used_limit_free": [
+      8150,
+      8192,
+      42
+    ],
+    "assets_used_limit_free": [
+      7661,
+      7680,
+      19
+    ],
+    "presentation_used_limit_free": [
+      1280,
+      1280,
+      0
+    ],
+    "perimeter_used_limit_free": [
+      331,
+      334,
+      3
+    ],
+    "enemy_free_bytes": 5,
+    "GMC_spare_bytes": 12141,
+    "source_documentation_errors": [
+      "broken link: module-highscore-helper.html -> routine-catalog.html#routine-highscore-helper-logo-vbord-clock",
+      "missing routine contract: presentation-runtime:PRES_MAIN_PAGE23_RESUME",
+      "missing source contract mirror: highscore-helper:logo_vbord_clock",
+      "missing source contract mirror: presentation-runtime:PRES_MAIN_PAGE23_RESUME"
+    ]
+  },
+  "retry": {
+    "state": "running when recorded",
+    "exec_session_id": 78776,
+    "command": "wsl -d Ubuntu --cd /mnt/e/projects/ladybug --exec python3 repro/build081_current.py",
+    "same_runtime_logic": true,
+    "corrections": "Generated routines.html semantic link; primary demo source comment mirror; imported bridge external-symbol classification. Full rebuild verifies provenance."
+  },
+  "remaining": [
+    "Complete corrected source audit/profile receipt",
+    "Actual joystick full fit",
+    "Qualify exact natural cold-tag/logo/pending/mapping observer commands",
+    "Same-Vbord actor/non-logo baseline comparison and name/menu adjacency commands",
+    "Finalize source whitelist, assignment and parent integration boundaries before Ready"
+  ],
+  "limits": "Static/model pass does not establish live31-Vbord logo rendering or missing runtime scenarios. High-score31 target remains user assumption.",
+  "prototype_patch_sha256": "fd3ee85412d86b06d4c9aa0743c12d6f428dd977e42745191c44b3630e357e8f",
+  "patch_apply_requirement": "git apply --unidiff-zero"
+}
