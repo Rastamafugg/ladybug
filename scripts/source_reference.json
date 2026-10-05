@@ -2199,7 +2199,8 @@
         "AUDIO_INSTALL_EXEC",
         "PRES_MAIN_FB_PUBLISH",
         "PRES_MAIN_INSTALL_PHASE_TILES",
-        "PRES_STAGE_SLICE"
+        "PRES_STAGE_SLICE",
+        "PRES_MAIN_PAGE23_RESUME"
       ],
       "label_classifications": [
         {
@@ -3503,7 +3504,8 @@
       "external_symbols": [
         "PRES_MAIN_SHARED_MASK",
         "blit_packed_sprite",
-        "PRES_MAIN_KEY_SERVICE"
+        "PRES_MAIN_KEY_SERVICE",
+        "PRES_GAME_PAGE_RETURN"
       ],
       "routines": [
         {
@@ -3590,6 +3592,22 @@
           "profile": "presentation",
           "purpose": "Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.",
           "reasons": []
+        },
+        {
+          "name": "logo_vbord_clock",
+          "profile": "presentation",
+          "purpose": "Advance the shared attract and high-score logo phase from an IRQ-atomic VBLANK sample.",
+          "inputs": "FRAMES, PRES_SCREEN, the reserved three-byte clock at $A8FD-$A8FF, and the caller's PAR4 mapping.",
+          "outputs": "A 0/1 logo phase; the clock advances once per complete 31-frame interval and is reinitialized when the screen token changes.",
+          "clobbers": "A, B, D, U, X; condition codes and PAR4 are restored.",
+          "reads": "IRQ-owned u16 FRAMES at $0002, PRES_SCREEN, the caller's PAR4, and clock state through PAR4 page $34.",
+          "writes": "The reserved clock state through PAR4 page $34 and phase-exclusive D2/E3 logo-owner cache invalidation on a screen change. D3 actor phase is untouched.",
+          "side_effects": "Masks IRQ while sampling FRAMES; temporarily maps PAR4 to page $34 and restores it before return.",
+          "invariants": "Never writes PRES_TIMER; restores caller PAR4 and CC; uses only the reserved $A8FD-$A8FF state and existing helper owner.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-highscore-helper-logo-vbord-clock"
         }
       ],
       "label_classifications": [
