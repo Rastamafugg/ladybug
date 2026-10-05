@@ -1,0 +1,554 @@
+{
+  "ticket": "BUG-067",
+  "status": "DONE-PARENT-INTEGRATED",
+  "class": "High-risk",
+  "date": "2026-10-05",
+  "executor_source_commit": "564b6dc1669c3f39dc3950f4ccd5fcf85784a72a",
+  "integration_source_commit": "8ea766c333bf79174a3b196025c4682f3754a89e",
+  "executor_report_sha256": "b0c01024c03ffc0dcccf8cf22c2a9754e99b95c6b522fd9cd68c9cdbc7a3552b",
+  "executor_report": {
+    "ticket": "BUG-067",
+    "status": "EXECUTOR_COMPLETE_PARENT_INTEGRATION_PENDING",
+    "class": "High-risk",
+    "source_commit": "564b6dc1669c3f39dc3950f4ccd5fcf85784a72a",
+    "commit_message": "Fix BUG-067 corrected instruction ending offsets",
+    "branch": "codex/bug067-ending-preparation",
+    "worktree": "E:/projects/ladybug/worktrees/bug067-ending-preparation",
+    "changed_paths": [
+      "scripts/build_presentation.py",
+      "scripts/verify_bug011_instructions.py"
+    ],
+    "unchanged_user_inputs": {
+      "staged": false,
+      "sha256": {
+        "tiled/coco-attract-screen.tmx": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07",
+        "tiled/coco-credits-screen.tmx": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825",
+        "tiled/coco-enter-high-score-screen.tmx": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca",
+        "tiled/coco-game-over-screen.tmx": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05",
+        "tiled/coco-high-score-screen.tmx": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d",
+        "tiled/coco-instructions-screen.tmx": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4",
+        "tiled/coco-keybind-options-screen.tmx": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046",
+        "tiled/coco-level-start-screen.tmx": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b",
+        "tiled/coco-screen.tmx": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f"
+      }
+    },
+    "build_reuse_proof": {
+      "reused": true,
+      "reason": "The complete proposal build matched the frozen approved source and input identities; no build was repeated solely for approval.",
+      "source_base_revision": "42b031ca985c15573c958471890c3352959bc2a8",
+      "profile": "complete",
+      "receipt_sha256": "47956e790a38f7f49aaf4ed57e4ec4db08b98160ac564bfe91a482608ce672b1",
+      "rom_sha256": "521c2704d0b1fcd50a6c2bcf30e9ed8ee0de90ddd3b089b7980d40607f8d9382",
+      "observer_sha256": "36857b56c06554d0f19b0a82bbacfd9b70771103a2c67f0958abd0a6b8b61307",
+      "frozen_script_sha256": {
+        "scripts/build_presentation.py": "8881f304a341835b5cff6dbd75b2e5cdfe4f8b57196a13d498421f3e4a75eaf4",
+        "scripts/verify_bug011_instructions.py": "102a86fda23861a73e2cc098585780f06ecfa351f72a06f91552384468adfbe1"
+      },
+      "receipt_inputs_match": true,
+      "retained_full_build_log": "E:/projects/ladybug/repro/bug067-ending-diagnosis/corrected-build.log"
+    },
+    "verification": {
+      "static_command": "wsl.exe -d Ubuntu --cd /mnt/e/projects/ladybug/worktrees/bug067-ending-preparation -- python3 scripts/verify_bug011_instructions.py --current-row-entry --baseline-manifest repro/bug067-verification/baseline-manifest.json --static-only --output repro/bug067-execution-corrected-static-20261005.json",
+      "static_result": {
+        "status": "PASS-STATIC",
+        "output": "repro/bug067-execution-corrected-static-20261005.json",
+        "output_sha256": "5d241657d17b55be28deb41441c5e6350b9121f6ef08437a0fb1f0392ad7d00e",
+        "events_checked": 16,
+        "first_motion_ticks": [
+          129,
+          577,
+          1217
+        ],
+        "later_row_motion_gaps": [
+          47,
+          47
+        ],
+        "death_tick": 1544,
+        "angel_tick": 1639,
+        "handoff_tick": 1704,
+        "ending_intervals": [
+          95,
+          65
+        ],
+        "death_table_count": 15,
+        "death_indices_before_angel": [
+          0,
+          13
+        ],
+        "manifest_sha256": "f40a4df5de0dc9bbcd46d817f4156d9feef5150c8b6a0e6b51e86ab417a6f1e9",
+        "baseline_manifest_sha256": "6d5b07bb8e9155804302f9a1a28b77602d02b80d4893bc3853a845072ac76257"
+      },
+      "natural_command": "wsl.exe -d Ubuntu --cd /mnt/e/projects/ladybug/worktrees/bug067-ending-preparation -- python3 scripts/verify_bug011_instructions.py --current-row-entry --baseline-manifest repro/bug067-verification/baseline-manifest.json --adapter repro/bug067-verification/row-entry-observer.py --output repro/bug067-execution-corrected-natural-20261005.json",
+      "natural_result": {
+        "status": "PASS",
+        "nested_static_status": "PASS-STATIC-AND-NATURAL",
+        "output": "repro/bug067-execution-corrected-natural-20261005.json",
+        "output_sha256": "b29dffa58fcf5ab9de662b8bb71f25fa28ae6d77882862a1a95660fea4f132ec",
+        "runtime_receipt_sha256": "59252de58df0288d1f41e60bcb6b6ce8aec099651ad36389036824428e70f551",
+        "rom_sha256": "521c2704d0b1fcd50a6c2bcf30e9ed8ee0de90ddd3b089b7980d40607f8d9382",
+        "phase_count": 25,
+        "phase_deadline_seconds": 40,
+        "max_phase_seconds": 16.443,
+        "phases_over_deadline": 0,
+        "required_results": {
+          "first_motion_timers": [
+            129,
+            577,
+            1217
+          ],
+          "all_16_consumes": true,
+          "last_death_pose_timer_and_index": [
+            1634,
+            13
+          ],
+          "angel_entry_timer_and_index": [
+            1639,
+            14
+          ],
+          "completion_and_handoff_tick": 1704,
+          "death_angel_surfaces": 15,
+          "both_instruction_worklists": true,
+          "natural_next_screen_publication": true
+        }
+      }
+    },
+    "capacity": {
+      "headroom_bytes": {
+        "resident": 42,
+        "assets": 4,
+        "presentation": 14,
+        "instruction": 3,
+        "low_helper": 3,
+        "mapped": 22,
+        "banked": 2,
+        "active": 174,
+        "audio": 186,
+        "gmc_spare": 12158
+      },
+      "delta_bytes_vs_frozen_proposal": {
+        "resident": 0,
+        "assets": 0,
+        "presentation": 0,
+        "instruction": 0,
+        "low_helper": 0,
+        "mapped": 0,
+        "banked": 0,
+        "active": 0,
+        "audio": 0,
+        "gmc_spare": 0
+      }
+    },
+    "failed_or_rejected_experiments": {
+      "execution_failures": [],
+      "rejected_historical_candidate": "The superseded 1884 handoff used fixed 180-tick ending offsets and selected death index 15 at timer 1644, outside the 15-entry table. The approved 1704 handoff derives from the final row offset and preserves 95/65 ending intervals."
+    },
+    "residual_risk": "Parent integration remains required: inspect/cherry-pick this two-file commit, rebuild the combined source, and rerun the current ending/handoff acceptance before Done. No parent-integrated acceptance is claimed.",
+    "lease_cleanup": {
+      "port": 65522,
+      "xroar_stopped": true,
+      "listener_gone": true
+    }
+  },
+  "combined_build_exit": 0,
+  "source_receipt_revision": "8ea766c333bf79174a3b196025c4682f3754a89e",
+  "source_receipt_sha256": "1cf9ae92d45a0153af3ba19dcb8e5c49dde046f0cd2af71912e32a9c63b2dea9",
+  "rom_sha256": "521c2704d0b1fcd50a6c2bcf30e9ed8ee0de90ddd3b089b7980d40607f8d9382",
+  "static": {
+    "status": "PASS-STATIC",
+    "mode": "no-row-wait",
+    "units": "generated schedule ticks, not arcade display frames",
+    "first_motion_ticks": [
+      129,
+      577,
+      1217
+    ],
+    "later_row_motion_gaps": [
+      47,
+      47
+    ],
+    "next_screen_tick": 1704,
+    "events_checked": 16,
+    "unchanged_other_event_fields": true,
+    "ending_intervals": [
+      95,
+      65
+    ],
+    "death_indices_before_angel": [
+      0,
+      13
+    ],
+    "death_table_count": 15,
+    "manifest_sha256": "2290dbe41b78eaaa159255aadaf3c1cc651ab25d64f6eb854f2240459928d0f0",
+    "baseline_manifest_sha256": "6d5b07bb8e9155804302f9a1a28b77602d02b80d4893bc3853a845072ac76257"
+  },
+  "natural_receipt_sha256": "c34b32ca6512e297cf52a78f4a146f0a9a5322add435200fbc4aee7dc889c00c",
+  "natural_phases": [
+    {
+      "name": "cold-attract-delivery",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "front_frame_sha256": "da375782a7a46fb052f36227d7eded59aa49481863ad9d7b7eed169a19782278",
+      "elapsed_seconds": 6.622
+    },
+    {
+      "name": "natural-instructions-hidden-hydration",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "expected_hidden_load_overlays": [
+        "boot committed TOP090000 at33..38,row6, red1",
+        "authored cucumber at generated instruction destination"
+      ],
+      "owner_frame_sha256": {
+        "0": "4f767a19da16e790fc3f3415b364bf1c57a622bfbb292cc60fe16bfc5a79ca41",
+        "1": "4f767a19da16e790fc3f3415b364bf1c57a622bfbb292cc60fe16bfc5a79ca41"
+      },
+      "elapsed_seconds": 13.7
+    },
+    {
+      "name": "natural-row-first-motion-0",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "first_motion_pixels": [
+        {
+          "tag": "row0-before",
+          "foreground_pixels": 122,
+          "front_owner": 1,
+          "front_sha256": "f83c1d442f85ca2431738c518695902a25669ee9d34ad89a62506378bf098b6d",
+          "timer": 128,
+          "origin": 17192
+        },
+        {
+          "tag": "row0-after",
+          "foreground_pixels": 122,
+          "front_owner": 0,
+          "front_sha256": "2ee03fab478fbe8c275a9cd6b4c6c7ab788b68a236d9571b33e300b22abcf506",
+          "timer": 129,
+          "origin": 17193
+        }
+      ],
+      "elapsed_seconds": 4.533
+    },
+    {
+      "name": "natural-consume-0-E",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 0,
+        "name": "E",
+        "motion_tick": 129,
+        "consume_tick": 152,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 0.696
+    },
+    {
+      "name": "natural-consume-1-X",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 1,
+        "name": "X",
+        "motion_tick": 227,
+        "consume_tick": 242,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.655
+    },
+    {
+      "name": "natural-consume-2-T",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 2,
+        "name": "T",
+        "motion_tick": 323,
+        "consume_tick": 338,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 3.435
+    },
+    {
+      "name": "natural-consume-3-R",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 3,
+        "name": "R",
+        "motion_tick": 419,
+        "consume_tick": 434,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.717
+    },
+    {
+      "name": "natural-consume-4-A",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 4,
+        "name": "A",
+        "motion_tick": 515,
+        "consume_tick": 530,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.937
+    },
+    {
+      "name": "natural-row-first-motion-1",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "first_motion_pixels": [
+        {
+          "tag": "row1-before",
+          "foreground_pixels": 122,
+          "front_owner": 1,
+          "front_sha256": "0380f5aea0e3568ccfcac908069fe990aa24f22a37c473f769350630524a8d19",
+          "timer": 576,
+          "origin": 21032
+        },
+        {
+          "tag": "row1-after",
+          "foreground_pixels": 122,
+          "front_owner": 0,
+          "front_sha256": "cffbd6a835e6068f7cade74147a40d86ff84c92fed514f00cc2f8f13943ce264",
+          "timer": 577,
+          "origin": 21033
+        }
+      ],
+      "elapsed_seconds": 2.213
+    },
+    {
+      "name": "natural-consume-5-S",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 5,
+        "name": "S",
+        "motion_tick": 577,
+        "consume_tick": 600,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 0.642
+    },
+    {
+      "name": "natural-consume-6-P",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 6,
+        "name": "P",
+        "motion_tick": 675,
+        "consume_tick": 690,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 3.027
+    },
+    {
+      "name": "natural-consume-7-E",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 7,
+        "name": "E",
+        "motion_tick": 771,
+        "consume_tick": 786,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 3.214
+    },
+    {
+      "name": "natural-consume-8-C",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 8,
+        "name": "C",
+        "motion_tick": 867,
+        "consume_tick": 882,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 3.538
+    },
+    {
+      "name": "natural-consume-9-I",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 9,
+        "name": "I",
+        "motion_tick": 963,
+        "consume_tick": 978,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 3.11
+    },
+    {
+      "name": "natural-consume-10-A",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 10,
+        "name": "A",
+        "motion_tick": 1059,
+        "consume_tick": 1074,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.619
+    },
+    {
+      "name": "natural-consume-11-L",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 11,
+        "name": "L",
+        "motion_tick": 1155,
+        "consume_tick": 1170,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.889
+    },
+    {
+      "name": "natural-row-first-motion-2",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "first_motion_pixels": [
+        {
+          "tag": "row2-before",
+          "foreground_pixels": 122,
+          "front_owner": 1,
+          "front_sha256": "3fad838ed104dfe9bae6d5aa24991811fea13d656ca5d998c456bdd651603d0d",
+          "timer": 1216,
+          "origin": 24872
+        },
+        {
+          "tag": "row2-after",
+          "foreground_pixels": 122,
+          "front_owner": 0,
+          "front_sha256": "d7afb30a98d816a3e5c01a3f5c9b4dbdc0262c0af52102555b018159e8c94108",
+          "timer": 1217,
+          "origin": 24873
+        }
+      ],
+      "elapsed_seconds": 2.201
+    },
+    {
+      "name": "natural-consume-12-heart_x2",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 12,
+        "name": "heart_x2",
+        "motion_tick": 1217,
+        "consume_tick": 1240,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 0.63
+    },
+    {
+      "name": "natural-consume-13-heart_x3",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 13,
+        "name": "heart_x3",
+        "motion_tick": 1313,
+        "consume_tick": 1344,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 3.369
+    },
+    {
+      "name": "natural-consume-14-heart_x5",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 14,
+        "name": "heart_x5",
+        "motion_tick": 1409,
+        "consume_tick": 1440,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.83
+    },
+    {
+      "name": "natural-consume-15-skull",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "event": {
+        "index": 15,
+        "name": "skull",
+        "motion_tick": 1489,
+        "consume_tick": 1544,
+        "published_front_owner": 1
+      },
+      "elapsed_seconds": 2.802
+    },
+    {
+      "name": "natural-last-death-pose",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "ending_boundary": {
+        "timer": 1634,
+        "selected_index": 13,
+        "front_owner": 1,
+        "published_frame_sha256": "004fb4b463ac2fcc875991026a1499c13aeebe52204483d65146be412f5eeb1a"
+      },
+      "elapsed_seconds": 3.236
+    },
+    {
+      "name": "natural-angel-entry",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "ending_boundary": {
+        "timer": 1639,
+        "selected_index": 14,
+        "front_owner": 0,
+        "published_frame_sha256": "004fb4b463ac2fcc875991026a1499c13aeebe52204483d65146be412f5eeb1a"
+      },
+      "elapsed_seconds": 0.557
+    },
+    {
+      "name": "natural-instructions-completion-tick",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "elapsed_seconds": 1.732
+    },
+    {
+      "name": "natural-instructions-next-screen",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "elapsed_seconds": 0.92
+    }
+  ],
+  "maximum_phase_seconds": 13.7,
+  "headroom_bytes": {
+    "resident": 42,
+    "assets": 4,
+    "presentation": 14,
+    "instruction": 3,
+    "low_helper": 3,
+    "mapped": 22,
+    "banked": 2,
+    "active": 174,
+    "audio": 186,
+    "gmc_spare": 12158
+  },
+  "headroom_delta_from_approved_prototype": 0,
+  "integration_scope": "Approved067 plus already integrated112/068 prefix. BUG062 source remains excluded. Nine root TMX inputs byte-match frozen approved inputs and remain unstaged.",
+  "rejected_parent_experiments": [],
+  "historical_rejections": "Original1884 candidate and natural invalid index15 diagnosis retained with proposed contract; no erased failure or downstream invalid-draw claim.",
+  "residual": [
+    "Existing very tight module/immutable margins.",
+    "Generated ticks do not establish measured arcade death timing.",
+    "Remaining life/name/enemy/rate tickets and original058 performance target retain their own gates."
+  ],
+  "source_identity_normalization": {
+    "rule": "LF-normalized content matches frozen candidate; native Windows checkout uses CRLF. Compiled ROM remains byte-identical.",
+    "root_raw_sha256": {
+      "scripts/build_presentation.py": "fc3f8fbd9fa2fc2766a3e2c8d1ddee892d9a4a011cc3c84e43cc192e3508b50d",
+      "scripts/verify_bug011_instructions.py": "71c60f184a28bcd48a77471871d192a5bb55f58c8b065fff64ddb626882fa053"
+    }
+  },
+  "executor_report_metadata_correction": "Parent caught an incorrect full source_commit in the ignored report; executor replaced it from native git rev-parse HEAD and checked all recorded hashes. Final retained commit564b6dc1669c3f39dc3950f4ccd5fcf85784a72a matches the actual object. No runtime rejection or source change resulted."
+}
