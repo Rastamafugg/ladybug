@@ -859,6 +859,8 @@ iet_wait_stage
         ; The committed stage image is now the handoff boundary.  The
         ; rightmost marker and the entrant are one life unit.
         dec     LIVES
+; DOC-002 source-contract mirror contract marker_entry_begin profile=movement: Arm the consumed HUD marker departure without decrementing the life count.
+marker_entry_begin
         lda     LIVES
         jsr     life_marker_position
         lda     HUD_Y
@@ -4227,11 +4229,8 @@ dt_finish_blank
         clr     PLAYER_BG_VALID
         clr     FB_META_A+FBM_PLAYER_VALID
         clr     FB_META_B+FBM_PLAYER_VALID
-        lbsr    init_player
+        lbsr    marker_entry_begin ; death path already consumed the reserve
         clr     DEATH_STATE
-        lda     RENDER_FLAGS
-        ora     #RF_LIVES|RF_PLAYER
-        sta     RENDER_FLAGS
         rts
 dt_game_over
         lda     #4
