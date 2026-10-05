@@ -1,7 +1,7 @@
 import ctypes as c,subprocess,time,json,os,hashlib,re,sys
 from pathlib import Path
 import argparse
-p=argparse.ArgumentParser();p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));p.add_argument("--next-part",type=int,choices=range(1,256));p.add_argument('--stage-score',type=str);p.add_argument('--trademark',choices=('baseline','red'));p.add_argument('--instructions-static',action='store_true');p.add_argument('--hud-equals',choices=('baseline','green'));p.add_argument('--instructions-multipliers',choices=('baseline','blue'));p.add_argument('--logo-clock',action='store_true');p.add_argument('--logo-clock-cold-tag',choices=('80','81','86','87'));a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--credit-admission-only',action='store_true');p.add_argument('--build-dir',type=Path,required=True);p.add_argument('--worktree',type=Path,required=True);p.add_argument('--rom-sha256',required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--prompt-only',action='store_true');p.add_argument('--bindings',action='store_true');p.add_argument('--name-only',action='store_true');p.add_argument('--entry-edges-only',action='store_true');p.add_argument('--hud-parts',action='store_true');p.add_argument('--hud-lives',action='store_true');p.add_argument("--level-part",type=int,choices=range(1,256));p.add_argument("--next-part",type=int,choices=range(1,256));p.add_argument('--stage-score',type=str);p.add_argument('--trademark',choices=('baseline','red'));p.add_argument('--instructions-static',action='store_true');p.add_argument('--hud-equals',choices=('baseline','green'));p.add_argument('--instructions-multipliers',choices=('baseline','blue'));p.add_argument('--logo-clock',action='store_true');p.add_argument('--logo-clock-cold-tag',choices=('80','81','86','87'));a=p.parse_args()
 if a.stage_score is not None:
  assert len(a.stage_score)==6 and a.stage_score.isdigit(),'six BCD decimal score digits required'
  assert a.level_part or a.next_part,'stage-score requires a level-part or next-part scenario'
@@ -10,7 +10,7 @@ if a.logo_clock:
  assert not (a.prompt_only or a.bindings or a.name_only or a.entry_edges_only or a.hud_parts or a.hud_lives or a.level_part or a.next_part or a.trademark or a.instructions_static or a.hud_equals or a.instructions_multipliers),'logo-clock is a standalone bounded selector'
  assert a.logo_clock_cold_tag in ('80','81','86','87'),'logo-clock requires one disclosed valid cold tag fixture'
 else:assert a.logo_clock_cold_tag is None,'logo-clock-cold-tag requires --logo-clock'
-ROOT=a.worktree.resolve();B=ROOT/'build';O=ROOT/'repro/ready-menu-gdb';O.mkdir(parents=True,exist_ok=True)
+ROOT=a.worktree.resolve();B=a.build_dir.resolve();O=ROOT/'repro/ready-menu-gdb';O.mkdir(parents=True,exist_ok=True)
 assert not a.output.exists(),'output exists'
 assert hashlib.sha256((B/'ladybug.rom').read_bytes()).hexdigest()==a.rom_sha256,'ROM identity mismatch'
 xlib=c.CDLL('libX11.so.6');xlib.XOpenDisplay.restype=c.c_void_p;xlib.XDefaultRootWindow.argtypes=[c.c_void_p];xlib.XDefaultRootWindow.restype=c.c_ulong
@@ -303,18 +303,15 @@ def logo_clock_state():
   'last_sample':int.from_bytes(clock[:2],'big'),'tag':clock[2]}
 
 def logo_roots(screen,manifest):
- if screen==0:return [tuple(v) for v in manifest['attract_actor_surfaces']['logo_roots']]
- records=manifest['highscore_logo']['records']
  roots=[]
- for dest,_,_ in records:
-  offset=dest-0x2000
-  roots.append((((offset%160)*2)//8,(offset//160)//8))
- assert len(roots)==12 and all(0<=x<40 and 0<=y<24 for x,y in roots),roots
+ for destination,_,_ in manifest['highscore_logo']['records']:
+  offset=destination-0x2000-(0x1e00 if screen==0 else 0)
+  roots.append((offset%160//4,offset//1280))
+ assert len(roots)==12 and all(0<=x<40 and 0<=y<24 for x,y in roots)
  return roots
 
 def logo_frame_signature(frame,roots):
- value=b''.join(frame[(y*8+dy)*160+x*4:(y*8+dy)*160+x*4+4]
-  for x,y in roots for dy in range(16))
+ value=b''.join(frame[(y*8+dy)*160+x*4:(y*8+dy)*160+x*4+4] for x,y in roots for dy in range(8))
  return hashlib.sha256(value).hexdigest()
 
 def settled_logo_pair(screen,expected_phase,roots):
@@ -326,11 +323,29 @@ def settled_logo_pair(screen,expected_phase,roots):
    signatures={str(owner):logo_frame_signature(frame,roots) for owner,frame in frames.items()}
    after=logo_clock_state()
    if signatures['0']==signatures['1'] and after['screen']==screen and after['pending']==0 and after['transaction']==0 and after['phase']==expected_phase:
+    manifest=json.loads((B/'ladybug-presentation.json').read_text());cold=(B/'ladybug-presentation-cold.bin').read_bytes();compared=0
+    for destination,source0,source1 in manifest['highscore_logo']['records']:
+     offset=destination-0x2000-(0x1e00 if screen==0 else 0);source=(source0,source1)[expected_phase]
+     expected=cold[source:source+32]
+     for owner,frame in frames.items():
+      actual=b''.join(frame[offset+row*160:offset+row*160+4] for row in range(8))
+      assert actual==expected,('current authored logo tile',screen,expected_phase,owner,destination)
+      compared+=1
+    report['phases'][-1].setdefault('authored_tile_comparisons',[]).append({'screen':screen,'phase':expected_phase,'owner_tiles':compared,'equal':True})
     report['phases'][-1].setdefault('actual_logo_pairs',[]).append({
      'screen_id':screen,'phase':expected_phase,'front_owner':after['front'],
      'root_count':len(roots),'owner_signature_sha256':signatures})
     return after,signatures
   time.sleep(.08)
+
+def live_pc_guard(address,artifact,origin):
+ data=artifact[address-origin:address-origin+16]
+ assert len(data)==16
+ lines=[]
+ for offset,value in enumerate(data):
+  lines += [f'if *(unsigned char*)0x{address+offset:x} != {value}',
+   'printf "BUG081_LIVE_IDENTITY_MISMATCH\\n"','quit 1','end']
+ return lines
 
 def natural_logo_helper_call(screen,label):
  phase(label)
@@ -338,7 +353,7 @@ def natural_logo_helper_call(screen,label):
  helper_symbols=symbols(B/'ladybug-highscore-helper.map')
  target=helper_symbols['highscore_logo_tick']
  lines=['set $saved5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x23',
-  f'break *0x{target:x}','set {unsigned char}0xffa5=$saved5','continue',
+  f'break *0x{target:x}','set {unsigned char}0xffa5=$saved5','continue'] + live_pc_guard(target,helper,0xac40) + [
   'printf "BUG081_HELPER_PC=%04x PAR5=%02x\\n",$pc,*(unsigned char*)0xffa5',
   'delete breakpoints','set $saved5=*(unsigned char*)0xffa5',
   'set {unsigned char}0xffa5=0x23',
@@ -353,7 +368,7 @@ def natural_logo_helper_call(screen,label):
  check('natural helper breakpoint reached through page-$23 banking',bool(match))
  if match:
   check('helper breakpoint PC is current highscore_logo_tick entry',int(match.group(1),16)==target)
-  check('helper breakpoint observes PAR5=$23',int(match.group(2),16)==0x23)
+  check('helper breakpoint observes PAR5=$23',(int(match.group(2),16)&0x3f)==0x23)
  check('full live page-$23 helper equals current artifact',(O/'logo-helper-live.bin').read_bytes()==helper)
  dp=(O/'logo-dp.bin').read_bytes();clock=(O/'logo-clock.bin').read_bytes()
  state={'frames':int.from_bytes(dp[2:4],'big'),'mode':dp[0xa5],'screen':dp[0xa6],
@@ -361,7 +376,7 @@ def natural_logo_helper_call(screen,label):
   'phase':dp[0xe8]&1,'raw_phase':dp[0xe8],
   'last_sample':int.from_bytes(clock[:2],'big'),'tag':clock[2]}
  check(label+' reaches requested generated screen',state['screen']==screen)
- state['helper_breakpoint_pc']=target;state['par5_at_helper_breakpoint']=0x23
+ state['helper_breakpoint_pc']=target;state['par5_raw_at_helper_breakpoint']=int(match.group(2),16);state['par5_physical_page_at_helper_breakpoint']=int(match.group(2),16)&0x3f
  report['phases'][-1]['state']=state
  report['phases'][-1]['source_map_ids']={'attract':0,'high_score':3}
  report['phases'][-1]['tag_formula']='(PRES_SCREEN << 1) | $80; comparison ignores phase bit with AND $FE'
@@ -423,14 +438,23 @@ def seed_highscore_reset_fixture():
   f'dump binary memory {O}/logo-dp.bin 0 0x300',
   'set $saved4=*(unsigned char*)0xffa4','set {unsigned char}0xffa4=0x34',
   f'dump binary memory {O}/logo-clock.bin 0x88fd 0x8900',
+  'set {unsigned char}0xffa4=$saved4',
+  'set $saved5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x23',
+  f'break *0x{symbols(B/"ladybug-highscore-helper.map")["highscore_logo_vbord"]+5:x}',
+  'set {unsigned char}0xffa5=$saved5','continue',
+  *live_pc_guard(symbols(B/'ladybug-highscore-helper.map')['highscore_logo_vbord']+5,(B/'ladybug-highscore-helper.bin').read_bytes(),0xac40),
+  'delete breakpoints',f'dump binary memory {O}/highscore-first-clock-dp.bin 0 0x300',
+  'set $saved4=*(unsigned char*)0xffa4','set {unsigned char}0xffa4=0x34',
+  f'dump binary memory {O}/highscore-first-clock.bin 0x88fd 0x8900',
   'set {unsigned char}0xffa4=$saved4','detach','quit'])+'\n')
  proc=subprocess.Popen(['m6809-gdb','-q','-nx','-batch','-x',str(path)],
   stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
  time.sleep(.15)
- key('5')
+ key('5',states=(1,))
  try:output,_=proc.communicate(timeout=min(40,max(.1,deadline-time.monotonic())))
  except subprocess.TimeoutExpired:
   proc.kill();proc.communicate();raise AssertionError('high-score cold reset publication deadline; key5 reset boundary not observed')
+ key('5',states=(0,))
  assert proc.returncode==0,output
  match=re.search(r'BUG081_HIGHSCORE_RESET screen=([0-9a-fA-F]+) PAR5=([0-9a-fA-F]+) seed=([0-9a-fA-F]+)',output)
  check('key5 naturally reaches high-score load_timer_reset with disclosed valid tag fixture',bool(match))
@@ -444,6 +468,7 @@ def seed_highscore_reset_fixture():
  report['phases'][-1]['cold_fixture']={'screen_id':3,'tag':f'${tag:02X}',
   'location':'before source CLR $A8FF at load_timer_reset after key5 route',
   'FRAMES_or_clock_sample_written':False}
+
 
 def logo_clock_probe():
  manifest=json.loads((B/'ladybug-presentation.json').read_text())
@@ -465,28 +490,38 @@ def logo_clock_probe():
   'last_sample':int.from_bytes(clock0[:2],'big'),'tag':clock0[2]}
  check('first initialized attract phase is0 at natural page-$23 dispatch',state0['phase']==0 and state0['tag']==0x80)
  check('first attract clock call uses valid live page-$23 helper bytes',(O/'logo-first-helper-live.bin').read_bytes()==(B/'ladybug-highscore-helper.bin').read_bytes())
- check('first attract helper breakpoint observes PAR5=$23',bool(re.search(r'BUG081_HELPER_PC=[0-9a-fA-F]+ PAR5=23',cold_output)))
+ first_mapping=re.search(r'BUG081_HELPER_PC=([0-9a-fA-F]+) PAR5=([0-9a-fA-F]+)',cold_output)
+ check('first attract helper breakpoint observes physical PAR5 page$23',bool(first_mapping) and (int(first_mapping.group(2),16)&0x3f)==0x23)
+ report['phases'][-1]['first_helper_mapping']={'PC':int(first_mapping.group(1),16),'PAR5_raw':int(first_mapping.group(2),16),'PAR5_physical_page':int(first_mapping.group(2),16)&0x3f}
  roots0=logo_roots(0,manifest)
- attract_pairs=collect_logo_phase_pairs(0,state0,roots0,'natural-attract')
+ attract_pairs=collect_logo_phase_pairs(0,logo_clock_state(),roots0,'natural-attract')
  report['phases'][-1]['observed_valid_tags']=['$80','$81']
  report['phases'][-1]['actual_logo_frame_pair_distinct']=attract_pairs[0]['0']!=attract_pairs[1]['0']
  phase('key5-natural-highscore-dispatch')
  before=snapshot()
  if int(a.logo_clock_cold_tag,16)>=0x86:seed_highscore_reset_fixture()
- else:key('5')
+ else:key('5',states=(1,))
  after=settled(3)
+ key('5',states=(0,))
  check('key5 reaches generated high-score screen3',after['screen']==3)
  check('key5 menu dispatch preserves credits and selection',after['credits']==before['credits']+1 and after['selection']==before['selection'])
  stage_helper_identity()
  state2=natural_logo_helper_call(3,'natural-highscore-helper-page23-dispatch')
- check('screen3 tag transition reinitializes phase0',state2['phase']==0 and state2['tag']==0x86)
+ if int(a.logo_clock_cold_tag,16)>=0x86:
+  firsths=(O/'highscore-first-clock.bin').read_bytes();firstdp=(O/'highscore-first-clock-dp.bin').read_bytes()
+  check('first post-reset high-score clock selects phase0',firsths[2]==0x86 and firstdp[0xe8]==0)
+  report['phases'][-1]['first_post_reset_clock']={'FRAMES':int.from_bytes(firstdp[2:4],'big'),'last_sample':int.from_bytes(firsths[:2],'big'),'tag':firsths[2],'phase':firstdp[0xe8]}
+ else:
+  check('screen3 tag transition reinitializes phase0',state2['phase']==0 and state2['tag']==0x86)
+ check('later screen3 sample retains matching generated identity',(state2['tag']&0xfe)==0x86 and (state2['tag']&1)==state2['phase'])
  roots3=logo_roots(3,manifest)
  highscore_pairs=collect_logo_phase_pairs(3,state2,roots3,'natural-highscore')
  report['phases'][-1]['observed_valid_tags']=['$86','$87']
  report['phases'][-1]['actual_logo_frame_pair_distinct']=highscore_pairs[0]['0']!=highscore_pairs[1]['0']
- key('Return');await_state('ordinary credited entry after high-score logo dispatch',lambda q:q['mode']==0 and q['entry']==0 and q['live']==1)
- active_gameplay_identity();name_controls()
- report['qualification']='Natural attract and key5 high-score dispatch; page-$23 helper breakpoint identity, IRQ FRAMES/clock deltas and actual twelve-root frame pairs. Name/menu adjacency uses existing bounded name handoff. Run once per valid cold-tag fixture $80/$81/$86/$87; FRAMES and last-sample are never written.'
+ if a.logo_clock_cold_tag=='80':
+  key('Return');await_state('ordinary credited entry after high-score logo dispatch',lambda q:q['mode']==0 and q['entry']==0 and q['live']==1)
+  active_gameplay_identity();name_controls()
+ report['qualification']='Actual twelve raw8x8 tile destinations from high-score worklist, attract shift0x1E00. Current live helper identity, elapsed31-VBL clock, both-owner authored raw tile pixels; name/return adjacency once for tag80. No FRAMES or last-sample writes.'
 
 def active_gameplay_identity():
  active=(B/'ladybug-adaptive-active.bin').read_bytes()
@@ -577,7 +612,7 @@ try:
  if a.logo_clock:
   assert 'load_timer_reset' in pres,'current source reset marker absent'
   tag=int(a.logo_clock_cold_tag,16)
-  cold_lines=[f'break *0x{pres["load_timer_reset"]:x}','continue',
+  cold_lines=[f'break *0x{pres["load_timer_reset"]:x}','continue'] + live_pc_guard(pres['load_timer_reset'],(B/'ladybug-presentation-runtime.bin').read_bytes(),0x1900) + [
    'printf "BUG081_COLD_RESET screen=%02x PAR5=%02x\\n",*(unsigned char*)0xa6,*(unsigned char*)0xffa5',
    ]
   if tag<0x86:cold_lines += [f'set {{unsigned char}}0xa8ff=0x{tag:02x}']
@@ -589,7 +624,19 @@ try:
    'set $saved4=*(unsigned char*)0xffa4','set {unsigned char}0xffa4=0x34',
    f'dump binary memory {O}/logo-clock.bin 0x88fd 0x8900',
    'set {unsigned char}0xffa4=$saved4']
+  first_helper_symbols=symbols(B/'ladybug-highscore-helper.map')
+  first_target=first_helper_symbols['highscore_logo_vbord']+5
+  first_helper=(B/'ladybug-highscore-helper.bin').read_bytes()
+  cold_lines += ['set $saved5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x23',
+   f'break *0x{first_target:x}','set {unsigned char}0xffa5=$saved5','continue'] + live_pc_guard(first_target,first_helper,0xac40) + [
+   'printf "BUG081_HELPER_PC=%04x PAR5=%02x\\n",$pc,*(unsigned char*)0xffa5',
+   'delete breakpoints',f'dump binary memory {O}/logo-first-dp.bin 0 0x300',
+   f'dump binary memory {O}/logo-first-helper-live.bin 0xac40 0x{0xac40+len(first_helper):x}',
+   'set $saved4=*(unsigned char*)0xffa4','set {unsigned char}0xffa4=0x34',
+   f'dump binary memory {O}/logo-first-clock.bin 0x88fd 0x8900',
+   'set {unsigned char}0xffa4=$saved4']
   cold_output=gdb(cold_lines)
+  (O/'cold-capture-raw.log').write_text(cold_output)
   match=re.search(r'BUG081_COLD_RESET screen=([0-9a-fA-F]+) PAR5=([0-9a-fA-F]+)',cold_output)
   check('cold fixture intercepted source load_timer_reset before its clear',bool(match))
   if match:
@@ -616,6 +663,38 @@ try:
  inventory=[(w,n,window_pid(w)) for w,n in windows(root) if 'XRoar' in n]
  report['window_inventory']=inventory;report['launched_pid']=process.pid
  ws=[(w,n) for w,n,pid in inventory if pid==process.pid and visible_window(w)];assert len(ws)==1,('launched visible XRoar host window identity absent or ambiguous',inventory,process.pid);window=ws[0][0]
+ if a.credit_admission_only:
+  import threading
+  phase('first-credit-install-and-hold-boundaries')
+  target=pres['pft_idle_credit'];after=target+3
+  send=threading.Timer(.25,lambda:key('5',states=(1,)));send.start()
+  high=(B/'ladybug-highscore-runtime.bin').read_bytes()
+  commands=[f'break *0x{target:x}','continue']+live_pc_guard(target,presentation,0x1900)+[
+   'printf "CREDIT_BEFORE_INSTALL PC=%04x S=%04x MODE=%02x SCREEN=%02x CREDITS=%02x PAR0=%02x PAR4=%02x PAR5=%02x\\n",$pc,$s,*(unsigned char*)0xa5,*(unsigned char*)0xa6,*(unsigned char*)0xa8,*(unsigned char*)0xffa0,*(unsigned char*)0xffa4,*(unsigned char*)0xffa5',
+   'set $saved5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x23',
+   f'dump binary memory {O}/credit-highscore-staged.bin 0xa880 0x{0xa880+len(high):x}',
+   'set {unsigned char}0xffa5=$saved5',
+   f'dump binary memory {O}/credit-perimeter-live.bin 0x6b2 0x{0x6b2+len((B/"ladybug-perimeter-reset-helper.bin").read_bytes()):x}',
+   f'break *0x{after:x}','continue']+live_pc_guard(after,presentation,0x1900)+[
+   'printf "CREDIT_AFTER_INSTALL PC=%04x S=%04x PAR0=%02x PAR4=%02x PAR5=%02x\\n",$pc,$s,*(unsigned char*)0xffa0,*(unsigned char*)0xffa4,*(unsigned char*)0xffa5',
+   f'dump binary memory {O}/credit-highscore-destination.bin 0x300 0x{0x300+len(high):x}',
+   f'break *0x{pres["start_screen_done"]:x}','continue']+live_pc_guard(pres['start_screen_done'],presentation,0x1900)+[
+   'printf "CREDIT_AFTER_HOLD PC=%04x S=%04x MODE=%02x SCREEN=%02x CREDITS=%02x PAR0=%02x PAR4=%02x PAR5=%02x\\n",$pc,$s,*(unsigned char*)0xa5,*(unsigned char*)0xa6,*(unsigned char*)0xa8,*(unsigned char*)0xffa0,*(unsigned char*)0xffa4,*(unsigned char*)0xffa5',
+   'delete breakpoints',f'dump binary memory {O}/credit-after-hold-dp.bin 0 0x300']
+  raw=gdb(commands);send.join(timeout=2)
+  (O/'credit-first-boundaries-raw.log').write_text(raw)
+  report['phases'][-1]['boundaries']=raw
+  check('live always-mapped bank-return owner equals current artifact',(O/'credit-perimeter-live.bin').read_bytes()==(B/'ladybug-perimeter-reset-helper.bin').read_bytes())
+  check('staged highscore page23 bytes equal current artifact',(O/'credit-highscore-staged.bin').read_bytes()==high)
+  check('installed highscore low-RAM bytes equal current artifact',(O/'credit-highscore-destination.bin').read_bytes()==high)
+  dp=(O/'credit-after-hold-dp.bin').read_bytes()
+  check('credit and screen retained after hold begin',dp[0xa8]==1 and dp[0xa6]==3)
+  key('5',states=(0,))
+  phase('phase-safe-admitted-credit-steady-menu')
+  q=settled(3)
+  check('natural current menu preserves credit and inactive gameplay',q['credits']==1 and q['live']==0)
+  stage_helper_identity()
+  report['status']='PASS-DELIVERY-AND-MENU';raise SystemExit(0)
  if a.logo_clock:
   logo_clock_probe();report['status']='PASS';raise SystemExit(0)
  if a.trademark:

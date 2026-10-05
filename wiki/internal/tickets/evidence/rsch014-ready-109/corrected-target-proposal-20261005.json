@@ -1,0 +1,59 @@
+{
+  "status": "CONFIRMED-CAUSE-CORRECTED-TARGET-PROPOSED",
+  "baseline_revision": "1041703",
+  "rom_sha256": "350fbe5536fb0d2eba5fed461d2765be83c5bf89606c8288b682a715d462a6fb",
+  "source_sha256": "6c7048611ba097a786debd1fe0b3d2a50a67236bfe9a2c877b8962ed28c3008d",
+  "low_runtime_sha256": "61fddae6b3049b58ff3a4216d82111ec8bda29256ca199d39727a1217b3851fd",
+  "active_include": "demo_runtime.s selects shared_text_ranking.inc for HIGHSCORE_PHASE_HELPER=0 in complete auxiliary runtime; shared_text_stage.inc is the mapped helper and legacy alternate path.",
+  "live_identity_checks": [
+    "full delivered low name owner equals current artifact",
+    "full delivered mapped name owner equals current artifact",
+    "actual ranking and pending score match fixture",
+    "all ten numeric glyph descriptors available"
+  ],
+  "decoded_current_fields": [
+    {
+      "owner": 0,
+      "field": "gap",
+      "value": "090000",
+      "pixels_match_authored_descriptors": true
+    },
+    {
+      "owner": 0,
+      "field": "player",
+      "value": "095000",
+      "pixels_match_authored_descriptors": true
+    },
+    {
+      "owner": 0,
+      "field": "top-right",
+      "value": "090000",
+      "pixels_match_authored_descriptors": true
+    },
+    {
+      "owner": 1,
+      "field": "gap",
+      "value": "090000",
+      "pixels_match_authored_descriptors": true
+    },
+    {
+      "owner": 1,
+      "field": "player",
+      "value": "095000",
+      "pixels_match_authored_descriptors": true
+    },
+    {
+      "owner": 1,
+      "field": "top-right",
+      "value": "090000",
+      "pixels_match_authored_descriptors": true
+    }
+  ],
+  "rejected_observer_expectation": "Expected rank0 pending095000 in gap/top-right from inactive legacy source; live active writer always reads committed record0,090000. Corrected offline descriptor equality is exact on both owners.",
+  "patch_bytes_removed": 7,
+  "removed_opcodes": "10 8e 61 04 17 00 41",
+  "byte_saving_status": "Exact existing instruction encoding, not a completed candidate full build.",
+  "target_change": "Replace src/shared_text_stage.inc with src/shared_text_ranking.inc; outcome/scope/acceptance otherwise unchanged.",
+  "cost_class": "Compact",
+  "remaining": "Renewed target approval; both-rank current baseline command; candidate full build and blank/replay checks before acceptance."
+}

@@ -1,0 +1,1857 @@
+{
+  "status": "PASS-READY-PREPARATION",
+  "parent_revision": "1041703e6e40e940c2388e6a3f98895835dada66",
+  "keyboard_rom_sha256": "9d3f6c5141760e348defbe9f3d45476799d9f276f1bfc3be8d7d84126bf0cfbf",
+  "joystick_rom_sha256": "b8283a3661a5021de85a3ed2197c8f993069e38971950cc6be687645da200722",
+  "clock_runs": [
+    {
+      "cold_tag": "80",
+      "raw_report_sha256": "b556478a4e671b7c93e9bd7a6251c62645af7c57c60beb3c2235e794d8841e1e",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "cold fixture intercepted source load_timer_reset before its clear",
+            "cold collision fixture targets generated attract screen0",
+            "cold fixture page-$34 is mapped at reset",
+            "source reset clears raw cold token before attract dispatch",
+            "cold attract marker retains generated screen0",
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26",
+            "natural attract clock has generated screen0 tag",
+            "live stage mapped helper equals current authored artifact",
+            "first initialized attract phase is0 at natural page-$23 dispatch",
+            "first attract clock call uses valid live page-$23 helper bytes",
+            "first attract helper breakpoint observes physical PAR5 page$23"
+          ],
+          "front_frame_sha256": "89117439ad5550cf777d00ee58014cb1a02375a38d56c7b41b271eb0f8b6fa10",
+          "generated_map_ids": {
+            "attract": 0,
+            "high_score": 3
+          },
+          "tag_formula": "(PRES_SCREEN << 1) | $80; low bit is phase; compare (expected XOR stored) AND $FE",
+          "cold_fixture": {
+            "screen_id": 0,
+            "tag": "$80",
+            "location": "before source CLR $A8FF at initial attract load_timer_reset",
+            "FRAMES_or_clock_sample_written": false
+          },
+          "first_helper_mapping": {
+            "PC": 46217,
+            "PAR5_raw": 227,
+            "PAR5_physical_page": 35
+          },
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 0,
+              "phase": 0,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+                "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+              }
+            }
+          ],
+          "elapsed_seconds": 10.981
+        },
+        {
+          "name": "natural-attract-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-attract captures both live phase signatures",
+            "natural-attract phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 0,
+              "phase": 1,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            },
+            {
+              "screen_id": 0,
+              "phase": 1,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 183,
+            "end_FRAMES": 215,
+            "observed_FRAMES_delta": 32,
+            "clock_sample_start": 165,
+            "clock_sample_end": 196,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 129,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "observed_valid_tags": [
+            "$80",
+            "$81"
+          ],
+          "actual_logo_frame_pair_distinct": true,
+          "elapsed_seconds": 7.552
+        },
+        {
+          "name": "key5-natural-highscore-dispatch",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "key5 reaches generated high-score screen3",
+            "key5 menu dispatch preserves credits and selection",
+            "live stage mapped helper equals current authored artifact"
+          ],
+          "elapsed_seconds": 4.314
+        },
+        {
+          "name": "natural-highscore-helper-page23-dispatch",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "natural helper breakpoint reached through page-$23 banking",
+            "helper breakpoint PC is current highscore_logo_tick entry",
+            "helper breakpoint observes PAR5=$23",
+            "full live page-$23 helper equals current artifact",
+            "natural-highscore-helper-page23-dispatch reaches requested generated screen",
+            "screen3 tag transition reinitializes phase0",
+            "later screen3 sample retains matching generated identity"
+          ],
+          "state": {
+            "frames": 582,
+            "mode": 5,
+            "screen": 3,
+            "pending": 0,
+            "transaction": 0,
+            "front": 1,
+            "phase": 0,
+            "raw_phase": 0,
+            "last_sample": 553,
+            "tag": 134,
+            "helper_breakpoint_pc": 46199,
+            "par5_raw_at_helper_breakpoint": 35,
+            "par5_physical_page_at_helper_breakpoint": 35
+          },
+          "source_map_ids": {
+            "attract": 0,
+            "high_score": 3
+          },
+          "tag_formula": "(PRES_SCREEN << 1) | $80; comparison ignores phase bit with AND $FE",
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 3,
+              "phase": 0,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+                "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+              }
+            }
+          ],
+          "elapsed_seconds": 2.882
+        },
+        {
+          "name": "natural-highscore-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-highscore captures both live phase signatures",
+            "natural-highscore phase0 and phase1 actual logo pairs differ",
+            "ordinary gameplay adaptive vectors and copied active image equal current artifact"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 3,
+              "phase": 1,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            },
+            {
+              "screen_id": 3,
+              "phase": 1,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 634,
+            "end_FRAMES": 667,
+            "observed_FRAMES_delta": 33,
+            "clock_sample_start": 615,
+            "clock_sample_end": 646,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 135,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "observed_valid_tags": [
+            "$86",
+            "$87"
+          ],
+          "actual_logo_frame_pair_distinct": true,
+          "elapsed_seconds": 15.237
+        },
+        {
+          "name": "forced-final-death-natural-name-handoff",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "forced_state": "Replace five bindings with previously UI-tested W/S/A/D/Space; set packed-BCD SCORE=095000 and DEATH_STATE=4 at ordinary credited gameplay. Natural qualification/phase owner installs and publishes game-over then name entry.",
+          "checks": [
+            "name low-RAM runtime equals artifact",
+            "name mapped helper equals artifact"
+          ],
+          "elapsed_seconds": 15.808
+        },
+        {
+          "name": "remapped-name-movement-0",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "name mapped direction bit 0"
+          ],
+          "elapsed_seconds": 2.589
+        },
+        {
+          "name": "remapped-name-movement-1",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "name mapped direction bit 1"
+          ],
+          "elapsed_seconds": 2.595
+        },
+        {
+          "name": "remapped-name-movement-2",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "name mapped direction bit 2"
+          ],
+          "elapsed_seconds": 2.578
+        },
+        {
+          "name": "remapped-name-movement-3",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "name mapped direction bit 3",
+            "at least one remapped key moves the actual name cursor"
+          ],
+          "elapsed_seconds": 2.584
+        },
+        {
+          "name": "fixed-arrow-name-exclusion",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "fixed menu Up is not a rebound name movement"
+          ],
+          "elapsed_seconds": 2.583
+        },
+        {
+          "name": "forced-END-natural-name-return",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "forced_state": "Set existing END completion flag E2=1; natural mapped helper commits and returns. This does not test reaching the END glyph.",
+          "checks": [
+            "visible ADD CREDITS cell 16",
+            "visible ADD CREDITS cell 17",
+            "visible ADD CREDITS cell 18",
+            "visible ADD CREDITS cell 19",
+            "visible ADD CREDITS cell 20",
+            "visible ADD CREDITS cell 21",
+            "visible ADD CREDITS cell 22",
+            "visible ADD CREDITS cell 23",
+            "visible ADD CREDITS cell 24",
+            "visible ADD CREDITS cell 25",
+            "visible ADD CREDITS cell 26"
+          ],
+          "front_frame_sha256": "b7195f5dc89b7006e58c6c0cd8ddf190116e433c103c6e4c637b3223f1760a08",
+          "elapsed_seconds": 4.423
+        }
+      ]
+    },
+    {
+      "cold_tag": "81",
+      "raw_report_sha256": "e996b1c95efe5f111f91dd8a61ff73a277038a48220100c0f13a33f501b424df",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "cold fixture intercepted source load_timer_reset before its clear",
+            "cold collision fixture targets generated attract screen0",
+            "cold fixture page-$34 is mapped at reset",
+            "source reset clears raw cold token before attract dispatch",
+            "cold attract marker retains generated screen0",
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26",
+            "natural attract clock has generated screen0 tag",
+            "live stage mapped helper equals current authored artifact",
+            "first initialized attract phase is0 at natural page-$23 dispatch",
+            "first attract clock call uses valid live page-$23 helper bytes",
+            "first attract helper breakpoint observes physical PAR5 page$23"
+          ],
+          "front_frame_sha256": "89117439ad5550cf777d00ee58014cb1a02375a38d56c7b41b271eb0f8b6fa10",
+          "generated_map_ids": {
+            "attract": 0,
+            "high_score": 3
+          },
+          "tag_formula": "(PRES_SCREEN << 1) | $80; low bit is phase; compare (expected XOR stored) AND $FE",
+          "cold_fixture": {
+            "screen_id": 0,
+            "tag": "$81",
+            "location": "before source CLR $A8FF at initial attract load_timer_reset",
+            "FRAMES_or_clock_sample_written": false
+          },
+          "first_helper_mapping": {
+            "PC": 46217,
+            "PAR5_raw": 227,
+            "PAR5_physical_page": 35
+          },
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 0,
+              "phase": 0,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+                "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+              }
+            }
+          ],
+          "elapsed_seconds": 9.798
+        },
+        {
+          "name": "natural-attract-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-attract captures both live phase signatures",
+            "natural-attract phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 0,
+              "phase": 1,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            },
+            {
+              "screen_id": 0,
+              "phase": 1,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 181,
+            "end_FRAMES": 215,
+            "observed_FRAMES_delta": 34,
+            "clock_sample_start": 165,
+            "clock_sample_end": 196,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 129,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "observed_valid_tags": [
+            "$80",
+            "$81"
+          ],
+          "actual_logo_frame_pair_distinct": true,
+          "elapsed_seconds": 7.568
+        },
+        {
+          "name": "key5-natural-highscore-dispatch",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "key5 reaches generated high-score screen3",
+            "key5 menu dispatch preserves credits and selection",
+            "live stage mapped helper equals current authored artifact"
+          ],
+          "elapsed_seconds": 4.16
+        },
+        {
+          "name": "natural-highscore-helper-page23-dispatch",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "natural helper breakpoint reached through page-$23 banking",
+            "helper breakpoint PC is current highscore_logo_tick entry",
+            "helper breakpoint observes PAR5=$23",
+            "full live page-$23 helper equals current artifact",
+            "natural-highscore-helper-page23-dispatch reaches requested generated screen",
+            "screen3 tag transition reinitializes phase0",
+            "later screen3 sample retains matching generated identity"
+          ],
+          "state": {
+            "frames": 578,
+            "mode": 5,
+            "screen": 3,
+            "pending": 0,
+            "transaction": 0,
+            "front": 0,
+            "phase": 0,
+            "raw_phase": 0,
+            "last_sample": 557,
+            "tag": 134,
+            "helper_breakpoint_pc": 46199,
+            "par5_raw_at_helper_breakpoint": 35,
+            "par5_physical_page_at_helper_breakpoint": 35
+          },
+          "source_map_ids": {
+            "attract": 0,
+            "high_score": 3
+          },
+          "tag_formula": "(PRES_SCREEN << 1) | $80; comparison ignores phase bit with AND $FE",
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 3,
+              "phase": 0,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+                "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+              }
+            }
+          ],
+          "elapsed_seconds": 3.578
+        },
+        {
+          "name": "natural-highscore-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-highscore captures both live phase signatures",
+            "natural-highscore phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 3,
+              "phase": 1,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            },
+            {
+              "screen_id": 3,
+              "phase": 1,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 634,
+            "end_FRAMES": 666,
+            "observed_FRAMES_delta": 32,
+            "clock_sample_start": 619,
+            "clock_sample_end": 650,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 135,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "observed_valid_tags": [
+            "$86",
+            "$87"
+          ],
+          "actual_logo_frame_pair_distinct": true,
+          "elapsed_seconds": 7.224
+        }
+      ]
+    },
+    {
+      "cold_tag": "86",
+      "raw_report_sha256": "8231485da14f0d448e592a93d032a9f559357fde448a69dafdf1ea6039f0055b",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "cold fixture intercepted source load_timer_reset before its clear",
+            "cold collision fixture targets generated attract screen0",
+            "cold fixture page-$34 is mapped at reset",
+            "source reset clears raw cold token before attract dispatch",
+            "cold attract marker retains generated screen0",
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26",
+            "natural attract clock has generated screen0 tag",
+            "live stage mapped helper equals current authored artifact",
+            "first initialized attract phase is0 at natural page-$23 dispatch",
+            "first attract clock call uses valid live page-$23 helper bytes",
+            "first attract helper breakpoint observes physical PAR5 page$23"
+          ],
+          "front_frame_sha256": "89117439ad5550cf777d00ee58014cb1a02375a38d56c7b41b271eb0f8b6fa10",
+          "generated_map_ids": {
+            "attract": 0,
+            "high_score": 3
+          },
+          "tag_formula": "(PRES_SCREEN << 1) | $80; low bit is phase; compare (expected XOR stored) AND $FE",
+          "cold_fixture": {
+            "screen_id": 0,
+            "raw_tag_seeded": false,
+            "location": "initial attract reset; requested valid cold-tag fixture is injected on key5 high-score reset",
+            "FRAMES_or_clock_sample_written": false
+          },
+          "first_helper_mapping": {
+            "PC": 46217,
+            "PAR5_raw": 227,
+            "PAR5_physical_page": 35
+          },
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 0,
+              "phase": 0,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+                "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+              }
+            }
+          ],
+          "elapsed_seconds": 9.931
+        },
+        {
+          "name": "natural-attract-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-attract captures both live phase signatures",
+            "natural-attract phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 0,
+              "phase": 1,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            },
+            {
+              "screen_id": 0,
+              "phase": 1,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 183,
+            "end_FRAMES": 220,
+            "observed_FRAMES_delta": 37,
+            "clock_sample_start": 165,
+            "clock_sample_end": 196,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 129,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "observed_valid_tags": [
+            "$80",
+            "$81"
+          ],
+          "actual_logo_frame_pair_distinct": true,
+          "elapsed_seconds": 10.307
+        },
+        {
+          "name": "key5-natural-highscore-dispatch",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "elapsed_seconds": 0.084
+        },
+        {
+          "name": "key5-highscore-cold-tag-fixture",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "key5 naturally reaches high-score load_timer_reset with disclosed valid tag fixture",
+            "high-score cold fixture is generated screen3",
+            "high-score reset maps page-$34 before token clear",
+            "high-score raw fixture matches requested valid tag",
+            "high-score load reset clears fixture before first logo helper call",
+            "high-score loader stop retains generated screen3",
+            "key5 reaches generated high-score screen3",
+            "key5 menu dispatch preserves credits and selection",
+            "live stage mapped helper equals current authored artifact"
+          ],
+          "cold_fixture": {
+            "screen_id": 3,
+            "tag": "$86",
+            "location": "before source CLR $A8FF at load_timer_reset after key5 route",
+            "FRAMES_or_clock_sample_written": false
+          },
+          "elapsed_seconds": 6.565
+        },
+        {
+          "name": "natural-highscore-helper-page23-dispatch",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "natural helper breakpoint reached through page-$23 banking",
+            "helper breakpoint PC is current highscore_logo_tick entry",
+            "helper breakpoint observes PAR5=$23",
+            "full live page-$23 helper equals current artifact",
+            "natural-highscore-helper-page23-dispatch reaches requested generated screen",
+            "first post-reset high-score clock selects phase0",
+            "later screen3 sample retains matching generated identity"
+          ],
+          "state": {
+            "frames": 717,
+            "mode": 5,
+            "screen": 3,
+            "pending": 0,
+            "transaction": 0,
+            "front": 1,
+            "phase": 1,
+            "raw_phase": 1,
+            "last_sample": 715,
+            "tag": 135,
+            "helper_breakpoint_pc": 46199,
+            "par5_raw_at_helper_breakpoint": 35,
+            "par5_physical_page_at_helper_breakpoint": 35
+          },
+          "source_map_ids": {
+            "attract": 0,
+            "high_score": 3
+          },
+          "tag_formula": "(PRES_SCREEN << 1) | $80; comparison ignores phase bit with AND $FE",
+          "first_post_reset_clock": {
+            "FRAMES": 560,
+            "last_sample": 560,
+            "tag": 134,
+            "phase": 0
+          },
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 3,
+              "phase": 1,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            }
+          ],
+          "elapsed_seconds": 1.785
+        },
+        {
+          "name": "natural-highscore-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 0",
+            "natural-highscore captures both live phase signatures",
+            "natural-highscore phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 3,
+              "phase": 0,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+                "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+              }
+            },
+            {
+              "screen_id": 3,
+              "phase": 0,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+                "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+              }
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 733,
+            "end_FRAMES": 766,
+            "observed_FRAMES_delta": 33,
+            "clock_sample_start": 715,
+            "clock_sample_end": 746,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 134,
+            "clock_phase": 0,
+            "owner_signature_sha256": {
+              "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+              "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+            }
+          },
+          "observed_valid_tags": [
+            "$86",
+            "$87"
+          ],
+          "actual_logo_frame_pair_distinct": true,
+          "elapsed_seconds": 7.201
+        }
+      ]
+    },
+    {
+      "cold_tag": "87",
+      "raw_report_sha256": "c8ecbd5a3c683afc5201cb2c990c9c207a766478e28b4c688ed90382fb3d50cf",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "cold fixture intercepted source load_timer_reset before its clear",
+            "cold collision fixture targets generated attract screen0",
+            "cold fixture page-$34 is mapped at reset",
+            "source reset clears raw cold token before attract dispatch",
+            "cold attract marker retains generated screen0",
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26",
+            "natural attract clock has generated screen0 tag",
+            "live stage mapped helper equals current authored artifact",
+            "first initialized attract phase is0 at natural page-$23 dispatch",
+            "first attract clock call uses valid live page-$23 helper bytes",
+            "first attract helper breakpoint observes physical PAR5 page$23"
+          ],
+          "front_frame_sha256": "89117439ad5550cf777d00ee58014cb1a02375a38d56c7b41b271eb0f8b6fa10",
+          "generated_map_ids": {
+            "attract": 0,
+            "high_score": 3
+          },
+          "tag_formula": "(PRES_SCREEN << 1) | $80; low bit is phase; compare (expected XOR stored) AND $FE",
+          "cold_fixture": {
+            "screen_id": 0,
+            "raw_tag_seeded": false,
+            "location": "initial attract reset; requested valid cold-tag fixture is injected on key5 high-score reset",
+            "FRAMES_or_clock_sample_written": false
+          },
+          "first_helper_mapping": {
+            "PC": 46217,
+            "PAR5_raw": 227,
+            "PAR5_physical_page": 35
+          },
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 0,
+              "phase": 0,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+                "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+              }
+            }
+          ],
+          "elapsed_seconds": 9.788
+        },
+        {
+          "name": "natural-attract-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-attract captures both live phase signatures",
+            "natural-attract phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 0,
+              "phase": 1,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            },
+            {
+              "screen_id": 0,
+              "phase": 1,
+              "front_owner": 1,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 185,
+            "end_FRAMES": 218,
+            "observed_FRAMES_delta": 33,
+            "clock_sample_start": 165,
+            "clock_sample_end": 196,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 129,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "observed_valid_tags": [
+            "$80",
+            "$81"
+          ],
+          "actual_logo_frame_pair_distinct": true,
+          "elapsed_seconds": 7.189
+        },
+        {
+          "name": "key5-natural-highscore-dispatch",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "elapsed_seconds": 0.085
+        },
+        {
+          "name": "key5-highscore-cold-tag-fixture",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "key5 naturally reaches high-score load_timer_reset with disclosed valid tag fixture",
+            "high-score cold fixture is generated screen3",
+            "high-score reset maps page-$34 before token clear",
+            "high-score raw fixture matches requested valid tag",
+            "high-score load reset clears fixture before first logo helper call",
+            "high-score loader stop retains generated screen3",
+            "key5 reaches generated high-score screen3",
+            "key5 menu dispatch preserves credits and selection",
+            "live stage mapped helper equals current authored artifact"
+          ],
+          "cold_fixture": {
+            "screen_id": 3,
+            "tag": "$87",
+            "location": "before source CLR $A8FF at load_timer_reset after key5 route",
+            "FRAMES_or_clock_sample_written": false
+          },
+          "elapsed_seconds": 6.597
+        },
+        {
+          "name": "natural-highscore-helper-page23-dispatch",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "natural helper breakpoint reached through page-$23 banking",
+            "helper breakpoint PC is current highscore_logo_tick entry",
+            "helper breakpoint observes PAR5=$23",
+            "full live page-$23 helper equals current artifact",
+            "natural-highscore-helper-page23-dispatch reaches requested generated screen",
+            "first post-reset high-score clock selects phase0",
+            "later screen3 sample retains matching generated identity"
+          ],
+          "state": {
+            "frames": 653,
+            "mode": 5,
+            "screen": 3,
+            "pending": 0,
+            "transaction": 0,
+            "front": 0,
+            "phase": 1,
+            "raw_phase": 1,
+            "last_sample": 650,
+            "tag": 135,
+            "helper_breakpoint_pc": 46199,
+            "par5_raw_at_helper_breakpoint": 35,
+            "par5_physical_page_at_helper_breakpoint": 35
+          },
+          "source_map_ids": {
+            "attract": 0,
+            "high_score": 3
+          },
+          "tag_formula": "(PRES_SCREEN << 1) | $80; comparison ignores phase bit with AND $FE",
+          "first_post_reset_clock": {
+            "FRAMES": 495,
+            "last_sample": 495,
+            "tag": 134,
+            "phase": 0
+          },
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 3,
+              "phase": 1,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+                "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+              }
+            }
+          ],
+          "elapsed_seconds": 1.748
+        },
+        {
+          "name": "natural-highscore-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 0",
+            "natural-highscore captures both live phase signatures",
+            "natural-highscore phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "actual_logo_pairs": [
+            {
+              "screen_id": 3,
+              "phase": 0,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+                "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+              }
+            },
+            {
+              "screen_id": 3,
+              "phase": 0,
+              "front_owner": 0,
+              "root_count": 12,
+              "owner_signature_sha256": {
+                "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+                "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+              }
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 669,
+            "end_FRAMES": 701,
+            "observed_FRAMES_delta": 32,
+            "clock_sample_start": 650,
+            "clock_sample_end": 681,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 134,
+            "clock_phase": 0,
+            "owner_signature_sha256": {
+              "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+              "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+            }
+          },
+          "observed_valid_tags": [
+            "$86",
+            "$87"
+          ],
+          "actual_logo_frame_pair_distinct": true,
+          "elapsed_seconds": 7.213
+        }
+      ]
+    }
+  ],
+  "actor_and_nonlogo": {
+    "raw_report_sha256": "9923d302df9e28770d58ae7f29bac2db4d94d08140abee1e136faad0d2fd134f",
+    "phases": [
+      {
+        "name": "cold-attract-delivery",
+        "deadline_seconds": 40,
+        "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+        "checks": [
+          "cold fixture intercepted source load_timer_reset before its clear",
+          "cold collision fixture targets generated attract screen0",
+          "cold fixture page-$34 is mapped at reset",
+          "source reset clears raw cold token before attract dispatch",
+          "cold attract marker retains generated screen0",
+          "live resident equals current runtime artifact",
+          "live presentation marker owner equals current module artifact",
+          "natural prompt row 15 col 13",
+          "natural prompt row 15 col 14",
+          "natural prompt row 15 col 15",
+          "natural prompt row 15 col 16",
+          "natural prompt row 15 col 17",
+          "natural prompt row 15 col 18",
+          "natural prompt row 15 col 19",
+          "natural prompt row 15 col 20",
+          "natural prompt row 15 col 21",
+          "natural prompt row 15 col 22",
+          "natural prompt row 15 col 23",
+          "natural prompt row 15 col 24",
+          "natural prompt row 15 col 25",
+          "natural prompt row 15 col 26",
+          "natural prompt row 15 col 27",
+          "natural prompt row 19 col 13",
+          "natural prompt row 19 col 15",
+          "natural prompt row 19 col 16",
+          "natural prompt row 19 col 17",
+          "natural prompt row 19 col 18",
+          "natural prompt row 19 col 21",
+          "natural prompt row 19 col 23",
+          "natural prompt row 19 col 24",
+          "natural prompt row 19 col 25",
+          "natural prompt row 19 col 26"
+        ],
+        "front_frame_sha256": "89117439ad5550cf777d00ee58014cb1a02375a38d56c7b41b271eb0f8b6fa10",
+        "elapsed_seconds": 6.338
+      },
+      {
+        "name": "natural-decorative-actor-clock-baseline",
+        "deadline_seconds": 40,
+        "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+        "checks": [
+          "compiled actor phase body equals integrated pre-logo baseline",
+          "forty natural actor dispatch samples present",
+          "shared timer increments once per natural dispatch",
+          "actor cache equals unchanged baseline phase for previous dispatch"
+        ],
+        "sample_rows": [
+          [
+            0,
+            119,
+            17,
+            1
+          ],
+          [
+            1,
+            120,
+            18,
+            1
+          ],
+          [
+            2,
+            121,
+            19,
+            1
+          ],
+          [
+            3,
+            122,
+            20,
+            1
+          ],
+          [
+            4,
+            123,
+            21,
+            1
+          ],
+          [
+            5,
+            124,
+            22,
+            1
+          ],
+          [
+            6,
+            125,
+            23,
+            2
+          ],
+          [
+            7,
+            126,
+            24,
+            2
+          ],
+          [
+            8,
+            127,
+            25,
+            2
+          ],
+          [
+            9,
+            128,
+            26,
+            2
+          ],
+          [
+            10,
+            129,
+            27,
+            2
+          ],
+          [
+            11,
+            130,
+            28,
+            2
+          ],
+          [
+            12,
+            131,
+            29,
+            2
+          ],
+          [
+            13,
+            132,
+            30,
+            2
+          ],
+          [
+            14,
+            133,
+            31,
+            3
+          ],
+          [
+            15,
+            134,
+            32,
+            3
+          ],
+          [
+            16,
+            135,
+            33,
+            3
+          ],
+          [
+            17,
+            136,
+            34,
+            3
+          ],
+          [
+            18,
+            137,
+            35,
+            3
+          ],
+          [
+            19,
+            138,
+            36,
+            3
+          ],
+          [
+            20,
+            139,
+            37,
+            3
+          ],
+          [
+            21,
+            140,
+            38,
+            3
+          ],
+          [
+            22,
+            141,
+            39,
+            0
+          ],
+          [
+            23,
+            142,
+            40,
+            0
+          ],
+          [
+            24,
+            143,
+            41,
+            0
+          ],
+          [
+            25,
+            144,
+            42,
+            0
+          ],
+          [
+            26,
+            145,
+            43,
+            0
+          ],
+          [
+            27,
+            146,
+            44,
+            0
+          ],
+          [
+            28,
+            147,
+            45,
+            0
+          ],
+          [
+            29,
+            148,
+            46,
+            0
+          ],
+          [
+            30,
+            149,
+            47,
+            1
+          ],
+          [
+            31,
+            150,
+            48,
+            1
+          ],
+          [
+            32,
+            151,
+            49,
+            1
+          ],
+          [
+            33,
+            152,
+            50,
+            1
+          ],
+          [
+            34,
+            153,
+            51,
+            1
+          ],
+          [
+            35,
+            154,
+            52,
+            1
+          ],
+          [
+            36,
+            155,
+            53,
+            1
+          ],
+          [
+            37,
+            156,
+            54,
+            1
+          ],
+          [
+            38,
+            157,
+            55,
+            2
+          ],
+          [
+            39,
+            158,
+            56,
+            2
+          ]
+        ],
+        "comparison": "Baseline exact machine phase body applied to identical observed TIMER/FRAMES conditions; proves admitted-dispatch cadence, not an uncontrolled wall-time crossover.",
+        "elapsed_seconds": 1.362
+      },
+      {
+        "name": "matched-attract-published-phase-0",
+        "deadline_seconds": 40,
+        "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+        "checks": [
+          "both framebuffer snapshots share one stopped FRAMES value",
+          "loaded actor record table equals authored exact bytes",
+          "decoded authored actor surfaces match manifest",
+          "loaded actor surfaces equal decoded authored bytes",
+          "matched stopped owner logo crops agree"
+        ],
+        "state": {
+          "frames": 167,
+          "timer": 64,
+          "mode": 2,
+          "pending": 0,
+          "hold": 0,
+          "front": 0,
+          "actor_phase": 3,
+          "logo_cache_A": 0,
+          "logo_cache_B": 0,
+          "phase": 0
+        },
+        "logo_signatures": {
+          "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+          "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+        },
+        "elapsed_seconds": 1.537
+      },
+      {
+        "name": "matched-attract-published-phase-1",
+        "deadline_seconds": 40,
+        "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+        "checks": [
+          "both framebuffer snapshots share one stopped FRAMES value",
+          "loaded actor record table equals authored exact bytes",
+          "decoded authored actor surfaces match manifest",
+          "loaded actor surfaces equal decoded authored bytes",
+          "matched stopped owner logo crops agree"
+        ],
+        "state": {
+          "frames": 198,
+          "timer": 95,
+          "mode": 2,
+          "pending": 0,
+          "hold": 0,
+          "front": 1,
+          "actor_phase": 3,
+          "logo_cache_A": 1,
+          "logo_cache_B": 1,
+          "phase": 1
+        },
+        "logo_signatures": {
+          "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+          "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+        },
+        "elapsed_seconds": 2.064
+      },
+      {
+        "name": "matched-nonlogo-comparison",
+        "deadline_seconds": 40,
+        "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+        "excluded_actor_rectangles": [
+          {
+            "kind": "actor-record",
+            "index": 0,
+            "offset": 3884,
+            "x_pixels": 88,
+            "y_pixels": 24,
+            "width_pixels": 16,
+            "height_pixels": 16
+          },
+          {
+            "kind": "actor-record",
+            "index": 1,
+            "offset": 5200,
+            "x_pixels": 160,
+            "y_pixels": 32,
+            "width_pixels": 16,
+            "height_pixels": 16
+          },
+          {
+            "kind": "actor-record",
+            "index": 2,
+            "offset": 5260,
+            "x_pixels": 280,
+            "y_pixels": 32,
+            "width_pixels": 16,
+            "height_pixels": 16
+          },
+          {
+            "kind": "actor-record",
+            "index": 3,
+            "offset": 6508,
+            "x_pixels": 216,
+            "y_pixels": 40,
+            "width_pixels": 16,
+            "height_pixels": 16
+          },
+          {
+            "kind": "actor-record",
+            "index": 4,
+            "offset": 11532,
+            "x_pixels": 24,
+            "y_pixels": 72,
+            "width_pixels": 16,
+            "height_pixels": 16
+          },
+          {
+            "kind": "actor-record",
+            "index": 5,
+            "offset": 19240,
+            "x_pixels": 80,
+            "y_pixels": 120,
+            "width_pixels": 16,
+            "height_pixels": 16
+          },
+          {
+            "kind": "actor-record",
+            "index": 6,
+            "offset": 24452,
+            "x_pixels": 264,
+            "y_pixels": 152,
+            "width_pixels": 16,
+            "height_pixels": 16
+          },
+          {
+            "kind": "actor-record",
+            "index": 7,
+            "offset": 25620,
+            "x_pixels": 40,
+            "y_pixels": 160,
+            "width_pixels": 16,
+            "height_pixels": 16
+          }
+        ],
+        "excluded_logo_roots": [
+          [
+            10,
+            7
+          ],
+          [
+            18,
+            7
+          ],
+          [
+            23,
+            7
+          ],
+          [
+            13,
+            9
+          ],
+          [
+            16,
+            9
+          ],
+          [
+            18,
+            9
+          ],
+          [
+            20,
+            9
+          ],
+          [
+            25,
+            9
+          ],
+          [
+            27,
+            9
+          ],
+          [
+            29,
+            9
+          ],
+          [
+            17,
+            12
+          ],
+          [
+            27,
+            12
+          ]
+        ],
+        "comparisons": [
+          {
+            "owner": 0,
+            "compared_bytes": 29312,
+            "mismatches": 0,
+            "frame0_sha256": "89117439ad5550cf777d00ee58014cb1a02375a38d56c7b41b271eb0f8b6fa10",
+            "frame1_sha256": "b1f2beb820e3ad609cd82b8339ca92e91b7e3394140188537a66007336f5fd46",
+            "first_coordinates": [],
+            "bounding_rectangle": null
+          },
+          {
+            "owner": 1,
+            "compared_bytes": 29312,
+            "mismatches": 0,
+            "frame0_sha256": "fef0ebe920f1b908fffe9723352c5985b960845157e5975c6d854fcf250ed6d1",
+            "frame1_sha256": "4da6d25a8a2a7b722f22e485a11b798aa768f29b7ef3b1df53e616de35d159e1",
+            "first_coordinates": [],
+            "bounding_rectangle": null
+          }
+        ],
+        "checks": [
+          "matched loading/publication boundaries preserve non-logo/non-actor bytes"
+        ],
+        "elapsed_seconds": 0.004
+      }
+    ]
+  },
+  "fits": {
+    "keyboard_resident_free": 40,
+    "joystick_resident_free": 4,
+    "assets_free": 19,
+    "mapped_helper_bytes": 3106,
+    "mapped_helper_end": "B862",
+    "before_title_free": 30,
+    "clock_bytes": 80,
+    "continuation": "AD00",
+    "keyboard_gmc_free": 12122,
+    "joystick_gmc_free": 12120
+  },
+  "limits": [
+    "Preparation prototype only; no executor commit or integrated acceptance.",
+    "Tag80 name path forces final death and END but uses the real qualification/handoff/return.",
+    "Actor comparison applies identical compiled baseline to the observed dispatch conditions; not wall-time crossover."
+  ],
+  "rejected_experiment": "Legacy grouped16x16 anchors with8-pixel-wide exclusion mask omitted actual12 raw8x8 tile destinations. Exact-mask re-evaluation and fresh current-ROM matched-publication rerun pass; no game change."
+}
