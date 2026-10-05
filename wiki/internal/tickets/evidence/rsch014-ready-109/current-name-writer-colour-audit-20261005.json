@@ -1,0 +1,22 @@
+{
+  "status": "Confirmed current source ownership; no solution fit or runtime pass",
+  "revision": "7ddef9e00f77682e0d5b559e8fd844d618b9f51e",
+  "source_sha256": {
+    "src/demo_runtime.s": "c16a5e74985ce0515b5a7d7a9d2714738946b3f38b979b22a9e1c499b49cb62b",
+    "src/shared_text_ranking.inc": "6c7048611ba097a786debd1fe0b3d2a50a67236bfe9a2c877b8962ed28c3008d",
+    "src/shared_text_runtime.inc": "98838a8f2b50d779f2e37ce8f13574fd444427973adcfeaefb4c9f6ad484405d",
+    "scripts/shared_text.py": "a7414ce046efa4cf9416a75993688548da73155ae6afe362fd89f178ba7af974",
+    "assets/arcade/text-colours.json": "c38d8a2839f5d1a41436f0d2cd5c79c18ce22fd055469f1dd4d8655f4ad0b904"
+  },
+  "active_owner": "HIGHSCORE_PHASE_HELPER=0 selects shared_text_ranking.inc; mapped stage include is not the current name painter",
+  "score_path": "draw_entry_scores -> draw_score -> draw_digit -> generic score_glyphs -> dynamic_dispatch/dynamic_index",
+  "colour_path": "dynamic_index obtains descriptor pen, overrides mode3 ranking using E8; mode5 override is compile-time global TEXT_NAME only when !=6. Current name=6 so generic digit foreground remains descriptor white6. HUD_COLOR writes before dispatch are overwritten.",
+  "top_data": "Current right TOP painter always reads committed record zero name and score; first-place pending-name selection in historical BUG103 text is absent. BUG109 qualified current baseline shows pending095000 and committedTOP090000.",
+  "readiness_consequences": [
+    "BUG102/103 active writer target differs from approved stage include; require reviewable corrected target proposal before execution",
+    "global name colour alone cannot provide green pending score and red TOP with unchanged pending-name colour",
+    "E8 is existing name timer/colour scratch: any transient per-field reuse must preserve/restore across callers and avoid perturbing timers",
+    "current complete-profile GDB name entry observer replaces unimplemented historical --name-case private-monitor selectors"
+  ],
+  "next_design": "Fit field-local colour selection with preserved timer scratch on active low-RAM writer plus existing shared dispatch; measure exact combined capacity and prove no unrelated role change before approval brief."
+}
