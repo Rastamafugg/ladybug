@@ -2,18 +2,13 @@ diff --git a/src/main.s b/src/main.s
 index 54a0435..058cfcd 100644
 --- a/src/main.s
 +++ b/src/main.s
-@@ -986,14 +986,16 @@ igs_defaults
-         clr     TURN_SNAP
-         lda     #1
-         sta     MULTIPLIER
+@@ -989,5 +988,0 @@ igs_defaults
 -        lda     #COLOR_BLUE
 -        sta     BONUS_COLOR
 -        clr     ENTITY_CACHE_COLOR
 -        ldd     #420
 -        std     BONUS_TIMER
-         lbsr    reload_box_timer
-         clr     BOX_INDEX
-         clr     BOX_PHASE
+@@ -996,0 +992,7 @@ igs_defaults
 +; DOC-002 source-contract mirror contract reset_bonus_colour profile=state: Initialize the level collectible cycle red for thirty scheduled ticks and invalidate its existing cache.
 +reset_bonus_colour
 +        lda     #COLOR_RED
@@ -21,14 +16,5 @@ index 54a0435..058cfcd 100644
 +        clr     ENTITY_CACHE_COLOR
 +        ldd     #30
 +        std     BONUS_TIMER
-         rts
- 
- next_stage
-@@ -1011,6 +1013,7 @@ ns_stage_valid
-         clr     BOX_PHASE
-         lbsr    init_maze_state
-         lbsr    init_gate_state
+@@ -1013,0 +1016 @@ ns_stage_valid
 +        bsr     reset_bonus_colour
-         lbsr    init_entities
-         lbsr    init_player
-         lbsr    init_enemy
