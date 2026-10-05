@@ -859,13 +859,20 @@ iet_wait_stage
         ; The committed stage image is now the handoff boundary.  The
         ; rightmost marker and the entrant are one life unit.
         dec     LIVES
-        ldd     #$8994
+        lda     LIVES
+        jsr     life_marker_position
+        lda     HUD_Y
+        ldb     #5
+        mul
+        tfr     b,a
+        ldb     HUD_X
+        lslb
+        lslb
+        addd    #FB_VIRT
         std     PLAYER_FB
-        lda     #DIR_SOUTH
+        lda     #DIR_EAST
         sta     PLAYER_DIR
         sta     PLAYER_FACE
-        clr     PLAYER_STEP
-        clr     PLAYER_MANUAL
         lda     #ENTRY_WALKOUT
         sta     INITIAL_ENTRY_STATE
         lda     RENDER_FLAGS
@@ -877,15 +884,12 @@ iet_walkout
         tst     PLAYER_TICK_PENDING
         beq     iet_done
         clr     PLAYER_TICK_PENDING
-        ldd     PLAYER_FB
-        addd    #$0140
-        std     PLAYER_FB
-        inc     PLAYER_STEP
-        lda     PLAYER_STEP
-        cmpa    #12
+        inc     PLAYER_FB+1    ; one packed byte = two pixels; HUD row is page aligned
+        lda     PLAYER_FB+1
+        cmpa    #160
         blo     iet_walkout_render
-        ; Step 12 is logical row 192.  Do not let the renderer access this
-        ; new rectangle; OFFSCREEN only closes owner-local old histories.
+        ; Column 160 is x320. OFFSCREEN restores owner-local old histories
+        ; without capturing or committing any new rectangle.
         lda     #ENTRY_OFFSCREEN
         sta     INITIAL_ENTRY_STATE
 iet_walkout_render
@@ -2699,6 +2703,9 @@ rj_vertical
 rj_north
         lda     #DIR_NORTH
 rj_request
+        ; Transfer owns facing and manual state; axes still sample normally.
+        tst     INITIAL_ENTRY_STATE
+        bne     rj_done
         sta     JOY_DIR
         sta     PLAYER_WANT      ; buffer turns across intermediate steps
         sta     PLAYER_FACE      ; facing follows live input even when blocked
