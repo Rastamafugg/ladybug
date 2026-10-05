@@ -1,0 +1,15 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -492,0 +493,4 @@
++        lda $24
++        ldb PRES_SCREEN
++        cmpb #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        beq stage_selected
+@@ -519,0 +524,2 @@
++        beq stage_name_schedule_ready
++        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
+@@ -520,0 +527,4 @@
++        ldd $AA
++        cmpd #576
++        bne stage_slice_return
++stage_name_schedule_ready
