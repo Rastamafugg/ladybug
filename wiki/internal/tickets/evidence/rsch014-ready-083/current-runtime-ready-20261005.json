@@ -1,0 +1,190 @@
+{
+  "status": "PASS-INITIAL-NEXT-OWNERS-TICKS",
+  "base_revision": "6237827",
+  "rom_sha256": "0e5b88fcf8e0c76a7d24cc188dd1f88125f301692f972d91a18d209b506bff1d",
+  "qualified_observer_sha256": "c23bd1b934273119b2c63781899819dce989ccf3e49da5f98adf2655ba44e23e",
+  "raw_report_sha256": "b62eb7979b0f294068d2af4141a65521f57220ffc3b7c2a23ce7a1af08f90203",
+  "source_hashes_lf": {
+    "src/main.s": "f7b9c807ba9f0c2173a2a3d5f758af3fbe984ff548d8d211432d143d0bb7b62b",
+    "scripts/source_reference.json": "9241be287f52068d1f352b60a74306e6dda6bc1e462f30abc7a8dfd0d023bde4",
+    "src/enemy_runtime.s": "37350a4ba2cf1eeda1028e90208c35a3d541893c59e8966289022f236468043a"
+  },
+  "map_hashes": {
+    "coco-attract-screen.tmx": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07",
+    "coco-credits-screen.tmx": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825",
+    "coco-enter-high-score-screen.tmx": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca",
+    "coco-game-over-screen.tmx": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05",
+    "coco-high-score-screen.tmx": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d",
+    "coco-instructions-screen.tmx": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4",
+    "coco-keybind-options-screen.tmx": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046",
+    "coco-level-start-screen.tmx": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b",
+    "coco-options-screen.tmx": "5b4e5f1da0d2c8eec216e069325ec4afc8960c22b8be7f5cf1af53af0018c749",
+    "coco-screen.tmx": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f"
+  },
+  "phases": [
+    {
+      "name": "cold-attract-delivery",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "checks": [
+        "live resident equals current runtime artifact",
+        "live presentation marker owner equals current module artifact",
+        "natural prompt row 15 col 13",
+        "natural prompt row 15 col 14",
+        "natural prompt row 15 col 15",
+        "natural prompt row 15 col 16",
+        "natural prompt row 15 col 17",
+        "natural prompt row 15 col 18",
+        "natural prompt row 15 col 19",
+        "natural prompt row 15 col 20",
+        "natural prompt row 15 col 21",
+        "natural prompt row 15 col 22",
+        "natural prompt row 15 col 23",
+        "natural prompt row 15 col 24",
+        "natural prompt row 15 col 25",
+        "natural prompt row 15 col 26",
+        "natural prompt row 15 col 27",
+        "natural prompt row 19 col 13",
+        "natural prompt row 19 col 15",
+        "natural prompt row 19 col 16",
+        "natural prompt row 19 col 17",
+        "natural prompt row 19 col 18",
+        "natural prompt row 19 col 21",
+        "natural prompt row 19 col 23",
+        "natural prompt row 19 col 24",
+        "natural prompt row 19 col 25",
+        "natural prompt row 19 col 26"
+      ],
+      "front_frame_sha256": "da375782a7a46fb052f36227d7eded59aa49481863ad9d7b7eed169a19782278",
+      "elapsed_seconds": 6.433
+    },
+    {
+      "name": "red-start-credited-menu",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "checks": [
+        "held credit reaches current settled menu"
+      ],
+      "elapsed_seconds": 3.938
+    },
+    {
+      "name": "initial-red-reset-state",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "checks": [
+        "natural game reset selects red1 and thirty scheduled ticks"
+      ],
+      "elapsed_seconds": 5.549
+    },
+    {
+      "name": "both-red-owners-and-thirty-scheduled-ticks",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "checks": [
+        "thirty consecutive scheduled red ticks count down30 through1",
+        "thirtieth scheduled tick selects yellow2 and150",
+        "initial image covers red bonus and white skull objects",
+        "initial image covers red bonus and white skull objects"
+      ],
+      "coloured_pixels_compared": 446,
+      "entity_types": [
+        1,
+        2,
+        3
+      ],
+      "elapsed_seconds": 3.157,
+      "ticks": {
+        "count": 30,
+        "color": 1,
+        "timer_first_last": [
+          30,
+          1
+        ],
+        "first_last": [
+          [
+            1,
+            731,
+            1,
+            30
+          ],
+          [
+            30,
+            760,
+            1,
+            1
+          ]
+        ],
+        "rows_sha256": "72d823a56d81142d292a458d5f744d42b79e004c930300799906c8972240001b",
+        "after_tick_30": "yellow2/timer150 asserted"
+      }
+    },
+    {
+      "name": "next-stage-reset-and-published-owners",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "checks": [
+        "ordinary gameplay adaptive vectors and copied active image equal current artifact",
+        "actual next_stage increments part2 and resets red30",
+        "next-stage thirty scheduled red ticks count down30 through1",
+        "next-stage thirtieth tick selects yellow150",
+        "alternate owner published red before later cycle transition",
+        "initial image covers red bonus and white skull objects",
+        "initial image covers red bonus and white skull objects"
+      ],
+      "fixture": "Set only STAGE_PENDING=1 after natural credited entry; real presentation normal_stage/next_stage/reset/level-start/gameplay path. Preceding maze collection is excluded.",
+      "owner_qualification": "Current stage FRONT at first tick, then the alternate after its real IRQ publication; hidden preceding presentation excluded.",
+      "published_owners": [
+        0,
+        1
+      ],
+      "coloured_pixels_compared": 498,
+      "entity_types": [
+        1,
+        2,
+        3
+      ],
+      "elapsed_seconds": 10.686,
+      "ticks": {
+        "count": 30,
+        "color": 1,
+        "timer_first_last": [
+          30,
+          1
+        ],
+        "first_last": [
+          [
+            1,
+            1123,
+            1,
+            30
+          ],
+          [
+            30,
+            1190,
+            1,
+            1
+          ]
+        ],
+        "rows_sha256": "c3fb09ab8a83f30aa5180626050002874345cae1a175d1b4c03995cb23eb55fe",
+        "after_tick_30": "yellow2/timer150 asserted"
+      }
+    }
+  ],
+  "capacity_free_bytes": {
+    "keyboard_resident": 40,
+    "joystick_resident": 4,
+    "assets": 19,
+    "joystick_GMC": 12156
+  },
+  "limits": [
+    "Next-stage trigger is forced STAGE_PENDING=1 after natural credited entry. The real transition path executes; collecting the preceding maze is not measured.",
+    "No whole-frame unrelated-pixel equivalence claim. Unchanged renderer/LUT/masks plus fixed-white skull and red bonus pixels are the bounded regression checks.",
+    "Demo entry and integrated parent artifact remain execution acceptance requirements, not passing preparation evidence."
+  ],
+  "rejected_experiments": [
+    "Old skull source verifier expects removed direct loads and is stale.",
+    "First next-stage hidden-owner snapshot contained the prior level-start surface; replaced with real IRQ publication."
+  ],
+  "qualified_observer_original_sha256": "77be1d18e31eb54516dbba9456b27cdd21d67bcc1870fe613308477d436b58ca",
+  "observer_change": "CRLF to LF only; executable text identical"
+}
