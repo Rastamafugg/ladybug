@@ -1,0 +1,479 @@
+{
+  "ticket": "BUG-084",
+  "date": "2026-10-05",
+  "status": "READY-NOT-ACCEPTED",
+  "class": "High-risk",
+  "source_base": "0ff4121e123fa4af0eefa67ece26ff8cfd0fe357",
+  "parent_baseline": "08a74c3d6dc345aada6ee2ffba64e99f421a847b",
+  "approved_production_targets": [
+    "src/main.s",
+    "src/enemy_runtime.s"
+  ],
+  "parent_mechanical_metadata": [
+    "scripts/source_reference.json",
+    "wiki/internal/implementation/routine-catalog.html"
+  ],
+  "read_only_tmx": {
+    "coco-attract-screen.tmx": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07",
+    "coco-credits-screen.tmx": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825",
+    "coco-enter-high-score-screen.tmx": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca",
+    "coco-game-over-screen.tmx": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05",
+    "coco-high-score-screen.tmx": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d",
+    "coco-instructions-screen.tmx": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4",
+    "coco-keybind-options-screen.tmx": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046",
+    "coco-level-start-screen.tmx": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b",
+    "coco-screen.tmx": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f"
+  },
+  "source_sha256": {
+    "src/main.s": "4636ca081de1abf8e188f17a32f5c5708d8bea4ece4910b6ad478489002e5c2e",
+    "src/enemy_runtime.s": "37350a4ba2cf1eeda1028e90208c35a3d541893c59e8966289022f236468043a"
+  },
+  "normalized_lf_source_sha256": {
+    "src/main.s": "4636ca081de1abf8e188f17a32f5c5708d8bea4ece4910b6ad478489002e5c2e",
+    "src/enemy_runtime.s": "37350a4ba2cf1eeda1028e90208c35a3d541893c59e8966289022f236468043a"
+  },
+  "prototype_patch_sha256": "46c0cf37c51e2480235de39d6e4dea34a354f89935cf075effbe4cc3d1637161",
+  "profiles": {
+    "keyboard": {
+      "rom_sha256": "65381e7da986c0fae445b409f0e6ce0dbae953334006f562eb77f7ce02be112b",
+      "source_receipt_sha256": "aaac7081b6c79aed1526fb4b2935cd902d1953036139e9062b8ca46a3adba673",
+      "resident_free_bytes": 36,
+      "asset_free_bytes": 19,
+      "enemy_free_bytes": 5,
+      "audit": "PASS14 modules/306 routines/4964 labels"
+    },
+    "joystick": {
+      "rom_sha256": "5d1943e571bbc1ece8536f51ea80edd9a0a8358e41eaea6d1165070cbee2336e",
+      "source_receipt_sha256": "fbdc48841206e9b680d74a1820112c315fab6612e6c476a4688dc6b4c7c5bc4a",
+      "resident_free_bytes": 0,
+      "asset_free_bytes": 19,
+      "enemy_free_bytes": 5,
+      "audit": "PASS14 modules/306 routines/4966 labels"
+    }
+  },
+  "verifier_sha256": {
+    "marker-right-ready-observer.py": "6e0bf717f24f7f8c008c24ef87f4d08bb6c597576c909ab743673526e57a7b99",
+    "reverse-fixture.py": "9dc56d9fd39cf9e344e6e4abaf1c997162a9047998deb2527460eeb4d6a6c2ea",
+    "stamp.py": "67d00d7046f9e7b1727a730010acabe808a6ffe864388a9c7c9b708e18309055"
+  },
+  "runtime_cases": [
+    {
+      "case": "gated-normal-1",
+      "rom_sha256": "65381e7da986c0fae445b409f0e6ce0dbae953334006f562eb77f7ce02be112b",
+      "status": "PASS",
+      "receipt_sha256": "0de7f66b344c35dd00930a47794d2efd6153d31d7a9b2f49ec7dfdb31efcb1fb",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "elapsed_seconds": 6.17,
+          "checks": [
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26"
+          ]
+        },
+        {
+          "name": "credited-selected-life-start",
+          "elapsed_seconds": 2.89,
+          "checks": []
+        },
+        {
+          "name": "natural-transfer-trace-and-both-ledger-retirement",
+          "elapsed_seconds": 9.307,
+          "checks": [
+            "cleanup marker is current compiled init_player call",
+            "Enter thread completed",
+            "foreground data page identity",
+            "resident and asset live identity",
+            "loaded enemy executable identity",
+            "exact consumed root and single initial decrement",
+            "initial actor right-facing",
+            "all admissions exactly two pixels with no turn or extra consumption",
+            "transfer preserves cells, manual input, score, dots and death state",
+            "both player histories invalid before maze entry",
+            "both cleaned grids exactly selected-minus-one",
+            "owner0 pixels outside horizontal sweep unchanged",
+            "owner1 pixels outside horizontal sweep unchanged"
+          ]
+        },
+        {
+          "name": "resumed-maze-entry-and-ordinary-play",
+          "elapsed_seconds": 0.76,
+          "checks": [
+            "maze entrance consumes no extra life",
+            "ordinary gameplay adaptive vectors and copied active image equal current artifact"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "gated-normal-2",
+      "rom_sha256": "65381e7da986c0fae445b409f0e6ce0dbae953334006f562eb77f7ce02be112b",
+      "status": "PASS",
+      "receipt_sha256": "ab3ca83409f2a35f106cb40d4526bd8fe30cbc07dde28b80c6821464e1b92138",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "elapsed_seconds": 6.135,
+          "checks": [
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26"
+          ]
+        },
+        {
+          "name": "credited-selected-life-start",
+          "elapsed_seconds": 2.848,
+          "checks": []
+        },
+        {
+          "name": "natural-transfer-trace-and-both-ledger-retirement",
+          "elapsed_seconds": 8.852,
+          "checks": [
+            "cleanup marker is current compiled init_player call",
+            "Enter thread completed",
+            "foreground data page identity",
+            "resident and asset live identity",
+            "loaded enemy executable identity",
+            "exact consumed root and single initial decrement",
+            "initial actor right-facing",
+            "all admissions exactly two pixels with no turn or extra consumption",
+            "transfer preserves cells, manual input, score, dots and death state",
+            "both player histories invalid before maze entry",
+            "both cleaned grids exactly selected-minus-one",
+            "owner0 pixels outside horizontal sweep unchanged",
+            "owner1 pixels outside horizontal sweep unchanged"
+          ]
+        },
+        {
+          "name": "resumed-maze-entry-and-ordinary-play",
+          "elapsed_seconds": 0.782,
+          "checks": [
+            "maze entrance consumes no extra life",
+            "ordinary gameplay adaptive vectors and copied active image equal current artifact"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "gated-normal-3",
+      "rom_sha256": "65381e7da986c0fae445b409f0e6ce0dbae953334006f562eb77f7ce02be112b",
+      "status": "PASS",
+      "receipt_sha256": "56f1df37f928e82e2b0014bb4a16d3f5c45a32f58091041cc6907c9ce1fe990c",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "elapsed_seconds": 6.558,
+          "checks": [
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26"
+          ]
+        },
+        {
+          "name": "credited-selected-life-start",
+          "elapsed_seconds": 2.763,
+          "checks": []
+        },
+        {
+          "name": "natural-transfer-trace-and-both-ledger-retirement",
+          "elapsed_seconds": 8.495,
+          "checks": [
+            "cleanup marker is current compiled init_player call",
+            "Enter thread completed",
+            "foreground data page identity",
+            "resident and asset live identity",
+            "loaded enemy executable identity",
+            "exact consumed root and single initial decrement",
+            "initial actor right-facing",
+            "all admissions exactly two pixels with no turn or extra consumption",
+            "transfer preserves cells, manual input, score, dots and death state",
+            "both player histories invalid before maze entry",
+            "both cleaned grids exactly selected-minus-one",
+            "owner0 pixels outside horizontal sweep unchanged",
+            "owner1 pixels outside horizontal sweep unchanged"
+          ]
+        },
+        {
+          "name": "resumed-maze-entry-and-ordinary-play",
+          "elapsed_seconds": 0.755,
+          "checks": [
+            "maze entrance consumes no extra life",
+            "ordinary gameplay adaptive vectors and copied active image equal current artifact"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "gated-held-12",
+      "rom_sha256": "65381e7da986c0fae445b409f0e6ce0dbae953334006f562eb77f7ce02be112b",
+      "status": "PASS",
+      "receipt_sha256": "9100db9656bd608ba2d44986819a54d98c3a7edc47f9bfff89abc558226a4373",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "elapsed_seconds": 6.313,
+          "checks": [
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26"
+          ]
+        },
+        {
+          "name": "credited-selected-life-start",
+          "elapsed_seconds": 2.828,
+          "checks": []
+        },
+        {
+          "name": "natural-transfer-trace-and-both-ledger-retirement",
+          "elapsed_seconds": 8.673,
+          "checks": [
+            "cleanup marker is current compiled init_player call",
+            "Enter thread completed",
+            "foreground data page identity",
+            "resident and asset live identity",
+            "loaded enemy executable identity",
+            "exact consumed root and single initial decrement",
+            "initial actor right-facing",
+            "real mapped Up and north axis active while transfer owns facing",
+            "all admissions exactly two pixels with no turn or extra consumption",
+            "transfer preserves cells, manual input, score, dots and death state",
+            "Up was pressed before first scheduled marker admission",
+            "both player histories invalid before maze entry",
+            "both cleaned grids exactly selected-minus-one",
+            "owner0 pixels outside horizontal sweep unchanged",
+            "owner1 pixels outside horizontal sweep unchanged"
+          ]
+        },
+        {
+          "name": "resumed-maze-entry-and-ordinary-play",
+          "elapsed_seconds": 1.401,
+          "checks": [
+            "host Up remains held through complete transfer",
+            "maze entrance consumes no extra life",
+            "ordinary gameplay adaptive vectors and copied active image equal current artifact"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "gated-reversed-1",
+      "rom_sha256": "65381e7da986c0fae445b409f0e6ce0dbae953334006f562eb77f7ce02be112b",
+      "status": "PASS",
+      "receipt_sha256": "330e6aa35dbdea3707be73597f9acdff0811fb2cf46c88f3efc6bd6f552c28d7",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "elapsed_seconds": 5.524,
+          "checks": [
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26"
+          ]
+        },
+        {
+          "name": "credited-selected-life-start",
+          "elapsed_seconds": 2.865,
+          "checks": []
+        },
+        {
+          "name": "natural-transfer-trace-and-both-ledger-retirement",
+          "elapsed_seconds": 10.924,
+          "checks": [
+            "cleanup marker is current compiled init_player call",
+            "Enter thread completed",
+            "foreground data page identity",
+            "resident and asset live identity",
+            "loaded enemy executable identity",
+            "front and back IDs reversed",
+            "logical starting surface preserved by reversal 0",
+            "logical starting surface preserved by reversal 1",
+            "exact consumed root and single initial decrement",
+            "initial actor right-facing",
+            "all admissions exactly two pixels with no turn or extra consumption",
+            "transfer preserves cells, manual input, score, dots and death state",
+            "both player histories invalid before maze entry",
+            "both cleaned grids exactly selected-minus-one",
+            "owner0 pixels outside horizontal sweep unchanged",
+            "owner1 pixels outside horizontal sweep unchanged"
+          ]
+        },
+        {
+          "name": "resumed-maze-entry-and-ordinary-play",
+          "elapsed_seconds": 0.744,
+          "checks": [
+            "maze entrance consumes no extra life",
+            "ordinary gameplay adaptive vectors and copied active image equal current artifact"
+          ]
+        }
+      ]
+    }
+  ],
+  "new_input_cause": "Adaptive input binding calls read_joystick outside the gated simulation dispatcher; rj_request writes PLAYER_FACE, PLAYER_WANT and PLAYER_MANUAL. Held Up produced face0/manual1 during horizontal entry in the byte-identified ungated prototype. ENTRY!=0 now prevents directional writes. Axes, sampling, clock and menu service remain unchanged.",
+  "input_fit_proof": "Four-byte TST/BNE replaces four bytes of redundant step/manual clears. live_begin/init_gameplay calls init_player immediately before arming WAIT_STAGE; init_player clears both fields, and the guarded sampler cannot mutate manual thereafter. No other code/timing ownership or hard limit is changed.",
+  "geometry_correction": "89EC\u219275EC is y169\u2192137,x152; the earlier nominal y168\u2192136 shorthand was one row low. Sixteen rows remain safe. HUD roots remain y168/152/136/120.",
+  "host_geometry_sha256": "4bdc775aa485335d510446e908d388a457e61a90e64349367b42e6b9329ccffc",
+  "failures_retained": [
+    {
+      "name": "ungated held-Up failure",
+      "receipt_sha256": "3672c8de908e610c4a4c460381cd5c90dc840c6b4e005e10a93f932693a64a55",
+      "result": "Real facing/manual input leak, not movement catch-up or observation error."
+    },
+    {
+      "name": "alternate-build-directory audit failure",
+      "log_sha256": "25aca723e5be50974c6d6859d85929dfbeeea6d6a62e6ad47a5d2818a26c5f5a",
+      "result": "Generated registry source=build/ladybug-adaptive-mapped.s mismatched custom-directory source provenance. Complete canonical-directory rerun passes; no tooling production fix included."
+    }
+  ],
+  "dependency_order": "BUG062 source integration/grid qualification precedes084;084 integration precedes085 execution. BUG062 natural life-accounting acceptance remains joint with084/085.",
+  "executor": "One Luna Extra High subagent; one bounded source commit; no push. Parent creates worktrees/bug-084-execution on codex/bug084-execution from the recorded production base and copies the nine frozen read-only TMX inputs.",
+  "ownership": "Executor may stage only src/main.s and src/enemy_runtime.s. Parent owns registry/catalog, generated assets, wiki, ticket evidence and combined integration. No GUI/monitor protocol extension.",
+  "verification_commands": [
+    "LADYBUG_INPUT=joystick bash scripts/build.sh build",
+    "LADYBUG_INPUT=keyboard bash scripts/build.sh build",
+    "python3 <parent>/wiki/internal/tickets/evidence/rsch014-ready-084/marker-right-ready-observer.py --worktree <executor> --rom-sha256 <current-sha> --marker-right --initial-lives <1|2|3> --scratch-dir <unique-dir> --output <new-json>",
+    "Same command with --initial-lives 12 --held-marker-input",
+    "Same command with --initial-lives 1 --reverse-marker-owner",
+    "Same observer without --marker-right/--initial-lives, with --name-only, on the complete keyboard artifact: adjacent inactive-entry/remapped-name control regression. Required execution evidence; not claimed passing preparation evidence."
+  ],
+  "phase_policy": "Every adapter phase40 seconds; success markers are named in report. Timeout fails the marker, never proves target speed. Two failures/timeouts or subsystem expansion require PM/debugger reassessment. No deadline extension.",
+  "required_report": [
+    "source commit and exact diffs",
+    "complete builds and artifact hashes",
+    "scheduled admission traces and independent both-owner grid/pixel checks",
+    "held-input active-axis proof and invariant actor/game state",
+    "reversal starting pixel/history equivalence",
+    "ordinary cell12,18 with same life count",
+    "adjacent remapped-name check",
+    "capacity versus fixed limits",
+    "rejected experiments and residual risks",
+    "whether parent integrated acceptance can reach Done"
+  ],
+  "not_accepted": [
+    "No production source integration yet",
+    "No BUG085 replacement-life/death/final-life proof",
+    "BUG062/058/FEAT005 parent Verification remain unchanged",
+    "No original27000-cycle performance claim",
+    "No all-tickets-Ready claim"
+  ]
+}
