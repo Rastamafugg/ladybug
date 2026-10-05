@@ -1142,8 +1142,6 @@ draw_entry_scores
         ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
         bsr     draw_score
         ldx     #PRES_HIGHSCORE_BASE
-        ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
-        lbsr    draw_score
         rts
 
 render_high_score
