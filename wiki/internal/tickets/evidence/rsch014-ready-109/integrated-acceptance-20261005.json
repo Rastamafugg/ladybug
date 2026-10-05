@@ -1,0 +1,147 @@
+{
+  "status": "PASS-INTEGRATED-BUG109",
+  "source_commit": "fa7a9d4ff79ed31cfa8f11d7a1ae0f2562359ec0",
+  "integration_commit": "59fc7ee",
+  "profiles": [
+    {
+      "profile": "keyboard",
+      "exit_code": 0,
+      "rom_sha256": "5614bc9ef52ade003c0010baf5781400bbfd0da519dbffb0150d337a339c48a4",
+      "map_sha256": "11a4499096e06150bb498089fc6526e5a253fc81e5c5e35f7b31e8468f4e1c2b",
+      "source_receipt_sha256": "b6d88fd9b081251933000fa30b5daa039b4ddb26b5b257f7183ebce25b0ad465"
+    },
+    {
+      "profile": "joystick",
+      "exit_code": 0,
+      "rom_sha256": "acd105f3d5e394f0dc6abf3835d038165353af3919a5ae2dca333475cd1ef8ee",
+      "map_sha256": "1a169b8ff4c2fabe74064f1cda29b328bf3a691451fa779135a171cb9577d5b4",
+      "source_receipt_sha256": "00e0593161cc873d5bdd76fed732c52dfc55140429df2b4355b89fb17f80a36c"
+    }
+  ],
+  "parent_first_rank": {
+    "raw_sha256": "261f009012a4efd91dca3e5932672d75d47e651927c6a9af14c055a94fd451e6",
+    "phases": [
+      {
+        "name": "cold-attract-delivery",
+        "deadline_seconds": 40,
+        "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+        "checks": [
+          "live resident equals current runtime artifact",
+          "live presentation marker owner equals current module artifact",
+          "natural prompt row 15 col 13",
+          "natural prompt row 15 col 14",
+          "natural prompt row 15 col 15",
+          "natural prompt row 15 col 16",
+          "natural prompt row 15 col 17",
+          "natural prompt row 15 col 18",
+          "natural prompt row 15 col 19",
+          "natural prompt row 15 col 20",
+          "natural prompt row 15 col 21",
+          "natural prompt row 15 col 22",
+          "natural prompt row 15 col 23",
+          "natural prompt row 15 col 24",
+          "natural prompt row 15 col 25",
+          "natural prompt row 15 col 26",
+          "natural prompt row 15 col 27",
+          "natural prompt row 19 col 13",
+          "natural prompt row 19 col 15",
+          "natural prompt row 19 col 16",
+          "natural prompt row 19 col 17",
+          "natural prompt row 19 col 18",
+          "natural prompt row 19 col 21",
+          "natural prompt row 19 col 23",
+          "natural prompt row 19 col 24",
+          "natural prompt row 19 col 25",
+          "natural prompt row 19 col 26"
+        ],
+        "front_frame_sha256": "da375782a7a46fb052f36227d7eded59aa49481863ad9d7b7eed169a19782278",
+        "elapsed_seconds": 6.023
+      },
+      {
+        "name": "credited-menu-before-gap-reproduction",
+        "deadline_seconds": 40,
+        "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+        "checks": [
+          "natural menu admitted one credit"
+        ],
+        "elapsed_seconds": 3.922
+      },
+      {
+        "name": "credited-gameplay-before-qualifying-death",
+        "deadline_seconds": 40,
+        "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+        "checks": [
+          "ordinary gameplay adaptive vectors and copied active image equal current artifact"
+        ],
+        "elapsed_seconds": 6.962
+      },
+      {
+        "name": "qualifying-gameover-to-name-gap",
+        "deadline_seconds": 40,
+        "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+        "fixture": "Set only legal six-digit BCD SCORE=095000 and DEATH_STATE4 after natural credited entry; real game-over qualification, name installation and publication. No insertion rank, pending score, frame or cursor writes.",
+        "checks": [
+          "full delivered low name owner equals current artifact",
+          "full delivered mapped name owner equals current artifact",
+          "actual ranking and pending score match fixture",
+          "all ten numeric glyph descriptors available",
+          "gap-name gap cells match blank on owner0",
+          "gap-name player score unchanged on owner0",
+          "gap-name top-right score unchanged on owner0",
+          "gap-name gap cells match blank on owner1",
+          "gap-name player score unchanged on owner1",
+          "gap-name top-right score unchanged on owner1"
+        ],
+        "elapsed_seconds": 15.883
+      },
+      {
+        "name": "natural-name-owner-replay",
+        "deadline_seconds": 40,
+        "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+        "checks": [
+          "name mode remains active during replay",
+          "name mode remains active during replay",
+          "name mode remains active during replay",
+          "name mode remains active during replay",
+          "name mode remains active during replay",
+          "name mode remains active during replay",
+          "name mode remains active during replay",
+          "name mode remains active during replay",
+          "natural replay publishes both FRONT owners",
+          "gap-name-replay gap cells match blank on owner0",
+          "gap-name-replay player score unchanged on owner0",
+          "gap-name-replay top-right score unchanged on owner0",
+          "gap-name-replay gap cells match blank on owner1",
+          "gap-name-replay player score unchanged on owner1",
+          "gap-name-replay top-right score unchanged on owner1"
+        ],
+        "front_owners": [
+          0,
+          1
+        ],
+        "distinct_frame_samples": 8,
+        "rank": 0,
+        "gap_value": "blank",
+        "pending_score": "095000",
+        "elapsed_seconds": 2.242
+      }
+    ]
+  },
+  "later_rank_evidence": {
+    "raw_sha256": "7f71885f6b1ad0cdf18b9b785cb5f17ced51a3a658b98dc9baea4af4a126b7aa",
+    "qualification": "Executor later-rank check reused because parent entire keyboard ROM, low runtime and mapped helper are byte-identical; parent reruns natural first-rank/owner integration. No changed input to later-rank branch."
+  },
+  "capacity": {
+    "highscore_bytes": 892,
+    "limit": 938,
+    "free": 46,
+    "baseline_free": 39,
+    "resident_free_keyboard": 40,
+    "resident_free_joystick": 4,
+    "assets_free": 19,
+    "mapped_free": 22,
+    "banked_free": 2
+  },
+  "residual_risks": "No BUG109 criterion outstanding. Other approved name-screen contracts remain separate. Global capacity unchanged.",
+  "rejected_experiment": "Executor custom build-directory source identity failed; canonical complete profiles pass."
+}
