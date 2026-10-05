@@ -579,6 +579,16 @@ def trademark_pixels():
  report['phases'][-1]['trademark_crop_sha256']=hashlib.sha256(crop).hexdigest()
  report['phases'][-1]['trademark_foreground']={'red':sum((v>>4==1)+(v&15==1) for v in crop),'white':sum((v>>4==6)+(v&15==6) for v in crop)}
 
+def name_scan_snapshot(low):
+ # KB_DOWN is transient inside keyboard scanning. Capture only after read_joy returns.
+ pc=symbols(B/'ladybug-highscore-runtime.map')['name_joy_ready']
+ commands=[f'break *0x{pc:x}','continue']+live_pc_guard(pc,low,0x300)+[
+  'delete breakpoints',f'dump binary memory {O}/name-scan-dp.bin 0 0x300']
+ gdb(commands);dp=(O/'name-scan-dp.bin').read_bytes()
+ q={'mode':dp[0xa5],'mapped_down':dp[0x296],'player_cell':list(dp[9:11])}
+ report['phases'][-1].setdefault('completed_scan_snapshots',[]).append(q)
+ return q
+
 def name_controls():
  phase('forced-final-death-natural-name-handoff')
  report['phases'][-1]['forced_state']='Replace five bindings with previously UI-tested W/S/A/D/Space; set packed-BCD SCORE=095000 and DEATH_STATE=4 at ordinary credited gameplay. Natural qualification/phase owner installs and publishes game-over then name entry.'
@@ -590,11 +600,11 @@ def name_controls():
  check('name mapped helper equals artifact',(O/'name-helper.bin').read_bytes()==helper)
  moved=False
  for index,keyname in enumerate(('w','s','a','d')):
-  phase('remapped-name-movement-'+str(index));before=snapshot()['player_cell'];key(keyname,states=(1,));q=snapshot()
+  phase('remapped-name-movement-'+str(index));before=snapshot()['player_cell'];key(keyname,states=(1,));q=name_scan_snapshot(low)
   check('name mapped direction bit '+str(index),q['mapped_down']==1<<index and q['mode']==8)
   moved=moved or q['player_cell']!=before;key(keyname,states=(0,))
  check('at least one remapped key moves the actual name cursor',moved)
- phase('fixed-arrow-name-exclusion');before=snapshot()['player_cell'];key('Up',states=(1,));q=snapshot();check('fixed menu Up is not a rebound name movement',q['mapped_down']==0 and q['player_cell']==before);key('Up',states=(0,))
+ phase('fixed-arrow-name-exclusion');before=snapshot()['player_cell'];key('Up',states=(1,));q=name_scan_snapshot(low);check('fixed menu Up is not a rebound name movement',q['mapped_down']==0 and q['player_cell']==before);key('Up',states=(0,))
  phase('forced-END-natural-name-return');report['phases'][-1]['forced_state']='Set existing END completion flag E2=1; natural mapped helper commits and returns. This does not test reaching the END glyph.'
  gdb(['set {unsigned char}0xe2=1']);settled(3);label_pixels('ADD CREDITS')
 def entry_edges():
