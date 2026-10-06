@@ -1,0 +1,65 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -478,6 +478,21 @@
+ 
+         ifne    PRESENTATION_STAGE_PANEL_ENABLED
+         include "ladybug_runtime_symbols.inc"
++stage_select
++        lda $24
++        ldb PRES_SCREEN
++        cmpb #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        beq stage_selected
++        lda #1
++        ldb $A7
++        beq stage_selected
++        lda $EB
++        cmpb #2
++        bne stage_selected
++        lda $24
++stage_selected
++        sta PRES_TMP_H
++        rts
+         rmb     $B080-*
+ ; BUG-035: called during hidden level-start hydration, before publication.
+ ; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
+@@ -489,17 +504,6 @@
+         jmp menu_scan
+ menu_tick_entry
+         jmp menu_tick
+-stage_select
+-        lda #1
+-        ldb $A7
+-        beq stage_selected
+-        lda $EB
+-        cmpb #2
+-        bne stage_selected
+-        lda $24
+-stage_selected
+-        sta PRES_TMP_H
+-        rts
+ stage_panel_slice
+         lbsr credit_panel_slice
+         ldd $AA
+@@ -517,7 +521,13 @@
+         lbeq ranking_schedule_tick
+         lda PRES_SCREEN
+         cmpa #PRESENTATION_MAP_LEVEL_START
++        beq stage_name_schedule_ready
++        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
+         bne stage_slice_return
++        ldd $AA
++        cmpd #576
++        bne stage_slice_return
++stage_name_schedule_ready
+         ldd $AA
+         cmpd #128
+         bne stage_score_row_done
+@@ -534,7 +544,7 @@
+         rts
+ stage_schedule_found
+         leay 2,y
+-        bsr stage_select
++        lbsr stage_select
+         ldx ,y
+         lda 5,y
+         sta $29

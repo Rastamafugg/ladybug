@@ -1,0 +1,106 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -499,6 +499,8 @@
+         ldd $AA
+         cmpd #544
+         beq name_phrase_rank
++        cmpd #768
++        beq name_left_rank
+         cmpd #576
+         lbeq stage_name_schedule_ready
+         cmpd #608
+@@ -506,6 +508,9 @@
+         rts
+ name_phrase_rank
+         ldx #$5C04
++        bra name_rank_format
++name_left_rank
++        ldx #$7A04
+         bra name_rank_format
+ 
+ name_rank_format
+--- a/src/shared_text_ranking.inc
++++ b/src/shared_text_ranking.inc
+@@ -983,29 +983,18 @@
+         ldb     ,x
+         lda     #$34
+         sta     PAR5
+-        lda     PRES_NAME_TILE
+-        cmpa    #DIR_N
+-        beq     name_can_n
+-        cmpa    #DIR_E
+-        beq     name_can_e
+-        cmpa    #DIR_S
+-        beq     name_can_s
+-        bitb    #8
+-        bra     name_can_result
+-name_can_n
+-        bitb    #1
+-        bra     name_can_result
+-name_can_e
+-        bitb    #2
+-        bra     name_can_result
+-name_can_s
+-        bitb    #4
+-name_can_result
+-        beq     name_can_blocked
+-        lda     #1
+-        rts
+-name_can_blocked
+-        clra
++        ; Callers consume only zero/nonzero. Preserve the edge mask on
++        ; stack while selecting the requested cardinal direction bit.
++        pshs b
++        lda #1
++        ldb PRES_NAME_TILE
++        beq name_mask_ready
++name_mask_rotate
++        lsla
++        decb
++        bne name_mask_rotate
++name_mask_ready
++        anda ,s+
+         rts
+ 
+ name_cell_arrival
+@@ -1141,6 +1130,9 @@
+ name_top_authority_ready
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
+         bsr     draw_record_name
++        ldx #PRES_PENDING_NAME
++        ldy #$7F04             ; left pending name, authored x1,row19
++        bsr draw_record_name
+ draw_name_done
+         puls a
+         sta PRES_NAME_TIMER_PHASE
+@@ -1164,6 +1156,9 @@
+ score_top_authority_ready
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
+         bsr     draw_score
++        ldx #PRES_SCORE_H
++        ldy #$8404             ; left pending score, authored x1,row20
++        bsr draw_score
+         bra draw_name_done
+ 
+ ranking_slice
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -4027,12 +4027,17 @@
+         {
+           "name": "stage_name_dispatch",
+           "routine": "stage_panel_text",
+-          "purpose": "Select544 phrase,576 part and608 value hidden name slices; default returns without painting."
++          "purpose": "Select only544 phrase,768 left rank,576 part and608 value hidden name slices; default returns without painting."
+         },
+         {
+           "name": "name_phrase_rank",
+           "routine": "stage_panel_text",
+           "purpose": "Select approved BUG108 row12 x1\u20133 destination and continue existing glyph-text renderer path."
++        },
++        {
++          "name": "name_left_rank",
++          "routine": "stage_panel_text",
++          "purpose": "Select separate BUG110 row18 x1\u20133 destination after its base cells retire."
+         },
+         {
+           "name": "name_rank_format",

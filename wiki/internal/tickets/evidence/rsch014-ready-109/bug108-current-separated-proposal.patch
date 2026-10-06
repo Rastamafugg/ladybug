@@ -1,0 +1,92 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -494,6 +494,40 @@
+ stage_selected
+         sta PRES_TMP_H
+         rts
++; Unapplied BUG108 prototype: hidden row12 ordinal only.
++stage_name_dispatch
++        ldd $AA
++        cmpd #544
++        beq name_phrase_rank
++        cmpd #576
++        lbeq stage_name_schedule_ready
++        cmpd #608
++        lbeq stage_name_schedule_ready
++        rts
++name_phrase_rank
++        ldx #$5C04
++        bra name_rank_format
++
++name_rank_format
++        lda #1
++        sta $29
++        lda PRES_INSERT
++        ldb #3
++        mul
++        leay name_rank_data,pcr
++        leay d,y
++        ldb #3
++        lbra stage_panel_text
++name_rank_data
++        fcb 29,24,25
++        fcb 2,23,13
++        fcb 3,27,13
++        fcb 4,29,17
++        fcb 5,29,17
++        fcb 6,29,17
++        fcb 7,29,17
++        fcb 8,29,17
++        fcb 9,29,17
+         rmb     $B080-*
+ ; BUG-035: called during hidden level-start hydration, before publication.
+ ; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
+@@ -525,11 +559,7 @@
+         beq stage_name_schedule_ready
+         cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
+         lbne stage_slice_return
+-        ldd $AA
+-        cmpd #576
+-        beq stage_name_schedule_ready
+-        cmpd #608
+-        bne stage_slice_return
++        lbra stage_name_dispatch
+ stage_name_schedule_ready
+         ldd $AA
+         cmpd #128
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -3803,6 +3803,11 @@
+           "name": "menu_tick_entry",
+           "kind": "boundary",
+           "reason": "Fixed $B089 gateway into the existing page-$23 menu owner."
++        },
++        {
++          "name": "name_rank_data",
++          "kind": "data",
++          "reason": "Immutable27-byte nine-position raw glyph ordinal table in existing fixed-vector padding; consumed only by the hidden name stage slices."
+         }
+       ],
+       "basic_blocks": [
+@@ -4018,6 +4023,21 @@
+           "name": "stage_player_score_actual",
+           "routine": "stage_player_score",
+           "purpose": "Level-start hidden score-hydration control boundary."
++        },
++        {
++          "name": "stage_name_dispatch",
++          "routine": "stage_panel_text",
++          "purpose": "Select544 phrase,576 part and608 value hidden name slices; default returns without painting."
++        },
++        {
++          "name": "name_phrase_rank",
++          "routine": "stage_panel_text",
++          "purpose": "Select approved BUG108 row12 x1\u20133 destination and continue existing glyph-text renderer path."
++        },
++        {
++          "name": "name_rank_format",
++          "routine": "stage_panel_text",
++          "purpose": "Select existing red1 mask colour and the current three-byte raw ordinal record; tail-call existing stage_panel_text."
+         }
+       ],
+       "defines": {
