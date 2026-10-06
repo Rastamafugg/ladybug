@@ -95,7 +95,7 @@ branch=r""" if a.credit_admission_only:
   entry=main['enemy_tick']
   cmds=[f'break *0x{entry:x}','condition 1 (*(unsigned char*)0 & 1)==0 && *(unsigned char*)0x4d==0','continue']+live_pc_guard(entry,resident,0xc000)+['delete breakpoints','set $save5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x34',f'dump binary memory {O}/roam-fixture-entities.bin 0xa380 0xa400','set {unsigned char}0xffa5=$save5']
   gdb(cmds);entity=(O/'roam-fixture-entities.bin').read_bytes();skulls={(entity[i],entity[i+1]) for i in range(0,len(entity),4) if entity[i+2]==1};maze=json.loads((ROOT/'assets/arcade/maze.json').read_text());nav=maze['maze_nav'];gates=maze['gate_owner'];points=[]
-  for y in range(12,22):
+  for y in range(2,10):
    for x in range(2,22):
     if gates[y][x] or (x,y) in skulls or abs(x-22)+abs(y-22)<8:continue
     if any(abs(x-q['x'])+abs(y-q['y'])<6 for q in points):continue
@@ -114,39 +114,35 @@ branch=r""" if a.credit_admission_only:
    commands += [f'if *(unsigned char*)0x{0xa470+slot*8:x} != {(slot<<4)|1}','echo RELEASE-TYPE-PRECONDITION-FAIL\\n','quit 1','end']
    for off,value in enumerate(bytes((ptr>>8,ptr&255,0,q['x'],q['y'],0,q['direction'])),1):commands.append(f'set {{unsigned char}}0x{0xa470+slot*8+off:x}={value}')
   commands += ['set {unsigned char}0xffa5=$save5','set {unsigned char}0x9=22','set {unsigned char}0xa=22','set {unsigned short}0xb=35188','set {unsigned char}0x18=1','set {unsigned char}0x5=255','set {unsigned char}0x6=255','set {unsigned char}0xf=255']
+  for wanted in (0,1):
+   entry=main['mainloop']+5;meta=0xa900+wanted*0x100
+   offset=main['mainloop']-0xc000
+   check('compiled publication gate is SYNC/TST pending/BNE before clock call',resident[offset:offset+5]==bytes((0x13,0x0d,0x91,0x26,0xfb)) and resident[offset+5]==0xbd)
+   condition=f'(*(unsigned char*)0xffa5 & 63)==0x34 && *(unsigned char*)0x8f=={wanted} && *(unsigned char*)0xa5==0 && *(unsigned char*)0x91==0 && *(unsigned char*)0x4d==0'
+   for slot in range(4):condition += f' && *(unsigned char*)0x{meta+8+slot*8:x}=={(slot<<4)|1} && *(unsigned char*)0x{meta+14+slot*8:x}==1'
+   condition += f' && *(unsigned char*)0x{meta+12:x}<6'
+   commands += [f'break *0x{entry:x}','condition $bpnum '+condition,'continue']+live_pc_guard(entry,resident,0xc000)+['delete breakpoints',f'dump binary memory {O}/roam-{wanted}-dp.bin 0 0x300',f'dump binary memory {O}/roam-{wanted}-ledger.bin 0x{meta:x} 0x{meta+256:x}']
+   for i in range(4):commands += [f'set $p{i}=*(unsigned char*)0x{0xffa1+i:x}',f'set {{unsigned char}}0x{0xffa1+i:x}={0x30-4*wanted+i}']
+   commands += [f'dump binary memory {O}/roam-{wanted}-front.bin 0x2000 0x9800']
+   commands += [f'set {{unsigned char}}0x{0xffa1+i:x}=$p{i}' for i in range(4)]
   gdb(commands)
   seen=set();samples=[];report['phases'][-1]['samples']=samples
-  while len(seen)<8:
-   assert time.monotonic()<deadline,'required roaming type/owner samples not all reached'
-   entry=main['mainloop']
-   commands=[f'break *0x{entry:x}','condition 1 *(unsigned char*)0xa5==0 && *(unsigned char*)0x91==0','continue']+live_pc_guard(entry,resident,0xc000)+['delete breakpoints',f'dump binary memory {O}/roam-dp.bin 0 0x300','set $owner=*(unsigned char*)0x8f','set $save5=*(unsigned char*)0xffa5','set {unsigned char}0xffa5=0x34','set $meta=0xa900+0x100*$owner',f'dump binary memory {O}/roam-ledger.bin $meta $meta+0x100','set {unsigned char}0xffa5=$save5']
-   for i in range(4):commands += [f'set $p{i}=*(unsigned char*)0x{0xffa1+i:x}',f'set {{unsigned char}}0x{0xffa1+i:x}=0x30-4*$owner+{i}']
-   commands += [f'dump binary memory {O}/roam-front.bin 0x2000 0x9800']
-   commands += [f'set {{unsigned char}}0x{0xffa1+i:x}=$p{i}' for i in range(4)]
-   gdb(commands);dp=(O/'roam-dp.bin').read_bytes();ledger=(O/'roam-ledger.bin').read_bytes();frame=(O/'roam-front.bin').read_bytes();owner=dp[0x8f]
-   check('actual FRONT ledger valid in ordinary part9 four-enemy gameplay',owner in (0,1) and ledger[0]&1 and dp[0xa5]==0 and dp[0x91]==0 and dp[0x24]==9 and dp[0x58]==4 and dp[0x4d]==0)
+  for owner in (0,1):
+   dp=(O/f'roam-{owner}-dp.bin').read_bytes();ledger=(O/f'roam-{owner}-ledger.bin').read_bytes();frame=(O/f'roam-{owner}-front.bin').read_bytes()
+   check('actual FRONT ledger valid in ordinary four-enemy gameplay',dp[0x8f]==owner and ledger[0]&1 and dp[0xa5]==0 and dp[0x91]==0 and dp[0x24]==9 and dp[0x58]==4 and dp[0x4d]==0)
    records=[ledger[8+slot*8:16+slot*8] for slot in range(4)]
-   def rect(ptr):
-    off=ptr-0x2000;return (off%160,off//160)
-   def overlaps(a,b):return abs(a[0]-b[0])<8 and abs(a[1]-b[1])<16
    for slot,record in enumerate(records):
-    if not record[0] or not record[6]:continue
-    kind=record[0]>>4;ptr=int.from_bytes(record[1:3],'big');direction=record[7];xy=rect(ptr)
-    if (kind,owner) in seen or ptr==em['ENEMY_FB']:continue
-    check('published roaming type and direction within authored range',kind in range(4) and direction in range(4))
-    if any(other[0] and other[6] and overlaps(xy,rect(int.from_bytes(other[1:3],'big'))) for other in records[slot+1:]):continue
-    if ledger[2] and overlaps(xy,rect(int.from_bytes(ledger[4:6],'big'))):continue
-    off=ptr-0x2000
-    check('unoccluded roaming crop within framebuffer',off>=0 and xy[0]<=152 and xy[1]<=176)
+    kind=record[0]>>4;ptr=int.from_bytes(record[1:3],'big');direction=record[7];off=ptr-0x2000;xy=(off%160,off//160)
+    check('required released type and valid roaming capture',kind==slot and record[6]==1 and direction in range(4) and ptr!=em['ENEMY_FB'])
+    check('roaming crop within framebuffer',off>=0 and xy[0]<=152 and xy[1]<=176)
     actual=b''.join(frame[off+row*160:off+row*160+8] for row in range(16));matches=[]
     for pose in range(4):
      native=expand_native_frame(authored_frames[kind*16+direction*4+pose],GAMEPLAY_ENEMY_PEN_MAPS[kind]);opaque=[(i,shift,(v>>shift)&15) for i,v in enumerate(native) for shift in (4,0) if (v>>shift)&15]
      if all((actual[i]>>shift)&15==pen for i,shift,pen in opaque):matches.append(pose)
-    check('unoccluded actual FRONT roaming pixels equal authored type',bool(matches))
-    seen.add((kind,owner));samples.append({'type':kind+1,'owner':owner,'slot':slot,'direction':direction,'ptr':ptr,'poses':matches,'crop_sha256':hashlib.sha256(actual).hexdigest()})
-   time.sleep(.1)
-  report['phases'][-1]['samples']=samples;report['phases'][-1]['qualification']='Actual FRONT and matching page34 owner ledger captured in one guarded stop; all four type/owner pairs required. Exact opaque authored pixels; overlapping higher slots/player excluded geometrically. No actor/frame/owner writes.'
-  report['status']='PASS-CURRENT-GROUP-RESET-SELECTOR';report['limits']=['Initial den FRONT pixels and natural owner replay pass; roaming pixels and death/deadline cases remain separate.','Stage/deadline predecessors are disclosed, not earned multi-level play.'];raise SystemExit(0)
+    check('actual unoccluded FRONT roaming pixels equal authored type',bool(matches));seen.add((kind,owner));samples.append({'type':kind+1,'owner':owner,'slot':slot,'direction':direction,'ptr':ptr,'poses':matches,'crop_sha256':hashlib.sha256(actual).hexdigest()})
+  check('all four released types have both natural owner samples',len(seen)==8)
+  report['phases'][-1]['qualification']='Fixture and first two required natural FRONT publications captured in one GDB command batch without an intervening detach/Python interval. Post-SYNC/IRQ-ready gate with pending0; actual matching page34 ledger and authored foreground pixels; no owner/frame/type/cursor/deadline writes.'
+  report['status']='PASS-CURRENT-GROUP-RESET-SELECTOR';report['limits']=['Initial den and four-type roaming FRONT pixels on both natural owners pass; death/deadline cases remain separate.','Stage/deadline predecessors are disclosed, not earned multi-level play.'];raise SystemExit(0)
 """
 source=source[:start]+branch+source[end:]
 exec(compile(source,str(base)+'[succession-group-adapter]','exec'))

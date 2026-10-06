@@ -1,0 +1,85 @@
+{
+  "status": "PASS-ROAMING-MAPPING-DIAGNOSTIC",
+  "rom_sha256": "9768ab9fafcc2b244657c17b03a1e66475933fd7f6838b4d3049f99c176efdeb",
+  "diagnostic_receipt_sha256": "8c38e89eb98ebe0966a1b24e255dabf0a13893c6e7eb7518d0654e625d090c9e",
+  "samples": [
+    {
+      "sample": 0,
+      "frames": 1198,
+      "par5": 52,
+      "front": 1,
+      "pending": 1,
+      "active": 4,
+      "death": 0
+    },
+    {
+      "sample": 1,
+      "frames": 1200,
+      "par5": 52,
+      "front": 0,
+      "pending": 1,
+      "active": 4,
+      "death": 0
+    },
+    {
+      "sample": 2,
+      "frames": 1202,
+      "par5": 52,
+      "front": 1,
+      "pending": 1,
+      "active": 4,
+      "death": 0
+    },
+    {
+      "sample": 3,
+      "frames": 1204,
+      "par5": 52,
+      "front": 0,
+      "pending": 1,
+      "active": 4,
+      "death": 0
+    },
+    {
+      "sample": 4,
+      "frames": 1206,
+      "par5": 52,
+      "front": 1,
+      "pending": 1,
+      "active": 4,
+      "death": 0
+    },
+    {
+      "sample": 5,
+      "frames": 1208,
+      "par5": 52,
+      "front": 0,
+      "pending": 1,
+      "active": 4,
+      "death": 0
+    },
+    {
+      "sample": 6,
+      "frames": 1210,
+      "par5": 52,
+      "front": 1,
+      "pending": 1,
+      "active": 4,
+      "death": 0
+    },
+    {
+      "sample": 7,
+      "frames": 1212,
+      "par5": 52,
+      "front": 0,
+      "pending": 1,
+      "active": 4,
+      "death": 0
+    }
+  ],
+  "observed": "All eight mainloop entry samples have pending1; mapping34, four live release-created actors and both valid ledgers remain correct.",
+  "cause": "The prior pending0 publication predicate was placed before SYNC/IRQ readiness; it misses this continuous-compose sequence.",
+  "correction": "Observe mainloop+5 after compiled SYNC/TST pending/BNE gate. Static pattern and current live bytes must match; exact pending0/type/validity/owner/pixel criteria unchanged.",
+  "deadline_seconds": 40,
+  "readiness": "Not Ready; no pixel or combined-current-prefix fit acceptance yet.",
+  "adapter_sha256": "6e3fd263dd602ec31da85f799fa59742c5d47de8c211ebd62420bc2169f0a226"
+}
