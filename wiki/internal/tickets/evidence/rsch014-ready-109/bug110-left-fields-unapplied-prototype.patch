@@ -1,0 +1,64 @@
+--- a/src/shared_text_ranking.inc
++++ b/src/shared_text_ranking.inc
+@@ -983,29 +983,18 @@
+         ldb     ,x
+         lda     #$34
+         sta     PAR5
+-        lda     PRES_NAME_TILE
+-        cmpa    #DIR_N
+-        beq     name_can_n
+-        cmpa    #DIR_E
+-        beq     name_can_e
+-        cmpa    #DIR_S
+-        beq     name_can_s
+-        bitb    #8
+-        bra     name_can_result
+-name_can_n
+-        bitb    #1
+-        bra     name_can_result
+-name_can_e
+-        bitb    #2
+-        bra     name_can_result
+-name_can_s
+-        bitb    #4
+-name_can_result
+-        beq     name_can_blocked
+-        lda     #1
+-        rts
+-name_can_blocked
+-        clra
++        ; Callers consume only zero/nonzero. Preserve the edge mask on
++        ; stack while selecting the requested cardinal direction bit.
++        pshs b
++        lda #1
++        ldb PRES_NAME_TILE
++        beq name_mask_ready
++name_mask_rotate
++        lsla
++        decb
++        bne name_mask_rotate
++name_mask_ready
++        anda ,s+
+         rts
+ 
+ name_cell_arrival
+@@ -1141,6 +1130,9 @@
+ name_top_authority_ready
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
+         bsr     draw_record_name
++        ldx #PRES_PENDING_NAME
++        ldy #$7F04             ; left pending name, authored x1,row19
++        bsr draw_record_name
+ draw_name_done
+         puls a
+         sta PRES_NAME_TIMER_PHASE
+@@ -1164,6 +1156,9 @@
+ score_top_authority_ready
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
+         bsr     draw_score
++        ldx #PRES_SCORE_H
++        ldy #$8404             ; left pending score, authored x1,row20
++        bsr draw_score
+         bra draw_name_done
+ 
+ ranking_slice

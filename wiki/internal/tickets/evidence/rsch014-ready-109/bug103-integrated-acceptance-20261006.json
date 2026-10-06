@@ -1,0 +1,231 @@
+{
+  "date": "2026-10-06",
+  "status": "PASS-INTEGRATED-BUG103-ACCEPTANCE",
+  "source_commit": "166eaa8",
+  "combined_source_commit": "da1406b",
+  "profiles": {
+    "keyboard": {
+      "exit_code": 0,
+      "source_revision": "da1406b3c081a760f86e37e8234f575fb84a7fe7",
+      "rom_sha256": "b23d0a4f52cf4fd3d14dff52587d18050cbaa9f996a75a8f17cf4c43d39a857e",
+      "build_log_sha256": "03f11f35d1ebc84d2912419031dc67d5ff043b4f85591ee0d4c567972e6f1995",
+      "source_audits": "PASS",
+      "comparison_to_qualified_preintegration": {
+        "ladybug-highscore-runtime.bin": {
+          "current_sha256": "c2fa23ae67791fcbb175d9956b97f3d4a611eb43754ec1333c28d48b7bf0393b",
+          "qualified_sha256": "cddf82625f864041563a047b3fc15492cd3ea1c7412475fab00495d2043ab429",
+          "equal": false
+        },
+        "ladybug-highscore-helper.bin": {
+          "current_sha256": "74a6aeca5ba500a47654de21e669cddae18d00ec351ff1cdb1eeb02a320aab76",
+          "qualified_sha256": "4a5fecb49063dfd6f6e7d55868d8fde31a330943e260870c3fe42994a20788ad",
+          "equal": false
+        },
+        "ladybug-presentation-cold.bin": {
+          "current_sha256": "673260c412388a1609b4186fcd7bf947f68b7657b5e1ab46ddeaba2ca65b42e3",
+          "qualified_sha256": "673260c412388a1609b4186fcd7bf947f68b7657b5e1ab46ddeaba2ca65b42e3",
+          "equal": true
+        }
+      }
+    },
+    "joystick": {
+      "exit_code": 0,
+      "source_revision": "da1406b3c081a760f86e37e8234f575fb84a7fe7",
+      "rom_sha256": "a56b1aeb46ac58132a946f3d060401fd9019cdf233ae92239de48cdf3ea502c6",
+      "build_log_sha256": "4f01c0c2be21408fa0c26f08cbf3cbacc344e34806a678e4248aa191595b721e",
+      "source_audits": "PASS",
+      "comparison_to_qualified_preintegration": {
+        "ladybug-highscore-runtime.bin": {
+          "current_sha256": "c012e63d4649e7fd80174731dcb0eac19cf049ca0c4f51ddc8432b49e2a57680",
+          "qualified_sha256": "23a0dd8ba541851f5d61459a33720044476a6d581f881dfdd7384c45e0298080",
+          "equal": false
+        },
+        "ladybug-highscore-helper.bin": {
+          "current_sha256": "a6d2aca8798033157cc54a8f00c3891c111d3ad5e80582a42d825b1cdf0569d0",
+          "qualified_sha256": "5cf67235e9b3b42c908410a6fd859cc851520d1e38fc382d353f37e1e387b0a1",
+          "equal": false
+        },
+        "ladybug-presentation-cold.bin": {
+          "current_sha256": "673260c412388a1609b4186fcd7bf947f68b7657b5e1ab46ddeaba2ca65b42e3",
+          "qualified_sha256": "673260c412388a1609b4186fcd7bf947f68b7657b5e1ab46ddeaba2ca65b42e3",
+          "equal": true
+        }
+      }
+    }
+  },
+  "current_runtime": [
+    {
+      "score": "095000",
+      "status": "PASS-NAME-FIELD-COLOURS-AUTHORITY",
+      "raw_receipt_sha256": "4a4a32d0ec6950e2e6ba29b138f4e16553c628002a60de30973c23122b6804f2",
+      "rom_sha256": "b23d0a4f52cf4fd3d14dff52587d18050cbaa9f996a75a8f17cf4c43d39a857e",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "elapsed_seconds": 5.423,
+          "passed_check_count": 27
+        },
+        {
+          "name": "credited-menu-before-gap-reproduction",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "elapsed_seconds": 3.847,
+          "passed_check_count": 1
+        },
+        {
+          "name": "natural-credited-ranking-fields",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "elapsed_seconds": 0.945,
+          "passed_check_count": 1
+        },
+        {
+          "name": "credited-gameplay-before-qualifying-death",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "elapsed_seconds": 6.908,
+          "passed_check_count": 1
+        },
+        {
+          "name": "qualifying-gameover-to-name-gap",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "fixture": "Set only legal six-digit BCD SCORE=095000 and DEATH_STATE4 after natural credited entry; real game-over qualification, name installation and publication. No insertion rank, pending score, frame or cursor writes.",
+          "elapsed_seconds": 0.0,
+          "passed_check_count": 0
+        },
+        {
+          "name": "natural-field-returns-preserve-timer-scratch",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "fixture": "Seed only legal E8 timer phase1 at natural name writer entry and phase0 at natural score writer entry; actual compiled caller returns execute. Current 16-byte entry/return guards precede writes; full low-owner identity retained. No PC, stack, frame, owner, timer box or rank writes.",
+          "elapsed_seconds": 14.553,
+          "passed_check_count": 4
+        },
+        {
+          "name": "pending-name-fixture-natural-repaint",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "fixture": "Replace only seven pending-name glyph bytes by reversed current committed name, length7; actual host Right press drives natural field repaint. No rank, score, timer, owner, frame or PC writes.",
+          "elapsed_seconds": 3.03,
+          "passed_check_count": 51
+        },
+        {
+          "name": "natural-name-owner-replay",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "front_owners": [
+            0,
+            1
+          ],
+          "rank": 0,
+          "pending_score": "095000",
+          "elapsed_seconds": 2.25,
+          "passed_check_count": 20
+        },
+        {
+          "name": "shorter-name-clears-previous-owner-cells",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "fixture": "After qualified seven visible pending glyphs, clear only final three pending-name bytes and set length4. Real host Right drives name repaint. No score/rank/timer/frame/owner/PC writes.",
+          "elapsed_seconds": 2.664,
+          "passed_check_count": 11
+        }
+      ]
+    },
+    {
+      "score": "085000",
+      "status": "PASS-NAME-FIELD-COLOURS-AUTHORITY",
+      "raw_receipt_sha256": "595af1a7e9ccbba7e374cf9dca4e124d3aee75bc0ebffcd69321ef5e17295dae",
+      "rom_sha256": "b23d0a4f52cf4fd3d14dff52587d18050cbaa9f996a75a8f17cf4c43d39a857e",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "elapsed_seconds": 5.412,
+          "passed_check_count": 27
+        },
+        {
+          "name": "credited-menu-before-gap-reproduction",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "elapsed_seconds": 4.012,
+          "passed_check_count": 1
+        },
+        {
+          "name": "natural-credited-ranking-fields",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "elapsed_seconds": 0.839,
+          "passed_check_count": 1
+        },
+        {
+          "name": "credited-gameplay-before-qualifying-death",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "elapsed_seconds": 6.992,
+          "passed_check_count": 1
+        },
+        {
+          "name": "qualifying-gameover-to-name-gap",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "fixture": "Set only legal six-digit BCD SCORE=085000 and DEATH_STATE4 after natural credited entry; real game-over qualification, name installation and publication. No insertion rank, pending score, frame or cursor writes.",
+          "elapsed_seconds": 0.0,
+          "passed_check_count": 0
+        },
+        {
+          "name": "natural-field-returns-preserve-timer-scratch",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "fixture": "Seed only legal E8 timer phase1 at natural name writer entry and phase0 at natural score writer entry; actual compiled caller returns execute. Current 16-byte entry/return guards precede writes; full low-owner identity retained. No PC, stack, frame, owner, timer box or rank writes.",
+          "elapsed_seconds": 13.886,
+          "passed_check_count": 4
+        },
+        {
+          "name": "pending-name-fixture-natural-repaint",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "fixture": "Replace only seven pending-name glyph bytes by reversed current committed name, length7; actual host Right press drives natural field repaint. No rank, score, timer, owner, frame or PC writes.",
+          "elapsed_seconds": 2.744,
+          "passed_check_count": 51
+        },
+        {
+          "name": "natural-name-owner-replay",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "front_owners": [
+            0,
+            1
+          ],
+          "rank": 1,
+          "pending_score": "085000",
+          "elapsed_seconds": 2.169,
+          "passed_check_count": 20
+        },
+        {
+          "name": "shorter-name-clears-previous-owner-cells",
+          "deadline_seconds": 40,
+          "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+          "fixture": "After qualified seven visible pending glyphs, clear only final three pending-name bytes and set length4. Real host Right drives name repaint. No score/rank/timer/frame/owner/PC writes.",
+          "elapsed_seconds": 2.462,
+          "passed_check_count": 11
+        }
+      ]
+    }
+  ],
+  "capacity_free_bytes": {
+    "resident_keyboard": 37,
+    "resident_joystick": 1,
+    "assets": 19,
+    "complete_low_runtime": 1,
+    "page34_helper": 6
+  },
+  "acceptance": "Current first and later insertion prove exact red target pixels and authoritative pending/committed data, stale-name clearing on both natural owners, protected E8 initial returns and advancing timer, unchanged ranking/adjacent gap/player fields. Full current module delivery is guarded before labels. Both supported complete builds/packing/source audits pass.",
+  "residual_risks": "Tight 1-byte joystick resident and low-runtime margins. Later tickets require fresh combined guards. BUG107 heart selection remains separate.",
+  "rejected_experiments": "Historical oversized colour candidate and initial-return observer retained in canonical preparation. No limits changed.",
+  "artifact_comparison_limit": "Preintegration low/mapped bytes differ, so equality is not used to substitute old runtime evidence. Fresh current first/later field, timer and stale-name checks support acceptance; full current builds enforce delivery and capacity."
+}
