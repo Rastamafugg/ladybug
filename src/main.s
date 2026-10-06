@@ -446,6 +446,9 @@ object_yellow_lut equ $17C0
 object_blue_lut equ $17D0
 object_skull_lut equ $17E0
 ENEMY_OLD_FB equ $A890
+ENEMY_NORMAL_CURSOR equ $A89D
+ENEMY_PENDING_TYPE equ $A89E
+ENEMY_CACHE_TYPE equ $A89F
 ENEMY_BG_RING equ $A898
 FB_META_A   equ $A900          ; A framebuffer ownership ledger
 FB_META_B   equ $AA00          ; B framebuffer ownership ledger
@@ -463,6 +466,7 @@ ENEMY_MODULE_RENDER equ $0815
 FB_MODULE_INIT      equ $081B
 FB_MODULE_IRQ       equ $081E
 PRESENTATION_MODULE_DRAW equ $0821
+ENEMY_MODULE_BUILD_CACHE equ $0824
 GIME_PAR5           equ $FFA5
 
 RF_PLAYER      equ $01
@@ -4752,19 +4756,15 @@ irq_handler
 ; Cold enemy lifecycle reset lives in resident space so the frame-critical
 ; bank-3 module retains room for bounded compositor paths.
 reset_enemy_state
+        clr     ENEMY_NORMAL_CURSOR
+        lda     #$FF
+        sta     ENEMY_PENDING_TYPE
+        sta     ENEMY_CACHE_TYPE
         clr     ENEMY_ANIM
         lda     #8
         sta     ENEMY_TIMER
         bsr     reload_enemy_box_timer
-        clr     BOX_INDEX
-        clr     BOX_PHASE
-        clr     ENEMY_ACTIVE
-        clr     ENEMY_RELEASED
         clr     VEG_STATE
-        clr     FREEZE_TIMER
-        clr     FREEZE_TIMER+1
-        clr     ENEMY_NEST_DIRTY
-        clr     ENEMY_MOVE
         clr     ENEMY_DEATH_LATCH
         clr     PLAYER_TICK_PENDING
         clr     ENEMY_OLD_VALID
@@ -4772,6 +4772,10 @@ reset_enemy_state
         ldx     #ENEMY_OLD_FB
         clra
         clrb
+        std     BOX_INDEX
+        std     ENEMY_ACTIVE
+        std     FREEZE_TIMER
+        std     ENEMY_NEST_DIRTY
         std     ,x
         std     2,x
         std     4,x

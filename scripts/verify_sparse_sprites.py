@@ -70,6 +70,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--highscore-runtime", type=Path, default=BUILD / "ladybug-highscore-runtime.bin")
     parser.add_argument("--highscore-helper", type=Path, default=BUILD / "ladybug-highscore-helper.bin")
     parser.add_argument("--adaptive-helper", type=Path)
+    parser.add_argument("--enemy-helper", type=Path)
     parser.add_argument("--audio-runtime", type=Path, default=BUILD / "ladybug-audio-runtime.bin")
     parser.add_argument("--tile-patches", type=Path, default=BUILD / "ladybug-presentation-tile-patches.bin")
     parser.add_argument(
@@ -296,8 +297,11 @@ def main() -> None:
     demo_runtime = args.demo_runtime.read_bytes()
     highscore_runtime = args.highscore_runtime.read_bytes()
     highscore_helper = args.highscore_helper.read_bytes()
+    enemy_helper = args.enemy_helper.read_bytes() if args.enemy_helper else b""
     audio_runtime = args.audio_runtime.read_bytes()
     tile_patches = args.tile_patches.read_bytes()
+    if enemy_helper and (len(enemy_helper) != 87 or 0xA8A0 + len(enemy_helper) > 0xA8FD):
+        raise SystemExit("sparse proof: page-$34 enemy helper must be 87 bytes within $A8A0-$A8FC")
     if len(highscore_runtime) > 0x398:
         raise SystemExit("sparse proof: high-score runtime exceeds $0300-$0697")
     if args.aux_runtime_role == "development":
@@ -435,6 +439,7 @@ def main() -> None:
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
         "adaptive_helper": bytearray(len(adaptive_helper)),
+        "enemy_helper_page34": bytearray(len(enemy_helper)),
         "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
             len(actor_underlays) + len(actor_records)
@@ -450,6 +455,7 @@ def main() -> None:
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
         "adaptive_helper": bytearray(len(adaptive_helper)),
+        "enemy_helper_page34": bytearray(len(enemy_helper)),
         "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
             len(actor_underlays) + len(actor_records)
@@ -565,6 +571,9 @@ def main() -> None:
         elif target == "adaptive_helper":
             target_page_base = 0x34
             target_address = 0xBD44
+        elif target == "enemy_helper_page34":
+            target_page_base = 0x34
+            target_address = 0xA8A0
         elif target == "audio_runtime":
             target_page_base = 0x3D
             target_address = WINDOW_BASE
@@ -675,6 +684,7 @@ def main() -> None:
         not all(coverage["presentation"]) or
         not all(coverage["presentation_cold"]) or
         not all(coverage["presentation_module"]) or
+        not all(coverage["enemy_helper_page34"]) or
         not all(coverage["audio_runtime"]) or
         not all(coverage["attract_actor_bundle"]) or
         not all(coverage["phase_tile_patches"])
@@ -694,6 +704,8 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct presentation module")
     if reconstructed["adaptive_helper"] != adaptive_helper or not all(coverage["adaptive_helper"]):
         raise SystemExit("sparse proof: adaptive helper coverage/bytes differ")
+    if reconstructed["enemy_helper_page34"] != enemy_helper:
+        raise SystemExit("sparse proof: page-$34 enemy helper coverage/bytes differ")
     if reconstructed["audio_runtime"] != audio_runtime:
         raise SystemExit("sparse proof: loader does not reconstruct audio runtime")
     if reconstructed["attract_actor_bundle"] != (
@@ -720,7 +732,8 @@ def main() -> None:
     print(
         f"sparse proof: {len(enemy_ranges)} enemy and {len(player_ranges)} player "
         f"frames decode and blend pixel-exactly; {len(loader)} loader segments reconstruct "
-        f"actor, gate, presentation, cold, module, audio, and auxiliary payloads with "
+        f"actor, gate, presentation, cold, module, page-$34 enemy helper, audio, "
+        f"and auxiliary payloads with "
         f"{manifest['gmc']['spare_bytes']} bytes spare"
     )
 

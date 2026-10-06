@@ -153,6 +153,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--highscore-runtime", type=Path, required=True)
     parser.add_argument("--highscore-helper", type=Path, required=True)
     parser.add_argument("--adaptive-helper", type=Path)
+    parser.add_argument("--enemy-helper", type=Path)
     parser.add_argument("--audio-runtime", type=Path, required=True)
     parser.add_argument("--tile-patches", type=Path, required=True)
     parser.add_argument(
@@ -401,6 +402,7 @@ def pack_candidate_banks(
         include_streams: bool = False,
         compress_enemy_pages: bool = True,
         adaptive_helper: bytes = b"",
+        enemy_helper: bytes = b"",
         vegetable_payload: bytes = b"",
         keybinding_runtime: bytes = b"",
 ) -> tuple:
@@ -480,6 +482,10 @@ def pack_candidate_banks(
     if len(adaptive_helper) > 698:
         raise ValueError("adaptive helper exceeds $BD44-$BFFD")
     targets += target_chunks("adaptive_helper", adaptive_helper, 0x34, 0xBD44)
+    if enemy_helper:
+        if len(enemy_helper) != 87 or 0xA8A0 + len(enemy_helper) > 0xA8FD:
+            raise ValueError("page-$34 enemy helper must be 87 bytes within $A8A0-$A8FC")
+        targets += target_chunks("enemy_helper_page34", enemy_helper, 0x34, 0xA8A0)
 
     page39_raw = player_payload + gate_payload + presentation_payload + vegetable_payload
     if len(page39_raw) > PAGE_BYTES:
@@ -822,6 +828,7 @@ def main() -> None:
         highscore_runtime, highscore_helper,
         include_streams=True,
         adaptive_helper=args.adaptive_helper.read_bytes() if args.adaptive_helper else b"",
+        enemy_helper=args.enemy_helper.read_bytes() if args.enemy_helper else b"",
         vegetable_payload=vegetable_payload,
         keybinding_runtime=args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b"",
     )

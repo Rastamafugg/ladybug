@@ -1220,6 +1220,10 @@
         "draw_score_popup",
         "draw_screen",
         "draw_word_progress_hud",
+        "efn_cache_guard",
+        "efn_normal",
+        "efn_preview",
+        "enemy_frame_number",
         "erase_entity_footprints",
         "framebuffer_project_gate_only",
         "gate_redraw_neighbors",
@@ -1328,12 +1332,6 @@
           "name": "enemy_direction_legal",
           "profile": "movement",
           "purpose": "Test whether a proposed enemy direction is legal at the current semantic cell.",
-          "reasons": []
-        },
-        {
-          "name": "enemy_frame_number",
-          "profile": "copy",
-          "purpose": "Resolve the animation frame number for the current enemy state and direction.",
           "reasons": []
         },
         {
@@ -1733,6 +1731,26 @@
       ],
       "label_classifications": [
         {
+          "name": "efn_cache_guard",
+          "kind": "constant",
+          "reason": "Alias for the page-$34 staged helper entry owned by enemy-helpers-page34."
+        },
+        {
+          "name": "efn_normal",
+          "kind": "constant",
+          "reason": "Alias for the page-$34 staged helper entry owned by enemy-helpers-page34."
+        },
+        {
+          "name": "efn_preview",
+          "kind": "constant",
+          "reason": "Alias for the page-$34 staged helper entry owned by enemy-helpers-page34."
+        },
+        {
+          "name": "enemy_frame_number",
+          "kind": "constant",
+          "reason": "Alias for the page-$34 staged helper entry owned by enemy-helpers-page34."
+        },
+        {
           "name": "enemy_entry_masks",
           "kind": "data",
           "reason": "Authored immutable lookup table or packed data boundary owned by this module"
@@ -1885,6 +1903,11 @@
       ],
       "basic_blocks": [
         {
+          "name": "cea_cache_ready",
+          "routine": "compose_enemy_animation",
+          "purpose": "Continue nest animation composition after the dormant cache matches the current preview."
+        },
+        {
           "name": "acd_popup",
           "routine": null,
           "purpose": "Named internal control point within the enclosing routine"
@@ -1998,6 +2021,61 @@
           "name": "sbf_opaque3",
           "routine": "sparse_blit_fb",
           "purpose": "Length-three opaque run falls through from measured small-run dispatch."
+        }
+      ]
+    },
+    {
+      "id": "enemy-helpers-page34",
+      "title": "Page-$34 enemy helpers",
+      "source": "src/enemy_helpers_page34.s",
+      "listing": "ladybug-enemy-helper-page34.lst",
+      "map": "ladybug-enemy-helper-page34.map",
+      "binary": "ladybug-enemy-helper-page34.bin",
+      "external_symbols": [
+        "ENEMY_MODULE_BUILD_CACHE",
+        "efn_cache_guard",
+        "efn_normal",
+        "efn_preview",
+        "enemy_frame_number"
+      ],
+      "label_classifications": [
+        {
+          "name": "efn_cache_guard",
+          "kind": "boundary",
+          "reason": "Fixed callable entry in the page-$34 staged helper interval."
+        },
+        {
+          "name": "efn_normal",
+          "kind": "boundary",
+          "reason": "Fixed callable entry in the page-$34 staged helper interval."
+        },
+        {
+          "name": "efn_preview",
+          "kind": "boundary",
+          "reason": "Fixed callable entry in the page-$34 staged helper interval."
+        },
+        {
+          "name": "enemy_frame_number",
+          "kind": "boundary",
+          "reason": "Fixed callable entry in the page-$34 staged helper interval."
+        },
+        {
+          "name": "enemy_page34_end",
+          "kind": "boundary",
+          "reason": "Exclusive end marker for the fixed page-$34 helper interval."
+        }
+      ],
+      "relocations": [
+        {
+          "id": "enemy-page34-helper-staged",
+          "assembled": {
+            "address": "0xA8A0"
+          },
+          "runtime_destination": {
+            "address": "0xA8A0",
+            "physical_page": "0x34"
+          },
+          "length_source": "binary"
         }
       ]
     },

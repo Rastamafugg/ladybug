@@ -69,6 +69,10 @@ ENEMY_SRC="$ROOT/src/enemy_runtime.s"
 ENEMY_ROM="$BUILD_DIR/ladybug-enemy-runtime.rom"
 ENEMY_LST="$BUILD_DIR/ladybug-enemy-runtime.lst"
 ENEMY_MAP="$BUILD_DIR/ladybug-enemy-runtime.map"
+ENEMY_HELPER_SRC="$ROOT/src/enemy_helpers_page34.s"
+ENEMY_HELPER="$BUILD_DIR/ladybug-enemy-helper-page34.bin"
+ENEMY_HELPER_LST="$BUILD_DIR/ladybug-enemy-helper-page34.lst"
+ENEMY_HELPER_MAP="$BUILD_DIR/ladybug-enemy-helper-page34.map"
 PERIMETER_HELPER_SRC="$ROOT/src/perimeter_reset_helper.s"
 RUNTIME_SYMBOLS="$BUILD_DIR/ladybug_runtime_symbols.inc"
 LST="$BUILD_DIR/ladybug.lst"
@@ -655,6 +659,44 @@ PY
           -I "$BUILD_DIR" -I "$ROOT/src" \
           "$ENEMY_SRC"
 
+    lwasm -9 --format=raw \
+          --output="$ENEMY_HELPER" \
+          --list="$ENEMY_HELPER_LST" \
+          --symbols \
+          --map="$ENEMY_HELPER_MAP" \
+          -I "$BUILD_DIR" -I "$ROOT/src" \
+          "$ENEMY_HELPER_SRC"
+
+    python3 - "$ENEMY_HELPER" "$ENEMY_HELPER_MAP" <<'PY'
+import re
+import sys
+binary, map_path = sys.argv[1:]
+data = open(binary, "rb").read()
+symbols = {}
+for line in open(map_path, encoding="utf-8"):
+    match = re.match(
+        r"^Symbol: (enemy_page34_end|enemy_frame_number|efn_cache_guard|efn_normal|efn_preview) .* = ([0-9A-Fa-f]+)$",
+        line.rstrip(),
+    )
+    if match:
+        symbols[match.group(1)] = int(match.group(2), 16)
+expected = {
+    "efn_cache_guard": 0xA8A0,
+    "efn_normal": 0xA8AC,
+    "efn_preview": 0xA8C5,
+    "enemy_frame_number": 0xA8D2,
+    "enemy_page34_end": 0xA8F7,
+}
+if len(data) != 87 or symbols != expected:
+    raise SystemExit(
+        f"build: page-$34 enemy helper must be 87 bytes at {expected}, "
+        f"got {len(data)} bytes and {symbols}"
+    )
+if 0xA8A0 + len(data) > 0xA8FD:
+    raise SystemExit("build: page-$34 enemy helper overlaps reserved logo state")
+print("build: page-$34 enemy helper 87/93 bytes at $A8A0-$A8F6; six bytes remain")
+PY
+
     python3 - "$ENEMY_MAP" "$PRESENTATION_SYMBOLS" <<'PY'
 import re
 import sys
@@ -933,6 +975,7 @@ PY
         keybinding_args=(--keybinding-runtime "$BUILD_DIR/ladybug-keybinding-runtime.bin")
     fi
     python3 "$ROOT/scripts/build_sparse_sprites.py" "${adaptive_args[@]}" "${keybinding_args[@]}" \
+        --enemy-helper "$ENEMY_HELPER" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
         --enemy-output "$SPARSE_ENEMY" \
@@ -962,6 +1005,7 @@ PY
         --manifest-output "$SPARSE_MANIFEST"
 
     python3 "$ROOT/scripts/verify_sparse_sprites.py" "${adaptive_args[@]}" \
+        --enemy-helper "$ENEMY_HELPER" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
         --enemy-payload "$SPARSE_ENEMY" \

@@ -72,7 +72,6 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract enemy_choose_direction profile=movement: Select a legal enemy direction from maze, gate, and target state.
 ; DOC-002 source-contract mirror contract enemy_collect_impl profile=state: Resolve the vegetable collection transition and its enemy-state consequences.
 ; DOC-002 source-contract mirror contract enemy_direction_legal profile=movement: Test whether a proposed enemy direction is legal at the current semantic cell.
-; DOC-002 source-contract mirror contract enemy_frame_number profile=copy: Resolve the animation frame number for the current enemy state and direction.
 ; DOC-002 source-contract mirror contract enemy_init_impl profile=state: Reset enemy lifecycle state and mark enemy composition dirty.
 ; DOC-002 source-contract mirror contract enemy_player_contact profile=movement: Test and resolve contact between an active enemy and the player.
 ; DOC-002 source-contract mirror contract enemy_release_impl profile=movement: Release an eligible enemy from the nest into authoritative gameplay state.
@@ -144,6 +143,7 @@ PERSISTENT_FB  equ 1
         jmp     framebuffer_init_impl
         jmp     framebuffer_irq_impl
         jmp     sparse_blit_fb
+        jmp     build_enemy_nest_cache
 
 ENEMY_ANIM     equ $0054
 ENEMY_TIMER    equ $0055
@@ -217,6 +217,19 @@ ENEMY_CAPTURE_DIRTY equ $009B
 ; framebuffer ledgers; keep it separate from direct-page RING_BASE ($009E).
 ; @audit {"id":"entity-cache-colour","kind":"scratch","symbol":"ENTITY_CACHE_COLOR","width":1,"mapping":"physical-page-34","phases":["foreground"],"owner":"entity colour cache","lifetime":"Persistent across render calls until recolour invalidation, separate from direct-page ring pointer.","initialization":"colour_prepare_nest compares and updates colour validity","clobbers":"Caller must not retain contents across the named owner operation."}
 ENTITY_CACHE_COLOR equ $A89C       ; shared sparse-cache colour validity
+; Isolated BUG086 fit candidate: enemy state0 bit0 active, bits4..6 type0..7.
+ENEMY_NORMAL_CURSOR equ $A89D
+ENEMY_PENDING_TYPE equ $A89E
+ENEMY_CACHE_TYPE equ $A89F
+ENEMY_CACHE_GUARD_HELPER equ $A8A0
+ENEMY_NORMAL_HELPER equ $A8AC
+ENEMY_PREVIEW_HELPER equ $A8C5
+ENEMY_FRAME_NUMBER equ $A8D2
+efn_normal equ ENEMY_NORMAL_HELPER
+efn_preview equ ENEMY_PREVIEW_HELPER
+efn_cache_guard equ ENEMY_CACHE_GUARD_HELPER
+enemy_frame_number equ ENEMY_FRAME_NUMBER
+
 RING_PHASE     equ $009C
 ; @audit {"id":"capture-row-phase","kind":"scratch","symbol":"RING_ROW","width":1,"mapping":"unbanked-direct-page","phases":["foreground"],"owner":"enemy foreground renderer","lifetime":"Capture horizontal setup uses exposed column then row index; vertical capture uses packed row nibble advancing by $10. Restore uses unpacked row index. Each operation initializes its own representation.","initialization":"Each selected capture or restore path initializes before use","clobbers":"Capture callees roam_bg_address, rub_columns and roam_capture_ring_row preserve this byte; owning capture/restore loops update it. It is not retained between operations."}
 RING_ROW       equ $009D
@@ -367,8 +380,19 @@ er_find
         bne     er_find
         rts
 er_use
-        lda     #1
+        lda     ENEMY_PENDING_TYPE
+        bpl     er_kind_ready
+        lbsr    efn_normal
+        inc     ENEMY_NORMAL_CURSOR
+er_kind_ready
+        lsla
+        lsla
+        lsla
+        lsla
+        inca
         sta     ,x
+        coma
+        sta     ENEMY_PENDING_TYPE
         ldd     #ENEMY_FB
         std     1,x
         clr     3,x
@@ -619,9 +643,8 @@ eri_done
         ifne ADAPTIVE_RENDERING
 frame_render_impl
         jmp AD_RENDER_EXEC
-        fill $12,47
+        fill $12,$09FD-*
         includebin "ladybug-adaptive-mapped.bin"
-        fill $12,22
         else
 frame_render_impl
         ifne    PERSISTENT_FB
@@ -1822,6 +1845,12 @@ est_skull
         sta     ENTITY_Y
         sta     RENDER_ZONE_Y
         ldx     ENEMY_PTR
+        lda     ,x
+        lsra
+        lsra
+        lsra
+        lsra
+        sta     ENEMY_PENDING_TYPE
         clr     ,x
         clr     6,x
         dec     ENEMY_ACTIVE
@@ -2142,7 +2171,7 @@ rub_done
 rub_horizontal
         stb     ENEMY_ROW
         pshs    x
-        lbsr    roam_ring_slot
+        bsr     roam_ring_slot
         lda     ,u
         sta     RING_PHASE
         anda    #7
@@ -2680,6 +2709,9 @@ compose_enemy_animation
         lda     ENEMY_ACTIVE
         cmpa    #4
         beq     cea_done
+        lbsr    efn_preview
+        lbsr    efn_cache_guard
+cea_cache_ready
         lda     ENEMY_ANIM
         ldb     #128
         mul
@@ -2996,7 +3028,7 @@ pew_zero
 
         else
 player_compose_entry
-        lbsr    player_visible_rows
+        bsr     player_visible_rows
         ; Clear the complete stage before decoding, including all nonvisible
         ; rows.  This is stage RAM, not a framebuffer read.
         ldx     #PLAYER_STAGE
@@ -3394,47 +3426,9 @@ grfs_done
         endc
 
 draw_enemy_stage
-        bsr    enemy_frame_number
+        lbsr   enemy_frame_number
         bsr    sparse_enemy_stream
         lbsr    sparse_blit_stage
-        rts
-
-; Return the indexed sparse frame number in A. B is N/E/S/W. Parts 1-8 use
-; one type each; later parts rotate four adjacent types across active records.
-enemy_frame_number
-        cmpb    #4
-        blo     efn_direction_ready
-        clrb
-efn_direction_ready
-        stb     STAGE_SOURCE
-efn_slot_ready
-        ; Sparse decoding does not consume packed-sprite STAGE_COUNT.
-        lda     STAGE
-        cmpa    #9
-        blo     efn_type_ready
-        deca
-        anda    #7
-        cmpa    #5
-        blo     efn_offset_ready
-        suba    #5
-efn_offset_ready
-        sta     STAGE_PIXEL
-        lda     #4
-        suba    ENEMY_WORK
-        cmpa    #4
-        blo     efn_record_ready
-        clra
-efn_record_ready
-        adda    STAGE_PIXEL
-        inca
-efn_type_ready
-        deca
-        lsla
-        lsla
-        adda    STAGE_SOURCE
-        lsla
-        lsla
-        ora     ENEMY_ANIM
         rts
 
 ; player_draw_impl: draw the selected player stream into BACK.

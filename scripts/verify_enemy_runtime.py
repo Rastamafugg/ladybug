@@ -8,10 +8,12 @@ import re
 
 root = Path(__file__).resolve().parents[1]
 source = (root / "src/enemy_runtime.s").read_text(encoding="utf-8")
+helper_source = (root / "src/enemy_helpers_page34.s").read_text(encoding="utf-8")
 main = (root / "src/main.s").read_text(encoding="utf-8")
 # Source-only subroutine-call assertions accept the assembled short encoding.
 # BSR and LBSR have the same stack/target contract; lwasm still checks range.
 source = re.sub(r"(?m)^(\s*)bsr\s+(\w+)", r"\1lbsr    \2", source)
+helper_source = re.sub(r"(?m)^(\s*)bsr\s+(\w+)", r"\1lbsr    \2", helper_source)
 main = re.sub(r"(?m)^(\s*)bsr\s+(\w+)", r"\1lbsr    \2", main)
 bootstrap = (root / "src/gmc_bootstrap.s").read_text(encoding="utf-8")
 build_script = (root / "scripts/build.sh").read_text(encoding="utf-8")
@@ -374,10 +376,10 @@ if render_nest.index("bita    #ERF_NEST") > render_nest.index("bita    #ERF_NEST
 for fragment in ("reset_enemy_state", "reload_enemy_box_timer"):
     if fragment not in main:
         raise SystemExit("enemy proof: cold reset helper was not moved to resident code: " + fragment)
-sprite_select = source[source.index("\nenemy_frame_number\n"):
-                       source.index("\nplayer_draw_impl\n")]
-for fragment in ("cmpa    #9", "anda    #7", "cmpa    #5",
-                 "suba    ENEMY_WORK", "ora     ENEMY_ANIM"):
+sprite_select = helper_source[helper_source.index("\nenemy_frame_number\n"):]
+for fragment in ("cmpb    #4", "lda     #4", "suba    ENEMY_WORK",
+                 "lda     a,u", "anda    #$F0", "lbsr    efn_preview",
+                 "ora     STAGE_SOURCE"):
     if fragment not in sprite_select:
         raise SystemExit("enemy proof: directional sparse-frame selection changed")
 enemy_draw = source[source.index("\ndraw_enemy_fb\n"):
@@ -387,8 +389,8 @@ for fragment in ("lbsr    enemy_frame_number", "lbsr    sparse_enemy_stream",
     if fragment not in enemy_draw:
         raise SystemExit("enemy proof: framebuffer enemy sparse path is incomplete")
 stage_draw = source[source.index("\ndraw_enemy_stage\n"):
-                    source.index("\nenemy_frame_number\n")]
-if "lbsr    sparse_blit_stage" not in stage_draw:
+                    source.index("\nplayer_draw_impl\n")]
+if "lbsr    enemy_frame_number" not in stage_draw or "lbsr    sparse_blit_stage" not in stage_draw:
     raise SystemExit("enemy proof: nest enemy does not use the sparse stage decoder")
 player_compose = source[source.index("\nplayer_compose_impl\n"):
                         source.index("\npci_done\n")]
