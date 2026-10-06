@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-06",
+  "artifact": "repro\\name-hud-joint-runtime\\second-part100.json",
+  "rom_sha256": "11db8f79a7eb203cc6930513e94b18e298c1f3de551ecb2eca2036488f4f4c21",
+  "result": "FAIL: gap-name-short pending-name red cells match authoritative data",
+  "case": {
+    "score": "085000",
+    "last_part": 100,
+    "natural_rank": 1
+  },
+  "last_proven": {
+    "rank": 1,
+    "seven_character_fields_and_both_replayed_owners": "pass",
+    "timer_advancement": "pass",
+    "natural_ranking_rows": 9,
+    "shortened_record": "four glyphs plus three zero cells"
+  },
+  "failing_phase": {
+    "name": "shorter-name-clears-previous-owner-cells",
+    "deadline_seconds": 40,
+    "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+    "fixture": "After qualified seven visible pending glyphs, clear only final three pending-name bytes and set length4. Real host Right drives name repaint. No score/rank/timer/frame/owner/PC writes.",
+    "snapshots": [
+      {
+        "mode": 8,
+        "screen": 5,
+        "credits": 0,
+        "pending": 0,
+        "transaction": 0,
+        "selection": 1,
+        "live": 1,
+        "bindings": [
+          27,
+          35,
+          43,
+          51,
+          6
+        ],
+        "binding_state": 0,
+        "mapped_down": 0,
+        "player_cell": [
+          20,
+          22
+        ],
+        "player_want": 255,
+        "entry": 0,
+        "front": 1
+      }
+    ],
+    "checks": [
+      "actual pending name contains four glyphs and three blank cells"
+    ],
+    "elapsed_seconds": 2.528
+  },
+  "not_proven": [
+    "part100 exact pixels",
+    "second-place final ordinal pixels",
+    "shortened pending-name clearing on both owners"
+  ],
+  "reassessment": "Stop further live probes after inherited assertion failure and this distinct shortened-name failure. Inspect framebuffer publication/repaint completion versus actual clearing before changing game code. High-risk retained; no deadline expansion or additional target authorized."
+}
