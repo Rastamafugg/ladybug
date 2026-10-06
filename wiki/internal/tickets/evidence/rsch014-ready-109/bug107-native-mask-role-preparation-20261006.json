@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-06",
+  "status": "CORRECTED-ROLE-MASK-PROTOTYPE-NOT-READY",
+  "candidate_source_sha256": "01565a95d0972c4b5584e01deb2900143865991b4cd8ed59024881c244b6210e",
+  "rejected_experiment": {
+    "keyboard_exit": 1,
+    "build_log_sha256": "15d75e22380e6f5d5c7e76b0851868301ce7787d3a86225eac7d693c4e810092",
+    "cause": "Heart appended after final blank violates existing compact PART font contract. No runtime probe or game defect inferred."
+  },
+  "correction": "Heart mask before required final blank. Existing printable font indices preserved; blank alias regenerated consistently. Normal raw code41 still maps to blank. Native selected tile descriptor preserves authored raster and existing role colours.",
+  "approved_targets": [
+    "scripts/build_presentation.py",
+    "scripts/shared_text.py"
+  ],
+  "guards": "Unchanged final-blank, font82 and memory limits. No runtime target change.",
+  "pending": "Both supported full fits, final blank/raw41/native descriptor proof, adjacent PART/font regression, actual append/traversal/mixer/owner/name-colour checks."
+}

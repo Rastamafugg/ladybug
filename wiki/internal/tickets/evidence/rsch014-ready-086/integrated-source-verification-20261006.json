@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-06",
+  "status": "INTEGRATED-SOURCE-VERIFICATION-PENDING",
+  "executor_commit": "8b9ac7236ffded58eb6a7c967b0cc7c812d6ee93",
+  "integrated_commit": "da1406b",
+  "other_integrated_ticket": "BUG103166eaa8",
+  "source_sha256": {
+    "src/main.s": "62735e614bdbe50a5ba7a7de8efb2f2a85a45673362e0bb67444c7f8963018ae",
+    "src/enemy_runtime.s": "ea47d69ebbb624f1a43fe3a91827199dd65fcac512291a01b5e291db49ba2a8b",
+    "src/enemy_helpers_page34.s": "5b8865f85ee16c17bf5298d5267f4371e6fff6bce1bb2f878f5f13ba9da4551d",
+    "scripts/build.sh": "e9492b2fce4f0bda139ef1bb41ec304fe1144419b92821ad3dcf3ffa59866c14",
+    "scripts/build_sparse_sprites.py": "966110061bbf3bfbe102b50e5f0529348e59de8d224ff647711ffffe1f532f7d",
+    "scripts/verify_sparse_sprites.py": "f2c4150eb0c62b5be67796a9b726bf6f7445aeee364dc28d64bc55492c0b2ee2",
+    "scripts/verify_enemy_runtime.py": "db1bf25fb3fb04760177d7fb19c7328d466a340805d3634a025136d0120d7217",
+    "scripts/source_reference.json": "77c2af56da8a5601f2c826fb16d44a0b2e94a4fbea122816cc9610840dbacac0"
+  },
+  "source_match": "All8 integrated production files equal the qualified source receipt. Separate103 ranking source preserved.",
+  "optional_checker": {
+    "result": "FAIL-PREEXISTING-OLD-PROFILE-SOURCE-MARKER",
+    "command": "python3 scripts/verify_enemy_runtime.py",
+    "reason": "BUG040 broad source-string match catches refresh_zone_bg_footprint in documentation comment; same guard/comment at3c8cf54. Complete build does not invoke this old-profile checker.",
+    "acceptance": "Excluded from active complete-profile acceptance; actual complete builds/packing and current execution checks are required. No unrelated repair performed."
+  },
+  "pending": "Fresh combined086/103 keyboard/joystick builds, exact current artifact delivery and affected runtime/field/owner checks before Done."
+}

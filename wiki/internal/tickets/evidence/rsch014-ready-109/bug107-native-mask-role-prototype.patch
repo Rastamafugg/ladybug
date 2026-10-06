@@ -1,0 +1,15 @@
+--- a/scripts/shared_text.py
++++ b/scripts/shared_text.py
+@@ -57,6 +57,12 @@
+                     if len(colours)!=1:raise ValueError(('text is not monochrome',name,x,y))
+                     colour=colours.pop()
+                 self.records.append(dict(screen=name,x=x,y=y,code=code,glyph=self.font.index(value),colour=colour,mask=value.hex()))
++        # Compile the registered native heart raster through the existing
++        # monochrome descriptor path so name field roles apply to its pixels.
++        # Raw code41 text translation remains blank. Keep blank last: the
++        # compact PART helper derives its blank index from the font length.
++        heart_mask=mask(s.rotate_ccw(chars[41]))
++        if heart_mask not in self.font:self.font.append(heart_mask)
+         if bytes(8) not in self.font:self.font.append(bytes(8))
+         if len(self.font)>82:raise ValueError('shared font exceeds one-byte static encoding')
+         self.cells={(r['screen'],r['y']*40+r['x']):r for r in self.records}
