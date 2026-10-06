@@ -2021,6 +2021,11 @@
           "name": "sbf_opaque3",
           "routine": "sparse_blit_fb",
           "purpose": "Length-three opaque run falls through from measured small-run dispatch."
+        },
+        {
+          "name": "et_find_movement",
+          "routine": "enemy_tick_impl",
+          "purpose": "Fall through from death guard to the current elapsed-before-freeze movement admission call."
         }
       ]
     },
@@ -4032,7 +4037,7 @@
         {
           "name": "name_phrase_rank",
           "routine": "stage_panel_text",
-          "purpose": "Select approved BUG108 row12 x1\u20133 destination and continue existing glyph-text renderer path."
+          "purpose": "Select approved BUG108 row12 x1–3 destination and continue existing glyph-text renderer path."
         },
         {
           "name": "name_rank_format",
@@ -4557,6 +4562,69 @@
       ],
       "external_symbols": [
         "PRES_MAIN_SHARED_MASK"
+      ]
+    },
+    {
+      "id": "enemy-rate-page34",
+      "title": "Page-$34 enemy rate clock",
+      "source": "src/prototype_rate_page34.s",
+      "listing": "ladybug-rate-helper.lst",
+      "map": "ladybug-rate-helper.map",
+      "binary": "ladybug-rate-helper.bin",
+      "routines": [
+        {
+          "name": "rate_reset",
+          "profile": "state",
+          "purpose": "Reset retired bootstrap rate state for the current part.",
+          "reasons": []
+        },
+        {
+          "name": "rate_tick",
+          "profile": "state",
+          "purpose": "Advance elapsed time before the preserved freeze and shared movement admission gate.",
+          "reasons": [
+            "exported"
+          ]
+        },
+        {
+          "name": "rate_select",
+          "profile": "state",
+          "purpose": "Select the approved arcade default part and saturated elapsed fractional addend.",
+          "reasons": []
+        },
+        {
+          "name": "rate_enemy_init_shim",
+          "profile": "state",
+          "purpose": "Reset rate state then tail-call the true enemy initializer without resident growth.",
+          "reasons": [
+            "exported"
+          ]
+        }
+      ],
+      "label_classifications": [
+        {
+          "name": "rate_stage_offsets",
+          "kind": "data",
+          "reason": "Seventeen immutable approved default stage offsets; no new runtime table owner."
+        },
+        {
+          "name": "rate_module_end",
+          "kind": "boundary",
+          "reason": "Exclusive end of the existing192-byte page-$34 extent."
+        }
+      ],
+      "relocations": [
+        {
+          "id": "enemy-rate-page34-staged",
+          "assembled": {
+            "address": "0xA3B0"
+          },
+          "runtime_destination": {
+            "address": "0xA3B0",
+            "physical_page": "0x34"
+          },
+          "length_source": "binary"
+        }
       ]
     }
   ],

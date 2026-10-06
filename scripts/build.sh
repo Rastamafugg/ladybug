@@ -57,6 +57,10 @@ PERIMETER_RESET="$BUILD_DIR/ladybug-perimeter-reset.bin"
 PERIMETER_HELPER="$BUILD_DIR/ladybug-perimeter-reset-helper.bin"
 PERIMETER_HELPER_LST="$BUILD_DIR/ladybug-perimeter-reset-helper.lst"
 PERIMETER_HELPER_MAP="$BUILD_DIR/ladybug-perimeter-reset-helper.map"
+RATE_HELPER_SRC="$ROOT/src/prototype_rate_page34.s"
+RATE_HELPER="$BUILD_DIR/ladybug-rate-helper.bin"
+RATE_HELPER_LST="$BUILD_DIR/ladybug-rate-helper.lst"
+RATE_HELPER_MAP="$BUILD_DIR/ladybug-rate-helper.map"
 MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
 ROM="$BUILD_DIR/ladybug.rom"
 RUNTIME_ROM="$BUILD_DIR/ladybug-runtime.rom"
@@ -697,6 +701,15 @@ if 0xA8A0 + len(data) > 0xA8FD:
 print("build: page-$34 enemy helper 87/93 bytes at $A8A0-$A8F6; six bytes remain")
 PY
 
+    python3 "$ROOT/scripts/source_reference/provenance.py" prepare "$ROOT" "$BUILD_DIR" "$RATE_HELPER_SRC"
+    lwasm -9 --format=raw \
+          --output="$RATE_HELPER" \
+          --list="$RATE_HELPER_LST" \
+          --symbols \
+          --map="$RATE_HELPER_MAP" \
+          -I "$BUILD_DIR" -I "$ROOT/src" \
+          "$RATE_HELPER_SRC"
+
     python3 - "$ENEMY_MAP" "$PRESENTATION_SYMBOLS" <<'PY'
 import re
 import sys
@@ -978,6 +991,7 @@ PY
         --enemy-helper "$ENEMY_HELPER" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
+        --rate-helper "$RATE_HELPER" \
         --enemy-output "$SPARSE_ENEMY" \
         --player-output "$SPARSE_PLAYER" \
         --gate-input "$GATE_TRANSITIONS" \
@@ -1008,6 +1022,7 @@ PY
         --enemy-helper "$ENEMY_HELPER" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
+        --rate-helper "$RATE_HELPER" \
         --enemy-payload "$SPARSE_ENEMY" \
         --player-payload "$SPARSE_PLAYER" \
         --gate-payload "$GATE_TRANSITIONS" \

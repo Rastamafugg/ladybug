@@ -478,15 +478,9 @@ et_animation_timer
 et_freeze_timer
         tst     DEATH_STATE
         bne     et_render_test
-        ldd     FREEZE_TIMER
-        beq     et_find_movement
-        subd    #1
-        std     FREEZE_TIMER
-        bra     et_render_test
 et_find_movement
-        lda     LAST_FRAME
-        anda    #1
-        bne     et_render_test
+        jsr     $A3C5           ; elapsed first, then approved freeze/admission gate
+        beq     et_render_test
         ldx     #ENEMY_TABLE
         lda     #4
         sta     ENEMY_WORK

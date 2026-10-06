@@ -153,6 +153,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--highscore-runtime", type=Path, required=True)
     parser.add_argument("--highscore-helper", type=Path, required=True)
     parser.add_argument("--adaptive-helper", type=Path)
+    parser.add_argument("--rate-helper", type=Path)
     parser.add_argument("--enemy-helper", type=Path)
     parser.add_argument("--audio-runtime", type=Path, required=True)
     parser.add_argument("--tile-patches", type=Path, required=True)
@@ -402,6 +403,7 @@ def pack_candidate_banks(
         include_streams: bool = False,
         compress_enemy_pages: bool = True,
         adaptive_helper: bytes = b"",
+        rate_helper: bytes = b"",
         enemy_helper: bytes = b"",
         vegetable_payload: bytes = b"",
         keybinding_runtime: bytes = b"",
@@ -482,6 +484,9 @@ def pack_candidate_banks(
     if len(adaptive_helper) > 698:
         raise ValueError("adaptive helper exceeds $BD44-$BFFD")
     targets += target_chunks("adaptive_helper", adaptive_helper, 0x34, 0xBD44)
+    if len(rate_helper) > 0xC0:
+        raise ValueError("rate helper exceeds page-$34 $A3B0-$A46F")
+    targets += target_chunks("rate_helper", rate_helper, 0x34, 0xA3B0)
     if enemy_helper:
         if len(enemy_helper) != 87 or 0xA8A0 + len(enemy_helper) > 0xA8FD:
             raise ValueError("page-$34 enemy helper must be 87 bytes within $A8A0-$A8FC")
@@ -828,6 +833,7 @@ def main() -> None:
         highscore_runtime, highscore_helper,
         include_streams=True,
         adaptive_helper=args.adaptive_helper.read_bytes() if args.adaptive_helper else b"",
+        rate_helper=args.rate_helper.read_bytes() if args.rate_helper else b"",
         enemy_helper=args.enemy_helper.read_bytes() if args.enemy_helper else b"",
         vegetable_payload=vegetable_payload,
         keybinding_runtime=args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b"",
@@ -954,6 +960,12 @@ def main() -> None:
             "page_count": 4,
             "address": WINDOW_BASE,
             "sha256": digest(presentation_cold),
+        },
+        "rate_helper": {
+            "bytes": len(args.rate_helper.read_bytes()) if args.rate_helper else 0,
+            "page": 0x34,
+            "address": 0xA3B0,
+            "sha256": digest(args.rate_helper.read_bytes()) if args.rate_helper else None,
         },
         "presentation_module": {
             "bytes": len(presentation_module),

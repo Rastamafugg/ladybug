@@ -175,7 +175,6 @@ def main() -> None:
         "PLAYER_BG_PTR equ $00A2",
         "PLAYER_BG_VALID equ $006A",
         "install_aux_runtime",
-        "ldy     #$0300",
         "lda     #$23",
     )
     if development:
@@ -199,6 +198,21 @@ def main() -> None:
             ", ".join(missing_source)
         )
 
+    normalized_source = " ".join(source.lower().split())
+    auxiliary_copy_contracts = (
+        "install_aux_runtime_copy sta par5 ldy #$0300 "
+        "install_aux_runtime_byte lda ,x+ sta ,y+ leau -1,u "
+        "cmpu #0 bne install_aux_runtime_byte",
+        "install_aux_runtime_copy sta par5 exg u,y ldu #$0300 "
+        "install_aux_runtime_byte lda ,x+ sta ,u+ leay -1,y "
+        "bne install_aux_runtime_byte",
+    )
+    if not any(contract in normalized_source for contract in auxiliary_copy_contracts):
+        raise SystemExit(
+            "presentation flow proof: auxiliary copy loop is neither the baseline "
+            "nor the register-swapped bounded implementation"
+        )
+
     actor_surfaces = presentation_layout.get("attract_actor_surfaces", {})
     if (actor_surfaces.get("bytes") != 7680 or
             len(actor_surfaces.get("actors", [])) != 8):
@@ -207,7 +221,7 @@ def main() -> None:
     if "jsr     PRES_MAIN_FB_PREPARE" not in attract_source or "PRES_MAIN_FB_FINISH" not in attract_source:
         raise SystemExit("presentation flow proof: attract owner publication is incomplete")
     for fragment in ("lda     #$3C", "ldx     #$BE28", "ldx     #$BE00",
-                     "lda     #20", "lda     #16", "leay    152,y"):
+                     "lda     #8", "lda     #16", "leay    152,y"):
         if fragment not in attract_source:
             raise SystemExit("presentation flow proof: attract surface-copy worklist is incomplete")
     if "inflate_maps" in source or "cold_write_byte" in source:

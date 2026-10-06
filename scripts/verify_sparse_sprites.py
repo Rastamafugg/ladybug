@@ -70,6 +70,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--highscore-runtime", type=Path, default=BUILD / "ladybug-highscore-runtime.bin")
     parser.add_argument("--highscore-helper", type=Path, default=BUILD / "ladybug-highscore-helper.bin")
     parser.add_argument("--adaptive-helper", type=Path)
+    parser.add_argument("--rate-helper", type=Path)
     parser.add_argument("--enemy-helper", type=Path)
     parser.add_argument("--audio-runtime", type=Path, default=BUILD / "ladybug-audio-runtime.bin")
     parser.add_argument("--tile-patches", type=Path, default=BUILD / "ladybug-presentation-tile-patches.bin")
@@ -372,6 +373,16 @@ def main() -> None:
         raise SystemExit("sparse proof: presentation cold manifest hash mismatch")
     if manifest["presentation_module"]["sha256"] != sha256(presentation_module):
         raise SystemExit("sparse proof: presentation module manifest hash mismatch")
+    rate_helper = args.rate_helper.read_bytes() if args.rate_helper else b""
+    if (
+        manifest["rate_helper"]["bytes"] != len(rate_helper) or
+        manifest["rate_helper"]["page"] != 0x34 or
+        manifest["rate_helper"]["address"] != 0xA3B0 or
+        manifest["rate_helper"]["sha256"] != (sha256(rate_helper) if rate_helper else None)
+    ):
+        raise SystemExit("sparse proof: rate helper manifest placement/hash mismatch")
+    if len(rate_helper) > 0xC0:
+        raise SystemExit("sparse proof: rate helper exceeds page-$34 free extent")
     if manifest["audio_runtime"]["sha256"] != sha256(audio_runtime):
         raise SystemExit("sparse proof: audio runtime manifest hash mismatch")
     if (
@@ -439,6 +450,7 @@ def main() -> None:
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
         "adaptive_helper": bytearray(len(adaptive_helper)),
+        "rate_helper": bytearray(len(rate_helper)),
         "enemy_helper_page34": bytearray(len(enemy_helper)),
         "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
@@ -455,6 +467,7 @@ def main() -> None:
         "presentation_cold": bytearray(len(presentation_cold)),
         "presentation_module": bytearray(len(presentation_module)),
         "adaptive_helper": bytearray(len(adaptive_helper)),
+        "rate_helper": bytearray(len(rate_helper)),
         "enemy_helper_page34": bytearray(len(enemy_helper)),
         "audio_runtime": bytearray(len(audio_runtime)),
         "attract_actor_bundle": bytearray(
@@ -571,6 +584,9 @@ def main() -> None:
         elif target == "adaptive_helper":
             target_page_base = 0x34
             target_address = 0xBD44
+        elif target == "rate_helper":
+            target_page_base = 0x34
+            target_address = 0xA3B0
         elif target == "enemy_helper_page34":
             target_page_base = 0x34
             target_address = 0xA8A0
@@ -704,6 +720,8 @@ def main() -> None:
         raise SystemExit("sparse proof: loader does not reconstruct presentation module")
     if reconstructed["adaptive_helper"] != adaptive_helper or not all(coverage["adaptive_helper"]):
         raise SystemExit("sparse proof: adaptive helper coverage/bytes differ")
+    if reconstructed["rate_helper"] != rate_helper or not all(coverage["rate_helper"]):
+        raise SystemExit("sparse proof: rate helper coverage/bytes differ")
     if reconstructed["enemy_helper_page34"] != enemy_helper:
         raise SystemExit("sparse proof: page-$34 enemy helper coverage/bytes differ")
     if reconstructed["audio_runtime"] != audio_runtime:

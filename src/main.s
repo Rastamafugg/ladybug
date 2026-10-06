@@ -1319,7 +1319,7 @@ dwph_extra_next
 
 draw_hud
         ifne COMPLETE_PROFILE
-        lbsr    draw_credit_hud
+        bsr     draw_credit_hud
         endc
         lda     #2
         sta     HUD_Y
@@ -1933,11 +1933,11 @@ de_colour_destination
         lsla
         leax    a,x
         ldu     OBJ_CACHE_BASE
-        lbsr    replay_entity_overlay_common
+        bsr     replay_entity_overlay_common
         bra     de_next
 de_rebind
         ldu     OBJ_CACHE_BASE
-        lbsr    replay_entity_overlay_common
+        bsr     replay_entity_overlay_common
 de_next
         ldx     ENTITY_PTR
         leax    4,x
@@ -2082,7 +2082,7 @@ repco_primary_skip
 repco_rebind_pair
         ldb     ,u+
         lda     ,u+
-        lbsr    rebind_cache_value
+        bsr     rebind_cache_value
         sta     -1,u
         dec     OBJ_BYTES
         bne     repco_rebind_pair
@@ -4485,8 +4485,7 @@ pat_done
         rts
 
 init_enemy
-        jsr     ENEMY_MODULE_INIT
-        rts
+        jmp     $A463           ; approved rate reset shim tail-calls enemy init
 
 enemy_tick
         jsr     ENEMY_MODULE_TICK
@@ -4500,8 +4499,7 @@ etw_done
         rts
 
 enemy_release
-        jsr     ENEMY_MODULE_RELEASE
-        rts
+        jmp     ENEMY_MODULE_RELEASE
 
 enemy_collect
         jsr     ENEMY_MODULE_COLLECT
