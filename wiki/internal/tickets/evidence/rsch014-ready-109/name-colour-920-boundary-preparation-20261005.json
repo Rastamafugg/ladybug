@@ -1,0 +1,31 @@
+{
+  "status": "PASS-ISOLATED-919-BYTES-FULL-QUALIFICATION-PENDING",
+  "base": "a87e96d",
+  "rejected_full_build": {
+    "exit_code": 1,
+    "log_sha256": "974d43476889eb916856c8120a2cbe8e6530d01dc8d571bf6e98085dbfabdb69",
+    "error": "high-score runtime is935 bytes; complete owner0300..0697 limit920"
+  },
+  "limits": {
+    "general_overlay": 938,
+    "complete_highscore": 920,
+    "prototype_bytes": 919,
+    "prototype_free": 1
+  },
+  "constraint_sources": [
+    "scripts/build.sh explicit0x398 guard",
+    "scripts/build_sparse_sprites.py highscore transport destination_end0698",
+    "scripts/verify_sparse_sprites.py highscore owner bound"
+  ],
+  "source_optimizations": [
+    "Remove post-score LDX rendered dead by integrated109 (only caller immediately initializesX).",
+    "Four LSRA already constrain high nibble; remove redundant AND15.",
+    "Preserve B in existing draw_digit stack frame and use B score-byte loop counter.",
+    "Indexed LDB b,U removes LEAU; U is existing scratch.",
+    "Tail-branch both capture_cursor returns.",
+    "Use short BSR for fitted local field writers.",
+    "Alias render_high_score pure RTS to existing restore-tail RTS; no stack mutation at leaf entry."
+  ],
+  "contract": "Existing approved two production targets, green/red fields, pending-first authority, E8 save/restore and zero resident/asset growth remain. High-risk and existing ranking/timer/digit/owner regressions remain; no Ready/source commit.",
+  "patch_sha256": "46f63cb72674695fc0154fed96a5c419a581915735067af5cc834ce466755e9f"
+}

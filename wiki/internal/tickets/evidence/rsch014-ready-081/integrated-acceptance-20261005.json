@@ -1,0 +1,1196 @@
+{
+  "status": "PASS-INTEGRATED-BUG081",
+  "source_commit": "46bd82ef73b722f9a48d70b327bfb32bbd03a3ea",
+  "integration_commit": "e7a61f1",
+  "source_revision": "a87e96d",
+  "profiles": [
+    {
+      "profile": "keyboard",
+      "rom_sha256": "f89547023845040fe6a1d6f083b5e38316943da2dc5ffa60c73792b5d154f069",
+      "highscore_runtime_bytes": 892,
+      "helper_bytes": 3106,
+      "resident_free": 40,
+      "assets_free": 19,
+      "presentation_free": 0,
+      "perimeter_free": 3,
+      "mapped_title_gap": 30
+    },
+    {
+      "profile": "joystick",
+      "rom_sha256": "35ffae093f01dba89b79cad017fba1aeab22900b40b62103cb7f9ccdc752b147",
+      "highscore_runtime_bytes": 892,
+      "helper_bytes": 3106,
+      "resident_free": 4,
+      "assets_free": 19,
+      "presentation_free": 0,
+      "perimeter_free": 3,
+      "mapped_title_gap": 30
+    }
+  ],
+  "clock_cases": [
+    {
+      "tag": "80",
+      "raw_sha256": "b5abb338c781d5f9f68c4066a1102b243ad3b0df85b400c9a4a086280e06d83b",
+      "rom_sha256": "f89547023845040fe6a1d6f083b5e38316943da2dc5ffa60c73792b5d154f069",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "checks": [
+            "cold fixture intercepted source load_timer_reset before its clear",
+            "cold collision fixture targets generated attract screen0",
+            "cold fixture page-$34 is mapped at reset",
+            "source reset clears raw cold token before attract dispatch",
+            "cold attract marker retains generated screen0",
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26",
+            "natural attract clock has generated screen0 tag",
+            "live stage mapped helper equals current authored artifact",
+            "first initialized attract phase is0 at natural page-$23 dispatch",
+            "first attract clock call uses valid live page-$23 helper bytes",
+            "first attract helper breakpoint observes physical PAR5 page$23"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "elapsed_seconds": 9.752
+        },
+        {
+          "name": "natural-attract-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "attempt": {
+            "baseline": {
+              "frames": 179,
+              "mode": 2,
+              "screen": 0,
+              "pending": 0,
+              "transaction": 0,
+              "front": 1,
+              "phase": 0,
+              "raw_phase": 0,
+              "last_sample": 165,
+              "tag": 128
+            },
+            "clock_return_state": {
+              "frames": 210,
+              "last_sample": 196,
+              "phase": 1,
+              "tag": 129,
+              "pending": 0
+            },
+            "capture_pc": 44274,
+            "qualification": "Current-byte-guarded helper return; IRQ already masked by clock, physical page34 mapped through PAR4. Phase from clock tag before DP phase write. No clock/frame/state mutation."
+          },
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-attract captures both live phase signatures",
+            "natural-attract phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 179,
+            "end_FRAMES": 210,
+            "observed_FRAMES_delta": 31,
+            "clock_sample_start": 165,
+            "clock_sample_end": 196,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 129,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "elapsed_seconds": 4.515
+        },
+        {
+          "name": "key5-natural-highscore-dispatch",
+          "deadline_seconds": 40,
+          "checks": [
+            "key5 reaches generated high-score screen3",
+            "key5 menu dispatch preserves credits and selection",
+            "live stage mapped helper equals current authored artifact"
+          ],
+          "elapsed_seconds": 4.031
+        },
+        {
+          "name": "natural-highscore-helper-page23-dispatch",
+          "deadline_seconds": 40,
+          "checks": [
+            "natural helper breakpoint reached through page-$23 banking",
+            "helper breakpoint PC is current highscore_logo_tick entry",
+            "helper breakpoint observes PAR5=$23",
+            "full live page-$23 helper equals current artifact",
+            "natural-highscore-helper-page23-dispatch reaches requested generated screen",
+            "screen3 tag transition reinitializes phase0",
+            "later screen3 sample retains matching generated identity"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "elapsed_seconds": 3.539
+        },
+        {
+          "name": "natural-highscore-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "attempt": {
+            "baseline": {
+              "frames": 576,
+              "mode": 5,
+              "screen": 3,
+              "pending": 0,
+              "transaction": 0,
+              "front": 0,
+              "phase": 0,
+              "raw_phase": 0,
+              "last_sample": 555,
+              "tag": 134
+            },
+            "clock_return_state": {
+              "frames": 607,
+              "last_sample": 586,
+              "phase": 1,
+              "tag": 135,
+              "pending": 0
+            },
+            "capture_pc": 44274,
+            "qualification": "Current-byte-guarded helper return; IRQ already masked by clock, physical page34 mapped through PAR4. Phase from clock tag before DP phase write. No clock/frame/state mutation."
+          },
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-highscore captures both live phase signatures",
+            "natural-highscore phase0 and phase1 actual logo pairs differ",
+            "ordinary gameplay adaptive vectors and copied active image equal current artifact"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 576,
+            "end_FRAMES": 607,
+            "observed_FRAMES_delta": 31,
+            "clock_sample_start": 555,
+            "clock_sample_end": 586,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 135,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "elapsed_seconds": 11.932
+        },
+        {
+          "name": "forced-final-death-natural-name-handoff",
+          "deadline_seconds": 40,
+          "checks": [
+            "name low-RAM runtime equals artifact",
+            "name mapped helper equals artifact"
+          ],
+          "elapsed_seconds": 15.175
+        },
+        {
+          "name": "remapped-name-movement-0",
+          "deadline_seconds": 40,
+          "completed_scan_snapshots": [
+            {
+              "mode": 8,
+              "mapped_down": 1,
+              "player_cell": [
+                19,
+                22
+              ]
+            }
+          ],
+          "checks": [
+            "name mapped direction bit 0"
+          ],
+          "elapsed_seconds": 2.796
+        },
+        {
+          "name": "remapped-name-movement-1",
+          "deadline_seconds": 40,
+          "completed_scan_snapshots": [
+            {
+              "mode": 8,
+              "mapped_down": 2,
+              "player_cell": [
+                19,
+                22
+              ]
+            }
+          ],
+          "checks": [
+            "name mapped direction bit 1"
+          ],
+          "elapsed_seconds": 2.793
+        },
+        {
+          "name": "remapped-name-movement-2",
+          "deadline_seconds": 40,
+          "completed_scan_snapshots": [
+            {
+              "mode": 8,
+              "mapped_down": 4,
+              "player_cell": [
+                10,
+                22
+              ]
+            }
+          ],
+          "checks": [
+            "name mapped direction bit 2"
+          ],
+          "elapsed_seconds": 2.804
+        },
+        {
+          "name": "remapped-name-movement-3",
+          "deadline_seconds": 40,
+          "completed_scan_snapshots": [
+            {
+              "mode": 8,
+              "mapped_down": 8,
+              "player_cell": [
+                18,
+                22
+              ]
+            }
+          ],
+          "checks": [
+            "name mapped direction bit 3",
+            "at least one remapped key moves the actual name cursor"
+          ],
+          "elapsed_seconds": 2.807
+        },
+        {
+          "name": "fixed-arrow-name-exclusion",
+          "deadline_seconds": 40,
+          "completed_scan_snapshots": [
+            {
+              "mode": 8,
+              "mapped_down": 0,
+              "player_cell": [
+                19,
+                22
+              ]
+            }
+          ],
+          "checks": [
+            "fixed menu Up is not a rebound name movement"
+          ],
+          "elapsed_seconds": 2.824
+        },
+        {
+          "name": "forced-END-natural-name-return",
+          "deadline_seconds": 40,
+          "checks": [
+            "visible ADD CREDITS cell 16",
+            "visible ADD CREDITS cell 17",
+            "visible ADD CREDITS cell 18",
+            "visible ADD CREDITS cell 19",
+            "visible ADD CREDITS cell 20",
+            "visible ADD CREDITS cell 21",
+            "visible ADD CREDITS cell 22",
+            "visible ADD CREDITS cell 23",
+            "visible ADD CREDITS cell 24",
+            "visible ADD CREDITS cell 25",
+            "visible ADD CREDITS cell 26"
+          ],
+          "elapsed_seconds": 4.34
+        }
+      ]
+    },
+    {
+      "tag": "81",
+      "raw_sha256": "0e6410d4736fac64c1606a1c85e9969b890fa9baa72e3b1c20548ccc94a98ed2",
+      "rom_sha256": "f89547023845040fe6a1d6f083b5e38316943da2dc5ffa60c73792b5d154f069",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "checks": [
+            "cold fixture intercepted source load_timer_reset before its clear",
+            "cold collision fixture targets generated attract screen0",
+            "cold fixture page-$34 is mapped at reset",
+            "source reset clears raw cold token before attract dispatch",
+            "cold attract marker retains generated screen0",
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26",
+            "natural attract clock has generated screen0 tag",
+            "live stage mapped helper equals current authored artifact",
+            "first initialized attract phase is0 at natural page-$23 dispatch",
+            "first attract clock call uses valid live page-$23 helper bytes",
+            "first attract helper breakpoint observes physical PAR5 page$23"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "elapsed_seconds": 9.638
+        },
+        {
+          "name": "natural-attract-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "attempt": {
+            "baseline": {
+              "frames": 182,
+              "mode": 2,
+              "screen": 0,
+              "pending": 0,
+              "transaction": 0,
+              "front": 0,
+              "phase": 0,
+              "raw_phase": 0,
+              "last_sample": 165,
+              "tag": 128
+            },
+            "clock_return_state": {
+              "frames": 213,
+              "last_sample": 196,
+              "phase": 1,
+              "tag": 129,
+              "pending": 0
+            },
+            "capture_pc": 44274,
+            "qualification": "Current-byte-guarded helper return; IRQ already masked by clock, physical page34 mapped through PAR4. Phase from clock tag before DP phase write. No clock/frame/state mutation."
+          },
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-attract captures both live phase signatures",
+            "natural-attract phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 182,
+            "end_FRAMES": 213,
+            "observed_FRAMES_delta": 31,
+            "clock_sample_start": 165,
+            "clock_sample_end": 196,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 129,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "elapsed_seconds": 7.606
+        },
+        {
+          "name": "key5-natural-highscore-dispatch",
+          "deadline_seconds": 40,
+          "checks": [
+            "key5 reaches generated high-score screen3",
+            "key5 menu dispatch preserves credits and selection",
+            "live stage mapped helper equals current authored artifact"
+          ],
+          "elapsed_seconds": 4.084
+        },
+        {
+          "name": "natural-highscore-helper-page23-dispatch",
+          "deadline_seconds": 40,
+          "checks": [
+            "natural helper breakpoint reached through page-$23 banking",
+            "helper breakpoint PC is current highscore_logo_tick entry",
+            "helper breakpoint observes PAR5=$23",
+            "full live page-$23 helper equals current artifact",
+            "natural-highscore-helper-page23-dispatch reaches requested generated screen",
+            "screen3 tag transition reinitializes phase0",
+            "later screen3 sample retains matching generated identity"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "elapsed_seconds": 3.718
+        },
+        {
+          "name": "natural-highscore-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "attempt": {
+            "baseline": {
+              "frames": 644,
+              "mode": 5,
+              "screen": 3,
+              "pending": 0,
+              "transaction": 0,
+              "front": 0,
+              "phase": 0,
+              "raw_phase": 0,
+              "last_sample": 620,
+              "tag": 134
+            },
+            "clock_return_state": {
+              "frames": 675,
+              "last_sample": 651,
+              "phase": 1,
+              "tag": 135,
+              "pending": 0
+            },
+            "capture_pc": 44274,
+            "qualification": "Current-byte-guarded helper return; IRQ already masked by clock, physical page34 mapped through PAR4. Phase from clock tag before DP phase write. No clock/frame/state mutation."
+          },
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-highscore captures both live phase signatures",
+            "natural-highscore phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 644,
+            "end_FRAMES": 675,
+            "observed_FRAMES_delta": 31,
+            "clock_sample_start": 620,
+            "clock_sample_end": 651,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 135,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "elapsed_seconds": 7.338
+        }
+      ]
+    },
+    {
+      "tag": "86",
+      "raw_sha256": "cba249e53c20c1a64e3137c93d993f6514c83922adb22a3baa0b67f4c2fdfbff",
+      "rom_sha256": "f89547023845040fe6a1d6f083b5e38316943da2dc5ffa60c73792b5d154f069",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "checks": [
+            "cold fixture intercepted source load_timer_reset before its clear",
+            "cold collision fixture targets generated attract screen0",
+            "cold fixture page-$34 is mapped at reset",
+            "source reset clears raw cold token before attract dispatch",
+            "cold attract marker retains generated screen0",
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26",
+            "natural attract clock has generated screen0 tag",
+            "live stage mapped helper equals current authored artifact",
+            "first initialized attract phase is0 at natural page-$23 dispatch",
+            "first attract clock call uses valid live page-$23 helper bytes",
+            "first attract helper breakpoint observes physical PAR5 page$23"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "elapsed_seconds": 10.23
+        },
+        {
+          "name": "natural-attract-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "attempt": {
+            "baseline": {
+              "frames": 186,
+              "mode": 2,
+              "screen": 0,
+              "pending": 0,
+              "transaction": 0,
+              "front": 0,
+              "phase": 0,
+              "raw_phase": 0,
+              "last_sample": 165,
+              "tag": 128
+            },
+            "clock_return_state": {
+              "frames": 217,
+              "last_sample": 196,
+              "phase": 1,
+              "tag": 129,
+              "pending": 0
+            },
+            "capture_pc": 44274,
+            "qualification": "Current-byte-guarded helper return; IRQ already masked by clock, physical page34 mapped through PAR4. Phase from clock tag before DP phase write. No clock/frame/state mutation."
+          },
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-attract captures both live phase signatures",
+            "natural-attract phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 186,
+            "end_FRAMES": 217,
+            "observed_FRAMES_delta": 31,
+            "clock_sample_start": 165,
+            "clock_sample_end": 196,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 129,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "elapsed_seconds": 7.69
+        },
+        {
+          "name": "key5-natural-highscore-dispatch",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 0.127
+        },
+        {
+          "name": "key5-highscore-cold-tag-fixture",
+          "deadline_seconds": 40,
+          "checks": [
+            "key5 naturally reaches high-score load_timer_reset with disclosed valid tag fixture",
+            "high-score cold fixture is generated screen3",
+            "high-score reset maps page-$34 before token clear",
+            "high-score raw fixture matches requested valid tag",
+            "high-score load reset clears fixture before first logo helper call",
+            "high-score loader stop retains generated screen3",
+            "key5 reaches generated high-score screen3",
+            "key5 menu dispatch preserves credits and selection",
+            "live stage mapped helper equals current authored artifact"
+          ],
+          "elapsed_seconds": 7.455
+        },
+        {
+          "name": "natural-highscore-helper-page23-dispatch",
+          "deadline_seconds": 40,
+          "checks": [
+            "natural helper breakpoint reached through page-$23 banking",
+            "helper breakpoint PC is current highscore_logo_tick entry",
+            "helper breakpoint observes PAR5=$23",
+            "full live page-$23 helper equals current artifact",
+            "natural-highscore-helper-page23-dispatch reaches requested generated screen",
+            "first post-reset high-score clock selects phase0",
+            "later screen3 sample retains matching generated identity"
+          ],
+          "first_post_reset_clock": {
+            "FRAMES": 497,
+            "last_sample": 497,
+            "tag": 134,
+            "phase": 0
+          },
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "elapsed_seconds": 1.725
+        },
+        {
+          "name": "natural-highscore-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "attempt": {
+            "baseline": {
+              "frames": 672,
+              "mode": 5,
+              "screen": 3,
+              "pending": 0,
+              "transaction": 0,
+              "front": 0,
+              "phase": 1,
+              "raw_phase": 1,
+              "last_sample": 652,
+              "tag": 135
+            },
+            "clock_return_state": {
+              "frames": 703,
+              "last_sample": 683,
+              "phase": 0,
+              "tag": 134,
+              "pending": 0
+            },
+            "capture_pc": 44274,
+            "qualification": "Current-byte-guarded helper return; IRQ already masked by clock, physical page34 mapped through PAR4. Phase from clock tag before DP phase write. No clock/frame/state mutation."
+          },
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 0",
+            "natural-highscore captures both live phase signatures",
+            "natural-highscore phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 672,
+            "end_FRAMES": 703,
+            "observed_FRAMES_delta": 31,
+            "clock_sample_start": 652,
+            "clock_sample_end": 683,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 134,
+            "clock_phase": 0,
+            "owner_signature_sha256": {
+              "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+              "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+            }
+          },
+          "elapsed_seconds": 7.17
+        }
+      ]
+    },
+    {
+      "tag": "87",
+      "raw_sha256": "4cac5cfeacebb19d4f793ba3be0cf0bb708ca065e6222f1fc48b1ba9b6883bb1",
+      "rom_sha256": "f89547023845040fe6a1d6f083b5e38316943da2dc5ffa60c73792b5d154f069",
+      "phases": [
+        {
+          "name": "cold-attract-delivery",
+          "deadline_seconds": 40,
+          "checks": [
+            "cold fixture intercepted source load_timer_reset before its clear",
+            "cold collision fixture targets generated attract screen0",
+            "cold fixture page-$34 is mapped at reset",
+            "source reset clears raw cold token before attract dispatch",
+            "cold attract marker retains generated screen0",
+            "live resident equals current runtime artifact",
+            "live presentation marker owner equals current module artifact",
+            "natural prompt row 15 col 13",
+            "natural prompt row 15 col 14",
+            "natural prompt row 15 col 15",
+            "natural prompt row 15 col 16",
+            "natural prompt row 15 col 17",
+            "natural prompt row 15 col 18",
+            "natural prompt row 15 col 19",
+            "natural prompt row 15 col 20",
+            "natural prompt row 15 col 21",
+            "natural prompt row 15 col 22",
+            "natural prompt row 15 col 23",
+            "natural prompt row 15 col 24",
+            "natural prompt row 15 col 25",
+            "natural prompt row 15 col 26",
+            "natural prompt row 15 col 27",
+            "natural prompt row 19 col 13",
+            "natural prompt row 19 col 15",
+            "natural prompt row 19 col 16",
+            "natural prompt row 19 col 17",
+            "natural prompt row 19 col 18",
+            "natural prompt row 19 col 21",
+            "natural prompt row 19 col 23",
+            "natural prompt row 19 col 24",
+            "natural prompt row 19 col 25",
+            "natural prompt row 19 col 26",
+            "natural attract clock has generated screen0 tag",
+            "live stage mapped helper equals current authored artifact",
+            "first initialized attract phase is0 at natural page-$23 dispatch",
+            "first attract clock call uses valid live page-$23 helper bytes",
+            "first attract helper breakpoint observes physical PAR5 page$23"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "elapsed_seconds": 9.906
+        },
+        {
+          "name": "natural-attract-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "attempt": {
+            "baseline": {
+              "frames": 183,
+              "mode": 2,
+              "screen": 0,
+              "pending": 0,
+              "transaction": 0,
+              "front": 0,
+              "phase": 0,
+              "raw_phase": 0,
+              "last_sample": 165,
+              "tag": 128
+            },
+            "clock_return_state": {
+              "frames": 214,
+              "last_sample": 196,
+              "phase": 1,
+              "tag": 129,
+              "pending": 0
+            },
+            "capture_pc": 44274,
+            "qualification": "Current-byte-guarded helper return; IRQ already masked by clock, physical page34 mapped through PAR4. Phase from clock tag before DP phase write. No clock/frame/state mutation."
+          },
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 1",
+            "natural-attract captures both live phase signatures",
+            "natural-attract phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 0,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 183,
+            "end_FRAMES": 214,
+            "observed_FRAMES_delta": 31,
+            "clock_sample_start": 165,
+            "clock_sample_end": 196,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 129,
+            "clock_phase": 1,
+            "owner_signature_sha256": {
+              "0": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04",
+              "1": "730993ddc8f5a2e802ca3cf0e2505d5b9e2a4e8e4964f46f4fb902d94b942e04"
+            }
+          },
+          "elapsed_seconds": 6.984
+        },
+        {
+          "name": "key5-natural-highscore-dispatch",
+          "deadline_seconds": 40,
+          "elapsed_seconds": 0.073
+        },
+        {
+          "name": "key5-highscore-cold-tag-fixture",
+          "deadline_seconds": 40,
+          "checks": [
+            "key5 naturally reaches high-score load_timer_reset with disclosed valid tag fixture",
+            "high-score cold fixture is generated screen3",
+            "high-score reset maps page-$34 before token clear",
+            "high-score raw fixture matches requested valid tag",
+            "high-score load reset clears fixture before first logo helper call",
+            "high-score loader stop retains generated screen3",
+            "key5 reaches generated high-score screen3",
+            "key5 menu dispatch preserves credits and selection",
+            "live stage mapped helper equals current authored artifact"
+          ],
+          "elapsed_seconds": 6.555
+        },
+        {
+          "name": "natural-highscore-helper-page23-dispatch",
+          "deadline_seconds": 40,
+          "checks": [
+            "natural helper breakpoint reached through page-$23 banking",
+            "helper breakpoint PC is current highscore_logo_tick entry",
+            "helper breakpoint observes PAR5=$23",
+            "full live page-$23 helper equals current artifact",
+            "natural-highscore-helper-page23-dispatch reaches requested generated screen",
+            "first post-reset high-score clock selects phase0",
+            "later screen3 sample retains matching generated identity"
+          ],
+          "first_post_reset_clock": {
+            "FRAMES": 496,
+            "last_sample": 496,
+            "tag": 134,
+            "phase": 0
+          },
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 1,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "elapsed_seconds": 1.681
+        },
+        {
+          "name": "natural-highscore-31-vbl-transition-0",
+          "deadline_seconds": 40,
+          "attempt": {
+            "baseline": {
+              "frames": 669,
+              "mode": 5,
+              "screen": 3,
+              "pending": 0,
+              "transaction": 0,
+              "front": 0,
+              "phase": 1,
+              "raw_phase": 1,
+              "last_sample": 651,
+              "tag": 135
+            },
+            "clock_return_state": {
+              "frames": 700,
+              "last_sample": 682,
+              "phase": 0,
+              "tag": 134,
+              "pending": 0
+            },
+            "capture_pc": 44274,
+            "qualification": "Current-byte-guarded helper return; IRQ already masked by clock, physical page34 mapped through PAR4. Phase from clock tag before DP phase write. No clock/frame/state mutation."
+          },
+          "checks": [
+            "first observed phase transition occurs after exactly31 sampled VBLANKs",
+            "observer did not skip a required intermediate logo phase",
+            "elapsed VBL sample advances in exact31-frame quanta",
+            "phase parity follows observed FRAMES quanta",
+            "phase tag retains generated screen identity",
+            "both persistent owner logo pairs agree at phase 0",
+            "natural-highscore captures both live phase signatures",
+            "natural-highscore phase0 and phase1 actual logo pairs differ"
+          ],
+          "authored_tile_comparisons": [
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            },
+            {
+              "screen": 3,
+              "phase": 0,
+              "owner_tiles": 24,
+              "equal": true
+            }
+          ],
+          "dwell": {
+            "start_FRAMES": 669,
+            "end_FRAMES": 700,
+            "observed_FRAMES_delta": 31,
+            "clock_sample_start": 651,
+            "clock_sample_end": 682,
+            "clock_sample_delta": 31,
+            "elapsed_31VBL_quanta": 1,
+            "raw_tag": 134,
+            "clock_phase": 0,
+            "owner_signature_sha256": {
+              "0": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18",
+              "1": "e1e2f26dbd28f749801927281229a95ebeeb6c80035dc5eda860c42c32c62d18"
+            }
+          },
+          "elapsed_seconds": 7.369
+        }
+      ]
+    }
+  ],
+  "nonlogo": {
+    "raw_sha256": "33a401c9c1bb912075d90afd4f231014a07942d917bb53a6dc2a2446fad39d26",
+    "phases": [
+      {
+        "name": "cold-attract-delivery",
+        "checks": [
+          "cold fixture intercepted source load_timer_reset before its clear",
+          "cold collision fixture targets generated attract screen0",
+          "cold fixture page-$34 is mapped at reset",
+          "source reset clears raw cold token before attract dispatch",
+          "cold attract marker retains generated screen0",
+          "live resident equals current runtime artifact",
+          "live presentation marker owner equals current module artifact",
+          "natural prompt row 15 col 13",
+          "natural prompt row 15 col 14",
+          "natural prompt row 15 col 15",
+          "natural prompt row 15 col 16",
+          "natural prompt row 15 col 17",
+          "natural prompt row 15 col 18",
+          "natural prompt row 15 col 19",
+          "natural prompt row 15 col 20",
+          "natural prompt row 15 col 21",
+          "natural prompt row 15 col 22",
+          "natural prompt row 15 col 23",
+          "natural prompt row 15 col 24",
+          "natural prompt row 15 col 25",
+          "natural prompt row 15 col 26",
+          "natural prompt row 15 col 27",
+          "natural prompt row 19 col 13",
+          "natural prompt row 19 col 15",
+          "natural prompt row 19 col 16",
+          "natural prompt row 19 col 17",
+          "natural prompt row 19 col 18",
+          "natural prompt row 19 col 21",
+          "natural prompt row 19 col 23",
+          "natural prompt row 19 col 24",
+          "natural prompt row 19 col 25",
+          "natural prompt row 19 col 26"
+        ],
+        "elapsed_seconds": 6.315
+      },
+      {
+        "name": "natural-decorative-actor-clock-baseline",
+        "checks": [
+          "compiled actor phase body equals integrated pre-logo baseline",
+          "forty natural actor dispatch samples present",
+          "shared timer increments once per natural dispatch",
+          "actor cache equals unchanged baseline phase for previous dispatch"
+        ],
+        "comparison": "Baseline exact machine phase body applied to identical observed TIMER/FRAMES conditions; proves admitted-dispatch cadence, not an uncontrolled wall-time crossover.",
+        "elapsed_seconds": 1.432
+      },
+      {
+        "name": "matched-attract-published-phase-0",
+        "checks": [
+          "both framebuffer snapshots share one stopped FRAMES value",
+          "loaded actor record table equals authored exact bytes",
+          "decoded authored actor surfaces match manifest",
+          "loaded actor surfaces equal decoded authored bytes",
+          "matched stopped owner logo crops agree"
+        ],
+        "elapsed_seconds": 1.379
+      },
+      {
+        "name": "matched-attract-published-phase-1",
+        "checks": [
+          "both framebuffer snapshots share one stopped FRAMES value",
+          "loaded actor record table equals authored exact bytes",
+          "decoded authored actor surfaces match manifest",
+          "loaded actor surfaces equal decoded authored bytes",
+          "matched stopped owner logo crops agree"
+        ],
+        "elapsed_seconds": 1.818
+      },
+      {
+        "name": "matched-nonlogo-comparison",
+        "comparisons": [
+          {
+            "owner": 0,
+            "compared_bytes": 29312,
+            "mismatches": 0,
+            "frame0_sha256": "89117439ad5550cf777d00ee58014cb1a02375a38d56c7b41b271eb0f8b6fa10",
+            "frame1_sha256": "b1f2beb820e3ad609cd82b8339ca92e91b7e3394140188537a66007336f5fd46",
+            "first_coordinates": [],
+            "bounding_rectangle": null
+          },
+          {
+            "owner": 1,
+            "compared_bytes": 29312,
+            "mismatches": 0,
+            "frame0_sha256": "fef0ebe920f1b908fffe9723352c5985b960845157e5975c6d854fcf250ed6d1",
+            "frame1_sha256": "4da6d25a8a2a7b722f22e485a11b798aa768f29b7ef3b1df53e616de35d159e1",
+            "first_coordinates": [],
+            "bounding_rectangle": null
+          }
+        ],
+        "checks": [
+          "matched loading/publication boundaries preserve non-logo/non-actor bytes"
+        ],
+        "elapsed_seconds": 0.004
+      }
+    ]
+  },
+  "rejected_observation": {
+    "raw_sha256": "3fa7e6d97565e52fd7ff61a76ef98181466d75bd38a275b60722a541978a0541",
+    "error": "First async observed phase did not have clock_sample_delta31; failed dwell baseline was not retained, so exact skipped quanta are unknown. No game cause inferred.",
+    "correction": "Capture first eligible transition at byte-guarded logo_vbord_return; same exact31 sampled quanta, phase parity, no skipped intermediate phase, owner pixels and40-second checks. Record baseline/current before asserting. No game state writes."
+  },
+  "observer_sha256": "483fe5a4993cace785b2e5001d3c38d6cf83d1905123afc06b176ca25f896260",
+  "result_vs_target": "31-VBL clock advances on both contexts; four cold tags initialize; all authored logo tiles agree on both owners; surrounding29312 bytes per owner unchanged and forty actor samples match baseline; remapped name/menu adjacency passes.",
+  "residual_risks": "No BUG081 criterion outstanding. Existing zero presentation and low resident margins remain; other name/arcade progression contracts separate."
+}

@@ -1,0 +1,96 @@
+diff --git a/src/shared_text_ranking.inc b/src/shared_text_ranking.inc
+index 576caee..b4db432 100644
+--- a/src/shared_text_ranking.inc
++++ b/src/shared_text_ranking.inc
+@@ -1127,0 +1128,4 @@ draw_name_fields
++        lda PRES_NAME_TIMER_PHASE
++        pshs a
++        lda #6
++        sta PRES_NAME_TIMER_PHASE
+@@ -1130 +1134,3 @@ draw_name_fields
+-        lbsr    draw_record_name
++        bsr     draw_record_name
++        lda #1
++        sta PRES_NAME_TIMER_PHASE
+@@ -1131,0 +1138,4 @@ draw_name_fields
++        tst PRES_INSERT
++        bne name_top_authority_ready
++        ldx #PRES_PENDING_NAME
++name_top_authority_ready
+@@ -1133 +1143 @@ draw_name_fields
+-        lbsr    draw_record_name
++        bsr     draw_record_name
+@@ -1134,0 +1145,3 @@ draw_name_done
++        puls a
++        sta PRES_NAME_TIMER_PHASE
++render_high_score
+@@ -1137,0 +1151,4 @@ draw_entry_scores
++        lda PRES_NAME_TIMER_PHASE
++        pshs a
++        lda #8
++        sta PRES_NAME_TIMER_PHASE
+@@ -1140 +1157,3 @@ draw_entry_scores
+-        lbsr    draw_score
++        bsr     draw_score
++        lda #1
++        sta PRES_NAME_TIMER_PHASE
+@@ -1141,0 +1161,4 @@ draw_entry_scores
++        tst PRES_INSERT
++        bne score_top_authority_ready
++        ldx #PRES_SCORE_H
++score_top_authority_ready
+@@ -1144,2 +1167 @@ draw_entry_scores
+-        ldx     #PRES_HIGHSCORE_BASE
+-        rts
++        bra draw_name_done
+@@ -1147,2 +1168,0 @@ draw_entry_scores
+-render_high_score
+-        rts                     ; fields were drawn during map preparation
+@@ -1190,2 +1210 @@ draw_score
+-        lda     #3
+-        sta     PRES_TMP_H
++        ldb     #3
+@@ -1201 +1219,0 @@ score_byte
+-        anda    #$0F
+@@ -1206 +1224 @@ score_byte
+-        dec     PRES_TMP_H
++        decb
+@@ -1209,0 +1228 @@ draw_digit
++        pshs    b,x,y
+@@ -1212,3 +1231 @@ draw_digit
+-        leau    b,u
+-        ldb     ,u
+-        pshs    x,y
++        ldb     b,u
+@@ -1216 +1233 @@ draw_digit
+-        puls    x,y
++        puls    b,x,y
+@@ -1306,2 +1323 @@ capture_owner
+-        bsr     capture_cursor
+-        rts
++        bra     capture_cursor
+@@ -1312,2 +1328 @@ capture_a
+-        bsr     capture_cursor
+-        rts
++        bra     capture_cursor
+diff --git a/src/shared_text_runtime.inc b/src/shared_text_runtime.inc
+index 5801f93..a80c628 100644
+--- a/src/shared_text_runtime.inc
++++ b/src/shared_text_runtime.inc
+@@ -89,3 +89,2 @@ graphic
+-        tfr x,u
+-        tfr y,x
+-        tfr u,y
++        exg x,y
++        tfr y,u
+@@ -203,0 +203,2 @@ dynamic_index
++        beq field_colour_ready
++        cmpa #5
+@@ -204,0 +206 @@ dynamic_index
++field_colour_ready
+@@ -231,3 +233,2 @@ dynamic_graphic
+-        tfr x,u
+-        tfr y,x
+-        tfr u,y
++        exg x,y
++        tfr y,u

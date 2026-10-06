@@ -388,8 +388,12 @@ def logo_clock_dwell(screen,baseline,roots,label):
  observed=[]
  while True:
   assert time.monotonic()<deadline,'31-VBL logo-clock dwell deadline'
-  time.sleep(.06)
-  current=logo_clock_state()
+  helper=(B/'ladybug-highscore-helper.bin').read_bytes();pc=symbols(B/'ladybug-highscore-helper.map')['logo_vbord_return']
+  condition=f'(*(unsigned char*)0xffa5 & 63)==0x23 && (*(unsigned char*)0xffa4 & 63)==0x34 && *(unsigned char*)0xa6=={screen} && (((*(unsigned short*)2-{start["frames"]}) & 65535)>=31) && ((*(unsigned char*)0x88ff & 1)!={start["phase"]}) && *(unsigned char*)0x91==0'
+  gdb([f'break *0x{pc:x}','condition 1 '+condition,'continue']+live_pc_guard(pc,helper,0xac40)+['delete breakpoints',f'dump binary memory {O}/logo-dp.bin 0 0x300',f'dump binary memory {O}/logo-clock.bin 0x88fd 0x8900'])
+  dp=(O/'logo-dp.bin').read_bytes();clock=(O/'logo-clock.bin').read_bytes()
+  current={'frames':int.from_bytes(dp[2:4],'big'),'last_sample':int.from_bytes(clock[:2],'big'),'phase':clock[2]&1,'tag':clock[2],'pending':dp[0x91]}
+  report['phases'][-1]['attempt']={'baseline':start,'clock_return_state':current,'capture_pc':pc,'qualification':'Current-byte-guarded helper return; IRQ already masked by clock, physical page34 mapped through PAR4. Phase from clock tag before DP phase write. No clock/frame/state mutation.'}
   elapsed=(current['frames']-start['frames'])&0xffff
   sample_delta=(current['last_sample']-start['last_sample'])&0xffff
   if elapsed>=31 and sample_delta>=31 and current['phase']!=start['phase'] and current['pending']==0:
