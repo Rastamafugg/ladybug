@@ -86,9 +86,8 @@ graphic
         ldb #32
         mul
         jsr SHARED_COLD_PTR
-        tfr x,u
-        tfr y,x
-        tfr u,y
+        exg x,y
+        tfr y,u
         jmp presentation_fast_blit
 
 shared_mask
@@ -201,7 +200,10 @@ dynamic_index
         ifne TEXT_CONTEXT_COLOURS
         lda $A6
         cmpa #3
+        beq field_colour_ready
+        cmpa #5
         bne colour_skip_3
+field_colour_ready
         ldb $E8
 colour_skip_3
         endc
@@ -228,9 +230,8 @@ dynamic_graphic
         ldb #32
         mul
         jsr SHARED_COLD_PTR
-        tfr x,u
-        tfr y,x
-        tfr u,y
+        exg x,y
+        tfr y,u
         jmp presentation_fast_blit
 
 ; Draw the committed first score and name on the gameplay/demo HUD.
