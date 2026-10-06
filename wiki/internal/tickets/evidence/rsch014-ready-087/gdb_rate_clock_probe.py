@@ -6,7 +6,7 @@ displacement, legal reversal, natural initialization, or cost acceptance.
 from pathlib import Path
 base=Path(__file__).resolve().parents[1]/'rsch014-ready-083/gdb_colour_cycle_probe.py'
 source=base.read_text()
-source=source.replace("p=argparse.ArgumentParser();","p=argparse.ArgumentParser();p.add_argument('--rate-stage',type=int,choices=(1,17),required=True);",1)
+source=source.replace("p=argparse.ArgumentParser();","p=argparse.ArgumentParser();p.add_argument('--rate-stage',type=int,choices=(1,17),required=True);p.add_argument('--full-freeze',action='store_true');",1)
 source=source.replace("xlib=c.CDLL('libX11.so.6');", "assert a.credit_admission_only,'rate probe requires --credit-admission-only'\nassert all((B/name).is_file() for name in ('ladybug-enemy-runtime.rom','ladybug-enemy-runtime.map','ladybug-rate-helper.bin','ladybug-rate-helper.map')),'required current artifacts missing before launch'\nxlib=c.CDLL('libX11.so.6');",1)
 start=source.index(' if a.credit_admission_only:\n')
 end=source.index(' if a.logo_clock:\n  logo_clock_probe();',start)
@@ -31,6 +31,15 @@ branch=r''' if a.credit_admission_only:
   def selected(bucket):
    value=min(15,offsets[a.rate_stage-1]+(bucket>>4))
    return 0 if value<6 else 0x33 if value<12 else 0x80 if value<15 else 0xcc
+  if a.full_freeze:
+   phase('current-rate-full300-freeze')
+   commands=[f'break *0x{tick:x}','continue']+live_pc_guard(tick,enemy_bytes,0x800)+['delete breakpoints','set {unsigned short}0x5b=300','set {unsigned char}0x29b=96','set {unsigned char}0x29c=0','set {unsigned char}0x29d=90',f'set {{unsigned char}}0x29e={selected(0)}','set {unsigned char}0x29f=1',f'dump binary memory {O}/full-freeze-before.bin 0xa470 0xa490',f'break *0x{tick:x}','condition $bpnum *(unsigned short*)0x5b==0','continue']+live_pc_guard(tick,enemy_bytes,0x800)+[f'dump binary memory {O}/full-freeze-after.bin 0xa470 0xa490',f'dump binary memory {O}/full-freeze-dp.bin 0 0x300','delete breakpoints']
+   gdb(commands)
+   frozen=(O/'full-freeze-dp.bin').read_bytes()
+   check('no death/reset substitutes for freeze expiry',frozen[0x4d]==0)
+   check('all300 actual callbacks hold enemy records including final thaw',(O/'full-freeze-before.bin').read_bytes()==(O/'full-freeze-after.bin').read_bytes())
+   check('300 callbacks advance elapsed timer and bucket while fraction phase hold',list(frozen[0x29b:0x2a0])==[36,4,90,selected(0),1])
+   report['full_freeze']={'callbacks':300,'elapsed_timer':36,'elapsed_bucket':4,'fraction':90,'phase':1,'freeze_after':0,'records_held':True,'fixture':'Only legal freeze/rate boundary state; actual enemy callbacks, no actor/frame/PC/stack writes. Pixel-origin replay separate.'}
   cases=[('rollover-frozen',2,1,15,0x5a,0xcc,1,0),('saturation-rollover-frozen',2,1,239,0xa5,0xcc,1,0),('saturated-expiry',2,1,240,0x6b,0xcc,1,0),('saturated-nonexpiry',2,2,240,0x6b,0xcc,1,0),('thaw-one-to-zero',1,2,4,0x40,0x33,1,0),('no-carry-first-phase',0,2,4,0,0,0,0),('no-carry-second-phase',0,2,4,0,0,1,0),('fractional-carry',0,2,4,0xf0,0x33,1,0),('death-bypass',2,1,15,0x40,0x33,1,1)]
   samples=[]
   for name,freeze,timer,bucket,frac,addend,alternating,death in cases:

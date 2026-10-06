@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-06",
+  "status": "PASS-CURRENT-300-FREEZE-AND-BOUNDARIES-NOT-FULL-ACCEPTANCE",
+  "rom_sha256": "521577845923ed1b889b0425f4b5d75543294bcc8ce93e2cd8d4a098d5e23c25",
+  "raw_sha256": "02f765aebff05f6aea15a9dce54ab4ea63a0e929b45c7d6e86c004c3b8e23c1c",
+  "full_freeze": {
+    "callbacks": 300,
+    "elapsed_timer": 36,
+    "elapsed_bucket": 4,
+    "fraction": 90,
+    "phase": 1,
+    "freeze_after": 0,
+    "records_held": true,
+    "fixture": "Only legal freeze/rate boundary state; actual enemy callbacks, no actor/frame/PC/stack writes. Pixel-origin replay separate."
+  },
+  "phase": {
+    "name": "current-rate-full300-freeze",
+    "deadline_seconds": 40,
+    "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+    "checks": [
+      "no death/reset substitutes for freeze expiry",
+      "all300 actual callbacks hold enemy records including final thaw",
+      "300 callbacks advance elapsed timer and bucket while fraction phase hold"
+    ],
+    "elapsed_seconds": 11.437
+  },
+  "rejected_observation": {
+    "status": "FAIL",
+    "last_phase": {
+      "name": "current-rate-rollover-frozen",
+      "deadline_seconds": 40,
+      "timeout_meaning": "named publication/input boundary not observed; not target speed evidence",
+      "elapsed_seconds": 40.042
+    },
+    "freeze_phase_passed": {
+      "callbacks": 300,
+      "elapsed_timer": 36,
+      "elapsed_bucket": 4,
+      "fraction": 90,
+      "phase": 1,
+      "freeze_after": 0,
+      "records_held": true,
+      "fixture": "Only legal freeze/rate boundary state; actual enemy callbacks, no actor/frame/PC/stack writes. Pixel-origin replay separate."
+    },
+    "meaning": "Following rollover callback boundary was not observed; no claim that300 freeze exceeded deadline or that target code was slow"
+  },
+  "remaining": [
+    "pixel-origin replay",
+    "physical displacement/cadence",
+    "legal reversal",
+    "natural initialization",
+    "matched costs",
+    "full current candidate profile fit"
+  ]
+}
