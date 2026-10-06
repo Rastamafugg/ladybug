@@ -1440,7 +1440,22 @@ def parse_enter_high_score_contract(
         node_cells.extend(row_cells)
         node_tile_ids.extend(row_tiles)
     node_cells.extend(((11, 20), (15, 20), (19, 20), (23, 20), (27, 20)))
-    node_tile_ids.extend((0xFE, 0xFF, 0xFF, 0xFF, 0xFD))
+    # Bottom-row actions use the Ladybug node column, while the visible dot
+    # and heart are authored in the adjacent right cell. Space is a virtual
+    # blank choice. Keep native tile descriptors rather than text codes.
+    symbol_tiles = []
+    for cell, code in (((16, 20), 45), ((20, 20), 36), ((24, 20), 41)):
+        if code == 36:
+            native = bytes(32)
+        else:
+            gid = overlay_cells[cell[1] * SCREEN_WIDTH + cell[0]]
+            if raw_char_code(root, path, gid & GID_MASK) != code:
+                raise ValueError(f"{path}: unexpected bottom-row symbol at {cell}")
+            native = instruction_char_tile(
+                root, path, gid, cell, chars, (BLACK, WHITE, WHITE, WHITE)
+            )
+        symbol_tiles.append(register_tile(native, tiles, tile_ids))
+    node_tile_ids.extend((0xFE, *symbol_tiles, 0xFD))
     action_records = [
         (cell, tile_id) for cell, tile_id in zip(node_cells, node_tile_ids)
         if tile_id != 0xFF
