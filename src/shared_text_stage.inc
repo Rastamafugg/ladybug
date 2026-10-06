@@ -523,9 +523,11 @@ stage_panel_regular_slice
         cmpa #PRESENTATION_MAP_LEVEL_START
         beq stage_name_schedule_ready
         cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
-        bne stage_slice_return
+        lbne stage_slice_return
         ldd $AA
         cmpd #576
+        beq stage_name_schedule_ready
+        cmpd #608
         bne stage_slice_return
 stage_name_schedule_ready
         ldd $AA
