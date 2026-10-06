@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-06",
+  "status": "PASS-SEPARATE-BUG108-PREPARATION",
+  "scope": "Separate108 prototype,110 excluded; corrected-target approval and integrated105/106 remain gates",
+  "full_builds": {
+    "keyboard": {
+      "rom_sha256": "ef13933e1ace948c9c7b294cfc55ef44c14ba69b39a5e6f8fca392766cbbf869",
+      "source_sha256": {
+        "src/shared_text_stage.inc": "8aa26783e1cb1e4d283b748ed52db7b4ad8f09ab395ea46a1dd858a9a5f7fc40",
+        "src/shared_text_ranking.inc": "44eb3312cc032898e4038b55b99f25d6c86d658e06d869ee758b3c0fa5535604",
+        "scripts/source_reference.json": "602e26bb3a30940c9ffe053e1512299b4d391f9c71bdf73e0fe33bbe368c4ceb",
+        "scripts/build_presentation.py": "bde5831df82c1d81742f62b0814637f7f14d9eaa755d56a20c4874a0f9ccd4fd",
+        "scripts/shared_text.py": "bd7370f551139880af592d5537c60ae75f4977b954f96a99a4fbcf1886c62e37",
+        "assets/arcade/text-colours.json": "0dc7e336fefd870aacb5f525939e1acc4bc1df6a7c40c81d5fe23ec88c379326"
+      },
+      "source_audit": "PASS",
+      "log_sha256": "c8d555e925c374926ef9bbad57a6e38ce1411c69629f19de9ba223b644f251a2",
+      "mapped_helper_bytes": 3109,
+      "title_gap": 27,
+      "resident_free": 37,
+      "assets_free": 9,
+      "low_used": 919,
+      "low_guard": 920
+    },
+    "joystick": {
+      "rom_sha256": "a622b75a3ff6af4eaf584e14a472ad7e689c118920e6b938d9c108160c02921f",
+      "source_sha256": {
+        "src/shared_text_stage.inc": "8aa26783e1cb1e4d283b748ed52db7b4ad8f09ab395ea46a1dd858a9a5f7fc40",
+        "src/shared_text_ranking.inc": "44eb3312cc032898e4038b55b99f25d6c86d658e06d869ee758b3c0fa5535604",
+        "scripts/source_reference.json": "602e26bb3a30940c9ffe053e1512299b4d391f9c71bdf73e0fe33bbe368c4ceb",
+        "scripts/build_presentation.py": "bde5831df82c1d81742f62b0814637f7f14d9eaa755d56a20c4874a0f9ccd4fd",
+        "scripts/shared_text.py": "bd7370f551139880af592d5537c60ae75f4977b954f96a99a4fbcf1886c62e37",
+        "assets/arcade/text-colours.json": "0dc7e336fefd870aacb5f525939e1acc4bc1df6a7c40c81d5fe23ec88c379326"
+      },
+      "source_audit": "PASS",
+      "log_sha256": "eec5ecca91f28bdf45df91e50cb5562cf5a4ce5134a7a1cdf0046bf2f3539cd6",
+      "mapped_helper_bytes": 3109,
+      "title_gap": 27,
+      "resident_free": 1,
+      "assets_free": 9,
+      "low_used": 919,
+      "low_guard": 920
+    }
+  },
+  "runtime_cases": [
+    {
+      "path": "repro\\name-hud-joint-runtime\\108-prefix-rank1.json",
+      "sha256": "54f22cf675491b5a8ae818bf68b60c05aa58470bbbf489a8de09114525a5456d",
+      "status": "PASS-SEPARATE-108-PLACEMENT-OWNER-FIELDS",
+      "risk": "TOP/ninth suffix, pending authority, both owners and unchanged part/value/native sprite; ninth additionally timer scratch/ranking",
+      "fields": {
+        "last_part": 1,
+        "shown_vegetable_index": 1,
+        "points_digits": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "rank_zero_based": 0,
+        "ordinal_raw_codes": [
+          29,
+          24,
+          25
+        ],
+        "ordinal_rows": [
+          12
+        ],
+        "scope": "separate108 prefix,110 excluded",
+        "owners": [
+          0,
+          1
+        ],
+        "pending_name": "unchanged white6",
+        "part": "three positions, leading blank below100 and two digits with leading0",
+        "value": "shown vegetable record, green5 includingequals",
+        "native_vegetable_sha256": "f1457fb07bba87e012fbd1e041dbb950b11078741ca8929c21119a5b2c6f1387"
+      },
+      "fixture": "Natural credits/start precede legal qualifying score/final-death/stage fixtures. No rank,PC,frame or owner write."
+    },
+    {
+      "path": "repro\\name-hud-joint-runtime\\108-prefix-rank9.json",
+      "sha256": "6dae7b4f70dcc73dd0f4fc46ee580f6680bee819190ec5cc1fb8d50a7e958660",
+      "status": "PASS-SEPARATE-108-PLACEMENT-OWNER-FIELDS",
+      "risk": "TOP/ninth suffix, pending authority, both owners and unchanged part/value/native sprite; ninth additionally timer scratch/ranking",
+      "fields": {
+        "last_part": 100,
+        "shown_vegetable_index": 18,
+        "points_digits": [
+          9,
+          5,
+          0,
+          0
+        ],
+        "rank_zero_based": 8,
+        "ordinal_raw_codes": [
+          9,
+          29,
+          17
+        ],
+        "ordinal_rows": [
+          12
+        ],
+        "scope": "separate108 prefix,110 excluded",
+        "owners": [
+          0,
+          1
+        ],
+        "pending_name": "unchanged white6",
+        "part": "three positions, leading blank below100 and two digits with leading0",
+        "value": "shown vegetable record, green5 includingequals",
+        "native_vegetable_sha256": "b978533717099170cec3d5a26c7d060644e0c61113475f67ff32bc5ec4e99d5e"
+      },
+      "fixture": "Natural credits/start precede legal qualifying score/final-death/stage fixtures. No rank,PC,frame or owner write."
+    }
+  ]
+}
