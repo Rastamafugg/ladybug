@@ -1,0 +1,37 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -478,6 +478,7 @@
+ 
+         ifne    PRESENTATION_STAGE_PANEL_ENABLED
+         include "ladybug_runtime_symbols.inc"
++
+ stage_select
+         lda $24
+         ldb PRES_SCREEN
+@@ -593,9 +594,12 @@
+         rts
+ stage_panel_finish
+         lda PRES_SCREEN
++        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        beq stage_name_sprite_selected
+         cmpa #PRESENTATION_MAP_LEVEL_START
+         bne stage_slice_return
+         lbsr stage_select
++stage_name_sprite_selected
+         lda PRES_TMP_H
+         bne stage_finish_nonzero
+         inca
+@@ -610,9 +614,13 @@
+         ldy #vegetable_sprites
+         leay d,y
+         pshs y
++        lda PRES_SCREEN
++        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        beq stage_name_sprite_hud
+         ldu #sprite_attr0_pairs
+         ldx #$3E40
+         jsr blit_packed_sprite
++stage_name_sprite_hud
+         puls y
+         ldu #sprite_attr0_pairs
+         ldx #$5C80
