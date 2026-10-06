@@ -171,17 +171,279 @@ def run_current_lives(output: Path, adapter: Path) -> int:
     return 2 if failed else 0
 
 
+def run_name_case_bug108(output: Path) -> int:
+    """Run every approved BUG-108 rank with the existing complete-ROM adapter.
+
+    Each invocation begins with a natural credit and game start, then uses the
+    adapter's legal score/death fixture to reach the requested insertion rank.
+    Rank 1 and 9 also exercise last parts 1 and 100; rank 2 checks stale-cell
+    clearing, rank 1 checks the natural score table, and rank 9 checks timer
+    scratch preservation. The adapter captures both naturally published owners.
+    """
+    output = output.resolve()
+    if output.exists():
+        raise FileExistsError(f'refusing to overwrite BUG-108 evidence: {output}')
+    rom_path = BUILD / 'ladybug.rom'
+    adapter = ROOT / 'wiki/internal/tickets/evidence/rsch014-ready-109/gdb_name_ordinal_prefix_adapter.py'
+    if not rom_path.is_file() or not adapter.is_file():
+        raise FileNotFoundError('current complete keyboard ROM and approved-prefix adapter are required')
+
+    rom_sha256 = r.digest(rom_path.read_bytes())
+    build_symbols = r.symbols(BUILD / 'ladybug.map')
+    if build_symbols.get('INPUT_JOYSTICK') != 0:
+        raise RuntimeError('BUG-108 natural host-key sequence requires the complete keyboard build')
+
+    scores = {rank: f'{10 - rank:02d}5000' for rank in range(1, 10)}
+    ordinals = {
+        1: [29, 24, 25], 2: [2, 23, 13], 3: [3, 27, 13],
+        4: [4, 29, 17], 5: [5, 29, 17], 6: [6, 29, 17],
+        7: [7, 29, 17], 8: [8, 29, 17], 9: [9, 29, 17],
+    }
+    evidence_dir = output.parent / (output.stem + '-cases')
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    scratch_dir = ROOT / 'repro/ready-menu-gdb'
+    scratch_dir.mkdir(parents=True, exist_ok=True)
+    tmx_paths = (
+        'tiled/coco-attract-screen.tmx', 'tiled/coco-credits-screen.tmx',
+        'tiled/coco-enter-high-score-screen.tmx', 'tiled/coco-game-over-screen.tmx',
+        'tiled/coco-high-score-screen.tmx', 'tiled/coco-instructions-screen.tmx',
+        'tiled/coco-keybind-options-screen.tmx', 'tiled/coco-level-start-screen.tmx',
+        'tiled/coco-screen.tmx',
+    )
+    tmx_before = {path: r.digest((ROOT / path).read_bytes()) for path in tmx_paths}
+    summary = {
+        'schema': 'bug108-current-prefix-nine-rank-v1',
+        'status': 'RUNNING',
+        'root': str(ROOT),
+        'build_dir': str(BUILD),
+        'rom_sha256': rom_sha256,
+        'input_profile': 'complete keyboard',
+        'adapter': str(adapter.relative_to(ROOT)),
+        'adapter_sha256': r.digest(adapter.read_bytes()),
+        'production_sources': {
+            'src/shared_text_stage.inc': r.digest((ROOT / 'src/shared_text_stage.inc').read_bytes()),
+            'scripts/source_reference.json': r.digest((ROOT / 'scripts/source_reference.json').read_bytes()),
+        },
+        'case_contract': 'Each adapter phase has a 40-second deadline; success is the named natural publication or field check. Timeout means the boundary was not observed, not that target code is slow.',
+        'natural_sequence': 'Each rank case admits a natural credit, starts from the menu with Enter, waits for ordinary credited gameplay, then applies only legal six-digit score, death state, and requested part fixtures before natural qualification and publication.',
+        'cases': [],
+        'rejected_experiments': [],
+    }
+    earlier_attempt = ROOT / 'repro/bug108/current-nine-rank.json'
+    if earlier_attempt.is_file():
+        earlier = json.loads(earlier_attempt.read_text(encoding='utf-8'))
+        if earlier.get('status') == 'FAIL' and earlier.get('cases'):
+            first = earlier['cases'][0]
+            if first.get('status') == 'PASS-SEPARATE-108-PLACEMENT-OWNER-FIELDS' and not first.get('accepted'):
+                summary['rejected_experiments'].append({
+                    'artifact': str(earlier_attempt.relative_to(ROOT)),
+                    'sha256': r.digest(earlier_attempt.read_bytes()),
+                    'finding': 'The adapter passed rank 1 and every named phase was within 40 seconds. The first selector revision looked for check names at the report root while the reused adapter stores them inside each phase; the false negative is verifier parsing, not a product failure. Per-phase check aggregation is corrected for this run.',
+                    'rank1_adapter_receipt': first.get('receipt_path'),
+                    'rank1_adapter_receipt_sha256': first.get('receipt_sha256'),
+                })
+
+    expected_markers = (
+        'full delivered low name owner equals current artifact',
+        'full delivered mapped name owner equals current artifact',
+    )
+    failed = False
+    for rank in range(1, 10):
+        last_part = 100 if rank == 9 else rank
+        case_name = f'rank-{rank}-part-{last_part}'
+        case_output = evidence_dir / f'{case_name}.json'
+        if case_output.exists():
+            raise FileExistsError(f'refusing to overwrite BUG-108 case evidence: {case_output}')
+        before_scratch = {
+            path.name: r.digest(path.read_bytes())
+            for path in scratch_dir.iterdir() if path.is_file()
+        }
+        command = [
+            sys.executable, str(adapter), '--worktree', str(ROOT),
+            '--build-dir', str(BUILD), '--rom-sha256', rom_sha256,
+            '--output', str(case_output), '--credit-admission-only',
+            '--qualifying-score', scores[rank], '--last-part', str(last_part),
+            '--gap-expect', 'blank',
+        ]
+        if rank == 1:
+            command.append('--ranking-regression')
+        if rank == 2:
+            command.append('--short-name-regression')
+        if rank == 9:
+            command.append('--timer-scratch')
+
+        print(f'BUG-108 rank {rank}, part {last_part}', flush=True)
+        try:
+            completed = subprocess.run(
+                command, cwd=ROOT, text=True, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, timeout=600,
+            )
+            case = json.loads(case_output.read_text(encoding='utf-8')) if case_output.is_file() else {}
+            checks = [
+                item for phase in case.get('phases', [])
+                for item in phase.get('checks', [])
+            ]
+            fields = case.get('joint_hud', {})
+            expected_fields = (
+                case.get('status') == 'PASS-SEPARATE-108-PLACEMENT-OWNER-FIELDS'
+                and fields.get('rank_zero_based') == rank - 1
+                and fields.get('last_part') == last_part
+                and fields.get('owners') == [0, 1]
+                and fields.get('ordinal_rows') == [12]
+                and fields.get('ordinal_raw_codes') == ordinals[rank]
+                and fields.get('pending_name') == 'unchanged white6'
+            )
+            owner_checks = all(
+                f'ordinal row12 owner{owner}' in checks
+                and f'three-position last part owner{owner}' in checks
+                and f'matching vegetable four-digit green value owner{owner}' in checks
+                and f'dark-green equals owner{owner}' in checks
+                and f'authored final-part native vegetable owner{owner}' in checks
+                and f'gap-name-replay player score unchanged on owner{owner}' in checks
+                and f'gap-name-replay top-right score unchanged on owner{owner}' in checks
+                and f'gap-name-replay gap cells match blank on owner{owner}' in checks
+                for owner in (0, 1)
+            ) and checks.count('gap-name-replay pending-name white cells match authoritative data') >= 2 \
+                and checks.count('gap-name-replay TOP-name stage103 cells match authoritative data') >= 2
+            identity_checks = all(marker in checks for marker in expected_markers)
+            rank_authority = 'actual ranking and pending score match fixture' in checks
+            timer_continues = 'natural timer boxes advance without field-repaint reset' in checks
+            natural_ranking = rank != 1 or (
+                case.get('ranking_regression', {}).get('rows') == 9
+                and case.get('ranking_regression', {}).get('owners') == [0, 1]
+            )
+            short_name = rank != 2 or (
+                'actual pending name contains four glyphs and three blank cells' in checks
+                and checks.count('gap-name-short pending-name white cells match authoritative data') >= 2
+                and checks.count('gap-name-short TOP-name stage103 cells match authoritative data') >= 2
+                and all(
+                    f'gap-name-short player score unchanged on owner{owner}' in checks
+                    and f'gap-name-short top-right score unchanged on owner{owner}' in checks
+                    for owner in (0, 1)
+                )
+            )
+            timer_scratch = rank != 9 or all(
+                any(marker in item for item in checks)
+                for marker in (
+                    'name writer natural return preserves legal timer phase1',
+                    'score writer natural return preserves legal timer phase0',
+                )
+            )
+            phase_names = [phase.get('name') for phase in case.get('phases', [])]
+            natural_sequence = all(name in phase_names for name in (
+                'credited-menu-before-gap-reproduction',
+                'credited-gameplay-before-qualifying-death',
+                'qualifying-gameover-to-name-gap',
+                'natural-name-owner-replay',
+            ))
+            owner_publication = 'natural replay publishes both FRONT owners' in checks
+            phase_deadlines_pass = bool(case.get('phases')) and all(
+                phase.get('deadline_seconds', 41) <= 40
+                and phase.get('elapsed_seconds') is not None
+                and phase['elapsed_seconds'] <= phase['deadline_seconds']
+                for phase in case['phases']
+            )
+            passed = (completed.returncode == 0 and expected_fields and owner_checks
+                      and identity_checks and natural_ranking and short_name
+                      and timer_scratch and natural_sequence and owner_publication
+                      and rank_authority and timer_continues and phase_deadlines_pass)
+            changed_artifacts = {}
+            for path in scratch_dir.iterdir():
+                if path.is_file():
+                    digest = r.digest(path.read_bytes())
+                    if before_scratch.get(path.name) != digest:
+                        changed_artifacts[path.name] = {'sha256': digest, 'bytes': path.stat().st_size}
+            case_summary = {
+                'rank': rank,
+                'last_part': last_part,
+                'qualifying_score': scores[rank],
+                'status': case.get('status', 'NO_RECEIPT'),
+                'accepted': passed,
+                'returncode': completed.returncode,
+                'receipt_path': str(case_output.relative_to(ROOT)),
+                'receipt_sha256': r.digest(case_output.read_bytes()) if case_output.is_file() else None,
+                'fields': fields,
+                'phase_markers': [
+                    {'name': phase.get('name'), 'deadline_seconds': phase.get('deadline_seconds'),
+                     'elapsed_seconds': phase.get('elapsed_seconds'),
+                     'check_count': len(phase.get('checks', [])),
+                     'timeout_meaning': phase.get('timeout_meaning')}
+                    for phase in case.get('phases', [])
+                ],
+                'required_identity_checks': {marker: marker in checks for marker in expected_markers},
+                'actual_rank_authority_check': rank_authority,
+                'timer_continues_without_redraw_reset': timer_continues,
+                'phase_deadlines_pass': phase_deadlines_pass,
+                'artifact_hashes': changed_artifacts,
+            }
+            if rank == 2:
+                case_summary['short_name_clearing_check'] = any(
+                    'four glyphs and three blank cells' in item for item in checks
+                )
+            if rank == 9:
+                case_summary['timer_scratch_checks'] = {
+                    'name_return': 'name writer natural return preserves legal timer phase1' in checks,
+                    'score_return': 'score writer natural return preserves legal timer phase0' in checks,
+                }
+            if rank == 1:
+                case_summary['natural_ranking_regression'] = case.get('ranking_regression', {})
+            summary['cases'].append(case_summary)
+            if not passed:
+                failed = True
+                failure_copy = evidence_dir / f'{case_name}-failed-probe'
+                if failure_copy.exists():
+                    raise FileExistsError(f'refusing to overwrite failed BUG-108 probe artifacts: {failure_copy}')
+                import shutil
+                shutil.copytree(scratch_dir, failure_copy)
+                case_summary['failure_probe_copy'] = str(failure_copy.relative_to(ROOT))
+                case_summary['adapter_output_tail'] = completed.stdout[-8000:]
+                summary['missing_ranks'] = list(range(rank + 1, 10))
+                break
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as error:
+            failed = True
+            summary['cases'].append({
+                'rank': rank, 'last_part': last_part, 'qualifying_score': scores[rank],
+                'status': 'LAUNCH_OR_TIMEOUT_FAILURE', 'accepted': False,
+                'failure': repr(error), 'command': command,
+            })
+            failure_copy = evidence_dir / f'{case_name}-failed-probe'
+            if scratch_dir.exists() and not failure_copy.exists():
+                import shutil
+                shutil.copytree(scratch_dir, failure_copy)
+            summary['missing_ranks'] = list(range(rank + 1, 10))
+            break
+
+    tmx_after = {path: r.digest((ROOT / path).read_bytes()) for path in tmx_paths}
+    summary['tmx_sha256'] = tmx_after
+    summary['tmx_unchanged'] = tmx_after == tmx_before
+    if not summary['tmx_unchanged']:
+        failed = True
+        summary['tmx_changed'] = [path for path in tmx_paths if tmx_after[path] != tmx_before[path]]
+    summary['status'] = 'PASS' if not failed and len(summary['cases']) == 9 else 'FAIL'
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(summary, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps({'status': summary['status'], 'rom_sha256': rom_sha256,
+                      'cases': len(summary['cases']), 'output': str(output)}, indent=2))
+    return 2 if failed or len(summary['cases']) != 9 else 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--current-menu', action='store_true',
                         help='dispatch current bindings, entry-edge, and name-control GDB phases')
     parser.add_argument('--current-lives', action='store_true',
                         help='run natural credited prefill rows and controlled reverse 12-to-0 grid audit')
+    parser.add_argument('--name-case', choices=('bug108',),
+                        help='run the approved BUG-108 nine-rank current-ROM assignment')
     parser.add_argument('--adapter', type=Path,
                         help='current parent shared GDB adapter or bounded candidate copy')
     parser.add_argument('--output', type=Path,
-                        help='report path; required by --current-menu, otherwise defaults to the historical report')
+                        help='report path; required by --current-menu, --name-case, or --current-lives')
     args = parser.parse_args()
+    if args.name_case == 'bug108':
+        if args.output is None:
+            parser.error('--name-case bug108 requires --output')
+        raise SystemExit(run_name_case_bug108(args.output))
     if args.current_lives:
         if args.output is None or args.adapter is None:
             parser.error('--current-lives requires --output and --adapter')

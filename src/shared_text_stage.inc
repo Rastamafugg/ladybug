@@ -494,6 +494,40 @@ stage_select
 stage_selected
         sta PRES_TMP_H
         rts
+; BUG-108: draw the insertion-rank ordinal during hidden row12 hydration.
+stage_name_dispatch
+        ldd $AA
+        cmpd #544
+        beq name_phrase_rank
+        cmpd #576
+        lbeq stage_name_schedule_ready
+        cmpd #608
+        lbeq stage_name_schedule_ready
+        rts
+name_phrase_rank
+        ldx #$5C04
+        bra name_rank_format
+
+name_rank_format
+        lda #1
+        sta $29
+        lda PRES_INSERT
+        ldb #3
+        mul
+        leay name_rank_data,pcr
+        leay d,y
+        ldb #3
+        lbra stage_panel_text
+name_rank_data
+        fcb 29,24,25
+        fcb 2,23,13
+        fcb 3,27,13
+        fcb 4,29,17
+        fcb 5,29,17
+        fcb 6,29,17
+        fcb 7,29,17
+        fcb 8,29,17
+        fcb 9,29,17
         rmb     $B080-*
 ; BUG-035: called during hidden level-start hydration, before publication.
 ; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
@@ -525,11 +559,7 @@ stage_panel_regular_slice
         beq stage_name_schedule_ready
         cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
         lbne stage_slice_return
-        ldd $AA
-        cmpd #576
-        beq stage_name_schedule_ready
-        cmpd #608
-        bne stage_slice_return
+        lbra stage_name_dispatch
 stage_name_schedule_ready
         ldd $AA
         cmpd #128
