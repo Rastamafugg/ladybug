@@ -8,15 +8,6 @@
  stage_select
          lda $24
          ldb PRES_SCREEN
-@@ -523,7 +524,7 @@
-         cmpa #PRESENTATION_MAP_LEVEL_START
-         beq stage_name_schedule_ready
-         cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
--        bne stage_slice_return
-+        lbne stage_slice_return
-         ldd $AA
-         cmpd #576
-         beq stage_name_schedule_ready
 @@ -593,9 +594,12 @@
          rts
  stage_panel_finish

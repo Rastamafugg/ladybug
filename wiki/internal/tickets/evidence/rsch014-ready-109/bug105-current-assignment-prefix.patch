@@ -1,7 +1,11 @@
 --- a/src/shared_text_stage.inc
 +++ b/src/shared_text_stage.inc
-@@ -526,6 +526,8 @@
-         bne stage_slice_return
+@@ -523,9 +523,11 @@
+         cmpa #PRESENTATION_MAP_LEVEL_START
+         beq stage_name_schedule_ready
+         cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
+-        bne stage_slice_return
++        lbne stage_slice_return
          ldd $AA
          cmpd #576
 +        beq stage_name_schedule_ready

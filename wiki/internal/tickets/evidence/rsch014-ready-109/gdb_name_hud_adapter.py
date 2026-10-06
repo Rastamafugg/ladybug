@@ -1,5 +1,15 @@
 """Reuse the current colour/scratch observer with joint HUD assertions."""
 from pathlib import Path
+def verify_vegetable_records(records):
+ names=('CUCUMBER','EGGPLANT','CARROT','RADISH','PARSLEY','TOMATO','PUMPKIN','BAMBOO SHOOT','JAPANESE RADISH','MUSHROOM','POTATO','ONION','CHINESE CABBAGE','TURNIP','RED PEPPER','CELERY','SWEET POTATO','HORSERADISH')
+ assert len(records)==360,'eighteen20-byte records required'
+ for index,name in enumerate(names):
+  row=records[index*20:(index+1)*20]
+  text=''.join(' ' if v==36 else str(v) if v<10 else chr(v+55) for v in row[:16]).strip()
+  assert text==name,('vegetable ordering',index+1,text,name)
+  assert row[16:]==bytes(int(v) for v in f'{1000+500*index:04d}'),('vegetable value',index+1)
+ return 18
+
 base=Path(__file__).with_name('gdb_name_colour_adapter.py');outer=base.read_text()
 outer=outer[:outer.index("exec(compile(source,")]
 outer=outer.replace("p.add_argument('--short-name-regression'", "p.add_argument('--last-part',type=int,choices=range(1,256),required=True);p.add_argument('--short-name-regression'",1)

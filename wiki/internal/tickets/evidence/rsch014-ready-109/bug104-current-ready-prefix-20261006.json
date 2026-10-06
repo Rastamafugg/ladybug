@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-06",
+  "status": "PASS-BUG104-READY-SEPARATE-PREFIX",
+  "source_context": "Integrated BUG10721802b1 plus approved104-only stage prototype;105/106/108/110 excluded",
+  "owned_worktree": "E:\\projects\\ladybug\\worktrees\\bug104-current-ready",
+  "branch": "codex/bug104-current-ready",
+  "owned_source_sha256": {
+    "src/shared_text_stage.inc": "70272fd0ec90596860a0db978478acb3f4c1cc50c1b8182344dcf2bcc45c1d69"
+  },
+  "full_builds": {
+    "keyboard": {
+      "status": "full build and source audit pass",
+      "rom_sha256": "72fc7ae6b233c66af9377712979e5da7db42eb30a0e04dbe241e62ba2a5032cb",
+      "frozen_dir": "E:\\projects\\ladybug\\worktrees\\name-hud-assignment-prefixes\\repro\\assignment-prefix-fit\\bug104\\keyboard\\frozen",
+      "log_sha256": "fb54eb48687a506e6b35d22025e311b37c39a4b0f6c7becd8a82319b7a6ac3b6"
+    },
+    "joystick": {
+      "status": "full build and source audit pass",
+      "rom_sha256": "7542c63210a7a159d32df008bda4335ac2c7e58eb67aa505df48ec8d2e4d0896",
+      "frozen_dir": "E:\\projects\\ladybug\\worktrees\\name-hud-assignment-prefixes\\repro\\assignment-prefix-fit\\bug104\\joystick\\frozen",
+      "log_sha256": "52583b477515ea4c97e964d256cef91d886df88eeb7e61f79b9a0cc8aa07cdc8"
+    }
+  },
+  "runtime_cases": [
+    {
+      "artifact": "repro\\name-hud-joint-runtime\\104-prefix-part1.json",
+      "status": "PASS-104-SEPARATE-PREFIX-LAST-PART-OWNERS",
+      "risk": "first-part01, leading blank and two digits",
+      "sha256": "3fb2f1b9de5353f6a4124fed5a31d38174ed7bd3a6d14cd2e304f128db2b431a",
+      "target_state": {
+        "last_part": 1,
+        "codes": [
+          36,
+          0,
+          1
+        ],
+        "owners": [
+          0,
+          1
+        ],
+        "rank": 0,
+        "scope": "104-only stage source plus integrated107 generator prerequisite;105/106/108/110 unimplemented"
+      }
+    },
+    {
+      "artifact": "repro\\name-hud-joint-runtime\\104-prefix-part100.json",
+      "status": "PASS-104-SEPARATE-PREFIX-LAST-PART-OWNERS",
+      "risk": "three-digit final part across real game-over/name handoff, configured start remains default",
+      "sha256": "ffc7c6cd525809c6a2e7a9dcbd73a8510324f44c99f2b55868bf309dc56ce5bf",
+      "target_state": {
+        "last_part": 100,
+        "codes": [
+          1,
+          0,
+          0
+        ],
+        "owners": [
+          0,
+          1
+        ],
+        "rank": 1,
+        "scope": "104-only stage source plus integrated107 generator prerequisite;105/106/108/110 unimplemented"
+      }
+    },
+    {
+      "artifact": "repro\\name-hud-joint-runtime\\104-prefix-next-part-score.json",
+      "status": "PASS-INITIAL-NEXT-OWNERS-TICKS",
+      "risk": "relocated selector adjacent level-start natural9-to10, nonzero123456 score and both part labels",
+      "sha256": "27d158235b3bb90a2c853b3f62ce5384124cc06baf87933fb2c79a8881d458a5",
+      "target_state": null
+    }
+  ],
+  "measured_capacity": {
+    "resident_free_keyboard": 37,
+    "resident_free_joystick": 1,
+    "assets_free": 9,
+    "low_runtime_used": 919,
+    "low_runtime_limit": 920,
+    "mapped_helper_used": 3102,
+    "helper_end": "B85E",
+    "title_gap": 34
+  },
+  "qualified_dependencies": [
+    "BUG059 Done",
+    "BUG060 Done",
+    "BUG061 Done",
+    "BUG081 Done",
+    "BUG102/103/109 Done",
+    "BUG107 Done21802b1"
+  ],
+  "limits": "Ready permits bounded source execution; prototype not yet integrated. Keep original two-target whitelist; only stage source needs change because existing generated destinations suffice."
+}
