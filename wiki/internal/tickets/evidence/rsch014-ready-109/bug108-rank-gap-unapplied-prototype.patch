@@ -1,0 +1,49 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -494,6 +494,35 @@
+ stage_selected
+         sta PRES_TMP_H
+         rts
++; Unapplied BUG108 prototype: hidden row12 ordinal only.
++name_phrase_rank
++        ldx #$5C04
++        bra name_rank_format
++name_rank_format
++        lda #1
++        sta $29
++        lda PRES_INSERT
++        ldb #3
++        mul
++        leay name_rank_letters,pcr
++        leay d,y
++        ldb #3
++name_rank_letter_loop
++        lda ,y+
++        lbsr stage_panel_char
++        decb
++        bne name_rank_letter_loop
++        rts
++name_rank_letters
++        fcb 29,24,25
++        fcb 2,23,13
++        fcb 3,27,13
++        fcb 4,29,17
++        fcb 5,29,17
++        fcb 6,29,17
++        fcb 7,29,17
++        fcb 8,29,17
++        fcb 9,29,17
+         rmb     $B080-*
+ ; BUG-035: called during hidden level-start hydration, before publication.
+ ; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
+@@ -526,6 +555,10 @@
+         cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
+         lbne stage_slice_return
+         ldd $AA
++        cmpd #544
++        bne stage_name_other_slice
++        lbra name_phrase_rank
++stage_name_other_slice
+         cmpd #576
+         beq stage_name_schedule_ready
+         cmpd #608

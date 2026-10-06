@@ -1,0 +1,12 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -497,7 +497,8 @@
+ ; Unapplied BUG108 prototype: hidden row12 ordinal only.
+ name_phrase_rank
+         ldx #$5C04
+-        bra name_rank_format
++        bsr name_rank_format
++        ldx #$7A04           ; BUG110 left row18, separate from108 row12
+ name_rank_format
+         lda #1
+         sta $29
