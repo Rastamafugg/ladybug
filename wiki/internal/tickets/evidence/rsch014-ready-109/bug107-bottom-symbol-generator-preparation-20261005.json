@@ -1,0 +1,17 @@
+{
+  "status": "UNAPPLIED-GENERATOR-CANDIDATE-NOT-READY",
+  "baseline_source_sha256": "fc3f8fbd9fa2fc2766a3e2c8d1ddee892d9a4a011cc3c84e43cc192e3508b50d",
+  "candidate_source_sha256": "e0bcbcfaf86e8db7697023eadc234832a336c8f9e5c23aee43520b7e81aa4b82",
+  "approved_target_subset": [
+    "scripts/build_presentation.py"
+  ],
+  "cause": "Logical bottom node columns15/19/23 carry FF sentinel and are omitted. Visible dot/heart are adjacent columns16/24; space is intentionally blank.",
+  "rejected_assumption": "The visible raw symbol is at each logical node coordinate. Source TMX inspection disproves this; no game/asset change inferred.",
+  "design": "Register authored dot and heart native 8x8 tiles plus an explicit blank tile, then emit all three virtual semantic actions through existing remap and action-table machinery.",
+  "existing_runtime": "Low ranking writer appends generated descriptor ID, consumes length, and shared dynamic dispatch handles native graphics; audio_poll_name emits cue2 on length increase. No new low bytes or audio target proposed.",
+  "pending": [
+    "Confirm generated symbol IDs/descriptors and exact native content",
+    "Full combined profile fits, including action-table growth and atlas/assets",
+    "Current traversal, exact appended descriptor bytes/length, audible mixer delivery once, CL/END separation, owners and commit/replay"
+  ]
+}
