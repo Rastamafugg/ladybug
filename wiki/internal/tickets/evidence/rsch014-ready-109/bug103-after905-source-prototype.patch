@@ -1,0 +1,32 @@
+--- a/src/shared_text_ranking.inc
++++ b/src/shared_text_ranking.inc
+@@ -1132,9 +1132,13 @@
+         ldx     #PRES_PENDING_NAME
+         ldy     #PRESENTATION_NAME_ENTRY_NAME_DST
+         bsr     draw_record_name
+-        lda #6
++        lda #1
+         sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_HIGHSCORE_BASE+3
++        tst PRES_INSERT
++        bne name_top_authority_ready
++        ldx #PRES_PENDING_NAME
++name_top_authority_ready
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
+         bsr     draw_record_name
+ draw_name_done
+@@ -1151,9 +1155,13 @@
+         ldx     #PRES_SCORE_H
+         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
+         bsr     draw_score
+-        lda #6
++        lda #1
+         sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_HIGHSCORE_BASE
++        tst PRES_INSERT
++        bne score_top_authority_ready
++        ldx #PRES_SCORE_H
++score_top_authority_ready
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
+         bsr     draw_score
+         bra draw_name_done

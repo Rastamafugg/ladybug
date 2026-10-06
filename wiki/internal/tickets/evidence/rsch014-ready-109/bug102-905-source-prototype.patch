@@ -1,0 +1,144 @@
+diff --git a/src/shared_text_ranking.inc b/src/shared_text_ranking.inc
+index 576caee..f6e92f3 100644
+--- a/src/shared_text_ranking.inc
++++ b/src/shared_text_ranking.inc
+@@ -1125,27 +1125,39 @@ render_name_screen
+         rts
+ 
+ draw_name_fields
++        lda PRES_NAME_TIMER_PHASE
++        pshs a
++        lda #6
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_PENDING_NAME
+         ldy     #PRESENTATION_NAME_ENTRY_NAME_DST
+-        lbsr    draw_record_name
++        bsr     draw_record_name
++        lda #6
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_HIGHSCORE_BASE+3
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
+-        lbsr    draw_record_name
++        bsr     draw_record_name
+ draw_name_done
++        puls a
++        sta PRES_NAME_TIMER_PHASE
++render_high_score
+         rts
+ 
+ draw_entry_scores
++        lda PRES_NAME_TIMER_PHASE
++        pshs a
++        lda #8
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_SCORE_H
+         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
+-        lbsr    draw_score
++        bsr     draw_score
++        lda #6
++        sta PRES_NAME_TIMER_PHASE
+         ldx     #PRES_HIGHSCORE_BASE
+         ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
+         bsr     draw_score
+-        ldx     #PRES_HIGHSCORE_BASE
+-        rts
++        bra draw_name_done
+ 
+-render_high_score
+-        rts                     ; fields were drawn during map preparation
+ ranking_slice
+         pshs b,x,y
+         lda #$34
+@@ -1187,8 +1199,7 @@ record_name_draw
+         rts
+ 
+ draw_score
+-        lda     #3
+-        sta     PRES_TMP_H
++        ldb     #3
+ score_byte
+         lda     #$34
+         sta     PAR5
+@@ -1198,22 +1209,20 @@ score_byte
+         lsra
+         lsra
+         lsra
+-        anda    #$0F
+         bsr     draw_digit
+         lda     PRES_TMP_L
+         anda    #$0F
+         bsr     draw_digit
+-        dec     PRES_TMP_H
++        decb
+         bne     score_byte
+         rts
+ draw_digit
++        pshs    b,x,y
+         tfr     a,b
+         ldu     #score_glyphs
+-        leau    b,u
+-        ldb     ,u
+-        pshs    x,y
++        ldb     b,u
+         jsr     PRES_MODULE_DRAW_TILE
+-        puls    x,y
++        puls    b,x,y
+         leay    4,y
+         rts
+ 
+@@ -1303,14 +1312,12 @@ capture_owner
+         ldu     #PRES_CURSOR_SAVE_B
+         ldx     PLAYER_FB
+         stx     PRES_NAME_PTR_B
+-        bsr     capture_cursor
+-        rts
++        bra     capture_cursor
+ capture_a
+         ldu     #PRES_CURSOR_SAVE_A
+         ldx     PLAYER_FB
+         stx     PRES_NAME_PTR_A
+-        bsr     capture_cursor
+-        rts
++        bra     capture_cursor
+ 
+ draw_cursor
+         ldx     PLAYER_FB
+diff --git a/src/shared_text_runtime.inc b/src/shared_text_runtime.inc
+index 5801f93..a80c628 100644
+--- a/src/shared_text_runtime.inc
++++ b/src/shared_text_runtime.inc
+@@ -86,9 +86,8 @@ graphic
+         ldb #32
+         mul
+         jsr SHARED_COLD_PTR
+-        tfr x,u
+-        tfr y,x
+-        tfr u,y
++        exg x,y
++        tfr y,u
+         jmp presentation_fast_blit
+ 
+ shared_mask
+@@ -201,7 +200,10 @@ dynamic_index
+         ifne TEXT_CONTEXT_COLOURS
+         lda $A6
+         cmpa #3
++        beq field_colour_ready
++        cmpa #5
+         bne colour_skip_3
++field_colour_ready
+         ldb $E8
+ colour_skip_3
+         endc
+@@ -228,9 +230,8 @@ dynamic_graphic
+         ldb #32
+         mul
+         jsr SHARED_COLD_PTR
+-        tfr x,u
+-        tfr y,x
+-        tfr u,y
++        exg x,y
++        tfr y,u
+         jmp presentation_fast_blit
+ 
+ ; Draw the committed first score and name on the gameplay/demo HUD.
