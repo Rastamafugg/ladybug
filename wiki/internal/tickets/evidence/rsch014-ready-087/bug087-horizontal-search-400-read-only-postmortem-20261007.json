@@ -1,0 +1,76 @@
+{
+  "schema": "bug087-horizontal-search-400-read-only-postmortem-v1",
+  "date": "2026-10-07",
+  "phase": "candidate-horizontal-displacement",
+  "status": "setup-incomplete-no-speed-result",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "runtime_attempt": {
+    "receipt": "current-root-candidate-horizontal-400-20261007.json",
+    "receipt_sha256": "5dc0563c2e9b1007966a760fa4819b308ac310b96cef74524a459c79c7ab12b4",
+    "authorization_sha256": "192ec83447c3c42aa9ade8ad527da46e70538722c5f813993737a3b4da7fc4c7",
+    "elapsed_seconds": 6.95863,
+    "setup_callbacks": 400,
+    "phase_deadline_seconds": 45,
+    "measurement_callbacks": 0,
+    "outcome": "Internal setup cap reached; wall-clock deadline not exhausted; no horizontal movement result."
+  },
+  "natural_part7_start": {
+    "box_index": 10,
+    "box_timer": 1,
+    "enemy_released": 0,
+    "enemy_active": 0,
+    "frames": 3142,
+    "fb_sim_seq": 268
+  },
+  "read_only_terminal_checkpoint": {
+    "monitor_state": "halted at enemy_tick_impl PC $088B",
+    "stage": 7,
+    "rate_addend": 51,
+    "rate_phase": 0,
+    "rate_frac": 16,
+    "death_state": 0,
+    "freeze_timer": 0,
+    "box_index": 52,
+    "box_timer": 3,
+    "enemy_released": 1,
+    "enemy_active": 1,
+    "frames": 3543,
+    "fb_sim_seq": 573,
+    "deltas": {"frames": 401, "fb_sim_seq": 305}
+  },
+  "active_enemy_records": [
+    {"slot": 0, "type": 97, "framebuffer_pointer": "$555C", "substep": 2, "cell": [8, 11], "saved_background_valid": 1, "direction": 2},
+    {"slot": 1, "active": 0},
+    {"slot": 2, "active": 0},
+    {"slot": 3, "active": 0}
+  ],
+  "gate_and_route_snapshot": {
+    "gate_state_bytes_hex": "0000010100000101000001010101010100000000",
+    "gate_owner_11_state_index_10": 1,
+    "gate_owner_14_state_index_13": 1,
+    "maze_cells": [
+      {"cell": [8, 11], "nav_mask": "0x05", "gate_owner": 0},
+      {"cell": [8, 12], "nav_mask": "0x0d", "gate_owner": 0},
+      {"cell": [8, 13], "nav_mask": "0x05", "gate_owner": 11},
+      {"cell": [8, 14], "nav_mask": "0x0f", "gate_owner": 0},
+      {"cell": [8, 15], "nav_mask": "0x15", "gate_owner": 14},
+      {"cell": [8, 16], "nav_mask": "0x07", "gate_owner": 0},
+      {"cell": [8, 17], "nav_mask": "0x05", "gate_owner": 0},
+      {"cell": [8, 18], "nav_mask": "0x0f", "gate_owner": 0}
+    ],
+    "first_hash_pinned_horizontal_route_at_or_beyond_cell_8_18": {"cell": [8, 18], "direction": "west", "clearance_pixels": 32},
+    "interpretation": "The sole active enemy is vertical at cell (8,11); it is not a qualifying horizontal actor. Two gate-owned cells lie on the south corridor before the nearest identified 30-pixel horizontal segment. Whether this actor reaches that segment under the current natural no-input setup is unresolved."
+  },
+  "reassessment": {
+    "two_setup_bound_failures": ["120 callbacks / 2.169104 seconds", "400 callbacks / 6.95863 seconds"],
+    "stop_and_reassess_threshold": "met; do not repeat a larger actor-search cap without a discriminating gate/route audit",
+    "next_discriminating_action": "Offline-audit enemy_direction_legal and the current gate orientation against the actor route to establish whether natural no-input Part-7 play can reach an eligible horizontal corridor. If it can, derive a bounded callback budget from the observed actor and route; if it cannot, prepare a setup-method change and review approval impact before runtime.",
+    "no_production_source_changed": true
+  },
+  "hashes": {
+    "adapter_sha256": "98322262b16cece9d417cca532d74373135e4e63ed26f65c43d6056792d76f9e",
+    "scenario_plan_sha256": "f7c3d4ed1613717651959757f936d25b148d8141fd4626ea5581d3e8bd060b64",
+    "candidate_identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+    "progression_receipt_sha256": "ea31d0416298e503d665eea68df8891263956480db94b7d0059848814bb1fb5a"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "schema": "feat005-current-root-instruction-writer-watch-20261007-v1",
+  "ticket": "FEAT-005",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "profile": "complete adaptive keyboard",
+  "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "enemy_runtime_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+  "presentation_runtime_sha256": "a5e161782a96c8ec9f7acd4560bf2877a3f3022fb6a7f1335fca216bd15ec2a4",
+  "cold_payload_sha256": "66a68b006752a21f9e0d98c2b61638256fd3797c2525889b8a3450d66b6b1451",
+  "probe_sha256": "98dcf08848adfb3ed65233aa2b5beaf835e08b7385f27de40b29fe77e5a39fc8",
+  "raw_result_sha256": "373858ea5c286441df81545a3b9101c56fd015b4e085c3109dcf25b6119bf0e3",
+  "probe_path": "worktrees/feat005-color-surface-prototype/repro/feat005/current-root-instruction-writer-watch/trace_instruction_writer.py",
+  "phase": {
+    "name": "current-root-instruction-motion-and-event-sequence",
+    "deadline_seconds_per_named_phase": 40,
+    "success_marker": "either a write-watchpoint hit at CPU $0A15 with register/pointer context, or completion of the existing instruction verifier sequence",
+    "timeout_meaning": "a missing phase marker within 40 seconds is inconclusive; it does not prove absence of a later mutation",
+    "input_injected": false,
+    "monitor_game_memory_writes": false
+  },
+  "result": "complete-instruction-sequence-no-target-write-observed",
+  "checks": {
+    "startup_instruction_runtime_matches_staged": true,
+    "row_motion_timer_range": [
+      128,
+      140
+    ],
+    "instruction_colour_changes_at_timers": [
+      33,
+      65,
+      97,
+      129
+    ],
+    "event_records_consumed": 16,
+    "death_angel_timer": 1639,
+    "completion_timer": 1704,
+    "level_trace_consumes": 16,
+    "level_trace_owners": 3,
+    "level_trace_colour_changes": 48,
+    "watchpoint_target_cpu_address": "$0A15",
+    "watchpoint_writes_observed": 0
+  },
+  "interpretation": "Current root ROM completes the existing instruction motion/event sequence without writing $0A15. The earlier write was observed on distinct candidate ROM 97e8b05a47c263c4bceb55552c9d30ee56e872140863afd0667999020a87a56e; that candidate observation is not evidence of a current-root write. This scenario does not cover other menu/gameplay paths.",
+  "performance_gate": "Current-root complete timing maximum remains 27450 cycles at timer 128 against the 27000-cycle target; this probe collected no timing samples.",
+  "production_changes": false,
+  "command": "wsl python3 /mnt/e/projects/ladybug/worktrees/feat005-color-surface-prototype/repro/feat005/current-root-instruction-writer-watch/trace_instruction_writer.py",
+  "phases": [
+    {
+      "name": "natural-instruction-entry",
+      "deadline_seconds": 40,
+      "marker": "presentation instructions_tick and byte-identical staged instruction runtime"
+    },
+    {
+      "name": "instruction-row-motion-and-colour",
+      "deadline_seconds": 40,
+      "marker": "row motion timers 128 through 140 with expected colour changes"
+    },
+    {
+      "name": "instruction-event-colour-sequence",
+      "deadline_seconds": 40,
+      "marker": "all 16 event records, death/complete boundaries, and level trace"
+    }
+  ],
+  "instrumentation": "Existing verifier breakpoint-assisted runtime sequence plus a write watchpoint; this does not replace the cold natural user-visible golden path.",
+  "qa_verdict": "Diagnostic evidence identity, receipt hashes, section structure and new relative links pass; ticket remains Verification because the separate measured timing target fails."
+}

@@ -1,0 +1,84 @@
+{
+  "schema": "bug087-horizontal-route-reassessment-v1",
+  "date": "2026-10-07",
+  "ticket": "BUG-087",
+  "status": "In Progress",
+  "risk_class": "High-risk",
+  "evidence": {
+    "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+    "candidate_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+    "adapter_sha256": "6fce0e1b5a1e24799c41cc1beec6c6b547a5d0f2aff0c2c6961d9c70a444f50f",
+    "scenario_plan_sha256": "930efc42b554658203a41fcf9fa71feb156be256a03e3868b1c4d043ca62d5b4",
+    "movement_receipt_sha256": "087996fa1563d470eaf04a890f3278bad281743f837f634992b0fe0f2fa3081a",
+    "postmortem_sha256": "e189d93d60297b86f477cfcfde9c2571af0603981c3476b079e6bfcac3c09825",
+    "maze_json_sha256": "76361237a90a555f2b78731c3975a209f569a53cb04705eb90d0aad427856048",
+    "enemy_runtime_source_sha256": "711be6f64836dddd0e7bb55299e6c16903a441303fa78fe597c9022ac1781d66",
+    "postmortem": {
+      "status": "postmortem-captured",
+      "baseline": {
+        "cell": [
+          12,
+          10
+        ],
+        "direction": 3,
+        "nav_mask": "/bin/bashF",
+        "fb_sim_seq": 568
+      },
+      "candidate": {
+        "cell": [
+          8,
+          10
+        ],
+        "direction": 2,
+        "nav_mask": "/bin/bash7",
+        "fb_sim_seq": 568
+      },
+      "same_actor_slot": 0,
+      "same_active_type": "1",
+      "death_state": [
+        0,
+        0
+      ]
+    },
+    "maze_geometry": {
+      "max_forced_horizontal_straight_cells": 5,
+      "max_forced_vertical_straight_cells": 7,
+      "candidate_cell_8_10_west_exit": false,
+      "source_contract": "bits 0-3 are N/E/S/W; enemy_direction_legal rejects a direction absent from the current cell mask"
+    }
+  },
+  "approval_proposal": {
+    "change": "Replace the paired same-direction 36-callback alignment gate with a candidate-side 24-callback displacement sample. Keep the paired baseline build and exact identity receipts for source/reference use, but do not require its actor to occupy the same route or remain in the same direction during the candidate sample.",
+    "preserves": "Approved arcade rate schedule, movement formula, one-pixel endpoint tolerance, Part-7 target addend, production scope, dependency order, and separate freeze/death/reversal checks.",
+    "measurement": {
+      "part": 7,
+      "candidate_addend": "3",
+      "start_rate_phase": 0,
+      "callbacks": 24,
+      "measured_carries_range": [
+        4,
+        5
+      ],
+      "admissions_for_both_carry_counts": 14,
+      "expected_candidate_displacement_pixels": 28,
+      "endpoint_tolerance_pixels": 1,
+      "baseline_fixed_alternating_reference_pixels": 24,
+      "reference_type": "formula projection, not a live measurement"
+    },
+    "success_marker": "A single exact candidate ROM remains on one legal horizontal direction for 24 real enemy callbacks, with active slot/type continuity, nonzero movement, at least one no-movement callback, complete rate/map identity, FRONT actor pixels, FB_SIM_SEQ, and FRAMES captured; candidate displacement is 28 pixels within one endpoint pixel.",
+    "timeout_meaning": "No qualifying candidate straight segment or required marker completed within 45 seconds; no cadence conclusion.",
+    "writes": "None during displacement sample; no actor, RNG, maze, gate, framebuffer, owner, or mapping changes.",
+    "dependencies_order": "BUG-086 actualDone; reuse current candidate current-root build; after protocol approval update only verifier/plan/evidence targets, regenerate the resolved plan, then rerun candidate natural-init and Part-7 progression under fresh authorization before the single displacement phase.",
+    "risks": "This removes baseline actor-route comparability from the movement sample; the candidate remains judged directly against the arcade-derived formula. The sample can still fail if the candidate turns or dies before 24 callbacks. No other part threshold is proved by this single Part-7 sample.",
+    "scope_exclusions": [
+      "No production 6809 source changes",
+      "No enemy AI or RNG changes",
+      "No maze/gate changes",
+      "No relaxed rate target or displacement tolerance",
+      "No change to freeze/death bypass or legal reversal acceptance",
+      "No change to the 27,000-cycle target"
+    ],
+    "cost_class": "High-risk; existing class and profile memory limits unchanged."
+  },
+  "decision_required": "Coding-architect guardrail requires explicit user approval before implementing this modified runtime-observation protocol."
+}

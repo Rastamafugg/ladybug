@@ -1,0 +1,42 @@
+diff --git a/src/presentation_runtime.s b/src/presentation_runtime.s
+index fbc687f..1f6c0c9 100644
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -3419,6 +3419,12 @@ colour_tile_skip
+ ; U selects a generated {count, delta, nibble-selector} stream and X selects
+ ; its 16x16 destination. Selectors 1/2/3 replace low/high/both nibbles.
+ colour_surface
++        lda     PRES_HIGHLIGHT
++        lsla
++        lsla
++        lsla
++        lsla
++        sta     PRES_VALUE
+         ldb     ,u+
+         stb     PRES_RUN
+ colour_surface_next
+@@ -3442,23 +3448,13 @@ colour_surface_selector
+         sta     ,x
+         bra     colour_surface_advance
+ colour_surface_high
+-        lda     PRES_HIGHLIGHT
+-        lsla
+-        lsla
+-        lsla
+-        lsla
+-        sta     PRES_VALUE
+         lda     ,x
+         anda    #$0F
+         ora     PRES_VALUE
+         sta     ,x
+         bra     colour_surface_advance
+ colour_surface_both
+-        lda     PRES_HIGHLIGHT
+-        lsla
+-        lsla
+-        lsla
+-        lsla
++        lda     PRES_VALUE
+         adda    PRES_HIGHLIGHT
+         sta     ,x
+ colour_surface_advance

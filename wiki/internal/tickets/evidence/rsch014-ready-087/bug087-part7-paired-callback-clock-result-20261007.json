@@ -1,0 +1,120 @@
+{
+  "schema": "bug087-paired-callback-clock-summary-20261007-v1",
+  "ticket": "BUG-087",
+  "status": "In Progress",
+  "risk_class": "High-risk",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "baseline_rom_sha256": "ef13933e1ace948c9c7b294cfc55ef44c14ba69b39a5e6f8fca392766cbbf869",
+  "candidate_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "baseline_identity_sha256": "018e0e24de66cc8d4ce7ca2e5964e7c1fd9ffb78052053b1b9ab118f1ee4bf15",
+  "candidate_identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+  "bug086_receipt_sha256": "f0846d9d0398b429c8db421edfe07bcd62b861424ce8c303e520ab3befb3e287",
+  "adapter_sha256": "4aeb8fc2b94a099383e7c03410e27952e3a92ed4bab9c45baa0c96dd6dfa1201",
+  "probe_path": "worktrees/bug087-current-root-baseline/repro/bug087-paired-callback-audit-current-root-20261007/probe-v2.py",
+  "probe_sha256": "44b77c219b23a4387dfff2e9d42500213c6dd228e7f0eb6e446553f784d94ab8",
+  "authorization_sha256": "f056e9713ee2e2b12146b86d421046b23a60ca0b2a40e304d746df894790b8e4",
+  "raw_result_path": "worktrees/bug087-current-root-baseline/build/runtime-ad1-keyboard/dispatch-current-root-v5/paired-callback-audit.json",
+  "raw_result_sha256": "4b3c7e7f57e70055127c3efee7ef9a7679801631441a37c5c0c8353b2d4d9f65",
+  "failed_observer_attempts": [
+    {
+      "path": "worktrees/bug087-current-root-baseline/build/runtime-ad1-keyboard/dispatch-current-root-v3/paired-callback-audit.json",
+      "sha256": "05230a7a138d0563625322436127c471280a919ac3e5f14a3a07ac2640167358",
+      "error": "Stale worktree adapter called Path.read_bytes on live enemy-module bytes."
+    },
+    {
+      "path": "worktrees/bug087-current-root-baseline/build/runtime-ad1-keyboard/dispatch-current-root-v4/paired-callback-audit.json",
+      "sha256": "f313bdc1d71e671b7a9f85e01da5c56e6b2a7df36db4e822f855e5d98fbe3973",
+      "error": "Observer used physical page $38 offset $008B instead of $38:$088B for callback code."
+    }
+  ],
+  "phase": {
+    "name": "part7-paired-callback-audit",
+    "deadline_seconds": 45,
+    "elapsed_seconds": 2.678811,
+    "paired_enemy_tick_callbacks": 120,
+    "success_marker": "120 paired callback snapshots with live callback code identity",
+    "writes": [],
+    "runtime_launched": false,
+    "direct_game_memory_writes": false
+  },
+  "starting_state": {
+    "baseline": {
+      "stage": 7,
+      "frames": 5027,
+      "fb_sim_seq": 1813,
+      "box_index": 36,
+      "box_timer": 2,
+      "enemy_active": 0,
+      "enemy_released": 0,
+      "rate_addend": 0
+    },
+    "candidate": {
+      "stage": 7,
+      "frames": 4880,
+      "fb_sim_seq": 1277,
+      "box_index": 14,
+      "box_timer": 2,
+      "enemy_active": 3,
+      "enemy_released": 6,
+      "rate_addend": 51
+    }
+  },
+  "measured_advances_over_120_pairs": {
+    "frames": {
+      "baseline": 122,
+      "candidate": 123,
+      "baseline_increments": {
+        "0": 18,
+        "1": 84,
+        "2": 16,
+        "3": 2
+      },
+      "candidate_increments": {
+        "0": 60,
+        "2": 58,
+        "3": 1,
+        "4": 1
+      }
+    },
+    "fb_sim_seq": {
+      "baseline": 102,
+      "candidate": 60,
+      "baseline_increments": {
+        "0": 18,
+        "1": 102
+      },
+      "candidate_increments": {
+        "0": 60,
+        "1": 60
+      }
+    },
+    "box_index": {
+      "baseline": 40,
+      "candidate": 40
+    },
+    "ending": {
+      "baseline": {
+        "frames": 5149,
+        "fb_sim_seq": 1915,
+        "box_index": 76,
+        "box_timer": 2,
+        "enemy_active": 0,
+        "enemy_released": 0
+      },
+      "candidate": {
+        "frames": 5003,
+        "fb_sim_seq": 1337,
+        "box_index": 54,
+        "box_timer": 2,
+        "enemy_active": 3,
+        "enemy_released": 6
+      }
+    }
+  },
+  "interpretation": "The pair was already state-diverged: baseline had no active/released enemies and candidate had three active/six released, so no matched displacement or movement-acceptance result is available. Across the bounded paired callbacks FRAMES totals were close (122 versus 123) and BOX_INDEX advanced equally (40 each), while FB_SIM_SEQ advanced 102 versus 60. This narrows the clock accounting but does not establish why the earlier population histories diverged or whether movement matches the arcade.",
+  "next_step": "Start a fresh, byte-verified natural Part-7 baseline/candidate pair, capture each true-init reset and player-entry state, then align a same active legal actor before horizontal/vertical displacement. Do not reuse the current divergent pair for movement acceptance.",
+  "production_changes": false,
+  "commit": null,
+  "capacity_change": null,
+  "runtime_acceptance": false
+}

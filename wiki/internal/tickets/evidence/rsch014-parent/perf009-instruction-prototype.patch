@@ -1,0 +1,31 @@
+diff --git a/src/instruction_runtime.s b/src/instruction_runtime.s
+index 19a8a40..c2252c2 100644
+--- a/src/instruction_runtime.s
++++ b/src/instruction_runtime.s
+@@ -253,18 +253,21 @@ consume_skull
+ 
+ ; Recolour all letter and heart targets. Consumed black cells remain black.
+ recolour_x
++; The X target has no preceding event lookup. Restore PAR5 to the shared
++; event/color cold page before directly indexing its colour-pointer table.
++        lda     PRES_WORK
++        lbsr    event_ptr_a
+         ldy     #$7F34          ; authored X root: column 13, row 19
+ 
+ ; Recolour the complete 2x2 authored surface through its generated sparse
+ ; nibble-selector stream. The stream excludes transparent and pink pixels.
+ recolour_target
+         sty     PRES_DST
+-        clra
++; event_ptr_a leaves PAR5 mapped to the shared event/color cold page.
++        ldx     #$A000+PRESENTATION_INSTRUCTION_COLOUR_POINTERS-PRESENTATION_INSTRUCTION_EVENT_OFFSET
+         ldb     PRES_WORK
+-        lslb
+-        rola
+-        addd    #PRESENTATION_INSTRUCTION_COLOUR_POINTERS
+-        jsr     PRES_MODULE_COLD_PTR
++        aslb
++        abx
+         ldd     ,x
+         jsr     PRES_MODULE_COLD_PTR
+         tfr     x,u

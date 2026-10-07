@@ -1,0 +1,275 @@
+--- a/src/main.s
++++ b/src/main.s
+@@ -1319,7 +1319,7 @@
+ 
+ draw_hud
+         ifne COMPLETE_PROFILE
+-        lbsr    draw_credit_hud
++        bsr     draw_credit_hud
+         endc
+         lda     #2
+         sta     HUD_Y
+@@ -1933,11 +1933,11 @@
+         lsla
+         leax    a,x
+         ldu     OBJ_CACHE_BASE
+-        lbsr    replay_entity_overlay_common
++        bsr     replay_entity_overlay_common
+         bra     de_next
+ de_rebind
+         ldu     OBJ_CACHE_BASE
+-        lbsr    replay_entity_overlay_common
++        bsr     replay_entity_overlay_common
+ de_next
+         ldx     ENTITY_PTR
+         leax    4,x
+@@ -2082,7 +2082,7 @@
+ repco_rebind_pair
+         ldb     ,u+
+         lda     ,u+
+-        lbsr    rebind_cache_value
++        bsr     rebind_cache_value
+         sta     -1,u
+         dec     OBJ_BYTES
+         bne     repco_rebind_pair
+@@ -4485,8 +4485,7 @@
+         rts
+ 
+ init_enemy
+-        jsr     ENEMY_MODULE_INIT
+-        rts
++        jmp     $A463           ; approved rate reset shim tail-calls enemy init
+ 
+ enemy_tick
+         jsr     ENEMY_MODULE_TICK
+@@ -4500,8 +4499,7 @@
+         rts
+ 
+ enemy_release
+-        jsr     ENEMY_MODULE_RELEASE
+-        rts
++        jmp     ENEMY_MODULE_RELEASE
+ 
+ enemy_collect
+         jsr     ENEMY_MODULE_COLLECT
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -327,12 +327,12 @@
+         endc
+ install_aux_runtime_copy
+         sta     PAR5
+-        ldy     #$0300
++        exg     u,y
++        ldu     #$0300
+ install_aux_runtime_byte
+         lda     ,x+
+-        sta     ,y+
+-        leau    -1,u
+-        cmpu    #0
++        sta     ,u+
++        leay    -1,y
+         bne     install_aux_runtime_byte
+         lda     #$34
+         sta     PAR5
+@@ -474,8 +474,7 @@
+         endc
+         lda     PRES_HOLD_STATE
+         bpl     load_tick_normal
+-        jsr     PRESENTATION_HOLD_TICK
+-        rts
++        jmp     PRESENTATION_HOLD_TICK
+ load_tick_normal
+         lda     #32
+         sta     PRES_ROWS
+@@ -591,10 +590,9 @@
+         bne     load_done_hold_second
+         lda     #1
+         sta     PRES_HOLD_OWNER
+-        lda     FB_FRONT_ID
+-        ldb     FB_BACK_ID
+-        stb     FB_FRONT_ID
+-        sta     FB_BACK_ID
++        ldd     FB_FRONT_ID
++        exg     a,b
++        std     FB_FRONT_ID
+         lda     PRES_SCREEN
+         ifne    COMPLETE_PROFILE
+         lbsr    start_screen_no_instruction_install
+@@ -605,10 +603,9 @@
+         rts
+ load_done_hold_second
+         orcc    #$10
+-        lda     FB_FRONT_ID
+-        ldb     FB_BACK_ID
+-        stb     FB_FRONT_ID
+-        sta     FB_BACK_ID
++        ldd     FB_FRONT_ID
++        exg     a,b
++        std     FB_FRONT_ID
+         andcc   #$EF
+         jsr     PRES_MAIN_FB_PUBLISH
+         lda     #PRES_HOLD_FINAL
+@@ -655,9 +652,9 @@
+         ldy     PRES_DST
+         jsr    draw_tile_id
+ draw_cell_advance
+-        ldd     PRES_DST
+-        addd    #4
+-        std     PRES_DST
++        ldx     PRES_DST
++        leax    4,x
++        stx     PRES_DST
+         rts
+ 
+ draw_tile_id equ PRES_MAIN_STATIC_TEXT
+@@ -686,19 +683,18 @@
+ 
+ ; Return X as a CPU pointer into the cold physical page selected by D.
+ draw_raw_tile
+-        jsr     cold_ptr
++        bsr     cold_ptr
+         exg     x,y
+         jmp     BLIT_TILE
+ 
+ cold_ptr
+         tfr     d,x
+         tfr     a,b
+-        andb    #$E0
+-        lsrb
+-        lsrb
+-        lsrb
+-        lsrb
+-        lsrb
++        rolb
++        rolb
++        rolb
++        rolb
++        andb    #7
+         addb    #PRESENTATION_COLD_PAGE
+         stb     PAR5
+         tfr     x,d
+@@ -709,9 +705,9 @@
+ 
+ cold_read_byte
+         ldd     <PRES_IN
+-        addd    #1
+-        std     <PRES_IN
+-        subd    #1
++        ldx     <PRES_IN
++        leax    1,x
++        stx     <PRES_IN
+         bsr     cold_ptr
+         lda     ,x
+         rts
+@@ -1646,8 +1642,7 @@
+         lda     ,x
+         sta     PAR5
+         ldx     PRES_DST
+-        jsr     PRESENTATION_MODULE_DRAW
+-        rts
++        jmp     PRESENTATION_MODULE_DRAW
+ 
+ ; Recolour each nonzero packed pixel pair in the selected instruction cell.
+ colour_tile
+@@ -2103,12 +2098,12 @@
+         endc
+ install_aux_runtime_copy
+         sta     PAR5
+-        ldy     #$0300
++        exg     u,y
++        ldu     #$0300
+ install_aux_runtime_byte
+         lda     ,x+
+-        sta     ,y+
+-        leau    -1,u
+-        cmpu    #0
++        sta     ,u+
++        leay    -1,y
+         bne     install_aux_runtime_byte
+         lda     #$34
+         sta     PAR5
+@@ -2226,8 +2221,7 @@
+ load_tick
+         lda     PRES_HOLD_STATE
+         bpl     load_tick_normal
+-        jsr     PRESENTATION_HOLD_TICK
+-        rts
++        jmp     PRESENTATION_HOLD_TICK
+ load_tick_normal
+         lda     #32
+         sta     PRES_ROWS
+@@ -2323,19 +2317,17 @@
+         bne     load_done_hold_second
+         lda     #1
+         sta     PRES_HOLD_OWNER
+-        lda     FB_FRONT_ID
+-        ldb     FB_BACK_ID
+-        stb     FB_FRONT_ID
+-        sta     FB_BACK_ID
++        ldd     FB_FRONT_ID
++        exg     a,b
++        std     FB_FRONT_ID
+         lda     PRES_SCREEN
+         lbsr    start_screen
+         rts
+ load_done_hold_second
+         orcc    #$10
+-        lda     FB_FRONT_ID
+-        ldb     FB_BACK_ID
+-        stb     FB_FRONT_ID
+-        sta     FB_BACK_ID
++        ldd     FB_FRONT_ID
++        exg     a,b
++        std     FB_FRONT_ID
+         andcc   #$EF
+         jsr     PRES_MAIN_FB_FINISH
+         lda     #PRES_HOLD_FINAL
+@@ -2374,9 +2366,9 @@
+ draw_cell
+         ldy     PRES_DST
+         lbsr    draw_tile_id
+-        ldd     PRES_DST
+-        addd    #4
+-        std     PRES_DST
++        ldx     PRES_DST
++        leax    4,x
++        stx     PRES_DST
+         rts
+ 
+ draw_tile_id
+@@ -2439,19 +2431,18 @@
+ 
+ ; Return X as a CPU pointer into the cold physical page selected by D.
+ draw_raw_tile
+-        jsr     cold_ptr
++        bsr     cold_ptr
+         exg     x,y
+         jmp     BLIT_TILE
+ 
+ cold_ptr
+         tfr     d,x
+         tfr     a,b
+-        andb    #$E0
+-        lsrb
+-        lsrb
+-        lsrb
+-        lsrb
+-        lsrb
++        rolb
++        rolb
++        rolb
++        rolb
++        andb    #7
+         addb    #PRESENTATION_COLD_PAGE
+         stb     PAR5
+         tfr     x,d
+@@ -3398,8 +3389,7 @@
+         lda     ,x
+         sta     PAR5
+         ldx     PRES_DST
+-        jsr     PRESENTATION_MODULE_DRAW
+-        rts
++        jmp     PRESENTATION_MODULE_DRAW
+ 
+ ; Recolour each nonzero packed pixel pair in the selected instruction cell.
+ colour_tile

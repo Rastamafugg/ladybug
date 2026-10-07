@@ -1,0 +1,273 @@
+{
+  "schema": "bug087-mainloop-lifecycle-20261007-v1",
+  "ticket": "BUG-087",
+  "phase": "cold-candidate-mainloop-lifecycle",
+  "candidate_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "candidate_identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+  "xroar_path": "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+  "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+  "monitor_port": 17687,
+  "deadline_seconds": 15,
+  "success_marker": "fresh exact candidate process reaches resident mainloop within 12 seconds; runtime resident bytes match source/build before PC is interpreted; process and monitor remain available for a read-only state query",
+  "timeout_meaning": "mainloop marker or response was not observed within this monitor diagnostic; no gameplay or movement-speed conclusion follows",
+  "direct_game_memory_writes": false,
+  "input_injected": false,
+  "status": "pass-mainloop-marker-process-alive",
+  "xroar_pid": 20704,
+  "run_ack": {
+    "ok": true
+  },
+  "wait_record": {
+    "request_id": 4,
+    "method": "wait_for_stop",
+    "params": {
+      "timeout_ms": 11000
+    },
+    "outcome": "ok",
+    "error": null,
+    "response_envelope": {
+      "jsonrpc": "2.0",
+      "id": 4,
+      "result": {
+        "reason": "breakpoint",
+        "pc": 49430,
+        "bp_id": 1
+      }
+    },
+    "elapsed_seconds": 2.601842
+  },
+  "mainloop_pc": "$C116",
+  "breakpoint_id": 1,
+  "mainloop_bytes_hex": "130d9126fbbd0a00",
+  "resident_image_proof": {
+    "bank1_source_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_source_matches_runtime_artifact": true,
+    "bank1_destination_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_source_matches_destination": true,
+    "bank1_usable_payload_bytes": 15872,
+    "bank1_logical_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_logical_matches_destination": true,
+    "resident_sha256": "0ff7c801302510e7bc4f7fde8f764e8f1bfd6c85b39239d7b35515d8ea05c103",
+    "resident_matches": true,
+    "PAR6": 62,
+    "PAR7": 63,
+    "rate_helper_sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+    "rate_helper_matches": true,
+    "e2_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "e2_helper_matches": true
+  },
+  "durable_state": {
+    "state": "halted",
+    "last_stop_reason": "breakpoint",
+    "last_stop_pc": 49430,
+    "last_stop_bp_id": 1
+  },
+  "process_exit_after_marker": null,
+  "process_exit_after_250ms": null,
+  "process_alive_after_marker": true,
+  "elapsed_seconds": 2.939786,
+  "monitor_audit": {
+    "monitor_call_count": 14,
+    "monitor_call_ledger_sha256": "8b1c0d44e77c11128c4ee2d5ba5e84ff42175a04ef59c6b359ade635a4723a4f",
+    "last_monitor_calls": [
+      {
+        "request_id": 7,
+        "method": "read_memory",
+        "params": {
+          "addr": 65446,
+          "length": 1
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 7,
+          "result": {
+            "space": "cpu",
+            "addr": 65446,
+            "length": 1,
+            "data": {
+              "bytes": 1,
+              "sha256": "62b67e1f685b7fef51102005dddd27774be3fee38c42965c53aab035d0b6b221"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000273
+      },
+      {
+        "request_id": 8,
+        "method": "read_memory",
+        "params": {
+          "addr": 65447,
+          "length": 1
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 8,
+          "result": {
+            "space": "cpu",
+            "addr": 65447,
+            "length": 1,
+            "data": {
+              "bytes": 1,
+              "sha256": "8a8de823d5ed3e12746a62ef169bcf372be0ca44f0a1236abc35df05d96928e1"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000286
+      },
+      {
+        "request_id": 9,
+        "method": "read_memory",
+        "params": {
+          "addr": 49152,
+          "length": 8192
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 9,
+          "result": {
+            "space": "cpu",
+            "addr": 49152,
+            "length": 8192,
+            "data": {
+              "bytes": 8192,
+              "sha256": "0ff7c801302510e7bc4f7fde8f764e8f1bfd6c85b39239d7b35515d8ea05c103"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000509
+      },
+      {
+        "request_id": 10,
+        "method": "read_memory",
+        "params": {
+          "addr": 57344,
+          "length": 7680
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 10,
+          "result": {
+            "space": "cpu",
+            "addr": 57344,
+            "length": 7680,
+            "data": {
+              "bytes": 7680,
+              "sha256": "64f756b336bbdc923cefe6fe859165265c175d4cbed4308162869c3a07ce03d9"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000513
+      },
+      {
+        "request_id": 11,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 426928,
+          "length": 185
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 11,
+          "result": {
+            "space": "physical",
+            "addr": 426928,
+            "length": 185,
+            "data": {
+              "bytes": 185,
+              "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000375
+      },
+      {
+        "request_id": 12,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 428192,
+          "length": 87
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 12,
+          "result": {
+            "space": "physical",
+            "addr": 428192,
+            "length": 87,
+            "data": {
+              "bytes": 87,
+              "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000307
+      },
+      {
+        "request_id": 13,
+        "method": "read_memory",
+        "params": {
+          "addr": 49430,
+          "length": 8
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 13,
+          "result": {
+            "space": "cpu",
+            "addr": 49430,
+            "length": 8,
+            "data": {
+              "bytes": 8,
+              "sha256": "ff0f7a71e2d33434a464d97aa26eb64ab4ac8832fda13bc629e0ad9fb1b0bffb"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000292
+      },
+      {
+        "request_id": 14,
+        "method": "get_run_state",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 14,
+          "result": {
+            "state": "halted",
+            "last_stop_reason": "breakpoint",
+            "last_stop_pc": 49430,
+            "last_stop_bp_id": 1
+          }
+        },
+        "elapsed_seconds": 0.000213
+      }
+    ]
+  },
+  "owned_process_cleanup": "terminated-after-diagnostic",
+  "process_returncode_after_cleanup": -15,
+  "xroar_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "xroar_log_tail": "",
+  "receipt_created_utc_date": "2026-10-07",
+  "prior_setup_attempt": {
+    "receipt": "bug087-mainloop-lifecycle-first-attach-failure-20261007.json",
+    "sha256": "542a3fda3c87b622582afa67a69dc0bbc16c41e58fb33b87157f879cbc721d8c",
+    "meaning": "client attachment failed before run or breakpoint; readiness mechanics were corrected before the successful rerun"
+  }
+}

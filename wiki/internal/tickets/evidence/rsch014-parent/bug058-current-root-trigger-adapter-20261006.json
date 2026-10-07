@@ -1,0 +1,90 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-10-06",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "current_build": {
+    "profile": "complete",
+    "input": "keyboard",
+    "source_build_receipt_sha256": "43b33e655a0c005eb6a51a3f0f2351186152721a9212b3f74702a0974191fc8c",
+    "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e"
+  },
+  "base_verifier": {
+    "path": "repro/bug058_published_trigger_full_cap.py",
+    "sha256": "5469d27d2f4800f4176e452596f682d6c1e36733e22013177e555433ce26485f"
+  },
+  "temporary_adapter": {
+    "path": "worktrees/feat005-color-surface-prototype/repro/bug058_published_trigger_current_20261006.py",
+    "sha256": "298a647f58f37d834182ff2f677944afdcdbe4d1516fcb1d50b8d534799ff6c6"
+  },
+  "changes": [
+    "Build directory redirected from stale repro/bug058-cap-current/build to current root build/",
+    "Start-game input changed from obsolete key 1 to Enter scan code $30 after adding a credit."
+  ],
+  "probe": {
+    "phase": "cold installed adaptive game and real foreground worklist",
+    "success_marker": "natural publication returns and exact helper/phase code; then elapsed audio returns to $18FC",
+    "deadline_seconds": 45,
+    "timeout_meaning": "requested boundary absent, not proof of slowdown"
+  },
+  "initial_attempt": {
+    "status": "incomplete",
+    "receipt": "wiki/internal/tickets/evidence/rsch014-parent/bug058-current-root-trigger-20261006.json",
+    "reason": "old key-1 start input timed out before credited gameplay; monitor cleanup then reported target_running."
+  },
+  "corrected_attempt": {
+    "status": "scoped-pass",
+    "receipt": "wiki/internal/tickets/evidence/rsch014-parent/bug058-current-root-trigger-rerun-20261006.json",
+    "receipt_sha256": "f51308a6ee3e67ee7c793505648360c549751ed8a19368e41b6222b6244275e5",
+    "samples": {
+      "natural_cold_demo_publication": 8,
+      "natural_credited_entry_and_steady": 10,
+      "controlled_release_rows_per_enemy_count": 3,
+      "controlled_four_enemy_quiet": 8,
+      "controlled_four_roaming": 8
+    },
+    "three_enemy": {
+      "cycle_range": [
+        43066,
+        68575
+      ],
+      "logical_steps_each": 2,
+      "debt_each": 0,
+      "fault_each": 0,
+      "owners": [
+        0,
+        1
+      ]
+    },
+    "four_enemy_quiet": {
+      "cycle_range": [
+        38867,
+        51260
+      ],
+      "owners": [
+        0,
+        1
+      ]
+    },
+    "four_enemy_roaming": {
+      "cycle_range": [
+        39622,
+        44538
+      ],
+      "owners": [
+        0,
+        1
+      ]
+    }
+  },
+  "cycle_target": {
+    "maximum": 27000,
+    "result": "miss",
+    "reason": "all reported enemy worklist maxima exceed target; three-enemy peak is 68575 cycles."
+  },
+  "limitations": [
+    "Controlled legal releases follow natural credited entry; no natural earning claim.",
+    "Null audio backend; no visible audio crossover.",
+    "These are scoped worklists, not a whole-game maximum.",
+    "No production source changes."
+  ]
+}

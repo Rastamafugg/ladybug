@@ -1,0 +1,84 @@
+{
+  "schema": "perf009-joystick-fit-qualification-v1",
+  "date": "2026-10-07",
+  "status": "full-build-and-nine-static-screens-pass",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "production_target": "src/instruction_runtime.s",
+  "prototype_source_sha256": "4ad1d65e6d8370c382bfbae42ee33abff6bba4418ddcdaf6ba07dfa532943c05",
+  "joystick_rom_sha256": "792129cd4df4df72a2d8fe394a61a2bfb085d6db37148de53e8de92fff0e32fb",
+  "joystick_build_receipt_sha256": "584311c66a1a2afd8e86c2f807b598cabb1c00bd611c598427e3b8ffae5825f9",
+  "build_log_sha256": "3b56d4a20ca425bd4b37780b5f4444918ad6d82a4312ffd09a1c5727897dde90",
+  "build_exit_code": 0,
+  "keyboard_rom_sha256": "a4c6de907b5dfeda76e6040f174ee93ecf468cf5243b4554f2c584510be726ad",
+  "keyboard_instruction_sha256": "0caa69abdd22ab5b9d2d951f7dad9ac3b50ccab8207d347c9fb724ce12be411e",
+  "joystick_instruction_sha256": "64854ef8b4d9d5b3d477ed907753d7f3f19224a5980e60ef76a5678b73eefd1c",
+  "capacity": {
+    "presentation_limit": 1280,
+    "banked_limit": 698,
+    "banked_bytes": 696,
+    "resident_limit": 8192,
+    "resident_bytes": 8185,
+    "assets_limit": 7680,
+    "instruction_slot_bytes": 938,
+    "mapped_bytes": 198,
+    "mapped_limit": 220,
+    "instruction_authored_bytes": 936,
+    "assets_bytes": 7671,
+    "presentation_bytes": 1262
+  },
+  "mapping": {
+    "event_offset": 8192,
+    "event_count": 16,
+    "cold_page": 59,
+    "pointer_offset": 8384,
+    "event_bytes": 12,
+    "pointer_bytes": 32,
+    "cpu_table": 41152
+  },
+  "limits": [
+    "Isolated prototype qualification; not integrated acceptance",
+    "Natural full sequence pixel replay remains required",
+    "Combined BUG-110 capacity qualification remains required"
+  ],
+  "instruction_bytes_identical_between_inputs": false,
+  "static_audit_exit_code": 0,
+  "static_audit_log_sha256": "755a4054dd755ea6b7651a95e53feec8e7e3bedae74069d8a7a4658ae0f3d608",
+  "instruction_input_differences": [
+    {
+      "keyboard_target": 54741,
+      "address": 1523,
+      "joystick_target": 54777,
+      "role": "restore_player JSR operand"
+    },
+    {
+      "keyboard_target": 54700,
+      "address": 1533,
+      "joystick_target": 54736,
+      "role": "save_player JSR operand"
+    },
+    {
+      "keyboard_target": 54700,
+      "address": 1652,
+      "joystick_target": 54736,
+      "role": "save_player JSR operand"
+    }
+  ],
+  "relocated_callee_bodies": [
+    {
+      "bytes": 41,
+      "routine": "save_player",
+      "joystick_address": 54736,
+      "exact": true,
+      "sha256": "a53e778cb4030d70cf0e5f04b3c2e2e76b75c31d6815730a26a567ded6d2da94",
+      "keyboard_address": 54700
+    },
+    {
+      "bytes": 33,
+      "routine": "restore_player",
+      "joystick_address": 54777,
+      "exact": true,
+      "sha256": "a595665e2f6d86a9086d4138dc8e65af0e938c7a448e92f9210743deef5fb628",
+      "keyboard_address": 54741
+    }
+  ]
+}

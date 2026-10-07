@@ -1,0 +1,70 @@
+{
+  "schema": "bug087-reversal-monitor-reassessment-20261007-v1",
+  "ticket": "BUG-087",
+  "date": "2026-10-07",
+  "status": "runtime-observer-unresolved",
+  "candidate_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "runtime_acceptance": false,
+  "fixture_reached": false,
+  "direct_game_memory_writes": false,
+  "input_injected": false,
+  "phase_contract": {
+    "success_marker": "slot0 active at (6,4), westbound, substep0; gate0=0; another active legal actor; halted at verified enemy_tick_impl",
+    "deadline_seconds": 45,
+    "timeout_meaning": "no callback marker was observed within the bounded monitor phase; this is not proof that the actor route is unreachable or that no game callback executed"
+  },
+  "attempts": [
+    {
+      "receipt": "current-root-legal-reversal-fixture-setup-candidate-v2-20261007.json",
+      "receipt_sha256": "71b6c484ac263f3ce00c86b100fdb13827052f9ad5291c32f79789a1c39ac9dc",
+      "monitor_port": 17686,
+      "start": "halted at enemy_tick_impl $088B; current candidate runtime images matched the build",
+      "run_acknowledged": true,
+      "wait_for_stop_timeout_ms": 1,
+      "observer_result": "client timed out after 2.008 seconds without a response envelope",
+      "interpretation": "rejected setup mechanics: a 2-second adapter wait cap was converted to a 1 ms server wait; no runtime marker or movement result"
+    },
+    {
+      "receipt": "current-root-legal-reversal-fixture-setup-candidate-v3-20261007.json",
+      "receipt_sha256": "34665961ac1996ed4d4bc57dd1a890af1151b873350f3380d71a88816bb3f64f",
+      "monitor_port": 17681,
+      "start": "Part 7, no active enemies, box index 50; halted at verified enemy_tick_impl $088B",
+      "run_acknowledged": true,
+      "wait_for_stop_timeout_ms": 42000,
+      "observer_result": "client timed out after 44.000 seconds without a response envelope; zero callback markers were observed",
+      "receipt_issue": "the raw receipt writer raised UnboundLocalError after the wait timeout; the observer failure is established by the hashed monitor-call ledger",
+      "followup": "XRoar process and monitor listener were absent on the subsequent process/port check"
+    },
+    {
+      "receipt": "current-root-legal-reversal-fixture-setup-candidate-v4-20261007.json",
+      "receipt_sha256": "a2016cb4b2762e8f0fa2fa4c23f7ce8ef075ff38c8f64e0289f214735a666d9f",
+      "monitor_port": 17667,
+      "start": "Part 7, three active enemies, six released; halted at verified enemy_tick_impl $088B",
+      "run_acknowledged": true,
+      "wait_for_stop_timeout_ms": 42000,
+      "observer_result": "client timed out after 44.001 seconds without a response envelope; zero callback markers were observed",
+      "followup": "XRoar process and monitor listener were absent on the subsequent process/port check"
+    }
+  ],
+  "source_and_route_audit": {
+    "receipt": "bug087-reversal-route-reachability-20261007.json",
+    "receipt_sha256": "6df8b757426bd7a5f15b71cc5f476415547b8dffee81fe859157e0e8ce206460",
+    "result": "slot0's observed start at (22,10), direction south, has a legal route to a northbound arrival at (6,4) in 46 minimum cell transitions under the captured gate state; west is legal and nonreverse there, and the approved westbound segment reaches (4,4), where east is the sole exit",
+    "limit": "existential offline route only; no RNG sequence, callback timing, finite-window, or live displacement result"
+  },
+  "observer_reassessment": {
+    "confirmed": [
+      "the candidate identity and runtime enemy module matched at each setup start",
+      "the second and third runs failed even though one began with three active enemies",
+      "the long wait_for_stop requests did not return their requested timeout result",
+      "the monitor target was no longer reachable after those phases"
+    ],
+    "unresolved": [
+      "why run did not return an enemy_tick_impl stop event",
+      "why the candidate XRoar process/listener disappeared after the long wait",
+      "whether the emulator process crashed, exited through another path, or was stopped externally"
+    ],
+    "next_discriminator": "On a fresh exact candidate process, validate a short breakpoint at an always-reached mainloop marker and capture the XRoar process exit/log state before attempting another enemy callback search. Do not reuse a long unobserved run."
+  },
+  "status_scope": "BUG-087 remains In Progress, High-risk; the approved legal-reversal runtime check is still required"
+}

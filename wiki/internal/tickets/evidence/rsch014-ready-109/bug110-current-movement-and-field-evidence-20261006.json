@@ -1,0 +1,42 @@
+{
+  "schema": "rsch014-bug110-current-movement-and-field-evidence-v1",
+  "date": "2026-10-06",
+  "status": "PASS-CURRENT-NAME-CARDINAL-STACK-REVERSAL-LATE-TURN",
+  "qualification_scope": "Current unintegrated combined prototype only; movement, stack, reversal, late-turn, ranking display regression and input precondition.",
+  "rom_sha256": "97e2892c7d6aa97912ce268ef2a0f5c374ba0fbc62ccfeee45572cfdba4f439e",
+  "source_report_sha256": "4a908f39da1c4c1ae62257484d732aca3a12c90855b94579635c71374ab2a53c",
+  "source_report": "worktrees/rsch014-root-qualification/repro/ready-menu-gdb/current-combined-ad1-movement-valid-state-blank-gap-20261006.json",
+  "movement": {
+    "actual_remapped_cardinal_calls": 8,
+    "allowed": 4,
+    "blocked": 4,
+    "all_returns_and_zero_flags_consistent": true,
+    "all_natural_rts_restore_caller_stack": true,
+    "active_reversal": "actual caller updates target/heading while keeping physical point",
+    "perpendicular_late_turn": "actual resident caller admits perpendicular turn with compiled boolean mask",
+    "control_mapping": "disclosed previously UI-tested W/S/A/D/Space mapping; actual remapped host edges",
+    "route_limit": "Legal cursor/progress predecessors are fixtures. No natural traversal of every name route claimed."
+  },
+  "name_and_ranking_regression": {
+    "rows": 9,
+    "owners": [
+      0,
+      1
+    ],
+    "score_cells": 108,
+    "name_cells": 126,
+    "mismatches": 0,
+    "sequence": "Naturally credited high-score menu before gameplay/name entry; no record fixture."
+  },
+  "input_fixture": {
+    "natural_name_mode_entry_state": 0,
+    "test_fixture_entry_state": 0,
+    "reason": "the earlier observer forced qualifying game over before automatic marker-to-maze entry completed; read_joystick deliberately suppresses direction while INITIAL_ENTRY_STATE is active"
+  },
+  "interpretation": "An earlier standalone input sample occurred while automatic marker entry was active (INITIAL_ENTRY_STATE=1), where source intentionally suppresses direction. This current natural name-entry run recorded state 0 before movement; the earlier sample was an invalid probe precondition, not a confirmed game defect.",
+  "limitations": [
+    "This ROM is an unintegrated combined prototype, not a post-BUG-108 integrated assignment build.",
+    "Current ticket retains BUG-108 integration as a hard prerequisite for Ready.",
+    "Passing movement and ranking regression do not establish integrated BUG-110 acceptance or Done."
+  ]
+}

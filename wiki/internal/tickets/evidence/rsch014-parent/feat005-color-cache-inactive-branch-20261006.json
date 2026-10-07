@@ -1,0 +1,70 @@
+{
+  "ticket": "FEAT-005",
+  "date": "2026-10-06",
+  "result": "rejected_no_effect",
+  "class": "High-risk",
+  "baseline_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "worktree": "worktrees/feat005-color-surface-prototype",
+  "worktree_gitignored": true,
+  "prototype_scope": [
+    "src/presentation_runtime.s"
+  ],
+  "candidate_source_sha256": "68c4a2e3e30f54dc9f7acd4560bf2877a3f3022fb6a7f1335fca2163ae017200a",
+  "patch_path": "wiki/internal/tickets/evidence/rsch014-parent/feat005-color-cache-inactive-branch-20261006.patch",
+  "patch_sha256": "899485bf22bff0fce6e8281373261cd2de4e1bdccea5b2af4cb74ff1ed476220",
+  "build": {
+    "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard scripts/build.sh build",
+    "profile": "complete",
+    "input": "keyboard",
+    "result": "pass",
+    "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+    "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+    "baseline_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+    "presentation_module_sha256": "a5e161782a96c8ec9f7acd4560bf2877a3f3022fb6a7f1335fca216bd15ec2a4",
+    "baseline_presentation_module_sha256": "a5e161782a96c8ec9f7acd4560bf2877a3f3022fb6a7f1335fca216bd15ec2a4",
+    "source_build_receipt_sha256": "585f5a7dbbbc4e78e778bedb3117a5d37f91b30e3b6f49fb7d14b13b4dc5712d",
+    "capacity_bytes": {
+      "resident": {
+        "used": 8149,
+        "limit": 8192,
+        "free": 43
+      },
+      "assets": {
+        "used": 7671,
+        "limit": 7680,
+        "free": 9
+      },
+      "presentation_module": {
+        "used": 1262,
+        "limit": 1280,
+        "free": 18
+      },
+      "instruction_runtime": {
+        "used": 935,
+        "limit": 938,
+        "free": 3
+      }
+    },
+    "checks": [
+      "complete source build",
+      "sparse/presentation proofs",
+      "9-screen shared-text pixel-exact verification",
+      "source reference coverage",
+      "source documentation coverage"
+    ]
+  },
+  "assembly_target_audit": {
+    "mapped_active_symbol": "PRES_MODULE_COLOUR_SURFACE",
+    "active_address": "$1DAE",
+    "active_source_line": 1674,
+    "active_opcode_at_entry": "E6C0",
+    "edited_source_line": 3421,
+    "edited_branch_address": "$1DEE",
+    "edited_branch_emitted_opcode_bytes": false
+  },
+  "runtime_test": {
+    "status": "not_run",
+    "reason": "Candidate ROM and presentation module are byte-identical to baseline; no executable behavior changed."
+  },
+  "conclusion": "The prototype edited an inactive legacy branch. It has no performance effect and does not satisfy the 27000-cycle target."
+}

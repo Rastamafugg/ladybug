@@ -1,0 +1,54 @@
+{
+  "schema": "bug087-horizontal-route-budget-v1",
+  "date": "2026-10-07",
+  "phase": "candidate-horizontal-displacement",
+  "status": "route-audit-complete-next-runtime-prepared",
+  "candidate_identity_source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "inputs": {
+    "400_callback_phase_receipt_sha256": "5dc0563c2e9b1007966a760fa4819b308ac310b96cef74524a459c79c7ab12b4",
+    "read_only_postmortem_sha256": "76915909dbe46cf8bd34aa1b153b48cc0492e7ff36810ae2d40e41ab45b4ef4a",
+    "maze_json_sha256": "76361237a90a555f2b78731c3975a209f569a53cb04705eb90d0aad427856048"
+  },
+  "retained_runtime_start": {
+    "stage": 7,
+    "rate_addend": 51,
+    "rate_phase": 0,
+    "rate_frac": 16,
+    "death_state": 0,
+    "freeze_timer": 0,
+    "enemy_record": {"slot": 0, "type": 97, "cell": [8, 11], "substep": 2, "direction": 2}
+  },
+  "gate_path_audit": {
+    "gate_owner_11": {"maze_gate_id": 10, "pivot": [7, 13], "state": 1, "target_cell": [8, 13], "south_move_allowed_by_enemy_direction_legal": true},
+    "gate_owner_14": {"maze_gate_id": 13, "pivot": [9, 15], "state": 1, "target_cell": [8, 15], "south_move_allowed_by_enemy_direction_legal": true},
+    "path_cells": [[8, 11], [8, 12], [8, 13], [8, 14], [8, 15], [8, 16], [8, 17], [8, 18]],
+    "qualifying_horizontal_targets": [
+      {"cell": [8, 18], "direction": "west", "straight_clearance_pixels": 32},
+      {"cell": [10, 18], "direction": "east", "straight_clearance_pixels": 40}
+    ],
+    "input_requirement": "No player input is required for the audited southbound gate passage."
+  },
+  "callback_budget_projection": {
+    "admissions_to_cell_8_18_west": 26,
+    "admissions_to_cell_10_18_east": 34,
+    "rate_oracle_addend": 51,
+    "starting_fraction": 16,
+    "starting_phase": 0,
+    "callbacks_for_60_case": 60,
+    "fractional_carries_in_60_callbacks": 12,
+    "expected_admissions_in_60_callbacks": 36,
+    "setup_search_cap": 500,
+    "setup_projection_margin_callbacks": 40,
+    "separate_measurement_callbacks": 24,
+    "phase_deadline_seconds": 45,
+    "classification": "source-derived projection from the retained live actor and rate state, not a runtime result"
+  },
+  "scope": "The cap is an execution-detail correction after two bounded setup failures. It changes no approved production target, 24-callback measurement, arcade oracle, one-pixel tolerance, or 45-second phase deadline.",
+  "offline_validation": {"adapter_self_test": "PASS", "resolved_plan": "dispatchable; 7 phases"},
+  "hashes": {
+    "adapter_sha256": "94bef4926d80744bac201722d7321ab892d8ae0ccdf50a6f7a99119955277c39",
+    "scenario_plan_sha256": "1338cbcaa94236aa089950507462114a91f94e0880172ef8c641d4fcd82ce222",
+    "resolved_plan_sha256": "f56d7df0b9825d6b3143064669b19c905c35627511fa2123e2106f14004d4d69"
+  },
+  "runtime_under_new_hashes": "not run; fresh natural-init and progression authorization/receipts required before candidate horizontal dispatch"
+}

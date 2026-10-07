@@ -1,0 +1,85 @@
+{
+  "schema": "feat005-live-writer-watchpoint-20261007-v1",
+  "ticket": "FEAT-005",
+  "candidate_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "candidate_rom_sha256": "97e8b05a47c263c4bceb55552c9d30ee56e872140863afd0667999020a87a56e",
+  "cost_class": "High-risk runtime code integrity",
+  "phase": {
+    "startup_marker": "presentation_flow_tick at $1900",
+    "startup_deadline_seconds": 10,
+    "observation_deadline_seconds": 40,
+    "actual_elapsed_seconds": 2.635109,
+    "input_injected": false,
+    "monitor_game_memory_writes": false,
+    "success_marker": "first watchpointed write to CPU $0A15"
+  },
+  "startup_identity": {
+    "enemy_module_bytes": 4096,
+    "startup_module_sha256": "faa16bc76af37427105bffe89e4c39803fc810df438aa69a618cb925900caaac",
+    "packaged_module_sha256": "faa16bc76af37427105bffe89e4c39803fc810df438aa69a618cb925900caaac",
+    "target_before": "80",
+    "target_after": "10",
+    "copy_was_exact_at_startup": true
+  },
+  "writer": {
+    "runtime": "presentation_runtime",
+    "routine": "colour_surface",
+    "source_instruction_address": "$1DD7",
+    "instruction_bytes": "A784",
+    "instruction": "STA ,X",
+    "post_write_pc": "$1DD9",
+    "post_write_code_bytes": "5A26F2B600BCBA00",
+    "post_write_cpu_and_physical_bytes_match": true,
+    "register_x": "$0A15",
+    "register_a": "$10",
+    "par0_effective": "$38",
+    "physical_destination": "$70A15",
+    "register_u": "$B959",
+    "par5_effective": "$3F",
+    "bytes_before_u": "001B180E0C120A15",
+    "destination_word_at_u_minus_2": "0A15",
+    "data_context": "Matches hud_glyph_cells bytes in the current shared-text runtime image; this is not the expected generated sparse color stream."
+  },
+  "caller": {
+    "instruction_runtime_routine": "recolour_target",
+    "source_call_site": "$045B",
+    "jump_target": "$1DAE",
+    "failing_call_index": null,
+    "first_observed_call_index": 0,
+    "first_call_table_entry": "311B",
+    "first_call_entry_matches_staged_cold": true,
+    "first_call_resolution": "X=$B11B, PAR5=$3B, stream prefix matched staged cold payload",
+    "failing_call_correlated_to_first_call": false,
+    "note": "The target write occurred later in the same run, but the breakpoint collector only sampled the first caller entry; it did not prove that index 0 caused the write."
+  },
+  "followup_trace": {
+    "calls": 64,
+    "indices": "0-15 repeated four times",
+    "all_live_table_entries_match_staged": true,
+    "target_write_observed_before_artificial_call_cap": false,
+    "interpretation": "The instrumented sequence stopped at its 64-call guard before the prior target write. This is incomplete observation, not a pass or evidence that later corruption is absent.",
+    "receipt": "feat005-pointer-sequence-cap64-20261007.json"
+  },
+  "status": {
+    "ticket": "Verification",
+    "performance_target_cycles": 27000,
+    "current_candidate_max_cycles": null,
+    "previous_current_root_max_cycles": 27450,
+    "previous_target_excess_cycles": 450,
+    "timer1503_samples": 0,
+    "cause_of_timer1503_timeout_proven": false,
+    "causal_link_between_code_write_and_missing_timer_marker_proven": false,
+    "production_changes": false
+  },
+  "artifacts": {
+    "write_watchpoint_receipt_sha256": "491cb2c5c0100edc970711d69ce84e64e63e5b4f575765f17e348fe2edd60290",
+    "cap64_full_trace_sha256": "e24db025bfc59313288714f9cea5ec267a2116104879f5d451075d160dbed5cb",
+    "presentation_source_sha256": "db46d7c3298fd2b320b8f69d057dcadc2d649418d4529b4b57f90a3b3f57c448",
+    "instruction_source_sha256": "cebfee1e05d8caa896cf1aea47aa1a70e47829e3de25b783ec1c2e24826e9243",
+    "presentation_module_sha256": "a5e161782a96c8ec9f7acd4560bf2877a3f3022fb6a7f1335fca216bd15ec2a4",
+    "instruction_module_sha256": "f9f4104ecac58396237360fd3bdf6857142c6e163eea12a16bb6616c51597a4b",
+    "cold_payload_sha256": "66a68b006752a21f9e0d98c2b61638256fd3797c2525889b8a3450d66b6b1451",
+    "enemy_module_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155"
+  },
+  "next_discriminator": "Capture the actual later recolour_target index, live pointer-table word, cold_ptr output, and PAR5 transition at the write without a breakpoint-per-call schedule; then establish whether the instruction cold-stream mapping or a competing runtime owner changes the source before STA ,X."
+}

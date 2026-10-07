@@ -1,0 +1,18 @@
+{
+  "schema": "bug087-adapter-capture-tool-repair-v1",
+  "date": "2026-10-06",
+  "failure": {
+    "operation": "candidate AD1 keyboard build identity capture",
+    "result": "failed before producing identity JSON",
+    "error": "NameError: name source_revision is not defined",
+    "cause": "capture command handler used a stale local name instead of args.source_revision when writing assignment_baseline_commit",
+    "classification": "verification-adapter defect; not a ROM build or gameplay failure"
+  },
+  "repair": {
+    "file": "bug087_ready_adapter.py",
+    "change": "use args.source_revision",
+    "self_test": "PASS: plan_schema=1, four phases, 18 guards, 560 arithmetic cases",
+    "recapture": "PASS: candidate AD1 keyboard ROM 7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e; five maps and ten artifacts",
+    "impact": "no game/source acceptance change; output identities captured after fix"
+  }
+}

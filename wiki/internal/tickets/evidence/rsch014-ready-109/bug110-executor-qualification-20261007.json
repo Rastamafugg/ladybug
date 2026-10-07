@@ -1,0 +1,201 @@
+{
+  "schema": "bug110-execution-qualification-v1",
+  "date": "2026-10-07",
+  "ticket": "BUG-110",
+  "class": "High-risk",
+  "implementation": {
+    "commit": "3b2d5cd800a1c305b67c7c4c3412d5a26228dc07",
+    "message": "BUG-110: render pending identity in left HUD",
+    "files": [
+      "src/shared_text_ranking.inc",
+      "src/shared_text_stage.inc",
+      "scripts/source_reference.json",
+      "scripts/verify_feat005_menus.py"
+    ],
+    "integrated_revision": "65d0f64dcad8fdd2aaef4d70943526da523cd7fa",
+    "push": "none"
+  },
+  "identity": {
+    "stage_sha256": "a795b9b51e2a33443a13a04bbf0bd01c8e0ab246292e709924ca8347d4301a51",
+    "ranking_sha256": "769d6f474a9b65dae3dc2e16167828861ee4d7ee47dfc0352b47d28c62b54079",
+    "stage_matches_prefix": true,
+    "ranking_matches_prefix": true,
+    "nine_tmx_inputs_match_root": true,
+    "keyboard_rom_sha256": "7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce",
+    "keyboard_map_sha256": "8118f710482bfbe1dc6e28c1b25c4bd0abe9be1fbb605a0a8b5cbe6fc4b4a253",
+    "joystick_rom_sha256": "d25ad3b5eb6adca075c522d0f744d7a3a2a3befb326807b70bcdf9268882db83"
+  },
+  "keyboard": {
+    "exit": 0,
+    "receipt_state": "complete",
+    "revision": "65d0f64dcad8fdd2aaef4d70943526da523cd7fa",
+    "receipt_sha256": "75cd660548c8ba61d50e3e787081bbf2024c582d3071913e7a937b98eea700e5",
+    "log": "repro/bug110-parent-combined-build-20261007.log",
+    "log_sha256": "898a1a00af7b4807cff639547612a5859c32de6cc893aa5bcf613cc44c5bda05",
+    "fit": {
+      "resident": "8149/8192; 43 free",
+      "assets": "7671/7680; 9 free",
+      "highscore_runtime": "917/938; 21 free",
+      "highscore_helper": "331/334; 3 free",
+      "presentation_module": "1262/1280; 18 free",
+      "page34_helper": "87/93; 6 free",
+      "mapped": "198/220; 22 free",
+      "banked": "696/698; 2 free",
+      "active_helper": "603/777; 174 free",
+      "GMC spare bytes": 11855
+    },
+    "source_reference": "16 modules, 36397 lines; pass",
+    "source_docs": "312/312 routines; 5038/5038 labels; pass",
+    "shared_text": "PASS, 9/9 exact screens; cold SHA 66a68b006752a21f9e0d98c2b61638256fd3797c2525889b8a3450d66b6b1451"
+  },
+  "joystick": {
+    "exit": 0,
+    "receipt_state": "complete",
+    "revision": "3b2d5cd800a1c305b67c7c4c3412d5a26228dc07",
+    "receipt_sha256": "004c21a4ab0ce07a0ed1a3b465e05c2333bb9a9388b0eed580e4121b9cee0b0c",
+    "fit": {
+      "resident": "8185/8192; 7 free",
+      "assets": "7671/7680; 9 free",
+      "highscore_runtime": "917/938; 21 free",
+      "highscore_helper": "331/334; 3 free",
+      "presentation_module": "1262/1280; 18 free",
+      "page34_helper": "87/93; 6 free",
+      "mapped": "198/220; 22 free",
+      "banked": "696/698; 2 free",
+      "active_helper": "603/777; 174 free",
+      "GMC spare bytes": 11853
+    },
+    "source_reference": "16 modules, 36397 lines; pass",
+    "source_docs": "312/312 routines; 5040/5040 labels; pass",
+    "shared_text": "PASS, exit 0, 9/9 exact screens; same cold hash"
+  },
+  "layout": {
+    "current presentation object": "1262 bytes; sha256 c039cf3981de9b5afd70be217ab0478bc86fd2842e9e47f02927d15946c95785",
+    "readiness-prefix object": "1280 bytes; sha256 b715d6c4083903eff2945f1e70e7f6b930feaabf3911dffe74d4cfeb9b302768",
+    "cause": "BUG-087 changed upstream src/presentation_runtime.s (45 insertions/55 deletions) and regenerated symbol addresses. Current complete root receipt assembles 1262 bytes within 1280. Approved stage/ranking includes are byte-identical across prefix, worktree, and root.",
+    "emitted": "name_left_rank at B031; dispatch branch emitted at B019"
+  },
+  "movement_reuse": {
+    "status": "PASS prior candidate evidence; source-byte-equivalent",
+    "movement_report": "worktrees/bug-110-readiness-prefix/repro/bug110/bug110-movement-runtime-20261006.json",
+    "movement_sha256": "b220120ae36240399913f29b117e1fedd4fba8179ba5ea95e8531abd9b756829",
+    "nine_rank_replay": "worktrees/bug-110-readiness-prefix/repro/bug110/bug110-nine-rank-runtime-replay-20261006.json",
+    "nine_rank_sha256": "98d07802ebaf452c47d23599449addf640207ca53042f820640efdca03ec5d3a",
+    "ROM": "11db8f79a7eb203cc6930513e94b18e298c1f3de551ecb2eca2036488f4f4c21",
+    "scope": "8 cardinal calls: 4 allowed, 4 blocked; flags/stack restore; reversal and perpendicular late turn",
+    "stage_sha256": "a795b9b51e2a33443a13a04bbf0bd01c8e0ab246292e709924ca8347d4301a51",
+    "ranking_sha256": "769d6f474a9b65dae3dc2e16167828861ee4d7ee47dfc0352b47d28c62b54079",
+    "limit": "Candidate-ROM evidence; integrated current-ROM nine-rank run executed separately."
+  },
+  "runtime": {
+    "status": "PASS",
+    "accepted": 9,
+    "planned": 9,
+    "ROM": "7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce",
+    "receipt": "worktrees/bug-110/build/bug110-root-keyboard.json",
+    "sha256": "a0a20c1aa845951ccae41a2ab35bbbcb5169b18b10cb0d64155c2a2f1df2fec4",
+    "phase_deadline_seconds": 40,
+    "max_observed_phase_seconds": 15.615,
+    "cases": [
+      {
+        "rank": 1,
+        "part": 1,
+        "accepted": true,
+        "max_phase_seconds": 15.4,
+        "receipt": "worktrees/bug-110/build/bug110-root-keyboard-cases/rank-1-part-1.json",
+        "sha256": "604cf0dc7d2045c566bdd7da71c4112159c0d82f6e520cd5dca3f48cb2bc245b"
+      },
+      {
+        "rank": 2,
+        "part": 2,
+        "accepted": true,
+        "max_phase_seconds": 15.426,
+        "receipt": "worktrees/bug-110/build/bug110-root-keyboard-cases/rank-2-part-2.json",
+        "sha256": "6c14a22f07ca249c2adfbe9b68aca1bcb633c1b2942d0308dc6060a8265fea2b"
+      },
+      {
+        "rank": 3,
+        "part": 3,
+        "accepted": true,
+        "max_phase_seconds": 15.615,
+        "receipt": "worktrees/bug-110/build/bug110-root-keyboard-cases/rank-3-part-3.json",
+        "sha256": "083af6c653e21e1e78d1269c6ce7a7356f0f6e8fdb2be051a0cb61820bc33444"
+      },
+      {
+        "rank": 4,
+        "part": 4,
+        "accepted": true,
+        "max_phase_seconds": 15.237,
+        "receipt": "worktrees/bug-110/build/bug110-root-keyboard-cases/rank-4-part-4.json",
+        "sha256": "d1f2f78152e72b1771f0d17801819d8f204f7e43b15402c372bc3972388622ee"
+      },
+      {
+        "rank": 5,
+        "part": 5,
+        "accepted": true,
+        "max_phase_seconds": 15.303,
+        "receipt": "worktrees/bug-110/build/bug110-root-keyboard-cases/rank-5-part-5.json",
+        "sha256": "b97358fc252ee82a38683d2837180d713181b22fe73bf19f22e7155e67543ed5"
+      },
+      {
+        "rank": 6,
+        "part": 6,
+        "accepted": true,
+        "max_phase_seconds": 15.203,
+        "receipt": "worktrees/bug-110/build/bug110-root-keyboard-cases/rank-6-part-6.json",
+        "sha256": "08971e13e5652910aad9fdfdf713222f6ea0268f6b76f2cf9ef3b922565c8282"
+      },
+      {
+        "rank": 7,
+        "part": 7,
+        "accepted": true,
+        "max_phase_seconds": 15.307,
+        "receipt": "worktrees/bug-110/build/bug110-root-keyboard-cases/rank-7-part-7.json",
+        "sha256": "84c4590a345df370804095ee2ca85463426919eeea1241ca0ebde27dac2a59ba"
+      },
+      {
+        "rank": 8,
+        "part": 8,
+        "accepted": true,
+        "max_phase_seconds": 15.429,
+        "receipt": "worktrees/bug-110/build/bug110-root-keyboard-cases/rank-8-part-8.json",
+        "sha256": "35af340369db5381a4d53acdb12ad12e7a41a0cb89c59903ae0fd644b7f5f4f5"
+      },
+      {
+        "rank": 9,
+        "part": 100,
+        "accepted": true,
+        "max_phase_seconds": 14.296,
+        "receipt": "worktrees/bug-110/build/bug110-root-keyboard-cases/rank-9-part-100.json",
+        "sha256": "859d4201cdf9424b5edd55aa33be877e2988fefab41a45ae72d7357922c12a2f"
+      }
+    ],
+    "root_boundary": {
+      "status": "PASS",
+      "receipt": "worktrees/bug-110/build/bug110-root-keyboard-boundary.json",
+      "sha256": "b7a7a465d230c19290851747ba91b3fe7e64a2be3b427a4cd035568fbd62fe64",
+      "protected_files": 210,
+      "root_unchanged": true,
+      "changed_paths": []
+    }
+  },
+  "rejected_experiments": [
+    {
+      "attempt": "initial isolated keyboard final docs guard",
+      "result": "failed only because committed catalog lacked four BUG-087 anchors",
+      "resolution": "copied current catalog read-only; guard passed and integrated parent keyboard build completed exit 0"
+    },
+    {
+      "attempt": "interrupted keyboard restart/local probe",
+      "result": "mixed outputs included an empty active helper; wrapper reported a missing scratch file",
+      "resolution": "discarded outputs; final runtime used stable complete parent ROM with owned-worktree output; root boundary passed"
+    }
+  ],
+  "acceptance": {
+    "source_commit": "separate ticket commit, integrated by parent",
+    "keyboard": "qualified",
+    "joystick": "qualified",
+    "focused_runtime": "9/9 pass",
+    "remaining": "Parent owns final combined acceptance and ticket status. Joystick resident headroom is 7 bytes; all capacity guards passed."
+  }
+}

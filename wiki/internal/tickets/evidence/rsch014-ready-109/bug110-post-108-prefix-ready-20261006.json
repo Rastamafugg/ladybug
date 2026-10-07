@@ -1,0 +1,259 @@
+{
+  "schema": "bug110-post-bug108-prefix-readiness-v1",
+  "date": "2026-10-06",
+  "ticket": "BUG-110",
+  "lifecycle": "Ready",
+  "risk_class": "High-risk",
+  "approved_outcome": "The pending player placement, name and score appear in red on the enter-high-score left HUD, while adjacent and top-right fields remain correct.",
+  "approval_reference": "wiki/internal/tickets/bug-110-name-entry-left-hud.html#corrected-targets-approved-20261006",
+  "baseline_revision": "3dd3397f99b969539bb0f821e6b98cb1548bab2d",
+  "dependency": {
+    "ticket": "BUG-108",
+    "status": "Done",
+    "integrated_commit": "3dd3397f99b969539bb0f821e6b98cb1548bab2d"
+  },
+  "candidate": {
+    "path": "worktrees/bug-110-readiness-prefix",
+    "branch": "codex/bug-110-readiness-prefix",
+    "path_is_git_ignored": true,
+    "approved_production_sources": {
+      "src/shared_text_ranking.inc": "769d6f474a9b65dae3dc2e16167828861ee4d7ee47dfc0352b47d28c62b54079",
+      "src/shared_text_stage.inc": "a795b9b51e2a33443a13a04bbf0bd01c8e0ab246292e709924ca8347d4301a51",
+      "scripts/source_reference.json": "14ff0b3ad88980d4ad657543e913fa90c347d5bb3858c4cbdfb2f84802c3c5c0"
+    },
+    "focused_verifier": "scripts/verify_feat005_menus.py",
+    "focused_verifier_sha256": "fb8637be305c81ffcf338bfa94d7375d8cf2a44190a73b19a43c8f61db360a0b"
+  },
+  "profile_qualification": {
+    "profiles": [
+      {
+        "profile": "complete-keyboard-adaptive-6809",
+        "rom_sha256": "11db8f79a7eb203cc6930513e94b18e298c1f3de551ecb2eca2036488f4f4c21",
+        "map_sha256": "cddea53552995ebadea089e1ecf133bcd0864fa07bf636840c9ff5aeab420bbb",
+        "input_joystick": 0,
+        "sources": {
+          "src/shared_text_ranking.inc": "769d6f474a9b65dae3dc2e16167828861ee4d7ee47dfc0352b47d28c62b54079",
+          "src/shared_text_stage.inc": "a795b9b51e2a33443a13a04bbf0bd01c8e0ab246292e709924ca8347d4301a51",
+          "scripts/source_reference.json": "14ff0b3ad88980d4ad657543e913fa90c347d5bb3858c4cbdfb2f84802c3c5c0"
+        },
+        "build_log_sha256": "9738008c5986cf791315066bfc8bc3f06d5ec448e2ca5992bf69b90003018316",
+        "audit_log_sha256": "755a4054dd755ea6b7651a95e53feec8e7e3bedae74069d8a7a4658ae0f3d608",
+        "audit_status": "pass",
+        "capacity": {
+          "resident": "8155/8192",
+          "assets": "7671/7680",
+          "highscore_runtime": "917/938",
+          "presentation_module": "1280/1280",
+          "helper": "331/334"
+        }
+      },
+      {
+        "profile": "complete-joystick-adaptive-6809",
+        "rom_sha256": "98d627c95709a50153564857dfa6b115bbcabc4d6a91a3fe297a4d244fecb15e",
+        "map_sha256": "d1371f5e868331825931b9067741b9efcfb3297277dcb432f7cf7701c0f46149",
+        "input_joystick": 1,
+        "sources": {
+          "src/shared_text_ranking.inc": "769d6f474a9b65dae3dc2e16167828861ee4d7ee47dfc0352b47d28c62b54079",
+          "src/shared_text_stage.inc": "a795b9b51e2a33443a13a04bbf0bd01c8e0ab246292e709924ca8347d4301a51",
+          "scripts/source_reference.json": "14ff0b3ad88980d4ad657543e913fa90c347d5bb3858c4cbdfb2f84802c3c5c0"
+        },
+        "build_log_sha256": "5157815a76fc4f4d1d312589283ab3314489ea7d21adf5e8b2333313564cb66f",
+        "audit_log_sha256": "755a4054dd755ea6b7651a95e53feec8e7e3bedae74069d8a7a4658ae0f3d608",
+        "audit_status": "pass",
+        "capacity": {
+          "resident": "8191/8192",
+          "assets": "7671/7680",
+          "highscore_runtime": "917/938",
+          "presentation_module": "1280/1280",
+          "helper": "331/334",
+          "page_3d_payload": "6656/8192"
+        }
+      }
+    ],
+    "same_production_sources": true,
+    "shared_text_audit": "pass on both complete input profiles; nine screens pixel-exact with zero differences",
+    "keyboard_runtime_rom_copy_sha256": "11db8f79a7eb203cc6930513e94b18e298c1f3de551ecb2eca2036488f4f4c21",
+    "keyboard_runtime_map_copy_sha256": "cddea53552995ebadea089e1ecf133bcd0864fa07bf636840c9ff5aeab420bbb"
+  },
+  "runtime_acceptance": {
+    "status": "PASS",
+    "report_path": "worktrees/bug-110-readiness-prefix/repro/bug110/bug110-nine-rank-runtime-replay-20261006.json",
+    "report_sha256": "98d07802ebaf452c47d23599449addf640207ca53042f820640efdca03ec5d3a",
+    "rom_sha256": "11db8f79a7eb203cc6930513e94b18e298c1f3de551ecb2eca2036488f4f4c21",
+    "all_nine_cases_accepted": true,
+    "rank_cases": [
+      {
+        "rank": 1,
+        "part": 1,
+        "red_player_score_pixels_both_owners": true,
+        "maximum_phase_seconds": 15.214,
+        "all_deadlines_seconds": [
+          40
+        ],
+        "timer_scratch": null,
+        "short_name_clearing": null
+      },
+      {
+        "rank": 2,
+        "part": 2,
+        "red_player_score_pixels_both_owners": true,
+        "maximum_phase_seconds": 15.306,
+        "all_deadlines_seconds": [
+          40
+        ],
+        "timer_scratch": null,
+        "short_name_clearing": true
+      },
+      {
+        "rank": 3,
+        "part": 3,
+        "red_player_score_pixels_both_owners": true,
+        "maximum_phase_seconds": 15.638,
+        "all_deadlines_seconds": [
+          40
+        ],
+        "timer_scratch": null,
+        "short_name_clearing": null
+      },
+      {
+        "rank": 4,
+        "part": 4,
+        "red_player_score_pixels_both_owners": true,
+        "maximum_phase_seconds": 29.107,
+        "all_deadlines_seconds": [
+          40
+        ],
+        "timer_scratch": null,
+        "short_name_clearing": null
+      },
+      {
+        "rank": 5,
+        "part": 5,
+        "red_player_score_pixels_both_owners": true,
+        "maximum_phase_seconds": 15.31,
+        "all_deadlines_seconds": [
+          40
+        ],
+        "timer_scratch": null,
+        "short_name_clearing": null
+      },
+      {
+        "rank": 6,
+        "part": 6,
+        "red_player_score_pixels_both_owners": true,
+        "maximum_phase_seconds": 15.398,
+        "all_deadlines_seconds": [
+          40
+        ],
+        "timer_scratch": null,
+        "short_name_clearing": null
+      },
+      {
+        "rank": 7,
+        "part": 7,
+        "red_player_score_pixels_both_owners": true,
+        "maximum_phase_seconds": 15.214,
+        "all_deadlines_seconds": [
+          40
+        ],
+        "timer_scratch": null,
+        "short_name_clearing": null
+      },
+      {
+        "rank": 8,
+        "part": 8,
+        "red_player_score_pixels_both_owners": true,
+        "maximum_phase_seconds": 15.374,
+        "all_deadlines_seconds": [
+          40
+        ],
+        "timer_scratch": null,
+        "short_name_clearing": null
+      },
+      {
+        "rank": 9,
+        "part": 100,
+        "red_player_score_pixels_both_owners": true,
+        "maximum_phase_seconds": 14.14,
+        "all_deadlines_seconds": [
+          40
+        ],
+        "timer_scratch": {
+          "name_return": true,
+          "score_return": true
+        },
+        "short_name_clearing": null
+      }
+    ],
+    "natural_rank_table": {
+      "rows": 9,
+      "owners": [
+        0,
+        1
+      ],
+      "score_cells": 108,
+      "name_cells": 126,
+      "mismatches": 0,
+      "sequence": "Naturally credited high-score menu before gameplay/name entry; no record fixture."
+    },
+    "tmx_unchanged_during_run": true,
+    "maximum_observed_phase_seconds": 29.107,
+    "phase_deadline_seconds": 40
+  },
+  "movement_acceptance": {
+    "status": "PASS-CURRENT-NAME-CARDINAL-STACK-REVERSAL-LATE-TURN",
+    "report_path": "worktrees/bug-110-readiness-prefix/repro/bug110/bug110-movement-runtime-20261006.json",
+    "report_sha256": "b220120ae36240399913f29b117e1fedd4fba8179ba5ea95e8531abd9b756829",
+    "rom_sha256": "11db8f79a7eb203cc6930513e94b18e298c1f3de551ecb2eca2036488f4f4c21",
+    "actual_remapped_cardinal_calls": 8,
+    "allowed": 4,
+    "blocked": 4,
+    "all_results_and_zero_flags_match": true,
+    "all_natural_stacks_restored": true,
+    "active_reversal": "actual caller updates target/heading while keeping physical point",
+    "perpendicular_late_turn": "actual resident caller admits perpendicular turn with compiled boolean mask",
+    "maximum_observed_phase_seconds": 15.397,
+    "phase_deadline_seconds": 40
+  },
+  "user_tmx_inputs": {
+    "files": {
+      "tiled/coco-attract-screen.tmx": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07",
+      "tiled/coco-credits-screen.tmx": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825",
+      "tiled/coco-enter-high-score-screen.tmx": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca",
+      "tiled/coco-game-over-screen.tmx": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05",
+      "tiled/coco-high-score-screen.tmx": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d",
+      "tiled/coco-instructions-screen.tmx": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4",
+      "tiled/coco-keybind-options-screen.tmx": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046",
+      "tiled/coco-level-start-screen.tmx": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b",
+      "tiled/coco-screen.tmx": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f"
+    },
+    "match_root": true,
+    "staged_or_committed_by_candidate": false
+  },
+  "rejected_verifier_experiment": {
+    "report_path": "worktrees/bug-110-readiness-prefix/repro/bug110/bug110-nine-rank-runtime-20261006.json",
+    "report_sha256": "52d7715f347f59f986f092a6ec7a6a343a1e137c8d84bb97d3e31d3cc4de9ead",
+    "status": "FAIL",
+    "cases_run": 2,
+    "product_failure": false,
+    "reason": "The first BUG-110 selector expected the BUG-108 white-name short-name marker. Rank 2 adapter data and both-owner red-name pixels passed, but the parent selector rejected the color-specific label. The selector now checks the red marker; the full nine-rank replay passed."
+  },
+  "assignment_readiness": {
+    "commands": [
+      "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+      "LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+      "python3 scripts/verify_shared_text.py --build-dir build",
+      "python3 scripts/verify_feat005_menus.py --name-case bug110 --output build/bug110-name.json"
+    ],
+    "execution_worktree": "E:/projects/ladybug/worktrees/bug-110",
+    "execution_branch": "codex/bug-110",
+    "agent": "One Luna Extra High executor; parent owns integration and combined acceptance.",
+    "scope_unchanged": true,
+    "ready_gate": "Passed: BUG-108 integrated; both exact complete profiles/build audits qualified; nine rank/part cases and current-ROM movement passed on the exact keyboard ROM."
+  },
+  "limits_and_risks": [
+    "Joystick resident capacity has one byte remaining; assets have nine bytes remaining.",
+    "Presentation module is full at 1280/1280 bytes; high-score runtime has 21 bytes and helper three bytes remaining.",
+    "Movement edge cells and reversal/late-turn predecessors are legal authored fixtures; this is not a claim of natural traversal of every name-entry route."
+  ]
+}

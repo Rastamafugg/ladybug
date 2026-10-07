@@ -1,0 +1,68 @@
+{
+  "schema": "bug087-candidate-horizontal-protocol-preparation-v1",
+  "ticket": "BUG-087",
+  "date": "2026-10-07",
+  "status": "approved-observer-protocol-offline-validated-runtime-not-run",
+  "user_decision": {
+    "approved": true,
+    "date": "2026-10-07",
+    "scope": "candidate-only horizontal observer method; preserves gameplay outcome, rate policy, 1-pixel tolerance, and production target list"
+  },
+  "approved_measurement_contract": {
+    "build_side": "candidate",
+    "part": 7,
+    "rate_addend": "$33",
+    "starting_rate_phase": 0,
+    "actual_enemy_callbacks": 24,
+    "expected_fractional_carries": [
+      4,
+      5
+    ],
+    "expected_policy_admissions": 14,
+    "expected_displacement_pixels": 28,
+    "tolerance_pixels": 1,
+    "minimum_authored_straight_route_pixels": 30,
+    "baseline_displacement": "24px formula reference only; no live horizontal baseline comparison"
+  },
+  "route_guard": {
+    "source": "assets/arcade/maze.json maze_nav and gate_owner",
+    "sha256": "76361237a90a555f2b78731c3975a209f569a53cb04705eb90d0aad427856048",
+    "exclusions": [
+      "gate cells",
+      "nest cells",
+      "rows below 11 using den-exception slow path"
+    ],
+    "direction_bits": "maze_nav bits 0-3 are N/E/S/W; enemy_direction_legal uses these exits"
+  },
+  "current_artifact_hashes": {
+    "adapter": "397b29bd2307f60925f54d9269347bb3e779ebbe56e9bb681169034dca6e398d",
+    "scenario_plan": "4b3d4be75c1254c697bf9f9ae4e1317b0e528585564c09b4f300bcb4eba647a5",
+    "resolved_plan": "4f3b6c5f6436d68d705ca86f8511a74b58ff49dbe4e8da04951f91d86b351fc1",
+    "maze": "76361237a90a555f2b78731c3975a209f569a53cb04705eb90d0aad427856048",
+    "baseline_identity": "018e0e24de66cc8d4ce7ca2e5964e7c1fd9ffb78052053b1b9ab118f1ee4bf15",
+    "candidate_identity": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+    "bug086_receipt": "f0846d9d0398b429c8db421edfe07bcd62b861424ce8c303e520ab3befb3e287"
+  },
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "rom_sha256": {
+    "baseline": "ef13933e1ace948c9c7b294cfc55ef44c14ba69b39a5e6f8fca392766cbbf869",
+    "candidate": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e"
+  },
+  "offline_verification": {
+    "python_compile": "pass",
+    "adapter_self_test": "pass",
+    "phase_contracts": 7,
+    "guard_cases": 45,
+    "movement_arithmetic_cases": 560,
+    "focused_startup_cases": 10,
+    "durable_step_handoff_cases": 1,
+    "identity_plan": "dispatchable",
+    "git_diff_check": "pass"
+  },
+  "runtime_verification": {
+    "status": "not-run",
+    "reason": "adapter and scenario-plan hashes changed; fresh natural-init/progression receipts and parent-reviewed per-phase authorization are required",
+    "prior_runtime_receipts": "historical only; none satisfies current hashes"
+  },
+  "scope_note": "This preparation changes the host-side observer and ticket plan only. No production gameplay source is changed by this protocol update."
+}

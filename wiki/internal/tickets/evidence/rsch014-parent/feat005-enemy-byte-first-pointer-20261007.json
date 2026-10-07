@@ -1,0 +1,219 @@
+{
+  "schema": "feat005-enemy-byte-watchpoint-20261007-v3",
+  "ticket": "FEAT-005",
+  "rom_sha256": "97e8b05a47c263c4bceb55552c9d30ee56e872140863afd0667999020a87a56e",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "target_cpu_address": 2581,
+  "deadline_seconds": 40.0,
+  "startup_deadline_seconds": 10,
+  "success_marker": "first post-$1900 write to $0A15 captured with halted CPU registers",
+  "timeout_meaning": "no write to $0A15 was observed during this bounded run",
+  "input_injected": false,
+  "monitor_game_memory_writes": false,
+  "artifact_identity": {
+    "authorization_sha256": "9fecf67724bc0c2b395d024e458fb164b2f9575c7203711dd4ff34e620274c57",
+    "rom_sha256": "97e8b05a47c263c4bceb55552c9d30ee56e872140863afd0667999020a87a56e",
+    "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+    "verifier_sha256": "6f8af8ea787216713c36eea7bd9b752b300142fcda9bec97074b53e15e11ff09",
+    "monitor_helper_sha256": "0234c96c198223de1c6b5c0aa11c1a9ab2e1739081f40a5f520cf1fe0eb70455",
+    "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf"
+  },
+  "caller_trace": [
+    {
+      "phase": "before_colour_pointer_load",
+      "stop": {
+        "reason": "breakpoint",
+        "pc": 1106,
+        "bp_id": 2
+      },
+      "registers": {
+        "a": 67,
+        "b": 0,
+        "d": 17152,
+        "cc": 196,
+        "dp": 0,
+        "x": 41152,
+        "y": 17204,
+        "u": 43564,
+        "s": 8176,
+        "pc": 1106
+      },
+      "par5_raw": 59,
+      "par5_effective": 59,
+      "pres_work": 0,
+      "colour_pointer_index": 0,
+      "table_cpu_address": 41152,
+      "table_entry_live_hex": "311b",
+      "table_entry_expected_offset": 8384,
+      "table_entry_expected_hex": "311b",
+      "table_entry_matches_staged_cold": true
+    },
+    {
+      "phase": "after_colour_pointer_load",
+      "stop": {
+        "reason": "breakpoint",
+        "pc": 1108,
+        "bp_id": 3
+      },
+      "registers": {
+        "a": 49,
+        "b": 27,
+        "d": 12571,
+        "cc": 192,
+        "dp": 0,
+        "x": 41152,
+        "y": 17204,
+        "u": 43564,
+        "s": 8176,
+        "pc": 1108
+      },
+      "par5_raw": 59,
+      "par5_effective": 59,
+      "pres_work": 0,
+      "raw_cold_pointer": 12571,
+      "raw_cold_pointer_hex": "311B",
+      "raw_pointer_within_cold_payload": true
+    },
+    {
+      "phase": "after_cold_pointer_resolution",
+      "stop": {
+        "reason": "breakpoint",
+        "pc": 1111,
+        "bp_id": 4
+      },
+      "registers": {
+        "a": 177,
+        "b": 27,
+        "d": 45339,
+        "cc": 200,
+        "dp": 0,
+        "x": 45339,
+        "y": 17204,
+        "u": 43564,
+        "s": 8176,
+        "pc": 1111
+      },
+      "par5_raw": 59,
+      "par5_effective": 59,
+      "pres_work": 0,
+      "resolved_stream_cpu_address": 45339,
+      "resolved_stream_cpu_address_hex": "B11B",
+      "resolved_stream_prefix_hex": "0a45b7465646f646f9479748d7497649",
+      "raw_pointer_expected_prefix_hex": "0a45b7465646f646f9479748d7497649"
+    },
+    {
+      "phase": "before_colour_surface_jump",
+      "stop": {
+        "reason": "breakpoint",
+        "pc": 1115,
+        "bp_id": 5
+      },
+      "registers": {
+        "a": 177,
+        "b": 27,
+        "d": 45339,
+        "cc": 192,
+        "dp": 0,
+        "x": 17204,
+        "y": 17204,
+        "u": 45339,
+        "s": 8176,
+        "pc": 1115
+      },
+      "par5_raw": 59,
+      "par5_effective": 59,
+      "pres_work": 0,
+      "destination_x": 17204,
+      "stream_u": 45339,
+      "stream_prefix_hex": "0a45b7465646f646f9479748d7497649"
+    }
+  ],
+  "startup_pc": 6400,
+  "startup_par_raw_hex": "f8f0f1f2f3f4feff",
+  "startup_par_effective": [
+    56,
+    48,
+    49,
+    50,
+    51,
+    52,
+    62,
+    63
+  ],
+  "startup_enemy_module_bytes": 4096,
+  "startup_enemy_module_sha256": "faa16bc76af37427105bffe89e4c39803fc810df438aa69a618cb925900caaac",
+  "packaged_enemy_module_sha256": "faa16bc76af37427105bffe89e4c39803fc810df438aa69a618cb925900caaac",
+  "startup_enemy_module_exact": true,
+  "startup_presentation_entry_hex": "96a481a52708863d",
+  "staged_presentation_entry_hex": "96a481a52708863d",
+  "startup_presentation_entry_exact": true,
+  "watchpoint": {
+    "id": 1,
+    "addr": 2581,
+    "length": 1,
+    "kind": "w"
+  },
+  "target_value_before_watch_hex": "80",
+  "watchpoint_stop": {
+    "reason": "breakpoint",
+    "pc": 7641
+  },
+  "result": "watchpoint-hit",
+  "write_snapshot": {
+    "registers": {
+      "a": 16,
+      "b": 79,
+      "d": 4175,
+      "cc": 192,
+      "dp": 0,
+      "x": 2581,
+      "y": 32564,
+      "u": 47449,
+      "s": 8176,
+      "pc": 7641
+    },
+    "pc": 7641,
+    "pc_hex": "1DD9",
+    "pc_mapping_slot": 0,
+    "pc_physical_page": 56,
+    "pc_cpu_bytes_hex": "5a26f2b600bcba00",
+    "pc_physical_bytes_hex": "5a26f2b600bcba00",
+    "pc_bytes_equal_cpu_and_physical": true,
+    "par_raw_hex": "38303132333f3e3f",
+    "par_effective": [
+      56,
+      48,
+      49,
+      50,
+      51,
+      63,
+      62,
+      63
+    ],
+    "writer_instruction_address": 7639,
+    "writer_instruction_bytes_hex": "a784",
+    "destination_pointer_x": 2581,
+    "stream_cursor_u": 47449,
+    "stream_cursor_context_start": 47441,
+    "stream_cursor_context_hex": "001b180e0c120a150000000000000000",
+    "stream_destination_word_hex": "0a15",
+    "stack_pointer_s": 8176,
+    "stack_context_hex": "04f5010f047900d2",
+    "target_value_after_write_hex": "10",
+    "cycles": {
+      "event_ticks": 572368720,
+      "cpu_cycles": 35773045
+    },
+    "watchpoints": {
+      "watchpoints": [
+        {
+          "id": 1,
+          "addr": 2581,
+          "length": 1,
+          "kind": "w"
+        }
+      ]
+    }
+  },
+  "phase_elapsed_seconds": 2.327125
+}

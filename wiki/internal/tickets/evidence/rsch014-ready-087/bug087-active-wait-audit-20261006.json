@@ -1,0 +1,84 @@
+{
+  "schema": "bug087-active-wait-audit-v1",
+  "date": "2026-10-06",
+  "ticket": "BUG-087",
+  "status": "In Progress, High-risk; runtime acceptance unverified",
+  "experiments": [
+    {
+      "name": "corrected-natural-init-attempt",
+      "artifact": "E:/projects/ladybug/worktrees/bug087-root3dd-refresh/build/bug087-live-natural-init-corrected-20261006.json",
+      "sha256": "c1235bee0b4e258a0dc256f122ba932a1ac65600399bbfb55ac7285bc84293d9",
+      "observation": "run acknowledged from halted state; wait_for_stop requested 39750 ms; client timed out after 40.029 s with no response envelope; subsequent clear_breakpoint failed on the timed-out stream",
+      "limitation": "No process identity or exit code was retained."
+    },
+    {
+      "name": "natural-init-timeout-margin-attempt",
+      "artifact": "E:/projects/ladybug/worktrees/bug087-root3dd-refresh/build/bug087-natural-init-timeout-margin-20261006.json",
+      "sha256": "83b4f9e909a29ce98ce15bbb7fbe892730f4000b7fa68d27e1470cfe08df2965",
+      "observation": "run acknowledged from halted state; wait_for_stop requested 42000 ms; client timed out after 44.004 s with no response envelope; subsequent clear_breakpoint failed on the timed-out stream",
+      "limitation": "No process identity or exit code was retained."
+    },
+    {
+      "name": "cold-halted-monitor-timeout",
+      "artifact": "E:/projects/ladybug/worktrees/bug087-root3dd-refresh/build/bug087-monitor-idle-wait-20261006.json",
+      "sha256": "62f139f0f53eaff3ce5de509055a13420189a8582d718db8021219412254399f",
+      "observation": "on the existing baseline endpoint, get_run_state returned halted and wait_for_stop returned reason=timeout after 1.000482 s",
+      "limitation": "This checks the halted path only; it does not establish active-run monitor behavior or candidate process identity."
+    },
+    {
+      "name": "active-mainloop-sentinel-first-attempt",
+      "artifact": "E:/projects/ladybug/worktrees/bug087-root3dd-refresh/build/bug087-active-monitor-sentinel-20261006.json",
+      "sha256": "bd7f6cb23dfd0ff2087d204bf75944ee2662ba97c543d6edf5c1c6d5456a3476",
+      "observation": "The adapter returned from the acknowledged mainloop breakpoint and entered resident identity reads at $C116; it then failed after 2.696 s because the verifier passed a byte slice to the file-only sha256 helper. The rolling eight-call ledger omitted the earlier wait_for_stop envelope; monitor audit is being corrected to retain it.",
+      "server": {
+        "port": 17656,
+        "WSL_PID": 12679,
+        "executable": "/mnt/e/projects/ladybug/docs/reference/xroar/build/xroar-monitor",
+        "executable_sha256": "9ad3b9325a539e14d00032193d76fc42ab058b1820d27ce05d473263ccc3d85e",
+        "candidate_ROM_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+        "Windows_listener_relay_PID": 14508,
+        "process_alive_after_phase": true
+      },
+      "limitation": "This establishes a short active-run path to mainloop through the adapter, not the behavior of an active wait with no reachable marker or gameplay acceptance. The earlier two endpoint PIDs remain unknown."
+    },
+    {
+      "name": "active-mainloop-sentinel-deterministic-rerun",
+      "artifact": "E:/projects/ladybug/worktrees/bug087-root3dd-refresh/build/bug087-active-monitor-sentinel-rerun-20261006.json",
+      "sha256": "daed0350860a92aa34c2bfb712c3063f04fbd40a118a6f3f815e94797e747d44",
+      "observation": "After the byte-digest fix, the same candidate monitor returned reason=breakpoint at $C116 in 0.092410 s with a 10000 ms server wait. Resident source/staging/destination proof passed; PAR6=$3E, PAR7=$3F, and rate/E2 helper identities matched.",
+      "limitation": "This resumed the same XRoar process from the cold-start mainloop stop; the planned cold-reset sentinel is being repeated with the corrected adapter before closing the diagnostic. Long waits with no reachable marker and gameplay acceptance remain unresolved."
+    },
+    {
+      "name": "active-mainloop-sentinel-cold-reset-rerun",
+      "artifact": "E:/projects/ladybug/worktrees/bug087-root3dd-refresh/build/bug087-active-monitor-sentinel-cold-20261006.json",
+      "sha256": "e9529e89cc7627d7ecb2391f235d78187a26f5e3dc2fb36d0e94bbd4576bfe96",
+      "observation": "A fresh XRoar process from halt-on-start reached mainloop at $C116 in 2.694717 s. wait_for_stop returned reason=breakpoint, bp_id=1, pc=$C116 with a 10000 ms server timeout. Current resident source/staging/destination, PAR6/PAR7, rate helper, and E2 helper identity checks passed.",
+      "server": {
+        "port": 17657,
+        "WSL_PID": 12734,
+        "executable": "/mnt/e/projects/ladybug/docs/reference/xroar/build/xroar-monitor",
+        "executable_sha256": "9ad3b9325a539e14d00032193d76fc42ab058b1820d27ce05d473263ccc3d85e",
+        "candidate_ROM_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+        "Windows_listener_relay_PID": 14508,
+        "process_alive_after_phase": true
+      },
+      "limitation": "This closes the active-monitor-sentinel diagnostic only. It does not satisfy any gameplay acceptance scenario or explain the prior long waits without a reachable marker."
+    }
+  ],
+  "source_audit": {
+    "monitor_source": "docs/reference/xroar/src/monitor.c",
+    "wait_for_stop": "The handler waits for last_stop and should reply with the stop reason or reason=timeout; source has no halted-versus-running branch in this wait path.",
+    "local_monitor_binary_sha256": "9ad3b9325a539e14d00032193d76fc42ab058b1820d27ce05d473263ccc3d85e",
+    "source_revision": "66f010ef",
+    "endpoint_identity": "Not bound to the run receipts."
+  },
+  "confirmed_verifier_defect": "The old natural-init phase waited for next_stage from cold startup without sending credit/start input or establishing the approved final-bonus precondition. The source reaches next_stage only after stage clear in demo mode or the presentation stage handoff.",
+  "inference": "The absent next_stage marker is explained by the missing phase precondition. The missing JSON timeout response is a separate unresolved monitor transport, scheduling, endpoint-identity, or process-lifecycle issue; process exit is not established.",
+  "next_discriminator": {
+    "phase": "active-monitor-sentinel",
+    "deadline_seconds": 15,
+    "success_marker": "A cold-start run reaches the mapped resident mainloop breakpoint and returns a breakpoint response within the 10-second monitor wait.",
+    "required_capture": "Record listener port, owning Windows PID, WSL XRoar PID, executable path/hash, request/reply envelope, and exit status if the process ends.",
+    "timeout_meaning": "The resident mainloop marker did not return within the bounded active wait; this does not identify gameplay slowness."
+  }
+}

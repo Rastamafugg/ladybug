@@ -1,0 +1,34 @@
+diff --git a/src/main.s b/src/main.s
+--- a/src/main.s
++++ b/src/main.s
+@@ -2023,6 +2023,7 @@
+ ; Input A=cached value, B=preserve mask, Y=primary_preserve_table.
+ ; render_entity_colour owns Y through the complete primary replay.
+ ; Output A=B=combined mask; OBJ_VALUE retains input; caller CMPA replaces flags.
++        ifeq    ADAPTIVE_RENDERING
+ primary_cache_mask
+ cck_primary
+         sta     OBJ_VALUE
+@@ -2030,6 +2031,7 @@
+         orb     a,y
+         tfr     b,a
+         rts
++        endc
+ 
+ ; Project one cache record to the current BACK.  U points to the sparse slot
+ ; and X to its eight-byte-wide native framebuffer destination. OBJ_ACCENT is
+@@ -2064,7 +2066,14 @@
+ repco_primary_pair
+         ldb     ,u+
+         lda     ,u+
++        ifne    ADAPTIVE_RENDERING
++        sta     OBJ_VALUE
++        anda    #$33
++        orb     a,y
++        tfr     b,a
++        else
+         bsr     primary_cache_mask
++        endc
+         cmpa    #$FF
+         beq     repco_primary_skip
+         tfr     a,b

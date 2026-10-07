@@ -1,0 +1,284 @@
+{
+  "schema": "bug087-final-acceptance-reconciliation-v1",
+  "date": "2026-10-07",
+  "ticket": "BUG-087",
+  "ticket_status": "Done",
+  "risk_class": "High-risk",
+  "overall_result": "pass-runtime-and-current-integrated-qa",
+  "done_justified": true,
+  "scope": "Executor runtime evidence-only; parent complete current builds, exact game-module/resident equivalence and closing acceptance added. No new BUG087 production changes.",
+  "candidate": {
+    "integrated_source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+    "executor_revision": "7845dfa",
+    "src_scripts_tree_diff": "empty",
+    "runtime_identity_file": "current-root-candidate-ad1-keyboard-identity-frozen3dd-equivalent-163d-20261007.json",
+    "runtime_identity_sha256": "aa157543f6148a97ee36205c7d97be2823d54bee6e5c60f394630c070305e216",
+    "runtime_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+    "source_equivalence_basis": "The frozen complete-build identity records the actual 3dd source receipt and nine preserved TMX input mismatches; executor 7845dfa and integrated 163d0be src/scripts trees are byte-equivalent. Runtime artifacts and ROM match the pinned 7caa candidate."
+  },
+  "acceptance_matrix": [
+    {
+      "criterion": "Select the approved arcade part and elapsed-bucket rate, including saturation and the Part-9 reset.",
+      "status": "pass",
+      "evidence": [
+        {
+          "file": "current-clock-boundary-stage1-20261006.json",
+          "sha256": "d6e4d75622528e7d5067d320d1e5577f349e0461eeaba5af1ad2e96e5cd977d4",
+          "result": "pass current stage-1 boundary cases; not full ticket acceptance"
+        },
+        {
+          "file": "current-clock-boundary-stage17-20261006.json",
+          "sha256": "4e0109e73003cf54efe8161f8a4292c4fce401ce555b5e3b3d977a9b770d803d",
+          "result": "pass current stage-17 boundary cases; not full ticket acceptance"
+        },
+        {
+          "file": "bug087-rate-progression-threshold-20261006.json",
+          "sha256": "0deaef9ea498153746a943141b11dc5ff61f25b110957c3f65118675c74d16ba",
+          "result": "source-derived table and threshold model"
+        },
+        {
+          "file": "bug087-supervised-natural-progression-spawner-audit-20261007.json",
+          "sha256": "01d96b3c388638a6164db2f033d0ff7b53def35918455f24ee6194f18933d476",
+          "result": "natural true-init progression through Part 7"
+        },
+        {
+          "file": "bug087-natural-part9-10-reset-v3b-20261007.json",
+          "sha256": "7e858f2c29cf183047b6d6b52ad736201530f919d5686715bd2ea6adcb1c6385",
+          "result": "diagnostic only: corrected legal-dot continuation reached the Part-7→8 handoff and stage-8 init path in memory, then timed out at the subsequent player-entry synchronization; transition observations were not persisted, so no Part-9/10 acceptance credit"
+        },
+        {
+          "file": "bug087-natural-part9-10-reset-v4-20261007.json",
+          "sha256": "77425e5da4e9267f59a184a8dfd694b5842656a16fd98c05bd60f91d2bb73162",
+          "result": "three actual source-legal final-dot transitions in one fresh process; true Part-9 init resets timer/bucket/fraction/phase to 96/0/0/0 and addend 0; true Part-10 init resets to 96/0/0/0 and addend $33; each phase <=45s"
+        },
+        {
+          "file": "bug087-supervised-natural-part9-10-v4-20261007.json",
+          "sha256": "24f3e860c610a16fbc265c91acbb14be7b1ec867b3a4aa0bc4858a22df7b0e21",
+          "result": "supervised fresh natural-init, Part2→7 progression, and Part7→10 continuation pass; one owned XRoar process"
+        }
+      ]
+    },
+    {
+      "criterion": "Match candidate movement to the approved callback-rate oracle on legal horizontal and vertical paths, including zero and fractional addends.",
+      "status": "pass",
+      "evidence": [
+        {
+          "file": "bug087-phase-aware-vertical-horizontal-20261007.json",
+          "sha256": "087996fa1563d470eaf04a890f3278bad281743f837f634992b0fe0f2fa3081a",
+          "result": "Part-7 vertical: 44 observed and 44 expected pixels over 36 callbacks; 8 carries and 22 admissions"
+        },
+        {
+          "file": "current-root-candidate-horizontal-500-20261007.json",
+          "sha256": "b21d3a2aaaf822ec7427ce53db738ad7e71fcc74455e37f000e0ddf711324c14",
+          "result": "Part-7 horizontal: 28 observed and 28 expected pixels over 24 callbacks; 5 carries and 14 admissions"
+        },
+        {
+          "file": "bug087-zero-addend-part2-measurement-v2-20261007.json",
+          "sha256": "b953eb33566c0db6922b154aa692cf79e95b68712fd569aa3e7bf7b836156646",
+          "result": "Part-2 legal east path: 24 observed and 24 expected pixels over 24 callbacks; zero carries, 12 admissions, 12 moving callbacks; measured writes and input injections both empty"
+        },
+        {
+          "file": "bug087-supervised-zero-addend-v2-20261007.json",
+          "sha256": "abeafe30b2ec5e71695ea8e349a0626bc8f5b8e356a2e3c310ed795f7981d90d",
+          "result": "fresh natural Part-1-to-Part-2 supervisor pass"
+        }
+      ],
+      "limit": "A separate paired horizontal sample is retained as a failure and is not used; the candidate-only horizontal phase supplies the passing horizontal displacement result."
+    },
+    {
+      "criterion": "Advance elapsed state before freeze; hold movement fraction, phase, and position across freeze boundaries, saturation, thaw, and death bypass while preserving the 300-callback CoCo freeze.",
+      "status": "pass",
+      "evidence": [
+        {
+          "file": "current-root-freeze-saturated-thaw-candidate-v2-20261007.json",
+          "sha256": "d5954121607f20a7915cd2a5bb73342cd18acda69b96246905975e6df6e7ae3e",
+          "result": "300 freeze callbacks; boundary and saturation checks pass; movement resumes after two callbacks; death bypass leaves rate state unchanged"
+        }
+      ]
+    },
+    {
+      "criterion": "Exercise the legal reversal selector with another active moving actor and confirm actual framebuffer displacement.",
+      "status": "pass",
+      "evidence": [
+        {
+          "file": "bug087-deterministic-reversal-fixture-setup-frozen3dd-v2-20261007.json",
+          "sha256": "7de4bcfeddc09bdb20772fd5eeeb1b13efe140c095ad5866a6bb2396bbcc7708",
+          "result": "two natural releases relocated before measurement; gate0=0; slot0 begins at (6,4) west; six frozen owner-hydration callbacks; both actors have nonzero owner-0 and owner-1 pixels; no measurement writes or input"
+        },
+        {
+          "file": "bug087-deterministic-legal-reversal-frozen3dd-v2-20261007.json",
+          "sha256": "0a7ccc1d4271979a021cfd6aa546129848d3836e3a6c7b14aa1fe4dafcdf5729",
+          "result": "actual (6,4)->(5,4)->(4,4); east selected as sole legal exit; concurrent actor moved during the callback; both FRONT actor pixels retained"
+        },
+        {
+          "file": "bug087-supervised-reversal-frozen3dd-v2-20261007.json",
+          "sha256": "6183379ed7e2d83b1f7f851e8b11a01b201ea16c29d46b41336f3054c9c192d1",
+          "result": "supervised reversal pass"
+        },
+        {
+          "file": "bug087-reversal-route-reachability-20261007.json",
+          "sha256": "6df8b757426bd7a5f15b71cc5f476415547b8dffee81fe859157e0e8ce206460",
+          "result": "offline authored route and legal-exit model; 458 cases had zero all-exits-closed floor states"
+        }
+      ],
+      "limit": "No active DIR_NONE record was forced and no hold-position assertion is inferred from the offline no-closed-exit model."
+    },
+    {
+      "criterion": "Preserve natural initialization, real stage progression, spawner/reset behavior, and approved compatibility constraints.",
+      "status": "pass",
+      "evidence": [
+        {
+          "file": "bug087-supervised-natural-init-spawner-audit-20261007.json",
+          "sha256": "a9eb1893834b8c31ed7de208a475d6ab29cd7a469cd65421e2c96ad261b77a29",
+          "result": "natural credited initialization and true Part-1/2 init markers pass"
+        },
+        {
+          "file": "bug087-supervised-natural-progression-spawner-audit-20261007.json",
+          "sha256": "01d96b3c388638a6164db2f033d0ff7b53def35918455f24ee6194f18933d476",
+          "result": "actual Part-2-to-Part-7 handoffs and true Part-7 rate/spawner reset pass"
+        },
+        {
+          "file": "bug087-spawner-cadence-20261007.json",
+          "sha256": "984730d8faf9c7f68e826527d95c1799762e2ea47e2d96515949d81aea9bea28",
+          "result": "bounded cadence observation: 2,306 enemy callbacks, 2,034 timer entries, seven releases, one reset; cadence evidence only"
+        },
+        {
+          "file": "bug086-completion-receipt-20261006.json",
+          "sha256": "f0846d9d0398b429c8db421edfe07bcd62b861424ce8c303e520ab3befb3e287",
+          "result": "existing BUG-086 actualDone dependency remains pinned"
+        },
+        {
+          "file": "bug087-natural-part9-10-init-v3b-20261007.json",
+          "sha256": "c5ecf39857a4353172edb2121745d6a1648fc7e38ebcff8e0c98c311bf20ac0a",
+          "result": "fresh natural Part-1 initialization pass in the same supervised v3b process; frozen candidate identity"
+        },
+        {
+          "file": "bug087-natural-part9-10-progression-v3b-20261007.json",
+          "sha256": "f61bd0b5d7ca3150be50cb637bb9566f06a9cd780154f24dfa091c5f731f64fa",
+          "result": "fresh natural Part-2-to-Part-7 progression pass; Part-7 boundary at (12,18), pending=0, rate addend $33"
+        },
+        {
+          "file": "bug087-natural-part9-10-reset-v3b-20261007.json",
+          "sha256": "7e858f2c29cf183047b6d6b52ad736201530f919d5686715bd2ea6adcb1c6385",
+          "result": "legal-dot Part-7-to-Part-8 continuation diagnostic; wait timed out at the next player-entry sync before Part-9/10; no transition payload retained"
+        },
+        {
+          "file": "bug087-supervised-natural-part9-10-v3b-20261007.json",
+          "sha256": "ef635c38cb548e2d02fb62df9b37af5992c600761159657337ab38f99d9bd8c3",
+          "result": "supervised v3b outcome: natural-init and progression pass; continuation incomplete; owned XRoar process cleaned after the failure receipt"
+        },
+        {
+          "file": "bug087-natural-part9-10-reset-v4-20261007.json",
+          "sha256": "77425e5da4e9267f59a184a8dfd694b5842656a16fd98c05bd60f91d2bb73162",
+          "result": "Part7→8, Part8→9, Part9→10 each exercise actual Up/eat_dot/check_stage_clear/next_stage; host does not write STAGE or STAGE_PENDING; true stage-9 and stage-10 init markers pass"
+        },
+        {
+          "file": "bug087-supervised-natural-part9-10-v4-20261007.json",
+          "sha256": "24f3e860c610a16fbc265c91acbb14be7b1ec867b3a4aa0bc4858a22df7b0e21",
+          "result": "same fresh process passes natural Part1 init, Part2→7 progression, and the three legal final-dot transitions"
+        }
+      ],
+      "preservation": "Existing BUG-058 evidence covers B2 maximum two-tick/debt-discard behavior. Enemy type handling, player speed, ordinary pose timers, and audio clock were not changed; no new audible/player/pose crossover is claimed."
+    },
+    {
+      "criterion": "Meet current profile fit and bounded verification costs; retain failures and separate BUG-058's global cycle target.",
+      "status": "pass",
+      "evidence": [
+        {
+          "file": "current-three-profile-capacity-qualification-20261006.json",
+          "sha256": "3534fec26c192313856ee2ae32cbd34580092eaa2877d97ea0f6ccc0f2904733",
+          "result": "three supported full builds pass; qualification itself records renewed-scope/runtime verification pending"
+        },
+        {
+          "file": "bug087-supervised-zero-addend-v2-20261007.json",
+          "sha256": "abeafe30b2ec5e71695ea8e349a0626bc8f5b8e356a2e3c310ed795f7981d90d",
+          "result": "fresh supervised zero-addend phase costs below the 45-second bound"
+        },
+        {
+          "file": "bug087-supervised-natural-part9-10-v4-20261007.json",
+          "sha256": "24f3e860c610a16fbc265c91acbb14be7b1ec867b3a4aa0bc4858a22df7b0e21",
+          "result": "fresh natural-init/progression and Part7→10 per-transition phases pass; individual phases are bounded below 45 seconds"
+        },
+        {
+          "result": "current65d0f64 complete AD1 keyboard full build and static guards passed; combined BUG087/110 source",
+          "file": "../rsch014-ready-109/bug110-parent-combined-build-20261007.json"
+        },
+        {
+          "result": "current source-equivalent complete AD1 joystick build/static guards passed",
+          "file": "../rsch014-ready-109/bug110-executor-qualification-20261007.json"
+        },
+        {
+          "result": "current65d0f64 complete AD0 keyboard full build/static guards passed; one resident byte free",
+          "file": "bug087-parent-current-ad0-20261007.json"
+        }
+      ],
+      "measured_phase_seconds_vs_45_second_limit": {
+        "natural_init": 18.022089,
+        "natural_part2_to_part7": 37.371915,
+        "vertical_movement": 5.779,
+        "candidate_horizontal_movement": 8.16,
+        "freeze_thaw_death": 5.349,
+        "reversal_fixture_setup": 8.858,
+        "reversal_measurement": 0.362,
+        "zero_addend_fresh_init": 18.036,
+        "zero_addend_measurement": 1.256,
+        "part9_continuation_attempts": [
+          10.829,
+          12.071,
+          6.628
+        ],
+        "part9_part10_transition_phases_seconds": [
+          7.067663,
+          7.083295,
+          5.897343
+        ],
+        "fresh_supervised_chain_wall_seconds": 76.983191
+      },
+      "cost_limit": "These are bounded phase wall times, not emulator cycle counts. The global 27,000-cycle target belongs to BUG-058 and is excluded from BUG-087 acceptance. The separate primary-inline fit receipt is fit-only evidence, not a measured cycle reduction.",
+      "remaining": "Parent-owned final combined-source build/capacity QA is pending."
+    }
+  ],
+  "rejected_or_superseded_experiments": [
+    "The prior RNG-trajectory explanation is withdrawn: both spawner and reversal endpoints have active=0/released=0 after a death reset; the callback and FRAMES/FB_SIM_SEQ difference is exactly 94. No RNG cause is established and no stochastic detour is repeated.",
+    "The first zero-addend fixture attempt had no acknowledged callback breakpoint. It performed no measurement; the corrected run armed the byte-verified callback and passed.",
+    "The first two Part-9 continuation attempts timed out before Part7→8. A legal source/live dot fixture was then established at (12,18)→(12,17), with reciprocal maze navigation bits, zero gate ownership, and only MAZE_STATE bit7 set during setup. The v3b WSL run completed the Part7→8 handoff and Part8 init path but used a 1.75-second normal_game_return wait; that boundary miss was only a short wait, not evidence against the game or return path, and its error path failed to persist transition rows. The v4 run synchronized at enemy_tick and passed all three actual transitions. A direct PowerShell launch of the POSIX XRoar executable also failed before runtime (WinError 193); WSL launch is the valid execution method."
+  ],
+  "blocking_items": [
+    "Complete parent-owned combined-source build/capacity QA against the final integrated candidate."
+  ],
+  "completion_decision": "All BUG-087 runtime acceptance scenarios now pass on the pinned 7caa candidate, including legal zero-addend movement and true Part-9/10 init resets. Do not mark Done until parent-owned final combined-source build/capacity QA is complete.",
+  "parent_current_revision": "65d0f64dcad8fdd2aaef4d70943526da523cd7fa",
+  "parent_current_module_equivalence": [
+    {
+      "exact": true,
+      "sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+      "artifact": "ladybug-enemy-runtime.rom"
+    },
+    {
+      "exact": true,
+      "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+      "artifact": "ladybug-rate-helper.bin"
+    },
+    {
+      "exact": true,
+      "sha256": "f8cb2c8b9a75702e9cb8b588e585f2065696e34dd86dfa702e6c603856dfebee",
+      "artifact": "ladybug-adaptive-active.bin"
+    },
+    {
+      "exact": true,
+      "sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab",
+      "artifact": "ladybug-adaptive-banked.bin"
+    },
+    {
+      "exact": true,
+      "sha256": "3db2880d1a5cf636620852676fcc3319c8a37d4499bd80f54d5c1f830d81b6f6",
+      "artifact": "ladybug-adaptive-mapped.bin"
+    },
+    {
+      "exact": true,
+      "sha256": "ebcc6b9378dfbcacd413ebc665dad6e20f90e36e7e3a24c48ee6f8d31febda03",
+      "artifact": "ladybug-audio-runtime.bin"
+    }
+  ],
+  "current_resident_8149_byte_equivalence": true
+}

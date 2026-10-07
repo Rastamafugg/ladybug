@@ -1,0 +1,146 @@
+{
+  "schema": "bug087-part7-counter-reconciliation-20261007-v1",
+  "phase": "matched-displacement Part-7 timeout reconciliation; read-only evidence synthesis",
+  "source_revision": "7845dfa",
+  "current_root_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "rom_sha256": {
+    "baseline": "ef13933e1ace948c9c7b294cfc55ef44c14ba69b39a5e6f8fca392766cbbf869",
+    "candidate": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e"
+  },
+  "process_identity": {
+    "baseline_pid": 14670,
+    "candidate_pid": 14672,
+    "baseline_endpoint": "127.0.0.1:17662",
+    "candidate_endpoint": "127.0.0.1:17663",
+    "same_pids_in_part7_authorization_and_postmortem": {
+      "baseline": true,
+      "candidate": true
+    }
+  },
+  "input_receipts": {
+    "baseline_part7": {
+      "path": "worktrees/bug087-root3dd-refresh/build/runtime-ad1-keyboard/bug087-runtime-baseline-natural-rate-progression-part7-v3-20261006.json",
+      "sha256": "98dde8fe36548811a5fdd1029c76684607e9f03034f92f5681662e6e7cb5fa7d"
+    },
+    "candidate_part7": {
+      "path": "worktrees/bug087-root3dd-refresh/build/runtime-ad1-keyboard/bug087-runtime-candidate-natural-rate-progression-part7-v3-20261006.json",
+      "sha256": "e4f1ed5341cf926c3697003e0e00db4b7ff7b87507147027b067d7471b8f87da"
+    },
+    "matched_timeout": {
+      "path": "worktrees/bug087-root3dd-refresh/build/runtime-ad1-keyboard/bug087-matched-horizontal-part7-20261006.json",
+      "sha256": "361752e31a5500ce12066380720211f781d75dfd90ea41f568249f90090b7338"
+    },
+    "postmortem": {
+      "path": "worktrees/bug087-root3dd-refresh/build/runtime-ad1-keyboard/bug087-matched-horizontal-postmortem-20261006.json",
+      "sha256": "d1a6889cd3529ac33189e184f8066250be6ee7fb59f7fc191acc97f454b5ca07"
+    },
+    "spawner_postmortem": {
+      "path": "worktrees/bug087-root3dd-refresh/build/runtime-ad1-keyboard/bug087-matched-horizontal-spawner-postmortem-20261006.json",
+      "sha256": "7e94c1593bf4c289d753fb4871e577dff866d88729cd95d92eda4dafdfb2757b"
+    }
+  },
+  "matched_phase": {
+    "status": "fail-timeout",
+    "elapsed_seconds": 43.017929,
+    "deadline_seconds": 45,
+    "error": "TimeoutError: paired Part-7 progression did not produce a same-part, same-actor legal start before the matched-sample deadline",
+    "success_marker": "same-part/same-actor legal start followed by matched movement markers",
+    "movement_sample_obtained": false
+  },
+  "start_part7_ready": {
+    "baseline": {
+      "stage": 7,
+      "death_state": 0,
+      "enemy_active": 0,
+      "frames": 3143,
+      "fb_sim_seq": 268,
+      "dots_left": 107,
+      "stage_pending": 0,
+      "rate_timer": 160,
+      "rate_bucket": 0,
+      "rate_frac": 192,
+      "rate_addend": 0,
+      "rate_phase": 10
+    },
+    "candidate": {
+      "stage": 7,
+      "death_state": 0,
+      "enemy_active": 0,
+      "frames": 3142,
+      "fb_sim_seq": 268,
+      "dots_left": 107,
+      "stage_pending": 0,
+      "rate_timer": 64,
+      "rate_bucket": 0,
+      "rate_frac": 96,
+      "rate_addend": 51,
+      "rate_phase": 0
+    }
+  },
+  "end_readonly_snapshot": {
+    "baseline": {
+      "stage": 7,
+      "death_state": 0,
+      "enemy_active": 0,
+      "frames": 5094,
+      "fb_sim_seq": 1870,
+      "rate_timer": 160,
+      "rate_bucket": 0,
+      "rate_frac": 192,
+      "rate_addend": 0,
+      "rate_phase": 10
+    },
+    "candidate": {
+      "stage": 7,
+      "death_state": 0,
+      "enemy_active": 3,
+      "frames": 4948,
+      "fb_sim_seq": 1311,
+      "rate_timer": 10,
+      "rate_bucket": 28,
+      "rate_frac": 210,
+      "rate_addend": 51,
+      "rate_phase": 1
+    }
+  },
+  "derived_counter_delta": {
+    "frames": {
+      "baseline": 1951,
+      "candidate": 1806
+    },
+    "fb_sim_seq": {
+      "baseline": 1602,
+      "candidate": 1043
+    },
+    "candidate_minus_baseline": {
+      "frames": -145,
+      "fb_sim_seq": -559
+    }
+  },
+  "end_spawner_snapshot": {
+    "baseline": {
+      "BOX_TIMER": 2,
+      "BOX_INDEX": 58,
+      "ENEMY_ACTIVE": 0,
+      "ENEMY_RELEASED": 0
+    },
+    "candidate": {
+      "BOX_TIMER": 1,
+      "BOX_INDEX": 36,
+      "ENEMY_ACTIVE": 3,
+      "ENEMY_RELEASED": 6
+    }
+  },
+  "source_reset_behavior": {
+    "enemy_tick_impl_death_entry": "sets ENEMY_MOVE=0, calls reset_enemy_state, sets ENEMY_DEATH_LATCH=1; wrapper later publishes reset_perimeter_visual",
+    "reset_enemy_state": "resets BOX_INDEX and ENEMY_ACTIVE and reloads box timer; procedure does not clear ENEMY_RELEASED",
+    "interpretation": "a death/reset could be consistent with a low BOX_INDEX and cumulative releases, but no death-history was captured; cause is unconfirmed"
+  },
+  "limits": [
+    "FRAMES and FB_SIM_SEQ deltas are endpoint counters, not player/enemy displacement.",
+    "Part-7 start and timeout postmortem are the same authorized XRoar PIDs; the phase ended without a matched legal actor start, so no movement speed comparison exists.",
+    "The candidate end population and release count differ from baseline, but this receipt does not identify the cause.",
+    "The 2026-10-07 live-endpoint audit is a later unpaired read-only snapshot and is not used to calculate these phase deltas."
+  ],
+  "status": "reconciled-no-movement-acceptance"
+}

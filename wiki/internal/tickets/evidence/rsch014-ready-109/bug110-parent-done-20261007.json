@@ -1,0 +1,60 @@
+{
+  "schema": "bug110-parent-integrated-completion-v1",
+  "date": "2026-10-07",
+  "status": "Done",
+  "class": "High-risk",
+  "source_commit": "3b2d5cd800a1c305b67c7c4c3412d5a26228dc07",
+  "integrated_commit": "65d0f64dcad8fdd2aaef4d70943526da523cd7fa",
+  "keyboard": {
+    "resident_bytes": 8149,
+    "resident_free": 43,
+    "rom_sha256": "7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce",
+    "build_receipt_sha256": "75cd660548c8ba61d50e3e787081bbf2024c582d3071913e7a937b98eea700e5",
+    "static_audit_exit": 0,
+    "full_build_exit": 0
+  },
+  "joystick": {
+    "resident_bytes": 8185,
+    "resident_free": 7,
+    "rom_sha256": "d25ad3b5eb6adca075c522d0f744d7a3a2a3befb326807b70bcdf9268882db83",
+    "build_receipt_sha256": "004c21a4ab0ce07a0ed1a3b465e05c2333bb9a9388b0eed580e4121b9cee0b0c",
+    "static_audit_exit": 0,
+    "full_build_exit": 0
+  },
+  "runtime": {
+    "boundaries": "40 seconds per phase",
+    "cases": 9,
+    "receipt": "bug110-parent-nine-rank-20261007.json",
+    "passed": "PASS",
+    "maximum_phase_seconds": 15.615,
+    "sha256": "a0a20c1aa845951ccae41a2ab35bbbcb5169b18b10cb0d64155c2a2f1df2fec4"
+  },
+  "root_boundary_audit": {
+    "sha256": "b7a7a465d230c19290851747ba91b3fe7e64a2be3b427a4cd035568fbd62fe64",
+    "changes": 0,
+    "receipt": "bug110-parent-boundary-20261007.json",
+    "protected_files": 210
+  },
+  "shared_capacity": {
+    "presentation_free": 18,
+    "banked_adaptive_free": 2,
+    "helper_free": 3,
+    "assets_free": 9,
+    "gmc_payload_free": 11855,
+    "highscore_runtime_free": 21
+  },
+  "movement_reuse": {
+    "source_equivalence": "ranking and stage includes byte-identical; unchanged movement callers reviewed; current ranks additionally exercise repaint and scratch",
+    "stale_rom_not_claimed_current": true,
+    "prior_receipt": "worktrees/bug-110-readiness-prefix/repro/bug110/bug110-movement-runtime-20261006.json"
+  },
+  "rejected_experiments": [
+    "Incomplete isolated keyboard documentation build; copied missing read-only catalog links corrected in clean parent build",
+    "Interrupted generation created mixed artifacts; runtime identity failed before qualifying phase, these cases do not pass"
+  ],
+  "residual_risks": [
+    "Seven joystick resident bytes free; future changes require combined fit",
+    "Separate BUG-087 acceptance and BUG-058/FEAT-005 older timing gates remain open"
+  ],
+  "tmx_staged": false
+}

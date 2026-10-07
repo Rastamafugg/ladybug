@@ -1,0 +1,58 @@
+{
+  "schema": "bug087-current-profile-integration-v1",
+  "date": "2026-10-06",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "profile": {
+    "game": "complete",
+    "cpu": "6809",
+    "adaptive_rendering": true,
+    "input": "joystick"
+  },
+  "command": "LADYBUG_INPUT=joystick bash scripts/build.sh build",
+  "result": {
+    "build_exit_code": 0,
+    "rom_sha256": "5328a3e496c3c878aed7ecd79647a64cb3a82344b24ae72c3691e594d7b4e483",
+    "source_build_receipt_sha256": "ce3e4c3ee1d85ee51959520ff9fca52bbf7906272fb6ad2f562a562be555956e",
+    "sparse_layout_sha256": "e95dc87215fb17f21dd78a7bdc2a4ef940f675d25cd5cf01ee7831a52fa259f3"
+  },
+  "capacity_bytes": {
+    "resident": {
+      "used": 8185,
+      "limit": 8192,
+      "free": 7
+    },
+    "assets": {
+      "used": 7671,
+      "limit": 7680,
+      "free": 9
+    },
+    "presentation_module": {
+      "used": 1262,
+      "limit": 1280,
+      "free": 18
+    },
+    "rate_helper": {
+      "used": 185,
+      "limit": 192,
+      "free": 7
+    },
+    "enemy_helper": {
+      "used": 87,
+      "limit": 93,
+      "free": 6
+    },
+    "presentation_helper": {
+      "used": 331,
+      "limit": 334,
+      "free": 3
+    }
+  },
+  "verification": {
+    "source_documentation": "PASS: 16 modules, 312/312 routines, 5042/5042 labels",
+    "presentation_flow": "PASS: complete nine-screen flow, authored TMX coordinates, bounded loading, credit/start pre-emption, instruction choreography, atomic surface copy",
+    "presentation_pixels": "PASS: all nine presentation screens pixel-exact",
+    "sparse_sprites": "PASS: 130 enemy and 16 player frames pixel-exact; 12 loader segments reconstructed",
+    "gmc_boundary": "PASS: exact boundary reconstructs and one-byte excess fails",
+    "cpu_readable_gmc_spare_bytes": 11853
+  }
+}

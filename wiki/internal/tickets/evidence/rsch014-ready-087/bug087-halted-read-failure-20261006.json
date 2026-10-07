@@ -1,0 +1,51 @@
+{
+  "ticket": "BUG-087",
+  "kind": "current-candidate live verifier failure before game execution",
+  "phase": "natural-init",
+  "status": "fail-runtime-marker",
+  "phase_elapsed_seconds": 0.18,
+  "phase_deadline_seconds": 45,
+  "runtime_launched": false,
+  "monitor_attached": true,
+  "run_calls": 0,
+  "write_calls": 0,
+  "first_monitor_read": {
+    "method": "read_memory",
+    "physical_address_decimal": 507904,
+    "physical_address_hex": "$7C000",
+    "physical_page": "$3E",
+    "page_offset_hex": "$0000",
+    "length_bytes": 8192,
+    "observed_prefix_hex": "0000000000000000ffffffff00000000",
+    "expected_runtime_prefix_hex": "444b1a5010ce1ffe4f1f8b4fb7ff01b7"
+  },
+  "runtime_artifact": {
+    "name": "ladybug-runtime.rom",
+    "length_bytes": 16384,
+    "sha256": "7c7104a66f832890a81572740d6f88c8f1491676e0f4ae04445105cb97dc31ae"
+  },
+  "loader_contract": {
+    "authored_bank1_usable_range": "$4000-$7DFF",
+    "usable_length_bytes": 15872,
+    "staging_pages": [
+      "$21:0000-1FFF (8192 bytes)",
+      "$22:0000-1DFF (7680 bytes)"
+    ],
+    "destination_pages": [
+      "$3E:0000-1FFF",
+      "$3F:0000-1DFF"
+    ],
+    "unused_runtime_tail": "$FE00-$FFFF (512 bytes; excluded)"
+  },
+  "confirmed_cause": "The adapter called _live_side before allowing the cold-start loader to execute. _verify_runtime_images then read physical RAM page $3E, which still contained reset-state bytes. XRoar monitor read_memory accesses the physical RAM array; the loader publishes bank 1 to pages $3E/$3F only after its all-RAM handoff.",
+  "disposition": "Verifier startup-order defect; not evidence of a candidate gameplay defect. Preserve this failed probe and rerun only after the authorized byte-identity check is moved after natural loader handoff.",
+  "raw_output_path": "worktrees/bug087-root3dd-refresh/build/bug087-live-natural-init.json",
+  "raw_output_sha256": "64a251867cf44d3d972a24f05414ee77da6a40a3e6de6562a3b60615d30a29d3",
+  "source_paths": [
+    "docs/reference/xroar/src/monitor.c",
+    "src/gmc_bootstrap.s",
+    "scripts/verify_gmc_boot.py",
+    "wiki/internal/tooling/xroar.html",
+    "wiki/internal/implementation/memory-map.html"
+  ]
+}

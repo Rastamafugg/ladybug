@@ -1,0 +1,23 @@
+{
+  "schema": "bug087-paired-callback-observer-preparation-20261007-v1",
+  "status": "offline-self-test-pass-runtime-not-run",
+  "phase": "part7-paired-callback-audit",
+  "phase_deadline_seconds": 45,
+  "target_paired_callbacks": 120,
+  "probe_sha256": "be80c5f166ec4fe94b539fc98fecc20ded67b26b77c64d53df1eb3c12dbbb186",
+  "adapter_sha256": "1da330ed383ca9a3cbe8fdafbb8983845df26040c3b1b490795f20dcb13da472",
+  "verification": {
+    "syntax": "python -m py_compile passed",
+    "self_test": "python repro/bug087-paired-callback-audit-20261007/probe.py --self-test passed",
+    "self_test_result": "both independent run_until_marker requests were issued concurrently",
+    "live_runtime": "not run; no XRoar processes were live"
+  },
+  "diagnostic_contract": {
+    "writes": [],
+    "movement_acceptance": false,
+    "success_marker": "120 paired enemy_tick_impl callbacks with per-callback state snapshots within 45 seconds",
+    "timeout_meaning": "incomplete paired timeline; no movement or speed conclusion",
+    "observer_risk": "Prior serial host waits may contribute scheduling skew; this prototype does not establish that as the cause of the earlier divergence."
+  },
+  "correction": "The probe reuses the canonical low-memory snapshot, including STAGE_PENDING at $0026; no stale $0055 offset is used."
+}

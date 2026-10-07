@@ -1,0 +1,117 @@
+{
+  "schema": "feat005-instruction-window-checkpointed-20261007-v1",
+  "phase": "natural instruction presentation; one 40-second phase per named window",
+  "rom_sha256": "97e8b05a47c263c4bceb55552c9d30ee56e872140863afd0667999020a87a56e",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "source_build_receipt_sha256": "37518d420485f75fb9f165265b7a099429efce10d0bd45a506c6ac282e434804",
+  "authorization_sha256": "6d21e6f9a8f6cc3d347f846ced1ab8885445c9c97ecf3fcc3970d71d515e86f7",
+  "verifier_sha256": "c9abc50c87676e168681714feeece3f6b697bbfa5c5f0b4575ebaa69f1136139",
+  "monitor_binary_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+  "deadline_per_window_seconds": 40.0,
+  "success_marker": "complete six-cycle call/return samples at every required named window",
+  "timeout_meaning": "the named natural window was not fully sampled; checkpoint state is diagnostic only",
+  "required_maximum_cycles": 27000,
+  "windows": [
+    {
+      "target": 1503,
+      "started": true,
+      "samples": []
+    }
+  ],
+  "result": "fail",
+  "process": {
+    "pid": 17045,
+    "monitor_endpoint": "127.0.0.1:49709"
+  },
+  "helper_sha256": "f9f4104ecac58396237360fd3bdf6857142c6e163eea12a16bb6616c51597a4b",
+  "checkpoint": {
+    "stage": "align-natural-timer",
+    "target": 1503,
+    "timer": 1433,
+    "last_completed_marker": "presentation_flow_tick",
+    "sample_index": null,
+    "phase_elapsed_seconds": 1.998224,
+    "monitor_pending_bytes_hex": ""
+  },
+  "failure": "MonitorTimeout: monitor response deadline expired",
+  "failure_context": {
+    "stage": "align-natural-timer",
+    "target": 1503,
+    "timer": 1441,
+    "last_completed_marker": "presentation_flow_tick",
+    "sample_index": null,
+    "breakpoints_left_for_owned_process_stop": [
+      2
+    ]
+  },
+  "monitor_failure_context": {
+    "last_request": {
+      "id": 2891,
+      "method": "run"
+    },
+    "last_message": {
+      "jsonrpc": "2.0",
+      "id": 2891,
+      "result": {
+        "ok": true
+      }
+    },
+    "unmatched_events": []
+  },
+  "timeout_snapshot": {
+    "status": "captured",
+    "hello": {
+      "jsonrpc": "2.0",
+      "method": "hello",
+      "params": {
+        "xroar_version": "1.11",
+        "monitor_protocol_version": "0.6.0",
+        "machine_name": "coco3",
+        "run_state": "running"
+      }
+    },
+    "run_state_before_pause": {
+      "state": "running"
+    },
+    "pause_result": {
+      "ok": true
+    },
+    "registers": {
+      "a": 52,
+      "b": 1,
+      "d": 13313,
+      "cc": 201,
+      "dp": 0,
+      "x": 48132,
+      "y": 0,
+      "u": 43560,
+      "s": 8188,
+      "pc": 2580
+    },
+    "gime_mapping_cpu_ffa0_ffa5_hex": "3830313233343e3f",
+    "pc_mapping_slot": 0,
+    "pc_mapped_page": 56,
+    "cpu_pc_bytes_hex": "6f108cbd4425f98d",
+    "physical_mapped_pc_bytes_hex": "6f108cbd4425f98d",
+    "direct_page_a4_b1_hex": "a5030100000003c000187f3415a2",
+    "pres_magic_mode_screen": [
+      165,
+      3,
+      1
+    ],
+    "pres_timer_bytes_hex": "15a2",
+    "pres_timer_value": 5538,
+    "breakpoints": [
+      {
+        "id": 2,
+        "addr": 6400,
+        "kind": "exec"
+      }
+    ],
+    "cycles": {
+      "event_ticks": 2883731680,
+      "cpu_cycles": 180233230
+    }
+  },
+  "phase_elapsed_seconds": 41.161883
+}

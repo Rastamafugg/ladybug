@@ -1,0 +1,261 @@
+{
+  "ticket": "BUG-058",
+  "date": "2026-10-07",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "current_complete_keyboard_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "source_build_receipt_sha256": "43b33e655a0c005eb6a51a3f0f2351186152721a9212b3f74702a0974191fc8c",
+  "profile_receipt": {
+    "path": "bug058-cost-profile-replay-runtime-20261007.json",
+    "sha256_after_correction": "d039ceded6b966c397c8b5fd4b4ebc0737ce590d0e71dc9d21bea36f36403197",
+    "base_receipt_sha256_after_correction": "87a034da90eade5746203745dbf6b301756a9a4baeb4fecb0669cd2e9cb88034",
+    "replay_receipt_sha256_after_correction": "d039ceded6b966c397c8b5fd4b4ebc0737ce590d0e71dc9d21bea36f36403197"
+  },
+  "classification": "High-risk",
+  "classification_reasons": [
+    "hard 27,000-cycle boundary",
+    "persistent framebuffer replay",
+    "resident capacity boundary"
+  ],
+  "status": "Profiling complete; initial inline-only fit historical; profile-conditional PERF-010 Proposed",
+  "current_measurements": {
+    "scope": "controlled release after natural credit and Enter entry; input-parser-through-return; current profiled row is logical step 89 to 91, rate 2, debt 0, mode 0, owner 0, three enemies",
+    "three_enemy_sample_cycles": [
+      68575,
+      43066,
+      46717
+    ],
+    "three_enemy_max_cycles": 68575,
+    "three_enemy_mean_cycles": 52786,
+    "target_cycles": 27000,
+    "peak_gap_cycles": 41575,
+    "separate_two_enemy_sample_cycles": [
+      39298,
+      41811,
+      87609
+    ],
+    "separate_two_enemy_max_cycles": 87609,
+    "quiet_four_sample_cycles": [
+      46250,
+      50407,
+      49733,
+      47100,
+      46699,
+      51260,
+      42061,
+      38867
+    ],
+    "quiet_four_max_cycles": 51260,
+    "steady_four_roaming_sample_cycles": [
+      39622,
+      39824,
+      44538,
+      43612,
+      41553,
+      42059,
+      44316,
+      44263
+    ],
+    "steady_four_roaming_max_cycles": 44538,
+    "startup_rows_cycles": [
+      1144507,
+      1148051
+    ],
+    "not_whole_game_maximum": true
+  },
+  "profiled_peak": {
+    "worklist_cycles": 68575,
+    "logical_steps": [
+      89,
+      91
+    ],
+    "fault": 0,
+    "debt": 0,
+    "late": 1,
+    "adaptive_render": {
+      "calls": 1,
+      "inclusive": 55878,
+      "exclusive": 3138
+    },
+    "frame_render_background": {
+      "calls": 3,
+      "inclusive": 44874,
+      "exclusive": 454
+    },
+    "render_entity_colour": {
+      "calls": 1,
+      "inclusive": 22849,
+      "exclusive": 1122
+    },
+    "replay_entity_overlay_common": {
+      "calls": 6,
+      "inclusive": 21727,
+      "exclusive": 21727
+    },
+    "replay_modes": [
+      {
+        "mode": 1,
+        "entity_work": 6,
+        "entity_count": 8
+      },
+      {
+        "mode": 1,
+        "entity_work": 5,
+        "entity_count": 8
+      },
+      {
+        "mode": 1,
+        "entity_work": 4,
+        "entity_count": 8
+      },
+      {
+        "mode": 1,
+        "entity_work": 3,
+        "entity_count": 8
+      },
+      {
+        "mode": 1,
+        "entity_work": 2,
+        "entity_count": 8
+      },
+      {
+        "mode": 1,
+        "entity_work": 1,
+        "entity_count": 8
+      }
+    ],
+    "actor_closure_restore": {
+      "calls": 1,
+      "inclusive": 1240,
+      "exclusive": 1240
+    },
+    "actor_closure_draw": {
+      "calls": 1,
+      "inclusive": 3499,
+      "exclusive": 1643
+    },
+    "compose_enemy_zone": {
+      "calls": 1,
+      "inclusive": 21571,
+      "exclusive": 1236
+    },
+    "draw_enemy_stage": {
+      "calls": 4,
+      "inclusive": 13472,
+      "exclusive": 13472
+    },
+    "capture_entry_observed": false,
+    "audio_adaptive_api": {
+      "calls": 4,
+      "inclusive": 4457,
+      "exclusive": 55
+    },
+    "audio_nested_spans": {
+      "aas_elapsed": {
+        "calls": 1,
+        "inclusive": 935,
+        "exclusive": 935
+      },
+      "aas_admit": {
+        "calls": 2,
+        "inclusive": 1674,
+        "exclusive": 112
+      },
+      "aas_output": {
+        "calls": 1,
+        "inclusive": 1793,
+        "exclusive": 85
+      },
+      "aas_prime": {
+        "calls": 2,
+        "inclusive": 703,
+        "exclusive": 703
+      },
+      "audio_mix": {
+        "calls": 1,
+        "inclusive": 824,
+        "exclusive": 824
+      },
+      "audio_mix_write": {
+        "calls": 1,
+        "inclusive": 580,
+        "exclusive": 580
+      }
+    },
+    "profile_note": "Inclusive parent and child spans overlap; do not sum them. Audio is null-backend CPU cost only. No negative rebind or full-replay per-pair cost was captured in this peak."
+  },
+  "proposed_candidate": {
+    "artifact": "one adaptive-conditional inline expansion at src/main.s repco_primary_pair; retain primary_cache_mask for nonadaptive assembly",
+    "preserve": [
+      "OBJ_VALUE stores original cached byte",
+      "A and B contain the same combined preserve mask",
+      "Y stays the primary_preserve_table pointer",
+      "X and U remain unchanged through mask formation",
+      "CC is overwritten by the following CMPA #$FF",
+      "no cache, cursor, pixel, journal or owner state changes"
+    ],
+    "projection": {
+      "measured_overlay_region_cycles": 21727,
+      "measured_overlay_calls": 6,
+      "observed_mode_all_calls": 1,
+      "source_pairs_per_normal_entity": [
+        29,
+        37
+      ],
+      "estimated_total_pairs": [
+        174,
+        222
+      ],
+      "projected_saved_cycles": [
+        2088,
+        2664
+      ],
+      "projected_post_worklist_cycles": [
+        65911,
+        66487
+      ],
+      "projected_excess_over_target_cycles": [
+        38911,
+        39487
+      ],
+      "absolute_replay_elimination_ceiling_cycles": 21727,
+      "ceiling_residual_cycles": 46848,
+      "ceiling_excess_over_target_cycles": 19848,
+      "all_cycle_estimates_are_projections": true,
+      "estimated_cycles_saved_per_pair": 12,
+      "cycle_basis_source": "Motorola MC6809 Programming Manual Appendix F: BSR 7 cycles, RTS 5 cycles; https://www.maddes.net/m6809pm/appendix_f.htm"
+    },
+    "mode_accounting": {
+      "positive_OBJ_ACCENT": "primary paint: inline the exact 4-instruction primary mask body",
+      "negative_OBJ_ACCENT": "cache rebind via rebind_cache_value, unchanged and unprofiled in the target row",
+      "zero_OBJ_ACCENT": "full cached-pair replay, unchanged and unprofiled in the target row"
+    }
+  },
+  "isolated_fit_only": {
+    "worktree": "worktrees/bug058-cost-primary-inline-prototype",
+    "base_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+    "method": "direct lwasm assembly of src/main.s against current root generated include files; no scripts/build.sh or runtime was run",
+    "resident_limit_bytes": 8192,
+    "keyboard": {
+      "baseline_bytes": 8149,
+      "candidate_bytes": 8155,
+      "candidate_spare_bytes": 37
+    },
+    "joystick": {
+      "baseline_bytes": 8185,
+      "candidate_bytes": 8191,
+      "candidate_spare_bytes": 1
+    },
+    "result": "both fit the numeric limit; joystick leaves one byte and is a material capacity risk",
+    "patch_path": "bug058-cost-primary-inline-prototype-20261007.patch",
+    "patch_sha256": "806feaa07391681d3c8309c7eeaca701ff73133d474cc41b5773df9943559fb4"
+  },
+  "acceptance_boundary": {
+    "minimum_matched_savings_cycles": 2000,
+    "target_27000_must_be_reported_separately_and_remains_unmet_by_projection": true,
+    "must_retain_B2_two_tick_debt_discard": true,
+    "must_retain_PERF008_selective_pickup_replay": true,
+    "no_done_or_target_met_claim_from_this_stage": true
+  },
+  "selected_fit_receipt": "bug058-cost-primary-inline-fit-20261007.json",
+  "selected_patch": "bug058-cost-primary-inline-fit-20261007.patch"
+}

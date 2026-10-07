@@ -1,0 +1,174 @@
+{
+  "schema": "rsch014-bug087-current-capacity-candidate-v1",
+  "date": "2026-10-06",
+  "status": "PASS-THREE-SUPPORTED-FULL-BUILDS; RENEWED-SCOPE-APPROVAL-AND-RUNTIME-VERIFICATION-PENDING",
+  "root_head": "e5b6541f2d458089ce82b04253e3c52770932599",
+  "candidate_worktree_head": "c55ad1b1b6124e74c09efebd4d7e4a3e4ee0c918",
+  "measurement_rule": "Each size is one exact assembled output from scripts/build.sh build; free bytes = configured limit - used bytes; pass requires exit code 0 and used <= limit. No averages or projections.",
+  "profiles": {
+    "ad1-keyboard": {
+      "input": "keyboard",
+      "adaptive_rendering": true,
+      "build_exit_code": 0,
+      "rom_sha256": "2e11a1f792bf3bdfd4b728c2eebf88ef922b021a62f0b115130a30a679496a3e",
+      "build_log_sha256": "b47b57365f4434ffc0579a234a7df78fdff6862d4bf4f1abcaf07fafa2b2b963",
+      "resident": {
+        "used_bytes": 8149,
+        "limit_bytes": 8192,
+        "free_bytes": 43
+      },
+      "assets": {
+        "used_bytes": 7671,
+        "limit_bytes": 7680,
+        "free_bytes": 9
+      },
+      "presentation_module": {
+        "used_bytes": 1262,
+        "limit_bytes": 1280,
+        "free_bytes": 18
+      },
+      "enemy_helper_page34": {
+        "used_bytes": 87,
+        "limit_bytes": 93,
+        "free_bytes": 6
+      },
+      "rate_helper": {
+        "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+        "used_bytes": 185,
+        "limit_bytes": 192,
+        "free_bytes": 7
+      }
+    },
+    "ad1-joystick": {
+      "input": "joystick",
+      "adaptive_rendering": true,
+      "build_exit_code": 0,
+      "rom_sha256": "d3500e476ff605f66d20e998b7e809e66cb97fe3051179631e7aea5ab49c6ad5",
+      "build_log_sha256": "7c5b22b62868cf78acdbf2b6d7fd829cd1d050036a4c44c3be5fe054eab26a4c",
+      "resident": {
+        "used_bytes": 8185,
+        "limit_bytes": 8192,
+        "free_bytes": 7
+      },
+      "assets": {
+        "used_bytes": 7671,
+        "limit_bytes": 7680,
+        "free_bytes": 9
+      },
+      "presentation_module": {
+        "used_bytes": 1262,
+        "limit_bytes": 1280,
+        "free_bytes": 18
+      },
+      "enemy_helper_page34": {
+        "used_bytes": 87,
+        "limit_bytes": 93,
+        "free_bytes": 6
+      },
+      "rate_helper": {
+        "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+        "used_bytes": 185,
+        "limit_bytes": 192,
+        "free_bytes": 7
+      }
+    },
+    "ad0-keyboard": {
+      "input": "keyboard",
+      "adaptive_rendering": false,
+      "build_exit_code": 0,
+      "rom_sha256": "942a34a2985d696c0ccfd8d2de3a42cefc59da91b9a9cacd9547d8bda053af16",
+      "build_log_sha256": "f04318d0a6ce4c5103ebe5bd6af4c934eea49323e65976ea0f2818c1785af80f",
+      "resident": {
+        "used_bytes": 8191,
+        "limit_bytes": 8192,
+        "free_bytes": 1
+      },
+      "assets": {
+        "used_bytes": 7630,
+        "limit_bytes": 7680,
+        "free_bytes": 50
+      },
+      "presentation_module": {
+        "used_bytes": 1275,
+        "limit_bytes": 1280,
+        "free_bytes": 5
+      },
+      "enemy_helper_page34": {
+        "used_bytes": 87,
+        "limit_bytes": 93,
+        "free_bytes": 6
+      },
+      "rate_helper": {
+        "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+        "used_bytes": 185,
+        "limit_bytes": 192,
+        "free_bytes": 7
+      }
+    }
+  },
+  "candidate_source_sha256": {
+    "src/main.s": "40ee46760be61218d7d46f0a98ea9ce55328c88cb7dd3581dd6c47e71c20c96b",
+    "src/enemy_runtime.s": "9730b3f501dfdd72364ca420c9023bb8d40b443e306938881a525d9ad37fa76c",
+    "src/prototype_rate_page34.s": "61f543056331fda4752c84eb6033b861fdbaf5ed7623c2d6932e7a21a98d32aa",
+    "src/presentation_runtime.s": "db46d7c3298fd2b320b8f69d057dcadc2d649418d4529b4b57f90a3b3f57c448",
+    "src/shared_text_stage.inc": "de664b4538249388cb7d7c97e4d631ca7bb3c54ba2eb89c681889281423108e6",
+    "scripts/build.sh": "67b2cdcb959adc40bd0668dbc25d16de2189ed58ab767ee1b51b21cba0fc611c",
+    "scripts/build_sparse_sprites.py": "63bea84a5dcaa7799e472dd6daa159efa01efa6e716594522eb94c3233ed3e8e",
+    "scripts/verify_sparse_sprites.py": "9ce5f2142e1474dc37aa29e5a9a7cbcc85ac5ca7de3332d9031b909bcb9e4c97",
+    "scripts/verify_presentation_flow.py": "2e43f5164b33871cd56485f9cb713e6a6b5b0924028ab8c635d2ef2a5df25452",
+    "scripts/source_reference.json": "4a76c1fbfbfcec90eefbc0a5881e7da00235b2093a2beacff0accbc97806e647",
+    "assets/arcade/text-colours.json": "0dc7e336fefd870aacb5f525939e1acc4bc1df6a7c40c81d5fe23ec88c379326"
+  },
+  "user_tmx_input_match": {
+    "all_nine_match_root": true,
+    "files": {
+      "coco-attract-screen.tmx": true,
+      "coco-credits-screen.tmx": true,
+      "coco-enter-high-score-screen.tmx": true,
+      "coco-game-over-screen.tmx": true,
+      "coco-high-score-screen.tmx": true,
+      "coco-instructions-screen.tmx": true,
+      "coco-keybind-options-screen.tmx": true,
+      "coco-level-start-screen.tmx": true,
+      "coco-screen.tmx": true
+    }
+  },
+  "prototype_deltas": {
+    "nonadaptive_resident_savings_bytes": 6,
+    "presentation_module_savings_bytes": 18,
+    "presentation_baseline_end": "$1E0D",
+    "presentation_candidate_end": "$1DFB",
+    "capacity_patch_sha256": "bf7f18c6fda548d39b47be79b4ca51c439b92ea0d0719dff76e29a1c42008a1f",
+    "presentation_verifier_patch": "current-presentation-flow-verifier-prototype-20261006.patch",
+    "presentation_verifier_patch_sha256": "0312860e74a17c70febf7a71a0561a6ab2215b60fdc8e9583ede23428d0d3df9"
+  },
+  "additional_checks": {
+    "presentation_flow_static": "PASS on candidate build artifacts after updating stale current-source assertions; output includes complete flow, eight actor surfaces, bounded load, atomic surface copy; current AD0 keyboard module 1275/1280.",
+    "rate_adapter_self_test": "PASS: 18 guard cases, 560 arithmetic cases; runtime explicitly not run.",
+    "cold_page_index_equivalence": "PASS: 512 byte/carry inputs compare original mask+shift with four ROLB and mask7.",
+    "live_candidate_runtime": "NOT-RUN on these exact candidate ROM hashes; prior exact-rate runtime results belong to earlier ROM revisions and are not reused as current proof."
+  },
+  "scope_change": "Candidate adds bounded source compaction in src/presentation_runtime.s, six-byte encoding compaction in src/main.s, and current-source contracts in scripts/verify_presentation_flow.py. Existing BUG-087 rate outcome, helper, freeze/B2 policy, and hard limits remain unchanged. Return to Proposed pending explicit approval of added targets/scope.",
+  "limits": "AD0 joystick remains excluded by the ticketed inherited 23-byte PERF-005 overflow. No memory limit was relaxed. Nonadaptive keyboard has one resident byte and five presentation-module bytes free.",
+  "rejected_checks": [
+    {
+      "check": "Initial candidate presentation-flow verifier run",
+      "result": "FAIL: stale static source assertions",
+      "details": "The verifier expected the old LDA/LDY copy-loop shape and 20 attract actor records. The current compact candidate uses a bounded pointer copy loop and the actual source/template uses eight title actor records. The same candidate-only verifier was updated to assert the current bounded loop and eight-record contract; rerun passed on current AD0 keyboard artifacts.",
+      "classification": "Verifier expectation mismatch, not a game/runtime defect; no behavior or acceptance target was changed."
+    }
+  ],
+  "candidate_verification_commands": {
+    "full_profiles": "For each frozen profile: LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build; repeat with LADYBUG_INPUT=joystick; then use LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=0 bash scripts/build.sh build.",
+    "presentation_flow": "python3 scripts/verify_presentation_flow.py (run from repository root after the corresponding complete-profile build).",
+    "adapter_self_test": "python3 wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py self-test"
+  },
+  "minimum_headroom": {
+    "resident_bytes": 1,
+    "presentation_module_bytes": 5,
+    "assets_bytes": 9,
+    "rate_helper_bytes": 7,
+    "enemy_helper_page34_bytes": 6
+  },
+  "runtime_acceptance_boundary": "No current-candidate dynamic rate, movement, published-pixel, freeze/thaw replay, legal reversal or matched-cost acceptance was run on these exact three ROM hashes. Current build/static checks are qualification only."
+}

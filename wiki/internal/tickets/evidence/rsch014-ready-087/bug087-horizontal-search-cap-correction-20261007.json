@@ -1,0 +1,52 @@
+{
+  "schema": "bug087-horizontal-search-cap-correction-v1",
+  "date": "2026-10-07",
+  "phase": "candidate-horizontal-displacement",
+  "status": "setup-bound-corrected-offline-validated",
+  "previous_attempt": {
+    "receipt": "current-root-candidate-horizontal-20261007.json",
+    "receipt_sha256": "66772a149acd72fbcdc1ef0193f1f4cb61afcc25c27b890412c4e7bc4a694e5b",
+    "result": "fail-timeout before any displacement sample",
+    "elapsed_seconds": 2.169104,
+    "internal_search_cap_callbacks": 120,
+    "phase_deadline_seconds": 45,
+    "interpretation": "The internal actor-search cap ended the phase early; the 45-second runtime deadline was not exhausted. No movement-speed result follows."
+  },
+  "source_basis": {
+    "source": "src/main.s perimeter_timer_tick and reload_box_timer",
+    "part7_box_timer_callbacks": 3,
+    "perimeter_boxes": 92,
+    "retained_natural_start_checkpoint": {"box_index": 10, "box_timer": 1},
+    "callbacks_to_next_release_from_checkpoint": 244,
+    "maximum_callbacks_for_full_circuit": 276,
+    "calculation": "From index 10/timer 1, 82 box updates remain; first update is one callback away and the next 81 updates are three callbacks apart: 1 + 81*3 = 244. A full 92-box circuit at three callbacks per update is at most 276 callbacks."
+  },
+  "revised_setup": {
+    "alignment_callback_cap": 400,
+    "phase_deadline_seconds": 45,
+    "measurement_callbacks": 24,
+    "starting_rate_addend": 51,
+    "starting_rate_phase": 0,
+    "expected_fractional_carries": [4, 5],
+    "expected_policy_admissions": 14,
+    "expected_displacement_pixels": 28,
+    "pixel_tolerance": 1,
+    "candidate_only": true,
+    "game_state_writes": [],
+    "diagnostic_checkpoint": ["box_index", "box_timer", "enemy_released", "enemy_active", "rate_phase", "rate_frac", "death_state", "freeze_timer", "visible_route_options"]
+  },
+  "scope_effect": "Execution-detail correction only. The approved rate oracle, measured 24-callback window, one-pixel tolerance, production scope, and 45-second phase deadline are unchanged.",
+  "offline_validation": {
+    "self_test": "PASS: 7 phase contracts, 45 guard cases, 560 arithmetic cases",
+    "focused_startup": "PASS: 10 cases",
+    "durable_step_handoff": "PASS: 1 case",
+    "python_compile": "PASS",
+    "resolved_plan": "dispatchable; 7 phases"
+  },
+  "hashes": {
+    "adapter_sha256": "98322262b16cece9d417cca532d74373135e4e63ed26f65c43d6056792d76f9e",
+    "scenario_plan_sha256": "f7c3d4ed1613717651959757f936d25b148d8141fd4626ea5581d3e8bd060b64",
+    "resolved_plan_sha256": "345bf818f7ec6422c0fa311a6693a7db937995409a2d2462b018060114d80396"
+  },
+  "runtime_under_revised_hashes": "not run; fresh natural-init and natural-progression receipts plus parent-reviewed dispatch authorization are required"
+}

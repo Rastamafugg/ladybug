@@ -1,0 +1,137 @@
+{
+  "schema": "bug087-phase-aware-movement-evidence-v1",
+  "date": "2026-10-07",
+  "ticket": "BUG-087",
+  "ticket_status": "In Progress",
+  "risk_class": "High-risk",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "adapter_sha256": "6fce0e1b5a1e24799c41cc1beec6c6b547a5d0f2aff0c2c6961d9c70a444f50f",
+  "scenario_plan_sha256": "930efc42b554658203a41fcf9fa71feb156be256a03e3868b1c4d043ca62d5b4",
+  "bug086_receipt_sha256": "f0846d9d0398b429c8db421edfe07bcd62b861424ce8c303e520ab3befb3e287",
+  "builds": {
+    "baseline": {
+      "identity_file": "current-root-baseline-ad1-keyboard-identity-163d-20261006.json",
+      "identity_sha256": "018e0e24de66cc8d4ce7ca2e5964e7c1fd9ffb78052053b1b9ab118f1ee4bf15",
+      "rom_sha256": "ef13933e1ace948c9c7b294cfc55ef44c14ba69b39a5e6f8fca392766cbbf869"
+    },
+    "candidate": {
+      "identity_file": "current-root-candidate-ad1-keyboard-identity-163d-20261006.json",
+      "identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+      "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e"
+    }
+  },
+  "fresh_natural_phases": {
+    "natural-init-baseline": {
+      "status": "pass-runtime-marker-set",
+      "phase_elapsed_seconds": 18.039744,
+      "phase_deadline_seconds": 45,
+      "result_sha256": "6b7f2feec050343cf8c1a8702b8c2225c5838e721b6e1e0ed8734186dddcaf81"
+    },
+    "natural-init-candidate": {
+      "status": "pass-runtime-marker-set",
+      "phase_elapsed_seconds": 18.046067,
+      "phase_deadline_seconds": 45,
+      "result_sha256": "63fc992f4ea345a7b0a5de485b5de65bc51a55a4338a3ba2ecff072bf13e035b"
+    },
+    "natural-rate-baseline": {
+      "status": "pass-runtime-marker-set",
+      "phase_elapsed_seconds": 37.356706,
+      "phase_deadline_seconds": 45,
+      "result_sha256": "8faba496424a9f18760a00930833fb75f8a911207ada9b4a19e3b50c9a13725e"
+    },
+    "natural-rate-candidate": {
+      "status": "pass-runtime-marker-set",
+      "phase_elapsed_seconds": 37.394079,
+      "phase_deadline_seconds": 45,
+      "result_sha256": "988da30ea72ae9924b04b3966a8c227cc8bb55fb5395edefe66a0aa851f0a843"
+    }
+  },
+  "vertical": {
+    "status": "pass-runtime-marker-set",
+    "axis": "vertical",
+    "active_part": 7,
+    "authorization_sha256": "2f5229976f4a9a4a4963ed4a7466b8c9fcb6b99ffb3192ac38bf12201a7f1ab3",
+    "alignment_callbacks": 244,
+    "sample_callbacks": 36,
+    "candidate_rate_addend": 51,
+    "candidate_rate_start_phase": 0,
+    "fractional_carries": 8,
+    "policy_admissions": 22,
+    "candidate_observed_pixels": 44,
+    "candidate_expected_pixels": 44,
+    "baseline_observed_pixels": 36,
+    "tolerance_pixels": 1,
+    "raw_vbord_totals": {
+      "baseline": 36,
+      "candidate": 36
+    },
+    "phase_elapsed_seconds": 5.778663,
+    "phase_deadline_seconds": 45,
+    "result_sha256": "df1b16a61d5f6df6be131b0d20f4c645f6f8e5626f9b3fecd99b5f2e23ef9330"
+  },
+  "horizontal": {
+    "status": "fail-runtime-marker",
+    "axis": "horizontal",
+    "authorization_sha256": "cc333a2956562c09a427ce6176d5638fd57927128fcea8554af002892cf79884",
+    "alignment_callbacks_each_side": 107,
+    "matched_enemy_slots": [
+      0
+    ],
+    "sample_callbacks": 1,
+    "raw_frames_start_end": {
+      "baseline": [
+        3532,
+        3532
+      ],
+      "candidate": [
+        3531,
+        3531
+      ]
+    },
+    "elapsed_seconds": 2.803654,
+    "deadline_seconds": 45,
+    "error": "RuntimeError: raw FRAMES Vbord counters did not advance across the matched sample window: callbacks=1, totals={'baseline': 0, 'candidate': 0}, baseline=3532->3532, candidate=3531->3531",
+    "runtime_acceptance": false,
+    "authorization_file_sha256": "cc333a2956562c09a427ce6176d5638fd57927128fcea8554af002892cf79884",
+    "result_sha256": "db55e173a9939600e0c587ae9b0039624345895948bc5324597983c07a61c666",
+    "postmortem": {
+      "status": "postmortem-captured",
+      "deadline_seconds": 10,
+      "success_marker": "both sides stopped at verified enemy callback with current mapped images and actor/rate state captured",
+      "result_sha256": "e189d93d60297b86f477cfcfde9c2571af0603981c3476b079e6bfcac3c09825",
+      "runtime_images_verified": true,
+      "same_actor_slot": 0,
+      "same_active_type_hex": "1",
+      "stage": 7,
+      "baseline": {
+        "cell": [
+          12,
+          10
+        ],
+        "direction": 3,
+        "substep": 1,
+        "fb_sim_seq": 568,
+        "death_state": 0
+      },
+      "candidate": {
+        "cell": [
+          8,
+          10
+        ],
+        "direction": 2,
+        "substep": 0,
+        "fb_sim_seq": 568,
+        "death_state": 0
+      },
+      "interpretation": "At the halted post-sample callback, baseline remained horizontal while candidate had turned vertical. This explains why no common straight horizontal segment persisted; it does not identify why the routes diverged or establish relative speed."
+    }
+  },
+  "runtime_limits": {
+    "emulator_launched": false,
+    "input_injected": false,
+    "direct_game_memory_writes": false,
+    "deadline_policy": "45 seconds per phase"
+  },
+  "conclusion": "Vertical Part-7 displacement passed the approved candidate rate oracle. Horizontal did not produce a valid sample: one callback was captured, neither raw FRAMES counter advanced, and a byte-verified read-only postmortem found the same active slot/type but baseline direction 3 at cell (12,10) versus candidate direction 2 at cell (8,10), with matching FB_SIM_SEQ and no death. This establishes route divergence at the sample boundary, not a speed result or cause. Do not repeat until route/actor selection is reassessed offline.",
+  "remaining_acceptance": "Horizontal movement and cadence, freeze/death bypass, and legal reversal with a concurrent mover remain unverified. No arcade-speed acceptance is established."
+}

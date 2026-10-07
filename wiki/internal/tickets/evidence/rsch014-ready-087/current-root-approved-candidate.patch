@@ -1,0 +1,737 @@
+diff --git a/scripts/build.sh b/scripts/build.sh
+index 82ba947..1fa805c 100644
+--- a/scripts/build.sh
++++ b/scripts/build.sh
+@@ -57,6 +57,10 @@ PERIMETER_RESET="$BUILD_DIR/ladybug-perimeter-reset.bin"
+ PERIMETER_HELPER="$BUILD_DIR/ladybug-perimeter-reset-helper.bin"
+ PERIMETER_HELPER_LST="$BUILD_DIR/ladybug-perimeter-reset-helper.lst"
+ PERIMETER_HELPER_MAP="$BUILD_DIR/ladybug-perimeter-reset-helper.map"
++RATE_HELPER_SRC="$ROOT/src/prototype_rate_page34.s"
++RATE_HELPER="$BUILD_DIR/ladybug-rate-helper.bin"
++RATE_HELPER_LST="$BUILD_DIR/ladybug-rate-helper.lst"
++RATE_HELPER_MAP="$BUILD_DIR/ladybug-rate-helper.map"
+ MAZE_INC="$BUILD_DIR/ladybug_maze.inc"
+ ROM="$BUILD_DIR/ladybug.rom"
+ RUNTIME_ROM="$BUILD_DIR/ladybug-runtime.rom"
+@@ -697,6 +701,15 @@ if 0xA8A0 + len(data) > 0xA8FD:
+ print("build: page-$34 enemy helper 87/93 bytes at $A8A0-$A8F6; six bytes remain")
+ PY
+ 
++    python3 "$ROOT/scripts/source_reference/provenance.py" prepare "$ROOT" "$BUILD_DIR" "$RATE_HELPER_SRC"
++    lwasm -9 --format=raw \
++          --output="$RATE_HELPER" \
++          --list="$RATE_HELPER_LST" \
++          --symbols \
++          --map="$RATE_HELPER_MAP" \
++          -I "$BUILD_DIR" -I "$ROOT/src" \
++          "$RATE_HELPER_SRC"
++
+     python3 - "$ENEMY_MAP" "$PRESENTATION_SYMBOLS" <<'PY'
+ import re
+ import sys
+@@ -978,6 +991,7 @@ PY
+         --enemy-helper "$ENEMY_HELPER" \
+         --sprites "$ROOT/assets/arcade/sprites.json" \
+         --enemy-runtime "$ENEMY_ROM" \
++        --rate-helper "$RATE_HELPER" \
+         --enemy-output "$SPARSE_ENEMY" \
+         --player-output "$SPARSE_PLAYER" \
+         --gate-input "$GATE_TRANSITIONS" \
+@@ -1008,6 +1022,7 @@ PY
+         --enemy-helper "$ENEMY_HELPER" \
+         --sprites "$ROOT/assets/arcade/sprites.json" \
+         --enemy-runtime "$ENEMY_ROM" \
++        --rate-helper "$RATE_HELPER" \
+         --enemy-payload "$SPARSE_ENEMY" \
+         --player-payload "$SPARSE_PLAYER" \
+         --gate-payload "$GATE_TRANSITIONS" \
+diff --git a/scripts/build_sparse_sprites.py b/scripts/build_sparse_sprites.py
+index c35f557..fb211a9 100644
+--- a/scripts/build_sparse_sprites.py
++++ b/scripts/build_sparse_sprites.py
+@@ -153,6 +153,7 @@ def parse_args() -> argparse.Namespace:
+     parser.add_argument("--highscore-runtime", type=Path, required=True)
+     parser.add_argument("--highscore-helper", type=Path, required=True)
+     parser.add_argument("--adaptive-helper", type=Path)
++    parser.add_argument("--rate-helper", type=Path)
+     parser.add_argument("--enemy-helper", type=Path)
+     parser.add_argument("--audio-runtime", type=Path, required=True)
+     parser.add_argument("--tile-patches", type=Path, required=True)
+@@ -402,6 +403,7 @@ def pack_candidate_banks(
+         include_streams: bool = False,
+         compress_enemy_pages: bool = True,
+         adaptive_helper: bytes = b"",
++        rate_helper: bytes = b"",
+         enemy_helper: bytes = b"",
+         vegetable_payload: bytes = b"",
+         keybinding_runtime: bytes = b"",
+@@ -482,6 +484,9 @@ def pack_candidate_banks(
+     if len(adaptive_helper) > 698:
+         raise ValueError("adaptive helper exceeds $BD44-$BFFD")
+     targets += target_chunks("adaptive_helper", adaptive_helper, 0x34, 0xBD44)
++    if len(rate_helper) > 0xC0:
++        raise ValueError("rate helper exceeds page-$34 $A3B0-$A46F")
++    targets += target_chunks("rate_helper", rate_helper, 0x34, 0xA3B0)
+     if enemy_helper:
+         if len(enemy_helper) != 87 or 0xA8A0 + len(enemy_helper) > 0xA8FD:
+             raise ValueError("page-$34 enemy helper must be 87 bytes within $A8A0-$A8FC")
+@@ -828,6 +833,7 @@ def main() -> None:
+         highscore_runtime, highscore_helper,
+         include_streams=True,
+         adaptive_helper=args.adaptive_helper.read_bytes() if args.adaptive_helper else b"",
++        rate_helper=args.rate_helper.read_bytes() if args.rate_helper else b"",
+         enemy_helper=args.enemy_helper.read_bytes() if args.enemy_helper else b"",
+         vegetable_payload=vegetable_payload,
+         keybinding_runtime=args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b"",
+@@ -955,6 +961,12 @@ def main() -> None:
+             "address": WINDOW_BASE,
+             "sha256": digest(presentation_cold),
+         },
++        "rate_helper": {
++            "bytes": len(args.rate_helper.read_bytes()) if args.rate_helper else 0,
++            "page": 0x34,
++            "address": 0xA3B0,
++            "sha256": digest(args.rate_helper.read_bytes()) if args.rate_helper else None,
++        },
+         "presentation_module": {
+             "bytes": len(presentation_module),
+             "page": LOW_RAM_DESTINATION_PAGE,
+diff --git a/scripts/source_reference.json b/scripts/source_reference.json
+index b2eef22..ee50ff8 100644
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -2021,6 +2021,11 @@
+           "name": "sbf_opaque3",
+           "routine": "sparse_blit_fb",
+           "purpose": "Length-three opaque run falls through from measured small-run dispatch."
++        },
++        {
++          "name": "et_find_movement",
++          "routine": "enemy_tick_impl",
++          "purpose": "Fall through from death guard to the current elapsed-before-freeze movement admission call."
+         }
+       ]
+     },
+@@ -4032,7 +4037,7 @@
+         {
+           "name": "name_phrase_rank",
+           "routine": "stage_panel_text",
+-          "purpose": "Select approved BUG108 row12 x1\u20133 destination and continue existing glyph-text renderer path."
++          "purpose": "Select approved BUG108 row12 x1–3 destination and continue existing glyph-text renderer path."
+         },
+         {
+           "name": "name_rank_format",
+@@ -4558,6 +4563,69 @@
+       "external_symbols": [
+         "PRES_MAIN_SHARED_MASK"
+       ]
++    },
++    {
++      "id": "enemy-rate-page34",
++      "title": "Page-$34 enemy rate clock",
++      "source": "src/prototype_rate_page34.s",
++      "listing": "ladybug-rate-helper.lst",
++      "map": "ladybug-rate-helper.map",
++      "binary": "ladybug-rate-helper.bin",
++      "routines": [
++        {
++          "name": "rate_reset",
++          "profile": "state",
++          "purpose": "Reset retired bootstrap rate state for the current part.",
++          "reasons": []
++        },
++        {
++          "name": "rate_tick",
++          "profile": "state",
++          "purpose": "Advance elapsed time before the preserved freeze and shared movement admission gate.",
++          "reasons": [
++            "exported"
++          ]
++        },
++        {
++          "name": "rate_select",
++          "profile": "state",
++          "purpose": "Select the approved arcade default part and saturated elapsed fractional addend.",
++          "reasons": []
++        },
++        {
++          "name": "rate_enemy_init_shim",
++          "profile": "state",
++          "purpose": "Reset rate state then tail-call the true enemy initializer without resident growth.",
++          "reasons": [
++            "exported"
++          ]
++        }
++      ],
++      "label_classifications": [
++        {
++          "name": "rate_stage_offsets",
++          "kind": "data",
++          "reason": "Seventeen immutable approved default stage offsets; no new runtime table owner."
++        },
++        {
++          "name": "rate_module_end",
++          "kind": "boundary",
++          "reason": "Exclusive end of the existing192-byte page-$34 extent."
++        }
++      ],
++      "relocations": [
++        {
++          "id": "enemy-rate-page34-staged",
++          "assembled": {
++            "address": "0xA3B0"
++          },
++          "runtime_destination": {
++            "address": "0xA3B0",
++            "physical_page": "0x34"
++          },
++          "length_source": "binary"
++        }
++      ]
+     }
+   ],
+   "coverage": {
+diff --git a/scripts/verify_presentation_flow.py b/scripts/verify_presentation_flow.py
+index 4cf4e00..5426b8a 100644
+--- a/scripts/verify_presentation_flow.py
++++ b/scripts/verify_presentation_flow.py
+@@ -175,7 +175,6 @@ def main() -> None:
+         "PLAYER_BG_PTR equ $00A2",
+         "PLAYER_BG_VALID equ $006A",
+         "install_aux_runtime",
+-        "ldy     #$0300",
+         "lda     #$23",
+     )
+     if development:
+@@ -199,6 +198,21 @@ def main() -> None:
+             ", ".join(missing_source)
+         )
+ 
++    normalized_source = " ".join(source.lower().split())
++    auxiliary_copy_contracts = (
++        "install_aux_runtime_copy sta par5 ldy #$0300 "
++        "install_aux_runtime_byte lda ,x+ sta ,y+ leau -1,u "
++        "cmpu #0 bne install_aux_runtime_byte",
++        "install_aux_runtime_copy sta par5 exg u,y ldu #$0300 "
++        "install_aux_runtime_byte lda ,x+ sta ,u+ leay -1,y "
++        "bne install_aux_runtime_byte",
++    )
++    if not any(contract in normalized_source for contract in auxiliary_copy_contracts):
++        raise SystemExit(
++            "presentation flow proof: auxiliary copy loop is neither the baseline "
++            "nor the register-swapped bounded implementation"
++        )
++
+     actor_surfaces = presentation_layout.get("attract_actor_surfaces", {})
+     if (actor_surfaces.get("bytes") != 7680 or
+             len(actor_surfaces.get("actors", [])) != 8):
+@@ -207,7 +221,7 @@ def main() -> None:
+     if "jsr     PRES_MAIN_FB_PREPARE" not in attract_source or "PRES_MAIN_FB_FINISH" not in attract_source:
+         raise SystemExit("presentation flow proof: attract owner publication is incomplete")
+     for fragment in ("lda     #$3C", "ldx     #$BE28", "ldx     #$BE00",
+-                     "lda     #20", "lda     #16", "leay    152,y"):
++                     "lda     #8", "lda     #16", "leay    152,y"):
+         if fragment not in attract_source:
+             raise SystemExit("presentation flow proof: attract surface-copy worklist is incomplete")
+     if "inflate_maps" in source or "cold_write_byte" in source:
+diff --git a/scripts/verify_sparse_sprites.py b/scripts/verify_sparse_sprites.py
+index c219b5e..1441d67 100644
+--- a/scripts/verify_sparse_sprites.py
++++ b/scripts/verify_sparse_sprites.py
+@@ -70,6 +70,7 @@ def parse_args() -> argparse.Namespace:
+     parser.add_argument("--highscore-runtime", type=Path, default=BUILD / "ladybug-highscore-runtime.bin")
+     parser.add_argument("--highscore-helper", type=Path, default=BUILD / "ladybug-highscore-helper.bin")
+     parser.add_argument("--adaptive-helper", type=Path)
++    parser.add_argument("--rate-helper", type=Path)
+     parser.add_argument("--enemy-helper", type=Path)
+     parser.add_argument("--audio-runtime", type=Path, default=BUILD / "ladybug-audio-runtime.bin")
+     parser.add_argument("--tile-patches", type=Path, default=BUILD / "ladybug-presentation-tile-patches.bin")
+@@ -372,6 +373,16 @@ def main() -> None:
+         raise SystemExit("sparse proof: presentation cold manifest hash mismatch")
+     if manifest["presentation_module"]["sha256"] != sha256(presentation_module):
+         raise SystemExit("sparse proof: presentation module manifest hash mismatch")
++    rate_helper = args.rate_helper.read_bytes() if args.rate_helper else b""
++    if (
++        manifest["rate_helper"]["bytes"] != len(rate_helper) or
++        manifest["rate_helper"]["page"] != 0x34 or
++        manifest["rate_helper"]["address"] != 0xA3B0 or
++        manifest["rate_helper"]["sha256"] != (sha256(rate_helper) if rate_helper else None)
++    ):
++        raise SystemExit("sparse proof: rate helper manifest placement/hash mismatch")
++    if len(rate_helper) > 0xC0:
++        raise SystemExit("sparse proof: rate helper exceeds page-$34 free extent")
+     if manifest["audio_runtime"]["sha256"] != sha256(audio_runtime):
+         raise SystemExit("sparse proof: audio runtime manifest hash mismatch")
+     if (
+@@ -439,6 +450,7 @@ def main() -> None:
+         "presentation_cold": bytearray(len(presentation_cold)),
+         "presentation_module": bytearray(len(presentation_module)),
+         "adaptive_helper": bytearray(len(adaptive_helper)),
++        "rate_helper": bytearray(len(rate_helper)),
+         "enemy_helper_page34": bytearray(len(enemy_helper)),
+         "audio_runtime": bytearray(len(audio_runtime)),
+         "attract_actor_bundle": bytearray(
+@@ -455,6 +467,7 @@ def main() -> None:
+         "presentation_cold": bytearray(len(presentation_cold)),
+         "presentation_module": bytearray(len(presentation_module)),
+         "adaptive_helper": bytearray(len(adaptive_helper)),
++        "rate_helper": bytearray(len(rate_helper)),
+         "enemy_helper_page34": bytearray(len(enemy_helper)),
+         "audio_runtime": bytearray(len(audio_runtime)),
+         "attract_actor_bundle": bytearray(
+@@ -571,6 +584,9 @@ def main() -> None:
+         elif target == "adaptive_helper":
+             target_page_base = 0x34
+             target_address = 0xBD44
++        elif target == "rate_helper":
++            target_page_base = 0x34
++            target_address = 0xA3B0
+         elif target == "enemy_helper_page34":
+             target_page_base = 0x34
+             target_address = 0xA8A0
+@@ -704,6 +720,8 @@ def main() -> None:
+         raise SystemExit("sparse proof: loader does not reconstruct presentation module")
+     if reconstructed["adaptive_helper"] != adaptive_helper or not all(coverage["adaptive_helper"]):
+         raise SystemExit("sparse proof: adaptive helper coverage/bytes differ")
++    if reconstructed["rate_helper"] != rate_helper or not all(coverage["rate_helper"]):
++        raise SystemExit("sparse proof: rate helper coverage/bytes differ")
+     if reconstructed["enemy_helper_page34"] != enemy_helper:
+         raise SystemExit("sparse proof: page-$34 enemy helper coverage/bytes differ")
+     if reconstructed["audio_runtime"] != audio_runtime:
+diff --git a/src/enemy_runtime.s b/src/enemy_runtime.s
+index 590885b..5405a95 100644
+--- a/src/enemy_runtime.s
++++ b/src/enemy_runtime.s
+@@ -478,15 +478,9 @@ et_animation_timer
+ et_freeze_timer
+         tst     DEATH_STATE
+         bne     et_render_test
+-        ldd     FREEZE_TIMER
+-        beq     et_find_movement
+-        subd    #1
+-        std     FREEZE_TIMER
+-        bra     et_render_test
+ et_find_movement
+-        lda     LAST_FRAME
+-        anda    #1
+-        bne     et_render_test
++        jsr     $A3C5           ; elapsed first, then approved freeze/admission gate
++        beq     et_render_test
+         ldx     #ENEMY_TABLE
+         lda     #4
+         sta     ENEMY_WORK
+diff --git a/src/main.s b/src/main.s
+index 7f67a3e..c22fde9 100644
+--- a/src/main.s
++++ b/src/main.s
+@@ -1319,7 +1319,7 @@ dwph_extra_next
+ 
+ draw_hud
+         ifne COMPLETE_PROFILE
+-        lbsr    draw_credit_hud
++        bsr     draw_credit_hud
+         endc
+         lda     #2
+         sta     HUD_Y
+@@ -1933,11 +1933,11 @@ de_colour_destination
+         lsla
+         leax    a,x
+         ldu     OBJ_CACHE_BASE
+-        lbsr    replay_entity_overlay_common
++        bsr     replay_entity_overlay_common
+         bra     de_next
+ de_rebind
+         ldu     OBJ_CACHE_BASE
+-        lbsr    replay_entity_overlay_common
++        bsr     replay_entity_overlay_common
+ de_next
+         ldx     ENTITY_PTR
+         leax    4,x
+@@ -2082,7 +2082,7 @@ repco_primary_skip
+ repco_rebind_pair
+         ldb     ,u+
+         lda     ,u+
+-        lbsr    rebind_cache_value
++        bsr     rebind_cache_value
+         sta     -1,u
+         dec     OBJ_BYTES
+         bne     repco_rebind_pair
+@@ -4485,8 +4485,7 @@ pat_done
+         rts
+ 
+ init_enemy
+-        jsr     ENEMY_MODULE_INIT
+-        rts
++        jmp     $A463           ; approved rate reset shim tail-calls enemy init
+ 
+ enemy_tick
+         jsr     ENEMY_MODULE_TICK
+@@ -4500,8 +4499,7 @@ etw_done
+         rts
+ 
+ enemy_release
+-        jsr     ENEMY_MODULE_RELEASE
+-        rts
++        jmp     ENEMY_MODULE_RELEASE
+ 
+ enemy_collect
+         jsr     ENEMY_MODULE_COLLECT
+diff --git a/src/presentation_runtime.s b/src/presentation_runtime.s
+index cf0f2c2..fbc687f 100644
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -327,12 +327,12 @@ install_highscore_runtime
+         endc
+ install_aux_runtime_copy
+         sta     PAR5
+-        ldy     #$0300
++        exg     u,y
++        ldu     #$0300
+ install_aux_runtime_byte
+         lda     ,x+
+-        sta     ,y+
+-        leau    -1,u
+-        cmpu    #0
++        sta     ,u+
++        leay    -1,y
+         bne     install_aux_runtime_byte
+         lda     #$34
+         sta     PAR5
+@@ -474,8 +474,7 @@ menu_load_continue
+         endc
+         lda     PRES_HOLD_STATE
+         bpl     load_tick_normal
+-        jsr     PRESENTATION_HOLD_TICK
+-        rts
++        jmp     PRESENTATION_HOLD_TICK
+ load_tick_normal
+         lda     #32
+         sta     PRES_ROWS
+@@ -591,10 +590,9 @@ load_done_hold_owner
+         bne     load_done_hold_second
+         lda     #1
+         sta     PRES_HOLD_OWNER
+-        lda     FB_FRONT_ID
+-        ldb     FB_BACK_ID
+-        stb     FB_FRONT_ID
+-        sta     FB_BACK_ID
++        ldd     FB_FRONT_ID
++        exg     a,b
++        std     FB_FRONT_ID
+         lda     PRES_SCREEN
+         ifne    COMPLETE_PROFILE
+         lbsr    start_screen_no_instruction_install
+@@ -605,10 +603,9 @@ load_done_hold_owner
+         rts
+ load_done_hold_second
+         orcc    #$10
+-        lda     FB_FRONT_ID
+-        ldb     FB_BACK_ID
+-        stb     FB_FRONT_ID
+-        sta     FB_BACK_ID
++        ldd     FB_FRONT_ID
++        exg     a,b
++        std     FB_FRONT_ID
+         andcc   #$EF
+         jsr     PRES_MAIN_FB_PUBLISH
+         lda     #PRES_HOLD_FINAL
+@@ -655,9 +652,9 @@ draw_cell
+         ldy     PRES_DST
+         jsr    draw_tile_id
+ draw_cell_advance
+-        ldd     PRES_DST
+-        addd    #4
+-        std     PRES_DST
++        ldx     PRES_DST
++        leax    4,x
++        stx     PRES_DST
+         rts
+ 
+ draw_tile_id equ PRES_MAIN_STATIC_TEXT
+@@ -686,19 +683,18 @@ draw_coins_done
+ 
+ ; Return X as a CPU pointer into the cold physical page selected by D.
+ draw_raw_tile
+-        jsr     cold_ptr
++        bsr     cold_ptr
+         exg     x,y
+         jmp     BLIT_TILE
+ 
+ cold_ptr
+         tfr     d,x
+         tfr     a,b
+-        andb    #$E0
+-        lsrb
+-        lsrb
+-        lsrb
+-        lsrb
+-        lsrb
++        rolb
++        rolb
++        rolb
++        rolb
++        andb    #7
+         addb    #PRESENTATION_COLD_PAGE
+         stb     PAR5
+         tfr     x,d
+@@ -709,9 +705,9 @@ cold_ptr
+ 
+ cold_read_byte
+         ldd     <PRES_IN
+-        addd    #1
+-        std     <PRES_IN
+-        subd    #1
++        ldx     <PRES_IN
++        leax    1,x
++        stx     <PRES_IN
+         bsr     cold_ptr
+         lda     ,x
+         rts
+@@ -1646,8 +1642,7 @@ actor_index_ready
+         lda     ,x
+         sta     PAR5
+         ldx     PRES_DST
+-        jsr     PRESENTATION_MODULE_DRAW
+-        rts
++        jmp     PRESENTATION_MODULE_DRAW
+ 
+ ; Recolour each nonzero packed pixel pair in the selected instruction cell.
+ colour_tile
+@@ -2103,12 +2098,12 @@ install_highscore_runtime
+         endc
+ install_aux_runtime_copy
+         sta     PAR5
+-        ldy     #$0300
++        exg     u,y
++        ldu     #$0300
+ install_aux_runtime_byte
+         lda     ,x+
+-        sta     ,y+
+-        leau    -1,u
+-        cmpu    #0
++        sta     ,u+
++        leay    -1,y
+         bne     install_aux_runtime_byte
+         lda     #$34
+         sta     PAR5
+@@ -2226,8 +2221,7 @@ start_screen_done
+ load_tick
+         lda     PRES_HOLD_STATE
+         bpl     load_tick_normal
+-        jsr     PRESENTATION_HOLD_TICK
+-        rts
++        jmp     PRESENTATION_HOLD_TICK
+ load_tick_normal
+         lda     #32
+         sta     PRES_ROWS
+@@ -2323,19 +2317,17 @@ load_done_hold_owner
+         bne     load_done_hold_second
+         lda     #1
+         sta     PRES_HOLD_OWNER
+-        lda     FB_FRONT_ID
+-        ldb     FB_BACK_ID
+-        stb     FB_FRONT_ID
+-        sta     FB_BACK_ID
++        ldd     FB_FRONT_ID
++        exg     a,b
++        std     FB_FRONT_ID
+         lda     PRES_SCREEN
+         lbsr    start_screen
+         rts
+ load_done_hold_second
+         orcc    #$10
+-        lda     FB_FRONT_ID
+-        ldb     FB_BACK_ID
+-        stb     FB_FRONT_ID
+-        sta     FB_BACK_ID
++        ldd     FB_FRONT_ID
++        exg     a,b
++        std     FB_FRONT_ID
+         andcc   #$EF
+         jsr     PRES_MAIN_FB_FINISH
+         lda     #PRES_HOLD_FINAL
+@@ -2374,9 +2366,9 @@ load_timer_reset
+ draw_cell
+         ldy     PRES_DST
+         lbsr    draw_tile_id
+-        ldd     PRES_DST
+-        addd    #4
+-        std     PRES_DST
++        ldx     PRES_DST
++        leax    4,x
++        stx     PRES_DST
+         rts
+ 
+ draw_tile_id
+@@ -2439,19 +2431,18 @@ draw_coins_done
+ 
+ ; Return X as a CPU pointer into the cold physical page selected by D.
+ draw_raw_tile
+-        jsr     cold_ptr
++        bsr     cold_ptr
+         exg     x,y
+         jmp     BLIT_TILE
+ 
+ cold_ptr
+         tfr     d,x
+         tfr     a,b
+-        andb    #$E0
+-        lsrb
+-        lsrb
+-        lsrb
+-        lsrb
+-        lsrb
++        rolb
++        rolb
++        rolb
++        rolb
++        andb    #7
+         addb    #PRESENTATION_COLD_PAGE
+         stb     PAR5
+         tfr     x,d
+@@ -3398,8 +3389,7 @@ actor_index_ready
+         lda     ,x
+         sta     PAR5
+         ldx     PRES_DST
+-        jsr     PRESENTATION_MODULE_DRAW
+-        rts
++        jmp     PRESENTATION_MODULE_DRAW
+ 
+ ; Recolour each nonzero packed pixel pair in the selected instruction cell.
+ colour_tile
+diff --git a/src/prototype_rate_page34.s b/src/prototype_rate_page34.s
+new file mode 100644
+index 0000000..eec4d32
+--- /dev/null
++++ b/src/prototype_rate_page34.s
+@@ -0,0 +1,130 @@
++; Approved BUG-087 current-prefix preparation, not integrated production.
++; Called only while PAR5 maps physical page$34; low029B..029F belongs to
++; this clock only after bootstrap descriptor retirement.
++; DOC-002 source-contract mirror profile state Inputs: Current authoritative gameplay or presentation state; register arguments are named by the routine label and immediate caller
++; DOC-002 source-contract mirror profile state Outputs: Updated authoritative state and condition codes used by the immediate caller
++; DOC-002 source-contract mirror profile state Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
++; DOC-002 source-contract mirror profile state Reads: Owned direct-page and page-$34 state needed for the operation
++; DOC-002 source-contract mirror profile state Writes: Only the owned state fields and render intents required by the operation
++; DOC-002 source-contract mirror profile state Side effects: May enqueue rendering work but does not publish FRONT
++; DOC-002 source-contract mirror profile state Invariants: Authoritative state changes precede their render intents; framebuffer publication remains IRQ-owned
++; DOC-002 source-contract mirror contract rate_reset profile=state: Reset retired bootstrap rate state for the current part.
++; DOC-002 source-contract mirror contract rate_tick profile=state: Advance elapsed time before the preserved freeze and shared movement admission gate.
++; DOC-002 source-contract mirror contract rate_select profile=state: Select the approved arcade default part and saturated elapsed fractional addend.
++; DOC-002 source-contract mirror contract rate_enemy_init_shim profile=state: Reset rate state then tail-call the true enemy initializer without resident growth.
++        setdp   $00
++STAGE           equ     $0024
++FREEZE_TIMER    equ     $005B
++RATE_TIMER      equ     $029B
++RATE_BUCKET     equ     $029C
++RATE_FRAC       equ     $029D
++RATE_ADDEND     equ     $029E
++RATE_PHASE      equ     $029F
++
++        org     $A3B0
++
++rate_reset
++        lda     #96
++        sta     RATE_TIMER
++        clr     RATE_BUCKET
++        clr     RATE_FRAC
++        clr     RATE_ADDEND
++        clr     RATE_PHASE
++        lbsr    rate_select
++        rts
++
++rate_tick
++        dec     RATE_TIMER
++        bne     rt_freeze_gate
++        lda     #60
++        sta     RATE_TIMER
++        lda     RATE_BUCKET
++        cmpa    #$F0
++        bhs     rt_freeze_gate
++        inc     RATE_BUCKET
++        lda     RATE_BUCKET
++        anda    #$0F
++        bne     rt_freeze_gate
++        lbsr    rate_select
++rt_freeze_gate
++        ldd     FREEZE_TIMER
++        beq     rt_accumulate
++        subd    #1
++        std     FREEZE_TIMER
++        clra                    ; frozen calls advance elapsed time only, not frac/phase
++        rts
++rt_accumulate
++        lda     RATE_FRAC
++        adda    RATE_ADDEND
++        sta     RATE_FRAC
++        bcs     rt_fraction_extra
++        tst     RATE_PHASE
++        beq     rt_base_pixel
++        clr     RATE_PHASE
++        lda     #1
++        rts
++rt_base_pixel
++        inc     RATE_PHASE
++        clra
++        rts
++rt_fraction_extra
++        lda     #1
++        rts
++
++; Source-policy selector for default Easy/Medium. STAGE is CoCo's one-based
++; stage number; source-to-CoCo elapsed and dispatcher conversion is not set.
++rate_select
++        lda     STAGE
++        beq     rs_counter_wrap
++        cmpa    #18
++        bhs     rs_late_parts
++        deca
++        leax    rate_stage_offsets,pcr
++        lda     a,x
++        tfr     a,b
++        bra     rs_offset_ready
++rs_counter_wrap
++        clrb
++        bra     rs_offset_ready
++rs_late_parts
++        ldb     #15
++rs_offset_ready
++        lda     RATE_BUCKET
++        lsra
++        lsra
++        lsra
++        lsra
++        pshs    b
++        adda    ,s+
++        cmpa    #15
++        bls     rs_rate_ready
++        lda     #15
++rs_rate_ready
++        cmpa    #6
++        blo     rs_rate_100
++        cmpa    #12
++        blo     rs_rate_120
++        cmpa    #15
++        blo     rs_rate_150
++        lda     #$CC
++        bra     rs_store_addend
++rs_rate_150
++        lda     #$80
++        bra     rs_store_addend
++rs_rate_120
++        lda     #$33
++        bra     rs_store_addend
++rs_rate_100
++        clra
++rs_store_addend
++        sta     RATE_ADDEND
++        rts
++
++rate_stage_offsets
++        fcb     0,2,4,1,3,5,6,8,5,7,9,10,11,8,12,13,14
++
++; Keep the hot rate_tick entry at $A3C5; init resets then tail-calls true init.
++rate_enemy_init_shim
++        lbsr    rate_reset
++        jmp     $0800
++rate_module_end

@@ -1,0 +1,250 @@
+{
+  "schema": "bug087-current-root-ready-qualification-v1",
+  "date": "2026-10-06",
+  "ticket": "BUG-087",
+  "risk_class": "High-risk",
+  "status": "Ready for delegated execution; runtime acceptance is assigned execution work",
+  "approval": "User explicitly approved the corrected capacity/fit targets and later approved scripts/build_sparse_sprites.py plus scripts/verify_sparse_sprites.py. Arcade rate behavior, acceptance, exclusions, hard limits and dependencies are unchanged.",
+  "source_revision": "3dd3397f99b969539bb0f821e6b98cb1548bab2d",
+  "candidate_worktree": "worktrees/bug087-root3dd-refresh",
+  "candidate_branch": "codex/bug-087-root3dd-refresh",
+  "baseline_worktree": "worktrees/bug087-root3dd-baseline",
+  "worktree_ignore_rule": "/worktrees/",
+  "approved_production_targets": [
+    "src/enemy_runtime.s",
+    "src/prototype_rate_page34.s",
+    "scripts/build.sh",
+    "scripts/source_reference.json",
+    "src/main.s",
+    "src/presentation_runtime.s",
+    "scripts/verify_presentation_flow.py",
+    "scripts/build_sparse_sprites.py",
+    "scripts/verify_sparse_sprites.py"
+  ],
+  "candidate_patch": {
+    "path": "current-root-approved-candidate.patch",
+    "sha256": "e2632883acf84579581a95dd3a8b501194f094335e701974b7c25297a5eba934",
+    "production_source_sha256": {
+      "src/enemy_runtime.s": "711be6f64836dddd0e7bb55299e6c16903a441303fa78fe597c9022ac1781d66",
+      "src/prototype_rate_page34.s": "61f543056331fda4752c84eb6033b861fdbaf5ed7623c2d6932e7a21a98d32aa",
+      "scripts/build.sh": "67b2cdcb959adc40bd0668dbc25d16de2189ed58ab767ee1b51b21cba0fc611c",
+      "scripts/source_reference.json": "c55af2e85505957be03559573c19b2af23c02fe446918df0ebf45e6afcf73577",
+      "src/main.s": "40ee46760be61218d7d46f0a98ea9ce55328c88cb7dd3581dd6c47e71c20c96b",
+      "src/presentation_runtime.s": "db46d7c3298fd2b320b8f69d057dcadc2d649418d4529b4b57f90a3b3f57c448",
+      "scripts/verify_presentation_flow.py": "71947384283b7869dfaf936d3b18b90d9dcea46484b8f620dcc8b0cbe2591d73",
+      "scripts/build_sparse_sprites.py": "fa24f8d85cd1ae38f39d59dee66a7bcdac28effbffeecf0dbcea0abcd787ba96",
+      "scripts/verify_sparse_sprites.py": "a9a54101fabbd4a2366250c0bb3786e0573dfd49de885ca65caca0280cfbcd0f"
+    }
+  },
+  "tmx_inputs": [
+    {
+      "path": "tiled/coco-attract-screen.tmx",
+      "sha256": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07"
+    },
+    {
+      "path": "tiled/coco-credits-screen.tmx",
+      "sha256": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825"
+    },
+    {
+      "path": "tiled/coco-enter-high-score-screen.tmx",
+      "sha256": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca"
+    },
+    {
+      "path": "tiled/coco-game-over-screen.tmx",
+      "sha256": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05"
+    },
+    {
+      "path": "tiled/coco-high-score-screen.tmx",
+      "sha256": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d"
+    },
+    {
+      "path": "tiled/coco-instructions-screen.tmx",
+      "sha256": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4"
+    },
+    {
+      "path": "tiled/coco-keybind-options-screen.tmx",
+      "sha256": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046"
+    },
+    {
+      "path": "tiled/coco-level-start-screen.tmx",
+      "sha256": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b"
+    },
+    {
+      "path": "tiled/coco-screen.tmx",
+      "sha256": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f"
+    }
+  ],
+  "profile_builds": {
+    "AD1-keyboard": {
+      "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+      "exit_code": 0,
+      "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+      "source_build_receipt_sha256": "575061acf66b1595f4a0f377dc6da0acb5768e8d782c9b93b828dda1b2f08c87",
+      "sparse_manifest_sha256": "71fae7d4dda8ce539fc966eeda11fed3e33ac2cbccb7a24b024dcd19a8c6a183",
+      "resident_bytes": {
+        "used": 8149,
+        "limit": 8192,
+        "free": 43
+      },
+      "assets_bytes": {
+        "used": 7671,
+        "limit": 7680,
+        "free": 9
+      },
+      "presentation_bytes": {
+        "used": 1262,
+        "limit": 1280,
+        "free": 18
+      },
+      "rate_helper_bytes": {
+        "used": 185,
+        "limit": 192,
+        "free": 7
+      },
+      "enemy_helper_bytes": {
+        "used": 87,
+        "limit": 93,
+        "free": 6
+      },
+      "profile_log_retained": "final build output was observed and reproduced in this run; full log not archived"
+    },
+    "AD1-joystick": {
+      "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+      "exit_code": 0,
+      "rom_sha256": "5328a3e496c3c878aed7ecd79647a64cb3a82344b24ae72c3691e594d7b4e483",
+      "source_build_receipt_sha256": "ef4b6c209105ad21b0e9450994d27b3e0e1cd467e8b3d080d3c131d154757188",
+      "sparse_manifest_sha256": "e95dc87215fb17f21dd78a7bdc2a4ef940f675d25cd5cf01ee7831a52fa259f3",
+      "resident_bytes": {
+        "used": 8185,
+        "limit": 8192,
+        "free": 7
+      },
+      "assets_bytes": {
+        "used": 7671,
+        "limit": 7680,
+        "free": 9
+      },
+      "presentation_bytes": {
+        "used": 1262,
+        "limit": 1280,
+        "free": 18
+      },
+      "rate_helper_bytes": {
+        "used": 185,
+        "limit": 192,
+        "free": 7
+      },
+      "enemy_helper_bytes": {
+        "used": 87,
+        "limit": 93,
+        "free": 6
+      },
+      "profile_log_retained": "result and exact hashes retained in current-turn work record; execution assignment repeats this profile"
+    },
+    "AD0-keyboard": {
+      "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=0 bash scripts/build.sh build",
+      "exit_code": 0,
+      "rom_sha256": "392163195132a336a823d2e12fa8d912d403d16f04f4b29d54e2681d8df6f8cc",
+      "source_build_receipt_sha256": "2b8367a99c252ebd59d013973ddc0751df160a0d581572946328039b2ce30f36",
+      "sparse_manifest_sha256": "5fa84ea89e912f2da7a010a07577837e5d70441b776e85e6558fab34ffc83c9f",
+      "resident_bytes": {
+        "used": 8191,
+        "limit": 8192,
+        "free": 1
+      },
+      "assets_bytes": {
+        "used": 7630,
+        "limit": 7680,
+        "free": 50
+      },
+      "presentation_bytes": {
+        "used": 1275,
+        "limit": 1280,
+        "free": 5
+      },
+      "rate_helper_bytes": {
+        "used": 185,
+        "limit": 192,
+        "free": 7
+      },
+      "enemy_helper_bytes": {
+        "used": 87,
+        "limit": 93,
+        "free": 6
+      },
+      "profile_log_retained": "result and exact hashes retained in current-turn work record; execution assignment repeats this profile"
+    }
+  },
+  "paired_ad1_keyboard": {
+    "baseline_identity": "current-root-baseline-ad1-keyboard-identity-20261006.json",
+    "baseline_identity_sha256": "6bd8b0b3f96d377174f19db207bb6313c48aaa87459d7251f72c46bd63ff0e01",
+    "baseline_rom_sha256": "ef13933e1ace948c9c7b294cfc55ef44c14ba69b39a5e6f8fca392766cbbf869",
+    "baseline_resident_bytes": {
+      "used": 8155,
+      "limit": 8192,
+      "free": 37
+    },
+    "baseline_presentation_bytes": {
+      "used": 1280,
+      "limit": 1280,
+      "free": 0
+    },
+    "candidate_identity": "current-root-candidate-ad1-keyboard-identity-20261006.json",
+    "candidate_identity_sha256": "77d28c48608590b92b6d49470be957329c507182023f0eb295e085a397ba9ec9",
+    "candidate_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+    "candidate_resident_bytes": {
+      "used": 8149,
+      "limit": 8192,
+      "free": 43
+    },
+    "candidate_presentation_bytes": {
+      "used": 1262,
+      "limit": 1280,
+      "free": 18
+    },
+    "common_source_revision": "3dd3397f99b969539bb0f821e6b98cb1548bab2d",
+    "same_bug086_receipt": true,
+    "tmx_hashes_match_baseline_candidate_root": true
+  },
+  "static_checks": {
+    "adapter_self_test": "PASS: 4 phases, 18 guard cases, 560 arithmetic cases",
+    "presentation_flow": "PASS: module1262/1280, helper331/334, cold14377/16384, combined15639/17664",
+    "sparse_sprite_proof": "PASS: 130 enemy and 16 player frames pixel-exact; 12 loader segments; 11855 CPU-readable GMC bytes spare; exact-boundary pass and one-byte-overflow rejection",
+    "source_reference": "PASS: 16 modules, 312/312 routines, 5040/5040 labels on AD1 keyboard candidate",
+    "ignored_worktrees": "PASS: /worktrees/ rule is present; baseline and candidate snapshots carry same nine current TMX hashes"
+  },
+  "resolved_runtime_plan": {
+    "path": "current-root-resolved-runtime-plan-20261006.json",
+    "sha256": "82c347d7671b6812b5acde4bb52cbb5168339f35b61c7c0e5ee1fb67bb8d1f9e",
+    "scenario_plan_sha256": "14790edc5a6650a8fa44b00b118cedf67241cdda86638174061198e98fa58517",
+    "dispatchable": true,
+    "gates": {
+      "BUG086_actualDone": true,
+      "both_builds_captured_against_same_receipt": true,
+      "both_builds_share_source_revision": true,
+      "runtime_action_handlers_attached": true
+    },
+    "phase_ids": [
+      "matched-displacement",
+      "freeze-saturated-thaw",
+      "legal-reversal-concurrent-mover",
+      "natural-init"
+    ],
+    "phase_deadline_seconds": 45,
+    "live_status": "not run"
+  },
+  "residual_risks": [
+    "Current-ROM movement cadence, published pixels, natural reset/part progression, freeze/thaw, reversal and matched worklist acceptance remain unverified until assigned live phases run.",
+    "AD0 keyboard has one resident byte and five presentation-module bytes free; do not relax any capacity guard.",
+    "27,000-cycle target remains unmet and is outside approved acceptance."
+  ],
+  "supersedes": "e5-based Ready pins and current-three-profile-capacity-qualification-20261006.json profile outputs; those are historical and do not qualify source revision 3dd3397f99b969539bb0f821e6b98cb1548bab2d.",
+  "preparation_artifacts": {
+    "scenario_plan_sha256": "14790edc5a6650a8fa44b00b118cedf67241cdda86638174061198e98fa58517",
+    "resolved_runtime_plan_sha256": "82c347d7671b6812b5acde4bb52cbb5168339f35b61c7c0e5ee1fb67bb8d1f9e",
+    "adapter_sha256": "95bcc292879e10c864767d0dcb05d8c4d5399d3678ef61c8635a600a30458783",
+    "adapter_copy_matches_candidate_and_baseline": true,
+    "scenario_plan_copy_matches_candidate_and_baseline": true,
+    "bug086_receipt_sha256": "f0846d9d0398b429c8db421edfe07bcd62b861424ce8c303e520ab3befb3e287"
+  }
+}

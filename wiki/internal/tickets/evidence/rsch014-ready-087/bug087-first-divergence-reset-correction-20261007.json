@@ -1,0 +1,104 @@
+{
+  "ticket": "BUG-087",
+  "status": "diagnostic-only; movement acceptance incomplete",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "phase": "natural Part-7 paired enemy-callback first-divergence audit",
+  "phase_deadline_seconds": 45,
+  "first_divergence": {
+    "paired_callback": 245,
+    "elapsed_seconds": 5.023635,
+    "baseline": {
+      "stage": 7,
+      "box_index": 0,
+      "box_timer": 2,
+      "box_phase": 1,
+      "enemy_active": 1,
+      "enemy_released": 1,
+      "death_state": 0,
+      "FRAMES": 3388,
+      "FB_SIM_SEQ": 495,
+      "slot": 0,
+      "active_type": "0x61",
+      "cell": [12, 12],
+      "direction": 0,
+      "substep": 0
+    },
+    "candidate": {
+      "stage": 7,
+      "box_index": 0,
+      "box_timer": 2,
+      "box_phase": 1,
+      "enemy_active": 1,
+      "enemy_released": 1,
+      "death_state": 0,
+      "FRAMES": 3387,
+      "FB_SIM_SEQ": 495,
+      "slot": 0,
+      "active_type": "0x61",
+      "cell": [12, 12],
+      "direction": 0,
+      "substep": 1,
+      "rate_addend": 51,
+      "rate_bucket": 4,
+      "rate_frac": 47
+    },
+    "interpretation": "Spawner and actor identity fields match; dynamic movement substep is the first differing enemy-record field. The current adapter's full-record equality rule therefore rejects a corresponding live actor before measuring displacement. This is an observer limitation, not a speed result."
+  },
+  "followup": {
+    "scope": "spawner-only divergence after the pair-245 checkpoint",
+    "additional_paired_callbacks": 232,
+    "total_paired_callbacks_from_part7_entry": 477,
+    "elapsed_seconds": 5.74831,
+    "baseline": {
+      "stage": 7,
+      "box_index": 0,
+      "box_timer": 3,
+      "box_phase": 0,
+      "enemy_active": 0,
+      "enemy_released": 0,
+      "death_state": 1
+    },
+    "candidate": {
+      "stage": 7,
+      "box_index": 77,
+      "box_timer": 1,
+      "box_phase": 1,
+      "enemy_active": 1,
+      "enemy_released": 1,
+      "death_state": 0
+    },
+    "interpretation": "The baseline entered player-death/reset state while the candidate remained alive with one enemy. The reason for the baseline-only death is unresolved."
+  },
+  "reset_source_correction": {
+    "death_path": "src/enemy_runtime.s:428-430 calls reset_enemy_state",
+    "reset_path": "src/main.s:4773-4774 clears BOX_INDEX and then std ENEMY_ACTIVE",
+    "state_layout": "ENEMY_ACTIVE=$0058 and ENEMY_RELEASED=$0059; std ENEMY_ACTIVE clears both bytes",
+    "corrected_conclusion": "The death reset clears ENEMY_RELEASED. The prior BUG-087 counter-reconciliation statement that it remains untouched was incorrect."
+  },
+  "authorization_and_identity": {
+    "adapter_sha256": "7b26a96db1d5e2ce11c1a2f7f1dda6d2194f443c825e9360e9210fae5536d150",
+    "scenario_plan_sha256": "930efc42b554658203a41fcf9fa71feb156be256a03e3868b1c4d043ca62d5b4",
+    "authorization_sha256": "427bed4202f9bff81c6295778236c1c6314dba5187ba23392ac08b85dcd35d10",
+    "baseline_identity_sha256": "018e0e24de66cc8d4ce7ca2e5964e7c1fd9ffb78052053b1b9ab118f1ee4bf15",
+    "candidate_identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+    "direct_game_memory_writes": 0,
+    "injected_inputs": 0
+  },
+  "raw_receipts": [
+    {
+      "path": "worktrees/bug087-current-root-baseline/build/runtime-ad1-keyboard/first-divergence-retry2-20261007.json",
+      "sha256": "df196a8f23f8ae24300b17e5a51833cc590a904138924602ea289a30aa8c5c72"
+    },
+    {
+      "path": "worktrees/bug087-current-root-baseline/build/runtime-ad1-keyboard/first-spawner-divergence-20261007.json",
+      "sha256": "6a2ae99638454f24897eee291db8c0f2c9da799395be5f0fc339b7b9ad7a39fd"
+    }
+  ],
+  "observer_correction": {
+    "adapter_sha256": "4f11576cd8fb03c19f3d89111d7fbefb88733d71e8cc815fc75e453c2558f649",
+    "match_key": "same slot, same nonzero active/type byte, same legal axis direction",
+    "continuity": "each side retains the initial slot/type while position and substep remain measured values",
+    "verification": "py_compile and self-test passed: 36 guard cases, 560 arithmetic cases, 10 focused startup cases, 1 step-handoff case; runtime not run"
+  },
+  "timeout_meaning": "If a subsequent bounded identity-based movement phase does not capture a valid sample, BUG-087 remains unverified; timeout is not a speed result."
+}

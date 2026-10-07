@@ -1,0 +1,64 @@
+{
+  "ticket": "BUG-108",
+  "date": "2026-10-06",
+  "status": "Done",
+  "approved_scope": "Write only the rank 1-9 ordinal into the existing row 12 placement phrase at x1-3; leave BUG-110 left-HUD fields to its separate ticket.",
+  "commits": {
+    "execution": "ed85f5932c7a4b1474b26b6da1e8626eac9339b1",
+    "integration": "3dd3397f99b969539bb0f821e6b98cb1548bab2d",
+    "integration_parent": "e5b6541f2d458089ce82b04253e3c52770932599"
+  },
+  "integrated_git_blob_ids": {
+    "src/shared_text_stage.inc": "71b0ca08097330c0c728b8f942fc7fd330b2f3aa",
+    "scripts/source_reference.json": "b2eef22a222ef4343919b5d714a37a6eaa2b01ad",
+    "scripts/verify_feat005_menus.py": "31ffa9e2c288be08c6dbdc2ee97bb29db5037f38"
+  },
+  "identity_note": "The executor receipt's raw working-copy SHA values for shared_text_stage.inc and verify_feat005_menus.py differ from the parent checkout because of CRLF distribution. LF-normalized source bytes are identical; Git blob IDs match the execution and integration commits. The rebuilt integrated keyboard ROM SHA matches the runtime-tested ROM exactly.",
+  "integrated_builds": {
+    "keyboard": {
+      "result": "PASS",
+      "profile": "complete / AD1 / keyboard / 6809",
+      "rom_sha256": "ef13933e1ace948c9c7b294cfc55ef44c14ba69b39a5e6f8fca392766cbbf869",
+      "map_sha256": "b6e9d21f747898061eebfd684dc098058d9c7b925f5b84814aed506f31a945d4",
+      "resident": "8155/8192 bytes; 37 free",
+      "assets": "7671/7680 bytes; 9 free",
+      "presentation_module": "1280/1280 bytes; 0 free",
+      "high_score_runtime": "919/938 bytes; 19 free",
+      "presentation_helper": "331/334 bytes; 3 free",
+      "page_3d_payload": "6656/8192 bytes",
+      "shared_text_audit": "PASS; nine screen cases pixel-exact"
+    },
+    "joystick": {
+      "result": "PASS",
+      "profile": "complete / AD1 / joystick / 6809",
+      "rom_sha256": "a622b75a3ff6af4eaf584e14a472ad7e689c118920e6b938d9c108160c02921f",
+      "map_sha256": "a94412b99ac1ee46b6f337bd8f7414b81a4e1468dfa99ab8548c273ee614e78c",
+      "resident": "8191/8192 bytes; 1 free",
+      "assets": "7671/7680 bytes; 9 free",
+      "presentation_module": "1280/1280 bytes; 0 free",
+      "high_score_runtime": "919/938 bytes; 19 free",
+      "presentation_helper": "331/334 bytes; 3 free",
+      "page_3d_payload": "6656/8192 bytes",
+      "shared_text_audit": "PASS; nine screen cases pixel-exact"
+    }
+  },
+  "runtime_acceptance": {
+    "result": "PASS on the exact integrated keyboard ROM hash above",
+    "rank_cases": 9,
+    "owners": "Both naturally published owners per rank",
+    "natural_sequence": "Natural credit admission, menu start, credited gameplay, qualifying game-over, name entry and publication",
+    "part_boundaries": "Rank 1 at part 1 and rank 9 at part 100",
+    "adjacent_fields": "Part, vegetable/value, native sprite, player/top scores, timer and name fields preserved; short-name stale cells cleared",
+    "phase_deadlines": "66/66 phases capped at 40 seconds; 0 violations; maximum observed 15.409 seconds",
+    "aggregate": "worktrees/rsch014-bug108-prefix/repro/bug108/current-nine-rank-corrected.json",
+    "aggregate_sha256": "e0e52f549fdb4c122655c7b6c3f9b695a25afc9fb5dccc5b5ca4e30f1eeb49b3",
+    "tmx_inputs_unchanged": true
+  },
+  "rejected_experiment": {
+    "path": "worktrees/rsch014-bug108-prefix/repro/bug108/current-nine-rank.json",
+    "sha256": "34305510626f33b52c86255d943400bbb007ab762e55e1436f5a8cadb29fe707",
+    "finding": "A wrapper falsely rejected rank 1 because it read nested phase checks from the wrong level and expected a marker the adapter does not emit. The underlying adapter passed. The selector was corrected, and all nine corrected cases pass."
+  },
+  "residual_risk": "Joystick resident headroom is 1 byte and the presentation module has 0 free bytes. BUG-110 remains a separate approved scope and must be qualified after this integration; no BUG-110 behavior is included.",
+  "lifecycle_verdict": "All BUG-108 criteria pass on the integrated revision; move to Done."
+}

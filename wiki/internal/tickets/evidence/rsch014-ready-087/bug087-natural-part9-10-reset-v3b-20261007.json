@@ -1,0 +1,187 @@
+{
+  "schema": "bug087-natural-part9-part10-continuation-v3",
+  "ticket": "BUG-087",
+  "phase": "natural-part9-part10-reset-continuation-v3",
+  "phase_deadline_seconds": 45,
+  "success_marker": "same fresh natural process from Part-7; source-legal Up final-dot movement through Part-8, Part-9 and Part-10; actual eat_dot, check_stage_clear, next_stage and true init markers; Part-9 addend 0 and Part-10 addend $33",
+  "timeout_meaning": "one or more actual final-dot transitions or true init markers did not complete within the bounded continuation; no stage-rate conclusion follows for missing markers",
+  "runtime_launched": false,
+  "measurement_game_memory_writes": [],
+  "measurement_input_injections": [],
+  "candidate_identity_sha256": "aa157543f6148a97ee36205c7d97be2823d54bee6e5c60f394630c070305e216",
+  "candidate_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "adapter_sha256": "cb22b92f31040bf0c4e0f5918272fe3980e5559b6208d865a277e9dc01bc3ad3",
+  "script_sha256": "734ca48af565e5f360ecc3fa48a19efce5de642a9407284923978cb4878f78a9",
+  "authorization_sha256": "f7c5d99893c4f0a8bd086962688059e0aa4e23f2ed842b3e6f8a5dbc0ae099e4",
+  "prerequisite_receipt_sha256": "f61bd0b5d7ca3150be50cb637bb9566f06a9cd780154f24dfa091c5f731f64fa",
+  "status": "fail-runtime-marker",
+  "error": "TimeoutError: wait_for_stop returned reason=timeout; required marker was not observed",
+  "elapsed_seconds": 6.628014,
+  "monitor_audit": {
+    "monitor_call_count": 114,
+    "monitor_call_ledger_sha256": "a90ce531d5405d59ea58cfcad95fbfed02390a76f3d803897401bc2521f40dc0",
+    "last_monitor_calls": [
+      {
+        "request_id": 107,
+        "method": "set_breakpoint",
+        "params": {
+          "addr": 6703,
+          "kind": "exec"
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 107,
+          "result": {
+            "id": 52,
+            "addr": 6703,
+            "kind": "exec"
+          }
+        },
+        "elapsed_seconds": 0.000258
+      },
+      {
+        "request_id": 108,
+        "method": "step_instruction",
+        "params": {
+          "n": 1
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 108,
+          "result": {
+            "ok": true,
+            "n": 1
+          }
+        },
+        "elapsed_seconds": 0.000281
+      },
+      {
+        "request_id": 109,
+        "method": "wait_for_stop",
+        "params": {
+          "timeout_ms": 1750
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 109,
+          "result": {
+            "reason": "step",
+            "pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.000247
+      },
+      {
+        "request_id": 110,
+        "method": "get_run_state",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 110,
+          "result": {
+            "state": "halted",
+            "last_stop_reason": "step",
+            "last_stop_pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.000304
+      },
+      {
+        "request_id": 111,
+        "method": "read_registers",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 111,
+          "result": {
+            "a": 0,
+            "b": 1,
+            "d": 1,
+            "cc": 196,
+            "dp": 0,
+            "x": 143,
+            "y": 47954,
+            "u": 43304,
+            "s": 8180,
+            "pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.000222
+      },
+      {
+        "request_id": 112,
+        "method": "run",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 112,
+          "result": {
+            "ok": true
+          }
+        },
+        "elapsed_seconds": 0.000307
+      },
+      {
+        "request_id": 113,
+        "method": "wait_for_stop",
+        "params": {
+          "timeout_ms": 1
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 113,
+          "result": {
+            "reason": "timeout"
+          }
+        },
+        "elapsed_seconds": 0.67017
+      },
+      {
+        "request_id": 114,
+        "method": "clear_breakpoint",
+        "params": {
+          "id": 52
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 114,
+          "result": {
+            "ok": true,
+            "addr": 6703
+          }
+        },
+        "elapsed_seconds": 0.000201
+      }
+    ]
+  },
+  "process_supervision": {
+    "emulator_pid": 51805,
+    "emulator_returncode_during_phase": null,
+    "emulator_alive_after_phase": true,
+    "monitor_port": 18617,
+    "phase_limit_seconds": 45,
+    "child_watch": {
+      "child_pid": 51812,
+      "child_returncode": 1,
+      "watch_status": "completed",
+      "elapsed_seconds": 7.517061,
+      "stdout_stderr_tail": "Traceback (most recent call last):\n  File \"/mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-087/bug087_natural_part9_10_v3.py\", line 446, in <module>\n    raise SystemExit(main())\n  File \"/mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-087/bug087_natural_part9_10_v3.py\", line 399, in main\n    transition[\"player_entry\"] = stage_player_entry(adapter, probe, target_stage,\n  File \"/mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-087/bug087_natural_part9_10_v3.py\", line 91, in stage_player_entry\n    adapter._run_exact_marker(probe, bp, normal_game_return,\n  File \"/mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py\", line 641, in _run_exact_marker\n    marker = probe.run_until_marker(wait_cap_seconds=wait_cap_seconds)\n  File \"/mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py\", line 590, in run_until_marker\n    raise TimeoutError(\"wait_for_stop returned reason=timeout; required marker was not observed\")\nTimeoutError: wait_for_stop returned reason=timeout; required marker was not observed\n"
+    }
+  }
+}

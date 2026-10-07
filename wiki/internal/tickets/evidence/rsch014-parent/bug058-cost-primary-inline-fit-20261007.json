@@ -1,0 +1,108 @@
+{
+  "schema": "bug058-primary-inline-fit-v1",
+  "date": "2026-10-07",
+  "status": "PASS-DIRECT-ASSEMBLY-FIT-ONLY-NO-FULL-BUILD-OR-RUNTIME",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "assembler": "lwasm 4.24",
+  "stable_include_source": {
+    "worktree": "worktrees/bug087-root3dd-refresh",
+    "executor_revision": "7845dfa30452f4a0883dc1f10e9034f202394580",
+    "runtime_rom_sha256": "7c7104a66f832890a81572740d6f88c8f1491676e0f4ae04445105cb97dc31ae",
+    "candidate_cart_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+    "includes_copied": 21,
+    "baseline_ad1_keyboard_raw_is_runtime_prefix": true,
+    "padding_bytes": 521,
+    "padding_is_ff": true
+  },
+  "source_audit": {
+    "primary_cache_mask_definition_line": 2026,
+    "cck_primary_alias_line": 2027,
+    "sole_bsr_callsite_line": 2067,
+    "helper_size_bytes": 9,
+    "inline_body_bytes_without_rts": 8,
+    "inline_callsite_growth_bytes": 6,
+    "conditional_helper_removal_bytes": -9,
+    "net_ad1_resident_delta_bytes": -3,
+    "source_reference_entries": [
+      "scripts/source_reference.json:662 primary_cache_mask",
+      "scripts/source_reference.json:1175 cck_primary"
+    ],
+    "other_code_references": 0
+  },
+  "fits": [
+    {
+      "name": "base-ad1-k",
+      "resident_end": "DFD5",
+      "resident_used": 8149,
+      "resident_free": 43,
+      "raw_bytes": 15863,
+      "raw_sha256": "fb2f609900ac7561c90abb76068e96091b94a26d02711b9a0c42f6e2366c3aff",
+      "map_sha256": "7f3881c8c6d4023c6b03948933d7981eec8e502a2d39fa0a3a65a5fc1cf3c7dd",
+      "primary_cache_mask_symbol_present": true,
+      "cck_primary_symbol_present": true
+    },
+    {
+      "name": "variant-ad1-k",
+      "resident_end": "DFD2",
+      "resident_used": 8146,
+      "resident_free": 46,
+      "raw_bytes": 15863,
+      "raw_sha256": "090d6667e66e3409df5260abd28b7eb83fd040ff7feb3e30b9560fba7425209f",
+      "map_sha256": "f397e5fa8158bc30c58e2c0b9c55bb7c82e5959c4f67ee9e13b0143af7377866",
+      "primary_cache_mask_symbol_present": false,
+      "cck_primary_symbol_present": false
+    },
+    {
+      "name": "base-ad1-j",
+      "resident_end": "DFF9",
+      "resident_used": 8185,
+      "resident_free": 7,
+      "raw_bytes": 15863,
+      "raw_sha256": "3979743877a3b361318fac5545dc872a69bf2e30728c82f1008311fdb5e01e80",
+      "map_sha256": "4ebb6573e927595a9706a543d87ea938acb79d7f6b0654f5e1d205fb7ace1c5a",
+      "primary_cache_mask_symbol_present": true,
+      "cck_primary_symbol_present": true
+    },
+    {
+      "name": "variant-ad1-j",
+      "resident_end": "DFF6",
+      "resident_used": 8182,
+      "resident_free": 10,
+      "raw_bytes": 15863,
+      "raw_sha256": "6d02caf4a1d05613d86dd6b2bd0f27c38ba9083aa7cbeb518d969c6a840a6ed2",
+      "map_sha256": "a26ea8c554ce70095ce4f2b80ba08b0390029ad5d851e8598f829ef75592d037",
+      "primary_cache_mask_symbol_present": false,
+      "cck_primary_symbol_present": false
+    },
+    {
+      "name": "base-ad0-k",
+      "resident_end": "DFFF",
+      "resident_used": 8191,
+      "resident_free": 1,
+      "raw_bytes": 15822,
+      "raw_sha256": "3fdc5b13139c5de716785b83af0ae1bffe8df0c36f76a06fce2f985e351a2299",
+      "map_sha256": "7dcce09bb9bb84cfada146beaa0756dc3725324ecb62259599eeee4be192d5cb",
+      "primary_cache_mask_symbol_present": true,
+      "cck_primary_symbol_present": true
+    },
+    {
+      "name": "variant-ad0-k",
+      "resident_end": "DFFF",
+      "resident_used": 8191,
+      "resident_free": 1,
+      "raw_bytes": 15822,
+      "raw_sha256": "3fdc5b13139c5de716785b83af0ae1bffe8df0c36f76a06fce2f985e351a2299",
+      "map_sha256": "7ef4abd0799328913767f45284f2d9748f3e05dc982b5363c702e3186169e5de",
+      "primary_cache_mask_symbol_present": true,
+      "cck_primary_symbol_present": true
+    }
+  ],
+  "interpretation": "AD1 keyboard and joystick gain three resident bytes versus current baseline; AD0 keyboard output is byte-identical and keeps the helper. Direct main-module assembly only. No complete builds, source-reference generation, runtime, framebuffer, or cycle measurement were performed. The 27,000-cycle BUG-058 target remains unmet.",
+  "assembly_command_template": "wsl -e lwasm -9 --format=raw -DADAPTIVE_RENDERING={0|1} -DBUG011_DEVELOPMENT_PROFILE=1 -DCOMPLETE_PROFILE=1 -DHIGHSCORE_TEST_PROFILE=0 -DHIGHSCORE_PHASE_HELPER=0 -DPRESENTATION_NAME_ENTRY_DATA=0 -DINPUT_JOYSTICK={0|1} --output=<case>.rom --map=<case>.map --list=<case>.lst -I <scratch>/build -I /mnt/e/projects/ladybug/src <baseline-main.s|variant-main.s>",
+  "source_reference_observation": "scripts/source_reference.json declares primary_cache_mask and alias cck_primary. Current normalize/coverage logic retains configured routine documentation without requiring a built symbol; no conditional routine-symbol verifier was found. Update the routine purpose text to state AD0-only emitted helper and AD1-inline equivalent, and add a profile-specific map assertion in the assigned QA. Do not add general conditional verification machinery.",
+  "retained_source_change_scope": [
+    "src/main.s",
+    "scripts/source_reference.json routine description only"
+  ],
+  "expected_cycle_change": "Projection remains 12 nominal 6809 cycles saved per primary cached pair (BSR+RTS removal); no post-change profiler was run."
+}

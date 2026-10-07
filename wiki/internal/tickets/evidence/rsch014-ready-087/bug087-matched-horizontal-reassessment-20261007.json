@@ -1,0 +1,91 @@
+{
+  "schema": "bug087-matched-horizontal-reassessment-v1",
+  "date": "2026-10-07",
+  "ticket": "BUG-087",
+  "status": "incomplete",
+  "risk_class": "High-risk",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "phase": "matched-displacement",
+  "axis": "horizontal",
+  "deadline_seconds": 45,
+  "elapsed_seconds": 43.02123,
+  "success_marker": "same-part, same-active-actor legal straight segment and required movement samples",
+  "timeout_meaning": "The same active legal actor did not align before the phase deadline. This is missing movement evidence, not a speed measurement.",
+  "paired_callback_iterations": 1758,
+  "initial_state": {
+    "stage": 7,
+    "box_index": 10,
+    "box_timer": 1,
+    "box_phase": 0,
+    "enemy_released": 0,
+    "enemy_active": 0
+  },
+  "final_baseline": {
+    "box_index": 66,
+    "box_timer": 2,
+    "box_phase": 0,
+    "enemy_released": 0,
+    "enemy_active": 0,
+    "frames_delta": 1977,
+    "fb_sim_seq_delta": 1618,
+    "rate_addend": 0
+  },
+  "final_candidate": {
+    "box_index": 44,
+    "box_timer": 1,
+    "box_phase": 0,
+    "enemy_released": 6,
+    "enemy_active": 3,
+    "frames_delta": 1830,
+    "fb_sim_seq_delta": 1055,
+    "rate_timer": 46,
+    "rate_bucket": 29,
+    "rate_frac": 154,
+    "rate_addend": 51,
+    "rate_phase": 0
+  },
+  "same_active_legal_actor_found": false,
+  "movement_samples": 0,
+  "raw_phase_receipt": {
+    "path": "worktrees/bug087-current-root-baseline/build/runtime-ad1-keyboard/matched-horizontal-optimized-20261007.json",
+    "sha256": "c77a5d2b60bfb0782b3b3df14ccd4f3516d97b24813c8a15347aa45de70a7e45"
+  },
+  "prior_clean_timeout": {
+    "path": "worktrees/bug087-current-root-baseline/build/runtime-ad1-keyboard/matched-horizontal-fixedstep-20261007.json",
+    "sha256": "38bd029e87c8fcee19decfdccc05c11199af9810e249f21ec5bee8b250cb98b1",
+    "elapsed_seconds": 43.007041,
+    "paired_callback_iterations": 1689,
+    "final_baseline": {
+      "box_index": 43,
+      "box_timer": 2,
+      "enemy_released": 0,
+      "enemy_active": 0
+    },
+    "final_candidate": {
+      "box_index": 21,
+      "box_timer": 1,
+      "enemy_released": 6,
+      "enemy_active": 3
+    }
+  },
+  "authorization_sha256": "766b2de046f899cc98316451c0907cf6edb43f9ee781806c3258e92552768c73",
+  "adapter_sha256": "7b26a96db1d5e2ce11c1a2f7f1dda6d2194f443c825e9360e9210fae5536d150",
+  "baseline_identity_sha256": "018e0e24de66cc8d4ce7ca2e5964e7c1fd9ffb78052053b1b9ab118f1ee4bf15",
+  "candidate_identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+  "scenario_plan_sha256": "930efc42b554658203a41fcf9fa71feb156be256a03e3868b1c4d043ca62d5b4",
+  "assessment": "Both clean attempts began from equal Part-7 spawner checkpoints, then diverged before a matching actor could be selected. Equal enemy-callback counts did not establish equal game-time progression. The population and counter differences do not establish cause or velocity.",
+  "next_diagnostic": {
+    "scope": "Read-only, fresh byte-verified baseline/candidate pair at natural Part-7 entry.",
+    "capture": [
+      "FRAMES and FB_SIM_SEQ on every paired enemy callback",
+      "BOX_INDEX, BOX_TIMER, BOX_PHASE, ENEMY_RELEASED, ENEMY_ACTIVE",
+      "DEATH_STATE and per-slot active/type/direction/position"
+    ],
+    "success_marker": "Record the first paired callback where spawner, death/reset, or enemy-slot state diverges.",
+    "deadline_seconds": 45,
+    "timeout_meaning": "No first divergence was captured within the diagnostic phase; movement acceptance remains incomplete."
+  },
+  "production_source_changed": false,
+  "acceptance_changed": false,
+  "commit": null
+}
