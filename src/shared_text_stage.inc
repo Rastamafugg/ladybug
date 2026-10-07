@@ -499,6 +499,8 @@ stage_name_dispatch
         ldd $AA
         cmpd #544
         beq name_phrase_rank
+        cmpd #768
+        beq name_left_rank
         cmpd #576
         lbeq stage_name_schedule_ready
         cmpd #608
@@ -506,6 +508,9 @@ stage_name_dispatch
         rts
 name_phrase_rank
         ldx #$5C04
+        bra name_rank_format
+name_left_rank
+        ldx #$7A04
         bra name_rank_format
 
 name_rank_format

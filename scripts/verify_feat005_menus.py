@@ -171,8 +171,43 @@ def run_current_lives(output: Path, adapter: Path) -> int:
     return 2 if failed else 0
 
 
-def run_name_case_bug108(output: Path) -> int:
-    """Run every approved BUG-108 rank with the existing complete-ROM adapter.
+def _bug110_player_score_red_cells(scratch_dir: Path, score: str):
+    """Compare the delivered left-HUD score pixels with the authoritative BCD score."""
+    dp = (scratch_dir / 'gap-name-dp.bin').read_bytes()
+    actual_score = ''.join(f'{value:02x}' for value in dp[0xBF:0xC2])
+    if actual_score != score:
+        raise AssertionError(f'pending score bytes {actual_score} do not match {score}')
+
+    font = shared.values((BUILD / 'ladybug_shared_text.inc').read_text(), 'font', 'colour_lut')
+    descriptors = shared.values((BUILD / 'ladybug_shared_text.inc').read_text(), 'dynamic_descriptors', 'no_end')
+    glyphs = r.symbols(BUILD / 'ladybug-highscore-helper.map')
+
+    def numeric_tile(digit: str) -> bytes:
+        index = glyphs[f'PRESENTATION_GLYPH_{digit}']
+        glyph = descriptors[index * 2]
+        mask = font[glyph * 8:glyph * 8 + 8]
+        return bytes(
+            (1 if mask[row] & (128 >> (column * 2)) else 0) * 16
+            + (1 if mask[row] & (64 >> (column * 2)) else 0)
+            for row in range(8) for column in range(4)
+        )
+
+    expected = [numeric_tile(digit) for digit in score]
+    results = {}
+    for owner in (0, 1):
+        frame = (scratch_dir / f'gap-name-replay-owner-{owner}.bin').read_bytes()
+        actual = [
+            b''.join(frame[(20 * 8 + row) * 160 + (1 + column) * 4:
+                           (20 * 8 + row) * 160 + (2 + column) * 4]
+                     for row in range(8))
+            for column in range(6)
+        ]
+        results[f'owner{owner}'] = actual == expected
+    return results
+
+
+def run_name_case(output: Path, ticket: str) -> int:
+    """Run every approved placement rank with the current complete-ROM adapter.
 
     Each invocation begins with a natural credit and game start, then uses the
     adapter's legal score/death fixture to reach the requested insertion rank.
@@ -184,7 +219,9 @@ def run_name_case_bug108(output: Path) -> int:
     if output.exists():
         raise FileExistsError(f'refusing to overwrite BUG-108 evidence: {output}')
     rom_path = BUILD / 'ladybug.rom'
-    adapter = ROOT / 'wiki/internal/tickets/evidence/rsch014-ready-109/gdb_name_ordinal_prefix_adapter.py'
+    bug110 = ticket == 'bug110'
+    adapter = ROOT / 'wiki/internal/tickets/evidence/rsch014-ready-109' / (
+        'gdb_name_hud_adapter.py' if bug110 else 'gdb_name_ordinal_prefix_adapter.py')
     if not rom_path.is_file() or not adapter.is_file():
         raise FileNotFoundError('current complete keyboard ROM and approved-prefix adapter are required')
 
@@ -212,7 +249,7 @@ def run_name_case_bug108(output: Path) -> int:
     )
     tmx_before = {path: r.digest((ROOT / path).read_bytes()) for path in tmx_paths}
     summary = {
-        'schema': 'bug108-current-prefix-nine-rank-v1',
+        'schema': f'{ticket}-current-prefix-nine-rank-v1',
         'status': 'RUNNING',
         'root': str(ROOT),
         'build_dir': str(BUILD),
@@ -223,6 +260,8 @@ def run_name_case_bug108(output: Path) -> int:
         'production_sources': {
             'src/shared_text_stage.inc': r.digest((ROOT / 'src/shared_text_stage.inc').read_bytes()),
             'scripts/source_reference.json': r.digest((ROOT / 'scripts/source_reference.json').read_bytes()),
+            **({'src/shared_text_ranking.inc': r.digest((ROOT / 'src/shared_text_ranking.inc').read_bytes())}
+               if bug110 else {}),
         },
         'case_contract': 'Each adapter phase has a 40-second deadline; success is the named natural publication or field check. Timeout means the boundary was not observed, not that target code is slow.',
         'natural_sequence': 'Each rank case admits a natural credit, starts from the menu with Enter, waits for ordinary credited gameplay, then applies only legal six-digit score, death state, and requested part fixtures before natural qualification and publication.',
@@ -272,7 +311,7 @@ def run_name_case_bug108(output: Path) -> int:
         if rank == 9:
             command.append('--timer-scratch')
 
-        print(f'BUG-108 rank {rank}, part {last_part}', flush=True)
+        print(f'{ticket.upper()} rank {rank}, part {last_part}', flush=True)
         try:
             completed = subprocess.run(
                 command, cwd=ROOT, text=True, stdout=subprocess.PIPE,
@@ -285,16 +324,19 @@ def run_name_case_bug108(output: Path) -> int:
             ]
             fields = case.get('joint_hud', {})
             expected_fields = (
-                case.get('status') == 'PASS-SEPARATE-108-PLACEMENT-OWNER-FIELDS'
+                case.get('status') == ('PASS-CURRENT-JOINT-LAST-PART-VEGETABLE-VALUE-RANK-OWNERS'
+                                       if bug110 else 'PASS-SEPARATE-108-PLACEMENT-OWNER-FIELDS')
                 and fields.get('rank_zero_based') == rank - 1
                 and fields.get('last_part') == last_part
                 and fields.get('owners') == [0, 1]
-                and fields.get('ordinal_rows') == [12]
+                and (not bug110 or fields.get('ordinal_rows') in (None, [12, 18]))
+                and (bug110 or fields.get('ordinal_rows') == [12])
                 and fields.get('ordinal_raw_codes') == ordinals[rank]
-                and fields.get('pending_name') == 'unchanged white6'
+                and fields.get('pending_name') == ('red1' if bug110 else 'unchanged white6')
             )
             owner_checks = all(
                 f'ordinal row12 owner{owner}' in checks
+                and (not bug110 or f'ordinal row18 owner{owner}' in checks)
                 and f'three-position last part owner{owner}' in checks
                 and f'matching vegetable four-digit green value owner{owner}' in checks
                 and f'dark-green equals owner{owner}' in checks
@@ -303,8 +345,12 @@ def run_name_case_bug108(output: Path) -> int:
                 and f'gap-name-replay top-right score unchanged on owner{owner}' in checks
                 and f'gap-name-replay gap cells match blank on owner{owner}' in checks
                 for owner in (0, 1)
-            ) and checks.count('gap-name-replay pending-name white cells match authoritative data') >= 2 \
+            ) and checks.count('gap-name-replay pending-name ' + ('red' if bug110 else 'white')
+                               + ' cells match authoritative data') >= 2 \
                 and checks.count('gap-name-replay TOP-name stage103 cells match authoritative data') >= 2
+            score_pixels = ({'owner0': True, 'owner1': True} if not bug110 else
+                            _bug110_player_score_red_cells(scratch_dir, scores[rank]))
+            score_pixels_pass = all(score_pixels.values())
             identity_checks = all(marker in checks for marker in expected_markers)
             rank_authority = 'actual ranking and pending score match fixture' in checks
             timer_continues = 'natural timer boxes advance without field-repaint reset' in checks
@@ -314,7 +360,8 @@ def run_name_case_bug108(output: Path) -> int:
             )
             short_name = rank != 2 or (
                 'actual pending name contains four glyphs and three blank cells' in checks
-                and checks.count('gap-name-short pending-name white cells match authoritative data') >= 2
+                and checks.count('gap-name-short pending-name ' + ('red' if bug110 else 'white')
+                                 + ' cells match authoritative data') >= 2
                 and checks.count('gap-name-short TOP-name stage103 cells match authoritative data') >= 2
                 and all(
                     f'gap-name-short player score unchanged on owner{owner}' in checks
@@ -344,6 +391,7 @@ def run_name_case_bug108(output: Path) -> int:
                 for phase in case['phases']
             )
             passed = (completed.returncode == 0 and expected_fields and owner_checks
+                      and score_pixels_pass
                       and identity_checks and natural_ranking and short_name
                       and timer_scratch and natural_sequence and owner_publication
                       and rank_authority and timer_continues and phase_deadlines_pass)
@@ -371,6 +419,7 @@ def run_name_case_bug108(output: Path) -> int:
                     for phase in case.get('phases', [])
                 ],
                 'required_identity_checks': {marker: marker in checks for marker in expected_markers},
+                'player_score_red_pixels': score_pixels,
                 'actual_rank_authority_check': rank_authority,
                 'timer_continues_without_redraw_reset': timer_continues,
                 'phase_deadlines_pass': phase_deadlines_pass,
@@ -427,14 +476,18 @@ def run_name_case_bug108(output: Path) -> int:
     return 2 if failed or len(summary['cases']) != 9 else 0
 
 
+def run_name_case_bug108(output: Path) -> int:
+    return run_name_case(output, 'bug108')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--current-menu', action='store_true',
                         help='dispatch current bindings, entry-edge, and name-control GDB phases')
     parser.add_argument('--current-lives', action='store_true',
                         help='run natural credited prefill rows and controlled reverse 12-to-0 grid audit')
-    parser.add_argument('--name-case', choices=('bug108',),
-                        help='run the approved BUG-108 nine-rank current-ROM assignment')
+    parser.add_argument('--name-case', choices=('bug108', 'bug110'),
+                        help='run the approved BUG-108 or post-BUG-108 BUG-110 nine-rank current-ROM case')
     parser.add_argument('--adapter', type=Path,
                         help='current parent shared GDB adapter or bounded candidate copy')
     parser.add_argument('--output', type=Path,
@@ -444,6 +497,10 @@ def main():
         if args.output is None:
             parser.error('--name-case bug108 requires --output')
         raise SystemExit(run_name_case_bug108(args.output))
+    if args.name_case == 'bug110':
+        if args.output is None:
+            parser.error('--name-case bug110 requires --output')
+        raise SystemExit(run_name_case(args.output, 'bug110'))
     if args.current_lives:
         if args.output is None or args.adapter is None:
             parser.error('--current-lives requires --output and --adapter')
