@@ -1,0 +1,344 @@
+{
+  "schema": "bug087-active-enemy-setup-v1",
+  "phase": "candidate-first-enemy-release-extension",
+  "deadline_seconds": 20,
+  "max_actual_callbacks": 120,
+  "success_marker": "halted at byte-verified enemy_tick_impl with at least one active legal-direction enemy record",
+  "timeout_meaning": "first natural enemy release not observed in 120 enemy callbacks or within 20 seconds; no freeze acceptance result",
+  "direct_game_memory_writes": false,
+  "input_injected": false,
+  "runtime_launched": false,
+  "emulator_attached": true,
+  "previous_checkpoint": {
+    "setup_callbacks": 500,
+    "stage": 2,
+    "box_index": 83,
+    "box_timer": 3,
+    "enemy_active": 0,
+    "enemy_released": 0
+  },
+  "status": "pass-setup-marker",
+  "breakpoint_id": 14,
+  "runtime_image_proof": {
+    "bank1_source_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_source_matches_runtime_artifact": true,
+    "bank1_destination_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_source_matches_destination": true,
+    "bank1_usable_payload_bytes": 15872,
+    "bank1_logical_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_logical_matches_destination": true,
+    "resident_sha256": "0ff7c801302510e7bc4f7fde8f764e8f1bfd6c85b39239d7b35515d8ea05c103",
+    "resident_matches": true,
+    "PAR6": 62,
+    "PAR7": 63,
+    "enemy_module_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+    "enemy_module_matches": true,
+    "PAR0": 56,
+    "rate_helper_sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+    "rate_helper_matches": true,
+    "e2_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "e2_helper_matches": true,
+    "PAR5": 52
+  },
+  "setup_result": {
+    "callbacks_after_checkpoint": 50,
+    "state": {
+      "stage": 2,
+      "death_state": 0,
+      "enemy_active": 1,
+      "enemy_released": 1,
+      "box_timer": 6,
+      "box_index": 0,
+      "box_phase": 1,
+      "enemy_move": 0,
+      "frames": 1509,
+      "fb_sim_seq": 603,
+      "dots_left": 108,
+      "stage_pending": 0,
+      "bonus_left": 6,
+      "initial_entry_state": 0,
+      "player_cell_x": 12,
+      "player_cell_y": 18,
+      "freeze_timer": 0,
+      "rate_timer": 24,
+      "rate_bucket": 8,
+      "rate_frac": 0,
+      "rate_addend": 0,
+      "rate_phase": 0
+    },
+    "active_legal_records": [
+      {
+        "slot": 0,
+        "active": 17,
+        "fb": 22508,
+        "substep": 0,
+        "cell_x": 12,
+        "cell_y": 12,
+        "saved_bg_valid": 0,
+        "direction": 0,
+        "bytes_hex": "1157ec000c0c0000"
+      }
+    ],
+    "all_enemy_records": [
+      {
+        "slot": 0,
+        "active": 17,
+        "fb": 22508,
+        "substep": 0,
+        "cell_x": 12,
+        "cell_y": 12,
+        "saved_bg_valid": 0,
+        "direction": 0,
+        "bytes_hex": "1157ec000c0c0000"
+      },
+      {
+        "slot": 1,
+        "active": 0,
+        "fb": 0,
+        "substep": 0,
+        "cell_x": 0,
+        "cell_y": 0,
+        "saved_bg_valid": 0,
+        "direction": 0,
+        "bytes_hex": "0000000000000000"
+      },
+      {
+        "slot": 2,
+        "active": 0,
+        "fb": 0,
+        "substep": 0,
+        "cell_x": 0,
+        "cell_y": 0,
+        "saved_bg_valid": 0,
+        "direction": 0,
+        "bytes_hex": "0000000000000000"
+      },
+      {
+        "slot": 3,
+        "active": 0,
+        "fb": 0,
+        "substep": 0,
+        "cell_x": 0,
+        "cell_y": 0,
+        "saved_bg_valid": 0,
+        "direction": 0,
+        "bytes_hex": "0000000000000000"
+      }
+    ]
+  },
+  "callbacks_examined": 50,
+  "monitor_audit": {
+    "monitor_call_count": 423,
+    "monitor_call_ledger_sha256": "c89567f068fa3ebe62fba94adffa37063af7749b657bf72f316a1d6965d4a4b0",
+    "last_monitor_calls": [
+      {
+        "request_id": 416,
+        "method": "step_instruction",
+        "params": {
+          "n": 1
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 416,
+          "result": {
+            "ok": true,
+            "n": 1
+          }
+        },
+        "elapsed_seconds": 0.00022
+      },
+      {
+        "request_id": 417,
+        "method": "wait_for_stop",
+        "params": {
+          "timeout_ms": 1750
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 417,
+          "result": {
+            "reason": "step",
+            "pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.00022
+      },
+      {
+        "request_id": 418,
+        "method": "get_run_state",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 418,
+          "result": {
+            "state": "halted",
+            "last_stop_reason": "step",
+            "last_stop_pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.000175
+      },
+      {
+        "request_id": 419,
+        "method": "read_registers",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 419,
+          "result": {
+            "a": 0,
+            "b": 40,
+            "d": 40,
+            "cc": 196,
+            "dp": 0,
+            "x": 143,
+            "y": 47954,
+            "u": 43560,
+            "s": 8180,
+            "pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.00017
+      },
+      {
+        "request_id": 420,
+        "method": "run",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 420,
+          "result": {
+            "ok": true
+          }
+        },
+        "elapsed_seconds": 0.000184
+      },
+      {
+        "request_id": 421,
+        "method": "wait_for_stop",
+        "params": {
+          "timeout_ms": 16421
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 421,
+          "result": {
+            "reason": "breakpoint",
+            "pc": 2187,
+            "bp_id": 14
+          }
+        },
+        "elapsed_seconds": 0.043194
+      },
+      {
+        "request_id": 422,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 458752,
+          "length": 768
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 422,
+          "result": {
+            "space": "physical",
+            "addr": 458752,
+            "length": 768,
+            "data": "292005e520ffff00000c1275ec0000ff0b000014131500030000010000000010007f3702026c00250f050000000000030030090626bf1414030200010000a3a0ec3a000050003300000906000100000202000000010800000101000000000000000000b480000175ec00010108f100000017b029131314140010000000000000000000000000000000000000000000000100025b025b00a4000001ff00b44a0c0010a300a5000200000003c00018980000b4030000166d0c001006000000000000000206030020008000ff000000000010000000810600011e0100000000023f00000200b714000000000301040400000104000500040004000500040002ff000000000000000000000000007e894c7ea0f600004a804fc75259ff045e7e848935aa66ab6714ab1aaa29198183813c0e821e8168000000b277000000b277b44ab44ab44ab44ab44ab44ab44ab44ab44ab44a0000000000000000000000003939393939393939397e82737e8cf13939393939393939397e82867e8e903939393939393939393939393939397e88463939397e88f07e829c7e87e57e82b93939393939397e830439393900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffc80006b0000200ffc80206b2014b033becbab82907bc0323f476a422098a0323c000adac00100323c012adbc07ee0023c94db5aa02bb0023cc08bf80008000ffcc88190004ee0034d176bd4402b80034d42ea3b000b90034d4e7a8a00057000000000000000000000000000000000000000000000000000000000000000002e994babe90001b232b330600a00000000000000000000000d20018080000009b2000023bd22ede9ba000b8290c6d18290235de9be85fa000c00009c4200002f6ffa53404863db7ffa5bda62b3504f7ffa54d3900b9dd074c19dd03000096a584fb270b863db7ffa57ea000b7ffa539a55a005c0b000000e430254c00010f16"
+          }
+        },
+        "elapsed_seconds": 0.000249
+      },
+      {
+        "request_id": 423,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 427120,
+          "length": 32
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 423,
+          "result": {
+            "space": "physical",
+            "addr": 427120,
+            "length": 32,
+            "data": "1157ec000c0c0000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "elapsed_seconds": 0.000222
+      },
+      {
+        "request_id": 424,
+        "method": "clear_breakpoint",
+        "params": {
+          "id": 14
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 424,
+          "result": {
+            "ok": true,
+            "addr": 2187
+          }
+        },
+        "elapsed_seconds": 0.000189
+      }
+    ],
+    "last_marker_event": {
+      "run_request_id": 420,
+      "run_acknowledgement": {
+        "ok": true
+      },
+      "wait_receipt": {
+        "request_id": 421,
+        "method": "wait_for_stop",
+        "params": {
+          "timeout_ms": 16421
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 421,
+          "result": {
+            "reason": "breakpoint",
+            "pc": 2187,
+            "bp_id": 14
+          }
+        },
+        "elapsed_seconds": 0.043194
+      },
+      "classification": {
+        "status": "breakpoint",
+        "marker": true,
+        "bp_id": 14,
+        "pc": 2187
+      }
+    }
+  },
+  "elapsed_seconds": 0.87207,
+  "identity_file": "current-root-candidate-ad1-keyboard-identity-163d-20261006.json",
+  "identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+  "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e"
+}

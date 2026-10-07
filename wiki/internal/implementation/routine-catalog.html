@@ -299,6 +299,20 @@
       </table>
     </section>
 
+    <section id="module-enemy-rate-page34">
+      <h2>Page-$34 enemy rate clock</h2>
+      <p>BUG-087's mapped helper owns the elapsed-time bucket and fractional movement addend after the bootstrap descriptor is retired. It selects the approved arcade default Easy/Medium progression, preserves the freeze gate, and tail-calls the existing enemy initializer without resident growth.</p>
+      <table>
+        <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
+        <tbody>
+          <tr id="routine-enemy-rate-page34-rate-reset"><td><code>rate_reset</code></td><td>Reset retired bootstrap rate state for the current part.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-rate-page34-rate-tick"><td><code>rate_tick</code></td><td>Advance elapsed time before the preserved freeze and shared movement admission gate.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
+          <tr id="routine-enemy-rate-page34-rate-select"><td><code>rate_select</code></td><td>Select the approved arcade default part and saturated elapsed fractional addend.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-enemy-rate-page34-rate-enemy-init-shim"><td><code>rate_enemy_init_shim</code></td><td>Reset rate state then tail-call the true enemy initializer without resident growth.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
+        </tbody>
+      </table>
+    </section>
+
     <section id="module-presentation-runtime">
       <h2>Presentation flow runtime</h2>
       <table>

@@ -1,0 +1,28 @@
+{
+  "schema": "feat005-prototype-index15-remap-rerun-auth-20261007-v1",
+  "ticket": "FEAT-005",
+  "phase": "isolated-prototype-index15-read-surface-pairs-to-0A15",
+  "deadline_seconds": 40,
+  "startup_deadline_seconds": 10,
+  "target": 2581,
+  "runtime_authorized": true,
+  "parent_review_status": "parent-reviewed-and-approved",
+  "rom_sha256": "a4c6de907b5dfeda76e6040f174ee93ecf468cf5243b4554f2c584510be726ad",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "probe_sha256": "12d4eb5b2e73807e036b5a2c3ce72c3b50c8430c9702ae25a482972fd676792a",
+  "monitor_helper_sha256": "0234c96c198223de1c6b5c0aa11c1a9ab2e1739081f40a5f520cf1fe0eb70455",
+  "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+  "monitor_game_memory_writes": false,
+  "input_injected": false,
+  "writes": [],
+  "build_receipt_qualification": {
+    "complete_rom_and_artifact_hashes_match_receipt": true,
+    "all_build_input_hashes_match_receipt": true,
+    "complete_build": true,
+    "pixel_exact_screen_count": 9,
+    "instruction_runtime_bytes_used": 936,
+    "instruction_runtime_bytes_limit": 938
+  },
+  "observer_correction": "On timeout, pause before reading run state. Count all table/surface mapping checks while retaining only the first and last eight pair samples.",
+  "reason": "Deterministic rerun of the same no-input remapped-candidate phase after correcting the identified timeout observer order and adding streamed mapping counters. Pass requires at least 105 completed pairs, zero mapping mismatches, no pending pair, and no write to $0A15 during the same 40-second observation. Startup deadline remains 10 seconds. No production source changed; existing BUG-087 monitor sessions remain untouched."
+}

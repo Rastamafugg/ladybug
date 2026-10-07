@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-06",
+  "status": "ISOLATED-CURRENT-COMPLETE-DEFINE-FIT-PASS-FULL-PROFILES-PENDING",
+  "base_root_commit": "e5b6541",
+  "patch_sha256": "bf7f18c6fda548d39b47be79b4ca51c439b92ea0d0719dff76e29a1c42008a1f",
+  "targets": [
+    "src/main.s",
+    "src/presentation_runtime.s"
+  ],
+  "previous_resident_correction": {
+    "bytes_saved": 6,
+    "isolated_end": "DFFF",
+    "limit": "E000",
+    "free": 1
+  },
+  "presentation_baseline_end": "1E0D",
+  "presentation_candidate_end": "1DFB",
+  "presentation_bytes_saved": 18,
+  "presentation_limit": "1E00",
+  "presentation_free": 5,
+  "isolated_assembler_defines": "ADAPTIVE_RENDERING=0, BUG011_DEVELOPMENT_PROFILE=1, COMPLETE_PROFILE=1, HIGHSCORE_TEST_PROFILE=0 and current generated sizes",
+  "verification_limits": "Isolated assembler/map fit only. Full source provenance, source reference, complete profile builds, runtime equivalence and approval remain pending.",
+  "transformations": [
+    "Copy loop uses Y as counter and U as destination, replacing LEAU plus CMPU with LEAY plus BNE; caller setup compensates register exchange.",
+    "Replace equivalent forward/reverse packed framebuffer IDs with LDD/EXG/STD on adjacent direct page bytes.",
+    "Replace bounded call/return tails with JMP, in-range LBSR with BSR, pointer increment with LEAX, and cold page index shifts with 9-bit ROL then AND 7."
+  ],
+  "rejected_experiments": [
+    "An earlier isolated assembly omitted required production defines and produced unresolved-symbol failure; no fit claim from it."
+  ]
+}

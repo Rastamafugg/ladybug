@@ -1,0 +1,285 @@
+{
+  "schema": "bug087-active-enemy-setup-v1",
+  "phase": "candidate-natural-active-enemy-setup",
+  "deadline_seconds": 30,
+  "success_marker": "halted at byte-verified enemy_tick_impl with at least one active legal-direction enemy record",
+  "timeout_meaning": "no active legal-direction enemy was reached within this 30-second natural-callback setup window; no freeze acceptance result",
+  "direct_game_memory_writes": false,
+  "input_injected": false,
+  "runtime_launched": false,
+  "emulator_attached": true,
+  "status": "setup-cap-reached-before-first-release",
+  "breakpoint_id": 13,
+  "first_marker_pc": "$088B",
+  "runtime_image_proof": {
+    "bank1_source_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_source_matches_runtime_artifact": true,
+    "bank1_destination_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_source_matches_destination": true,
+    "bank1_usable_payload_bytes": 15872,
+    "bank1_logical_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_logical_matches_destination": true,
+    "resident_sha256": "0ff7c801302510e7bc4f7fde8f764e8f1bfd6c85b39239d7b35515d8ea05c103",
+    "resident_matches": true,
+    "PAR6": 62,
+    "PAR7": 63,
+    "enemy_module_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+    "enemy_module_matches": true,
+    "PAR0": 56,
+    "rate_helper_sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+    "rate_helper_matches": true,
+    "e2_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "e2_helper_matches": true,
+    "PAR5": 52
+  },
+  "setup_result": {
+    "callback_count": 500,
+    "active_legal_slots": [],
+    "last_state": {
+      "stage": 2,
+      "death_state": 0,
+      "enemy_active": 0,
+      "enemy_released": 0,
+      "box_timer": 3,
+      "box_index": 83,
+      "box_phase": 0,
+      "frames": 1457,
+      "fb_sim_seq": 552,
+      "player_cell": [
+        12,
+        18
+      ],
+      "freeze_timer": 0,
+      "rate_timer": 15,
+      "rate_bucket": 7,
+      "rate_frac": 0,
+      "rate_addend": 0,
+      "rate_phase": 1
+    },
+    "all_enemy_records_zero": true,
+    "last_halt_pc": "$088B"
+  },
+  "monitor_audit": {
+    "monitor_call_count": 4023,
+    "monitor_call_ledger_sha256": "5090c212911ed8ec34478dcde54081633d80870dab9a9adfe9a8093397feb939",
+    "last_monitor_calls": [
+      {
+        "request_id": 4016,
+        "method": "step_instruction",
+        "params": {
+          "n": 1
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4016,
+          "result": {
+            "ok": true,
+            "n": 1
+          }
+        },
+        "elapsed_seconds": 0.000214
+      },
+      {
+        "request_id": 4017,
+        "method": "wait_for_stop",
+        "params": {
+          "timeout_ms": 1750
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4017,
+          "result": {
+            "reason": "step",
+            "pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.000208
+      },
+      {
+        "request_id": 4018,
+        "method": "get_run_state",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4018,
+          "result": {
+            "state": "halted",
+            "last_stop_reason": "step",
+            "last_stop_pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.000166
+      },
+      {
+        "request_id": 4019,
+        "method": "read_registers",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4019,
+          "result": {
+            "a": 0,
+            "b": 245,
+            "d": 245,
+            "cc": 228,
+            "dp": 0,
+            "x": 143,
+            "y": 47954,
+            "u": 43304,
+            "s": 8180,
+            "pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.000169
+      },
+      {
+        "request_id": 4020,
+        "method": "run",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4020,
+          "result": {
+            "ok": true
+          }
+        },
+        "elapsed_seconds": 0.000179
+      },
+      {
+        "request_id": 4021,
+        "method": "wait_for_stop",
+        "params": {
+          "timeout_ms": 18224
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4021,
+          "result": {
+            "reason": "breakpoint",
+            "pc": 2187,
+            "bp_id": 13
+          }
+        },
+        "elapsed_seconds": 0.019273
+      },
+      {
+        "request_id": 4022,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 458752,
+          "length": 768
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4022,
+          "result": {
+            "space": "physical",
+            "addr": 458752,
+            "length": 768,
+            "data": "f62005b120ffff00000c1275ec0000ff02000014131500030000010000000010007f3702026c00250f050000000000030063090630cc1414030200010000a3a0ec3a000050003301000903530000000005000000020300000000000000000000000000b480000375ec00010008f100000017b0291313141400100000000000000000000000000000000000000000000100000228022800a30000010000b44a0c0010ab00a5000200000003c00018980000b4030000166d0c001006000000000000000206030020008000ff000000000010000000810600011e0100000000023f00000200b714000000000301000000000104000400040004000400040301ff000000000000000000000000007e894c7ea0f600004a804fc75259ff045e7e848935aa66ab6714ab1aaa29198183813c0e821e8168000000b277000000b277b44ab44ab44ab44ab44ab44ab44ab44ab44ab44a0000000000000000000000003939393939393939397e82737e8cf13939393939393939397e82867e8e903939393939393939393939393939397e88463939397e88f07e829c7e87e57e82b93939393939397e830439393900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffc80006b0000200ffc80206b2014b033becbab82907bc0323f476a422098a0323c000adac00100323c012adbc07ee0023c94db5aa02bb0023cc08bf80008000ffcc88190004ee0034d176bd4402b80034d42ea3b000b90034d4e7a8a00057000000000000000000000000000000000000000000000000000000000000000002e994babe90001b232b330600a00000000000000000000000d2000f070000019b2000023bd22ede9ba000b8290c6d18290235de9be85fa000c00009c4200002f6ffa53404863db7ffa5bda62b3504f7ffa54d3900b9dd074c19dd03000096a584fb270b863db7ffa57ea000b7ffa539a55a005c0b000000e430254c00010f16"
+          }
+        },
+        "elapsed_seconds": 0.000264
+      },
+      {
+        "request_id": 4023,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 427120,
+          "length": 32
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4023,
+          "result": {
+            "space": "physical",
+            "addr": 427120,
+            "length": 32,
+            "data": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "elapsed_seconds": 0.000239
+      },
+      {
+        "request_id": 4024,
+        "method": "clear_breakpoint",
+        "params": {
+          "id": 13
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4024,
+          "result": {
+            "ok": true,
+            "addr": 2187
+          }
+        },
+        "elapsed_seconds": 0.000227
+      }
+    ],
+    "last_marker_event": {
+      "run_request_id": 4020,
+      "run_acknowledgement": {
+        "ok": true
+      },
+      "wait_receipt": {
+        "request_id": 4021,
+        "method": "wait_for_stop",
+        "params": {
+          "timeout_ms": 18224
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4021,
+          "result": {
+            "reason": "breakpoint",
+            "pc": 2187,
+            "bp_id": 13
+          }
+        },
+        "elapsed_seconds": 0.019273
+      },
+      "classification": {
+        "status": "breakpoint",
+        "marker": true,
+        "bp_id": 13,
+        "pc": 2187
+      }
+    }
+  },
+  "elapsed_seconds": 9.046088,
+  "identity_file": "current-root-candidate-ad1-keyboard-identity-163d-20261006.json",
+  "identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+  "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "callbacks_examined": 500,
+  "phase_deadline_met": true,
+  "result_interpretation": "The 500-callback setup cap was reached after 9.046 seconds, before the natural first enemy release. This was not a 30-second phase timeout. Read-only source audit shows Part-2 perimeter advances every six timer callbacks and calls enemy_release only when BOX_INDEX wraps at 92; from BOX_INDEX=83 and BOX_TIMER=3, the next release is approximately 51 callbacks away. A separate 120-callback setup phase is justified.",
+  "source_basis": {
+    "source": "src/main.s perimeter_timer_tick and reload_box_timer",
+    "part2_reload": "6",
+    "release_boundary": "BOX_INDEX increments to 92, then clears and calls enemy_release",
+    "writes": false
+  }
+}

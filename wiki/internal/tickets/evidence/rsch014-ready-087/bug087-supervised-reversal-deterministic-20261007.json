@@ -1,0 +1,309 @@
+{
+  "schema": "bug087-supervised-reversal-diagnostic-20261007-v1",
+  "ticket": "BUG-087",
+  "candidate_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "candidate_identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+  "adapter_sha256": "0ab29d12f102a7ae35939042e0b1bd73c31e8aa7e4f28f111cef512205f47aae",
+  "scenario_plan_sha256": "a6871b188c22a0919801ee37a73100f05fa126d19ebd855771bdd47586af8b59",
+  "xroar_path": "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+  "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+  "monitor_port": 18407,
+  "per_phase_deadline_seconds": 45,
+  "process_supervision": "one owned XRoar Popen; helper child, PID, returncode, and log state observed throughout each phase",
+  "success_marker": "each bounded phase receipt completes or fails with process exit/listener state captured; reversal requires slot0 at (6,4) westbound, gate0=0, another active mover, then observed legal east reverse with concurrent movement",
+  "timeout_meaning": "a phase timeout is observer/process diagnostic evidence only; it does not prove route unreachability or a game-speed result",
+  "direct_writes_scope": "natural init uses approved key inputs; progression uses only approved DOTS_LEFT=1 and BONUS_LEFT=0 final-dot fixtures; user-authorized reversal fixture writes occur only before measurement, followed by six frozen owner-hydration callbacks; actual chooser/movement phase has no direct game-memory writes or input",
+  "rejected_experiment_handling": "the corrected endpoint audit invalidated the prior RNG trajectory inference; no stochastic or RNG search is repeated",
+  "status": "stop-after-reversal-fixture-setup",
+  "phases": [
+    {
+      "phase": "natural-init",
+      "receipt": "bug087-supervised-natural-init-deterministic-reversal-20261007.json",
+      "sha256": "207e10e339529be8f8e84f0cbcfd3efbc0a6ebadc14434dee9730e47cf399568",
+      "status": "pass-runtime-marker-set",
+      "process_alive_after": true
+    },
+    {
+      "phase": "natural-rate-progression",
+      "receipt": "bug087-supervised-natural-progression-deterministic-reversal-20261007.json",
+      "sha256": "d00e1f4f7caaccd06a06be820858ccc30afd614a614347f2684d4b09ba86cf33",
+      "status": "pass-runtime-marker-set",
+      "process_alive_after": true
+    },
+    {
+      "phase": "reversal-fixture-setup",
+      "receipt": "bug087-deterministic-reversal-fixture-setup-20261007.json",
+      "sha256": "d8c4ffc458724efd7d50f50a0f35dba6a0906e2481034027f1dc250f35627a2d",
+      "status": "fail-fixture-setup",
+      "process_alive_after": true,
+      "monitor_state_after": {
+        "status": "read-only-state-received",
+        "state": {
+          "state": "halted",
+          "last_stop_reason": "breakpoint",
+          "last_stop_pc": 2187,
+          "last_stop_bp_id": 45
+        },
+        "monitor_call_ledger_sha256": "d637a6232c3641675106db6ff5ff130286dd0b8fc8083e5725171a548b104a28"
+      }
+    }
+  ],
+  "emulator_pid": 22916,
+  "emulator_command": [
+    "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+    "-ui",
+    "null",
+    "-ao",
+    "null",
+    "-machine",
+    "coco3",
+    "-ram",
+    "512",
+    "-cart-type",
+    "gmc",
+    "-cart-rom",
+    "/mnt/e/projects/ladybug/build/ladybug.rom",
+    "-cart-autorun",
+    "-v",
+    "2",
+    "-monitor",
+    "127.0.0.1:18407",
+    "-monitor-halt-on-start"
+  ],
+  "listener_ready": true,
+  "part7_enemy_callback": {
+    "status": "pass-byte-verified-enemy-callback",
+    "marker_pc": "$088B",
+    "breakpoint_id": 45,
+    "identity_proof": {
+      "bank1_source_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+      "bank1_source_matches_runtime_artifact": true,
+      "bank1_destination_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+      "bank1_source_matches_destination": true,
+      "bank1_usable_payload_bytes": 15872,
+      "bank1_logical_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+      "bank1_logical_matches_destination": true,
+      "resident_sha256": "0ff7c801302510e7bc4f7fde8f764e8f1bfd6c85b39239d7b35515d8ea05c103",
+      "resident_matches": true,
+      "PAR6": 62,
+      "PAR7": 63,
+      "enemy_module_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+      "enemy_module_matches": true,
+      "PAR0": 56,
+      "rate_helper_sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+      "rate_helper_matches": true,
+      "e2_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+      "e2_helper_matches": true,
+      "PAR5": 52
+    },
+    "monitor_audit": {
+      "monitor_call_count": 22,
+      "monitor_call_ledger_sha256": "90a663f0c5c24ba42e6614fd34ec9ebabcfd58de4ea2aa4932ce2463e6086891",
+      "last_monitor_calls": [
+        {
+          "request_id": 15,
+          "method": "read_memory",
+          "params": {
+            "addr": 49152,
+            "length": 8192
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 15,
+            "result": {
+              "space": "cpu",
+              "addr": 49152,
+              "length": 8192,
+              "data": {
+                "bytes": 8192,
+                "sha256": "0ff7c801302510e7bc4f7fde8f764e8f1bfd6c85b39239d7b35515d8ea05c103"
+              }
+            }
+          },
+          "elapsed_seconds": 0.00045
+        },
+        {
+          "request_id": 16,
+          "method": "read_memory",
+          "params": {
+            "addr": 57344,
+            "length": 7680
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 16,
+            "result": {
+              "space": "cpu",
+              "addr": 57344,
+              "length": 7680,
+              "data": {
+                "bytes": 7680,
+                "sha256": "64f756b336bbdc923cefe6fe859165265c175d4cbed4308162869c3a07ce03d9"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000414
+        },
+        {
+          "request_id": 17,
+          "method": "read_memory",
+          "params": {
+            "space": "physical",
+            "addr": 460800,
+            "length": 4091
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 17,
+            "result": {
+              "space": "physical",
+              "addr": 460800,
+              "length": 4091,
+              "data": {
+                "bytes": 4091,
+                "sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000447
+        },
+        {
+          "request_id": 18,
+          "method": "read_memory",
+          "params": {
+            "addr": 65440,
+            "length": 1
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 18,
+            "result": {
+              "space": "cpu",
+              "addr": 65440,
+              "length": 1,
+              "data": {
+                "bytes": 1,
+                "sha256": "e596a8e5c49dd20a79bd0c1a7dd190a674507d1129785746fcc1c5e64cd8416c"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000243
+        },
+        {
+          "request_id": 19,
+          "method": "read_memory",
+          "params": {
+            "space": "physical",
+            "addr": 426928,
+            "length": 185
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 19,
+            "result": {
+              "space": "physical",
+              "addr": 426928,
+              "length": 185,
+              "data": {
+                "bytes": 185,
+                "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000419
+        },
+        {
+          "request_id": 20,
+          "method": "read_memory",
+          "params": {
+            "space": "physical",
+            "addr": 428192,
+            "length": 87
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 20,
+            "result": {
+              "space": "physical",
+              "addr": 428192,
+              "length": 87,
+              "data": {
+                "bytes": 87,
+                "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000304
+        },
+        {
+          "request_id": 21,
+          "method": "read_memory",
+          "params": {
+            "addr": 65440,
+            "length": 1
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 21,
+            "result": {
+              "space": "cpu",
+              "addr": 65440,
+              "length": 1,
+              "data": {
+                "bytes": 1,
+                "sha256": "e596a8e5c49dd20a79bd0c1a7dd190a674507d1129785746fcc1c5e64cd8416c"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000223
+        },
+        {
+          "request_id": 22,
+          "method": "read_memory",
+          "params": {
+            "addr": 65445,
+            "length": 1
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 22,
+            "result": {
+              "space": "cpu",
+              "addr": 65445,
+              "length": 1,
+              "data": {
+                "bytes": 1,
+                "sha256": "2017ff3461395672aa0aa4f64894fd2f95a4b120e2690e8951656d79adc2eed2"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000245
+        }
+      ]
+    }
+  },
+  "emulator_returncode_before_cleanup": null,
+  "emulator_alive_before_cleanup": true,
+  "owned_emulator_returncode_after_cleanup": -15,
+  "xroar_log_bytes": 0,
+  "xroar_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "xroar_log_tail": "",
+  "log_retention": "only byte count, hash, and final 6000 characters retained",
+  "elapsed_seconds": 57.698509
+}

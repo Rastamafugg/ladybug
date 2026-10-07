@@ -1,0 +1,1798 @@
+{
+  "schema": "rsch014-ready-087-phase-plan-v1",
+  "assignment": {
+    "ticket": "BUG-087",
+    "approval_state": "Approved",
+    "readiness_state": "Approved, High-risk. User approved the candidate-only horizontal observation protocol on 2026-10-07. The offline adapter/plan change and current identity resolution pass; fresh hash-pinned runtime evidence remains required.",
+    "risk_class": "High-risk",
+    "scope": "Approved BUG-087 rate fit and level progression behavior; verification includes natural Part-1-to-Part-2 initialization, exact final-dot fixtures through Parts 2\u20136 to expose the first nonzero Part-7 reset, then candidate-only horizontal and paired vertical displacement and existing reversal/freeze coverage.",
+    "execution_authority": "User approved the requested BUG-087 changes and the corrected progression verification route; this plan adds no second user-approval gate.",
+    "dependency": "BUG-086 must be integrated and actualDone before runtime dispatch.",
+    "source_baseline_commit": "3dd3397f99b969539bb0f821e6b98cb1548bab2d",
+    "rate_prototype_patch_sha256": "63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa",
+    "rate_source_delta_patch_sha256": "cb0833d4495f6bb9c29b5552587eac25a43ead0948c3466140311963061d076c",
+    "prototype_page34_source_sha256": "781d70a223274ff9ee041bffc562b306a012654fa781ffb8e967057e143b8395",
+    "fixed_candidate_contracts": {
+      "rate_helper": {
+        "bytes": 185,
+        "capacity": 192,
+        "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+        "range": "$A3B0-$A468",
+        "end_exclusive": "$A469"
+      },
+      "E2_helper": {
+        "bytes": 87,
+        "capacity": 93,
+        "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+        "range": "$A8A0-$A8F6"
+      },
+      "B2_banked_helper": {
+        "bytes": 696,
+        "capacity": 698,
+        "sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab"
+      },
+      "B2_active_source_sha256": "5b662e01cb75841eb03790327c2ad12ecb6cbfdcfa5cb871d1f67efd95b78241",
+      "current_candidate_patch_sha256": "e2632883acf84579581a95dd3a8b501194f094335e701974b7c25297a5eba934",
+      "prototype_page34_source_sha256": "61f543056331fda4752c84eb6033b861fdbaf5ed7623c2d6932e7a21a98d32aa"
+    },
+    "approved_rate_policy": {
+      "stage_index": "Active part N is one-based; counter zero is not Part 1.",
+      "offsets_for_parts_1_to_17": [
+        0,
+        2,
+        4,
+        1,
+        3,
+        5,
+        6,
+        8,
+        5,
+        7,
+        9,
+        10,
+        11,
+        8,
+        12,
+        13,
+        14
+      ],
+      "later_parts": "Offset clamps to 15 for Part 18 and later.",
+      "selection": "min(15, source_offset_for_active_part + (elapsed_bucket >> 4)); bucket saturates at $F0.",
+      "addends": {
+        "1.0": "$00",
+        "1.2": "$33",
+        "1.5": "$80",
+        "1.8": "$CC"
+      },
+      "movement_unit": "One admitted enemy move advances horizontal FB by +/-1 byte (2 packed pixels) or vertical FB by +/-320 bytes (2 scanlines at 160 bytes/line); four substeps advance one 8-pixel cell.",
+      "oracle": "For N logical callbacks from phase zero with C fractional carries, admissions = C + floor((N-C)/2); displacement = N+C pixels within one pixel at the phase endpoint.",
+      "preserved_policy": "Keep Part 9's 1.0 reset, B2 maximum two logical ticks with excess debt discarded, existing CoCo 300-logical-tick freeze duration, death bypass, and all player/pose/AI/route/type-group behavior. No per-actor debt or generic cap."
+    },
+    "frozen_R10_reference_profiles": {
+      "AD0_keyboard": {
+        "ROM_sha256": "3e1d206c05e95a9dc545f744ecc1953b2cbdcbce7854aede2232ae14475b7300",
+        "manifest_sha256": "d76a98ba30149abf7b2cb7066988d940ed458738f39e9ea09d7fcd3c4758d93e",
+        "receipt_sha256": "8302656b257eed7e6c71637bce6954a363427596262588f1a573d40d2c0a961c",
+        "fit_only": true
+      },
+      "AD1_keyboard": {
+        "ROM_sha256": "f2780236feb598096082cd6e63847cf17b3612b90bec9a8ad5d1e359df507721",
+        "manifest_sha256": "6b19e54935fd87966e0732994c1c46b1366f1a7b46a6a8423a0a413499661c7f",
+        "receipt_sha256": "26d62cb69c0e129afe7f03515d9dae8dd10c51cfe84d0d5ae34da81c7c52b059",
+        "fit_only": true
+      },
+      "AD1_joystick": {
+        "ROM_sha256": "24329ec7c8bbacf6884679a6afe0ded14ee19d36665f3c40b48dd9df6512f13c",
+        "manifest_sha256": "4d9e102674b202b003ac03aa20bc029754e272a78148205b76f58bec716fb750",
+        "receipt_sha256": "e7e143f7a6298f740ee1982c1fc306dd5926c0c5ba3681a40ba481e33d58417a",
+        "fit_only": true
+      }
+    },
+    "dependency_receipt": {
+      "path": "wiki/internal/tickets/evidence/rsch014-ready-087/bug086-completion-receipt-20261006.json",
+      "sha256": "f0846d9d0398b429c8db421edfe07bcd62b861424ce8c303e520ab3befb3e287",
+      "integrated_commit": "da1406b3c081a760f86e37e8234f575fb84a7fe7"
+    },
+    "approved_production_targets": [
+      "src/enemy_runtime.s",
+      "src/prototype_rate_page34.s",
+      "scripts/build.sh",
+      "scripts/source_reference.json",
+      "src/main.s",
+      "src/presentation_runtime.s",
+      "scripts/verify_presentation_flow.py",
+      "scripts/build_sparse_sprites.py",
+      "scripts/verify_sparse_sprites.py"
+    ],
+    "worktree_contract": {
+      "baseline": "E:/projects/ladybug/worktrees/bug087-root3dd-baseline",
+      "candidate": "E:/projects/ladybug/worktrees/bug087-root3dd-refresh",
+      "candidate_branch": "codex/bug-087-root3dd-refresh",
+      "baseline_and_candidate_base": "3dd3397f99b969539bb0f821e6b98cb1548bab2d",
+      "candidate_patch": "wiki/internal/tickets/evidence/rsch014-ready-087/current-root-approved-candidate.patch",
+      "candidate_patch_sha256": "e2632883acf84579581a95dd3a8b501194f094335e701974b7c25297a5eba934",
+      "gitignore_rule": "/worktrees/",
+      "tmx_staging": "forbidden",
+      "commit": "one ticket-scoped commit after verification; parent owns integration"
+    },
+    "runtime_contract": {
+      "phase_deadline_seconds": 45,
+      "live_executor": "bug087_ready_adapter.py live",
+      "requires": "Parent-reviewed hash-pinned per-phase dispatch receipt, current candidate identity, matching BUG-086 actualDone receipt, and an already-running XRoar monitor for candidate-horizontal-displacement. Paired vertical additionally requires both identities and distinct monitor endpoints.",
+      "phases": [
+        "active-monitor-sentinel",
+        "natural-init",
+        "natural-rate-progression",
+        "candidate-horizontal-displacement",
+        "matched-displacement --axis vertical",
+        "legal-reversal-concurrent-mover",
+        "freeze-saturated-thaw"
+      ],
+      "timeout": "Fail the named phase; never infer speed or missing rare paths from timeout.",
+      "runtime_status": "The candidate-only horizontal observer is offline-validated and the current identity pair resolves as dispatchable. No runtime phase has run under these hashes. Prior receipts are historical. Fresh natural-init and natural Part-2-to-Part-7 progression receipts, candidate-only horizontal evidence, paired vertical evidence, reversal, and freeze/death-bypass coverage remain required."
+    },
+    "historical_pre_refresh_pins": {
+      "root": "e5b6541f2d458089ce82b04253e3c52770932599",
+      "rate_prototype_patch_sha256": "63be5d20a40a3c4e6f5a3b37a75e996ecea131051f47de6d588017a0d4c730fa",
+      "rate_source_delta_patch_sha256": "cb0833d4495f6bb9c29b5552587eac25a43ead0948c3466140311963061d076c",
+      "prototype_page34_source_sha256": "781d70a223274ff9ee041bffc562b306a012654fa781ffb8e967057e143b8395",
+      "status": "historical only; superseded for current assignment by 3dd3397 and current-root-approved-candidate.patch"
+    }
+  },
+  "commands": [
+    "Baseline, E:/projects/ladybug/worktrees/bug087-root3dd-baseline: LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build.",
+    "Candidate, E:/projects/ladybug/worktrees/bug087-root3dd-refresh, profile 1: LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build; then python3 scripts/verify_presentation_flow.py. Before changing profile, record exit status, ROM SHA-256, source-build-receipt SHA-256, sparse manifest SHA-256, and capacity output in the BUG-087 qualification evidence.",
+    "Candidate profile 2, run LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build; then python3 scripts/verify_presentation_flow.py. Record the same profile receipt before the next build.",
+    "Candidate profile 3, run LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=0 bash scripts/build.sh build; then python3 scripts/verify_presentation_flow.py. Record the same profile receipt before the final runtime build.",
+    "Candidate final runtime build: rerun complete AD1 keyboard with LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build; then python3 scripts/verify_presentation_flow.py. Keep this AD1 keyboard build in the candidate build directory for live identity verification.",
+    "Run python3 wiki/internal/tickets/evidence/rsch014-ready-087/bug087_ready_adapter.py self-test; require plan_schema=1, six phase contracts, all guard cases, and 560 arithmetic cases.",
+    "Capture baseline and candidate complete-ad1-keyboard identities from their current build directories against source revision 3dd3397f99b969539bb0f821e6b98cb1548bab2d and wiki/internal/tickets/evidence/rsch014-ready-087/bug086-completion-receipt-20261006.json; require identical nine-TMX hashes and actualDone dependency receipt.",
+    "Run bug087_ready_adapter.py plan with those identities and the pinned BUG-086 receipt; require dispatchable=true, all six phase contracts resolved, and matching source revision and receipt hashes.",
+    "For each live phase, the parent creates a separate hash-pinned authorization JSON with runtime_authorized=true and parent_review_status=parent-reviewed-and-approved. Bind adapter SHA, scenario-plan SHA, exact phase, 45-second deadline, fixture-contract SHA, current identity SHA values, BUG-086 receipt SHA, and monitor ports.",
+    "Run live natural-init once per side with --identity <side-identity.json>, unique authorization/output, and the exact cold-start credit/start route. Then run live natural-rate-progression once per side, each with --prerequisite-receipt <same-side-passing-natural-init.json>; repeat only the disclosed final-dot fixture and Up for actual Parts 2\u21923, 3\u21924, 4\u21925, 5\u21926, and 6\u21927 transitions. Do not write STAGE or STAGE_PENDING. Require both sides to reach the true Part-7 init/reset before matched-displacement horizontal and vertical phases. Run legal-reversal-concurrent-mover next and freeze-saturated-thaw last because the death-bypass fixture leaves DEATH_STATE set and suppresses later enemy movement. Each command uses its own 45-second authorization, pinned BUG-086 receipt, same-side identity, monitor endpoint, and unique output receipt.",
+    "Run live matched-displacement twice, with --axis horizontal and --axis vertical. Each command requires its own --authorization <phase-auth.json>, --bug086-receipt <pinned receipt>, --baseline-identity <baseline-identity.json>, --candidate-identity <candidate-identity.json>, both localhost monitor ports, and a unique output receipt.",
+    "Each live command has a hard 45-second deadline and exact reads/writes in its resolved phase. Natural-init and natural-rate-progression may inject the disclosed keys and write only the per-transition final-dot precondition at $38:$0025=1 and $38:$0033=0; freeze may write only its approved direct-page fixtures; other phases perform no direct state writes. Missing markers fail the phase.",
+    "After acceptance, inspect the approved candidate patch, build/profile receipts, live receipts, and source-reference evidence; make one ticket-scoped candidate commit without staging any TMX file. Parent owns integration and combined checks."
+  ],
+  "R10_AD1_keyboard_reference_map_symbols": {
+    "qualification": "Exact symbols parsed from the frozen corrected R10 AD1 keyboard maps. Addresses are reference anchors only; dispatch must recapture baseline and candidate maps after BUG-086 integration.",
+    "main": {
+      "mainloop": "$C116",
+      "ad_dispatch_work": "$C14F",
+      "init_enemy": "$D548",
+      "enemy_tick": "$D54C",
+      "next_stage": "$C26B",
+      "ENEMY_MODULE_INIT": "$0800",
+      "INITIAL_ENTRY_STATE": "$00A0",
+      "STAGE": "$0024",
+      "ENEMY_TABLE": "$A470",
+      "ENEMY_ACTIVE": "$0058",
+      "DEATH_STATE": "$004D",
+      "FREEZE_TIMER": "$005B",
+      "ENEMY_MOVE": "$0061"
+    },
+    "enemy": {
+      "enemy_init_impl": "$0827",
+      "enemy_tick_impl": "$088B",
+      "rate_tick_callsite": "$08EE",
+      "ecd_blocked": "$0F8E",
+      "ENEMY_TABLE": "$A470",
+      "ENEMY_ACTIVE": "$0058",
+      "DEATH_STATE": "$004D",
+      "FREEZE_TIMER": "$005B",
+      "ENEMY_MOVE": "$0061"
+    },
+    "rate": {
+      "rate_reset": "$A3B0",
+      "rate_tick": "$A3C5",
+      "rt_freeze_gate": "$A3E3",
+      "rt_accumulate": "$A3EE",
+      "rate_select": "$A40C",
+      "rate_enemy_init_shim": "$A463",
+      "end_exclusive": "$A469",
+      "RATE_TIMER": "$029B",
+      "RATE_BUCKET": "$029C",
+      "RATE_FRAC": "$029D",
+      "RATE_ADDEND": "$029E",
+      "RATE_PHASE": "$029F"
+    },
+    "page34_rate_calls": {
+      "main_init_callsite": "$D548",
+      "main_init_bytes": "BDA463",
+      "enemy_tick_callsite": "$08EE",
+      "enemy_tick_bytes": "BDA3C5",
+      "page": "$34"
+    },
+    "e2": {
+      "helper_start": "$A8A0",
+      "helper_end_exclusive": "$A8F7",
+      "ENEMY_MODULE_BUILD_CACHE": "$0824",
+      "ENEMY_TABLE": "$A470",
+      "STAGE": "$0024"
+    }
+  },
+  "phases": [
+    {
+      "id": "active-monitor-sentinel",
+      "deadline_seconds": 15,
+      "success_marker": "From cold reset, an already-running candidate XRoar monitor acknowledges run and returns the mapped resident mainloop breakpoint within a 12-second client wait; verify the current resident image only after that marker.",
+      "timeout_meaning": "The resident mainloop marker or its active wait response did not return within this bounded phase. This is monitor/endpoint evidence, not gameplay-speed evidence.",
+      "required_reads": [
+        "candidate mainloop breakpoint acknowledgement and stop response envelope",
+        "resident source-to-staging-to-destination identity and PAR6/PAR7 after the marker",
+        "monitor endpoint port, owning Windows PID, WSL XRoar PID, executable path and hash",
+        "process exit status if the XRoar process ends"
+      ],
+      "required_writes": [],
+      "source_predecessors": [
+        "candidate identity resolves mainloop from the current map",
+        "listener is verified on the assigned candidate port before attaching",
+        "candidate XRoar executable identity is retained with the run receipt"
+      ],
+      "symbols": {
+        "candidate": {
+          "map": "main",
+          "names": [
+            "mainloop"
+          ]
+        }
+      },
+      "action_handler": "live --phase active-monitor-sentinel attaches to one already-running candidate monitor, sets mainloop, issues run, and waits no longer than 12 seconds; it does not inject input or alter game state.",
+      "phase_parameters": {
+        "writes": "none",
+        "markers_in_order": [
+          "mainloop"
+        ],
+        "acceptance_phase": false
+      }
+    },
+    {
+      "id": "matched-displacement",
+      "deadline_seconds": 45,
+      "success_marker": "Both exact builds pass natural initialization and actual Parts 2\u21927 progression; each Part-7 true-init record must show BOX_INDEX=0, BOX_TIMER=3, ENEMY_RELEASED=0, and ENEMY_ACTIVE=0. Record live spawner state after player entry and require both builds to match at the first paired enemy callback. Advance paired real callbacks until the same active actor record is byte-identical in both builds on the requested legal straight vertical segment and the candidate Part-7 addend is nonzero. Accept the rate_tick marker only when active-task PAR5 is $34 and logical/physical bytes match the current helper artifact; discard a $3D hit only when logical/physical bytes match the source-build-receipt-pinned audio artifact. Any other page or byte identity fails. Record candidate zero-displacement callbacks and nonzero movement, all four records, FRONT actor pixels, FB_SIM_SEQ, and raw FRAMES. Candidate displacement equals 2*(C+floor((N-C)/2)) pixels within 1 pixel, where N is measured callback count and C is measured fractional carries.",
+      "timeout_meaning": "The paired natural progression to Part 7, equal callback alignment, same active legal vertical actor record, nonzero candidate addend, or required movement markers were not all reached within 45 seconds. Timeout is not a cadence or speed measurement.",
+      "required_reads": [
+        "current full-ROM and source-build receipt hashes",
+        "resident and enemy-module bytes at mapped live callbacks",
+        "physical page $34 rate and E2 helper bytes",
+        "active-task PAR5 and logical/physical bytes at the shared rate marker address; accept only the exact page $34 helper and discard only the exact page $3D audio-artifact alias",
+        "STAGE, RATE_TIMER, RATE_BUCKET, RATE_FRAC, RATE_ADDEND, RATE_PHASE",
+        "BOX_INDEX, BOX_TIMER, BOX_PHASE, ENEMY_RELEASED, and ENEMY_ACTIVE at true Part-7 init and the first paired enemy callback",
+        "all four 8-byte ENEMY_TABLE records at matched callbacks",
+        "FB_SIM_SEQ logical publications and raw FRAMES Vbord count",
+        "Published FRONT owner, shadow-backed GIME Voffset via read_gime_state, and 4-by-16 actor-origin pixels"
+      ],
+      "required_writes": [
+        "none; natural input and approved route only"
+      ],
+      "source_predecessors": [
+        "current map symbols and bytes match each assigned build before labels are interpreted",
+        "both exact builds pass natural-init and natural-rate-progression through five real final-dot stage handoffs, verify the Part-7 true-init spawner reset, and expose comparable player-entry spawner snapshots for first-callback alignment",
+        "the paired live phase advances both builds equally until one identical active actor record reaches the requested legal straight segment with nonzero candidate addend",
+        "rate-table model uses active one-based part N and exact source offset slice",
+        "logical-address breakpoint collisions are classified by active mapping and exact source-build-receipt-pinned artifact bytes"
+      ],
+      "symbols": {
+        "baseline": {
+          "map": "main",
+          "names": [
+            "mainloop",
+            "ad_dispatch_work",
+            "init_enemy",
+            "enemy_tick",
+            "next_stage",
+            "STAGE",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE"
+          ]
+        },
+        "candidate": {
+          "map": "main",
+          "names": [
+            "mainloop",
+            "ad_dispatch_work",
+            "init_enemy",
+            "enemy_tick",
+            "next_stage",
+            "STAGE",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE"
+          ]
+        },
+        "rate": {
+          "map": "rate",
+          "names": [
+            "rate_reset",
+            "rate_tick",
+            "RATE_TIMER",
+            "RATE_BUCKET",
+            "RATE_FRAC",
+            "RATE_ADDEND",
+            "RATE_PHASE"
+          ]
+        }
+      },
+      "action_handler": "live --phase matched-displacement --axis vertical attaches to two already-running monitors that each completed natural-init and actual Parts 2\u21927 progression. It verifies both mapped builds and requires equal Part-7 spawner state before vertical alignment. The baseline and candidate must share one active vertical actor record through the sample. The rate_tick marker requires active-task PAR5 and exact logical/physical helper-byte checks; a page-$3D hit is ignored only when exact audio artifact bytes match. No direct game-state writes occur. GIME Voffset is read from the monitor shadow because $FF9D is write-only on the CPU bus.",
+      "phase_parameters": {
+        "axis": [
+          "vertical"
+        ],
+        "monitors": 2,
+        "writes": "none"
+      }
+    },
+    {
+      "id": "candidate-horizontal-displacement",
+      "deadline_seconds": 45,
+      "success_marker": "From a passing natural candidate Part-2-to-Part-7 progression receipt, start at the actual candidate enemy callback with Part 7, RATE_ADDEND=$33, and RATE_PHASE=0. Select one active, visible horizontal actor with at least 30 pixels of authored straight-route clearance outside den/gate cells. Record exactly 24 real enemy callbacks, all four actor records, candidate rate-helper bytes and PAR5 at each actual rate tick, FRONT actor pixels, FB_SIM_SEQ, and raw FRAMES. Require stable slot/type/direction, both zero and nonzero movement callbacks, 4 or 5 fractional carries, 14 policy admissions, and 28 observed pixels within 1 pixel. Baseline is a formula reference only, not a live movement comparison.",
+      "timeout_meaning": "No qualifying visible actor, phase-zero start, uninterrupted 24-callback straight sample, exact rate marker, frame/simulation counter advance, or pixel oracle was observed within 45 seconds. The phase fails and establishes no speed result.",
+      "required_reads": [
+        "candidate current full-ROM identity, mapped resident and enemy bytes, PAR0/PAR5, and physical/logical page-$34 rate helper bytes at actual callbacks",
+        "natural Part-7 progression receipt, STAGE, DEATH_STATE, FREEZE_TIMER, RATE_ADDEND, RATE_PHASE, RATE_FRAC, RATE_BUCKET, and RATE_TIMER",
+        "assets/arcade/maze.json maze_nav/gate_owner bytes matching the approved SHA-256; current cell must have an authored horizontal exit and at least 30 pixels of straight clearance, with gate/nest cells excluded",
+        "all four 8-byte ENEMY_TABLE records before and after every measured callback",
+        "actor-origin FRONT pixels, FB_SIM_SEQ logical publications, and raw FRAMES Vbord count for every measured callback"
+      ],
+      "required_writes": [
+        "none"
+      ],
+      "source_predecessors": [
+        "the candidate identity and BUG-086 actualDone receipt match the parent-reviewed dispatch receipt",
+        "the prerequisite candidate natural-rate-progression receipt is passing under the same adapter, plan, dependency, and identity hashes and proves natural Part-7 addend $33",
+        "the static maze route oracle is hash-pinned; enemy_direction_legal uses the authored N/E/S/W maze_nav bits, and gate/den routes are excluded from the straight segment",
+        "the runtime attaches to the existing candidate monitor only; it performs no input injection, direct game-state writes, actor writes, mapping writes, or framebuffer writes",
+        "rate_tick stops are accepted only with active-task PAR5=$34 and exact logical/physical helper bytes; the known page-$3D alias is ignored only with exact audio artifact bytes"
+      ],
+      "symbols": {
+        "candidate": {
+          "map": "enemy",
+          "names": [
+            "enemy_tick_impl",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE",
+            "DEATH_STATE",
+            "FREEZE_TIMER"
+          ]
+        },
+        "rate": {
+          "map": "rate",
+          "names": [
+            "rate_tick",
+            "RATE_TIMER",
+            "RATE_BUCKET",
+            "RATE_FRAC",
+            "RATE_ADDEND",
+            "RATE_PHASE"
+          ]
+        }
+      },
+      "action_handler": "live --phase candidate-horizontal-displacement attaches to the single already-running candidate monitor after its naturally completed Part-2-to-Part-7 progression receipt. It proves the mapped resident/enemy/rate images, waits for a visible phase-zero candidate actor with at least 30 authored straight-route pixels, then captures 24 actual enemy callbacks and all four records. It makes no direct game-state writes. The arcade rate oracle is unchanged; baseline displacement is not measured.",
+      "phase_parameters": {
+        "axis": "horizontal",
+        "callbacks": 24,
+        "minimum_straight_route_pixels": 30,
+        "monitors": 1,
+        "candidate_only": true,
+        "maze_json_sha256": "76361237a90a555f2b78731c3975a209f569a53cb04705eb90d0aad427856048",
+        "writes": "none",
+        "baseline_24px": "formula reference only"
+      }
+    },
+    {
+      "id": "freeze-saturated-thaw",
+      "deadline_seconds": 45,
+      "success_marker": "Real enemy callbacks execute the 0F->10 and EF->F0 rollovers, saturated-bucket expiry and non-expiry, and a complete 300-callback FREEZE_TIMER countdown. Elapsed bucket/timer advances while RATE_FRAC, RATE_PHASE, all four enemy records, and FRONT actor-origin pixels hold. The 1->0 callback still does not move; a later real eligible callback moves. A real death-path callback leaves rate state unchanged.",
+      "timeout_meaning": "Any required saturated bucket, expiry/non-expiry, rollover, thaw, movement-hold, or death-bypass marker was absent within 45 seconds. Missing rare path fails and is not inferred from a model.",
+      "required_reads": [
+        "PC at mapped enemy tick and rate tick/gate boundaries",
+        "FREEZE_TIMER",
+        "RATE_TIMER, RATE_BUCKET, RATE_FRAC, RATE_PHASE",
+        "four ENEMY_TABLE records and front-buffer actor origins",
+        "DEATH_STATE",
+        "logical callback counter"
+      ],
+      "required_writes": [
+        "Parent-reviewed deterministic direct-page state fixtures only: FREEZE_TIMER $005B, RATE_TIMER..RATE_PHASE $029B-$029F, and DEATH_STATE $004D. No enemy table, code, framebuffer, owner, or mapping writes."
+      ],
+      "source_predecessors": [
+        "corrected source ordering is elapsed-before-freeze and movement/fraction-after-freeze",
+        "the rate tick saturated path branches through the freeze gate",
+        "death bypass remains on the existing enemy path",
+        "no per-actor debt is introduced"
+      ],
+      "symbols": {
+        "candidate": {
+          "map": "rate",
+          "names": [
+            "rate_tick",
+            "rt_freeze_gate",
+            "rt_accumulate",
+            "RATE_TIMER",
+            "RATE_BUCKET",
+            "RATE_FRAC",
+            "RATE_PHASE",
+            "FREEZE_TIMER"
+          ]
+        },
+        "enemy": {
+          "map": "enemy",
+          "names": [
+            "enemy_tick_impl",
+            "ENEMY_TABLE",
+            "DEATH_STATE",
+            "FREEZE_TIMER"
+          ]
+        }
+      },
+      "action_handler": "live --phase freeze-saturated-thaw attaches to one existing monitor, writes only the dispatch-pinned direct-page fixtures, and observes 300 actual enemy callbacks plus thaw and death-bypass markers.",
+      "phase_parameters": {
+        "callbacks": 300,
+        "deadline_seconds": 45,
+        "writes": [
+          "$004D",
+          "$005B",
+          "$029B-$029F"
+        ]
+      }
+    },
+    {
+      "id": "legal-reversal-concurrent-mover",
+      "deadline_seconds": 45,
+      "success_marker": "The actual callback advances slot 0 west through (6,4)->(5,4)->(4,4) with gate 0 fixed at its existing value 0. At (4,4), the real chooser selects the sole legal east exit, which is the reverse direction. Another active actor's framebuffer pointer also changes during the actual callback sequence. Record all four records, chooser PC/candidate, gate bytes, and both FRONT pixel windows. Do not force DIR_NONE or change the gate.",
+      "timeout_meaning": "The exact legal reverse choice or a concurrent second-actor movement was not observed within 45 seconds. Missing paths fail; source models are not evidence.",
+      "required_reads": [
+        "PC at actual enemy_tick_impl, ecd_choose, and ecd_blocked",
+        "ENEMY_ACTIVE and ENEMY_MOVE",
+        "all four 8-byte ENEMY_TABLE records",
+        "FRONT pixels for slot 0 and the other mover",
+        "gate-state bytes proving gate 0 remains 0",
+        "chooser candidate and direction before/after the legal reverse"
+      ],
+      "required_writes": [
+        "none. Use only a live, already-prepared legal fixture; do not write actor direction, DIR_NONE, gate state, framebuffer, owner, or mapping."
+      ],
+      "source_predecessors": [
+        "actor 0 begins westbound at cell (6,4); actual movement yields (5,4) then (4,4)",
+        "gate 0 remains 0; flipping it to 1 is forbidden because it changes the exit to north",
+        "another actor is already active and must move under the same real callbacks",
+        "ecd_choose candidate 1 and the post-callback direction byte prove the east reverse"
+      ],
+      "symbols": {
+        "enemy": {
+          "map": "enemy",
+          "names": [
+            "ecd_blocked",
+            "enemy_tick_impl",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE",
+            "ENEMY_MOVE"
+          ]
+        }
+      },
+      "action_handler": "live --phase legal-reversal-concurrent-mover attaches to one existing monitor, checks the parent-confirmed pre-positioned fixture, and follows real chooser/callback markers without writes.",
+      "phase_parameters": {
+        "actor_slot": 0,
+        "entry_cell": [
+          6,
+          4
+        ],
+        "incoming_direction": "west",
+        "gate0": 0,
+        "concurrent_mover_required": true,
+        "writes": "none"
+      }
+    },
+    {
+      "id": "natural-init",
+      "deadline_seconds": 45,
+      "success_marker": "From cold reset on either assigned build, verify resident mainloop and mapped presentation bytes. The first presentation_flow_tick initializes the screen and clears credits; observe its return and the next presentation_flow_tick, then require PRES_MAGIC=$A5, PRES_CREDITS=0 and attract screen before input. Inject key 5, observe one credit and the high-score menu, then arm init_enemy before Enter. Require Enter to consume the credit and the real Part-1 init_enemy entry with level-start screen and STAGE=1. On the candidate, verify the page-$34 rate_enemy_init_shim before true enemy_init_impl; on both builds verify enemy_init_impl and first enemy_tick, plus natural player entry at (12,18). Write only DOTS_LEFT=1 and BONUS_LEFT=0, inject Up to consume the real final dot, and observe next_stage followed by the Part-2 init and first enemy tick; verify the candidate shim when present. Prove each used module before interpreting symbols.",
+      "timeout_meaning": "The cold presentation initialization, natural zero-credit attract marker, credited menu, natural Part-1 init entry, build-appropriate init/tick markers, player-entry handoff, final-dot transition, Part-2 init sequence, or an exact mapped marker did not occur within the 45-second phase. Each individual stop wait is bounded at 12 seconds. A timeout is not evidence of slow game code.",
+      "required_reads": [
+        "resident source-to-staging-to-destination bytes and PAR6/PAR7 after mainloop",
+        "presentation runtime bytes at cold and post-initialization markers; PRES_MAGIC, credits, attract/high-score/level-start screen fields, and exact map symbols",
+        "resident init entry bytes and natural Part-1/Part-2 STAGE values",
+        "INITIAL_ENTRY_STATE and player cell through entry completion",
+        "DOTS_LEFT, BONUS_LEFT, and STAGE_PENDING at the real next_stage entry",
+        "enemy module bytes and PAR0 at true init and first enemy callbacks on both builds",
+        "candidate-only physical page-$34 rate/E2 helper bytes, PAR5, and RATE_TIMER/Bucket/Frac/Addend/Phase",
+        "ENEMY_ACTIVE and ENEMY_TABLE before/after true init",
+        "BUG-086 integrated source/helper identity"
+      ],
+      "required_writes": [
+        "inject CoCo key 5 press/release for one credit, then Enter 0x30 press/release for Start Game",
+        "after natural Part-1 entry completes at (12,18), write only physical $38:$0025=1 and $38:$0033=0 as the disclosed final-bonus precondition",
+        "inject Up 0x2B press/release to consume the real final authored dot; never write STAGE/STAGE_PENDING or call init/reset directly"
+      ],
+      "source_predecessors": [
+        "BUG-086 completion receipt names integrated commit",
+        "the selected baseline or candidate current main, presentation and enemy maps resolve all used symbols; candidate rate and E2 maps resolve the banked shim",
+        "resident, presentation and enemy source/list/map/live bytes agree before marker interpretation; candidate rate/E2 bytes and PAR5 are checked at banked boundaries",
+        "key 5, Enter and Up use the approved CoCo scan-code path",
+        "the counter fixture follows natural player entry and does not change STAGE or STAGE_PENDING"
+      ],
+      "symbols": {
+        "candidate": {
+          "map": "main",
+          "names": [
+            "init_enemy",
+            "enemy_tick",
+            "next_stage",
+            "DOTS_LEFT",
+            "BONUS_LEFT",
+            "STAGE_PENDING",
+            "ENEMY_MODULE_INIT",
+            "STAGE",
+            "INITIAL_ENTRY_STATE"
+          ]
+        },
+        "rate": {
+          "map": "rate",
+          "names": [
+            "rate_enemy_init_shim",
+            "rate_reset",
+            "RATE_TIMER",
+            "RATE_BUCKET",
+            "RATE_FRAC",
+            "RATE_ADDEND",
+            "RATE_PHASE"
+          ]
+        },
+        "enemy": {
+          "map": "enemy",
+          "names": [
+            "enemy_init_impl",
+            "enemy_tick_impl",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE"
+          ]
+        },
+        "e2": {
+          "map": "e2",
+          "names": [
+            "efn_cache_guard",
+            "enemy_page34_end",
+            "ENEMY_MODULE_BUILD_CACHE"
+          ]
+        },
+        "presentation": {
+          "map": "presentation",
+          "names": [
+            "presentation_flow_tick",
+            "normal_game",
+            "PRES_CREDITS",
+            "PRES_MODE",
+            "PRES_SCREEN",
+            "PRES_MAGIC",
+            "PRESENTATION_MAP_ATTRACT",
+            "PRESENTATION_MAP_HIGH_SCORE",
+            "PRESENTATION_MAP_LEVEL_START",
+            "INITIAL_ENTRY_STATE",
+            "PLAYER_CELL_X",
+            "PLAYER_CELL_Y"
+          ]
+        }
+      },
+      "action_handler": "live --phase natural-init attaches to one existing baseline or candidate monitor. It proves resident and presentation code, allows cold presentation initialization, checks zero-credit attract, then uses key 5 and Enter to reach natural Part-1 entry. It verifies the candidate rate shim only on candidate builds, consumes each observed breakpoint once, and checks enemy initialization, first callback, and player entry. It seeds only the two disclosed final-dot counters, then uses Up to observe natural next_stage and Part-2 initialization. It never calls init/reset or writes STAGE/STAGE_PENDING.",
+      "phase_parameters": {
+        "writes": "key 5, Enter, and Up input edges; only the final-dot precondition writes DOTS_LEFT and BONUS_LEFT; candidate-only page-$34 observations; baseline has no rate-shim write or read requirement",
+        "markers_in_order": [
+          "cold mainloop",
+          "cold presentation_flow_tick initialization entry",
+          "post-initialization presentation_flow_tick with zero credits and attract screen",
+          "key-5 credited menu",
+          "Part-1 init_enemy after Enter",
+          "candidate-only rate_enemy_init_shim when applicable",
+          "Part-1 enemy_init_impl and first_enemy_tick",
+          "normal_game until player entry completes",
+          "real Part-2 next_stage after final-dot fixture",
+          "Part-2 init_enemy, candidate-only rate shim when applicable, enemy_init_impl, first_enemy_tick"
+        ],
+        "acceptance_phase": true
+      }
+    },
+    {
+      "id": "natural-rate-progression",
+      "deadline_seconds": 45,
+      "success_marker": "Starting from a same-side passing natural-init receipt halted at the Part-2 first enemy callback, complete five real final-dot transitions Parts 2\u21923\u21924\u21925\u21926\u21927. Before each Up input, set only DOTS_LEFT=1 and BONUS_LEFT=0 after natural player entry; require next_stage and each subsequent actual init_enemy, candidate rate shim where present, true enemy_init_impl, first enemy callback, and completed player entry. Candidate Part 7 must naturally reset RATE_TIMER=96, RATE_BUCKET=0, RATE_FRAC=0, RATE_PHASE=0 and RATE_ADDEND=$33, the first nonzero reset. Both builds must expose the expected Part-7 spawner reset at true enemy initialization: BOX_INDEX=0, BOX_TIMER=3, ENEMY_ACTIVE=0, ENEMY_RELEASED=0. Record the naturally advanced player-entry spawner state for later paired alignment. Baseline reaches the same Part 7 state. Never write STAGE/STAGE_PENDING or call init/reset directly.",
+      "timeout_meaning": "The same-side monitor did not complete the five real stage handoffs, per-stage mapped init/callback/player-entry markers, or Part-7 candidate nonzero reset at true enemy initialization within 45 seconds. Timeout is not evidence of slow gameplay code or arcade cadence.",
+      "required_reads": [
+        "same-side passing natural-init receipt hash, phase authorization, and build identity",
+        "main, presentation, enemy, candidate rate and E2 source/map/live-byte identity before interpreting markers",
+        "STAGE, STAGE_PENDING, DOTS_LEFT, BONUS_LEFT, INITIAL_ENTRY_STATE and player entry coordinates before and after each handoff",
+        "candidate-only PAR5 and physical page-$34 rate shim at each actual part reset",
+        "candidate RATE_TIMER, RATE_BUCKET, RATE_FRAC, RATE_PHASE, RATE_ADDEND at each true reset; expected Part-7 reset tuple (96,0,0,0,$33)",
+        "true enemy module mapping and all four enemy records at first callback for each part",
+        "Part-7 BOX_INDEX, BOX_TIMER, BOX_PHASE, ENEMY_ACTIVE, and ENEMY_RELEASED at true enemy initialization and completed player entry",
+        "BUG-086 actualDone receipt identity",
+        "normal_game source bytes CLRA/RTS, mapped live bytes, and the adjacent RTS address used as the repeatable player-entry marker",
+        "candidate Part-7 RATE_TIMER=96, RATE_BUCKET=0, RATE_FRAC=0, RATE_PHASE=0 and RATE_ADDEND=$33 at the true enemy_init_impl reset marker before player-entry callbacks advance elapsed state"
+      ],
+      "required_writes": [
+        "for each Parts 2\u20136 transition only: physical $38:$0025=1 and $38:$0033=0 after natural player entry",
+        "inject CoCo Up 0x2B press/release once per transition",
+        "no STAGE, STAGE_PENDING, code, mapping, enemy-table, or framebuffer writes"
+      ],
+      "source_predecessors": [
+        "the same-side natural-init receipt passes and its authorization binds the current adapter, scenario plan, BUG-086 receipt, and exact identity",
+        "the monitor remains running at the exact Part-2 first-enemy callback from that receipt",
+        "the source rate selector initializes each part from STAGE; approved rate table and offset slice are unchanged",
+        "each synthetic counter precondition is limited to documented final-dot counters and actual next_stage consumes it; stage advancement and all enemy resets remain natural",
+        "the presentation map normal_game entry bytes are proved as CLRA/RTS; player-entry dispatches break at the adjacent RTS so stepping returns to the caller"
+      ],
+      "symbols": {
+        "candidate": {
+          "map": "main",
+          "names": [
+            "next_stage",
+            "init_enemy",
+            "STAGE",
+            "STAGE_PENDING",
+            "DOTS_LEFT",
+            "BONUS_LEFT",
+            "INITIAL_ENTRY_STATE"
+          ]
+        },
+        "enemy": {
+          "map": "enemy",
+          "names": [
+            "enemy_init_impl",
+            "enemy_tick_impl",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE"
+          ]
+        },
+        "presentation": {
+          "map": "presentation",
+          "names": [
+            "normal_game",
+            "PLAYER_CELL_X",
+            "PLAYER_CELL_Y"
+          ]
+        },
+        "rate": {
+          "map": "rate",
+          "names": [
+            "rate_enemy_init_shim",
+            "rate_reset",
+            "RATE_TIMER",
+            "RATE_BUCKET",
+            "RATE_FRAC",
+            "RATE_ADDEND",
+            "RATE_PHASE"
+          ]
+        },
+        "e2": {
+          "map": "e2",
+          "names": [
+            "efn_cache_guard",
+            "enemy_page34_end",
+            "ENEMY_MODULE_BUILD_CACHE"
+          ]
+        }
+      },
+      "action_handler": "live --phase natural-rate-progression attaches to the same-side monitor stopped at the Part-2 first enemy callback. Authorization requires a same-side passing natural-init receipt hash. It verifies the mapped runtime, proves normal_game is CLRA/RTS in the exact presentation image, then waits at its adjacent RTS for completed player entry for each active part, writes only the two approved physical final-dot counters, injects Up, observes real next_stage and actual per-part init/reset/enemy/player-entry markers through Part 7, records the candidate Part-7 rate tuple at the true enemy_init_impl reset marker, then confirms completed player entry while allowing timer/fraction state to advance naturally. Candidate rate markers require PAR5=$34 and exact helper bytes. Each call is bounded by the global 45-second phase deadline and does not call init/reset or write STAGE/STAGE_PENDING.",
+      "phase_parameters": {
+        "parts": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "real_stage_handoffs": 5,
+        "per_transition_writes": [
+          "$38:$0025=1",
+          "$38:$0033=0"
+        ],
+        "starting_prerequisite": "same-side natural-init pass at Part-2 first enemy callback",
+        "target": "natural Part-7 rate reset",
+        "candidate_expected_addend": "$33",
+        "writes": "final-dot counters and Up input only; no direct stage state writes"
+      }
+    }
+  ],
+  "runtime_handlers": {
+    "attached": true,
+    "entrypoint": "live --phase PHASE; attaches to existing private XRoar monitor and never launches an emulator",
+    "phase_deadline_seconds_max": 45,
+    "phase_contracts": {
+      "active-monitor-sentinel": {
+        "fixture": "cold-start active monitor wait at the resident mainloop; read-only",
+        "writes": []
+      },
+      "matched-displacement": {
+        "fixture": "natural legal straight vertical segment on paired running builds after read-only equality check of the Part-7 spawner reset",
+        "writes": []
+      },
+      "candidate-horizontal-displacement": {
+        "fixture": "natural candidate Part-7 progression; select a live horizontal actor with at least 30 pixels of authored straight route, then measure 24 actual callbacks",
+        "maze_json_sha256": "76361237a90a555f2b78731c3975a209f569a53cb04705eb90d0aad427856048",
+        "writes": []
+      },
+      "freeze-saturated-thaw": {
+        "fixture": "adapter-pinned rate boundary values plus actual callbacks; enemy and framebuffer ownership untouched",
+        "writes": [
+          "$004D",
+          "$005B",
+          "$029B-$029F"
+        ]
+      },
+      "legal-reversal-concurrent-mover": {
+        "fixture": "actor 0 arrives west through (6,4)->(5,4)->(4,4), gate 0 remains 0; another existing active actor moves",
+        "writes": []
+      },
+      "natural-init": {
+        "fixture": "from cold boot, let the first presentation tick initialize credits and attract before key-5 credit; arm init_enemy before Enter starts Part 1; one DOTS_LEFT=1, BONUS_LEFT=0 fixture and Up cause a real Part-2 handoff",
+        "writes": [
+          "$0025",
+          "$0033"
+        ]
+      },
+      "natural-rate-progression": {
+        "fixture": "after natural-init stops at Part 2, repeat DOTS_LEFT=1, BONUS_LEFT=0 and Up for each real Part-2-through-Part-6 handoff; verify Part-7 rate and spawner reset at true init, then record the live spawner state at player-entry return at normal_game+1",
+        "writes": [
+          "$0025",
+          "$0033"
+        ]
+      }
+    },
+    "runtime_status": "prepared; not run"
+  },
+  "runtime_status": "Candidate-only horizontal observer design is approved, implemented, and passes offline validation. Adapter self-test: seven phase contracts, 45 guard cases, 560 arithmetic cases; focused startup and durable-step checks also pass. Current identity and BUG-086 plan generation is dispatchable. Runtime was not run; prior runtime receipts remain historical because hashes changed. Fresh natural-init/progression and all remaining runtime acceptance phases are required.",
+  "execution_preconditions": [
+    "At execution, the parent creates the named ignored baseline/candidate worktrees, copies the nine user TMX inputs into each without staging them, and checks hashes against the retained TMX receipt.",
+    "Baseline and candidate builds must retain the same source revision value 3dd3397f99b969539bb0f821e6b98cb1548bab2d; leave candidate implementation changes uncommitted until paired captures and runtime acceptance complete.",
+    "XRoar monitor ports and phase-specific dispatch receipts are generated for the actual run; commands consume the monitor ports and receipts. Missing markers fail that bounded phase; no timeout is treated as speed evidence."
+  ],
+  "current_root_candidate": {
+    "source_revision": "3dd3397f99b969539bb0f821e6b98cb1548bab2d",
+    "patch_path": "evidence/rsch014-ready-087/current-root-approved-candidate.patch",
+    "patch_sha256": "e2632883acf84579581a95dd3a8b501194f094335e701974b7c25297a5eba934",
+    "baseline_ad1_keyboard_rom_sha256": "ef13933e1ace948c9c7b294cfc55ef44c14ba69b39a5e6f8fca392766cbbf869",
+    "candidate_ad1_keyboard_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+    "candidate_rate_helper_bytes": 185,
+    "rate_helper_capacity": 192,
+    "rate_helper_free": 7,
+    "runtime": "Gameplay acceptance remains incomplete. The corrected plan has bounded natural-init and Part-2-to-Part-7 progression for baseline/candidate, horizontal and vertical matched movement, legal reversal, and freeze/thaw, in addition to the already-passed active-monitor sentinel.",
+    "tmx_inputs": [
+      {
+        "path": "tiled/coco-attract-screen.tmx",
+        "sha256": "c77827a7bb333ebabcc7702c6e69ef425d947abac44a01d9451db1c251d9cf07"
+      },
+      {
+        "path": "tiled/coco-credits-screen.tmx",
+        "sha256": "0313d3a40f4559beba9d4df52e28795709723f0929ab05a8336193a5aaa95825"
+      },
+      {
+        "path": "tiled/coco-enter-high-score-screen.tmx",
+        "sha256": "805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca"
+      },
+      {
+        "path": "tiled/coco-game-over-screen.tmx",
+        "sha256": "a1ed0956fa63e5bbc46198340818e7e30621b7eaf9640922eab122615c921d05"
+      },
+      {
+        "path": "tiled/coco-high-score-screen.tmx",
+        "sha256": "d949ffdec3dc43deb4f63268b5cf1618573efc73e9e1335a2eca03104d2abf9d"
+      },
+      {
+        "path": "tiled/coco-instructions-screen.tmx",
+        "sha256": "4e6213526845f7bd64486f63716268553edcbf1f3ae730cec417ccafd23ed4e4"
+      },
+      {
+        "path": "tiled/coco-keybind-options-screen.tmx",
+        "sha256": "00a550a2cfb3027970ed42af5bcff9faffdcf01e4fbf0ac0f2e6974122ea5046"
+      },
+      {
+        "path": "tiled/coco-level-start-screen.tmx",
+        "sha256": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b"
+      },
+      {
+        "path": "tiled/coco-screen.tmx",
+        "sha256": "04ee4a65684325118dcd6acf9772f4072b61645410702bf3e7bd4ab3a09cda7f"
+      }
+    ],
+    "status": "Ready for delegated execution"
+  },
+  "dispatchable": true,
+  "dispatch_gates": {
+    "BUG086_actualDone": true,
+    "both_builds_captured_against_same_receipt": true,
+    "both_builds_share_source_revision": true,
+    "both_builds_share_approved_assignment_baseline": true,
+    "runtime_action_handlers_attached": true
+  },
+  "dependency": {
+    "ticket": "BUG-086",
+    "status": "BUG-086 completion identity present",
+    "integrated_commit": "da1406b3c081a760f86e37e8234f575fb84a7fe7",
+    "receipt_sha256": "f0846d9d0398b429c8db421edfe07bcd62b861424ce8c303e520ab3befb3e287"
+  },
+  "artifacts": {
+    "baseline": {
+      "side": "baseline",
+      "profile": "complete-ad1-keyboard",
+      "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+      "build_dir": "/mnt/e/projects/ladybug/worktrees/bug087-current-root-baseline/build",
+      "full_rom_sha256": "ef13933e1ace948c9c7b294cfc55ef44c14ba69b39a5e6f8fca392766cbbf869",
+      "source_build_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+      "source_build_profile": "complete",
+      "source_build_state": "complete",
+      "artifacts": {
+        "ladybug.rom": {
+          "path": "ladybug.rom",
+          "sha256": "ef13933e1ace948c9c7b294cfc55ef44c14ba69b39a5e6f8fca392766cbbf869",
+          "bytes": "65536"
+        },
+        "ladybug-runtime.rom": {
+          "path": "ladybug-runtime.rom",
+          "sha256": "1a44933e3157ded2120ce04b87548d45da143dffc1d923b61929e8836d32b124",
+          "bytes": "16384"
+        },
+        "ladybug-enemy-runtime.rom": {
+          "path": "ladybug-enemy-runtime.rom",
+          "sha256": "7f8e104df0d853d00495e2aa692680b997bc7ec434da015d25b5bae1e10cb9b4",
+          "bytes": "4091"
+        },
+        "ladybug-enemy-runtime.lst": {
+          "path": "ladybug-enemy-runtime.lst",
+          "sha256": "4394b5e470b4637b4964a3d159aca3fb3cfcac3c622f37943266702809f73253",
+          "bytes": "360041"
+        },
+        "ladybug-enemy-helper-page34.bin": {
+          "path": "ladybug-enemy-helper-page34.bin",
+          "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+          "bytes": "87"
+        },
+        "ladybug-adaptive-banked.bin": {
+          "path": "ladybug-adaptive-banked.bin",
+          "sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab",
+          "bytes": "696"
+        },
+        "ladybug-adaptive-active.bin": {
+          "path": "ladybug-adaptive-active.bin",
+          "sha256": "1cdfef1ddd34cb81ff822909e477d0ffa6d2f95ed6c4133bd0908215cb54405f",
+          "bytes": "603"
+        },
+        "ladybug-adaptive-active.s": {
+          "path": "ladybug-adaptive-active.s",
+          "sha256": "5b662e01cb75841eb03790327c2ad12ecb6cbfdcfa5cb871d1f67efd95b78241",
+          "bytes": "11084"
+        },
+        "ladybug-presentation-runtime.bin": {
+          "path": "ladybug-presentation-runtime.bin",
+          "sha256": "6df37ffe404e1d627ed5ea904f2ff76612416bf985b65696a12e2ea0c95dcb3e",
+          "bytes": "1280"
+        },
+        "source-build-receipt.json": {
+          "path": "source-build-receipt.json",
+          "sha256": "6aa3af805e14083f8bc0beb0c559c5f468dc09ca27c4b20bcce29c43944ae05b",
+          "bytes": "54476"
+        }
+      },
+      "maps": {
+        "main": {
+          "path": "ladybug.map",
+          "sha256": "db8b2295a7b60af4ecf4204dc2572b0e1b15ccf0eb6d80b8b755be3ae87050ca",
+          "symbols": {
+            "mainloop": 49430,
+            "ad_dispatch_work": 49487,
+            "init_enemy": 54615,
+            "enemy_tick": 54619,
+            "next_stage": 49776,
+            "ENEMY_MODULE_INIT": 2048,
+            "INITIAL_ENTRY_STATE": 160,
+            "STAGE": 36,
+            "ENEMY_TABLE": 42096,
+            "ENEMY_ACTIVE": 88,
+            "DEATH_STATE": 77,
+            "FREEZE_TIMER": 91,
+            "ENEMY_MOVE": 97,
+            "DOTS_LEFT": 37,
+            "BONUS_LEFT": 51,
+            "STAGE_PENDING": 38
+          }
+        },
+        "enemy": {
+          "path": "ladybug-enemy-runtime.map",
+          "sha256": "94418fc4e95cca4da607c639b45d005c9f8901728353502374e835da48d7b330",
+          "symbols": {
+            "enemy_tick_impl": 2187,
+            "enemy_init_impl": 2087,
+            "ecd_blocked": 3986,
+            "ecd_choose": 3979,
+            "ENEMY_TABLE": 42096,
+            "ENEMY_ACTIVE": 88,
+            "DEATH_STATE": 77,
+            "FREEZE_TIMER": 91,
+            "ENEMY_MOVE": 97
+          }
+        },
+        "e2": {
+          "path": "ladybug-enemy-helper-page34.map",
+          "sha256": "d1d62b9385fec1811781da61d4ec5bec55957dad16cedfd67f0f1d000bbd339f",
+          "symbols": {
+            "efn_cache_guard": 43168,
+            "enemy_page34_end": 43255,
+            "ENEMY_MODULE_BUILD_CACHE": 2084,
+            "ENEMY_TABLE": 42096,
+            "STAGE": 36
+          }
+        },
+        "active": {
+          "path": "ladybug-adaptive-active.map",
+          "sha256": "94eebf0ac03d53970152526b68ae391fde7c9b8f03ecb08431d97bab772c3299",
+          "symbols": {
+            "enemy_tick": 54619,
+            "INITIAL_ENTRY_STATE": 160
+          }
+        },
+        "presentation": {
+          "path": "ladybug-presentation-runtime.map",
+          "sha256": "c486bca5b0df098dcfcec4f6294a64f24138ed0525fc8d7f4316a66b691573fe",
+          "symbols": {
+            "presentation_flow_tick": 6400,
+            "normal_game": 6705,
+            "normal_stage": 6663,
+            "credit_tick": 7350,
+            "PRES_CREDITS": 168,
+            "PRES_MODE": 165,
+            "PRES_SCREEN": 166,
+            "PRES_EVENT": 169,
+            "PRES_CONTEXT": 167,
+            "PRES_MAGIC": 164,
+            "PRESENTATION_MAP_ATTRACT": 0,
+            "PRESENTATION_MAP_HIGH_SCORE": 3,
+            "PRESENTATION_MAP_LEVEL_START": 2,
+            "INITIAL_ENTRY_STATE": 160,
+            "PLAYER_CELL_X": 9,
+            "PLAYER_CELL_Y": 10,
+            "STAGE_PENDING": 38
+          }
+        }
+      },
+      "runtime_contracts": {},
+      "schema": "rsch014-ready-087-build-identity-v1",
+      "assignment_baseline_commit": "3dd3397f99b969539bb0f821e6b98cb1548bab2d",
+      "bug086_dependency": {
+        "receipt_path": "/mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-087/bug086-completion-receipt-20261006.json",
+        "receipt_sha256": "f0846d9d0398b429c8db421edfe07bcd62b861424ce8c303e520ab3befb3e287",
+        "actual_done": true,
+        "integrated_commit": "da1406b3c081a760f86e37e8234f575fb84a7fe7",
+        "status": "BUG-086 completion identity present"
+      }
+    },
+    "candidate": {
+      "side": "candidate",
+      "profile": "complete-ad1-keyboard",
+      "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+      "build_dir": "/mnt/e/projects/ladybug/build",
+      "full_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+      "source_build_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+      "source_build_profile": "complete",
+      "source_build_state": "complete",
+      "artifacts": {
+        "ladybug.rom": {
+          "path": "ladybug.rom",
+          "sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+          "bytes": "65536"
+        },
+        "ladybug-runtime.rom": {
+          "path": "ladybug-runtime.rom",
+          "sha256": "7c7104a66f832890a81572740d6f88c8f1491676e0f4ae04445105cb97dc31ae",
+          "bytes": "16384"
+        },
+        "ladybug-enemy-runtime.rom": {
+          "path": "ladybug-enemy-runtime.rom",
+          "sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+          "bytes": "4091"
+        },
+        "ladybug-enemy-runtime.lst": {
+          "path": "ladybug-enemy-runtime.lst",
+          "sha256": "43ea5226d834d441128af0dd05b78ebf8b9e639b19e3b032478d5ed7f27824d2",
+          "bytes": "359633"
+        },
+        "ladybug-rate-helper.bin": {
+          "path": "ladybug-rate-helper.bin",
+          "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+          "bytes": "185"
+        },
+        "ladybug-enemy-helper-page34.bin": {
+          "path": "ladybug-enemy-helper-page34.bin",
+          "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+          "bytes": "87"
+        },
+        "ladybug-adaptive-banked.bin": {
+          "path": "ladybug-adaptive-banked.bin",
+          "sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab",
+          "bytes": "696"
+        },
+        "ladybug-adaptive-active.bin": {
+          "path": "ladybug-adaptive-active.bin",
+          "sha256": "f8cb2c8b9a75702e9cb8b588e585f2065696e34dd86dfa702e6c603856dfebee",
+          "bytes": "603"
+        },
+        "ladybug-adaptive-active.s": {
+          "path": "ladybug-adaptive-active.s",
+          "sha256": "5b662e01cb75841eb03790327c2ad12ecb6cbfdcfa5cb871d1f67efd95b78241",
+          "bytes": "11084"
+        },
+        "ladybug-presentation-runtime.bin": {
+          "path": "ladybug-presentation-runtime.bin",
+          "sha256": "a5e161782a96c8ec9f7acd4560bf2877a3f3022fb6a7f1335fca216bd15ec2a4",
+          "bytes": "1262"
+        },
+        "source-build-receipt.json": {
+          "path": "source-build-receipt.json",
+          "sha256": "43b33e655a0c005eb6a51a3f0f2351186152721a9212b3f74702a0974191fc8c",
+          "bytes": "119841"
+        }
+      },
+      "maps": {
+        "main": {
+          "path": "ladybug.map",
+          "sha256": "8118f710482bfbe1dc6e28c1b25c4bd0abe9be1fbb605a0a8b5cbe6fc4b4a253",
+          "symbols": {
+            "mainloop": 49430,
+            "ad_dispatch_work": 49487,
+            "init_enemy": 54611,
+            "enemy_tick": 54614,
+            "next_stage": 49776,
+            "ENEMY_MODULE_INIT": 2048,
+            "INITIAL_ENTRY_STATE": 160,
+            "STAGE": 36,
+            "ENEMY_TABLE": 42096,
+            "ENEMY_ACTIVE": 88,
+            "DEATH_STATE": 77,
+            "FREEZE_TIMER": 91,
+            "ENEMY_MOVE": 97,
+            "DOTS_LEFT": 37,
+            "BONUS_LEFT": 51,
+            "STAGE_PENDING": 38
+          }
+        },
+        "enemy": {
+          "path": "ladybug-enemy-runtime.map",
+          "sha256": "b7d2a925a9d48d1db29ddfc40e6448d7047309ae95c6eaf12e96b48fff8f9f71",
+          "symbols": {
+            "enemy_tick_impl": 2187,
+            "enemy_init_impl": 2087,
+            "ecd_blocked": 3986,
+            "ecd_choose": 3979,
+            "ENEMY_TABLE": 42096,
+            "ENEMY_ACTIVE": 88,
+            "DEATH_STATE": 77,
+            "FREEZE_TIMER": 91,
+            "ENEMY_MOVE": 97
+          }
+        },
+        "rate": {
+          "path": "ladybug-rate-helper.map",
+          "sha256": "9e05ad28747f58138e4f89c8aee0ebcbc9db94d8af6d695c973c7effa36c2464",
+          "symbols": {
+            "rate_reset": 41904,
+            "rate_tick": 41925,
+            "rate_select": 41996,
+            "rate_enemy_init_shim": 42083,
+            "rt_freeze_gate": 41955,
+            "rt_accumulate": 41966,
+            "RATE_TIMER": 667,
+            "RATE_BUCKET": 668,
+            "RATE_FRAC": 669,
+            "RATE_ADDEND": 670,
+            "RATE_PHASE": 671,
+            "FREEZE_TIMER": 91,
+            "STAGE": 36
+          }
+        },
+        "e2": {
+          "path": "ladybug-enemy-helper-page34.map",
+          "sha256": "5dbb321cad4656861b68998af8d8bce86ccab6ed7b983737b3d310781e07d092",
+          "symbols": {
+            "efn_cache_guard": 43168,
+            "enemy_page34_end": 43255,
+            "ENEMY_MODULE_BUILD_CACHE": 2084,
+            "ENEMY_TABLE": 42096,
+            "STAGE": 36
+          }
+        },
+        "active": {
+          "path": "ladybug-adaptive-active.map",
+          "sha256": "bbb6df36b34756bf6b35a78a3d2aec85c7aec095e13d36671818cfccfbbeb0f7",
+          "symbols": {
+            "enemy_tick": 54614,
+            "INITIAL_ENTRY_STATE": 160
+          }
+        },
+        "presentation": {
+          "path": "ladybug-presentation-runtime.map",
+          "sha256": "cff2b7ac27495c6d12043d9b96a989c21094f79a2b5d5b67bc152421148d5958",
+          "symbols": {
+            "presentation_flow_tick": 6400,
+            "normal_game": 6702,
+            "normal_stage": 6660,
+            "credit_tick": 7333,
+            "PRES_CREDITS": 168,
+            "PRES_MODE": 165,
+            "PRES_SCREEN": 166,
+            "PRES_EVENT": 169,
+            "PRES_CONTEXT": 167,
+            "PRES_MAGIC": 164,
+            "PRESENTATION_MAP_ATTRACT": 0,
+            "PRESENTATION_MAP_HIGH_SCORE": 3,
+            "PRESENTATION_MAP_LEVEL_START": 2,
+            "INITIAL_ENTRY_STATE": 160,
+            "PLAYER_CELL_X": 9,
+            "PLAYER_CELL_Y": 10,
+            "STAGE_PENDING": 38
+          }
+        }
+      },
+      "runtime_contracts": {
+        "rate_tick_callsite": {
+          "logical_address": "$08EE",
+          "artifact": "ladybug-enemy-runtime.rom",
+          "listing": "ladybug-enemy-runtime.lst",
+          "artifact_offset": 238,
+          "bytes_hex": "bda3c5",
+          "target": "$A3C5",
+          "status": "exact-artifact-and-listing-match"
+        }
+      },
+      "schema": "rsch014-ready-087-build-identity-v1",
+      "assignment_baseline_commit": "3dd3397f99b969539bb0f821e6b98cb1548bab2d",
+      "bug086_dependency": {
+        "receipt_path": "/mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-087/bug086-completion-receipt-20261006.json",
+        "receipt_sha256": "f0846d9d0398b429c8db421edfe07bcd62b861424ce8c303e520ab3befb3e287",
+        "actual_done": true,
+        "integrated_commit": "da1406b3c081a760f86e37e8234f575fb84a7fe7",
+        "status": "BUG-086 completion identity present"
+      }
+    }
+  },
+  "resolved_phases": [
+    {
+      "id": "active-monitor-sentinel",
+      "deadline_seconds": 15,
+      "success_marker": "From cold reset, an already-running candidate XRoar monitor acknowledges run and returns the mapped resident mainloop breakpoint within a 12-second client wait; verify the current resident image only after that marker.",
+      "timeout_meaning": "The resident mainloop marker or its active wait response did not return within this bounded phase. This is monitor/endpoint evidence, not gameplay-speed evidence.",
+      "required_reads": [
+        "candidate mainloop breakpoint acknowledgement and stop response envelope",
+        "resident source-to-staging-to-destination identity and PAR6/PAR7 after the marker",
+        "monitor endpoint port, owning Windows PID, WSL XRoar PID, executable path and hash",
+        "process exit status if the XRoar process ends"
+      ],
+      "required_writes": [],
+      "source_predecessors": [
+        "candidate identity resolves mainloop from the current map",
+        "listener is verified on the assigned candidate port before attaching",
+        "candidate XRoar executable identity is retained with the run receipt"
+      ],
+      "symbols": {
+        "candidate": {
+          "map": "main",
+          "names": [
+            "mainloop"
+          ]
+        }
+      },
+      "action_handler": "live --phase active-monitor-sentinel attaches to one already-running candidate monitor, sets mainloop, issues run, and waits no longer than 12 seconds; it does not inject input or alter game state.",
+      "phase_parameters": {
+        "writes": "none",
+        "markers_in_order": [
+          "mainloop"
+        ],
+        "acceptance_phase": false
+      },
+      "resolved_symbols": {
+        "candidate": {
+          "mainloop": "$C116"
+        }
+      }
+    },
+    {
+      "id": "matched-displacement",
+      "deadline_seconds": 45,
+      "success_marker": "Both exact builds pass natural initialization and actual Parts 2\u21927 progression; each Part-7 true-init record must show BOX_INDEX=0, BOX_TIMER=3, ENEMY_RELEASED=0, and ENEMY_ACTIVE=0. Record live spawner state after player entry and require both builds to match at the first paired enemy callback. Advance paired real callbacks until the same active actor record is byte-identical in both builds on the requested legal straight vertical segment and the candidate Part-7 addend is nonzero. Accept the rate_tick marker only when active-task PAR5 is $34 and logical/physical bytes match the current helper artifact; discard a $3D hit only when logical/physical bytes match the source-build-receipt-pinned audio artifact. Any other page or byte identity fails. Record candidate zero-displacement callbacks and nonzero movement, all four records, FRONT actor pixels, FB_SIM_SEQ, and raw FRAMES. Candidate displacement equals 2*(C+floor((N-C)/2)) pixels within 1 pixel, where N is measured callback count and C is measured fractional carries.",
+      "timeout_meaning": "The paired natural progression to Part 7, equal callback alignment, same active legal vertical actor record, nonzero candidate addend, or required movement markers were not all reached within 45 seconds. Timeout is not a cadence or speed measurement.",
+      "required_reads": [
+        "current full-ROM and source-build receipt hashes",
+        "resident and enemy-module bytes at mapped live callbacks",
+        "physical page $34 rate and E2 helper bytes",
+        "active-task PAR5 and logical/physical bytes at the shared rate marker address; accept only the exact page $34 helper and discard only the exact page $3D audio-artifact alias",
+        "STAGE, RATE_TIMER, RATE_BUCKET, RATE_FRAC, RATE_ADDEND, RATE_PHASE",
+        "BOX_INDEX, BOX_TIMER, BOX_PHASE, ENEMY_RELEASED, and ENEMY_ACTIVE at true Part-7 init and the first paired enemy callback",
+        "all four 8-byte ENEMY_TABLE records at matched callbacks",
+        "FB_SIM_SEQ logical publications and raw FRAMES Vbord count",
+        "Published FRONT owner, shadow-backed GIME Voffset via read_gime_state, and 4-by-16 actor-origin pixels"
+      ],
+      "required_writes": [
+        "none; natural input and approved route only"
+      ],
+      "source_predecessors": [
+        "current map symbols and bytes match each assigned build before labels are interpreted",
+        "both exact builds pass natural-init and natural-rate-progression through five real final-dot stage handoffs, verify the Part-7 true-init spawner reset, and expose comparable player-entry spawner snapshots for first-callback alignment",
+        "the paired live phase advances both builds equally until one identical active actor record reaches the requested legal straight segment with nonzero candidate addend",
+        "rate-table model uses active one-based part N and exact source offset slice",
+        "logical-address breakpoint collisions are classified by active mapping and exact source-build-receipt-pinned artifact bytes"
+      ],
+      "symbols": {
+        "baseline": {
+          "map": "main",
+          "names": [
+            "mainloop",
+            "ad_dispatch_work",
+            "init_enemy",
+            "enemy_tick",
+            "next_stage",
+            "STAGE",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE"
+          ]
+        },
+        "candidate": {
+          "map": "main",
+          "names": [
+            "mainloop",
+            "ad_dispatch_work",
+            "init_enemy",
+            "enemy_tick",
+            "next_stage",
+            "STAGE",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE"
+          ]
+        },
+        "rate": {
+          "map": "rate",
+          "names": [
+            "rate_reset",
+            "rate_tick",
+            "RATE_TIMER",
+            "RATE_BUCKET",
+            "RATE_FRAC",
+            "RATE_ADDEND",
+            "RATE_PHASE"
+          ]
+        }
+      },
+      "action_handler": "live --phase matched-displacement --axis vertical attaches to two already-running monitors that each completed natural-init and actual Parts 2\u21927 progression. It verifies both mapped builds and requires equal Part-7 spawner state before vertical alignment. The baseline and candidate must share one active vertical actor record through the sample. The rate_tick marker requires active-task PAR5 and exact logical/physical helper-byte checks; a page-$3D hit is ignored only when exact audio artifact bytes match. No direct game-state writes occur. GIME Voffset is read from the monitor shadow because $FF9D is write-only on the CPU bus.",
+      "phase_parameters": {
+        "axis": [
+          "vertical"
+        ],
+        "monitors": 2,
+        "writes": "none"
+      },
+      "resolved_symbols": {
+        "baseline": {
+          "mainloop": "$C116",
+          "ad_dispatch_work": "$C14F",
+          "init_enemy": "$D557",
+          "enemy_tick": "$D55B",
+          "next_stage": "$C270",
+          "STAGE": "$0024",
+          "ENEMY_TABLE": "$A470",
+          "ENEMY_ACTIVE": "$0058"
+        },
+        "candidate": {
+          "mainloop": "$C116",
+          "ad_dispatch_work": "$C14F",
+          "init_enemy": "$D553",
+          "enemy_tick": "$D556",
+          "next_stage": "$C270",
+          "STAGE": "$0024",
+          "ENEMY_TABLE": "$A470",
+          "ENEMY_ACTIVE": "$0058"
+        },
+        "rate": {
+          "rate_reset": "$A3B0",
+          "rate_tick": "$A3C5",
+          "RATE_TIMER": "$029B",
+          "RATE_BUCKET": "$029C",
+          "RATE_FRAC": "$029D",
+          "RATE_ADDEND": "$029E",
+          "RATE_PHASE": "$029F"
+        }
+      }
+    },
+    {
+      "id": "candidate-horizontal-displacement",
+      "deadline_seconds": 45,
+      "success_marker": "From a passing natural candidate Part-2-to-Part-7 progression receipt, start at the actual candidate enemy callback with Part 7, RATE_ADDEND=$33, and RATE_PHASE=0. Select one active, visible horizontal actor with at least 30 pixels of authored straight-route clearance outside den/gate cells. Record exactly 24 real enemy callbacks, all four actor records, candidate rate-helper bytes and PAR5 at each actual rate tick, FRONT actor pixels, FB_SIM_SEQ, and raw FRAMES. Require stable slot/type/direction, both zero and nonzero movement callbacks, 4 or 5 fractional carries, 14 policy admissions, and 28 observed pixels within 1 pixel. Baseline is a formula reference only, not a live movement comparison.",
+      "timeout_meaning": "No qualifying visible actor, phase-zero start, uninterrupted 24-callback straight sample, exact rate marker, frame/simulation counter advance, or pixel oracle was observed within 45 seconds. The phase fails and establishes no speed result.",
+      "required_reads": [
+        "candidate current full-ROM identity, mapped resident and enemy bytes, PAR0/PAR5, and physical/logical page-$34 rate helper bytes at actual callbacks",
+        "natural Part-7 progression receipt, STAGE, DEATH_STATE, FREEZE_TIMER, RATE_ADDEND, RATE_PHASE, RATE_FRAC, RATE_BUCKET, and RATE_TIMER",
+        "assets/arcade/maze.json maze_nav/gate_owner bytes matching the approved SHA-256; current cell must have an authored horizontal exit and at least 30 pixels of straight clearance, with gate/nest cells excluded",
+        "all four 8-byte ENEMY_TABLE records before and after every measured callback",
+        "actor-origin FRONT pixels, FB_SIM_SEQ logical publications, and raw FRAMES Vbord count for every measured callback"
+      ],
+      "required_writes": [
+        "none"
+      ],
+      "source_predecessors": [
+        "the candidate identity and BUG-086 actualDone receipt match the parent-reviewed dispatch receipt",
+        "the prerequisite candidate natural-rate-progression receipt is passing under the same adapter, plan, dependency, and identity hashes and proves natural Part-7 addend $33",
+        "the static maze route oracle is hash-pinned; enemy_direction_legal uses the authored N/E/S/W maze_nav bits, and gate/den routes are excluded from the straight segment",
+        "the runtime attaches to the existing candidate monitor only; it performs no input injection, direct game-state writes, actor writes, mapping writes, or framebuffer writes",
+        "rate_tick stops are accepted only with active-task PAR5=$34 and exact logical/physical helper bytes; the known page-$3D alias is ignored only with exact audio artifact bytes"
+      ],
+      "symbols": {
+        "candidate": {
+          "map": "enemy",
+          "names": [
+            "enemy_tick_impl",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE",
+            "DEATH_STATE",
+            "FREEZE_TIMER"
+          ]
+        },
+        "rate": {
+          "map": "rate",
+          "names": [
+            "rate_tick",
+            "RATE_TIMER",
+            "RATE_BUCKET",
+            "RATE_FRAC",
+            "RATE_ADDEND",
+            "RATE_PHASE"
+          ]
+        }
+      },
+      "action_handler": "live --phase candidate-horizontal-displacement attaches to the single already-running candidate monitor after its naturally completed Part-2-to-Part-7 progression receipt. It proves the mapped resident/enemy/rate images, waits for a visible phase-zero candidate actor with at least 30 authored straight-route pixels, then captures 24 actual enemy callbacks and all four records. It makes no direct game-state writes. The arcade rate oracle is unchanged; baseline displacement is not measured.",
+      "phase_parameters": {
+        "axis": "horizontal",
+        "callbacks": 24,
+        "minimum_straight_route_pixels": 30,
+        "monitors": 1,
+        "candidate_only": true,
+        "maze_json_sha256": "76361237a90a555f2b78731c3975a209f569a53cb04705eb90d0aad427856048",
+        "writes": "none",
+        "baseline_24px": "formula reference only"
+      },
+      "resolved_symbols": {
+        "candidate": {
+          "enemy_tick_impl": "$088B",
+          "ENEMY_TABLE": "$A470",
+          "ENEMY_ACTIVE": "$0058",
+          "DEATH_STATE": "$004D",
+          "FREEZE_TIMER": "$005B"
+        },
+        "rate": {
+          "rate_tick": "$A3C5",
+          "RATE_TIMER": "$029B",
+          "RATE_BUCKET": "$029C",
+          "RATE_FRAC": "$029D",
+          "RATE_ADDEND": "$029E",
+          "RATE_PHASE": "$029F"
+        }
+      }
+    },
+    {
+      "id": "freeze-saturated-thaw",
+      "deadline_seconds": 45,
+      "success_marker": "Real enemy callbacks execute the 0F->10 and EF->F0 rollovers, saturated-bucket expiry and non-expiry, and a complete 300-callback FREEZE_TIMER countdown. Elapsed bucket/timer advances while RATE_FRAC, RATE_PHASE, all four enemy records, and FRONT actor-origin pixels hold. The 1->0 callback still does not move; a later real eligible callback moves. A real death-path callback leaves rate state unchanged.",
+      "timeout_meaning": "Any required saturated bucket, expiry/non-expiry, rollover, thaw, movement-hold, or death-bypass marker was absent within 45 seconds. Missing rare path fails and is not inferred from a model.",
+      "required_reads": [
+        "PC at mapped enemy tick and rate tick/gate boundaries",
+        "FREEZE_TIMER",
+        "RATE_TIMER, RATE_BUCKET, RATE_FRAC, RATE_PHASE",
+        "four ENEMY_TABLE records and front-buffer actor origins",
+        "DEATH_STATE",
+        "logical callback counter"
+      ],
+      "required_writes": [
+        "Parent-reviewed deterministic direct-page state fixtures only: FREEZE_TIMER $005B, RATE_TIMER..RATE_PHASE $029B-$029F, and DEATH_STATE $004D. No enemy table, code, framebuffer, owner, or mapping writes."
+      ],
+      "source_predecessors": [
+        "corrected source ordering is elapsed-before-freeze and movement/fraction-after-freeze",
+        "the rate tick saturated path branches through the freeze gate",
+        "death bypass remains on the existing enemy path",
+        "no per-actor debt is introduced"
+      ],
+      "symbols": {
+        "candidate": {
+          "map": "rate",
+          "names": [
+            "rate_tick",
+            "rt_freeze_gate",
+            "rt_accumulate",
+            "RATE_TIMER",
+            "RATE_BUCKET",
+            "RATE_FRAC",
+            "RATE_PHASE",
+            "FREEZE_TIMER"
+          ]
+        },
+        "enemy": {
+          "map": "enemy",
+          "names": [
+            "enemy_tick_impl",
+            "ENEMY_TABLE",
+            "DEATH_STATE",
+            "FREEZE_TIMER"
+          ]
+        }
+      },
+      "action_handler": "live --phase freeze-saturated-thaw attaches to one existing monitor, writes only the dispatch-pinned direct-page fixtures, and observes 300 actual enemy callbacks plus thaw and death-bypass markers.",
+      "phase_parameters": {
+        "callbacks": 300,
+        "deadline_seconds": 45,
+        "writes": [
+          "$004D",
+          "$005B",
+          "$029B-$029F"
+        ]
+      },
+      "resolved_symbols": {
+        "candidate": {
+          "rate_tick": "$A3C5",
+          "rt_freeze_gate": "$A3E3",
+          "rt_accumulate": "$A3EE",
+          "RATE_TIMER": "$029B",
+          "RATE_BUCKET": "$029C",
+          "RATE_FRAC": "$029D",
+          "RATE_PHASE": "$029F",
+          "FREEZE_TIMER": "$005B"
+        },
+        "enemy": {
+          "enemy_tick_impl": "$088B",
+          "ENEMY_TABLE": "$A470",
+          "DEATH_STATE": "$004D",
+          "FREEZE_TIMER": "$005B"
+        }
+      }
+    },
+    {
+      "id": "legal-reversal-concurrent-mover",
+      "deadline_seconds": 45,
+      "success_marker": "The actual callback advances slot 0 west through (6,4)->(5,4)->(4,4) with gate 0 fixed at its existing value 0. At (4,4), the real chooser selects the sole legal east exit, which is the reverse direction. Another active actor's framebuffer pointer also changes during the actual callback sequence. Record all four records, chooser PC/candidate, gate bytes, and both FRONT pixel windows. Do not force DIR_NONE or change the gate.",
+      "timeout_meaning": "The exact legal reverse choice or a concurrent second-actor movement was not observed within 45 seconds. Missing paths fail; source models are not evidence.",
+      "required_reads": [
+        "PC at actual enemy_tick_impl, ecd_choose, and ecd_blocked",
+        "ENEMY_ACTIVE and ENEMY_MOVE",
+        "all four 8-byte ENEMY_TABLE records",
+        "FRONT pixels for slot 0 and the other mover",
+        "gate-state bytes proving gate 0 remains 0",
+        "chooser candidate and direction before/after the legal reverse"
+      ],
+      "required_writes": [
+        "none. Use only a live, already-prepared legal fixture; do not write actor direction, DIR_NONE, gate state, framebuffer, owner, or mapping."
+      ],
+      "source_predecessors": [
+        "actor 0 begins westbound at cell (6,4); actual movement yields (5,4) then (4,4)",
+        "gate 0 remains 0; flipping it to 1 is forbidden because it changes the exit to north",
+        "another actor is already active and must move under the same real callbacks",
+        "ecd_choose candidate 1 and the post-callback direction byte prove the east reverse"
+      ],
+      "symbols": {
+        "enemy": {
+          "map": "enemy",
+          "names": [
+            "ecd_blocked",
+            "enemy_tick_impl",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE",
+            "ENEMY_MOVE"
+          ]
+        }
+      },
+      "action_handler": "live --phase legal-reversal-concurrent-mover attaches to one existing monitor, checks the parent-confirmed pre-positioned fixture, and follows real chooser/callback markers without writes.",
+      "phase_parameters": {
+        "actor_slot": 0,
+        "entry_cell": [
+          6,
+          4
+        ],
+        "incoming_direction": "west",
+        "gate0": 0,
+        "concurrent_mover_required": true,
+        "writes": "none"
+      },
+      "resolved_symbols": {
+        "enemy": {
+          "ecd_blocked": "$0F92",
+          "enemy_tick_impl": "$088B",
+          "ENEMY_TABLE": "$A470",
+          "ENEMY_ACTIVE": "$0058",
+          "ENEMY_MOVE": "$0061"
+        }
+      }
+    },
+    {
+      "id": "natural-init",
+      "deadline_seconds": 45,
+      "success_marker": "From cold reset on either assigned build, verify resident mainloop and mapped presentation bytes. The first presentation_flow_tick initializes the screen and clears credits; observe its return and the next presentation_flow_tick, then require PRES_MAGIC=$A5, PRES_CREDITS=0 and attract screen before input. Inject key 5, observe one credit and the high-score menu, then arm init_enemy before Enter. Require Enter to consume the credit and the real Part-1 init_enemy entry with level-start screen and STAGE=1. On the candidate, verify the page-$34 rate_enemy_init_shim before true enemy_init_impl; on both builds verify enemy_init_impl and first enemy_tick, plus natural player entry at (12,18). Write only DOTS_LEFT=1 and BONUS_LEFT=0, inject Up to consume the real final dot, and observe next_stage followed by the Part-2 init and first enemy tick; verify the candidate shim when present. Prove each used module before interpreting symbols.",
+      "timeout_meaning": "The cold presentation initialization, natural zero-credit attract marker, credited menu, natural Part-1 init entry, build-appropriate init/tick markers, player-entry handoff, final-dot transition, Part-2 init sequence, or an exact mapped marker did not occur within the 45-second phase. Each individual stop wait is bounded at 12 seconds. A timeout is not evidence of slow game code.",
+      "required_reads": [
+        "resident source-to-staging-to-destination bytes and PAR6/PAR7 after mainloop",
+        "presentation runtime bytes at cold and post-initialization markers; PRES_MAGIC, credits, attract/high-score/level-start screen fields, and exact map symbols",
+        "resident init entry bytes and natural Part-1/Part-2 STAGE values",
+        "INITIAL_ENTRY_STATE and player cell through entry completion",
+        "DOTS_LEFT, BONUS_LEFT, and STAGE_PENDING at the real next_stage entry",
+        "enemy module bytes and PAR0 at true init and first enemy callbacks on both builds",
+        "candidate-only physical page-$34 rate/E2 helper bytes, PAR5, and RATE_TIMER/Bucket/Frac/Addend/Phase",
+        "ENEMY_ACTIVE and ENEMY_TABLE before/after true init",
+        "BUG-086 integrated source/helper identity"
+      ],
+      "required_writes": [
+        "inject CoCo key 5 press/release for one credit, then Enter 0x30 press/release for Start Game",
+        "after natural Part-1 entry completes at (12,18), write only physical $38:$0025=1 and $38:$0033=0 as the disclosed final-bonus precondition",
+        "inject Up 0x2B press/release to consume the real final authored dot; never write STAGE/STAGE_PENDING or call init/reset directly"
+      ],
+      "source_predecessors": [
+        "BUG-086 completion receipt names integrated commit",
+        "the selected baseline or candidate current main, presentation and enemy maps resolve all used symbols; candidate rate and E2 maps resolve the banked shim",
+        "resident, presentation and enemy source/list/map/live bytes agree before marker interpretation; candidate rate/E2 bytes and PAR5 are checked at banked boundaries",
+        "key 5, Enter and Up use the approved CoCo scan-code path",
+        "the counter fixture follows natural player entry and does not change STAGE or STAGE_PENDING"
+      ],
+      "symbols": {
+        "candidate": {
+          "map": "main",
+          "names": [
+            "init_enemy",
+            "enemy_tick",
+            "next_stage",
+            "DOTS_LEFT",
+            "BONUS_LEFT",
+            "STAGE_PENDING",
+            "ENEMY_MODULE_INIT",
+            "STAGE",
+            "INITIAL_ENTRY_STATE"
+          ]
+        },
+        "rate": {
+          "map": "rate",
+          "names": [
+            "rate_enemy_init_shim",
+            "rate_reset",
+            "RATE_TIMER",
+            "RATE_BUCKET",
+            "RATE_FRAC",
+            "RATE_ADDEND",
+            "RATE_PHASE"
+          ]
+        },
+        "enemy": {
+          "map": "enemy",
+          "names": [
+            "enemy_init_impl",
+            "enemy_tick_impl",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE"
+          ]
+        },
+        "e2": {
+          "map": "e2",
+          "names": [
+            "efn_cache_guard",
+            "enemy_page34_end",
+            "ENEMY_MODULE_BUILD_CACHE"
+          ]
+        },
+        "presentation": {
+          "map": "presentation",
+          "names": [
+            "presentation_flow_tick",
+            "normal_game",
+            "PRES_CREDITS",
+            "PRES_MODE",
+            "PRES_SCREEN",
+            "PRES_MAGIC",
+            "PRESENTATION_MAP_ATTRACT",
+            "PRESENTATION_MAP_HIGH_SCORE",
+            "PRESENTATION_MAP_LEVEL_START",
+            "INITIAL_ENTRY_STATE",
+            "PLAYER_CELL_X",
+            "PLAYER_CELL_Y"
+          ]
+        }
+      },
+      "action_handler": "live --phase natural-init attaches to one existing baseline or candidate monitor. It proves resident and presentation code, allows cold presentation initialization, checks zero-credit attract, then uses key 5 and Enter to reach natural Part-1 entry. It verifies the candidate rate shim only on candidate builds, consumes each observed breakpoint once, and checks enemy initialization, first callback, and player entry. It seeds only the two disclosed final-dot counters, then uses Up to observe natural next_stage and Part-2 initialization. It never calls init/reset or writes STAGE/STAGE_PENDING.",
+      "phase_parameters": {
+        "writes": "key 5, Enter, and Up input edges; only the final-dot precondition writes DOTS_LEFT and BONUS_LEFT; candidate-only page-$34 observations; baseline has no rate-shim write or read requirement",
+        "markers_in_order": [
+          "cold mainloop",
+          "cold presentation_flow_tick initialization entry",
+          "post-initialization presentation_flow_tick with zero credits and attract screen",
+          "key-5 credited menu",
+          "Part-1 init_enemy after Enter",
+          "candidate-only rate_enemy_init_shim when applicable",
+          "Part-1 enemy_init_impl and first_enemy_tick",
+          "normal_game until player entry completes",
+          "real Part-2 next_stage after final-dot fixture",
+          "Part-2 init_enemy, candidate-only rate shim when applicable, enemy_init_impl, first_enemy_tick"
+        ],
+        "acceptance_phase": true
+      },
+      "resolved_symbols": {
+        "candidate": {
+          "init_enemy": "$D553",
+          "enemy_tick": "$D556",
+          "next_stage": "$C270",
+          "DOTS_LEFT": "$0025",
+          "BONUS_LEFT": "$0033",
+          "STAGE_PENDING": "$0026",
+          "ENEMY_MODULE_INIT": "$0800",
+          "STAGE": "$0024",
+          "INITIAL_ENTRY_STATE": "$00A0"
+        },
+        "rate": {
+          "rate_enemy_init_shim": "$A463",
+          "rate_reset": "$A3B0",
+          "RATE_TIMER": "$029B",
+          "RATE_BUCKET": "$029C",
+          "RATE_FRAC": "$029D",
+          "RATE_ADDEND": "$029E",
+          "RATE_PHASE": "$029F"
+        },
+        "enemy": {
+          "enemy_init_impl": "$0827",
+          "enemy_tick_impl": "$088B",
+          "ENEMY_TABLE": "$A470",
+          "ENEMY_ACTIVE": "$0058"
+        },
+        "e2": {
+          "efn_cache_guard": "$A8A0",
+          "enemy_page34_end": "$A8F7",
+          "ENEMY_MODULE_BUILD_CACHE": "$0824"
+        },
+        "presentation": {
+          "presentation_flow_tick": "$1900",
+          "normal_game": "$1A2E",
+          "PRES_CREDITS": "$00A8",
+          "PRES_MODE": "$00A5",
+          "PRES_SCREEN": "$00A6",
+          "PRES_MAGIC": "$00A4",
+          "PRESENTATION_MAP_ATTRACT": "$0000",
+          "PRESENTATION_MAP_HIGH_SCORE": "$0003",
+          "PRESENTATION_MAP_LEVEL_START": "$0002",
+          "INITIAL_ENTRY_STATE": "$00A0",
+          "PLAYER_CELL_X": "$0009",
+          "PLAYER_CELL_Y": "$000A"
+        }
+      }
+    },
+    {
+      "id": "natural-rate-progression",
+      "deadline_seconds": 45,
+      "success_marker": "Starting from a same-side passing natural-init receipt halted at the Part-2 first enemy callback, complete five real final-dot transitions Parts 2\u21923\u21924\u21925\u21926\u21927. Before each Up input, set only DOTS_LEFT=1 and BONUS_LEFT=0 after natural player entry; require next_stage and each subsequent actual init_enemy, candidate rate shim where present, true enemy_init_impl, first enemy callback, and completed player entry. Candidate Part 7 must naturally reset RATE_TIMER=96, RATE_BUCKET=0, RATE_FRAC=0, RATE_PHASE=0 and RATE_ADDEND=$33, the first nonzero reset. Both builds must expose the expected Part-7 spawner reset at true enemy initialization: BOX_INDEX=0, BOX_TIMER=3, ENEMY_ACTIVE=0, ENEMY_RELEASED=0. Record the naturally advanced player-entry spawner state for later paired alignment. Baseline reaches the same Part 7 state. Never write STAGE/STAGE_PENDING or call init/reset directly.",
+      "timeout_meaning": "The same-side monitor did not complete the five real stage handoffs, per-stage mapped init/callback/player-entry markers, or Part-7 candidate nonzero reset at true enemy initialization within 45 seconds. Timeout is not evidence of slow gameplay code or arcade cadence.",
+      "required_reads": [
+        "same-side passing natural-init receipt hash, phase authorization, and build identity",
+        "main, presentation, enemy, candidate rate and E2 source/map/live-byte identity before interpreting markers",
+        "STAGE, STAGE_PENDING, DOTS_LEFT, BONUS_LEFT, INITIAL_ENTRY_STATE and player entry coordinates before and after each handoff",
+        "candidate-only PAR5 and physical page-$34 rate shim at each actual part reset",
+        "candidate RATE_TIMER, RATE_BUCKET, RATE_FRAC, RATE_PHASE, RATE_ADDEND at each true reset; expected Part-7 reset tuple (96,0,0,0,$33)",
+        "true enemy module mapping and all four enemy records at first callback for each part",
+        "Part-7 BOX_INDEX, BOX_TIMER, BOX_PHASE, ENEMY_ACTIVE, and ENEMY_RELEASED at true enemy initialization and completed player entry",
+        "BUG-086 actualDone receipt identity",
+        "normal_game source bytes CLRA/RTS, mapped live bytes, and the adjacent RTS address used as the repeatable player-entry marker",
+        "candidate Part-7 RATE_TIMER=96, RATE_BUCKET=0, RATE_FRAC=0, RATE_PHASE=0 and RATE_ADDEND=$33 at the true enemy_init_impl reset marker before player-entry callbacks advance elapsed state"
+      ],
+      "required_writes": [
+        "for each Parts 2\u20136 transition only: physical $38:$0025=1 and $38:$0033=0 after natural player entry",
+        "inject CoCo Up 0x2B press/release once per transition",
+        "no STAGE, STAGE_PENDING, code, mapping, enemy-table, or framebuffer writes"
+      ],
+      "source_predecessors": [
+        "the same-side natural-init receipt passes and its authorization binds the current adapter, scenario plan, BUG-086 receipt, and exact identity",
+        "the monitor remains running at the exact Part-2 first-enemy callback from that receipt",
+        "the source rate selector initializes each part from STAGE; approved rate table and offset slice are unchanged",
+        "each synthetic counter precondition is limited to documented final-dot counters and actual next_stage consumes it; stage advancement and all enemy resets remain natural",
+        "the presentation map normal_game entry bytes are proved as CLRA/RTS; player-entry dispatches break at the adjacent RTS so stepping returns to the caller"
+      ],
+      "symbols": {
+        "candidate": {
+          "map": "main",
+          "names": [
+            "next_stage",
+            "init_enemy",
+            "STAGE",
+            "STAGE_PENDING",
+            "DOTS_LEFT",
+            "BONUS_LEFT",
+            "INITIAL_ENTRY_STATE"
+          ]
+        },
+        "enemy": {
+          "map": "enemy",
+          "names": [
+            "enemy_init_impl",
+            "enemy_tick_impl",
+            "ENEMY_TABLE",
+            "ENEMY_ACTIVE"
+          ]
+        },
+        "presentation": {
+          "map": "presentation",
+          "names": [
+            "normal_game",
+            "PLAYER_CELL_X",
+            "PLAYER_CELL_Y"
+          ]
+        },
+        "rate": {
+          "map": "rate",
+          "names": [
+            "rate_enemy_init_shim",
+            "rate_reset",
+            "RATE_TIMER",
+            "RATE_BUCKET",
+            "RATE_FRAC",
+            "RATE_ADDEND",
+            "RATE_PHASE"
+          ]
+        },
+        "e2": {
+          "map": "e2",
+          "names": [
+            "efn_cache_guard",
+            "enemy_page34_end",
+            "ENEMY_MODULE_BUILD_CACHE"
+          ]
+        }
+      },
+      "action_handler": "live --phase natural-rate-progression attaches to the same-side monitor stopped at the Part-2 first enemy callback. Authorization requires a same-side passing natural-init receipt hash. It verifies the mapped runtime, proves normal_game is CLRA/RTS in the exact presentation image, then waits at its adjacent RTS for completed player entry for each active part, writes only the two approved physical final-dot counters, injects Up, observes real next_stage and actual per-part init/reset/enemy/player-entry markers through Part 7, records the candidate Part-7 rate tuple at the true enemy_init_impl reset marker, then confirms completed player entry while allowing timer/fraction state to advance naturally. Candidate rate markers require PAR5=$34 and exact helper bytes. Each call is bounded by the global 45-second phase deadline and does not call init/reset or write STAGE/STAGE_PENDING.",
+      "phase_parameters": {
+        "parts": [
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "real_stage_handoffs": 5,
+        "per_transition_writes": [
+          "$38:$0025=1",
+          "$38:$0033=0"
+        ],
+        "starting_prerequisite": "same-side natural-init pass at Part-2 first enemy callback",
+        "target": "natural Part-7 rate reset",
+        "candidate_expected_addend": "$33",
+        "writes": "final-dot counters and Up input only; no direct stage state writes"
+      },
+      "resolved_symbols": {
+        "candidate": {
+          "next_stage": "$C270",
+          "init_enemy": "$D553",
+          "STAGE": "$0024",
+          "STAGE_PENDING": "$0026",
+          "DOTS_LEFT": "$0025",
+          "BONUS_LEFT": "$0033",
+          "INITIAL_ENTRY_STATE": "$00A0"
+        },
+        "enemy": {
+          "enemy_init_impl": "$0827",
+          "enemy_tick_impl": "$088B",
+          "ENEMY_TABLE": "$A470",
+          "ENEMY_ACTIVE": "$0058"
+        },
+        "presentation": {
+          "normal_game": "$1A2E",
+          "PLAYER_CELL_X": "$0009",
+          "PLAYER_CELL_Y": "$000A"
+        },
+        "rate": {
+          "rate_enemy_init_shim": "$A463",
+          "rate_reset": "$A3B0",
+          "RATE_TIMER": "$029B",
+          "RATE_BUCKET": "$029C",
+          "RATE_FRAC": "$029D",
+          "RATE_ADDEND": "$029E",
+          "RATE_PHASE": "$029F"
+        },
+        "e2": {
+          "efn_cache_guard": "$A8A0",
+          "enemy_page34_end": "$A8F7",
+          "ENEMY_MODULE_BUILD_CACHE": "$0824"
+        }
+      }
+    }
+  ]
+}

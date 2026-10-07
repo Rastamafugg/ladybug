@@ -1,0 +1,46 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -496,10 +496,24 @@
+         sta PRES_TMP_H
+         rts
+ ; Unapplied BUG108 prototype: hidden row12 ordinal only.
++stage_name_dispatch
++        ldd $AA
++        cmpd #544
++        beq name_phrase_rank
++        cmpd #768
++        beq name_left_rank
++        cmpd #576
++        lbeq stage_name_schedule_ready
++        cmpd #608
++        lbeq stage_name_schedule_ready
++        rts
+ name_phrase_rank
+         ldx #$5C04
+-        bsr name_rank_format
+-        ldx #$7A04           ; BUG110 left row18, separate from108 row12
++        bra name_rank_format
++name_left_rank
++        ldx #$7A04
++        bra name_rank_format
++
+ name_rank_format
+         lda #1
+         sta $29
+@@ -556,15 +570,7 @@
+         beq stage_name_schedule_ready
+         cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
+         lbne stage_slice_return
+-        ldd $AA
+-        cmpd #544
+-        bne stage_name_other_slice
+-        lbra name_phrase_rank
+-stage_name_other_slice
+-        cmpd #576
+-        beq stage_name_schedule_ready
+-        cmpd #608
+-        bne stage_slice_return
++        lbra stage_name_dispatch
+ stage_name_schedule_ready
+         ldd $AA
+         cmpd #128

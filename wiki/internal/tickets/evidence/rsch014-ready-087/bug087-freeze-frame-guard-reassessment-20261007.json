@@ -1,0 +1,33 @@
+{
+  "schema": "bug087-freeze-frame-guard-reassessment-v1",
+  "phase": "freeze-saturated-thaw",
+  "status": "verifier-cause-confirmed-runtime-rerun-prepared",
+  "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "candidate_identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+  "old_adapter_sha256": "94bef4926d80744bac201722d7321ab892d8ae0ccdf50a6f7a99119955277c39",
+  "new_adapter_sha256": "0ab29d12f102a7ae35939042e0b1bd73c31e8aa7e4f28f111cef512205f47aae",
+  "plan_sha256": "1338cbcaa94236aa089950507462114a91f94e0880172ef8c641d4fcd82ce222",
+  "failure_receipt": {
+    "path": "current-root-freeze-saturated-thaw-candidate-20261007.json",
+    "sha256": "48f8f10995fe1b844dc899d95f3559720249f7fbdb177ef1bc4f26366ea1eb73",
+    "error": "raw Vbord frame marker did not advance during callback 2"
+  },
+  "independent_current_hash_control": {
+    "path": "current-root-candidate-horizontal-500-20261007.json",
+    "sha256": "b21d3a2aaaf822ec7427ce53db738ad7e71fcc74455e37f000e0ddf711324c14",
+    "callbacks": 24,
+    "raw_FRAMES_delta_distribution": {
+      "0": 12,
+      "2": 12
+    },
+    "raw_FRAMES_delta_total": 24,
+    "candidate_observed_pixels": 28,
+    "candidate_expected_pixels": 28,
+    "tolerance": 1
+  },
+  "plan_contract": "The approved freeze phase requires 300 actual callbacks, rate/bucket/freeze state behavior, stable four-record and FRONT pixels, post-thaw movement and death bypass. It requires frame/callback reads but does not require a positive raw-FRAMES delta after each individual callback.",
+  "confirmed_cause": "The verifier rejected frame_delta==0 for each callback. Current-hash natural movement evidence records zero deltas on half the callbacks while the cumulative raw frame counter advances. This is an observer invariant defect, not a rate or movement failure.",
+  "correction": "Require positive aggregate raw-FRAMES progress over the complete 300-callback freeze window; retain and report per-callback min/max/total. All counter, actor, pixel, thaw, death-bypass, identity, deadline and direct-write checks remain unchanged.",
+  "offline_verification": "Adapter py_compile and self-test pass: seven phase contracts, 47 guard cases, 560 arithmetic cases, 10 startup checks and one durable-step check.",
+  "next": "Cold-start the exact candidate ROM, complete natural initialization, obtain one legal active enemy through natural callbacks, then run the revised freeze phase with its separate 45-second authorization. No production source or ticket acceptance changed."
+}

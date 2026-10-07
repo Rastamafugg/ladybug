@@ -15,16 +15,24 @@ try:
  go(ps['instructions_tick']);helper=(b/'ladybug-instruction-runtime.bin').read_bytes();assert r.read_bytes(c,0x300,len(helper))==helper;assert r.read_bytes(c,ret,2)==resident[ret-0xC000:ret-0xC000+2]
  for target in [31,127,1503,1534,1599,1630]:
   deadline=time.monotonic()+40
-  ids=m.setup(c,[ins['irt_draw_player']])
+  # Align at the presentation-flow entry, not irt_draw_player: completed
+  # instruction events can consume on a timer boundary without drawing the
+  # player, so a draw-only breakpoint can skip a required timing window.
+  ids=m.setup(c,[ps['presentation_flow_tick']])
   while True:
    assert time.monotonic()<deadline
-   assert c.run_to_breakpoint(10)['pc']==ins['irt_draw_player']
+   assert c.run_to_breakpoint(10)['pc']==ps['presentation_flow_tick']
    tick=int.from_bytes(low(0xB0,2),'big')
    if tick>=target:break
   m.clear(c,ids);window={'target':target,'samples':[]};E['windows'].append(window)
-  for _ in range(6):
+  assert tick==target,{'target':target,'observed':tick}
+  for sample_index in range(6):
+   if sample_index:
+    go(ps['presentation_flow_tick'])
+    tick=int.from_bytes(low(0xB0,2),'big')
+   assert tick==target+sample_index,{'target':target,'sample_index':sample_index,'observed':tick}
    assert time.monotonic()<deadline
-   go(ps['presentation_flow_tick']);tick=int.from_bytes(low(0xB0,2),'big');start=c.call('read_cycles')['event_ticks'];go(ret);cycles=(c.call('read_cycles')['event_ticks']-start)//8;window['samples'].append({'timer_before':tick,'cycles':cycles})
+   start=c.call('read_cycles')['event_ticks'];go(ret);cycles=(c.call('read_cycles')['event_ticks']-start)//8;window['samples'].append({'timer_before':tick,'cycles':cycles})
   assert [x['timer_before'] for x in window['samples']]==list(range(target,target+6)),window
  maximum=max(x['cycles'] for w in E['windows'] for x in w['samples']);E['maximum_cycles']=maximum;assert maximum<=27000,maximum;E['result']='pass'
 except Exception as exc:E['result']='fail';E['failure']=f'{type(exc).__name__}: {exc}'

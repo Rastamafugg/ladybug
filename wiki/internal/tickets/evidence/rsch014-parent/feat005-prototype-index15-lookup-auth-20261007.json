@@ -1,0 +1,19 @@
+{
+  "schema": "feat005-prototype-index15-lookup-auth-20261007-v1",
+  "ticket": "FEAT-005",
+  "phase": "isolated-prototype-index15-lookup-to-0A15-write",
+  "deadline_seconds": 40,
+  "startup_deadline_seconds": 10,
+  "target": 2581,
+  "runtime_authorized": true,
+  "parent_review_status": "parent-reviewed-and-approved",
+  "rom_sha256": "97e8b05a47c263c4bceb55552c9d30ee56e872140863afd0667999020a87a56e",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "probe_sha256": "aa52e3884842e8bbe5fe6b43d541f3fd60d31ac02eaecaecb87334b3cf9df86e",
+  "monitor_helper_sha256": "0234c96c198223de1c6b5c0aa11c1a9ab2e1739081f40a5f520cf1fe0eb70455",
+  "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+  "monitor_game_memory_writes": false,
+  "input_injected": false,
+  "writes": [],
+  "reason": "Read-only no-input fresh-process capture on the exact isolated prototype ROM. A breakpoint at the verified LDD ,X instruction captures the index-15 CPU-visible table entry and PAR5, then the existing write watchpoint captures the first write to $0A15. Startup is limited to 10 seconds and observation to 40 seconds. Timeout means the requested marker was not observed within that bounded phase."
+}

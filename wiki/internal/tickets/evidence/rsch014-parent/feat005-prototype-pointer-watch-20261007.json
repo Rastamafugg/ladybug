@@ -1,0 +1,151 @@
+{
+  "schema": "feat005-prototype-writer-capture-20261007-v1",
+  "ticket": "FEAT-005",
+  "status": "watchpoint-hit",
+  "phase": "isolated-prototype-natural-first-write-to-0A15",
+  "startup_deadline_seconds": 10,
+  "observation_deadline_seconds": 40,
+  "success_marker": "first no-input write to physical destination $70A15, with source pointer and staged code identity captured",
+  "timeout_meaning": "No target write observed in the bounded natural run; not evidence of correctness or absence of later mutation.",
+  "input_injected": false,
+  "monitor_game_memory_writes": false,
+  "writes": [],
+  "identity": {
+    "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+    "profile": "complete",
+    "rom_sha256": "97e8b05a47c263c4bceb55552c9d30ee56e872140863afd0667999020a87a56e",
+    "presentation_runtime_sha256": "a5e161782a96c8ec9f7acd4560bf2877a3f3022fb6a7f1335fca216bd15ec2a4",
+    "enemy_runtime_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+    "cold_payload_sha256": "66a68b006752a21f9e0d98c2b61638256fd3797c2525889b8a3450d66b6b1451",
+    "authorization_sha256": "e136f8329cbb7e9e07f83ce66c63b7555a5f641b4837b7d1419dfb380cec48d4",
+    "probe_sha256": "3118429254e100872aa816ac71bf46277e7adbe0cbd83698091235a7c8006aa4",
+    "monitor_helper_sha256": "0234c96c198223de1c6b5c0aa11c1a9ab2e1739081f40a5f520cf1fe0eb70455",
+    "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf"
+  },
+  "target": {
+    "cpu_address": 2581,
+    "expected_initial_value": 128
+  },
+  "startup": {
+    "marker_pc": 6400,
+    "par_effective": [
+      56,
+      48,
+      49,
+      50,
+      51,
+      52,
+      62,
+      63
+    ],
+    "live_enemy_sha256": "faa16bc76af37427105bffe89e4c39803fc810df438aa69a618cb925900caaac",
+    "packaged_enemy_sha256": "faa16bc76af37427105bffe89e4c39803fc810df438aa69a618cb925900caaac",
+    "staged_enemy_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+    "live_equals_full_packaged_slot": true,
+    "staged_module_prefix_matches_package": true,
+    "packaging_padding_bytes": 5,
+    "live_presentation_sha256": "a5e161782a96c8ec9f7acd4560bf2877a3f3022fb6a7f1335fca216bd15ec2a4",
+    "staged_presentation_sha256": "a5e161782a96c8ec9f7acd4560bf2877a3f3022fb6a7f1335fca216bd15ec2a4",
+    "presentation_exact": true,
+    "target_before_hex": "80",
+    "watchpoint": {
+      "id": 1,
+      "addr": 2581,
+      "length": 1,
+      "kind": "w"
+    }
+  },
+  "observation_elapsed_seconds": 2.091004,
+  "stop": {
+    "reason": "breakpoint",
+    "pc": 7641
+  },
+  "registers": {
+    "a": 16,
+    "b": 79,
+    "d": 4175,
+    "cc": 192,
+    "dp": 0,
+    "x": 2581,
+    "y": 32564,
+    "u": 47449,
+    "s": 8176,
+    "pc": 7641
+  },
+  "live_pc": {
+    "pc": 7641,
+    "pc_hex": "1DD9",
+    "pc_mapping_slot": 0,
+    "pc_physical_page": 56,
+    "pc_cpu_bytes_hex": "5a26f2b600bcba00",
+    "pc_physical_bytes_hex": "5a26f2b600bcba00",
+    "pc_expected_stage_bytes_hex": "5a26f2b600bcba00",
+    "pc_matches_physical": true,
+    "pc_matches_staged_runtime": true,
+    "par_raw_hex": "38303132333f3e3f",
+    "par_effective": [
+      56,
+      48,
+      49,
+      50,
+      51,
+      63,
+      62,
+      63
+    ]
+  },
+  "writer_instruction": {
+    "address": 7639,
+    "bytes_hex": "a784"
+  },
+  "pointer_context": {
+    "pres_work_index": 15,
+    "pointer_table_offset": 8384,
+    "table_read_raw_offset": 8414,
+    "table_read_page": 59,
+    "table_read_cpu_address": 41182,
+    "table_entry_live_hex": "34e6",
+    "table_entry_staged_hex": "34e6",
+    "table_entry_matches_staged": true,
+    "selected_stream_pointer_raw": 13542,
+    "selected_stream_pointer_hex": "34E6",
+    "selected_stream_page": 59,
+    "selected_stream_cpu_address": 46310,
+    "selected_stream_is_in_cold_payload": true,
+    "selected_stream_prefix_live_hex": "0c81b7825682f682f782f9839984d985",
+    "selected_stream_prefix_staged_hex": "0c81b7825682f682f782f9839984d985",
+    "selected_stream_prefix_matches_staged": true,
+    "stream_cursor_u": 47449,
+    "stream_cursor_page_PAR5": 63,
+    "stream_cursor_context_hex": "001b180e0c120a150000000000000000",
+    "direct_page_D0_D7_hex": "1f0f0f0300060f01",
+    "par_effective": [
+      56,
+      48,
+      49,
+      50,
+      51,
+      63,
+      62,
+      63
+    ]
+  },
+  "target_after_hex": "10",
+  "cycles": {
+    "event_ticks": 572368720,
+    "cpu_cycles": 35773045
+  },
+  "write_watchpoint": {
+    "watchpoints": [
+      {
+        "id": 1,
+        "addr": 2581,
+        "length": 1,
+        "kind": "w"
+      }
+    ]
+  },
+  "success": "first target write captured with the complete live instruction and staged byte identity verified",
+  "elapsed_seconds": 2.338866,
+  "owned_process_stopped": true
+}

@@ -103,6 +103,11 @@
       </ul>
     </section>
 
+    <section id="async-single-step-handshake-20261007">
+      <h2>Asynchronous single-step handshake</h2>
+      <p><code>step_instruction(n)</code> requires a halted target, but its successful reply only confirms that XRoar queued the step and changed the run state to <code>running</code>. The emulation loop later executes the instruction count and records a durable stop. After the acknowledgement, call <code>wait_for_stop(timeout_ms)</code>; require <code>reason="step"</code> and the expected PC, then confirm <code>get_run_state()</code> reports <code>halted</code> with the same step stop before reading registers or clearing a breakpoint. An immediate read or clear can race the emulation thread and return a running-state error. A wait timeout means the expected stop was not observed within the bound; it does not prove that the instruction or target code was slow. Source details are in <a href="../sources/xroar-monitor-stop.html#async-step-handshake-20261007">the monitor stop observation</a>.</p>
+    </section>
+
     <section>
       <h2>Write semantics by address space</h2>
       <ul>
@@ -123,7 +128,7 @@
           <tr><td><code>read_registers()</code></td><td>6809: A, B, D, X, Y, U, S, PC, DP, CC.</td></tr>
           <tr><td><code>write_registers({...})</code></td><td>Halted-only.</td></tr>
           <tr><td><code>read_gime_state()</code></td><td>Shadow-backed <code>$FF90</code>, <code>$FF98–$FF9E</code>, MMU task, PARs, palette.</td></tr>
-          <tr><td><code>step_instruction(n=1)</code></td><td>Halted-only.</td></tr>
+          <tr><td><code>step_instruction(n=1)</code></td><td>Halted-only request; acknowledgement is asynchronous. Follow with <code>wait_for_stop</code> and verify the halted <code>step</code> stop before inspecting state or changing breakpoints.</td></tr>
           <tr><td><code>run()</code> / <code>pause()</code></td><td><code>pause</code> must work mid-run.</td></tr>
           <tr><td><code>set_breakpoint(addr, kind="exec")</code></td><td>Must work when current PC == addr.</td></tr>
           <tr><td><code>clear_breakpoint(id)</code> / <code>list_breakpoints()</code></td><td></td></tr>
@@ -343,7 +348,7 @@
     </footer>
   <section id="mmu-readback-normalization-20261002"><h2>2026-10-02 — MMU page readback normalization</h2><p>For CPU-space reads of $FFA0–$FFAF, compare page identifiers using raw &amp; $3F. XRoar preserves the upper two bus bits when returning the six-bit MMU register. The read_gime_state PAR arrays supply normalized page identifiers. Keep both raw bytes and active task/MMU state; compare authored, staged and physical/mapped code bytes independently. Do not report a PAR mismatch solely because $B4 differs from page$34 before normalization. <a href="../sources/xroar-tcc1014.html#mmu-readback">Primary source and observed E5 arrays</a>.</p></section>
 <section id="durable-stop-vs-notification-20261003"><h2>2026-10-03 — Stop state is distinct from notification delivery</h2><p>E6 v2 captured a valid pre-pause breakpoint11 stop at15D5, exact return code, and expected stack advance despite no primary breakpoint notification. Two event-wait timeouts require reassessment; neither establishes helper slowness. Existing wait_for_stop reads the next durable stop after run clears prior state. A proposed observer must check acknowledged breakpoint ID, PC, bytes and stack and retain notifications as secondary evidence. No runtime is permitted until its exact mechanics are reviewed. <a href="../sources/xroar-monitor-stop.html">Source identity and method semantics</a>.</p></section>
-</main>
+<section id="wait-for-stop-timeout-lifecycle-20261007"><h2>2026-10-07 — Timeout response and emulator lifecycle</h2><p>On the pinned local XRoar revision <code>66f010efb6b8521b000f00e75afd6a06f7d1599b</code>, <code>wait_for_stop(timeout_ms)</code> returns <code>reason="timeout"</code> after the requested condition wait expires. It does not halt the CPU or exit XRoar; <code>coco3_run</code> continues while monitor run state is running. A long poll blocks other requests on that same connection. Consequently, a client timeout with no response and a vanished listener is a process/transport lifecycle failure, not the ordinary no-marker result. Its cause remains unverified. BUG-087 now has a fresh-process mainloop sentinel; the next diagnostic must capture process exit/log state during the bounded callback wait. Source details: <a href="../sources/xroar-monitor-stop.html#wait-for-stop-timeout-no-process-stop-20261007">ingested source review</a>.</p></section></main>
 </div>
 </body>
 </html>

@@ -1,0 +1,131 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -478,6 +478,61 @@
+ 
+         ifne    PRESENTATION_STAGE_PANEL_ENABLED
+         include "ladybug_runtime_symbols.inc"
++
++stage_select
++        lda $24
++        ldb PRES_SCREEN
++        cmpb #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        beq stage_selected
++        lda #1
++        ldb $A7
++        beq stage_selected
++        lda $EB
++        cmpb #2
++        bne stage_selected
++        lda $24
++stage_selected
++        sta PRES_TMP_H
++        rts
++; Unapplied BUG108 prototype: hidden row12 ordinal only.
++stage_name_dispatch
++        ldd $AA
++        cmpd #544
++        beq name_phrase_rank
++        cmpd #768
++        beq name_left_rank
++        cmpd #576
++        lbeq stage_name_schedule_ready
++        cmpd #608
++        lbeq stage_name_schedule_ready
++        rts
++name_phrase_rank
++        ldx #$5C04
++        bra name_rank_format
++name_left_rank
++        ldx #$7A04
++        bra name_rank_format
++
++name_rank_format
++        lda #1
++        sta $29
++        lda PRES_INSERT
++        ldb #3
++        mul
++        leay name_rank_data,pcr
++        leay d,y
++        ldb #3
++        lbra stage_panel_text
++name_rank_data
++        fcb 29,24,25
++        fcb 2,23,13
++        fcb 3,27,13
++        fcb 4,29,17
++        fcb 5,29,17
++        fcb 6,29,17
++        fcb 7,29,17
++        fcb 8,29,17
++        fcb 9,29,17
+         rmb     $B080-*
+ ; BUG-035: called during hidden level-start hydration, before publication.
+ ; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
+@@ -489,17 +544,6 @@
+         jmp menu_scan
+ menu_tick_entry
+         jmp menu_tick
+-stage_select
+-        lda #1
+-        ldb $A7
+-        beq stage_selected
+-        lda $EB
+-        cmpb #2
+-        bne stage_selected
+-        lda $24
+-stage_selected
+-        sta PRES_TMP_H
+-        rts
+ stage_panel_slice
+         lbsr credit_panel_slice
+         ldd $AA
+@@ -517,7 +561,11 @@
+         lbeq ranking_schedule_tick
+         lda PRES_SCREEN
+         cmpa #PRESENTATION_MAP_LEVEL_START
+-        bne stage_slice_return
++        beq stage_name_schedule_ready
++        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        lbne stage_slice_return
++        lbra stage_name_dispatch
++stage_name_schedule_ready
+         ldd $AA
+         cmpd #128
+         bne stage_score_row_done
+@@ -534,7 +582,7 @@
+         rts
+ stage_schedule_found
+         leay 2,y
+-        bsr stage_select
++        lbsr stage_select
+         ldx ,y
+         lda 5,y
+         sta $29
+@@ -581,9 +629,12 @@
+         rts
+ stage_panel_finish
+         lda PRES_SCREEN
++        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        beq stage_name_sprite_selected
+         cmpa #PRESENTATION_MAP_LEVEL_START
+         bne stage_slice_return
+         lbsr stage_select
++stage_name_sprite_selected
+         lda PRES_TMP_H
+         bne stage_finish_nonzero
+         inca
+@@ -598,9 +649,13 @@
+         ldy #vegetable_sprites
+         leay d,y
+         pshs y
++        lda PRES_SCREEN
++        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
++        beq stage_name_sprite_hud
+         ldu #sprite_attr0_pairs
+         ldx #$3E40
+         jsr blit_packed_sprite
++stage_name_sprite_hud
+         puls y
+         ldu #sprite_attr0_pairs
+         ldx #$5C80

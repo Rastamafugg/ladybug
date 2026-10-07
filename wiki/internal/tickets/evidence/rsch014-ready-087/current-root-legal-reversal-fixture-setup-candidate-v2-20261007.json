@@ -1,0 +1,262 @@
+{
+  "schema": "bug087-legal-reversal-fixture-setup-v2",
+  "ticket": "BUG-087",
+  "phase": "candidate-natural-reversal-fixture-setup",
+  "deadline_seconds": 45,
+  "callback_cap": 2400,
+  "success_marker": "slot0 active at (6,4), westbound, substep0; gate0=0; another active legal actor; halted at verified enemy_tick_impl",
+  "timeout_meaning": "the fixture was not observed within this bounded natural search; no reachability conclusion follows",
+  "direct_game_memory_writes": false,
+  "input_injected": false,
+  "runtime_launched": false,
+  "emulator_attached": true,
+  "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+  "status": "fail-setup-error",
+  "breakpoint_id": 45,
+  "enemy_tick_impl": "$088B",
+  "runtime_image_proof": {
+    "bank1_source_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_source_matches_runtime_artifact": true,
+    "bank1_destination_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_source_matches_destination": true,
+    "bank1_usable_payload_bytes": 15872,
+    "bank1_logical_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+    "bank1_logical_matches_destination": true,
+    "resident_sha256": "0ff7c801302510e7bc4f7fde8f764e8f1bfd6c85b39239d7b35515d8ea05c103",
+    "resident_matches": true,
+    "PAR6": 62,
+    "PAR7": 63,
+    "enemy_module_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+    "enemy_module_matches": true,
+    "PAR0": 56,
+    "rate_helper_sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+    "rate_helper_matches": true,
+    "e2_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+    "e2_helper_matches": true,
+    "PAR5": 52
+  },
+  "initial_state": {
+    "stage": 7,
+    "death_state": 0,
+    "enemy_active": 3,
+    "enemy_released": 6,
+    "box_timer": 1,
+    "box_index": 58,
+    "box_phase": 0,
+    "enemy_move": 2,
+    "frames": 5020,
+    "fb_sim_seq": 1344,
+    "dots_left": 107,
+    "stage_pending": 0,
+    "bonus_left": 6,
+    "initial_entry_state": 0,
+    "player_cell_x": 12,
+    "player_cell_y": 18,
+    "freeze_timer": 0,
+    "rate_timer": 4,
+    "rate_bucket": 29,
+    "rate_frac": 248,
+    "rate_addend": 51,
+    "rate_phase": 0
+  },
+  "initial_enemy_records": [
+    {
+      "slot": 0,
+      "active": 97,
+      "fb": 23188,
+      "substep": 2,
+      "cell_x": 22,
+      "cell_y": 12,
+      "saved_bg_valid": 1,
+      "direction": 2,
+      "bytes_hex": "615a9402160c0102"
+    },
+    {
+      "slot": 1,
+      "active": 97,
+      "fb": 15188,
+      "substep": 3,
+      "cell_x": 22,
+      "cell_y": 7,
+      "saved_bg_valid": 1,
+      "direction": 0,
+      "bytes_hex": "613b540316070100"
+    },
+    {
+      "slot": 2,
+      "active": 97,
+      "fb": 30170,
+      "substep": 2,
+      "cell_x": 8,
+      "cell_y": 18,
+      "saved_bg_valid": 1,
+      "direction": 3,
+      "bytes_hex": "6175da0208120103"
+    },
+    {
+      "slot": 3,
+      "active": 0,
+      "fb": 0,
+      "substep": 0,
+      "cell_x": 0,
+      "cell_y": 0,
+      "saved_bg_valid": 0,
+      "direction": 0,
+      "bytes_hex": "0000000000000000"
+    }
+  ],
+  "initial_gate_bytes_hex": "0000010100000101000001010101010100000000",
+  "error": "TimeoutError: timed out",
+  "elapsed_seconds": 2.028432,
+  "monitor_audit": {
+    "monitor_call_count": 25,
+    "monitor_call_ledger_sha256": "be0ea164c85e5534d9fb865c1dd879941dbace6b8fb555d6441e7bac10b0404e",
+    "last_monitor_calls": [
+      {
+        "request_id": 18,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 426560,
+          "length": 20
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 18,
+          "result": {
+            "space": "physical",
+            "addr": 426560,
+            "length": 20,
+            "data": "0000010100000101000001010101010100000000"
+          }
+        },
+        "elapsed_seconds": 0.000397
+      },
+      {
+        "request_id": 19,
+        "method": "get_run_state",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 19,
+          "result": {
+            "state": "halted",
+            "last_stop_reason": "breakpoint",
+            "last_stop_pc": 2187,
+            "last_stop_bp_id": 45
+          }
+        },
+        "elapsed_seconds": 0.000403
+      },
+      {
+        "request_id": 20,
+        "method": "step_instruction",
+        "params": {
+          "n": 1
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 20,
+          "result": {
+            "ok": true,
+            "n": 1
+          }
+        },
+        "elapsed_seconds": 0.000406
+      },
+      {
+        "request_id": 21,
+        "method": "wait_for_stop",
+        "params": {
+          "timeout_ms": 1750
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 21,
+          "result": {
+            "reason": "step",
+            "pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.0004
+      },
+      {
+        "request_id": 22,
+        "method": "get_run_state",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 22,
+          "result": {
+            "state": "halted",
+            "last_stop_reason": "step",
+            "last_stop_pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.000334
+      },
+      {
+        "request_id": 23,
+        "method": "read_registers",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 23,
+          "result": {
+            "a": 0,
+            "b": 41,
+            "d": 41,
+            "cc": 196,
+            "dp": 0,
+            "x": 143,
+            "y": 46577,
+            "u": 43560,
+            "s": 8180,
+            "pc": 2189
+          }
+        },
+        "elapsed_seconds": 0.000334
+      },
+      {
+        "request_id": 24,
+        "method": "run",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 24,
+          "result": {
+            "ok": true
+          }
+        },
+        "elapsed_seconds": 0.000364
+      },
+      {
+        "request_id": 25,
+        "method": "wait_for_stop",
+        "params": {
+          "timeout_ms": 1
+        },
+        "outcome": "error",
+        "error": "TimeoutError: timed out",
+        "response_envelope": null,
+        "elapsed_seconds": 2.008333
+      }
+    ],
+    "last_marker_event": null
+  }
+}

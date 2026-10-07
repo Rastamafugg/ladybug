@@ -1,0 +1,344 @@
+{
+  "schema": "bug087-supervised-natural-part9-10-v1",
+  "ticket": "BUG-087",
+  "candidate_rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "candidate_identity_sha256": "aa157543f6148a97ee36205c7d97be2823d54bee6e5c60f394630c070305e216",
+  "candidate_source_revision": "3dd3397f99b969539bb0f821e6b98cb1548bab2d",
+  "source_equivalence_provenance": {
+    "integrated_source_commit": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+    "executor_commit": "7845dfa",
+    "production_source_and_scripts_comparison": {
+      "command": "git diff --exit-code 7845dfa 163d0be -- src scripts",
+      "result": "empty; integrated source/scripts tree matches executor commit"
+    },
+    "runtime_artifact_equivalence": {
+      "pinned_identity_filename": "current-root-candidate-ad1-keyboard-identity-163d-20261006.json",
+      "pinned_identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+      "matching_pinned_runtime_artifacts": 10,
+      "pinned_artifact_total": 11,
+      "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+      "nonmatching_source_build_receipt": {
+        "path": "source-build-receipt.json",
+        "sha256": "575061acf66b1595f4a0f377dc6da0acb5768e8d782c9b93b828dda1b2f08c87",
+        "bytes": "55781"
+      },
+      "pinned_source_build_receipt": {
+        "sha256": "43b33e655a0c005eb6a51a3f0f2351186152721a9212b3f74702a0974191fc8c",
+        "bytes": "119841",
+        "revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c"
+      }
+    },
+    "source_input_comparison_against_integrated_commit": {
+      "commit": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+      "source_receipt_input_count": 258,
+      "frozen_worktree_files_matching_actual_source_receipt": 258,
+      "matches_integrated_commit_exact_bytes": 38,
+      "matches_integrated_commit_after_crlf_to_lf_normalization": 211,
+      "content_mismatches": 9,
+      "content_mismatch_paths": [
+        "tiled/coco-attract-screen.tmx",
+        "tiled/coco-credits-screen.tmx",
+        "tiled/coco-enter-high-score-screen.tmx",
+        "tiled/coco-game-over-screen.tmx",
+        "tiled/coco-high-score-screen.tmx",
+        "tiled/coco-instructions-screen.tmx",
+        "tiled/coco-keybind-options-screen.tmx",
+        "tiled/coco-level-start-screen.tmx",
+        "tiled/coco-screen.tmx"
+      ],
+      "content_mismatch_disposition": "All nine are the separately retained user TMX inputs. Their hashes match the current-root qualification receipt and the current root working copies. They are preserved and are not substituted with committed blobs.",
+      "generated_input_comparison": {
+        "src/prototype_rate_page34.s": "exactly matches integrated 163d commit blob",
+        "build/ladybug-adaptive-active.s": "generated input absent from commit; frozen source receipt hash retained",
+        "build/ladybug-adaptive-banked.s": "generated input absent from commit; frozen source receipt hash retained",
+        "build/ladybug-adaptive-mapped.s": "generated input absent from commit; frozen source receipt hash retained"
+      }
+    },
+    "identity_rule": "This identity records the frozen build\u2019s actual 3dd source-build receipt and its full hash. The source revision is not rewritten to 163d. Runtime byte equivalence is established by the ten exact pinned artifacts plus the src/scripts commit comparison; the nine user TMX inputs remain separately disclosed."
+  },
+  "xroar_path": "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+  "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+  "monitor_port": 18513,
+  "per_phase_deadline_seconds": 45,
+  "method": "fresh natural Part-1 initialization and existing Part-2-to-Part-7 progression, followed by three real final-dot handoffs to Part 8, 9 and 10 in the same XRoar process",
+  "status": "part9-part10-incomplete",
+  "phases": [
+    {
+      "phase": "natural-init",
+      "receipt": "bug087-natural-part9-10-init-20261007.json",
+      "sha256": "225cce793b8d5fa8af9bfdca7010bf34ca078b6d452576eeea81fb1c874e9390",
+      "status": "pass-runtime-marker-set",
+      "process_alive_after": true
+    },
+    {
+      "phase": "natural-rate-progression",
+      "receipt": "bug087-natural-part9-10-progression-20261007.json",
+      "sha256": "e439ae7e6a10fa1f9e02ce87fefccad16b18c01f1e5fb84a8b51920ea20f1474",
+      "authorization_sha256": "f420108aa9eb437d891f824e62d70407b5f2a36c7c1cf16fc123607ae735dbc6",
+      "status": "pass-runtime-marker-set",
+      "process_alive_after": true
+    },
+    {
+      "phase": "natural-part9-part10-reset-continuation",
+      "receipt": "bug087-natural-part9-10-reset-20261007.json",
+      "sha256": "dbc0b92a641334e139e5e3b843b737501895d55f3356b4bc50894da7f546890c",
+      "authorization_sha256": "9866b3928bfd312ec34abf32cd996a99fdb66c1d3c3881395c554379a2e39359",
+      "status": "fail-runtime-marker",
+      "process_alive_after": true
+    }
+  ],
+  "emulator_pid": 51763,
+  "emulator_command": [
+    "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+    "-ui",
+    "null",
+    "-ao",
+    "null",
+    "-machine",
+    "coco3",
+    "-ram",
+    "512",
+    "-cart-type",
+    "gmc",
+    "-cart-rom",
+    "/mnt/e/projects/ladybug/worktrees/bug087-root3dd-refresh/build/ladybug.rom",
+    "-cart-autorun",
+    "-v",
+    "2",
+    "-monitor",
+    "127.0.0.1:18513",
+    "-monitor-halt-on-start"
+  ],
+  "part7_callback_setup": {
+    "status": "pass-byte-verified-enemy-callback",
+    "marker_pc": "$088B",
+    "breakpoint_id": 45,
+    "identity_proof": {
+      "bank1_source_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+      "bank1_source_matches_runtime_artifact": true,
+      "bank1_destination_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+      "bank1_source_matches_destination": true,
+      "bank1_usable_payload_bytes": 15872,
+      "bank1_logical_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+      "bank1_logical_matches_destination": true,
+      "resident_sha256": "0ff7c801302510e7bc4f7fde8f764e8f1bfd6c85b39239d7b35515d8ea05c103",
+      "resident_matches": true,
+      "PAR6": 62,
+      "PAR7": 63,
+      "enemy_module_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+      "enemy_module_matches": true,
+      "PAR0": 56,
+      "rate_helper_sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+      "rate_helper_matches": true,
+      "e2_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+      "e2_helper_matches": true,
+      "PAR5": 52
+    },
+    "monitor_audit": {
+      "monitor_call_count": 22,
+      "monitor_call_ledger_sha256": "e5f5e63a4520b49797290dd22b10616c8cbc1b178b09f143dd9d49168b524d2e",
+      "last_monitor_calls": [
+        {
+          "request_id": 15,
+          "method": "read_memory",
+          "params": {
+            "addr": 49152,
+            "length": 8192
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 15,
+            "result": {
+              "space": "cpu",
+              "addr": 49152,
+              "length": 8192,
+              "data": {
+                "bytes": 8192,
+                "sha256": "0ff7c801302510e7bc4f7fde8f764e8f1bfd6c85b39239d7b35515d8ea05c103"
+              }
+            }
+          },
+          "elapsed_seconds": 0.00034
+        },
+        {
+          "request_id": 16,
+          "method": "read_memory",
+          "params": {
+            "addr": 57344,
+            "length": 7680
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 16,
+            "result": {
+              "space": "cpu",
+              "addr": 57344,
+              "length": 7680,
+              "data": {
+                "bytes": 7680,
+                "sha256": "64f756b336bbdc923cefe6fe859165265c175d4cbed4308162869c3a07ce03d9"
+              }
+            }
+          },
+          "elapsed_seconds": 0.00033
+        },
+        {
+          "request_id": 17,
+          "method": "read_memory",
+          "params": {
+            "space": "physical",
+            "addr": 460800,
+            "length": 4091
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 17,
+            "result": {
+              "space": "physical",
+              "addr": 460800,
+              "length": 4091,
+              "data": {
+                "bytes": 4091,
+                "sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000301
+        },
+        {
+          "request_id": 18,
+          "method": "read_memory",
+          "params": {
+            "addr": 65440,
+            "length": 1
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 18,
+            "result": {
+              "space": "cpu",
+              "addr": 65440,
+              "length": 1,
+              "data": {
+                "bytes": 1,
+                "sha256": "e596a8e5c49dd20a79bd0c1a7dd190a674507d1129785746fcc1c5e64cd8416c"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000249
+        },
+        {
+          "request_id": 19,
+          "method": "read_memory",
+          "params": {
+            "space": "physical",
+            "addr": 426928,
+            "length": 185
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 19,
+            "result": {
+              "space": "physical",
+              "addr": 426928,
+              "length": 185,
+              "data": {
+                "bytes": 185,
+                "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000472
+        },
+        {
+          "request_id": 20,
+          "method": "read_memory",
+          "params": {
+            "space": "physical",
+            "addr": 428192,
+            "length": 87
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 20,
+            "result": {
+              "space": "physical",
+              "addr": 428192,
+              "length": 87,
+              "data": {
+                "bytes": 87,
+                "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000289
+        },
+        {
+          "request_id": 21,
+          "method": "read_memory",
+          "params": {
+            "addr": 65440,
+            "length": 1
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 21,
+            "result": {
+              "space": "cpu",
+              "addr": 65440,
+              "length": 1,
+              "data": {
+                "bytes": 1,
+                "sha256": "e596a8e5c49dd20a79bd0c1a7dd190a674507d1129785746fcc1c5e64cd8416c"
+              }
+            }
+          },
+          "elapsed_seconds": 0.00026
+        },
+        {
+          "request_id": 22,
+          "method": "read_memory",
+          "params": {
+            "addr": 65445,
+            "length": 1
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 22,
+            "result": {
+              "space": "cpu",
+              "addr": 65445,
+              "length": 1,
+              "data": {
+                "bytes": 1,
+                "sha256": "2017ff3461395672aa0aa4f64894fd2f95a4b120e2690e8951656d79adc2eed2"
+              }
+            }
+          },
+          "elapsed_seconds": 0.000265
+        }
+      ]
+    }
+  },
+  "emulator_returncode_before_cleanup": null,
+  "emulator_alive_before_cleanup": true,
+  "emulator_returncode_after_cleanup": -15,
+  "xroar_log_tail": "",
+  "elapsed_seconds": 68.143133
+}

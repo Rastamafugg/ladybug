@@ -1,0 +1,236 @@
+{
+  "schema": "bug087-deterministic-reversal-fixture-setup-v1",
+  "ticket": "BUG-087",
+  "phase": "pre-measurement-deterministic-reversal-fixture-setup",
+  "authorized_method": "user-authorized correction: coherent direct fixture setup before the measured phase; no game-memory writes or inputs during chooser/movement acceptance",
+  "deadline_seconds": 45,
+  "success_marker": "source/live bytes proved; slot0=(6,4), west, substep0, valid pointer; gate0=0; another active legal actor; both owner pixels coherent; six frozen callbacks; measured phase starts with freeze timer 2",
+  "timeout_meaning": "fixture setup did not complete within its 45-second phase; no route or gameplay conclusion follows",
+  "runtime_launched": false,
+  "input_injected": false,
+  "measurement_phase_writes": [],
+  "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "identity_sha256": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6",
+  "adapter_sha256": "0ab29d12f102a7ae35939042e0b1bd73c31e8aa7e4f28f111cef512205f47aae",
+  "status": "fail-fixture-setup",
+  "direct_setup_writes": [],
+  "error": "RuntimeError: slot0 must already own a live legal actor: {'slot': 0, 'active': 0, 'fb': 0, 'substep': 0, 'cell_x': 0, 'cell_y': 0, 'saved_bg_valid': 0, 'direction': 0, 'bytes_hex': '0000000000000000'}",
+  "elapsed_seconds": 0.03478,
+  "monitor_audit": {
+    "monitor_call_count": 18,
+    "monitor_call_ledger_sha256": "1b63c5b6f5166044d401fc5c4b5ef9f09ea8eb2a90b9ced34534094720eeb47d",
+    "last_monitor_calls": [
+      {
+        "request_id": 11,
+        "method": "read_memory",
+        "params": {
+          "addr": 65440,
+          "length": 1
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 11,
+          "result": {
+            "space": "cpu",
+            "addr": 65440,
+            "length": 1,
+            "data": {
+              "bytes": 1,
+              "sha256": "e596a8e5c49dd20a79bd0c1a7dd190a674507d1129785746fcc1c5e64cd8416c"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000206
+      },
+      {
+        "request_id": 12,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 426928,
+          "length": 185
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 12,
+          "result": {
+            "space": "physical",
+            "addr": 426928,
+            "length": 185,
+            "data": {
+              "bytes": 185,
+              "sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000356
+      },
+      {
+        "request_id": 13,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 428192,
+          "length": 87
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 13,
+          "result": {
+            "space": "physical",
+            "addr": 428192,
+            "length": 87,
+            "data": {
+              "bytes": 87,
+              "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000231
+      },
+      {
+        "request_id": 14,
+        "method": "read_memory",
+        "params": {
+          "addr": 65440,
+          "length": 1
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 14,
+          "result": {
+            "space": "cpu",
+            "addr": 65440,
+            "length": 1,
+            "data": {
+              "bytes": 1,
+              "sha256": "e596a8e5c49dd20a79bd0c1a7dd190a674507d1129785746fcc1c5e64cd8416c"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000207
+      },
+      {
+        "request_id": 15,
+        "method": "read_memory",
+        "params": {
+          "addr": 65445,
+          "length": 1
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 15,
+          "result": {
+            "space": "cpu",
+            "addr": 65445,
+            "length": 1,
+            "data": {
+              "bytes": 1,
+              "sha256": "2017ff3461395672aa0aa4f64894fd2f95a4b120e2690e8951656d79adc2eed2"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000214
+      },
+      {
+        "request_id": 16,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 426560,
+          "length": 20
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 16,
+          "result": {
+            "space": "physical",
+            "addr": 426560,
+            "length": 20,
+            "data": {
+              "bytes": 20,
+              "sha256": "4ecc03f2dd3b61312892053f2bbb182885f155997156bdbbcf55afc1699800f5"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000361
+      },
+      {
+        "request_id": 17,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 458752,
+          "length": 768
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 17,
+          "result": {
+            "space": "physical",
+            "addr": 458752,
+            "length": 768,
+            "data": {
+              "bytes": 768,
+              "sha256": "a9f001d30a3766a62522c25e9dd2aaa8f025e680481120703e08161902f73b09"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000278
+      },
+      {
+        "request_id": 18,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 427120,
+          "length": 32
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 18,
+          "result": {
+            "space": "physical",
+            "addr": 427120,
+            "length": 32,
+            "data": {
+              "bytes": 32,
+              "sha256": "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925"
+            }
+          }
+        },
+        "elapsed_seconds": 0.00023
+      }
+    ]
+  },
+  "process_supervision": {
+    "emulator_pid": 22916,
+    "emulator_returncode_during_phase": null,
+    "emulator_alive_after_phase": true,
+    "monitor_port": 18407,
+    "phase_limit_seconds": 45,
+    "child_watch": {
+      "child_pid": 23772,
+      "child_returncode": 1,
+      "watch_status": "completed",
+      "elapsed_seconds": 0.903357,
+      "stdout_stderr_tail": "Traceback (most recent call last):\n  File \"/mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-087/bug087_reversal_fixture_setup.py\", line 245, in <module>\n    raise SystemExit(main())\n  File \"/mnt/e/projects/ladybug/wiki/internal/tickets/evidence/rsch014-ready-087/bug087_reversal_fixture_setup.py\", line 140, in main\n    raise RuntimeError(f\"slot0 must already own a live legal actor: {original}\")\nRuntimeError: slot0 must already own a live legal actor: {'slot': 0, 'active': 0, 'fb': 0, 'substep': 0, 'cell_x': 0, 'cell_y': 0, 'saved_bg_valid': 0, 'direction': 0, 'bytes_hex': '0000000000000000'}\n"
+    }
+  }
+}

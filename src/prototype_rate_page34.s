@@ -1,4 +1,4 @@
-; Approved BUG-087 current-prefix preparation, not integrated production.
+; Integrated BUG-087 page-$34 enemy-rate helper.
 ; Called only while PAR5 maps physical page$34; low029B..029F belongs to
 ; this clock only after bootstrap descriptor retirement.
 ; DOC-002 source-contract mirror profile state Inputs: Current authoritative gameplay or presentation state; register arguments are named by the routine label and immediate caller

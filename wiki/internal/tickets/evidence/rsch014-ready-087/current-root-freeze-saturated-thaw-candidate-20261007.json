@@ -1,0 +1,217 @@
+{
+  "schema": "rsch014-ready-087-live-phase-v1",
+  "status": "fail-runtime-marker",
+  "phase": "freeze-saturated-thaw",
+  "phase_deadline_seconds": 45,
+  "phase_elapsed_seconds": 0.205002,
+  "timeout_meaning": "Any required saturated bucket, expiry/non-expiry, rollover, thaw, movement-hold, or death-bypass marker was absent within 45 seconds. Missing rare path fails and is not inferred from a model.",
+  "error": "RuntimeError: raw Vbord frame marker did not advance during callback 2",
+  "runtime_launched": false,
+  "emulator_attached": true,
+  "runtime_acceptance": false,
+  "monitor_audit": [
+    {
+      "monitor_call_count": 108,
+      "monitor_call_ledger_sha256": "026fa92d9f81c816649374668c7d1b2bed60f2fa25673bcb8670b157c70f4a2d",
+      "last_monitor_calls": [
+        {
+          "request_id": 101,
+          "method": "wait_for_stop",
+          "params": {
+            "timeout_ms": 1750
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 101,
+            "result": {
+              "reason": "step",
+              "pc": 2189
+            }
+          },
+          "elapsed_seconds": 0.000209
+        },
+        {
+          "request_id": 102,
+          "method": "get_run_state",
+          "params": null,
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 102,
+            "result": {
+              "state": "halted",
+              "last_stop_reason": "step",
+              "last_stop_pc": 2189
+            }
+          },
+          "elapsed_seconds": 0.000168
+        },
+        {
+          "request_id": 103,
+          "method": "read_registers",
+          "params": null,
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 103,
+            "result": {
+              "a": 0,
+              "b": 47,
+              "d": 47,
+              "cc": 196,
+              "dp": 0,
+              "x": 143,
+              "y": 46577,
+              "u": 46589,
+              "s": 8180,
+              "pc": 2189
+            }
+          },
+          "elapsed_seconds": 0.000173
+        },
+        {
+          "request_id": 104,
+          "method": "run",
+          "params": null,
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 104,
+            "result": {
+              "ok": true
+            }
+          },
+          "elapsed_seconds": 0.000182
+        },
+        {
+          "request_id": 105,
+          "method": "wait_for_stop",
+          "params": {
+            "timeout_ms": 42000
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 105,
+            "result": {
+              "reason": "breakpoint",
+              "pc": 2187,
+              "bp_id": 15
+            }
+          },
+          "elapsed_seconds": 0.000247
+        },
+        {
+          "request_id": 106,
+          "method": "read_memory",
+          "params": {
+            "space": "physical",
+            "addr": 458752,
+            "length": 768
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 106,
+            "result": {
+              "space": "physical",
+              "addr": 458752,
+              "length": 768,
+              "data": "302005eb20ffff00000c1275ec0000ff0c000014131500030000010000000010007f3702026c00250f06000000000003002909066dfd1414030200010000a3a0ec3a00006000330000090501010000030300000001010000010100012a000000000000b480000175ec00010008f100000017b029131314140010000000000000000000000000000000000000000000010000025e025e00a50000010000b44a0c0010ab00a5000200000003c00018980000b4030000166d0c001006000000000000000206030020008000ff000000000010000000810600011e0100000000023f00000200b714000000000301060600000104000500040004000400040002ff000000000000000000000000007e894c7ea0f600004a804fc75259ff045e7e848935aa66ab6714ab1aaa29198183813c0e821e8168000000b277000000b277b44ab44ab44ab44ab44ab44ab44ab44ab44ab44a0000000000000000000000003939393939393939397e82737e8cf13939393939393939397e82867e8e903939393939393939393939393939397e88463939397e88f07e829c7e87e57e82b93939393939397e830439393900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffc80006b0000200ffc80206b2014b033becbab82907bc0323f476a422098a0323c000adac00100323c012adbc07ee0023c94db5aa02bb0023cc08bf80008000ffcc88190004ee0034d176bd4402b80034d42ea3b000b90034d4e7a8a00057000000000000000000000000000000000000000000000000000000000000000002e994babe90001b232b330600a00000000000000000000000d2005ef000cc009b2000023bd22ede9ba000b8290c6d18290235de9be85fa000c00009c4200002f6ffa53404863db7ffa5bda62b3504f7ffa54d3900b9dd074c19dd03000096a584fb270b863db7ffa57ea000b7ffa539a55a005c0b000000e430254c00010f16"
+            }
+          },
+          "elapsed_seconds": 0.000236
+        },
+        {
+          "request_id": 107,
+          "method": "read_memory",
+          "params": {
+            "space": "physical",
+            "addr": 427120,
+            "length": 32
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 107,
+            "result": {
+              "space": "physical",
+              "addr": 427120,
+              "length": 32,
+              "data": "1157ec000c0c0000000000000000000000000000000000000000000000000000"
+            }
+          },
+          "elapsed_seconds": 0.000233
+        },
+        {
+          "request_id": 108,
+          "method": "clear_breakpoint",
+          "params": {
+            "id": 15
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 108,
+            "result": {
+              "ok": true,
+              "addr": 2187
+            }
+          },
+          "elapsed_seconds": 0.000197
+        }
+      ],
+      "last_marker_event": {
+        "run_request_id": 104,
+        "run_acknowledgement": {
+          "ok": true
+        },
+        "wait_receipt": {
+          "request_id": 105,
+          "method": "wait_for_stop",
+          "params": {
+            "timeout_ms": 42000
+          },
+          "outcome": "ok",
+          "error": null,
+          "response_envelope": {
+            "jsonrpc": "2.0",
+            "id": 105,
+            "result": {
+              "reason": "breakpoint",
+              "pc": 2187,
+              "bp_id": 15
+            }
+          },
+          "elapsed_seconds": 0.000247
+        },
+        "classification": {
+          "status": "breakpoint",
+          "marker": true,
+          "bp_id": 15,
+          "pc": 2187
+        }
+      }
+    }
+  ],
+  "authorization": {
+    "authorization_sha256": "1c4748185b5e03035acce1b840527fd358cfb71e520c9c85242e311e6c498f51",
+    "BUG086_receipt_sha256": "f0846d9d0398b429c8db421edfe07bcd62b861424ce8c303e520ab3befb3e287",
+    "identity_sha256_by_name": {
+      "current-root-candidate-ad1-keyboard-identity-163d-20261006.json": "a85842ec6419e0c2131599aa17c778a33c99bb4db01e94c716891dd34fbab2d6"
+    },
+    "adapter_sha256": "94bef4926d80744bac201722d7321ab892d8ae0ccdf50a6f7a99119955277c39",
+    "scenario_plan_sha256": "1338cbcaa94236aa089950507462114a91f94e0880172ef8c641d4fcd82ce222",
+    "fixture_contract_sha256": "d7fab990f866cc130b4ea3027359d3a3cdbd68277f620aed5c30b397f2bed0d6",
+    "prerequisite_receipt_sha256": null
+  }
+}

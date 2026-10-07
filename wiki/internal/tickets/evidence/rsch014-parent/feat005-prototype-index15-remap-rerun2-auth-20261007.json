@@ -1,0 +1,28 @@
+{
+  "schema": "feat005-prototype-index15-remap-rerun2-auth-20261007-v1",
+  "ticket": "FEAT-005",
+  "phase": "isolated-prototype-index15-read-surface-pairs-to-0A15",
+  "deadline_seconds": 40,
+  "startup_deadline_seconds": 10,
+  "target": 2581,
+  "runtime_authorized": true,
+  "parent_review_status": "parent-reviewed-and-approved",
+  "rom_sha256": "a4c6de907b5dfeda76e6040f174ee93ecf468cf5243b4554f2c584510be726ad",
+  "source_revision": "163d0be13daeeea4f6ec2a1e6b027ef54e13447c",
+  "probe_sha256": "ab79611c31fa1f88b0d1eca4d1ccffdbac410dd224e5d60c25aba8c7b778791a",
+  "monitor_helper_sha256": "0234c96c198223de1c6b5c0aa11c1a9ab2e1739081f40a5f520cf1fe0eb70455",
+  "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+  "monitor_game_memory_writes": false,
+  "input_injected": false,
+  "writes": [],
+  "build_receipt_qualification": {
+    "complete_rom_and_artifact_hashes_match_receipt": true,
+    "all_build_input_hashes_match_receipt": true,
+    "complete_build": true,
+    "pixel_exact_screen_count": 9,
+    "instruction_runtime_bytes_used": 936,
+    "instruction_runtime_bytes_limit": 938
+  },
+  "observer_correction": "On wait_for_stop timeout, pause the running emulator before clearing breakpoints or reading state; capture the timeout marker before cleanup.",
+  "reason": "Deterministic rerun after source review confirmed that clear_breakpoint rejects a running target and wait_for_stop timeout leaves it running. The same 10-second startup and 40-second observation bounds remain. Pass requires at least 105 complete index-15 read/surface pairs, zero streamed mapping mismatches, no pending pair, and no write to $0A15. No game-memory writes or input injection are permitted."
+}

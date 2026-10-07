@@ -1,0 +1,70 @@
+{
+  "schema": "bug087-live-endpoint-audit-20261007-v1",
+  "phase": "read-only audit of the two already-running halted Part-7 monitors",
+  "deadline_seconds_per_endpoint": 5,
+  "success_marker": "both monitors report halted at $088B and the full live enemy module matches its build artifact before counters are read",
+  "timeout_meaning": "that endpoint is unverified; no game-speed result is inferred",
+  "results": [
+    {
+      "side": "baseline",
+      "port": 17662,
+      "deadline_seconds": 5,
+      "writes": [],
+      "run_calls": 0,
+      "hello_method": "hello",
+      "run_state": {
+        "state": "halted",
+        "last_stop_reason": "breakpoint",
+        "last_stop_pc": 2187,
+        "last_stop_bp_id": 39
+      },
+      "rom_sha256": "ef13933e1ace948c9c7b294cfc55ef44c14ba69b39a5e6f8fca392766cbbf869",
+      "enemy_artifact_sha256": "7f8e104df0d853d00495e2aa692680b997bc7ec434da015d25b5bae1e10cb9b4",
+      "live_enemy_sha256": "7f8e104df0d853d00495e2aa692680b997bc7ec434da015d25b5bae1e10cb9b4",
+      "enemy_bytes_match": true,
+      "counters": {
+        "FRAMES": 5135,
+        "FB_SIM_SEQ": 1901,
+        "BOX_TIMER": 1,
+        "BOX_INDEX": 71,
+        "BOX_PHASE": 0,
+        "DEATH_STATE": 0,
+        "ENEMY_ACTIVE": 0,
+        "ENEMY_RELEASED": 0
+      },
+      "status": "pass-readonly-live-identity",
+      "elapsed_seconds": 0.043945
+    },
+    {
+      "side": "candidate",
+      "port": 17663,
+      "deadline_seconds": 5,
+      "writes": [],
+      "run_calls": 0,
+      "hello_method": "hello",
+      "run_state": {
+        "state": "halted",
+        "last_stop_reason": "breakpoint",
+        "last_stop_pc": 2187,
+        "last_stop_bp_id": 45
+      },
+      "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+      "enemy_artifact_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+      "live_enemy_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+      "enemy_bytes_match": true,
+      "counters": {
+        "FRAMES": 4948,
+        "FB_SIM_SEQ": 1311,
+        "BOX_TIMER": 1,
+        "BOX_INDEX": 36,
+        "BOX_PHASE": 0,
+        "DEATH_STATE": 0,
+        "ENEMY_ACTIVE": 3,
+        "ENEMY_RELEASED": 6
+      },
+      "status": "pass-readonly-live-identity",
+      "elapsed_seconds": 0.034464
+    }
+  ],
+  "status": "pass"
+}

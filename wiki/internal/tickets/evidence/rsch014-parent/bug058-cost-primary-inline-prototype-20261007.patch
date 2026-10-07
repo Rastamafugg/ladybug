@@ -1,0 +1,19 @@
+diff --git a/src/main.s b/src/main.s
+index c22fde9..328579e 100644
+--- a/src/main.s
++++ b/src/main.s
+@@ -2064,7 +2064,14 @@ repco_delta_ready
+ repco_primary_pair
+         ldb     ,u+
+         lda     ,u+
++        ifne    ADAPTIVE_RENDERING
++        sta     OBJ_VALUE
++        anda    #$33
++        orb     a,y
++        tfr     b,a
++        else
+         bsr     primary_cache_mask
++        endc
+         cmpa    #$FF
+         beq     repco_primary_skip
+         tfr     a,b

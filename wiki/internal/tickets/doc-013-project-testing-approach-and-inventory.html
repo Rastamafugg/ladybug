@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOC-013 — Testing approach and inventory — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="../tooling/index.html">Tooling</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · work management</p>
+      <h1>DOC-013 — Testing approach and inventory <span class="wiki-badge">Done</span></h1>
+      <p class="wiki-meta">2026-10-06 · Internal tooling documentation · P2 / after DOC-012</p>
+    </header>
+
+    <section>
+      <h2>Tracking</h2>
+      <ul>
+        <li><strong>Status:</strong> Done</li>
+        <li><strong>Created / updated:</strong> 2026-10-06 / 2026-10-06</li>
+        <li><strong>Priority / order:</strong> P2 / after DOC-012, which is Done</li>
+        <li><strong>Source baseline:</strong> <code>3dd3397f99b969539bb0f821e6b98cb1548bab2d</code></li>
+        <li><strong>Owner:</strong> parent agent, documentation-only</li>
+        <li><strong>Dependencies:</strong> DOC-012 Done; no code or runtime dependency</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Add one internal tooling article that explains how Ladybug combines build checks, independent source and artifact oracles, focused regression verifiers, emulator execution, and measurement evidence. Give each maintained test entry point a short purpose statement and identify whether it is part of the ordinary build path or is invoked for a focused ticket. This fills a wiki gap: the build runbook explains commands and the Python-oracles article explains artifact authority, but neither gives a project-wide testing model and inventory.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>Baseline is repository HEAD <code>3dd3397f99b969539bb0f821e6b98cb1548bab2d</code> on 2026-10-06. The tracked top-level <code>scripts/</code> directory contains 74 <code>verify_*.py</code> entry points and one <code>test_source_audit.py</code> unittest module with 24 named test methods. The test scripts are unchanged in the current worktree. <code>scripts/build.sh</code> directly runs build-integrated verification and has a separate <code>verify-gmc</code> path for XRoar/GDB execution. Existing <a href="../tooling/build-workflow.html">build workflow</a>, <a href="../tooling/python-build-oracles.html">Python build and oracles</a>, and <a href="../tooling/xroar.html#gdb-mcp-round-trip">XRoar/GDB workflow</a> pages are the source documentation baseline.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> create <code>wiki/internal/tooling/testing.html</code>; link it from <code>wiki/internal/tooling/index.html</code>; document the testing approach, types of checks, build-integrated verification, emulator/runtime verification, evidence and artifact-identity rules, and the script-level purpose of all 74 top-level verifier programs. Name and summarize all 24 unit-test methods in <code>test_source_audit.py</code>. Classify the inventory by purpose and ordinary-build versus focused invocation.</p>
+      <p><strong>Out:</strong> changing tests, scripts, runtime code, build behavior, acceptance criteria, or test outcomes; executing the emulator or the listed tests; enumerating every assertion or scenario internal to each verifier; and treating capture, benchmark, or diagnostic-probe utilities as pass/fail tests. Mention those utilities only to distinguish measurement/evidence from functional verification.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ol>
+        <li>A contributor needs the short answer to what runs during <code>scripts/build.sh build</code> and what additional coverage <code>scripts/build.sh verify-gmc</code> adds.</li>
+        <li>A ticket author needs to select focused source, asset, runtime, behavior, framebuffer, audio, profile, capacity, or performance checks without assuming all 74 verifier scripts run on every build.</li>
+        <li>A reader must distinguish an independent oracle from the generator or source it checks, a forced state from a natural gameplay sequence, and a measurement/capture from a pass/fail test.</li>
+        <li>A verifier that is ticket-specific or retained for historical regression coverage must not be described as a current default suite member unless the build workflow calls it.</li>
+        <li>Missing required runtime phases or stale artifact identity must be described as incomplete/failed evidence, not a passing test.</li>
+      </ol>
+
+      <h3>Options and recommendation</h3>
+      <p>Expanding <code>build-workflow.html</code> would mix operating instructions with the testing model and make the 75-entry inventory difficult to scan. Extending <code>python-build-oracles.html</code> would overstate Python artifact checks as the whole test strategy. Recommend one dedicated testing article linked from the tooling index and cross-linked to those existing runbooks.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>The article explains the risk-directed approach: build-integrated gates cover generated artifacts and hard boundaries; focused verifiers cover named regressions; runtime checks use natural sequences plus forced cases for distinct rare-path risks; measurements and human observations are reported separately from pass/fail correctness.</li>
+        <li>The article describes the roles and limits of <code>build</code>, <code>verify-gmc</code>, the XRoar/GDB round trip, and the existing oracle workflow. It does not imply that all ticket verifiers run in the default build.</li>
+        <li>Every top-level <code>scripts/verify_*.py</code> file in the baseline inventory is listed once with a source-checked purpose and a clear category. All 24 methods in <code>test_source_audit.py</code> are named and briefly described. The page states its baseline revision and how the inventory should be refreshed.</li>
+        <li>The tooling index links the new page. All local file and fragment links resolve, IDs are unique, and changed HTML follows the wiki shell and stylesheet conventions.</li>
+        <li>Only the approved wiki page, tooling navigation, ticket lifecycle records, and log entry change. No source, scripts, generated outputs, ROMs, capacities, or runtime behavior change; no ROM build is required.</li>
+      </ol>
+
+      <h3>Verification plan and risks</h3>
+      <ul>
+        <li><strong>Inventory completeness and stale descriptions:</strong> compare the catalog against the exact baseline <code>scripts/verify_*.py</code> and <code>scripts/test_source_audit.py</code> file set, inspect each module description and relevant <code>build.sh</code> call sites. This covers omitted or misclassified entry points.</li>
+        <li><strong>Incorrect default-suite claims:</strong> review every “build-integrated” label against the current <code>scripts/build.sh</code> command path; describe all other verifiers as focused unless an explicit default call proves otherwise.</li>
+        <li><strong>Broken navigation:</strong> parse the changed wiki pages, check unique IDs and local links, and run <code>git diff --check</code>.</li>
+      </ul>
+      <p>No game build or test execution is needed for this documentation scope. If source review exposes a stale or failing test, record the finding and propose separate work rather than changing the harness under DOC-013.</p>
+    </section>
+
+    <section id="assignment">
+      <h2>Approved Ready assignment</h2>
+      <p>The user approved DOC-013 on 2026-10-06. The parent owns <code>wiki/internal/tooling/testing.html</code>, the testing link in <code>wiki/internal/tooling/index.html</code>, this ticket, the ticket index, and the internal log. Preserve existing unrelated dirty changes in those shared wiki files and in the Tiled/source-reference work. This is a direct documentation task in the current checkout; no worktree or delegation is needed.</p>
+      <p><strong>Constraints:</strong> use baseline <code>3dd3397f99b969539bb0f821e6b98cb1548bab2d</code> for the inventory. Do not change tests, scripts, runtime code, build behavior, acceptance criteria, or test outcomes. Preserve the distinction between ordinary build gates, focused ticket checks, and measurement tools. Do not execute the emulator or listed tests.</p>
+      <p><strong>Commands:</strong> inspect the baseline verifier file set and <code>scripts/build.sh</code> call sites; parse the changed/new HTML and verify unique IDs and local links; run <code>git diff --check</code> on the DOC-013 wiki scope; confirm source and scripts remain unchanged with <code>git diff --quiet -- src scripts</code>.</p>
+      <p><strong>Evidence:</strong> retain a concise inventory comparison, HTML/link result, baseline revision, and final diff summary. <strong>Commit:</strong> do not stage pre-existing dirty edits; one bounded documentation commit may contain only DOC-013-owned changes if it can be isolated safely. Do not push. <strong>Completion report:</strong> name the article and navigation changes, inventory coverage, commands/results, commit if created, residual risks, and whether DOC-013 can move to Done.</p>
+    </section>
+
+    <section id="verification-20261006">
+      <h2>Verification — 2026-10-06</h2>
+      <p>Parent QA matched the article inventory against the current baseline: all 74 top-level verifier files and all 24 <code>test_source_audit.py</code> methods are listed exactly once. The complete/non-complete build labels and <code>verify-gmc</code> branches were checked against <code>scripts/build.sh</code>. The article and ticket parse with unique IDs; their local file and fragment links resolve; tooling, ticket index, and log references point to the intended pages.</p>
+      <p><code>git diff --check</code> passes for the scoped wiki changes, and the new HTML pages plus tooling index contain no trailing whitespace. <code>git diff --quiet -- src scripts</code> confirms source and scripts are unchanged. No game tests, ROM build, emulator run, or hardware check was performed because the approved change is documentation-only.</p>
+      <p><strong>Acceptance result:</strong> documentation checks pass. Residual risk is limited to future inventory drift as verifier files change; the article records its source baseline and refresh procedure. No commit was created because the ticket index and project log already contain unrelated uncommitted user edits, which were preserved.</p>
+    </section>
+
+    <section id="completion-20261006">
+      <h2>Completion — 2026-10-06</h2>
+      <p>Added the approved testing and verification article and linked it from the tooling index. The article explains the layered, risk-directed approach; build and <code>verify-gmc</code> behavior; runtime evidence rules; all 74 verifier entry points; and all 24 standalone source-audit unit methods. The inventory labels distinguish build-integrated, verify-gmc, and focused checks.</p>
+      <p><strong>QA:</strong> exact script/method inventory comparison, source-backed build-call classification, local HTML/fragment checks, unique IDs, whitespace checks, and unchanged-source/script checks passed. No game tests were run and no ROM build, emulator execution, capacity measurement, or hardware result is claimed.</p>
+      <p><strong>Commit:</strong> none. The shared ticket index and project log contain pre-existing user edits; those edits were preserved and not staged. <strong>Residual risk:</strong> the catalog can become stale as verifier files change; its source revision and refresh procedure are recorded. DOC-013 is Done.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-10-06 — Drafted as Proposed after reviewing the wiki index, ticket workflow, current build/oracle/XRoar pages, <code>scripts/build.sh</code>, and the top-level verification inventory. Scope is a page-level catalog, not a scenario-by-scenario expansion of every verifier.</li>
+        <li>2026-10-06 — User approved the DOC-013 outcome, scope, baseline, and acceptance criteria as proposed.</li>
+        <li>2026-10-06 — Ready-stage source enumeration corrected the <code>test_source_audit.py</code> method count from 20 to 24. The approved outcome already required every method; the correction changes no scope or acceptance boundary.</li>
+        <li>2026-10-06 — Advanced to Ready after recording exact owned files, constraints, documentation checks, evidence, and commit boundary.</li>
+        <li>2026-10-06 — Advanced to In Progress; parent began the approved article and tooling-index update.</li>
+        <li>2026-10-06 — Article and navigation are implemented; DOC-013 advanced to Verification for the required QA review.</li>
+        <li>2026-10-06 — QA passed the inventory, build-branch, link/ID, whitespace, and unchanged-source checks. Advanced from Verification to Done; no game tests or ROM build were needed.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Approval fixes the article outcome and inventory boundary. Execution details may be completed at Ready without changing that contract.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

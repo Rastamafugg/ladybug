@@ -1,0 +1,4927 @@
+{
+  "schema": "bug087-deterministic-reversal-fixture-setup-v2",
+  "ticket": "BUG-087",
+  "phase": "pre-measurement-deterministic-reversal-fixture-setup",
+  "authorized_method": "user-authorized correction: coherent direct fixture setup before the measured phase; no game-memory writes or inputs during chooser/movement acceptance",
+  "deadline_seconds": 45,
+  "success_marker": "source/live bytes proved; first two natural Part-7 spawner releases are active; then setup slot0=(6,4), west, substep0, valid pointer and another active legal actor; gate0=0; both owner pixels coherent; six frozen callbacks; measured phase starts with freeze timer 2",
+  "timeout_meaning": "fixture setup did not observe two real Part-7 spawner releases and hydrate the fixture within its 45-second phase; no route or gameplay conclusion follows",
+  "runtime_launched": false,
+  "input_injected": false,
+  "measurement_phase_writes": [],
+  "rom_sha256": "7caa58c1ff1ef84b0b107b4b5cc46850244de1f2729dbc60f3af1f46abfac32e",
+  "identity_sha256": "aa157543f6148a97ee36205c7d97be2823d54bee6e5c60f394630c070305e216",
+  "adapter_sha256": "0ab29d12f102a7ae35939042e0b1bd73c31e8aa7e4f28f111cef512205f47aae",
+  "fixture_setup_script_sha256": "01b0e4fdfd62d6680b4ef21d369fbad7c6ce513792038573ec297aadabbbd0ed",
+  "status": "pass-fixture-ready-for-measurement",
+  "direct_setup_writes": [
+    {
+      "physical_address": "$68470",
+      "value_hex": "612fd400060401036157c400020c010100000000000000000000000000000000",
+      "meaning": "first two naturally released live actors relocated to valid-pointer fixture cells (6,4) west and (2,12) east; remaining rows cleared"
+    },
+    {
+      "physical_address": "$70058",
+      "value_hex": "0202",
+      "meaning": "active and released enemy counts match the two installed fixture actors"
+    },
+    {
+      "physical_address": "$7005B",
+      "value_hex": "0008",
+      "meaning": "hold movement during six pre-measurement owner-hydration callbacks"
+    }
+  ],
+  "elapsed_seconds": 8.849761,
+  "runtime_source_live_proof": {
+    "enemy_tick_impl": "$088B",
+    "ecd_choose": "$0F8B",
+    "ecd_blocked": "$0F92",
+    "runtime_image_proof": {
+      "bank1_source_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+      "bank1_source_matches_runtime_artifact": true,
+      "bank1_destination_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+      "bank1_source_matches_destination": true,
+      "bank1_usable_payload_bytes": 15872,
+      "bank1_logical_sha256": "ea8f458ca0dbbcab8a75dbe24391b884f7348a55ad24bedade4b9ba86db8e49f",
+      "bank1_logical_matches_destination": true,
+      "resident_sha256": "0ff7c801302510e7bc4f7fde8f764e8f1bfd6c85b39239d7b35515d8ea05c103",
+      "resident_matches": true,
+      "PAR6": 62,
+      "PAR7": 63,
+      "enemy_module_sha256": "f2e0b44d4c0e77122382105c8fbbb71a9503fc481fcb4c5368b24f504f04c155",
+      "enemy_module_matches": true,
+      "PAR0": 56,
+      "rate_helper_sha256": "609e0e8199a17c5d9a6bf35f7a3f0cddeb8ba029bdb5b8fa6bf2eed6b9efc00c",
+      "rate_helper_matches": true,
+      "e2_helper_sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+      "e2_helper_matches": true,
+      "PAR5": 52
+    }
+  },
+  "gate_bytes_hex": "0000010100000101000001010101010100000000",
+  "maze_legality": {
+    "west_legal_at_6_4": true,
+    "west_legal_at_5_4": true,
+    "exits_at_4_4": [
+      1
+    ]
+  },
+  "initial_state": {
+    "stage": 7,
+    "death_state": 0,
+    "enemy_active": 2,
+    "enemy_released": 2,
+    "box_timer": 3,
+    "box_index": 0,
+    "box_phase": 0,
+    "enemy_move": 0,
+    "frames": 3663,
+    "fb_sim_seq": 633,
+    "dots_left": 107,
+    "stage_pending": 0,
+    "bonus_left": 6,
+    "initial_entry_state": 0,
+    "player_cell_x": 12,
+    "player_cell_y": 18,
+    "freeze_timer": 0,
+    "rate_timer": 24,
+    "rate_bucket": 8,
+    "rate_frac": 248,
+    "rate_addend": 51,
+    "rate_phase": 1
+  },
+  "initial_enemy_records": [
+    {
+      "slot": 0,
+      "active": 97,
+      "fb": 35273,
+      "substep": 1,
+      "cell_x": 3,
+      "cell_y": 22,
+      "saved_bg_valid": 1,
+      "direction": 1,
+      "bytes_hex": "6189c90103160101"
+    },
+    {
+      "slot": 1,
+      "active": 97,
+      "fb": 22508,
+      "substep": 0,
+      "cell_x": 12,
+      "cell_y": 12,
+      "saved_bg_valid": 0,
+      "direction": 0,
+      "bytes_hex": "6157ec000c0c0000"
+    },
+    {
+      "slot": 2,
+      "active": 0,
+      "fb": 0,
+      "substep": 0,
+      "cell_x": 0,
+      "cell_y": 0,
+      "saved_bg_valid": 0,
+      "direction": 0,
+      "bytes_hex": "0000000000000000"
+    },
+    {
+      "slot": 3,
+      "active": 0,
+      "fb": 0,
+      "substep": 0,
+      "cell_x": 0,
+      "cell_y": 0,
+      "saved_bg_valid": 0,
+      "direction": 0,
+      "bytes_hex": "0000000000000000"
+    }
+  ],
+  "natural_release_boundary": {
+    "starting_state": {
+      "active": 0,
+      "released": 0,
+      "records": [
+        {
+          "slot": 0,
+          "active": 0,
+          "fb": 0,
+          "substep": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "saved_bg_valid": 0,
+          "direction": 0,
+          "bytes_hex": "0000000000000000"
+        },
+        {
+          "slot": 1,
+          "active": 0,
+          "fb": 0,
+          "substep": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "saved_bg_valid": 0,
+          "direction": 0,
+          "bytes_hex": "0000000000000000"
+        },
+        {
+          "slot": 2,
+          "active": 0,
+          "fb": 0,
+          "substep": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "saved_bg_valid": 0,
+          "direction": 0,
+          "bytes_hex": "0000000000000000"
+        },
+        {
+          "slot": 3,
+          "active": 0,
+          "fb": 0,
+          "substep": 0,
+          "cell_x": 0,
+          "cell_y": 0,
+          "saved_bg_valid": 0,
+          "direction": 0,
+          "bytes_hex": "0000000000000000"
+        }
+      ]
+    },
+    "callback_samples": [
+      {
+        "callback": 1,
+        "frames": 3142,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 2,
+        "frames": 3144,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 3,
+        "frames": 3144,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 4,
+        "frames": 3146,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 5,
+        "frames": 3146,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 6,
+        "frames": 3148,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 7,
+        "frames": 3148,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 8,
+        "frames": 3150,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 9,
+        "frames": 3150,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 10,
+        "frames": 3152,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 11,
+        "frames": 3152,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 12,
+        "frames": 3154,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 13,
+        "frames": 3154,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 14,
+        "frames": 3156,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 15,
+        "frames": 3156,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 16,
+        "frames": 3157,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 17,
+        "frames": 3158,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 18,
+        "frames": 3159,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 19,
+        "frames": 3160,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 20,
+        "frames": 3161,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 21,
+        "frames": 3162,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 22,
+        "frames": 3163,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 23,
+        "frames": 3164,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 24,
+        "frames": 3165,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 25,
+        "frames": 3166,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 26,
+        "frames": 3167,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 27,
+        "frames": 3168,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 28,
+        "frames": 3169,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 29,
+        "frames": 3170,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 30,
+        "frames": 3171,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 31,
+        "frames": 3172,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 32,
+        "frames": 3173,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 33,
+        "frames": 3174,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 34,
+        "frames": 3175,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 35,
+        "frames": 3176,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 36,
+        "frames": 3177,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 37,
+        "frames": 3178,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 38,
+        "frames": 3179,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 39,
+        "frames": 3180,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 40,
+        "frames": 3181,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 41,
+        "frames": 3182,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 42,
+        "frames": 3183,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 43,
+        "frames": 3184,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 44,
+        "frames": 3185,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 45,
+        "frames": 3186,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 46,
+        "frames": 3187,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 47,
+        "frames": 3188,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 48,
+        "frames": 3189,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 49,
+        "frames": 3190,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 50,
+        "frames": 3191,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 51,
+        "frames": 3192,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 52,
+        "frames": 3193,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 53,
+        "frames": 3194,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 54,
+        "frames": 3195,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 55,
+        "frames": 3196,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 56,
+        "frames": 3197,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 57,
+        "frames": 3198,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 58,
+        "frames": 3199,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 59,
+        "frames": 3200,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 60,
+        "frames": 3201,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 61,
+        "frames": 3202,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 62,
+        "frames": 3203,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 63,
+        "frames": 3204,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 64,
+        "frames": 3205,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 65,
+        "frames": 3206,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 66,
+        "frames": 3207,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 67,
+        "frames": 3208,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 68,
+        "frames": 3209,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 69,
+        "frames": 3210,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 70,
+        "frames": 3211,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 71,
+        "frames": 3212,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 72,
+        "frames": 3213,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 73,
+        "frames": 3214,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 74,
+        "frames": 3215,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 75,
+        "frames": 3216,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 76,
+        "frames": 3217,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 77,
+        "frames": 3218,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 78,
+        "frames": 3219,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 79,
+        "frames": 3220,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 80,
+        "frames": 3221,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 81,
+        "frames": 3222,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 82,
+        "frames": 3223,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 83,
+        "frames": 3224,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 84,
+        "frames": 3225,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 85,
+        "frames": 3226,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 86,
+        "frames": 3227,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 87,
+        "frames": 3228,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 88,
+        "frames": 3229,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 89,
+        "frames": 3230,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 90,
+        "frames": 3231,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 91,
+        "frames": 3232,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 92,
+        "frames": 3233,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 93,
+        "frames": 3234,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 94,
+        "frames": 3235,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 95,
+        "frames": 3236,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 96,
+        "frames": 3237,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 97,
+        "frames": 3238,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 98,
+        "frames": 3239,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 99,
+        "frames": 3240,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 100,
+        "frames": 3241,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 101,
+        "frames": 3242,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 102,
+        "frames": 3243,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 103,
+        "frames": 3244,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 104,
+        "frames": 3245,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 105,
+        "frames": 3246,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 106,
+        "frames": 3247,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 107,
+        "frames": 3248,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 108,
+        "frames": 3249,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 109,
+        "frames": 3250,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 110,
+        "frames": 3251,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 111,
+        "frames": 3252,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 112,
+        "frames": 3253,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 113,
+        "frames": 3254,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 114,
+        "frames": 3255,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 115,
+        "frames": 3256,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 116,
+        "frames": 3257,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 117,
+        "frames": 3258,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 118,
+        "frames": 3259,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 119,
+        "frames": 3260,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 120,
+        "frames": 3261,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 121,
+        "frames": 3262,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 122,
+        "frames": 3263,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 123,
+        "frames": 3264,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 124,
+        "frames": 3265,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 125,
+        "frames": 3266,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 126,
+        "frames": 3267,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 127,
+        "frames": 3268,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 128,
+        "frames": 3269,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 129,
+        "frames": 3270,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 130,
+        "frames": 3271,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 131,
+        "frames": 3272,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 132,
+        "frames": 3273,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 133,
+        "frames": 3274,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 134,
+        "frames": 3275,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 135,
+        "frames": 3276,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 136,
+        "frames": 3277,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 137,
+        "frames": 3278,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 138,
+        "frames": 3279,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 139,
+        "frames": 3280,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 140,
+        "frames": 3281,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 141,
+        "frames": 3282,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 142,
+        "frames": 3283,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 143,
+        "frames": 3284,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 144,
+        "frames": 3285,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 145,
+        "frames": 3286,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 146,
+        "frames": 3287,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 147,
+        "frames": 3288,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 148,
+        "frames": 3291,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 149,
+        "frames": 3291,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 150,
+        "frames": 3293,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 151,
+        "frames": 3293,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 152,
+        "frames": 3295,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 153,
+        "frames": 3295,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 154,
+        "frames": 3297,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 155,
+        "frames": 3297,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 156,
+        "frames": 3299,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 157,
+        "frames": 3299,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 158,
+        "frames": 3301,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 159,
+        "frames": 3301,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 160,
+        "frames": 3303,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 161,
+        "frames": 3303,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 162,
+        "frames": 3305,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 163,
+        "frames": 3305,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 164,
+        "frames": 3307,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 165,
+        "frames": 3307,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 166,
+        "frames": 3308,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 167,
+        "frames": 3309,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 168,
+        "frames": 3310,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 169,
+        "frames": 3311,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 170,
+        "frames": 3312,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 171,
+        "frames": 3313,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 172,
+        "frames": 3314,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 173,
+        "frames": 3315,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 174,
+        "frames": 3316,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 175,
+        "frames": 3317,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 176,
+        "frames": 3318,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 177,
+        "frames": 3319,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 178,
+        "frames": 3320,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 179,
+        "frames": 3321,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 180,
+        "frames": 3322,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 181,
+        "frames": 3323,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 182,
+        "frames": 3324,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 183,
+        "frames": 3325,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 184,
+        "frames": 3326,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 185,
+        "frames": 3327,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 186,
+        "frames": 3328,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 187,
+        "frames": 3329,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 188,
+        "frames": 3330,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 189,
+        "frames": 3331,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 190,
+        "frames": 3332,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 191,
+        "frames": 3333,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 192,
+        "frames": 3334,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 193,
+        "frames": 3335,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 194,
+        "frames": 3336,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 195,
+        "frames": 3337,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 196,
+        "frames": 3338,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 197,
+        "frames": 3339,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 198,
+        "frames": 3340,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 199,
+        "frames": 3341,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 200,
+        "frames": 3342,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 201,
+        "frames": 3343,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 202,
+        "frames": 3344,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 203,
+        "frames": 3345,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 204,
+        "frames": 3346,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 205,
+        "frames": 3347,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 206,
+        "frames": 3348,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 207,
+        "frames": 3349,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 208,
+        "frames": 3350,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 209,
+        "frames": 3351,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 210,
+        "frames": 3352,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 211,
+        "frames": 3353,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 212,
+        "frames": 3354,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 213,
+        "frames": 3355,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 214,
+        "frames": 3356,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 215,
+        "frames": 3357,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 216,
+        "frames": 3358,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 217,
+        "frames": 3359,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 218,
+        "frames": 3360,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 219,
+        "frames": 3361,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 220,
+        "frames": 3362,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 221,
+        "frames": 3363,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 222,
+        "frames": 3364,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 223,
+        "frames": 3365,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 224,
+        "frames": 3366,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 225,
+        "frames": 3367,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 226,
+        "frames": 3368,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 227,
+        "frames": 3369,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 228,
+        "frames": 3370,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 229,
+        "frames": 3371,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 230,
+        "frames": 3372,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 231,
+        "frames": 3373,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 232,
+        "frames": 3374,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 233,
+        "frames": 3375,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 234,
+        "frames": 3376,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 235,
+        "frames": 3377,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 236,
+        "frames": 3378,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 237,
+        "frames": 3379,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 238,
+        "frames": 3380,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 239,
+        "frames": 3381,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 240,
+        "frames": 3382,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 241,
+        "frames": 3383,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 242,
+        "frames": 3384,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 243,
+        "frames": 3385,
+        "enemy_active": 0,
+        "enemy_released": 0,
+        "active_slots": []
+      },
+      {
+        "callback": 244,
+        "frames": 3387,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 245,
+        "frames": 3387,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 246,
+        "frames": 3389,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 247,
+        "frames": 3389,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 248,
+        "frames": 3391,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 249,
+        "frames": 3391,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 250,
+        "frames": 3393,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 251,
+        "frames": 3393,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 252,
+        "frames": 3395,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 253,
+        "frames": 3395,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 254,
+        "frames": 3397,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 255,
+        "frames": 3397,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 256,
+        "frames": 3399,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 257,
+        "frames": 3399,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 258,
+        "frames": 3401,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 259,
+        "frames": 3401,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 260,
+        "frames": 3403,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 261,
+        "frames": 3403,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 262,
+        "frames": 3405,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 263,
+        "frames": 3405,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 264,
+        "frames": 3407,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 265,
+        "frames": 3407,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 266,
+        "frames": 3409,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 267,
+        "frames": 3409,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 268,
+        "frames": 3411,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 269,
+        "frames": 3411,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 270,
+        "frames": 3413,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 271,
+        "frames": 3413,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 272,
+        "frames": 3415,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 273,
+        "frames": 3415,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 274,
+        "frames": 3417,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 275,
+        "frames": 3417,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 276,
+        "frames": 3419,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 277,
+        "frames": 3419,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 278,
+        "frames": 3421,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 279,
+        "frames": 3421,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 280,
+        "frames": 3423,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 281,
+        "frames": 3423,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 282,
+        "frames": 3425,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 283,
+        "frames": 3425,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 284,
+        "frames": 3427,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 285,
+        "frames": 3427,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 286,
+        "frames": 3429,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 287,
+        "frames": 3429,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 288,
+        "frames": 3431,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 289,
+        "frames": 3431,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 290,
+        "frames": 3433,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 291,
+        "frames": 3433,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 292,
+        "frames": 3435,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 293,
+        "frames": 3435,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 294,
+        "frames": 3437,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 295,
+        "frames": 3437,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 296,
+        "frames": 3439,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 297,
+        "frames": 3439,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 298,
+        "frames": 3441,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 299,
+        "frames": 3441,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 300,
+        "frames": 3443,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 301,
+        "frames": 3443,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 302,
+        "frames": 3445,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 303,
+        "frames": 3445,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 304,
+        "frames": 3447,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 305,
+        "frames": 3447,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 306,
+        "frames": 3449,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 307,
+        "frames": 3449,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 308,
+        "frames": 3451,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 309,
+        "frames": 3451,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 310,
+        "frames": 3453,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 311,
+        "frames": 3453,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 312,
+        "frames": 3455,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 313,
+        "frames": 3455,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 314,
+        "frames": 3457,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 315,
+        "frames": 3457,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 316,
+        "frames": 3459,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 317,
+        "frames": 3459,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 318,
+        "frames": 3461,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 319,
+        "frames": 3461,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 320,
+        "frames": 3463,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 321,
+        "frames": 3463,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 322,
+        "frames": 3465,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 323,
+        "frames": 3465,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 324,
+        "frames": 3467,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 325,
+        "frames": 3467,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 326,
+        "frames": 3469,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 327,
+        "frames": 3469,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 328,
+        "frames": 3471,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 329,
+        "frames": 3471,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 330,
+        "frames": 3473,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 331,
+        "frames": 3473,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 332,
+        "frames": 3475,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 333,
+        "frames": 3475,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 334,
+        "frames": 3477,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 335,
+        "frames": 3477,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 336,
+        "frames": 3479,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 337,
+        "frames": 3479,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 338,
+        "frames": 3481,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 339,
+        "frames": 3481,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 340,
+        "frames": 3483,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 341,
+        "frames": 3483,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 342,
+        "frames": 3485,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 343,
+        "frames": 3485,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 344,
+        "frames": 3487,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 345,
+        "frames": 3487,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 346,
+        "frames": 3489,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 347,
+        "frames": 3489,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 348,
+        "frames": 3491,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 349,
+        "frames": 3491,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 350,
+        "frames": 3493,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 351,
+        "frames": 3493,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 352,
+        "frames": 3495,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 353,
+        "frames": 3495,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 354,
+        "frames": 3497,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 355,
+        "frames": 3497,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 356,
+        "frames": 3499,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 357,
+        "frames": 3499,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 358,
+        "frames": 3501,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 359,
+        "frames": 3501,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 360,
+        "frames": 3503,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 361,
+        "frames": 3503,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 362,
+        "frames": 3505,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 363,
+        "frames": 3505,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 364,
+        "frames": 3507,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 365,
+        "frames": 3507,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 366,
+        "frames": 3509,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 367,
+        "frames": 3509,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 368,
+        "frames": 3511,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 369,
+        "frames": 3511,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 370,
+        "frames": 3513,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 371,
+        "frames": 3513,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 372,
+        "frames": 3515,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 373,
+        "frames": 3515,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 374,
+        "frames": 3517,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 375,
+        "frames": 3517,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 376,
+        "frames": 3519,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 377,
+        "frames": 3519,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 378,
+        "frames": 3521,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 379,
+        "frames": 3521,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 380,
+        "frames": 3523,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 381,
+        "frames": 3523,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 382,
+        "frames": 3525,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 383,
+        "frames": 3525,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 384,
+        "frames": 3527,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 385,
+        "frames": 3527,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 386,
+        "frames": 3529,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 387,
+        "frames": 3529,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 388,
+        "frames": 3531,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 389,
+        "frames": 3531,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 390,
+        "frames": 3533,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 391,
+        "frames": 3533,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 392,
+        "frames": 3535,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 393,
+        "frames": 3535,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 394,
+        "frames": 3537,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 395,
+        "frames": 3537,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 396,
+        "frames": 3539,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 397,
+        "frames": 3539,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 398,
+        "frames": 3541,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 399,
+        "frames": 3541,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 400,
+        "frames": 3543,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 401,
+        "frames": 3543,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 402,
+        "frames": 3545,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 403,
+        "frames": 3545,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 404,
+        "frames": 3547,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 405,
+        "frames": 3547,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 406,
+        "frames": 3549,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 407,
+        "frames": 3549,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 408,
+        "frames": 3551,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 409,
+        "frames": 3551,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 410,
+        "frames": 3553,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 411,
+        "frames": 3553,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 412,
+        "frames": 3555,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 413,
+        "frames": 3555,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 414,
+        "frames": 3557,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 415,
+        "frames": 3557,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 416,
+        "frames": 3559,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 417,
+        "frames": 3559,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 418,
+        "frames": 3561,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 419,
+        "frames": 3561,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 420,
+        "frames": 3563,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 421,
+        "frames": 3563,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 422,
+        "frames": 3565,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 423,
+        "frames": 3565,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 424,
+        "frames": 3567,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 425,
+        "frames": 3567,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 426,
+        "frames": 3569,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 427,
+        "frames": 3569,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 428,
+        "frames": 3571,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 429,
+        "frames": 3571,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 430,
+        "frames": 3573,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 431,
+        "frames": 3573,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 432,
+        "frames": 3575,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 433,
+        "frames": 3575,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 434,
+        "frames": 3577,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 435,
+        "frames": 3577,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 436,
+        "frames": 3579,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 437,
+        "frames": 3579,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 438,
+        "frames": 3581,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 439,
+        "frames": 3581,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 440,
+        "frames": 3583,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 441,
+        "frames": 3583,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 442,
+        "frames": 3585,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 443,
+        "frames": 3585,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 444,
+        "frames": 3587,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 445,
+        "frames": 3587,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 446,
+        "frames": 3589,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 447,
+        "frames": 3589,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 448,
+        "frames": 3591,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 449,
+        "frames": 3591,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 450,
+        "frames": 3593,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 451,
+        "frames": 3593,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 452,
+        "frames": 3595,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 453,
+        "frames": 3595,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 454,
+        "frames": 3597,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 455,
+        "frames": 3597,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 456,
+        "frames": 3599,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 457,
+        "frames": 3599,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 458,
+        "frames": 3601,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 459,
+        "frames": 3601,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 460,
+        "frames": 3603,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 461,
+        "frames": 3603,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 462,
+        "frames": 3605,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 463,
+        "frames": 3605,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 464,
+        "frames": 3607,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 465,
+        "frames": 3607,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 466,
+        "frames": 3609,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 467,
+        "frames": 3609,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 468,
+        "frames": 3611,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 469,
+        "frames": 3611,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 470,
+        "frames": 3613,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 471,
+        "frames": 3613,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 472,
+        "frames": 3615,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 473,
+        "frames": 3615,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 474,
+        "frames": 3617,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 475,
+        "frames": 3617,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 476,
+        "frames": 3619,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 477,
+        "frames": 3619,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 478,
+        "frames": 3621,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 479,
+        "frames": 3621,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 480,
+        "frames": 3623,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 481,
+        "frames": 3623,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 482,
+        "frames": 3625,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 483,
+        "frames": 3625,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 484,
+        "frames": 3627,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 485,
+        "frames": 3627,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 486,
+        "frames": 3629,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 487,
+        "frames": 3629,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 488,
+        "frames": 3631,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 489,
+        "frames": 3631,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 490,
+        "frames": 3633,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 491,
+        "frames": 3633,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 492,
+        "frames": 3635,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 493,
+        "frames": 3635,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 494,
+        "frames": 3637,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 495,
+        "frames": 3637,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 496,
+        "frames": 3639,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 497,
+        "frames": 3639,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 498,
+        "frames": 3641,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 499,
+        "frames": 3641,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 500,
+        "frames": 3643,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 501,
+        "frames": 3643,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 502,
+        "frames": 3645,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 503,
+        "frames": 3645,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 504,
+        "frames": 3647,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 505,
+        "frames": 3647,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 506,
+        "frames": 3649,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 507,
+        "frames": 3649,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 508,
+        "frames": 3651,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 509,
+        "frames": 3651,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 510,
+        "frames": 3653,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 511,
+        "frames": 3653,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 512,
+        "frames": 3655,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 513,
+        "frames": 3655,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 514,
+        "frames": 3657,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 515,
+        "frames": 3657,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 516,
+        "frames": 3659,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 517,
+        "frames": 3659,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 518,
+        "frames": 3661,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 519,
+        "frames": 3661,
+        "enemy_active": 1,
+        "enemy_released": 1,
+        "active_slots": [
+          0
+        ]
+      },
+      {
+        "callback": 520,
+        "frames": 3663,
+        "enemy_active": 2,
+        "enemy_released": 2,
+        "active_slots": [
+          0,
+          1
+        ]
+      }
+    ],
+    "natural_state_before_relocation": {
+      "stage": 7,
+      "death_state": 0,
+      "enemy_active": 2,
+      "enemy_released": 2,
+      "box_timer": 3,
+      "box_index": 0,
+      "box_phase": 0,
+      "enemy_move": 0,
+      "frames": 3663,
+      "fb_sim_seq": 633,
+      "dots_left": 107,
+      "stage_pending": 0,
+      "bonus_left": 6,
+      "initial_entry_state": 0,
+      "player_cell_x": 12,
+      "player_cell_y": 18,
+      "freeze_timer": 0,
+      "rate_timer": 24,
+      "rate_bucket": 8,
+      "rate_frac": 248,
+      "rate_addend": 51,
+      "rate_phase": 1
+    },
+    "natural_active_records_before_relocation": [
+      {
+        "slot": 0,
+        "active": 97,
+        "fb": 35273,
+        "substep": 1,
+        "cell_x": 3,
+        "cell_y": 22,
+        "saved_bg_valid": 1,
+        "direction": 1,
+        "bytes_hex": "6189c90103160101"
+      },
+      {
+        "slot": 1,
+        "active": 97,
+        "fb": 22508,
+        "substep": 0,
+        "cell_x": 12,
+        "cell_y": 12,
+        "saved_bg_valid": 0,
+        "direction": 0,
+        "bytes_hex": "6157ec000c0c0000"
+      },
+      {
+        "slot": 2,
+        "active": 0,
+        "fb": 0,
+        "substep": 0,
+        "cell_x": 0,
+        "cell_y": 0,
+        "saved_bg_valid": 0,
+        "direction": 0,
+        "bytes_hex": "0000000000000000"
+      },
+      {
+        "slot": 3,
+        "active": 0,
+        "fb": 0,
+        "substep": 0,
+        "cell_x": 0,
+        "cell_y": 0,
+        "saved_bg_valid": 0,
+        "direction": 0,
+        "bytes_hex": "0000000000000000"
+      }
+    ]
+  },
+  "fixture_state": {
+    "stage": 7,
+    "death_state": 0,
+    "enemy_active": 2,
+    "enemy_released": 2,
+    "box_timer": 3,
+    "box_index": 2,
+    "box_phase": 0,
+    "enemy_move": 0,
+    "frames": 3669,
+    "fb_sim_seq": 636,
+    "dots_left": 107,
+    "stage_pending": 0,
+    "bonus_left": 6,
+    "initial_entry_state": 0,
+    "player_cell_x": 12,
+    "player_cell_y": 18,
+    "freeze_timer": 2,
+    "rate_timer": 18,
+    "rate_bucket": 8,
+    "rate_frac": 248,
+    "rate_addend": 51,
+    "rate_phase": 1
+  },
+  "fixture_records": [
+    {
+      "slot": 0,
+      "active": 97,
+      "fb": 12244,
+      "substep": 0,
+      "cell_x": 6,
+      "cell_y": 4,
+      "saved_bg_valid": 1,
+      "direction": 3,
+      "bytes_hex": "612fd40006040103"
+    },
+    {
+      "slot": 1,
+      "active": 97,
+      "fb": 22468,
+      "substep": 0,
+      "cell_x": 2,
+      "cell_y": 12,
+      "saved_bg_valid": 1,
+      "direction": 1,
+      "bytes_hex": "6157c400020c0101"
+    },
+    {
+      "slot": 2,
+      "active": 0,
+      "fb": 0,
+      "substep": 0,
+      "cell_x": 0,
+      "cell_y": 0,
+      "saved_bg_valid": 0,
+      "direction": 0,
+      "bytes_hex": "0000000000000000"
+    },
+    {
+      "slot": 3,
+      "active": 0,
+      "fb": 0,
+      "substep": 0,
+      "cell_x": 0,
+      "cell_y": 0,
+      "saved_bg_valid": 0,
+      "direction": 0,
+      "bytes_hex": "0000000000000000"
+    }
+  ],
+  "fixture_active_counts": {
+    "active": 2,
+    "released": 2
+  },
+  "fixture_cell_path": [
+    [
+      6,
+      4
+    ],
+    [
+      5,
+      4
+    ],
+    [
+      4,
+      4
+    ]
+  ],
+  "concurrent_actor": {
+    "slot": 1,
+    "active": 97,
+    "fb": 22468,
+    "substep": 0,
+    "cell_x": 2,
+    "cell_y": 12,
+    "saved_bg_valid": 1,
+    "direction": 1,
+    "bytes_hex": "6157c400020c0101"
+  },
+  "owner_hydration_callbacks": [
+    {
+      "callback": 1,
+      "frames": 3663,
+      "fb_sim_seq": 633,
+      "freeze_timer": 7,
+      "front_owner": 0
+    },
+    {
+      "callback": 2,
+      "frames": 3665,
+      "fb_sim_seq": 634,
+      "freeze_timer": 6,
+      "front_owner": 1
+    },
+    {
+      "callback": 3,
+      "frames": 3665,
+      "fb_sim_seq": 634,
+      "freeze_timer": 5,
+      "front_owner": 1
+    },
+    {
+      "callback": 4,
+      "frames": 3667,
+      "fb_sim_seq": 635,
+      "freeze_timer": 4,
+      "front_owner": 0
+    },
+    {
+      "callback": 5,
+      "frames": 3667,
+      "fb_sim_seq": 635,
+      "freeze_timer": 3,
+      "front_owner": 0
+    },
+    {
+      "callback": 6,
+      "frames": 3669,
+      "fb_sim_seq": 636,
+      "freeze_timer": 2,
+      "front_owner": 1
+    }
+  ],
+  "owner_sequence": [
+    0,
+    0,
+    1,
+    1,
+    0,
+    0,
+    1
+  ],
+  "both_owner_pixels_at_fixture": {
+    "slot0_at_6_4": [
+      {
+        "owner": 0,
+        "pointer": "$2FD4",
+        "pixel_bytes": 64,
+        "pixel_sha256": "0a34a7cd0328081c9a75d6dae94454c6652ffc176ca30bf38a8a611ce0561ab5",
+        "pixel_nonzero": true
+      },
+      {
+        "owner": 1,
+        "pointer": "$2FD4",
+        "pixel_bytes": 64,
+        "pixel_sha256": "0a34a7cd0328081c9a75d6dae94454c6652ffc176ca30bf38a8a611ce0561ab5",
+        "pixel_nonzero": true
+      }
+    ],
+    "slot1_at_2_12": [
+      {
+        "owner": 0,
+        "pointer": "$57C4",
+        "pixel_bytes": 64,
+        "pixel_sha256": "fa848cc2b992e9872f3b2c97ad6cd577047e55c24d66d596581ca521eebff940",
+        "pixel_nonzero": true
+      },
+      {
+        "owner": 1,
+        "pointer": "$57C4",
+        "pixel_bytes": 64,
+        "pixel_sha256": "fa848cc2b992e9872f3b2c97ad6cd577047e55c24d66d596581ca521eebff940",
+        "pixel_nonzero": true
+      }
+    ]
+  },
+  "front_pixel_crosscheck": {
+    "owner": 1,
+    "gime_voff1_shadow": 176,
+    "pointer": 12244,
+    "pixel_bytes": 64,
+    "pixel_sha256": "0a34a7cd0328081c9a75d6dae94454c6652ffc176ca30bf38a8a611ce0561ab5",
+    "pixel_nonzero": true
+  },
+  "front_gime_identity": {
+    "front_owner": 1,
+    "gime_ff9d_shadow": 176
+  },
+  "monitor_audit": {
+    "monitor_call_count": 4266,
+    "monitor_call_ledger_sha256": "9cb13f50519115e0bbad52c7d3473ef8fddcc816f854f6c92766ba29049d43b7",
+    "last_monitor_calls": [
+      {
+        "request_id": 4259,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 364500,
+          "length": 2404
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4259,
+          "result": {
+            "space": "physical",
+            "addr": 364500,
+            "length": 2404,
+            "data": {
+              "bytes": 2404,
+              "sha256": "e2c38c89c8d6b178089fd34c4bf75398444cd88033db46abace4a7b0289930fa"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000296
+      },
+      {
+        "request_id": 4260,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 407492,
+          "length": 2108
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4260,
+          "result": {
+            "space": "physical",
+            "addr": 407492,
+            "length": 2108,
+            "data": {
+              "bytes": 2108,
+              "sha256": "fb3553b1ec65fa25fd5fe5664bd769625c8b51af4ea167fab2dd52040fdbac02"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000275
+      },
+      {
+        "request_id": 4261,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 409600,
+          "length": 296
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4261,
+          "result": {
+            "space": "physical",
+            "addr": 409600,
+            "length": 296,
+            "data": {
+              "bytes": 296,
+              "sha256": "fac181d01760ce2ee7d4352a640862c28e45c3daa91e597cdd544301493806c2"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000275
+      },
+      {
+        "request_id": 4262,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 374724,
+          "length": 2108
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4262,
+          "result": {
+            "space": "physical",
+            "addr": 374724,
+            "length": 2108,
+            "data": {
+              "bytes": 2108,
+              "sha256": "fb3553b1ec65fa25fd5fe5664bd769625c8b51af4ea167fab2dd52040fdbac02"
+            }
+          }
+        },
+        "elapsed_seconds": 0.00029
+      },
+      {
+        "request_id": 4263,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 376832,
+          "length": 296
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4263,
+          "result": {
+            "space": "physical",
+            "addr": 376832,
+            "length": 296,
+            "data": {
+              "bytes": 296,
+              "sha256": "fac181d01760ce2ee7d4352a640862c28e45c3daa91e597cdd544301493806c2"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000262
+      },
+      {
+        "request_id": 4264,
+        "method": "read_memory",
+        "params": {
+          "addr": 143,
+          "length": 1
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4264,
+          "result": {
+            "space": "cpu",
+            "addr": 143,
+            "length": 1,
+            "data": {
+              "bytes": 1,
+              "sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000251
+      },
+      {
+        "request_id": 4265,
+        "method": "read_gime_state",
+        "params": null,
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4265,
+          "result": {
+            "registers": {
+              "FF90": 104,
+              "FF91": 0,
+              "FF92": 8,
+              "FF93": 0,
+              "FF94": 255,
+              "FF95": 255,
+              "FF96": 0,
+              "FF97": 0,
+              "FF98": 128,
+              "FF99": 30,
+              "FF9A": 0,
+              "FF9B": 0,
+              "FF9C": 15,
+              "FF9D": 176,
+              "FF9E": 0,
+              "FF9F": 0
+            },
+            "pars": {
+              "task0": [
+                56,
+                44,
+                45,
+                46,
+                47,
+                52,
+                62,
+                63
+              ],
+              "task1": [
+                56,
+                48,
+                49,
+                50,
+                51,
+                61,
+                53,
+                63
+              ]
+            },
+            "palette": [
+              0,
+              38,
+              54,
+              25,
+              61,
+              23,
+              63,
+              56,
+              58,
+              57,
+              18,
+              59,
+              36,
+              52,
+              0,
+              0
+            ],
+            "mmu_task": 0,
+            "coco": false,
+            "mmuen": true,
+            "mc3": true,
+            "ty": true
+          }
+        },
+        "elapsed_seconds": 0.000214
+      },
+      {
+        "request_id": 4266,
+        "method": "read_memory",
+        "params": {
+          "space": "physical",
+          "addr": 364500,
+          "length": 2404
+        },
+        "outcome": "ok",
+        "error": null,
+        "response_envelope": {
+          "jsonrpc": "2.0",
+          "id": 4266,
+          "result": {
+            "space": "physical",
+            "addr": 364500,
+            "length": 2404,
+            "data": {
+              "bytes": 2404,
+              "sha256": "e2c38c89c8d6b178089fd34c4bf75398444cd88033db46abace4a7b0289930fa"
+            }
+          }
+        },
+        "elapsed_seconds": 0.000288
+      }
+    ]
+  },
+  "process_supervision": {
+    "emulator_pid": 24114,
+    "emulator_returncode_during_phase": null,
+    "emulator_alive_after_phase": true,
+    "monitor_port": 18407,
+    "phase_limit_seconds": 45,
+    "child_watch": {
+      "child_pid": 24122,
+      "child_returncode": 0,
+      "watch_status": "completed",
+      "elapsed_seconds": 9.320226,
+      "stdout_stderr_tail": "550000000600000044000000060000004400000006000000550033033333300044000000060000000000000006000000440000000600000044066660000000000111111100111110011111100000000000000000000000000000000002222222070000000077077000007000070000770077077000000000000000000006666044000000b0b0000044000000b0b0000000000c2222c0000c44000000b0b0000055000000b0b0000044000000b0b0000044000000b0b00000550003000003000044000000b0b0000000000000b0b0000044000000b0b00000440666600000000000001000011000110100001100000000000000000000000000000000022222220777770000007700000070000700007707700077000000000000000000066660440000000000000044000000000000000000cc2002c500554400000000000000550000000000000044000000000000004400000000000000550003333333000044000000000000000000000000000000440000000000000044066660000000000000100001000001010000110000000000000000000000000000000002222222070000000007700000007000077777700700000700000000000000000006666044000000000000004400000000000000000ccc2002c5c5c544000000000000005500000000000000440000000000000044000000000000005500000333000000440000000000000000000000000000004400000000000000440666600000000000001000010000010111111000000000000000000000000000000000022222220700000000770770000070000700070007777777000000000000000000066660440000000000000044000000000000000000cc222cc5c5c0440000000000000055000000000000004400000000000000440000000000000055000000000000004400000000000000000000000000000044000000000000004406666000000000000010000110001101000000000000000000000000000000000000000222222207777777077000770000700007000777070000070000000000000000000666604400000000000000440000000000000000000cccccc5c50044000000000000005500000000000000440000000000000044000000000000005500000000000000440000000000000000000000000000004400000000000000440666600000000000001000001111100100000000000000000000000000000000000000022222220000000000000000000000000000000000000000000000000000000000066660440000000000000044000000000000000000000000000000440000000000000099000000000000004400000000000000440000000000000099000000000000004400000000000000000000000000000044000000000000004406666000000000000000000000000000000000000000000000000000000000000000000222222222222222222222222222222222222222222222222222222222222222000000004400000000000000444444444444444444000000\"\n          }\n        },\n        \"elapsed_seconds\": 0.000288\n      }\n    ],\n    \"last_marker_event\": {\n      \"run_request_id\": 4247,\n      \"run_acknowledgement\": {\n        \"ok\": true\n      },\n      \"wait_receipt\": {\n        \"request_id\": 4248,\n        \"method\": \"wait_for_stop\",\n        \"params\": {\n          \"timeout_ms\": 4000\n        },\n        \"outcome\": \"ok\",\n        \"error\": null,\n        \"response_envelope\": {\n          \"jsonrpc\": \"2.0\",\n          \"id\": 4248,\n          \"result\": {\n            \"reason\": \"breakpoint\",\n            \"pc\": 2187,\n            \"bp_id\": 45\n          }\n        },\n        \"elapsed_seconds\": 0.016439\n      },\n      \"classification\": {\n        \"status\": \"breakpoint\",\n        \"marker\": true,\n        \"bp_id\": 45,\n        \"pc\": 2187\n      }\n    }\n  }\n}\n"
+    }
+  }
+}
