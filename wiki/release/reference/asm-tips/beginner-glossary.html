@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beginner Glossary: Assembly and Cartridge Terms — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">← Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly programming tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Reference · starting point</p>
+      <h1>Beginner Glossary: Assembly and Cartridge Terms <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">
+        Plain-language definitions for reading 6809 assembly, build settings,
+        graphics data, and CoCo 3 cartridge code.
+      </p>
+    </header>
+
+    <section>
+      <h2>The big picture</h2>
+      <p>
+        A programmer writes source text. The assembler reads that text and the
+        selected build settings, then translates the chosen instructions into
+        machine-code bytes for the cartridge image. Later, the CoCo 3 reads
+        and executes those bytes. The assembler prepares the game; it does not
+        run the game.
+      </p>
+    </section>
+
+    <section>
+      <h2>Computer, cartridge, and addresses</h2>
+      <ul>
+        <li><strong>Tandy Color Computer 3 (CoCo 3):</strong> the computer that runs this game. Its central processing unit (CPU), or processor, executes 6809 instructions.</li>
+        <li><strong>6809:</strong> the processor family and instruction set used by the CoCo 3. An <em>instruction</em> is one operation for the processor to perform. Assembly mnemonics such as <code>JSR</code> name these operations.</li>
+        <li><strong>GMC:</strong> Game Master Cartridge, the cartridge used by this project. A cartridge can hold more code and data than the computer can expose at once by dividing it into <em>banks</em>.</li>
+        <li><strong>Bank:</strong> one selectable part of cartridge memory. Selecting a bank makes that part available in the cartridge's address window: the range of addresses the computer uses to access cartridge content.</li>
+        <li><strong>ROM:</strong> read-only memory. A <em>ROM image</em> is the built file containing the bytes intended for the cartridge; it holds the game's code and data.</li>
+        <li><strong>Address:</strong> a number the processor uses to select a memory location or hardware destination. The range of numbers it can use is its <em>address space</em>. A leading dollar sign means the number is hexadecimal, or base 16: <code>$FF40</code> is an example.</li>
+        <li><strong>Processor register:</strong> a small storage location inside the CPU, such as its A or B register, used while instructions calculate or move values. This is different from a hardware register.</li>
+        <li><strong>Hardware register:</strong> a special address used to control or communicate with a device. When a register is <em>memory-mapped</em>, the processor reaches it using an address, but a read or write talks to hardware instead of ordinary RAM. The GMC documentation identifies <code>$FF40</code> as its write-only bank-select register: software writes a bank choice there and cannot read that register back to discover the choice.</li>
+      </ul>
+      <p>
+        See the <a href="../coco3/memory-map.html">CoCo 3 memory map</a> and
+        <a href="../coco3/cartridge.html">cartridge connector</a>. The
+        <a href="https://docs.google.com/document/d/17JzrNqIHZaFmtHEeFSevpkJtbWOn2-2EjxMB2cQlxsY/edit?tab=t.0">GMC programming notes</a>
+        are the source for the <code>$FF40</code> register description.
+      </p>
+    </section>
+
+    <section>
+      <h2>Source code and assembly</h2>
+      <ul>
+        <li><strong>Source file:</strong> the human-written text that describes a program. Ladybug's 6809 assembly source includes files such as <code>src/main.s</code>.</li>
+        <li><strong>Assembly language:</strong> short names called <em>mnemonics</em> that describe processor instructions, plus directives for the assembler. For example, <code>JSR</code> is a mnemonic. Directives guide the assembler and are not instructions executed by the CoCo's processor.</li>
+        <li><strong>Assembler and machine code:</strong> an assembler translates assembly source into machine code: the bytes representing instructions and data that the processor can execute or use. Ladybug uses <code>lwasm</code>, part of LWTOOLS. <em>Assembling</em> is the translation step and happens before the game runs.</li>
+        <li><strong>Label and symbol:</strong> a name attached to a location or value in the assembled program. A call that names a label lets the assembler calculate where the target code is. An <em>undefined symbol</em> error means the selected source did not provide a definition for a name that was referenced.</li>
+        <li><strong>Subroutine:</strong> a reusable block of instructions. “Helper” is an informal name for a small subroutine that performs one task.</li>
+        <li><strong><code>JSR</code> and <code>RTS</code>:</strong> 6809 instructions for calling and returning from a subroutine. <code>JSR life_marker_position</code> calls code with that label; <code>RTS</code> returns to the instruction after the call. Read the <a href="../6809/jsr.html">JSR</a> and <a href="../6809/rts.html">RTS</a> pages for their processor-level details.</li>
+        <li><strong>Include file:</strong> another source file inserted by an assembler directive such as <code>INCLUDE</code>. The assembler processes its contents as part of the current build; the running game does not open the file.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Build settings and runtime</h2>
+      <ul>
+        <li><strong>Build profile:</strong> a named set of build settings that selects which code and data are assembled into an image. Ladybug's <code>COMPLETE_PROFILE</code> setting controls complete-profile source blocks. Here, <code>HST</code> is shorthand for the project's <code>highscore-test</code> profile; the build system uses the full name. A profile is a build choice, not a processor mode or a game screen.</li>
+        <li><strong>Compile-time conditional:</strong> an assembler directive that includes or skips source text while assembling. LWASM's <code>IFNE value</code> includes the following text when the value is nonzero; <code>IFEQ value</code> includes it when the value is zero; <code>ELSE</code> selects the other branch; <code>ENDC</code> closes the conditional.</li>
+        <li><strong>Runtime:</strong> the period after the finished image starts executing on the CoCo 3. An <em>emulator</em> is a program that imitates another computer so its software can run on the current computer. A <em>code path</em> is the sequence of instructions the game follows for one situation.</li>
+      </ul>
+      <p>
+        A historical source example shows why assembly-time and runtime are
+        different. These excerpts come from separate areas of
+        <a href="https://github.com/Rastamafugg/ladybug/blob/1893399155b2fb75a0f4ab437106ec82066d37a1/src/main.s"><code>src/main.s</code></a>
+        and
+        <a href="https://github.com/Rastamafugg/ladybug/blob/1893399155b2fb75a0f4ab437106ec82066d37a1/src/shared_text_runtime.inc"><code>src/shared_text_runtime.inc</code></a>
+        at the source revision when BUG-114 was first reproduced:
+      </p>
+<pre><code>; A call site uses the label life_marker_position.
+marker_entry_begin
+        jsr     life_marker_position
+
+; Elsewhere, this file supplies the label for the complete profile.
+        ifne    COMPLETE_PROFILE
+        include "shared_text_runtime.inc"
+        endc
+</code></pre>
+      <p>
+        At that revision, the <code>highscore-test</code> build set
+        <code>COMPLETE_PROFILE</code> to zero, so the conditional skipped the
+        include. The call still remained in the source selected for assembly.
+        The assembler needed to find <code>life_marker_position</code> and
+        assign it an address, but no selected source defined that label. It
+        stopped with an undefined-symbol error while building the image; the
+        CoCo had not tried to run the subroutine. BUG-114 later resolved this
+        by excluding the unused live marker-entry code from HST. The
+        <a href="../../../../src/main.s">current <code>src/main.s</code></a>
+        has that profile guard. The
+        <a href="https://www.lwtools.ca/manual/manual.html">LWTOOLS manual</a>
+        documents the <code>INCLUDE</code> and conditional directives.
+        The <a href="../../../../scripts/build.sh">build script</a> selects
+        the <code>highscore-test</code> profile and sets
+        <code>COMPLETE_PROFILE</code> to zero for that build.
+      </p>
+      <p>
+        In the routine name <code>life_marker_position</code>, “life marker”
+        means a life icon in the game's HUD. That differs from a “high-score
+        marker” in a test report, which means a recognizable screen used to
+        confirm that a test reached the high-score state.
+      </p>
+    </section>
+
+    <section>
+      <h2>Graphics data</h2>
+      <ul>
+        <li><strong>Byte:</strong> a group of eight binary digits, called bits. Each bit is either 0 or 1; together the eight bits can represent 256 different values.</li>
+        <li><strong>Tile:</strong> a small rectangular graphic reused to build a screen.</li>
+        <li><strong>Tile atlas:</strong> a collection of unique tiles. A <em>tile ID</em> is the number used to refer to one tile in that collection.</li>
+        <li><strong>One-byte tile ID:</strong> a tile number stored in one byte can hold values 0 through 255, or 256 distinct values. An atlas that needs 257 distinct IDs exceeds that limit.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>
+        This page introduces terms used throughout the
+        <a href="../6809/index.html">6809 instruction reference</a>,
+        <a href="../coco3/index.html">CoCo 3 hardware reference</a>, and
+        Ladybug source. Begin with the
+        <a href="./index.html">assembly programming tips</a> for practical
+        examples. The source example above was reviewed at revision
+        <code>1893399155b2fb75a0f4ab437106ec82066d37a1</code>.
+      </p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
