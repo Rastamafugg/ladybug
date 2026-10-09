@@ -1,0 +1,14 @@
+phase=GMC-cold-boot marker=mainloop deadline=10s; timeout=boot boundary not reached
+phase=natural-demo-install marker=$19CB deadline=10s; timeout=phase boundary not reached
+phase=natural-demo-execution marker=$0300 deadline=10s; timeout=phase boundary not reached
+phase=credit-preempts-demo marker=$1A30 deadline=10s; timeout=phase boundary not reached
+phase=ranking-load-started marker=$C116 deadline=10s; timeout=phase boundary not reached
+phase=start-preempts-ranking-load marker=$1A30 deadline=10s; timeout=phase boundary not reached
+Traceback (most recent call last):
+  File "/mnt/e/projects/ladybug/repro/feat007/gmc_boot_probe.py", line 49, in <module>
+    reach('start-preempts-ranking-load',pres['start_screen'])
+  File "/mnt/e/projects/ladybug/repro/feat007/gmc_boot_probe.py", line 34, in reach
+    try:assert b.run_to_breakpoint(client,10)['pc']==address
+  File "/mnt/e/projects/ladybug/scripts/benchmark_6309.py", line 126, in run_to_breakpoint
+    raise TimeoutError("monitor did not halt before the benchmark deadline")
+TimeoutError: monitor did not halt before the benchmark deadline

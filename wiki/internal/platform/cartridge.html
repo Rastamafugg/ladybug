@@ -49,15 +49,13 @@
         <strong>Decision (2026-07-19): four-bank 64 K GMC cartridge for development.</strong>
       </p>
       <p>The former 16 K direct-ROM image remains the runtime payload in bank 1. Bank 0 contains the low-RAM bootstrap at offsets <code>$0000-$07FF</code> and a fixed overflow source pool at <code>$0800-$3DFF</code>; banks 2 and 3 remain the primary expansion sources. The BUG-113 candidate selects banks through the GMC primary register at <code>$FF40</code>, copies manifest-described payloads from banks 2, 3, and 0, copies bank 1 into physical pages <code>$3E/$3F</code>, switches TY to all-RAM mode, and enters the unchanged virtual runtime. This avoids gameplay-time bank switching. The complete-profile build and audio proof pass; current runtime verification remains open.</p>
-      <p><code>scripts/build.sh verify-gmc</code> is the existing check for both expansion-bank signatures, a bank-0 source copy into always-mapped low RAM, bank-1 selection, the TY=1 handoff, and repeated relocated main-loop execution under XRoar 1.10. The current BUG-113 command stops at the separate FEAT-007 static font/descriptor fixture before XRoar. A focused startup attempt stops at a missing enemy-map symbol in its static preflight. XRoar dispatches GMC banking by even SCS parity and cannot distinguish <code>$FF40</code> from <code>$FF50</code>; the paired MAME marker provides the address discriminator. Physical GMC-compatible hardware remains unverified.</p>
+      <p><code>scripts/build.sh verify-gmc</code> is the existing check for both expansion-bank signatures, a bank-0 source copy into always-mapped low RAM, bank-1 selection, the TY=1 handoff, and repeated relocated main-loop execution under XRoar 1.10. The FEAT-007 static fixture and adaptive enemy-map preflight are repaired. The focused startup check now passes loader handoff, exact bank-1 RAM, resident startup, and audio-page identity. The full complete-profile verifier reaches XRoar but times out after 10 seconds before its ranking-load start-pre-emption marker; <a href="../tickets/bug-115-ranking-load-start-preemption.html">BUG-115</a> tracks that unresolved boundary. XRoar dispatches GMC banking by even SCS parity and cannot distinguish <code>$FF40</code> from <code>$FF50</code>; the paired MAME marker provides the address discriminator. Physical GMC-compatible hardware remains unverified.</p>
       <p>
         The ingested <a href="../sources/gmc-programming.html">GMC programming guide</a>
         agrees with the 64 K maximum and almost-16 K bank windows. It names the
         primary bank register as <code>$FF40</code>. BUG-113 aligns Ladybug's
         bootstrap with that address. The paired MAME high-score marker passes.
-        The complete-profile build and audio proof pass. Its broad verifier
-        currently stops at the separate FEAT-007 static fixture before XRoar;
-        the focused startup verifier also stops at a static enemy-map preflight.
+        The complete-profile build, audio proof, and FEAT-007 static fixture pass. The focused startup XRoar check passes; the broad verifier reaches XRoar but times out at the later ranking-load start-pre-emption phase, tracked by <a href="../tickets/bug-115-ranking-load-start-preemption.html">BUG-115</a>.
         XRoar's even-parity decoder cannot distinguish <code>$FF40</code> from
         <code>$FF50</code>; the paired MAME marker is the address discriminator.
         See <a href="../tickets/bug-113-gmc-bank-select-address.html">BUG-113</a>

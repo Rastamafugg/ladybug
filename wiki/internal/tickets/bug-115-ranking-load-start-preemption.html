@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-115 — Ranking-load start pre-emption timeout — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · bug</p>
+      <h1>BUG-115 — Ranking-load start pre-emption timeout <span class="wiki-badge">Proposed</span></h1>
+      <p class="wiki-meta">Diagnose the missing complete-profile start-screen marker after a Start scan-code press during ranking load.</p>
+    </header>
+
+    <section>
+      <h2>Identity and ordering</h2>
+      <ul>
+        <li><strong>Status:</strong> Proposed; cause is unconfirmed and no gameplay behavior change is authorized.</li>
+        <li><strong>Created / updated:</strong> 2026-10-09 / 2026-10-09</li>
+        <li><strong>Priority / order:</strong> P1 / 15.31; follow-up to the complete-profile XRoar run under <a href="./bug-113-gmc-bank-select-address.html">BUG-113</a>.</li>
+        <li><strong>Owner:</strong> unassigned</li>
+        <li><strong>Dependencies:</strong> BUG-113's current FEAT-007 static and focused GMC startup preflights pass. Approval of this diagnosis is required before code changes.</li>
+        <li><strong>Bug risk class:</strong> High-risk because the scenario crosses ranking-load and start-screen/gameplay handoffs and the runtime cause is unresolved.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Determine why the complete-profile XRoar probe fails to observe the start-screen marker after a Start scan-code press while ranking data is loading. The full <code>verify-gmc</code> command now reaches XRoar after its repaired static gates, but this later FEAT-007 phase exits before completing runtime verification.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>At revision <code>3475553b69604fda0035779dd548a209b3720888</code>, the current complete ROM is 65,536 bytes with SHA-256 <code>3794d6feac156514f1dcf97ca0f83f5b0dfeba6561cfb93be38a586f2938d161</code>. In <code>LADYBUG_PROFILE=complete bash scripts/build.sh verify-gmc</code>, the <code>gmc_boot_probe.py --production --handoffs --focused</code> phase reached <code>ranking-load-started</code> at the main loop address <code>$C116</code>. After the harness injected scan code <code>0x01</code> (CoCo key 1) as a press, it did not observe <code>start-preempts-ranking-load</code> at <code>$1A30</code> within 10 seconds. The retained log is <a href="evidence/bug113/bug113-feat007-start-preemption-20261009.log">bug113-feat007-start-preemption-20261009.log</a>, SHA-256 <code>2c9ae74ce9d15beddb802dab7fed32fb6cb6dd6e603c33688b2fc2a36358ded5</code>; the summary receipt is <a href="evidence/bug113/bug113-complete-runtime-20261009.json">bug113-complete-runtime-20261009.json</a>.</p>
+      <p><strong>Observed:</strong> loader/install/demo/credit/ranking-load markers precede the timeout. <strong>Expected:</strong> the configured Start action pre-empts ranking load, requests the level screen, and reaches <code>start_screen</code> with the expected mode within the existing 10-second phase. The timeout only means that marker was not observed before the deadline; it does not prove slowness or identify the cause. Whether the input fixture, event timing, observer path, or runtime flow is responsible remains unconfirmed.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> compare the current built and staged code at the last proven boundaries; inspect the injected scan-code transition, input consumer, start request, and screen publication; correct the FEAT-007 probe only if the current user-visible contract already passes. <strong>Out:</strong> changing gameplay, input mapping, ranking behavior, presentation ownership, deadlines, XRoar source/configuration, or production assembly without a confirmed cause and renewed approval.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li><strong>Ranking-load pre-emption:</strong> a Start press arrives after <code>ranking-load-started</code>. Risk covered: pending ranking work does not yield to the start request.</li>
+        <li><strong>Input delivery:</strong> distinguish the requested CoCo scan-code state from the game accepting that key edge. Risk covered: emulator or probe input mechanics.</li>
+        <li><strong>Observer boundary:</strong> capture the first input-consumer, start-request, or publication marker reached. Risk covered: a missing final marker caused by probe observation mechanics rather than game flow.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <p>Recommended: use one bounded monitor phase to compare built/live code identity and trace the input-to-screen sequence. Do not extend the 10-second deadline or modify production behavior during diagnosis. If the probe uses an incorrect input contract, repair only the fixture. If current gameplay behavior is defective, stop and prepare a separate behavior proposal.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>The diagnosis identifies the first missing boundary among input delivery, game acceptance, start request, and screen publication using current artifact identity.</li>
+        <li>If production behavior is correct, the repaired probe reaches <code>start_screen</code> within 10 seconds and confirms the expected start mode, then completes its approved live-gameplay boundary.</li>
+        <li>If production behavior is defective, retain the measured failure and submit a separate scoped repair proposal; do not claim this ticket fixed gameplay.</li>
+        <li>Rerun the complete-profile XRoar verifier and retain exact ROM hash, markers, timeout meaning, and any rejected experiment.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Approved objective and non-goals:</strong> pending user approval; diagnosis first, no production behavior change without a separate approved contract.</li>
+        <li><strong>Owned artifacts:</strong> likely <code>repro/feat007/gmc_boot_probe.py</code> and its evidence; <code>scripts/benchmark_6309.py</code> and production input/presentation sources remain read-only unless evidence requires a new proposal.</li>
+        <li><strong>Verification phase:</strong> begin at the already reached <code>ranking-load-started</code> boundary, name each sub-marker, and keep the input-to-screen phase at 10 seconds. Timeout means the named marker was not observed in that interval, not that the code is slow.</li>
+        <li><strong>Constraints:</strong> prove source, staged, and live bytes before interpreting any symbol or PC. Do not raise deadlines, change input mappings, or alter runtime behavior as part of an unconfirmed diagnosis.</li>
+        <li><strong>Commit:</strong> one bounded verifier-only commit if the confirmed cause is probe mechanics; production behavior requires renewed approval.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-10-09 — Created after the complete-profile XRoar run passed all static gates and failed to observe <code>start-preempts-ranking-load</code> within 10 seconds. Cause remains unconfirmed. No runtime behavior changed; awaiting approval.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "ticket": "BUG-113",
+  "date": "2026-10-09",
+  "revision": "3475553b69604fda0035779dd548a209b3720888",
+  "rom_sha256": "3794d6feac156514f1dcf97ca0f83f5b0dfeba6561cfb93be38a586f2938d161",
+  "complete_verify_gmc": {
+    "failure_log": "bug113-feat007-start-preemption-20261009.log",
+    "runtime_status": "fail",
+    "static_coverage_records": 722,
+    "missing_marker": "start-preempts-ranking-load at $1A30",
+    "last_proven_marker": "ranking-load-started at mainloop $C116",
+    "failure": "monitor did not halt before the benchmark deadline",
+    "static_pixel_screens": 9,
+    "failure_log_sha256": "2c9ae74ce9d15beddb802dab7fed32fb6cb6dd6e603c33688b2fc2a36358ded5",
+    "deadline_seconds": 10,
+    "timeout_meaning": "Start-screen marker was not observed within the phase deadline; cause and target speed are not established.",
+    "command": "LADYBUG_PROFILE=complete bash scripts/build.sh verify-gmc",
+    "static_pixel_differences": 0,
+    "runtime_probe": "gmc_boot_probe.py --production --handoffs --focused",
+    "coverage_screens": [
+      "attract",
+      "instructions",
+      "level-start",
+      "high-score",
+      "game-over",
+      "enter-high-score",
+      "options",
+      "credits",
+      "keybind-options",
+      "gameplay"
+    ],
+    "build_and_static": "pass",
+    "authored_instruction_tiles": 41
+  },
+  "focused_gmc_startup": {
+    "audio_page_exact": true,
+    "bank1_ram_exact": true,
+    "loader_handoff": true,
+    "loader_timeout_seconds": 10,
+    "resident_timeout_seconds": 10,
+    "command": "python3 scripts/verify_gmc_boot.py --rom build/ladybug.rom --map build/ladybug.map --manifest build/ladybug-sparse-layout.json --startup-only",
+    "status": "pass",
+    "resident_startup": true
+  },
+  "xroar_bank_address_limit": "XRoar models even SCS bank-select addresses by parity and does not distinguish $FF40 from $FF50.",
+  "physical_hardware": "unverified"
+}

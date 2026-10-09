@@ -24,7 +24,6 @@ RESIDENT_STARTUP_PHASE_SECONDS = 10
 NATURAL_PHASE_SECONDS = 10
 FORCED_GAMEPLAY_SECONDS = 20
 FORCED_DEMO_SECONDS = 10
-FORCED_GAMEPLAY_MASK = 0x3F
 
 
 def map_symbol(map_text: str, name: str) -> str:
@@ -195,22 +194,34 @@ def main() -> None:
             "gmc proof: presentation module at $1900 does not begin with "
             f"the expected profile entry opcode ${expected_entry_opcode:02X}"
         )
-    damage_symbols = {}
-    for name in (
-        "actor_closure_restore",
-        "actor_closure_draw",
-        "framebuffer_queue_damage",
-        "framebuffer_project_damage",
-        "sparse_blit_fb",
-        "sparse_blit_stage",
-        "fbiq_publish",
-    ):
-        symbol = re.search(
-            rf"^Symbol: {name} .* = ([0-9A-Fa-f]+)$", enemy_map, re.MULTILINE
-        )
-        if not symbol:
-            raise SystemExit(f"gmc proof: {name} missing from enemy map")
-        damage_symbols[name] = symbol.group(1).lower()
+    # Queue/project routines belong to the legacy persistent renderer. The
+    # adaptive path dispatches through AD_RENDER_EXEC and uses active closure
+    # and sparse-decoder entries instead.
+    adaptive_rendering = int(map_symbol(enemy_map, "ADAPTIVE_RENDERING"), 16) != 0
+    if adaptive_rendering:
+        breakpoint_specs = [
+            ("actor_closure_restore", 0x01),
+            ("sparse_blit_stage", 0x02),
+            ("actor_closure_draw", 0x04),
+            ("sparse_blit_fb", 0x08),
+        ]
+    else:
+        breakpoint_specs = [
+            ("actor_closure_restore", 0x01),
+            ("framebuffer_queue_damage", 0x02),
+            ("framebuffer_project_damage", 0x04),
+            ("sparse_blit_stage", 0x08),
+            ("actor_closure_draw", 0x10),
+            ("sparse_blit_fb", 0x20),
+        ]
+    damage_symbols = {
+        name: map_symbol(enemy_map, name)
+        for name, _bit in breakpoint_specs
+    }
+    damage_symbols["fbiq_publish"] = map_symbol(enemy_map, "fbiq_publish")
+    forced_gameplay_mask = 0
+    for _name, bit in breakpoint_specs:
+        forced_gameplay_mask |= bit
     if "sta     SAM_FAST" not in main_source or "SAM_FAST   equ  $FFD9" not in main_source:
         raise SystemExit("gmc proof: resident fast-clock selection missing")
     if "sta     SAM_FAST" not in loader_source or "SAM_FAST    equ $FFD9" not in loader_source:
@@ -253,7 +264,8 @@ def main() -> None:
     bank_write_positions = []
     cursor = loader_start
     while True:
-        cursor = boot.find(bytes((0xB7, 0xFF, 0x50)), cursor)
+        # GMC's documented primary bank-select register is $FF40.
+        cursor = boot.find(bytes((0xB7, 0xFF, 0x40)), cursor)
         if cursor < 0:
             break
         bank_write_positions.append(0x0300 + cursor - loader_start)
@@ -366,6 +378,8 @@ def main() -> None:
         args.loader_timeout,
         args.resident_timeout,
         args.forced_timeout,
+        breakpoint_specs,
+        forced_gameplay_mask,
     )
     demo_text = "DEVELOPMENT_PROFILE_DEMO_BYPASSED"
     if runtime_role == "release":
@@ -388,8 +402,6 @@ def main() -> None:
         "forced resident startup completion": (
             "FORCED_RESIDENT_STARTUP_COMPLETE" in forced_text
         ),
-        "damage queue entered": "FORCED_HIT framebuffer_queue_damage" in forced_text,
-        "damage projection entered": "FORCED_HIT framebuffer_project_damage" in forced_text,
         "actor closure restore entered": "FORCED_HIT actor_closure_restore" in forced_text,
         "actor closure draw entered": "FORCED_HIT actor_closure_draw" in forced_text,
         "sparse framebuffer decoder entered": "FORCED_HIT sparse_blit_fb" in forced_text,
@@ -399,6 +411,11 @@ def main() -> None:
         ),
         "forced gameplay completion": "FORCED_COMPLETE" in forced_text,
     }
+    if not adaptive_rendering:
+        forced_required.update({
+            "damage queue entered": "FORCED_HIT framebuffer_queue_damage" in forced_text,
+            "damage projection entered": "FORCED_HIT framebuffer_project_damage" in forced_text,
+        })
     if runtime_role == "release":
         forced_required.update({
             "forced skull demo death": "DEMO_SKULL_FORCED" in demo_text,
@@ -792,6 +809,8 @@ def run_forced_gameplay_probe(
     loader_timeout: int,
     resident_timeout: int,
     forced_timeout: int,
+    breakpoint_specs: list[tuple[str, int]],
+    forced_gameplay_mask: int,
 ) -> str:
     """Run loader, resident-startup, then forced live gameplay markers."""
     xroar_process, port, startup_text, startup_ready = run_startup_phases(
@@ -808,14 +827,6 @@ def run_forced_gameplay_probe(
     try:
         if not startup_ready:
             return startup_text
-        breakpoint_specs = [
-            ("actor_closure_restore", 0x01),
-            ("framebuffer_queue_damage", 0x02),
-            ("framebuffer_project_damage", 0x04),
-            ("sparse_blit_stage", 0x08),
-            ("actor_closure_draw", 0x10),
-            ("sparse_blit_fb", 0x20),
-        ]
         commands = [
             "set pagination off",
             "set confirm off",
@@ -845,7 +856,7 @@ def run_forced_gameplay_probe(
                 f'printf "FORCED_HIT {name}\\n"',
                 f"set $gmc_mask = $gmc_mask | {bit}",
                 f"disable {breakpoint_number}",
-                f"if $gmc_mask == {FORCED_GAMEPLAY_MASK}",
+                f"if $gmc_mask == {forced_gameplay_mask}",
                 'printf "FORCED_WORKLIST_COMPLETE\\n"',
                 "end",
                 "continue",
@@ -875,7 +886,7 @@ def run_forced_gameplay_probe(
             "end",
             "continue",
             "end",
-            f"break *0x{presentation_entry} if $gmc_mask == {FORCED_GAMEPLAY_MASK} && $gmc_commit_count >= 1 && $gmc_commit_bad == 0",
+            f"break *0x{presentation_entry} if $gmc_mask == {forced_gameplay_mask} && $gmc_commit_count >= 1 && $gmc_commit_bad == 0",
             f"commands {completion_breakpoint}",
             "silent",
             'printf "FORCED_COMPLETE\\n"',

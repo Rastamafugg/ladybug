@@ -10,13 +10,15 @@ with tempfile.TemporaryDirectory() as temp:
  baseline=shared_text.SharedText(args,p)
  config=json.loads((root/'assets/arcade/text-colours.json').read_text())
  chosen=[next(r for r in baseline.records if r['screen']==screen and any(bytes.fromhex(r['mask']))) for screen in [*p.MAP_NAMES,'gameplay']]
- config['runs']=[dict(screen=r['screen'],x=r['x'],y=r['y'],width=1,colour=(r['colour']+1)%16) for r in chosen]
+ probe_runs=[dict(screen=r['screen'],x=r['x'],y=r['y'],width=1,colour=(r['colour']+1)%16) for r in chosen]
+ # Keep the authored colour runs and append isolated one-cell probes.
+ config['runs'].extend(probe_runs)
  config['fields']={k:v%15+1 for k,v in config['fields'].items()}
  args.text_colours=out/'colours.json';args.text_colours.write_text(json.dumps(config))
  variant=shared_text.SharedText(args,p)
  assert variant.font==baseline.font
- assert len(variant.records)==len(baseline.records)==509
- overrides={(r['screen'],r['x'],r['y']):r['colour'] for r in config['runs']}
+ assert len(variant.records)==len(baseline.records)==722
+ overrides={(r['screen'],r['x'],r['y']):r['colour'] for r in probe_runs}
  for a,b in zip(baseline.records,variant.records):
   assert {k:v for k,v in a.items() if k!='colour'}=={k:v for k,v in b.items() if k!='colour'}
   key=(a['screen'],a['x'],a['y'])
@@ -40,5 +42,5 @@ with tempfile.TemporaryDirectory() as temp:
  try:shared_text.SharedText(args,p)
  except ValueError as error:assert 'gameplay equals colour override conflicts with fields.bonus' in str(error)
  else:raise AssertionError('conflicting gameplay equals override was accepted')
- report=dict(status='pass',static_screens=7,static_cells=509,unchanged_masks=len(baseline.font),dynamic_fields=len(config['fields']),equals_default=equals['colour'],equals_alternate=11,matching_override=True,conflicting_override_rejected=True,scope='Authored colour overrides and generated constants; gameplay equals inherits fields.bonus and rejects conflicting overrides.')
+ report=dict(status='pass',static_screens=len(p.MAP_NAMES)+1,static_cells=len(baseline.records),unchanged_masks=len(baseline.font),dynamic_fields=len(config['fields']),equals_default=equals['colour'],equals_alternate=11,matching_override=True,conflicting_override_rejected=True,scope='Authored colour overrides and generated constants; gameplay equals inherits fields.bonus and rejects conflicting overrides.')
  (root/'repro/feat007/production/colour-configuration.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))

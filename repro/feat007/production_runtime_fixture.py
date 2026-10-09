@@ -36,8 +36,6 @@ def prepare(root):
     translated=bytearray(blob[:font_bytes])+fixture[328:840]
     translated.extend(new_masks.index(old_masks[g]) for g in fixture[840:904])
     for glyph,colour in zip(fixture[904::2],fixture[905::2]):
-        if (glyph,colour)==(0,3):
-            continue  # unused historical PART-zero typed descriptor
         translated.extend((new_masks.index(old_masks[glyph]),colour))
     translated[-1]=bonus
     assert bytes(blob)==bytes(translated),'independent font/descriptor fixture drift'

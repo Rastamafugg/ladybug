@@ -32,8 +32,8 @@ def main():
         subprocess.run([sys.executable,str(ROOT/'scripts/verify_shared_text.py'),'--build-dir',str(build)],check=True)
         subprocess.run([sys.executable,str(ROOT/'repro/feat007/verify_colour_configuration.py')],check=True)
         subprocess.run([sys.executable,str(ROOT/'repro/feat007/compare_instruction_records.py')],check=True)
-        assert len(shared['coverage'])==509
-        assert {r['screen'] for r in shared['coverage']}=={'attract','instructions','level-start','high-score','game-over','enter-high-score','gameplay'}
+        assert len(shared['coverage'])==722
+        assert {r['screen'] for r in shared['coverage']}=={'attract','instructions','level-start','high-score','game-over','enter-high-score','options','credits','keybind-options','gameplay'}
         assert shared['colour_configuration']==read(ROOT/'assets/arcade/text-colours.json')
         report.update(static=read(build/'shared-text-verification.json'),configuration=read(evidence/'colour-configuration.json'),instruction_data=read(evidence/'instruction-authored-data.json'))
     else:
