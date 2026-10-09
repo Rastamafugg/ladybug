@@ -69,6 +69,13 @@ MAP_FILES = {
 }
 DEVELOPMENT_PLACEHOLDER_MAPS = ("game-over", "enter-high-score")
 RELEASE_PLACEHOLDER_MAPS = ("instructions",)
+# The historical FEAT-003 harness is being built once for BUG-113's startup
+# marker. Keep authored validation for non-marker maps, but do not add their
+# unrelated tiles to its shared one-byte presentation atlas.
+HIGHSCORE_TEST_PLACEHOLDER_MAPS = (
+    "instructions", "level-start", "game-over", "options", "credits",
+    "keybind-options",
+)
 PAGE_BYTES = 0x2000
 COLD_PAGE = 0x3A
 COLD_PAGE_COUNT = 4
@@ -1568,12 +1575,12 @@ def compile_profile_maps(
     tile_ids: dict[bytes, int], development_profile: bool,
     highscore_test_profile: bool = False, complete_profile: bool = False,
 ) -> tuple[list[bytes], list[dict[str, object]]]:
-    """Validate every map while omitting unreachable development-profile maps."""
+    """Validate every map while omitting maps unreachable in the selected profile."""
     maps: list[bytes | None] = []
     map_info: list[dict[str, object]] = []
     placeholder_maps = (
         () if complete_profile
-        else RELEASE_PLACEHOLDER_MAPS if highscore_test_profile
+        else HIGHSCORE_TEST_PLACEHOLDER_MAPS if highscore_test_profile
         else DEVELOPMENT_PLACEHOLDER_MAPS if development_profile
         else RELEASE_PLACEHOLDER_MAPS
     )
@@ -1589,6 +1596,7 @@ def compile_profile_maps(
             maps.append(None)
             emission = (
                 "development-profile-black-placeholder" if development_profile
+                else "highscore-test-black-placeholder" if highscore_test_profile
                 else "release-profile-black-placeholder"
             )
         else:

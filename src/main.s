@@ -758,6 +758,9 @@ mainloop
         lda     #1
         sta     FB_RENDER_ACTIVE
 main_game_tick
+        ifne    HIGHSCORE_TEST_PROFILE
+        ; This historical profile cold-starts in name entry, not live play.
+        else
         lda     INITIAL_ENTRY_STATE
         beq     main_game_tick_normal
         lbsr    player_animation_tick
@@ -773,6 +776,7 @@ main_game_tick
 main_entry_render
         lbsr    render_frame
         bra     main_entry_audio
+        endc
 main_game_tick_normal
         ; Keep every player restore/mutation/redraw at the front of Vbord.
         ; Logical movement remains 30 Hz, queued by the preceding even frame.
@@ -842,6 +846,7 @@ main_entry_audio
 ; place that consumes the rightmost marker.  WALKOUT and MAZE_ENTRY use the
 ; existing PLAYER_TICK_PENDING cadence but never call gameplay movement.
 ;==============================================================================
+        ifeq    HIGHSCORE_TEST_PROFILE
 initial_entry_tick
         lda     INITIAL_ENTRY_STATE
         cmpa    #ENTRY_WAIT_STAGE
@@ -944,6 +949,7 @@ iet_maze_render
         sta     RENDER_FLAGS
 iet_done
         rts
+        endc
 
 ;==============================================================================
 ; Phase 5 score, HUD, and no-enemy stage state.
@@ -4237,7 +4243,9 @@ dt_finish_blank
         clr     PLAYER_BG_VALID
         clr     FB_META_A+FBM_PLAYER_VALID
         clr     FB_META_B+FBM_PLAYER_VALID
+        ifeq    HIGHSCORE_TEST_PROFILE
         lbsr    marker_entry_begin ; death path already consumed the reserve
+        endc
         clr     DEATH_STATE
         rts
 dt_game_over

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-114 — Historical highscore-test build restoration — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Ticket workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · bug</p>
+      <h1>BUG-114 — Historical highscore-test build restoration <span class="wiki-badge">Verification</span></h1>
+      <p class="wiki-meta">Restore one current-source high-score diagnostic ROM so BUG-113 can keep its approved MAME startup marker.</p>
+    </header>
+
+    <section>
+      <h2>Identity and ordering</h2>
+      <ul>
+        <li><strong>Status:</strong> Verification; implementation and both profile builds completed, QA review pending</li>
+        <li><strong>Bug risk class:</strong> High-risk, because the repair crosses the hard one-byte tile-ID limit and fixed demo-runtime, resident, asset, module, and cartridge capacities</li>
+        <li><strong>Priority / order:</strong> P2 / 15.2, before BUG-113</li>
+        <li><strong>Created / updated:</strong> 2026-10-09 / 2026-10-09</li>
+        <li><strong>Owner:</strong> parent agent; no delegation proposed</li>
+        <li><strong>Dependencies:</strong> DOC-007 is complete. BUG-113 is downstream and remains Approved, not Ready, until this profile build is restored.</li>
+        <li><strong>Related tickets:</strong> <a href="./feat-003-high-score-presentation.html">FEAT-003</a> is Done. <a href="./bug-113-gmc-bank-select-address.html">BUG-113</a> retains the approved $FF40 change and high-score startup marker.</li>
+        <li><strong>Current source revision:</strong> <code>1893399155b2fb75a0f4ab437106ec82066d37a1</code></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Restore one build of the historical <code>highscore-test</code> profile from current source so BUG-113 can compare the existing <code>$FF50</code> image with its <code>$FF40</code> candidate while retaining the approved high-score name-entry startup marker. FEAT-003 completed and <code>complete</code> is the production default, so this proposal does not establish the diagnostic profile as an ongoing production or routine verification target.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>At source revision <code>1893399155b2fb75a0f4ab437106ec82066d37a1</code>, the checked-in <code>LADYBUG_PROFILE=highscore-test bash scripts/build.sh build</code> first fails before assembly. <code>scripts/build_presentation.py</code> rejects tile ID <code>256</code> while compiling <code>coco-credits-screen.tmx</code> cell <code>(21,8)</code>, with <code>257</code> unique tiles; the instrumented attribution is retained in <a href="evidence/bug114/highscore-test-overflow-attribution-20261009.json">this receipt</a>. A first menu-placeholder candidate then remained at <code>257</code> after timer tile registration; its result is <a href="evidence/bug114/highscore-test-menu-placeholder-attempt-20261009.json">retained separately</a>.</p>
+      <p>The six-map placeholder candidate passes presentation and BUG-016 proofs: 9 maps, 210 tiles, 4,589 cold bytes, and the four-page bound. Assembly then exits at <code>src/main.s:870</code> with undefined symbol <code>life_marker_position</code>. Its manifest, capacity checks, source hashes, and failure attribution are retained in <a href="evidence/bug114/highscore-test-undefined-life-marker-position-20261009.json">this receipt</a>. No HST ROM was produced; the pre-existing ROM file remains the complete-profile baseline, not an HST candidate.</p>
+      <p>After the user-directed HST omission of live marker-entry code, the next authorized build passed presentation, resident, asset, audio, page-$3D, and presentation-module guards, but stopped at the demo-runtime guard: <code>940/938</code> bytes, ending at <code>$06AC</code> against fixed limit <code>$06AA</code>. No HST ROM was produced. The generated listing places the first HST-only <code>lbeq highscore_name_tick</code> at <code>$0304</code> with bytes <code>10 27 00 42</code>; the target is <code>$034A</code>. A short <code>beq</code> would branch forward 68 bytes and save exactly 2 bytes, projecting a 938-byte runtime. This is static analysis of the failed-build listing, not a passing build; see <a href="evidence/bug114/highscore-test-demo-runtime-overflow-20261009.json">the retained receipt</a>.</p>
+      <p>On the same source revision, the <code>complete</code> profile builds a 65,536-byte ROM with SHA-256 <code>7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce</code>; measured limits are resident <code>8149/8192</code> bytes, assets <code>7671/7680</code>, and presentation module <code>1262/1280</code>. These are single-build baseline observations, not headroom projections for a repaired profile. The receipt is <a href="evidence/bug113/bug113-preapproval-diagnostics.json">BUG-113 pre-approval diagnostics</a>.</p>
+      <p><a href="../tooling/runtime-profiles.html">Runtime-profile history</a> records <code>highscore-test</code> as the FEAT-003 diagnostic harness. FEAT-003 began after its visible renderer exceeded the locked presentation module by 203 bytes, then used profile isolation to build and test high-score/name-entry behavior. FEAT-003 is now Done; <code>complete</code> is the current production profile. The build scripts still accept <code>highscore-test</code>, but that does not make its current failing build a supported launch target.</p>
+
+      <h3>Reproduction and observed versus expected</h3>
+      <ol>
+        <li>Run <code>LADYBUG_PROFILE=highscore-test bash scripts/build.sh build</code> at the pinned source revision.</li>
+        <li>Observed on checked-in source: presentation generation exits because the atlas reaches 257 tiles. The six-map candidate clears the atlas guard but fails assembly because <code>life_marker_position</code> is undefined for this profile. After the user-directed omission, the current candidate reaches the demo-runtime guard and fails at <code>940/938</code>.</li>
+        <li>Expected: the command emits a valid 65,536-byte GMC image, preserves the high-score name-entry initial map, and passes existing layout and capacity guards.</li>
+      </ol>
+
+      <h3>Confirmed cause and unresolved detail</h3>
+      <p><strong>Confirmed causes:</strong> the shared atlas first overflows on credits-map compilation and remains one tile over after name-entry timer variants are registered. The six-map placeholder candidate validates all authored maps independently, emits placeholders for instructions, level-start, game-over, options, credits, and keybind-options, retains attract/high-score/enter-high-score, and passes the 256-ID guard. It then exposes an assembly dependency: the nonadaptive HST mainline compiles a live-entry branch and its <code>initial_entry_tick</code>/<code>marker_entry_begin</code> routines, which reference <code>life_marker_position</code>; that helper is defined in <code>src/shared_text_runtime.inc</code>, included only under <code>COMPLETE_PROFILE</code>. HST's required cold-start route is name-entry/high-score; FEAT-003 live gameplay is out of scope. The user directed omission of the HST-only live-entry branch, routines, and death-path hook. This resolves the unused helper reference without adding asset bytes or changing the complete-profile runtime. Temporary diagnostic instrumentation was reverted.</p>
+      <p><strong>Newly confirmed boundary:</strong> with those omissions, all measured checks before the demo-runtime guard pass, but the highscore-test demo runtime is 2 bytes larger than its fixed allowance. The generated map/listing confirms the HST-only branch at <code>$0304</code> was encoded as a four-byte long conditional branch to the <code>highscore_name_tick</code> symbol. Replacing it with the two-byte short form preserves the condition and symbol target within the signed 8-bit relative range and was projected to recover exactly the 2-byte deficit. At proposal time, no code change had yet been made in <code>src/demo_runtime.s</code>.</p>
+      <p>The user approved the single short-branch change. The HST build now exits successfully with demo runtime <code>938/938</code>, emits a 65,536-byte ROM with SHA-256 <code>0d2884132597aa26f235ad37eb3be5055e5db9268fc58a03145b7f7d901ea02d</code>, and retains <code>enter-high-score</code> as an authored map. The baseline ROM is preserved at <a href="evidence/bug114/highscore-test-baseline.rom">this evidence artifact</a>; detailed build/capacity evidence is in the <a href="evidence/bug114/highscore-test-build-success-20261009.json">success receipt</a> and <a href="evidence/bug114/highscore-test-build-log-excerpt-20261009.txt">build-log excerpt</a>. The same-revision complete build exits successfully and reproduces baseline ROM SHA-256 <code>7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce</code>. BUG-113 still owns the MAME marker comparison.</p>
+
+      <h3>Scope</h3>
+      <p><strong>Previously approved work retained:</strong> use the existing isolated-authored-map validation and placeholder path for <code>instructions</code>, <code>level-start</code>, <code>game-over</code>, <code>options</code>, <code>credits</code>, and <code>keybind-options</code> in the historical highscore-test profile; preserve authored <code>attract</code>, <code>high-score</code>, and <code>enter-high-score</code>; omit the HST-only live-entry dispatch branch, its <code>initial_entry_tick</code>/<code>marker_entry_begin</code> routines, and the death-path call from <code>src/main.s</code>.</p>
+      <p><strong>Proposed addition, pending approval:</strong> in <code>src/demo_runtime.s</code>, change only the first HST-only <code>lbeq highscore_name_tick</code> at the name-mode dispatch to <code>beq highscore_name_tick</code>. The current listing shows a forward displacement of 68 bytes, within the short-branch range; the projected runtime decreases from 940 to 938 bytes, meeting the existing <code>$06AA</code> end limit exactly. Then produce one current-source HST baseline ROM for BUG-113; retain build identity, map, capacity, and profile-isolation evidence; and mark the profile historical after its one-time use.</p>
+      <p><strong>Out:</strong> any second code-size optimization or further HST runtime reduction without renewed approval; changing FEAT-003 gameplay or its Done status; changing the <code>complete</code> production image or other profile behavior; adding a substitute helper or gameplay implementation to HST; widening map IDs or changing runtime decoding; changing loader/MMU ownership; expanding any cartridge, atlas, module, RAM, or payload boundary; retesting all FEAT-003 gameplay scenarios; adding ongoing CI or future maintenance guarantees; changing BUG-113's bank-select code or MAME result criteria.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li><strong>Highscore-test generation and assembly:</strong> validate all authored maps, emit the six non-marker maps as explicit profile placeholders, omit the live-entry references only from HST, and build the retained startup/high-score maps and high-score auxiliary. Risk covered: the historical profile closes the atlas and undefined-symbol failures within fixed bounds.</li>
+        <li><strong>HST runtime exclusion:</strong> confirm HST assembly omits <code>initial_entry_tick</code>, <code>marker_entry_begin</code>, and their call sites while retaining the deterministic name-entry/high-score startup. Risk covered: the profile-specific exclusion does not remove the approved BUG-113 startup marker.</li>
+        <li><strong>HST runtime fit:</strong> verify the one approved short-branch edit reaches the same <code>highscore_name_tick</code> target and the demo runtime ends at or before <code>$06AA</code>. Risk covered: the marker-preserving HST path fits its fixed auxiliary region without relaxing the limit.</li>
+        <li><strong>Historical-marker startup contract:</strong> confirm generated startup data selects <code>PRESENTATION_MAP_ENTER_HIGH_SCORE</code>. Risk covered: a buildable ROM still preserves the BUG-113 visual marker.</li>
+        <li><strong>Complete-profile isolation:</strong> rebuild the production profile at the same source revision and compare its ROM hash with the pinned baseline. Risk covered: a shared generator edit does not alter production bytes or capacity.</li>
+        <li><strong>Capacity rejection:</strong> keep the 256-entry atlas and all existing module, resident, asset, cold-payload, and GMC-size guards active. Risk covered: a local repair does not hide or relocate an unrelated hard-boundary failure.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <ul>
+        <li><strong>Approved baseline direction:</strong> retain the six-map placeholder path and omit the live marker-entry dispatch, routines, and death hook from HST. The user explicitly requested this change. Keep the complete profile unchanged and do not use this ROM for FEAT-003 gameplay/menu verification.</li>
+        <li><strong>Recommended addition pending approval:</strong> shorten only the HST name-mode dispatch branch to recover the exact 2-byte runtime deficit. It preserves the same target and condition, does not move the fixed limit, and has no projected production-profile byte effect.</li>
+        <li><strong>Widen the tile-ID protocol:</strong> rejected. It changes map encoding and runtime consumers to solve a one-time historical diagnostic need.</li>
+        <li><strong>Use the complete-profile attract marker:</strong> not selected. The user directed BUG-113 to retain the approved high-score marker.</li>
+        <li><strong>Keep maintaining highscore-test:</strong> excluded. FEAT-003 is Done; this proposal restores one image for BUG-113 only and does not make future builds an acceptance target.</li>
+      </ul>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>At the assigned current source revision, <code>LADYBUG_PROFILE=highscore-test bash scripts/build.sh build</code> exits successfully and produces an exact 65,536-byte ROM.</li>
+        <li>Retain the three failed/candidate build results and selected map set. All authored maps validate, the six omitted maps appear as placeholders, every emitted map ID remains in <code>0..255</code>, the atlas contains at most 256 tiles, HST contains no live marker-entry dispatch/routines/death hook or unresolved <code>life_marker_position</code> reference, and startup data selects <code>PRESENTATION_MAP_ENTER_HIGH_SCORE</code>.</li>
+        <li>All existing resident, asset, module, cold-payload, and GMC layout guards remain enabled and pass. Confirm the HST-only assembly exclusion leaves the complete profile byte-identical. No hard boundary or one-byte map protocol changes.</li>
+        <li>The HST-only short-branch edit assembles to the same conditional target, reduces the demo runtime by exactly 2 bytes to at most <code>938/938</code>, and leaves every fixed address/limit unchanged.</li>
+        <li>The same-revision <code>complete</code> profile build remains byte-identical to baseline ROM SHA-256 <code>7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce</code> and passes its existing limits.</li>
+        <li>Retain the current-source highscore-test ROM artifact and SHA-256, source revision, build-log excerpt, atlas count, startup-map proof, and capacity summary. BUG-113 owns the paired MAME baseline/candidate runs and visible acceptance.</li>
+        <li>Record <code>highscore-test</code> as historical and one-time for BUG-113 after this build is delivered; do not claim FEAT-003 regression acceptance or ongoing profile support.</li>
+      </ol>
+
+      <h3>Dependencies and ordering</h3>
+      <p>BUG-114 precedes BUG-113. BUG-113 may become Ready only after this ticket is approved, the profile build is restored, and the assignment/evidence are integrated. BUG-114 does not change BUG-113's approved code scope or high-score marker.</p>
+
+      <h3>Assignment contract</h3>
+      <ul>
+        <li><strong>Owned artifacts:</strong> <code>scripts/build_presentation.py</code>, <code>src/main.s</code>, and, if approved, the single HST-only branch in <code>src/demo_runtime.s</code>; update <code>wiki/internal/tooling/runtime-profiles.html</code>, this ticket, BUG-113, the ticket index, and the project log. No new verifier or Tiled map edits are proposed.</li>
+        <li><strong>Implementation constraints:</strong> preserve the approved HST live-entry omissions; shorten only the named HST name-mode dispatch branch; preserve all conditions, targets, startup behavior, and complete-profile bytes. Retain byte-sized map IDs and every current hard limit; do not change loader or GMC mapping.</li>
+        <li><strong>Required commands:</strong> run the highscore-test build and the same-revision complete build. Do not run the full FEAT-003 gameplay suite; BUG-113 owns the single MAME paired startup experiment.</li>
+        <li><strong>Evidence:</strong> retain concise logs, hashes, the initial overflow attribution, map ID count/range, startup-map identity, and capacity summary under <code>wiki/internal/tickets/evidence/bug114/</code>.</li>
+        <li><strong>Commit:</strong> one bounded implementation commit after approval; do not push or merge.</li>
+        <li><strong>Completion report:</strong> report source revision and commit, both build results, measured capacity versus fixed limits, ROM hashes, rejected packing options, residual risks, evidence links, and whether BUG-113 can move to Ready.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-10-09 — The approved HST-only <code>lbeq</code> to <code>beq</code> edit passes: demo runtime is exactly <code>938/938</code> bytes, and the full HST build produces ROM <code>0d2884132597aa26f235ad37eb3be5055e5db9268fc58a03145b7f7d901ea02d</code>. The current-source complete build also passes with ROM SHA-256 identical to pinned baseline <code>7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce</code>. Preserved the HST ROM for BUG-113 and retained capacity/build evidence. Moved In Progress → Verification for QA; no MAME or full FEAT-003 gameplay run was performed.</li>
+        <li>2026-10-09 — The user explicitly approved shortening only the HST-only <code>lbeq highscore_name_tick</code> at <code>$0304</code> to <code>beq</code>, with the existing 938-byte demo-runtime limit unchanged. Revised scope advanced Proposed → Approved. The assignment already names the exact artifacts, build commands, evidence, capacity and profile-isolation checks; advanced Approved → Ready → In Progress for parent implementation.</li>
+        <li>2026-10-09 — After the user-directed live-entry omission, the HST build passed the presentation, resident, asset, audio, page-$3D, and module checks but failed the fixed demo-runtime guard at <code>940/938</code>. The map/listing shows the first HST-only name-mode <code>lbeq</code> uses four bytes and targets <code>$034A</code> from <code>$0304</code>; its short <code>beq</code> form would save exactly two bytes. This adds <code>src/demo_runtime.s</code> to the approved assignment scope, so BUG-114 returns to <code>Proposed</code>. Proposed acceptance is a bounded change to that branch only; no further size reduction is included. No ROM, commit, or MAME probe exists. <a href="evidence/bug114/highscore-test-demo-runtime-overflow-20261009.json">Failure receipt</a>.</li>
+        <li>2026-10-09 — The user directed HST to omit the live marker-entry dispatch, routines, and death hook instead of adding a helper. This authorizes the revised profile-specific assembly scope while preserving the approved high-score startup marker. Advanced the revised ticket from <code>Proposed</code> to <code>Approved</code>.</li>
+        <li>2026-10-09 — Exact ownership, build commands, capacity gates, evidence retention, and BUG-113 dependency are recorded for the revised scope. Advanced from <code>Approved</code> to <code>Ready</code>, then started parent-owned implementation.</li>
+        <li>2026-10-09 — QA review before the revised scope: the six-map placeholder candidate's single-build observations are atlas <code>210/256</code> tiles and cold payload <code>4,589/10,874</code> bytes; audio is <code>734/920</code> bytes and page-$3D payload is <code>5,675/8,192</code> bytes. Presentation and BUG-016 proofs pass, but the full build fails at <code>src/main.s:870</code> on undefined <code>life_marker_position</code>. Final resident/asset usage, a candidate ROM, and complete-profile identity after the generator edit remain unverified. No commit or MAME probe exists.</li>
+        <li>2026-10-09 — The six-map placeholder candidate passed presentation and BUG-016 proofs with 9 maps, 210 tiles, and 4,589 cold bytes, but assembly failed at <code>src/main.s:870</code> because <code>life_marker_position</code> is absent from the HST image. Static inspection confirms its definition is included only for <code>COMPLETE_PROFILE</code>. No HST ROM was produced. Returned BUG-114 to <code>Proposed</code> because the required <code>src/main.s</code> helper changes the approved artifact scope; renewed approval is required.</li>
+        <li>2026-10-09 — A build with placeholders for options, credits, and keybind-options still failed after adding name-entry timer variants: the atlas count was 257. This rejected candidate shows the overflow also includes post-map high-score data, so those three placeholders are insufficient.</li>
+        <li>2026-10-09 — Reproduced the initial overflow with temporary diagnostics: the first offending cell is <code>coco-credits-screen.tmx</code> <code>(21,8)</code>, tile ID <code>256</code>, unique tile count <code>257</code>. Revised the profile-local placeholder set to omit only maps outside the approved one-time name-entry/high-score startup route; temporary instrumentation was reverted.</li>
+        <li>2026-10-09 — Started the approved Ready assignment. Ticket status is In Progress; implementation is limited to profile-specific map emission and existing capacity guards.</li>
+        <li>2026-10-09 — Assignment and dependency gates are complete: DOC-007 is Done, exact source artifacts and build commands are recorded, and the profile-local boundary/reassessment rules are fixed. Advanced BUG-114 from <code>Approved</code> to <code>Ready</code>; no code changed.</li>
+        <li>2026-10-09 — The user explicitly approved the original one-time BUG-114 restoration outcome. Advanced from <code>Proposed</code> to <code>Approved</code>.</li>
+        <li>2026-10-09 — Proposed a one-time profile-build restoration after the current build failed at the one-byte presentation atlas guard. The user directed that BUG-113 keep its high-score marker and that highscore-test be treated as historical after this use. No production source, generator, or runtime code changed.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Verification: the one-time HST ROM is produced and preserved; the exact 938-byte runtime limit passes, and the complete profile remains byte-identical to baseline. MAME acceptance is assigned to BUG-113. QA review determines whether BUG-114 can close and BUG-113 can advance to Ready.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

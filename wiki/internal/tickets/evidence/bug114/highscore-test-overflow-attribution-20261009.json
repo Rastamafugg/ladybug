@@ -1,0 +1,24 @@
+{
+  "ticket": "BUG-114",
+  "capturedDate": "2026-10-09",
+  "sourceRevision": "1893399155b2fb75a0f4ab437106ec82066d37a1",
+  "branch": "main",
+  "relevantAuthoredInputsCleanBeforeProbe": true,
+  "command": "LADYBUG_PROFILE=highscore-test bash scripts/build.sh build",
+  "probe": "One temporary diagnostic exception message recorded source map, cell coordinates, assigned tile ID, and current unique tile count. The diagnostic edit was reverted immediately after the run.",
+  "exitCode": 1,
+  "lastMarker": "scripts/build_presentation.py compile_profile_maps -> compile_map before ROM assembly",
+  "result": {
+    "map": "tiled/coco-credits-screen.tmx",
+    "cell": [21, 8],
+    "assignedTileId": 256,
+    "uniqueTileCount": 257,
+    "message": "presentation atlas overflow: coco-credits-screen.tmx cell (21,8) tile ID 256; unique tile count 257"
+  },
+  "restoredGeneratorSha256": "bde5831df82c1d81742f62b0814637f7f14d9eaa755d56a20c4874a0f9ccd4fd",
+  "romBuilt": false,
+  "runtimeOrEmulatorProbe": false,
+  "sourceRouteFinding": "Highscore-test starts at PRESENTATION_MAP_ENTER_HIGH_SCORE and skips the complete-profile menu path; options, credits, and keybind-options are complete-profile menu screens.",
+  "candidateDesign": "Use the existing authored-map validation and placeholder emission path for those three menu-only maps in highscore-test; preserve the byte-ID and capacity guards.",
+  "residual": "The passing post-repair highscore-test build and unchanged complete ROM identity remain required by BUG-114."
+}

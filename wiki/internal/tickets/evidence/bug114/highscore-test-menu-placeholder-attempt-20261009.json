@@ -1,0 +1,20 @@
+{
+  "ticket": "BUG-114",
+  "capturedDate": "2026-10-09",
+  "sourceRevision": "1893399155b2fb75a0f4ab437106ec82066d37a1",
+  "branch": "main",
+  "candidateGeneratorSha256": "6989448f492d488aad566c84b91b32f2ecb8ab6aadc225cc3dcafd099b38490",
+  "command": "LADYBUG_PROFILE=highscore-test bash scripts/build.sh build",
+  "candidate": "Use the existing validated-map placeholder mechanism for options, credits, and keybind-options only.",
+  "exitCode": 1,
+  "lastMarker": "scripts/build_presentation.py final one-byte atlas guard after high-score timer-green tile registration",
+  "result": {
+    "message": "presentation atlas contains 257 tiles; one-byte limit is 256",
+    "uniqueTileCount": 257,
+    "tileLimit": 256
+  },
+  "romBuilt": false,
+  "runtimeOrEmulatorProbe": false,
+  "conclusion": "The three menu-map placeholders remove the first map-compilation overflow but do not fit the full HST tile set. Candidate rejected. A revised one-time marker build will retain attract, high-score, and enter-high-score and emit placeholders for the remaining six maps.",
+  "residual": "Run one bounded build after expanding the profile-local placeholder set. If that candidate also fails, stop and reassess before another build."
+}

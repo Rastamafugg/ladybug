@@ -1,0 +1,32 @@
+BUG-114 current-source verification log excerpt
+Source revision: 1893399155b2fb75a0f4ab437106ec82066d37a1
+
+HST command:
+LADYBUG_PROFILE=highscore-test bash scripts/build.sh build
+Exit code: 0
+build: resident 8026/8192 bytes; assets 7324/7680 bytes
+build: page-$34 enemy helper 87/93 bytes at $A8A0-$A8F6; six bytes remain
+build: presentation module 1237/1280 bytes
+build: demo runtime 938/938 bytes
+build: instruction runtime 937/938 bytes
+build: presentation helper 331/334 bytes
+sparse proof: 8 loader segments reconstruct actor, gate, presentation, cold, module, page-$34 enemy helper, audio, and auxiliary payloads with 22574 bytes spare
+build: GMC banks 4 x 16384 -> 65536 bytes (/mnt/e/projects/ladybug/build/ladybug.rom)
+FEAT-003 isolation: profile=highscore-test module=1237/1280 rom=0d2884132597aa26f235ad37eb3be5055e5db9268fc58a03145b7f7d901ea02d passed
+Preserved artifact: wiki/internal/tickets/evidence/bug114/highscore-test-baseline.rom
+
+Complete-profile command:
+LADYBUG_PROFILE=complete bash scripts/build.sh build
+Exit code: 0
+build: resident 8149/8192 bytes; assets 7671/7680 bytes
+build: presentation module 1262/1280 bytes
+build: demo runtime 143/938 bytes
+build: high-score runtime 917/938 bytes
+build: instruction runtime 935/938 bytes
+build: presentation helper 331/334 bytes
+build: audio engine 734/920 bytes; page-$3D payload 6656/8192 bytes
+sparse proof: 12 loader segments reconstruct actor, gate, presentation, cold, module, page-$34 enemy helper, audio, and auxiliary payloads with 11855 bytes spare
+build: GMC banks 4 x 16384 -> 65536 bytes (/mnt/e/projects/ladybug/build/ladybug.rom)
+source documentation: PASS: 16 modules, 312/312 routines, 5038/5038 labels
+Complete ROM SHA-256: 7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce
+Pinned complete-profile baseline SHA-256: 7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce

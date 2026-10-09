@@ -1,0 +1,62 @@
+{
+  "ticket": "BUG-114",
+  "observed_at": "2026-10-09",
+  "source_revision": "1893399155b2fb75a0f4ab437106ec82066d37a1",
+  "worktree_state": "dirty; BUG-114 changes in scripts/build_presentation.py and src/main.s were included",
+  "command": "wsl.exe -- bash -lc 'cd /mnt/e/projects/ladybug && LADYBUG_PROFILE=highscore-test bash scripts/build.sh build'",
+  "exit_code": 1,
+  "result": "Presentation proofs and all reported capacities before the demo-runtime guard passed. Build stopped at the fixed demo-runtime limit. No highscore-test ROM was produced.",
+  "reported_capacity_observations": {
+    "presentation_maps": 9,
+    "presentation_tiles": 210,
+    "presentation_tile_limit": 256,
+    "cold_payload_bytes": 4589,
+    "cold_payload_limit_bytes": 10874,
+    "audio_engine_bytes": 734,
+    "audio_engine_limit_bytes": 920,
+    "page_3d_payload_bytes": 5675,
+    "page_3d_payload_limit_bytes": 8192,
+    "resident_bytes": 8026,
+    "resident_limit_bytes": 8192,
+    "asset_bytes": 7324,
+    "asset_limit_bytes": 7680,
+    "presentation_module_bytes": 1237,
+    "presentation_module_limit_bytes": 1280,
+    "demo_runtime_bytes": 940,
+    "demo_runtime_limit_bytes": 938,
+    "demo_runtime_start": "0x0300",
+    "demo_runtime_observed_end": "0x06AC",
+    "demo_runtime_limit_end": "0x06AA"
+  },
+  "failed_guard_output": "build: demo runtime ends at $06AC; limit is $06AA",
+  "demo_runtime_artifacts": {
+    "source_sha256": "58F07BA9D5C31668543A5BEECFD653A3FEE8C71C00E657D4971D46CC8FB920B3",
+    "binary_sha256": "0E954DEDB821DD5D5B938B27267C366B5A8C3F8D5A8C45AEA584E6112B3FBCA9",
+    "map_sha256": "8151FB422AD41AA53ACADFB0F013360D4C4B5758E5A06995BB9AC92D3441C971",
+    "listing_sha256": "9AEC791B714DDEB74AAF436881A9C9D9F2AB7B6E9956DC45BADD64CE4112BDEB"
+  },
+  "listing_observation": {
+    "source": "build/ladybug-demo-runtime.lst",
+    "source_line": 426,
+    "instruction": "lbeq highscore_name_tick",
+    "address": "0x0304",
+    "encoded_bytes": "10 27 00 42",
+    "target": "0x034A",
+    "target_offset_after_short_branch": 68,
+    "short_branch_range": "signed 8-bit relative displacement",
+    "interpretation": "A short beq to the same target would save 2 bytes and project 938/938 bytes. This is static analysis only; no source edit or assembling verification was performed."
+  },
+  "candidate_source_sha256": {
+    "scripts/build_presentation.py": "22DC73014141B3C0EC810B473CB3F55FB63BB9945B4C2CC28BFD3B3F2F4D94F1",
+    "src/main.s": "062ACF672997EE813B4AF659882940AE6C576575FBAEC1954BE4D048761E3F02",
+    "src/demo_runtime.s": "58F07BA9D5C31668543A5BEECFD653A3FEE8C71C00E657D4971D46CC8FB920B3"
+  },
+  "existing_rom": {
+    "path": "build/ladybug.rom",
+    "sha256": "7A676D149BF2E46771B1341FE90B03479B5D79C5D7CEECEF75FDA37269D6EDCE",
+    "identity": "pre-existing complete-profile baseline; not an HST candidate"
+  },
+  "runtime_probe": "not run",
+  "mame_probe": "not run",
+  "commit": null
+}

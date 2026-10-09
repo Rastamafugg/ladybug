@@ -423,7 +423,7 @@ demo_runtime_tick
         ifne    HIGHSCORE_TEST_PROFILE
         lda     PRES_MODE
         cmpa    #MODE_NAME
-        lbeq    highscore_name_tick
+        beq     highscore_name_tick
         cmpa    #MODE_GAMEOVER
         ifne    COMPLETE_PHASE_AUX
         lbeq    highscore_name_tick

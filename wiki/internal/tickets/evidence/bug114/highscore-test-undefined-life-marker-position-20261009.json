@@ -1,0 +1,35 @@
+{
+  "ticket": "BUG-114",
+  "capturedDate": "2026-10-09",
+  "sourceRevision": "1893399155b2fb75a0f4ab437106ec82066d37a1",
+  "branch": "main",
+  "worktreeCandidate": true,
+  "candidateGeneratorSha256": "22dc73014141b3c0ec810b473cb3f55fb63bb9945b4c2cc28bfd3b3f2f4d94f1",
+  "mainSourceSha256": "40ee46760be61218d7d46f0a98ea9ce55328c88cb7dd3581dd6c47e71c20c96b",
+  "command": "LADYBUG_PROFILE=highscore-test bash scripts/build.sh build",
+  "exitCode": 1,
+  "presentation": {
+    "manifestSha256": "1239ea892eaefc9d9094b1e705e18bc5f6a9a8ea28a33b4d0602fe3f4739c174",
+    "mapCount": 9,
+    "tileCount": 210,
+    "authoredMaps": ["attract", "high-score", "enter-high-score"],
+    "placeholderMaps": ["instructions", "level-start", "game-over", "options", "credits", "keybind-options"],
+    "coldPayloadBytes": 4589,
+    "coldPayloadSha256": "db9c3126de5de27b4d29e491e4fb793df2233f2920ae3a9af5a89567edaee8d9",
+    "proof": "Presentation proof passed: 9 maps, 210 tiles, 4589 bytes, hashes and four-page bound valid. BUG-016 presentation proof passed."
+  },
+  "otherBuildChecks": [
+    "Audio engine 734/920 bytes passed its size guard.",
+    "Page-$3D payload 5675/8192 bytes passed its size guard."
+  ],
+  "failure": {
+    "lastMarker": "lwasm src/main.s:870",
+    "message": "Undefined symbol life_marker_position",
+    "staticCause": "The HST build compiles the nonadaptive mainline and marker-entry routine, which reference life_marker_position. That routine is defined in src/shared_text_runtime.inc, included from src/main.s only under COMPLETE_PROFILE."
+  },
+  "romBuilt": false,
+  "runtimeOrEmulatorProbe": false,
+  "existingBuildRomSha256": "7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce",
+  "existingBuildRomNote": "The file still matches the previously retained complete-profile baseline; it is not an HST candidate from this failed build.",
+  "reassessment": "The approved presentation-generator-only scope is insufficient. A renewed proposal is required before adding an HST-only life_marker_position helper or otherwise changing runtime assembly."
+}
